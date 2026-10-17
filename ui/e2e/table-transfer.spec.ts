@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockTauriIPC, ipcCalls, live, overrideIPC, DEFAULT_USER, DEFAULT_ORDER, tapUserTile } from './fixtures/mock-ipc';
+import { mockTauriIPC, ipcCalls, live, overrideIPC, DEFAULT_USER, DEFAULT_ORDER, DEFAULT_CART_LINE, tapUserTile } from './fixtures/mock-ipc';
 
 // Moving an open order to another table (command transfer_table), from
 // the cart and from the Tables screen's "Déplacer une table" mode.
@@ -75,6 +75,75 @@ test.describe('From the cart', () => {
     await expect(page.getByText('Bon de commande non imprimé')).toBeVisible();
   });
 
+  test('the cart header shows the new table and the pending lines are marked sent', async ({ page }) => {
+    const pending = { ...DEFAULT_CART_LINE, quantity: 2, unsent_quantity: 2 };
+    await openTable1(page, { list_cart_lines: () => [pending] });
+    await expect(page.locator('.cart-header h2')).toHaveText(/Table 1$/);
+    await expect(page.locator('.pending-label')).toBeVisible();
+    await expect(page.locator('.order-line.pending')).toHaveCount(1);
+
+    // The engine registers what was unsent before it moves the table.
+    await overrideIPC(page, 'get_order', { ...DEFAULT_ORDER, table_number: 5, total_cents: 2400 });
+    await page.getByTestId('transfer-table').click();
+    await page.getByTestId('pick-table-5').click();
+    await page.getByTestId('transfer-confirm').click();
+
+    await expect(page.getByText('Commande déplacée vers la table 5')).toBeVisible();
+    await expect(page.locator('.cart-header h2')).toHaveText(/Table 5$/);
+    await expect(page.locator('.pending-label')).toHaveCount(0);
+    await expect(page.locator('.order-line.pending')).toHaveCount(0);
+    await expect(page.locator('.order-line')).toHaveCount(1);
+  });
+
+  test('is hidden while the order has no line, and shown once it has one', async ({ page }) => {
+    await openTable1(page, { list_cart_lines: () => [] });
+    await expect(page.locator('.cart-empty')).toBeVisible();
+    await expect(page.getByTestId('transfer-table')).toHaveCount(0);
+
+    await page.locator('.item-btn').first().click();
+    await expect(page.locator('.order-line')).toHaveCount(1);
+    await expect(page.getByTestId('transfer-table')).toBeVisible();
+  });
+
+  test('says so when no table is free, and moves nothing', async ({ page }) => {
+    // Every table is busy but table 1, the order's own.
+    const busy: Record<number, number> = {};
+    for (let n = 2; n <= 20; n++) busy[n] = 100 + n;
+    await openTable1(page, { list_tables: tables(busy) });
+    await page.getByTestId('transfer-table').click();
+
+    const picker = page.getByTestId('table-picker');
+    await expect(picker).toBeVisible();
+    await expect(picker).toContainText('Aucune table libre');
+    await expect(picker.locator('.pick')).toHaveCount(0);
+    await expect(picker.getByTestId('transfer-confirm')).toBeDisabled();
+    expect(await ipcCalls(page, 'transfer_table')).toHaveLength(0);
+  });
+
+  test('Retour and the backdrop close the picker without a call', async ({ page }) => {
+    await openTable1(page);
+    await page.getByTestId('transfer-table').click();
+    const picker = page.getByTestId('table-picker');
+    await picker.getByTestId('pick-table-5').click();
+    await picker.getByRole('button', { name: 'Retour' }).click();
+    await expect(picker).toHaveCount(0);
+
+    await page.getByTestId('transfer-table').click();
+    await expect(picker).toBeVisible();
+    await page.mouse.click(5, 5);
+    await expect(picker).toHaveCount(0);
+    expect(await ipcCalls(page, 'transfer_table')).toHaveLength(0);
+  });
+
+  test('a failed table list shows an error and no picker', async ({ page }) => {
+    await openTable1(page);
+    await overrideIPC(page, 'list_tables', { __reject: 'some_code' });
+    await page.getByTestId('transfer-table').click();
+    await expect(page.locator('.toast-error')).toBeVisible();
+    await expect(page.getByTestId('table-picker')).toHaveCount(0);
+    expect(await ipcCalls(page, 'transfer_table')).toHaveLength(0);
+  });
+
   test('is absent for a takeaway', async ({ page }) => {
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,
@@ -129,6 +198,37 @@ test.describe('From the Tables screen', () => {
     expect(calls[0]).toMatchObject({ orderId: 42, toTable: 7 });
     // The mode is left: tapping a table opens it again.
     await expect(page.getByTestId('move-hint')).toHaveCount(0);
+  });
+
+  test('a refusal shows the error, leaves the mode and reads the plan again', async ({ page }) => {
+    await overrideIPC(page, 'transfer_table', { __reject: 'table_transfer_target_busy' });
+    const before = (await ipcCalls(page, 'list_tables')).length;
+
+    await page.getByTestId('move-toggle').click();
+    await page.locator('.table-card.occupied').first().click();
+    await page.locator('.table-card .table-num', { hasText: /^7$/ }).click();
+    await page.getByTestId('move-validate').click();
+
+    await expect(page.getByText('Cette table a déjà une commande en cours')).toBeVisible();
+    await expect(page.getByTestId('move-hint')).toHaveCount(0);
+    await expect(page.getByTestId('move-confirm')).toHaveCount(0);
+    await expect.poll(async () => (await ipcCalls(page, 'list_tables')).length).toBe(before + 1);
+  });
+
+  test('a move reads the plan again: the target shows occupied', async ({ page }) => {
+    const card = (n: number) =>
+      page.locator('.table-card', { has: page.locator('.table-num', { hasText: new RegExp(`^${n}$`) }) });
+    await expect(card(7)).not.toHaveClass(/occupied/);
+    await overrideIPC(page, 'list_tables', tables({ 4: 44, 7: 42 })());
+
+    await page.getByTestId('move-toggle').click();
+    await page.locator('.table-card.occupied').first().click();
+    await page.locator('.table-card .table-num', { hasText: /^7$/ }).click();
+    await page.getByTestId('move-validate').click();
+
+    await expect(page.getByText('Commande déplacée vers la table 7')).toBeVisible();
+    await expect(card(7)).toHaveClass(/occupied/);
+    await expect(card(3)).not.toHaveClass(/occupied/);
   });
 
   test('cancelling the confirmation or the mode moves nothing', async ({ page }) => {

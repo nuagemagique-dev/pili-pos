@@ -75,6 +75,13 @@ test.describe('Payment correction', () => {
     await expect(dialog.getByTestId('pc-summary')).toHaveText('Espèces 52,00 € → Carte 52,00 €');
     await dialog.getByTestId('pc-confirm').click();
     await expect(page.locator('.pin-dialog .hint')).toContainText('code PIN');
+    // Once signed, the engine reports the correction the sale now has.
+    await overrideIPC(page, 'list_sale_payments', {
+      ...CASH_SALE,
+      correctable: false,
+      refusal: 'payment_correction_already_done',
+      corrected: { fromType: 'CASH', toType: 'CARD_DEBIT', amountCents: 5200, at: '2026-09-25 12:10:00' },
+    });
     await typePin(page, '4321');
 
     await expect(page.locator('.toast', { hasText: 'Paiement corrigé' })).toBeVisible();
@@ -82,6 +89,9 @@ test.describe('Payment correction', () => {
     expect(await ipcCalls(page, 'correct_payment')).toEqual([
       { fiscalEventId: 38, lineIndex: 0, method: 'card', insz: DEFAULT_USER.insz, pin: '4321' },
     ]);
+    // The tickets are read again: the row shows the mark, not the action.
+    await expect(page.getByTestId('corrected-38')).toHaveText('Paiement corrigé : Espèces → Carte');
+    await expect(page.getByTestId('correct-payment-38')).toHaveCount(0);
   });
 
   test('a card taken on the terminal cannot be picked', async ({ page }) => {
@@ -139,6 +149,76 @@ test.describe('Payment correction', () => {
     });
     await expect(page.getByTestId('corrected-38')).toHaveText('Paiement corrigé : Espèces → Carte');
     await expect(page.getByTestId('correct-payment-38')).toHaveCount(0);
+  });
+
+  test('several manual lines: none preselected, a line enables the methods, rounding is not listed', async ({ page }) => {
+    await openTickets(page, {
+      list_sale_payments: () => ({
+        ...CASH_SALE,
+        totalCents: 5200,
+        lines: [
+          { index: 0, paymentType: 'CASH', name: 'Cash', amountCents: 3000, inputMethod: 'MANUAL', amountType: 'PAYMENT', brand: null },
+          { index: 1, paymentType: 'CHEQUE_MEAL', name: 'Meal', amountCents: 2200, inputMethod: 'MANUAL', amountType: 'PAYMENT', brand: null },
+          { index: 2, paymentType: 'CASH', name: 'Rounding', amountCents: -2, inputMethod: 'MANUAL', amountType: 'ROUNDING', brand: null },
+        ],
+      }),
+    });
+    await page.getByTestId('correct-payment-38').click();
+    const dialog = page.getByTestId('pc-dialog');
+
+    // The rounding is not a payment.
+    await expect(dialog.getByTestId('pc-line-0')).toBeVisible();
+    await expect(dialog.getByTestId('pc-line-1')).toBeVisible();
+    await expect(dialog.getByTestId('pc-line-2')).toHaveCount(0);
+    // Nothing is picked: no method, no confirmation.
+    await expect(dialog.getByTestId('pc-confirm')).toBeDisabled();
+    for (const m of ['cash', 'card', 'meal_voucher']) {
+      await expect(dialog.getByTestId(`pc-method-${m}`)).toBeDisabled();
+    }
+
+    // Picking the cash line offers the other two.
+    await dialog.getByTestId('pc-line-0').click();
+    await expect(dialog.getByTestId('pc-method-cash')).toBeDisabled();
+    await expect(dialog.getByTestId('pc-method-card')).toBeEnabled();
+    await dialog.getByTestId('pc-method-meal_voucher').click();
+    await expect(dialog.getByTestId('pc-summary')).toHaveText('Espèces 30,00 € → Titres-repas 30,00 €');
+    await expect(dialog.getByTestId('pc-confirm')).toBeEnabled();
+
+    // The meal voucher line already is a meal voucher: the choice is cleared.
+    await dialog.getByTestId('pc-line-1').click();
+    await expect(dialog.getByTestId('pc-summary')).toHaveCount(0);
+    await expect(dialog.getByTestId('pc-confirm')).toBeDisabled();
+    await expect(dialog.getByTestId('pc-method-meal_voucher')).toBeDisabled();
+
+    await dialog.getByTestId('pc-method-cash').click();
+    await dialog.getByTestId('pc-confirm').click();
+    await typePin(page, '4321');
+    expect(await ipcCalls(page, 'correct_payment')).toEqual([
+      { fiscalEventId: 38, lineIndex: 1, method: 'cash', insz: DEFAULT_USER.insz, pin: '4321' },
+    ]);
+  });
+
+  test('a lookup that fails is shown in the dialog', async ({ page }) => {
+    await openTickets(page);
+    // The row loaded; the lookup fails when the dialog opens.
+    await overrideIPC(page, 'list_sale_payments', { __reject: 'payment_correction_not_a_sale' });
+    await page.getByTestId('correct-payment-38').click();
+    await expect(page.getByTestId('pc-refusal')).toHaveText('Seul un ticket de vente peut être corrigé.');
+    await expect(page.getByTestId('pc-confirm')).toHaveCount(0);
+  });
+
+  test('says "cannot be corrected" when the engine gives no reason, and keeps the correction note', async ({ page }) => {
+    await openTickets(page);
+    await overrideIPC(page, 'list_sale_payments', {
+      ...CASH_SALE,
+      correctable: false,
+      refusal: null,
+      corrected: { fromType: 'CASH', toType: 'CHEQUE_MEAL', amountCents: 5200, at: '2026-09-25 12:10:00' },
+    });
+    await page.getByTestId('correct-payment-38').click();
+    await expect(page.getByTestId('pc-refusal')).toHaveText('Ce paiement ne peut pas être corrigé');
+    await expect(page.getByTestId('pc-corrected')).toHaveText('Paiement corrigé : Espèces → Titres-repas');
+    await expect(page.getByTestId('pc-confirm')).toHaveCount(0);
   });
 
   test('back closes the dialog without a call', async ({ page }) => {
