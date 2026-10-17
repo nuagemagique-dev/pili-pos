@@ -21,6 +21,7 @@ Convention de lecture. Une section « tel que construit » décrit ce que le cod
 | Système | Android 13 (API 33) ; l'application exige l'API 33 au minimum (`minSdk` 33) |
 | Processeur | arm64-v8a uniquement : le seul fichier natif de l'APK est `libpos_ffi.so` pour cette architecture |
 | Écran | 1920 x 1080 en paysage (orientation capteur paysage imposée par l'application) |
+| NFC | Absent de l'unité principale du D3 Pro ; fonction facultative de l'application (§3.10) |
 | Imprimante | Epson TM-m30III (80 mm) sur le réseau local, TCP 9100 (ESC/POS), comme sous Linux |
 | FDM | module2 : boîtier sur le réseau local en production, simulateur en ligne pour la machine de test (voir `SCHEMA_ASSEMBLAGE_FR.md` §7) |
 | Application | un seul APK, identifiant `dev.nuagemagique.pilipos`, version 1.0.0, versionCode 10000 |
@@ -176,6 +177,12 @@ Un fichier d'audit au format JSON Lines, privé à l'application, consigne les �
 
 L'écran « À propos », visible de tous les utilisateurs, affiche la version, le code de version, la référence du moteur, les sommes SHA-1 et SHA-256 de l'APK, la somme SHA-1 de `libpos_ffi.so`, la somme SHA-256 du certificat de signature, l'identifiant de l'appareil, l'identifiant de caisse et de terminal, l'espace libre et la taille des sauvegardes. Il sert à comparer le terminal aux valeurs du dossier (`GARANTIE_MAJ_LANGUES_FR.md` §1.2).
 
+### 3.10 Lecteur de badges : permission NFC et fonction facultative
+
+Le manifeste déclare la permission `android.permission.NFC` (une permission normale, accordée à l'installation, sans fenêtre) et la fonction matérielle `android.hardware.nfc` avec `android:required="false"` : l'application s'installe et fonctionne sur un appareil sans NFC, ce qui est le cas de l'**unité principale du Sunmi D3 Pro**. Seul l'écran client optionnel du D3 Pro est annoncé avec NFC par le fabricant ; qu'il apparaisse comme un lecteur NFC standard (`NfcAdapter`) de l'unité principale est un point non établi (§9).
+
+Le réglage « Lecteur de badges » du Gérant (désactivé par défaut) choisit la source : « Lecteur USB » (lecteur qui se comporte comme un clavier : numéro puis Entrée, lu dans `MainActivity` par les codes de touches physiques, sans aucune permission) ou « NFC intégré ». Ce second choix n'est proposé que si `PackageManager.FEATURE_NFC` est présent ; l'application n'active le mode lecteur de l'adaptateur NFC (`NfcAdapter.enableReaderMode`, cartes de types A, B, F et V, sans lecture NDEF) que lorsque le réglage l'a choisi et tant qu'elle est au premier plan. Elle ne lit que l'identifiant de la carte : ni contenu, ni écriture, ni donnée biométrique. Le numéro n'est jamais conservé, seulement une empreinte avec une clé qui reste sur l'appareil (`SECURITE_BD_FR.md` §2.5). L'option ne modifie ni le mode kiosque, ni les restrictions du §3.3, ni le trafic réseau du §6.
+
 ---
 
 ## 4. Identifiant de l'appareil
@@ -305,6 +312,7 @@ Les mesures de ce dossier viennent d'un profil émulé. Les points suivants ne p
 | adb sur l'image de série (§3.5) | À effectuer (EV-15) |
 | Applications Google masquées, installations bloquées sauf l'outil de mise à jour, politique à fenêtre horaire, Play Protect (§3.6, §3.7) | mesuré sur le profil émulé le 15.10.2026 (EV-13) ; Play Protect et mise à jour du système sur un vrai terminal : À effectuer (EV-15) |
 | Démarrage vérifié (Verified Boot) et chiffrement du stockage de l'image réelle | À effectuer (EV-15 : état du démarrage vérifié et du chiffrement du D3 Pro) |
+| NFC de l'écran client optionnel du D3 Pro visible comme `NfcAdapter` standard de l'unité principale ; lecteur de badges USB sur le port de type A, clavier virtuel conservé, délai entre caractères (§3.10) | À effectuer (EV-15 : essais de lecteur de badges) |
 | Clé USB réelle et carte SD réelle : FAT32 et exFAT, montage automatique, retrait pendant une écriture, débit | À effectuer (EV-15) |
 | Mise à jour : comportement de l'installateur de paquets Sunmi, durée d'installation sur le processeur réel | À effectuer (EV-15) |
 | Imprimante Epson réelle : latence de la lecture d'état DLE EOT, papier, capot, erreurs, ligne en chinois (la page de codes actuelle imprime « ? ») | À effectuer (EV-15) |

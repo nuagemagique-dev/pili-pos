@@ -4,6 +4,7 @@
 pub type Managed = pos_engine::engine::Engine;
 
 pub mod auth;
+pub mod badges;
 pub mod checkout;
 pub mod copy;
 pub mod delivery;

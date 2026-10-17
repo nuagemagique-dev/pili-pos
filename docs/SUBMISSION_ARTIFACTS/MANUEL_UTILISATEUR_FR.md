@@ -47,6 +47,8 @@ refuse de toute façon une action interdite au profil
 | Clôturer une vente sans paiement (client parti sans payer, §7.5, avec son PIN) | - | - | ☑ |
 | Commandes en ligne : "Rembourser" | - | - | ☑ |
 | Mode formation, employés (ajouter, "Désactiver", PIN des autres), HubRise (activer, catalogue, canaux), plan de salle (§12.9), configuration | - | - | ☑ |
+| Lecteur de badges (réglages, §12.10), lier ou retirer le badge d'un employé (§12.3, avec son PIN) | - | - | ☑ |
+| Se connecter ou pointer avec un badge (§2.1, §3), si le Gérant a activé le lecteur ; le Gérant garde toujours son PIN | ☑ | ☑ | ☑ (pointage seul) |
 | Démarrer l'assistance à distance (§12.6, avec son PIN) | - | - | ☑ |
 
 ## 2. Démarrage, connexion et PIN
@@ -101,6 +103,20 @@ tuile.
 L'identité système `00000000029` (rapport Z automatique) n'a pas de
 tuile et ne peut pas se connecter.
 
+**Connexion par badge (si le Gérant l'a activée, §12.10).** Quand le
+réglage « Connexion par badge » est actif, l'écran de connexion affiche
+"Ou présentez votre badge". Un Serveur ou un Apprenti présente son badge
+(carte ou porte-clés) sur le lecteur : la session s'ouvre sans PIN, comme
+par la tuile, et l'arrivée est pointée de la même façon (§3). Pour un
+**Gérant**, le badge ne fait que choisir son compte : le pavé "Code PIN"
+s'affiche pour lui et son PIN reste obligatoire (aucune action de Gérant
+n'est possible avec un badge seul). Un badge inconnu, retiré ou illisible
+donne un message rouge (§14.1) et personne n'est connecté. Le PIN et la
+tuile restent toujours utilisables : un employé qui n'a pas de badge, qui
+l'a oublié ou qui refuse d'en porter un se connecte comme avant. Un
+employé "Présence seule" ne se connecte jamais : son badge enregistre
+seulement sa présence (§3).
+
 **Première connexion d'un Gérant.** Un Gérant doit avoir un PIN. Ce
 choix à l'écran de connexion n'existe qu'à la toute première mise en
 service, tant qu'aucun Gérant n'a de PIN : toucher sa tuile ouvre
@@ -151,6 +167,9 @@ remet aussi à zéro.
   d'elle-même, de la même façon. L'employé reste en service.
 - Le départ de l'employé se signe uniquement depuis l'écran de connexion
   ("Fin de service", §3).
+  Avec un lecteur de badges actif, après avoir touché "Fin de service",
+  l'écran dit "Présentez votre badge pour terminer le service" : le badge
+  de l'employé signe le départ à la place du PIN (§3).
 
 Dans les deux cas de verrouillage, la commande en cours est d'abord
 enregistrée auprès du FDM (§6.1).
@@ -172,6 +191,34 @@ enregistrée auprès du FDM (§6.1).
   Gérant enregistre l'arrivée et le départ dans "Config", panneau
   "Employés" (§12.3) : un seul bouton par employé, "Arrivée" ou "Départ".
   Le même événement S est signé, au nom de l'employé.
+- **Avec un badge** (si le Gérant a activé le lecteur, §12.10) : présenter
+  son badge sur le lecteur, **depuis n'importe quel écran**, enregistre
+  l'arrivée de son titulaire s'il n'est pas en service, ou son départ
+  s'il l'est. L'employé qui est en train d'utiliser la caisse n'est pas
+  déconnecté : le badge d'un collègue (cuisine, plonge, ou tout autre
+  employé) se présente pendant qu'un Serveur travaille. Le même événement
+  S est signé par le FDM, au nom du titulaire du badge. La caisse montre
+  un message vert "Arrivée · <nom> · 14:02" ou "Départ · <nom> · 14:02"
+  (heure de Bruxelles) et joue un double son aigu ; tout refus ou échec
+  donne un message rouge et un son grave. Sur l'écran de connexion en
+  mode "Fin de service" (§2.3), le badge signe seulement le départ, sans
+  ouvrir de session. Règles :
+  - le badge de l'employé connecté est refusé ("Votre arrivée et votre
+    départ se font à la connexion et par « Fin de service »") : sa
+    présence passe par la connexion et "Fin de service" ;
+  - **un second passage du même badge dans les 10 secondes est ignoré**,
+    sans message : un badge oublié sur le lecteur ou un double geste ne
+    pointe jamais l'arrivée puis le départ ;
+  - si le FDM ne répond pas ou refuse, la caisse affiche "Pointage refusé
+    · <nom> : <texte du FDM>" et rien n'est enregistré ; repasser le
+    badge quand le voyant "FDM" est vert (la présence n'est jamais
+    enregistrée en différé) ;
+  - en **mode formation** (§13), le pointage par badge est refusé ("Mode
+    formation : le pointage d'un employé est impossible. Quittez le mode
+    formation.") parce qu'un événement d'entraînement n'enregistre aucune
+    présence ; la connexion par badge reste possible ;
+  - sur un écran de connexion en mode "Fin de service", un employé qui
+    n'est pas en service reçoit "Cet employé n'est pas en service".
 
 Si le FDM ne répond pas, la connexion ou la fin de service se fait quand
 même, mais un message rouge l'indique : "Pointage non enregistré", suivi
@@ -887,6 +934,24 @@ PIN") avec deux boutons :
   mode formation est actif. Si le FDM refuse, son message s'affiche et
   rien n'est enregistré.
 - **"Code PIN"** : fixer ou changer son PIN (§2.2).
+- **"Lier un badge" / "Retirer le badge"** (Gérant, seulement quand le
+  lecteur de badges est actif, §12.10) : la ligne de chaque employé dit
+  "Aucun badge" ou "Badge lié le <date>". "Lier un badge" ouvre la
+  fenêtre "Présentez le badge de <nom>" : présenter le badge sur le
+  lecteur dans les 30 secondes (sans quoi "Aucun badge présenté" et rien
+  n'est lié), puis taper **son propre PIN de Gérant** (un badge sert à se
+  connecter : le Gérant le confirme comme un PIN d'employé). Un PIN erroné
+  laisse la fenêtre ouverte pour un nouvel essai. La caisse affiche "Badge
+  lié · <nom>". N'importe quel employé actif peut recevoir un badge, y
+  compris un employé "Présence seule" (cas courant), mais pas
+  l'identité système ; un employé n'a qu'un badge, et un badge n'appartient
+  qu'à un employé (messages en §14.1). "Retirer le badge" demande une
+  confirmation ("Retirer le badge de <nom> ?") puis affiche "Badge retiré
+  · <nom>" ; le retrait ne demande pas de PIN et marche même lecteur
+  éteint. **Remplacer un badge** (perdu, abîmé) : le retirer, puis lier le
+  nouveau ; le même badge physique peut être relié plus tard. "Désactiver"
+  un employé retire aussi son badge. Chaque lien et chaque retrait sont
+  inscrits dans le journal du panneau "Lecteur de badges" (§12.10).
 - **"Désactiver"** : pour un employé qui quitte l'établissement. Toucher
   deux fois ("Confirmer ?"). Son historique reste dans l'archive ; il
   ne peut plus se connecter. On ne peut pas se désactiver soi-même.
@@ -903,7 +968,7 @@ Le profil **"Présence seule"** est pour le personnel qui n'utilise jamais
 la caisse (cuisine, plonge) : pas de PIN, pas de tuile sur l'écran de
 connexion, aucun droit. La ligne affiche "Présence seule" sans bouton
 "Code PIN" (le bouton "Désactiver" reste). Seul le Gérant enregistre son
-arrivée et son départ, avec les boutons ci-dessus. On ne peut pas
+arrivée et son départ, avec les boutons ci-dessus, ou l'employé lui-même s'il a un badge (§3). On ne peut pas
 désactiver un employé en service : enregistrer d'abord son départ. Pour
 qu'un employé "Présence seule" devienne un utilisateur de la caisse, le
 désactiver puis le créer à nouveau avec le même INSZ et le profil voulu.
@@ -1053,6 +1118,73 @@ message qui indique le format.
 - Le plan ne change ni les commandes déjà prises, ni les tickets, ni ce
   qui est signé par le FDM.
 
+### 12.10 Lecteur de badges
+
+Panneau "Lecteur de badges", réservé au Gérant. Il est replié par défaut
+(toucher son en-tête pour le déplier). Le lecteur sert à deux choses :
+pointer l'arrivée et le départ depuis n'importe quel écran (§3) et,
+si on le veut, remplacer le PIN à la connexion des Serveurs et des
+Apprentis (§2.1). **Il est désactivé tant que le Gérant ne l'active pas** :
+désactivé, la caisse ne lit rien, un numéro tapé sur le lecteur n'est pas
+pris pour un badge, et toute commande de badge est refusée ("Le lecteur de
+badges est désactivé").
+
+La version Linux n'a pas de lecteur NFC : seuls « Désactivé » et « Lecteur USB » sont proposés.
+
+- **Désactivé** : aucune lecture.
+- **« Lecteur USB »** : lecteur de cartes qui se branche en USB et se
+  comporte comme un clavier : il « tape » le numéro de la carte, suivi de
+  la touche Entrée (aucun pilote, tout clavier physique convient). Il
+  doit être configuré pour envoyer Entrée à la fin.
+- **« Connexion par badge »** (interrupteur) : permet aux Serveurs et
+  aux Apprentis de se connecter avec leur badge (§2.1). Note affichée :
+  "Les Gérants saisissent toujours leur PIN après le badge." Interrupteur
+  éteint, un badge présenté sur l'écran de connexion ne fait que pointer
+  l'arrivée ou le départ.
+- **"Réglages du lecteur USB"** (réglages d'usine suffisants pour la
+  plupart des lecteurs) : "Écart maximal entre caractères (ms)" (10 à
+  200, 50 par défaut), "Longueur minimale du code" (4 à 32, 6 par défaut) et
+  "Longueur maximale du code" (4 à 64, 32 par défaut, jamais en dessous du
+  minimum), appliqués par "Enregistrer". La caisse prend pour un badge une
+  rafale de caractères tapés très vite (moins que l'écart maximal entre
+  deux) et terminée par Entrée ; une frappe humaine est plus lente et reste
+  une frappe. Agrandir l'écart si un lecteur lent n'est pas reconnu. La
+  lecture suit les touches physiques, quelle que soit la disposition du
+  clavier (AZERTY compris), et un badge présenté ne tombe jamais dans un
+  champ de texte.
+- Un seul type de lecteur par caisse : deux lecteurs peuvent écrire le
+  même badge différemment (hexadécimal ou décimal, ordre des octets).
+  Changer de type de lecteur peut obliger à relier les badges (§12.3).
+- **"Derniers événements"** : le journal des liens, retraits et
+  changements de réglage ("Badge lié", "Badge retiré", "Réglages
+  modifiés"), avec l'employé, le Gérant qui l'a fait et l'heure ; "Aucun
+  événement" s'il est vide. Le journal ne peut ni être modifié ni effacé.
+- **Clé renouvelée.** La caisse garde une clé secrète propre à l'appareil
+  (voir ci-dessous). Si elle est perdue (restauration d'une sauvegarde sur
+  un autre matériel, par exemple), tous les badges sont retirés
+  automatiquement et le panneau affiche "La clé des badges a été
+  renouvelée : liez de nouveau les badges". Si le fichier de la clé existe
+  mais ne peut pas être lu, les badges ne sont pas retirés et la caisse
+  répond "Clé des badges inaccessible : contactez l'assistance".
+- Chaque passage fait un son : deux notes aiguës pour une arrivée, un
+  départ ou une connexion, une note grave pour un refus ou un échec.
+
+**Protection des données (RGPD).** Un badge est une donnée liée à un
+employé. La caisse n'en garde **jamais le numéro** : elle en conserve
+uniquement une empreinte chiffrée (HMAC-SHA256) calculée avec une clé
+secrète stockée sur l'appareil, hors de la base de données, des
+sauvegardes et de l'export nocturne, et qui ne le quitte jamais ; sans
+cette clé, l'empreinte est inutilisable. Aucune donnée biométrique n'est
+lue : seul le numéro de série de la carte sert. L'usage est limité à
+l'enregistrement de la présence et à la connexion à la caisse. Sont
+conservés avec les données de présence : l'empreinte, l'historique des
+liens et retraits (qui, quand) et le journal des passages (heure,
+employé, résultat). Le panneau rappelle : "Seule une empreinte chiffrée du
+badge est conservée, jamais son numéro. Usage : présence et connexion
+uniquement." **Un employé peut refuser le badge** : son PIN (ou
+l'enregistrement de sa présence par le Gérant, §3) reste disponible sans
+aucun désavantage.
+
 ## 13. Mode formation (événements T)
 
 Pour former un employé sans toucher aux ventes réelles. Seul un Gérant
@@ -1131,12 +1263,23 @@ Messages de la caisse elle-même :
 | Une autre opération était en cours : rien n'a été enregistré, réessayez. | Deux opérations simultanées | Réessayer |
 | Trop de PIN incorrects : réessayez dans {seconds} s. | Verrou après 5 PIN erronés (§2.2) | Attendre la fin du décompte |
 | Employé enregistré pour la présence seulement : pas de connexion à la caisse | Un employé du profil "Présence seule" a tenté de se connecter, de fixer un PIN ou de terminer son service | Le Gérant enregistre sa présence dans "Config" (§12.3) |
-| Mode formation : le pointage d'un employé est impossible. Quittez le mode formation. | Le Gérant a touché "Arrivée" ou "Départ" en mode formation (un événement d'entraînement n'enregistre aucune présence) | Quitter le mode formation (§12.1), puis recommencer |
-| Votre arrivée et votre départ se font à la connexion et par « Fin de service » | Le Gérant a tenté de pointer sa propre présence depuis le panneau "Employés" | Se connecter, ou utiliser "Fin de service" (§3) |
+| Mode formation : le pointage d'un employé est impossible. Quittez le mode formation. | Le Gérant a touché "Arrivée" ou "Départ", ou un badge a été présenté, en mode formation (un événement d'entraînement n'enregistre aucune présence) | Quitter le mode formation (§12.1), puis recommencer |
+| Votre arrivée et votre départ se font à la connexion et par « Fin de service » | Le Gérant a tenté de pointer sa propre présence depuis le panneau "Employés", ou l'employé connecté a présenté son propre badge | Se connecter, ou utiliser "Fin de service" (§3) |
 | Cet employé est déjà en service | "Arrivée" pour un employé dont l'arrivée est déjà enregistrée (liste pas à jour) | Actualiser le panneau ; au besoin enregistrer le départ |
-| Cet employé n'est pas en service | "Départ" pour un employé qui n'est pas en service | Actualiser le panneau |
+| Cet employé n'est pas en service | "Départ" pour un employé qui n'est pas en service, ou badge présenté en mode "Fin de service" par un employé hors service | Actualiser le panneau |
 | Cet employé est en service : enregistrez d'abord son départ | Désactivation d'un employé dont le départ n'est pas enregistré | Enregistrer son départ (§12.3), puis le désactiver |
 | FDM indisponible : pointage impossible | Les deux boutons du panneau "Employés" sont grisés tant que le voyant "FDM" n'est pas vert | Attendre le retour du FDM (§14.1) |
+| Le lecteur de badges est désactivé | Un badge a été présenté ou lié alors que le réglage est « Désactivé » | Le Gérant active le lecteur (§12.10) |
+| Badge illisible : présentez-le de nouveau | Le numéro lu n'est pas un numéro de badge valide (4 à 64 caractères 0 à 9 et A à F) | Présenter de nouveau le badge ; vérifier le réglage du lecteur (§12.10) |
+| Clé des badges inaccessible : contactez l'assistance | Le fichier de la clé existe mais ne peut pas être lu | Appeler le distributeur ; rien n'est retiré |
+| Badge inconnu | Ce badge n'est lié à aucun employé | Le Gérant le lie (§12.3), ou utiliser le PIN |
+| Badge retiré : demandez un nouveau badge au Gérant | Ce badge a été retiré (perdu, remplacé, clé renouvelée) | Le Gérant lie un nouveau badge (§12.3) |
+| Ce badge est déjà lié à un autre employé | Liaison d'un badge qui a déjà un titulaire | Utiliser un autre badge, ou retirer d'abord l'ancien lien |
+| Cet employé a déjà un badge : retirez-le d'abord | Liaison pour un employé qui a un badge actif | "Retirer le badge" (§12.3), puis lier |
+| Cet employé n'a pas de badge | Retrait demandé pour un employé sans badge (liste pas à jour) | Actualiser le panneau |
+| Réglages du lecteur de badges invalides | Une valeur du panneau est hors limites (ex. minimum supérieur au maximum) | Corriger les valeurs (§12.10) |
+| Aucun badge présenté | Le badge n'a pas été présenté dans les 30 secondes de la fenêtre "Lier un badge" | Recommencer |
+| Pointage refusé · <nom> : <texte> | Le FDM n'a pas répondu ou a refusé le pointage par badge (§3) | Rien n'est enregistré : repasser le badge quand le voyant "FDM" est vert |
 
 ### 14.2 Autres problèmes
 
@@ -1148,6 +1291,7 @@ Messages de la caisse elle-même :
 | Imprimante hors ligne | La vente est quand même enregistrée. Toucher "Imprimer le ticket" une fois l'imprimante revenue (§7.3), ou faire plus tard une copie (§8). |
 | "Bon de commande non imprimé : prévenez le bar ou la cuisine." | Vérifier l'imprimante de la cuisine (voyant "Cuisine") ; la commande est enregistrée, prévenir le bar ou la cuisine (§6.1). |
 | "Pointage non enregistré" | Le FDM n'a pas répondu à la connexion ou à la fin de service. Prévenir le Gérant. |
+| Un badge n'est pas reconnu | Vérifier que le lecteur est « Lecteur USB » (ou « NFC intégré ») dans le panneau "Lecteur de badges" (§12.10), que le badge est lié (§12.3) et que le lecteur envoie Entrée à la fin ; élargir l'écart maximal entre caractères si le lecteur est lent. Sinon, se connecter par PIN. |
 | "Commande non enregistrée par le FDM" | Rester sur la commande et réessayer quand le FDM répond (§6.1). |
 | "La caisse attend la réponse de la boîte noire pour l'opération précédente" | Vérifier câble et alimentation du FDM, attendre une minute (la caisse renvoie seule), puis réessayer. Ne pas refaire l'opération. Appeler le distributeur si le message persiste (§7.4). |
 | Le tiroir ne s'ouvre pas | Vérifier le câble RJ11 entre l'imprimante et le tiroir, et la serrure du tiroir. |

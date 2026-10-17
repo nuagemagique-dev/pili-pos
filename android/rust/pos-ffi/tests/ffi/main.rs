@@ -2,6 +2,7 @@
 //! module (and `support.rs` grows helpers); they never add a second test binary.
 
 mod auth;
+mod badges;
 mod checkout;
 mod common;
 mod eft;

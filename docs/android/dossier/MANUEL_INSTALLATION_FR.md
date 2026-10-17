@@ -28,6 +28,7 @@ dans `PLATEFORME_ANDROID_FR.md` §3, le stockage dans §5.
 | Switch / box internet | 4 ports minimum | 1 |
 | Clé USB de mise en service | Toute taille, FAT32 ou exFAT : elle porte le lot signé (§2) | 1 |
 | Carte microSD (recommandée) | microSDXC de qualité, exFAT, 64 ou 128 Go : exports vers le SPF et mises à jour, jamais la base (§8) | 1 |
+| Lecteur de badges (option) | Lecteur de cartes NFC avec câble USB qui se comporte comme un clavier (il tape le numéro de la carte puis Entrée) ; à brancher à l'adaptateur USB du Sunmi D3 Pro. **L'unité principale du D3 Pro n'a pas de NFC** ; son écran client optionnel est annoncé avec NFC, à confirmer sur place (§4.4 bis) | 0 ou 1 |
 | Poste du technicien | Ordinateur avec `adb`, `shasum` et `minisign` (§3.2) ; onduleur de 600 VA recommandé pour la caisse | 1 |
 
 Ni puce TPM ni réglage BIOS (`SECURITE_BD_FR.md` §3.6). **Le terminal ne
@@ -453,6 +454,54 @@ dans « Config », confirmé par le PIN de ce dernier ; le Serveur et
 l'Apprenti fixent le leur en touchant leur nom. Ne pas créer l'INSZ
 `00000000029` : identité système, qui ne se connecte jamais. Le catalogue
 est livré par la graine ou par HubRise (`MANUEL_PROGRAMMATION_FR.md`).
+
+### 4.4 bis Lecteur de badges (option)
+
+Facultatif et **désactivé par défaut** : sans lecteur, rien à faire. Pour
+pointer et se connecter avec un badge (`MANUEL_UTILISATEUR_FR.md`
+§12.13) :
+
+- **Lecteur USB HID « clavier ».** Brancher un lecteur de cartes NFC USB
+  qui se comporte comme un clavier : il « tape » le numéro de la carte
+  (identifiant de série, en hexadécimal si le lecteur le permet, dans
+  l'ordre des octets du lecteur) puis la touche **Entrée**. Aucun pilote ;
+  la disposition du clavier (AZERTY compris) n'a pas d'importance, car la
+  caisse lit les touches physiques. Le lecteur doit envoyer Entrée à la
+  fin (sinon le configurer ainsi) ; préfixes et suffixes autres que
+  Entrée ne sont pas pris en charge.
+- Voir plus bas pour le NFC intégré.
+- Un seul type de lecteur par caisse : deux lecteurs peuvent écrire la
+  même carte différemment (hexadécimal ou décimal, ordre des octets).
+  Utiliser le même lecteur pour tous les badges, sans quoi les badges
+  sont à lier de nouveau.
+- Les réglages (Désactivé, Lecteur USB, NFC intégré, connexion par badge, délais du
+  lecteur) se font ensuite dans « Config », panneau « Lecteur de badges »,
+  par le Gérant ; la clé qui protège les badges est créée sur l'appareil à
+  la première utilisation, reste sur l'appareil et n'est ni sauvegardée
+  ni exportée (`SECURITE_BD_FR.md` §2.5).
+
+- **Android uniquement : clavier virtuel.** Un lecteur USB est un clavier
+  physique pour Android, qui peut alors masquer le clavier à l'écran.
+  Dans les réglages Android (accès maintenance, §4.1 : Système, Langues et
+  saisie, Clavier physique), laisser activée l'option qui affiche le
+  clavier virtuel tant qu'un clavier physique est connecté (libellé
+  « Afficher le clavier virtuel » ou « Utiliser le clavier à l'écran »
+  selon la version). Sinon les champs de texte du panneau « Employés » ne
+  seraient plus saisissables.
+- **Android : NFC intégré.** L'unité principale du Sunmi D3 Pro n'a pas
+  de NFC : choisir « Lecteur USB ». Le réglage « NFC intégré » n'apparaît
+  que sur un appareil qui déclare un lecteur NFC (`FEATURE_NFC`) ; le NFC
+  de l'écran client optionnel du D3 Pro n'est utilisable que s'il est
+  présenté ainsi (à confirmer sur place avec une carte de test, voir
+  `PLATEFORME_ANDROID_FR.md`). L'application s'installe aussi sur un
+  appareil sans NFC (la fonction est facultative).
+- **Test après l'installation.** Dans « Config », « Lecteur de badges » :
+  choisir « Lecteur USB », puis « Lier un badge » sur un employé de test (pas le Gérant connecté),
+  présenter la carte, confirmer avec le PIN du Gérant, puis présenter de
+  nouveau la carte depuis l'écran de commande : « Arrivée · nom · heure »
+  (ou « Départ »), l'événement S est signé par le FDM. Retirer ensuite le
+  badge de test et remettre le réglage voulu par l'établissement.
+
 
 ### 4.5 Synchronisation horaire
 

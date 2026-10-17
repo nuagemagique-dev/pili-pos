@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package dev.nuagemagique.pilipos.feature.login
 
 import androidx.compose.foundation.BorderStroke
@@ -85,6 +87,7 @@ internal fun LoginPeopleColumn(
         ) {
             PeopleHeader(state)
             PeopleBody(state, callbacks, Modifier.weight(1f))
+            if (state.badgeLoginOn && !state.numpadMode) BadgeHint(vueText("login_badge_hint"), "login_badge_hint")
             PeopleFooter(state, callbacks)
         }
         state.pin?.let { LoginPinPanel(it, state, callbacks.pin, Modifier.fillMaxHeight().width(PinPanelWidth)) }
@@ -100,6 +103,21 @@ private fun PeopleHeader(state: LoginUiState) {
         color = PiliTheme.colors.textPrimary,
     )
     state.error?.let { ErrorLine(it, Modifier.testTag("login_error")) }
+}
+
+/** "Ou présentez votre badge" (`badge-hint`): the tiles are not the only way in. */
+@Composable
+internal fun BadgeHint(
+    text: String,
+    tag: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        style = PiliTheme.typography.figure.copy(fontSize = PiliTheme.typography.sizePrice),
+        color = PiliTheme.colors.textSecondary,
+        modifier = modifier.testTag(tag),
+    )
 }
 
 /** The tiles, or the INSZ entry when the operator types by hand or no user is known. */

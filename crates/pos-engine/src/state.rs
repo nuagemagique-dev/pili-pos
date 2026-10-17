@@ -86,11 +86,23 @@ pub struct AppState {
     /// (`commands::eft`). An abort never takes it: it reaches the
     /// payment's own instance, or opens its own connection.
     pub eft_line: tokio::sync::Mutex<()>,
+    /// Badge scans being handled or just handled, by badge hash
+    /// (`commands::badges`, L5-D10). In memory: a restart clears it.
+    pub badge_repeats: Mutex<std::collections::HashMap<String, Repeat>>,
     /// A terminal that answers from a script, used in place of the
     /// configured one (`commands::eft`). Tests only: the field exists
     /// under the `eft-scripted` feature, which no shipped build enables.
     #[cfg(feature = "eft-scripted")]
     pub eft_terminal_override: Option<std::sync::Arc<pos_eft::scripted::Script>>,
+}
+
+/// Where a badge's last scan stands, for the repeat window.
+#[derive(Debug, Clone, Copy)]
+pub enum Repeat {
+    /// The scan is still being handled.
+    InFlight,
+    /// The scan finished at this instant.
+    Done(std::time::Instant),
 }
 
 /// One cached FDM status answer: the key of everything that reaches the

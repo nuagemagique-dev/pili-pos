@@ -480,22 +480,22 @@ class RealRepo(unittest.TestCase):
         if (REAL_ROOT / cp.DEFAULT_FFI).exists():
             self.skipTest("pos-ffi exists")
         r = self.script()
-        self.assertEqual((r.returncode, r.stdout), (0, "parity: 0/102 (no pos-ffi yet)\n"))
+        self.assertEqual((r.returncode, r.stdout), (0, "parity: 0/108 (no pos-ffi yet)\n"))
         r = self.script("--strict")
-        self.assertEqual((r.returncode, r.stdout), (1, "parity: 0/102 (no pos-ffi yet)\n"))
+        self.assertEqual((r.returncode, r.stdout), (1, "parity: 0/108 (no pos-ffi yet)\n"))
         r = self.script("--hygiene")
         self.assertEqual((r.returncode, r.stdout), (0, "hygiene: no pos-ffi yet\n"))
 
-    def test_markdown_lists_the_102_cert_commands(self):
+    def test_markdown_lists_the_108_cert_commands(self):
         r = self.script("--markdown")
         self.assertEqual(r.returncode, 0, r.stderr)
         rows = [l for l in r.stdout.splitlines() if l.startswith("| ") and l[2].islower()]
-        self.assertEqual(len(rows), 102)
+        self.assertEqual(len(rows), 108)
         self.assertNotIn("sign_invoice_fiscal", r.stdout)
         self.assertNotIn("issue_b2b_invoice", r.stdout)
         if not (REAL_ROOT / cp.DEFAULT_FFI).exists():
             self.assertTrue(all(row.endswith("| missing |") for row in rows))
-            self.assertTrue(r.stdout.rstrip().endswith("Parity: 0/102."))
+            self.assertTrue(r.stdout.rstrip().endswith("Parity: 0/108."))
         self.assertEqual(rows, sorted(rows))
 
 

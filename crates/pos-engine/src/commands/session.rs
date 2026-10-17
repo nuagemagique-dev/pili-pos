@@ -146,7 +146,7 @@ impl SessionRules {
 
     /// When the last activity happened (the start of the engine, if
     /// there was none).
-    pub(crate) fn last_activity(&self) -> Instant {
+    pub fn last_activity(&self) -> Instant {
         self.last_activity
             .lock()
             .map(|g| *g)

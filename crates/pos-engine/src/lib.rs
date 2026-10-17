@@ -8,6 +8,7 @@
 //! are [`EngineConfig`] inputs (paths, configuration source).
 
 pub mod background;
+pub mod badge_key;
 pub mod commands;
 pub mod engine;
 pub mod events;

@@ -5,7 +5,11 @@ package dev.nuagemagique.pilipos.feature.settings
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.SettingsEntry
+import dev.nuagemagique.pilipos.ui.badge.badgeView
+import uniffi.pos_ffi.ActiveBadge
 import uniffi.pos_ffi.Adoption
+import uniffi.pos_ffi.BadgeLogEntry
+import uniffi.pos_ffi.BadgeOverview
 import uniffi.pos_ffi.Issue
 import uniffi.pos_ffi.IssueCode
 import uniffi.pos_ffi.SwitchChange
@@ -40,6 +44,7 @@ internal val shownExport = SettingsEntry("platform.export", R.string.ui_settings
 internal fun managerState(
     rows: List<SettingsEntry> = listOf(shownOpen, shownAbout, shownExport),
     hubrise: HubriseSwitchState = HubriseSwitchState(),
+    badge: BadgePanelState = badgePanel(reader = "off", open = false),
 ): SettingsUiState =
     SettingsUiState(
         rows = rows,
@@ -51,6 +56,7 @@ internal fun managerState(
         deliveries = listOf(delivery(1L), delivery(2L).copy(status = "failed", attempts = 3L, lastError = "smtp 550")),
         mailStatus = mail(),
         hubrise = hubrise,
+        badge = badge,
     )
 
 /** The state of a non-manager's screen: only the rows open to every role. */
@@ -95,4 +101,37 @@ internal fun connectedState(
         adoptions = adoptions,
         adopted = adoptions.map { it.menuItemId }.toSet(),
         channels = listOf(channel("Deliveroo"), channel("Webshop", ChannelKind.WEBSHOP, ChannelPayment.ONLINE, ChargePolicy.INCLUDE)),
+    )
+
+/** Bob (the cashier) holds a badge linked on 17 October by Alice. */
+internal val bobBadge = ActiveBadge(CASHIER_INSZ, "Bob", "2026-10-17 10:00:00", ADMIN_INSZ, "Alice")
+
+internal val badgeLog =
+    listOf(
+        BadgeLogEntry("link", CASHIER_INSZ, "Bob", ADMIN_INSZ, "Alice", "2026-10-17 10:00:00", null),
+        BadgeLogEntry("settings", null, null, ADMIN_INSZ, "Alice", "2026-10-17 09:58:00", "{}"),
+    )
+
+/** The badge panel of a manager: the reader [reader], Bob holding a badge, two log rows. */
+@Suppress("LongParameterList")
+internal fun badgePanel(
+    reader: String = "usb",
+    login: Boolean = false,
+    open: Boolean = true,
+    hasNfc: Boolean = false,
+    nfcEnabled: Boolean = true,
+    relink: Boolean = false,
+    typed: BadgeTimingDraft? = null,
+    editing: TimingField? = null,
+    error: String? = null,
+): BadgePanelState =
+    BadgePanelState(
+        open = open,
+        settings = badgeView(reader = reader, loginEnabled = login, relink = relink),
+        overview = BadgeOverview(listOf(bobBadge), badgeLog),
+        typed = typed,
+        editing = editing,
+        error = error,
+        hasNfc = hasNfc,
+        nfcEnabled = nfcEnabled,
     )

@@ -77,6 +77,9 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | composables/useOrderChime.ts | ui/feedback/OrderChime.kt | - |
 | router/index.ts leave guard | ui/scaffold/HeaderActions.kt and OrderStore.leaveIfActive | `leave_order` |
 | App.vue activity forwarding | foundation kiosk/UserActivityForwarder.kt | `user_activity` |
+| stores/badge.ts, composables/useBadgeReader.ts and utils/badgeWedge.ts (the global scan handling: USB wedge, outcomes, enrolment capture, end-of-shift flag, PIN request) | ui/badge/BadgeStore.kt, KeyWedgeSource.kt, WedgeDetector.kt, BadgeSource.kt, BadgeModule.kt, wired in MainActivity.dispatchKeyEvent | `get_badge_settings` `set_badge_settings` `list_badges` `link_badge` `revoke_badge` `badge_tap` |
+| composables/useBadgeCue.ts | ui/badge/BadgeCue.kt (AudioTrackBadgeCue) | - |
+| (Android only: built-in NFC reader, lane 5-nfc) | ui/badge/NfcBadgeSource.kt (NfcBadgeSource, NfcSupport), wired in MainActivity.onResume and onPause | - |
 
 Not ported: components/SupportBanner.vue and stores/support.ts. There is no remote support in v1 (DECISIONS section 7).
 

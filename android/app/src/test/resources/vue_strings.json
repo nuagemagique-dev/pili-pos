@@ -36,6 +36,108 @@
       "zh": "返回",
       "area": "core"
     },
+    "badge_capture_timeout": {
+      "fr": "Aucun badge présenté",
+      "en": "No badge presented",
+      "zh": "未出示工牌",
+      "area": "core"
+    },
+    "badge_clock_in": {
+      "fr": "Arrivée · {name} · {time}",
+      "en": "Clock-in · {name} · {time}",
+      "zh": "上班 · {name} · {time}",
+      "area": "core"
+    },
+    "badge_clock_out": {
+      "fr": "Départ · {name} · {time}",
+      "en": "Clock-out · {name} · {time}",
+      "zh": "下班 · {name} · {time}",
+      "area": "core"
+    },
+    "badge_link": {
+      "fr": "Lier un badge",
+      "en": "Link a badge",
+      "zh": "绑定工牌",
+      "area": "core"
+    },
+    "badge_linked_done": {
+      "fr": "Badge lié · {name}",
+      "en": "Badge linked · {name}",
+      "zh": "工牌已绑定 · {name}",
+      "area": "core"
+    },
+    "badge_linked_on": {
+      "fr": "Badge lié le {date}",
+      "en": "Badge linked on {date}",
+      "zh": "工牌绑定于 {date}",
+      "area": "core"
+    },
+    "badge_log_link": {
+      "fr": "Badge lié",
+      "en": "Badge linked",
+      "zh": "绑定工牌",
+      "area": "core"
+    },
+    "badge_log_revoke": {
+      "fr": "Badge retiré",
+      "en": "Badge removed",
+      "zh": "解除工牌",
+      "area": "core"
+    },
+    "badge_log_settings": {
+      "fr": "Réglages modifiés",
+      "en": "Settings changed",
+      "zh": "设置已修改",
+      "area": "core"
+    },
+    "badge_none_label": {
+      "fr": "Aucun badge",
+      "en": "No badge",
+      "zh": "无工牌",
+      "area": "core"
+    },
+    "badge_presence_failed": {
+      "fr": "Pointage refusé · {name} : {error}",
+      "en": "Clock-in or out refused · {name}: {error}",
+      "zh": "打卡失败 · {name}：{error}",
+      "area": "core"
+    },
+    "badge_present_for": {
+      "fr": "Présentez le badge de {name}",
+      "en": "Present {name}'s badge",
+      "zh": "请出示 {name} 的工牌",
+      "area": "core"
+    },
+    "badge_reader_off": {
+      "fr": "Désactivé",
+      "en": "Off",
+      "zh": "关闭",
+      "area": "settings"
+    },
+    "badge_reader_usb": {
+      "fr": "Lecteur USB",
+      "en": "USB reader",
+      "zh": "USB 读卡器",
+      "area": "settings"
+    },
+    "badge_revoke": {
+      "fr": "Retirer le badge",
+      "en": "Remove the badge",
+      "zh": "解除工牌",
+      "area": "core"
+    },
+    "badge_revoke_confirm": {
+      "fr": "Retirer le badge de {name} ?",
+      "en": "Remove {name}'s badge?",
+      "zh": "解除 {name} 的工牌？",
+      "area": "core"
+    },
+    "badge_revoked_done": {
+      "fr": "Badge retiré · {name}",
+      "en": "Badge removed · {name}",
+      "zh": "工牌已解除 · {name}",
+      "area": "core"
+    },
     "before_rounding": {
       "fr": "avant arrondi",
       "en": "before rounding",
@@ -918,6 +1020,12 @@
       "zh": "下班",
       "area": "core"
     },
+    "end_shift_badge_hint": {
+      "fr": "Présentez votre badge pour terminer le service",
+      "en": "Present your badge to end your shift",
+      "zh": "出示工牌以结束上班",
+      "area": "core"
+    },
     "end_shift_hint": {
       "fr": "le code PIN termine le service",
       "en": "the PIN ends the shift",
@@ -940,6 +1048,60 @@
       "fr": "Le montant ne peut pas être négatif.",
       "en": "The amount cannot be negative.",
       "zh": "金额不能为负数。",
+      "area": "errors"
+    },
+    "err_badge_already_linked": {
+      "fr": "Cet employé a déjà un badge : retirez-le d'abord",
+      "en": "This employee already has a badge: remove it first",
+      "zh": "该员工已有工牌，请先解除",
+      "area": "errors"
+    },
+    "err_badge_in_use": {
+      "fr": "Ce badge est déjà lié à un autre employé",
+      "en": "This badge is already linked to another employee",
+      "zh": "该工牌已绑定其他员工",
+      "area": "errors"
+    },
+    "err_badge_key_unavailable": {
+      "fr": "Clé des badges inaccessible : contactez l'assistance",
+      "en": "Badge key unavailable: contact support",
+      "zh": "工牌密钥不可用，请联系技术支持",
+      "area": "errors"
+    },
+    "err_badge_none": {
+      "fr": "Cet employé n'a pas de badge",
+      "en": "This employee has no badge",
+      "zh": "该员工没有工牌",
+      "area": "errors"
+    },
+    "err_badge_reader_off": {
+      "fr": "Le lecteur de badges est désactivé",
+      "en": "The badge reader is off",
+      "zh": "工牌读卡器已关闭",
+      "area": "errors"
+    },
+    "err_badge_revoked": {
+      "fr": "Badge retiré : demandez un nouveau badge au Gérant",
+      "en": "Badge removed: ask the manager for a new one",
+      "zh": "工牌已解除，请向经理申请新工牌",
+      "area": "errors"
+    },
+    "err_badge_settings_invalid": {
+      "fr": "Réglages du lecteur de badges invalides",
+      "en": "Invalid badge reader settings",
+      "zh": "工牌读卡器设置无效",
+      "area": "errors"
+    },
+    "err_badge_token_invalid": {
+      "fr": "Badge illisible : présentez-le de nouveau",
+      "en": "Badge not readable: present it again",
+      "zh": "无法读取工牌，请重新出示",
+      "area": "errors"
+    },
+    "err_badge_unknown": {
+      "fr": "Badge inconnu",
+      "en": "Unknown badge",
+      "zh": "未知工牌",
       "area": "errors"
     },
     "err_concurrent_operation": {
@@ -2184,6 +2346,12 @@
       "zh": "登录",
       "area": "core"
     },
+    "login_badge_hint": {
+      "fr": "Ou présentez votre badge",
+      "en": "Or present your badge",
+      "zh": "或出示您的工牌",
+      "area": "core"
+    },
     "logout": {
       "fr": "Sortir",
       "en": "Logout",
@@ -2962,6 +3130,78 @@
       "fr": "Ajouter l’employé",
       "en": "Add employee",
       "zh": "添加员工",
+      "area": "settings"
+    },
+    "settings_badge_gap": {
+      "fr": "Écart maximal entre caractères (ms)",
+      "en": "Maximum gap between characters (ms)",
+      "zh": "字符最大间隔（毫秒）",
+      "area": "settings"
+    },
+    "settings_badge_log": {
+      "fr": "Derniers événements",
+      "en": "Latest events",
+      "zh": "最近记录",
+      "area": "settings"
+    },
+    "settings_badge_log_empty": {
+      "fr": "Aucun événement",
+      "en": "No event yet",
+      "zh": "暂无记录",
+      "area": "settings"
+    },
+    "settings_badge_login": {
+      "fr": "Connexion par badge",
+      "en": "Badge login",
+      "zh": "刷工牌登录",
+      "area": "settings"
+    },
+    "settings_badge_login_note": {
+      "fr": "Les Gérants saisissent toujours leur PIN après le badge.",
+      "en": "Managers still enter their PIN after the badge.",
+      "zh": "经理刷工牌后仍需输入 PIN。",
+      "area": "settings"
+    },
+    "settings_badge_max_len": {
+      "fr": "Longueur maximale du code",
+      "en": "Maximum code length",
+      "zh": "卡号最长长度",
+      "area": "settings"
+    },
+    "settings_badge_min_len": {
+      "fr": "Longueur minimale du code",
+      "en": "Minimum code length",
+      "zh": "卡号最短长度",
+      "area": "settings"
+    },
+    "settings_badge_nfc_unavailable": {
+      "fr": "Pas de NFC sur cet appareil : choisissez un lecteur USB",
+      "en": "No NFC on this device: choose a USB reader",
+      "zh": "本设备没有 NFC，请选择 USB 读卡器",
+      "area": "settings"
+    },
+    "settings_badge_privacy": {
+      "fr": "Seule une empreinte chiffrée du badge est conservée, jamais son numéro. Usage : présence et connexion uniquement.",
+      "en": "Only a keyed hash of the badge is kept, never its number. Used for presence and login only.",
+      "zh": "仅保存工牌的加密指纹，从不保存卡号，仅用于考勤和登录。",
+      "area": "settings"
+    },
+    "settings_badge_relink": {
+      "fr": "La clé des badges a été renouvelée : liez de nouveau les badges",
+      "en": "The badge key was renewed: link the badges again",
+      "zh": "工牌密钥已更新，请重新绑定工牌",
+      "area": "settings"
+    },
+    "settings_badge_usb_timing": {
+      "fr": "Réglages du lecteur USB",
+      "en": "USB reader timing",
+      "zh": "USB 读卡器参数",
+      "area": "settings"
+    },
+    "settings_badges": {
+      "fr": "Lecteur de badges",
+      "en": "Badge reader",
+      "zh": "工牌读卡器",
       "area": "settings"
     },
     "settings_email_title": {
@@ -3986,6 +4226,15 @@
     "presence_self",
     "presence_already_in",
     "presence_not_in",
+    "badge_reader_off",
+    "badge_token_invalid",
+    "badge_key_unavailable",
+    "badge_unknown",
+    "badge_revoked",
+    "badge_in_use",
+    "badge_already_linked",
+    "badge_none",
+    "badge_settings_invalid",
     "operator_invalid",
     "dine_in_needs_table",
     "takeaway_has_no_table",

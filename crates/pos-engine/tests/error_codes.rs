@@ -105,3 +105,24 @@ fn a_text_with_values_names_them() {
         }
     }
 }
+
+#[test]
+fn the_nine_badge_codes_are_listed_and_translated() {
+    for code in [
+        errors::BADGE_READER_OFF,
+        errors::BADGE_TOKEN_INVALID,
+        errors::BADGE_KEY_UNAVAILABLE,
+        errors::BADGE_UNKNOWN,
+        errors::BADGE_REVOKED,
+        errors::BADGE_IN_USE,
+        errors::BADGE_ALREADY_LINKED,
+        errors::BADGE_NONE,
+        errors::BADGE_SETTINGS_INVALID,
+    ] {
+        assert!(errors::ALL.contains(&code), "{code} is not in ALL");
+        let text = entry(&format!("err_{code}")).unwrap_or_else(|| panic!("err_{code}"));
+        for lang in ["fr:", "en:", "zh:"] {
+            assert!(text.contains(lang), "err_{code} {lang}");
+        }
+    }
+}

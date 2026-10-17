@@ -24,6 +24,15 @@
     <string name="err_presence_self">Votre arrivée et votre départ se font à la connexion et par « Fin de service »</string>
     <string name="err_presence_already_in">Cet employé est déjà en service</string>
     <string name="err_presence_not_in">Cet employé n\'est pas en service</string>
+    <string name="err_badge_reader_off">Le lecteur de badges est désactivé</string>
+    <string name="err_badge_token_invalid">Badge illisible : présentez-le de nouveau</string>
+    <string name="err_badge_key_unavailable">Clé des badges inaccessible : contactez l\'assistance</string>
+    <string name="err_badge_unknown">Badge inconnu</string>
+    <string name="err_badge_revoked">Badge retiré : demandez un nouveau badge au Gérant</string>
+    <string name="err_badge_in_use">Ce badge est déjà lié à un autre employé</string>
+    <string name="err_badge_already_linked">Cet employé a déjà un badge : retirez-le d\'abord</string>
+    <string name="err_badge_none">Cet employé n\'a pas de badge</string>
+    <string name="err_badge_settings_invalid">Réglages du lecteur de badges invalides</string>
     <string name="err_deactivate_on_shift">Cet employé est en service : enregistrez d\'abord son départ</string>
     <string name="err_operator_invalid">Employé invalide : reconnectez-vous.</string>
     <string name="err_dine_in_needs_table">Une commande sur place a besoin d\'une table.</string>

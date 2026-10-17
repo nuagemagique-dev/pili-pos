@@ -48,6 +48,27 @@ pub const PRESENCE_ALREADY_IN: &str = "presence_already_in";
 /// Clock-out for an employee who is not on shift.
 pub const PRESENCE_NOT_IN: &str = "presence_not_in";
 
+// Staff badges (`commands::badges`).
+/// The badge reader setting is `off`: nothing reads or links badges.
+pub const BADGE_READER_OFF: &str = "badge_reader_off";
+/// The reader output is not a badge number (4 to 64 hexadecimal digits).
+pub const BADGE_TOKEN_INVALID: &str = "badge_token_invalid";
+/// `badge.key` exists but cannot be read (or created): nothing is
+/// revoked, badge commands wait for the key to be readable.
+pub const BADGE_KEY_UNAVAILABLE: &str = "badge_key_unavailable";
+/// No badge with this number was ever linked.
+pub const BADGE_UNKNOWN: &str = "badge_unknown";
+/// The badge was linked and then removed.
+pub const BADGE_REVOKED: &str = "badge_revoked";
+/// The badge is active for another employee.
+pub const BADGE_IN_USE: &str = "badge_in_use";
+/// The employee already has an active badge.
+pub const BADGE_ALREADY_LINKED: &str = "badge_already_linked";
+/// Revoking the badge of an employee who has none.
+pub const BADGE_NONE: &str = "badge_none";
+/// A badge setting out of range, or an unknown reader.
+pub const BADGE_SETTINGS_INVALID: &str = "badge_settings_invalid";
+
 // Orders.
 pub const OPERATOR_INVALID: &str = "operator_invalid";
 pub const DINE_IN_NEEDS_TABLE: &str = "dine_in_needs_table";
@@ -341,6 +362,15 @@ pub const ALL: &[&str] = &[
     PRESENCE_SELF,
     PRESENCE_ALREADY_IN,
     PRESENCE_NOT_IN,
+    BADGE_READER_OFF,
+    BADGE_TOKEN_INVALID,
+    BADGE_KEY_UNAVAILABLE,
+    BADGE_UNKNOWN,
+    BADGE_REVOKED,
+    BADGE_IN_USE,
+    BADGE_ALREADY_LINKED,
+    BADGE_NONE,
+    BADGE_SETTINGS_INVALID,
     OPERATOR_INVALID,
     DINE_IN_NEEDS_TABLE,
     TAKEAWAY_HAS_NO_TABLE,

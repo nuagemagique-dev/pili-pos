@@ -24,6 +24,15 @@
     <string name="err_presence_self">Your own clock-in and clock-out happen at login and with \"End of shift\"</string>
     <string name="err_presence_already_in">This employee is already on shift</string>
     <string name="err_presence_not_in">This employee is not on shift</string>
+    <string name="err_badge_reader_off">The badge reader is off</string>
+    <string name="err_badge_token_invalid">Badge not readable: present it again</string>
+    <string name="err_badge_key_unavailable">Badge key unavailable: contact support</string>
+    <string name="err_badge_unknown">Unknown badge</string>
+    <string name="err_badge_revoked">Badge removed: ask the manager for a new one</string>
+    <string name="err_badge_in_use">This badge is already linked to another employee</string>
+    <string name="err_badge_already_linked">This employee already has a badge: remove it first</string>
+    <string name="err_badge_none">This employee has no badge</string>
+    <string name="err_badge_settings_invalid">Invalid badge reader settings</string>
     <string name="err_deactivate_on_shift">This employee is on shift: clock them out first</string>
     <string name="err_operator_invalid">Invalid employee: log in again.</string>
     <string name="err_dine_in_needs_table">A dine-in order needs a table.</string>

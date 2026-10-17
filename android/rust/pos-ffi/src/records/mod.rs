@@ -10,7 +10,8 @@
 //!   never redefines one: it imports it with `use super::common::...`.
 //! - **orders** = order, modifiers, menu, tables, session; **checkout** = checkout, unpaid,
 //!   refund, copy, delivery, print; **reports** = report, social, financial, settings,
-//!   fdm_monitor; **auth** = auth, integrations, support; **hubrise** = hubrise, webshop.
+//!   fdm_monitor; **auth** = auth, integrations, support; **hubrise** = hubrise, webshop;
+//!   **badges** = badges (staff badge reader, lane 5).
 //! - The FFI name is the engine name, except `Display` (`pos_fiscal::types`), which is
 //!   `FdmMessageDisplay`. No two reachable engine types share a name (`Order`, `Category` and
 //!   `Language` also exist in `pos_hubrise_types` and `pos_catalog`, but none of those is
@@ -130,6 +131,14 @@
 //! | `SwitchChange` | `pos_db::queries::integrations::SwitchChange` | auth | get_integrations, set_hubrise_enabled |
 //! | `User` | `pos_core::user::User` | auth | create_user, get_current_user, list_users (+2 commands) |
 //! | `UserRole` | `pos_core::user::UserRole` | auth | create_user, get_current_user, list_users (+2 commands) |
+//! | `ActiveBadge` | `pos_db::queries::badges::ActiveBadge` | badges | list_badges |
+//! | `BadgeLink` | `pos_engine::commands::badges::BadgeLink` | badges | link_badge |
+//! | `BadgeLogEntry` | `pos_db::queries::badges::LogEntry` | badges | list_badges |
+//! | `BadgeOutcome` | `pos_engine::commands::badges::BadgeOutcome` | badges | badge_tap |
+//! | `BadgeOutcomeKind` | `pos_engine::commands::badges::BadgeOutcomeKind` | badges | badge_tap |
+//! | `BadgeOverview` | `pos_engine::commands::badges::BadgeOverview` | badges | list_badges |
+//! | `BadgeSettingsInput` | `pos_engine::commands::badges::BadgeSettingsInput` | badges | set_badge_settings |
+//! | `BadgeSettingsView` | `pos_engine::commands::badges::BadgeSettingsView` | badges | get_badge_settings, set_badge_settings |
 //! | `AcceptRequest` | `pos_engine::commands::webshop::AcceptRequest` | hubrise | webshop_accept_order |
 //! | `AcceptResult` | `pos_engine::commands::webshop::AcceptResult` | hubrise | webshop_accept_order |
 //! | `Adoption` | `pos_catalog::apply::Adoption` | hubrise | hubrise_adopt_catalog, hubrise_adoption_preview |
@@ -160,6 +169,7 @@
 //! shapes; `convert::out` and `convert::inp` move values between the two.
 
 pub mod auth;
+pub mod badges;
 pub mod checkout;
 pub mod common;
 pub mod eft;

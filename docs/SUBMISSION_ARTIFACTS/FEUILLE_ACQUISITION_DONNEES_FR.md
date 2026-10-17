@@ -108,6 +108,16 @@ résultat d'un terminal autonome.
 | Modifiable par l'opérateur | Non (image scellée, accès root absent) |
 | Source de vérité runtime | Chargé à l'ouverture du moteur (`Engine::open`) dans `AppState.config` ; le fichier est désigné par `PILI_POS_CONFIG`, sinon `/etc/pili-pos/pos.json` |
 
+### 1.6 bis Badges du personnel (option, désactivée par défaut)
+
+| Élément | Valeur |
+|---|---|
+| Tables | `badge_settings` (réglage unique), `staff_badges` (liens badge / employé, jamais supprimés), `badge_log` (liens, retraits, réglages ; ajout seul), `badge_scans` (passages ; ajout seul), dans `pos.db` (migration 70) |
+| Donnée du badge | Une empreinte HMAC-SHA256 (64 caractères hexadécimaux) ; **jamais le numéro du badge**, ni en base, ni dans les journaux applicatifs, ni dans un événement fiscal ; les journaux portent une référence de 12 caractères de l'empreinte |
+| Clé de l'empreinte | Fichier `badge.key` dans `/var/lib/pili-pos/` : 32 octets aléatoires, mode 0600, créé une fois sur l'appareil. Hors de `pos.db`, donc hors des sauvegardes (§1.2) et des exports ; elle ne quitte jamais l'appareil |
+| Données personnelles associées | INSZ de l'employé, INSZ du Gérant qui a lié ou retiré (`staff_badges.user_insz`, `linked_by`, `revoked_by`, `badge_log`, `badge_scans`) |
+| Finalité | Enregistrement de la présence (événement S) et connexion à la caisse, rien d'autre ; aucune donnée biométrique |
+
 ## 2. Accessibilité
 
 ### 2.1 Sur la machine du commerçant
@@ -220,6 +230,7 @@ GROUP BY method;
 | Logs applicatifs | Indéfinie (rotation quotidienne sans purge) | Permettre un audit de comportement applicatif a posteriori |
 | `payments`, `orders`, `order_lines` | Indéfinie | Données de support nécessaires à la reconstruction d'un ticket |
 | Translations, menu_items, modifier_groups, modifiers | Indéfinie | Données de référence. Le menu est mis à jour en place (y compris par la synchronisation du catalogue, qui désactive sans supprimer) ; l'historique fiscal n'en dépend pas : nom, prix et TVA sont figés dans `order_lines` et `order_entries` |
+| `staff_badges`, `badge_log`, `badge_scans` (badges du personnel) | Indéfinie, jamais supprimées (triggers), avec les données de présence | Audit des accès et de la présence ; l'empreinte est inutilisable sans la clé de l'appareil (§1.6 bis) ; un retrait date la ligne sans l'effacer |
 | `eft_payments` (paiements du terminal relié) | Indéfinie, jamais supprimée (triggers) | Preuve d'un débit de carte et de son rattachement à la vente ; ne contient que le numéro de carte masqué (§6) |
 | `orders.raw_hubrise_json`, `hubrise_events` (commandes en ligne) | Indéfinie, sans purge automatique | Contiennent des données de clients (§6) |
 
@@ -235,7 +246,7 @@ soumise au SPF Finances.
   triggers SQLite refusent toute suppression ou réécriture, même par un
   accès direct à la base (`fiscal_events_no_delete`,
   `fiscal_events_no_rewrite` ; idem `z_reports_*`, `order_entries_*`,
-  `pending_signs_*`, `booking_periods_*`, `eft_payments_*` ; liste dans `SCHEMA_ER_FR.md`
+  `pending_signs_*`, `booking_periods_*`, `eft_payments_*`, `staff_badges_*` (aucune suppression, retrait seul), `badge_log_*`, `badge_scans_*` ; liste dans `SCHEMA_ER_FR.md`
   §4).
 - Les sauvegardes journalières sont stockées en fichiers indépendants,
   jamais écrasés (le nom inclut le timestamp à la seconde).
@@ -265,7 +276,7 @@ soumise au SPF Finances.
   `fiscal_events.user_insz`, `pending_signs.user_insz`,
   `staff_shifts.user_insz`, `eft_payments.user_insz`, `webshop_orders.accepted_by`,
   `integration_switches.changed_by`, `integration_switch_log.changed_by`,
-  `table_plan.changed_by` et `table_plan_log.changed_by`, ainsi que dans les JSON `fiscal_events.event_data_json` (payload
+  `table_plan.changed_by`, `table_plan_log.changed_by`, `staff_badges.user_insz`, `badge_log.user_insz` et `badge_scans.user_insz`, ainsi que dans les JSON `fiscal_events.event_data_json` (payload
   envoyé au FDM, obligation fiscale), `pending_signs.request_body`,
   `pending_signs.archive_json` et `pending_signs.context_json`, et
   `z_reports.data_json` (rapport par utilisateur). Les rapports
@@ -305,6 +316,13 @@ soumise au SPF Finances.
   `pos.db` : il est lisible par le compte `spf` de l'image d'admission
   (`pos-db-ro`) et présent dans les sauvegardes. Détail dans
   `SECURITE_BD_FR.md` §6.
+- Badges du personnel (§1.6 bis, option désactivée par défaut) : le numéro
+  du badge n'est jamais conservé, seulement son empreinte HMAC-SHA256
+  calculée avec une clé qui reste sur l'appareil (hors base, sauvegardes
+  et exports) ; aucune donnée biométrique ; usage limité à la présence et à
+  la connexion ; l'employé peut refuser le badge (`PROFIL_ENTREPRISE_FR.md`
+  §6.1). Le journal des passages (`badge_scans`) conserve l'heure, l'INSZ
+  et le résultat, jamais le numéro.
 
 ## 7. Procédure d'export à fournir au contrôleur
 

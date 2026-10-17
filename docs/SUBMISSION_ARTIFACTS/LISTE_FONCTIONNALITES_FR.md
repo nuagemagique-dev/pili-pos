@@ -16,7 +16,7 @@ build `--no-default-features --features cert`).
 | P | Addition (pré-ticket) | `signPreBill` | `crates/pos-engine/src/commands/tables.rs::do_sign_pre_bill` |
 | P | Changement de table (transfert d'une commande ouverte) | `signCostCenterChange` | `crates/pos-engine/src/commands/table_transfer.rs::do_transfer_table` |
 | T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` / `do_checkout_split` avec `training_mode=true` |
-| T | Présence en formation (aucune prestation n'est ouverte dans `staff_shifts` ; le Gérant ne peut pas pointer un autre employé en formation) | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` |
+| T | Présence en formation (aucune prestation n'est ouverte dans `staff_shifts` ; le Gérant ne peut pas pointer un autre employé en formation, ni un badge pointer en formation) | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` ; le pointage par badge est refusé en formation (`presence_training`), la connexion par badge reste possible |
 | F | Correction du moyen de paiement d'une vente (Gérant + PIN) | `signPaymentCorrection` | `crates/pos-engine/src/commands/payment_correction.rs::do_correct_payment` |
 | C | Copie de ticket | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
 | I | Facture B2B (hors binaire certifié v1.0.0, voir §3 bis) | `signInvoice` | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`), sous `#[cfg(feature = "peppol")]` |
@@ -25,6 +25,8 @@ build `--no-default-features --features cert`).
 | S | Pointage entrée | `signWorkIn` | `crates/pos-engine/src/commands/social.rs::do_work_in` |
 | S | Pointage sortie | `signWorkOut` | `crates/pos-engine/src/commands/social.rs::do_work_out` |
 | S | Pointage d'un autre employé par le Gérant (arrivée, départ ; profil « Présence seule ») | `signWorkIn` / `signWorkOut` au nom de l'employé | `crates/pos-engine/src/commands/social.rs::{do_clock_in_employee,do_clock_out_employee}` |
+| S | Pointage par badge (arrivée, départ), depuis n'importe quel écran, sans déconnecter l'opérateur ; option désactivée par défaut, badge lié par un Gérant avec son PIN, empreinte HMAC seule conservée | `signWorkIn` / `signWorkOut` au nom du titulaire du badge | `crates/pos-engine/src/commands/badges.rs::do_badge_tap` (lien : `do_link_badge`, retrait : `do_revoke_badge`), signature `crates/pos-engine/src/commands/social.rs::sign_work_event` |
+| S | Pointage de fin de service par badge sur l'écran de connexion (départ seul, sans session) | `signWorkOut` au nom du titulaire du badge | `crates/pos-engine/src/commands/badges.rs::do_badge_tap` avec `end_shift` |
 | R | Rapport X (intermédiaire) | `signReportTurnoverX` | `crates/pos-engine/src/commands/report.rs::do_generate_x_report` |
 | R | Rapport utilisateurs X | `signReportUserX` | `crates/pos-engine/src/commands/report.rs::do_generate_user_x_report` |
 | R | Rapport Z (clôture, M184) | `signReportTurnoverZ` + `signReportUserZ` (une seule opération GraphQL) | `crates/pos-engine/src/commands/report.rs::do_generate_z_report` |

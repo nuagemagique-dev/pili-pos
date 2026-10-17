@@ -69,6 +69,7 @@ internal fun LoginPinPanel(
                 onCancel = callbacks.onBack,
                 showTitle = false,
             )
+            if (panel.endShift && state.badgeReaderOn) BadgeHint(vueText("end_shift_badge_hint"), "login_end_shift_badge_hint")
             if (onShift) EndShiftToggle(panel.endShift, callbacks.onToggleEndShift)
         } else {
             NoPinActions(panel, onShift, callbacks)

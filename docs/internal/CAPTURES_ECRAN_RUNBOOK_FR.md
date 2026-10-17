@@ -237,14 +237,34 @@ Le mock IPC simule le terminal (`eftScript`, `settingsWith({ paymentTerminal })`
 - **Capture :** plein écran.
 
 ### `19_admin_users.png`
-- **Action :** "Config", section "Employés", connecté en Gérant. Préparer : un Serveur en service (arrivée enregistrée depuis 12:02), un Apprenti hors service, un employé « Présence seule ».
-- **Écran attendu :** la note « Personnel sans accès à la caisse (cuisine) : le Gérant enregistre son arrivée et son départ ici. » ; chaque employé (nom, profil, état « En service depuis 12:02 » ou « Hors service ») avec « Arrivée » ou « Départ », "Code PIN" et "Désactiver" ; la ligne « Présence seule » sans bouton "Code PIN" ; pas de bouton d'arrivée sur la ligne du Gérant connecté ; formulaire "Ajouter" (nom, INSZ, profil Gérant / Serveur / Apprenti / Présence seule).
+- **Action :** "Config", section "Employés", connecté en Gérant. Préparer : un Serveur en service (arrivée enregistrée depuis 12:02), un Apprenti hors service, un employé « Présence seule » ; le lecteur de badges réglé sur « Lecteur USB » et un badge lié au Serveur.
+- **Écran attendu :** la note « Personnel sans accès à la caisse (cuisine) : le Gérant enregistre son arrivée et son départ ici. » ; chaque employé (nom, profil, état « En service depuis 12:02 » ou « Hors service ») avec « Arrivée » ou « Départ », "Code PIN" et "Désactiver" ; la ligne « Présence seule » sans bouton "Code PIN" ; l'état du badge (« Badge lié le 17/10/2026 » ou « Aucun badge ») avec « Retirer le badge » ou « Lier un badge » ; pas de bouton d'arrivée sur la ligne du Gérant connecté ; formulaire "Ajouter" (nom, INSZ, profil Gérant / Serveur / Apprenti / Présence seule).
 - **Capture :** plein écran.
 
 ### `19a_admin_presence.png`
 - **Action :** "Config", section "Employés" : toucher « Arrivée » sur la ligne de l'employé « Présence seule ».
 - **Écran attendu :** message « Arrivée enregistrée · <nom> » ; la ligne passe à « En service depuis HH:MM » et son bouton devient « Départ ». Variante facultative : FDM débranché, les deux boutons grisés avec « FDM indisponible : pointage impossible ».
 - **Capture :** plein écran, message visible.
+
+### `19b_admin_badges.png` (proposée, à produire par le script de captures puis à ajouter au PDF)
+- **Action :** "Config", connecté en Gérant, panneau « Lecteur de badges » (troisième colonne). Préparer : lecteur « Lecteur USB », « Connexion par badge » activée, un badge lié, deux lignes dans le journal.
+- **Écran attendu :** les choix « Désactivé » et « Lecteur USB » (le second sélectionné), l'interrupteur « Connexion par badge » avec sa note sur le PIN des Gérants, les trois réglages du lecteur USB (écart 50 ms, longueurs 6 et 32), la note de confidentialité (seule une empreinte chiffrée est conservée) et les derniers événements (« Badge lié », « Réglages modifiés », avec le Gérant et l'heure).
+- **Capture :** plein écran.
+
+### `19c_badge_enrol.png` (proposée, à produire par le script de captures puis à ajouter au PDF)
+- **Action :** "Config", section "Employés" : toucher « Lier un badge » sur la ligne d'un employé sans badge.
+- **Écran attendu :** fenêtre « Lier un badge » avec « Présentez le badge de <nom> » et le bouton "Retour". Après le passage du badge, la fenêtre suivante demande le PIN du Gérant connecté.
+- **Capture :** plein écran, fenêtre d'attente du badge.
+
+### `03b_badge_toast.png` (proposée, à produire par le script de captures puis à ajouter au PDF)
+- **Action :** un Serveur est connecté (écran des tables) ; un collègue passe son badge sur le lecteur.
+- **Écran attendu :** message « Arrivée · <nom> · HH:MM » (heure de Bruxelles) ; le Serveur reste sur son écran, sa session n'est pas fermée.
+- **Capture :** plein écran, message visible.
+
+### `01b_login_badge.png` (proposée, à produire par le script de captures puis à ajouter au PDF)
+- **Action :** ouvrir l'application avec le lecteur de badges activé et la connexion par badge activée.
+- **Écran attendu :** les tuiles des employés et, dessous, l'invitation « Ou présentez votre badge ». `01_login.png` reste la capture du réglage par défaut (lecteur désactivé).
+- **Capture :** plein écran.
 
 ---
 

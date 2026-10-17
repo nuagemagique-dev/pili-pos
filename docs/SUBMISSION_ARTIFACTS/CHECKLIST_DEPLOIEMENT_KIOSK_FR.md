@@ -22,6 +22,10 @@ la machine de test), pas dans ce document.
       l'UKI n'existe encore - l'activer empêche le boot).
 - [ ] Imprimante thermique Epson TM-m30III raccordée au LAN (TCP 9100 ; l'USB n'est pas pris en charge).
 - [ ] Tiroir-caisse RJ11 raccordé à l'imprimante.
+- [ ] Lecteur de badges (option, désactivé par défaut) : si l'établissement
+      pointe ou se connecte par badge, lecteur USB HID de type « clavier »
+      (il tape le numéro de la carte puis Entrée, sans pilote) branché au
+      terminal, qui n'a pas de NFC (`MANUEL_INSTALLATION_FR.md` §4.4 bis).
 - [ ] URL du FDM module2 (boîtier sur le LAN, ou simulateur en ligne
       `https://fdm.module2.be/graphql/` pour la machine de test)
       configurée dans `/etc/pili-pos/pos.json::fdm_url` (en
@@ -105,6 +109,11 @@ la machine de test), pas dans ce document.
 - [ ] IP LAN de l'imprimante configurée dans `pos.json::printer_address`
       (et, si le bar ou la cuisine a sa propre imprimante,
       `pos.json::kitchen_printer_address` : voyant "Cuisine" vert).
+- [ ] Lecteur de badges : réglage « Désactivé » dans « Config » tant
+      qu'aucun lecteur n'est branché ; avec un lecteur, « Lecteur USB »
+      choisi et un badge de test lié puis retiré (arrivée signée par le
+      FDM, `MANUEL_UTILISATEUR_FR.md` §12.10). La clé des badges
+      (`badge.key`) est créée sur le terminal, jamais copiée.
 - [ ] Sur l'image d'admission : compte `spf` (groupe `pos`, `tty2`,
       mot de passe affiché une seule fois au premier démarrage) peut
       exécuter `pos-db-ro` pour une lecture seule de `pos.db` sans
@@ -215,7 +224,7 @@ série ; capture d'écran finale et journal publiés en artefact CI `boot-smoke-
    ne doit pas être le moment où l'assistant découvre l'écran de mots
    de passe à usage unique.
 1. Boot du kiosk ; montrer Cage qui lance pili-pos en plein écran.
-2. Login (tuile + PIN) ; montrer l'événement fiscal **S** work-in
+2. Login (tuile + PIN, ou badge si le lecteur est activé) ; montrer l'événement fiscal **S** work-in
    archivé.
 3. Ouvrir Table 4 ; ajouter trois articles ; "Envoyer en cuisine" -
    événement **P** et bon de commande imprimé (sans prix).

@@ -2,7 +2,7 @@
 
 **Date :** 2026-10-03
 **Référence :** §II.C "Relations entre les tables" du manuel de certification.
-**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs`, `schema_catalog.rs` et `schema_eft.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 11, puis 20 à 28).
+**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs` et `schema_badges.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 11, puis 20 à 28, puis 70).
 
 Ce document décrit visuellement les relations entre les tables de la
 base SQLite `pos.db`. Pour l'inventaire détaillé champ-par-champ,
@@ -19,7 +19,7 @@ retiré. Le lien est applicatif.
 
 ## 1. Vue d'ensemble par domaines
 
-La base est organisée en 12 domaines logiques :
+La base est organisée en 13 domaines logiques :
 
 ```
 +-----------------+   +---------------+   +----------------+
@@ -71,6 +71,13 @@ La base est organisée en 12 domaines logiques :
 |  table_plan (plan en vigueur),|   |  (migration 27)                |
 |  table_plan_log (append-only) |   |  eft_payments (append-only)    |
 +-------------------------------+   +--------------------------------+
+
++----------------------------------------------------+
+|  BADGES DU PERSONNEL (migration 70, option)        |
+|  badge_settings (réglage unique), staff_badges     |
+|  (liens, retrait seul), badge_log et badge_scans   |
+|  (ajout seul)                                      |
++----------------------------------------------------+
 ```
 
 `_migrations_applied` (suivi des migrations) est hors domaine.
@@ -499,6 +506,44 @@ référence sa commande et, une fois la vente signée, l'événement N qui l'a
 réglée (`used_event_id`, une seule fois). Un paiement `approved` impose
 un `card_type` (`CHECK`).
 
+### 2.10 Badges du personnel (migration 70)
+
+```
++----------------------------------+
+|          badge_settings          |   une seule ligne (id = 1)
+|----------------------------------|
+| reader off|nfc|usb               |
+| login_enabled 0|1                |
+| wedge_max_gap_ms, wedge_min_len, |
+| wedge_max_len                    |
+| key_check, changed_at/by         |
++----------------------------------+
+
++----------------------------------+        +-------------------------------+
+|           staff_badges           |        |           badge_log           |
+|----------------------------------|        |-------------------------------|
+| id INT PK                        |<-------| badge_id INT FK (nullable)    |
+| badge_hash TEXT(64) (HMAC)       |        | action link|revoke|settings   |
+| user_insz TEXT FK ----------------------> users.insz                      |
+| linked_at, linked_by TEXT        |        | user_insz, detail, changed_by |
+| revoked_at, revoked_by TEXT      |        | changed_at                    |
+| revoke_reason manager|           |        +-------------------------------+
+|   deactivated|key_changed        |
++----------------------------------+        +-------------------------------+
+ index unique partiel : une empreinte        |          badge_scans          |
+ active ; un badge actif par employé         |-------------------------------|
+                                             | outcome clock_in|clock_out|   |
+                                             |  presence_failed|login|...   |
+                                             | user_insz, badge_ref(12), ... |
+                                             +-------------------------------+
+```
+
+`staff_badges.user_insz` est, contrairement aux colonnes `user_insz` des
+tables fiscales, une clé étrangère vers `users` : un badge ne désigne
+qu'un employé connu. Les journaux `badge_log` et `badge_scans` gardent
+l'INSZ sans clé étrangère. Le numéro du badge n'apparaît dans aucune
+colonne (`SECURITE_BD_FR.md` §2.5).
+
 ---
 
 ## 3. Relations principales (verbalisées)
@@ -554,8 +599,11 @@ Les tables ci-dessous sont protégées **au niveau de la base** par des triggers
 | `integration_switch_log` | `integration_switch_log_no_update`, `integration_switch_log_no_delete` | Ni DELETE, ni UPDATE |
 | `table_plan_log` | `table_plan_log_no_update`, `table_plan_log_no_delete` | Ni DELETE, ni UPDATE |
 | `eft_payments` | `eft_payments_no_delete`, `eft_payments_starts_sent`, `eft_payments_request_fixed`, `eft_payments_status_moves`, `eft_payments_answer_final`, `eft_payments_used_once` | Pas de DELETE ; une ligne naît `sent` et non utilisée ; la demande (commande, montant, référence, opérateur) est immuable ; seuls `sent` et `unknown` changent de statut ; une réponse définitive ne change plus (hors `used_event_id`, posé une fois pour un paiement `approved`) |
+| `staff_badges` | `staff_badges_no_delete`, `staff_badges_revoke_only` | Pas de DELETE ; la seule modification possible est un retrait, une fois (l'empreinte, l'INSZ et les données de lien sont immuables) |
+| `badge_log` | `badge_log_no_update`, `badge_log_no_delete` | Ni DELETE, ni UPDATE |
+| `badge_scans` | `badge_scans_no_update`, `badge_scans_no_delete` | Ni DELETE, ni UPDATE |
 
-Soit 29 triggers.
+Soit 35 triggers.
 
 Pour les autres tables (catalogue, commandes en cours, paiements, utilisateurs, `staff_shifts`, tables HubRise hors journal) les opérations UPDATE/DELETE sont autorisées via la couche commandes. Les `orders` sont marquées `status='closed'` ou `status='voided'` plutôt que supprimées. Le catalogue synchronisé met à jour ses lignes en place ; l'historique fiscal ne dépend pas de ces lignes (nom et prix sont figés dans `order_lines` / `order_entries`).
 
@@ -614,15 +662,15 @@ l'interrupteur, qui reçoit au moins la valeur de départ.
 
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
-Version actuelle du schéma : migrations `1` à `11`, puis `20` à `28`
-(vingt migrations ; 12 à 19 sont réservées aux correctifs du binaire
+Version actuelle du schéma : migrations `1` à `11`, puis `20` à `28`, puis `70`
+(vingt et une migrations ; 12 à 19 sont réservées aux correctifs du binaire
 certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `booking-periods`, `fiscal-archive-append-only`, `ticket-deliveries`,
 `original-prints`, `german-language`, `meal-voucher-payments`,
 `shifts-and-pre-bill`, `pending-signs`, `table-plan`, `hubrise-transport`,
 `catalog-sync`, `webshop-orders`, `price-changes`,
 `platform-charges`, `integration-switch`, `product-codes`,
-`eft-payments`, `presence-registration` - liste exacte dans
+`eft-payments`, `presence-registration`, `staff-badges` - liste exacte dans
 `SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs`
 (`MIGRATIONS`, `HUBRISE_MIGRATIONS`, `CATALOG_MIGRATIONS`). Les
-migrations 20 à 28 font partie du binaire certifié.
+migrations 20 à 28 et 70 font partie du binaire certifié.

@@ -1,5 +1,6 @@
 pub mod access;
 pub mod auth;
+pub mod badges;
 pub mod bar_slip;
 pub mod checkout;
 pub mod copy;

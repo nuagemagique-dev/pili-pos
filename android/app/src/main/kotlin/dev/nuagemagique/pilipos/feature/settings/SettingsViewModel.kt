@@ -11,10 +11,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import uniffi.pos_ffi.BadgeOverview
+import uniffi.pos_ffi.BadgeSettingsView
 import uniffi.pos_ffi.CreateUserInput
 import uniffi.pos_ffi.Integrations
 import uniffi.pos_ffi.MailStatus
@@ -40,6 +43,12 @@ private data class Shared(
     val engine: PosSettings?,
     val training: Boolean,
     val language: AppLanguage,
+)
+
+/** What the badge store holds: the reader setting and the badge list. */
+private data class BadgeStores(
+    val settings: BadgeSettingsView?,
+    val overview: BadgeOverview?,
 )
 
 /** The product label, the mail status and the FDM connection, gathered before the screen state is built. */
@@ -72,7 +81,11 @@ internal class SettingsViewModel(
     private val session = entry.session()
     private val integrations = entry.integrations()
     private val delivery = entry.delivery()
+    private val badges = entry.badges()
     private val own = MutableStateFlow(SettingsUiState())
+
+    /** The badge half of the screen: reader panel, enrolment, removal. */
+    val badge: SettingsBadgeModel = SettingsBadgeModel(entry, own, viewModelScope) { loadUsers() }
 
     /** What the screen draws. */
     val state: StateFlow<SettingsUiState> =
@@ -87,13 +100,20 @@ internal class SettingsViewModel(
             ),
             combine(settings.productLabel, delivery.mailStatus, entry.fdm().state.map { it.connected }, ::Pieces),
             integrations.state,
+            combine(badges.settings, badges.overview, ::BadgeStores),
             own,
-        ) { shared, pieces, switch, base ->
-            build(base, shared, pieces, switch)
+        ) { shared, pieces, switch, stored, base ->
+            build(base, shared, pieces, switch, stored)
         }.stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            build(own.value, currentShared(), currentPieces(), integrations.state.value),
+            build(
+                own.value,
+                currentShared(),
+                currentPieces(),
+                integrations.state.value,
+                BadgeStores(badges.settings.value, badges.overview.value),
+            ),
         )
 
     init {
@@ -101,6 +121,14 @@ internal class SettingsViewModel(
         viewModelScope.launch {
             entry.gateway().ready.collect { ready -> if (ready) refresh() }
         }
+        // A badge registered someone's arrival or departure: who is on shift changed (`watch(presenceVersion)`).
+        viewModelScope.launch {
+            badges.presenceVersion.drop(1).collect { loadUsers() }
+        }
+    }
+
+    override fun onCleared() {
+        badge.clear()
     }
 
     // ── Loading ───────────────────────────────────────────────────
@@ -108,6 +136,7 @@ internal class SettingsViewModel(
     /** Loads the employees, the mail status, the deliveries and the HubRise switch again. */
     suspend fun refresh() {
         settings.load()
+        badges.load()
         integrations.load()
         loadUsers()
         refreshMailStatus()
@@ -128,9 +157,13 @@ internal class SettingsViewModel(
     suspend fun loadUsers() {
         val users = attempt { entry.gateway().call { engine -> engine.listUsers() } }
         val shifts = attempt { entry.gateway().call { engine -> engine.listOpenShifts() } }
-        if (users.isSuccess && shifts.isSuccess) {
+        // The badges are listed with the employees (a manager's call); all three answer or the screen keeps its state.
+        val linked = if (session.isManager.value) attempt { badges.fetchOverview() } else null
+        val badgesOk = linked == null || linked.isSuccess
+        if (users.isSuccess && shifts.isSuccess && badgesOk) {
             val open = shifts.getOrThrow().associate { it.userInsz to it.startedAt }
             own.update { it.copy(users = users.getOrThrow(), openShifts = open) }
+            linked?.getOrNull()?.let(badges::publishOverview)
         }
     }
 
@@ -402,8 +435,16 @@ internal class SettingsViewModel(
         shared: Shared,
         pieces: Pieces,
         switch: Integrations?,
+        stored: BadgeStores,
     ): SettingsUiState =
         base.copy(
+            badge =
+                base.badge.copy(
+                    settings = stored.settings,
+                    overview = stored.overview,
+                    hasNfc = badges.hasNfc,
+                    nfcEnabled = badges.nfcEnabled,
+                ),
             rows = visibleRows(entry.registry().settingsEntries, shared.manager),
             isManager = shared.manager,
             currentInsz = shared.user?.insz,

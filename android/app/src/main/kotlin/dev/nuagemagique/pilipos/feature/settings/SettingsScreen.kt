@@ -38,7 +38,9 @@ import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.NavRegistry
 import dev.nuagemagique.pilipos.nav.SettingsEntry
 import dev.nuagemagique.pilipos.ui.components.ConfirmDialog
+import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
+import dev.nuagemagique.pilipos.ui.components.PiliDialog
 import dev.nuagemagique.pilipos.ui.components.PinDialog
 import dev.nuagemagique.pilipos.ui.components.PinMode
 import dev.nuagemagique.pilipos.ui.components.PinPadTexts
@@ -88,6 +90,7 @@ internal data class SettingsCallbacks(
     val onPresence: (User) -> Unit = {},
     val onToggleHubrise: () -> Unit = {},
     val onReloadDeliveries: () -> Unit = {},
+    val badge: BadgeCallbacks = BadgeCallbacks(),
 )
 
 /** What the PIN dialogs of the screen call (the view model's PIN flow). */
@@ -135,6 +138,7 @@ internal fun SettingsRoute(
     val callbacks = settingsCallbacks(model, navigator)
     val pinActions = pinActionsOf(model)
     val hubriseCallbacks = hubriseCallbacksOf(hubriseModel)
+    val badgeActions = badgeActionsOf(model.badge)
     val connectActions = HubriseConnectActions(onSubmit = hubriseModel::submitCode, onCancel = hubriseModel::cancelConnect)
     val qr = remember(entry) { entry.qrMatrices() }
     LaunchedEffect(model) { entry.delivery().refreshMailStatus() }
@@ -147,6 +151,7 @@ internal fun SettingsRoute(
                 state = state,
                 pinActions = pinActions,
                 deactivate = DeactivateActions(onConfirm = model::deactivate, onCancel = model::cancelDeactivate),
+                badge = badgeActions,
             )
             HubriseDialogs(
                 state = hubrise,
@@ -184,6 +189,30 @@ private fun settingsCallbacks(
         onPresence = model::togglePresence,
         onToggleHubrise = model::toggleHubrise,
         onReloadDeliveries = model::reloadDeliveries,
+        badge = badgeCallbacksOf(model.badge),
+    )
+
+/** What the badge panel and the employee rows call on [model]. */
+private fun badgeCallbacksOf(model: SettingsBadgeModel): BadgeCallbacks =
+    BadgeCallbacks(
+        onToggle = model::toggle,
+        onReader = model::setReader,
+        onToggleLogin = model::toggleLogin,
+        onEditField = model::editField,
+        onKey = model::onKey,
+        onSaveTiming = model::saveTiming,
+        onEmployee = model::onEmployee,
+    )
+
+/** What the badge dialogs call on [model]. */
+private fun badgeActionsOf(model: SettingsBadgeModel): BadgeDialogActions =
+    BadgeDialogActions(
+        onCancelEnrol = model::cancelEnrol,
+        onEnrolPin = model::confirmEnrolPin,
+        onEnrolDone = model::onEnrolDone,
+        describeError = model::describe,
+        onConfirmRevoke = model::confirmRevoke,
+        onCancelRevoke = model::cancelRevoke,
     )
 
 /** The PIN flow of [model] as the PIN dialogs call it. */
@@ -255,6 +284,7 @@ private fun WideLayout(
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
             if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
+            if (state.isManager) BadgePanel(state.badge, callbacks.badge)
             InfoPanel(state.info)
             IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
             if (state.hubrise.visible) hubriseSection()
@@ -279,6 +309,7 @@ private fun NarrowLayout(
         LanguagePanel(state.language, callbacks.onLanguage)
         ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
         if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
+        if (state.isManager) BadgePanel(state.badge, callbacks.badge)
         if (state.isManager) EmployeesPanel(state, callbacks, Modifier, scrollList = false)
         InfoPanel(state.info)
         IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
@@ -459,6 +490,7 @@ private fun EmployeesPanel(
     }
 }
 
+@Suppress("LongMethod")
 @Composable
 private fun WorkerRow(
     user: User,
@@ -514,6 +546,13 @@ private fun WorkerRow(
                     )
                 }
             }
+        }
+        if (state.showBadges) {
+            WorkerBadgeLine(
+                user.insz,
+                state.badgeOf(user.insz)?.linkedAt,
+                Modifier.padding(start = AvatarSize + PiliTheme.dimens.spaceMd, bottom = PiliTheme.dimens.spaceSm),
+            ) { callbacks.badge.onEmployee(user) }
         }
         Hairline()
     }
@@ -789,7 +828,21 @@ internal fun SettingsDialogs(
     state: SettingsUiState,
     pinActions: SettingsPinActions,
     deactivate: DeactivateActions,
+    badge: BadgeDialogActions = BadgeDialogActions(),
 ) {
+    state.enrol?.let { enrol -> key(enrol.token != null) { BadgeEnrolDialog(enrol, badge) } }
+    state.revokeBadge?.let { ask ->
+        ConfirmDialog(
+            title = vueText("badge_revoke"),
+            message = vueText("badge_revoke_confirm", "name" to ask.name),
+            confirmText = vueText("badge_revoke"),
+            cancelText = vueText("back"),
+            onConfirm = badge.onConfirmRevoke,
+            onCancel = badge.onCancelRevoke,
+            destructive = true,
+            modifier = Modifier.testTag("badge_revoke_dialog"),
+        )
+    }
     val flow = state.pin
     if (flow != null) key(flow.stage) { SettingsPinDialog(flow, pinActions) }
     val armed = state.confirmDeactivate
@@ -835,6 +888,60 @@ private fun SettingsPinDialog(
         onDone = if (confirming || own) actions.onDone else ({}),
         onCancel = actions.onCancel,
         modifier = Modifier.testTag("settings_pin_dialog"),
+    )
+}
+
+/**
+ * Link a badge to an employee (`BadgeEnrolDialog.vue`): "Présentez le badge de ..." waits for the next scan, then
+ * the manager's own PIN confirms. Test tags: `badge_enrol_dialog`, `badge_enrol_cancel`, `badge_enrol_pin`.
+ */
+@Composable
+private fun BadgeEnrolDialog(
+    enrol: BadgeEnrolFlow,
+    actions: BadgeDialogActions,
+) {
+    if (enrol.token == null) {
+        PiliDialog(
+            title = vueText("badge_link"),
+            onDismissRequest = actions.onCancelEnrol,
+            modifier = Modifier.testTag("badge_enrol_dialog"),
+            actions = {
+                PiliButton(
+                    text = vueText("back"),
+                    onClick = actions.onCancelEnrol,
+                    variant = PiliButtonVariant.Secondary,
+                    modifier = Modifier.testTag("badge_enrol_cancel"),
+                )
+            },
+        ) {
+            Text(
+                vueText("badge_present_for", "name" to enrol.name),
+                style = PiliTheme.typography.body,
+                color = PiliTheme.colors.textPrimary,
+                modifier = Modifier.testTag("badge_enrol_present"),
+            )
+        }
+        return
+    }
+    val texts =
+        PinPadTexts(
+            title = vueText("pin_enter"),
+            hint = vueText("pin_confirm_manager"),
+            enterPrompt = vueText("pin_enter"),
+            confirmPrompt = vueText("pin_confirm"),
+            mismatch = vueText("pin_mismatch"),
+            cancel = vueText("back"),
+            clearLabel = uiText(R.string.ui_common_numpad_clear),
+            backspaceLabel = uiText(R.string.ui_common_numpad_backspace),
+        )
+    PinDialog(
+        mode = PinMode.Verify,
+        texts = texts,
+        onSubmit = actions.onEnrolPin,
+        describeError = actions.describeError,
+        onDone = actions.onEnrolDone,
+        onCancel = actions.onCancelEnrol,
+        modifier = Modifier.testTag("badge_enrol_pin"),
     )
 }
 

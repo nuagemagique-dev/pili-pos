@@ -35,5 +35,19 @@
     <string name="settings_presence_done_out">Départ enregistré · {name}</string>
     <string name="settings_presence_fdm_down">FDM indisponible : pointage impossible</string>
     <string name="settings_presence_note">Personnel sans accès à la caisse (cuisine) : le Gérant enregistre son arrivée et son départ ici.</string>
+    <string name="settings_badges">Lecteur de badges</string>
+    <string name="badge_reader_off">Désactivé</string>
+    <string name="badge_reader_usb">Lecteur USB</string>
+    <string name="settings_badge_login">Connexion par badge</string>
+    <string name="settings_badge_login_note">Les Gérants saisissent toujours leur PIN après le badge.</string>
+    <string name="settings_badge_usb_timing">Réglages du lecteur USB</string>
+    <string name="settings_badge_gap">Écart maximal entre caractères (ms)</string>
+    <string name="settings_badge_min_len">Longueur minimale du code</string>
+    <string name="settings_badge_max_len">Longueur maximale du code</string>
+    <string name="settings_badge_nfc_unavailable">Pas de NFC sur cet appareil : choisissez un lecteur USB</string>
+    <string name="settings_badge_relink">La clé des badges a été renouvelée : liez de nouveau les badges</string>
+    <string name="settings_badge_privacy">Seule une empreinte chiffrée du badge est conservée, jamais son numéro. Usage : présence et connexion uniquement.</string>
+    <string name="settings_badge_log">Derniers événements</string>
+    <string name="settings_badge_log_empty">Aucun événement</string>
     <string name="settings_email_title">Tickets par email</string>
 </resources>

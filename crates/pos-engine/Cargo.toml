@@ -31,6 +31,11 @@ tokio-util = { workspace = true }
 bcrypt = "0.19"
 uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
+# The badge key and the keyed hash of a badge number (badge_key.rs).
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+getrandom = "0.3"
 
 [dev-dependencies]
 # The integration tests (tests/) share this harness. The cycle with the
@@ -38,6 +43,8 @@ tracing = "0.1"
 # only, no pos-engine unit test uses the testkit.
 pos-engine-testkit = { path = "../pos-engine-testkit" }
 tempfile = "3"
+# Captures the log output (tests/badges.rs: no raw badge number in logs).
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
 wiremock = "0.6"
 # The admission image's mock FDM, served in-process by tests/admission_mock.rs.
 pos-fdm-mock = { path = "../pos-fdm-mock" }

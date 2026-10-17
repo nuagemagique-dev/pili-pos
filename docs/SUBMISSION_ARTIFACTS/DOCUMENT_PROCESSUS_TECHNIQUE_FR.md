@@ -84,8 +84,22 @@ binaire certifié.
 | **I** (Facture) | Hors binaire certifié v1.0.0 | Code sous `#[cfg(feature = "peppol")]` (`commands/invoice.rs`) | Absent de la build cert (§8) ; événement optionnel dans SCE 2.0 |
 | **F** (Financier) | Mouvement caisse, ouverture seule du tiroir | `commands/financial::do_money_in_out` / `do_open_drawer_fiscal` | F-WAR pour ouverture tiroir |
 | **F** (Correction de paiement, `PAYMENT_CORRECTION`) | Le Gérant corrige le moyen d'une ligne de paiement d'une vente (onglet Tickets) | `commands/payment_correction::do_correct_payment` | PIN du Gérant ; `fdmRef` de la vente ; une correction par vente ; aucun ticket, tiroir fermé ; rapports X/Z : corrections positives et négatives |
-| **S** (Social) | Pointage entrée / sortie de l'opérateur ; pointage d'un autre employé par le Gérant | `commands/social::do_work_in` / `do_work_out` ; `do_clock_in_employee` / `do_clock_out_employee` | INSZ + n° employeur |
+| **S** (Social) | Pointage entrée / sortie de l'opérateur ; pointage d'un autre employé par le Gérant ; pointage par badge (option « Lecteur de badges ») | `commands/social::do_work_in` / `do_work_out` ; `do_clock_in_employee` / `do_clock_out_employee` ; `commands/badges::do_badge_tap` (via `commands/social::sign_work_event`) | INSZ + n° employeur |
 | **R** (Rapport) | Rapports Z et X | `commands/report::do_generate_x_report` / `do_generate_z_report` | Z est Turnover-Z + User-Z atomique |
+
+**Pointage par badge (option, désactivée par défaut).** Le lecteur USB
+(clavier émulé : numéro puis Entrée) est lu par l'interface, qui ne fait
+que reconnaître la rafale de touches et transmettre le numéro brut à
+`commands/badges::do_badge_tap`. Le moteur seul décide : numéro normalisé,
+empreinte HMAC-SHA256 avec la clé de l'appareil (`badge_key.rs`, fichier
+`badge.key` hors de la base), anti-rebond de 10 secondes, recherche dans
+`staff_badges`, puis bascule de présence par `commands/social::sign_work_event`
+(événement S au nom du titulaire du badge, identique à M140 et M141),
+ouverture de session sans PIN pour un Serveur ou un Apprenti si la
+connexion par badge est activée, PIN toujours exigé d'un Gérant. Le lien
+(`do_link_badge`, Gérant + son PIN), le retrait (`do_revoke_badge`) et les
+réglages (`do_set_badge_settings`) sont réservés au Gérant et journalisés.
+Voir `FLUX_DONNEES_FR.md` §6 ter et `REPONSES_MANUEL_CERT_FR.md` §III.E.
 
 Chaque branche :
 

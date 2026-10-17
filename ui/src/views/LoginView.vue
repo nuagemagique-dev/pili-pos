@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useIntegrationsStore } from "../stores/integrations";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { usePosStore } from "../stores/pos";
 import { useFdmStore } from "../stores/fdm";
+import { useBadgeStore } from "../stores/badge";
+import { goAfterLogin } from "../utils/postLogin";
 import { useToastStore } from "../stores/toast";
 import type { User } from "../types";
 import * as ipc from "../api/ipc";
@@ -20,6 +22,7 @@ const auth = useAuthStore();
 const pos = usePosStore();
 const fdm = useFdmStore();
 const toast = useToastStore();
+const badge = useBadgeStore();
 const { t } = useI18n();
 
 const savedUsers = ref<User[]>([]);
@@ -35,6 +38,10 @@ const pin = ref("");
 const pinError = ref<string | null>(null);
 // The PIN ends the selected employee's shift instead of logging in.
 const endShiftMode = ref(false);
+
+// A badge scan while this mode is on clocks its holder out (plan L5-D7).
+watch(endShiftMode, (on) => { badge.endShiftMode = on; }, { immediate: true });
+onUnmounted(() => { badge.endShiftMode = false; });
 
 // A manager without a PIN chooses one before logging in
 // (commands/auth.rs::do_login_with_new_pin).
@@ -57,9 +64,34 @@ function openPinOverlay(user: User) {
   endShiftMode.value = false;
 }
 
+// A manager's badge never opens a session by itself: it selects the
+// manager and opens their PIN pad (plan L5-D6).
+watch(
+  () => badge.pinRequest,
+  (req) => {
+    if (!req) return;
+    badge.pinRequest = null;
+    error.value = null;
+    showNumpad.value = false;
+    const known = savedUsers.value.find((u) => u.insz === req.insz);
+    if (known) void quickLogin(known);
+    else openPinOverlay({ insz: req.insz, name: req.name, role: "admin", active: true, has_pin: true });
+  },
+);
+
+// A badge registered someone's arrival or departure: the tiles show it,
+// and an open "Fin de service" pad has done its job.
+watch(
+  () => badge.presenceVersion,
+  () => {
+    if (endShiftMode.value) cancelPin();
+    void loadShifts();
+  },
+);
+
 function onFirstPinDone() {
   firstPinUser.value = null;
-  router.push({ name: "order" });
+  void goAfterLogin(router);
 }
 
 async function loadShifts() {
@@ -205,7 +237,7 @@ async function loginWithoutPin(user: User) {
   try {
     await auth.loginWithInsz(user.insz);
     toast.show(t("pin_not_set_warning"), "warning", 5000);
-    router.push({ name: "order" });
+    void goAfterLogin(router);
   } catch (e) {
     if (errorCode(e) === "pin_setup_required") {
       firstPinUser.value = { insz: user.insz, name: user.name };
@@ -239,7 +271,7 @@ async function submitPin() {
   }
   try {
     await auth.loginWithInsz(pinUser.value.insz, pin.value);
-    router.push({ name: "order" });
+    void goAfterLogin(router);
   } catch (e) {
     pinError.value = describeError(e);
     pin.value = "";
@@ -297,7 +329,7 @@ async function submitInsz() {
     // required, so the user must use the tile path for PIN-protected
     // accounts).
     await auth.loginWithInsz(insz.value);
-    router.push({ name: "order" });
+    void goAfterLogin(router);
   } catch (e) {
     const code = errorCode(e);
     if (code === "pin_setup_required") {
@@ -391,6 +423,8 @@ async function submitInsz() {
           </button>
         </div>
 
+        <p v-if="badge.loginOn && !showNumpad" class="badge-hint" data-testid="badge-login-hint">{{ t('login_badge_hint') }}</p>
+
         <button v-if="savedUsers.length > 0" class="other-btn" @click="toggleInsz">
           {{ showNumpad ? t('back') : t('other_person_insz') }}
         </button>
@@ -416,6 +450,7 @@ async function submitInsz() {
             <button class="nk nk-back" @click="handlePinKey('BS')">&#9003;</button>
           </div>
           <span class="pin-hint">{{ endShiftMode ? t('end_shift_hint') : t('pin_auto_hint') }}</span>
+          <span v-if="endShiftMode && badge.readerOn" class="pin-hint" data-testid="end-shift-badge-hint">{{ t('end_shift_badge_hint') }}</span>
         </template>
         <!-- On shift without a PIN: log in, or end the shift. -->
         <button v-else class="submit-btn" @click="loginWithoutPin(pinUser)">{{ t('login') }}</button>
@@ -746,6 +781,12 @@ async function submitInsz() {
 }
 .nk-clear { color: var(--accent-warning); }
 .nk-back { color: var(--accent-danger); }
+
+.badge-hint {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--text-secondary);
+}
 
 .pin-hint {
   font-family: var(--font-mono);

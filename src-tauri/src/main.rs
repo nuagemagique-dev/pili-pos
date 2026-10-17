@@ -282,6 +282,13 @@ fn main() {
         ipc::social::clock_in_employee,
         ipc::social::clock_out_employee,
         ipc::social::end_shift,
+        // Staff badges (reader setting, enrolment, scans)
+        ipc::badges::get_badge_settings,
+        ipc::badges::set_badge_settings,
+        ipc::badges::list_badges,
+        ipc::badges::link_badge,
+        ipc::badges::revoke_badge,
+        ipc::badges::badge_tap,
         // Financial (Event F - cash in/out, drawer)
         ipc::financial::money_in_out,
         ipc::financial::open_drawer_fiscal,
@@ -405,6 +412,13 @@ fn main() {
         ipc::social::clock_in_employee,
         ipc::social::clock_out_employee,
         ipc::social::end_shift,
+        // Staff badges (reader setting, enrolment, scans)
+        ipc::badges::get_badge_settings,
+        ipc::badges::set_badge_settings,
+        ipc::badges::list_badges,
+        ipc::badges::link_badge,
+        ipc::badges::revoke_badge,
+        ipc::badges::badge_tap,
         // Financial (Event F - cash in/out, drawer)
         ipc::financial::money_in_out,
         ipc::financial::open_drawer_fiscal,

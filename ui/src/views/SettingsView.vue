@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { formatDayTime, formatTime, formatTimestamp } from "../utils/datetime";
+import { formatDate, formatDayTime, formatTime, formatTimestamp } from "../utils/datetime";
 import { useIntegrationsStore } from "../stores/integrations";
 import IntegrationSwitch from "../components/IntegrationSwitch.vue";
-import { computed, defineAsyncComponent, onMounted, ref } from "vue";
+import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue";
 import { usePosStore } from "../stores/pos";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
@@ -14,6 +14,9 @@ import * as ipc from "../api/ipc";
 import AppHeader from "../components/AppHeader.vue";
 import PinDialog from "../components/PinDialog.vue";
 import ExportStatusPanel from "../components/ExportStatusPanel.vue";
+import BadgeSettings from "../components/BadgeSettings.vue";
+import BadgeEnrolDialog from "../components/BadgeEnrolDialog.vue";
+import { useBadgeStore } from "../stores/badge";
 import { hasMessage, useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
@@ -28,6 +31,7 @@ const pos = usePosStore();
 const auth = useAuthStore();
 const toast = useToastStore();
 const fdm = useFdmStore();
+const badge = useBadgeStore();
 
 /** The backend refuses the switch while an order is open. */
 async function toggleTraining() {
@@ -160,6 +164,45 @@ async function togglePresence(w: User) {
   }
 }
 
+// ── Badges (managers, while the reader is on) ──────────────────────
+// The employee a badge is being linked to (capture + PIN dialog open),
+// and the one whose badge removal waits for confirmation.
+const enrolFor = ref<User | null>(null);
+const revokeFor = ref<User | null>(null);
+
+const showBadges = computed(() => auth.isManager && badge.readerOn);
+
+function badgeOf(w: User) {
+  return badge.overview?.badges.find((b) => b.insz === w.insz) ?? null;
+}
+
+function badgeLabel(w: User): string {
+  const b = badgeOf(w);
+  return b
+    ? t("badge_linked_on", { date: formatTimestamp(b.linkedAt, formatDate) })
+    : t("badge_none_label");
+}
+
+function onBadgeButton(w: User) {
+  if (badgeOf(w)) revokeFor.value = w;
+  else enrolFor.value = w;
+}
+
+async function confirmRevoke() {
+  const w = revokeFor.value;
+  revokeFor.value = null;
+  if (!w) return;
+  try {
+    await badge.revoke(w.insz);
+    toast.show(t("badge_revoked_done", { name: w.name }), "success");
+  } catch (e) {
+    toast.show(describeError(e), "error", 5000);
+  }
+}
+
+// A badge scan registered someone's arrival or departure.
+watch(() => badge.presenceVersion, () => void loadWorkers());
+
 async function deactivate(insz: string) {
   if (confirmDeactivate.value !== insz) {
     confirmDeactivate.value = insz;
@@ -277,7 +320,10 @@ onMounted(() => {
   delivery.refreshMailStatus();
   loadDeliveries();
   void support.refresh();
-  if (auth.isManager) void loadTablePlan();
+  if (auth.isManager) {
+    void loadTablePlan();
+    void badge.load().then(() => badge.loadOverview());
+  }
 });
 </script>
 
@@ -395,6 +441,10 @@ onMounted(() => {
                 {{ roleLabel(w) }} · {{ w.has_pin ? t('settings_pin_set') : t('settings_pin_missing') }}
               </span>
               <span class="worker-presence" :class="{ on: !!openShifts[w.insz] }" data-testid="presence-state">{{ shiftLabel(w) }}</span>
+              <span v-if="showBadges" class="worker-badge">
+                <span class="worker-presence" :class="{ on: !!badgeOf(w) }" data-testid="badge-state">{{ badgeLabel(w) }}</span>
+                <button class="badge-btn" data-testid="badge-btn" @click="onBadgeButton(w)">{{ badgeOf(w) ? t('badge_revoke') : t('badge_link') }}</button>
+              </span>
             </span>
             <span class="worker-actions">
               <button
@@ -494,7 +544,27 @@ onMounted(() => {
           </ul>
         </section>
 
+        <BadgeSettings v-if="auth.isManager" />
+
         <HubriseSettings v-if="integrations.hubriseVisible" class="panel panel-grow" />
+      </div>
+    </div>
+
+    <BadgeEnrolDialog
+      v-if="enrolFor"
+      :insz="enrolFor.insz"
+      :name="enrolFor.name"
+      @done="enrolFor = null"
+      @cancel="enrolFor = null"
+    />
+
+    <div v-if="revokeFor" class="revoke-backdrop" data-testid="badge-revoke-dialog" @click.self="revokeFor = null">
+      <div class="revoke-dialog" role="dialog" :aria-label="t('badge_revoke')">
+        <p class="revoke-text">{{ t('badge_revoke_confirm', { name: revokeFor.name }) }}</p>
+        <div class="revoke-actions">
+          <button class="pin-btn" @click="revokeFor = null">{{ t('back') }}</button>
+          <button class="deactivate-btn armed" data-testid="badge-revoke-confirm" @click="confirmRevoke">{{ t('badge_revoke') }}</button>
+        </div>
       </div>
     </div>
 
@@ -637,6 +707,15 @@ onMounted(() => {
 .worker-presence { font-size: 15px; color: var(--text-secondary); }
 .worker-presence.on { color: var(--text-primary); font-weight: var(--font-weight-bold); }
 .presence-block { color: var(--accent-warning); font-size: 15px; }
+.worker-badge .worker-presence { white-space: nowrap; }
+.worker-badge { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.badge-btn {
+  height: 40px; padding: 0 14px; border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--text-primary);
+  font-size: 14px; font-weight: var(--font-weight-bold);
+  transition: transform var(--tap-duration) ease;
+}
+.badge-btn:active { transform: scale(var(--tap-scale)); }
 .worker-actions { display: flex; gap: 8px; }
 .presence-btn:disabled { opacity: 0.4; }
 .presence-btn, .pin-btn, .deactivate-btn {
@@ -648,6 +727,17 @@ onMounted(() => {
 .deactivate-btn { color: var(--text-secondary); }
 .deactivate-btn.armed { background: var(--accent-danger); color: var(--text-on-accent); }
 .presence-btn:active:not(:disabled), .pin-btn:active, .deactivate-btn:active { transform: scale(var(--tap-scale)); }
+
+.revoke-backdrop {
+  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+.revoke-dialog {
+  display: flex; flex-direction: column; gap: 24px; padding: 32px;
+  border-radius: var(--radius-md); background: var(--bg-secondary);
+}
+.revoke-text { font-size: 22px; font-weight: var(--font-weight-bold); }
+.revoke-actions { display: flex; gap: 12px; justify-content: flex-end; }
 
 .add-worker { display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
 .add-fields { display: flex; gap: 8px; }
