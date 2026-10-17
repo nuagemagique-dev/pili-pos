@@ -236,6 +236,13 @@ function defaultHandlers(): Record<string, Handler> {
     set_active_order: () => undefined,
     lock_session: () => ({ orderError: null }),
     sign_pre_bill: () => 'printed',
+    transfer_table: live(({ orderId, toTable }: any = {}) => ({
+      orderId: orderId ?? 1,
+      fromTable: 1,
+      toTable: toTable ?? 2,
+      kitchenSlip: 'nothing_to_print',
+      transferSlip: 'printed',
+    })),
 
     // Social (S) and financial (F) events
     work_in: () => ({ success: true, error: null }),

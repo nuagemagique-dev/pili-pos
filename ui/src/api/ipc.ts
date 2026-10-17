@@ -339,6 +339,24 @@ export function signPreBill(orderId: number): Promise<SlipOutcome> {
   return invoke("sign_pre_bill", { orderId });
 }
 
+/** What moving an order to another table did. */
+export interface TableTransferResult {
+  orderId: number;
+  fromTable: number;
+  toTable: number;
+  /** The bar / kitchen slip of what was registered before the move. */
+  kitchenSlip: SlipOutcome;
+  /** The notice that the order moved. */
+  transferSlip: SlipOutcome;
+}
+
+/** Move the open order of a table to a free table (event P, cost center
+ * change). Entries not yet registered are sent first. Throws the error
+ * code on a refusal. */
+export function transferTable(orderId: number, toTable: number): Promise<TableTransferResult> {
+  return invoke("transfer_table", { orderId, toTable });
+}
+
 // Reports
 export interface ReportResult {
   success: boolean;

@@ -195,6 +195,27 @@ export const useOrderStore = defineStore("order", () => {
     markAllSent();
   }
 
+  /** Move an open dine-in order to a free table (event P, cost center
+   * change). A refusal is thrown for the caller's toast; both slips are
+   * reported like "send to kitchen". */
+  async function transferOrder(orderId: number, toTable: number) {
+    const result = await ipc.transferTable(orderId, toTable);
+    warnIfSlipFailed(result.kitchenSlip);
+    warnIfSlipFailed(result.transferSlip);
+    if (currentOrder.value?.id === orderId) {
+      // What was unsent went out with the P that came first.
+      markAllSent();
+      currentOrder.value = await ipc.getOrder(orderId);
+    }
+    return result;
+  }
+
+  /** Move the order on screen to a free table. */
+  async function transferTable(toTable: number) {
+    if (!currentOrder.value) throw new Error("No active order");
+    return transferOrder(currentOrder.value.id, toTable);
+  }
+
   /** Close the current order unpaid, confirmed by the manager's PIN.
    * A refusal is thrown (the PIN dialog shows it); on success the
    * order is signed and closed, and the cart is cleared. */
@@ -238,6 +259,8 @@ export const useOrderStore = defineStore("order", () => {
     loadOpenOrders,
     leave,
     preBill,
+    transferOrder,
+    transferTable,
     closeUnpaid,
     clearOrder,
     resetLocal,
