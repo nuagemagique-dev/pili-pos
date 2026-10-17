@@ -84,14 +84,15 @@ impl ReportEvent {
         })
     }
 
-    fn lines(&self) -> &[Value] {
+    /// The transaction lines of the signed request.
+    pub fn lines(&self) -> &[Value] {
         self.request["transaction"]["transactionLines"]
             .as_array()
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
 
-    fn has_transaction(&self) -> bool {
+    pub fn has_transaction(&self) -> bool {
         self.request
             .get("transaction")
             .is_some_and(Value::is_object)
@@ -101,7 +102,7 @@ impl ReportEvent {
         self.request["employeeId"].as_str()
     }
 
-    fn pos_date_time(&self) -> Option<DateTime<FixedOffset>> {
+    pub fn pos_date_time(&self) -> Option<DateTime<FixedOffset>> {
         self.request["posDateTime"]
             .as_str()
             .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
@@ -127,7 +128,7 @@ impl ReportEvent {
 }
 
 /// A JSON amount (multiple of 0.01) in eurocents.
-fn cents(v: &Value) -> i64 {
+pub fn cents(v: &Value) -> i64 {
     (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64
 }
 
@@ -137,7 +138,7 @@ fn eur(cents: i64) -> f64 {
 
 /// Σ(VatInput.price) + Σ(VatInput.priceChanges.amount) of one
 /// transaction line: its amount after price changes.
-fn line_amount(line: &Value) -> i64 {
+pub fn line_amount(line: &Value) -> i64 {
     line["mainProduct"]["vats"]
         .as_array()
         .map(|vats| {
@@ -154,7 +155,7 @@ fn line_amount(line: &Value) -> i64 {
         .unwrap_or(0)
 }
 
-fn transaction_amount(event: &ReportEvent) -> i64 {
+pub fn transaction_amount(event: &ReportEvent) -> i64 {
     event.lines().iter().map(line_amount).sum()
 }
 

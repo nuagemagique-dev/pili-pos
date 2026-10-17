@@ -5,7 +5,7 @@
 //! the engine's serde form and the FFI record's must be equal. The one input type, `MoneyDirection`,
 //! is converted variant by variant.
 //!
-//! (b) Wiring tests: each of the 16 methods is called through a `PosEngine` opened on the seeded
+//! (b) Wiring tests: each of the 18 methods is called through a `PosEngine` opened on the seeded
 //! database (`support::open_seeded`). The facade has no login (that is the auth domain), so a
 //! command that needs an operator answers `not_logged_in` on a plain engine; to run them for real
 //! the gated tests keep an operator session open: `end_shift` (PIN check, session open, clock-out
@@ -27,6 +27,10 @@ use pos_engine::commands::financial::{
 use pos_engine::commands::report::{
     ReportResult as EngineReportResult, do_generate_user_x_report, do_generate_x_report,
     do_generate_z_report, do_list_z_reports,
+};
+use pos_engine::commands::sales_report::{
+    SalesDay as EngineSalesDay, SalesHour as EngineSalesHour, SalesProduct as EngineSalesProduct,
+    SalesReport as EngineSalesReport, do_sales_report,
 };
 use pos_engine::commands::settings::{PosSettings as EnginePosSettings, do_get_settings};
 use pos_engine::commands::social::{
@@ -132,6 +136,71 @@ fn report_results_with_every_option_set_or_empty_convert() {
         let record: ffi::ReportResult = out_equal(&engine);
         assert_eq!(record.report_no, report_no);
     }
+}
+
+// ───────────────────────────── SalesReport ─────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_sales_report_of_a_real_day_converts() {
+    let app = app_on_mock().await;
+    let day = pos_fiscal::event::now_in_belgium().date_naive().to_string();
+    let report = do_sales_report(&app.state, day.clone(), day.clone()).unwrap();
+    let record: ffi::SalesReport = out_equal(&report);
+    assert_eq!(record.from, day);
+    assert_eq!(record.total_cents, 0);
+    assert!(record.days.is_empty());
+}
+
+#[test]
+fn a_sales_report_with_every_field_set_converts() {
+    let engine = EngineSalesReport {
+        from: "2026-10-16".into(),
+        to: "2026-10-17".into(),
+        generated_at: "2026-10-17T18:30:00+02:00".into(),
+        business_date: "2026-10-17".into(),
+        days: vec![
+            EngineSalesDay {
+                booking_date: "2026-10-16".into(),
+                z_number: Some(12),
+                total_cents: 1550,
+                z_total_cents: Some(1550),
+                open: false,
+                matches_z: true,
+                gap_cents: Some(0),
+            },
+            EngineSalesDay {
+                booking_date: "2026-10-17".into(),
+                z_number: None,
+                total_cents: 400,
+                z_total_cents: None,
+                open: true,
+                matches_z: false,
+                gap_cents: None,
+            },
+        ],
+        open_period: true,
+        by_product: vec![EngineSalesProduct {
+            product_id: "10006".into(),
+            name: "Maki".into(),
+            department: "Plats".into(),
+            quantity_milli: -2000,
+            amount_cents: -1300,
+        }],
+        by_hour: vec![EngineSalesHour {
+            hour: 19,
+            tickets: 3,
+            amount_cents: 1950,
+            bar_percent: 100,
+        }],
+        price_changes_cents: -50,
+        rounding_cents: 2,
+        refunds_cents: -1300,
+        ticket_count: 3,
+        total_cents: 1950,
+    };
+    let record: ffi::SalesReport = out_equal(&engine);
+    assert_eq!(record.days.len(), 2);
+    assert_eq!(record.by_hour[0].hour, 19);
 }
 
 // ───────────────────────────── ZReportSummary ─────────────────────────────
@@ -366,6 +435,12 @@ async fn commands_that_need_an_operator_are_refused_without_a_session() {
             .await
             .unwrap_err(),
         e.backup_database().await.unwrap_err(),
+        e.sales_report("2026-10-01".into(), "2026-10-01".into())
+            .await
+            .unwrap_err(),
+        e.print_sales_report("2026-10-01".into(), "2026-10-01".into())
+            .await
+            .unwrap_err(),
         e.work_in(MANAGER_INSZ.into()).await.unwrap_err(),
         e.work_out(MANAGER_INSZ.into()).await.unwrap_err(),
         e.money_in_out(
@@ -551,6 +626,22 @@ async fn commands_that_do_not_sign_run_for_the_operator() {
         "{path:?} is not under the data dir's backups"
     );
     assert!(std::fs::metadata(&path).unwrap().len() > 0);
+
+    // The sales report: read-only, range checked by the engine.
+    let report = e
+        .sales_report("2026-10-01".into(), "2026-10-01".into())
+        .await
+        .unwrap();
+    assert_eq!(report.total_cents, 0);
+    let err = e
+        .sales_report("2026-10-02".into(), "2026-10-01".into())
+        .await
+        .unwrap_err();
+    assert!(coded(&err, "sales_report_range_invalid"), "{err:?}");
+    // The seeded engine has a printer mock: the report prints.
+    e.print_sales_report("2026-10-01".into(), "2026-10-01".into())
+        .await
+        .unwrap();
 
     // Queries.
     e.list_z_reports().await.unwrap();

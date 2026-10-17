@@ -88,3 +88,63 @@ pub struct PosSettings {
     #[uniffi(default = None)]
     pub payment_terminal: Option<String>,
 }
+
+/// `pos_engine::commands::sales_report::SalesDay`: one booking period of a sales report with its
+/// concordance with the Z.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SalesDay {
+    pub booking_date: String,
+    pub z_number: Option<i64>,
+    pub total_cents: i64,
+    pub z_total_cents: Option<i64>,
+    pub open: bool,
+    pub matches_z: bool,
+    /// Total minus the Z's turnover of a closed period with a Z.
+    pub gap_cents: Option<i64>,
+}
+
+/// `pos_engine::commands::sales_report::SalesProduct`: one row of the by-product table.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SalesProduct {
+    pub product_id: String,
+    pub name: String,
+    pub department: String,
+    /// Thousandths of a unit, negative for refunds.
+    pub quantity_milli: i64,
+    pub amount_cents: i64,
+}
+
+/// `pos_engine::commands::sales_report::SalesHour`: one row of the by-hour table.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SalesHour {
+    /// Local hour in Belgium, 0 to 23.
+    pub hour: u32,
+    pub tickets: i64,
+    pub amount_cents: i64,
+    /// Length of the bar, 0 to 100.
+    pub bar_percent: u32,
+}
+
+/// `pos_engine::commands::sales_report::SalesReport`: the non-fiscal sales report of a range of
+/// booking dates (V11-D20).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SalesReport {
+    pub from: String,
+    pub to: String,
+    pub generated_at: String,
+    /// The business date now (`YYYY-MM-DD`): what "today" is for the screens.
+    pub business_date: String,
+    pub days: Vec<SalesDay>,
+    pub open_period: bool,
+    pub by_product: Vec<SalesProduct>,
+    pub by_hour: Vec<SalesHour>,
+    pub price_changes_cents: i64,
+    pub rounding_cents: i64,
+    pub refunds_cents: i64,
+    pub ticket_count: i64,
+    pub total_cents: i64,
+}

@@ -103,6 +103,7 @@ object EngineErrorCodes {
             "email_sent",
             "printer_not_configured",
             "print_failed",
+            "sales_report_range_invalid",
             "support_unavailable",
             "support_running",
             "support_start_failed",

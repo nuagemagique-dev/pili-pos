@@ -1238,3 +1238,44 @@ async fn menu_editor_commands_follow_the_roles() {
     assert_eq!(do_menu_admin_get(&app.state).unwrap().categories.len(), 2);
     assert_eq!(do_list_menu_changes(&app.state, None).unwrap().len(), 2);
 }
+
+// ── Sales report (v1.1) ────────────────────────────────────────
+
+#[tokio::test]
+async fn sales_report_commands_are_for_managers() {
+    use pos_engine::commands::sales_report::{do_print_sales_report, do_sales_report};
+    let app = app().await;
+    let (from, to) = ("2026-07-01".to_string(), "2026-07-01".to_string());
+
+    app.logout();
+    assert_eq!(
+        do_sales_report(&app.state, from.clone(), to.clone()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_print_sales_report(&app.state, from.clone(), to.clone())
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+
+    for (insz, role) in [
+        (APPRENTICE, UserRole::Waiter),
+        ("75061189702", UserRole::Cashier),
+    ] {
+        as_(&app, insz, role);
+        assert_eq!(
+            do_sales_report(&app.state, from.clone(), to.clone()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_print_sales_report(&app.state, from.clone(), to.clone())
+                .await
+                .unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(do_sales_report(&app.state, from, to).is_ok());
+}

@@ -145,6 +145,9 @@ pub const EMAIL_SENT: &str = "email_sent";
 pub const PRINTER_NOT_CONFIGURED: &str = "printer_not_configured";
 /// `detail`: the printer's error, for the technician.
 pub const PRINT_FAILED: &str = "print_failed";
+/// The sales report range is not a valid range of booking dates (V11-D20): bad date, end
+/// before start, or more than 92 days.
+pub const SALES_REPORT_RANGE_INVALID: &str = "sales_report_range_invalid";
 
 // Remote support.
 pub const SUPPORT_UNAVAILABLE: &str = "support_unavailable";
@@ -328,6 +331,7 @@ pub const ALL: &[&str] = &[
     EMAIL_SENT,
     PRINTER_NOT_CONFIGURED,
     PRINT_FAILED,
+    SALES_REPORT_RANGE_INVALID,
     SUPPORT_UNAVAILABLE,
     SUPPORT_RUNNING,
     SUPPORT_START_FAILED,

@@ -28,6 +28,7 @@
     <string name="err_price_positive">请输入大于零的价格。</string>
     <string name="err_fixed_price">商品{product}为固定价格。</string>
     <string name="err_product_unavailable">商品{product}不可用。</string>
+    <string name="err_sales_report_range_invalid">请选择有效日期：结束日期不早于开始日期，且不超过92天。</string>
     <string name="err_product_sold_out">该商品已售罄。</string>
     <string name="err_menu_invalid">菜单中的值无效：{field}。</string>
     <string name="err_menu_not_found">该菜单项已不存在。</string>

@@ -21,6 +21,7 @@ import type {
   DeliveryView,
   SlipOutcome,
   ExportStatus,
+  SalesReport,
 } from "../types";
 
 // Menu
@@ -374,6 +375,17 @@ export function generateXReport(employeeInsz: string): Promise<ReportResult> {
 
 export function generateZReport(employeeInsz: string): Promise<ReportResult> {
   return invoke("generate_z_report", { employeeInsz });
+}
+
+/** The non-fiscal sales report of the booking dates `fromDate..=toDate` (YYYY-MM-DD, 92 days at
+ * most). Manager only; signs nothing. */
+export function salesReport(fromDate: string, toDate: string): Promise<SalesReport> {
+  return invoke("sales_report", { fromDate, toDate });
+}
+
+/** Print the same report on the ticket printer. */
+export function printSalesReport(fromDate: string, toDate: string): Promise<void> {
+  return invoke("print_sales_report", { fromDate, toDate });
 }
 
 export function generateUserXReport(employeeInsz: string): Promise<ReportResult> {

@@ -1,5 +1,6 @@
 package dev.nuagemagique.pilipos.feature.reports
 
+import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -71,6 +72,27 @@ internal data class InvoiceCallbacks(
     val onCopy: (fiscalEventId: Long) -> Unit = {},
 )
 
+/** What the operator can do on the sales tab: choose a range, type one, sort, print. */
+internal data class SalesCallbacks(
+    val onPreset: (SalesPreset) -> Unit = {},
+    val onField: (SalesField) -> Unit = {},
+    val onKey: (NumPadKey) -> Unit = {},
+    val onApply: () -> Unit = {},
+    val onSort: (SalesSort) -> Unit = {},
+    val onPrint: () -> Unit = {},
+)
+
+/** The actions of the sales tab over [model]. */
+internal fun salesCallbacks(model: SalesViewModel): SalesCallbacks =
+    SalesCallbacks(
+        onPreset = model::pick,
+        onField = model::setField,
+        onKey = model::onKey,
+        onApply = model::applyCustom,
+        onSort = model::setSort,
+        onPrint = model::print,
+    )
+
 /** What the delivery picker of the copy and refund dialogs does. */
 internal data class DeliveryCallbacks(
     val onPaper: () -> Unit = {},
@@ -85,6 +107,7 @@ internal data class ReportsCallbacks(
     val cash: CashCallbacks = CashCallbacks(),
     val tickets: TicketsCallbacks = TicketsCallbacks(),
     val invoice: InvoiceCallbacks = InvoiceCallbacks(),
+    val sales: SalesCallbacks = SalesCallbacks(),
     val delivery: DeliveryCallbacks = DeliveryCallbacks(),
 )
 

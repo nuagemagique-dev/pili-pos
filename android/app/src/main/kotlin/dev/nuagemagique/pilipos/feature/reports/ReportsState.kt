@@ -9,7 +9,7 @@ import uniffi.pos_ffi.ReportResult
 import uniffi.pos_ffi.UnsettledCardPayment
 import uniffi.pos_ffi.ZReportSummary
 
-/** The three tabs of the reports screen (`Tab` of `ReportsView.vue`, UX guide 2.1). */
+/** The four tabs of the reports screen (`Tab` of `ReportsView.vue`, UX guide 2.1). */
 internal enum class ReportsTab {
     /** X, user X and Z reports and the Z history. */
     DAY,
@@ -19,6 +19,9 @@ internal enum class ReportsTab {
 
     /** Copy and refund from one list of tickets. */
     TICKETS,
+
+    /** The non-fiscal sales report (by product, by hour, concordance with the Z). */
+    SALES,
 }
 
 /** The report a button of the day tab generates. */

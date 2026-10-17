@@ -6,7 +6,7 @@ import dev.nuagemagique.pilipos.R
 /** Vue message key to Android string resource id, in the order of the Vue dictionary. */
 internal object VueStringIds {
     private val ids: Map<String, Int> by lazy {
-        buildMap { part0(); part1(); part2() }
+        buildMap { part0(); part1(); part2(); part3() }
     }
 
     /** Every Vue key, in dictionary order. */
@@ -113,6 +113,7 @@ internal object VueStringIds {
         this["err_price_positive"] = R.string.err_price_positive
         this["err_fixed_price"] = R.string.err_fixed_price
         this["err_product_unavailable"] = R.string.err_product_unavailable
+        this["err_sales_report_range_invalid"] = R.string.err_sales_report_range_invalid
         this["err_product_sold_out"] = R.string.err_product_sold_out
         this["err_menu_invalid"] = R.string.err_menu_invalid
         this["err_menu_not_found"] = R.string.err_menu_not_found
@@ -265,10 +266,10 @@ internal object VueStringIds {
         this["refund_success"] = R.string.refund_success
         this["refund_none"] = R.string.refund_none
         this["cash_section"] = R.string.cash_section
-        this["cash_in"] = R.string.cash_in
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["cash_in"] = R.string.cash_in
         this["cash_out"] = R.string.cash_out
         this["cash_open_drawer"] = R.string.cash_open_drawer
         this["cash_declaration"] = R.string.cash_declaration
@@ -393,6 +394,7 @@ internal object VueStringIds {
         this["reports_tab_day"] = R.string.reports_tab_day
         this["reports_tab_cash"] = R.string.reports_tab_cash
         this["reports_tab_tickets"] = R.string.reports_tab_tickets
+        this["reports_tab_sales"] = R.string.reports_tab_sales
         this["reports_z_pending"] = R.string.reports_z_pending
         this["reports_reprint_z"] = R.string.reports_reprint_z
         this["reports_last_z"] = R.string.reports_last_z
@@ -474,6 +476,38 @@ internal object VueStringIds {
         this["keyboard_backspace"] = R.string.keyboard_backspace
         this["keyboard_space"] = R.string.keyboard_space
         this["keyboard_next"] = R.string.keyboard_next
+        this["sales_title"] = R.string.sales_title
+        this["sales_not_fiscal"] = R.string.sales_not_fiscal
+        this["sales_today"] = R.string.sales_today
+        this["sales_yesterday"] = R.string.sales_yesterday
+        this["sales_week"] = R.string.sales_week
+        this["sales_month"] = R.string.sales_month
+        this["sales_custom"] = R.string.sales_custom
+        this["sales_from"] = R.string.sales_from
+        this["sales_to"] = R.string.sales_to
+        this["sales_apply"] = R.string.sales_apply
+        this["sales_print"] = R.string.sales_print
+        this["sales_printed"] = R.string.sales_printed
+        this["sales_loading"] = R.string.sales_loading
+        this["sales_empty"] = R.string.sales_empty
+        this["sales_by_product"] = R.string.sales_by_product
+        this["sales_by_hour"] = R.string.sales_by_hour
+        this["sales_concordance"] = R.string.sales_concordance
+        this["sales_sort_amount"] = R.string.sales_sort_amount
+        this["sales_sort_quantity"] = R.string.sales_sort_quantity
+        this["sales_col_product"] = R.string.sales_col_product
+        this["sales_col_qty"] = R.string.sales_col_qty
+        this["sales_col_amount"] = R.string.sales_col_amount
+        this["sales_hour_tickets"] = R.string.sales_hour_tickets
+        this["sales_z_equal"] = R.string.sales_z_equal
+        this["sales_z_gap"] = R.string.sales_z_gap
+        this["sales_z_missing"] = R.string.sales_z_missing
+        this["sales_open"] = R.string.sales_open
+        this["sales_total"] = R.string.sales_total
+        this["sales_tickets"] = R.string.sales_tickets
+        this["sales_price_changes"] = R.string.sales_price_changes
+        this["sales_refunds"] = R.string.sales_refunds
+        this["sales_rounding"] = R.string.sales_rounding
         this["settings_training_on"] = R.string.settings_training_on
         this["settings_training_off"] = R.string.settings_training_off
         this["settings_training_effect"] = R.string.settings_training_effect
@@ -485,6 +519,9 @@ internal object VueStringIds {
         this["settings_product_label_name"] = R.string.settings_product_label_name
         this["settings_product_label_code"] = R.string.settings_product_label_code
         this["settings_product_label_note"] = R.string.settings_product_label_note
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["settings_tables"] = R.string.settings_tables
         this["settings_tables_current"] = R.string.settings_tables_current
         this["settings_tables_placeholder"] = R.string.settings_tables_placeholder
@@ -519,9 +556,6 @@ internal object VueStringIds {
         this["menu_editor_locked"] = R.string.menu_editor_locked
         this["menu_ed_title"] = R.string.menu_ed_title
         this["menu_ed_categories"] = R.string.menu_ed_categories
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["menu_ed_products"] = R.string.menu_ed_products
         this["menu_ed_add_category"] = R.string.menu_ed_add_category
         this["menu_ed_add_product"] = R.string.menu_ed_add_product
@@ -738,6 +772,9 @@ internal object VueStringIds {
         this["err_modifier_count"] = R.string.err_modifier_count
         this["err_hubrise_disabled"] = R.string.err_hubrise_disabled
         this["err_hubrise_not_configured"] = R.string.err_hubrise_not_configured
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["err_hubrise_secret_unreadable"] = R.string.err_hubrise_secret_unreadable
         this["err_hubrise_oauth_failed"] = R.string.err_hubrise_oauth_failed
         this["err_hubrise_online_orders_open"] = R.string.err_hubrise_online_orders_open

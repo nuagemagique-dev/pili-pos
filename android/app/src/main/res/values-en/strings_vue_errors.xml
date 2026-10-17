@@ -28,6 +28,7 @@
     <string name="err_price_positive">Enter a price greater than zero.</string>
     <string name="err_fixed_price">Product {product} has a fixed price.</string>
     <string name="err_product_unavailable">Product {product} is not available.</string>
+    <string name="err_sales_report_range_invalid">Choose valid dates: the end is not before the start, and the range is at most 92 days.</string>
     <string name="err_product_sold_out">This product is sold out.</string>
     <string name="err_menu_invalid">Invalid value in the menu: {field}.</string>
     <string name="err_menu_not_found">This menu entry no longer exists.</string>

@@ -1440,6 +1440,12 @@
       "zh": "未知角色",
       "area": "errors"
     },
+    "err_sales_report_range_invalid": {
+      "fr": "Choisissez des dates valables : la fin ne précède pas le début, et la période ne dépasse pas 92 jours.",
+      "en": "Choose valid dates: the end is not before the start, and the range is at most 92 days.",
+      "zh": "请选择有效日期：结束日期不早于开始日期，且不超过92天。",
+      "area": "errors"
+    },
     "err_signing_busy": {
       "fr": "La caisse enregistre une autre opération : réessayez dans un instant.",
       "en": "The till is recording another operation: try again in a moment.",
@@ -3336,6 +3342,12 @@
       "zh": "当日",
       "area": "reports"
     },
+    "reports_tab_sales": {
+      "fr": "Ventes",
+      "en": "Sales",
+      "zh": "销售",
+      "area": "reports"
+    },
     "reports_tab_tickets": {
       "fr": "Tickets",
       "en": "Tickets",
@@ -3419,6 +3431,198 @@
       "en": "Apprentice",
       "zh": "学徒",
       "area": "core"
+    },
+    "sales_apply": {
+      "fr": "Afficher",
+      "en": "Show",
+      "zh": "显示",
+      "area": "reports"
+    },
+    "sales_by_hour": {
+      "fr": "Ventes par heure",
+      "en": "Sales by hour",
+      "zh": "按小时销售",
+      "area": "reports"
+    },
+    "sales_by_product": {
+      "fr": "Ventes par produit",
+      "en": "Sales by product",
+      "zh": "按商品销售",
+      "area": "reports"
+    },
+    "sales_col_amount": {
+      "fr": "Montant",
+      "en": "Amount",
+      "zh": "金额",
+      "area": "reports"
+    },
+    "sales_col_product": {
+      "fr": "Produit",
+      "en": "Product",
+      "zh": "商品",
+      "area": "reports"
+    },
+    "sales_col_qty": {
+      "fr": "Qté",
+      "en": "Qty",
+      "zh": "数量",
+      "area": "reports"
+    },
+    "sales_concordance": {
+      "fr": "Concordance avec les Z",
+      "en": "Match with the Z reports",
+      "zh": "与Z报表核对",
+      "area": "reports"
+    },
+    "sales_custom": {
+      "fr": "Période libre",
+      "en": "Custom range",
+      "zh": "自定义期间",
+      "area": "reports"
+    },
+    "sales_empty": {
+      "fr": "Aucune vente sur cette période.",
+      "en": "No sales in this period.",
+      "zh": "该期间没有销售。",
+      "area": "reports"
+    },
+    "sales_from": {
+      "fr": "Du",
+      "en": "From",
+      "zh": "从",
+      "area": "reports"
+    },
+    "sales_hour_tickets": {
+      "fr": "{n} tickets",
+      "en": "{n} tickets",
+      "zh": "{n} 张票",
+      "area": "reports"
+    },
+    "sales_loading": {
+      "fr": "Calcul en cours...",
+      "en": "Calculating...",
+      "zh": "计算中...",
+      "area": "reports"
+    },
+    "sales_month": {
+      "fr": "Ce mois",
+      "en": "This month",
+      "zh": "本月",
+      "area": "reports"
+    },
+    "sales_not_fiscal": {
+      "fr": "Document non fiscal : ce n'est ni un rapport X ou Z, ni un ticket de caisse.",
+      "en": "Non-fiscal document: not an X or Z report, not a till receipt.",
+      "zh": "非税务文件：不是X或Z报表，也不是收银小票。",
+      "area": "reports"
+    },
+    "sales_open": {
+      "fr": "Période en cours (pas encore de Z)",
+      "en": "Period in progress (no Z yet)",
+      "zh": "进行中的期间（尚无Z）",
+      "area": "reports"
+    },
+    "sales_price_changes": {
+      "fr": "Modifications de prix (tickets)",
+      "en": "Price changes (tickets)",
+      "zh": "价格调整（整单）",
+      "area": "reports"
+    },
+    "sales_print": {
+      "fr": "Imprimer",
+      "en": "Print",
+      "zh": "打印",
+      "area": "reports"
+    },
+    "sales_printed": {
+      "fr": "Rapport de ventes envoyé à l'imprimante",
+      "en": "Sales report sent to the printer",
+      "zh": "销售报表已发送到打印机",
+      "area": "reports"
+    },
+    "sales_refunds": {
+      "fr": "dont remboursements",
+      "en": "of which refunds",
+      "zh": "其中退款",
+      "area": "reports"
+    },
+    "sales_rounding": {
+      "fr": "Arrondi caisse (hors total)",
+      "en": "Cash rounding (not in the total)",
+      "zh": "现金凑整（不计入合计）",
+      "area": "reports"
+    },
+    "sales_sort_amount": {
+      "fr": "Montant",
+      "en": "Amount",
+      "zh": "金额",
+      "area": "reports"
+    },
+    "sales_sort_quantity": {
+      "fr": "Quantité",
+      "en": "Quantity",
+      "zh": "数量",
+      "area": "reports"
+    },
+    "sales_tickets": {
+      "fr": "Tickets",
+      "en": "Tickets",
+      "zh": "票据数",
+      "area": "reports"
+    },
+    "sales_title": {
+      "fr": "Rapport de ventes",
+      "en": "Sales report",
+      "zh": "销售报表",
+      "area": "reports"
+    },
+    "sales_to": {
+      "fr": "Au",
+      "en": "To",
+      "zh": "至",
+      "area": "reports"
+    },
+    "sales_today": {
+      "fr": "Aujourd'hui",
+      "en": "Today",
+      "zh": "今天",
+      "area": "reports"
+    },
+    "sales_total": {
+      "fr": "Total des ventes",
+      "en": "Total sales",
+      "zh": "销售合计",
+      "area": "reports"
+    },
+    "sales_week": {
+      "fr": "Cette semaine",
+      "en": "This week",
+      "zh": "本周",
+      "area": "reports"
+    },
+    "sales_yesterday": {
+      "fr": "Hier",
+      "en": "Yesterday",
+      "zh": "昨天",
+      "area": "reports"
+    },
+    "sales_z_equal": {
+      "fr": "Z {no} : identique",
+      "en": "Z {no}: equal",
+      "zh": "Z {no}：一致",
+      "area": "reports"
+    },
+    "sales_z_gap": {
+      "fr": "Z {no} : écart de {gap} € (Z : {z} €)",
+      "en": "Z {no}: gap of {gap} € (Z: {z} €)",
+      "zh": "Z {no}：差额 {gap} €（Z：{z} €）",
+      "area": "reports"
+    },
+    "sales_z_missing": {
+      "fr": "Z introuvable pour cette période",
+      "en": "No Z found for this period",
+      "zh": "该期间没有找到Z",
+      "area": "reports"
     },
     "send_to_kitchen": {
       "fr": "Envoyer en cuisine",
@@ -4476,6 +4680,7 @@
     "email_sent",
     "printer_not_configured",
     "print_failed",
+    "sales_report_range_invalid",
     "support_unavailable",
     "support_running",
     "support_start_failed",

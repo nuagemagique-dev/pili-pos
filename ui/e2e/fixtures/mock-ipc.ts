@@ -343,6 +343,12 @@ function defaultHandlers(): Record<string, Handler> {
     list_z_reports: () => [],
     needs_z_report: () => false,
     backup_database: () => '/tmp/backup.db',
+    sales_report: ({ fromDate, toDate }: any = {}) => ({
+      from: fromDate, to: toDate, generatedAt: '2026-10-17T18:30:00+02:00', businessDate: '2026-10-17',
+      days: [], openPeriod: false, byProduct: [], byHour: [],
+      priceChangesCents: 0, roundingCents: 0, refundsCents: 0, ticketCount: 0, totalCents: 0,
+    }),
+    print_sales_report: () => undefined,
 
     // Copy (event C)
     copy_ticket: live(({ delivery }: any = {}) => {

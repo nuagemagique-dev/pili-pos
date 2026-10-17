@@ -28,6 +28,7 @@
     <string name="err_price_positive">Saisissez un prix supérieur à zéro.</string>
     <string name="err_fixed_price">Le produit {product} a un prix fixe.</string>
     <string name="err_product_unavailable">Le produit {product} n\'est pas disponible.</string>
+    <string name="err_sales_report_range_invalid">Choisissez des dates valables : la fin ne précède pas le début, et la période ne dépasse pas 92 jours.</string>
     <string name="err_product_sold_out">Ce produit est épuisé.</string>
     <string name="err_menu_invalid">Valeur invalide dans la carte : {field}.</string>
     <string name="err_menu_not_found">Cet élément de la carte n\'existe plus.</string>

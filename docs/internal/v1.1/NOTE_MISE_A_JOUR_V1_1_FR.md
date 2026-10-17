@@ -167,3 +167,27 @@ du 29 avril 2024) ; un test le démontre.
 
 **Tests.** Voir le §5 de `EDITEUR_CARTE_FR.md`. Aucun cas du jeu d'essais de l'administration
 n'est concerné.
+
+## 12. Rapport de ventes non fiscal
+
+**Ce qui change.** Un quatrième onglet « Ventes » de l'écran Rapports affiche, pour une date
+comptable ou une plage de 92 jours au plus, les ventes **par produit**, **par heure** et, pour
+chaque période comptable, la **concordance avec le rapport Z** qui l'a clôturée. Il s'imprime sur
+l'imprimante de tickets sous le titre « RAPPORT DE VENTES - DOCUMENT NON FISCAL ». Réservé au
+gérant, identique sur la caisse Linux et sur la caisse portable Android.
+
+**Pourquoi.** Donner au restaurateur une vue de gestion des ventes (quels produits, à quelles
+heures) qui soit **garantie cohérente avec les rapports Z** (FAQ des producteurs, question 508).
+La réponse du manuel de certification, section L, passe de NON à OUI pour ce seul rapport ; sa
+description, sa correspondance avec le Z et ses requêtes sont dans `RAPPORTS_VENTES_FR.md`.
+
+**Impact fiscal.** Aucun : le rapport ne signe rien, n'ajoute aucun événement, ne touche à aucun
+compteur et n'envoie rien au module de contrôle. Il lit les événements N déjà signés (la requête
+archivée est la source des rapports X et Z), exclut la formation et montre les remboursements en
+négatif. Le total des ventes d'une période est égal au chiffre d'affaires N du Z de cette période ;
+l'arrondi de caisse, qui n'est pas dans ce chiffre d'affaires, est montré à part et n'est pas
+ajouté au total. Aucun rapport X ou Z existant n'est modifié.
+
+**Tests.** Voir le §5 de `RAPPORTS_VENTES_FR.md` (journée type des Rapports 1.3 : total égal au Z).
+Aucun cas du jeu d'essais de l'administration n'est concerné.
+

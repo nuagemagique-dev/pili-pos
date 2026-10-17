@@ -178,3 +178,13 @@ fn the_locked_menu_code_has_its_text() {
         assert!(text.contains(lang), "{lang}");
     }
 }
+
+#[test]
+fn the_sales_report_code_is_listed_and_translated() {
+    let code = errors::SALES_REPORT_RANGE_INVALID;
+    assert!(errors::ALL.contains(&code), "{code} is not in errors::ALL");
+    let text = entry(&format!("err_{code}")).unwrap_or_else(|| panic!("no text for {code}"));
+    for lang in ["fr:", "en:", "zh:"] {
+        assert!(text.contains(lang), "{code} {lang}");
+    }
+}

@@ -262,6 +262,8 @@ fn main() {
         ipc::report::list_z_reports,
         ipc::report::needs_z_report,
         ipc::report::backup_database,
+        ipc::report::sales_report,
+        ipc::report::print_sales_report,
         // Copy
         ipc::copy::copy_ticket,
         ipc::copy::list_fiscal_events,

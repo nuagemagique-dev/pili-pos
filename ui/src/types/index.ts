@@ -322,3 +322,55 @@ export interface ExportStatus {
   /** Exports dropped after the keep window. */
   dropped: number;
 }
+
+/** One booking period of a sales report with its concordance with the Z (V11-D20). */
+export interface SalesDay {
+  bookingDate: string;
+  zNumber: number | null;
+  totalCents: number;
+  zTotalCents: number | null;
+  /** Still open: no Z yet ("période en cours"). */
+  open: boolean;
+  /** Closed, with a Z, and equal to it. */
+  matchesZ: boolean;
+  /** Total minus the Z's turnover, of a closed period with a Z. */
+  gapCents: number | null;
+}
+
+export interface SalesProduct {
+  productId: string;
+  name: string;
+  department: string;
+  /** Thousandths of a unit; negative for refunds. */
+  quantityMilli: number;
+  amountCents: number;
+}
+
+export interface SalesHour {
+  /** Local hour in Belgium, 0 to 23. */
+  hour: number;
+  tickets: number;
+  amountCents: number;
+  /** Length of the bar, 0 to 100. */
+  barPercent: number;
+}
+
+/** The non-fiscal sales report of a range of booking dates. */
+export interface SalesReport {
+  from: string;
+  to: string;
+  generatedAt: string;
+  /** The business date now: what "today" is. */
+  businessDate: string;
+  days: SalesDay[];
+  openPeriod: boolean;
+  byProduct: SalesProduct[];
+  /** Only the hours with sales, from the end-of-day hour round the clock. */
+  byHour: SalesHour[];
+  priceChangesCents: number;
+  /** Cash rounding: shown apart, not part of the total. */
+  roundingCents: number;
+  refundsCents: number;
+  ticketCount: number;
+  totalCents: number;
+}

@@ -1416,3 +1416,21 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
 - **V11-D36a Error count (T4).** `errors::ALL` now has 128 codes (`menu_invalid`, `menu_not_found`); the FFI test
   `every_code_of_both_lists_maps_to_coded` follows.
 
+- **V11-D40 Sales report scope (T5).** `sales_report` and `print_sales_report` (Access::Admin, no migration) read only
+  archived N events, `booking_periods` and `z_reports`. Training events are excluded, refunds are negative, event price
+  changes and the ROUNDING lines are shown apart and kept out of the total (rounding is not part of
+  `transactionTotal`). The per-day total is compared with the turnover of the Z of that booking date and carries the
+  concordance mark; an open period is flagged. The range is limited to 92 days (`sales_report_range_invalid`); hours
+  are read in Europe/Brussels from `day_end_hour`.
+- **V11-D41 Report wording (T5).** The print is titled "RAPPORT DE VENTES" with "DOCUMENT NON FISCAL" and the footers
+  "CECI N'EST PAS UN RAPPORT FISCAL" and "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"; the words X, Z and
+  CHIFFRE D'AFFAIRES never appear in the title. The layout lives in `crates/pos-print/src/sales_report.rs`.
+- **V11-D42 Gaps and bar widths from the engine (T5).** The Android gate `ui-money` forbids Kotlin arithmetic on
+  identifiers containing "cents", so the engine computes `gapCents` (day total minus Z turnover) and `barPercent`
+  (hour bars); both UIs only display them.
+- **V11-D43 Custom range fields (T5).** The custom range fields start empty (not prefilled with the current range), so
+  Apply is disabled until both dates are complete; the range line shows the range applied.
+- **V11-D44 Design notes (T5, part E).** Six English notes under `docs/internal/v1.1/design/` (tips on card, deposits
+  and advance payments, card refund to card, kitchen display, QR table ordering, waiter handheld sync). No code. Common
+  thread: all signing stays on one machine (one FDM sequence); handhelds, kitchen display and QR guests are clients of
+  the main till.

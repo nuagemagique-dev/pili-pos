@@ -10,4 +10,5 @@ mod labels;
 pub mod receipt;
 pub mod render;
 pub mod report;
+pub mod sales_report;
 pub mod transport;

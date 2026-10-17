@@ -140,6 +140,7 @@ const coreMessages: Messages = {
   "err_price_positive": { fr: "Saisissez un prix supérieur à zéro.", en: "Enter a price greater than zero.", zh: "请输入大于零的价格。" },
   "err_fixed_price": { fr: "Le produit {product} a un prix fixe.", en: "Product {product} has a fixed price.", zh: "商品{product}为固定价格。" },
   "err_product_unavailable": { fr: "Le produit {product} n'est pas disponible.", en: "Product {product} is not available.", zh: "商品{product}不可用。" },
+  "err_sales_report_range_invalid": { fr: "Choisissez des dates valables : la fin ne précède pas le début, et la période ne dépasse pas 92 jours.", en: "Choose valid dates: the end is not before the start, and the range is at most 92 days.", zh: "请选择有效日期：结束日期不早于开始日期，且不超过92天。" },
   "err_product_sold_out": { fr: "Ce produit est épuisé.", en: "This product is sold out.", zh: "该商品已售罄。" },
   "err_menu_invalid": { fr: "Valeur invalide dans la carte : {field}.", en: "Invalid value in the menu: {field}.", zh: "菜单中的值无效：{field}。" },
   "err_menu_not_found": { fr: "Cet élément de la carte n'existe plus.", en: "This menu entry no longer exists.", zh: "该菜单项已不存在。" },

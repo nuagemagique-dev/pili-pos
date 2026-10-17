@@ -717,3 +717,29 @@ panel (open and locked by a catalog); the editor with a product selected (price 
 its options; Historique with three rows; the refusal text under the form. On Linux the TextKeyboard open on a name
 field and the plain Chinese field. The golden PNGs under `android/app/src/test/screenshots/settings/` are Robolectric
 renders, not device captures.
+
+
+### V11-T5 (D sales reports, E design notes), 2026-10-17
+
+**Delivered.** Engine `sales_report` and `print_sales_report` (`commands/sales_report.rs`, Access::Admin, no migration),
+`pos_db::queries::reports::periods_with_z`, print layout `crates/pos-print/src/sales_report.rs`, `access_control` and
+`error_codes` rows (`sales_report_range_invalid`), engine tests `tests/sales_report.rs`, Tauri wrappers, FFI facade,
+records and tests, Vue fourth tab "Ventes" (`SalesReportPanel.vue`, `utils/salesRange.ts`, Playwright
+`sales-report.spec.ts`), Android `ReportsSalesTab` with view model, unit tests, content tests and goldens
+`reports_sales`, `reports_sales_custom`, `reports_sales_empty`, parity rows, `RAPPORTS_VENTES_FR.md` and section 12 of
+the update note. Part E: six design notes under `docs/internal/v1.1/design/`. Decisions V11-D40 to D44.
+
+**Deviations.** Gap and bar widths are computed by the engine (V11-D42); the custom range fields start empty
+(V11-D43).
+
+**Captures to retake (no emulator in the lane).** Both UIs, French: the Ventes tab for today, for the month and for a
+custom range (number pad open); a day with a Z and the concordance mark, an open period flagged, a day with a gap;
+the by-product and by-hour blocks; the rounding and refund lines; the refusal for a range over 92 days; the printed
+"RAPPORT DE VENTES" ticket on the real printer. The golden PNGs under
+`android/app/src/test/screenshots/reports/` are Robolectric renders, not device captures.
+
+**Gate notes (T5).** `:pos-core:apiDump` needs rustup's cargo first on PATH and no stale `target/` made by a Homebrew
+rustc (the first runs failed with E0463 and E0514 until `target/` was removed); `pos-core.api` gained the sales
+records. The `p5_gate.sh --fast` scope checks fail for this lane by design (files outside `android/`); its only
+`ui-money` findings are the two older lines of `WebshopOrdersStore.kt`. The Playwright test `the tabs stay three` of
+`invoice.spec.ts` keeps its name and now expects the four tabs (inventory: removed 0).

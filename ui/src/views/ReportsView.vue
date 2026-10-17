@@ -18,6 +18,7 @@ import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
 import PriceDialog from "../components/PriceDialog.vue";
 import InvoiceDialog from "../components/InvoiceDialog.vue";
 import InvoiceList from "../components/InvoiceList.vue";
+import SalesReportPanel from "../components/SalesReportPanel.vue";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -26,12 +27,13 @@ const delivery = useDeliveryStore();
 const invoice = useInvoiceStore();
 const { t } = useI18n();
 
-// §2.1: three tabs, never more than 6-8 actions visible at once.
-type Tab = "day" | "cash" | "tickets";
+// §2.1: four tabs, never more than 6-8 actions visible at once.
+type Tab = "day" | "cash" | "tickets" | "sales";
 const TABS: { id: Tab; label: string }[] = [
   { id: "day", label: "reports_tab_day" },
   { id: "cash", label: "reports_tab_cash" },
   { id: "tickets", label: "reports_tab_tickets" },
+  { id: "sales", label: "reports_tab_sales" },
 ];
 const tab = ref<Tab>("day");
 
@@ -665,6 +667,8 @@ function formatRefundTime(iso: string): string {
       </section>
 
       <!-- ── Tickets: copy and refund from one list ─────────────── -->
+      <SalesReportPanel v-else-if="tab === 'sales'" />
+
       <section v-else class="tab-body tickets">
         <div class="panel tickets-panel">
           <div class="tickets-head">
@@ -866,7 +870,7 @@ function formatRefundTime(iso: string): string {
 /* ── Tabs (segmented control) ─────────────────────────────── */
 .tabs {
   width: 900px; max-width: 100%;
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
   padding: 4px; background: var(--bg-surface); border-radius: 12px;
   flex-shrink: 0;
 }

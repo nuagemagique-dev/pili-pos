@@ -43,12 +43,15 @@ internal fun ReportsRoute(navigator: AppNavigator) {
     val entry = rememberEntryPoint<ReportsEntryPoint>()
     val model = viewModel { ReportsViewModel(entry) }
     val invoiceModel = viewModel { InvoiceViewModel(entry) }
+    val salesModel = viewModel { SalesViewModel(entry) }
     val state by model.state.collectAsState()
     val invoices by invoiceModel.state.collectAsState()
+    val sales by salesModel.state.collectAsState()
     val scope = rememberCoroutineScope()
     val callbacks =
-        remember(model, invoiceModel) {
-            reportsCallbacks(model, entry.delivery(), scope).copy(invoice = invoiceCallbacks(invoiceModel))
+        remember(model, invoiceModel, salesModel) {
+            reportsCallbacks(model, entry.delivery(), scope)
+                .copy(invoice = invoiceCallbacks(invoiceModel), sales = salesCallbacks(salesModel))
         }
     val mailStatus by entry.delivery().mailStatus.collectAsState()
     val request by entry.delivery().request.collectAsState()
@@ -64,20 +67,24 @@ internal fun ReportsRoute(navigator: AppNavigator) {
     LaunchedEffect(invoiceModel, state.signedIn, state.tickets.loaded, state.tickets.rows) {
         if (state.signedIn && state.tickets.loaded) invoiceModel.load()
     }
+    // The sales tab shows today whenever it is opened, as the Vue panel does when it mounts.
+    LaunchedEffect(salesModel, state.signedIn, state.tab) {
+        if (state.signedIn && state.tab == ReportsTab.SALES) salesModel.open()
+    }
     PosScaffold(
         area = HeaderArea.REPORTS,
         navigator = navigator,
         modifier = Modifier.testTag("placeholder_reports"),
         overlay = { ReportsOverlay(state, delivery, RefundUi(amounts, preview), callbacks, invoices) },
     ) {
-        ReportsContent(state, callbacks, invoices = invoices)
+        ReportsContent(state, callbacks, invoices = invoices, sales = sales)
     }
 }
 
 /**
- * The reports screen, stateless: the three tabs (day, cash, tickets) and the body of the chosen one, laid out for
+ * The reports screen, stateless: the four tabs (day, cash, tickets, sales) and the body of the chosen one, laid out for
  * 1920 x 1080 dp. Without a user it shows an empty state instead.
- * Test tags: `reports_empty`, `reports_tab_day`, `reports_tab_cash`, `reports_tab_tickets`, `reports_body`.
+ * Test tags: `reports_empty`, `reports_tab_day`, `reports_tab_cash`, `reports_tab_tickets`, `reports_tab_sales`, `reports_body`.
  */
 @Composable
 internal fun ReportsContent(
@@ -85,6 +92,7 @@ internal fun ReportsContent(
     callbacks: ReportsCallbacks,
     modifier: Modifier = Modifier,
     invoices: InvoicesState = InvoicesState(),
+    sales: SalesState = SalesState(),
 ) {
     val d = PiliTheme.dimens
     if (!state.signedIn) {
@@ -109,6 +117,7 @@ internal fun ReportsContent(
                         invoices = invoices,
                         invoiceCallbacks = callbacks.invoice,
                     )
+                ReportsTab.SALES -> SalesTab(sales, callbacks.sales)
             }
         }
     }
@@ -137,6 +146,7 @@ private fun tabKey(tab: ReportsTab): String =
         ReportsTab.DAY -> "reports_tab_day"
         ReportsTab.CASH -> "reports_tab_cash"
         ReportsTab.TICKETS -> "reports_tab_tickets"
+        ReportsTab.SALES -> "reports_tab_sales"
     }
 
 /**

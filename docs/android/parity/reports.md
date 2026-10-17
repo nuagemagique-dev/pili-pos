@@ -18,6 +18,7 @@ screen only calls it through the view model and the shared stores.
 | components/InvoiceDialog.vue and TextKeyboard.vue (customer step with the offline VAT check, known customers, new customer, Peppol chip; preview step; signing; result) | feature/reports/ReportsInvoiceDialog.kt, InvoiceTextField.kt (system keyboard), InvoiceViewModel.kt | `lookup_b2b_customer` `search_b2b_customers` `save_b2b_customer` `invoice_preview` `sign_invoice_fiscal` |
 | components/InvoiceList.vue (invoices, Peppol status, Copie) | feature/reports/ReportsInvoiceList.kt, InvoiceViewModel.kt | `list_invoices` `copy_ticket` |
 | components/PriceDialog.vue (other amount, drawer count with zero allowed) | ui/components/AmountDialog.kt, drawn in the overlay slot of the scaffold | - |
+| components/SalesReportPanel.vue and utils/salesRange.ts (Ventes tab: presets, custom range with the number pad, per-day table with Z number and concordance mark, by product, by hour bars, rounding and refunds apart, print) | feature/reports/ReportsSalesTab.kt, SalesRange.kt, SalesState.kt, SalesViewModel.kt, ReportsCallbacks.kt | `sales_report` `print_sales_report` |
 
 ## Differences
 

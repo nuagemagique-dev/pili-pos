@@ -40,6 +40,9 @@ import uniffi.pos_ffi.VatCode
 import uniffi.pos_ffi.ZReportSummary
 import java.io.File
 
+/** The clock of the sales tab in the tests: Saturday 17 October 2026, 18:30 in Brussels. */
+internal val SALES_NOW: java.time.Instant = java.time.Instant.parse("2026-10-17T16:30:00Z")
+
 internal const val OPERATOR_INSZ = "85010100123"
 
 internal val operatorUser = User(insz = OPERATOR_INSZ, name = "Alice", role = UserRole.ADMIN, active = true, hasPin = true)
@@ -182,11 +185,15 @@ internal class ReportsRig(
     val delivery: DeliveryStore,
     val helpers: EngineHelpers,
     val invoiceModel: InvoiceViewModel,
+    val salesModel: SalesViewModel,
 ) {
     val state get() = model.state.value
 
     /** The invoice flow state. */
     val invoices get() = invoiceModel.state.value
+
+    /** The sales tab state. */
+    val sales get() = salesModel.state.value
     val engine: DisposableEngine get() = f.engine
 
     /** The French text of Vue [key]. */
@@ -246,8 +253,9 @@ internal suspend fun TestScope.startReports(
     val entry = TestReportsEntryPoint(gateway, helpers, f.events, session, settings, errors, toasts, catalog, delivery)
     val model = ReportsViewModel(entry)
     val invoiceModel = InvoiceViewModel(entry)
+    val salesModel = SalesViewModel(entry) { SALES_NOW }
     runCurrent()
-    return ReportsRig(f, model, toasts, catalog, feed, errorTexts, delivery, helpers, invoiceModel)
+    return ReportsRig(f, model, toasts, catalog, feed, errorTexts, delivery, helpers, invoiceModel, salesModel)
 }
 
 /** A card payment approved and not yet settled: at table [table], or a takeaway when it is null. */
@@ -266,4 +274,54 @@ internal fun unsettled(
         amountCents = amountCents,
         brand = brand,
         createdAt = "2026-10-13 12:00:00",
+    )
+
+internal fun salesDay(
+    date: String = "2026-10-16",
+    z: Long? = 12L,
+    total: Long = 12_550L,
+    zTotal: Long? = total,
+    open: Boolean = false,
+): uniffi.pos_ffi.SalesDay =
+    uniffi.pos_ffi.SalesDay(
+        bookingDate = date,
+        zNumber = z,
+        totalCents = total,
+        zTotalCents = zTotal,
+        open = open,
+        matchesZ = !open && zTotal == total,
+        gapCents = if (open || zTotal == null) null else total - zTotal,
+    )
+
+internal fun salesReport(
+    from: String = "2026-10-17",
+    to: String = "2026-10-17",
+    businessDate: String = "2026-10-17",
+    days: List<uniffi.pos_ffi.SalesDay> =
+        listOf(salesDay(), salesDay(total = 4_000L, z = 13L, zTotal = 3_800L), salesDay("2026-10-17", null, 1_500L, null, open = true)),
+): uniffi.pos_ffi.SalesReport =
+    uniffi.pos_ffi.SalesReport(
+        from = from,
+        to = to,
+        generatedAt = "2026-10-17T18:30:00+02:00",
+        businessDate = businessDate,
+        days = days,
+        openPeriod = days.any { it.open },
+        byProduct =
+            listOf(
+                uniffi.pos_ffi.SalesProduct("1", "Maki saumon", "Plats", 3_000L, 1_950L),
+                uniffi.pos_ffi.SalesProduct("2", "Sashimi", "Plats", 12_000L, 900L),
+                uniffi.pos_ffi.SalesProduct("3", "Soupe", "Entrees", -1_000L, -400L),
+            ),
+        byHour =
+            listOf(
+                uniffi.pos_ffi.SalesHour(19u, 4L, 9_000L, 100u),
+                uniffi.pos_ffi.SalesHour(20u, 2L, 4_500L, 50u),
+                uniffi.pos_ffi.SalesHour(1u, 1L, 500L, 6u),
+            ),
+        priceChangesCents = -50L,
+        roundingCents = 2L,
+        refundsCents = -400L,
+        ticketCount = 7L,
+        totalCents = 18_050L,
     )

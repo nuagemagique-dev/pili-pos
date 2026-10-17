@@ -107,7 +107,8 @@ test.describe('Invoices: selection on the tickets tab', () => {
   test('the tabs stay three', async ({ page }) => {
     await mockTauriIPC(page, base());
     await loginAndGoto(page, '/reports');
-    await expect(page.getByRole('tab')).toHaveText(['Journée', 'Caisse', 'Tickets']);
+    await expect(page.getByRole('tab')).toHaveText(['Journée', 'Caisse', 'Tickets', 'Ventes']);
+    // The invoice adds no tab of its own: the three of v1.0 plus the sales report of v1.1.
   });
 });
 
