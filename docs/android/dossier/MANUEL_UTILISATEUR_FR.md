@@ -46,6 +46,7 @@ refuse de toute façon une action interdite au profil
 | Se connecter, pointer, prendre des commandes, "Envoyer en cuisine" | ☑ | ☑ | ☑ |
 | Changer son propre PIN | ☑ | ☑ | ☑ |
 | Commandes en ligne : "Préparer", "Prête", "Retarder" (§12.8) | ☑ | ☑ | ☑ |
+| Changer une commande de table (§5.1 bis) | ☑ | ☑ | ☑ |
 | Imprimer l'addition, encaisser, "Imprimer le ticket" (§7.3) | - | ☑ | ☑ |
 | Commandes en ligne : "Accepter", "Refuser", "Terminer", "Encaisser espèces", "Encaisser carte", "Clôturer" | - | ☑ | ☑ |
 | Rapports X / Z, copies, remboursements, mouvements de caisse, tiroir, comptage du tiroir | - | - | ☑ |
@@ -261,6 +262,31 @@ commande, la table porte la pastille "Carte encaissée" (capture A105).
 - Toucher une table occupée reprend sa commande en cours, avec tous ses
   articles dans le panier. Une table n'a jamais qu'une seule commande
   ouverte.
+
+### 5.1 bis Changer de table
+
+Une commande ouverte, déjà servie en salle, peut passer à une **autre
+table libre** (client qui change de place, tables regroupées).
+
+- Dans la commande : touchez « Changer de table » (en haut du panier),
+  choisissez la table libre, puis « Valider ».
+- Sur le plan des tables : touchez « Déplacer une table », puis la table
+  occupée, puis la table libre, et confirmez par « Valider » (« Retour »
+  annule).
+
+Ce que fait la caisse : les articles pas encore envoyés en cuisine sont
+d'abord enregistrés sur l'ancienne table, puis le déplacement est signé
+(événement P, « changement de centre de coût »). La commande garde son
+contenu et sa référence ; aucun argent ne bouge. Un bon « TRANSFERT DE
+TABLE » (« Table 4 -> Table 9 », sans prix) sort à l'imprimante du bar.
+« Commande déplacée vers la table N » confirme.
+
+Refus : une table qui a déjà une commande en cours n'est pas
+fusionnée (« Cette table a déjà une commande en cours : choisissez une
+table libre ») ; seule une commande en salle, avec au moins un article,
+peut changer de table. Si le FDM ne répond pas, le déplacement reste
+en attente et est repris comme une vente (§7.4) ; la table ne change
+qu'à la signature.
 
 ### 5.2 Vente à emporter
 

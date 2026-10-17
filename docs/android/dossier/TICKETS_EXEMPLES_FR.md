@@ -629,6 +629,29 @@ Qte   Article
 ✂-----------------------------------------------
 ```
 
+### Bon de transfert de table (M122 - Événement P)
+
+Scénario : une commande ouverte passe de la table 4 à la table 9
+(`signCostCenterChange`). Le bon sort sur l'imprimante du bar, sans
+aucun article ni prix, avec la mention d'invalidité en bas ; une
+impression en échec n'annule jamais la signature.
+
+```
+               TRANSFERT DE TABLE
+================================================
+Date:                        03/07/2026 12:35:40
+Operateur:                          Marie Dupont
+Table 4 -> Table 9
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
 ## 9. Ticket numérique par e-mail (exemple)
 Même vente M110 envoyée par e-mail (TICKET_NUMERIQUE_FR.md §2-3 et §5). Vente en espèces (2 Dry Martini et 1 Burger of the CHEF, 52,00 €) avec le support « E-mail » ; corps texte reçu par le simulateur du service d'e-mail (sujet `Votre ticket - Restaurant Test`, pièce jointe `ticket-qr.png`), suivi de l'URL de vérification.
 

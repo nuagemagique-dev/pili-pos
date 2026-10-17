@@ -676,6 +676,29 @@ Qte   Article
 ✂-----------------------------------------------
 ```
 
+### Bon de transfert de table (M122 - Événement P)
+
+Scénario : une commande ouverte passe de la table 4 à la table 9
+(`signCostCenterChange`). Le bon sort sur l'imprimante du bar, sans
+aucun article ni prix, avec la mention d'invalidité en bas ; une
+impression en échec n'annule jamais la signature.
+
+```
+               TRANSFERT DE TABLE
+================================================
+Date:                        03/07/2026 12:35:40
+Operateur:                          Marie Dupont
+Table 4 -> Table 9
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
 ## 9. Ticket numérique par e-mail (exemple)
 
 Scénario : la même vente M110 qu'à la section 1, envoyée par e-mail

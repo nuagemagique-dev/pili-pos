@@ -82,6 +82,28 @@ se charge. Les clients commandent trois plats ; l'opérateur appuie sur
 Le compteur fiscal **P** avance de 1. Le compteur **N** reste intact
 jusqu'à ce que le client paie effectivement.
 
+## 2 bis. Changement de table (Événement P)
+
+**Action utilisateur.** Les clients changent de place : l'opérateur
+touche « Changer de table », choisit la table libre et valide.
+
+**Circulation des données.**
+
+1. L'interface appelle `commands::table_transfer::do_transfer_table`
+   (commande `transfer_table`). Sous le verrou de signature, la caisse
+   refuse une même table, une table occupée, une table hors plan, une
+   commande qui n'est pas en salle ou sans article.
+2. Les articles pas encore envoyés sont enregistrés (événement P) sur
+   l'ancienne table.
+3. Le déplacement est construit (`transfer.from` en quantités négatives,
+   `transfer.to` en quantités positives, même référence), stocké dans
+   `pending_signs`, signé par le FDM et archivé (événement P). Dans la
+   même transaction, la commande prend le numéro de la nouvelle table.
+4. Un bon « TRANSFERT DE TABLE » sort à l'imprimante du bar.
+
+Le compteur **N** reste intact. Une réponse du FDM arrivée en retard a
+le même effet.
+
 ## 3. Le client paie - Vente (Événement N)
 
 **Action utilisateur.** Le client demande l'addition. L'opérateur tape

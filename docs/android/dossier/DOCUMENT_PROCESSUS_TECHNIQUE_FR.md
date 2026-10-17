@@ -82,6 +82,7 @@ Sur Android, le moteur est enveloppé par deux couches. `android/rust/pos-ffi` e
 |---|---|---|---|
 | **N** (Vente normale) | L'opérateur tape "Payer" (sur place `dine_in` ou à emporter `takeaway`) | `PosEngine.checkout` (façade) → `commands/checkout::do_checkout` / `do_checkout_split` → `sell` → `signing::sign` : archive + clôture dans une seule tx SQLite | Blocage-sur-déconnexion-FDM imposé |
 | **P** (Pro forma) | L'opérateur envoie la commande en cuisine, ou quitte la commande (règle du moteur, §1) | `commands/tables::do_sign_table_order` (appelée par `commands/session::do_leave_order`) | Table ouverte ; pas d'incrément du compteur N |
+| **P** (Changement de table, `COST_CENTER_CHANGE`) | L'opérateur change une commande de table | `commands/table_transfer::do_transfer_table` | Enregistre d'abord les articles non envoyés (P), puis signe le déplacement ; la table change dans la transaction d'archivage ; pas d'incrément du compteur N |
 | **T** (Formation) | L'opérateur est en mode formation | Comme N mais `is_training=true` dans l'input ; watermark UI |
 | **C** (Copie) | Réimpression d'un ticket antérieur | `commands/copy::do_copy_ticket_with` | Porte un `fdmRef` vers l'original |
 | **I** (Facture) | Hors build Android 1.0 | Code sous `#[cfg(feature = "peppol")]` (`commands/invoice.rs`) | Absent de la build Android (§8) ; événement optionnel dans SCE 2.0 |

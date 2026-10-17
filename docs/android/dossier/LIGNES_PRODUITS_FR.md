@@ -105,6 +105,15 @@ hôtel, les terminaux et handhelds (TER-1 à TER-5), la table haute du
 bar (8 chaises, sans numéro), les chaises comme centres de coût, les
 devises GBP/USD, les bons d'achat, la distinction des réseaux de cartes (Visa, Mastercard, Diners, American Express) et Payconiq / Apple Pay.
 
+## Lignes d'un transfert de table (M122)
+
+Un changement de table (`signCostCenterChange`) reprend les lignes de
+la commande : le côté `transfer.from` les porte en quantité négative
+(motif `COST_CENTER_CHANGE`, table d'origine), le côté `transfer.to`
+les porte en quantité positive (table de destination). Le prix, le
+code TVA et la remise portée par une ligne sont conservés tels quels
+(même `groupingId`) ; rien n'est recalculé.
+
 ## Codes TVA
 
 - **A = 21%** - alcools, boissons rafraîchissantes

@@ -465,8 +465,8 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Commande en attente | ☑ | - | OK (gestion d'ordre ouvert sur table) |
 | Prebill Pro Forma | ☑ | M123 | OK |
 | Tous les events P sont imprimables | ☑ Format papier | - | OK |
-| Gestion des cost centers (attribution / division / fusion) | ☐ | M122 / UC240-243 / UC250-252 | Hors périmètre MVP (Advanced Set). Fixtures parsent mais UI non implémentée. |
-| Attribution | ☐ | - | Idem |
+| Gestion des cost centers (attribution / division / fusion) | ☑ attribution seule | M122 | Le transfert d'une commande ouverte vers une table libre est signé (`signCostCenterChange`, event P, test `m122_cost_center_change`). Division et fusion : hors périmètre (Advanced Set). |
+| Attribution | ☑ | M122 | OK : « Changer de table » (commande) et « Déplacer une table » (écran des tables) ; la commande garde sa référence ; une table déjà occupée est refusée (pas de fusion) |
 | Division | ☐ | UC240/241/243 | Idem |
 | Fusion | ☐ | UC250/251/252 | Idem |
 | Gestion d'addition (division table / addition / parts égales) | ☐ | - | Idem (Advanced Set) |
@@ -526,8 +526,8 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Item | Réponse |
 |---|---|
 | Le POS permet le changement de cost center vers ROOM (chambre) | ☐ Non (POS destiné à la restauration, pas d'hôtellerie) |
-| Le POS permet de recalculer le changement de prix en cas de changement de cost center | ☐ Non (changement de cost center pas implémenté en MVP) |
-| Les liens dans la base de données sont décrits | N/A (fonctionnalité non implémentée) |
+| Le POS permet de recalculer le changement de prix en cas de changement de cost center | ☐ Non (les prix sont conservés tels quels ; une remise portée par une ligne suit sa ligne) |
+| Les liens dans la base de données sont décrits | ☑ La commande garde son identifiant et sa référence ; seul le numéro de table de la commande change, dans la transaction qui archive l'événement signé |
 
 ## §III.H Emission des tickets numériques
 
@@ -670,7 +670,7 @@ Le manuel comprend une procédure de test détaillée par mutation (M110, M111, 
 **Statut pili-pos :**
 
 - Les 22 UC du Basic Set v1.8, les 5 UC de Reports v1.3 et les 141 fixtures (59 UC) de l'Advanced Set v1.6 sont chargées et parsées par les tests automatisés (*Voir : COUVERTURE_FIXTURES_FR.md, COUVERTURE_RAPPORTS_FR.md, COUVERTURE_ADVANCED_SET_FR.md*).
-- Dans le Basic Set, 18 des 22 UC ont un test automatisé ; les 4 autres sont exclues et déclarées : M150 (event I), M122 et M132, hors périmètre ; M112A, non applicable (le remboursement partiel est toujours émis en ticket séparé, M112B). Dans Reports, M180 à M184 ont des tests de fixtures (M181 et M183 par le Z combiné M184) et les 8 tickets T1 à T8 sont rejoués. Les tests e2e applicatifs (commande Tauri → tx SQLite → archive) rejouent ces UC avec la requête construite par pili-pos ; les JSON de 17 UC (14 Basic Set, 3 Reports) sont dans `evidence/uc/`. *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
+- Dans le Basic Set, 19 des 22 UC ont un test automatisé ; les 3 autres sont exclues et déclarées : M150 (event I) et M132, hors périmètre ; M112A, non applicable (le remboursement partiel est toujours émis en ticket séparé, M112B). Dans Reports, M180 à M184 ont des tests de fixtures (M181 et M183 par le Z combiné M184) et les 8 tickets T1 à T8 sont rejoués. Les tests e2e applicatifs (commande Tauri → tx SQLite → archive) rejouent ces UC avec la requête construite par pili-pos ; les JSON de 17 UC (14 Basic Set, 3 Reports) sont dans `evidence/uc/`. *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
 - **Document détaillé par UC** avec JSON request/response et ticket : *Voir : RESULTATS_TESTS_UC_FR.pdf*.
 
 Récap mappings UC <-> commande Tauri <-> test :

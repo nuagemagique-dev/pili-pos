@@ -58,8 +58,8 @@ Détail complet (34 tests e2e dans `spf_e2e_digital.rs`) : *voir TICKET_NUMERIQU
 ## Basic Set v1.8
 
 Les 22 UC du Basic Set v1.8 sont chargés par les tests de fixtures
-(`crates/pos-fiscal/tests/uc_fixtures.rs`). 18 ont un test automatisé ;
-les 4 autres sont exclus et déclarés : M150, M122 et M132 hors
+(`crates/pos-fiscal/tests/uc_fixtures.rs`). 19 ont un test automatisé ;
+les 3 autres sont exclus et déclarés : M150 et M132 hors
 périmètre v1.0.0, M112A non applicable (le remboursement partiel est
 toujours un ticket séparé, M112B). Voir `COUVERTURE_FIXTURES_FR.md`
 pour la matrice pass/fail des fixtures ; les exclusions sont déclarées

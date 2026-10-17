@@ -18,10 +18,6 @@
 reason = "pili-pos émet toujours le remboursement partiel comme un ticket séparé (M112B) ; le remboursement partiel combiné à une vente sur le même ticket ne peut pas se produire avec ce comportement."
 kind = "non_applicable"
 
-[M122]
-reason = "Le changement de centre de coût (transfert de table) est hors périmètre de pili-pos v1.0.0."
-kind = "hors_perimetre"
-
 [M132]
 reason = "La correction de paiement est hors périmètre de pili-pos v1.0.0."
 kind = "hors_perimetre"

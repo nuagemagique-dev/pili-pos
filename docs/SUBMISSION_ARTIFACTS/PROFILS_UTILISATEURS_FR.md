@@ -79,6 +79,8 @@ Profil d'opérateur de caisse standard. Peut :
 - Enregistrer la commande et l'envoyer en cuisine (Événement P -
   `signOrder`, bon de commande imprimé).
 - Imprimer un pré-ticket (Événement P - `signPreBill`).
+- Changer une commande de table : la commande ouverte passe à une table libre (Événement P -
+  `signCostCenterChange`), sans mouvement d'argent ; une table déjà occupée est refusée.
 - Encaisser : encaissement comptant ou carte (Événement N -
   `signSale`). Tiroir s'ouvre automatiquement pour les paiements
   comptant. Avec un terminal de paiement relié, "Encaisser sur le
@@ -103,6 +105,8 @@ Profil restreint. Peut :
   (chaque correction est journalisée et transmise au FDM).
 - Enregistrer la commande et l'envoyer en cuisine (Événement P -
   `signOrder`).
+- Changer une commande de table (Événement P - `signCostCenterChange`), comme un Serveur : le
+  transfert ne déplace aucun argent.
 - Faire avancer une commande en ligne : "Préparer", "Prête" et
   "Retarder".
 - **NE peut PAS** imprimer l'addition ni encaisser : les boutons

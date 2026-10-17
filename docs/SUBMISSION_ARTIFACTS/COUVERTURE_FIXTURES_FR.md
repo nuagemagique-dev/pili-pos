@@ -56,7 +56,7 @@ Deux colonnes :
 | M112B_signSale_RefundPartial / M112B_1_OriginalSale | N | ✓ | ✓ (chaîné) |
 | M112B_signSale_RefundPartial / M112B_2_PartialRefund | N | ✓ | ✓ (chaîné) |
 | M121_signOrder | P | ✓ | ✓ |
-| M122_signCostCenterChange | P | ✓ | - (pas d'IPC encore) |
+| M122_signCostCenterChange | P | ✓ | ✓ (`transfer_table`) |
 | M123_signPrebill | P | ✓ | ✓ |
 | M130_signMoneyInOut | F | ✓ | ✓ |
 | M131_signDrawerOpen | F | ✓ | ✓ |
@@ -79,8 +79,8 @@ uniques dans `spf_e2e_basic.rs` + 4 Reports dans `spf_e2e_reports.rs`.**
 Les lignes "variante" restantes (M133, M171B) sont couvertes
 transitivement par l'e2e de l'UC parent ; M112A n'est pas un pattern
 offert par le POS (le remboursement partiel est toujours émis en
-événement séparé = pattern M112B, déclaré au dossier) ; M122 et M132
-sont reportés et non déclarés. M150 (événement I, e-facturation
+événement séparé = pattern M112B, déclaré au dossier) ; M132
+est reporté et non déclaré. M150 (événement I, e-facturation
 Peppol) est bien implémenté et couvert par le parse fixture et l'e2e
 (feature `peppol` activée par défaut pour les tests), mais ce feature
 flag n'est **pas** activé dans la build de certification v1.0.0

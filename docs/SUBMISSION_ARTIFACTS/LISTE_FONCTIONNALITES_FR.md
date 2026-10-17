@@ -14,6 +14,7 @@ build `--no-default-features --features cert`).
 | N (rembours.) | Remboursement complet ou partiel (M111, M112B) | `signSale` avec lignes négatives + `fdmRef` | `crates/pos-engine/src/commands/refund.rs::do_refund_checkout` |
 | P | Commande en cuisine (pro-forma) | `signOrder` | `crates/pos-engine/src/commands/tables.rs::do_sign_table_order` |
 | P | Addition (pré-ticket) | `signPreBill` | `crates/pos-engine/src/commands/tables.rs::do_sign_pre_bill` |
+| P | Changement de table (transfert d'une commande ouverte) | `signCostCenterChange` | `crates/pos-engine/src/commands/table_transfer.rs::do_transfer_table` |
 | T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` / `do_checkout_split` avec `training_mode=true` |
 | T | Présence en formation | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` |
 | C | Copie de ticket | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
@@ -126,6 +127,9 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 - Modificateurs par item (sauces, cuisson...) - table `modifier_groups`.
 - Réutilisation d'une commande ouverte vide pour la même table
   (anti-doublon, `crates/pos-db/src/queries/orders.rs::create_order`).
+- Changement de table : « Changer de table » dans la commande, ou « Déplacer une table » sur le plan ;
+  la commande garde son contenu et sa référence et passe à une table libre. Une table occupée est
+  refusée (pas de fusion) ; un bon de transfert sans prix est imprimé au bar.
 
 ### 2.2 Encaissement
 
