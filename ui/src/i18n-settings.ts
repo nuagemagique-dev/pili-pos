@@ -65,4 +65,18 @@ export const settingsMessages: Messages = {
   "settings_email_title": { fr: "Tickets par email", en: "Email tickets", zh: "电子邮件票据" },
 
   // HubRise panel
+
+  // Peppol panel (managers, only when the installation sends e-invoices)
+  "peppol_title": { fr: "Peppol", en: "Peppol", zh: "Peppol" },
+  "peppol_provider": { fr: "Fournisseur", en: "Provider", zh: "服务商" },
+  "peppol_sender": { fr: "Identifiant d'envoi", en: "Sender id", zh: "发送方标识" },
+  "peppol_queued": { fr: "En attente", en: "Queued", zh: "排队中" },
+  "peppol_accepted": { fr: "Remises", en: "Delivered", zh: "已送达" },
+  "peppol_failed": { fr: "Bloquées", en: "Parked", zh: "已阻塞" },
+  "peppol_parked_title": { fr: "Envois bloqués", en: "Parked deliveries", zh: "已阻塞的发送" },
+  "peppol_none_parked": { fr: "Aucun envoi bloqué.", en: "No parked delivery.", zh: "没有阻塞的发送。" },
+  "peppol_reason": { fr: "Motif : {reason}", en: "Reason: {reason}", zh: "原因：{reason}" },
+  "peppol_attempts": { fr: "{n} tentative(s)", en: "{n} attempt(s)", zh: "{n} 次尝试" },
+  "peppol_retry": { fr: "Réessayer", en: "Retry", zh: "重试" },
+  "peppol_retried": { fr: "Envoi remis en file d'attente.", en: "Delivery put back in the queue.", zh: "发送已重新排队。" },
 };

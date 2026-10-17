@@ -861,3 +861,190 @@ export function getTablePlan(): Promise<TablePlan> {
 export function setTablePlan(plan: string): Promise<TablePlan> {
   return invoke("set_table_plan", { plan });
 }
+
+// ── B2B invoices (event I, M150) and Peppol (v1.1) ───────────────
+
+/** A saved B2B customer. */
+export interface B2bCustomer {
+  id: number;
+  vatNumber: string;
+  name: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  countryCode: string;
+  /** `unknown`, `registered` or `not_registered`. */
+  peppolStatus: PeppolStatus;
+  peppolCheckedAt: string | null;
+}
+
+export type PeppolStatus = "unknown" | "registered" | "not_registered";
+
+/** The customer form; `id` set edits a known customer. */
+export interface B2bCustomerInput {
+  id: number | null;
+  vatNumber: string;
+  name: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  /** ISO 3166-1 alpha-2; the country of the VAT number when empty. */
+  countryCode: string;
+}
+
+/** A signed sale that can go on an invoice. */
+export interface InvoiceableSale {
+  fiscalEventId: number;
+  ticketNumber: number;
+  posDateTime: string;
+  totalCents: number;
+  fdmId: string;
+  eventCounter: number;
+  totalCounter: number;
+  isRefund: boolean;
+  /** The number of the invoice that already covers this sale, or null. */
+  invoicedBy: string | null;
+}
+
+export interface InvoicePreviewLine {
+  description: string;
+  /** Thousandths (2 pieces = 2000). */
+  quantityMilli: number;
+  totalCents: number;
+  vatLabel: string;
+}
+
+export interface InvoicePreviewVat {
+  label: string;
+  /** Hundredths of a percent (21 % = 2100). */
+  rateHundredths: number;
+  baseCents: number;
+  vatCents: number;
+  totalCents: number;
+}
+
+/** What an invoice would contain; `problems` are coded errors that stop it. */
+export interface InvoicePreview {
+  sales: InvoiceableSale[];
+  lines: InvoicePreviewLine[];
+  vat: InvoicePreviewVat[];
+  totalCents: number;
+  problems: string[];
+}
+
+/** The answer to a VAT number lookup (offline check, cached customer, Peppol). */
+export interface CustomerLookup {
+  vatNumber: string;
+  countryCode: string;
+  customer: B2bCustomer | null;
+  peppolStatus: PeppolStatus;
+  peppolChecked: boolean;
+  deliverable: boolean;
+}
+
+export interface InvoiceResult {
+  success: boolean;
+  fiscalEventId: number | null;
+  invoiceNo: string | null;
+  printed: boolean;
+  /** `queued` when a Peppol delivery was queued. */
+  deliveryStatus: string | null;
+  error: string | null;
+}
+
+export interface InvoiceSummary {
+  id: number;
+  invoiceNo: string;
+  fiscalEventId: number;
+  issueDate: string;
+  customerName: string;
+  customerVatNumber: string;
+  totalCents: number;
+  saleEventIds: number[];
+  /** `queued`, `accepted`, `failed`, or null (printed only). */
+  deliveryStatus: string | null;
+  deliveryId: number | null;
+}
+
+/** One Peppol delivery of the queue. */
+export interface PeppolDelivery {
+  id: number;
+  fiscalEventId: number | null;
+  invoiceNo: string;
+  customerEndpointId: string;
+  apVendor: string;
+  apMessageId: string | null;
+  /** `queued`, `accepted` or `failed` (parked). */
+  status: string;
+  errorMsg: string | null;
+  attempts: number;
+  nextAttemptAt: string | null;
+  lastAttemptAt: string | null;
+  parkedAt: string | null;
+  acceptedAt: string | null;
+  createdAt: string;
+  lookupStatus: string;
+}
+
+/** The Peppol panel: setup, queue counts and deliveries. */
+export interface PeppolDeliveries {
+  configured: boolean;
+  provider: string | null;
+  senderId: string | null;
+  queued: number;
+  accepted: number;
+  failed: number;
+  deliveries: PeppolDelivery[];
+}
+
+/** Recent signed sales a cashier can put on an invoice. */
+export function listInvoiceableSales(
+  limit?: number,
+  query?: string
+): Promise<InvoiceableSale[]> {
+  return invoke("list_invoiceable_sales", { limit, query });
+}
+
+/** What an invoice of these sales would contain, without signing. */
+export function invoicePreview(saleEventIds: number[]): Promise<InvoicePreview> {
+  return invoke("invoice_preview", { saleEventIds });
+}
+
+/** Checks a VAT number (offline) and asks Peppol about it (3 s at most). */
+export function lookupB2bCustomer(vatNumber: string): Promise<CustomerLookup> {
+  return invoke("lookup_b2b_customer", { vatNumber });
+}
+
+/** Known customers whose VAT number or name starts with `query`. */
+export function searchB2bCustomers(query: string): Promise<B2bCustomer[]> {
+  return invoke("search_b2b_customers", { query });
+}
+
+/** Creates or updates a customer. */
+export function saveB2bCustomer(customer: B2bCustomerInput): Promise<B2bCustomer> {
+  return invoke("save_b2b_customer", { customer });
+}
+
+/** M150: signs the invoice (event I) of the chosen sales for a saved customer, then prints it. */
+export function signInvoiceFiscal(
+  saleEventIds: number[],
+  customerId: number,
+  employeeInsz: string
+): Promise<InvoiceResult> {
+  return invoke("sign_invoice_fiscal", { saleEventIds, customerId, employeeInsz });
+}
+
+/** The newest invoices, with the state of their Peppol delivery. */
+export function listInvoices(limit?: number): Promise<InvoiceSummary[]> {
+  return invoke("list_invoices", { limit });
+}
+
+/** Admins only. */
+export function listPeppolDeliveries(limit?: number): Promise<PeppolDeliveries> {
+  return invoke("list_peppol_deliveries", { limit });
+}
+
+/** Admins only: puts a parked delivery back in the queue. */
+export function retryPeppolDelivery(deliveryId: number): Promise<void> {
+  return invoke("retry_peppol_delivery", { deliveryId });
+}

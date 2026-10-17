@@ -358,6 +358,14 @@ function defaultHandlers(): Record<string, Handler> {
     }),
     list_fiscal_events: () => [],
 
+    // B2B invoices and Peppol (v1.1): nothing to invoice and no Peppol unless a spec says so.
+    list_invoiceable_sales: () => [],
+    list_invoices: () => [],
+    search_b2b_customers: () => [],
+    list_peppol_deliveries: () => ({
+      configured: false, provider: null, senderId: null, queued: 0, accepted: 0, failed: 0, deliveries: [],
+    }),
+
     // Ticket delivery (paper / email / both)
     check_mail_status: () => ({ configured: false, reachable: false, allowDigitalOnly: false }),
     list_ticket_deliveries: () => [],

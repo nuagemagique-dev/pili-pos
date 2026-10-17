@@ -14,6 +14,7 @@ import * as ipc from "../api/ipc";
 import AppHeader from "../components/AppHeader.vue";
 import PinDialog from "../components/PinDialog.vue";
 import ExportStatusPanel from "../components/ExportStatusPanel.vue";
+import PeppolPanel from "../components/PeppolPanel.vue";
 import { hasMessage, useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
@@ -297,6 +298,9 @@ onMounted(() => {
 
         <!-- Nightly export (manager only; the engine refuses it to the others) -->
         <ExportStatusPanel v-if="auth.isManager" class="panel" />
+
+        <!-- Peppol delivery of invoices (manager only, drawn only when configured) -->
+        <PeppolPanel v-if="auth.isManager" class="panel" />
 
         <!-- Remote support (manager) -->
         <section class="panel panel-grow support-section">
