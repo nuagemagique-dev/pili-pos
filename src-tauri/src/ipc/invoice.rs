@@ -94,9 +94,6 @@ pub fn list_peppol_deliveries(
 
 /// Put a parked delivery back in the queue (admins).
 #[tauri::command]
-pub fn retry_peppol_delivery(
-    state: State<'_, Managed>,
-    delivery_id: i64,
-) -> Result<(), String> {
+pub fn retry_peppol_delivery(state: State<'_, Managed>, delivery_id: i64) -> Result<(), String> {
     pos_engine::commands::invoice::do_retry_peppol_delivery(state.inner(), delivery_id)
 }
