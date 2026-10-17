@@ -61,6 +61,9 @@ pub struct EftPayment {
     pub terminal_reference: Option<String>,
     pub authorisation_code: Option<String>,
     pub masked_pan: Option<String>,
+    /// The approved card is a meal-voucher card (Edenred, Pluxee,
+    /// Monizze, Payflip): the sale signs it as `CHEQUE_MEAL`.
+    pub meal_voucher: bool,
     /// Why it was declined, what is missing for an unknown one.
     pub detail: Option<String>,
     pub created_at: String,
@@ -76,6 +79,7 @@ impl EftPayment {
             amount_cents: row.amount_cents,
             status: row.status.as_str().to_string(),
             card_type: row.card_type.map(|c| c.as_str().to_string()),
+            meal_voucher: pos_eft::brand::is_meal_voucher(row.brand.as_deref()),
             brand: row.brand,
             terminal_reference: row.terminal_reference,
             authorisation_code: row.authorisation_code,
@@ -178,7 +182,9 @@ fn resolution_of(outcome: Outcome, amount_cents: i64) -> Resolution {
         }
         Outcome::Approved(a) => Resolution::Approved {
             card_type: card_kind(a.card_type),
-            brand: a.brand,
+            // Normalized once more here (the drivers do it already): the
+            // meal-voucher classification is fixed by what is stored.
+            brand: a.brand.as_deref().and_then(pos_eft::brand::normalize),
             terminal_reference: a.terminal_reference,
             authorisation_code: a.authorisation_code,
             masked_pan: a.masked_pan,
@@ -591,6 +597,11 @@ pub(crate) fn terminal_cards(
             id,
             TerminalCard {
                 card_type: match row.card_type {
+                    // A meal-voucher card is told by its brand; the
+                    // stored card type stays `unknown` (L1F-B1).
+                    _ if pos_eft::brand::is_meal_voucher(row.brand.as_deref()) => {
+                        PaymentType::ChequeMeal
+                    }
                     Some(CardKind::Debit) => PaymentType::CardDebit,
                     Some(CardKind::Credit) => PaymentType::CardCredit,
                     Some(CardKind::Unknown) | None => PaymentType::CardUnknown,

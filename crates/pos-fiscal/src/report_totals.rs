@@ -956,6 +956,50 @@ mod tests {
     }
 
     #[test]
+    fn a_manual_and_an_automatic_meal_voucher_make_one_row() {
+        let manual = json!([{ "id": "3", "name": "Meal voucher", "type": "CHEQUE_MEAL",
+            "inputMethod": "MANUAL", "amount": 4.0, "amountType": "PAYMENT" }]);
+        let automatic = json!([{ "id": "3", "name": "Meal voucher", "type": "CHEQUE_MEAL",
+            "inputMethod": "AUTOMATIC", "provider": "Edenred", "reference": "T1",
+            "amount": 9.5, "amountType": "PAYMENT" }]);
+        let l = |p: f64| vec![line("1", ("10", "A"), 1, &[("A", p)])];
+        let events = vec![
+            event(
+                EventLabel::N,
+                sale(U1, "2026-07-03T12:00:00+02:00", l(4.0), 4.0, manual),
+                Value::Null,
+            ),
+            event(
+                EventLabel::N,
+                sale(U1, "2026-07-03T12:10:00+02:00", l(9.5), 9.5, automatic),
+                Value::Null,
+            ),
+        ];
+        let rows = |p: &[PaymentTotalInput]| {
+            p.iter()
+                .map(|x| {
+                    (
+                        x.id.clone(),
+                        x.name.clone(),
+                        x.payment_type,
+                        x.amount[0].normal_amount,
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let expected = vec![(
+            "3".to_string(),
+            "Meal voucher".to_string(),
+            PaymentType::ChequeMeal,
+            13.5,
+        )];
+        assert_eq!(rows(&turnover(&events).payments), expected);
+        let u = users(&events);
+        assert_eq!(u.len(), 1);
+        assert_eq!(rows(&u[0].payments), expected);
+    }
+
+    #[test]
     fn payments_are_grouped_per_method_and_refunds_reduce_them() {
         let card = json!([{ "id": "2", "name": "Carte", "type": "CARD_DEBIT", "amount": 3.04, "amountType": "PAYMENT" }]);
         let l = |p: f64| vec![line("1", ("10", "A"), 1, &[("A", p)])];
