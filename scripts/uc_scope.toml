@@ -186,18 +186,12 @@ kind = "hors_perimetre"
 reason = "Le produit vendu au poids (quantityType KILOGRAM) n'est pas implémenté dans pili-pos v1.0.0 (menu fixe, uniquement des produits à la pièce)."
 kind = "hors_perimetre"
 
-# -- Note de crédit et factures --
-
-[UC4121]
-reason = "La facture client (event I) n'est pas implémentée dans pili-pos v1.0.0."
-kind = "hors_perimetre"
-
-[UC4122]
-reason = "La note de crédit n'est pas implémentée dans pili-pos v1.0.0."
-kind = "hors_perimetre"
+# -- Facture combinée à une modification de prix --
+# (UC4121 et UC4122, la facture de plusieurs ventes et la facture d'un remboursement, sont
+# implémentés et testés : crates/pos-engine/tests/invoice_advanced.rs.)
 
 [UC4102]
-reason = "La facturation combinée à une modification de prix n'est pas implémentée dans pili-pos v1.0.0 (ni la facture, ni la modification de prix ne sont implémentées)."
+reason = "Le scénario combine une modification de prix, un pourboire et une facture ; le pourboire n'est pas implémenté dans pili-pos v1.0.0 (la facture seule est couverte par M150, UC4121 et UC4122)."
 kind = "hors_perimetre"
 
 # -- Modifications de prix, remises et produits composites --

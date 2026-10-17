@@ -5,11 +5,13 @@
 
 Ce document parcourt les UC obligatoires du Basic Set v1.8 (22 UC
 spec) + les 5 UC Reports v1.3 + les cinq situations d'arrondi du manuel (ROUND1 a ROUND5). Sont hors périmètre v1.0.0, chacun
-dans sa section : **M150_signInvoice** (event I, voir
-*DECISION_PEPPOL_AP_FR.md*), **M122** (changement de centre de coût)
-et **M132** (correction de paiement) ; **M112A** n'est pas un parcours
+dans sa section : **M122** (changement de centre de coût) et **M132**
+(correction de paiement) ; **M112A** n'est pas un parcours
 proposé par pili-pos (le remboursement partiel est toujours émis en
-ticket séparé, parcours M112B). Pour chaque UC, il fournit :
+ticket séparé, parcours M112B). La facture (**M150**, événement I) est
+rejouée comme les autres UC ; les deux UC de facture de l'Advanced Set
+(**UC4121** et **UC4122**) le sont aussi, dans la section qui suit les
+rapports. Pour chaque UC, il fournit :
 
 - Le scenario d'execution (extrait de la fixture officielle SPF Finances).
 - La requete et la reponse de reference de la fixture (fichiers Variables.json et *_Response.json publies).
@@ -2691,23 +2693,181 @@ Aucun écart.
 
 <!-- pili-pos-evidence:end -->
 
-## M150_signInvoice - hors périmètre v1.0.0
+## M150_signInvoice
 
-L'événement fiscal **I (Invoice)** n'est **pas disponible en
-v1.0.0** : le feature flag `peppol` n'est pas activé dans la build
-de certification (`cert = ["custom-protocol"]`,
-`src-tauri/Cargo.toml`), donc le code d'émission de facture B2B
-(`crates/pos-peppol`, `crates/pos-engine/src/commands/invoice.rs`,
-`#[cfg(feature = "peppol")]`) n'est pas compilé dans le binaire
-soumis. La fixture M150 continue d'être **parsée** par
-`crates/pos-fiscal/tests/uc_fixtures.rs` (validation du format JSON
-uniquement) et **exercée en e2e** par `crates/pos-engine/tests/spf_e2e_basic.rs`
-avec les features par défaut (`hubrise` + `peppol`, utilisées pour le
-développement et les tests, pas pour la build cert). Les preuves de
-`evidence/uc/` sont produites par la build cert, qui ne peut pas
-émettre cet événement : M150 n'y figure donc pas.
+**Mutation invoquee :** `signInvoice`
 
-Mise à jour certifiée prévue v1.1. *Voir : DECISION_PEPPOL_AP_FR.md*.
+**Scenario :**
+
+```
+Invoice for customer (Id 100 - customerVatNo BE0308357159)
+for tickets
+    N 14/50
+    N 16/52
+```
+
+**Champs a verifier (manuel SCE 2.0 §IV) :**
+
+| Champ | Valeur fixture | Statut |
+|---|---|:-:|
+| `language` | `NL` | OK |
+| `posId` | `CPOS0031234567` | OK |
+| `posFiscalTicketNo` | `1012` | OK |
+| `posDateTime` | `2024-07-29T16:22:39.000+02:00` | OK |
+| `terminalId` | `TER-1-BAR` | OK |
+| `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
+| `vatNo` | `BE0000000097` | OK |
+| `estNo` | `2000000042` | OK |
+| `posSwVersion` | `1.8.3` | OK |
+| `bookingPeriodId` | `dffcd829-a0e5-41ca-a0ae-9eb887f95637` | OK |
+| `bookingDate` | `2024-07-29` | OK |
+| `ticketMedium` | `PAPER` | OK |
+| `employeeId` | `75061189702` | OK |
+| `customerVatNo` | `BE0308357159` | OK |
+| `costCenter.id` | `100` | OK |
+| `costCenter.type` | `CUSTOMER` | OK |
+| `costCenter.reference` | `FIN` | OK |
+| `invoiceNo` | `20240005` | OK |
+| `fdmRefs[0].fdmId` | `FOD01000001` | OK |
+| `fdmRefs[0].eventLabel` | `N` | OK |
+| `fdmRefs[0].eventCounter` | `14` | OK |
+| `fdmRefs[0].totalCounter` | `50` | OK |
+| `fdmRefs[1].fdmId` | `FOD01000001` | OK |
+| `fdmRefs[1].eventLabel` | `N` | OK |
+| `fdmRefs[1].eventCounter` | `16` | OK |
+| `fdmRefs[1].totalCounter` | `52` | OK |
+| `fdmRef.fdmId` | `FOD01000001` | OK |
+| `fdmRef.eventLabel` | `I` | OK |
+| `fdmRef.eventCounter` | `1` | OK |
+| `fdmRef.totalCounter` | `62` | OK |
+
+**Request (Variables.json) :**
+
+```json
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 1012,
+    "posDateTime": "2024-07-29T16:22:39.000+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-1-BAR",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-07-29",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "customerVatNo": "BE0308357159",
+    "costCenter": {
+      "id": "100",
+      "type": "CUSTOMER",
+      "reference": "FIN"
+    },
+    "invoiceNo": "20240005",
+    "fdmRefs": [
+      {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-04-29T11:35:09.000Z",
+        "eventLabel": "N",
+        "eventCounter": 14,
+        "totalCounter": 50
+      },
+      {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-07-29T11:48:04.000Z",
+        "eventLabel": "N",
+        "eventCounter": 16,
+        "totalCounter": 52
+      }
+    ]
+  }
+}
+```
+
+**Response FDM :**
+
+```json
+{
+  "data": {
+    "signInvoice": {
+      "posId": "CPOS0031234567",
+      "posFiscalTicketNo": 1012,
+      "posDateTime": "2024-07-29T16:22:39.000+02:00",
+      "terminalId": "TER-1-BAR",
+      "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+      "eventOperation": "INVOICE",
+      "fdmRef": {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-07-29T14:22:41.000Z",
+        "eventLabel": "I",
+        "eventCounter": 1,
+        "totalCounter": 62
+      },
+      "fdmSwVersion": "1.2.0",
+      "bufferCapacityUsed": 0.25,
+      "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+      "warnings": [],
+      "informations": []
+    }
+  }
+}
+```
+
+**Rejeu applicatif :** `crates/pos-engine/tests/spf_e2e_fixtures.rs::m150_invoice` (build `cert`, comme tous les UC ci-dessus). Le rejeu fait deux ventes (événements N), établit la facture par la commande de l'écran de facturation et compare la requête archivée à la fixture. Champs métier égaux (`costCenter.type` et `costCenter.reference`, `customerVatNo`, libellés des références). Chaque `fdmRefs[i]` (`fdmId`, `fdmDateTime`, `eventLabel`, `eventCounter`, `totalCounter`) est comparé à la référence que le module de contrôle a répondue pour la vente correspondante, dans l'ordre. Différences voulues, propres à la session de test : identifiant du centre de coût (`C` suivi du numéro du client, contre `100` dans le scénario), numéro de facture (année et séquence continue, `20260001` à la place de `20240005`) et compteurs des références. Voir *FACTURATION_PEPPOL_FR.md*.
+
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m150_invoice`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M150_event3_I_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-10-17",
+  "bookingPeriodId": "5f93531b-7cc3-493e-97d0-a68c23a75708",
+  "costCenter": {
+    "id": "C1",
+    "reference": "FIN",
+    "type": "CUSTOMER"
+  },
+  "customerVatNo": "BE0308357159",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmRefs": [
+    {
+      "eventCounter": 15,
+      "eventLabel": "N",
+      "fdmDateTime": "2024-07-29T11:00:08.000Z",
+      "fdmId": "FOD01000001",
+      "totalCounter": 59
+    },
+    {
+      "eventCounter": 15,
+      "eventLabel": "N",
+      "fdmDateTime": "2024-07-29T11:00:08.000Z",
+      "fdmId": "FOD01000001",
+      "totalCounter": 59
+    }
+  ],
+  "invoiceNo": "20260001",
+  "language": "FR",
+  "posDateTime": "2026-10-18T01:38:06.978+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario, archivés de même : `evidence/uc/M150_event1_N_request.json`, `evidence/uc/M150_event2_N_request.json`. Réponses FDM archivées : fichiers `*_response.json` correspondants.
+
+**Comparaison avec la fixture** (`evidence/uc/M150_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- pili-pos-evidence:end -->
 
 ## M160_signCopy_Sale
 
@@ -5340,6 +5500,152 @@ Comparés exactement : nombre d'events et montants par label, départements, TVA
 
 ---
 
+# Factures de l'Advanced Set (UC4121, UC4122)
+
+Les deux UC de facture de l'Advanced Set v1.6 sont rejoués par `crates/pos-engine/tests/invoice_advanced.rs`, par la commande de facturation de l'écran, contre le module de contrôle simulé. Le scénario paie les ventes en crédit client ; ce moyen de paiement n'existe pas dans le produit, les ventes sont donc encaissées au comptant (la demande de facture ne dépend pas du moyen de paiement des ventes). Le test compare la requête archivée à la fixture (champs métier égaux, références des ventes comparées valeur par valeur à celles que le module de contrôle a répondues) et vérifie le format du numéro de facture.
+
+## UC4121_CustomerInvoice
+
+**Mutation invoquee :** `signInvoice`
+
+**Scenario (fixture, en anglais) :**
+
+```
+Sale of 2 carpaccio (unit price 20EUR) and 1 bottle of Chardonnay (unit price 40EUR), payment type CUSTOMER CREDIT
+Sale of 2 dry Martini (unit price 12EUR), payment type CUSTOMER CREDIT
+Sale of 2 dame blanche (unit price 11,52EUR), payment type CUSTOMER CREDIT
+End of the month: invoice with reference to tickets
+```
+
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - scénario rejoué par `crates/pos-engine/tests/invoice_advanced.rs::uc4121_an_invoice_of_three_sales` avec des ventes au comptant génériques à la place des étapes de vente de la fixture (le crédit client n'existe pas dans le produit ; la demande de facture n'en dépend pas). Requête **construite et archivée par pili-pos** (`evidence/uc/UC4121_event4_I_request.json`), réponse FDM archivée : `evidence/uc/UC4121_event4_I_response.json`.
+
+```json
+{
+  "bookingDate": "2026-10-17",
+  "bookingPeriodId": "3121b102-ca3a-4116-a451-7e84c377fce1",
+  "costCenter": {
+    "id": "C1",
+    "reference": "JANSSENS",
+    "type": "CUSTOMER"
+  },
+  "customerVatNo": "BE0308357159",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "fdmRefs": [
+    {
+      "eventCounter": 1,
+      "eventLabel": "N",
+      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmId": "MCK00000001",
+      "totalCounter": 1
+    },
+    {
+      "eventCounter": 2,
+      "eventLabel": "N",
+      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmId": "MCK00000001",
+      "totalCounter": 2
+    },
+    {
+      "eventCounter": 3,
+      "eventLabel": "N",
+      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmId": "MCK00000001",
+      "totalCounter": 3
+    }
+  ],
+  "invoiceNo": "20260001",
+  "language": "FR",
+  "posDateTime": "2026-10-18T01:38:05.845+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario, archivés de même : `evidence/uc/UC4121_event1_N_request.json`, `evidence/uc/UC4121_event2_N_request.json`, `evidence/uc/UC4121_event3_N_request.json`.
+
+Comparaison avec la fixture : champs métier identiques (`costCenter.type` et `costCenter.reference`, `customerVatNo`, libellés des `fdmRefs`) ; chaque `fdmRefs[i]` (`fdmId`, `fdmDateTime`, `eventLabel`, `eventCounter`, `totalCounter`) est comparé à la référence que le module de contrôle a répondue pour la vente correspondante, dans l'ordre ; numéro de facture contrôlé sur son format (année et séquence). Écarts voulus : numéro de facture, identifiant du centre de coût (`C` suivi du numéro du client) et compteurs, qui sont ceux de la session de test.
+<!-- pili-pos-evidence:end -->
+
+## UC4122_Creditnote
+
+**Mutation invoquee :** `signInvoice`
+
+**Scenario (fixture, en anglais) :**
+
+```
+Refund of ticket, sale of 4 dame blanche (unit price 11.52EUR) had already been invoiced
+Sale 1 of 4 dry Martini (unit price:12EUR)
+Sale 2 of 4 burger of the chef (unit price: 28 EUR) and 4 Coca-Cola (unit price 3.04EUR)
+Invoice of refund and sale 1 & 2
+```
+
+Le rejeu respecte la précondition : la vente de 46,08 EUR est d'abord facturée (première facture), puis remboursée par un événement N négatif ; la seconde facture reprend ce remboursement et les deux ventes (total 46,08 EUR en négatif, 48,00 EUR et 120,00 EUR en positif). La seconde tentative de facturer la vente d'origine est refusée (une vente, une facture).
+
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - scénario rejoué par `crates/pos-engine/tests/invoice_advanced.rs::uc4122_an_invoice_of_a_refund_and_two_sales` avec des ventes au comptant génériques à la place des étapes de vente de la fixture (le crédit client n'existe pas dans le produit ; la demande de facture n'en dépend pas). Requête **construite et archivée par pili-pos** (`evidence/uc/UC4122_event6_I_request.json`), réponse FDM archivée : `evidence/uc/UC4122_event6_I_response.json`.
+
+```json
+{
+  "bookingDate": "2026-10-17",
+  "bookingPeriodId": "03c3b477-d67c-48e8-916b-775525629976",
+  "costCenter": {
+    "id": "C1",
+    "reference": "AUDI",
+    "type": "CUSTOMER"
+  },
+  "customerVatNo": "BE0308357159",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "fdmRefs": [
+    {
+      "eventCounter": 2,
+      "eventLabel": "N",
+      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmId": "MCK00000001",
+      "totalCounter": 3
+    },
+    {
+      "eventCounter": 3,
+      "eventLabel": "N",
+      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmId": "MCK00000001",
+      "totalCounter": 4
+    },
+    {
+      "eventCounter": 4,
+      "eventLabel": "N",
+      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmId": "MCK00000001",
+      "totalCounter": 5
+    }
+  ],
+  "invoiceNo": "20260002",
+  "language": "FR",
+  "posDateTime": "2026-10-18T01:38:05.863+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario, archivés de même : `evidence/uc/UC4122_event1_N_request.json`, `evidence/uc/UC4122_event2_I_request.json`, `evidence/uc/UC4122_event3_N_request.json`, `evidence/uc/UC4122_event4_N_request.json`, `evidence/uc/UC4122_event5_N_request.json`.
+
+Comparaison avec la fixture : champs métier identiques (`costCenter.type` et `costCenter.reference`, `customerVatNo`, libellés des `fdmRefs`) ; chaque `fdmRefs[i]` (`fdmId`, `fdmDateTime`, `eventLabel`, `eventCounter`, `totalCounter`) est comparé à la référence que le module de contrôle a répondue pour la vente correspondante, dans l'ordre ; numéro de facture contrôlé sur son format (année et séquence). Écarts voulus : numéro de facture, identifiant du centre de coût (`C` suivi du numéro du client) et compteurs, qui sont ceux de la session de test.
+<!-- pili-pos-evidence:end -->
+
+---
+
 # Arrondissement des methodes de paiement (manuel §IV)
 
 Le manuel demande les tests de base 1 et 2 dans tous les cas, le test 3
@@ -6025,18 +6331,20 @@ TVA: BE0000000097
 
 | Famille | UC (spec) | UC dans le perimetre v1.0.0 | Lecture des fixtures | Rejeu applicatif (build `cert`) |
 |---|---|---|:-:|:-:|
-| Basic Set v1.8 | 22 | 18 (hors M112A, M122, M132 et M150/event I) | OK (22/22) | OK : 16 UC rejoues et compares a la fixture dans `spf_e2e_fixtures.rs` (M110, M111, M112B, M121, M123, M130, M131, M133, M140, M141, M160, M161, M170, M171, M171B, M172) ; M112A n'est pas un parcours propose (remboursement partiel toujours en ticket separe, parcours M112B) ; Q100/Q110 : `client_status.rs` |
+| Basic Set v1.8 | 22 | 19 (hors M112A, M122 et M132) | OK (22/22) | OK : 17 UC rejoues et compares a la fixture dans `spf_e2e_fixtures.rs` (M110, M111, M112B, M121, M123, M130, M131, M133, M140, M141, M150, M160, M161, M170, M171, M171B, M172) ; M112A n'est pas un parcours propose (remboursement partiel toujours en ticket separe, parcours M112B) ; Q100/Q110 : `client_status.rs` |
 | Reports v1.3 | 5 | 5 | OK (5/5) | OK : journee T1–T8 jouee puis M180, M182 et M184 compares a la fixture dans `spf_e2e_report_fixtures.rs` ; M181/M183 signes par le Z combine de M184 |
-| **Total** | **27** | **23** | **OK** | **OK** |
+| Advanced Set v1.6 (factures) | 2 | 2 | OK | OK : UC4121 et UC4122 rejoues dans `invoice_advanced.rs` |
+| **Total** | **29** | **26** | **OK** | **OK** |
 
-Preuves d'annexe : **50 paires requete/reponse** construites et
-archivees par la build `cert` pour le Basic Set et les rapports
+Preuves d'annexe : **53 paires requete/reponse** construites et
+archivees par la build `cert` pour le Basic Set (M150 compris) et les rapports
 (`docs/SUBMISSION_ARTIFACTS/evidence/uc/`), plus un fichier
 `<UC>_check.json` par UC du Basic Set rejoue (comparaison champ par
 champ avec la fixture), **5 paires** pour les situations d'arrondi
 (`ROUND1` a `ROUND5`, avec leur ticket dans `evidence/tickets/`) et 5
 paires pour trois UC de l'Advanced Set rejoues par le meme harnais
-(UC230, UC4109, UC4119 ; voir *COUVERTURE_ADVANCED_SET_FR.md*). M150 n'y
-figure pas : la build `cert` ne peut pas emettre d'event I.
+(UC230, UC4109, UC4119 ; voir *COUVERTURE_ADVANCED_SET_FR.md*), plus **10 paires** pour
+les deux factures de l'Advanced Set (UC4121 : 4 ; UC4122 : 6, dont les deux factures et
+le remboursement).
 
 Pour le detail des couvertures, voir *COUVERTURE_FIXTURES_FR.md* et *COUVERTURE_RAPPORTS_FR.md*.

@@ -4,7 +4,7 @@ Ce document liste chaque identifiant de test décrit par le SPF Finances (Basic 
 
 Généré automatiquement par `scripts/uc_matrix.py` à partir des dossiers sous `docs/`, des sources de test (`crates/*/tests`, `crates/*/src`, `src-tauri/src`, `ui/e2e/`) et des exclusions déclarées dans `scripts/uc_scope.toml`. Une réexécution sans changement de code ou de documentation produit un fichier identique.
 
-Date de génération (date du dernier commit git) : 2026-10-07
+Date de génération (date du dernier commit git) : 2026-10-18
 
 Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périmètre (fonctionnalité absente de pili-pos v1.0.0, exclusion documentée), Non applicable (ce cas précis ne peut pas se produire avec le comportement actuel), Couvert par X (les tests de l'identifiant X couvrent aussi ce cas), MANQUANT (aucun test automatisé trouvé et aucune exclusion déclarée).
 
@@ -25,7 +25,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | M133 | Déclaration de fond de caisse (comptage) | `m133_drawer_declaration` | `[M133] an empty drawer is declared as 0`, `[M133] the counted cash is declared with the amount typed` | Couvert |
 | M140 | Entrée en service de l'utilisateur | `m140_work_in`, `m140_work_in_archives_s_event` | - | Couvert |
 | M141 | Sortie de service de l'utilisateur | `m141_work_out`, `m141_work_out_archives_s_event` | - | Couvert |
-| M150 | Facturation | `m150_invoice_fdm_failure_does_not_advance_i_counter`, `m150_sign_invoice_archives_i_event_referencing_the_sale` | - | Hors périmètre |
+| M150 | Facturation | `m150_invoice`, `m150_invoice_fdm_failure_does_not_advance_i_counter`, `m150_sign_invoice_archives_i_event_referencing_the_sale` | - | Couvert |
 | M160 | Copie d'un ticket de vente | `m160_copy_of_a_sale`, `m160_copy_of_sale_archives_c_event_with_ref_to_original`, `vi_copy_m160_a_copy_reproduces_the_original_sale` | - | Couvert |
 | M161 | Copie d'une commande | `m161_copy_of_an_order`, `m161_copy_of_order_archives_c_event_with_ref_to_p_event`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket` | - | Couvert |
 | M170 | Entrée en service en mode formation | `m170_work_in_in_training`, `m170_work_in_training_does_not_advance_normal_s_counter` | - | Couvert |
@@ -112,8 +112,8 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | UC4119bis | Scission d'addition (bis) | - | - | Hors périmètre |
 | UC4120 | Supplément avec modification de prix | - | - | Hors périmètre |
 | UC4120bis | Supplément sur une ligne de transaction (bis) | - | - | Hors périmètre |
-| UC4121 | Facture client | - | - | Hors périmètre |
-| UC4122 | Note de crédit | - | - | Hors périmètre |
+| UC4121 | Facture client | `uc4121_an_invoice_of_three_sales` | - | Couvert |
+| UC4122 | Note de crédit | `uc4122_an_invoice_of_a_refund_and_two_sales` | - | Couvert |
 | UC4123 | Changement de centre de coût par chaise | - | - | Hors périmètre |
 
 ## Manuel
@@ -167,7 +167,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | ID | Intitulé | Tests Rust | Tests UI | Statut |
 |---|---|---|---|---|
 | FAQ_Q202 | signPreBill: usage et lien avec un signOrder préalable | `m123_sign_pre_bill_archives_p_event_and_keeps_order_open`, `pre_bill_fdm_failure_on_the_second_step_does_not_burn_its_ticket_or_resend_the_order` | - | Couvert |
-| FAQ_Q205 | Une transaction en cours doit-elle donner lieu à un event P ou N | `faq_q205_a_takeaway_closed_unpaid_is_a_direct_sale`, `faq_q205_a_takeaway_is_never_registered_as_an_order`, `faq_q205_open_takeaways_are_listed_until_paid` | `[FAQ_Q205] an unpaid takeaway is listed on the tables and resumes`, `[FAQ_Q205] leaving an unpaid takeaway registers nothing`, `[FAQ_Q205] leaving the order for the tables registers it`, `[FAQ_Q205] locking the screen registers it` +1 | Couvert |
+| FAQ_Q205 | Une transaction en cours doit-elle donner lieu à un event P ou N | `faq_q205_a_takeaway_closed_unpaid_is_a_direct_sale`, `faq_q205_a_takeaway_is_never_registered_as_an_order`, `faq_q205_open_takeaways_are_listed_until_paid` | `[FAQ_Q205] an unpaid takeaway is listed on the tables and resumes`, `[FAQ_Q205] leaving an unpaid takeaway leaves the registration to the engine`, `[FAQ_Q205] leaving the order for the tables registers it`, `[FAQ_Q205] locking the screen registers it` +1 | Couvert |
 | FAQ_Q206 | Vente soldée à 0,00 EUR (remise de 100%): enregistrement | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | - | Couvert |
 | FAQ_Q207 | Règles d'usage de signPreBill et signOrder en gestion de table | `faq_q207_a_second_order_carries_only_the_new_lines` | - | Couvert |
 | FAQ_Q209 | Ticket de caisse TVA obligatoire même pour une vente à 0,00 EUR | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | - | Couvert |
@@ -183,7 +183,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | FAQ_Q502 | Les events R de rapport sont exclus des timestamps de la période couverte | `m180_turnover_x_of_the_scenario_day` | - | Couvert |
 | FAQ_Q503 | signCopy obligatoire pour toute réimpression, y compris une facture A4 | `a_printed_original_can_not_be_printed_again`, `m160_copy_of_sale_archives_c_event_with_ref_to_original` | - | Couvert |
 | FAQ_Q504 | Le rapport de chiffre d'affaires n'inclut pas les events de type Copy | `faq_q504_a_copy_is_not_turnover` | - | Couvert |
-| FAQ_Q505 | Identification du deviceId (adresse MAC ou identifiant matériel unique) | `m110_sale` | - | Couvert |
+| FAQ_Q505 | Identification du deviceId (adresse MAC ou identifiant matériel unique) | `m110_sale`, `m150_invoice` | - | Couvert |
 | FAQ_Q506 | La query Status du FDM est facultative | `faq_q506_a_sale_is_signed_without_a_status_query` | - | Couvert |
 | FAQ_Q507 | La mention TICKET DE CAISSE T.V.A. est réservée au ticket de caisse fiscal | `every_ticket_carries_its_type_label_and_identification`, `vi_training_a_training_sale_prints_its_training_marks` | - | Couvert |
 | FAQ_Q509 | Champ totalAmount du rapport Z (objet users): somme des transactionTotal | `faq_q509_the_user_total_leaves_the_rounding_out` | - | Couvert |
