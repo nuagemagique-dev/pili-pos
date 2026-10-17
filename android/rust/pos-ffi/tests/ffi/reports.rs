@@ -257,6 +257,72 @@ async fn a_failed_financial_event_converts() {
     assert!(record.error.is_some());
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn the_payment_lines_of_a_real_sale_and_its_correction_convert() {
+    use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+    use pos_engine::commands::payment_correction::{do_correct_payment, do_list_sale_payments};
+    let app = app_on_mock().await;
+    pos_engine::commands::auth::do_set_pin(&app.state, INSZ.into(), "4321".into(), None).unwrap();
+    let order = app.order_of(5200);
+    let sale = do_checkout(&app.state, order, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap()
+        .fiscal_event_id
+        .unwrap();
+
+    let before = do_list_sale_payments(&app.state, sale).unwrap();
+    assert!(before.correctable);
+    let record: ffi::SalePayments = out_equal(&before);
+    assert_eq!(record.lines.len(), 1);
+    assert_eq!(record.lines[0].payment_type, "CASH");
+    assert!(record.corrected.is_none() && record.refusal.is_none());
+
+    let done = do_correct_payment(
+        &app.state,
+        sale,
+        0,
+        pos_fiscal::payment::PaymentMethod::Card,
+        INSZ.into(),
+        "4321".into(),
+    )
+    .await
+    .unwrap();
+    assert!(done.success, "{:?}", done.error);
+    let _: ffi::FinancialResult = out_equal(&done);
+
+    let after = do_list_sale_payments(&app.state, sale).unwrap();
+    let record: ffi::SalePayments = out_equal(&after);
+    assert!(!record.correctable);
+    assert_eq!(
+        record.refusal.as_deref(),
+        Some("payment_correction_already_done")
+    );
+    let corrected = record.corrected.expect("the correction is shown");
+    assert_eq!(
+        (corrected.from_type.as_str(), corrected.to_type.as_str()),
+        ("CASH", "CARD_DEBIT")
+    );
+}
+
+#[test]
+fn sale_payments_with_every_option_set_or_empty_convert() {
+    let engine = serde_json::json!({
+        "fiscalEventId": 3, "ticketNumber": 12, "totalCents": 4000,
+        "lines": [{ "index": 0, "paymentType": "CARD_DEBIT", "name": "Card", "amountCents": 4000,
+                    "inputMethod": "AUTOMATIC", "amountType": "PAYMENT", "brand": "Bancontact" }],
+        "correctable": false, "refusal": "payment_correction_terminal_card",
+        "corrected": { "fromType": "CASH", "toType": "CARD_DEBIT", "amountCents": 100, "at": "2026-10-17 10:00:00" }
+    });
+    let record: ffi::SalePayments = out_equal(&engine);
+    assert_eq!(record.lines[0].brand.as_deref(), Some("Bancontact"));
+    let empty = serde_json::json!({
+        "fiscalEventId": 3, "ticketNumber": 12, "totalCents": 0,
+        "lines": [], "correctable": true, "refusal": null, "corrected": null
+    });
+    let record: ffi::SalePayments = out_equal(&empty);
+    assert!(record.lines.is_empty() && record.correctable);
+}
+
 #[test]
 fn financial_results_with_the_error_set_or_empty_convert() {
     for error in [Some("fdm down".to_string()), None] {
@@ -377,11 +443,25 @@ async fn commands_that_need_an_operator_are_refused_without_a_session() {
         .await
         .unwrap_err(),
         e.open_drawer_fiscal(MANAGER_INSZ.into()).await.unwrap_err(),
+        e.list_sale_payments(1).await.unwrap_err(),
         e.set_training_mode(true).await.unwrap_err(),
     ];
     for err in &errors {
         assert!(coded(err, "not_logged_in"), "{err:?}");
     }
+    // The correction answers like the other PIN-confirmed command: a refused result.
+    let refused = e
+        .correct_payment(
+            1,
+            0,
+            pos_ffi::records::common::PaymentMethod::Card,
+            MANAGER_INSZ.into(),
+            MANAGER_PIN.into(),
+        )
+        .await
+        .unwrap();
+    assert!(!refused.success);
+    assert_eq!(refused.error.as_deref(), Some("not_logged_in"));
     e.shutdown().await.unwrap();
 }
 

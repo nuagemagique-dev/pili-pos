@@ -107,9 +107,12 @@
 //! | `MailStatus` | `pos_engine::commands::delivery::MailStatus` | checkout | check_mail_status |
 //! | `RefundItem` | `pos_engine::commands::refund::RefundItem` | checkout | refund_checkout |
 //! | `RefundableEvent` | `pos_db::queries::fiscal::RefundableEvent` | checkout | list_refundable_events |
-//! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | money_in_out, open_drawer_fiscal |
+//! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | correct_payment, money_in_out, open_drawer_fiscal |
 //! | `MoneyDirection` | `pos_engine::commands::financial::MoneyDirection` | reports | money_in_out |
 //! | `OpenShift` | `pos_db::queries::shifts::OpenShift` | reports | list_open_shifts |
+//! | `CorrectionDone` | `pos_engine::commands::payment_correction::CorrectionDone` | reports | list_sale_payments |
+//! | `SalePaymentLine` | `pos_engine::commands::payment_correction::SalePaymentLine` | reports | list_sale_payments |
+//! | `SalePayments` | `pos_engine::commands::payment_correction::SalePayments` | reports | list_sale_payments |
 //! | `PosSettings` | `pos_engine::commands::settings::PosSettings` | reports | get_settings |
 //! | `ReportResult` | `pos_engine::commands::report::ReportResult` | reports | generate_user_x_report, generate_x_report, generate_z_report |
 //! | `SocialResult` | `pos_engine::commands::social::SocialResult` | reports | end_shift, work_in, work_out |
