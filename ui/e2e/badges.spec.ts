@@ -537,3 +537,417 @@ test.describe('Settings: employees and badges', () => {
     await expect(page.getByTestId('badge-settings').locator('h2')).toHaveText('工牌读卡器');
   });
 });
+
+// ── Test round 1: the paths no spec reached ─────────────────────────
+
+type Kd = { code: string; key: string; ctrl?: boolean; repeat?: boolean; composing?: boolean };
+const digit = (d: string): Kd => ({ code: `Digit${d}`, key: d });
+const ENTER: Kd = { code: 'Enter', key: 'Enter' };
+
+/** Dispatch raw keydowns on the focused element (or the body); returns,
+ * for each, whether the page cancelled it (a held key is cancelled). */
+async function keydowns(page: Page, keys: Kd[]): Promise<boolean[]> {
+  return page.evaluate((list) => {
+    const target = document.activeElement ?? document.body;
+    return list.map((k) => {
+      const e = new KeyboardEvent('keydown', {
+        code: k.code, key: k.key, ctrlKey: !!k.ctrl, repeat: !!k.repeat, isComposing: !!k.composing,
+        bubbles: true, cancelable: true,
+      });
+      target.dispatchEvent(e);
+      return e.defaultPrevented;
+    });
+  }, keys);
+}
+
+async function toSettings(page: Page) {
+  await tapUserTile(page);
+  await page.evaluate(() => { window.location.hash = '/settings'; });
+  await page.waitForURL(/settings/);
+}
+
+/** An extra text field on the page, for the replay target tests. */
+async function addInput(page: Page, id: string, attrs: Record<string, string> = {}) {
+  await page.evaluate(([i, a]) => {
+    const el = document.createElement('input');
+    el.id = i;
+    for (const [k, v] of Object.entries(a)) el.setAttribute(k, v);
+    document.body.appendChild(el);
+  }, [id, attrs] as const);
+}
+
+test.describe('Reader switched at run time', () => {
+  test('switching the reader to Désactivé releases the keys: a burst is typed again', async ({ page }) => {
+    await open(page);
+    await toSettings(page);
+    await unfold(page);
+    await page.getByTestId('badge-settings').locator('.reader-btn', { hasText: 'Désactivé' }).click();
+    await expect.poll(() => ipcCalls(page, 'set_badge_settings')).toEqual([
+      { input: { reader: 'off', loginEnabled: false, wedgeMaxGapMs: 150, wedgeMinLen: 6, wedgeMaxLen: 32 } },
+    ]);
+    await nameField(page).focus();
+    await scanBadge(page, '04123456');
+    await expect(nameField(page)).toHaveValue('04123456');
+    expect(await taps(page)).toEqual([]);
+  });
+
+  test('a stored NFC reader installs no listener on Linux: the burst is typed, no tap', async ({ page }) => {
+    await open(page, { settings: { reader: 'nfc' } }, '/#/settings');
+    await nameField(page).focus();
+    await scanBadge(page, '04123456');
+    await expect(nameField(page)).toHaveValue('04123456');
+    expect(await taps(page)).toEqual([]);
+  });
+
+  test('a stored NFC reader offers no badge login hint and no Lier buttons on Linux', async ({ page }) => {
+    await open(page, { settings: { reader: 'nfc', loginEnabled: true } });
+    await expect(page.getByTestId('badge-login-hint')).toHaveCount(0);
+    await open(page, { settings: { reader: 'nfc' } }, '/', [DEFAULT_USER, WEI]);
+    await toSettings(page);
+    await expect(page.locator('.worker-row', { hasText: 'Wei' })).toBeVisible();
+    await expect(page.getByTestId('badge-btn')).toHaveCount(0);
+    await expect(page.getByTestId('badge-state')).toHaveCount(0);
+  });
+});
+
+test.describe('Keys the detector does not take for a badge', () => {
+  test('a Ctrl chord breaks the burst and the held keys are replayed before it', async ({ page }) => {
+    await open(page, {}, '/#/settings');
+    await nameField(page).focus();
+    await keydowns(page, [digit('1'), digit('2'), digit('3'), { code: 'KeyC', key: 'c', ctrl: true }]);
+    await expect(nameField(page)).toHaveValue('123');
+    await keydowns(page, [digit('4'), digit('5'), digit('6'), ENTER]);
+    await expect(nameField(page)).toHaveValue('123456');
+    expect(await taps(page)).toEqual([]);
+  });
+
+  test('a key repeat inside a burst is swallowed and not counted', async ({ page }) => {
+    await open(page);
+    const prevented = await keydowns(page, [
+      digit('1'), digit('2'), digit('3'), { ...digit('3'), repeat: true }, digit('4'), digit('5'), digit('6'), ENTER,
+    ]);
+    expect(prevented[3]).toBe(true);
+    await expect.poll(() => taps(page)).toEqual([{ token: '123456', endShift: false }]);
+  });
+
+  test('a key during IME composition is left alone', async ({ page }) => {
+    await open(page, {}, '/#/settings');
+    await nameField(page).focus();
+    const [composing] = await keydowns(page, [{ ...digit('1'), composing: true }]);
+    expect(composing).toBe(false);
+    // The same key outside a composition is held.
+    const [plain] = await keydowns(page, [digit('1')]);
+    expect(plain).toBe(true);
+    await page.waitForTimeout(300);
+    expect(await taps(page)).toEqual([]);
+  });
+});
+
+test.describe('Timing changed in Settings applies at once', () => {
+  async function setPad(page: Page, testid: string, digits: string) {
+    const panel = page.getByTestId('badge-settings');
+    await panel.getByTestId(testid).click();
+    await panel.getByRole('button', { name: 'C', exact: true }).click();
+    for (const d of digits) await panel.getByRole('button', { name: d, exact: true }).click();
+  }
+
+  test('a wider gap saved without reload turns a slow burst into a badge', async ({ page }) => {
+    await open(page, { settings: { wedgeMaxGapMs: 80 } }, '/');
+    await toSettings(page);
+    await unfold(page);
+    // Before: 110 ms between keys is slower than 80 ms, so typing.
+    await page.locator('body').click();
+    await page.keyboard.type('123456', { delay: 110 });
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    expect(await taps(page)).toEqual([]);
+
+    await setPad(page, 'badge-wedgeMaxGapMs', '200');
+    await page.getByTestId('badge-timing-save').click();
+    await expect.poll(() => ipcCalls(page, 'set_badge_settings')).toEqual([
+      { input: { reader: 'usb', loginEnabled: false, wedgeMaxGapMs: 200, wedgeMinLen: 6, wedgeMaxLen: 32 } },
+    ]);
+    await page.locator('body').click();
+    await page.keyboard.type('123456', { delay: 110 });
+    await page.keyboard.press('Enter');
+    await expect.poll(() => taps(page)).toEqual([{ token: '123456', endShift: false }]);
+  });
+
+  test('a longer minimum saved without reload refuses a 6 key burst', async ({ page }) => {
+    await open(page, {}, '/');
+    await toSettings(page);
+    await unfold(page);
+    await page.locator('body').click();
+    await scanBadge(page, '123456');
+    await expect.poll(() => taps(page)).toHaveLength(1);
+
+    await setPad(page, 'badge-wedgeMinLen', '8');
+    await page.getByTestId('badge-timing-save').click();
+    await expect.poll(() => ipcCalls(page, 'set_badge_settings')).toHaveLength(1);
+    await page.locator('body').click();
+    await scanBadge(page, '123456');
+    await page.waitForTimeout(300);
+    expect(await taps(page)).toHaveLength(1);
+    await scanBadge(page, '12345678');
+    await expect.poll(() => taps(page)).toHaveLength(2);
+  });
+});
+
+test.describe('Where replayed keys land', () => {
+  const SLOW = { delay: 150 };
+
+  test('a field with a maxlength keeps only what fits', async ({ page }) => {
+    await open(page, { settings: { wedgeMaxGapMs: 50 } }, '/#/settings');
+    await addInput(page, 'short', { maxlength: '3' });
+    await page.locator('#short').focus();
+    await page.keyboard.type('12345', SLOW);
+    await expect(page.locator('#short')).toHaveValue('123');
+    expect(await taps(page)).toEqual([]);
+  });
+
+  test('a read-only field receives nothing', async ({ page }) => {
+    await open(page, { settings: { wedgeMaxGapMs: 50 } }, '/#/settings');
+    await addInput(page, 'ro', { readonly: '' });
+    await page.locator('#ro').focus();
+    await page.keyboard.type('12345', SLOW);
+    await page.waitForTimeout(150);
+    await expect(page.locator('#ro')).toHaveValue('');
+    expect(await taps(page)).toEqual([]);
+  });
+
+  test('with nothing editable focused the keys are dropped', async ({ page }) => {
+    await open(page, { settings: { wedgeMaxGapMs: 50 } }, '/#/settings');
+    await page.locator('body').click();
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.type('12345', SLOW);
+    await page.waitForTimeout(150);
+    await expect(nameField(page)).toHaveValue('');
+    expect(await taps(page)).toEqual([]);
+  });
+
+  test('the keys land in the field that was focused when they were held', async ({ page }) => {
+    await open(page, { settings: { wedgeMaxGapMs: 200 } }, '/#/settings');
+    await addInput(page, 'other');
+    await nameField(page).focus();
+    await page.keyboard.type('12', { delay: 5 });
+    await page.locator('#other').focus();
+    await expect(nameField(page)).toHaveValue('12', { timeout: 2000 });
+    await expect(page.locator('#other')).toHaveValue('');
+  });
+});
+
+test.describe('Typing is user activity', () => {
+  test('held keys that turn out to be typing are reported to the engine', async ({ page }) => {
+    await open(page, {}, '/#/settings');
+    await nameField(page).focus();
+    // Past the 1 s throttle of the activity forwarder.
+    await page.waitForTimeout(1100);
+    const before = (await ipcCalls(page, 'user_activity')).length;
+    // No Enter: only the replay of the released keys can report activity.
+    await page.keyboard.type('12345', { delay: 5 });
+    await expect(nameField(page)).toHaveValue('12345');
+    await expect.poll(async () => (await ipcCalls(page, 'user_activity')).length).toBeGreaterThan(before);
+  });
+});
+
+test.describe('Sound cue', () => {
+  const HIGH = [880, 1318.5];
+  const LOW = [196];
+
+  async function fakeAudio(page: Page) {
+    await page.addInitScript(() => {
+      (window as any).__tones = [];
+      (window as any).AudioContext = class {
+        currentTime = 0;
+        destination = {};
+        createOscillator() {
+          return {
+            type: '',
+            frequency: { set value(v: number) { (window as any).__tones.push(v); } },
+            connect: (n: unknown) => n,
+            start() {}, stop() {},
+          };
+        }
+        createGain() {
+          return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} };
+        }
+      };
+    });
+  }
+  const tones = (page: Page) => page.evaluate(() => (window as any).__tones.slice());
+  const resetTones = (page: Page) => page.evaluate(() => { (window as any).__tones.length = 0; });
+
+  test('high two-tone on a registration, low tone on a refusal or FDM failure, none on ignored', async ({ page }) => {
+    await fakeAudio(page);
+    await open(page, {
+      taps: [
+        { kind: 'clock_in', name: 'Wei', at: '2026-10-17T10:02:00Z' },
+        { reject: 'badge_unknown' },
+        { kind: 'presence_failed', name: 'Wei', error: 'FDM injoignable' },
+        { kind: 'ignored' },
+        { kind: 'clock_out', name: 'Wei', at: '2026-10-17T10:02:00Z' },
+      ],
+    });
+    const next = async (n: number) => {
+      await scanBadge(page, TOKEN);
+      await expect.poll(() => taps(page)).toHaveLength(n);
+    };
+    await next(1);
+    await expect.poll(() => tones(page)).toEqual(HIGH);
+    await resetTones(page);
+    await next(2);
+    await expect.poll(() => tones(page)).toEqual(LOW);
+    await resetTones(page);
+    await next(3);
+    await expect.poll(() => tones(page)).toEqual(LOW);
+    await resetTones(page);
+    await next(4);
+    await page.waitForTimeout(200);
+    expect(await tones(page)).toEqual([]);
+    await next(5);
+    await expect.poll(() => tones(page)).toEqual(HIGH);
+  });
+
+  test('a badge login plays the high two-tone', async ({ page }) => {
+    await fakeAudio(page);
+    await open(page, { settings: { loginEnabled: true }, taps: [{ kind: 'logged_in', insz: CASHIER.insz, name: CASHIER.name, user: CASHIER }] }, '/', [CASHIER]);
+    await scanBadge(page, TOKEN);
+    await expect(page).toHaveURL(/tables|order/);
+    expect(await tones(page)).toEqual(HIGH);
+  });
+
+  test('no audio device: the toast still shows', async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as any).AudioContext = function () { throw new Error('no audio device'); };
+    });
+    await open(page, { taps: [{ kind: 'clock_in', name: 'Wei', at: '2026-10-17T10:02:00Z' }, { reject: 'badge_unknown' }] });
+    await scanBadge(page, TOKEN);
+    await expect(page.locator('.toast')).toHaveText('Arrivée · Wei · 12:02');
+    await scanBadge(page, TOKEN);
+    await expect(page.locator('.toast-error')).toHaveText('Badge inconnu');
+  });
+});
+
+test.describe('Login screen: more paths', () => {
+  test('a manager who is not among the tiles still gets the PIN pad', async ({ page }) => {
+    await open(
+      page,
+      { settings: { loginEnabled: true }, taps: [{ kind: 'pin_required', insz: DEFAULT_USER.insz, name: 'Bruno Moyse' }] },
+      '/',
+      [CASHIER],
+    );
+    await expect(page.locator('.user-btn')).toHaveCount(1);
+    await scanBadge(page, TOKEN);
+    const overlay = page.locator('.pin-overlay');
+    await expect(overlay).toBeVisible();
+    await expect(overlay.locator('.pin-user')).toHaveText('Bruno Moyse');
+    for (const d of TEST_PIN) await overlay.locator('.nk', { hasText: d }).first().click();
+    await expect.poll(() => ipcCalls(page, 'login')).toEqual([{ insz: DEFAULT_USER.insz, pin: TEST_PIN }]);
+    await expect(page).toHaveURL(/tables|order/);
+  });
+
+  test('a registered scan on the login screen reloads who is on shift', async ({ page }) => {
+    await shiftsInit(page, []);
+    await open(page, { taps: [{ kind: 'clock_in', insz: DEFAULT_USER.insz, name: DEFAULT_USER.name, at: '2026-10-17T10:02:00Z' }] });
+    await expect(page.locator('.user-shift.on')).toHaveCount(0);
+    const before = (await ipcCalls(page, 'list_open_shifts')).length;
+    // The engine registers the arrival: the next list reports it.
+    await page.evaluate((insz) => {
+      (window as any).__shifts = [{ userInsz: insz, startedAt: '2026-10-17T08:02:00Z' }];
+    }, DEFAULT_USER.insz);
+    await scanBadge(page, TOKEN);
+    await expect.poll(async () => (await ipcCalls(page, 'list_open_shifts')).length).toBeGreaterThan(before);
+    await expect(page.locator('.user-shift.on')).toHaveCount(1);
+  });
+});
+
+test.describe('Settings: badge log', () => {
+  const entry = (i: number) => ({
+    action: 'link', insz: WEI.insz, name: `N${i}`, by: DEFAULT_USER.insz, byName: 'Bruno Moyse',
+    at: `2026-10-17 09:0${i}:00`, detail: null,
+  });
+
+  test('an empty log says so', async ({ page }) => {
+    await open(page, { log: [] }, '/');
+    await toSettings(page);
+    await unfold(page);
+    await expect(page.getByTestId('badge-settings')).toContainText('Aucun événement');
+    await expect(page.getByTestId('badge-log')).toHaveCount(0);
+  });
+
+  test('the panel shows the first six rows only, in order', async ({ page }) => {
+    await open(page, { log: Array.from({ length: 8 }, (_, i) => entry(i)) }, '/');
+    await toSettings(page);
+    await unfold(page);
+    const rows = page.getByTestId('badge-log').locator('li');
+    await expect(rows).toHaveCount(6);
+    for (let i = 0; i < 6; i++) await expect(rows.nth(i)).toContainText(`Badge lié · N${i}`);
+    await expect(page.getByTestId('badge-log')).not.toContainText('N6');
+  });
+});
+
+test.describe('Settings: dialogs closed without acting', () => {
+  const USERS = [DEFAULT_USER, WEI, COOK];
+  const WEI_BADGE = { insz: WEI.insz, name: 'Wei', linkedAt: '2026-10-17 08:30:00', linkedBy: DEFAULT_USER.insz, linkedByName: 'Bruno Moyse' };
+  const row = (page: Page, name: string) => page.locator('.worker-row', { hasText: name });
+
+  async function settings(page: Page, init: Parameters<typeof open>[1] = {}) {
+    await open(page, init, '/', USERS);
+    await toSettings(page);
+    await expect(row(page, 'Wei')).toBeVisible();
+  }
+
+  test('cancelling at the PIN step after the capture links nothing and frees the reader', async ({ page }) => {
+    await settings(page);
+    await row(page, 'Chen').getByTestId('badge-btn').click();
+    await scanBadge(page, TOKEN);
+    const dialog = page.locator('.pin-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('.btn-cancel').click();
+    await expect(page.locator('.pin-dialog')).toHaveCount(0);
+    await expect(page.getByTestId('badge-enrol')).toHaveCount(0);
+    expect(await ipcCalls(page, 'link_badge')).toEqual([]);
+    // The capture is gone: this scan is an ordinary one.
+    await scanBadge(page, TOKEN);
+    await expect.poll(() => taps(page)).toEqual([{ token: TOKEN, endShift: false }]);
+  });
+
+  test('a tap on the backdrop of the PIN step cancels too', async ({ page }) => {
+    await settings(page);
+    await row(page, 'Chen').getByTestId('badge-btn').click();
+    await scanBadge(page, TOKEN);
+    await expect(page.locator('.pin-dialog')).toBeVisible();
+    await page.locator('.pin-dialog').locator('xpath=..').click({ position: { x: 5, y: 5 } });
+    await expect(page.locator('.pin-dialog')).toHaveCount(0);
+    expect(await ipcCalls(page, 'link_badge')).toEqual([]);
+  });
+
+  test('a tap on the backdrop of the enrolment closes it and frees the reader', async ({ page }) => {
+    await settings(page);
+    await row(page, 'Chen').getByTestId('badge-btn').click();
+    await page.getByTestId('badge-enrol').click({ position: { x: 5, y: 5 } });
+    await expect(page.getByTestId('badge-enrol')).toHaveCount(0);
+    await scanBadge(page, TOKEN);
+    await expect.poll(() => taps(page)).toEqual([{ token: TOKEN, endShift: false }]);
+    expect(await ipcCalls(page, 'link_badge')).toEqual([]);
+  });
+
+  test('a refused removal shows the error and keeps the row', async ({ page }) => {
+    await settings(page, { badges: [WEI_BADGE] });
+    await overrideIPC(page, 'revoke_badge', { __reject: 'badge_none' });
+    await row(page, 'Wei').getByTestId('badge-btn').click();
+    await page.getByTestId('badge-revoke-confirm').click();
+    await expect(page.locator('.toast-error')).toHaveText("Cet employé n'a pas de badge");
+    await expect(row(page, 'Wei').getByTestId('badge-state')).toHaveText('Badge lié le 17/10/2026');
+    await expect(page.getByTestId('badge-revoke-dialog')).toHaveCount(0);
+  });
+
+  test('a tap on the backdrop of the removal dialog closes it without removing', async ({ page }) => {
+    await settings(page, { badges: [WEI_BADGE] });
+    await row(page, 'Wei').getByTestId('badge-btn').click();
+    await page.getByTestId('badge-revoke-dialog').click({ position: { x: 5, y: 5 } });
+    await expect(page.getByTestId('badge-revoke-dialog')).toHaveCount(0);
+    expect(await ipcCalls(page, 'revoke_badge')).toEqual([]);
+    await expect(row(page, 'Wei').getByTestId('badge-state')).toHaveText('Badge lié le 17/10/2026');
+  });
+});
