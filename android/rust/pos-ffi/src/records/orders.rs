@@ -164,6 +164,18 @@ pub struct MenuItem {
     pub kitchen_printer: bool,
     pub sort_order: i32,
     pub active: bool,
+    /// Allergen codes the product contains (Annex II codes of `list_allergens`).
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub allergens: Vec<String>,
+    /// Allergen codes the product may contain as traces.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub traces: Vec<String>,
+    /// The allergen list is complete (possibly empty); false means no information.
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub allergens_declared: bool,
 }
 
 /// `pos_db::queries::menu::Modifier`: an option of a group.
@@ -173,6 +185,18 @@ pub struct Modifier {
     pub id: i64,
     pub name: String,
     pub price_cents: i64,
+    /// Allergen codes the option contains.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub allergens: Vec<String>,
+    /// Allergen codes the option may contain as traces.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub traces: Vec<String>,
+    /// The option's allergen list is complete (possibly empty); false means no information.
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub allergens_declared: bool,
 }
 
 /// `pos_db::queries::menu::ModifierGroup`: an option group of a product.

@@ -69,7 +69,7 @@
 //! | `RequestedMedium` | `pos_engine::commands::delivery::RequestedMedium` | common | checkout, copy_ticket, refund_checkout (+2 commands) |
 //! | `SessionLocked` | `pos_engine::commands::session::SessionLocked` | common | event session-locked |
 //! | `SignMessages` | `pos_fiscal::fdm_client::SignMessages` | common | event fdm-sign-messages |
-//! | `SlipOutcome` | `pos_engine::commands::bar_slip::SlipOutcome` | common | checkout, close_unpaid, leave_order (+7 commands) |
+//! | `SlipOutcome` | `pos_engine::commands::bar_slip::SlipOutcome` | common | checkout, close_unpaid, leave_order (+8 commands) |
 //! | `TicketDeliveryRequest` | `pos_engine::commands::delivery::TicketDeliveryRequest` | common | checkout, copy_ticket, refund_checkout (+2 commands) |
 //! | `TicketLine` | `pos_fiscal::ticket::TicketLine` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
 //! | `TicketMedium` | `pos_fiscal::types::TicketMedium` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
@@ -111,6 +111,13 @@
 //! | `AlertTestResult` | `pos_engine::commands::alerts::AlertTestResult` | alerts | send_test_alert |
 //! | `OwnerAlerts` | `pos_engine::commands::alerts::OwnerAlerts` | alerts | get_owner_alerts, set_owner_alerts |
 //! | `OwnerAlertsInput` | `pos_engine::commands::alerts::OwnerAlertsInput` | alerts | set_owner_alerts |
+//! | `AllergenEntry` | `pos_engine::commands::allergens::AllergenEntry` | allergens | list_allergens |
+//! | `AllergenNames` | `pos_engine::commands::allergens::AllergenNames` | allergens | list_allergens |
+//! | `AllergenRef` | `pos_engine::commands::allergens::AllergenRef` | allergens | get_allergen_sheet |
+//! | `AllergenSheetView` | `pos_engine::commands::allergens::AllergenSheetView` | allergens | get_allergen_sheet |
+//! | `SetAllergensInput` | `pos_engine::commands::allergens::SetAllergensInput` | allergens | set_allergens |
+//! | `SheetOptionView` | `pos_engine::commands::allergens::SheetOptionView` | allergens | get_allergen_sheet |
+//! | `SheetProductView` | `pos_engine::commands::allergens::SheetProductView` | allergens | get_allergen_sheet |
 //! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | money_in_out, open_drawer_fiscal |
 //! | `MoneyDirection` | `pos_engine::commands::financial::MoneyDirection` | reports | money_in_out |
 //! | `OpenShift` | `pos_db::queries::shifts::OpenShift` | reports | list_open_shifts |
@@ -155,6 +162,7 @@
 //! shapes; `convert::out` and `convert::inp` move values between the two.
 
 pub mod alerts;
+pub mod allergens;
 pub mod auth;
 pub mod checkout;
 pub mod common;
