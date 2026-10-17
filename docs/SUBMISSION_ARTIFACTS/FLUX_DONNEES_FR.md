@@ -172,7 +172,9 @@ e. La réponse (accepté, refusé, abandonné, inconnu) est enregistrée dans
 f. À l'étape 1, la part carte porte l'identifiant du paiement
    (`eft_payment_id`). À l'étape 5, la ligne de paiement signée est
    `AUTOMATIC` : type fourni par le terminal (`CARD_DEBIT` id "2",
-   `CARD_CREDIT` id "6" ou `CARD_UNKNOWN` id "7"), `provider` = marque
+   `CARD_CREDIT` id "6" ou `CARD_UNKNOWN` id "7" ; une carte de
+   chèques-repas Edenred, Pluxee, Monizze ou Payflip est `CHEQUE_MEAL`
+   id "3"), `provider` = marque
    de la carte, `reference` = identifiant de transaction du terminal. Le
    paiement est marqué utilisé dans la même transaction SQLite que
    l'événement N. Une vente est refusée tant qu'un paiement de la

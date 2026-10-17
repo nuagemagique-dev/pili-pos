@@ -89,7 +89,7 @@ L'image d'admission reprend aussi le reste de
 | Personnel | John (barman, `75061189702`), Elisa (chef de salle, `84022899837`), Sammy (sommelier, `80113078968`), rôle Serveur, avec les PIN de REPONSES_MANUEL_CERT_FR.md ; s'y ajoutent les comptes Technicien, Gérant et Apprenti |
 | Tables | 25 tables (`table_count`), BAR 1 à 4, DINING ROOM 5 à 15, TERRACE 16 à 25 |
 | Tiroir | un tiroir, sur le POS du BAR |
-| Moyens de paiement | espèces (EUR), carte (un moyen "Card", type `CARD_DEBIT`, saisie par l'opérateur : méthode `MANUAL`), chèques-repas électroniques. Les tests de ce document tournent sans terminal de paiement relié. Avec un terminal relié (réglage facultatif de l'installation, voir `MANUEL_INSTALLATION_FR.md` §4.2), la ligne de paiement carte est `AUTOMATIC` et son type vient du terminal : `CARD_DEBIT` (id "2", "Card"), `CARD_CREDIT` (id "6", "Credit card") ou `CARD_UNKNOWN` (id "7", "Card (type unknown)") |
+| Moyens de paiement | espèces (EUR), carte (un moyen "Card", type `CARD_DEBIT`, saisie par l'opérateur : méthode `MANUAL`), chèques-repas électroniques. Les tests de ce document tournent sans terminal de paiement relié. Avec un terminal relié (réglage facultatif de l'installation, voir `MANUEL_INSTALLATION_FR.md` §4.2), la ligne de paiement carte est `AUTOMATIC` et son type vient du terminal : `CARD_DEBIT` (id "2", "Card"), `CARD_CREDIT` (id "6", "Credit card") ou `CARD_UNKNOWN` (id "7", "Card (type unknown)") ; une carte de chèques-repas (Edenred, Pluxee, Monizze, Payflip), reconnue à la marque, est une ligne `CHEQUE_MEAL` (id "3", "Meal voucher", `AUTOMATIC`) |
 
 Non reproduit, car hors périmètre v1.0.0 (REPONSES_MANUEL_CERT_FR.md
 §III.F) : le second POS `CPOS0031234568` de la réception et son PMS

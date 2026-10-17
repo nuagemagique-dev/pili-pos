@@ -139,7 +139,9 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
   sa réponse dans `eft_payments` avant et après l'appel. Rien n'est
   débité si le FDM n'est pas opérationnel. La ligne de paiement signée
   est `AUTOMATIC` : le type de carte vient du terminal (`CARD_DEBIT`
-  id "2", `CARD_CREDIT` id "6", `CARD_UNKNOWN` id "7"), la marque est
+  id "2", `CARD_CREDIT` id "6", `CARD_UNKNOWN` id "7", ou `CHEQUE_MEAL`
+  id "3" pour une carte de chèques-repas Edenred, Pluxee, Monizze ou
+  Payflip), la marque est
   dans `provider`, l'identifiant de transaction dans `reference` ; le
   ticket imprime la marque. Une réponse inconnue bloque la vente de la
   commande jusqu'à vérification ; un paiement accepté doit être repris

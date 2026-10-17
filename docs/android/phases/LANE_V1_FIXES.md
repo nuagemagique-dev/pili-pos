@@ -243,6 +243,8 @@ Android (`docs/android/dossier/screenshots`, emulator):
 - T1: see DECISIONS, section `Lane 1-v1-fixes`, L1F-A8 (create_user_flagged, uniffi defaults, i18n error texts and ipc.ts wrappers added in T1, Gradle PATH).
 - T2: see DECISIONS, L1F-A9 (UI choices, ZH wording, `SettingsFeatureEntryPoint.fdm()`, goldens re-recorded, dossier files touched). Additional captures to retake (besides section 10): `19a_admin_presence.png` (Linux scenario added to `captures.spec.ts`, runbook entry written) and `A124_pointage_par_le_gerant.png` (Android, runbook row added); `A46_employes.png` and `19_admin_users.png` as listed above.
 
+- T3 (meal-voucher cards): see DECISIONS, section `Lane 1-v1-fixes`, `### EFT`. Captures to retake besides section 10: `09l_eft_meal_voucher.png` (Linux scenario added to `captures.spec.ts`, runbook entry written; the Linux capture PDF must include it) and `A125_cheques_repas_terminal.png` (Android, runbook row added). `TICKETS_EXEMPLES_FR.md` (both dossiers) show no terminal meal-voucher line, so they are unchanged. The scripted terminal of the engine tests bypasses the drivers, so the engine now normalizes the brand once more when it stores an approval (`resolution` in `commands/eft.rs`); CCV's own circuit codes `EDRD`, `SODX`, `PAYF` (found in the CCV request fixture `cardCircuitCollection`) are accepted as exact spellings too.
+
 ## Results
 
 (Filled by T5.)

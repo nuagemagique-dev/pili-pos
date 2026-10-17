@@ -47,7 +47,7 @@ l'écran via le socket QMP de l'instance en cours.
 La section 3 (tickets imprimés) reste manuelle - voir plus bas.
 
 **Nommage.** `01_` à `19_` : flux fonctionnels ; `09a_` à `09g_` :
-ticket numérique ; `09h_` à `09k_`, `01a_`, `03a_`, `15a_` : terminal de paiement lié (EFT) ; `20_` à `49_` : messages du FDM (§V) et écrans
+ticket numérique ; `09h_` à `09l_`, `01a_`, `03a_`, `15a_` : terminal de paiement lié (EFT) ; `20_` à `49_` : messages du FDM (§V) et écrans
 additionnels (`45_` à `49_` : assistance à distance, PIN, FDM_ANSWER_PENDING, remboursement par ligne) ; `50_` à `56_` : tickets imprimés.
 
 ---
@@ -168,6 +168,12 @@ Le mock IPC simule le terminal (`eftScript`, `settingsWith({ paymentTerminal })`
 ### `09k_eft_unknown.png`
 - **Action :** le terminal ne répond pas (réponse inconnue).
 - **Écran attendu :** « Réponse du terminal inconnue », le message « La carte a peut-être été débitée... », boutons "Vérifier" et "Fermer" ; la vente reste bloquée (« Un paiement par carte attend la réponse du terminal »).
+- **Capture :** plein écran.
+
+### `09l_eft_meal_voucher.png` (proposée, à produire par le script de captures puis à ajouter au PDF)
+- **Mock :** `eftScript` avec un paiement accepté de marque « Edenred ».
+- **Action :** « Carte », terminal, taper un montant partiel, « Valider ».
+- **Écran attendu :** la part prise s'affiche « Part 1 · Chèques-repas · Edenred » avec la pastille « Accepté ».
 - **Capture :** plein écran.
 
 ### `01a_login_terminal_row.png`

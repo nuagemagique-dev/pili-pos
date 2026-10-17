@@ -3,7 +3,7 @@
 
 **Référence :** §V (comportement aux réponses du FDM) et §VII.D (rapports X/Z visibles et imprimables) du manuel de certification. Preuve EV-09 : captures du profil sunmi_d3_pro_gms_api33, prises le 15.10.2026.
 
-Liste des 123 captures de P8b (plus A124, à prendre après la fusion de la voie 1-v1-fixes), dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A98, les écrans du terminal de paiement A99 à A111 et des compléments A112 à A123. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
+Liste des 123 captures de P8b (plus A124 et A125, à prendre après la fusion de la voie 1-v1-fixes), dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A98, les écrans du terminal de paiement A99 à A111 et des compléments A112 à A123. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
 
 ## Méthode
 - **Terminal.** AVD `sunmi_d3_pro_gms_api33` (1920x1080 paysage, 160 dpi, Android 13), démarré par `PILI_AVD=sunmi_d3_pro_gms_api33 scripts/android/emulator.sh ensure` (profil à créer s'il manque ; un seul émulateur à la fois). Aucune capture de l'interface Linux n'est réutilisée.
@@ -139,6 +139,7 @@ Liste des 123 captures de P8b (plus A124, à prendre après la fusion de la voie
 | A122 | `A122_rapport_z_pas_encore_fait.png` | Écran de commande ou de rapports : « Rapport Z pas encore fait aujourd'hui » | 10.2 |
 | A123 | `A123_reprise_menu_refusee.png` | HubRise connecté, une commande ouverte, Config, « Reprendre le menu » : message « Clôturez d'abord toutes les commandes ouvertes. » | 12.7 |
 | A124 | `A124_pointage_par_le_gerant.png` | Config, panneau « Employés » : toucher « Arrivée » sur la ligne de l'employé « Présence seule » : message « Arrivée enregistrée · <nom> », la ligne passe à « En service depuis HH:MM » et son bouton devient « Départ » | 3, 12.3 |
+| A125 | `A125_cheques_repas_terminal.png` | Écran de paiement avec un terminal relié : part prise « Part 1 · Chèques-repas · Edenred » avec la pastille « Accepté » (paiement accepté de marque Edenred) | 7.2 |
 
 Lignes A80 à A87 : écrans propres à Android, sans équivalent Linux (mise en service, à propos, export pour le SPF, mise à jour), décrits dans MANUEL_INSTALLATION_FR.md et MANUEL_UTILISATEUR_FR.md. Lignes A88 à A122 : compléments pour les écrans que le manuel décrit et qu'aucune ligne plus haut ne couvrait.
 

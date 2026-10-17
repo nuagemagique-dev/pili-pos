@@ -304,7 +304,13 @@ SQLite qui archive l'événement signé, de sorte que :
   (`CARD_DEBIT` id "2" "Card", `CARD_CREDIT` id "6" "Credit card",
   `CARD_UNKNOWN` id "7" "Card (type unknown)"), `provider` = marque de la
   carte, `reference` = identifiant de transaction du terminal
-  (`crates/pos-fiscal/src/payment.rs`). Les paiements carte ne sont
+  (`crates/pos-fiscal/src/payment.rs`). Une carte de chèques-repas
+  (marque Edenred, Pluxee, Monizze ou Payflip, reconnue par la marque
+  normalisée que le terminal rend, correspondance exacte) est signée
+  `CHEQUE_MEAL` id "3" "Meal voucher", `AUTOMATIC`, avec la marque en
+  `provider` : la même identité que le chèque-repas saisi, donc une
+  seule rangée dans les rapports. Les variantes éco, cadeau, sport et
+  culture ne sont pas des chèques-repas. Les paiements carte ne sont
   jamais arrondis, pour toute installation. Le remboursement reste rendu
   en espèces ; l'annulation d'un paiement carte accepté n'est pas prise
   en charge.

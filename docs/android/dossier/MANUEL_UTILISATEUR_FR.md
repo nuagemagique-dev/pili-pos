@@ -428,7 +428,8 @@ orange) et elle n'empêche pas de se connecter ni de vendre. Le type de
 terminal relié figure dans Configuration, "Informations" (§12.4,
 capture A111).
 
-Captures : A101 (choix "Terminal" ou "Saisie manuelle"), A102 (fenêtre
+Captures : A101 (choix "Terminal" ou "Saisie manuelle"), A125 (carte de
+chèques-repas acceptée), A102 (fenêtre
 "Paiement sur le terminal"), A107 (paiement refusé), A108 (réponse
 inconnue et bouton "Vérifier"), A109 et A110 (paiement à vérifier, puis
 accepté après "Vérifier"), A103 et A104 (carte acceptée mais vente non
@@ -472,6 +473,17 @@ enregistrée car la boîte noire ne fonctionne plus).
    terminal, puis "Valider") : la ligne est alors `MANUAL`. Ce repli est
    refusé tant qu'un paiement de cette commande attend sa réponse ou
    qu'un paiement accepté n'est pas encore utilisé par la vente.
+
+Une carte de chèques-repas (Edenred, Pluxee, Monizze, Payflip) se paie
+elle aussi avec "Carte" quand un terminal est relié : la caisse la
+reconnaît à la marque que le terminal rend et l'enregistre comme
+chèques-repas. La part s'affiche alors "Chèques-repas · Edenred", le
+ticket imprime "Chèques-repas Edenred" (la copie aussi), et les rapports
+comptent ces montants avec les chèques-repas saisis à la main (une seule
+rangée). Le bouton "Chèques-repas" reste la saisie manuelle (chèques
+papier ou terminal autonome). Les cartes éco-chèques, cadeau, sport ou
+culture ne sont pas des chèques-repas : elles ne sont pas reconnues
+comme telles et restent des cartes.
 
 Tant qu'un paiement accepté n'est pas enregistré dans la vente de sa
 commande, la table ou la vente à emporter porte la pastille "Carte

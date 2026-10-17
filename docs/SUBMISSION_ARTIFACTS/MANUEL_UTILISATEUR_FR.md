@@ -398,7 +398,7 @@ n'empêche pas de se connecter ni de vendre.
 
 Captures : `09h` (choix "Terminal" ou "Saisie manuelle"), `09i` (fenêtre
 "Paiement sur le terminal"), `09j` (paiement refusé) et `09k` (réponse
-inconnue et bouton "Vérifier").
+inconnue et bouton "Vérifier"), `09l` (carte de chèques-repas acceptée).
 
 1. Choisir "Carte" (le choix "Terminal" est actif, l'écran indique "Le
    montant est envoyé au terminal à la validation"), laisser ou taper le
@@ -436,6 +436,17 @@ inconnue et bouton "Vérifier").
    la ligne est alors `MANUAL`. Ce repli est refusé tant qu'un paiement de
    cette commande attend sa réponse ou qu'un paiement accepté n'est pas
    encore utilisé par la vente.
+
+Une carte de chèques-repas (Edenred, Pluxee, Monizze, Payflip) se paie
+elle aussi avec "Carte" quand un terminal est relié : la caisse la
+reconnaît à la marque que le terminal rend et l'enregistre comme
+chèques-repas. La part s'affiche alors "Chèques-repas · Edenred", le
+ticket imprime "Chèques-repas Edenred" (la copie aussi), et les rapports
+comptent ces montants avec les chèques-repas saisis à la main (une seule
+rangée). Le bouton "Chèques-repas" reste la saisie manuelle (chèques
+papier ou terminal autonome). Les cartes éco-chèques, cadeau, sport ou
+culture ne sont pas des chèques-repas : elles ne sont pas reconnues
+comme telles et restent des cartes.
 
 Tant qu'un paiement accepté n'est pas enregistré dans la vente de sa
 commande, la table ou la vente à emporter porte la pastille "Carte
