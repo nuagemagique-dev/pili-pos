@@ -1434,3 +1434,28 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   and advance payments, card refund to card, kitchen display, QR table ordering, waiter handheld sync). No code. Common
   thread: all signing stays on one machine (one FDM sequence); handhelds, kitchen display and QR guests are clients of
   the main till.
+
+- **V11-D45 Full gate G results (T6).** Run on the lane head; counts: `cargo test --workspace` 1927 passed, 0 failed
+  (`--no-fail-fast`); `pili-pos` cert 8, `pos-engine` cert 744; FFI (`android/rust`, `--locked`) 271; fmt, both clippy
+  runs, FFI clippy, `check_lock_parity.sh`, `uc_lock_parity.sh`: green. Parity: `check_ipc_wrappers.py` 114/114
+  single-call, `check_command_parity.py --strict` 114/114 and `--hygiene` ok, `check_ui_parity.py --strict` called 103,
+  excluded 9, pending 0, stale 0, missing 0, `vue_to_android.mjs --check` 755 keys, `lane_paths.py --check` green. Vue:
+  build green, Playwright 412 passed. Android: lint, ktlint, detekt, `apiCheck`, unit tests (2213), Roborazzi verify,
+  Kover (line 97.4 %, branch 73.2 %), release assemble and APK check green. Inventories: `test_inventory.sh --diff` 0
+  removed (1945 distinct tests), `kotlin_test_inventory.py` base 2081, head 2260, 0 removed. Dossiers: the three
+  `check_dossier.py` runs and `uc_matrix.py` green, no em-dash in the changed files.
+- **V11-D46 Fixes found by the gate (T6).** (a) `SalesHour` used `u32` in an FFI record (hygiene H6): now `i64`, with
+  `:pos-core:apiDump`; (b) the T1 rewrite of `ubl.rs` dropped five test names: they are back on the new API;
+  (c) `test_check_command_parity.py` pinned 103 commands, now 114. No test or script was weakened.
+- **V11-D47 Accepted failures of p5/p6 (T6), all expected by design.** `hygiene-paths` (117 paths outside
+  `android/|scripts/android/|docs/android/`), `hygiene-root-lock` (root `Cargo.lock` changed for `pos-peppol`),
+  `linux-frozen` and `freeze-tag` (the Linux build differs from `linux-v1.0.0-rc2` on purpose), and `app-only-scope`
+  of p5 (the lane touches the FFI crate, so the full gate is the right one). Two more findings are environmental, not
+  lane defects: `kotlin-tests` reports 23 removed when the base is the moved `android/int` (tests of lane 1 that this
+  branch does not have); against the real fork point (`b3248d2d`) it is 0 removed, as recorded above; `ui-money` lists
+  the two older `WebshopOrdersStore.kt` lines that lane 1 fixed on `android/int` (merge resolves it).
+- **V11-D48 Gate hygiene on the shared target (T6).** The shared cargo target was overwritten by other lanes (same
+  crate paths relative to the workspace): `pos-fdm-mock` resolved to a stale rlib without `storecove`. The workspace
+  test run was done with the worktree's own target dir. `pos-eft` `the_wire_trace_shows_bodies_but_never_keys_or_queries`
+  failed once under load (global tracing interest cache, crate untouched by the lane) and passed on three reruns and on
+  the full rerun. Android `lint` crashed once in the Kotlin analysis of a generated KSP file (as in T4) and passed alone.

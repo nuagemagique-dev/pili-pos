@@ -743,3 +743,10 @@ rustc (the first runs failed with E0463 and E0514 until `target/` was removed); 
 records. The `p5_gate.sh --fast` scope checks fail for this lane by design (files outside `android/`); its only
 `ui-money` findings are the two older lines of `WebshopOrdersStore.kt`. The Playwright test `the tabs stay three` of
 `invoice.spec.ts` keeps its name and now expects the four tabs (inventory: removed 0).
+
+### V11-T6 (full gate), 2026-10-17
+
+Full gate G run and recorded in DECISIONS (V11-D45 to D48). Fixes: `SalesHour` signed integers (+ apiDump), five UBL test
+names restored, command-count pin of the parity self-test. Section 12 "Captures to retake" already lists every new or
+changed screen of T2 to T5 (items 1 to 11); nothing was added. Use `--base b3248d2d`, not the moved `android/int`, for
+`kotlin_test_inventory.py` until the lanes are merged.
