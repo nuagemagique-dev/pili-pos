@@ -117,13 +117,21 @@ const EFT_MIGRATIONS: &[Migration] = &[Migration {
     sql: crate::schema_eft::MIGRATION_027_EFT_PAYMENTS,
 }];
 
-/// Migrations of the discounts at the till, in the certified binary on
-/// every installation (28 and 29 are left free for other work).
-const TILL_MIGRATIONS: &[Migration] = &[Migration {
-    version: 30,
-    name: "till-discounts",
-    sql: crate::schema_till::MIGRATION_030_TILL_DISCOUNTS,
-}];
+/// Migrations of the till additions (discounts, kitchen notes), in the
+/// certified binary on every installation (28 and 29 are left free for
+/// other work).
+const TILL_MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 30,
+        name: "till-discounts",
+        sql: crate::schema_till::MIGRATION_030_TILL_DISCOUNTS,
+    },
+    Migration {
+        version: 31,
+        name: "kitchen-notes",
+        sql: crate::schema_till::MIGRATION_031_KITCHEN_NOTES,
+    },
+];
 
 /// Migrations of the HubRise integration (feature `hubrise`), from
 /// version 20 (in the certified binary too).
@@ -331,17 +339,17 @@ mod tests {
         assert!(EFT_MIGRATIONS.iter().all(|m| m.version >= 20));
     }
 
-    /// The till discounts are migration 30, in every build; 28 and 29
-    /// stay free.
+    /// The till discounts are migration 30 and the kitchen notes 31, in
+    /// every build; 28 and 29 stay free.
     #[test]
-    fn the_till_migration_is_30_in_every_build() {
+    fn the_till_migrations_are_30_and_31_in_every_build() {
         let till: Vec<(i64, &str)> = TILL_MIGRATIONS
             .iter()
             .map(|m| (m.version, m.name))
             .collect();
-        assert_eq!(till, vec![(30, "till-discounts")]);
+        assert_eq!(till, vec![(30, "till-discounts"), (31, "kitchen-notes")]);
         let versions = all_versions();
-        assert!(versions.contains(&30));
+        assert!(versions.contains(&30) && versions.contains(&31));
         assert!(!versions.contains(&28) && !versions.contains(&29));
     }
 
@@ -426,6 +434,66 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM till_discounts", [], |r| r.get(0))
             .unwrap();
         assert_eq!(rows, 2);
+    }
+
+    #[test]
+    fn v31_adds_the_kitchen_note_columns_to_the_order_lines() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        // Applied once; a second run is a no-op.
+        run_migrations(&conn).unwrap();
+        let applied: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM _migrations_applied WHERE version = 31",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(applied, 1);
+
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order) VALUES (1, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 650, 'A');
+             INSERT INTO orders (id, table_number, order_type, status, user_insz, created_at)
+                VALUES (1, 1, 'dine_in', 'open', '12345678958', '2026-10-17T10:00:00Z');
+             INSERT INTO order_lines (id, order_id, menu_item_id, quantity, unit_price_cents,
+                                      vat_code, name, created_at)
+                VALUES (1, 1, 1, 2, 650, 'A', 'Sake', '2026-10-17T10:00:00Z');",
+        )
+        .unwrap();
+        // Both columns start empty and are plain editable text.
+        let read = |conn: &Connection| -> (Option<String>, Option<String>) {
+            conn.query_row(
+                "SELECT kitchen_note, kitchen_note_printed FROM order_lines WHERE id = 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap()
+        };
+        assert_eq!(read(&conn), (None, None));
+        conn.execute(
+            "UPDATE order_lines SET kitchen_note = 'sans wasabi' WHERE id = 1",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE order_lines SET kitchen_note_printed = kitchen_note WHERE id = 1",
+            [],
+        )
+        .unwrap();
+        assert_eq!(
+            read(&conn),
+            (Some("sans wasabi".into()), Some("sans wasabi".into()))
+        );
+        // The journal never carries a note.
+        let journal_columns: Vec<String> = conn
+            .prepare("SELECT name FROM pragma_table_info('order_entries')")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert!(!journal_columns.iter().any(|c| c.contains("note")));
     }
 
     #[test]

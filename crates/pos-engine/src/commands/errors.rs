@@ -88,6 +88,13 @@ pub const DISCOUNT_ONLINE_ORDER: &str = "discount_online_order";
 /// A line with a discount keeps its quantity: remove the discount first.
 pub const LINE_HAS_PRICE_CHANGES: &str = "line_has_price_changes";
 
+// Kitchen note on an order line (local, never fiscal).
+/// The note is longer than 60 characters after trimming.
+pub const NOTE_TOO_LONG: &str = "note_too_long";
+/// The note has a control character (a line break, say) or a character
+/// the slip printer cannot print (a Chinese note would print "?").
+pub const NOTE_UNPRINTABLE: &str = "note_unprintable";
+
 // Payment correction (an F event, signPaymentCorrection).
 /// Only a sale ticket (N, or T in training) is corrected: not a refund, a copy or any other event.
 pub const PAYMENT_CORRECTION_NOT_A_SALE: &str = "payment_correction_not_a_sale";
@@ -274,6 +281,8 @@ pub const ALL: &[&str] = &[
     DISCOUNT_REASON_INVALID,
     DISCOUNT_ONLINE_ORDER,
     LINE_HAS_PRICE_CHANGES,
+    NOTE_TOO_LONG,
+    NOTE_UNPRINTABLE,
     CONFIG_TABLES,
     TABLE_TRANSFER_SAME_TABLE,
     TABLE_TRANSFER_TARGET_BUSY,

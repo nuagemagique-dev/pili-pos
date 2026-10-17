@@ -1,5 +1,6 @@
-//! Schema of the discounts taken at the till (manager PIN), from
-//! migration 30. Part of the certified binary on every installation;
+//! Schema of the till additions: the discounts taken at the till
+//! (manager PIN, migration 30) and the kitchen notes of the order lines
+//! (migration 31). Part of the certified binary on every installation;
 //! rows are written only through the discount commands (feature
 //! `hubrise`, whose price change store they reuse).
 //!
@@ -60,4 +61,21 @@ BEFORE UPDATE ON till_discounts
 BEGIN
     SELECT RAISE(ABORT, 'till discounts are append-only');
 END;
+"#;
+
+/// v31 - kitchen notes per order line.
+///
+/// - `order_lines.kitchen_note`: the free text the operator wrote for the
+///   kitchen ("sans wasabi"), at most 60 characters, NULL when none.
+///   Local data only: it never reaches an FDM message, a product name, a
+///   ticket or an export (producers FAQ Q210 b).
+/// - `order_lines.kitchen_note_printed`: the text last printed on a bar /
+///   kitchen slip, NULL if never (or if a removal was printed). A note
+///   that differs from it has not reached the kitchen yet.
+///
+/// `order_lines` is the consolidated, editable view of an order; the
+/// append-only journal (`order_entries`) does not carry the note.
+pub(crate) const MIGRATION_031_KITCHEN_NOTES: &str = r#"
+ALTER TABLE order_lines ADD COLUMN kitchen_note TEXT;
+ALTER TABLE order_lines ADD COLUMN kitchen_note_printed TEXT;
 "#;

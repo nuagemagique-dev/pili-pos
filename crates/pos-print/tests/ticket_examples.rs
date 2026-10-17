@@ -266,10 +266,12 @@ fn example_bar_slip() {
             BarItem {
                 quantity: 2,
                 name: "Dry Martini".to_string(),
+                note: None,
             },
             BarItem {
                 quantity: 1,
                 name: "Burger du chef".to_string(),
+                note: None,
             },
         ],
         lang: ReceiptLanguage::Fr,

@@ -469,6 +469,19 @@ pub fn printable(s: &str) -> String {
     out
 }
 
+/// Whether the slip printer prints all of `s` as typed: no control
+/// character (an ESC or GS byte would be a printer command, a newline
+/// breaks the one-line rule of a note), and every character is either
+/// plain ASCII, one [`printable`] maps to ASCII (`œ`, typographic
+/// quotes), or has a CP858 code. A Chinese note would print `?` in the
+/// kitchen: it is refused instead.
+pub fn is_cp858_printable(s: &str) -> bool {
+    s.chars().all(|ch| !ch.is_control())
+        && printable(s)
+            .chars()
+            .all(|ch| ch.is_ascii() || CP858_HIGH.iter().any(|(c, _)| *c == ch))
+}
+
 /// Encode one char to CP858; unknown characters become `?`.
 pub fn encode_cp858(ch: char) -> u8 {
     if ch.is_ascii() {
@@ -680,6 +693,29 @@ mod tests {
     }
 
     // ── CP858 encoding round-trip ────────────────────────────────
+
+    #[test]
+    fn is_cp858_printable_accepts_what_prints_and_refuses_the_rest() {
+        for ok in [
+            "sans wasabi",
+            "crème brûlée, café",
+            "bœuf",
+            "l\u{2019}eau",
+            "50% + 2",
+        ] {
+            assert!(is_cp858_printable(ok), "{ok}");
+        }
+        for bad in [
+            "不要芥末",
+            "a\tb",
+            "a\nb",
+            "\u{1b}@",
+            "emoji \u{1F363}",
+            "a\u{7f}",
+        ] {
+            assert!(!is_cp858_printable(bad), "{bad:?}");
+        }
+    }
 
     #[test]
     fn ascii_round_trips_through_cp858() {

@@ -296,10 +296,12 @@ fn vi_bar_the_official_bar_ticket_example() {
             BarItem {
                 quantity: 1,
                 name: "Dry Martini".to_string(),
+                note: None,
             },
             BarItem {
                 quantity: 1,
                 name: "Plat du jour".to_string(),
+                note: None,
             },
         ],
         lang: ReceiptLanguage::Fr,

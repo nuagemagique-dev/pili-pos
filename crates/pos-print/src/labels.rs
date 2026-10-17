@@ -289,6 +289,12 @@ pub(crate) struct BarLabels {
     pub(crate) items_header: &'static str,
     /// Title of the table transfer notice.
     pub(crate) transfer_title: &'static str,
+    /// Title of the kitchen note change slip.
+    pub(crate) note_title: &'static str,
+    /// Label before a line's kitchen note on the note slip.
+    pub(crate) note: &'static str,
+    /// Printed when a kitchen note was removed.
+    pub(crate) note_removed: &'static str,
 }
 
 pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
@@ -301,6 +307,9 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             direct_sale: "Vente directe",
             items_header: "Qte   Article",
             transfer_title: "TRANSFERT DE TABLE",
+            note_title: "MODIFICATION",
+            note: "Note :",
+            note_removed: "Note supprimee",
         },
         ReceiptLanguage::Nl => &BarLabels {
             title: "BESTELBON",
@@ -310,6 +319,9 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             direct_sale: "Directe verkoop",
             items_header: "Aantal Artikel",
             transfer_title: "TAFELVERPLAATSING",
+            note_title: "WIJZIGING",
+            note: "Opmerking:",
+            note_removed: "Opmerking verwijderd",
         },
         ReceiptLanguage::De => &BarLabels {
             title: "BESTELLSCHEIN",
@@ -319,6 +331,9 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             direct_sale: "Direktverkauf",
             items_header: "Menge  Artikel",
             transfer_title: "TISCHWECHSEL",
+            note_title: "AENDERUNG",
+            note: "Hinweis:",
+            note_removed: "Hinweis geloescht",
         },
     }
 }

@@ -3,6 +3,7 @@ use rusqlite::OptionalExtension;
 use serde::Deserialize;
 
 use crate::commands::access::{self, Access};
+use crate::commands::bar_slip::{self, SlipOutcome};
 use crate::commands::eft;
 use crate::commands::errors;
 use crate::state::AppState;
@@ -169,6 +170,83 @@ pub fn do_update_order_line_quantity(
         .map_err(line_error)?;
     eft::keep_charged(&tx, order_id, floor)?;
     tx.commit().map_err(errors::internal)
+}
+
+/// The longest kitchen note, in characters.
+pub const KITCHEN_NOTE_MAX: usize = 60;
+
+/// The note as stored: trimmed, `None` when empty; refused when longer
+/// than [`KITCHEN_NOTE_MAX`] or not printable on the slip printer.
+fn clean_note(note: Option<String>) -> Result<Option<String>, String> {
+    let Some(note) = note.map(|n| n.trim().to_string()).filter(|n| !n.is_empty()) else {
+        return Ok(None);
+    };
+    if note.chars().count() > KITCHEN_NOTE_MAX {
+        return Err(errors::NOTE_TOO_LONG.into());
+    }
+    if !pos_print::escpos::is_cp858_printable(&note) {
+        return Err(errors::NOTE_UNPRINTABLE.into());
+    }
+    Ok(Some(note))
+}
+
+/// Set (or, with `None` or an empty text, clear) the kitchen note of a
+/// line of an open till order. Any staff member.
+///
+/// The note is local data: it never reaches an FDM message, a product
+/// name or a ticket (producers FAQ Q210 b). It prints under its item on
+/// the next bar / kitchen slip; when the line already went to the
+/// kitchen and the note differs from the printed one, a note slip is
+/// printed now (`SlipOutcome::Printed` marks the printed copy). A failed
+/// slip is returned as is and leaves the printed copy stale, so
+/// confirming the same note again retries.
+pub async fn do_set_line_note(
+    state: &AppState,
+    line_id: i64,
+    note: Option<String>,
+) -> Result<SlipOutcome, String> {
+    let operator = access::operator(state, Access::Staff)?;
+    let note = clean_note(note)?;
+    let target = {
+        let db = state.db.lock().map_err(errors::internal)?;
+        let target = pos_db::queries::orders::note_target(&db, line_id).map_err(line_error)?;
+        let status = status_of(&db, target.order_id)?;
+        if status != OrderStatus::Open || target.online {
+            return Err(errors::ORDER_NOT_OPEN.into());
+        }
+        unchanged_while_pending(&db, target.order_id)?;
+        pos_db::queries::orders::set_kitchen_note(&db, line_id, note.as_deref())
+            .map_err(line_error)?;
+        target
+    };
+    if target.sent_quantity <= 0 || note == target.printed {
+        return Ok(SlipOutcome::NothingToPrint);
+    }
+    // A product that never goes to the kitchen has no slip to amend.
+    let to_kitchen = {
+        let db = state.db.lock().map_err(errors::internal)?;
+        pos_db::queries::menu::sends_to_kitchen(&db, target.menu_item_id).unwrap_or(true)
+    };
+    if !to_kitchen {
+        return Ok(SlipOutcome::NothingToPrint);
+    }
+    let config = state.config.lock().map_err(errors::internal)?.clone();
+    Ok(bar_slip::print_note_slip(
+        state,
+        &config,
+        &operator.insz,
+        line_id,
+        target.table_number,
+        &target.name,
+        note.as_deref(),
+    )
+    .await)
+}
+
+fn status_of(db: &rusqlite::Connection, order_id: i64) -> Result<OrderStatus, String> {
+    pos_db::queries::orders::get_order(db, order_id)
+        .map(|o| o.status)
+        .map_err(errors::internal)
 }
 
 /// An order whose event waits for the FDM's answer keeps what was sent

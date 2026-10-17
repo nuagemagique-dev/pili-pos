@@ -138,8 +138,8 @@ impl PrinterSink {
     }
 }
 
-/// The title of the bar / kitchen slip or of the table transfer
-/// notice, in FR, NL or DE.
+/// The title of the bar / kitchen slip, of the table transfer notice or
+/// of the kitchen note slip, in FR, NL or DE.
 fn is_bar_slip(document: &str) -> bool {
     [
         "BON DE COMMANDE",
@@ -148,6 +148,9 @@ fn is_bar_slip(document: &str) -> bool {
         "TRANSFERT DE TABLE",
         "TAFELVERPLAATSING",
         "TISCHWECHSEL",
+        "MODIFICATION",
+        "WIJZIGING",
+        "AENDERUNG",
     ]
     .iter()
     .any(|title| document.contains(title))

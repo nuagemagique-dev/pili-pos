@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use pos_core::order::{Order, OrderLine, OrderStatus, OrderType};
 use pos_core::vat::VatCode;
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 
 pub struct NewOrderLine<'a> {
     pub order_id: i64,
@@ -344,6 +344,9 @@ pub struct CartLine {
     pub discount_cents: i64,
     /// The line's consolidated price changes, as the cart shows them.
     pub price_changes: Vec<CartPriceChange>,
+    /// The note for the kitchen ("sans wasabi"), local only: never part
+    /// of a fiscal record (migration 31).
+    pub kitchen_note: Option<String>,
 }
 
 /// A price change on a cart line (a till discount, an online order's).
@@ -373,7 +376,7 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
                     AND entity_id = ol.menu_item_id AND field = 'name' AND lang = 'zh'),
                 COALESCE((SELECT SUM(e.quantity) FROM order_entries e
                           WHERE e.line_id = ol.id AND e.sent_event_id IS NULL), 0),
-                {LINE_CODE}
+                {LINE_CODE}, ol.kitchen_note
          FROM order_lines ol WHERE ol.order_id = ?1 ORDER BY ol.id",
     ))?;
     let rows = stmt.query_map(params![order_id], |row| {
@@ -385,6 +388,7 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
             code: row.get(14)?,
             discount_cents: 0,
             price_changes: Vec::new(),
+            kitchen_note: row.get(15)?,
         })
     })?;
     #[allow(unused_mut)]
@@ -405,6 +409,101 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
         }
     }
     Ok(lines)
+}
+
+/// What the kitchen note commands need to know about a line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoteTarget {
+    pub order_id: i64,
+    pub menu_item_id: i64,
+    pub name: String,
+    /// The table of the order; `None` for a takeaway.
+    pub table_number: Option<i32>,
+    /// An online order (HubRise): notes are not taken at the till.
+    pub online: bool,
+    pub note: Option<String>,
+    /// The note last printed on a bar / kitchen slip.
+    pub printed: Option<String>,
+    /// Quantity of the line already transmitted to the FDM (so already
+    /// sent to the kitchen).
+    pub sent_quantity: i64,
+}
+
+/// The state of line `line_id` for a note change.
+pub fn note_target(conn: &Connection, line_id: i64) -> Result<NoteTarget, rusqlite::Error> {
+    conn.query_row(
+        "SELECT ol.order_id, ol.menu_item_id, ol.name, o.table_number,
+                o.hubrise_order_id IS NOT NULL, ol.kitchen_note, ol.kitchen_note_printed,
+                COALESCE((SELECT SUM(e.quantity) FROM order_entries e
+                          WHERE e.line_id = ol.id AND e.sent_event_id IS NOT NULL), 0)
+         FROM order_lines ol JOIN orders o ON o.id = ol.order_id
+         WHERE ol.id = ?1",
+        params![line_id],
+        |row| {
+            Ok(NoteTarget {
+                order_id: row.get(0)?,
+                menu_item_id: row.get(1)?,
+                name: row.get(2)?,
+                table_number: row.get(3)?,
+                online: row.get(4)?,
+                note: row.get(5)?,
+                printed: row.get(6)?,
+                sent_quantity: row.get(7)?,
+            })
+        },
+    )
+}
+
+/// Store the kitchen note of a line of an open order (`None` clears
+/// it). The note is local data: nothing is journalled.
+pub fn set_kitchen_note(
+    conn: &Connection,
+    line_id: i64,
+    note: Option<&str>,
+) -> Result<(), rusqlite::Error> {
+    let order_id: i64 = conn.query_row(
+        "SELECT order_id FROM order_lines WHERE id = ?1",
+        params![line_id],
+        |row| row.get(0),
+    )?;
+    ensure_open(conn, order_id)?;
+    conn.execute(
+        "UPDATE order_lines SET kitchen_note = ?1 WHERE id = ?2",
+        params![note, line_id],
+    )?;
+    Ok(())
+}
+
+/// Record that the line's current note reached a bar / kitchen slip.
+pub fn mark_kitchen_note_printed(conn: &Connection, line_id: i64) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "UPDATE order_lines SET kitchen_note_printed = kitchen_note WHERE id = ?1",
+        params![line_id],
+    )?;
+    Ok(())
+}
+
+/// The line of a journal entry and that line's note, for the bar slip.
+/// An entry whose line is gone (removed) maps to no note.
+pub fn entry_notes(
+    conn: &Connection,
+    entry_ids: &[i64],
+) -> Result<std::collections::BTreeMap<i64, (i64, Option<String>)>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT e.line_id, ol.kitchen_note
+         FROM order_entries e LEFT JOIN order_lines ol ON ol.id = e.line_id
+         WHERE e.id = ?1",
+    )?;
+    let mut out = std::collections::BTreeMap::new();
+    for id in entry_ids {
+        let found: Option<(i64, Option<String>)> = stmt
+            .query_row(params![id], |row| Ok((row.get(0)?, row.get(1)?)))
+            .optional()?;
+        if let Some(found) = found {
+            out.insert(*id, found);
+        }
+    }
+    Ok(out)
 }
 
 /// Lines of closed or voided orders are part of a signed record and
