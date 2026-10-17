@@ -21,11 +21,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import uniffi.pos_ffi.CorrectionDone
 import uniffi.pos_ffi.MailStatus
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.VatCode
 import uniffi.pos_ffi.VatSplitRow
 
-/** Goldens of the reports screen at 1920 x 1080 dp: the day tab, the cash tab, the tickets tab and the refund confirmation. */
+/** Goldens of the reports screen at 1920 x 1080 dp: the day tab, the cash tab, the tickets tab (for a user and for a manager), the refund confirmation and the payment correction. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w1920dp-h1080dp-mdpi")
 class ReportsScreenshotTest {
@@ -104,5 +106,30 @@ class ReportsScreenshotTest {
         val tickets = TicketsState(loaded = true, refundable = listOf(refundable(7L)))
         val state = base.copy(tab = ReportsTab.TICKETS, tickets = tickets, refundFlow = flow)
         capture(state, "reports_refund", ReportsDelivery(MailStatus(true, true, true), canPrintMissing = true), RefundUi(amounts, preview))
+    }
+
+    @Test
+    fun ticketsForAManager() {
+        val copyables = listOf(copyable(4L, label = "T", totalCents = 2_400L), copyable(3L), copyable(2L))
+        val refundables = listOf(refundable(4L), refundable(3L))
+        val done = CorrectionDone("CASH", "CARD_DEBIT", 1_000L, "2026-10-09T13:00:00")
+        val tickets =
+            TicketsState(
+                loaded = true,
+                copyable = copyables,
+                refundable = refundables,
+                rows = mergeRows(copyables, refundables),
+                canCorrect = true,
+                corrections = mapOf(3L to done),
+            )
+        capture(base.copy(tab = ReportsTab.TICKETS, tickets = tickets), "reports_tickets_manager")
+    }
+
+    @Test
+    fun paymentCorrection() {
+        val payments = salePayments(5L, listOf(paymentLine(0, "CASH", 700L), paymentLine(1, "CARD_DEBIT", 300L, brand = "Bancontact")))
+        val flow = CorrectionFlow(5L, 5L, payments, lineIndex = 0, method = PaymentMethod.CARD)
+        val tickets = TicketsState(loaded = true, canCorrect = true)
+        capture(base.copy(tab = ReportsTab.TICKETS, tickets = tickets, correctionFlow = flow), "reports_payment_correction")
     }
 }

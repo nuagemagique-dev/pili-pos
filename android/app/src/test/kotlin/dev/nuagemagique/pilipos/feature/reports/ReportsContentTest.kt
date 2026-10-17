@@ -26,9 +26,11 @@ import org.robolectric.annotation.Config
 import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.CopyResult
 import uniffi.pos_ffi.CopyableTicket
+import uniffi.pos_ffi.CorrectionDone
 import uniffi.pos_ffi.DeliveryOutcome
 import uniffi.pos_ffi.EmailStatus
 import uniffi.pos_ffi.MailStatus
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.TicketMedium
 import uniffi.pos_ffi.VatCode
@@ -82,9 +84,19 @@ class ReportsContentTest {
                     onRefundBack = { calls += "refund-back" },
                     onRefundConfirm = { calls += "refund-confirm" },
                     onRefundClose = { calls += "refund-close" },
+                    onCorrect = { calls += "correct:${it.fiscalEventId}" },
                     describeError = { "Refus: $it" },
                 ),
             delivery = DeliveryCallbacks(onPaper = { calls += "paper" }),
+            correction =
+                CorrectionCallbacks(
+                    onLine = { calls += "pc-line:$it" },
+                    onMethod = { calls += "pc-method:$it" },
+                    onConfirm = { calls += "pc-confirm" },
+                    onClose = { calls += "pc-close" },
+                    onPinCancel = { calls += "pc-pin-cancel" },
+                    describeRaw = { "Refus: $it" },
+                ),
         )
 
     private val base = ReportsState(signedIn = true)
@@ -705,5 +717,99 @@ class ReportsContentTest {
         compose.onNodeWithTag("refund_event_7").performClick()
 
         assertEquals(listOf("refund:7"), calls)
+    }
+
+    // ── Payment correction ────────────────────────────────────────
+
+    @Test
+    fun aManagerGetsTheCorrectionButtonOnASaleAndTheMarkOnACorrectedOne() {
+        val done = CorrectionDone("CASH", "CARD_DEBIT", 1000L, "2026-10-09T13:00:00")
+        val state =
+            tickets(listOf(copyable(3L), copyable(2L), copyable(1L, label = "P"))).let {
+                it.copy(tickets = it.tickets.copy(canCorrect = true, corrections = mapOf(2L to done)))
+            }
+        show(state)
+
+        compose.onNodeWithTag("ticket_correct_3").assertTextEquals("Corriger le paiement")
+        compose.onNodeWithTag("ticket_corrected_2").assertIsDisplayed()
+        compose.onNodeWithTag("ticket_correct_2").assertDoesNotExist()
+        compose.onNodeWithTag("ticket_correct_1").assertDoesNotExist()
+
+        compose.onNodeWithTag("ticket_correct_3").performClick()
+        assertEquals(listOf("correct:3"), calls)
+    }
+
+    @Test
+    fun withoutTheManagerRoleThereIsNoCorrectionButton() {
+        show(tickets(listOf(copyable(3L))))
+
+        compose.onNodeWithTag("ticket_correct_3").assertDoesNotExist()
+    }
+
+    private fun correction(flow: CorrectionFlow) = base.copy(correctionFlow = flow)
+
+    @Test
+    fun theCorrectionDialogShowsTheLinesAndTheTerminalCardIsLocked() {
+        val payments =
+            salePayments(
+                5L,
+                listOf(paymentLine(0, "CASH", 700L), paymentLine(1, "CARD_DEBIT", 300L, input = "AUTOMATIC", brand = "Bancontact")),
+            )
+        show(correction(CorrectionFlow(5L, 5L, payments)))
+
+        compose.onNodeWithTag("correction_dialog").assertIsDisplayed()
+        compose.onNodeWithTag("correction_line_0").assertIsDisplayed()
+        compose.onNodeWithTag("correction_terminal_1").assertIsDisplayed()
+        compose.onNodeWithTag("correction_line_1").assertIsNotEnabled()
+        compose.onNodeWithTag("correction_confirm").assertIsNotEnabled()
+    }
+
+    @Test
+    fun pickingALineAndAMethodShowsTheSummaryAndEnablesTheConfirm() {
+        val payments = salePayments(5L, listOf(paymentLine(0, "CASH", 700L)))
+        show(correction(CorrectionFlow(5L, 5L, payments, lineIndex = 0, method = PaymentMethod.CARD)))
+
+        compose.onNodeWithTag("correction_summary").assertIsDisplayed()
+        compose.onNodeWithTag("correction_method_cash").assertIsNotEnabled()
+        compose.onNodeWithTag("correction_confirm").assertIsEnabled()
+        compose.onNodeWithTag("correction_confirm").performClick()
+        compose.onNodeWithTag("correction_method_meal_voucher").performClick()
+        compose.onNodeWithTag("correction_line_0").performClick()
+        compose.onNodeWithTag("correction_back").performClick()
+
+        assertEquals(listOf("pc-confirm", "pc-method:MEAL_VOUCHER", "pc-line:0", "pc-close"), calls)
+    }
+
+    @Test
+    fun aSaleThatCannotBeCorrectedShowsWhyAndOffersNoConfirm() {
+        val done = CorrectionDone("CASH", "CARD_DEBIT", 1000L, "2026-10-09T13:00:00")
+        val payments = salePayments(5L, correctable = false, refusal = "payment_correction_already_done", corrected = done)
+        show(correction(CorrectionFlow(5L, 5L, payments)))
+
+        compose.onNodeWithTag("correction_refusal").assertTextEquals("Refus: payment_correction_already_done")
+        compose.onNodeWithTag("correction_corrected").assertIsDisplayed()
+        compose.onNodeWithTag("correction_confirm").assertDoesNotExist()
+    }
+
+    @Test
+    fun theCorrectionDialogShowsALoadingMarkWhileTheLinesLoad() {
+        show(correction(CorrectionFlow(5L, 5L)))
+        compose.onNodeWithTag("correction_loading").assertIsDisplayed()
+    }
+
+    @Test
+    fun aFailedReadIsShownInTheDialog() {
+        show(correction(CorrectionFlow(5L, 5L, loadFailure = "Erreur")))
+        compose.onNodeWithTag("correction_refusal").assertTextEquals("Erreur")
+    }
+
+    @Test
+    fun theManagerPinDialogOpensOverTheCorrection() {
+        val payments = salePayments(5L, listOf(paymentLine(0, "CASH", 700L)))
+        val flow = CorrectionFlow(5L, 5L, payments, lineIndex = 0, method = PaymentMethod.CARD, askPin = true)
+        show(correction(flow).copy(userName = "Alice"))
+
+        compose.onNodeWithTag("correction_dialog").assertIsDisplayed()
+        compose.onNodeWithText("Alice", substring = true).assertIsDisplayed()
     }
 }

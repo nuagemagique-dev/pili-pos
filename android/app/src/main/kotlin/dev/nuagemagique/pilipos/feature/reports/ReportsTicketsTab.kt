@@ -26,6 +26,7 @@ import dev.nuagemagique.pilipos.ui.format.PosDateTime
 import dev.nuagemagique.pilipos.ui.format.formatEuro
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
+import uniffi.pos_ffi.CorrectionDone
 
 private val RowMinHeight = 72.dp
 private val NumberWidth = 120.dp
@@ -35,13 +36,15 @@ private val TimeWidth = 110.dp
 private val TotalWidth = 160.dp
 private val CopyWidth = 160.dp
 private val RefundWidth = 200.dp
+private val CorrectWidth = 220.dp
 
 /**
  * The tickets tab (`tickets` section of `ReportsView.vue`): one list of recent tickets, newest first, each with a
  * copy button (when it can be copied) and a refund button (when it can be refunded). The amounts are the engine's
  * own, only formatted. Test tags: `tickets_title`, `tickets_hint`, `tickets_empty`, `ticket_list`,
  * `ticket_row_<id>`, `ticket_number_<id>`, `ticket_kind_<id>`, `ticket_table_<id>`, `ticket_time_<id>`,
- * `ticket_total_<id>`, `ticket_copy_<id>`, `ticket_refund_<id>`.
+ * `ticket_total_<id>`, `ticket_copy_<id>`, `ticket_refund_<id>`, `ticket_correct_<id>` and `ticket_corrected_<id>`
+ * (a manager only).
  */
 @Composable
 internal fun TicketsTab(
@@ -63,7 +66,7 @@ internal fun TicketsTab(
                 modifier = Modifier.fillMaxSize().testTag("ticket_list"),
                 verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
             ) {
-                items(tickets.rows, key = { it.fiscalEventId }) { row -> TicketRowView(row, callbacks) }
+                items(tickets.rows, key = { it.fiscalEventId }) { row -> TicketRowView(row, tickets, callbacks) }
             }
         }
     }
@@ -82,6 +85,7 @@ internal fun kindText(kind: TicketKind): String =
 @Composable
 private fun TicketRowView(
     row: TicketRow,
+    tickets: TicketsState,
     callbacks: TicketsCallbacks,
 ) {
     val d = PiliTheme.dimens
@@ -98,7 +102,7 @@ private fun TicketRowView(
     ) {
         TicketFacts(row)
         Box(Modifier.weight(1f))
-        TicketActions(row, callbacks)
+        TicketActions(row, tickets, callbacks)
     }
 }
 
@@ -140,6 +144,7 @@ private fun TicketFacts(row: TicketRow) {
 @Composable
 private fun TicketActions(
     row: TicketRow,
+    tickets: TicketsState,
     callbacks: TicketsCallbacks,
 ) {
     val id = row.fiscalEventId
@@ -160,6 +165,35 @@ private fun TicketActions(
                 onClick = { callbacks.onRefund(row.refundable) },
                 variant = PiliButtonVariant.Secondary,
                 modifier = Modifier.fillMaxWidth().testTag("ticket_refund_$id"),
+            )
+        }
+    }
+    if (tickets.canCorrect) CorrectionSlot(row, tickets.corrections[id], callbacks)
+}
+
+/** The payment correction of a sale: the button, or the mark of the correction it already has. */
+@Composable
+private fun CorrectionSlot(
+    row: TicketRow,
+    done: CorrectionDone?,
+    callbacks: TicketsCallbacks,
+) {
+    val id = row.fiscalEventId
+    Box(Modifier.width(CorrectWidth), contentAlignment = Alignment.CenterEnd) {
+        if (done != null) {
+            Text(
+                correctionMark(done),
+                style = PiliTheme.typography.body.copy(fontWeight = PiliTheme.typography.weightBold),
+                color = PiliTheme.colors.textSecondary,
+                textAlign = TextAlign.End,
+                modifier = Modifier.testTag("ticket_corrected_$id"),
+            )
+        } else if (row.isSale) {
+            PiliButton(
+                text = vueText("reports_pc_action"),
+                onClick = { callbacks.onCorrect(row) },
+                variant = PiliButtonVariant.Secondary,
+                modifier = Modifier.fillMaxWidth().testTag("ticket_correct_$id"),
             )
         }
     }

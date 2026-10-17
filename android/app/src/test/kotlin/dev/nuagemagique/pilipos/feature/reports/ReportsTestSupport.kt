@@ -27,11 +27,14 @@ import kotlinx.coroutines.test.setMain
 import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.CopyResult
 import uniffi.pos_ffi.CopyableTicket
+import uniffi.pos_ffi.CorrectionDone
 import uniffi.pos_ffi.FinancialResult
 import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.ReportResult
 import uniffi.pos_ffi.RequestedMedium
+import uniffi.pos_ffi.SalePaymentLine
+import uniffi.pos_ffi.SalePayments
 import uniffi.pos_ffi.TicketDeliveryRequest
 import uniffi.pos_ffi.UnsettledCardPayment
 import uniffi.pos_ffi.User
@@ -93,6 +96,42 @@ internal fun refundable(
         tableNumber = 4,
         totalCents = 1000L,
         createdAt = "2026-10-09T12:00:00",
+    )
+
+@Suppress("LongParameterList")
+internal fun paymentLine(
+    index: Int,
+    type: String = "CASH",
+    amountCents: Long = 1000L,
+    input: String = "MANUAL",
+    amountType: String = "PAYMENT",
+    brand: String? = null,
+): SalePaymentLine =
+    SalePaymentLine(
+        index = index,
+        paymentType = type,
+        name = type,
+        amountCents = amountCents,
+        inputMethod = input,
+        amountType = amountType,
+        brand = brand,
+    )
+
+internal fun salePayments(
+    id: Long,
+    lines: List<SalePaymentLine> = listOf(paymentLine(0)),
+    correctable: Boolean = true,
+    refusal: String? = null,
+    corrected: CorrectionDone? = null,
+): SalePayments =
+    SalePayments(
+        fiscalEventId = id,
+        ticketNumber = id,
+        totalCents = 1000L,
+        lines = lines,
+        correctable = correctable,
+        refusal = refusal,
+        corrected = corrected,
     )
 
 internal fun orderLine(
