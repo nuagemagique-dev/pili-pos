@@ -501,3 +501,65 @@ Run the complete gate of the lane brief, in this order, and fix what fails (fix 
 - Late transfer onto a taken table (V1F-D60), 0,00 EUR sale payload (V1F-D62, FAQ Q206 empty `financials`), no discount action on an online order (V1F-D64), batching limit of the correction marks (V1F-D65), dossier truth items (counts recomputed for the regenerated evidence, M132 comparator limits, uc_scope reasons, UC matrix wording), `CLAUDE.md` transfer entry, PDFs rebuilt. The training-refund gap (item 2) was already closed by V1F-D59 (V1F-D61 records it).
 - Captures to retake: item 20 added above.
 
+
+## Feature to test map
+
+Added in test round 1 (worker Sonnet 5.5, 2026-10-17). Every feature of the lane, the layer that owns the behaviour and the test that fails if it breaks. Paths are relative to the worktree root. "Engine" is `crates/pos-engine/tests/`, "Vue" is `ui/e2e/`, "Compose" is `android/app/src/test/kotlin/dev/nuagemagique/pilipos/`, "FFI" is `android/rust/pos-ffi/`.
+
+| Feature | Layer | Test(s) |
+|---|---|---|
+| A: transfer refusals (same table, target out of plan or busy, no line, takeaway, online, closed) | Engine | `table_transfer.rs::every_refusal_signs_nothing_and_moves_nothing` |
+| A: M122 replay, request order, sale on the new table with the same reference | Engine | `spf_e2e_fixtures.rs::m122_cost_center_change`, `table_transfer.rs::the_sale_after_a_move_is_on_the_new_table_with_the_same_reference` |
+| A: unsent entries registered first, kitchen slip and transfer notice | Engine | `table_transfer.rs::unsent_entries_are_registered_first_then_the_table_moves` |
+| A: source out of the plan is valid, only the target must be in the plan | Engine | `table_transfer.rs::an_order_left_on_a_table_out_of_the_plan_can_still_be_moved` |
+| A: order whose own event waits for the FDM is not moved | Engine | `table_transfer.rs::an_order_whose_own_event_still_waits_for_the_fdm_is_not_moved` (answer lost), `a_registration_waiting_for_the_fdm_is_resolved_before_the_move` (resolved on the next command) |
+| A: late answer, background tick, ghost order, target taken meanwhile | Engine | `table_transfer.rs::a_late_answer_*`, `the_background_tick_*`, `a_ghost_on_the_target_*` |
+| A: approved terminal card payment travels with the order and settles the sale on the new table | Engine | `table_transfer.rs::an_approved_card_payment_travels_with_the_order_and_settles_the_sale` |
+| A: price changes carried negated with the same groupingId, discounted order moves | Engine | `table_transfer.rs::price_changes_are_carried_negated_*`, `till_discounts.rs::a_discounted_order_moves_with_its_changes` |
+| A: training label, waiter allowed, no session, FDM down | Engine | `table_transfer.rs::the_move_is_counted_on_a_training_label`, `a_waiter_moves_a_table`, `without_a_session_nothing_moves`, `with_the_fdm_down_*` |
+| A: X report counts the move once under P | Engine | `table_transfer.rs::an_x_report_after_a_move_*` |
+| A: Tauri wrapper `transfer_table` (argument names, one engine call) | Tauri | `src-tauri/tests/ipc_wrappers.rs::transfer_table_takes_orderid_and_totable` |
+| A: FFI export and result record | FFI | `src/api/orders.rs::flow::a_dine_in_flow_reaches_the_engine_at_every_step`, `tests/ffi/orders.rs::a_table_transfer_result_converts_with_every_slip_outcome`, `a_table_transfer_result_json_keeps_its_camel_case_names_for_every_slip_outcome`, not-logged-in case |
+| A: cart picker, move, refusal in French, kitchen notice warning | Vue | `table-transfer.spec.ts` (From the cart) |
+| A: cart header shows the new table, pending lines marked sent | Vue | `table-transfer.spec.ts::the cart header shows the new table and the pending lines are marked sent` |
+| A: button hidden without lines, shown with one | Vue | `table-transfer.spec.ts::is hidden while the order has no line, and shown once it has one` |
+| A: picker empty state, Retour and backdrop cancel, table list failure | Vue | `table-transfer.spec.ts::says so when no table is free...`, `Retour and the backdrop...`, `a failed table list...` |
+| A: Tables screen move mode, refusal leaves the mode and reads the plan again, success reads it again | Vue | `table-transfer.spec.ts` (From the Tables screen) |
+| A: Compose picker, move mode, view models, goldens | Compose | `feature/order/TablePickerDialogTest.kt`, `OrderRouteTest.kt`, `MenuViewModelTest.kt`, `OrderScreenshotTest.kt` |
+| B: payment correction rules, M132 replay, reports | Engine | `payment_correction.rs`, `spf_e2e_fixtures.rs::m132_payment_correction` |
+| B: Tauri wrappers `correct_payment`, `list_sale_payments` | Tauri | `src-tauri/tests/ipc_wrappers.rs::correct_payment_takes_the_method_in_its_serde_form`, `list_sale_payments_takes_fiscaleventid` |
+| B: FFI exports | FFI | `tests/ffi/reports.rs` |
+| B: dialog (single line, terminal card locked, refusals, wrong PIN, back) | Vue | `payment-correction.spec.ts` |
+| B: several manual lines, rounding hidden, method reset on re-pick | Vue | `payment-correction.spec.ts::several manual lines...` |
+| B: lookup failure and "cannot be corrected" fallback, in-dialog correction note | Vue | `payment-correction.spec.ts::a lookup that fails is shown in the dialog`, `says "cannot be corrected"...` |
+| B: ticket list reloaded after a correction, corrected mark instead of the action | Vue | `payment-correction.spec.ts::corrects cash to card with the PIN` |
+| C: amounts, spread to the cent, rounding, Offert, free line, refusals, one at a time | Engine | `till_discounts.rs` (`an_order_discount_is_spread_to_the_cent` to `one_discount_at_a_time`) |
+| C: UC223, UC225A/B, UC229B replays | Engine | `spf_e2e_fixtures.rs::uc223_*`, `uc225a_*`, `uc229b_*` |
+| C: remove the offer of one line, audit row, immediate P on a registered table | Engine | `till_discounts.rs::removing_an_offered_line_gives_it_back_its_full_price`, `removing_an_offered_line_on_a_registered_table_signs_the_p_at_once` |
+| C: free line on a line a P already registered (LINE change through a PRICE_CHANGE pair) | Engine | `till_discounts.rs::a_free_line_on_a_registered_line_goes_through_a_price_change_pair` |
+| C: discounted line removed from the cart carries its change negated | Engine | `till_discounts.rs::a_discounted_line_removed_from_the_cart_carries_its_change_negated` |
+| C: pre-bill flag reset by a discount (apply and remove) | Engine | `till_discounts.rs::a_discount_resets_the_pre_bill_flag` |
+| C: pre-bill, refund, transfer, EFT floor, training, audit, HubRise echo, reports | Engine | `till_discounts.rs` (Around the sale, Reports) |
+| C: Tauri wrappers `apply_discount`, `remove_discount` (nested input JSON, PIN, lineId) | Tauri | `src-tauri/tests/ipc_wrappers.rs::apply_discount_takes_the_input_the_ui_builds`, `remove_discount_takes_orderid_lineid_insz_and_pin` |
+| C: FFI `apply_discount`, `remove_discount`, records | FFI | `src/api/orders.rs::flow::a_discount_is_applied_and_removed_through_the_facade`, `tests/ffi/orders.rs` (not-logged-in case, `a_discounted_cart_line_and_the_discount_result_convert`, `discount_enums_and_input_convert`) |
+| C: Vue dialog, PIN, previews, refusals, line offer, net amounts, checkout | Vue | `till-discount.spec.ts` |
+| C: preview rounds half up like the engine | Vue | `till-discount.spec.ts::the preview rounds a percent half up...`, `...15 % of 23,90...` |
+| C: kind switch resets the typed value | Vue | `till-discount.spec.ts::switching the kind resets the typed value` |
+| C: failed kitchen slip warned with the discount toast | Vue | `till-discount.spec.ts::a kitchen slip that did not print is warned...` |
+| C: offer and remove on a line not yet sent (bug fixed in `CartSidebar.vue`) | Vue | `till-discount.spec.ts::Offrir on a line not yet sent...`, `Retirer la remise on an offered line not yet sent` |
+| C: line base is the line's own amount | Vue | `till-discount.spec.ts::the base of a line is its own amount...` |
+| C: discount on a takeaway | Vue | `till-discount.spec.ts::is offered on a takeaway too` |
+| C: quantity change on a discounted line refused and shown | Vue | `till-discount.spec.ts::a quantity change on a discounted line is refused and shown` |
+| C: Compose dialog, cart, checkout recap | Compose | `feature/order/DiscountDialogTest.kt`, `DiscountCartTest.kt`, `OrderScreenshotTest.kt`, `feature/checkout/CheckoutContentTest.kt`, `CheckoutScreenshotTest.kt` |
+| C: Compose PIN dialog of a discount and of its removal (hints, name, refusal, done once) | Compose | `feature/order/OrderDiscountPinTest.kt` |
+| C: checkout summary discount (normal path and VAT helper fallback) | Compose | `feature/checkout/CheckoutViewModelTest.kt::theRecapSumsTheDiscountsOfTheCartLines`, `theRecapKeepsTheDiscountWhenTheVatHelperFails` |
+| D: note validation, never in a fiscal message, slips, retry | Engine | `kitchen_notes.rs` |
+| D: any staff member sets a note, the note slip names the waiter | Engine | `kitchen_notes.rs::a_waiter_sets_a_note_and_the_note_slip_names_the_waiter` |
+| D: Tauri wrapper `set_line_note` | Tauri | `src-tauri/tests/ipc_wrappers.rs::set_line_note_takes_lineid_and_note` |
+| D: FFI `set_line_note`, `CartLine.kitchenNote`, `CartLine.online` | FFI | `src/api/orders.rs::flow` (note stored, validated, cleared), `tests/ffi/orders.rs::a_kitchen_note_and_the_online_flag_reach_the_cart_line_record` |
+| D: dialog, cart line, store | Vue / Compose | `kitchen-notes.spec.ts`, `feature/order/KitchenNoteTest.kt`, `MenuViewModelTest.kt` |
+
+Test round 1 notes:
+- The Tauri wrapper test (`src-tauri/tests/ipc_wrappers.rs`) uses `tauri::test::mock_builder` on a real `Engine` opened on an empty database (no testkit): a dev-dependency on `pos-engine-testkit` would change `Cargo.lock` (gate `hygiene-root-lock`). Only the `test` feature of the already locked `tauri` is enabled for dev builds (`[dev-dependencies]` of `src-tauri/Cargo.toml`, no lock change). The mock request must come from the app's own origin (`tauri://localhost`), or the ACL refuses app commands.
+- Bug found by the tests: the pending block of `CartSidebar.vue` did not wire `@offer` and `@remove-discount` (fixed, commit `fix(ui): wire Offrir ...`). The Android cart was not affected (one shared `OrderLineItem` actions object).
+- Captures to retake: none new (no screen changed).
