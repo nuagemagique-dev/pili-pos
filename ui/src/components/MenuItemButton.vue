@@ -43,6 +43,7 @@ function handleTap() {
   <button
     ref="btnRef"
     class="item-btn"
+    :class="{ 'sold-out': item.sold_out }"
     :style="categoryColor ? { borderLeftColor: categoryColor } : undefined"
     @click="handleTap"
   >
@@ -51,6 +52,9 @@ function handleTap() {
     <span v-if="item.open_price" class="item-open-price">{{ t('open_price_badge') }}</span>
     <span v-else class="item-price">{{ formatPrice(item.price_cents) }}</span>
     <span v-if="inCart" class="item-qty">{{ inCart }}</span>
+    <span v-if="item.sold_out" class="item-sold-out" data-testid="soldout-badge">
+      {{ t('soldout_badge') }}
+    </span>
   </button>
 </template>
 
@@ -78,6 +82,20 @@ function handleTap() {
 .item-btn:active {
   transform: scale(var(--tap-scale));
   background-color: var(--bg-pressed);
+}
+
+/* Sold out: greyed, with a badge. A tap says why it cannot be added. */
+.item-btn.sold-out { opacity: 0.55; background: var(--bg-surface); }
+.item-sold-out {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--accent-warning);
+  color: var(--text-on-accent);
+  font-size: 13px;
+  font-weight: var(--font-weight-bold);
 }
 
 .item-name {

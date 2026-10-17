@@ -199,6 +199,10 @@ function defaultHandlers(): Record<string, Handler> {
     // Menu
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
+    // Sold out ("Épuisé"): nothing is sold out by default.
+    list_sold_out: () => [],
+    set_sold_out: () => [],
+    clear_sold_out: () => [],
 
     // Orders
     create_order: ({ input }: any) => ({

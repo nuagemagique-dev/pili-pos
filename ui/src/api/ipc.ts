@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   Category,
   MenuItem,
+  SoldOutItem,
   Order,
   OrderLine,
   CartLine,
