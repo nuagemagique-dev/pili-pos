@@ -70,6 +70,9 @@ pub(crate) enum Kind {
     Refund,
     TableOrder,
     PreBill,
+    TableTransfer,
+    PaymentCorrection,
+    Discount,
     WebshopOrder,
     ReportX,
     ReportUserX,
@@ -83,11 +86,14 @@ pub(crate) enum Kind {
 }
 
 impl Kind {
-    const ALL: [Kind; 14] = [
+    const ALL: [Kind; 17] = [
         Kind::Sale,
         Kind::Refund,
         Kind::TableOrder,
         Kind::PreBill,
+        Kind::TableTransfer,
+        Kind::PaymentCorrection,
+        Kind::Discount,
         Kind::WebshopOrder,
         Kind::ReportX,
         Kind::ReportUserX,
@@ -106,6 +112,9 @@ impl Kind {
             Kind::Refund => "refund",
             Kind::TableOrder => "table_order",
             Kind::PreBill => "pre_bill",
+            Kind::TableTransfer => "table_transfer",
+            Kind::PaymentCorrection => "payment_correction",
+            Kind::Discount => "discount",
             Kind::WebshopOrder => "webshop_order",
             Kind::ReportX => "report_x",
             Kind::ReportUserX => "report_user_x",
@@ -239,6 +248,19 @@ pub(crate) enum PendingContext {
     PreBill {
         order_id: i64,
         ticket: TicketDraft,
+    },
+    /// An open order moved to another table (`signCostCenterChange`).
+    TableTransfer {
+        order_id: i64,
+        from_table: i32,
+        to_table: i32,
+        operator_insz: String,
+    },
+    /// The payment method of sale `corrected_event_id` (its archive
+    /// id) corrected (`signPaymentCorrection`). No local table changes:
+    /// the reports read the archive; the context only names the sale.
+    PaymentCorrection {
+        corrected_event_id: i64,
     },
     WebshopOrder {
         order_id: i64,
@@ -617,6 +639,54 @@ fn apply(
                 .map_err(errors::internal)?;
             Ok((None, None))
         }
+        PendingContext::TableTransfer {
+            order_id, to_table, ..
+        } => {
+            // The signed move is the fiscal truth, but the local state
+            // must never hold two open orders on one table. An answer that
+            // arrives late can find the target taken meanwhile: an order
+            // with lines opened there after the check. Then the order
+            // stays on its source table (V1F-D60) and the caller
+            // reports `table_transfer_not_moved`.
+            let busy: bool = tx
+                .query_row(
+                    "SELECT EXISTS (
+                         SELECT 1 FROM orders o
+                         WHERE o.status = 'open' AND o.order_type = 'dine_in'
+                           AND o.table_number = ?1 AND o.id <> ?2 AND o.hubrise_order_id IS NULL
+                           AND EXISTS (SELECT 1 FROM order_lines ol
+                                       WHERE ol.order_id = o.id AND ol.quantity > 0))",
+                    rusqlite::params![to_table, order_id],
+                    |r| r.get(0),
+                )
+                .map_err(errors::internal)?;
+            if busy {
+                return Ok((None, None));
+            }
+            // A ghost order (opened and left empty) on the target does
+            // not block the move; one that holds a signed event stays.
+            let mut stmt = tx
+                .prepare(
+                    "SELECT id FROM orders
+                     WHERE status = 'open' AND order_type = 'dine_in' AND table_number = ?1
+                       AND id <> ?2 AND hubrise_order_id IS NULL",
+                )
+                .map_err(errors::internal)?;
+            let ghosts: Vec<i64> = stmt
+                .query_map(rusqlite::params![to_table, order_id], |r| r.get(0))
+                .map_err(errors::internal)?
+                .collect::<Result<_, _>>()
+                .map_err(errors::internal)?;
+            for ghost in ghosts {
+                pos_db::queries::orders::void_if_empty(tx, ghost).map_err(errors::internal)?;
+            }
+            tx.execute(
+                "UPDATE orders SET table_number = ?1 WHERE id = ?2 AND status = 'open'",
+                rusqlite::params![to_table, order_id],
+            )
+            .map_err(errors::internal)?;
+            Ok((None, None))
+        }
         PendingContext::ReportZ {
             period_id,
             booking_date,
@@ -668,6 +738,7 @@ fn apply(
         | PendingContext::ReportUserX { .. }
         | PendingContext::Money
         | PendingContext::Drawer
+        | PendingContext::PaymentCorrection { .. }
         | PendingContext::Invoice { .. } => Ok((None, None)),
     }
 }
@@ -760,6 +831,36 @@ pub(crate) async fn follow_up(
         PendingContext::TableOrder { bar_slip } => {
             done.slip = Some(print_slip_of(state, config, bar_slip, committed.event_id()).await);
         }
+        PendingContext::TableTransfer {
+            order_id,
+            from_table,
+            to_table,
+            operator_insz,
+        } => {
+            // No "moved" notice when a late commit kept the order put.
+            let moved = state.db.lock().is_ok_and(|db| {
+                db.query_row(
+                    "SELECT table_number = ?2 FROM orders WHERE id = ?1",
+                    rusqlite::params![order_id, to_table],
+                    |r| r.get::<_, Option<bool>>(0),
+                )
+                .ok()
+                .flatten()
+                .unwrap_or(false)
+            });
+            if moved {
+                done.slip = Some(
+                    bar_slip::print_transfer_slip(
+                        state,
+                        config,
+                        operator_insz,
+                        *from_table,
+                        *to_table,
+                    )
+                    .await,
+                );
+            }
+        }
         PendingContext::PreBill { ticket, .. } => {
             if let Some(addr) = config.printer_address.as_deref() {
                 let ticket = FiscalTicket::from_draft(ticket, committed.result(), &state.identity);
@@ -828,7 +929,10 @@ pub(crate) async fn follow_up(
         PendingContext::WebshopOrder { .. } => {}
         #[cfg(not(feature = "hubrise"))]
         PendingContext::WebshopOrder { .. } => {}
-        PendingContext::Work { .. } | PendingContext::Money | PendingContext::Invoice { .. } => {}
+        PendingContext::Work { .. }
+        | PendingContext::Money
+        | PendingContext::PaymentCorrection { .. }
+        | PendingContext::Invoice { .. } => {}
     }
     done
 }

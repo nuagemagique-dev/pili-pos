@@ -107,14 +107,14 @@ pub async fn do_money_in_out(
 }
 
 impl FinancialResult {
-    fn done() -> Self {
+    pub(crate) fn done() -> Self {
         Self {
             success: true,
             error: None,
         }
     }
 
-    fn failed(error: String) -> Self {
+    pub(crate) fn failed(error: String) -> Self {
         Self {
             success: false,
             error: Some(error),

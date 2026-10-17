@@ -30,7 +30,7 @@ Convention :
 
 | Item | Réponse |
 |---|---|
-| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **à l'exclusion de M150 (event I, hors périmètre v1.0.0, cf. §III.F)**. Nombre exact d'UC couverts par les preuves d'annexe : 17 UC dans le périmètre v1.0.0 (14 du Basic Set : M110, M111, M112B, M121, M123, M130, M131, M140, M141, M160, M161, M170, M171, M172 ; 3 de Reports : M180, M182, M184 ; `docs/SUBMISSION_ARTIFACTS/evidence/uc/`, M150 exclu). |
+| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **à l'exclusion de M150 (event I, hors périmètre v1.0.0, cf. §III.F)**. Nombre exact d'UC couverts par les preuves d'annexe : 21 UC dans le périmètre v1.0.0 (18 du Basic Set : M110, M111, M112B, M121, M122, M123, M130, M131, M132, M133, M140, M141, M160, M161, M170, M171, M171B, M172 ; 3 de Reports : M180, M182, M184 ; `docs/SUBMISSION_ARTIFACTS/evidence/uc/`, M150 exclu), soit 55 paires requête/réponse, auxquelles s'ajoutent les 5 situations d'arrondi et 6 UC de l'Advanced Set (UC223, UC225A, UC229B, UC230, UC4109, UC4119 ; 10 paires). |
 
 ## §I.C Manuels du POS
 
@@ -474,8 +474,8 @@ Les employés qui ne se servent jamais de la caisse sont créés avec le profil 
 | Commande en attente | ☑ | - | OK (gestion d'ordre ouvert sur table) |
 | Prebill Pro Forma | ☑ | M123 | OK |
 | Tous les events P sont imprimables | ☑ Format papier | - | OK |
-| Gestion des cost centers (attribution / division / fusion) | ☐ | M122 / UC240-243 / UC250-252 | Hors périmètre MVP (Advanced Set). Fixtures parsent mais UI non implémentée. |
-| Attribution | ☐ | - | Idem |
+| Gestion des cost centers (attribution / division / fusion) | ☑ attribution seule | M122 | Le transfert d'une commande ouverte vers une table libre est signé (`signCostCenterChange`, event P, test `m122_cost_center_change`). Division et fusion : hors périmètre (Advanced Set). |
+| Attribution | ☑ | M122 | OK : « Changer de table » (commande) et « Déplacer une table » (écran des tables) ; la commande garde sa référence ; une table déjà occupée est refusée (pas de fusion) |
 | Division | ☐ | UC240/241/243 | Idem |
 | Fusion | ☐ | UC250/251/252 | Idem |
 | Gestion d'addition (division table / addition / parts égales) | ☐ | - | Idem (Advanced Set) |
@@ -497,27 +497,27 @@ Les employés qui ne se servent jamais de la caisse sont créés avec le profil 
 | Chèque repas | ☑ | ROUND4, ROUND5 | Chèques-repas électroniques (`CHEQUE_MEAL`, id "3"), montant exact jamais arrondi, sans rendu, tiroir fermé. Avec un terminal relié, une carte de chèques-repas (Edenred, Pluxee, Monizze, Payflip), reconnue à la marque que rend le terminal, est payée avec « Carte » et signée `CHEQUE_MEAL` (id "3", "Meal voucher", `AUTOMATIC`, marque dans `provider`) : même identité que la saisie manuelle, donc une seule rangée dans les rapports |
 | Paiement en plusieurs moyens (un ticket) | ☑ | UC4119, ROUND4, ROUND5 | Carte et chèques-repas pour un montant exact, espèces pour le reste (seul le reste en espèces est arrondi, ligne ROUNDING à part). Une ligne PAYMENT par moyen (`crates/pos-fiscal/src/payment.rs`) |
 | Vente sans paiement (client parti sans payer) | ☑ | UC4109 | Gérant + PIN : N signé avec `financials: []`, ticket TVA "Non paye", ni tiroir ni paiement, jamais remboursable (`crates/pos-engine/src/commands/unpaid.rs`). La description POS v2.2 ne prévoit des `financials` vides que pour un montant nul ; pili-pos suit le cas d'utilisation officiel UC4109_2 (58 EUR, `financials: []`) |
-| Changement de paiement (M132) | ☐ | M132 | Reporté (cf. *FLUX_REMBOURSEMENT_FR.md* §2) |
+| Changement de paiement (M132) | ☑ | M132 | Gérant + PIN : le moyen d'une ligne de paiement saisie à la main, sur une vente de la journée en cours, est changé par un événement F `signPaymentCorrection` (`fdmRef` de la vente, ligne retirée en négatif, même montant sous le nouveau moyen), test `m132_payment_correction`. Une seule correction par vente. Refusées : vente remboursée, non payée, en ligne, d'une journée déjà clôturée, carte prise sur le terminal lié, arrondi en espèces. Aucun ticket, tiroir non ouvert ; les rapports X et Z comptent la correction (cf. *FLUX_REMBOURSEMENT_FR.md* §2) |
 | Vouchers à but multiple | ☐ | UC260/261 | Hors MVP |
 | Vouchers à but unique | ☐ | UC270/271 | Hors MVP |
 | Devise étrangère | ☐ | UC296 | Déclaré : EUR uniquement |
 | Arrondissement des paiements cash | ☑ | Roundings | Obligatoire pour le cash, implémenté (arrondi belge à 5 centimes) |
 | Arrondissement carte EFT | ☐ | Roundings | Optionnel (manuel : « à décider une fois pour toute à l'installation ») : décidé, pas d'arrondi des paiements par carte EFT, pour toutes les installations. Seul le reste payé en espèces est arrondi |
 | Gestion des livraisons | ☑ | - | Commandes en ligne uniquement (plateformes de livraison et webshop, par HubRise, activé par installation) : livraison ou enlèvement, signées par le FDM (N, ou P puis N à la remise). Aucune livraison n'est saisie à la caisse. *Voir : COMMANDES_EN_LIGNE_FR.md* |
-| Réductions | ☑ | UC223 | Uniquement les remises des commandes en ligne (code promo, réduction du webshop ou de la plateforme) : `priceChanges` de portée `EVENT`, type `PUBLIC`, réparties sur les lignes de produits (`crates/pos-engine/src/commands/price_changes.rs`, `crates/pos-fiscal/src/price_change.rs`, migration 23, test `crates/pos-engine/tests/hubrise_discounts.rs`). Aucune remise n'est saisie à la caisse : les modificateurs +/- sur prix oui, les réductions globales non. *Voir : COMMANDES_EN_LIGNE_FR.md* §5 |
+| Réductions | ☑ | UC223 | Remises des commandes en ligne (code promo, réduction du webshop ou de la plateforme) et remise saisie à la caisse par un Gérant avec son code PIN : pourcentage, montant ou « Offert » sur toute la commande ou sur une ligne. Ce sont des `priceChanges` (`crates/pos-engine/src/commands/price_changes.rs`, `crates/pos-fiscal/src/price_change.rs`, migration 30, tests `crates/pos-engine/tests/hubrise_discounts.rs` et `crates/pos-engine/tests/till_discounts.rs`). Le motif reste dans la table locale `till_discounts` (append-only), jamais dans la transaction signée. *Voir : MANUEL_UTILISATEUR_FR.md* §5.3 |
 | Produits composés | ☐ | UC280 | Fixtures parsent, UI non implémentée (Advanced Set) |
-| Modification de prix ligne | ☐ | UC220 | Pas de modification de prix de portée ligne (ni à la caisse ni dans les commandes en ligne) |
-| Modification de prix event | ☑ | UC223 | Commandes en ligne uniquement (cf. « Réductions ») : remise de portée `EVENT` répartie sur les lignes. La transaction construite par pili-pos est comparée à la fixture officielle UC223 (test `crates/pos-fiscal/tests/price_change_uc.rs`). Pas de modification de prix d'événement à la caisse |
+| Modification de prix ligne | ☑ | UC229B | À la caisse, seulement « Offert » sur une ligne entière (portée `LINE`, ligne à 0,00, identifiant `TILL-FREE-LINE`) ; pas de remise partielle sur une ligne. Test `crates/pos-engine/tests/till_discounts.rs` |
+| Modification de prix event | ☑ | UC223 | Remise de portée `EVENT` répartie sur les lignes, pour les commandes en ligne et pour la remise saisie à la caisse (identifiant `TILL-DISCOUNT`, Gérant + code PIN). La transaction construite par pili-pos est comparée à la fixture officielle UC223 (test `crates/pos-fiscal/tests/price_change_uc.rs`) |
 | Modification de prix multiple | ☐ | UC224 | Plusieurs remises de portée `EVENT` sont possibles sur une commande en ligne (un `groupingId` par remise), mais le scénario UC224 (remise de ligne combinée à une remise de ticket) n'est pas rejoué : pas de fixture UC224 dans les tests |
 | Corrections (modif quantité) | ☑ | UC230 | Correction d'une ligne avant paiement : quantité abaissée ou ligne retirée sur une commande ouverte, journalisée (`order_entries`, `kind` = `correction`) et envoyée avec `negQuantityReason` `CORRECTION` ; fixture UC230 rejouée (test `uc230_a_line_corrected_before_payment`). Après encaissement, la correction est un remboursement (M111/M112B) |
-| Article offert/gratuit (100% réduction) | ☐ | - | Hors MVP |
+| Article offert/gratuit (100% réduction) | ☑ | UC229B | « Offrir » sur une ligne, ou « Offert » sur toute la commande : signé à 0,00 et imprimé (test `crates/pos-engine/tests/till_discounts.rs`) |
 | Happy Hour programmé | ☐ | - | Hors MVP |
 | Gestion des clients | ☐ | - | B2C, pas de base clients |
 | Réduction membre | ☐ | - | Idem |
 | Mensualités | ☐ | - | Idem |
 | Prix libre / "prix du jour" | ☑ | - | Implémenté : colonne `menu_items.open_price` ; le produit `22010` (« Dish of the day » dans le manuel et le seed, affiché « Plat du jour » en français) du seed de certification est marqué `open_price = 1`, le prix est saisi par l'opérateur à l'ajout au lieu du prix catalogue. |
 | Prix au poids | ☐ | - | Pas de balance |
-| Ticket de service (bar / cuisine) | ☑ | - | Imprimante cuisine dédiée, ticket non-fiscal sans prix |
+| Ticket de service (bar / cuisine) | ☑ | - | Imprimante cuisine dédiée, ticket non-fiscal sans prix. La note de cuisine d'une ligne (60 caractères) s'imprime sous l'article et, si elle change après l'envoi, sur un bon « MODIFICATION » sans quantité ni prix ; elle reste locale (`order_lines.kitchen_note`) et n'entre dans aucun message FDM ni ticket TVA (FAQ producteurs Q210 b). Test `crates/pos-engine/tests/kitchen_notes.rs` |
 | Autres | ☐ | - | - |
 
 ### Remarque importante - facturation B2B Peppol
@@ -535,8 +535,8 @@ Les employés qui ne se servent jamais de la caisse sont créés avec le profil 
 | Item | Réponse |
 |---|---|
 | Le POS permet le changement de cost center vers ROOM (chambre) | ☐ Non (POS destiné à la restauration, pas d'hôtellerie) |
-| Le POS permet de recalculer le changement de prix en cas de changement de cost center | ☐ Non (changement de cost center pas implémenté en MVP) |
-| Les liens dans la base de données sont décrits | N/A (fonctionnalité non implémentée) |
+| Le POS permet de recalculer le changement de prix en cas de changement de cost center | ☐ Non (les prix sont conservés tels quels ; une remise portée par une ligne suit sa ligne) |
+| Les liens dans la base de données sont décrits | ☑ La commande garde son identifiant et sa référence ; seul le numéro de table de la commande change, dans la transaction qui archive l'événement signé |
 
 ## §III.H Emission des tickets numériques
 
@@ -679,7 +679,7 @@ Le manuel comprend une procédure de test détaillée par mutation (M110, M111, 
 **Statut pili-pos :**
 
 - Les 22 UC du Basic Set v1.8, les 5 UC de Reports v1.3 et les 141 fixtures (59 UC) de l'Advanced Set v1.6 sont chargées et parsées par les tests automatisés (*Voir : COUVERTURE_FIXTURES_FR.md, COUVERTURE_RAPPORTS_FR.md, COUVERTURE_ADVANCED_SET_FR.md*).
-- Dans le Basic Set, 18 des 22 UC ont un test automatisé ; les 4 autres sont exclues et déclarées : M150 (event I), M122 et M132, hors périmètre ; M112A, non applicable (le remboursement partiel est toujours émis en ticket séparé, M112B). Dans Reports, M180 à M184 ont des tests de fixtures (M181 et M183 par le Z combiné M184) et les 8 tickets T1 à T8 sont rejoués. Les tests e2e applicatifs (commande Tauri → tx SQLite → archive) rejouent ces UC avec la requête construite par pili-pos ; les JSON de 17 UC (14 Basic Set, 3 Reports) sont dans `evidence/uc/`. *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
+- Dans le Basic Set, 20 des 22 UC ont un test automatisé ; les 2 autres sont exclues et déclarées : M150 (event I), hors périmètre ; M112A, non applicable (le remboursement partiel est toujours émis en ticket séparé, M112B). Dans Reports, M180 à M184 ont des tests de fixtures (M181 et M183 par le Z combiné M184) et les 8 tickets T1 à T8 sont rejoués. Les tests e2e applicatifs (commande Tauri → tx SQLite → archive) rejouent ces UC avec la requête construite par pili-pos ; les JSON de 17 UC (14 Basic Set, 3 Reports) sont dans `evidence/uc/`. *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
 - **Document détaillé par UC** avec JSON request/response et ticket : *Voir : RESULTATS_TESTS_UC_FR.pdf*.
 
 Récap mappings UC <-> commande Tauri <-> test :
@@ -812,7 +812,7 @@ Tableau des 18 éléments obligatoires × 6 types de tickets. *Voir : TICKETS_EX
 | XII. Total à payer TVA comprise | ☑ | ☑ | - (pas encore payé) | ☑ | ☑ | - |
 | XIII. Base imposable par taux | ☑ | ☑ | - | ☑ | ☑ | - |
 | XIV. Montant TVA par taux | ☑ | ☑ | - | ☑ | ☑ | - |
-| XV. Modifications prix non-lignes | ☐ à la caisse (aucune remise saisie) ; la remise d'une commande en ligne est imprimée sous chaque ligne qu'elle touche | ☐ | ☐ | ☐ | ☐ | - |
+| XV. Modifications prix non-lignes | ☑ à la caisse (Gérant + code PIN, remise sur la commande) et pour une commande en ligne ; imprimée sous chaque ligne qu'elle touche | ☑ (remise reprise en négatif) | ☑ (l'addition imprime les remises) | ☐ | ☐ | - |
 | XVI. Données FDM (footer, fdmId, dateTime, label, counters, shortSignature) | ☑ | ☑ | ☑ (sans shortSignature) | ☑ (sans shortSignature) | ☑ (sans shortSignature) | - |
 | XVII. Lignes paiement (arrondi, tips, remboursements) | ☑ | ☑ (négatif) | - | - | ☑ (FICTIF) | - |
 | XVIII. QR Code URL FDM | ☑ | ☑ | - (sans QR, le FDM ne renvoie pas de verificationUrl pour P) | ☑ | ☑ | - |

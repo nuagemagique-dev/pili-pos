@@ -9,6 +9,7 @@ import type {
   CreateOrderInput,
   AddOrderLineInput,
   PaymentPart,
+  CheckoutPaymentMethod,
   EftPayment,
   PaymentTerminalStatus,
   UnsettledCardPayment,
@@ -20,6 +21,8 @@ import type {
   DeliveryView,
   SlipOutcome,
   ExportStatus,
+  DiscountInput,
+  DiscountResult,
 } from "../types";
 
 // Menu
@@ -52,6 +55,13 @@ export function updateOrderLineQuantity(
   quantity: number
 ): Promise<void> {
   return invoke("update_order_line_quantity", { lineId, quantity });
+}
+
+/** Set (or clear, with null or an empty text) the kitchen note of a
+ * line. A note changed after the line went to the kitchen prints a note
+ * slip; the answer says what became of it. Throws the error code. */
+export function setLineNote(lineId: number, note: string | null): Promise<SlipOutcome> {
+  return invoke("set_line_note", { lineId, note });
 }
 
 export function getOrder(orderId: number): Promise<Order> {
@@ -199,6 +209,57 @@ export function closeUnpaid(orderId: number, insz: string, pin: string): Promise
   return invoke("close_unpaid", { orderId, insz, pin });
 }
 
+/** One line of a signed sale's payments (command `list_sale_payments`). */
+export interface SalePaymentLine {
+  /** Position in the sale's payment lines: the index to correct. */
+  index: number;
+  /** CASH, CARD_DEBIT, CHEQUE_MEAL, ... */
+  paymentType: string;
+  name: string;
+  amountCents: number;
+  /** AUTOMATIC: a card the linked terminal took (never corrected). */
+  inputMethod: "MANUAL" | "AUTOMATIC";
+  /** PAYMENT, or ROUNDING (the cash rounding, not a payment). */
+  amountType: "PAYMENT" | "ROUNDING";
+  brand: string | null;
+}
+
+/** The correction a sale already has. */
+export interface CorrectionDone {
+  fromType: string;
+  toType: string;
+  amountCents: number;
+  at: string;
+}
+
+/** A signed sale's payment lines and whether one can be corrected. */
+export interface SalePayments {
+  fiscalEventId: number;
+  ticketNumber: number;
+  totalCents: number;
+  lines: SalePaymentLine[];
+  correctable: boolean;
+  /** Why not, as an engine error code, when `correctable` is false. */
+  refusal: string | null;
+  corrected: CorrectionDone | null;
+}
+
+/** The payment lines of a signed sale and whether one can be corrected (manager). */
+export function listSalePayments(fiscalEventId: number): Promise<SalePayments> {
+  return invoke("list_sale_payments", { fiscalEventId });
+}
+
+/** Correct the method of one payment line of a sale signed today (event F), confirmed by the manager's PIN. A refusal comes back as `success: false` with its error code. */
+export function correctPayment(
+  fiscalEventId: number,
+  lineIndex: number,
+  method: CheckoutPaymentMethod,
+  insz: string,
+  pin: string,
+): Promise<{ success: boolean; error: string | null }> {
+  return invoke("correct_payment", { fiscalEventId, lineIndex, method, insz, pin });
+}
+
 /** The engine's reading of the FDM (event "fdm-status", commands
  * `fdm_health` and `fdm_check_now`). The engine classifies the FDM
  * status; the UI only shows it. */
@@ -339,6 +400,37 @@ export function signTableOrder(orderId: number): Promise<SlipOutcome> {
 /** Pre-bill; its new lines go to the bar / kitchen slip first. */
 export function signPreBill(orderId: number): Promise<SlipOutcome> {
   return invoke("sign_pre_bill", { orderId });
+}
+
+/** What moving an order to another table did. */
+export interface TableTransferResult {
+  orderId: number;
+  fromTable: number;
+  toTable: number;
+  /** The bar / kitchen slip of what was registered before the move. */
+  kitchenSlip: SlipOutcome;
+  /** The notice that the order moved. */
+  transferSlip: SlipOutcome;
+}
+
+/** Move the open order of a table to a free table (event P, cost center
+ * change). Entries not yet registered are sent first. Throws the error
+ * code on a refusal. */
+export function transferTable(orderId: number, toTable: number): Promise<TableTransferResult> {
+  return invoke("transfer_table", { orderId, toTable });
+}
+
+/** Give a discount on an open till order (manager, PIN): a percent, an
+ * amount or the whole order off, or one line for free. A table already
+ * registered gets its P signed at once. Throws the error code. */
+export function applyDiscount(orderId: number, input: DiscountInput, insz: string, pin: string): Promise<DiscountResult> {
+  return invoke("apply_discount", { orderId, input, insz, pin });
+}
+
+/** Remove the order discount (no `lineId`) or the free line `lineId`
+ * (manager, PIN). */
+export function removeDiscount(orderId: number, lineId: number | null, insz: string, pin: string): Promise<DiscountResult> {
+  return invoke("remove_discount", { orderId, lineId, insz, pin });
 }
 
 // Reports

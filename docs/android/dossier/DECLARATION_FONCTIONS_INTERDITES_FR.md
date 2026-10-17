@@ -70,8 +70,27 @@ fiscal après sa signature par le FDM.
 - La commande du moteur qui "corrige" un encaissement (`refund_checkout`,
   le remboursement) produit un **nouvel événement fiscal séparé**
   référençant l'original via `fdmRef` - la ligne originale reste
-  intacte. Il n'existe pas de commande de correction de paiement
-  (M132, hors périmètre v1.0.0).
+  intacte. La correction de paiement (M132) est une commande de
+  Gérant confirmée par son PIN : elle signe un événement F
+  `signPaymentCorrection` qui référence la vente (`fdmRef`), ne masque
+  ni ne supprime aucune vente, ne vise qu'une ligne de paiement saisie
+  à la main d'une vente de la journée en cours, et n'est possible
+  qu'une fois par vente (`crates/pos-engine/src/commands/payment_correction.rs::do_correct_payment`).
+
+La remise de caisse n'ouvre aucune modification : elle n'altère ni un
+ticket signé ni un événement archivé. Elle n'est possible que sur une
+commande ouverte, par un Gérant confirmé par son PIN ; sur une commande
+déjà enregistrée en salle elle signe un événement P de plus. Chaque pose
+et chaque retrait s'inscrit dans la table `till_discounts`, qui refuse
+`UPDATE` et `DELETE` (déclencheurs `till_discounts_no_update` et
+`till_discounts_no_delete`), avec le Gérant et le motif.
+
+La note de cuisine d'une ligne (60 caractères au plus) ne modifie aucun
+enregistrement fiscal : elle est écrite dans une colonne locale de
+`order_lines` (`kitchen_note`), ne passe ni dans un message au FDM, ni dans
+le journal `order_entries`, ni sur un ticket TVA ; elle n'est possible que
+sur une commande ouverte et jamais sur une commande en ligne ou
+clôturée (une commande de table déjà enregistrée par un P reste ouverte et accepte une note).
 
 ## 3. Ajout rétroactif d'enregistrements antidatés
 

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use pos_core::order::{Order, OrderLine, OrderStatus, OrderType};
 use pos_core::vat::VatCode;
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 
 pub struct NewOrderLine<'a> {
     pub order_id: i64,
@@ -258,26 +258,62 @@ fn insert_entry(
     quantity: i32,
     kind: &str,
 ) -> Result<(), rusqlite::Error> {
+    insert_entry_op(conn, line_id, quantity, kind, None).map(|_| ())
+}
+
+/// [`insert_entry`] returning the entry's id, with the `till_op` mark of
+/// a PRICE_CHANGE pair (`Some("price_change")`) when it is one.
+fn insert_entry_op(
+    conn: &Connection,
+    line_id: i64,
+    quantity: i32,
+    kind: &str,
+    till_op: Option<&str>,
+) -> Result<i64, rusqlite::Error> {
     conn.execute(
         "INSERT INTO order_entries (order_id, line_id, menu_item_id, quantity, unit_price_cents,
-                                    vat_code, name, department_id, department_name, kind, created_at)
+                                    vat_code, name, department_id, department_name, kind, created_at,
+                                    till_op)
          SELECT order_id, id, menu_item_id, ?2, unit_price_cents, vat_code, name,
-                COALESCE(department_id, ''), COALESCE(department_name, ''), ?3, ?4
+                COALESCE(department_id, ''), COALESCE(department_name, ''), ?3, ?4, ?5
          FROM order_lines WHERE id = ?1",
         params![
             line_id,
             quantity,
             kind,
-            Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
+            Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            till_op
         ],
     )?;
+    let entry_id = conn.last_insert_rowid();
     // A provisional bill no longer matches the order once it changes.
     conn.execute(
         "UPDATE orders SET pre_bill_at = NULL
          WHERE id = (SELECT order_id FROM order_lines WHERE id = ?1)",
         params![line_id],
     )?;
-    Ok(())
+    Ok(entry_id)
+}
+
+/// The two journal entries of a PRICE_CHANGE pair on a line: a
+/// correction of its whole quantity, then the same quantity again, both
+/// marked `till_op` = `price_change`. The caller records the changes on
+/// them (the first carries the line's existing changes negated, the
+/// second the new ones). Returns `(correction_entry_id, reentry_entry_id)`.
+#[cfg(feature = "hubrise")]
+pub fn add_price_change_pair(
+    conn: &Connection,
+    line_id: i64,
+) -> Result<(i64, i64), rusqlite::Error> {
+    let (order_id, quantity): (i64, i32) = conn.query_row(
+        "SELECT order_id, quantity FROM order_lines WHERE id = ?1",
+        params![line_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    ensure_open(conn, order_id)?;
+    let correction = insert_entry_op(conn, line_id, -quantity, "correction", Some("price_change"))?;
+    let reentry = insert_entry_op(conn, line_id, quantity, "entry", Some("price_change"))?;
+    Ok((correction, reentry))
 }
 
 /// Record that a provisional bill of the order was printed.
@@ -304,6 +340,27 @@ pub struct CartLine {
     /// The product's menu code ("A2"), when the catalog gives one.
     pub code: Option<String>,
     pub unsent_quantity: i64,
+    /// Σ of the line's price changes in cents (negative for a discount).
+    pub discount_cents: i64,
+    /// The line's consolidated price changes, as the cart shows them.
+    pub price_changes: Vec<CartPriceChange>,
+    /// The note for the kitchen ("sans wasabi"), local only: never part
+    /// of a fiscal record (migration 31).
+    pub kitchen_note: Option<String>,
+    /// The line belongs to an online order (HubRise): the till gives no
+    /// discount on it (`discount_online_order`), so the screens hide the
+    /// action.
+    pub online: bool,
+}
+
+/// A price change on a cart line (a till discount, an online order's).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct CartPriceChange {
+    pub id: String,
+    pub name: String,
+    /// `LINE` or `EVENT`.
+    pub scope: String,
+    pub amount_cents: i64,
 }
 
 /// The menu code of a line's product, a column of the mirrored catalog.
@@ -323,7 +380,8 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
                     AND entity_id = ol.menu_item_id AND field = 'name' AND lang = 'zh'),
                 COALESCE((SELECT SUM(e.quantity) FROM order_entries e
                           WHERE e.line_id = ol.id AND e.sent_event_id IS NULL), 0),
-                {LINE_CODE}
+                {LINE_CODE}, ol.kitchen_note,
+                EXISTS (SELECT 1 FROM orders o WHERE o.id = ol.order_id AND o.hubrise_order_id IS NOT NULL)
          FROM order_lines ol WHERE ol.order_id = ?1 ORDER BY ol.id",
     ))?;
     let rows = stmt.query_map(params![order_id], |row| {
@@ -333,9 +391,125 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
             name_zh: row.get(12)?,
             unsent_quantity: row.get(13)?,
             code: row.get(14)?,
+            discount_cents: 0,
+            price_changes: Vec::new(),
+            kitchen_note: row.get(15)?,
+            online: row.get(16)?,
         })
     })?;
-    rows.collect()
+    #[allow(unused_mut)]
+    let mut lines: Vec<CartLine> = rows.collect::<Result<_, _>>()?;
+    #[cfg(feature = "hubrise")]
+    {
+        let changes = super::price_changes::by_line(conn, order_id)?;
+        for line in &mut lines {
+            for c in changes.get(&line.line.id).into_iter().flatten() {
+                line.discount_cents += c.amount_cents;
+                line.price_changes.push(CartPriceChange {
+                    id: c.change_id.clone(),
+                    name: c.name.clone(),
+                    scope: c.scope.clone(),
+                    amount_cents: c.amount_cents,
+                });
+            }
+        }
+    }
+    Ok(lines)
+}
+
+/// What the kitchen note commands need to know about a line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoteTarget {
+    pub order_id: i64,
+    pub menu_item_id: i64,
+    pub name: String,
+    /// The table of the order; `None` for a takeaway.
+    pub table_number: Option<i32>,
+    /// An online order (HubRise): notes are not taken at the till.
+    pub online: bool,
+    pub note: Option<String>,
+    /// The note last printed on a bar / kitchen slip.
+    pub printed: Option<String>,
+    /// Quantity of the line already transmitted to the FDM (so already
+    /// sent to the kitchen).
+    pub sent_quantity: i64,
+}
+
+/// The state of line `line_id` for a note change.
+pub fn note_target(conn: &Connection, line_id: i64) -> Result<NoteTarget, rusqlite::Error> {
+    conn.query_row(
+        "SELECT ol.order_id, ol.menu_item_id, ol.name, o.table_number,
+                o.hubrise_order_id IS NOT NULL, ol.kitchen_note, ol.kitchen_note_printed,
+                COALESCE((SELECT SUM(e.quantity) FROM order_entries e
+                          WHERE e.line_id = ol.id AND e.sent_event_id IS NOT NULL), 0)
+         FROM order_lines ol JOIN orders o ON o.id = ol.order_id
+         WHERE ol.id = ?1",
+        params![line_id],
+        |row| {
+            Ok(NoteTarget {
+                order_id: row.get(0)?,
+                menu_item_id: row.get(1)?,
+                name: row.get(2)?,
+                table_number: row.get(3)?,
+                online: row.get(4)?,
+                note: row.get(5)?,
+                printed: row.get(6)?,
+                sent_quantity: row.get(7)?,
+            })
+        },
+    )
+}
+
+/// Store the kitchen note of a line of an open order (`None` clears
+/// it). The note is local data: nothing is journalled.
+pub fn set_kitchen_note(
+    conn: &Connection,
+    line_id: i64,
+    note: Option<&str>,
+) -> Result<(), rusqlite::Error> {
+    let order_id: i64 = conn.query_row(
+        "SELECT order_id FROM order_lines WHERE id = ?1",
+        params![line_id],
+        |row| row.get(0),
+    )?;
+    ensure_open(conn, order_id)?;
+    conn.execute(
+        "UPDATE order_lines SET kitchen_note = ?1 WHERE id = ?2",
+        params![note, line_id],
+    )?;
+    Ok(())
+}
+
+/// Record that the line's current note reached a bar / kitchen slip.
+pub fn mark_kitchen_note_printed(conn: &Connection, line_id: i64) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "UPDATE order_lines SET kitchen_note_printed = kitchen_note WHERE id = ?1",
+        params![line_id],
+    )?;
+    Ok(())
+}
+
+/// The line of a journal entry and that line's note, for the bar slip.
+/// An entry whose line is gone (removed) maps to no note.
+pub fn entry_notes(
+    conn: &Connection,
+    entry_ids: &[i64],
+) -> Result<std::collections::BTreeMap<i64, (i64, Option<String>)>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT e.line_id, ol.kitchen_note
+         FROM order_entries e LEFT JOIN order_lines ol ON ol.id = e.line_id
+         WHERE e.id = ?1",
+    )?;
+    let mut out = std::collections::BTreeMap::new();
+    for id in entry_ids {
+        let found: Option<(i64, Option<String>)> = stmt
+            .query_row(params![id], |row| Ok((row.get(0)?, row.get(1)?)))
+            .optional()?;
+        if let Some(found) = found {
+            out.insert(*id, found);
+        }
+    }
+    Ok(out)
 }
 
 /// Lines of closed or voided orders are part of a signed record and
@@ -533,6 +707,47 @@ mod tests {
 
         let fetched = get_order(&conn, order.id).unwrap();
         assert_eq!(fetched.id, order.id);
+    }
+
+    #[test]
+    fn cart_lines_say_whether_the_order_is_online() {
+        let conn = setup();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 1000, 'B')",
+            [],
+        )
+        .unwrap();
+        let add = |order_id: i64| {
+            add_order_line(
+                &conn,
+                NewOrderLine {
+                    order_id,
+                    menu_item_id: 1,
+                    quantity: 1,
+                    unit_price_cents: 1000,
+                    vat_code: VatCode::B,
+                    name: "Gyoza",
+                    modifiers_json: None,
+                    department_id: "1",
+                    department_name: "Test",
+                },
+            )
+            .unwrap();
+        };
+        let till = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
+        add(till.id);
+        let online = create_order(&conn, OrderType::Takeaway, None, "00000000029").unwrap();
+        add(online.id);
+        conn.execute(
+            "UPDATE orders SET hubrise_order_id = 'HR1' WHERE id = ?1",
+            [online.id],
+        )
+        .unwrap();
+
+        assert!(!get_cart_lines(&conn, till.id).unwrap()[0].online);
+        assert!(get_cart_lines(&conn, online.id).unwrap()[0].online);
     }
 
     #[test]

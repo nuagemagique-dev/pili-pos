@@ -18,14 +18,6 @@
 reason = "pili-pos émet toujours le remboursement partiel comme un ticket séparé (M112B) ; le remboursement partiel combiné à une vente sur le même ticket ne peut pas se produire avec ce comportement."
 kind = "non_applicable"
 
-[M122]
-reason = "Le changement de centre de coût (transfert de table) est hors périmètre de pili-pos v1.0.0."
-kind = "hors_perimetre"
-
-[M132]
-reason = "La correction de paiement est hors périmètre de pili-pos v1.0.0."
-kind = "hors_perimetre"
-
 [M150]
 reason = "La facturation (event I, intégration Peppol) est hors périmètre du build de certification ; elle est prévue pour pili-pos v1.1."
 kind = "hors_perimetre"
@@ -211,15 +203,15 @@ reason = "Le produit composite n'est pas implémenté dans pili-pos v1.0.0."
 kind = "hors_perimetre"
 
 [UC220]
-reason = "La modification de prix de portée ligne n'est pas implémentée dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées au FDM (voir UC223)."
+reason = "Le scénario (vente directe, remise de 50 % sur une ligne) n'est pas rejoué : la remise de la caisse porte sur la commande entière (pourcentage ou montant, portée EVENT) ou offre une ligne entière (portée LINE, UC229B), pas une remise partielle sur une ligne. Le moteur reprend la portée LINE des remises d'une commande en ligne, mais ce scénario précis n'a pas de test."
 kind = "hors_perimetre"
 
 [UC221A]
-reason = "La modification de prix de portée ligne n'est pas implémentée dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées au FDM (voir UC223)."
+reason = "Le scénario (promotion « le deuxième à moitié prix », qui scinde la ligne de produit en deux lignes dont l'une porte la modification de prix) n'est pas rejoué : la caisse n'applique aucune promotion automatique par quantité et n'a pas de remise partielle sur une ligne."
 kind = "hors_perimetre"
 
 [UC221B]
-reason = "La modification de prix de portée ligne n'est pas implémentée dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées au FDM (voir UC223)."
+reason = "Le scénario (promotion « le deuxième à moitié prix », qui scinde la ligne de produit en deux lignes dont l'une porte la modification de prix) n'est pas rejoué : la caisse n'applique aucune promotion automatique par quantité et n'a pas de remise partielle sur une ligne."
 kind = "hors_perimetre"
 
 [UC222]
@@ -227,23 +219,11 @@ reason = "La modification de prix sur un produit composite n'est pas implément�
 kind = "hors_perimetre"
 
 [UC224]
-reason = "Le scénario UC224 (remise de ligne combinée à une remise de ticket) n'est pas rejoué dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées, sans modification de prix de ligne."
-kind = "hors_perimetre"
-
-[UC225A]
-reason = "La modification de prix en vente indirecte n'est pas implémentée dans pili-pos v1.0.0."
-kind = "hors_perimetre"
-
-[UC225B]
-reason = "La modification de prix en vente indirecte n'est pas implémentée dans pili-pos v1.0.0."
+reason = "Le scénario UC224 (plusieurs modifications de prix cumulées sur une même ligne) n'est pas rejoué : la caisse n'accepte qu'une remise par commande, de portée EVENT, ou une ligne offerte (portée LINE)."
 kind = "hors_perimetre"
 
 [UC226]
-reason = "La modification de prix n'est pas implémentée dans pili-pos v1.0.0."
-kind = "hors_perimetre"
-
-[UC229B]
-reason = "L'article gratuit en vente directe (remise à 100% via priceChange) n'est pas implémenté dans pili-pos v1.0.0."
+reason = "Le scénario UC226 (modification de prix sur un produit composite ou cumulée) n'est pas rejoué : le produit composite n'existe pas, et la remise de la caisse est couverte par UC223, UC225A, UC225B et UC229B."
 kind = "hors_perimetre"
 
 [UC280]
@@ -263,7 +243,7 @@ reason = "Les libellés de TVA A/B/C combinés à une modification de prix ne so
 kind = "hors_perimetre"
 
 [UC4116]
-reason = "La correction combinée à une modification de prix n'est pas implémentée dans pili-pos v1.0.0 (la modification de prix est absente)."
+reason = "Le scénario (vente avec une remise de 50 % sur une ligne, puis correction de la remise à 5 %) n'est pas rejoué : la caisse n'a pas de remise partielle sur une ligne et ne corrige pas une vente par une seconde vente ; une vente signée se rembourse (M111) et son moyen de paiement se corrige (M132)."
 kind = "hors_perimetre"
 
 [UC4120]
@@ -280,7 +260,7 @@ kind = "hors_perimetre"
 # -- Correction de paiement (avancée) --
 
 [UC4118]
-reason = "La correction de paiement (modification d'un paiement déjà enregistré) n'est pas implémentée dans pili-pos v1.0.0."
+reason = "Le scénario (vente payée en crédit client, corrigée une semaine plus tard en Mastercard) n'est pas rejoué : le type de paiement crédit client n'est pas proposé à la caisse (espèces, carte, titres-repas). La correction de moyen de paiement elle-même existe et est rejouée par M132."
 kind = "hors_perimetre"
 
 # -- Acompte et libellé de TVA X --
@@ -293,6 +273,3 @@ kind = "hors_perimetre"
 # FAQ producteurs
 # ---------------------------------------------------------------------------
 
-[FAQ_Q212]
-reason = "Le transfert de table (et donc le changement de référence du costCenter qui l'accompagne) n'existe pas dans pili-pos v1.0.0."
-kind = "hors_perimetre"

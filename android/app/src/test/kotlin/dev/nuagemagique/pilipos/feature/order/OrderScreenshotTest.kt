@@ -2,7 +2,9 @@ package dev.nuagemagique.pilipos.feature.order
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
@@ -22,6 +24,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.VatCode
 import uniffi.pos_ffi.VatSplitRow
 import java.time.Instant
@@ -167,5 +170,165 @@ class OrderScreenshotTest {
     @Test
     fun empty() {
         capture(OrderUiState(signedIn = true), "order_empty")
+    }
+
+    @Test
+    fun tablePicker() {
+        val dialog = OrderDialog.TablePicker(4, listOf(1, 2, 3, 6, 7, 9, 10, 12))
+        capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(canTransfer = true), dialog = dialog), "order_table_picker")
+    }
+
+    @Suppress("LongParameterList")
+    private fun half(
+        id: Long,
+        menuItemId: Long,
+        name: String,
+        quantity: Int,
+        unitPriceCents: Long,
+        unsent: Long,
+        off: Long,
+        net: Long,
+    ) = CartRow(
+        cartLine(
+            id,
+            menuItemId,
+            name,
+            quantity = quantity,
+            unitPriceCents = unitPriceCents,
+            unsent = unsent,
+            discountCents = off,
+            priceChanges = listOf(CartPriceChange("TILL-DISCOUNT", "Remise 50 %", "EVENT", off)),
+        ),
+        LineAmount.Total(net),
+    )
+
+    // An order discount of 50 %: every line shows its change row, the total and the VAT are net, the button removes it.
+    private val discountedCart =
+        OrderCartState(
+            order = order(table = 4, totalCents = 2_085),
+            rows =
+                listOf(
+                    half(1, 10, "Nigiri saumon", 2, 480, 0, -480, 480),
+                    half(2, 16, "Assortiment 8 pièces", 1, 1_650, 0, -825, 825),
+                    half(3, 11, "Nigiri thon", 3, 520, 3, -780, 780),
+                ),
+            canPay = true,
+            vatRows = listOf(VatSplitRow(VatCode.B, 12, 2_085, 223)),
+            unsentCount = 3,
+            canCloseUnpaid = true,
+            canDiscount = true,
+            orderDiscounted = true,
+        )
+
+    // One offered line (UC229B shape): its change row, "Retirer la remise" on it, "Offrir" on the others.
+    private val offeredCart =
+        OrderCartState(
+            order = order(table = 4, totalCents = 2_610),
+            rows =
+                listOf(
+                    CartRow(cartLine(1, 10, "Nigiri saumon", quantity = 2), LineAmount.Total(960), canOffer = true),
+                    CartRow(
+                        cartLine(2, 16, "Assortiment 8 pièces", quantity = 1, unitPriceCents = 1_650),
+                        LineAmount.Total(1_650),
+                        canOffer = true,
+                    ),
+                    CartRow(
+                        cartLine(
+                            3,
+                            20,
+                            "Cola",
+                            unitPriceCents = 300,
+                            discountCents = -300,
+                            priceChanges = listOf(CartPriceChange("TILL-FREE-LINE", "Offert", "LINE", -300)),
+                        ),
+                        LineAmount.Total(0),
+                        canRemoveDiscount = true,
+                    ),
+                ),
+            canPay = true,
+            vatRows = listOf(VatSplitRow(VatCode.B, 12, 2_610, 280)),
+            canCloseUnpaid = true,
+            canDiscount = true,
+        )
+
+    @Test
+    fun cartWithOrderDiscount() {
+        capture(OrderUiState(signedIn = true, menu = menu, cart = discountedCart), "order_cart_discount")
+    }
+
+    @Test
+    fun cartWithOfferedLine() {
+        capture(OrderUiState(signedIn = true, menu = menu, cart = offeredCart), "order_cart_offered")
+    }
+
+    @Test
+    fun discountDialog() {
+        val state =
+            OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(canDiscount = true), dialog = OrderDialog.Discount(null, 4_920))
+        rule.setContent {
+            PiliTheme {
+                CompositionLocalProvider(LocalOrderNow provides { Instant.parse("2026-10-09T10:37:00Z") }) {
+                    ProvideUiText(AppLanguage.FR, catalog) {
+                        PosScaffoldContent(
+                            header = header,
+                            actions = HeaderActions(),
+                            fdm = FdmUiState(connected = true),
+                            onCheckFdm = {},
+                            training = false,
+                            clock = "12:30",
+                            lights = { StatusLights(FdmUiState(connected = true), DeviceLights(FakeProbe()), hubriseVisible = false) },
+                            overlay = { OrderDialogs(state.dialog, OrderCallbacks()) },
+                        ) { OrderContent(state, OrderCallbacks(), OrderCartActions()) }
+                    }
+                }
+            }
+        }
+        rule.onNodeWithTag("discount_quick_20").performClick()
+        rule.onNodeWithTag("discount_reason_service_issue").performClick()
+        rule.waitForIdle()
+        rule.onRoot().captureRoboImage("src/test/screenshots/order/order_discount_dialog.png")
+    }
+
+    // Two lines with a note: one still to send, one already in the kitchen; "Note" is filled on both.
+    private val notedCart =
+        fullCart.copy(
+            rows =
+                listOf(
+                    CartRow(
+                        cartLine(1, 10, "Nigiri saumon", quantity = 2, nameZh = "三文鱼寿司", kitchenNote = "sans wasabi"),
+                        LineAmount.Total(960),
+                        canNote = true,
+                    ),
+                    CartRow(
+                        cartLine(2, 16, "Assortiment 8 pièces", quantity = 1, nameZh = "拼盘八件"),
+                        LineAmount.Total(1_650),
+                        canNote = true,
+                    ),
+                    CartRow(
+                        cartLine(
+                            3,
+                            11,
+                            "Nigiri thon",
+                            quantity = 3,
+                            unitPriceCents = 520,
+                            nameZh = "金枪鱼寿司",
+                            unsent = 3,
+                            kitchenNote = "allergie arachide",
+                        ),
+                        LineAmount.Total(1_560),
+                        canNote = true,
+                    ),
+                ),
+        )
+
+    @Test
+    fun cartWithKitchenNotes() {
+        capture(OrderUiState(signedIn = true, menu = menu, cart = notedCart), "order_cart_note")
+    }
+
+    @Test
+    fun noteDialog() {
+        val dialog = OrderDialog.Note(1L, "sans wasabi", true)
+        capture(OrderUiState(signedIn = true, menu = menu, cart = notedCart, dialog = dialog), "order_note_dialog")
     }
 }

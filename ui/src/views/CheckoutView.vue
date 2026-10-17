@@ -11,6 +11,7 @@ import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
 import { formatPrice, round5 } from "../utils/format";
 import { useBilingualName } from "../utils/names";
+import { lineNetCents, discountTotalCents } from "../utils/cartAmounts";
 import AppHeader from "../components/AppHeader.vue";
 import TicketMediumPicker from "../components/TicketMediumPicker.vue";
 import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
@@ -78,7 +79,9 @@ const cardManual = ref(false);
 // shown - cheap, the backend caches the probe for 60s.
 watch(step, (s) => { if (s === "pay") delivery.refreshMailStatus(); }, { immediate: true });
 
+// The amount due is the net total: till discounts are already taken off.
 const totalCents = computed(() => order.totalCents);
+const discountCents = computed(() => discountTotalCents(order.lines));
 const paidCents = computed(() => parts.value.reduce((sum, p) => sum + p.cents, 0));
 const restCents = computed(() => Math.max(0, totalCents.value - paidCents.value));
 const hasCashPart = computed(() => parts.value.some((p) => p.method === "cash"));
@@ -516,11 +519,22 @@ function finish() {
               <span v-if="bilingual(line).secondary" class="name-secondary">{{ bilingual(line).secondary }}</span>
               <span v-if="lineNotes(line)" class="line-notes">{{ lineNotes(line) }}</span>
             </div>
-            <span class="line-total">{{ formatPrice(line.unit_price_cents * line.quantity) }}</span>
+            <span class="line-total">{{ formatPrice(lineNetCents(line)) }}</span>
+            <div v-for="(c, i) in line.price_changes" :key="`${c.id}-${i}`" class="line-change" data-testid="summary-change">
+              <span>{{ c.name }}</span><span>{{ formatPrice(c.amount_cents) }}</span>
+            </div>
           </div>
         </div>
 
         <div class="summary-foot">
+          <template v-if="discountCents !== 0">
+            <div class="foot-row" data-testid="summary-subtotal">
+              <span>{{ t('checkout_subtotal') }}</span><span>{{ formatPrice(totalCents - discountCents) }} €</span>
+            </div>
+            <div class="foot-row discount-row" data-testid="summary-discount">
+              <span>{{ t('checkout_discount') }}</span><span>{{ formatPrice(discountCents) }} €</span>
+            </div>
+          </template>
           <div class="foot-row total-row">
             <span>{{ t('total') }}</span><span>{{ formatPrice(totalCents) }} €</span>
           </div>
@@ -870,6 +884,15 @@ button:active:not(:disabled) { transform: scale(var(--tap-scale)); }
 .name-secondary { font-size: 13px; color: var(--text-secondary); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-notes { font-size: 13px; color: var(--accent-warning); }
 .line-total { font-family: var(--font-mono); font-size: 17px; font-weight: 700; }
+.line-change {
+  grid-column: 2 / -1;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--accent-warning);
+}
+.discount-row { color: var(--accent-warning); }
 
 .summary-foot {
   border-top: 1px solid var(--border);

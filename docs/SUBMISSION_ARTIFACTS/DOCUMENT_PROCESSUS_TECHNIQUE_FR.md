@@ -78,10 +78,12 @@ binaire certifié.
 |---|---|---|---|
 | **N** (Vente normale) | L'opérateur tape "Payer" (sur place `dine_in` ou à emporter `takeaway`) | `ipc/checkout::checkout` → `commands/checkout::do_checkout` / `do_checkout_split` → `sell` → `signing::sign` : archive + clôture dans une seule tx SQLite | Blocage-sur-déconnexion-FDM imposé |
 | **P** (Pro forma) | L'opérateur envoie la commande en cuisine | `commands/tables::do_sign_table_order` | Table ouverte ; pas d'incrément du compteur N |
+| **P** (Changement de table, `COST_CENTER_CHANGE`) | L'opérateur change une commande de table | `commands/table_transfer::do_transfer_table` | Enregistre d'abord les articles non envoyés (P), puis signe le déplacement ; la table change dans la transaction d'archivage ; pas d'incrément du compteur N |
 | **T** (Formation) | L'opérateur est en mode formation | Comme N mais `is_training=true` dans l'input ; watermark UI |
 | **C** (Copie) | Réimpression d'un ticket antérieur | `commands/copy::do_copy_ticket_with` | Porte un `fdmRef` vers l'original |
 | **I** (Facture) | Hors binaire certifié v1.0.0 | Code sous `#[cfg(feature = "peppol")]` (`commands/invoice.rs`) | Absent de la build cert (§8) ; événement optionnel dans SCE 2.0 |
 | **F** (Financier) | Mouvement caisse, ouverture seule du tiroir | `commands/financial::do_money_in_out` / `do_open_drawer_fiscal` | F-WAR pour ouverture tiroir |
+| **F** (Correction de paiement, `PAYMENT_CORRECTION`) | Le Gérant corrige le moyen d'une ligne de paiement d'une vente (onglet Tickets) | `commands/payment_correction::do_correct_payment` | PIN du Gérant ; `fdmRef` de la vente ; une correction par vente ; aucun ticket, tiroir fermé ; rapports X/Z : corrections positives et négatives |
 | **S** (Social) | Pointage entrée / sortie de l'opérateur ; pointage d'un autre employé par le Gérant | `commands/social::do_work_in` / `do_work_out` ; `do_clock_in_employee` / `do_clock_out_employee` | INSZ + n° employeur |
 | **R** (Rapport) | Rapports Z et X | `commands/report::do_generate_x_report` / `do_generate_z_report` | Z est Turnover-Z + User-Z atomique |
 
@@ -102,6 +104,23 @@ Chaque branche :
    transaction SQLite.
 6. Retourne les données de ticket à l'UI ; l'UI déclenche l'impression
    via `pos-print`.
+
+**Remise de caisse.** Les commandes `apply_discount` et `remove_discount`
+(Gérant confirmé par son PIN) calculent la remise sur le net de la
+commande, la répartissent au centime près sur les lignes et la
+transmettent en `priceChanges` : sur une commande en cours elle part avec
+la vente (N) ; sur une commande déjà enregistrée en salle elle signe un
+événement P immédiat, repris par `pending_signs` si le FDM ne répond pas.
+Le motif et le Gérant restent dans `till_discounts` (migration 30).
+
+**Note de cuisine.** La commande `set_line_note` (tout le personnel)
+vérifie la note (60 caractères au plus, imprimables en CP858 :
+`pos_print::escpos::is_cp858_printable`), la range dans la colonne locale
+`order_lines.kitchen_note` (migration 31) et, si la ligne est déjà partie en
+cuisine et que la note diffère de celle déjà imprimée, imprime un bon
+« MODIFICATION » (`crates/pos-print/src/bar_ticket.rs::format_note_slip`).
+Aucune signature, aucun événement : la note reste locale et les
+constructeurs des messages FDM ne la lisent pas.
 
 ## 3. Signature / vérification
 
@@ -229,7 +248,8 @@ SQLite qui archive l'événement signé, de sorte que :
   `TICKET_NUMERIQUE_FR.md` §11).
 - Tickets de commande P (bar / cuisine) : layout séparé
   (`crates/pos-print/src/bar_ticket.rs::format_bar_ticket`, envoyé par
-  `commands/bar_slip.rs`). Le ticket cuisine
+  `commands/bar_slip.rs`), qui imprime aussi la note de cuisine de la
+  ligne sous l'article. Le ticket cuisine
   `kitchen_ticket::format_kitchen_ticket` ne sert qu'aux commandes en
   ligne.
 - Texte externe (noms de produits, notes, adresses) : passé par

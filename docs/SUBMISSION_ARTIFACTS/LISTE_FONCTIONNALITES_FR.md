@@ -14,8 +14,10 @@ build `--no-default-features --features cert`).
 | N (rembours.) | Remboursement complet ou partiel (M111, M112B) | `signSale` avec lignes négatives + `fdmRef` | `crates/pos-engine/src/commands/refund.rs::do_refund_checkout` |
 | P | Commande en cuisine (pro-forma) | `signOrder` | `crates/pos-engine/src/commands/tables.rs::do_sign_table_order` |
 | P | Addition (pré-ticket) | `signPreBill` | `crates/pos-engine/src/commands/tables.rs::do_sign_pre_bill` |
+| P | Changement de table (transfert d'une commande ouverte) | `signCostCenterChange` | `crates/pos-engine/src/commands/table_transfer.rs::do_transfer_table` |
 | T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` / `do_checkout_split` avec `training_mode=true` |
 | T | Présence en formation (aucune prestation n'est ouverte dans `staff_shifts` ; le Gérant ne peut pas pointer un autre employé en formation) | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` |
+| F | Correction du moyen de paiement d'une vente (Gérant + PIN) | `signPaymentCorrection` | `crates/pos-engine/src/commands/payment_correction.rs::do_correct_payment` |
 | C | Copie de ticket | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
 | I | Facture B2B (hors binaire certifié v1.0.0, voir §3 bis) | `signInvoice` | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`), sous `#[cfg(feature = "peppol")]` |
 | F | Mouvement de fonds | `signMoneyInOut` | `crates/pos-engine/src/commands/financial.rs::do_money_in_out` |
@@ -127,6 +129,17 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 - Modificateurs par item (sauces, cuisson...) - table `modifier_groups`.
 - Réutilisation d'une commande ouverte vide pour la même table
   (anti-doublon, `crates/pos-db/src/queries/orders.rs::create_order`).
+- Changement de table : « Changer de table » dans la commande, ou « Déplacer une table » sur le plan ;
+  la commande garde son contenu et sa référence et passe à une table libre. Une table occupée est
+  refusée (pas de fusion) ; un bon de transfert sans prix est imprimé au bar.
+- Note de cuisine par ligne (« Note » dans le panier, tout le personnel) :
+  60 caractères au plus, imprimables par l'imprimante du bar ou de la
+  cuisine ; la note s'imprime sous l'article sur le bon de commande, et une
+  note modifiée après l'envoi imprime un bon « MODIFICATION » sans quantité
+  ni prix (`crates/pos-engine/src/commands/order.rs::do_set_line_note`). La
+  note reste dans la base locale (`order_lines`, migration 31) : elle n'est
+  jamais envoyée au FDM ni imprimée sur un ticket TVA, une addition, une
+  copie ou un export.
 
 ### 2.2 Encaissement
 
@@ -215,6 +228,10 @@ changement journalisé). Détail : `COMMANDES_EN_LIGNE_FR.md`.
   remboursement confirmé par un Gérant, avec `fdmRef`. Annulation après
   le P : corrections et N à 0,00 EUR.
 - Remises en `priceChanges` ; frais des plateformes exclus par défaut.
+- Remise à la caisse : pourcentage, montant ou « Offert » sur la commande
+  ou sur une ligne, confirmée par le PIN d'un Gérant, signée en
+  `priceChanges` (`TILL-DISCOUNT`, `TILL-FREE`, et `TILL-FREE-LINE` pour une ligne offerte, portée LINE) ; le motif reste dans la
+  table locale `till_discounts`.
 - Menu de la caisse reflet du catalogue HubRise, verrouillé pendant la
   connexion.
 

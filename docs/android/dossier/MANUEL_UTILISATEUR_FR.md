@@ -26,6 +26,7 @@ fichier, réalisé sur le terminal D3 Pro émulé (AVD `sunmi_d3_pro_gms_api33`)
 7. Encaissement (vente, événement N)
 8. Copie de ticket (événement C)
 9. Remboursement
+9 bis. Corriger un moyen de paiement (événement F)
 10. Rapports X et Z (événements R)
 11. Mouvements de caisse, tiroir et comptage (événements F)
 12. Configuration (Gérant)
@@ -46,9 +47,10 @@ refuse de toute façon une action interdite au profil
 | Se connecter, pointer, prendre des commandes, "Envoyer en cuisine" | ☑ | ☑ | ☑ |
 | Changer son propre PIN | ☑ | ☑ | ☑ |
 | Commandes en ligne : "Préparer", "Prête", "Retarder" (§12.8) | ☑ | ☑ | ☑ |
+| Changer une commande de table (§5.1 bis) | ☑ | ☑ | ☑ |
 | Imprimer l'addition, encaisser, "Imprimer le ticket" (§7.3) | - | ☑ | ☑ |
 | Commandes en ligne : "Accepter", "Refuser", "Terminer", "Encaisser espèces", "Encaisser carte", "Clôturer" | - | ☑ | ☑ |
-| Rapports X / Z, copies, remboursements, mouvements de caisse, tiroir, comptage du tiroir | - | - | ☑ |
+| Rapports X / Z, copies, remboursements, corrections de paiement (§9 bis), mouvements de caisse, tiroir, comptage du tiroir | - | - | ☑ |
 | Clôturer une vente sans paiement (client parti sans payer, §7.5, avec son PIN) | - | - | ☑ |
 | Commandes en ligne : "Rembourser" | - | - | ☑ |
 | Mode formation, employés (ajouter, "Désactiver", PIN des autres), HubRise (activer, catalogue, canaux), configuration | - | - | ☑ |
@@ -266,6 +268,31 @@ commande, la table porte la pastille "Carte encaissée" (capture A105).
   articles dans le panier. Une table n'a jamais qu'une seule commande
   ouverte.
 
+### 5.1 bis Changer de table
+
+Une commande ouverte, déjà servie en salle, peut passer à une **autre
+table libre** (client qui change de place, tables regroupées).
+
+- Dans la commande : touchez « Changer de table » (en haut du panier),
+  choisissez la table libre, puis « Valider ».
+- Sur le plan des tables : touchez « Déplacer une table », puis la table
+  occupée, puis la table libre, et confirmez par « Valider » (« Retour »
+  annule).
+
+Ce que fait la caisse : les articles pas encore envoyés en cuisine sont
+d'abord enregistrés sur l'ancienne table, puis le déplacement est signé
+(événement P, « changement de centre de coût »). La commande garde son
+contenu et sa référence ; aucun argent ne bouge. Un bon « TRANSFERT DE
+TABLE » (« Table 4 -> Table 9 », sans prix) sort à l'imprimante du bar.
+« Commande déplacée vers la table N » confirme.
+
+Refus : une table qui a déjà une commande en cours n'est pas
+fusionnée (« Cette table a déjà une commande en cours : choisissez une
+table libre ») ; seule une commande en salle, avec au moins un article,
+peut changer de table. Si le FDM ne répond pas, le déplacement reste
+en attente et est repris comme une vente (§7.4) ; la table ne change
+qu'à la signature.
+
 ### 5.2 Vente à emporter
 
 "À emporter" (en-tête) ouvre une commande sans table. L'addition (§6.2)
@@ -285,9 +312,42 @@ vente sans paiement (§7.5). (capture A12 : ventes à emporter en cours).
   il s'ajoute au panier (à droite).
 - Dans le panier, "+" ajoute une unité et "−" en retire une, sans
   descendre sous 1. Pour retirer une ligne, toucher la croix à sa
-  droite. Il n'y a pas de bouton de remise : le POS ne propose pas de
-  remise à la saisie (les remises d'une commande en ligne viennent de la
-  plateforme, §12.8).
+  droite.
+- **Remise (Gérant, code PIN)** : le panier propose « Remise » (sur
+  toute la commande) et, sur une ligne, « Offrir ». « Remise » ouvre la
+  fenêtre « Remise » : choisir « % » (raccourcis 5, 10, 15, 20
+  et 50 %), « Montant » (à taper comme sur un terminal de paiement) ou
+  « Offert », puis un motif (« Geste commercial », « Repas du personnel »,
+  « Problème de service », « Autre ») et, si besoin, une précision libre de 120
+  caractères au plus. L'aperçu montre le total après remise ; « Appliquer la remise »
+  demande le code PIN d'un Gérant. Le panier, l'écran de paiement et le
+  ticket affichent alors le prix net, avec une ligne « Remise » sous la
+  ligne concernée. « Retirer la remise » (même code PIN) annule la
+  remise. Une seule remise s'applique à la fois (retirer l'actuelle avant d'en
+  poser une autre) ; elle ne peut pas dépasser le total, et un article
+  offert garde sa ligne à 0,00 sur le ticket. Une ligne remisée n'est
+  plus fusionnée avec une nouvelle unité du même article. Sur une
+  commande déjà enregistrée en salle (§6), la remise est signée
+  tout de suite (événement P) ; si le FDM ne répond pas, un avertissement
+  s'affiche et l'envoi est refait à la commande suivante. Le motif reste dans
+  le journal local de la caisse et n'est jamais envoyé au FDM. Les
+  remises d'une commande en ligne viennent de la plateforme (§12.8).
+- **Note pour la cuisine** : chaque ligne du panier a un bouton « Note »
+  (tout le personnel). Il ouvre la fenêtre « Note pour la cuisine » avec le
+  clavier du terminal : taper la note (« sans wasabi », « allergie
+  arachide »), 60 caractères au plus, le compteur affiche « n/60 », puis
+  « Valider ». Une note vide efface la note. La fenêtre rappelle quand la
+  note sort : « Imprimée en cuisine avec la commande » si la ligne n'est
+  pas encore partie, « Imprimée en cuisine maintenant » si elle est déjà
+  en cuisine (un bon « MODIFICATION » sort aussitôt sur l'imprimante de la
+  cuisine). La note s'affiche en italique sous le nom de l'article. Seuls
+  les caractères que l'imprimante sait imprimer sont acceptés (lettres
+  latines, chiffres, accents, ponctuation usuelle) : une note en chinois
+  est refusée (« La note a un caractère que l'imprimante de cuisine ne sait
+  pas imprimer »). Ajouter le même article à une ligne qui porte une note
+  crée une nouvelle ligne, pour que « un avec, un sans » restent deux
+  lignes. La note ne figure sur aucun ticket TVA, addition ou copie et
+  n'est jamais envoyée au FDM.
 - **Prix libre** : certains articles n'ont pas de prix fixe (ex. "Plat
   du jour"). En les touchant, la fenêtre "Prix libre" demande le
   prix : taper les chiffres comme sur un terminal de paiement
@@ -335,6 +395,15 @@ catalogue ; il ne porte pas de prix et la mention "CECI N'EST PAS UN
 TICKET DE CAISSE T.V.A. VALABLE". Il sort sur
 l'imprimante de la cuisine si elle est configurée, sinon sur celle des
 tickets. Pour une vente à emporter, le bon sort à l'encaissement.
+
+La note d'une ligne (§5.3) s'imprime sur le bon, en retrait sous l'article
+(« > sans wasabi »), sans prix. Une note écrite, changée ou effacée après
+l'envoi de la ligne sort sur son propre bon « MODIFICATION » : le nom de
+l'article et « Note : ... » (ou « Note supprimee »), sans quantité ni
+prix, avec la mention « CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+VALABLE ». Ce n'est pas une commande et aucun événement n'est envoyé au
+FDM. Si ce bon ne s'imprime pas, le message « Bon de commande non
+imprimé » s'affiche ; valider de nouveau la même note le réimprime.
 
 Si l'impression du bon échoue, la commande est quand même enregistrée et
 le message "Bon de commande non imprimé : prévenez le bar ou la cuisine."
@@ -696,6 +765,48 @@ La caisse refuse :
   rembourser.").
 
 Si le FDM refuse, rien n'est enregistré et la vente reste remboursable.
+
+Si le FDM ne répond pas, la réponse peut arriver plus tard : la demande de
+remboursement reste en attente et elle est reprise à l'identique au prochain
+essai ou par la tâche de fond (§7.4). Elle n'est archivée qu'une fois, sans
+second ticket, et la vente n'est pas remboursée deux fois.
+
+## 9 bis. Corriger un moyen de paiement (événement F)
+
+Quand une vente a été encaissée avec le mauvais moyen (par exemple en
+espèces alors que le client a payé par carte), le Gérant corrige la
+ligne de paiement sans rembourser.
+
+1. Rapports > « Tickets ».
+2. Sur la vente, touchez « Corriger le paiement ».
+3. Choisissez la ligne de paiement à corriger (une carte prise sur le
+   terminal de paiement lié porte la mention « Terminal » et ne se
+   choisit pas), puis le moyen réel : « Espèces », « Carte » ou
+   « Titres-repas ».
+4. Le résumé s'affiche (par exemple « Espèces 52,00 € → Carte
+   52,00 € ») ; touchez « Corriger » et saisissez votre PIN.
+
+La caisse signe un événement F qui référence la vente. Aucun ticket ne
+s'imprime et le tiroir ne s'ouvre pas ; « Paiement corrigé » confirme et
+la vente porte désormais la mention « Paiement corrigé : Espèces →
+Carte ». Les rapports X et Z comptent la correction dans les moyens de
+paiement (corrections négatives et positives) et le Z imprimé ajoute une
+ligne « Corrections de paiement ».
+
+Refus (le texte s'affiche dans la fenêtre) :
+
+- seule une vente peut être corrigée (ni remboursement, ni vente non
+  payée, ni commande en ligne) ;
+- la vente doit appartenir à la journée en cours (pas encore clôturée
+  par un Z) ;
+- une vente déjà remboursée, en tout ou en partie, ne se corrige plus ;
+- **une seule correction par vente** ;
+- une carte prise sur le terminal de paiement lié ne se corrige pas ;
+- le nouveau moyen doit différer de celui de la ligne ;
+- une correction qui demanderait un arrondi en espèces est refusée.
+
+Si le FDM ne répond pas, la réponse peut arriver plus tard : la demande reste en
+attente et la correction est reprise au prochain essai ou par la tâche de fond (§7.4). Le PIN est celui du Gérant connecté.
 
 ## 10. Rapports X et Z (événements R)
 

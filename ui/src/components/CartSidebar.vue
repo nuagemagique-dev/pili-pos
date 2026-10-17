@@ -7,10 +7,16 @@ import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useI18n } from "../i18n";
 import { formatPrice } from "../utils/format";
+import { lineNetCents } from "../utils/cartAmounts";
 import { formatTimestamp, formatTime, minutesSince } from "../utils/datetime";
 import OrderLineItem from "./OrderLineItem.vue";
 import VatSummary from "./VatSummary.vue";
 import PinDialog from "./PinDialog.vue";
+import TablePickerDialog from "./TablePickerDialog.vue";
+import DiscountDialog from "./DiscountDialog.vue";
+import NoteDialog from "./NoteDialog.vue";
+import type { DiscountInput } from "../types";
+import * as ipc from "../api/ipc";
 
 const router = useRouter();
 const order = useOrderStore();
@@ -102,6 +108,113 @@ async function printPreBill() {
   }
 }
 
+// Move the order to another table (event P, cost center change): the
+// free tables of the plan, current one left out.
+const canTransfer = computed(
+  () =>
+    isDineIn.value &&
+    order.currentOrder?.status === "open" &&
+    order.currentOrder.table_number != null &&
+    order.lines.length > 0,
+);
+const picking = ref(false);
+const freeTables = ref<ipc.TableInfo[]>([]);
+const transferring = ref(false);
+
+async function openTablePicker() {
+  if (!canTransfer.value || transferring.value) return;
+  try {
+    const current = order.currentOrder?.table_number;
+    freeTables.value = (await ipc.listTables()).filter(
+      (tbl) => tbl.status === "free" && tbl.tableNumber !== current,
+    );
+  } catch (e) {
+    toast.show(describeError(e), "error", 5000);
+    return;
+  }
+  picking.value = true;
+}
+
+async function transferTo(toTable: number) {
+  if (transferring.value) return;
+  transferring.value = true;
+  try {
+    await order.transferTable(toTable);
+    picking.value = false;
+    toast.show(t("transfer_done", { to: toTable }), "success");
+  } catch (e) {
+    picking.value = false;
+    toast.show(describeError(e), "error", 6000);
+  } finally {
+    transferring.value = false;
+  }
+}
+
+// Kitchen note of a line: any staff member, on an open order. The dialog
+// says whether the note prints now (the line already went to the kitchen)
+// or with the order.
+const canNote = computed(() => order.currentOrder?.status === "open");
+const noteLineId = ref<number | null>(null);
+const noteLine = computed(() => order.lines.find((l) => l.id === noteLineId.value) ?? null);
+
+async function saveNote(text: string) {
+  const id = noteLineId.value;
+  noteLineId.value = null;
+  if (id !== null) await order.setLineNote(id, text);
+}
+
+// Discount at the till (manager, PIN): an order discount, a line for
+// free, or the removal of either. The dialog collects the input, the PIN
+// confirms it, the engine applies every rule.
+// An online order has its own discounts: the engine refuses one at the
+// till (discount_online_order), so the button and the line actions hide.
+const canDiscount = computed(
+  () =>
+    auth.isManager &&
+    order.currentOrder?.status === "open" &&
+    order.lines.length > 0 &&
+    !order.lines.some((l) => l.online === true),
+);
+type DiscountStep =
+  | { kind: "ask"; lineId: number | null }
+  | { kind: "pin-apply"; input: DiscountInput }
+  | { kind: "pin-remove"; lineId: number | null };
+const discountStep = ref<DiscountStep | null>(null);
+
+function lineHasOwnChange(lineId: number): boolean {
+  const line = order.lines.find((l) => l.id === lineId);
+  return !!line?.price_changes?.some((c) => c.scope === "LINE");
+}
+function canOfferLine(lineId: number): boolean {
+  const line = order.lines.find((l) => l.id === lineId);
+  return canDiscount.value && !order.orderDiscounted && (line?.price_changes?.length ?? 0) === 0;
+}
+function canRemoveLineDiscount(lineId: number): boolean {
+  return canDiscount.value && lineHasOwnChange(lineId);
+}
+
+/** What the open dialog applies to: the line's amount, or the order total. */
+const discountBase = computed(() => {
+  const step = discountStep.value;
+  if (step?.kind === "ask" && step.lineId !== null) {
+    const line = order.lines.find((l) => l.id === step.lineId);
+    return line ? lineNetCents(line) : 0;
+  }
+  return order.totalCents;
+});
+
+async function verifyDiscount(pin: string) {
+  const step = discountStep.value;
+  if (step?.kind === "pin-apply") await order.applyDiscount(step.input, pin);
+  else if (step?.kind === "pin-remove") await order.removeDiscount(step.lineId, pin);
+}
+
+function onDiscountDone() {
+  const removed = discountStep.value?.kind === "pin-remove";
+  discountStep.value = null;
+  toast.show(t(removed ? "discount_removed" : "discount_applied"), "success");
+}
+
 // The customer left without paying (UC4109): a manager closes the
 // order, confirmed by their PIN; the sale is signed with no payment.
 const canCloseUnpaid = computed(
@@ -125,6 +238,15 @@ async function onUnpaidClosed() {
   <aside class="cart">
     <div class="cart-header">
       <h2>{{ cartTitle }}</h2>
+      <button
+        v-if="canTransfer"
+        class="transfer-btn"
+        data-testid="transfer-table"
+        :disabled="transferring"
+        @click="openTablePicker"
+      >
+        {{ t('transfer_table') }}
+      </button>
       <span class="cart-opened">{{ openedAt }}</span>
     </div>
 
@@ -133,9 +255,15 @@ async function onUnpaidClosed() {
         v-for="line in sentLines"
         :key="line.id"
         :line="line"
+        :can-offer="canOfferLine(line.id)"
+        :can-remove-discount="canRemoveLineDiscount(line.id)"
+        :can-note="canNote"
+        @note="noteLineId = $event"
         @increment="increment"
         @decrement="decrement"
         @remove="order.removeLine($event)"
+        @offer="discountStep = { kind: 'ask', lineId: $event }"
+        @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
       />
       <template v-if="pendingLines.length">
         <div class="pending-label">
@@ -146,9 +274,15 @@ async function onUnpaidClosed() {
           :key="line.id"
           :line="line"
           pending
+          :can-offer="canOfferLine(line.id)"
+          :can-remove-discount="canRemoveLineDiscount(line.id)"
+          :can-note="canNote"
+          @note="noteLineId = $event"
           @increment="increment"
           @decrement="decrement"
           @remove="order.removeLine($event)"
+          @offer="discountStep = { kind: 'ask', lineId: $event }"
+          @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
         />
       </template>
       <div v-if="order.lines.length === 0" class="cart-empty">
@@ -158,9 +292,27 @@ async function onUnpaidClosed() {
 
     <div class="cart-footer">
       <div class="cart-total">
-        <button v-if="canCloseUnpaid" class="unpaid-btn" @click="confirmUnpaid = true">
-          {{ t('unpaid_close') }}
-        </button>
+        <div v-if="canCloseUnpaid || canDiscount" class="manager-actions">
+          <button
+            v-if="canDiscount && !order.orderDiscounted"
+            class="discount-btn"
+            data-testid="discount-open"
+            @click="discountStep = { kind: 'ask', lineId: null }"
+          >
+            {{ t('discount_button') }}
+          </button>
+          <button
+            v-if="canDiscount && order.orderDiscounted"
+            class="discount-btn"
+            data-testid="discount-remove"
+            @click="discountStep = { kind: 'pin-remove', lineId: null }"
+          >
+            {{ t('discount_remove') }}
+          </button>
+          <button v-if="canCloseUnpaid" class="unpaid-btn" @click="confirmUnpaid = true">
+            {{ t('unpaid_close') }}
+          </button>
+        </div>
         <div class="total-block">
           <span class="total-amount">{{ formatPrice(order.totalCents) }} €</span>
           <VatSummary :lines="order.lines" />
@@ -198,6 +350,40 @@ async function onUnpaidClosed() {
       </button>
     </div>
 
+    <TablePickerDialog
+      v-if="picking && order.currentOrder?.table_number != null"
+      :tables="freeTables"
+      :from="order.currentOrder.table_number"
+      @confirm="transferTo"
+      @cancel="picking = false"
+    />
+
+    <NoteDialog
+      v-if="noteLine"
+      :initial="noteLine.kitchen_note"
+      :sent="noteLine.quantity - (noteLine.unsent_quantity ?? 0) > 0"
+      @confirm="saveNote"
+      @cancel="noteLineId = null"
+    />
+
+    <DiscountDialog
+      v-if="discountStep?.kind === 'ask'"
+      :base-cents="discountBase"
+      :line-id="discountStep.lineId ?? undefined"
+      @confirm="discountStep = { kind: 'pin-apply', input: $event }"
+      @cancel="discountStep = null"
+    />
+
+    <PinDialog
+      v-if="(discountStep?.kind === 'pin-apply' || discountStep?.kind === 'pin-remove') && auth.currentUser"
+      :insz="auth.currentUser.insz"
+      :user-name="auth.currentUser.name"
+      :hint="discountStep.kind === 'pin-apply' ? t('discount_hint') : t('discount_remove_hint')"
+      :verify="verifyDiscount"
+      @done="onDiscountDone"
+      @cancel="discountStep = null"
+    />
+
     <PinDialog
       v-if="confirmUnpaid && auth.currentUser"
       :insz="auth.currentUser.insz"
@@ -233,6 +419,20 @@ async function onUnpaidClosed() {
   font-weight: var(--font-weight-heavy);
   line-height: 1.2;
 }
+.transfer-btn {
+  margin-left: auto;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  transition: transform var(--tap-duration) ease;
+}
+.transfer-btn:active { transform: scale(var(--tap-scale)); }
+.transfer-btn:disabled { opacity: 0.35; pointer-events: none; }
 .cart-opened {
   font-family: var(--font-mono);
   font-size: 15px;
@@ -303,6 +503,20 @@ async function onUnpaidClosed() {
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
+
+.manager-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.discount-btn {
+  height: 48px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  transition: transform var(--tap-duration) ease;
+}
+.discount-btn:active { transform: scale(var(--tap-scale)); }
 
 /* Rare manager action: small, outlined, apart from the payment buttons. */
 .unpaid-btn {

@@ -141,6 +141,64 @@ pub fn ticket_lines(lines: &[OrderLine], changes: &LineChanges) -> Vec<TicketLin
 
 pub use pos_core::money::distribute;
 
+// ── Discounts taken at the till ────────────────────────────────
+
+/// Change id of an order discount in percent or amount.
+pub const TILL_DISCOUNT_ID: &str = "TILL-DISCOUNT";
+/// Change id of an order given for free ("Offert", 100 %).
+pub const TILL_FREE_ID: &str = "TILL-FREE";
+/// Change id of one line given for free (scope LINE, UC229B).
+pub const TILL_FREE_LINE_ID: &str = "TILL-FREE-LINE";
+
+/// Whether `change_id` is one of the till's discount ids.
+pub fn is_till_change(change_id: &str) -> bool {
+    matches!(
+        change_id,
+        TILL_DISCOUNT_ID | TILL_FREE_ID | TILL_FREE_LINE_ID
+    )
+}
+
+/// The customer-visible name of a till change, in the establishment's
+/// receipt language (`fr`, `nl`, `de`; `en` for completeness, the
+/// receipt language is never English). A percent discount says its rate
+/// ("Remise 10 %"); an amount discount is "Remise"; both kinds of free
+/// are "Offert".
+pub fn till_change_name(lang: &str, change_id: &str, percent: Option<i64>) -> String {
+    let (discount, free) = match lang {
+        "nl" => ("Korting", "Gratis"),
+        "de" => ("Rabatt", "Gratis"),
+        "en" => ("Discount", "Free"),
+        _ => ("Remise", "Offert"),
+    };
+    match (change_id, percent) {
+        (TILL_DISCOUNT_ID, Some(p)) => format!("{discount} {p} %"),
+        (TILL_DISCOUNT_ID, None) => discount.to_string(),
+        _ => free.to_string(),
+    }
+}
+
+/// Mark the negative lines of a PRICE_CHANGE pair: the correction that
+/// takes a line already transmitted back before its re-entry carries
+/// the new price (POS spec v2.2 `negQuantityReason`, FAQ Q303).
+/// `entry_ids` are the journal entries marked `till_op` = `price_change`;
+/// `entries` are the lines the transaction was built from, in order.
+pub fn mark_price_change_reason(
+    transaction: &mut TransactionInput,
+    entries: &[OrderLine],
+    entry_ids: &std::collections::BTreeSet<i64>,
+) {
+    if entry_ids.is_empty() {
+        return;
+    }
+    debug_assert_eq!(transaction.transaction_lines.len(), entries.len());
+    for (tx_line, entry) in transaction.transaction_lines.iter_mut().zip(entries) {
+        if entry.quantity < 0 && entry_ids.contains(&entry.id) {
+            tx_line.main_product.neg_quantity_reason =
+                Some(crate::types::NegQuantityReason::PriceChange);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,6 +230,59 @@ mod tests {
             change_type: PriceChangeType::Public,
             amount_cents,
         }
+    }
+
+    #[test]
+    fn till_change_names_follow_the_receipt_language() {
+        assert_eq!(
+            till_change_name("fr", TILL_DISCOUNT_ID, Some(10)),
+            "Remise 10 %"
+        );
+        assert_eq!(till_change_name("fr", TILL_DISCOUNT_ID, None), "Remise");
+        assert_eq!(till_change_name("fr", TILL_FREE_ID, None), "Offert");
+        assert_eq!(till_change_name("fr", TILL_FREE_LINE_ID, None), "Offert");
+        assert_eq!(
+            till_change_name("nl", TILL_DISCOUNT_ID, Some(5)),
+            "Korting 5 %"
+        );
+        assert_eq!(till_change_name("nl", TILL_FREE_ID, None), "Gratis");
+        assert_eq!(till_change_name("de", TILL_DISCOUNT_ID, None), "Rabatt");
+        assert_eq!(till_change_name("de", TILL_FREE_LINE_ID, None), "Gratis");
+        assert_eq!(
+            till_change_name("en", TILL_DISCOUNT_ID, Some(20)),
+            "Discount 20 %"
+        );
+        assert_eq!(till_change_name("en", TILL_FREE_ID, None), "Free");
+        // A language the receipt cannot be in falls back to French.
+        assert_eq!(till_change_name("zh", TILL_FREE_ID, None), "Offert");
+        assert!(is_till_change(TILL_FREE_LINE_ID) && !is_till_change("10"));
+    }
+
+    #[test]
+    fn only_the_negative_lines_of_a_pair_get_the_price_change_reason() {
+        let entries = [
+            line(1, 2, 2000, VatCode::B),
+            line(2, -2, 2000, VatCode::B),
+            line(3, 2, 2000, VatCode::B),
+            line(4, -1, 2000, VatCode::B),
+        ];
+        let mut tx = crate::event::build_transaction_for_tests(&entries);
+        let ids = std::collections::BTreeSet::from([2, 3]);
+        mark_price_change_reason(&mut tx, &entries, &ids);
+        let reasons: Vec<_> = tx
+            .transaction_lines
+            .iter()
+            .map(|l| l.main_product.neg_quantity_reason)
+            .collect();
+        assert_eq!(
+            reasons,
+            vec![
+                None,
+                Some(crate::types::NegQuantityReason::PriceChange),
+                None,
+                Some(crate::types::NegQuantityReason::Correction),
+            ]
+        );
     }
 
     #[test]

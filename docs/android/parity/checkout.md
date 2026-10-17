@@ -12,6 +12,7 @@ rounding, the signature, the ticket delivery); the screen only calls it through 
 | Vue | Compose | Commands |
 | --- | --- | --- |
 | ui/src/views/CheckoutView.vue | feature/checkout/CheckoutScreen.kt (CheckoutRoute, CheckoutContent), CheckoutPanels.kt, CheckoutViewModel.kt, CheckoutState.kt, CheckoutEntryPoint.kt | `checkout` |
+| CheckoutView.vue (summary: change rows, Sous-total, Remise) | feature/checkout/CheckoutPanels.kt (SummaryLine, SummaryFoot), CheckoutState.kt (CheckoutSummary.discountCents) | - |
 | components/TicketMediumPicker.vue | ui/components/TicketMediumPicker.kt (TicketMediumPicker, TicketMediumKeypad) bound to ui/state/DeliveryStore.kt | - |
 | components/EmailKeypad.vue | ui/components/EmailKeypad.kt, drawn in the scaffold overlay of the checkout route | - |
 | components/DeliveryOutcomePanel.vue | ui/components/DeliveryOutcomePanel.kt with `DeliveryStore.printMissingOriginal` | `print_missing_original` |
@@ -27,6 +28,7 @@ No amount is computed in this package; there is no sum, difference, product, quo
 | Left to pay | the amount of the cash row of `EngineHelpers.settlePreview(total, parts taken + cash part without amount)`, 0 when there is no row |
 | Cash due, rounded | `cashDueCents` of the same preview (last part); for a cash part before the last one, of `settlePreview(part, [cash])` |
 | Left to pay shown | the rounded cash due when cash pays the last part, else the rest |
+| Subtotal and discount rows | `CashDisplay.sumCents` of the cart lines' `discountCents`, and `CashDisplay.subtotalBeforeDiscountCents(total, discount)`; shown only when a line carries a discount |
 | Equal shares | `CashDisplay.equalShares(total, n)` |
 | Amount of the current part | the share or the rest, the smaller by comparison |
 | Chips of the next parts | the cash row of a preview that holds the parts so far as exact amounts |

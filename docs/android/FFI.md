@@ -139,13 +139,14 @@ Free functions, all `suspend`:
 
 ## 11. Command parity
 
-The parity script (`scripts/android/check_command_parity.py`) checks that each of the 96 cert commands has its wrapper, its engine function and a method of the same name on `PosEngine`, with the same parameter names. The table below is generated; `scripts/android/p2_gate.sh --exit` compares it byte for byte with `python3 scripts/android/check_command_parity.py --markdown`. Regenerate it, never edit it by hand.
+The parity script (`scripts/android/check_command_parity.py`) checks that each of the 102 cert commands has its wrapper, its engine function and a method of the same name on `PosEngine`, with the same parameter names. The table below is generated; `scripts/android/p2_gate.sh --exit` compares it byte for byte with `python3 scripts/android/check_command_parity.py --markdown`. Regenerate it, never edit it by hand.
 
 <!-- parity:begin -->
 | Command | Engine function | Call | FFI method (Kotlin) |
 | --- | --- | --- | --- |
 | add_order_line | order::do_add_order_line | blocking | posEngine.addOrderLine() |
 | add_order_line_with_modifiers | modifiers::do_add_order_line_with_modifiers | blocking | posEngine.addOrderLineWithModifiers() |
+| apply_discount | discount::do_apply_discount | spawn | posEngine.applyDiscount() |
 | backup_database | report::do_backup_database | blocking | posEngine.backupDatabase() |
 | check_fdm_status | checkout::do_check_fdm_status | spawn | posEngine.checkFdmStatus() |
 | check_kitchen_printer | print::do_check_kitchen_printer | spawn | posEngine.checkKitchenPrinter() |
@@ -157,6 +158,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | clock_out_employee | social::do_clock_out_employee | spawn | posEngine.clockOutEmployee() |
 | close_unpaid | unpaid::do_close_unpaid | spawn | posEngine.closeUnpaid() |
 | copy_ticket | copy::do_copy_ticket_with | spawn | posEngine.copyTicket() |
+| correct_payment | payment_correction::do_correct_payment | spawn | posEngine.correctPayment() |
 | create_order | order::do_create_order | blocking | posEngine.createOrder() |
 | create_user | auth::do_create_user | blocking | posEngine.createUser() |
 | deactivate_user | auth::do_deactivate_user | blocking | posEngine.deactivateUser() |
@@ -202,6 +204,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | list_open_takeaways | tables::do_list_open_takeaways | blocking | posEngine.listOpenTakeaways() |
 | list_order_lines | order::do_list_order_lines | blocking | posEngine.listOrderLines() |
 | list_refundable_events | refund::do_list_refundable_events | blocking | posEngine.listRefundableEvents() |
+| list_sale_payments | payment_correction::do_list_sale_payments | blocking | posEngine.listSalePayments() |
 | list_tables | tables::do_list_configured_tables | blocking | posEngine.listTables() |
 | list_ticket_deliveries | delivery::do_list_ticket_deliveries | blocking | posEngine.listTicketDeliveries() |
 | list_unsettled_card_payments | eft::do_list_unsettled_card_payments | blocking | posEngine.listUnsettledCardPayments() |
@@ -220,9 +223,11 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | refund_checkout | refund::do_refund_checkout_with | spawn | posEngine.refundCheckout() |
 | remote_support_running | support::do_remote_support_running | blocking | posEngine.remoteSupportRunning() |
 | remote_support_status | support::do_remote_support_status | blocking | posEngine.remoteSupportStatus() |
+| remove_discount | discount::do_remove_discount | spawn | posEngine.removeDiscount() |
 | remove_order_line | order::do_remove_order_line | blocking | posEngine.removeOrderLine() |
 | set_active_order | session::do_set_active_order | blocking | posEngine.setActiveOrder() |
 | set_hubrise_enabled | integrations::do_set_hubrise_enabled | blocking | posEngine.setHubriseEnabled() |
+| set_line_note | order::do_set_line_note | spawn | posEngine.setLineNote() |
 | set_pin | auth::do_set_pin | blocking | posEngine.setPin() |
 | set_table_plan | table_plan::do_set_table_plan | blocking | posEngine.setTablePlan() |
 | set_training_mode | settings::do_set_training_mode | blocking | posEngine.setTrainingMode() |
@@ -230,6 +235,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | sign_table_order | tables::do_sign_table_order | spawn | posEngine.signTableOrder() |
 | start_remote_support | support::do_start_remote_support | blocking | posEngine.startRemoteSupport() |
 | stop_remote_support | support::do_stop_remote_support | blocking | posEngine.stopRemoteSupport() |
+| transfer_table | table_transfer::do_transfer_table | spawn | posEngine.transferTable() |
 | update_order_line_quantity | order::do_update_order_line_quantity | blocking | posEngine.updateOrderLineQuantity() |
 | user_activity | session::do_user_activity | blocking | posEngine.userActivity() |
 | webshop_accept_order | webshop::do_accept_webshop_order | spawn | posEngine.webshopAcceptOrder() |
@@ -241,7 +247,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | work_in | social::do_work_in | spawn | posEngine.workIn() |
 | work_out | social::do_work_out | spawn | posEngine.workOut() |
 
-Parity: 96/96.
+Parity: 102/102.
 <!-- parity:end -->
 
 ## 12. JVM tests, mocks and gates

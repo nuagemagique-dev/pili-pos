@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.ui.format
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import uniffi.pos_ffi.DiscountKind
 
 class CashDisplayTest {
     @Test
@@ -105,5 +106,37 @@ class CashDisplayTest {
     @Test
     fun sumFailsOnOverflowInsteadOfWrapping() {
         assertThrows(ArithmeticException::class.java) { CashDisplay.sumCents(listOf(Long.MAX_VALUE, 1L)) }
+    }
+
+    @Test
+    fun aPercentIsRoundedHalfUp() {
+        assertEquals(2600L, CashDisplay.totalAfterDiscountCents(5200L, DiscountKind.PERCENT, 50L))
+        // 10 % of 5,05 is 50,5 cents: rounds to 51.
+        assertEquals(454L, CashDisplay.totalAfterDiscountCents(505L, DiscountKind.PERCENT, 10L))
+        // 5 % of 0,10 is 0,5 cent: rounds up to 1.
+        assertEquals(9L, CashDisplay.totalAfterDiscountCents(10L, DiscountKind.PERCENT, 5L))
+        // 15 % of 0,03 is 0,45 cent: rounds down to 0.
+        assertEquals(3L, CashDisplay.totalAfterDiscountCents(3L, DiscountKind.PERCENT, 15L))
+    }
+
+    @Test
+    fun anAmountIsTakenOffAndOfferedGivesZero() {
+        assertEquals(1900L, CashDisplay.totalAfterDiscountCents(2400L, DiscountKind.AMOUNT, 500L))
+        assertEquals(0L, CashDisplay.totalAfterDiscountCents(2400L, DiscountKind.AMOUNT, 2400L))
+        assertEquals(0L, CashDisplay.totalAfterDiscountCents(2400L, DiscountKind.FREE, 0L))
+    }
+
+    @Test
+    fun aValueOutOfRangeLeavesTheTotal() {
+        assertEquals(2400L, CashDisplay.totalAfterDiscountCents(2400L, DiscountKind.PERCENT, 0L))
+        assertEquals(2400L, CashDisplay.totalAfterDiscountCents(2400L, DiscountKind.PERCENT, 100L))
+        assertEquals(2400L, CashDisplay.totalAfterDiscountCents(2400L, DiscountKind.AMOUNT, 2401L))
+        assertEquals(2400L, CashDisplay.totalAfterDiscountCents(2400L, DiscountKind.AMOUNT, 0L))
+    }
+
+    @Test
+    fun theSubtotalPutsTheDiscountBack() {
+        assertEquals(2400L, CashDisplay.subtotalBeforeDiscountCents(1200L, -1200L))
+        assertEquals(1200L, CashDisplay.subtotalBeforeDiscountCents(1200L, 0L))
     }
 }

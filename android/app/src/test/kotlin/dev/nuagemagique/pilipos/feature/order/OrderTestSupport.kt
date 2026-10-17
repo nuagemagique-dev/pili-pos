@@ -27,6 +27,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import uniffi.pos_ffi.CallbackEvent
 import uniffi.pos_ffi.CartLine
+import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.Category
 import uniffi.pos_ffi.Integrations
 import uniffi.pos_ffi.MenuItem
@@ -96,6 +97,10 @@ internal fun cartLine(
     code: String? = null,
     modifiersJson: String? = null,
     unsent: Long = 0,
+    discountCents: Long = 0,
+    priceChanges: List<CartPriceChange> = emptyList(),
+    kitchenNote: String? = null,
+    online: Boolean = false,
 ): CartLine =
     CartLine(
         id = id,
@@ -113,6 +118,10 @@ internal fun cartLine(
         departmentId = "d",
         departmentName = "Dept",
         unsentQuantity = unsent,
+        discountCents = discountCents,
+        priceChanges = priceChanges,
+        kitchenNote = kitchenNote,
+        online = online,
     )
 
 internal fun orderLine(menuItemId: Long): OrderLine =

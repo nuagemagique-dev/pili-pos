@@ -68,6 +68,41 @@ pub fn add_to_line(
     super::orders::recalculate_totals(conn, order_id)
 }
 
+/// Record `changes` on journal entry `entry_id` of `line_id`, and bring
+/// the order total to the net amount (a till discount on the entries of
+/// a PRICE_CHANGE pair).
+pub fn add_to_entry(
+    conn: &Connection,
+    entry_id: i64,
+    changes: &[NewPriceChange<'_>],
+) -> Result<(), rusqlite::Error> {
+    let (order_id, line_id): (i64, i64) = conn.query_row(
+        "SELECT order_id, line_id FROM order_entries WHERE id = ?1",
+        params![entry_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?;
+    for c in changes {
+        conn.execute(
+            "INSERT INTO order_price_changes
+                (order_id, entry_id, line_id, grouping_id, change_id, name, scope,
+                 change_type, amount_cents)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                order_id,
+                entry_id,
+                line_id,
+                c.grouping_id,
+                c.change_id,
+                c.name,
+                c.scope,
+                c.change_type,
+                c.amount_cents
+            ],
+        )?;
+    }
+    super::orders::recalculate_totals(conn, order_id)
+}
+
 /// A correction removing the whole line: its changes, negated, go on
 /// the correction entry just journalled, so the line nets to zero.
 pub(crate) fn negate_on_correction(conn: &Connection, line_id: i64) -> Result<(), rusqlite::Error> {
@@ -76,6 +111,16 @@ pub(crate) fn negate_on_correction(conn: &Connection, line_id: i64) -> Result<()
         params![line_id],
         |r| r.get(0),
     )?;
+    negate_line_on_entry(conn, line_id, entry_id)
+}
+
+/// The line's changes so far, negated, on journal entry `entry_id` (the
+/// correction of a PRICE_CHANGE pair or of the whole line).
+pub fn negate_line_on_entry(
+    conn: &Connection,
+    line_id: i64,
+    entry_id: i64,
+) -> Result<(), rusqlite::Error> {
     conn.execute(
         "INSERT INTO order_price_changes
             (order_id, entry_id, line_id, grouping_id, change_id, name, scope,

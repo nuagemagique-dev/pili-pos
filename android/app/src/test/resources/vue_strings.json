@@ -330,6 +330,18 @@
       "zh": "警告",
       "area": "core"
     },
+    "checkout_discount": {
+      "fr": "Remise",
+      "en": "Discount",
+      "zh": "折扣",
+      "area": "checkout"
+    },
+    "checkout_subtotal": {
+      "fr": "Sous-total",
+      "en": "Subtotal",
+      "zh": "小计",
+      "area": "checkout"
+    },
     "clear": {
       "fr": "Effacer",
       "en": "Clear",
@@ -598,6 +610,162 @@
       "fr": "11 chiffres requis",
       "en": "11 digits required",
       "zh": "需要11位数字",
+      "area": "core"
+    },
+    "discount_applied": {
+      "fr": "Remise appliquée",
+      "en": "Discount applied",
+      "zh": "折扣已应用",
+      "area": "core"
+    },
+    "discount_apply": {
+      "fr": "Appliquer la remise",
+      "en": "Apply discount",
+      "zh": "应用折扣",
+      "area": "core"
+    },
+    "discount_button": {
+      "fr": "Remise",
+      "en": "Discount",
+      "zh": "折扣",
+      "area": "core"
+    },
+    "discount_custom_amount": {
+      "fr": "Montant de la remise",
+      "en": "Discount amount",
+      "zh": "折扣金额",
+      "area": "core"
+    },
+    "discount_custom_percent": {
+      "fr": "Autre pourcentage",
+      "en": "Other percent",
+      "zh": "其他百分比",
+      "area": "core"
+    },
+    "discount_free_note": {
+      "fr": "Toute la commande est offerte : le ticket est à 0,00 €.",
+      "en": "The whole order is free: the ticket is 0.00 €.",
+      "zh": "整单免费：小票金额为 0,00 €。",
+      "area": "core"
+    },
+    "discount_hint": {
+      "fr": "La remise figure sur le ticket fiscal. Confirmez avec votre PIN.",
+      "en": "The discount appears on the fiscal ticket. Confirm with your PIN.",
+      "zh": "折扣将显示在税务小票上。请输入PIN确认。",
+      "area": "core"
+    },
+    "discount_offer": {
+      "fr": "Offrir",
+      "en": "Give free",
+      "zh": "免费赠送",
+      "area": "core"
+    },
+    "discount_offer_title": {
+      "fr": "Offrir la ligne",
+      "en": "Give the line free",
+      "zh": "整行免费",
+      "area": "core"
+    },
+    "discount_preview": {
+      "fr": "Total {from} € → {to} €",
+      "en": "Total {from} € → {to} €",
+      "zh": "合计 {from} € → {to} €",
+      "area": "core"
+    },
+    "discount_reason": {
+      "fr": "Motif",
+      "en": "Reason",
+      "zh": "原因",
+      "area": "core"
+    },
+    "discount_reason_commercial_gesture": {
+      "fr": "Geste commercial",
+      "en": "Goodwill gesture",
+      "zh": "商业礼遇",
+      "area": "core"
+    },
+    "discount_reason_other": {
+      "fr": "Autre",
+      "en": "Other",
+      "zh": "其他",
+      "area": "core"
+    },
+    "discount_reason_service_issue": {
+      "fr": "Problème de service",
+      "en": "Service issue",
+      "zh": "服务问题",
+      "area": "core"
+    },
+    "discount_reason_staff_meal": {
+      "fr": "Repas du personnel",
+      "en": "Staff meal",
+      "zh": "员工餐",
+      "area": "core"
+    },
+    "discount_reason_text_add": {
+      "fr": "Ajouter une précision",
+      "en": "Add a detail",
+      "zh": "添加说明",
+      "area": "core"
+    },
+    "discount_reason_text_placeholder": {
+      "fr": "Ex. : plat froid",
+      "en": "E.g. cold dish",
+      "zh": "例如：菜凉了",
+      "area": "core"
+    },
+    "discount_reason_text_title": {
+      "fr": "Précision du motif (facultatif)",
+      "en": "Reason detail (optional)",
+      "zh": "原因说明（可选）",
+      "area": "core"
+    },
+    "discount_registration_failed": {
+      "fr": "Remise enregistrée, mais l'envoi au module fiscal a échoué : il sera refait à la prochaine commande.",
+      "en": "Discount saved, but registering it with the fiscal module failed: it is retried with the next order.",
+      "zh": "折扣已保存，但提交税务模块失败：将在下次下单时重试。",
+      "area": "core"
+    },
+    "discount_remove": {
+      "fr": "Retirer la remise",
+      "en": "Remove discount",
+      "zh": "取消折扣",
+      "area": "core"
+    },
+    "discount_remove_hint": {
+      "fr": "Le prix d'origine est rétabli. Confirmez avec votre PIN.",
+      "en": "The original price is restored. Confirm with your PIN.",
+      "zh": "将恢复原价。请输入PIN确认。",
+      "area": "core"
+    },
+    "discount_removed": {
+      "fr": "Remise retirée",
+      "en": "Discount removed",
+      "zh": "折扣已取消",
+      "area": "core"
+    },
+    "discount_tab_amount": {
+      "fr": "Montant",
+      "en": "Amount",
+      "zh": "金额",
+      "area": "core"
+    },
+    "discount_tab_free": {
+      "fr": "Offert",
+      "en": "Free",
+      "zh": "免费",
+      "area": "core"
+    },
+    "discount_tab_percent": {
+      "fr": "%",
+      "en": "%",
+      "zh": "%",
+      "area": "core"
+    },
+    "discount_title": {
+      "fr": "Remise sur la commande",
+      "en": "Order discount",
+      "zh": "订单折扣",
       "area": "core"
     },
     "eft_approved": {
@@ -900,6 +1068,36 @@
       "zh": "堂食订单需要桌号。",
       "area": "errors"
     },
+    "err_discount_already_applied": {
+      "fr": "Une remise s'applique déjà : retirez-la d'abord.",
+      "en": "A discount already applies: remove it first.",
+      "zh": "已有折扣：请先取消。",
+      "area": "errors"
+    },
+    "err_discount_invalid": {
+      "fr": "Remise non valable : pourcentage de 1 à 99, ou montant jusqu'au total.",
+      "en": "Invalid discount: a percent from 1 to 99, or an amount up to the total.",
+      "zh": "折扣无效：百分比为 1 至 99，或不超过总额的金额。",
+      "area": "errors"
+    },
+    "err_discount_none": {
+      "fr": "Aucune remise à retirer.",
+      "en": "No discount to remove.",
+      "zh": "没有可取消的折扣。",
+      "area": "errors"
+    },
+    "err_discount_online_order": {
+      "fr": "Une commande en ligne a ses propres remises : aucune remise en caisse.",
+      "en": "An online order has its own discounts: none at the till.",
+      "zh": "在线订单有自己的折扣：不能在收银台打折。",
+      "area": "errors"
+    },
+    "err_discount_reason_invalid": {
+      "fr": "Choisissez le motif de la remise.",
+      "en": "Choose the reason for the discount.",
+      "zh": "请选择折扣原因。",
+      "area": "errors"
+    },
     "err_eft_amount_invalid": {
       "fr": "Montant invalide : il doit être positif et ne pas dépasser ce qu'il reste à payer.",
       "en": "Invalid amount: it must be positive and not more than what is left to pay.",
@@ -1098,6 +1296,12 @@
       "zh": "内部错误，请联系技术人员。（{detail}）",
       "area": "errors"
     },
+    "err_line_has_price_changes": {
+      "fr": "Cette ligne a une remise : retirez-la avant de changer la quantité.",
+      "en": "This line has a discount: remove it before changing the quantity.",
+      "zh": "此行有折扣：请先取消再修改数量。",
+      "area": "errors"
+    },
     "err_line_not_found": {
       "fr": "Cette ligne n'existe plus.",
       "en": "This line no longer exists.",
@@ -1144,6 +1348,18 @@
       "fr": "Action au nom d'un autre employé refusée.",
       "en": "Acting for another employee is refused.",
       "zh": "不能以其他员工的名义操作。",
+      "area": "errors"
+    },
+    "err_note_too_long": {
+      "fr": "Note trop longue : 60 caractères au plus.",
+      "en": "Note too long: 60 characters at most.",
+      "zh": "备注太长：最多60个字符。",
+      "area": "errors"
+    },
+    "err_note_unprintable": {
+      "fr": "La note a un caractère que l'imprimante de cuisine ne sait pas imprimer (lettres, chiffres et accents seulement).",
+      "en": "The note has a character the kitchen printer cannot print (letters, digits and accents only).",
+      "zh": "备注含有厨房打印机无法打印的字符（仅限字母、数字和重音符号）。",
       "area": "errors"
     },
     "err_nothing_to_refund": {
@@ -1198,6 +1414,78 @@
       "fr": "Le ticket d'origine est incomplet ({field}). Contactez votre technicien.",
       "en": "The original ticket is incomplete ({field}). Contact your technician.",
       "zh": "原始票据不完整（{field}），请联系技术人员。",
+      "area": "errors"
+    },
+    "err_payment_correction_already_done": {
+      "fr": "Le paiement de cette vente a déjà été corrigé une fois.",
+      "en": "This sale's payment was already corrected once.",
+      "zh": "此销售的付款已更正过一次。",
+      "area": "errors"
+    },
+    "err_payment_correction_bad_line": {
+      "fr": "Cette ligne de paiement n'existe pas.",
+      "en": "This payment line does not exist.",
+      "zh": "此付款行不存在。",
+      "area": "errors"
+    },
+    "err_payment_correction_method": {
+      "fr": "Ce moyen de paiement n'est pas accepté en caisse (espèces, carte, titres-repas).",
+      "en": "This payment method is not taken at the till (cash, card, meal vouchers).",
+      "zh": "收银台不接受此付款方式（现金、银行卡、餐券）。",
+      "area": "errors"
+    },
+    "err_payment_correction_not_a_sale": {
+      "fr": "Seul un ticket de vente peut être corrigé.",
+      "en": "Only a sale ticket can be corrected.",
+      "zh": "只能更正销售小票。",
+      "area": "errors"
+    },
+    "err_payment_correction_online": {
+      "fr": "Une commande en ligne est payée par la plateforme : son paiement ne se corrige pas ici.",
+      "en": "An online order is paid through the platform: its payment is not corrected here.",
+      "zh": "在线订单由平台收款：不能在此更正。",
+      "area": "errors"
+    },
+    "err_payment_correction_period_closed": {
+      "fr": "Cette vente appartient à une journée déjà clôturée (rapport Z).",
+      "en": "This sale belongs to a day already closed (Z report).",
+      "zh": "此销售属于已结账（Z报表）的日期。",
+      "area": "errors"
+    },
+    "err_payment_correction_refunded": {
+      "fr": "Cette vente a été remboursée (en tout ou en partie) : son paiement ne peut plus être corrigé.",
+      "en": "This sale was refunded (in whole or in part): its payment can no longer be corrected.",
+      "zh": "此销售已退款（全部或部分）：不能再更正付款。",
+      "area": "errors"
+    },
+    "err_payment_correction_rounding": {
+      "fr": "Cette correction demanderait un arrondi : elle n'est pas possible pour cette vente.",
+      "en": "This correction would need rounding: it is not possible for this sale.",
+      "zh": "此更正需要四舍五入：此销售无法更正。",
+      "area": "errors"
+    },
+    "err_payment_correction_same_method": {
+      "fr": "Choisissez un autre moyen de paiement que celui de la ligne.",
+      "en": "Choose a payment method other than the line's.",
+      "zh": "请选择与该行不同的付款方式。",
+      "area": "errors"
+    },
+    "err_payment_correction_terminal_card": {
+      "fr": "Une carte prise sur le terminal lié ne peut pas être corrigée.",
+      "en": "A card taken on the linked terminal cannot be corrected.",
+      "zh": "通过关联终端刷的卡不能更正。",
+      "area": "errors"
+    },
+    "err_payment_correction_training": {
+      "fr": "Une vente d'entraînement se corrige en mode entraînement, une vente réelle hors entraînement.",
+      "en": "A training sale is corrected in training mode, a real sale outside it.",
+      "zh": "培训销售只能在培训模式下更正，真实销售则不能。",
+      "area": "errors"
+    },
+    "err_payment_correction_unpaid": {
+      "fr": "Cette vente n'a pas été payée : aucun paiement à corriger.",
+      "en": "This sale was not paid: no payment to correct.",
+      "zh": "此销售未付款：没有可更正的付款。",
       "area": "errors"
     },
     "err_payment_exceeds_total": {
@@ -1420,6 +1708,36 @@
       "fr": "Écrivez les numéros de table comme ceci : 1-12, 20-25 (de 1 à 999, 200 tables au plus).",
       "en": "Write the table numbers like this: 1-12, 20-25 (1 to 999, at most 200 tables).",
       "zh": "请按此格式填写桌号：1-12, 20-25（1至999，最多200张桌）。",
+      "area": "errors"
+    },
+    "err_table_transfer_not_a_table": {
+      "fr": "Seule une commande en salle peut changer de table.",
+      "en": "Only a dine-in order can change table.",
+      "zh": "只有堂食订单才能换桌。",
+      "area": "errors"
+    },
+    "err_table_transfer_not_moved": {
+      "fr": "Le transfert est enregistré mais une commande a été ouverte entre-temps sur la table cible : la commande reste sur sa table d'origine. Choisissez une autre table.",
+      "en": "The transfer is recorded but an order was opened on the target table meanwhile: the order stays on its original table. Pick another table.",
+      "zh": "转台已记录，但目标桌在此期间已有订单：订单保留在原桌。请选择其他桌。",
+      "area": "errors"
+    },
+    "err_table_transfer_same_table": {
+      "fr": "La commande est déjà à cette table.",
+      "en": "The order is already at this table.",
+      "zh": "订单已在这张桌子上。",
+      "area": "errors"
+    },
+    "err_table_transfer_target_busy": {
+      "fr": "Cette table a déjà une commande en cours : choisissez une table libre.",
+      "en": "This table already has an open order: pick a free table.",
+      "zh": "这张桌子已有进行中的订单：请选择空桌。",
+      "area": "errors"
+    },
+    "err_table_transfer_target_invalid": {
+      "fr": "Cette table n'existe pas dans le plan de salle.",
+      "en": "This table is not in the floor plan.",
+      "zh": "这张桌子不在餐厅布局中。",
       "area": "errors"
     },
     "err_takeaway_has_no_table": {
@@ -1824,6 +2142,12 @@
       "zh": "件",
       "area": "core"
     },
+    "keypad_space": {
+      "fr": "Espace",
+      "en": "Space",
+      "zh": "空格",
+      "area": "core"
+    },
     "kitchen_slip_failed": {
       "fr": "Bon de commande non imprimé : prévenez le bar ou la cuisine.",
       "en": "Order slip not printed: tell the bar or kitchen.",
@@ -1942,6 +2266,36 @@
       "fr": "Pas encore en cuisine",
       "en": "Not sent to the kitchen yet",
       "zh": "未送厨房",
+      "area": "core"
+    },
+    "note_button": {
+      "fr": "Note",
+      "en": "Note",
+      "zh": "备注",
+      "area": "core"
+    },
+    "note_hint_now": {
+      "fr": "Imprimée en cuisine maintenant",
+      "en": "Printed in the kitchen now",
+      "zh": "将立即在厨房打印",
+      "area": "core"
+    },
+    "note_hint_with_order": {
+      "fr": "Imprimée en cuisine avec la commande",
+      "en": "Printed in the kitchen with the order",
+      "zh": "将随订单在厨房打印",
+      "area": "core"
+    },
+    "note_placeholder": {
+      "fr": "Ex. : sans wasabi",
+      "en": "E.g. no wasabi",
+      "zh": "例如：不要芥末",
+      "area": "core"
+    },
+    "note_title": {
+      "fr": "Note pour la cuisine",
+      "en": "Kitchen note",
+      "zh": "厨房备注",
       "area": "core"
     },
     "off_shift": {
@@ -2326,6 +2680,102 @@
       "fr": "Autre montant",
       "en": "Other amount",
       "zh": "其他金额",
+      "area": "reports"
+    },
+    "reports_pc_action": {
+      "fr": "Corriger le paiement",
+      "en": "Correct payment",
+      "zh": "更正付款",
+      "area": "reports"
+    },
+    "reports_pc_confirm": {
+      "fr": "Corriger",
+      "en": "Correct",
+      "zh": "更正",
+      "area": "reports"
+    },
+    "reports_pc_corrected": {
+      "fr": "Paiement corrigé : {from} → {to}",
+      "en": "Payment corrected: {from} → {to}",
+      "zh": "付款已更正：{from} → {to}",
+      "area": "reports"
+    },
+    "reports_pc_done": {
+      "fr": "Paiement corrigé",
+      "en": "Payment corrected",
+      "zh": "付款已更正",
+      "area": "reports"
+    },
+    "reports_pc_line": {
+      "fr": "{method} · {amount} €",
+      "en": "{method} · {amount} €",
+      "zh": "{method} · {amount} €",
+      "area": "reports"
+    },
+    "reports_pc_method_card": {
+      "fr": "Carte",
+      "en": "Card",
+      "zh": "银行卡",
+      "area": "reports"
+    },
+    "reports_pc_method_cash": {
+      "fr": "Espèces",
+      "en": "Cash",
+      "zh": "现金",
+      "area": "reports"
+    },
+    "reports_pc_method_meal_voucher": {
+      "fr": "Titres-repas",
+      "en": "Meal vouchers",
+      "zh": "餐券",
+      "area": "reports"
+    },
+    "reports_pc_not_possible": {
+      "fr": "Ce paiement ne peut pas être corrigé",
+      "en": "This payment cannot be corrected",
+      "zh": "此付款无法更正",
+      "area": "reports"
+    },
+    "reports_pc_pick_line": {
+      "fr": "Quelle ligne de paiement faut-il corriger ?",
+      "en": "Which payment line is wrong?",
+      "zh": "要更正哪一笔付款？",
+      "area": "reports"
+    },
+    "reports_pc_pick_method": {
+      "fr": "Payé en réalité par",
+      "en": "Actually paid by",
+      "zh": "实际付款方式",
+      "area": "reports"
+    },
+    "reports_pc_pin_hint": {
+      "fr": "Confirmez la correction du paiement avec votre code PIN.",
+      "en": "Confirm the payment correction with your PIN.",
+      "zh": "请输入PIN码确认付款更正。",
+      "area": "reports"
+    },
+    "reports_pc_summary": {
+      "fr": "{from} {amount} € → {to} {amount} €",
+      "en": "{from} {amount} € → {to} {amount} €",
+      "zh": "{from} {amount} € → {to} {amount} €",
+      "area": "reports"
+    },
+    "reports_pc_terminal": {
+      "fr": "Terminal",
+      "en": "Terminal",
+      "zh": "终端",
+      "area": "reports"
+    },
+    "reports_pc_terminal_note": {
+      "fr": "Une carte prise sur le terminal ne se corrige pas.",
+      "en": "A card taken on the terminal cannot be corrected.",
+      "zh": "通过终端刷的卡不能更正。",
+      "area": "reports"
+    },
+    "reports_pc_title": {
+      "fr": "Corriger le paiement",
+      "en": "Correct the payment",
+      "zh": "更正付款",
       "area": "reports"
     },
     "reports_reason_fond_de_caisse": {
@@ -2976,6 +3426,54 @@
       "zh": "培训模式",
       "area": "core"
     },
+    "transfer_confirm": {
+      "fr": "Déplacer la table {from} vers la table {to} ?",
+      "en": "Move table {from} to table {to}?",
+      "zh": "将 {from} 号桌移到 {to} 号桌？",
+      "area": "core"
+    },
+    "transfer_done": {
+      "fr": "Commande déplacée vers la table {to}",
+      "en": "Order moved to table {to}",
+      "zh": "订单已移到 {to} 号桌",
+      "area": "core"
+    },
+    "transfer_mode": {
+      "fr": "Déplacer une table",
+      "en": "Move a table",
+      "zh": "移动桌子",
+      "area": "core"
+    },
+    "transfer_no_free": {
+      "fr": "Aucune table libre",
+      "en": "No free table",
+      "zh": "没有空桌",
+      "area": "core"
+    },
+    "transfer_pick_free": {
+      "fr": "Table {from} : touchez la table libre",
+      "en": "Table {from}: tap the free table",
+      "zh": "{from} 号桌：点按空桌",
+      "area": "core"
+    },
+    "transfer_pick_source": {
+      "fr": "Touchez la table à déplacer",
+      "en": "Tap the table to move",
+      "zh": "点按要移动的桌子",
+      "area": "core"
+    },
+    "transfer_pick_target": {
+      "fr": "Choisissez la table libre",
+      "en": "Pick the free table",
+      "zh": "请选择空桌",
+      "area": "core"
+    },
+    "transfer_table": {
+      "fr": "Changer de table",
+      "en": "Change table",
+      "zh": "换桌",
+      "area": "core"
+    },
     "unpaid_close": {
       "fr": "Client parti sans payer",
       "en": "Customer left without paying",
@@ -3425,7 +3923,32 @@
     "fdm_zh_vendor_1": "收银机无权与黑匣子通信。"
   },
   "engineErrorCodes": [
+    "payment_correction_not_a_sale",
+    "payment_correction_training",
+    "payment_correction_period_closed",
+    "payment_correction_unpaid",
+    "payment_correction_online",
+    "payment_correction_refunded",
+    "payment_correction_already_done",
+    "payment_correction_bad_line",
+    "payment_correction_terminal_card",
+    "payment_correction_same_method",
+    "payment_correction_method",
+    "payment_correction_rounding",
+    "discount_already_applied",
+    "discount_none",
+    "discount_invalid",
+    "discount_reason_invalid",
+    "discount_online_order",
+    "line_has_price_changes",
+    "note_too_long",
+    "note_unprintable",
     "config_tables",
+    "table_transfer_same_table",
+    "table_transfer_target_busy",
+    "table_transfer_target_invalid",
+    "table_transfer_not_a_table",
+    "table_transfer_not_moved",
     "config_pos_id",
     "config_restaurant_vat",
     "config_restaurant_est_no",

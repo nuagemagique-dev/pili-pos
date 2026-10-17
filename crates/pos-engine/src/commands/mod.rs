@@ -4,6 +4,8 @@ pub mod bar_slip;
 pub mod checkout;
 pub mod copy;
 pub mod delivery;
+#[cfg(feature = "hubrise")]
+pub mod discount;
 pub mod eft;
 pub mod errors;
 pub mod export;
@@ -21,6 +23,7 @@ pub mod menu;
 #[cfg(feature = "hubrise")]
 pub mod modifiers;
 pub mod order;
+pub mod payment_correction;
 #[cfg(feature = "hubrise")]
 pub(crate) mod price_changes;
 pub mod print;
@@ -32,6 +35,7 @@ pub mod signing;
 pub mod social;
 pub mod support;
 pub mod table_plan;
+pub mod table_transfer;
 pub mod tables;
 pub mod unpaid;
 #[cfg(feature = "hubrise")]

@@ -26,11 +26,14 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import uniffi.pos_ffi.CorrectionDone
 import uniffi.pos_ffi.MoneyDirection
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.RefundItem
 import uniffi.pos_ffi.RequestedMedium
+import uniffi.pos_ffi.SalePayments
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Suppress("LargeClass", "TooManyFunctions")
@@ -1304,4 +1307,177 @@ class ReportsViewModelTest {
         assertEquals("Z", reportLabel(ReportKind.Z, 0L))
         assertEquals("Z", reportLabel(ReportKind.Z, null))
     }
+
+    // ── Payment correction flow (event F) ─────────────────────────
+
+    private suspend fun TestScope.correctionRig(
+        f: EngineFixture,
+        payments: SalePayments = salePayments(5L),
+    ): ReportsRig {
+        coEvery { f.engine.listSalePayments(5L) } returns payments
+        val r = start(f)
+        r.model.openCorrection(
+            TicketRow(5L, 5L, 4, 1000L, "2026-10-09T12:00:00", TicketKind.SALE, copyable(5L), null),
+        )
+        runCurrent()
+        return r
+    }
+
+    @Test
+    fun openingTheCorrectionReadsThePaymentLinesAndPicksTheOnlyOne() =
+        runTest {
+            val f = fixture()
+            val r = correctionRig(f)
+
+            val flow = r.state.correctionFlow!!
+            assertEquals(5L, flow.fiscalEventId)
+            assertEquals(0, flow.lineIndex)
+            assertNull(flow.method)
+            assertFalse(flow.canConfirm)
+        }
+
+    @Test
+    fun withTwoFreeLinesNoneIsPickedUntilTheOperatorChooses() =
+        runTest {
+            val f = fixture()
+            val r = correctionRig(f, salePayments(5L, listOf(paymentLine(0), paymentLine(1, "CARD_DEBIT"))))
+
+            assertNull(r.state.correctionFlow?.lineIndex)
+
+            r.model.pickCorrectionLine(1)
+            r.model.pickCorrectionMethod(PaymentMethod.CASH)
+
+            assertEquals(1, r.state.correctionFlow?.lineIndex)
+            assertTrue(r.state.correctionFlow!!.canConfirm)
+        }
+
+    @Test
+    fun aCardTheTerminalTookCannotBePicked() =
+        runTest {
+            val f = fixture()
+            val r = correctionRig(f, salePayments(5L, listOf(paymentLine(0, "CARD_DEBIT", input = "AUTOMATIC"), paymentLine(1))))
+
+            // The only free line is picked on its own; the terminal card never is.
+            assertEquals(1, r.state.correctionFlow?.lineIndex)
+
+            r.model.pickCorrectionLine(0)
+
+            assertEquals(1, r.state.correctionFlow?.lineIndex)
+        }
+
+    @Test
+    fun theMethodTheLineAlreadyHasIsNotAChoice() =
+        runTest {
+            val f = fixture()
+            val r = correctionRig(f)
+
+            r.model.pickCorrectionMethod(PaymentMethod.CASH)
+            assertNull(r.state.correctionFlow?.method)
+
+            r.model.pickCorrectionMethod(PaymentMethod.CARD)
+            assertEquals(PaymentMethod.CARD, r.state.correctionFlow?.method)
+
+            r.model.pickCorrectionMethod(PaymentMethod.ONLINE)
+            assertEquals(PaymentMethod.CARD, r.state.correctionFlow?.method)
+        }
+
+    @Test
+    fun theConfirmButtonAsksForThePinOnlyOnceALineAndAMethodArePicked() =
+        runTest {
+            val f = fixture()
+            val r = correctionRig(f)
+
+            r.model.askCorrectionPin()
+            assertFalse(r.state.correctionFlow!!.askPin)
+
+            r.model.pickCorrectionMethod(PaymentMethod.CARD)
+            r.model.askCorrectionPin()
+            assertTrue(r.state.correctionFlow!!.askPin)
+
+            r.model.cancelCorrectionPin()
+            assertFalse(r.state.correctionFlow!!.askPin)
+        }
+
+    @Test
+    fun aFailingReadIsShownInTheDialog() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listSalePayments(5L) } throws refused
+            val r = start(f)
+
+            r.model.openCorrection(TicketRow(5L, 5L, 4, 1000L, "2026-10-09T12:00:00", TicketKind.SALE, copyable(5L), null))
+            runCurrent()
+
+            assertNotNull(r.state.correctionFlow?.loadFailure)
+            assertNull(r.state.correctionFlow?.payments)
+        }
+
+    @Test
+    fun thePinSignsTheCorrectionOfThePickedLineForTheManager() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.correctPayment(any(), any(), any(), any(), any()) } returns financial()
+            val r = correctionRig(f)
+            r.model.pickCorrectionMethod(PaymentMethod.MEAL_VOUCHER)
+
+            r.model.correctPayment("1234")
+
+            coVerify(exactly = 1) { f.engine.correctPayment(5L, 0, PaymentMethod.MEAL_VOUCHER, OPERATOR_INSZ, "1234") }
+        }
+
+    @Test
+    fun aRefusedCorrectionIsThrownToThePad() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.correctPayment(any(), any(), any(), any(), any()) } returns
+                financial(success = false, error = "payment_correction_period_closed")
+            val r = correctionRig(f)
+            r.model.pickCorrectionMethod(PaymentMethod.CARD)
+
+            val failure = runCatching { r.model.correctPayment("1234") }.exceptionOrNull()
+
+            assertNotNull(failure)
+            assertNotNull(r.state.correctionFlow)
+        }
+
+    @Test
+    fun aSignedCorrectionClosesTheDialogToastsAndReadsTheListsAgain() =
+        runTest {
+            val f = fixture()
+            val r = correctionRig(f)
+
+            r.model.correctionDone()
+            runCurrent()
+
+            assertNull(r.state.correctionFlow)
+            assertTrue(r.toastTexts().contains(r.text("reports_pc_done")))
+            coVerify(atLeast = 1) { f.engine.listCopyableTickets(any()) }
+        }
+
+    @Test
+    fun closingTheCorrectionDropsTheFlow() =
+        runTest {
+            val f = fixture()
+            val r = correctionRig(f)
+
+            r.model.closeCorrection()
+
+            assertNull(r.state.correctionFlow)
+        }
+
+    @Test
+    fun aManagerSeesWhichSalesAlreadyHaveACorrection() =
+        runTest {
+            val f = fixture()
+            val done = CorrectionDone("CASH", "CARD_DEBIT", 1000L, "2026-10-09T13:00:00")
+            coEvery { f.engine.listCopyableTickets(any()) } returns listOf(copyable(5L))
+            coEvery { f.engine.listSalePayments(5L) } returns salePayments(5L, corrected = done, correctable = false)
+            val r = start(f)
+
+            r.model.loadTickets()
+            runCurrent()
+
+            assertEquals(done, r.state.tickets.corrections[5L])
+            assertTrue(r.state.tickets.canCorrect)
+        }
 }

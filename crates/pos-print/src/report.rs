@@ -77,6 +77,10 @@ pub struct ReportDetails {
     pub invoices: Vec<(String, i64)>,
     /// Total of the rounding payment lines (art. 29 o).
     pub rounding_cents: i64,
+    /// Payment method corrections (event F): how many, and the amount
+    /// moved to another method. Absent in reports stored before.
+    #[serde(default)]
+    pub payment_corrections: (i64, i64),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -309,6 +313,14 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     p.text_columns(rl.payments_total, &fmt_price(data.grand_total_cents));
     p.style_reset();
     p.text_columns(rl.roundings, &fmt_price(d.rounding_cents));
+    if d.payment_corrections.0 > 0 {
+        count_row(
+            &mut p,
+            rl.payment_corrections,
+            d.payment_corrections.0,
+            d.payment_corrections.1,
+        );
+    }
 
     // ── FDM control data of the report event ───────────────────
     if data.fdm_datetime.is_some() || data.short_signature.is_some() {

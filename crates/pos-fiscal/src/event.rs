@@ -147,6 +147,13 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
     }
 }
 
+/// The transaction of `lines` with the journal's default reason, for
+/// the unit tests of the modules that adjust it.
+#[cfg(test)]
+pub(crate) fn build_transaction_for_tests(lines: &[OrderLine]) -> TransactionInput {
+    build_transaction(lines, NegQuantityReason::Correction)
+}
+
 /// The `reference` that ties together every event of one order (its P
 /// orders, pre-bills and the final N): stable for the order's lifetime.
 pub fn order_reference(order: &Order) -> String {
@@ -314,6 +321,14 @@ fn financial_lines(payments: &[PaymentSpec<'_>], rounding_cents: i64) -> Vec<Pay
         reference: spec.terminal.and_then(|t| t.reference.clone()),
         drawer: None,
     };
+    // A sale settled at 0,00 EUR (100 % discount, "Offert"): FAQ Q206 b
+    // allows an empty `financials` array (or a `PAY 0` cash line). The
+    // empty array is sent: no payment row appears in the reports for a
+    // payment that moved no money. The N event and its VAT ticket exist
+    // all the same (Q206 a, Q209).
+    if rounding_cents == 0 && payments.iter().all(|p| p.amount_cents == 0) {
+        return Vec::new();
+    }
     let mut out = Vec::new();
     for spec in payments {
         out.push(line(spec, spec.amount_cents, PaymentLineType::Payment));
@@ -385,6 +400,71 @@ pub fn build_pre_bill_input(
     }
 }
 
+// ── Event P - Cost center change (table transfer) ─────────────
+
+/// Build a CostCenterChangeInput (event P, `signCostCenterChange`,
+/// Basic Set M122): the consolidated `lines` of the order leave table
+/// `from_table` (quantity -q, `negQuantityReason` COST_CENTER_CHANGE)
+/// and arrive on `to_table` (quantity +q), one-to-one, under the same
+/// `reference` (the order's). Price changes already on a line travel
+/// with it: same id, name, scope, type and groupingId on both sides
+/// (producers FAQ Q304 d), negated on the from side. Nothing is
+/// printed (`ticketMedium` NONE, as the fixture).
+#[allow(clippy::too_many_arguments)]
+pub fn build_cost_center_change_input(
+    config: &PosConfig,
+    identity: &SoftwareIdentity,
+    order: &Order,
+    lines: &[OrderLine],
+    line_changes: &crate::price_change::LineChanges,
+    from_table: i32,
+    to_table: i32,
+    ticket_number: i64,
+    booking: &Booking,
+) -> CostCenterChangeInput {
+    let common = build_common_fields(
+        config,
+        identity,
+        ticket_number,
+        &order.user_insz,
+        booking,
+        TicketMedium::None,
+    );
+    let reference = order_reference(order);
+
+    let mut to_transaction = build_transaction(lines, NegQuantityReason::CostCenterChange);
+    crate::price_change::apply(&mut to_transaction, lines, line_changes);
+
+    let negated_lines: Vec<OrderLine> = lines
+        .iter()
+        .map(|l| OrderLine {
+            quantity: -l.quantity,
+            ..l.clone()
+        })
+        .collect();
+    let negated_changes: crate::price_change::LineChanges = line_changes
+        .iter()
+        .map(|(id, changes)| (*id, changes.iter().map(|c| c.negated()).collect()))
+        .collect();
+    let mut from_transaction =
+        build_transaction(&negated_lines, NegQuantityReason::CostCenterChange);
+    crate::price_change::apply(&mut from_transaction, &negated_lines, &negated_changes);
+
+    CostCenterChangeInput {
+        common,
+        transfer: TransferInput {
+            from: vec![TransferItemInput {
+                cost_center: build_table_cost_center(from_table, &reference),
+                transaction: from_transaction,
+            }],
+            to: vec![TransferItemInput {
+                cost_center: build_table_cost_center(to_table, &reference),
+                transaction: to_transaction,
+            }],
+        },
+    }
+}
+
 // ── Event C - Copy ─────────────────────────────────────────────
 
 /// Build a CopyInput for reprinting a previous event.
@@ -408,6 +488,63 @@ pub fn build_copy_input(
 
     CopyInput {
         common,
+        fdm_ref: FdmReferenceInput {
+            fdm_id: original_ref.fdm_id.clone(),
+            fdm_date_time: original_ref.fdm_date_time.clone(),
+            event_label: original_ref.event_label,
+            event_counter: original_ref.event_counter,
+            total_counter: original_ref.total_counter,
+        },
+    }
+}
+
+// ── Event F - Payment correction ───────────────────────────────
+
+/// Build a PaymentCorrectionInput (event F, `signPaymentCorrection`,
+/// Basic Set M132): a sale's payment line of `amount_cents` typed
+/// `from` is taken off (negative PAYMENT line) and the same amount is
+/// put on `to` (positive PAYMENT line). `original_ref` is the FDM
+/// reference of the corrected sale. Both lines are typed by hand
+/// (`MANUAL`), the cash drawer is not named (nothing is put in or out of
+/// it) and nothing is printed (`ticketMedium: NONE`, as the fixture).
+#[allow(clippy::too_many_arguments)]
+pub fn build_payment_correction_input(
+    config: &PosConfig,
+    identity: &SoftwareIdentity,
+    ticket_number: i64,
+    employee_insz: &str,
+    booking: &Booking,
+    original_ref: &FdmReference,
+    from: PaymentType,
+    to: PaymentType,
+    amount_cents: i64,
+) -> PaymentCorrectionInput {
+    let common = build_common_fields(
+        config,
+        identity,
+        ticket_number,
+        employee_insz,
+        booking,
+        TicketMedium::None,
+    );
+    let line = |payment_type: PaymentType, cents: i64| {
+        let (id, name) = payment_line_identity(payment_type);
+        PaymentLineInput {
+            id: id.to_string(),
+            name: name.to_string(),
+            payment_type,
+            provider: None,
+            input_method: InputMethod::Manual,
+            amount: eur(cents),
+            amount_type: PaymentLineType::Payment,
+            foreign_currency: None,
+            reference: None,
+            drawer: None,
+        }
+    };
+    PaymentCorrectionInput {
+        common,
+        financials: vec![line(from, -amount_cents), line(to, amount_cents)],
         fdm_ref: FdmReferenceInput {
             fdm_id: original_ref.fdm_id.clone(),
             fdm_date_time: original_ref.fdm_date_time.clone(),
@@ -961,6 +1098,35 @@ mod tests {
     }
 
     #[test]
+    fn a_sale_settled_at_zero_sends_empty_financials_faq_q206() {
+        use crate::payment::{PaymentPart, settle};
+        let (config, order, lines) = (test_config(), test_order(), test_lines());
+        let bp_id = Uuid::new_v4().to_string();
+        let zero = settle(0, &[PaymentPart::cash()]).unwrap();
+        let sale = build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &zero);
+        let json = serde_json::to_value(&sale).unwrap();
+        assert_eq!(json["financials"], serde_json::json!([]));
+        // The refund builder follows the same rule.
+        let refund = build_sale_input(
+            &config,
+            &ident(),
+            &order,
+            &lines,
+            1,
+            &bk(&bp_id),
+            PaymentType::Cash,
+            0,
+            0,
+            None,
+        );
+        assert!(refund.financials.is_empty());
+        // Any money moved keeps its lines.
+        let paid = settle(1000, &[PaymentPart::cash()]).unwrap();
+        let sale = build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &paid);
+        assert_eq!(sale.financials.len(), 1);
+    }
+
+    #[test]
     fn an_unpaid_settlement_sends_empty_financials() {
         let (config, order, lines) = (test_config(), test_order(), test_lines());
         let bp_id = Uuid::new_v4().to_string();
@@ -1037,6 +1203,57 @@ mod tests {
         assert_eq!(copy.fdm_ref.fdm_id, "FDM001");
         assert_eq!(copy.fdm_ref.event_counter, 42);
         assert_eq!(copy.fdm_ref.total_counter, 100);
+    }
+
+    #[test]
+    fn a_payment_correction_takes_the_amount_off_one_method_and_puts_it_on_another() {
+        let config = test_config();
+        let bp_id = Uuid::new_v4().to_string();
+        let original = FdmReference {
+            fdm_id: "FDM001".to_string(),
+            fdm_date_time: "2026-04-09T19:00:00+02:00".to_string(),
+            event_label: EventLabel::N,
+            event_counter: 14,
+            total_counter: 50,
+        };
+        let input = build_payment_correction_input(
+            &config,
+            &ident(),
+            3,
+            "00000000029",
+            &bk(&bp_id),
+            &original,
+            PaymentType::Cash,
+            PaymentType::CardDebit,
+            5200,
+        );
+        let json = serde_json::to_value(&input).unwrap();
+        assert_eq!(json["ticketMedium"], "NONE");
+        assert!(json.get("drawer").is_none());
+        assert!(json.get("transaction").is_none());
+        assert_eq!(json["fdmRef"]["eventCounter"], 14);
+        assert_eq!(json["fdmRef"]["eventLabel"], "N");
+        let f = json["financials"].as_array().unwrap();
+        assert_eq!(f.len(), 2);
+        assert_eq!(
+            (
+                f[0]["type"].as_str(),
+                f[0]["amount"].as_f64(),
+                f[0]["id"].as_str()
+            ),
+            (Some("CASH"), Some(-52.0), Some("1"))
+        );
+        assert_eq!(
+            (
+                f[1]["type"].as_str(),
+                f[1]["amount"].as_f64(),
+                f[1]["id"].as_str()
+            ),
+            (Some("CARD_DEBIT"), Some(52.0), Some("2"))
+        );
+        assert!(f.iter().all(|l| l["inputMethod"] == "MANUAL"
+            && l["amountType"] == "PAYMENT"
+            && l.get("drawer").is_none()));
     }
 
     #[test]
@@ -1727,5 +1944,88 @@ mod tests {
         // Calling twice must yield the identical reference - it ties
         // together every P/pre-bill/N event of one order's lifetime.
         assert_eq!(order_reference(&order), order_reference(&order));
+    }
+
+    fn transfer_json(changes: &crate::price_change::LineChanges) -> serde_json::Value {
+        let input = build_cost_center_change_input(
+            &test_config(),
+            &ident(),
+            &test_order(),
+            &test_lines(),
+            changes,
+            1,
+            5,
+            7,
+            &bk("bp"),
+        );
+        serde_json::to_value(&input).unwrap()
+    }
+
+    #[test]
+    fn a_transfer_takes_the_lines_off_one_table_and_puts_them_on_the_other() {
+        let v = transfer_json(&Default::default());
+        assert_eq!(v["ticketMedium"], "NONE");
+        assert_eq!(v["employeeId"], "00000000029");
+        let (from, to) = (&v["transfer"]["from"], &v["transfer"]["to"]);
+        assert_eq!(from.as_array().unwrap().len(), 1);
+        assert_eq!(to.as_array().unwrap().len(), 1);
+        assert_eq!(from[0]["costCenter"]["id"], "T01");
+        assert_eq!(to[0]["costCenter"]["id"], "T05");
+        assert_eq!(from[0]["costCenter"]["type"], "TABLE");
+        // One reference for the whole order, on both sides.
+        assert_eq!(from[0]["costCenter"]["reference"], "O1");
+        assert_eq!(to[0]["costCenter"]["reference"], "O1");
+
+        let f = &from[0]["transaction"]["transactionLines"][0];
+        let t = &to[0]["transaction"]["transactionLines"][0];
+        assert_eq!(f["mainProduct"]["quantity"], -2.0);
+        assert_eq!(f["mainProduct"]["negQuantityReason"], "COST_CENTER_CHANGE");
+        assert_eq!(f["mainProduct"]["vats"][0]["price"], -25.0);
+        assert_eq!(f["lineTotal"], -25.0);
+        assert_eq!(from[0]["transaction"]["transactionTotal"], -25.0);
+        assert_eq!(t["mainProduct"]["quantity"], 2.0);
+        assert!(t["mainProduct"].get("negQuantityReason").is_none());
+        assert_eq!(t["lineTotal"], 25.0);
+        assert_eq!(to[0]["transaction"]["transactionTotal"], 25.0);
+        // Same product on both sides.
+        assert_eq!(f["mainProduct"]["productId"], t["mainProduct"]["productId"]);
+        assert_eq!(f["mainProduct"]["unitPrice"], t["mainProduct"]["unitPrice"]);
+    }
+
+    #[test]
+    fn a_transfer_never_writes_a_negative_zero() {
+        let v = transfer_json(&Default::default());
+        let json = v.to_string();
+        assert!(!json.contains("-0.0"), "{json}");
+    }
+
+    #[test]
+    fn a_transfer_carries_the_price_changes_negated_on_the_from_side() {
+        use crate::price_change::{LineChange, LineChanges};
+        let change = LineChange {
+            grouping_id: 3,
+            id: "promo".to_string(),
+            name: "Promo -10 %".to_string(),
+            scope: PriceChangeScope::Event,
+            change_type: PriceChangeType::Public,
+            amount_cents: -250,
+        };
+        let mut changes = LineChanges::new();
+        changes.insert(1, vec![change]);
+        let v = transfer_json(&changes);
+        let from = &v["transfer"]["from"][0]["transaction"];
+        let to = &v["transfer"]["to"][0]["transaction"];
+        let pf = &from["transactionLines"][0]["mainProduct"]["vats"][0]["priceChanges"][0];
+        let pt = &to["transactionLines"][0]["mainProduct"]["vats"][0]["priceChanges"][0];
+        assert_eq!(pt["amount"], -2.5);
+        assert_eq!(pf["amount"], 2.5);
+        for key in ["id", "name", "scope", "type", "groupingId"] {
+            assert_eq!(pf[key], pt[key], "{key}");
+        }
+        assert_eq!(pt["groupingId"], 3);
+        assert_eq!(to["transactionLines"][0]["lineTotal"], 22.5);
+        assert_eq!(from["transactionLines"][0]["lineTotal"], -22.5);
+        assert_eq!(to["transactionTotal"], 22.5);
+        assert_eq!(from["transactionTotal"], -22.5);
     }
 }

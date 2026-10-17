@@ -24,6 +24,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.DeliveryOutcome
 import uniffi.pos_ffi.EmailStatus
 import uniffi.pos_ffi.MailStatus
@@ -447,5 +448,49 @@ class CheckoutContentTest {
         show(base.copy(summary = base.summary.copy(lines = listOf(noted), amounts = listOf(LineAmount.Total(500L)))))
 
         compose.onNodeWithTag("checkout_line_1").assertTextContains("sans piment", substring = true)
+    }
+
+    // ── Discount rows ─────────────────────────────────────────────
+
+    private val discounted =
+        listOf(
+            cartLine(
+                1,
+                name = "Sushi",
+                quantity = 2,
+                unitPriceCents = 500L,
+                discountCents = -500L,
+                priceChanges = listOf(CartPriceChange("TILL-DISCOUNT", "Remise 50 %", "EVENT", -500L)),
+            ),
+        )
+
+    @Test
+    fun aDiscountedSaleShowsTheChangeRowTheSubtotalAndTheDiscount() {
+        show(
+            base.copy(
+                totalCents = 500L,
+                summary =
+                    CheckoutSummary(
+                        lines = discounted,
+                        amounts = listOf(LineAmount.Total(500L)),
+                        vatRows = listOf(vatRow(VatCode.C, 6, 28L)),
+                        discountCents = -500L,
+                    ),
+            ),
+        )
+
+        compose.onNodeWithTag("checkout_line_1").assertTextContains("Remise 50 %", substring = true)
+        compose.onNodeWithTag("checkout_line_1").assertTextContains("-5,00", substring = true)
+        text("checkout_subtotal").assertTextEquals("10,00 €")
+        text("checkout_discount").assertTextEquals("-5,00 €")
+        text("checkout_total").assertTextEquals("5,00 €")
+    }
+
+    @Test
+    fun aSaleWithoutDiscountHasNoSubtotalRow() {
+        show(base)
+
+        text("checkout_subtotal").assertDoesNotExist()
+        text("checkout_discount").assertDoesNotExist()
     }
 }

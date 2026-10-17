@@ -484,10 +484,20 @@ internal class CheckoutViewModel(
         val amounts = entry.amounts()
         val summary =
             attempt {
-                CheckoutSummary(lines, lines.map { amounts.lineAmount(it) }, amounts.vatRows(lines))
+                CheckoutSummary(
+                    lines,
+                    lines.map { amounts.lineAmount(it) },
+                    amounts.vatRows(lines),
+                    CashDisplay.sumCents(lines.map { it.discountCents }),
+                )
             }.getOrElse {
                 Timber.d(it, "Checkout recap amounts not read")
-                CheckoutSummary(lines, lines.map { line -> LineAmount.PerUnit(line.quantity, line.unitPriceCents) }, emptyList())
+                CheckoutSummary(
+                    lines,
+                    lines.map { line -> LineAmount.PerUnit(line.quantity, line.unitPriceCents) },
+                    emptyList(),
+                    CashDisplay.sumCents(lines.map { line -> line.discountCents }),
+                )
             }
         own.update { it.copy(summary = summary) }
     }

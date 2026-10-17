@@ -53,3 +53,8 @@ cert = ["custom-protocol", "hubrise", "pos-engine/cert"]
 # `cargo build` - the certification build above - must enable it, or
 # the kiosk would try to load http://localhost:1420 and stay blank.
 custom-protocol = ["tauri/custom-protocol"]
+
+[dev-dependencies]
+# `tauri::test::mock_builder`: the IPC wrapper tests call the commands
+# with the JSON the UI sends. A feature of a crate already locked.
+tauri = { version = "2", features = ["test"] }

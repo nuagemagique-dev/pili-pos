@@ -67,6 +67,48 @@ pub struct FinancialResult {
     pub error: Option<String>,
 }
 
+/// `pos_engine::commands::payment_correction::SalePaymentLine`: one line of a sale's `financials`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SalePaymentLine {
+    /// Position in the sale's `financials`: the index to correct.
+    pub index: i32,
+    /// `CASH`, `CARD_DEBIT`, `CHEQUE_MEAL`, ...
+    pub payment_type: String,
+    pub name: String,
+    pub amount_cents: i64,
+    /// `MANUAL` or `AUTOMATIC` (a card the linked terminal took).
+    pub input_method: String,
+    /// `PAYMENT` or `ROUNDING`.
+    pub amount_type: String,
+    pub brand: Option<String>,
+}
+
+/// `pos_engine::commands::payment_correction::CorrectionDone`: the correction a sale already has.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CorrectionDone {
+    pub from_type: String,
+    pub to_type: String,
+    pub amount_cents: i64,
+    pub at: String,
+}
+
+/// `pos_engine::commands::payment_correction::SalePayments`: the payment lines of a signed sale
+/// and whether one of them can be corrected.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SalePayments {
+    pub fiscal_event_id: i64,
+    pub ticket_number: i64,
+    pub total_cents: i64,
+    pub lines: Vec<SalePaymentLine>,
+    pub correctable: bool,
+    /// Why not, as an engine error code, when `correctable` is false.
+    pub refusal: Option<String>,
+    pub corrected: Option<CorrectionDone>,
+}
+
 /// `pos_engine::commands::settings::PosSettings`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

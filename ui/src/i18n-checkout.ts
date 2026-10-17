@@ -79,4 +79,8 @@ export const checkoutMessages: Messages = {
   "eft_kind_worldline_terminal_api": { fr: "Worldline", en: "Worldline", zh: "Worldline" },
   "eft_kind_ccv_payment_api": { fr: "CCV cloud", en: "CCV cloud", zh: "CCV 云端" },
   "eft_kind_ccv_opi": { fr: "CCV réseau local", en: "CCV local network", zh: "CCV 局域网" },
+
+  // Discount in the order summary.
+  "checkout_subtotal": { fr: "Sous-total", en: "Subtotal", zh: "小计" },
+  "checkout_discount": { fr: "Remise", en: "Discount", zh: "折扣" },
 };

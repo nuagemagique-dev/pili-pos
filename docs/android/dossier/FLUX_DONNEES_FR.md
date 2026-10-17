@@ -82,6 +82,56 @@ se charge. Les clients commandent trois plats ; l'opérateur appuie sur
 Le compteur fiscal **P** avance de 1. Le compteur **N** reste intact
 jusqu'à ce que le client paie effectivement.
 
+## 2 bis. Changement de table (Événement P)
+
+**Action utilisateur.** Les clients changent de place : l'opérateur
+touche « Changer de table », choisit la table libre et valide.
+
+**Circulation des données.**
+
+1. L'interface appelle `commands::table_transfer::do_transfer_table`
+   (commande `transfer_table`). Sous le verrou de signature, la caisse
+   refuse une même table, une table occupée, une table hors plan, une
+   commande qui n'est pas en salle ou sans article.
+2. Les articles pas encore envoyés sont enregistrés (événement P) sur
+   l'ancienne table.
+3. Le déplacement est construit (`transfer.from` en quantités négatives,
+   `transfer.to` en quantités positives, même référence), stocké dans
+   `pending_signs`, signé par le FDM et archivé (événement P). Dans la
+   même transaction, la commande prend le numéro de la nouvelle table.
+4. Un bon « TRANSFERT DE TABLE » sort à l'imprimante du bar.
+
+Le compteur **N** reste intact. Une réponse du FDM arrivée en retard a
+le même effet.
+
+## 2 ter. Remise à la caisse (priceChanges)
+
+1. Le Gérant choisit la remise (pourcentage, montant ou « Offert », sur
+   la commande ou sur une ligne) et la confirme par son PIN.
+2. La caisse calcule le net, répartit la remise au centime près et
+   inscrit la pose dans `order_price_changes` et `till_discounts`.
+3. Commande en cours : la remise part avec la vente (N, §3) en
+   `priceChanges`. Commande déjà enregistrée en salle : un événement P est
+   signé tout de suite ; sans réponse du FDM, il est repris
+   (`pending_signs`).
+4. « Retirer la remise » (même PIN) inscrit un retrait et rétablit le
+   prix d'origine. Le motif ne quitte jamais la caisse.
+
+## 2 quater. Note de cuisine (donnée locale)
+
+1. Le personnel touche « Note » sur une ligne et tape la note (60
+   caractères au plus).
+2. `commands::order::do_set_line_note` vérifie la note et l'écrit dans
+   `order_lines.kitchen_note` ; rien n'est journalisé, rien n'est signé.
+3. Avant l'envoi de la ligne, la note part avec l'article sur le bon de
+   commande (`commands/bar_slip.rs`), qui note ensuite la valeur imprimée
+   dans `order_lines.kitchen_note_printed`.
+4. Après l'envoi, une note différente de la note imprimée sort sur un
+   bon « MODIFICATION » ; si l'impression échoue, la valeur imprimée ne
+   change pas et valider de nouveau la même note réimprime le bon.
+5. Aucun message au FDM, aucun ticket TVA, aucune addition, aucune
+   copie et aucun export ne contient la note.
+
 ## 3. Le client paie - Vente (Événement N)
 
 **Action utilisateur.** Le client demande l'addition. L'opérateur tape
@@ -145,6 +195,29 @@ OK. L'opérateur confirme.
    la ligne `ticket_deliveries` passe à `sent` et l'adresse en clair
    est aussitôt effacée. Sinon, elle reste `pending` et le papier de
    secours part (§10 ci-dessous, remise en file en tâche de fond).
+
+## 3 ter. Correction du moyen de paiement (Événement F)
+
+**Action utilisateur.** Une vente a été encaissée avec le mauvais moyen :
+le Gérant ouvre Rapports > Tickets, touche « Corriger le paiement » sur
+la vente, choisit la ligne de paiement et le vrai moyen, puis saisit son
+PIN.
+
+**Circulation des données.**
+
+1. L'interface lit les lignes de paiement (`commands::payment_correction::do_list_sale_payments`,
+   commande `list_sale_payments`) : la caisse dit si la vente est
+   corrigeable et pourquoi sinon.
+2. La commande `correct_payment` vérifie le PIN du Gérant, puis, sous le
+   verrou de signature, les règles (vente de la journée en cours, ni
+   remboursée ni en ligne, pas déjà corrigée, ligne saisie à la main,
+   pas d'arrondi).
+3. La requête (ligne retirée en négatif, même montant sous le nouveau
+   moyen, `fdmRef` de la vente) est stockée dans `pending_signs`, signée
+   par le FDM et archivée (événement F). Une réponse arrivée en retard a
+   le même effet.
+4. Ni ticket ni ouverture du tiroir. Les rapports X et Z suivants
+   comptent la correction dans les moyens de paiement.
 
 ## 4. Rapport X en cours de service
 
@@ -418,7 +491,8 @@ n'est mis en file.
 | Login | `users` (lecture) |
 | Pointage entrée/sortie | `staff_shifts` (ouverture / clôture), `fiscal_events` (append S) |
 | Ajout ligne commande | `orders` (insert/update), `order_lines` (insert) |
-| Envoi cuisine | `fiscal_events` (append P), `order_entries` (lignes marquées envoyées) |
+| Envoi cuisine | `fiscal_events` (append P), `order_entries` (lignes marquées envoyées), `order_lines.kitchen_note_printed` (note imprimée) |
+| Note de cuisine | `order_lines.kitchen_note` (mise à jour locale, aucun événement) |
 | Paiement | `fiscal_events` (append N), `payments` (insert), `orders` (close), `fiscal_counters` (advance N) |
 | Rapport X | `fiscal_events` (append R, `ReportTurnoverX`) |
 | Rapport Z | `fiscal_events` (append R, `ReportTurnoverZ` + `ReportUserZ`), `z_reports` (insert), fichier de backup DB (7 conservés) |

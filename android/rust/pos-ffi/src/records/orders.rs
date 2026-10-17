@@ -18,7 +18,7 @@
 //! `flatten` with `deny_unknown_fields`, so the record lists the `OrderLine` fields itself; the
 //! serde form is the same.
 
-use super::common::VatCode;
+use super::common::{SlipOutcome, VatCode};
 
 /// `pos_core::order::OrderType`.
 #[derive(
@@ -122,6 +122,92 @@ pub struct CartLine {
     pub code: Option<String>,
     /// The quantity not yet sent to the bar or the kitchen.
     pub unsent_quantity: i64,
+    /// Σ of the line's price changes in cents (negative for a discount).
+    #[serde(default)]
+    pub discount_cents: i64,
+    /// The line's consolidated price changes (a till discount, an online order's).
+    #[serde(default)]
+    pub price_changes: Vec<CartPriceChange>,
+    /// The note for the kitchen ("sans wasabi"), local only.
+    #[serde(default)]
+    pub kitchen_note: Option<String>,
+    /// The line belongs to an online order: no till discount.
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub online: bool,
+}
+
+/// `pos_db::queries::orders::CartPriceChange`: a price change on a cart line.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct CartPriceChange {
+    pub id: String,
+    pub name: String,
+    /// `LINE` or `EVENT`.
+    pub scope: String,
+    pub amount_cents: i64,
+}
+
+/// `pos_engine::commands::discount::DiscountTarget`: what a discount applies to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Enum)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum DiscountTarget {
+    /// The whole order, spread over its lines.
+    Order,
+    /// One line, for free.
+    Line { line_id: i64 },
+}
+
+/// `pos_engine::commands::discount::DiscountKind`.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, uniffi::Enum,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscountKind {
+    /// An integer percent, 1 to 99.
+    Percent,
+    /// An amount in cents, 1 to the net total.
+    Amount,
+    /// Everything ("Offert").
+    Free,
+}
+
+/// `pos_engine::commands::discount::DiscountReason`: why the manager gives it (audit only).
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, uniffi::Enum,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscountReason {
+    CommercialGesture,
+    StaffMeal,
+    ServiceIssue,
+    Other,
+}
+
+/// `pos_engine::commands::discount::DiscountInput`: a discount to apply.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct DiscountInput {
+    pub target: DiscountTarget,
+    pub kind: DiscountKind,
+    /// The percent or the amount in cents; ignored for `Free`.
+    #[serde(default)]
+    pub value: Option<i64>,
+    pub reason_code: DiscountReason,
+    #[serde(default)]
+    pub reason_text: Option<String>,
+}
+
+/// `pos_engine::commands::discount::DiscountResult`: what a discount command did.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DiscountResult {
+    pub order: Order,
+    /// The kitchen slip of the entries the immediate P registered.
+    pub kitchen_slip: SlipOutcome,
+    /// Set when the immediate P could not be signed: the discount is recorded and goes with the
+    /// next registration or the sale.
+    pub registration_error: Option<String>,
 }
 
 /// `pos_core::menu::Category`.
@@ -210,6 +296,18 @@ pub struct TableInfo {
     pub opened_at: Option<String>,
     /// A provisional bill was printed and the order has not changed since.
     pub pre_bill_printed: bool,
+}
+
+/// `pos_engine::commands::table_transfer::TableTransferResult`: what moving an order to another
+/// table did (the kitchen slip of what was registered first, the transfer notice).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TableTransferResult {
+    pub order_id: i64,
+    pub from_table: i32,
+    pub to_table: i32,
+    pub kitchen_slip: SlipOutcome,
+    pub transfer_slip: SlipOutcome,
 }
 
 /// `pos_engine::commands::tables::TakeawayInfo`.

@@ -266,10 +266,12 @@ fn example_bar_slip() {
             BarItem {
                 quantity: 2,
                 name: "Dry Martini".to_string(),
+                note: None,
             },
             BarItem {
                 quantity: 1,
                 name: "Burger du chef".to_string(),
+                note: None,
             },
         ],
         lang: ReceiptLanguage::Fr,
@@ -280,6 +282,55 @@ fn example_bar_slip() {
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
     std::fs::write(dir.join("ticket_bar.txt"), text).expect("write example");
+}
+
+#[test]
+fn example_bar_slip_with_notes() {
+    use pos_print::bar_ticket::{BarItem, BarTicket, format_bar_ticket};
+    let slip = BarTicket {
+        date_time: "03/07/2026 12:31:05".to_string(),
+        operator: "Marie Dupont".to_string(),
+        table: Some(4),
+        items: vec![
+            BarItem {
+                quantity: 2,
+                name: "Dry Martini".to_string(),
+                note: None,
+            },
+            BarItem {
+                quantity: 1,
+                name: "Burger du chef".to_string(),
+                note: Some("allergie arachide - sans oignons".to_string()),
+            },
+        ],
+        lang: ReceiptLanguage::Fr,
+        is_training: false,
+    };
+    let text = render_plain_text(&format_bar_ticket(&slip));
+    assert!(text.contains("> allergie arachide - sans oignons"));
+    assert!(!text.contains(','), "a bar ticket never shows a price");
+    let Some(dir) = out_dir() else { return };
+    std::fs::create_dir_all(&dir).expect("create examples dir");
+    std::fs::write(dir.join("ticket_bar_note.txt"), text).expect("write example");
+}
+
+#[test]
+fn example_note_slip() {
+    use pos_print::bar_ticket::{NoteSlip, format_note_slip};
+    let slip = NoteSlip {
+        date_time: "03/07/2026 12:38:12".to_string(),
+        operator: "Marie Dupont".to_string(),
+        table: Some(4),
+        product_name: "Burger du chef".to_string(),
+        note: Some("bien cuit".to_string()),
+        lang: ReceiptLanguage::Fr,
+        is_training: false,
+    };
+    let text = render_plain_text(&format_note_slip(&slip));
+    assert!(text.contains("Note : bien cuit") && !text.contains(" x "));
+    let Some(dir) = out_dir() else { return };
+    std::fs::create_dir_all(&dir).expect("create examples dir");
+    std::fs::write(dir.join("ticket_note_slip.txt"), text).expect("write example");
 }
 
 // ── X / Z reports ──────────────────────────────────────────────
@@ -369,6 +420,7 @@ fn base_report(
             event_reductions: (0, 0),
             invoices: vec![],
             rounding_cents: 2,
+            payment_corrections: (0, 0),
         },
     }
 }
@@ -407,4 +459,25 @@ fn example_z_report_de() {
     let data = base_report("Z", Some(1), ReceiptLanguage::De);
     let text = render_plain_text(&pos_print::report::format_report(&data));
     std::fs::write(dir.join("rapport_Z_de.txt"), text).expect("write example");
+}
+
+#[test]
+fn a_z_report_lists_the_payment_corrections_in_every_language() {
+    for (lang, label) in [
+        (ReceiptLanguage::Fr, "Corrections de paiement 2"),
+        (ReceiptLanguage::Nl, "Betalingscorrecties 2"),
+        (ReceiptLanguage::De, "Zahlungskorrekturen 2"),
+    ] {
+        let mut data = base_report("Z", Some(1), lang);
+        // Nothing moved: the line is not printed.
+        let none = render_plain_text(&pos_print::report::format_report(&data));
+        assert!(!none.contains(&label[..label.len() - 2]), "{lang:?}");
+        data.details.payment_corrections = (2, 7800);
+        let text = render_plain_text(&pos_print::report::format_report(&data));
+        let line = text
+            .lines()
+            .find(|l| l.contains(label))
+            .unwrap_or_else(|| panic!("{lang:?}: no corrections line in\n{text}"));
+        assert!(line.contains("78,00") || line.contains("78.00"), "{line}");
+    }
 }

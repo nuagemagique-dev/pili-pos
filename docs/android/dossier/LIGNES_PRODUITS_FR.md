@@ -105,6 +105,37 @@ hôtel, les terminaux et handhelds (TER-1 à TER-5), la table haute du
 bar (8 chaises, sans numéro), les chaises comme centres de coût, les
 devises GBP/USD, les bons d'achat, la distinction des réseaux de cartes (Visa, Mastercard, Diners, American Express) et Payconiq / Apple Pay.
 
+## Lignes d'un transfert de table (M122)
+
+Un changement de table (`signCostCenterChange`) reprend les lignes de
+la commande : le côté `transfer.from` les porte en quantité négative
+(motif `COST_CENTER_CHANGE`, table d'origine), le côté `transfer.to`
+les porte en quantité positive (table de destination). Le prix, le
+code TVA et la remise portée par une ligne sont conservés tels quels
+(même `groupingId`) ; rien n'est recalculé.
+
+## Lignes d'une vente remisée à la caisse
+
+Une remise saisie à la caisse par un Gérant (pourcentage, montant ou
+« Offert ») est signée comme un `priceChanges`, jamais comme une ligne
+supplémentaire du ticket. Une remise de commande est de portée `EVENT`
+(identifiant `TILL-DISCOUNT`), répartie sur les lignes au centime près ;
+un article offert est de portée `LINE` (`TILL-FREE-LINE`, ou `TILL-FREE`
+pour toute la commande) et sa ligne est signée à 0,00. Chaque changement
+est une paire dans le journal (`PRICE_CHANGE`) : la pose et, le cas
+échéant, son retrait, qui rétablit le prix d'origine. Le motif n'est
+pas dans la transaction signée.
+
+## Notes de cuisine (hors données produit)
+
+La note qu'un membre du personnel écrit sur une ligne (« sans wasabi »)
+n'est pas une donnée de produit : elle ne fait partie ni du nom du
+produit, ni des modificateurs, ni d'aucune ligne de transaction signée
+(réponse de l'administration aux producteurs, FAQ Q210 b). Elle reste dans
+la colonne locale `order_lines.kitchen_note` (migration 31), n'entre pas
+dans le journal `order_entries` et ne part qu'à l'imprimante du bar ou de
+la cuisine.
+
 ## Codes TVA
 
 - **A = 21%** - alcools, boissons rafraîchissantes

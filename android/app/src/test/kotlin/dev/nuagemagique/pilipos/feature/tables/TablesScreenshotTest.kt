@@ -104,4 +104,13 @@ class TablesScreenshotTest {
     fun signedOut() {
         capture(TablesUiState(now = now, signedIn = false), "tables_signed_out", HeaderUiState(area = HeaderArea.TABLES))
     }
+
+    @Test
+    fun moveMode() {
+        val source = tables.first { it.orderId != null }
+        capture(
+            TablesUiState(tables, takeaways, now, signedIn = true, loaded = true, move = MoveState(moving = true, source = source)),
+            "tables_move",
+        )
+    }
 }

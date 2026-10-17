@@ -32,6 +32,7 @@ import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.TicketMediumPicker
 import dev.nuagemagique.pilipos.ui.components.TicketMediumPickerState
 import dev.nuagemagique.pilipos.ui.components.defaultTicketMediumPickerTexts
+import dev.nuagemagique.pilipos.ui.format.CashDisplay
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.bilingualName
 import dev.nuagemagique.pilipos.ui.format.formatCents
@@ -479,29 +480,41 @@ private fun SummaryLine(
     val t = PiliTheme.typography
     val name = bilingualName(line, LocalUiLanguage.current, state.labelMode)
     val notes = lineNotes(line.modifiersJson)
-    Row(
-        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}.testTag("checkout_line_${line.id}"),
-        horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Text(uiText(R.string.ui_checkout_line_qty, "quantity" to line.quantity), style = t.figure, color = c.textSecondary)
-        Column(Modifier.weight(1f)) {
-            Text(name.primary, style = t.body.copy(fontWeight = t.weightBold), color = c.textPrimary)
-            name.secondary?.let { Text(it, style = t.label, color = c.textSecondary) }
-            notes?.let { Text(it, style = t.label, color = c.accentWarning) }
+    Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}.testTag("checkout_line_${line.id}")) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Text(uiText(R.string.ui_checkout_line_qty, "quantity" to line.quantity), style = t.figure, color = c.textSecondary)
+            Column(Modifier.weight(1f)) {
+                Text(name.primary, style = t.body.copy(fontWeight = t.weightBold), color = c.textPrimary)
+                name.secondary?.let { Text(it, style = t.label, color = c.textSecondary) }
+                notes?.let { Text(it, style = t.label, color = c.accentWarning) }
+            }
+            Text(
+                text =
+                    when (amount) {
+                        is LineAmount.Total -> formatCents(amount.cents)
+                        is LineAmount.PerUnit ->
+                            uiText(R.string.ui_checkout_per_unit, "quantity" to amount.quantity, "unit" to formatCents(amount.unitCents))
+                        null -> ""
+                    },
+                style = t.figure.copy(fontWeight = t.weightBold),
+                color = c.textPrimary,
+                textAlign = TextAlign.End,
+            )
         }
-        Text(
-            text =
-                when (amount) {
-                    is LineAmount.Total -> formatCents(amount.cents)
-                    is LineAmount.PerUnit ->
-                        uiText(R.string.ui_checkout_per_unit, "quantity" to amount.quantity, "unit" to formatCents(amount.unitCents))
-                    null -> ""
-                },
-            style = t.figure.copy(fontWeight = t.weightBold),
-            color = c.textPrimary,
-            textAlign = TextAlign.End,
-        )
+        // The public price changes of the line (a till discount), under it.
+        line.priceChanges.forEachIndexed { index, change ->
+            Row(
+                Modifier.fillMaxWidth().testTag("checkout_line_${line.id}_change_$index"),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(change.name, style = t.label, color = c.accentWarning)
+                Text(formatCents(change.amountCents), style = t.figure.copy(fontSize = t.sizeSm), color = c.accentWarning)
+            }
+        }
     }
 }
 
@@ -533,6 +546,19 @@ private fun SummaryFoot(
         modifier = Modifier.fillMaxWidth().background(c.bgPrimary).padding(d.spaceMd),
         verticalArrangement = Arrangement.spacedBy(d.spaceSm),
     ) {
+        if (state.summary.discountCents != 0L) {
+            val before = CashDisplay.subtotalBeforeDiscountCents(state.totalCents, state.summary.discountCents)
+            FootRow(
+                vueText("checkout_subtotal"),
+                uiText(R.string.ui_checkout_amount_eur, "amount" to formatCents(before)),
+                "checkout_subtotal",
+            )
+            FootRow(
+                vueText("checkout_discount"),
+                uiText(R.string.ui_checkout_amount_eur, "amount" to formatCents(state.summary.discountCents)),
+                "checkout_discount",
+            )
+        }
         FootRow(vueText("total"), uiText(R.string.ui_checkout_amount_eur, "amount" to formatCents(state.totalCents)), "checkout_total")
         state.taken.forEachIndexed { index, part -> TakenRow(index, part) }
         state.eftOpen.forEach { OpenPaymentRow(it, callbacks.onVerify) }

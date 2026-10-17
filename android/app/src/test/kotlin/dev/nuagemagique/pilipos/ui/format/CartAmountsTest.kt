@@ -36,6 +36,7 @@ class CartAmountsTest {
         quantity: Int,
         unitPriceCents: Long,
         vat: VatCode,
+        discountCents: Long = 0,
     ): CartLine =
         CartLine(
             id = id,
@@ -53,6 +54,9 @@ class CartAmountsTest {
             nameZh = null,
             code = null,
             unsentQuantity = 0,
+            discountCents = discountCents,
+            priceChanges = emptyList(),
+            kitchenNote = null,
         )
 
     @Test
@@ -92,5 +96,26 @@ class CartAmountsTest {
 
             assertEquals(LineAmount.PerUnit(quantity = 4, unitCents = 750), amount)
             assertEquals(listOf(listOf(VatLine(VatCode.X, 750, 4))), received)
+        }
+
+    @Test
+    fun aDiscountIsSentAsOneMoreNegativeLineOfTheSameVatCode() =
+        runTest {
+            amounts(this, listOf(VatSplitRow(VatCode.A, 21, 1000, 174))).lineAmount(line(1, 2, 1500, VatCode.A, discountCents = -2000))
+
+            assertEquals(listOf(listOf(VatLine(VatCode.A, 1500, 2), VatLine(VatCode.A, -2000, 1))), received)
+        }
+
+    @Test
+    fun theVatRowsOfDiscountedLinesCarryTheirDiscountsToo() =
+        runTest {
+            val lines = listOf(line(1, 1, 1000, VatCode.B, discountCents = -500), line(2, 3, 200, VatCode.C))
+
+            amounts(this, emptyList()).vatRows(lines)
+
+            assertEquals(
+                listOf(listOf(VatLine(VatCode.B, 1000, 1), VatLine(VatCode.B, -500, 1), VatLine(VatCode.C, 200, 3))),
+                received,
+            )
         }
 }

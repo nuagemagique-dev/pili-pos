@@ -21,7 +21,10 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 | components/ModifierDialog.vue, api/ipc-modifiers.ts | feature/order/ModifierDialog.kt (ModifierDialog, ModifierPicks), MenuViewModel.kt (confirmModifiers over OrderStore.addLineWith) | `get_item_modifiers` `add_order_line_with_modifiers` |
 | components/PriceDialog.vue | ui/components/AmountDialog.kt, opened by feature/order/OrderScreen.kt (OrderDialogs) | - |
 | components/CartSidebar.vue | feature/order/OrderCartColumn.kt (OrderCartColumn), MenuViewModel.kt (sendToKitchen, printPreBill, askCloseUnpaid, closeUnpaid, unpaidClosed), OrderScreen.kt (CloseUnpaidDialog over ui/components/PinDialog.kt) over ui/state/OrderStore.kt | `leave_order` `sign_pre_bill` `close_unpaid` |
+| components/TablePickerDialog.vue and CartSidebar.vue (Changer de table) | feature/order/TablePickerDialog.kt, MenuViewModel.kt (askTransfer, confirmTransfer), OrderCartColumn.kt (cart_transfer) over ui/state/OrderStore.kt (transferTable) | `transfer_table` `list_tables` |
+| components/DiscountDialog.vue and CartSidebar.vue (Remise, Offrir, Retirer la remise) | feature/order/DiscountDialog.kt (DiscountDialog, DiscountEntry), MenuViewModel.kt (askDiscount, chooseDiscount, askRemoveDiscount, confirmDiscountPin, discountDone), OrderCartColumn.kt (cart_discount), OrderScreen.kt (DiscountPinDialog over ui/components/PinDialog.kt) over ui/state/OrderStore.kt (applyDiscount, removeDiscount) | `apply_discount` `remove_discount` |
 | components/OrderLineItem.vue | feature/order/OrderLineItem.kt (OrderLineItem, lineNotes), MenuViewModel.kt (incrementLine, decrementLine, removeLine) over ui/state/OrderStore.kt | `update_order_line_quantity` `remove_order_line` |
+| components/NoteDialog.vue (over TextKeypad.vue), CartSidebar.vue and OrderLineItem.vue (Note button, note under the name) | feature/order/NoteDialog.kt (NoteDialog, noteText on the system keyboard), MenuViewModel.kt (askNote, saveNote), OrderLineItem.kt (cart_line_<id>_note, cart_line_<id>_kitchen_note), OrderScreen.kt (OrderDialogs) over ui/state/OrderStore.kt (setLineNote; addItem opens a new line when the line has a note) | `set_line_note` |
 | components/VatSummary.vue | ui/components/VatSummary.kt over ui/format/CartAmounts.kt (vatRows), drawn by feature/order/OrderCartColumn.kt | - |
 
 ## Differences
@@ -83,3 +86,25 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
   clock is replaceable (`LocalOrderNow`) so that the goldens are stable.
 - **Sizes and flash.** Text sizes use the theme tokens (the 40 px total becomes the 28 sp `sizeXl`); the green flash
   of a new line is not reproduced (the quantity badge of the product button shows the change).
+
+## Differences of the till discount (T4)
+
+- **Who and when.** As Vue: the "Remise" button shows for a manager on an open order with lines; an order discount
+  turns it into "Retirer la remise". "Offrir" shows on a line without change while no order discount applies;
+  "Retirer la remise" shows on a line that carries its own (LINE scope) change. The engine re-checks every rule.
+  An online order (any line of the cart with `online`, read from the order by `list_cart_lines`) shows none of these
+  actions on either UI (the engine refuses with `discount_online_order`); Vue test "is absent on an online order",
+  Kotlin test `anOnlineOrderGetsNoDiscountActionEvenForAManager`.
+- **Reason text.** Vue types the optional reason on the on-screen keypad (`TextKeypad.vue`, the generalised
+  `EmailKeypad.vue`); the Compose dialog uses the system keyboard (a single line, 120 characters at most).
+- **Net amounts without arithmetic (PD208).** A line amount is the `vatSplit` row of the line plus one more line of
+  quantity 1 whose unit price is the line's `discount_cents` (negative), so the engine sums them; the VAT summary is
+  the same split over all lines. The order total is `Order.totalCents`, which is already net. Vue adds
+  `unit_price_cents * quantity + discount_cents` itself (`utils/cartAmounts.ts`).
+- **Preview.** The "Total old -> new" preview of the dialog is `CashDisplay.totalAfterDiscountCents` (a display-only
+  function with the marker of `p5_gate.sh`, like the checkout shares); the engine recomputes and signs the discount.
+- **Quantity rule.** `OrderStore.addItem` opens a new line when the existing line has a price change, as Vue's
+  `addItem`: the engine refuses a quantity change on a discounted line.
+- **Registration warning.** When the P that registers the change could not be signed the engine still keeps the
+  discount; both screens show the warning `discount_registration_failed` (Vue toast, Compose
+  `OrderStore.discountWarnings`).

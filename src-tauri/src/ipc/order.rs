@@ -1,6 +1,7 @@
 use pos_core::order::{Order, OrderLine};
 use tauri::State;
 
+use pos_engine::commands::bar_slip::SlipOutcome;
 use pos_engine::commands::order::{AddOrderLineInput, CreateOrderInput};
 
 use super::Managed;
@@ -30,6 +31,18 @@ pub fn update_order_line_quantity(
     quantity: i32,
 ) -> Result<(), String> {
     pos_engine::commands::order::do_update_order_line_quantity(state.inner(), line_id, quantity)
+}
+
+/// Set (or clear) the kitchen note of a line. A note changed after
+/// its line went to the kitchen prints a note slip; the result says
+/// what became of it.
+#[tauri::command]
+pub async fn set_line_note(
+    state: State<'_, Managed>,
+    line_id: i64,
+    note: Option<String>,
+) -> Result<SlipOutcome, String> {
+    pos_engine::commands::order::do_set_line_note(state.inner(), line_id, note).await
 }
 
 #[tauri::command]

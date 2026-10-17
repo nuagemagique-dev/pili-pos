@@ -5,10 +5,10 @@
 use crate::convert;
 use crate::core::PosEngine;
 use crate::error::PosError;
-use crate::records::common::FdmHealth;
+use crate::records::common::{FdmHealth, PaymentMethod};
 use crate::records::reports::{
-    FinancialResult, MoneyDirection, OpenShift, PosSettings, ReportResult, SocialResult,
-    ZReportSummary,
+    FinancialResult, MoneyDirection, OpenShift, PosSettings, ReportResult, SalePayments,
+    SocialResult, ZReportSummary,
 };
 
 // The closures name the engine function at the call, which `check_command_parity.py` looks for.
@@ -152,6 +152,46 @@ impl PosEngine {
                     amount_cents,
                     direction,
                     reason,
+                )
+                .await
+            })
+            .await?;
+        convert::out(&result)
+    }
+
+    /// The payment lines of a signed sale and whether one can be corrected (managers only).
+    pub async fn list_sale_payments(&self, fiscal_event_id: i64) -> Result<SalePayments, PosError> {
+        let payments = self
+            .blocking(move |state| {
+                pos_engine::commands::payment_correction::do_list_sale_payments(
+                    state,
+                    fiscal_event_id,
+                )
+            })
+            .await?;
+        convert::out(&payments)
+    }
+
+    /// Correct the method of one payment line of a sale signed today (event F), confirmed by the
+    /// manager's PIN.
+    pub async fn correct_payment(
+        &self,
+        fiscal_event_id: i64,
+        line_index: i32,
+        method: PaymentMethod,
+        insz: String,
+        pin: String,
+    ) -> Result<FinancialResult, PosError> {
+        let method: pos_fiscal::payment::PaymentMethod = convert::inp(&method)?;
+        let result = self
+            .spawn(move |engine| async move {
+                pos_engine::commands::payment_correction::do_correct_payment(
+                    &engine,
+                    fiscal_event_id,
+                    line_index,
+                    method,
+                    insz,
+                    pin,
                 )
                 .await
             })

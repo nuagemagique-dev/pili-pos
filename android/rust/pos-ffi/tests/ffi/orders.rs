@@ -250,6 +250,81 @@ async fn lines_and_cart_lines_convert_with_and_without_options() {
 }
 
 #[tokio::test]
+async fn a_discounted_cart_line_and_the_discount_result_convert() {
+    use pos_engine::commands::discount as engine;
+    const PIN: &str = "4321";
+    let app = app().await;
+    pos_engine::commands::auth::do_set_pin(&app.state, INSZ.into(), PIN.into(), None).unwrap();
+    let order = create(&app, None);
+    add(&app, order.id, 1, None, None);
+    add(&app, order.id, 2, None, None);
+
+    // A line without a change: the new fields are empty.
+    let cart = do_list_cart_lines(&app.state, order.id).unwrap();
+    let records: Vec<ffi::CartLine> = out_equal(&cart);
+    assert_eq!(records[0].discount_cents, 0);
+    assert!(records[0].price_changes.is_empty());
+
+    let input = engine::DiscountInput {
+        target: engine::DiscountTarget::Order,
+        kind: engine::DiscountKind::Percent,
+        value: Some(25),
+        reason_code: engine::DiscountReason::ServiceIssue,
+        reason_text: Some("plat froid".into()),
+    };
+    let done = engine::do_apply_discount(&app.state, order.id, input, INSZ.into(), PIN.into())
+        .await
+        .unwrap();
+    let result: ffi::DiscountResult = out_equal(&done);
+    // 2 x 12,00 + 2 x 28,00 = 80,00, 25 % off.
+    assert_eq!(result.order.total_cents, 6000);
+    assert_eq!(result.registration_error, None);
+
+    let cart = do_list_cart_lines(&app.state, order.id).unwrap();
+    let records: Vec<ffi::CartLine> = out_equal(&cart);
+    assert_eq!(records.iter().map(|l| l.discount_cents).sum::<i64>(), -2000);
+    let change = &records[0].price_changes[0];
+    assert_eq!(change.id, "TILL-DISCOUNT");
+    assert_eq!(change.name, "Remise 25 %");
+    assert_eq!(change.scope, "EVENT");
+    assert_eq!(change.amount_cents, records[0].discount_cents);
+}
+
+#[test]
+fn discount_enums_and_input_convert() {
+    use pos_engine::commands::discount as engine;
+    enum_both::<engine::DiscountKind, ffi::DiscountKind>(&[
+        engine::DiscountKind::Percent,
+        engine::DiscountKind::Amount,
+        engine::DiscountKind::Free,
+    ]);
+    enum_both::<engine::DiscountReason, ffi::DiscountReason>(&[
+        engine::DiscountReason::CommercialGesture,
+        engine::DiscountReason::StaffMeal,
+        engine::DiscountReason::ServiceIssue,
+        engine::DiscountReason::Other,
+    ]);
+    enum_both::<engine::DiscountTarget, ffi::DiscountTarget>(&[
+        engine::DiscountTarget::Order,
+        engine::DiscountTarget::Line { line_id: 7 },
+        engine::DiscountTarget::Line { line_id: 8 },
+    ]);
+    let input = ffi::DiscountInput {
+        target: ffi::DiscountTarget::Line { line_id: 9 },
+        kind: ffi::DiscountKind::Free,
+        value: None,
+        reason_code: ffi::DiscountReason::StaffMeal,
+        reason_text: Some("repas".into()),
+    };
+    let engine: engine::DiscountInput = contract_inp(&input).unwrap();
+    assert_eq!(engine.target, engine::DiscountTarget::Line { line_id: 9 });
+    assert_eq!(engine.kind, engine::DiscountKind::Free);
+    assert_eq!(engine.value, None);
+    assert_eq!(engine.reason_code, engine::DiscountReason::StaffMeal);
+    assert_eq!(engine.reason_text.as_deref(), Some("repas"));
+}
+
+#[tokio::test]
 async fn categories_and_menu_items_convert_with_options_set_and_empty() {
     let app = app().await;
     let categories = menu::do_get_categories(&app.state, None).unwrap();
@@ -753,6 +828,14 @@ async fn the_commands_that_need_an_operator_answer_not_logged_in_and_change_noth
         "not_logged_in"
     );
     assert_eq!(
+        code_of(
+            e.set_line_note(1, Some("sans wasabi".into()))
+                .await
+                .unwrap_err()
+        ),
+        "not_logged_in"
+    );
+    assert_eq!(
         code_of(e.set_active_order(Some(1)).await.unwrap_err()),
         "not_logged_in"
     );
@@ -772,6 +855,33 @@ async fn the_commands_that_need_an_operator_answer_not_logged_in_and_change_noth
         code_of(e.sign_pre_bill(1).await.unwrap_err()),
         "not_logged_in"
     );
+    assert_eq!(
+        code_of(e.transfer_table(1, 4).await.unwrap_err()),
+        "not_logged_in"
+    );
+    let discount = ffi::DiscountInput {
+        target: ffi::DiscountTarget::Order,
+        kind: ffi::DiscountKind::Percent,
+        value: Some(10),
+        reason_code: ffi::DiscountReason::CommercialGesture,
+        reason_text: None,
+    };
+    assert_eq!(
+        code_of(
+            e.apply_discount(1, discount, MANAGER_INSZ.into(), "4321".into())
+                .await
+                .unwrap_err()
+        ),
+        "not_logged_in"
+    );
+    assert_eq!(
+        code_of(
+            e.remove_discount(1, None, MANAGER_INSZ.into(), "4321".into())
+                .await
+                .unwrap_err()
+        ),
+        "not_logged_in"
+    );
 
     // Nothing was written.
     let lines = e.list_order_lines(1).await.unwrap();
@@ -779,6 +889,116 @@ async fn the_commands_that_need_an_operator_answer_not_logged_in_and_change_noth
     assert_eq!(lines[0].quantity, 2);
     assert_eq!(e.list_open_orders().await.unwrap().len(), 2);
     e.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_table_transfer_result_converts_with_every_slip_outcome() {
+    use pos_engine::commands::table_transfer::do_transfer_table;
+    let app = app().await;
+    app.use_admission_mock().await;
+    let printer = pos_engine_testkit::PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    let order = create(&app, Some(4));
+    add(&app, order.id, 1, None, None);
+
+    let moved = do_transfer_table(&app.state, order.id, 6).await.unwrap();
+    let record: ffi::TableTransferResult = out_equal(&moved);
+    assert_eq!(
+        (record.order_id, record.from_table, record.to_table),
+        (order.id, 4, 6)
+    );
+    assert_eq!(
+        record.kitchen_slip,
+        pos_ffi::records::common::SlipOutcome::Printed
+    );
+    assert_eq!(
+        record.transfer_slip,
+        pos_ffi::records::common::SlipOutcome::Printed
+    );
+
+    // Nothing sent first (registered already), no printer at all.
+    app.state.config.lock().unwrap().printer_address = None;
+    app.state.config.lock().unwrap().kitchen_printer_address = None;
+    let again = do_transfer_table(&app.state, order.id, 9).await.unwrap();
+    let record: ffi::TableTransferResult = out_equal(&again);
+    assert_eq!((record.from_table, record.to_table), (6, 9));
+    assert_eq!(
+        record.transfer_slip,
+        pos_ffi::records::common::SlipOutcome::NoPrinter
+    );
+}
+
+#[test]
+fn a_table_transfer_result_json_keeps_its_camel_case_names_for_every_slip_outcome() {
+    use pos_ffi::records::common::SlipOutcome;
+    for (name, expected) in [
+        ("printed", SlipOutcome::Printed),
+        ("nothing_to_print", SlipOutcome::NothingToPrint),
+        ("no_printer", SlipOutcome::NoPrinter),
+        ("failed", SlipOutcome::Failed),
+    ] {
+        let sample = serde_json::json!({
+            "orderId": 3,
+            "fromTable": 4,
+            "toTable": 6,
+            "kitchenSlip": name,
+            "transferSlip": name,
+        });
+        let record: ffi::TableTransferResult =
+            serde_json::from_value(sample.clone()).unwrap_or_else(|e| panic!("{name}: {e}"));
+        assert_eq!(record.kitchen_slip, expected);
+        assert_eq!(record.transfer_slip, expected);
+        assert_eq!(
+            (record.order_id, record.from_table, record.to_table),
+            (3, 4, 6)
+        );
+        // And back: the same names on the way out.
+        assert_eq!(json_of(&record), sample);
+    }
+    // A snake_case key is not the contract.
+    let wrong = serde_json::json!({
+        "order_id": 3, "from_table": 4, "to_table": 6,
+        "kitchen_slip": "printed", "transfer_slip": "printed",
+    });
+    assert!(serde_json::from_value::<ffi::TableTransferResult>(wrong).is_err());
+}
+
+#[tokio::test]
+async fn a_kitchen_note_and_the_online_flag_reach_the_cart_line_record() {
+    use pos_engine::commands::order::do_set_line_note;
+    let app = app().await;
+    let order = create(&app, Some(2));
+    let line = add(&app, order.id, 1, None, None);
+    let plain = add(&app, order.id, 2, None, None);
+
+    do_set_line_note(&app.state, line.id, Some("sans wasabi".into()))
+        .await
+        .unwrap();
+    let cart = do_list_cart_lines(&app.state, order.id).unwrap();
+    let records: Vec<ffi::CartLine> = out_equal(&cart);
+    assert_eq!(records[0].id, line.id);
+    assert_eq!(records[0].kitchen_note.as_deref(), Some("sans wasabi"));
+    assert_eq!(records[1].id, plain.id);
+    assert_eq!(records[1].kitchen_note, None);
+    assert!(records.iter().all(|r| !r.online));
+
+    // A line of an online order says so.
+    let online = create(&app, None);
+    add(&app, online.id, 1, None, None);
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "UPDATE orders SET hubrise_order_id = 'ONLINE-1' WHERE id = ?1",
+            [online.id],
+        )
+        .unwrap();
+    let cart = do_list_cart_lines(&app.state, online.id).unwrap();
+    let records: Vec<ffi::CartLine> = out_equal(&cart);
+    assert_eq!(records.len(), 1);
+    assert!(records[0].online);
+    assert_eq!(records[0].kitchen_note, None);
 }
 
 #[tokio::test(flavor = "multi_thread")]

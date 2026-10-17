@@ -337,6 +337,11 @@ async fn cancelled_after_the_p_is_closed_by_corrections_and_an_n_at_zero() {
         Some(0.0),
         "{n}"
     );
+    assert_eq!(
+        n["financials"],
+        serde_json::json!([]),
+        "FAQ Q206 b: empty financials, no PAY 0 row"
+    );
     assert!(closed.ticket.is_some(), "its ticket is printed");
     assert_eq!(w.app.order_status(id).as_deref(), Some("closed"));
     // HubRise already knows: it cancelled.

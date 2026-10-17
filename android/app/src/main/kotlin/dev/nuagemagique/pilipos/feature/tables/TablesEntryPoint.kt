@@ -5,7 +5,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.nuagemagique.pilipos.engine.EngineEvents
 import dev.nuagemagique.pilipos.engine.EngineGateway
+import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
+import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.state.OrderStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
@@ -34,4 +36,10 @@ internal interface TablesEntryPoint {
 
     /** The language of the texts. */
     fun settings(): PosSettingsStore
+
+    /** The success toast of a table move. */
+    fun toasts(): ToastStore
+
+    /** The Vue text of that toast, which a state holder cannot ask a composition for. */
+    fun catalog(): MessageCatalog
 }

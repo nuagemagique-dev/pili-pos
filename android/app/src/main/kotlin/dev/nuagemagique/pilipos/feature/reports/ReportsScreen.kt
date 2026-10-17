@@ -125,7 +125,7 @@ private fun tabKey(tab: ReportsTab): String =
 
 /**
  * The dialogs of the screen, for the scaffold's overlay slot: the Z history, the two amount keypads, the copy flow
- * and the refund flow. Nothing is drawn while no dialog is open.
+ * the refund flow and the payment correction. Nothing is drawn while no dialog is open.
  */
 @Composable
 internal fun BoxScope.ReportsOverlay(
@@ -139,4 +139,5 @@ internal fun BoxScope.ReportsOverlay(
     CashDialogs(state.cash, callbacks.cash)
     state.copyFlow?.let { CopyDialog(it, delivery, callbacks) }
     state.refundFlow?.let { RefundDialog(it, state.tickets.refundable, delivery, refund, callbacks) }
+    state.correctionFlow?.let { CorrectionDialog(it, state.userName, callbacks.correction) }
 }

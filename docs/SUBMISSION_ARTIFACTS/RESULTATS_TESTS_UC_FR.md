@@ -4,10 +4,9 @@
 **Reference :** §IV du manuel de certification (Procedure de communication GraphQL).
 
 Ce document parcourt les UC obligatoires du Basic Set v1.8 (22 UC
-spec) + les 5 UC Reports v1.3 + les cinq situations d'arrondi du manuel (ROUND1 a ROUND5). Sont hors périmètre v1.0.0, chacun
-dans sa section : **M150_signInvoice** (event I, voir
-*DECISION_PEPPOL_AP_FR.md*), **M122** (changement de centre de coût)
-et **M132** (correction de paiement) ; **M112A** n'est pas un parcours
+spec) + les 5 UC Reports v1.3 + les cinq situations d'arrondi du manuel (ROUND1 a ROUND5). Est hors périmètre v1.0.0, dans sa section : **M150_signInvoice** (event I, voir
+*DECISION_PEPPOL_AP_FR.md*). **M122** (changement de centre de coût, transfert
+de table) et **M132** (correction de paiement) sont dans le périmètre et rejoués, voir leur section ; **M112A** n'est pas un parcours
 proposé par pili-pos (le remboursement partiel est toujours émis en
 ticket séparé, parcours M112B). Pour chaque UC, il fournit :
 
@@ -1544,9 +1543,9 @@ on table 1.
 
 <!-- pili-pos-evidence:end -->
 
-## M122_signCostCenterChange - hors périmètre v1.0.0
+## M122_signCostCenterChange
 
-Le changement de centre de cout n'est **pas disponible en v1.0.0** (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; leur seul controle est la lecture de la fixture par pili-pos.
+Le changement de centre de cout est disponible pour l'**attribution** : transfert d'une commande ouverte vers une table libre (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). La division et la fusion de tables restent hors perimetre. Les valeurs ci-dessous sont celles de la fixture ; le rejeu applicatif la compare a la requete construite par pili-pos.
 
 **Mutation invoquee :** `signCostCenterChange`
 
@@ -1740,7 +1739,7 @@ is moved to T5 (Dining Room)
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture uniquement) - fonctionnalite non declaree en v1.0.0.
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m122_cost_center_change` (rejeu applicatif, build `cert`, ecart nul ; la commande suivante sur T05 garde la meme reference).
 
 
 ## M123_signPrebill
@@ -2212,9 +2211,9 @@ Aucun écart.
 
 <!-- pili-pos-evidence:end -->
 
-## M132_signPaymentCorrection - hors périmètre v1.0.0
+## M132_signPaymentCorrection
 
-La correction de paiement n'est **pas disponible en v1.0.0** (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; leur seul controle est la lecture de la fixture par pili-pos.
+La correction de paiement est disponible pour une ligne de paiement saisie a la main d'une vente de la journee en cours (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; le rejeu applicatif la compare a la requete construite par pili-pos. Un ecart declare : la fixture corrige vers une carte de credit (`CARD_CREDIT`), alors que, sans terminal relie, une carte saisie a la main est toujours `CARD_DEBIT` (*REPONSES_MANUEL_CERT_FR.md* §III.F). Deux differences ne sont pas comparees (la comparaison porte sur le type, le montant et le type de montant de chaque ligne) : la nouvelle ligne de carte part en saisie manuelle (`inputMethod` MANUAL, la fixture a AUTOMATIC) et la ligne d'especes n'indique pas de tiroir (champ optionnel, la fixture nomme le tiroir 1).
 
 **Mutation invoquee :** `signPaymentCorrection`
 
@@ -2328,7 +2327,9 @@ Payment of N14/50 (total to be paid 52 EUR) was made by CARD_CREDIT (Mastercard 
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture uniquement) - fonctionnalite non declaree en v1.0.0.
+**Ecarts declares du rejeu M132.** La comparaison automatique ne porte que sur le type, le montant et le type de montant (`amountType`) de chaque ligne de paiement. Un ecart est declare : la nouvelle ligne de carte est `CARD_DEBIT` (la fixture a `CARD_CREDIT`), car sans terminal de paiement relie l'operateur ne peut pas distinguer debit et credit. Deux differences ne sont pas comparees : la nouvelle ligne de carte part en saisie manuelle (`inputMethod` `MANUAL`, la fixture a `AUTOMATIC`, puisqu'elle suppose un terminal) et la ligne d'especes n'indique pas de tiroir (champ optionnel, la fixture nomme le tiroir 1).
+
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m132_payment_correction` (rejeu applicatif, build `cert`, un seul ecart : le type de la carte, `CARD_DEBIT` au lieu de `CARD_CREDIT`).
 
 
 ## M133_signMoneyInOut_DrawerDeclaration
@@ -6025,18 +6026,18 @@ TVA: BE0000000097
 
 | Famille | UC (spec) | UC dans le perimetre v1.0.0 | Lecture des fixtures | Rejeu applicatif (build `cert`) |
 |---|---|---|:-:|:-:|
-| Basic Set v1.8 | 22 | 18 (hors M112A, M122, M132 et M150/event I) | OK (22/22) | OK : 16 UC rejoues et compares a la fixture dans `spf_e2e_fixtures.rs` (M110, M111, M112B, M121, M123, M130, M131, M133, M140, M141, M160, M161, M170, M171, M171B, M172) ; M112A n'est pas un parcours propose (remboursement partiel toujours en ticket separe, parcours M112B) ; Q100/Q110 : `client_status.rs` |
+| Basic Set v1.8 | 22 | 20 (hors M112A et M150/event I) | OK (22/22) | OK : 18 UC rejoues et compares a la fixture dans `spf_e2e_fixtures.rs` (M110, M111, M112B, M121, M122, M123, M130, M131, M132, M133, M140, M141, M160, M161, M170, M171, M171B, M172) ; M112A n'est pas un parcours propose (remboursement partiel toujours en ticket separe, parcours M112B) ; Q100/Q110 : `client_status.rs` |
 | Reports v1.3 | 5 | 5 | OK (5/5) | OK : journee T1–T8 jouee puis M180, M182 et M184 compares a la fixture dans `spf_e2e_report_fixtures.rs` ; M181/M183 signes par le Z combine de M184 |
-| **Total** | **27** | **23** | **OK** | **OK** |
+| **Total** | **27** | **25** | **OK** | **OK** |
 
-Preuves d'annexe : **50 paires requete/reponse** construites et
+Preuves d'annexe : **55 paires requete/reponse** construites et
 archivees par la build `cert` pour le Basic Set et les rapports
 (`docs/SUBMISSION_ARTIFACTS/evidence/uc/`), plus un fichier
 `<UC>_check.json` par UC du Basic Set rejoue (comparaison champ par
 champ avec la fixture), **5 paires** pour les situations d'arrondi
-(`ROUND1` a `ROUND5`, avec leur ticket dans `evidence/tickets/`) et 5
-paires pour trois UC de l'Advanced Set rejoues par le meme harnais
-(UC230, UC4109, UC4119 ; voir *COUVERTURE_ADVANCED_SET_FR.md*). M150 n'y
+(`ROUND1` a `ROUND5`, avec leur ticket dans `evidence/tickets/`) et 10
+paires pour six UC de l'Advanced Set rejoues par le meme harnais
+(UC223, UC225A, UC229B, UC230, UC4109, UC4119 ; voir *COUVERTURE_ADVANCED_SET_FR.md*). M150 n'y
 figure pas : la build `cert` ne peut pas emettre d'event I.
 
 Pour le detail des couvertures, voir *COUVERTURE_FIXTURES_FR.md* et *COUVERTURE_RAPPORTS_FR.md*.

@@ -51,6 +51,8 @@ Accès complet. Concrètement, peut :
 - Émettre une copie de ticket (Événement C).
 - Effectuer un remboursement complet (Événement N, M111) ou partiel
   (M112B - événement séparé, voir `FLUX_REMBOURSEMENT_FR.md`).
+- Corriger le moyen de paiement d'une vente de la journée (Événement F -
+  `signPaymentCorrection`, M132), avec son PIN ; une seule fois par vente.
 - Activer / désactiver le mode formation (Événements T), uniquement
   lorsqu'aucune commande avec des lignes n'est ouverte : une table
   réelle ne peut ainsi jamais être encaissée en formation, ni une
@@ -95,9 +97,13 @@ Profil d'opérateur de caisse standard. Peut :
   `signWorkOut`).
 - Ouvrir / réutiliser une table en cours.
 - Ajouter, retirer ou modifier les lignes d'une commande ouverte.
+- Écrire une note de cuisine sur une ligne (donnée locale, jamais envoyée
+  au FDM).
 - Enregistrer la commande et l'envoyer en cuisine (Événement P -
   `signOrder`, bon de commande imprimé).
 - Imprimer un pré-ticket (Événement P - `signPreBill`).
+- Changer une commande de table : la commande ouverte passe à une table libre (Événement P -
+  `signCostCenterChange`), sans mouvement d'argent ; une table déjà occupée est refusée.
 - Encaisser : encaissement comptant ou carte (Événement N -
   `signSale`). Tiroir s'ouvre automatiquement pour les paiements
   comptant.
@@ -116,8 +122,12 @@ Profil restreint. Peut :
 - Ouvrir / réutiliser une table.
 - Ajouter, retirer ou modifier les lignes d'une commande ouverte
   (chaque correction est journalisée et transmise au FDM).
+- Écrire une note de cuisine sur une ligne (donnée locale, jamais envoyée
+  au FDM).
 - Enregistrer la commande et l'envoyer en cuisine (Événement P -
   `signOrder`).
+- Changer une commande de table (Événement P - `signCostCenterChange`), comme un Serveur : le
+  transfert ne déplace aucun argent.
 - Faire avancer une commande en ligne : "Préparer", "Prête" et
   "Retarder".
 - **NE peut PAS** imprimer l'addition ni encaisser : les boutons
@@ -176,7 +186,7 @@ L'enforcement vit à deux niveaux :
    | Encaissement | Gérant, Serveur | addition (P), vente (N), impression d'un original manquant, commandes en ligne : acceptation, refus, remise, encaissement et clôture |
    | Gestion | Gérant | remboursement, copie (C), mouvements de caisse et tiroir (F), rapports X/Z (R), mode formation, utilisateurs (création, désactivation, PIN des autres), pointage d'un autre employé (S), remboursement d'une commande en ligne, interrupteur, catalogue et canaux HubRise, sauvegarde |
    | Plateforme Android | Gérant | export SPF, mise à jour de l'application, export nocturne (export SPF et mise à jour contrôlés par les écrans de l'application, `UpdatePreconditions` et `managerOnly` ; export nocturne contrôlé par le moteur lui-même, qui refuse un opérateur non administrateur) |
-   | Gestion avec PIN | Gérant, PIN de l'opérateur confirmé | vente clôturée sans paiement, création d'un Gérant, PIN d'un autre employé |
+   | Gestion avec PIN | Gérant, PIN de l'opérateur confirmé | remise ou article offert à la caisse (et son retrait), vente clôturée sans paiement, création d'un Gérant, PIN d'un autre employé |
 
    Une commande refusée renvoie le code `not_logged_in` (aucune
    session) ou `forbidden` (rôle insuffisant) avant tout appel au FDM :

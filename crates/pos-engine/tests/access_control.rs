@@ -28,11 +28,16 @@ use pos_engine::commands::auth::{
 };
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
+use pos_engine::commands::discount::{
+    DiscountInput, DiscountKind, DiscountReason, DiscountTarget, do_apply_discount,
+    do_remove_discount,
+};
 use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
 use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_remove_order_line,
     do_update_order_line_quantity,
 };
+use pos_engine::commands::payment_correction::{do_correct_payment, do_list_sale_payments};
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::report::{
     do_backup_database, do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
@@ -41,8 +46,10 @@ use pos_engine::commands::settings::{ERR_OPEN_ORDERS, do_get_settings, do_set_tr
 use pos_engine::commands::social::{
     do_clock_in_employee, do_clock_out_employee, do_work_in, do_work_out,
 };
+use pos_engine::commands::table_transfer::do_transfer_table;
 use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_engine::commands::unpaid::do_close_unpaid;
+use pos_fiscal::payment::PaymentMethod;
 
 const MANAGER: &str = "94060242576";
 const SERVER: &str = "84022899837";
@@ -125,6 +132,17 @@ async fn manager_commands(
     insz: &str,
     sale: i64,
 ) -> Vec<(&'static str, Result<(), String>)> {
+    // Before the refund: a refunded sale is no longer corrected.
+    let correction = do_correct_payment(
+        &app.state,
+        sale,
+        0,
+        PaymentMethod::MealVoucher,
+        insz.into(),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .unwrap();
     let refund = do_refund_checkout(
         &app.state,
         sale,
@@ -149,6 +167,31 @@ async fn manager_commands(
             |r| r.get(0),
         )
         .unwrap();
+    // A discount and its removal, before the table is closed unpaid.
+    let discount = do_apply_discount(
+        &app.state,
+        left_unpaid,
+        DiscountInput {
+            target: DiscountTarget::Order,
+            kind: DiscountKind::Percent,
+            value: Some(10),
+            reason_code: DiscountReason::Other,
+            reason_text: None,
+        },
+        insz.into(),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .map(|_| ());
+    let removal = do_remove_discount(
+        &app.state,
+        left_unpaid,
+        None,
+        insz.into(),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .map(|_| ());
     let unpaid = do_close_unpaid(&app.state, left_unpaid, insz, MANAGER_PIN)
         .await
         .unwrap();
@@ -161,6 +204,15 @@ async fn manager_commands(
                 .then_some(())
                 .ok_or(refund.error.unwrap_or_default()),
         ),
+        (
+            "payment correction",
+            correction
+                .success
+                .then_some(())
+                .ok_or(correction.error.unwrap_or_default()),
+        ),
+        ("discount", discount),
+        ("remove discount", removal),
         (
             "copy",
             copy.success
@@ -247,6 +299,14 @@ async fn nothing_is_signed_without_a_logged_in_operator() {
     );
     assert_eq!(
         do_sign_pre_bill(&app.state, open).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_transfer_table(&app.state, open, 2).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_sale_payments(&app.state, sale).unwrap_err(),
         ERR_NOT_LOGGED_IN
     );
     assert_eq!(

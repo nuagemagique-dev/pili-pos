@@ -144,9 +144,10 @@ Le manuel de certification exerce le flux fiscal via des scénarios variables.js
 |---|---|---|
 | Vente sans paiement (UC4109) | écran de commande, bouton « Client parti sans payer » puis PIN du gérant (`docs/android/parity/order.md`) | proposé |
 | Paiement en plusieurs moyens et parts (UC4119, arrondis UC201) | écran d'encaissement : Espèces, Carte, Chèques-repas, parts égales, arrondi au 0,05 EUR des seules espèces (`docs/android/parity/checkout.md`) | proposé |
-| Remise sur le ticket d'une commande en ligne (UC223) | tableau des commandes en ligne ; le moteur répartit la remise sur les lignes (`docs/android/parity/webshop.md`) | proposé pour les commandes en ligne seulement |
+| Remise sur le ticket d'une commande en ligne (UC223) | tableau des commandes en ligne ; le moteur répartit la remise sur les lignes (`docs/android/parity/webshop.md`) | proposé |
+| Remise à la caisse (UC223, UC225A étape 2, UC225B étape 2, UC229B) | écran de commande, fenêtre « Remise » (`DiscountDialog`, boutons Remise, Offrir et Retirer la remise) puis PIN du gérant (`docs/android/parity/order.md`) | proposé ; rejoués par le moteur depuis la caisse : `uc223_event_discount_at_the_till` (écart listé : costCenter TABLE), `uc225a_discount_after_registration` (UC225A étape 2 et UC225B étape 2 ; écart listé : la remise de commande est de portée EVENT, la fixture à une ligne utilise LINE), `uc229b_free_line_at_the_till` (écarts listés : costCenter TABLE, libellé de TVA du Coca Cola A au catalogue contre B dans la requête de la fixture) ; UC4118 et UC4101 restent hors périmètre |
 | Options d'un produit | fenêtre « Options » de l'écran de commande (portage de `ModifierDialog.vue`) : options HubRise ; le prix des options s'ajoute au prix unitaire de la ligne, calculé par le moteur ; aucune modification de prix (priceChanges) | proposé, hors UC composite |
-| Produit composite, changement de prix à la saisie, split et fusion de tables (UC240 à UC252), vouchers MPV et SPV, devise et pourboires, acomptes, notes de crédit | aucun écran Android (aucun écran Linux non plus) | reporté, comme sous Linux |
+| Produit composite, split et fusion de tables (UC240 à UC252), déplacement vers une chambre ou un client (UC4101), correction de paiement différée avec crédit client (UC4118), vouchers MPV et SPV, devise et pourboires, acomptes, notes de crédit | aucun écran Android (aucun écran Linux non plus) | reporté, comme sous Linux |
 
 | Élément | Phase plan | Statut actuel | Reporté à |
 |---|---|---|---|

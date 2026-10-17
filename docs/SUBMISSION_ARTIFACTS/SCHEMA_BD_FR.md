@@ -157,6 +157,8 @@ historique).
 | `department_name` | TEXT (nullable, migration `002`) | Nom du département au moment de l'ajout, envoyé comme `departmentName` |
 | `modifiers_json` | TEXT (nullable) | Modificateurs sélectionnés en JSON |
 | `created_at` | TEXT | Date / heure d'ajout |
+| `kitchen_note` | TEXT (nullable, migration `031`) | Note de cuisine de la ligne (« sans wasabi »), 60 caractères au plus, écrite par le personnel sur une commande ouverte. Donnée locale : jamais envoyée au FDM, jamais copiée dans `order_entries`, jamais imprimée sur un ticket TVA |
+| `kitchen_note_printed` | TEXT (nullable, migration `031`) | Dernière note imprimée sur un bon du bar ou de la cuisine (NULL si aucune) ; une note différente n'est pas encore arrivée en cuisine |
 
 `order_lines` reste la vue consolidée affichée/imprimée ; le journal
 chronologique des ajouts/corrections/remboursements est `order_entries`
@@ -589,6 +591,22 @@ successives l'incrémentant (FAQ producteurs Q304). Index
 `idx_order_price_changes_order(order_id, entry_id)`. Déclencheurs
 refusant `UPDATE` et `DELETE`.
 
+### 5.3 bis `till_discounts` (ajout seul, migration `030`)
+
+Journal local des remises saisies à la caisse par un Gérant (ce qui ne
+part jamais au FDM : le motif). Une ligne par pose (`action` = `apply`)
+ou par retrait (`remove`) : `order_id`, `line_id` (NULL pour une remise
+de commande), `kind` (`percent` / `amount` / `free`, NULL au retrait),
+`value`, `amount_cents` (négatif à la pose), `change_id`, `grouping_id`,
+`reason_code`, `reason_text` (facultatif), `manager_insz` (le Gérant qui
+a confirmé par son PIN) et `created_at`. Index
+`idx_till_discounts_order(order_id, id)`. Déclencheurs refusant `UPDATE`
+et `DELETE`. La migration ajoute aussi `order_entries.till_op`
+(`price_change` ou NULL) qui marque les lignes du journal portant une
+remise de caisse, non modifiable une fois posée. Les montants signés
+sont dans `order_price_changes` (§5.3) avec les identifiants
+`TILL-DISCOUNT`, `TILL-FREE` et `TILL-FREE-LINE`.
+
 ### 5.4 `integration_switches`, `integration_switch_log` (ajout seul)
 
 `integration_switches` : état de l'interrupteur (`name` = `hubrise`,
@@ -708,6 +726,8 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 26 | `product-codes` | Colonne `code` de `menu_items` (code de menu affiché, sans effet fiscal). |
 | 27 | `eft-payments` | `eft_payments`, ses index et ses six déclencheurs (§2.5, terminal de paiement relié). |
 | 28 | `presence-registration` | Colonne `users.presence_only` (profil « Présence seule », §3.8) et colonnes d'audit `staff_shifts.started_by` / `ended_by` (§3.8 bis) : le Gérant qui pointe un autre employé. Non conditionnée par une fonctionnalité de compilation. |
+| 30 | `till-discounts` | `till_discounts`, ses déclencheurs et la colonne `order_entries.till_op` (§5.3 bis). |
+| 31 | `kitchen-notes` | Colonnes `kitchen_note` et `kitchen_note_printed` de `order_lines` (§2.2), notes de cuisine locales. |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette

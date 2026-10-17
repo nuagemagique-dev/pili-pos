@@ -77,6 +77,12 @@
 //! | `VatCalcItem` | `pos_fiscal::response::VatCalcItem` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
 //! | `VatCode` | `pos_core::vat::VatCode` | common | add_order_line, add_order_line_with_modifiers, get_menu_items (+3 commands); helper vat_split |
 //! | `VatLabel` | `pos_fiscal::types::VatLabel` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
+//! | `CartPriceChange` | `pos_db::queries::orders::CartPriceChange` | orders | list_cart_lines (inside CartLine) |
+//! | `DiscountInput` | `pos_engine::commands::discount::DiscountInput` | orders | apply_discount |
+//! | `DiscountKind` | `pos_engine::commands::discount::DiscountKind` | orders | apply_discount |
+//! | `DiscountReason` | `pos_engine::commands::discount::DiscountReason` | orders | apply_discount |
+//! | `DiscountResult` | `pos_engine::commands::discount::DiscountResult` | orders | apply_discount, remove_discount |
+//! | `DiscountTarget` | `pos_engine::commands::discount::DiscountTarget` | orders | apply_discount |
 //! | `AddOrderLineInput` | `pos_engine::commands::order::AddOrderLineInput` | orders | add_order_line |
 //! | `AddWithModifiersInput` | `pos_engine::commands::modifiers::AddWithModifiersInput` | orders | add_order_line_with_modifiers |
 //! | `CartLine` | `pos_db::queries::orders::CartLine` | orders | list_cart_lines |
@@ -93,6 +99,7 @@
 //! | `TableInfo` | `pos_engine::commands::tables::TableInfo` | orders | list_tables |
 //! | `TablePlan` | `pos_engine::commands::table_plan::TablePlan` | orders | get_table_plan, set_table_plan |
 //! | `TablePlanChange` | `pos_db::queries::table_plan::PlanChange` | orders | get_table_plan, set_table_plan |
+//! | `TableTransferResult` | `pos_engine::commands::table_transfer::TableTransferResult` | orders | transfer_table |
 //! | `TakeawayInfo` | `pos_engine::commands::tables::TakeawayInfo` | orders | list_open_takeaways |
 //! | `CopyResult` | `pos_engine::commands::copy::CopyResult` | checkout | copy_ticket |
 //! | `CopyableTicket` | `pos_db::queries::fiscal::CopyableTicket` | checkout | list_copyable_tickets |
@@ -106,9 +113,12 @@
 //! | `MailStatus` | `pos_engine::commands::delivery::MailStatus` | checkout | check_mail_status |
 //! | `RefundItem` | `pos_engine::commands::refund::RefundItem` | checkout | refund_checkout |
 //! | `RefundableEvent` | `pos_db::queries::fiscal::RefundableEvent` | checkout | list_refundable_events |
-//! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | money_in_out, open_drawer_fiscal |
+//! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | correct_payment, money_in_out, open_drawer_fiscal |
 //! | `MoneyDirection` | `pos_engine::commands::financial::MoneyDirection` | reports | money_in_out |
 //! | `OpenShift` | `pos_db::queries::shifts::OpenShift` | reports | list_open_shifts |
+//! | `CorrectionDone` | `pos_engine::commands::payment_correction::CorrectionDone` | reports | list_sale_payments |
+//! | `SalePaymentLine` | `pos_engine::commands::payment_correction::SalePaymentLine` | reports | list_sale_payments |
+//! | `SalePayments` | `pos_engine::commands::payment_correction::SalePayments` | reports | list_sale_payments |
 //! | `PosSettings` | `pos_engine::commands::settings::PosSettings` | reports | get_settings |
 //! | `ReportResult` | `pos_engine::commands::report::ReportResult` | reports | generate_user_x_report, generate_x_report, generate_z_report |
 //! | `SocialResult` | `pos_engine::commands::social::SocialResult` | reports | clock_in_employee, clock_out_employee, end_shift, work_in, work_out |

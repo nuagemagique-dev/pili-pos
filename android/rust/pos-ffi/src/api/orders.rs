@@ -2,16 +2,18 @@
 //! and session): one async method per Tauri command, each one converting its arguments, making the
 //! wrapper's single engine call and converting the answer. Plus the `vat_split` helper (PD62).
 
-use pos_engine::commands::{menu, modifiers, order, session, table_plan, tables};
+use pos_engine::commands::{
+    discount, menu, modifiers, order, session, table_plan, table_transfer, tables,
+};
 
 use crate::convert;
 use crate::core::PosEngine;
 use crate::error::PosError;
 use crate::records::common::{SlipOutcome, VatCode};
 use crate::records::orders::{
-    AddOrderLineInput, AddWithModifiersInput, CartLine, Category, CreateOrderInput, LeaveReason,
-    LockOutcome, MenuItem, ModifierGroup, Order, OrderLine, TableInfo, TablePlan, TakeawayInfo,
-    VatLine, VatSplitRow,
+    AddOrderLineInput, AddWithModifiersInput, CartLine, Category, CreateOrderInput, DiscountInput,
+    DiscountResult, LeaveReason, LockOutcome, MenuItem, ModifierGroup, Order, OrderLine, TableInfo,
+    TablePlan, TableTransferResult, TakeawayInfo, VatLine, VatSplitRow,
 };
 
 #[uniffi::export]
@@ -48,6 +50,19 @@ impl PosEngine {
     ) -> Result<(), PosError> {
         self.blocking(move |st| order::do_update_order_line_quantity(st, line_id, quantity))
             .await
+    }
+
+    /// Set (or clear) the kitchen note of a line; a note changed after the line went to the
+    /// kitchen prints a note slip.
+    pub async fn set_line_note(
+        &self,
+        line_id: i64,
+        note: Option<String>,
+    ) -> Result<SlipOutcome, PosError> {
+        let outcome = self
+            .spawn(move |e| async move { order::do_set_line_note(&e, line_id, note).await })
+            .await?;
+        convert::out(&outcome)
     }
 
     /// An order by id.
@@ -178,6 +193,55 @@ impl PosEngine {
         convert::out(&outcome)
     }
 
+    /// Move the open order of a table to a free table (event P, cost center change).
+    pub async fn transfer_table(
+        &self,
+        order_id: i64,
+        to_table: i32,
+    ) -> Result<TableTransferResult, PosError> {
+        let result = self
+            .spawn(move |e| async move {
+                table_transfer::do_transfer_table(&e, order_id, to_table).await
+            })
+            .await?;
+        convert::out(&result)
+    }
+
+    /// Give a discount on an open till order (order discount or one free line); a manager
+    /// confirms with the PIN.
+    pub async fn apply_discount(
+        &self,
+        order_id: i64,
+        input: DiscountInput,
+        insz: String,
+        pin: String,
+    ) -> Result<DiscountResult, PosError> {
+        let input: discount::DiscountInput = convert::inp(&input)?;
+        let result = self
+            .spawn(move |e| async move {
+                discount::do_apply_discount(&e, order_id, input, insz, pin).await
+            })
+            .await?;
+        convert::out(&result)
+    }
+
+    /// Remove the order discount (`line_id` `None`) or the free line `line_id`; a manager confirms
+    /// with the PIN.
+    pub async fn remove_discount(
+        &self,
+        order_id: i64,
+        line_id: Option<i64>,
+        insz: String,
+        pin: String,
+    ) -> Result<DiscountResult, PosError> {
+        let result = self
+            .spawn(move |e| async move {
+                discount::do_remove_discount(&e, order_id, line_id, insz, pin).await
+            })
+            .await?;
+        convert::out(&result)
+    }
+
     /// Tell the engine which order the screen shows (`None`: none).
     pub async fn set_active_order(&self, order_id: Option<i64>) -> Result<(), PosError> {
         self.blocking(move |st| session::do_set_active_order(st, order_id))
@@ -298,7 +362,7 @@ mod flow {
 
     use super::*;
     use crate::core::EngineOptions;
-    use crate::records::orders::OrderType;
+    use crate::records::orders::{DiscountKind, DiscountReason, DiscountTarget, OrderType};
 
     const MANAGER_INSZ: &str = "94060242576";
 
@@ -377,6 +441,91 @@ mod flow {
             PosError::Coded { code, .. } => code,
             other => panic!("expected a coded error, got {other:?}"),
         }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_discount_is_applied_and_removed_through_the_facade() {
+        const PIN: &str = "4321";
+        let (e, _dir) = open_logged_in().await;
+        e.blocking(|st| {
+            pos_engine::commands::auth::do_set_pin(st, MANAGER_INSZ.into(), PIN.into(), None)
+        })
+        .await
+        .unwrap();
+        let order = e
+            .create_order(CreateOrderInput {
+                order_type: OrderType::Takeaway,
+                table_number: None,
+                user_insz: MANAGER_INSZ.into(),
+            })
+            .await
+            .unwrap();
+        e.add_order_line(AddOrderLineInput {
+            order_id: order.id,
+            menu_item_id: 10006,
+            quantity: 2,
+            modifiers_json: None,
+            unit_price_cents: None,
+        })
+        .await
+        .unwrap();
+        let percent = |value: i64| DiscountInput {
+            target: DiscountTarget::Order,
+            kind: DiscountKind::Percent,
+            value: Some(value),
+            reason_code: DiscountReason::CommercialGesture,
+            reason_text: None,
+        };
+
+        // A wrong PIN is refused with its code and changes nothing.
+        let wrong = e
+            .apply_discount(order.id, percent(50), MANAGER_INSZ.into(), "0000".into())
+            .await
+            .unwrap_err();
+        assert_eq!(coded(wrong), "pin_wrong");
+        assert_eq!(e.get_order(order.id).await.unwrap().total_cents, 2400);
+
+        // 50 % of 2 x 12,00.
+        let done = e
+            .apply_discount(order.id, percent(50), MANAGER_INSZ.into(), PIN.into())
+            .await
+            .unwrap();
+        assert_eq!(done.order.id, order.id);
+        assert_eq!(done.order.total_cents, 1200);
+        assert_eq!(done.registration_error, None);
+        let cart = e.list_cart_lines(order.id).await.unwrap();
+        assert_eq!(cart[0].discount_cents, -1200);
+        assert_eq!(cart[0].price_changes.len(), 1);
+        assert_eq!(cart[0].price_changes[0].id, "TILL-DISCOUNT");
+        assert_eq!(cart[0].price_changes[0].scope, "EVENT");
+
+        // A second discount waits for the removal.
+        let twice = e
+            .apply_discount(order.id, percent(10), MANAGER_INSZ.into(), PIN.into())
+            .await
+            .unwrap_err();
+        assert_eq!(coded(twice), "discount_already_applied");
+
+        // The removal takes the PIN too, and gives the full price back.
+        let wrong = e
+            .remove_discount(order.id, None, MANAGER_INSZ.into(), "0000".into())
+            .await
+            .unwrap_err();
+        assert_eq!(coded(wrong), "pin_wrong");
+        let removed = e
+            .remove_discount(order.id, None, MANAGER_INSZ.into(), PIN.into())
+            .await
+            .unwrap();
+        assert_eq!(removed.order.total_cents, 2400);
+        let cart = e.list_cart_lines(order.id).await.unwrap();
+        assert_eq!(cart[0].discount_cents, 0);
+        // Nothing left to remove.
+        let none = e
+            .remove_discount(order.id, None, MANAGER_INSZ.into(), PIN.into())
+            .await
+            .unwrap_err();
+        assert_eq!(coded(none), "discount_none");
+        e.shutdown().await.unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -479,6 +628,35 @@ mod flow {
             ),
             "quantity_positive"
         );
+        // A kitchen note is stored and shown in the cart; the engine validates it.
+        assert_eq!(
+            e.set_line_note(martini.id, Some("  sans glaçon ".into()))
+                .await
+                .unwrap(),
+            SlipOutcome::NothingToPrint
+        );
+        let cart = e.list_cart_lines(order.id).await.unwrap();
+        assert_eq!(cart[0].kitchen_note.as_deref(), Some("sans glaçon"));
+        assert_eq!(cart[1].kitchen_note, None);
+        assert_eq!(
+            coded(
+                e.set_line_note(martini.id, Some("x".repeat(61)))
+                    .await
+                    .unwrap_err()
+            ),
+            "note_too_long"
+        );
+        assert_eq!(
+            coded(
+                e.set_line_note(martini.id, Some("不要".into()))
+                    .await
+                    .unwrap_err()
+            ),
+            "note_unprintable"
+        );
+        e.set_line_note(martini.id, None).await.unwrap();
+        let cart = e.list_cart_lines(order.id).await.unwrap();
+        assert_eq!(cart[0].kitchen_note, None);
         e.remove_order_line(dish.id).await.unwrap();
         let lines = e.list_order_lines(order.id).await.unwrap();
         assert_eq!(
@@ -522,6 +700,27 @@ mod flow {
         e.sign_pre_bill(order.id).await.unwrap();
         let tables = e.list_tables().await.unwrap();
         assert!(tables[6].pre_bill_printed);
+
+        // Moving the order to a free table: refusals are coded, the move keeps the order.
+        assert_eq!(
+            coded(e.transfer_table(order.id, 7).await.unwrap_err()),
+            "table_transfer_same_table"
+        );
+        assert_eq!(
+            coded(e.transfer_table(order.id, 99).await.unwrap_err()),
+            "table_transfer_target_invalid"
+        );
+        let moved = e.transfer_table(order.id, 20).await.unwrap();
+        assert_eq!(
+            (moved.order_id, moved.from_table, moved.to_table),
+            (order.id, 7, 20)
+        );
+        assert_eq!(moved.kitchen_slip, SlipOutcome::NothingToPrint);
+        assert_eq!(moved.transfer_slip, SlipOutcome::Printed);
+        let tables = e.list_tables().await.unwrap();
+        assert_eq!(tables[6].status, "free");
+        assert_eq!(tables[19].order_id, Some(order.id));
+        assert!(tables[19].pre_bill_printed);
 
         // A takeaway is a direct sale: leaving it registers nothing.
         let takeaway = e

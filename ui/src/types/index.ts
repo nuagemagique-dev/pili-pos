@@ -121,13 +121,55 @@ export interface OrderLine {
   department_name: string;
 }
 
+/** A price change on a cart line (a till discount, an online order's). */
+export interface CartPriceChange {
+  id: string;
+  name: string;
+  scope: 'LINE' | 'EVENT';
+  amount_cents: number;
+}
+
 /** A cart line: the order line, its product's French and Chinese
- * names, and the quantity not yet sent to the bar / kitchen. */
+ * names, the quantity not yet sent to the bar / kitchen, and its
+ * price changes (`discount_cents` is their sum, negative). */
 export interface CartLine extends OrderLine {
   name_fr: string | null;
   name_zh: string | null;
   code?: string | null;
   unsent_quantity: number;
+  discount_cents: number;
+  price_changes: CartPriceChange[];
+  /** The note for the kitchen ("sans wasabi"): local, never fiscal. */
+  kitchen_note?: string | null;
+  /** The line belongs to an online order: the till gives no discount on it. */
+  online?: boolean;
+}
+
+/** Why a manager gives a discount (audit only, never signed). */
+export type DiscountReason = 'commercial_gesture' | 'staff_meal' | 'service_issue' | 'other';
+
+export type DiscountKind = 'percent' | 'amount' | 'free';
+
+/** What a till discount applies to: the whole order, or one line (for free). */
+export type DiscountTarget = { type: 'order' } | { type: 'line'; line_id: number };
+
+/** Input of the command `apply_discount`. */
+export interface DiscountInput {
+  target: DiscountTarget;
+  kind: DiscountKind;
+  /** The percent (1 to 99) or the amount in cents; absent for "free". */
+  value?: number;
+  reason_code: DiscountReason;
+  reason_text?: string | null;
+}
+
+/** What `apply_discount` / `remove_discount` did. */
+export interface DiscountResult {
+  order: Order;
+  kitchenSlip: SlipOutcome;
+  /** Set when the P that registers the change could not be signed: the
+   * discount is recorded and goes with the next registration or sale. */
+  registrationError: string | null;
 }
 
 export interface User {

@@ -72,6 +72,70 @@ pub const AMOUNT_NEGATIVE: &str = "amount_negative";
 pub const PREVIOUS_DAY_OPEN: &str = "previous_day_open";
 pub const ORDER_ALREADY_CLOSED: &str = "order_already_closed";
 
+// Table transfer (a P event, signCostCenterChange).
+/// The target is the table the order is already on.
+pub const TABLE_TRANSFER_SAME_TABLE: &str = "table_transfer_same_table";
+/// The target table has an open order with lines: merging two tables is
+/// not supported.
+pub const TABLE_TRANSFER_TARGET_BUSY: &str = "table_transfer_target_busy";
+/// The target is not a table of the plan (1 to 999).
+pub const TABLE_TRANSFER_TARGET_INVALID: &str = "table_transfer_target_invalid";
+/// Only the open order of a table in the room moves: not a takeaway, not
+/// an online order.
+pub const TABLE_TRANSFER_NOT_A_TABLE: &str = "table_transfer_not_a_table";
+/// The move is signed at the FDM but the target got an order with lines
+/// meanwhile (late answer): the order stays on its source table.
+pub const TABLE_TRANSFER_NOT_MOVED: &str = "table_transfer_not_moved";
+
+// Discount at the till (price changes, manager PIN).
+/// An order discount already applies (remove it first), or the line
+/// already carries a change.
+pub const DISCOUNT_ALREADY_APPLIED: &str = "discount_already_applied";
+/// Nothing to remove: no discount applies to that order or line.
+pub const DISCOUNT_NONE: &str = "discount_none";
+/// The percent is not 1 to 99, the amount not 1 cent to the net total,
+/// there is nothing to discount, or the kind does not fit the target.
+pub const DISCOUNT_INVALID: &str = "discount_invalid";
+/// The reason is not one of the list, or its text is too long.
+pub const DISCOUNT_REASON_INVALID: &str = "discount_reason_invalid";
+/// An online order has its own discounts: none is taken at the till.
+pub const DISCOUNT_ONLINE_ORDER: &str = "discount_online_order";
+/// A line with a discount keeps its quantity: remove the discount first.
+pub const LINE_HAS_PRICE_CHANGES: &str = "line_has_price_changes";
+
+// Kitchen note on an order line (local, never fiscal).
+/// The note is longer than 60 characters after trimming.
+pub const NOTE_TOO_LONG: &str = "note_too_long";
+/// The note has a control character (a line break, say) or a character
+/// the slip printer cannot print (a Chinese note would print "?").
+pub const NOTE_UNPRINTABLE: &str = "note_unprintable";
+
+// Payment correction (an F event, signPaymentCorrection).
+/// Only a sale ticket (N, or T in training) is corrected: not a refund, a copy or any other event.
+pub const PAYMENT_CORRECTION_NOT_A_SALE: &str = "payment_correction_not_a_sale";
+/// A training sale is corrected only in training, a real sale only outside it.
+pub const PAYMENT_CORRECTION_TRAINING: &str = "payment_correction_training";
+/// The sale belongs to a booking period a Z report has already closed.
+pub const PAYMENT_CORRECTION_PERIOD_CLOSED: &str = "payment_correction_period_closed";
+/// A sale closed unpaid has no payment to correct.
+pub const PAYMENT_CORRECTION_UNPAID: &str = "payment_correction_unpaid";
+/// An online order (APP / ONLINE payment) is paid by the platform, not at the till.
+pub const PAYMENT_CORRECTION_ONLINE: &str = "payment_correction_online";
+/// The sale was refunded, in whole or in part, since it was signed.
+pub const PAYMENT_CORRECTION_REFUNDED: &str = "payment_correction_refunded";
+/// One correction per sale: this sale's payment was already corrected.
+pub const PAYMENT_CORRECTION_ALREADY_DONE: &str = "payment_correction_already_done";
+/// The line index is not a payment line of the sale.
+pub const PAYMENT_CORRECTION_BAD_LINE: &str = "payment_correction_bad_line";
+/// A card the linked terminal approved is never corrected (no reversal support).
+pub const PAYMENT_CORRECTION_TERMINAL_CARD: &str = "payment_correction_terminal_card";
+/// The new method is the one the line already has.
+pub const PAYMENT_CORRECTION_SAME_METHOD: &str = "payment_correction_same_method";
+/// The new method is not one the till takes (cash, card, meal voucher).
+pub const PAYMENT_CORRECTION_METHOD: &str = "payment_correction_method";
+/// The correction would need a ROUNDING line: a cash line of a rounded sale, or a cash amount that is not a multiple of 5 cents.
+pub const PAYMENT_CORRECTION_ROUNDING: &str = "payment_correction_rounding";
+
 // Tickets: copies and refunds.
 pub const EVENT_NOT_FOUND: &str = "event_not_found";
 /// `field`: what the archived original lacks.
@@ -214,7 +278,32 @@ pub fn config_problem(problem: &str) -> String {
 
 /// Every code, for the translation check.
 pub const ALL: &[&str] = &[
+    PAYMENT_CORRECTION_NOT_A_SALE,
+    PAYMENT_CORRECTION_TRAINING,
+    PAYMENT_CORRECTION_PERIOD_CLOSED,
+    PAYMENT_CORRECTION_UNPAID,
+    PAYMENT_CORRECTION_ONLINE,
+    PAYMENT_CORRECTION_REFUNDED,
+    PAYMENT_CORRECTION_ALREADY_DONE,
+    PAYMENT_CORRECTION_BAD_LINE,
+    PAYMENT_CORRECTION_TERMINAL_CARD,
+    PAYMENT_CORRECTION_SAME_METHOD,
+    PAYMENT_CORRECTION_METHOD,
+    PAYMENT_CORRECTION_ROUNDING,
+    DISCOUNT_ALREADY_APPLIED,
+    DISCOUNT_NONE,
+    DISCOUNT_INVALID,
+    DISCOUNT_REASON_INVALID,
+    DISCOUNT_ONLINE_ORDER,
+    LINE_HAS_PRICE_CHANGES,
+    NOTE_TOO_LONG,
+    NOTE_UNPRINTABLE,
     CONFIG_TABLES,
+    TABLE_TRANSFER_SAME_TABLE,
+    TABLE_TRANSFER_TARGET_BUSY,
+    TABLE_TRANSFER_TARGET_INVALID,
+    TABLE_TRANSFER_NOT_A_TABLE,
+    TABLE_TRANSFER_NOT_MOVED,
     CONFIG_POS_ID,
     CONFIG_RESTAURANT_VAT,
     CONFIG_RESTAURANT_EST_NO,

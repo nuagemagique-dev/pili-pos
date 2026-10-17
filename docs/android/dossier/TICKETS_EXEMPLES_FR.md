@@ -27,12 +27,12 @@ Réponse au tableau « Contenu du ticket » du manuel §VI. Une ligne par élém
 | IX. Date et heure de délivrance | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ |
 | X. N° de ticket continu (série ininterrompue) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XI.1. Lignes produits : qté, désignation, prix, code TVA | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | ☑ (désignation seule, pas de prix) |
-| XI.2. Modifications de prix sur la ligne | ☑ (commandes en ligne : remise imprimée sous sa ligne) | ☑ (remise reprise en négatif) | N/A | ☑ (copie d'une vente en ligne) | N/A | - |
+| XI.2. Modifications de prix sur la ligne | ☑ (commandes en ligne et « Offrir » à la caisse : remise imprimée sous sa ligne) | ☑ (remise reprise en négatif) | N/A | ☑ (copie d'une vente en ligne) | N/A | - |
 | XI.3. GTIN (optionnel) | N/A | N/A | N/A | N/A | N/A | - |
 | XII. Total à payer TVA comprise | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | - |
 | XIII. Base imposable par taux de TVA (calculée par le FDM) | ☑ | ☑ | - (jamais sur une addition) | ☑ | ☑ | - |
 | XIV. Montant TVA par taux (calculé par le FDM) | ☑ | ☑ | - | ☑ | ☑ | - |
-| XV. Modifications de prix hors lignes produits | N/A (les remises d'une commande en ligne sont réparties sur les lignes et imprimées sous chacune, voir XI.2) | N/A | N/A | N/A | N/A | - |
+| XV. Modifications de prix hors lignes produits | ☑ (la remise d'une commande, saisie à la caisse par un Gérant ou venue d'une commande en ligne, est répartie sur les lignes et imprimée sous chacune, voir XI.2 ; « Offert » signe la vente à 0,00) | ☑ (remise reprise en négatif) | ☑ (l'addition imprime les remises) | N/A | N/A | - |
 | XVI.I. Pied de page configuré par SPF Finances (imprimé quand le FDM en renvoie ; le simulateur du banc n'en renvoie pas, la zone reste vide) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.II. fdmId | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.III. fdmDateTime | ☑ | ☑ | ☑ | ☑ | ☑ | - |
@@ -619,6 +619,82 @@ Table 5
 ------------------------------------------------
 Qte   Article
 1 x Burger of the CHEF
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### Bon de commande avec note de cuisine
+
+Scénario : la ligne « Burger du chef » porte la note « allergie arachide
+- sans oignons ». La note s'imprime en retrait sous l'article, sans prix ;
+elle n'a aucun effet sur le message envoyé au FDM.
+
+```
+                BON DE COMMANDE
+================================================
+Date:                        03/07/2026 12:31:05
+Operateur:                          Marie Dupont
+Table 4
+------------------------------------------------
+Qte   Article
+2 x Dry Martini
+1 x Burger du chef
+   > allergie arachide - sans oignons
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### Bon de modification de note (note changée après l'envoi)
+
+Scénario : la note du « Burger du chef », déjà en cuisine, devient « bien
+cuit ». Le bon sort tout de suite, sans quantité ni prix, avec la mention
+d'invalidité en bas ; ce n'est ni une commande ni un ticket TVA, et il
+n'envoie rien au FDM. Une note effacée imprime « Note supprimee ».
+
+```
+                  MODIFICATION
+================================================
+Date:                        03/07/2026 12:38:12
+Operateur:                          Marie Dupont
+Table 4
+------------------------------------------------
+Burger du chef
+Note : bien cuit
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### Bon de transfert de table (M122 - Événement P)
+
+Scénario : une commande ouverte passe de la table 4 à la table 9
+(`signCostCenterChange`). Le bon sort sur l'imprimante du bar, sans
+aucun article ni prix, avec la mention d'invalidité en bas ; une
+impression en échec n'annule jamais la signature.
+
+```
+               TRANSFERT DE TABLE
+================================================
+Date:                        03/07/2026 12:35:40
+Operateur:                          Marie Dupont
+Table 4 -> Table 9
 ------------------------------------------------
    CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
                     VALABLE

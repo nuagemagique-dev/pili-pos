@@ -162,6 +162,8 @@ pub(crate) struct ReportLabels {
     pub(crate) payments_title: &'static str,
     pub(crate) payments_total: &'static str,
     pub(crate) roundings: &'static str,
+    /// Payment method corrections (count, amount moved).
+    pub(crate) payment_corrections: &'static str,
     /// User report (M182 / M183).
     pub(crate) user_report_prefix: &'static str,
     pub(crate) first_event: &'static str,
@@ -199,6 +201,7 @@ pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
             payments_title: "PAIEMENTS ENREGISTRES",
             payments_total: "Total des paiements",
             roundings: "Arrondis",
+            payment_corrections: "Corrections de paiement",
             user_report_prefix: "RAPPORT UTIL.",
             first_event: "Premier event:",
             last_event: "Dernier event:",
@@ -232,6 +235,7 @@ pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
             payments_title: "GEREGISTREERDE BETALINGEN",
             payments_total: "Totaal betalingen",
             roundings: "Afrondingen",
+            payment_corrections: "Betalingscorrecties",
             user_report_prefix: "RAPPORT GEBR.",
             first_event: "Eerste event:",
             last_event: "Laatste event:",
@@ -265,6 +269,7 @@ pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
             payments_title: "ERFASSTE ZAHLUNGEN",
             payments_total: "Summe Zahlungen",
             roundings: "Rundungen",
+            payment_corrections: "Zahlungskorrekturen",
             user_report_prefix: "BERICHT BENUTZER",
             first_event: "Erstes Event:",
             last_event: "Letztes Event:",
@@ -282,6 +287,14 @@ pub(crate) struct BarLabels {
     pub(crate) table: &'static str,
     pub(crate) direct_sale: &'static str,
     pub(crate) items_header: &'static str,
+    /// Title of the table transfer notice.
+    pub(crate) transfer_title: &'static str,
+    /// Title of the kitchen note change slip.
+    pub(crate) note_title: &'static str,
+    /// Label before a line's kitchen note on the note slip.
+    pub(crate) note: &'static str,
+    /// Printed when a kitchen note was removed.
+    pub(crate) note_removed: &'static str,
 }
 
 pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
@@ -293,6 +306,10 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Table",
             direct_sale: "Vente directe",
             items_header: "Qte   Article",
+            transfer_title: "TRANSFERT DE TABLE",
+            note_title: "MODIFICATION",
+            note: "Note :",
+            note_removed: "Note supprimee",
         },
         ReceiptLanguage::Nl => &BarLabels {
             title: "BESTELBON",
@@ -301,6 +318,10 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Tafel",
             direct_sale: "Directe verkoop",
             items_header: "Aantal Artikel",
+            transfer_title: "TAFELVERPLAATSING",
+            note_title: "WIJZIGING",
+            note: "Opmerking:",
+            note_removed: "Opmerking verwijderd",
         },
         ReceiptLanguage::De => &BarLabels {
             title: "BESTELLSCHEIN",
@@ -309,6 +330,10 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Tisch",
             direct_sale: "Direktverkauf",
             items_header: "Menge  Artikel",
+            transfer_title: "TISCHWECHSEL",
+            note_title: "AENDERUNG",
+            note: "Hinweis:",
+            note_removed: "Hinweis geloescht",
         },
     }
 }

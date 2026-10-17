@@ -645,7 +645,7 @@ fn build_print_data(
         short_signature: None,
         ticket_number,
         lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
-        details: report_details(config, period, data),
+        details: report_details(config, period, data, events),
     }
 }
 
@@ -654,6 +654,7 @@ fn report_details(
     config: &pos_core::config::PosConfig,
     period: &BookingPeriod,
     data: &TurnoverReportData,
+    events: &[ReportEvent],
 ) -> ReportDetails {
     let turnover = &data.turnover;
     let neg = |refund: bool| {
@@ -674,15 +675,11 @@ fn report_details(
                 (count + t.ticket_count, amount + cents(t.amount))
             })
     };
-    // Price changes are not made by this POS (Advanced Set, out of
-    // scope): whatever the FDM totals hold is shown as line reductions.
-    let reductions = turnover
-        .price_changes
-        .iter()
-        .fold((0, 0), |(count, amount), change| {
-            let sum: f64 = change.amount.iter().map(|a| a.negative + a.positive).sum();
-            (count + 1, amount + cents(sum))
-        });
+    // The public price changes of the sales, split by scope as the
+    // printout asks: a change on one line (a free line) or on the whole
+    // ticket (an order discount, an online order's). The signed totals
+    // (`turnover.priceChanges`) are not split.
+    let (line_reductions, event_reductions) = reductions_by_scope(events);
     ReportDetails {
         restaurant_est_no: config.restaurant_est_no.clone(),
         booking_period_id: period.id.clone(),
@@ -705,8 +702,8 @@ fn report_details(
         corrections_cents: neg(false).1,
         refunds: neg(true),
         training: transactions_of(EventLabel::T),
-        line_reductions: reductions,
-        event_reductions: (0, 0),
+        line_reductions,
+        event_reductions,
         invoices: turnover
             .invoices
             .iter()
@@ -720,7 +717,57 @@ fn report_details(
             .filter(|a| a.amount_type == PaymentLineType::Rounding)
             .map(|a| cents(a.total_amount))
             .sum(),
+        payment_corrections: payment_corrections(&turnover.payments),
     }
+}
+
+/// The reductions of the sales' lines, per scope: `(tickets, cents)` for
+/// `LINE` scope changes, then for `EVENT` scope ones. A ticket counts once
+/// per scope it has a public change of; the amount is their sum (negative
+/// for a discount).
+fn reductions_by_scope(events: &[ReportEvent]) -> ((i64, i64), (i64, i64)) {
+    let mut line = (0, 0);
+    let mut event = (0, 0);
+    for sale in events.iter().filter(|e| e.label == EventLabel::N) {
+        let (mut line_hit, mut event_hit) = (false, false);
+        for l in sale.lines() {
+            for vat in l["mainProduct"]["vats"].as_array().into_iter().flatten() {
+                for change in vat["priceChanges"].as_array().into_iter().flatten() {
+                    if change["type"].as_str() != Some("PUBLIC") {
+                        continue;
+                    }
+                    let amount = cents(change["amount"].as_f64().unwrap_or(0.0));
+                    if change["scope"].as_str() == Some("LINE") {
+                        line.1 += amount;
+                        line_hit = true;
+                    } else {
+                        event.1 += amount;
+                        event_hit = true;
+                    }
+                }
+            }
+        }
+        line.0 += i64::from(line_hit);
+        event.0 += i64::from(event_hit);
+    }
+    (line, event)
+}
+
+/// Payment corrections (event F) of the report: their number (each
+/// one is a negative and a positive line) and the amount they moved to
+/// another method.
+fn payment_corrections(payments: &[PaymentTotalInput]) -> (i64, i64) {
+    let (lines, moved) = payments
+        .iter()
+        .flat_map(|p| &p.amount)
+        .filter(|a| a.amount_type == PaymentLineType::Payment)
+        .fold((0, 0), |(lines, moved), a| {
+            (
+                lines + a.corrections_count,
+                moved + cents(a.positive_corrections),
+            )
+        });
+    (lines / 2, moved)
 }
 
 /// Printed payment lines: the signed totals, with the number of

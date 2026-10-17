@@ -30,4 +30,20 @@
     <string name="reports_tickets_title">最近票据</string>
     <string name="reports_tickets_hint">选择一张票据进行复制或退款。</string>
     <string name="reports_copy">副本</string>
+    <string name="reports_pc_action">更正付款</string>
+    <string name="reports_pc_title">更正付款</string>
+    <string name="reports_pc_pick_line">要更正哪一笔付款？</string>
+    <string name="reports_pc_line">{method} · {amount} €</string>
+    <string name="reports_pc_terminal">终端</string>
+    <string name="reports_pc_terminal_note">通过终端刷的卡不能更正。</string>
+    <string name="reports_pc_pick_method">实际付款方式</string>
+    <string name="reports_pc_method_cash">现金</string>
+    <string name="reports_pc_method_card">银行卡</string>
+    <string name="reports_pc_method_meal_voucher">餐券</string>
+    <string name="reports_pc_summary">{from} {amount} € → {to} {amount} €</string>
+    <string name="reports_pc_confirm">更正</string>
+    <string name="reports_pc_pin_hint">请输入PIN码确认付款更正。</string>
+    <string name="reports_pc_done">付款已更正</string>
+    <string name="reports_pc_corrected">付款已更正：{from} → {to}</string>
+    <string name="reports_pc_not_possible">此付款无法更正</string>
 </resources>

@@ -55,4 +55,30 @@ export const reportsMessages: Messages = {
     zh: "选择一张票据进行复制或退款。",
   },
   "reports_copy": { fr: "Copie", en: "Copy", zh: "副本" },
+
+  // Payment correction (event F, manager + PIN)
+  "reports_pc_action": { fr: "Corriger le paiement", en: "Correct payment", zh: "更正付款" },
+  "reports_pc_title": { fr: "Corriger le paiement", en: "Correct the payment", zh: "更正付款" },
+  "reports_pc_pick_line": { fr: "Quelle ligne de paiement faut-il corriger ?", en: "Which payment line is wrong?", zh: "要更正哪一笔付款？" },
+  "reports_pc_line": { fr: "{method} · {amount} €", en: "{method} · {amount} €", zh: "{method} · {amount} €" },
+  "reports_pc_terminal": { fr: "Terminal", en: "Terminal", zh: "终端" },
+  "reports_pc_terminal_note": {
+    fr: "Une carte prise sur le terminal ne se corrige pas.",
+    en: "A card taken on the terminal cannot be corrected.",
+    zh: "通过终端刷的卡不能更正。",
+  },
+  "reports_pc_pick_method": { fr: "Payé en réalité par", en: "Actually paid by", zh: "实际付款方式" },
+  "reports_pc_method_cash": { fr: "Espèces", en: "Cash", zh: "现金" },
+  "reports_pc_method_card": { fr: "Carte", en: "Card", zh: "银行卡" },
+  "reports_pc_method_meal_voucher": { fr: "Titres-repas", en: "Meal vouchers", zh: "餐券" },
+  "reports_pc_summary": { fr: "{from} {amount} € → {to} {amount} €", en: "{from} {amount} € → {to} {amount} €", zh: "{from} {amount} € → {to} {amount} €" },
+  "reports_pc_confirm": { fr: "Corriger", en: "Correct", zh: "更正" },
+  "reports_pc_pin_hint": {
+    fr: "Confirmez la correction du paiement avec votre code PIN.",
+    en: "Confirm the payment correction with your PIN.",
+    zh: "请输入PIN码确认付款更正。",
+  },
+  "reports_pc_done": { fr: "Paiement corrigé", en: "Payment corrected", zh: "付款已更正" },
+  "reports_pc_corrected": { fr: "Paiement corrigé : {from} → {to}", en: "Payment corrected: {from} → {to}", zh: "付款已更正：{from} → {to}" },
+  "reports_pc_not_possible": { fr: "Ce paiement ne peut pas être corrigé", en: "This payment cannot be corrected", zh: "此付款无法更正" },
 };

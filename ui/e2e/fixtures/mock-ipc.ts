@@ -104,6 +104,10 @@ const DEFAULT_CART_LINE = {
   name_fr: 'Maki saumon x8',
   name_zh: '三文鱼细卷',
   unsent_quantity: 1,
+  discount_cents: 0,
+  price_changes: [],
+  kitchen_note: null,
+  online: false,
 };
 
 const DEFAULT_TABLE = (n: number) => ({
@@ -227,6 +231,8 @@ function defaultHandlers(): Record<string, Handler> {
     }),
     remove_order_line: () => undefined,
     update_order_line_quantity: () => undefined,
+    // A kitchen note: the slip outcome (a note changed after sending prints one).
+    set_line_note: () => 'nothing_to_print',
     get_order: () => DEFAULT_ORDER,
     list_order_lines: () => [DEFAULT_ORDER_LINE],
     // The cart reads its lines here (both names, quantity not yet sent).
@@ -246,6 +252,18 @@ function defaultHandlers(): Record<string, Handler> {
     set_active_order: () => undefined,
     lock_session: () => ({ orderError: null }),
     sign_pre_bill: () => 'printed',
+    transfer_table: live(({ orderId, toTable }: any = {}) => ({
+      orderId: orderId ?? 1,
+      fromTable: 1,
+      toTable: toTable ?? 2,
+      kitchenSlip: 'nothing_to_print',
+      transferSlip: 'printed',
+    })),
+
+    // Till discount (manager + PIN): the order after the change; specs that
+    // look at the cart afterwards override list_cart_lines / get_order.
+    apply_discount: () => ({ order: DEFAULT_ORDER, kitchenSlip: 'nothing_to_print', registrationError: null }),
+    remove_discount: () => ({ order: DEFAULT_ORDER, kitchenSlip: 'nothing_to_print', registrationError: null }),
 
     // Social (S) and financial (F) events
     work_in: () => ({ success: true, error: null }),
@@ -317,6 +335,13 @@ function defaultHandlers(): Record<string, Handler> {
     // Refund (event N, negative lines)
     list_refundable_events: () => [],
     list_copyable_tickets: () => [],
+    // Payment correction (event F): a cash sale of 52,00 EUR by default.
+    list_sale_payments: () => ({
+      fiscalEventId: 1, ticketNumber: 1, totalCents: 5200,
+      lines: [{ index: 0, paymentType: 'CASH', name: 'Cash', amountCents: 5200, inputMethod: 'MANUAL', amountType: 'PAYMENT', brand: null }],
+      correctable: true, refusal: null, corrected: null,
+    }),
+    correct_payment: () => ({ success: true, error: null }),
     refund_checkout: live(({ delivery }: any = {}) => {
       function maskEmailForMock(email: string): string {
         const at = email.indexOf('@');

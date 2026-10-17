@@ -108,6 +108,31 @@ internal object VueStringIds {
         this["err_fixed_price"] = R.string.err_fixed_price
         this["err_product_unavailable"] = R.string.err_product_unavailable
         this["err_line_not_found"] = R.string.err_line_not_found
+        this["err_table_transfer_same_table"] = R.string.err_table_transfer_same_table
+        this["err_table_transfer_target_busy"] = R.string.err_table_transfer_target_busy
+        this["err_table_transfer_not_moved"] = R.string.err_table_transfer_not_moved
+        this["err_table_transfer_target_invalid"] = R.string.err_table_transfer_target_invalid
+        this["err_table_transfer_not_a_table"] = R.string.err_table_transfer_not_a_table
+        this["err_discount_already_applied"] = R.string.err_discount_already_applied
+        this["err_discount_none"] = R.string.err_discount_none
+        this["err_discount_invalid"] = R.string.err_discount_invalid
+        this["err_discount_reason_invalid"] = R.string.err_discount_reason_invalid
+        this["err_discount_online_order"] = R.string.err_discount_online_order
+        this["err_note_too_long"] = R.string.err_note_too_long
+        this["err_note_unprintable"] = R.string.err_note_unprintable
+        this["err_line_has_price_changes"] = R.string.err_line_has_price_changes
+        this["err_payment_correction_not_a_sale"] = R.string.err_payment_correction_not_a_sale
+        this["err_payment_correction_training"] = R.string.err_payment_correction_training
+        this["err_payment_correction_period_closed"] = R.string.err_payment_correction_period_closed
+        this["err_payment_correction_unpaid"] = R.string.err_payment_correction_unpaid
+        this["err_payment_correction_online"] = R.string.err_payment_correction_online
+        this["err_payment_correction_refunded"] = R.string.err_payment_correction_refunded
+        this["err_payment_correction_already_done"] = R.string.err_payment_correction_already_done
+        this["err_payment_correction_bad_line"] = R.string.err_payment_correction_bad_line
+        this["err_payment_correction_terminal_card"] = R.string.err_payment_correction_terminal_card
+        this["err_payment_correction_same_method"] = R.string.err_payment_correction_same_method
+        this["err_payment_correction_method"] = R.string.err_payment_correction_method
+        this["err_payment_correction_rounding"] = R.string.err_payment_correction_rounding
         this["err_order_no_lines"] = R.string.err_order_no_lines
         this["err_payment_invalid"] = R.string.err_payment_invalid
         this["err_payment_exceeds_total"] = R.string.err_payment_exceeds_total
@@ -241,6 +266,9 @@ internal object VueStringIds {
         this["refund"] = R.string.refund
         this["refund_select_ticket"] = R.string.refund_select_ticket
         this["refund_select_items"] = R.string.refund_select_items
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["refund_confirm"] = R.string.refund_confirm
         this["refund_success"] = R.string.refund_success
         this["refund_none"] = R.string.refund_none
@@ -266,9 +294,6 @@ internal object VueStringIds {
         this["delivery_enter_email_title"] = R.string.delivery_enter_email_title
         this["delivery_email_placeholder"] = R.string.delivery_email_placeholder
         this["delivery_invalid_email"] = R.string.delivery_invalid_email
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["delivery_confirm_title"] = R.string.delivery_confirm_title
         this["delivery_confirm_btn"] = R.string.delivery_confirm_btn
         this["delivery_edit"] = R.string.delivery_edit
@@ -306,6 +331,46 @@ internal object VueStringIds {
         this["not_sent_to_kitchen"] = R.string.not_sent_to_kitchen
         this["send_to_kitchen"] = R.string.send_to_kitchen
         this["sent_to_kitchen"] = R.string.sent_to_kitchen
+        this["transfer_table"] = R.string.transfer_table
+        this["transfer_pick_target"] = R.string.transfer_pick_target
+        this["transfer_no_free"] = R.string.transfer_no_free
+        this["transfer_confirm"] = R.string.transfer_confirm
+        this["transfer_done"] = R.string.transfer_done
+        this["transfer_mode"] = R.string.transfer_mode
+        this["transfer_pick_source"] = R.string.transfer_pick_source
+        this["transfer_pick_free"] = R.string.transfer_pick_free
+        this["discount_button"] = R.string.discount_button
+        this["discount_title"] = R.string.discount_title
+        this["discount_tab_percent"] = R.string.discount_tab_percent
+        this["discount_tab_amount"] = R.string.discount_tab_amount
+        this["discount_tab_free"] = R.string.discount_tab_free
+        this["discount_custom_percent"] = R.string.discount_custom_percent
+        this["discount_custom_amount"] = R.string.discount_custom_amount
+        this["discount_free_note"] = R.string.discount_free_note
+        this["discount_reason"] = R.string.discount_reason
+        this["discount_reason_commercial_gesture"] = R.string.discount_reason_commercial_gesture
+        this["discount_reason_staff_meal"] = R.string.discount_reason_staff_meal
+        this["discount_reason_service_issue"] = R.string.discount_reason_service_issue
+        this["discount_reason_other"] = R.string.discount_reason_other
+        this["discount_reason_text_add"] = R.string.discount_reason_text_add
+        this["discount_reason_text_title"] = R.string.discount_reason_text_title
+        this["discount_reason_text_placeholder"] = R.string.discount_reason_text_placeholder
+        this["discount_preview"] = R.string.discount_preview
+        this["discount_apply"] = R.string.discount_apply
+        this["discount_hint"] = R.string.discount_hint
+        this["discount_applied"] = R.string.discount_applied
+        this["discount_removed"] = R.string.discount_removed
+        this["discount_remove"] = R.string.discount_remove
+        this["discount_remove_hint"] = R.string.discount_remove_hint
+        this["discount_offer"] = R.string.discount_offer
+        this["discount_offer_title"] = R.string.discount_offer_title
+        this["discount_registration_failed"] = R.string.discount_registration_failed
+        this["note_button"] = R.string.note_button
+        this["note_title"] = R.string.note_title
+        this["note_placeholder"] = R.string.note_placeholder
+        this["note_hint_now"] = R.string.note_hint_now
+        this["note_hint_with_order"] = R.string.note_hint_with_order
+        this["keypad_space"] = R.string.keypad_space
         this["takeaway_started_at"] = R.string.takeaway_started_at
         this["takeaway_start"] = R.string.takeaway_start
         this["who_are_you"] = R.string.who_are_you
@@ -370,6 +435,8 @@ internal object VueStringIds {
         this["eft_kind_worldline_terminal_api"] = R.string.eft_kind_worldline_terminal_api
         this["eft_kind_ccv_payment_api"] = R.string.eft_kind_ccv_payment_api
         this["eft_kind_ccv_opi"] = R.string.eft_kind_ccv_opi
+        this["checkout_subtotal"] = R.string.checkout_subtotal
+        this["checkout_discount"] = R.string.checkout_discount
         this["reports_tab_day"] = R.string.reports_tab_day
         this["reports_tab_cash"] = R.string.reports_tab_cash
         this["reports_tab_tickets"] = R.string.reports_tab_tickets
@@ -399,6 +466,22 @@ internal object VueStringIds {
         this["reports_tickets_title"] = R.string.reports_tickets_title
         this["reports_tickets_hint"] = R.string.reports_tickets_hint
         this["reports_copy"] = R.string.reports_copy
+        this["reports_pc_action"] = R.string.reports_pc_action
+        this["reports_pc_title"] = R.string.reports_pc_title
+        this["reports_pc_pick_line"] = R.string.reports_pc_pick_line
+        this["reports_pc_line"] = R.string.reports_pc_line
+        this["reports_pc_terminal"] = R.string.reports_pc_terminal
+        this["reports_pc_terminal_note"] = R.string.reports_pc_terminal_note
+        this["reports_pc_pick_method"] = R.string.reports_pc_pick_method
+        this["reports_pc_method_cash"] = R.string.reports_pc_method_cash
+        this["reports_pc_method_card"] = R.string.reports_pc_method_card
+        this["reports_pc_method_meal_voucher"] = R.string.reports_pc_method_meal_voucher
+        this["reports_pc_summary"] = R.string.reports_pc_summary
+        this["reports_pc_confirm"] = R.string.reports_pc_confirm
+        this["reports_pc_pin_hint"] = R.string.reports_pc_pin_hint
+        this["reports_pc_done"] = R.string.reports_pc_done
+        this["reports_pc_corrected"] = R.string.reports_pc_corrected
+        this["reports_pc_not_possible"] = R.string.reports_pc_not_possible
         this["settings_training_on"] = R.string.settings_training_on
         this["settings_training_off"] = R.string.settings_training_off
         this["settings_training_effect"] = R.string.settings_training_effect
@@ -436,6 +519,9 @@ internal object VueStringIds {
         this["settings_email_title"] = R.string.settings_email_title
         this["integrations_title"] = R.string.integrations_title
         this["integrations_hubrise_text"] = R.string.integrations_hubrise_text
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["integrations_on"] = R.string.integrations_on
         this["integrations_off"] = R.string.integrations_off
         this["integrations_turn_on"] = R.string.integrations_turn_on
@@ -519,9 +605,6 @@ internal object VueStringIds {
         this["webshop_changed_after_signing"] = R.string.webshop_changed_after_signing
         this["webshop_attention_unknown_channel"] = R.string.webshop_attention_unknown_channel
         this["webshop_attention_missing_service_type"] = R.string.webshop_attention_missing_service_type
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["webshop_attention_no_items"] = R.string.webshop_attention_no_items
         this["webshop_attention_item_without_ref"] = R.string.webshop_attention_item_without_ref
         this["webshop_attention_unknown_product"] = R.string.webshop_attention_unknown_product

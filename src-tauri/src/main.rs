@@ -203,6 +203,7 @@ fn main() {
         ipc::order::add_order_line,
         ipc::order::remove_order_line,
         ipc::order::update_order_line_quantity,
+        ipc::order::set_line_note,
         ipc::order::get_order,
         ipc::order::list_order_lines,
         ipc::order::list_open_orders,
@@ -256,6 +257,7 @@ fn main() {
         ipc::tables::list_open_takeaways,
         ipc::tables::sign_table_order,
         ipc::tables::sign_pre_bill,
+        ipc::tables::transfer_table,
         // Reports
         ipc::report::generate_x_report,
         ipc::report::generate_user_x_report,
@@ -283,6 +285,8 @@ fn main() {
         // Financial (Event F - cash in/out, drawer)
         ipc::financial::money_in_out,
         ipc::financial::open_drawer_fiscal,
+        ipc::financial::list_sale_payments,
+        ipc::financial::correct_payment,
         // HubRise
         ipc::hubrise::hubrise_get_connection_status,
         ipc::hubrise::hubrise_start_oauth_flow,
@@ -299,6 +303,8 @@ fn main() {
         ipc::hubrise::hubrise_set_channel,
         ipc::modifiers::get_item_modifiers,
         ipc::modifiers::add_order_line_with_modifiers,
+        ipc::discount::apply_discount,
+        ipc::discount::remove_discount,
         ipc::webshop::webshop_accept_order,
         ipc::webshop::webshop_handover_order,
         ipc::webshop::webshop_reject_order,
@@ -322,6 +328,7 @@ fn main() {
         ipc::order::add_order_line,
         ipc::order::remove_order_line,
         ipc::order::update_order_line_quantity,
+        ipc::order::set_line_note,
         ipc::order::get_order,
         ipc::order::list_order_lines,
         ipc::order::list_open_orders,
@@ -373,6 +380,7 @@ fn main() {
         ipc::tables::list_open_takeaways,
         ipc::tables::sign_table_order,
         ipc::tables::sign_pre_bill,
+        ipc::tables::transfer_table,
         // Reports
         ipc::report::generate_x_report,
         ipc::report::generate_user_x_report,
@@ -400,6 +408,8 @@ fn main() {
         // Financial (Event F - cash in/out, drawer)
         ipc::financial::money_in_out,
         ipc::financial::open_drawer_fiscal,
+        ipc::financial::list_sale_payments,
+        ipc::financial::correct_payment,
         // No invoice (I event) commands: invoicing is not part of the
         // v1.0.0 certification scope.
         // HubRise (switched per installation, ipc::integrations)
@@ -420,6 +430,8 @@ fn main() {
         ipc::hubrise::hubrise_set_channel,
         ipc::modifiers::get_item_modifiers,
         ipc::modifiers::add_order_line_with_modifiers,
+        ipc::discount::apply_discount,
+        ipc::discount::remove_discount,
         ipc::webshop::webshop_accept_order,
         ipc::webshop::webshop_handover_order,
         ipc::webshop::webshop_reject_order,

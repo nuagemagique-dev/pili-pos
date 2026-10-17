@@ -138,11 +138,22 @@ impl PrinterSink {
     }
 }
 
-/// The title of the bar / kitchen slip, in FR, NL or DE.
+/// The title of the bar / kitchen slip, of the table transfer notice or
+/// of the kitchen note slip, in FR, NL or DE.
 fn is_bar_slip(document: &str) -> bool {
-    ["BON DE COMMANDE", "BESTELBON", "BESTELLSCHEIN"]
-        .iter()
-        .any(|title| document.contains(title))
+    [
+        "BON DE COMMANDE",
+        "BESTELBON",
+        "BESTELLSCHEIN",
+        "TRANSFERT DE TABLE",
+        "TAFELVERPLAATSING",
+        "TISCHWECHSEL",
+        "MODIFICATION",
+        "WIJZIGING",
+        "AENDERUNG",
+    ]
+    .iter()
+    .any(|title| document.contains(title))
 }
 
 /// An address nothing listens on: every print fails at connect.
