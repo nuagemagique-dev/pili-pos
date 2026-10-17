@@ -31,6 +31,7 @@
     <string name="err_line_not_found">该行已不存在。</string>
     <string name="err_table_transfer_same_table">订单已在这张桌子上。</string>
     <string name="err_table_transfer_target_busy">这张桌子已有进行中的订单：请选择空桌。</string>
+    <string name="err_table_transfer_not_moved">转台已记录，但目标桌在此期间已有订单：订单保留在原桌。请选择其他桌。</string>
     <string name="err_table_transfer_target_invalid">这张桌子不在餐厅布局中。</string>
     <string name="err_table_transfer_not_a_table">只有堂食订单才能换桌。</string>
     <string name="err_discount_already_applied">已有折扣：请先取消。</string>

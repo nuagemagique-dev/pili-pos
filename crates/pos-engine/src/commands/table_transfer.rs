@@ -59,6 +59,9 @@ pub async fn do_transfer_table(
     let guard = match signing::begin(state, &op).await? {
         Begin::Fresh(guard) => guard,
         Begin::AlreadyDone(recovered) => {
+            if !is_on_table(state, order_id, to_table)? {
+                return Err(errors::TABLE_TRANSFER_NOT_MOVED.into());
+            }
             let (from_table, to_table) = match &recovered.context {
                 PendingContext::TableTransfer {
                     from_table,
@@ -92,6 +95,10 @@ pub async fn do_transfer_table(
 
     let kitchen_slip = print_registered(state, &config, registered).await;
     let (context, committed) = moved?;
+    if !is_on_table(state, order_id, to_table)? {
+        // Signed, but the target was taken before the commit.
+        return Err(errors::TABLE_TRANSFER_NOT_MOVED.into());
+    }
     let transfer_slip = signing::follow_up(state, &config, &context, &committed, false)
         .await
         .slip
@@ -103,6 +110,20 @@ pub async fn do_transfer_table(
         kitchen_slip,
         transfer_slip,
     })
+}
+
+/// Whether the order sits on `table` now (a late commit may have kept it
+/// on its source table, V1F-D29).
+fn is_on_table(state: &AppState, order_id: i64, table: i32) -> Result<bool, String> {
+    let db = state.db.lock().map_err(errors::internal)?;
+    let current: Option<i32> = db
+        .query_row(
+            "SELECT table_number FROM orders WHERE id = ?1",
+            [order_id],
+            |r| r.get(0),
+        )
+        .map_err(errors::internal)?;
+    Ok(current == Some(table))
 }
 
 /// The refusals, read under the signing lock. Returns the table the

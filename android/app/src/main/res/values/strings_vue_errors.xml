@@ -31,6 +31,7 @@
     <string name="err_line_not_found">Cette ligne n\'existe plus.</string>
     <string name="err_table_transfer_same_table">La commande est déjà à cette table.</string>
     <string name="err_table_transfer_target_busy">Cette table a déjà une commande en cours : choisissez une table libre.</string>
+    <string name="err_table_transfer_not_moved">Le transfert est enregistré mais une commande a été ouverte entre-temps sur la table cible : la commande reste sur sa table d\'origine. Choisissez une autre table.</string>
     <string name="err_table_transfer_target_invalid">Cette table n\'existe pas dans le plan de salle.</string>
     <string name="err_table_transfer_not_a_table">Seule une commande en salle peut changer de table.</string>
     <string name="err_discount_already_applied">Une remise s\'applique déjà : retirez-la d\'abord.</string>

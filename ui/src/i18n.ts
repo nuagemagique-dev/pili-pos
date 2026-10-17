@@ -130,6 +130,7 @@ const coreMessages: Messages = {
   "err_line_not_found": { fr: "Cette ligne n'existe plus.", en: "This line no longer exists.", zh: "该行已不存在。" },
   "err_table_transfer_same_table": { fr: "La commande est déjà à cette table.", en: "The order is already at this table.", zh: "订单已在这张桌子上。" },
   "err_table_transfer_target_busy": { fr: "Cette table a déjà une commande en cours : choisissez une table libre.", en: "This table already has an open order: pick a free table.", zh: "这张桌子已有进行中的订单：请选择空桌。" },
+  "err_table_transfer_not_moved": { fr: "Le transfert est enregistré mais une commande a été ouverte entre-temps sur la table cible : la commande reste sur sa table d'origine. Choisissez une autre table.", en: "The transfer is recorded but an order was opened on the target table meanwhile: the order stays on its original table. Pick another table.", zh: "转台已记录，但目标桌在此期间已有订单：订单保留在原桌。请选择其他桌。" },
   "err_table_transfer_target_invalid": { fr: "Cette table n'existe pas dans le plan de salle.", en: "This table is not in the floor plan.", zh: "这张桌子不在餐厅布局中。" },
   "err_table_transfer_not_a_table": { fr: "Seule une commande en salle peut changer de table.", en: "Only a dine-in order can change table.", zh: "只有堂食订单才能换桌。" },
   "err_discount_already_applied": { fr: "Une remise s'applique déjà : retirez-la d'abord.", en: "A discount already applies: remove it first.", zh: "已有折扣：请先取消。" },

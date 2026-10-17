@@ -31,6 +31,7 @@
     <string name="err_line_not_found">This line no longer exists.</string>
     <string name="err_table_transfer_same_table">The order is already at this table.</string>
     <string name="err_table_transfer_target_busy">This table already has an open order: pick a free table.</string>
+    <string name="err_table_transfer_not_moved">The transfer is recorded but an order was opened on the target table meanwhile: the order stays on its original table. Pick another table.</string>
     <string name="err_table_transfer_target_invalid">This table is not in the floor plan.</string>
     <string name="err_table_transfer_not_a_table">Only a dine-in order can change table.</string>
     <string name="err_discount_already_applied">A discount already applies: remove it first.</string>

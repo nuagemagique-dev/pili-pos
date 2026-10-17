@@ -629,6 +629,27 @@ fn apply(
         PendingContext::TableTransfer {
             order_id, to_table, ..
         } => {
+            // The signed move is the fiscal truth, but the local state
+            // must never hold two open orders on one table. An answer that
+            // arrives late can find the target taken meanwhile: an order
+            // with lines opened there after the check. Then the order
+            // stays on its source table (V1F-D29) and the caller
+            // reports `table_transfer_not_moved`.
+            let busy: bool = tx
+                .query_row(
+                    "SELECT EXISTS (
+                         SELECT 1 FROM orders o
+                         WHERE o.status = 'open' AND o.order_type = 'dine_in'
+                           AND o.table_number = ?1 AND o.id <> ?2 AND o.hubrise_order_id IS NULL
+                           AND EXISTS (SELECT 1 FROM order_lines ol
+                                       WHERE ol.order_id = o.id AND ol.quantity > 0))",
+                    rusqlite::params![to_table, order_id],
+                    |r| r.get(0),
+                )
+                .map_err(errors::internal)?;
+            if busy {
+                return Ok((None, None));
+            }
             // A ghost order (opened and left empty) on the target does
             // not block the move; one that holds a signed event stays.
             let mut stmt = tx
@@ -795,15 +816,34 @@ pub(crate) async fn follow_up(
             done.slip = Some(print_slip_of(state, config, bar_slip, committed.event_id()).await);
         }
         PendingContext::TableTransfer {
+            order_id,
             from_table,
             to_table,
             operator_insz,
-            ..
         } => {
-            done.slip = Some(
-                bar_slip::print_transfer_slip(state, config, operator_insz, *from_table, *to_table)
+            // No "moved" notice when a late commit kept the order put.
+            let moved = state.db.lock().is_ok_and(|db| {
+                db.query_row(
+                    "SELECT table_number = ?2 FROM orders WHERE id = ?1",
+                    rusqlite::params![order_id, to_table],
+                    |r| r.get::<_, Option<bool>>(0),
+                )
+                .ok()
+                .flatten()
+                .unwrap_or(false)
+            });
+            if moved {
+                done.slip = Some(
+                    bar_slip::print_transfer_slip(
+                        state,
+                        config,
+                        operator_insz,
+                        *from_table,
+                        *to_table,
+                    )
                     .await,
-            );
+                );
+            }
         }
         PendingContext::PreBill { ticket, .. } => {
             if let Some(addr) = config.printer_address.as_deref() {

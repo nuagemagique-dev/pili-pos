@@ -71,6 +71,9 @@ pub const TABLE_TRANSFER_TARGET_INVALID: &str = "table_transfer_target_invalid";
 /// Only the open order of a table in the room moves: not a takeaway, not
 /// an online order.
 pub const TABLE_TRANSFER_NOT_A_TABLE: &str = "table_transfer_not_a_table";
+/// The move is signed at the FDM but the target got an order with lines
+/// meanwhile (late answer): the order stays on its source table.
+pub const TABLE_TRANSFER_NOT_MOVED: &str = "table_transfer_not_moved";
 
 // Discount at the till (price changes, manager PIN).
 /// An order discount already applies (remove it first), or the line
@@ -288,6 +291,7 @@ pub const ALL: &[&str] = &[
     TABLE_TRANSFER_TARGET_BUSY,
     TABLE_TRANSFER_TARGET_INVALID,
     TABLE_TRANSFER_NOT_A_TABLE,
+    TABLE_TRANSFER_NOT_MOVED,
     CONFIG_POS_ID,
     CONFIG_RESTAURANT_VAT,
     CONFIG_RESTAURANT_EST_NO,

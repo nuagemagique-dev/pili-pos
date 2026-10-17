@@ -1680,6 +1680,12 @@
       "zh": "只有堂食订单才能换桌。",
       "area": "errors"
     },
+    "err_table_transfer_not_moved": {
+      "fr": "Le transfert est enregistré mais une commande a été ouverte entre-temps sur la table cible : la commande reste sur sa table d'origine. Choisissez une autre table.",
+      "en": "The transfer is recorded but an order was opened on the target table meanwhile: the order stays on its original table. Pick another table.",
+      "zh": "转台已记录，但目标桌在此期间已有订单：订单保留在原桌。请选择其他桌。",
+      "area": "errors"
+    },
     "err_table_transfer_same_table": {
       "fr": "La commande est déjà à cette table.",
       "en": "The order is already at this table.",
@@ -3852,6 +3858,7 @@
     "table_transfer_target_busy",
     "table_transfer_target_invalid",
     "table_transfer_not_a_table",
+    "table_transfer_not_moved",
     "config_pos_id",
     "config_restaurant_vat",
     "config_restaurant_est_no",

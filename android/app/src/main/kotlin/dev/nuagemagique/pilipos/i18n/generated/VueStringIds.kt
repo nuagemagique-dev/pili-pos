@@ -104,6 +104,7 @@ internal object VueStringIds {
         this["err_line_not_found"] = R.string.err_line_not_found
         this["err_table_transfer_same_table"] = R.string.err_table_transfer_same_table
         this["err_table_transfer_target_busy"] = R.string.err_table_transfer_target_busy
+        this["err_table_transfer_not_moved"] = R.string.err_table_transfer_not_moved
         this["err_table_transfer_target_invalid"] = R.string.err_table_transfer_target_invalid
         this["err_table_transfer_not_a_table"] = R.string.err_table_transfer_not_a_table
         this["err_discount_already_applied"] = R.string.err_discount_already_applied
@@ -265,10 +266,10 @@ internal object VueStringIds {
         this["cash_in"] = R.string.cash_in
         this["cash_out"] = R.string.cash_out
         this["cash_open_drawer"] = R.string.cash_open_drawer
-        this["cash_declaration"] = R.string.cash_declaration
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["cash_declaration"] = R.string.cash_declaration
         this["cash_declaration_hint"] = R.string.cash_declaration_hint
         this["kitchen_slip_failed"] = R.string.kitchen_slip_failed
         this["cash_declared"] = R.string.cash_declared
@@ -518,10 +519,10 @@ internal object VueStringIds {
         this["webshop_col_kitchen"] = R.string.webshop_col_kitchen
         this["webshop_col_ready"] = R.string.webshop_col_ready
         this["webshop_time_ago"] = R.string.webshop_time_ago
-        this["webshop_time_ready_at"] = R.string.webshop_time_ready_at
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["webshop_time_ready_at"] = R.string.webshop_time_ready_at
         this["webshop_time_ready"] = R.string.webshop_time_ready
         this["webshop_own_label"] = R.string.webshop_own_label
         this["webshop_delay_label"] = R.string.webshop_delay_label

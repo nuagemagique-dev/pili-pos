@@ -458,6 +458,56 @@ async fn a_ghost_on_the_target_is_voided_by_a_late_answer_too() {
     assert_eq!(app.order_status(ghost).as_deref(), Some("voided"));
 }
 
+#[tokio::test]
+async fn a_late_answer_never_puts_two_open_orders_on_one_table() {
+    let fdm = LossyFdm::start().await;
+    fdm.lose_first("signCostCenterChange");
+    let app = app_with(&fdm).await;
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    let o = table_order(&app, 4);
+    add(&app, o, 1, 1);
+    assert!(do_transfer_table(&app.state, o, 8).await.is_err());
+    // While the answer is awaited, guests sit at table 8 and order.
+    let taken = table_order(&app, 8);
+    add(&app, taken, 2, 1);
+
+    // The same request again: the move is archived (fiscal truth) but
+    // the order stays on its source table.
+    let error = refused(&app, o, 8).await;
+
+    assert_eq!(error, errors::TABLE_TRANSFER_NOT_MOVED);
+    assert_eq!(table_of(&app, o), Some(4));
+    assert_eq!(table_of(&app, taken), Some(8));
+    assert_eq!(app.order_status(o).as_deref(), Some("open"));
+    assert_eq!(app.order_status(taken).as_deref(), Some("open"));
+    assert_eq!(app.fiscal_events().len(), 2, "order + move archived once");
+    assert!(app.open_pending().is_none());
+    // No "table moved" notice for the kitchen.
+    let slips = printer.settle_slips(1).await;
+    assert!(!slips.iter().any(|s| s.contains("TRANSFERT DE TABLE")));
+}
+
+#[tokio::test]
+async fn the_background_tick_keeps_the_order_put_when_the_target_was_taken() {
+    let fdm = LossyFdm::start().await;
+    fdm.lose_first("signCostCenterChange");
+    let app = app_with(&fdm).await;
+    let o = table_order(&app, 4);
+    add(&app, o, 1, 1);
+    assert!(do_transfer_table(&app.state, o, 8).await.is_err());
+    let taken = table_order(&app, 8);
+    add(&app, taken, 2, 1);
+
+    close_overdue_day(&app.state).await.unwrap();
+
+    assert_eq!(table_of(&app, o), Some(4));
+    assert_eq!(table_of(&app, taken), Some(8));
+    assert_eq!(app.order_status(taken).as_deref(), Some("open"));
+    assert_eq!(app.fiscal_events().len(), 2);
+    assert!(app.open_pending().is_none());
+}
+
 // ── Price changes travel with their line ───────────────────────────
 
 #[cfg(feature = "hubrise")]
