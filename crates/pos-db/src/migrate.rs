@@ -130,6 +130,11 @@ const V11_MIGRATIONS: &[Migration] = &[
         name: "sold-out",
         sql: crate::schema_v11::MIGRATION_041_SOLD_OUT,
     },
+    Migration {
+        version: 42,
+        name: "menu-editor",
+        sql: crate::schema_v11::MIGRATION_042_MENU_EDITOR,
+    },
 ];
 
 /// Migrations of the HubRise integration (feature `hubrise`), from
@@ -342,7 +347,10 @@ mod tests {
     #[test]
     fn the_v11_migrations_are_40_to_42_and_in_every_build() {
         let v11: Vec<(i64, &str)> = V11_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
-        assert_eq!(v11, vec![(40, "invoicing"), (41, "sold-out")]);
+        assert_eq!(
+            v11,
+            vec![(40, "invoicing"), (41, "sold-out"), (42, "menu-editor")]
+        );
         assert!(all_versions().contains(&40));
         assert!(V11_MIGRATIONS.iter().all(|m| m.version >= 40));
     }
@@ -355,6 +363,45 @@ mod tests {
             .unwrap()
             .collect::<Result<_, _>>()
             .unwrap()
+    }
+
+    #[test]
+    fn v42_menu_change_log_is_append_only_and_checks_its_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let cols = columns(&conn, "menu_change_log");
+        for c in [
+            "entity_type",
+            "entity_id",
+            "action",
+            "before_json",
+            "after_json",
+            "changed_by",
+            "changed_at",
+        ] {
+            assert!(cols.contains(&c.to_string()), "menu_change_log lacks {c}");
+        }
+        conn.execute(
+            "INSERT INTO menu_change_log (entity_type, entity_id, action, after_json, changed_by)
+             VALUES ('product', 1, 'create', '{}', '00000000029')",
+            [],
+        )
+        .unwrap();
+        for bad in [
+            "INSERT INTO menu_change_log (entity_type, entity_id, action, after_json, changed_by)
+             VALUES ('bogus', 1, 'create', '{}', 'x')",
+            "INSERT INTO menu_change_log (entity_type, entity_id, action, after_json, changed_by)
+             VALUES ('product', 1, 'delete', '{}', 'x')",
+        ] {
+            assert!(conn.execute(bad, []).is_err(), "{bad}");
+        }
+        for sql in [
+            "UPDATE menu_change_log SET action = 'update'",
+            "DELETE FROM menu_change_log",
+        ] {
+            let err = conn.execute(sql, []).unwrap_err().to_string();
+            assert!(err.contains("append-only"), "{sql}: {err}");
+        }
     }
 
     #[test]

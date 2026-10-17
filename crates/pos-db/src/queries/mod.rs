@@ -6,6 +6,8 @@ pub mod fiscal;
 pub mod integrations;
 pub mod invoicing;
 pub mod menu;
+#[cfg(feature = "catalog-sync")]
+pub mod menu_admin;
 pub mod orders;
 pub mod pending_signs;
 #[cfg(feature = "hubrise")]

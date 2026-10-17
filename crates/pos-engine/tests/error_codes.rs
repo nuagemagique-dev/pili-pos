@@ -144,3 +144,37 @@ fn the_sold_out_code_is_listed_and_translated() {
         "product_sold_out|product=7"
     );
 }
+
+#[test]
+fn the_menu_editor_codes_are_listed_translated_and_carry_their_values() {
+    for (code, placeholder) in [
+        (errors::MENU_INVALID, Some("field")),
+        (errors::MENU_NOT_FOUND, None),
+    ] {
+        assert!(errors::ALL.contains(&code), "{code} is not in errors::ALL");
+        let text = entry(&format!("err_{code}")).unwrap_or_else(|| panic!("no text for {code}"));
+        for lang in ["fr:", "en:", "zh:"] {
+            assert!(text.contains(lang), "{code} {lang}");
+        }
+        if let Some(name) = placeholder {
+            assert!(text.contains(&format!("{{{name}}}")), "{code}: {{{name}}}");
+        }
+    }
+    assert_eq!(
+        errors::coded(errors::MENU_INVALID, &[("field", &"price_cents")]),
+        "menu_invalid|field=price_cents"
+    );
+}
+
+#[cfg(feature = "hubrise")]
+#[test]
+fn the_locked_menu_code_has_its_text() {
+    let text = entry_in(
+        I18N_WEBSHOP,
+        &format!("err_{}", errors::hubrise::MENU_MANAGED),
+    )
+    .unwrap();
+    for lang in ["fr:", "en:", "zh:"] {
+        assert!(text.contains(lang), "{lang}");
+    }
+}

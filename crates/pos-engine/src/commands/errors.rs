@@ -54,6 +54,10 @@ pub const FIXED_PRICE: &str = "fixed_price";
 pub const PRODUCT_UNAVAILABLE: &str = "product_unavailable";
 /// The product is marked sold out ("Épuisé", V11-D14). `product`: the menu item id.
 pub const PRODUCT_SOLD_OUT: &str = "product_sold_out";
+/// A menu editor field is missing or out of range (V11-D17). `field`: the input's field name.
+pub const MENU_INVALID: &str = "menu_invalid";
+/// The category, product, option group or option an edit names does not exist.
+pub const MENU_NOT_FOUND: &str = "menu_not_found";
 pub const LINE_NOT_FOUND: &str = "line_not_found";
 pub const ORDER_NO_LINES: &str = "order_no_lines";
 pub const ORDER_TOTAL_NEGATIVE: &str = "order_total_negative";
@@ -282,6 +286,8 @@ pub const ALL: &[&str] = &[
     FIXED_PRICE,
     PRODUCT_UNAVAILABLE,
     PRODUCT_SOLD_OUT,
+    MENU_INVALID,
+    MENU_NOT_FOUND,
     LINE_NOT_FOUND,
     ORDER_NO_LINES,
     ORDER_TOTAL_NEGATIVE,

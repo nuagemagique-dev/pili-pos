@@ -6,5 +6,6 @@ pub mod eft;
 pub mod export;
 pub mod hubrise;
 pub mod invoice;
+pub mod menu_admin;
 pub mod orders;
 pub mod reports;

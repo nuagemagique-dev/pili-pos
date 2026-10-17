@@ -50,6 +50,10 @@ pub struct MenuItem {
     /// `sold_out` means "until re-enabled".
     #[serde(default)]
     pub sold_out_until: Option<String>,
+    /// The product has at least one active option group with an active option (V11-D18): the
+    /// order screen opens the option picker instead of adding the line plainly.
+    #[serde(default)]
+    pub has_modifiers: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -201,3 +201,40 @@ CREATE TABLE IF NOT EXISTS hubrise_inventory_sync (
 CREATE INDEX IF NOT EXISTS idx_hubrise_inventory_sync_dirty
     ON hubrise_inventory_sync(dirty) WHERE dirty = 1;
 "#;
+
+/// v42 - the on-screen menu editor (V11-D17).
+///
+/// - `menu_change_log`: every create and update of a category, product, option group or option,
+///   with the row before and after as JSON (names per language included), who and when.
+///   Append-only: nothing is ever updated or deleted, like `table_plan_log`.
+///
+/// The editor itself writes the existing menu tables; nothing is deleted from them either (an
+/// `active` flag hides an entry). Order lines keep their own snapshot of name, price and VAT
+/// label, so a change here never alters an open order or a signed event (AM art. 44).
+pub(crate) const MIGRATION_042_MENU_EDITOR: &str = r#"
+CREATE TABLE IF NOT EXISTS menu_change_log (
+    id INTEGER PRIMARY KEY,
+    entity_type TEXT NOT NULL
+        CHECK(entity_type IN ('category','product','modifier_group','modifier')),
+    entity_id INTEGER NOT NULL,
+    action TEXT NOT NULL CHECK(action IN ('create','update')),
+    before_json TEXT,
+    after_json TEXT NOT NULL,
+    changed_by TEXT NOT NULL,
+    changed_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_menu_change_log_entity
+    ON menu_change_log(entity_type, entity_id);
+
+CREATE TRIGGER IF NOT EXISTS menu_change_log_no_update
+BEFORE UPDATE ON menu_change_log
+BEGIN
+    SELECT RAISE(ABORT, 'menu_change_log is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS menu_change_log_no_delete
+BEFORE DELETE ON menu_change_log
+BEGIN
+    SELECT RAISE(ABORT, 'menu_change_log is append-only');
+END;
+"#;

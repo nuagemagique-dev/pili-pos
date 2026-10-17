@@ -12,6 +12,7 @@ mod hubrise;
 mod install;
 mod invoice;
 mod lifecycle;
+mod menu_admin;
 mod orders;
 mod reports;
 mod support;

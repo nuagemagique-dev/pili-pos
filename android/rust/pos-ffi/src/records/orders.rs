@@ -171,6 +171,9 @@ pub struct MenuItem {
     /// "until re-enabled".
     #[serde(default)]
     pub sold_out_until: Option<String>,
+    /// The product has an active option group with an active option: the option picker opens.
+    #[serde(default)]
+    pub has_modifiers: bool,
 }
 
 /// `pos_db::queries::sold_out::SoldOutItem`: a product that is sold out now.

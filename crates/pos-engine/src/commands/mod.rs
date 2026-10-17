@@ -18,6 +18,8 @@ pub mod integrations;
 pub mod invoice;
 pub mod menu;
 #[cfg(feature = "hubrise")]
+pub mod menu_admin;
+#[cfg(feature = "hubrise")]
 pub mod modifiers;
 pub mod order;
 pub mod peppol_queue;

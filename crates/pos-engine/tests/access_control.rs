@@ -1141,3 +1141,100 @@ async fn sold_out_commands_follow_the_roles() {
     assert!(do_set_sold_out(&app.state, 1, false, None).is_ok());
     assert!(do_clear_sold_out(&app.state, 1, None).is_ok());
 }
+
+// ── Menu editor (v1.1) ─────────────────────────────────────────
+
+#[cfg(feature = "hubrise")]
+#[tokio::test]
+async fn menu_editor_commands_follow_the_roles() {
+    use pos_engine::commands::menu_admin::{
+        SaveCategoryInput, SaveModifierGroupInput, SaveModifierInput, SaveProductInput,
+        do_list_menu_changes, do_menu_admin_get, do_menu_save_category, do_menu_save_modifier,
+        do_menu_save_modifier_group, do_menu_save_product,
+    };
+    let app = app().await;
+    let names = || [("fr".to_string(), "Sushi".to_string())].into();
+    let category = || SaveCategoryInput {
+        id: None,
+        names: names(),
+        sort_order: 1,
+        color: None,
+        active: true,
+    };
+    let product = |category_id| SaveProductInput {
+        id: None,
+        category_id,
+        names: names(),
+        price_cents: 500,
+        vat_code: "B".into(),
+        vat_code_takeaway: None,
+        kitchen_printer: true,
+        code: None,
+        open_price: false,
+        sort_order: 1,
+        active: true,
+    };
+    let group = || SaveModifierGroupInput {
+        id: None,
+        menu_item_id: 1,
+        names: names(),
+        min_select: 0,
+        max_select: 1,
+        sort_order: 1,
+        active: true,
+    };
+    let option = || SaveModifierInput {
+        id: None,
+        group_id: 1,
+        names: names(),
+        price_cents: 0,
+        sort_order: 1,
+        active: true,
+    };
+
+    app.logout();
+    assert_eq!(
+        do_menu_admin_get(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_menu_changes(&app.state, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_menu_save_category(&app.state, category()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+
+    // The editor is for the manager: a cashier and a waiter are refused on every command.
+    for role in [UserRole::Cashier, UserRole::Waiter] {
+        as_(&app, SERVER, role);
+        assert_eq!(do_menu_admin_get(&app.state).unwrap_err(), ERR_FORBIDDEN);
+        assert_eq!(
+            do_list_menu_changes(&app.state, None).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_menu_save_category(&app.state, category()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_menu_save_product(&app.state, product(1)).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_menu_save_modifier_group(&app.state, group()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_menu_save_modifier(&app.state, option()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+
+    as_(&app, MANAGER, UserRole::Admin);
+    let saved = do_menu_save_category(&app.state, category()).unwrap();
+    assert!(do_menu_save_product(&app.state, product(saved.id)).is_ok());
+    assert_eq!(do_menu_admin_get(&app.state).unwrap().categories.len(), 2);
+    assert_eq!(do_list_menu_changes(&app.state, None).unwrap().len(), 2);
+}
