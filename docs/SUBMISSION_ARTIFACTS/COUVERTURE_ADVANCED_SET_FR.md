@@ -32,7 +32,7 @@ sans aucune modification de code.
 
 | Métrique | Valeur |
 |---|---|
-| Total fixtures découvertes (sur 59 dossiers UC, sous-dossiers multi-étapes inclus) | **141** |
+| Total fixtures découvertes (sur 58 dossiers UC, sous-dossiers multi-étapes inclus) | **141** |
 | **Passantes** | **141** |
 | Échouées | 0 |
 | Labels d'événements exercés dans ce set | N, P, F, C, I |
@@ -148,12 +148,13 @@ conséquence :
 
 | Élément | Phase plan | Statut actuel | Reporté à |
 |---|---|---|---|
-| Builder produit composite + champ `OrderLine.line_kind` | 5 | Forme de réponse déjà acceptée ; helpers côté requête absents | Phase 10 |
-| `ModifierDialog.vue`, `PriceChangeDialog.vue` | 5 | Non implémenté | Phase 10 |
-| Impl correcte de `pos-core::table.rs`, tables schéma `tables` / `table_orders` | 6 | `table.rs` est un stub de 9 lignes | Phase 10 |
-| UI `TableSplitDialog.vue`, `VoucherKeypad.vue` | 6 | Non implémentée | Phase 10 |
-| Table schéma `currency_rates`, champs currency/tip de `FinancialInput` | 7 | Forme de réponse déjà acceptée | Phase 10 |
-| UI `PaymentMethodPicker.vue` devise | 7 | Non implémentée | Phase 10 |
+| Builder produit composite + champ `OrderLine.line_kind` | 5 | Forme de réponse déjà acceptée ; helpers côté requête absents | mise à jour certifiée ultérieure |
+| `ModifierDialog.vue` (options HubRise d'un produit : le prix des options s'ajoute au prix unitaire de la ligne, calculé par le moteur) | 5 | Livré pour les options HubRise ; hors UC composite | sans objet |
+| `PriceChangeDialog.vue` (changement de prix à la saisie, priceChanges) | 5 | Non implémenté | mise à jour certifiée ultérieure |
+| Impl correcte de `pos-core::table.rs`, tables schéma `tables` / `table_orders` | 6 | `table.rs` est un stub de 9 lignes | mise à jour certifiée ultérieure |
+| UI `TableSplitDialog.vue`, `VoucherKeypad.vue` | 6 | Non implémentée | mise à jour certifiée ultérieure |
+| Table schéma `currency_rates`, champs currency/tip de `FinancialInput` | 7 | Forme de réponse déjà acceptée | mise à jour certifiée ultérieure |
+| UI `PaymentMethodPicker.vue` devise | 7 | Non implémentée | mise à jour certifiée ultérieure |
 
 **Impact cert :** aucun. Le dossier cert déclarera dans le formulaire
 de demande quels flux opérateur sont accessibles depuis la build
@@ -161,7 +162,7 @@ actuelle, et la validation côté fixtures ci-dessus prouve que le
 protocole fiscal est satisfait pour les 141 scénarios Advanced Set
 quand déclenchés (via le harness de test, durant le rendez-vous
 d'admission, ou - post-go-live - via le travail de complétion UI
-en Phase 10).
+dans une mise à jour certifiée ultérieure).
 
 ---
 
@@ -172,7 +173,6 @@ cd pili-pos
 cargo test --package pos-fiscal --test advanced_set_fixtures -- --nocapture
 ```
 
-Totaux workspace après la passe fixtures Phase 5/6/7 :
-- Nouveau binaire de test : `advanced_set_fixtures` - 1 test
-  roll-up, 141 fixtures en interne.
-- Total tests workspace : **190 passent, 0 échec.**
+Binaire de test : `advanced_set_fixtures` - 1 test roll-up, 141
+fixtures en interne. Les totaux de tests du workspace sont dans
+`RAPPORT_TESTS_BASELINE_FR.md`.
