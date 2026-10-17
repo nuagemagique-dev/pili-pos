@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.reports
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import uniffi.pos_ffi.Customer
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.RequestedMedium
@@ -49,6 +50,27 @@ internal data class TicketsCallbacks(
     val describeError: (String?) -> String = { it.orEmpty() },
 )
 
+/** What the operator can do with invoices: tick sales, fill the dialog, sign, copy. */
+@Suppress("LongParameterList")
+internal data class InvoiceCallbacks(
+    val onToggleSale: (fiscalEventId: Long) -> Unit = {},
+    val onOpen: () -> Unit = {},
+    val onClose: () -> Unit = {},
+    val onSearch: (String) -> Unit = {},
+    val onPickCustomer: (Customer) -> Unit = {},
+    val onVatNumber: (String) -> Unit = {},
+    val onCheckVat: () -> Unit = {},
+    val onName: (String) -> Unit = {},
+    val onStreet: (String) -> Unit = {},
+    val onPostalCode: (String) -> Unit = {},
+    val onCity: (String) -> Unit = {},
+    val onCountryCode: (String) -> Unit = {},
+    val onContinue: () -> Unit = {},
+    val onBack: () -> Unit = {},
+    val onConfirm: () -> Unit = {},
+    val onCopy: (fiscalEventId: Long) -> Unit = {},
+)
+
 /** What the delivery picker of the copy and refund dialogs does. */
 internal data class DeliveryCallbacks(
     val onPaper: () -> Unit = {},
@@ -62,8 +84,30 @@ internal data class ReportsCallbacks(
     val day: DayCallbacks = DayCallbacks(),
     val cash: CashCallbacks = CashCallbacks(),
     val tickets: TicketsCallbacks = TicketsCallbacks(),
+    val invoice: InvoiceCallbacks = InvoiceCallbacks(),
     val delivery: DeliveryCallbacks = DeliveryCallbacks(),
 )
+
+/** The actions of the invoice flow over [model]. */
+internal fun invoiceCallbacks(model: InvoiceViewModel): InvoiceCallbacks =
+    InvoiceCallbacks(
+        onToggleSale = model::toggleSale,
+        onOpen = model::openFlow,
+        onClose = model::closeFlow,
+        onSearch = model::setSearch,
+        onPickCustomer = model::pickCustomer,
+        onVatNumber = model::setVatNumber,
+        onCheckVat = model::checkVat,
+        onName = model::setName,
+        onStreet = model::setStreet,
+        onPostalCode = model::setPostalCode,
+        onCity = model::setCity,
+        onCountryCode = model::setCountryCode,
+        onContinue = model::continueToPreview,
+        onBack = model::backToCustomer,
+        onConfirm = model::confirm,
+        onCopy = model::copyInvoice,
+    )
 
 /** What the delivery picker shows: the mail probe, the choice made and whether a paper original may be printed. */
 internal data class ReportsDelivery(

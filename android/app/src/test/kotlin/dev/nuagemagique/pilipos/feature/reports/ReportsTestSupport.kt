@@ -181,8 +181,12 @@ internal class ReportsRig(
     private val errorTexts: ErrorTexts,
     val delivery: DeliveryStore,
     val helpers: EngineHelpers,
+    val invoiceModel: InvoiceViewModel,
 ) {
     val state get() = model.state.value
+
+    /** The invoice flow state. */
+    val invoices get() = invoiceModel.state.value
     val engine: DisposableEngine get() = f.engine
 
     /** The French text of Vue [key]. */
@@ -202,6 +206,8 @@ internal fun stubReportReads(engine: DisposableEngine) {
     coEvery { engine.listUnsettledCardPayments() } returns emptyList()
     coEvery { engine.listCopyableTickets(any()) } returns emptyList()
     coEvery { engine.listRefundableEvents(any()) } returns emptyList()
+    coEvery { engine.listInvoiceableSales(any(), any()) } returns emptyList()
+    coEvery { engine.listInvoices(any()) } returns emptyList()
     coEvery { engine.login(any(), any()) } returns operatorUser
 }
 
@@ -239,8 +245,9 @@ internal suspend fun TestScope.startReports(
     val delivery = DeliveryStore(gateway, errors, settings)
     val entry = TestReportsEntryPoint(gateway, helpers, f.events, session, settings, errors, toasts, catalog, delivery)
     val model = ReportsViewModel(entry)
+    val invoiceModel = InvoiceViewModel(entry)
     runCurrent()
-    return ReportsRig(f, model, toasts, catalog, feed, errorTexts, delivery, helpers)
+    return ReportsRig(f, model, toasts, catalog, feed, errorTexts, delivery, helpers, invoiceModel)
 }
 
 /** A card payment approved and not yet settled: at table [table], or a takeaway when it is null. */

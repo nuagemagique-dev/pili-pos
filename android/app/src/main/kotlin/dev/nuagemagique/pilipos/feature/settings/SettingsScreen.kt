@@ -119,8 +119,10 @@ internal fun SettingsRoute(
     val entry = rememberEntryPoint<SettingsFeatureEntryPoint>()
     val model = viewModel { SettingsViewModel(entry) }
     val hubriseModel = viewModel { HubriseViewModel(entry) }
+    val peppolModel = viewModel { PeppolViewModel(entry) }
     val loaded by model.state.collectAsState()
     val hubrise by hubriseModel.state.collectAsState()
+    val peppol by peppolModel.state.collectAsState()
     val pending by entry.webshop().pendingCount.collectAsState()
     LaunchedEffect(hubriseModel) {
         hubriseModel.effects.collect {
@@ -137,6 +139,7 @@ internal fun SettingsRoute(
     val connectActions = HubriseConnectActions(onSubmit = hubriseModel::submitCode, onCancel = hubriseModel::cancelConnect)
     val qr = remember(entry) { entry.qrMatrices() }
     LaunchedEffect(model) { entry.delivery().refreshMailStatus() }
+    LaunchedEffect(peppolModel, peppol.isManager) { if (peppol.isManager) peppolModel.startPolling() }
     PosScaffold(
         HeaderArea.SETTINGS,
         navigator,
@@ -156,9 +159,12 @@ internal fun SettingsRoute(
             )
         },
     ) {
-        SettingsContent(state, callbacks, hubriseSection = {
-            HubriseSection(hubrise, pending, hubriseCallbacks)
-        })
+        SettingsContent(
+            state,
+            callbacks,
+            hubriseSection = { HubriseSection(hubrise, pending, hubriseCallbacks) },
+            peppolSection = { PeppolSection(peppol, PeppolCallbacks(onRetry = peppolModel::retry)) },
+        )
     }
 }
 
@@ -221,12 +227,13 @@ internal fun SettingsContent(
     callbacks: SettingsCallbacks,
     modifier: Modifier = Modifier,
     hubriseSection: @Composable () -> Unit = {},
+    peppolSection: @Composable () -> Unit = {},
 ) {
     BoxWithConstraints(modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary).testTag("settings_content")) {
         if (maxWidth >= WideLayoutMin) {
-            WideLayout(state, callbacks, hubriseSection)
+            WideLayout(state, callbacks, hubriseSection, peppolSection)
         } else {
-            NarrowLayout(state, callbacks, hubriseSection)
+            NarrowLayout(state, callbacks, hubriseSection, peppolSection)
         }
     }
 }
@@ -236,6 +243,7 @@ private fun WideLayout(
     state: SettingsUiState,
     callbacks: SettingsCallbacks,
     hubriseSection: @Composable () -> Unit,
+    peppolSection: @Composable () -> Unit,
 ) {
     val gap = PiliTheme.dimens.spaceLg
     Row(Modifier.fillMaxSize().padding(gap), horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -256,6 +264,7 @@ private fun WideLayout(
             InfoPanel(state.info)
             IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
             if (state.hubrise.visible) hubriseSection()
+            peppolSection()
             DeliveriesPanel(state.deliveries, state.deliveriesLoading, state.mailStatus, callbacks.onReloadDeliveries)
         }
     }
@@ -266,6 +275,7 @@ private fun NarrowLayout(
     state: SettingsUiState,
     callbacks: SettingsCallbacks,
     hubriseSection: @Composable () -> Unit,
+    peppolSection: @Composable () -> Unit,
 ) {
     val gap = PiliTheme.dimens.spaceMd
     Column(
@@ -281,6 +291,7 @@ private fun NarrowLayout(
         InfoPanel(state.info)
         IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
         if (state.hubrise.visible) hubriseSection()
+        peppolSection()
         DeliveriesPanel(state.deliveries, state.deliveriesLoading, state.mailStatus, callbacks.onReloadDeliveries)
     }
 }
