@@ -488,6 +488,7 @@ fn a_checkout_result_with_every_option_set_converts() {
         fiscal_event_id: Some(12),
         delivery: Some(delivery_outcome(true)),
         kitchen_slip: Some(EngineSlipOutcome::Failed),
+        gift_voucher_prints: Vec::new(),
     };
     let record: ffi::CheckoutResult = out_equal(&engine);
     assert_eq!(record.fiscal_event_id, Some(12));
@@ -505,6 +506,7 @@ fn a_checkout_result_with_every_option_empty_converts() {
         fiscal_event_id: None,
         delivery: None,
         kitchen_slip: None,
+        gift_voucher_prints: Vec::new(),
     };
     let record: ffi::CheckoutResult = out_equal(&engine);
     assert!(record.ticket.is_none() && record.delivery.is_none() && record.kitchen_slip.is_none());
@@ -806,6 +808,7 @@ fn a_payment_part_with_every_field_set_reaches_the_engine() {
         method: ffi::PaymentMethod::MealVoucher,
         amount_cents: Some(1250),
         eft_payment_id: None,
+        gift_voucher_id: None,
     };
     let engine: EnginePaymentPart = contract_inp(&record).unwrap();
     assert_eq!(engine.method, EnginePaymentMethod::MealVoucher);
@@ -818,6 +821,7 @@ fn a_cash_payment_part_has_no_amount() {
         method: ffi::PaymentMethod::Cash,
         amount_cents: None,
         eft_payment_id: None,
+        gift_voucher_id: None,
     };
     let engine: EnginePaymentPart = contract_inp(&record).unwrap();
     assert_eq!(engine, EnginePaymentPart::cash());
@@ -843,6 +847,7 @@ fn every_payment_method_reaches_the_engine_in_a_part() {
             method: record,
             amount_cents: Some(1),
             eft_payment_id: None,
+            gift_voucher_id: None,
         })
         .unwrap();
         assert_eq!(engine, EnginePaymentPart::of(expected, 1));

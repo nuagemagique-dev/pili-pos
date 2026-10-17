@@ -217,6 +217,7 @@ async fn sell(engine: &PosEngine) {
                 method: PaymentMethod::Cash,
                 amount_cents: None,
                 eft_payment_id: None,
+                gift_voucher_id: None,
             }],
             None,
         )

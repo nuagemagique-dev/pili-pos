@@ -51,6 +51,7 @@
 //! | `EmailStatus` | `pos_engine::commands::delivery::EmailStatus` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
 //! | `EventLabel` | `pos_fiscal::types::EventLabel` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
 //! | `ExtensionItem` | `pos_fiscal::response::ExtensionItem` | common | event fdm-sign-messages |
+//! | `GiftVoucherPrint` | `pos_engine::commands::gift_vouchers::GiftVoucherPrint` | common | checkout, close_unpaid, refund_checkout (+4 commands) |
 //! | `FdmHealth` | `pos_engine::commands::fdm_monitor::FdmHealth` | common | fdm_check_now, fdm_health; event fdm-status |
 //! | `FdmMessageDisplay` | `pos_fiscal::types::Display` | common | event fdm-sign-messages |
 //! | `FdmReference` | `pos_fiscal::response::FdmReference` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
@@ -120,6 +121,9 @@
 //! | `SheetProductView` | `pos_engine::commands::allergens::SheetProductView` | allergens | get_allergen_sheet |
 //! | `CategoryCourse` | `pos_engine::commands::courses::CategoryCourse` | courses | get_course_settings, set_course_settings |
 //! | `CourseSettings` | `pos_engine::commands::courses::CourseSettings` | courses | get_course_settings, set_course_settings |
+//! | `GiftVoucherMovement` | `pos_engine::commands::gift_vouchers::GiftVoucherMovement` | gift_vouchers | lookup_gift_voucher |
+//! | `GiftVoucherSettings` | `pos_engine::commands::gift_vouchers::GiftVoucherSettings` | gift_vouchers | get_gift_voucher_settings, set_gift_voucher_settings |
+//! | `GiftVoucherView` | `pos_engine::commands::gift_vouchers::GiftVoucherView` | gift_vouchers | list_gift_vouchers, lookup_gift_voucher |
 //! | `HeldCourse` | `pos_engine::commands::courses::HeldCourseView` | courses | list_held_courses |
 //! | `NextCourse` | `pos_engine::commands::courses::NextCourse` | courses | send_next_course |
 //! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | money_in_out, open_drawer_fiscal |
@@ -173,6 +177,7 @@ pub mod common;
 pub mod courses;
 pub mod eft;
 pub mod export;
+pub mod gift_vouchers;
 pub mod hubrise;
 pub mod orders;
 pub mod reports;

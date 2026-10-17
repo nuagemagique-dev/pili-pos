@@ -156,6 +156,7 @@ fn a_payment_part_carries_the_terminal_payment_id() {
         method: PaymentMethod::Card,
         amount_cents: Some(1250),
         eft_payment_id: Some(7),
+        gift_voucher_id: None,
     };
     let engine: pos_fiscal::payment::PaymentPart = contract_inp(&part).expect("convert::inp");
     assert_eq!(engine.eft_payment_id, Some(7));
@@ -388,6 +389,7 @@ async fn an_approved_payment_is_listed_then_settled_by_the_checkout() {
                 method: PaymentMethod::Card,
                 amount_cents: Some(250),
                 eft_payment_id: Some(payment.id),
+                gift_voucher_id: None,
             }],
             None,
         )

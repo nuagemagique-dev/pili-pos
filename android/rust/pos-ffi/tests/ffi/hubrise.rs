@@ -920,11 +920,13 @@ fn the_webshop_request_records_convert_to_the_engines() {
                 method: PaymentMethod::Cash,
                 amount_cents: None,
                 eft_payment_id: None,
+                gift_voucher_id: None,
             },
             PaymentPart {
                 method: PaymentMethod::MealVoucher,
                 amount_cents: Some(850),
                 eft_payment_id: None,
+                gift_voucher_id: None,
             },
         ],
         delivery: Some(TicketDeliveryRequest {
@@ -1050,6 +1052,7 @@ async fn all_nineteen_methods_answer_on_a_seeded_engine() {
                 method: PaymentMethod::Cash,
                 amount_cents: None,
                 eft_payment_id: None,
+                gift_voucher_id: None,
             }],
             delivery: None,
         })

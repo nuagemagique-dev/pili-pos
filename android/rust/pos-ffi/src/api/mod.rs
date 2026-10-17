@@ -7,6 +7,7 @@ pub mod checkout;
 pub mod courses;
 pub mod eft;
 pub mod export;
+pub mod gift_vouchers;
 pub mod hubrise;
 pub mod orders;
 pub mod reports;
