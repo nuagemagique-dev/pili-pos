@@ -82,6 +82,8 @@ class OrderStoreTest {
         nameZh = null,
         code = null,
         unsentQuantity = unsent,
+        discountCents = 0,
+        priceChanges = emptyList(),
     )
 
     private fun item(

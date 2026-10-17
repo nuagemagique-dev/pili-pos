@@ -250,6 +250,81 @@ async fn lines_and_cart_lines_convert_with_and_without_options() {
 }
 
 #[tokio::test]
+async fn a_discounted_cart_line_and_the_discount_result_convert() {
+    use pos_engine::commands::discount as engine;
+    const PIN: &str = "4321";
+    let app = app().await;
+    pos_engine::commands::auth::do_set_pin(&app.state, INSZ.into(), PIN.into(), None).unwrap();
+    let order = create(&app, None);
+    add(&app, order.id, 1, None, None);
+    add(&app, order.id, 2, None, None);
+
+    // A line without a change: the new fields are empty.
+    let cart = do_list_cart_lines(&app.state, order.id).unwrap();
+    let records: Vec<ffi::CartLine> = out_equal(&cart);
+    assert_eq!(records[0].discount_cents, 0);
+    assert!(records[0].price_changes.is_empty());
+
+    let input = engine::DiscountInput {
+        target: engine::DiscountTarget::Order,
+        kind: engine::DiscountKind::Percent,
+        value: Some(25),
+        reason_code: engine::DiscountReason::ServiceIssue,
+        reason_text: Some("plat froid".into()),
+    };
+    let done = engine::do_apply_discount(&app.state, order.id, input, INSZ.into(), PIN.into())
+        .await
+        .unwrap();
+    let result: ffi::DiscountResult = out_equal(&done);
+    // 2 x 12,00 + 2 x 28,00 = 80,00, 25 % off.
+    assert_eq!(result.order.total_cents, 6000);
+    assert_eq!(result.registration_error, None);
+
+    let cart = do_list_cart_lines(&app.state, order.id).unwrap();
+    let records: Vec<ffi::CartLine> = out_equal(&cart);
+    assert_eq!(records.iter().map(|l| l.discount_cents).sum::<i64>(), -2000);
+    let change = &records[0].price_changes[0];
+    assert_eq!(change.id, "TILL-DISCOUNT");
+    assert_eq!(change.name, "Remise 25 %");
+    assert_eq!(change.scope, "EVENT");
+    assert_eq!(change.amount_cents, records[0].discount_cents);
+}
+
+#[test]
+fn discount_enums_and_input_convert() {
+    use pos_engine::commands::discount as engine;
+    enum_both::<engine::DiscountKind, ffi::DiscountKind>(&[
+        engine::DiscountKind::Percent,
+        engine::DiscountKind::Amount,
+        engine::DiscountKind::Free,
+    ]);
+    enum_both::<engine::DiscountReason, ffi::DiscountReason>(&[
+        engine::DiscountReason::CommercialGesture,
+        engine::DiscountReason::StaffMeal,
+        engine::DiscountReason::ServiceIssue,
+        engine::DiscountReason::Other,
+    ]);
+    enum_both::<engine::DiscountTarget, ffi::DiscountTarget>(&[
+        engine::DiscountTarget::Order,
+        engine::DiscountTarget::Line { line_id: 7 },
+        engine::DiscountTarget::Line { line_id: 8 },
+    ]);
+    let input = ffi::DiscountInput {
+        target: ffi::DiscountTarget::Line { line_id: 9 },
+        kind: ffi::DiscountKind::Free,
+        value: None,
+        reason_code: ffi::DiscountReason::StaffMeal,
+        reason_text: Some("repas".into()),
+    };
+    let engine: engine::DiscountInput = contract_inp(&input).unwrap();
+    assert_eq!(engine.target, engine::DiscountTarget::Line { line_id: 9 });
+    assert_eq!(engine.kind, engine::DiscountKind::Free);
+    assert_eq!(engine.value, None);
+    assert_eq!(engine.reason_code, engine::DiscountReason::StaffMeal);
+    assert_eq!(engine.reason_text.as_deref(), Some("repas"));
+}
+
+#[tokio::test]
 async fn categories_and_menu_items_convert_with_options_set_and_empty() {
     let app = app().await;
     let categories = menu::do_get_categories(&app.state, None).unwrap();

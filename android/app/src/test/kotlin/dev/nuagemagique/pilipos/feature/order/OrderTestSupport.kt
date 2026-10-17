@@ -113,6 +113,8 @@ internal fun cartLine(
         departmentId = "d",
         departmentName = "Dept",
         unsentQuantity = unsent,
+        discountCents = 0,
+        priceChanges = emptyList(),
     )
 
 internal fun orderLine(menuItemId: Long): OrderLine =

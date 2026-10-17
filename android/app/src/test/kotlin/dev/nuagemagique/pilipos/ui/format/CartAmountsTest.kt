@@ -53,6 +53,8 @@ class CartAmountsTest {
             nameZh = null,
             code = null,
             unsentQuantity = 0,
+            discountCents = 0,
+            priceChanges = emptyList(),
         )
 
     @Test

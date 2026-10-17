@@ -171,6 +171,8 @@ internal fun cartLine(
         nameZh = null,
         code = null,
         unsentQuantity = 0,
+        discountCents = 0,
+        priceChanges = emptyList(),
     )
 
 internal fun posSettings(): PosSettings =

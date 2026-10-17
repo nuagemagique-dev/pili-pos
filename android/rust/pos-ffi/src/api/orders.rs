@@ -2,16 +2,18 @@
 //! and session): one async method per Tauri command, each one converting its arguments, making the
 //! wrapper's single engine call and converting the answer. Plus the `vat_split` helper (PD62).
 
-use pos_engine::commands::{menu, modifiers, order, session, table_plan, table_transfer, tables};
+use pos_engine::commands::{
+    discount, menu, modifiers, order, session, table_plan, table_transfer, tables,
+};
 
 use crate::convert;
 use crate::core::PosEngine;
 use crate::error::PosError;
 use crate::records::common::{SlipOutcome, VatCode};
 use crate::records::orders::{
-    AddOrderLineInput, AddWithModifiersInput, CartLine, Category, CreateOrderInput, LeaveReason,
-    LockOutcome, MenuItem, ModifierGroup, Order, OrderLine, TableInfo, TablePlan,
-    TableTransferResult, TakeawayInfo, VatLine, VatSplitRow,
+    AddOrderLineInput, AddWithModifiersInput, CartLine, Category, CreateOrderInput, DiscountInput,
+    DiscountResult, LeaveReason, LockOutcome, MenuItem, ModifierGroup, Order, OrderLine, TableInfo,
+    TablePlan, TableTransferResult, TakeawayInfo, VatLine, VatSplitRow,
 };
 
 #[uniffi::export]
@@ -187,6 +189,41 @@ impl PosEngine {
         let result = self
             .spawn(move |e| async move {
                 table_transfer::do_transfer_table(&e, order_id, to_table).await
+            })
+            .await?;
+        convert::out(&result)
+    }
+
+    /// Give a discount on an open till order (order discount or one free line); a manager
+    /// confirms with the PIN.
+    pub async fn apply_discount(
+        &self,
+        order_id: i64,
+        input: DiscountInput,
+        insz: String,
+        pin: String,
+    ) -> Result<DiscountResult, PosError> {
+        let input: discount::DiscountInput = convert::inp(&input)?;
+        let result = self
+            .spawn(move |e| async move {
+                discount::do_apply_discount(&e, order_id, input, insz, pin).await
+            })
+            .await?;
+        convert::out(&result)
+    }
+
+    /// Remove the order discount (`line_id` `None`) or the free line `line_id`; a manager confirms
+    /// with the PIN.
+    pub async fn remove_discount(
+        &self,
+        order_id: i64,
+        line_id: Option<i64>,
+        insz: String,
+        pin: String,
+    ) -> Result<DiscountResult, PosError> {
+        let result = self
+            .spawn(move |e| async move {
+                discount::do_remove_discount(&e, order_id, line_id, insz, pin).await
             })
             .await?;
         convert::out(&result)

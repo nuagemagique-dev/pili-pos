@@ -77,6 +77,12 @@
 //! | `VatCalcItem` | `pos_fiscal::response::VatCalcItem` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
 //! | `VatCode` | `pos_core::vat::VatCode` | common | add_order_line, add_order_line_with_modifiers, get_menu_items (+3 commands); helper vat_split |
 //! | `VatLabel` | `pos_fiscal::types::VatLabel` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
+//! | `CartPriceChange` | `pos_db::queries::orders::CartPriceChange` | orders | list_cart_lines (inside CartLine) |
+//! | `DiscountInput` | `pos_engine::commands::discount::DiscountInput` | orders | apply_discount |
+//! | `DiscountKind` | `pos_engine::commands::discount::DiscountKind` | orders | apply_discount |
+//! | `DiscountReason` | `pos_engine::commands::discount::DiscountReason` | orders | apply_discount |
+//! | `DiscountResult` | `pos_engine::commands::discount::DiscountResult` | orders | apply_discount, remove_discount |
+//! | `DiscountTarget` | `pos_engine::commands::discount::DiscountTarget` | orders | apply_discount |
 //! | `AddOrderLineInput` | `pos_engine::commands::order::AddOrderLineInput` | orders | add_order_line |
 //! | `AddWithModifiersInput` | `pos_engine::commands::modifiers::AddWithModifiersInput` | orders | add_order_line_with_modifiers |
 //! | `CartLine` | `pos_db::queries::orders::CartLine` | orders | list_cart_lines |
