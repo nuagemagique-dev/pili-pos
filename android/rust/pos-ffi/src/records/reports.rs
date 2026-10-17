@@ -121,11 +121,11 @@ pub struct SalesProduct {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SalesHour {
     /// Local hour in Belgium, 0 to 23.
-    pub hour: u32,
+    pub hour: i64,
     pub tickets: i64,
     pub amount_cents: i64,
     /// Length of the bar, 0 to 100.
-    pub bar_percent: u32,
+    pub bar_percent: i64,
 }
 
 /// `pos_engine::commands::sales_report::SalesReport`: the non-fiscal sales report of a range of

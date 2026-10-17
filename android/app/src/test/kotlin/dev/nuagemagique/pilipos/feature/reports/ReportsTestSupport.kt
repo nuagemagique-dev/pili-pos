@@ -315,9 +315,9 @@ internal fun salesReport(
             ),
         byHour =
             listOf(
-                uniffi.pos_ffi.SalesHour(19u, 4L, 9_000L, 100u),
-                uniffi.pos_ffi.SalesHour(20u, 2L, 4_500L, 50u),
-                uniffi.pos_ffi.SalesHour(1u, 1L, 500L, 6u),
+                uniffi.pos_ffi.SalesHour(19L, 4L, 9_000L, 100L),
+                uniffi.pos_ffi.SalesHour(20L, 2L, 4_500L, 50L),
+                uniffi.pos_ffi.SalesHour(1L, 1L, 500L, 6L),
             ),
         priceChangesCents = -50L,
         roundingCents = 2L,
