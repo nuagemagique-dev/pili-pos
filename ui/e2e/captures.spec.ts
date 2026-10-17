@@ -12,6 +12,7 @@ import {
   DEFAULT_MENU_ITEM,
   fdmHealth,
   fdmMocks,
+  shiftsInit,
   eftScript,
   settingsWith,
   DEFAULT_ORDER,
@@ -53,6 +54,8 @@ const GERANT = { insz: '94060242576', name: 'Gérant Test', role: 'admin' as con
 const SERVEUR = { insz: '84022899837', name: 'Elisa', role: 'cashier' as const, active: true, has_pin: false };
 const APPRENTI = { insz: '99012345667', name: 'Apprenti Test', role: 'waiter' as const, active: true, has_pin: false };
 const STAFF = [GERANT, SERVEUR, APPRENTI];
+// Kitchen staff who never use the till: no tile, no PIN, a manager clocks them in and out.
+const CUISINIER = { insz: '88010112345', name: 'Cuisinier Test', role: 'waiter' as const, active: true, has_pin: false, presence_only: true };
 
 // ── Menu seed for the main sale flow - 3 categories, VAT A/B/C ──────
 const CATEGORIES = [
@@ -497,13 +500,25 @@ test('18_logout - retour à l\'écran de connexion', async ({ page }) => {
   await capture(page, '18_logout');
 });
 
-test('19_admin_users - employés et formulaire d\'ajout', async ({ page }) => {
-  await mockTauriIPC(page, { login: () => GERANT, list_users: () => STAFF });
+test('19_admin_users - employés, présence et formulaire d\'ajout', async ({ page }) => {
+  await mockTauriIPC(page, { login: () => GERANT, list_users: () => [...STAFF, CUISINIER] });
+  await shiftsInit(page, [{ userInsz: SERVEUR.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
   await loginAndGoto(page, '/settings');
-  await expect(page.locator('.worker-row')).toHaveCount(3);
+  await expect(page.locator('.worker-row')).toHaveCount(4);
   await expect(page.locator('.worker-row', { hasText: 'Gérant Test' }).locator('.worker-meta')).toContainText('Gérant');
-  await expect(page.locator('.role-btn')).toHaveCount(3);
+  await expect(page.locator('.worker-row', { hasText: 'Cuisinier Test' }).locator('.worker-meta')).toHaveText('Présence seule');
+  await expect(page.locator('.role-btn')).toHaveCount(4);
   await capture(page, '19_admin_users');
+});
+
+// Proposed capture (runbook): the manager has just clocked the presence-only employee in.
+test('19a_admin_presence - le Gérant pointe un employé', async ({ page }) => {
+  await mockTauriIPC(page, { login: () => GERANT, list_users: () => [...STAFF, CUISINIER] });
+  await loginAndGoto(page, '/settings');
+  await page.locator('.worker-row', { hasText: 'Cuisinier Test' }).getByTestId('presence-btn').click();
+  await expect(page.locator('.toast', { hasText: 'Arrivée enregistrée · Cuisinier Test' })).toBeVisible();
+  await expect(page.locator('.worker-row', { hasText: 'Cuisinier Test' }).getByTestId('presence-btn')).toHaveText('Départ');
+  await capture(page, '19a_admin_presence');
 });
 
 test.describe('Section 2 - messages du FDM (§V)', () => {

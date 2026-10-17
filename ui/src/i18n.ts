@@ -120,7 +120,7 @@ const coreMessages: Messages = {
   "err_deactivate_self": { fr: "Vous ne pouvez pas vous désactiver vous-même.", en: "You cannot deactivate yourself.", zh: "不能停用自己。" },
   "err_presence_only_user": { fr: "Employé enregistré pour la présence seulement : pas de connexion à la caisse", en: "This employee is registered for presence only and cannot log in", zh: "该员工仅用于考勤，不能登录收银机" },
   "err_presence_training": { fr: "Mode formation : le pointage d'un employé est impossible. Quittez le mode formation.", en: "Training mode: an employee cannot be clocked in or out. Leave training mode.", zh: "培训模式下不能为员工打卡，请先退出培训模式。" },
-  "err_presence_self": { fr: "Votre arrivée et votre départ se font à la connexion et par « Fin de service »", en: "Your own clock-in and clock-out happen at login and with \"End of shift\"", zh: "您本人的上下班在登录时和\"结束工作\"时登记" },
+  "err_presence_self": { fr: "Votre arrivée et votre départ se font à la connexion et par « Fin de service »", en: "Your own clock-in and clock-out happen at login and with \"End of shift\"", zh: "您本人的上下班在登录时和\"下班\"时登记" },
   "err_presence_already_in": { fr: "Cet employé est déjà en service", en: "This employee is already on shift", zh: "该员工已在岗" },
   "err_presence_not_in": { fr: "Cet employé n'est pas en service", en: "This employee is not on shift", zh: "该员工不在岗" },
   "err_deactivate_on_shift": { fr: "Cet employé est en service : enregistrez d'abord son départ", en: "This employee is on shift: clock them out first", zh: "该员工在岗，请先登记下班" },
@@ -273,6 +273,7 @@ const coreMessages: Messages = {
   "role_admin": { fr: "Gérant", en: "Manager", zh: "经理" },
   "role_cashier": { fr: "Serveur", en: "Server", zh: "服务员" },
   "role_waiter": { fr: "Apprenti", en: "Apprentice", zh: "学徒" },
+  "role_presence": { fr: "Présence seule", en: "Presence only", zh: "仅考勤" },
   "info": { fr: "Informations", en: "Information", zh: "信息" },
   "printer_none": { fr: "Non configurée", en: "Not configured", zh: "未配置" },
 

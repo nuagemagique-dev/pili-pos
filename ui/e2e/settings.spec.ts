@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockTauriIPC, DEFAULT_USER, ipcCalls, loginAndGoto, overrideIPC, live } from './fixtures/mock-ipc';
+import { mockTauriIPC, DEFAULT_USER, ipcCalls, loginAndGoto, overrideIPC, live, shiftsInit, fdmHealth, fdmMocks, settingsWith } from './fixtures/mock-ipc';
 
 test.describe('Settings View', () => {
   test.beforeEach(async ({ page }) => {
@@ -448,5 +448,97 @@ test.describe('Settings - the HubRise switch', () => {
     await loginAndGoto(page, '/settings');
     await expect(page.getByTestId('integrations')).toContainText('1 commande(s) en ligne à terminer.');
     await expect(page.getByRole('button', { name: /En ligne/ })).toBeVisible();
+  });
+});
+
+test.describe('Presence registration by the manager (event S)', () => {
+  const WEI = { insz: '99012345667', name: 'Wei', role: 'cashier', active: true, has_pin: true };
+  const COOK = { insz: '88010112345', name: 'Chen', role: 'waiter', active: true, has_pin: false, presence_only: true };
+  const row = (page: import('@playwright/test').Page, name: string) => page.locator('.worker-row', { hasText: name });
+
+  test.beforeEach(async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER, WEI, COOK] });
+  });
+
+  test('the panel says who is on shift and who is not, and offers the right button', async ({ page }) => {
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await expect(page.locator('.workers-section .panel-text')).toContainText('Personnel sans accès à la caisse');
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toHaveText('Départ');
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toHaveText('Hors service');
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toHaveText('Arrivée');
+    // The operator's own row has no presence button.
+    await expect(row(page, 'Bruno').getByTestId('presence-btn')).toHaveCount(0);
+  });
+
+  test('clock in then clock out, with a toast each time and the state refreshed', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    await row(page, 'Chen').getByTestId('presence-btn').click();
+    await expect(page.locator('.toast')).toContainText('Arrivée enregistrée · Chen');
+    await expect.poll(() => ipcCalls(page, 'clock_in_employee')).toEqual([{ employeeInsz: COOK.insz }]);
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toContainText('En service depuis');
+    await row(page, 'Chen').getByTestId('presence-btn').click();
+    await expect(page.locator('.toast', { hasText: 'Départ enregistré · Chen' })).toBeVisible();
+    await expect.poll(() => ipcCalls(page, 'clock_out_employee')).toEqual([{ employeeInsz: COOK.insz }]);
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toHaveText('Hors service');
+  });
+
+  test('an FDM failure is shown and the state does not change', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    await overrideIPC(page, 'clock_in_employee', { success: false, error: 'FDM injoignable' });
+    await row(page, 'Wei').getByTestId('presence-btn').click();
+    // The FDM error goes through the §V mapping.
+    await expect(page.locator('.toast')).toContainText('Erreur boîte noire');
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('Hors service');
+  });
+
+  test('a refusal code is shown as its text', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    await overrideIPC(page, 'clock_in_employee', { __reject: 'presence_already_in' });
+    await row(page, 'Wei').getByTestId('presence-btn').click();
+    await expect(page.locator('.toast')).toContainText('Cet employé est déjà en service');
+  });
+
+  test('the buttons are off while the FDM is not connected', async ({ page }) => {
+    await mockTauriIPC(page, {
+      list_users: () => [DEFAULT_USER, WEI, COOK],
+      ...fdmMocks(fdmHealth({ connected: false, severity: 'blocking', code: 'FDM_DOWN' })),
+    });
+    await loginAndGoto(page, '/settings');
+    await expect(page.getByTestId('presence-block')).toHaveText('FDM indisponible : pointage impossible');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toBeDisabled();
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toBeDisabled();
+  });
+
+  test('the buttons are off in training mode, with the reason', async ({ page }) => {
+    await mockTauriIPC(page, {
+      list_users: () => [DEFAULT_USER, WEI, COOK],
+      get_settings: settingsWith({ trainingMode: true }),
+    });
+    await loginAndGoto(page, '/settings');
+    await expect(page.getByTestId('presence-block')).toContainText('Mode formation : le pointage');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toBeDisabled();
+  });
+
+  test('a presence-only row has its own label, no PIN button, and keeps Désactiver', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    const cook = row(page, 'Chen');
+    await expect(cook.locator('.worker-meta')).toHaveText('Présence seule');
+    await expect(cook.getByRole('button', { name: 'Code PIN' })).toHaveCount(0);
+    await expect(cook.getByRole('button', { name: 'Désactiver' })).toBeVisible();
+    await expect(row(page, 'Wei').getByRole('button', { name: 'Code PIN' })).toBeVisible();
+  });
+
+  test('a presence-only employee is added without a PIN dialog', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    await page.getByPlaceholder('Nom').fill('Plongeur');
+    await page.locator('input[inputmode="numeric"]').fill('77010112345');
+    await page.getByRole('radio', { name: 'Présence seule' }).click();
+    await page.getByRole('button', { name: 'Ajouter l’employé' }).click();
+    await expect.poll(() => ipcCalls(page, 'create_user')).toEqual([
+      { input: { insz: '77010112345', name: 'Plongeur', role: 'waiter', presenceOnly: true } },
+    ]);
+    await expect(page.locator('.pin-dialog')).toHaveCount(0);
   });
 });

@@ -147,6 +147,13 @@ export function live(fn: Handler): Handler {
   return fn;
 }
 
+/** Seed the open shifts `list_open_shifts` reports (before the page loads). */
+export async function shiftsInit(page: Page, shifts: Array<{ userInsz: string; startedAt: string }>) {
+  await page.addInitScript((v) => {
+    (window as any).__shifts = v;
+  }, shifts);
+}
+
 /** The engine's FdmHealth (event "fdm-status"); healthy unless overridden. */
 export interface FdmHealthMock {
   connected: boolean;
@@ -240,7 +247,24 @@ function defaultHandlers(): Record<string, Handler> {
     // Social (S) and financial (F) events
     work_in: () => ({ success: true, error: null }),
     work_out: () => ({ success: true, error: null }),
-    list_open_shifts: () => [],
+    // Presence registered by a manager: the open shifts live in the page
+    // (`window.__shifts`, seeded by `shiftsInit`), so clock-in then out
+    // shows in the next `list_open_shifts`.
+    list_open_shifts: live(() => {
+      return ((window as any).__shifts ?? []).slice();
+    }),
+    clock_in_employee: live((args: any = {}) => {
+      const w = window as any;
+      w.__shifts = (w.__shifts ?? []).concat([
+        { userInsz: args.employeeInsz, startedAt: '2026-10-17T12:02:00+02:00' },
+      ]);
+      return { success: true, error: null };
+    }),
+    clock_out_employee: live((args: any = {}) => {
+      const w = window as any;
+      w.__shifts = (w.__shifts ?? []).filter((s: any) => s.userInsz !== args.employeeInsz);
+      return { success: true, error: null };
+    }),
     end_shift: () => ({ success: true, error: null }),
     user_activity: () => null,
     money_in_out: () => ({ success: true, error: null }),

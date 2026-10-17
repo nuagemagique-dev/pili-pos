@@ -170,7 +170,8 @@ onMounted(async () => {
   checksTimer = setInterval(() => void runChecks(), CHECKS_EVERY_MS);
   void loadShifts();
   try {
-    savedUsers.value = await ipc.listUsers();
+    // Presence-only staff (kitchen) never log in: no tile for them.
+    savedUsers.value = (await ipc.listUsers()).filter((u) => !u.presence_only);
     if (savedUsers.value.length === 0) {
       showNumpad.value = true;
     }
