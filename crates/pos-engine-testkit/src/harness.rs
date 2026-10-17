@@ -256,6 +256,41 @@ impl TestApp {
         .expect("collect")
     }
 
+    /// Assert that the `fdmRefs` of an archived invoice request point at the given sales, in
+    /// that order: each ref must equal the `fdmRef` the FDM answered for that archived N event
+    /// (fdmId, fdmDateTime, eventCounter, totalCounter) and carry the label N.
+    pub fn assert_fdm_refs_of(&self, invoice_request: &serde_json::Value, sale_event_ids: &[i64]) {
+        let refs = invoice_request["fdmRefs"]
+            .as_array()
+            .expect("fdmRefs array");
+        assert_eq!(refs.len(), sale_event_ids.len(), "{refs:?}");
+        let events = self.fiscal_events();
+        for (i, id) in sale_event_ids.iter().enumerate() {
+            let sale = events.iter().find(|e| e.id == *id).expect("sale event");
+            assert_eq!(
+                sale.event_type, "N",
+                "fdmRefs[{i}] must point at an N event"
+            );
+            let answered: serde_json::Value =
+                serde_json::from_str(sale.fdm_response_json.as_deref().expect("response"))
+                    .expect("response json");
+            let want = &answered["fdmRef"];
+            let got = &refs[i];
+            for key in [
+                "fdmId",
+                "fdmDateTime",
+                "eventLabel",
+                "eventCounter",
+                "totalCounter",
+            ] {
+                assert!(!want[key].is_null(), "answered fdmRef lacks {key}: {want}");
+                assert_eq!(got[key], want[key], "fdmRefs[{i}].{key}");
+            }
+            assert_eq!(got["eventLabel"], "N");
+            assert_eq!(sale.fdm_id.as_deref(), got["fdmId"].as_str());
+        }
+    }
+
     /// Current counter value for an event label (without incrementing).
     pub fn counter_for(&self, label: EventLabel) -> i64 {
         let conn = self.state.db.lock().expect("db lock");

@@ -559,6 +559,7 @@ async fn m150_invoice() {
     }
     mock_uc(&app, "M150", None).await;
 
+    let invoiced = sale_ids.clone();
     let result = do_sign_invoice_fiscal(&app.state, sale_ids, customer_id, operator(&invoice))
         .await
         .unwrap();
@@ -579,6 +580,7 @@ async fn m150_invoice() {
     );
     assert_eq!(ours["costCenter"]["id"], format!("C{customer_id}"));
     assert_eq!(ours["fdmRefs"].as_array().unwrap().len(), 2);
+    app.assert_fdm_refs_of(ours, &invoiced);
     app.dump_evidence("M150");
 }
 

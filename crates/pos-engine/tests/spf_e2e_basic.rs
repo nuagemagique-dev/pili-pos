@@ -545,6 +545,7 @@ async fn m150_sign_invoice_archives_i_event_referencing_the_sale() {
     let refs = request["fdmRefs"].as_array().expect("fdmRefs array");
     assert_eq!(refs.len(), 1);
     assert_eq!(refs[0]["eventLabel"], "N");
+    app.assert_fdm_refs_of(&request, &[sale_event_id]);
     app.dump_evidence("M150");
 }
 

@@ -32,7 +32,8 @@ async fn app(invoice_uc: &str) -> (TestApp, Value, i64) {
 }
 
 /// Our archived I request against the fixture's.
-fn assert_invoice_matches(uc: &str, app: &TestApp, fixture: &Value, refs: usize) {
+fn assert_invoice_matches(uc: &str, app: &TestApp, fixture: &Value, sales: &[i64]) {
+    let refs = sales.len();
     let events = app.fiscal_events();
     let ours: Value = serde_json::from_str(
         events
@@ -56,6 +57,8 @@ fn assert_invoice_matches(uc: &str, app: &TestApp, fixture: &Value, refs: usize)
         "{uc}: request differs from the fixture: {found:#?}"
     );
     assert_eq!(ours["fdmRefs"].as_array().unwrap().len(), refs);
+    // Each ref is the FDM's own answer for the matching sale, in order.
+    app.assert_fdm_refs_of(&ours, sales);
     let no = ours["invoiceNo"].as_str().unwrap();
     assert_eq!(no.len(), 8, "{no}");
     assert!(no.chars().all(|c| c.is_ascii_digit()), "{no}");
@@ -88,7 +91,7 @@ async fn uc4121_an_invoice_of_three_sales() {
         .unwrap();
     assert!(result.success, "{:?}", result.error);
     assert_eq!(app.counter_for(EventLabel::I), 1);
-    assert_invoice_matches("UC4121", &app, &fixture, 3);
+    assert_invoice_matches("UC4121", &app, &fixture, &sales);
 }
 
 #[tokio::test]
@@ -131,6 +134,7 @@ async fn uc4122_an_invoice_of_a_refund_and_two_sales() {
 
     // The invoice of the refund and the two sales: the refund counts negative.
     let ids = vec![refund_event, first, second];
+    let invoiced = ids.clone();
     let preview = do_invoice_preview(&app.state, &ids).unwrap();
     assert!(preview.problems.is_empty(), "{:?}", preview.problems);
     assert!(preview.sales.iter().any(|s| s.is_refund));
@@ -140,5 +144,5 @@ async fn uc4122_an_invoice_of_a_refund_and_two_sales() {
         .await
         .unwrap();
     assert!(result.success, "{:?}", result.error);
-    assert_invoice_matches("UC4122", &app, &fixture, 3);
+    assert_invoice_matches("UC4122", &app, &fixture, &invoiced);
 }
