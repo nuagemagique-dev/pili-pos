@@ -21,6 +21,7 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 | components/ModifierDialog.vue, api/ipc-modifiers.ts | feature/order/ModifierDialog.kt (ModifierDialog, ModifierPicks), MenuViewModel.kt (confirmModifiers over OrderStore.addLineWith) | `get_item_modifiers` `add_order_line_with_modifiers` |
 | components/PriceDialog.vue | ui/components/AmountDialog.kt, opened by feature/order/OrderScreen.kt (OrderDialogs) | - |
 | components/CartSidebar.vue | feature/order/OrderCartColumn.kt (OrderCartColumn), MenuViewModel.kt (sendToKitchen, printPreBill, askCloseUnpaid, closeUnpaid, unpaidClosed), OrderScreen.kt (CloseUnpaidDialog over ui/components/PinDialog.kt) over ui/state/OrderStore.kt | `leave_order` `sign_pre_bill` `close_unpaid` |
+| components/TablePickerDialog.vue and CartSidebar.vue (Changer de table) | feature/order/TablePickerDialog.kt, MenuViewModel.kt (askTransfer, confirmTransfer), OrderCartColumn.kt (cart_transfer) over ui/state/OrderStore.kt (transferTable) | `transfer_table` `list_tables` |
 | components/OrderLineItem.vue | feature/order/OrderLineItem.kt (OrderLineItem, lineNotes), MenuViewModel.kt (incrementLine, decrementLine, removeLine) over ui/state/OrderStore.kt | `update_order_line_quantity` `remove_order_line` |
 | components/VatSummary.vue | ui/components/VatSummary.kt over ui/format/CartAmounts.kt (vatRows), drawn by feature/order/OrderCartColumn.kt | - |
 

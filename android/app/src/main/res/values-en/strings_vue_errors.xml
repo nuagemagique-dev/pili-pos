@@ -29,6 +29,10 @@
     <string name="err_fixed_price">Product {product} has a fixed price.</string>
     <string name="err_product_unavailable">Product {product} is not available.</string>
     <string name="err_line_not_found">This line no longer exists.</string>
+    <string name="err_table_transfer_same_table">The order is already at this table.</string>
+    <string name="err_table_transfer_target_busy">This table already has an open order: pick a free table.</string>
+    <string name="err_table_transfer_target_invalid">This table is not in the floor plan.</string>
+    <string name="err_table_transfer_not_a_table">Only a dine-in order can change table.</string>
     <string name="err_order_no_lines">The order is empty.</string>
     <string name="err_payment_invalid">Invalid payment: check the amounts.</string>
     <string name="err_payment_exceeds_total">The payments exceed the total.</string>

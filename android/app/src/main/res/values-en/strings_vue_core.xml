@@ -189,6 +189,14 @@
     <string name="not_sent_to_kitchen">Not sent to the kitchen yet</string>
     <string name="send_to_kitchen">Send to kitchen</string>
     <string name="sent_to_kitchen">Sent to the kitchen · {n} items</string>
+    <string name="transfer_table">Change table</string>
+    <string name="transfer_pick_target">Pick the free table</string>
+    <string name="transfer_no_free">No free table</string>
+    <string name="transfer_confirm">Move table {from} to table {to}?</string>
+    <string name="transfer_done">Order moved to table {to}</string>
+    <string name="transfer_mode">Move a table</string>
+    <string name="transfer_pick_source">Tap the table to move</string>
+    <string name="transfer_pick_free">Table {from}: tap the free table</string>
     <string name="takeaway_started_at">Started at {time}</string>
     <string name="takeaway_start">New takeaway sale</string>
     <string name="who_are_you">Who are you?</string>

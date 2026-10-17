@@ -102,6 +102,10 @@ internal object VueStringIds {
         this["err_fixed_price"] = R.string.err_fixed_price
         this["err_product_unavailable"] = R.string.err_product_unavailable
         this["err_line_not_found"] = R.string.err_line_not_found
+        this["err_table_transfer_same_table"] = R.string.err_table_transfer_same_table
+        this["err_table_transfer_target_busy"] = R.string.err_table_transfer_target_busy
+        this["err_table_transfer_target_invalid"] = R.string.err_table_transfer_target_invalid
+        this["err_table_transfer_not_a_table"] = R.string.err_table_transfer_not_a_table
         this["err_order_no_lines"] = R.string.err_order_no_lines
         this["err_payment_invalid"] = R.string.err_payment_invalid
         this["err_payment_exceeds_total"] = R.string.err_payment_exceeds_total
@@ -262,13 +266,13 @@ internal object VueStringIds {
         this["delivery_confirm_title"] = R.string.delivery_confirm_title
         this["delivery_confirm_btn"] = R.string.delivery_confirm_btn
         this["delivery_edit"] = R.string.delivery_edit
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["delivery_cancel"] = R.string.delivery_cancel
         this["delivery_outcome_printed"] = R.string.delivery_outcome_printed
         this["delivery_outcome_sent"] = R.string.delivery_outcome_sent
         this["delivery_outcome_queued"] = R.string.delivery_outcome_queued
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["delivery_print_missing"] = R.string.delivery_print_missing
         this["delivery_settings_title"] = R.string.delivery_settings_title
         this["delivery_settings_refresh"] = R.string.delivery_settings_refresh
@@ -299,6 +303,14 @@ internal object VueStringIds {
         this["not_sent_to_kitchen"] = R.string.not_sent_to_kitchen
         this["send_to_kitchen"] = R.string.send_to_kitchen
         this["sent_to_kitchen"] = R.string.sent_to_kitchen
+        this["transfer_table"] = R.string.transfer_table
+        this["transfer_pick_target"] = R.string.transfer_pick_target
+        this["transfer_no_free"] = R.string.transfer_no_free
+        this["transfer_confirm"] = R.string.transfer_confirm
+        this["transfer_done"] = R.string.transfer_done
+        this["transfer_mode"] = R.string.transfer_mode
+        this["transfer_pick_source"] = R.string.transfer_pick_source
+        this["transfer_pick_free"] = R.string.transfer_pick_free
         this["takeaway_started_at"] = R.string.takeaway_started_at
         this["takeaway_start"] = R.string.takeaway_start
         this["who_are_you"] = R.string.who_are_you
@@ -507,6 +519,9 @@ internal object VueStringIds {
         this["webshop_attention_no_items"] = R.string.webshop_attention_no_items
         this["webshop_attention_item_without_ref"] = R.string.webshop_attention_item_without_ref
         this["webshop_attention_unknown_product"] = R.string.webshop_attention_unknown_product
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["webshop_attention_unknown_option"] = R.string.webshop_attention_unknown_option
         this["webshop_attention_unknown_charge"] = R.string.webshop_attention_unknown_charge
         this["webshop_attention_fractional_quantity"] = R.string.webshop_attention_fractional_quantity
@@ -519,9 +534,6 @@ internal object VueStringIds {
         this["hubrise_catalog_title"] = R.string.hubrise_catalog_title
         this["hubrise_catalog_synced"] = R.string.hubrise_catalog_synced
         this["hubrise_catalog_never"] = R.string.hubrise_catalog_never
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["hubrise_catalog_rejected"] = R.string.hubrise_catalog_rejected
         this["hubrise_catalog_sync_ok"] = R.string.hubrise_catalog_sync_ok
         this["hubrise_adoption_title"] = R.string.hubrise_adoption_title

@@ -66,7 +66,7 @@ private const val OPENED_TICK_MS = 30_000L
  * nothing is unsent or while it runs. Refusals are the screen's, shown by the view model through `ErrorPresenter`.
  *
  * Test tags: `cart_column`, `cart_title`, `cart_opened`, `cart_empty`, `cart_pending_label`, `cart_unpaid`,
- * `cart_total`, `vat_summary`, `cart_send`, `cart_send_count`, `cart_prebill`, `cart_pay`, `cart_pay_amount`, and
+ * `cart_transfer`, `cart_total`, `vat_summary`, `cart_send`, `cart_send_count`, `cart_prebill`, `cart_pay`, `cart_pay_amount`, and
  * those of [OrderLineItem].
  */
 @Composable
@@ -100,6 +100,14 @@ internal fun OrderCartColumn(
                 color = c.textPrimary,
                 modifier = Modifier.weight(1f).testTag("cart_title"),
             )
+            if (state.canTransfer) {
+                PiliButton(
+                    text = vueText("transfer_table"),
+                    onClick = actions.onTransfer,
+                    variant = PiliButtonVariant.Secondary,
+                    modifier = Modifier.padding(horizontal = d.spaceSm).testTag("cart_transfer"),
+                )
+            }
             OpenedAt(state.order)
         }
         Column(

@@ -29,6 +29,7 @@ import uniffi.pos_ffi.CreateOrderInput
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.SlipOutcome
 import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -297,5 +298,105 @@ class TablesViewModelTest {
 
             coVerify(exactly = 1) { f.engine.createOrder(any()) }
             assertEquals(listOf<TablesEffect>(TablesEffect.OpenOrder(60)), r.effects)
+        }
+
+    // ── Moving a table ────────────────────────────────────────────
+
+    private val moved = uniffi.pos_ffi.TableTransferResult(40L, 2, 1, SlipOutcome.PRINTED, SlipOutcome.PRINTED)
+
+    @Test
+    fun theMoveModeOnlyLetsAnOccupiedTableBeChosenThenAFreeOne() =
+        runTest {
+            val r = startTables(fixture(), context)
+            r.login()
+            r.model.load()
+            runCurrent()
+
+            r.model.toggleMove()
+            r.model.selectTable(free)
+            assertEquals(null, r.state.move.source)
+            r.model.selectTable(busy)
+            assertEquals(busy, r.state.move.source)
+            r.model.selectTable(busy)
+            assertEquals(null, r.state.move.target)
+            r.model.selectTable(free)
+            assertEquals(free, r.state.move.target)
+            coVerify(exactly = 0) { r.f.engine.getOrder(any()) }
+            assertEquals(emptyList<TablesEffect>(), r.effects)
+        }
+
+    @Test
+    fun leavingTheMoveModeForgetsWhatWasChosen() =
+        runTest {
+            val r = startTables(fixture(), context)
+            r.login()
+            r.model.toggleMove()
+            r.model.selectTable(busy)
+            r.model.selectTable(free)
+            r.model.cancelTarget()
+            assertEquals(busy, r.state.move.source)
+            assertEquals(null, r.state.move.target)
+
+            r.model.toggleMove()
+
+            assertFalse(r.state.move.moving)
+            assertEquals(null, r.state.move.source)
+        }
+
+    @Test
+    fun confirmingTheMoveSignsItShowsTheToastAndReadsTheTablesAgain() =
+        runTest {
+            val f = fixture()
+            val r = startTables(f, context)
+            r.login()
+            r.model.load()
+            runCurrent()
+            coEvery { f.engine.transferTable(40L, 1) } returns moved
+            r.model.toggleMove()
+            r.model.selectTable(busy)
+            r.model.selectTable(free)
+
+            r.model.confirmMove()
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.transferTable(40L, 1) }
+            coVerify(exactly = 2) { f.engine.listTables() }
+            assertEquals(ToastVariant.Success, r.lastToast().variant)
+            assertFalse(r.state.move.moving)
+        }
+
+    @Test
+    fun aRefusedMoveShowsTheErrorAndLeavesTheMode() =
+        runTest {
+            val f = fixture()
+            val r = startTables(f, context)
+            r.login()
+            val busyTarget = PosException.Coded("table_transfer_target_busy", emptyMap())
+            coEvery { f.engine.transferTable(any(), any()) } throws busyTarget
+            r.model.toggleMove()
+            r.model.selectTable(busy)
+            r.model.selectTable(free)
+
+            r.model.confirmMove()
+            runCurrent()
+
+            assertEquals(ToastVariant.Error, r.lastToast().variant)
+            assertEquals(r.errorTexts.describe(busyTarget, FR), r.lastToast().message)
+            assertFalse(r.state.move.moving)
+        }
+
+    @Test
+    fun confirmingWithoutATargetDoesNothing() =
+        runTest {
+            val f = fixture()
+            val r = startTables(f, context)
+            r.login()
+            r.model.toggleMove()
+            r.model.selectTable(busy)
+
+            r.model.confirmMove()
+            runCurrent()
+
+            coVerify(exactly = 0) { f.engine.transferTable(any(), any()) }
         }
 }

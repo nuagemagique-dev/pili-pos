@@ -37,6 +37,9 @@ import uniffi.pos_ffi.VatSplitRow
 /** How long the error toast of a refused send or bill stays, in milliseconds (6 s in `CartSidebar.vue`). */
 private const val ERROR_TTL_MS: Long = 6_000L
 
+/** The `status` the engine gives a table without an open order. */
+private const val STATUS_FREE = "free"
+
 /** How often the Z-report reminder is checked again, in milliseconds (5 minutes in `OrderView.vue`). */
 internal const val Z_CHECK_MS: Long = 300_000L
 
@@ -52,6 +55,7 @@ private data class Data(
     val vatRows: List<VatSplitRow> = emptyList(),
     val sending: Boolean = false,
     val preBilling: Boolean = false,
+    val transferring: Boolean = false,
 )
 
 /** How the screen speaks and what the signed-in user may do. */
@@ -176,6 +180,12 @@ internal class MenuViewModel(
                     sending = d.sending,
                     preBilling = d.preBilling,
                     canCloseUnpaid = l.isManager && current?.status == OrderStatus.OPEN && lines.isNotEmpty(),
+                    canTransfer =
+                        current?.orderType == OrderType.DINE_IN &&
+                            current.status == OrderStatus.OPEN &&
+                            current.tableNumber != null &&
+                            lines.isNotEmpty() &&
+                            !d.transferring,
                 ),
             zWarning = d.zWarning,
             dialog = d.dialog,
@@ -395,6 +405,42 @@ internal class MenuViewModel(
                 onFailure = { entry.errors().show(it, language, entry.catalog().text("pre_bill_failed", language), ERROR_TTL_MS) },
             )
             data.update { it.copy(preBilling = false) }
+        }
+    }
+
+    /**
+     * Opens the table picker of "change table" (`openTablePicker`): the free tables of the plan, the current one
+     * left out. A refusal to list them is shown as an error toast.
+     */
+    fun askTransfer() {
+        val current = order.current.value
+        val from = current?.tableNumber
+        if (!isRouteOrderCurrent() || from == null || !state.value.cart.canTransfer) return
+        viewModelScope.launch {
+            val language = settings.language.value
+            attempt { gateway.call { engine -> engine.listTables() } }.fold(
+                onSuccess = { tables ->
+                    val free = tables.filter { it.status == STATUS_FREE && it.tableNumber != from }.map { it.tableNumber }
+                    data.update { it.copy(dialog = OrderDialog.TablePicker(from, free)) }
+                },
+                onFailure = { entry.errors().show(it, language) },
+            )
+        }
+    }
+
+    /** The table picked in the picker (`transferTo`): the order moves there, the toast says so or the refusal. */
+    fun confirmTransfer(toTable: Int) {
+        if (!isRouteOrderCurrent() || data.value.transferring) return
+        data.update { it.copy(dialog = OrderDialog.None, transferring = true) }
+        viewModelScope.launch {
+            val language = settings.language.value
+            attempt { order.transferTable(toTable) }.fold(
+                onSuccess = {
+                    entry.toasts().show(entry.catalog().text("transfer_done", language, mapOf("to" to toTable)), ToastVariant.Success)
+                },
+                onFailure = { entry.errors().show(it, language, null, ERROR_TTL_MS) },
+            )
+            data.update { it.copy(transferring = false) }
         }
     }
 

@@ -29,6 +29,10 @@
     <string name="err_fixed_price">Le produit {product} a un prix fixe.</string>
     <string name="err_product_unavailable">Le produit {product} n\'est pas disponible.</string>
     <string name="err_line_not_found">Cette ligne n\'existe plus.</string>
+    <string name="err_table_transfer_same_table">La commande est déjà à cette table.</string>
+    <string name="err_table_transfer_target_busy">Cette table a déjà une commande en cours : choisissez une table libre.</string>
+    <string name="err_table_transfer_target_invalid">Cette table n\'existe pas dans le plan de salle.</string>
+    <string name="err_table_transfer_not_a_table">Seule une commande en salle peut changer de table.</string>
     <string name="err_order_no_lines">La commande est vide.</string>
     <string name="err_payment_invalid">Paiement non valable : vérifiez les montants.</string>
     <string name="err_payment_exceeds_total">Les paiements dépassent le total.</string>

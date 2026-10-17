@@ -1386,6 +1386,30 @@
       "zh": "请按此格式填写桌号：1-12, 20-25（1至999，最多200张桌）。",
       "area": "errors"
     },
+    "err_table_transfer_not_a_table": {
+      "fr": "Seule une commande en salle peut changer de table.",
+      "en": "Only a dine-in order can change table.",
+      "zh": "只有堂食订单才能换桌。",
+      "area": "errors"
+    },
+    "err_table_transfer_same_table": {
+      "fr": "La commande est déjà à cette table.",
+      "en": "The order is already at this table.",
+      "zh": "订单已在这张桌子上。",
+      "area": "errors"
+    },
+    "err_table_transfer_target_busy": {
+      "fr": "Cette table a déjà une commande en cours : choisissez une table libre.",
+      "en": "This table already has an open order: pick a free table.",
+      "zh": "这张桌子已有进行中的订单：请选择空桌。",
+      "area": "errors"
+    },
+    "err_table_transfer_target_invalid": {
+      "fr": "Cette table n'existe pas dans le plan de salle.",
+      "en": "This table is not in the floor plan.",
+      "zh": "这张桌子不在餐厅布局中。",
+      "area": "errors"
+    },
     "err_takeaway_has_no_table": {
       "fr": "Une commande à emporter n'a pas de table.",
       "en": "A takeaway order has no table.",
@@ -2886,6 +2910,54 @@
       "zh": "培训模式",
       "area": "core"
     },
+    "transfer_confirm": {
+      "fr": "Déplacer la table {from} vers la table {to} ?",
+      "en": "Move table {from} to table {to}?",
+      "zh": "将 {from} 号桌移到 {to} 号桌？",
+      "area": "core"
+    },
+    "transfer_done": {
+      "fr": "Commande déplacée vers la table {to}",
+      "en": "Order moved to table {to}",
+      "zh": "订单已移到 {to} 号桌",
+      "area": "core"
+    },
+    "transfer_mode": {
+      "fr": "Déplacer une table",
+      "en": "Move a table",
+      "zh": "移动桌子",
+      "area": "core"
+    },
+    "transfer_no_free": {
+      "fr": "Aucune table libre",
+      "en": "No free table",
+      "zh": "没有空桌",
+      "area": "core"
+    },
+    "transfer_pick_free": {
+      "fr": "Table {from} : touchez la table libre",
+      "en": "Table {from}: tap the free table",
+      "zh": "{from} 号桌：点按空桌",
+      "area": "core"
+    },
+    "transfer_pick_source": {
+      "fr": "Touchez la table à déplacer",
+      "en": "Tap the table to move",
+      "zh": "点按要移动的桌子",
+      "area": "core"
+    },
+    "transfer_pick_target": {
+      "fr": "Choisissez la table libre",
+      "en": "Pick the free table",
+      "zh": "请选择空桌",
+      "area": "core"
+    },
+    "transfer_table": {
+      "fr": "Changer de table",
+      "en": "Change table",
+      "zh": "换桌",
+      "area": "core"
+    },
     "unpaid_close": {
       "fr": "Client parti sans payer",
       "en": "Customer left without paying",
@@ -3336,6 +3408,10 @@
   },
   "engineErrorCodes": [
     "config_tables",
+    "table_transfer_same_table",
+    "table_transfer_target_busy",
+    "table_transfer_target_invalid",
+    "table_transfer_not_a_table",
     "config_pos_id",
     "config_restaurant_vat",
     "config_restaurant_est_no",

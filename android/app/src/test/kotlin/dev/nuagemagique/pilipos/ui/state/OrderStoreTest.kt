@@ -34,6 +34,7 @@ import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SlipOutcome
+import uniffi.pos_ffi.TableTransferResult
 import uniffi.pos_ffi.VatCode
 
 @Suppress("LongParameterList", "LargeClass", "TooManyFunctions")
@@ -797,6 +798,67 @@ class OrderStoreTest {
             r.store.seed(r, order(id = 1), listOf(line(1, 10, quantity = 4, unsent = 3), line(2, 11, unsent = 0), line(3, 12, unsent = -2)))
 
             assertEquals(3, r.store.unsentCount.value)
+        }
+
+    @Test
+    fun transferringTheCurrentOrderMovesItAndReadsItAgain() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10, unsent = 1)))
+            val moved = TableTransferResult(1L, 3, 5, SlipOutcome.PRINTED, SlipOutcome.PRINTED)
+            coEvery { r.f.engine.transferTable(1L, 5) } returns moved
+            r.stubReads(order(id = 1, table = 5), listOf(line(1, 10, unsent = 0)))
+
+            val result = r.store.transferTable(5)
+
+            assertEquals(moved, result)
+            assertEquals(5, r.store.current.value?.tableNumber)
+            assertEquals(0, r.store.unsentCount.value)
+        }
+
+    @Test
+    fun transferringAnotherOrderLeavesTheCurrentOneAlone() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), emptyList())
+            coEvery { r.f.engine.transferTable(9L, 5) } returns TableTransferResult(9L, 4, 5, SlipOutcome.NOTHING_TO_PRINT, SlipOutcome.PRINTED)
+
+            r.store.transferOrder(9L, 5)
+
+            assertEquals(3, r.store.current.value?.tableNumber)
+            coVerify(exactly = 1) { r.f.engine.getOrder(1L) }
+        }
+
+    @Test
+    fun aTransferSlipThatDidNotPrintIsEmittedOnSlipFailures() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), emptyList())
+            coEvery { r.f.engine.transferTable(1L, 5) } returns TableTransferResult(1L, 3, 5, SlipOutcome.FAILED, SlipOutcome.FAILED)
+            r.stubReads(order(id = 1, table = 5), emptyList())
+
+            r.store.slipFailures.test {
+                r.store.transferTable(5)
+                awaitItem()
+                awaitItem()
+            }
+        }
+
+    @Test
+    fun aTransferRefusalIsThrownToTheCaller() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), emptyList())
+            val refusal = PosException.Coded("table_transfer_target_busy", emptyMap())
+            coEvery { r.f.engine.transferTable(any(), any()) } throws refusal
+
+            try {
+                r.store.transferTable(5)
+                fail("expected the refusal")
+            } catch (e: PosException.Coded) {
+                assertSame(refusal, e)
+            }
+            assertEquals(3, r.store.current.value?.tableNumber)
         }
 
     /** Puts [order] and [cart] in the store through the engine, as a screen would (loadOrder). */

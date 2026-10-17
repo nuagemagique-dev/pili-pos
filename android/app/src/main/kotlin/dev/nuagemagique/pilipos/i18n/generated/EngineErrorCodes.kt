@@ -7,6 +7,10 @@ object EngineErrorCodes {
     val ALL: List<String> =
         listOf(
             "config_tables",
+            "table_transfer_same_table",
+            "table_transfer_target_busy",
+            "table_transfer_target_invalid",
+            "table_transfer_not_a_table",
             "config_pos_id",
             "config_restaurant_vat",
             "config_restaurant_est_no",

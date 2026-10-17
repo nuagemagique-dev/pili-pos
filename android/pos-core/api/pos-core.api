@@ -4796,6 +4796,26 @@ public final class uniffi/pos_ffi/FfiConverterTypeTablePlanChange : uniffi/pos_f
 	public fun write (Luniffi/pos_ffi/TablePlanChange;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeTableTransferResult : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeTableTransferResult;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/TableTransferResult;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TableTransferResult;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TableTransferResult;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/TableTransferResult;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/TableTransferResult;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/TableTransferResult;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/TableTransferResult;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeTakeawayInfo : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeTakeawayInfo;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -6106,6 +6126,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun signTableOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun startRemoteSupport (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun stopRemoteSupport (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun transferTable (JILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun uniffiCloneHandle ()J
 	public fun updateOrderLineQuantity (JILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun userActivity (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6211,6 +6232,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun signTableOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun startRemoteSupport (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun stopRemoteSupport (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun transferTable (JILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun updateOrderLineQuantity (JILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun userActivity (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun webshopAcceptOrder (Luniffi/pos_ffi/AcceptRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6999,6 +7021,34 @@ public final class uniffi/pos_ffi/TablePlanChange {
 }
 
 public final class uniffi/pos_ffi/TablePlanChange$Companion {
+}
+
+public final class uniffi/pos_ffi/TableTransferResult {
+	public static final field Companion Luniffi/pos_ffi/TableTransferResult$Companion;
+	public fun <init> (JIILuniffi/pos_ffi/SlipOutcome;Luniffi/pos_ffi/SlipOutcome;)V
+	public final fun component1 ()J
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()Luniffi/pos_ffi/SlipOutcome;
+	public final fun component5 ()Luniffi/pos_ffi/SlipOutcome;
+	public final fun copy (JIILuniffi/pos_ffi/SlipOutcome;Luniffi/pos_ffi/SlipOutcome;)Luniffi/pos_ffi/TableTransferResult;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/TableTransferResult;JIILuniffi/pos_ffi/SlipOutcome;Luniffi/pos_ffi/SlipOutcome;ILjava/lang/Object;)Luniffi/pos_ffi/TableTransferResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFromTable ()I
+	public final fun getKitchenSlip ()Luniffi/pos_ffi/SlipOutcome;
+	public final fun getOrderId ()J
+	public final fun getToTable ()I
+	public final fun getTransferSlip ()Luniffi/pos_ffi/SlipOutcome;
+	public fun hashCode ()I
+	public final fun setFromTable (I)V
+	public final fun setKitchenSlip (Luniffi/pos_ffi/SlipOutcome;)V
+	public final fun setOrderId (J)V
+	public final fun setToTable (I)V
+	public final fun setTransferSlip (Luniffi/pos_ffi/SlipOutcome;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/TableTransferResult$Companion {
 }
 
 public final class uniffi/pos_ffi/TakeawayInfo {

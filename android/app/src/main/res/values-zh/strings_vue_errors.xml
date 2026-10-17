@@ -29,6 +29,10 @@
     <string name="err_fixed_price">商品{product}为固定价格。</string>
     <string name="err_product_unavailable">商品{product}不可用。</string>
     <string name="err_line_not_found">该行已不存在。</string>
+    <string name="err_table_transfer_same_table">订单已在这张桌子上。</string>
+    <string name="err_table_transfer_target_busy">这张桌子已有进行中的订单：请选择空桌。</string>
+    <string name="err_table_transfer_target_invalid">这张桌子不在餐厅布局中。</string>
+    <string name="err_table_transfer_not_a_table">只有堂食订单才能换桌。</string>
     <string name="err_order_no_lines">订单为空。</string>
     <string name="err_payment_invalid">付款无效：请检查金额。</string>
     <string name="err_payment_exceeds_total">付款超过总额。</string>

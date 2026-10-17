@@ -26,6 +26,12 @@ internal sealed interface OrderDialog {
         val groups: List<ModifierGroup>,
     ) : OrderDialog
 
+    /** "Change table": the free tables [tables] the order of table [from] can move to. */
+    data class TablePicker(
+        val from: Int,
+        val tables: List<Int>,
+    ) : OrderDialog
+
     /** "Customer left without paying": a manager confirms with the PIN; [userName] is shown as the hint. */
     data class CloseUnpaid(
         val userName: String,
@@ -60,6 +66,8 @@ internal data class OrderCartState(
     val preBilling: Boolean = false,
     /** A manager may close the open order unpaid (`canCloseUnpaid`). */
     val canCloseUnpaid: Boolean = false,
+    /** A dine-in order with lines may move to another table (`canTransfer`). */
+    val canTransfer: Boolean = false,
 )
 
 /** What the cart column can ask for. */
@@ -71,6 +79,7 @@ internal data class OrderCartActions(
     val onSend: () -> Unit = {},
     val onPreBill: () -> Unit = {},
     val onCloseUnpaid: () -> Unit = {},
+    val onTransfer: () -> Unit = {},
 )
 
 /** The menu part of the screen: the categories, the products of the selected one and what is already in the cart. */

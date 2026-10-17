@@ -52,6 +52,8 @@ internal data class OrderCallbacks(
     val describeError: (Throwable) -> String = { it.message.orEmpty() },
     /** The sale was closed unpaid. */
     val onUnpaidDone: () -> Unit = {},
+    /** The free table picked in the table picker. */
+    val onTransferTarget: (Int) -> Unit = {},
 )
 
 /**
@@ -83,6 +85,7 @@ internal fun OrderRoute(
             onDismiss = model::dismissDialog,
             onUnpaidPin = model::closeUnpaid,
             describeError = model::describe,
+            onTransferTarget = model::confirmTransfer,
             onUnpaidDone = {
                 model.unpaidClosed()
                 navigator.navigate(TablesRoutes.TABLES)
@@ -97,6 +100,7 @@ internal fun OrderRoute(
             onSend = model::sendToKitchen,
             onPreBill = model::printPreBill,
             onCloseUnpaid = model::askCloseUnpaid,
+            onTransfer = model::askTransfer,
         )
     PosScaffold(
         area = HeaderArea.ORDER,
@@ -164,8 +168,8 @@ internal fun OrderContent(
 }
 
 /**
- * The open dialog, over everything: the price of a free-price product, the options of a product (`OrderView.vue`)
- * or the manager PIN of an unpaid close (`CartSidebar.vue`).
+ * The open dialog, over everything: the price of a free-price product, the options of a product (`OrderView.vue`),
+ * the free table to move the order to or the manager PIN of an unpaid close (`CartSidebar.vue`).
  */
 @Composable
 internal fun BoxScope.OrderDialogs(
@@ -184,6 +188,8 @@ internal fun BoxScope.OrderDialogs(
             )
         is OrderDialog.Modifiers ->
             ModifierDialog(dialog.item, dialog.groups, onConfirm = callbacks.onPicks, onCancel = callbacks.onDismiss)
+        is OrderDialog.TablePicker ->
+            TablePickerDialog(dialog.from, dialog.tables, onConfirm = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
         is OrderDialog.CloseUnpaid -> CloseUnpaidDialog(dialog.userName, callbacks)
     }
 }

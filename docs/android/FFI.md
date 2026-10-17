@@ -226,6 +226,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | set_training_mode | settings::do_set_training_mode | blocking | posEngine.setTrainingMode() |
 | sign_pre_bill | tables::do_sign_pre_bill | spawn | posEngine.signPreBill() |
 | sign_table_order | tables::do_sign_table_order | spawn | posEngine.signTableOrder() |
+| transfer_table | table_transfer::do_transfer_table | spawn | posEngine.transferTable() |
 | start_remote_support | support::do_start_remote_support | blocking | posEngine.startRemoteSupport() |
 | stop_remote_support | support::do_stop_remote_support | blocking | posEngine.stopRemoteSupport() |
 | update_order_line_quantity | order::do_update_order_line_quantity | blocking | posEngine.updateOrderLineQuantity() |

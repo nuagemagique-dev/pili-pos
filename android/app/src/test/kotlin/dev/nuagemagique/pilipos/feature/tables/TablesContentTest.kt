@@ -32,6 +32,9 @@ class TablesContentTest {
             onTable = { tapped += "table:${it.tableNumber}" },
             onTakeaway = { tapped += "takeaway:${it.orderId}" },
             onNewTakeaway = { tapped += "new" },
+            onToggleMove = { tapped += "toggle" },
+            onConfirmMove = { tapped += "validate" },
+            onCancelTarget = { tapped += "back" },
         )
 
     // 10:30 UTC is 12:30 in Brussels in October.
@@ -167,5 +170,44 @@ class TablesContentTest {
         compose.onNodeWithTag("table_5").assertIsDisplayed()
         compose.onNodeWithTag("table_16").assertIsDisplayed()
         compose.onNodeWithTag("table_23").assertExists()
+    }
+
+    // ── Moving a table ────────────────────────────────────────────
+
+    @Test
+    fun theMoveToggleCallsBackAndTheHintFollowsTheMode() {
+        show(base)
+        compose.onNodeWithTag("move_toggle").performClick()
+        assertEquals(listOf("toggle"), tapped)
+        compose.onNodeWithTag("move_hint").assertDoesNotExist()
+    }
+
+    @Test
+    fun inTheMoveModeTheHintAsksForAnOccupiedTable() {
+        show(base.copy(move = MoveState(moving = true)))
+
+        compose.onNodeWithTag("move_hint").assertIsDisplayed()
+    }
+
+    @Test
+    fun onceTheSourceIsChosenTheHintNamesItAndTheConfirmationAsksForValidation() {
+        val source = base.tables[1]
+        val target = base.tables[0]
+        val moving = base.copy(move = MoveState(moving = true, source = source))
+        compose.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    androidx.compose.foundation.layout.Box {
+                        TablesContent(moving, callbacks)
+                        MoveConfirmation(MoveState(true, source, target), callbacks)
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("move_hint").assertTextContains("2", substring = true)
+        compose.onNodeWithTag("move_validate").performClick()
+        compose.onNodeWithTag("move_cancel").performClick()
+        assertEquals(listOf("validate", "back"), tapped)
     }
 }

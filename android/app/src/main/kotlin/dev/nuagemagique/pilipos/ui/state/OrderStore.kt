@@ -26,6 +26,7 @@ import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.SlipOutcome
+import uniffi.pos_ffi.TableTransferResult
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -222,6 +223,26 @@ class OrderStore
                 warnIfSlipFailed(outcome)
                 refresh(order.id)
             }
+
+        /**
+         * Moves the open dine-in order [orderId] to the free table [toTable] (event P, cost center change). The
+         * engine registers the unsent entries first; a slip that did not print is emitted on [slipFailures]; a
+         * refusal is thrown. When the order is the current one it is read again (new table, nothing unsent).
+         */
+        suspend fun transferOrder(
+            orderId: Long,
+            toTable: Int,
+        ): TableTransferResult =
+            mutex.withLock {
+                val result = gateway.call { engine -> engine.transferTable(orderId, toTable) }
+                warnIfSlipFailed(result.kitchenSlip)
+                warnIfSlipFailed(result.transferSlip)
+                if (mutableCurrent.value?.id == orderId) refresh(orderId)
+                result
+            }
+
+        /** Moves the order on screen to the free table [toTable]; a refusal is thrown. */
+        suspend fun transferTable(toTable: Int): TableTransferResult = transferOrder(requireCurrent().id, toTable)
 
         /**
          * Closes the current order unpaid, confirmed by the manager's [pin]. When the engine does not report

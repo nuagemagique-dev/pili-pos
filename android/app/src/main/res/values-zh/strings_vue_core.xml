@@ -189,6 +189,14 @@
     <string name="not_sent_to_kitchen">未送厨房</string>
     <string name="send_to_kitchen">送厨房</string>
     <string name="sent_to_kitchen">已送厨房 · {n} 件</string>
+    <string name="transfer_table">换桌</string>
+    <string name="transfer_pick_target">请选择空桌</string>
+    <string name="transfer_no_free">没有空桌</string>
+    <string name="transfer_confirm">将 {from} 号桌移到 {to} 号桌？</string>
+    <string name="transfer_done">订单已移到 {to} 号桌</string>
+    <string name="transfer_mode">移动桌子</string>
+    <string name="transfer_pick_source">点按要移动的桌子</string>
+    <string name="transfer_pick_free">{from} 号桌：点按空桌</string>
     <string name="takeaway_started_at">{time} 开始</string>
     <string name="takeaway_start">新外带订单</string>
     <string name="who_are_you">您是谁？</string>

@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -52,6 +54,7 @@ import dev.nuagemagique.pilipos.feature.order.OrderRoutes
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
+import dev.nuagemagique.pilipos.ui.components.PiliDialog
 import dev.nuagemagique.pilipos.ui.components.tapScale
 import dev.nuagemagique.pilipos.ui.di.rememberEntryPoint
 import dev.nuagemagique.pilipos.ui.format.PosDateTime
@@ -81,12 +84,23 @@ private val TakeawayBand = 4.dp
 private val TakeawayMinHeight = 80.dp
 private val NewTakeawayHeight = 80.dp
 private val DashStroke = 2.dp
+private val CHOSEN_STROKE = 4.dp
+private val MoveToggleHeight = 56.dp
+
+/** Alpha of a table that cannot be picked in the move mode (`opacity: 0.3`). */
+private const val DIMMED_ALPHA = 0.3f
 
 /** Everything the operator can do on the tables screen. */
 internal data class TablesCallbacks(
     val onTable: (TableInfo) -> Unit = {},
     val onTakeaway: (TakeawayInfo) -> Unit = {},
     val onNewTakeaway: () -> Unit = {},
+    /** The "Déplacer une table" toggle. */
+    val onToggleMove: () -> Unit = {},
+    /** "Validate" on the move confirmation. */
+    val onConfirmMove: () -> Unit = {},
+    /** "Back" on the move confirmation. */
+    val onCancelTarget: () -> Unit = {},
 )
 
 /**
@@ -115,8 +129,16 @@ internal fun TablesRoute(navigator: AppNavigator) {
             onTable = model::selectTable,
             onTakeaway = model::resumeTakeaway,
             onNewTakeaway = model::newTakeaway,
+            onToggleMove = model::toggleMove,
+            onConfirmMove = model::confirmMove,
+            onCancelTarget = model::cancelTarget,
         )
-    PosScaffold(HeaderArea.TABLES, navigator, modifier = Modifier.testTag("placeholder_tables")) {
+    PosScaffold(
+        HeaderArea.TABLES,
+        navigator,
+        modifier = Modifier.testTag("placeholder_tables"),
+        overlay = { MoveConfirmation(state.move, callbacks) },
+    ) {
         TablesContent(state, callbacks)
     }
 }
@@ -124,8 +146,8 @@ internal fun TablesRoute(navigator: AppNavigator) {
 /**
  * The tables screen, stateless: the table grid (5 columns, occupied tables filled with their total, free ones
  * dashed) and the open takeaways on the right with the new takeaway button, laid out for 1920 x 1080 dp. Without a
- * user it shows an empty state instead. Test tags: `tables_grid`, `table_<number>`, `table_<number>_total`,
- * `tables_none`, `takeaways_panel`, `takeaway_<orderId>`, `takeaway_new`, `tables_empty`.
+ * user it shows an empty state instead. The "Déplacer une table" bar sits over the grid. Test tags: `tables_grid`,
+ * `move_toggle`, `move_hint`, `table_<number>`, `table_<number>_total`, `tables_none`, `takeaways_panel`, `takeaway_<orderId>`, `takeaway_new`, `tables_empty`.
  */
 @Composable
 internal fun TablesContent(
@@ -140,7 +162,10 @@ internal fun TablesContent(
         return
     }
     Row(modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary)) {
-        TableGrid(state, callbacks.onTable, Modifier.weight(1f).fillMaxHeight())
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            MoveBar(state.move, callbacks.onToggleMove)
+            TableGrid(state, callbacks.onTable, Modifier.weight(1f).fillMaxWidth())
+        }
         TakeawayPanel(state, callbacks, Modifier.width(PiliTheme.dimens.cartWidth).fillMaxHeight())
     }
 }
@@ -176,6 +201,73 @@ private fun TableGrid(
     }
 }
 
+/** The "Déplacer une table" toggle and, in the mode, what to tap next (`plan-bar` of `TablesView.vue`). */
+@Composable
+private fun MoveBar(
+    move: MoveState,
+    onToggle: () -> Unit,
+) {
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = d.spaceLg, end = d.spaceLg, top = d.spaceMd),
+        horizontalArrangement = Arrangement.spacedBy(d.spaceMd),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PiliButton(
+            text = vueText("transfer_mode"),
+            onClick = onToggle,
+            variant = if (move.moving) PiliButtonVariant.Danger else PiliButtonVariant.Secondary,
+            modifier = Modifier.height(MoveToggleHeight).testTag("move_toggle"),
+        )
+        if (move.moving) {
+            val source = move.source
+            Text(
+                text = if (source == null) vueText("transfer_pick_source") else vueText("transfer_pick_free", "from" to source.tableNumber),
+                style = t.body.copy(fontSize = t.sizeLg),
+                color = PiliTheme.colors.textSecondary,
+                modifier = Modifier.testTag("move_hint"),
+            )
+        }
+    }
+}
+
+/** "Move table X to table Y?" with Validate and Back (`move-confirm` of `TablesView.vue`). */
+@Composable
+internal fun BoxScope.MoveConfirmation(
+    move: MoveState,
+    callbacks: TablesCallbacks,
+) {
+    val source = move.source
+    val target = move.target
+    if (source == null || target == null) return
+    PiliDialog(
+        title = "",
+        onDismissRequest = callbacks.onCancelTarget,
+        modifier = Modifier.testTag("move_confirm"),
+        actions = {
+            PiliButton(
+                text = vueText("back"),
+                onClick = callbacks.onCancelTarget,
+                variant = PiliButtonVariant.Secondary,
+                modifier = Modifier.testTag("move_cancel"),
+            )
+            PiliButton(
+                text = vueText("validate"),
+                onClick = callbacks.onConfirmMove,
+                enabled = !move.transferring,
+                modifier = Modifier.testTag("move_validate"),
+            )
+        },
+    ) {
+        Text(
+            text = vueText("transfer_confirm", "from" to source.tableNumber, "to" to target.tableNumber),
+            style = PiliTheme.typography.title,
+            color = PiliTheme.colors.textPrimary,
+        )
+    }
+}
+
 /** One table (UX guide section 5.3): an occupied one is filled with a band on top and its total in bold, a free one is dashed. */
 @Composable
 private fun TableCard(
@@ -189,7 +281,16 @@ private fun TableCard(
     val shape = RoundedCornerShape(d.radiusLg)
     val occupied = table.status == STATUS_OCCUPIED
     val source = remember { MutableInteractionSource() }
-    val base = modifier.tapScale(source).clip(shape)
+    val move = state.move
+    val chosen = move.moving && move.source?.tableNumber == table.tableNumber
+    // In the move mode a table that cannot be picked now is faded and does nothing.
+    val dimmed = move.moving && !chosen && !move.selectable(table)
+    val base =
+        modifier
+            .alpha(if (dimmed) DIMMED_ALPHA else 1f)
+            .tapScale(source)
+            .clip(shape)
+            .then(if (chosen) Modifier.border(CHOSEN_STROKE, c.accentWarning, shape) else Modifier)
     val look =
         if (occupied) {
             base.background(c.bgSecondary).border(1.dp, c.border, shape)
@@ -199,8 +300,13 @@ private fun TableCard(
     Box(
         modifier =
             look
-                .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
-                .testTag("table_${table.tableNumber}"),
+                .clickable(
+                    interactionSource = source,
+                    indication = null,
+                    enabled = !dimmed,
+                    role = Role.Button,
+                    onClick = onClick,
+                ).testTag("table_${table.tableNumber}"),
     ) {
         if (occupied) Box(Modifier.fillMaxWidth().height(BandHeight).background(c.textPrimary))
         Column(
