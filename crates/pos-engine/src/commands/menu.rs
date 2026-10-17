@@ -15,5 +15,7 @@ pub fn do_get_menu_items(
 ) -> Result<Vec<MenuItem>, String> {
     let lang = lang.as_deref().unwrap_or("fr");
     let db = state.db.lock().map_err(|e| e.to_string())?;
+    // The sold-out products whose end of day is past get their `expired` log row now.
+    super::sold_out::expire_due(&db);
     pos_db::queries::menu::get_menu_items(&db, category_id, lang).map_err(|e| e.to_string())
 }

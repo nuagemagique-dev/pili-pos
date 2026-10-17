@@ -28,6 +28,7 @@
     <string name="err_price_positive">Saisissez un prix supérieur à zéro.</string>
     <string name="err_fixed_price">Le produit {product} a un prix fixe.</string>
     <string name="err_product_unavailable">Le produit {product} n\'est pas disponible.</string>
+    <string name="err_product_sold_out">Ce produit est épuisé.</string>
     <string name="err_line_not_found">Cette ligne n\'existe plus.</string>
     <string name="err_order_no_lines">La commande est vide.</string>
     <string name="err_payment_invalid">Paiement non valable : vérifiez les montants.</string>

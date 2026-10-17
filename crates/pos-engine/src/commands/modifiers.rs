@@ -69,6 +69,7 @@ pub fn do_add_order_line_with_modifiers(
     if order.status != OrderStatus::Open {
         return Err(errors::ORDER_NOT_OPEN.into());
     }
+    super::sold_out::refuse_if_sold_out(&db, input.menu_item_id)?;
     let product = pos_db::queries::menu::resolve_catalogue_line(
         &db,
         input.menu_item_id,

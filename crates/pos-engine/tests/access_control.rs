@@ -1094,3 +1094,50 @@ async fn invoice_commands_follow_the_roles() {
     let panel = do_list_peppol_deliveries(&app.state, None).unwrap();
     assert!(!panel.configured);
 }
+
+// ── Sold-out products (v1.1) ───────────────────────────────────
+
+#[tokio::test]
+async fn sold_out_commands_follow_the_roles() {
+    use pos_engine::commands::sold_out::{do_clear_sold_out, do_list_sold_out, do_set_sold_out};
+    const CASHIER: &str = "75061189702";
+    let app = app().await;
+
+    app.logout();
+    assert_eq!(
+        do_set_sold_out(&app.state, 1, true, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_clear_sold_out(&app.state, 1, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_sold_out(&app.state, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+
+    // A waiter takes orders; the sold-out switch is for the counter.
+    as_(&app, APPRENTICE, UserRole::Waiter);
+    assert_eq!(
+        do_set_sold_out(&app.state, 1, true, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_clear_sold_out(&app.state, 1, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_list_sold_out(&app.state, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+
+    as_(&app, CASHIER, UserRole::Cashier);
+    assert_eq!(do_set_sold_out(&app.state, 1, true, None).unwrap().len(), 1);
+    assert_eq!(do_list_sold_out(&app.state, None).unwrap().len(), 1);
+    assert!(do_clear_sold_out(&app.state, 1, None).unwrap().is_empty());
+
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(do_set_sold_out(&app.state, 1, false, None).is_ok());
+    assert!(do_clear_sold_out(&app.state, 1, None).is_ok());
+}

@@ -142,3 +142,62 @@ FROM invoices i
 JOIN fiscal_events f ON f.id = i.fiscal_event_id
 ORDER BY i.invoice_seq;
 "#;
+
+/// v41 - sold-out products ("Épuisé", V11-D14, V11-D15).
+///
+/// - `menu_item_sold_out`: the current state, one row per product. `until` is the end of the
+///   business day as RFC 3339 text with the Brussels offset, or NULL for "until re-enabled".
+///   A row whose `until` is past is expired (by time, not by Z); it is kept until the next
+///   read writes the `expired` log row and removes it.
+/// - `sold_out_log`: every set, clear and expiry, append-only.
+/// - `hubrise_inventory_sync`: one row per product pushed to the HubRise inventory (only
+///   written when HubRise is on and the product has an `external_id`). `dirty` rows are drained
+///   by the HubRise outbox loop, which sends the CURRENT state at send time. `version` counts
+///   the changes, so a change made during a send is not lost.
+///
+/// No fiscal effect: sold-out is a till rule, not an event.
+pub(crate) const MIGRATION_041_SOLD_OUT: &str = r#"
+CREATE TABLE IF NOT EXISTS menu_item_sold_out (
+    menu_item_id INTEGER PRIMARY KEY REFERENCES menu_items(id),
+    until TEXT,
+    set_by TEXT NOT NULL,
+    set_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS sold_out_log (
+    id INTEGER PRIMARY KEY,
+    menu_item_id INTEGER NOT NULL REFERENCES menu_items(id),
+    action TEXT NOT NULL CHECK(action IN ('set','clear','expired')),
+    until TEXT,
+    by TEXT,
+    at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_sold_out_log_item ON sold_out_log(menu_item_id);
+
+CREATE TRIGGER IF NOT EXISTS sold_out_log_no_update
+BEFORE UPDATE ON sold_out_log
+BEGIN
+    SELECT RAISE(ABORT, 'sold_out_log is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS sold_out_log_no_delete
+BEFORE DELETE ON sold_out_log
+BEGIN
+    SELECT RAISE(ABORT, 'sold_out_log is append-only');
+END;
+
+CREATE TABLE IF NOT EXISTS hubrise_inventory_sync (
+    menu_item_id INTEGER PRIMARY KEY REFERENCES menu_items(id),
+    sku_ref TEXT NOT NULL,
+    dirty INTEGER NOT NULL DEFAULT 1,
+    version INTEGER NOT NULL DEFAULT 1,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT,
+    last_attempt_at TEXT,
+    parked_at TEXT,
+    error_msg TEXT,
+    synced_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_hubrise_inventory_sync_dirty
+    ON hubrise_inventory_sync(dirty) WHERE dirty = 1;
+"#;

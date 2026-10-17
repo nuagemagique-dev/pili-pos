@@ -52,6 +52,8 @@ pub const PRICE_POSITIVE: &str = "price_positive";
 pub const FIXED_PRICE: &str = "fixed_price";
 /// `product`: the menu item id.
 pub const PRODUCT_UNAVAILABLE: &str = "product_unavailable";
+/// The product is marked sold out ("Épuisé", V11-D14). `product`: the menu item id.
+pub const PRODUCT_SOLD_OUT: &str = "product_sold_out";
 pub const LINE_NOT_FOUND: &str = "line_not_found";
 pub const ORDER_NO_LINES: &str = "order_no_lines";
 pub const ORDER_TOTAL_NEGATIVE: &str = "order_total_negative";
@@ -279,6 +281,7 @@ pub const ALL: &[&str] = &[
     PRICE_POSITIVE,
     FIXED_PRICE,
     PRODUCT_UNAVAILABLE,
+    PRODUCT_SOLD_OUT,
     LINE_NOT_FOUND,
     ORDER_NO_LINES,
     ORDER_TOTAL_NEGATIVE,

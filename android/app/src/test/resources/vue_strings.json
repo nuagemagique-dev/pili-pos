@@ -1356,6 +1356,12 @@
       "zh": "未配置打印机。",
       "area": "errors"
     },
+    "err_product_sold_out": {
+      "fr": "Ce produit est épuisé.",
+      "en": "This product is sold out.",
+      "zh": "该商品已售罄。",
+      "area": "errors"
+    },
     "err_product_unavailable": {
       "fr": "Le produit {product} n'est pas disponible.",
       "en": "Product {product} is not available.",
@@ -3863,6 +3869,7 @@
     "price_positive",
     "fixed_price",
     "product_unavailable",
+    "product_sold_out",
     "line_not_found",
     "order_no_lines",
     "order_total_negative",

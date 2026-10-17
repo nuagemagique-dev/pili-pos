@@ -127,6 +127,7 @@ const coreMessages: Messages = {
   "err_price_positive": { fr: "Saisissez un prix supérieur à zéro.", en: "Enter a price greater than zero.", zh: "请输入大于零的价格。" },
   "err_fixed_price": { fr: "Le produit {product} a un prix fixe.", en: "Product {product} has a fixed price.", zh: "商品{product}为固定价格。" },
   "err_product_unavailable": { fr: "Le produit {product} n'est pas disponible.", en: "Product {product} is not available.", zh: "商品{product}不可用。" },
+  "err_product_sold_out": { fr: "Ce produit est épuisé.", en: "This product is sold out.", zh: "该商品已售罄。" },
   "err_line_not_found": { fr: "Cette ligne n'existe plus.", en: "This line no longer exists.", zh: "该行已不存在。" },
   "err_order_no_lines": { fr: "La commande est vide.", en: "The order is empty.", zh: "订单为空。" },
   "err_payment_invalid": { fr: "Paiement non valable : vérifiez les montants.", en: "Invalid payment: check the amounts.", zh: "付款无效：请检查金额。" },

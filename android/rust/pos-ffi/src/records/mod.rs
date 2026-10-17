@@ -90,6 +90,7 @@
 //! | `OrderLine` | `pos_core::order::OrderLine` | orders | add_order_line, add_order_line_with_modifiers, list_cart_lines (+1 commands) |
 //! | `OrderStatus` | `pos_core::order::OrderStatus` | orders | create_order, get_order, list_open_orders |
 //! | `OrderType` | `pos_core::order::OrderType` | orders | create_order, get_order, list_open_orders |
+//! | `SoldOutItem` | `pos_db::queries::sold_out::SoldOutItem` | orders | set_sold_out, clear_sold_out, list_sold_out |
 //! | `TableInfo` | `pos_engine::commands::tables::TableInfo` | orders | list_tables |
 //! | `TablePlan` | `pos_engine::commands::table_plan::TablePlan` | orders | get_table_plan, set_table_plan |
 //! | `TablePlanChange` | `pos_db::queries::table_plan::PlanChange` | orders | get_table_plan, set_table_plan |

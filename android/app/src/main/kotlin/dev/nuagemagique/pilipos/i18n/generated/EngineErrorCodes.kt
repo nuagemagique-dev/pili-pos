@@ -60,6 +60,7 @@ object EngineErrorCodes {
             "price_positive",
             "fixed_price",
             "product_unavailable",
+            "product_sold_out",
             "line_not_found",
             "order_no_lines",
             "order_total_negative",

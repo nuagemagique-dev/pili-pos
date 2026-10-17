@@ -119,11 +119,18 @@ const EFT_MIGRATIONS: &[Migration] = &[Migration {
 
 /// Migrations of the v1.1 update (first certified update), in every build (V11-D2): 40 and up,
 /// clear of the v1.0.x lanes. Gaps are allowed by the runner.
-const V11_MIGRATIONS: &[Migration] = &[Migration {
-    version: 40,
-    name: "invoicing",
-    sql: crate::schema_v11::MIGRATION_040_INVOICING,
-}];
+const V11_MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 40,
+        name: "invoicing",
+        sql: crate::schema_v11::MIGRATION_040_INVOICING,
+    },
+    Migration {
+        version: 41,
+        name: "sold-out",
+        sql: crate::schema_v11::MIGRATION_041_SOLD_OUT,
+    },
+];
 
 /// Migrations of the HubRise integration (feature `hubrise`), from
 /// version 20 (in the certified binary too).
@@ -335,7 +342,7 @@ mod tests {
     #[test]
     fn the_v11_migrations_are_40_to_42_and_in_every_build() {
         let v11: Vec<(i64, &str)> = V11_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
-        assert_eq!(v11, vec![(40, "invoicing")]);
+        assert_eq!(v11, vec![(40, "invoicing"), (41, "sold-out")]);
         assert!(all_versions().contains(&40));
         assert!(V11_MIGRATIONS.iter().all(|m| m.version >= 40));
     }
@@ -348,6 +355,74 @@ mod tests {
             .unwrap()
             .collect::<Result<_, _>>()
             .unwrap()
+    }
+
+    #[test]
+    fn v41_creates_the_sold_out_tables() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        for (table, expected) in [
+            (
+                "menu_item_sold_out",
+                vec!["menu_item_id", "until", "set_by", "set_at"],
+            ),
+            (
+                "sold_out_log",
+                vec!["menu_item_id", "action", "until", "by", "at"],
+            ),
+            (
+                "hubrise_inventory_sync",
+                vec![
+                    "menu_item_id",
+                    "sku_ref",
+                    "dirty",
+                    "version",
+                    "attempts",
+                    "next_attempt_at",
+                    "last_attempt_at",
+                    "parked_at",
+                    "error_msg",
+                    "synced_at",
+                ],
+            ),
+        ] {
+            let cols = columns(&conn, table);
+            for c in expected {
+                assert!(cols.contains(&c.to_string()), "{table} lacks {c}");
+            }
+        }
+    }
+
+    #[test]
+    fn v41_sold_out_log_is_append_only_and_checks_its_action() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 100, 'B')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO sold_out_log (menu_item_id, action, by) VALUES (1, 'set', '00000000029')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.execute(
+                "INSERT INTO sold_out_log (menu_item_id, action) VALUES (1, 'bogus')",
+                [],
+            )
+            .is_err()
+        );
+        for sql in [
+            "UPDATE sold_out_log SET action = 'clear'",
+            "DELETE FROM sold_out_log",
+        ] {
+            let err = conn.execute(sql, []).unwrap_err().to_string();
+            assert!(err.contains("append-only"), "{sql}: {err}");
+        }
     }
 
     #[test]

@@ -30,6 +30,7 @@ pub mod session;
 pub mod settings;
 pub mod signing;
 pub mod social;
+pub mod sold_out;
 pub mod support;
 pub mod table_plan;
 pub mod tables;

@@ -101,6 +101,7 @@ internal object VueStringIds {
         this["err_price_positive"] = R.string.err_price_positive
         this["err_fixed_price"] = R.string.err_fixed_price
         this["err_product_unavailable"] = R.string.err_product_unavailable
+        this["err_product_sold_out"] = R.string.err_product_sold_out
         this["err_line_not_found"] = R.string.err_line_not_found
         this["err_order_no_lines"] = R.string.err_order_no_lines
         this["err_payment_invalid"] = R.string.err_payment_invalid
@@ -265,10 +266,10 @@ internal object VueStringIds {
         this["cash_err_amount"] = R.string.cash_err_amount
         this["training_banner"] = R.string.training_banner
         this["delivery_paper"] = R.string.delivery_paper
-        this["delivery_email"] = R.string.delivery_email
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["delivery_email"] = R.string.delivery_email
         this["delivery_both"] = R.string.delivery_both
         this["delivery_unreachable_note"] = R.string.delivery_unreachable_note
         this["delivery_enter_email_title"] = R.string.delivery_enter_email_title
@@ -518,10 +519,10 @@ internal object VueStringIds {
         this["webshop_time_ready_at"] = R.string.webshop_time_ready_at
         this["webshop_time_ready"] = R.string.webshop_time_ready
         this["webshop_own_label"] = R.string.webshop_own_label
-        this["webshop_delay_label"] = R.string.webshop_delay_label
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["webshop_delay_label"] = R.string.webshop_delay_label
         this["webshop_action_reprint"] = R.string.webshop_action_reprint
         this["webshop_status_in_delivery"] = R.string.webshop_status_in_delivery
         this["webshop_status_completed"] = R.string.webshop_status_completed

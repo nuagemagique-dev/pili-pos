@@ -91,6 +91,7 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
         return Err(errors::ORDER_NOT_OPEN.into());
     }
     unchanged_while_pending(&db, input.order_id)?;
+    super::sold_out::refuse_if_sold_out(&db, input.menu_item_id)?;
     let product = pos_db::queries::menu::resolve_catalogue_line(
         &db,
         input.menu_item_id,
@@ -163,6 +164,17 @@ pub fn do_update_order_line_quantity(
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let order_id = order_of_line(&db, line_id)?;
     unchanged_while_pending(&db, order_id)?;
+    // An increase of a sold-out product is refused; a decrease or the same quantity is not.
+    let (menu_item_id, current): (i64, i32) = db
+        .query_row(
+            "SELECT menu_item_id, quantity FROM order_lines WHERE id = ?1",
+            [line_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .map_err(line_error)?;
+    if quantity > current {
+        super::sold_out::refuse_if_sold_out(&db, menu_item_id)?;
+    }
     let floor = eft::charged_floor(&db, order_id)?;
     let tx = db.unchecked_transaction().map_err(errors::internal)?;
     pos_db::queries::orders::update_order_line_quantity(&tx, line_id, quantity)

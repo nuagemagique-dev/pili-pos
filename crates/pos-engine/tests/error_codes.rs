@@ -129,3 +129,18 @@ fn the_invoice_and_peppol_codes_are_listed_and_translated() {
         }
     }
 }
+
+#[test]
+fn the_sold_out_code_is_listed_and_translated() {
+    let code = errors::PRODUCT_SOLD_OUT;
+    assert!(errors::ALL.contains(&code), "{code} is not in errors::ALL");
+    let text = entry(&format!("err_{code}")).unwrap_or_else(|| panic!("no text for {code}"));
+    for lang in ["fr:", "en:", "zh:"] {
+        assert!(text.contains(lang), "{code} {lang}");
+    }
+    // The code carries the product id for the screen.
+    assert_eq!(
+        errors::coded(code, &[("product", &7)]),
+        "product_sold_out|product=7"
+    );
+}
