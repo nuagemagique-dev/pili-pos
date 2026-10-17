@@ -146,6 +146,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | --- | --- | --- | --- |
 | add_order_line | order::do_add_order_line | blocking | posEngine.addOrderLine() |
 | add_order_line_with_modifiers | modifiers::do_add_order_line_with_modifiers | blocking | posEngine.addOrderLineWithModifiers() |
+| apply_discount | discount::do_apply_discount | spawn | posEngine.applyDiscount() |
 | backup_database | report::do_backup_database | blocking | posEngine.backupDatabase() |
 | check_fdm_status | checkout::do_check_fdm_status | spawn | posEngine.checkFdmStatus() |
 | check_kitchen_printer | print::do_check_kitchen_printer | spawn | posEngine.checkKitchenPrinter() |
@@ -220,6 +221,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | refund_checkout | refund::do_refund_checkout_with | spawn | posEngine.refundCheckout() |
 | remote_support_running | support::do_remote_support_running | blocking | posEngine.remoteSupportRunning() |
 | remote_support_status | support::do_remote_support_status | blocking | posEngine.remoteSupportStatus() |
+| remove_discount | discount::do_remove_discount | spawn | posEngine.removeDiscount() |
 | remove_order_line | order::do_remove_order_line | blocking | posEngine.removeOrderLine() |
 | set_active_order | session::do_set_active_order | blocking | posEngine.setActiveOrder() |
 | set_hubrise_enabled | integrations::do_set_hubrise_enabled | blocking | posEngine.setHubriseEnabled() |

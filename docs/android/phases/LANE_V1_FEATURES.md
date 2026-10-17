@@ -464,3 +464,11 @@ Run the complete gate of the lane brief, in this order, and fix what fails (fix 
 - Command counts after T2: 99 Tauri commands in all, 97 in the cert build (`CLAUDE.md`, `check_ipc_wrappers.py`, `docs/android/ENGINE.md` section 6).
 - `scripts/uc_scope.toml` no longer excludes M132; both matrices regenerated. Dossier counts after T2 (both dossiers): Basic Set 20 of 22 with an automated test, 18 fixture replays in `spf_e2e_fixtures.rs`. Evidence blocks (`evidence/uc/M132_*`) are not regenerated here (V1F-D23).
 - Build notes: Compose builds need `ANDROID_HOME=~/Library/Android/sdk`; the Gradle Kotlin checks (`ktlintCheck detekt`) gate the Compose files.
+
+### T3 (till discount, engine, no screens)
+
+- Engine: `crates/pos-engine/src/commands/discount.rs` (`do_apply_discount`, `do_remove_discount`), migration 30 in `crates/pos-db/src/schema_till.rs`, helpers in `crates/pos-fiscal/src/price_change.rs`; decisions V1F-D36 to D44. Tests: `crates/pos-engine/tests/till_discounts.rs` (31), `uc223_event_discount_at_the_till`, `uc225a_discount_after_registration`, `uc229b_free_line_at_the_till` in `spf_e2e_fixtures.rs` (listed deviations only), FFI conversion tests.
+- Tauri `apply_discount` and `remove_discount`, FFI exports, API dump regenerated, Vue types, mock and i18n error texts (regenerated Android mirrors). No screens: T4.
+- Command counts after T3: 101 Tauri commands in all, 99 in the cert build.
+- Captures to retake: none new beyond section 11 items 9 to 14 (the screens arrive with T4).
+- Not committed: the untracked per-worktree `.cargo/config.toml`.
