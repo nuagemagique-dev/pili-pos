@@ -193,6 +193,93 @@ test.describe('Order discount', () => {
     expect(calls[0].input).toMatchObject({ reason_code: 'service_issue', reason_text: 'froid' });
   });
 
+  test('the preview rounds a percent half up, like the engine', async ({ page }) => {
+    // 10 % of 1,25 is 12,5 cents: 13, so 1,12.
+    await toOrder(page, [{ ...PLAIN, quantity: 1, unit_price_cents: 125 }], 125);
+    await page.getByTestId('discount-open').click();
+    const dialog = page.getByTestId('discount-dialog');
+    await dialog.getByTestId('discount-quick-10').click();
+    await expect(dialog.getByTestId('discount-preview')).toHaveText('Total 1,25 € → 1,12 €');
+  });
+
+  test('the preview rounds 15 % of 23,90 up to 3,59', async ({ page }) => {
+    // 358,5 cents: 359, so 20,31.
+    await toOrder(page, [{ ...PLAIN, quantity: 1, unit_price_cents: 2390 }], 2390);
+    await page.getByTestId('discount-open').click();
+    const dialog = page.getByTestId('discount-dialog');
+    await dialog.getByTestId('discount-quick-15').click();
+    await expect(dialog.getByTestId('discount-preview')).toHaveText('Total 23,90 € → 20,31 €');
+  });
+
+  test('switching the kind resets the typed value', async ({ page }) => {
+    await toOrder(page);
+    await page.getByTestId('discount-open').click();
+    const dialog = page.getByTestId('discount-dialog');
+    await dialog.getByTestId('discount-quick-20').click();
+    await expect(dialog.getByTestId('discount-typed')).toContainText('20 %');
+    await expect(dialog.getByTestId('discount-preview')).toHaveText('Total 24,00 € → 19,20 €');
+
+    await dialog.getByTestId('discount-kind-amount').click();
+    await expect(dialog.getByTestId('discount-typed')).toContainText('0,00 €');
+    await expect(dialog.getByTestId('discount-preview')).toHaveText('Total 24,00 € → 24,00 €');
+
+    await dialog.getByTestId('discount-kind-percent').click();
+    await expect(dialog.getByTestId('discount-typed')).toContainText('0 %');
+    await expect(dialog.getByTestId('discount-preview')).toHaveText('Total 24,00 € → 24,00 €');
+  });
+
+  test('a kitchen slip that did not print is warned, with the discount toast', async ({ page }) => {
+    await toOrder(page, [{ ...PLAIN, unsent_quantity: 2 }]);
+    await overrideIPC(page, 'apply_discount', {
+      order: DEFAULT_ORDER, kitchenSlip: 'failed', registrationError: null,
+    });
+    await page.getByTestId('discount-open').click();
+    const dialog = page.getByTestId('discount-dialog');
+    await dialog.getByTestId('discount-quick-10').click();
+    await dialog.getByTestId('discount-reason-other').click();
+    await dialog.getByTestId('discount-confirm').click();
+    await typePin(page, '4321');
+    await expect(page.locator('.toast', { hasText: 'Bon de commande non imprimé' })).toBeVisible();
+    await expect(page.locator('.toast', { hasText: 'Remise appliquée' })).toBeVisible();
+  });
+
+  test('is offered on a takeaway too', async ({ page }) => {
+    const TAKEAWAY = {
+      ...DEFAULT_ORDER, id: 77, table_number: null, order_type: 'takeaway', total_cents: 2400,
+    };
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      create_order: () => TAKEAWAY,
+      get_order: () => TAKEAWAY,
+      list_cart_lines: () => [PLAIN],
+      get_categories: () => [DEFAULT_CATEGORY],
+      get_menu_items: () => [DEFAULT_MENU_ITEM],
+    });
+    await page.goto('/');
+    await tapUserTile(page);
+    await page.waitForURL(/tables/);
+    await page.getByRole('button', { name: 'Nouvelle vente à emporter' }).click();
+    await page.waitForURL(/order/);
+    await expect(page.getByTestId('transfer-table')).toHaveCount(0);
+
+    // A takeaway starts empty: the first product makes the discount possible.
+    await expect(page.getByTestId('discount-open')).toHaveCount(0);
+    await page.locator('.item-btn').first().click();
+    await expect(page.getByTestId('discount-open')).toBeVisible();
+    await page.getByTestId('discount-open').click();
+    const dialog = page.getByTestId('discount-dialog');
+    await dialog.getByTestId('discount-quick-10').click();
+    await dialog.getByTestId('discount-reason-commercial_gesture').click();
+    await dialog.getByTestId('discount-confirm').click();
+    await typePin(page, '4321');
+    await expect(page.locator('.toast', { hasText: 'Remise appliquée' })).toBeVisible();
+    const calls = await ipcCalls(page, 'apply_discount');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ orderId: 77, input: { target: { type: 'order' }, kind: 'percent', value: 10 } });
+    expect((await ipcCalls(page, 'create_order'))[0].input).toMatchObject({ order_type: 'takeaway' });
+  });
+
   test('a wrong PIN or a refusal is shown on the pad and changes nothing', async ({ page }) => {
     await toOrder(page);
     await overrideIPC(page, 'apply_discount', { __reject: 'pin_wrong' });
@@ -280,6 +367,54 @@ test.describe('Offered line', () => {
       { orderId: expect.any(Number), lineId: 1, insz: DEFAULT_USER.insz, pin: '4321' },
     ]);
     await expect(page.getByTestId('line-offer')).toBeVisible();
+  });
+
+  test('Offrir on a line not yet sent to the kitchen', async ({ page }) => {
+    await toOrder(page, [{ ...PLAIN, unsent_quantity: 2 }]);
+    await expect(page.locator('.order-line.pending')).toHaveCount(1);
+    await page.getByTestId('line-offer').click();
+    const dialog = page.getByTestId('discount-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByTestId('discount-reason-staff_meal').click();
+    await dialog.getByTestId('discount-confirm').click();
+    await typePin(page, '4321');
+    const calls = await ipcCalls(page, 'apply_discount');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].input).toMatchObject({ target: { type: 'line', line_id: 1 }, kind: 'free', reason_code: 'staff_meal' });
+  });
+
+  test('Retirer la remise on an offered line not yet sent', async ({ page }) => {
+    await toOrder(page, [{ ...OFFERED, unsent_quantity: 2 }], 0);
+    await expect(page.locator('.order-line.pending')).toHaveCount(1);
+    await page.getByTestId('line-remove-discount').click();
+    await typePin(page, '4321');
+    expect(await ipcCalls(page, 'remove_discount')).toEqual([
+      { orderId: expect.any(Number), lineId: 1, insz: DEFAULT_USER.insz, pin: '4321' },
+    ]);
+  });
+
+  test('the base of a line is its own amount, not the order total', async ({ page }) => {
+    const second = { ...PLAIN, id: 2, quantity: 1, unit_price_cents: 500, name: 'Edamame', name_fr: 'Edamame' };
+    // 2 x 12,00 + 1 x 5,00.
+    await toOrder(page, [{ ...PLAIN, unit_price_cents: 1200 }, second], 2900);
+    await page.getByTestId('line-offer').nth(1).click();
+    await expect(page.getByTestId('discount-preview')).toHaveText('Total 5,00 € → 0,00 €');
+    await page.getByTestId('discount-dialog').getByTestId('discount-reason-other').click();
+    await page.getByTestId('discount-dialog').getByTestId('discount-confirm').click();
+    await typePin(page, '4321');
+    const calls = await ipcCalls(page, 'apply_discount');
+    expect(calls[0].input.target).toEqual({ type: 'line', line_id: 2 });
+  });
+
+  test('a quantity change on a discounted line is refused and shown', async ({ page }) => {
+    await toOrder(page, [HALF_OFF], 1200);
+    await overrideIPC(page, 'update_order_line_quantity', { __reject: 'line_has_price_changes' });
+    await expect(page.locator('.qty')).toHaveText('2');
+    await page.getByRole('button', { name: 'Un de plus' }).click();
+    await expect(
+      page.locator('.toast-error', { hasText: 'Cette ligne a une remise : retirez-la avant de changer la quantité.' }),
+    ).toBeVisible();
+    await expect(page.locator('.qty')).toHaveText('2');
   });
 
   test('no Offrir while an order discount applies', async ({ page }) => {

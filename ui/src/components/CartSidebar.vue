@@ -281,6 +281,8 @@ async function onUnpaidClosed() {
           @increment="increment"
           @decrement="decrement"
           @remove="order.removeLine($event)"
+          @offer="discountStep = { kind: 'ask', lineId: $event }"
+          @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
         />
       </template>
       <div v-if="order.lines.length === 0" class="cart-empty">
