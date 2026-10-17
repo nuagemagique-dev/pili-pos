@@ -185,3 +185,119 @@ CREATE TABLE IF NOT EXISTS kitchen_slip_entries (
 INSERT OR IGNORE INTO kitchen_slip_entries (entry_id, course, slip)
     SELECT id, 0, 'immediate' FROM order_entries WHERE sent_event_id IS NOT NULL;
 "#;
+
+/// v63 - multi-purpose gift vouchers (MPV, spec v2.2 §5 VAT X and
+/// `VOUCHER_STORE`).
+///
+/// A voucher is created in the archive transaction of the sale (event N
+/// or T) that sold it, and every use is a movement written in the
+/// archive transaction of the sale that redeemed it. Nothing here is
+/// updated or deleted: the balance, the expiry status and the
+/// cancellation are computed from the movements (`SUM(amount_cents)`,
+/// `expires_on`, a `cancel` movement). A voucher sold in training mode
+/// is marked `training` and is usable in training mode only.
+///
+/// The system product that sells a voucher is `menu_items.external_id =
+/// 'pili:gift-voucher'`, VAT X, out of scope, no kitchen printer, free
+/// price, and inactive so the grid never shows it and catalog syncs
+/// (which deactivate rows they do not list) have nothing to change. Its
+/// category `pili:system` is inactive for the same reason. Only the
+/// columns of the base schema are written (the catalog columns have
+/// defaults). Their ids (990000, 990001) are fixed and far above any
+/// catalog id so existing rows and fixtures never collide with them.
+pub(crate) const MIGRATION_063_GIFT_VOUCHERS: &str = r#"
+INSERT OR IGNORE INTO categories (id, external_id, sort_order, active)
+    VALUES (990000, 'pili:system', 9999, 0);
+
+INSERT OR IGNORE INTO menu_items
+    (id, external_id, category_id, price_cents, vat_code, vat_code_takeaway, vat_category,
+     kitchen_printer, sort_order, active, open_price)
+    SELECT 990001, 'pili:gift-voucher', c.id, 0, 'X', 'X', 'out_of_scope', 0, 0, 0, 1
+    FROM categories c WHERE c.external_id = 'pili:system';
+
+INSERT OR IGNORE INTO translations (entity_type, entity_id, field, lang, value)
+    SELECT 'category', c.id, 'name', t.lang, t.value
+    FROM categories c,
+         (SELECT 'fr' AS lang, 'Systeme' AS value UNION ALL SELECT 'en', 'System'
+          UNION ALL SELECT 'nl', 'Systeem' UNION ALL SELECT 'zh', '系统') t
+    WHERE c.external_id = 'pili:system';
+
+INSERT OR IGNORE INTO translations (entity_type, entity_id, field, lang, value)
+    SELECT 'menu_item', m.id, 'name', t.lang, t.value
+    FROM menu_items m,
+         (SELECT 'fr' AS lang, 'Bon cadeau' AS value UNION ALL SELECT 'en', 'Gift voucher'
+          UNION ALL SELECT 'nl', 'Cadeaubon' UNION ALL SELECT 'zh', '礼品券') t
+    WHERE m.external_id = 'pili:gift-voucher';
+
+CREATE TABLE IF NOT EXISTS gift_vouchers (
+    id INTEGER PRIMARY KEY,
+    -- 12 digits: 10 random + 2 check digits (97 - n mod 97).
+    code TEXT NOT NULL UNIQUE,
+    face_value_cents INTEGER NOT NULL CHECK(face_value_cents > 0),
+    issued_on TEXT NOT NULL,
+    expires_on TEXT NOT NULL,
+    training INTEGER NOT NULL CHECK(training IN (0,1)),
+    issue_event_id INTEGER NOT NULL REFERENCES fiscal_events(id),
+    issue_order_id INTEGER NOT NULL,
+    issue_line_id INTEGER NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TRIGGER IF NOT EXISTS gift_vouchers_no_update
+BEFORE UPDATE ON gift_vouchers
+BEGIN
+    SELECT RAISE(ABORT, 'gift_vouchers is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS gift_vouchers_no_delete
+BEFORE DELETE ON gift_vouchers
+BEGIN
+    SELECT RAISE(ABORT, 'gift_vouchers is append-only');
+END;
+
+CREATE TABLE IF NOT EXISTS gift_voucher_movements (
+    id INTEGER PRIMARY KEY,
+    voucher_id INTEGER NOT NULL REFERENCES gift_vouchers(id),
+    -- issue +face, redeem -x, cancel -balance.
+    kind TEXT NOT NULL CHECK(kind IN ('issue','redeem','cancel')),
+    amount_cents INTEGER NOT NULL,
+    fiscal_event_id INTEGER NOT NULL REFERENCES fiscal_events(id),
+    order_id INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_gift_voucher_movements_voucher
+    ON gift_voucher_movements(voucher_id, id);
+
+CREATE TRIGGER IF NOT EXISTS gift_voucher_movements_no_update
+BEFORE UPDATE ON gift_voucher_movements
+BEGIN
+    SELECT RAISE(ABORT, 'gift_voucher_movements is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS gift_voucher_movements_no_delete
+BEFORE DELETE ON gift_voucher_movements
+BEGIN
+    SELECT RAISE(ABORT, 'gift_voucher_movements is append-only');
+END;
+
+CREATE TABLE IF NOT EXISTS gift_voucher_prints (
+    id INTEGER PRIMARY KEY,
+    voucher_id INTEGER NOT NULL REFERENCES gift_vouchers(id),
+    kind TEXT NOT NULL CHECK(kind IN ('original','duplicate','balance')),
+    printed_by TEXT,
+    printed_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TRIGGER IF NOT EXISTS gift_voucher_prints_no_update
+BEFORE UPDATE ON gift_voucher_prints
+BEGIN
+    SELECT RAISE(ABORT, 'gift_voucher_prints is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS gift_voucher_prints_no_delete
+BEFORE DELETE ON gift_voucher_prints
+BEGIN
+    SELECT RAISE(ABORT, 'gift_voucher_prints is append-only');
+END;
+"#;

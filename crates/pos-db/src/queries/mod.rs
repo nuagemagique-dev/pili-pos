@@ -4,6 +4,7 @@ pub mod courses;
 pub mod deliveries;
 pub mod eft;
 pub mod fiscal;
+pub mod gift_vouchers;
 #[cfg(feature = "hubrise")]
 pub mod integrations;
 pub mod menu;

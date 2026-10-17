@@ -137,6 +137,11 @@ const V12_MIGRATIONS: &[Migration] = &[
         name: "courses",
         sql: crate::schema_v12::MIGRATION_062_COURSES,
     },
+    Migration {
+        version: 63,
+        name: "gift-vouchers",
+        sql: crate::schema_v12::MIGRATION_063_GIFT_VOUCHERS,
+    },
 ];
 
 /// Migrations of the HubRise integration (feature `hubrise`), from
@@ -346,7 +351,7 @@ mod tests {
     }
 
     /// The v1.2 owner features are migrations 60 to 63, in every build
-    /// (60 owner settings and alerts, 61 allergens, 62 courses; 63 follows).
+    /// (60 owner settings and alerts, 61 allergens, 62 courses, 63 gift vouchers).
     #[test]
     fn the_v12_migrations_are_60_to_63_and_in_every_build() {
         let v12: Vec<(i64, &str)> = V12_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
@@ -355,7 +360,8 @@ mod tests {
             vec![
                 (60, "owner-settings-alerts"),
                 (61, "allergens"),
-                (62, "courses")
+                (62, "courses"),
+                (63, "gift-vouchers")
             ]
         );
         for (version, _) in &v12 {
@@ -542,6 +548,89 @@ mod tests {
             .collect::<Result<_, _>>()
             .unwrap();
         assert_eq!(ids, vec![1]);
+    }
+
+    #[test]
+    fn migration_63_creates_the_gift_voucher_system_rows_and_append_only_tables() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let category: (i64, i64) = conn
+            .query_row(
+                "SELECT id, active FROM categories WHERE external_id = 'pili:system'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(category.1, 0, "never on the grid");
+        let item: (i64, i64, String, String, String, i64, i64, i64) = conn
+            .query_row(
+                "SELECT category_id, active, vat_code, vat_code_takeaway, vat_category,
+                        kitchen_printer, open_price, price_cents
+                 FROM menu_items WHERE external_id = 'pili:gift-voucher'",
+                [],
+                |r| {
+                    Ok((
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                        r.get(6)?,
+                        r.get(7)?,
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            item,
+            (
+                category.0,
+                0,
+                "X".into(),
+                "X".into(),
+                "out_of_scope".into(),
+                0,
+                1,
+                0
+            )
+        );
+        // Names in the four languages.
+        let names: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM translations t JOIN menu_items m ON m.id = t.entity_id
+                 WHERE t.entity_type = 'menu_item' AND t.field = 'name'
+                   AND m.external_id = 'pili:gift-voucher'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(names, 4);
+        // Running it again changes nothing (reseed repair).
+        conn.execute_batch(crate::schema_v12::MIGRATION_063_GIFT_VOUCHERS)
+            .unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM menu_items WHERE external_id = 'pili:gift-voucher'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+        for table in [
+            "gift_vouchers",
+            "gift_voucher_movements",
+            "gift_voucher_prints",
+        ] {
+            let triggers: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger' AND tbl_name = ?1",
+                    [table],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(triggers, 2, "{table}: no update, no delete");
+        }
     }
 
     #[test]

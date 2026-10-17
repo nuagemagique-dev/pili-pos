@@ -373,6 +373,8 @@ enum PaymentKind {
     Cash,
     Card,
     MealVoucher,
+    /// A multi-purpose gift voucher (`VOUCHER_STORE`, "Gift voucher").
+    GiftVoucher,
     /// Paid in an ordering platform's app (online orders).
     App,
     /// Paid online on the restaurant's webshop (online orders).
@@ -390,6 +392,8 @@ fn payment_kind_from_name(name: &str) -> Option<PaymentKind> {
     let lower = name.to_ascii_lowercase();
     if lower.contains("meal") || lower.contains("repas") {
         Some(PaymentKind::MealVoucher)
+    } else if lower.contains("gift") || lower.contains("cadeau") || lower == "voucher_store" {
+        Some(PaymentKind::GiftVoucher)
     } else if lower.contains("cash") {
         Some(PaymentKind::Cash)
     } else if lower.contains("card") {
@@ -406,7 +410,7 @@ fn payment_kind_from_name(name: &str) -> Option<PaymentKind> {
 }
 
 fn payment_kind_label(kind: PaymentKind, lang: ReceiptLanguage) -> &'static str {
-    use PaymentKind::{App, Card, Cash, MealVoucher, Online, Other};
+    use PaymentKind::{App, Card, Cash, GiftVoucher, MealVoucher, Online, Other};
     use ReceiptLanguage::{De, Fr, Nl};
     match (kind, lang) {
         (Cash, Fr) => "Especes",
@@ -418,6 +422,9 @@ fn payment_kind_label(kind: PaymentKind, lang: ReceiptLanguage) -> &'static str 
         (MealVoucher, Fr) => "Cheques-repas",
         (MealVoucher, Nl) => "Maaltijdcheques",
         (MealVoucher, De) => "Essensgutscheine",
+        (GiftVoucher, Fr) => "Bon cadeau",
+        (GiftVoucher, Nl) => "Cadeaubon",
+        (GiftVoucher, De) => "Geschenkgutschein",
         (App, Fr) => "Application",
         (App, Nl) => "App",
         (App, De) => "App",
@@ -449,6 +456,21 @@ pub(crate) fn payment_label(name: &str, lang: ReceiptLanguage) -> String {
 #[cfg(test)]
 mod online_payment_label_tests {
     use super::*;
+
+    #[test]
+    fn a_gift_voucher_payment_has_a_printed_name() {
+        for name in ["Gift voucher", "VOUCHER_STORE", "Bon cadeau"] {
+            assert_eq!(payment_label(name, ReceiptLanguage::Fr), "Bon cadeau");
+        }
+        assert_eq!(
+            payment_label("Gift voucher", ReceiptLanguage::Nl),
+            "Cadeaubon"
+        );
+        assert_eq!(
+            payment_label("Gift voucher", ReceiptLanguage::De),
+            "Geschenkgutschein"
+        );
+    }
 
     #[test]
     fn app_and_online_payments_have_printed_names() {
