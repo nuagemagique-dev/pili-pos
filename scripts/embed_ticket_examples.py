@@ -32,6 +32,12 @@ SECTIONS = {
     "## 9. ": ("ticket_N_vente.txt", "\n\nhttps://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug"),
     "## 10. ": "ticket_N_paiement_mixte.txt",
     "## 11. ": "ticket_N_non_paye.txt",
+    "### 11 ter.1 ": "ticket_N_paiement_bon.txt",
+    "### 11 ter.2 ": "bon_cadeau.txt",
+    "### 11 ter.3 ": "bon_cadeau_solde.txt",
+    "### 11 ter.4 ": "fiche_allergenes.txt",
+    "### 11 ter.5 ": "ticket_bar_temps.txt",
+    "### 11 ter.6 ": "ticket_bar_suite.txt",
 }
 
 

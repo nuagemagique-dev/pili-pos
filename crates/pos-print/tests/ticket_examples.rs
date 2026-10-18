@@ -341,6 +341,176 @@ fn example_note_slip() {
     std::fs::write(dir.join("ticket_note_slip.txt"), text).expect("write example");
 }
 
+/// A sale paid with a multi-purpose gift voucher (UC261 shape): the voucher
+/// pays a part, the rest is cash. The voucher payment is a `VOUCHER_STORE`
+/// line named "Gift voucher"; the ticket never shows the voucher code.
+#[test]
+fn example_n_gift_voucher_payment() {
+    let mut ticket = base_ticket(EventLabel::N);
+    ticket.lines = vec![TicketLine {
+        quantity: 2.0,
+        description: "Menu d'affaires".to_string(),
+        unit_price: 58.0,
+        total: 116.0,
+        vat_code: "B".to_string(),
+    }];
+    ticket.subtotal = 116.0;
+    ticket.total = 116.0;
+    ticket.vat_breakdown = vec![VatCalcItem {
+        label: VatLabel::B,
+        rate: 12.0,
+        taxable_amount: 103.57,
+        vat_amount: 12.43,
+        total_amount: 116.0,
+        out_of_scope: false,
+    }];
+    ticket.payments = [("Gift voucher", 50.0), ("Cash", 66.0)]
+        .into_iter()
+        .map(|(method, amount)| TicketPayment {
+            method: method.to_string(),
+            amount,
+            brand: None,
+        })
+        .collect();
+    assert!(render_plain_text(&format_receipt(&ticket)).contains("Bon cadeau"));
+    write_example("ticket_N_paiement_bon", &ticket);
+}
+
+/// The voucher itself, French, as printed after the sale that sold it.
+#[test]
+fn example_gift_voucher() {
+    use pos_print::gift_voucher::{VoucherSlip, format_gift_voucher};
+    let slip = VoucherSlip {
+        establishment: "The FPS Finances Experience".to_string(),
+        address: vec![
+            "Boulevard Albert II 33".to_string(),
+            "1030 Brussels".to_string(),
+        ],
+        face_value_cents: 5000,
+        code: "123456789095".to_string(),
+        issued_on: "03.07.2026".to_string(),
+        expires_on: "03.07.2027".to_string(),
+        reference: Some("N 12".to_string()),
+        lang: "fr".to_string(),
+        duplicate: false,
+        training: false,
+    };
+    let text = render_plain_text(&format_gift_voucher(&slip));
+    assert!(text.contains("1234 5678 9095"), "the code is spelled out");
+    let Some(dir) = out_dir() else { return };
+    std::fs::create_dir_all(&dir).expect("create examples dir");
+    std::fs::write(dir.join("bon_cadeau.txt"), text).expect("write example");
+}
+
+/// The balance slip after a partial use: the code is masked.
+#[test]
+fn example_gift_voucher_balance() {
+    use pos_print::gift_voucher::{BalanceSlip, format_balance_slip};
+    let slip = BalanceSlip {
+        establishment: "The FPS Finances Experience".to_string(),
+        code_last4: "9095".to_string(),
+        balance_cents: 3000,
+        expires_on: "03.07.2027".to_string(),
+        lang: "fr".to_string(),
+        training: false,
+    };
+    let text = render_plain_text(&format_balance_slip(&slip));
+    assert!(text.contains("9095") && !text.contains("123456789095"));
+    let Some(dir) = out_dir() else { return };
+    std::fs::create_dir_all(&dir).expect("create examples dir");
+    std::fs::write(dir.join("bon_cadeau_solde.txt"), text).expect("write example");
+}
+
+/// The allergen sheet of a few products, French, no price.
+#[test]
+fn example_allergen_sheet() {
+    use pos_print::allergen_sheet::{
+        AllergenSheet, SheetOption, SheetProduct, format_allergen_sheet,
+    };
+    let names = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    let sheet = AllergenSheet {
+        establishment: "The FPS Finances Experience".to_string(),
+        date: "03/07/2026".to_string(),
+        lang: "fr".to_string(),
+        products: vec![
+            SheetProduct {
+                name: "Maki saumon".to_string(),
+                declared: true,
+                contains: names(&["Poissons", "Sésame"]),
+                traces: names(&["Mollusques"]),
+                options: vec![SheetOption {
+                    name: "Sauce soja".to_string(),
+                    declared: true,
+                    contains: names(&["Soja", "Céréales contenant du gluten"]),
+                    traces: vec![],
+                }],
+            },
+            SheetProduct {
+                name: "Riz nature".to_string(),
+                declared: true,
+                contains: vec![],
+                traces: vec![],
+                options: vec![],
+            },
+            SheetProduct {
+                name: "Dessert du jour".to_string(),
+                declared: false,
+                contains: vec![],
+                traces: vec![],
+                options: vec![],
+            },
+        ],
+    };
+    let text = render_plain_text(&format_allergen_sheet(&sheet));
+    assert!(
+        !text.contains(" EUR") && !text.contains('€'),
+        "no price: {text}"
+    );
+    let Some(dir) = out_dir() else { return };
+    std::fs::create_dir_all(&dir).expect("create examples dir");
+    std::fs::write(dir.join("fiche_allergenes.txt"), text).expect("write example");
+}
+
+/// The first kitchen slip of a table that serves in courses (starters and
+/// direct items, the rest held), then the slip "Envoyer la suite" prints.
+#[test]
+fn example_course_slips() {
+    use pos_print::bar_ticket::{BarItem, BarTicket, format_bar_ticket};
+    let item = |quantity: i32, name: &str, course: i32| BarItem {
+        quantity,
+        name: name.to_string(),
+        note: None,
+        course: Some(course),
+    };
+    let first = BarTicket {
+        date_time: "03/07/2026 12:31:05".to_string(),
+        operator: "Marie Dupont".to_string(),
+        table: Some(4),
+        items: vec![item(2, "Dry Martini", 0), item(2, "Carpaccio", 1)],
+        lang: ReceiptLanguage::Fr,
+        is_training: false,
+        release: None,
+        duplicate: false,
+    };
+    let release = BarTicket {
+        date_time: "03/07/2026 12:58:40".to_string(),
+        items: vec![item(1, "Burger du chef", 2), item(1, "Tapas Variation", 2)],
+        release: Some(2),
+        ..first.clone()
+    };
+    let first_text = render_plain_text(&format_bar_ticket(&first));
+    let release_text = render_plain_text(&format_bar_ticket(&release));
+    assert!(
+        release_text.contains("SUITE") && !release_text.contains(','),
+        "{release_text}"
+    );
+    assert!(!first_text.contains(','), "a slip never shows a price");
+    let Some(dir) = out_dir() else { return };
+    std::fs::create_dir_all(&dir).expect("create examples dir");
+    std::fs::write(dir.join("ticket_bar_temps.txt"), first_text).expect("write example");
+    std::fs::write(dir.join("ticket_bar_suite.txt"), release_text).expect("write example");
+}
+
 // ── X / Z reports ──────────────────────────────────────────────
 
 fn base_report(
