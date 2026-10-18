@@ -848,5 +848,197 @@ TVA: BE0000000097
 
 ## 11 bis. Autres documents imprimés (sans transcription ici)
 Ticket cuisine et ticket client d'une commande en ligne, rapports X et Z par utilisateur (M182, M183, M184) : le rapport par utilisateur de la clôture est joint (`evidence/tickets/rapport_utilisateurs_Z.txt`) ; les autres ne sont pas transcrits ici.
+## 11 ter. Bons cadeaux, allergènes et service en plusieurs temps
+
+Documents des fonctions décrites dans *BONS_CADEAUX_FR.md*, *ALLERGENES_FR.md* et *SERVICES_CUISINE_FR.md*,
+produits par le pipeline d'impression réel du moteur (`crates/pos-print/tests/ticket_examples.rs`, les mêmes fonctions `format_receipt`, `format_gift_voucher`, `format_balance_slip`, `format_allergen_sheet` et `format_bar_ticket` que l'application). Ces rendus sont ceux du moteur exécuté sur l'hôte ; leur relevé sur l'imprimante simulée du terminal émulé : À effectuer (EV-08 : bon cadeau, solde du bon, fiche d'allergènes et bons de commande par temps). Le ticket de T.V.A. d'une
+vente payée avec un bon est un ticket N ordinaire dont une ligne de paiement porte le nom du moyen ; les autres
+documents sont non fiscaux, sans signature, et portent la mention d'un document qui n'est pas un ticket de caisse
+T.V.A. valable.
+
+### 11 ter.1 Vente payée avec un bon cadeau (UC261 - Événement N)
+
+Deux menus d'affaires (116,00 €), payés 50,00 € avec un bon et 66,00 € en espèces. Le code du bon n'est jamais
+imprimé sur un ticket de T.V.A.
+
+```
+            TICKET DE CAISSE T.V.A.
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000015
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: pili-pos/1.0.0
+................................................
+2 Menu d'affaires                      116,00  B
+TOTAL :                                  €116,00
+................................................
+Mode de paiement :
+Bon cadeau                                 50,00
+Especes                                    66,00
+% TVA   CODE          HT       TVA      Brut
+12,00%  B         103,57     12,43    116,00
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: FDM02000425;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: N; eventCounter: 15;
+totalCounter: 59; shortSignature:
+a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
+
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+
+
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
+      www.systemedecaisseenregistreuse.be
+
+
+
+
+✂-----------------------------------------------
+```
+
+### 11 ter.2 Bon cadeau (après la vente qui le vend)
+
+```
+                   BON CADEAU
+          The FPS Finances Experience
+             Boulevard Albert II 33
+                 1030 Brussels
+================================================
+               Valeur: 50,00 EUR
+
+                      Code
+                 1234 5678 9095
+               [QR: 123456789095]               
+
+              Emis le: 03.07.2026
+          Valable jusqu'au 03.07.2027
+------------------------------------------------
+Utilisable en une ou plusieurs fois, sans rendu
+                   de monnaie
+                  Ticket: N 12
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### 11 ter.3 Solde du bon (après un paiement qui laisse un solde)
+
+Le code est masqué : seuls les quatre derniers chiffres sont imprimés.
+
+```
+                  SOLDE DU BON
+          The FPS Finances Experience
+------------------------------------------------
+              Code: **** **** 9095
+                Solde: 30,00 EUR
+          Valable jusqu'au 03.07.2027
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### 11 ter.4 Fiche d'allergènes
+
+Un produit à la liste déclarée, un produit déclaré sans allergène, un produit sans déclaration. Aucun prix.
+
+```
+                   ALLERGÈNES
+          The FPS Finances Experience
+                   03/07/2026
+================================================
+Maki saumon
+  Contient: Poissons, Sésame
+  Traces possibles: Mollusques
+  Options:
+  - Sauce soja
+      Contient: Soja, Céréales contenant du
+      gluten
+------------------------------------------------
+Riz nature
+  Aucun allergène
+------------------------------------------------
+Dessert du jour
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Selon le règlement (UE) n° 1169/2011, annexe II.
+    Informations fournies par l'exploitant.
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### 11 ter.5 Premier bon de commande d'une table servie en plusieurs temps
+
+Le Direct et les entrées partent, les plats et les desserts sont retenus.
+
+```
+                BON DE COMMANDE
+================================================
+Date:                        03/07/2026 12:31:05
+Operateur:                          Marie Dupont
+Table 4
+------------------------------------------------
+Qte   Article
+-- Direct --
+2 x Dry Martini
+-- Entrees --
+2 x Carpaccio
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### 11 ter.6 Bon de commande « Envoyer la suite »
+
+```
+                BON DE COMMANDE
+================================================
+Date:                        03/07/2026 12:58:40
+Operateur:                          Marie Dupont
+Table 4
+SUITE : Plats
+------------------------------------------------
+Qte   Article
+-- Plats --
+1 x Burger du chef
+1 x Tapas Variation
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
 ## 12. Note sur la reproduction
 Les rendus sont imprimés par le pipeline d'impression réel de l'application et ne peuvent pas diverger de la sortie papier. Les accents des libellés (« Especes », « Cheques-repas ») sont retirés à l'impression sur ce profil. Au rendez-vous d'admission, le distributeur apporte la machine test connectée à l'imprimante réelle (`À effectuer (EV-15 : imprimante réelle, ou mention du profil émulé)`) ; les exemplaires physiques sont archivés avec le dossier final.

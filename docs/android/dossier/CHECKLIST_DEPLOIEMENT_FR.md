@@ -136,7 +136,7 @@ Les documents sont ceux du dossier de soumission (`MANIFEST.txt`,
 `INDEX_DOSSIER_FR.md`) ; chacun est fourni en PDF.
 
 - [ ] Tous les documents listés par `MANIFEST.txt` et `INDEX_DOSSIER_FR.md`
-      (annexes 0 à 36, dont `CADRE_DEMANDE_FR`, `PLATEFORME_ANDROID_FR`,
+      (annexes 0 à 44, dont `CADRE_DEMANDE_FR`, `PLATEFORME_ANDROID_FR`,
       `MANUEL_INSTALLATION_FR` et le présent `CHECKLIST_DEPLOIEMENT_FR`),
       les documents communs aux deux demandes étant ceux du dossier Linux
       au même état du moteur.

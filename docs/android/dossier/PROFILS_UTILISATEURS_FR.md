@@ -93,6 +93,12 @@ Accès complet. Concrètement, peut :
   retrait et changement de réglage est journalisé en ajout seul
   (`badge_log`, qui, quand). Ces actions sont refusées aux autres
   profils (`forbidden`).
+- Régler les fonctions du propriétaire dans "Config" : alertes sur téléphone (jeton absent ou présent,
+  conversation, situations surveillées, message test, journal des messages ; *ALERTES_PROPRIETAIRE_FR.md*), service
+  en plusieurs temps (interrupteur et temps de chaque catégorie ; *SERVICES_CUISINE_FR.md*), bons cadeaux
+  (interrupteur, validité, montant maximal), saisir les allergènes d'un produit ou d'une option dans l'éditeur de
+  carte (*ALLERGENES_FR.md*), lister les bons cadeaux et réimprimer un bon (DUPLICATA ; *BONS_CADEAUX_FR.md*).
+  Chaque changement de réglage est journalisé en ajout seul.
 - Créer des utilisateurs (Gérant, Serveur, Apprenti ou « Présence seule »), en désactiver
   ("Désactiver" ; jamais soi-même ; jamais de suppression : l'INSZ reste
   sur les événements signés) et fixer leur PIN. Créer un Gérant ou
@@ -120,6 +126,12 @@ Profil d'opérateur de caisse standard. Peut :
   `signWorkOut`).
 - Ouvrir / réutiliser une table en cours.
 - Ajouter, retirer ou modifier les lignes d'une commande ouverte.
+- Vendre un bon cadeau (bouton « Bon cadeau » de l'écran de commande), chercher un bon par son code (onglet
+  « Bons cadeaux » des rapports) et encaisser avec un bon (méthode « Bon cadeau »), si un Gérant a activé la
+  fonction (*BONS_CADEAUX_FR.md*).
+- Consulter les allergènes d'un produit et imprimer une fiche (*ALLERGENES_FR.md*) ; changer le temps d'une ligne
+  non encore envoyée et utiliser « Envoyer la suite » si le service en plusieurs temps est actif
+  (*SERVICES_CUISINE_FR.md*).
 - Écrire une note de cuisine sur une ligne (donnée locale, jamais envoyée
   au FDM).
 - Enregistrer la commande et l'envoyer en cuisine (Événement P -
@@ -148,6 +160,9 @@ Profil restreint. Peut :
 - Ouvrir / réutiliser une table.
 - Ajouter, retirer ou modifier les lignes d'une commande ouverte
   (chaque correction est journalisée et transmise au FDM).
+- Consulter les allergènes d'un produit et imprimer une fiche (*ALLERGENES_FR.md*) ; changer le temps d'une ligne
+  non encore envoyée et utiliser « Envoyer la suite » si le service en plusieurs temps est actif
+  (*SERVICES_CUISINE_FR.md*).
 - Écrire une note de cuisine sur une ligne (donnée locale, jamais envoyée
   au FDM).
 - Enregistrer la commande et l'envoyer en cuisine (Événement P -

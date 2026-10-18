@@ -148,15 +148,31 @@ Le manuel de certification exerce le flux fiscal via des scénarios variables.js
 | Remise à la caisse (UC223, UC225A étape 2, UC225B étape 2, UC229B) | écran de commande, fenêtre « Remise » (`DiscountDialog`, boutons Remise, Offrir et Retirer la remise) puis PIN du gérant (`docs/android/parity/order.md`) | proposé ; rejoués par le moteur depuis la caisse : `uc223_event_discount_at_the_till` (écart listé : costCenter TABLE), `uc225a_discount_after_registration` (UC225A étape 2 et UC225B étape 2 ; écart listé : la remise de commande est de portée EVENT, la fixture à une ligne utilise LINE), `uc229b_free_line_at_the_till` (écarts listés : costCenter TABLE, libellé de TVA du Coca Cola A au catalogue contre B dans la requête de la fixture) ; UC4118 et UC4101 restent hors périmètre |
 | Options d'un produit | fenêtre « Options » de l'écran de commande (portage de `ModifierDialog.vue`) : options HubRise ; le prix des options s'ajoute au prix unitaire de la ligne, calculé par le moteur ; aucune modification de prix (priceChanges) | proposé, hors UC composite |
 | Facture de plusieurs ventes, et d'un remboursement repris sur une facture (UC4121, UC4122) | onglet « Tickets » des rapports : cases à cocher des ventes, bouton « Facture », client, aperçu (`docs/android/parity/reports.md`) | proposé ; rejoués par le moteur : `invoice_advanced.rs` (voir « Factures : UC4121 et UC4122 » ci-dessous) |
-| Produit composite, split et fusion de tables (UC240 à UC252), déplacement vers une chambre ou un client (UC4101), correction de paiement différée avec crédit client (UC4118), vouchers MPV et SPV, devise et pourboires, acomptes, note de crédit autonome | aucun écran Android (aucun écran Linux non plus) | reporté, comme sous Linux |
+| Bons à usage multiple (UC260, UC261, UC262) | écran de commande, bouton « Bon cadeau » ; écran d'encaissement, méthode « Bon cadeau » (`docs/android/parity/order.md`, `docs/android/parity/checkout.md`) | proposé ; rejoués par le moteur : `spf_e2e_gift_vouchers.rs` (voir « Bons à usage multiple » ci-dessous) |
+| Produit composite, split et fusion de tables (UC240 à UC252), déplacement vers une chambre ou un client (UC4101), correction de paiement différée avec crédit client (UC4118), vouchers SPV (UC270, UC271) et conversion d'un bon en espèces (UC4105), devise et pourboires, acomptes, note de crédit autonome | aucun écran Android (aucun écran Linux non plus) | non offert en v1.0.0, comme sous Linux |
 
-| Élément | Phase plan | Statut actuel | Reporté à |
+| Élément | Phase plan | Statut actuel | Décision |
 |---|---|---|---|
-| Builder produit composite + champ `OrderLine.line_kind` | 5 | Forme de réponse déjà acceptée ; helpers côté requête absents | mise à jour certifiée ultérieure |
-| Plan de salle complet avec split et fusion (le plan Android ouvre et reprend des commandes) | 6 | Non implémenté ; `pos-core::table.rs` est un stub de 9 lignes | mise à jour certifiée ultérieure |
-| Table schéma `currency_rates`, champs currency/tip de `FinancialInput` | 7 | Forme de réponse déjà acceptée | mise à jour certifiée ultérieure |
+| Builder produit composite + champ `OrderLine.line_kind` | 5 | Forme de réponse déjà acceptée ; helpers côté requête absents | non offert en v1.0.0 |
+| Plan de salle complet avec split et fusion (le plan Android ouvre et reprend des commandes) | 6 | Non implémenté ; `pos-core::table.rs` est un stub de 9 lignes | non offert en v1.0.0 |
+| Table schéma `currency_rates`, champs currency/tip de `FinancialInput` | 7 | Forme de réponse déjà acceptée | non offert en v1.0.0 |
 
-**Impact cert :** aucun. Le dossier cert déclarera dans le formulaire de demande quels flux opérateur sont accessibles depuis la build actuelle, et la validation côté fixtures ci-dessus prouve que le protocole fiscal est satisfait pour les 141 scénarios Advanced Set quand déclenchés (via le harnais de test, durant le rendez-vous d'admission, ou, après la mise en service, via le travail de complétion de l'interface dans une mise à jour certifiée ultérieure). Résultats des UC joués sur le terminal émulé : `À effectuer (EV-06 : résultats des UC)`, voir `RESULTATS_TESTS_UC_FR.md`.
+**Impact cert :** aucun. Le dossier cert déclarera dans le formulaire de demande quels flux opérateur sont accessibles depuis la build actuelle, et la validation côté fixtures ci-dessus prouve que le protocole fiscal est satisfait pour les 141 scénarios Advanced Set quand déclenchés (via le harnais de test, durant le rendez-vous d'admission ; les flux non offerts en v1.0.0 ne se déclenchent que par le harnais de test). Résultats des UC joués sur le terminal émulé : `À effectuer (EV-06 : résultats des UC)`, voir `RESULTATS_TESTS_UC_FR.md`.
+
+---
+
+## Bons à usage multiple : UC260, UC261 et UC262 (rejoués)
+
+Les trois UC de bon à usage multiple (MPV) sont rejoués par `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs`, par les
+commandes que l'écran appelle (ligne de bon cadeau, encaissement fractionné), contre le module de contrôle simulé.
+UC260 : vente d'un bon de 50,00 EUR payée par carte (ligne de T.V.A. X). UC261 : deux menus d'affaires payés avec le
+bon et le reste en espèces. UC262 : commande mixte à emporter payée en entier par le bon. La comparaison avec la
+fixture est champ par champ ; les lignes de paiement (`VOUCHER_STORE`, saisie `MANUAL`, montants) sont identiques,
+et chaque autre écart est listé avec son motif (produit et département du bon ; produit composé géré comme un produit
+simple ; taux de la commande entière). Pièces : *RESULTATS_TESTS_UC_FR.md* (sections UC260 à UC262) et `evidence/uc/`.
+Détail : *BONS_CADEAUX_FR.md*. Les bons à usage unique (UC270, UC271) et la conversion d'un bon en espèces (UC4105) ne
+sont pas offerts en v1.0.0 : leurs fixtures se chargent (tableau ci-dessus) mais aucun parcours de la caisse ne les
+déclenche.
 
 ---
 

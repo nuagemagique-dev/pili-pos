@@ -46,7 +46,7 @@ Android en offre est décrit au §7.
 | B | 12 % | Service en salle (cuisine consommée sur place) |
 | C | 6 % | À emporter (cuisine non consommée sur place) |
 | D | 0 % | Produits exonérés |
-| X | - | Hors champ TVA |
+| X | - | Hors champ TVA (vente d'un bon cadeau, *BONS_CADEAUX_FR.md*) |
 
 Implémentation : `crates/pos-core/src/vat.rs::VatCode`.
 
@@ -179,8 +179,9 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
 
 ### 2.2 Encaissement
 
-- Modes de paiement : espèces, carte et chèques-repas électroniques
-  (saisie manuelle - pas de terminal intégré dans cette version).
+- Modes de paiement : espèces, carte, chèques-repas électroniques et bons cadeaux
+  (ligne `VOUCHER_STORE`, §2.10)
+  (carte : saisie manuelle - pas de terminal intégré dans cette version).
 - Paiement en plusieurs moyens sur un seul ticket : carte et
   chèques-repas pour un montant exact, espèces pour le reste
   (`crates/pos-fiscal/src/payment.rs::settle`).
@@ -258,6 +259,47 @@ continue ; le remboursement (N négatif) peut figurer sur une facture. Le
 journal des factures (art. 33) est la vue `v_invoice_journal`. Voir
 *FACTURATION_PEPPOL_FR.md*.
 
+### 2.8 Allergènes (information, non fiscale)
+
+Les 14 allergènes à déclaration obligatoire (annexe II du règlement (UE) n° 1169/2011) s'affichent sur les
+produits et les options (pastilles numérotées, mode « Allergènes », fiche du produit) et s'impriment sur une fiche
+non fiscale, sans prix, pour un produit ou toute la carte. Listes importées du catalogue HubRise ou saisies par un
+gérant dans l'éditeur de carte ; une absence de déclaration s'affiche « information non disponible », jamais
+« aucun allergène ». Aucun allergène n'entre dans une demande signée. Voir *ALLERGENES_FR.md*.
+
+### 2.9 Service en plusieurs temps (cuisine, non fiscal)
+
+Fonction éteinte par défaut, réglée par un gérant : chaque catégorie a un temps (Direct, Entrées, Plats, Desserts),
+le premier ticket de cuisine imprime le Direct et les entrées, « Envoyer la suite » imprime ensuite les plats puis
+les desserts. Le temps d'une ligne n'entre dans aucune demande signée, aucun nom de produit ni aucun ticket de
+T.V.A. ; éteinte, les tickets sont identiques octet pour octet. Voir *SERVICES_CUISINE_FR.md*.
+
+### 2.10 Bons cadeaux à usage multiple (fiscal)
+
+Fonction éteinte par défaut, réglée par un gérant. Vente d'un bon : ligne de T.V.A. X (hors champ), département
+`GV`, code à 12 chiffres dont 2 de contrôle, bon imprimé. Utilisation : méthode de paiement « Bon cadeau »,
+ligne `VOUCHER_STORE` (identité « 8 », saisie `MANUAL`), montant exact jamais arrondi, solde conservé sur le bon,
+sans rendu de monnaie. Cas officiels UC260, UC261 et UC262 rejoués (*RESULTATS_TESTS_UC_FR.md*). Un bon vendu et
+non utilisé se rembourse (le bon est annulé) ; une vente payée avec un bon se rembourse en espèces (choix de
+l'établissement). Voir *BONS_CADEAUX_FR.md*. Non offerts en v1.0.0 : bons à usage unique (UC270, UC271),
+conversion d'un bon en espèces (UC4105), remboursement vers un bon.
+
+### 2.11 Alertes du propriétaire sur téléphone (non fiscales)
+
+Fonction éteinte par défaut : un court message Telegram quand le module fiscal ne répond plus, qu'une imprimante
+ou le terminal de carte est en défaut, que le Z du jour n'est pas fait ou qu'une commande en ligne attend. Aucune
+donnée personnelle ni montant dans les messages ; la caisse n'attend jamais l'envoi. Voir
+*ALERTES_PROPRIETAIRE_FR.md*.
+
+### 2.12 Outil d'export pour le comptable (hors du binaire certifié)
+
+Un outil en ligne de commande distinct, `pili-accounting` (`crates/pos-accounting`), produit pour le comptable des
+fichiers CSV et un journal équilibré à partir d'une copie de l'export de la caisse ou d'une sauvegarde. Il n'est pas
+dans le binaire certifié ni dans le paquet livré avec la caisse : aucune crate livrée ne dépend de lui (test
+d'isolation), il ne lit jamais la base en service (une copie en service est refusée), n'écrit jamais dans la source,
+ne signe rien et n'envoie rien au module fiscal. Il ne touche donc aucun événement fiscal ; il ne figure ici que
+pour expliquer qu'il est hors du périmètre du binaire soumis.
+
 ## 3. Commandes en ligne (plateformes et webshop)
 
 Présentes dans le binaire certifié, activées par installation
@@ -289,6 +331,9 @@ changement journalisé). Détail : `COMMANDES_EN_LIGNE_FR.md`.
   étranger** : la facture est imprimée seulement.
 - **Note de crédit autonome** : absente (un remboursement se reprend sur
   une facture, *FLUX_REMBOURSEMENT_FR.md* §3).
+- **Bons cadeaux : non offerts en v1.0.0** : bons à usage unique (UC270, UC271 : leur utilisation reprend le
+  découpage de T.V.A. d'un produit composé), conversion d'un bon en espèces (UC4105), remboursement vers un bon
+  (une vente payée avec un bon se rembourse en espèces).
 - **Division et fusion de tables** : absentes ; seul le transfert d'une
   commande vers une table libre (changement de centre de coût, M122) est
   proposé. **Correction d'un paiement par terminal** : une carte prise sur
@@ -354,6 +399,7 @@ L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili
 - Réglages (employés, mode formation, envois de tickets, interrupteur HubRise) : §2.4, §3.
 - Commandes en ligne : §3. Export nocturne : §1.7.
 - Facturation B2B (choix des ventes, client, aperçu, liste des factures, panneau Peppol) : §2.7. Produit épuisé : §2.1. Édition de la carte : §2.6. Rapport de ventes : §2.3.
+- Allergènes : §2.8. Service en plusieurs temps : §2.9. Bons cadeaux (bouton de commande, méthode d'encaissement, onglet de rapports) : §2.10. Alertes du propriétaire (réglages) : §2.11.
 
 ### 7.2 Commandes exclues (9)
 

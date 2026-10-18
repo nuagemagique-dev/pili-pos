@@ -89,11 +89,12 @@ dans `crates/pos-fiscal/tests/reports_fixtures.rs` et
 Les 141 fixtures se chargent et se désérialisent proprement
 (`crates/pos-fiscal/tests/advanced_set_fixtures.rs`) ; voir
 `COUVERTURE_ADVANCED_SET_FR.md` pour le détail par UC. Sur les 58
-identifiants de test, 10 ont un test dédié : UC223, UC225A et UC225B
-(un même rejeu), UC229B, UC230, UC4109, UC4119, UC4121 et UC4122
-comparent la requête construite par pili-pos à la fixture, UC201
-contrôle les lignes de paiement et d'arrondi du scénario. Les 48 autres
-sont déclarés hors périmètre v1.0.0 (`scripts/uc_scope.toml`). UC223
+identifiants de test, 13 ont un test dédié : UC223, UC225A et UC225B
+(un même rejeu), UC229B, UC230, UC260, UC261, UC262, UC4109, UC4119,
+UC4121 et UC4122 comparent la requête construite par pili-pos à la
+fixture, UC201 contrôle les lignes de paiement et d'arrondi du
+scénario. Les 45 autres sont déclarés hors périmètre v1.0.0 (fonctions
+non offertes) (`scripts/uc_scope.toml`). UC223
 couvre la remise de portée EVENT des commandes en ligne
 (`crates/pos-fiscal/tests/price_change_uc.rs`) et celle de la caisse
 (`uc223_event_discount_at_the_till`) ; UC220 et UC224 n'ont pas de test
@@ -107,6 +108,18 @@ l'émulateur du D3 Pro, requête et réponse JSON par UC (résultats :
 l'émulateur Android). Le journal des requêtes FDM est comparé à celui de
 Linux pour les mêmes scénarios : À effectuer (EV-07 : comparaison des
 journaux Android et Linux).
+
+## Bons cadeaux, fonctions du propriétaire et allergènes
+
+| # | Exigence | Spec | Code | Test |
+|---|---|---|---|---|
+| G1 | La vente d'un bon d'achat à usage multiple (MPV) est une ligne de code T.V.A. X (hors champ) : aucune T.V.A. à la vente, elle est due sur les marchandises achetées avec le bon | POS v2.2, utilisation du code T.V.A. X ; UC260 | `crates/pos-engine/src/commands/gift_vouchers.rs::do_add_gift_voucher_line` (produit système, département `GV`) | `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs::uc260_mpv_sale` |
+| G2 | L'utilisation d'un bon est une ligne de paiement de type `VOUCHER_STORE` (« Gift voucher », saisie `MANUAL`), au montant exact, jamais arrondi | POS v2.2, types de paiement ; UC261, UC262 | `crates/pos-fiscal/src/payment.rs` (règles de paiement), `crates/pos-engine/src/commands/checkout.rs::do_checkout_split` | `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs::{uc261_mpv_use,uc262_mpv_use}` |
+| G3 | Les contrôles d'un bon (existence, mode, expiration, solde) sont faits sous le verrou de signature, avant l'envoi au module fiscal ; le débit s'écrit dans l'opération d'archive qui suit la signature | POS v2.2 §II.6 (séquentialité), UC261 | `crates/pos-engine/src/commands/gift_vouchers.rs`, `crates/pos-engine/src/commands/signing.rs::apply` | `crates/pos-engine/tests/gift_vouchers.rs` (38 scénarios) |
+| G4 | Une vente qui vend un bon ne se facture pas (catégorie O, EN 16931) ; la correction d'un moyen de paiement ne touche jamais une ligne `VOUCHER_STORE` | EN 16931 BR-O-02, BR-O-11 à BR-O-14 ; M132 | `crates/pos-engine/src/commands/invoice.rs`, `crates/pos-engine/src/commands/payment_correction.rs` | `crates/pos-engine/tests/lane_interactions.rs` |
+| G5 | Les alertes du propriétaire ne signent rien, ne lisent aucun ticket ni rapport et ne bloquent jamais une vente ou un Z | POS v2.2 §III.6 (le blocage ne vient que du module fiscal) | `crates/pos-engine/src/alerts/` | `crates/pos-engine/tests/owner_alerts.rs` |
+| G6 | Le temps d'une ligne (service en plusieurs temps) n'entre dans aucune demande signée ni ticket de T.V.A. ; les tickets de cuisine et de bar ne portent aucun montant | POS v2.2 §8.1 et §8.2 (consolidation des imprimés), FAQ Q210 b | `crates/pos-engine/src/commands/courses.rs`, `crates/pos-print/` | `crates/pos-engine/tests/courses.rs` |
+| G7 | Les allergènes sont une information d'affichage et d'impression : aucun allergène dans une demande signée | Règlement (UE) n° 1169/2011, annexe II (information) | `crates/pos-engine/src/commands/allergens.rs` | `crates/pos-engine/tests/allergens.rs` |
 
 ## Remboursements & corrections
 

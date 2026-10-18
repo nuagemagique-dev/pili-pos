@@ -24,6 +24,7 @@ de contrôle, aucune écriture dans une table. Il lit uniquement ce qui est déj
 | Totaux | Nombre de tickets (remboursements compris), total des ventes, dont remboursements ; modifications de prix de niveau ticket ; arrondi de caisse (affiché à part, **hors total**, voir plus bas). |
 | Écran | Quatrième onglet « Ventes » de l'écran Rapports, identique sur la caisse Linux et sur la caisse portable Android, en français, néerlandais, anglais et chinois à l'écran. |
 | Impression | Bouton « Imprimer » : même contenu sur l'imprimante de tickets, sous le titre RAPPORT DE VENTES et DOCUMENT NON FISCAL. Pieds de page : « CECI N'EST PAS UN RAPPORT FISCAL » et « CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE ». Aucun contrôle de signature, aucun QR code, aucun numéro de ticket fiscal. |
+| Bons cadeaux | La vente d'un bon cadeau (ligne de T.V.A. X, rayon « Bons cadeaux ») est comptée dans les ventes comme dans le rapport Z, dont le total reste égal à celui du Z ; l'utilisation d'un bon est une ligne de paiement `VOUCHER_STORE`. Test `the_sales_report_counts_the_voucher_line_and_still_equals_the_z` de `crates/pos-engine/tests/lane_interactions.rs`. |
 | Droits | Gérant seulement (comme les rapports X et Z). |
 
 ## 2. Correspondance avec les rapports Z

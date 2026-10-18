@@ -59,6 +59,10 @@ Natures : **variante Android** (document propre à ce dossier, dérivé du dossi
 | 38 | EDITEUR_CARTE_FR.pdf | §III (édition de la carte à l'écran) | variante Android |
 | 39 | PRODUIT_EPUISE_FR.pdf | §III (produit épuisé) | variante Android |
 | 40 | RAPPORTS_VENTES_FR.pdf | §III.L (rapport de ventes non fiscal) | variante Android |
+| 41 | ALERTES_PROPRIETAIRE_FR.pdf | §III (alertes du propriétaire sur téléphone, non fiscales) | variante Android |
+| 42 | ALLERGENES_FR.pdf | §III (allergènes, non fiscaux) | variante Android |
+| 43 | SERVICES_CUISINE_FR.pdf | §III (service en plusieurs temps, cuisine) | variante Android |
+| 44 | BONS_CADEAUX_FR.pdf | §III.F (bons à usage multiple, UC260 à UC262) | variante Android |
 
 Plus :
 
@@ -84,7 +88,7 @@ Six annexes décrivent le moteur fiscal seul : `SCHEMA_BD_FR.md`, `SCHEMA_ER_FR.
 | `SCHEMA_BD_FR.md` | En-tête : fichier vivant /var/lib/pili-pos/pos.db | La base est le fichier files/engine/pos.db du stockage privé de l'application, jamais sur la carte SD (`PLATEFORME_ANDROID_FR.md` §5). Le schéma est le même. |
 | `SCHEMA_BD_FR.md` | En-tête : lecture machine par un shell sqlite3 sur la base | Le terminal verrouillé n'a pas de shell. Le schéma se lit dans la copie de pos.db de l'export SPF, avec n'importe quel outil SQLite (`SECURITE_BD_FR.md` §8). |
 | `SCHEMA_BD_FR.md` | Déclencheur `pending_signs_no_delete` : procédure de dépannage du MANUEL_INSTALLATION_FR.md | Procédure de dépannage du `MANUEL_INSTALLATION_FR.md` Android (annexe 5). Les déclencheurs sont ceux du moteur. |
-| `SCHEMA_BD_FR.md` | « Binaire certifié » : migrations 12 à 19 réservées ; tables de facturation et Peppol (migration `040`), épuisé et journal de la carte (migrations `041` et `042`) | Le moteur de l'APK est construit avec le même ensemble de fonctions de certification et contient les mêmes migrations et les mêmes tables (`FACTURATION_PEPPOL_FR.md`). L'envoi Peppol n'a lieu que si l'installation contient une section `peppol`. |
+| `SCHEMA_BD_FR.md` | « Binaire certifié » : migrations 12 à 19 réservées ; tables de facturation et Peppol (migration `040`), épuisé et journal de la carte (migrations `041` et `042`), réglages du propriétaire, allergènes, temps de cuisine et bons cadeaux (migrations `060` à `063`) | Le moteur de l'APK est construit avec le même ensemble de fonctions de certification et contient les mêmes migrations et les mêmes tables (`FACTURATION_PEPPOL_FR.md`). L'envoi Peppol n'a lieu que si l'installation contient une section `peppol`. |
 | `SCHEMA_ER_FR.md` | Aucun passage propre à Linux (sources dans `crates/pos-db`, « binaire certifié » comme ci-dessus) | Se lit tel quel. |
 | `STRATEGIE_COMPTEURS_FR.md` | Blocage sur déconnexion du FDM : événement fdm-status reçu par l'interface Vue, messages dans `ui/src/utils/fdmMessages.ts` | L'événement est le même : il sort du moteur et arrive à l'interface Compose par la couche UniFFI. Les messages français sont dans `android/app/src/main/res/values/strings_vue_fdm.xml`. Même voyant rouge et même voile sur les écrans de vente. |
 | `STRATEGIE_COMPTEURS_FR.md` | Requête sans réponse : procédure du MANUEL_INSTALLATION_FR.md et du MANUEL_UTILISATEUR_FR.md | Procédure des deux manuels Android du même nom. |

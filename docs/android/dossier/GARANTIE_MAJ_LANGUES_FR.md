@@ -89,7 +89,7 @@ Une fois la mise en service effectuée, toute modification de l'APK passe obliga
 
 Le commit du build de certification est tagué `android-v1.0.0` (le nom du tag est la `versionName` de l'APK, vérifiée par le script de déclaration) ; le code de version est 10000. Le moteur fiscal commun est celui du tag `linux-v1.0.0-rc2` (puis du tag final) : À effectuer (EV-04 : commit du tag du moteur). Le SHA git du tag est consigné dans le rapport de build et permet à tout moment de reproduire le build à l'identique à partir du dépôt source.
 
-Toute mise à jour ultérieure (correction de bug, nouvelle fonctionnalité) passe par :
+Toute mise à jour après la certification (correction de bug, nouvelle fonctionnalité) passe par :
 - Un nouveau tag `android-vX.Y.Z+1` et un code de version strictement supérieur.
 - Une nouvelle build cert reproductible (et donc nouveau SHA-1).
 - Une nouvelle demande de certification SPF Finances pour la mise à jour (procédure §II.E ci-dessous + Article 109 du Manuel). Un changement du moteur concerne les deux produits `pili-pos` et `pili-pos-android` (*CADRE_DEMANDE_FR.md* §6).
@@ -190,6 +190,14 @@ Langues des mentions fiscales supportées par le code :
 - `de` (allemand) - **complète** (traduction de style officiel, en ASCII ; les libellés allemands ne sont pas tirés d'une version allemande de la spécification, qui ne fait pas partie des documents de référence)
 
 Langues d'affichage de l'interface (indépendantes du ticket) : `fr`, `en`, `zh`, au choix de l'opérateur sur l'écran de connexion.
+
+Documents non fiscaux des fonctions du propriétaire : le bon cadeau et son solde sont imprimés en français, néerlandais
+ou allemand (langue de l'établissement ; toute autre valeur retombe sur le français) ; la fiche d'allergènes en
+français, néerlandais, anglais ou allemand ; les bons de commande par temps (« Direct », « Entrées », « Plats »,
+« Desserts ») en français, néerlandais ou allemand. Les messages d'alerte du propriétaire (hors ticket) existent en
+français, en chinois et en anglais, selon la langue réglée par le Gérant. Le nom du moyen de paiement « Bon cadeau »
+suit la langue du ticket : « Bon cadeau », « Cadeaubon », « Geschenkgutschein ».
+
 
 ### 3.2 Règle appliquée : langue de la région linguistique de l'établissement
 

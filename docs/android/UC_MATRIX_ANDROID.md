@@ -18,10 +18,10 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 |---|---|
 | Couvert (scénario Android) | 47 |
 | Couvert (tests moteur exécutés sur l'appareil) | 27 |
-| Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) | 8 |
+| Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) | 11 |
 | En attente | 0 |
 | Exclu sur Android | 24 |
-| Hors périmètre | 48 |
+| Hors périmètre | 45 |
 | Non applicable | 1 |
 | Couvert par un autre identifiant | 0 |
 | MANQUANT | 0 |
@@ -96,9 +96,9 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 | UC250 | Fusion de tables | - | - | - | Hors périmètre |
 | UC251 | Fusion de tables (variante) | - | - | - | Hors périmètre |
 | UC252 | Fusion de tables avec remise | - | - | - | Hors périmètre |
-| UC260 | Vente d'un bon à usage multiple (MPV) | - | - | - | Hors périmètre |
-| UC261 | Utilisation d'un bon à usage multiple (MPV) | - | - | - | Hors périmètre |
-| UC262 | Utilisation d'un bon à usage multiple (MPV, variante) | - | - | - | Hors périmètre |
+| UC260 | Vente d'un bon à usage multiple (MPV) | - | - | `uc260_mpv_sale` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
+| UC261 | Utilisation d'un bon à usage multiple (MPV) | - | - | `a_gift_voucher_part_is_exact_and_never_rounded`, `uc261_mpv_use` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
+| UC262 | Utilisation d'un bon à usage multiple (MPV, variante) | - | - | `a_gift_voucher_part_is_exact_and_never_rounded`, `uc262_mpv_use` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
 | UC270 | Vente d'un bon à usage unique (SPV) | - | - | - | Hors périmètre |
 | UC271 | Utilisation d'un bon à usage unique (SPV) | - | - | - | Hors périmètre |
 | UC280 | Produit composite | - | - | - | Hors périmètre |

@@ -6,7 +6,7 @@
 **Date :** À effectuer (EV-18 : date de dépôt)
 **Référence :** §IV du manuel de certification (Procédure de communication GraphQL).
 
-Squelette des résultats des UC obligatoires du Basic Set v1.8 (22 UC spec), des 5 UC Reports v1.3 et des cinq situations d'arrondi (ROUND1 à ROUND5), plus huit UC de l'Advanced Set v1.6 rejoués par le même harnais, dont les deux UC de facture (UC4121 et UC4122). Aucun UC n'est hors périmètre : M122 (transfert de table), M132 (correction de paiement) et M150 (facture, événement I) sont dans le périmètre ; M112A n'est pas un parcours proposé (parcours M112B). Aucun résultat n'est repris du dossier Linux : chaque bloc ci-dessous attend les résultats des UC joués sur le terminal émulé par la suite instrumentée (`À effectuer (EV-06 : résultats des UC sur le terminal émulé)`).
+Squelette des résultats des UC obligatoires du Basic Set v1.8 (22 UC spec), des 5 UC Reports v1.3 et des cinq situations d'arrondi (ROUND1 à ROUND5), plus onze UC de l'Advanced Set v1.6 rejoués par le même harnais, dont les deux UC de facture (UC4121 et UC4122). Aucun UC n'est hors périmètre : M122 (transfert de table), M132 (correction de paiement) et M150 (facture, événement I) sont dans le périmètre ; M112A n'est pas un parcours proposé (parcours M112B). Aucun résultat n'est repris du dossier Linux : chaque bloc ci-dessous attend les résultats des UC joués sur le terminal émulé par la suite instrumentée (`À effectuer (EV-06 : résultats des UC sur le terminal émulé)`).
 
 Pour chaque UC rejoué, le bloc final fournira : le scénario, les champs à vérifier, la requête construite par le moteur et archivée, la réponse du FDM, la comparaison champ par champ avec la fixture officielle et le test automatisé. Les fichiers JSON bruts iront dans `Report_Testing` (`À effectuer (EV-06 : requête et réponse JSON de chaque UC)`). Les tickets sont dans TICKETS_EXEMPLES_FR.md. Le FDM utilisé pour ces essais est nommé dans chaque bloc ; la journée sur le simulateur en ligne module2 est dans JOURNAL_TESTS_PRE_SOUMISSION_FR.md. La comparaison avec les requêtes du dossier Linux est `À effectuer (EV-07 : comparaison Android et Linux)`.
 
@@ -95,6 +95,17 @@ Correction de paiement. Rejeu applicatif côté moteur : `m132_payment_correctio
 ## UC4122_Invoice_refund
 À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 
+# Bons à usage multiple de l'Advanced Set v1.6 (3 UC rejoués)
+
+Les trois UC de bon cadeau à usage multiple sont rejoués côté moteur par `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs` (écarts expliqués dans *BONS_CADEAUX_FR.md* §9). Les bons à usage unique (UC270, UC271) et la conversion d'un bon en espèces (UC4105) ne sont pas offerts en v1.0.0.
+
+## UC260_MPV_Sale
+Vente d'un bon de 50,00 EUR payée par carte. Rejeu applicatif côté moteur : `uc260_mpv_sale`, deux écarts déclarés (produit et département du bon). À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture sur le terminal émulé).
+## UC261_MPV_Use
+Utilisation du bon pour un menu, le reste en espèces. Rejeu applicatif côté moteur : `uc261_mpv_use`, deux écarts déclarés (produit composé géré comme un produit simple). À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture sur le terminal émulé).
+## UC262_MPV_Use
+Utilisation du bon pour une commande mixte à emporter. Rejeu applicatif côté moteur : `uc262_mpv_use`, un écart déclaré (taux de la commande entière). À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture sur le terminal émulé).
+
 # Récapitulatif
 
 | Famille | UC (spec) | UC dans le périmètre v1.0.0 | Lecture des fixtures | Rejeu applicatif (build `cert`) |
@@ -102,6 +113,7 @@ Correction de paiement. Rejeu applicatif côté moteur : `m132_payment_correctio
 | Basic Set v1.8 | 22 | 21 (hors M112A) | À effectuer (EV-06) | À effectuer (EV-06) |
 | Reports v1.3 | 5 | 5 | À effectuer (EV-06) | À effectuer (EV-06) |
 | Advanced Set v1.6 (factures) | 2 | 2 | À effectuer (EV-06) | À effectuer (EV-06) |
-| **Total** | **29** | **28** | À effectuer (EV-06) | À effectuer (EV-06) |
+| Advanced Set v1.6 (bons à usage multiple) | 3 | 3 | À effectuer (EV-06) | À effectuer (EV-06) |
+| **Total** | **32** | **31** | À effectuer (EV-06) | À effectuer (EV-06) |
 
 Pour le détail des couvertures, voir COUVERTURE_FIXTURES_FR.md, COUVERTURE_RAPPORTS_FR.md et COUVERTURE_ADVANCED_SET_FR.md.
