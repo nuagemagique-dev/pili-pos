@@ -1,6 +1,6 @@
-//! Schema of the v1.1 update (first certified update after v1.0.0), from migration 40.
+//! Schema of the invoicing, sold-out and menu editor group, from migration 40.
 //!
-//! These migrations live in their own block (40 and up, V11-D2) so that the v1.0.x lanes can
+//! These migrations live in their own block (40 and up, V11-D2) so that the other lanes can
 //! keep claiming 28 and up without a clash. Every build has them; no cargo feature.
 
 /// v40 - B2B invoices (event I) and the Peppol delivery queue.

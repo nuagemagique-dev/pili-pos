@@ -895,7 +895,7 @@ export function setTablePlan(plan: string): Promise<TablePlan> {
   return invoke("set_table_plan", { plan });
 }
 
-// ── B2B invoices (event I, M150) and Peppol (v1.1) ───────────────
+// ── B2B invoices (event I, M150) and Peppol ───────────────────
 
 /** A saved B2B customer. */
 export interface B2bCustomer {

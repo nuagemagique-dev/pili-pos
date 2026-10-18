@@ -1,4 +1,4 @@
-//! B2B invoices (event I, M150), their customers and the Peppol delivery queue (v1.1).
+//! B2B invoices (event I, M150), their customers and the Peppol delivery queue.
 //! Each wrapper is one engine call (`scripts/check_ipc_wrappers.py`).
 
 use tauri::State;

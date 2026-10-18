@@ -378,7 +378,7 @@ function defaultHandlers(): Record<string, Handler> {
     }),
     list_fiscal_events: () => [],
 
-    // B2B invoices and Peppol (v1.1): nothing to invoice and no Peppol unless a spec says so.
+    // B2B invoices and Peppol: nothing to invoice and no Peppol unless a spec says so.
     list_invoiceable_sales: () => [],
     list_invoices: () => [],
     search_b2b_customers: () => [],

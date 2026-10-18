@@ -35,7 +35,7 @@ impl VatNumber {
     }
 
     /// The Peppol participant id (`0208:0308357159`) of a Belgian number, `None` for a
-    /// foreign one (no delivery over Peppol in v1.1, V11-D9).
+    /// foreign one (no delivery over Peppol, V11-D9).
     pub fn participant_id(&self) -> Option<String> {
         self.is_belgian()
             .then(|| be_participant_id(&self.canonical))

@@ -86,7 +86,7 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 - **Sizes and flash.** Text sizes use the theme tokens (the 40 px total becomes the 28 sp `sizeXl`); the green flash
   of a new line is not reproduced (the quantity badge of the product button shows the change).
 
-## Differences of the sold-out switch (v1.1, V11-D16)
+## Differences of the sold-out switch (V11-D16)
 
 - **Same behaviour.** An "Épuisé" button above the product grid (cashier and manager only) turns a mode on: a tap on a
   product opens its availability dialog (until the end of the day, until re-enabled, available) instead of adding it.

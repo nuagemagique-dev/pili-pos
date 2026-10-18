@@ -117,23 +117,24 @@ const EFT_MIGRATIONS: &[Migration] = &[Migration {
     sql: crate::schema_eft::MIGRATION_027_EFT_PAYMENTS,
 }];
 
-/// Migrations of the v1.1 update (first certified update), in every build (V11-D2): 40 and up,
-/// clear of the v1.0.x lanes. Gaps are allowed by the runner.
-const V11_MIGRATIONS: &[Migration] = &[
+/// Migrations of the invoicing, sold-out and menu editor group, in every build (V11-D2): 40 and
+/// up, clear of the 12 to 19 hotfix range and of the lanes that claim 20 to 39. Gaps are allowed
+/// by the runner.
+const INVOICING_MIGRATIONS: &[Migration] = &[
     Migration {
         version: 40,
         name: "invoicing",
-        sql: crate::schema_v11::MIGRATION_040_INVOICING,
+        sql: crate::schema_invoicing::MIGRATION_040_INVOICING,
     },
     Migration {
         version: 41,
         name: "sold-out",
-        sql: crate::schema_v11::MIGRATION_041_SOLD_OUT,
+        sql: crate::schema_invoicing::MIGRATION_041_SOLD_OUT,
     },
     Migration {
         version: 42,
         name: "menu-editor",
-        sql: crate::schema_v11::MIGRATION_042_MENU_EDITOR,
+        sql: crate::schema_invoicing::MIGRATION_042_MENU_EDITOR,
     },
 ];
 
@@ -189,7 +190,7 @@ fn registry() -> Vec<Migration> {
     #[allow(unused_mut)]
     let mut all = MIGRATIONS.to_vec();
     all.extend_from_slice(EFT_MIGRATIONS);
-    all.extend_from_slice(V11_MIGRATIONS);
+    all.extend_from_slice(INVOICING_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -343,16 +344,19 @@ mod tests {
         assert!(EFT_MIGRATIONS.iter().all(|m| m.version >= 20));
     }
 
-    /// The v1.1 block starts at 40 and is in every build (V11-D2).
+    /// The invoicing block starts at 40 and is in every build (V11-D2).
     #[test]
-    fn the_v11_migrations_are_40_to_42_and_in_every_build() {
-        let v11: Vec<(i64, &str)> = V11_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
+    fn the_invoicing_migrations_are_40_to_42_and_in_every_build() {
+        let block: Vec<(i64, &str)> = INVOICING_MIGRATIONS
+            .iter()
+            .map(|m| (m.version, m.name))
+            .collect();
         assert_eq!(
-            v11,
+            block,
             vec![(40, "invoicing"), (41, "sold-out"), (42, "menu-editor")]
         );
         assert!(all_versions().contains(&40));
-        assert!(V11_MIGRATIONS.iter().all(|m| m.version >= 40));
+        assert!(INVOICING_MIGRATIONS.iter().all(|m| m.version >= 40));
     }
 
     fn columns(conn: &Connection, table: &str) -> Vec<String> {

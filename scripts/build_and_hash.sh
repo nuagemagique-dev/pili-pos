@@ -36,7 +36,7 @@ echo "── 1/5 Certification build ──────────────�
 echo "── 2/5 Integration check ────────────────────────────────"
 # One binary for every installation: the HubRise integration is in it
 # (off unless switched on), invoicing (event I, Peppol queue) is in every
-# build since v1.1 (V11-D1).
+# build (V11-D1).
 # Count, not `grep -q`: with pipefail, grep quitting early kills
 # `strings` with SIGPIPE and the pipeline reads as a failure.
 SWITCH_REFS=$(strings "$BINARY" | grep -c "integration_switch_log" || true)

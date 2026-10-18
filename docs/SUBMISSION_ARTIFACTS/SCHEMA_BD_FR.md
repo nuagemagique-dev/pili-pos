@@ -9,7 +9,7 @@ liste **chaque table**, **chaque champ**, son **type**, sa **longueur**
 **Mode** : WAL (Write-Ahead Logging) - atomique crash-safe.
 **Fichier vivant** : `/var/lib/pili-pos/pos.db` en production.
 **Source de vérité du schéma** : `crates/pos-db/src/schema.rs`,
-`schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs` et `schema_v11.rs` (lecture machine via
+`schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs` et `schema_invoicing.rs` (lecture machine via
 `sqlite3 pos.db ".schema"`).
 
 ## 1. Tables de référence

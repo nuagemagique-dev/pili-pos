@@ -349,7 +349,7 @@ Vérifications : le contrôle `ffi_deps` de `scripts/android/p2_gate.sh` (arbre 
 | Produit épuisé | `crates/pos-engine/src/commands/sold_out.rs` |
 | Éditeur de carte | `crates/pos-engine/src/commands/menu_admin.rs` |
 | Rapport de ventes non fiscal | `crates/pos-engine/src/commands/sales_report.rs` |
-| Tables de la v1.0.0 : facturation, épuisé, éditeur (migrations 40 à 42) | `crates/pos-db/src/schema_v11.rs` |
+| Tables de la v1.0.0 : facturation, épuisé, éditeur (migrations 40 à 42) | `crates/pos-db/src/schema_invoicing.rs` |
 | AccessPoint Peppol | `crates/pos-peppol/src/access_point.rs` |
 | Commandes Peppol (enveloppe IPC : `src-tauri/src/ipc/invoice.rs`) | `crates/pos-engine/src/commands/invoice.rs` |
 | Résolution du support + commandes ticket numérique | `crates/pos-engine/src/commands/delivery.rs` |

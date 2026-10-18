@@ -1,4 +1,4 @@
-//! Facade of the menu editor commands (engine module `menu_admin`, v1.1): one method per Tauri
+//! Facade of the menu editor commands (engine module `menu_admin`): one method per Tauri
 //! command, same parameter names, one engine call each.
 
 use pos_engine::commands::menu_admin;

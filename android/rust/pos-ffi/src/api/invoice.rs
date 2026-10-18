@@ -1,4 +1,4 @@
-//! Facade of the B2B invoice commands (engine module `invoice`, v1.1): one method per Tauri
+//! Facade of the B2B invoice commands (engine module `invoice`): one method per Tauri
 //! command, same parameter names, one engine call each.
 
 use pos_engine::commands::invoice;

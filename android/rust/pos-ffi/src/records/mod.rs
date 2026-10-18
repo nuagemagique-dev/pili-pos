@@ -1,7 +1,7 @@
 //! Ownership of every FFI record and enum (PD56), written by P2-T4 from the engine sources.
 //!
 //! One row per type reachable from the 86 cert commands (parameters and return types, through
-//! their fields), from the event payloads and from the money helpers. `invoice` joined the cert set in v1.1
+//! their fields), from the event payloads and from the money helpers. `invoice` is part of the cert set
 //! (V11-D1, invoicing is in every build; its records live in `records/invoice.rs`). The owner is the card that defines the type: the file of a domain card is
 //! `records/<owner>.rs`, the shared ones are in `records/common.rs` (this card).
 //!
@@ -10,7 +10,7 @@
 //!   never redefines one: it imports it with `use super::common::...`.
 //! - **orders** = order, modifiers, menu, tables, session; **checkout** = checkout, unpaid,
 //!   refund, copy, delivery, print; **reports** = report, social, financial, settings,
-//!   fdm_monitor; **auth** = auth, integrations, support; **hubrise** = hubrise, webshop; **invoice** = invoice (v1.1); **menu_admin** = the menu editor (v1.1, `records/menu_admin.rs`).
+//!   fdm_monitor; **auth** = auth, integrations, support; **hubrise** = hubrise, webshop; **invoice** = invoice; **menu_admin** = the menu editor (`records/menu_admin.rs`).
 //! - The FFI name is the engine name, except `Display` (`pos_fiscal::types`), which is
 //!   `FdmMessageDisplay`. No two reachable engine types share a name (`Order`, `Category` and
 //!   `Language` also exist in `pos_hubrise_types` and `pos_catalog`, but none of those is

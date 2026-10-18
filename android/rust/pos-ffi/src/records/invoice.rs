@@ -1,4 +1,4 @@
-//! The B2B invoice records (v1.1, V11-D1): the FFI mirror of `pos_engine::commands::invoice`
+//! The B2B invoice records (V11-D1): the FFI mirror of `pos_engine::commands::invoice`
 //! and of the customer and delivery rows of `pos_db::queries::invoicing`.
 
 /// A saved B2B customer.

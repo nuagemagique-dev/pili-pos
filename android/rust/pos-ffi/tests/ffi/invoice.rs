@@ -1,4 +1,4 @@
-//! Tests of the B2B invoice facade (v1.1, V11-D1).
+//! Tests of the B2B invoice facade (V11-D1).
 //!
 //! (a) Contract: every FFI record is the engine's type field by field, with every option set
 //! and with every option `None`.

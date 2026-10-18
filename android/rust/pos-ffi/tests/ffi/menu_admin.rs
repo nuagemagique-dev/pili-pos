@@ -1,4 +1,4 @@
-//! Tests of the menu editor facade (`api::menu_admin`, `records::menu_admin`, v1.1).
+//! Tests of the menu editor facade (`api::menu_admin`, `records::menu_admin`).
 //!
 //! (a) Contract: every FFI record is the engine's type field by field, with names in several
 //! languages, and the inputs convert back to the engine's inputs.
