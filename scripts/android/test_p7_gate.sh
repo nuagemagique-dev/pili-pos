@@ -6,12 +6,12 @@
 #
 # Runs p7_gate.sh against temporary git repositories (PILI_P7_ROOT). The tools the gate
 # calls are stubs from scripts/android/testdata/p7_gate/ copied into the temporary
-# repository (lane_paths.py, check_linux_frozen.sh, the parity and inventory scripts, a
+# repository (lane_paths.py, check_android_frozen.sh, the parity and inventory scripts, a
 # gradlew, the self-test and emulator scripts), and a stub cargo found through
 # PILI_P7_STUB_DIR. Their behaviour is chosen by STUB_* variables and their calls are
 # recorded in $STUB_LOG. No Gradle, no cargo, no network, no emulator.
 # Cases: usage errors, then each check in PASS and FAIL (hygiene-subjects, hygiene-dash,
-# hygiene-secrets, scope with --allow and the shared owner, lanes, linux-frozen with and
+# hygiene-secrets, scope with --allow and the shared owner, lanes, android-frozen with and
 # without the tag, frozen-paths, the parity checks, the uccheck family, uc-replay,
 # uc-matrix, gradle-plan, the self-test checks, root-inventory, the three emulator and
 # report checks), the SKIP and --exit behaviour, --fast and the total line.
@@ -29,7 +29,7 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 export HOME="$TMP/home"
 mkdir -p "$HOME"
-unset PILI_P7_NESTED PILI_P7_ROOT PILI_P7_STUB_DIR PILI_P7_FREEZE_REF PILI_P7_SOAK_MIN_HOURS
+unset PILI_P7_NESTED PILI_P7_ROOT PILI_P7_STUB_DIR PILI_P7_SOAK_MIN_HOURS
 for v in STUB_LANES_FAIL STUB_REGEX_EMPTY STUB_FROZEN_FAIL STUB_KTESTS_FAIL STUB_CMDPARITY_FAIL \
     STUB_UIPARITY_FAIL STUB_CARGO_FAIL STUB_UCCHECK STUB_GRADLE_FAIL STUB_TOTAL STUB_WS STUB_INV_FAIL; do
     unset "$v"
@@ -76,7 +76,7 @@ build_pristine() {
     git -C "$r" init -q -b base
     mkdir -p "$r/scripts/android" "$r/android" "$r/docs/android/uc" "$r/crates/pos-engine/src" "$r/ui" \
         "$r/src-tauri" "$r/docs/android/baseline"
-    for f in lane_paths.py check_linux_frozen.sh kotlin_test_inventory.py check_command_parity.py check_ui_parity.py test_inventory.sh; do
+    for f in lane_paths.py check_android_frozen.sh kotlin_test_inventory.py check_command_parity.py check_ui_parity.py test_inventory.sh; do
         cp "$FIX/$f" "$r/scripts/android/$f"
     done
     cp "$FIX/selftest_stub.sh" "$r/scripts/android/test_p7_gate.sh"
@@ -108,7 +108,7 @@ new_repo() {
         STUB_UIPARITY_FAIL STUB_CARGO_FAIL STUB_UCCHECK STUB_GRADLE_FAIL STUB_TOTAL STUB_WS STUB_INV_FAIL; do
         unset "$v"
     done
-    unset PILI_P7_FREEZE_REF PILI_P7_SOAK_MIN_HOURS
+    unset PILI_P7_SOAK_MIN_HOURS
 }
 
 # commit_all SUBJECT
@@ -156,7 +156,7 @@ run_gate --fast "${BASE[@]}"
 n="$(grep -c '^GATE | ' "$OUT")"
 check clean-fast-passes-exit-0 $([[ $RC -eq 0 && "$(total_line)" == "GATE | total | PASS | 0 failed ($((n - 1)) checks)" ]] && echo 0 || echo 1) "rc=$RC total=$(total_line) n=$n"
 order="$(grep '^GATE | ' "$OUT" | awk -F' [|] ' '{printf "%s ", $2}')"
-check check-order $([[ "$order" == "hygiene-subjects hygiene-dash hygiene-secrets scope lanes linux-frozen frozen-paths kotlin-tests command-parity ui-parity uccheck-fmt uccheck-clippy uccheck-test uccheck-lock uc-scenarios uc-replay uc-matrix total " ]] && echo 0 || echo 1) "order: $order"
+check check-order $([[ "$order" == "hygiene-subjects hygiene-dash hygiene-secrets scope lanes android-frozen frozen-paths kotlin-tests command-parity ui-parity uccheck-fmt uccheck-clippy uccheck-test uccheck-lock uc-scenarios uc-replay uc-matrix total " ]] && echo 0 || echo 1) "order: $order"
 
 # ── 2. usage errors exit 2 ──
 new_repo usage
@@ -288,20 +288,23 @@ export STUB_LANES_FAIL=1
 run_gate --fast "${BASE[@]}"
 expect lanes-failure-fails lanes FAIL
 
-# ── 8. linux-frozen ──
+# ── 8. android-frozen ──
 new_repo frozen1
 run_gate --fast "${BASE[@]}"
-check frozen-ref-default $(grep -q '^frozen --ref 8a678ff$' "$STUB_LOG" && echo 0 || echo 1) "log: $(cat "$STUB_LOG")"
-: >"$STUB_LOG"
-PILI_P7_FREEZE_REF=abc1234 run_gate --fast "${BASE[@]}"
-check frozen-ref-override $(grep -q '^frozen --ref abc1234$' "$STUB_LOG" && echo 0 || echo 1) "log: $(cat "$STUB_LOG")"
+expect frozen-skip-without-tag android-frozen SKIP
+check frozen-skip-detail $([[ "$(detail android-frozen)" == "no tag android-v1.0.0-rc3 yet" ]] && echo 0 || echo 1) "detail: $(detail android-frozen)"
+check frozen-not-called-without-tag $(! grep -q '^frozen' "$STUB_LOG" && echo 0 || echo 1) "log: $(cat "$STUB_LOG")"
 : >"$STUB_LOG"
 tgit "$REPO" tag linux-v1.0.0-rc2 base
 run_gate --fast "${BASE[@]}"
-check frozen-tag-preferred $(grep -q '^frozen --tag linux-v1.0.0-rc2$' "$STUB_LOG" && ! grep -q -- '--ref' "$STUB_LOG" && echo 0 || echo 1) "log: $(cat "$STUB_LOG")"
+expect frozen-linux-tag-is-no-freeze android-frozen SKIP
+tgit "$REPO" tag android-v1.0.0-rc3 base
+run_gate --fast "${BASE[@]}"
+check frozen-tag-used $(grep -q '^frozen --tag android-v1.0.0-rc3$' "$STUB_LOG" && ! grep -q -- '--ref' "$STUB_LOG" && echo 0 || echo 1) "log: $(cat "$STUB_LOG")"
+expect frozen-pass-with-tag android-frozen PASS
 export STUB_FROZEN_FAIL=1
 run_gate --fast "${BASE[@]}"
-expect frozen-failure-fails linux-frozen FAIL
+expect frozen-failure-fails android-frozen FAIL
 
 # ── 9. frozen-paths ──
 new_repo fp1
