@@ -442,7 +442,7 @@ async fn a_sale_that_sold_a_voucher_is_never_invoiced() {
     let (voucher_sale, _) = sell_voucher(&app, 2500).await;
     let expected = format!("{}|event={voucher_sale}", errors::INVOICE_GIFT_VOUCHER_SALE);
     let preview = do_invoice_preview(&app.state, &[voucher_sale]).unwrap();
-    assert_eq!(preview.problems, [expected.clone()]);
+    assert_eq!(preview.problems, std::slice::from_ref(&expected));
     let err = pos_engine::commands::invoice::do_sign_invoice_fiscal(
         &app.state,
         vec![voucher_sale],
