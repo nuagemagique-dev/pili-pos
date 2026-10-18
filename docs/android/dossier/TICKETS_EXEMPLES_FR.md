@@ -4,11 +4,11 @@
 **Produit :** pili-pos-android 1.0.0 (posSwVersion pili-pos-android/1.0.0)
 **Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
 **Date :** À effectuer (EV-18 : date de dépôt)
-**Tickets relevés le :** 18.10.2026 (relevé refait avec le libellé « Chèques-repas » et le code du lot rc3), sur l'AVD `sunmi_d3_pro_gms_api33` (identifiant d'appareil imprimé `EMULATOR37X2X12X0`)
+**Tickets relevés le :** 18.10.2026 (relevé refait avec le libellé « Chèques-repas » et le code du lot rc3 ; les bons de commande avec note, de modification et de transfert de la section 8 et les documents de la section 11 ter ont été imprimés par l'application le même jour), sur l'AVD `sunmi_d3_pro_gms_api33` (identifiant d'appareil imprimé `EMULATOR37X2X12X0`)
 
 Conformément au §IV §1209-1210 du Manuel de certification SCE 2.0, le dossier doit contenir un exemple de chaque type de ticket imprimé par le système.
 
-Ces rendus ont été produits par le pipeline d'impression réel du moteur embarqué (mêmes fonctions `format_receipt` et `format_report` que la caisse en service), imprimés sur l'imprimante simulée `pos-printer-mock` puis transcrits en texte (page HTTP du simulateur, octets d'état DLE EOT retirés), avec l'identifiant du terminal de test sur chaque ticket. Largeur de 48 caractères, papier 80 mm, Epson TM-m30III, code page CP858. Aucun ticket du dossier Linux n'est repris ici : chaque transcription vient d'une vente faite à l'écran de la caisse Android contre les simulateurs de l'hôte (FDM, imprimante, imprimante cuisine, service d'e-mail, terminal de paiement), jamais d'un fournisseur réel. Les fichiers bruts sont dans `evidence/tickets/`. Impression sur l'Epson réelle : `À effectuer (EV-15 : imprimante réelle, ou mention du profil émulé)`. Identifiant d'appareil imprimé : `EMULATOR37X2X12X0` (EV-16, ligne « Input device MAC » ; sur Android c'est le numéro de série matériel de la caisse, ici celui de l'AVD).
+Ces rendus ont été produits par le pipeline d'impression réel du moteur embarqué (mêmes fonctions `format_receipt` et `format_report` que la caisse en service), imprimés sur l'imprimante simulée `pos-printer-mock` puis transcrits en texte (page HTTP du simulateur, octets d'état DLE EOT retirés), avec l'identifiant du terminal de test sur chaque ticket. Largeur de 48 caractères, papier 80 mm, Epson TM-m30III, code page CP858. Chaque transcription vient d'une opération faite à l'écran de la caisse Android contre les simulateurs de l'hôte (FDM, imprimante, imprimante cuisine, service d'e-mail, terminal de paiement), jamais d'un fournisseur réel. Les fichiers bruts sont dans `evidence/tickets/`. Impression sur l'Epson réelle : `À effectuer (EV-15 : imprimante réelle, ou mention du profil émulé)`. Identifiant d'appareil imprimé : `EMULATOR37X2X12X0` (EV-16, ligne « Input device MAC » ; sur Android c'est le numéro de série matériel de la caisse, ici celui de l'AVD).
 
 ## Matrice de conformité du contenu (§VI du manuel)
 
@@ -634,20 +634,19 @@ Qte   Article
 
 ### Bon de commande avec note de cuisine
 
-Scénario : la ligne « Burger du chef » porte la note « allergie arachide
-- sans oignons ». La note s'imprime en retrait sous l'article, sans prix ;
-elle n'a aucun effet sur le message envoyé au FDM.
+Scénario (relevé à l'écran de la caisse sur la table 7, « Service en plusieurs temps » désactivé) : 2 « Dry Martini » et 1 « Burger of the CHEF » ; la ligne du burger porte la note « allergie arachide - sans oignons » (bouton « Note » de la ligne), puis « Envoyer en cuisine ». La note s'imprime en retrait sous l'article, sans prix ; elle n'a aucun effet sur le message envoyé au FDM. Le « Dry Martini » est ici réglé pour le bon de cuisine (réglage du produit « Imprimer sur le bon de cuisine » activé sur la machine de test) : sans ce réglage seul le burger est imprimé, comme au début de cette section.
 
 ```
                 BON DE COMMANDE
 ================================================
-Date:                        03/07/2026 12:31:05
-Operateur:                          Marie Dupont
-Table 4
+Date:                        18/10/2026 19:01:29
+Operateur:                           Gerant Test
+Table 7
 ------------------------------------------------
 Qte   Article
-2 x Dry Martini
-1 x Burger du chef
+1 x Dry Martini
+1 x Dry Martini
+1 x Burger of the CHEF
    > allergie arachide - sans oignons
 ------------------------------------------------
    CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
@@ -661,19 +660,16 @@ Qte   Article
 
 ### Bon de modification de note (note changée après l'envoi)
 
-Scénario : la note du « Burger du chef », déjà en cuisine, devient « bien
-cuit ». Le bon sort tout de suite, sans quantité ni prix, avec la mention
-d'invalidité en bas ; ce n'est ni une commande ni un ticket TVA, et il
-n'envoie rien au FDM. Une note effacée imprime « Note supprimee ».
+Scénario (même table 7, juste après l'envoi) : la note du « Burger of the CHEF », déjà en cuisine, devient « bien cuit » (bouton « Note », nouveau texte, « Valider »). Le bon sort tout de suite, sans quantité ni prix, avec la mention d'invalidité en bas ; ce n'est ni une commande ni un ticket TVA, et il n'envoie rien au FDM. Une note effacée imprime « Note supprimee ».
 
 ```
                   MODIFICATION
 ================================================
-Date:                        03/07/2026 12:38:12
-Operateur:                          Marie Dupont
-Table 4
+Date:                        18/10/2026 19:02:07
+Operateur:                           Gerant Test
+Table 7
 ------------------------------------------------
-Burger du chef
+Burger of the CHEF
 Note : bien cuit
 ------------------------------------------------
    CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
@@ -687,17 +683,14 @@ Note : bien cuit
 
 ### Bon de transfert de table (M122 - Événement P)
 
-Scénario : une commande ouverte passe de la table 4 à la table 9
-(`signCostCenterChange`). Le bon sort sur l'imprimante du bar, sans
-aucun article ni prix, avec la mention d'invalidité en bas ; une
-impression en échec n'annule jamais la signature.
+Scénario (même commande, déjà envoyée en cuisine) : bouton « Changer de table » de l'écran de commande, table 9 choisie puis « Valider » ; la commande passe de la table 7 à la table 9 (`signCostCenterChange`). Le bon sort sur l'imprimante de la cuisine, sans aucun article ni prix, avec la mention d'invalidité en bas ; une impression en échec n'annule jamais la signature.
 
 ```
                TRANSFERT DE TABLE
 ================================================
-Date:                        03/07/2026 12:35:40
-Operateur:                          Marie Dupont
-Table 4 -> Table 9
+Date:                        18/10/2026 19:02:22
+Operateur:                           Gerant Test
+Table 7 -> Table 9
 ------------------------------------------------
    CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
                     VALABLE
@@ -853,53 +846,49 @@ TVA: BE0000000097
 Ticket cuisine et ticket client d'une commande en ligne, rapports X et Z par utilisateur (M182, M183, M184) : le rapport par utilisateur de la clôture est joint (`evidence/tickets/rapport_utilisateurs_Z.txt`) ; les autres ne sont pas transcrits ici.
 ## 11 ter. Bons cadeaux, allergènes et service en plusieurs temps
 
-Documents des fonctions décrites dans *BONS_CADEAUX_FR.md*, *ALLERGENES_FR.md* et *SERVICES_CUISINE_FR.md*,
-produits par le pipeline d'impression réel du moteur (`crates/pos-print/tests/ticket_examples.rs`, les mêmes fonctions `format_receipt`, `format_gift_voucher`, `format_balance_slip`, `format_allergen_sheet` et `format_bar_ticket` que l'application). Ces rendus sont ceux du moteur exécuté sur l'hôte ; leur relevé sur l'imprimante simulée du terminal émulé : À effectuer (EV-08 : bon cadeau, solde du bon, fiche d'allergènes et bons de commande par temps). Le ticket de T.V.A. d'une
-vente payée avec un bon est un ticket N ordinaire dont une ligne de paiement porte le nom du moyen ; les autres
-documents sont non fiscaux, sans signature, et portent la mention d'un document qui n'est pas un ticket de caisse
-T.V.A. valable.
+Documents des fonctions décrites dans *BONS_CADEAUX_FR.md*, *ALLERGENES_FR.md* et *SERVICES_CUISINE_FR.md*, imprimés par l'application sur l'imprimante simulée `pos-printer-mock` (imprimante des tickets sur le port 19390, imprimante de la cuisine sur le port 19392), sur l'AVD `sunmi_d3_pro_gms_api33`, le 18.10.2026, avec l'identifiant de terminal `POS-2-ANDROID` et l'identifiant d'appareil `EMULATOR37X2X12X0`. Chaque transcription est la page HTTP du simulateur, octets d'état DLE EOT retirés (`evidence/tickets/`). Le ticket de T.V.A. d'une vente payée avec un bon est un ticket N ordinaire dont une ligne de paiement porte le nom du moyen ; les autres documents sont non fiscaux, sans signature, et portent la mention d'un document qui n'est pas un ticket de caisse T.V.A. valable.
+
+Déroulement du relevé (réglages faits à l'écran par le gérant : bons cadeaux activés, 12 mois, 500 € au plus ; « Service en plusieurs temps » activé avec « Aperitifs » en Direct, « Starters » en Entrées et « Main Dishes » en Plats ; allergènes déclarés dans l'éditeur de la carte) : (1) vente d'un bon cadeau de 50,00 € (bouton « Bon cadeau » de l'écran de commande), payée en espèces ; (2) vente de 20,00 € (« Carpaccio Beef ») payée avec ce bon, qui laisse un solde de 30,00 € ; (3) vente de 56,00 € (2 « Burger of the CHEF ») payée 30,00 € avec le solde du bon et 26,00 € en espèces.
 
 ### 11 ter.1 Vente payée avec un bon cadeau (UC261 - Événement N)
 
-Deux menus d'affaires (116,00 €), payés 50,00 € avec un bon et 66,00 € en espèces. Le code du bon n'est jamais
-imprimé sur un ticket de T.V.A.
+Troisième vente du déroulement : deux « Burger of the CHEF » (56,00 €), payés 30,00 € avec le solde du bon et 26,00 € en espèces. Le code du bon n'est jamais imprimé sur un ticket de T.V.A. (fichier `evidence/tickets/ticket_N_bon_cadeau.txt`).
 
 ```
             TICKET DE CAISSE T.V.A.
-Restaurant Exemple
-Unite d'etablissement 2123456791
-03.07.2026                                 12:34
-Utilisateur: Marie Dupont
-Terminal: POS1
-Ticketnr.: 000015
-POS Serial: CFOD0061234567
-Input device MAC: 00:1b:44:11:3a:b7
-Logiciel de caisse v.: pili-pos/1.0.0
+Restaurant Test
+Unite d'etablissement 2000000042
+18.10.2026                                 18:56
+Utilisateur: Gerant Test
+Terminal: POS-2-ANDROID
+Ticketnr.: 000003
+POS Serial: CPOS0031234567
+Input device MAC: EMULATOR37X2X12X0
+Logiciel de caisse v.: pili-pos-android/1.0.0
 ................................................
-2 Menu d'affaires                      116,00  B
-TOTAL :                                  €116,00
+2 Burger of the CHEF                    56,00  B
+TOTAL :                                   €56,00
 ................................................
 Mode de paiement :
-Bon cadeau                                 50,00
-Especes                                    66,00
+Bon cadeau                                 30,00
+Especes                                    26,00
 % TVA   CODE          HT       TVA      Brut
-12,00%  B         103,57     12,43    116,00
+12,00%  B          50,00      6,00     56,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
-fdmId: FDM02000425;
-fdmDateTime: 2026-07-03T12:34:57+02:00;
-Event: N; eventCounter: 15;
-totalCounter: 59; shortSignature:
-a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
+fdmId: MCK00000001;
+fdmDateTime: 2026-10-18T16:56:59Z;
+Event: N; eventCounter: 3;
+totalCounter: 4; shortSignature:
+5ba6cc72811717b8bb647dd56211e518c8336369;
 
-[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+ [QR: https://www.gs2.be/M0000300004AbCdEfGhI]  
 
 
-Denomination legale : Societe Exemple SRL
-Rue de l'Exemple 1, 4000 Liège
-TVA: BE0499999960
-      www.systemedecaisseenregistreuse.be
+Denomination legale : Restaurant Test
+1 Rue du Test, 4000 Liege
+TVA: BE0000000097
 
 
 
@@ -909,24 +898,25 @@ TVA: BE0499999960
 
 ### 11 ter.2 Bon cadeau (après la vente qui le vend)
 
+Imprimé à la fin de la première vente (fichier `evidence/tickets/bon_cadeau.txt`).
+
 ```
                    BON CADEAU
-          The FPS Finances Experience
-             Boulevard Albert II 33
-                 1030 Brussels
+                Restaurant Test
+           1 Rue du Test, 4000 Liege
 ================================================
                Valeur: 50,00 EUR
 
                       Code
-                 1234 5678 9095
-               [QR: 123456789095]               
+                 6165 3218 1033
+               [QR: 616532181033]               
 
-              Emis le: 03.07.2026
-          Valable jusqu'au 03.07.2027
+              Emis le: 18.10.2026
+          Valable jusqu'au 18.10.2027
 ------------------------------------------------
 Utilisable en une ou plusieurs fois, sans rendu
                    de monnaie
-                  Ticket: N 12
+                  Ticket: N 1
 ------------------------------------------------
    CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
                     VALABLE
@@ -939,15 +929,15 @@ Utilisable en une ou plusieurs fois, sans rendu
 
 ### 11 ter.3 Solde du bon (après un paiement qui laisse un solde)
 
-Le code est masqué : seuls les quatre derniers chiffres sont imprimés.
+Imprimé à la fin de la deuxième vente (20,00 € payés avec le bon de 50,00 €). Le code est masqué : seuls les quatre derniers chiffres sont imprimés (fichier `evidence/tickets/bon_cadeau_solde.txt`).
 
 ```
                   SOLDE DU BON
-          The FPS Finances Experience
+                Restaurant Test
 ------------------------------------------------
-              Code: **** **** 9095
+              Code: **** **** 1033
                 Solde: 30,00 EUR
-          Valable jusqu'au 03.07.2027
+          Valable jusqu'au 18.10.2027
 ------------------------------------------------
    CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
                     VALABLE
@@ -960,25 +950,73 @@ Le code est masqué : seuls les quatre derniers chiffres sont imprimés.
 
 ### 11 ter.4 Fiche d'allergènes
 
-Un produit à la liste déclarée, un produit déclaré sans allergène, un produit sans déclaration. Aucun prix.
+Imprimée depuis l'écran de commande : bouton « Allergènes », touche sur un produit, « Imprimer la carte complète » (fichier `evidence/tickets/fiche_allergenes.txt`). Aucun prix. Trois cas sont visibles : « Carpaccio Beef » a une liste déclarée (contient poissons, traces possibles de crustacés), « Burger of the CHEF » est déclaré sans allergène, les autres produits n'ont aucune déclaration (« Information non disponible »). La langue de la fiche est le français, langue de l'installation.
 
 ```
                    ALLERGÈNES
-          The FPS Finances Experience
-                   03/07/2026
+                Restaurant Test
+                   18/10/2026
 ================================================
-Maki saumon
-  Contient: Poissons, Sésame
-  Traces possibles: Mollusques
-  Options:
-  - Sauce soja
-      Contient: Soja, Céréales contenant du
-      gluten
+Dry Martini
+  Information non disponible, demandez au
+  responsable
 ------------------------------------------------
-Riz nature
+Perrier
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Coca Cola
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Bourgogne Red
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Chardonnay White
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Wine (glass)
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Matching Wines
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Carpaccio Beef
+  Contient: Poissons
+  Traces possibles: Crustacés
+------------------------------------------------
+Burger of the CHEF
   Aucun allergène
 ------------------------------------------------
-Dessert du jour
+Dish of the day
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Dame Blanche
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+crème brûlée
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Tapas variation
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Bottle S
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Beer bin/ keg beer
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Cigarettes (20 pcs)
   Information non disponible, demandez au
   responsable
 ------------------------------------------------
@@ -995,20 +1033,22 @@ Selon le règlement (UE) n° 1169/2011, annexe II.
 
 ### 11 ter.5 Premier bon de commande d'une table servie en plusieurs temps
 
-Le Direct et les entrées partent, les plats et les desserts sont retenus.
+Table 6 : 2 « Dry Martini » (Direct), 2 « Carpaccio Beef » (Entrées) et 1 « Burger of the CHEF » (Plats), puis « Envoyer en cuisine ». Le Direct et les entrées partent, les plats sont retenus (la commande affiche « Plats en attente » et le bouton « Envoyer la suite (Plats) »). Le « Dry Martini » est réglé pour le bon de cuisine sur la machine de test (voir la section 8). Fichier `evidence/tickets/ticket_bar_temps.txt`.
 
 ```
                 BON DE COMMANDE
 ================================================
-Date:                        03/07/2026 12:31:05
-Operateur:                          Marie Dupont
-Table 4
+Date:                        18/10/2026 18:59:33
+Operateur:                           Gerant Test
+Table 6
 ------------------------------------------------
 Qte   Article
 -- Direct --
-2 x Dry Martini
+1 x Dry Martini
+1 x Dry Martini
 -- Entrees --
-2 x Carpaccio
+1 x Carpaccio Beef
+1 x Carpaccio Beef
 ------------------------------------------------
    CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
                     VALABLE
@@ -1021,18 +1061,19 @@ Qte   Article
 
 ### 11 ter.6 Bon de commande « Envoyer la suite »
 
+Même table, bouton « Envoyer la suite (Plats) » : le temps suivant est imprimé, avec la ligne « SUITE : Plats ». Fichier `evidence/tickets/ticket_bar_suite.txt`.
+
 ```
                 BON DE COMMANDE
 ================================================
-Date:                        03/07/2026 12:58:40
-Operateur:                          Marie Dupont
-Table 4
+Date:                        18/10/2026 18:59:40
+Operateur:                           Gerant Test
+Table 6
 SUITE : Plats
 ------------------------------------------------
 Qte   Article
 -- Plats --
-1 x Burger du chef
-1 x Tapas Variation
+1 x Burger of the CHEF
 ------------------------------------------------
    CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
                     VALABLE
@@ -1044,4 +1085,4 @@ Qte   Article
 ```
 
 ## 12. Note sur la reproduction
-Les rendus sont imprimés par le pipeline d'impression réel de l'application et ne peuvent pas diverger de la sortie papier. Les exemples ci-dessus portent « Especes » et « Chèques-repas », tels qu'imprimés le 18.10.2026 sur le profil émulé. Au rendez-vous d'admission, le distributeur apporte la machine test connectée à l'imprimante réelle (`À effectuer (EV-15 : imprimante réelle, ou mention du profil émulé)`) ; les exemplaires physiques sont archivés avec le dossier final.
+Les rendus sont imprimés par le pipeline d'impression réel de l'application et ne peuvent pas diverger de la sortie papier. Les exemples ci-dessus portent « Especes » et « Chèques-repas », tels qu'imprimés le 18.10.2026 sur le profil émulé ; les sections 8 (notes et transfert) et 11 ter ont été imprimées par l'application ce jour-là sur `pos-printer-mock`, aucune de leurs transcriptions ne vient d'un test exécuté sur la machine de développement. Au rendez-vous d'admission, le distributeur apporte la machine test connectée à l'imprimante réelle (`À effectuer (EV-15 : imprimante réelle, ou mention du profil émulé)`) ; les exemplaires physiques sont archivés avec le dossier final.
