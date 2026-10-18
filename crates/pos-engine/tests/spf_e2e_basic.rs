@@ -485,6 +485,8 @@ async fn m171_sale_in_training_uses_t_counter_and_keeps_n_at_zero() {
 
 /// A saved Belgian customer, for the invoice tests.
 fn save_customer(app: &TestApp) -> i64 {
+    // A Belgian customer is invoiced through Peppol (V11-D55).
+    app.enable_peppol_section();
     do_save_b2b_customer(
         &app.state,
         B2bCustomerInput {

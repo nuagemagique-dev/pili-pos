@@ -1,4 +1,4 @@
-//! B2B invoices (event I, M150) and the customers they are made out to (v1.1).
+//! B2B invoices (event I, M150) and the customers they are made out to.
 //!
 //! An invoice is made from sales already paid at the till: the cashier picks signed N events
 //! and a customer, the engine reads the products, VAT and totals from the archive (V11-D3,
@@ -1048,6 +1048,12 @@ pub async fn do_sign_invoice_fiscal(
             .ok_or_else(|| errors::CUSTOMER_NOT_FOUND.to_string())?;
         let vat = parse_vat_number(&customer.vat_number)
             .map_err(|_| errors::CUSTOMER_VAT_INVALID.to_string())?;
+        // Since 2026-01-01 a B2B invoice to a Belgian VAT-registered customer goes through
+        // Peppol: without a `peppol` section the invoice is not compliant, so it is refused
+        // before anything is signed (V11-D55).
+        if vat.is_belgian() && config.peppol.is_none() {
+            return Err(errors::INVOICE_PEPPOL_REQUIRED.to_string());
+        }
 
         // The sales, each checked again under the lock.
         let (checked, problems) = check_sales(&db, &ids)?;

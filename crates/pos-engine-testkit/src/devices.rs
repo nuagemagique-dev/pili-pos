@@ -256,7 +256,7 @@ impl TestApp {
     }
 }
 
-/// Invoices and the Peppol queue (v1.1).
+/// Invoices and the Peppol queue.
 impl TestApp {
     /// Like [`TestApp::use_admission_mock`], with a `peppol` section on the `storecove` provider
     /// pointing at the mock's Storecove routes. The returned handle scripts and reads the mock;
@@ -290,6 +290,23 @@ impl TestApp {
         });
         drop(config);
         (storecove, dir)
+    }
+
+    /// A `peppol` section with no reachable access point, for a test that only needs invoicing
+    /// to a Belgian customer to be allowed (V11-D55): the invoice is signed and its delivery is
+    /// queued, but no delivery is ever attempted.
+    pub fn enable_peppol_section(&self) {
+        self.state.config.lock().unwrap().peppol = Some(pos_core::config::PeppolConfig {
+            provider: "storecove".to_string(),
+            base_url: Some("http://127.0.0.1:9/storecove".to_string()),
+            api_key_file: Some("/nonexistent/storecove.key".to_string()),
+            legal_entity_id: Some(4242),
+            sender_id: "0208:0000000097".to_string(),
+            supplier_street: "Boulevard Albert II 33".to_string(),
+            supplier_postal_code: "1030".to_string(),
+            supplier_city: "Brussels".to_string(),
+            supplier_country: "BE".to_string(),
+        });
     }
 
     /// Save a B2B customer (a Belgian one when `vat` is), returning its id.

@@ -21,6 +21,7 @@ const OPERATOR: &str = "84022899837";
 async fn app(invoice_uc: &str) -> (TestApp, Value, i64) {
     let app = TestApp::new().await;
     app.use_admission_mock().await;
+    app.enable_peppol_section();
     app.login_as(OPERATOR, pos_core::user::UserRole::Admin);
     let fixture = load_uc(&advanced_set_root(), invoice_uc);
     let vars = read_variables(&fixture)["data"].clone();

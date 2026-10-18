@@ -545,6 +545,8 @@ async fn m150_invoice() {
     let sale = variables("M110");
     let invoice = variables("M150");
     let app = spf_app(&operator(&invoice)).await;
+    // A Belgian customer is invoiced through Peppol (V11-D55).
+    app.enable_peppol_section();
     let customer_id = fixture_customer(&app, &invoice);
     // Two sales, as the fixture's invoice references two events.
     let mut sale_ids = Vec::new();

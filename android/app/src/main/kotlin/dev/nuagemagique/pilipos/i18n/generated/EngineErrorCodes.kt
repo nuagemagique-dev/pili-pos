@@ -28,6 +28,7 @@ object EngineErrorCodes {
             "invoice_not_a_sale",
             "invoice_sale_already_invoiced",
             "invoice_training_mode",
+            "invoice_peppol_required",
             "customer_vat_invalid",
             "customer_incomplete",
             "customer_not_found",

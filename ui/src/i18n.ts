@@ -225,6 +225,7 @@ const coreMessages: Messages = {
   "err_invoice_not_a_sale": { fr: "L'événement {event} n'est pas une vente normale : seules les ventes sont facturables.", en: "Event {event} is not a normal sale: only sales can be invoiced.", zh: "事件 {event} 不是普通销售：只有销售可以开发票。" },
   "err_invoice_sale_already_invoiced": { fr: "La vente {event} figure déjà sur la facture {invoice}.", en: "Sale {event} is already on invoice {invoice}.", zh: "销售 {event} 已在发票 {invoice} 上。" },
   "err_invoice_training_mode": { fr: "Pas de facture en mode formation.", en: "No invoices in training mode.", zh: "培训模式下不能开发票。" },
+  "err_invoice_peppol_required": { fr: "Ce client a un numéro de TVA belge : la facture doit passer par Peppol, qui n'est pas configuré sur cette installation. Contactez le support.", en: "This customer has a Belgian VAT number: the invoice must go through Peppol, which is not set up on this installation. Contact support.", zh: "该客户有比利时增值税号：发票必须通过 Peppol 发送，但此安装未配置 Peppol。请联系支持。" },
   "err_customer_vat_invalid": { fr: "Numéro de TVA invalide. Vérifiez les chiffres.", en: "Invalid VAT number. Check the digits.", zh: "增值税号无效。请检查数字。" },
   "err_customer_incomplete": { fr: "Information client manquante : {field}.", en: "Customer information missing: {field}.", zh: "缺少客户信息：{field}。" },
   "err_customer_not_found": { fr: "Client introuvable.", en: "Customer not found.", zh: "找不到客户。" },

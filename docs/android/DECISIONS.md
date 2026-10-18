@@ -1228,10 +1228,10 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
 - **V11-D2 Migrations 40 and up.** The next free number at this base is 28, but the v1.0.x
   lanes (`lane-v1-fixes`, `lane-v1-features`) run in parallel and may claim 28+. The v1.1 lane
   takes its own block: 40 `invoicing`, 41 `sold-out`, 42 `menu-editor` (gaps are allowed by the
-  runner). They live in a new `crates/pos-db/src/schema_v11.rs`, registered in a new
+  runner). They live in a new `crates/pos-db/src/schema_invoicing.rs`, registered in a new
   `V11_MIGRATIONS` slice of `migrate.rs`, in every build (no feature gate), with a test
   `the_v11_migrations_are_40_to_42_and_in_every_build`. If the orchestrator wants consecutive
-  numbers at merge time, only `schema_v11.rs`, the registry and that test change.
+  numbers at merge time, only `schema_invoicing.rs`, the registry and that test change.
 - **V11-D3 Invoice lines come from the archive, never from the UI.** The engine builds the
   invoice (lines, VAT breakdown, totals) from the archived signed requests and FDM responses of
   the referenced N events. The UI only sends sale event ids and a customer id. Supplier data
@@ -1511,4 +1511,20 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   shown to managers only on both UIs (`AppHeader.vue` `auth.isManager`, `AppHeader.kt` `isManager`). Conservative
   reading: no new cashier entry is added in this release, a cashier asks a manager to open Rapports. Pinned by
   `ui/e2e/invoice.spec.ts` (V11-D8 describe: no Rapports entry for a cashier, engine call accepted under the
-  cashier INSZ), `AppHeaderTest` and `PosScaffoldRouteTest` (no `header_nav_reports` for a cashier).
+  cashier INSZ), `AppHeaderTest.reportsAndSettingsShowForManagersOnly` (no `header_nav_reports` for a cashier).
+
+- **V11-D55 Invoice refused for a Belgian VAT customer without Peppol (orchestrator decision).** The certification
+  manual asks that invoice issuance be disabled when it would not be compliant. Since 2026-01-01 a B2B invoice to a
+  Belgian VAT-registered customer must go through Peppol, so `sign_invoice_fiscal` refuses with the new code
+  `invoice_peppol_required` when the customer's VAT number has the `BE` prefix and the installation has no `peppol`
+  section (a section that is present is validated at startup, `config_peppol`, so presence means usable). The check
+  runs under the signing lock before any ticket number or invoice number is taken: no I event, no gap, the sale stays
+  invoiceable. A customer with a non-Belgian VAT number still gets the printed invoice. In this engine a customer is
+  always saved with a VAT number (the form requires one), so there is no "customer without a VAT number" case to
+  allow. The preview does not know the customer, so the refusal is shown at the signature step (result screen) on
+  both UIs: text `err_invoice_peppol_required` in fr, en and zh (Vue `i18n.ts`, generated Android value files).
+  `do_issue_b2b_invoice` is unchanged (it redoes the delivery of an existing invoice). Dossiers updated (both):
+  `REPONSES_MANUEL_CERT_FR`, `FACTURATION_PEPPOL_FR`, `DECISION_PEPPOL_AP_FR`, `MANUEL_UTILISATEUR_FR`,
+  `MANUEL_INSTALLATION_FR`; PDFs rebuilt. Tests: `invoice_rules.rs` (BE refused, BE allowed with peppol, non-BE
+  allowed), `access_control.rs`, `error_codes.rs`; `ui/e2e/invoice.spec.ts`; `InvoiceViewModelTest`. Test helper
+  `TestApp::enable_peppol_section()` gives existing Belgian-customer tests a peppol section.

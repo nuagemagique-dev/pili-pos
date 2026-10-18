@@ -186,6 +186,7 @@ internal object VueStringIds {
         this["err_invoice_not_a_sale"] = R.string.err_invoice_not_a_sale
         this["err_invoice_sale_already_invoiced"] = R.string.err_invoice_sale_already_invoiced
         this["err_invoice_training_mode"] = R.string.err_invoice_training_mode
+        this["err_invoice_peppol_required"] = R.string.err_invoice_peppol_required
         this["err_customer_vat_invalid"] = R.string.err_customer_vat_invalid
         this["err_customer_incomplete"] = R.string.err_customer_incomplete
         this["err_customer_not_found"] = R.string.err_customer_not_found
@@ -265,10 +266,10 @@ internal object VueStringIds {
         this["refund_confirm"] = R.string.refund_confirm
         this["refund_success"] = R.string.refund_success
         this["refund_none"] = R.string.refund_none
-        this["cash_section"] = R.string.cash_section
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["cash_section"] = R.string.cash_section
         this["cash_in"] = R.string.cash_in
         this["cash_out"] = R.string.cash_out
         this["cash_open_drawer"] = R.string.cash_open_drawer
@@ -518,10 +519,10 @@ internal object VueStringIds {
         this["settings_product_label"] = R.string.settings_product_label
         this["settings_product_label_name"] = R.string.settings_product_label_name
         this["settings_product_label_code"] = R.string.settings_product_label_code
-        this["settings_product_label_note"] = R.string.settings_product_label_note
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["settings_product_label_note"] = R.string.settings_product_label_note
         this["settings_tables"] = R.string.settings_tables
         this["settings_tables_current"] = R.string.settings_tables_current
         this["settings_tables_placeholder"] = R.string.settings_tables_placeholder
@@ -771,10 +772,10 @@ internal object VueStringIds {
         this["err_modifier_unknown"] = R.string.err_modifier_unknown
         this["err_modifier_count"] = R.string.err_modifier_count
         this["err_hubrise_disabled"] = R.string.err_hubrise_disabled
-        this["err_hubrise_not_configured"] = R.string.err_hubrise_not_configured
     }
 
     private fun MutableMap<String, Int>.part3() {
+        this["err_hubrise_not_configured"] = R.string.err_hubrise_not_configured
         this["err_hubrise_secret_unreadable"] = R.string.err_hubrise_secret_unreadable
         this["err_hubrise_oauth_failed"] = R.string.err_hubrise_oauth_failed
         this["err_hubrise_online_orders_open"] = R.string.err_hubrise_online_orders_open

@@ -114,6 +114,7 @@ fn the_invoice_and_peppol_codes_are_listed_and_translated() {
         errors::INVOICE_NOT_A_SALE,
         errors::INVOICE_SALE_ALREADY_INVOICED,
         errors::INVOICE_TRAINING_MODE,
+        errors::INVOICE_PEPPOL_REQUIRED,
         errors::CUSTOMER_VAT_INVALID,
         errors::CUSTOMER_INCOMPLETE,
         errors::CUSTOMER_NOT_FOUND,

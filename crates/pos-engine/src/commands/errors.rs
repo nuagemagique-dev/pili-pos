@@ -211,6 +211,9 @@ pub const INVOICE_NOT_A_SALE: &str = "invoice_not_a_sale";
 pub const INVOICE_SALE_ALREADY_INVOICED: &str = "invoice_sale_already_invoiced";
 /// No invoice in training mode (V11-D7).
 pub const INVOICE_TRAINING_MODE: &str = "invoice_training_mode";
+/// A Belgian VAT-registered customer must be invoiced through Peppol, and the installation
+/// has no `peppol` section (V11-D55).
+pub const INVOICE_PEPPOL_REQUIRED: &str = "invoice_peppol_required";
 /// The VAT number does not pass the offline check (V11-D10).
 pub const CUSTOMER_VAT_INVALID: &str = "customer_vat_invalid";
 /// `field`: a customer field that is empty.
@@ -256,6 +259,7 @@ pub const ALL: &[&str] = &[
     INVOICE_NOT_A_SALE,
     INVOICE_SALE_ALREADY_INVOICED,
     INVOICE_TRAINING_MODE,
+    INVOICE_PEPPOL_REQUIRED,
     CUSTOMER_VAT_INVALID,
     CUSTOMER_INCOMPLETE,
     CUSTOMER_NOT_FOUND,

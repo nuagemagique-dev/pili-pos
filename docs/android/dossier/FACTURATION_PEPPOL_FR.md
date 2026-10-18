@@ -44,6 +44,7 @@ diffèrent (clavier à l'écran sur Linux, clavier du système sur Android).
 | Une vente, une facture | Une vente ne figure que sur une seule facture. Une seconde tentative est refusée et le numéro de la facture existante est indiqué. |
 | Ventes admises | Seuls les tickets de vente normaux (événement N) sont facturables. Un remboursement (N négatif) peut figurer sur une facture (cas UC4122). Sont refusés : événements de formation, copies, commandes de table, ventes clôturées impayées. |
 | Mode formation | Aucune facture n'est établie en mode formation. |
+| Client belge sans Peppol | Sans section `peppol`, aucune facture n'est signée pour un numéro de TVA belge (`invoice_peppol_required`). |
 | Lignes et montants | Les lignes, la TVA et les totaux viennent des archives signées des ventes et des réponses du module de contrôle. L'écran n'envoie que des identifiants de ventes et de client. |
 | Centre de coût | La demande signée porte un centre de coût de type CUSTOMER, dont la référence est le nom du client (600 caractères au plus). |
 | Numéro de TVA | Contrôlé hors ligne : chiffres de contrôle pour un numéro belge, préfixe pays et 2 à 13 caractères pour un numéro étranger. |
@@ -93,6 +94,12 @@ des ventes qu'elle référence.
 
 - **Quand.** Seulement si l'installation contient une section `peppol` et si le client est
   belge. Une facture à un client étranger est imprimée seulement, sans ligne d'envoi.
+- **Sans section `peppol`.** Le moteur refuse de signer une facture pour un client dont le numéro
+  de TVA commence par `BE` (code `invoice_peppol_required`) : depuis le 01.01.2026 une facture B2B
+  à un assujetti belge doit passer par Peppol, et le manuel de certification demande de désactiver
+  l'émission non conforme. Le refus a lieu avant la signature (aucun événement I, aucun numéro
+  consommé, la vente reste facturable) et l'écran affiche le message traduit. Un client dont le
+  numéro de TVA n'est pas belge reçoit la facture imprimée seulement.
 - **Identifiants.** Le destinataire est `0208:` suivi du numéro d'entreprise à dix chiffres.
 - **File d'envoi.** Chaque envoi est « en file », « remis » ou « bloqué » (valeurs `queued`, `accepted` et `failed` de la table `peppol_deliveries`). Une panne passagère
   (délai dépassé, code 429 ou 5xx, réseau absent) est retentée sans fin, avec une attente de 30
@@ -140,9 +147,10 @@ La commande de contrôle de configuration signale chaque réglage invalide sous 
 | UC4122 | Facture d'un remboursement et de deux ventes | La vente d'origine est d'abord facturée (précondition du scénario : le ticket remboursé « avait déjà été facturé »), puis remboursée (le remboursement est un événement N négatif), puis deux ventes sont faites, payées en espèces ; la seconde facture reprend le remboursement et les deux ventes. Mêmes réserves que UC4121 sur le numéro, le centre de coût et les compteurs. Références comparées à la réponse du module de contrôle : réussi |
 
 Les règles sont couvertes par des tests : une vente une facture, mode formation refusé,
+client belge refusé sans section `peppol` (et accepté avec, ou avec un numéro étranger),
 numérotation continue malgré un échec du module, réponse perdue récupérée, rapport Z, copie de
 facture, file d'envoi (accepté, 503 puis accepté, refus 422, clé refusée, non inscrit, relance,
-réseau absent, aucun envoi sans section `peppol`, client étranger, journal immuable). Les
+réseau absent, aucun envoi pour un client étranger sans section `peppol`, client étranger, journal immuable). Les
 écrans sont couverts par des tests de parcours (Vue, Playwright) et des tests unitaires et de captures de référence (Android).
 
 Les pièces (requête construite par pili-pos, réponse du module de contrôle) sont dans *RESULTATS_TESTS_UC_FR.md* (sections M150, UC4121 et UC4122) et dans `evidence/uc/`.
@@ -153,6 +161,7 @@ Les pièces (requête construite par pili-pos, réponse du module de contrôle) 
   « crédit client » sont rejouées en espèces dans les tests, ce qui ne change rien à la demande
   de facture.
 - Pas d'envoi Peppol vers un client étranger.
+- Pas de facture à un client belge sans section `peppol` (refus `invoice_peppol_required`).
 - Pas de facture en mode formation.
 - Le contrôle du document par le schématron Peppol se fait au point d'accès réel ; le
   simulateur ne le reproduit pas. Un essai sur le bac à sable du fournisseur reste à faire par le

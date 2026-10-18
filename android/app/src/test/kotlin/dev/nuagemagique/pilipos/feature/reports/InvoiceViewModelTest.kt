@@ -486,6 +486,42 @@ class InvoiceViewModelTest {
         }
 
     @Test
+    fun aBelgianCustomerWithoutPeppolShowsThePeppolRefusalInTheResult() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.signInvoiceFiscal(any(), any(), any()) } returns
+                invoiceResult(success = false, error = "invoice_peppol_required")
+            val r = atPreview(f)
+
+            r.invoiceModel.confirm()
+            runCurrent()
+
+            val flow = r.invoices.flow
+            assertEquals(InvoiceStep.RESULT, flow?.step)
+            val text = r.errorText("invoice_peppol_required")
+            assertEquals(text, flow?.resultError)
+            assertTrue(text, text.contains("Peppol"))
+            assertFalse(text, text.contains("invoice_peppol_required"))
+        }
+
+    @Test
+    fun theEngineRefusalToSignWithoutPeppolIsShownAsTheCodedText() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.signInvoiceFiscal(any(), any(), any()) } throws
+                PosException.Coded("invoice_peppol_required", emptyMap())
+            val r = atPreview(f)
+
+            r.invoiceModel.confirm()
+            runCurrent()
+
+            val flow = r.invoices.flow
+            assertEquals(InvoiceStep.RESULT, flow?.step)
+            assertNull(flow?.result)
+            assertEquals(r.errorText("invoice_peppol_required"), flow?.resultError)
+        }
+
+    @Test
     fun aFailedSignatureCallShowsTheFailureInTheResult() =
         runTest {
             val f = fixture()

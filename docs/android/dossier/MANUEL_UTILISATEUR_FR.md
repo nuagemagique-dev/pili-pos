@@ -656,7 +656,8 @@ ventes déjà signées :
    payé"), puis toucher "Établir et imprimer la facture". Le FDM signe
    la facture ; le numéro (année et séquence continue) et l'état de
    l'impression s'affichent. Un problème détecté (vente déjà facturée,
-   formation) bloque la signature et le message l'explique.
+   formation) bloque la signature et le message l'explique ; un client
+   belge sans Peppol sur la caisse est refusé à la signature.
 
 La facture s'imprime sur papier, sans signature ni QR code. Elle ne
 s'établit pas en mode formation. Sous la liste des tickets, le tableau
@@ -665,7 +666,12 @@ attente", "remise", "bloquée" ou aucun envoi) et propose "Copie" au
 Gérant. Si la caisse est configurée pour Peppol et que le client est
 belge, la facture est envoyée automatiquement, avec nouvel essai
 automatique en cas de panne ; sans réseau, la facture est quand même
-établie et imprimée. Un envoi bloqué se relance depuis le panneau
+établie et imprimée. Si la caisse n'est pas configurée pour Peppol, une
+facture à un client dont le numéro de TVA commence par BE est refusée
+("Ce client a un numéro de TVA belge : la facture doit passer par
+Peppol, qui n'est pas configuré sur cette installation. Contactez le
+support.") : rien n'est signé et la vente reste facturable. Un client
+étranger reçoit la facture imprimée. Un envoi bloqué se relance depuis le panneau
 Peppol de "Config" (§12 bis). Détails : `FACTURATION_PEPPOL_FR.md`.
 
 ## 9. Remboursement

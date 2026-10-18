@@ -101,6 +101,7 @@
     <string name="err_invoice_not_a_sale">L\'événement {event} n\'est pas une vente normale : seules les ventes sont facturables.</string>
     <string name="err_invoice_sale_already_invoiced">La vente {event} figure déjà sur la facture {invoice}.</string>
     <string name="err_invoice_training_mode">Pas de facture en mode formation.</string>
+    <string name="err_invoice_peppol_required">Ce client a un numéro de TVA belge : la facture doit passer par Peppol, qui n\'est pas configuré sur cette installation. Contactez le support.</string>
     <string name="err_customer_vat_invalid">Numéro de TVA invalide. Vérifiez les chiffres.</string>
     <string name="err_customer_incomplete">Information client manquante : {field}.</string>
     <string name="err_customer_not_found">Client introuvable.</string>

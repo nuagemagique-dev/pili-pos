@@ -1,4 +1,4 @@
-//! The rules of B2B invoices (event I, M150, v1.1): one invoice per sale, no invoice in
+//! The rules of B2B invoices (event I, M150): one invoice per sale, no invoice in
 //! training mode, only normal sales, a continuous numbering, a crash between the FDM's answer
 //! and the commit, the Z report's `invoices[]` and the copy of an invoice. The FDM is the
 //! admission mock (`pos-fdm-mock`), which signs like the real one.
@@ -24,6 +24,7 @@ const VAT: &str = "BE0308357159";
 async fn app() -> (TestApp, i64) {
     let app = TestApp::new().await;
     app.use_admission_mock().await;
+    app.enable_peppol_section();
     app.login_as(OPERATOR, pos_core::user::UserRole::Admin);
     let customer = app.save_customer(VAT, "Client Test SRL");
     (app, customer)
@@ -219,6 +220,7 @@ async fn a_lost_answer_is_recovered_with_its_number_and_rows() {
     let fdm = LossyFdm::start().await;
     app.use_lossy_fdm(&fdm);
     app.login_as(OPERATOR, pos_core::user::UserRole::Admin);
+    app.enable_peppol_section();
     let customer = app.save_customer(VAT, "Client Test SRL");
     let sale = app.sell_cash(1000).await;
 
@@ -570,4 +572,57 @@ async fn a_customer_is_updated_by_id() {
     assert_eq!(moved.vat_number, "BE0203201340");
     assert_eq!(moved.peppol_status, "unknown");
     assert_eq!(moved.peppol_checked_at, None);
+}
+
+// ── Belgian customers need Peppol (V11-D55) ────────────────────────
+
+#[tokio::test]
+async fn a_belgian_customer_is_refused_without_a_peppol_section() {
+    let app = TestApp::new().await;
+    app.use_admission_mock().await;
+    app.login_as(OPERATOR, pos_core::user::UserRole::Admin);
+    let customer = app.save_customer(VAT, "Client Test SRL");
+    let sale = app.sell_cash(1000).await;
+
+    let err = do_sign_invoice_fiscal(&app.state, vec![sale], customer, OPERATOR.into())
+        .await
+        .unwrap_err();
+    assert_eq!(err, errors::INVOICE_PEPPOL_REQUIRED);
+    // Refused before anything is signed: no I event, no number used, the sale stays free.
+    assert_eq!(app.counter_for(EventLabel::I), 0);
+    assert_eq!(rows(&app, "SELECT COUNT(*) FROM invoices"), 0);
+    let listed = do_list_invoiceable_sales(&app.state, None, None).unwrap();
+    assert_eq!(
+        listed
+            .iter()
+            .find(|s| s.fiscal_event_id == sale)
+            .unwrap()
+            .invoiced_by,
+        None
+    );
+
+    // With a peppol section the same invoice goes through.
+    app.enable_peppol_section();
+    let ok = do_sign_invoice_fiscal(&app.state, vec![sale], customer, OPERATOR.into())
+        .await
+        .unwrap();
+    assert!(ok.success, "{:?}", ok.error);
+    assert_eq!(app.counter_for(EventLabel::I), 1);
+    assert_eq!(ok.delivery_status.as_deref(), Some("queued"));
+}
+
+#[tokio::test]
+async fn a_customer_without_a_belgian_vat_number_is_invoiced_without_peppol() {
+    let app = TestApp::new().await;
+    app.use_admission_mock().await;
+    app.login_as(OPERATOR, pos_core::user::UserRole::Admin);
+    let foreign = app.save_customer("FR12345678901", "Client Francais SARL");
+    let sale = app.sell_cash(1000).await;
+
+    let result = do_sign_invoice_fiscal(&app.state, vec![sale], foreign, OPERATOR.into())
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    assert_eq!(result.delivery_status, None);
+    assert_eq!(app.counter_for(EventLabel::I), 1);
 }

@@ -105,6 +105,7 @@ fn fdm_vat(app: &TestApp, event_id: i64) -> Vec<(String, i64, i64, i64)> {
 async fn an_invoice_is_built_from_the_archive_of_its_sales() {
     let app = TestApp::new().await;
     app.use_admission_mock().await;
+    app.enable_peppol_section();
     app.login_as(OPERATOR, UserRole::Admin);
     app.state
         .db

@@ -37,13 +37,12 @@ vers un point d'accès du réseau Peppol).
   installation qui a une section `peppol`, un document UBL 2.1 au
   profil BIS Billing 3.0 est mis en file puis envoyé au point d'accès.
 - Un client étranger reçoit la facture imprimée seulement.
-- Une installation **sans** section `peppol` imprime la facture mais
-  n'envoie rien : pour une installation qui facture des clients
-  professionnels belges, la section `peppol` fait partie de la
-  configuration d'installation (*MANUEL_INSTALLATION_FR.md*). Le manuel de
-  certification demande de désactiver l'émission de factures en cas de
-  non-conformité ; le logiciel ne l'impose pas lui-même, la conformité
-  d'envoi est une condition de mise en service de l'installation.
+- Une installation **sans** section `peppol` ne signe aucune facture pour un
+  client qui a un numéro de TVA belge (code `invoice_peppol_required`) :
+  depuis le 01.01.2026 une telle facture doit passer par Peppol, et le manuel
+  de certification demande de désactiver l'émission quand elle ne serait pas
+  conforme. Rien n'est signé et aucun numéro n'est consommé. Un client sans
+  numéro de TVA belge reçoit la facture imprimée comme avant.
 
 ## Candidats Access Point et choix
 

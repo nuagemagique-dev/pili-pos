@@ -240,7 +240,7 @@ Champs :
 | `kitchen_printer_address` | Facultatif. IP:port de l'imprimante du bar ou de la cuisine, qui reçoit le « BON DE COMMANDE » (sans prix, avec la mention « ceci n'est pas un ticket de caisse TVA valable ») des lignes que l'écran de commande envoie en cuisine (§4.6, `MANUEL_UTILISATEUR_FR.md` §6.1). Absent : le bon sort sur `printer_address`. Le voyant "Cuisine" de l'en-tête reste gris tant qu'il est absent. | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. C'est la valeur de départ : un Gérant peut changer le mode dans "Config" (§4.7). | Distributeur |
 | `hubrise_enabled` | Facultatif, `false` par défaut. `true` : les commandes en ligne (plateformes de livraison, webshop, par HubRise) sont activées dès le démarrage. Un Gérant peut ensuite les activer ou les couper dans "Config", panneau "Intégrations" ; chaque changement est journalisé et le dernier l'emporte. Voir `COMMANDES_EN_LIGNE_FR.md`. | Client |
-| `peppol` | Facultatif. Envoi des factures B2B sur le réseau Peppol (`FACTURATION_PEPPOL_FR.md`, `DECISION_PEPPOL_AP_FR.md`) : `provider` (`storecove` obligatoire en production), `base_url`, `api_key_file` (fichier contenant la seule clé de l'API), `legal_entity_id`, `sender_id` (`0208:` et le numéro d'entreprise à 10 chiffres), `supplier_street`, `supplier_postal_code`, `supplier_city`, `supplier_country` (`BE` par défaut). Sans cette section, une facture est établie et imprimée mais n'est pas envoyée. | Client |
+| `peppol` | Facultatif. Envoi des factures B2B sur le réseau Peppol (`FACTURATION_PEPPOL_FR.md`, `DECISION_PEPPOL_AP_FR.md`) : `provider` (`storecove` obligatoire en production), `base_url`, `api_key_file` (fichier contenant la seule clé de l'API), `legal_entity_id`, `sender_id` (`0208:` et le numéro d'entreprise à 10 chiffres), `supplier_street`, `supplier_postal_code`, `supplier_city`, `supplier_country` (`BE` par défaut). Sans cette section, une facture à un client étranger est établie et imprimée, et une facture à un client dont le numéro de TVA commence par `BE` est refusée (`invoice_peppol_required`). | Client |
 | `table_count` | Nombre de tables du plan de salle, numérotées à partir de 1 ; défaut `20`. Ignoré quand `tables` est présent. | Client |
 | `tables` | Facultatif. Numéros de table du plan de salle, en nombres et plages séparés par des virgules (ex. `"1-12, 20-25"`) : de 1 à 999, 200 tables au plus. Absent : les tables 1 à `table_count`. C'est la valeur de départ : un Gérant peut changer le plan dans "Config", panneau "Plan de salle" ; chaque changement est journalisé et le dernier l'emporte (une nouvelle valeur de `pos.json`, lue au démarrage, compte comme un changement). Une valeur invalide est signalée par `--check-config`. | Client |
 | `day_end_hour` | Heure (0 à 12, heure belge) à laquelle la journée commerciale se termine ; défaut `5`. Un service qui dépasse minuit reste sur sa journée jusqu'à cette heure. Une journée restée ouverte au-delà est clôturée par un rapport Z automatique (FAQ producteurs Q501). | Client |
@@ -366,8 +366,8 @@ sortant ajouté est HTTPS (443) vers `manager.hubrise.com` et
 `api.hubrise.com`.
 
 **Facturation B2B et Peppol.** La caisse établit des factures à des
-clients professionnels sans aucun réglage (`FACTURATION_PEPPOL_FR.md`).
-Pour les envoyer aussi sur le réseau Peppol (client belge), ajouter à
+clients professionnels étrangers sans aucun réglage (`FACTURATION_PEPPOL_FR.md`).
+Pour facturer un client belge, qui doit être facturé sur le réseau Peppol, ajouter à
 `pos.json` la section du point d'accès, après avoir ouvert un compte chez
 le fournisseur (`DECISION_PEPPOL_AP_FR.md`) :
 

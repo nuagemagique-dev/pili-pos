@@ -108,7 +108,7 @@ test.describe('Invoices: selection on the tickets tab', () => {
     await mockTauriIPC(page, base());
     await loginAndGoto(page, '/reports');
     await expect(page.getByRole('tab')).toHaveText(['Journée', 'Caisse', 'Tickets', 'Ventes']);
-    // The invoice adds no tab of its own: the three of v1.0 plus the sales report of v1.1.
+    // The invoice adds no tab of its own: the three it already had plus the sales report.
   });
 });
 
@@ -274,6 +274,24 @@ test.describe('Invoices: the dialog', () => {
     await page.getByTestId('invoice-confirm').click();
     await expect(page.getByTestId('invoice-result')).toContainText("La facture n'a pas été établie.");
     await expect(page.getByTestId('invoice-error')).toContainText('Pas de facture en mode formation.');
+  });
+
+  test('a Belgian customer without Peppol on the installation shows the Peppol refusal', async ({ page }) => {
+    await mockTauriIPC(page, base({
+      sign_invoice_fiscal: () => ({
+        success: false, fiscalEventId: null, invoiceNo: null, printed: false, deliveryStatus: null,
+        error: 'invoice_peppol_required',
+      }),
+    }));
+    await openDialog(page);
+    await page.getByTestId('invoice-vat-field').click();
+    await typeKeys(page, 'BE0308357159');
+    await fillAddress(page);
+    await page.getByTestId('invoice-continue').click();
+    await page.getByTestId('invoice-confirm').click();
+    await expect(page.getByTestId('invoice-result')).toContainText("La facture n'a pas été établie.");
+    await expect(page.getByTestId('invoice-error')).toContainText('doit passer par Peppol');
+    await expect(page.getByTestId('invoice-error')).not.toContainText('invoice_peppol_required');
   });
 
   test('an invoice printed on paper says so when it was not printed', async ({ page }) => {

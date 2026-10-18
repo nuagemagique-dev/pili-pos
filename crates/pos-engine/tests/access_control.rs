@@ -974,7 +974,7 @@ async fn wrong_pins_lock_the_user_out_even_for_the_right_pin() {
     );
 }
 
-// ── Invoices and Peppol (v1.1) ─────────────────────────────────
+// ── Invoices and Peppol ───────────────────────────────────
 
 #[tokio::test]
 async fn invoice_commands_follow_the_roles() {
@@ -1077,14 +1077,28 @@ async fn invoice_commands_follow_the_roles() {
         do_retry_peppol_delivery(&app.state, 1).unwrap_err(),
         ERR_FORBIDDEN
     );
+    // A Belgian customer needs Peppol, which this installation does not have (V11-D55); a
+    // foreign customer is invoiced on paper.
+    let err = do_sign_invoice_fiscal(&app.state, vec![sale], customer.id, CASHIER.into())
+        .await
+        .unwrap_err();
+    assert_eq!(err, pos_engine::commands::errors::INVOICE_PEPPOL_REQUIRED);
+    let foreign = do_save_b2b_customer(
+        &app.state,
+        B2bCustomerInput {
+            vat_number: "FR12345678901".into(),
+            ..form()
+        },
+    )
+    .unwrap();
     // Nobody signs in someone else's name.
     assert_eq!(
-        do_sign_invoice_fiscal(&app.state, vec![sale], customer.id, MANAGER.into())
+        do_sign_invoice_fiscal(&app.state, vec![sale], foreign.id, MANAGER.into())
             .await
             .unwrap_err(),
         ERR_NOT_THE_OPERATOR
     );
-    let signed = do_sign_invoice_fiscal(&app.state, vec![sale], customer.id, CASHIER.into())
+    let signed = do_sign_invoice_fiscal(&app.state, vec![sale], foreign.id, CASHIER.into())
         .await
         .unwrap();
     assert!(signed.success, "{:?}", signed.error);
@@ -1095,7 +1109,7 @@ async fn invoice_commands_follow_the_roles() {
     assert!(!panel.configured);
 }
 
-// ── Sold-out products (v1.1) ───────────────────────────────────
+// ── Sold-out products ──────────────────────────────────────
 
 #[tokio::test]
 async fn sold_out_commands_follow_the_roles() {
@@ -1142,7 +1156,7 @@ async fn sold_out_commands_follow_the_roles() {
     assert!(do_clear_sold_out(&app.state, 1, None).is_ok());
 }
 
-// ── Menu editor (v1.1) ─────────────────────────────────────────
+// ── Menu editor ───────────────────────────────────────────
 
 #[cfg(feature = "hubrise")]
 #[tokio::test]
@@ -1239,7 +1253,7 @@ async fn menu_editor_commands_follow_the_roles() {
     assert_eq!(do_list_menu_changes(&app.state, None).unwrap().len(), 2);
 }
 
-// ── Sales report (v1.1) ────────────────────────────────────────
+// ── Sales report ──────────────────────────────────────────
 
 #[tokio::test]
 async fn sales_report_commands_are_for_managers() {

@@ -292,7 +292,7 @@ async fn nothing_is_queued_without_a_peppol_section() {
     let app = TestApp::new().await;
     app.use_admission_mock().await;
     app.login_as(OPERATOR, pos_core::user::UserRole::Admin);
-    let customer = app.save_customer(VAT, "Client Test SRL");
+    let customer = app.save_customer("FR12345678901", "Client Francais SARL");
     let sale = app.sell_cash(1000).await;
 
     let result = do_sign_invoice_fiscal(&app.state, vec![sale], customer, OPERATOR.into())
@@ -424,21 +424,31 @@ async fn a_cached_not_registered_recipient_is_parked_when_the_lookup_fails() {
     assert_eq!(r.log(id)[0].1, "not_registered");
 }
 
-/// Sign an invoice while the `peppol` section is missing, then put the section back.
+/// Sign an invoice, then drop its delivery row: an invoice signed without a delivery (a
+/// delivery to redo). A Belgian customer cannot be invoiced without a `peppol` section any
+/// more (V11-D55), so the row is removed after the fact.
 async fn invoice_without_delivery(r: &Rig, customer: i64) -> i64 {
-    let peppol = r.app.state.config.lock().unwrap().peppol.take();
     let sale = r.app.sell_cash(1000).await;
     let result = do_sign_invoice_fiscal(&r.app.state, vec![sale], customer, OPERATOR.into())
         .await
         .unwrap();
     assert!(result.success, "{:?}", result.error);
-    assert_eq!(result.delivery_status, None);
-    r.app.state.config.lock().unwrap().peppol = peppol;
-    result.fiscal_event_id.unwrap()
+    let event = result.fiscal_event_id.unwrap();
+    r.app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "DELETE FROM peppol_deliveries WHERE fiscal_event_id = ?1",
+            [event],
+        )
+        .unwrap();
+    event
 }
 
 #[tokio::test]
-async fn an_invoice_signed_before_peppol_was_set_up_is_queued_later() {
+async fn an_invoice_signed_without_a_delivery_is_queued_later() {
     let r = rig().await;
     let event = invoice_without_delivery(&r, r.customer).await;
     let invoice_no: String = r

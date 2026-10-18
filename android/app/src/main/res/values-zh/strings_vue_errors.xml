@@ -101,6 +101,7 @@
     <string name="err_invoice_not_a_sale">事件 {event} 不是普通销售：只有销售可以开发票。</string>
     <string name="err_invoice_sale_already_invoiced">销售 {event} 已在发票 {invoice} 上。</string>
     <string name="err_invoice_training_mode">培训模式下不能开发票。</string>
+    <string name="err_invoice_peppol_required">该客户有比利时增值税号：发票必须通过 Peppol 发送，但此安装未配置 Peppol。请联系支持。</string>
     <string name="err_customer_vat_invalid">增值税号无效。请检查数字。</string>
     <string name="err_customer_incomplete">缺少客户信息：{field}。</string>
     <string name="err_customer_not_found">找不到客户。</string>
