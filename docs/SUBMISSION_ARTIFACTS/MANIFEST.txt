@@ -1,4 +1,5 @@
 # Contenu exact du ZIP de soumission SCE 2.0 (pili-pos).
+# Version 1.0.0 : seul pili-pos-android est déposé (décision du producteur du 18.10.2026, docs/android/dossier) ; ce dossier Linux reste dans le dépôt et n'est pas soumis.
 #
 # Une entrée par ligne, relative à docs/SUBMISSION_ARTIFACTS/ ; "#"
 # commence un commentaire. Un répertoire est repris en entier, sans ses
