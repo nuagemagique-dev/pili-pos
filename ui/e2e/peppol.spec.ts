@@ -77,3 +77,49 @@ test.describe('Settings: Peppol panel', () => {
     expect(await ipcCalls(page, 'list_peppol_deliveries')).toHaveLength(0);
   });
 });
+
+test.describe('Settings: the Peppol panel polls', () => {
+  test('every 30 seconds, and a failed call keeps the last counts drawn', async ({ page }) => {
+    await page.clock.install();
+    await mockTauriIPC(page, { list_peppol_deliveries: () => CONFIGURED });
+    await loginAndGoto(page, '/settings');
+    await expect(page.getByTestId('peppol-queued')).toContainText('2');
+    const first = (await ipcCalls(page, 'list_peppol_deliveries')).length;
+
+    // Nothing before the 30 s are up.
+    await page.clock.runFor(29_000);
+    expect(await ipcCalls(page, 'list_peppol_deliveries')).toHaveLength(first);
+
+    // The queue changed meanwhile: the next poll draws it.
+    await overrideIPC(page, 'list_peppol_deliveries', { ...CONFIGURED, queued: 5 });
+    await page.clock.runFor(2_000);
+    await expect(page.getByTestId('peppol-queued')).toContainText('5');
+    await expect(page.getByRole('alert').filter({ hasText: 'Peppol' })).toHaveCount(0);
+
+    // The engine now refuses: the line says why, the counts stay.
+    await overrideIPC(page, 'list_peppol_deliveries', { __reject: 'peppol_not_configured' });
+    await page.clock.runFor(30_000);
+    await expect(page.locator('.call-error')).toHaveText("Peppol n'est pas configuré sur cette installation.");
+    await expect(page.locator('.call-error')).toHaveAttribute('role', 'alert');
+    await expect(page.getByTestId('peppol-queued')).toContainText('5');
+    await expect(page.getByTestId('peppol-accepted')).toContainText('14');
+
+    // And it recovers by itself.
+    await overrideIPC(page, 'list_peppol_deliveries', { ...CONFIGURED, queued: 1 });
+    await page.clock.runFor(30_000);
+    await expect(page.getByTestId('peppol-queued')).toContainText('1');
+    await expect(page.locator('.call-error')).toHaveCount(0);
+  });
+
+  test('leaving Settings stops the polling', async ({ page }) => {
+    await page.clock.install();
+    await mockTauriIPC(page, { list_peppol_deliveries: () => CONFIGURED });
+    await loginAndGoto(page, '/settings');
+    await expect(page.getByTestId('peppol-queued')).toContainText('2');
+    await page.evaluate(() => { window.location.hash = '/tables'; });
+    await page.waitForURL(/tables/);
+    const before = (await ipcCalls(page, 'list_peppol_deliveries')).length;
+    await page.clock.runFor(95_000);
+    expect(await ipcCalls(page, 'list_peppol_deliveries')).toHaveLength(before);
+  });
+});
