@@ -223,14 +223,25 @@ struct Rig {
 }
 
 async fn open() -> Rig {
+    open_with(None).await
+}
+
+/// The same, with the Storecove mock behind the `storecove` provider when `storecove` is given
+/// (the `logging` provider accepts everything, so it cannot park a delivery).
+async fn open_with(storecove: Option<pos_fdm_mock::storecove::StorecoveMock>) -> Rig {
     let fdm = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind the FDM mock");
-    let fdm_url = format!("http://{}/graphql", fdm.local_addr().unwrap());
+    let addr = fdm.local_addr().unwrap();
+    let fdm_url = format!("http://{addr}/graphql");
+    let router = match &storecove {
+        Some(mock) => {
+            pos_fdm_mock::app_with_storecove(pos_fdm_mock::Control::default(), mock.clone())
+        }
+        None => pos_fdm_mock::app(),
+    };
     tokio::spawn(async move {
-        axum::serve(fdm, pos_fdm_mock::app())
-            .await
-            .expect("serve the FDM mock");
+        axum::serve(fdm, router).await.expect("serve the FDM mock");
     });
     let printer_mock = pos_printer_mock::Printer::new(pos_printer_mock::Control::default(), None);
     let printer = pos_printer_mock::bind("127.0.0.1:0".parse().unwrap(), printer_mock)
@@ -241,6 +252,19 @@ async fn open() -> Rig {
     let dir = tempfile::tempdir().expect("temp dir");
     let bundle = dir.path().join("bundle");
     std::fs::create_dir_all(&bundle).unwrap();
+    let key_file = dir.path().join("storecove.key");
+    std::fs::write(&key_file, "test-key\n").unwrap();
+    let peppol = if storecove.is_some() {
+        format!(
+            r#""provider": "storecove",
+                "base_url": "http://{addr}/storecove",
+                "api_key_file": "{}",
+                "legal_entity_id": 4242,"#,
+            key_file.display()
+        )
+    } else {
+        r#""provider": "logging","#.to_string()
+    };
     std::fs::write(
         bundle.join("pos.json"),
         format!(
@@ -256,7 +280,7 @@ async fn open() -> Rig {
             "printer_address": "{printer}",
             "table_count": 25,
             "peppol": {{
-                "provider": "logging",
+                {peppol}
                 "sender_id": "0208:0499999960",
                 "supplier_street": "Rue de l'Exemple 1",
                 "supplier_postal_code": "4000",
@@ -417,4 +441,135 @@ async fn the_peppol_panel_is_for_administrators() {
     };
     let err = e.save_b2b_customer(bad).await.unwrap_err();
     assert!(coded(&err, "customer_vat_invalid"), "{err:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_cashier_looks_a_vat_number_up_through_the_facade() {
+    let rig = open().await;
+    let e = &rig.engine;
+    e.login(CASHIER_INSZ.into(), Some(CASHIER_PIN.into()))
+        .await
+        .expect("login");
+
+    // Written the way it is typed: the engine normalises it.
+    let lookup = e
+        .lookup_b2b_customer("be 0308.357.159".into())
+        .await
+        .expect("lookup");
+    assert_eq!(lookup.vat_number, "BE0308357159");
+    assert_eq!(lookup.country_code, "BE");
+    assert!(lookup.deliverable);
+    assert!(lookup.customer.is_none());
+    assert!(
+        ["registered", "unknown"].contains(&lookup.peppol_status.as_str()),
+        "{lookup:?}"
+    );
+
+    // A known customer comes back with the lookup.
+    let saved = e.save_b2b_customer(form()).await.expect("save");
+    let known = e
+        .lookup_b2b_customer("BE0308357159".into())
+        .await
+        .expect("lookup");
+    assert_eq!(known.customer.map(|c| c.id), Some(saved.id));
+
+    // A foreign number is checked offline and is not delivered over Peppol.
+    let foreign = e
+        .lookup_b2b_customer("FR12345678901".into())
+        .await
+        .expect("lookup");
+    assert_eq!(foreign.country_code, "FR");
+    assert!(!foreign.deliverable);
+
+    // A wrong check digit is refused with its code.
+    let err = e
+        .lookup_b2b_customer("BE0308357158".into())
+        .await
+        .unwrap_err();
+    assert!(coded(&err, "customer_vat_invalid"), "{err:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_parked_delivery_is_retried_by_a_manager_and_only_a_parked_one() {
+    let mock = pos_fdm_mock::storecove::StorecoveMock::new();
+    // The access point refuses the first submission (parked), then fails transiently, so the
+    // retried delivery waits in the queue instead of racing to "accepted".
+    mock.script_submissions(&[422, 503]);
+    let rig = open_with(Some(mock)).await;
+    let e = &rig.engine;
+    e.login(MANAGER_INSZ.into(), Some(MANAGER_PIN.into()))
+        .await
+        .expect("login");
+
+    sell(e).await;
+    let sale = e.list_invoiceable_sales(None, None).await.expect("sales")[0].fiscal_event_id;
+    let customer = e.save_b2b_customer(form()).await.expect("customer");
+    let result = e
+        .sign_invoice_fiscal(vec![sale], customer.id, MANAGER_INSZ.into())
+        .await
+        .expect("sign");
+    assert!(result.success, "{:?}", result.error);
+
+    let wait_for = |want_failed: i64, want_queued: i64| {
+        let e = rig.engine.clone();
+        async move {
+            let started = Instant::now();
+            loop {
+                let panel = e.list_peppol_deliveries(None).await.expect("panel");
+                if panel.failed == want_failed && panel.queued == want_queued {
+                    return panel;
+                }
+                assert!(
+                    started.elapsed() < Duration::from_secs(15),
+                    "expected failed={want_failed} queued={want_queued}: {panel:?}"
+                );
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+        }
+    };
+    let parked = wait_for(1, 0).await;
+    let id = parked.deliveries[0].id;
+    assert_eq!(parked.deliveries[0].status, "failed");
+    assert!(parked.deliveries[0].parked_at.is_some());
+
+    e.retry_peppol_delivery(id).await.expect("retry");
+    let back = wait_for(0, 1).await;
+    assert_eq!(back.deliveries[0].id, id);
+    assert_eq!(back.deliveries[0].status, "queued");
+    assert!(back.deliveries[0].parked_at.is_none());
+
+    // It is not parked any more.
+    let err = e.retry_peppol_delivery(id).await.unwrap_err();
+    assert!(coded(&err, "peppol_delivery_not_parked"), "{err:?}");
+    let err = e.retry_peppol_delivery(9999).await.unwrap_err();
+    assert!(coded(&err, "peppol_delivery_not_found"), "{err:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_accepted_delivery_cannot_be_retried() {
+    let rig = open().await;
+    let e = &rig.engine;
+    e.login(MANAGER_INSZ.into(), Some(MANAGER_PIN.into()))
+        .await
+        .expect("login");
+    sell(e).await;
+    let sale = e.list_invoiceable_sales(None, None).await.expect("sales")[0].fiscal_event_id;
+    let customer = e.save_b2b_customer(form()).await.expect("customer");
+    let result = e
+        .sign_invoice_fiscal(vec![sale], customer.id, MANAGER_INSZ.into())
+        .await
+        .expect("sign");
+    assert!(result.success, "{:?}", result.error);
+
+    let started = Instant::now();
+    let id = loop {
+        let panel = e.list_peppol_deliveries(None).await.expect("panel");
+        if panel.accepted == 1 {
+            break panel.deliveries[0].id;
+        }
+        assert!(started.elapsed() < Duration::from_secs(15), "{panel:?}");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    };
+    let err = e.retry_peppol_delivery(id).await.unwrap_err();
+    assert!(coded(&err, "peppol_delivery_not_parked"), "{err:?}");
 }

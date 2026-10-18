@@ -978,3 +978,60 @@ async fn vat_split_shows_only_the_codes_present() {
         vec![row(VatCode::D, 0, 1680, 0)]
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_cashier_marks_products_sold_out_through_the_facade() {
+    let t = open_with_orders().await;
+    let e = &t.engine;
+    e.login("75061189702".into(), Some("4444".into()))
+        .await
+        .expect("cashier login");
+
+    assert!(e.list_sold_out(None).await.unwrap().is_empty());
+    let first = e.set_sold_out(12007, true, None).await.unwrap();
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0].menu_item_id, 12007);
+    assert!(first[0].until.is_some(), "until the end of the day");
+    let both = e.set_sold_out(12009, false, None).await.unwrap();
+    assert_eq!(both.len(), 2);
+    let open_ended = both.iter().find(|i| i.menu_item_id == 12009).unwrap();
+    assert_eq!(open_ended.until, None, "until re-enabled");
+
+    let soft = e.get_menu_items(Some(12), None).await.unwrap();
+    assert!(soft.iter().all(|i| i.sold_out), "the menu flags both");
+    assert_eq!(e.list_sold_out(None).await.unwrap().len(), 2);
+
+    // The cart refuses a sold-out product with its stable code.
+    let order = e
+        .create_order(pos_ffi::records::orders::CreateOrderInput {
+            order_type: ffi::OrderType::Takeaway,
+            table_number: None,
+            user_insz: "75061189702".into(),
+        })
+        .await
+        .expect("create_order");
+    let refused = e
+        .add_order_line(ffi::AddOrderLineInput {
+            order_id: order.id,
+            menu_item_id: 12009,
+            quantity: 1,
+            modifiers_json: None,
+            unit_price_cents: None,
+        })
+        .await;
+    assert_eq!(code_of(refused.expect_err("sold out")), "product_sold_out");
+
+    // Clearing the flag puts the product back on sale.
+    let left = e.clear_sold_out(12009, None).await.unwrap();
+    assert_eq!(left.len(), 1);
+    e.add_order_line(ffi::AddOrderLineInput {
+        order_id: order.id,
+        menu_item_id: 12009,
+        quantity: 1,
+        modifiers_json: None,
+        unit_price_cents: None,
+    })
+    .await
+    .expect("back on sale");
+    e.shutdown().await.unwrap();
+}
