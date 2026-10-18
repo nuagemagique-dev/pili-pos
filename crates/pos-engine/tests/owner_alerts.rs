@@ -644,6 +644,84 @@ async fn the_terminal_is_raised_on_the_second_failed_probe_and_never_probed_whil
     assert_eq!(resolved[0].transition, Transition::Resolved);
 }
 
+#[tokio::test]
+async fn a_probe_on_a_held_line_is_skipped_at_once_and_sends_nothing() {
+    use pos_eft::EftError;
+    let tg = Telegram::start().await;
+    let (mut app, _dir) = app(&tg).await;
+    let script = app.link_terminal();
+    switch_on(&app, |i| i.kinds = kinds_only(|k| k.terminal = true));
+    // Even a terminal that would hang is not asked: the line is taken.
+    script.set_check_delay(Duration::from_secs(30));
+    script.on_check(Err(EftError::Unreachable("down".into())));
+    let line = app.state.eft_line.lock().await;
+    let started = Instant::now();
+    for n in 0..3 {
+        assert!(run_pass(&app.state, minutes(5 * n)).await.is_empty());
+    }
+    assert!(
+        started.elapsed() < Duration::from_secs(2),
+        "a busy line is skipped, never waited for"
+    );
+    drop(line);
+    assert!(script.calls().is_empty(), "the terminal was never asked");
+    assert!(tg.texts().is_empty(), "nothing was sent");
+}
+
+#[tokio::test]
+async fn a_hanging_terminal_is_dropped_after_the_short_probe_timeout() {
+    use pos_eft::EftError;
+    let tg = Telegram::start().await;
+    let (mut app, _dir) = app(&tg).await;
+    let script = app.link_terminal();
+    switch_on(&app, |i| i.kinds = kinds_only(|k| k.terminal = true));
+    assert!(
+        app.state.timers.terminal_probe <= Duration::from_secs(10),
+        "the default probe timeout is short"
+    );
+    app.state.timers.terminal_probe = Duration::from_millis(150);
+    script.set_check_delay(Duration::from_secs(30));
+    script.on_check(Err(EftError::Unreachable("down".into())));
+    let started = Instant::now();
+    // A probe that times out judges nothing, even repeated.
+    for n in 0..3 {
+        assert!(run_pass(&app.state, minutes(5 * n)).await.is_empty());
+    }
+    assert!(started.elapsed() < Duration::from_secs(5));
+    assert!(tg.texts().is_empty(), "a timeout is not a failed probe");
+    // The line was released by the dropped probe.
+    assert!(app.state.eft_line.try_lock().is_ok());
+}
+
+#[tokio::test]
+async fn a_payment_started_during_a_probe_waits_at_most_the_probe_timeout() {
+    use pos_engine::commands::eft::do_eft_pay;
+    let tg = Telegram::start().await;
+    let (mut app, _dir) = app(&tg).await;
+    let script = app.link_terminal();
+    switch_on(&app, |i| i.kinds = kinds_only(|k| k.terminal = true));
+    let timeout = Duration::from_millis(300);
+    app.state.timers.terminal_probe = timeout;
+    script.set_check_delay(Duration::from_secs(30));
+    let order = app.order_of(1500);
+    script.on_pay(Ok(approval(1500, "Bancontact", pos_eft::CardType::Debit)));
+
+    let probe = run_pass(&app.state, t0());
+    let pay = async {
+        // Let the probe take the line first.
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let started = Instant::now();
+        let payment = do_eft_pay(&app.state, order, 1500).await.unwrap();
+        (payment, started.elapsed())
+    };
+    let (_, (payment, waited)) = tokio::join!(probe, pay);
+    assert_eq!(payment.status, "approved");
+    assert!(
+        waited < timeout + Duration::from_secs(2),
+        "the payment waited {waited:?} behind a hanging probe"
+    );
+}
+
 /// An online order that arrived at `arrived` (SQLite time), waiting.
 fn webshop_order(app: &TestApp, hubrise_id: &str, channel: &str, arrived: &str) {
     let db = app.state.db.lock().unwrap();

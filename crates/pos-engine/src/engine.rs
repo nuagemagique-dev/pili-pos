@@ -150,6 +150,12 @@ pub struct EngineTimers {
     /// interval, and at once after a real Z. Nothing runs without an
     /// `export` section in the configuration.
     pub export_outbox: Duration,
+    /// How long the owner-alerts probe may keep the card terminal's
+    /// line (`AppState::eft_line`) for its reachability check. A
+    /// payment started meanwhile waits at most this long; the probe is
+    /// dropped (the line freed) when the terminal does not answer in
+    /// time.
+    pub terminal_probe: Duration,
 }
 
 impl Default for EngineTimers {
@@ -161,6 +167,7 @@ impl Default for EngineTimers {
             idle_lock: Duration::from_secs(300),
             fdm_poll: Duration::from_secs(30),
             export_outbox: Duration::from_secs(60),
+            terminal_probe: crate::alerts::TERMINAL_PROBE_TIMEOUT,
         }
     }
 }

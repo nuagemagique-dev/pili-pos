@@ -48,6 +48,11 @@ pub const TICK: Duration = Duration::from_secs(30);
 /// How often the printers and the terminal are probed.
 pub const PROBE_INTERVAL: chrono::Duration = chrono::Duration::minutes(5);
 
+/// The longest the terminal probe may hold the card terminal's line. A
+/// payment never waits behind a probe for longer than this (see
+/// `EngineTimers::terminal_probe`, which defaults to it).
+pub const TERMINAL_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
 struct Inner {
     book: AlertBook,
     /// The book was filled from the log since the alerts were last
@@ -440,7 +445,15 @@ async fn observe_printers(state: &AppState) -> Seen {
 }
 
 async fn observe_terminal(state: &AppState) -> Seen {
-    match crate::commands::eft::do_check_payment_terminal(state).await {
+    // The line is taken with `try_lock` inside the check (a busy line is
+    // skipped, never waited for) and the check is dropped, the line with
+    // it, after the short probe timeout: a payment never waits behind a
+    // hanging terminal.
+    let probe = crate::commands::eft::do_check_payment_terminal(state);
+    let Ok(answer) = tokio::time::timeout(state.timers.terminal_probe, probe).await else {
+        return Seen::Unknown;
+    };
+    match answer {
         Ok(status) if !status.configured => Seen::NotApplicable,
         // A payment holds the line: the terminal is busy, not gone.
         Ok(status) if status.busy => Seen::Unknown,

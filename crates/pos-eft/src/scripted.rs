@@ -19,6 +19,7 @@ struct Inner {
     status: VecDeque<Result<Outcome, EftError>>,
     check: VecDeque<Result<(), EftError>>,
     pay_delay: Duration,
+    check_delay: Duration,
     calls: Vec<Call>,
 }
 
@@ -65,6 +66,12 @@ impl Script {
         self.inner.lock().unwrap().pay_delay = delay;
     }
 
+    /// How long each reachability check takes before its answer (a
+    /// probe test needs a terminal that hangs).
+    pub fn set_check_delay(&self, delay: Duration) {
+        self.inner.lock().unwrap().check_delay = delay;
+    }
+
     /// Every call so far.
     pub fn calls(&self) -> Vec<Call> {
         self.inner.lock().unwrap().calls.clone()
@@ -99,9 +106,18 @@ impl Script {
     }
 
     pub(crate) async fn check(&self) -> Result<(), EftError> {
-        let mut i = self.inner.lock().unwrap();
-        i.calls.push(Call::Check);
-        i.check.pop_front().unwrap_or(Ok(()))
+        let delay = {
+            let mut i = self.inner.lock().unwrap();
+            i.calls.push(Call::Check);
+            i.check_delay
+        };
+        tokio::time::sleep(delay).await;
+        self.inner
+            .lock()
+            .unwrap()
+            .check
+            .pop_front()
+            .unwrap_or(Ok(()))
     }
 
     pub(crate) async fn abort(&self, reference: &str) -> Result<(), EftError> {
