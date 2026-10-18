@@ -176,10 +176,11 @@ class CoursesFlowTest {
     @Test
     fun theNextCourseIsOfferedRightAfterTheFirstSlipWentToTheKitchen() =
         runTest {
-            val w = world().apply {
-                cart = listOf(cartLine(1, 10, "Maki saumon", unsent = 1, course = 0, kitchenState = "unsent"))
-                held = emptyList()
-            }
+            val w =
+                world().apply {
+                    cart = listOf(cartLine(1, 10, "Maki saumon", unsent = 1, course = 0, kitchenState = "unsent"))
+                    held = emptyList()
+                }
             val r = ready(w)
             assertNull(r.state.cart.nextHeldCourse)
             // "Envoyer en cuisine" signs the order: the mains the first slip held now wait.

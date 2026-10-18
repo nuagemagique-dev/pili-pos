@@ -58,8 +58,10 @@ class ModifierAllergenTest {
         }
         val inFirst = hasAnyAncestor(hasTestTag("modifier_option_1"))
         val inSecond = hasAnyAncestor(hasTestTag("modifier_option_2"))
-        assertEquals(2, compose.onAllNodes(hasTestTag("allergen_badge_1").or(hasTestTag("allergen_badge_6")) and inFirst, useUnmergedTree = true).fetchSemanticsNodes().size)
-        assertEquals(0, compose.onAllNodes(hasTestTag("allergen_badges") and inSecond, useUnmergedTree = true).fetchSemanticsNodes().size)
+        val badgesOfFirst = hasTestTag("allergen_badge_1").or(hasTestTag("allergen_badge_6")) and inFirst
+        assertEquals(2, compose.onAllNodes(badgesOfFirst, useUnmergedTree = true).fetchSemanticsNodes().size)
+        val badgesOfSecond = hasTestTag("allergen_badges") and inSecond
+        assertEquals(0, compose.onAllNodes(badgesOfSecond, useUnmergedTree = true).fetchSemanticsNodes().size)
         compose.onAllNodes(hasTestTag("allergen_badges"), useUnmergedTree = true).assertCountEquals(1)
     }
 }

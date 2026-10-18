@@ -74,6 +74,7 @@ class AllergenBadgesTest {
         compose.waitForIdle()
         compose.onNodeWithTag("allergen_badges").assertDoesNotExist()
     }
+
     @Test
     fun theBarTellsALegendThatCouldNotBeRead() {
         compose.setContent {

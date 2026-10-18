@@ -76,29 +76,37 @@ internal fun AllergenBar(
                 style = t.body.copy(fontSize = t.sizeSm, fontWeight = t.weightBold),
                 color = c.accentInfo,
             )
-            menu.allergenLegendError?.let { error ->
+            AllergenLegend(menu)
+        }
+    }
+}
+
+/** The error of a legend that could not be read, then the 14 numbers with their names. */
+@Composable
+private fun AllergenLegend(menu: MenuState) {
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    menu.allergenLegendError?.let { error ->
+        Text(
+            text = error,
+            style = t.body.copy(fontSize = t.sizeSm, fontWeight = t.weightBold),
+            color = c.accentDanger,
+            modifier = Modifier.testTag("allergen_legend_error"),
+        )
+    }
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().testTag("allergen_legend"),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        menu.allergenLegend.forEach { entry ->
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                NumberCircle(entry.number, Modifier.size(LegendBadge).testTag("allergen_legend_${entry.number}"))
                 Text(
-                    text = error,
-                    style = t.body.copy(fontSize = t.sizeSm, fontWeight = t.weightBold),
-                    color = c.accentDanger,
-                    modifier = Modifier.testTag("allergen_legend_error"),
+                    text = vueText("allergen_${entry.code}"),
+                    style = t.body.copy(fontSize = t.sizeXs),
+                    color = c.textSecondary,
                 )
-            }
-            FlowRow(
-                modifier = Modifier.fillMaxWidth().testTag("allergen_legend"),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                menu.allergenLegend.forEach { entry ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        NumberCircle(entry.number, Modifier.size(LegendBadge).testTag("allergen_legend_${entry.number}"))
-                        Text(
-                            text = vueText("allergen_${entry.code}"),
-                            style = t.body.copy(fontSize = t.sizeXs),
-                            color = c.textSecondary,
-                        )
-                    }
-                }
             }
         }
     }
