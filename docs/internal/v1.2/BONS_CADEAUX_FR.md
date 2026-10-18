@@ -82,10 +82,11 @@ bons réels ne servent pas en formation.
   l'opération d'archive du remboursement, s'il n'a jamais servi et n'est pas déjà annulé ; sinon
   le remboursement est refusé (`gift_voucher_used`). La caisse choisit, parmi les bons non
   utilisés de la vente, ceux de la ligne remboursée ; s'il n'y en a pas assez, elle refuse.
-- **Remboursement d'une vente payée par bon.** Le remboursement reste un remboursement en
-  espèces, avec la confirmation du gérant, comme aujourd'hui : la valeur du bon devient de
-  l'argent (question Q6, à confirmer par le propriétaire) et le bon n'est pas recrédité (différé,
-  section 8).
+- **Remboursement d'une vente payée par bon.** Le bon lui-même n'est jamais échangé contre de
+  l'argent : il a servi à payer des marchandises. Rembourser ces marchandises est le remboursement
+  d'une vente, pas l'échange d'un bon contre des espèces. Selon le choix de l'établissement, ce
+  remboursement se fait en espèces, avec la confirmation du gérant, comme pour toute autre vente ;
+  le bon n'est pas recrédité (recréditer le bon est différé, section 8).
 - **Rapports.** Les rapports X et Z n'ont pas besoin de changer : le taux X est dans le calcul
   de T.V.A. du module fiscal, les paiements sont groupés par identité, nom et type. Le Z imprimé
   nomme le paiement « Bon cadeau » (fr), « Cadeaubon » (nl), « Geschenkgutschein » (de) (l'anglais
@@ -126,11 +127,10 @@ Mêmes écrans et mêmes textes (fr, en, zh) sur Linux (Vue) et sur Android (Com
 | Sujet | Raison |
 | --- | --- |
 | Bon à usage unique (SPV, UC270 et UC271) | La T.V.A. est due à la vente, sur les marchandises. L'utilisation est une ligne négative (`negQuantityReason VOUCHER`) dont le découpage de T.V.A. doit refléter la vente. Le cas officiel UC271 utilise le bon « SPV Menu all-in » (quantité -1, `negQuantityReason VOUCHER`, A -18,00 et B -40,00, soit -58,00), dont le découpage de T.V.A. reprend celui du produit composé « menu all-in » pour lequel le bon est valable ; UC270 est un autre bon (« Voucher Special Diner Offer », 2 menus d'affaires à B 75,00). Utiliser un bon à usage unique demande donc le découpage de T.V.A. d'un produit composé, et les produits composés ne sont pas pris en charge (même écart que pour UC261 et UC4109) : nous ne devinons pas. À reprendre avec les produits composés, ou si le SPF publie une précision (question Q4) |
-| Bon converti en espèces (UC4105) | Un bon cadeau n'est pas échangeable contre de l'argent ; aucun besoin |
-| Remboursement vers un bon | Le remboursement d'une vente payée par bon reste en espèces avec confirmation du gérant ; recréditer le bon est reporté (question Q6) |
+| Bon converti en espèces (UC4105) | Un bon cadeau n'est jamais échangé contre de l'argent ; aucun besoin |
+| Remboursement vers un bon | Une vente payée par bon, une fois remboursée, l'est en espèces avec confirmation du gérant, au choix de l'établissement ; recréditer le bon est reporté |
 
-`scripts/uc_scope.toml` garde UC270, UC271 et UC4105 « hors périmètre » avec la raison « différé en
-v1.2 ».
+`scripts/uc_scope.toml` garde UC270, UC271 et UC4105 « hors périmètre » avec la raison « différé ».
 
 ## 9. Cas d'usage officiels (jeu avancé v1.6)
 
