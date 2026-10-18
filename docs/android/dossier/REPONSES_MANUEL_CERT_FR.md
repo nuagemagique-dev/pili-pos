@@ -12,11 +12,10 @@ l'ordre des sections, la réponse à chaque case à cocher (☐) et à
 chaque champ libre. Les renvois aux annexes du dossier sont indiqués
 en italique.
 
-`pili-pos-android` 1.0.0 fait l'objet d'une demande de certification initiale,
-distincte de celle de `pili-pos` 1.0.0 sur Linux (*Voir : CADRE_DEMANDE_FR.md*).
-Le moteur fiscal est le même code source dans les deux produits : les réponses
-fiscales (§III à §VI) reprennent celles de la demande Linux, sauf là où un élément
-propre à la plateforme est nommé. Une valeur qui ne peut être établie qu'au moment
+`pili-pos-android` 1.0.0 fait l'objet d'une demande de certification initiale
+(*Voir : CADRE_DEMANDE_FR.md*). Le moteur fiscal est compilé dans la bibliothèque
+native de l'APK : les réponses fiscales (§III à §VI) décrivent ce moteur, et les
+éléments propres à la plateforme Android sont nommés là où ils interviennent. Une valeur qui ne peut être établie qu'au moment
 du dépôt (empreinte, date, mesure sur l'appareil) est signalée dans le texte par un
 identifiant de pièce de la forme EV-NN et remplie avant l'envoi.
 
@@ -40,7 +39,7 @@ Convention :
 
 | Item | Réponse |
 |---|---|
-| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **M150 (event I) compris** et les deux UC de facture de l'Advanced Set (UC4121 et UC4122) ainsi que les trois UC de bon cadeau à usage multiple (UC260, UC261 et UC262). Périmètre identique à celui de la demande Linux : 22 UC du Basic Set et de Reports (19 du Basic Set : M110, M111, M112B, M121, M122, M123, M130, M131, M132, M133, M140, M141, M150, M160, M161, M170, M171, M171B, M172 ; 3 de Reports : M180, M182, M184), plus les 5 situations d'arrondi et 11 UC de l'Advanced Set (UC223, UC225A, UC229B, UC230, UC260, UC261, UC262, UC4109, UC4119, UC4121, UC4122). Exécution sur l'émulateur Android, JSON sous Report_Testing/uc : À effectuer (EV-06 : résultats UC sur l'émulateur Android, requête et réponse JSON par UC). Comparaison avec le journal Linux : À effectuer (EV-07 : journaux et requêtes FDM comparés entre Android et Linux). |
+| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **M150 (event I) compris** et les deux UC de facture de l'Advanced Set (UC4121 et UC4122) ainsi que les trois UC de bon cadeau à usage multiple (UC260, UC261 et UC262). Périmètre : 22 UC du Basic Set et de Reports (19 du Basic Set : M110, M111, M112B, M121, M122, M123, M130, M131, M132, M133, M140, M141, M150, M160, M161, M170, M171, M171B, M172 ; 3 de Reports : M180, M182, M184), plus les 5 situations d'arrondi et 11 UC de l'Advanced Set (UC223, UC225A, UC229B, UC230, UC260, UC261, UC262, UC4109, UC4119, UC4121, UC4122). Exécution sur l'émulateur Android, JSON sous Report_Testing/uc : À effectuer (EV-06 : résultats UC sur l'émulateur Android, requête et réponse JSON par UC). |
 
 ## §I.C Manuels du POS
 
@@ -102,7 +101,7 @@ Le producteur est également importateur et distributeur (configuration mono-act
 | Nom du POS | pili-pos-android |
 | Modèle du POS | pili-pos-android 1.0.0 (application Android pour le terminal Sunmi D3 Pro, un seul APK) |
 | N° de version du logiciel | 1.0.0 (posSwVersion pili-pos-android/1.0.0, versionCode 10000, identifiant d'application `dev.nuagemagique.pilipos`), affichée sur l'écran de connexion et sur l'écran « À propos » (*CADRE_DEMANDE_FR.md* §3) |
-| Langage(s) de programmation | Rust (moteur fiscal commun avec `pili-pos`, compilé en bibliothèque native `libpos_ffi.so`) + Kotlin et Compose (interface et plateforme) |
+| Langage(s) de programmation | Rust (moteur fiscal, compilé en bibliothèque native `libpos_ffi.so`) + Kotlin et Compose (interface et plateforme) |
 
 ### Versions des spécifications suivies
 
@@ -183,7 +182,7 @@ L'identité bit-à-bit entre la build cert soumise au SPF Finances et la build d
    (deux builds du même commit dans deux conteneurs sans réseau, comparées octet par octet. Seule la build en conteneur est la référence. Empreinte de l'image et SHA-1 des deux APK : À effectuer (EV-05 : empreinte de l'image de build et SHA-1 des deux APK non signés identiques).)
 2. **Empreinte SHA-1 de l'APK.** L'APK est signé après la vérification de reproductibilité. Le SHA-1 de l'APK signé, déclaré au formulaire §I.D, se lit sur toute caisse installée dans l'écran « À propos » (avec celui de `libpos_ffi.so` et celui du certificat de signature) et se recalcule sans la caisse sur l'artefact public déclaré. *Voir : GARANTIE_MAJ_LANGUES_FR.md* §1.2.
 3. **Terminal verrouillé.** Le déploiement client se fait par le producteur, qui installe l'APK signé sur un terminal mis sous propriétaire de l'appareil, sans compte Google (mode Lock Task, installations depuis des sources inconnues interdites, débogage coupé en production). Après la mise en service, le seul chemin d'arrivée de l'APK fiscal est l'outil de mise à jour déclarée, qui refuse tout APK dont l'empreinte ou le certificat diffèrent de la déclaration. *Voir : PLATEFORME_ANDROID_FR.md* §3 et *SECURITE_BD_FR.md* §3.
-4. **Tag git.** Le commit de la build cert est tagué `android-v1.0.0` ; le moteur fiscal commun est celui de l'étiquette de gel `linux-v1.0.0-rc3` (puis de l'étiquette finale) : À effectuer (EV-04 : commit de l'étiquette du moteur). Toute MAJ ultérieure passe par un nouveau cycle de certification (procédure §II.E + Article 109 du Manuel).
+4. **Tag git.** Le commit de la build cert est tagué `android-v1.0.0` ; le moteur fiscal (`crates/pos-engine` et ses crates, compilé dans `libpos_ffi.so` de l'APK) est celui de l'étiquette de gel android-v1.0.0-rc3 (puis de l'étiquette finale `android-v1.0.0`), dont l'absence de modification est contrôlée par `scripts/android/check_android_frozen.sh` : À effectuer (EV-04 : commit de l'étiquette de gel android-v1.0.0-rc3, puis de l'étiquette finale android-v1.0.0). Toute MAJ ultérieure passe par un nouveau cycle de certification (procédure §II.E + Article 109 du Manuel).
 
 
 ## §II.E Mises à jour
@@ -297,7 +296,7 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 | POS login - Technicien | INSZ : `00000000097` | PIN : `0097` | NISS technicien standard SPF, rôle `admin`. |
 | Identité système (robot) | INSZ : `00000000029` | Aucune connexion possible | NISS robot/automate standard SPF, utilisé comme opérateur du rapport Z automatique (FAQ Q501). Elle ouvre aussi la fiche d'une commande en ligne reçue ; les événements de cette commande sont signés au nom de l'employé qui l'accepte. Ce n'est pas un compte de connexion : il n'a pas de tuile et la caisse refuse de l'ouvrir en session. |
 
-Ces comptes sont créés par la graine de test (`src-tauri/seed_spf_test.sql`, fournie comme `seed.sql` du lot de provisionnement de la machine de test et appliquée seulement à une base qui n'existe pas encore) ; le test `access_control.rs::the_admission_seed_logs_in_every_documented_profile` se connecte avec chacun des six comptes de connexion, vérifie son rôle, et vérifie que l'identité système est refusée. Un Gérant doit toujours avoir un PIN. Au tout premier démarrage seulement (aucun Gérant n'a encore de PIN), un Gérant sans PIN choisit le sien à sa première connexion (`commands/auth.rs::do_login_with_new_pin`, `MANUEL_UTILISATEUR_FR.md` §2.1). Ensuite, un nouveau Gérant est créé avec son PIN, confirmé par le PIN du Gérant qui le crée (`commands/auth.rs::do_create_user`) ; un Gérant sans PIN ne peut plus choisir lui-même le sien (code `first_pin_needs_manager`).
+Ces comptes sont créés par la graine de test (`seed_spf_test.sql`, fournie comme `seed.sql` du lot de provisionnement de la machine de test et appliquée seulement à une base qui n'existe pas encore) ; le test `access_control.rs::the_admission_seed_logs_in_every_documented_profile` se connecte avec chacun des six comptes de connexion, vérifie son rôle, et vérifie que l'identité système est refusée. Un Gérant doit toujours avoir un PIN. Au tout premier démarrage seulement (aucun Gérant n'a encore de PIN), un Gérant sans PIN choisit le sien à sa première connexion (`commands/auth.rs::do_login_with_new_pin`, `MANUEL_UTILISATEUR_FR.md` §2.1). Ensuite, un nouveau Gérant est créé avec son PIN, confirmé par le PIN du Gérant qui le crée (`commands/auth.rs::do_create_user`) ; un Gérant sans PIN ne peut plus choisir lui-même le sien (code `first_pin_needs_manager`).
 
 **Mode de connexion :** le POS s'ouvre par INSZ + PIN. Pour les Serveurs et les Apprentis, un badge (carte ou porte-clés) peut remplacer le PIN sur l'écran de connexion si le Gérant a activé « Lecteur de badges » et « Connexion par badge » (réglages désactivés par défaut) ; le badge est lié à l'employé par le Gérant avec son PIN (`commands::badges::do_link_badge`, §III.E « Pointage par badge »). Les Gérants se connectent **toujours avec leur PIN** : leur badge ne fait qu'ouvrir leur clavier de PIN. Un employé peut refuser le badge : le PIN et l'enregistrement de sa présence par un Gérant restent disponibles.
 
@@ -694,7 +693,7 @@ Toutes les fonctionnalités déclarées ☑ sont couvertes par des tests automat
 
 ## §III - Lignes de produit prédéfinies
 
-**Statut :** la machine de test est initialisée avec exactement les 25 produits du manuel (Dry Martini productId 10006, Burger of the Chef 22001, Carpaccio Beef 20001, Catch of the day 22005, Dame Blanche 25003, Crème brûlée 25008, etc.), leurs départements, prix et codes TVA, depuis `src-tauri/seed_spf_test.sql`, fourni comme `seed.sql` du lot de provisionnement de la machine de test. *Voir : LIGNES_PRODUITS_FR.md*.
+**Statut :** la machine de test est initialisée avec exactement les 25 produits du manuel (Dry Martini productId 10006, Burger of the Chef 22001, Carpaccio Beef 20001, Catch of the day 22005, Dame Blanche 25003, Crème brûlée 25008, etc.), leurs départements, prix et codes TVA, depuis `seed_spf_test.sql`, fourni comme `seed.sql` du lot de provisionnement de la machine de test. *Voir : LIGNES_PRODUITS_FR.md*.
 
 Ce seed sera chargé sur la machine de test à l'Intake. Les UC du Bloc IV (procédure GraphQL) référencent ces productId précis ; le seed SPF garantit que les UC peuvent être exécutés à l'identique.
 
@@ -741,7 +740,7 @@ Les cas de facture de l'Advanced Set (UC4121, UC4122) sont rejoués par `invoice
 
 Le manuel demande les tests de base 1 et 2 dans tous les cas, le test de base 3 si le POS n'arrondit que les paiements en espèces, et le test de base 4 seulement si le POS arrondit tous les moyens de paiement. pili-pos-android n'arrondit **que les espèces**, au 0,05 EUR le plus proche, dans une ligne `ROUNDING` à part ; la carte et les chèques-repas sont des montants exacts, jamais arrondis, et seul le reste payé en espèces est arrondi (`crates/pos-fiscal/src/payment.rs`). Les tests de base 1, 2 et 3 s'appliquent donc ; le test de base 4 (multi-paiements 2, POS qui arrondit tous les moyens de paiement) ne s'applique pas.
 
-| Test du manuel | Situation | Scénario | À payer / arrondi attendus | Test automatisé | Preuve JSON |
+| Test du manuel | Situation | Scénario | À payer / arrondi attendus | Test automatisé | Report_Testing/uc (EV-06) |
 |---|---|---|---|---|---|
 | Base 1 : arrondi du cash | 1 | Dame Blanche 11,52 EUR (B), cash seul | 11,50 EUR / -0,02 EUR | `round1_11_52_is_paid_11_50` | `evidence/uc/ROUND1*` |
 | Base 1 : arrondi du cash | 2 | Tapas Variation 3,34 EUR (B), cash seul | 3,35 EUR / +0,01 EUR | `round2_3_34_is_paid_3_35` | `evidence/uc/ROUND2*` |
@@ -749,6 +748,8 @@ Le manuel demande les tests de base 1 et 2 dans tous les cas, le test de base 3 
 | Base 2 : chèque-repas | 4 | Dame Blanche + Tapas Variation ; 11,52 EUR en chèques-repas, le solde en cash | 3,35 EUR en cash / +0,01 EUR | `round4_meal_vouchers_then_cash` | `evidence/uc/ROUND4*` |
 | Base 3 : multi-paiements 1 | 5 | Dame Blanche + Tapas Variation ; 3,13 EUR chèques-repas, 3,97 EUR carte de débit, le solde avec 10 EUR en cash | 7,75 EUR en cash, rendu 2,25 EUR / -0,01 EUR | `round5_meal_vouchers_card_and_cash` | `evidence/uc/ROUND5*` |
 | Base 4 : multi-paiements 2 | 5 | (POS qui arrondit tous les moyens de paiement) | ☐ Non applicable | - | - |
+
+Preuves JSON de ces cinq situations sur l'émulateur : À effectuer (EV-06 : requête et réponse JSON de ROUND1 à ROUND5).
 
 Un remboursement en espèces est arrondi de la même façon, comme dans l'exemple de ticket de remboursement du SPF (`docs/20260904_Example_tickets/`) : un Coca Cola de 3,04 EUR remboursé est rendu 3,05 EUR, ligne `PAYMENT` de -3,04 puis ligne `ROUNDING` de -0,01, "Arrondi -0,01" sur le ticket, 3,05 EUR sortis du tiroir (test `a_cash_refund_is_rounded_like_the_spf_example`, `crates/pos-engine/tests/spf_e2e_rounding.rs`).
 
@@ -758,11 +759,11 @@ Les tickets correspondants figurent dans *TICKETS_EXEMPLES_FR.md*.
 
 # §V - COMPORTEMENT DU POS AUX RÉPONSES DU FDM
 
-**Statut implémentation :** la table `FdmMessageTables` (`android/app/src/main/kotlin/dev/nuagemagique/pilipos/i18n/generated/FdmMessageTables.kt`, engendrée à partir des mêmes textes que le fichier `ui/src/utils/fdmMessages.ts` de la version Linux) mappe **23 codes FDM** (les 21 du tableau ci-dessous, plus `UPDATE_POS_VATNO` et `UPDATE_POS_ESTNO`) vers des messages FR (liste `ERRORS`), et 4 contrôles propres à la caisse (liste `POS_CHECK`, voir plus bas) ; le voyant FDM du bandeau (`android/app/src/main/kotlin/dev/nuagemagique/pilipos/ui/scaffold/StatusLights.kt`, vert / orange / rouge) donne l'état, et `android/app/src/main/kotlin/dev/nuagemagique/pilipos/ui/fdm/FdmBanner.kt` affiche le message sous le bandeau : un bandeau orange pour un avertissement (la vente continue), un voile (`android/app/src/main/kotlin/dev/nuagemagique/pilipos/ui/fdm/FdmBlockingVeil.kt`) qui couvre les écrans de vente pour une erreur bloquante (seul « Réessayer » ; Rapports et Config restent accessibles), et chaque écran qui reçoit un refus du FDM (encaissement, remboursement, copie, addition, commande, pointage, caisse, rapports) affiche le même message (`FdmTexts.describe`), plus un repli générique pour les erreurs de connexion (mots-clés `connect`/`timeout`) et un repli générique final pour tout code non listé. Le sondage du status FDM tourne dans le moteur, en arrière-plan, toutes les 30 secondes, et s'espace (60 s, 2 min, jusqu'à 5 min) tant que le FDM ne répond pas (`docs/android/ENGINE.md` §7). Les textes ci-dessous sont recopiés **mot pour mot** depuis le code source (source de vérité) ; toute divergence future entre ce tableau et `FdmMessageTables.kt` doit être résolue en faveur du code.
+**Statut implémentation :** la table `FdmMessageTables` (`android/app/src/main/kotlin/dev/nuagemagique/pilipos/i18n/generated/FdmMessageTables.kt`, engendrée à partir de la table des messages du moteur) mappe **23 codes FDM** (les 21 du tableau ci-dessous, plus `UPDATE_POS_VATNO` et `UPDATE_POS_ESTNO`) vers des messages FR (liste `ERRORS`), et 4 contrôles propres à la caisse (liste `POS_CHECK`, voir plus bas) ; le voyant FDM du bandeau (`android/app/src/main/kotlin/dev/nuagemagique/pilipos/ui/scaffold/StatusLights.kt`, vert / orange / rouge) donne l'état, et `android/app/src/main/kotlin/dev/nuagemagique/pilipos/ui/fdm/FdmBanner.kt` affiche le message sous le bandeau : un bandeau orange pour un avertissement (la vente continue), un voile (`android/app/src/main/kotlin/dev/nuagemagique/pilipos/ui/fdm/FdmBlockingVeil.kt`) qui couvre les écrans de vente pour une erreur bloquante (seul « Réessayer » ; Rapports et Config restent accessibles), et chaque écran qui reçoit un refus du FDM (encaissement, remboursement, copie, addition, commande, pointage, caisse, rapports) affiche le même message (`FdmTexts.describe`), plus un repli générique pour les erreurs de connexion (mots-clés `connect`/`timeout`) et un repli générique final pour tout code non listé. Le sondage du status FDM tourne dans le moteur, en arrière-plan, toutes les 30 secondes, et s'espace (60 s, 2 min, jusqu'à 5 min) tant que le FDM ne répond pas (`docs/android/ENGINE.md` §7). Les textes ci-dessous sont recopiés **mot pour mot** depuis le code source (source de vérité) ; toute divergence future entre ce tableau et `FdmMessageTables.kt` doit être résolue en faveur du code.
 
 **Avertissements reçus avec une signature :** la description POS v2.2 (Message) demande d'afficher un avertissement au moins une fois par bookingDate, à la réception de la réponse d'une mutation, et une erreur à chaque réception. Chaque réponse de signature vérifiée transmet ses avertissements et informations (sauf `showPos` NEVER) à l'écran (le client FDM de chaque commande porte un relais de messages vers le moteur, qui émet l'événement `fdm-sign-messages`) : un message s'affiche en FR une fois par code et par bookingDate, quelle que soit la commande qui a signé, et le voyant FDM passe à l'orange. Les erreurs sont affichées à chaque refus, comme décrit ci-dessus. Tests : `crates/pos-fiscal/tests/sign_messages.rs`, `android/app/src/test/kotlin/dev/nuagemagique/pilipos/ui/fdm/FdmStoreTest.kt`.
 
-**Essai sur le simulateur module2 :** les quatre conditions de l'onglet Developer du simulateur FDM02000425 ont été rejouées le 27/09/2026 (un status et une vente chacune). BUFFER_FULL et FDM_LOCKED refusent la vente avec leur code, sans consommer de numéro de ticket. BUFFER_NEAR_FULL et TRANSACTION_UPLOAD_FAILED (compteur de tentatives d'envoi) laissent la vente signée, l'avertissement figurant dans le status et dans la réponse de signature. Les réponses sont jointes dans le dossier Report_Testing/module2 (fichiers LIVE_condition_*.json). Les réponses du simulateur (journée complète, refus de jeton, posId inconnu, requête invalide, conditions de buffer) ont aussi été enregistrées une fois : le mock FDM utilisé pour les preuves JSON ci-dessus répond dans la même forme (test `module2_shape.rs`), et le POS accepte chacune de ces réponses (test `module2_recorded.rs`). Un jeton refusé, que module2 signale sans code, affiche le message UNAUTHORIZED.
+**Essai sur le simulateur module2 :** les quatre conditions de l'onglet Developer du simulateur FDM02000425 seront rejouées avec la caisse Android lors du passage en conditions réelles (un status et une vente chacune) : À effectuer (EV-14 : requêtes et réponses des quatre conditions BUFFER_FULL, FDM_LOCKED, BUFFER_NEAR_FULL et TRANSACTION_UPLOAD_FAILED sur le simulateur module2, avec le terminal POS-2-ANDROID). Le comportement attendu est celui que les tests du moteur sur la machine de développement vérifient sur des réponses enregistrées. Les réponses du simulateur (journée complète, refus de jeton, posId inconnu, requête invalide, conditions de buffer) ont été enregistrées une fois : le mock FDM utilisé pour les preuves JSON ci-dessus répond dans la même forme (test du moteur `module2_shape.rs`, joué sur la machine de développement), et le moteur accepte chacune de ces réponses (test du moteur `module2_recorded.rs`, même machine). Un jeton refusé, que module2 signale sans code, affiche le message UNAUTHORIZED.
 
 **Statut tests/captures :** l'injection d'erreurs runtime est implémentée dans le mock FDM (`crates/pos-fdm-mock`, variables d'environnement `MOCK_FDM_ERROR` / `MOCK_FDM_WARNING`, codes séparés par des virgules). Les **preuves JSON** (requête signSale + réponse d'erreur GraphQL, requête status + réponse avec le message) sont capturées par `scripts/capture_fdm_error_evidence.sh` et archivées sous `evidence/fdm_errors/` pour les 4 erreurs à affichage obligatoire (BUFFER_FULL, FDM_LOCKED, FDM_NOT_OPERATIONAL, UNKNOWN_POS), les 2 avertissements à affichage obligatoire (CLIENT_CERT_EXPIRED, BUFFER_NEAR_FULL) et 2 codes optionnels (UNAUTHORIZED, RTC_SYNC_FAILED). Le payload signSale utilisé est la fixture officielle M110 (Basic Set v1.8). Les **captures d'écran** de l'application Android pour chaque message sont dans *CAPTURES_ECRAN_FR.pdf* : captures A56 à A79, A88 à A90 et A93 (profil D3 Pro émulé). Sur une vente, les codes INTERNAL_ERROR, UNDEFINED_ERROR et UNDEFINED_OTHER et une réponse non conforme à la requête (`FDM_RESPONSE_MISMATCH`) laissent l'issue inconnue (le moteur garde la requête et la renvoie à l'identique ; un nouvel essai avec un FDM sain conclut la vente) : l'écran affiche d'abord le message de la boîte noire pour ce code, puis « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. », voir les captures A65 à A67 et A78. La colonne Capture du tableau ci-dessous donne l'identifiant A<nn> de chaque écran.
 
@@ -813,7 +814,7 @@ Quatre contrôles propres à la caisse (liste `POS_CHECK` de `FdmMessageTables.k
 
 En complément des codes ci-dessus, `FdmMessageTables.kt` prévoit deux messages génériques non listés dans la spec §V : « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. » (si le message brut contient `connect`/`timeout`) et « Erreur boîte noire. Contactez votre technicien. » (repli final pour tout code FDM non reconnu par le mapping ci-dessus ; l'capture A77 montre la perte de connexion) - ceci garantit qu'aucune erreur FDM ne s'affiche jamais sans message FR compréhensible par l'opérateur.
 
-**☑ Le test a été effectué sur le moteur commun, JSON ajoutés** (`evidence/fdm_errors/`, 8 codes × 4 fichiers, mêmes fichiers que dans le dossier Linux puisque le moteur et le mock FDM sont communs). Captures d'écran de l'application Android : A56 à A79, A88 à A90 et A93.
+**☑ Le test a été effectué avec le FDM simulé du dépôt, JSON ajoutés** (`evidence/fdm_errors/` de ce dossier, 8 codes × 4 fichiers : la requête officielle M110 et une requête de statut, postées au simulateur avec chaque code activé tour à tour, et ses réponses). Captures d'écran de l'application Android : A56 à A79, A88 à A90 et A93.
 
 ---
 
@@ -950,7 +951,7 @@ Le Gérant (rôle Admin) ouvre l'écran "Rapports" par le bouton de l'en-tête (
 
 *Voir : MANUEL_UTILISATEUR_FR.md §10 "Rapports X et Z" et TICKETS_EXEMPLES_FR.md §6 (rapport X) et §7 (rapport Z) pour le rendu papier.*
 
-**Captures d'écran à fournir** : oui, *CAPTURES_ECRAN_FR.pdf* (écrans 14 et 15 du dossier Linux, repris dans le PDF Android : captures A36 à A40, rapports X et Z).
+**Captures d'écran à fournir** : oui, *CAPTURES_ECRAN_FR.pdf* (captures A36 à A40, rapports X et Z).
 
 **Comment les rapports d'utilisateur X/Z sont-ils visibles/imprimables ?**
 
@@ -975,11 +976,11 @@ Le Gérant (rôle Admin) ouvre l'écran "Rapports" par le bouton de l'en-tête (
 
 Liste des fichiers du ZIP de soumission de `pili-pos-android` (la liste exacte, fichier par fichier, est `MANIFEST.txt`) :
 
-Dans le texte des annexes, un renvoi à un fichier `.md` (par exemple *SECURITE_BD_FR.md*) désigne l'annexe PDF du même nom. Une annexe marquée « commun » décrit le moteur seul : c'est celle du dossier Linux au même état du moteur (étiquette de gel `linux-v1.0.0-rc3`, puis étiquette finale), reprise sans modification (*INDEX_DOSSIER_FR.md* §2 et §3).
+Dans le texte des annexes, un renvoi à un fichier `.md` (par exemple *SECURITE_BD_FR.md*) désigne l'annexe PDF du même nom. Les annexes qui décrivent le moteur seul (schéma de la base, compteurs, couvertures, ticket numérique) sont celles du moteur de l'étiquette de gel android-v1.0.0-rc3, puis de l'étiquette finale.
 
 | # | Fichier | Section couverte |
 |---|---|---|
-| 0 | INDEX_DOSSIER_FR.pdf | liste des documents du dossier (article 101), lecture des documents communs |
+| 0 | INDEX_DOSSIER_FR.pdf | liste des documents du dossier (article 101) |
 | 1 | REPONSES_MANUEL_CERT_FR.pdf (ce document) | parcours linéaire §I-VIII |
 | 2 | LISTE_DISTRIBUTEURS_FR.pdf | §I.E |
 | 3 | PROFIL_ENTREPRISE_FR.pdf | §I.F |
@@ -990,31 +991,31 @@ Dans le texte des annexes, un renvoi à un fichier `.md` (par exemple *SECURITE_
 | 8 | PROFILS_UTILISATEURS_FR.pdf | §III.C |
 | 9 | DOCUMENT_PROCESSUS_TECHNIQUE_FR.pdf | §II + §III.E |
 | 10 | FLUX_DONNEES_FR.pdf | §II.C + §III |
-| 11 | SCHEMA_BD_FR.pdf (commun) | §II.C |
+| 11 | SCHEMA_BD_FR.pdf | §II.C |
 | 12 | SECURITE_BD_FR.pdf | §II.C, accès du SPF aux données (articles 16 et 102) |
-| 13 | SCHEMA_ER_FR.pdf (commun) | §II.C |
+| 13 | SCHEMA_ER_FR.pdf | §II.C |
 | 14 | SCHEMA_ASSEMBLAGE_FR.pdf | §I.C + §II.G |
 | 15 | LISTE_FONCTIONNALITES_FR.pdf | §III |
 | 16 | LIGNES_PRODUITS_FR.pdf | §III, Lignes de produit |
-| 17 | STRATEGIE_COMPTEURS_FR.pdf (commun) | §III.B (numérotation) + Connexion avec le FDM C (FDM non-opérationnel) |
+| 17 | STRATEGIE_COMPTEURS_FR.pdf | §III.B (numérotation) + Connexion avec le FDM C (FDM non-opérationnel) |
 | 18 | FLUX_REMBOURSEMENT_FR.pdf | §III.F |
 | 19 | TICKETS_EXEMPLES_FR.pdf | §VI |
 | 20 | DECISION_PEPPOL_AP_FR.pdf | §III.F (encadré B2B) |
 | 21 | MAPPING_CONFORMITE_FR.pdf | §IV + §V |
 | 22 | FEUILLE_ACQUISITION_DONNEES_FR.pdf | §VII |
 | 23 | RAPPORT_TESTS_BASELINE_FR.pdf | §IV + §VIII |
-| 24 | COUVERTURE_FIXTURES_FR.pdf (commun) | §IV |
-| 25 | COUVERTURE_RAPPORTS_FR.pdf (commun) | §IV |
+| 24 | COUVERTURE_FIXTURES_FR.pdf | §IV |
+| 25 | COUVERTURE_RAPPORTS_FR.pdf | §IV |
 | 26 | COUVERTURE_ADVANCED_SET_FR.pdf | §IV |
 | 27 | RESULTATS_TESTS_UC_FR.pdf | §IV - PDF de résultats UC |
 | 28 | CAPTURES_ECRAN_FR.pdf | §V + §VII.D |
 | 29 | JOURNAL_TESTS_PRE_SOUMISSION_FR.pdf | §IV (répétition pré-soumission) |
 | 30 | CHECKLIST_DEPLOIEMENT_FR.pdf | machine de test |
 | 31 | GARANTIE_MAJ_LANGUES_FR.pdf | §I.D + §II.D + §II.E + §VI (langue du ticket) |
-| 32 | TICKET_NUMERIQUE_FR.pdf (commun) | §III.H |
+| 32 | TICKET_NUMERIQUE_FR.pdf | §III.H |
 | 33 | COMMANDES_EN_LIGNE_FR.pdf | §III.M + livraison, commandes en ligne |
 | 34 | EXPORT_NOCTURNE_FR.pdf | Configuration Internet + §VII.B + DAS (export nocturne facultatif) |
-| 35 | CADRE_DEMANDE_FR.pdf | cadrage de la demande (article 99), versions, moteur commun |
+| 35 | CADRE_DEMANDE_FR.pdf | cadrage de la demande (article 99), version, moteur |
 | 36 | PLATEFORME_ANDROID_FR.pdf | §I.C, §II.C, §II.F, §II.G : plateforme, verrouillage, identifiant de l'appareil, stockage |
 | 37 | FACTURATION_PEPPOL_FR.pdf | §III.F (facture B2B, Peppol), §III.B |
 | 38 | EDITEUR_CARTE_FR.pdf | §I.C (édition de la carte), §III |
