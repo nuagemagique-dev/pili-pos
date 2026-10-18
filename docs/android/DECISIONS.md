@@ -2246,7 +2246,7 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
 - **INT-D32 rc2 to rc3 renaming scope.** Dossier texts now name `linux-v1.0.0-rc3`. The About string
   `plat_about_engine_ref` now reads `pili-pos 1.0.0, linux-v1.0.0-rc3 (pending)` (done in the rc3 bench pass, with the
   tests that pin it and the `PILI_P6_FREEZE_TAG` default of `p6_gate.sh`; the short SHA is filled at tagging). Left for
-  the freeze step: the `PILI_P6_FREEZE_TAG` defaults of the p1a/p4/p6 gates,
+  the freeze step: any remaining rc2 default of a gate script (`p6_gate.sh` is done),
   `check_linux_frozen.sh`, `LINUX_FREEZE.md` and `PLATFORM.md`; the historical sentence in EV-09 keeps rc2.
 - **INT-D33 Hand-edited evidence reverted.** The ticket evidence files, the TICKETS_EXEMPLES transcripts and the
   GMS e2e log were restored to what the 2026-10-15 run recorded (a595579b had edited them by hand, with wrong
@@ -2265,7 +2265,7 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
   the dev-minisign key held in `~/.cache/pili-android`, which differs from the committed public key. Swapping the
   committed trust key for the build was refused by the permission layer, so the retake stays with the owner: either
   restore the secret half of the committed key, or accept a regenerated pair (`make_dev_bundle.sh --write-pub`,
-  committed) and run the bench. Until then A160 still shows "Titres-repas" and the ticket evidence still prints
+  committed) and run the bench. Until then A160 still shows the old payment-method label and the ticket evidence still prints
   "Cheques-repas" (EV-08).
 - **INT-D37 Development minisign key rotated (rc3).** User decision of 2026-10-18: the secret half of the committed
   development key was lost, so `android/app/provisioning/dev-minisign.pub` is now key `5F208F7636516D6B`, whose secret
@@ -2280,3 +2280,16 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
   and in the total, which still equals the Z turnover. Both UIs only display the figure (hidden at 0), so no UI code
   changed; the engine test `a_negative_line_inside_a_sale_is_not_a_refund` pins it. The Linux capture
   `80_reports_sales` is a mock-data screen and keeps its value. This closes the "known wording issue" noted earlier.
+- **INT-D39 Bench retake done on the rc3 build (rc3).** Supersedes INT-D33 and INT-D36 for the evidence they left
+  open. On 2026-10-18 the debug APK was rebuilt, the bench provisioned with the TEM, Peppol, card terminal and
+  HubRise mocks (`PILI_BUNDLE_PEPPOL_API` added to `make_dev_bundle.sh`), and retaken: A159, A160, A82 (rc3
+  reference), A54, A55, A103, A105, A106, A112 to A114, A15 and A120; new A195 (Peppol panel, local Storecove mock)
+  and A196 (PIN-pad refusal text of a9a50108). The EV-08 ticket run was redone from the app on `pos-printer-mock`
+  (14 files, never hand-edited), with "Chèques-repas"; the card of the mixed-payment ticket prints "Carte Bancontact"
+  because the card terminal mock's default brand is Bancontact. The captures A56 to A99 and A35 are not retaken: the
+  FDM banner components and messages are unchanged since rc2 and the settings screens only gained neighbouring
+  panels. The gift voucher, voucher balance, allergen sheet and per-course kitchen ticket transcripts keep the host
+  rendering of the engine (still "A effectuer" in TICKETS_EXEMPLES_FR.md). EV-01 to EV-09 are not changed in status.
+- **INT-D40 Host replay of the Z report journals is date-dependent (rc3).** The committed journals of M181, M183 and
+  M184 carry `reportBookingDate` 2026-10-10; a replay on another day differs in that field only. Noted in
+  `UC_RESULTS.md`; no journal was re-recorded.

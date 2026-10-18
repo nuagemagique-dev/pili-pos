@@ -110,7 +110,7 @@ Le dossier Report_Testing suit le point 3.2 de la procédure du 3 septembre 2026
 | Report_Testing/uc | requête et réponse JSON de chaque cas d'utilisation (Basic Set 1.8, Advanced Set 1.6, Reports 1.3), jouées sur l'émulateur Android | À effectuer (EV-06 : résultats UC sur l'émulateur Android, requête et réponse JSON par UC) |
 | Report_Testing/tickets | tickets imprimés sur l'imprimante simulée, octets de statut retirés, imprimante Epson réelle si disponible | fait : `TICKETS_EXEMPLES_FR.md` et `evidence/tickets/` (impression sur l'Epson réelle : À effectuer (EV-15 : imprimante réelle)) |
 | Report_Testing/build | rapports de construction : empreinte de l'image de construction et SHA-1 de deux APK non signés identiques au commit de la version | À effectuer (EV-05 : empreinte de l'image de construction et SHA-1 des deux APK non signés identiques) |
-| CAPTURES_ECRAN_FR.pdf (annexe 28) | captures d'écran du profil sunmi_d3_pro_gms_api33 | 188 captures A01 à A194 du profil D3 Pro émulé, liste dans `internal/CAPTURES_ECRAN_RUNBOOK_FR.md` |
+| CAPTURES_ECRAN_FR.pdf (annexe 28) | captures d'écran du profil sunmi_d3_pro_gms_api33 | 190 captures A01 à A196 du profil D3 Pro émulé, liste dans `internal/CAPTURES_ECRAN_RUNBOOK_FR.md` |
 | RESULTATS_TESTS_UC_FR.pdf (annexe 27) | résultats par cas d'utilisation et comparaison avec le journal Linux | À effectuer (EV-07 : comparaison des journaux et requêtes FDM entre Android et Linux) |
 | JOURNAL_TESTS_PRE_SOUMISSION_FR.pdf (annexe 29) | déroulement complet sur l'appareil, 24 h de fonctionnement, reprise après coupure | À effectuer (EV-10 : déroulement sur les profils D3 Pro émulés), À effectuer (EV-11 : essai de 24 h du service au premier plan), À effectuer (EV-12 : reprise après coupure d'alimentation) |
 

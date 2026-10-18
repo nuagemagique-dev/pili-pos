@@ -955,7 +955,8 @@ Refus (le texte s'affiche dans la fenêtre) :
 
 Si le FDM ne répond pas, la réponse peut arriver plus tard : la demande reste en
 attente et la correction est reprise au prochain essai ou par la tâche de fond (§7.4). Le PIN est celui du Gérant connecté.
-(Captures : A159 et A160 fenêtre « Corriger le paiement » ; A190 vente corrigée ; A191 carte du terminal lié refusée.)
+Une correction qui demanderait un arrondi en espèces est refusée au moment du PIN : la fenêtre « Saisir le PIN » affiche alors « Cette correction demanderait un arrondi : elle n'est pas possible pour cette vente. ».
+(Captures : A159 et A160 fenêtre « Corriger le paiement » ; A190 vente corrigée ; A191 carte du terminal lié refusée ; A196 refus au pavé du PIN.)
 
 ## 9 ter. Remboursement et bons cadeaux
 
@@ -1553,6 +1554,7 @@ commandes suivantes ; les ventes déjà signées ne changent pas.
 l'installation contient une section `peppol`. Il indique le fournisseur,
 le nombre d'envois en attente, remis et bloqués, et pour chaque envoi
 bloqué son motif et le bouton "Réessayer".
+(Capture : A195 panneau Peppol, installation sans envoi en cours.)
 
 ## 13. Mode formation (événements T)
 
@@ -1679,7 +1681,7 @@ journée par un rapport Z**.
 
 ---
 
-## Annexe. Captures des fonctions complémentaires (A130 à A194)
+## Annexe. Captures des fonctions complémentaires (A130 à A196)
 
 Les captures ci-dessous ont été prises le 18.10.2026 sur le profil `sunmi_d3_pro_gms_api33` (jeu de test SPF). Chacune est aussi citée dans la section indiquée et dans le fichier `CAPTURES_ECRAN_FR.pdf` ; l'annexe de chaque fonction renvoie aux siennes.
 
@@ -1746,3 +1748,5 @@ Les captures ci-dessous ont été prises le 18.10.2026 sur le profil `sunmi_d3_p
 | A192 | Facture entreprise, étape « 1 · Client » : numéro BE0123456749, pastille « Peppol inconnu (hors ligne) », « Peppol n'a pas répondu : la facture peut être établie, l'envoi sera retenu. » | §8 bis |
 | A193 | Fenêtre « Vendre un bon cadeau » : « Montant du bon » 50,00 €, pavé numérique, « Retour » et « Valider » | §4 bis |
 | A194 | Onglet « Ventes », « Période libre » : saisie « Du __/__/____ » et « Au __/__/____ » au pavé, bouton « Afficher » | §10.4 |
+| A195 | Config, panneau « Peppol » : fournisseur, identifiant d'envoi, compteurs « En attente », « Remises » et « Bloquées », « Aucun envoi bloqué. » | §12 bis |
+| A196 | Fenêtre « Saisir le PIN » d'une correction de paiement refusée : message rouge « Cette correction demanderait un arrondi : elle n'est pas possible pour cette vente. » | §9 bis |

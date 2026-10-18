@@ -40,6 +40,12 @@ python3 scripts/android/uc_matrix_android.py --check
 `pos-uc-check compare --linux target/p7-gate/linux --android docs/android/uc/journals/android --fixtures` against the
 committed Android journals.
 
+**Date dependence of the Z report replays.** The committed journals of M181, M183 and M184 (Linux and Android) were
+recorded on 2026-10-10. A host replay run on another day differs from them in `reportBookingDate` only (the booking
+date of a Z report is the day of the run, see `UC.md`); every other field, request and ticket text is identical. A
+replay of these three groups therefore compares equal only on the recording day or once `reportBookingDate` is in the
+volatile paths; the difference is not an engine change.
+
 ## Checks
 
 `steps` both journals PASS with the same commands and the same `ok`; `fdm-ops` same operations in order;

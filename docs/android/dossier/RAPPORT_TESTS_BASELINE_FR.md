@@ -102,7 +102,7 @@ Sans objet sur Android : le périmètre cert du moteur est celui du rapport Linu
 - **Test instable sous charge.** Un test de la liaison (`lifecycle`, arrêt annulé puis arrêt) a échoué une fois sous forte charge de la machine de construction et passe seul (`X1-exit.md`, X1D22).
 - **Parcours de longue durée.** Marche de 24 h avec le service d'avant-plan : `À effectuer (EV-11 : marche de 24 h)`. Reprise après coupure de courant : `À effectuer (EV-12 : coupure en pleine transaction)`. Parcours du terminal complet sur les deux profils : `À effectuer (EV-10 : parcours D3 Pro)`.
 - **Comparaison avec Linux.** Journaux et requêtes FDM comparés pour les mêmes scénarios : `À effectuer (EV-07 : comparaison Android et Linux)`.
-- **Interface.** Les captures de référence des écrans Compose servent de garde contre les régressions visuelles ; les 188 captures du dossier (profil avec services Google, A01 à A194) sont dans `CAPTURES_ECRAN_FR.pdf`.
+- **Interface.** Les captures de référence des écrans Compose servent de garde contre les régressions visuelles ; les 190 captures du dossier (profil avec services Google, A01 à A194) sont dans `CAPTURES_ECRAN_FR.pdf`.
 
 ---
 
