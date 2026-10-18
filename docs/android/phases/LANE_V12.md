@@ -726,7 +726,7 @@ of this file (what was delivered, deviations, gate results).
 6. Printed kitchen slips: first course at the P, release slip "SUITE : Plats", direct sale with course
    headers (the course reprint is engine-only, no screen: no DUPLICATA capture).
 7. Order screen "Bon cadeau" button and amount dialog; cart line with a voucher.
-8. Checkout "Bon cadeau" payment dialog (lookup active, expired, insufficient); split voucher + cash.
+8. Checkout "Bon cadeau" payment dialog (lookup active, expired, not usable (voucher of the other mode), insufficient); split voucher + cash.
 9. VAT ticket of a voucher sale (VAT X) and of a sale paid by voucher; printed voucher; balance slip;
    duplicate.
 10. Reports "Bons cadeaux" tab (lookup, list); Settings "Bons cadeaux" panel, with the refusal of the

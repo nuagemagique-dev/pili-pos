@@ -1582,3 +1582,28 @@ appended by each task of the lane; T1 (accountant export) wrote the first entrie
   the probe sends only a status request).
 - **Merge note.** `scripts/uc_scope.toml` marks UC260 to UC262 covered: run `uc_matrix.py --write` only against the
   v1.2 dossier, never against the v1.0.0 `SUBMISSION_ARTIFACTS` matrix. The three stray `.kt-E` files were removed.
+
+### Closing round of lane 4-v12 (2026-10-18, scope change: everything here is part of v1.0.0)
+
+- **V12-D37 Terminal probe never delays a card payment (E).** The owner-alerts terminal probe takes the EFT line
+  (`AppState::eft_line`) with `try_lock` and skips the round (judges nothing, sends nothing) when the line is busy
+  because a payment or another check is running. When it does get the line it runs under a short timeout,
+  `EngineTimers::terminal_probe` (default `alerts::TERMINAL_PROBE_TIMEOUT`, 10 s); on expiry the check future is
+  dropped, which frees the line, and the round judges nothing. A payment started during a probe therefore waits at
+  most the timeout. Tests: held line skipped at once with no terminal call; hanging terminal dropped; payment
+  started during a hanging probe is not delayed beyond the timeout (scripted driver with `set_check_delay`).
+- **V12-D38 Voucher of the other mode is `not_usable` (E).** `lookup_gift_voucher` answers the distinct status
+  `not_usable` when the voucher's training flag differs from the till's current mode (a training voucher in normal
+  mode, a real one in training mode), before any other status. The balance and expiry are still shown. The manager
+  list keeps the four real statuses. Both dialogs (Vue and Compose) show "Non utilisable (autre mode)" / "Not usable
+  (other mode)" / "不可使用（另一模式）" and offer no apply button; the sale already refused such a voucher
+  (`gift_voucher_not_usable`).
+- **V12-D39 Refund of a sale paid with a voucher stays a cash refund (E).** The voucher itself is never exchanged for
+  cash: it paid for goods, and refunding those goods is the refund of a sale, not an exchange of a voucher. The
+  restaurant chooses to refund that sale in cash (manager confirmation, as for any sale); the voucher is not
+  re-credited. The draft `BONS_CADEAUX_FR.md` now says so plainly; no receipt or slip wording says otherwise.
+- **V12-D40 No update framing (E).** The certification is v1.0.0 and includes this lane. Code, comments, test names
+  and file names carry no "v1.2" (`schema_v12.rs` is now `schema_owner.rs`, `V12_MIGRATIONS` is `OWNER_MIGRATIONS`);
+  the decision ids `V12-D..` and this heading stay. Migrations are not renumbered here (rc3 pass). `uc_scope.toml`
+  keeps UC260 to UC262 covered; the reasons of UC270, UC271 and UC4105 no longer name a version. `uc_matrix.py
+  --write` is for the orchestrator after the merge.
