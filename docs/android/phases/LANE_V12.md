@@ -954,3 +954,16 @@ deferred (V12-D24).
   the DUPLICATA.
 - **Environment findings:** shared heavy slots are often busy with other lanes; use a distinct `PW_PORT` for
   Playwright (the default port 1420 is shared); the test seed deletes the whole menu, hence the preserved system rows.
+
+### V12-T6 (Sonnet 5.5, 2026-10-18): full gate
+
+Ran the complete gate G (R, F, P, D, U, p5, p6, test inventory) at the head of the branch; everything is green
+except the expected-by-design failures (`hygiene-paths`, `hygiene-root-lock`, `linux-frozen`, `freeze-tag`,
+`app-only-scope`) and two failures inherited from the base or from `android/int` having moved (`kotlin-tests`
+against `android/int`; `ui-money` on `WebshopOrdersStore.kt`, already fixed in `android/int`). No code needed a
+fix, so no fix commit. Details and the GATE list are in DECISIONS under "V12-T6". v1.0.0 dossiers are untouched,
+no em-dash was added, `CLAUDE.md` counts (116 wrappers, 114 in the cert build) are current.
+
+The "Captures to retake" list of section 11 matches what T1 to T5 built (items 1 to 12; the Worker notes of T2,
+T3, T4, T5 name the same screens). Disk note: under 10 GB free during the run, regenerable worktree build outputs
+were removed (see DECISIONS).

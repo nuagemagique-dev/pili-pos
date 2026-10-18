@@ -1517,3 +1517,41 @@ appended by each task of the lane; T1 (accountant export) wrote the first entrie
     converts with `String(...)` first (found by the Playwright spec).
   - **Not done:** a QR scan of the code (typing only, as the plan says); the `max` of the amount error is shown in
     the establishment language of the browser/engine text, not localised beyond the comma.
+
+### V12-T6 (full gate, 2026-10-18)
+
+- **GATE lines (head of android/lane-v12, run through `heavy.sh`):**
+  - R: `cargo fmt --all -- --check` PASS; `cargo clippy --workspace --all-targets -- -D warnings` PASS; same with
+    `-p pili-pos --no-default-features --features cert` PASS; `cargo test --workspace` PASS (153 suites ok, 0 failed);
+    `cargo test -p pili-pos --no-default-features --features cert` PASS; `cargo test -p pos-engine
+    --no-default-features --features cert` PASS (66 suites ok).
+  - F (`android/rust`): `cargo fmt --all --check`, `clippy --workspace --all-targets --locked -D warnings`,
+    `cargo test --workspace --locked` all PASS.
+  - P: `check_ipc_wrappers.py` 116/116 single call (114 without peppol); `check_command_parity.py` plain, `--strict`
+    (114/114) and `--hygiene` PASS; `check_ui_parity.py` plain and `--strict` PASS (111 commands, 101 called, 10
+    excluded, 0 missing); `vue_to_android.mjs --check` PASS (707 keys); `lane_paths.py --check` PASS.
+  - D: `check_dossier.py` for `docs/SUBMISSION_ARTIFACTS`, `docs/android/dossier` and `docs/internal/v1.2` all exit 0;
+    `uc_matrix.py` check mode MANQUANT 0; em-dash scan of the changed files and of the added diff lines vs the base
+    `b3248d2d`: none; `git diff b3248d2d -- docs/SUBMISSION_ARTIFACTS docs/android/dossier` is empty (v1.0.0
+    dossiers untouched).
+  - U: `npm run build` and `npx playwright test`: 392 passed.
+  - A: p5 and p6 run the Android steps: lint, ktlint, detekt, 2226 unit tests, Roborazzi verify, kover (line 97.5%,
+    branch 74.2%), release assemble, APK check: all PASS.
+  - `p5_gate.sh` 7 FAIL of 34, `p6_gate.sh` 5 FAIL of 57, `test_inventory.sh --diff` PASS (0 removed);
+    `kotlin_test_inventory.py --base b3248d2d`: base 2081, head 2273, removed 0.
+- **Expected-by-design failures:** `hygiene-paths`, `hygiene-root-lock`, `linux-frozen`, `freeze-tag` (p5 and
+  p6), plus `app-only-scope` (p5 only: the lane touches `android/rust` and `pos-core`, so the "full gate" is the one
+  to use, which is this run).
+- **Failures that are not this lane's, left alone on purpose:**
+  - `kotlin-tests` (p5, p6) and `kotlin_test_inventory.py --base android/int`: `android/int` moved to `9ada2030` after
+    the merge base `b3248d2d` (lane 2 added about 339 tests there). Against the real base the inventory removes 0.
+    It goes away after the merge.
+  - `ui-money` (p5): `WebshopOrdersStore.kt:239-240` (`sumOf amountCents`, `totalCents - paid`) exists in the base;
+    `android/int` already fixes it in `dd2bd43b`. This lane does not touch the file; the merge resolves it.
+- **Environment notes:** the shared Cargo target needed the `touch` of `crates/` and `src-tauri/` sources before the
+  first build (see T1). Disk fell to 7 GB free during the run; removed `target/android-rust-mismatch` and
+  `target/android-mocks` of this worktree (regenerable) and ran `gradlew clean`; `cargo clean --target-dir target`
+  refuses to run on this layout. `uc_lock_parity.sh` was not part of this gate (known failure at the base, see T2).
+- **Open questions left for the owner/orchestrator:** the live Telegram check of the alerts (T2); Winbooks and Yuki
+  layouts of the accountant export are best effort (Q1); the merge with lanes 2 and 3 (see plan section 13); the
+  captures of plan section 11 (none is possible without an emulator).
