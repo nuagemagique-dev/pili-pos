@@ -748,3 +748,50 @@ Full gate G run and recorded in DECISIONS (V11-D45 to D48). Fixes: `SalesHour` s
 names restored, command-count pin of the parity self-test. Section 12 "Captures to retake" already lists every new or
 changed screen of T2 to T5 (items 1 to 11); nothing was added. Use `--base b3248d2d`, not the moved `android/int`, for
 `kotlin_test_inventory.py` until the lanes are merged.
+
+## 14. Feature to test map
+
+Written by the test round 1 (2026-10-18). Every feature of the lane, the layer that proves it and
+the tests that fail when it breaks. Engine paths are under `crates/pos-engine/tests/`, Playwright
+specs under `ui/e2e/`, Kotlin tests under `android/app/src/test/kotlin/dev/nuagemagique/pilipos/`,
+FFI tests under `android/rust/pos-ffi/tests/ffi/`.
+
+| Feature | Layer | Test(s) |
+|---|---|---|
+| Migration 40 invoicing tables and journal view | engine | `migrate.rs` 40 to 42; `invoice_content::an_invoice_is_built_from_the_archive_of_its_sales` (v_invoice_journal) |
+| M150 invoice signed field by field | engine | `spf_e2e_fixtures.rs` m150 replay; `invoice_content.rs` |
+| UC4121 invoice of three sales, UC4122 refund plus two sales | engine | `invoice_advanced::uc4121_an_invoice_of_three_sales`, `uc4122_an_invoice_of_a_refund_and_two_sales` |
+| One invoice per sale | engine | `invoice_rules::a_sale_is_on_one_invoice_only` |
+| Training and unpaid sales are not invoiced | engine | `invoice_rules::no_invoice_in_training_mode`, `a_training_sale_is_not_a_sale_to_invoice`, `a_sale_closed_unpaid_is_not_a_sale_to_invoice`, `only_normal_sales_can_be_invoiced` |
+| Numbering continuous across an FDM failure, lost answer recovered | engine | `invoice_rules::the_numbering_is_continuous_across_an_fdm_failure`, `a_lost_answer_is_recovered_with_its_number_and_rows` |
+| Invoice in the Z report, invoice copy | engine | `invoice_rules::the_z_report_lists_the_invoice_with_the_sum_of_its_sales`, `an_invoice_has_a_copy` |
+| Invoice lines, VAT fallback, unit codes, price changes | engine | `commands/invoice.rs` unit tests (VAT fallback, refund fallback, FDM vatCalc wins, unit codes, two-label split, LINE vs EVENT price changes); `invoice_content.rs` |
+| Customer form checks and update by id | engine | `invoice_rules::a_customer_is_checked`, `a_customer_form_is_checked`, `a_customer_is_updated_by_id` |
+| List of sales newest first and searchable | engine | `invoice_rules::the_list_of_sales_is_newest_first_and_searchable` |
+| Invoices open to cashiers, Peppol panel and report admin only (V11-D8) | engine, UI | `access_control.rs` rows; `peppol.spec.ts`; `SettingsRouteSignedInTest::aCashierNeverTriggersThePeppolReads` |
+| Peppol queue: delivery, backoff, parked, retry, key stop | engine | `peppol_queue.rs` (`a_queued_invoice_is_delivered`, `a_transient_failure_is_retried_after_the_backoff`, `a_refusal_is_parked_and_a_retry_puts_it_back`, `a_rejected_key_parks_the_delivery_and_stops_the_pass`) |
+| Recipient not registered parked without sending | engine | `peppol_queue::a_recipient_who_is_not_registered_is_parked_without_sending`, `a_cached_not_registered_customer_is_parked_without_sending` |
+| Lookup freshness of 30 days (V11-D10) | engine | `peppol_queue::a_cached_status_is_used_only_while_it_is_fresh`, `a_cached_not_registered_recipient_the_network_now_knows_is_sent`, `a_cached_not_registered_recipient_is_parked_when_the_lookup_fails` |
+| Offline lookup is unknown, invoice still signed | engine | `peppol_queue::an_offline_lookup_is_unknown_and_the_invoice_is_still_signed` |
+| Nothing queued without Peppol config, foreign customers | engine | `peppol_queue::nothing_is_queued_without_a_peppol_section`, `a_foreign_customer_is_not_queued` |
+| Invoice signed before Peppol was set up is queued later; guards of issuing | engine | `peppol_queue::an_invoice_signed_before_peppol_was_set_up_is_queued_later`, `issuing_an_invoice_to_the_network_has_its_guards` |
+| Attempt log immutable | engine | `peppol_queue::the_attempt_log_cannot_be_changed` |
+| UBL builder, participant ids, check digits | engine | `pos-peppol` unit tests (golden UBL, BIS sums, `BE0308357159`) |
+| Invoice and Peppol facade (lookup, retry, accepted not retried) | FFI | `invoice.rs::a_cashier_looks_a_vat_number_up_through_the_facade`, `a_parked_delivery_is_retried_by_a_manager_and_only_a_parked_one`, `an_accepted_delivery_cannot_be_retried` plus the existing issue and list tests |
+| Invoice flow in the till UI (list merge, form lookup, limits, cancel, preview, refund, signing failure, cashier) | Vue | `invoice.spec.ts` (35 tests) |
+| Peppol panel (poll, retry, call error) | Vue | `peppol.spec.ts` |
+| Invoice flow and lists on Android | Kotlin | `InvoiceViewModelTest`, `InvoiceContentTest`, `RefundPreviewTest`, `InvoiceScreenshotTest`, `ReportsRouteWiringTest` (lists read when the tickets load and when rows change; Facture button opens the real dialog) |
+| Peppol panel on Android, polling stops on leaving | Kotlin | `PeppolViewModelTest`, `PeppolSectionTest`, `PeppolScreenshotTest`, `SettingsRouteSignedInTest::aManagerSeesThePeppolPanelAndItIsReadAgainEveryThirtySeconds`, `leavingTheScreenStopsThePolling` (fix commit e47a41e8) |
+| Sold-out refusals on orders, quantity rules, expiry, log, access | engine | `sold_out.rs` (all 10 tests) |
+| Sold-out pushed to the HubRise inventory (day, until re-enabled, coalescing, backoff, parked, token stop, off, no SKU) | engine | `hubrise_inventory.rs`; `the_outbox_loop_pushes_the_inventory_by_itself` |
+| Online orders ignore sold-out (V11-D14) | engine | `hubrise_inventory::an_online_order_for_a_sold_out_product_is_still_taken_and_signed`, `an_option_product_is_refused_too` |
+| Sold-out facade and menu flags | FFI | `orders.rs::a_cashier_marks_products_sold_out_through_the_facade`, `sold_out_products_and_the_menu_flags_convert` |
+| Epuise mode, stale grid, mode exit, option picker with HubRise off | Vue | `sold-out.spec.ts`, `modifiers.spec.ts` |
+| Epuise mode on Android, reload on catalog event and resync, language | Kotlin | `SoldOutFlowTest` (plus refusal, options refusal, catalog event, resync, language), `SoldOutContentTest` (fix commit b3efffa7) |
+| Menu editor commands, validation, log, lock, admin only, art. 44 | engine | `menu_editor.rs` (all 10 tests) |
+| Menu editor view (deactivation, fields, option groups, errors, navigation) | Vue | `menu-editor.spec.ts` (29 tests) |
+| Menu editor screen, route and Carte row (managers only) | Kotlin | `MenuEditorViewModelTest`, `MenuEditorContentTest` (option form), `MenuEditorRouteTest`, `MenuEditorScreenshotTest`, `FeatureEntriesTest::theMenuEditorHasItsSettingsRowForManagersOnly`, `SettingsRouteSignedInTest` (Carte row) |
+| Sales report: Z total, hours, refunds, price changes, gap, range, training, no fiscal event, admin only, printer error | engine | `sales_report.rs` (all 12 tests) |
+| Sales report UI: Z missing, price changes line, printer error toast, cashier refusal | Vue | `sales-report.spec.ts` |
+| Sales report on Android (loading notice, closed period, cashier gate, read on every visit) | Kotlin | `SalesViewModelTest`, `SalesContentTest`, `SalesRangeTest`, `SalesScreenshotTest`, `ReportsRouteWiringTest::theSalesTabReadsAReportOnEveryVisit` |
+| Sales report facade | FFI | `reports.rs` |
