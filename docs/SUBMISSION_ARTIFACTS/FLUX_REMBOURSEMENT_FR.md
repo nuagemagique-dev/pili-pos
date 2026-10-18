@@ -4,8 +4,8 @@
 **Code :** `crates/pos-engine/src/commands/refund.rs`
 **Périmètre cert :** M111 (remboursement complet), M112B
 (remboursement partiel - ticket séparé). La correction de paiement
-(M132, UC4118) et la note de crédit (UC4122) ne sont pas dans le
-périmètre de la v1.0.0 (voir §2 et §3).
+(M132, UC4118) n'est pas dans le périmètre de la v1.0.0 (voir §2).
+La note de crédit (UC4122) est dans le périmètre et rejouée (voir §3).
 
 ---
 
