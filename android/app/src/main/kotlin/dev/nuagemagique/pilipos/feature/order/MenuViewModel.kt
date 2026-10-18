@@ -131,10 +131,12 @@ internal class MenuViewModel(
                 .collectLatest { language -> if (language != null) loadMenu(language) }
         }
         viewModelScope.launch {
-            // The sold-out list is read with the menu, for a user who may change it only.
-            combine(active, settings.language, reload, session.canTakePayment) { on, language, _, pay ->
-                if (on && pay) language else null
-            }.distinctUntilChanged().collectLatest { language -> if (language != null) loadSoldOut(language) }
+            // The sold-out list is read with the menu, for a user who may change it only. The reload
+            // tick is part of the key: a catalog event or a resync must read the list again even
+            // when the language is unchanged.
+            combine(active, settings.language, reload, session.canTakePayment) { on, language, tick, pay ->
+                if (on && pay) language to tick else null
+            }.distinctUntilChanged().collectLatest { key -> if (key != null) loadSoldOut(key.first) }
         }
         viewModelScope.launch {
             entry.events().events.collect { event ->

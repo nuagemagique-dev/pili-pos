@@ -19,6 +19,9 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.state.EventFeed
+import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
@@ -195,6 +198,104 @@ class SoldOutFlowTest {
             runCurrent()
             assertEquals(OrderDialog.SoldOutList, r.state.dialog)
             assertEquals(listOf(11L), r.state.menu.soldOut.map { it.menuItemId })
+        }
+
+    // ── The engine has the last word (the grid may be stale) ─────
+
+    private val refusal = PosException.Coded("product_sold_out", mapOf("product" to "10"))
+
+    @Test
+    fun aRefusalOnThePlusOfACartLineIsToldAndTheCartIsUnchanged() =
+        runTest {
+            val world = OrderWorld(cart = listOf(cartLine(5, 10, "Maki saumon", quantity = 2)))
+            val r = ready(world)
+            coEvery { r.f.engine.updateOrderLineQuantity(any(), any()) } throws refusal
+
+            r.model.incrementLine(5)
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.updateOrderLineQuantity(5L, 3) }
+            assertEquals(1, r.toasts.toasts.value.size)
+            assertEquals("Ce produit est épuisé.", r.lastToast().message)
+            assertEquals(listOf(2), r.order.lines.value.map { it.quantity })
+        }
+
+    @Test
+    fun aRefusalOnAddWithOptionsIsToldAndNothingIsAdded() =
+        runTest {
+            val world = OrderWorld()
+            val r = ready(world)
+            val withOptions = menuItem(10, 1, "Maki saumon", 650, hasModifiers = true)
+            val sauces = listOf(group(1, "Sauce", 0, 1, modifier(100, "Soja")))
+            coEvery { r.f.engine.getItemModifiers(10L, any()) } returns sauces
+            coEvery { r.f.engine.addOrderLineWithModifiers(any()) } throws refusal
+
+            r.model.addItem(withOptions)
+            runCurrent()
+            assertTrue(r.state.dialog is OrderDialog.Modifiers)
+            r.model.confirmModifiers(listOf(100L))
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.addOrderLineWithModifiers(any()) }
+            assertEquals(1, r.toasts.toasts.value.size)
+            assertEquals("Ce produit est épuisé.", r.lastToast().message)
+            assertEquals(emptyList<Long>(), r.order.lines.value.map { it.id })
+            assertEquals(OrderDialog.None, r.state.dialog)
+        }
+
+    // ── The list follows the catalog and the language ─────────────
+
+    @Test
+    fun aCatalogEventReadsTheSoldOutListAgain() =
+        runTest {
+            val world = OrderWorld(soldOut = listOf(soldOutItem(10, "Maki saumon", endOfDay)))
+            val f = orderFixture(tmp.root, world)
+            val feed = EventFeed(f)
+            coEvery { f.engine.addOrderLine(any()) } returns orderLine(10)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            coVerify(exactly = 1) { f.engine.listSoldOut("fr") }
+            assertEquals(listOf(10L), r.state.menu.soldOut.map { it.menuItemId })
+
+            // Another till sold the nigiri out and put the maki back.
+            world.soldOut = listOf(soldOutItem(11, "Nigiri thon"))
+            feed.send(catalogUpdated())
+            runCurrent()
+
+            coVerify(exactly = 2) { f.engine.listSoldOut("fr") }
+            assertEquals(listOf(11L), r.state.menu.soldOut.map { it.menuItemId })
+        }
+
+    @Test
+    fun aResyncReadsTheSoldOutListAgain() =
+        runTest {
+            val world = OrderWorld(soldOut = listOf(soldOutItem(10, "Maki saumon", endOfDay)))
+            val f = orderFixture(tmp.root, world)
+            val feed = EventFeed(f)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            world.soldOut = emptyList()
+            feed.send(PosEvent.Resync(missed = 3L))
+            runCurrent()
+
+            coVerify(exactly = 2) { f.engine.listSoldOut("fr") }
+            assertEquals(emptyList<Long>(), r.state.menu.soldOut.map { it.menuItemId })
+        }
+
+    @Test
+    fun aChangeOfLanguageReadsTheSoldOutListInTheNewLanguage() =
+        runTest {
+            val world = OrderWorld(soldOut = listOf(soldOutItem(10, "Maki saumon", endOfDay)))
+            val r = ready(world)
+            coVerify(exactly = 1) { r.f.engine.listSoldOut("fr") }
+
+            r.settings.setLanguage(AppLanguage.EN)
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.listSoldOut("en") }
         }
 
     @Test
