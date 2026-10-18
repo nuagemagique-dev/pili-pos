@@ -2430,6 +2430,12 @@
       "zh": "已过期",
       "area": "checkout"
     },
+    "gv_status_not_usable": {
+      "fr": "Non utilisable (autre mode)",
+      "en": "Not usable (other mode)",
+      "zh": "不可使用（另一模式）",
+      "area": "checkout"
+    },
     "gv_status_used": {
       "fr": "Épuisé",
       "en": "Used up",

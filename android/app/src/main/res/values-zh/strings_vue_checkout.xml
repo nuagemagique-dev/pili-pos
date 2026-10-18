@@ -49,6 +49,7 @@
     <string name="gv_status_used">已用完</string>
     <string name="gv_status_expired">已过期</string>
     <string name="gv_status_cancelled">已作废</string>
+    <string name="gv_status_not_usable">不可使用（另一模式）</string>
     <string name="gv_training_tag">培训券</string>
     <string name="gv_use_amount">使用金额</string>
     <string name="gv_apply">使用此券</string>

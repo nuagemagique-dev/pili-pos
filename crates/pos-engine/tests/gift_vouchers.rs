@@ -855,6 +855,33 @@ async fn training_vouchers_and_normal_vouchers_stay_apart() {
     assert_eq!(voucher(&app, real).balance_cents, 5000);
 }
 
+#[tokio::test]
+async fn lookup_flags_a_voucher_of_the_other_mode_as_not_usable() {
+    let (app, _printer) = app().await;
+    let (_, real, _) = sell_voucher(&app, 5000).await;
+    app.state.config.lock().unwrap().training_mode = true;
+    let (_, trained, _) = sell_voucher(&app, 4000).await;
+
+    // Training mode: the training voucher is usable, the real one is not.
+    let view = do_lookup_gift_voucher(&app.state, &voucher(&app, trained).code).unwrap();
+    assert_eq!(view.status, "active");
+    let view = do_lookup_gift_voucher(&app.state, &voucher(&app, real).code).unwrap();
+    assert_eq!(view.status, "not_usable");
+    assert_eq!(view.balance_cents, 5000, "the balance is still shown");
+
+    // Normal mode: the other way round.
+    app.state.config.lock().unwrap().training_mode = false;
+    let view = do_lookup_gift_voucher(&app.state, &voucher(&app, trained).code).unwrap();
+    assert_eq!(view.status, "not_usable");
+    assert!(view.training);
+    let view = do_lookup_gift_voucher(&app.state, &voucher(&app, real).code).unwrap();
+    assert_eq!(view.status, "active");
+
+    // The manager list keeps the real statuses.
+    let listed = do_list_gift_vouchers(&app.state, None).unwrap();
+    assert!(listed.iter().all(|v| v.status != "not_usable"));
+}
+
 // ── Refunds ────────────────────────────────────────────────────────
 
 fn refund_item(menu_item_id: i64) -> Vec<RefundItem> {

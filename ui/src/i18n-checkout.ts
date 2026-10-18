@@ -91,6 +91,7 @@ export const checkoutMessages: Messages = {
   "gv_status_used": { fr: "Épuisé", en: "Used up", zh: "已用完" },
   "gv_status_expired": { fr: "Expiré", en: "Expired", zh: "已过期" },
   "gv_status_cancelled": { fr: "Annulé", en: "Cancelled", zh: "已作废" },
+  "gv_status_not_usable": { fr: "Non utilisable (autre mode)", en: "Not usable (other mode)", zh: "不可使用（另一模式）" },
   "gv_training_tag": { fr: "Bon d'entraînement", en: "Training voucher", zh: "培训券" },
   "gv_use_amount": { fr: "Montant utilisé", en: "Amount used", zh: "使用金额" },
   "gv_apply": { fr: "Utiliser ce bon", en: "Use this voucher", zh: "使用此券" },

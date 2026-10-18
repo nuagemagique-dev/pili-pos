@@ -244,7 +244,9 @@ pub struct GiftVoucherView {
     /// `YYYY-MM-DD`.
     pub issued_on: String,
     pub expires_on: String,
-    /// `active`, `used`, `expired` or `cancelled`.
+    /// `active`, `used`, `expired` or `cancelled`; a lookup also answers
+    /// `not_usable` for a voucher of the other mode (a training voucher
+    /// in normal mode, a real one in training mode).
     pub status: String,
     pub training: bool,
     pub movements: Vec<GiftVoucherMovement>,
@@ -254,6 +256,9 @@ pub struct GiftVoucherView {
 fn today() -> String {
     pos_fiscal::event::now_in_belgium().date_naive().to_string()
 }
+
+/// The lookup status of a voucher that belongs to the other mode.
+pub const STATUS_NOT_USABLE: &str = "not_usable";
 
 fn status_of(row: &db::VoucherRow, today: &str) -> &'static str {
     if row.cancelled {
@@ -316,7 +321,14 @@ pub fn do_lookup_gift_voucher(state: &AppState, code: &str) -> Result<GiftVouche
         state.gift_voucher_lookups.fail(now);
         return Err(errors::GIFT_VOUCHER_NOT_FOUND.to_string());
     };
-    view_of(&conn, &row, true)
+    let training_mode = state.config.lock().map_err(errors::internal)?.training_mode;
+    let mut view = view_of(&conn, &row, true)?;
+    if row.training != training_mode {
+        // The sale refuses it (`GIFT_VOUCHER_NOT_USABLE`): the dialog
+        // says so before the cashier tries.
+        view.status = STATUS_NOT_USABLE.to_string();
+    }
+    Ok(view)
 }
 
 /// The vouchers, outstanding first (managers only). `status` filters:

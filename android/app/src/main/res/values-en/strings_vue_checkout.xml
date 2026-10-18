@@ -49,6 +49,7 @@
     <string name="gv_status_used">Used up</string>
     <string name="gv_status_expired">Expired</string>
     <string name="gv_status_cancelled">Cancelled</string>
+    <string name="gv_status_not_usable">Not usable (other mode)</string>
     <string name="gv_training_tag">Training voucher</string>
     <string name="gv_use_amount">Amount used</string>
     <string name="gv_apply">Use this voucher</string>

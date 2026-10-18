@@ -446,6 +446,7 @@ internal object VueStringIds {
         this["gv_status_used"] = R.string.gv_status_used
         this["gv_status_expired"] = R.string.gv_status_expired
         this["gv_status_cancelled"] = R.string.gv_status_cancelled
+        this["gv_status_not_usable"] = R.string.gv_status_not_usable
         this["gv_training_tag"] = R.string.gv_training_tag
         this["gv_use_amount"] = R.string.gv_use_amount
         this["gv_apply"] = R.string.gv_apply
@@ -518,10 +519,10 @@ internal object VueStringIds {
         this["settings_support_idle"] = R.string.settings_support_idle
         this["settings_support_running"] = R.string.settings_support_running
         this["settings_support_unavailable"] = R.string.settings_support_unavailable
-        this["settings_support_banner_note"] = R.string.settings_support_banner_note
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["settings_support_banner_note"] = R.string.settings_support_banner_note
         this["settings_pin_set"] = R.string.settings_pin_set
         this["settings_pin_missing"] = R.string.settings_pin_missing
         this["settings_pin_button"] = R.string.settings_pin_button

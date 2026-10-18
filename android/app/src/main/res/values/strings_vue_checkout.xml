@@ -49,6 +49,7 @@
     <string name="gv_status_used">Épuisé</string>
     <string name="gv_status_expired">Expiré</string>
     <string name="gv_status_cancelled">Annulé</string>
+    <string name="gv_status_not_usable">Non utilisable (autre mode)</string>
     <string name="gv_training_tag">Bon d\'entraînement</string>
     <string name="gv_use_amount">Montant utilisé</string>
     <string name="gv_apply">Utiliser ce bon</string>

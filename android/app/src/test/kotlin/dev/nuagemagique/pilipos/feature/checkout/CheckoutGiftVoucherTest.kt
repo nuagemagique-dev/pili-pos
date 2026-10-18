@@ -210,6 +210,23 @@ class CheckoutGiftVoucherTest {
             coVerify(exactly = 0) { r.f.engine.checkout(any(), any(), any()) }
         }
 
+    @Test
+    fun aVoucherOfTheOtherModeCannotBeApplied() =
+        runTest {
+            val r = started(1_152, found = voucher(status = "not_usable"))
+            r.model.selectMethod(PaymentMethod.GIFT_VOUCHER)
+            r.typeCode()
+            r.model.lookupVoucher()
+            runCurrent()
+
+            r.model.applyVoucher()
+            runCurrent()
+
+            assertEquals(emptyList<TakenPart>(), r.state.taken)
+            assertNotNull(r.state.voucher)
+            coVerify(exactly = 0) { r.f.engine.checkout(any(), any(), any()) }
+        }
+
     // ── Taking the voucher ────────────────────────────────────────
 
     @Test
@@ -364,6 +381,14 @@ class CheckoutGiftVoucherTest {
         show(base.copy(voucher = VoucherDialogState(digits = "123456789095", found = voucher(status = "expired"))))
 
         compose.onNodeWithTag("gv_status").assertTextContains("Expiré", substring = true)
+        compose.onNodeWithTag("gv_apply").assertDoesNotExist()
+    }
+
+    @Test
+    fun aVoucherOfTheOtherModeShowsAsNotUsableWithoutApplyButton() {
+        show(base.copy(voucher = VoucherDialogState(digits = "123456789095", found = voucher(status = "not_usable"))))
+
+        compose.onNodeWithTag("gv_status").assertTextContains("Non utilisable", substring = true)
         compose.onNodeWithTag("gv_apply").assertDoesNotExist()
     }
 

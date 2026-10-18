@@ -194,6 +194,17 @@ test.describe('Paying with a gift voucher', () => {
     await expect(page.getByTestId('gv-apply')).toHaveCount(0);
   });
 
+  test('a voucher of the other mode is shown as not usable and cannot be applied', async ({ page }) => {
+    await toCheckout(page, LINES, {
+      lookup_gift_voucher: () => ({ ...VOUCHER, status: 'not_usable', training: true }),
+    });
+    await page.getByTestId('method-gift_voucher').click();
+    for (const d of '123456789095') await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click();
+    await page.getByTestId('gv-lookup').click();
+    await expect(page.getByTestId('gv-status')).toHaveText('Non utilisable (autre mode)');
+    await expect(page.getByTestId('gv-apply')).toHaveCount(0);
+  });
+
   test('a slip that did not print is told on the done screen', async ({ page }) => {
     await toCheckout(page, [...LINES, VOUCHER_LINE], {
       checkout: () => ({ ...SALE, gift_voucher_prints: [{ voucher_id: 8, kind: 'voucher', outcome: 'failed' }] }),
