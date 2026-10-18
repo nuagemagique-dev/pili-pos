@@ -797,8 +797,10 @@ onMounted(() => {
 /* ── Email tickets ──────────────────────────────────────────── */
 .column > .workers-section { flex: 1; }
 .courses-section { flex-shrink: 0; max-height: 50%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+/* 42 %, not 50 %: since the presence note and its fourth role button (lane 1) the employees panel has
+   more fixed lines, and at 50 % its list kept less than one row (INT-D24). */
 .manager-panels {
-  flex-shrink: 0; max-height: 50%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  flex-shrink: 0; max-height: 42%; overflow-y: auto; -webkit-overflow-scrolling: touch;
   display: flex; flex-direction: column; gap: 24px;
 }
 .manager-panels > .panel { flex-shrink: 0; }

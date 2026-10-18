@@ -2198,3 +2198,8 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
   offered, discount, dialogs, sold-out, table picker: the allergen bar), settings (alerts, courses, vouchers: the
   badge reader and employee panels of lane 5), reports vouchers (the "Ventes" tab of lane 3), tables held course
   ("Déplacer une table" of lane 2).
+- **INT-D24 The Vue manager panels of column 2 take at most 42 % of it.** Lane 4 capped the courses and gift
+  voucher panels at 50 % of the employees column, measured without lane 1's presence note, block line and fourth
+  profile button. On the merged build the employee list kept 47 px at 1920 x 1080, less than one row, and lane 4's
+  own `settings.spec.ts` check (list at least 72 px) failed. At 42 % the list keeps more than one row and the manager
+  panels still scroll inside their box. The Compose column already scrolls as a whole (V12-D44), no change there.
