@@ -1,0 +1,47 @@
+# Merge of lane 3 (android/lane-v11) into android/int (2026-10-17)
+
+Integrator report. Lanes 1, 2 and 5 were already on `android/int` (head `a882bf18`). Lane 3 (invoices and
+Peppol, sold-out, menu editor, sales reports) is merged with `git merge --no-ff android/lane-v11` as `cb9d39a1`.
+Nothing was pushed, `main` was not touched, no tag was set. Decisions: `docs/android/DECISIONS.md`,
+"Lane int (2026-10-17)", INT-D1 to INT-D9.
+
+## Commits
+
+| Commit | Content |
+| --- | --- |
+| `cb9d39a1` | Merge commit, every conflict resolved by keeping both sides (INT-D1 to INT-D4, INT-D8) |
+| `6dbbc963` | `pos-core.api` regenerated with `:pos-core:apiDump` |
+| `209aa15f` | Settings route test: scroll to the Peppol panel, stop the polling in a `finally` (INT-D9) |
+| `fd369b5b` | Goldens re-recorded: `reports_tickets_manager`, `reports_payment_correction`, `settings_peppol` |
+| next | Dossier reconciliation of both dossiers (INT-D5 to INT-D7), evidence, matrices, PDFs |
+
+## Conflicts
+
+- Rust: `pos-db` migrations (till 30, 31 and invoicing 40 to 42 both registered), `signing.rs` (payment
+  correction and invoice arms), `engine.rs` and `pos-ffi/src/core.rs` (both timers), `report_totals.rs`,
+  `error_codes.rs`, the FFI orders, reports and records modules.
+- Tauri: one handler list, 128 wrappers.
+- Vue: `ipc.ts`, `i18n-reports.ts`, `SettingsView.vue`, `ReportsView.vue` (invoice tick box and payment
+  correction on the same tickets row).
+- Android: order feature (both dialog sets), reports feature (correction and invoice callbacks, the tickets row),
+  generated strings (894 keys), `pos-core.api`.
+- Docs: `DECISIONS.md` (lane 1, lane 2, lane 5, lane 3), `parity/order.md`, `CLAUDE.md`, both dossiers.
+
+## Captures to retake
+
+No emulator and no kiosk in this lane: the Robolectric goldens under `android/app/src/test/screenshots/` are
+renders, not device captures. Both UIs (Vue on the Linux kiosk, Compose on the D3 Pro), French, then zh where the
+runbook asks for it:
+
+1. Reports, Tickets tab: the row with the invoice tick box and the "Corriger le paiement" slot together, the
+   "Facture" button and the "Ventes" tab in the tab bar (the existing captures of this tab changed on both UIs).
+2. Reports, Tickets tab, payment correction dialog over the merged tab bar.
+3. Settings, manager view: the third column now holds the badge reader panel above Informations, Intégrations,
+   Peppol and Tickets par email; the employees panel shows the presence-only buttons ("Arrivée", "Présence seule").
+   Retake the settings captures, including the Peppol panel with a parked delivery and "Réessayer".
+4. Every capture listed in `LANE_V11.md` section 12 (invoice flow, sold-out, menu editor, sales report) and in
+   `LANE_NFC.md` (badge panel, enrolment, login by badge), now on the merged build.
+
+## Gate
+
+Filled in after the full gate run.

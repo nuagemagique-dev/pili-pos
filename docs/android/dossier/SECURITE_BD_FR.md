@@ -98,6 +98,9 @@ la suppression, même par un accès direct à la base :
   (migration 3) ;
 - `pending_signs_request_immutable`, `pending_signs_context_on_resolution`,
   `pending_signs_no_reopen` et `pending_signs_no_delete` (migration 10) ;
+- `till_discounts_no_delete`, `till_discounts_no_update` et
+  `order_entries_till_op_fixed` (migration 30 : remises de la caisse ;
+  la marque `till_op` d'une ligne du journal ne change jamais) ;
 - `invoices_*`, `invoice_sales_*` et `peppol_delivery_log_*` (migration 40 : factures émises et tentatives
   d'envoi Peppol, jamais de `UPDATE` ni de `DELETE`), `sold_out_log_*`
   (migration 41) et `menu_change_log_*` (migration 42) ;

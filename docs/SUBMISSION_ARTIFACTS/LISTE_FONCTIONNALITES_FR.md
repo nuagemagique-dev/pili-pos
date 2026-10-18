@@ -278,8 +278,12 @@ changement journalisé). Détail : `COMMANDES_EN_LIGNE_FR.md`.
 - **Facture en mode formation** : refusée. **Envoi Peppol vers un client
   étranger** : la facture est imprimée seulement.
 - **Note de crédit autonome** : absente (un remboursement se reprend sur
-  une facture, *FLUX_REMBOURSEMENT_FR.md* §3). **Correction de paiement**
-  (M132) et **changement de centre de coût** (M122) : hors périmètre.
+  une facture, *FLUX_REMBOURSEMENT_FR.md* §3).
+- **Division et fusion de tables** : absentes ; seul le transfert d'une
+  commande vers une table libre (changement de centre de coût, M122) est
+  proposé. **Correction d'un paiement par terminal** : une carte prise sur
+  le terminal de paiement relié ne se corrige pas ; la correction de
+  paiement (M132) porte sur une ligne saisie à la main.
 
 ## 4. Intégration Peppol (B2B)
 

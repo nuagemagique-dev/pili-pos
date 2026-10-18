@@ -89,12 +89,15 @@ dans `crates/pos-fiscal/tests/reports_fixtures.rs` et
 Les 141 fixtures se chargent et se désérialisent proprement
 (`crates/pos-fiscal/tests/advanced_set_fixtures.rs`) ; voir
 `COUVERTURE_ADVANCED_SET_FR.md` pour le détail par UC. Sur les 58
-identifiants de test, 7 ont un test dédié : UC223, UC230, UC4109,
-UC4119, UC4121 et UC4122 comparent la requête construite par pili-pos à la fixture, UC201
-contrôle les lignes de paiement et d'arrondi du scénario. Les 51 autres sont déclarés hors périmètre v1.0.0
-(`scripts/uc_scope.toml`). UC223 ne couvre que les remises de portée
-EVENT des commandes en ligne (`crates/pos-fiscal/tests/price_change_uc.rs`) ;
-UC220 et UC224 n'ont pas de test de fixture.
+identifiants de test, 10 ont un test dédié : UC223, UC225A et UC225B
+(un même rejeu), UC229B, UC230, UC4109, UC4119, UC4121 et UC4122
+comparent la requête construite par pili-pos à la fixture, UC201
+contrôle les lignes de paiement et d'arrondi du scénario. Les 48 autres
+sont déclarés hors périmètre v1.0.0 (`scripts/uc_scope.toml`). UC223
+couvre la remise de portée EVENT des commandes en ligne
+(`crates/pos-fiscal/tests/price_change_uc.rs`) et celle de la caisse
+(`uc223_event_discount_at_the_till`) ; UC220 et UC224 n'ont pas de test
+de fixture (la caisse n'a pas de remise partielle sur une ligne).
 
 ## Rejeu sur Android
 

@@ -2,7 +2,7 @@
 
 **Date :** 2026-10-03
 **Référence :** §II.C "Relations entre les tables" du manuel de certification.
-**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs` et `schema_badges.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 11, puis 20 à 28, puis 70).
+**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs`, `schema_till.rs`, `schema_invoicing.rs` et `schema_badges.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 11, 20 à 28, 30 et 31, 40 à 42, puis 70).
 
 Ce document décrit visuellement les relations entre les tables de la
 base SQLite `pos.db`. Pour l'inventaire détaillé champ-par-champ,
@@ -641,7 +641,7 @@ Les tables ci-dessous sont protégées **au niveau de la base** par des triggers
 | `fiscal_events` | `fiscal_events_no_delete`, `fiscal_events_no_rewrite` | Ni DELETE, ni UPDATE |
 | `fiscal_events` | `fiscal_events_period_open` (BEFORE INSERT) | Refuse un événement dont le `bookingPeriodId` désigne une période close |
 | `z_reports` | `z_reports_no_delete`, `z_reports_no_rewrite` | Ni DELETE, ni UPDATE |
-| `order_entries` | `order_entries_no_delete`, `order_entries_no_rewrite` | Pas de DELETE ; UPDATE interdit sauf `sent_event_id` |
+| `order_entries` | `order_entries_no_delete`, `order_entries_no_rewrite`, `order_entries_till_op_fixed` | Pas de DELETE ; UPDATE interdit sauf `sent_event_id` ; la marque `till_op` (migration 30) ne change jamais |
 | `booking_periods` | `booking_periods_no_reopen`, `booking_periods_no_delete` | Une période close ne change plus ; pas de DELETE |
 | `ticket_deliveries` | `ticket_deliveries_no_delete`, `ticket_deliveries_no_rewrite` | Pas de DELETE ; `fiscal_event_id`, `ticket_text`, `medium` immuables (les autres colonnes suivent le cycle de vie de l'envoi : append-only **partiel**) |
 | `original_prints` | `original_prints_no_delete`, `original_prints_no_update` | Ni DELETE, ni UPDATE, aucune exception |
@@ -660,7 +660,7 @@ Les tables ci-dessous sont protégées **au niveau de la base** par des triggers
 | `badge_log` | `badge_log_no_update`, `badge_log_no_delete` | Ni DELETE, ni UPDATE |
 | `badge_scans` | `badge_scans_no_update`, `badge_scans_no_delete` | Ni DELETE, ni UPDATE |
 
-Soit 45 triggers.
+Soit 48 triggers.
 
 Pour les autres tables (catalogue, commandes en cours, paiements, utilisateurs, `staff_shifts`, tables HubRise hors journal) les opérations UPDATE/DELETE sont autorisées via la couche commandes. Les `orders` sont marquées `status='closed'` ou `status='voided'` plutôt que supprimées. Le catalogue synchronisé met à jour ses lignes en place ; l'historique fiscal ne dépend pas de ces lignes (nom et prix sont figés dans `order_lines` / `order_entries`).
 

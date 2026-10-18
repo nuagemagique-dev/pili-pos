@@ -17,11 +17,11 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 | Statut | Nombre |
 |---|---|
 | Couvert (scénario Android) | 47 |
-| Couvert (tests moteur exécutés sur l'appareil) | 26 |
-| Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) | 6 |
+| Couvert (tests moteur exécutés sur l'appareil) | 27 |
+| Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) | 8 |
 | En attente | 0 |
 | Exclu sur Android | 24 |
-| Hors périmètre | 51 |
+| Hors périmètre | 48 |
 | Non applicable | 1 |
 | Couvert par un autre identifiant | 0 |
 | MANQUANT | 0 |
@@ -44,7 +44,7 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 | M133 | Déclaration de fond de caisse (comptage) | `10_basic/080_M133.json` | PASS | `m133_drawer_declaration` | Couvert (scénario Android) |
 | M140 | Entrée en service de l'utilisateur | `10_basic/090_M140.json` | PASS | `m140_work_in`, `m140_work_in_archives_s_event` | Couvert (scénario Android) |
 | M141 | Sortie de service de l'utilisateur | `10_basic/100_M141.json` | PASS | `m141_work_out`, `m141_work_out_archives_s_event` | Couvert (scénario Android) |
-| M150 | Facturation | - | - | `m150_invoice_fdm_failure_does_not_advance_i_counter`, `m150_sign_invoice_archives_i_event_referencing_the_sale` | Hors périmètre |
+| M150 | Facturation | - | - | `m150_invoice_fdm_failure_does_not_advance_i_counter`, `m150_sign_invoice_archives_i_event_referencing_the_sale` ; sur l'hôte seulement : `m150_invoice` | Couvert (tests moteur exécutés sur l'appareil) |
 | M160 | Copie d'un ticket de vente | `10_basic/110_M160.json` | PASS | `m160_copy_of_a_sale`, `m160_copy_of_sale_archives_c_event_with_ref_to_original`, `vi_copy_m160_a_copy_reproduces_the_original_sale` | Couvert (scénario Android) |
 | M161 | Copie d'une commande | `10_basic/120_M161.json` | PASS | `m161_copy_of_an_order`, `m161_copy_of_order_archives_c_event_with_ref_to_p_event`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket` | Couvert (scénario Android) |
 | M170 | Entrée en service en mode formation | `20_training/010_M170.json` | PASS | `m170_work_in_in_training`, `m170_work_in_training_does_not_advance_normal_s_counter` | Couvert (scénario Android) |
@@ -131,8 +131,8 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 | UC4119bis | Scission d'addition (bis) | - | - | - | Hors périmètre |
 | UC4120 | Supplément avec modification de prix | - | - | - | Hors périmètre |
 | UC4120bis | Supplément sur une ligne de transaction (bis) | - | - | - | Hors périmètre |
-| UC4121 | Facture client | - | - | - | Hors périmètre |
-| UC4122 | Note de crédit | - | - | - | Hors périmètre |
+| UC4121 | Facture client | - | - | `uc4121_an_invoice_of_three_sales` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
+| UC4122 | Note de crédit | - | - | `uc4122_an_invoice_of_a_refund_and_two_sales` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
 | UC4123 | Changement de centre de coût par chaise | - | - | - | Hors périmètre |
 
 ## Manuel
@@ -202,7 +202,7 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 | FAQ_Q502 | Les events R de rapport sont exclus des timestamps de la période couverte | - | - | `m180_turnover_x_of_the_scenario_day` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q503 | signCopy obligatoire pour toute réimpression, y compris une facture A4 | - | - | `a_printed_original_can_not_be_printed_again`, `m160_copy_of_sale_archives_c_event_with_ref_to_original` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q504 | Le rapport de chiffre d'affaires n'inclut pas les events de type Copy | - | - | `faq_q504_a_copy_is_not_turnover` | Couvert (tests moteur exécutés sur l'appareil) |
-| FAQ_Q505 | Identification du deviceId (adresse MAC ou identifiant matériel unique) | - | - | `m110_sale` | Couvert (tests moteur exécutés sur l'appareil) |
+| FAQ_Q505 | Identification du deviceId (adresse MAC ou identifiant matériel unique) | - | - | `m110_sale` ; sur l'hôte seulement : `m150_invoice` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q506 | La query Status du FDM est facultative | - | - | `faq_q506_a_sale_is_signed_without_a_status_query` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q507 | La mention TICKET DE CAISSE T.V.A. est réservée au ticket de caisse fiscal | - | - | `every_ticket_carries_its_type_label_and_identification`, `vi_training_a_training_sale_prints_its_training_marks` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q509 | Champ totalAmount du rapport Z (objet users): somme des transactionTotal | - | - | `faq_q509_the_user_total_leaves_the_rounding_out` | Couvert (tests moteur exécutés sur l'appareil) |

@@ -108,6 +108,9 @@ la suppression, même par un accès direct à la base :
   changent de statut, jamais vers `sent` ; une réponse `approved`,
   `declined`, `cancelled` ou `not_sent` ne change plus ; `used_event_id`
   se pose une seule fois, pour un paiement `approved` ;
+- `till_discounts_no_delete`, `till_discounts_no_update` et
+  `order_entries_till_op_fixed` (migration 30 : remises de la caisse ;
+  la marque `till_op` d'une ligne du journal ne change jamais) ;
 - `invoices_*`, `invoice_sales_*` et `peppol_delivery_log_*` (migration 40 : factures émises et tentatives
   d'envoi Peppol, jamais de `UPDATE` ni de `DELETE`), `sold_out_log_*`
   (migration 41) et `menu_change_log_*` (migration 42) ;

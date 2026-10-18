@@ -402,9 +402,11 @@ pili-pos --check-config        # signale chaque réglage invalide : code config_
 systemctl restart pili-pos
 ```
 
-Sans cette section, une facture est établie et imprimée mais n'est pas
-envoyée : elle fait partie de la configuration d'une installation qui
-facture des clients professionnels belges. Le trafic sortant ajouté est
+Sans cette section, une facture à un client étranger est établie et
+imprimée sans envoi, et une facture à un client dont le numéro de TVA
+commence par `BE` est refusée (`invoice_peppol_required`) : la section est
+requise pour une installation qui facture des clients professionnels
+belges. Le trafic sortant ajouté est
 HTTPS (443) vers l'adresse `base_url` (`api.storecove.com`). Le gérant
 suit les envois dans « Config », panneau « Peppol ».
 

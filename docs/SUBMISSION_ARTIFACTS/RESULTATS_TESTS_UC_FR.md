@@ -205,8 +205,8 @@ Payment by CASH (52 EUR)
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "d24083f8-a621-4da2-b23f-ba853cc7f0bf",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "e3f9c1af-8907-4d24-aaf1-c95f77ff25f0",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
@@ -226,7 +226,7 @@ Payment by CASH (52 EUR)
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.535+02:00",
+  "posDateTime": "2026-10-18T06:03:47.808+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -471,8 +471,8 @@ Products on original ticket N 1000/1200:
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "faa55f31-2953-40b6-a0b1-9778130fe731",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "8eef7f3e-8f1f-4b9a-92b3-aefca5a66603",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "84022899837",
   "estNo": "2000000042",
@@ -494,7 +494,7 @@ Products on original ticket N 1000/1200:
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.543+02:00",
+  "posDateTime": "2026-10-18T06:03:47.945+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -1252,8 +1252,8 @@ section).
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "3a57f5c0-2941-49ad-9cf8-fe56e72e06ce",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "153b59a3-46a3-4f50-9994-d64510f18ada",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "84022899837",
   "estNo": "2000000042",
@@ -1275,7 +1275,7 @@ section).
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.542+02:00",
+  "posDateTime": "2026-10-18T06:03:47.817+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -1471,8 +1471,8 @@ on table 1.
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "1c9ba09a-506e-4ca6-8c40-c9dc6e34fe48",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "c4e85a25-5e9b-45fd-8b06-cc5a349dcf55",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
@@ -1482,7 +1482,7 @@ on table 1.
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.532+02:00",
+  "posDateTime": "2026-10-18T06:03:47.814+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -1743,6 +1743,142 @@ is moved to T5 (Dining Room)
 
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m122_cost_center_change` (rejeu applicatif, build `cert`, ecart nul ; la commande suivante sur T05 garde la meme reference).
 
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m122_cost_center_change`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M122_event2_P_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "6b15db0f-dfbb-4a11-8da6-bb43e9c22d78",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-10-18T06:03:47.811+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "NONE",
+  "transfer": {
+    "from": [
+      {
+        "costCenter": {
+          "id": "T01",
+          "reference": "O1",
+          "type": "TABLE"
+        },
+        "transaction": {
+          "transactionLines": [
+            {
+              "lineTotal": -28.0,
+              "lineType": "SINGLE_PRODUCT",
+              "mainProduct": {
+                "departmentId": "22",
+                "departmentName": "Main Dishes",
+                "negQuantityReason": "COST_CENTER_CHANGE",
+                "productId": "22001",
+                "productName": "Burger of the CHEF",
+                "quantity": -1.0,
+                "quantityType": "PIECE",
+                "unitPrice": 28.0,
+                "vats": [
+                  {
+                    "label": "B",
+                    "price": -28.0
+                  }
+                ]
+              }
+            },
+            {
+              "lineTotal": -12.0,
+              "lineType": "SINGLE_PRODUCT",
+              "mainProduct": {
+                "departmentId": "10",
+                "departmentName": "Aperitifs",
+                "negQuantityReason": "COST_CENTER_CHANGE",
+                "productId": "10006",
+                "productName": "Dry Martini",
+                "quantity": -1.0,
+                "quantityType": "PIECE",
+                "unitPrice": 12.0,
+                "vats": [
+                  {
+                    "label": "A",
+                    "price": -12.0
+                  }
+                ]
+              }
+            }
+          ],
+          "transactionTotal": -40.0
+        }
+      }
+    ],
+    "to": [
+      {
+        "costCenter": {
+          "id": "T05",
+          "reference": "O1",
+          "type": "TABLE"
+        },
+        "transaction": {
+          "transactionLines": [
+            {
+              "lineTotal": 28.0,
+              "lineType": "SINGLE_PRODUCT",
+              "mainProduct": {
+                "departmentId": "22",
+                "departmentName": "Main Dishes",
+                "productId": "22001",
+                "productName": "Burger of the CHEF",
+                "quantity": 1.0,
+                "quantityType": "PIECE",
+                "unitPrice": 28.0,
+                "vats": [
+                  {
+                    "label": "B",
+                    "price": 28.0
+                  }
+                ]
+              }
+            },
+            {
+              "lineTotal": 12.0,
+              "lineType": "SINGLE_PRODUCT",
+              "mainProduct": {
+                "departmentId": "10",
+                "departmentName": "Aperitifs",
+                "productId": "10006",
+                "productName": "Dry Martini",
+                "quantity": 1.0,
+                "quantityType": "PIECE",
+                "unitPrice": 12.0,
+                "vats": [
+                  {
+                    "label": "A",
+                    "price": 12.0
+                  }
+                ]
+              }
+            }
+          ],
+          "transactionTotal": 40.0
+        }
+      }
+    ]
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Autres events du scénario, archivés de même : `evidence/uc/M122_event1_P_request.json`, `evidence/uc/M122_event3_N_request.json`. Réponses FDM archivées : fichiers `*_response.json` correspondants.
+
+**Comparaison avec la fixture** (`evidence/uc/M122_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- pili-pos-evidence:end -->
 
 ## M123_signPrebill
 
@@ -1885,8 +2021,8 @@ on table 1 (BAR)  is printed
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "897c862a-5288-414a-bb26-ad318c142b04",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "b49ede41-611e-4057-9971-1b8d3e8c4be7",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
@@ -1896,7 +2032,7 @@ on table 1 (BAR)  is printed
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.539+02:00",
+  "posDateTime": "2026-10-18T06:03:47.820+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2061,8 +2197,8 @@ Aucun écart.
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "2e9a4ea3-343b-49de-a56a-9b58b24ff8dd",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "15873b12-4e57-4f82-9228-b56598dd9656",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "75061189702",
   "estNo": "2000000042",
@@ -2077,7 +2213,7 @@ Aucun écart.
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.529+02:00",
+  "posDateTime": "2026-10-18T06:03:47.804+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2187,8 +2323,8 @@ Drawer 1 is opened without any action
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "8c25cfc2-7326-49c4-8cb8-4dd825fef8cc",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "6c96a484-cdac-41b9-b20a-a09cfe05f0fc",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "drawer": {
     "id": "DRAWER1",
@@ -2197,7 +2333,7 @@ Drawer 1 is opened without any action
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.529+02:00",
+  "posDateTime": "2026-10-18T06:03:48.479+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2333,6 +2469,63 @@ Payment of N14/50 (total to be paid 52 EUR) was made by CARD_CREDIT (Mastercard 
 
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m132_payment_correction` (rejeu applicatif, build `cert`, un seul ecart : le type de la carte, `CARD_DEBIT` au lieu de `CARD_CREDIT`).
 
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m132_payment_correction`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M132_event2_F_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "94db736e-23cd-4cd2-a28f-e1e085bb6d54",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmRef": {
+    "eventCounter": 14,
+    "eventLabel": "N",
+    "fdmDateTime": "2024-07-29T11:35:09.000Z",
+    "fdmId": "FOD01000001",
+    "totalCounter": 50
+  },
+  "financials": [
+    {
+      "amount": -52.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": 52.0,
+      "amountType": "PAYMENT",
+      "id": "2",
+      "inputMethod": "MANUAL",
+      "name": "Card",
+      "type": "CARD_DEBIT"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-18T06:03:53.001+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "NONE",
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario, archivés de même : `evidence/uc/M132_event1_N_request.json`. Réponses FDM archivées : fichiers `*_response.json` correspondants.
+
+**Comparaison avec la fixture** (`evidence/uc/M132_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Écarts assumés :
+
+| Champ | Fixture | pili-pos | Motif |
+|---|---|---|---|
+| `financials[0].type` | `CARD_CREDIT` | `CARD_DEBIT` | sans terminal relié, l'opérateur ne distingue pas débit et crédit : une carte saisie à la main est CARD_DEBIT, MANUAL (*REPONSES_MANUEL_CERT_FR.md* §III.F) ; la comparaison ne porte que sur le type, le montant et le type de montant, la saisie MANUAL (AUTOMATIC dans la fixture) n'est donc pas comparée |
+
+<!-- pili-pos-evidence:end -->
 
 ## M133_signMoneyInOut_DrawerDeclaration
 
@@ -2438,8 +2631,8 @@ Declaration of 1000 EUR cash in drawer 1
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "f05ebc20-f531-4814-a8fa-36410a193df0",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "d8f6da0b-79cd-464a-8340-e8f7317ce19f",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "75061189702",
   "estNo": "2000000042",
@@ -2454,7 +2647,7 @@ Declaration of 1000 EUR cash in drawer 1
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.828+02:00",
+  "posDateTime": "2026-10-18T06:03:48.472+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2560,13 +2753,13 @@ Registration of "Work In" of employee (employeeId 80113078968)
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "94f666d6-cb6a-4136-83eb-8561bf1e58b6",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "9c026fff-3842-405d-8fec-adaab07145eb",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "80113078968",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.828+02:00",
+  "posDateTime": "2026-10-18T06:03:48.483+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2672,13 +2865,13 @@ Registration of "Work Out" of employee (employeeId 84022899837)
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "7e014ab6-cd80-44f1-ba15-7a62b080d74f",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "47656434-bd49-4a16-9df7-e74b32aa9eb5",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "84022899837",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.836+02:00",
+  "posDateTime": "2026-10-18T06:03:48.511+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2823,8 +3016,8 @@ for tickets
 
 ```json
 {
-  "bookingDate": "2026-10-17",
-  "bookingPeriodId": "5f93531b-7cc3-493e-97d0-a68c23a75708",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "8817ade4-f83b-428e-aea5-213b6f31208d",
   "costCenter": {
     "id": "C1",
     "reference": "FIN",
@@ -2852,7 +3045,7 @@ for tickets
   ],
   "invoiceNo": "20260001",
   "language": "FR",
-  "posDateTime": "2026-10-18T01:38:06.978+02:00",
+  "posDateTime": "2026-10-18T06:03:48.624+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2967,8 +3160,8 @@ Print of a copy of ticket (sale) N 16/52
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "8adb05fa-539d-4eb9-9708-24bfd4450c62",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "76058c32-1a33-4041-a8d7-e601eafc46ab",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "75061189702",
   "estNo": "2000000042",
@@ -2980,7 +3173,7 @@ Print of a copy of ticket (sale) N 16/52
     "totalCounter": 52
   },
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.842+02:00",
+  "posDateTime": "2026-10-18T06:03:48.738+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -3095,8 +3288,8 @@ Print of a copy of order P 22/53
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "f5d7112a-082c-4438-a32b-17ea522fbcae",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "6c96d35b-1794-45d1-b685-b0792c7a57a9",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "75061189702",
   "estNo": "2000000042",
@@ -3108,7 +3301,7 @@ Print of a copy of order P 22/53
     "totalCounter": 53
   },
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.853+02:00",
+  "posDateTime": "2026-10-18T06:03:48.443+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -3217,13 +3410,13 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "dd3a6701-b93c-418c-a11b-bfb482067f7f",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "8a0e4ed2-e9e2-487c-8bc7-e2c47d23c81a",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.837+02:00",
+  "posDateTime": "2026-10-18T06:03:48.958+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -3381,8 +3574,8 @@ Aucun écart.
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "41c5ec65-66fc-4f65-94f5-17840d7f365c",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "91a4ee31-d9ac-410f-b179-65c4c8be4517",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
@@ -3402,7 +3595,7 @@ Aucun écart.
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.847+02:00",
+  "posDateTime": "2026-10-18T06:03:48.814+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -3619,8 +3812,8 @@ in training mode. Paymentmethod: CASH
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "b796c2e8-5232-4dbc-961d-915445cc1c56",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "5f4921cb-553f-4fe3-b0df-542132be2375",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
@@ -3640,7 +3833,7 @@ in training mode. Paymentmethod: CASH
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.874+02:00",
+  "posDateTime": "2026-10-18T06:03:48.961+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -3801,8 +3994,8 @@ In training mode: print of a copy of ticket (sale) N 35/73
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "3dacc358-0aaf-4a86-a18b-8518bb571efd",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "1946ccf4-d769-499a-8616-8475894d9816",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "75061189702",
   "estNo": "2000000042",
@@ -3814,7 +4007,7 @@ In training mode: print of a copy of ticket (sale) N 35/73
     "totalCounter": 73
   },
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.987+02:00",
+  "posDateTime": "2026-10-18T06:03:48.972+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -4134,8 +4327,8 @@ Requête du rapport (`evidence/uc/M180_event9_R_request.json`) :
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "cbfc8480-ece1-45a8-a2e5-edb0a3924432",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "dc48bff8-d53e-4af1-8855-907a9f2765d1",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "75061189702",
   "estNo": "2000000042",
@@ -4149,11 +4342,11 @@ Requête du rapport (`evidence/uc/M180_event9_R_request.json`) :
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:44.644+02:00",
+  "posDateTime": "2026-10-18T06:03:53.952+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-10-04T11:01:44.599+02:00",
-      "lastPosDateTime": "2026-10-04T11:01:44.639+02:00",
+      "firstPosDateTime": "2026-10-18T06:03:53.913+02:00",
+      "lastPosDateTime": "2026-10-18T06:03:53.946+02:00",
       "posId": "CPOS0031234567",
       "terminalId": "POS-1-BAR"
     }
@@ -4700,8 +4893,8 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "147d7c32-2def-4a6e-8a8d-aa9a3c1f5c03",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "99da09ad-a9e7-4a41-a5f9-3b5a9e061ba2",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "75061189702",
   "estNo": "2000000042",
@@ -4715,11 +4908,11 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:44.650+02:00",
+  "posDateTime": "2026-10-18T06:03:53.943+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-10-04T11:01:44.600+02:00",
-      "lastPosDateTime": "2026-10-04T11:01:44.641+02:00",
+      "firstPosDateTime": "2026-10-18T06:03:53.902+02:00",
+      "lastPosDateTime": "2026-10-18T06:03:53.937+02:00",
       "posId": "CPOS0031234567",
       "terminalId": "POS-1-BAR"
     }
@@ -4732,8 +4925,8 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
   "users": [
     {
       "employeeId": "75061189702",
-      "firstPosDateTime": "2026-10-04T11:01:44.600+02:00",
-      "lastPosDateTime": "2026-10-04T11:01:44.612+02:00",
+      "firstPosDateTime": "2026-10-18T06:03:53.902+02:00",
+      "lastPosDateTime": "2026-10-18T06:03:53.913+02:00",
       "payments": [
         {
           "amount": [
@@ -4756,8 +4949,8 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
     },
     {
       "employeeId": "84022899837",
-      "firstPosDateTime": "2026-10-04T11:01:44.622+02:00",
-      "lastPosDateTime": "2026-10-04T11:01:44.641+02:00",
+      "firstPosDateTime": "2026-10-18T06:03:53.919+02:00",
+      "lastPosDateTime": "2026-10-18T06:03:53.937+02:00",
       "payments": [
         {
           "amount": [
@@ -5251,8 +5444,8 @@ Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "5f904cd4-0a5f-45db-b0b1-1bdfe2939c4f",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "fc6b852e-7820-4c5d-bf15-61b0ec2f45bf",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "75061189702",
   "estNo": "2000000042",
@@ -5266,11 +5459,11 @@ Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:44.644+02:00",
+  "posDateTime": "2026-10-18T06:03:53.966+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-10-04T11:01:44.601+02:00",
-      "lastPosDateTime": "2026-10-04T11:01:44.639+02:00",
+      "firstPosDateTime": "2026-10-18T06:03:53.920+02:00",
+      "lastPosDateTime": "2026-10-18T06:03:53.960+02:00",
       "posId": "CPOS0031234567",
       "terminalId": "POS-1-BAR"
     }
@@ -5278,7 +5471,7 @@ Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
-  "reportBookingDate": "2026-10-04",
+  "reportBookingDate": "2026-10-18",
   "reportNo": 1,
   "terminalId": "POS-1-BAR",
   "ticketMedium": "PAPER",
@@ -5385,8 +5578,8 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "5f904cd4-0a5f-45db-b0b1-1bdfe2939c4f",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "fc6b852e-7820-4c5d-bf15-61b0ec2f45bf",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "75061189702",
   "estNo": "2000000042",
@@ -5400,11 +5593,11 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:44.644+02:00",
+  "posDateTime": "2026-10-18T06:03:53.966+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-10-04T11:01:44.601+02:00",
-      "lastPosDateTime": "2026-10-04T11:01:44.639+02:00",
+      "firstPosDateTime": "2026-10-18T06:03:53.920+02:00",
+      "lastPosDateTime": "2026-10-18T06:03:53.960+02:00",
       "posId": "CPOS0031234567",
       "terminalId": "POS-1-BAR"
     }
@@ -5412,15 +5605,15 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
   "posFiscalTicketNo": 2,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
-  "reportBookingDate": "2026-10-04",
+  "reportBookingDate": "2026-10-18",
   "reportNo": 1,
   "terminalId": "POS-1-BAR",
   "ticketMedium": "PAPER",
   "users": [
     {
       "employeeId": "75061189702",
-      "firstPosDateTime": "2026-10-04T11:01:44.601+02:00",
-      "lastPosDateTime": "2026-10-04T11:01:44.612+02:00",
+      "firstPosDateTime": "2026-10-18T06:03:53.920+02:00",
+      "lastPosDateTime": "2026-10-18T06:03:53.929+02:00",
       "payments": [
         {
           "amount": [
@@ -5443,8 +5636,8 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
     },
     {
       "employeeId": "84022899837",
-      "firstPosDateTime": "2026-10-04T11:01:44.621+02:00",
-      "lastPosDateTime": "2026-10-04T11:01:44.639+02:00",
+      "firstPosDateTime": "2026-10-18T06:03:53.936+02:00",
+      "lastPosDateTime": "2026-10-18T06:03:53.960+02:00",
       "payments": [
         {
           "amount": [
@@ -5523,8 +5716,8 @@ End of the month: invoice with reference to tickets
 
 ```json
 {
-  "bookingDate": "2026-10-17",
-  "bookingPeriodId": "3121b102-ca3a-4116-a451-7e84c377fce1",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "9d9f66de-d519-48aa-b253-4724c280dfcb",
   "costCenter": {
     "id": "C1",
     "reference": "JANSSENS",
@@ -5538,28 +5731,28 @@ End of the month: invoice with reference to tickets
     {
       "eventCounter": 1,
       "eventLabel": "N",
-      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmDateTime": "2026-10-18T04:03:46Z",
       "fdmId": "MCK00000001",
       "totalCounter": 1
     },
     {
       "eventCounter": 2,
       "eventLabel": "N",
-      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmDateTime": "2026-10-18T04:03:46Z",
       "fdmId": "MCK00000001",
       "totalCounter": 2
     },
     {
       "eventCounter": 3,
       "eventLabel": "N",
-      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmDateTime": "2026-10-18T04:03:46Z",
       "fdmId": "MCK00000001",
       "totalCounter": 3
     }
   ],
   "invoiceNo": "20260001",
   "language": "FR",
-  "posDateTime": "2026-10-18T01:38:05.845+02:00",
+  "posDateTime": "2026-10-18T06:03:47.002+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -5594,8 +5787,8 @@ Le rejeu respecte la précondition : la vente de 46,08 EUR est d'abord facturée
 
 ```json
 {
-  "bookingDate": "2026-10-17",
-  "bookingPeriodId": "03c3b477-d67c-48e8-916b-775525629976",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "298d4907-e23a-4851-8c50-be7af34a36b6",
   "costCenter": {
     "id": "C1",
     "reference": "AUDI",
@@ -5609,28 +5802,28 @@ Le rejeu respecte la précondition : la vente de 46,08 EUR est d'abord facturée
     {
       "eventCounter": 2,
       "eventLabel": "N",
-      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmDateTime": "2026-10-18T04:03:46Z",
       "fdmId": "MCK00000001",
       "totalCounter": 3
     },
     {
       "eventCounter": 3,
       "eventLabel": "N",
-      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmDateTime": "2026-10-18T04:03:46Z",
       "fdmId": "MCK00000001",
       "totalCounter": 4
     },
     {
       "eventCounter": 4,
       "eventLabel": "N",
-      "fdmDateTime": "2026-10-17T23:38:05Z",
+      "fdmDateTime": "2026-10-18T04:03:47Z",
       "fdmId": "MCK00000001",
       "totalCounter": 5
     }
   ],
   "invoiceNo": "20260002",
   "language": "FR",
-  "posDateTime": "2026-10-18T01:38:05.863+02:00",
+  "posDateTime": "2026-10-18T06:03:47.006+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -5674,8 +5867,8 @@ arrondi -0,02 EUR.
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "6f58677b-be75-4481-94be-a2c3c13e5463",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "effc5cd6-efcb-4702-bf7e-de43bb35950f",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "12345678958",
   "estNo": "2000000042",
@@ -5698,7 +5891,7 @@ arrondi -0,02 EUR.
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:45.493+02:00",
+  "posDateTime": "2026-10-18T06:03:55.006+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -5738,7 +5931,7 @@ Ticket imprimé (`evidence/tickets/ROUND1_ticket.txt`, rendu texte du flux ESC/P
             TICKET DE CAISSE T.V.A.
 The FPS Finances Experience
 Unite d'etablissement 2000000042
-04.10.2026                                 11:01
+18.10.2026                                 06:03
 Utilisateur: Test 12345678958
 Terminal: POS-1-BAR
 Ticketnr.: 000001
@@ -5758,10 +5951,10 @@ Arrondi                                    -0,02
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-04T09:01:45Z;
+fdmDateTime: 2026-10-18T04:03:55Z;
 Event: N; eventCounter: 1;
 totalCounter: 1; shortSignature:
-c7474d7a65650e0cb1410ccd3ac08113cfa69212;
+9e7a9f8d01bbe357ac02a01c53f9a3b057cead56;
 
  [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
 
@@ -5789,8 +5982,8 @@ arrondi +0,01 EUR.
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "e366137d-6ae7-4782-82dc-db7c41bd7ae5",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "083b0d4a-c42c-4c72-8811-c62071a05886",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "12345678958",
   "estNo": "2000000042",
@@ -5813,7 +6006,7 @@ arrondi +0,01 EUR.
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:45.493+02:00",
+  "posDateTime": "2026-10-18T06:03:55.006+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -5853,7 +6046,7 @@ Ticket imprimé (`evidence/tickets/ROUND2_ticket.txt`, rendu texte du flux ESC/P
             TICKET DE CAISSE T.V.A.
 The FPS Finances Experience
 Unite d'etablissement 2000000042
-04.10.2026                                 11:01
+18.10.2026                                 06:03
 Utilisateur: Test 12345678958
 Terminal: POS-1-BAR
 Ticketnr.: 000001
@@ -5873,10 +6066,10 @@ Arrondi                                     0,01
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-04T09:01:45Z;
+fdmDateTime: 2026-10-18T04:03:55Z;
 Event: N; eventCounter: 1;
 totalCounter: 1; shortSignature:
-c7474d7a65650e0cb1410ccd3ac08113cfa69212;
+9e7a9f8d01bbe357ac02a01c53f9a3b057cead56;
 
  [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
 
@@ -5904,8 +6097,8 @@ a payer 14,85 EUR, arrondi -0,01 EUR.
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "8cbd27ef-4339-48a0-aaeb-639ed4dc46d0",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "9984641d-825e-4b5d-bfcc-bbc1656ab3fc",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "12345678958",
   "estNo": "2000000042",
@@ -5928,7 +6121,7 @@ a payer 14,85 EUR, arrondi -0,01 EUR.
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:45.493+02:00",
+  "posDateTime": "2026-10-18T06:03:55.007+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -5987,7 +6180,7 @@ Ticket imprimé (`evidence/tickets/ROUND3_ticket.txt`, rendu texte du flux ESC/P
             TICKET DE CAISSE T.V.A.
 The FPS Finances Experience
 Unite d'etablissement 2000000042
-04.10.2026                                 11:01
+18.10.2026                                 06:03
 Utilisateur: Test 12345678958
 Terminal: POS-1-BAR
 Ticketnr.: 000001
@@ -6008,10 +6201,10 @@ Arrondi                                    -0,01
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-04T09:01:45Z;
+fdmDateTime: 2026-10-18T04:03:55Z;
 Event: N; eventCounter: 1;
 totalCounter: 1; shortSignature:
-c7474d7a65650e0cb1410ccd3ac08113cfa69212;
+9e7a9f8d01bbe357ac02a01c53f9a3b057cead56;
 
  [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
 
@@ -6039,8 +6232,8 @@ Attendu : a payer 3,35 EUR en especes, arrondi +0,01 EUR.
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "f4d9b1fe-7d63-489f-a207-f42269cf52a8",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "d654884a-fd93-413d-8646-3cc0dd848489",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "12345678958",
   "estNo": "2000000042",
@@ -6071,7 +6264,7 @@ Attendu : a payer 3,35 EUR en especes, arrondi +0,01 EUR.
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:45.493+02:00",
+  "posDateTime": "2026-10-18T06:03:55.007+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -6130,7 +6323,7 @@ Ticket imprimé (`evidence/tickets/ROUND4_ticket.txt`, rendu texte du flux ESC/P
             TICKET DE CAISSE T.V.A.
 The FPS Finances Experience
 Unite d'etablissement 2000000042
-04.10.2026                                 11:01
+18.10.2026                                 06:03
 Utilisateur: Test 12345678958
 Terminal: POS-1-BAR
 Ticketnr.: 000001
@@ -6152,10 +6345,10 @@ Arrondi                                     0,01
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-04T09:01:45Z;
+fdmDateTime: 2026-10-18T04:03:55Z;
 Event: N; eventCounter: 1;
 totalCounter: 1; shortSignature:
-c7474d7a65650e0cb1410ccd3ac08113cfa69212;
+9e7a9f8d01bbe357ac02a01c53f9a3b057cead56;
 
  [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
 
@@ -6184,8 +6377,8 @@ paiement en especes est arrondi.
 
 ```json
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "44d6523c-39d1-420c-8031-df3bbcc334fa",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "34195aa5-9e4a-4968-aba4-ae982a8b47c5",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "12345678958",
   "estNo": "2000000042",
@@ -6224,7 +6417,7 @@ paiement en especes est arrondi.
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:45.493+02:00",
+  "posDateTime": "2026-10-18T06:03:55.008+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -6283,7 +6476,7 @@ Ticket imprimé (`evidence/tickets/ROUND5_ticket.txt`, rendu texte du flux ESC/P
             TICKET DE CAISSE T.V.A.
 The FPS Finances Experience
 Unite d'etablissement 2000000042
-04.10.2026                                 11:01
+18.10.2026                                 06:03
 Utilisateur: Test 12345678958
 Terminal: POS-1-BAR
 Ticketnr.: 000001
@@ -6306,10 +6499,10 @@ Arrondi                                    -0,01
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-04T09:01:45Z;
+fdmDateTime: 2026-10-18T04:03:55Z;
 Event: N; eventCounter: 1;
 totalCounter: 1; shortSignature:
-c7474d7a65650e0cb1410ccd3ac08113cfa69212;
+9e7a9f8d01bbe357ac02a01c53f9a3b057cead56;
 
  [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
 
@@ -6337,7 +6530,7 @@ TVA: BE0000000097
 | Advanced Set v1.6 (factures) | 2 | 2 | OK | OK : UC4121 et UC4122 rejoues dans `invoice_advanced.rs` |
 | **Total** | **29** | **28** | **OK** | **OK** |
 
-Preuves d'annexe : **55 paires requete/reponse** construites et
+Preuves d'annexe : **58 paires requete/reponse** construites et
 archivees par la build `cert` pour le Basic Set (M150 compris) et les rapports
 (`docs/SUBMISSION_ARTIFACTS/evidence/uc/`), plus un fichier
 `<UC>_check.json` par UC du Basic Set rejoue (comparaison champ par
