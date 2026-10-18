@@ -590,7 +590,8 @@ terminal relié figure dans Configuration, "Informations" (§12.4,
 capture A111).
 
 Captures : A101 (choix "Terminal" ou "Saisie manuelle"), A125 (carte de
-chèques-repas acceptée), A102 (fenêtre
+chèques-repas acceptée : « Part 1 · Chèques-repas · Edenred » avec la
+pastille « Accepté »), A102 (fenêtre
 "Paiement sur le terminal"), A107 (paiement refusé), A108 (réponse
 inconnue et bouton "Vérifier"), A109 et A110 (paiement à vérifier, puis
 accepté après "Vérifier"), A103 et A104 (carte acceptée mais vente non
@@ -1332,9 +1333,9 @@ et « Indisponible » remplace une valeur illisible. Quatre blocs :
 
 - « Version » : « Version de l'application », « Code de version »,
   « Version logicielle du moteur » (la version affichée à la
-  connexion, §2.1) et « Référence du moteur » (version du moteur commun et
-  étiquette de gel : À effectuer (EV-04 : étiquette et commit du gel du
-  moteur)).
+  connexion, §2.1) et « Référence du moteur » (version du moteur et
+  étiquette de gel, par exemple « pili-pos 1.0.0, android-v1.0.0-rc3 »,
+  capture A82).
 - « Intégrité » : « SHA-1 de base.apk », « SHA-256 de base.apk »,
   « SHA-1 de libpos_ffi.so » et « SHA-256 du certificat de signature ».
   Un contrôleur les compare à celles de la version déposée : À effectuer
