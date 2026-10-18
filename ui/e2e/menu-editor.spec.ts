@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mockTauriIPC, loginAndGoto, ipcCalls, overrideIPC, DEFAULT_USER } from './fixtures/mock-ipc';
+import { mockTauriIPC, loginAndGoto, ipcCalls, overrideIPC, live, DEFAULT_USER } from './fixtures/mock-ipc';
 
 // The menu editor (V11-D17): Settings panel "Carte", the three-column editor, the on-screen
 // keyboard and NumPad, option groups and options, the history, the lock while a catalog manages
@@ -249,5 +249,210 @@ test.describe('Menu editor', () => {
     await page.getByTestId('menu-ed-product-row').first().click();
     await expect(page.getByTestId('menu-ed-form-title')).toHaveCount(0);
     expect(await ipcCalls(page, 'menu_save_product')).toHaveLength(0);
+  });
+});
+
+const GROUP_MIN_1 = { ...MENU, groups: [{ ...MENU.groups[0], min_select: 1 }] };
+
+async function openProduct10(page: Page) {
+  await page.getByTestId('menu-ed-product-row').first().click();
+  await expect(page.getByTestId('menu-ed-form-title')).toHaveText('Maki saumon');
+}
+
+test.describe('Menu editor: visibility instead of deletion (V11-D17)', () => {
+  test('"Visible à la caisse" off saves active:false on a product, and the row then says Masqué', async ({ page }) => {
+    const hidden = { ...MENU, products: [{ ...MENU.products[0], active: false }, MENU.products[1]] };
+    await editor(page, { menu_save_product: () => ({ id: 10, menu: hidden }) });
+    await openProduct10(page);
+    await expect(page.getByTestId('menu-ed-active')).toHaveClass(/on/);
+    await page.getByTestId('menu-ed-active').click();
+    await expect(page.getByTestId('menu-ed-active')).not.toHaveClass(/on/);
+    await page.getByTestId('menu-ed-save').click();
+    const calls = await ipcCalls(page, 'menu_save_product');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].input).toMatchObject({ id: 10, active: false });
+    await expect(page.getByTestId('menu-ed-product-row').first()).toContainText('Masqué');
+    // There is no way to delete: no such button, no such command.
+    await expect(page.getByRole('button', { name: /supprimer|delete/i })).toHaveCount(0);
+    const names: string[] = await page.evaluate(() => (window as any).__ipcCalls.map((c: any) => c.cmd));
+    expect(names.filter((n) => /delete|remove/.test(n))).toEqual([]);
+  });
+
+  test('a category is hidden the same way', async ({ page }) => {
+    const hidden = { ...MENU, categories: [{ ...MENU.categories[0], active: false }, MENU.categories[1]] };
+    await editor(page, { menu_save_category: () => ({ id: 1, menu: hidden }) });
+    await page.getByTestId('menu-ed-category-row').first().click();
+    await page.getByTestId('menu-ed-active').click();
+    await page.getByTestId('menu-ed-save').click();
+    const calls = await ipcCalls(page, 'menu_save_category');
+    expect(calls[0].input).toMatchObject({ id: 1, active: false });
+    await expect(page.getByTestId('menu-ed-category-row').first()).toContainText('Masqué');
+  });
+
+  test('an option group and an option are hidden the same way', async ({ page }) => {
+    await editor(page);
+    await openProduct10(page);
+    await page.getByTestId('menu-ed-edit-group').click();
+    await page.getByTestId('menu-ed-active').click();
+    await page.getByTestId('menu-ed-save').click();
+    const groups = await ipcCalls(page, 'menu_save_modifier_group');
+    expect(groups[0].input).toMatchObject({ id: 20, menu_item_id: 10, active: false });
+
+    await page.getByTestId('menu-ed-edit-option').click();
+    await expect(page.getByTestId('menu-ed-form-title')).toHaveText('Soja');
+    await page.getByTestId('menu-ed-active').click();
+    await page.getByTestId('menu-ed-save').click();
+    const options = await ipcCalls(page, 'menu_save_modifier');
+    expect(options[0].input).toMatchObject({ id: 30, group_id: 20, active: false });
+  });
+});
+
+test.describe('Menu editor: the other fields', () => {
+  test('product: code on the keyboard, kitchen printer, takeaway VAT and position', async ({ page }) => {
+    await editor(page);
+    await openProduct10(page);
+    await page.getByTestId('menu-ed-code').click();
+    await page.getByTestId('text-keyboard').getByRole('button', { name: 'Effacer', exact: true }).click();
+    await type(page, 'B2');
+    await expect(page.getByTestId('menu-ed-code')).toHaveValue('B2');
+    await page.getByTestId('menu-ed-kitchen').click();
+    await page.getByTestId('menu-ed-vat-takeaway-A').click();
+    await page.getByTestId('menu-ed-pos-plus').click();
+    await page.getByTestId('menu-ed-pos-plus').click();
+    await expect(page.getByTestId('menu-ed-pos')).toHaveText('3');
+    await page.getByTestId('menu-ed-save').click();
+    const calls = await ipcCalls(page, 'menu_save_product');
+    expect(calls[0].input).toMatchObject({ id: 10, code: 'B2', kitchen_printer: false, vat_code_takeaway: 'A', sort_order: 3 });
+  });
+
+  test('the product code keeps 12 characters and a name 60', async ({ page }) => {
+    await editor(page);
+    await openProduct10(page);
+    await page.getByTestId('menu-ed-code').click();
+    await page.getByTestId('text-keyboard').getByRole('button', { name: 'Effacer', exact: true }).click();
+    await type(page, 'ABCDEFGHIJKLM');
+    await expect(page.getByTestId('menu-ed-code')).toHaveValue('ABCDEFGHIJKL');
+    await page.getByTestId('menu-ed-name-fr').click();
+    await page.getByTestId('text-keyboard').getByRole('button', { name: 'Effacer', exact: true }).click();
+    for (let i = 0; i < 61; i++) await key(page, 'A').click();
+    await expect(page.getByTestId('menu-ed-name-fr')).toHaveValue('A'.repeat(60));
+  });
+
+  test('the position never goes below 0', async ({ page }) => {
+    await editor(page);
+    await openProduct10(page);
+    await expect(page.getByTestId('menu-ed-pos')).toHaveText('1');
+    await page.getByTestId('menu-ed-pos-minus').click();
+    await page.getByTestId('menu-ed-pos-minus').click();
+    await page.getByTestId('menu-ed-pos-minus').click();
+    await expect(page.getByTestId('menu-ed-pos')).toHaveText('0');
+  });
+
+  test('updating a category: palette colour and an nl name, the other languages kept', async ({ page }) => {
+    await editor(page);
+    await page.getByTestId('menu-ed-category-row').first().click();
+    await expect(page.getByTestId('menu-ed-form-title')).toHaveText('Sushi');
+    await page.getByRole('button', { name: '#22C55E' }).click();
+    await page.getByTestId('menu-ed-name-nl').click();
+    await type(page, 'XY');
+    await page.getByTestId('menu-ed-name-en').click();
+    await type(page, 'Z');
+    await page.getByTestId('menu-ed-save').click();
+    const calls = await ipcCalls(page, 'menu_save_category');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].input).toMatchObject({ id: 1, color: '#22C55E', active: true, sort_order: 1 });
+    expect(calls[0].input.names).toEqual({ fr: 'Sushi', zh: '寿司', nl: 'XY', en: 'Z' });
+  });
+});
+
+test.describe('Menu editor: option groups', () => {
+  test('a new option in a group takes the next position and its price from the NumPad', async ({ page }) => {
+    await editor(page);
+    await openProduct10(page);
+    await page.getByTestId('menu-ed-edit-group').click();
+    await page.getByTestId('menu-ed-add-option').click();
+    await expect(page.getByTestId('menu-ed-form-title')).toHaveText('Nouvelle option');
+    await page.getByTestId('menu-ed-name-fr').click();
+    await key(page, 'W').click();
+    await page.getByTestId('menu-ed-price').click();
+    await digits(page, '120');
+    await expect(page.getByTestId('menu-ed-price')).toHaveValue('1,20');
+    await page.getByTestId('menu-ed-save').click();
+    const calls = await ipcCalls(page, 'menu_save_modifier');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].input).toMatchObject({ id: null, group_id: 20, price_cents: 120, sort_order: 2, active: true });
+    expect(calls[0].input.names).toEqual({ fr: 'W' });
+  });
+
+  test('the minimum can be lowered down to 0 and leaves the maximum alone', async ({ page }) => {
+    await editor(page, { menu_admin_get: () => GROUP_MIN_1 });
+    await openProduct10(page);
+    await page.getByTestId('menu-ed-edit-group').click();
+    await expect(page.getByTestId('menu-ed-min')).toHaveText('1');
+    await page.getByTestId('menu-ed-min-minus').click();
+    await expect(page.getByTestId('menu-ed-min')).toHaveText('0');
+    await page.getByTestId('menu-ed-min-minus').click();
+    await expect(page.getByTestId('menu-ed-min')).toHaveText('0');
+    await expect(page.getByTestId('menu-ed-max')).toHaveText('2');
+  });
+});
+
+test.describe('Menu editor: other errors', () => {
+  test('a product that vanished meanwhile is told', async ({ page }) => {
+    await editor(page);
+    await openProduct10(page);
+    await overrideIPC(page, 'menu_save_product', { __reject: 'menu_not_found' });
+    await page.getByTestId('menu-ed-save').click();
+    await expect(page.getByTestId('menu-ed-error')).toHaveText("Cet élément de la carte n'existe plus.");
+  });
+
+  test('a menu that a catalog took over meanwhile is told', async ({ page }) => {
+    await editor(page);
+    await openProduct10(page);
+    await overrideIPC(page, 'menu_save_product', { __reject: 'hubrise_menu_managed' });
+    await page.getByTestId('menu-ed-save').click();
+    await expect(page.getByTestId('menu-ed-error')).toHaveText('Le menu est géré par HubRise : modifiez-le là.');
+  });
+
+  test('a menu that cannot be read shows the error on the editor, and Settings still offers the editor', async ({ page }) => {
+    const failing = { menu_admin_get: live(() => { throw 'forbidden'; }) };
+    await mockTauriIPC(page, failing);
+    await loginAndGoto(page, '/menu-editor');
+    await expect(page.getByTestId('menu-editor-view')).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveText('Action réservée à un autre profil.');
+    await expect(page.getByTestId('menu-ed-category-row')).toHaveCount(0);
+
+    await page.evaluate(() => { window.location.hash = '/settings'; });
+    await page.waitForURL(/settings/);
+    await expect(page.getByTestId('menu-editor-open')).toBeEnabled();
+  });
+
+  test('a history that cannot be read shows the error', async ({ page }) => {
+    await editor(page, { list_menu_changes: live(() => { throw 'forbidden'; }) });
+    await page.getByTestId('menu-ed-history-button').click();
+    await expect(page.getByRole('alert')).toHaveText('Action réservée à un autre profil.');
+  });
+});
+
+test.describe('Menu editor: leaving', () => {
+  test('Annuler closes the form without saving', async ({ page }) => {
+    await editor(page);
+    await openProduct10(page);
+    await page.getByTestId('menu-ed-price').click();
+    await page.locator('.numpad .key-clear').click();
+    await digits(page, '999');
+    await page.getByTestId('menu-ed-cancel').click();
+    await expect(page.getByTestId('menu-ed-hint')).toBeVisible();
+    await expect(page.getByTestId('menu-ed-form-title')).toHaveCount(0);
+    expect(await ipcCalls(page, 'menu_save_product')).toHaveLength(0);
+    // The list still shows the saved price.
+    await expect(page.getByTestId('menu-ed-product-row').first()).toContainText('6,50');
+  });
+
+  test('Retour goes back to Settings', async ({ page }) => {
+    await editor(page);
+    await page.getByTestId('menu-ed-back').click();
+    await page.waitForURL(/settings/);
+    await expect(page.getByTestId('menu-editor-panel')).toBeVisible();
   });
 });
