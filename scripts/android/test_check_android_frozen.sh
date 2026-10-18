@@ -118,7 +118,7 @@ suite() {
         run "$label/no-tag" 2 'no Android freeze tag yet'
 
         # The Linux freeze tag is not an Android freeze tag.
-        git tag linux-v1.0.0-rc2 HEAD >/dev/null
+        git tag -f linux-v1.0.0-rc2 HEAD >/dev/null
         run "$label/linux-tag-only" 2 'no Android freeze tag yet'
         git tag -d linux-v1.0.0-rc2 >/dev/null
         exit "$fails"

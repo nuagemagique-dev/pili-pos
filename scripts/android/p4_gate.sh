@@ -23,7 +23,9 @@
 #   --android, --root, --exit, --emulator, --device-tests, --repro
 #                 passed to p3_gate.sh (--exit also adds plan-gradle here)
 #   --app-e2e     also run the emulator end-to-end run of the app (app-e2e)
-#   --linux-repro also build the frozen Linux tag twice in Docker (linux-repro)
+#   --linux-repro Linux history, not part of the v1 freeze (v1 submits Android only,
+#                 INT-D41): also build the frozen Linux tag linux-v1.0.0-rc2 twice in
+#                 Docker (linux-repro)
 #   --base REF    branch the checks compare with (default android/int)
 #   --allow REGEX every changed file must also match REGEX (passed to the sub-gate)
 #   --min-app-tests N   minimum number of :app unit tests (default 1)
@@ -43,10 +45,10 @@
 #                 the working tree, is under android/rust/, android/pos-core/,
 #                 android/smoke/ or android/docker/ ('use the full gate')
 #   Always:
-#   freeze-tag    tag linux-v1.0.0-rc2 exists, its commit is FREEZE_SHA and
-#                 check_linux_frozen.sh --tag linux-v1.0.0-rc2 exits 0 (PD100). SKIP while
-#                 the tag does not exist yet (the 1.0.0 re-freeze, user decision
-#                 2026-10-10); FAIL when the tag exists and FREEZE_SHA is still empty
+#   freeze-tag    tag android-v1.0.0-rc3 exists, its commit is FREEZE_SHA and
+#                 check_android_frozen.sh --tag android-v1.0.0-rc3 exits 0 (INT-D44). SKIP
+#                 while the tag does not exist yet (the Android freeze sets it); FAIL when
+#                 the tag exists and FREEZE_SHA is still empty
 #   hygiene-keys  no tracked or untracked-not-ignored file under android/,
 #                 scripts/android/ or docs/android/ is a minisign secret key (first line
 #                 'untrusted comment: minisign [encrypted] secret key'), contains a PEM
@@ -112,10 +114,12 @@ TOOLS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 SELF="$TOOLS/$(basename "${BASH_SOURCE[0]}")"
 HEAVY="$TOOLS/heavy.sh"
 
-FREEZE_TAG=linux-v1.0.0-rc2
-# TAGGING: fill FREEZE_SHA_RECORDED with the full commit of linux-v1.0.0-rc2
-# (git rev-parse 'linux-v1.0.0-rc2^{commit}') when the tag is set.
-FREEZE_SHA_RECORDED="922a158cad1bbd7ae080b4be5658ac7aaf08ae5d"
+FREEZE_TAG=android-v1.0.0-rc3
+# TAGGING: fill FREEZE_SHA_RECORDED with the full commit of android-v1.0.0-rc3
+# (git rev-parse 'android-v1.0.0-rc3^{commit}') when the tag is set.
+FREEZE_SHA_RECORDED=""
+# Linux history (--linux-repro only): the retired Linux freeze tag.
+LINUX_REPRO_TAG=linux-v1.0.0-rc2
 FREEZE_SHA="${PILI_P4_FREEZE_SHA-$FREEZE_SHA_RECORDED}"
 JVMARGS="${PILI_GRADLE_JVMARGS:--Xmx2g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8}"
 
@@ -337,12 +341,12 @@ freeze_tag() {
         echo "tag $FREEZE_TAG points at $sha, expected $FREEZE_SHA"
         return 1
     fi
-    bash scripts/android/check_linux_frozen.sh --tag "$FREEZE_TAG" || return 1
+    bash scripts/android/check_android_frozen.sh --tag "$FREEZE_TAG" || return 1
 }
 if git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1; then
     gate freeze-tag freeze_tag
 else
-    skip freeze-tag "no tag $FREEZE_TAG yet: the 1.0.0 re-freeze sets it (then fill FREEZE_SHA_RECORDED)"
+    skip freeze-tag "no tag android-v1.0.0-rc3 yet: the Android freeze sets it (then fill FREEZE_SHA_RECORDED)"
 fi
 
 # ── hygiene-keys ────────────────────────────────────────────────
@@ -674,7 +678,7 @@ linux_repro() {
     local cache="$HOME/.cache/pili-freeze" clone log common want got rc
     clone="$cache/p4-clone"
     log="$cache/p4-linux-repro.log"
-    git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1 || { echo "tag $FREEZE_TAG does not exist yet"; return 1; }
+    git rev-parse -q --verify "refs/tags/$LINUX_REPRO_TAG" >/dev/null 2>&1 || { echo "tag $LINUX_REPRO_TAG does not exist yet"; return 1; }
     command -v docker >/dev/null 2>&1 || { echo "docker is not installed"; return 1; }
     mkdir -p "$cache" || return 1
     want="$(sed -n 's/.*Reproducible: SHA-1 \([0-9a-f]\{40\}\).*/\1/p' docs/android/LINUX_FREEZE.md | head -n 1)"
@@ -682,7 +686,7 @@ linux_repro() {
     common="$(git rev-parse --path-format=absolute --git-common-dir)" || return 1
     rm -rf "$clone"
     git clone -q --no-local "$common" "$clone" || { echo "git clone failed"; return 1; }
-    git -C "$clone" checkout -q --detach "$FREEZE_TAG" || { echo "cannot check out $FREEZE_TAG in the clone"; return 1; }
+    git -C "$clone" checkout -q --detach "$LINUX_REPRO_TAG" || { echo "cannot check out $LINUX_REPRO_TAG in the clone"; return 1; }
     (cd "$clone" && bash scripts/check_repro.sh) >"$log" 2>&1
     rc=$?
     rm -rf "$clone/deploy/dist" "$clone/target" "$clone/ui/dist" "$clone/ui/node_modules"
