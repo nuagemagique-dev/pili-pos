@@ -484,3 +484,26 @@ test.describe('Net amounts', () => {
     await expect(page.locator('.rest-amount')).toContainText('0,00');
   });
 });
+
+test.describe('Gift voucher lines (lane 4 with the till discounts and kitchen notes)', () => {
+  // A 25,00 voucher sold next to the makis: department GV, VAT X.
+  const VOUCHER = {
+    ...DEFAULT_CART_LINE, id: 2, menu_item_id: 990001, name: 'Bon cadeau', vat_code: 'X',
+    unit_price_cents: 2500, quantity: 1, unsent_quantity: 0, department_id: 'GV', department_name: 'Bon cadeau',
+  };
+
+  test('a voucher line has no Offrir and no Note, the dish keeps them', async ({ page }) => {
+    await toOrder(page, [{ ...PLAIN, unsent_quantity: 2 }, VOUCHER], 4900);
+    await expect(page.getByTestId('voucher-badge')).toHaveCount(1);
+    await expect(page.getByTestId('line-offer')).toHaveCount(1);
+    await expect(page.getByTestId('line-note')).toHaveCount(1);
+    const voucherRow = page.locator('.order-line', { has: page.getByTestId('voucher-badge') });
+    await expect(voucherRow.getByTestId('line-offer')).toHaveCount(0);
+    await expect(voucherRow.getByTestId('line-note')).toHaveCount(0);
+  });
+
+  test('the order discount stays available and the engine spreads it', async ({ page }) => {
+    await toOrder(page, [PLAIN, VOUCHER], 4900);
+    await expect(page.getByTestId('discount-open')).toBeVisible();
+  });
+});

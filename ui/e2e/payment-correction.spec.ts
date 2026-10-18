@@ -229,3 +229,34 @@ test.describe('Payment correction', () => {
     expect(await ipcCalls(page, 'correct_payment')).toHaveLength(0);
   });
 });
+
+test.describe('Payment correction: gift vouchers (lane 4)', () => {
+  const VOUCHER_AND_CASH = {
+    ...CASH_SALE,
+    lines: [
+      { index: 0, paymentType: 'VOUCHER_STORE', name: 'Gift voucher', amountCents: 2000, inputMethod: 'MANUAL', amountType: 'PAYMENT', brand: null },
+      { index: 1, paymentType: 'CASH', name: 'Cash', amountCents: 3200, inputMethod: 'MANUAL', amountType: 'PAYMENT', brand: null },
+    ],
+  };
+
+  test('a gift voucher line is named, cannot be picked and is explained', async ({ page }) => {
+    await openTickets(page, { list_sale_payments: () => VOUCHER_AND_CASH });
+    await page.getByTestId('correct-payment-38').click();
+    const dialog = page.getByTestId('pc-dialog');
+    await expect(dialog.getByTestId('pc-line-0')).toBeDisabled();
+    await expect(dialog.getByTestId('pc-line-0')).toContainText('Bon cadeau · 20,00 €');
+    await expect(dialog.getByTestId('pc-voucher-note')).toHaveText('Un paiement par bon cadeau ne se corrige pas : il a débité le bon.');
+    // The cash line is the only one left and is picked on its own.
+    await expect(dialog.getByTestId('pc-line-1')).toHaveClass(/selected/);
+    await dialog.getByTestId('pc-method-card').click();
+    await expect(dialog.getByTestId('pc-summary')).toHaveText('Espèces 32,00 € → Carte 32,00 €');
+  });
+
+  test('a sale paid by vouchers alone says why it cannot be corrected', async ({ page }) => {
+    await openTickets(page, {
+      list_sale_payments: () => ({ ...VOUCHER_AND_CASH, lines: [VOUCHER_AND_CASH.lines[0]], correctable: false, refusal: 'payment_correction_gift_voucher' }),
+    });
+    await page.getByTestId('correct-payment-38').click();
+    await expect(page.getByTestId('pc-refusal')).toHaveText('Un paiement par bon cadeau ne peut pas être corrigé : il a débité le bon.');
+  });
+});

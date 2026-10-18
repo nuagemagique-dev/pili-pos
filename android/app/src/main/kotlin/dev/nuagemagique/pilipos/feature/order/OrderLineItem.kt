@@ -148,7 +148,9 @@ private fun LineChanges(
     actions: OrderCartActions,
 ) {
     val changes = row.line.priceChanges
-    if (changes.isEmpty() && !row.canOffer && !row.canRemoveDiscount) return
+    // A gift voucher line is never discounted (`canOfferHere` of `OrderLineItem.vue`).
+    val canOffer = row.canOffer && row.line.departmentId != GIFT_VOUCHER_DEPARTMENT
+    if (changes.isEmpty() && !canOffer && !row.canRemoveDiscount) return
     val c = PiliTheme.colors
     val t = PiliTheme.typography
     val id = row.line.id
@@ -165,7 +167,7 @@ private fun LineChanges(
                 }
             }
         }
-        if (row.canOffer) {
+        if (canOffer) {
             PiliButton(
                 text = vueText("discount_offer"),
                 onClick = { actions.onOffer(id) },

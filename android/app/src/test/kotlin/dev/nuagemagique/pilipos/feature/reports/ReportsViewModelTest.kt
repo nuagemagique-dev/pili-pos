@@ -1352,6 +1352,21 @@ class ReportsViewModelTest {
         }
 
     @Test
+    fun aGiftVoucherLineCannotBePickedAndTheCashLineIsPickedOnItsOwn() =
+        runTest {
+            val f = fixture()
+            val r = correctionRig(f, salePayments(5L, listOf(paymentLine(0, GIFT_VOUCHER_TYPE), paymentLine(1))))
+
+            assertEquals(1, r.state.correctionFlow?.lineIndex)
+            r.model.pickCorrectionLine(0)
+            assertEquals(1, r.state.correctionFlow?.lineIndex)
+            // No line becomes a gift voucher either: it is not one of the correction methods.
+            r.model.pickCorrectionMethod(PaymentMethod.GIFT_VOUCHER)
+            assertNull(r.state.correctionFlow?.method)
+            assertEquals("reports_pc_method_gift_voucher", methodKey(PaymentMethod.GIFT_VOUCHER))
+        }
+
+    @Test
     fun aCardTheTerminalTookCannotBePicked() =
         runTest {
             val f = fixture()

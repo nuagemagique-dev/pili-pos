@@ -765,6 +765,17 @@ class ReportsContentTest {
     }
 
     @Test
+    fun aGiftVoucherLineIsNamedLockedAndExplained() {
+        val payments = salePayments(5L, listOf(paymentLine(0, GIFT_VOUCHER_TYPE, 2000L), paymentLine(1, "CASH", 3200L)))
+        show(correction(CorrectionFlow(5L, 5L, payments, lineIndex = 1)))
+
+        compose.onNodeWithTag("correction_line_0").assertIsNotEnabled()
+        compose.onNodeWithTag("correction_line_0").assertTextContains("Bon cadeau", substring = true)
+        compose.onNodeWithTag("correction_voucher_note").assertTextEquals("Un paiement par bon cadeau ne se corrige pas : il a débité le bon.")
+        compose.onNodeWithTag("correction_terminal_0").assertDoesNotExist()
+    }
+
+    @Test
     fun pickingALineAndAMethodShowsTheSummaryAndEnablesTheConfirm() {
         val payments = salePayments(5L, listOf(paymentLine(0, "CASH", 700L)))
         show(correction(CorrectionFlow(5L, 5L, payments, lineIndex = 0, method = PaymentMethod.CARD)))
