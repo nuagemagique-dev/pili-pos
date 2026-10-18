@@ -5,12 +5,6 @@
 # fichiers .md ni .DS_Store. Dans le ZIP, les PDF de pdf_out/ sont
 # placés à la racine.
 #
-# Préfixe "commun:" : document commun aux deux demandes (moteur seul,
-# INDEX_DOSSIER_FR.md §2). Le PDF n'est pas produit pour le dossier
-# Android : c'est celui du dossier Linux (docs/SUBMISSION_ARTIFACTS/pdf_out/)
-# au même état du moteur, l'étiquette de gel linux-v1.0.0-rc3 puis
-# l'étiquette finale. Dans le ZIP il est placé à la racine sous son nom.
-#
 # Les PDF (pdf_out/), le constructeur du ZIP et la vérification finale
 # (scripts/check_dossier.py --final) viennent avec P8b : ce fichier fixe
 # seulement la liste. Jamais de .md, de script ni de document interne
@@ -35,28 +29,28 @@ pdf_out/DECLARATION_FONCTIONS_INTERDITES_FR.pdf
 pdf_out/PROFILS_UTILISATEURS_FR.pdf
 pdf_out/DOCUMENT_PROCESSUS_TECHNIQUE_FR.pdf
 pdf_out/FLUX_DONNEES_FR.pdf
-commun:pdf_out/SCHEMA_BD_FR.pdf
+pdf_out/SCHEMA_BD_FR.pdf
 pdf_out/SECURITE_BD_FR.pdf
-commun:pdf_out/SCHEMA_ER_FR.pdf
+pdf_out/SCHEMA_ER_FR.pdf
 pdf_out/SCHEMA_ASSEMBLAGE_FR.pdf
 pdf_out/LISTE_FONCTIONNALITES_FR.pdf
 pdf_out/LIGNES_PRODUITS_FR.pdf
-commun:pdf_out/STRATEGIE_COMPTEURS_FR.pdf
+pdf_out/STRATEGIE_COMPTEURS_FR.pdf
 pdf_out/FLUX_REMBOURSEMENT_FR.pdf
 pdf_out/TICKETS_EXEMPLES_FR.pdf
 pdf_out/DECISION_PEPPOL_AP_FR.pdf
 pdf_out/MAPPING_CONFORMITE_FR.pdf
 pdf_out/FEUILLE_ACQUISITION_DONNEES_FR.pdf
 pdf_out/RAPPORT_TESTS_BASELINE_FR.pdf
-commun:pdf_out/COUVERTURE_FIXTURES_FR.pdf
-commun:pdf_out/COUVERTURE_RAPPORTS_FR.pdf
+pdf_out/COUVERTURE_FIXTURES_FR.pdf
+pdf_out/COUVERTURE_RAPPORTS_FR.pdf
 pdf_out/COUVERTURE_ADVANCED_SET_FR.pdf
 pdf_out/RESULTATS_TESTS_UC_FR.pdf
 CAPTURES_ECRAN_FR.pdf
 pdf_out/JOURNAL_TESTS_PRE_SOUMISSION_FR.pdf
 pdf_out/CHECKLIST_DEPLOIEMENT_FR.pdf
 pdf_out/GARANTIE_MAJ_LANGUES_FR.pdf
-commun:pdf_out/TICKET_NUMERIQUE_FR.pdf
+pdf_out/TICKET_NUMERIQUE_FR.pdf
 pdf_out/COMMANDES_EN_LIGNE_FR.pdf
 pdf_out/EXPORT_NOCTURNE_FR.pdf
 pdf_out/CADRE_DEMANDE_FR.pdf
@@ -70,17 +64,24 @@ pdf_out/ALLERGENES_FR.pdf
 pdf_out/SERVICES_CUISINE_FR.pdf
 pdf_out/BONS_CADEAUX_FR.pdf
 
+evidence/tickets
+evidence/gms
+evidence/fdm_errors
+
 # Preuves brutes (Report_Testing dans le ZIP). Pour P8b : les preuves
 # restent dans evidence/ du dépôt ; le constructeur du ZIP les place sous
 # Report_Testing/ (evidence/uc -> Report_Testing/uc, evidence/tickets ->
 # Report_Testing/tickets, evidence/build -> Report_Testing/build,
-# evidence/gms -> Report_Testing/gms). Aucun fichier dupliqué.
-# evidence/tickets et evidence/gms existent (P8b, 15.10.2026) ; evidence/uc
+# evidence/gms -> Report_Testing/gms, evidence/fdm_errors ->
+# Report_Testing/fdm_errors). Aucun fichier dupliqué.
+# evidence/tickets, evidence/gms et evidence/fdm_errors existent ; evidence/uc
 # et evidence/build restent des commentaires tant que P7 et P8b ne les ont
 # pas produits.
 # evidence/uc : requête et réponse JSON de chaque UC (EV-06)
 # evidence/tickets : tickets imprimés sur l'imprimante simulée (EV-08)
 # evidence/gms : mesures du profil avec services Google (EV-13)
+# evidence/fdm_errors : requête officielle M110 et réponses du simulateur FDM
+#   du dépôt pour 8 codes de message
 # evidence/build : rapports de construction, empreinte de l'image et SHA-1
 #   des deux APK non signés identiques (EV-05)
 # screenshots : captures du profil sunmi_d3_pro_gms_api33 (EV-09)
