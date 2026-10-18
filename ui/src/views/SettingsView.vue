@@ -17,6 +17,8 @@ import ExportStatusPanel from "../components/ExportStatusPanel.vue";
 import BadgeSettings from "../components/BadgeSettings.vue";
 import BadgeEnrolDialog from "../components/BadgeEnrolDialog.vue";
 import { useBadgeStore } from "../stores/badge";
+import PeppolPanel from "../components/PeppolPanel.vue";
+import MenuEditorPanel from "../components/MenuEditorPanel.vue";
 import { hasMessage, useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
@@ -396,6 +398,9 @@ onMounted(() => {
         <!-- Nightly export (manager only; the engine refuses it to the others) -->
         <ExportStatusPanel v-if="auth.isManager" class="panel" />
 
+        <!-- Peppol delivery of invoices (manager only, drawn only when configured) -->
+        <PeppolPanel v-if="auth.isManager" class="panel" />
+
         <!-- Remote support (manager) -->
         <section class="panel panel-grow support-section">
           <h2>{{ t('support_title') }}</h2>
@@ -506,6 +511,9 @@ onMounted(() => {
 
         <!-- Digital tickets (admin) - never shows the address itself -->
         <IntegrationSwitch class="panel" />
+
+        <!-- Menu editor (manager only) -->
+        <MenuEditorPanel v-if="auth.isManager" class="panel" />
 
         <section class="panel deliveries-section" :class="{ 'panel-grow': !integrations.hubriseVisible }">
           <div class="panel-head">

@@ -310,6 +310,13 @@ caisse (Serveurs et Apprentis ; un Gérant garde son PIN). Garanties :
 
 ### 6.5 Sous-traitants
 
+**Point d'accès Peppol** (Storecove ; connexion HTTPS sortante vers
+l'adresse `peppol.base_url`, seulement quand la section `peppol` est
+configurée et pour un client belge) reçoit le document de la facture
+(nom, adresse et numéro de TVA du client professionnel, lignes et
+montants) pour le remettre au destinataire sur le réseau Peppol
+(`FACTURATION_PEPPOL_FR.md`, `DECISION_PEPPOL_AP_FR.md`).
+
 **HubRise** (concentrateur de commandes en ligne ; connexion HTTPS
 sortante vers `api.hubrise.com`, seulement quand `hubrise_enabled` est
 activé) est la source des données client des commandes en ligne (§6.1) et

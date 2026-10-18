@@ -16,8 +16,9 @@ initiale se préparent sur le poste du producteur et entrent dans la caisse
 par le **lot de mise en service signé** (`MANUEL_INSTALLATION_FR.md` §2
 et §3.4) : `pos.json` (le même fichier que sous Linux) et, facultativement,
 `seed.sql`. Ensuite, un Gérant gère les employés dans "Config" (§6) et,
-quand HubRise gère le catalogue, le menu par HubRise (§4.5). Les
-réglages de l'écran sont au §15.
+quand HubRise gère le catalogue, le menu par HubRise (§4.5). Sinon le
+Gérant crée et modifie la carte depuis "Config", panneau "Carte"
+(`EDITEUR_CARTE_FR.md`). Les réglages de l'écran sont au §15.
 
 ## 1. Accès en mode programmation
 

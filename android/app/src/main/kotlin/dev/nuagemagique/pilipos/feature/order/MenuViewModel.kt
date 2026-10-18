@@ -33,6 +33,7 @@ import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
+import uniffi.pos_ffi.SoldOutItem
 import uniffi.pos_ffi.VatSplitRow
 
 /** How long the error toast of a refused send or bill stays, in milliseconds (6 s in `CartSidebar.vue`). */
@@ -90,6 +91,8 @@ private data class Data(
     val sending: Boolean = false,
     val preBilling: Boolean = false,
     val transferring: Boolean = false,
+    val soldOutMode: Boolean = false,
+    val soldOut: List<SoldOutItem> = emptyList(),
 )
 
 /** How the screen speaks and what the signed-in user may do. */
@@ -111,7 +114,7 @@ private data class Look(
  * current one once ready when another one (or none) is current, checks the Z-report reminder (`needs_z_report`) on
  * open and every [Z_CHECK_MS] while [runClock] runs, and turns the taps on products into cart changes through
  * [OrderStore][dev.nuagemagique.pilipos.ui.state.OrderStore]: a plain product is added, a free-price one asks for
- * its price first, and with HubRise on a product with options asks for the picks (`get_item_modifiers`,
+ * its price first, and a product that has option groups (`MenuItem.hasModifiers`) asks for the picks (`get_item_modifiers`,
  * `add_order_line_with_modifiers`).
  *
  * It also runs the cart column (`CartSidebar.vue`): quantity steps, removal, send to kitchen, the provisional
@@ -166,6 +169,14 @@ internal class MenuViewModel(
                 .collectLatest { language -> if (language != null) loadMenu(language) }
         }
         viewModelScope.launch {
+            // The sold-out list is read with the menu, for a user who may change it only. The reload
+            // tick is part of the key: a catalog event or a resync must read the list again even
+            // when the language is unchanged.
+            combine(active, settings.language, reload, session.canTakePayment) { on, language, tick, pay ->
+                if (on && pay) language to tick else null
+            }.distinctUntilChanged().collectLatest { key -> if (key != null) loadSoldOut(key.first) }
+        }
+        viewModelScope.launch {
             entry.events().events.collect { event ->
                 if (event is PosEvent.CatalogUpdated || event is PosEvent.Resync) reload.update { it + 1 }
             }
@@ -203,7 +214,19 @@ internal class MenuViewModel(
         val quantities = lines.groupingBy { it.menuItemId }.fold(0) { sum, line -> sum + line.quantity }
         return OrderUiState(
             signedIn = l.signedIn,
-            menu = MenuState(d.categories, d.selectedCategoryId, d.items, quantities, l.language, l.labelMode, d.loaded),
+            menu =
+                MenuState(
+                    categories = d.categories,
+                    selectedCategoryId = d.selectedCategoryId,
+                    items = d.items,
+                    cartQuantities = quantities,
+                    language = l.language,
+                    labelMode = l.labelMode,
+                    loaded = d.loaded,
+                    canSoldOut = l.canPay,
+                    soldOutMode = d.soldOutMode && l.canPay,
+                    soldOut = if (l.canPay) d.soldOut else emptyList(),
+                ),
             cart =
                 OrderCartState(
                     order = current,
@@ -325,9 +348,74 @@ internal class MenuViewModel(
             )
         }
 
+    /** `loadSoldOut`: the products sold out now, for the cashier and the manager (the engine refuses the others). */
+    private suspend fun loadSoldOut(language: AppLanguage) {
+        attempt { gateway.call { engine -> engine.listSoldOut(language.code) } }.fold(
+            onSuccess = { list -> data.update { it.copy(soldOut = list) } },
+            onFailure = { entry.errors().show(it, language) },
+        )
+    }
+
     /** A tap on a category tab: it becomes the selected one and its products are read (`selectCategory`). */
     fun selectCategory(categoryId: Long) {
         data.update { it.copy(selectedCategoryId = categoryId) }
+        refreshItems(categoryId)
+    }
+
+    // ── Products ──────────────────────────────────────────────────
+
+    /** A tap on a product button (`handleAddItem`). */
+    fun addItem(item: MenuItem) {
+        // Only the order of the route takes products: while another one is current the menu does nothing.
+        if (soldOutTap(item) || !isRouteOrderCurrent()) return
+        if (item.openPrice) {
+            data.update { it.copy(dialog = OrderDialog.Price(item)) }
+            return
+        }
+        // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
+        viewModelScope.launch {
+            if (item.hasModifiers) askModifiers(item) else order.addItem(item)
+        }
+    }
+
+    /**
+     * The sold-out side of a tap (true when it was handled). In the "Épuisé" mode (cashier and manager) a tap opens the
+     * availability dialog instead of adding the product. Out of the mode a sold-out product shows why it cannot be
+     * added; the grid is read again in case the end of the business day passed since it was.
+     */
+    private fun soldOutTap(item: MenuItem): Boolean =
+        when {
+            data.value.soldOutMode && look.value.canPay -> {
+                data.update { it.copy(dialog = OrderDialog.SoldOut(item)) }
+                true
+            }
+            item.soldOut -> {
+                entry.toasts().show(entry.catalog().text("err_product_sold_out", settings.language.value), ToastVariant.Error)
+                selectedCategoryId()?.let { refreshItems(it) }
+                true
+            }
+            else -> false
+        }
+
+    /** A product that has option groups (`hasModifiers`, V11-D18) asks for the picks; one whose groups are empty is added plainly. */
+    private suspend fun askModifiers(item: MenuItem) {
+        val language = settings.language.value
+        attempt { gateway.call { engine -> engine.getItemModifiers(item.id, language.code) } }.fold(
+            onSuccess = { groups ->
+                if (groups.isEmpty()) {
+                    order.addItem(item)
+                } else {
+                    data.update { it.copy(dialog = OrderDialog.Modifiers(item, groups)) }
+                }
+            },
+            onFailure = { entry.errors().show(it, language) },
+        )
+    }
+
+    private fun selectedCategoryId(): Long? = data.value.selectedCategoryId
+
+    /** Reads the products of [categoryId] again (the sold-out flags changed). */
+    private fun refreshItems(categoryId: Long) {
         itemsJob?.cancel()
         itemsJob =
             viewModelScope.launch {
@@ -343,35 +431,50 @@ internal class MenuViewModel(
             }
     }
 
-    // ── Products ──────────────────────────────────────────────────
+    // ── Sold out (Épuisé) ─────────────────────────────────────────
 
-    /** A tap on a product button (`handleAddItem`). */
-    fun addItem(item: MenuItem) {
-        // Only the order of the route takes products: while another one is current the menu does nothing.
-        if (!isRouteOrderCurrent()) return
-        if (item.openPrice) {
-            data.update { it.copy(dialog = OrderDialog.Price(item)) }
-            return
-        }
-        // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
-        viewModelScope.launch {
-            if (entry.integrations().hubriseEnabled.value) askModifiers(item) else order.addItem(item)
-        }
+    /** The "Épuisé" button: the mode is turned on or off (cashier and manager only). */
+    fun toggleSoldOutMode() {
+        if (!look.value.canPay) return
+        data.update { it.copy(soldOutMode = !it.soldOutMode) }
     }
 
-    /** With HubRise on, a product with options asks for the picks; one without options is added plainly. */
-    private suspend fun askModifiers(item: MenuItem) {
-        val language = settings.language.value
-        attempt { gateway.call { engine -> engine.getItemModifiers(item.id, language.code) } }.fold(
-            onSuccess = { groups ->
-                if (groups.isEmpty()) {
-                    order.addItem(item)
-                } else {
-                    data.update { it.copy(dialog = OrderDialog.Modifiers(item, groups)) }
+    /** "Produits épuisés (n)": the list opens over the screen, read again. */
+    fun openSoldOutList() {
+        if (!look.value.canPay) return
+        data.update { it.copy(dialog = OrderDialog.SoldOutList) }
+        viewModelScope.launch { loadSoldOut(settings.language.value) }
+    }
+
+    /**
+     * The choice of the availability dialog, or the re-enable of the list: the engine marks the product (or clears it),
+     * the list and the grid are read again. The dialog of a product closes on success and stays on a refusal, which is
+     * shown as a toast; the list stays open.
+     */
+    fun setAvailability(
+        menuItemId: Long,
+        choice: SoldOutChoice,
+    ) {
+        viewModelScope.launch {
+            val language = settings.language.value
+            attempt {
+                gateway.call { engine ->
+                    when (choice) {
+                        SoldOutChoice.DAY -> engine.setSoldOut(menuItemId, true, language.code)
+                        SoldOutChoice.UNTIL -> engine.setSoldOut(menuItemId, false, language.code)
+                        SoldOutChoice.AVAILABLE -> engine.clearSoldOut(menuItemId, language.code)
+                    }
                 }
-            },
-            onFailure = { entry.errors().show(it, language) },
-        )
+            }.fold(
+                onSuccess = { list ->
+                    data.update {
+                        it.copy(soldOut = list, dialog = if (it.dialog is OrderDialog.SoldOut) OrderDialog.None else it.dialog)
+                    }
+                    selectedCategoryId()?.let { refreshItems(it) }
+                },
+                onFailure = { entry.errors().show(it, language) },
+            )
+        }
     }
 
     /** The price typed for the free-price product of the open price dialog (`handlePriceConfirmed`). */

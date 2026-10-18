@@ -151,7 +151,7 @@ Checks (from `p2_gate.sh` and `p3_gate.sh`):
 | `rust-fmt`, `rust-clippy`, `rust-tests` | `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --locked` in `android/rust` |
 | `ffi-deps` | `pos-ffi` pulls in `pos-engine`, no `pos-peppol`, no tauri |
 | `lock-parity` | `check_lock_parity.sh`: crates shared with the certified build keep the versions of the root `Cargo.lock` (exceptions with a reason in `lock_parity_allow.txt`) |
-| `command-parity`, `ffi-hygiene` | `check_command_parity.py` (every cert command has a valid `PosEngine` method; `--strict` needs all 88) and `--hygiene` (rules H1 to H7) |
+| `command-parity`, `ffi-hygiene` | `check_command_parity.py` (every cert command has a valid `PosEngine` method; `--strict` needs all 88) and `--hygiene` (rules H1 to H6) |
 | `selftest-*` | self-tests of the gate tools |
 | `gradle-lint`, `gradle-ktlint`, `gradle-detekt` | `lint`, `ktlintCheck`, `detekt` |
 | `jvm-tests` | `:pos-core:test` (host JVM tests of the full p2 mode; SKIP before `android/settings.gradle.kts` exists) |

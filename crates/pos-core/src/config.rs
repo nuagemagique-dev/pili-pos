@@ -116,6 +116,10 @@ pub struct PosConfig {
     /// terminal and confirmed by the operator (`MANUAL`).
     #[serde(default)]
     pub payment_terminal: Option<PaymentTerminalConfig>,
+    /// Peppol delivery of B2B invoices (event I). Absent: invoices are
+    /// still made and printed, but nothing is queued for delivery.
+    #[serde(default)]
+    pub peppol: Option<PeppolConfig>,
 }
 
 fn default_language() -> String {
@@ -210,6 +214,9 @@ impl PosConfig {
             .as_mut()
             .and_then(|t| t.api_key_file.as_mut())
         {
+            resolve_path(path, base);
+        }
+        if let Some(path) = self.peppol.as_mut().and_then(|p| p.api_key_file.as_mut()) {
             resolve_path(path, base);
         }
     }
@@ -331,6 +338,9 @@ impl PosConfig {
         if let Some(t) = &self.payment_terminal {
             out.extend(t.problems());
         }
+        if let Some(p) = &self.peppol {
+            out.extend(p.problems());
+        }
         out
     }
 }
@@ -364,6 +374,7 @@ pub fn problem_code(problem: &str) -> &'static str {
         k if k.starts_with("digital_ticket.") => "digital_ticket",
         k if k.starts_with("export.") => "export",
         k if k.starts_with("payment_terminal.") => "payment_terminal",
+        k if k.starts_with("peppol.") => "peppol",
         _ => "other",
     }
 }
@@ -385,6 +396,7 @@ pub const PROBLEM_CODES: &[&str] = &[
     "digital_ticket",
     "export",
     "payment_terminal",
+    "peppol",
     "other",
 ];
 
@@ -430,6 +442,7 @@ impl Default for PosConfig {
             table_count: default_table_count(),
             tables: None,
             payment_terminal: None,
+            peppol: None,
             pos_id: String::new(),
             terminal_id: String::new(),
             device_id: String::new(),
@@ -741,6 +754,132 @@ impl PaymentTerminalConfig {
             out.push(format!(
                 "payment_terminal.timeout_seconds: 30 to 600 expected, got {}",
                 self.timeout_seconds
+            ));
+        }
+        out
+    }
+}
+
+fn default_supplier_country() -> String {
+    "BE".to_string()
+}
+
+fn default_peppol_provider() -> String {
+    "logging".to_string()
+}
+
+/// Peppol delivery of B2B invoices, from `pos.json` as `peppol` (V11-D12,
+/// V11-D13). `provider` is `storecove` (the Storecove API v2 shape, a real
+/// access point) or `logging` (development: the document is logged, nothing is
+/// sent). The API key stays in a file.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PeppolConfig {
+    /// `storecove` or `logging` (default).
+    #[serde(default = "default_peppol_provider")]
+    pub provider: String,
+    /// Storecove API base URL, e.g. `https://api.storecove.com`. Required for
+    /// `storecove`.
+    #[serde(default)]
+    pub base_url: Option<String>,
+    /// File holding the API key and nothing else (whitespace trimmed).
+    #[serde(default)]
+    pub api_key_file: Option<String>,
+    /// The Storecove legal entity the invoices are sent for.
+    #[serde(default)]
+    pub legal_entity_id: Option<i64>,
+    /// The supplier's Peppol participant id: `0208:` and the 10-digit
+    /// enterprise number.
+    pub sender_id: String,
+    pub supplier_street: String,
+    pub supplier_postal_code: String,
+    pub supplier_city: String,
+    /// ISO 3166-1 alpha-2, `BE` when absent.
+    #[serde(default = "default_supplier_country")]
+    pub supplier_country: String,
+}
+
+impl PeppolConfig {
+    /// The API key, read from `api_key_file`; `Ok(None)` without one.
+    pub fn api_key(&self) -> Result<Option<String>, String> {
+        let Some(path) = &self.api_key_file else {
+            return Ok(None);
+        };
+        match std::fs::read_to_string(path) {
+            Ok(s) if !s.trim().is_empty() => Ok(Some(s.trim().to_string())),
+            Ok(_) => Err(format!("peppol.api_key_file: {path:?} is empty")),
+            Err(e) => Err(format!("peppol.api_key_file: cannot read {path:?}: {e}")),
+        }
+    }
+
+    /// What would make the delivery unusable. Each message starts with
+    /// `peppol.<field>: `.
+    ///
+    /// The `logging` provider sends nothing, so a release build refuses it:
+    /// it would show every B2B invoice as delivered (V11-D12).
+    pub fn problems(&self) -> Vec<String> {
+        self.problems_with(cfg!(debug_assertions))
+    }
+
+    fn problems_with(&self, allow_logging: bool) -> Vec<String> {
+        let mut out = Vec::new();
+        match self.provider.as_str() {
+            "logging" if allow_logging => {}
+            "logging" => out.push(
+                "peppol.provider: logging sends nothing and is refused in a release build, \
+                 use storecove"
+                    .to_string(),
+            ),
+            "storecove" => {
+                match &self.base_url {
+                    Some(u) if u.starts_with("https://") || u.starts_with("http://") => {}
+                    other => out.push(format!(
+                        "peppol.base_url: http(s) URL expected for storecove, got {other:?}"
+                    )),
+                }
+                if self.api_key_file.is_none() {
+                    out.push("peppol.api_key_file: required for storecove".to_string());
+                }
+                if self.legal_entity_id.is_none() {
+                    out.push("peppol.legal_entity_id: required for storecove".to_string());
+                }
+            }
+            other => out.push(format!(
+                "peppol.provider: storecove or logging expected, got {other:?}"
+            )),
+        }
+        if self.api_key_file.is_some()
+            && let Err(e) = self.api_key()
+        {
+            out.push(e);
+        }
+        let id_ok = self
+            .sender_id
+            .strip_prefix("0208:")
+            .is_some_and(|n| n.len() == 10 && n.chars().all(|c| c.is_ascii_digit()) && mod97_ok(n));
+        if !id_ok {
+            out.push(format!(
+                "peppol.sender_id: 0208: and a 10-digit enterprise number expected, got {:?}",
+                self.sender_id
+            ));
+        }
+        for (key, v) in [
+            ("supplier_street", &self.supplier_street),
+            ("supplier_postal_code", &self.supplier_postal_code),
+            ("supplier_city", &self.supplier_city),
+        ] {
+            if v.trim().is_empty() {
+                out.push(format!("peppol.{key}: must not be empty"));
+            }
+        }
+        if self.supplier_country.len() != 2
+            || !self
+                .supplier_country
+                .chars()
+                .all(|c| c.is_ascii_uppercase())
+        {
+            out.push(format!(
+                "peppol.supplier_country: two upper-case letters expected, got {:?}",
+                self.supplier_country
             ));
         }
         out
@@ -1507,5 +1646,132 @@ mod tests {
         };
         let back: PosConfig = serde_json::from_str(&serde_json::to_string(&c).unwrap()).unwrap();
         assert_eq!(back.export, Some(e));
+    }
+
+    fn peppol() -> PeppolConfig {
+        PeppolConfig {
+            provider: "logging".into(),
+            base_url: None,
+            api_key_file: None,
+            legal_entity_id: None,
+            sender_id: "0208:0499999960".into(),
+            supplier_street: "Rue de l'Exemple 1".into(),
+            supplier_postal_code: "4000".into(),
+            supplier_city: "Liège".into(),
+            supplier_country: "BE".into(),
+        }
+    }
+
+    #[test]
+    fn the_logging_provider_is_refused_in_a_release_build() {
+        let mut p = PeppolConfig {
+            provider: "logging".into(),
+            base_url: None,
+            api_key_file: None,
+            legal_entity_id: None,
+            sender_id: "0208:0308357159".into(),
+            supplier_street: "Rue 1".into(),
+            supplier_postal_code: "4000".into(),
+            supplier_city: "Liege".into(),
+            supplier_country: "BE".into(),
+        };
+        let release = p.problems_with(false);
+        assert!(
+            release.iter().any(|m| m.starts_with("peppol.provider:")),
+            "{release:?}"
+        );
+        assert!(
+            p.problems_with(true)
+                .iter()
+                .all(|m| !m.starts_with("peppol.provider:"))
+        );
+        p.provider = "nope".into();
+        assert!(!p.problems_with(true).is_empty());
+    }
+
+    #[test]
+    fn a_peppol_section_defaults_to_the_logging_provider_and_belgium() {
+        let json = r#"{"sender_id":"0208:0499999960","supplier_street":"a","supplier_postal_code":"4000","supplier_city":"Liège"}"#;
+        let p: PeppolConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            (p.provider.as_str(), p.supplier_country.as_str()),
+            ("logging", "BE")
+        );
+        assert!(p.problems().is_empty(), "{:?}", p.problems());
+    }
+
+    #[test]
+    fn peppol_problems_name_their_setting() {
+        let mut p = peppol();
+        p.sender_id = "0208:BE0499999960".into();
+        p.supplier_city = " ".into();
+        p.supplier_country = "be".into();
+        p.provider = "other".into();
+        let problems = p.problems();
+        for key in [
+            "peppol.sender_id",
+            "peppol.supplier_city",
+            "peppol.supplier_country",
+            "peppol.provider",
+        ] {
+            assert!(
+                problems.iter().any(|t| t.starts_with(key)),
+                "{key}: {problems:?}"
+            );
+        }
+        // A sender id with a wrong check digit pair is refused.
+        let mut p = peppol();
+        p.sender_id = "0208:0499999961".into();
+        assert!(
+            p.problems()
+                .iter()
+                .any(|t| t.starts_with("peppol.sender_id"))
+        );
+    }
+
+    #[test]
+    fn storecove_needs_its_url_key_and_legal_entity() {
+        let mut p = peppol();
+        p.provider = "storecove".into();
+        let problems = p.problems();
+        for key in [
+            "peppol.base_url",
+            "peppol.api_key_file",
+            "peppol.legal_entity_id",
+        ] {
+            assert!(
+                problems.iter().any(|t| t.starts_with(key)),
+                "{key}: {problems:?}"
+            );
+        }
+        let dir = std::env::temp_dir().join(format!("pos-core-peppol-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let key_file = dir.join("key");
+        std::fs::write(&key_file, "  secret \n").unwrap();
+        p.base_url = Some("https://api.storecove.com".into());
+        p.api_key_file = Some(key_file.to_string_lossy().into_owned());
+        p.legal_entity_id = Some(7);
+        assert!(p.problems().is_empty(), "{:?}", p.problems());
+        assert_eq!(p.api_key().unwrap().as_deref(), Some("secret"));
+        std::fs::write(&key_file, "\n").unwrap();
+        assert!(p.problems().iter().any(|t| t.contains("is empty")));
+        p.api_key_file = Some(dir.join("missing").to_string_lossy().into_owned());
+        assert!(p.problems().iter().any(|t| t.contains("cannot read")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_peppol_key_file_resolves_against_the_bundle_and_has_a_problem_code() {
+        let mut c = valid();
+        let mut p = peppol();
+        p.api_key_file = Some("peppol.key".into());
+        c.peppol = Some(p);
+        c.resolve_relative_to(Path::new("/bundle"));
+        assert_eq!(
+            c.peppol.as_ref().unwrap().api_key_file.as_deref(),
+            Some("/bundle/peppol.key")
+        );
+        assert_eq!(problem_code("peppol.sender_id: x"), "peppol");
+        assert!(PROBLEM_CODES.contains(&"peppol"));
     }
 }

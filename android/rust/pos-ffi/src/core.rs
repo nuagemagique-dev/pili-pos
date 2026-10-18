@@ -146,6 +146,7 @@ fn timers_from(options: Option<&EngineTimersMs>) -> Result<EngineTimers, PosErro
         fdm_poll: positive_ms("fdm_poll_ms", t.fdm_poll_ms)?,
         export_outbox: EngineTimers::default().export_outbox,
         badge_repeat: EngineTimers::default().badge_repeat,
+        peppol_outbox: EngineTimers::default().peppol_outbox,
     })
 }
 

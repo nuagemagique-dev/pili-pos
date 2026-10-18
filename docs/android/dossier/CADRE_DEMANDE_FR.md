@@ -103,7 +103,10 @@ Une fois son certificat reçu, chaque produit suit l'article 113 pour son propre
 | Export nocturne (facultatif) | Oui. Copie chiffrée de la base et copie statistique pseudonymisée envoyées par HTTPS ; c'est une copie, le journal légal reste sur le terminal. Activé seulement si la section export de la configuration est renseignée. | `EXPORT_NOCTURNE_FR.md` |
 | Commandes en ligne (HubRise) | Oui. Interrupteur par installation, coupé par défaut ; chaque commande se termine par un événement N signé par le FDM. | `COMMANDES_EN_LIGNE_FR.md` |
 | Ticket numérique par e-mail | Oui, à la demande du client à la caisse. | `TICKET_NUMERIQUE_FR.md` (commun) |
-| Facturation B2B (événement I, Peppol) | Absente des deux builds 1.0. Le moteur Android est construit avec le même ensemble de fonctions de certification, sans Peppol. | `DECISION_PEPPOL_AP_FR.md` |
+| Facturation B2B (événement I, Peppol) | Oui. Fait partie de la certification 1.0.0, dans le même moteur que sous Linux ; l'envoi Peppol n'a lieu que si l'installation contient une section `peppol`. | `FACTURATION_PEPPOL_FR.md`, `DECISION_PEPPOL_AP_FR.md` |
+| Produit épuisé | Oui. Aucun effet fiscal. | `PRODUIT_EPUISE_FR.md` |
+| Éditeur de carte | Oui. Aucun effet fiscal. | `EDITEUR_CARTE_FR.md` |
+| Rapport de ventes non fiscal | Oui. Ne signe rien. | `RAPPORTS_VENTES_FR.md` |
 
 Le terminal de test porte l'état de l'export nocturne (activé ou non, détenteurs des clés de déchiffrement, exploitant du récepteur). Valeur : À effectuer (EV-20 : état de l'export nocturne sur la machine de test).
 

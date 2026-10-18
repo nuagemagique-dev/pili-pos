@@ -10,7 +10,11 @@ restaurant.** Elles requièrent l'accès maintenance au kiosque
 (console locale `tty2`, combinaison de touches cachée, mot de passe
 `root`). Le menu et les employés peuvent aussi être gérés depuis
 l'écran par un Gérant : les employés dans "Config" (§6), le menu par
-HubRise quand celui-ci gère le catalogue (§4.5).
+HubRise quand celui-ci gère le catalogue (§4.5). Quand aucun catalogue
+externe ne gère la carte, le Gérant peut aussi créer et modifier
+catégories, produits, groupes d'options et options depuis "Config",
+panneau "Carte" (`EDITEUR_CARTE_FR.md`) : les requêtes SQL de ce
+manuel restent l'outil du distributeur pour une reprise en masse.
 
 ## 1. Accès en mode programmation
 
@@ -445,7 +449,7 @@ cargo fmt --all --check
 
 # 2. Build de certification de référence (conteneur épinglé), qui
 #    vérifie aussi le périmètre du binaire (commandes en ligne
-#    présentes, facturation B2B absente) et
+#    présentes, facturation B2B présente) et
 #    produit le rapport build_info_*.txt (SHA-1, SHA-256, MD5)
 ./deploy/build-release.sh --docker
 

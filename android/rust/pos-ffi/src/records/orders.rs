@@ -250,6 +250,28 @@ pub struct MenuItem {
     pub kitchen_printer: bool,
     pub sort_order: i32,
     pub active: bool,
+    /// Sold out right now ("Épuisé"): the till refuses to add it to an order.
+    #[serde(default)]
+    pub sold_out: bool,
+    /// End of the business day it is sold out until (RFC 3339); `None` with `sold_out` means
+    /// "until re-enabled".
+    #[serde(default)]
+    pub sold_out_until: Option<String>,
+    /// The product has an active option group with an active option: the option picker opens.
+    #[serde(default)]
+    pub has_modifiers: bool,
+}
+
+/// `pos_db::queries::sold_out::SoldOutItem`: a product that is sold out now.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct SoldOutItem {
+    pub menu_item_id: i64,
+    pub name: String,
+    /// End of the business day (RFC 3339); `None`: until re-enabled.
+    pub until: Option<String>,
+    pub set_by: String,
+    pub set_at: String,
 }
 
 /// `pos_db::queries::menu::Modifier`: an option of a group.

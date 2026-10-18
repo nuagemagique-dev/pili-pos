@@ -26,8 +26,8 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-appender = "0.2"
 
 [features]
-# Default dev build: the certified scope plus invoicing (peppol).
-default = ["hubrise", "peppol"]
+# Default dev build.
+default = ["hubrise"]
 # The HubRise integration (online orders signed by the FDM, the menu
 # mirrored from the catalog): poller, outbox, the IPC commands. Part of
 # the certified binary; whether it runs is the installation's switch
@@ -39,13 +39,8 @@ hubrise = [
     "pos-db/hubrise",
     "pos-engine/hubrise",
 ]
-# Enables Peppol BIS Billing 3.0 B2B e-invoicing: the UBL serializer,
-# the AccessPoint trait, and the invoice (I event) commands. Not part of
-# pili-pos v1.0.0: the invoice event is optional in SCE 2.0 and ships in
-# a later certified update, so the cert build leaves it out.
-peppol = ["hubrise", "pos-engine/peppol"]
-# The certification build: HubRise in, invoicing (peppol) out, UI
-# bundle embedded.
+# The certification build: HubRise in, UI bundle embedded. Invoicing
+# (event I, Peppol queue) is compiled in every build.
 # Build command: `cargo build --release --no-default-features --features cert`.
 cert = ["custom-protocol", "hubrise", "pos-engine/cert"]
 # Serve the embedded `ui/dist` bundle instead of the Vite dev server

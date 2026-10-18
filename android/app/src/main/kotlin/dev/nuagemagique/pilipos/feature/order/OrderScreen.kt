@@ -40,6 +40,7 @@ import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import kotlinx.coroutines.launch
 import uniffi.pos_ffi.DiscountInput
 import uniffi.pos_ffi.MenuItem
+import uniffi.pos_ffi.SoldOutItem
 
 /** What the operator can do on the menu part of the order screen. */
 internal data class OrderCallbacks(
@@ -63,6 +64,12 @@ internal data class OrderCallbacks(
     val onDiscountDone: () -> Unit = {},
     /** The text typed in the note dialog (empty clears the note). */
     val onNoteSaved: (String) -> Unit = {},
+    /** The "Épuisé" button: the mode is turned on or off. */
+    val onSoldOutMode: () -> Unit = {},
+    /** The "Produits épuisés (n)" button. */
+    val onSoldOutList: () -> Unit = {},
+    /** A choice of the availability dialog, or the re-enable of the list. */
+    val onAvailability: (menuItemId: Long, choice: SoldOutChoice) -> Unit = { _, _ -> },
 )
 
 /**
@@ -92,6 +99,9 @@ internal fun OrderRoute(
             onPrice = model::confirmPrice,
             onPicks = model::confirmModifiers,
             onDismiss = model::dismissDialog,
+            onSoldOutMode = model::toggleSoldOutMode,
+            onSoldOutList = model::openSoldOutList,
+            onAvailability = model::setAvailability,
             onUnpaidPin = model::closeUnpaid,
             describeError = model::describe,
             onTransferTarget = model::confirmTransfer,
@@ -124,7 +134,7 @@ internal fun OrderRoute(
         area = HeaderArea.ORDER,
         navigator = navigator,
         modifier = Modifier.testTag("placeholder_order"),
-        overlay = { OrderDialogs(state.dialog, callbacks) },
+        overlay = { OrderDialogs(state.dialog, callbacks, state.menu.soldOut) },
     ) {
         OrderContent(state, callbacks, cartActions)
     }
@@ -169,6 +179,7 @@ internal fun OrderContent(
         Row(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 CategoryTabs(menu.categories, menu.selectedCategoryId, menu.language, callbacks.onCategory)
+                if (menu.canSoldOut) SoldOutBar(menu.soldOutMode, menu.soldOut.size, callbacks.onSoldOutMode, callbacks.onSoldOutList)
                 MenuGrid(
                     items = menu.items,
                     categoryColor = parseCategoryColor(color),
@@ -186,13 +197,15 @@ internal fun OrderContent(
 }
 
 /**
- * The open dialog, over everything: the price of a free-price product, the options of a product (`OrderView.vue`),
- * the free table to move the order to or the manager PIN of an unpaid close (`CartSidebar.vue`).
+ * The open dialog, over everything: the price of a free-price product, the options of a product, the availability of a
+ * product or the list of the sold-out ones (`OrderView.vue`), or the free table to move the order to or the manager PIN
+ * of an unpaid close (`CartSidebar.vue`).
  */
 @Composable
 internal fun BoxScope.OrderDialogs(
     dialog: OrderDialog,
     callbacks: OrderCallbacks,
+    soldOut: List<SoldOutItem> = emptyList(),
 ) {
     when (dialog) {
         OrderDialog.None -> Unit
@@ -208,6 +221,8 @@ internal fun BoxScope.OrderDialogs(
             ModifierDialog(dialog.item, dialog.groups, onConfirm = callbacks.onPicks, onCancel = callbacks.onDismiss)
         is OrderDialog.TablePicker ->
             TablePickerDialog(dialog.from, dialog.tables, onConfirm = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
+        is OrderDialog.SoldOut -> SoldOutDialog(dialog.item, callbacks.onAvailability, callbacks.onDismiss)
+        OrderDialog.SoldOutList -> SoldOutList(soldOut, callbacks.onAvailability, callbacks.onDismiss)
         is OrderDialog.CloseUnpaid -> CloseUnpaidDialog(dialog.userName, callbacks)
         is OrderDialog.Discount ->
             DiscountDialog(dialog.baseCents, dialog.lineId, onConfirm = callbacks.onDiscountChosen, onCancel = callbacks.onDismiss)

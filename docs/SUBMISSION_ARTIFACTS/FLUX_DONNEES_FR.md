@@ -402,35 +402,45 @@ l'écran de connexion (§6).
    heure », rouge pour un refus) et son ; l'activité de l'opérateur n'est
    pas renouvelée.
 
-## 7. Exception - Facture B2B (Événement I + Peppol) - hors binaire certifié v1.0.0
+## 7. Facture B2B (Événement I) et envoi Peppol
 
-Ce flux n'existe pas dans le binaire certifié de la v1.0.0 : le code
-est sous `#[cfg(feature = "peppol")]` et la build cert ne l'inclut pas
-(`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` §8). L'événement I est optionnel
-dans SCE 2.0 ; il est décrit ici pour une mise à jour ultérieure.
+Annexe *FACTURATION_PEPPOL_FR.md*. La facture est établie à partir de
+ventes déjà encaissées ; elle ne modifie ni ces ventes ni leurs tickets.
 
-**Action utilisateur.** Pendant le checkout, l'opérateur active
-"Générer facture B2B", saisit le n° TVA, le nom, l'adresse et le
-pays de l'acheteur.
+**Action utilisateur.** Dans Rapports, onglet Tickets, le caissier ou le
+gérant coche une ou plusieurs ventes, touche « Facture », choisit ou
+saisit le client (numéro de TVA), contrôle l'aperçu puis touche
+« Établir et imprimer la facture ».
 
 **Circulation des données.**
 
-1. Le checkout standard se déroule (Événement **N** si vente à
-   emporter, sinon en ligne dans le flux dine-in P/N).
-2. Additionnellement, `commands::checkout` invoque `sign_invoice`
-   pour émettre un événement **I** référençant la vente sous-jacente
-   (via `fdmRefs`).
-3. Après l'archivage de l'événement fiscal,
-   `commands::invoice::do_issue_b2b_invoice` est appelé avec les détails
-   du fournisseur + de l'acheteur et les lignes de vente :
-   - `pos-peppol::ubl::to_ubl_xml` construit un UBL BIS Billing 3.0.
-   - `AccessPoint::submit` envoie l'UBL à l'AP configuré
-     (actuellement `LoggingAccessPoint` ; câblage Storecove suivi
-     dans `DECISION_PEPPOL_AP_FR.md`).
-   - Ligne ajoutée à `peppol_deliveries` avec statut
-     `accepted` / `failed` et l'UBL complet conservé pour audit.
-4. Le ticket imprimé montre le n° TVA de l'acheteur et la phrase
-   "Une facture a été émise et délivrée via Peppol".
+1. `commands::invoice::do_invoice_preview` lit les ventes (événements N
+   archivés), leurs lignes, la TVA et le total dans l'archive signée ;
+   l'écran n'envoie que des identifiants de ventes et de client. Une vente
+   déjà facturée, un événement de formation, une copie ou une commande de
+   table sont refusés.
+2. `commands::invoice::do_sign_invoice_fiscal` refuse le mode formation,
+   prend le verrou de signature, lit le numéro (`<année><séquence>`, sans
+   trou) et construit la requête **I** (centre de coût `CUSTOMER`, numéro de
+   TVA du client, `fdmRefs` des ventes), envoyée au module de contrôle
+   (`signInvoice`).
+3. Dans une seule transaction SQLite, après la réponse : archive de
+   l'événement I (`fiscal_events`), `invoices`, `invoice_sales`, avance du
+   compteur I et, si l'installation a une section `peppol` et que le client
+   est belge, la ligne `peppol_deliveries` (document UBL 2.1). Un échec du
+   module de contrôle n'écrit rien ; une réponse perdue est renvoyée
+   à l'identique (§8).
+4. La facture est imprimée sur papier (aucun code QR, aucune signature
+   numérique, AM art. 43).
+5. La tâche de fond `commands::peppol_queue::run_pass` (au démarrage, à
+   intervalle régulier et à chaque facture signée) envoie les documents
+   en file : recherche du destinataire (3 s au plus, jamais bloquante),
+   envoi au point d'accès, puis `accepted`, nouvel essai plus tard
+   (attente de 30 s doublée jusqu'à 30 min) ou `failed` (mis de côté avec
+   sa raison). Chaque tentative est ajoutée à `peppol_delivery_log`.
+
+La facture ne dépend que du module de contrôle : sans réseau Peppol, elle
+est établie et imprimée, et l'envoi attend dans la base.
 
 ## 8. Exception - FDM injoignable en cours de service
 
@@ -550,7 +560,7 @@ n'est mis en file.
 | Paiement | `fiscal_events` (append N), `payments` (insert), `orders` (close), `fiscal_counters` (advance N) |
 | Rapport X | `fiscal_events` (append R, `ReportTurnoverX`) |
 | Rapport Z | `fiscal_events` (append R, `ReportTurnoverZ` + `ReportUserZ`), `z_reports` (insert), fichier de backup DB |
-| Facture B2B (hors binaire certifié v1.0.0) | `fiscal_events` (append I), `peppol_deliveries` (insert) ; les tables existent mais ne sont jamais écrites par la build cert |
+| Facture B2B | `fiscal_events` (append I), `invoices` et `invoice_sales` (insert), `fiscal_counters` (advance I), `peppol_deliveries` (insert si Peppol) ; `peppol_delivery_log` (append à chaque tentative d'envoi) |
 | Remboursement | `fiscal_events` (append N M111/M112 référençant l'original) |
 | Ouverture tiroir (F-WAR) | `fiscal_events` (append F) |
 | Mouvement caisse | `fiscal_events` (append F) ; aucune ligne `payments` n'est écrite |

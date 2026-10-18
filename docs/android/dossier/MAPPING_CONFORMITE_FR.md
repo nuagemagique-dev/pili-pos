@@ -40,7 +40,7 @@ Format :
 | 12 | Un échec FDM connu (injoignable, refusé) ne laisse aucune trace : rien n'est archivé, le compteur n'avance pas, le numéro reste libre. Une réponse perdue laisse la requête stockée (`pending_signs`) ; elle est renvoyée à l'identique avant toute autre signature et archivée une seule fois, sous son premier numéro | POS v2.2 §III.7 | `crates/pos-engine/src/commands/signing.rs` (verrou unique, numéro lu sous le verrou, compteur avancé seulement après la réponse, renvoi octet pour octet) | `crates/pos-engine/tests/spf_e2e_fdm_failures.rs::restoring_the_fdm_url_after_unreachable_lets_the_next_call_succeed` ; `crates/pos-engine/tests/spf_e2e_signing_serialized.rs` (14 tests : courses et réponses perdues) |
 | 13 | Requêtes envoyées au FDM en JSON canonique (clés triées, sans espaces) : mêmes données, mêmes octets, journal de requêtes comparable. Le FDM applique sa propre canonicalisation pour signer | POS v2.2 §III.5 | `crates/pos-fiscal/src/canonical.rs` | `crates/pos-fiscal/src/canonical.rs::tests::canonical_is_deterministic` |
 | 14 | Les événements C portent un `fdmRef` vers l'original | POS v2.2 §II.4.6 | `crates/pos-engine/src/commands/copy.rs` | e2e `spf_e2e_basic::{m160_*, m161_*, m172_*}` + fixture UC_BasicSet M160/M161 |
-| 15 | Événements I avec n° TVA client + cost-center optionnel | POS v2.2 §II.4.5 | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` (existe, `#[cfg(feature = "peppol")]` - **non compilé dans la build cert v1.0.0**, event I hors périmètre v1.0.0, prévu dans une mise à jour certifiée ultérieure, cf. *DECISION_PEPPOL_AP_FR.md*) | e2e `spf_e2e_basic::m150_*` + fixture UC_BasicSet M150 (features par défaut, pas la build cert) |
+| 15 | Événements I (facture) avec n° TVA client, centre de coût CUSTOMER et références des ventes (`fdmRefs`) | POS v2.2 §II.4.5 | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` (numéro `<année><séquence>` sans trou, une vente une facture) ; impression `crates/pos-print/src/invoice.rs` ; cf. *FACTURATION_PEPPOL_FR.md* | `crates/pos-engine/tests/spf_e2e_fixtures.rs::m150_invoice`, `invoice_rules.rs`, `invoice_advanced.rs` (UC4121, UC4122) + fixture UC_BasicSet M150 |
 | 16 | F-WAR ouverture tiroir émis à chaque kick tiroir | POS v2.2 §II.4.7 | `crates/pos-engine/src/commands/financial.rs::do_open_drawer_fiscal` | e2e `spf_e2e_basic::m131_*` + fixture UC_BasicSet M131 |
 | 17 | S pointage entrée/sortie pour Dimona ONSS | POS v2.2 §II.4.8 | `crates/pos-engine/src/commands/social.rs::{do_work_in,do_work_out,do_clock_in_employee,do_clock_out_employee}` | e2e `spf_e2e_basic::{m140_*, m141_*}` + fixtures UC_BasicSet M140/M141 |
 | 17b | S pointage par badge : la routine d'inscription est libre pourvu que l'event S soit correct ; le POS relie son identification interne au NISS, jamais imprimé (option désactivée par défaut, badge lié par un Gérant avec son PIN, empreinte HMAC seule conservée, Gérant toujours par PIN) | POS v2.2 §1.9 et §6.4 ; Manuel de certification §II.E et §II.C ; AM du 29 avril 2024 art. 1, 9° et art. 9 | `crates/pos-engine/src/commands/badges.rs::{do_badge_tap,do_link_badge,do_revoke_badge}` (signature : `crates/pos-engine/src/commands/social.rs::sign_work_event`) | `badges.rs::{a_scan_while_a_cashier_is_logged_in_clocks_the_badge_holder_in_and_keeps_the_session, an_fdm_failure_on_a_badge_scan_archives_nothing, in_training_a_badge_scan_is_refused_and_signs_nothing, a_double_tap_never_clocks_in_and_out, a_manager_badge_opens_no_session_and_manager_commands_stay_refused}` |
@@ -71,9 +71,8 @@ Détail complet (34 tests e2e dans `spf_e2e_digital.rs`) : *voir TICKET_NUMERIQU
 ## Basic Set v1.8
 
 Les 22 UC du Basic Set v1.8 sont chargés par les tests de fixtures
-(`crates/pos-fiscal/tests/uc_fixtures.rs`). 20 ont un test automatisé ;
-les 2 autres sont exclus et déclarés : M150 hors
-périmètre v1.0.0, M112A non applicable (le remboursement partiel est
+(`crates/pos-fiscal/tests/uc_fixtures.rs`). 21 ont un test automatisé ;
+le dernier est exclu et déclaré : M112A non applicable (le remboursement partiel est
 toujours un ticket séparé, M112B). Voir `COUVERTURE_FIXTURES_FR.md`
 pour la matrice pass/fail des fixtures ; les exclusions sont déclarées
 dans `scripts/uc_scope.toml`.
@@ -90,9 +89,9 @@ dans `crates/pos-fiscal/tests/reports_fixtures.rs` et
 Les 141 fixtures se chargent et se désérialisent proprement
 (`crates/pos-fiscal/tests/advanced_set_fixtures.rs`) ; voir
 `COUVERTURE_ADVANCED_SET_FR.md` pour le détail par UC. Sur les 58
-identifiants de test, 5 ont un test dédié : UC223, UC230, UC4109 et
-UC4119 comparent la requête construite par pili-pos à la fixture, UC201
-contrôle les lignes de paiement et d'arrondi du scénario. Les 53 autres sont déclarés hors périmètre v1.0.0
+identifiants de test, 7 ont un test dédié : UC223, UC230, UC4109,
+UC4119, UC4121 et UC4122 comparent la requête construite par pili-pos à la fixture, UC201
+contrôle les lignes de paiement et d'arrondi du scénario. Les 51 autres sont déclarés hors périmètre v1.0.0
 (`scripts/uc_scope.toml`). UC223 ne couvre que les remises de portée
 EVENT des commandes en ligne (`crates/pos-fiscal/tests/price_change_uc.rs`) ;
 UC220 et UC224 n'ont pas de test de fixture.
@@ -114,20 +113,21 @@ déclaré, cf. e2e `spf_e2e_basic::m112b_*`) sont couverts dans
 `crates/pos-engine/src/commands/refund.rs`. Chaque ligne remboursée est
 valorisée au prix de la ligne de vente d'origine qu'elle désigne ; si
 le produit a été vendu à plusieurs prix, la ligne doit être désignée
-(code `refund_line_ambiguous`). UC4122 (note de crédit) : reporté avec
-l'event I, hors périmètre v1.0.0. M132 (correction de paiement) :
+(code `refund_line_ambiguous`). UC4122 (facture d'un remboursement) :
+couvert, voir *FACTURATION_PEPPOL_FR.md* et `FLUX_REMBOURSEMENT_FR.md` §3. M132 (correction de paiement) :
 livré pour un moyen de paiement saisi à la main (Gérant + PIN, événement F
 `signPaymentCorrection`, une correction par vente, journée en cours),
 couvert par `m132_payment_correction` et `crates/pos-engine/tests/payment_correction.rs`.
 
 ## Peppol B2B (obligation parallèle, hors SCE-2.0)
 
-Voir `DECISION_PEPPOL_AP_FR.md`. Sérialiseur UBL + trait AccessPoint
-implémentés dans `crates/pos-peppol` ; commandes dans
-`crates/pos-engine/src/commands/invoice.rs`, enveloppes IPC dans
-`src-tauri/src/ipc/invoice.rs`. Ce code est derrière le feature
-flag `peppol`, absent de la build cert v1.0.0 (event I hors périmètre,
-prévu dans une mise à jour certifiée ultérieure).
+Voir `DECISION_PEPPOL_AP_FR.md` et `FACTURATION_PEPPOL_FR.md`.
+Sérialiseur UBL + trait AccessPoint implémentés dans `crates/pos-peppol` ;
+commandes dans `crates/pos-engine/src/commands/invoice.rs`, file d'envoi
+dans `crates/pos-engine/src/commands/peppol_queue.rs`, enveloppes IPC dans
+`src-tauri/src/ipc/invoice.rs`. Ce code est compilé dans tous les
+binaires (aucune fonction Cargo) ; l'envoi ne fonctionne que dans une
+installation qui a une section `peppol`.
 
 ## Exigences de l'arrêté ministériel propres à la plateforme Android
 
@@ -147,7 +147,7 @@ support Android. Le texte de référence est l'arrêté ministériel du
 
 | Préoccupation | Preuve |
 |---|---|
-| Périmètre du moteur cert | `android/rust/pos-ffi/Cargo.toml` compile `pos-engine` avec la seule fonction `cert` : commandes en ligne présentes (activées par installation, `COMMANDES_EN_LIGNE_FR.md`), facturation B2B absente |
+| Périmètre du moteur cert | `android/rust/pos-ffi/Cargo.toml` compile `pos-engine` avec la seule fonction `cert` : commandes en ligne présentes (activées par installation, `COMMANDES_EN_LIGNE_FR.md`), facturation B2B (événement I) et file d'envoi Peppol présentes, sans fonction Cargo |
 | Tous les tests verts | moteur (`cargo test --workspace` et build cert), adaptateur `android/rust` et application Kotlin : 0 échec ; totaux au commit de release : À effectuer (EV-17), détail dans `RAPPORT_TESTS_BASELINE_FR.md` |
 | Forme de l'APK | `scripts/android/check_apk.sh` : alignement 16 Ko, une architecture, `libpos_ffi.so` présente |
 | Build reproductible | `Cargo.lock` et `android/rust/Cargo.lock` commités ; Rust 1.99.0 épinglé dans `rust-toolchain.toml` ; conteneur épinglé, `scripts/android/check_repro.sh` ; rapport : À effectuer (EV-05) |

@@ -6,7 +6,7 @@ import dev.nuagemagique.pilipos.R
 /** Vue message key to Android string resource id, in the order of the Vue dictionary. */
 internal object VueStringIds {
     private val ids: Map<String, Int> by lazy {
-        buildMap { part0(); part1(); part2() }
+        buildMap { part0(); part1(); part2(); part3() }
     }
 
     /** Every Vue key, in dictionary order. */
@@ -48,6 +48,18 @@ internal object VueStringIds {
         this["card_wait"] = R.string.card_wait
         this["back"] = R.string.back
         this["open_price_title"] = R.string.open_price_title
+        this["soldout_mode"] = R.string.soldout_mode
+        this["soldout_mode_hint"] = R.string.soldout_mode_hint
+        this["soldout_badge"] = R.string.soldout_badge
+        this["soldout_list_button"] = R.string.soldout_list_button
+        this["soldout_list_title"] = R.string.soldout_list_title
+        this["soldout_list_empty"] = R.string.soldout_list_empty
+        this["soldout_until_day"] = R.string.soldout_until_day
+        this["soldout_until_reenabled"] = R.string.soldout_until_reenabled
+        this["soldout_available"] = R.string.soldout_available
+        this["soldout_status_day"] = R.string.soldout_status_day
+        this["soldout_status_reenabled"] = R.string.soldout_status_reenabled
+        this["soldout_reenable"] = R.string.soldout_reenable
         this["open_price_badge"] = R.string.open_price_badge
         this["to_pay"] = R.string.to_pay
         this["received"] = R.string.received
@@ -133,6 +145,10 @@ internal object VueStringIds {
         this["err_price_positive"] = R.string.err_price_positive
         this["err_fixed_price"] = R.string.err_fixed_price
         this["err_product_unavailable"] = R.string.err_product_unavailable
+        this["err_sales_report_range_invalid"] = R.string.err_sales_report_range_invalid
+        this["err_product_sold_out"] = R.string.err_product_sold_out
+        this["err_menu_invalid"] = R.string.err_menu_invalid
+        this["err_menu_not_found"] = R.string.err_menu_not_found
         this["err_line_not_found"] = R.string.err_line_not_found
         this["err_table_transfer_same_table"] = R.string.err_table_transfer_same_table
         this["err_table_transfer_target_busy"] = R.string.err_table_transfer_target_busy
@@ -221,6 +237,19 @@ internal object VueStringIds {
         this["err_config_digital_ticket"] = R.string.err_config_digital_ticket
         this["err_config_export"] = R.string.err_config_export
         this["err_config_payment_terminal"] = R.string.err_config_payment_terminal
+        this["err_config_peppol"] = R.string.err_config_peppol
+        this["err_invoice_no_sales"] = R.string.err_invoice_no_sales
+        this["err_invoice_sale_not_found"] = R.string.err_invoice_sale_not_found
+        this["err_invoice_not_a_sale"] = R.string.err_invoice_not_a_sale
+        this["err_invoice_sale_already_invoiced"] = R.string.err_invoice_sale_already_invoiced
+        this["err_invoice_training_mode"] = R.string.err_invoice_training_mode
+        this["err_invoice_peppol_required"] = R.string.err_invoice_peppol_required
+        this["err_customer_vat_invalid"] = R.string.err_customer_vat_invalid
+        this["err_customer_incomplete"] = R.string.err_customer_incomplete
+        this["err_customer_not_found"] = R.string.err_customer_not_found
+        this["err_peppol_not_configured"] = R.string.err_peppol_not_configured
+        this["err_peppol_delivery_not_found"] = R.string.err_peppol_delivery_not_found
+        this["err_peppol_delivery_not_parked"] = R.string.err_peppol_delivery_not_parked
         this["err_config_other"] = R.string.err_config_other
         this["err_internal_error"] = R.string.err_internal_error
         this["pin_choose"] = R.string.pin_choose
@@ -237,6 +266,9 @@ internal object VueStringIds {
         this["report_x"] = R.string.report_x
         this["report_z"] = R.string.report_z
         this["report_x_desc"] = R.string.report_x_desc
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["report_user_x"] = R.string.report_user_x
         this["report_user_x_desc"] = R.string.report_user_x_desc
         this["confirm_z"] = R.string.confirm_z
@@ -266,9 +298,6 @@ internal object VueStringIds {
         this["role"] = R.string.role
         this["config_problems"] = R.string.config_problems
         this["deactivate"] = R.string.deactivate
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["confirm_deactivate"] = R.string.confirm_deactivate
         this["role_admin"] = R.string.role_admin
         this["role_cashier"] = R.string.role_cashier
@@ -466,6 +495,7 @@ internal object VueStringIds {
         this["reports_tab_day"] = R.string.reports_tab_day
         this["reports_tab_cash"] = R.string.reports_tab_cash
         this["reports_tab_tickets"] = R.string.reports_tab_tickets
+        this["reports_tab_sales"] = R.string.reports_tab_sales
         this["reports_z_pending"] = R.string.reports_z_pending
         this["reports_reprint_z"] = R.string.reports_reprint_z
         this["reports_last_z"] = R.string.reports_last_z
@@ -489,6 +519,9 @@ internal object VueStringIds {
         this["reports_declare_drawer"] = R.string.reports_declare_drawer
         this["reports_save_in"] = R.string.reports_save_in
         this["reports_save_out"] = R.string.reports_save_out
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["reports_tickets_title"] = R.string.reports_tickets_title
         this["reports_tickets_hint"] = R.string.reports_tickets_hint
         this["reports_copy"] = R.string.reports_copy
@@ -508,6 +541,93 @@ internal object VueStringIds {
         this["reports_pc_done"] = R.string.reports_pc_done
         this["reports_pc_corrected"] = R.string.reports_pc_corrected
         this["reports_pc_not_possible"] = R.string.reports_pc_not_possible
+        this["invoice_action"] = R.string.invoice_action
+        this["invoice_action_count"] = R.string.invoice_action_count
+        this["invoice_select_hint"] = R.string.invoice_select_hint
+        this["invoice_select_row"] = R.string.invoice_select_row
+        this["invoice_invoiced_by"] = R.string.invoice_invoiced_by
+        this["invoice_title"] = R.string.invoice_title
+        this["invoice_step_customer"] = R.string.invoice_step_customer
+        this["invoice_step_preview"] = R.string.invoice_step_preview
+        this["invoice_step_done"] = R.string.invoice_step_done
+        this["invoice_sales_chosen"] = R.string.invoice_sales_chosen
+        this["invoice_vat_label"] = R.string.invoice_vat_label
+        this["invoice_vat_check"] = R.string.invoice_vat_check
+        this["invoice_vat_checking"] = R.string.invoice_vat_checking
+        this["invoice_search_label"] = R.string.invoice_search_label
+        this["invoice_search_placeholder"] = R.string.invoice_search_placeholder
+        this["invoice_no_match"] = R.string.invoice_no_match
+        this["invoice_field_name"] = R.string.invoice_field_name
+        this["invoice_field_street"] = R.string.invoice_field_street
+        this["invoice_field_postal_code"] = R.string.invoice_field_postal_code
+        this["invoice_field_city"] = R.string.invoice_field_city
+        this["invoice_field_country"] = R.string.invoice_field_country
+        this["invoice_peppol_registered"] = R.string.invoice_peppol_registered
+        this["invoice_peppol_not_registered"] = R.string.invoice_peppol_not_registered
+        this["invoice_peppol_unknown"] = R.string.invoice_peppol_unknown
+        this["invoice_peppol_not_registered_note"] = R.string.invoice_peppol_not_registered_note
+        this["invoice_peppol_unknown_note"] = R.string.invoice_peppol_unknown_note
+        this["invoice_foreign_note"] = R.string.invoice_foreign_note
+        this["invoice_continue"] = R.string.invoice_continue
+        this["invoice_preview_customer"] = R.string.invoice_preview_customer
+        this["invoice_preview_tickets"] = R.string.invoice_preview_tickets
+        this["invoice_preview_lines"] = R.string.invoice_preview_lines
+        this["invoice_preview_vat"] = R.string.invoice_preview_vat
+        this["invoice_vat_base"] = R.string.invoice_vat_base
+        this["invoice_vat_amount"] = R.string.invoice_vat_amount
+        this["invoice_vat_total"] = R.string.invoice_vat_total
+        this["invoice_total"] = R.string.invoice_total
+        this["invoice_already_paid"] = R.string.invoice_already_paid
+        this["invoice_confirm"] = R.string.invoice_confirm
+        this["invoice_done_title"] = R.string.invoice_done_title
+        this["invoice_printed"] = R.string.invoice_printed
+        this["invoice_not_printed"] = R.string.invoice_not_printed
+        this["invoice_delivery_queued"] = R.string.invoice_delivery_queued
+        this["invoice_delivery_none"] = R.string.invoice_delivery_none
+        this["invoice_failed"] = R.string.invoice_failed
+        this["invoices_title"] = R.string.invoices_title
+        this["invoices_hint"] = R.string.invoices_hint
+        this["invoices_none"] = R.string.invoices_none
+        this["invoice_status_queued"] = R.string.invoice_status_queued
+        this["invoice_status_accepted"] = R.string.invoice_status_accepted
+        this["invoice_status_failed"] = R.string.invoice_status_failed
+        this["invoice_status_none"] = R.string.invoice_status_none
+        this["invoice_copy"] = R.string.invoice_copy
+        this["keyboard_backspace"] = R.string.keyboard_backspace
+        this["keyboard_space"] = R.string.keyboard_space
+        this["keyboard_next"] = R.string.keyboard_next
+        this["sales_title"] = R.string.sales_title
+        this["sales_not_fiscal"] = R.string.sales_not_fiscal
+        this["sales_today"] = R.string.sales_today
+        this["sales_yesterday"] = R.string.sales_yesterday
+        this["sales_week"] = R.string.sales_week
+        this["sales_month"] = R.string.sales_month
+        this["sales_custom"] = R.string.sales_custom
+        this["sales_from"] = R.string.sales_from
+        this["sales_to"] = R.string.sales_to
+        this["sales_apply"] = R.string.sales_apply
+        this["sales_print"] = R.string.sales_print
+        this["sales_printed"] = R.string.sales_printed
+        this["sales_loading"] = R.string.sales_loading
+        this["sales_empty"] = R.string.sales_empty
+        this["sales_by_product"] = R.string.sales_by_product
+        this["sales_by_hour"] = R.string.sales_by_hour
+        this["sales_concordance"] = R.string.sales_concordance
+        this["sales_sort_amount"] = R.string.sales_sort_amount
+        this["sales_sort_quantity"] = R.string.sales_sort_quantity
+        this["sales_col_product"] = R.string.sales_col_product
+        this["sales_col_qty"] = R.string.sales_col_qty
+        this["sales_col_amount"] = R.string.sales_col_amount
+        this["sales_hour_tickets"] = R.string.sales_hour_tickets
+        this["sales_z_equal"] = R.string.sales_z_equal
+        this["sales_z_gap"] = R.string.sales_z_gap
+        this["sales_z_missing"] = R.string.sales_z_missing
+        this["sales_open"] = R.string.sales_open
+        this["sales_total"] = R.string.sales_total
+        this["sales_tickets"] = R.string.sales_tickets
+        this["sales_price_changes"] = R.string.sales_price_changes
+        this["sales_refunds"] = R.string.sales_refunds
+        this["sales_rounding"] = R.string.sales_rounding
         this["settings_training_on"] = R.string.settings_training_on
         this["settings_training_off"] = R.string.settings_training_off
         this["settings_training_effect"] = R.string.settings_training_effect
@@ -519,9 +639,6 @@ internal object VueStringIds {
         this["settings_product_label_name"] = R.string.settings_product_label_name
         this["settings_product_label_code"] = R.string.settings_product_label_code
         this["settings_product_label_note"] = R.string.settings_product_label_note
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["settings_tables"] = R.string.settings_tables
         this["settings_tables_current"] = R.string.settings_tables_current
         this["settings_tables_placeholder"] = R.string.settings_tables_placeholder
@@ -560,9 +677,104 @@ internal object VueStringIds {
         this["settings_badge_log"] = R.string.settings_badge_log
         this["settings_badge_log_empty"] = R.string.settings_badge_log_empty
         this["settings_email_title"] = R.string.settings_email_title
+        this["peppol_title"] = R.string.peppol_title
+        this["peppol_provider"] = R.string.peppol_provider
+        this["peppol_sender"] = R.string.peppol_sender
+        this["peppol_queued"] = R.string.peppol_queued
+        this["peppol_accepted"] = R.string.peppol_accepted
+        this["peppol_failed"] = R.string.peppol_failed
+        this["peppol_parked_title"] = R.string.peppol_parked_title
+        this["peppol_none_parked"] = R.string.peppol_none_parked
+        this["peppol_reason"] = R.string.peppol_reason
+        this["peppol_attempts"] = R.string.peppol_attempts
+        this["peppol_retry"] = R.string.peppol_retry
+        this["peppol_retried"] = R.string.peppol_retried
+        this["menu_editor_title"] = R.string.menu_editor_title
+        this["menu_editor_open"] = R.string.menu_editor_open
+        this["menu_editor_note"] = R.string.menu_editor_note
+        this["menu_editor_locked"] = R.string.menu_editor_locked
+        this["menu_ed_title"] = R.string.menu_ed_title
+        this["menu_ed_categories"] = R.string.menu_ed_categories
+        this["menu_ed_products"] = R.string.menu_ed_products
+        this["menu_ed_add_category"] = R.string.menu_ed_add_category
+        this["menu_ed_add_product"] = R.string.menu_ed_add_product
+        this["menu_ed_history"] = R.string.menu_ed_history
+        this["menu_ed_select_hint"] = R.string.menu_ed_select_hint
+        this["menu_ed_hidden"] = R.string.menu_ed_hidden
+        this["menu_ed_empty_products"] = R.string.menu_ed_empty_products
+        this["menu_ed_new_category"] = R.string.menu_ed_new_category
+        this["menu_ed_new_product"] = R.string.menu_ed_new_product
+        this["menu_ed_name"] = R.string.menu_ed_name
+        this["menu_ed_lang_fr"] = R.string.menu_ed_lang_fr
+        this["menu_ed_lang_nl"] = R.string.menu_ed_lang_nl
+        this["menu_ed_lang_en"] = R.string.menu_ed_lang_en
+        this["menu_ed_lang_zh"] = R.string.menu_ed_lang_zh
+        this["menu_ed_lang_de"] = R.string.menu_ed_lang_de
+        this["menu_ed_required"] = R.string.menu_ed_required
+        this["menu_ed_zh_note"] = R.string.menu_ed_zh_note
+        this["menu_ed_case"] = R.string.menu_ed_case
+        this["menu_ed_category"] = R.string.menu_ed_category
+        this["menu_ed_price"] = R.string.menu_ed_price
+        this["menu_ed_vat"] = R.string.menu_ed_vat
+        this["menu_ed_vat_takeaway"] = R.string.menu_ed_vat_takeaway
+        this["menu_ed_vat_same"] = R.string.menu_ed_vat_same
+        this["menu_ed_vat_a"] = R.string.menu_ed_vat_a
+        this["menu_ed_vat_b"] = R.string.menu_ed_vat_b
+        this["menu_ed_vat_c"] = R.string.menu_ed_vat_c
+        this["menu_ed_vat_d"] = R.string.menu_ed_vat_d
+        this["menu_ed_vat_x"] = R.string.menu_ed_vat_x
+        this["menu_ed_code"] = R.string.menu_ed_code
+        this["menu_ed_kitchen"] = R.string.menu_ed_kitchen
+        this["menu_ed_open_price"] = R.string.menu_ed_open_price
+        this["menu_ed_active"] = R.string.menu_ed_active
+        this["menu_ed_position"] = R.string.menu_ed_position
+        this["menu_ed_color"] = R.string.menu_ed_color
+        this["menu_ed_color_none"] = R.string.menu_ed_color_none
+        this["menu_ed_save"] = R.string.menu_ed_save
+        this["menu_ed_saved"] = R.string.menu_ed_saved
+        this["menu_ed_cancel"] = R.string.menu_ed_cancel
+        this["menu_ed_groups"] = R.string.menu_ed_groups
+        this["menu_ed_add_group"] = R.string.menu_ed_add_group
+        this["menu_ed_new_group"] = R.string.menu_ed_new_group
+        this["menu_ed_group"] = R.string.menu_ed_group
+        this["menu_ed_group_min"] = R.string.menu_ed_group_min
+        this["menu_ed_group_max"] = R.string.menu_ed_group_max
+        this["menu_ed_options"] = R.string.menu_ed_options
+        this["menu_ed_add_option"] = R.string.menu_ed_add_option
+        this["menu_ed_new_option"] = R.string.menu_ed_new_option
+        this["menu_ed_option"] = R.string.menu_ed_option
+        this["menu_ed_save_first"] = R.string.menu_ed_save_first
+        this["menu_ed_edit"] = R.string.menu_ed_edit
+        this["menu_ed_history_title"] = R.string.menu_ed_history_title
+        this["menu_ed_history_empty"] = R.string.menu_ed_history_empty
+        this["menu_ed_history_by"] = R.string.menu_ed_history_by
+        this["menu_ed_action_create"] = R.string.menu_ed_action_create
+        this["menu_ed_action_update"] = R.string.menu_ed_action_update
+        this["menu_ed_entity_category"] = R.string.menu_ed_entity_category
+        this["menu_ed_entity_product"] = R.string.menu_ed_entity_product
+        this["menu_ed_entity_modifier_group"] = R.string.menu_ed_entity_modifier_group
+        this["menu_ed_entity_modifier"] = R.string.menu_ed_entity_modifier
+        this["menu_ed_field_names"] = R.string.menu_ed_field_names
+        this["menu_ed_field_sort_order"] = R.string.menu_ed_field_sort_order
+        this["menu_ed_field_color"] = R.string.menu_ed_field_color
+        this["menu_ed_field_active"] = R.string.menu_ed_field_active
+        this["menu_ed_field_category_id"] = R.string.menu_ed_field_category_id
+        this["menu_ed_field_price_cents"] = R.string.menu_ed_field_price_cents
+        this["menu_ed_field_vat_code"] = R.string.menu_ed_field_vat_code
+        this["menu_ed_field_vat_code_takeaway"] = R.string.menu_ed_field_vat_code_takeaway
+        this["menu_ed_field_kitchen_printer"] = R.string.menu_ed_field_kitchen_printer
+        this["menu_ed_field_code"] = R.string.menu_ed_field_code
+        this["menu_ed_field_open_price"] = R.string.menu_ed_field_open_price
+        this["menu_ed_field_menu_item_id"] = R.string.menu_ed_field_menu_item_id
+        this["menu_ed_field_min_select"] = R.string.menu_ed_field_min_select
+        this["menu_ed_field_max_select"] = R.string.menu_ed_field_max_select
+        this["menu_ed_field_group_id"] = R.string.menu_ed_field_group_id
         this["integrations_title"] = R.string.integrations_title
         this["integrations_hubrise_text"] = R.string.integrations_hubrise_text
         this["integrations_on"] = R.string.integrations_on
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["integrations_off"] = R.string.integrations_off
         this["integrations_turn_on"] = R.string.integrations_turn_on
         this["integrations_turn_off"] = R.string.integrations_turn_off

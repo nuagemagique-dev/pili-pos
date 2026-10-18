@@ -43,6 +43,17 @@ pub struct MenuItem {
     pub kitchen_printer: bool,
     pub sort_order: i32,
     pub active: bool,
+    /// Sold out right now ("Épuisé", V11-D14): the till refuses to add it to an order.
+    #[serde(default)]
+    pub sold_out: bool,
+    /// End of the business day it is sold out until (RFC 3339, Brussels offset); `None` with
+    /// `sold_out` means "until re-enabled".
+    #[serde(default)]
+    pub sold_out_until: Option<String>,
+    /// The product has at least one active option group with an active option (V11-D18): the
+    /// order screen opens the option picker instead of adding the line plainly.
+    #[serde(default)]
+    pub has_modifiers: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

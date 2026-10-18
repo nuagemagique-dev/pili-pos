@@ -16,7 +16,8 @@ pos-eft = { path = "../pos-eft" }
 pos-hubrise = { path = "../pos-hubrise", optional = true }
 pos-catalog = { path = "../pos-catalog", optional = true }
 pos-hubrise-types = { path = "../pos-hubrise-types", optional = true }
-pos-peppol = { path = "../pos-peppol", optional = true }
+# Event I invoices and the Peppol delivery queue (commands/invoice.rs).
+pos-peppol = { path = "../pos-peppol" }
 # The HubRise login link as a QR code (Settings), as for tickets.
 qrcode = { version = "0.14", optional = true }
 serde = { workspace = true }
@@ -62,7 +63,7 @@ base64 = "0.23"
 
 [features]
 # Same feature set as the pili-pos shell, which forwards its own to these.
-default = ["hubrise", "peppol"]
+default = ["hubrise"]
 # The HubRise integration (online orders signed by the FDM, the menu
 # mirrored from the catalog): outbox, the engine commands.
 hubrise = [
@@ -72,10 +73,8 @@ hubrise = [
     "dep:qrcode",
     "pos-db/hubrise",
 ]
-# Peppol BIS Billing 3.0 B2B e-invoicing: the UBL serializer, the
-# AccessPoint trait and the invoice (I event) commands.
-peppol = ["dep:pos-peppol", "hubrise"]
-# The certification build: HubRise in, invoicing (peppol) out.
+# The certification build: HubRise in. Invoicing (event I) and the Peppol
+# queue are compiled in every build (V11-D1), no feature.
 cert = ["hubrise"]
 # `AppState::eft_terminal_override`: a terminal answering from a script,
 # for the engine's tests. Only the test harness turns it on; no shipped

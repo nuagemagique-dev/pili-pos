@@ -63,6 +63,10 @@ Accès complet. Concrètement, peut :
   reprendre le catalogue et régler les canaux ; rembourser une commande
   en ligne annulée. Chaque changement de l'interrupteur HubRise est
   journalisé.
+- Éditer la carte à l'écran (catégories, produits, groupes d'options,
+  options ; rien ne se supprime ; chaque modification est journalisée en
+  ajout seul), tirer le rapport de ventes non fiscal, consulter le
+  panneau Peppol et relancer un envoi bloqué.
 - Accéder à l'écran de paramètres par le bouton "Config" de l'en-tête (les
   boutons "Rapports" et "Config" ne sont présentés qu'au Gérant) et à la vue
   "Rapports". Le panneau "Autres réglages" de cet écran liste les entrées de
@@ -98,6 +102,12 @@ Accès complet. Concrètement, peut :
 
 Profil d'opérateur de caisse standard. Peut :
 
+- Déclarer un produit épuisé, le remettre en vente et lister les
+  produits épuisés (aucun événement fiscal).
+- Établir une facture à un client professionnel (Événement I, le moteur
+  accepte un Serveur ou un Gérant, jamais un Apprenti), et rechercher
+  ou enregistrer un client. L'écran y mène par « Rapports », réservé au
+  Gérant.
 - Se connecter avec sa tuile (ou son INSZ) + code PIN (Événement S -
   `signWorkIn`, sauf s'il est déjà en service).
 - Se connecter avec son badge à la place du PIN, si le Gérant a activé

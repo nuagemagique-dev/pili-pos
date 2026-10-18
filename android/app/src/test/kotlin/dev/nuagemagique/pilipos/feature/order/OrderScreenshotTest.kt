@@ -131,7 +131,7 @@ class OrderScreenshotTest {
                             training = false,
                             clock = "12:30",
                             lights = { StatusLights(FdmUiState(connected = true), DeviceLights(FakeProbe()), hubriseVisible = false) },
-                            overlay = { OrderDialogs(state.dialog, OrderCallbacks()) },
+                            overlay = { OrderDialogs(state.dialog, OrderCallbacks(), state.menu.soldOut) },
                         ) { OrderContent(state, OrderCallbacks(), OrderCartActions()) }
                     }
                 }
@@ -165,6 +165,52 @@ class OrderScreenshotTest {
     fun cartDialogs() {
         val dialog = OrderDialog.CloseUnpaid("Alice Dupont")
         capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart, dialog = dialog), "order_cart_dialogs")
+    }
+
+    private val soldOutItems =
+        listOf(
+            menuItem(11, 1, "Nigiri thon", 520, nameZh = "金枪鱼寿司", soldOut = true, soldOutUntil = "2026-10-09T04:00:00+02:00"),
+            menuItem(14, 1, "Gunkan oeufs de saumon", 590, nameZh = "三文鱼籽军舰", soldOut = true),
+        )
+
+    private val soldOutMenu =
+        menu.copy(
+            items = items.map { item -> soldOutItems.firstOrNull { it.id == item.id } ?: item },
+            canSoldOut = true,
+            soldOut =
+                listOf(
+                    soldOutItem(11, "Nigiri thon", "2026-10-09T04:00:00+02:00"),
+                    soldOutItem(14, "Gunkan oeufs de saumon"),
+                ),
+        )
+
+    @Test
+    fun soldOutMode() {
+        capture(
+            OrderUiState(signedIn = true, menu = soldOutMenu.copy(soldOutMode = true), cart = cart),
+            "order_soldout_mode",
+        )
+    }
+
+    @Test
+    fun soldOutDialog() {
+        capture(
+            OrderUiState(
+                signedIn = true,
+                menu = soldOutMenu.copy(soldOutMode = true),
+                cart = cart,
+                dialog = OrderDialog.SoldOut(soldOutItems[0]),
+            ),
+            "order_soldout_dialog",
+        )
+    }
+
+    @Test
+    fun soldOutList() {
+        capture(
+            OrderUiState(signedIn = true, menu = soldOutMenu, cart = cart, dialog = OrderDialog.SoldOutList),
+            "order_soldout_list",
+        )
     }
 
     @Test

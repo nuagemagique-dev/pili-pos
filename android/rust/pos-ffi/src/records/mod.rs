@@ -1,8 +1,8 @@
 //! Ownership of every FFI record and enum (PD56), written by P2-T4 from the engine sources.
 //!
 //! One row per type reachable from the 86 cert commands (parameters and return types, through
-//! their fields), from the event payloads and from the money helpers. `invoice` is excluded
-//! (peppol). The owner is the card that defines the type: the file of a domain card is
+//! their fields), from the event payloads and from the money helpers. `invoice` is part of the cert set
+//! (V11-D1, invoicing is in every build; its records live in `records/invoice.rs`). The owner is the card that defines the type: the file of a domain card is
 //! `records/<owner>.rs`, the shared ones are in `records/common.rs` (this card).
 //!
 //! - **common**: reachable from two or more domains of the command map
@@ -11,7 +11,8 @@
 //! - **orders** = order, modifiers, menu, tables, session; **checkout** = checkout, unpaid,
 //!   refund, copy, delivery, print; **reports** = report, social, financial, settings,
 //!   fdm_monitor; **auth** = auth, integrations, support; **hubrise** = hubrise, webshop;
-//!   **badges** = badges (staff badge reader, lane 5).
+//!   **badges** = badges (staff badge reader, lane 5); **invoice** = invoice; **menu_admin** = the
+//!   menu editor (`records/menu_admin.rs`).
 //! - The FFI name is the engine name, except `Display` (`pos_fiscal::types`), which is
 //!   `FdmMessageDisplay`. No two reachable engine types share a name (`Order`, `Category` and
 //!   `Language` also exist in `pos_hubrise_types` and `pos_catalog`, but none of those is
@@ -97,6 +98,7 @@
 //! | `OrderLine` | `pos_core::order::OrderLine` | orders | add_order_line, add_order_line_with_modifiers, list_cart_lines (+1 commands) |
 //! | `OrderStatus` | `pos_core::order::OrderStatus` | orders | create_order, get_order, list_open_orders |
 //! | `OrderType` | `pos_core::order::OrderType` | orders | create_order, get_order, list_open_orders |
+//! | `SoldOutItem` | `pos_db::queries::sold_out::SoldOutItem` | orders | set_sold_out, clear_sold_out, list_sold_out |
 //! | `TableInfo` | `pos_engine::commands::tables::TableInfo` | orders | list_tables |
 //! | `TablePlan` | `pos_engine::commands::table_plan::TablePlan` | orders | get_table_plan, set_table_plan |
 //! | `TablePlanChange` | `pos_db::queries::table_plan::PlanChange` | orders | get_table_plan, set_table_plan |
@@ -139,6 +141,28 @@
 //! | `BadgeOverview` | `pos_engine::commands::badges::BadgeOverview` | badges | list_badges |
 //! | `BadgeSettingsInput` | `pos_engine::commands::badges::BadgeSettingsInput` | badges | set_badge_settings |
 //! | `BadgeSettingsView` | `pos_engine::commands::badges::BadgeSettingsView` | badges | get_badge_settings, set_badge_settings |
+//! | `B2bCustomerInput` | `pos_engine::commands::invoice::B2bCustomerInput` | invoice | save_b2b_customer |
+//! | `Customer` | `pos_db::queries::invoicing::Customer` | invoice | save_b2b_customer, search_b2b_customers; inside CustomerLookup |
+//! | `CustomerLookup` | `pos_engine::commands::invoice::CustomerLookup` | invoice | lookup_b2b_customer |
+//! | `Delivery` | `pos_db::queries::invoicing::Delivery` | invoice | list_peppol_deliveries (inside PeppolDeliveries) |
+//! | `InvoicePreview` | `pos_engine::commands::invoice::InvoicePreview` | invoice | invoice_preview |
+//! | `InvoiceResult` | `pos_engine::commands::invoice::InvoiceResult` | invoice | sign_invoice_fiscal |
+//! | `InvoiceSummary` | `pos_engine::commands::invoice::InvoiceSummary` | invoice | list_invoices |
+//! | `InvoiceableSale` | `pos_engine::commands::invoice::InvoiceableSale` | invoice | list_invoiceable_sales, invoice_preview |
+//! | `PeppolDeliveries` | `pos_engine::commands::invoice::PeppolDeliveries` | invoice | list_peppol_deliveries |
+//! | `PreviewLine` | `pos_engine::commands::invoice::PreviewLine` | invoice | invoice_preview (inside InvoicePreview) |
+//! | `PreviewVat` | `pos_engine::commands::invoice::PreviewVat` | invoice | invoice_preview (inside InvoicePreview) |
+//! | `AdminCategory` | `pos_db::queries::menu_admin::AdminCategory` | menu_admin | menu_save_category; inside MenuAdmin |
+//! | `AdminGroup` | `pos_db::queries::menu_admin::AdminGroup` | menu_admin | menu_save_modifier_group; inside MenuAdmin |
+//! | `AdminOption` | `pos_db::queries::menu_admin::AdminOption` | menu_admin | menu_save_modifier; inside MenuAdmin |
+//! | `AdminProduct` | `pos_db::queries::menu_admin::AdminProduct` | menu_admin | menu_save_product; inside MenuAdmin |
+//! | `MenuAdmin` | `pos_engine::commands::menu_admin::MenuAdmin` | menu_admin | menu_admin_get; inside MenuSaved |
+//! | `MenuChange` | `pos_engine::commands::menu_admin::MenuChange` | menu_admin | list_menu_changes |
+//! | `MenuSaved` | `pos_engine::commands::menu_admin::MenuSaved` | menu_admin | menu_save_category, menu_save_product, menu_save_modifier_group (+1 commands) |
+//! | `SaveCategoryInput` | `pos_engine::commands::menu_admin::SaveCategoryInput` | menu_admin | menu_save_category |
+//! | `SaveModifierGroupInput` | `pos_engine::commands::menu_admin::SaveModifierGroupInput` | menu_admin | menu_save_modifier_group |
+//! | `SaveModifierInput` | `pos_engine::commands::menu_admin::SaveModifierInput` | menu_admin | menu_save_modifier |
+//! | `SaveProductInput` | `pos_engine::commands::menu_admin::SaveProductInput` | menu_admin | menu_save_product |
 //! | `AcceptRequest` | `pos_engine::commands::webshop::AcceptRequest` | hubrise | webshop_accept_order |
 //! | `AcceptResult` | `pos_engine::commands::webshop::AcceptResult` | hubrise | webshop_accept_order |
 //! | `Adoption` | `pos_catalog::apply::Adoption` | hubrise | hubrise_adopt_catalog, hubrise_adoption_preview |
@@ -175,5 +199,7 @@ pub mod common;
 pub mod eft;
 pub mod export;
 pub mod hubrise;
+pub mod invoice;
+pub mod menu_admin;
 pub mod orders;
 pub mod reports;

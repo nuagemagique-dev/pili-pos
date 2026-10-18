@@ -44,6 +44,7 @@ BASIC = {
     "M131": ("spf_e2e_fixtures.rs::m131_drawer_open", ["M131"]),
     "M140": ("spf_e2e_fixtures.rs::m140_work_in", ["M140"]),
     "M141": ("spf_e2e_fixtures.rs::m141_work_out", ["M141"]),
+    "M150": ("spf_e2e_fixtures.rs::m150_invoice", ["M150"]),
     "M160": ("spf_e2e_fixtures.rs::m160_copy_of_a_sale", ["M160"]),
     "M161": ("spf_e2e_fixtures.rs::m161_copy_of_an_order", ["M161"]),
     "M170": ("spf_e2e_fixtures.rs::m170_work_in_in_training", ["M170"]),
@@ -62,6 +63,12 @@ ROUND = {
     "ROUND3": "spf_e2e_rounding.rs::round3_both_desserts_cash",
     "ROUND4": "spf_e2e_rounding.rs::round4_meal_vouchers_then_cash",
     "ROUND5": "spf_e2e_rounding.rs::round5_meal_vouchers_card_and_cash",
+}
+
+# Advanced Set invoices: UC -> test (crates/pos-engine/tests/invoice_advanced.rs).
+ADVANCED = {
+    "UC4121": "invoice_advanced.rs::uc4121_an_invoice_of_three_sales",
+    "UC4122": "invoice_advanced.rs::uc4122_an_invoice_of_a_refund_and_two_sales",
 }
 
 REPORTS = {
@@ -217,6 +224,40 @@ def basic_block(uc: str) -> str | None:
     return "\n".join(out)
 
 
+def advanced_block(uc: str) -> str | None:
+    events = [p for p in events_of(uc)]
+    if not events:
+        return None
+    main = events[-1]
+    if not main.name.endswith("_I_request.json"):
+        sys.exit(f"{main.name}: the last event of {uc} must be the invoice (I)")
+    resp = EVIDENCE / main.name.replace("_request.json", "_response.json")
+    out = [
+        START,
+        f"**Preuve pili-pos (build `cert`)** - scénario rejoué par "
+        f"`crates/pos-engine/tests/{ADVANCED[uc]}` avec des ventes au comptant "
+        f"génériques à la place des étapes de vente de la fixture (le crédit client "
+        f"n'existe pas dans le produit ; la demande de facture n'en dépend pas). "
+        f"Requête **construite et archivée par pili-pos** (`evidence/uc/{main.name}`), "
+        f"réponse FDM archivée : `evidence/uc/{resp.name}`.",
+        "",
+        json_block(main),
+        "",
+        f"Events préalables du scénario, archivés de même : {file_list(events[:-1])}.",
+        "",
+        "Comparaison avec la fixture : champs métier identiques (`costCenter.type` et "
+        "`costCenter.reference`, `customerVatNo`, libellés des `fdmRefs`) ; chaque "
+        "`fdmRefs[i]` (`fdmId`, `fdmDateTime`, `eventLabel`, `eventCounter`, "
+        "`totalCounter`) est comparé à la référence que le module de contrôle a "
+        "répondue pour la vente correspondante, dans l'ordre ; numéro de facture "
+        "contrôlé sur son format (année et séquence). Écarts voulus : numéro de "
+        "facture, identifiant du centre de coût (`C` suivi du numéro du client) et "
+        "compteurs, qui sont ceux de la session de test.",
+        END,
+    ]
+    return "\n".join(out)
+
+
 def round_block(uc: str) -> str | None:
     events = events_of(uc)
     if not events:
@@ -299,7 +340,7 @@ def sections(text: str) -> list[tuple[str, int, int]]:
     """(uc, start, end) of every '## <UC>_…' section."""
     heads = [
         (m.group(1), m.start())
-        for m in re.finditer(r"^## (M\d+[A-Z]?|ROUND\d)_", text, re.M)
+        for m in re.finditer(r"^## (M\d+[A-Z]?|ROUND\d|UC\d+)_", text, re.M)
     ]
     bounds = [m.start() for m in re.finditer(r"^#{1,2} ", text, re.M)]
     out = []
@@ -319,6 +360,8 @@ def main() -> None:
     for uc, start, end in reversed(sections(text)):
         if uc in BASIC:
             block = basic_block(uc)
+        elif uc in ADVANCED:
+            block = advanced_block(uc)
         elif uc in ROUND:
             block = round_block(uc)
         elif uc in REPORTS or uc in VIA_M184:

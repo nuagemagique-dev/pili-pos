@@ -218,6 +218,35 @@ impl Engine {
             }));
         }
 
+        // Peppol delivery queue: one pass at start-up, then at every
+        // `timers.peppol_outbox` tick and every wake-up (an invoice signed,
+        // a parked delivery re-queued). Spawned only when the configuration
+        // has a `peppol` section.
+        if state
+            .config
+            .lock()
+            .map(|c| c.peppol.is_some())
+            .unwrap_or(false)
+        {
+            let state = state.clone();
+            let ticks = self.ticks.clone();
+            spawned.push(rt.spawn(async move {
+                let mut tick = tokio::time::interval(state.timers.peppol_outbox);
+                loop {
+                    tokio::select! {
+                        _ = state.shutdown_token.cancelled() => return,
+                        _ = tick.tick() => {}
+                        _ = state.peppol_wake.notified() => {}
+                    }
+                    tokio::select! {
+                        _ = state.shutdown_token.cancelled() => return,
+                        _ = commands::peppol_queue::run_pass(&state) => {}
+                    }
+                    ticks.peppol_outbox.fetch_add(1, Ordering::SeqCst);
+                }
+            }));
+        }
+
         // Presence worker: signs the clock-ins that logins queue
         // (`commands::session`), one after another in arrival order, so
         // a login never waits for the FDM. The receiver is taken once:
@@ -306,6 +335,11 @@ impl Engine {
     /// How many mail outbox passes have completed (for tests).
     pub fn mail_outbox_passes(&self) -> u64 {
         self.ticks.mail_outbox.load(Ordering::SeqCst)
+    }
+
+    /// How many Peppol queue passes have completed (for tests).
+    pub fn peppol_outbox_passes(&self) -> u64 {
+        self.ticks.peppol_outbox.load(Ordering::SeqCst)
     }
 
     /// How many export passes have completed (for tests).

@@ -52,6 +52,16 @@ const EXPORT_STATUS_DISABLED = {
   dropped: 0,
 };
 
+// The menu editor's view of a menu with nothing in it (languages as a French till offers them).
+const MENU_ADMIN_EMPTY = {
+  managed_by: null,
+  languages: ['fr', 'nl', 'en', 'zh'],
+  categories: [],
+  products: [],
+  groups: [],
+  options: [],
+};
+
 const DEFAULT_CATEGORY = {
   id: 1,
   name: 'Sushi',
@@ -270,6 +280,10 @@ function defaultHandlers(): Record<string, Handler> {
     // Menu
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
+    // Sold out ("Épuisé"): nothing is sold out by default.
+    list_sold_out: () => [],
+    set_sold_out: () => [],
+    clear_sold_out: () => [],
 
     // Orders
     create_order: ({ input }: any) => ({
@@ -487,6 +501,12 @@ function defaultHandlers(): Record<string, Handler> {
     list_z_reports: () => [],
     needs_z_report: () => false,
     backup_database: () => '/tmp/backup.db',
+    sales_report: ({ fromDate, toDate }: any = {}) => ({
+      from: fromDate, to: toDate, generatedAt: '2026-10-17T18:30:00+02:00', businessDate: '2026-10-17',
+      days: [], openPeriod: false, byProduct: [], byHour: [],
+      priceChangesCents: 0, roundingCents: 0, refundsCents: 0, ticketCount: 0, totalCents: 0,
+    }),
+    print_sales_report: () => undefined,
 
     // Copy (event C)
     copy_ticket: live(({ delivery }: any = {}) => {
@@ -516,10 +536,26 @@ function defaultHandlers(): Record<string, Handler> {
     }),
     list_fiscal_events: () => [],
 
+    // B2B invoices and Peppol: nothing to invoice and no Peppol unless a spec says so.
+    list_invoiceable_sales: () => [],
+    list_invoices: () => [],
+    search_b2b_customers: () => [],
+    list_peppol_deliveries: () => ({
+      configured: false, provider: null, senderId: null, queued: 0, accepted: 0, failed: 0, deliveries: [],
+    }),
+
     // Ticket delivery (paper / email / both)
     check_mail_status: () => ({ configured: false, reachable: false, allowDigitalOnly: false }),
     list_ticket_deliveries: () => [],
     print_missing_original: () => undefined,
+
+    // Menu editor (manager only): an empty, unmanaged menu unless a spec says otherwise
+    menu_admin_get: () => MENU_ADMIN_EMPTY,
+    menu_save_category: () => ({ id: 1, menu: MENU_ADMIN_EMPTY }),
+    menu_save_product: () => ({ id: 1, menu: MENU_ADMIN_EMPTY }),
+    menu_save_modifier_group: () => ({ id: 1, menu: MENU_ADMIN_EMPTY }),
+    menu_save_modifier: () => ({ id: 1, menu: MENU_ADMIN_EMPTY }),
+    list_menu_changes: () => [],
 
     // Nightly export (manager only): not configured unless a spec says otherwise
     export_status: () => EXPORT_STATUS_DISABLED,
@@ -901,4 +937,4 @@ export async function loginAndGoto(page: Page, hashRoute: string) {
 }
 
 // Re-export fixtures for direct use in tests.
-export { EXPORT_STATUS_DISABLED, DEFAULT_USER, DEFAULT_USER_WITH_PIN, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CART_LINE };
+export { MENU_ADMIN_EMPTY, EXPORT_STATUS_DISABLED, DEFAULT_USER, DEFAULT_USER_WITH_PIN, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CART_LINE };

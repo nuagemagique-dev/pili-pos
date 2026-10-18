@@ -126,3 +126,87 @@ fn the_nine_badge_codes_are_listed_and_translated() {
         }
     }
 }
+
+#[test]
+fn the_invoice_and_peppol_codes_are_listed_and_translated() {
+    for code in [
+        errors::INVOICE_NO_SALES,
+        errors::INVOICE_SALE_NOT_FOUND,
+        errors::INVOICE_NOT_A_SALE,
+        errors::INVOICE_SALE_ALREADY_INVOICED,
+        errors::INVOICE_TRAINING_MODE,
+        errors::INVOICE_PEPPOL_REQUIRED,
+        errors::CUSTOMER_VAT_INVALID,
+        errors::CUSTOMER_INCOMPLETE,
+        errors::CUSTOMER_NOT_FOUND,
+        errors::PEPPOL_NOT_CONFIGURED,
+        errors::PEPPOL_DELIVERY_NOT_FOUND,
+        errors::PEPPOL_DELIVERY_NOT_PARKED,
+        errors::CONFIG_PEPPOL,
+    ] {
+        assert!(errors::ALL.contains(&code), "{code} is not in errors::ALL");
+        let text = entry(&format!("err_{code}")).unwrap_or_else(|| panic!("no text for {code}"));
+        for lang in ["fr:", "en:", "zh:"] {
+            assert!(text.contains(lang), "{code} {lang}");
+        }
+    }
+}
+
+#[test]
+fn the_sold_out_code_is_listed_and_translated() {
+    let code = errors::PRODUCT_SOLD_OUT;
+    assert!(errors::ALL.contains(&code), "{code} is not in errors::ALL");
+    let text = entry(&format!("err_{code}")).unwrap_or_else(|| panic!("no text for {code}"));
+    for lang in ["fr:", "en:", "zh:"] {
+        assert!(text.contains(lang), "{code} {lang}");
+    }
+    // The code carries the product id for the screen.
+    assert_eq!(
+        errors::coded(code, &[("product", &7)]),
+        "product_sold_out|product=7"
+    );
+}
+
+#[test]
+fn the_menu_editor_codes_are_listed_translated_and_carry_their_values() {
+    for (code, placeholder) in [
+        (errors::MENU_INVALID, Some("field")),
+        (errors::MENU_NOT_FOUND, None),
+    ] {
+        assert!(errors::ALL.contains(&code), "{code} is not in errors::ALL");
+        let text = entry(&format!("err_{code}")).unwrap_or_else(|| panic!("no text for {code}"));
+        for lang in ["fr:", "en:", "zh:"] {
+            assert!(text.contains(lang), "{code} {lang}");
+        }
+        if let Some(name) = placeholder {
+            assert!(text.contains(&format!("{{{name}}}")), "{code}: {{{name}}}");
+        }
+    }
+    assert_eq!(
+        errors::coded(errors::MENU_INVALID, &[("field", &"price_cents")]),
+        "menu_invalid|field=price_cents"
+    );
+}
+
+#[cfg(feature = "hubrise")]
+#[test]
+fn the_locked_menu_code_has_its_text() {
+    let text = entry_in(
+        I18N_WEBSHOP,
+        &format!("err_{}", errors::hubrise::MENU_MANAGED),
+    )
+    .unwrap();
+    for lang in ["fr:", "en:", "zh:"] {
+        assert!(text.contains(lang), "{lang}");
+    }
+}
+
+#[test]
+fn the_sales_report_code_is_listed_and_translated() {
+    let code = errors::SALES_REPORT_RANGE_INVALID;
+    assert!(errors::ALL.contains(&code), "{code} is not in errors::ALL");
+    let text = entry(&format!("err_{code}")).unwrap_or_else(|| panic!("no text for {code}"));
+    for lang in ["fr:", "en:", "zh:"] {
+        assert!(text.contains(lang), "{code} {lang}");
+    }
+}

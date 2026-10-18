@@ -59,7 +59,7 @@
 #                     cargo test --workspace --locked (detail: summed passed count);
 #                     SKIP when android/rust/Cargo.toml is absent
 #   ffi-deps          cargo tree -p pos-ffi in android/rust lists pos-engine and no
-#                     pos-peppol and no tauri; SKIP when android/rust is absent
+#                     pos-engine (pos-peppol allowed since V11-D1) and no tauri; SKIP when android/rust is absent
 #   lock-parity       check_lock_parity.sh (exit 2 = SKIP)
 #   command-parity    check_command_parity.py [--require-modules LIST] [--strict with
 #                     --exit]; SKIP when the script is absent
@@ -323,13 +323,12 @@ ffi_deps() {
     in_rust cargo tree --locked --offline -p pos-ffi -e normal,build --prefix none >"$tree" 2>&1 ||
         { tail -n 20 "$tree"; echo "cargo tree failed"; return 1; }
     grep -q '^pos-engine v' "$tree" || { echo "pos-engine is not a dependency of pos-ffi"; return 1; }
-    if grep -qE '^pos-peppol v' "$tree"; then echo "pos-peppol is in the dependency graph of pos-ffi"; return 1; fi
     if grep -qE '^tauri(-[a-z0-9_-]+)? v' "$tree"; then
         grep -E '^tauri(-[a-z0-9_-]+)? v' "$tree" | head -n 3
         echo "tauri is in the dependency graph of pos-ffi"
         return 1
     fi
-    echo "pos-engine yes, pos-peppol no, tauri no"
+    echo "pos-engine yes, pos-peppol allowed, tauri no"
 }
 
 if have_rust; then

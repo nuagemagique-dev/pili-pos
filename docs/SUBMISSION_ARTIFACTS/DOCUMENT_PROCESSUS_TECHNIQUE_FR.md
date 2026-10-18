@@ -81,7 +81,7 @@ binaire certifié.
 | **P** (Changement de table, `COST_CENTER_CHANGE`) | L'opérateur change une commande de table | `commands/table_transfer::do_transfer_table` | Enregistre d'abord les articles non envoyés (P), puis signe le déplacement ; la table change dans la transaction d'archivage ; pas d'incrément du compteur N |
 | **T** (Formation) | L'opérateur est en mode formation | Comme N mais `is_training=true` dans l'input ; watermark UI |
 | **C** (Copie) | Réimpression d'un ticket antérieur | `commands/copy::do_copy_ticket_with` | Porte un `fdmRef` vers l'original |
-| **I** (Facture) | Hors binaire certifié v1.0.0 | Code sous `#[cfg(feature = "peppol")]` (`commands/invoice.rs`) | Absent de la build cert (§8) ; événement optionnel dans SCE 2.0 |
+| **I** (Facture) | L'opérateur établit une facture à partir de ventes déjà encaissées (Rapports, onglet Tickets, « Facture ») | `commands/invoice::do_sign_invoice_fiscal` | Une vente, une facture ; numéro `<année><séquence>` sans trou ; copie C possible ; `FACTURATION_PEPPOL_FR.md` |
 | **F** (Financier) | Mouvement caisse, ouverture seule du tiroir | `commands/financial::do_money_in_out` / `do_open_drawer_fiscal` | F-WAR pour ouverture tiroir |
 | **F** (Correction de paiement, `PAYMENT_CORRECTION`) | Le Gérant corrige le moyen d'une ligne de paiement d'une vente (onglet Tickets) | `commands/payment_correction::do_correct_payment` | PIN du Gérant ; `fdmRef` de la vente ; une correction par vente ; aucun ticket, tiroir fermé ; rapports X/Z : corrections positives et négatives |
 | **S** (Social) | Pointage entrée / sortie de l'opérateur ; pointage d'un autre employé par le Gérant ; pointage par badge (option « Lecteur de badges ») | `commands/social::do_work_in` / `do_work_out` ; `do_clock_in_employee` / `do_clock_out_employee` ; `commands/badges::do_badge_tap` (via `commands/social::sign_work_event`) | INSZ + n° employeur |
@@ -387,14 +387,13 @@ SQLite qui archive l'événement signé, de sorte que :
 
 | Build | Features Cargo | Produit |
 |---|---|---|
-| Dev | (par défaut) `hubrise` + `peppol` | App complète, facturation B2B comprise |
-| Cert | `--no-default-features --features cert` (`hubrise` + interface embarquée) | Binaire certifié : commandes en ligne présentes, activées par installation (`COMMANDES_EN_LIGNE_FR.md`) ; sans facturation Peppol (hors v1.0.0) |
+| Dev | (par défaut) `hubrise` | App complète |
+| Cert | `--no-default-features --features cert` (`hubrise` + interface embarquée) | Binaire certifié : commandes en ligne présentes, activées par installation (`COMMANDES_EN_LIGNE_FR.md`) ; facturation B2B (événement I) et file d'envoi Peppol présentes dans tous les binaires, sans fonction Cargo (`FACTURATION_PEPPOL_FR.md`) |
 
 Vérification sur le binaire cert (`scripts/build_and_hash.sh`) :
 ```
 $ strings target/release/pili-pos | grep -c integration_switch_log   # commandes en ligne présentes
-$ nm target/release/pili-pos | grep -c pos_peppol                    # facturation B2B absente
-0
+$ nm target/release/pili-pos | grep -c pos_peppol                    # code de facturation présent (compte informatif)
 ```
 
 ## 9. Carte des sources
@@ -429,6 +428,12 @@ $ nm target/release/pili-pos | grep -c pos_peppol                    # facturati
 | Table `eft_payments` (migration 27) | `crates/pos-db/src/schema_eft.rs` |
 | Ligne de paiement carte (types, `AUTOMATIC`) | `crates/pos-fiscal/src/payment.rs` |
 | Sérialiseur UBL Peppol | `crates/pos-peppol/src/ubl.rs` |
+| Facture imprimée (ESC/POS) | `crates/pos-print/src/invoice.rs` |
+| File d'envoi Peppol (essais, journal) | `crates/pos-engine/src/commands/peppol_queue.rs` |
+| Produit épuisé | `crates/pos-engine/src/commands/sold_out.rs` |
+| Éditeur de carte | `crates/pos-engine/src/commands/menu_admin.rs` |
+| Rapport de ventes non fiscal | `crates/pos-engine/src/commands/sales_report.rs` |
+| Tables de la v1.0.0 : facturation, épuisé, éditeur (migrations 40 à 42) | `crates/pos-db/src/schema_invoicing.rs` |
 | AccessPoint Peppol | `crates/pos-peppol/src/access_point.rs` |
 | Commandes Peppol (enveloppe IPC : `src-tauri/src/ipc/invoice.rs`) | `crates/pos-engine/src/commands/invoice.rs` |
 | Résolution du support + commandes ticket numérique | `crates/pos-engine/src/commands/delivery.rs` |

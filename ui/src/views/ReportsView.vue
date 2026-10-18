@@ -6,6 +6,7 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useDeliveryStore } from "../stores/delivery";
+import { useInvoiceStore } from "../stores/invoice";
 import { formatPrice, round5 } from "../utils/format";
 import type { CheckoutResult, OrderLine, UnsettledCardPayment } from "../types";
 import type { CopyResult, RefundableEvent, RefundItem } from "../api/ipc";
@@ -16,19 +17,24 @@ import TicketMediumPicker from "../components/TicketMediumPicker.vue";
 import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
 import PriceDialog from "../components/PriceDialog.vue";
 import PaymentCorrectionDialog from "../components/PaymentCorrectionDialog.vue";
+import InvoiceDialog from "../components/InvoiceDialog.vue";
+import InvoiceList from "../components/InvoiceList.vue";
+import SalesReportPanel from "../components/SalesReportPanel.vue";
 
 const router = useRouter();
 const auth = useAuthStore();
 const toast = useToastStore();
 const delivery = useDeliveryStore();
+const invoice = useInvoiceStore();
 const { t } = useI18n();
 
-// §2.1: three tabs, never more than 6-8 actions visible at once.
-type Tab = "day" | "cash" | "tickets";
+// §2.1: four tabs, never more than 6-8 actions visible at once.
+type Tab = "day" | "cash" | "tickets" | "sales";
 const TABS: { id: Tab; label: string }[] = [
   { id: "day", label: "reports_tab_day" },
   { id: "cash", label: "reports_tab_cash" },
   { id: "tickets", label: "reports_tab_tickets" },
+  { id: "sales", label: "reports_tab_sales" },
 ];
 const tab = ref<Tab>("day");
 
@@ -349,6 +355,8 @@ interface TicketRow {
   copyable: ipc.CopyableTicket | null;
   /** Present when the ticket can be refunded (listRefundableEvents). */
   refundable: RefundableEvent | null;
+  /** Present when the sale can go on an invoice (listInvoiceableSales). */
+  invoiceable: ipc.InvoiceableSale | null;
 }
 
 const copyTickets = ref<ipc.CopyableTicket[]>([]);
@@ -359,6 +367,8 @@ async function loadTickets() {
   const [copyable, refundable] = await Promise.allSettled([
     ipc.listCopyableTickets(),
     ipc.listRefundableEvents(20),
+    invoice.loadSales(),
+    invoice.loadInvoices(),
   ]);
   if (copyable.status === "fulfilled") {
     copyTickets.value = copyable.value;
@@ -428,6 +438,7 @@ const ticketRows = computed<TicketRow[]>(() => {
       kind: copyKind(tk),
       copyable: tk,
       refundable: null,
+      invoiceable: null,
     });
   }
   for (const ev of refundEvents.value) {
@@ -444,6 +455,25 @@ const ticketRows = computed<TicketRow[]>(() => {
         kind: t("copy_kind_sale"),
         copyable: null,
         refundable: ev,
+        invoiceable: null,
+      });
+    }
+  }
+  for (const sale of invoice.sales) {
+    const row = rows.get(sale.fiscalEventId);
+    if (row) {
+      row.invoiceable = sale;
+    } else {
+      rows.set(sale.fiscalEventId, {
+        fiscalEventId: sale.fiscalEventId,
+        ticketNumber: sale.ticketNumber,
+        tableNumber: null,
+        totalCents: sale.totalCents,
+        createdAt: sale.posDateTime,
+        kind: sale.isRefund ? t("copy_kind_refund") : t("copy_kind_sale"),
+        copyable: null,
+        refundable: null,
+        invoiceable: sale,
       });
     }
   }
@@ -680,17 +710,40 @@ function formatRefundTime(iso: string): string {
       </section>
 
       <!-- ── Tickets: copy and refund from one list ─────────────── -->
+      <SalesReportPanel v-else-if="tab === 'sales'" />
+
       <section v-else class="tab-body tickets">
         <div class="panel tickets-panel">
           <div class="tickets-head">
             <h2>{{ t('reports_tickets_title') }}</h2>
-            <p class="tickets-hint">{{ t('reports_tickets_hint') }}</p>
+            <p class="tickets-hint">{{ t('reports_tickets_hint') }} {{ t('invoice_select_hint') }}</p>
+            <button
+              class="invoice-btn"
+              data-testid="invoice-action"
+              :disabled="invoice.selected.length === 0"
+              @click="invoice.openDialog()"
+            >{{ invoice.selected.length > 0 ? t('invoice_action_count', { n: invoice.selected.length }) : t('invoice_action') }}</button>
           </div>
           <p v-if="ticketsLoaded && ticketRows.length === 0" class="tickets-empty">{{ t('copy_none') }}</p>
           <ul v-else class="ticket-list">
-            <li v-for="row in ticketRows" :key="row.fiscalEventId" class="ticket-row">
+            <li v-for="row in ticketRows" :key="row.fiscalEventId" class="ticket-row" :data-testid="`ticket-row-${row.fiscalEventId}`">
+              <span class="rt-check">
+                <button
+                  v-if="row.invoiceable && !row.invoiceable.invoicedBy"
+                  class="check-box"
+                  :class="{ on: invoice.selected.includes(row.fiscalEventId) }"
+                  role="checkbox"
+                  :aria-checked="invoice.selected.includes(row.fiscalEventId)"
+                  :aria-label="t('invoice_select_row', { no: row.ticketNumber })"
+                  :data-testid="`ticket-check-${row.fiscalEventId}`"
+                  @click="invoice.toggleSale(row.fiscalEventId)"
+                >{{ invoice.selected.includes(row.fiscalEventId) ? '&#10003;' : '' }}</button>
+              </span>
               <span class="rt-num">#{{ row.ticketNumber }}</span>
-              <span class="rt-kind">{{ row.kind }}</span>
+              <span class="rt-kind">
+                {{ row.kind }}
+                <span v-if="row.invoiceable?.invoicedBy" class="rt-invoiced" :data-testid="`ticket-invoiced-${row.fiscalEventId}`">{{ t('invoice_invoiced_by', { no: row.invoiceable.invoicedBy }) }}</span>
+              </span>
               <span class="rt-table">{{ row.tableNumber ? `T${row.tableNumber}` : '' }}</span>
               <span class="rt-time">{{ formatRefundTime(row.createdAt) }}</span>
               <span class="rt-total" :class="{ negative: row.totalCents < 0 }">{{ formatPrice(row.totalCents) }} €</span>
@@ -720,6 +773,7 @@ function formatRefundTime(iso: string): string {
             </li>
           </ul>
         </div>
+        <InvoiceList v-if="invoice.invoices.length > 0" />
       </section>
     </div>
 
@@ -733,6 +787,7 @@ function formatRefundTime(iso: string): string {
         @cancel="correctionTarget = null"
       />
     </Teleport>
+    <InvoiceDialog />
 
     <!-- Z history: pick the report to reprint -->
     <Teleport to="body">
@@ -879,7 +934,7 @@ function formatRefundTime(iso: string): string {
 /* ── Tabs (segmented control) ─────────────────────────────── */
 .tabs {
   width: 900px; max-width: 100%;
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
   padding: 4px; background: var(--bg-surface); border-radius: 12px;
   flex-shrink: 0;
 }
@@ -1024,7 +1079,7 @@ function formatRefundTime(iso: string): string {
 .cash-submit:disabled { opacity: 0.4; }
 
 /* ── Tickets ──────────────────────────────────────────────── */
-.tickets-panel { flex: 1; }
+.tickets-panel { flex: 3; }
 .tickets-head { display: flex; align-items: baseline; gap: 24px; }
 .tickets-hint { font-size: 17px; color: var(--text-secondary); }
 .tickets-empty { font-size: 18px; color: var(--text-secondary); padding: 32px 0; text-align: center; }
@@ -1036,7 +1091,7 @@ function formatRefundTime(iso: string): string {
 }
 .ticket-row {
   display: grid;
-  grid-template-columns: 120px 200px 80px 100px minmax(0, 1fr) auto;
+  grid-template-columns: 56px 120px 200px 80px 100px minmax(0, 1fr) auto;
   align-items: center; gap: 16px;
   min-height: 80px; padding: 8px 0;
   border-bottom: 1px solid var(--border);
@@ -1048,6 +1103,27 @@ function formatRefundTime(iso: string): string {
 .rt-time { font-family: var(--font-mono); font-size: 17px; color: var(--text-secondary); }
 .rt-total { font-family: var(--font-mono); font-size: 22px; font-weight: var(--font-weight-bold); text-align: right; }
 .rt-total.negative { color: var(--accent-danger); }
+.rt-check { display: flex; align-items: center; justify-content: center; }
+.check-box {
+  width: 48px; height: 48px; border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--selected-fg);
+  border: 2px solid var(--text-secondary);
+  font-size: 28px; font-weight: var(--font-weight-heavy); line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform var(--tap-duration) ease;
+}
+.check-box.on { background: var(--selected-bg); border-color: var(--selected-bg); }
+.check-box:active { transform: scale(var(--tap-scale)); }
+.rt-invoiced { display: block; font-family: var(--font-mono); font-size: 14px; color: var(--accent-info); }
+.tickets-head { align-items: center; }
+.invoice-btn {
+  margin-left: auto; height: 64px; min-width: 200px; padding: 0 24px; border-radius: var(--radius-md);
+  background: var(--accent-primary); color: var(--text-on-accent);
+  font-size: 20px; font-weight: var(--font-weight-heavy);
+  transition: transform var(--tap-duration) ease;
+}
+.invoice-btn:active { transform: scale(var(--tap-scale)); }
+.invoice-btn:disabled { opacity: 0.3; pointer-events: none; }
 .row-actions { display: flex; gap: 8px; justify-content: flex-end; min-width: 368px; flex-wrap: wrap; }
 .copy-ticket-btn,
 .correct-btn,

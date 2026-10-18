@@ -46,3 +46,27 @@ async fn a_bad_identity_is_reported_key_by_key() {
         problems[1]
     );
 }
+
+#[tokio::test]
+async fn a_bad_peppol_section_is_reported_with_its_own_code() {
+    let app = TestApp::new().await;
+    app.state.config.lock().unwrap().peppol = Some(pos_core::config::PeppolConfig {
+        provider: "storecove".into(),
+        base_url: None,
+        api_key_file: None,
+        legal_entity_id: None,
+        sender_id: "0208:0000000097".into(),
+        supplier_street: "Rue 1".into(),
+        supplier_postal_code: "1030".into(),
+        supplier_city: "Bruxelles".into(),
+        supplier_country: "BE".into(),
+    });
+    let problems = do_get_settings(&app.state).unwrap().config_problems;
+    assert_eq!(problems.len(), 3, "{problems:?}");
+    assert!(
+        problems
+            .iter()
+            .all(|p| p.starts_with("config_peppol|detail=peppol.")),
+        "{problems:?}"
+    );
+}

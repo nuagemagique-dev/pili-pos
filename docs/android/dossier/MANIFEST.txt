@@ -61,6 +61,10 @@ pdf_out/COMMANDES_EN_LIGNE_FR.pdf
 pdf_out/EXPORT_NOCTURNE_FR.pdf
 pdf_out/CADRE_DEMANDE_FR.pdf
 pdf_out/PLATEFORME_ANDROID_FR.pdf
+pdf_out/FACTURATION_PEPPOL_FR.pdf
+pdf_out/EDITEUR_CARTE_FR.pdf
+pdf_out/PRODUIT_EPUISE_FR.pdf
+pdf_out/RAPPORTS_VENTES_FR.pdf
 
 # Preuves brutes (Report_Testing dans le ZIP). Pour P8b : les preuves
 # restent dans evidence/ du dépôt ; le constructeur du ZIP les place sous

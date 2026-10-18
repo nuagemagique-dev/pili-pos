@@ -8,7 +8,7 @@ use crate::error::PosError;
 use crate::records::common::{FdmHealth, PaymentMethod};
 use crate::records::reports::{
     FinancialResult, MoneyDirection, OpenShift, PosSettings, ReportResult, SalePayments,
-    SocialResult, ZReportSummary,
+    SalesReport, SocialResult, ZReportSummary,
 };
 
 // The closures name the engine function at the call, which `check_command_parity.py` looks for.
@@ -67,6 +67,34 @@ impl PosEngine {
     pub async fn backup_database(&self) -> Result<String, PosError> {
         self.blocking(|state| pos_engine::commands::report::do_backup_database(state))
             .await
+    }
+
+    /// The non-fiscal sales report of the booking dates `from_date..=to_date` (`YYYY-MM-DD`, at
+    /// most 92 days). Manager.
+    pub async fn sales_report(
+        &self,
+        from_date: String,
+        to_date: String,
+    ) -> Result<SalesReport, PosError> {
+        let report = self
+            .blocking(move |state| {
+                pos_engine::commands::sales_report::do_sales_report(state, from_date, to_date)
+            })
+            .await?;
+        convert::out(&report)
+    }
+
+    /// Print the non-fiscal sales report of the range on the ticket printer. Manager.
+    pub async fn print_sales_report(
+        &self,
+        from_date: String,
+        to_date: String,
+    ) -> Result<(), PosError> {
+        self.spawn(move |engine| async move {
+            pos_engine::commands::sales_report::do_print_sales_report(&engine, from_date, to_date)
+                .await
+        })
+        .await
     }
 
     /// Register an employee clock-in (ONSS presence start).

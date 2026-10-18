@@ -155,6 +155,10 @@ pub struct EngineTimers {
     /// finished, whatever its outcome (a card left on the reader must
     /// not clock in and then out; L5-D10).
     pub badge_repeat: Duration,
+    /// Peppol delivery queue: due deliveries are sent at this interval, and at
+    /// once after an invoice is signed or a parked delivery re-queued. Nothing
+    /// runs without a `peppol` section in the configuration.
+    pub peppol_outbox: Duration,
 }
 
 impl Default for EngineTimers {
@@ -167,6 +171,7 @@ impl Default for EngineTimers {
             fdm_poll: Duration::from_secs(30),
             export_outbox: Duration::from_secs(60),
             badge_repeat: Duration::from_secs(10),
+            peppol_outbox: Duration::from_secs(60),
         }
     }
 }
@@ -246,6 +251,7 @@ pub struct BackgroundTicks {
     pub auto_z: AtomicU64,
     pub mail_outbox: AtomicU64,
     pub export_outbox: AtomicU64,
+    pub peppol_outbox: AtomicU64,
 }
 
 impl Engine {
@@ -381,6 +387,7 @@ impl Engine {
                 session_rules: Default::default(),
                 fdm_monitor: Default::default(),
                 export,
+                peppol_wake: tokio::sync::Notify::new(),
                 eft_in_flight: Mutex::new(None),
                 eft_line: tokio::sync::Mutex::new(()),
                 badge_repeats: Default::default(),
@@ -747,6 +754,7 @@ mod tests {
         assert_eq!(t.fdm_poll, Duration::from_secs(30));
         assert_eq!(t.export_outbox, Duration::from_secs(60));
         assert_eq!(t.badge_repeat, Duration::from_secs(10));
+        assert_eq!(t.peppol_outbox, Duration::from_secs(60));
     }
 
     #[test]

@@ -206,6 +206,9 @@ pub(crate) struct BarSlip {
 pub(crate) enum CopyTicket {
     Original(Box<FiscalTicket>),
     Draft(Box<TicketDraft>),
+    /// The copy of an invoice: the invoice print, the copy's own control data added when the
+    /// copy is signed.
+    Invoice(Box<pos_print::invoice::InvoicePrint>),
 }
 
 /// What an event does besides its archive, stored with its request so
@@ -295,6 +298,15 @@ pub(crate) enum PendingContext {
     Drawer,
     Invoice {
         invoice_no: String,
+        invoice_seq: i64,
+        sale_event_ids: Vec<i64>,
+        customer_id: i64,
+        customer_json: String,
+        issue_date: String,
+        total_cents: i64,
+        vat_json: String,
+        print: Box<pos_print::invoice::InvoicePrint>,
+        peppol: Option<crate::commands::invoice::PendingPeppol>,
     },
 }
 
@@ -688,9 +700,13 @@ fn apply(
             Ok((None, None))
         }
         PendingContext::Copy { delivery, ticket } => {
-            let ticket = ticket.as_ref().map(|t| match t {
-                CopyTicket::Original(original) => (**original).clone().into_copy(&results[0]),
-                CopyTicket::Draft(draft) => FiscalTicket::from_draft(draft, &results[0], identity),
+            let ticket = ticket.as_ref().and_then(|t| match t {
+                CopyTicket::Original(original) => Some((**original).clone().into_copy(&results[0])),
+                CopyTicket::Draft(draft) => {
+                    Some(FiscalTicket::from_draft(draft, &results[0], identity))
+                }
+                // Printed as an invoice copy; no digital ticket.
+                CopyTicket::Invoice(_) => None,
             });
             let delivery_id =
                 delivery::enqueue_in_tx(tx, event_ids[0], &delivery.resolved(), ticket.as_ref())?;
@@ -716,8 +732,16 @@ fn apply(
         | PendingContext::ReportUserX { .. }
         | PendingContext::Money
         | PendingContext::Drawer
-        | PendingContext::PaymentCorrection { .. }
-        | PendingContext::Invoice { .. } => Ok((None, None)),
+        | PendingContext::PaymentCorrection { .. } => Ok((None, None)),
+        PendingContext::Invoice { .. } => {
+            crate::commands::invoice::record_in_tx(
+                tx,
+                event_ids[0],
+                &events[0].user_insz,
+                context,
+            )?;
+            Ok((None, None))
+        }
     }
 }
 
@@ -728,6 +752,8 @@ fn apply(
 pub(crate) struct FollowUp {
     pub delivery: Option<DeliveryOutcome>,
     pub slip: Option<SlipOutcome>,
+    /// An invoice reached the printer (`None` for other events).
+    pub invoice_printed: Option<bool>,
 }
 
 /// Print and send what an archived event gives: its ticket, its bar
@@ -792,6 +818,19 @@ pub(crate) async fn follow_up(
                 .await,
             );
             kick(with_drawer && *open_drawer).await;
+        }
+        PendingContext::Copy {
+            ticket: Some(CopyTicket::Invoice(print)),
+            ..
+        } => {
+            let mut print = (**print).clone();
+            let control = crate::commands::invoice::control_of(committed.result());
+            print.copy = Some(pos_print::invoice::InvoiceCopy {
+                made_at: control.pos_date_time.clone(),
+                control,
+            });
+            done.invoice_printed =
+                Some(crate::commands::invoice::print_invoice(state, config, &print).await);
         }
         PendingContext::Copy { delivery, .. } => {
             done.delivery = Some(
@@ -909,8 +948,16 @@ pub(crate) async fn follow_up(
         PendingContext::WebshopOrder { .. } => {}
         PendingContext::Work { .. }
         | PendingContext::Money
-        | PendingContext::PaymentCorrection { .. }
-        | PendingContext::Invoice { .. } => {}
+        | PendingContext::PaymentCorrection { .. } => {}
+        PendingContext::Invoice { print, peppol, .. } => {
+            let mut print = (**print).clone();
+            print.control = Some(crate::commands::invoice::control_of(committed.result()));
+            done.invoice_printed =
+                Some(crate::commands::invoice::print_invoice(state, config, &print).await);
+            if peppol.is_some() {
+                state.peppol_wake.notify_one();
+            }
+        }
     }
     done
 }

@@ -266,3 +266,102 @@ impl TestApp {
         self.state.config.lock().unwrap().fdm_url = format!("http://{addr}/graphql");
     }
 }
+
+/// Invoices and the Peppol queue.
+impl TestApp {
+    /// Like [`TestApp::use_admission_mock`], with a `peppol` section on the `storecove` provider
+    /// pointing at the mock's Storecove routes. The returned handle scripts and reads the mock;
+    /// the directory holds the API key file and lives as long as the returned value.
+    pub async fn use_admission_mock_with_peppol(
+        &self,
+    ) -> (pos_fdm_mock::storecove::StorecoveMock, tempfile::TempDir) {
+        let storecove = pos_fdm_mock::storecove::StorecoveMock::new();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let router =
+            pos_fdm_mock::app_with_storecove(pos_fdm_mock::Control::default(), storecove.clone());
+        tokio::spawn(async move {
+            axum::serve(listener, router).await.unwrap();
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let key_file = dir.path().join("storecove.key");
+        std::fs::write(&key_file, "test-key\n").unwrap();
+        let mut config = self.state.config.lock().unwrap();
+        config.fdm_url = format!("http://{addr}/graphql");
+        config.peppol = Some(pos_core::config::PeppolConfig {
+            provider: "storecove".to_string(),
+            base_url: Some(format!("http://{addr}/storecove")),
+            api_key_file: Some(key_file.display().to_string()),
+            legal_entity_id: Some(4242),
+            sender_id: "0208:0000000097".to_string(),
+            supplier_street: "Boulevard Albert II 33".to_string(),
+            supplier_postal_code: "1030".to_string(),
+            supplier_city: "Brussels".to_string(),
+            supplier_country: "BE".to_string(),
+        });
+        drop(config);
+        (storecove, dir)
+    }
+
+    /// A `peppol` section with no reachable access point, for a test that only needs invoicing
+    /// to a Belgian customer to be allowed (V11-D55): the invoice is signed and its delivery is
+    /// queued, but no delivery is ever attempted.
+    pub fn enable_peppol_section(&self) {
+        self.state.config.lock().unwrap().peppol = Some(pos_core::config::PeppolConfig {
+            provider: "storecove".to_string(),
+            base_url: Some("http://127.0.0.1:9/storecove".to_string()),
+            api_key_file: Some("/nonexistent/storecove.key".to_string()),
+            legal_entity_id: Some(4242),
+            sender_id: "0208:0000000097".to_string(),
+            supplier_street: "Boulevard Albert II 33".to_string(),
+            supplier_postal_code: "1030".to_string(),
+            supplier_city: "Brussels".to_string(),
+            supplier_country: "BE".to_string(),
+        });
+    }
+
+    /// Save a B2B customer (a Belgian one when `vat` is), returning its id.
+    pub fn save_customer(&self, vat: &str, name: &str) -> i64 {
+        pos_engine::commands::invoice::do_save_b2b_customer(
+            &self.state,
+            pos_engine::commands::invoice::B2bCustomerInput {
+                id: None,
+                vat_number: vat.to_string(),
+                name: name.to_string(),
+                street: "Rue du Test 1".to_string(),
+                postal_code: "4000".to_string(),
+                city: "Liege".to_string(),
+                country_code: String::new(),
+            },
+        )
+        .expect("save customer")
+        .id
+    }
+
+    /// Sell one product at `price_cents` for cash as the logged-in operator and return the
+    /// archive id of the signed sale.
+    pub async fn sell_cash(&self, price_cents: i64) -> i64 {
+        let order = self.order_of(price_cents);
+        let result = pos_engine::commands::checkout::do_checkout(
+            &self.state,
+            order,
+            pos_engine::commands::checkout::CheckoutPaymentMethod::Cash,
+        )
+        .await
+        .expect("checkout");
+        assert!(result.success, "sale failed: {:?}", result.error);
+        result.fiscal_event_id.expect("sale event id")
+    }
+
+    /// The INSZ of the logged-in operator.
+    pub fn operator_insz(&self) -> String {
+        self.state
+            .session
+            .lock()
+            .unwrap()
+            .as_ref()
+            .expect("a logged-in operator")
+            .insz
+            .clone()
+    }
+}

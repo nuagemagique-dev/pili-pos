@@ -39,7 +39,7 @@ Deux builds du même commit produisent donc le même SHA-1. La CI le vérifie à
 
 Le script `scripts/build_and_hash.sh` :
 1. Compile le build de certification.
-2. Vérifie le périmètre du binaire (vérification anti-régression) : commandes en ligne présentes, facturation B2B (`pos_peppol`) absente.
+2. Vérifie le périmètre du binaire (vérification anti-régression) : commandes en ligne présentes, facturation B2B (`pos_peppol`) présente.
 3. Vérifie l'absence de `DELETE FROM fiscal_events` ou `UPDATE fiscal_events` dans le source compilé dans le binaire : tous les fichiers `*.rs` et `*.sql` de `crates/` et de `src-tauri/src/`. Seul le code de test, jamais compilé dans le binaire, en est exclu : les dossiers de tests d'intégration Cargo (le dossier `tests/` à la racine d'une crate, soit `crates/*/tests/`, compilé uniquement par `cargo test`) et les blocs `#[cfg(test)]`. Ces tests exécutent ces requêtes pour prouver que la base les refuse.
 4. Calcule SHA-1, SHA-256 et MD5 du binaire.
 5. Produit un rapport `build_info_YYYYMMDD-HHMMSS.txt`.
@@ -94,7 +94,7 @@ La procédure de mise à jour est la suivante :
 1. **Côté producteur :**
    - Implémentation des modifications dans une branche dédiée.
    - Tests automatisés (`cargo test --workspace`) passent à 100%.
-   - Anti-régression : `cargo build --release --no-default-features --features cert` + `scripts/build_and_hash.sh` (périmètre du binaire : commandes en ligne présentes, `nm pili-pos | grep -c pos_peppol == 0`).
+   - Anti-régression : `cargo build --release --no-default-features --features cert` + `scripts/build_and_hash.sh` (périmètre du binaire : commandes en ligne et facturation B2B présentes).
    - Nouveau tag git signé `vX.Y.Z+1`.
    - Production du nouvel exécutable Tauri (`pili-pos`) via la commande de build de certification.
    - Calcul du SHA-1 du nouveau build.

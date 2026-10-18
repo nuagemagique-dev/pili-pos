@@ -1176,6 +1176,12 @@
       "zh": "支付终端设置无效。 详情：{detail}",
       "area": "errors"
     },
+    "err_config_peppol": {
+      "fr": "Réglage Peppol invalide. Détail : {detail}",
+      "en": "Invalid Peppol setting. Detail: {detail}",
+      "zh": "Peppol 设置无效。 详情：{detail}",
+      "area": "errors"
+    },
     "err_config_pos_id": {
       "fr": "Identifiant de la caisse (pos_id) invalide : 14 majuscules ou chiffres. Détail : {detail}",
       "en": "Invalid till identifier (pos_id): 14 upper-case letters or digits. Detail: {detail}",
@@ -1204,6 +1210,24 @@
       "fr": "Le nom ou l'adresse du restaurant, imprimés sur chaque ticket, ne peuvent pas être vides. Détail : {detail}",
       "en": "The restaurant name or address, printed on every ticket, must not be empty. Detail: {detail}",
       "zh": "每张小票上打印的餐厅名称或地址不能为空。 详情：{detail}",
+      "area": "errors"
+    },
+    "err_customer_incomplete": {
+      "fr": "Information client manquante : {field}.",
+      "en": "Customer information missing: {field}.",
+      "zh": "缺少客户信息：{field}。",
+      "area": "errors"
+    },
+    "err_customer_not_found": {
+      "fr": "Client introuvable.",
+      "en": "Customer not found.",
+      "zh": "找不到客户。",
+      "area": "errors"
+    },
+    "err_customer_vat_invalid": {
+      "fr": "Numéro de TVA invalide. Vérifiez les chiffres.",
+      "en": "Invalid VAT number. Check the digits.",
+      "zh": "增值税号无效。请检查数字。",
       "area": "errors"
     },
     "err_deactivate_on_shift": {
@@ -1458,6 +1482,42 @@
       "zh": "内部错误，请联系技术人员。（{detail}）",
       "area": "errors"
     },
+    "err_invoice_no_sales": {
+      "fr": "Choisissez au moins une vente à facturer.",
+      "en": "Choose at least one sale to invoice.",
+      "zh": "请至少选择一笔要开发票的销售。",
+      "area": "errors"
+    },
+    "err_invoice_not_a_sale": {
+      "fr": "L'événement {event} n'est pas une vente normale : seules les ventes sont facturables.",
+      "en": "Event {event} is not a normal sale: only sales can be invoiced.",
+      "zh": "事件 {event} 不是普通销售：只有销售可以开发票。",
+      "area": "errors"
+    },
+    "err_invoice_peppol_required": {
+      "fr": "Ce client a un numéro de TVA belge : la facture doit passer par Peppol, qui n'est pas configuré sur cette installation. Contactez le support.",
+      "en": "This customer has a Belgian VAT number: the invoice must go through Peppol, which is not set up on this installation. Contact support.",
+      "zh": "该客户有比利时增值税号：发票必须通过 Peppol 发送，但此安装未配置 Peppol。请联系支持。",
+      "area": "errors"
+    },
+    "err_invoice_sale_already_invoiced": {
+      "fr": "La vente {event} figure déjà sur la facture {invoice}.",
+      "en": "Sale {event} is already on invoice {invoice}.",
+      "zh": "销售 {event} 已在发票 {invoice} 上。",
+      "area": "errors"
+    },
+    "err_invoice_sale_not_found": {
+      "fr": "La vente {event} est introuvable.",
+      "en": "Sale {event} was not found.",
+      "zh": "找不到销售 {event}。",
+      "area": "errors"
+    },
+    "err_invoice_training_mode": {
+      "fr": "Pas de facture en mode formation.",
+      "en": "No invoices in training mode.",
+      "zh": "培训模式下不能开发票。",
+      "area": "errors"
+    },
     "err_line_has_price_changes": {
       "fr": "Cette ligne a une remise : retirez-la avant de changer la quantité.",
       "en": "This line has a discount: remove it before changing the quantity.",
@@ -1468,6 +1528,18 @@
       "fr": "Cette ligne n'existe plus.",
       "en": "This line no longer exists.",
       "zh": "该行已不存在。",
+      "area": "errors"
+    },
+    "err_menu_invalid": {
+      "fr": "Valeur invalide dans la carte : {field}.",
+      "en": "Invalid value in the menu: {field}.",
+      "zh": "菜单中的值无效：{field}。",
+      "area": "errors"
+    },
+    "err_menu_not_found": {
+      "fr": "Cet élément de la carte n'existe plus.",
+      "en": "This menu entry no longer exists.",
+      "zh": "该菜单项已不存在。",
       "area": "errors"
     },
     "err_modifier_count": {
@@ -1668,6 +1740,24 @@
       "zh": "付款无效：请检查金额。",
       "area": "errors"
     },
+    "err_peppol_delivery_not_found": {
+      "fr": "Envoi Peppol introuvable.",
+      "en": "Peppol delivery not found.",
+      "zh": "找不到 Peppol 发送记录。",
+      "area": "errors"
+    },
+    "err_peppol_delivery_not_parked": {
+      "fr": "Seul un envoi en échec peut être relancé.",
+      "en": "Only a failed delivery can be retried.",
+      "zh": "只有失败的发送才能重试。",
+      "area": "errors"
+    },
+    "err_peppol_not_configured": {
+      "fr": "Peppol n'est pas configuré sur cette installation.",
+      "en": "Peppol is not set up on this installation.",
+      "zh": "此安装未配置 Peppol。",
+      "area": "errors"
+    },
     "err_period_closed": {
       "fr": "La journée de cet enregistrement est déjà clôturée : rien n'a été enregistré.",
       "en": "The day of this record is already closed: nothing was recorded.",
@@ -1770,6 +1860,12 @@
       "zh": "未配置打印机。",
       "area": "errors"
     },
+    "err_product_sold_out": {
+      "fr": "Ce produit est épuisé.",
+      "en": "This product is sold out.",
+      "zh": "该商品已售罄。",
+      "area": "errors"
+    },
     "err_product_unavailable": {
       "fr": "Le produit {product} n'est pas disponible.",
       "en": "Product {product} is not available.",
@@ -1834,6 +1930,12 @@
       "fr": "Profil inconnu",
       "en": "Unknown role",
       "zh": "未知角色",
+      "area": "errors"
+    },
+    "err_sales_report_range_invalid": {
+      "fr": "Choisissez des dates valables : la fin ne précède pas le début, et la période ne dépasse pas 92 jours.",
+      "en": "Choose valid dates: the end is not before the start, and the range is at most 92 days.",
+      "zh": "请选择有效日期：结束日期不早于开始日期，且不超过92天。",
       "area": "errors"
     },
     "err_signing_busy": {
@@ -2292,6 +2394,318 @@
       "zh": "开启",
       "area": "webshop"
     },
+    "invoice_action": {
+      "fr": "Facture",
+      "en": "Invoice",
+      "zh": "发票",
+      "area": "reports"
+    },
+    "invoice_action_count": {
+      "fr": "Facture ({n})",
+      "en": "Invoice ({n})",
+      "zh": "发票（{n}）",
+      "area": "reports"
+    },
+    "invoice_already_paid": {
+      "fr": "Déjà payé : {total} € (ventes encaissées au comptoir). Reste à payer : 0,00 €.",
+      "en": "Already paid: {total} € (sales settled at the till). Left to pay: 0.00 €.",
+      "zh": "已付款：{total} €（已在收银台结清）。待付：0.00 €。",
+      "area": "reports"
+    },
+    "invoice_confirm": {
+      "fr": "Établir et imprimer la facture",
+      "en": "Issue and print the invoice",
+      "zh": "开具并打印发票",
+      "area": "reports"
+    },
+    "invoice_continue": {
+      "fr": "Continuer",
+      "en": "Continue",
+      "zh": "继续",
+      "area": "reports"
+    },
+    "invoice_copy": {
+      "fr": "Copie",
+      "en": "Copy",
+      "zh": "副本",
+      "area": "reports"
+    },
+    "invoice_delivery_none": {
+      "fr": "Pas d'envoi Peppol pour cette facture.",
+      "en": "No Peppol delivery for this invoice.",
+      "zh": "此发票不通过 Peppol 发送。",
+      "area": "reports"
+    },
+    "invoice_delivery_queued": {
+      "fr": "Envoi Peppol en file d'attente.",
+      "en": "Peppol delivery queued.",
+      "zh": "Peppol 发送已排队。",
+      "area": "reports"
+    },
+    "invoice_done_title": {
+      "fr": "Facture {no} établie",
+      "en": "Invoice {no} issued",
+      "zh": "发票 {no} 已开具",
+      "area": "reports"
+    },
+    "invoice_failed": {
+      "fr": "La facture n'a pas été établie.",
+      "en": "The invoice was not issued.",
+      "zh": "发票未开具。",
+      "area": "reports"
+    },
+    "invoice_field_city": {
+      "fr": "Ville",
+      "en": "City",
+      "zh": "城市",
+      "area": "reports"
+    },
+    "invoice_field_country": {
+      "fr": "Pays",
+      "en": "Country",
+      "zh": "国家",
+      "area": "reports"
+    },
+    "invoice_field_name": {
+      "fr": "Nom",
+      "en": "Name",
+      "zh": "名称",
+      "area": "reports"
+    },
+    "invoice_field_postal_code": {
+      "fr": "Code postal",
+      "en": "Postal code",
+      "zh": "邮编",
+      "area": "reports"
+    },
+    "invoice_field_street": {
+      "fr": "Rue et numéro",
+      "en": "Street and number",
+      "zh": "街道和门牌",
+      "area": "reports"
+    },
+    "invoice_foreign_note": {
+      "fr": "Client hors Belgique : facture imprimée seulement, sans envoi Peppol.",
+      "en": "Customer outside Belgium: printed invoice only, no Peppol delivery.",
+      "zh": "比利时以外的客户：仅打印发票，不通过 Peppol 发送。",
+      "area": "reports"
+    },
+    "invoice_invoiced_by": {
+      "fr": "Facture {no}",
+      "en": "Invoice {no}",
+      "zh": "发票 {no}",
+      "area": "reports"
+    },
+    "invoice_no_match": {
+      "fr": "Aucun client connu.",
+      "en": "No known customer.",
+      "zh": "没有已有客户。",
+      "area": "reports"
+    },
+    "invoice_not_printed": {
+      "fr": "Facture établie mais pas imprimée : faites-en une copie depuis la liste.",
+      "en": "Invoice issued but not printed: print a copy from the list.",
+      "zh": "发票已开具但未打印：请在列表中打印副本。",
+      "area": "reports"
+    },
+    "invoice_peppol_not_registered": {
+      "fr": "Non inscrit sur Peppol",
+      "en": "Not on Peppol",
+      "zh": "未注册 Peppol",
+      "area": "reports"
+    },
+    "invoice_peppol_not_registered_note": {
+      "fr": "Ce client ne peut pas recevoir la facture par Peppol : elle est imprimée, l'envoi reste bloqué avec ce motif.",
+      "en": "This customer cannot receive the invoice over Peppol: it is printed, the delivery stays parked with this reason.",
+      "zh": "该客户无法通过 Peppol 接收发票：发票会打印，发送将以此原因保持阻塞。",
+      "area": "reports"
+    },
+    "invoice_peppol_registered": {
+      "fr": "Inscrit sur Peppol",
+      "en": "On Peppol",
+      "zh": "已注册 Peppol",
+      "area": "reports"
+    },
+    "invoice_peppol_unknown": {
+      "fr": "Peppol inconnu (hors ligne)",
+      "en": "Peppol unknown (offline)",
+      "zh": "Peppol 未知（离线）",
+      "area": "reports"
+    },
+    "invoice_peppol_unknown_note": {
+      "fr": "Peppol n'a pas répondu : la facture peut être établie, l'envoi sera retenté.",
+      "en": "Peppol did not answer: the invoice can be issued, the delivery will be retried.",
+      "zh": "Peppol 未响应：仍可开具发票，发送将自动重试。",
+      "area": "reports"
+    },
+    "invoice_preview_customer": {
+      "fr": "Client",
+      "en": "Customer",
+      "zh": "客户",
+      "area": "reports"
+    },
+    "invoice_preview_lines": {
+      "fr": "Lignes",
+      "en": "Lines",
+      "zh": "明细",
+      "area": "reports"
+    },
+    "invoice_preview_tickets": {
+      "fr": "Tickets repris",
+      "en": "Tickets included",
+      "zh": "包含的票据",
+      "area": "reports"
+    },
+    "invoice_preview_vat": {
+      "fr": "TVA",
+      "en": "VAT",
+      "zh": "增值税",
+      "area": "reports"
+    },
+    "invoice_printed": {
+      "fr": "Facture imprimée.",
+      "en": "Invoice printed.",
+      "zh": "发票已打印。",
+      "area": "reports"
+    },
+    "invoice_sales_chosen": {
+      "fr": "{n} vente(s) · {total} €",
+      "en": "{n} sale(s) · {total} €",
+      "zh": "{n} 笔销售 · {total} €",
+      "area": "reports"
+    },
+    "invoice_search_label": {
+      "fr": "Client connu",
+      "en": "Known customer",
+      "zh": "已有客户",
+      "area": "reports"
+    },
+    "invoice_search_placeholder": {
+      "fr": "Nom ou n° de TVA",
+      "en": "Name or VAT number",
+      "zh": "名称或增值税号",
+      "area": "reports"
+    },
+    "invoice_select_hint": {
+      "fr": "Cochez les ventes à mettre sur une facture entreprise.",
+      "en": "Tick the sales to put on a business invoice.",
+      "zh": "勾选要开具企业发票的销售。",
+      "area": "reports"
+    },
+    "invoice_select_row": {
+      "fr": "Choisir le ticket {no}",
+      "en": "Select ticket {no}",
+      "zh": "选择票据 {no}",
+      "area": "reports"
+    },
+    "invoice_status_accepted": {
+      "fr": "Peppol : remise",
+      "en": "Peppol: delivered",
+      "zh": "Peppol：已送达",
+      "area": "reports"
+    },
+    "invoice_status_failed": {
+      "fr": "Peppol : bloquée",
+      "en": "Peppol: parked",
+      "zh": "Peppol：已阻塞",
+      "area": "reports"
+    },
+    "invoice_status_none": {
+      "fr": "Papier seulement",
+      "en": "Paper only",
+      "zh": "仅纸质",
+      "area": "reports"
+    },
+    "invoice_status_queued": {
+      "fr": "Peppol : en attente",
+      "en": "Peppol: queued",
+      "zh": "Peppol：排队中",
+      "area": "reports"
+    },
+    "invoice_step_customer": {
+      "fr": "1 · Client",
+      "en": "1 · Customer",
+      "zh": "1 · 客户",
+      "area": "reports"
+    },
+    "invoice_step_done": {
+      "fr": "3 · Facture",
+      "en": "3 · Invoice",
+      "zh": "3 · 发票",
+      "area": "reports"
+    },
+    "invoice_step_preview": {
+      "fr": "2 · Aperçu",
+      "en": "2 · Preview",
+      "zh": "2 · 预览",
+      "area": "reports"
+    },
+    "invoice_title": {
+      "fr": "Facture entreprise",
+      "en": "Business invoice",
+      "zh": "企业发票",
+      "area": "reports"
+    },
+    "invoice_total": {
+      "fr": "Total TTC",
+      "en": "Total incl. VAT",
+      "zh": "含税合计",
+      "area": "reports"
+    },
+    "invoice_vat_amount": {
+      "fr": "TVA",
+      "en": "VAT",
+      "zh": "税额",
+      "area": "reports"
+    },
+    "invoice_vat_base": {
+      "fr": "Base",
+      "en": "Base",
+      "zh": "税基",
+      "area": "reports"
+    },
+    "invoice_vat_check": {
+      "fr": "Vérifier",
+      "en": "Check",
+      "zh": "检查",
+      "area": "reports"
+    },
+    "invoice_vat_checking": {
+      "fr": "Vérification…",
+      "en": "Checking…",
+      "zh": "检查中…",
+      "area": "reports"
+    },
+    "invoice_vat_label": {
+      "fr": "N° de TVA",
+      "en": "VAT number",
+      "zh": "增值税号",
+      "area": "reports"
+    },
+    "invoice_vat_total": {
+      "fr": "Total",
+      "en": "Total",
+      "zh": "合计",
+      "area": "reports"
+    },
+    "invoices_hint": {
+      "fr": "Les factures établies, avec l'état de leur envoi Peppol.",
+      "en": "Issued invoices, with the state of their Peppol delivery.",
+      "zh": "已开具的发票及其 Peppol 发送状态。",
+      "area": "reports"
+    },
+    "invoices_none": {
+      "fr": "Aucune facture.",
+      "en": "No invoices.",
+      "zh": "没有发票。",
+      "area": "reports"
+    },
+    "invoices_title": {
+      "fr": "Factures",
+      "en": "Invoices",
+      "zh": "发票",
+      "area": "reports"
+    },
     "items_count": {
       "fr": "{n} art.",
       "en": "{n} items",
@@ -2303,6 +2717,24 @@
       "en": "items",
       "zh": "件",
       "area": "core"
+    },
+    "keyboard_backspace": {
+      "fr": "Effacer une lettre",
+      "en": "Delete a letter",
+      "zh": "删除一个字符",
+      "area": "reports"
+    },
+    "keyboard_next": {
+      "fr": "Suivant",
+      "en": "Next",
+      "zh": "下一项",
+      "area": "reports"
+    },
+    "keyboard_space": {
+      "fr": "Espace",
+      "en": "Space",
+      "zh": "空格",
+      "area": "reports"
     },
     "keypad_space": {
       "fr": "Espace",
@@ -2363,6 +2795,486 @@
       "en": "MEAL VOUCHERS",
       "zh": "餐券",
       "area": "core"
+    },
+    "menu_ed_action_create": {
+      "fr": "Création",
+      "en": "Created",
+      "zh": "新建",
+      "area": "settings"
+    },
+    "menu_ed_action_update": {
+      "fr": "Modification",
+      "en": "Changed",
+      "zh": "修改",
+      "area": "settings"
+    },
+    "menu_ed_active": {
+      "fr": "Visible à la caisse",
+      "en": "Shown on the till",
+      "zh": "在收银机上显示",
+      "area": "settings"
+    },
+    "menu_ed_add_category": {
+      "fr": "Nouvelle catégorie",
+      "en": "New category",
+      "zh": "新建分类",
+      "area": "settings"
+    },
+    "menu_ed_add_group": {
+      "fr": "Ajouter un groupe",
+      "en": "Add a group",
+      "zh": "添加选项组",
+      "area": "settings"
+    },
+    "menu_ed_add_option": {
+      "fr": "Ajouter une option",
+      "en": "Add an option",
+      "zh": "添加选项",
+      "area": "settings"
+    },
+    "menu_ed_add_product": {
+      "fr": "Nouveau produit",
+      "en": "New product",
+      "zh": "新建商品",
+      "area": "settings"
+    },
+    "menu_ed_cancel": {
+      "fr": "Annuler",
+      "en": "Cancel",
+      "zh": "取消",
+      "area": "settings"
+    },
+    "menu_ed_case": {
+      "fr": "Majuscules / minuscules",
+      "en": "Upper / lower case",
+      "zh": "大小写切换",
+      "area": "settings"
+    },
+    "menu_ed_categories": {
+      "fr": "Catégories",
+      "en": "Categories",
+      "zh": "分类",
+      "area": "settings"
+    },
+    "menu_ed_category": {
+      "fr": "Catégorie",
+      "en": "Category",
+      "zh": "分类",
+      "area": "settings"
+    },
+    "menu_ed_code": {
+      "fr": "Code du menu",
+      "en": "Menu code",
+      "zh": "菜单编号",
+      "area": "settings"
+    },
+    "menu_ed_color": {
+      "fr": "Couleur",
+      "en": "Colour",
+      "zh": "颜色",
+      "area": "settings"
+    },
+    "menu_ed_color_none": {
+      "fr": "Aucune",
+      "en": "None",
+      "zh": "无",
+      "area": "settings"
+    },
+    "menu_ed_edit": {
+      "fr": "Modifier",
+      "en": "Edit",
+      "zh": "编辑",
+      "area": "settings"
+    },
+    "menu_ed_empty_products": {
+      "fr": "Aucun produit dans cette catégorie.",
+      "en": "No product in this category.",
+      "zh": "该分类下没有商品。",
+      "area": "settings"
+    },
+    "menu_ed_entity_category": {
+      "fr": "catégorie",
+      "en": "category",
+      "zh": "分类",
+      "area": "settings"
+    },
+    "menu_ed_entity_modifier": {
+      "fr": "option",
+      "en": "option",
+      "zh": "选项",
+      "area": "settings"
+    },
+    "menu_ed_entity_modifier_group": {
+      "fr": "groupe d'options",
+      "en": "option group",
+      "zh": "选项组",
+      "area": "settings"
+    },
+    "menu_ed_entity_product": {
+      "fr": "produit",
+      "en": "product",
+      "zh": "商品",
+      "area": "settings"
+    },
+    "menu_ed_field_active": {
+      "fr": "visibilité",
+      "en": "visibility",
+      "zh": "显示",
+      "area": "settings"
+    },
+    "menu_ed_field_category_id": {
+      "fr": "catégorie",
+      "en": "category",
+      "zh": "分类",
+      "area": "settings"
+    },
+    "menu_ed_field_code": {
+      "fr": "code",
+      "en": "code",
+      "zh": "编号",
+      "area": "settings"
+    },
+    "menu_ed_field_color": {
+      "fr": "couleur",
+      "en": "colour",
+      "zh": "颜色",
+      "area": "settings"
+    },
+    "menu_ed_field_group_id": {
+      "fr": "groupe",
+      "en": "group",
+      "zh": "选项组",
+      "area": "settings"
+    },
+    "menu_ed_field_kitchen_printer": {
+      "fr": "bon de cuisine",
+      "en": "kitchen slip",
+      "zh": "厨房单",
+      "area": "settings"
+    },
+    "menu_ed_field_max_select": {
+      "fr": "maximum",
+      "en": "maximum",
+      "zh": "最多",
+      "area": "settings"
+    },
+    "menu_ed_field_menu_item_id": {
+      "fr": "produit",
+      "en": "product",
+      "zh": "商品",
+      "area": "settings"
+    },
+    "menu_ed_field_min_select": {
+      "fr": "minimum",
+      "en": "minimum",
+      "zh": "最少",
+      "area": "settings"
+    },
+    "menu_ed_field_names": {
+      "fr": "nom",
+      "en": "name",
+      "zh": "名称",
+      "area": "settings"
+    },
+    "menu_ed_field_open_price": {
+      "fr": "prix libre",
+      "en": "open price",
+      "zh": "自定价格",
+      "area": "settings"
+    },
+    "menu_ed_field_price_cents": {
+      "fr": "prix",
+      "en": "price",
+      "zh": "价格",
+      "area": "settings"
+    },
+    "menu_ed_field_sort_order": {
+      "fr": "position",
+      "en": "position",
+      "zh": "位置",
+      "area": "settings"
+    },
+    "menu_ed_field_vat_code": {
+      "fr": "TVA sur place",
+      "en": "VAT dine-in",
+      "zh": "堂食税率",
+      "area": "settings"
+    },
+    "menu_ed_field_vat_code_takeaway": {
+      "fr": "TVA à emporter",
+      "en": "VAT takeaway",
+      "zh": "外带税率",
+      "area": "settings"
+    },
+    "menu_ed_group": {
+      "fr": "Groupe d'options",
+      "en": "Option group",
+      "zh": "选项组",
+      "area": "settings"
+    },
+    "menu_ed_group_max": {
+      "fr": "Maximum",
+      "en": "Maximum",
+      "zh": "最多",
+      "area": "settings"
+    },
+    "menu_ed_group_min": {
+      "fr": "Minimum",
+      "en": "Minimum",
+      "zh": "最少",
+      "area": "settings"
+    },
+    "menu_ed_groups": {
+      "fr": "Groupes d'options",
+      "en": "Option groups",
+      "zh": "选项组",
+      "area": "settings"
+    },
+    "menu_ed_hidden": {
+      "fr": "Masqué",
+      "en": "Hidden",
+      "zh": "已隐藏",
+      "area": "settings"
+    },
+    "menu_ed_history": {
+      "fr": "Historique",
+      "en": "History",
+      "zh": "历史记录",
+      "area": "settings"
+    },
+    "menu_ed_history_by": {
+      "fr": "par {name}",
+      "en": "by {name}",
+      "zh": "由 {name}",
+      "area": "settings"
+    },
+    "menu_ed_history_empty": {
+      "fr": "Aucune modification.",
+      "en": "No change yet.",
+      "zh": "暂无修改。",
+      "area": "settings"
+    },
+    "menu_ed_history_title": {
+      "fr": "Historique des modifications",
+      "en": "Change history",
+      "zh": "修改历史",
+      "area": "settings"
+    },
+    "menu_ed_kitchen": {
+      "fr": "Imprimer sur le bon de cuisine",
+      "en": "Print on the kitchen slip",
+      "zh": "打印到厨房单",
+      "area": "settings"
+    },
+    "menu_ed_lang_de": {
+      "fr": "allemand",
+      "en": "German",
+      "zh": "德语",
+      "area": "settings"
+    },
+    "menu_ed_lang_en": {
+      "fr": "anglais",
+      "en": "English",
+      "zh": "英语",
+      "area": "settings"
+    },
+    "menu_ed_lang_fr": {
+      "fr": "français",
+      "en": "French",
+      "zh": "法语",
+      "area": "settings"
+    },
+    "menu_ed_lang_nl": {
+      "fr": "néerlandais",
+      "en": "Dutch",
+      "zh": "荷兰语",
+      "area": "settings"
+    },
+    "menu_ed_lang_zh": {
+      "fr": "chinois",
+      "en": "Chinese",
+      "zh": "中文",
+      "area": "settings"
+    },
+    "menu_ed_name": {
+      "fr": "Nom ({lang})",
+      "en": "Name ({lang})",
+      "zh": "名称（{lang}）",
+      "area": "settings"
+    },
+    "menu_ed_new_category": {
+      "fr": "Nouvelle catégorie",
+      "en": "New category",
+      "zh": "新分类",
+      "area": "settings"
+    },
+    "menu_ed_new_group": {
+      "fr": "Nouveau groupe",
+      "en": "New group",
+      "zh": "新选项组",
+      "area": "settings"
+    },
+    "menu_ed_new_option": {
+      "fr": "Nouvelle option",
+      "en": "New option",
+      "zh": "新选项",
+      "area": "settings"
+    },
+    "menu_ed_new_product": {
+      "fr": "Nouveau produit",
+      "en": "New product",
+      "zh": "新商品",
+      "area": "settings"
+    },
+    "menu_ed_open_price": {
+      "fr": "Prix libre",
+      "en": "Open price",
+      "zh": "自定价格",
+      "area": "settings"
+    },
+    "menu_ed_option": {
+      "fr": "Option",
+      "en": "Option",
+      "zh": "选项",
+      "area": "settings"
+    },
+    "menu_ed_options": {
+      "fr": "Options",
+      "en": "Options",
+      "zh": "选项",
+      "area": "settings"
+    },
+    "menu_ed_position": {
+      "fr": "Position",
+      "en": "Position",
+      "zh": "位置",
+      "area": "settings"
+    },
+    "menu_ed_price": {
+      "fr": "Prix (€)",
+      "en": "Price (€)",
+      "zh": "价格（€）",
+      "area": "settings"
+    },
+    "menu_ed_products": {
+      "fr": "Produits",
+      "en": "Products",
+      "zh": "商品",
+      "area": "settings"
+    },
+    "menu_ed_required": {
+      "fr": "obligatoire",
+      "en": "required",
+      "zh": "必填",
+      "area": "settings"
+    },
+    "menu_ed_save": {
+      "fr": "Enregistrer",
+      "en": "Save",
+      "zh": "保存",
+      "area": "settings"
+    },
+    "menu_ed_save_first": {
+      "fr": "Enregistrez le produit pour lui ajouter des options.",
+      "en": "Save the product to add options.",
+      "zh": "请先保存商品，再添加选项。",
+      "area": "settings"
+    },
+    "menu_ed_saved": {
+      "fr": "Carte enregistrée",
+      "en": "Menu saved",
+      "zh": "菜单已保存",
+      "area": "settings"
+    },
+    "menu_ed_select_hint": {
+      "fr": "Choisissez un élément à modifier ou créez-en un.",
+      "en": "Pick an entry to edit or create one.",
+      "zh": "请选择要编辑的项目或新建一个。",
+      "area": "settings"
+    },
+    "menu_ed_title": {
+      "fr": "Édition de la carte",
+      "en": "Menu editor",
+      "zh": "菜单编辑",
+      "area": "settings"
+    },
+    "menu_ed_vat": {
+      "fr": "TVA sur place",
+      "en": "VAT dine-in",
+      "zh": "堂食税率",
+      "area": "settings"
+    },
+    "menu_ed_vat_a": {
+      "fr": "A · 21 %",
+      "en": "A · 21 %",
+      "zh": "A · 21 %",
+      "area": "settings"
+    },
+    "menu_ed_vat_b": {
+      "fr": "B · 12 %",
+      "en": "B · 12 %",
+      "zh": "B · 12 %",
+      "area": "settings"
+    },
+    "menu_ed_vat_c": {
+      "fr": "C · 6 %",
+      "en": "C · 6 %",
+      "zh": "C · 6 %",
+      "area": "settings"
+    },
+    "menu_ed_vat_d": {
+      "fr": "D · 0 %",
+      "en": "D · 0 %",
+      "zh": "D · 0 %",
+      "area": "settings"
+    },
+    "menu_ed_vat_same": {
+      "fr": "Idem sur place",
+      "en": "Same as dine-in",
+      "zh": "同堂食",
+      "area": "settings"
+    },
+    "menu_ed_vat_takeaway": {
+      "fr": "TVA à emporter",
+      "en": "VAT takeaway",
+      "zh": "外带税率",
+      "area": "settings"
+    },
+    "menu_ed_vat_x": {
+      "fr": "X · hors champ",
+      "en": "X · out of scope",
+      "zh": "X · 不适用",
+      "area": "settings"
+    },
+    "menu_ed_zh_note": {
+      "fr": "Le chinois se saisit avec un clavier physique ou par collage : ce poste n'a pas de méthode de saisie.",
+      "en": "Chinese is typed on a physical keyboard or pasted: this till has no input method.",
+      "zh": "中文请使用物理键盘输入或粘贴：本收银机没有输入法。",
+      "area": "settings"
+    },
+    "menu_editor_locked": {
+      "fr": "La carte est gérée par {source} : modifiez-la là.",
+      "en": "The menu is managed by {source}: edit it there.",
+      "zh": "菜单由 {source} 管理，请在那里修改。",
+      "area": "settings"
+    },
+    "menu_editor_note": {
+      "fr": "Catégories, produits, groupes d'options et options. Rien n'est supprimé : un élément masqué disparaît de la caisse. Chaque modification est conservée dans l'historique.",
+      "en": "Categories, products, option groups and options. Nothing is deleted: a hidden entry disappears from the till. Every change is kept in the history.",
+      "zh": "分类、商品、选项组和选项。不会删除任何内容：隐藏的项目不再显示在收银机上。每次修改都会保存在历史记录中。",
+      "area": "settings"
+    },
+    "menu_editor_open": {
+      "fr": "Modifier la carte",
+      "en": "Edit the menu",
+      "zh": "编辑菜单",
+      "area": "settings"
+    },
+    "menu_editor_title": {
+      "fr": "Carte",
+      "en": "Menu",
+      "zh": "菜单",
+      "area": "settings"
     },
     "method_card": {
       "fr": "Carte",
@@ -2537,6 +3449,78 @@
       "en": "PAY",
       "zh": "结账",
       "area": "core"
+    },
+    "peppol_accepted": {
+      "fr": "Remises",
+      "en": "Delivered",
+      "zh": "已送达",
+      "area": "settings"
+    },
+    "peppol_attempts": {
+      "fr": "{n} tentative(s)",
+      "en": "{n} attempt(s)",
+      "zh": "{n} 次尝试",
+      "area": "settings"
+    },
+    "peppol_failed": {
+      "fr": "Bloquées",
+      "en": "Parked",
+      "zh": "已阻塞",
+      "area": "settings"
+    },
+    "peppol_none_parked": {
+      "fr": "Aucun envoi bloqué.",
+      "en": "No parked delivery.",
+      "zh": "没有阻塞的发送。",
+      "area": "settings"
+    },
+    "peppol_parked_title": {
+      "fr": "Envois bloqués",
+      "en": "Parked deliveries",
+      "zh": "已阻塞的发送",
+      "area": "settings"
+    },
+    "peppol_provider": {
+      "fr": "Fournisseur",
+      "en": "Provider",
+      "zh": "服务商",
+      "area": "settings"
+    },
+    "peppol_queued": {
+      "fr": "En attente",
+      "en": "Queued",
+      "zh": "排队中",
+      "area": "settings"
+    },
+    "peppol_reason": {
+      "fr": "Motif : {reason}",
+      "en": "Reason: {reason}",
+      "zh": "原因：{reason}",
+      "area": "settings"
+    },
+    "peppol_retried": {
+      "fr": "Envoi remis en file d'attente.",
+      "en": "Delivery put back in the queue.",
+      "zh": "发送已重新排队。",
+      "area": "settings"
+    },
+    "peppol_retry": {
+      "fr": "Réessayer",
+      "en": "Retry",
+      "zh": "重试",
+      "area": "settings"
+    },
+    "peppol_sender": {
+      "fr": "Identifiant d'envoi",
+      "en": "Sender id",
+      "zh": "发送方标识",
+      "area": "settings"
+    },
+    "peppol_title": {
+      "fr": "Peppol",
+      "en": "Peppol",
+      "zh": "Peppol",
+      "area": "settings"
     },
     "pin_auto_hint": {
       "fr": "connexion au 4ᵉ chiffre",
@@ -3018,6 +4002,12 @@
       "zh": "当日",
       "area": "reports"
     },
+    "reports_tab_sales": {
+      "fr": "Ventes",
+      "en": "Sales",
+      "zh": "销售",
+      "area": "reports"
+    },
     "reports_tab_tickets": {
       "fr": "Tickets",
       "en": "Tickets",
@@ -3107,6 +4097,198 @@
       "en": "Apprentice",
       "zh": "学徒",
       "area": "core"
+    },
+    "sales_apply": {
+      "fr": "Afficher",
+      "en": "Show",
+      "zh": "显示",
+      "area": "reports"
+    },
+    "sales_by_hour": {
+      "fr": "Ventes par heure",
+      "en": "Sales by hour",
+      "zh": "按小时销售",
+      "area": "reports"
+    },
+    "sales_by_product": {
+      "fr": "Ventes par produit",
+      "en": "Sales by product",
+      "zh": "按商品销售",
+      "area": "reports"
+    },
+    "sales_col_amount": {
+      "fr": "Montant",
+      "en": "Amount",
+      "zh": "金额",
+      "area": "reports"
+    },
+    "sales_col_product": {
+      "fr": "Produit",
+      "en": "Product",
+      "zh": "商品",
+      "area": "reports"
+    },
+    "sales_col_qty": {
+      "fr": "Qté",
+      "en": "Qty",
+      "zh": "数量",
+      "area": "reports"
+    },
+    "sales_concordance": {
+      "fr": "Concordance avec les Z",
+      "en": "Match with the Z reports",
+      "zh": "与Z报表核对",
+      "area": "reports"
+    },
+    "sales_custom": {
+      "fr": "Période libre",
+      "en": "Custom range",
+      "zh": "自定义期间",
+      "area": "reports"
+    },
+    "sales_empty": {
+      "fr": "Aucune vente sur cette période.",
+      "en": "No sales in this period.",
+      "zh": "该期间没有销售。",
+      "area": "reports"
+    },
+    "sales_from": {
+      "fr": "Du",
+      "en": "From",
+      "zh": "从",
+      "area": "reports"
+    },
+    "sales_hour_tickets": {
+      "fr": "{n} tickets",
+      "en": "{n} tickets",
+      "zh": "{n} 张票",
+      "area": "reports"
+    },
+    "sales_loading": {
+      "fr": "Calcul en cours...",
+      "en": "Calculating...",
+      "zh": "计算中...",
+      "area": "reports"
+    },
+    "sales_month": {
+      "fr": "Ce mois",
+      "en": "This month",
+      "zh": "本月",
+      "area": "reports"
+    },
+    "sales_not_fiscal": {
+      "fr": "Document non fiscal : ce n'est ni un rapport X ou Z, ni un ticket de caisse.",
+      "en": "Non-fiscal document: not an X or Z report, not a till receipt.",
+      "zh": "非税务文件：不是X或Z报表，也不是收银小票。",
+      "area": "reports"
+    },
+    "sales_open": {
+      "fr": "Période en cours (pas encore de Z)",
+      "en": "Period in progress (no Z yet)",
+      "zh": "进行中的期间（尚无Z）",
+      "area": "reports"
+    },
+    "sales_price_changes": {
+      "fr": "Modifications de prix (tickets)",
+      "en": "Price changes (tickets)",
+      "zh": "价格调整（整单）",
+      "area": "reports"
+    },
+    "sales_print": {
+      "fr": "Imprimer",
+      "en": "Print",
+      "zh": "打印",
+      "area": "reports"
+    },
+    "sales_printed": {
+      "fr": "Rapport de ventes envoyé à l'imprimante",
+      "en": "Sales report sent to the printer",
+      "zh": "销售报表已发送到打印机",
+      "area": "reports"
+    },
+    "sales_refunds": {
+      "fr": "dont remboursements",
+      "en": "of which refunds",
+      "zh": "其中退款",
+      "area": "reports"
+    },
+    "sales_rounding": {
+      "fr": "Arrondi caisse (hors total)",
+      "en": "Cash rounding (not in the total)",
+      "zh": "现金凑整（不计入合计）",
+      "area": "reports"
+    },
+    "sales_sort_amount": {
+      "fr": "Montant",
+      "en": "Amount",
+      "zh": "金额",
+      "area": "reports"
+    },
+    "sales_sort_quantity": {
+      "fr": "Quantité",
+      "en": "Quantity",
+      "zh": "数量",
+      "area": "reports"
+    },
+    "sales_tickets": {
+      "fr": "Tickets",
+      "en": "Tickets",
+      "zh": "票据数",
+      "area": "reports"
+    },
+    "sales_title": {
+      "fr": "Rapport de ventes",
+      "en": "Sales report",
+      "zh": "销售报表",
+      "area": "reports"
+    },
+    "sales_to": {
+      "fr": "Au",
+      "en": "To",
+      "zh": "至",
+      "area": "reports"
+    },
+    "sales_today": {
+      "fr": "Aujourd'hui",
+      "en": "Today",
+      "zh": "今天",
+      "area": "reports"
+    },
+    "sales_total": {
+      "fr": "Total des ventes",
+      "en": "Total sales",
+      "zh": "销售合计",
+      "area": "reports"
+    },
+    "sales_week": {
+      "fr": "Cette semaine",
+      "en": "This week",
+      "zh": "本周",
+      "area": "reports"
+    },
+    "sales_yesterday": {
+      "fr": "Hier",
+      "en": "Yesterday",
+      "zh": "昨天",
+      "area": "reports"
+    },
+    "sales_z_equal": {
+      "fr": "Z {no} : identique",
+      "en": "Z {no}: equal",
+      "zh": "Z {no}：一致",
+      "area": "reports"
+    },
+    "sales_z_gap": {
+      "fr": "Z {no} : écart de {gap} € (Z : {z} €)",
+      "en": "Z {no}: gap of {gap} € (Z: {z} €)",
+      "zh": "Z {no}：差额 {gap} €（Z：{z} €）",
+      "area": "reports"
+    },
+    "sales_z_missing": {
+      "fr": "Z introuvable pour cette période",
+      "en": "No Z found for this period",
+      "zh": "该期间没有找到Z",
+      "area": "reports"
     },
     "send_to_kitchen": {
       "fr": "Envoyer en cuisine",
@@ -3484,6 +4666,78 @@
       "fr": "Service terminé · {name}",
       "en": "Shift ended · {name}",
       "zh": "已下班 · {name}",
+      "area": "core"
+    },
+    "soldout_available": {
+      "fr": "Disponible",
+      "en": "Available",
+      "zh": "有货",
+      "area": "core"
+    },
+    "soldout_badge": {
+      "fr": "Épuisé",
+      "en": "Sold out",
+      "zh": "售罄",
+      "area": "core"
+    },
+    "soldout_list_button": {
+      "fr": "Produits épuisés ({n})",
+      "en": "Sold-out products ({n})",
+      "zh": "售罄商品（{n}）",
+      "area": "core"
+    },
+    "soldout_list_empty": {
+      "fr": "Aucun produit épuisé.",
+      "en": "No sold-out product.",
+      "zh": "没有售罄商品。",
+      "area": "core"
+    },
+    "soldout_list_title": {
+      "fr": "Produits épuisés",
+      "en": "Sold-out products",
+      "zh": "售罄商品",
+      "area": "core"
+    },
+    "soldout_mode": {
+      "fr": "Épuisé",
+      "en": "Sold out",
+      "zh": "售罄",
+      "area": "core"
+    },
+    "soldout_mode_hint": {
+      "fr": "Touchez un produit pour changer sa disponibilité.",
+      "en": "Tap a product to change its availability.",
+      "zh": "点击商品以更改其供应状态。",
+      "area": "core"
+    },
+    "soldout_reenable": {
+      "fr": "Remettre en vente",
+      "en": "Put back on sale",
+      "zh": "重新上架",
+      "area": "core"
+    },
+    "soldout_status_day": {
+      "fr": "Jusqu'à la fin de la journée ({time})",
+      "en": "Until the end of the day ({time})",
+      "zh": "至营业日结束（{time}）",
+      "area": "core"
+    },
+    "soldout_status_reenabled": {
+      "fr": "Jusqu'à réactivation",
+      "en": "Until re-enabled",
+      "zh": "直至重新启用",
+      "area": "core"
+    },
+    "soldout_until_day": {
+      "fr": "Épuisé jusqu'à la fin de la journée",
+      "en": "Sold out until the end of the day",
+      "zh": "售罄至营业日结束",
+      "area": "core"
+    },
+    "soldout_until_reenabled": {
+      "fr": "Épuisé jusqu'à réactivation",
+      "en": "Sold out until re-enabled",
+      "zh": "售罄直至重新启用",
       "area": "core"
     },
     "split_into": {
@@ -4203,7 +5457,20 @@
     "config_digital_ticket",
     "config_export",
     "config_payment_terminal",
+    "config_peppol",
     "config_other",
+    "invoice_no_sales",
+    "invoice_sale_not_found",
+    "invoice_not_a_sale",
+    "invoice_sale_already_invoiced",
+    "invoice_training_mode",
+    "invoice_peppol_required",
+    "customer_vat_invalid",
+    "customer_incomplete",
+    "customer_not_found",
+    "peppol_not_configured",
+    "peppol_delivery_not_found",
+    "peppol_delivery_not_parked",
     "not_logged_in",
     "forbidden",
     "not_the_operator",
@@ -4245,6 +5512,9 @@
     "price_positive",
     "fixed_price",
     "product_unavailable",
+    "product_sold_out",
+    "menu_invalid",
+    "menu_not_found",
     "line_not_found",
     "order_no_lines",
     "order_total_negative",
@@ -4285,6 +5555,7 @@
     "email_sent",
     "printer_not_configured",
     "print_failed",
+    "sales_report_range_invalid",
     "support_unavailable",
     "support_running",
     "support_start_failed",

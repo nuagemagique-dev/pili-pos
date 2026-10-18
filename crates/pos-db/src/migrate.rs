@@ -150,6 +150,27 @@ const TILL_MIGRATIONS: &[Migration] = &[
     },
 ];
 
+/// Migrations of the invoicing, sold-out and menu editor group, in every build (V11-D2): 40 and
+/// up, clear of the 12 to 19 hotfix range and of the lanes that claim 20 to 39. Gaps are allowed
+/// by the runner.
+const INVOICING_MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 40,
+        name: "invoicing",
+        sql: crate::schema_invoicing::MIGRATION_040_INVOICING,
+    },
+    Migration {
+        version: 41,
+        name: "sold-out",
+        sql: crate::schema_invoicing::MIGRATION_041_SOLD_OUT,
+    },
+    Migration {
+        version: 42,
+        name: "menu-editor",
+        sql: crate::schema_invoicing::MIGRATION_042_MENU_EDITOR,
+    },
+];
+
 /// Migrations of the HubRise integration (feature `hubrise`), from
 /// version 20 (in the certified binary too).
 #[cfg(feature = "hubrise")]
@@ -203,6 +224,7 @@ fn registry() -> Vec<Migration> {
     let mut all = MIGRATIONS.to_vec();
     all.extend_from_slice(EFT_MIGRATIONS);
     all.extend_from_slice(TILL_MIGRATIONS);
+    all.extend_from_slice(INVOICING_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -423,8 +445,8 @@ mod tests {
     }
 
     /// The till discounts are migration 30 and the kitchen notes 31, in
-    /// every build, after 28 (presence registration) and before 70 (staff
-    /// badges); 29 stays free.
+    /// every build, after 28 (presence registration) and before the
+    /// invoicing block (40 to 42) and 70 (staff badges); 29 stays free.
     #[test]
     fn the_till_migrations_are_30_and_31_in_every_build() {
         let till: Vec<(i64, &str)> = TILL_MIGRATIONS
@@ -435,7 +457,7 @@ mod tests {
         let versions = all_versions();
         assert!(!versions.contains(&29));
         let from_28: Vec<i64> = versions.into_iter().filter(|v| *v >= 28).collect();
-        assert_eq!(from_28, vec![28, 30, 31, 70]);
+        assert_eq!(from_28, vec![28, 30, 31, 40, 41, 42, 70]);
     }
 
     #[test]
@@ -579,6 +601,299 @@ mod tests {
             .collect::<Result<_, _>>()
             .unwrap();
         assert!(!journal_columns.iter().any(|c| c.contains("note")));
+    }
+
+    /// The invoicing block starts at 40 and is in every build (V11-D2).
+    #[test]
+    fn the_invoicing_migrations_are_40_to_42_and_in_every_build() {
+        let block: Vec<(i64, &str)> = INVOICING_MIGRATIONS
+            .iter()
+            .map(|m| (m.version, m.name))
+            .collect();
+        assert_eq!(
+            block,
+            vec![(40, "invoicing"), (41, "sold-out"), (42, "menu-editor")]
+        );
+        assert!(all_versions().contains(&40));
+        assert!(INVOICING_MIGRATIONS.iter().all(|m| m.version >= 40));
+    }
+
+    fn columns(conn: &Connection, table: &str) -> Vec<String> {
+        let mut stmt = conn
+            .prepare(&format!("SELECT name FROM pragma_table_info('{table}')"))
+            .unwrap();
+        stmt.query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    }
+
+    #[test]
+    fn v42_menu_change_log_is_append_only_and_checks_its_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let cols = columns(&conn, "menu_change_log");
+        for c in [
+            "entity_type",
+            "entity_id",
+            "action",
+            "before_json",
+            "after_json",
+            "changed_by",
+            "changed_at",
+        ] {
+            assert!(cols.contains(&c.to_string()), "menu_change_log lacks {c}");
+        }
+        conn.execute(
+            "INSERT INTO menu_change_log (entity_type, entity_id, action, after_json, changed_by)
+             VALUES ('product', 1, 'create', '{}', '00000000029')",
+            [],
+        )
+        .unwrap();
+        for bad in [
+            "INSERT INTO menu_change_log (entity_type, entity_id, action, after_json, changed_by)
+             VALUES ('bogus', 1, 'create', '{}', 'x')",
+            "INSERT INTO menu_change_log (entity_type, entity_id, action, after_json, changed_by)
+             VALUES ('product', 1, 'delete', '{}', 'x')",
+        ] {
+            assert!(conn.execute(bad, []).is_err(), "{bad}");
+        }
+        for sql in [
+            "UPDATE menu_change_log SET action = 'update'",
+            "DELETE FROM menu_change_log",
+        ] {
+            let err = conn.execute(sql, []).unwrap_err().to_string();
+            assert!(err.contains("append-only"), "{sql}: {err}");
+        }
+    }
+
+    #[test]
+    fn v41_creates_the_sold_out_tables() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        for (table, expected) in [
+            (
+                "menu_item_sold_out",
+                vec!["menu_item_id", "until", "set_by", "set_at"],
+            ),
+            (
+                "sold_out_log",
+                vec!["menu_item_id", "action", "until", "by", "at"],
+            ),
+            (
+                "hubrise_inventory_sync",
+                vec![
+                    "menu_item_id",
+                    "sku_ref",
+                    "dirty",
+                    "version",
+                    "attempts",
+                    "next_attempt_at",
+                    "last_attempt_at",
+                    "parked_at",
+                    "error_msg",
+                    "synced_at",
+                ],
+            ),
+        ] {
+            let cols = columns(&conn, table);
+            for c in expected {
+                assert!(cols.contains(&c.to_string()), "{table} lacks {c}");
+            }
+        }
+    }
+
+    #[test]
+    fn v41_sold_out_log_is_append_only_and_checks_its_action() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 100, 'B')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO sold_out_log (menu_item_id, action, by) VALUES (1, 'set', '00000000029')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.execute(
+                "INSERT INTO sold_out_log (menu_item_id, action) VALUES (1, 'bogus')",
+                [],
+            )
+            .is_err()
+        );
+        for sql in [
+            "UPDATE sold_out_log SET action = 'clear'",
+            "DELETE FROM sold_out_log",
+        ] {
+            let err = conn.execute(sql, []).unwrap_err().to_string();
+            assert!(err.contains("append-only"), "{sql}: {err}");
+        }
+    }
+
+    #[test]
+    fn v40_creates_the_invoicing_tables_and_queue_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        for (table, expected) in [
+            (
+                "b2b_customers",
+                vec!["vat_number", "peppol_status", "peppol_checked_at"],
+            ),
+            (
+                "invoices",
+                vec![
+                    "invoice_seq",
+                    "invoice_no",
+                    "fiscal_event_id",
+                    "customer_json",
+                    "vat_json",
+                ],
+            ),
+            (
+                "invoice_sales",
+                vec!["invoice_id", "sale_fiscal_event_id", "position"],
+            ),
+            (
+                "peppol_deliveries",
+                vec![
+                    "ubl_xml",
+                    "customer_endpoint_id",
+                    "status",
+                    "attempts",
+                    "next_attempt_at",
+                    "last_attempt_at",
+                    "parked_at",
+                    "lookup_status",
+                ],
+            ),
+            (
+                "peppol_delivery_log",
+                vec![
+                    "delivery_id",
+                    "attempt",
+                    "outcome",
+                    "http_status",
+                    "detail",
+                    "at",
+                ],
+            ),
+        ] {
+            let cols = columns(&conn, table);
+            for c in expected {
+                assert!(cols.contains(&c.to_string()), "{table} lacks {c}");
+            }
+        }
+        let view: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name='v_invoice_journal'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(view, 1);
+    }
+
+    fn seed_event(conn: &Connection, seq: i64, event_type: &str) -> i64 {
+        conn.execute(
+            "INSERT INTO fiscal_events (event_type, sequence_number, pos_id, terminal_id, user_insz, event_data_json, fdm_id, event_label, fdm_datetime)
+             VALUES (?, ?, 'P', 'T1', '00000000029', '{}', 'FDM1', ?, '2026-10-17T10:00:00')",
+            rusqlite::params![event_type, seq, event_type],
+        )
+        .unwrap();
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn v40_invoice_tables_are_append_only_and_a_sale_is_invoiced_once() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let sale1 = seed_event(&conn, 1, "N");
+        let sale2 = seed_event(&conn, 2, "N");
+        let inv1 = seed_event(&conn, 3, "I");
+        let inv2 = seed_event(&conn, 4, "I");
+        let insert_invoice = |seq: i64, no: &str, event: i64| {
+            conn.execute(
+                "INSERT INTO invoices (invoice_seq, invoice_no, fiscal_event_id, customer_json, issue_date, total_cents, vat_json, created_by)
+                 VALUES (?, ?, ?, '{\"vat_number\":\"BE0308357159\",\"name\":\"ACME\"}', '2026-10-17', 1210, '{\"B\":{\"base\":1000,\"vat\":210,\"total\":1210}}', '00000000029')",
+                rusqlite::params![seq, no, event],
+            )
+        };
+        insert_invoice(1, "20260001", inv1).unwrap();
+        // Invoice number and sequence are unique.
+        assert!(insert_invoice(1, "20260002", inv2).is_err());
+        assert!(insert_invoice(2, "20260001", inv2).is_err());
+        insert_invoice(2, "20260002", inv2).unwrap();
+
+        conn.execute("INSERT INTO invoice_sales VALUES (1, ?, 1)", [sale1])
+            .unwrap();
+        // The same sale cannot be on a second invoice.
+        assert!(
+            conn.execute("INSERT INTO invoice_sales VALUES (2, ?, 1)", [sale1])
+                .is_err()
+        );
+        conn.execute("INSERT INTO invoice_sales VALUES (2, ?, 1)", [sale2])
+            .unwrap();
+
+        for sql in [
+            "UPDATE invoices SET total_cents = 1",
+            "DELETE FROM invoices",
+            "UPDATE invoice_sales SET position = 9",
+            "DELETE FROM invoice_sales",
+        ] {
+            let err = conn.execute(sql, []).unwrap_err().to_string();
+            assert!(err.contains("append-only"), "{sql}: {err}");
+        }
+
+        // The journal reads the invoice, the base per rate and the I event.
+        let (no, vat, base_b, fdm): (String, String, i64, String) = conn
+            .query_row(
+                "SELECT invoice_no, customer_vat_number, base_b_cents, fdm_id FROM v_invoice_journal ORDER BY invoice_no LIMIT 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            (no.as_str(), vat.as_str(), base_b, fdm.as_str()),
+            ("20260001", "BE0308357159", 1000, "FDM1")
+        );
+    }
+
+    #[test]
+    fn v40_delivery_log_is_append_only() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO peppol_deliveries (invoice_no, customer_endpoint_id, ap_vendor, ubl_xml)
+             VALUES ('20260001', '0208:0308357159', 'logging', '<x/>')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO peppol_delivery_log (delivery_id, attempt, outcome) VALUES (1, 1, 'accepted')",
+            [],
+        )
+        .unwrap();
+        // The queue row moves on; the log does not.
+        conn.execute(
+            "UPDATE peppol_deliveries SET status='accepted', attempts=1",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.execute("UPDATE peppol_delivery_log SET outcome='x'", [])
+                .is_err()
+        );
+        assert!(conn.execute("DELETE FROM peppol_delivery_log", []).is_err());
+        // Lookup status is bounded.
+        assert!(
+            conn.execute("UPDATE peppol_deliveries SET lookup_status='maybe'", [])
+                .is_err()
+        );
     }
 
     #[test]

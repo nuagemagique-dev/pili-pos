@@ -6,7 +6,7 @@
 **Date :** À effectuer (EV-18 : date de dépôt)
 **Référence :** §IV du manuel de certification (Procédure de communication GraphQL).
 
-Squelette des résultats des UC obligatoires du Basic Set v1.8 (22 UC spec), des 5 UC Reports v1.3 et des cinq situations d'arrondi (ROUND1 à ROUND5), plus six UC de l'Advanced Set v1.6 rejoués par le même harnais. Hors périmètre v1.0.0 : M150 (event I, voir DECISION_PEPPOL_AP_FR.md). Dans le périmètre : M122 (transfert de table) et M132 (correction de paiement) ; M112A n'est pas un parcours proposé (parcours M112B). Aucun résultat n'est repris du dossier Linux : chaque bloc ci-dessous attend les résultats des UC joués sur le terminal émulé par la suite instrumentée (`À effectuer (EV-06 : résultats des UC sur le terminal émulé)`).
+Squelette des résultats des UC obligatoires du Basic Set v1.8 (22 UC spec), des 5 UC Reports v1.3 et des cinq situations d'arrondi (ROUND1 à ROUND5), plus huit UC de l'Advanced Set v1.6 rejoués par le même harnais, dont les deux UC de facture (UC4121 et UC4122). Aucun UC n'est hors périmètre : M122 (transfert de table), M132 (correction de paiement) et M150 (facture, événement I) sont dans le périmètre ; M112A n'est pas un parcours proposé (parcours M112B). Aucun résultat n'est repris du dossier Linux : chaque bloc ci-dessous attend les résultats des UC joués sur le terminal émulé par la suite instrumentée (`À effectuer (EV-06 : résultats des UC sur le terminal émulé)`).
 
 Pour chaque UC rejoué, le bloc final fournira : le scénario, les champs à vérifier, la requête construite par le moteur et archivée, la réponse du FDM, la comparaison champ par champ avec la fixture officielle et le test automatisé. Les fichiers JSON bruts iront dans `Report_Testing` (`À effectuer (EV-06 : requête et réponse JSON de chaque UC)`). Les tickets sont dans TICKETS_EXEMPLES_FR.md. Le FDM utilisé pour ces essais est nommé dans chaque bloc ; la journée sur le simulateur en ligne module2 est dans JOURNAL_TESTS_PRE_SOUMISSION_FR.md. La comparaison avec les requêtes du dossier Linux est `À effectuer (EV-07 : comparaison Android et Linux)`.
 
@@ -44,7 +44,7 @@ Correction de paiement. Rejeu applicatif côté moteur : `m132_payment_correctio
 ## M141_signWorkOut
 À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 ## M150_signInvoice
-Hors périmètre v1.0.0 (voir DECISION_PEPPOL_AP_FR.md). À effectuer (EV-06 : lecture de la fixture par le moteur sur le terminal émulé).
+À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 ## M160_signCopy_Sale
 À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 ## M161_signCopy_Order
@@ -83,20 +83,25 @@ Hors périmètre v1.0.0 (voir DECISION_PEPPOL_AP_FR.md). À effectuer (EV-06 : l
 À effectuer (EV-06 : situation rejouée, requête construite, lignes financials et ticket imprimé).
 ## ROUND5_Multi_paiements
 À effectuer (EV-06 : situation rejouée, requête construite, lignes financials et ticket imprimé).
-# Advanced Set v1.6 (3 UC rejoués)
+# Advanced Set v1.6 (5 UC rejoués)
 ## UC230_signSale_Correction
 À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 ## UC4109_NoPayment
 À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 ## UC4119_SplitPayment
 À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
+## UC4121_Invoice
+À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
+## UC4122_Invoice_refund
+À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 
 # Récapitulatif
 
 | Famille | UC (spec) | UC dans le périmètre v1.0.0 | Lecture des fixtures | Rejeu applicatif (build `cert`) |
 |---|---|---|:-:|:-:|
-| Basic Set v1.8 | 22 | 20 (hors M112A et M150) | À effectuer (EV-06) | À effectuer (EV-06) |
+| Basic Set v1.8 | 22 | 21 (hors M112A) | À effectuer (EV-06) | À effectuer (EV-06) |
 | Reports v1.3 | 5 | 5 | À effectuer (EV-06) | À effectuer (EV-06) |
-| **Total** | **27** | **25** | À effectuer (EV-06) | À effectuer (EV-06) |
+| Advanced Set v1.6 (factures) | 2 | 2 | À effectuer (EV-06) | À effectuer (EV-06) |
+| **Total** | **29** | **28** | À effectuer (EV-06) | À effectuer (EV-06) |
 
 Pour le détail des couvertures, voir COUVERTURE_FIXTURES_FR.md, COUVERTURE_RAPPORTS_FR.md et COUVERTURE_ADVANCED_SET_FR.md.

@@ -39,6 +39,7 @@ import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosSettings
+import uniffi.pos_ffi.SoldOutItem
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
 import uniffi.pos_ffi.VatCode
@@ -69,6 +70,9 @@ internal fun menuItem(
     code: String? = null,
     nameFr: String? = null,
     nameZh: String? = null,
+    soldOut: Boolean = false,
+    soldOutUntil: String? = null,
+    hasModifiers: Boolean = false,
 ): MenuItem =
     MenuItem(
         id = id,
@@ -84,7 +88,16 @@ internal fun menuItem(
         openPrice = openPrice,
         sortOrder = id.toInt(),
         active = true,
+        soldOut = soldOut,
+        soldOutUntil = soldOutUntil,
+        hasModifiers = hasModifiers,
     )
+
+internal fun soldOutItem(
+    id: Long,
+    name: String,
+    until: String? = null,
+): SoldOutItem = SoldOutItem(menuItemId = id, name = name, until = until, setBy = ADMIN_INSZ, setAt = "2026-10-17 10:00:00")
 
 @Suppress("LongParameterList")
 internal fun cartLine(
@@ -263,6 +276,8 @@ internal class OrderWorld(
     var cart: List<CartLine> = emptyList(),
     var needsZ: Boolean = false,
     var hubrise: Boolean = false,
+    /** The products sold out now, as `list_sold_out` answers. */
+    var soldOut: List<SoldOutItem> = emptyList(),
 )
 
 /** A started order view model with the real stores it drives, built on one engine fixture. */
@@ -305,6 +320,7 @@ internal fun TestScope.orderFixture(
     coEvery { f.engine.listCartLines(any()) } answers { world.cart }
     coEvery { f.engine.setActiveOrder(any()) } returns Unit
     coEvery { f.engine.getIntegrations() } answers { Integrations(world.hubrise, 0L, emptyList()) }
+    coEvery { f.engine.listSoldOut(any()) } answers { world.soldOut }
     return f
 }
 

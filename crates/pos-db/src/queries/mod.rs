@@ -5,7 +5,10 @@ pub mod eft;
 pub mod fiscal;
 #[cfg(feature = "hubrise")]
 pub mod integrations;
+pub mod invoicing;
 pub mod menu;
+#[cfg(feature = "catalog-sync")]
+pub mod menu_admin;
 pub mod orders;
 pub mod pending_signs;
 #[cfg(feature = "hubrise")]
@@ -13,6 +16,7 @@ pub mod price_changes;
 pub mod prints;
 pub mod reports;
 pub mod shifts;
+pub mod sold_out;
 pub mod table_plan;
 #[cfg(feature = "hubrise")]
 pub mod till_discounts;

@@ -9,6 +9,7 @@ import uniffi.pos_ffi.DiscountInput
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.ModifierGroup
 import uniffi.pos_ffi.Order
+import uniffi.pos_ffi.SoldOutItem
 import uniffi.pos_ffi.VatSplitRow
 
 /** The dialog open over the order screen, if any (`pricing` and `choosing` of `OrderView.vue`). */
@@ -55,6 +56,14 @@ internal sealed interface OrderDialog {
         val action: DiscountAction,
     ) : OrderDialog
 
+    /** The availability of one product ("Épuisé" mode): sold out for the day, until re-enabled, or available. */
+    data class SoldOut(
+        val item: MenuItem,
+    ) : OrderDialog
+
+    /** "Produits épuisés (n)": every product sold out now, each one can be put back on sale. */
+    data object SoldOutList : OrderDialog
+
     /** "Customer left without paying": a manager confirms with the PIN; [userName] is shown as the hint. */
     data class CloseUnpaid(
         val userName: String,
@@ -73,6 +82,26 @@ internal sealed interface DiscountAction {
         val lineId: Long?,
     ) : DiscountAction
 }
+
+/** What a cashier picks for a product in the sold-out dialog (`Availability` of `utils/soldOut.ts`). */
+internal enum class SoldOutChoice {
+    /** Sold out until the end of the business day. */
+    DAY,
+
+    /** Sold out until re-enabled. */
+    UNTIL,
+
+    /** Available. */
+    AVAILABLE,
+}
+
+/** The availability a product is in, from the flags the menu read gives (`availabilityOf`). */
+internal fun MenuItem.availability(): SoldOutChoice =
+    when {
+        !soldOut -> SoldOutChoice.AVAILABLE
+        soldOutUntil != null -> SoldOutChoice.DAY
+        else -> SoldOutChoice.UNTIL
+    }
 
 /** One line of the cart column: the engine line and its amount, null until the VAT helper answered. */
 internal data class CartRow(
@@ -144,6 +173,12 @@ internal data class MenuState(
     val labelMode: ProductLabelMode = ProductLabelMode.NAME,
     /** True once the products of the selected category were read for the engine that is running. */
     val loaded: Boolean = false,
+    /** The user may mark products sold out (cashier and manager): the "Épuisé" bar is drawn. */
+    val canSoldOut: Boolean = false,
+    /** The "Épuisé" mode is on: a tap on a product opens its availability dialog. */
+    val soldOutMode: Boolean = false,
+    /** The products sold out now (`list_sold_out`), read for cashiers and managers only. */
+    val soldOut: List<SoldOutItem> = emptyList(),
 )
 
 /** What the order screen shows. */

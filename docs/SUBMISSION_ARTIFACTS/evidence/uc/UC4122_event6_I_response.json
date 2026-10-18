@@ -1,0 +1,24 @@
+{
+  "bufferCapacityUsed": 1.2,
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "digitalSignature": "bW9jay1zaWctMi02LTE3OTIyODAyODU=",
+  "eventOperation": "INVOICE",
+  "fdmRef": {
+    "eventCounter": 2,
+    "eventLabel": "I",
+    "fdmDateTime": "2026-10-17T23:38:05Z",
+    "fdmId": "MCK00000001",
+    "totalCounter": 6
+  },
+  "fdmSwVersion": "MOCK-FDM-1.0",
+  "footer": [],
+  "informations": [],
+  "posDateTime": "2026-10-18T01:38:05.863+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CPOS0031234567",
+  "shortSignature": null,
+  "terminalId": "POS-1-BAR",
+  "vatCalc": null,
+  "verificationUrl": null,
+  "warnings": []
+}

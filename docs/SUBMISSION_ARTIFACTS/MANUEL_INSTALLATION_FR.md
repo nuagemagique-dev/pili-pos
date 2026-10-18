@@ -241,6 +241,7 @@ Champs :
 | `kitchen_printer_address` | Facultatif. IP:port de l'imprimante du bar ou de la cuisine, qui reçoit le « BON DE COMMANDE » (sans prix, avec la mention « ceci n'est pas un ticket de caisse TVA valable ») des lignes que l'écran de commande envoie en cuisine (§4.6, `MANUEL_UTILISATEUR_FR.md` §6.1). Absent : le bon sort sur `printer_address`. Le voyant "Cuisine" de l'en-tête reste gris tant qu'il est absent. | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. C'est la valeur de départ : un Gérant peut changer le mode dans "Config" (§4.7). | Distributeur |
 | `hubrise_enabled` | Facultatif, `false` par défaut. `true` : les commandes en ligne (plateformes de livraison, webshop, par HubRise) sont activées dès le démarrage. Un Gérant peut ensuite les activer ou les couper dans "Config", panneau "Intégrations" ; chaque changement est journalisé et le dernier l'emporte. Voir `COMMANDES_EN_LIGNE_FR.md`. | Client |
+| `peppol` | Facultatif. Envoi des factures B2B sur le réseau Peppol (`FACTURATION_PEPPOL_FR.md`, `DECISION_PEPPOL_AP_FR.md`) : `provider` (`storecove` obligatoire en production), `base_url`, `api_key_file` (fichier contenant la seule clé de l'API), `legal_entity_id`, `sender_id` (`0208:` et le numéro d'entreprise à 10 chiffres), `supplier_street`, `supplier_postal_code`, `supplier_city`, `supplier_country` (`BE` par défaut). Sans cette section, une facture à un client étranger est établie et imprimée, et une facture à un client dont le numéro de TVA commence par `BE` est refusée (`invoice_peppol_required`). | Client |
 | `table_count` | Nombre de tables du plan de salle, numérotées à partir de 1 ; défaut `20`. Ignoré quand `tables` est présent. | Client |
 | `tables` | Facultatif. Numéros de table du plan de salle, en nombres et plages séparés par des virgules (ex. `"1-12, 20-25"`) : de 1 à 999, 200 tables au plus. Absent : les tables 1 à `table_count`. C'est la valeur de départ : un Gérant peut changer le plan dans "Config", panneau "Plan de salle" ; chaque changement est journalisé et le dernier l'emporte (une nouvelle valeur de `pos.json`, lue au démarrage, compte comme un changement). Une valeur invalide est signalée par `--check-config`. | Client |
 | `day_end_hour` | Heure (0 à 12, heure belge) à laquelle la journée commerciale se termine ; défaut `5`. Un service qui dépasse minuit reste sur sa journée jusqu'à cette heure. Une journée restée ouverte au-delà est clôturée par un rapport Z automatique (FAQ producteurs Q501). | Client |
@@ -364,6 +365,48 @@ l'établissement, puis taper dans la caisse le code affiché par HubRise
 ("Code d'autorisation") et toucher « Valider la connexion ». Le trafic
 sortant ajouté est HTTPS (443) vers `manager.hubrise.com` et
 `api.hubrise.com`.
+
+**Facturation B2B et Peppol.** La caisse établit des factures à des
+clients professionnels étrangers sans aucun réglage (`FACTURATION_PEPPOL_FR.md`).
+Pour facturer un client belge, qui doit être facturé sur le réseau Peppol, ajouter à
+`pos.json` la section du point d'accès, après avoir ouvert un compte chez
+le fournisseur (`DECISION_PEPPOL_AP_FR.md`) :
+
+```json
+"peppol": {
+  "provider": "storecove",
+  "base_url": "https://api.storecove.com",
+  "api_key_file": "/etc/pili-pos/secrets/peppol.key",
+  "legal_entity_id": 123456,
+  "sender_id": "0208:0123456789",
+  "supplier_street": "Rue de l'Exemple 1",
+  "supplier_postal_code": "4000",
+  "supplier_city": "Liège"
+}
+```
+
+| Champ | Description |
+|---|---|
+| `provider` | `storecove` (obligatoire en production). `logging` journalise le document sans rien envoyer : réservé au développement, refusé par une version de production. |
+| `base_url`, `api_key_file`, `legal_entity_id` | Requis pour `storecove` : adresse de l'API, fichier contenant la seule clé (jamais la clé dans `pos.json`), entité légale du fournisseur. |
+| `sender_id` | Identifiant Peppol du vendeur : `0208:` et le numéro d'entreprise à 10 chiffres (valide modulo 97). |
+| `supplier_street`, `supplier_postal_code`, `supplier_city` | Adresse du vendeur dans le document. |
+| `supplier_country` | Facultatif, `BE` par défaut (deux lettres majuscules). |
+
+Installer la clé comme celle du ticket numérique :
+
+```bash
+(umask 027; cat > /etc/pili-pos/secrets/peppol.key)   # coller la clé, Entrée, puis Ctrl+D
+chown root:pos /etc/pili-pos/secrets/peppol.key
+pili-pos --check-config        # signale chaque réglage invalide : code config_peppol et nom du réglage
+systemctl restart pili-pos
+```
+
+Sans cette section, une facture est établie et imprimée mais n'est pas
+envoyée : elle fait partie de la configuration d'une installation qui
+facture des clients professionnels belges. Le trafic sortant ajouté est
+HTTPS (443) vers l'adresse `base_url` (`api.storecove.com`). Le gérant
+suit les envois dans « Config », panneau « Peppol ».
 
 ### 4.3 Configuration réseau LAN
 
@@ -568,14 +611,14 @@ ne sont jamais arrondis, pour toute installation.
 
 | Paramètre | Valeur d'origine | Qui le modifie | Où |
 |---|---|---|---|
-| Identité et réseau : `pos_id`, `restaurant_*`, `fdm_*`, `printer_address`, `kitchen_printer_address`, `language`, `day_end_hour`, `table_count`, `tables`, `backup_dir`, `digital_ticket`, `hubrise`, `payment_terminal` | Gabarit d'usine (`CHANGE_ME_14CH` pour `pos_id`, `terminal_id` `POS1`) | Le technicien seul, en `root` sur la console `tty2` | `/etc/pili-pos/pos.json`, puis `systemctl restart pili-pos` (la configuration est lue au démarrage) |
+| Identité et réseau : `pos_id`, `restaurant_*`, `fdm_*`, `printer_address`, `kitchen_printer_address`, `language`, `day_end_hour`, `table_count`, `tables`, `backup_dir`, `digital_ticket`, `hubrise`, `peppol`, `payment_terminal` | Gabarit d'usine (`CHANGE_ME_14CH` pour `pos_id`, `terminal_id` `POS1`) | Le technicien seul, en `root` sur la console `tty2` | `/etc/pili-pos/pos.json`, puis `systemctl restart pili-pos` (la configuration est lue au démarrage) |
 | `device_id` | Adresse MAC, inscrite au premier démarrage | Personne (sauf changement de la carte réseau) | `/etc/pili-pos/pos.json` |
 | `training_mode` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Mode Formation" | Le réglage de "Config" est en mémoire : il vaut jusqu'au redémarrage, qui revient à la valeur du fichier |
 | `hubrise_enabled` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Intégrations" | Chaque changement est journalisé, ne s'efface pas, et le dernier l'emporte |
 | `tables` (ou `table_count`) | Plan de 1 à `table_count` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Plan de salle" | Chaque changement est journalisé (`table_plan_log`), ne s'efface pas, et le dernier l'emporte |
 | Langue d'affichage de l'interface | Clé `language` | Le Gérant, dans "Config", panneau "Langue" | Sans effet sur la langue des mentions imprimées |
 | Employés et PIN | Aucun employé à l'origine (§4.4) | Le technicien (premiers comptes) puis le Gérant, dans "Config" | Table `users` de `pos.db` |
-| Catalogue (catégories, articles, TVA) | Vide en production | Le technicien (`MANUEL_PROGRAMMATION_FR.md`), ou HubRise si celui-ci gère le menu | `pos.db` |
+| Catalogue (catégories, articles, TVA) | Vide en production | Le technicien (`MANUEL_PROGRAMMATION_FR.md`), le Gérant dans "Config", panneau "Carte" (`EDITEUR_CARTE_FR.md`, journalisé), ou HubRise si celui-ci gère le menu | `pos.db` |
 
 **Journaux.** Le POS écrit un fichier par jour,
 `/var/lib/pili-pos/logs/pos.log.AAAA-MM-JJ`. Le journal du système
@@ -594,7 +637,7 @@ le routeur, §4.3). Le trafic **sortant** est le suivant : le FDM sur le
 LAN (HTTPS 443, ou HTTP 80), l'imprimante sur le LAN (TCP 9100),
 HTTPS 443 vers `api.scaleway.com` si `digital_ticket` est configuré,
 HTTPS 443 vers `manager.hubrise.com` et `api.hubrise.com` si HubRise est
-activé, et une session RustDesk, à la demande d'un Gérant. Aucun port
+activé, HTTPS 443 vers `api.storecove.com` si `peppol` est configuré, et une session RustDesk, à la demande d'un Gérant. Aucun port
 n'est ouvert en entrée.
 
 **Comptes du système.** `root` (mot de passe aléatoire noté au premier

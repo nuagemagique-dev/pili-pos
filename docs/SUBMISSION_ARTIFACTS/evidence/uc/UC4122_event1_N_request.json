@@ -1,0 +1,57 @@
+{
+  "bookingDate": "2026-10-17",
+  "bookingPeriodId": "03c3b477-d67c-48e8-916b-775525629976",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 46.08,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": 0.02,
+      "amountType": "ROUNDING",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-18T01:38:05.829+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 46.08,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "1",
+          "productId": "1",
+          "productName": "1",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 46.08,
+          "vats": [
+            {
+              "label": "B",
+              "price": 46.08
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 46.08
+  },
+  "vatNo": "BE0000000097"
+}

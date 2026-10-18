@@ -85,6 +85,12 @@ pub const PRICE_POSITIVE: &str = "price_positive";
 pub const FIXED_PRICE: &str = "fixed_price";
 /// `product`: the menu item id.
 pub const PRODUCT_UNAVAILABLE: &str = "product_unavailable";
+/// The product is marked sold out ("Épuisé", V11-D14). `product`: the menu item id.
+pub const PRODUCT_SOLD_OUT: &str = "product_sold_out";
+/// A menu editor field is missing or out of range (V11-D17). `field`: the input's field name.
+pub const MENU_INVALID: &str = "menu_invalid";
+/// The category, product, option group or option an edit names does not exist.
+pub const MENU_NOT_FOUND: &str = "menu_not_found";
 pub const LINE_NOT_FOUND: &str = "line_not_found";
 pub const ORDER_NO_LINES: &str = "order_no_lines";
 pub const ORDER_TOTAL_NEGATIVE: &str = "order_total_negative";
@@ -236,6 +242,9 @@ pub const EMAIL_SENT: &str = "email_sent";
 pub const PRINTER_NOT_CONFIGURED: &str = "printer_not_configured";
 /// `detail`: the printer's error, for the technician.
 pub const PRINT_FAILED: &str = "print_failed";
+/// The sales report range is not a valid range of booking dates (V11-D20): bad date, end
+/// before start, or more than 92 days.
+pub const SALES_REPORT_RANGE_INVALID: &str = "sales_report_range_invalid";
 
 // Remote support.
 pub const SUPPORT_UNAVAILABLE: &str = "support_unavailable";
@@ -285,7 +294,33 @@ pub const CONFIG_HUBRISE: &str = "config_hubrise";
 pub const CONFIG_DIGITAL_TICKET: &str = "config_digital_ticket";
 pub const CONFIG_EXPORT: &str = "config_export";
 pub const CONFIG_PAYMENT_TERMINAL: &str = "config_payment_terminal";
+pub const CONFIG_PEPPOL: &str = "config_peppol";
 pub const CONFIG_OTHER: &str = "config_other";
+
+// B2B invoices (event I) and the Peppol delivery queue (V11).
+/// No sale was chosen for the invoice.
+pub const INVOICE_NO_SALES: &str = "invoice_no_sales";
+/// `event`: a sale event id the archive does not hold.
+pub const INVOICE_SALE_NOT_FOUND: &str = "invoice_sale_not_found";
+/// `event`: an event that is not a normal sale N (training, copy, order...).
+pub const INVOICE_NOT_A_SALE: &str = "invoice_not_a_sale";
+/// `event`, `invoice`: the sale is on an invoice already (V11-D4).
+pub const INVOICE_SALE_ALREADY_INVOICED: &str = "invoice_sale_already_invoiced";
+/// No invoice in training mode (V11-D7).
+pub const INVOICE_TRAINING_MODE: &str = "invoice_training_mode";
+/// A Belgian VAT-registered customer must be invoiced through Peppol, and the installation
+/// has no `peppol` section (V11-D55).
+pub const INVOICE_PEPPOL_REQUIRED: &str = "invoice_peppol_required";
+/// The VAT number does not pass the offline check (V11-D10).
+pub const CUSTOMER_VAT_INVALID: &str = "customer_vat_invalid";
+/// `field`: a customer field that is empty.
+pub const CUSTOMER_INCOMPLETE: &str = "customer_incomplete";
+pub const CUSTOMER_NOT_FOUND: &str = "customer_not_found";
+/// `pos.json` has no `peppol` section.
+pub const PEPPOL_NOT_CONFIGURED: &str = "peppol_not_configured";
+pub const PEPPOL_DELIVERY_NOT_FOUND: &str = "peppol_delivery_not_found";
+/// Only a parked (failed) delivery is re-queued.
+pub const PEPPOL_DELIVERY_NOT_PARKED: &str = "peppol_delivery_not_parked";
 
 /// A problem of `pos.json` (an English text of
 /// `PosConfig::problems`) as a coded error: its `config_<setting>` code
@@ -339,7 +374,20 @@ pub const ALL: &[&str] = &[
     CONFIG_DIGITAL_TICKET,
     CONFIG_EXPORT,
     CONFIG_PAYMENT_TERMINAL,
+    CONFIG_PEPPOL,
     CONFIG_OTHER,
+    INVOICE_NO_SALES,
+    INVOICE_SALE_NOT_FOUND,
+    INVOICE_NOT_A_SALE,
+    INVOICE_SALE_ALREADY_INVOICED,
+    INVOICE_TRAINING_MODE,
+    INVOICE_PEPPOL_REQUIRED,
+    CUSTOMER_VAT_INVALID,
+    CUSTOMER_INCOMPLETE,
+    CUSTOMER_NOT_FOUND,
+    PEPPOL_NOT_CONFIGURED,
+    PEPPOL_DELIVERY_NOT_FOUND,
+    PEPPOL_DELIVERY_NOT_PARKED,
     NOT_LOGGED_IN,
     FORBIDDEN,
     NOT_THE_OPERATOR,
@@ -381,6 +429,9 @@ pub const ALL: &[&str] = &[
     PRICE_POSITIVE,
     FIXED_PRICE,
     PRODUCT_UNAVAILABLE,
+    PRODUCT_SOLD_OUT,
+    MENU_INVALID,
+    MENU_NOT_FOUND,
     LINE_NOT_FOUND,
     ORDER_NO_LINES,
     ORDER_TOTAL_NEGATIVE,
@@ -421,6 +472,7 @@ pub const ALL: &[&str] = &[
     EMAIL_SENT,
     PRINTER_NOT_CONFIGURED,
     PRINT_FAILED,
+    SALES_REPORT_RANGE_INVALID,
     SUPPORT_UNAVAILABLE,
     SUPPORT_RUNNING,
     SUPPORT_START_FAILED,

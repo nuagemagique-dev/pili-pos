@@ -1381,3 +1381,324 @@ Staff badges (NFC or USB reader) for the certified v1.0.0, Linux and Android. Pl
 - **L5-X3 Reader flags of `AndroidNfcSupport` stay untested by JVM tests.** Robolectric's `ShadowNfcAdapter` records neither the flags nor the extras of `enableReaderMode`; the flags (A, B, F, V, `SKIP_NDEF_CHECK`) are a constant reviewed in code and belong to the device test list.
 - **L5-X4 The route test borrows the entry point.** `SettingsRoute` reads its entry point from the Hilt application graph, whose engine is closed in unit tests. `SettingsRouteTest.theBadgeLambdasReachTheRealBadgeModel` hands it the test stores with `mockkStatic(EntryPointAccessors)` (other classes fall through to the original), so the lambdas run against a mocked engine without a second Hilt graph.
 - **L5-X5 Shared Cargo target hazard.** Two worktrees share `shared-target`; the artifacts of path dependencies seem to be shared between checkouts (same unit hash), so a lane compiling `pos-core` in parallel can leave a stale artifact that the next lane reuses (`unresolved import pos_core::badge`). `touch`ing the `src/lib.rs` of the workspace crates before a build forces a rebuild. Orchestrator: prefer one target dir per lane for the final gate.
+
+## Lane 3-v11 (2026-10-17)
+
+- **V11-D1 Invoicing and Peppol join every build.** The `peppol` cargo feature is removed:
+  `commands/invoice.rs`, `src-tauri/src/ipc/invoice.rs` and `pos-peppol` are compiled in every
+  build (Linux cert, dev, Android FFI). Rationale: both UIs must offer invoices, the Android
+  engine is built with `cert`, and HubRise already set the rule "one binary, switched per
+  installation". Invoices themselves need no switch (an I event is only made when a cashier
+  asks for one); Peppol delivery runs only when the installation has a `peppol` section in
+  `pos.json` / the Android bundle. Consequences handled in T1: `src-tauri/src/main.rs` keeps a
+  single `generate_handler!` list; `check_command_parity.py` drops hygiene rule H7 and its
+  test data; `check_ipc_wrappers.py` keeps working with zero peppol-gated modules;
+  `p2_gate.sh` check `ffi-deps` no longer refuses `pos-peppol` (and `test_p2_gate.sh` follows);
+  `scripts/build_and_hash.sh` no longer requires 0 `pos_peppol` symbols (it reports the count);
+  `scripts/uc_scope.toml` drops `[M150]`; comments in `.github/workflows/test.yml`,
+  `android/rust/pos-ffi/Cargo.toml`, `android/uccheck/pos-uc-check/Cargo.toml`,
+  `android/rust/pos-ffi/src/records/mod.rs`, `CLAUDE.md` are corrected. The v1.0.0 dossiers are
+  NOT edited: they describe v1.0.0.
+- **V11-D2 Migrations 40 and up.** The next free number at this base is 28, but the v1.0.x
+  lanes (`lane-v1-fixes`, `lane-v1-features`) run in parallel and may claim 28+. The v1.1 lane
+  takes its own block: 40 `invoicing`, 41 `sold-out`, 42 `menu-editor` (gaps are allowed by the
+  runner). They live in a new `crates/pos-db/src/schema_invoicing.rs`, registered in a new
+  `V11_MIGRATIONS` slice of `migrate.rs`, in every build (no feature gate), with a test
+  `the_v11_migrations_are_40_to_42_and_in_every_build`. If the orchestrator wants consecutive
+  numbers at merge time, only `schema_invoicing.rs`, the registry and that test change.
+- **V11-D3 Invoice lines come from the archive, never from the UI.** The engine builds the
+  invoice (lines, VAT breakdown, totals) from the archived signed requests and FDM responses of
+  the referenced N events. The UI only sends sale event ids and a customer id. Supplier data
+  comes from the configuration.
+- **V11-D4 One invoice per sale.** An N event may be referenced by at most one invoice
+  (`invoice_sales.sale_fiscal_event_id UNIQUE`). A refund N may be invoiced (UC4122). Training
+  (T) events, copies and anything not labelled N are refused.
+- **V11-D5 Invoice numbering.** `invoiceNo = <issue year YYYY><sequence, at least 4 digits>`
+  where the sequence is ONE continuous counter over all invoices of the installation, never
+  reset (AM art. 32 "numérotation continue séparée"); the year prefix keeps the shape of the
+  M150 fixture (`20240005`). Allocated under the sign guard as `MAX(seq)+1` from the `invoices`
+  table; the number travels in the pending sign context (`PendingContext::Invoice`) so a
+  recovered sign keeps it; it commits with the archive (no gap on FDM failure). The print shows
+  the invoice number and the I event counter (`I eventCounter/totalCounter`).
+- **V11-D6 Cost center.** The I request carries `costCenter {id: "C<customer id>", type:
+  CUSTOMER, reference: <customer name, max 600 chars>}` like M150 and UC4121.
+- **V11-D7 No invoice in training mode.** `sign_invoice_fiscal` refuses with `invoice_training_mode`.
+  Conservative: a training invoice would reference training sales and make a T event; nothing in
+  the spec requires it.
+- **V11-D8 Who.** Invoices: `Access::Cashier` (issued at the counter like the sale). Retrying a
+  Peppol delivery and the Peppol panel: `Access::Admin`. Sold-out: `Access::Cashier`. Menu
+  editor and sales reports: `Access::Admin`.
+- **V11-D9 Peppol identifiers.** A Belgian participant is `0208:<10-digit enterprise number>`
+  (the VAT number without `BE`); the current `0208:BE...` value in `invoice.rs` is a bug. Only
+  Belgian customers (`BE` VAT) are delivered over Peppol in v1.1; others are printed only and
+  their delivery row is not created. The supplier id comes from `peppol.sender_id` in the
+  configuration.
+- **V11-D10 Offline-safe lookup.** Customer VAT entry is validated offline (Belgian check digits:
+  the 10-digit number, last two digits = 97 minus the first eight modulo 97; foreign: country
+  prefix plus 2 to 13 alphanumerics). The Peppol lookup is an access point discovery call with a
+  3 s timeout whose result is cached on the customer (`registered`, `not_registered`, `unknown`
+  plus `checked_at`); a failure or no network gives `unknown` and NEVER blocks the invoice (the I
+  event only needs the FDM). The queue worker redoes the lookup before submitting when the
+  status is `unknown` or older than 30 days.
+- **V11-D11 UBL in cents, multi-VAT, already paid.** `pos-peppol` computes in i64 cents (no f64
+  money): line net amount = round(line VAT-inclusive amount / (1 + rate)); per VAT category one
+  `TaxSubtotal` whose taxable amount is the sum of its line net amounts and whose tax amount is
+  round(taxable x rate); event-level price changes become document `AllowanceCharge`s with their
+  tax category; `PrepaidAmount` = VAT-inclusive total of the referenced tickets' product lines and
+  price changes (payment rounding excluded, payment lines are not copied); `PayableRoundingAmount`
+  absorbs the cent differences so that `PayableAmount` is `0.00`; `BuyerReference` = invoice
+  number; no `DueDate`. `vat_label_to_bis` keeps its mapping (A/B/C S, D Z, X O).
+- **V11-D12 Peppol queue.** `peppol_deliveries` (migration 1, never shipped with rows) becomes
+  the queue and audit row; migration 40 adds `attempts`, `next_attempt_at`, `last_attempt_at`,
+  `parked_at`, `lookup_status`; statuses stay `queued` (waiting or retrying), `accepted`,
+  `failed` (parked: refused by the AP, recipient not on Peppol, or authentication error). Every
+  attempt is appended to `peppol_delivery_log` (append-only, triggers). Backoff 30 s doubling,
+  capped at 30 min, retried forever while transient (timeout, 429, 5xx); 4xx refusals and "not
+  registered" park the row with a reason; 401 parks and stops the pass. An admin can re-queue a
+  parked row (`retry_peppol_delivery`). A background loop (`background.rs`, wake on new invoice,
+  `timers.peppol_outbox`, default 60 s) drains the queue, only when `peppol` is configured.
+- **V11-D13 Access point implementation.** `AccessPoint` gains `lookup(participant)`; a
+  `StorecoveAccessPoint` speaking the Storecove API v2 shape (`POST /api/v2/discovery/receives`,
+  `POST /api/v2/document_submissions` with the base64 UBL in `document.rawDocumentData`,
+  `Authorization: Bearer <key>`) is tested ONLY against a local mock: routes added to
+  `crates/pos-fdm-mock` (`/storecove/api/v2/...`, controllable answers, request log), reused by
+  `pos-engine-testkit`. `LoggingAccessPoint` stays (dev default when `peppol.provider` is
+  `logging`). Existing identifiers cited by the v1.0.0 dossiers are kept (see section 9).
+- **V11-D21 Invoice print.** New `pos-print` layout: FACTURE in capitals, invoice number and I
+  counter, seller (name, address, VAT, establishment number), customer (name, address, VAT),
+  issue date, references of the original tickets (`fdmId-N eventCounter/totalCounter` and their
+  ticket numbers and dates), the product lines of those tickets (consolidation allowed, AM art.
+  34), VAT breakdown per rate (base, VAT, total), total, "déjà payé" mention, FDM control data of
+  the I event WITHOUT the digital signature (AM art. 43) and without QR, the footer CECI N'EST PAS
+  UN TICKET DE CAISSE TVA VALABLE. A copy (event C referencing the I) prints the same layout with
+  COPIE and "copie établie le ...". Invoices are always printed on paper in v1.1.
+- **V11-D22 Invoice journal (AM art. 33).** Migration 40 creates the SQL view
+  `v_invoice_journal` (invoice no, date, customer VAT and name, base and VAT per rate, total, I
+  event FDM reference, Peppol status) over append-only tables; the database is the export (as in
+  the v1.0.0 answer "SQLite lisible directement"), and the v1.1 dossier draft gives the query.
+- **V11-D23 Command name `sign_invoice_fiscal` (T1, 2026-10-17).** The plan table names the
+  command `sign_invoice`, but plan section 9 and the v1.0.0 dossier check (`check_dossier.py`
+  rust-ident rule) keep `sign_invoice_fiscal` and `do_sign_invoice_fiscal` as existing
+  identifiers. The Tauri wrapper, the engine function and the FFI method are therefore
+  `sign_invoice_fiscal`; the arguments are those of the plan (`sale_event_ids`, `customer_id`,
+  `employee_insz`). T2 (UI) calls this name. The command count is 96 - 2 old wrappers + 9 new =
+  103, in `check_command_parity.py` and `test_check_command_parity.py`. `do_issue_b2b_invoice`
+  stays an engine function (it queues the delivery of an invoice signed without one) and is not
+  a command.
+- **V11-D24 VAT label X in the UBL (T1).** The plan says X maps to category O; the existing
+  mapping and its test map X to E (exempt) and the golden file follows. Kept unchanged, with the
+  reason recorded here: the v1.0.0 identifier `vat_label_to_bis` is cited by the dossiers. To be
+  revisited with the live Storecove sandbox (owner task).
+- **V11-D25 Customers (T1).** A customer is checked offline when saved: valid VAT number, every
+  address field present (600 characters at most), and a Belgian number goes with a Belgian
+  address (the country is the one of the VAT number when left empty). A VAT number is held by
+  one customer: saving it again updates that customer. Saving and searching are `Access::Cashier`.
+  The Peppol status cached on the customer is used for a new delivery for 30 days, then the
+  delivery starts as `unknown` and the queue asks again (V11-D10).
+- **V11-D26 Archive transaction (T1).** The `invoices`, `invoice_sales` and `peppol_deliveries`
+  rows are written in the same transaction as the I archive and the counter advance
+  (`PendingContext::Invoice`, applied in `signing.rs`), so a request answered late
+  (`resolve_open`) leaves the same rows and the same number as a request answered at once. The
+  print and the queue wake-up happen in the follow-up, with no lock held. A product sold under
+  several VAT labels is listed once per label; price changes of a whole ticket become one line
+  per reason and label; the VAT rows are the FDM's `vatCalc` summed per label.
+- **V11-D27 Copy of an invoice (T1).** A copy (C) of an I event rebuilds the invoice from its
+  rows and the archives of its sales (`CopyTicket::Invoice`) and prints it with COPIE and the
+  copy's own control data; no digital ticket is made for it.
+- **V11-D28 Queue outcomes (T1).** Transient and transport errors stay queued with the backoff;
+  an unreadable answer or a refused document (4xx) parks the delivery; 401 or 403 parks it and
+  stops the pass; a recipient the network does not know parks it before any submission. A
+  lookup that fails or times out never parks anything. `peppol_outbox` is a new engine timer
+  (60 s) and the background loop exists only when the configuration has a `peppol` section.
+- **V11-D29 Gate scripts edited by T1 (Q10).** `check_command_parity.py` drops hygiene rule H7
+  and its test data, `check_ipc_wrappers.py` has no peppol-gated module any more, `p2_gate.sh`
+  `ffi-deps` accepts `pos-peppol`, `build_and_hash.sh` reports the `pos_peppol` symbol count
+  instead of requiring 0, `uc_scope.toml` drops `[M150]`. Self-tests updated.
+- **V11-D30 VAT check in the invoice dialog (T2).** The Vue "live check" is a Vérifier button calling
+  `lookup_b2b_customer`; the engine checks the digits offline and the UI keeps no copy of the rule. Continuer
+  runs the lookup when none was done. A lookup that cannot reach Peppol answers `unknown` and never blocks the
+  invoice (V11-D10).
+- **V11-D31 Text entry on both UIs (T2).** Vue types customer text with the new `TextKeyboard.vue` (Belgian
+  AZERTY, capitals, digits, accents, `- ' . , / &`, keys 72 x 64). Android uses the system keyboard, and the view
+  model upper-cases and cuts what is typed to the same limits (VAT number 16, postal code 10, country 2, other
+  fields 80), so both UIs send the same text to the engine.
+- **V11-D32 Who sees what (T2).** The Copie button of an invoice is drawn for managers only (the engine refuses
+  `copy_ticket` on an I event to anyone else). The invoice list is drawn only once an invoice exists. The Peppol
+  settings panel is drawn for managers and only when the installation has a `peppol` section.
+- **V11-D33 Peppol panel polling (T2).** The panel reads the queue when the screen opens and every 30 seconds
+  (Vue: a timer of the component; Android: `PeppolViewModel.startPolling()` and `stopPolling()`, the loop is
+  stopped by the test that starts it). A Réessayer tap reads again at once.
+- **V11-D34 Dates and money in the invoice screens (T2).** The issue date is the engine's `YYYY-MM-DD` string,
+  shown as dd/mm/yyyy by formatting the string (no time zone is involved). Kotlin computes no money: totals come
+  from the engine, the sum of the ticked sales is `CashDisplay.sumCents`, display goes through `formatCents`.
+- **V11-D35 Goldens of the invoice screens (T2).** The Peppol settings golden is recorded at 1920 x 1500 dp so
+  that the parked rows below the integration panels are visible. The existing goldens of the tickets tab change
+  with the new checkbox column and the Facture button and are recorded again.
+- **V11-D14 Sold-out model (T3).** Implemented as planned: `menu_item_sold_out` (current state, `until` as RFC 3339
+  text with the Brussels offset, NULL for "until re-enabled"), append-only `sold_out_log` (set, clear, expired),
+  migration 41. Expiry is by time: `julianday(until) <= julianday('now')` ends the state (the menu read, the refusal and
+  the HubRise state all read it the same way), and the `expired` log row is written lazily by `expire_due`, called on
+  `get_menu_items`, `list_sold_out`, `set_sold_out` and `clear_sold_out`. The end of the day is the next
+  `day_end_hour` o'clock in Brussels after the business day of "now" (`business_date`); a local time inside the spring
+  gap is read one hour later. No fiscal event, no counter.
+- **V11-D14a Commands return the list (T3).** `set_sold_out` and `clear_sold_out` return the updated list of sold-out
+  products, so a UI refreshes in one call. `list_sold_out`, `set_sold_out` and `clear_sold_out` are `Access::Cashier`
+  and take the UI language for the product names. Clearing a product that is not sold out writes no log row.
+- **V11-D14b Refusal order (T3).** `product_sold_out|product=<id>` is checked before the catalogue is read in
+  `do_add_order_line` and `do_add_order_line_with_modifiers`, and in `do_update_order_line_quantity` only when the new
+  quantity is greater than the current one (same quantity, decrease and removal pass). Orders from webshop or HubRise
+  ingestion do not go through these commands and are not affected.
+- **V11-D15 Sold-out to HubRise (T3).** One request per product (not one array) so that a refusal of one SKU parks only
+  that row. `hubrise_inventory_sync` gains a `version` column (not in the plan): a change made while a send is in
+  flight bumps it, and the send then leaves the row dirty instead of marking it synced. A new change of a parked
+  product clears the park (attempts, backoff and reason reset). The existing outbox loop calls
+  `inventory::process_pending` after its order pass; the engine wakes it through `hubrise_outbox_wake`. Retries have no
+  maximum (like order PATCHes). An end of day already past at send time is sent as `stock: null`.
+- **V11-D15a HubRise scope (T3).** The installation default scope (`location[orders.write,customer_list.read,catalog.read]`)
+  is NOT changed: it is cited by the v1.0.0 installation manual and a change forces every installation to consent
+  again. The inventory push needs the inventory write right on the token; the owner must add it to `scope` in the
+  installation configuration and verify the exact permission name in the HubRise sandbox before the first live use.
+  Without it HubRise answers 403, the row is parked with that reason, and the till keeps refusing the product
+  locally. The HubRise inventory API was exercised against the local mock only.
+- **V11-D16 Sold-out UI (T3).** Implemented as planned on both UIs. Tapping a sold-out product out of the mode shows
+  the refusal toast locally (no engine call) and reads the grid again, so a stale flag (end of day passed) corrects
+  itself. The Épuisé bar is drawn for cashier and manager (`canTakePayment`); the sold-out list is read for them only.
+  A waiter sees the flags (they come with the menu) but cannot change them. Strings are the `soldout_*` keys of
+  `ui/src/i18n.ts` and the `err_product_sold_out` text, shared with Android through `vue_to_android.mjs`.
+- **V11-D36 Error count (T3).** `errors::ALL` now has 126 codes (one more: `product_sold_out`); the FFI test
+  `every_code_of_both_lists_maps_to_coded` follows.
+
+- **V11-D17 Menu editor (T4).** Implemented as planned: migration 42 `menu_change_log` (append-only triggers), six
+  commands in `commands/menu_admin.rs` (`menu_admin_get`, `menu_save_category`, `menu_save_product`,
+  `menu_save_modifier_group`, `menu_save_modifier`, `list_menu_changes`), all `Access::Admin`. Saves are refused with
+  `hubrise_menu_managed` while `pos_catalog::apply::managed_by` returns a source; reads are not refused, so the screen
+  can say who manages the menu. A save that changes nothing writes no log row. The log row holds the entry before and
+  after as JSON (names per language included) and the INSZ of the author. Validation codes: `menu_invalid|field=<f>`
+  and `menu_not_found`. The art. 44 test is `art_44_an_edit_never_changes_an_open_order_or_a_signed_event`.
+- **V11-D18 has_modifiers (T4).** `MenuItem.has_modifiers` is computed in the menu query (core, FFI record, TS type);
+  both UIs open the option picker on it instead of the HubRise switch. Existing tests were adapted, none removed.
+- **V11-D19 Text entry (T4).** Vue: `TextKeyboard` for the Latin names and the code, a plain field for the Chinese
+  name; Android: the system keyboard. The Chinese field is a plain input on Linux (hardware keyboard or paste).
+- **V11-D37 FFI names as a map (T4).** The FFI records carry the names as `HashMap<String, String>` (UniFFI has no
+  `BTreeMap`); the engine keeps a `BTreeMap`, so the serialised form is the same (the FFI test compares the two).
+- **V11-D38 Android entry point and price entry (T4).** The Android editor is a second `FeatureEntry` reached from the
+  settings row `settings.menu` (managers, order 100), not a panel of the settings screen. Prices use the shared
+  `AmountDialog`, which gains `initialDigits` (the current price in cents), instead of an inline numeric pad. The
+  dialog is raised at the root of the editor, because a dialog drawn inside the scrolling form is laid out off screen.
+- **V11-D39 Carte panel placement (T4).** The Vue panel sits in the third settings column, after the HubRise switch;
+  in the first column it pushed the nightly export panel over the table plan panel on a 1080 px screen.
+- **V11-D36a Error count (T4).** `errors::ALL` now has 128 codes (`menu_invalid`, `menu_not_found`); the FFI test
+  `every_code_of_both_lists_maps_to_coded` follows.
+
+- **V11-D40 Sales report scope (T5).** `sales_report` and `print_sales_report` (Access::Admin, no migration) read only
+  archived N events, `booking_periods` and `z_reports`. Training events are excluded, refunds are negative, event price
+  changes and the ROUNDING lines are shown apart and kept out of the total (rounding is not part of
+  `transactionTotal`). The per-day total is compared with the turnover of the Z of that booking date and carries the
+  concordance mark; an open period is flagged. The range is limited to 92 days (`sales_report_range_invalid`); hours
+  are read in Europe/Brussels from `day_end_hour`.
+- **V11-D41 Report wording (T5).** The print is titled "RAPPORT DE VENTES" with "DOCUMENT NON FISCAL" and the footers
+  "CECI N'EST PAS UN RAPPORT FISCAL" and "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"; the words X, Z and
+  CHIFFRE D'AFFAIRES never appear in the title. The layout lives in `crates/pos-print/src/sales_report.rs`.
+- **V11-D42 Gaps and bar widths from the engine (T5).** The Android gate `ui-money` forbids Kotlin arithmetic on
+  identifiers containing "cents", so the engine computes `gapCents` (day total minus Z turnover) and `barPercent`
+  (hour bars); both UIs only display them.
+- **V11-D43 Custom range fields (T5).** The custom range fields start empty (not prefilled with the current range), so
+  Apply is disabled until both dates are complete; the range line shows the range applied.
+- **V11-D44 Design notes (T5, part E).** Six English notes under `docs/internal/v1.1/design/` (tips on card, deposits
+  and advance payments, card refund to card, kitchen display, QR table ordering, waiter handheld sync). No code. Common
+  thread: all signing stays on one machine (one FDM sequence); handhelds, kitchen display and QR guests are clients of
+  the main till.
+
+- **V11-D45 Full gate G results (T6).** Run on the lane head; counts: `cargo test --workspace` 1927 passed, 0 failed
+  (`--no-fail-fast`); `pili-pos` cert 8, `pos-engine` cert 744; FFI (`android/rust`, `--locked`) 271; fmt, both clippy
+  runs, FFI clippy, `check_lock_parity.sh`, `uc_lock_parity.sh`: green. Parity: `check_ipc_wrappers.py` 114/114
+  single-call, `check_command_parity.py --strict` 114/114 and `--hygiene` ok, `check_ui_parity.py --strict` called 103,
+  excluded 9, pending 0, stale 0, missing 0, `vue_to_android.mjs --check` 755 keys, `lane_paths.py --check` green. Vue:
+  build green, Playwright 412 passed. Android: lint, ktlint, detekt, `apiCheck`, unit tests (2213), Roborazzi verify,
+  Kover (line 97.4 %, branch 73.2 %), release assemble and APK check green. Inventories: `test_inventory.sh --diff` 0
+  removed (1945 distinct tests), `kotlin_test_inventory.py` base 2081, head 2260, 0 removed. Dossiers: the three
+  `check_dossier.py` runs and `uc_matrix.py` green, no em-dash in the changed files.
+- **V11-D46 Fixes found by the gate (T6).** (a) `SalesHour` used `u32` in an FFI record (hygiene H6): now `i64`, with
+  `:pos-core:apiDump`; (b) the T1 rewrite of `ubl.rs` dropped five test names: they are back on the new API;
+  (c) `test_check_command_parity.py` pinned 103 commands, now 114. No test or script was weakened.
+- **V11-D47 Accepted failures of p5/p6 (T6), all expected by design.** `hygiene-paths` (117 paths outside
+  `android/|scripts/android/|docs/android/`), `hygiene-root-lock` (root `Cargo.lock` changed for `pos-peppol`),
+  `linux-frozen` and `freeze-tag` (the Linux build differs from `linux-v1.0.0-rc2` on purpose), and `app-only-scope`
+  of p5 (the lane touches the FFI crate, so the full gate is the right one). Two more findings are environmental, not
+  lane defects: `kotlin-tests` reports 23 removed when the base is the moved `android/int` (tests of lane 1 that this
+  branch does not have); against the real fork point (`b3248d2d`) it is 0 removed, as recorded above; `ui-money` lists
+  the two older `WebshopOrdersStore.kt` lines that lane 1 fixed on `android/int` (merge resolves it).
+- **V11-D48 Gate hygiene on the shared target (T6).** The shared cargo target was overwritten by other lanes (same
+  crate paths relative to the workspace): `pos-fdm-mock` resolved to a stale rlib without `storecove`. The workspace
+  test run was done with the worktree's own target dir. `pos-eft` `the_wire_trace_shows_bodies_but_never_keys_or_queries`
+  failed once under load (global tracing interest cache, crate untouched by the lane) and passed on three reruns and on
+  the full rerun. Android `lint` crashed once in the Kotlin analysis of a generated KSP file (as in T4) and passed alone.
+- **V11-D20 Sales reports.** Read-only, never signed, no event, no counter. Computed from the archived N events
+  (training excluded, refunds as negative amounts) of the booking dates in the range (max 92 days, dates are booking
+  dates). Product rows = signed product lines (incl. line price changes); event price changes and payment rounding as
+  separate rows so that the grand total equals the sum of `transactionTotal`, i.e. the turnover N of the X/Z. Each
+  closed booking date shows its Z number and a "concordance" mark (equal / gap with the amount); the open period is
+  marked "periode en cours". Hours are Brussels local hours of the sale's `posDateTime`, listed from `day_end_hour`.
+  Title "RAPPORT DE VENTES", sub-title "DOCUMENT NON FISCAL", footer "CECI N'EST PAS UN RAPPORT FISCAL" and "CECI N'EST
+  PAS UN TICKET DE CAISSE TVA VALABLE"; never the words X, Z or CHIFFRE D'AFFAIRES in the title. A fourth Reports tab
+  "Ventes".
+- **V11-D49 Fix round 1: invoice copy label.** The copy block of an invoice printed the C event's control data under
+  "Informations FDM d'origine", which presented the copy's own fdmRef as the original's. It now has its own label
+  (`copy_fdm`: "Informations FDM de la copie :", NL "FDM-gegevens van de kopie :", DE "FDM-Daten der Kopie :"); the I
+  event's data stays in the main block. The printed mention stays COPIE, as for sale-ticket copies (the spec wording
+  "COPY TICKET" is not used; recorded in the dossier draft).
+- **V11-D50 Fix round 1: no logging Peppol provider in release.** `logging` sends nothing yet the queue marked such
+  deliveries accepted. `PeppolConfig::problems()` now refuses it unless `debug_assertions` (like the HubRise mock), and
+  `access_point()` returns `config_peppol` for it in release. Debug and test builds keep it for development.
+- **V11-D51 Fix round 1: fdmRefs tested by value.** `TestApp::assert_fdm_refs_of` compares each archived `fdmRefs[i]`
+  (fdmId, fdmDateTime, eventLabel, eventCounter, totalCounter) with the fdmRef the FDM answered for the matching sale,
+  in order. Used by M150 (both suites), UC4121 and UC4122 (the refund N included).
+- **V11-D52 Fix round 1: known risks, not fixed.** (a) The UBL VAT is recomputed from rounded line nets (V11-D11)
+  while the paper invoice uses the FDM's VAT per rate: a few cents can differ, absorbed in PayableRoundingAmount;
+  recorded in the dossier draft. (b) Sold-out rows set while HubRise is off are not pushed when HubRise is switched on
+  (`queue_inventory` runs at set and clear time only): to resync in a later round. (c) The English design notes
+  `WAITER_HANDHELD_SYNC.md` and `QR_TABLE_ORDERING.md` name sibling products: drop the names if they join a dossier.
+- **V11-D53 Fix round 2: cached `not_registered` recipients.** The Peppol queue asks the network again for a delivery
+  whose customer is cached as `not_registered` (they may have joined since). Unless the answer is `registered`
+  (including on a failed or slow lookup), the delivery is parked with reason "recipient is not registered on Peppol"
+  and nothing is sent. A delivery whose UBL cannot be read is now logged and parked instead of retried silently.
+  The UC4121/UC4122 replay limits (generic cash sales) are stated in the update note. Not fixed: VAT X vs
+  VATEX-EU-O (V11-D24, confirm on the Storecove sandbox), sold-out resync on HubRise switch-on (V11-D52b).
+- **V11-D54 Scope change: no v1.1, the features are part of v1.0.0.** The user withdrew the separate v1.1 update:
+  certification is v1.0.0 and covers B2B invoices with Peppol (event I, M150, UC4121, UC4122), the sold-out switch,
+  the on-screen menu editor and the non-fiscal sales reports. Consequences: the v1.1 dossier drafts are folded into
+  both v1.0 dossiers (`docs/SUBMISSION_ARTIFACTS`, `docs/android/dossier`) as the annexes FACTURATION_PEPPOL,
+  EDITEUR_CARTE, PRODUIT_EPUISE and RAPPORTS_VENTES, and into the existing documents (manuals, answers to the
+  certification manual, mapping, coverage, schema, security, flows, features list); `docs/internal/v1.1` is deleted
+  and the English design notes live in `docs/internal/design/`. Every "later update", "v1.1" or "outside the
+  perimeter" statement about these features is removed. UC4121 and UC4122 move into the in-scope matrix with replay
+  evidence (`invoice_advanced.rs`); UC4122 first invoices the original sale, as its precondition requires. Peppol
+  stays active only when the installation holds a `peppol` section, and the `logging` provider stays refused in
+  release (V11-D50). Open owner items are unchanged: the Storecove sandbox trial and VAT X versus VATEX-EU-O
+  (V11-D24). The screens of sections 12 "Captures to retake" are still to be captured before the screenshots PDF is
+  final.
+
+- **V11-D8b Invoices: engine-Cashier, reached through the manager navigation only.** Amends V11-D8. The
+  engine commands that issue an invoice (`sign_invoice_fiscal`, the lookups, the customer form) stay
+  `Access::Cashier`, so the access matrix is permissive at the engine level and a cashier session signed under
+  their own INSZ is accepted. The invoice dialog lives on the Rapports screen (ticket list), and that entry is
+  shown to managers only on both UIs (`AppHeader.vue` `auth.isManager`, `AppHeader.kt` `isManager`). Conservative
+  reading: no new cashier entry is added in this release, a cashier asks a manager to open Rapports. Pinned by
+  `ui/e2e/invoice.spec.ts` (V11-D8 describe: no Rapports entry for a cashier, engine call accepted under the
+  cashier INSZ), `AppHeaderTest.reportsAndSettingsShowForManagersOnly` (no `header_nav_reports` for a cashier).
+
+- **V11-D55 Invoice refused for a Belgian VAT customer without Peppol (orchestrator decision).** The certification
+  manual asks that invoice issuance be disabled when it would not be compliant. Since 2026-01-01 a B2B invoice to a
+  Belgian VAT-registered customer must go through Peppol, so `sign_invoice_fiscal` refuses with the new code
+  `invoice_peppol_required` when the customer's VAT number has the `BE` prefix and the installation has no `peppol`
+  section (a section that is present is validated at startup, `config_peppol`, so presence means usable). The check
+  runs under the signing lock before any ticket number or invoice number is taken: no I event, no gap, the sale stays
+  invoiceable. A customer with a non-Belgian VAT number still gets the printed invoice. In this engine a customer is
+  always saved with a VAT number (the form requires one), so there is no "customer without a VAT number" case to
+  allow. The preview does not know the customer, so the refusal is shown at the signature step (result screen) on
+  both UIs: text `err_invoice_peppol_required` in fr, en and zh (Vue `i18n.ts`, generated Android value files).
+  `do_issue_b2b_invoice` is unchanged (it redoes the delivery of an existing invoice). Dossiers updated (both):
+  `REPONSES_MANUEL_CERT_FR`, `FACTURATION_PEPPOL_FR`, `DECISION_PEPPOL_AP_FR`, `MANUEL_UTILISATEUR_FR`,
+  `MANUEL_INSTALLATION_FR`; PDFs rebuilt. Tests: `invoice_rules.rs` (BE refused, BE allowed with peppol, non-BE
+  allowed), `access_control.rs`, `error_codes.rs`; `ui/e2e/invoice.spec.ts`; `InvoiceViewModelTest`. Test helper
+  `TestApp::enable_peppol_section()` gives existing Belgian-customer tests a peppol section.

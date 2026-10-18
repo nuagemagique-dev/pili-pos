@@ -20,9 +20,24 @@ screen only calls it through the shared stores and the gateway.
 | ui/src/components/IntegrationSwitch.vue | feature/settings/SettingsScreen.kt (IntegrationPanel) over ui/state/IntegrationsStore.kt | `set_hubrise_enabled` |
 | ui/src/components/HubriseSettings.vue (connection, health, catalog, adoption, channels) | feature/settings/HubriseSection.kt, HubriseViewModel.kt | `hubrise_get_connection_status` `hubrise_status` `hubrise_disconnect` `hubrise_sync_catalog` `hubrise_adoption_preview` `hubrise_adopt_catalog` `hubrise_list_channels` `hubrise_set_channel` |
 | ui/src/components/HubriseConnectDialog.vue | feature/settings/HubriseConnectDialog.kt, HubriseViewModel.kt | `hubrise_start_oauth_flow` `hubrise_complete_oauth` |
+| ui/src/components/PeppolPanel.vue (provider, sender id, queue counts, parked deliveries with reason and Réessayer; managers, only when configured) | feature/settings/PeppolSection.kt, PeppolViewModel.kt, PeppolState.kt | `list_peppol_deliveries` `retry_peppol_delivery` |
+| ui/src/components/MenuEditorPanel.vue (Carte panel: opens the editor, or says who manages the menu), ui/src/views/MenuEditorView.vue (categories, products, option groups and options, VAT pickers, Historique) | feature/settings/menu/MenuEditorScreen.kt (MenuEditorRoute, MenuEditorContent), MenuEditorViewModel.kt, MenuEditorState.kt, MenuEditorEntry.kt; entry point: the settings row `settings.menu` (managers) | `menu_admin_get` `menu_save_category` `menu_save_product` `menu_save_modifier_group` `menu_save_modifier` `list_menu_changes` |
 
 ## Differences
 
+- **Menu editor (V11-T4).** Vue opens `MenuEditorView.vue` from the panel `MenuEditorPanel.vue` (route
+  `/menu-editor`, router guard for managers). Android has no panel: the editor is a second `FeatureEntry`
+  (`MenuEditorEntry`, route `SettingsRoutes.MENU`) reached from the settings row `settings.menu` ("Carte", managers
+  only), with the same three columns, toggles, VAT pickers, option groups and options, and Historique. Prices go
+  through the shared `AmountDialog` (amount pad, now with `initialDigits`) instead of the inline `NumPad`. Text entry
+  uses the system keyboard (V11-D31), including Chinese; Vue uses `TextKeyboard` for the Latin names and a plain
+  field for the Chinese one (V11-D19), the one documented behaviour difference. While a catalog manages the menu
+  both UIs show the notice and no add button; saves are refused by the engine anyway (`hubrise_menu_managed`).
+
+- **Peppol panel (V11-T2).** `PeppolPanel.vue` is `PeppolSection` in the third column, after the HubRise section,
+  for managers only; it stays hidden when the installation has no `peppol` section (the engine answers with no
+  provider). Vue reads the queue every 30 seconds; the Android view model does it with `startPolling()` while the
+  settings screen is open, and a Réessayer tap reads again at once.
 - **Remote support is not ported.** `SettingsView.vue` has a remote support column (`SupportBanner`, the support store,
   the PIN confirmation to start it). The Android till has no remote support in v1, so none of it is drawn and no
   support command is called.

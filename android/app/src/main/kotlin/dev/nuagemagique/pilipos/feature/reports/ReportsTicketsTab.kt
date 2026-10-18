@@ -1,6 +1,7 @@
 package dev.nuagemagique.pilipos.feature.reports
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,15 +10,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.ui.components.PiliButton
@@ -27,8 +31,12 @@ import dev.nuagemagique.pilipos.ui.format.formatEuro
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import uniffi.pos_ffi.CorrectionDone
+import uniffi.pos_ffi.InvoiceableSale
 
 private val RowMinHeight = 72.dp
+private val CheckSize = 48.dp
+private val CheckColumn = 56.dp
+private val CheckBorder = 2.dp
 private val NumberWidth = 120.dp
 private val KindWidth = 200.dp
 private val TableWidth = 90.dp
@@ -51,26 +59,71 @@ internal fun TicketsTab(
     tickets: TicketsState,
     callbacks: TicketsCallbacks,
     modifier: Modifier = Modifier,
+    invoices: InvoicesState = InvoicesState(),
+    invoiceCallbacks: InvoiceCallbacks = InvoiceCallbacks(),
 ) {
     val c = PiliTheme.colors
     val t = PiliTheme.typography
-    Panel(modifier.fillMaxSize()) {
-        Column(verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs)) {
-            Text(vueText("reports_tickets_title"), style = t.title, color = c.textPrimary, modifier = Modifier.testTag("tickets_title"))
-            Text(vueText("reports_tickets_hint"), style = t.body, color = c.textSecondary, modifier = Modifier.testTag("tickets_hint"))
-        }
-        if (tickets.loaded && tickets.rows.isEmpty()) {
-            Text(vueText("copy_none"), style = t.body, color = c.textSecondary, modifier = Modifier.testTag("tickets_empty"))
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().testTag("ticket_list"),
-                verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
-            ) {
-                items(tickets.rows, key = { it.fiscalEventId }) { row -> TicketRowView(row, tickets, callbacks) }
+    val rows = ticketRowsWith(tickets.rows, invoices.sales)
+    val sales = invoices.sales.associateBy { it.fiscalEventId }
+    Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceLg)) {
+        Panel(Modifier.weight(TICKETS_WEIGHT).fillMaxWidth()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs)) {
+                    Text(
+                        vueText("reports_tickets_title"),
+                        style = t.title,
+                        color = c.textPrimary,
+                        modifier = Modifier.testTag("tickets_title"),
+                    )
+                    Text(
+                        vueText("reports_tickets_hint") + " " + vueText("invoice_select_hint"),
+                        style = t.body,
+                        color = c.textSecondary,
+                        modifier = Modifier.testTag("tickets_hint"),
+                    )
+                }
+                PiliButton(
+                    text =
+                        if (invoices.selected.isEmpty()) {
+                            vueText("invoice_action")
+                        } else {
+                            vueText("invoice_action_count", "n" to invoices.selected.size)
+                        },
+                    onClick = invoiceCallbacks.onOpen,
+                    enabled = invoices.selected.isNotEmpty(),
+                    modifier = Modifier.width(InvoiceActionWidth).testTag("invoice_action"),
+                )
             }
+            if (tickets.loaded && rows.isEmpty()) {
+                Text(vueText("copy_none"), style = t.body, color = c.textSecondary, modifier = Modifier.testTag("tickets_empty"))
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().testTag("ticket_list"),
+                    verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
+                ) {
+                    items(rows, key = { it.fiscalEventId }) { row ->
+                        TicketRowView(
+                            row,
+                            tickets,
+                            sales[row.fiscalEventId],
+                            row.fiscalEventId in invoices.selected,
+                            callbacks,
+                            invoiceCallbacks,
+                        )
+                    }
+                }
+            }
+        }
+        if (invoices.invoices.isNotEmpty()) {
+            InvoiceListPanel(invoices, invoiceCallbacks, Modifier.weight(INVOICES_WEIGHT).fillMaxWidth())
         }
     }
 }
+
+private const val TICKETS_WEIGHT = 3f
+private const val INVOICES_WEIGHT = 2f
+private val InvoiceActionWidth = 240.dp
 
 /** The caption of the kind of a ticket (`copyKind` of `ReportsView.vue`). */
 @Composable
@@ -86,7 +139,10 @@ internal fun kindText(kind: TicketKind): String =
 private fun TicketRowView(
     row: TicketRow,
     tickets: TicketsState,
+    sale: InvoiceableSale?,
+    ticked: Boolean,
     callbacks: TicketsCallbacks,
+    invoiceCallbacks: InvoiceCallbacks,
 ) {
     val d = PiliTheme.dimens
     Row(
@@ -100,15 +156,46 @@ private fun TicketRowView(
         horizontalArrangement = Arrangement.spacedBy(d.spaceMd),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TicketFacts(row)
+        TicketCheck(row.fiscalEventId, sale, ticked, invoiceCallbacks)
+        TicketFacts(row, sale)
         Box(Modifier.weight(1f))
         TicketActions(row, tickets, callbacks)
     }
 }
 
-/** What the ticket is: its number, kind, table, time and amount. */
+/** The box that ticks a sale for an invoice; none for a ticket that cannot be invoiced or already is. */
 @Composable
-private fun TicketFacts(row: TicketRow) {
+private fun TicketCheck(
+    fiscalEventId: Long,
+    sale: InvoiceableSale?,
+    ticked: Boolean,
+    callbacks: InvoiceCallbacks,
+) {
+    val c = PiliTheme.colors
+    Box(Modifier.width(CheckColumn), contentAlignment = Alignment.Center) {
+        if (sale != null && sale.invoicedBy == null) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(CheckSize)
+                        .background(if (ticked) c.selectedBg else c.bgSurface, RoundedCornerShape(PiliTheme.dimens.radiusSm))
+                        .border(CheckBorder, if (ticked) c.selectedBg else c.textSecondary, RoundedCornerShape(PiliTheme.dimens.radiusSm))
+                        .toggleable(value = ticked, role = Role.Checkbox, onValueChange = { callbacks.onToggleSale(fiscalEventId) })
+                        .testTag("ticket_check_$fiscalEventId"),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (ticked) Text("\u2713", style = PiliTheme.typography.title, color = c.selectedFg)
+            }
+        }
+    }
+}
+
+/** What the ticket is: its number, kind (and the invoice that covers it), table, time and amount. */
+@Composable
+private fun TicketFacts(
+    row: TicketRow,
+    sale: InvoiceableSale?,
+) {
     val c = PiliTheme.colors
     val t = PiliTheme.typography
     val id = row.fiscalEventId
@@ -118,7 +205,17 @@ private fun TicketFacts(row: TicketRow) {
         color = c.textPrimary,
         modifier = Modifier.width(NumberWidth).testTag("ticket_number_$id"),
     )
-    Text(kindText(row.kind), style = t.body, color = c.textPrimary, modifier = Modifier.width(KindWidth).testTag("ticket_kind_$id"))
+    Column(Modifier.width(KindWidth)) {
+        Text(kindText(row.kind), style = t.body, color = c.textPrimary, modifier = Modifier.testTag("ticket_kind_$id"))
+        sale?.invoicedBy?.let {
+            Text(
+                vueText("invoice_invoiced_by", "no" to it),
+                style = t.label,
+                color = c.accentInfo,
+                modifier = Modifier.testTag("ticket_invoiced_$id"),
+            )
+        }
+    }
     Text(
         text = row.tableNumber?.let { "T$it" } ?: "",
         style = t.figure,

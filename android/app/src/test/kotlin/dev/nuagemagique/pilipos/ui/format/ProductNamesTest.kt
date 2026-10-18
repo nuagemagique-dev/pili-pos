@@ -134,6 +134,9 @@ class ProductNamesTest {
                 kitchenPrinter = true,
                 sortOrder = 1,
                 active = true,
+                soldOut = false,
+                soldOutUntil = null,
+                hasModifiers = false,
             )
         assertEquals(BilingualName("Sushi", null, false), bilingualName(item, AppLanguage.FR, ProductLabelMode.NAME))
         assertEquals(BilingualName("A2", "寿司", true), bilingualName(item, AppLanguage.ZH, ProductLabelMode.CODE))

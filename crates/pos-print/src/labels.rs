@@ -43,6 +43,7 @@ pub(crate) struct Labels {
     pub(crate) copy: &'static str,
     pub(crate) copy_made_at: &'static str,
     pub(crate) original_fdm: &'static str,
+    pub(crate) copy_fdm: &'static str,
 }
 
 pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
@@ -71,6 +72,7 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             copy: "COPIE",
             copy_made_at: "Copie etablie le",
             original_fdm: "Informations FDM d'origine :",
+            copy_fdm: "Informations FDM de la copie :",
         },
         ReceiptLanguage::Nl => &Labels {
             vat_no: "BTW",
@@ -96,6 +98,7 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             copy: "KOPIE",
             copy_made_at: "Kopie gemaakt op",
             original_fdm: "Oorspronkelijke FDM-gegevens :",
+            copy_fdm: "FDM-gegevens van de kopie :",
         },
         ReceiptLanguage::De => &Labels {
             vat_no: "MwSt",
@@ -121,6 +124,7 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             copy: "KOPIE",
             copy_made_at: "Kopie erstellt am",
             original_fdm: "Urspruengliche FDM-Daten :",
+            copy_fdm: "FDM-Daten der Kopie :",
         },
     }
 }

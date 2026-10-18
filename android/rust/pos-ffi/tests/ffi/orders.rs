@@ -353,6 +353,45 @@ async fn categories_and_menu_items_convert_with_options_set_and_empty() {
 }
 
 #[tokio::test]
+async fn sold_out_products_and_the_menu_flags_convert() {
+    let app = app().await;
+    let none = pos_engine::commands::sold_out::do_list_sold_out(&app.state, None).unwrap();
+    assert!(none.is_empty());
+    let items = menu::do_get_menu_items(&app.state, None, None).unwrap();
+    let records: Vec<ffi::MenuItem> = out_equal(&items);
+    assert!(
+        records
+            .iter()
+            .all(|i| !i.sold_out && i.sold_out_until.is_none())
+    );
+
+    pos_engine::commands::sold_out::do_set_sold_out(&app.state, 1, true, None).unwrap();
+    let list = pos_engine::commands::sold_out::do_set_sold_out(&app.state, 2, false, None).unwrap();
+    let records: Vec<ffi::SoldOutItem> = out_equal(&list);
+    assert_eq!(records.len(), 2);
+    assert!(records[0].until.is_some(), "until the end of the day");
+    assert_eq!(records[1].until, None, "until re-enabled");
+    assert_eq!(records[0].name, "Eau pétillante");
+
+    let items = menu::do_get_menu_items(&app.state, None, None).unwrap();
+    let records: Vec<ffi::MenuItem> = out_equal(&items);
+    assert!(records[0].sold_out && records[0].sold_out_until.is_some());
+    assert!(records[1].sold_out && records[1].sold_out_until.is_none());
+    assert!(!records[2].sold_out);
+
+    // An older payload without the new fields still reads (the fields default).
+    let mut value = json_of(&records[2]);
+    value.as_object_mut().unwrap().remove("sold_out");
+    value.as_object_mut().unwrap().remove("sold_out_until");
+    let back: ffi::MenuItem = serde_json::from_value(value).unwrap();
+    assert!(!back.sold_out);
+    // And the record still refuses a field the engine does not have.
+    let mut value = json_of(&records[2]);
+    value["extra"] = Value::Bool(true);
+    assert!(serde_json::from_value::<ffi::MenuItem>(value).is_err());
+}
+
+#[tokio::test]
 async fn modifier_groups_convert_with_and_without_a_maximum() {
     let app = app().await;
     let groups = modifiers::do_get_item_modifiers_localized(&app.state, 2, Some("fr")).unwrap();
@@ -882,6 +921,18 @@ async fn the_commands_that_need_an_operator_answer_not_logged_in_and_change_noth
         ),
         "not_logged_in"
     );
+    assert_eq!(
+        code_of(e.set_sold_out(10006, true, None).await.unwrap_err()),
+        "not_logged_in"
+    );
+    assert_eq!(
+        code_of(e.clear_sold_out(10006, None).await.unwrap_err()),
+        "not_logged_in"
+    );
+    assert_eq!(
+        code_of(e.list_sold_out(None).await.unwrap_err()),
+        "not_logged_in"
+    );
 
     // Nothing was written.
     let lines = e.list_order_lines(1).await.unwrap();
@@ -1008,6 +1059,10 @@ async fn every_method_answers_engine_closed_after_shutdown() {
     e.shutdown().await.unwrap();
     assert!(matches!(e.get_order(1).await, Err(PosError::EngineClosed)));
     assert!(matches!(e.list_tables().await, Err(PosError::EngineClosed)));
+    assert!(matches!(
+        e.list_sold_out(None).await,
+        Err(PosError::EngineClosed)
+    ));
     assert!(matches!(
         e.leave_order(1, ffi::LeaveReason::Idle).await,
         Err(PosError::EngineClosed)
@@ -1142,4 +1197,61 @@ async fn vat_split_shows_only_the_codes_present() {
         vat_split(vec![line(VatCode::D, 840, 2)]).await,
         vec![row(VatCode::D, 0, 1680, 0)]
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_cashier_marks_products_sold_out_through_the_facade() {
+    let t = open_with_orders().await;
+    let e = &t.engine;
+    e.login("75061189702".into(), Some("4444".into()))
+        .await
+        .expect("cashier login");
+
+    assert!(e.list_sold_out(None).await.unwrap().is_empty());
+    let first = e.set_sold_out(12007, true, None).await.unwrap();
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0].menu_item_id, 12007);
+    assert!(first[0].until.is_some(), "until the end of the day");
+    let both = e.set_sold_out(12009, false, None).await.unwrap();
+    assert_eq!(both.len(), 2);
+    let open_ended = both.iter().find(|i| i.menu_item_id == 12009).unwrap();
+    assert_eq!(open_ended.until, None, "until re-enabled");
+
+    let soft = e.get_menu_items(Some(12), None).await.unwrap();
+    assert!(soft.iter().all(|i| i.sold_out), "the menu flags both");
+    assert_eq!(e.list_sold_out(None).await.unwrap().len(), 2);
+
+    // The cart refuses a sold-out product with its stable code.
+    let order = e
+        .create_order(pos_ffi::records::orders::CreateOrderInput {
+            order_type: ffi::OrderType::Takeaway,
+            table_number: None,
+            user_insz: "75061189702".into(),
+        })
+        .await
+        .expect("create_order");
+    let refused = e
+        .add_order_line(ffi::AddOrderLineInput {
+            order_id: order.id,
+            menu_item_id: 12009,
+            quantity: 1,
+            modifiers_json: None,
+            unit_price_cents: None,
+        })
+        .await;
+    assert_eq!(code_of(refused.expect_err("sold out")), "product_sold_out");
+
+    // Clearing the flag puts the product back on sale.
+    let left = e.clear_sold_out(12009, None).await.unwrap();
+    assert_eq!(left.len(), 1);
+    e.add_order_line(ffi::AddOrderLineInput {
+        order_id: order.id,
+        menu_item_id: 12009,
+        quantity: 1,
+        modifiers_json: None,
+        unit_price_cents: None,
+    })
+    .await
+    .expect("back on sale");
+    e.shutdown().await.unwrap();
 }

@@ -225,8 +225,7 @@ désormais le suivant (`crates/pos-engine/src/commands/signing.rs`) :
 1. **Verrou global.** Toute opération qui signe un événement FDM
    (vente N, remboursement, commande de table P, pré-addition P,
    rapports X, X utilisateur et Z, copie C, entrée/sortie de travail S,
-   mouvements d'argent et tiroir F ; la facture I, hors binaire certifié
-   v1.0.0, passerait par le même verrou) s'exécute sous un seul
+   mouvements d'argent et tiroir F, facture I) s'exécute sous un seul
    verrou (`tokio::sync::Mutex`). Le numéro de ticket est lu (`peek_next`)
    et la période d'ouverture choisie **à l'intérieur** du verrou : deux
    opérations ne partagent jamais un numéro, et un Z attend une vente en

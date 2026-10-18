@@ -25,6 +25,7 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 | components/DiscountDialog.vue and CartSidebar.vue (Remise, Offrir, Retirer la remise) | feature/order/DiscountDialog.kt (DiscountDialog, DiscountEntry), MenuViewModel.kt (askDiscount, chooseDiscount, askRemoveDiscount, confirmDiscountPin, discountDone), OrderCartColumn.kt (cart_discount), OrderScreen.kt (DiscountPinDialog over ui/components/PinDialog.kt) over ui/state/OrderStore.kt (applyDiscount, removeDiscount) | `apply_discount` `remove_discount` |
 | components/OrderLineItem.vue | feature/order/OrderLineItem.kt (OrderLineItem, lineNotes), MenuViewModel.kt (incrementLine, decrementLine, removeLine) over ui/state/OrderStore.kt | `update_order_line_quantity` `remove_order_line` |
 | components/NoteDialog.vue (over TextKeypad.vue), CartSidebar.vue and OrderLineItem.vue (Note button, note under the name) | feature/order/NoteDialog.kt (NoteDialog, noteText on the system keyboard), MenuViewModel.kt (askNote, saveNote), OrderLineItem.kt (cart_line_<id>_note, cart_line_<id>_kitchen_note), OrderScreen.kt (OrderDialogs) over ui/state/OrderStore.kt (setLineNote; addItem opens a new line when the line has a note) | `set_line_note` |
+| components/SoldOutDialog.vue, components/SoldOutList.vue, utils/soldOut.ts, the "Épuisé" bar of OrderView.vue, stores/menu.ts (loadSoldOut, setAvailability) | feature/order/SoldOutDialog.kt (SoldOutBar, SoldOutDialog, SoldOutList, endOfDayLabel), MenuViewModel.kt (toggleSoldOutMode, openSoldOutList, setAvailability, the sold-out branches of addItem), OrderState.kt (OrderDialog.SoldOut, SoldOutList, SoldOutChoice) | `list_sold_out` `set_sold_out` `clear_sold_out` |
 | components/VatSummary.vue | ui/components/VatSummary.kt over ui/format/CartAmounts.kt (vatRows), drawn by feature/order/OrderCartColumn.kt | - |
 
 ## Differences
@@ -39,8 +40,9 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
   selected category is kept, and the first one is selected when it is gone.
 - **Z reminder.** `needs_z_report` is checked when the screen opens and every 5 minutes while it is composed; a
   failure leaves the banner as it was and shows nothing.
-- **Options only with HubRise on.** As Vue, a product asks for its options only when the HubRise switch is on; a
-  product without option groups is added plainly. A free-price product never asks for options.
+- **Options when the product has some (V11-D18).** As Vue, a product asks for its options when the engine says it has
+  some (`MenuItem.has_modifiers`: at least one active group with an active option), whatever the HubRise switch; a
+  product without options is added plainly. A free-price product never asks for options.
 - **No total in the options dialog (PD208, PD219).** Vue previews `price + sum of the picked options`. The Compose
   dialog shows the product price and the own price of each option and no total; the engine prices the line
   (`add_order_line_with_modifiers` sends only ids). The confirm caption is the plain "Ajouter".
@@ -108,3 +110,19 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 - **Registration warning.** When the P that registers the change could not be signed the engine still keeps the
   discount; both screens show the warning `discount_registration_failed` (Vue toast, Compose
   `OrderStore.discountWarnings`).
+
+## Differences of the sold-out switch (V11-D16)
+
+- **Same behaviour.** An "Épuisé" button above the product grid (cashier and manager only) turns a mode on: a tap on a
+  product opens its availability dialog (until the end of the day, until re-enabled, available) instead of adding it.
+  Out of the mode a sold-out product is greyed with an "Épuisé" badge and a tap shows the refusal toast
+  (`err_product_sold_out`) without adding anything; the grid is read again in case the end of the day has passed.
+  "Produits épuisés (n)" lists the sold-out products and puts one back on sale; the list stays open. No long press.
+- **Refusal.** A refused change (the engine answers `forbidden`, for example) is shown as an error toast and the
+  availability dialog stays open, as in Vue. A choice equal to the current state just closes the dialog.
+- **Role.** `SessionStore.canTakePayment` gates the bar and the sold-out reads (the engine refuses the others); a
+  waiter still sees the greyed products and the refusal.
+- **End of day label.** `18/10 04:00` in Brussels time: `endOfDayLabel` over `PosDateTime` (Vue: `utils/soldOut.ts`
+  over `utils/datetime.ts`), whatever the device zone. The engine computes the end of the day; neither UI does.
+- **Reads.** The list is read with the menu (language change, `CatalogUpdated`, `Resync`) and again when the list opens;
+  every change returns the new list, and the grid is read again.

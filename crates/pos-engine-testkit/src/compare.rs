@@ -51,6 +51,15 @@ pub fn business_view(d: &Value) -> Value {
     if let Some(r) = d.get("fdmRef") {
         view.insert("fdmRef".into(), r.clone());
     }
+    // An invoice (M150, UC4121, UC4122): the customer and the labels of the events it
+    // references (the counters are the answers of the FDM that signed the sales).
+    if let Some(vat) = d.get("customerVatNo") {
+        view.insert("customerVatNo".into(), vat.clone());
+    }
+    if let Some(refs) = d.get("fdmRefs").and_then(Value::as_array) {
+        let labels: Vec<Value> = refs.iter().map(|r| r["eventLabel"].clone()).collect();
+        view.insert("fdmRefLabels".into(), Value::Array(labels));
+    }
     if d.get("drawer").is_some() {
         view.insert("drawer".into(), json!(true));
     }

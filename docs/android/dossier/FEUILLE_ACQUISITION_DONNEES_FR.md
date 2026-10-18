@@ -253,7 +253,7 @@ journaux au-delà de 90 fichiers, exports locaux au-delà de `keep_days`).
   identifiante.
 - INSZ stocké dans les colonnes `users.insz`, `orders.user_insz`,
   `fiscal_events.user_insz`, `pending_signs.user_insz`,
-  `staff_shifts.user_insz`, `webshop_orders.accepted_by`,
+  `staff_shifts.user_insz`, `invoices.created_by`, `b2b_customers.updated_by`, `menu_item_sold_out.set_by`, `sold_out_log.by`, `menu_change_log.changed_by`, `webshop_orders.accepted_by`,
   `integration_switches.changed_by`, `integration_switch_log.changed_by`, `staff_badges.user_insz`, `badge_log.user_insz` et `badge_scans.user_insz`,
   ainsi que dans les JSON `fiscal_events.event_data_json` (payload
   envoyé au FDM, obligation fiscale), `pending_signs.request_body`,
@@ -338,7 +338,7 @@ Réponse du producteur aux questions sur les réseaux et les appareils :
 |---|---|
 | Connexion du POS au FDM | Réseau local privé, selon l'installation : GraphQL en HTTPS avec mTLS (port 443) ou en HTTP (port 80). Seul le FDM communique avec le SPF Finances. Le type de liaison du D3 Pro réel : À effectuer (EV-15 : liaison réseau du terminal réel). |
 | Connexion du POS à l'imprimante | Réseau local, imprimante Epson TM-m30III, TCP 9100 (ESC/POS). |
-| Le POS nécessite une connexion Internet | Non par défaut. Trois sorties HTTPS (443) facultatives, chacune seulement quand elle est configurée ou activée : ticket numérique (`api.scaleway.com`), commandes en ligne (`api.hubrise.com`, `manager.hubrise.com`, par `hubrise_enabled`), et **export nocturne** (point de réception propre à l'installation, section `export` de `pos.json`). Les racines TLS sont embarquées dans l'application. Aucun port n'écoute sur le terminal. |
+| Le POS nécessite une connexion Internet | Non par défaut. Quatre sorties HTTPS (443) facultatives, chacune seulement quand elle est configurée ou activée : ticket numérique (`api.scaleway.com`), commandes en ligne (`api.hubrise.com`, `manager.hubrise.com`, par `hubrise_enabled`), envoi des factures B2B (`api.storecove.com`, section `peppol`), et **export nocturne** (point de réception propre à l'installation, section `export` de `pos.json`). Les racines TLS sont embarquées dans l'application. Aucun port n'écoute sur le terminal. |
 | Connexion avec un logiciel interne (statistiques et sauvegarde) | Oui, facultative : l'export nocturne. Une requête HTTPS `PUT` par fichier, après chaque rapport Z réel, avec jeton porteur lu dans un fichier séparé et empreinte SHA-256 de chaque fichier. Contenu : une sauvegarde chiffrée de bout en bout (illisible pour le serveur de réception) et une copie statistique à opérateurs pseudonymisés. Elle n'est jamais nécessaire à une vente ni à un Z ; en son absence ou en cas de panne, la caisse fonctionne à l'identique. `EXPORT_NOCTURNE_FR.md`. |
 | Connexion avec des logiciels externes | HubRise (commandes en ligne), coupé par défaut ; `COMMANDES_EN_LIGNE_FR.md`. |
 | Accès distant | Aucun : pas de programme de prise de main à distance sur Android ; le support se fait sur site. Aucun port entrant. |

@@ -3,7 +3,7 @@
 //! wrapper's single engine call and converting the answer. Plus the `vat_split` helper (PD62).
 
 use pos_engine::commands::{
-    discount, menu, modifiers, order, session, table_plan, table_transfer, tables,
+    discount, menu, modifiers, order, session, sold_out, table_plan, table_transfer, tables,
 };
 
 use crate::convert;
@@ -12,8 +12,8 @@ use crate::error::PosError;
 use crate::records::common::{SlipOutcome, VatCode};
 use crate::records::orders::{
     AddOrderLineInput, AddWithModifiersInput, CartLine, Category, CreateOrderInput, DiscountInput,
-    DiscountResult, LeaveReason, LockOutcome, MenuItem, ModifierGroup, Order, OrderLine, TableInfo,
-    TablePlan, TableTransferResult, TakeawayInfo, VatLine, VatSplitRow,
+    DiscountResult, LeaveReason, LockOutcome, MenuItem, ModifierGroup, Order, OrderLine,
+    SoldOutItem, TableInfo, TablePlan, TableTransferResult, TakeawayInfo, VatLine, VatSplitRow,
 };
 
 #[uniffi::export]
@@ -138,6 +138,39 @@ impl PosEngine {
     ) -> Result<Vec<MenuItem>, PosError> {
         let items = self
             .blocking(move |st| menu::do_get_menu_items(st, category_id, lang))
+            .await?;
+        convert::out(&items)
+    }
+
+    /// The products sold out now ("Épuisé"), names in `lang`.
+    pub async fn list_sold_out(&self, lang: Option<String>) -> Result<Vec<SoldOutItem>, PosError> {
+        let items = self
+            .blocking(move |st| sold_out::do_list_sold_out(st, lang))
+            .await?;
+        convert::out(&items)
+    }
+
+    /// Mark a product sold out until the end of the business day, or until re-enabled.
+    pub async fn set_sold_out(
+        &self,
+        menu_item_id: i64,
+        until_end_of_day: bool,
+        lang: Option<String>,
+    ) -> Result<Vec<SoldOutItem>, PosError> {
+        let items = self
+            .blocking(move |st| sold_out::do_set_sold_out(st, menu_item_id, until_end_of_day, lang))
+            .await?;
+        convert::out(&items)
+    }
+
+    /// Make a sold-out product available again.
+    pub async fn clear_sold_out(
+        &self,
+        menu_item_id: i64,
+        lang: Option<String>,
+    ) -> Result<Vec<SoldOutItem>, PosError> {
+        let items = self
+            .blocking(move |st| sold_out::do_clear_sold_out(st, menu_item_id, lang))
             .await?;
         convert::out(&items)
     }

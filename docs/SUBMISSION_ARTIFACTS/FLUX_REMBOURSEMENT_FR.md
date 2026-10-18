@@ -4,8 +4,8 @@
 **Code :** `crates/pos-engine/src/commands/refund.rs`
 **Périmètre cert :** M111 (remboursement complet), M112B
 (remboursement partiel - ticket séparé), M132 (correction de paiement,
-voir §2). La note de crédit (UC4122) n'est pas dans le périmètre de la
-v1.0.0 (voir §3).
+voir §2). La note de crédit (UC4122) est dans le périmètre et rejouée
+(voir §3).
 
 ---
 
@@ -166,15 +166,16 @@ Fixture M132 : rejeu `m132_payment_correction`. La comparaison porte sur le type
 
 ---
 
-## 3. Note de crédit (hors périmètre v1.0.0)
+## 3. Facture d'un remboursement (note de crédit)
 
-Selon la spec, une note de crédit est une mutation `signInvoice`
-avec des montants négatifs et un `fdmRef` vers la facture originale.
-La facture (événement I) n'est pas dans le binaire certifié de la
-v1.0.0 (code sous `#[cfg(feature = "peppol")]`) : il n'y a donc ni
-facture ni note de crédit émise. `FdmClient::sign_invoice` existe, sans
-commande ni écran pour l'appeler dans la build cert. La note de crédit
-sera livrée avec la facture dans une mise à jour certifiée ultérieure.
+Le POS n'émet pas de note de crédit autonome. Un remboursement est un
+événement **N** de montants négatifs (§1) ; il peut être repris sur une
+**facture** (événement I) avec d'autres ventes, ses montants comptant en
+négatif (cas UC4122 du jeu Advanced 1.6). Si la vente d'origine avait déjà
+été facturée, le remboursement figure sur une nouvelle facture : la
+première, en ajout seul, ne change pas. Le document Peppol est une
+facture dont la ligne remboursée garde une quantité négative. Voir
+*FACTURATION_PEPPOL_FR.md*.
 
 ---
 
