@@ -169,7 +169,7 @@ h2 { font-size: 24px; font-weight: var(--font-weight-heavy); }
 .row.small { font-size: var(--font-size-sm); color: var(--text-secondary); }
 .status { font-weight: var(--font-weight-bold); }
 .status.active { color: var(--accent-success); }
-.status.used, .status.expired, .status.cancelled { color: var(--accent-danger); }
+.status.used, .status.expired, .status.cancelled, .status.not_usable { color: var(--accent-danger); }
 .filters { display: flex; flex-wrap: wrap; gap: 8px; }
 .filter {
   height: 48px; padding: 0 16px; border-radius: var(--radius-md);

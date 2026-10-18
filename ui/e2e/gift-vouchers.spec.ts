@@ -400,6 +400,35 @@ test.describe('Gift vouchers in the reports', () => {
     await expect(page.getByTestId('gv-report-found')).toContainText('30,00');
   });
 
+  test('a voucher of the other mode is coloured like the other non-active statuses', async ({ page }) => {
+    // The lookup answers per call: active, then not usable, then cancelled (the handler runs in the
+    // page, so it keeps its counter on window).
+    await openTab(page, {
+      lookup_gift_voucher: live(() => {
+        const w = window as unknown as { __gvCalls?: number };
+        const i = Math.min(w.__gvCalls ?? 0, 2);
+        w.__gvCalls = (w.__gvCalls ?? 0) + 1;
+        return {
+          id: 7, code_masked: '**** **** 9095', face_value_cents: 5000, balance_cents: 3000,
+          issued_on: '2026-10-01', expires_on: '2027-10-01', training: true,
+          status: ['active', 'not_usable', 'cancelled'][i], movements: [],
+        };
+      }),
+    });
+    const colorOf = async () => page.getByTestId('gv-report-found').locator('.status')
+      .evaluate((el) => getComputedStyle(el).color);
+    const colors: string[] = [];
+    for (const d of '123456789095') await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click();
+    for (let i = 0; i < 3; i++) {
+      await page.getByTestId('gv-report-lookup').click();
+      await expect(page.getByTestId('gv-report-found').locator('.status'))
+        .toHaveText(['Valide', 'Non utilisable (autre mode)', 'Annulé'][i]);
+      colors.push(await colorOf());
+    }
+    expect(colors[1]).toBe(colors[2]);
+    expect(colors[1]).not.toBe(colors[0]);
+  });
+
   test('the manager sees the list, filters it and reprints a voucher', async ({ page }) => {
     await openTab(page, {
       list_gift_vouchers: live((args: any) => (args.status && args.status !== 'active' ? [] : [{
