@@ -2203,3 +2203,19 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
   profile button. On the merged build the employee list kept 47 px at 1920 x 1080, less than one row, and lane 4's
   own `settings.spec.ts` check (list at least 72 px) failed. At 42 % the list keeps more than one row and the manager
   panels still scroll inside their box. The Compose column already scrolls as a whole (V12-D44), no change there.
+- **INT-D25 The terminal probe timeout is 12 s.** The Worldline check makes up to two requests (v2, then v1 on a
+  404) of `CHECK_TIMEOUT` 5 s each, so its worst case is 10 s, above the former probe timeout. `TERMINAL_PROBE_TIMEOUT`
+  is now 12 s and a compile-time assertion keeps it at least twice `CHECK_TIMEOUT` plus one second. The owner alert
+  tests cover the probe-first order and the default timeout.
+- **INT-D26 The v1.2 documents are folded into both v1.0 dossiers.** Each of the four annexes (owner alerts,
+  allergens, kitchen courses, gift vouchers) exists in the Linux and the Android dossier as two platform variants,
+  since the Linux dossier never names Android. The refund of a voucher-paid sale is said to be made "en espèces
+  (choix de l'établissement)"; SPV (UC270/271), UC4105 and the refund to a voucher are stated as not offered in
+  v1.0.0. The accountant export document is a separate tool outside the certified binary (it reads an export or
+  backup copy only, never signs, is not shipped in the POS package) and moved to `docs/internal/design/`.
+  `NOTE_MISE_A_JOUR_V1_2_FR.md` and `SCHEMA_BD_V1_2_FR.md` are deleted (SCHEMA_BD already holds migrations 60 to 63),
+  and no "v1.2" or "mise à jour ultérieure" wording remains in the dossiers.
+- **INT-D27 Evidence for UC260 to UC262 and new ticket examples.** The replay evidence of the three use cases is
+  captured by `capture_uc_evidence.sh` and embedded in `RESULTATS_TESTS_UC_FR.md`; five new ticket examples
+  (voucher, voucher balance, allergen sheet, voucher payment ticket, course slips) are embedded in
+  `TICKETS_EXEMPLES_FR.md`. The PDFs and RAPPORT_TESTS_BASELINE totals are regenerated at the final commit.
