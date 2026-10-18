@@ -994,7 +994,7 @@ F = Rust FFI contract tests (`android/rust/pos-ffi/tests/ffi`), V = Playwright (
 | C. Sheet, print and legend load errors | V, K | `allergens.spec.ts` (a sheet the engine cannot find, a print the engine refuses, a legend the engine refuses); `AllergenModeTest`, `AllergenBadgesTest` (legend error bar) |
 | C. Allergen badges on options in the option dialog | V, K | `allergens.spec.ts` (option picker); `ModifierAllergenTest.kt` |
 | D. Course assignment by category, hold, release, corrections, FDM down, reprint | E | `courses.rs` |
-| D. A line added with options takes its course; a reused line id is fresh | E | `courses.rs` (`with_options::*`) |
+| D. A line added with options takes its course; a reused line id is fresh (stale row dropped by `clear_line_course` even with courses off) | E | `courses.rs` (`with_options::a_line_with_options_takes_its_category_course_and_is_held`, `a_reused_line_id_gets_a_fresh_course`, `a_reused_line_id_does_not_keep_the_stale_course_when_courses_are_off`) |
 | D. Cart grouped by course, chips, picker, "Envoyer la suite" | V, K | `courses.spec.ts`; `CoursesCartTest`, `CoursesFlowTest` |
 | D. "Envoyer la suite" refusals (FDM down, no course held) as toasts | V | `courses.spec.ts` (a refused release, a release with nothing held) |
 | D. Resend case (course null) and slip failure warnings | V | `courses.spec.ts` (re-printing a slip, a signed P or a course slip that failed) |

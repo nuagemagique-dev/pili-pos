@@ -1218,4 +1218,37 @@ mod with_options {
             "no stale held course"
         );
     }
+
+    /// With courses off the next add does not rewrite the course row, so
+    /// only `clear_line_course` can drop the stale course of the freed id.
+    #[tokio::test]
+    async fn a_reused_line_id_does_not_keep_the_stale_course_when_courses_are_off() {
+        let app = app().await;
+        enable(&app);
+        give_options(&app, SAKE, 2, 2);
+        let o = table_order(&app, 6);
+        let maki = add(&app, o, MAKI, 1);
+        assert_eq!(state(&app, o, maki), (2, "held".to_string()));
+        do_remove_order_line(&app.state, maki).unwrap();
+        do_set_course_settings(
+            &app.state,
+            CourseSettings {
+                enabled: false,
+                category_courses: vec![],
+            },
+        )
+        .unwrap();
+        let direct = add(&app, o, SAKE, 1);
+        let with_options = {
+            do_remove_order_line(&app.state, direct).unwrap();
+            add_with(&app, o, SAKE, vec![2])
+        };
+        assert_eq!(with_options, direct, "the freed id is reused");
+        enable(&app);
+        assert_eq!(state(&app, o, with_options), (0, "unsent".to_string()));
+        assert!(
+            do_list_held_courses(&app.state, o).unwrap().is_empty(),
+            "no stale held course"
+        );
+    }
 }
