@@ -13,6 +13,13 @@ use serde::{Deserialize, Serialize};
 /// Names per language code (`fr`, `nl`, `en`, `zh`, `de`).
 pub type Names = BTreeMap<String, String>;
 
+/// Rows the POS itself owns (`external_id` starting with `pili:`, such as the gift voucher
+/// product and its system category, migration 63) are never shown to or written by the
+/// editor: a reading of `get_*` answers `None`, so a save that names one is refused as not
+/// found.
+const NOT_SYSTEM: &str = "(external_id IS NULL OR external_id NOT LIKE 'pili:%')";
+const NOT_SYSTEM_M: &str = "(m.external_id IS NULL OR m.external_id NOT LIKE 'pili:%')";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AdminCategory {
     pub id: i64,
@@ -120,10 +127,10 @@ fn names_of(conn: &Connection, entity_type: &str, id: i64) -> rusqlite::Result<N
 
 pub fn list_categories(conn: &Connection) -> rusqlite::Result<Vec<AdminCategory>> {
     let mut names = all_names(conn, CATEGORY)?;
-    let mut stmt = conn.prepare(
-        "SELECT id, sort_order, color, active FROM categories WHERE hidden = 0
-         ORDER BY sort_order, id",
-    )?;
+    let mut stmt = conn.prepare(&format!(
+        "SELECT id, sort_order, color, active FROM categories WHERE hidden = 0 AND {NOT_SYSTEM}
+         ORDER BY sort_order, id"
+    ))?;
     stmt.query_map([], |r| {
         Ok(AdminCategory {
             id: r.get(0)?,
@@ -165,7 +172,7 @@ pub fn list_products(conn: &Connection) -> rusqlite::Result<Vec<AdminProduct>> {
     let mut names = all_names(conn, PRODUCT)?;
     let mut stmt = conn.prepare(&format!(
         "SELECT {PRODUCT_COLUMNS} FROM menu_items m
-         WHERE m.kind = 'product' AND m.on_pos = 1
+         WHERE m.kind = 'product' AND m.on_pos = 1 AND {NOT_SYSTEM_M}
          ORDER BY m.category_id, m.sort_order, m.id"
     ))?;
     stmt.query_map([], map_product)?
@@ -236,7 +243,10 @@ pub fn list_options(conn: &Connection) -> rusqlite::Result<Vec<AdminOption>> {
 pub fn get_category(conn: &Connection, id: i64) -> rusqlite::Result<Option<AdminCategory>> {
     let row = conn
         .query_row(
-            "SELECT id, sort_order, color, active FROM categories WHERE id = ?1 AND hidden = 0",
+            &format!(
+                "SELECT id, sort_order, color, active FROM categories
+                 WHERE id = ?1 AND hidden = 0 AND {NOT_SYSTEM}"
+            ),
             params![id],
             |r| {
                 Ok(AdminCategory {
@@ -261,7 +271,7 @@ pub fn get_product(conn: &Connection, id: i64) -> rusqlite::Result<Option<AdminP
         .query_row(
             &format!(
                 "SELECT {PRODUCT_COLUMNS} FROM menu_items m
-                 WHERE m.id = ?1 AND m.kind = 'product' AND m.on_pos = 1"
+                 WHERE m.id = ?1 AND m.kind = 'product' AND m.on_pos = 1 AND {NOT_SYSTEM_M}"
             ),
             params![id],
             map_product,

@@ -368,15 +368,17 @@ pub fn do_set_allergens(state: &AppState, input: SetAllergensInput) -> Result<bo
     }
     let db = state.db.lock().map_err(errors::internal)?;
     refuse_when_managed(&db)?;
+    // The POS's own rows (`pili:%`, the gift voucher product) are no food: they never get an
+    // allergen list and answer as not found, like in the menu editor.
     let exists: bool = db
         .query_row(
-            &format!(
-                "SELECT EXISTS(SELECT 1 FROM {} WHERE id = ?1)",
-                match entity {
-                    Entity::MenuItem => "menu_items",
-                    Entity::Modifier => "modifiers",
+            match entity {
+                Entity::MenuItem => {
+                    "SELECT EXISTS(SELECT 1 FROM menu_items WHERE id = ?1
+                     AND (external_id IS NULL OR external_id NOT LIKE 'pili:%'))"
                 }
-            ),
+                Entity::Modifier => "SELECT EXISTS(SELECT 1 FROM modifiers WHERE id = ?1)",
+            },
             [input.entity_id],
             |r| r.get(0),
         )
