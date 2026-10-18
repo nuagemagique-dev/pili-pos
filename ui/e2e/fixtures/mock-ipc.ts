@@ -60,6 +60,7 @@ const MENU_ADMIN_EMPTY = {
   products: [],
   groups: [],
   options: [],
+  allergens: [],
 };
 
 const DEFAULT_CATEGORY = {
@@ -706,6 +707,7 @@ function defaultHandlers(): Record<string, Handler> {
 
     // The 14 EU allergens: the legend, and an undeclared product by default.
     list_allergens: () => ALLERGEN_LEGEND,
+    set_allergens: live(() => true),
     get_allergen_sheet: live((args: any) => ({
       lang: args?.lang ?? 'fr',
       products: [{

@@ -3798,6 +3798,36 @@
       "zh": "新建商品",
       "area": "settings"
     },
+    "menu_ed_allergens": {
+      "fr": "Allergènes",
+      "en": "Allergens",
+      "zh": "过敏原",
+      "area": "settings"
+    },
+    "menu_ed_allergens_declared": {
+      "fr": "Liste déclarée",
+      "en": "List declared",
+      "zh": "已申报过敏原",
+      "area": "settings"
+    },
+    "menu_ed_allergens_hint": {
+      "fr": "Touchez un allergène : contient, puis traces possibles, puis rien.",
+      "en": "Tap an allergen: contains, then may contain traces, then nothing.",
+      "zh": "点击过敏原：含有，再点为可能含有微量，再点为无。",
+      "area": "settings"
+    },
+    "menu_ed_allergens_save_first": {
+      "fr": "Enregistrez l'entrée pour lui donner ses allergènes.",
+      "en": "Save the entry to set its allergens.",
+      "zh": "请先保存，再设置过敏原。",
+      "area": "settings"
+    },
+    "menu_ed_allergens_unknown": {
+      "fr": "Aucune information : la fiche dira « information non disponible ».",
+      "en": "No information: the sheet says \"information not available\".",
+      "zh": "无信息：过敏原表将显示“暂无信息”。",
+      "area": "settings"
+    },
     "menu_ed_cancel": {
       "fr": "Annuler",
       "en": "Cancel",
@@ -3838,6 +3868,18 @@
       "fr": "Aucune",
       "en": "None",
       "zh": "无",
+      "area": "settings"
+    },
+    "menu_ed_course": {
+      "fr": "Temps du service en cuisine",
+      "en": "Kitchen course",
+      "zh": "厨房出菜顺序",
+      "area": "settings"
+    },
+    "menu_ed_course_off": {
+      "fr": "Le service en plusieurs temps est désactivé : ce choix s'appliquera quand il sera activé.",
+      "en": "Courses are off: this choice applies once they are switched on.",
+      "zh": "分道出菜未开启：开启后此设置生效。",
       "area": "settings"
     },
     "menu_ed_edit": {

@@ -118,6 +118,13 @@
     <string name="menu_ed_option">选项</string>
     <string name="menu_ed_save_first">请先保存商品，再添加选项。</string>
     <string name="menu_ed_edit">编辑</string>
+    <string name="menu_ed_course">厨房出菜顺序</string>
+    <string name="menu_ed_course_off">分道出菜未开启：开启后此设置生效。</string>
+    <string name="menu_ed_allergens">过敏原</string>
+    <string name="menu_ed_allergens_declared">已申报过敏原</string>
+    <string name="menu_ed_allergens_unknown">无信息：过敏原表将显示“暂无信息”。</string>
+    <string name="menu_ed_allergens_hint">点击过敏原：含有，再点为可能含有微量，再点为无。</string>
+    <string name="menu_ed_allergens_save_first">请先保存，再设置过敏原。</string>
     <string name="menu_ed_history_title">修改历史</string>
     <string name="menu_ed_history_empty">暂无修改。</string>
     <string name="menu_ed_history_by">由 {name}</string>

@@ -859,6 +859,13 @@ internal object VueStringIds {
         this["menu_ed_option"] = R.string.menu_ed_option
         this["menu_ed_save_first"] = R.string.menu_ed_save_first
         this["menu_ed_edit"] = R.string.menu_ed_edit
+        this["menu_ed_course"] = R.string.menu_ed_course
+        this["menu_ed_course_off"] = R.string.menu_ed_course_off
+        this["menu_ed_allergens"] = R.string.menu_ed_allergens
+        this["menu_ed_allergens_declared"] = R.string.menu_ed_allergens_declared
+        this["menu_ed_allergens_unknown"] = R.string.menu_ed_allergens_unknown
+        this["menu_ed_allergens_hint"] = R.string.menu_ed_allergens_hint
+        this["menu_ed_allergens_save_first"] = R.string.menu_ed_allergens_save_first
         this["menu_ed_history_title"] = R.string.menu_ed_history_title
         this["menu_ed_history_empty"] = R.string.menu_ed_history_empty
         this["menu_ed_history_by"] = R.string.menu_ed_history_by
@@ -1018,6 +1025,9 @@ internal object VueStringIds {
         this["webshop_cancelled_refund"] = R.string.webshop_cancelled_refund
         this["webshop_cancelled_close"] = R.string.webshop_cancelled_close
         this["webshop_manager_needed"] = R.string.webshop_manager_needed
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["webshop_status_refunded"] = R.string.webshop_status_refunded
         this["webshop_changed_after_signing"] = R.string.webshop_changed_after_signing
         this["webshop_attention_unknown_channel"] = R.string.webshop_attention_unknown_channel
@@ -1025,9 +1035,6 @@ internal object VueStringIds {
         this["webshop_attention_no_items"] = R.string.webshop_attention_no_items
         this["webshop_attention_item_without_ref"] = R.string.webshop_attention_item_without_ref
         this["webshop_attention_unknown_product"] = R.string.webshop_attention_unknown_product
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["webshop_attention_unknown_option"] = R.string.webshop_attention_unknown_option
         this["webshop_attention_unknown_charge"] = R.string.webshop_attention_unknown_charge
         this["webshop_attention_fractional_quantity"] = R.string.webshop_attention_fractional_quantity

@@ -24,6 +24,8 @@ const MENU = {
   ],
   groups: [{ id: 20, menu_item_id: 10, names: { fr: 'Sauce' }, min_select: 0, max_select: 2, sort_order: 1, active: true }],
   options: [{ id: 30, group_id: 20, names: { fr: 'Soja' }, price_cents: 50, sort_order: 1, active: true }],
+  // Maki saumon is declared (fish, soy; traces of sesame); Edamame and the option have no information.
+  allergens: [{ entity_type: 'menu_item', entity_id: 10, contains: ['fish', 'soybeans'], may_contain: ['sesame'] }],
 };
 
 const CHANGES = [
@@ -210,7 +212,8 @@ test.describe('Menu editor', () => {
     await editor(page);
     await page.getByTestId('menu-ed-add-product').click();
     await expect(page.getByTestId('menu-ed-add-group')).toHaveCount(0);
-    await expect(page.locator('.sub .hint')).toContainText('Enregistrez le produit');
+    // The allergen section says the same for its part.
+    await expect(page.locator('.sub .hint', { hasText: 'Enregistrez le produit' })).toBeVisible();
   });
 
   test('a refused save shows the engine error and keeps the form', async ({ page }) => {
@@ -454,5 +457,135 @@ test.describe('Menu editor: leaving', () => {
     await page.getByTestId('menu-ed-back').click();
     await page.waitForURL(/settings/);
     await expect(page.getByTestId('menu-editor-panel')).toBeVisible();
+  });
+});
+
+test.describe('Menu editor: kitchen course and allergens (lane 4 in the editor)', () => {
+  const COURSES = { enabled: true, category_courses: [{ category_id: 1, course: 1 }, { category_id: 7, course: 3 }] };
+
+  test('a category shows its course and a new one is saved with the others kept', async ({ page }) => {
+    await editor(page, {
+      get_course_settings: () => COURSES,
+      set_course_settings: live((args: any) => args.input),
+    });
+    await page.getByTestId('menu-ed-category-row').first().click();
+    await expect(page.getByTestId('menu-ed-course-1')).toHaveClass(/on/);
+    await expect(page.getByTestId('menu-ed-course-off')).toHaveCount(0);
+    await page.getByTestId('menu-ed-course-2').click();
+    await page.getByTestId('menu-ed-save').click();
+    await expect(page.locator('.toast', { hasText: 'Carte enregistrée' })).toBeVisible();
+    const calls = await ipcCalls(page, 'set_course_settings');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].input.enabled).toBe(true);
+    expect(calls[0].input.category_courses).toEqual([
+      { category_id: 7, course: 3 },
+      { category_id: 1, course: 2 },
+    ]);
+  });
+
+  test('Direct takes the category out of the mapping; an unchanged course writes nothing', async ({ page }) => {
+    await editor(page, { get_course_settings: () => COURSES, set_course_settings: live((args: any) => args.input) });
+    await page.getByTestId('menu-ed-category-row').first().click();
+    await page.getByTestId('menu-ed-save').click();
+    await expect(page.locator('.toast', { hasText: 'Carte enregistrée' })).toBeVisible();
+    expect(await ipcCalls(page, 'set_course_settings')).toHaveLength(0);
+    await page.getByTestId('menu-ed-course-0').click();
+    await page.getByTestId('menu-ed-save').click();
+    const calls = await ipcCalls(page, 'set_course_settings');
+    expect(calls[0].input.category_courses).toEqual([{ category_id: 7, course: 3 }]);
+  });
+
+  test('with courses off the picker says the choice waits for the switch', async ({ page }) => {
+    await editor(page);
+    await page.getByTestId('menu-ed-category-row').first().click();
+    await expect(page.getByTestId('menu-ed-course-0')).toHaveClass(/on/);
+    await expect(page.getByTestId('menu-ed-course-off')).toBeVisible();
+  });
+
+  test('a declared product shows its allergens; a tap cycles contains, traces, nothing', async ({ page }) => {
+    await editor(page);
+    await page.getByTestId('menu-ed-product-row').first().click();
+    await expect(page.getByTestId('menu-ed-allergens-declared')).toHaveClass(/on/);
+    await expect(page.getByTestId('menu-ed-allergen-fish')).toHaveAttribute('data-level', 'contains');
+    await expect(page.getByTestId('menu-ed-allergen-sesame')).toHaveAttribute('data-level', 'traces');
+    await expect(page.getByTestId('menu-ed-allergen-milk')).toHaveAttribute('data-level', 'none');
+    await page.getByTestId('menu-ed-allergen-milk').click();
+    await expect(page.getByTestId('menu-ed-allergen-milk')).toHaveAttribute('data-level', 'contains');
+    await page.getByTestId('menu-ed-allergen-fish').click();
+    await expect(page.getByTestId('menu-ed-allergen-fish')).toHaveAttribute('data-level', 'traces');
+    await page.getByTestId('menu-ed-allergen-sesame').click();
+    await expect(page.getByTestId('menu-ed-allergen-sesame')).toHaveAttribute('data-level', 'none');
+    await page.getByTestId('menu-ed-save').click();
+    await expect(page.locator('.toast', { hasText: 'Carte enregistrée' })).toBeVisible();
+    const calls = await ipcCalls(page, 'set_allergens');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].input).toMatchObject({ entity_type: 'menu_item', entity_id: 10, declared: true });
+    expect([...calls[0].input.contains].sort()).toEqual(['milk', 'soybeans']);
+    expect(calls[0].input.may_contain).toEqual(['fish']);
+    // The editor reads the menu again for the new list.
+    expect((await ipcCalls(page, 'menu_admin_get')).length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('an entry with no information can be declared with no allergen', async ({ page }) => {
+    await editor(page);
+    await page.getByTestId('menu-ed-product-row').first().click();
+    await page.getByTestId('menu-ed-edit-group').click();
+    await page.getByTestId('menu-ed-edit-option').click();
+    await expect(page.getByTestId('menu-ed-allergens-unknown')).toBeVisible();
+    await page.getByTestId('menu-ed-allergens-declared').click();
+    await expect(page.getByTestId('menu-ed-allergens-none')).toBeVisible();
+    await page.getByTestId('menu-ed-save').click();
+    const calls = await ipcCalls(page, 'set_allergens');
+    expect(calls[0].input).toEqual({
+      entity_type: 'modifier', entity_id: 30, declared: true, contains: [], may_contain: [],
+    });
+  });
+
+  test('a declared product goes back to "no information"', async ({ page }) => {
+    await editor(page);
+    await page.getByTestId('menu-ed-product-row').first().click();
+    await page.getByTestId('menu-ed-allergens-declared').click();
+    await expect(page.getByTestId('menu-ed-allergens-unknown')).toBeVisible();
+    await page.getByTestId('menu-ed-save').click();
+    const calls = await ipcCalls(page, 'set_allergens');
+    expect(calls[0].input).toEqual({
+      entity_type: 'menu_item', entity_id: 10, declared: false, contains: [], may_contain: [],
+    });
+  });
+
+  test('saving a product without touching its allergens does not write them', async ({ page }) => {
+    await editor(page);
+    await page.getByTestId('menu-ed-product-row').first().click();
+    await page.getByTestId('menu-ed-save').click();
+    await expect(page.locator('.toast', { hasText: 'Carte enregistrée' })).toBeVisible();
+    expect(await ipcCalls(page, 'set_allergens')).toHaveLength(0);
+  });
+
+  test('an option takes its allergens as a modifier', async ({ page }) => {
+    await editor(page);
+    await page.getByTestId('menu-ed-product-row').first().click();
+    await page.getByTestId('menu-ed-edit-group').click();
+    await page.getByTestId('menu-ed-edit-option').click();
+    await page.getByTestId('menu-ed-allergens-declared').click();
+    await page.getByTestId('menu-ed-allergen-soybeans').click();
+    await page.getByTestId('menu-ed-save').click();
+    const calls = await ipcCalls(page, 'set_allergens');
+    expect(calls[0].input).toEqual({
+      entity_type: 'modifier', entity_id: 30, declared: true, contains: ['soybeans'], may_contain: [],
+    });
+  });
+
+  test('a new product asks to be saved before it takes allergens', async ({ page }) => {
+    await editor(page);
+    await page.getByTestId('menu-ed-add-product').click();
+    await expect(page.getByTestId('menu-ed-allergens')).toContainText("Enregistrez l'entrée pour lui donner ses allergènes.");
+    await expect(page.getByTestId('menu-ed-allergens-declared')).toHaveCount(0);
+  });
+
+  test('the allergen editor is locked with the rest while a catalog manages the menu', async ({ page }) => {
+    await editor(page, { menu_admin_get: () => ({ ...MENU, managed_by: 'hubrise' }) });
+    await expect(page.getByTestId('menu-ed-locked')).toBeVisible();
+    await page.getByTestId('menu-ed-product-row').first().click();
+    await expect(page.getByTestId('menu-ed-allergens')).toHaveCount(0);
   });
 });

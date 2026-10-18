@@ -13,12 +13,15 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import uniffi.pos_ffi.CategoryCourse
+import uniffi.pos_ffi.CourseSettings
 import uniffi.pos_ffi.MenuAdmin
 import uniffi.pos_ffi.MenuSaved
 import uniffi.pos_ffi.SaveCategoryInput
 import uniffi.pos_ffi.SaveModifierGroupInput
 import uniffi.pos_ffi.SaveModifierInput
 import uniffi.pos_ffi.SaveProductInput
+import uniffi.pos_ffi.SetAllergensInput
 
 /** How many log lines the history asks for (`listMenuChanges(100)` of `MenuEditorView.vue`). */
 internal const val CHANGES_LIMIT: Long = 100L
@@ -34,7 +37,9 @@ private const val ERROR_TOAST_MS: Long = 5000L
  *
  * The engine owns every rule (names required, price bounds, VAT labels, minimum and maximum, the lock while a
  * catalog manages the menu, the log); this keeps what the screen shows, calls the engine through the gateway and
- * puts a refusal on screen. Nothing is deleted: "visible" off hides an entry.
+ * puts a refusal on screen. Nothing is deleted: "visible" off hides an entry. A category also carries its kitchen
+ * course (`set_course_settings`), a product or an option its allergen list (`set_allergens`); the same Enregistrer
+ * writes them after the entry.
  */
 @Suppress("TooManyFunctions") // One function per tap of the editor.
 internal class MenuEditorViewModel(
@@ -51,13 +56,21 @@ internal class MenuEditorViewModel(
 
     // ── Loading ───────────────────────────────────────────────────
 
-    /** Reads the whole menu; nothing is asked of the engine for an operator who is not a manager. */
+    /**
+     * Reads the whole menu, the allergen legend and the course setting; nothing is asked of the engine for an operator
+     * who is not a manager. Without a legend the allergen chips are empty, without a course setting no picker shows.
+     */
     suspend fun load() {
         if (!entry.session().isManager.value) return
-        attempt { entry.gateway().call { engine -> engine.menuAdminGet() } }.fold(
+        val gateway = entry.gateway()
+        attempt { gateway.call { engine -> engine.menuAdminGet() } }.fold(
             onSuccess = { menu -> own.update { it.withMenu(menu).copy(loaded = true, error = null) } },
             onFailure = { failure -> own.update { it.copy(loaded = true, error = entry.errors().text(failure, language())) } },
         )
+        attempt { gateway.call { engine -> engine.listAllergens() } }.onSuccess { list -> own.update { it.copy(legend = list) } }
+        attempt { gateway.call { engine -> engine.getCourseSettings() } }.onSuccess { s ->
+            own.update { it.copy(courseSettings = s).withForm(it.form) }
+        }
     }
 
     private fun MenuEditorUiState.withMenu(menu: MenuAdmin): MenuEditorUiState {
@@ -71,12 +84,9 @@ internal class MenuEditorViewModel(
     fun selectCategory(id: Long) {
         own.update { s ->
             val category = s.categories.firstOrNull { it.id == id }
-            s.copy(
-                selectedCategoryId = id,
-                showHistory = false,
-                error = null,
-                form = if (s.locked || category == null) null else formOf(category),
-            )
+            s
+                .copy(selectedCategoryId = id, showHistory = false, error = null)
+                .withForm(if (s.locked || category == null) null else formOf(category))
         }
     }
 
@@ -101,7 +111,12 @@ internal class MenuEditorViewModel(
 
     private fun openForm(build: (MenuEditorUiState) -> MenuForm?) {
         own.update { s ->
-            if (s.locked) s else s.copy(form = build(s) ?: s.form, showHistory = false, error = null)
+            val form = build(s)
+            when {
+                s.locked -> s
+                form == null -> s.copy(showHistory = false, error = null)
+                else -> s.copy(showHistory = false, error = null).withForm(form)
+            }
         }
     }
 
@@ -148,6 +163,17 @@ internal class MenuEditorViewModel(
 
     fun stepPosition(delta: Int) = edit { it.copy(sortOrder = (it.sortOrder + delta).coerceAtLeast(0)) }
 
+    /** The kitchen course of the open category (0 to 3). */
+    fun setCourse(course: Int) =
+        own.update { s -> if (s.locked || course !in COURSES || s.form?.kind != FormKind.Category) s else s.copy(courseDraft = course) }
+
+    /** A tap on an allergen chip: none, contains, traces, none. */
+    fun cycleAllergen(code: String) = own.update { s -> if (s.locked) s else s.copy(allergenDraft = s.allergenDraft.cycled(code)) }
+
+    /** The "Liste déclarée" switch: a declared list, or back to "no information". */
+    fun toggleAllergensDeclared() =
+        own.update { s -> if (s.locked) s else s.copy(allergenDraft = s.allergenDraft.copy(declared = !s.allergenDraft.declared)) }
+
     /** The minimum never passes the maximum, and the maximum is at least 1 (`stepSelect`). */
     fun stepMin(delta: Int) =
         edit {
@@ -170,7 +196,7 @@ internal class MenuEditorViewModel(
         if (s.busy || s.locked || !entry.session().isManager.value) return
         own.update { it.copy(busy = true, error = null) }
         viewModelScope.launch {
-            attempt { send(form) }.fold(
+            attempt { send(form).let { saved -> saved.copy(menu = sendKitchenAndAllergens(form, saved, s)) } }.fold(
                 onSuccess = { saved -> afterSave(form, saved) },
                 onFailure = { failure ->
                     val text = entry.errors().text(failure, language())
@@ -220,6 +246,41 @@ internal class MenuEditorViewModel(
         }
     }
 
+    /**
+     * After the entry: the course of a category, the allergens of a product or an option, each only when it changed.
+     * Answers the menu to show (read again when the allergens were written).
+     */
+    private suspend fun sendKitchenAndAllergens(
+        form: MenuForm,
+        saved: MenuSaved,
+        before: MenuEditorUiState,
+    ): MenuAdmin {
+        val gateway = entry.gateway()
+        when (form.kind) {
+            FormKind.Category -> {
+                val stored = before.courseSettings ?: return saved.menu
+                val course = before.courseDraft
+                if (before.courseOf(saved.id) == course) return saved.menu
+                val others = stored.categoryCourses.filter { it.categoryId != saved.id }
+                val mapping = if (course > 0) others + CategoryCourse(saved.id, course) else others
+                val now = gateway.call { engine -> engine.setCourseSettings(CourseSettings(stored.enabled, mapping)) }
+                own.update { it.copy(courseSettings = now) }
+                return saved.menu
+            }
+            FormKind.Product, FormKind.Option -> {
+                val type = if (form.kind == FormKind.Product) ALLERGEN_PRODUCT else ALLERGEN_OPTION
+                val draft = before.allergenDraft
+                val stored = before.copy(menu = saved.menu).storedAllergens(type, saved.id)
+                if (draft.sameAs(stored)) return saved.menu
+                val contains = if (draft.declared) draft.contains else emptyList()
+                val traces = if (draft.declared) draft.mayContain else emptyList()
+                gateway.call { engine -> engine.setAllergens(SetAllergensInput(type, saved.id, draft.declared, contains, traces)) }
+                return gateway.call { engine -> engine.menuAdminGet() }
+            }
+            FormKind.Group -> return saved.menu
+        }
+    }
+
     /** The menu as it is now, the saved entry reopened (so a new product shows its option groups). */
     private fun afterSave(
         form: MenuForm,
@@ -241,7 +302,7 @@ internal class MenuEditorViewModel(
                     FormKind.Product -> form.parentId
                     else -> next.selectedCategoryId
                 }
-            next.copy(form = reopened, selectedCategoryId = chosen ?: next.selectedCategoryId)
+            next.copy(selectedCategoryId = chosen ?: next.selectedCategoryId).withForm(reopened)
         }
     }
 

@@ -118,6 +118,13 @@
     <string name="menu_ed_option">Option</string>
     <string name="menu_ed_save_first">Enregistrez le produit pour lui ajouter des options.</string>
     <string name="menu_ed_edit">Modifier</string>
+    <string name="menu_ed_course">Temps du service en cuisine</string>
+    <string name="menu_ed_course_off">Le service en plusieurs temps est désactivé : ce choix s\'appliquera quand il sera activé.</string>
+    <string name="menu_ed_allergens">Allergènes</string>
+    <string name="menu_ed_allergens_declared">Liste déclarée</string>
+    <string name="menu_ed_allergens_unknown">Aucune information : la fiche dira « information non disponible ».</string>
+    <string name="menu_ed_allergens_hint">Touchez un allergène : contient, puis traces possibles, puis rien.</string>
+    <string name="menu_ed_allergens_save_first">Enregistrez l\'entrée pour lui donner ses allergènes.</string>
     <string name="menu_ed_history_title">Historique des modifications</string>
     <string name="menu_ed_history_empty">Aucune modification.</string>
     <string name="menu_ed_history_by">par {name}</string>

@@ -1,5 +1,6 @@
 package dev.nuagemagique.pilipos.feature.settings.menu
 
+import uniffi.pos_ffi.AdminAllergens
 import uniffi.pos_ffi.AdminCategory
 import uniffi.pos_ffi.AdminGroup
 import uniffi.pos_ffi.AdminOption
@@ -37,6 +38,7 @@ internal fun adminMenu(
     products: List<AdminProduct> = listOf(makiProduct, edamameProduct),
     groups: List<AdminGroup> = listOf(sauceGroup),
     options: List<AdminOption> = listOf(sojaOption),
+    allergens: List<AdminAllergens> = emptyList(),
 ): MenuAdmin =
     MenuAdmin(
         managedBy = managedBy,
@@ -45,7 +47,11 @@ internal fun adminMenu(
         products = products,
         groups = groups,
         options = options,
+        allergens = allergens,
     )
+
+/** Maki saumon declared: fish and soy, traces of sesame. */
+internal val makiAllergens = AdminAllergens(ALLERGEN_PRODUCT, 10L, listOf("fish", "soybeans"), listOf("sesame"))
 
 internal fun menuChange(
     id: Long,

@@ -1356,6 +1356,16 @@ export interface MenuAdmin {
   products: AdminProduct[];
   groups: AdminGroup[];
   options: AdminOption[];
+  /** Declared allergen lists of the products and options above; an entry with none has no information. */
+  allergens: AdminAllergens[];
+}
+
+/** The declared allergen list of a product (`menu_item`) or an option (`modifier`) of the editor. */
+export interface AdminAllergens {
+  entity_type: "menu_item" | "modifier";
+  entity_id: number;
+  contains: string[];
+  may_contain: string[];
 }
 
 export interface MenuSaved {
@@ -1525,6 +1535,20 @@ export function getAllergenSheet(menuItemId: number | null, lang?: string): Prom
 /** Prints the sheet (fr, nl, en or de); a printer failure is the outcome, not an error. */
 export function printAllergenSheet(menuItemId: number | null, lang?: string): Promise<SlipOutcome> {
   return invoke("print_allergen_sheet", { menuItemId, lang });
+}
+
+/** The edit of one list; `declared: false` puts the entry back to "no information". */
+export interface SetAllergensInput {
+  entity_type: "menu_item" | "modifier";
+  entity_id: number;
+  declared: boolean;
+  contains: string[];
+  may_contain: string[];
+}
+
+/** Managers only; refused while a catalog manages the menu. Answers whether anything changed. */
+export function setAllergens(input: SetAllergensInput): Promise<boolean> {
+  return invoke("set_allergens", { input });
 }
 
 // ── Courses and "Envoyer la suite" (kitchen printing only) ─────────

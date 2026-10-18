@@ -1,7 +1,9 @@
 package dev.nuagemagique.pilipos.feature.settings.menu
 
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performScrollTo
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
@@ -21,7 +23,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Goldens of the menu editor at 1920 x 1080 dp: the product form with its options, the locked notice, the history. */
+/**
+ * Goldens of the menu editor at 1920 x 1080 dp: the product form with its allergens and options, the category form
+ * with its kitchen course, the locked notice, the history.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w1920dp-h1080dp-mdpi")
 class MenuEditorScreenshotTest {
@@ -30,11 +35,20 @@ class MenuEditorScreenshotTest {
 
     private val catalog = I18nTestSupport.catalog()
     private val header = HeaderUiState(area = HeaderArea.SETTINGS, userName = "Alice Dupont", roleKey = "role_admin", isManager = true)
-    private val base = MenuEditorUiState(isManager = true, loaded = true, menu = adminMenu(), selectedCategoryId = 1L)
+    private val base =
+        MenuEditorUiState(
+            isManager = true,
+            loaded = true,
+            menu = adminMenu(allergens = listOf(makiAllergens)),
+            selectedCategoryId = 1L,
+            legend = allergenLegend,
+            courseSettings = uniffi.pos_ffi.CourseSettings(true, listOf(uniffi.pos_ffi.CategoryCourse(1L, 1))),
+        )
 
     private fun capture(
         state: MenuEditorUiState,
         file: String,
+        scrollTo: String? = null,
     ) {
         rule.setContent {
             PiliTheme {
@@ -55,11 +69,21 @@ class MenuEditorScreenshotTest {
             }
         }
         rule.waitForIdle()
+        if (scrollTo != null) {
+            rule.onNodeWithTag(scrollTo).performScrollTo()
+            rule.waitForIdle()
+        }
         rule.onRoot().captureRoboImage("src/test/screenshots/settings/$file.png")
     }
 
     @Test
-    fun productForm() = capture(base.copy(form = formOf(makiProduct)), "menu_editor_product")
+    fun productForm() = capture(base.withForm(formOf(makiProduct)), "menu_editor_product")
+
+    @Test
+    fun productAllergens() = capture(base.withForm(formOf(makiProduct)), "menu_editor_product_allergens", "menu_ed_allergen_molluscs")
+
+    @Test
+    fun categoryFormWithItsCourse() = capture(base.withForm(formOf(sushiCategory)), "menu_editor_category")
 
     @Test
     fun groupWithOptions() = capture(base.copy(form = formOf(sauceGroup)), "menu_editor_group")

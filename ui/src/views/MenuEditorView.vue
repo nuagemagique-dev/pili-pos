@@ -4,6 +4,8 @@
 // (price) under it. A product opens its option groups and their options. Nothing is deleted:
 // "Visible à la caisse" off hides an entry. Every save is logged by the engine ("Historique").
 // Saves are refused (and the form locked) while a catalog manages the menu.
+// A category also carries its kitchen course (set_course_settings), a product or an option its
+// allergen list (set_allergens); both are written by the same Enregistrer, after the entry.
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import * as ipc from "../api/ipc";
@@ -36,6 +38,18 @@ const busy = ref(false);
 // The field the keyboard types into: `name:<lang>`, `code` or `price`.
 const focus = ref<string | null>(null);
 const priceDigits = ref("");
+// The 14 allergens in Annex order, for the allergen chips.
+const legend = ref<ipc.AllergenEntry[]>([]);
+// The course setting as stored; null when it could not be read (the picker is then hidden).
+const courseSettings = ref<ipc.CourseSettings | null>(null);
+// The open form's kitchen course (category) and allergen list (product, option).
+const courseDraft = ref(0);
+interface AllergenDraft {
+  declared: boolean;
+  contains: string[];
+  may_contain: string[];
+}
+const allergenDraft = ref<AllergenDraft>({ declared: false, contains: [], may_contain: [] });
 
 const VAT_CODES = ["A", "B", "C", "D", "X"] as const;
 const PALETTE = ["#E94560", "#FFB020", "#22C55E", "#00D4FF", "#9B59B6", "#D7FF3A", "#F2F4F2"];
@@ -74,7 +88,90 @@ async function load() {
   }
 }
 
-onMounted(load);
+onMounted(async () => {
+  await load();
+  try {
+    legend.value = await ipc.listAllergens();
+  } catch {
+    // No legend: the allergen section stays empty.
+  }
+  try {
+    courseSettings.value = await ipc.getCourseSettings();
+  } catch {
+    // No course setting: the picker is hidden.
+  }
+});
+
+// ── Kitchen course of a category and allergens of a product or an option ──
+
+function courseOf(categoryId: number | null): number {
+  if (categoryId === null) return 0;
+  return courseSettings.value?.category_courses.find((c) => c.category_id === categoryId)?.course ?? 0;
+}
+
+type AllergenTarget = ipc.AdminAllergens["entity_type"];
+
+function storedAllergens(type: AllergenTarget, id: number | null): AllergenDraft {
+  const found = id === null ? undefined : menu.value?.allergens.find((a) => a.entity_type === type && a.entity_id === id);
+  return found
+    ? { declared: true, contains: [...found.contains], may_contain: [...found.may_contain] }
+    : { declared: false, contains: [], may_contain: [] };
+}
+
+/** The level of `code` in the draft: contains, traces or none. */
+function levelOf(code: string): "contains" | "traces" | "none" {
+  if (allergenDraft.value.contains.includes(code)) return "contains";
+  if (allergenDraft.value.may_contain.includes(code)) return "traces";
+  return "none";
+}
+
+/** A tap cycles an allergen: none, contains, traces, none. */
+function cycleAllergen(code: string) {
+  if (locked.value) return;
+  const d = allergenDraft.value;
+  const level = levelOf(code);
+  const contains = d.contains.filter((c) => c !== code);
+  const may = d.may_contain.filter((c) => c !== code);
+  if (level === "none") contains.push(code);
+  else if (level === "contains") may.push(code);
+  allergenDraft.value = { declared: true, contains, may_contain: may };
+}
+
+function toggleDeclared() {
+  if (locked.value) return;
+  allergenDraft.value = { ...allergenDraft.value, declared: !allergenDraft.value.declared };
+}
+
+/** Same list, whatever the order of the codes. */
+function sameAllergens(a: AllergenDraft, b: AllergenDraft): boolean {
+  if (a.declared !== b.declared) return false;
+  if (!a.declared) return true;
+  const same = (x: string[], y: string[]) => x.length === y.length && x.every((c) => y.includes(c));
+  return same(a.contains, b.contains) && same(a.may_contain, b.may_contain);
+}
+
+/** Writes the draft list of the saved entry when it changed; true when it wrote. */
+async function saveAllergens(type: AllergenTarget, id: number): Promise<boolean> {
+  const draft = allergenDraft.value;
+  if (sameAllergens(draft, storedAllergens(type, id))) return false;
+  await ipc.setAllergens({
+    entity_type: type,
+    entity_id: id,
+    declared: draft.declared,
+    contains: draft.declared ? draft.contains : [],
+    may_contain: draft.declared ? draft.may_contain : [],
+  });
+  return true;
+}
+
+/** Writes the course of the saved category when it changed. */
+async function saveCourse(categoryId: number) {
+  const stored = courseSettings.value;
+  if (!stored || courseOf(categoryId) === courseDraft.value) return;
+  const others = stored.category_courses.filter((c) => c.category_id !== categoryId);
+  const category_courses = courseDraft.value > 0 ? [...others, { category_id: categoryId, course: courseDraft.value }] : others;
+  courseSettings.value = await ipc.setCourseSettings({ enabled: stored.enabled, category_courses });
+}
 
 function selectCategory(id: number) {
   selectedCategory.value = id;
@@ -91,6 +188,7 @@ function newNames(): ipc.MenuNames {
 function editCategory(c?: ipc.AdminCategory) {
   error.value = null;
   focus.value = null;
+  courseDraft.value = courseOf(c?.id ?? null);
   form.value = {
     kind: "category",
     data: c
@@ -109,6 +207,7 @@ function editProduct(p?: ipc.AdminProduct) {
   if (!p && selectedCategory.value === null) return;
   error.value = null;
   focus.value = null;
+  allergenDraft.value = storedAllergens("menu_item", p?.id ?? null);
   form.value = {
     kind: "product",
     data: p
@@ -152,6 +251,7 @@ function editGroup(productId: number, g?: ipc.AdminGroup) {
 function editOption(groupId: number, o?: ipc.AdminOption) {
   error.value = null;
   focus.value = null;
+  allergenDraft.value = storedAllergens("modifier", o?.id ?? null);
   form.value = {
     kind: "option",
     data: o
@@ -276,18 +376,26 @@ async function save() {
       saved = await ipc.menuSaveModifier({ ...f.data, names: trimmed(f.data.names) });
     }
     menu.value = saved.menu;
+    // The course of a category and the allergens of a product or an option, once the entry has its id.
+    if (f.kind === "category") {
+      await saveCourse(saved.id);
+    } else if (f.kind === "product" || f.kind === "option") {
+      const type: AllergenTarget = f.kind === "product" ? "menu_item" : "modifier";
+      if (await saveAllergens(type, saved.id)) menu.value = await ipc.menuAdminGet();
+    }
     toast.show(t("menu_ed_saved"), "success", 2500);
+    const now = menu.value;
     // Reopen what was saved, so a new product shows its option groups.
     if (f.kind === "category") {
       selectedCategory.value = saved.id;
-      editCategory(saved.menu.categories.find((c) => c.id === saved.id));
+      editCategory(now.categories.find((c) => c.id === saved.id));
     } else if (f.kind === "product") {
       selectedCategory.value = f.data.category_id;
-      editProduct(saved.menu.products.find((p) => p.id === saved.id));
+      editProduct(now.products.find((p) => p.id === saved.id));
     } else if (f.kind === "group") {
-      editGroup(f.data.menu_item_id, saved.menu.groups.find((g) => g.id === saved.id));
+      editGroup(f.data.menu_item_id, now.groups.find((g) => g.id === saved.id));
     } else {
-      editOption(f.data.group_id, saved.menu.options.find((o) => o.id === saved.id));
+      editOption(f.data.group_id, now.options.find((o) => o.id === saved.id));
     }
   } catch (e) {
     error.value = describeError(e);
@@ -493,6 +601,20 @@ const ui = reactive({ colors: PALETTE });
                   ></button>
                 </div>
               </div>
+              <div v-if="courseSettings" class="field" data-testid="menu-ed-course">
+                <label>{{ t('menu_ed_course') }}</label>
+                <div class="chips">
+                  <button
+                    v-for="n in [0, 1, 2, 3]"
+                    :key="n"
+                    class="chip"
+                    :class="{ on: courseDraft === n }"
+                    :data-testid="`menu-ed-course-${n}`"
+                    @click="courseDraft = n"
+                  >{{ t(`course_${n}`) }}</button>
+                </div>
+                <p v-if="!courseSettings.enabled" class="hint" data-testid="menu-ed-course-off">{{ t('menu_ed_course_off') }}</p>
+              </div>
             </template>
 
             <!-- Product -->
@@ -627,6 +749,46 @@ const ui = reactive({ colors: PALETTE });
               data-testid="menu-ed-active"
               @click="form.data.active = !form.data.active"
             >{{ t('menu_ed_active') }}</button>
+
+            <!-- Allergens of a saved product or option (set_allergens) -->
+            <div v-if="form.kind === 'product' || form.kind === 'option'" class="sub" data-testid="menu-ed-allergens">
+              <h3>{{ t('menu_ed_allergens') }}</h3>
+              <p v-if="form.data.id === null" class="hint">{{ t('menu_ed_allergens_save_first') }}</p>
+              <template v-else>
+                <button
+                  class="toggle"
+                  :class="{ on: allergenDraft.declared }"
+                  data-testid="menu-ed-allergens-declared"
+                  @click="toggleDeclared"
+                >{{ t('menu_ed_allergens_declared') }}</button>
+                <p v-if="!allergenDraft.declared" class="hint" data-testid="menu-ed-allergens-unknown">{{ t('menu_ed_allergens_unknown') }}</p>
+                <template v-else>
+                  <p class="hint">{{ t('menu_ed_allergens_hint') }}</p>
+                  <div class="allergen-chips">
+                    <button
+                      v-for="a in legend"
+                      :key="a.code"
+                      class="allergen-chip"
+                      :class="levelOf(a.code)"
+                      :data-testid="`menu-ed-allergen-${a.code}`"
+                      :data-level="levelOf(a.code)"
+                      @click="cycleAllergen(a.code)"
+                    >
+                      <span class="a-num">{{ a.number }}</span>
+                      <span class="a-name">{{ t(`allergen_${a.code}`) }}</span>
+                      <span v-if="levelOf(a.code) !== 'none'" class="a-level">
+                        {{ levelOf(a.code) === 'contains' ? t('allergens_contains') : t('allergens_traces') }}
+                      </span>
+                    </button>
+                  </div>
+                  <p
+                    v-if="allergenDraft.contains.length === 0 && allergenDraft.may_contain.length === 0"
+                    class="hint"
+                    data-testid="menu-ed-allergens-none"
+                  >{{ t('allergens_none') }}</p>
+                </template>
+              </template>
+            </div>
 
             <!-- Option groups of a saved product -->
             <div v-if="form.kind === 'product'" class="sub">
@@ -768,6 +930,20 @@ const ui = reactive({ colors: PALETTE });
 .sub h3 { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); }
 .sub-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 .sub-name.hidden { opacity: 0.55; }
+.allergen-chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); }
+.allergen-chip {
+  display: flex; align-items: center; gap: var(--space-sm); min-height: 52px; padding: 0 var(--space-sm);
+  border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary);
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); text-align: left; border: 2px solid transparent;
+}
+.allergen-chip.contains { background: var(--selected-bg); color: var(--selected-fg); }
+.allergen-chip.traces { border-color: var(--accent-warning); }
+.a-num {
+  display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; flex-shrink: 0;
+  border-radius: 50%; background: var(--accent-info); color: var(--text-on-accent); font-family: var(--font-mono); font-size: 12px;
+}
+.a-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.a-level { font-size: var(--font-size-xs); color: inherit; opacity: 0.85; }
 
 .error { color: var(--accent-danger); font-size: var(--font-size-md); overflow-wrap: anywhere; }
 .actions { display: flex; gap: var(--space-sm); }

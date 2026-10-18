@@ -6,8 +6,10 @@ import {
 // The 14 EU allergens on the order screen: numbered badges on the tiles
 // and in the option picker, the "Allergènes" mode that opens a product's
 // sheet instead of adding it, the legend, and the print buttons.
+// Maki has option groups (V11-D18: only such a product opens the option picker).
 const MAKI = {
   ...DEFAULT_MENU_ITEM,
+  has_modifiers: true,
   allergens: ['sesame', 'fish', 'gluten', 'milk', 'eggs', 'soybeans', 'nuts', 'celery'],
   traces: ['molluscs'],
   allergens_declared: true,
@@ -99,7 +101,7 @@ test.describe('Allergens', () => {
     // Out of the mode a tap adds again.
     await page.getByTestId('allergen-mode').click();
     await page.locator('.item-btn', { hasText: 'Coca-Cola' }).click();
-    await expect.poll(async () => (await ipcCalls(page, 'get_item_modifiers')).length).toBeGreaterThan(0);
+    await expect.poll(async () => (await ipcCalls(page, 'add_order_line')).length).toBeGreaterThan(0);
   });
 
   test('"no allergen" and "no information" are told apart', async ({ page }) => {

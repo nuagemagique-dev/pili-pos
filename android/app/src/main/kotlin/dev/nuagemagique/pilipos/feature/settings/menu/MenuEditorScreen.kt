@@ -102,6 +102,9 @@ internal data class MenuEditorCallbacks(
     val onPosition: (Int) -> Unit = {},
     val onMin: (Int) -> Unit = {},
     val onMax: (Int) -> Unit = {},
+    val onCourse: (Int) -> Unit = {},
+    val onAllergen: (String) -> Unit = {},
+    val onAllergensDeclared: () -> Unit = {},
 )
 
 /**
@@ -146,6 +149,9 @@ internal fun MenuEditorRoute(
             onPosition = model::stepPosition,
             onMin = model::stepMin,
             onMax = model::stepMax,
+            onCourse = model::setCourse,
+            onAllergen = model::cycleAllergen,
+            onAllergensDeclared = model::toggleAllergensDeclared,
         )
     PosScaffold(HeaderArea.SETTINGS, navigator, modifier = Modifier.testTag("menu_editor_root")) {
         MenuEditorContent(state, callbacks)
@@ -160,7 +166,9 @@ internal fun MenuEditorRoute(
  * `menu_ed_vat_takeaway_<code|same>`, `menu_ed_kitchen`, `menu_ed_open_price`, `menu_ed_active`, `menu_ed_pos_minus`,
  * `menu_ed_pos_plus`, `menu_ed_min_*`, `menu_ed_max_*`, `menu_ed_group_<id>`, `menu_ed_option_<id>`,
  * `menu_ed_add_group`, `menu_ed_add_option`, `menu_ed_parent`, `menu_ed_save`, `menu_ed_cancel`, `menu_ed_error`,
- * `menu_ed_history_row_<id>`, `menu_ed_history_empty`, `menu_ed_hint`.
+ * `menu_ed_history_row_<id>`, `menu_ed_history_empty`, `menu_ed_hint`, and for lane 4 `menu_ed_course_<n>`,
+ * `menu_ed_course_off`, `menu_ed_allergens`, `menu_ed_allergens_declared`, `menu_ed_allergens_unknown`,
+ * `menu_ed_allergens_none`, `menu_ed_allergens_save_first`, `menu_ed_allergen_<code>`.
  */
 @Composable
 internal fun MenuEditorContent(
@@ -452,13 +460,17 @@ private fun ColumnScope.FormBody(
     ) {
         NameFields(state, form, callbacks)
         when (form.kind) {
-            FormKind.Category -> ColorField(form, callbacks)
+            FormKind.Category -> {
+                ColorField(form, callbacks)
+                CourseField(state, callbacks)
+            }
             FormKind.Product -> ProductFields(state, form, callbacks)
             FormKind.Group -> GroupFields(form, callbacks)
             FormKind.Option -> PriceField(form, state)
         }
         Stepper(vueText("menu_ed_position"), form.sortOrder, "menu_ed_pos", { callbacks.onPosition(-1) }, { callbacks.onPosition(1) })
         ToggleRow(vueText("menu_ed_active"), form.active, "menu_ed_active", callbacks.onActive)
+        AllergenSection(state, form, callbacks)
         SubEntries(state, form, callbacks)
     }
     if (state.error != null) {
@@ -490,7 +502,7 @@ private fun newTitleKey(kind: FormKind): String =
     }
 
 @Composable
-private fun FieldLabel(text: String) {
+internal fun FieldLabel(text: String) {
     Text(text, style = PiliTheme.typography.label, color = PiliTheme.colors.textSecondary)
 }
 
@@ -664,7 +676,7 @@ private fun SubRow(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ChipRow(content: @Composable () -> Unit) {
+internal fun ChipRow(content: @Composable () -> Unit) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs),
         verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs),
@@ -674,7 +686,7 @@ private fun ChipRow(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Chip(
+internal fun Chip(
     text: String,
     on: Boolean,
     tag: String,
@@ -701,7 +713,7 @@ private fun Chip(
 }
 
 @Composable
-private fun ToggleRow(
+internal fun ToggleRow(
     text: String,
     on: Boolean,
     tag: String,

@@ -118,6 +118,13 @@
     <string name="menu_ed_option">Option</string>
     <string name="menu_ed_save_first">Save the product to add options.</string>
     <string name="menu_ed_edit">Edit</string>
+    <string name="menu_ed_course">Kitchen course</string>
+    <string name="menu_ed_course_off">Courses are off: this choice applies once they are switched on.</string>
+    <string name="menu_ed_allergens">Allergens</string>
+    <string name="menu_ed_allergens_declared">List declared</string>
+    <string name="menu_ed_allergens_unknown">No information: the sheet says \"information not available\".</string>
+    <string name="menu_ed_allergens_hint">Tap an allergen: contains, then may contain traces, then nothing.</string>
+    <string name="menu_ed_allergens_save_first">Save the entry to set its allergens.</string>
     <string name="menu_ed_history_title">Change history</string>
     <string name="menu_ed_history_empty">No change yet.</string>
     <string name="menu_ed_history_by">by {name}</string>

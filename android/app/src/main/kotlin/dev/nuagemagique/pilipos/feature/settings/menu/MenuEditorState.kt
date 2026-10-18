@@ -4,6 +4,8 @@ import uniffi.pos_ffi.AdminCategory
 import uniffi.pos_ffi.AdminGroup
 import uniffi.pos_ffi.AdminOption
 import uniffi.pos_ffi.AdminProduct
+import uniffi.pos_ffi.AllergenEntry
+import uniffi.pos_ffi.CourseSettings
 import uniffi.pos_ffi.MenuAdmin
 import uniffi.pos_ffi.MenuChange
 
@@ -22,6 +24,52 @@ internal const val CODE_MAX: Int = 12
 
 /** What an open form edits. */
 internal enum class FormKind { Category, Product, Group, Option }
+
+/** The kitchen courses a category can take: 0 "Direct" to 3 "Desserts" (`course_<n>`). */
+internal val COURSES: List<Int> = listOf(0, 1, 2, 3)
+
+/** The `entity_type` of `set_allergens` for a product. */
+internal const val ALLERGEN_PRODUCT: String = "menu_item"
+
+/** The `entity_type` of `set_allergens` for an option. */
+internal const val ALLERGEN_OPTION: String = "modifier"
+
+/** Where an allergen stands in a list. */
+internal enum class AllergenLevel { NONE, CONTAINS, TRACES }
+
+/**
+ * The allergen list of the open product or option (`AllergenDraft` of `MenuEditorView.vue`): undeclared means "no
+ * information"; declared, the two lists are complete (both empty: "no allergen").
+ */
+internal data class AllergenDraft(
+    val declared: Boolean = false,
+    val contains: List<String> = emptyList(),
+    val mayContain: List<String> = emptyList(),
+) {
+    fun levelOf(code: String): AllergenLevel =
+        when (code) {
+            in contains -> AllergenLevel.CONTAINS
+            in mayContain -> AllergenLevel.TRACES
+            else -> AllergenLevel.NONE
+        }
+
+    /** A tap: none, contains, traces, none (`cycleAllergen`). */
+    fun cycled(code: String): AllergenDraft {
+        val level = levelOf(code)
+        val c = contains.filter { it != code }
+        val m = mayContain.filter { it != code }
+        return when (level) {
+            AllergenLevel.NONE -> AllergenDraft(true, c + code, m)
+            AllergenLevel.CONTAINS -> AllergenDraft(true, c, m + code)
+            AllergenLevel.TRACES -> AllergenDraft(true, c, m)
+        }
+    }
+
+    /** The same list, whatever the order of the codes (`sameAllergens`). */
+    fun sameAs(other: AllergenDraft): Boolean =
+        declared == other.declared &&
+            (!declared || (contains.toSet() == other.contains.toSet() && mayContain.toSet() == other.mayContain.toSet()))
+}
 
 /**
  * The edit form on the right of the editor (`Form` of `MenuEditorView.vue`): one class for the four entities, with
@@ -68,6 +116,14 @@ internal data class MenuEditorUiState(
     /** The refusal of the last read or save, or null. */
     val error: String? = null,
     val busy: Boolean = false,
+    /** The 14 allergens in Annex order, for the allergen chips. */
+    val legend: List<AllergenEntry> = emptyList(),
+    /** The course setting as stored; null when it could not be read (the picker is then hidden). */
+    val courseSettings: CourseSettings? = null,
+    /** The kitchen course of the open category form. */
+    val courseDraft: Int = 0,
+    /** The allergen list of the open product or option form. */
+    val allergenDraft: AllergenDraft = AllergenDraft(),
 ) {
     /** True while a catalog manages the menu: the editor is read-only. */
     val locked: Boolean get() = menu?.managedBy != null
@@ -83,6 +139,32 @@ internal data class MenuEditorUiState(
     fun groupsOf(productId: Long): List<AdminGroup> = menu?.groups.orEmpty().filter { it.menuItemId == productId }
 
     fun optionsOf(groupId: Long): List<AdminOption> = menu?.options.orEmpty().filter { it.groupId == groupId }
+
+    /** The course [categoryId] takes in the stored setting (0 when unmapped or new). */
+    fun courseOf(categoryId: Long?): Int =
+        courseSettings?.categoryCourses?.firstOrNull { it.categoryId == categoryId }?.course ?: 0
+
+    /** The stored allergen list of a product ([ALLERGEN_PRODUCT]) or an option ([ALLERGEN_OPTION]). */
+    fun storedAllergens(
+        type: String,
+        id: Long?,
+    ): AllergenDraft =
+        menu?.allergens?.firstOrNull { it.entityType == type && it.entityId == id }
+            ?.let { AllergenDraft(true, it.contains, it.mayContain) }
+            ?: AllergenDraft()
+
+    /** The state with [form] open and its course or allergen draft read from the stored values. */
+    fun withForm(form: MenuForm?): MenuEditorUiState =
+        copy(
+            form = form,
+            courseDraft = if (form?.kind == FormKind.Category) courseOf(form.id) else 0,
+            allergenDraft =
+                when (form?.kind) {
+                    FormKind.Product -> storedAllergens(ALLERGEN_PRODUCT, form.id)
+                    FormKind.Option -> storedAllergens(ALLERGEN_OPTION, form.id)
+                    else -> AllergenDraft()
+                },
+        )
 }
 
 /** The name to show for an entry: the establishment's language, then French, then any. */
