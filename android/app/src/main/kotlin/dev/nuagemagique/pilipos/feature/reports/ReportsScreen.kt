@@ -88,8 +88,8 @@ internal fun ReportsRoute(
 }
 
 /**
- * The reports screen, stateless: the four tabs (day, cash, tickets, sales; vouchers too when on) and the body of the chosen one, laid out for
- * 1920 x 1080 dp. Without a user it shows an empty state instead.
+ * The reports screen, stateless: the four tabs (day, cash, tickets, sales; vouchers too when on) and the body of the
+ * chosen one, laid out for 1920 x 1080 dp. Without a user it shows an empty state instead.
  * Test tags: `reports_empty`, `reports_tab_day`, `reports_tab_cash`, `reports_tab_tickets`, `reports_tab_sales`, `reports_body`.
  */
 @Composable

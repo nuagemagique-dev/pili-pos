@@ -78,7 +78,12 @@ class VoucherLineCartTest {
         compose.setContent {
             PiliTheme {
                 ProvideUiText(AppLanguage.FR, catalog) {
-                    Box { OrderCartColumn(OrderCartState(order = order(table = 4, totalCents = 2_500), rows = listOf(row)), OrderCartActions()) }
+                    Box {
+                        OrderCartColumn(
+                            OrderCartState(order = order(table = 4, totalCents = 2_500), rows = listOf(row)),
+                            OrderCartActions(),
+                        )
+                    }
                 }
             }
         }

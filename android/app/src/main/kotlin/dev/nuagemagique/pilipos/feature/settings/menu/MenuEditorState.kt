@@ -26,7 +26,10 @@ internal const val CODE_MAX: Int = 12
 internal enum class FormKind { Category, Product, Group, Option }
 
 /** The kitchen courses a category can take: 0 "Direct" to 3 "Desserts" (`course_<n>`). */
-internal val COURSES: List<Int> = listOf(0, 1, 2, 3)
+internal val COURSES: List<Int> = (0..LAST_COURSE).toList()
+
+/** The last kitchen course, "Desserts" (`course_3`). */
+private const val LAST_COURSE = 3
 
 /** The `entity_type` of `set_allergens` for a product. */
 internal const val ALLERGEN_PRODUCT: String = "menu_item"
@@ -141,8 +144,7 @@ internal data class MenuEditorUiState(
     fun optionsOf(groupId: Long): List<AdminOption> = menu?.options.orEmpty().filter { it.groupId == groupId }
 
     /** The course [categoryId] takes in the stored setting (0 when unmapped or new). */
-    fun courseOf(categoryId: Long?): Int =
-        courseSettings?.categoryCourses?.firstOrNull { it.categoryId == categoryId }?.course ?: 0
+    fun courseOf(categoryId: Long?): Int = courseSettings?.categoryCourses?.firstOrNull { it.categoryId == categoryId }?.course ?: 0
 
     /** The stored allergen list of a product ([ALLERGEN_PRODUCT]) or an option ([ALLERGEN_OPTION]). */
     fun storedAllergens(

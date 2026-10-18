@@ -90,6 +90,7 @@ internal data class OrderCallbacks(
  * logged in, and without an order an empty state is shown. It leaves only for the checkout (the pay button) and
  * for the tables (a sale closed unpaid). The root carries the tag `placeholder_order` (PD204: the tag means "feature root").
  */
+@Suppress("LongMethod") // Wires every order callback (menu, cart, dialogs, courses, vouchers) to its view model.
 @Composable
 internal fun OrderRoute(
     navigator: AppNavigator,

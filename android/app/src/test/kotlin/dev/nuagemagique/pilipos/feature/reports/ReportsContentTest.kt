@@ -771,7 +771,8 @@ class ReportsContentTest {
 
         compose.onNodeWithTag("correction_line_0").assertIsNotEnabled()
         compose.onNodeWithTag("correction_line_0").assertTextContains("Bon cadeau", substring = true)
-        compose.onNodeWithTag("correction_voucher_note").assertTextEquals("Un paiement par bon cadeau ne se corrige pas : il a débité le bon.")
+        val note = "Un paiement par bon cadeau ne se corrige pas : il a débité le bon."
+        compose.onNodeWithTag("correction_voucher_note").assertTextEquals(note)
         compose.onNodeWithTag("correction_terminal_0").assertDoesNotExist()
     }
 

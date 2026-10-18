@@ -32,6 +32,7 @@ internal val edamameProduct =
 internal val sauceGroup = AdminGroup(20L, 10L, mapOf("fr" to "Sauce"), 0, 2, 1, true)
 internal val sojaOption = AdminOption(30L, 20L, mapOf("fr" to "Soja"), 50L, 1, true)
 
+@Suppress("LongParameterList") // One defaulted parameter per list of MenuAdmin, the test builder of the record.
 internal fun adminMenu(
     managedBy: String? = null,
     categories: List<AdminCategory> = listOf(sushiCategory, drinksCategory),

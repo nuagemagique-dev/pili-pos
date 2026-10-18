@@ -236,6 +236,29 @@ internal class MenuViewModel(
         return Courses(settings.enabled, if (settings.enabled) order.heldCourses.value.minOfOrNull { it.course } else null)
     }
 
+    /** The menu half of the screen: the sold-out and voucher parts only for who may take a payment. */
+    private fun menuState(
+        d: Data,
+        l: Look,
+        quantities: Map<Long, Int>,
+    ): MenuState =
+        MenuState(
+            categories = d.categories,
+            selectedCategoryId = d.selectedCategoryId,
+            items = d.items,
+            cartQuantities = quantities,
+            language = l.language,
+            labelMode = l.labelMode,
+            loaded = d.loaded,
+            canSoldOut = l.canPay,
+            soldOutMode = d.soldOutMode && l.canPay,
+            soldOut = if (l.canPay) d.soldOut else emptyList(),
+            allergenMode = d.allergenMode,
+            allergenLegend = d.allergenLegend,
+            giftVouchersEnabled = d.giftVouchersEnabled && l.canPay,
+            allergenLegendError = d.allergenLegendError,
+        )
+
     @Suppress("LongParameterList")
     private fun build(
         d: Data,
@@ -253,23 +276,7 @@ internal class MenuViewModel(
         val quantities = lines.groupingBy { it.menuItemId }.fold(0) { sum, line -> sum + line.quantity }
         return OrderUiState(
             signedIn = l.signedIn,
-            menu =
-                MenuState(
-                    categories = d.categories,
-                    selectedCategoryId = d.selectedCategoryId,
-                    items = d.items,
-                    cartQuantities = quantities,
-                    language = l.language,
-                    labelMode = l.labelMode,
-                    loaded = d.loaded,
-                    canSoldOut = l.canPay,
-                    soldOutMode = d.soldOutMode && l.canPay,
-                    soldOut = if (l.canPay) d.soldOut else emptyList(),
-                    allergenMode = d.allergenMode,
-                    allergenLegend = d.allergenLegend,
-                    giftVouchersEnabled = d.giftVouchersEnabled && l.canPay,
-                    allergenLegendError = d.allergenLegendError,
-                ),
+            menu = menuState(d, l, quantities),
             cart =
                 OrderCartState(
                     order = current,
@@ -412,20 +419,17 @@ internal class MenuViewModel(
 
     /** A tap on a product button (`handleAddItem`). */
     fun addItem(item: MenuItem) {
-        // Allergen mode (the "Épuisé" mode comes first, as in OrderView.vue): a tap shows the product's allergen sheet.
-        if (data.value.allergenMode && !(data.value.soldOutMode && look.value.canPay)) {
-            openAllergenSheet(item)
-            return
-        }
-        // Only the order of the route takes products: while another one is current the menu does nothing.
-        if (soldOutTap(item) || !isRouteOrderCurrent()) return
-        if (item.openPrice) {
-            data.update { it.copy(dialog = OrderDialog.Price(item)) }
-            return
-        }
-        // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
-        viewModelScope.launch {
-            if (item.hasModifiers) askModifiers(item) else order.addItem(item)
+        when {
+            // Allergen mode (the "Épuisé" mode comes first, as in OrderView.vue): a tap shows the product's allergen sheet.
+            data.value.allergenMode && !(data.value.soldOutMode && look.value.canPay) -> openAllergenSheet(item)
+            // Only the order of the route takes products: while another one is current the menu does nothing.
+            soldOutTap(item) || !isRouteOrderCurrent() -> Unit
+            item.openPrice -> data.update { it.copy(dialog = OrderDialog.Price(item)) }
+            // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
+            else ->
+                viewModelScope.launch {
+                    if (item.hasModifiers) askModifiers(item) else order.addItem(item)
+                }
         }
     }
 

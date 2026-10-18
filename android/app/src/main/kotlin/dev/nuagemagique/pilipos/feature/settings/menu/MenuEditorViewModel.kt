@@ -254,31 +254,45 @@ internal class MenuEditorViewModel(
         form: MenuForm,
         saved: MenuSaved,
         before: MenuEditorUiState,
-    ): MenuAdmin {
-        val gateway = entry.gateway()
+    ): MenuAdmin =
         when (form.kind) {
             FormKind.Category -> {
-                val stored = before.courseSettings ?: return saved.menu
-                val course = before.courseDraft
-                if (before.courseOf(saved.id) == course) return saved.menu
-                val others = stored.categoryCourses.filter { it.categoryId != saved.id }
-                val mapping = if (course > 0) others + CategoryCourse(saved.id, course) else others
-                val now = gateway.call { engine -> engine.setCourseSettings(CourseSettings(stored.enabled, mapping)) }
-                own.update { it.copy(courseSettings = now) }
-                return saved.menu
+                sendCourse(saved.id, before)
+                saved.menu
             }
-            FormKind.Product, FormKind.Option -> {
-                val type = if (form.kind == FormKind.Product) ALLERGEN_PRODUCT else ALLERGEN_OPTION
-                val draft = before.allergenDraft
-                val stored = before.copy(menu = saved.menu).storedAllergens(type, saved.id)
-                if (draft.sameAs(stored)) return saved.menu
-                val contains = if (draft.declared) draft.contains else emptyList()
-                val traces = if (draft.declared) draft.mayContain else emptyList()
-                gateway.call { engine -> engine.setAllergens(SetAllergensInput(type, saved.id, draft.declared, contains, traces)) }
-                return gateway.call { engine -> engine.menuAdminGet() }
-            }
-            FormKind.Group -> return saved.menu
+            FormKind.Product, FormKind.Option ->
+                if (sendAllergens(form.kind, saved, before)) entry.gateway().call { engine -> engine.menuAdminGet() } else saved.menu
+            FormKind.Group -> saved.menu
         }
+
+    /** Writes the course of category [categoryId] when the draft differs from the stored setting. */
+    private suspend fun sendCourse(
+        categoryId: Long,
+        before: MenuEditorUiState,
+    ) {
+        val stored = before.courseSettings
+        val course = before.courseDraft
+        if (stored == null || before.courseOf(categoryId) == course) return
+        val others = stored.categoryCourses.filter { it.categoryId != categoryId }
+        val mapping = if (course > 0) others + CategoryCourse(categoryId, course) else others
+        val now = entry.gateway().call { engine -> engine.setCourseSettings(CourseSettings(stored.enabled, mapping)) }
+        own.update { it.copy(courseSettings = now) }
+    }
+
+    /** Writes the allergens of the saved product or option when the draft changed them; true when written. */
+    private suspend fun sendAllergens(
+        kind: FormKind,
+        saved: MenuSaved,
+        before: MenuEditorUiState,
+    ): Boolean {
+        val type = if (kind == FormKind.Product) ALLERGEN_PRODUCT else ALLERGEN_OPTION
+        val draft = before.allergenDraft
+        val stored = before.copy(menu = saved.menu).storedAllergens(type, saved.id)
+        if (draft.sameAs(stored)) return false
+        val contains = if (draft.declared) draft.contains else emptyList()
+        val traces = if (draft.declared) draft.mayContain else emptyList()
+        entry.gateway().call { engine -> engine.setAllergens(SetAllergensInput(type, saved.id, draft.declared, contains, traces)) }
+        return true
     }
 
     /** The menu as it is now, the saved entry reopened (so a new product shows its option groups). */

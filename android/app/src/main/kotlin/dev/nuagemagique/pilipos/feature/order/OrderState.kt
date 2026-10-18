@@ -10,9 +10,9 @@ import uniffi.pos_ffi.DiscountInput
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.ModifierGroup
 import uniffi.pos_ffi.Order
-import uniffi.pos_ffi.SoldOutItem
 import uniffi.pos_ffi.SheetProductView
 import uniffi.pos_ffi.SlipOutcome
+import uniffi.pos_ffi.SoldOutItem
 import uniffi.pos_ffi.VatSplitRow
 
 /** The dialog open over the order screen, if any (`pricing` and `choosing` of `OrderView.vue`). */

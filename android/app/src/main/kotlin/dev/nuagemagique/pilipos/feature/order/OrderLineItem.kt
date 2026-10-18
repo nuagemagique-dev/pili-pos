@@ -71,6 +71,7 @@ private val Hairline = 1.dp
  * under the name. Test tags: `cart_line_<id>`, `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`, `_notes`,
  * `_kitchen_note`, `_course`, `_voucher`, `_amount`, `_note`, `_remove`.
  */
+@Suppress("LongMethod") // One row of the cart: stepper or voucher badge, names, notes, course chip and actions.
 @Composable
 internal fun OrderLineItem(
     row: CartRow,
