@@ -9,8 +9,8 @@ initialisée avec **exactement** la liste de produits du manuel, afin
 que les UC du Basic Set, des Reports et de l'Advanced Set puissent être
 rejoués tels que définis (les fixtures référencent ces `productId`).
 
-- Source : `src-tauri/seed_spf_test.sql`, le même fichier que sous
-  Linux. Sur Android il n'est plus appliqué à la construction d'une
+- Source : `seed_spf_test.sql` (fichier de graine des sources du dépôt). Il
+  n'est pas appliqué à la construction d'une
   image : il voyage sous le nom `seed.sql` dans le lot de mise en service
   signé (graine facultative du jeu de test du SPF, `docs/android/APP.md`
   §3) et le terminal l'applique une seule fois, à une base qui n'existe
@@ -37,7 +37,7 @@ REPONSES_MANUEL_CERT_FR.md §III.F "Fonctionnalités avancées" et
 traçabilité du `productId` mais ne sont **pas proposés à la vente** ;
 les départements 30 (Menus) et 400 (Vouchers) n'ont donc plus aucun
 produit disponible et sont masqués dans la grille (`categories.active
-= 0` pour ces deux départements). Voir `src-tauri/seed_spf_test.sql`.
+= 0` pour ces deux départements). Voir `seed_spf_test.sql`.
 
 Le produit `22010` ("Plat du jour") est en **prix libre**
 (`open_price = 1`) : le prix n'est pas fixé au catalogue, il est saisi

@@ -13,7 +13,7 @@ Le Manuel de certification SCE 2.0 (Introduction, p.9) impose
 
 Le présent document établit la correspondance entre ces profils
 attendus par le SPF Finances et les rôles techniques implémentés
-dans `crates/pos-core/src/user.rs` (moteur commun aux deux produits).
+dans `crates/pos-core/src/user.rs` (moteur fiscal).
 
 ## 1. Correspondance des profils
 

@@ -30,11 +30,7 @@ ni une commande en cours (voir le §4).
 7. **Enregistrer** applique la modification ; **Annuler** referme le formulaire. Le bouton
    **« Historique »** liste les modifications : nature, élément, auteur, date et champs changés.
 
-Saisie du texte : sur la caisse Linux, clavier à l'écran (majuscules, chiffres, accents é è ê
-à ç ù, espace, `-'.,/&`) ; le nom chinois se saisit dans un champ ordinaire, sans clavier à
-l'écran (la caisse n'a pas de méthode de saisie chinoise : collage depuis un clavier
-physique). Sur la caisse portable Android, clavier du système, y compris pour le chinois. C'est
-la seule différence de comportement entre les deux écrans. Les textes existent en français,
+Saisie du texte : clavier du système, y compris pour le chinois. Les textes existent en français,
 anglais et chinois.
 
 ## 2. Règles appliquées par le moteur

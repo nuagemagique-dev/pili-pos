@@ -31,10 +31,9 @@ décrit :
 
 nuagemagique.dev développe et déploie des systèmes logiciels sur
 mesure pour le secteur HoReCa et la restauration. Le système de
-caisse est soumis à certification SCE 2.0 sous deux produits, qui font
-l'objet de deux demandes initiales distinctes (`CADRE_DEMANDE_FR.md`) :
-`pili-pos` 1.0.0 (Linux) et `pili-pos-android` 1.0.0 (Android, terminal
-Sunmi D3 Pro). Le présent dossier est celui de `pili-pos-android`.
+caisse `pili-pos-android` 1.0.0 (Android, terminal Sunmi D3 Pro) est
+soumis à certification SCE 2.0 par une demande initiale
+(`CADRE_DEMANDE_FR.md`).
 
 ## 3. Organisation du développement
 
@@ -92,9 +91,8 @@ revues avec une attention particulière :
   - `cargo clippy --workspace -- -D warnings` doit être propre.
   - `cargo fmt --all --check` doit être propre.
 - Tests e2e SPF (Basic Set + Reports + no-gap) doivent rester verts.
-- Pour Android : le moteur gelé ne change pas
-  (`scripts/android/check_linux_frozen.sh`), la parité des commandes
-  reste complète (`scripts/android/check_command_parity.py`) et les
+- Le moteur gelé ne change pas
+  (`scripts/android/check_android_frozen.sh`) et les
   tests de `android/` restent verts.
 
 Comme l'effectif est de 1 développeur, l'auto-revue est mitigée par
@@ -105,7 +103,7 @@ ou release.
 
 ### 4.2 Versioning et changelog
 
-Chaque release est taguée en `vX.Y.Z` (Linux) ou `android-vX.Y.Z` (Android) avec un changelog Markdown
+Chaque release est taguée en `android-vX.Y.Z` avec un changelog Markdown
 décrivant les modifications.
 
 Une release post-certification déclenchera :

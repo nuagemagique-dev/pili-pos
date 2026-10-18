@@ -10,7 +10,7 @@ et où à chaque étape. Il complète `DOCUMENT_PROCESSUS_TECHNIQUE_FR.md`
 d'un parcours utilisateur.
 
 **Couche d'interface sur Android.** Les règles fiscales sont celles du
-moteur commun (`crates/pos-engine`), identique à celui de `pili-pos`.
+moteur (`crates/pos-engine`).
 L'interface est en Kotlin et Compose ; elle appelle le moteur par
 UniFFI (`libpos_ffi.so`, `docs/android/FFI.md`) : chaque commande
 `commands::<module>::do_<fonction>` citée ci-dessous est la méthode
@@ -309,8 +309,7 @@ rapports pour voir les totaux en cours.
    `backup_database_impl`), avant l'impression. Le moteur garde les 7
    copies les plus récentes et supprime les plus anciennes (le journal
    fiscal de `pos.db` n'est jamais supprimé ; commit de cette règle dans
-   le tag de gel : À effectuer (EV-19 : commit de la rétention des
-   sauvegardes)).
+   le tag de gel : `4ff25b110c975d497f548538a08d81387b504b25` (commit « feat(engine): keep only the 7 newest database backups » du 2026-10-10, contenu dans l'étiquette de gel android-v1.0.0-rc3)).
 5. Deux tickets de rapport Z sont imprimés.
 6. Si la section `export` du `pos.json` du lot signé est renseignée, la fin de
    l'archivage et de l'impression réveille la tâche d'export (§9 ter) ;

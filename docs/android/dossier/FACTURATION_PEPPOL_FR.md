@@ -6,8 +6,7 @@ l'impression, la requête du journal des factures (article 33 de l'arrêté mini
 29 avril 2024) et le comportement de l'envoi Peppol, y compris sans réseau. Elle complète
 *DECISION_PEPPOL_AP_FR.md* (choix du point d'accès). La fonction est présente dans tous les
 binaires de la version 1.0.0 : elle n'est pas réservée à une compilation particulière, et un
-événement I n'est produit que lorsqu'un caissier le demande. Les écrans décrits existent à l'identique sur la caisse Linux et sur la caisse portable Android : seules les saisies de texte
-diffèrent (clavier à l'écran sur Linux, clavier du système sur Android).
+événement I n'est produit que lorsqu'un caissier le demande.
 
 ## 1. Parcours de l'opérateur
 

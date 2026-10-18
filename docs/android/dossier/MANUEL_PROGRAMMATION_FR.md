@@ -14,7 +14,7 @@ compte de contrôle, ni fichier à éditer, ni accès à distance
 (`PLATEFORME_ANDROID_FR.md` §3 et §7). Le catalogue et la configuration
 initiale se préparent sur le poste du producteur et entrent dans la caisse
 par le **lot de mise en service signé** (`MANUEL_INSTALLATION_FR.md` §2
-et §3.4) : `pos.json` (le même fichier que sous Linux) et, facultativement,
+et §3.4) : `pos.json` et, facultativement,
 `seed.sql`. Ensuite, un Gérant gère les employés dans "Config" (§6) et,
 quand HubRise gère le catalogue, le menu par HubRise (§4.5). Sinon le
 Gérant crée et modifie la carte depuis "Config", panneau "Carte"
@@ -290,7 +290,7 @@ de `pos.db` dans le stockage privé de l'application après chaque
 rapport Z, et l'outil de mise à jour une avant chaque installation
 (`GARANTIE_MAJ_LANGUES_FR.md` §2.1). Elle **conserve les 7 plus
 récentes** ; le journal fiscal de `pos.db` n'est jamais supprimé
-(`SECURITE_BD_FR.md` §5 ; commit du moteur : À effectuer (EV-19 : commit du changement du moteur)). Une
+(`SECURITE_BD_FR.md` §5 ; commit du moteur : `4ff25b110c975d497f548538a08d81387b504b25` (commit « feat(engine): keep only the 7 newest database backups » du 2026-10-10, contenu dans l'étiquette de gel android-v1.0.0-rc3)). Une
 copie fraîche sort par l'export du Gérant vers une clé USB ou une carte
 SD (`SECURITE_BD_FR.md` §8.2) ; la base n'est jamais sur la carte
 (`PLATEFORME_ANDROID_FR.md` §5.1).

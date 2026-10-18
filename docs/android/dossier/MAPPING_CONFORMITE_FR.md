@@ -9,11 +9,10 @@ l'implémente et le test qui prouve son fonctionnement. C'est le cœur
 du dossier cert : c'est ce que le relecteur utilisera pour vérifier
 la couverture de chaque règle obligatoire.
 
-Le moteur fiscal est le même code source que sous Linux (étiquette de
-gel `linux-v1.0.0-rc3`, `CADRE_DEMANDE_FR.md` §4) : les lignes du moteur
-(1 à 20) sont celles du dossier Linux, avec les mêmes fichiers et les
-mêmes tests. Seules changent les lignes qui touchent l'interface, la
-plateforme et la construction (10, 19, 21, hygiène de build) ; les
+Le moteur fiscal est celui de l'étiquette de gel android-v1.0.0-rc3
+(`CADRE_DEMANDE_FR.md` §4) : les lignes 1 à 20 désignent ses fichiers et ses
+tests. Les lignes qui touchent l'interface, la plateforme et la
+construction sont 10, 19, 21 et l'hygiène de build ; les
 exigences que l'arrêté impose au support Android sont aux lignes 22 à 26.
 
 Format :
@@ -64,7 +63,7 @@ Détail complet (34 tests e2e dans `spf_e2e_digital.rs`) : *voir TICKET_NUMERIQU
 
 | # | Exigence | Spec | Code | Test |
 |---|---|---|---|---|
-| 19 | Le POS ne parle PAS directement à SPF Finances | FDM v1.4 §I.1 | (architectural - le FDM est le seul canal sortant ; aucun appel SPF Finances nulle part dans `pili-pos-android`) | grep vérifié : `grep -rni "finances\.fed\.be\|minfin\.fed\.be" crates/ src-tauri/ android/ --exclude-dir=target` → 0 hit |
+| 19 | Le POS ne parle PAS directement à SPF Finances | FDM v1.4 §I.1 | (architectural - le FDM est le seul canal sortant ; aucun appel SPF Finances nulle part dans `pili-pos-android`) | grep vérifié : `grep -rni "finances\.fed\.be\|minfin\.fed\.be" crates/ android/ --exclude-dir=target` → 0 hit |
 | 20 | La short signature FDM est affichée sur le ticket | FDM v1.4 §IV.2 | `crates/pos-print/src/receipt.rs::format_receipt` | `crates/pos-engine/tests/spf_e2e_peripherals.rs::the_sale_receipt_carries_the_fdm_control_data` |
 | 21 | Le statut FDM est remonté à l'UI | FDM v1.4 §V | `crates/pos-engine/src/commands/fdm_monitor.rs` (état classé par le moteur) et `android/app/src/main/kotlin/dev/nuagemagique/pilipos/ui/fdm/FdmStore.kt` (relais vers l'écran) | `android/app/src/test/kotlin/dev/nuagemagique/pilipos/ui/fdm/FdmStoreTest.kt` et `FdmBlockingVeilTest.kt` (même dossier) ; E2E sur émulateur : À effectuer (EV-10 : parcours sur les deux profils du D3 Pro) |
 
@@ -105,9 +104,7 @@ de fixture (la caisse n'a pas de remise partielle sur une ligne).
 Les UC des trois jeux sont rejoués contre le moteur d'`android/rust` sur
 l'émulateur du D3 Pro, requête et réponse JSON par UC (résultats :
 `RESULTATS_TESTS_UC_FR.md`) : À effectuer (EV-06 : résultats des UC sur
-l'émulateur Android). Le journal des requêtes FDM est comparé à celui de
-Linux pour les mêmes scénarios : À effectuer (EV-07 : comparaison des
-journaux Android et Linux).
+l'émulateur Android).
 
 ## Bons cadeaux, fonctions du propriétaire et allergènes
 
@@ -140,8 +137,8 @@ couvert par `m132_payment_correction` et `crates/pos-engine/tests/payment_correc
 Voir `DECISION_PEPPOL_AP_FR.md` et `FACTURATION_PEPPOL_FR.md`.
 Sérialiseur UBL + trait AccessPoint implémentés dans `crates/pos-peppol` ;
 commandes dans `crates/pos-engine/src/commands/invoice.rs`, file d'envoi
-dans `crates/pos-engine/src/commands/peppol_queue.rs`, enveloppes IPC dans
-`src-tauri/src/ipc/invoice.rs`. Ce code est compilé dans tous les
+dans `crates/pos-engine/src/commands/peppol_queue.rs`, façade UniFFI dans
+`android/rust/pos-ffi/src/`. Ce code est compilé dans tous les
 binaires (aucune fonction Cargo) ; l'envoi ne fonctionne que dans une
 installation qui a une section `peppol`.
 

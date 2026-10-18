@@ -8,7 +8,7 @@ Inventaire exhaustif des fonctionnalités du système de caisse
 `pili-pos-android` dans sa version soumise à certification (v1.0.0,
 moteur construit avec `default-features = false, features = ["cert"]`,
 `android/rust/pos-ffi/Cargo.toml`). Les fonctionnalités fiscales (§1) et
-métier (§2) sont celles du moteur commun à `pili-pos` ; ce que l'interface
+métier (§2) sont celles du moteur fiscal ; ce que l'interface
 Android en offre est décrit au §7.
 
 ## 1. Fonctionnalités fiscales (SCE 2.0)
@@ -142,8 +142,7 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
   verrou de signature : elle ne retarde jamais une vente ni un Z.
 - Copies locales conservées `keep_days` jours (14 par défaut), dans la
   mémoire interne, jamais sur une carte SD.
-- État et nouvel essai réservés au Gérant (panneau « Export nocturne »
-  de « Config » sur Linux, écran dédié sur Android).
+- État et nouvel essai réservés au Gérant (écran dédié « Export nocturne »).
 - Le journal légal `fiscal_events` reste local ; l'export est une copie
   et ne fait pas du POS un POS dans le cloud.
 
@@ -152,8 +151,8 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
 ### 2.1 Prise de commande
 
 - Plan de tables (écran « Tables », `TablesScreen.kt`) avec statut "libre" / "occupée" ;
-  nombre de tables réglé par `table_count` (20 par défaut, 25 sur
-  l'image d'admission, comme le jeu de test SPF).
+  nombre de tables réglé par `table_count` (20 par défaut, 25 pour
+  le jeu de test du SPF).
 - Grille catégories + items (écran de commande, `MenuGrid.kt`)
   optimisée tactile (boutons ≥ 48 × 48 px).
 - Modificateurs par item (sauces, cuisson...) - table `modifier_groups`.
@@ -386,9 +385,9 @@ la certification SCE 2.0.
   (GraphQL en HTTP, ou HTTPS avec mTLS), jeton Bearer propre au FDM.
   Machine de test : simulateur en ligne module2.
 
-## 7. Interface Android et parité avec l'interface Linux
+## 7. Interface Android
 
-L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili-pos` et n'ajoute aucune règle fiscale : l'interface affiche et transmet, le moteur décide (`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` §1). L'index `docs/android/PARITY.md`, contrôlé par `scripts/android/check_ui_parity.py`, rattache chaque composant Vue à son équivalent Compose et chaque commande à son appelant. Sur les 146 commandes que l'interface Linux utilise (la build de certification en compte 148), **136 sont appelées** par l'interface Android et **10 sont exclues**, avec leurs raisons (§7.2) ; aucune n'est manquante ni en attente. Les commandes de facture, de produit épuisé, d'édition de la carte et de rapport de ventes sont parmi les 136.
+L'interface Kotlin et Compose n'ajoute aucune règle fiscale : l'interface affiche et transmet, le moteur décide (`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` §1). Sur les 148 commandes de la build de certification, **10 ne sont appelées par aucun écran**, avec leurs raisons (§7.2) ; aucune n'est en attente. Les commandes de facture, de produit épuisé, d'édition de la carte et de rapport de ventes sont appelées par des écrans.
 
 ### 7.1 Écrans offerts
 
@@ -401,16 +400,16 @@ L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili
 - Facturation B2B (choix des ventes, client, aperçu, liste des factures, panneau Peppol) : §2.7. Produit épuisé : §2.1. Édition de la carte : §2.6. Rapport de ventes : §2.3.
 - Allergènes : §2.8. Service en plusieurs temps : §2.9. Bons cadeaux (bouton de commande, méthode d'encaissement, onglet de rapports) : §2.10. Alertes du propriétaire (réglages) : §2.11.
 
-### 7.2 Commandes exclues (10)
+### 7.2 Commandes sans écran (10)
 
 | Commandes | Raison |
 |---|---|
 | `start_remote_support`, `stop_remote_support`, `remote_support_status`, `remote_support_running` | Assistance à distance absente de la version 1.0 (§7.3) |
-| `check_fdm_status` | Sans appelant côté Vue ; `fdm_health` et `fdm_check_now` le remplacent |
-| `list_fiscal_events` | Sans appelant côté Vue |
-| `sign_table_order` | Sans appelant côté Vue ; `leave_order` enregistre l'événement P |
+| `check_fdm_status` | Sans appelant dans l'interface ; `fdm_health` et `fdm_check_now` le remplacent |
+| `list_fiscal_events` | Sans appelant dans l'interface |
+| `sign_table_order` | Sans appelant dans l'interface ; `leave_order` enregistre l'événement P |
 | `reprint_course_slip` | Aucun écran dans la version 1.0 : la réimpression en DUPLICATA d'un bon de service en plusieurs temps reste une commande du moteur seul (`SERVICES_CUISINE_FR.md`) |
-| `work_in`, `work_out` | Sans appelant côté Vue ; la connexion fait entrer et `end_shift` fait sortir ; le Gérant pointe un autre employé avec `clock_in_employee` et `clock_out_employee` |
+| `work_in`, `work_out` | Sans appelant dans l'interface ; la connexion fait entrer et `end_shift` fait sortir ; le Gérant pointe un autre employé avec `clock_in_employee` et `clock_out_employee` |
 
 ### 7.3 Assistance à distance absente
 

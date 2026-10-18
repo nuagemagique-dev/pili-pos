@@ -7,7 +7,7 @@
 **Date :** À effectuer (EV-18 : date de dépôt)
 **Référence :** réponse aux §I.C, §II.C, §II.F et §II.G du manuel de certification pour la variante Android.
 
-Le présent document décrit la plateforme sur laquelle tourne `pili-pos-android` : le matériel, l'application, le verrouillage du terminal, l'identifiant de l'appareil, le stockage, le réseau, l'absence d'accès à distance et le comportement en cas de panne. Il n'a pas d'équivalent dans le dossier Linux (`pili-pos` repose sur une image kiosque Debian, décrite dans les annexes Linux). Le moteur fiscal est le même code source sur les deux plateformes (voir `CADRE_DEMANDE_FR.md` §4).
+Le présent document décrit la plateforme sur laquelle tourne `pili-pos-android` : le matériel, l'application, le verrouillage du terminal, l'identifiant de l'appareil, le stockage, le réseau, l'absence d'accès à distance et le comportement en cas de panne. Le moteur fiscal est décrit au `CADRE_DEMANDE_FR.md` §4.
 
 Convention de lecture. Une section « tel que construit » décrit ce que le code de la version 1.0.0 fait. Une section « cible » décrit ce que le produit doit faire sur le terminal avec services Google ; elle était signalée par `EV-13` tant que la preuve n'était pas produite ; les mesures de l'image avec services Google sont faites (`evidence/gms/EV13_2026-10-15.md`), il reste ce qu'un vrai terminal seul établit (`EV-15`). Tout fait matériel qui ne peut être établi qu'avec un vrai terminal est signalé par `EV-15`. Les mesures disponibles à ce jour ont été faites sur un profil émulé du terminal (§1).
 
@@ -22,7 +22,7 @@ Convention de lecture. Une section « tel que construit » décrit ce que le cod
 | Processeur | arm64-v8a uniquement : le seul fichier natif de l'APK est `libpos_ffi.so` pour cette architecture |
 | Écran | 1920 x 1080 en paysage (orientation capteur paysage imposée par l'application) |
 | NFC | Absent de l'unité principale du D3 Pro ; fonction facultative de l'application (§3.10) |
-| Imprimante | Epson TM-m30III (80 mm) sur le réseau local, TCP 9100 (ESC/POS), comme sous Linux |
+| Imprimante | Epson TM-m30III (80 mm) sur le réseau local, TCP 9100 (ESC/POS) |
 | FDM | module2 : boîtier sur le réseau local en production, simulateur en ligne pour la machine de test (voir `SCHEMA_ASSEMBLAGE_FR.md` §7) |
 | Application | un seul APK, identifiant `dev.nuagemagique.pilipos`, version 1.0.0, versionCode 10000 |
 
@@ -54,7 +54,7 @@ Le versionCode se calcule ainsi : MAJEUR x 10000 + MINEUR x 100 + CORRECTIF (1.0
  +--------------------------------------------------------------+
 ```
 
-- **Un seul APK.** Interface en Kotlin et Compose, moteur fiscal en Rust. Le moteur est compilé en `libpos_ffi.so` (crate `android/rust/pos-ffi`, façade UniFFI au-dessus de `crates/pos-engine`) et l'interface l'appelle par UniFFI et JNA. Le même code source du moteur est utilisé sous Linux (application Tauri).
+- **Un seul APK.** Interface en Kotlin et Compose, moteur fiscal en Rust. Le moteur est compilé en `libpos_ffi.so` (crate `android/rust/pos-ffi`, façade UniFFI au-dessus de `crates/pos-engine`) et l'interface l'appelle par UniFFI et JNA.
 - **Aucune règle fiscale ni calcul d'argent en Kotlin.** L'interface affiche et transmet ; le moteur décide. Le calcul du rendu en espèces, de la ventilation de TVA et de l'aperçu de règlement passe par des fonctions d'aide du moteur (`docs/android/FFI.md` §9). Un contrôle automatique de l'arborescence interdit à la couche plateforme d'y toucher.
 - **Le moteur possède les déclencheurs fiscaux.** L'événement P à la sortie d'une commande, l'enregistrement de l'entrée en service et de la sortie de service, le verrouillage après 5 minutes d'inactivité et le suivi du FDM sont des règles du moteur (`docs/android/ENGINE.md` §7). L'interface se limite à signaler l'activité de l'utilisateur et à réagir aux événements.
 - **États du moteur.** Fermé (non provisionné, appareil différent, identifiant illisible, arrêt), en ouverture, prêt (la version affichée est pili-pos-android/1.0.0) ou fatal. Sans configuration provisionnée signée, le moteur n'est jamais démarré : il n'existe aucune identité de test implicite.
@@ -199,7 +199,7 @@ L'identifiant de l'appareil (`deviceId`) est le **numéro de série matériel du
 | Numéro illisible | vide, « unknown », plus de 600 caractères ou refus de sécurité : le moteur reste fermé, le terminal ne démarre pas |
 | Valeurs exclues | aucun identifiant généré, aléatoire ou issu de `ANDROID_ID` (cette valeur dépend de la clé de signature et de l'utilisateur et change après une réinitialisation d'usine, ce n'est pas un identifiant matériel au sens de la question 505), aucune adresse MAC (masquée aux applications ordinaires), aucune propriété système (vide dans le processus de l'application) |
 
-Le numéro est affiché dans l'écran « À propos », écrit dans le fichier d'identité de l'export vers le SPF et imprimé par le moteur sur les tickets, comme sous Linux où il s'agit de l'adresse MAC.
+Le numéro est affiché dans l'écran « À propos », écrit dans le fichier d'identité de l'export vers le SPF et imprimé par le moteur sur les tickets.
 
 **Valeur de l'émulateur.** `EMULATOR37X2X12X0` (17 caractères), lue avec l'application prototype des essais préparatoires, stable après redémarrage, avec ou sans Wi-Fi. **Format du vrai terminal** et confirmation que son micrologiciel renvoie le numéro au propriétaire : À effectuer (EV-15 : numéro de série réel et sa lecture par `Build.getSerial()`). **Valeur de la machine de test** telle qu'imprimée sur ses tickets : `EMULATOR37X2X12X0`, relevée sur les tickets de `TICKETS_EXEMPLES_FR.md` avec l'application 1.0.0 (« Input device MAC ») et sur l'écran « À propos » (capture A82).
 
@@ -218,7 +218,7 @@ La base de données du moteur est `pos.db`, dans le dossier `files/engine` du st
 
 ### 5.2 Ce que la caisse conserve
 
-Après chaque rapport Z, le moteur écrit une copie complète de `pos.db` dans `files/engine/backups` et **conserve les 7 copies les plus récentes**, en supprimant les plus anciennes (règle du produit). Le journal fiscal contenu dans `pos.db` n'est jamais supprimé. Le commit du moteur qui porte cette règle, à l'intérieur de l'étiquette de gel : À effectuer (EV-19 : commit de la conservation des 7 sauvegardes dans `linux-v1.0.0-rc3`).
+Après chaque rapport Z, le moteur écrit une copie complète de `pos.db` dans `files/engine/backups` et **conserve les 7 copies les plus récentes**, en supprimant les plus anciennes (règle du produit). Le journal fiscal contenu dans `pos.db` n'est jamais supprimé. Le commit du moteur qui porte cette règle, à l'intérieur de l'étiquette de gel : `4ff25b110c975d497f548538a08d81387b504b25` (commit « feat(engine): keep only the 7 newest database backups » du 2026-10-10, contenu dans l'étiquette de gel android-v1.0.0-rc3).
 
 La caisse conserve donc environ **8 fois la taille de la base** (la base et 7 sauvegardes). Aux taux mesurés (§5.3) : environ 4 Go après un an à 100 ventes par jour et environ 13 Go à 300 ventes par jour. L'écran « À propos » affiche l'espace interne libre et la taille des sauvegardes, avec un avertissement sous 2 Gio libres ou quand les sauvegardes dépassent la moitié de l'espace libre ; la plateforme ne supprime rien elle-même.
 
@@ -263,7 +263,7 @@ Le terminal n'ouvre **aucun port en écoute**. Il n'initie que des connexions so
 
 | Destination | Protocole | Condition |
 |---|---|---|
-| FDM module2 (boîtier du réseau local, ou simulateur en ligne pour la machine de test) | GraphQL en HTTPS avec certificat client (mTLS) et jeton, comme sous Linux ; le moteur accepte aussi le HTTP clair comme sous Linux | toujours |
+| FDM module2 (boîtier du réseau local, ou simulateur en ligne pour la machine de test) | GraphQL en HTTPS avec certificat client (mTLS) et jeton ; le moteur accepte aussi le HTTP clair | toujours |
 | Imprimante Epson TM-m30III | TCP 9100 (ESC/POS) sur le réseau local | toujours |
 | HubRise (`manager.hubrise.com`, `api.hubrise.com`) | HTTPS, port 443 | seulement si HubRise est activé (`COMMANDES_EN_LIGNE_FR.md`) |
 | Point d'accès Peppol (`api.storecove.com`, adresse `peppol.base_url`) | HTTPS, port 443 | seulement si la section `peppol` est configurée (`FACTURATION_PEPPOL_FR.md`) |
@@ -274,7 +274,7 @@ Le terminal n'ouvre **aucun port en écoute**. Il n'initie que des connexions so
 Règles :
 
 - **Racines TLS embarquées.** Le moteur ne s'appuie pas sur le magasin de certificats d'Android : les racines de confiance sont compilées dans l'APK (mode `BundledRoots`) ; un jeu périmé échoue en refusant la connexion. Renouveler les racines suppose un nouvel APK, donc une nouvelle version déclarée. Un proxy qui inspecte le TLS avec une racine privée n'est pas accepté.
-- **FDM en mTLS.** Le client mTLS du FDM (certificat serveur à X.509 v1 de module2) est le même code que sous Linux ; il a été vérifié sur Android lors des essais préparatoires.
+- **FDM en mTLS.** Le client mTLS du FDM (certificat serveur à X.509 v1 de module2) est celui du moteur ; il a été vérifié sur Android lors des essais préparatoires.
 - **Texte clair.** La configuration de sécurité réseau de l'application interdit le trafic en clair côté Kotlin, sauf vers `127.0.0.1` et `localhost` (simulateurs de l'environnement de test, joints par redirection de port adb).
 - **Aucun trafic permanent.** Il n'existe aucune session d'assistance, aucun canal permanent et aucun serveur : la mise à jour est lancée par le gérant, l'export nocturne est celui de `EXPORT_NOCTURNE_FR.md`.
 - **Réseau local.** Le terminal rejoint le réseau par Wi-Fi (préparé au banc avant l'import du lot ; `DISALLOW_CONFIG_WIFI` n'est jamais appliquée, mais l'application 1.0.0 n'a pas d'écran de réseau, `MANUEL_INSTALLATION_FR.md` §4.3) ou par liaison filaire si le modèle en offre une. Ports physiques du vrai D3 Pro : À effectuer (EV-15 : connectivité filaire et Wi-Fi mesurées sur un vrai D3 Pro).
@@ -283,7 +283,7 @@ Règles :
 
 ## 7. Absence d'accès à distance
 
-La version 1.0 ne comporte **aucun outil d'assistance à distance** (aucun équivalent de RustDesk). Le moteur est ouvert sans programme de support : la commande de session d'assistance répond « non disponible » et l'interface n'en propose pas l'entrée. Aucun port en écoute, aucun canal permanent, adb coupé sur un terminal provisionné (§3.5).
+La version 1.0 ne comporte **aucun outil d'assistance à distance**. Le moteur est ouvert sans programme de support : la commande de session d'assistance répond « non disponible » et l'interface n'en propose pas l'entrée. Aucun port en écoute, aucun canal permanent, adb coupé sur un terminal provisionné (§3.5).
 
 Le support se fait **sur place** : écrans du gérant protégés par PIN, lot de provisionnement signé sur clé USB (configuration, jeton du FDM, certificats mTLS) et export SAF des journaux et des sauvegardes sur clé USB ou carte SD. Ajouter un jour une assistance à distance serait une nouvelle version Android et une modification du dossier.
 

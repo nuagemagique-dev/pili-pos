@@ -280,7 +280,7 @@ système à fenêtre de nuit de 03:00 à 05:00 : `PLATEFORME_ANDROID_FR.md`
 
 ### 3.3 Environnement verrouillé
 
-À la place de l'image scellée de la version Linux, le terminal est
+Le terminal est
 verrouillé par l'application elle-même (détails et limites :
 `PLATEFORME_ANDROID_FR.md` §3, à ne pas sur-vendre ici) :
 
@@ -320,7 +320,7 @@ moteur (chien de garde, trois redémarrages au plus en dix minutes,
 `PLATEFORME_ANDROID_FR.md` §8). Le **Verified Boot** du système du
 constructeur n'est pas déclaré dans ce dossier : À effectuer (EV-15 :
 état du Verified Boot et du chargeur de démarrage du D3 Pro réel).
-Contrairement à la version Linux, aucune configuration de BIOS ni de
+Aucune configuration de BIOS ni de
 mot de passe de démarrage n'est demandée au technicien.
 
 ### 3.6 Chiffrement du stockage
@@ -389,8 +389,8 @@ sur le build reproductible (EV-01). Détail et reproductibilité du build :
 
 ### 4.3 Hash du code source
 
-Tag git de la révision certifiée (`android-v1.0.0`) et tag de gel du
-moteur commun `linux-v1.0.0-rc3` (À effectuer (EV-04 : commit du tag)).
+Tag git de la révision certifiée (`android-v1.0.0`) et étiquette de gel du
+moteur android-v1.0.0-rc3 (À effectuer (EV-04 : commit de l'étiquette de gel android-v1.0.0-rc3, puis de l'étiquette finale android-v1.0.0)).
 Permet de reproduire l'APK à l'identique et de vérifier l'absence de
 modifications post-certification.
 
@@ -409,13 +409,12 @@ Politique :
 - **Rétention : les 7 sauvegardes les plus récentes.** Après chaque Z, le
   moteur garde les 7 copies les plus récentes et supprime les plus
   anciennes (décision du producteur du 2026-10-10 ; le commit de ce
-  changement du moteur dans l'étiquette de gel : À effectuer (EV-19 : commit du changement du moteur)).
+  changement du moteur dans l'étiquette de gel : `4ff25b110c975d497f548538a08d81387b504b25` (commit « feat(engine): keep only the 7 newest database backups » du 2026-10-10, contenu dans l'étiquette de gel android-v1.0.0-rc3)).
   Chaque copie est une copie complète de `pos.db` : le journal fiscal
   (`fiscal_events`), qui est dans `pos.db`, n'est jamais supprimé et
   contient tout ce que contenaient les copies supprimées. Sans cette
   règle, 365 copies d'une base qui grossit rempliraient la mémoire
-  interne en quelques mois. Le moteur étant commun, la règle vaut aussi
-  pour la version Linux au même tag de gel.
+  interne en quelques mois.
 - Stockage local, dans la mémoire interne uniquement. Aucune
   sauvegarde dans le nuage ni transfert d'appareil :
   `allowBackup="false"` et
@@ -597,7 +596,7 @@ Un `MANIFEST.sha256` absent signifie un export incomplet.
 1. Faire exporter le Gérant, puis brancher la clé ou la carte sur son
    ordinateur.
 2. Vérifier `MANIFEST.sha256` (`shasum -a 256 -c MANIFEST.sha256`, ou
-   `sha256sum -c` sous Linux) : chaque ligne doit afficher `OK`, et
+   `sha256sum -c`) : chaque ligne doit afficher `OK`, et
    l'empreinte du fichier lui-même doit être celle de l'écran « Export
    terminé ».
 3. Vérifier `sqlite3 pos.db "PRAGMA integrity_check;"` : `ok`.
@@ -611,8 +610,7 @@ Un `MANIFEST.sha256` absent signifie un export incomplet.
 ### 8.4 Aucune autre voie
 
 Sur un terminal provisionné, il n'existe aucun autre chemin vers les
-données : pas de console ni de compte de contrôle (le compte `spf` de
-l'image d'admission Linux n'a pas d'équivalent), pas d'assistance à
+données : pas de console ni de compte de contrôle, pas d'assistance à
 distance, pas de port à l'écoute, débogage USB coupé et transfert de
 fichiers USB interdit (§3.2 à §3.4 ; pour la réinitialisation d'usine et
 le mode sans échec, restrictions posées, effet sur le D3 Pro réel : À

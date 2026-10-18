@@ -12,8 +12,7 @@ compte Google** (§3), importer le lot de configuration signé (§3.4),
 contrôler la caisse (§4), puis ne plus toucher à l'appareil autrement que
 par l'application (§6, §9).
 
-Le moteur fiscal est le même code source que sous Linux : `pos.json`
-(§4.2) est le même, seule sa livraison change. Le verrouillage est décrit
+Le moteur fiscal lit `pos.json` (§4.2), livré dans le lot de mise en service. Le verrouillage est décrit
 dans `PLATEFORME_ANDROID_FR.md` §3, le stockage dans §5.
 
 ## 1. Matériel requis
@@ -233,7 +232,7 @@ lot signé (§3.4) et l'export des données (`SECURITE_BD_FR.md` §8).
 
 ### 4.2 Fichier de configuration `pos.json`
 
-Le fichier est celui du moteur, identique à celui de Linux. Il se place
+Le fichier est celui du moteur. Il se place
 **à la racine du lot** (§2.1) et se lit à chaque démarrage ; ses chemins
 de fichiers sont relatifs au dossier du lot. Pour corriger une valeur,
 on refait un lot signé et on le réimporte.
@@ -396,7 +395,7 @@ terminal relié répond (voyant « Terminal » de l'en-tête, ligne
 Configuration, « Informations »).
 
 **Vérification.** À l'import, l'application applique à `pos.json` les
-mêmes contrôles que `pili-pos --check-config` sous Linux (format du
+contrôles suivants (format du
 `pos_id`, TVA et unité d'établissement modulo 97, champs vides, URL du
 FDM, langue, blocs `digital_ticket`, `export` et `payment_terminal`) ; un champ refusé bloque
 l'import et le message nomme la cause. Le FDM refusant tout événement à
@@ -435,7 +434,7 @@ deux voies :
 
 1. **`seed.sql` du lot**, appliqué une seule fois, avant le premier
    événement fiscal. Pour un établissement, le technicien y place au
-   moins le Gérant (mêmes instructions SQL que sous Linux) :
+   moins le Gérant :
 
    ```sql
    INSERT INTO users (insz, name, role, active)
@@ -444,7 +443,7 @@ deux voies :
 
    Rôles : `admin` (Gérant), `cashier` (Serveur), `waiter` (Apprenti).
    Machine de test du SPF : graine du jeu de test
-   (`src-tauri/seed_spf_test.sql`, comptes du §7.1).
+   (`seed_spf_test.sql`, comptes du §7.1).
 2. **« Config » d'un Gérant connecté** : ajout, désactivation et PIN des
    employés (`MANUEL_UTILISATEUR_FR.md`), pour les comptes suivants.
 
@@ -564,8 +563,7 @@ réception de l'export nocturne si `export`, et l'artefact public de mise
 (`PLATEFORME_ANDROID_FR.md` §6).
 
 **Comptes.** Aucun compte système ni de contrôle : les employés sont les
-lignes de `users` (INSZ et PIN). Pas d'équivalent du compte `spf` de
-l'image d'admission Linux : le SPF accède aux données par l'export du
+lignes de `users` (INSZ et PIN). Le SPF accède aux données par l'export du
 Gérant, « Export pour le SPF » (`SECURITE_BD_FR.md` §8.2), vers une clé
 USB ou une carte SD en exFAT.
 
@@ -600,7 +598,7 @@ version défectueuse se corrige par une nouvelle version déclarée.
 
 ### 7.1 Liste des numéros INSZ de test
 
-Comptes de la graine du jeu de test du SPF (`src-tauri/seed_spf_test.sql`),
+Comptes de la graine du jeu de test du SPF (`seed_spf_test.sql`),
 à l'usage exclusif de la phase de test pré-soumission :
 
 | Rôle | Nom | INSZ | PIN |
@@ -666,7 +664,7 @@ Chiffres de `PLATEFORME_ANDROID_FR.md` §5, mesurés sur l'émulateur.
 - **Besoin interne.** Après chaque rapport Z, la caisse écrit une copie de
   `pos.db` et **conserve les 7 plus récentes**, en supprimant les plus
   anciennes ; le journal fiscal de `pos.db` n'est jamais supprimé (commit
-  du moteur : À effectuer (EV-19 : commit du changement du moteur)). Elle occupe environ 8 fois la base :
+  du moteur : `4ff25b110c975d497f548538a08d81387b504b25` (commit « feat(engine): keep only the 7 newest database backups » du 2026-10-10, contenu dans l'étiquette de gel android-v1.0.0-rc3)). Elle occupe environ 8 fois la base :
   environ 4 Go après un an à 100 ventes par jour, environ 13 Go à 300.
   « À propos » affiche l'espace libre et avertit sous 2 Gio. Espace libre
   du vrai D3 Pro : À effectuer (EV-15).

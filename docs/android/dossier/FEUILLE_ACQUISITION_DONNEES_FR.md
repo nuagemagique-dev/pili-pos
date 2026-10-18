@@ -36,7 +36,7 @@ Finances.
 | Format de nom | `pos-YYYYMMDD-HHMMSS.db` |
 | Format | Fichier SQLite identique au fichier vivant |
 | Accès | Ceux du stockage privé de l'application (§1.1) |
-| Rétention | Les 7 plus récentes : après chaque Z, le moteur supprime les plus anciennes (décision du producteur du 2026-10-10 ; commit dans l'étiquette de gel : À effectuer (EV-19 : commit du changement du moteur)). `fiscal_events` n'est jamais supprimé (§3). |
+| Rétention | Les 7 plus récentes : après chaque Z, le moteur supprime les plus anciennes (décision du producteur du 2026-10-10 ; commit dans l'étiquette de gel : `4ff25b110c975d497f548538a08d81387b504b25` (commit « feat(engine): keep only the 7 newest database backups » du 2026-10-10, contenu dans l'étiquette de gel android-v1.0.0-rc3)). `fiscal_events` n'est jamais supprimé (§3). |
 
 Implémentation : `crates/pos-engine/src/commands/report.rs::backup_database_impl`.
 
@@ -146,8 +146,7 @@ Tables de `pos.db` lisibles comme le reste de la base (§2 ci-dessous), migratio
 ### 2.1 Sur la machine du commerçant
 
 - Pas de console, de shell, de SSH ni de compte de contrôle sur le
-  terminal (`SECURITE_BD_FR.md` §3.3 et §3.4). Il n'existe pas
-  d'équivalent du compte `spf` de l'image d'admission Linux.
+  terminal (`SECURITE_BD_FR.md` §3.3 et §3.4).
 - L'opérateur ne dispose d'aucune commande shell ni d'explorateur de
   fichiers : l'application démarre en plein écran, en mode kiosque.
 - Le transfert de fichiers par USB est interdit et le débogage USB est
@@ -172,11 +171,9 @@ les sources du §1 ainsi :
 | Journal de la plateforme | `audit/` |
 | Exports nocturnes (§1.7) | Non repris : ce sont des copies |
 
-Les méthodes A, A bis, B et C de la version Linux n'existent pas ici :
-il n'y a ni console, ni disque que l'opérateur puisse extraire (A et A
-bis) ; la fonction `backup_database_impl` de la méthode B est celle
-que l'export appelle ; l'interrogation SQL de la copie (méthode C) est
-décrite au §2.3.
+Il n'y a ni console, ni disque que l'opérateur puisse extraire ;
+la fonction `backup_database_impl` est celle que l'export appelle ;
+l'interrogation SQL de la copie est décrite au §2.3.
 
 ### 2.3 Format de sortie de l'export
 

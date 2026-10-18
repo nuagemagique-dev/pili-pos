@@ -7,9 +7,9 @@
 
 Ce document capture la répétition en direct contre le **simulateur en ligne du FDM module2** (FDM certifié SCE 2.0) avant l'envoi du dossier à SPF Finances. Le même simulateur sert de FDM à la machine de test à l'Intake (manuel de certification §IV, étape 1 ; connexion décrite dans SCHEMA_ASSEMBLAGE_FR.md §7). La répétition prouve le comportement de bout en bout avec des signatures non mockées.
 
-Aucune répétition en ligne n'a encore eu lieu pour le produit Android : tout appel au simulateur attend l'accord explicite du producteur. Le journal ci-dessous est un squelette ; il ne reprend aucun relevé du dossier Linux. Identité proposée sur le simulateur : posId `CPOS0031234567` et un terminalId propre à la caisse Android (`À effectuer (EV-14 : répétition en ligne sur le simulateur, identité du terminal)`). La répétition est jouée avec l'application et le moteur embarqué sur le terminal de test (`À effectuer (EV-15 : terminal réel, ou mention du profil émulé)`).
+Aucune répétition en ligne n'a encore eu lieu : tout appel au simulateur attend l'accord explicite du producteur. Le journal ci-dessous est un squelette. Identité proposée sur le simulateur : posId `CPOS0031234567` et un terminalId propre à la caisse Android (`À effectuer (EV-14 : répétition en ligne sur le simulateur, identité du terminal)`). La répétition est jouée avec l'application et le moteur embarqué sur le terminal de test (`À effectuer (EV-15 : terminal réel, ou mention du profil émulé)`).
 
-Les harnais de test du moteur, ignorés par défaut et jamais lancés en CI, sont les mêmes que sous Linux : `crates/pos-engine/tests/live_fdm.rs` (une journée d'exploitation par les vraies commandes) et `crates/pos-fiscal/tests/e2e_staging.rs` (la même séquence au niveau du client FDM). Les appels partent un à un, plafonnés à 60 par exécution (le simulateur est un service partagé).
+Les harnais de test du moteur, ignorés par défaut et jamais lancés en CI, sont `crates/pos-engine/tests/live_fdm.rs` (une journée d'exploitation par les vraies commandes) et `crates/pos-fiscal/tests/e2e_staging.rs` (la même séquence au niveau du client FDM). Les appels partent un à un, plafonnés à 60 par exécution (le simulateur est un service partagé).
 
 ## Checklist pré-répétition
 

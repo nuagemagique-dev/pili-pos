@@ -20,9 +20,7 @@ ne touche à aucun compteur et ne modifie ni un ticket ni un rapport.
 
 L'apprenti (profil sans droit d'encaissement) voit les produits grisés et le message
 de refus, mais n'a ni le bouton « Épuisé » ni la liste : le moteur refuse ces commandes à un
-profil qui ne peut pas encaisser. Les deux écrans (caisse Linux et caisse portable Android)
-offrent les mêmes boutons, les mêmes textes (français, anglais, chinois) et le même
-comportement.
+profil qui ne peut pas encaisser. Les textes existent en français, anglais et chinois.
 
 ## 2. Règle appliquée par le moteur
 

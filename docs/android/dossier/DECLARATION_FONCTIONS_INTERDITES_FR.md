@@ -10,9 +10,8 @@ le soussigné déclare sur l'honneur que le système de caisse
 **pili-pos-android v1.0.0** (build de certification : moteur construit
 avec `default-features = false, features = ["cert"]`,
 `android/rust/pos-ffi/Cargo.toml`) ne comporte AUCUNE des
-fonctionnalités interdites suivantes. Le moteur fiscal est le même que
-celui de `pili-pos` sur Linux ; les garanties du moteur (§1, §2, §4, §5, §7 à
-§9) valent donc à l'identique, et les mesures du système (§3, §6, §10,
+fonctionnalités interdites suivantes. Les garanties du moteur (§1, §2, §4, §5, §7 à
+§9) sont celles du moteur fiscal compilé dans l'APK, et les mesures du système (§3, §6, §10,
 §11) sont celles d'Android (`PLATEFORME_ANDROID_FR.md` §3 et §7) :
 
 ## 1. Suppression d'enregistrements fiscaux
@@ -30,7 +29,7 @@ fiscal déjà signé par le FDM.
   `UPDATE` de cette table, quel que soit l'outil qui les émet.
 - Vérification mécanique :
   ```bash
-  grep -rn --exclude-dir=tests "DELETE FROM fiscal_events" src-tauri/ crates/ android/rust/ android/app/src
+  grep -rn --exclude-dir=tests "DELETE FROM fiscal_events" crates/ android/rust/ android/app/src
   ```
   Aucune occurrence hors modules de test : la commande (qui exclut les
   dossiers `tests/`) ne renvoie que deux lignes, toutes deux dans des
@@ -41,9 +40,7 @@ fiscal déjà signé par le FDM.
   `pili-pos-android` n'en contiennent aucune.
 - Aucune méthode de la façade `pos-ffi` n'expose une opération de
   suppression d'un enregistrement fiscal : chacune appelle une fonction
-  de `crates/pos-engine/src/commands/mod.rs`, et la parité des commandes
-  est contrôlée (`scripts/android/check_command_parity.py`,
-  `docs/android/FFI.md` §11).
+  de `crates/pos-engine/src/commands/mod.rs` (`docs/android/FFI.md` §11).
 
 ## 2. Modification d'enregistrements fiscaux
 
@@ -58,7 +55,7 @@ fiscal après sa signature par le FDM.
   déclencheurs SQLite de la migration 4 refusent tout `UPDATE`.
 - Vérification mécanique :
   ```bash
-  grep -rn --exclude-dir=tests "UPDATE fiscal_events" src-tauri/ crates/ android/rust/ android/app/src
+  grep -rn --exclude-dir=tests "UPDATE fiscal_events" crates/ android/rust/ android/app/src
   ```
   Aucune occurrence hors modules de test : la commande ne renvoie que
   deux lignes, des tests unitaires de `crates/pos-fiscal/src/archive.rs`
@@ -287,7 +284,7 @@ selon le protocole `FPSFIN_API_PROTOCOL_FDM_FINCLOUD_1.10` (2026-04-14).
 
 - Vérification mécanique :
   ```bash
-  grep -rni "finances\.fed\.be\|minfin\.fed\.be" src-tauri/ crates/ android/rust/ android/app/src --exclude-dir=target   # → 0 match
+  grep -rni "finances\.fed\.be\|minfin\.fed\.be" crates/ android/rust/ android/app/src --exclude-dir=target   # → 0 match
   ```
 - Le client HTTP `FdmClient` ne pointe que vers une URL configurée
   par l'opérateur (la FDM en LAN). Aucun client SPF Finances

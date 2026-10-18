@@ -13,9 +13,8 @@
 Les commandes passées hors de la caisse (plateformes de livraison telles
 que Deliveroo ou Uber Eats, webshop propre de l'établissement) arrivent
 dans pili-pos-android par HubRise, un service tiers de concentration de
-commandes. Le code est celui du moteur commun, identique à celui de
-`pili-pos` : l'application Android ne change que l'étape de connexion
-(§11) et l'écran des commandes (§12). Chaque commande en ligne se termine par un événement N
+commandes. Le code est celui du moteur fiscal ; l'application Android
+ajoute l'étape de connexion (§11) et l'écran des commandes (§12). Chaque commande en ligne se termine par un événement N
 signé par le FDM (FAQ Q203 a), créé sur ce terminal, au nom de
 l'employé qui l'accepte.
 
@@ -225,7 +224,7 @@ simulé dans le processus (`cargo test -p pos-engine --no-default-features --fea
 
 Les mêmes parcours (catalogue, commande payée annulée puis remboursée,
 commande à payer encaissée à la remise) ont été rejoués contre l'API
-HubRise réelle, sur un établissement de test, avec le moteur commun ; les réponses
+HubRise réelle, sur un établissement de test, avec le moteur ; les réponses
 enregistrées servent à vérifier que le HubRise simulé a la même forme
 (`crates/pos-hubrise-mock/tests/hubrise_shape.rs`). Aucun appel réel à
 HubRise n'est fait depuis l'application Android pour ce dossier. Les tests

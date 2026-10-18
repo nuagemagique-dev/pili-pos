@@ -32,8 +32,7 @@ immédiatement communiqué au service compétent »).
 
 La présente certification porte sur `pili-pos-android` v1.0.0 en tant
 que produit, destiné aux établissements HoReCa, et fait l'objet d'une
-demande distincte de celle de `pili-pos` v1.0.0 sur Linux
-(`CADRE_DEMANDE_FR.md`). Aucune modification de code n'est attendue d'un
+demande de certification initiale (`CADRE_DEMANDE_FR.md`). Aucune modification de code n'est attendue d'un
 établissement à l'autre : identité de l'établissement, langue des tickets
 et catalogue sont de la configuration (paquet de configuration signé
 importé dans le stockage privé de l'application + base SQLite), pas du

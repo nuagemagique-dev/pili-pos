@@ -8,11 +8,9 @@
 Internet ») du manuel de certification. Cette annexe décrit une
 fonction **facultative** de `pili-pos-android`, absente tant que la
 section `export` du `pos.json` du lot de configuration signé n'est pas
-renseignée. Cette fonction est déclarée dans les deux demandes
-initiales (`pili-pos` 1.0.0 sur Linux et `pili-pos-android` 1.0.0 sur
-Android, `CADRE_DEMANDE_FR.md` §7) : le code est celui du moteur
-commun (`crates/pos-export`), identique sur les deux plateformes au
-même tag de gel `linux-v1.0.0-rc3` (commit : À effectuer (EV-04 : commit du tag de gel)). Seuls changent l'emplacement des copies locales (§9),
+renseignée. Cette fonction est déclarée dans la demande
+initiale (`CADRE_DEMANDE_FR.md` §7) : le code est celui du moteur
+(`crates/pos-export`), à l'étiquette de gel android-v1.0.0-rc3 (commit : À effectuer (EV-04 : commit de l'étiquette de gel android-v1.0.0-rc3, puis de l'étiquette finale android-v1.0.0)). L'application Android fournit l'emplacement des copies locales (§9),
 l'écran d'état (§10) et la voie de configuration (§11).
 
 > Cette annexe est la description du producteur. Elle ne rapporte
@@ -285,9 +283,8 @@ fichier vers `<url>/<identifiant>/<nom du fichier>` :
 ## 9. Stockage local
 
 Les exports se trouvent dans la **mémoire interne** de l'appareil, à
-côté de la base : dans le sous-répertoire `exports` de `/var/lib/pili-pos`
-sur le kiosque Linux, dans `files/engine/exports/` du répertoire privé de
-l'application sur le terminal Android, à côté de `pos.db` et
+côté de la base : dans `files/engine/exports/` du répertoire privé de
+l'application, à côté de `pos.db` et
 de `backups/` (dossier `files/engine/`). **Ils ne sont jamais écrits sur une carte SD ni
 sur un autre support amovible** : le manifeste de l'application ne
 demande aucune permission de stockage, et les supports amovibles ne servent qu'à
@@ -306,10 +303,9 @@ l'export : À effectuer (EV-15 : espace libre du D3 Pro réel).
 
 L'état de l'export est réservé aux Gérants :
 
-- **Linux** : bouton « Config », panneau « Export nocturne » ;
-- **Android** : entrée « Export nocturne » du menu des réglages,
-  visible des seuls Gérants, qui ouvre l'écran du même nom (package
-  `nightly` de l'application).
+Entrée « Export nocturne » du menu des réglages, visible des seuls
+Gérants, qui ouvre l'écran du même nom (package `nightly` de
+l'application).
 
 Il indique : l'état (« Non configuré », « Configuration invalide »,
 « À jour » ou « n exports en attente »), la destination (« Destination » :
@@ -355,8 +351,7 @@ importe un nouveau lot signé.
 aucune connexion n'est ouverte (test
 `without_an_export_section_nothing_exists`). Une section mal formée
 (URL non sécurisée, clé qui n'est pas une clé age, durée hors de 1 à 365)
-est refusée à l'import du lot (Linux : par `pili-pos --check-config`,
-code de sortie 1), et si elle passe malgré tout, le moteur démarre
+est refusée à l'import du lot, et si elle passe malgré tout, le moteur démarre
 normalement avec l'export désactivé et l'état affiche le problème. Voir
 `MANUEL_INSTALLATION_FR.md` §4.2 pour la procédure d'installation.
 État de l'export sur la machine de test (activé ou non, détenteurs des
@@ -390,8 +385,8 @@ producteur sur l'export de la machine de test).
 ## 13. Tests qui le prouvent
 
 Toutes les affirmations ci-dessus sont couvertes par des tests
-automatisés. Les tests du moteur ci-dessous sont les mêmes pour les deux
-produits (un seul code source) ; ceux de l'écran Android sont dans
+automatisés. Les tests du moteur ci-dessous tournent sur la machine de
+développement ; ceux de l'écran Android sont dans
 `android/app/src/test/kotlin/dev/nuagemagique/pilipos/nightly/`
 (`NightlyViewModelTest`, `NightlyScreenTest`, `NightlyNavigationTest`).
 

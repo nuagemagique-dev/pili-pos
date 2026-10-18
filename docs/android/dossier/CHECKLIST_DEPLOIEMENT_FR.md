@@ -8,9 +8,7 @@
 
 Ce que le relecteur d'admission doit s'attendre à trouver sur la machine
 de test, du terminal sorti de sa boîte au premier ticket, et ce que le
-producteur vérifie avant de la livrer. Pour la variante Android, ce
-document remplace la checklist du kiosque Linux
-(`docs/SUBMISSION_ARTIFACTS/CHECKLIST_DEPLOIEMENT_KIOSK_FR.md`) : ni image
+producteur vérifie avant de la livrer. Le terminal n'a ni image
 système, ni disque chiffré, ni console de maintenance
 (`PLATEFORME_ANDROID_FR.md`). Les cases à cocher sont un **modèle**, remplies
 à l'installation de chaque terminal et à la visite d'admission ; les
@@ -98,15 +96,15 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       `-dev`. Empreintes : À effectuer (EV-01 : SHA-1 et SHA-256 de l'APK
       signé ; EV-02 : SHA-1 de `libpos_ffi.so` ; EV-03 : SHA-256 du
       certificat de signature).
-- [ ] Moteur fiscal de l'étiquette de gel `linux-v1.0.0-rc3` (puis
-      l'étiquette finale), embarqué sous forme de `libpos_ffi.so` : À
-      effectuer (EV-04 : commit de l'étiquette et SHA-1 du binaire Linux
-      du même moteur).
+- [ ] Moteur fiscal de l'étiquette de gel android-v1.0.0-rc3 (puis
+      l'étiquette finale android-v1.0.0), embarqué sous forme de
+      `libpos_ffi.so` : À effectuer (EV-04 : commit de l'étiquette de gel
+      android-v1.0.0-rc3, puis de l'étiquette finale android-v1.0.0).
 - [ ] Lot de mise en service signé importé (écran « Mise en service de
       la caisse ») ; sans lot valide le moteur reste fermé. Pour la
       machine de test : lot à l'identité du jeu de test (`pos_id`
       `CPOS0031234567`, terminal `POS-2-ANDROID`, 25 tables) avec la
-      graine `src-tauri/seed_spf_test.sql` (lignes de produits du manuel
+      graine `seed_spf_test.sql` (lignes de produits du manuel
       §III.N et personnel du jeu de test : `MANUEL_INSTALLATION_FR.md`
       §7.1 et `LIGNES_PRODUITS_FR.md`).
 - [ ] `pos.json` : `fdm_url` en `https://`, jeton et certificats module2
@@ -123,7 +121,7 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       l'appareil, jamais copiée ni sauvegardée.
 - [ ] Sauvegardes : copie de `pos.db` après chaque rapport Z, les 7 plus
       récentes conservées (`PLATEFORME_ANDROID_FR.md` §5.2 ; commit du
-      moteur : À effectuer (EV-19 : commit du changement du moteur)).
+      moteur : `4ff25b110c975d497f548538a08d81387b504b25` (commit « feat(engine): keep only the 7 newest database backups » du 2026-10-10, contenu dans l'étiquette de gel android-v1.0.0-rc3)).
 - [ ] Export nocturne activé ou non sur la machine de test, détenteurs
       des clés age, opérateur du point de réception : À effectuer (EV-20 :
       état de l'export nocturne).
@@ -137,9 +135,7 @@ Les documents sont ceux du dossier de soumission (`MANIFEST.txt`,
 
 - [ ] Tous les documents listés par `MANIFEST.txt` et `INDEX_DOSSIER_FR.md`
       (annexes 0 à 44, dont `CADRE_DEMANDE_FR`, `PLATEFORME_ANDROID_FR`,
-      `MANUEL_INSTALLATION_FR` et le présent `CHECKLIST_DEPLOIEMENT_FR`),
-      les documents communs aux deux demandes étant ceux du dossier Linux
-      au même état du moteur.
+      `MANUEL_INSTALLATION_FR` et le présent `CHECKLIST_DEPLOIEMENT_FR`).
 - [ ] Preuves : dossier `Report_Testing` (requêtes et réponses JSON,
       tickets imprimés, rapports de construction) et captures d'écran
       (EV-06, EV-08, EV-09, EV-05).

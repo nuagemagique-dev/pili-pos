@@ -10,7 +10,7 @@
 
 ## 1. Vue d'ensemble du système
 
-`pili-pos-android` est une **application Android** : un seul APK, avec une interface en Kotlin et Compose et le moteur fiscal en Rust. Elle s'exécute sur le terminal Sunmi D3 Pro (Android 13, propriétaire de l'appareil, mode kiosque ; `PLATEFORME_ANDROID_FR.md` §2 et §3), se connecte par le réseau local à un FDM certifié SPF Finances, pilote une imprimante thermique ESC/POS Epson TM-m30III et persiste chaque événement fiscal dans une base SQLite locale append-only, dans le stockage privé de l'application. Le moteur est le même code source que celui de `pili-pos` sur Linux (`CADRE_DEMANDE_FR.md` §4).
+`pili-pos-android` est une **application Android** : un seul APK, avec une interface en Kotlin et Compose et le moteur fiscal en Rust. Elle s'exécute sur le terminal Sunmi D3 Pro (Android 13, propriétaire de l'appareil, mode kiosque ; `PLATEFORME_ANDROID_FR.md` §2 et §3), se connecte par le réseau local à un FDM certifié SPF Finances, pilote une imprimante thermique ESC/POS Epson TM-m30III et persiste chaque événement fiscal dans une base SQLite locale append-only, dans le stockage privé de l'application. La version et le gel du moteur sont décrits au `CADRE_DEMANDE_FR.md` §4.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -57,7 +57,7 @@
 ```
 
 **Structure du code.** Le noyau fiscal est le moteur `crates/pos-engine`,
-sans dépendance à Tauri ni à Android : les fonctions de commande
+sans dépendance à Android : les fonctions de commande
 (`crates/pos-engine/src/commands`), l'état partagé (`state.rs`),
 l'ouverture du moteur (`engine.rs` : base SQLite, migrations, reprise
 après arrêt brutal, chargement de la configuration, verrou exclusif sur
@@ -65,7 +65,7 @@ le fichier `engine.lock` du répertoire de données) et les tâches de
 fond (`background.rs` : Z automatique, file d'envoi des e-mails,
 scrutation et file d'envoi HubRise, présence, verrouillage sur inactivité, suivi du FDM).
 
-Sur Android, le moteur est enveloppé par deux couches. `android/rust/pos-ffi` est la façade UniFFI : une méthode par commande du moteur, qui appelle la même fonction `do_*` que l'enveloppe IPC Linux, sans logique fiscale propre (`docs/android/FFI.md`). Elle est compilée avec `pos-engine` (`default-features = false, features = ["cert"]`) en `libpos_ffi.so`, la seule bibliothèque native de l'APK (arm64-v8a). L'interface Kotlin et Compose appelle cette bibliothèque par UniFFI et JNA, uniquement au travers de `EngineGateway`, hors du fil principal. `EngineHolder` possède l'unique moteur du processus et un service au premier plan le garde ouvert tant que la caisse l'est (`docs/android/APP.md` §2). Le `posSwVersion` des événements et des tickets est une valeur que l'application transmet à l'ouverture du moteur ; sur Android elle est `pili-pos-android/` suivi de la version de l'APK. La configuration vient du lot de configuration signé du terminal (`MANUEL_INSTALLATION_FR.md`). Le harnais de tests `crates/pos-engine-testkit` ne fait pas partie de l'APK.
+Sur Android, le moteur est enveloppé par deux couches. `android/rust/pos-ffi` est la façade UniFFI : une méthode par commande du moteur, qui appelle la fonction `do_*` correspondante, sans logique fiscale propre (`docs/android/FFI.md`). Elle est compilée avec `pos-engine` (`default-features = false, features = ["cert"]`) en `libpos_ffi.so`, la seule bibliothèque native de l'APK (arm64-v8a). L'interface Kotlin et Compose appelle cette bibliothèque par UniFFI et JNA, uniquement au travers de `EngineGateway`, hors du fil principal. `EngineHolder` possède l'unique moteur du processus et un service au premier plan le garde ouvert tant que la caisse l'est (`docs/android/APP.md` §2). Le `posSwVersion` des événements et des tickets est une valeur que l'application transmet à l'ouverture du moteur ; sur Android elle est `pili-pos-android/` suivi de la version de l'APK. La configuration vient du lot de configuration signé du terminal (`MANUEL_INSTALLATION_FR.md`). Le harnais de tests `crates/pos-engine-testkit` ne fait pas partie de l'APK.
 
 **Règles qui gardent la logique fiscale dans le moteur.** Aucune règle fiscale ni calcul d'argent n'existe en Kotlin : l'interface affiche, transmet et réagit aux événements, le moteur décide (`docs/android/ENGINE.md` §7).
 
@@ -74,7 +74,7 @@ Sur Android, le moteur est enveloppé par deux couches. `android/rust/pos-ffi` e
 - Le verrouillage après 5 minutes d'inactivité : `commands::session::do_user_activity` et `background::run_idle_lock` ; l'interface se borne à transmettre l'activité de l'utilisateur, au plus une fois par seconde.
 - Le suivi du FDM (intervalle, recul, classement de l'état) : `commands::fdm_monitor::do_fdm_health` et l'événement `fdm-status` ; l'interface reçoit le résultat.
 - Le rendu en espèces, la ventilation de la TVA et l'aperçu du règlement : fonctions d'aide du moteur (`settlePreview`, `cashDueCents`, `vatSplit`). Un contrôle automatique (`scripts/android/p6_gate.sh`) interdit à la couche plateforme d'y toucher.
-- La parité avec l'interface Linux : 136 des 146 commandes de l'interface Linux sont appelées par l'interface Compose et 10 sont exclues, avec leurs raisons (`LISTE_FONCTIONNALITES_FR.md` §7).
+- Les commandes du moteur : l'interface les appelle par `EngineGateway` ; 10 commandes ne sont appelées par aucun écran, avec leurs raisons (`LISTE_FONCTIONNALITES_FR.md` §7).
 
 ## 2. Comportement par événement
 
@@ -259,7 +259,7 @@ SQLite qui archive l'événement signé, de sorte que :
   caractères hors CP858.
 - Ouverture tiroir : séquence ESC/POS `0x1B 0x70 0x00 0x19 0xFA`
   émise dès qu'un paiement `cash` clôture une vente.
-- Sur Android, le moteur attend jusqu'à environ 2 s chaque réponse DLE EOT après une impression (500 ms sur Linux) : la réponse arrive souvent après 500 ms sur le réseau du terminal (mesure des essais préparatoires).
+- Sur Android, le moteur attend jusqu'à environ 2 s chaque réponse DLE EOT après une impression : la réponse arrive souvent après 500 ms sur le réseau du terminal (mesure des essais préparatoires).
 
 ## 6bis. Pipeline d'envoi du ticket numérique (e-mail)
 
@@ -363,7 +363,7 @@ sauvegarde, jamais la base en service, et il ne signe rien. Il n'est pas livré 
 | Android (APK déclaré) | `pos-ffi` construit `pos-engine` avec `default-features = false, features = ["cert"]` (`hubrise` seul), profil `android-release`, cible `aarch64-linux-android` | `libpos_ffi.so` dans l'APK : commandes en ligne présentes, activées par installation (`COMMANDES_EN_LIGNE_FR.md`) ; facturation B2B (événement I) et file d'envoi Peppol présentes, sans fonction Cargo (`FACTURATION_PEPPOL_FR.md`) |
 | Développement | même bibliothèque, version suffixée `-dev` (adb actif) | jamais une version déclarée |
 
-Vérifications : le contrôle `ffi_deps` de `scripts/android/p2_gate.sh` (arbre de dépendances de `pos-ffi` : `pos-engine` présent, `pos-peppol` admis, `tauri` absent) et la reproductibilité de l'APK par `scripts/android/check_repro.sh`. Empreintes de l'APK, de `libpos_ffi.so` et construction reproduite : À effectuer (EV-01, EV-02, EV-05).
+Vérifications : le contrôle `ffi_deps` de `scripts/android/p2_gate.sh` (arbre de dépendances de `pos-ffi` : `pos-engine` présent, `pos-peppol` admis, aucune bibliothèque d'interface de bureau) et la reproductibilité de l'APK par `scripts/android/check_repro.sh`. Empreintes de l'APK, de `libpos_ffi.so` et construction reproduite : À effectuer (EV-01, EV-02, EV-05).
 
 ## 9. Carte des sources
 
@@ -401,7 +401,7 @@ Vérifications : le contrôle `ffi_deps` de `scripts/android/p2_gate.sh` (arbre 
 | Rapport de ventes non fiscal | `crates/pos-engine/src/commands/sales_report.rs` |
 | Tables de la v1.0.0 : facturation, épuisé, éditeur (migrations 40 à 42) | `crates/pos-db/src/schema_invoicing.rs` |
 | AccessPoint Peppol | `crates/pos-peppol/src/access_point.rs` |
-| Commandes Peppol (enveloppe IPC : `src-tauri/src/ipc/invoice.rs`) | `crates/pos-engine/src/commands/invoice.rs` |
+| Commandes Peppol (façade UniFFI : `android/rust/pos-ffi/src/`) | `crates/pos-engine/src/commands/invoice.rs` |
 | Résolution du support + commandes ticket numérique | `crates/pos-engine/src/commands/delivery.rs` |
 | Export nocturne : moteur (état, passage, commandes) | `crates/pos-engine/src/commands/export.rs` |
 | Export nocturne : sauvegarde chiffrée, copie statistique, envoi, file d'attente | `crates/pos-export/src/` |
@@ -419,7 +419,7 @@ Vérifications : le contrôle `ffi_deps` de `scripts/android/p2_gate.sh` (arbre 
 | Tables de la v1.0.0 : réglages du propriétaire, allergènes, temps, bons cadeaux (migrations 60 à 63) | `crates/pos-db/src/schema_owner.rs` |
 | Transport imprimante | `crates/pos-print/src/transport.rs` |
 
-Les trois lignes Peppol ci-dessus désignent du code compilé dans la build Android (§8). L'enveloppe IPC `src-tauri/src/ipc/invoice.rs` est celle de Linux ; sur Android, la façade UniFFI (`android/rust/pos-ffi/src/`) expose les mêmes commandes.
+Les trois lignes Peppol ci-dessus désignent du code compilé dans la build Android (§8). La façade UniFFI (`android/rust/pos-ffi/src/`) expose ces commandes.
 
 ## 10. Couche plateforme Android
 

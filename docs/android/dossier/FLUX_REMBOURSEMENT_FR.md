@@ -14,8 +14,7 @@ voir §2). La note de crédit (UC4122) est dans le périmètre et rejouée
 
 ## 1. Implémentation du remboursement
 
-La commande du moteur `refund_checkout` (la même fonction que sur Linux : le
-moteur est commun) est appelée par l'interface Android par la méthode FFI du
+La commande du moteur `refund_checkout` est appelée par l'interface Android par la méthode FFI du
 même nom (`docs/android/FFI.md` §11, méthode `refundCheckout`). Elle prend :
 
 - `original_fiscal_event_id` - ligne locale de `fiscal_events`

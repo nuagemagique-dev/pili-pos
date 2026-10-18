@@ -42,12 +42,12 @@ Deux builds du même commit produisent donc le même APK non signé, et la même
 L'APK non signé de §1.1 est signé hors du conteneur, avec l'outil `apksigner` épinglé (build-tools 35.0.0), une clé RSA, les schémas v2 et v3 seulement (`--min-sdk-version 33`, v1 et v4 désactivés). La signature RSA est déterministe : signer deux fois le même APK non signé avec la même clé donne le même fichier, donc le même SHA-1. Une clé de signature à courbe elliptique est refusée par le script de déclaration pour cette raison.
 
 Procédure, dans l'ordre :
-1. **Vérification de l'APK non signé** (`scripts/android/check_apk.sh`) : alignement des pages sur 16 Ko, une seule architecture (`arm64-v8a`), bibliothèques `libpos_ffi.so` et `libjnidispatch.so` présentes, non compressées et alignées, `libpos_ffi.so` étant en outre allégée des symboles de débogage. Le moteur est compilé avec la fonction `cert` (HubRise et facturation B2B inclus, aucune fonction Cargo supplémentaire, `android/rust/pos-ffi/Cargo.toml`), comme sur Linux.
+1. **Vérification de l'APK non signé** (`scripts/android/check_apk.sh`) : alignement des pages sur 16 Ko, une seule architecture (`arm64-v8a`), bibliothèques `libpos_ffi.so` et `libjnidispatch.so` présentes, non compressées et alignées, `libpos_ffi.so` étant en outre allégée des symboles de débogage. Le moteur est compilé avec la fonction `cert` (HubRise et facturation B2B inclus, aucune fonction Cargo supplémentaire, `android/rust/pos-ffi/Cargo.toml`).
 2. **Signature** de l'APK avec la clé de release RSA, puis `apksigner verify --print-certs` (un seul signataire, schéma v3 vrai, v1 faux).
 3. **SHA-1 de l'APK signé de record** : À effectuer (EV-01 : SHA-1 et SHA-256 de l'APK signé `pili-pos-android 1.0.0`). C'est la valeur déclarée au formulaire §I.D et au tableau §VII.F.
 4. **SHA-1 de la bibliothèque du moteur** lib/arm64-v8a/libpos_ffi.so extraite de cet APK : À effectuer (EV-02 : SHA-1 de `libpos_ffi.so`).
 5. **Empreinte SHA-256 du certificat de signature** (celui de la clé de release) : À effectuer (EV-03 : SHA-256 du certificat de signature). Android n'installe une mise à jour que si elle porte la même clé : cette empreinte est aussi copiée dans le descripteur de mise à jour déclaré (§2.1).
-6. **Version du moteur** : le moteur est celui du tag `linux-v1.0.0-rc3` (§1.4), dont le commit est À effectuer (EV-04 : commit du tag du moteur et SHA-1 du binaire Linux du même moteur).
+6. **Version du moteur** : le moteur est celui de l'étiquette de gel android-v1.0.0-rc3 (§1.4), dont le commit est À effectuer (EV-04 : commit de l'étiquette de gel android-v1.0.0-rc3, puis de l'étiquette finale android-v1.0.0).
 
 La signature se fait après la vérification de reproductibilité (§1.1), et le script de déclaration refuse tout APK dont le SHA-1 signé diffère de la valeur acceptée par le SPF Finances.
 
@@ -87,12 +87,12 @@ Une fois la mise en service effectuée, toute modification de l'APK passe obliga
 
 ### 1.4 Tags git
 
-Le commit du build de certification est tagué `android-v1.0.0` (le nom du tag est la `versionName` de l'APK, vérifiée par le script de déclaration) ; le code de version est 10000. Le moteur fiscal commun est celui du tag `linux-v1.0.0-rc3` (puis du tag final) : À effectuer (EV-04 : commit du tag du moteur). Le SHA git du tag est consigné dans le rapport de build et permet à tout moment de reproduire le build à l'identique à partir du dépôt source.
+Le commit du build de certification est tagué `android-v1.0.0` (le nom du tag est la `versionName` de l'APK, vérifiée par le script de déclaration) ; le code de version est 10000. Le moteur fiscal est celui de l'étiquette de gel android-v1.0.0-rc3 (puis de l'étiquette finale `android-v1.0.0`), dont l'absence de modification est contrôlée par `scripts/android/check_android_frozen.sh` : À effectuer (EV-04 : commit de l'étiquette de gel android-v1.0.0-rc3, puis de l'étiquette finale android-v1.0.0). Le SHA git du tag est consigné dans le rapport de build et permet à tout moment de reproduire le build à l'identique à partir du dépôt source.
 
 Toute mise à jour après la certification (correction de bug, nouvelle fonctionnalité) passe par :
 - Un nouveau tag `android-vX.Y.Z+1` et un code de version strictement supérieur.
 - Une nouvelle build cert reproductible (et donc nouveau SHA-1).
-- Une nouvelle demande de certification SPF Finances pour la mise à jour (procédure §II.E ci-dessous + Article 109 du Manuel). Un changement du moteur concerne les deux produits `pili-pos` et `pili-pos-android` (*CADRE_DEMANDE_FR.md* §6).
+- Une nouvelle demande de certification SPF Finances pour la mise à jour (procédure §II.E ci-dessous + Article 109 du Manuel). Tout changement, du moteur ou de l'application, donne une nouvelle version de `pili-pos-android` (*CADRE_DEMANDE_FR.md* §6).
 
 ---
 
@@ -124,7 +124,7 @@ La procédure de mise à jour est la suivante :
 
 3. **Côté client (après acceptation SPF de la mise à jour) :**
    - Mise à jour de l'APK par le Gérant, sur site, avec la même procédure : "Vérifier en ligne" (téléchargement anonyme de l'artefact public déclaré) ou "Depuis une clé USB".
-   - Sauvegarde préalable de la base `pos.db` : l'outil en écrit une avant d'installer l'APK (la caisse en écrit aussi une après chaque rapport Z et conserve les 7 plus récentes : À effectuer (EV-19 : commit du moteur qui applique cette règle)).
+   - Sauvegarde préalable de la base `pos.db` : l'outil en écrit une avant d'installer l'APK (la caisse en écrit aussi une après chaque rapport Z et conserve les 7 plus récentes : `4ff25b110c975d497f548538a08d81387b504b25` (commit « feat(engine): keep only the 7 newest database backups » du 2026-10-10, contenu dans l'étiquette de gel android-v1.0.0-rc3)).
    - Vérification post-update du SHA-1 : l'écran "Mise à jour" et l'écran "À propos" affichent le SHA-1 de l'APK installé ; l'application l'écrit aussi, avec le SHA-1 déclaré, dans le journal d'audit.
 
 **Conditions de démarrage.** La mise à jour est refusée, avec le motif à l'écran, tant que :
@@ -179,7 +179,7 @@ Le manuel recommande l'usage d'une solution d'accès à distance (TeamViewer, An
 
 ### 3.1 Langues supportées par le code source
 
-Le moteur de `pili-pos-android` est le même code que celui de `pili-pos` et supporte le rendu multilingue des tickets via deux mécanismes complémentaires :
+Le moteur de `pili-pos-android` supporte le rendu multilingue des tickets via deux mécanismes complémentaires :
 
 - **Libellés produits** : table `translations` polymorphe (cf. *SCHEMA_BD_FR.md*) - couvre catégories, articles, modificateurs. Les lignes du ticket portent le libellé dénormalisé dans la langue active au moment de la vente.
 - **Mentions fiscales imprimées** : jeux de libellés FR/NL/DE embarqués dans le code (`crates/pos-fiscal/src/ticket.rs` : `ReceiptLanguage`, `ticket_type_label`, `invalid_disclaimer` ; `crates/pos-print/src/labels.rs` : libellés fixes Date/Ticket/TOTAL/TVA du reçu et du rapport, noms d'événement N/P/T/C/I/F/S/R, noms de moyen de paiement). Les rapports X et Z, le rapport utilisateur (M182/M183/M184) et les noms de moyen de paiement imprimés (Especes/Contant/Bar, Carte/Kaart/Karte) suivent la même langue que le reçu : ce n'est pas propre au ticket de vente. La langue est déterminée par la clé `language` du fichier de configuration `pos.json`, que le moteur lit dans le paquet de mise en service signé installé sur la caisse, mappée sur une langue nationale : `fr`/`nl`/`de` directement, toute autre valeur (en, zh) retombe sur le FR.
