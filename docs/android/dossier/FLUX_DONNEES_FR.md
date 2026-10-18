@@ -13,8 +13,7 @@ d'un parcours utilisateur.
 moteur commun (`crates/pos-engine`), identique à celui de `pili-pos`.
 L'interface est en Kotlin et Compose ; elle appelle le moteur par
 UniFFI (`libpos_ffi.so`, `docs/android/FFI.md`) : chaque commande
-`commands::<module>::do_<fonction>` citée ci-dessous (sauf le flux du
-§7, absent de la build certifiée) est la méthode
+`commands::<module>::do_<fonction>` citée ci-dessous est la méthode
 correspondante de `PosEngine` (`login`, `addOrderLine`, `checkout`,
 `generateZReport`...), table de correspondance de `FFI.md` §11 ; les
 événements du moteur (`fdm-status`, `presence-failed`...) arrivent par
