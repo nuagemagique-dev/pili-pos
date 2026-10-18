@@ -2240,3 +2240,16 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
   (`Chèques-repas`, with the grave accent, CP858 0x8A; the label test accepts it next to ASCII), the
   accountant export and the tests. The SPF documents under `docs/2025*` and `docs/2026*` keep their own wording, as
   does the manual's checklist row "Chèque repas" (quoted from the SPF form).
+- **INT-D31 Command counts come from the parity scripts (rc3).** The dossiers quote 148 build commands, 146 IPC
+  commands, 136 called by the Android UI and 10 excluded (the tenth being `reprint_course_slip`), as printed by
+  `check_command_parity.py --strict`, `check_ui_parity.py --strict` and `check_ipc_wrappers.py`.
+- **INT-D32 rc2 to rc3 renaming scope.** Dossier texts now name `linux-v1.0.0-rc3`. Left for the freeze step: the
+  About string `plat_about_engine_ref`, the `PILI_P6_FREEZE_TAG` defaults of the p1a/p4/p6 gates,
+  `check_linux_frozen.sh`, `LINUX_FREEZE.md` and `PLATFORM.md`; the historical sentence in EV-09 keeps rc2.
+- **INT-D33 Hand-edited evidence reverted.** The ticket evidence files, the TICKETS_EXEMPLES transcripts and the
+  GMS e2e log were restored to what the 2026-10-15 run recorded (a595579b had edited them by hand, with wrong
+  padding). They print "Cheques-repas"; the dossier says so and the redo is tracked under EV-08. The bench could
+  not be rebooted on 2026-10-18 (the secret half of the committed dev-minisign key is absent), so A159/A160 and
+  the ticket run are still to be redone at the freeze commit.
+- **INT-D34 Capture references.** Captures A130 to A194 are cited inline in the manual and in each annex, with a
+  closing table in the manual and a per-annex "Captures d'écran" section.
