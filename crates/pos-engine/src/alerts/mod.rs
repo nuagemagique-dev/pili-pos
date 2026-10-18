@@ -50,8 +50,16 @@ pub const PROBE_INTERVAL: chrono::Duration = chrono::Duration::minutes(5);
 
 /// The longest the terminal probe may hold the card terminal's line. A
 /// payment never waits behind a probe for longer than this (see
-/// `EngineTimers::terminal_probe`, which defaults to it).
-pub const TERMINAL_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+/// `EngineTimers::terminal_probe`, which defaults to it). The slowest honest check is
+/// Worldline's: two requests (v2, then v1 on a 404) of `CHECK_TIMEOUT` each, 10 s. The
+/// probe timeout is 12 s so that a reachable terminal that answers slowly is never judged
+/// "unknown" by the clock (INT-D25).
+pub const TERMINAL_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(12);
+
+// The probe timeout always leaves room for the slowest terminal check, plus a margin.
+const _: () = assert!(
+    TERMINAL_PROBE_TIMEOUT.as_millis() >= 2 * pos_eft::worldline::CHECK_TIMEOUT.as_millis() + 1_000
+);
 
 struct Inner {
     book: AlertBook,

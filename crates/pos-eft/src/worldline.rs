@@ -45,8 +45,10 @@ use crate::{Approval, EftError, Outcome, PaymentRequest, brand, receipt};
 /// Worldline's production API.
 const PRODUCTION_URL: &str = "https://api.terminal.global.worldline-solutions.com";
 const PROTOCOL_VERSION: &str = "5.1-WL2.1.1";
-/// Total timeout of [`WorldlineTerminalApi::check`].
-const CHECK_TIMEOUT: Duration = Duration::from_secs(5);
+/// Timeout of one request of [`WorldlineTerminalApi::check`]. The check asks v2 and, on a 404, v1,
+/// so it takes twice this at worst: the owner alerts' terminal probe timeout must stay above that
+/// (`pos_engine::alerts::TERMINAL_PROBE_TIMEOUT`).
+pub const CHECK_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// A Worldline terminal reached through the Terminal API.
 pub struct WorldlineTerminalApi {

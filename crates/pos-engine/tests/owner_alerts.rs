@@ -676,7 +676,7 @@ async fn a_hanging_terminal_is_dropped_after_the_short_probe_timeout() {
     let script = app.link_terminal();
     switch_on(&app, |i| i.kinds = kinds_only(|k| k.terminal = true));
     assert!(
-        app.state.timers.terminal_probe <= Duration::from_secs(10),
+        app.state.timers.terminal_probe <= Duration::from_secs(12),
         "the default probe timeout is short"
     );
     app.state.timers.terminal_probe = Duration::from_millis(150);
@@ -719,6 +719,39 @@ async fn a_payment_started_during_a_probe_waits_at_most_the_probe_timeout() {
     assert!(
         waited < timeout + Duration::from_secs(2),
         "the payment waited {waited:?} behind a hanging probe"
+    );
+    // The probe really held the line first: it asked the terminal before the payment did, and
+    // the payment only got through once the probe timeout cut the probe short.
+    let calls = script.calls();
+    assert_eq!(
+        calls.first(),
+        Some(&pos_eft::scripted::Call::Check),
+        "{calls:?}"
+    );
+    assert!(
+        matches!(calls.get(1), Some(pos_eft::scripted::Call::Pay { .. })),
+        "{calls:?}"
+    );
+    assert!(
+        waited >= timeout - Duration::from_millis(200),
+        "the payment did not wait for the probe: {waited:?}"
+    );
+}
+
+/// Worldline's check asks v2 and, on a 404, v1: two requests of `CHECK_TIMEOUT`. A terminal that
+/// answers within that worst case must never be judged "unknown" by the probe clock (INT-D25).
+#[test]
+fn the_default_probe_timeout_outlasts_the_slowest_terminal_check() {
+    let worst_case = 2 * pos_eft::worldline::CHECK_TIMEOUT;
+    let timers = pos_engine::EngineTimers::default();
+    assert_eq!(
+        timers.terminal_probe,
+        pos_engine::alerts::TERMINAL_PROBE_TIMEOUT
+    );
+    assert!(
+        timers.terminal_probe >= worst_case + Duration::from_secs(1),
+        "probe timeout {:?} vs worst case {worst_case:?}",
+        timers.terminal_probe
     );
 }
 
