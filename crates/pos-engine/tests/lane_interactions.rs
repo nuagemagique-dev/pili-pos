@@ -291,6 +291,67 @@ mod menu_editor {
         assert!(err.starts_with(errors::ALLERGEN_TARGET_NOT_FOUND), "{err}");
         assert!(do_set_allergens(&app.state, input(MAKI)).unwrap());
     }
+
+    #[tokio::test]
+    async fn the_editor_reads_the_declared_lists_of_its_products_hidden_ones_included() {
+        let (app, _printer) = app().await;
+        assert!(do_menu_admin_get(&app.state).unwrap().allergens.is_empty());
+        // A hidden product keeps its list in the editor.
+        app.state
+            .db
+            .lock()
+            .unwrap()
+            .execute("UPDATE menu_items SET active = 0 WHERE id = ?1", [EDAMAME])
+            .unwrap();
+        for (id, contains, traces) in [
+            (MAKI, vec!["fish", "soybeans"], vec!["sesame"]),
+            (EDAMAME, vec![], vec![]),
+        ] {
+            do_set_allergens(
+                &app.state,
+                SetAllergensInput {
+                    entity_type: "menu_item".into(),
+                    entity_id: id,
+                    declared: true,
+                    contains: contains.into_iter().map(String::from).collect(),
+                    may_contain: traces.into_iter().map(String::from).collect(),
+                },
+            )
+            .unwrap();
+        }
+        let lists = do_menu_admin_get(&app.state).unwrap().allergens;
+        let got: Vec<(String, i64, Vec<String>, Vec<String>)> = lists
+            .into_iter()
+            .map(|a| (a.entity_type, a.entity_id, a.contains, a.may_contain))
+            .collect();
+        assert_eq!(
+            got,
+            vec![
+                ("menu_item".into(), EDAMAME, vec![], vec![]),
+                (
+                    "menu_item".into(),
+                    MAKI,
+                    vec!["fish".into(), "soybeans".into()],
+                    vec!["sesame".into()]
+                ),
+            ]
+        );
+        // Back to "no information": the entry leaves the list.
+        do_set_allergens(
+            &app.state,
+            SetAllergensInput {
+                entity_type: "menu_item".into(),
+                entity_id: EDAMAME,
+                declared: false,
+                contains: vec![],
+                may_contain: vec![],
+            },
+        )
+        .unwrap();
+        let lists = do_menu_admin_get(&app.state).unwrap().allergens;
+        assert_eq!(lists.len(), 1);
+        assert_eq!(lists[0].entity_id, MAKI);
+    }
 }
 
 // ── Discounts ──────────────────────────────────────────────────────

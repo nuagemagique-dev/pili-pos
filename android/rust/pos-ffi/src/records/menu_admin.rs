@@ -68,6 +68,17 @@ pub struct MenuAdmin {
     pub products: Vec<AdminProduct>,
     pub groups: Vec<AdminGroup>,
     pub options: Vec<AdminOption>,
+    pub allergens: Vec<AdminAllergens>,
+}
+
+/// `pos_engine::commands::menu_admin::AdminAllergens`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct AdminAllergens {
+    pub entity_type: String,
+    pub entity_id: i64,
+    pub contains: Vec<String>,
+    pub may_contain: Vec<String>,
 }
 
 /// `pos_engine::commands::menu_admin::MenuSaved`.

@@ -172,6 +172,7 @@
 //! | `PeppolDeliveries` | `pos_engine::commands::invoice::PeppolDeliveries` | invoice | list_peppol_deliveries |
 //! | `PreviewLine` | `pos_engine::commands::invoice::PreviewLine` | invoice | invoice_preview (inside InvoicePreview) |
 //! | `PreviewVat` | `pos_engine::commands::invoice::PreviewVat` | invoice | invoice_preview (inside InvoicePreview) |
+//! | `AdminAllergens` | `pos_engine::commands::menu_admin::AdminAllergens` | menu_admin | inside MenuAdmin |
 //! | `AdminCategory` | `pos_db::queries::menu_admin::AdminCategory` | menu_admin | menu_save_category; inside MenuAdmin |
 //! | `AdminGroup` | `pos_db::queries::menu_admin::AdminGroup` | menu_admin | menu_save_modifier_group; inside MenuAdmin |
 //! | `AdminOption` | `pos_db::queries::menu_admin::AdminOption` | menu_admin | menu_save_modifier; inside MenuAdmin |

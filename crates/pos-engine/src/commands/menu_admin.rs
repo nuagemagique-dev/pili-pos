@@ -46,6 +46,21 @@ pub struct MenuAdmin {
     pub products: Vec<AdminProduct>,
     pub groups: Vec<AdminGroup>,
     pub options: Vec<AdminOption>,
+    /// The declared allergen lists of the products and options listed above (an entry with
+    /// no row here has no information); edited with `set_allergens`.
+    pub allergens: Vec<AdminAllergens>,
+}
+
+/// The declared allergen list of one product or option of the editor.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AdminAllergens {
+    /// `menu_item` or `modifier`, as `set_allergens` takes it.
+    pub entity_type: String,
+    pub entity_id: i64,
+    /// Allergen codes the entry contains, in Annex II order.
+    pub contains: Vec<String>,
+    /// Allergen codes it may contain (traces), in Annex II order.
+    pub may_contain: Vec<String>,
 }
 
 /// The answer of a save: the id of the entity written and the menu as it is now.
@@ -234,14 +249,49 @@ fn clean_code(code: Option<&str>) -> Result<Option<String>, String> {
 }
 
 fn read_menu(db: &rusqlite::Connection, fiscal: &str) -> Result<MenuAdmin, String> {
+    let products = q::list_products(db).map_err(errors::internal)?;
+    let options = q::list_options(db).map_err(errors::internal)?;
+    let allergens = allergens_of(
+        db,
+        products.iter().map(|p| p.id),
+        options.iter().map(|o| o.id),
+    )?;
     Ok(MenuAdmin {
         managed_by: pos_catalog::apply::managed_by(db).map_err(errors::internal)?,
         languages: languages_of(fiscal),
         categories: q::list_categories(db).map_err(errors::internal)?,
-        products: q::list_products(db).map_err(errors::internal)?,
+        products,
         groups: q::list_groups(db).map_err(errors::internal)?,
-        options: q::list_options(db).map_err(errors::internal)?,
+        options,
+        allergens,
     })
+}
+
+/// The declared allergen lists of the editor's products and options, products first, by id.
+fn allergens_of(
+    db: &rusqlite::Connection,
+    products: impl Iterator<Item = i64>,
+    options: impl Iterator<Item = i64>,
+) -> Result<Vec<AdminAllergens>, String> {
+    use pos_db::queries::allergens::{Entity, load_all};
+    let mut out = Vec::new();
+    for (entity, ids) in [
+        (Entity::MenuItem, products.collect::<BTreeSet<i64>>()),
+        (Entity::Modifier, options.collect::<BTreeSet<i64>>()),
+    ] {
+        let declared = load_all(db, entity).map_err(errors::internal)?;
+        for id in ids {
+            if let Some(set) = declared.get(&id) {
+                out.push(AdminAllergens {
+                    entity_type: entity.as_str().to_string(),
+                    entity_id: id,
+                    contains: set.contains.clone(),
+                    may_contain: set.may_contain.clone(),
+                });
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// The whole menu with its names per language, hidden entries included. Manager only.
