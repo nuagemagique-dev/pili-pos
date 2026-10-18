@@ -26,6 +26,9 @@ use crate::state::AppState;
 
 /// Languages a name can be given in. German only when the establishment's language is German.
 const LANGUAGES: [&str; 4] = ["fr", "nl", "en", "zh"];
+/// Every language code the `languages` table holds: a stored name may carry one the till does not
+/// offer (see `clean_names`).
+const STORED_LANGUAGES: [&str; 5] = ["fr", "nl", "de", "en", "zh"];
 /// Longest name, in characters.
 const NAME_MAX: usize = 60;
 /// Longest product code, in characters.
@@ -179,11 +182,16 @@ fn refuse_if_managed(db: &rusqlite::Connection) -> Result<(), String> {
 
 /// Names trimmed, empty ones dropped, only known languages, no control characters, bounded.
 /// The establishment's language is required.
+///
+/// A name in a language the till does not offer (a German name on a French till, kept from an
+/// import or from a German till) is stored, so the editor sends it back unchanged on every save;
+/// it is accepted as long as the code is a language of the `languages` table, and only an
+/// unknown code is refused.
 fn clean_names(input: &Names, fiscal: &str) -> Result<Names, String> {
     let allowed: BTreeSet<String> = languages_of(fiscal).into_iter().collect();
     let mut out = Names::new();
     for (lang, value) in input {
-        if !allowed.contains(lang) {
+        if !allowed.contains(lang) && !STORED_LANGUAGES.contains(&lang.as_str()) {
             return Err(invalid("names"));
         }
         let value = value.trim();

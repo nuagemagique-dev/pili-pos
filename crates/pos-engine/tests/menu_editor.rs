@@ -296,6 +296,37 @@ async fn a_german_till_requires_german_and_offers_it() {
 }
 
 #[tokio::test]
+async fn a_name_kept_in_a_language_the_till_does_not_offer_survives_an_edit() {
+    // Found on the emulator: the seed menu holds German names, a French till does not offer
+    // German, and the editor sends every stored name back, so each save was refused as `names`.
+    let app = app().await;
+    app.state.config.lock().unwrap().language = "de".into();
+    let mut c = category(None, "Sushi");
+    c.names.insert("de".into(), "Sushi".into());
+    let saved = do_menu_save_category(&app.state, c).unwrap();
+    let id = saved.id;
+    app.state.config.lock().unwrap().language = "fr".into();
+    let menu = do_menu_admin_get(&app.state).unwrap();
+    let stored = menu.categories.iter().find(|c| c.id == id).unwrap();
+    assert_eq!(stored.names["de"], "Sushi");
+    // The editor sends the stored names back with the edited French one.
+    let mut edit = category(Some(id), "Sushi bar");
+    edit.names = stored.names.clone();
+    edit.names.insert("fr".into(), "Sushi bar".into());
+    let saved = do_menu_save_category(&app.state, edit).unwrap();
+    let after = saved.menu.categories.iter().find(|c| c.id == id).unwrap();
+    assert_eq!(after.names["fr"], "Sushi bar");
+    assert_eq!(after.names["de"], "Sushi");
+    // A code that is no language of the table is still refused.
+    let mut junk = category(Some(id), "x");
+    junk.names.insert("xx".into(), "y".into());
+    assert_eq!(
+        do_menu_save_category(&app.state, junk).unwrap_err(),
+        invalid("names")
+    );
+}
+
+#[tokio::test]
 async fn unknown_parents_and_entries_are_not_found() {
     let app = app().await;
     let nf = |entity: &str, id: i64| {
