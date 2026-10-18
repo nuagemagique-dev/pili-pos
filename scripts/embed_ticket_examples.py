@@ -10,8 +10,14 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-DOC = ROOT / "docs/SUBMISSION_ARTIFACTS/TICKETS_EXEMPLES_FR.md"
-TICKETS = ROOT / "docs/SUBMISSION_ARTIFACTS/evidence/tickets"
+# `--android` embeds the Android dossier's recorded run (docs/android/dossier/evidence/tickets, printed from
+# the app on the emulator against pos-printer-mock) into its own TICKETS_EXEMPLES_FR.md. That run has no file
+# for the host-engine sections 11 ter.*, which are left as they are; the e-mail body file already holds the
+# verification URL the Linux build appends here.
+ANDROID = "--android" in sys.argv[1:]
+DOSSIER = ROOT / ("docs/android/dossier" if ANDROID else "docs/SUBMISSION_ARTIFACTS")
+DOC = DOSSIER / "TICKETS_EXEMPLES_FR.md"
+TICKETS = DOSSIER / "evidence/tickets"
 
 # Section heading prefix → transcription file.
 SECTIONS = {
@@ -43,7 +49,13 @@ SECTIONS = {
 
 def main() -> int:
     text = DOC.read_text()
+    embedded = 0
     for heading, name in SECTIONS.items():
+        if ANDROID:
+            if heading == "## 9. ":
+                name = "email_corps_texte.txt"
+            elif not (TICKETS / (name[0] if isinstance(name, tuple) else name)).exists():
+                continue
         start = text.find("\n" + heading)
         if start < 0:
             print(f"missing section {heading!r}", file=sys.stderr)
@@ -56,8 +68,9 @@ def main() -> int:
         name, suffix = name if isinstance(name, tuple) else (name, "")
         body = (TICKETS / name).read_text().rstrip("\n") + suffix
         text = text[: match.start()] + "```\n" + body + "\n```" + text[match.end() :]
+        embedded += 1
     DOC.write_text(text)
-    print(f"embedded {len(SECTIONS)} transcriptions into {DOC.relative_to(ROOT)}")
+    print(f"embedded {embedded} transcriptions into {DOC.relative_to(ROOT)}")
     return 0
 
 

@@ -21,7 +21,10 @@
 #   PILI_BUNDLE_VAT (restaurant_vat, default BE0000000097; a malformed value makes the import refuse the bundle: capture bench),
 #   PILI_BUNDLE_DIGITAL_TICKET_API (base URL of the Scaleway TEM API, e.g. the pos-fdm-mock on http://127.0.0.1:19380; adds a
 #   digital_ticket section with allow_digital_only and a tem_key file), PILI_BUNDLE_HUBRISE_MOCK (base URL of pos-hubrise-mock,
-#   e.g. http://127.0.0.1:3001; adds a hubrise section pointing at it with a hubrise_secret file).
+#   e.g. http://127.0.0.1:3001; adds a hubrise section pointing at it with a hubrise_secret file),
+#   PILI_BUNDLE_PEPPOL_API (base URL of the pos-fdm-mock, e.g. http://127.0.0.1:19380; adds a peppol section of provider
+#   storecove at <URL>/storecove (the mock's Storecove routes), a peppol_key file and the sender 0208:0000000097 of the
+#   test identity: the Peppol panel of Settings and the delivery of invoices then work against the mock).
 #   --write-pub     copy keydir/minisign.pub to android/app/provisioning/dev-minisign.pub (the committed
 #                   public key); used once when the development key is (re)generated
 #
@@ -185,6 +188,12 @@ if [[ -n "${PILI_BUNDLE_HUBRISE_MOCK:-}" ]]; then
     printf 'dev-hubrise-secret\n' >"$OUT/hubrise_secret"
     HUBRISE_MOCK_LINE=$'\n  "hubrise": {"client_id": "pili-pos", "client_secret_file": "hubrise_secret", "oauth_base_url": "'"$PILI_BUNDLE_HUBRISE_MOCK"'/oauth2/v1", "api_base_url": "'"$PILI_BUNDLE_HUBRISE_MOCK"'/v1"},'
 fi
+PEPPOL_LINE=""
+if [[ -n "${PILI_BUNDLE_PEPPOL_API:-}" ]]; then
+    [[ "$PILI_BUNDLE_PEPPOL_API" =~ ^http://[A-Za-z0-9._-]+:[0-9]+$ ]] || die "PILI_BUNDLE_PEPPOL_API must look like http://127.0.0.1:19380"
+    printf 'dev-peppol-key\n' >"$OUT/peppol_key"
+    PEPPOL_LINE=$'\n  "peppol": {"provider": "storecove", "base_url": "'"$PILI_BUNDLE_PEPPOL_API"'/storecove", "api_key_file": "peppol_key", "legal_entity_id": 1, "sender_id": "0208:0000000097", "supplier_street": "1 Rue du Test", "supplier_postal_code": "4000", "supplier_city": "Liege"},'
+fi
 [[ -n "${PILI_BUNDLE_KITCHEN_PRINTER:-}" ]] && KITCHEN_LINE=$'\n  "kitchen_printer_address": "'"$PILI_BUNDLE_KITCHEN_PRINTER"'",'
 cat >"$OUT/pos.json" <<JSON
 {
@@ -196,7 +205,7 @@ cat >"$OUT/pos.json" <<JSON
   "restaurant_vat": "${PILI_BUNDLE_VAT:-BE0000000097}",
   "restaurant_est_no": "2000000042",
   "fdm_url": "$FDM_URL",
-  "printer_address": "$PRINTER",$KITCHEN_LINE$HUBRISE_LINE$EXPORT_LINE$TERMINAL_LINE$DIGITAL_LINE$HUBRISE_MOCK_LINE
+  "printer_address": "$PRINTER",$KITCHEN_LINE$HUBRISE_LINE$EXPORT_LINE$TERMINAL_LINE$DIGITAL_LINE$HUBRISE_MOCK_LINE$PEPPOL_LINE
   "table_count": 25
 }
 JSON
