@@ -13,8 +13,8 @@
     <string name="plat_about_version_code">Code de version</string>
     <string name="plat_about_pos_sw_version">Version logicielle du moteur</string>
     <string name="plat_about_engine_ref_label">Référence du moteur</string>
-    <!-- TAGGING: replace "pending" by the first 7 hex digits of the commit of tag linux-v1.0.0-rc2 (plat-engine-ref gate, p6_gate.sh). -->
-    <string name="plat_about_engine_ref" translatable="false">pili-pos 1.0.0, linux-v1.0.0-rc2 (922a158)</string>
+    <!-- TAGGING: replace "pending" by the first 7 hex digits of the commit of tag linux-v1.0.0-rc3 (plat-engine-ref gate, p6_gate.sh). -->
+    <string name="plat_about_engine_ref" translatable="false">pili-pos 1.0.0, linux-v1.0.0-rc3 (pending)</string>
     <string name="plat_about_apk_sha1">SHA-1 de base.apk</string>
     <string name="plat_about_apk_sha256">SHA-256 de base.apk</string>
     <string name="plat_about_so_sha1">SHA-1 de libpos_ffi.so</string>

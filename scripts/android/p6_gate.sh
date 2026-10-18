@@ -48,7 +48,7 @@
 #   plat-engine-ref    SKIP while no string plat_about_engine_ref exists in
 #                      res/values/strings_plat_*.xml. Else it equals
 #                      'pili-pos <V>, <TAG> (<SHORT>)': TAG = $PILI_P6_FREEZE_TAG (default
-#                      linux-v1.0.0-rc2), V = version under [workspace.package] of
+#                      linux-v1.0.0-rc3), V = version under [workspace.package] of
 #                      'git show TAG:Cargo.toml', SHORT = first 7 hex of TAG's commit.
 #                      While TAG does not exist yet, the string may hold the placeholder
 #                      'pili-pos <V>, <TAG> (pending)' with V = the working tree's
@@ -72,7 +72,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 TOOLS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 SELF="$TOOLS/$(basename "${BASH_SOURCE[0]}")"
 ROOT="${PILI_P6_ROOT:-$(cd "$TOOLS/../.." && pwd -P)}"
-FREEZE_TAG="${PILI_P6_FREEZE_TAG:-linux-v1.0.0-rc2}"
+FREEZE_TAG="${PILI_P6_FREEZE_TAG:-linux-v1.0.0-rc3}"
 
 fast=0
 do_plat_e2e=0

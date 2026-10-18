@@ -46,7 +46,7 @@ class IdentityReportTest {
         assertEquals("SN-0001", json.getString("deviceId"))
         assertEquals("POS-01", json.getString("posId"))
         assertEquals("pili-pos-android/1.0.0", json.getString("posSwVersion"))
-        assertEquals("pili-pos 1.0.0, linux-v1.0.0-rc2 (pending)", json.getString("engineRef"))
+        assertEquals("pili-pos 1.0.0, linux-v1.0.0-rc3 (pending)", json.getString("engineRef"))
         assertEquals(12_000_000_000L, json.getLong("freeInternalBytes"))
         assertEquals(820_000_000L, json.getLong("backupsBytes"))
         assertEquals(1, json.getJSONArray("signerSha256").length())
