@@ -14,8 +14,8 @@ use common::*;
 use pos_db::queries::invoicing as q;
 use pos_engine::commands::errors;
 use pos_engine::commands::invoice::{
-    do_list_peppol_deliveries, do_lookup_b2b_customer, do_retry_peppol_delivery,
-    do_sign_invoice_fiscal,
+    do_issue_b2b_invoice, do_list_peppol_deliveries, do_lookup_b2b_customer,
+    do_retry_peppol_delivery, do_sign_invoice_fiscal,
 };
 use pos_engine::commands::peppol_queue::{backoff, run_pass_at};
 use pos_fdm_mock::storecove::StorecoveMock;
@@ -350,4 +350,201 @@ async fn the_attempt_log_cannot_be_changed() {
             .is_err()
     );
     assert!(db.execute("DELETE FROM invoice_sales", []).is_err());
+}
+
+/// `peppol_checked_at` as the engine writes it, `days` days ago.
+fn days_ago(days: i64) -> String {
+    (Utc::now() - chrono::Duration::days(days)).to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+}
+
+fn cache_status(r: &Rig, status: &str, checked_at: &str) {
+    let db = r.app.state.db.lock().unwrap();
+    q::set_customer_peppol_status(&db, r.customer, status, checked_at).unwrap();
+}
+
+#[tokio::test]
+async fn a_cached_status_is_used_only_while_it_is_fresh() {
+    let r = rig().await;
+    // 31 days old: the delivery starts "unknown", so the queue asks the network again.
+    cache_status(&r, "not_registered", &days_ago(31));
+    let stale = r.invoice().await;
+    assert_eq!(r.delivery(stale).lookup_status, "unknown");
+
+    // 1 day old: the cached answer is the starting point.
+    cache_status(&r, "not_registered", &days_ago(1));
+    let fresh = r.invoice().await;
+    assert_eq!(r.delivery(fresh).lookup_status, "not_registered");
+
+    // A registered status of today is taken over as well.
+    cache_status(&r, "registered", &days_ago(0));
+    let registered = r.invoice().await;
+    assert_eq!(r.delivery(registered).lookup_status, "registered");
+
+    // Without any check date the cache is not trusted.
+    r.app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "UPDATE b2b_customers SET peppol_status = 'registered', peppol_checked_at = NULL",
+            [],
+        )
+        .unwrap();
+    let never = r.invoice().await;
+    assert_eq!(r.delivery(never).lookup_status, "unknown");
+}
+
+#[tokio::test]
+async fn a_cached_not_registered_recipient_the_network_now_knows_is_sent() {
+    let r = rig().await;
+    cache_status(&r, "not_registered", &days_ago(1));
+    let id = r.invoice().await;
+    assert_eq!(r.delivery(id).lookup_status, "not_registered");
+
+    // The network now says "registered" (the mock registers everybody by default).
+    assert_eq!(run_pass_at(&r.app.state, soon()).await, 1);
+    let d = r.delivery(id);
+    assert_eq!(d.status, "accepted", "{d:?}");
+    assert_eq!(d.lookup_status, "registered");
+    assert_eq!(r.mock.submissions().len(), 1);
+}
+
+#[tokio::test]
+async fn a_cached_not_registered_recipient_is_parked_when_the_lookup_fails() {
+    let r = rig().await;
+    cache_status(&r, "not_registered", &days_ago(1));
+    let id = r.invoice().await;
+    r.mock.script_lookups(&[500]);
+
+    run_pass_at(&r.app.state, soon()).await;
+    let d = r.delivery(id);
+    assert_eq!(d.status, "failed", "{d:?}");
+    assert!(r.mock.submissions().is_empty());
+    assert_eq!(r.log(id)[0].1, "not_registered");
+}
+
+/// Sign an invoice while the `peppol` section is missing, then put the section back.
+async fn invoice_without_delivery(r: &Rig, customer: i64) -> i64 {
+    let peppol = r.app.state.config.lock().unwrap().peppol.take();
+    let sale = r.app.sell_cash(1000).await;
+    let result = do_sign_invoice_fiscal(&r.app.state, vec![sale], customer, OPERATOR.into())
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    assert_eq!(result.delivery_status, None);
+    r.app.state.config.lock().unwrap().peppol = peppol;
+    result.fiscal_event_id.unwrap()
+}
+
+#[tokio::test]
+async fn an_invoice_signed_before_peppol_was_set_up_is_queued_later() {
+    let r = rig().await;
+    let event = invoice_without_delivery(&r, r.customer).await;
+    let invoice_no: String = r
+        .app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .query_row(
+            "SELECT invoice_no FROM invoices WHERE fiscal_event_id = ?1",
+            [event],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(
+        do_list_peppol_deliveries(&r.app.state, None)
+            .unwrap()
+            .deliveries
+            .is_empty()
+    );
+
+    let id = do_issue_b2b_invoice(&r.app.state, event)
+        .unwrap()
+        .expect("a delivery was queued");
+    let d = r.delivery(id);
+    assert_eq!(d.status, "queued");
+    assert_eq!(d.customer_endpoint_id, PARTICIPANT);
+    assert_eq!(d.lookup_status, "unknown");
+    assert_eq!(d.invoice_no, invoice_no);
+    let ubl = {
+        let db = r.app.state.db.lock().unwrap();
+        q::delivery_ubl(&db, id).unwrap().unwrap()
+    };
+    assert!(
+        ubl.contains(&format!("<cbc:ID>{invoice_no}</cbc:ID>")),
+        "{ubl}"
+    );
+
+    // Asking again returns the same delivery and queues nothing more.
+    assert_eq!(do_issue_b2b_invoice(&r.app.state, event).unwrap(), Some(id));
+    assert_eq!(
+        do_list_peppol_deliveries(&r.app.state, None)
+            .unwrap()
+            .deliveries
+            .len(),
+        1
+    );
+
+    // And the queue delivers it.
+    assert_eq!(run_pass_at(&r.app.state, soon()).await, 1);
+    assert_eq!(r.delivery(id).status, "accepted");
+    assert!(
+        r.mock
+            .submitted_xml(0)
+            .unwrap()
+            .contains(&format!("<cbc:ID>{invoice_no}</cbc:ID>"))
+    );
+}
+
+#[tokio::test]
+async fn issuing_an_invoice_to_the_network_has_its_guards() {
+    let r = rig().await;
+    // A foreign customer cannot be delivered over Peppol: nothing is queued.
+    let foreign = r.app.save_customer("FR12345678901", "Client Francais SARL");
+    let foreign_event = invoice_without_delivery(&r, foreign).await;
+    assert_eq!(
+        do_issue_b2b_invoice(&r.app.state, foreign_event).unwrap(),
+        None
+    );
+    assert!(
+        do_list_peppol_deliveries(&r.app.state, None)
+            .unwrap()
+            .deliveries
+            .is_empty()
+    );
+
+    // An event that is not an invoice.
+    let sale = r.app.sell_cash(500).await;
+    assert_eq!(
+        do_issue_b2b_invoice(&r.app.state, sale).unwrap_err(),
+        errors::EVENT_NOT_FOUND
+    );
+
+    // Admin only.
+    let belgian = invoice_without_delivery(&r, r.customer).await;
+    r.app
+        .login_as("12345678958", pos_core::user::UserRole::Cashier);
+    assert_eq!(
+        do_issue_b2b_invoice(&r.app.state, belgian).unwrap_err(),
+        pos_engine::commands::access::ERR_FORBIDDEN
+    );
+    r.app.login_as(OPERATOR, pos_core::user::UserRole::Admin);
+
+    // Without a peppol section there is nothing to queue on.
+    let peppol = r.app.state.config.lock().unwrap().peppol.take();
+    assert_eq!(
+        do_issue_b2b_invoice(&r.app.state, belgian).unwrap_err(),
+        errors::PEPPOL_NOT_CONFIGURED
+    );
+    r.app.state.config.lock().unwrap().peppol = peppol;
+    assert_eq!(
+        do_list_peppol_deliveries(&r.app.state, None)
+            .unwrap()
+            .deliveries
+            .len(),
+        0,
+        "the refusals queued nothing"
+    );
 }
