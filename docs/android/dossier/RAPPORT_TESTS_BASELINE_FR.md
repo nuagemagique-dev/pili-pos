@@ -34,10 +34,10 @@ Les chiffres viennent des portes de contrôle des phases (`x1_gate.sh`, `p5_gate
 
 | Suite | Résultat | Rapport et commit |
 |---|---|---|
-| Workspace racine (`cargo test --workspace`) | 2564 passants, 0 échec, 13 ignorés (170 binaires de tests) | mesure de la voie rc3 à la tête de l'intégration (2026-10-18) |
+| Workspace racine (`cargo test --workspace`) | 2565 passants, 0 échec, 13 ignorés (170 binaires de tests) | mesure de la voie rc3 à la tête de l'intégration après la reprise du banc (commit 1d255e62, 2026-10-18) |
 | Build cert, `pili-pos` | 14 passants, 0 échec | mesure de la voie rc3 à la tête de l'intégration (2026-10-18) |
 | Build cert, `pos-engine` | 1159 passants, 0 échec, 11 ignorés (82 binaires) ; avec le binaire `pili-pos` (14 passants) : 1173 | mesure de la voie rc3 (2026-10-18), identique au rapport Linux |
-| Inventaire (`scripts/android/test_inventory.sh --diff`) | aucun test disparu : 2577 tests du workspace (2564 passants et 13 ignorés), 1184 pour la build cert, contre 1355 à la baseline | mesure de la voie rc3 à la tête de l'intégration (2026-10-18) |
+| Inventaire (`scripts/android/test_inventory.sh --diff`) | aucun test disparu : 2578 tests du workspace (2565 passants et 13 ignorés), 1185 pour la build cert, contre 1355 à la baseline | mesure de la voie rc3 à la tête de l'intégration (2026-10-18) |
 
 ### Couche Android, sur l'hôte de construction
 
@@ -54,7 +54,7 @@ Les chiffres viennent des portes de contrôle des phases (`x1_gate.sh`, `p5_gate
 
 | Parcours | Résultat | Rapport et commit |
 |---|---|---|
-| Tests du moteur sur l'émulateur, fixtures poussées sur l'appareil (`scripts/android/device_engine_tests.sh --fixtures --check`) | 114 binaires : 2160 passants, 0 échec, 13 ignorés (tests en ligne) | `docs/android/uc/device_engine_tests.md`, commit 7f96ae02, exécution du 2026-10-18 sur le profil sunmi_d3_pro_api33 |
+| Tests du moteur sur l'émulateur, fixtures poussées sur l'appareil (`scripts/android/device_engine_tests.sh --fixtures --check`) | 114 binaires : 2163 passants, 0 échec, 13 ignorés (tests en ligne) | `docs/android/uc/device_engine_tests.md`, commit 1d255e62, exécution du 2026-10-18 sur le profil sunmi_d3_pro_api33 |
 | Mesure antérieure, mode `--fixtures` (avant l'intégration des cinq voies) | 1371 passants, 0 échec, 13 ignorés | `docs/android/DEVICE_TESTS.md`, exécution du 2026-10-08 ; remplacée par la ligne ci-dessus |
 | Bout en bout de l'application (`app_e2e.sh`) | 11 contrôles sur 11, qui établissent la mise en service par paquet signé, le moteur prêt, le verrouillage kiosque, la connexion d'un gérant contre le FDM simulé et le retour prêt et verrouillé après un arrêt forcé | `P6-exit.md`, 4cfe0b3 ; `X1-exit.md`, a364ad7 |
 | Bout en bout de la plateforme (`plat_e2e.sh`) | 19 contrôles sur 19 : 13 restrictions du propriétaire d'appareil, export vers le SPF avec vérification de `MANIFEST.sha256`, mise à jour par session d'installation signée avec refus des cas `not_newer` et `sha256_mismatch`, redémarrage par le chien de garde, journal d'audit | `P6-exit.md`, 4cfe0b3 |

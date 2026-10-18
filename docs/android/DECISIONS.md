@@ -2257,8 +2257,8 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
   closing table in the manual and a per-annex "Captures d'écran" section.
 - **INT-D35 Test report figures traced to their runs (rc3).** `RAPPORT_TESTS_BASELINE_FR.md` now cites for each row the
   run that produced it: 14 tests for the cert `pili-pos` binary, 2577 workspace tests listed by `test_inventory.sh --diff`
-  (2564 passing, 13 ignored; 1184 for the cert build), the parity scripts at the integration head (148/148, 136+10 of
-  146), 2807 `:app` unit tests (full `:app:verifyRoborazziDebug`), and the device run `--fixtures --check` (2160). The
+  (2564 passing, 13 ignored; 1184 for the cert build; rerun at 1d255e62 after the bench retake: 2578, 2565 passing, 1185), the parity scripts at the integration head (148/148, 136+10 of
+  146), 2807 `:app` unit tests (full `:app:verifyRoborazziDebug`), and the device run `--fixtures --check` (2160 at 7f96ae02, rerun at 1d255e62 after the bench retake: 2163). The
   1371 figure is kept as an earlier measure (2026-10-08) and the Kover percentages as a pre-rc3 measure, both to redo
   at the freeze.
 - **INT-D36 Bench retake not done (rc3).** The retake of A159/A160 and of the ticket run needs the debug APK to trust
