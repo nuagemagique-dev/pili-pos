@@ -32,6 +32,13 @@ const CHECK_MESSAGE: &[u8] = b"pili-badge-check/1";
 
 type HmacSha256 = Hmac<Sha256>;
 
+/// Serialises the creators inside the process. The hard link makes the
+/// creation exclusive on its own, but the rename fallback (a file system
+/// without hard links, such as some Android data directories) replaces
+/// whatever is there: two threads that both found no file would each
+/// return their own key and the second rename would overwrite the first.
+static CREATE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn mac(key: &[u8; KEY_LEN]) -> HmacSha256 {
     // HMAC accepts a key of any length.
     HmacSha256::new_from_slice(key).expect("HMAC takes any key length")
@@ -73,6 +80,11 @@ fn load_or_create_with(
     data_dir: &Path,
     link: fn(&Path, &Path) -> std::io::Result<()>,
 ) -> Result<[u8; KEY_LEN], String> {
+    // A poisoned lock only means another creator panicked; the file checks
+    // below do not depend on what it held.
+    let _creating = CREATE_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let path = data_dir.join(KEY_FILE);
     if let Some(key) = read_key(&path)? {
         return Ok(key);
@@ -335,6 +347,36 @@ mod tests {
 
     fn no_hard_links(_: &Path, _: &Path) -> std::io::Result<()> {
         Err(std::io::Error::from(ErrorKind::Unsupported))
+    }
+
+    #[test]
+    fn concurrent_creators_without_hard_links_all_get_the_winners_key() {
+        // The rename fallback replaces an existing file, so it must not run
+        // twice at once (found on the Android emulator, whose data directory
+        // refuses hard links).
+        let dir = tempfile::tempdir().unwrap();
+        let barrier = std::sync::Barrier::new(8);
+        let keys: Vec<_> = std::thread::scope(|s| {
+            let handles: Vec<_> = (0..8)
+                .map(|_| {
+                    s.spawn(|| {
+                        barrier.wait();
+                        load_or_create_with(dir.path(), no_hard_links)
+                    })
+                })
+                .collect();
+            handles.into_iter().map(|h| h.join().unwrap()).collect()
+        });
+        let first = *keys[0].as_ref().expect("the first creator got a key");
+        for key in &keys {
+            assert_eq!(key.as_ref().expect("every creator succeeds"), &first);
+        }
+        assert_eq!(fs::read(dir.path().join(KEY_FILE)).unwrap(), first);
+        assert!(
+            leftovers(dir.path()).is_empty(),
+            "{:?}",
+            leftovers(dir.path())
+        );
     }
 
     #[test]
