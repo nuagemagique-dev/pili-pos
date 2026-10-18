@@ -19,7 +19,7 @@
 //!   two cases that would need one are refused;
 //! - a gift voucher line (`VOUCHER_STORE`) is never corrected and no
 //!   line is ever corrected to a gift voucher: the voucher movement
-//!   written with the sale cannot follow a correction (INT-D4).
+//!   written with the sale cannot follow a correction (INT-D19).
 
 use rusqlite::Connection;
 use serde::Serialize;

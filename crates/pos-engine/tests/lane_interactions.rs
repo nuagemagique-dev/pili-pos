@@ -1,5 +1,5 @@
 //! Where lane 4 (owner features: allergens, courses, gift vouchers) meets the till work of
-//! the other lanes on android/int (decisions INT-D1 to INT-D8 in docs/android/DECISIONS.md):
+//! the other lanes on android/int (decisions INT-D12 to INT-D21 in docs/android/DECISIONS.md):
 //!
 //! - the menu editor never shows or writes the POS's own rows (`pili:%`);
 //! - a gift voucher line takes no discount, and an order discount leaves it whole;

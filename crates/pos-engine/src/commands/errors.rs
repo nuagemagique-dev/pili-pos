@@ -164,7 +164,7 @@ pub const PAYMENT_CORRECTION_METHOD: &str = "payment_correction_method";
 /// The correction would need a ROUNDING line: a cash line of a rounded sale, or a cash amount that is not a multiple of 5 cents.
 pub const PAYMENT_CORRECTION_ROUNDING: &str = "payment_correction_rounding";
 /// The line is a gift voucher payment (`VOUCHER_STORE`): it debited a voucher, which a
-/// correction cannot undo (decision INT-D4).
+/// correction cannot undo (decision INT-D19).
 pub const PAYMENT_CORRECTION_GIFT_VOUCHER: &str = "payment_correction_gift_voucher";
 
 // Tickets: copies and refunds.
@@ -316,7 +316,7 @@ pub const INVOICE_TRAINING_MODE: &str = "invoice_training_mode";
 /// `event`: the sale sold a gift voucher (a VAT X line of department `GV`). A multi-purpose
 /// voucher is outside the scope of VAT; Peppol BIS allows category `O` only on an invoice with
 /// no other category and no VAT identifiers (BR-O-02, BR-O-11 to 14), so such a sale is never
-/// invoiced (decision INT-D3).
+/// invoiced (decision INT-D18).
 pub const INVOICE_GIFT_VOUCHER_SALE: &str = "invoice_gift_voucher_sale";
 /// A Belgian VAT-registered customer must be invoiced through Peppol, and the installation
 /// has no `peppol` section (V11-D55).

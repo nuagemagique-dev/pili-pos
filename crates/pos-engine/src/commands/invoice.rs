@@ -316,7 +316,7 @@ pub(crate) fn read_sale(event: &FiscalEventRef) -> Result<SaleDoc, String> {
         .flatten()
     {
         let product = &line["mainProduct"];
-        // A sold gift voucher is out of the scope of VAT: never on a B2B invoice (INT-D3).
+        // A sold gift voucher is out of the scope of VAT: never on a B2B invoice (INT-D18).
         if product["departmentId"].as_str() == Some(pos_db::queries::gift_vouchers::DEPARTMENT_ID) {
             return Err(coded(
                 errors::INVOICE_GIFT_VOUCHER_SALE,

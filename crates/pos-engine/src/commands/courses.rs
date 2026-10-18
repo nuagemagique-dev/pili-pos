@@ -300,7 +300,7 @@ pub(crate) async fn print_signed(
         Print::Release(Some(course)) => course,
     };
     // A PRICE_CHANGE entry is never held: whatever its course, it is consumed by the first
-    // slip pass after its P (it prints nothing), so it never waits for a release (INT-D6).
+    // slip pass after its P (it prints nothing), so it never waits for a release (INT-D14).
     let eligible: Vec<KitchenEntry> = pending
         .into_iter()
         .filter(|e| e.signed && (e.price_change || e.course == 0 || e.course <= limit))
