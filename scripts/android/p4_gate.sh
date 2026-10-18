@@ -115,9 +115,9 @@ SELF="$TOOLS/$(basename "${BASH_SOURCE[0]}")"
 HEAVY="$TOOLS/heavy.sh"
 
 FREEZE_TAG=android-v1.0.0-rc3
-# TAGGING: fill FREEZE_SHA_RECORDED with the full commit of android-v1.0.0-rc3
-# (git rev-parse 'android-v1.0.0-rc3^{commit}') when the tag is set.
-FREEZE_SHA_RECORDED=""
+# The full commit of android-v1.0.0-rc3 (git rev-parse 'android-v1.0.0-rc3^{commit}'),
+# recorded at the freeze of 2026-10-18 (docs/android/ANDROID_FREEZE.md, INT-D50).
+FREEZE_SHA_RECORDED="8c53acc3c7a0b2424b6cabb15e613e0d43753663"
 # Linux history (--linux-repro only): the retired Linux freeze tag.
 LINUX_REPRO_TAG=linux-v1.0.0-rc2
 FREEZE_SHA="${PILI_P4_FREEZE_SHA-$FREEZE_SHA_RECORDED}"

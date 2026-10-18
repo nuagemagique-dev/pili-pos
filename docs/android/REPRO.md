@@ -4,7 +4,8 @@ Status: done on the local Apple M1 host. Two clean offline builds of the unsigne
 APK, in fresh `--network none` containers of the pinned image, give byte-identical APKs. Since
 P6-T10 the container builds `:app:assembleRelease` (`app-release-unsigned.apk`); the `:smoke`
 wording below is the history of the first version of this check. The Android freeze
-(`ANDROID_FREEZE.md`) uses `scripts/android/check_repro.sh --commit <tag commit>`. The run on a
+(`ANDROID_FREEZE.md`) uses `scripts/android/check_repro.sh --commit <tag commit>`. The rc3 freeze run
+(2026-10-18, commit `8c53acc3`, cold image, `REPRO | total | PASS`) is recorded there. The run on a
 native x86_64 Linux host is still to be done by the user (see "Limits").
 
 Decisions behind this document: DECISIONS 11.13 and PD83 (plan P3.4), spike S5
