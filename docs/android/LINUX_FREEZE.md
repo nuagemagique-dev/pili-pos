@@ -1,3 +1,5 @@
+History: v1 submits Android only (INT-D41); the current freeze record is ANDROID_FREEZE.md
+
 # Linux freeze: linux-v1.0.0-rc2
 
 The engine freeze both initial filings cite (Linux `pili-pos` 1.0.0 and

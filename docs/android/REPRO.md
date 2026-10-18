@@ -1,7 +1,10 @@
 # Reproducible APK check (P3-T8)
 
-Status: done on the local Apple M1 host. Two clean offline builds of the unsigned `:smoke` release
-APK, in fresh `--network none` containers of the pinned image, give byte-identical APKs. The run on a
+Status: done on the local Apple M1 host. Two clean offline builds of the unsigned release
+APK, in fresh `--network none` containers of the pinned image, give byte-identical APKs. Since
+P6-T10 the container builds `:app:assembleRelease` (`app-release-unsigned.apk`); the `:smoke`
+wording below is the history of the first version of this check. The Android freeze
+(`ANDROID_FREEZE.md`) uses `scripts/android/check_repro.sh --commit <tag commit>`. The run on a
 native x86_64 Linux host is still to be done by the user (see "Limits").
 
 Decisions behind this document: DECISIONS 11.13 and PD83 (plan P3.4), spike S5
@@ -10,7 +13,7 @@ Decisions behind this document: DECISIONS 11.13 and PD83 (plan P3.4), spike S5
 
 ## What is compared, and why
 
-The container builds `smoke-release-unsigned.apk` (`:smoke:assembleRelease`). The check compares the
+The container builds `app-release-unsigned.apk` (`:app:assembleRelease`; the first version of this check built `smoke-release-unsigned.apk`). The check compares the
 two **unsigned** APKs byte for byte (`cmp`), and then shows three more views of the same fact:
 
 | Check | What it proves |

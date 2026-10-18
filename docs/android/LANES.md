@@ -28,6 +28,8 @@ Lanes start after P4. Until the P4 exit report is written, the foundation owner 
 
 The owner of a path is the owner of the single rule that matches it. A path matching rules of two different owners is a defect in this file and `lane_paths.py --check` fails. A path matching two rules of the same owner is fine.
 
+Note (INT-D41, INT-D44): v1 submits Android only. `scripts/android/check_android_frozen.sh`, its self-test and `docs/android/ANDROID_FREEZE.md` are unowned like their Linux twins (`check_linux_frozen.sh`, `LINUX_FREEZE.md`); no rule was added for them.
+
 ### Machine-readable rules
 
 One rule per line: `<owner> <regex>`, separated by whitespace. Blank lines and lines starting with `#` are ignored. The regex is a POSIX ERE fragment that the checker anchors as `^(regex)$`. It must work both in Python `re` and in bash `[[ =~ ]]`: no lookahead, no backslash classes, a literal dot is written `[.]`.
