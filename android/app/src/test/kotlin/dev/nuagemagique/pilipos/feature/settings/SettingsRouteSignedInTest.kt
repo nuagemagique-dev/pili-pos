@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
 import dagger.Lazy
@@ -94,19 +95,32 @@ class SettingsRouteSignedInTest {
         return env
     }
 
+    /**
+     * Runs [body] and stops the Peppol polling however it ends: `runTest` drains the scheduler when the body returns
+     * or throws, and a poll still running would loop on virtual time until the heap is exhausted, hiding the failure.
+     */
+    private fun pollingTest(body: suspend TestScope.() -> Unit) =
+        runTest {
+            try {
+                body()
+            } finally {
+                runCatching { ViewModelProvider(compose.activity)[PeppolViewModel::class.java].stopPolling() }
+            }
+        }
+
     @Test
     fun aManagerSeesThePeppolPanelAndItIsReadAgainEveryThirtySeconds() =
-        runTest {
+        pollingTest {
             val env = signedIn(admin)
             compose.setContent { SettingsRoute(navigator, Lazy { registry }, env.entry) }
             settle()
 
             coVerify(exactly = 1) { env.f.engine.listPeppolDeliveries(100L) }
-            compose.onNodeWithTag("peppol_section").assertIsDisplayed()
+            // The third column scrolls: the badge reader panel sits above Peppol.
+            compose.onNodeWithTag("peppol_section").performScrollTo().assertIsDisplayed()
             advanceTimeBy(PEPPOL_POLL_MS + 1L)
             settle()
             coVerify(exactly = 2) { env.f.engine.listPeppolDeliveries(100L) }
-            ViewModelProvider(compose.activity)[PeppolViewModel::class.java].stopPolling()
         }
 
     @Test
@@ -141,7 +155,7 @@ class SettingsRouteSignedInTest {
 
     @Test
     fun aManagerSeesTheCarteRowAndATapOpensTheMenuEditorRoute() =
-        runTest {
+        pollingTest {
             val env = signedIn(admin)
             compose.setContent { SettingsRoute(navigator, Lazy { registry }, env.entry) }
             settle()
@@ -150,7 +164,6 @@ class SettingsRouteSignedInTest {
             compose.onNodeWithTag("settings_row_settings.menu").performClick()
 
             assertEquals(listOf("navigate:" + SettingsRoutes.MENU), navigator.calls)
-            ViewModelProvider(compose.activity)[PeppolViewModel::class.java].stopPolling()
         }
 
     @Test
