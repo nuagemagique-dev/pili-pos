@@ -37,7 +37,8 @@ contrôle a reçu. Le calcul de chaque ligne est celui du rapport Z (somme de `p
 | Rapport Z (champ `turnover`) | Rapport de ventes |
 |---|---|
 | `transactions` de l'étiquette N : nombre d'événements et somme des lignes | « Tickets » et « Total des ventes » de la période comptable, jamais calculés depuis les tables modifiables (`orders`, `order_lines`, `payments`) |
-| Lignes de quantité négative (remboursements, corrections) | Montants négatifs, déjà compris dans les produits et dans le total |
+| Lignes de quantité négative | Montants négatifs, déjà compris dans les produits et dans le total |
+| Tickets de remboursement (événements N dont la requête cite le ticket remboursé dans `fdmRef`) | Seuls comptés dans « dont remboursements » : somme de ces tickets, négative, déjà comprise dans le total. Une ligne négative d'un autre ticket (annulation de remise, correction dans la vente) n'est pas un remboursement : elle reste dans les produits et dans le total, jamais dans « dont remboursements » |
 | Événements de formation (étiquette T), commandes de table (P), copies (C), caisse (F), factures (I), rapports (R) | Exclus : seule l'étiquette N est lue |
 | `priceChanges` PUBLIC de portée LINE | Dans le montant de la ligne produit |
 | `priceChanges` de portée EVENT | Ligne « Modifications de prix (tickets) » à part, comptée dans le total |
@@ -115,6 +116,7 @@ dernier contrôle par la marque de concordance de chaque période.
 | `reading_and_printing_the_report_signs_nothing` | Aucun événement ajouté, compteurs inchangés, aucune requête envoyée au module de contrôle |
 | `a_training_sale_is_not_in_the_report`, `training_events_and_other_labels_are_left_out` | Formation, commandes de table, copies exclues |
 | `refunds_are_negative_and_stay_inside_the_total` | Remboursements négatifs, dans le total |
+| `a_negative_line_inside_a_sale_is_not_a_refund` | Une ligne négative hors ticket de remboursement n'entre pas dans « dont remboursements » |
 | `price_changes_and_rounding_are_apart_and_the_total_is_the_sum_of_the_tickets` | Modifications de prix et arrondi à part |
 | `hours_are_brussels_local_and_listed_from_the_day_end_hour` | Heures de Bruxelles (heure d'été comprise), ordre depuis l'heure de fin de journée |
 | `a_gap_with_the_z_is_shown_and_two_zs_on_one_date_are_two_rows` | Écart affiché, deux Z le même jour = deux lignes |

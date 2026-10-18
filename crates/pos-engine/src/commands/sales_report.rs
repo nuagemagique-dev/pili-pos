@@ -4,7 +4,8 @@
 //! Read-only and never signed: no event, no counter, nothing sent to the FDM. The figures come
 //! from the archived N events (`pos_fiscal::archive`, the signed request of each sale), the
 //! booking periods and the stored Z reports, never from the mutable order tables. Training
-//! events (label T) are not N events and are left out; a refund is an N event with negative
+//! events (label T) are not N events and are left out; a refund is an N event (citing the refunded
+//! ticket in `fdmRef`) with negative
 //! quantities and shows as negative amounts.
 //!
 //! Reconciliation: the grand total is the sum of the `transactionTotal` of the sales, that is
@@ -106,7 +107,9 @@ pub struct SalesReport {
     pub price_changes_cents: i64,
     /// Cash rounding, informational: NOT part of the total.
     pub rounding_cents: i64,
-    /// The negative lines (refunds and corrections), already inside the products and the total.
+    /// Σ of the refund tickets (N events citing the refunded ticket in `fdmRef`), already inside the
+    /// products and the total. Other negative lines (a discount reversal or a correction inside a
+    /// sale) are not refunds and stay in the products only.
     pub refunds_cents: i64,
     /// N events of the range, refunds included.
     pub ticket_count: i64,
@@ -238,9 +241,6 @@ fn compute(state: &AppState, from: &str, to: &str) -> Result<SalesReport, String
                 let entry = products.entry(key).or_default();
                 entry.0 += milli(&product["quantity"]);
                 entry.1 += own;
-                if product["quantity"].as_f64().unwrap_or(0.0) < 0.0 {
-                    refunds += own;
-                }
                 sale.amount += own;
                 sale.event_changes += event_level;
             }
@@ -250,6 +250,11 @@ fn compute(state: &AppState, from: &str, to: &str) -> Result<SalesReport, String
                 report_totals::transaction_amount(&event)
             );
             let sale_total = sale.amount + sale.event_changes;
+            // A refund ticket is the N event that cites the refunded ticket (`fdmRef`, the same
+            // mark `payment_correction` uses); a negative line inside another sale is not one.
+            if event.request.get("fdmRef").is_some_and(Value::is_object) {
+                refunds += sale_total;
+            }
             price_changes += sale.event_changes;
             rounding += sale.rounding;
             tickets += 1;

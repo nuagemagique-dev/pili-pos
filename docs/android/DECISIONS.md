@@ -2273,3 +2273,10 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
   test fixture signature and the gate tests follow. The key is debug-only: the release key slot and the release
   trust list are untouched, and the key must not be rotated again. This supersedes INT-D36: after a debug APK
   rebuild, `make_dev_bundle.sh` and `capture_screens.sh` work again and the bench retake is done under INT-D38 onwards.
+- **INT-D38 Sales report "dont remboursements" counts refund tickets only (rc3).** The figure was the sum of every
+  negative-quantity line, so a discount reversal or a correction inside a sale was reported as a refund. It is now the
+  sum of the N events whose signed request cites the refunded ticket in `fdmRef` (the mark `payment_correction.rs`
+  uses to recognise a refund), the refund ticket's whole `transactionTotal`. Other negative lines stay in the products
+  and in the total, which still equals the Z turnover. Both UIs only display the figure (hidden at 0), so no UI code
+  changed; the engine test `a_negative_line_inside_a_sale_is_not_a_refund` pins it. The Linux capture
+  `80_reports_sales` is a mock-data screen and keeps its value. This closes the "known wording issue" noted earlier.

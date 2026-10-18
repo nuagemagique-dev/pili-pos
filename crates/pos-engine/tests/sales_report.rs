@@ -330,6 +330,19 @@ fn insert_event(
     lines: &[Line],
     rounding: f64,
 ) -> i64 {
+    insert_event_citing(app, label, period_id, pos_date_time, lines, rounding, false)
+}
+
+/// Like `insert_event`; `refund` adds the `fdmRef` of the refunded ticket, which makes it a refund ticket.
+fn insert_event_citing(
+    app: &TestApp,
+    label: &str,
+    period_id: &str,
+    pos_date_time: &str,
+    lines: &[Line],
+    rounding: f64,
+    refund: bool,
+) -> i64 {
     let lines_json: Vec<Value> = lines
         .iter()
         .map(|l| {
@@ -349,12 +362,16 @@ fn insert_event(
             })
         })
         .collect();
-    let request = json!({
+    let mut request = json!({
         "bookingPeriodId": period_id,
         "posDateTime": pos_date_time,
         "transaction": {"transactionLines": lines_json, "transactionTotal": 0},
         "financials": [{"amountType": "ROUNDING", "amount": rounding}],
     });
+    if refund {
+        request["fdmRef"] =
+            json!({"fdmId": "FDM", "eventLabel": "N", "eventCounter": 1, "totalCounter": 1});
+    }
     let conn = app.state.db.lock().unwrap();
     let seq: i64 = conn
         .query_row(
@@ -441,13 +458,14 @@ async fn refunds_are_negative_and_stay_inside_the_total() {
         &[line("1", "Maki", 3.0, 6.5), line("2", "Soupe", 1.0, 4.0)],
         0.0,
     );
-    insert_event(
+    insert_event_citing(
         &app,
         "N",
         "p1",
         "2026-07-10T12:30:00+02:00",
         &[line("1", "Maki", -1.0, 6.5)],
         0.0,
+        true,
     );
     let report = do_sales_report(&app.state, "2026-07-10".into(), "2026-07-10".into()).unwrap();
     assert_eq!(report.refunds_cents, -650);
@@ -461,6 +479,56 @@ async fn refunds_are_negative_and_stay_inside_the_total() {
     assert_eq!((maki.quantity_milli, maki.amount_cents), (2000, 1300));
     // Biggest amount first.
     assert_eq!(report.by_product[0].product_id, "1");
+}
+
+#[tokio::test]
+async fn a_negative_line_inside_a_sale_is_not_a_refund() {
+    let app = TestApp::new().await;
+    new_period(&app, "p1", "2026-07-10");
+    // A sale with a discount reversal line (negative quantity, no `fdmRef`).
+    insert_event(
+        &app,
+        "N",
+        "p1",
+        "2026-07-10T12:00:00+02:00",
+        &[line("1", "Maki", 2.0, 6.5), line("9", "Remise", -1.0, 1.0)],
+        0.0,
+    );
+    // A real refund ticket next to it.
+    insert_event_citing(
+        &app,
+        "N",
+        "p1",
+        "2026-07-10T12:30:00+02:00",
+        &[line("1", "Maki", -1.0, 6.5)],
+        0.0,
+        true,
+    );
+    let report = do_sales_report(&app.state, "2026-07-10".into(), "2026-07-10".into()).unwrap();
+    assert_eq!(report.refunds_cents, -650, "only the refund ticket counts");
+    // The reversal stays in the products and in the total.
+    assert_eq!(report.total_cents, 1300 - 100 - 650);
+    let remise = report
+        .by_product
+        .iter()
+        .find(|p| p.product_id == "9")
+        .unwrap();
+    assert_eq!(remise.amount_cents, -100);
+
+    // Without any refund ticket the figure is zero (the row is hidden by both UIs).
+    let app = TestApp::new().await;
+    new_period(&app, "p1", "2026-07-10");
+    insert_event(
+        &app,
+        "N",
+        "p1",
+        "2026-07-10T12:00:00+02:00",
+        &[line("1", "Maki", 2.0, 6.5), line("9", "Remise", -1.0, 1.0)],
+        0.0,
+    );
+    let report = do_sales_report(&app.state, "2026-07-10".into(), "2026-07-10".into()).unwrap();
+    assert_eq!(report.refunds_cents, 0);
+    assert_eq!(report.total_cents, 1200);
 }
 
 #[tokio::test]
