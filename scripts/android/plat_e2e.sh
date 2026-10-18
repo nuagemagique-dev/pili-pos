@@ -489,7 +489,7 @@ gradle_in "$NEWER_WT" "$OUTDIR/gradle-newer.log" :app:assembleDebug || {
 }
 newer_ok "$NEWER_WT/android/app/build/outputs/apk/debug/app-debug.apk" || abort newer-apk "the APK built in $NEWER_WT is not $NEW_NAME ($NEW_CODE)"
 cp "$NEWER_WT/android/app/build/outputs/apk/debug/app-debug.apk" "$WORK_DIR/apk/newer.apk"
-newer_method="a throwaway export of HEAD in $NEWER_WT (removed at the end)"
+newer_method="a throwaway export of HEAD in <dépôt>/${NEWER_WT#"$ROOT"/} (removed at the end)"
 pass newer-apk "$NEW_NAME ($NEW_CODE) built with $newer_method"
 
 # ── mocks ───────────────────────────────────────────────────────
