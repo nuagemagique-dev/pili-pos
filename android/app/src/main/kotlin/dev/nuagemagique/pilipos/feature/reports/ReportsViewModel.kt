@@ -724,8 +724,13 @@ internal class ReportsViewModel(
 
     // ── Helpers ───────────────────────────────────────────────────
 
-    /** The screen text of a refusal, in the language of the till. */
-    fun describeError(error: Throwable): String = entry.errors().text(error, language())
+    /**
+     * The screen text of a refusal, in the language of the till. An [OrderRefusedException] (the engine's refusal of
+     * a result that was not a success, thrown to a PIN pad) carries the raw engine text and is told like it, not as
+     * an unexpected failure.
+     */
+    fun describeError(error: Throwable): String =
+        if (error is OrderRefusedException) describeRaw(error.raw) else entry.errors().text(error, language())
 
     /** The screen text of the raw error string of a result that was not a success, in the language of the till. */
     fun describeRaw(raw: String?): String = entry.errors().textRaw(raw, language())

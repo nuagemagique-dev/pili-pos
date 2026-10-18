@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.engine.EngineState
 import dev.nuagemagique.pilipos.engine.EngineUnavailableException
+import dev.nuagemagique.pilipos.ui.state.OrderRefusedException
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.CompletableDeferred
@@ -1453,6 +1454,19 @@ class ReportsViewModelTest {
 
             assertNotNull(failure)
             assertNotNull(r.state.correctionFlow)
+        }
+
+    @Test
+    fun aRefusalThrownToThePadIsToldAsTheEngineTextNotAsAnUnexpectedFailure() =
+        runTest {
+            val f = fixture()
+            val r = correctionRig(f)
+            val refused = OrderRefusedException("payment_correction_period_closed")
+
+            val shown = r.model.describeError(refused)
+
+            assertEquals(r.model.describeRaw("payment_correction_period_closed"), shown)
+            assertFalse(shown.contains("OrderRefusedException"))
         }
 
     @Test
