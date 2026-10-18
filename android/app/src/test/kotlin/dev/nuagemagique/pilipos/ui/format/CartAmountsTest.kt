@@ -57,6 +57,8 @@ class CartAmountsTest {
             discountCents = discountCents,
             priceChanges = emptyList(),
             kitchenNote = null,
+            course = 0,
+            kitchenState = "unsent",
         )
 
     @Test

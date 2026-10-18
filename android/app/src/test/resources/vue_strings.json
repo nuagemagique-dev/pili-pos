@@ -12,6 +12,420 @@
       "zh": "添加",
       "area": "core"
     },
+    "alerts_chat_id": {
+      "fr": "Conversation Telegram",
+      "en": "Telegram chat",
+      "zh": "Telegram 会话",
+      "area": "settings"
+    },
+    "alerts_chat_id_unset": {
+      "fr": "Non renseignée",
+      "en": "Not set",
+      "zh": "未设置",
+      "area": "settings"
+    },
+    "alerts_kind_fdm": {
+      "fr": "La boîte noire ne répond plus",
+      "en": "The FDM stops answering",
+      "zh": "黑匣子无响应",
+      "area": "settings"
+    },
+    "alerts_kind_online_waiting": {
+      "fr": "Une commande en ligne attend",
+      "en": "An online order is waiting",
+      "zh": "有网上订单在等待",
+      "area": "settings"
+    },
+    "alerts_kind_printer": {
+      "fr": "Une imprimante est injoignable",
+      "en": "A printer is unreachable",
+      "zh": "打印机无法连接",
+      "area": "settings"
+    },
+    "alerts_kind_terminal": {
+      "fr": "Le terminal de paiement est injoignable",
+      "en": "The payment terminal is unreachable",
+      "zh": "支付终端无法连接",
+      "area": "settings"
+    },
+    "alerts_kind_z_missing": {
+      "fr": "Le Z du jour n'est pas fait",
+      "en": "The day's Z is not done",
+      "zh": "当日 Z 报表未完成",
+      "area": "settings"
+    },
+    "alerts_kinds": {
+      "fr": "Prévenir quand",
+      "en": "Warn when",
+      "zh": "在以下情况提醒",
+      "area": "settings"
+    },
+    "alerts_label": {
+      "fr": "Nom dans les messages",
+      "en": "Name in the messages",
+      "zh": "消息中的名称",
+      "area": "settings"
+    },
+    "alerts_label_placeholder": {
+      "fr": "Vide : identifiant de la caisse",
+      "en": "Empty: the till identifier",
+      "zh": "留空：使用收银机标识",
+      "area": "settings"
+    },
+    "alerts_language": {
+      "fr": "Langue des messages",
+      "en": "Message language",
+      "zh": "消息语言",
+      "area": "settings"
+    },
+    "alerts_log_empty": {
+      "fr": "Aucun message pour l'instant",
+      "en": "No message yet",
+      "zh": "暂无消息",
+      "area": "settings"
+    },
+    "alerts_log_title": {
+      "fr": "Derniers messages",
+      "en": "Latest messages",
+      "zh": "最近消息",
+      "area": "settings"
+    },
+    "alerts_minus": {
+      "fr": "Groupe (signe -)",
+      "en": "Group (minus sign)",
+      "zh": "群组（负号）",
+      "area": "settings"
+    },
+    "alerts_note": {
+      "fr": "Les messages ne contiennent ni nom de client, ni adresse, ni montant, ni numéro de ticket. Ils ne bloquent jamais la caisse.",
+      "en": "Messages never contain a customer name, an address, an amount or a ticket number. They never block the till.",
+      "zh": "消息不含客户姓名、地址、金额或小票号码，也不会阻止收银机运行。",
+      "area": "settings"
+    },
+    "alerts_online_wait": {
+      "fr": "Commande en ligne en attente depuis",
+      "en": "Online order waiting for",
+      "zh": "网上订单等待时间",
+      "area": "settings"
+    },
+    "alerts_outcome_failed": {
+      "fr": "Échec",
+      "en": "Failed",
+      "zh": "失败",
+      "area": "settings"
+    },
+    "alerts_outcome_sent": {
+      "fr": "Envoyé",
+      "en": "Sent",
+      "zh": "已发送",
+      "area": "settings"
+    },
+    "alerts_outcome_suppressed": {
+      "fr": "Retenu (limite horaire)",
+      "en": "Held back (hourly limit)",
+      "zh": "已拦截（每小时上限）",
+      "area": "settings"
+    },
+    "alerts_reminder": {
+      "fr": "Rappel toutes les",
+      "en": "Remind every",
+      "zh": "提醒间隔",
+      "area": "settings"
+    },
+    "alerts_save": {
+      "fr": "Enregistrer",
+      "en": "Save",
+      "zh": "保存",
+      "area": "settings"
+    },
+    "alerts_saved": {
+      "fr": "Enregistré",
+      "en": "Saved",
+      "zh": "已保存",
+      "area": "settings"
+    },
+    "alerts_state_off": {
+      "fr": "Inactives",
+      "en": "Off",
+      "zh": "未开启",
+      "area": "settings"
+    },
+    "alerts_state_on": {
+      "fr": "Actives",
+      "en": "On",
+      "zh": "已开启",
+      "area": "settings"
+    },
+    "alerts_test": {
+      "fr": "Envoyer un message test",
+      "en": "Send a test message",
+      "zh": "发送测试消息",
+      "area": "settings"
+    },
+    "alerts_test_sent": {
+      "fr": "Message test envoyé",
+      "en": "Test message sent",
+      "zh": "测试消息已发送",
+      "area": "settings"
+    },
+    "alerts_title": {
+      "fr": "Alertes sur téléphone",
+      "en": "Phone alerts",
+      "zh": "手机警报",
+      "area": "settings"
+    },
+    "alerts_token_missing_note": {
+      "fr": "Le jeton du robot n'est pas configuré sur cette caisse. Il se règle à l'installation (pos.json), jamais ici.",
+      "en": "The bot token is not configured on this till. It is set at installation (pos.json), never here.",
+      "zh": "此收银机未配置机器人令牌。令牌在安装时设置（pos.json），不在此处设置。",
+      "area": "settings"
+    },
+    "alerts_token_missing_pill": {
+      "fr": "Robot Telegram absent",
+      "en": "Telegram bot missing",
+      "zh": "缺少 Telegram 机器人",
+      "area": "settings"
+    },
+    "alerts_token_ok": {
+      "fr": "Robot Telegram configuré",
+      "en": "Telegram bot configured",
+      "zh": "Telegram 机器人已配置",
+      "area": "settings"
+    },
+    "alerts_transition_raised": {
+      "fr": "Alerte",
+      "en": "Alert",
+      "zh": "警报",
+      "area": "settings"
+    },
+    "alerts_transition_reminder": {
+      "fr": "Rappel",
+      "en": "Reminder",
+      "zh": "提醒",
+      "area": "settings"
+    },
+    "alerts_transition_resolved": {
+      "fr": "Résolu",
+      "en": "Resolved",
+      "zh": "已恢复",
+      "area": "settings"
+    },
+    "alerts_transition_test": {
+      "fr": "Test",
+      "en": "Test",
+      "zh": "测试",
+      "area": "settings"
+    },
+    "alerts_value_hour": {
+      "fr": "{n} h",
+      "en": "{n} h",
+      "zh": "{n} 点",
+      "area": "settings"
+    },
+    "alerts_value_minutes": {
+      "fr": "{n} min",
+      "en": "{n} min",
+      "zh": "{n} 分钟",
+      "area": "settings"
+    },
+    "alerts_value_never": {
+      "fr": "Jamais",
+      "en": "Never",
+      "zh": "从不",
+      "area": "settings"
+    },
+    "alerts_z_deadline": {
+      "fr": "Z attendu avant",
+      "en": "Z expected before",
+      "zh": "Z 报表截止时间",
+      "area": "settings"
+    },
+    "allergen_celery": {
+      "fr": "Céleri",
+      "en": "Celery",
+      "zh": "芹菜",
+      "area": "core"
+    },
+    "allergen_crustaceans": {
+      "fr": "Crustacés",
+      "en": "Crustaceans",
+      "zh": "甲壳类",
+      "area": "core"
+    },
+    "allergen_eggs": {
+      "fr": "Œufs",
+      "en": "Eggs",
+      "zh": "蛋",
+      "area": "core"
+    },
+    "allergen_fish": {
+      "fr": "Poissons",
+      "en": "Fish",
+      "zh": "鱼",
+      "area": "core"
+    },
+    "allergen_gluten": {
+      "fr": "Céréales contenant du gluten",
+      "en": "Cereals containing gluten",
+      "zh": "含麸质的谷物",
+      "area": "core"
+    },
+    "allergen_lupin": {
+      "fr": "Lupin",
+      "en": "Lupin",
+      "zh": "羽扇豆",
+      "area": "core"
+    },
+    "allergen_milk": {
+      "fr": "Lait",
+      "en": "Milk",
+      "zh": "奶",
+      "area": "core"
+    },
+    "allergen_molluscs": {
+      "fr": "Mollusques",
+      "en": "Molluscs",
+      "zh": "软体动物",
+      "area": "core"
+    },
+    "allergen_mustard": {
+      "fr": "Moutarde",
+      "en": "Mustard",
+      "zh": "芥末",
+      "area": "core"
+    },
+    "allergen_nuts": {
+      "fr": "Fruits à coque",
+      "en": "Nuts",
+      "zh": "坚果",
+      "area": "core"
+    },
+    "allergen_peanuts": {
+      "fr": "Arachides",
+      "en": "Peanuts",
+      "zh": "花生",
+      "area": "core"
+    },
+    "allergen_sesame": {
+      "fr": "Sésame",
+      "en": "Sesame",
+      "zh": "芝麻",
+      "area": "core"
+    },
+    "allergen_soybeans": {
+      "fr": "Soja",
+      "en": "Soybeans",
+      "zh": "大豆",
+      "area": "core"
+    },
+    "allergen_sulphites": {
+      "fr": "Sulfites",
+      "en": "Sulphites",
+      "zh": "亚硫酸盐",
+      "area": "core"
+    },
+    "allergens_close": {
+      "fr": "Fermer",
+      "en": "Close",
+      "zh": "关闭",
+      "area": "core"
+    },
+    "allergens_contains": {
+      "fr": "Contient",
+      "en": "Contains",
+      "zh": "含有",
+      "area": "core"
+    },
+    "allergens_hint": {
+      "fr": "Touchez un produit pour voir ses allergènes",
+      "en": "Tap a product to see its allergens",
+      "zh": "点击商品查看其过敏原",
+      "area": "core"
+    },
+    "allergens_legend": {
+      "fr": "Légende",
+      "en": "Legend",
+      "zh": "图例",
+      "area": "core"
+    },
+    "allergens_mode": {
+      "fr": "Allergènes",
+      "en": "Allergens",
+      "zh": "过敏原",
+      "area": "core"
+    },
+    "allergens_no_printer": {
+      "fr": "Aucune imprimante configurée",
+      "en": "No printer configured",
+      "zh": "未配置打印机",
+      "area": "core"
+    },
+    "allergens_none": {
+      "fr": "Aucun allergène",
+      "en": "No allergen",
+      "zh": "无过敏原",
+      "area": "core"
+    },
+    "allergens_nothing": {
+      "fr": "Aucun produit à imprimer",
+      "en": "No product to print",
+      "zh": "没有可打印的商品",
+      "area": "core"
+    },
+    "allergens_options": {
+      "fr": "Options",
+      "en": "Options",
+      "zh": "选项",
+      "area": "core"
+    },
+    "allergens_print_all": {
+      "fr": "Imprimer la carte complète",
+      "en": "Print the full menu",
+      "zh": "打印完整菜单",
+      "area": "core"
+    },
+    "allergens_print_failed": {
+      "fr": "Fiche non imprimée",
+      "en": "Sheet not printed",
+      "zh": "未能打印",
+      "area": "core"
+    },
+    "allergens_print_one": {
+      "fr": "Imprimer cette fiche",
+      "en": "Print this sheet",
+      "zh": "打印此单",
+      "area": "core"
+    },
+    "allergens_printed": {
+      "fr": "Fiche imprimée",
+      "en": "Sheet printed",
+      "zh": "已打印",
+      "area": "core"
+    },
+    "allergens_regulation": {
+      "fr": "Règlement (UE) n° 1169/2011, annexe II",
+      "en": "Regulation (EU) No 1169/2011, Annex II",
+      "zh": "欧盟法规 (EU) 1169/2011 附件二",
+      "area": "core"
+    },
+    "allergens_title": {
+      "fr": "Allergènes",
+      "en": "Allergens",
+      "zh": "过敏原",
+      "area": "core"
+    },
+    "allergens_traces": {
+      "fr": "Traces possibles",
+      "en": "May contain traces",
+      "zh": "可能含有微量",
+      "area": "core"
+    },
+    "allergens_unknown": {
+      "fr": "Information non disponible, demandez au responsable",
+      "en": "Information not available, ask the manager",
+      "zh": "暂无信息，请询问负责人",
+      "area": "core"
+    },
     "amount": {
       "fr": "Montant",
       "en": "Amount",
@@ -312,6 +726,12 @@
       "zh": "没有可售商品",
       "area": "webshop"
     },
+    "catalog_issue_unknown_allergen": {
+      "fr": "Allergène inconnu (une étiquette allergen: ou traces: est mal écrite)",
+      "en": "Unknown allergen (an allergen: or traces: tag is misspelt)",
+      "zh": "未知过敏原（allergen: 或 traces: 标签拼写有误）",
+      "area": "webshop"
+    },
     "catalog_issue_unknown_category": {
       "fr": "Catégorie inconnue",
       "en": "Unknown category",
@@ -438,6 +858,18 @@
       "zh": "折扣",
       "area": "checkout"
     },
+    "checkout_held_warning": {
+      "fr": "Suite non envoyée : {course}",
+      "en": "Next course not sent: {course}",
+      "zh": "尚未发出：{course}",
+      "area": "core"
+    },
+    "checkout_send_now": {
+      "fr": "Envoyer maintenant",
+      "en": "Send now",
+      "zh": "立即发出",
+      "area": "core"
+    },
     "checkout_subtotal": {
       "fr": "Sous-total",
       "en": "Subtotal",
@@ -521,6 +953,114 @@
       "en": "Ticket copy",
       "zh": "票据副本",
       "area": "core"
+    },
+    "course_0": {
+      "fr": "Direct",
+      "en": "Direct",
+      "zh": "即上",
+      "area": "core"
+    },
+    "course_1": {
+      "fr": "Entrées",
+      "en": "Starters",
+      "zh": "前菜",
+      "area": "core"
+    },
+    "course_2": {
+      "fr": "Plats",
+      "en": "Mains",
+      "zh": "主菜",
+      "area": "core"
+    },
+    "course_3": {
+      "fr": "Desserts",
+      "en": "Desserts",
+      "zh": "甜点",
+      "area": "core"
+    },
+    "course_cancel": {
+      "fr": "Annuler",
+      "en": "Cancel",
+      "zh": "取消",
+      "area": "core"
+    },
+    "course_chip_label": {
+      "fr": "Changer le temps : {course}",
+      "en": "Change course: {course}",
+      "zh": "更改出菜顺序：{course}",
+      "area": "core"
+    },
+    "course_held_tag": {
+      "fr": "En attente",
+      "en": "On hold",
+      "zh": "待出",
+      "area": "core"
+    },
+    "course_picker_title": {
+      "fr": "Temps du service",
+      "en": "Course",
+      "zh": "出菜顺序",
+      "area": "core"
+    },
+    "course_resent": {
+      "fr": "Bon de cuisine renvoyé",
+      "en": "Kitchen slip sent again",
+      "zh": "已重新发送厨房单",
+      "area": "core"
+    },
+    "course_sent": {
+      "fr": "Suite envoyée : {course}",
+      "en": "Next course sent: {course}",
+      "zh": "已发出：{course}",
+      "area": "core"
+    },
+    "courses_categories": {
+      "fr": "Temps de chaque catégorie",
+      "en": "Course of each category",
+      "zh": "各分类的出菜顺序",
+      "area": "settings"
+    },
+    "courses_no_categories": {
+      "fr": "Aucune catégorie",
+      "en": "No category",
+      "zh": "没有分类",
+      "area": "settings"
+    },
+    "courses_note": {
+      "fr": "Le bon de cuisine imprime le premier temps tout de suite et garde les suivants jusqu'à « Envoyer la suite ». Rien de cela n'entre dans les données fiscales.",
+      "en": "The kitchen slip prints the first course at once and holds the next ones until \"Send next course\". None of this enters the fiscal data.",
+      "zh": "厨房单立即打印第一道，其余等待“发出下一道”。这些都不会进入税务数据。",
+      "area": "settings"
+    },
+    "courses_save": {
+      "fr": "Enregistrer",
+      "en": "Save",
+      "zh": "保存",
+      "area": "settings"
+    },
+    "courses_saved": {
+      "fr": "Réglage enregistré",
+      "en": "Setting saved",
+      "zh": "已保存",
+      "area": "settings"
+    },
+    "courses_state_off": {
+      "fr": "Inactif",
+      "en": "Off",
+      "zh": "未开启",
+      "area": "settings"
+    },
+    "courses_state_on": {
+      "fr": "Actif",
+      "en": "On",
+      "zh": "已开启",
+      "area": "settings"
+    },
+    "courses_title": {
+      "fr": "Service en plusieurs temps",
+      "en": "Courses",
+      "zh": "分道出菜",
+      "area": "settings"
     },
     "deactivate": {
       "fr": "Désactiver",
@@ -1038,6 +1578,36 @@
       "zh": "等份",
       "area": "checkout"
     },
+    "err_alerts_invalid": {
+      "fr": "Réglage des alertes invalide : {field}.",
+      "en": "Invalid alert setting: {field}.",
+      "zh": "警报设置无效：{field}。",
+      "area": "errors"
+    },
+    "err_alerts_send_failed": {
+      "fr": "Le message n'est pas parti : {detail}",
+      "en": "The message was not sent: {detail}",
+      "zh": "消息未发送：{detail}",
+      "area": "errors"
+    },
+    "err_alerts_token_missing": {
+      "fr": "Le jeton du robot Telegram n'est pas configuré sur cette caisse (section alerts de pos.json).",
+      "en": "The Telegram bot token is not configured on this till (alerts section of pos.json).",
+      "zh": "此收银机未配置 Telegram 机器人令牌（pos.json 的 alerts 部分）。",
+      "area": "errors"
+    },
+    "err_allergen_target_not_found": {
+      "fr": "Produit ou option introuvable ({id}).",
+      "en": "Product or option not found ({id}).",
+      "zh": "找不到商品或选项（{id}）。",
+      "area": "errors"
+    },
+    "err_allergen_unknown": {
+      "fr": "Allergène inconnu : {code}.",
+      "en": "Unknown allergen: {code}.",
+      "zh": "未知过敏原：{code}。",
+      "area": "errors"
+    },
     "err_already_printed": {
       "fr": "Le ticket original est déjà imprimé : imprimez une copie.",
       "en": "The original ticket is already printed: print a copy.",
@@ -1108,6 +1678,12 @@
       "fr": "Une autre opération était en cours : rien n'a été enregistré, réessayez.",
       "en": "Another operation was in progress: nothing was recorded, try again.",
       "zh": "另一操作正在进行：未记录任何内容，请重试。",
+      "area": "errors"
+    },
+    "err_config_alerts": {
+      "fr": "Réglage des alertes propriétaire invalide (fichier du jeton ou adresse). Détail : {detail}",
+      "en": "Invalid owner alerts setting (token file or address). Detail: {detail}",
+      "zh": "店主警报设置无效（令牌文件或地址）。 详情：{detail}",
       "area": "errors"
     },
     "err_config_day_end_hour": {
@@ -1210,6 +1786,24 @@
       "fr": "Le nom ou l'adresse du restaurant, imprimés sur chaque ticket, ne peuvent pas être vides. Détail : {detail}",
       "en": "The restaurant name or address, printed on every ticket, must not be empty. Detail: {detail}",
       "zh": "每张小票上打印的餐厅名称或地址不能为空。 详情：{detail}",
+      "area": "errors"
+    },
+    "err_course_already_sent": {
+      "fr": "Cette ligne est déjà partie en cuisine : son temps ne peut plus changer.",
+      "en": "This line already went to the kitchen: its course can no longer change.",
+      "zh": "该菜品已送厨房，无法再更改出菜顺序。",
+      "area": "errors"
+    },
+    "err_course_invalid": {
+      "fr": "Temps du service invalide.",
+      "en": "Invalid course.",
+      "zh": "出菜顺序无效。",
+      "area": "errors"
+    },
+    "err_courses_disabled": {
+      "fr": "Le service en plusieurs temps est désactivé (Réglages).",
+      "en": "Courses are switched off (Settings).",
+      "zh": "分道出菜已关闭（设置）。",
       "area": "errors"
     },
     "err_customer_incomplete": {
@@ -1392,6 +1986,84 @@
       "zh": "此操作仅限其他角色。",
       "area": "errors"
     },
+    "err_gift_voucher_amount_invalid": {
+      "fr": "Un bon cadeau vaut au moins 1,00 EUR et au plus {max} EUR.",
+      "en": "A gift voucher is worth at least EUR 1.00 and at most EUR {max}.",
+      "zh": "礼品券面值最低 1.00 欧元，最高 {max} 欧元。",
+      "area": "errors"
+    },
+    "err_gift_voucher_code_invalid": {
+      "fr": "Code invalide : 12 chiffres attendus, vérifiez la saisie.",
+      "en": "Invalid code: 12 digits expected, check the entry.",
+      "zh": "编号无效：应为 12 位数字，请检查输入。",
+      "area": "errors"
+    },
+    "err_gift_voucher_expired": {
+      "fr": "Ce bon cadeau a expiré.",
+      "en": "This gift voucher has expired.",
+      "zh": "此礼品券已过期。",
+      "area": "errors"
+    },
+    "err_gift_voucher_insufficient": {
+      "fr": "Le montant dépasse le solde du bon cadeau.",
+      "en": "The amount is more than the gift voucher balance.",
+      "zh": "金额超过礼品券余额。",
+      "area": "errors"
+    },
+    "err_gift_voucher_line_fixed": {
+      "fr": "La quantité d'un bon cadeau ne change pas : ajoutez un autre bon ou supprimez la ligne.",
+      "en": "A gift voucher quantity cannot change: add another voucher or remove the line.",
+      "zh": "礼品券数量不能修改：请再添加一张或删除该行。",
+      "area": "errors"
+    },
+    "err_gift_voucher_lookup_throttled": {
+      "fr": "Trop d'essais. Réessayez dans {seconds} secondes.",
+      "en": "Too many tries. Try again in {seconds} seconds.",
+      "zh": "尝试次数过多，请 {seconds} 秒后重试。",
+      "area": "errors"
+    },
+    "err_gift_voucher_not_found": {
+      "fr": "Aucun bon cadeau avec ce code.",
+      "en": "No gift voucher has this code.",
+      "zh": "没有此编号的礼品券。",
+      "area": "errors"
+    },
+    "err_gift_voucher_not_usable": {
+      "fr": "Ce bon cadeau ne peut pas être utilisé ici (annulé, ou émis en mode formation / normal).",
+      "en": "This gift voucher cannot be used here (cancelled, or issued in training / normal mode).",
+      "zh": "此礼品券无法在此使用（已作废，或在培训/正常模式下发行）。",
+      "area": "errors"
+    },
+    "err_gift_voucher_payment_invalid": {
+      "fr": "Paiement par bon cadeau refusé : un bon, ou un titre-repas, ne paie pas l'achat d'un bon cadeau, et un bon ne s'utilise qu'une fois par vente.",
+      "en": "Gift voucher payment refused: a voucher or meal voucher cannot pay for a gift voucher, and a voucher is used once per sale.",
+      "zh": "礼品券支付被拒绝：礼品券或餐券不能用于购买礼品券，且每笔销售只能使用一次同一张礼品券。",
+      "area": "errors"
+    },
+    "err_gift_voucher_settings_invalid": {
+      "fr": "Réglage des bons cadeaux invalide ({field}).",
+      "en": "Invalid gift voucher setting ({field}).",
+      "zh": "礼品券设置无效（{field}）。",
+      "area": "errors"
+    },
+    "err_gift_voucher_used": {
+      "fr": "Ce bon cadeau a déjà servi : sa vente ne peut pas être remboursée.",
+      "en": "This gift voucher was already used: its sale cannot be refunded.",
+      "zh": "此礼品券已被使用：其销售不能退款。",
+      "area": "errors"
+    },
+    "err_gift_vouchers_disabled": {
+      "fr": "Les bons cadeaux sont désactivés (Réglages).",
+      "en": "Gift vouchers are switched off (Settings).",
+      "zh": "礼品券已关闭（设置）。",
+      "area": "errors"
+    },
+    "err_gift_vouchers_outstanding": {
+      "fr": "Impossible de désactiver les bons cadeaux : {count} bon(s) vendu(s) peuvent encore être utilisés.",
+      "en": "Gift vouchers cannot be switched off: {count} sold voucher(s) can still be used.",
+      "zh": "无法关闭礼品券：仍有 {count} 张已售礼品券可以使用。",
+      "area": "errors"
+    },
     "err_hubrise_channel_invalid": {
       "fr": "Réglage de canal non valable.",
       "en": "Invalid channel setting.",
@@ -1566,6 +2238,12 @@
       "zh": "需要姓名",
       "area": "errors"
     },
+    "err_no_course_held": {
+      "fr": "Aucune suite en attente.",
+      "en": "No course is waiting.",
+      "zh": "没有待出的菜。",
+      "area": "errors"
+    },
     "err_not_logged_in": {
       "fr": "Session fermée : reconnectez-vous.",
       "en": "Session closed: log in again.",
@@ -1594,6 +2272,12 @@
       "fr": "La note a un caractère que l'imprimante de cuisine ne sait pas imprimer (lettres, chiffres et accents seulement).",
       "en": "The note has a character the kitchen printer cannot print (letters, digits and accents only).",
       "zh": "备注含有厨房打印机无法打印的字符（仅限字母、数字和重音符号）。",
+      "area": "errors"
+    },
+    "err_nothing_printed": {
+      "fr": "Aucun bon n'a été imprimé pour ce temps.",
+      "en": "No slip was printed for this course.",
+      "zh": "此顺序没有已打印的单据。",
       "area": "errors"
     },
     "err_nothing_to_refund": {
@@ -2123,6 +2807,270 @@
       "en": "Generate",
       "zh": "生成",
       "area": "core"
+    },
+    "gv_applied": {
+      "fr": "Bon {code} : {amount}",
+      "en": "Voucher {code}: {amount}",
+      "zh": "礼品券 {code}：{amount}",
+      "area": "checkout"
+    },
+    "gv_apply": {
+      "fr": "Utiliser ce bon",
+      "en": "Use this voucher",
+      "zh": "使用此券",
+      "area": "checkout"
+    },
+    "gv_balance": {
+      "fr": "Solde",
+      "en": "Balance",
+      "zh": "余额",
+      "area": "checkout"
+    },
+    "gv_code_label": {
+      "fr": "Code du bon (12 chiffres)",
+      "en": "Voucher code (12 digits)",
+      "zh": "礼品券编号（12位）",
+      "area": "checkout"
+    },
+    "gv_dialog_title": {
+      "fr": "Payer avec un bon cadeau",
+      "en": "Pay with a gift voucher",
+      "zh": "使用礼品券支付",
+      "area": "checkout"
+    },
+    "gv_disabled_note": {
+      "fr": "Les bons cadeaux sont désactivés dans les réglages.",
+      "en": "Gift vouchers are switched off in the settings.",
+      "zh": "礼品券功能已在设置中关闭。",
+      "area": "reports"
+    },
+    "gv_empty": {
+      "fr": "Aucun bon",
+      "en": "No voucher",
+      "zh": "没有礼品券",
+      "area": "reports"
+    },
+    "gv_expires": {
+      "fr": "Valable jusqu'au {date}",
+      "en": "Valid until {date}",
+      "zh": "有效期至 {date}",
+      "area": "checkout"
+    },
+    "gv_face": {
+      "fr": "Valeur",
+      "en": "Face value",
+      "zh": "面值",
+      "area": "reports"
+    },
+    "gv_filter_all": {
+      "fr": "Tous",
+      "en": "All",
+      "zh": "全部",
+      "area": "reports"
+    },
+    "gv_issued_on": {
+      "fr": "Émis le {date}",
+      "en": "Issued {date}",
+      "zh": "发行于 {date}",
+      "area": "reports"
+    },
+    "gv_line_badge": {
+      "fr": "Bon",
+      "en": "Voucher",
+      "zh": "券",
+      "area": "core"
+    },
+    "gv_list_title": {
+      "fr": "Bons émis",
+      "en": "Vouchers issued",
+      "zh": "已发礼品券",
+      "area": "reports"
+    },
+    "gv_lookup": {
+      "fr": "Chercher",
+      "en": "Look up",
+      "zh": "查询",
+      "area": "checkout"
+    },
+    "gv_lookup_title": {
+      "fr": "Vérifier un bon",
+      "en": "Check a voucher",
+      "zh": "查询礼品券",
+      "area": "reports"
+    },
+    "gv_movement_cancel": {
+      "fr": "Annulation",
+      "en": "Cancellation",
+      "zh": "作废",
+      "area": "reports"
+    },
+    "gv_movement_issue": {
+      "fr": "Émission",
+      "en": "Issue",
+      "zh": "发行",
+      "area": "reports"
+    },
+    "gv_movement_redeem": {
+      "fr": "Utilisation",
+      "en": "Use",
+      "zh": "使用",
+      "area": "reports"
+    },
+    "gv_movements": {
+      "fr": "Mouvements",
+      "en": "Movements",
+      "zh": "明细",
+      "area": "reports"
+    },
+    "gv_print_balance_ok": {
+      "fr": "Solde imprimé",
+      "en": "Balance printed",
+      "zh": "余额已打印",
+      "area": "checkout"
+    },
+    "gv_print_failed": {
+      "fr": "Bon non imprimé : le réimprimer depuis Rapports, Bons cadeaux.",
+      "en": "Voucher not printed: print it again from Reports, Gift vouchers.",
+      "zh": "礼品券未打印：请在“报表-礼品券”中重新打印。",
+      "area": "checkout"
+    },
+    "gv_print_no_printer": {
+      "fr": "Aucune imprimante : le bon n'est pas imprimé.",
+      "en": "No printer: the voucher is not printed.",
+      "zh": "没有打印机：礼品券未打印。",
+      "area": "checkout"
+    },
+    "gv_print_voucher_ok": {
+      "fr": "Bon imprimé",
+      "en": "Voucher printed",
+      "zh": "礼品券已打印",
+      "area": "checkout"
+    },
+    "gv_reprint": {
+      "fr": "Réimprimer",
+      "en": "Print again",
+      "zh": "重新打印",
+      "area": "reports"
+    },
+    "gv_reprinted": {
+      "fr": "Bon réimprimé (DUPLICATA)",
+      "en": "Voucher printed again (DUPLICATA)",
+      "zh": "已重新打印（DUPLICATA）",
+      "area": "reports"
+    },
+    "gv_sell_button": {
+      "fr": "Bon cadeau",
+      "en": "Gift voucher",
+      "zh": "礼品券",
+      "area": "core"
+    },
+    "gv_sell_item": {
+      "fr": "Montant du bon",
+      "en": "Voucher amount",
+      "zh": "礼品券金额",
+      "area": "core"
+    },
+    "gv_sell_title": {
+      "fr": "Vendre un bon cadeau",
+      "en": "Sell a gift voucher",
+      "zh": "出售礼品券",
+      "area": "core"
+    },
+    "gv_settings_max": {
+      "fr": "Montant maximum (€)",
+      "en": "Maximum amount (€)",
+      "zh": "最高金额（€）",
+      "area": "settings"
+    },
+    "gv_settings_note": {
+      "fr": "Bon cadeau multi-usage : vendu sans TVA, la TVA est due à l'achat des produits. Le bon est imprimé à la vente.",
+      "en": "Multi-purpose gift voucher: sold without VAT, the VAT is due when goods are bought with it. The voucher is printed at the sale.",
+      "zh": "多用途礼品券：出售时不计增值税，购买商品时再计税。出售时打印礼品券。",
+      "area": "settings"
+    },
+    "gv_settings_off": {
+      "fr": "Inactif",
+      "en": "Off",
+      "zh": "未开启",
+      "area": "settings"
+    },
+    "gv_settings_on": {
+      "fr": "Actif",
+      "en": "On",
+      "zh": "已开启",
+      "area": "settings"
+    },
+    "gv_settings_save": {
+      "fr": "Enregistrer",
+      "en": "Save",
+      "zh": "保存",
+      "area": "settings"
+    },
+    "gv_settings_saved": {
+      "fr": "Réglage enregistré",
+      "en": "Setting saved",
+      "zh": "已保存",
+      "area": "settings"
+    },
+    "gv_settings_title": {
+      "fr": "Bons cadeaux",
+      "en": "Gift vouchers",
+      "zh": "礼品券",
+      "area": "settings"
+    },
+    "gv_settings_validity": {
+      "fr": "Validité (mois)",
+      "en": "Validity (months)",
+      "zh": "有效期（月）",
+      "area": "settings"
+    },
+    "gv_sold_no_other": {
+      "fr": "Un bon cadeau vendu se règle en espèces ou par carte.",
+      "en": "A gift voucher sold is paid in cash or by card.",
+      "zh": "出售的礼品券只能用现金或银行卡支付。",
+      "area": "checkout"
+    },
+    "gv_status_active": {
+      "fr": "Valide",
+      "en": "Valid",
+      "zh": "有效",
+      "area": "checkout"
+    },
+    "gv_status_cancelled": {
+      "fr": "Annulé",
+      "en": "Cancelled",
+      "zh": "已作废",
+      "area": "checkout"
+    },
+    "gv_status_expired": {
+      "fr": "Expiré",
+      "en": "Expired",
+      "zh": "已过期",
+      "area": "checkout"
+    },
+    "gv_status_not_usable": {
+      "fr": "Non utilisable (autre mode)",
+      "en": "Not usable (other mode)",
+      "zh": "不可使用（另一模式）",
+      "area": "checkout"
+    },
+    "gv_status_used": {
+      "fr": "Épuisé",
+      "en": "Used up",
+      "zh": "已用完",
+      "area": "checkout"
+    },
+    "gv_training_tag": {
+      "fr": "Bon d'entraînement",
+      "en": "Training voucher",
+      "zh": "培训券",
+      "area": "checkout"
+    },
+    "gv_use_amount": {
+      "fr": "Montant utilisé",
+      "en": "Amount used",
+      "zh": "使用金额",
+      "area": "checkout"
     },
     "hubrise_account_label": {
       "fr": "Compte",
@@ -3288,6 +4236,12 @@
       "zh": "现金",
       "area": "checkout"
     },
+    "method_gift_voucher": {
+      "fr": "Bon cadeau",
+      "en": "Gift voucher",
+      "zh": "礼品券",
+      "area": "checkout"
+    },
     "method_meal_voucher": {
       "fr": "Chèques-repas",
       "en": "Meal vouchers",
@@ -4014,6 +4968,12 @@
       "zh": "票据",
       "area": "reports"
     },
+    "reports_tab_vouchers": {
+      "fr": "Bons cadeaux",
+      "en": "Gift vouchers",
+      "zh": "礼品券",
+      "area": "reports"
+    },
     "reports_tickets_hint": {
       "fr": "Choisissez un ticket pour en faire une copie ou le rembourser.",
       "en": "Choose a ticket to copy or refund it.",
@@ -4289,6 +5249,12 @@
       "en": "No Z found for this period",
       "zh": "该期间没有找到Z",
       "area": "reports"
+    },
+    "send_next_course": {
+      "fr": "Envoyer la suite ({course})",
+      "en": "Send next course ({course})",
+      "zh": "发出下一道（{course}）",
+      "area": "core"
     },
     "send_to_kitchen": {
       "fr": "Envoyer en cuisine",
@@ -4846,6 +5812,12 @@
       "fr": "Table",
       "en": "Table",
       "zh": "桌",
+      "area": "core"
+    },
+    "table_held_course": {
+      "fr": "Suite : {course}",
+      "en": "Next: {course}",
+      "zh": "待出：{course}",
       "area": "core"
     },
     "tables": {
@@ -5458,6 +6430,7 @@
     "config_export",
     "config_payment_terminal",
     "config_peppol",
+    "config_alerts",
     "config_other",
     "invoice_no_sales",
     "invoice_sale_not_found",
@@ -5471,6 +6444,29 @@
     "peppol_not_configured",
     "peppol_delivery_not_found",
     "peppol_delivery_not_parked",
+    "alerts_invalid",
+    "alerts_token_missing",
+    "alerts_send_failed",
+    "allergen_unknown",
+    "allergen_target_not_found",
+    "course_already_sent",
+    "course_invalid",
+    "courses_disabled",
+    "no_course_held",
+    "nothing_printed",
+    "gift_vouchers_disabled",
+    "gift_voucher_settings_invalid",
+    "gift_voucher_amount_invalid",
+    "gift_voucher_line_fixed",
+    "gift_voucher_not_found",
+    "gift_voucher_code_invalid",
+    "gift_voucher_lookup_throttled",
+    "gift_voucher_not_usable",
+    "gift_voucher_expired",
+    "gift_voucher_insufficient",
+    "gift_voucher_payment_invalid",
+    "gift_voucher_used",
+    "gift_vouchers_outstanding",
     "not_logged_in",
     "forbidden",
     "not_the_operator",

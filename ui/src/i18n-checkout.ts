@@ -83,4 +83,37 @@ export const checkoutMessages: Messages = {
   // Discount in the order summary.
   "checkout_subtotal": { fr: "Sous-total", en: "Subtotal", zh: "小计" },
   "checkout_discount": { fr: "Remise", en: "Discount", zh: "折扣" },
+  // Gift vouchers: paying with one, and what the done screen says about the slips.
+  "method_gift_voucher": { fr: "Bon cadeau", en: "Gift voucher", zh: "礼品券" },
+  "gv_dialog_title": { fr: "Payer avec un bon cadeau", en: "Pay with a gift voucher", zh: "使用礼品券支付" },
+  "gv_code_label": { fr: "Code du bon (12 chiffres)", en: "Voucher code (12 digits)", zh: "礼品券编号（12位）" },
+  "gv_lookup": { fr: "Chercher", en: "Look up", zh: "查询" },
+  "gv_balance": { fr: "Solde", en: "Balance", zh: "余额" },
+  "gv_expires": { fr: "Valable jusqu'au {date}", en: "Valid until {date}", zh: "有效期至 {date}" },
+  "gv_status_active": { fr: "Valide", en: "Valid", zh: "有效" },
+  "gv_status_used": { fr: "Épuisé", en: "Used up", zh: "已用完" },
+  "gv_status_expired": { fr: "Expiré", en: "Expired", zh: "已过期" },
+  "gv_status_cancelled": { fr: "Annulé", en: "Cancelled", zh: "已作废" },
+  "gv_status_not_usable": { fr: "Non utilisable (autre mode)", en: "Not usable (other mode)", zh: "不可使用（另一模式）" },
+  "gv_training_tag": { fr: "Bon d'entraînement", en: "Training voucher", zh: "培训券" },
+  "gv_use_amount": { fr: "Montant utilisé", en: "Amount used", zh: "使用金额" },
+  "gv_apply": { fr: "Utiliser ce bon", en: "Use this voucher", zh: "使用此券" },
+  "gv_applied": { fr: "Bon {code} : {amount}", en: "Voucher {code}: {amount}", zh: "礼品券 {code}：{amount}" },
+  "gv_sold_no_other": {
+    fr: "Un bon cadeau vendu se règle en espèces ou par carte.",
+    en: "A gift voucher sold is paid in cash or by card.",
+    zh: "出售的礼品券只能用现金或银行卡支付。",
+  },
+  "gv_print_voucher_ok": { fr: "Bon imprimé", en: "Voucher printed", zh: "礼品券已打印" },
+  "gv_print_balance_ok": { fr: "Solde imprimé", en: "Balance printed", zh: "余额已打印" },
+  "gv_print_failed": {
+    fr: "Bon non imprimé : le réimprimer depuis Rapports, Bons cadeaux.",
+    en: "Voucher not printed: print it again from Reports, Gift vouchers.",
+    zh: "礼品券未打印：请在“报表-礼品券”中重新打印。",
+  },
+  "gv_print_no_printer": {
+    fr: "Aucune imprimante : le bon n'est pas imprimé.",
+    en: "No printer: the voucher is not printed.",
+    zh: "没有打印机：礼品券未打印。",
+  },
 };

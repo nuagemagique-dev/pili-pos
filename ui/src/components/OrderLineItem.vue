@@ -5,6 +5,7 @@ import { formatPrice } from "../utils/format";
 import { useBilingualName } from "../utils/names";
 import { useI18n } from "../i18n";
 import { lineNetCents } from "../utils/cartAmounts";
+import { GIFT_VOUCHER_DEPARTMENT } from "../stores/giftVouchers";
 
 const props = defineProps<{
   line: CartLine;
@@ -16,6 +17,8 @@ const props = defineProps<{
   canRemoveDiscount?: boolean;
   /** The line's kitchen note may be written or changed. */
   canNote?: boolean;
+  /** Courses are on: show the course chip. */
+  showCourse?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -25,11 +28,14 @@ const emit = defineEmits<{
   offer: [id: number];
   removeDiscount: [id: number];
   note: [id: number];
+  course: [id: number];
 }>();
 
 const { t } = useI18n();
 const bilingual = useBilingualName();
 const names = computed(() => bilingual(props.line));
+/** A gift voucher sold: the quantity is fixed (one line per voucher). */
+const isVoucher = computed(() => props.line.department_id === GIFT_VOUCHER_DEPARTMENT);
 
 /** Notes on the line ("Sans sésame"), when the line carries any:
  * `modifiers_json` holds a string or a list of strings. */
@@ -46,7 +52,10 @@ const notes = computed(() => {
 });
 
 const changes = computed(() => props.line.price_changes ?? []);
-const hasActions = computed(() => props.canOffer || props.canRemoveDiscount);
+/** A voucher line is never discounted and goes to no kitchen: no offer, no note. */
+const canOfferHere = computed(() => !!props.canOffer && !isVoucher.value);
+const canNoteHere = computed(() => !!props.canNote && !isVoucher.value);
+const hasActions = computed(() => canOfferHere.value || props.canRemoveDiscount);
 
 const lineRef = ref<HTMLElement | null>(null);
 
@@ -66,7 +75,8 @@ defineExpose({
 <template>
   <!-- One 64 px row: quantity, names, price, delete (UX guide §4.1). -->
   <div ref="lineRef" class="order-line" :class="{ pending }">
-    <div class="qty-controls">
+    <div v-if="isVoucher" class="voucher-badge" data-testid="voucher-badge">{{ t('gv_line_badge') }}</div>
+    <div v-else class="qty-controls">
       <!-- §4.3: "−" stops at 1; removing a line is its own button. -->
       <button
         class="qty-btn"
@@ -82,10 +92,23 @@ defineExpose({
       <span v-if="names.secondary" class="line-sub">{{ names.secondary }}</span>
       <span v-if="notes" class="line-notes">{{ notes }}</span>
       <span v-if="line.kitchen_note" class="line-kitchen-note" data-testid="line-kitchen-note">{{ line.kitchen_note }}</span>
+      <!-- Course chip: tap opens the picker; locked once a slip carried the line. -->
+      <button
+        v-if="showCourse && !isVoucher"
+        class="course-chip"
+        :class="line.kitchen_state"
+        :disabled="line.kitchen_state === 'printed'"
+        :aria-label="t('course_chip_label', { course: t(`course_${line.course}`) })"
+        :data-testid="`course-chip-${line.id}`"
+        @click="emit('course', props.line.id)"
+      >
+        {{ t(`course_${line.course}`) }}
+        <span v-if="line.kitchen_state === 'held'" class="chip-held">{{ t('course_held_tag') }}</span>
+      </button>
     </div>
     <span class="line-price">{{ formatPrice(lineNetCents(line)) }}</span>
     <button
-      v-if="canNote"
+      v-if="canNoteHere"
       class="note-btn"
       :class="{ filled: !!line.kitchen_note }"
       data-testid="line-note"
@@ -103,7 +126,7 @@ defineExpose({
           <span class="change-amount">{{ formatPrice(c.amount_cents) }}</span>
         </div>
       </div>
-      <button v-if="canOffer" class="act-btn" data-testid="line-offer" @click="emit('offer', props.line.id)">
+      <button v-if="canOfferHere" class="act-btn" data-testid="line-offer" @click="emit('offer', props.line.id)">
         {{ t('discount_offer') }}
       </button>
       <button v-if="canRemoveDiscount" class="act-btn" data-testid="line-remove-discount" @click="emit('removeDiscount', props.line.id)">
@@ -127,6 +150,17 @@ defineExpose({
 .order-line.pending {
   padding-left: 12px;
   border-left: 3px solid var(--accent-warning);
+}
+
+.voucher-badge {
+  min-width: 96px;
+  padding: 12px 0;
+  border-radius: var(--radius-md);
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+  font-size: 16px;
+  font-weight: var(--font-weight-bold);
+  text-align: center;
 }
 
 .qty-controls {
@@ -249,6 +283,25 @@ defineExpose({
   transition: transform var(--tap-duration) ease;
 }
 .act-btn:active { transform: scale(var(--tap-scale)); }
+/* A small pill under the name; the tap target is the whole row of the chip. */
+.course-chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: var(--font-weight-bold);
+}
+.course-chip:disabled { opacity: 0.55; }
+.course-chip.held { color: var(--accent-warning); }
+.chip-held { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 
 .line-price {
   font-family: var(--font-mono);

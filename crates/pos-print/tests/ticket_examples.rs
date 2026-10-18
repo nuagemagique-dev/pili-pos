@@ -267,15 +267,19 @@ fn example_bar_slip() {
                 quantity: 2,
                 name: "Dry Martini".to_string(),
                 note: None,
+                course: None,
             },
             BarItem {
                 quantity: 1,
                 name: "Burger du chef".to_string(),
                 note: None,
+                course: None,
             },
         ],
         lang: ReceiptLanguage::Fr,
         is_training: false,
+        release: None,
+        duplicate: false,
     };
     let text = render_plain_text(&format_bar_ticket(&slip));
     assert!(!text.contains(','), "a bar ticket never shows a price");
@@ -296,15 +300,19 @@ fn example_bar_slip_with_notes() {
                 quantity: 2,
                 name: "Dry Martini".to_string(),
                 note: None,
+                course: None,
             },
             BarItem {
                 quantity: 1,
                 name: "Burger du chef".to_string(),
                 note: Some("allergie arachide - sans oignons".to_string()),
+                course: None,
             },
         ],
         lang: ReceiptLanguage::Fr,
         is_training: false,
+        release: None,
+        duplicate: false,
     };
     let text = render_plain_text(&format_bar_ticket(&slip));
     assert!(text.contains("> allergie arachide - sans oignons"));

@@ -70,6 +70,7 @@ fn config(fdm_url: &str) -> PosConfig {
         tables: None,
         payment_terminal: None,
         peppol: None,
+        alerts: None,
         pos_id: "CFOD0061234567".to_string(),
         terminal_id: "POS1".to_string(),
         device_id: "DEV001".to_string(),

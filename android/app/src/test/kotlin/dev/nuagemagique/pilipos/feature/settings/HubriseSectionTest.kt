@@ -16,12 +16,15 @@ import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import uniffi.pos_ffi.Channel
+import uniffi.pos_ffi.Issue
+import uniffi.pos_ffi.IssueCode
 
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w1920dp-h1080dp-mdpi")
@@ -150,6 +153,20 @@ class HubriseSectionTest {
         compose.onNodeWithText(text("hubrise_catalog_rejected")).assertIsDisplayed()
         compose.onNodeWithText(text("catalog_issue_empty_key")).assertIsDisplayed()
         compose.onNodeWithText(text("catalog_issue_missing_name") + " · sushi-42").assertIsDisplayed()
+    }
+
+    @Test
+    fun aCatalogRefusedForAnAllergenTypoSaysSoAndNamesTheItem() {
+        val refused = connectedState(refused = true)
+        val health = checkNotNull(refused.health)
+        val catalog = checkNotNull(health.catalog)
+        val typo = refused.copy(health = health.copy(catalog = catalog.copy(issues = listOf(Issue(IssueCode.UNKNOWN_ALLERGEN, "MAKI-6")))))
+
+        show(typo)
+
+        compose.onNodeWithTag("hubrise_refused").assertIsDisplayed()
+        compose.onNodeWithText(text("catalog_issue_unknown_allergen") + " · MAKI-6").assertIsDisplayed()
+        assertTrue(text("catalog_issue_unknown_allergen").startsWith("Allergène inconnu"))
     }
 
     @Test

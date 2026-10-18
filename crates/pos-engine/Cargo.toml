@@ -44,7 +44,8 @@ getrandom = "0.3"
 # only, no pos-engine unit test uses the testkit.
 pos-engine-testkit = { path = "../pos-engine-testkit" }
 tempfile = "3"
-# Captures the log output (tests/badges.rs: no raw badge number in logs).
+# Captures the log output: no raw badge number (tests/badges.rs) and no
+# owner alert bot token (tests/owner_alerts.rs) in the logs.
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
 wiremock = "0.6"
 # The admission image's mock FDM, served in-process by tests/admission_mock.rs.

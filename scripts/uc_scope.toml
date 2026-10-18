@@ -89,29 +89,18 @@ reason = "Le changement de centre de coût par chaise n'est pas implémenté dan
 kind = "hors_perimetre"
 
 # -- Bons (vouchers) MPV / SPV --
-
-[UC260]
-reason = "Les bons à usage multiple (MPV) ne sont pas implémentés dans pili-pos v1.0.0."
-kind = "hors_perimetre"
-
-[UC261]
-reason = "Les bons à usage multiple (MPV) ne sont pas implémentés dans pili-pos v1.0.0."
-kind = "hors_perimetre"
-
-[UC262]
-reason = "Les bons à usage multiple (MPV) ne sont pas implémentés dans pili-pos v1.0.0."
-kind = "hors_perimetre"
+# Les bons à usage multiple (UC260, UC261, UC262) sont implémentés et testés (spf_e2e_gift_vouchers.rs).
 
 [UC270]
-reason = "Les bons à usage unique (SPV) ne sont pas implémentés dans pili-pos v1.0.0."
+reason = "Les bons à usage unique (SPV) : non pris en charge, car l'utilisation d'un tel bon (UC270 vend le bon, UC271 utilise un autre bon, « SPV Menu all-in ») reprend le découpage de T.V.A. d'un produit composé, et les produits composés ne sont pas pris en charge."
 kind = "hors_perimetre"
 
 [UC271]
-reason = "Les bons à usage unique (SPV) ne sont pas implémentés dans pili-pos v1.0.0."
+reason = "Les bons à usage unique (SPV) : non pris en charge, car l'utilisation d'un tel bon (UC270 vend le bon, UC271 utilise un autre bon, « SPV Menu all-in ») reprend le découpage de T.V.A. d'un produit composé, et les produits composés ne sont pas pris en charge."
 kind = "hors_perimetre"
 
 [UC4105]
-reason = "La conversion d'un bon à usage multiple (MPV) en espèces n'est pas implémentée dans pili-pos v1.0.0."
+reason = "La conversion d'un bon à usage multiple (MPV) en espèces n'est pas implémentée : un bon cadeau n'est jamais échangé contre de l'argent, il n'y a pas de besoin."
 kind = "hors_perimetre"
 
 # -- Devise étrangère --

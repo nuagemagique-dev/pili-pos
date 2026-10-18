@@ -54,7 +54,11 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | stores/pos.ts | ui/state/PosSettingsStore.kt | `get_settings` `set_training_mode` |
 | stores/auth.ts | ui/state/SessionStore.kt | `login` `login_with_new_pin` `logout` `lock_session` `end_shift` |
 | stores/integrations.ts | ui/state/IntegrationsStore.kt | `get_integrations` `set_hubrise_enabled` |
+| stores/ownerAlerts.ts | feature/settings/alerts/OwnerAlertsViewModel.kt | `get_owner_alerts` `set_owner_alerts` `send_test_alert` `list_owner_alert_log` |
 | i18n.ts (useI18n, language) | ui/text/UiText.kt (PosUiRoot, LocalUiLanguage, vueText, uiText) | - |
+| stores/allergens.ts | feature/order/MenuViewModel.kt (allergen legend, mode and sheet state) | `list_allergens` `get_allergen_sheet` `print_allergen_sheet` |
+| stores/order.ts (courses: courseSettings, heldCourses, setLineCourse, sendNextCourse) | ui/state/OrderStore.kt (courseSettings, heldCourses, setLineCourse, sendNextCourse) | `get_course_settings` `set_line_course` `list_held_courses` `send_next_course` |
+| stores/giftVouchers.ts, stores/order.ts (addGiftVoucher) | feature/order/MenuViewModel.kt, feature/checkout/CheckoutViewModel.kt, feature/reports/ReportsViewModel.kt (each reads `get_gift_voucher_settings`), ui/state/OrderStore.kt (addGiftVoucher) | `get_gift_voucher_settings` `add_gift_voucher_line` |
 | stores/order.ts | ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` `add_order_line` `remove_order_line` `update_order_line_quantity` `leave_order` `sign_pre_bill` `close_unpaid` `list_open_orders` |
 | utils/names.ts | ui/format/ProductNames.kt | - |
 | stores/fdm.ts | ui/fdm/FdmStore.kt | `fdm_health` `fdm_check_now` |
@@ -97,4 +101,5 @@ list_fiscal_events excluded no Vue caller
 sign_table_order excluded no Vue caller; leave_order registers the P
 work_in excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else with clock_in_employee from the employees panel (own presence stays login and end of shift, so no UI calls work_in)
 work_out excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else out with clock_out_employee from the employees panel (no UI calls work_out)
+reprint_course_slip excluded no screen yet; the DUPLICATA reprint of a course slip is engine-only (DECISIONS, T4)
 ```

@@ -403,6 +403,7 @@ fn printed_method(line: &serde_json::Value) -> String {
     match line["type"].as_str().unwrap_or("") {
         "CASH" => "Cash".to_string(),
         "CHEQUE_MEAL" => "Meal voucher".to_string(),
+        "VOUCHER_STORE" => "Gift voucher".to_string(),
         t if t.starts_with("CARD") => "Card".to_string(),
         _ => line["name"].as_str().unwrap_or("-").to_string(),
     }

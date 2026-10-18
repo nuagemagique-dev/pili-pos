@@ -144,6 +144,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 <!-- parity:begin -->
 | Command | Engine function | Call | FFI method (Kotlin) |
 | --- | --- | --- | --- |
+| add_gift_voucher_line | gift_vouchers::do_add_gift_voucher_line | blocking | posEngine.addGiftVoucherLine() |
 | add_order_line | order::do_add_order_line | blocking | posEngine.addOrderLine() |
 | add_order_line_with_modifiers | modifiers::do_add_order_line_with_modifiers | blocking | posEngine.addOrderLineWithModifiers() |
 | apply_discount | discount::do_apply_discount | spawn | posEngine.applyDiscount() |
@@ -155,6 +156,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | check_payment_terminal | eft::do_check_payment_terminal | spawn | posEngine.checkPaymentTerminal() |
 | check_printer | print::do_check_printer | spawn | posEngine.checkPrinter() |
 | checkout | checkout::do_checkout_split | spawn | posEngine.checkout() |
+| clear_sold_out | sold_out::do_clear_sold_out | blocking | posEngine.clearSoldOut() |
 | clock_in_employee | social::do_clock_in_employee | spawn | posEngine.clockInEmployee() |
 | clock_out_employee | social::do_clock_out_employee | spawn | posEngine.clockOutEmployee() |
 | close_unpaid | unpaid::do_close_unpaid | spawn | posEngine.closeUnpaid() |
@@ -174,13 +176,17 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | generate_user_x_report | report::do_generate_user_x_report | spawn | posEngine.generateUserXReport() |
 | generate_x_report | report::do_generate_x_report | spawn | posEngine.generateXReport() |
 | generate_z_report | report::do_generate_z_report | spawn | posEngine.generateZReport() |
+| get_allergen_sheet | allergens::do_get_allergen_sheet | blocking | posEngine.getAllergenSheet() |
 | get_badge_settings | badges::do_get_badge_settings | blocking | posEngine.getBadgeSettings() |
 | get_categories | menu::do_get_categories | blocking | posEngine.getCategories() |
+| get_course_settings | courses::do_get_course_settings | blocking | posEngine.getCourseSettings() |
 | get_current_user | auth::do_get_current_user | blocking | posEngine.getCurrentUser() |
+| get_gift_voucher_settings | gift_vouchers::do_get_gift_voucher_settings | blocking | posEngine.getGiftVoucherSettings() |
 | get_integrations | integrations::do_get_integrations | blocking | posEngine.getIntegrations() |
 | get_item_modifiers | modifiers::do_get_item_modifiers_localized | blocking | posEngine.getItemModifiers() |
 | get_menu_items | menu::do_get_menu_items | blocking | posEngine.getMenuItems() |
 | get_order | order::do_get_order | blocking | posEngine.getOrder() |
+| get_owner_alerts | alerts::do_get_owner_alerts | blocking | posEngine.getOwnerAlerts() |
 | get_settings | settings::do_get_settings | blocking | posEngine.getSettings() |
 | get_table_plan | table_plan::do_get_table_plan | blocking | posEngine.getTablePlan() |
 | hubrise_adopt_catalog | hubrise::do_adopt_catalog | blocking | posEngine.hubriseAdoptCatalog() |
@@ -196,19 +202,29 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | hubrise_start_oauth_flow | hubrise::do_hubrise_start_oauth_flow | blocking | posEngine.hubriseStartOauthFlow() |
 | hubrise_status | hubrise::do_hubrise_status | blocking | posEngine.hubriseStatus() |
 | hubrise_sync_catalog | hubrise::do_sync_catalog | spawn | posEngine.hubriseSyncCatalog() |
+| invoice_preview | invoice::do_invoice_preview | blocking | posEngine.invoicePreview() |
 | leave_order | session::do_leave_order | spawn | posEngine.leaveOrder() |
 | link_badge | badges::do_link_badge | blocking | posEngine.linkBadge() |
+| list_allergens | allergens::do_list_allergens | blocking | posEngine.listAllergens() |
 | list_badges | badges::do_list_badges | blocking | posEngine.listBadges() |
 | list_cart_lines | order::do_list_cart_lines | blocking | posEngine.listCartLines() |
 | list_copyable_tickets | copy::do_list_copyable_tickets | blocking | posEngine.listCopyableTickets() |
 | list_eft_payments | eft::do_list_eft_payments | blocking | posEngine.listEftPayments() |
 | list_fiscal_events | copy::do_list_fiscal_events | blocking | posEngine.listFiscalEvents() |
+| list_gift_vouchers | gift_vouchers::do_list_gift_vouchers | blocking | posEngine.listGiftVouchers() |
+| list_held_courses | courses::do_list_held_courses | blocking | posEngine.listHeldCourses() |
+| list_invoiceable_sales | invoice::do_list_invoiceable_sales | blocking | posEngine.listInvoiceableSales() |
+| list_invoices | invoice::do_list_invoices | blocking | posEngine.listInvoices() |
+| list_menu_changes | menu_admin::do_list_menu_changes | blocking | posEngine.listMenuChanges() |
 | list_open_orders | order::do_list_open_orders | blocking | posEngine.listOpenOrders() |
 | list_open_shifts | social::do_list_open_shifts | blocking | posEngine.listOpenShifts() |
 | list_open_takeaways | tables::do_list_open_takeaways | blocking | posEngine.listOpenTakeaways() |
 | list_order_lines | order::do_list_order_lines | blocking | posEngine.listOrderLines() |
+| list_owner_alert_log | alerts::do_list_owner_alert_log | blocking | posEngine.listOwnerAlertLog() |
+| list_peppol_deliveries | invoice::do_list_peppol_deliveries | blocking | posEngine.listPeppolDeliveries() |
 | list_refundable_events | refund::do_list_refundable_events | blocking | posEngine.listRefundableEvents() |
 | list_sale_payments | payment_correction::do_list_sale_payments | blocking | posEngine.listSalePayments() |
+| list_sold_out | sold_out::do_list_sold_out | blocking | posEngine.listSoldOut() |
 | list_tables | tables::do_list_configured_tables | blocking | posEngine.listTables() |
 | list_ticket_deliveries | delivery::do_list_ticket_deliveries | blocking | posEngine.listTicketDeliveries() |
 | list_unsettled_card_payments | eft::do_list_unsettled_card_payments | blocking | posEngine.listUnsettledCardPayments() |
@@ -218,10 +234,20 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | login | auth::do_login | blocking | posEngine.login() |
 | login_with_new_pin | auth::do_login_with_new_pin | blocking | posEngine.loginWithNewPin() |
 | logout | auth::do_logout | blocking | posEngine.logout() |
+| lookup_b2b_customer | invoice::do_lookup_b2b_customer | spawn | posEngine.lookupB2bCustomer() |
+| lookup_gift_voucher | gift_vouchers::do_lookup_gift_voucher | blocking | posEngine.lookupGiftVoucher() |
+| menu_admin_get | menu_admin::do_menu_admin_get | blocking | posEngine.menuAdminGet() |
+| menu_save_category | menu_admin::do_menu_save_category | blocking | posEngine.menuSaveCategory() |
+| menu_save_modifier | menu_admin::do_menu_save_modifier | blocking | posEngine.menuSaveModifier() |
+| menu_save_modifier_group | menu_admin::do_menu_save_modifier_group | blocking | posEngine.menuSaveModifierGroup() |
+| menu_save_product | menu_admin::do_menu_save_product | blocking | posEngine.menuSaveProduct() |
 | money_in_out | financial::do_money_in_out | spawn | posEngine.moneyInOut() |
 | needs_z_report | report::do_needs_z_report | blocking | posEngine.needsZReport() |
 | open_drawer_fiscal | financial::do_open_drawer_fiscal | spawn | posEngine.openDrawerFiscal() |
+| print_allergen_sheet | allergens::do_print_allergen_sheet | spawn | posEngine.printAllergenSheet() |
+| print_gift_voucher | gift_vouchers::do_print_gift_voucher | spawn | posEngine.printGiftVoucher() |
 | print_missing_original | delivery::do_print_missing_original | spawn | posEngine.printMissingOriginal() |
+| print_sales_report | sales_report::do_print_sales_report | spawn | posEngine.printSalesReport() |
 | print_webshop_customer | print::do_print_webshop_customer | spawn | posEngine.printWebshopCustomer() |
 | print_webshop_kitchen | print::do_print_webshop_kitchen | spawn | posEngine.printWebshopKitchen() |
 | refund_checkout | refund::do_refund_checkout_with | spawn | posEngine.refundCheckout() |
@@ -229,14 +255,28 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | remote_support_status | support::do_remote_support_status | blocking | posEngine.remoteSupportStatus() |
 | remove_discount | discount::do_remove_discount | spawn | posEngine.removeDiscount() |
 | remove_order_line | order::do_remove_order_line | blocking | posEngine.removeOrderLine() |
+| reprint_course_slip | courses::do_reprint_course_slip | spawn | posEngine.reprintCourseSlip() |
+| retry_peppol_delivery | invoice::do_retry_peppol_delivery | blocking | posEngine.retryPeppolDelivery() |
 | revoke_badge | badges::do_revoke_badge | blocking | posEngine.revokeBadge() |
+| sales_report | sales_report::do_sales_report | blocking | posEngine.salesReport() |
+| save_b2b_customer | invoice::do_save_b2b_customer | blocking | posEngine.saveB2bCustomer() |
+| search_b2b_customers | invoice::do_search_b2b_customers | blocking | posEngine.searchB2bCustomers() |
+| send_next_course | courses::do_send_next_course | spawn | posEngine.sendNextCourse() |
+| send_test_alert | alerts::do_send_test_alert | spawn | posEngine.sendTestAlert() |
 | set_active_order | session::do_set_active_order | blocking | posEngine.setActiveOrder() |
+| set_allergens | allergens::do_set_allergens | blocking | posEngine.setAllergens() |
 | set_badge_settings | badges::do_set_badge_settings | blocking | posEngine.setBadgeSettings() |
+| set_course_settings | courses::do_set_course_settings | blocking | posEngine.setCourseSettings() |
+| set_gift_voucher_settings | gift_vouchers::do_set_gift_voucher_settings | blocking | posEngine.setGiftVoucherSettings() |
 | set_hubrise_enabled | integrations::do_set_hubrise_enabled | blocking | posEngine.setHubriseEnabled() |
+| set_line_course | courses::do_set_line_course | blocking | posEngine.setLineCourse() |
 | set_line_note | order::do_set_line_note | spawn | posEngine.setLineNote() |
+| set_owner_alerts | alerts::do_set_owner_alerts | blocking | posEngine.setOwnerAlerts() |
 | set_pin | auth::do_set_pin | blocking | posEngine.setPin() |
+| set_sold_out | sold_out::do_set_sold_out | blocking | posEngine.setSoldOut() |
 | set_table_plan | table_plan::do_set_table_plan | blocking | posEngine.setTablePlan() |
 | set_training_mode | settings::do_set_training_mode | blocking | posEngine.setTrainingMode() |
+| sign_invoice_fiscal | invoice::do_sign_invoice_fiscal | spawn | posEngine.signInvoiceFiscal() |
 | sign_pre_bill | tables::do_sign_pre_bill | spawn | posEngine.signPreBill() |
 | sign_table_order | tables::do_sign_table_order | spawn | posEngine.signTableOrder() |
 | start_remote_support | support::do_start_remote_support | blocking | posEngine.startRemoteSupport() |
@@ -253,7 +293,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | work_in | social::do_work_in | spawn | posEngine.workIn() |
 | work_out | social::do_work_out | spawn | posEngine.workOut() |
 
-Parity: 108/108.
+Parity: 148/148.
 <!-- parity:end -->
 
 ## 12. JVM tests, mocks and gates

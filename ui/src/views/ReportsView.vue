@@ -20,22 +20,26 @@ import PaymentCorrectionDialog from "../components/PaymentCorrectionDialog.vue";
 import InvoiceDialog from "../components/InvoiceDialog.vue";
 import InvoiceList from "../components/InvoiceList.vue";
 import SalesReportPanel from "../components/SalesReportPanel.vue";
+import GiftVouchersReport from "../components/GiftVouchersReport.vue";
+import { useGiftVouchersStore } from "../stores/giftVouchers";
 
 const router = useRouter();
 const auth = useAuthStore();
 const toast = useToastStore();
 const delivery = useDeliveryStore();
 const invoice = useInvoiceStore();
+const giftVouchers = useGiftVouchersStore();
 const { t } = useI18n();
 
-// §2.1: four tabs, never more than 6-8 actions visible at once.
-type Tab = "day" | "cash" | "tickets" | "sales";
-const TABS: { id: Tab; label: string }[] = [
+// §2.1: four or five tabs, never more than 6-8 actions visible at once.
+type Tab = "day" | "cash" | "tickets" | "sales" | "vouchers";
+const TABS = computed<{ id: Tab; label: string }[]>(() => [
   { id: "day", label: "reports_tab_day" },
   { id: "cash", label: "reports_tab_cash" },
   { id: "tickets", label: "reports_tab_tickets" },
   { id: "sales", label: "reports_tab_sales" },
-];
+  ...(giftVouchers.enabled ? [{ id: "vouchers" as const, label: "reports_tab_vouchers" }] : []),
+]);
 const tab = ref<Tab>("day");
 
 const loading = ref(false);
@@ -85,6 +89,7 @@ function unsettledLine(p: UnsettledCardPayment): string {
 }
 
 onMounted(() => {
+  void giftVouchers.load();
   if (!auth.currentUser) {
     router.push({ name: "login" });
     return;
@@ -711,6 +716,7 @@ function formatRefundTime(iso: string): string {
 
       <!-- ── Tickets: copy and refund from one list ─────────────── -->
       <SalesReportPanel v-else-if="tab === 'sales'" />
+      <GiftVouchersReport v-else-if="tab === 'vouchers'" />
 
       <section v-else class="tab-body tickets">
         <div class="panel tickets-panel">

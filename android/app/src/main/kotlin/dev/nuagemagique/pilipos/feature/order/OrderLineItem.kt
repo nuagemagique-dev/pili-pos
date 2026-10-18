@@ -28,10 +28,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_DEPARTMENT
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.format.BilingualName
@@ -45,6 +48,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import org.json.JSONTokener
+import uniffi.pos_ffi.CartLine
 
 private val ControlSize = 48.dp
 private val QuantityWidth = 28.dp
@@ -62,8 +66,10 @@ private val Hairline = 1.dp
  *
  * Under the line each public price change is a row (`_change_<n>`), with the manager's `_offer` and
  * `_remove_discount` buttons. The "Note" button (`_note`, filled when the line has one) opens the kitchen note
- * dialog; the note shows under the name in italics (`_kitchen_note`). Test tags: `cart_line_<id>`,
- * `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`, `_notes`, `_kitchen_note`, `_amount`, `_note`, `_remove`.
+ * dialog; the note shows under the name in italics (`_kitchen_note`). A gift voucher line shows a badge instead of
+ * the stepper (`_voucher`) and has no note, no offer and no course; with courses on, the course chip (`_course`) sits
+ * under the name. Test tags: `cart_line_<id>`, `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`, `_notes`,
+ * `_kitchen_note`, `_course`, `_voucher`, `_amount`, `_note`, `_remove`.
  */
 @Composable
 internal fun OrderLineItem(
@@ -95,8 +101,12 @@ internal fun OrderLineItem(
             horizontalArrangement = Arrangement.spacedBy(d.spaceMd),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            QuantityStepper(id, row.line.quantity, actions)
-            LineNames(id, names, lineNotes(row.line.modifiersJson), row.line.kitchenNote, Modifier.weight(1f))
+            val voucher = row.line.departmentId == GIFT_VOUCHER_DEPARTMENT
+            if (voucher) VoucherBadge(id) else QuantityStepper(id, row.line.quantity, actions)
+            Column(Modifier.weight(1f)) {
+                LineNames(id, names, lineNotes(row.line.modifiersJson), row.line.kitchenNote)
+                if (state.coursesEnabled && !voucher) CourseChip(row.line, actions)
+            }
             Text(
                 text = amountText(row.amount),
                 style = t.figure.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
@@ -104,7 +114,7 @@ internal fun OrderLineItem(
                 maxLines = 1,
                 modifier = Modifier.testTag("cart_line_${id}_amount"),
             )
-            if (row.canNote) {
+            if (row.canNote && !voucher) {
                 PiliButton(
                     text = vueText("note_button"),
                     onClick = { actions.onNote(id) },
@@ -173,6 +183,28 @@ private fun LineChanges(
         }
     }
 }
+
+/** A gift voucher sold has a fixed quantity (one line per voucher): a badge replaces the stepper. Tag `cart_line_<id>_voucher`. */
+@Composable
+private fun VoucherBadge(id: Long) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    Text(
+        text = vueText("gv_line_badge"),
+        style = t.body.copy(fontWeight = t.weightBold),
+        color = c.selectedFg,
+        textAlign = TextAlign.Center,
+        modifier =
+            Modifier
+                .width(VoucherBadgeWidth)
+                .background(c.selectedBg, RoundedCornerShape(d.radiusMd))
+                .padding(vertical = 12.dp)
+                .testTag("cart_line_${id}_voucher"),
+    )
+}
+
+private val VoucherBadgeWidth = 96.dp
 
 /** The minus, the quantity and the plus; the minus stops at 1. */
 @Composable
@@ -260,6 +292,55 @@ private fun LineNames(
         }
     }
 }
+
+/**
+ * The course of a line as a small pill under the name (`course-chip` of `OrderLineItem.vue`): a tap opens the
+ * picker; once a slip carried the line the chip is locked, and a line held for "Envoyer la suite" says so.
+ * Test tag: `cart_line_<id>_course`.
+ */
+@Composable
+private fun CourseChip(
+    line: CartLine,
+    actions: OrderCartActions,
+) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    val printed = line.kitchenState == "printed"
+    val held = line.kitchenState == "held"
+    val label = vueText("course_${line.course}")
+    val description = vueText("course_chip_label", "course" to label)
+    Row(
+        modifier =
+            Modifier
+                .padding(top = d.spaceXs)
+                .defaultMinSize(minHeight = ChipHeight)
+                .alpha(if (printed) CHIP_LOCKED_ALPHA else 1f)
+                .background(c.bgSurface, RoundedCornerShape(ChipHeight / 2))
+                .clickable(enabled = !printed, role = Role.Button) { actions.onCourse(line.id) }
+                .padding(horizontal = d.spaceMd)
+                .semantics { contentDescription = description }
+                .testTag("cart_line_${line.id}_course"),
+        horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = t.figure.copy(fontSize = t.sizeSm, fontWeight = t.weightBold),
+            color = if (held) c.accentWarning else c.textPrimary,
+        )
+        if (held) {
+            Text(
+                text = vueText("course_held_tag").uppercase(),
+                style = t.figure.copy(fontSize = t.sizeSm),
+                color = c.accentWarning,
+            )
+        }
+    }
+}
+
+private val ChipHeight = 32.dp
+private const val CHIP_LOCKED_ALPHA = 0.55f
 
 /** A 48 dp touch target with an icon; [enabled] false draws it faded and not clickable. */
 @Composable

@@ -53,6 +53,7 @@
 //! | `EmailStatus` | `pos_engine::commands::delivery::EmailStatus` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
 //! | `EventLabel` | `pos_fiscal::types::EventLabel` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
 //! | `ExtensionItem` | `pos_fiscal::response::ExtensionItem` | common | event fdm-sign-messages |
+//! | `GiftVoucherPrint` | `pos_engine::commands::gift_vouchers::GiftVoucherPrint` | common | checkout, close_unpaid, refund_checkout (+4 commands) |
 //! | `FdmHealth` | `pos_engine::commands::fdm_monitor::FdmHealth` | common | fdm_check_now, fdm_health; event fdm-status |
 //! | `FdmMessageDisplay` | `pos_fiscal::types::Display` | common | event fdm-sign-messages |
 //! | `FdmReference` | `pos_fiscal::response::FdmReference` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
@@ -71,7 +72,7 @@
 //! | `RequestedMedium` | `pos_engine::commands::delivery::RequestedMedium` | common | checkout, copy_ticket, refund_checkout (+2 commands) |
 //! | `SessionLocked` | `pos_engine::commands::session::SessionLocked` | common | event session-locked |
 //! | `SignMessages` | `pos_fiscal::fdm_client::SignMessages` | common | event fdm-sign-messages |
-//! | `SlipOutcome` | `pos_engine::commands::bar_slip::SlipOutcome` | common | checkout, close_unpaid, leave_order (+7 commands) |
+//! | `SlipOutcome` | `pos_engine::commands::bar_slip::SlipOutcome` | common | checkout, close_unpaid, leave_order (+10 commands) |
 //! | `TicketDeliveryRequest` | `pos_engine::commands::delivery::TicketDeliveryRequest` | common | checkout, copy_ticket, refund_checkout (+2 commands) |
 //! | `TicketLine` | `pos_fiscal::ticket::TicketLine` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
 //! | `TicketMedium` | `pos_fiscal::types::TicketMedium` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
@@ -116,6 +117,25 @@
 //! | `MailStatus` | `pos_engine::commands::delivery::MailStatus` | checkout | check_mail_status |
 //! | `RefundItem` | `pos_engine::commands::refund::RefundItem` | checkout | refund_checkout |
 //! | `RefundableEvent` | `pos_db::queries::fiscal::RefundableEvent` | checkout | list_refundable_events |
+//! | `AlertKinds` | `pos_engine::commands::alerts::AlertKinds` | alerts | get_owner_alerts, set_owner_alerts |
+//! | `AlertLogRow` | `pos_db::queries::owner_settings::AlertLogRow` | alerts | list_owner_alert_log |
+//! | `AlertTestResult` | `pos_engine::commands::alerts::AlertTestResult` | alerts | send_test_alert |
+//! | `OwnerAlerts` | `pos_engine::commands::alerts::OwnerAlerts` | alerts | get_owner_alerts, set_owner_alerts |
+//! | `OwnerAlertsInput` | `pos_engine::commands::alerts::OwnerAlertsInput` | alerts | set_owner_alerts |
+//! | `AllergenEntry` | `pos_engine::commands::allergens::AllergenEntry` | allergens | list_allergens |
+//! | `AllergenNames` | `pos_engine::commands::allergens::AllergenNames` | allergens | list_allergens |
+//! | `AllergenRef` | `pos_engine::commands::allergens::AllergenRef` | allergens | get_allergen_sheet |
+//! | `AllergenSheetView` | `pos_engine::commands::allergens::AllergenSheetView` | allergens | get_allergen_sheet |
+//! | `SetAllergensInput` | `pos_engine::commands::allergens::SetAllergensInput` | allergens | set_allergens |
+//! | `SheetOptionView` | `pos_engine::commands::allergens::SheetOptionView` | allergens | get_allergen_sheet |
+//! | `SheetProductView` | `pos_engine::commands::allergens::SheetProductView` | allergens | get_allergen_sheet |
+//! | `CategoryCourse` | `pos_engine::commands::courses::CategoryCourse` | courses | get_course_settings, set_course_settings |
+//! | `CourseSettings` | `pos_engine::commands::courses::CourseSettings` | courses | get_course_settings, set_course_settings |
+//! | `GiftVoucherMovement` | `pos_engine::commands::gift_vouchers::GiftVoucherMovement` | gift_vouchers | lookup_gift_voucher |
+//! | `GiftVoucherSettings` | `pos_engine::commands::gift_vouchers::GiftVoucherSettings` | gift_vouchers | get_gift_voucher_settings, set_gift_voucher_settings |
+//! | `GiftVoucherView` | `pos_engine::commands::gift_vouchers::GiftVoucherView` | gift_vouchers | list_gift_vouchers, lookup_gift_voucher |
+//! | `HeldCourse` | `pos_engine::commands::courses::HeldCourseView` | courses | list_held_courses |
+//! | `NextCourse` | `pos_engine::commands::courses::NextCourse` | courses | send_next_course |
 //! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | correct_payment, money_in_out, open_drawer_fiscal |
 //! | `MoneyDirection` | `pos_engine::commands::financial::MoneyDirection` | reports | money_in_out |
 //! | `OpenShift` | `pos_db::queries::shifts::OpenShift` | reports | list_open_shifts |
@@ -192,12 +212,16 @@
 //! The FFI records (`#[derive(uniffi::Record)]`), one file per domain, mirroring the engine's serde
 //! shapes; `convert::out` and `convert::inp` move values between the two.
 
+pub mod alerts;
+pub mod allergens;
 pub mod auth;
 pub mod badges;
 pub mod checkout;
 pub mod common;
+pub mod courses;
 pub mod eft;
 pub mod export;
+pub mod gift_vouchers;
 pub mod hubrise;
 pub mod invoice;
 pub mod menu_admin;

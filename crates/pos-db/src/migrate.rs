@@ -171,6 +171,33 @@ const INVOICING_MIGRATIONS: &[Migration] = &[
     },
 ];
 
+/// Migrations of the owner features (60 to 63, `schema_owner.rs`),
+/// in every build: 60 owner settings and alerts. The later tasks of the
+/// lane append 61 allergens, 62 courses and 63 gift vouchers. Renumbering
+/// at merge touches only `schema_owner.rs`, this slice and its test.
+const OWNER_MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 60,
+        name: "owner-settings-alerts",
+        sql: crate::schema_owner::MIGRATION_060_OWNER_SETTINGS_ALERTS,
+    },
+    Migration {
+        version: 61,
+        name: "allergens",
+        sql: crate::schema_owner::MIGRATION_061_ALLERGENS,
+    },
+    Migration {
+        version: 62,
+        name: "courses",
+        sql: crate::schema_owner::MIGRATION_062_COURSES,
+    },
+    Migration {
+        version: 63,
+        name: "gift-vouchers",
+        sql: crate::schema_owner::MIGRATION_063_GIFT_VOUCHERS,
+    },
+];
+
 /// Migrations of the HubRise integration (feature `hubrise`), from
 /// version 20 (in the certified binary too).
 #[cfg(feature = "hubrise")]
@@ -225,6 +252,7 @@ fn registry() -> Vec<Migration> {
     all.extend_from_slice(EFT_MIGRATIONS);
     all.extend_from_slice(TILL_MIGRATIONS);
     all.extend_from_slice(INVOICING_MIGRATIONS);
+    all.extend_from_slice(OWNER_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -446,7 +474,8 @@ mod tests {
 
     /// The till discounts are migration 30 and the kitchen notes 31, in
     /// every build, after 28 (presence registration) and before the
-    /// invoicing block (40 to 42) and 70 (staff badges); 29 stays free.
+    /// invoicing block (40 to 42), the owner block (60 to 63) and 70 (staff
+    /// badges); 29 stays free.
     #[test]
     fn the_till_migrations_are_30_and_31_in_every_build() {
         let till: Vec<(i64, &str)> = TILL_MIGRATIONS
@@ -457,7 +486,7 @@ mod tests {
         let versions = all_versions();
         assert!(!versions.contains(&29));
         let from_28: Vec<i64> = versions.into_iter().filter(|v| *v >= 28).collect();
-        assert_eq!(from_28, vec![28, 30, 31, 40, 41, 42, 70]);
+        assert_eq!(from_28, vec![28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70]);
     }
 
     #[test]
@@ -894,6 +923,292 @@ mod tests {
             conn.execute("UPDATE peppol_deliveries SET lookup_status='maybe'", [])
                 .is_err()
         );
+    }
+
+    /// The owner features are migrations 60 to 63, in every build
+    /// (60 owner settings and alerts, 61 allergens, 62 courses, 63 gift vouchers).
+    #[test]
+    fn the_owner_migrations_are_60_to_63_and_in_every_build() {
+        let owner: Vec<(i64, &str)> = OWNER_MIGRATIONS
+            .iter()
+            .map(|m| (m.version, m.name))
+            .collect();
+        assert_eq!(
+            owner,
+            vec![
+                (60, "owner-settings-alerts"),
+                (61, "allergens"),
+                (62, "courses"),
+                (63, "gift-vouchers")
+            ]
+        );
+        for (version, _) in &owner {
+            assert!(all_versions().contains(version), "{version}");
+            assert!((60..=63).contains(version), "{version}");
+        }
+    }
+
+    #[test]
+    fn migration_60_makes_the_settings_and_the_alert_log_append_only() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO owner_settings_log (key, value_json) VALUES ('alerts', '{}')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO owner_alert_log (kind, transition, outcome) VALUES ('fdm', 'raised', 'sent')",
+            [],
+        )
+        .unwrap();
+        for sql in [
+            "UPDATE owner_settings_log SET key = 'x'",
+            "DELETE FROM owner_settings_log",
+            "UPDATE owner_alert_log SET detail = 'x'",
+            "DELETE FROM owner_alert_log",
+        ] {
+            assert!(conn.execute(sql, []).is_err(), "{sql}");
+        }
+    }
+
+    #[test]
+    fn migration_60_checks_the_alert_log_values() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let insert = |kind: &str, transition: &str, outcome: &str| {
+            conn.execute(
+                "INSERT INTO owner_alert_log (kind, transition, outcome) VALUES (?1, ?2, ?3)",
+                rusqlite::params![kind, transition, outcome],
+            )
+        };
+        assert!(insert("fdm", "raised", "sent").is_ok());
+        assert!(insert("test", "test", "failed").is_ok());
+        assert!(insert("online_waiting", "reminder", "suppressed").is_ok());
+        assert!(insert("nope", "raised", "sent").is_err());
+        assert!(insert("fdm", "nope", "sent").is_err());
+        assert!(insert("fdm", "raised", "nope").is_err());
+    }
+
+    #[test]
+    fn migration_61_checks_the_allergens_and_logs_append_only() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order) VALUES (1, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 100, 'B');",
+        )
+        .unwrap();
+        let insert = |allergen: &str, level: &str| {
+            conn.execute(
+                "INSERT OR REPLACE INTO menu_item_allergens (menu_item_id, allergen, level)
+                 VALUES (1, ?1, ?2)",
+                rusqlite::params![allergen, level],
+            )
+        };
+        assert!(insert("gluten", "contains").is_ok());
+        assert!(insert("molluscs", "may_contain").is_ok());
+        assert!(insert("pollen", "contains").is_err());
+        assert!(insert("milk", "maybe").is_err());
+        assert!(
+            conn.execute(
+                "INSERT INTO allergen_declarations (entity_type, entity_id, source)
+                 VALUES ('menu_item', 1, 'nowhere')",
+                [],
+            )
+            .is_err()
+        );
+        conn.execute(
+            "INSERT INTO allergen_change_log (entity_type, entity_id, before_json, after_json, source)
+             VALUES ('menu_item', 1, '{}', '{}', 'local')",
+            [],
+        )
+        .unwrap();
+        for sql in [
+            "UPDATE allergen_change_log SET source = 'catalog'",
+            "DELETE FROM allergen_change_log",
+        ] {
+            assert!(conn.execute(sql, []).is_err(), "{sql}");
+        }
+    }
+
+    #[test]
+    fn migration_62_checks_the_courses_and_backfills_the_printed_entries() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute_batch(
+            "INSERT INTO orders (id, table_number, order_type, status, user_insz, created_at)
+                 VALUES (1, 4, 'dine_in', 'open', '00000000029', '2026-10-17T10:00:00Z');
+             INSERT INTO categories (id, sort_order) VALUES (1, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 100, 'B');
+             INSERT INTO order_entries (id, order_id, line_id, menu_item_id, quantity, unit_price_cents,
+                                        vat_code, name, department_id, department_name, kind, created_at)
+                 VALUES (1, 1, 1, 1, 1, 100, 'B', 'x', 'd', 'd', 'entry', '2026-10-17T10:00:00Z'),
+                        (2, 1, 2, 1, 1, 100, 'B', 'x', 'd', 'd', 'entry', '2026-10-17T10:00:00Z');",
+        )
+        .unwrap();
+        let line = |course: i64| {
+            conn.execute(
+                "INSERT OR REPLACE INTO order_line_courses (line_id, order_id, course) VALUES (1, 1, ?1)",
+                [course],
+            )
+        };
+        assert!(line(0).is_ok() && line(3).is_ok());
+        assert!(line(4).is_err() && line(-1).is_err());
+        let release = |course: i64| {
+            conn.execute(
+                "INSERT INTO order_course_releases (order_id, course) VALUES (1, ?1)",
+                [course],
+            )
+        };
+        assert!(release(2).is_ok());
+        // One release per course, and course 0 is never released.
+        assert!(release(2).is_err() && release(0).is_err());
+        let slip = |entry: i64, kind: &str| {
+            conn.execute(
+                "INSERT INTO kitchen_slip_entries (entry_id, course, slip) VALUES (?1, 1, ?2)",
+                rusqlite::params![entry, kind],
+            )
+        };
+        assert!(slip(1, "release").is_ok());
+        assert!(slip(1, "release").is_err());
+        assert!(slip(2, "nowhere").is_err());
+        assert!(slip(9, "sale").is_err());
+        // A line removed from the order keeps its course row (a held
+        // correction is netted at release).
+        conn.execute("DELETE FROM order_lines", []).unwrap();
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM order_line_courses", [], |r| r
+                .get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn migration_62_backfills_only_the_entries_a_signed_event_sent() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute_batch(
+            "INSERT INTO orders (id, table_number, order_type, status, user_insz, created_at)
+                 VALUES (1, 4, 'dine_in', 'open', '00000000029', '2026-10-17T10:00:00Z');
+             INSERT INTO categories (id, sort_order) VALUES (1, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 100, 'B');",
+        )
+        .unwrap();
+        let event: i64 = {
+            conn.execute_batch(
+                "INSERT INTO fiscal_events (event_type, sequence_number, order_id, pos_id, terminal_id, user_insz, event_data_json)
+                 VALUES ('P', 1, 1, 'pos', 'term', '00000000029', '{}');",
+            )
+            .unwrap();
+            conn.last_insert_rowid()
+        };
+        conn.execute(
+            "INSERT INTO order_entries (id, order_id, line_id, menu_item_id, quantity, unit_price_cents,
+                                        vat_code, name, department_id, department_name, kind, created_at, sent_event_id)
+             VALUES (1, 1, 1, 1, 1, 100, 'B', 'x', 'd', 'd', 'entry', '2026-10-17T10:00:00Z', ?1),
+                    (2, 1, 2, 1, 1, 100, 'B', 'x', 'd', 'd', 'entry', '2026-10-17T10:00:00Z', NULL)",
+            [event],
+        )
+        .unwrap();
+        // The migration's statement, run again over the existing rows.
+        conn.execute_batch(
+            "INSERT OR IGNORE INTO kitchen_slip_entries (entry_id, course, slip)
+                SELECT id, 0, 'immediate' FROM order_entries WHERE sent_event_id IS NOT NULL;",
+        )
+        .unwrap();
+        let ids: Vec<i64> = conn
+            .prepare("SELECT entry_id FROM kitchen_slip_entries ORDER BY entry_id")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(ids, vec![1]);
+    }
+
+    #[test]
+    fn migration_63_creates_the_gift_voucher_system_rows_and_append_only_tables() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let category: (i64, i64) = conn
+            .query_row(
+                "SELECT id, active FROM categories WHERE external_id = 'pili:system'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(category.1, 0, "never on the grid");
+        let item: (i64, i64, String, String, String, i64, i64, i64) = conn
+            .query_row(
+                "SELECT category_id, active, vat_code, vat_code_takeaway, vat_category,
+                        kitchen_printer, open_price, price_cents
+                 FROM menu_items WHERE external_id = 'pili:gift-voucher'",
+                [],
+                |r| {
+                    Ok((
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                        r.get(6)?,
+                        r.get(7)?,
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            item,
+            (
+                category.0,
+                0,
+                "X".into(),
+                "X".into(),
+                "out_of_scope".into(),
+                0,
+                1,
+                0
+            )
+        );
+        // Names in the four languages.
+        let names: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM translations t JOIN menu_items m ON m.id = t.entity_id
+                 WHERE t.entity_type = 'menu_item' AND t.field = 'name'
+                   AND m.external_id = 'pili:gift-voucher'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(names, 4);
+        // Running it again changes nothing (reseed repair).
+        conn.execute_batch(crate::schema_owner::MIGRATION_063_GIFT_VOUCHERS)
+            .unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM menu_items WHERE external_id = 'pili:gift-voucher'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+        for table in [
+            "gift_vouchers",
+            "gift_voucher_movements",
+            "gift_voucher_prints",
+        ] {
+            let triggers: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger' AND tbl_name = ?1",
+                    [table],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(triggers, 2, "{table}: no update, no delete");
+        }
     }
 
     #[test]

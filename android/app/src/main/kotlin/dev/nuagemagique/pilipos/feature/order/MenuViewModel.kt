@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.order
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_DEPARTMENT
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
@@ -24,6 +25,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import uniffi.pos_ffi.AddWithModifiersInput
+import uniffi.pos_ffi.AllergenEntry
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.Category
 import uniffi.pos_ffi.DiscountInput
@@ -60,9 +62,10 @@ private fun cartRow(
     CartRow(
         line = line,
         amount = amount,
-        canOffer = manager && !orderDiscounted && line.priceChanges.isEmpty(),
+        // A gift voucher line is never discounted and goes to no kitchen (no offer, no note).
+        canOffer = manager && !orderDiscounted && line.priceChanges.isEmpty() && line.departmentId != GIFT_VOUCHER_DEPARTMENT,
         canRemoveDiscount = manager && line.priceChanges.any { it.scope == SCOPE_LINE },
-        canNote = canNote,
+        canNote = canNote && line.departmentId != GIFT_VOUCHER_DEPARTMENT,
     )
 
 /**
@@ -93,6 +96,17 @@ private data class Data(
     val transferring: Boolean = false,
     val soldOutMode: Boolean = false,
     val soldOut: List<SoldOutItem> = emptyList(),
+    val allergenMode: Boolean = false,
+    val allergenLegend: List<AllergenEntry> = emptyList(),
+    val sendingNext: Boolean = false,
+    val giftVouchersEnabled: Boolean = false,
+    val allergenLegendError: String? = null,
+)
+
+/** What the cart shows of the courses: the switch and the next held course. */
+private data class Courses(
+    val enabled: Boolean = false,
+    val nextHeld: Int? = null,
 )
 
 /** How the screen speaks and what the signed-in user may do. */
@@ -152,14 +166,31 @@ internal class MenuViewModel(
         ) { language, label, pay, user, manager -> Look(language, label.toMode(), pay, user != null, manager) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, currentLook())
 
+    private val courses: StateFlow<Courses> =
+        combine(order.courseSettings, order.heldCourses) { settings, held ->
+            Courses(settings.enabled, if (settings.enabled) held.minOfOrNull { it.course } else null)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, currentCourses())
+
+    // The unsent count and the courses travel together, so that the state combines five flows.
+    private val unsentAndCourses: StateFlow<Pair<Int, Courses>> =
+        combine(order.unsentCount, courses) { unsent, c -> unsent to c }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, order.unsentCount.value to courses.value)
+
     /** What the screen draws. */
     val state: StateFlow<OrderUiState> =
-        combine(data, order.current, order.lines, look, order.unsentCount) { d, current, lines, l, unsent ->
-            build(d, current, lines, l, unsent)
+        combine(data, order.current, order.lines, look, unsentAndCourses) { d, current, lines, l, extra ->
+            build(d, current, lines, l, extra.first, extra.second)
         }.stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            build(data.value, order.current.value, order.lines.value, currentLook(), order.unsentCount.value),
+            build(
+                data.value,
+                order.current.value,
+                order.lines.value,
+                currentLook(),
+                unsentAndCourses.value.first,
+                unsentAndCourses.value.second,
+            ),
         )
 
     init {
@@ -181,6 +212,7 @@ internal class MenuViewModel(
                 if (event is PosEvent.CatalogUpdated || event is PosEvent.Resync) reload.update { it + 1 }
             }
         }
+        viewModelScope.launch { active.collect { on -> if (on) loadGiftVoucherSetting() } }
         viewModelScope.launch {
             order.lines.collectLatest { lines ->
                 val amounts = amountsOf(lines)
@@ -199,12 +231,19 @@ internal class MenuViewModel(
             session.isManager.value,
         )
 
+    private fun currentCourses(): Courses {
+        val settings = order.courseSettings.value
+        return Courses(settings.enabled, if (settings.enabled) order.heldCourses.value.minOfOrNull { it.course } else null)
+    }
+
+    @Suppress("LongParameterList")
     private fun build(
         d: Data,
         shared: Order?,
         sharedLines: List<CartLine>,
         l: Look,
         sharedUnsent: Int,
+        c: Courses,
     ): OrderUiState {
         // The order store is shared by every screen: another order than the one of the route is not this screen's (PD205).
         val current = shared?.takeIf { it.id == routeOrderId }
@@ -226,6 +265,10 @@ internal class MenuViewModel(
                     canSoldOut = l.canPay,
                     soldOutMode = d.soldOutMode && l.canPay,
                     soldOut = if (l.canPay) d.soldOut else emptyList(),
+                    allergenMode = d.allergenMode,
+                    allergenLegend = d.allergenLegend,
+                    giftVouchersEnabled = d.giftVouchersEnabled && l.canPay,
+                    allergenLegendError = d.allergenLegendError,
                 ),
             cart =
                 OrderCartState(
@@ -256,6 +299,9 @@ internal class MenuViewModel(
                             !d.transferring,
                     canDiscount = canDiscount,
                     orderDiscounted = orderDiscounted,
+                    coursesEnabled = current != null && c.enabled,
+                    nextHeldCourse = if (current != null) c.nextHeld else null,
+                    sendingNext = d.sendingNext,
                 ),
             zWarning = d.zWarning,
             dialog = d.dialog,
@@ -366,6 +412,11 @@ internal class MenuViewModel(
 
     /** A tap on a product button (`handleAddItem`). */
     fun addItem(item: MenuItem) {
+        // Allergen mode (the "Épuisé" mode comes first, as in OrderView.vue): a tap shows the product's allergen sheet.
+        if (data.value.allergenMode && !(data.value.soldOutMode && look.value.canPay)) {
+            openAllergenSheet(item)
+            return
+        }
         // Only the order of the route takes products: while another one is current the menu does nothing.
         if (soldOutTap(item) || !isRouteOrderCurrent()) return
         if (item.openPrice) {
@@ -436,7 +487,8 @@ internal class MenuViewModel(
     /** The "Épuisé" button: the mode is turned on or off (cashier and manager only). */
     fun toggleSoldOutMode() {
         if (!look.value.canPay) return
-        data.update { it.copy(soldOutMode = !it.soldOutMode) }
+        // The two modes both take over a tap on a product: turning one on turns the other off.
+        data.update { it.copy(soldOutMode = !it.soldOutMode, allergenMode = it.allergenMode && it.soldOutMode) }
     }
 
     /** "Produits épuisés (n)": the list opens over the screen, read again. */
@@ -496,6 +548,92 @@ internal class MenuViewModel(
                     engine.addOrderLineWithModifiers(AddWithModifiersInput(orderId, item.id, 1, modifierIds))
                 }
             }
+        }
+    }
+
+    // ── Gift vouchers ─────────────────────────────────────────────
+
+    /** Reads the gift voucher switch (`load` of `giftVouchers.ts`); a till that does not answer has vouchers off. */
+    private suspend fun loadGiftVoucherSetting() {
+        val enabled = attempt { gateway.call { engine -> engine.getGiftVoucherSettings() } }.map { it.enabled }.getOrDefault(false)
+        data.update { it.copy(giftVouchersEnabled = enabled) }
+    }
+
+    /** The "Bon cadeau" button: asks for the amount of the voucher. */
+    fun askGiftVoucher() {
+        // The engine sells a voucher to a cashier or a manager only: a waiter is not offered the button.
+        if (!isRouteOrderCurrent() || !data.value.giftVouchersEnabled || !session.canTakePayment.value) return
+        data.update { it.copy(dialog = OrderDialog.SellVoucher) }
+    }
+
+    /** The amount typed for the voucher (`handleVoucherAmount`): a refusal is on OrderStore.failures, shown by run(). */
+    fun confirmGiftVoucher(amountCents: Long) {
+        if (data.value.dialog != OrderDialog.SellVoucher) return
+        data.update { it.copy(dialog = OrderDialog.None) }
+        if (!isRouteOrderCurrent()) return
+        viewModelScope.launch { order.addGiftVoucher(amountCents) }
+    }
+
+    // ── Allergens ─────────────────────────────────────────────────
+
+    /** The "Allergènes" button: turns the mode on or off; the legend is read the first time (`toggleMode`). */
+    fun toggleAllergenMode() {
+        val on = !data.value.allergenMode
+        data.update { it.copy(allergenMode = on, soldOutMode = it.soldOutMode && !on) }
+        if (on && data.value.allergenLegend.isEmpty()) {
+            viewModelScope.launch {
+                attempt { gateway.call { engine -> engine.listAllergens() } }.fold(
+                    onSuccess = { legend -> data.update { it.copy(allergenLegend = legend, allergenLegendError = null) } },
+                    onFailure = { error ->
+                        Timber.d(error, "Allergen legend not loaded")
+                        val text = entry.errors().text(error, settings.language.value)
+                        data.update { it.copy(allergenLegendError = text) }
+                    },
+                )
+            }
+        }
+    }
+
+    /** Opens the allergen sheet of [item]: its sheet in the UI language, and in French when that differs (`openSheet`). */
+    private fun openAllergenSheet(item: MenuItem) {
+        data.update { it.copy(dialog = OrderDialog.AllergenSheet(item)) }
+        viewModelScope.launch {
+            val language = settings.language.value
+            attempt {
+                val own = gateway.call { engine -> engine.getAllergenSheet(item.id, language.code) }
+                val fr =
+                    if (language == AppLanguage.FR) null else gateway.call { engine -> engine.getAllergenSheet(item.id, "fr") }
+                own.products.firstOrNull() to fr?.products?.firstOrNull()
+            }.fold(
+                onSuccess = { (own, fr) -> updateSheet(item) { it.copy(sheet = own, sheetFr = fr, error = null) } },
+                onFailure = { error -> updateSheet(item) { it.copy(error = entry.errors().text(error, language)) } },
+            )
+        }
+    }
+
+    /** Prints the open product's sheet, or the whole menu's ([all]); the printer speaks fr, nl, en and de (zh prints in French). */
+    fun printAllergenSheet(all: Boolean) {
+        val open = data.value.dialog as? OrderDialog.AllergenSheet ?: return
+        if (open.busy) return
+        updateSheet(open.item) { it.copy(busy = true, error = null, printResult = null) }
+        viewModelScope.launch {
+            val language = settings.language.value
+            val lang = if (language == AppLanguage.ZH) "fr" else language.code
+            attempt { gateway.call { engine -> engine.printAllergenSheet(if (all) null else open.item.id, lang) } }.fold(
+                onSuccess = { result -> updateSheet(open.item) { it.copy(busy = false, printResult = result) } },
+                onFailure = { error -> updateSheet(open.item) { it.copy(busy = false, error = entry.errors().text(error, language)) } },
+            )
+        }
+    }
+
+    /** Changes the open allergen sheet of [item] (a sheet closed or replaced meanwhile is left alone). */
+    private fun updateSheet(
+        item: MenuItem,
+        change: (OrderDialog.AllergenSheet) -> OrderDialog.AllergenSheet,
+    ) {
+        data.update {
+            val open = it.dialog as? OrderDialog.AllergenSheet
+            if (open != null && open.item.id == item.id) it.copy(dialog = change(open)) else it
         }
     }
 
@@ -601,6 +739,51 @@ internal class MenuViewModel(
                 onFailure = { entry.errors().show(it, language, null, ERROR_TTL_MS) },
             )
             data.update { it.copy(transferring = false) }
+        }
+    }
+
+    // ── Courses ───────────────────────────────────────────────────
+
+    /** The course chip of a line: opens the picker, unless a slip already carried the line (its chip is locked). */
+    fun openCoursePicker(lineId: Long) {
+        val line = order.lines.value.firstOrNull { it.id == lineId } ?: return
+        if (!isRouteOrderCurrent() || line.kitchenState == "printed") return
+        data.update { it.copy(dialog = OrderDialog.CoursePicker(lineId, line.course)) }
+    }
+
+    /** A course picked in the picker (`pickCourse`): the dialog closes and a different course is stored. */
+    fun pickCourse(course: Int) {
+        val open = data.value.dialog as? OrderDialog.CoursePicker ?: return
+        data.update { it.copy(dialog = OrderDialog.None) }
+        if (!isRouteOrderCurrent() || course == open.current) return
+        // A refusal (course_already_sent) is on OrderStore.failures, shown by run().
+        viewModelScope.launch { order.setLineCourse(open.lineId, course) }
+    }
+
+    /**
+     * "Envoyer la suite" (`sendNextCourse`): the engine signs what is unsent, releases the next held course and
+     * prints it. Ignored while it runs and when no course is held.
+     */
+    fun sendNextCourse() {
+        if (!isRouteOrderCurrent() || data.value.sendingNext || courses.value.nextHeld == null) return
+        data.update { it.copy(sendingNext = true) }
+        viewModelScope.launch {
+            val language = settings.language.value
+            val catalog = entry.catalog()
+            attempt { order.sendNextCourse() }.fold(
+                onSuccess = { next ->
+                    val course = next.course
+                    val text =
+                        if (course == null) {
+                            catalog.text("course_resent", language)
+                        } else {
+                            catalog.text("course_sent", language, mapOf("course" to catalog.text("course_$course", language)))
+                        }
+                    entry.toasts().show(text, ToastVariant.Success)
+                },
+                onFailure = { entry.errors().show(it, language, null, ERROR_TTL_MS) },
+            )
+            data.update { it.copy(sendingNext = false) }
         }
     }
 

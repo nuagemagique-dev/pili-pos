@@ -22,6 +22,10 @@ screen only calls it through the shared stores and the gateway.
 | ui/src/components/HubriseConnectDialog.vue | feature/settings/HubriseConnectDialog.kt, HubriseViewModel.kt | `hubrise_start_oauth_flow` `hubrise_complete_oauth` |
 | ui/src/components/PeppolPanel.vue (provider, sender id, queue counts, parked deliveries with reason and Réessayer; managers, only when configured) | feature/settings/PeppolSection.kt, PeppolViewModel.kt, PeppolState.kt | `list_peppol_deliveries` `retry_peppol_delivery` |
 | ui/src/components/MenuEditorPanel.vue (Carte panel: opens the editor, or says who manages the menu), ui/src/views/MenuEditorView.vue (categories, products, option groups and options, VAT pickers, Historique) | feature/settings/menu/MenuEditorScreen.kt (MenuEditorRoute, MenuEditorContent), MenuEditorViewModel.kt, MenuEditorState.kt, MenuEditorEntry.kt; entry point: the settings row `settings.menu` (managers) | `menu_admin_get` `menu_save_category` `menu_save_product` `menu_save_modifier_group` `menu_save_modifier` `list_menu_changes` |
+| ui/src/components/OwnerAlertsSettings.vue, ui/src/stores/ownerAlerts.ts (phone alerts: settings, test message, log; managers) | feature/settings/alerts/OwnerAlertsSection.kt, OwnerAlertsViewModel.kt, OwnerAlertsState.kt | `get_owner_alerts` `set_owner_alerts` `send_test_alert` `list_owner_alert_log` |
+| ui/src/components/CoursesSettings.vue (courses: switch and course per category; managers) | feature/settings/courses/CoursesSection.kt, CoursesViewModel.kt, CoursesState.kt | `get_course_settings` `set_course_settings` |
+| ui/src/components/GiftVoucherSettings.vue (gift vouchers: switch, validity, maximum amount; managers) | feature/settings/vouchers/GiftVoucherSection.kt, GiftVoucherViewModel.kt, GiftVoucherState.kt | `get_gift_voucher_settings` `set_gift_voucher_settings` |
+| ui/src/components/NumberEntryDialog.vue (chat id with a minus toggle, small numbers) | feature/settings/alerts/NumberEntryDialog.kt over ui/components/NumPad.kt | none |
 
 ## Differences
 

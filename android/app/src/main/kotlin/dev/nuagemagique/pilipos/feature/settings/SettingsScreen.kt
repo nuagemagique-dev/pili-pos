@@ -34,6 +34,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.Lazy
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.feature.settings.alerts.NumberEntryActions
+import dev.nuagemagique.pilipos.feature.settings.alerts.NumberEntryDialog
+import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsCallbacks
+import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsSection
+import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsViewModel
+import dev.nuagemagique.pilipos.feature.settings.courses.CoursesCallbacks
+import dev.nuagemagique.pilipos.feature.settings.courses.CoursesSection
+import dev.nuagemagique.pilipos.feature.settings.courses.CoursesUiState
+import dev.nuagemagique.pilipos.feature.settings.courses.CoursesViewModel
+import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherCallbacks
+import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherSection
+import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherUiState
+import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherViewModel
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.NavRegistry
@@ -116,6 +129,7 @@ internal data class DeactivateActions(
  * engine closed, never navigates when it starts and asks the mail status once on open. The root carries the tag
  * `placeholder_settings` (PD204).
  */
+@Suppress("LongMethod")
 @Composable
 internal fun SettingsRoute(
     navigator: AppNavigator,
@@ -125,9 +139,15 @@ internal fun SettingsRoute(
     val model = viewModel { SettingsViewModel(entry) }
     val hubriseModel = viewModel { HubriseViewModel(entry) }
     val peppolModel = viewModel { PeppolViewModel(entry) }
+    val alertsModel = viewModel { OwnerAlertsViewModel(entry) }
+    val coursesModel = viewModel { CoursesViewModel(entry) }
+    val vouchersModel = viewModel { GiftVoucherViewModel(entry) }
     val loaded by model.state.collectAsState()
     val hubrise by hubriseModel.state.collectAsState()
     val peppol by peppolModel.state.collectAsState()
+    val alerts by alertsModel.state.collectAsState()
+    val courses by coursesModel.state.collectAsState()
+    val vouchers by vouchersModel.state.collectAsState()
     val pending by entry.webshop().pendingCount.collectAsState()
     LaunchedEffect(hubriseModel) {
         hubriseModel.effects.collect {
@@ -142,6 +162,9 @@ internal fun SettingsRoute(
     val pinActions = pinActionsOf(model)
     val hubriseCallbacks = hubriseCallbacksOf(hubriseModel)
     val badgeActions = badgeActionsOf(model.badge)
+    val alertsCallbacks = alertsCallbacksOf(alertsModel)
+    val coursesCallbacks = CoursesCallbacks(coursesModel::toggleEnabled, coursesModel::setCourse, coursesModel::save)
+    val vouchersCallbacks = vouchersCallbacksOf(vouchersModel)
     val connectActions = HubriseConnectActions(onSubmit = hubriseModel::submitCode, onCancel = hubriseModel::cancelConnect)
     val qr = remember(entry) { entry.qrMatrices() }
     LaunchedEffect(model) { entry.delivery().refreshMailStatus() }
@@ -168,6 +191,9 @@ internal fun SettingsRoute(
                 onConfirmDisconnect = hubriseModel::confirmDisconnect,
                 onCancelDisconnect = hubriseModel::cancelDisconnect,
             )
+            alerts.entry?.let { number ->
+                NumberEntryDialog(number, alertsActionsOf(alertsModel))
+            }
         },
     ) {
         SettingsContent(
@@ -175,7 +201,26 @@ internal fun SettingsRoute(
             callbacks,
             hubriseSection = { HubriseSection(hubrise, pending, hubriseCallbacks) },
             peppolSection = { PeppolSection(peppol, PeppolCallbacks(onRetry = peppolModel::retry)) },
+            alertsSection = { OwnerAlertsSection(alerts, alertsCallbacks) },
+            coursesSection = { ManagerPanels(courses, coursesCallbacks, vouchers, vouchersCallbacks) },
         )
+    }
+}
+
+private fun vouchersCallbacksOf(model: GiftVoucherViewModel) =
+    GiftVoucherCallbacks(model::toggleEnabled, model::setValidity, model::setMax, model::save)
+
+/** The manager panels of the second column: the courses and the gift vouchers. */
+@Composable
+internal fun ManagerPanels(
+    courses: CoursesUiState,
+    coursesCallbacks: CoursesCallbacks,
+    vouchers: GiftVoucherUiState,
+    vouchersCallbacks: GiftVoucherCallbacks,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
+        CoursesSection(courses, coursesCallbacks)
+        GiftVoucherSection(vouchers, vouchersCallbacks)
     }
 }
 
@@ -236,6 +281,27 @@ private fun pinActionsOf(model: SettingsViewModel): SettingsPinActions =
         onCancel = model::closePin,
     )
 
+/** What the owner alerts panel calls on [model]. */
+private fun alertsCallbacksOf(model: OwnerAlertsViewModel): OwnerAlertsCallbacks =
+    OwnerAlertsCallbacks(
+        onToggleEnabled = model::toggleEnabled,
+        onToggleKind = model::toggleKind,
+        onLanguage = model::setLanguage,
+        onLabel = model::setLabel,
+        onEdit = model::openEntry,
+        onSave = model::save,
+        onTest = model::sendTest,
+    )
+
+/** What the number dialog of the owner alerts panel calls on [model]. */
+private fun alertsActionsOf(model: OwnerAlertsViewModel): NumberEntryActions =
+    NumberEntryActions(
+        onKey = model::pressKey,
+        onMinus = model::toggleMinus,
+        onConfirm = model::confirmEntry,
+        onCancel = model::cancelEntry,
+    )
+
 /** What the HubRise panel calls on [model]. */
 private fun hubriseCallbacksOf(model: HubriseViewModel): HubriseCallbacks =
     HubriseCallbacks(
@@ -264,12 +330,14 @@ internal fun SettingsContent(
     modifier: Modifier = Modifier,
     hubriseSection: @Composable () -> Unit = {},
     peppolSection: @Composable () -> Unit = {},
+    alertsSection: @Composable () -> Unit = {},
+    coursesSection: (@Composable () -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary).testTag("settings_content")) {
         if (maxWidth >= WideLayoutMin) {
-            WideLayout(state, callbacks, hubriseSection, peppolSection)
+            WideLayout(state, callbacks, hubriseSection, peppolSection, alertsSection, coursesSection)
         } else {
-            NarrowLayout(state, callbacks, hubriseSection, peppolSection)
+            NarrowLayout(state, callbacks, hubriseSection, peppolSection, alertsSection, coursesSection)
         }
     }
 }
@@ -280,6 +348,8 @@ private fun WideLayout(
     callbacks: SettingsCallbacks,
     hubriseSection: @Composable () -> Unit,
     peppolSection: @Composable () -> Unit,
+    alertsSection: @Composable () -> Unit,
+    coursesSection: (@Composable () -> Unit)?,
 ) {
     val gap = PiliTheme.dimens.spaceLg
     Row(Modifier.fillMaxSize().padding(gap), horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -290,7 +360,10 @@ private fun WideLayout(
             RowsPanel(state.rows, callbacks.onRow, Modifier.weight(1f), scroll = true)
         }
         if (state.isManager) {
-            EmployeesPanel(state, callbacks, Modifier.weight(1f).fillMaxHeight(), scrollList = true)
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(gap)) {
+                EmployeesPanel(state, callbacks, Modifier.weight(1f), scrollList = true)
+                if (coursesSection != null) CoursesSlot(coursesSection)
+            }
         }
         Column(
             Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
@@ -298,6 +371,7 @@ private fun WideLayout(
         ) {
             if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
             if (state.isManager) BadgePanel(state.badge, callbacks.badge)
+            if (state.isManager) alertsSection()
             InfoPanel(state.info)
             IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
             if (state.hubrise.visible) hubriseSection()
@@ -313,6 +387,8 @@ private fun NarrowLayout(
     callbacks: SettingsCallbacks,
     hubriseSection: @Composable () -> Unit,
     peppolSection: @Composable () -> Unit,
+    alertsSection: @Composable () -> Unit,
+    coursesSection: (@Composable () -> Unit)?,
 ) {
     val gap = PiliTheme.dimens.spaceMd
     Column(
@@ -325,7 +401,9 @@ private fun NarrowLayout(
         ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
         if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
         if (state.isManager) BadgePanel(state.badge, callbacks.badge)
+        if (state.isManager) alertsSection()
         if (state.isManager) EmployeesPanel(state, callbacks, Modifier, scrollList = false)
+        if (state.isManager && coursesSection != null) coursesSection()
         InfoPanel(state.info)
         IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
         if (state.hubrise.visible) hubriseSection()
@@ -333,6 +411,14 @@ private fun NarrowLayout(
         DeliveriesPanel(state.deliveries, state.deliveriesLoading, state.mailStatus, callbacks.onReloadDeliveries)
     }
 }
+
+/** The courses panel under the employees: at most half of the column, scrolling inside when it needs more. */
+@Composable
+private fun CoursesSlot(coursesSection: @Composable () -> Unit) {
+    Column(Modifier.fillMaxWidth().heightIn(max = CoursesMaxHeight).verticalScroll(rememberScrollState())) { coursesSection() }
+}
+
+private val CoursesMaxHeight = 480.dp
 
 // ── Column 1: training, language, product label, rows ─────────────
 

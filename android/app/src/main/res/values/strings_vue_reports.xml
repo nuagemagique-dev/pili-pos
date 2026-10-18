@@ -134,4 +134,18 @@
     <string name="sales_price_changes">Modifications de prix (tickets)</string>
     <string name="sales_refunds">dont remboursements</string>
     <string name="sales_rounding">Arrondi caisse (hors total)</string>
+    <string name="reports_tab_vouchers">Bons cadeaux</string>
+    <string name="gv_lookup_title">Vérifier un bon</string>
+    <string name="gv_list_title">Bons émis</string>
+    <string name="gv_filter_all">Tous</string>
+    <string name="gv_empty">Aucun bon</string>
+    <string name="gv_face">Valeur</string>
+    <string name="gv_issued_on">Émis le {date}</string>
+    <string name="gv_reprint">Réimprimer</string>
+    <string name="gv_reprinted">Bon réimprimé (DUPLICATA)</string>
+    <string name="gv_movements">Mouvements</string>
+    <string name="gv_movement_issue">Émission</string>
+    <string name="gv_movement_redeem">Utilisation</string>
+    <string name="gv_movement_cancel">Annulation</string>
+    <string name="gv_disabled_note">Les bons cadeaux sont désactivés dans les réglages.</string>
 </resources>

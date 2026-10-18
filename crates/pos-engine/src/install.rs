@@ -354,7 +354,16 @@ mod tests {
         apply_seed(&conn, include_str!("../../../src-tauri/seed_spf_test.sql")).unwrap();
         // Manual §III lists 25 predefined products; 9 of them need
         // features declared unsupported in v1.0.0 and stay inactive.
-        assert_eq!(count(&conn, "menu_items"), 25);
+        // The gift voucher system item (migration 63) survives the seed.
+        let products: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM menu_items WHERE id != 990001",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(products, 25);
+        assert_eq!(count(&conn, "menu_items"), 26);
         let active: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM menu_items WHERE active = 1",

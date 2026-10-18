@@ -120,6 +120,11 @@ pub struct PosConfig {
     /// still made and printed, but nothing is queued for delivery.
     #[serde(default)]
     pub peppol: Option<PeppolConfig>,
+    /// The owner alerts' transport: where the Telegram bot token
+    /// is, and the API base for tests. Absent: no alert can be sent
+    /// (the switches and the chat id are owner settings, not here).
+    #[serde(default)]
+    pub alerts: Option<AlertsConfig>,
 }
 
 fn default_language() -> String {
@@ -183,7 +188,8 @@ impl PosConfig {
     /// absolute by joining it to `base`: `fdm_token_file`, `fdm_ca_file`,
     /// `fdm_client_cert_file`, `fdm_client_key_file`, `backup_dir`,
     /// `hubrise.client_secret_file`, `digital_ticket.api_key_file`,
-    /// `export.token_file` and `payment_terminal.api_key_file`.
+    /// `export.token_file`, `payment_terminal.api_key_file` and
+    /// `alerts.telegram_bot_token_file`.
     /// An absolute path, an empty value, a URL or any other field is left
     /// as it is. Used for a configuration bundle that names its files
     /// relative to its own directory.
@@ -217,6 +223,13 @@ impl PosConfig {
             resolve_path(path, base);
         }
         if let Some(path) = self.peppol.as_mut().and_then(|p| p.api_key_file.as_mut()) {
+            resolve_path(path, base);
+        }
+        if let Some(path) = self
+            .alerts
+            .as_mut()
+            .and_then(|a| a.telegram_bot_token_file.as_mut())
+        {
             resolve_path(path, base);
         }
     }
@@ -341,6 +354,9 @@ impl PosConfig {
         if let Some(p) = &self.peppol {
             out.extend(p.problems());
         }
+        if let Some(a) = &self.alerts {
+            out.extend(a.problems());
+        }
         out
     }
 }
@@ -375,6 +391,7 @@ pub fn problem_code(problem: &str) -> &'static str {
         k if k.starts_with("export.") => "export",
         k if k.starts_with("payment_terminal.") => "payment_terminal",
         k if k.starts_with("peppol.") => "peppol",
+        k if k.starts_with("alerts.") => "alerts",
         _ => "other",
     }
 }
@@ -397,6 +414,7 @@ pub const PROBLEM_CODES: &[&str] = &[
     "export",
     "payment_terminal",
     "peppol",
+    "alerts",
     "other",
 ];
 
@@ -443,6 +461,7 @@ impl Default for PosConfig {
             tables: None,
             payment_terminal: None,
             peppol: None,
+            alerts: None,
             pos_id: String::new(),
             terminal_id: String::new(),
             device_id: String::new(),
@@ -886,6 +905,67 @@ impl PeppolConfig {
     }
 }
 
+/// The Telegram Bot API the owner alerts talk to.
+pub const DEFAULT_TELEGRAM_API_BASE: &str = "https://api.telegram.org";
+
+/// The owner alerts' transport, from `pos.json` as `alerts`. The bot
+/// token is a secret: it lives in a file, never in `pos.json`, never in
+/// the database and never in a log. The chat id and the switches are
+/// owner settings (`owner_settings`, key `alerts`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct AlertsConfig {
+    /// File holding the bot token and nothing else (whitespace
+    /// trimmed). Absent: alerts cannot be sent (`alerts_token_missing`).
+    #[serde(default)]
+    pub telegram_bot_token_file: Option<String>,
+    /// The Bot API base URL. Absent: [`DEFAULT_TELEGRAM_API_BASE`]. Set
+    /// for tests only.
+    #[serde(default)]
+    pub telegram_api_base: Option<String>,
+}
+
+impl AlertsConfig {
+    /// The bot token, read from `telegram_bot_token_file`; `Ok(None)`
+    /// without a file. The error text never contains the token.
+    pub fn bot_token(&self) -> Result<Option<String>, String> {
+        let Some(path) = &self.telegram_bot_token_file else {
+            return Ok(None);
+        };
+        match std::fs::read_to_string(path) {
+            Ok(s) if !s.trim().is_empty() => Ok(Some(s.trim().to_string())),
+            Ok(_) => Err(format!("alerts.telegram_bot_token_file: {path:?} is empty")),
+            Err(e) => Err(format!(
+                "alerts.telegram_bot_token_file: cannot read {path:?}: {e}"
+            )),
+        }
+    }
+
+    /// The Bot API base URL without a trailing slash.
+    pub fn api_base(&self) -> String {
+        self.telegram_api_base
+            .as_deref()
+            .filter(|b| !b.trim().is_empty())
+            .unwrap_or(DEFAULT_TELEGRAM_API_BASE)
+            .trim_end_matches('/')
+            .to_string()
+    }
+
+    /// What would make the alert transport unusable. Each message starts
+    /// with `alerts.<field>: `.
+    pub fn problems(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if let Err(e) = self.bot_token() {
+            out.push(e);
+        }
+        if let Some(base) = &self.telegram_api_base
+            && let Some(p) = endpoint_problem("alerts.telegram_api_base", base)
+        {
+            out.push(p);
+        }
+        out
+    }
+}
+
 /// Lowercase bech32 data alphabet (no 1, b, i, o).
 const BECH32_CHARSET: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
@@ -895,27 +975,28 @@ fn looks_like_age_recipient(s: &str) -> bool {
     s.len() == 62 && s.starts_with("age1") && s[4..].chars().all(|c| BECH32_CHARSET.contains(c))
 }
 
-/// Why `url` is not an acceptable export endpoint, or `None`.
-fn export_url_problem(url: &str) -> Option<String> {
+/// Why `url` is not an acceptable endpoint for the setting `field`
+/// (`export.url`, `alerts.telegram_api_base`), or `None`.
+fn endpoint_problem(field: &str, url: &str) -> Option<String> {
     let (secure, rest) = if let Some(r) = url.strip_prefix("https://") {
         (true, r)
     } else if let Some(r) = url.strip_prefix("http://") {
         (false, r)
     } else {
-        return Some("export.url: an https:// URL expected".to_string());
+        return Some(format!("{field}: an https:// URL expected"));
     };
     if url.contains('?') || url.contains('#') {
-        return Some("export.url: no query or fragment allowed".to_string());
+        return Some(format!("{field}: no query or fragment allowed"));
     }
     let authority = rest.split('/').next().unwrap_or("");
     if authority.contains('@') {
-        return Some("export.url: no user info allowed".to_string());
+        return Some(format!("{field}: no user info allowed"));
     }
     // host[:port], with [::1] in brackets.
     let (host, port) = if let Some(after) = authority.strip_prefix('[') {
         match after.split_once(']') {
             Some((h, tail)) => (format!("[{h}]"), tail.strip_prefix(':')),
-            None => return Some("export.url: malformed host".to_string()),
+            None => return Some(format!("{field}: malformed host")),
         }
     } else {
         match authority.rsplit_once(':') {
@@ -924,18 +1005,17 @@ fn export_url_problem(url: &str) -> Option<String> {
         }
     };
     if host.is_empty() || host == "[]" {
-        return Some("export.url: a host is required".to_string());
+        return Some(format!("{field}: a host is required"));
     }
     if let Some(p) = port
         && (p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()))
     {
-        return Some("export.url: malformed port".to_string());
+        return Some(format!("{field}: malformed port"));
     }
     if !secure && !["127.0.0.1", "localhost", "[::1]", "10.0.2.2"].contains(&host.as_str()) {
-        return Some(
-            "export.url: plain http is only allowed to 127.0.0.1, localhost, [::1] or 10.0.2.2"
-                .to_string(),
-        );
+        return Some(format!(
+            "{field}: plain http is only allowed to 127.0.0.1, localhost, [::1] or 10.0.2.2"
+        ));
     }
     None
 }
@@ -945,7 +1025,7 @@ impl ExportConfig {
     /// `export.<field>: `.
     pub fn problems(&self) -> Vec<String> {
         let mut out = Vec::new();
-        if let Some(p) = export_url_problem(&self.url) {
+        if let Some(p) = endpoint_problem("export.url", &self.url) {
             out.push(p);
         }
         if self.token_file.trim().is_empty() {
@@ -1138,6 +1218,7 @@ mod tests {
                 "digital_ticket",
             ),
             ("export.keep_days: 1 to 365", "export"),
+            ("alerts.telegram_bot_token_file: cannot read", "alerts"),
             (
                 "payment_terminal.address: host:port expected",
                 "payment_terminal",
@@ -1773,5 +1854,64 @@ mod tests {
         );
         assert_eq!(problem_code("peppol.sender_id: x"), "peppol");
         assert!(PROBLEM_CODES.contains(&"peppol"));
+    }
+
+    #[test]
+    fn the_alerts_section_is_optional_and_resolves_its_token_file() {
+        let mut c = valid();
+        assert!(c.alerts.is_none());
+        c.alerts = Some(AlertsConfig {
+            telegram_bot_token_file: Some("secrets/tg.token".into()),
+            telegram_api_base: Some("http://127.0.0.1:1".into()),
+        });
+        c.resolve_relative_to(Path::new("/bundle"));
+        let a = c.alerts.unwrap();
+        assert_eq!(
+            a.telegram_bot_token_file.as_deref(),
+            Some("/bundle/secrets/tg.token")
+        );
+        // A URL is not a path.
+        assert_eq!(a.telegram_api_base.as_deref(), Some("http://127.0.0.1:1"));
+    }
+
+    #[test]
+    fn the_alerts_section_is_checked_and_never_names_the_token() {
+        let dir = std::env::temp_dir().join(format!("pos-core-alerts-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let good = dir.join("good.token");
+        std::fs::write(&good, "123:SECRET\n").unwrap();
+        let empty = dir.join("empty.token");
+        std::fs::write(&empty, " \n").unwrap();
+
+        let mut a = AlertsConfig {
+            telegram_bot_token_file: Some(good.to_string_lossy().into_owned()),
+            telegram_api_base: None,
+        };
+        assert!(a.problems().is_empty());
+        assert_eq!(a.bot_token().unwrap().as_deref(), Some("123:SECRET"));
+        assert_eq!(a.api_base(), "https://api.telegram.org");
+
+        a.telegram_bot_token_file = Some(empty.to_string_lossy().into_owned());
+        assert!(a.problems()[0].starts_with("alerts.telegram_bot_token_file: "));
+        a.telegram_bot_token_file = Some(dir.join("absent").to_string_lossy().into_owned());
+        assert!(a.problems()[0].contains("cannot read"));
+        a.telegram_bot_token_file = None;
+        assert_eq!(a.bot_token().unwrap(), None);
+
+        a.telegram_api_base = Some("http://example.com/".into());
+        assert!(a.problems()[0].starts_with("alerts.telegram_api_base: plain http"));
+        a.telegram_api_base = Some("http://127.0.0.1:8080/".into());
+        assert!(a.problems().is_empty());
+        assert_eq!(a.api_base(), "http://127.0.0.1:8080");
+
+        let mut c = valid();
+        c.alerts = Some(AlertsConfig {
+            telegram_bot_token_file: Some(empty.to_string_lossy().into_owned()),
+            telegram_api_base: None,
+        });
+        let problems = c.problems();
+        assert_eq!(problems.len(), 1);
+        assert_eq!(problem_code(&problems[0]), "alerts");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

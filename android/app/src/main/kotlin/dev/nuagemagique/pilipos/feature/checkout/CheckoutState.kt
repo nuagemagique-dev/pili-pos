@@ -7,6 +7,8 @@ import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.DeliveryOutcome
 import uniffi.pos_ffi.EftPayment
+import uniffi.pos_ffi.GiftVoucherPrint
+import uniffi.pos_ffi.GiftVoucherView
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PaymentMethod
@@ -16,8 +18,20 @@ import uniffi.pos_ffi.VatSplitRow
 /** The three steps of `CheckoutView.vue`. */
 internal enum class CheckoutStep { PAY, PROCESSING, DONE }
 
-/** The payment methods offered at the till, in the order of the buttons (Vue `METHODS`). */
-internal val TILL_METHODS: List<PaymentMethod> = listOf(PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER)
+/** The payment methods the till knows, in the order of the buttons (Vue `ALL_METHODS`). */
+internal val TILL_METHODS: List<PaymentMethod> =
+    listOf(PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER, PaymentMethod.GIFT_VOUCHER)
+
+/**
+ * The state of the gift voucher dialog (`GiftVoucherDialog.vue`): the [digits] of the code typed, the voucher the
+ * engine [found] for them, the text of a refusal and a lookup running.
+ */
+internal data class VoucherDialogState(
+    val digits: String = "",
+    val found: GiftVoucherView? = null,
+    val error: String? = null,
+    val busy: Boolean = false,
+)
 
 /** How many equal parts a sale can be split in (`v-for="n in 5"`). */
 internal const val SPLIT_MAX: Int = 5
@@ -36,6 +50,9 @@ internal data class TakenPart(
     val brand: String? = null,
     /** The approved terminal card is a meal-voucher card: shown as meal vouchers, the part stays a card. */
     val mealVoucher: Boolean = false,
+    /** A gift voucher part: the voucher it redeems, and its masked code. */
+    val giftVoucherId: Long? = null,
+    val codeMasked: String? = null,
 ) {
     /** The method the part is called by: a meal-voucher card is a meal voucher. */
     val displayMethod: PaymentMethod get() = if (mealVoucher) PaymentMethod.MEAL_VOUCHER else method
@@ -103,6 +120,8 @@ internal data class CheckoutDone(
     val delivery: DeliveryOutcome?,
     /** The archive id of the signed event, the key of the print-missing action. */
     val fiscalEventId: Long?,
+    /** What became of the gift voucher slips (vouchers sold, balances left); empty for a sale without vouchers. */
+    val voucherPrints: List<GiftVoucherPrint> = emptyList(),
 )
 
 /** What the checkout screen shows. */
@@ -145,7 +164,28 @@ internal data class CheckoutUiState(
     val cardManual: Boolean = false,
     /** The order's payments that wait for the terminal's answer: no sale until they are checked. */
     val eftOpen: List<EftPayment> = emptyList(),
+    /** The next course still held at the table (1 to 3): the sale does not print it, so the screen warns. */
+    val nextHeldCourse: Int? = null,
+    /** "Envoyer maintenant" is running. */
+    val sendingHeld: Boolean = false,
+    /** Gift vouchers are on: the "Bon cadeau" method shows. */
+    val giftVouchersEnabled: Boolean = false,
+    /** The sale sells a gift voucher: it is paid in cash or by card only. */
+    val sellsVoucher: Boolean = false,
+    /** The gift voucher dialog; null while closed. */
+    val voucher: VoucherDialogState? = null,
 ) {
+    /** The methods offered now: no gift voucher while the setting is off, only cash and card when the sale sells one. */
+    val methods: List<PaymentMethod>
+        get() =
+            TILL_METHODS.filter { m ->
+                if (sellsVoucher) {
+                    m == PaymentMethod.CASH || m == PaymentMethod.CARD
+                } else {
+                    m != PaymentMethod.GIFT_VOUCHER || giftVouchersEnabled
+                }
+            }
+
     /** The amount being typed, in cents (no arithmetic: the digits are the cents). */
     val entryCents: Long get() = entry.cents
 

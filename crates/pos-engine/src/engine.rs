@@ -159,6 +159,12 @@ pub struct EngineTimers {
     /// once after an invoice is signed or a parked delivery re-queued. Nothing
     /// runs without a `peppol` section in the configuration.
     pub peppol_outbox: Duration,
+    /// How long the owner-alerts probe may keep the card terminal's
+    /// line (`AppState::eft_line`) for its reachability check. A
+    /// payment started meanwhile waits at most this long; the probe is
+    /// dropped (the line freed) when the terminal does not answer in
+    /// time.
+    pub terminal_probe: Duration,
 }
 
 impl Default for EngineTimers {
@@ -172,6 +178,7 @@ impl Default for EngineTimers {
             export_outbox: Duration::from_secs(60),
             badge_repeat: Duration::from_secs(10),
             peppol_outbox: Duration::from_secs(60),
+            terminal_probe: crate::alerts::TERMINAL_PROBE_TIMEOUT,
         }
     }
 }
@@ -382,6 +389,7 @@ impl Engine {
                 session: Mutex::new(None),
                 support: crate::commands::support::SupportState::with_program(support_program),
                 pin_throttle: Default::default(),
+                gift_voucher_lookups: Default::default(),
                 signing: Default::default(),
                 fdm_status_cache: Mutex::new(None),
                 session_rules: Default::default(),
@@ -391,6 +399,7 @@ impl Engine {
                 eft_in_flight: Mutex::new(None),
                 eft_line: tokio::sync::Mutex::new(()),
                 badge_repeats: Default::default(),
+                owner_alerts: Default::default(),
                 #[cfg(feature = "eft-scripted")]
                 eft_terminal_override: None,
             }),

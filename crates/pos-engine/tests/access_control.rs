@@ -1487,3 +1487,241 @@ async fn sales_report_commands_are_for_managers() {
     as_(&app, MANAGER, UserRole::Admin);
     assert!(do_sales_report(&app.state, from, to).is_ok());
 }
+
+#[tokio::test]
+async fn only_a_manager_touches_the_owner_alerts() {
+    use pos_engine::commands::alerts::{
+        AlertKinds, OwnerAlertsInput, do_get_owner_alerts, do_list_owner_alert_log,
+        do_send_test_alert, do_set_owner_alerts,
+    };
+    let app = app().await;
+    let input = || OwnerAlertsInput {
+        enabled: false,
+        chat_id: "123".into(),
+        label: String::new(),
+        language: "fr".into(),
+        kinds: AlertKinds::default(),
+        z_deadline_hour: 6,
+        online_wait_minutes: 5,
+        reminder_minutes: 60,
+    };
+    app.logout();
+    assert_eq!(
+        do_get_owner_alerts(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert_eq!(do_get_owner_alerts(&app.state).unwrap_err(), ERR_FORBIDDEN);
+        assert_eq!(
+            do_set_owner_alerts(&app.state, input()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_send_test_alert(&app.state).await.unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_list_owner_alert_log(&app.state, 5).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(!do_get_owner_alerts(&app.state).unwrap().enabled);
+    assert!(do_set_owner_alerts(&app.state, input()).is_ok());
+    assert!(do_list_owner_alert_log(&app.state, 5).unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn any_operator_reads_the_allergens_and_only_a_manager_edits_them() {
+    use pos_engine::commands::allergens::{
+        SetAllergensInput, do_get_allergen_sheet, do_list_allergens, do_print_allergen_sheet,
+        do_set_allergens,
+    };
+    let app = app().await;
+    let edit = || SetAllergensInput {
+        entity_type: "menu_item".into(),
+        entity_id: 1,
+        declared: true,
+        contains: vec!["milk".into()],
+        may_contain: vec![],
+    };
+    app.logout();
+    assert_eq!(
+        do_list_allergens(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_get_allergen_sheet(&app.state, None, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_print_allergen_sheet(&app.state, None, None)
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_allergens(&app.state, edit()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert_eq!(do_list_allergens(&app.state).unwrap().len(), 14);
+        assert!(do_get_allergen_sheet(&app.state, None, None).is_ok());
+        assert_eq!(
+            do_set_allergens(&app.state, edit()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+    as_(&app, MANAGER, UserRole::Admin);
+    assert_eq!(do_set_allergens(&app.state, edit()), Ok(true));
+}
+
+#[tokio::test]
+async fn any_operator_works_the_courses_and_only_a_manager_sets_them() {
+    use pos_engine::commands::courses::{
+        CourseSettings, do_get_course_settings, do_list_held_courses, do_reprint_course_slip,
+        do_send_next_course, do_set_course_settings, do_set_line_course,
+    };
+    let app = app().await;
+    as_(&app, MANAGER, UserRole::Admin);
+    let order = table(&app, MANAGER, 12);
+    app.logout();
+    assert_eq!(
+        do_get_course_settings(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_course_settings(&app.state, CourseSettings::default()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_line_course(&app.state, 1, 1).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_held_courses(&app.state, order).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_send_next_course(&app.state, order).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_reprint_course_slip(&app.state, order, 1)
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert!(do_get_course_settings(&app.state).is_ok());
+        assert_eq!(
+            do_set_course_settings(&app.state, CourseSettings::default()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        // Allowed to try: the refusals below come from the rules, not the role.
+        assert_eq!(
+            do_set_line_course(&app.state, 1, 1).unwrap_err(),
+            errors::COURSES_DISABLED
+        );
+        assert!(do_list_held_courses(&app.state, order).unwrap().is_empty());
+        assert_eq!(
+            do_send_next_course(&app.state, order).await.unwrap_err(),
+            errors::COURSES_DISABLED
+        );
+        assert_eq!(
+            do_reprint_course_slip(&app.state, order, 1)
+                .await
+                .unwrap_err(),
+            errors::NOTHING_PRINTED
+        );
+    }
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(do_set_course_settings(&app.state, CourseSettings::default()).is_ok());
+}
+
+#[tokio::test]
+async fn the_gift_voucher_commands_follow_their_roles() {
+    use pos_engine::commands::gift_vouchers::{
+        GiftVoucherSettings, do_add_gift_voucher_line, do_get_gift_voucher_settings,
+        do_list_gift_vouchers, do_lookup_gift_voucher, do_print_gift_voucher,
+        do_set_gift_voucher_settings,
+    };
+    let app = app().await;
+    as_(&app, MANAGER, UserRole::Admin);
+    let order = table(&app, MANAGER, 13);
+    let on = GiftVoucherSettings {
+        enabled: true,
+        ..GiftVoucherSettings::default()
+    };
+    app.logout();
+    assert_eq!(
+        do_get_gift_voucher_settings(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_gift_voucher_settings(&app.state, on.clone()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_add_gift_voucher_line(&app.state, order, 2000).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_lookup_gift_voucher(&app.state, "123456789095").unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_gift_vouchers(&app.state, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_print_gift_voucher(&app.state, 1).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    // A cashier reads the setting, sells and looks up; the setting, the
+    // list and the duplicate are the manager's.
+    as_(&app, SERVER, UserRole::Cashier);
+    assert!(do_get_gift_voucher_settings(&app.state).is_ok());
+    assert_eq!(
+        do_set_gift_voucher_settings(&app.state, on.clone()).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_add_gift_voucher_line(&app.state, order, 2000).unwrap_err(),
+        errors::GIFT_VOUCHERS_DISABLED
+    );
+    assert_eq!(
+        do_lookup_gift_voucher(&app.state, "123456789095").unwrap_err(),
+        errors::GIFT_VOUCHER_NOT_FOUND
+    );
+    assert_eq!(
+        do_list_gift_vouchers(&app.state, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_print_gift_voucher(&app.state, 1).await.unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    // A waiter reads the setting and does nothing else with vouchers.
+    as_(&app, APPRENTICE, UserRole::Waiter);
+    assert!(do_get_gift_voucher_settings(&app.state).is_ok());
+    assert_eq!(
+        do_add_gift_voucher_line(&app.state, order, 2000).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_lookup_gift_voucher(&app.state, "123456789095").unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(do_set_gift_voucher_settings(&app.state, on).is_ok());
+    assert!(do_add_gift_voucher_line(&app.state, order, 2000).is_ok());
+    assert!(do_list_gift_vouchers(&app.state, None).unwrap().is_empty());
+    assert_eq!(
+        do_print_gift_voucher(&app.state, 1).await.unwrap_err(),
+        errors::GIFT_VOUCHER_NOT_FOUND
+    );
+}

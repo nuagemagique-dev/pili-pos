@@ -1,5 +1,6 @@
 //! Business types of the POS: configuration, catalogue, orders, tables, users and VAT.
 
+pub mod allergen;
 pub mod badge;
 pub mod config;
 pub mod menu;

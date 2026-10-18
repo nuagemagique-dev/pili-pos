@@ -29,6 +29,8 @@ import uniffi.pos_ffi.CallbackEvent
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.Category
+import uniffi.pos_ffi.CourseSettings
+import uniffi.pos_ffi.HeldCourse
 import uniffi.pos_ffi.Integrations
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.Modifier
@@ -73,6 +75,9 @@ internal fun menuItem(
     soldOut: Boolean = false,
     soldOutUntil: String? = null,
     hasModifiers: Boolean = false,
+    allergens: List<String> = emptyList(),
+    traces: List<String> = emptyList(),
+    allergensDeclared: Boolean = allergens.isNotEmpty() || traces.isNotEmpty(),
 ): MenuItem =
     MenuItem(
         id = id,
@@ -91,6 +96,9 @@ internal fun menuItem(
         soldOut = soldOut,
         soldOutUntil = soldOutUntil,
         hasModifiers = hasModifiers,
+        allergens = allergens,
+        traces = traces,
+        allergensDeclared = allergensDeclared,
     )
 
 internal fun soldOutItem(
@@ -114,6 +122,8 @@ internal fun cartLine(
     priceChanges: List<CartPriceChange> = emptyList(),
     kitchenNote: String? = null,
     online: Boolean = false,
+    course: Int = 0,
+    kitchenState: String = "unsent",
 ): CartLine =
     CartLine(
         id = id,
@@ -135,6 +145,8 @@ internal fun cartLine(
         priceChanges = priceChanges,
         kitchenNote = kitchenNote,
         online = online,
+        course = course,
+        kitchenState = kitchenState,
     )
 
 internal fun orderLine(menuItemId: Long): OrderLine =
@@ -173,7 +185,8 @@ internal fun modifier(
     id: Long,
     name: String,
     priceCents: Long = 0,
-): Modifier = Modifier(id = id, name = name, priceCents = priceCents)
+    allergens: List<String> = emptyList(),
+): Modifier = Modifier(id = id, name = name, priceCents = priceCents, allergens = allergens, allergensDeclared = allergens.isNotEmpty())
 
 internal fun group(
     id: Long,
@@ -266,6 +279,7 @@ internal class TestOrderEntry(
 }
 
 /** What the stubbed engine holds: the catalog, the cart and the switches a test turns. */
+@Suppress("LongParameterList")
 internal class OrderWorld(
     var categories: List<Category> = listOf(category(1, "Sushi"), category(2, "Boissons")),
     var items: Map<Long, List<MenuItem>> =
@@ -278,6 +292,8 @@ internal class OrderWorld(
     var hubrise: Boolean = false,
     /** The products sold out now, as `list_sold_out` answers. */
     var soldOut: List<SoldOutItem> = emptyList(),
+    var courseSettings: CourseSettings = CourseSettings(enabled = false, categoryCourses = emptyList()),
+    var held: List<HeldCourse> = emptyList(),
 )
 
 /** A started order view model with the real stores it drives, built on one engine fixture. */
@@ -319,6 +335,8 @@ internal fun TestScope.orderFixture(
     coEvery { f.engine.getOrder(any()) } answers { order(firstArg()) }
     coEvery { f.engine.listCartLines(any()) } answers { world.cart }
     coEvery { f.engine.setActiveOrder(any()) } returns Unit
+    coEvery { f.engine.getCourseSettings() } answers { world.courseSettings }
+    coEvery { f.engine.listHeldCourses(any()) } answers { world.held }
     coEvery { f.engine.getIntegrations() } answers { Integrations(world.hubrise, 0L, emptyList()) }
     coEvery { f.engine.listSoldOut(any()) } answers { world.soldOut }
     return f

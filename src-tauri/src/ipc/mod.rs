@@ -3,10 +3,13 @@
 /// The state object the wrappers manage: the engine (it derefs to the state).
 pub type Managed = pos_engine::engine::Engine;
 
+pub mod alerts;
+pub mod allergens;
 pub mod auth;
 pub mod badges;
 pub mod checkout;
 pub mod copy;
+pub mod courses;
 pub mod delivery;
 #[cfg(feature = "hubrise")]
 pub mod discount;
@@ -14,6 +17,7 @@ pub mod eft;
 pub mod export;
 pub mod fdm_monitor;
 pub mod financial;
+pub mod gift_vouchers;
 #[cfg(feature = "hubrise")]
 pub mod hubrise;
 #[cfg(feature = "hubrise")]

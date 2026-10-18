@@ -26,6 +26,9 @@ pub struct TableInfo {
     pub opened_at: Option<String>,
     /// A provisional bill was printed and the order has not changed since.
     pub pre_bill_printed: bool,
+    /// The next course waiting for "Envoyer la suite" (1 to 3), when
+    /// courses are on and the table holds one.
+    pub held_course: Option<i32>,
 }
 
 /// List tables with their current order status.
@@ -106,6 +109,7 @@ fn list_tables_numbered(state: &AppState, numbers: &[i32]) -> Result<Vec<TableIn
                 status: "occupied".to_string(),
                 opened_at: Some(opened_at),
                 pre_bill_printed,
+                held_course: super::courses::held_course(&db, order_id),
             },
             None => TableInfo {
                 table_number: t,
@@ -115,6 +119,7 @@ fn list_tables_numbered(state: &AppState, numbers: &[i32]) -> Result<Vec<TableIn
                 status: "free".to_string(),
                 opened_at: None,
                 pre_bill_printed: false,
+                held_course: None,
             },
         });
     }
@@ -182,7 +187,28 @@ pub async fn do_sign_table_order(state: &AppState, order_id: i64) -> Result<Slip
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let registered = sign_table_order_locked(state, &guard, &config, order_id, &operator).await?;
     drop(guard);
-    Ok(print_registered(state, &config, registered).await)
+    let nothing_new = registered.is_none();
+    let outcome = print_registered(state, &config, registered).await;
+    // Courses on: nothing new to sign still prints what is signed and
+    // waited for a printer, or for a course moved to an earlier one.
+    if nothing_new && super::courses::enabled(state) {
+        let table = state
+            .db
+            .lock()
+            .ok()
+            .and_then(|db| pos_db::queries::orders::get_order(&db, order_id).ok())
+            .and_then(|o| o.table_number);
+        return Ok(super::courses::print_signed(
+            state,
+            &config,
+            &operator.insz,
+            order_id,
+            table,
+            super::courses::Print::Immediate,
+        )
+        .await);
+    }
+    Ok(outcome)
 }
 
 /// An order's entries registered by a P, to print on the bar slip.

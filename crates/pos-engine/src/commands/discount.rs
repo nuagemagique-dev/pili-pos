@@ -378,6 +378,11 @@ fn apply(db: &Connection, ctx: &Ctx, input: &DiscountInput) -> Result<(), String
                 .iter()
                 .find(|l| l.line.id == line_id)
                 .ok_or(errors::LINE_NOT_FOUND)?;
+            // A gift voucher line is the voucher's face value: never
+            // discounted (its value must equal what is paid for it).
+            if super::gift_vouchers::is_voucher_line(db, line_id) {
+                return Err(errors::DISCOUNT_INVALID.into());
+            }
             // One change per line, and none under an order discount.
             if order_discount || !line.changes.is_empty() {
                 return Err(errors::DISCOUNT_ALREADY_APPLIED.into());
@@ -417,8 +422,18 @@ fn apply(db: &Connection, ctx: &Ctx, input: &DiscountInput) -> Result<(), String
                 return Err(errors::DISCOUNT_ALREADY_APPLIED.into());
             }
             // Only lines with something left to discount share it (a
-            // free line is already at 0,00).
-            let weights: Vec<i64> = lines.iter().map(|l| l.net_cents().max(0)).collect();
+            // free line is already at 0,00); a gift voucher line never
+            // shares an order discount.
+            let weights: Vec<i64> = lines
+                .iter()
+                .map(|l| {
+                    if super::gift_vouchers::is_voucher_line(db, l.line.id) {
+                        0
+                    } else {
+                        l.net_cents().max(0)
+                    }
+                })
+                .collect();
             let net_total: i64 = weights.iter().sum();
             if net_total <= 0 {
                 return Err(errors::DISCOUNT_INVALID.into());

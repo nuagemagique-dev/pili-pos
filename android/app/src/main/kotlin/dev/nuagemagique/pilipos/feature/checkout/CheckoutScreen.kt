@@ -50,6 +50,7 @@ import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import uniffi.pos_ffi.EftPayment
 import uniffi.pos_ffi.PaymentMethod
+import uniffi.pos_ffi.SlipOutcome
 
 private val DoneBadge = 96.dp
 private val DoneCardMaxWidth = 720.dp
@@ -70,6 +71,16 @@ internal data class CheckoutCallbacks(
     val onPaper: () -> Unit = {},
     val onCardManual: (Boolean) -> Unit = {},
     val onVerify: (EftPayment) -> Unit = {},
+    /** "Envoyer maintenant": release the next held course. */
+    val onSendHeld: () -> Unit = {},
+    /** A key of the code pad of the gift voucher dialog. */
+    val onVoucherKey: (NumPadKey) -> Unit = {},
+    /** "Chercher": look the typed code up. */
+    val onVoucherLookup: () -> Unit = {},
+    /** "Utiliser ce bon": the voucher found pays its part. */
+    val onVoucherApply: () -> Unit = {},
+    /** The gift voucher dialog was closed without a voucher. */
+    val onVoucherCancel: () -> Unit = {},
     val onPrintMissing: suspend (fiscalEventId: Long) -> Boolean = { false },
 )
 
@@ -112,6 +123,11 @@ internal fun CheckoutRoute(
             onPaper = model::chooseDeliveryPaper,
             onCardManual = model::setCardManual,
             onVerify = model::verifyOpen,
+            onSendHeld = model::sendHeldNow,
+            onVoucherKey = model::voucherKey,
+            onVoucherLookup = model::lookupVoucher,
+            onVoucherApply = model::applyVoucher,
+            onVoucherCancel = model::closeVoucher,
             onPrintMissing = model::printMissingOriginal,
         )
     PosScaffold(
@@ -126,6 +142,7 @@ internal fun CheckoutRoute(
                 onPaper = model::chooseDeliveryPaper,
             )
             EftOverlayHost(entry.eft())
+            state.voucher?.let { GiftVoucherDialog(it, state.amounts.restCents, callbacks) }
         },
     ) {
         CheckoutContent(state, callbacks, picker)
@@ -216,6 +233,7 @@ private fun DoneStep(
                     modifier = Modifier.testTag("checkout_fdm_warning"),
                 )
             }
+            VoucherPrints(done)
             DeliveryOutcomePanel(
                 outcome = done.delivery,
                 texts = defaultDeliveryOutcomeTexts(done.delivery),
@@ -227,6 +245,33 @@ private fun DoneStep(
                 text = vueText("finish"),
                 onClick = callbacks.onFinish,
                 modifier = Modifier.fillMaxWidth().height(DoneButtonHeight).testTag("checkout_finish"),
+            )
+        }
+    }
+}
+
+/** What became of the gift voucher slips (`gv-prints`): the voucher sold, the balance left, or a slip to print again. */
+@Composable
+private fun VoucherPrints(done: CheckoutDone) {
+    if (done.voucherPrints.isEmpty()) return
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    Column(Modifier.testTag("checkout_voucher_prints"), horizontalAlignment = Alignment.CenterHorizontally) {
+        done.voucherPrints.forEachIndexed { index, print ->
+            val ok = print.outcome == SlipOutcome.PRINTED
+            val text =
+                when {
+                    ok && print.kind == "balance" -> vueText("gv_print_balance_ok")
+                    ok -> vueText("gv_print_voucher_ok")
+                    print.outcome == SlipOutcome.NO_PRINTER -> vueText("gv_print_no_printer")
+                    else -> vueText("gv_print_failed")
+                }
+            Text(
+                text = text,
+                style = t.body.copy(fontWeight = t.weightBold),
+                color = if (ok) c.accentSuccess else c.accentDanger,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.testTag("checkout_voucher_print_$index"),
             )
         }
     }

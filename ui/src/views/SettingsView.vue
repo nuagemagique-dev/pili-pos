@@ -19,6 +19,9 @@ import BadgeEnrolDialog from "../components/BadgeEnrolDialog.vue";
 import { useBadgeStore } from "../stores/badge";
 import PeppolPanel from "../components/PeppolPanel.vue";
 import MenuEditorPanel from "../components/MenuEditorPanel.vue";
+import OwnerAlertsSettings from "../components/OwnerAlertsSettings.vue";
+import CoursesSettings from "../components/CoursesSettings.vue";
+import GiftVoucherSettings from "../components/GiftVoucherSettings.vue";
 import { hasMessage, useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
@@ -432,66 +435,72 @@ onMounted(() => {
         </section>
       </div>
 
-      <!-- Column 2: employees -->
-      <section class="panel workers-section">
-        <h2>{{ t('employees') }}</h2>
-        <p class="panel-text">{{ t('settings_presence_note') }}</p>
-        <p v-if="auth.isManager && presenceBlock" class="presence-block" data-testid="presence-block">{{ presenceBlock }}</p>
-        <div class="worker-list">
-          <div v-for="w in workers" :key="w.insz" class="worker-row">
-            <span class="avatar">{{ initial(w.name) }}</span>
-            <span class="worker-text">
-              <span class="worker-name">{{ w.name }}</span>
-              <span v-if="w.presence_only" class="worker-meta">{{ roleLabel(w) }}</span>
-              <span v-else class="worker-meta" :class="{ 'no-pin': !w.has_pin }">
-                {{ roleLabel(w) }} · {{ w.has_pin ? t('settings_pin_set') : t('settings_pin_missing') }}
+      <!-- Column 2: employees, and the courses of the kitchen slips (manager only; scrolls inside its panel) -->
+      <div class="column">
+        <section class="panel workers-section">
+          <h2>{{ t('employees') }}</h2>
+          <p class="panel-text">{{ t('settings_presence_note') }}</p>
+          <p v-if="auth.isManager && presenceBlock" class="presence-block" data-testid="presence-block">{{ presenceBlock }}</p>
+          <div class="worker-list">
+            <div v-for="w in workers" :key="w.insz" class="worker-row">
+              <span class="avatar">{{ initial(w.name) }}</span>
+              <span class="worker-text">
+                <span class="worker-name">{{ w.name }}</span>
+                <span v-if="w.presence_only" class="worker-meta">{{ roleLabel(w) }}</span>
+                <span v-else class="worker-meta" :class="{ 'no-pin': !w.has_pin }">
+                  {{ roleLabel(w) }} · {{ w.has_pin ? t('settings_pin_set') : t('settings_pin_missing') }}
+                </span>
+                <span class="worker-presence" :class="{ on: !!openShifts[w.insz] }" data-testid="presence-state">{{ shiftLabel(w) }}</span>
+                <span v-if="showBadges" class="worker-badge">
+                  <span class="worker-presence" :class="{ on: !!badgeOf(w) }" data-testid="badge-state">{{ badgeLabel(w) }}</span>
+                  <button class="badge-btn" data-testid="badge-btn" @click="onBadgeButton(w)">{{ badgeOf(w) ? t('badge_revoke') : t('badge_link') }}</button>
+                </span>
               </span>
-              <span class="worker-presence" :class="{ on: !!openShifts[w.insz] }" data-testid="presence-state">{{ shiftLabel(w) }}</span>
-              <span v-if="showBadges" class="worker-badge">
-                <span class="worker-presence" :class="{ on: !!badgeOf(w) }" data-testid="badge-state">{{ badgeLabel(w) }}</span>
-                <button class="badge-btn" data-testid="badge-btn" @click="onBadgeButton(w)">{{ badgeOf(w) ? t('badge_revoke') : t('badge_link') }}</button>
+              <span class="worker-actions">
+                <button
+                  v-if="auth.isManager && w.insz !== auth.currentUser?.insz"
+                  class="presence-btn"
+                  data-testid="presence-btn"
+                  :disabled="!!presenceBlock || presenceBusy !== null"
+                  @click="togglePresence(w)"
+                >{{ openShifts[w.insz] ? t('settings_presence_out') : t('settings_presence_in') }}</button>
+                <button v-if="!w.presence_only" class="pin-btn" @click="openPin(w)">{{ t('settings_pin_button') }}</button>
+                <button
+                  v-if="w.insz !== auth.currentUser?.insz"
+                  class="deactivate-btn"
+                  :class="{ armed: confirmDeactivate === w.insz }"
+                  @click="deactivate(w.insz)"
+                >{{ confirmDeactivate === w.insz ? t('confirm_deactivate') : t('deactivate') }}</button>
               </span>
-            </span>
-            <span class="worker-actions">
-              <button
-                v-if="auth.isManager && w.insz !== auth.currentUser?.insz"
-                class="presence-btn"
-                data-testid="presence-btn"
-                :disabled="!!presenceBlock || presenceBusy !== null"
-                @click="togglePresence(w)"
-              >{{ openShifts[w.insz] ? t('settings_presence_out') : t('settings_presence_in') }}</button>
-              <button v-if="!w.presence_only" class="pin-btn" @click="openPin(w)">{{ t('settings_pin_button') }}</button>
-              <button
-                v-if="w.insz !== auth.currentUser?.insz"
-                class="deactivate-btn"
-                :class="{ armed: confirmDeactivate === w.insz }"
-                @click="deactivate(w.insz)"
-              >{{ confirmDeactivate === w.insz ? t('confirm_deactivate') : t('deactivate') }}</button>
-            </span>
+            </div>
           </div>
-        </div>
 
-        <div class="add-worker">
-          <div class="section-label">{{ t('add') }}</div>
-          <div class="add-fields">
-            <input v-model="newName" class="field" :placeholder="t('settings_name_placeholder')" />
-            <input v-model="newInsz" class="field mono" :placeholder="t('settings_insz_hint')" maxlength="11" inputmode="numeric" />
+          <div class="add-worker">
+            <div class="section-label">{{ t('add') }}</div>
+            <div class="add-fields">
+              <input v-model="newName" class="field" :placeholder="t('settings_name_placeholder')" />
+              <input v-model="newInsz" class="field mono" :placeholder="t('settings_insz_hint')" maxlength="11" inputmode="numeric" />
+            </div>
+            <div class="segmented role-btns" role="radiogroup" :aria-label="t('role')">
+              <button
+                v-for="r in roles"
+                :key="r"
+                class="role-btn"
+                role="radio"
+                :aria-checked="newRole === r"
+                :class="{ active: newRole === r }"
+                @click="newRole = r"
+              >{{ t(`role_${r}`) }}</button>
+            </div>
+            <p v-if="addError" class="add-error">{{ addError }}</p>
+            <button class="add-btn" @click="addWorker">{{ t('settings_add_employee') }}</button>
           </div>
-          <div class="segmented role-btns" role="radiogroup" :aria-label="t('role')">
-            <button
-              v-for="r in roles"
-              :key="r"
-              class="role-btn"
-              role="radio"
-              :aria-checked="newRole === r"
-              :class="{ active: newRole === r }"
-              @click="newRole = r"
-            >{{ t(`role_${r}`) }}</button>
-          </div>
-          <p v-if="addError" class="add-error">{{ addError }}</p>
-          <button class="add-btn" @click="addWorker">{{ t('settings_add_employee') }}</button>
+        </section>
+        <div v-if="auth.isManager" class="manager-panels">
+          <CoursesSettings class="panel" />
+          <GiftVoucherSettings class="panel" />
         </div>
-      </section>
+      </div>
 
       <!-- Column 3: info, integrations, menu editor, email tickets, badges, HubRise. It scrolls as a
            whole (like the Android column): six panels do not fit 1080 px, and shrinking them overlapped. -->
@@ -516,6 +525,8 @@ onMounted(() => {
 
         <!-- Menu editor (manager only) -->
         <MenuEditorPanel v-if="auth.isManager" class="panel" />
+        <!-- Owner alerts: Telegram messages (manager only); scrolls inside its panel -->
+        <OwnerAlertsSettings v-if="auth.isManager" class="panel panel-grow" />
 
         <section class="panel deliveries-section" :class="{ 'panel-grow': !integrations.hubriseVisible }">
           <div class="panel-head">
@@ -784,6 +795,13 @@ onMounted(() => {
 .info-value { font-family: var(--font-mono); text-align: right; overflow-wrap: anywhere; }
 
 /* ── Email tickets ──────────────────────────────────────────── */
+.column > .workers-section { flex: 1; }
+.courses-section { flex-shrink: 0; max-height: 50%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.manager-panels {
+  flex-shrink: 0; max-height: 50%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; gap: 24px;
+}
+.manager-panels > .panel { flex-shrink: 0; }
 .deliveries-section { flex-shrink: 1; max-height: 45%; }
 .deliveries-section.panel-grow { max-height: none; }
 .column-scroll > .deliveries-section { flex-shrink: 0; }

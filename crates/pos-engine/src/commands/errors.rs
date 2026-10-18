@@ -295,6 +295,7 @@ pub const CONFIG_DIGITAL_TICKET: &str = "config_digital_ticket";
 pub const CONFIG_EXPORT: &str = "config_export";
 pub const CONFIG_PAYMENT_TERMINAL: &str = "config_payment_terminal";
 pub const CONFIG_PEPPOL: &str = "config_peppol";
+pub const CONFIG_ALERTS: &str = "config_alerts";
 pub const CONFIG_OTHER: &str = "config_other";
 
 // B2B invoices (event I) and the Peppol delivery queue (V11).
@@ -321,6 +322,70 @@ pub const PEPPOL_NOT_CONFIGURED: &str = "peppol_not_configured";
 pub const PEPPOL_DELIVERY_NOT_FOUND: &str = "peppol_delivery_not_found";
 /// Only a parked (failed) delivery is re-queued.
 pub const PEPPOL_DELIVERY_NOT_PARKED: &str = "peppol_delivery_not_parked";
+
+// Owner alerts.
+/// A setting of the owner alerts is out of range: `alerts_invalid|field=<name>`.
+pub const ALERTS_INVALID: &str = "alerts_invalid";
+/// No bot token: `pos.json` has no `alerts.telegram_bot_token_file`, or
+/// the file is missing or empty.
+pub const ALERTS_TOKEN_MISSING: &str = "alerts_token_missing";
+/// The test message did not arrive (`detail`: the HTTP status or the
+/// kind of transport error, never an address).
+pub const ALERTS_SEND_FAILED: &str = "alerts_send_failed";
+
+// Allergens.
+/// A code that is not one of the 14 allergens of Annex II (or a sheet
+/// language that is not offered): `allergen_unknown|code=<code>`.
+pub const ALLERGEN_UNKNOWN: &str = "allergen_unknown";
+/// The product or option to edit, or the product to print, does not
+/// exist: `allergen_target_not_found|id=<id>`.
+pub const ALLERGEN_TARGET_NOT_FOUND: &str = "allergen_target_not_found";
+
+// Courses.
+/// The line already went out on a kitchen slip: its course can no longer change.
+pub const COURSE_ALREADY_SENT: &str = "course_already_sent";
+/// A course outside 0 to 3, or a category that does not exist or is listed
+/// twice: `course_invalid|course=<n>` or `course_invalid|category=<id>`.
+pub const COURSE_INVALID: &str = "course_invalid";
+/// Courses are switched off (Settings, "Service en plusieurs temps").
+pub const COURSES_DISABLED: &str = "courses_disabled";
+/// "Envoyer la suite" with no course waiting and nothing left to print.
+pub const NO_COURSE_HELD: &str = "no_course_held";
+/// A reprint of a course no slip ever printed.
+pub const NOTHING_PRINTED: &str = "nothing_printed";
+
+// Gift vouchers.
+/// Gift vouchers are switched off (Settings, "Bons cadeaux").
+pub const GIFT_VOUCHERS_DISABLED: &str = "gift_vouchers_disabled";
+/// A settings value out of range (validity 12 to 36 months, maximum
+/// amount at least 1,00 EUR): `gift_voucher_settings_invalid|field=<name>`.
+pub const GIFT_VOUCHER_SETTINGS_INVALID: &str = "gift_voucher_settings_invalid";
+/// A voucher amount under 1,00 EUR or over the maximum:
+/// `gift_voucher_amount_invalid|max=<euros>`.
+pub const GIFT_VOUCHER_AMOUNT_INVALID: &str = "gift_voucher_amount_invalid";
+/// The quantity of a voucher line cannot change: one line, one voucher.
+pub const GIFT_VOUCHER_LINE_FIXED: &str = "gift_voucher_line_fixed";
+/// No voucher has this code.
+pub const GIFT_VOUCHER_NOT_FOUND: &str = "gift_voucher_not_found";
+/// The code is not 12 digits, or its check digits are wrong.
+pub const GIFT_VOUCHER_CODE_INVALID: &str = "gift_voucher_code_invalid";
+/// Too many failed lookups in a minute: `gift_voucher_lookup_throttled|seconds=<n>`.
+pub const GIFT_VOUCHER_LOOKUP_THROTTLED: &str = "gift_voucher_lookup_throttled";
+/// The voucher cannot be used here: cancelled, or sold in the other mode
+/// (training or normal).
+pub const GIFT_VOUCHER_NOT_USABLE: &str = "gift_voucher_not_usable";
+/// The voucher's validity ended.
+pub const GIFT_VOUCHER_EXPIRED: &str = "gift_voucher_expired";
+/// The part is more than the voucher's balance.
+pub const GIFT_VOUCHER_INSUFFICIENT: &str = "gift_voucher_insufficient";
+/// A voucher part that names no voucher, names one twice, or pays an
+/// order that sells a voucher (a voucher or meal voucher cannot pay a voucher).
+pub const GIFT_VOUCHER_PAYMENT_INVALID: &str = "gift_voucher_payment_invalid";
+/// Gift vouchers cannot be switched off while sold vouchers can still be
+/// redeemed: `gift_vouchers_outstanding|count=<n>`.
+pub const GIFT_VOUCHERS_OUTSTANDING: &str = "gift_vouchers_outstanding";
+/// The voucher sold on this line was already used: it cannot be refunded.
+pub const GIFT_VOUCHER_USED: &str = "gift_voucher_used";
 
 /// A problem of `pos.json` (an English text of
 /// `PosConfig::problems`) as a coded error: its `config_<setting>` code
@@ -375,6 +440,7 @@ pub const ALL: &[&str] = &[
     CONFIG_EXPORT,
     CONFIG_PAYMENT_TERMINAL,
     CONFIG_PEPPOL,
+    CONFIG_ALERTS,
     CONFIG_OTHER,
     INVOICE_NO_SALES,
     INVOICE_SALE_NOT_FOUND,
@@ -388,6 +454,29 @@ pub const ALL: &[&str] = &[
     PEPPOL_NOT_CONFIGURED,
     PEPPOL_DELIVERY_NOT_FOUND,
     PEPPOL_DELIVERY_NOT_PARKED,
+    ALERTS_INVALID,
+    ALERTS_TOKEN_MISSING,
+    ALERTS_SEND_FAILED,
+    ALLERGEN_UNKNOWN,
+    ALLERGEN_TARGET_NOT_FOUND,
+    COURSE_ALREADY_SENT,
+    COURSE_INVALID,
+    COURSES_DISABLED,
+    NO_COURSE_HELD,
+    NOTHING_PRINTED,
+    GIFT_VOUCHERS_DISABLED,
+    GIFT_VOUCHER_SETTINGS_INVALID,
+    GIFT_VOUCHER_AMOUNT_INVALID,
+    GIFT_VOUCHER_LINE_FIXED,
+    GIFT_VOUCHER_NOT_FOUND,
+    GIFT_VOUCHER_CODE_INVALID,
+    GIFT_VOUCHER_LOOKUP_THROTTLED,
+    GIFT_VOUCHER_NOT_USABLE,
+    GIFT_VOUCHER_EXPIRED,
+    GIFT_VOUCHER_INSUFFICIENT,
+    GIFT_VOUCHER_PAYMENT_INVALID,
+    GIFT_VOUCHER_USED,
+    GIFT_VOUCHERS_OUTSTANDING,
     NOT_LOGGED_IN,
     FORBIDDEN,
     NOT_THE_OPERATOR,

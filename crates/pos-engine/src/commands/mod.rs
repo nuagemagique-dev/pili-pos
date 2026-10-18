@@ -1,9 +1,12 @@
 pub mod access;
+pub mod alerts;
+pub mod allergens;
 pub mod auth;
 pub mod badges;
 pub mod bar_slip;
 pub mod checkout;
 pub mod copy;
+pub mod courses;
 pub mod delivery;
 #[cfg(feature = "hubrise")]
 pub mod discount;
@@ -12,6 +15,7 @@ pub mod errors;
 pub mod export;
 pub mod fdm_monitor;
 pub mod financial;
+pub mod gift_vouchers;
 #[cfg(feature = "hubrise")]
 pub mod hubrise;
 #[cfg(feature = "hubrise")]
@@ -25,6 +29,7 @@ pub mod menu_admin;
 #[cfg(feature = "hubrise")]
 pub mod modifiers;
 pub mod order;
+pub mod owner_settings;
 pub mod payment_correction;
 pub mod peppol_queue;
 #[cfg(feature = "hubrise")]

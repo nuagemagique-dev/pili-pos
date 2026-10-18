@@ -1,0 +1,37 @@
+[package]
+name = "pos-accounting"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "Accountant export (CSV files and a balanced daily journal) from a copy of pos.db. A stand-alone tool, outside the certified binary."
+
+# V12-D5: no shipped crate (pos-engine, src-tauri, android/rust/pos-ffi) depends on
+# this crate, and it depends on none of them. It reads the signed archive of a
+# copy of pos.db and nothing else, so it needs none of the POS crates at run time.
+
+[lib]
+name = "pos_accounting"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pili-accounting"
+path = "src/bin/pili-accounting.rs"
+
+[dependencies]
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+sha2 = "0.10"
+hex = "0.4"
+
+[dev-dependencies]
+# The test harness: a real archive (signed events, Z reports) to export.
+pos-engine-testkit = { path = "../pos-engine-testkit" }
+pos-engine = { path = "../pos-engine", default-features = false, features = ["hubrise", "eft-scripted"] }
+pos-core = { path = "../pos-core" }
+pos-db = { path = "../pos-db" }
+pos-fiscal = { path = "../pos-fiscal" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tempfile = "3"

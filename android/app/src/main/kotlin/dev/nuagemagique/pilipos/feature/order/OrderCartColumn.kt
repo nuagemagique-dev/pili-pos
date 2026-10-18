@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,7 +30,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.ui.components.PiliButton
@@ -52,7 +49,6 @@ private val ActionHeight = 64.dp
 private val UnpaidHeight = 48.dp
 private val BadgeSize = 26.dp
 private val Hairline = 1.dp
-private val PendingDot = 10.dp
 
 /** How often "opened at" is refreshed, in milliseconds (30 s in `CartSidebar.vue`). */
 private const val OPENED_TICK_MS = 30_000L
@@ -79,9 +75,6 @@ internal fun OrderCartColumn(
     val d = PiliTheme.dimens
     val t = PiliTheme.typography
     val dineIn = state.order?.orderType == OrderType.DINE_IN
-    // Dine-in lines not yet sent go last under an amber label; a takeaway's lines all go out with the sale.
-    val sent = if (dineIn) state.rows.filter { it.line.unsentQuantity <= 0 } else state.rows
-    val pending = if (dineIn) state.rows.filter { it.line.unsentQuantity > 0 } else emptyList()
     Column(
         modifier =
             modifier
@@ -90,37 +83,19 @@ internal fun OrderCartColumn(
                 .testTag("cart_column"),
     ) {
         CartHeader(state, actions)
-        Column(
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = d.spaceMd),
-        ) {
-            sent.forEach { OrderLineItem(it, state, actions, pending = false) }
-            if (pending.isNotEmpty()) {
-                PendingLabel()
-                pending.forEach { OrderLineItem(it, state, actions, pending = true) }
-            }
-            if (state.rows.isEmpty()) {
-                Box(Modifier.fillMaxWidth().height(EmptyHeight), contentAlignment = Alignment.Center) {
-                    Text(text = vueText("no_items"), style = t.body, color = c.textSecondary, modifier = Modifier.testTag("cart_empty"))
-                }
-            }
-        }
+        CartLines(state, actions, dineIn, Modifier.weight(1f))
         Column(
             modifier = Modifier.fillMaxWidth().drawTopLine(c.border).padding(d.spaceMd),
             verticalArrangement = Arrangement.spacedBy(d.spaceMd),
         ) {
             TotalRow(state, actions)
             if (dineIn) KitchenRow(state, actions)
+            val next = state.nextHeldCourse
+            if (dineIn && next != null) NextCourseButton(next, state.sendingNext, actions)
             if (state.canPay) PayButton(state, actions)
         }
     }
 }
-
-private val EmptyHeight = 120.dp
 
 /** "Order · Table 4" or "Order · Takeaway" (`cartTitle` of `CartSidebar.vue`). */
 @Composable
@@ -156,30 +131,6 @@ private fun OpenedAt(order: Order?) {
         maxLines = 1,
         modifier = Modifier.testTag("cart_opened"),
     )
-}
-
-/** The amber label over the lines that were not sent to the bar or kitchen yet. */
-@Composable
-private fun PendingLabel() {
-    val c = PiliTheme.colors
-    val t = PiliTheme.typography
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(top = PiliTheme.dimens.spaceMd, bottom = PiliTheme.dimens.spaceXs)
-                .semantics(mergeDescendants = true) {}
-                .testTag("cart_pending_label"),
-        horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(PendingDot).background(c.accentWarning, CircleShape))
-        Text(
-            text = vueText("not_sent_to_kitchen").uppercase(),
-            style = t.figure.copy(fontSize = t.sizeSm, fontWeight = t.weightBold),
-            color = c.accentWarning,
-        )
-    }
 }
 
 /** The unpaid button on the left (a manager only), the engine total and the VAT included on the right. */

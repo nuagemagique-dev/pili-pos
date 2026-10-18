@@ -101,6 +101,28 @@ class OrderScreenshotTest {
             canCloseUnpaid = true,
         )
 
+    // Courses on: Direct and starters printed, mains and desserts held, "Envoyer la suite (Plats)".
+    private val courseCart =
+        OrderCartState(
+            order = order(table = 4, totalCents = 3_450),
+            rows =
+                listOf(
+                    CartRow(cartLine(1, 20, "Saké", kitchenState = "printed", course = 0), LineAmount.Total(600)),
+                    CartRow(cartLine(2, 10, "Edamame", kitchenState = "printed", course = 1), LineAmount.Total(450)),
+                    CartRow(
+                        cartLine(3, 16, "Assortiment 8 pièces", kitchenState = "held", course = 2, unsent = 1),
+                        LineAmount.Total(1_650),
+                    ),
+                    CartRow(cartLine(4, 11, "Nigiri thon", kitchenState = "held", course = 2, unsent = 1), LineAmount.Total(520)),
+                    CartRow(cartLine(5, 19, "Mochi", kitchenState = "held", course = 3), LineAmount.Total(230)),
+                ),
+            canPay = true,
+            vatRows = listOf(VatSplitRow(VatCode.B, 12, 3_450, 370)),
+            unsentCount = 2,
+            coursesEnabled = true,
+            nextHeldCourse = 2,
+        )
+
     private val menu =
         MenuState(
             categories = categories,
@@ -210,6 +232,53 @@ class OrderScreenshotTest {
         capture(
             OrderUiState(signedIn = true, menu = soldOutMenu, cart = cart, dialog = OrderDialog.SoldOutList),
             "order_soldout_list",
+        )
+    }
+
+    @Test
+    fun courses() {
+        capture(OrderUiState(signedIn = true, menu = menu, cart = courseCart), "order_courses")
+    }
+
+    @Test
+    fun coursePicker() {
+        val dialog = OrderDialog.CoursePicker(lineId = 3, current = 2)
+        capture(OrderUiState(signedIn = true, menu = menu, cart = courseCart, dialog = dialog), "order_course_picker")
+    }
+
+    // Gift vouchers on: the "Bon cadeau" button in the strip above the products, and a voucher sold in the cart.
+    private val voucherCart =
+        OrderCartState(
+            order = order(table = 4, totalCents = 4_150),
+            rows =
+                listOf(
+                    CartRow(cartLine(1, 10, "Nigiri saumon", quantity = 2, nameZh = "三文鱼寿司"), LineAmount.Total(960)),
+                    CartRow(
+                        cartLine(2, 990_001, "Bon cadeau", unitPriceCents = 3_190).copy(departmentId = "GV"),
+                        LineAmount.PerUnit(1, 3_190),
+                    ),
+                ),
+            canPay = true,
+        )
+
+    @Test
+    fun giftVoucher() {
+        capture(
+            OrderUiState(signedIn = true, menu = menu.copy(giftVouchersEnabled = true), cart = voucherCart),
+            "order_gift_voucher",
+        )
+    }
+
+    @Test
+    fun giftVoucherAmountDialog() {
+        capture(
+            OrderUiState(
+                signedIn = true,
+                menu = menu.copy(giftVouchersEnabled = true),
+                cart = voucherCart,
+                dialog = OrderDialog.SellVoucher,
+            ),
+            "order_gift_voucher_amount",
         )
     }
 

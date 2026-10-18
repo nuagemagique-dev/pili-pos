@@ -77,6 +77,7 @@ pub async fn do_refund_checkout_with(
             fiscal_event_id: None,
             delivery: None,
             kitchen_slip: None,
+            gift_voucher_prints: Vec::new(),
         });
     }
     refund_sale(
@@ -147,6 +148,7 @@ pub(crate) async fn refund_sale(
                 fiscal_event_id: Some(committed.event_ids[0]),
                 delivery: recovered.follow_up.delivery,
                 kitchen_slip: None,
+                gift_voucher_prints: Vec::new(),
             });
         }
         Err(e) => return Ok(CheckoutResult::refused(e)),
@@ -155,7 +157,15 @@ pub(crate) async fn refund_sale(
     // 1. Load original fiscal event → extract FdmReference
     // Without HubRise no sale has discounts to check.
     #[cfg_attr(not(feature = "hubrise"), allow(unused_variables))]
-    let (original_ref, original_signature, original_lines, original_changes, config, bp_id) = {
+    let (
+        original_ref,
+        original_signature,
+        original_lines,
+        original_changes,
+        config,
+        bp_id,
+        original_order,
+    ) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let event = fiscal::get_fiscal_event(&db, original_fiscal_event_id)
             .map_err(|e| e.to_string())?
@@ -213,6 +223,7 @@ pub(crate) async fn refund_sale(
             original_changes,
             config,
             bp,
+            original_order_id,
         )
     };
     // Training never touches real sales: a training refund would count
@@ -239,7 +250,7 @@ pub(crate) async fn refund_sale(
 
     // 2. Create a refund order with negative-quantity lines - once
     // every item is checked, so a refused refund leaves nothing behind.
-    let (refund_order, refund_lines, refund_changes) = {
+    let (refund_order, refund_lines, refund_changes, gift_vouchers_cancelled) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
 
         // Every refund of this sale - this one included - carries the
@@ -316,6 +327,16 @@ pub(crate) async fn refund_sale(
                 }
             }
         }
+        // A refunded gift voucher sale cancels the vouchers it sold, if none
+        // was used (V12-D28); a used one stops the refund here.
+        let gift_vouchers_cancelled = super::gift_vouchers::vouchers_to_cancel(
+            &db,
+            original_order,
+            &refunded
+                .iter()
+                .map(|(q, l)| (l.menu_item_id, i64::from(*q), l.unit_price_cents))
+                .collect::<Vec<_>>(),
+        )?;
         let order = pos_db::queries::orders::create_order(
             &db,
             pos_core::order::OrderType::Takeaway,
@@ -356,7 +377,7 @@ pub(crate) async fn refund_sale(
         let changes = super::price_changes::load(&db, order.id)?.1;
         #[cfg(not(feature = "hubrise"))]
         let changes = pos_fiscal::price_change::LineChanges::new();
-        (updated_order, lines, changes)
+        (updated_order, lines, changes, gift_vouchers_cancelled)
     };
 
     // From here on the refund order exists: whatever stops the refund
@@ -443,6 +464,7 @@ pub(crate) async fn refund_sale(
             delivery: StoredDelivery::of(&resolved),
             ticket,
             webshop_order_id: original_order_id_if_online(state, original_fiscal_event_id),
+            gift_vouchers_cancelled: gift_vouchers_cancelled.clone(),
         };
         let prepared = Prepared {
             op,
@@ -472,6 +494,7 @@ pub(crate) async fn refund_sale(
                     fiscal_event_id: None,
                     delivery: None,
                     kitchen_slip: None,
+                    gift_voucher_prints: Vec::new(),
                 }),
                 Err(failure) => Err(CheckoutResult {
                     success: false,
@@ -481,6 +504,7 @@ pub(crate) async fn refund_sale(
                     fiscal_event_id: None,
                     delivery: None,
                     kitchen_slip: None,
+                    gift_voucher_prints: Vec::new(),
                 }),
             },
         )
@@ -509,6 +533,7 @@ pub(crate) async fn refund_sale(
         fiscal_event_id: Some(committed.event_ids[0]),
         delivery: done.delivery,
         kitchen_slip: None,
+        gift_voucher_prints: Vec::new(),
     })
 }
 

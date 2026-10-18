@@ -15,6 +15,10 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 | ui/src/views/OrderView.vue | feature/order/OrderScreen.kt (OrderRoute, OrderContent, OrderDialogs), MenuViewModel.kt, OrderState.kt, OrderEntryPoint.kt, OrderEntry.kt | `needs_z_report` |
 | OrderView.vue (handleAddItem, handlePriceConfirmed) over the order store | feature/order/MenuViewModel.kt over ui/state/OrderStore.kt (addItem) | `add_order_line` `update_order_line_quantity` |
 | stores/menu.ts | feature/order/MenuViewModel.kt (loadMenu, selectCategory; reload on language, CatalogUpdated, Resync) | `get_categories` `get_menu_items` |
+| components/AllergenBadges.vue, OrderView.vue (Allergènes mode, hint, legend) | feature/order/AllergenBadges.kt, AllergenBar.kt, MenuViewModel.kt (toggleAllergenMode), MenuGrid.kt, ModifierDialog.kt | `list_allergens` |
+| components/AllergenSheetDialog.vue, stores/allergens.ts | feature/order/AllergenSheetDialog.kt, MenuViewModel.kt (openAllergenSheet, printAllergenSheet) | `get_allergen_sheet` `print_allergen_sheet` |
+| components/CartSidebar.vue (course groups, `course-label`, "Envoyer la suite"), components/OrderLineItem.vue (course chip), components/CoursePickerDialog.vue | feature/order/OrderCartColumn.kt (CourseHeader, NextCourseButton), OrderLineItem.kt (CourseChip), CoursePickerDialog.kt, MenuViewModel.kt (openCoursePicker, pickCourse, sendNextCourse) over ui/state/OrderStore.kt | `set_line_course` `list_held_courses` `send_next_course` |
+| OrderView.vue ("Bon cadeau" button and amount dialog), components/OrderLineItem.vue (voucher badge, no quantity buttons, no course chip) | feature/order/AllergenBar.kt (`gift_voucher_sell`), MenuViewModel.kt (askGiftVoucher, confirmGiftVoucher), OrderScreen.kt (`OrderDialog.SellVoucher` over AmountDialog), OrderLineItem.kt (VoucherBadge) over ui/state/OrderStore.kt (addGiftVoucher) | `get_gift_voucher_settings` `add_gift_voucher_line` |
 | components/CategoryTabs.vue | feature/order/CategoryTabs.kt | - |
 | components/MenuGrid.vue | feature/order/MenuGrid.kt (MenuGrid) | - |
 | components/MenuItemButton.vue | feature/order/MenuGrid.kt (MenuItemButton, ItemLabel) over ui/format/ProductNames.kt | - |
@@ -29,6 +33,11 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 | components/VatSummary.vue | ui/components/VatSummary.kt over ui/format/CartAmounts.kt (vatRows), drawn by feature/order/OrderCartColumn.kt | - |
 
 ## Differences
+
+- **Allergens.** `set_allergens` (manager edit of a product's list) has no screen on either UI in this release; the
+  product editor of lane 3 will call it. Both UIs read the lists through the menu items (`allergens`, `traces`,
+  `allergens_declared`) and draw the legend of the 14 numbers (Vue from `list_allergens`, Compose from the Vue strings
+  `allergen_<code>`, the same texts).
 
 - **No redirect on start.** Vue sends the operator to the login screen without a user, and to Tables when there is no
   current order. The Compose screen never navigates when it starts (PD205): without a user or without an order it

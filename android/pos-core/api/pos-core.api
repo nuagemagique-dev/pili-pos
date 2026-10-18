@@ -287,6 +287,175 @@ public final class uniffi/pos_ffi/Adoption {
 public final class uniffi/pos_ffi/Adoption$Companion {
 }
 
+public final class uniffi/pos_ffi/AlertKinds {
+	public static final field Companion Luniffi/pos_ffi/AlertKinds$Companion;
+	public fun <init> (ZZZZZ)V
+	public final fun component1 ()Z
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun component4 ()Z
+	public final fun component5 ()Z
+	public final fun copy (ZZZZZ)Luniffi/pos_ffi/AlertKinds;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/AlertKinds;ZZZZZILjava/lang/Object;)Luniffi/pos_ffi/AlertKinds;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFdm ()Z
+	public final fun getOnlineWaiting ()Z
+	public final fun getPrinter ()Z
+	public final fun getTerminal ()Z
+	public final fun getZMissing ()Z
+	public fun hashCode ()I
+	public final fun setFdm (Z)V
+	public final fun setOnlineWaiting (Z)V
+	public final fun setPrinter (Z)V
+	public final fun setTerminal (Z)V
+	public final fun setZMissing (Z)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/AlertKinds$Companion {
+}
+
+public final class uniffi/pos_ffi/AlertLogRow {
+	public static final field Companion Luniffi/pos_ffi/AlertLogRow$Companion;
+	public fun <init> (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/Long;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;)Luniffi/pos_ffi/AlertLogRow;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/AlertLogRow;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/AlertLogRow;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCreatedAt ()Ljava/lang/String;
+	public final fun getDetail ()Ljava/lang/String;
+	public final fun getHttpStatus ()Ljava/lang/Long;
+	public final fun getId ()J
+	public final fun getKind ()Ljava/lang/String;
+	public final fun getOutcome ()Ljava/lang/String;
+	public final fun getTransition ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setCreatedAt (Ljava/lang/String;)V
+	public final fun setDetail (Ljava/lang/String;)V
+	public final fun setHttpStatus (Ljava/lang/Long;)V
+	public final fun setId (J)V
+	public final fun setKind (Ljava/lang/String;)V
+	public final fun setOutcome (Ljava/lang/String;)V
+	public final fun setTransition (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/AlertLogRow$Companion {
+}
+
+public final class uniffi/pos_ffi/AlertTestResult {
+	public static final field Companion Luniffi/pos_ffi/AlertTestResult$Companion;
+	public fun <init> (ZLjava/lang/String;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (ZLjava/lang/String;)Luniffi/pos_ffi/AlertTestResult;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/AlertTestResult;ZLjava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/AlertTestResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDetail ()Ljava/lang/String;
+	public final fun getSent ()Z
+	public fun hashCode ()I
+	public final fun setDetail (Ljava/lang/String;)V
+	public final fun setSent (Z)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/AlertTestResult$Companion {
+}
+
+public final class uniffi/pos_ffi/AllergenEntry {
+	public static final field Companion Luniffi/pos_ffi/AllergenEntry$Companion;
+	public fun <init> (Ljava/lang/String;ILuniffi/pos_ffi/AllergenNames;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()Luniffi/pos_ffi/AllergenNames;
+	public final fun copy (Ljava/lang/String;ILuniffi/pos_ffi/AllergenNames;)Luniffi/pos_ffi/AllergenEntry;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/AllergenEntry;Ljava/lang/String;ILuniffi/pos_ffi/AllergenNames;ILjava/lang/Object;)Luniffi/pos_ffi/AllergenEntry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getNames ()Luniffi/pos_ffi/AllergenNames;
+	public final fun getNumber ()I
+	public fun hashCode ()I
+	public final fun setCode (Ljava/lang/String;)V
+	public final fun setNames (Luniffi/pos_ffi/AllergenNames;)V
+	public final fun setNumber (I)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/AllergenEntry$Companion {
+}
+
+public final class uniffi/pos_ffi/AllergenNames {
+	public static final field Companion Luniffi/pos_ffi/AllergenNames$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Luniffi/pos_ffi/AllergenNames;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/AllergenNames;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/AllergenNames;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEn ()Ljava/lang/String;
+	public final fun getFr ()Ljava/lang/String;
+	public final fun getNl ()Ljava/lang/String;
+	public final fun getZh ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setEn (Ljava/lang/String;)V
+	public final fun setFr (Ljava/lang/String;)V
+	public final fun setNl (Ljava/lang/String;)V
+	public final fun setZh (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/AllergenNames$Companion {
+}
+
+public final class uniffi/pos_ffi/AllergenRef {
+	public static final field Companion Luniffi/pos_ffi/AllergenRef$Companion;
+	public fun <init> (Ljava/lang/String;ILjava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;ILjava/lang/String;)Luniffi/pos_ffi/AllergenRef;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/AllergenRef;Ljava/lang/String;ILjava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/AllergenRef;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getNumber ()I
+	public fun hashCode ()I
+	public final fun setCode (Ljava/lang/String;)V
+	public final fun setName (Ljava/lang/String;)V
+	public final fun setNumber (I)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/AllergenRef$Companion {
+}
+
+public final class uniffi/pos_ffi/AllergenSheetView {
+	public static final field Companion Luniffi/pos_ffi/AllergenSheetView$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;)Luniffi/pos_ffi/AllergenSheetView;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/AllergenSheetView;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/AllergenSheetView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLang ()Ljava/lang/String;
+	public final fun getProducts ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun setLang (Ljava/lang/String;)V
+	public final fun setProducts (Ljava/util/List;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/AllergenSheetView$Companion {
+}
+
 public abstract class uniffi/pos_ffi/ApplyOutcome {
 	public static final field Companion Luniffi/pos_ffi/ApplyOutcome$Companion;
 }
@@ -866,8 +1035,8 @@ public final class uniffi/pos_ffi/CallbackEvent$Companion {
 
 public final class uniffi/pos_ffi/CartLine {
 	public static final field Companion Luniffi/pos_ffi/CartLine$Companion;
-	public fun <init> (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;Z)V
-	public synthetic fun <init> (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;)V
+	public synthetic fun <init> (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()J
 	public final fun component10 ()Ljava/lang/String;
 	public final fun component11 ()Ljava/lang/String;
@@ -880,6 +1049,8 @@ public final class uniffi/pos_ffi/CartLine {
 	public final fun component18 ()Ljava/lang/String;
 	public final fun component19 ()Z
 	public final fun component2 ()J
+	public final fun component20 ()I
+	public final fun component21 ()Ljava/lang/String;
 	public final fun component3 ()J
 	public final fun component4 ()I
 	public final fun component5 ()J
@@ -887,16 +1058,18 @@ public final class uniffi/pos_ffi/CartLine {
 	public final fun component7 ()Ljava/lang/String;
 	public final fun component8 ()Ljava/lang/String;
 	public final fun component9 ()Ljava/lang/String;
-	public final fun copy (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;Z)Luniffi/pos_ffi/CartLine;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/CartLine;JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/Object;)Luniffi/pos_ffi/CartLine;
+	public final fun copy (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;)Luniffi/pos_ffi/CartLine;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/CartLine;JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/CartLine;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCode ()Ljava/lang/String;
+	public final fun getCourse ()I
 	public final fun getCreatedAt ()Ljava/lang/String;
 	public final fun getDepartmentId ()Ljava/lang/String;
 	public final fun getDepartmentName ()Ljava/lang/String;
 	public final fun getDiscountCents ()J
 	public final fun getId ()J
 	public final fun getKitchenNote ()Ljava/lang/String;
+	public final fun getKitchenState ()Ljava/lang/String;
 	public final fun getMenuItemId ()J
 	public final fun getModifiersJson ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
@@ -911,12 +1084,14 @@ public final class uniffi/pos_ffi/CartLine {
 	public final fun getVatCode ()Luniffi/pos_ffi/VatCode;
 	public fun hashCode ()I
 	public final fun setCode (Ljava/lang/String;)V
+	public final fun setCourse (I)V
 	public final fun setCreatedAt (Ljava/lang/String;)V
 	public final fun setDepartmentId (Ljava/lang/String;)V
 	public final fun setDepartmentName (Ljava/lang/String;)V
 	public final fun setDiscountCents (J)V
 	public final fun setId (J)V
 	public final fun setKitchenNote (Ljava/lang/String;)V
+	public final fun setKitchenState (Ljava/lang/String;)V
 	public final fun setMenuItemId (J)V
 	public final fun setModifiersJson (Ljava/lang/String;)V
 	public final fun setName (Ljava/lang/String;)V
@@ -994,6 +1169,25 @@ public final class uniffi/pos_ffi/Category {
 public final class uniffi/pos_ffi/Category$Companion {
 }
 
+public final class uniffi/pos_ffi/CategoryCourse {
+	public static final field Companion Luniffi/pos_ffi/CategoryCourse$Companion;
+	public fun <init> (JI)V
+	public final fun component1 ()J
+	public final fun component2 ()I
+	public final fun copy (JI)Luniffi/pos_ffi/CategoryCourse;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/CategoryCourse;JIILjava/lang/Object;)Luniffi/pos_ffi/CategoryCourse;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCategoryId ()J
+	public final fun getCourse ()I
+	public fun hashCode ()I
+	public final fun setCategoryId (J)V
+	public final fun setCourse (I)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/CategoryCourse$Companion {
+}
+
 public final class uniffi/pos_ffi/Channel {
 	public static final field Companion Luniffi/pos_ffi/Channel$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
@@ -1021,7 +1215,8 @@ public final class uniffi/pos_ffi/Channel$Companion {
 
 public final class uniffi/pos_ffi/CheckoutResult {
 	public static final field Companion Luniffi/pos_ffi/CheckoutResult$Companion;
-	public fun <init> (ZLuniffi/pos_ffi/FiscalTicket;Ljava/lang/String;ZLjava/lang/Long;Luniffi/pos_ffi/DeliveryOutcome;Luniffi/pos_ffi/SlipOutcome;)V
+	public fun <init> (ZLuniffi/pos_ffi/FiscalTicket;Ljava/lang/String;ZLjava/lang/Long;Luniffi/pos_ffi/DeliveryOutcome;Luniffi/pos_ffi/SlipOutcome;Ljava/util/List;)V
+	public synthetic fun <init> (ZLuniffi/pos_ffi/FiscalTicket;Ljava/lang/String;ZLjava/lang/Long;Luniffi/pos_ffi/DeliveryOutcome;Luniffi/pos_ffi/SlipOutcome;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Z
 	public final fun component2 ()Luniffi/pos_ffi/FiscalTicket;
 	public final fun component3 ()Ljava/lang/String;
@@ -1029,13 +1224,15 @@ public final class uniffi/pos_ffi/CheckoutResult {
 	public final fun component5 ()Ljava/lang/Long;
 	public final fun component6 ()Luniffi/pos_ffi/DeliveryOutcome;
 	public final fun component7 ()Luniffi/pos_ffi/SlipOutcome;
-	public final fun copy (ZLuniffi/pos_ffi/FiscalTicket;Ljava/lang/String;ZLjava/lang/Long;Luniffi/pos_ffi/DeliveryOutcome;Luniffi/pos_ffi/SlipOutcome;)Luniffi/pos_ffi/CheckoutResult;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/CheckoutResult;ZLuniffi/pos_ffi/FiscalTicket;Ljava/lang/String;ZLjava/lang/Long;Luniffi/pos_ffi/DeliveryOutcome;Luniffi/pos_ffi/SlipOutcome;ILjava/lang/Object;)Luniffi/pos_ffi/CheckoutResult;
+	public final fun component8 ()Ljava/util/List;
+	public final fun copy (ZLuniffi/pos_ffi/FiscalTicket;Ljava/lang/String;ZLjava/lang/Long;Luniffi/pos_ffi/DeliveryOutcome;Luniffi/pos_ffi/SlipOutcome;Ljava/util/List;)Luniffi/pos_ffi/CheckoutResult;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/CheckoutResult;ZLuniffi/pos_ffi/FiscalTicket;Ljava/lang/String;ZLjava/lang/Long;Luniffi/pos_ffi/DeliveryOutcome;Luniffi/pos_ffi/SlipOutcome;Ljava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/CheckoutResult;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDelivery ()Luniffi/pos_ffi/DeliveryOutcome;
 	public final fun getError ()Ljava/lang/String;
 	public final fun getFdmConnected ()Z
 	public final fun getFiscalEventId ()Ljava/lang/Long;
+	public final fun getGiftVoucherPrints ()Ljava/util/List;
 	public final fun getKitchenSlip ()Luniffi/pos_ffi/SlipOutcome;
 	public final fun getSuccess ()Z
 	public final fun getTicket ()Luniffi/pos_ffi/FiscalTicket;
@@ -1044,6 +1241,7 @@ public final class uniffi/pos_ffi/CheckoutResult {
 	public final fun setError (Ljava/lang/String;)V
 	public final fun setFdmConnected (Z)V
 	public final fun setFiscalEventId (Ljava/lang/Long;)V
+	public final fun setGiftVoucherPrints (Ljava/util/List;)V
 	public final fun setKitchenSlip (Luniffi/pos_ffi/SlipOutcome;)V
 	public final fun setSuccess (Z)V
 	public final fun setTicket (Luniffi/pos_ffi/FiscalTicket;)V
@@ -1166,6 +1364,25 @@ public final class uniffi/pos_ffi/CorrectionDone {
 }
 
 public final class uniffi/pos_ffi/CorrectionDone$Companion {
+}
+
+public final class uniffi/pos_ffi/CourseSettings {
+	public static final field Companion Luniffi/pos_ffi/CourseSettings$Companion;
+	public fun <init> (ZLjava/util/List;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (ZLjava/util/List;)Luniffi/pos_ffi/CourseSettings;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/CourseSettings;ZLjava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/CourseSettings;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCategoryCourses ()Ljava/util/List;
+	public final fun getEnabled ()Z
+	public fun hashCode ()I
+	public final fun setCategoryCourses (Ljava/util/List;)V
+	public final fun setEnabled (Z)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/CourseSettings$Companion {
 }
 
 public final class uniffi/pos_ffi/CreateOrderInput {
@@ -2845,6 +3062,66 @@ public final class uniffi/pos_ffi/FfiConverterSequenceTypeAdoption : uniffi/pos_
 	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeAlertLogRow : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeAlertLogRow;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeAllergenEntry : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeAllergenEntry;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeAllergenRef : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeAllergenRef;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeAttention : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeAttention;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -2947,6 +3224,26 @@ public final class uniffi/pos_ffi/FfiConverterSequenceTypeCartPriceChange : unif
 
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeCategory : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeCategory;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeCategoryCourse : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeCategoryCourse;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
 	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
 	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
@@ -3107,6 +3404,86 @@ public final class uniffi/pos_ffi/FfiConverterSequenceTypeEftPayment : uniffi/po
 
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeFiscalEventSummary : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeFiscalEventSummary;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeGiftVoucherMovement : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeGiftVoucherMovement;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeGiftVoucherPrint : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeGiftVoucherPrint;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeGiftVoucherView : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeGiftVoucherView;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeHeldCourse : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeHeldCourse;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
 	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
 	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
@@ -3587,6 +3964,46 @@ public final class uniffi/pos_ffi/FfiConverterSequenceTypeSalesProduct : uniffi/
 
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeSettledPaymentRow : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeSettledPaymentRow;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeSheetOptionView : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeSheetOptionView;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeSheetProductView : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeSheetProductView;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
 	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
 	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
@@ -4144,6 +4561,146 @@ public final class uniffi/pos_ffi/FfiConverterTypeAdoption : uniffi/pos_ffi/FfiC
 	public fun write (Luniffi/pos_ffi/Adoption;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeAlertKinds : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeAlertKinds;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/AlertKinds;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertKinds;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertKinds;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/AlertKinds;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/AlertKinds;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/AlertKinds;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/AlertKinds;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeAlertLogRow : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeAlertLogRow;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/AlertLogRow;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertLogRow;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertLogRow;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/AlertLogRow;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/AlertLogRow;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/AlertLogRow;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/AlertLogRow;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeAlertTestResult : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeAlertTestResult;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/AlertTestResult;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertTestResult;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertTestResult;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/AlertTestResult;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/AlertTestResult;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/AlertTestResult;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/AlertTestResult;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeAllergenEntry : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeAllergenEntry;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/AllergenEntry;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AllergenEntry;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AllergenEntry;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/AllergenEntry;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/AllergenEntry;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/AllergenEntry;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/AllergenEntry;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeAllergenNames : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeAllergenNames;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/AllergenNames;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AllergenNames;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AllergenNames;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/AllergenNames;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/AllergenNames;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/AllergenNames;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/AllergenNames;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeAllergenRef : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeAllergenRef;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/AllergenRef;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AllergenRef;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AllergenRef;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/AllergenRef;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/AllergenRef;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/AllergenRef;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/AllergenRef;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeAllergenSheetView : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeAllergenSheetView;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/AllergenSheetView;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AllergenSheetView;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AllergenSheetView;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/AllergenSheetView;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/AllergenSheetView;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/AllergenSheetView;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/AllergenSheetView;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeApplyOutcome : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeApplyOutcome;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -4504,6 +5061,26 @@ public final class uniffi/pos_ffi/FfiConverterTypeCategory : uniffi/pos_ffi/FfiC
 	public fun write (Luniffi/pos_ffi/Category;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeCategoryCourse : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeCategoryCourse;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/CategoryCourse;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/CategoryCourse;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/CategoryCourse;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/CategoryCourse;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/CategoryCourse;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/CategoryCourse;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/CategoryCourse;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeChannel : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeChannel;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -4622,6 +5199,26 @@ public final class uniffi/pos_ffi/FfiConverterTypeCorrectionDone : uniffi/pos_ff
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/CorrectionDone;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/CorrectionDone;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeCourseSettings : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeCourseSettings;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/CourseSettings;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/CourseSettings;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/CourseSettings;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/CourseSettings;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/CourseSettings;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/CourseSettings;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/CourseSettings;Ljava/nio/ByteBuffer;)V
 }
 
 public final class uniffi/pos_ffi/FfiConverterTypeCreateOrderInput : uniffi/pos_ffi/FfiConverterRustBuffer {
@@ -5242,6 +5839,86 @@ public final class uniffi/pos_ffi/FfiConverterTypeFiscalTicket : uniffi/pos_ffi/
 	public fun write (Luniffi/pos_ffi/FiscalTicket;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeGiftVoucherMovement : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeGiftVoucherMovement;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/GiftVoucherMovement;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/GiftVoucherMovement;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/GiftVoucherMovement;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/GiftVoucherMovement;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/GiftVoucherMovement;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/GiftVoucherMovement;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/GiftVoucherMovement;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeGiftVoucherPrint : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeGiftVoucherPrint;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/GiftVoucherPrint;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/GiftVoucherPrint;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/GiftVoucherPrint;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/GiftVoucherPrint;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/GiftVoucherPrint;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/GiftVoucherPrint;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/GiftVoucherPrint;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeGiftVoucherSettings : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeGiftVoucherSettings;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/GiftVoucherSettings;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/GiftVoucherSettings;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/GiftVoucherSettings;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/GiftVoucherSettings;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/GiftVoucherSettings;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/GiftVoucherSettings;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/GiftVoucherSettings;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeGiftVoucherView : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeGiftVoucherView;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/GiftVoucherView;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/GiftVoucherView;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/GiftVoucherView;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/GiftVoucherView;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/GiftVoucherView;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/GiftVoucherView;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/GiftVoucherView;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeHandoverRequest : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeHandoverRequest;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -5260,6 +5937,26 @@ public final class uniffi/pos_ffi/FfiConverterTypeHandoverRequest : uniffi/pos_f
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/HandoverRequest;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/HandoverRequest;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeHeldCourse : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeHeldCourse;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/HeldCourse;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/HeldCourse;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/HeldCourse;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/HeldCourse;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/HeldCourse;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/HeldCourse;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/HeldCourse;Ljava/nio/ByteBuffer;)V
 }
 
 public final class uniffi/pos_ffi/FfiConverterTypeHubriseConnectionInfo : uniffi/pos_ffi/FfiConverterRustBuffer {
@@ -5782,6 +6479,26 @@ public final class uniffi/pos_ffi/FfiConverterTypeMoneyDirection : uniffi/pos_ff
 	public fun write (Luniffi/pos_ffi/MoneyDirection;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeNextCourse : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeNextCourse;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/NextCourse;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/NextCourse;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/NextCourse;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/NextCourse;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/NextCourse;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/NextCourse;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/NextCourse;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeOpenShift : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeOpenShift;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -5900,6 +6617,46 @@ public final class uniffi/pos_ffi/FfiConverterTypeOriginalControlData : uniffi/p
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/OriginalControlData;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/OriginalControlData;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeOwnerAlerts : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeOwnerAlerts;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/OwnerAlerts;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/OwnerAlerts;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/OwnerAlerts;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/OwnerAlerts;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/OwnerAlerts;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/OwnerAlerts;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/OwnerAlerts;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeOwnerAlertsInput : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeOwnerAlertsInput;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/OwnerAlertsInput;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/OwnerAlertsInput;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/OwnerAlertsInput;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/OwnerAlertsInput;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/OwnerAlertsInput;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/OwnerAlertsInput;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/OwnerAlertsInput;Ljava/nio/ByteBuffer;)V
 }
 
 public final class uniffi/pos_ffi/FfiConverterTypePatchStatusRequest : uniffi/pos_ffi/FfiConverterRustBuffer {
@@ -6500,6 +7257,26 @@ public final class uniffi/pos_ffi/FfiConverterTypeSessionLocked : uniffi/pos_ffi
 	public fun write (Luniffi/pos_ffi/SessionLocked;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeSetAllergensInput : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeSetAllergensInput;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/SetAllergensInput;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/SetAllergensInput;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/SetAllergensInput;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/SetAllergensInput;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/SetAllergensInput;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/SetAllergensInput;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/SetAllergensInput;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeSetConfirmedTimeRequest : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeSetConfirmedTimeRequest;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -6558,6 +7335,46 @@ public final class uniffi/pos_ffi/FfiConverterTypeSettlementPreview : uniffi/pos
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/SettlementPreview;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/SettlementPreview;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeSheetOptionView : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeSheetOptionView;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/SheetOptionView;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/SheetOptionView;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/SheetOptionView;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/SheetOptionView;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/SheetOptionView;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/SheetOptionView;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/SheetOptionView;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeSheetProductView : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeSheetProductView;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/SheetProductView;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/SheetProductView;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/SheetProductView;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/SheetProductView;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/SheetProductView;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/SheetProductView;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/SheetProductView;Ljava/nio/ByteBuffer;)V
 }
 
 public final class uniffi/pos_ffi/FfiConverterTypeSignMessages : uniffi/pos_ffi/FfiConverterRustBuffer {
@@ -7319,6 +8136,115 @@ public final class uniffi/pos_ffi/FiscalTicket {
 public final class uniffi/pos_ffi/FiscalTicket$Companion {
 }
 
+public final class uniffi/pos_ffi/GiftVoucherMovement {
+	public static final field Companion Luniffi/pos_ffi/GiftVoucherMovement$Companion;
+	public fun <init> (Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()J
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;)Luniffi/pos_ffi/GiftVoucherMovement;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/GiftVoucherMovement;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/GiftVoucherMovement;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAmountCents ()J
+	public final fun getDate ()Ljava/lang/String;
+	public final fun getKind ()Ljava/lang/String;
+	public final fun getTicket ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setAmountCents (J)V
+	public final fun setDate (Ljava/lang/String;)V
+	public final fun setKind (Ljava/lang/String;)V
+	public final fun setTicket (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/GiftVoucherMovement$Companion {
+}
+
+public final class uniffi/pos_ffi/GiftVoucherPrint {
+	public static final field Companion Luniffi/pos_ffi/GiftVoucherPrint$Companion;
+	public fun <init> (JLjava/lang/String;Luniffi/pos_ffi/SlipOutcome;)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Luniffi/pos_ffi/SlipOutcome;
+	public final fun copy (JLjava/lang/String;Luniffi/pos_ffi/SlipOutcome;)Luniffi/pos_ffi/GiftVoucherPrint;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/GiftVoucherPrint;JLjava/lang/String;Luniffi/pos_ffi/SlipOutcome;ILjava/lang/Object;)Luniffi/pos_ffi/GiftVoucherPrint;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getKind ()Ljava/lang/String;
+	public final fun getOutcome ()Luniffi/pos_ffi/SlipOutcome;
+	public final fun getVoucherId ()J
+	public fun hashCode ()I
+	public final fun setKind (Ljava/lang/String;)V
+	public final fun setOutcome (Luniffi/pos_ffi/SlipOutcome;)V
+	public final fun setVoucherId (J)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/GiftVoucherPrint$Companion {
+}
+
+public final class uniffi/pos_ffi/GiftVoucherSettings {
+	public static final field Companion Luniffi/pos_ffi/GiftVoucherSettings$Companion;
+	public fun <init> (ZIJ)V
+	public final fun component1 ()Z
+	public final fun component2 ()I
+	public final fun component3 ()J
+	public final fun copy (ZIJ)Luniffi/pos_ffi/GiftVoucherSettings;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/GiftVoucherSettings;ZIJILjava/lang/Object;)Luniffi/pos_ffi/GiftVoucherSettings;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEnabled ()Z
+	public final fun getMaxAmountCents ()J
+	public final fun getValidityMonths ()I
+	public fun hashCode ()I
+	public final fun setEnabled (Z)V
+	public final fun setMaxAmountCents (J)V
+	public final fun setValidityMonths (I)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/GiftVoucherSettings$Companion {
+}
+
+public final class uniffi/pos_ffi/GiftVoucherView {
+	public static final field Companion Luniffi/pos_ffi/GiftVoucherView$Companion;
+	public fun <init> (JLjava/lang/String;JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/util/List;)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Z
+	public final fun component9 ()Ljava/util/List;
+	public final fun copy (JLjava/lang/String;JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/util/List;)Luniffi/pos_ffi/GiftVoucherView;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/GiftVoucherView;JLjava/lang/String;JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/GiftVoucherView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBalanceCents ()J
+	public final fun getCodeMasked ()Ljava/lang/String;
+	public final fun getExpiresOn ()Ljava/lang/String;
+	public final fun getFaceValueCents ()J
+	public final fun getId ()J
+	public final fun getIssuedOn ()Ljava/lang/String;
+	public final fun getMovements ()Ljava/util/List;
+	public final fun getStatus ()Ljava/lang/String;
+	public final fun getTraining ()Z
+	public fun hashCode ()I
+	public final fun setBalanceCents (J)V
+	public final fun setCodeMasked (Ljava/lang/String;)V
+	public final fun setExpiresOn (Ljava/lang/String;)V
+	public final fun setFaceValueCents (J)V
+	public final fun setId (J)V
+	public final fun setIssuedOn (Ljava/lang/String;)V
+	public final fun setMovements (Ljava/util/List;)V
+	public final fun setStatus (Ljava/lang/String;)V
+	public final fun setTraining (Z)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/GiftVoucherView$Companion {
+}
+
 public final class uniffi/pos_ffi/HandoverRequest {
 	public static final field Companion Luniffi/pos_ffi/HandoverRequest$Companion;
 	public fun <init> (JLjava/util/List;Luniffi/pos_ffi/TicketDeliveryRequest;)V
@@ -7339,6 +8265,28 @@ public final class uniffi/pos_ffi/HandoverRequest {
 }
 
 public final class uniffi/pos_ffi/HandoverRequest$Companion {
+}
+
+public final class uniffi/pos_ffi/HeldCourse {
+	public static final field Companion Luniffi/pos_ffi/HeldCourse$Companion;
+	public fun <init> (IJJ)V
+	public final fun component1 ()I
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun copy (IJJ)Luniffi/pos_ffi/HeldCourse;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/HeldCourse;IJJILjava/lang/Object;)Luniffi/pos_ffi/HeldCourse;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCourse ()I
+	public final fun getLines ()J
+	public final fun getQuantity ()J
+	public fun hashCode ()I
+	public final fun setCourse (I)V
+	public final fun setLines (J)V
+	public final fun setQuantity (J)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/HeldCourse$Companion {
 }
 
 public final class uniffi/pos_ffi/HubriseConnectionInfo {
@@ -7613,6 +8561,7 @@ public final class uniffi/pos_ffi/IssueCode : java/lang/Enum {
 	public static final field NAME_TOO_LONG Luniffi/pos_ffi/IssueCode;
 	public static final field NEGATIVE_PRICE Luniffi/pos_ffi/IssueCode;
 	public static final field NOTHING_TO_SELL Luniffi/pos_ffi/IssueCode;
+	public static final field UNKNOWN_ALLERGEN Luniffi/pos_ffi/IssueCode;
 	public static final field UNKNOWN_CATEGORY Luniffi/pos_ffi/IssueCode;
 	public static final field UNKNOWN_LANGUAGE Luniffi/pos_ffi/IssueCode;
 	public static final field UNKNOWN_OPTION_LIST Luniffi/pos_ffi/IssueCode;
@@ -7826,7 +8775,8 @@ public final class uniffi/pos_ffi/MenuChange$Companion {
 
 public final class uniffi/pos_ffi/MenuItem {
 	public static final field Companion Luniffi/pos_ffi/MenuItem$Companion;
-	public fun <init> (JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLuniffi/pos_ffi/VatCode;Luniffi/pos_ffi/VatCode;ZZIZZLjava/lang/String;Z)V
+	public fun <init> (JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLuniffi/pos_ffi/VatCode;Luniffi/pos_ffi/VatCode;ZZIZZLjava/lang/String;ZLjava/util/List;Ljava/util/List;Z)V
+	public synthetic fun <init> (JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLuniffi/pos_ffi/VatCode;Luniffi/pos_ffi/VatCode;ZZIZZLjava/lang/String;ZLjava/util/List;Ljava/util/List;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()J
 	public final fun component10 ()Z
 	public final fun component11 ()Z
@@ -7835,6 +8785,9 @@ public final class uniffi/pos_ffi/MenuItem {
 	public final fun component14 ()Z
 	public final fun component15 ()Ljava/lang/String;
 	public final fun component16 ()Z
+	public final fun component17 ()Ljava/util/List;
+	public final fun component18 ()Ljava/util/List;
+	public final fun component19 ()Z
 	public final fun component2 ()J
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Ljava/lang/String;
@@ -7843,10 +8796,12 @@ public final class uniffi/pos_ffi/MenuItem {
 	public final fun component7 ()J
 	public final fun component8 ()Luniffi/pos_ffi/VatCode;
 	public final fun component9 ()Luniffi/pos_ffi/VatCode;
-	public final fun copy (JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLuniffi/pos_ffi/VatCode;Luniffi/pos_ffi/VatCode;ZZIZZLjava/lang/String;Z)Luniffi/pos_ffi/MenuItem;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/MenuItem;JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLuniffi/pos_ffi/VatCode;Luniffi/pos_ffi/VatCode;ZZIZZLjava/lang/String;ZILjava/lang/Object;)Luniffi/pos_ffi/MenuItem;
+	public final fun copy (JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLuniffi/pos_ffi/VatCode;Luniffi/pos_ffi/VatCode;ZZIZZLjava/lang/String;ZLjava/util/List;Ljava/util/List;Z)Luniffi/pos_ffi/MenuItem;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/MenuItem;JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLuniffi/pos_ffi/VatCode;Luniffi/pos_ffi/VatCode;ZZIZZLjava/lang/String;ZLjava/util/List;Ljava/util/List;ZILjava/lang/Object;)Luniffi/pos_ffi/MenuItem;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getActive ()Z
+	public final fun getAllergens ()Ljava/util/List;
+	public final fun getAllergensDeclared ()Z
 	public final fun getCategoryId ()J
 	public final fun getCode ()Ljava/lang/String;
 	public final fun getHasModifiers ()Z
@@ -7860,10 +8815,13 @@ public final class uniffi/pos_ffi/MenuItem {
 	public final fun getSoldOut ()Z
 	public final fun getSoldOutUntil ()Ljava/lang/String;
 	public final fun getSortOrder ()I
+	public final fun getTraces ()Ljava/util/List;
 	public final fun getVatCode ()Luniffi/pos_ffi/VatCode;
 	public final fun getVatCodeTakeaway ()Luniffi/pos_ffi/VatCode;
 	public fun hashCode ()I
 	public final fun setActive (Z)V
+	public final fun setAllergens (Ljava/util/List;)V
+	public final fun setAllergensDeclared (Z)V
 	public final fun setCategoryId (J)V
 	public final fun setCode (Ljava/lang/String;)V
 	public final fun setHasModifiers (Z)V
@@ -7877,6 +8835,7 @@ public final class uniffi/pos_ffi/MenuItem {
 	public final fun setSoldOut (Z)V
 	public final fun setSoldOutUntil (Ljava/lang/String;)V
 	public final fun setSortOrder (I)V
+	public final fun setTraces (Ljava/util/List;)V
 	public final fun setVatCode (Luniffi/pos_ffi/VatCode;)V
 	public final fun setVatCodeTakeaway (Luniffi/pos_ffi/VatCode;)V
 	public fun toString ()Ljava/lang/String;
@@ -7963,20 +8922,30 @@ public final class uniffi/pos_ffi/MinisignCheck$Companion {
 
 public final class uniffi/pos_ffi/Modifier {
 	public static final field Companion Luniffi/pos_ffi/Modifier$Companion;
-	public fun <init> (JLjava/lang/String;J)V
+	public fun <init> (JLjava/lang/String;JLjava/util/List;Ljava/util/List;Z)V
+	public synthetic fun <init> (JLjava/lang/String;JLjava/util/List;Ljava/util/List;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()J
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()J
-	public final fun copy (JLjava/lang/String;J)Luniffi/pos_ffi/Modifier;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/Modifier;JLjava/lang/String;JILjava/lang/Object;)Luniffi/pos_ffi/Modifier;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Z
+	public final fun copy (JLjava/lang/String;JLjava/util/List;Ljava/util/List;Z)Luniffi/pos_ffi/Modifier;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/Modifier;JLjava/lang/String;JLjava/util/List;Ljava/util/List;ZILjava/lang/Object;)Luniffi/pos_ffi/Modifier;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAllergens ()Ljava/util/List;
+	public final fun getAllergensDeclared ()Z
 	public final fun getId ()J
 	public final fun getName ()Ljava/lang/String;
 	public final fun getPriceCents ()J
+	public final fun getTraces ()Ljava/util/List;
 	public fun hashCode ()I
+	public final fun setAllergens (Ljava/util/List;)V
+	public final fun setAllergensDeclared (Z)V
 	public final fun setId (J)V
 	public final fun setName (Ljava/lang/String;)V
 	public final fun setPriceCents (J)V
+	public final fun setTraces (Ljava/util/List;)V
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -8022,6 +8991,28 @@ public final class uniffi/pos_ffi/MoneyDirection : java/lang/Enum {
 }
 
 public final class uniffi/pos_ffi/MoneyDirection$Companion {
+}
+
+public final class uniffi/pos_ffi/NextCourse {
+	public static final field Companion Luniffi/pos_ffi/NextCourse$Companion;
+	public fun <init> (Ljava/lang/Integer;Luniffi/pos_ffi/SlipOutcome;Luniffi/pos_ffi/SlipOutcome;)V
+	public final fun component1 ()Ljava/lang/Integer;
+	public final fun component2 ()Luniffi/pos_ffi/SlipOutcome;
+	public final fun component3 ()Luniffi/pos_ffi/SlipOutcome;
+	public final fun copy (Ljava/lang/Integer;Luniffi/pos_ffi/SlipOutcome;Luniffi/pos_ffi/SlipOutcome;)Luniffi/pos_ffi/NextCourse;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/NextCourse;Ljava/lang/Integer;Luniffi/pos_ffi/SlipOutcome;Luniffi/pos_ffi/SlipOutcome;ILjava/lang/Object;)Luniffi/pos_ffi/NextCourse;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCourse ()Ljava/lang/Integer;
+	public final fun getSigned ()Luniffi/pos_ffi/SlipOutcome;
+	public final fun getSlip ()Luniffi/pos_ffi/SlipOutcome;
+	public fun hashCode ()I
+	public final fun setCourse (Ljava/lang/Integer;)V
+	public final fun setSigned (Luniffi/pos_ffi/SlipOutcome;)V
+	public final fun setSlip (Luniffi/pos_ffi/SlipOutcome;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/NextCourse$Companion {
 }
 
 public final class uniffi/pos_ffi/NoHandle {
@@ -8177,6 +9168,83 @@ public final class uniffi/pos_ffi/OriginalControlData {
 public final class uniffi/pos_ffi/OriginalControlData$Companion {
 }
 
+public final class uniffi/pos_ffi/OwnerAlerts {
+	public static final field Companion Luniffi/pos_ffi/OwnerAlerts$Companion;
+	public fun <init> (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJZ)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Luniffi/pos_ffi/AlertKinds;
+	public final fun component6 ()J
+	public final fun component7 ()J
+	public final fun component8 ()J
+	public final fun component9 ()Z
+	public final fun copy (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJZ)Luniffi/pos_ffi/OwnerAlerts;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/OwnerAlerts;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJZILjava/lang/Object;)Luniffi/pos_ffi/OwnerAlerts;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChatId ()Ljava/lang/String;
+	public final fun getEnabled ()Z
+	public final fun getKinds ()Luniffi/pos_ffi/AlertKinds;
+	public final fun getLabel ()Ljava/lang/String;
+	public final fun getLanguage ()Ljava/lang/String;
+	public final fun getOnlineWaitMinutes ()J
+	public final fun getReminderMinutes ()J
+	public final fun getTokenConfigured ()Z
+	public final fun getZDeadlineHour ()J
+	public fun hashCode ()I
+	public final fun setChatId (Ljava/lang/String;)V
+	public final fun setEnabled (Z)V
+	public final fun setKinds (Luniffi/pos_ffi/AlertKinds;)V
+	public final fun setLabel (Ljava/lang/String;)V
+	public final fun setLanguage (Ljava/lang/String;)V
+	public final fun setOnlineWaitMinutes (J)V
+	public final fun setReminderMinutes (J)V
+	public final fun setTokenConfigured (Z)V
+	public final fun setZDeadlineHour (J)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/OwnerAlerts$Companion {
+}
+
+public final class uniffi/pos_ffi/OwnerAlertsInput {
+	public static final field Companion Luniffi/pos_ffi/OwnerAlertsInput$Companion;
+	public fun <init> (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJ)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Luniffi/pos_ffi/AlertKinds;
+	public final fun component6 ()J
+	public final fun component7 ()J
+	public final fun component8 ()J
+	public final fun copy (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJ)Luniffi/pos_ffi/OwnerAlertsInput;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/OwnerAlertsInput;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJILjava/lang/Object;)Luniffi/pos_ffi/OwnerAlertsInput;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChatId ()Ljava/lang/String;
+	public final fun getEnabled ()Z
+	public final fun getKinds ()Luniffi/pos_ffi/AlertKinds;
+	public final fun getLabel ()Ljava/lang/String;
+	public final fun getLanguage ()Ljava/lang/String;
+	public final fun getOnlineWaitMinutes ()J
+	public final fun getReminderMinutes ()J
+	public final fun getZDeadlineHour ()J
+	public fun hashCode ()I
+	public final fun setChatId (Ljava/lang/String;)V
+	public final fun setEnabled (Z)V
+	public final fun setKinds (Luniffi/pos_ffi/AlertKinds;)V
+	public final fun setLabel (Ljava/lang/String;)V
+	public final fun setLanguage (Ljava/lang/String;)V
+	public final fun setOnlineWaitMinutes (J)V
+	public final fun setReminderMinutes (J)V
+	public final fun setZDeadlineHour (J)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/OwnerAlertsInput$Companion {
+}
+
 public final class uniffi/pos_ffi/PatchStatusRequest {
 	public static final field Companion Luniffi/pos_ffi/PatchStatusRequest$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
@@ -8201,6 +9269,7 @@ public final class uniffi/pos_ffi/PaymentMethod : java/lang/Enum {
 	public static final field CARD Luniffi/pos_ffi/PaymentMethod;
 	public static final field CASH Luniffi/pos_ffi/PaymentMethod;
 	public static final field Companion Luniffi/pos_ffi/PaymentMethod$Companion;
+	public static final field GIFT_VOUCHER Luniffi/pos_ffi/PaymentMethod;
 	public static final field MEAL_VOUCHER Luniffi/pos_ffi/PaymentMethod;
 	public static final field ONLINE Luniffi/pos_ffi/PaymentMethod;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
@@ -8213,20 +9282,23 @@ public final class uniffi/pos_ffi/PaymentMethod$Companion {
 
 public final class uniffi/pos_ffi/PaymentPart {
 	public static final field Companion Luniffi/pos_ffi/PaymentPart$Companion;
-	public fun <init> (Luniffi/pos_ffi/PaymentMethod;Ljava/lang/Long;Ljava/lang/Long;)V
-	public synthetic fun <init> (Luniffi/pos_ffi/PaymentMethod;Ljava/lang/Long;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Luniffi/pos_ffi/PaymentMethod;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;)V
+	public synthetic fun <init> (Luniffi/pos_ffi/PaymentMethod;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Luniffi/pos_ffi/PaymentMethod;
 	public final fun component2 ()Ljava/lang/Long;
 	public final fun component3 ()Ljava/lang/Long;
-	public final fun copy (Luniffi/pos_ffi/PaymentMethod;Ljava/lang/Long;Ljava/lang/Long;)Luniffi/pos_ffi/PaymentPart;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/PaymentPart;Luniffi/pos_ffi/PaymentMethod;Ljava/lang/Long;Ljava/lang/Long;ILjava/lang/Object;)Luniffi/pos_ffi/PaymentPart;
+	public final fun component4 ()Ljava/lang/Long;
+	public final fun copy (Luniffi/pos_ffi/PaymentMethod;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;)Luniffi/pos_ffi/PaymentPart;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/PaymentPart;Luniffi/pos_ffi/PaymentMethod;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;ILjava/lang/Object;)Luniffi/pos_ffi/PaymentPart;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAmountCents ()Ljava/lang/Long;
 	public final fun getEftPaymentId ()Ljava/lang/Long;
+	public final fun getGiftVoucherId ()Ljava/lang/Long;
 	public final fun getMethod ()Luniffi/pos_ffi/PaymentMethod;
 	public fun hashCode ()I
 	public final fun setAmountCents (Ljava/lang/Long;)V
 	public final fun setEftPaymentId (Ljava/lang/Long;)V
+	public final fun setGiftVoucherId (Ljava/lang/Long;)V
 	public final fun setMethod (Luniffi/pos_ffi/PaymentMethod;)V
 	public fun toString ()Ljava/lang/String;
 }
@@ -8300,6 +9372,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public static final field Companion Luniffi/pos_ffi/PosEngine$Companion;
 	public fun <init> (Luniffi/pos_ffi/NoHandle;)V
 	public fun <init> (Luniffi/pos_ffi/UniffiWithHandle;J)V
+	public fun addGiftVoucherLine (JJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun addOrderLine (Luniffi/pos_ffi/AddOrderLineInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun addOrderLineWithModifiers (Luniffi/pos_ffi/AddWithModifiersInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun applyDiscount (JLuniffi/pos_ffi/DiscountInput;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8334,15 +9407,19 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun generateUserXReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun generateXReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun generateZReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getAllergenSheet (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getBadgeSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getCategories (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	protected final fun getCleanable ()Luniffi/pos_ffi/UniffiCleaner$Cleanable;
+	public fun getCourseSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getCurrentUser (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getGiftVoucherSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	protected final fun getHandle ()J
 	public fun getIntegrations (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getItemModifiers (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getMenuItems (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getOwnerAlerts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getTablePlan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getUniffiIsDestroyed ()Z
@@ -8362,11 +9439,14 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun invoicePreview (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun leaveOrder (JLuniffi/pos_ffi/LeaveReason;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun linkBadge (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun listAllergens (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listBadges (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listCartLines (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listCopyableTickets (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listEftPayments (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listFiscalEvents (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun listGiftVouchers (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun listHeldCourses (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listInvoiceableSales (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listInvoices (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listMenuChanges (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8374,6 +9454,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun listOpenShifts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listOpenTakeaways (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listOrderLines (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun listOwnerAlertLog (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listPeppolDeliveries (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listRefundableEvents (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listSalePayments (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8388,6 +9469,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun loginWithNewPin (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun logout (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun lookupB2bCustomer (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun lookupGiftVoucher (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun menuAdminGet (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun menuSaveCategory (Luniffi/pos_ffi/SaveCategoryInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun menuSaveModifier (Luniffi/pos_ffi/SaveModifierInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8396,6 +9478,8 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun moneyInOut (Ljava/lang/String;JLuniffi/pos_ffi/MoneyDirection;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun needsZReport (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun openDrawerFiscal (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun printAllergenSheet (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun printGiftVoucher (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun printMissingOriginal (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun printSalesReport (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun printWebshopCustomer (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8405,15 +9489,23 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun remoteSupportStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun removeDiscount (JLjava/lang/Long;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun removeOrderLine (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun reprintCourseSlip (JILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun retryPeppolDelivery (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun revokeBadge (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun salesReport (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun saveB2bCustomer (Luniffi/pos_ffi/B2bCustomerInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun searchB2bCustomers (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun sendNextCourse (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun sendTestAlert (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setActiveOrder (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setAllergens (Luniffi/pos_ffi/SetAllergensInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setBadgeSettings (Luniffi/pos_ffi/BadgeSettingsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setCourseSettings (Luniffi/pos_ffi/CourseSettings;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setGiftVoucherSettings (Luniffi/pos_ffi/GiftVoucherSettings;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setLineCourse (JILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setLineNote (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setOwnerAlerts (Luniffi/pos_ffi/OwnerAlertsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setSoldOut (JZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8444,6 +9536,7 @@ public final class uniffi/pos_ffi/PosEngine$Companion {
 
 public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public static final field Companion Luniffi/pos_ffi/PosEngineInterface$Companion;
+	public abstract fun addGiftVoucherLine (JJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun addOrderLine (Luniffi/pos_ffi/AddOrderLineInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun addOrderLineWithModifiers (Luniffi/pos_ffi/AddWithModifiersInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun applyDiscount (JLuniffi/pos_ffi/DiscountInput;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8476,13 +9569,17 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun generateUserXReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun generateXReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun generateZReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getAllergenSheet (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getBadgeSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getCategories (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getCourseSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getCurrentUser (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getGiftVoucherSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getIntegrations (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getItemModifiers (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getMenuItems (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getOwnerAlerts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getTablePlan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun hubriseAdoptCatalog (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8501,11 +9598,14 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun invoicePreview (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun leaveOrder (JLuniffi/pos_ffi/LeaveReason;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun linkBadge (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun listAllergens (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listBadges (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listCartLines (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listCopyableTickets (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listEftPayments (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listFiscalEvents (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun listGiftVouchers (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun listHeldCourses (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listInvoiceableSales (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listInvoices (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listMenuChanges (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8513,6 +9613,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun listOpenShifts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listOpenTakeaways (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listOrderLines (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun listOwnerAlertLog (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listPeppolDeliveries (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listRefundableEvents (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listSalePayments (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8527,6 +9628,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun loginWithNewPin (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun logout (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun lookupB2bCustomer (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun lookupGiftVoucher (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun menuAdminGet (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun menuSaveCategory (Luniffi/pos_ffi/SaveCategoryInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun menuSaveModifier (Luniffi/pos_ffi/SaveModifierInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8535,6 +9637,8 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun moneyInOut (Ljava/lang/String;JLuniffi/pos_ffi/MoneyDirection;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun needsZReport (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun openDrawerFiscal (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun printAllergenSheet (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun printGiftVoucher (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun printMissingOriginal (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun printSalesReport (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun printWebshopCustomer (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8544,15 +9648,23 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun remoteSupportStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun removeDiscount (JLjava/lang/Long;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun removeOrderLine (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun reprintCourseSlip (JILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun retryPeppolDelivery (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun revokeBadge (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun salesReport (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun saveB2bCustomer (Luniffi/pos_ffi/B2bCustomerInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun searchB2bCustomers (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun sendNextCourse (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun sendTestAlert (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setActiveOrder (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setAllergens (Luniffi/pos_ffi/SetAllergensInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setBadgeSettings (Luniffi/pos_ffi/BadgeSettingsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setCourseSettings (Luniffi/pos_ffi/CourseSettings;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setGiftVoucherSettings (Luniffi/pos_ffi/GiftVoucherSettings;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setLineCourse (JILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setLineNote (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setOwnerAlerts (Luniffi/pos_ffi/OwnerAlertsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setSoldOut (JZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9454,6 +10566,35 @@ public final class uniffi/pos_ffi/SessionLocked {
 public final class uniffi/pos_ffi/SessionLocked$Companion {
 }
 
+public final class uniffi/pos_ffi/SetAllergensInput {
+	public static final field Companion Luniffi/pos_ffi/SetAllergensInput$Companion;
+	public fun <init> (Ljava/lang/String;JZLjava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;JZLjava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()J
+	public final fun component3 ()Z
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;JZLjava/util/List;Ljava/util/List;)Luniffi/pos_ffi/SetAllergensInput;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/SetAllergensInput;Ljava/lang/String;JZLjava/util/List;Ljava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/SetAllergensInput;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContains ()Ljava/util/List;
+	public final fun getDeclared ()Z
+	public final fun getEntityId ()J
+	public final fun getEntityType ()Ljava/lang/String;
+	public final fun getMayContain ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun setContains (Ljava/util/List;)V
+	public final fun setDeclared (Z)V
+	public final fun setEntityId (J)V
+	public final fun setEntityType (Ljava/lang/String;)V
+	public final fun setMayContain (Ljava/util/List;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/SetAllergensInput$Companion {
+}
+
 public final class uniffi/pos_ffi/SetConfirmedTimeRequest {
 	public static final field Companion Luniffi/pos_ffi/SetConfirmedTimeRequest$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
@@ -9515,6 +10656,68 @@ public final class uniffi/pos_ffi/SettlementPreview {
 }
 
 public final class uniffi/pos_ffi/SettlementPreview$Companion {
+}
+
+public final class uniffi/pos_ffi/SheetOptionView {
+	public static final field Companion Luniffi/pos_ffi/SheetOptionView$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;ZLjava/util/List;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Z
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;ZLjava/util/List;Ljava/util/List;)Luniffi/pos_ffi/SheetOptionView;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/SheetOptionView;Ljava/lang/String;Ljava/lang/String;ZLjava/util/List;Ljava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/SheetOptionView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContains ()Ljava/util/List;
+	public final fun getDeclared ()Z
+	public final fun getGroup ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getTraces ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun setContains (Ljava/util/List;)V
+	public final fun setDeclared (Z)V
+	public final fun setGroup (Ljava/lang/String;)V
+	public final fun setName (Ljava/lang/String;)V
+	public final fun setTraces (Ljava/util/List;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/SheetOptionView$Companion {
+}
+
+public final class uniffi/pos_ffi/SheetProductView {
+	public static final field Companion Luniffi/pos_ffi/SheetProductView$Companion;
+	public fun <init> (JLjava/lang/String;Ljava/lang/String;ZLjava/util/List;Ljava/util/List;Ljava/util/List;)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Z
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Ljava/util/List;
+	public final fun copy (JLjava/lang/String;Ljava/lang/String;ZLjava/util/List;Ljava/util/List;Ljava/util/List;)Luniffi/pos_ffi/SheetProductView;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/SheetProductView;JLjava/lang/String;Ljava/lang/String;ZLjava/util/List;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/SheetProductView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContains ()Ljava/util/List;
+	public final fun getDeclared ()Z
+	public final fun getId ()J
+	public final fun getName ()Ljava/lang/String;
+	public final fun getNameFr ()Ljava/lang/String;
+	public final fun getOptions ()Ljava/util/List;
+	public final fun getTraces ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun setContains (Ljava/util/List;)V
+	public final fun setDeclared (Z)V
+	public final fun setId (J)V
+	public final fun setName (Ljava/lang/String;)V
+	public final fun setNameFr (Ljava/lang/String;)V
+	public final fun setOptions (Ljava/util/List;)V
+	public final fun setTraces (Ljava/util/List;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/SheetProductView$Companion {
 }
 
 public final class uniffi/pos_ffi/SignMessages {
@@ -9702,7 +10905,7 @@ public final class uniffi/pos_ffi/SyncState$Companion {
 
 public final class uniffi/pos_ffi/TableInfo {
 	public static final field Companion Luniffi/pos_ffi/TableInfo$Companion;
-	public fun <init> (ILjava/lang/Long;JJLjava/lang/String;Ljava/lang/String;Z)V
+	public fun <init> (ILjava/lang/Long;JJLjava/lang/String;Ljava/lang/String;ZLjava/lang/Integer;)V
 	public final fun component1 ()I
 	public final fun component2 ()Ljava/lang/Long;
 	public final fun component3 ()J
@@ -9710,9 +10913,11 @@ public final class uniffi/pos_ffi/TableInfo {
 	public final fun component5 ()Ljava/lang/String;
 	public final fun component6 ()Ljava/lang/String;
 	public final fun component7 ()Z
-	public final fun copy (ILjava/lang/Long;JJLjava/lang/String;Ljava/lang/String;Z)Luniffi/pos_ffi/TableInfo;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/TableInfo;ILjava/lang/Long;JJLjava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Luniffi/pos_ffi/TableInfo;
+	public final fun component8 ()Ljava/lang/Integer;
+	public final fun copy (ILjava/lang/Long;JJLjava/lang/String;Ljava/lang/String;ZLjava/lang/Integer;)Luniffi/pos_ffi/TableInfo;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/TableInfo;ILjava/lang/Long;JJLjava/lang/String;Ljava/lang/String;ZLjava/lang/Integer;ILjava/lang/Object;)Luniffi/pos_ffi/TableInfo;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHeldCourse ()Ljava/lang/Integer;
 	public final fun getLineCount ()J
 	public final fun getOpenedAt ()Ljava/lang/String;
 	public final fun getOrderId ()Ljava/lang/Long;
@@ -9721,6 +10926,7 @@ public final class uniffi/pos_ffi/TableInfo {
 	public final fun getTableNumber ()I
 	public final fun getTotalCents ()J
 	public fun hashCode ()I
+	public final fun setHeldCourse (Ljava/lang/Integer;)V
 	public final fun setLineCount (J)V
 	public final fun setOpenedAt (Ljava/lang/String;)V
 	public final fun setOrderId (Ljava/lang/Long;)V

@@ -88,7 +88,7 @@ internal fun ReportsRoute(
 }
 
 /**
- * The reports screen, stateless: the four tabs (day, cash, tickets, sales) and the body of the chosen one, laid out for
+ * The reports screen, stateless: the four tabs (day, cash, tickets, sales; vouchers too when on) and the body of the chosen one, laid out for
  * 1920 x 1080 dp. Without a user it shows an empty state instead.
  * Test tags: `reports_empty`, `reports_tab_day`, `reports_tab_cash`, `reports_tab_tickets`, `reports_tab_sales`, `reports_body`.
  */
@@ -111,7 +111,7 @@ internal fun ReportsContent(
         modifier = modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary).padding(horizontal = d.spaceXl, vertical = d.spaceLg),
         verticalArrangement = Arrangement.spacedBy(d.spaceLg),
     ) {
-        TabBar(state.tab, callbacks.onTab)
+        TabBar(state.tab, state.vouchers.enabled, callbacks.onTab)
         Box(Modifier.weight(1f).fillMaxWidth().testTag("reports_body")) {
             when (state.tab) {
                 ReportsTab.DAY -> DayTab(state.day, callbacks.day)
@@ -124,6 +124,7 @@ internal fun ReportsContent(
                         invoiceCallbacks = callbacks.invoice,
                     )
                 ReportsTab.SALES -> SalesTab(sales, callbacks.sales)
+                ReportsTab.VOUCHERS -> VouchersTab(state.vouchers, callbacks.vouchers)
             }
         }
     }
@@ -132,10 +133,12 @@ internal fun ReportsContent(
 @Composable
 private fun TabBar(
     selected: ReportsTab,
+    vouchers: Boolean,
     onTab: (ReportsTab) -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm)) {
-        ReportsTab.entries.forEach { tab ->
+        // The gift vouchers tab is offered only while the setting is on.
+        ReportsTab.entries.filter { it != ReportsTab.VOUCHERS || vouchers }.forEach { tab ->
             val key = tabKey(tab)
             ChoiceButton(
                 text = vueText(key),
@@ -153,6 +156,7 @@ private fun tabKey(tab: ReportsTab): String =
         ReportsTab.CASH -> "reports_tab_cash"
         ReportsTab.TICKETS -> "reports_tab_tickets"
         ReportsTab.SALES -> "reports_tab_sales"
+        ReportsTab.VOUCHERS -> "reports_tab_vouchers"
     }
 
 /**

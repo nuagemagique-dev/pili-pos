@@ -54,6 +54,17 @@ pub struct MenuItem {
     /// order screen opens the option picker instead of adding the line plainly.
     #[serde(default)]
     pub has_modifiers: bool,
+    /// Allergen codes the product contains (Annex II codes); empty when
+    /// none or when the list is not declared (see `allergens_declared`).
+    #[serde(default)]
+    pub allergens: Vec<String>,
+    /// Allergen codes the product may contain as traces.
+    #[serde(default)]
+    pub traces: Vec<String>,
+    /// The allergen list is complete (possibly empty). False: no
+    /// information, the till says so instead of "no allergen".
+    #[serde(default)]
+    pub allergens_declared: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

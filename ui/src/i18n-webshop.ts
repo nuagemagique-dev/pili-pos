@@ -183,6 +183,7 @@ export const webshopMessages: Messages = {
   "catalog_issue_vat_mismatch": { fr: "TVA livraison et emporter différentes", en: "Delivery and collection VAT differ", zh: "外送与自取增值税不同" },
   "catalog_issue_missing_vat": { fr: "TVA manquante", en: "Missing VAT", zh: "缺少增值税" },
   "catalog_issue_unknown_option_list": { fr: "Liste d'options inconnue", en: "Unknown option list", zh: "未知选项列表" },
+  "catalog_issue_unknown_allergen": { fr: "Allergène inconnu (une étiquette allergen: ou traces: est mal écrite)", en: "Unknown allergen (an allergen: or traces: tag is misspelt)", zh: "未知过敏原（allergen: 或 traces: 标签拼写有误）" },
   // Option picker on the order screen.
   "modifier_title": { fr: "Options", en: "Options", zh: "选项" },
   "modifier_required": { fr: "Choisir {min}", en: "Pick {min}", zh: "请选 {min} 项" },

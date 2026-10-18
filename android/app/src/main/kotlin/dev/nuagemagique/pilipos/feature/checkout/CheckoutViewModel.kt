@@ -3,7 +3,10 @@ package dev.nuagemagique.pilipos.feature.checkout
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.nuagemagique.pilipos.ui.components.AmountEntryState
+import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_CODE_LENGTH
+import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_DEPARTMENT
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
+import dev.nuagemagique.pilipos.ui.components.pressVoucherKey
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.CashDisplay
 import dev.nuagemagique.pilipos.ui.format.LineAmount
@@ -30,6 +33,8 @@ import timber.log.Timber
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.EftPayment
+import uniffi.pos_ffi.GiftVoucherView
+import uniffi.pos_ffi.HeldCourse
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.PaymentMethod
@@ -94,6 +99,9 @@ internal class CheckoutViewModel(
         val summary: CheckoutSummary = CheckoutSummary(),
         val loadTried: Boolean = false,
         val cardManual: Boolean = false,
+        val sendingHeld: Boolean = false,
+        val giftVouchersEnabled: Boolean = false,
+        val voucher: VoucherDialogState? = null,
     )
 
     private data class OrderInputs(
@@ -102,23 +110,36 @@ internal class CheckoutViewModel(
         val labelMode: ProductLabelMode,
         val itemCount: Int,
         val eftActive: Boolean,
+        val nextHeld: Int? = null,
+        val sellsVoucher: Boolean = false,
     )
 
     // A terminal is linked and the till is not in training: card parts go to the terminal.
     private val eftActive: Flow<Boolean> =
         combine(settings.settings, settings.trainingMode) { current, training -> current?.paymentTerminal != null && !training }
 
-    private val labelAndTerminal: Flow<Pair<ProductLabel, Boolean>> =
-        combine(settings.productLabel, eftActive) { label, active -> label to active }
+    private data class Look(
+        val label: ProductLabel,
+        val terminal: Boolean,
+        val nextHeld: Int?,
+    )
+
+    // The label, the terminal and the next held course travel together, so that the inputs combine four flows.
+    private val labelAndTerminal: Flow<Look> =
+        combine(settings.productLabel, eftActive, order.courseSettings, order.heldCourses) { label, active, courses, held ->
+            Look(label, active, nextHeldOf(courses.enabled, held))
+        }
 
     private val orderInputs: Flow<OrderInputs> =
-        combine(order.current, order.lines, session.canTakePayment, labelAndTerminal) { current, lines, may, (label, terminal) ->
+        combine(order.current, order.lines, session.canTakePayment, labelAndTerminal) { current, lines, may, (label, terminal, nextHeld) ->
             OrderInputs(
                 order = current,
                 canTakePayment = may,
                 labelMode = if (label == ProductLabel.CODE) ProductLabelMode.CODE else ProductLabelMode.NAME,
                 itemCount = lines.sumOf { it.quantity },
                 eftActive = terminal,
+                nextHeld = nextHeld,
+                sellsVoucher = lines.any { it.departmentId == GIFT_VOUCHER_DEPARTMENT },
             )
         }
 
@@ -129,6 +150,8 @@ internal class CheckoutViewModel(
             labelMode = if (settings.productLabel.value == ProductLabel.CODE) ProductLabelMode.CODE else ProductLabelMode.NAME,
             itemCount = order.lines.value.sumOf { it.quantity },
             eftActive = eft.active(),
+            nextHeld = nextHeldOf(order.courseSettings.value.enabled, order.heldCourses.value),
+            sellsVoucher = order.lines.value.any { it.departmentId == GIFT_VOUCHER_DEPARTMENT },
         )
 
     private fun snapshot(): CheckoutUiState =
@@ -156,6 +179,7 @@ internal class CheckoutViewModel(
                     if (usable) {
                         ensureOrder()
                         refreshMail()
+                        loadGiftVoucherSetting()
                     }
                 }
         }
@@ -196,10 +220,16 @@ internal class CheckoutViewModel(
     /** The method buttons: cash is refused once a cash part is taken (Vue `selectMethod`). */
     fun selectMethod(method: PaymentMethod) {
         val local = own.value
-        if (local.step != CheckoutStep.PAY || method !in TILL_METHODS) return
-        if (method == PaymentMethod.CASH && local.taken.any { it.method == PaymentMethod.CASH }) return
-        own.update { it.copy(method = method) }
-        launchRecompute(prefill = true)
+        val usable = local.step == CheckoutStep.PAY && method in snapshot().methods
+        val cashTaken = method == PaymentMethod.CASH && local.taken.any { it.method == PaymentMethod.CASH }
+        if (!usable || cashTaken) return
+        if (method == PaymentMethod.GIFT_VOUCHER) {
+            // The gift voucher method opens its dialog; the selected method stays as it is.
+            own.update { it.copy(voucher = VoucherDialogState()) }
+        } else {
+            own.update { it.copy(method = method) }
+            launchRecompute(prefill = true)
+        }
     }
 
     /** The split buttons: [parts] equal parts, only before the first part is taken (Vue `selectSplit`). */
@@ -260,6 +290,103 @@ internal class CheckoutViewModel(
             eft.verify(payment)?.let { adopt(it) }
             recompute(prefill = true)
         }
+    }
+
+    /**
+     * "Envoyer maintenant" of the held-course warning (`sendHeldNow`): the engine signs what is unsent, releases the
+     * next held course and prints it; a refusal is shown in the footer.
+     */
+    fun sendHeldNow() {
+        if (own.value.sendingHeld || own.value.step != CheckoutStep.PAY) return
+        own.update { it.copy(sendingHeld = true, error = null) }
+        viewModelScope.launch {
+            attempt { order.sendNextCourse() }.onFailure { failure ->
+                own.update { it.copy(error = entry.errors().text(failure, settings.language.value)) }
+            }
+            own.update { it.copy(sendingHeld = false) }
+        }
+    }
+
+    // ── Gift voucher ──────────────────────────────────────────────
+
+    /** Reads the gift voucher switch (`load` of `giftVouchers.ts`); a till that does not answer has vouchers off. */
+    private suspend fun loadGiftVoucherSetting() {
+        val enabled = attempt { gateway.call { engine -> engine.getGiftVoucherSettings() } }.map { it.enabled }.getOrDefault(false)
+        own.update { it.copy(giftVouchersEnabled = enabled) }
+    }
+
+    /** A key of the code pad of the dialog: a change of the digits forgets the voucher found and the refusal. */
+    fun voucherKey(key: NumPadKey) {
+        own.update { local ->
+            val dialog = local.voucher ?: return@update local
+            local.copy(voucher = dialog.copy(digits = pressVoucherKey(dialog.digits, key), found = null, error = null))
+        }
+    }
+
+    /** "Chercher": the engine finds the voucher by its code (5 failures a minute, then it makes the operator wait). */
+    fun lookupVoucher() {
+        val dialog = own.value.voucher ?: return
+        if (dialog.digits.length != GIFT_VOUCHER_CODE_LENGTH || dialog.busy) return
+        own.update { it.copy(voucher = dialog.copy(busy = true, error = null)) }
+        viewModelScope.launch {
+            attempt { gateway.call { engine -> engine.lookupGiftVoucher(dialog.digits) } }.fold(
+                onSuccess = { view -> updateVoucher(dialog.digits) { it.copy(found = view, busy = false) } },
+                onFailure = { failure ->
+                    val text = entry.errors().text(failure, settings.language.value)
+                    updateVoucher(dialog.digits) { it.copy(found = null, error = text, busy = false) }
+                },
+            )
+        }
+    }
+
+    /** Changes the open dialog if it still shows [digits] (a dialog closed or retyped meanwhile is left alone). */
+    private fun updateVoucher(
+        digits: String,
+        change: (VoucherDialogState) -> VoucherDialogState,
+    ) {
+        own.update { local ->
+            val dialog = local.voucher
+            if (dialog != null && dialog.digits == digits) local.copy(voucher = change(dialog)) else local
+        }
+    }
+
+    /** Closes the dialog without taking anything. */
+    fun closeVoucher() {
+        own.update { it.copy(voucher = null) }
+    }
+
+    /** "Utiliser ce bon": the voucher pays the smaller of its balance and what is left (`takeVoucher`). */
+    fun applyVoucher() {
+        val found = own.value.voucher?.found
+        val cents = if (found?.status == "active") minOf(found.balanceCents, snapshot().amounts.restCents) else 0L
+        if (found != null && cents > 0L) {
+            own.update { it.copy(voucher = null) }
+            takeVoucher(found, cents)
+        }
+    }
+
+    private fun takeVoucher(
+        voucher: GiftVoucherView,
+        cents: Long,
+    ) {
+        val snapshot = snapshot()
+        if (snapshot.taken.any { it.giftVoucherId == voucher.id }) return
+        val part =
+            TakenPart(
+                method = PaymentMethod.GIFT_VOUCHER,
+                cents = cents,
+                changeCents = 0L,
+                giftVoucherId = voucher.id,
+                codeMasked = voucher.codeMasked,
+            )
+        if (cents >= snapshot.amounts.restCents) {
+            startCheckout(snapshot.taken + part, snapshot.totalCents)
+            return
+        }
+        // One cash part at most; otherwise back to cash, the default.
+        val nextMethod = if (snapshot.hasCashPart) PaymentMethod.CARD else PaymentMethod.CASH
+        own.update { it.copy(taken = snapshot.taken + part, method = nextMethod) }
+        launchRecompute(prefill = true)
     }
 
     /** The back button of the pay step: the order screen of the order being paid. */
@@ -411,6 +538,7 @@ internal class CheckoutViewModel(
                 fdmConnected = result.fdmConnected,
                 delivery = result.delivery,
                 fiscalEventId = result.fiscalEventId,
+                voucherPrints = result.giftVoucherPrints,
             )
         // The order leaves the store at once so it cannot be submitted twice; the done step reads from `done`.
         order.clearOrder()
@@ -431,7 +559,10 @@ internal class CheckoutViewModel(
 
     /** The parts as `checkout` takes them: the non-cash parts with their amount, then the cash part without one. */
     private fun payload(parts: List<TakenPart>): List<PaymentPart> {
-        val list = parts.filter { it.method != PaymentMethod.CASH }.map { PaymentPart(it.method, it.cents, it.eftPaymentId) }
+        val list =
+            parts
+                .filter { it.method != PaymentMethod.CASH }
+                .map { PaymentPart(it.method, it.cents, it.eftPaymentId, it.giftVoucherId) }
         return if (parts.any { it.method == PaymentMethod.CASH }) list + PaymentPart(PaymentMethod.CASH, null) else list
     }
 
@@ -599,7 +730,10 @@ internal class CheckoutViewModel(
         taken: List<TakenPart>,
         exact: List<Long>,
     ): SettlementPreview {
-        val held = taken.map { PaymentPart(if (it.method == PaymentMethod.CASH) PaymentMethod.CARD else it.method, it.cents) }
+        val held =
+            taken.map {
+                PaymentPart(if (it.method == PaymentMethod.CASH) PaymentMethod.CARD else it.method, it.cents, null, it.giftVoucherId)
+            }
         val standIns = exact.map { PaymentPart(PaymentMethod.CARD, it) }
         return helpers.settlePreview(total, held + standIns + CASH_PART)
     }
@@ -641,10 +775,21 @@ internal class CheckoutViewModel(
             eftActive = inputs.eftActive,
             cardManual = local.cardManual,
             eftOpen = payments.filter { it.isOpen() },
+            nextHeldCourse = inputs.nextHeld,
+            sendingHeld = local.sendingHeld,
+            giftVouchersEnabled = local.giftVouchersEnabled,
+            sellsVoucher = inputs.sellsVoucher,
+            voucher = local.voucher,
         )
     }
 
     private companion object {
+        /** The next held course, when courses are on and one waits. */
+        fun nextHeldOf(
+            enabled: Boolean,
+            held: List<HeldCourse>,
+        ): Int? = if (enabled) held.minOfOrNull { it.course } else null
+
         /** A cash part: it has no amount and pays what is left. */
         val CASH_PART = PaymentPart(PaymentMethod.CASH, null)
 

@@ -351,6 +351,12 @@ pub struct CartLine {
     /// discount on it (`discount_online_order`), so the screens hide the
     /// action.
     pub online: bool,
+    /// The line's course (kitchen only): 0 "Direct", 1 to 3. Never
+    /// part of the signed order line.
+    pub course: i32,
+    /// `unsent`, `held` (a course above the released one waits for
+    /// "Envoyer la suite") or `printed` (a kitchen slip carried the line).
+    pub kitchen_state: String,
 }
 
 /// A price change on a cart line (a till discount, an online order's).
@@ -381,10 +387,23 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
                 COALESCE((SELECT SUM(e.quantity) FROM order_entries e
                           WHERE e.line_id = ol.id AND e.sent_event_id IS NULL), 0),
                 {LINE_CODE}, ol.kitchen_note,
-                EXISTS (SELECT 1 FROM orders o WHERE o.id = ol.order_id AND o.hubrise_order_id IS NOT NULL)
+                EXISTS (SELECT 1 FROM orders o WHERE o.id = ol.order_id AND o.hubrise_order_id IS NOT NULL),
+                COALESCE((SELECT course FROM order_line_courses WHERE line_id = ol.id), 0),
+                EXISTS (SELECT 1 FROM kitchen_slip_entries k
+                        JOIN order_entries e ON e.id = k.entry_id WHERE e.line_id = ol.id)
          FROM order_lines ol WHERE ol.order_id = ?1 ORDER BY ol.id",
     ))?;
+    let released = super::courses::released_course(conn, order_id)?;
     let rows = stmt.query_map(params![order_id], |row| {
+        let course: i32 = row.get(17)?;
+        let printed: bool = row.get(18)?;
+        let kitchen_state = if printed {
+            "printed"
+        } else if course > released {
+            "held"
+        } else {
+            "unsent"
+        };
         Ok(CartLine {
             line: map_order_line(row)?,
             name_fr: row.get(11)?,
@@ -395,6 +414,8 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
             price_changes: Vec::new(),
             kitchen_note: row.get(15)?,
             online: row.get(16)?,
+            course,
+            kitchen_state: kitchen_state.to_string(),
         })
     })?;
     #[allow(unused_mut)]

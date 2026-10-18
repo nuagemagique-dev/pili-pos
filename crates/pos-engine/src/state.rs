@@ -63,6 +63,9 @@ pub struct AppState {
     pub support: crate::commands::support::SupportState,
     /// Wrong PIN attempts (`commands::access::verify_pin`).
     pub pin_throttle: crate::commands::access::PinThrottle,
+    /// Failed gift voucher lookups of the last minute
+    /// (`commands::gift_vouchers`).
+    pub gift_voucher_lookups: crate::commands::gift_vouchers::LookupThrottle,
     /// Held while a fiscal event is signed (`commands::signing`).
     pub signing: crate::commands::signing::SigningLock,
     /// The last FDM status answer (`commands::checkout::do_check_fdm_status`).
@@ -92,6 +95,9 @@ pub struct AppState {
     /// Badge scans being handled or just handled, by badge hash
     /// (`commands::badges`, L5-D10). In memory: a restart clears it.
     pub badge_repeats: Mutex<std::collections::HashMap<String, Repeat>>,
+    /// What the owner alert worker remembers between passes
+    /// (`crate::alerts`).
+    pub owner_alerts: crate::alerts::AlertRuntime,
     /// A terminal that answers from a script, used in place of the
     /// configured one (`commands::eft`). Tests only: the field exists
     /// under the `eft-scripted` feature, which no shipped build enables.

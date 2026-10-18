@@ -131,6 +131,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 
 | Command | Module | Engine function | Call | Build |
 |---|---|---|---|---|
+| `add_gift_voucher_line` | `gift_vouchers` | `commands::gift_vouchers::do_add_gift_voucher_line` | sync | cert |
 | `add_order_line` | `order` | `commands::order::do_add_order_line` | sync | cert |
 | `add_order_line_with_modifiers` | `modifiers` | `commands::modifiers::do_add_order_line_with_modifiers` | sync | cert |
 | `apply_discount` | `discount` | `commands::discount::do_apply_discount` | async | cert |
@@ -161,13 +162,17 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `generate_user_x_report` | `report` | `commands::report::do_generate_user_x_report` | async | cert |
 | `generate_x_report` | `report` | `commands::report::do_generate_x_report` | async | cert |
 | `generate_z_report` | `report` | `commands::report::do_generate_z_report` | async | cert |
+| `get_allergen_sheet` | `allergens` | `commands::allergens::do_get_allergen_sheet` | sync | cert |
 | `get_badge_settings` | `badges` | `commands::badges::do_get_badge_settings` | sync | cert |
 | `get_categories` | `menu` | `commands::menu::do_get_categories` | sync | cert |
+| `get_course_settings` | `courses` | `commands::courses::do_get_course_settings` | sync | cert |
 | `get_current_user` | `auth` | `commands::auth::do_get_current_user` | sync | cert |
+| `get_gift_voucher_settings` | `gift_vouchers` | `commands::gift_vouchers::do_get_gift_voucher_settings` | sync | cert |
 | `get_integrations` | `integrations` | `commands::integrations::do_get_integrations` | sync | cert |
 | `get_item_modifiers` | `modifiers` | `commands::modifiers::do_get_item_modifiers_localized` | sync | cert |
 | `get_menu_items` | `menu` | `commands::menu::do_get_menu_items` | sync | cert |
 | `get_order` | `order` | `commands::order::do_get_order` | sync | cert |
+| `get_owner_alerts` | `alerts` | `commands::alerts::do_get_owner_alerts` | sync | cert |
 | `get_settings` | `settings` | `commands::settings::do_get_settings` | sync | cert |
 | `get_table_plan` | `table_plan` | `commands::table_plan::do_get_table_plan` | sync | cert |
 | `hubrise_adopt_catalog` | `hubrise` | `commands::hubrise::do_adopt_catalog` | sync | cert |
@@ -186,15 +191,19 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `issue_b2b_invoice` | `invoice` | `commands::invoice::do_issue_b2b_invoice` | async | peppol only |
 | `leave_order` | `session` | `commands::session::do_leave_order` | async | cert |
 | `link_badge` | `badges` | `commands::badges::do_link_badge` | sync | cert |
+| `list_allergens` | `allergens` | `commands::allergens::do_list_allergens` | sync | cert |
 | `list_badges` | `badges` | `commands::badges::do_list_badges` | sync | cert |
 | `list_cart_lines` | `order` | `commands::order::do_list_cart_lines` | sync | cert |
 | `list_copyable_tickets` | `copy` | `commands::copy::do_list_copyable_tickets` | sync | cert |
 | `list_eft_payments` | `eft` | `commands::eft::do_list_eft_payments` | sync | cert |
 | `list_fiscal_events` | `copy` | `commands::copy::do_list_fiscal_events` | sync | cert |
+| `list_gift_vouchers` | `gift_vouchers` | `commands::gift_vouchers::do_list_gift_vouchers` | sync | cert |
+| `list_held_courses` | `courses` | `commands::courses::do_list_held_courses` | sync | cert |
 | `list_open_orders` | `order` | `commands::order::do_list_open_orders` | sync | cert |
 | `list_open_shifts` | `social` | `commands::social::do_list_open_shifts` | sync | cert |
 | `list_open_takeaways` | `tables` | `commands::tables::do_list_open_takeaways` | sync | cert |
 | `list_order_lines` | `order` | `commands::order::do_list_order_lines` | sync | cert |
+| `list_owner_alert_log` | `alerts` | `commands::alerts::do_list_owner_alert_log` | sync | cert |
 | `list_refundable_events` | `refund` | `commands::refund::do_list_refundable_events` | sync | cert |
 | `list_sale_payments` | `payment_correction` | `commands::payment_correction::do_list_sale_payments` | sync | cert |
 | `list_tables` | `tables` | `commands::tables::do_list_configured_tables` | sync | cert |
@@ -206,9 +215,12 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `login` | `auth` | `commands::auth::do_login` | sync | cert |
 | `login_with_new_pin` | `auth` | `commands::auth::do_login_with_new_pin` | sync | cert |
 | `logout` | `auth` | `commands::auth::do_logout` | sync | cert |
+| `lookup_gift_voucher` | `gift_vouchers` | `commands::gift_vouchers::do_lookup_gift_voucher` | sync | cert |
 | `money_in_out` | `financial` | `commands::financial::do_money_in_out` | async | cert |
 | `needs_z_report` | `report` | `commands::report::do_needs_z_report` | sync | cert |
 | `open_drawer_fiscal` | `financial` | `commands::financial::do_open_drawer_fiscal` | async | cert |
+| `print_allergen_sheet` | `allergens` | `commands::allergens::do_print_allergen_sheet` | async | cert |
+| `print_gift_voucher` | `gift_vouchers` | `commands::gift_vouchers::do_print_gift_voucher` | async | cert |
 | `print_missing_original` | `delivery` | `commands::delivery::do_print_missing_original` | async | cert |
 | `print_webshop_customer` | `print` | `commands::print::do_print_webshop_customer` | async | cert |
 | `print_webshop_kitchen` | `print` | `commands::print::do_print_webshop_kitchen` | async | cert |
@@ -217,11 +229,19 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `remote_support_status` | `support` | `commands::support::do_remote_support_status` | sync | cert |
 | `remove_discount` | `discount` | `commands::discount::do_remove_discount` | async | cert |
 | `remove_order_line` | `order` | `commands::order::do_remove_order_line` | sync | cert |
+| `reprint_course_slip` | `courses` | `commands::courses::do_reprint_course_slip` | async | cert |
 | `revoke_badge` | `badges` | `commands::badges::do_revoke_badge` | sync | cert |
+| `send_next_course` | `courses` | `commands::courses::do_send_next_course` | async | cert |
+| `send_test_alert` | `alerts` | `commands::alerts::do_send_test_alert` | async | cert |
 | `set_active_order` | `session` | `commands::session::do_set_active_order` | sync | cert |
+| `set_allergens` | `allergens` | `commands::allergens::do_set_allergens` | sync | cert |
 | `set_badge_settings` | `badges` | `commands::badges::do_set_badge_settings` | sync | cert |
+| `set_course_settings` | `courses` | `commands::courses::do_set_course_settings` | sync | cert |
+| `set_gift_voucher_settings` | `gift_vouchers` | `commands::gift_vouchers::do_set_gift_voucher_settings` | sync | cert |
 | `set_hubrise_enabled` | `integrations` | `commands::integrations::do_set_hubrise_enabled` | sync | cert |
+| `set_line_course` | `courses` | `commands::courses::do_set_line_course` | sync | cert |
 | `set_line_note` | `order` | `commands::order::do_set_line_note` | async | cert |
+| `set_owner_alerts` | `alerts` | `commands::alerts::do_set_owner_alerts` | sync | cert |
 | `set_pin` | `auth` | `commands::auth::do_set_pin` | sync | cert |
 | `set_table_plan` | `table_plan` | `commands::table_plan::do_set_table_plan` | sync | cert |
 | `set_training_mode` | `settings` | `commands::settings::do_set_training_mode` | sync | cert |

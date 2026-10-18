@@ -118,6 +118,8 @@ const DEFAULT_CART_LINE = {
   price_changes: [],
   kitchen_note: null,
   online: false,
+  course: 0,
+  kitchen_state: 'unsent',
 };
 
 const DEFAULT_TABLE = (n: number) => ({
@@ -128,7 +130,26 @@ const DEFAULT_TABLE = (n: number) => ({
   status: 'free',
   openedAt: null,
   preBillPrinted: false,
+  heldCourse: null,
 });
+
+// The 14 allergens of Annex II (what `list_allergens` returns).
+const ALLERGEN_LEGEND = [
+  ['gluten', 'Céréales contenant du gluten', 'Glutenbevattende granen', 'Cereals containing gluten', '含麸质的谷物'],
+  ['crustaceans', 'Crustacés', 'Schaaldieren', 'Crustaceans', '甲壳类'],
+  ['eggs', 'Œufs', 'Eieren', 'Eggs', '蛋'],
+  ['fish', 'Poissons', 'Vis', 'Fish', '鱼'],
+  ['peanuts', 'Arachides', "Pinda's", 'Peanuts', '花生'],
+  ['soybeans', 'Soja', 'Soja', 'Soybeans', '大豆'],
+  ['milk', 'Lait', 'Melk', 'Milk', '奶'],
+  ['nuts', 'Fruits à coque', 'Noten', 'Nuts', '坚果'],
+  ['celery', 'Céleri', 'Selderij', 'Celery', '芹菜'],
+  ['mustard', 'Moutarde', 'Mosterd', 'Mustard', '芥末'],
+  ['sesame', 'Sésame', 'Sesamzaad', 'Sesame', '芝麻'],
+  ['sulphites', 'Sulfites', 'Sulfiet', 'Sulphites', '亚硫酸盐'],
+  ['lupin', 'Lupin', 'Lupine', 'Lupin', '羽扇豆'],
+  ['molluscs', 'Mollusques', 'Weekdieren', 'Molluscs', '软体动物'],
+].map(([code, fr, nl, en, zh], i) => ({ code, number: i + 1, names: { fr, nl, en, zh } }));
 
 // ── Handler registry ────────────────────────────────────────────
 
@@ -651,6 +672,48 @@ function defaultHandlers(): Record<string, Handler> {
     // Table plan: 1 to 20 until a spec changes it.
     get_table_plan: () => ({ plan: '1-20', table_count: 20, log: [] }),
     set_table_plan: (args: any) => ({ plan: args.plan, table_count: 0, log: [] }),
+
+    // Owner alerts: off, no token, until a spec says otherwise.
+    get_owner_alerts: () => ({
+      enabled: false, chat_id: '', label: '', language: 'fr',
+      kinds: { fdm: true, printer: true, terminal: true, z_missing: true, online_waiting: true },
+      z_deadline_hour: 5, online_wait_minutes: 5, reminder_minutes: 60,
+      token_configured: false,
+    }),
+    set_owner_alerts: (args: any) => ({ ...args.input, token_configured: false }),
+    send_test_alert: () => ({ sent: true, detail: 'ok' }),
+    list_owner_alert_log: () => [],
+
+    // Courses: off until a spec says otherwise.
+    get_course_settings: () => ({ enabled: false, category_courses: [] }),
+    set_course_settings: live((args: any) => args.input),
+    set_line_course: () => null,
+    list_held_courses: () => [],
+    send_next_course: () => ({ course: null, signed: null, slip: 'nothing_to_print' }),
+    reprint_course_slip: () => 'printed',
+
+    // Gift vouchers: off until a spec says otherwise.
+    get_gift_voucher_settings: () => ({ enabled: false, validity_months: 12, max_amount_cents: 50000 }),
+    set_gift_voucher_settings: live((args: any) => args.input),
+    add_gift_voucher_line: (args: any) => ({
+      id: 900, order_id: args.orderId, menu_item_id: 990001, quantity: 1,
+      unit_price_cents: args.amountCents, vat_code: 'X', name: 'Bon cadeau', modifiers_json: null,
+      created_at: '2026-10-17T10:00:00+02:00', department_id: 'GV', department_name: 'Bon cadeau',
+    }),
+    lookup_gift_voucher: live(() => { throw 'gift_voucher_not_found'; }),
+    list_gift_vouchers: () => [],
+    print_gift_voucher: () => 'printed',
+
+    // The 14 EU allergens: the legend, and an undeclared product by default.
+    list_allergens: () => ALLERGEN_LEGEND,
+    get_allergen_sheet: live((args: any) => ({
+      lang: args?.lang ?? 'fr',
+      products: [{
+        id: args?.menuItemId ?? 1, name: 'Maki saumon x8', name_fr: 'Maki saumon x8',
+        declared: false, contains: [], traces: [], options: [],
+      }],
+    })),
+    print_allergen_sheet: () => 'printed',
 
     // HubRise: switched on by default (the webshop specs use it).
     get_integrations: () => ({ hubrise_enabled: true, online_orders_open: 0, hubrise_log: [] }),

@@ -6,7 +6,7 @@ import dev.nuagemagique.pilipos.R
 /** Vue message key to Android string resource id, in the order of the Vue dictionary. */
 internal object VueStringIds {
     private val ids: Map<String, Int> by lazy {
-        buildMap { part0(); part1(); part2(); part3() }
+        buildMap { part0(); part1(); part2(); part3(); part4() }
     }
 
     /** Every Vue key, in dictionary order. */
@@ -140,6 +140,9 @@ internal object VueStringIds {
         this["err_dine_in_needs_table"] = R.string.err_dine_in_needs_table
         this["err_takeaway_has_no_table"] = R.string.err_takeaway_has_no_table
         this["err_table_plan_invalid"] = R.string.err_table_plan_invalid
+        this["err_alerts_invalid"] = R.string.err_alerts_invalid
+        this["err_alerts_token_missing"] = R.string.err_alerts_token_missing
+        this["err_alerts_send_failed"] = R.string.err_alerts_send_failed
         this["err_quantity_positive"] = R.string.err_quantity_positive
         this["err_order_not_open"] = R.string.err_order_not_open
         this["err_price_positive"] = R.string.err_price_positive
@@ -250,6 +253,7 @@ internal object VueStringIds {
         this["err_peppol_not_configured"] = R.string.err_peppol_not_configured
         this["err_peppol_delivery_not_found"] = R.string.err_peppol_delivery_not_found
         this["err_peppol_delivery_not_parked"] = R.string.err_peppol_delivery_not_parked
+        this["err_config_alerts"] = R.string.err_config_alerts
         this["err_config_other"] = R.string.err_config_other
         this["err_internal_error"] = R.string.err_internal_error
         this["pin_choose"] = R.string.pin_choose
@@ -262,13 +266,13 @@ internal object VueStringIds {
         this["free"] = R.string.free
         this["items_short"] = R.string.items_short
         this["takeaway_new"] = R.string.takeaway_new
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["takeaway_badge"] = R.string.takeaway_badge
         this["report_x"] = R.string.report_x
         this["report_z"] = R.string.report_z
         this["report_x_desc"] = R.string.report_x_desc
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["report_user_x"] = R.string.report_user_x
         this["report_user_x_desc"] = R.string.report_user_x_desc
         this["confirm_z"] = R.string.confirm_z
@@ -452,6 +456,78 @@ internal object VueStringIds {
         this["check_unreachable"] = R.string.check_unreachable
         this["check_reachable"] = R.string.check_reachable
         this["check_not_configured"] = R.string.check_not_configured
+        this["allergen_gluten"] = R.string.allergen_gluten
+        this["allergen_crustaceans"] = R.string.allergen_crustaceans
+        this["allergen_eggs"] = R.string.allergen_eggs
+        this["allergen_fish"] = R.string.allergen_fish
+        this["allergen_peanuts"] = R.string.allergen_peanuts
+        this["allergen_soybeans"] = R.string.allergen_soybeans
+        this["allergen_milk"] = R.string.allergen_milk
+        this["allergen_nuts"] = R.string.allergen_nuts
+        this["allergen_celery"] = R.string.allergen_celery
+        this["allergen_mustard"] = R.string.allergen_mustard
+        this["allergen_sesame"] = R.string.allergen_sesame
+        this["allergen_sulphites"] = R.string.allergen_sulphites
+        this["allergen_lupin"] = R.string.allergen_lupin
+        this["allergen_molluscs"] = R.string.allergen_molluscs
+        this["allergens_mode"] = R.string.allergens_mode
+        this["allergens_hint"] = R.string.allergens_hint
+        this["allergens_legend"] = R.string.allergens_legend
+        this["allergens_title"] = R.string.allergens_title
+        this["allergens_contains"] = R.string.allergens_contains
+        this["allergens_traces"] = R.string.allergens_traces
+        this["allergens_none"] = R.string.allergens_none
+        this["allergens_unknown"] = R.string.allergens_unknown
+        this["allergens_options"] = R.string.allergens_options
+        this["allergens_print_one"] = R.string.allergens_print_one
+        this["allergens_print_all"] = R.string.allergens_print_all
+        this["allergens_close"] = R.string.allergens_close
+        this["allergens_printed"] = R.string.allergens_printed
+        this["allergens_print_failed"] = R.string.allergens_print_failed
+        this["allergens_no_printer"] = R.string.allergens_no_printer
+        this["allergens_nothing"] = R.string.allergens_nothing
+        this["allergens_regulation"] = R.string.allergens_regulation
+        this["err_allergen_unknown"] = R.string.err_allergen_unknown
+        this["err_allergen_target_not_found"] = R.string.err_allergen_target_not_found
+        this["course_0"] = R.string.course_0
+        this["course_1"] = R.string.course_1
+        this["course_2"] = R.string.course_2
+        this["course_3"] = R.string.course_3
+        this["course_picker_title"] = R.string.course_picker_title
+        this["course_cancel"] = R.string.course_cancel
+        this["course_held_tag"] = R.string.course_held_tag
+        this["course_chip_label"] = R.string.course_chip_label
+        this["send_next_course"] = R.string.send_next_course
+        this["course_sent"] = R.string.course_sent
+        this["course_resent"] = R.string.course_resent
+        this["table_held_course"] = R.string.table_held_course
+        this["checkout_held_warning"] = R.string.checkout_held_warning
+        this["checkout_send_now"] = R.string.checkout_send_now
+        this["err_course_already_sent"] = R.string.err_course_already_sent
+        this["err_course_invalid"] = R.string.err_course_invalid
+        this["err_courses_disabled"] = R.string.err_courses_disabled
+        this["err_no_course_held"] = R.string.err_no_course_held
+        this["err_nothing_printed"] = R.string.err_nothing_printed
+        this["err_gift_vouchers_disabled"] = R.string.err_gift_vouchers_disabled
+        this["err_gift_voucher_settings_invalid"] = R.string.err_gift_voucher_settings_invalid
+        this["err_gift_voucher_amount_invalid"] = R.string.err_gift_voucher_amount_invalid
+        this["err_gift_voucher_line_fixed"] = R.string.err_gift_voucher_line_fixed
+        this["err_gift_voucher_not_found"] = R.string.err_gift_voucher_not_found
+        this["err_gift_voucher_code_invalid"] = R.string.err_gift_voucher_code_invalid
+        this["err_gift_voucher_lookup_throttled"] = R.string.err_gift_voucher_lookup_throttled
+        this["err_gift_voucher_not_usable"] = R.string.err_gift_voucher_not_usable
+        this["err_gift_voucher_expired"] = R.string.err_gift_voucher_expired
+        this["err_gift_voucher_insufficient"] = R.string.err_gift_voucher_insufficient
+        this["err_gift_voucher_payment_invalid"] = R.string.err_gift_voucher_payment_invalid
+    }
+
+    private fun MutableMap<String, Int>.part2() {
+        this["err_gift_voucher_used"] = R.string.err_gift_voucher_used
+        this["err_gift_vouchers_outstanding"] = R.string.err_gift_vouchers_outstanding
+        this["gv_sell_button"] = R.string.gv_sell_button
+        this["gv_sell_title"] = R.string.gv_sell_title
+        this["gv_sell_item"] = R.string.gv_sell_item
+        this["gv_line_badge"] = R.string.gv_line_badge
         this["method_cash"] = R.string.method_cash
         this["method_card"] = R.string.method_card
         this["method_meal_voucher"] = R.string.method_meal_voucher
@@ -492,6 +568,26 @@ internal object VueStringIds {
         this["eft_kind_ccv_opi"] = R.string.eft_kind_ccv_opi
         this["checkout_subtotal"] = R.string.checkout_subtotal
         this["checkout_discount"] = R.string.checkout_discount
+        this["method_gift_voucher"] = R.string.method_gift_voucher
+        this["gv_dialog_title"] = R.string.gv_dialog_title
+        this["gv_code_label"] = R.string.gv_code_label
+        this["gv_lookup"] = R.string.gv_lookup
+        this["gv_balance"] = R.string.gv_balance
+        this["gv_expires"] = R.string.gv_expires
+        this["gv_status_active"] = R.string.gv_status_active
+        this["gv_status_used"] = R.string.gv_status_used
+        this["gv_status_expired"] = R.string.gv_status_expired
+        this["gv_status_cancelled"] = R.string.gv_status_cancelled
+        this["gv_status_not_usable"] = R.string.gv_status_not_usable
+        this["gv_training_tag"] = R.string.gv_training_tag
+        this["gv_use_amount"] = R.string.gv_use_amount
+        this["gv_apply"] = R.string.gv_apply
+        this["gv_applied"] = R.string.gv_applied
+        this["gv_sold_no_other"] = R.string.gv_sold_no_other
+        this["gv_print_voucher_ok"] = R.string.gv_print_voucher_ok
+        this["gv_print_balance_ok"] = R.string.gv_print_balance_ok
+        this["gv_print_failed"] = R.string.gv_print_failed
+        this["gv_print_no_printer"] = R.string.gv_print_no_printer
         this["reports_tab_day"] = R.string.reports_tab_day
         this["reports_tab_cash"] = R.string.reports_tab_cash
         this["reports_tab_tickets"] = R.string.reports_tab_tickets
@@ -519,9 +615,6 @@ internal object VueStringIds {
         this["reports_declare_drawer"] = R.string.reports_declare_drawer
         this["reports_save_in"] = R.string.reports_save_in
         this["reports_save_out"] = R.string.reports_save_out
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["reports_tickets_title"] = R.string.reports_tickets_title
         this["reports_tickets_hint"] = R.string.reports_tickets_hint
         this["reports_copy"] = R.string.reports_copy
@@ -628,6 +721,20 @@ internal object VueStringIds {
         this["sales_price_changes"] = R.string.sales_price_changes
         this["sales_refunds"] = R.string.sales_refunds
         this["sales_rounding"] = R.string.sales_rounding
+        this["reports_tab_vouchers"] = R.string.reports_tab_vouchers
+        this["gv_lookup_title"] = R.string.gv_lookup_title
+        this["gv_list_title"] = R.string.gv_list_title
+        this["gv_filter_all"] = R.string.gv_filter_all
+        this["gv_empty"] = R.string.gv_empty
+        this["gv_face"] = R.string.gv_face
+        this["gv_issued_on"] = R.string.gv_issued_on
+        this["gv_reprint"] = R.string.gv_reprint
+        this["gv_reprinted"] = R.string.gv_reprinted
+        this["gv_movements"] = R.string.gv_movements
+        this["gv_movement_issue"] = R.string.gv_movement_issue
+        this["gv_movement_redeem"] = R.string.gv_movement_redeem
+        this["gv_movement_cancel"] = R.string.gv_movement_cancel
+        this["gv_disabled_note"] = R.string.gv_disabled_note
         this["settings_training_on"] = R.string.settings_training_on
         this["settings_training_off"] = R.string.settings_training_off
         this["settings_training_effect"] = R.string.settings_training_effect
@@ -665,6 +772,9 @@ internal object VueStringIds {
         this["settings_badges"] = R.string.settings_badges
         this["badge_reader_off"] = R.string.badge_reader_off
         this["badge_reader_usb"] = R.string.badge_reader_usb
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["settings_badge_login"] = R.string.settings_badge_login
         this["settings_badge_login_note"] = R.string.settings_badge_login_note
         this["settings_badge_usb_timing"] = R.string.settings_badge_usb_timing
@@ -769,12 +879,63 @@ internal object VueStringIds {
         this["menu_ed_field_min_select"] = R.string.menu_ed_field_min_select
         this["menu_ed_field_max_select"] = R.string.menu_ed_field_max_select
         this["menu_ed_field_group_id"] = R.string.menu_ed_field_group_id
+        this["courses_title"] = R.string.courses_title
+        this["courses_state_on"] = R.string.courses_state_on
+        this["courses_state_off"] = R.string.courses_state_off
+        this["courses_note"] = R.string.courses_note
+        this["courses_categories"] = R.string.courses_categories
+        this["courses_no_categories"] = R.string.courses_no_categories
+        this["courses_save"] = R.string.courses_save
+        this["courses_saved"] = R.string.courses_saved
+        this["alerts_title"] = R.string.alerts_title
+        this["alerts_state_on"] = R.string.alerts_state_on
+        this["alerts_state_off"] = R.string.alerts_state_off
+        this["alerts_token_ok"] = R.string.alerts_token_ok
+        this["alerts_token_missing_pill"] = R.string.alerts_token_missing_pill
+        this["alerts_token_missing_note"] = R.string.alerts_token_missing_note
+        this["alerts_chat_id"] = R.string.alerts_chat_id
+        this["alerts_chat_id_unset"] = R.string.alerts_chat_id_unset
+        this["alerts_label"] = R.string.alerts_label
+        this["alerts_label_placeholder"] = R.string.alerts_label_placeholder
+        this["alerts_language"] = R.string.alerts_language
+        this["alerts_kinds"] = R.string.alerts_kinds
+        this["alerts_kind_fdm"] = R.string.alerts_kind_fdm
+        this["alerts_kind_printer"] = R.string.alerts_kind_printer
+        this["alerts_kind_terminal"] = R.string.alerts_kind_terminal
+        this["alerts_kind_z_missing"] = R.string.alerts_kind_z_missing
+        this["alerts_kind_online_waiting"] = R.string.alerts_kind_online_waiting
+        this["alerts_z_deadline"] = R.string.alerts_z_deadline
+        this["alerts_online_wait"] = R.string.alerts_online_wait
+        this["alerts_reminder"] = R.string.alerts_reminder
+        this["alerts_value_minutes"] = R.string.alerts_value_minutes
+        this["alerts_value_hour"] = R.string.alerts_value_hour
+        this["alerts_value_never"] = R.string.alerts_value_never
+        this["alerts_save"] = R.string.alerts_save
+        this["alerts_saved"] = R.string.alerts_saved
+        this["alerts_test"] = R.string.alerts_test
+        this["alerts_test_sent"] = R.string.alerts_test_sent
+        this["alerts_note"] = R.string.alerts_note
+        this["alerts_log_title"] = R.string.alerts_log_title
+        this["alerts_log_empty"] = R.string.alerts_log_empty
+        this["alerts_transition_raised"] = R.string.alerts_transition_raised
+        this["alerts_transition_reminder"] = R.string.alerts_transition_reminder
+        this["alerts_transition_resolved"] = R.string.alerts_transition_resolved
+        this["alerts_transition_test"] = R.string.alerts_transition_test
+        this["alerts_outcome_sent"] = R.string.alerts_outcome_sent
+        this["alerts_outcome_failed"] = R.string.alerts_outcome_failed
+        this["alerts_outcome_suppressed"] = R.string.alerts_outcome_suppressed
+        this["alerts_minus"] = R.string.alerts_minus
+        this["gv_settings_title"] = R.string.gv_settings_title
+        this["gv_settings_on"] = R.string.gv_settings_on
+        this["gv_settings_off"] = R.string.gv_settings_off
+        this["gv_settings_note"] = R.string.gv_settings_note
+        this["gv_settings_validity"] = R.string.gv_settings_validity
+        this["gv_settings_max"] = R.string.gv_settings_max
+        this["gv_settings_save"] = R.string.gv_settings_save
+        this["gv_settings_saved"] = R.string.gv_settings_saved
         this["integrations_title"] = R.string.integrations_title
         this["integrations_hubrise_text"] = R.string.integrations_hubrise_text
         this["integrations_on"] = R.string.integrations_on
-    }
-
-    private fun MutableMap<String, Int>.part3() {
         this["integrations_off"] = R.string.integrations_off
         this["integrations_turn_on"] = R.string.integrations_turn_on
         this["integrations_turn_off"] = R.string.integrations_turn_off
@@ -864,6 +1025,9 @@ internal object VueStringIds {
         this["webshop_attention_unknown_charge"] = R.string.webshop_attention_unknown_charge
         this["webshop_attention_fractional_quantity"] = R.string.webshop_attention_fractional_quantity
         this["webshop_attention_bad_price"] = R.string.webshop_attention_bad_price
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["webshop_attention_vat_mismatch"] = R.string.webshop_attention_vat_mismatch
         this["webshop_attention_discount"] = R.string.webshop_attention_discount
         this["webshop_attention_total_mismatch"] = R.string.webshop_attention_total_mismatch
@@ -904,6 +1068,7 @@ internal object VueStringIds {
         this["catalog_issue_vat_mismatch"] = R.string.catalog_issue_vat_mismatch
         this["catalog_issue_missing_vat"] = R.string.catalog_issue_missing_vat
         this["catalog_issue_unknown_option_list"] = R.string.catalog_issue_unknown_option_list
+        this["catalog_issue_unknown_allergen"] = R.string.catalog_issue_unknown_allergen
         this["modifier_title"] = R.string.modifier_title
         this["modifier_required"] = R.string.modifier_required
         this["modifier_range"] = R.string.modifier_range

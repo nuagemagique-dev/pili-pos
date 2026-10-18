@@ -1718,3 +1718,418 @@ Merge of lane 3 (android/lane-v11) into android/int after lanes 1, 2 and 5.
 - **INT-D9 Settings route test after the merge.** The badge reader panel (lane 5) sits above the Peppol panel (lane 3) in the third settings column, so `SettingsRouteSignedInTest` scrolls to `peppol_section` before asserting it is displayed. The test also stops the Peppol polling in a `finally` block: a failed assertion left the 30 s poll running and `runTest`'s final drain looped on virtual time until the test JVM ran out of heap (about 600 000 `listPeppolDeliveries` calls recorded by mockk), which hid the real assertion. Goldens re-recorded after review: `reports_tickets_manager`, `reports_payment_correction`, `settings_peppol`. Plan and captures to retake: `docs/android/phases/merge-int-lane3.md`.
 - **INT-D10 The Vue settings columns scroll.** After the merge the third settings column holds six panels (information, integrations, Carte from lane 3, email tickets, badge reader from lane 5, HubRise) and the first one seven when Peppol is configured. The columns were non-scrolling flex columns whose panels may shrink, so at 1920 x 1080 the panels overlapped: the Carte panel covered the integrations switch (two `settings.spec.ts` HubRise switch tests timed out on the click) and the email tickets panel was squashed under the badge panel. Columns 1 and 3 now scroll as a whole (`.column-scroll`), their panels keep their natural height, the email tickets panel keeps its 45 % cap with its list scrolling inside, and the last panel still fills the rest. This is what the Android settings columns already do (`verticalScroll`). Playwright 624 of 624.
 - **INT-D11 Lane 5's route test meets lane 3's Peppol poll.** `SettingsRouteTest.theBadgeLambdasReachTheRealBadgeModel` (lane 5) draws the settings route for a manager, which now starts the Peppol poll (lane 3); the composition is not disposed before `runTest` drains its scheduler, so the drain looped on the 30 s poll until the test JVM ran out of heap and the suite stopped at 1049 of 2577 tests. Its `finally` block now stops the poll, as `SettingsRouteSignedInTest` does (INT-D9). Full `:app:testDebugUnitTest`: 2577 tests, 0 failures.
+## Lane 4-v12 (2026-10-17)
+
+Owner features for the v1.2 certified update (plan `docs/android/phases/LANE_V12.md`). This section is
+appended by each task of the lane; T1 (accountant export) wrote the first entries.
+
+- **Base gate F (T1, before any change).** At `c35b7d46` (the lane base `b3248d2d` plus the plan commit),
+  in `android/rust`: `cargo fmt --all --check` clean, `cargo clippy --workspace --all-targets --locked
+  -- -D warnings` clean, `cargo test --workspace --locked` green (pos-ffi 24 passed, the second suite 233
+  passed, 0 failed). `error::tests::every_code_of_both_lists_maps_to_coded`, which failed in
+  `gates-rc2.log` at `6a7b5fc8`, passes at this base: it was fixed upstream between the two commits. No
+  failure exists at the base of this lane.
+- **V12-D1 Migrations 60 to 63.** 60 `owner-settings-alerts` (B), 61 `allergens` (C), 62 `courses` (D),
+  63 `gift-vouchers` (E), in a new `crates/pos-db/src/schema_v12.rs`, registered in a `V12_MIGRATIONS`
+  slice of `migrate.rs`, in every build (no cargo feature), with the test
+  `the_v12_migrations_are_60_to_63_and_in_every_build` extended by each task. T1 adds none (the export
+  tool is stand-alone and changes no schema). Renumbering at merge touches `schema_v12.rs`, the registry
+  and that test only.
+- **V12-D2 One owner-settings store.** `owner_settings(key, value_json, changed_at, changed_by)` and the
+  append-only `owner_settings_log`; keys `alerts`, `courses`, `gift_vouchers`; no `CHECK` on the key;
+  values validated in Rust with `deny_unknown_fields`; an absent key means the feature's defaults (off);
+  every set writes the row and a log row in one transaction. Implemented by T2.
+- **V12-D3 Who.** Settings of B, D, E and allergen edits: `Access::Admin`. Sending the next course,
+  changing a line's course, selling and redeeming a voucher, voucher lookup, printing allergen sheets:
+  any logged-in staff that may already do the underlying action. The voucher list and duplicates: admin.
+- **V12-D4 Off by default, today's behaviour kept.** With B, D and E off every existing test passes
+  unchanged and the till behaves as v1.0.0 and v1.1. C only shows data the catalog or an admin entered.
+- **V12-D5 A separate tool, outside the certified binary.** New crate `crates/pos-accounting`
+  (`publish = false`, library plus binary `pili-accounting`), a workspace member that no shipped crate
+  depends on. `crates/pos-accounting/tests/isolation.rs` fails if the `Cargo.toml` of `pos-engine`,
+  `src-tauri`, `android/rust/pos-ffi` (and `android/rust`, `pos-core`, `pos-db`, `pos-fiscal`,
+  `pos-print`, `pos-export`) names `pos-accounting`, if the Android lock files name it, or if its own
+  `[dependencies]` name a `pos-*` crate. Choice made in T1: the tool has no POS crate as a run-time
+  dependency (it parses the archive as plain SQLite and JSON), which is stricter than the plan (the plan
+  allowed `pos-engine-testkit` as a dev-dependency only; the tests also dev-depend on `pos-engine`,
+  `pos-core`, `pos-db` and `pos-fiscal` to drive the real commands and migrations). Rationale: an
+  on-till screen would grow the certified binary and need an SPF update for every format tweak an
+  accountant asks for.
+- **V12-D6 Input is a copy of `pos.db`.** `SQLITE_OPEN_READ_ONLY` with the URI `mode=ro&immutable=1`;
+  `--db` takes a file or an SPF export folder (its `pos.db` is used and `MANIFEST.sha256`, `sha256sum`
+  format, is verified when present: `manifest_mismatch`); a database whose `_migrations_applied` lacks
+  version 4 is refused (`not_a_pili_db`). Added in T1 (conservative reading): a non-empty `pos.db-wal`
+  beside the file is refused (`db_unreadable`), because immutable mode ignores a WAL and the copy of a
+  live database would silently miss what the WAL still holds; the SPF export and a backup are
+  consistent single files.
+- **V12-D7 Signed data only.** Rows read: `fiscal_events` with `fdm_response_json` not null and type N, I
+  or F (an event whose signed `event_label` differs from its type is skipped), the closing R event of
+  each period, `z_reports` and `booking_periods`. Never `orders`, `order_lines`, `payments`. Training
+  (T), copy (C), pro forma (P), social (S) and X reports are never read. Channel from the signed cost
+  center (`TABLE` dine-in, none takeaway, other online); a refund without a cost center of its own
+  takes the channel of the ticket its `fdmRef` names, found in the archive; refund detection as in
+  `pos-export/src/stats.rs`. A gift voucher sale is a line whose `departmentId` (or `productId`) is `GV`.
+- **V12-D8 Period equals closed booking periods.** `--month` or `--from/--to`, filtered on
+  `booking_periods.booking_date`. Rows are per booking period, not per calendar date: two Z on one date
+  (two periods) give two rows, each with its Z number. Reconciliation per period against the signed Z:
+  N ticket count, turnover (Σ lines after price changes), VAT base, VAT and total per label (Z `vats`
+  against Σ `vatCalc`), payments per `(type, amountType)` (Z `totalAmount`). Any gap is
+  `RECONCILIATION_FAILED` (exit 2) naming the date, the Z number and the field; nothing is written. An
+  open period is left out and named in `LISEZMOI.txt`; a range with only open periods is `period_open`,
+  a range with no period `empty_range`. Not reconciled (no Z counterpart): invoices, cash movements,
+  gift voucher rows.
+- **V12-D9 Formats.** Detail CSVs UTF-8 with BOM, `;`, CRLF, decimal comma (`--decimal point`), an
+  integer `_centimes` column next to every amount; free text from the till that starts with `=`, `+`,
+  `-` or `@` gets a leading apostrophe. The generic journal profile is the reference (decimal point,
+  `YYYY-MM-DD`). `winbooks` and `yuki` are best effort from public import descriptions (Winbooks:
+  `DBKCODE;DBKTYPE=PRI;DOCNUMBER;DOCORDER;ACCOUNTGL;BOOKYEAR;PERIOD;DATE=YYYY/MM/DD;COMMENT;AMOUNTEUR`
+  signed debit positive, `VATCODE`; Yuki: `Date=dd-mm-yyyy;Journal;Reference;Account;Description;Debit;
+  Credit;VATCode` with a decimal comma, the one place the plan left open); both need a test import at the
+  accountant (open question Q1). Exact Online goes through the generic file. Default accounts: sales
+  700000/700100/700200/700300/700400 for labels A/B/C/D/X, VAT 451021/451012/451006, cash 570000, card
+  580000, meal vouchers 580100, app 580200, online 580300, other 580900, gift vouchers outstanding
+  489000, rounding 657000 (cost) and 757000 (income), tips to return 489100, sales not collected 400000
+  (the last three are T1 additions to the plan's list, needed for a day to balance: tips, unpaid sales
+  and the D/X sales). The journal debits collections per method (payments, rounding, tips), debits
+  unpaid sales, credits sales per label (VAT X gift voucher lines go to 489000, not to a sales
+  account), VAT as total minus the FDM's base, rounding and tips; a redeemed voucher debits 489000. An
+  unbalanced entry is `journal_unbalanced` (it cannot happen on a day that reconciles). An accounts file
+  with an unknown key or an invalid account number is refused (`accounts_invalid`).
+- **V12-D10 Output folder.** `export-comptable-<from>-<to>/` written under a `.partial` name and renamed
+  (a stale `.partial` of an interrupted run is replaced); an existing folder is never overwritten
+  (`out_exists`). Files: `jours.csv`, `tva.csv`, `paiements.csv`, `remboursements.csv`, `factures.csv`,
+  `bons_cadeaux.csv`, `mouvements_caisse.csv`, `rapports_z.csv`, `journal.csv`, `LISEZMOI.txt` (French,
+  source file name and SHA-256, periods included and left out, conventions) and `MANIFEST.sha256`
+  (sorted, `sha256sum` format). The only run-dependent value is the generation time in `LISEZMOI.txt`.
+  No INSZ and no operator name; the customer name and VAT number only in `factures.csv`; the label of a
+  cash movement is the text typed at the till (documented in the dossier draft).
+- **T1: invoices (I events).** `factures.csv` takes the M150 shape (`invoiceNo`, `customerVatNo`,
+  `fdmRefs`; the customer name from `customerName`, `customer.name` or `costCenter.name` when present)
+  and gets its amounts from the archived sales the `fdmRefs` name; tickets not in the archive are listed
+  and counted in `tickets_introuvables`, never guessed. Invoices are informative: their tickets are
+  already in the sales of their own period.
+- **T1: expected failures of the p5/p6 gates on this lane (plan section 7).** `hygiene-paths`
+  (changes outside `android/`, `scripts/android/`, `docs/android/`), `hygiene-root-lock` (root
+  `Cargo.toml` and `Cargo.lock` gain the `pos-accounting` package), `linux-frozen` and `freeze-tag`.
+  `python3 scripts/android/lane_paths.py --owner` reports `frozen` for `crates/`, `Cargo.toml` and
+  `Cargo.lock`, and no owner for `docs/internal/v1.2/`: the plan prescribes these paths, so they are
+  edited; `LANES.md` is not touched (`lane_paths.py --check` passes).
+
+- **T2: owner alerts (B), what was built and where it differs from the plan text of V12-D11 to D16.**
+  The settings, the log and the worker are as D11 to D16 describe; migration 60 and the owner-settings store
+  are the ones of D1 and D2 (D2 to D4 above are unchanged by T2). Deviations and precisions, all decided
+  while building:
+  - **The loop is always spawned** (`start_background` starts `alerts::run_owner_alerts` in every build); it
+    reads the settings every tick and does nothing while they are off, so switching the alerts on needs no
+    restart. The tick (30 s) and the probe interval (5 min) are constants of the module, not `EngineTimers`
+    fields; tests drive `run_pass(state, now)` directly with a fixed clock and a mock Bot API.
+  - **Its own HTTP client**, built from `state.http_tls` with a 10 s timeout per attempt, instead of
+    `state.shared_http` (the shared client carries no timeout and is used by the HubRise paths). Same TLS
+    policy. No lock (`state.db`, the signing lock) is held while a request is in flight.
+  - **State changes when the decision is taken**, whether the send then succeeds or not: a raised alert is open
+    (and its reminder clock runs) even if Telegram refused the message; the failure is in `owner_alert_log`
+    as `failed`. A resolved message is sent only if the owner was told (a `sent` raise or reminder exists);
+    an alert nobody heard about closes silently.
+  - **Global cap of 20 per rolling hour counts `sent` rows** (test messages and `suppressed` rows excluded).
+    A message above the cap is not sent and is logged `suppressed`. After a restart the book is seeded from the
+    log (last raise or reminder younger than the reminder period, 24 h when reminders are off, reopens the
+    alert; `test` rows never count).
+  - **Debounce:** `fdm` 2 minutes and 1 observation (the monitor already polls), `printer` and `terminal`
+    2 consecutive observations (probes 5 minutes apart), `z_missing` and `online_waiting` 1 observation.
+  - **Probes only when safe.** The FDM is judged only while a session is open (the monitor polls only then).
+    Printers are probed (`TcpPrinter::send(&[])`, then `status.ready()`) only while a session is open and the
+    signing lock is free (`signing::try_acquire`, dropped at once: a sale or a print in progress is detected
+    through it); the terminal only when `eft_line` is free (`do_check_payment_terminal` answers busy
+    otherwise). A probe skipped is no observation.
+  - **`z_missing`:** the open booking period's booking date plus one day at `z_deadline_hour` (default
+    `day_end_hour + 1`, 0 to 12), Europe/Brussels with DST; skipped in training mode. The panel and
+    `get_owner_alerts` return the effective hour as a number.
+  - **`online_waiting`:** only while the HubRise switch is on; `webshop_orders` rows with
+    `fiscal_state = 'pending'` and `resolved_at` older than `online_wait_minutes`; the message carries the
+    channel names (control characters stripped, cut) and the counts, nothing else.
+  - **Messages** are French, Chinese or English per the setting, with the installation label (setting, else
+    the terminal id) and the Brussels local time since when; they hold no personal data (checked by a test in
+    the three languages with a customer name, an address and an amount in the order).
+  - **Test message:** one attempt, not three; a failure is the error `alerts_send_failed|detail=...` so the
+    panel can say why; the row is logged with transition `test` and kind `test`.
+  - **Telegram:** `POST {api_base}/bot{token}/sendMessage`, 3 attempts with 2 s then 4 s of backoff, no retry on
+    a 4xx other than 429, `ok = false` in a 2xx body is a refusal. Transport errors go through
+    `reqwest::Error::without_url` and a `/bot***/` redaction; a test greps logs, rows and error texts for the
+    token.
+  - **Validation (`alerts_invalid|field=`):** chat id optional `-` then 1 to 20 digits (empty only while
+    disabled), label up to 40 characters without control characters, language fr, zh or en,
+    `z_deadline_hour` 0 to 12, `online_wait_minutes` 1 to 120, `reminder_minutes` 0 to 1440. `alerts_token_missing`
+    when the test or the worker finds no readable token; `config_alerts` from `--check-config` when the token
+    file or the address is unusable.
+  - **Both UIs:** a draft-and-save panel ("Alertes sur téléphone") with the master switch, the token pill, the
+    chat id and the three numbers typed on the shared keypad in a small number dialog (a separate minus toggle
+    for a group chat id; `NumPad` itself is unchanged), a label field, the language, one switch per kind, save,
+    "send a test message" (saves a changed draft first) and the last 20 log rows. Managers only on both.
+  - **Expected failures of the p5/p6 gates on this lane** are those of T1 (`hygiene-paths`,
+    `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); the root `Cargo.lock` gained one dependency edge, `pos-engine` to
+    `tracing-subscriber` (a dev-dependency, to read logs in the token test), and no package: the crate was
+    already in the lock through `pos-eft`. `android/rust/Cargo.lock` is unchanged.
+
+- **T3: allergens (C), what was built and where it differs from the plan text of V12-D17 to D21.** The model,
+  the import, the display and the sheet are as D17 to D21 describe; migration 61 is the one of D1. Precisions and
+  deviations, all decided while building:
+  - **`catalog_mapper` has no upload path.** The plan asked for the tags to be written back on upload; the
+    mapper only reads the HubRise catalog, so no writer was needed and none was added.
+  - **The catalog never clears a local list when it says nothing.** A catalog source with no tag on an entity
+    leaves a list entered locally untouched. A catalog that has dropped its tags clears a list it declared
+    earlier (source `catalog`) and writes one `allergen_change_log` row; a log row is written only on a real change.
+  - **`allergen:none` combined with other allergen tags is ignored** (the explicit tags win); alone it declares
+    an empty list.
+  - **zh prints in French.** The sheet slip supports fr, nl, en and de; the CP858 code page cannot print
+    Chinese, so a Chinese interface prints the French sheet, as the other slips do.
+  - **Undeclared options are printed as "Information non disponible".** An option without declaration is never
+    printed as "no allergen".
+  - **The footer reuses `invalid_disclaimer`** (the wording "T.V.A." of the other non-fiscal slips) after the
+    regulation line.
+  - **No Vue wrapper for `set_allergens`.** The command exists in the engine, the Tauri wrappers (104 in all, 102 in
+    the cert build) and the FFI facade (error count 119), but neither UI calls it yet: the product editor
+    (lane 3) is the hook.
+  - **Both UIs** show Annex II numbers in small circles (no drawn icons), at most 6 on a tile then "+n", an
+    "Allergènes" mode button on the order screen whose tap opens the product sheet instead of adding it, a
+    legend of the 14 numbers while the mode is on, the badges on the options of the option picker, and a sheet
+    dialog with "Contient", "Traces", the options and the two print buttons (this product, the whole menu).
+    Outside French the French names follow in brackets.
+  - **Expected failures of the p5/p6 gates on this lane** are those of T1 and T2 (`hygiene-paths`,
+    `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); no dependency was added.
+
+- **V12-D22 The course stays out of the signed payload (T4, D).** The course is kitchen data (spec 8.1:
+  kitchen and bar prints never carry an amount; spec 8.2: a printout may be consolidated and regrouped, never
+  an FDM message; FAQ Q210 b: what the POS does for the kitchen display stays at the POS). It lives in
+  `CartLine` (`course`, `kitchen_state`) and `TableInfo` (`held_course`) and in the three tables of migration 62;
+  it never enters `OrderLine` (the fiscal builders), a product name, a department, a P, N or T request, the
+  pre-bill or the VAT ticket. Tests: the signed requests of a sale are identical with courses on or off, and
+  every archived request and ticket text, every database text column and every receipt of a three-course sale
+  is searched for course data (`tests/courses.rs`, `the_course_never_reaches_a_signed_request_a_name_or_the_vat_ticket`).
+- **V12-D23 Rules (T4, D), as built.** Courses 0 "Direct", 1 "Entrées", 2 "Plats", 3 "Desserts"; setting `courses`
+  `{enabled, category_courses}` in the V12-D2 store (read by any operator, stored by an administrator, logged).
+  Switched off, the slips are byte-identical to the ones before (a hand-rebuilt legacy layout in `pos-print` and
+  a full-service comparison in the engine tests). A new line takes the course of its category (0 when unmapped);
+  a change is refused with `course_already_sent` once a slip carried the line, `courses_disabled` when the switch
+  is off, `course_invalid` outside 0 to 3. The released course starts at 1; a P (or the N of a direct sale)
+  prints the entries of course 0 or not above the released course, grouped under `-- <Course> --` headers, and
+  holds the others. `send_next_course` signs the unsent lines first through the table-order path (FDM down:
+  refused, nothing signed, printed or released; a course whose entries are already signed prints without the
+  FDM), releases the lowest held course and prints it. A correction of a printed line prints at once; a
+  correction of a held line is netted at the release; a net quantity of 0 prints nothing. A sale that closes a
+  table with a held course does not print it; both UIs warn at checkout. `reprint_course_slip` prints again
+  what was printed for a course, marked DUPLICATA, and records nothing (`nothing_printed` when no slip carried
+  the course). `kitchen_slip_entries` is written only when the slip reports `Printed`; a failed print leaves
+  the entries unprinted and the next P, release or catch-up prints them.
+- **T4: deviations and precisions, all decided while building.**
+  - **No foreign key from `order_line_courses.line_id` to `order_lines`.** `order_lines.id` is not
+    AUTOINCREMENT, so the id of a removed line can come back; creating a line clears any stale course row
+    first (`clear_line_course`), then writes its own. `order_id` keeps its foreign key.
+  - **The migration backfills `kitchen_slip_entries`.** Journal entries already registered by a signed event
+    before the migration are recorded as printed (course 0, `immediate`), so switching courses on in the middle
+    of a service never reprints old lines. The plan text did not mention it.
+  - **The legacy slip path records entries too.** `print_bar_slip` (the path taken with the switch off) is
+    unchanged in output but records its entries on `Printed`, so a switch turned on mid-service is consistent.
+  - **`send_next_course` with nothing held.** When no course is held but signed entries are still unprinted
+    (an earlier slip failed), it prints them again and answers `course: null`; with nothing at all to print it
+    is `no_course_held`. The plan only had the error.
+  - **A P that registers nothing new still prints the catch-up** (entries signed earlier whose slip did not
+    print) when courses are on; with the switch off the behaviour is the one of before (no retry), as tested.
+  - **`set_course_settings` validates and canonicalises.** Courses 0 to 3, every category must exist and appear
+    once, a category on 0 is dropped (an unmapped category is "Direct"); the stored value is returned.
+  - **Table plan badge** is `TableInfo.held_course` (the lowest held course, 1 to 3, null otherwise).
+  - **Takeaways** group their cart by course and print headers like a direct sale; the "Envoyer la suite"
+    button and the checkout warning are for dine-in orders only.
+  - **Headers and the release line** on the slip are `-- Plats --` between course groups and `SUITE : Plats`
+    under the table line; course names follow the slip language (fr, nl, de); the zh interface prints French.
+  - **UI placement.** The panel "Service en plusieurs temps" sits in the second column of Settings under the
+    employees on both UIs (a manager only, at most half the column, scrolling inside). Two first tries in the first
+    and third columns of the Vue screen pushed the table plan and the HubRise switch out of reach (the
+    existing Playwright tests could not click them). The cart on both UIs keeps the amber "not sent" mark per line
+    but drops the separate "not sent" block while courses are on (the course groups replace it).
+  - **`reprint_course_slip` has no screen.** The command, its Tauri wrapper, the FFI method and the Vue wrapper
+    exist and are tested, but neither UI calls it yet (no reprint action on the order screen in this release); the
+    UI parity file declares it `excluded`.
+  - **Two failures of earlier tasks were fixed here because the gates of this task hit them.** The French allergen
+    sheet golden in `pos-print` lost its first line indent to a string continuation (`\` then a newline strips
+    leading spaces; the test now starts the literal with `\x20`), and `cargo fmt` in `android/rust` reformatted
+    two lines of the allergens facade and its test.
+  - **Expected failures of the p5/p6 gates on this lane** are those of T1 to T3 (`hygiene-paths`,
+    `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); no dependency was added.
+
+- **V12-D24 Multi-purpose vouchers only (T5, E).** Implemented: MPV. The sale is a line at VAT X (no VAT at
+  issue), the use is a payment (VAT is due on the goods bought). Deferred, with the reasons in
+  `docs/internal/v1.2/BONS_CADEAUX_FR.md` section 8: (1) SPV (UC270, UC271): VAT due at sale, use as a negative line
+  `negQuantityReason VOUCHER` whose VAT split must mirror the sale; UC270 ("Voucher Special Diner Offer", 2 business menus at B 75) and UC271 (redeems "SPV Menu all-in", quantity -1,
+  A -18 / B -40 = -58) are two different vouchers; the redemption mirrors the VAT split of the composite "menu all-in"
+  it is valid for, so SPV needs the VAT split of a composite product, which is not supported (same deviation as UC261
+  and UC4109); we do not guess (Q4); (2) voucher to cash (UC4105): vouchers are not exchangeable for
+  cash, no need; (3) refund to a voucher (Q6). `scripts/uc_scope.toml` no longer lists UC260, UC261, UC262 (covered
+  by `spf_e2e_gift_vouchers.rs`); UC270, UC271 and UC4105 stay `hors_perimetre` with "différé en v1.2" reasons.
+- **V12-D25 Sale as a system product (T5, E), as built.** Migration 63 inserts category 990000 `pili:system`
+  (inactive) and item 990001 `pili:gift-voucher` (VAT X/X, `out_of_scope`, no kitchen printer, free price,
+  inactive) with fr/en/nl/zh names; the ids are fixed and far above any catalog id so rows and fixtures never
+  collide, and `ensure_system_item` re-runs the idempotent SQL where a test seed or a catalog reset removed the
+  rows. `add_gift_voucher_line(order_id, amount_cents)` (cashier) adds one line of quantity 1, name in the
+  establishment language, department `GV`; amount 1,00 to `max_amount_cents` (`gift_voucher_amount_invalid`
+  with `max=500,00`, formatted with a comma); `gift_vouchers_disabled` while the switch is off. The quantity cannot
+  change (`gift_voucher_line_fixed`, checked in `do_update_order_line_quantity`); the line can be removed. An order
+  that sells a voucher is paid in cash or by card only (`gift_voucher_payment_invalid`).
+- **V12-D26 Issue at the N commit (T5, E), as built.** `plan_sale` runs under the sign guard in
+  `checkout::sell_locked`: it draws one code per voucher line (10 digits from the OS generator plus 2 check digits
+  `97 - n mod 97`) and stores them in `PendingContext::Sale.gift_vouchers_issued` (serde default), so a lost answer
+  that is recovered later issues the same vouchers (tested: one voucher, not two). `signing::apply` writes the
+  voucher and its `issue` movement in the archive transaction. Training sales write `training = 1` vouchers, which
+  only serve in training, and real vouchers do not serve in training. Lookups that fail (shape, check digits,
+  unknown code) all count toward the throttle: 5 a minute per terminal (`AppState.gift_voucher_lookups`).
+- **V12-D27 Use is a `VOUCHER_STORE` payment (T5, E), as built.** `PaymentMethod::GiftVoucher` maps to
+  `PaymentType::VoucherStore`, line identity ("8", "Gift voucher"), MANUAL, exact, never rounded.
+  `PaymentPart.gift_voucher_id` is required for a gift voucher part and refused on any other part (`settle`).
+  The checks run at prepare under the sign guard (exists, same training mode, not cancelled, not expired at the local
+  date, balance covers the part, one part per voucher); the `redeem` movement is written in `apply` unconditionally.
+  A voucher worth more than the bill pays the rest of the bill and keeps the balance (no change). The `payments`
+  row stores the method `other`. The HubRise echo of a till sale is skipped when the sale sells a voucher (a voucher
+  line has no HubRise product), and a voucher payment is named "Other" in the echo.
+- **V12-D28 Refunds (T5, E), as built.** Refunding a voucher sale line cancels that voucher in the refund's archive
+  transaction (`PendingContext::Refund.gift_vouchers_cancelled`, serde default) when it was never used; otherwise
+  `gift_voucher_used`. The refund picks, among the original order's voucher lines of the same unit price, the
+  unused vouchers not yet cancelled, and refuses when there are fewer than the quantity refunded. A refund of a sale
+  paid by voucher stays a cash refund with the manager confirmation; the voucher is not re-credited (Q6).
+- **V12-D29 Settings and expiry (T5, E).** `gift_vouchers {enabled = false, validity_months 12..36 (12),
+  max_amount_cents 100..1 000 000 (50 000)}` in the V12-D2 store (read by any operator, stored by an administrator,
+  logged). `expires_on` is the issue local date plus the validity; expiry is not an event: an expired voucher is
+  refused at payment (`gift_voucher_expired`) and a manager can still look it up.
+- **V12-D30 Printed voucher (T5, E), as built.** After the N is committed and recorded, `follow_up` prints the
+  voucher (value, code large with a QR, dates, rules, the sale reference, "not a valid VAT ticket") and, when a
+  payment leaves a balance, a balance slip with the code masked to its last 4 digits. Both go to the ticket printer
+  and a row of `gift_voucher_prints` is written only when the slip reports `Printed`. `print_gift_voucher`
+  (administrator) prints a DUPLICATA and records it. The checkout result carries `gift_voucher_prints` (voucher id,
+  `voucher` or `balance`, outcome) for the done screen.
+- **V12-D31 Reports (T5, E).** X and Z need no change (the FDM `vatCalc` carries X; payments are grouped by
+  identity, name and type). The printed Z names the payment "Bon cadeau" (fr), "Cadeaubon" (nl), "Geschenkgutschein"
+  (de), "Gift voucher" (en); `labels.rs` matches "gift", "cadeau" and `VOUCHER_STORE`.
+- **T5: deviations and precisions, all decided while building.**
+  - **Fixed ids 990000 and 990001** instead of ids taken at insert time (V12-D25 left it open): fixtures and the
+    SPF test seed delete the whole menu, so the seed keeps the two system rows (`entity_id NOT IN (990000, 990001)`)
+    and `do_add_gift_voucher_line` calls `ensure_system_item` as a defence.
+  - **Gift voucher part and `settle`.** A part with an amount above 0 is accepted only when
+    `(method == GiftVoucher) == gift_voucher_id.is_some()`, and a cash part may not name a voucher; the plan only
+    said the id exists.
+  - **A sale that sells a voucher cannot be closed unpaid** (the voucher would exist without a payment).
+  - **The voucher slip is printed on the ticket printer**, not on a new printer role; `gift_voucher_prints` is
+    written only for a printed slip, as the kitchen entries are.
+  - **UC260's card is MANUAL here**; the fixture's terminal payment is AUTOMATIC. `business_view` does not compare
+    `inputMethod`, so the test asserts it explicitly. Deviations: UC260 `productId` and `departmentId`; UC261 the
+    composite-menu `lineType` and `vats` (as in UC4109); UC262 `transactionLines[1].vats[0].label` (an order is
+    dine-in or takeaway as a whole, sold as takeaway the burger takes label C).
+  - **UI.** The gift voucher panel sits under the courses panel in the second column of Settings on both UIs
+    (a manager only). The "Bon cadeau" method hides, with the meal vouchers, while the sale sells a voucher, and it
+    opens its dialog without becoming the selected method (cash stays selected under it). The Reports tab shows
+    only while the setting is on. A number input of the Vue panel gives a number once it holds one: the draft
+    converts with `String(...)` first (found by the Playwright spec).
+  - **Not done:** a QR scan of the code (typing only, as the plan says); the `max` of the amount error is shown in
+    the establishment language of the browser/engine text, not localised beyond the comma.
+
+### V12-T6 (full gate, 2026-10-18)
+
+- **GATE lines (head of android/lane-v12, run through `heavy.sh`):**
+  - R: `cargo fmt --all -- --check` PASS; `cargo clippy --workspace --all-targets -- -D warnings` PASS; same with
+    `-p pili-pos --no-default-features --features cert` PASS; `cargo test --workspace` PASS (153 suites ok, 0 failed);
+    `cargo test -p pili-pos --no-default-features --features cert` PASS; `cargo test -p pos-engine
+    --no-default-features --features cert` PASS (66 suites ok).
+  - F (`android/rust`): `cargo fmt --all --check`, `clippy --workspace --all-targets --locked -D warnings`,
+    `cargo test --workspace --locked` all PASS.
+  - P: `check_ipc_wrappers.py` 116/116 single call (114 without peppol); `check_command_parity.py` plain, `--strict`
+    (114/114) and `--hygiene` PASS; `check_ui_parity.py` plain and `--strict` PASS (111 commands, 101 called, 10
+    excluded, 0 missing); `vue_to_android.mjs --check` PASS (707 keys); `lane_paths.py --check` PASS.
+  - D: `check_dossier.py` for `docs/SUBMISSION_ARTIFACTS`, `docs/android/dossier` and `docs/internal/v1.2` all exit 0;
+    `uc_matrix.py` check mode MANQUANT 0; em-dash scan of the changed files and of the added diff lines vs the base
+    `b3248d2d`: none; `git diff b3248d2d -- docs/SUBMISSION_ARTIFACTS docs/android/dossier` is empty (v1.0.0
+    dossiers untouched).
+  - U: `npm run build` and `npx playwright test`: 392 passed.
+  - A: p5 and p6 run the Android steps: lint, ktlint, detekt, 2226 unit tests, Roborazzi verify, kover (line 97.5%,
+    branch 74.2%), release assemble, APK check: all PASS.
+  - `p5_gate.sh` 7 FAIL of 34, `p6_gate.sh` 5 FAIL of 57, `test_inventory.sh --diff` PASS (0 removed);
+    `kotlin_test_inventory.py --base b3248d2d`: base 2081, head 2273, removed 0.
+- **Expected-by-design failures:** `hygiene-paths`, `hygiene-root-lock`, `linux-frozen`, `freeze-tag` (p5 and
+  p6), plus `app-only-scope` (p5 only: the lane touches `android/rust` and `pos-core`, so the "full gate" is the one
+  to use, which is this run).
+- **Failures that are not this lane's, left alone on purpose:**
+  - `kotlin-tests` (p5, p6) and `kotlin_test_inventory.py --base android/int`: `android/int` moved to `9ada2030` after
+    the merge base `b3248d2d` (lane 2 added about 339 tests there). Against the real base the inventory removes 0.
+    It goes away after the merge.
+  - `ui-money` (p5): `WebshopOrdersStore.kt:239-240` (`sumOf amountCents`, `totalCents - paid`) exists in the base;
+    `android/int` already fixes it in `dd2bd43b`. This lane does not touch the file; the merge resolves it.
+- **Environment notes:** the shared Cargo target needed the `touch` of `crates/` and `src-tauri/` sources before the
+  first build (see T1). Disk fell to 7 GB free during the run; removed `target/android-rust-mismatch` and
+  `target/android-mocks` of this worktree (regenerable) and ran `gradlew clean`; `cargo clean --target-dir target`
+  refuses to run on this layout. `uc_lock_parity.sh` was not part of this gate (known failure at the base, see T2).
+- **Open questions left for the owner/orchestrator:** the live Telegram check of the alerts (T2); Winbooks and Yuki
+  layouts of the accountant export are best effort (Q1); the merge with lanes 2 and 3 (see plan section 13); the
+  captures of plan section 11 (none is possible without an emulator).
+
+### Fix round 1 of lane 4-v12 (2026-10-18)
+
+- **V12-D32 Gift vouchers cannot be switched off while vouchers can be redeemed (E).** `set_gift_voucher_settings`
+  with `enabled = false` is refused with `gift_vouchers_outstanding|count=<n>` while at least one non-training
+  voucher is not cancelled, has a positive balance and is not expired (usable through its expiry date). Reason: the
+  "Bon cadeau" payment method and the Reports lookup tab show only while the setting is on, and sold vouchers are
+  valid at least 12 months, so a switch-off would strand prepaid customer money. Same precedent as the HubRise
+  switch-off refused while online orders are unsettled. Chosen over "keep the method visible" because it keeps the
+  UIs unchanged. Training vouchers, used-up, cancelled and expired vouchers do not hold the switch. Strings in fr, en
+  and zh on both UIs (`err_gift_vouchers_outstanding`).
+- **V12-D33 Voucher lookup access (E).** The lookup stays Cashier (cashiers and managers), as planned in V12-D3: a
+  waiter gets `forbidden`. Comments (Vue, Compose) and the draft now say so.
+- **V12-D34 Printed languages of the voucher slips (E).** The slips follow the establishment receipt language (fr,
+  nl, de); en and zh print in French. The dead English wording of `pos-print` was removed and the draft corrected.
+- **V12-D35 Payment names (E).** Only "Gift voucher" and `VOUCHER_STORE` print as "Bon cadeau" (exact match,
+  case-insensitive); names such as a HubRise "Carte cadeau" print unchanged, as before v1.2.
+- **V12-D36 Course reprint is engine-only (D).** `reprint_course_slip` has no screen on either UI (excluded from UI
+  parity); the DUPLICATA capture of the course slip is dropped and the dossier draft says so.
+- **Not done, on purpose (minor items 5 and 6).** (5) The zero-quantity filter of `courses::per_entry` was left
+  alone: its entries are recorded as done through the slip items, so dropping them would leave them pending
+  forever; no zero-quantity entry can exist today. (6) The alerts printer probe still skips only while the signing
+  lock is held; a probe during the short follow-up print is harmless (the printer accepts a second connection and
+  the probe sends only a status request).
+- **Merge note.** `scripts/uc_scope.toml` marks UC260 to UC262 covered: run `uc_matrix.py --write` only against the
+  v1.2 dossier, never against the v1.0.0 `SUBMISSION_ARTIFACTS` matrix. The three stray `.kt-E` files were removed.
+
+### Closing round of lane 4-v12 (2026-10-18, scope change: everything here is part of v1.0.0)
+
+- **V12-D37 Terminal probe never delays a card payment (E).** The owner-alerts terminal probe takes the EFT line
+  (`AppState::eft_line`) with `try_lock` and skips the round (judges nothing, sends nothing) when the line is busy
+  because a payment or another check is running. When it does get the line it runs under a short timeout,
+  `EngineTimers::terminal_probe` (default `alerts::TERMINAL_PROBE_TIMEOUT`, 10 s); on expiry the check future is
+  dropped, which frees the line, and the round judges nothing. A payment started during a probe therefore waits at
+  most the timeout. Tests: held line skipped at once with no terminal call; hanging terminal dropped; payment
+  started during a hanging probe is not delayed beyond the timeout (scripted driver with `set_check_delay`).
+- **V12-D38 Voucher of the other mode is `not_usable` (E).** `lookup_gift_voucher` answers the distinct status
+  `not_usable` when the voucher's training flag differs from the till's current mode (a training voucher in normal
+  mode, a real one in training mode), before any other status. The balance and expiry are still shown. The manager
+  list keeps the four real statuses. Both dialogs (Vue and Compose) show "Non utilisable (autre mode)" / "Not usable
+  (other mode)" / "不可使用（另一模式）" and offer no apply button; the sale already refused such a voucher
+  (`gift_voucher_not_usable`).
+- **V12-D39 Refund of a sale paid with a voucher stays a cash refund (E).** The voucher itself is never exchanged for
+  cash: it paid for goods, and refunding those goods is the refund of a sale, not an exchange of a voucher. The
+  restaurant chooses to refund that sale in cash (manager confirmation, as for any sale); the voucher is not
+  re-credited. The draft `BONS_CADEAUX_FR.md` now says so plainly; no receipt or slip wording says otherwise.
+- **V12-D40 No update framing (E).** The certification is v1.0.0 and includes this lane. Code, comments, test names
+  and file names carry no "v1.2" (`schema_v12.rs` is now `schema_owner.rs`, `V12_MIGRATIONS` is `OWNER_MIGRATIONS`);
+  the decision ids `V12-D..` and this heading stay. Migrations are not renumbered here (rc3 pass). `uc_scope.toml`
+  keeps UC260 to UC262 covered; the reasons of UC270, UC271 and UC4105 no longer name a version. `uc_matrix.py
+  --write` is for the orchestrator after the merge.
+- **V12-D41 Voucher sale is a cashier action in the UI too (E).** The engine sells a voucher to a cashier or a
+  manager (`add_gift_voucher_line` is Cashier level), so a waiter is not offered the "Bon cadeau" button, on Vue
+  (`OrderView.vue`, `auth.canTakePayment`) and on Compose (`MenuViewModel`: the button needs `canPay`, and
+  `askGiftVoucher` is a no-op without it). Same rule as the Pay button; the engine refusal stays as the backstop.
+- **V12-D42 An allergen legend that cannot be read is told (C).** `list_allergens` failing used to leave the legend
+  empty and silent. Vue shows the error next to the hint (`allergen-legend-error`), Compose in the allergen bar
+  (`allergen_legend_error`); the next successful read clears it.
+- **V12-D43 `OrderStore.reloadCourses` removed (D).** Nothing called it. Both UIs read the courses setting when an
+  order is started or loaded and after every cart change, so a setting the manager saved is picked up by the next
+  order screen; no live reload is needed and Vue does not reload either.
+- **V12-D44 Settings employees list keeps room, not the whole list (D, E).** With the courses and gift voucher
+  panels drawn, the employees list stays visible (at least one row) and scrolls inside its panel; the test pins that
+  the list is not squeezed out, not that every row fits at 1920 x 1080.
+- **V12-D45 FFI `IssueCode` mirrors the catalog's `UnknownAllergen` (C).** The record lacked it, so a catalog refused
+  for an allergen typo made `hubrise_sync_catalog`, `hubrise_status` and `hubrise_adopt_catalog` answer an
+  internal contract error on Android. The record has it now and the contract tests cover the sync and the status.

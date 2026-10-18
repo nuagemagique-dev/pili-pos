@@ -161,6 +161,19 @@ fn push_bad_catalog(mock: &HubriseMock) {
     inner.replace_catalog(WEBSHOP_TOKEN, &id, None, bad);
 }
 
+/// Replace the connected catalog by one whose first product carries a misspelt allergen tag.
+fn push_allergen_typo_catalog(mock: &HubriseMock) {
+    let mut inner = mock.state.inner.lock().unwrap();
+    let id = inner.default_catalog_id.clone();
+    let data = inner.catalogs[&id].data.clone().expect("seed catalog");
+    let mut json = to_value(&data).unwrap();
+    // A sound price: the catalog may already hold the negative one of `push_bad_catalog`.
+    json["products"][0]["skus"][0]["price"] = json!("6.50 EUR");
+    json["products"][0]["skus"][0]["tags"] = json!(["allergen:glutn"]);
+    let bad: pos_hubrise_types::CatalogData = serde_json::from_value(json).unwrap();
+    inner.replace_catalog(WEBSHOP_TOKEN, &id, None, bad);
+}
+
 /// A product entered by hand before HubRise, named and priced like the catalog's (`name` has no
 /// quote).
 fn hand_entered(app: &TestApp, name: &str, price: i64) -> i64 {
@@ -540,6 +553,16 @@ async fn the_status_converts_and_keeps_the_health_keys_at_the_top() {
     assert!(!sync.issues.is_empty());
     assert_eq!(sync.issues[0].code, rec::IssueCode::NegativePrice);
     assert!(!sync.issues[0].key.is_empty());
+
+    // An allergen typo is a refusal the status converts too (it used to be an Internal error).
+    push_allergen_typo_catalog(&w.mock);
+    w.poll().await;
+    let status = engine_hubrise::do_hubrise_status(&w.app.state).unwrap();
+    let record: rec::HubriseStatus = out_equal(&status);
+    let sync = record.catalog.as_ref().expect("sync state");
+    assert!(sync.rejected_at.is_some());
+    assert_eq!(sync.issues.len(), 1, "{:?}", sync.issues);
+    assert_eq!(sync.issues[0].code, rec::IssueCode::UnknownAllergen);
 }
 
 #[test]
@@ -623,9 +646,10 @@ fn every_issue_code_converts() {
         Engine::VatMismatch,
         Engine::MissingVat,
         Engine::UnknownOptionList,
+        Engine::UnknownAllergen,
     ];
     let records: Vec<rec::IssueCode> = out_equal(&all.to_vec());
-    assert_eq!(records.len(), 14);
+    assert_eq!(records.len(), 15);
     let back: Vec<Engine> = inp(&records);
     assert_eq!(back, all.to_vec());
 }
@@ -667,6 +691,19 @@ async fn catalog_outcomes_convert_applied_unchanged_awaiting_and_rejected() {
         panic!("rejected, got {rejected:?}");
     };
     assert_eq!(issues[0].code, rec::IssueCode::NegativePrice);
+
+    // An allergen typo refuses the catalog whole, and the issue reaches the record.
+    push_allergen_typo_catalog(&mock);
+    let typo = engine_hubrise::do_sync_catalog(&app.state)
+        .await
+        .unwrap()
+        .unwrap();
+    let rec::ApplyOutcome::Rejected { issues } = outcome_equal(&typo) else {
+        panic!("rejected, got {typo:?}");
+    };
+    assert_eq!(issues.len(), 1, "{issues:?}");
+    assert_eq!(issues[0].code, rec::IssueCode::UnknownAllergen);
+    assert!(!issues[0].key.is_empty(), "the item at fault is named");
 
     // Awaiting adoption: a hand-entered menu waits for the manager.
     let (app, _db) = TestApp::with_shared_db().await;
@@ -920,11 +957,13 @@ fn the_webshop_request_records_convert_to_the_engines() {
                 method: PaymentMethod::Cash,
                 amount_cents: None,
                 eft_payment_id: None,
+                gift_voucher_id: None,
             },
             PaymentPart {
                 method: PaymentMethod::MealVoucher,
                 amount_cents: Some(850),
                 eft_payment_id: None,
+                gift_voucher_id: None,
             },
         ],
         delivery: Some(TicketDeliveryRequest {
@@ -1050,6 +1089,7 @@ async fn all_nineteen_methods_answer_on_a_seeded_engine() {
                 method: PaymentMethod::Cash,
                 amount_cents: None,
                 eft_payment_id: None,
+                gift_voucher_id: None,
             }],
             delivery: None,
         })

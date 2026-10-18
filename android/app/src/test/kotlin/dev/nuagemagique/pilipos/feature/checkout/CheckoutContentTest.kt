@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
@@ -143,6 +144,15 @@ class CheckoutContentTest {
         compose.onNodeWithTag("checkout_method_meal_voucher").performClick()
 
         assertEquals(listOf("method:CARD", "method:MEAL_VOUCHER"), calls)
+    }
+
+    @Test
+    fun aTakenGiftVoucherPartNamesTheMethodTheMaskedCodeAndTheAmount() {
+        val voucher = TakenPart(PaymentMethod.GIFT_VOUCHER, 500L, 0L, giftVoucherId = 7L, codeMasked = "**** **** 9095")
+        show(base.copy(method = PaymentMethod.CASH, taken = listOf(voucher)))
+
+        text("checkout_part_0").assertTextContains("5,00", substring = true)
+        compose.onNodeWithText("Bon cadeau · **** **** 9095", substring = true, useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test

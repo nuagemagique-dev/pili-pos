@@ -15,12 +15,15 @@ import { lineNetCents, discountTotalCents } from "../utils/cartAmounts";
 import AppHeader from "../components/AppHeader.vue";
 import TicketMediumPicker from "../components/TicketMediumPicker.vue";
 import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
+import GiftVoucherDialog from "../components/GiftVoucherDialog.vue";
+import { useGiftVouchersStore, GIFT_VOUCHER_DEPARTMENT } from "../stores/giftVouchers";
 
 const router = useRouter();
 const order = useOrderStore();
 const delivery = useDeliveryStore();
 const pos = usePosStore();
 const eft = useEftStore();
+const giftVouchers = useGiftVouchersStore();
 const bilingual = useBilingualName();
 const { t } = useI18n();
 
@@ -37,8 +40,8 @@ const { t } = useI18n();
 // taken before the last one is sent last (as "the rest"): with all the
 // other parts exact, the backend's cash rest is that part's amount, so
 // its 5-cent rounding is the one shown here.
-type Method = "cash" | "card" | "meal_voucher";
-const METHODS: Method[] = ["cash", "card", "meal_voucher"];
+type Method = "cash" | "card" | "meal_voucher" | "gift_voucher";
+const ALL_METHODS: Method[] = ["cash", "card", "meal_voucher", "gift_voucher"];
 
 interface TakenPart {
   method: Method;
@@ -54,6 +57,9 @@ interface TakenPart {
   /** The approved terminal card is a meal-voucher card: shown (and signed)
    * as meal vouchers, the part itself stays method card. */
   mealVoucher?: boolean;
+  /** A gift voucher part: the voucher it redeems, and its masked code. */
+  giftVoucherId?: number;
+  codeMasked?: string;
 }
 
 const step = ref<"pay" | "processing" | "done">("pay");
@@ -82,6 +88,17 @@ watch(step, (s) => { if (s === "pay") delivery.refreshMailStatus(); }, { immedia
 // The amount due is the net total: till discounts are already taken off.
 const totalCents = computed(() => order.totalCents);
 const discountCents = computed(() => discountTotalCents(order.lines));
+/** A sale that sells a gift voucher is paid in cash or by card only. */
+const sellsVoucher = computed(() => order.lines.some((l) => l.department_id === GIFT_VOUCHER_DEPARTMENT));
+/** The gift voucher method needs the setting on; meal and gift vouchers
+ * are hidden when the sale sells a voucher. */
+const METHODS = computed<Method[]>(() =>
+  ALL_METHODS.filter((m) =>
+    sellsVoucher.value
+      ? m === "cash" || m === "card"
+      : m !== "gift_voucher" || giftVouchers.enabled,
+  ),
+);
 const paidCents = computed(() => parts.value.reduce((sum, p) => sum + p.cents, 0));
 const restCents = computed(() => Math.max(0, totalCents.value - paidCents.value));
 const hasCashPart = computed(() => parts.value.some((p) => p.method === "cash"));
@@ -268,7 +285,34 @@ function quickActive(n: number): boolean {
 
 function selectMethod(m: Method) {
   if (m === "cash" && hasCashPart.value) return;
+  if (m === "gift_voucher") {
+    redeeming.value = true;
+    return;
+  }
   method.value = m;
+}
+
+// ── Gift voucher ──
+
+const redeeming = ref(false);
+
+/** The dialog found a usable voucher: it pays `cents` of the rest. */
+async function takeVoucher(voucher: ipc.GiftVoucherView, cents: number) {
+  redeeming.value = false;
+  if (parts.value.some((p) => p.giftVoucherId === voucher.id)) return;
+  const part: TakenPart = {
+    method: "gift_voucher",
+    cents,
+    changeCents: 0,
+    giftVoucherId: voucher.id,
+    codeMasked: voucher.code_masked,
+  };
+  if (cents >= restCents.value) {
+    await doCheckout([...parts.value, part]);
+    return;
+  }
+  parts.value.push(part);
+  method.value = hasCashPart.value ? "card" : "cash";
 }
 
 function selectSplit(n: number) {
@@ -287,11 +331,14 @@ function clearParts() {
 function payload(all: TakenPart[]): PaymentPart[] {
   const list: PaymentPart[] = all
     .filter((p) => p.method !== "cash")
-    .map((p) =>
-      p.eftPaymentId === undefined
+    .map((p) => {
+      if (p.giftVoucherId !== undefined) {
+        return { method: p.method, amount_cents: p.cents, gift_voucher_id: p.giftVoucherId };
+      }
+      return p.eftPaymentId === undefined
         ? { method: p.method, amount_cents: p.cents }
-        : { method: p.method, amount_cents: p.cents, eft_payment_id: p.eftPaymentId },
-    );
+        : { method: p.method, amount_cents: p.cents, eft_payment_id: p.eftPaymentId };
+    });
   if (all.some((p) => p.method === "cash")) list.push({ method: "cash" });
   return list;
 }
@@ -368,6 +415,22 @@ onMounted(async () => {
 });
 onUnmounted(() => eft.clear());
 
+// Courses still held at the table: the sale does not print them. Warn
+// before paying; "Envoyer maintenant" releases the next one.
+const sendingNext = ref(false);
+async function sendHeldNow() {
+  if (sendingNext.value) return;
+  sendingNext.value = true;
+  error.value = null;
+  try {
+    await order.sendNextCourse();
+  } catch (e) {
+    error.value = describeError(e);
+  } finally {
+    sendingNext.value = false;
+  }
+}
+
 async function doCheckout(all: TakenPart[]) {
   if (!order.currentOrder) return;
   error.value = null;
@@ -377,6 +440,7 @@ async function doCheckout(all: TakenPart[]) {
     result.value = await ipc.checkout(order.currentOrder.id, payload(all), req);
     if (result.value.success) {
       warnIfSlipFailed(result.value.kitchen_slip);
+      void giftVouchers.load();
       changeDueCents.value = all.reduce((sum, p) => sum + p.changeCents, 0);
       // Clear the order from the store immediately so it can't be
       // re-submitted. The "done" screen reads from result.value.
@@ -398,6 +462,19 @@ async function doCheckout(all: TakenPart[]) {
   }
 }
 
+/** What became of the voucher slips (vouchers sold, balances left). */
+const giftVoucherNotes = computed(() =>
+  (result.value?.gift_voucher_prints ?? []).map((p, i) => {
+    const ok = p.outcome === "printed";
+    const text = ok
+      ? t(p.kind === "balance" ? "gv_print_balance_ok" : "gv_print_voucher_ok")
+      : p.outcome === "no_printer"
+        ? t("gv_print_no_printer")
+        : t("gv_print_failed");
+    return { key: `${p.voucher_id}-${p.kind}-${i}`, ok, text };
+  }),
+);
+
 function finish() {
   result.value = null;
   router.push({ name: "order" });
@@ -410,6 +487,12 @@ function finish() {
 
     <div v-if="step === 'pay'" class="pay-row">
       <section class="pay-main">
+        <div v-if="order.nextHeldCourse !== null" class="held-warning" role="alert" data-testid="held-warning">
+          <span>{{ t('checkout_held_warning', { course: t(`course_${order.nextHeldCourse}`) }) }}</span>
+          <button class="held-send" :disabled="sendingNext" data-testid="held-send-now" @click="sendHeldNow">
+            {{ t('checkout_send_now') }}
+          </button>
+        </div>
         <!-- §7.2: the three methods side by side -->
         <div class="methods">
           <button
@@ -418,6 +501,7 @@ function finish() {
             class="method-btn"
             :class="[m === 'cash' ? 'cash-btn' : m === 'card' ? 'card-btn' : 'meal-btn', { active: method === m }]"
             :disabled="m === 'cash' && hasCashPart"
+            :data-testid="`method-${m}`"
             @click="selectMethod(m)"
           >{{ methodLabel(m) }}</button>
         </div>
@@ -546,6 +630,7 @@ function finish() {
           >
             <span>
               {{ t('part_n', { n: i + 1 }) }} · {{ takenLabel(p) }}
+              <template v-if="p.codeMasked"> · {{ p.codeMasked }}</template>
               <template v-if="p.eftPaymentId !== undefined">
                 <template v-if="p.brand"> · {{ p.brand }}</template>
                 <span class="eft-badge" data-testid="eft-approved">{{ t('eft_approved') }}</span>
@@ -613,6 +698,9 @@ function finish() {
         <div v-if="!result?.fdm_connected" class="fdm-warn">
           {{ t('fdm_no_sig') }}
         </div>
+        <ul v-if="giftVoucherNotes.length" class="gv-notes" data-testid="gv-prints">
+          <li v-for="note in giftVoucherNotes" :key="note.key" :class="note.ok ? 'ok' : 'bad'">{{ note.text }}</li>
+        </ul>
         <DeliveryOutcomePanel
           :outcome="result?.delivery ?? null"
           :fiscal-event-id="result?.fiscal_event_id ?? null"
@@ -622,6 +710,13 @@ function finish() {
         </div>
       </div>
     </div>
+
+    <GiftVoucherDialog
+      v-if="redeeming"
+      :rest-cents="restCents"
+      @confirm="takeVoucher"
+      @cancel="redeeming = false"
+    />
   </div>
 </template>
 
@@ -651,7 +746,10 @@ button:active:not(:disabled) { transform: scale(var(--tap-scale)); }
   overflow-y: auto;
 }
 
-.methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.gv-notes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 17px; font-weight: var(--font-weight-bold); }
+.gv-notes .ok { color: var(--accent-success); }
+.gv-notes .bad { color: var(--accent-danger); }
 .method-btn {
   height: 88px;
   border-radius: 14px;
@@ -911,6 +1009,20 @@ button:active:not(:disabled) { transform: scale(var(--tap-scale)); }
 .rest-row { display: flex; justify-content: space-between; align-items: baseline; }
 .total-label { font-size: 20px; font-weight: 700; }
 .rest-amount { font-family: var(--font-mono); font-size: 44px; font-weight: 700; line-height: 1.1; }
+
+.held-warning {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; border-radius: 10px; font-size: 16px; font-weight: 700;
+  color: var(--accent-warning);
+  background: color-mix(in srgb, var(--accent-warning) 12%, transparent);
+  border: 1px solid var(--accent-warning);
+}
+.held-send {
+  height: 56px; padding: 0 20px; border-radius: var(--radius-md);
+  background: var(--selected-bg); color: var(--selected-fg);
+  font-size: 16px; font-weight: 700; flex-shrink: 0;
+}
+.held-send:disabled { opacity: 0.4; }
 
 .error-msg {
   color: var(--accent-danger);

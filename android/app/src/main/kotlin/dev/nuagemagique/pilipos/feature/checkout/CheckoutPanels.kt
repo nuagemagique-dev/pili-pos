@@ -71,6 +71,7 @@ private fun methodLabel(method: PaymentMethod): String =
         PaymentMethod.CASH -> vueText("method_cash")
         PaymentMethod.CARD -> vueText("method_card")
         PaymentMethod.MEAL_VOUCHER -> vueText("method_meal_voucher")
+        PaymentMethod.GIFT_VOUCHER -> vueText("method_gift_voucher")
         else -> method.name
     }
 
@@ -78,6 +79,7 @@ private fun methodTag(method: PaymentMethod): String =
     when (method) {
         PaymentMethod.CASH -> "checkout_method_cash"
         PaymentMethod.CARD -> "checkout_method_card"
+        PaymentMethod.GIFT_VOUCHER -> "checkout_method_gift_voucher"
         else -> "checkout_method_meal_voucher"
     }
 
@@ -94,6 +96,7 @@ internal fun PayPanel(
         modifier = modifier.padding(d.spaceLg).testTag("checkout_pay_panel"),
         verticalArrangement = Arrangement.spacedBy(d.spaceMd),
     ) {
+        state.nextHeldCourse?.let { HeldWarning(it, state.sendingHeld, callbacks) }
         MethodRow(state, callbacks)
         SplitRow(state, callbacks)
         if (state.amounts.chips.size > 1) ChipRow(state)
@@ -102,13 +105,52 @@ internal fun PayPanel(
     }
 }
 
+/** A later course is still held at the table: say so before paying, with "Envoyer maintenant" (`held-warning`). */
+@Composable
+private fun HeldWarning(
+    course: Int,
+    sending: Boolean,
+    callbacks: CheckoutCallbacks,
+) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(c.accentWarning.copy(alpha = HELD_ALPHA), RoundedCornerShape(d.radiusMd))
+                .border(1.dp, c.accentWarning, RoundedCornerShape(d.radiusMd))
+                .padding(horizontal = d.spaceMd, vertical = d.spaceSm)
+                .testTag("checkout_held_warning"),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = vueText("checkout_held_warning", "course" to vueText("course_$course")),
+            style = t.body.copy(fontWeight = t.weightBold),
+            color = c.accentWarning,
+            modifier = Modifier.weight(1f),
+        )
+        PiliButton(
+            text = vueText("checkout_send_now"),
+            onClick = callbacks.onSendHeld,
+            variant = PiliButtonVariant.Secondary,
+            enabled = !sending,
+            modifier = Modifier.height(QuickHeight).testTag("checkout_held_send"),
+        )
+    }
+}
+
+private const val HELD_ALPHA = 0.12f
+
 @Composable
 private fun MethodRow(
     state: CheckoutUiState,
     callbacks: CheckoutCallbacks,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
-        TILL_METHODS.forEach { method ->
+        state.methods.forEach { method ->
             PiliButton(
                 text = methodLabel(method),
                 onClick = { callbacks.onMethod(method) },
@@ -635,7 +677,8 @@ private fun TakenRow(
     val partName = vueText("part_n", "n" to (index + 1))
     val value = uiText(R.string.ui_checkout_paid_part, "amount" to formatCents(part.cents))
     if (!part.locked) {
-        val label = uiText(R.string.ui_checkout_part_label, "part" to partName, "method" to methodLabel(part.displayMethod))
+        val method = methodLabel(part.displayMethod) + (part.codeMasked?.let { " · $it" } ?: "")
+        val label = uiText(R.string.ui_checkout_part_label, "part" to partName, "method" to method)
         FootRow(label, value, "checkout_part_$index")
         return
     }

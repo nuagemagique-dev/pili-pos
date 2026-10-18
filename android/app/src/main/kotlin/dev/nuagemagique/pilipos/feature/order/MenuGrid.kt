@@ -135,6 +135,15 @@ private fun MenuItemButton(
                         .testTag("menu_item_${item.id}_soldout"),
             )
         }
+        if (item.allergens.isNotEmpty()) {
+            AllergenBadges(
+                codes = item.allergens,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = ColorBand + PiliTheme.dimens.spaceSm, bottom = PiliTheme.dimens.spaceSm, end = AllergenEndGap),
+            )
+        }
         if (inCart > 0) {
             Text(
                 text = inCart.toString(),
@@ -214,3 +223,5 @@ private val QtyBadge = 15.dp
 
 /** A sold-out product button is greyed (`.item-btn.sold-out` of `MenuItemButton.vue`). */
 private const val SOLD_OUT_ALPHA = 0.55f
+/** Room kept free on the right of the allergen badges for the quantity badge. */
+private val AllergenEndGap = 56.dp

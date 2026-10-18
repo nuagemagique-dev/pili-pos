@@ -109,6 +109,7 @@ impl TestApp {
             tables: None,
             payment_terminal: None,
             peppol: None,
+            alerts: None,
             pos_id: "CPOS0031234567".to_string(),
             terminal_id: "POS-1-BAR".to_string(),
             // The terminal's MAC address, as install fills it (§VI row VII).
@@ -158,6 +159,7 @@ impl TestApp {
             session: Mutex::new(None),
             support: pos_engine::commands::support::SupportState::disabled(),
             pin_throttle: Default::default(),
+            gift_voucher_lookups: Default::default(),
             signing: Default::default(),
             fdm_status_cache: Mutex::new(None),
             session_rules: Default::default(),
@@ -167,6 +169,7 @@ impl TestApp {
             eft_in_flight: Mutex::new(None),
             eft_line: tokio::sync::Mutex::new(()),
             badge_repeats: Default::default(),
+            owner_alerts: Default::default(),
             eft_terminal_override: None,
         };
 

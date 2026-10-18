@@ -128,6 +128,16 @@ internal data class ReportsCallbacks(
     val invoice: InvoiceCallbacks = InvoiceCallbacks(),
     val sales: SalesCallbacks = SalesCallbacks(),
     val delivery: DeliveryCallbacks = DeliveryCallbacks(),
+    val vouchers: VouchersCallbacks = VouchersCallbacks(),
+)
+
+/** Every action of the gift vouchers tab. */
+internal data class VouchersCallbacks(
+    val onKey: (NumPadKey) -> Unit = {},
+    val onLookup: () -> Unit = {},
+    val onFilter: (String?) -> Unit = {},
+    val onToggle: (Long) -> Unit = {},
+    val onReprint: (Long) -> Unit = {},
 )
 
 /** The actions of the invoice flow over [model]. */
@@ -180,6 +190,14 @@ internal fun reportsCallbacks(
         cash = cashCallbacks(model),
         tickets = ticketsCallbacks(model, delivery, openPicker),
         correction = correctionCallbacks(model),
+        vouchers =
+            VouchersCallbacks(
+                onKey = model::voucherKey,
+                onLookup = model::lookupVoucher,
+                onFilter = model::filterVouchers,
+                onToggle = model::toggleVoucher,
+                onReprint = model::reprintVoucher,
+            ),
         delivery =
             DeliveryCallbacks(
                 onPaper = delivery::setPaper,

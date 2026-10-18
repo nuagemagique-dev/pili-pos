@@ -4,6 +4,7 @@
 
 use std::collections::HashSet;
 
+use pos_core::allergen::AllergenSet;
 use serde::{Deserialize, Serialize};
 
 use crate::model::{Catalog, ItemKind, Names, fiscal_name};
@@ -48,6 +49,10 @@ pub enum IssueCode {
     MissingVat,
     /// An option list the catalog does not define.
     UnknownOptionList,
+    /// An allergen code that is not one of the 14 of Annex II. The
+    /// catalog is refused whole: a typo on an allergen is a food-safety
+    /// risk, never silently dropped.
+    UnknownAllergen,
 }
 
 impl Issue {
@@ -83,6 +88,7 @@ pub fn validate(catalog: &Catalog) -> Vec<Issue> {
         if item.price_cents < 0 {
             issues.push(Issue::new(IssueCode::NegativePrice, &item.key));
         }
+        check_allergens(&item.key, item.allergens.as_ref(), &mut issues);
         for group in &item.groups {
             check_key(&group.key, &mut group_keys, &mut issues);
             check_names(&group.key, &group.names, &mut issues);
@@ -95,6 +101,7 @@ pub fn validate(catalog: &Catalog) -> Vec<Issue> {
                 if choice.price_cents < 0 {
                     issues.push(Issue::new(IssueCode::NegativePrice, &choice.key));
                 }
+                check_allergens(&choice.key, choice.allergens.as_ref(), &mut issues);
             }
         }
     }
@@ -114,6 +121,12 @@ fn check_key<'a>(key: &'a str, seen: &mut HashSet<&'a str>, issues: &mut Vec<Iss
         issues.push(Issue::new(IssueCode::EmptyKey, key));
     } else if !seen.insert(key) {
         issues.push(Issue::new(IssueCode::DuplicateKey, key));
+    }
+}
+
+fn check_allergens(key: &str, set: Option<&AllergenSet>, issues: &mut Vec<Issue>) {
+    if set.is_some_and(|s| s.first_unknown().is_some()) {
+        issues.push(Issue::new(IssueCode::UnknownAllergen, key));
     }
 }
 
@@ -218,6 +231,28 @@ mod tests {
             items: vec![item("fee", &c.categories[0].key, ItemKind::Charge, 250)],
         };
         assert!(codes(&only_charge).contains(&(IssueCode::NothingToSell, String::new())));
+    }
+
+    #[test]
+    fn an_unknown_allergen_code_refuses_the_catalog() {
+        let mut c = catalog();
+        c.items[0].allergens = Some(AllergenSet {
+            contains: vec!["gluten".into()],
+            may_contain: vec!["glutten".into()],
+        });
+        c.items[0].groups[0].options[0].allergens = Some(AllergenSet {
+            contains: vec!["Milk".into()],
+            may_contain: vec![],
+        });
+        let found = codes(&c);
+        assert!(found.contains(&(IssueCode::UnknownAllergen, c.items[0].key.clone())));
+        assert!(found.contains(&(IssueCode::UnknownAllergen, "MAKI-6|SAUCE|SOJA".into())));
+        c.items[0].allergens = Some(AllergenSet {
+            contains: vec!["gluten".into(), "fish".into()],
+            may_contain: vec!["molluscs".into()],
+        });
+        c.items[0].groups[0].options[0].allergens = Some(AllergenSet::default());
+        assert!(validate(&c).is_empty());
     }
 
     #[test]

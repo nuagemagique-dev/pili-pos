@@ -75,6 +75,7 @@ class CheckoutScreenshotTest {
     private fun capture(
         state: CheckoutUiState,
         name: String,
+        callbacks: CheckoutCallbacks = CheckoutCallbacks(),
     ) {
         rule.setContent {
             PiliTheme {
@@ -87,7 +88,8 @@ class CheckoutScreenshotTest {
                         training = false,
                         clock = "12:30",
                         lights = { StatusLights(FdmUiState(connected = true), DeviceLights(FakeProbe()), hubriseVisible = false) },
-                    ) { CheckoutContent(state, CheckoutCallbacks()) }
+                        overlay = { state.voucher?.let { GiftVoucherDialog(it, state.amounts.restCents, callbacks) } },
+                    ) { CheckoutContent(state, callbacks) }
                 }
             }
         }
@@ -111,6 +113,25 @@ class CheckoutScreenshotTest {
                     ),
             ),
             "checkout_cash",
+        )
+    }
+
+    @Test
+    fun heldCourse() {
+        capture(
+            base.copy(
+                nextHeldCourse = 2,
+                amounts =
+                    CheckoutAmounts(
+                        restCents = 3_190L,
+                        dueCents = 3_190L,
+                        roundedDueCents = 3_190L,
+                        restShownCents = 3_190L,
+                        shares = listOf(3_190L),
+                        quickAmountsCents = listOf(3_500L, 4_000L, 5_000L),
+                    ),
+            ),
+            "checkout_held_course",
         )
     }
 
@@ -246,5 +267,42 @@ class CheckoutScreenshotTest {
             ),
             "checkout_discount",
         )
+    }
+
+    @Test
+    fun giftVoucherDialog() {
+        val voucher =
+            uniffi.pos_ffi.GiftVoucherView(
+                7L, "**** **** 9095", 5_000L, 3_000L, "2026-10-01", "2027-10-01", "active", false,
+                listOf(uniffi.pos_ffi.GiftVoucherMovement("issue", 5_000L, "2026-10-01", "N 12")),
+            )
+        capture(
+            base.copy(
+                giftVouchersEnabled = true,
+                amounts = CheckoutAmounts(restCents = 3_190L, dueCents = 3_190L, roundedDueCents = 3_190L, restShownCents = 3_190L),
+                voucher = VoucherDialogState(digits = "123456789095", found = voucher),
+            ),
+            "checkout_gift_voucher_dialog",
+        )
+    }
+
+    @Test
+    fun giftVoucherDone() {
+        val done =
+            CheckoutDone(
+                ticketLabel = "TICKET DE CAISSE T.V.A.",
+                totalCents = 3_190L,
+                changeCents = 0L,
+                fdmId = null,
+                fdmConnected = true,
+                delivery = null,
+                fiscalEventId = 99L,
+                voucherPrints =
+                    listOf(
+                        uniffi.pos_ffi.GiftVoucherPrint(8L, "voucher", uniffi.pos_ffi.SlipOutcome.PRINTED),
+                        uniffi.pos_ffi.GiftVoucherPrint(7L, "balance", uniffi.pos_ffi.SlipOutcome.FAILED),
+                    ),
+            )
+        capture(base.copy(step = CheckoutStep.DONE, done = done), "checkout_gift_voucher_done")
     }
 }

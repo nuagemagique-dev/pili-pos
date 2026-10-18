@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.order
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import uniffi.pos_ffi.AllergenEntry
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.Category
 import uniffi.pos_ffi.DiscountInput
@@ -10,6 +11,8 @@ import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.ModifierGroup
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.SoldOutItem
+import uniffi.pos_ffi.SheetProductView
+import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.VatSplitRow
 
 /** The dialog open over the order screen, if any (`pricing` and `choosing` of `OrderView.vue`). */
@@ -63,6 +66,29 @@ internal sealed interface OrderDialog {
 
     /** "Produits épuisés (n)": every product sold out now, each one can be put back on sale. */
     data object SoldOutList : OrderDialog
+
+    /**
+     * The allergen sheet of [item] (allergen mode, `AllergenSheetDialog.vue`): [sheet] in the UI language and [sheetFr]
+     * in French when that differs, null until read; [error] is the text of a refusal, [printResult] what the last
+     * print came to and [busy] a print running.
+     */
+    data class AllergenSheet(
+        val item: MenuItem,
+        val sheet: SheetProductView? = null,
+        val sheetFr: SheetProductView? = null,
+        val error: String? = null,
+        val printResult: SlipOutcome? = null,
+        val busy: Boolean = false,
+    ) : OrderDialog
+
+    /** The amount of a gift voucher to sell (`sellingVoucher` of `OrderView.vue`). */
+    data object SellVoucher : OrderDialog
+
+    /** The four courses of the line [lineId] as big buttons (`CoursePickerDialog.vue`); [current] is marked. */
+    data class CoursePicker(
+        val lineId: Long,
+        val current: Int,
+    ) : OrderDialog
 
     /** "Customer left without paying": a manager confirms with the PIN; [userName] is shown as the hint. */
     data class CloseUnpaid(
@@ -143,6 +169,12 @@ internal data class OrderCartState(
     val canDiscount: Boolean = false,
     /** An order discount applies: the button removes it instead (`orderDiscounted`). */
     val orderDiscounted: Boolean = false,
+    /** Courses are on: the cart is grouped by course and each line has a chip. */
+    val coursesEnabled: Boolean = false,
+    /** The next course waiting for "Envoyer la suite" (1 to 3); null when none is held. */
+    val nextHeldCourse: Int? = null,
+    /** "Envoyer la suite" is running. */
+    val sendingNext: Boolean = false,
 )
 
 /** What the cart column can ask for. */
@@ -160,6 +192,10 @@ internal data class OrderCartActions(
     val onOffer: (lineId: Long) -> Unit = {},
     val onRemoveLineDiscount: (lineId: Long) -> Unit = {},
     val onNote: (lineId: Long) -> Unit = {},
+    /** The course chip of a line: opens the picker. */
+    val onCourse: (lineId: Long) -> Unit = {},
+    /** "Envoyer la suite": release and print the next held course. */
+    val onSendNext: () -> Unit = {},
 )
 
 /** The menu part of the screen: the categories, the products of the selected one and what is already in the cart. */
@@ -179,6 +215,14 @@ internal data class MenuState(
     val soldOutMode: Boolean = false,
     /** The products sold out now (`list_sold_out`), read for cashiers and managers only. */
     val soldOut: List<SoldOutItem> = emptyList(),
+    /** Allergen mode: a tap on a product opens its allergen sheet instead of adding it. */
+    val allergenMode: Boolean = false,
+    /** The 14 allergens in Annex order (`list_allergens`), read when the mode is first turned on. */
+    val allergenLegend: List<AllergenEntry> = emptyList(),
+    /** Gift vouchers are on: the "Bon cadeau" button shows next to "Allergènes". */
+    val giftVouchersEnabled: Boolean = false,
+    /** The legend could not be read (`allergens.error` of `OrderView.vue`), already turned into text. */
+    val allergenLegendError: String? = null,
 )
 
 /** What the order screen shows. */

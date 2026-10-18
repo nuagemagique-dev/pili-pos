@@ -117,7 +117,7 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
             ));
         }
     };
-    pos_db::queries::orders::add_order_line(
+    let line = pos_db::queries::orders::add_order_line(
         &db,
         pos_db::queries::orders::NewOrderLine {
             order_id: input.order_id,
@@ -131,7 +131,10 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
             department_name: &product.department_name,
         },
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+    // Kitchen data: the line takes its category's course.
+    super::courses::assign_new_line(&db, line.id, line.order_id, line.menu_item_id)?;
+    Ok(line)
 }
 
 /// Remove a line from an open order (journalled as a correction).
@@ -164,6 +167,11 @@ pub fn do_update_order_line_quantity(
     }
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let order_id = order_of_line(&db, line_id)?;
+    // A gift voucher line is one voucher: its quantity never changes
+    // (add another voucher, or remove the line).
+    if super::gift_vouchers::is_voucher_line(&db, line_id) {
+        return Err(errors::GIFT_VOUCHER_LINE_FIXED.into());
+    }
     unchanged_while_pending(&db, order_id)?;
     // An increase of a sold-out product is refused; a decrease or the same quantity is not.
     let (menu_item_id, current): (i64, i32) = db
@@ -242,6 +250,14 @@ pub async fn do_set_line_note(
     if !to_kitchen {
         return Ok(SlipOutcome::NothingToPrint);
     }
+    // Courses on: a line signed but held for a later course never
+    // reached the kitchen; its release slip carries the new note.
+    if crate::commands::courses::enabled(state) {
+        let db = state.db.lock().map_err(errors::internal)?;
+        if !pos_db::queries::courses::line_was_printed(&db, line_id).map_err(errors::internal)? {
+            return Ok(SlipOutcome::NothingToPrint);
+        }
+    }
     let config = state.config.lock().map_err(errors::internal)?.clone();
     Ok(bar_slip::print_note_slip(
         state,
@@ -263,7 +279,10 @@ fn status_of(db: &rusqlite::Connection, order_id: i64) -> Result<OrderStatus, St
 
 /// An order whose event waits for the FDM's answer keeps what was sent
 /// (`commands::signing`).
-fn unchanged_while_pending(db: &rusqlite::Connection, order_id: i64) -> Result<(), String> {
+pub(crate) fn unchanged_while_pending(
+    db: &rusqlite::Connection,
+    order_id: i64,
+) -> Result<(), String> {
     if pos_db::queries::pending_signs::order_has_open(db, order_id).map_err(errors::internal)? {
         return Err(errors::ORDER_SIGN_PENDING.into());
     }
@@ -310,7 +329,10 @@ pub fn do_list_cart_lines(
     order_id: i64,
 ) -> Result<Vec<pos_db::queries::orders::CartLine>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    pos_db::queries::orders::get_cart_lines(&db, order_id).map_err(|e| e.to_string())
+    let mut lines =
+        pos_db::queries::orders::get_cart_lines(&db, order_id).map_err(|e| e.to_string())?;
+    super::courses::present_cart(&db, order_id, &mut lines);
+    Ok(lines)
 }
 
 pub fn do_list_open_orders(state: &AppState) -> Result<Vec<Order>, String> {

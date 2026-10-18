@@ -70,3 +70,40 @@ async fn a_bad_peppol_section_is_reported_with_its_own_code() {
         "{problems:?}"
     );
 }
+
+#[tokio::test]
+async fn an_unreadable_alerts_token_file_is_reported_as_config_alerts() {
+    let app = TestApp::new().await;
+    app.state.config.lock().unwrap().alerts = Some(pos_core::config::AlertsConfig {
+        telegram_bot_token_file: Some("/nonexistent/telegram.token".into()),
+        telegram_api_base: Some("http://example.com".into()),
+    });
+    let problems = do_get_settings(&app.state).unwrap().config_problems;
+    let codes: Vec<_> = problems
+        .iter()
+        .map(|p| p.split('|').next().unwrap())
+        .collect();
+    assert_eq!(codes, ["config_alerts", "config_alerts"]);
+    assert!(
+        problems[0].contains("alerts.telegram_bot_token_file: cannot read"),
+        "{}",
+        problems[0]
+    );
+    assert!(problems[1].contains("alerts.telegram_api_base: plain http"));
+}
+
+#[tokio::test]
+async fn a_valid_alerts_section_has_no_problem() {
+    let app = TestApp::new().await;
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("telegram.token");
+    std::fs::write(&file, "123:abc\n").unwrap();
+    app.state.config.lock().unwrap().alerts = Some(pos_core::config::AlertsConfig {
+        telegram_bot_token_file: Some(file.to_string_lossy().into_owned()),
+        telegram_api_base: None,
+    });
+    assert_eq!(
+        do_get_settings(&app.state).unwrap().config_problems,
+        Vec::<String>::new()
+    );
+}

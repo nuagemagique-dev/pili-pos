@@ -328,6 +328,7 @@ pub enum IssueCode {
     VatMismatch,
     MissingVat,
     UnknownOptionList,
+    UnknownAllergen,
 }
 
 /// `pos_catalog::apply::Adoption`: a local product that matches a catalog item and can take its

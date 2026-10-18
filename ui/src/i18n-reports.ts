@@ -207,4 +207,23 @@ export const reportsMessages: Messages = {
   "sales_price_changes": { fr: "Modifications de prix (tickets)", en: "Price changes (tickets)", zh: "价格调整（整单）" },
   "sales_refunds": { fr: "dont remboursements", en: "of which refunds", zh: "其中退款" },
   "sales_rounding": { fr: "Arrondi caisse (hors total)", en: "Cash rounding (not in the total)", zh: "现金凑整（不计入合计）" },
+  // Gift vouchers tab
+  "reports_tab_vouchers": { fr: "Bons cadeaux", en: "Gift vouchers", zh: "礼品券" },
+  "gv_lookup_title": { fr: "Vérifier un bon", en: "Check a voucher", zh: "查询礼品券" },
+  "gv_list_title": { fr: "Bons émis", en: "Vouchers issued", zh: "已发礼品券" },
+  "gv_filter_all": { fr: "Tous", en: "All", zh: "全部" },
+  "gv_empty": { fr: "Aucun bon", en: "No voucher", zh: "没有礼品券" },
+  "gv_face": { fr: "Valeur", en: "Face value", zh: "面值" },
+  "gv_issued_on": { fr: "Émis le {date}", en: "Issued {date}", zh: "发行于 {date}" },
+  "gv_reprint": { fr: "Réimprimer", en: "Print again", zh: "重新打印" },
+  "gv_reprinted": { fr: "Bon réimprimé (DUPLICATA)", en: "Voucher printed again (DUPLICATA)", zh: "已重新打印（DUPLICATA）" },
+  "gv_movements": { fr: "Mouvements", en: "Movements", zh: "明细" },
+  "gv_movement_issue": { fr: "Émission", en: "Issue", zh: "发行" },
+  "gv_movement_redeem": { fr: "Utilisation", en: "Use", zh: "使用" },
+  "gv_movement_cancel": { fr: "Annulation", en: "Cancellation", zh: "作废" },
+  "gv_disabled_note": {
+    fr: "Les bons cadeaux sont désactivés dans les réglages.",
+    en: "Gift vouchers are switched off in the settings.",
+    zh: "礼品券功能已在设置中关闭。",
+  },
 };

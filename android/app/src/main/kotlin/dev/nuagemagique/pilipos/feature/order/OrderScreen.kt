@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.feature.checkout.CheckoutRoutes
 import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
+import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.AmountDialog
 import dev.nuagemagique.pilipos.ui.components.PinDialog
@@ -48,7 +49,17 @@ internal data class OrderCallbacks(
     val onItem: (MenuItem) -> Unit = {},
     val onPrice: (Long) -> Unit = {},
     val onPicks: (List<Long>) -> Unit = {},
+    /** The "Allergènes" button: allergen mode on or off. */
+    val onAllergenMode: () -> Unit = {},
+    /** Print the open allergen sheet (`false`) or the whole menu's (`true`). */
+    val onAllergenPrint: (Boolean) -> Unit = {},
     val onDismiss: () -> Unit = {},
+    /** The "Bon cadeau" button: ask for the amount of a voucher to sell. */
+    val onSellVoucher: () -> Unit = {},
+    /** The amount typed for the voucher. */
+    val onVoucherAmount: (Long) -> Unit = {},
+    /** A course picked in the picker. */
+    val onCoursePick: (Int) -> Unit = {},
     /** The manager PIN of "customer left without paying"; throws what the engine refused. */
     val onUnpaidPin: suspend (String) -> Unit = {},
     val describeError: (Throwable) -> String = { it.message.orEmpty() },
@@ -98,10 +109,15 @@ internal fun OrderRoute(
             onItem = model::addItem,
             onPrice = model::confirmPrice,
             onPicks = model::confirmModifiers,
+            onAllergenMode = model::toggleAllergenMode,
+            onAllergenPrint = model::printAllergenSheet,
             onDismiss = model::dismissDialog,
             onSoldOutMode = model::toggleSoldOutMode,
             onSoldOutList = model::openSoldOutList,
             onAvailability = model::setAvailability,
+            onSellVoucher = model::askGiftVoucher,
+            onVoucherAmount = model::confirmGiftVoucher,
+            onCoursePick = model::pickCourse,
             onUnpaidPin = model::closeUnpaid,
             describeError = model::describe,
             onTransferTarget = model::confirmTransfer,
@@ -129,12 +145,14 @@ internal fun OrderRoute(
             onOffer = { model.askDiscount(it) },
             onRemoveLineDiscount = { model.askRemoveDiscount(it) },
             onNote = model::askNote,
+            onCourse = model::openCoursePicker,
+            onSendNext = model::sendNextCourse,
         )
     PosScaffold(
         area = HeaderArea.ORDER,
         navigator = navigator,
         modifier = Modifier.testTag("placeholder_order"),
-        overlay = { OrderDialogs(state.dialog, callbacks, state.menu.soldOut) },
+        overlay = { OrderDialogs(state.dialog, callbacks, state.menu.soldOut, state.menu.language) },
     ) {
         OrderContent(state, callbacks, cartActions)
     }
@@ -180,6 +198,7 @@ internal fun OrderContent(
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 CategoryTabs(menu.categories, menu.selectedCategoryId, menu.language, callbacks.onCategory)
                 if (menu.canSoldOut) SoldOutBar(menu.soldOutMode, menu.soldOut.size, callbacks.onSoldOutMode, callbacks.onSoldOutList)
+                AllergenBar(menu, callbacks.onAllergenMode, onSellVoucher = callbacks.onSellVoucher)
                 MenuGrid(
                     items = menu.items,
                     categoryColor = parseCategoryColor(color),
@@ -206,6 +225,7 @@ internal fun BoxScope.OrderDialogs(
     dialog: OrderDialog,
     callbacks: OrderCallbacks,
     soldOut: List<SoldOutItem> = emptyList(),
+    language: AppLanguage = AppLanguage.FR,
 ) {
     when (dialog) {
         OrderDialog.None -> Unit
@@ -215,6 +235,14 @@ internal fun BoxScope.OrderDialogs(
                 itemName = dialog.item.name,
                 texts = defaultAmountDialogTexts(),
                 onConfirm = callbacks.onPrice,
+                onCancel = callbacks.onDismiss,
+            )
+        OrderDialog.SellVoucher ->
+            AmountDialog(
+                title = vueText("gv_sell_title"),
+                itemName = vueText("gv_sell_item"),
+                texts = defaultAmountDialogTexts(),
+                onConfirm = callbacks.onVoucherAmount,
                 onCancel = callbacks.onDismiss,
             )
         is OrderDialog.Modifiers ->
@@ -228,6 +256,9 @@ internal fun BoxScope.OrderDialogs(
             DiscountDialog(dialog.baseCents, dialog.lineId, onConfirm = callbacks.onDiscountChosen, onCancel = callbacks.onDismiss)
         is OrderDialog.DiscountPin -> DiscountPinDialog(dialog, callbacks)
         is OrderDialog.Note -> NoteDialog(dialog.initial, dialog.sent, onConfirm = callbacks.onNoteSaved, onCancel = callbacks.onDismiss)
+        is OrderDialog.AllergenSheet ->
+            AllergenSheetDialog(dialog, language, onPrint = callbacks.onAllergenPrint, onClose = callbacks.onDismiss)
+        is OrderDialog.CoursePicker -> CoursePickerDialog(dialog.current, callbacks.onCoursePick, callbacks.onDismiss)
     }
 }
 

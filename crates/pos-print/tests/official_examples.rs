@@ -297,15 +297,19 @@ fn vi_bar_the_official_bar_ticket_example() {
                 quantity: 1,
                 name: "Dry Martini".to_string(),
                 note: None,
+                course: None,
             },
             BarItem {
                 quantity: 1,
                 name: "Plat du jour".to_string(),
                 note: None,
+                course: None,
             },
         ],
         lang: ReceiptLanguage::Fr,
         is_training: false,
+        release: None,
+        duplicate: false,
     }));
     assert_in_order(
         &text,

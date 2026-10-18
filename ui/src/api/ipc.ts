@@ -380,6 +380,8 @@ export interface TableInfo {
   openedAt: string | null;
   /** A provisional bill was printed and the order has not changed since. */
   preBillPrinted: boolean;
+  /** The next course waiting for "Envoyer la suite" (1 to 3), when courses are on. */
+  heldCourse: number | null;
 }
 
 export function listTables(): Promise<TableInfo[]> {
@@ -1404,4 +1406,240 @@ export function menuSaveModifier(input: SaveModifierInput): Promise<MenuSaved> {
 /** The change log of the menu, newest first. */
 export function listMenuChanges(limit?: number): Promise<MenuChange[]> {
   return invoke("list_menu_changes", { limit });
+}
+
+// ── Owner alerts (Telegram messages to the owner's phone) ──────────
+
+/** One switch per kind of alert. */
+export interface AlertKinds {
+  fdm: boolean;
+  printer: boolean;
+  terminal: boolean;
+  z_missing: boolean;
+  online_waiting: boolean;
+}
+
+/** What the owner edits. */
+export interface OwnerAlertsInput {
+  enabled: boolean;
+  chat_id: string;
+  label: string;
+  language: "fr" | "zh" | "en";
+  kinds: AlertKinds;
+  z_deadline_hour: number;
+  online_wait_minutes: number;
+  reminder_minutes: number;
+}
+
+/** The settings as stored, plus whether the bot token can be read (the token never leaves the engine). */
+export interface OwnerAlerts extends Omit<OwnerAlertsInput, "language"> {
+  language: string;
+  token_configured: boolean;
+}
+
+export interface AlertTestResult {
+  sent: boolean;
+  detail: string;
+}
+
+export interface AlertLogRow {
+  id: number;
+  kind: string;
+  transition: string;
+  detail: string | null;
+  outcome: string;
+  http_status: number | null;
+  created_at: string;
+}
+
+export function getOwnerAlerts(): Promise<OwnerAlerts> {
+  return invoke("get_owner_alerts");
+}
+
+/** Managers only. Logged. */
+export function setOwnerAlerts(input: OwnerAlertsInput): Promise<OwnerAlerts> {
+  return invoke("set_owner_alerts", { input });
+}
+
+/** Managers only. Sends one message now; refuses with `alerts_send_failed|detail=...`. */
+export function sendTestAlert(): Promise<AlertTestResult> {
+  return invoke("send_test_alert");
+}
+
+/** Managers only. Newest first. */
+export function listOwnerAlertLog(limit: number): Promise<AlertLogRow[]> {
+  return invoke("list_owner_alert_log", { limit });
+}
+
+// ── The 14 EU allergens ────────────────────────────────────────────
+
+/** One of the 14 allergens of Annex II, with its name per language. */
+export interface AllergenEntry {
+  code: string;
+  /** Annex II number, 1 to 14. */
+  number: number;
+  names: { fr: string; nl: string; en: string; zh: string };
+}
+
+/** An allergen on a sheet, named in the sheet's language. */
+export interface AllergenRef {
+  code: string;
+  number: number;
+  name: string;
+}
+
+export interface AllergenSheetOption {
+  group: string;
+  name: string;
+  declared: boolean;
+  contains: AllergenRef[];
+  traces: AllergenRef[];
+}
+
+export interface AllergenSheetProduct {
+  id: number;
+  name: string;
+  name_fr: string;
+  /** False: no information (never "no allergen"). */
+  declared: boolean;
+  contains: AllergenRef[];
+  traces: AllergenRef[];
+  options: AllergenSheetOption[];
+}
+
+export interface AllergenSheet {
+  lang: string;
+  products: AllergenSheetProduct[];
+}
+
+/** The 14 allergens in Annex order, for the legend. */
+export function listAllergens(): Promise<AllergenEntry[]> {
+  return invoke("list_allergens");
+}
+
+/** The sheet of one product, or of the whole active menu (`null`). */
+export function getAllergenSheet(menuItemId: number | null, lang?: string): Promise<AllergenSheet> {
+  return invoke("get_allergen_sheet", { menuItemId, lang });
+}
+
+/** Prints the sheet (fr, nl, en or de); a printer failure is the outcome, not an error. */
+export function printAllergenSheet(menuItemId: number | null, lang?: string): Promise<SlipOutcome> {
+  return invoke("print_allergen_sheet", { menuItemId, lang });
+}
+
+// ── Courses and "Envoyer la suite" (kitchen printing only) ─────────
+
+/** A category and the course its products take (1 to 3; 0 is "Direct"). */
+export interface CategoryCourse {
+  category_id: number;
+  course: number;
+}
+
+export interface CourseSettings {
+  enabled: boolean;
+  category_courses: CategoryCourse[];
+}
+
+/** A course waiting for "Envoyer la suite". */
+export interface HeldCourse {
+  course: number;
+  lines: number;
+  quantity: number;
+}
+
+/** What "Envoyer la suite" did. */
+export interface NextCourse {
+  /** The course released; null when the call printed again what a failed slip had not delivered. */
+  course: number | null;
+  /** The slip of the P that registered the unsent lines first. */
+  signed: SlipOutcome | null;
+  slip: SlipOutcome;
+}
+
+export function getCourseSettings(): Promise<CourseSettings> {
+  return invoke("get_course_settings");
+}
+
+/** Managers only. */
+export function setCourseSettings(input: CourseSettings): Promise<CourseSettings> {
+  return invoke("set_course_settings", { input });
+}
+
+/** Refused with `course_already_sent` once a slip carried the line. */
+export function setLineCourse(lineId: number, course: number): Promise<void> {
+  return invoke("set_line_course", { lineId, course });
+}
+
+export function listHeldCourses(orderId: number): Promise<HeldCourse[]> {
+  return invoke("list_held_courses", { orderId });
+}
+
+/** Signs the unsent lines first (FDM down: refused, nothing printed), then releases and prints. */
+export function sendNextCourse(orderId: number): Promise<NextCourse> {
+  return invoke("send_next_course", { orderId });
+}
+
+/** Prints a course slip again, marked DUPLICATA. */
+export function reprintCourseSlip(orderId: number, course: number): Promise<SlipOutcome> {
+  return invoke("reprint_course_slip", { orderId, course });
+}
+
+// ── Multi-purpose gift vouchers ─────────────────────────────
+
+export interface GiftVoucherSettings {
+  enabled: boolean;
+  /** 12 to 36. */
+  validity_months: number;
+  /** Largest voucher sold, in cents. */
+  max_amount_cents: number;
+}
+
+export interface GiftVoucherMovement {
+  /** `issue`, `redeem` or `cancel`. */
+  kind: "issue" | "redeem" | "cancel";
+  amount_cents: number;
+  date: string;
+  /** The ticket that made it (`N 1234`). */
+  ticket: string;
+}
+
+export interface GiftVoucherView {
+  id: number;
+  /** The code is masked: it is printed in full on the voucher only. */
+  code_masked: string;
+  face_value_cents: number;
+  balance_cents: number;
+  issued_on: string;
+  expires_on: string;
+  status: "active" | "used" | "expired" | "cancelled";
+  training: boolean;
+  movements: GiftVoucherMovement[];
+}
+
+export function getGiftVoucherSettings(): Promise<GiftVoucherSettings> {
+  return invoke("get_gift_voucher_settings");
+}
+
+export function setGiftVoucherSettings(input: GiftVoucherSettings): Promise<GiftVoucherSettings> {
+  return invoke("set_gift_voucher_settings", { input });
+}
+
+/** Sells a voucher: a fixed-quantity line of the system product. */
+export function addGiftVoucherLine(orderId: number, amountCents: number): Promise<OrderLine> {
+  return invoke("add_gift_voucher_line", { orderId, amountCents });
+}
+
+/** Finds a voucher by its 12-digit code (5 failures a minute, then a wait). */
+export function lookupGiftVoucher(code: string): Promise<GiftVoucherView> {
+  return invoke("lookup_gift_voucher", { code });
+}
+
+/** Managers only; `status` filters on active, used, expired or cancelled. */
+export function listGiftVouchers(status?: string): Promise<GiftVoucherView[]> {
+  return invoke("list_gift_vouchers", { status: status ?? null });
+}
+
+/** Prints a voucher again, marked DUPLICATA (managers only). */
+export function printGiftVoucher(voucherId: number): Promise<SlipOutcome> {
+  return invoke("print_gift_voucher", { voucherId });
 }

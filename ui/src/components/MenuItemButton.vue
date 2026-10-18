@@ -4,6 +4,7 @@ import type { MenuItem } from "../types";
 import { formatPrice } from "../utils/format";
 import { useI18n } from "../i18n";
 import { useBilingualName } from "../utils/names";
+import AllergenBadges from "./AllergenBadges.vue";
 
 const props = defineProps<{
   item: MenuItem;
@@ -51,6 +52,7 @@ function handleTap() {
     <span v-if="names.secondary" class="item-sub">{{ names.secondary }}</span>
     <span v-if="item.open_price" class="item-open-price">{{ t('open_price_badge') }}</span>
     <span v-else class="item-price">{{ formatPrice(item.price_cents) }}</span>
+    <AllergenBadges v-if="item.allergens?.length" class="item-allergens" :codes="item.allergens" />
     <span v-if="inCart" class="item-qty">{{ inCart }}</span>
     <span v-if="item.sold_out" class="item-sold-out" data-testid="soldout-badge">
       {{ t('soldout_badge') }}
@@ -142,6 +144,15 @@ function handleTap() {
   border-radius: 6px;
   font-size: 13px;
   font-weight: var(--font-weight-bold);
+}
+
+/* The allergens the product contains: bottom left, on the price line,
+   clear of the quantity badge. */
+.item-allergens {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  max-width: calc(100% - 56px);
 }
 
 /* Already in the cart: bottom right, on the price line, clear of the

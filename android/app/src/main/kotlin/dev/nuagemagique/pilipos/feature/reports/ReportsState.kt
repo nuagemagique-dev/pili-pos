@@ -4,6 +4,7 @@ import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.CopyResult
 import uniffi.pos_ffi.CopyableTicket
 import uniffi.pos_ffi.CorrectionDone
+import uniffi.pos_ffi.GiftVoucherView
 import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.RefundableEvent
@@ -13,7 +14,7 @@ import uniffi.pos_ffi.SalePayments
 import uniffi.pos_ffi.UnsettledCardPayment
 import uniffi.pos_ffi.ZReportSummary
 
-/** The four tabs of the reports screen (`Tab` of `ReportsView.vue`, UX guide 2.1). */
+/** The tabs of the reports screen (`Tab` of `ReportsView.vue`, UX guide 2.1): four, five with gift vouchers on. */
 internal enum class ReportsTab {
     /** X, user X and Z reports and the Z history. */
     DAY,
@@ -26,7 +27,33 @@ internal enum class ReportsTab {
 
     /** The non-fiscal sales report (by product, by hour, concordance with the Z). */
     SALES,
+
+    /** Gift vouchers: lookup by code, and for a manager the list with the duplicate. */
+    VOUCHERS,
 }
+
+/** The statuses the manager's list filters on, `null` being all of them (`FILTERS` of `GiftVouchersReport.vue`). */
+internal val VOUCHER_FILTERS: List<String?> = listOf(null, "active", "used", "expired", "cancelled")
+
+/**
+ * The gift vouchers tab (`GiftVouchersReport.vue`): the lookup of a code (any role) and, for a manager, the list.
+ * [enabled] is the setting; the tab is offered only then. Codes are masked everywhere.
+ */
+internal data class VouchersState(
+    val enabled: Boolean = false,
+    val manager: Boolean = false,
+    /** The digits of the code typed for the lookup. */
+    val digits: String = "",
+    val found: GiftVoucherView? = null,
+    val lookupError: String? = null,
+    val busy: Boolean = false,
+    /** The status filter of the list; null is all. */
+    val filter: String? = null,
+    val list: List<GiftVoucherView> = emptyList(),
+    val listError: String? = null,
+    /** The voucher whose movements are open. */
+    val open: Long? = null,
+)
 
 /** The report a button of the day tab generates. */
 internal enum class ReportKind {
@@ -345,13 +372,13 @@ internal fun methodOf(paymentType: String): PaymentMethod? =
 /** The methods a payment can be corrected to, in the order of the buttons. */
 internal val CORRECTION_METHODS: List<PaymentMethod> = listOf(PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER)
 
-/** The Vue key of the name of [method] in the correction dialog; null for the app and online methods. */
+/** The Vue key of the name of [method] in the correction dialog; null for the app, online and gift voucher methods. */
 internal fun methodKey(method: PaymentMethod): String? =
     when (method) {
         PaymentMethod.CASH -> "reports_pc_method_cash"
         PaymentMethod.CARD -> "reports_pc_method_card"
         PaymentMethod.MEAL_VOUCHER -> "reports_pc_method_meal_voucher"
-        PaymentMethod.APP, PaymentMethod.ONLINE -> null
+        PaymentMethod.APP, PaymentMethod.ONLINE, PaymentMethod.GIFT_VOUCHER -> null
     }
 
 /** Everything the reports screen draws. */
@@ -360,6 +387,7 @@ internal data class ReportsState(
     val day: DayState = DayState(),
     val cash: CashState = CashState(),
     val tickets: TicketsState = TicketsState(),
+    val vouchers: VouchersState = VouchersState(),
     /** The copy flow, or null when no copy is in progress. */
     val copyFlow: CopyFlow? = null,
     /** The refund flow, or null when no refund is in progress. */

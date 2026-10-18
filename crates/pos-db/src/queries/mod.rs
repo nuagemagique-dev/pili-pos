@@ -1,8 +1,11 @@
+pub mod allergens;
 pub mod badges;
 pub mod booking;
+pub mod courses;
 pub mod deliveries;
 pub mod eft;
 pub mod fiscal;
+pub mod gift_vouchers;
 #[cfg(feature = "hubrise")]
 pub mod integrations;
 pub mod invoicing;
@@ -10,6 +13,7 @@ pub mod menu;
 #[cfg(feature = "catalog-sync")]
 pub mod menu_admin;
 pub mod orders;
+pub mod owner_settings;
 pub mod pending_signs;
 #[cfg(feature = "hubrise")]
 pub mod price_changes;

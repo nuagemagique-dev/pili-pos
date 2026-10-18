@@ -135,6 +135,10 @@ pub struct CartLine {
     #[serde(default)]
     #[uniffi(default = false)]
     pub online: bool,
+    /// The line's course (kitchen only): 0 "Direct", 1 to 3.
+    pub course: i32,
+    /// `unsent`, `held` (waits for "Envoyer la suite") or `printed`.
+    pub kitchen_state: String,
 }
 
 /// `pos_db::queries::orders::CartPriceChange`: a price change on a cart line.
@@ -260,6 +264,18 @@ pub struct MenuItem {
     /// The product has an active option group with an active option: the option picker opens.
     #[serde(default)]
     pub has_modifiers: bool,
+    /// Allergen codes the product contains (Annex II codes of `list_allergens`).
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub allergens: Vec<String>,
+    /// Allergen codes the product may contain as traces.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub traces: Vec<String>,
+    /// The allergen list is complete (possibly empty); false means no information.
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub allergens_declared: bool,
 }
 
 /// `pos_db::queries::sold_out::SoldOutItem`: a product that is sold out now.
@@ -281,6 +297,18 @@ pub struct Modifier {
     pub id: i64,
     pub name: String,
     pub price_cents: i64,
+    /// Allergen codes the option contains.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub allergens: Vec<String>,
+    /// Allergen codes the option may contain as traces.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub traces: Vec<String>,
+    /// The option's allergen list is complete (possibly empty); false means no information.
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub allergens_declared: bool,
 }
 
 /// `pos_db::queries::menu::ModifierGroup`: an option group of a product.
@@ -318,6 +346,8 @@ pub struct TableInfo {
     pub opened_at: Option<String>,
     /// A provisional bill was printed and the order has not changed since.
     pub pre_bill_printed: bool,
+    /// The next course waiting for "Envoyer la suite" (1 to 3), when the table holds one.
+    pub held_course: Option<i32>,
 }
 
 /// `pos_engine::commands::table_transfer::TableTransferResult`: what moving an order to another

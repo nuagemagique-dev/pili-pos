@@ -247,6 +247,28 @@ fn main() {
         // Settings
         ipc::settings::get_settings,
         ipc::settings::set_training_mode,
+        // Owner alerts (Telegram)
+        ipc::alerts::get_owner_alerts,
+        ipc::alerts::set_owner_alerts,
+        ipc::alerts::send_test_alert,
+        ipc::alerts::list_owner_alert_log,
+        // Allergens
+        ipc::allergens::list_allergens,
+        ipc::allergens::get_allergen_sheet,
+        ipc::allergens::print_allergen_sheet,
+        ipc::allergens::set_allergens,
+        ipc::courses::get_course_settings,
+        ipc::courses::set_course_settings,
+        ipc::courses::set_line_course,
+        ipc::courses::list_held_courses,
+        ipc::courses::send_next_course,
+        ipc::courses::reprint_course_slip,
+        ipc::gift_vouchers::get_gift_voucher_settings,
+        ipc::gift_vouchers::set_gift_voucher_settings,
+        ipc::gift_vouchers::add_gift_voucher_line,
+        ipc::gift_vouchers::lookup_gift_voucher,
+        ipc::gift_vouchers::list_gift_vouchers,
+        ipc::gift_vouchers::print_gift_voucher,
         // Tables
         ipc::tables::list_tables,
         ipc::tables::get_table_plan,

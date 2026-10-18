@@ -354,6 +354,13 @@ private fun TableTop(
             if (table.preBillPrinted) {
                 Tag(vueText("pre_bill"), Modifier.testTag("table_${table.tableNumber}_bill"))
             }
+            // A later course waits for "Envoyer la suite".
+            table.heldCourse?.takeIf { it > 0 }?.let { course ->
+                Tag(
+                    vueText("table_held_course", "course" to vueText("course_$course")),
+                    Modifier.testTag("table_${table.tableNumber}_held"),
+                )
+            }
             // The customer's card was charged and no sale records it yet.
             if (table.orderId?.let { it in cardCharged } == true) {
                 Tag(vueText("card_charged_badge"), Modifier.testTag("table_${table.tableNumber}_card"))

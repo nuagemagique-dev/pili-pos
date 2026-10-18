@@ -17,6 +17,9 @@ import DiscountDialog from "./DiscountDialog.vue";
 import NoteDialog from "./NoteDialog.vue";
 import type { DiscountInput } from "../types";
 import * as ipc from "../api/ipc";
+import CoursePickerDialog from "./CoursePickerDialog.vue";
+import { GIFT_VOUCHER_DEPARTMENT } from "../stores/giftVouchers";
+import type { CartLine } from "../types";
 
 const router = useRouter();
 const order = useOrderStore();
@@ -34,6 +37,50 @@ const sentLines = computed(() =>
 const pendingLines = computed(() =>
   isDineIn.value ? order.lines.filter((l) => (l.unsent_quantity ?? 0) > 0) : [],
 );
+
+// Courses on: the lines are grouped by course, lowest first, under a
+// header. A takeaway groups too (its slip is printed with the same headers).
+const courseGroups = computed(() => {
+  const groups = new Map<number, CartLine[]>();
+  for (const line of order.lines) {
+    const list = groups.get(line.course) ?? [];
+    list.push(line);
+    groups.set(line.course, list);
+  }
+  return [...groups.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([course, lines]) => ({ course, lines }));
+});
+
+const pickingLine = ref<CartLine | null>(null);
+
+async function pickCourse(course: number) {
+  const line = pickingLine.value;
+  pickingLine.value = null;
+  if (line && course !== line.course) await order.setLineCourse(line.id, course);
+}
+
+// "Envoyer la suite": signs what is unsent, releases the next held
+// course and prints it.
+const sendingNext = ref(false);
+
+async function sendNextCourse() {
+  if (sendingNext.value || order.nextHeldCourse === null) return;
+  sendingNext.value = true;
+  try {
+    const next = await order.sendNextCourse();
+    if (next) {
+      toast.show(
+        next.course === null ? t("course_resent") : t("course_sent", { course: t(`course_${next.course}`) }),
+        "success",
+      );
+    }
+  } catch (e) {
+    toast.show(describeError(e), "error", 6000);
+  } finally {
+    sendingNext.value = false;
+  }
+}
 
 // "19:05 · 37 min": when the order was opened, and for how long.
 const now = ref(new Date());
@@ -187,6 +234,7 @@ function lineHasOwnChange(lineId: number): boolean {
 }
 function canOfferLine(lineId: number): boolean {
   const line = order.lines.find((l) => l.id === lineId);
+  if (line?.department_id === GIFT_VOUCHER_DEPARTMENT) return false;
   return canDiscount.value && !order.orderDiscounted && (line?.price_changes?.length ?? 0) === 0;
 }
 function canRemoveLineDiscount(lineId: number): boolean {
@@ -200,6 +248,8 @@ const discountBase = computed(() => {
     const line = order.lines.find((l) => l.id === step.lineId);
     return line ? lineNetCents(line) : 0;
   }
+  // The order total, as on Android (no money arithmetic in the Compose UI): a gift voucher
+  // line never shares an order discount, the engine leaves it out (V12 merge decision).
   return order.totalCents;
 });
 
@@ -251,6 +301,29 @@ async function onUnpaidClosed() {
     </div>
 
     <div class="cart-lines scroll-touch">
+      <template v-if="order.coursesEnabled">
+        <template v-for="group in courseGroups" :key="group.course">
+          <div class="course-label" :data-testid="`course-group-${group.course}`">{{ t(`course_${group.course}`) }}</div>
+          <OrderLineItem
+            v-for="line in group.lines"
+            :key="line.id"
+            :line="line"
+            :pending="isDineIn && (line.unsent_quantity ?? 0) > 0"
+            show-course
+            :can-offer="canOfferLine(line.id)"
+            :can-remove-discount="canRemoveLineDiscount(line.id)"
+            :can-note="canNote"
+            @note="noteLineId = $event"
+            @increment="increment"
+            @decrement="decrement"
+            @remove="order.removeLine($event)"
+            @offer="discountStep = { kind: 'ask', lineId: $event }"
+            @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
+            @course="pickingLine = order.lines.find((l) => l.id === $event) ?? null"
+          />
+        </template>
+      </template>
+      <template v-else>
       <OrderLineItem
         v-for="line in sentLines"
         :key="line.id"
@@ -284,6 +357,7 @@ async function onUnpaidClosed() {
           @offer="discountStep = { kind: 'ask', lineId: $event }"
           @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
         />
+      </template>
       </template>
       <div v-if="order.lines.length === 0" class="cart-empty">
         {{ t('no_items') }}
@@ -338,6 +412,16 @@ async function onUnpaidClosed() {
         </button>
       </div>
 
+      <button
+        v-if="isDineIn && order.nextHeldCourse !== null"
+        class="next-course-btn"
+        :disabled="sendingNext"
+        data-testid="send-next-course"
+        @click="sendNextCourse"
+      >
+        {{ t('send_next_course', { course: t(`course_${order.nextHeldCourse}`) }) }}
+      </button>
+
       <!-- UX guide §2.3: the main action, always bottom right. -->
       <button
         v-if="auth.canTakePayment"
@@ -382,6 +466,13 @@ async function onUnpaidClosed() {
       :verify="verifyDiscount"
       @done="onDiscountDone"
       @cancel="discountStep = null"
+    />
+
+    <CoursePickerDialog
+      v-if="pickingLine"
+      :current="pickingLine.course"
+      @pick="pickCourse"
+      @cancel="pickingLine = null"
     />
 
     <PinDialog
@@ -465,6 +556,17 @@ async function onUnpaidClosed() {
   height: 10px;
   border-radius: 50%;
   background: var(--accent-warning);
+}
+
+/* Course header of the grouped cart. */
+.course-label {
+  padding: 14px 0 4px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 
 .cart-empty {
@@ -570,6 +672,19 @@ async function onUnpaidClosed() {
   align-items: center;
   justify-content: center;
 }
+
+/* Releases the next held course: the kitchen's second action, above Pay. */
+.next-course-btn {
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
+  transition: transform var(--tap-duration) ease;
+}
+.next-course-btn:active { transform: scale(var(--tap-scale)); }
+.next-course-btn:disabled { opacity: 0.35; pointer-events: none; }
 
 /* Volt: the screen's one main action. Full width × 80 px (§4.1 ≥ 72). */
 .checkout-btn {
