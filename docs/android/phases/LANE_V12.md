@@ -670,7 +670,7 @@ of this file (what was delivered, deviations, gate results).
 
 ## 9. Dossier changes (French, brand-neutral; folded into both v1.0 dossiers by the int worker)
 
-The drafts were first written under `docs/internal/v1.2/`; that folder is deleted, see INT-D25 to INT-D28 in
+The drafts were first written under `docs/internal/v1.2/`; that folder is deleted, see INT-D25 to INT-D27 in
 `DECISIONS.md` for where each draft went.
 
 - `NOTE_MISE_A_JOUR_V1_2_FR.md` (created by T1; one section per item): for the update declaration

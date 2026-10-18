@@ -1,7 +1,7 @@
 ﻿date;journal;document;compte;libelle;debit;credit;code_tva
 2026-10-01;VTE;1;570000;Encaissements especes;18.05;0.00;
 2026-10-01;VTE;1;580000;Encaissements carte;61.20;0.00;
-2026-10-01;VTE;1;580100;Encaissements titres-repas;10.60;0.00;
+2026-10-01;VTE;1;580100;Encaissements chèques-repas;10.60;0.00;
 2026-10-01;VTE;1;489000;Encaissements bons cadeaux utilises;20.00;0.00;
 2026-10-01;VTE;1;580300;Encaissements paiements en ligne;20.00;0.00;
 2026-10-01;VTE;1;489000;Bons cadeaux vendus;0.00;50.00;X

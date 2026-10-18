@@ -6160,7 +6160,7 @@ Le manuel demande les tests de base 1 et 2 dans tous les cas, le test 3
 si le POS n'arrondit que les paiements en especes, les tests 4 et 5 si
 tous les moyens de paiement sont arrondis. pili-pos n'arrondit **que
 les especes** (`crates/pos-fiscal/src/payment.rs` : un paiement par
-carte ou par cheque-repas est toujours exact, l'arrondi au 0,05 EUR
+carte ou par chèque-repas est toujours exact, l'arrondi au 0,05 EUR
 porte sur le solde paye en especes, sur sa propre ligne `ROUNDING`).
 Sont donc presentees les cinq situations des tests de base 1 a 3 (les
 tests 4 et 5 ne s'appliquent pas). Produits du manuel : Dame Blanche
@@ -6538,7 +6538,7 @@ TVA: BE0000000097
 ## ROUND4_Cheques_repas_puis_cash
 
 **Test de base 2, situation 4.** Memes produits (14,86 EUR) ; 11,52 EUR
-en cheques-repas (jamais arrondis), le solde 3,34 EUR en especes.
+en chèques-repas (jamais arrondis), le solde 3,34 EUR en especes.
 Attendu : a payer 3,35 EUR en especes, arrondi +0,01 EUR.
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
@@ -6650,7 +6650,7 @@ Logiciel de caisse v.: pili-pos/1.0.0
 TOTAL :                                   €14,86
 ................................................
 Mode de paiement :
-Cheques-repas                              11,52
+Chèques-repas                              11,52
 Especes                                     3,34
 Arrondi                                     0,01
 % TVA   CODE          HT       TVA      Brut
@@ -6682,7 +6682,7 @@ TVA: BE0000000097
 ## ROUND5_Multi_paiements
 
 **Test de base 3, situation 5.** Memes produits (14,86 EUR) ; 3,13 EUR
-en cheques-repas, 3,97 EUR par carte de debit, le solde 7,76 EUR en
+en chèques-repas, 3,97 EUR par carte de debit, le solde 7,76 EUR en
 especes. Attendu : 7,75 EUR en especes, arrondi -0,01 EUR ; seul le
 paiement en especes est arrondi.
 
@@ -6803,7 +6803,7 @@ Logiciel de caisse v.: pili-pos/1.0.0
 TOTAL :                                   €14,86
 ................................................
 Mode de paiement :
-Cheques-repas                               3,13
+Chèques-repas                               3,13
 Carte                                       3,97
 Especes                                     7,76
 Arrondi                                    -0,01

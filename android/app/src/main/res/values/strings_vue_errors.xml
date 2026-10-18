@@ -74,7 +74,7 @@
     <string name="err_payment_correction_bad_line">Cette ligne de paiement n\'existe pas.</string>
     <string name="err_payment_correction_terminal_card">Une carte prise sur le terminal lié ne peut pas être corrigée.</string>
     <string name="err_payment_correction_same_method">Choisissez un autre moyen de paiement que celui de la ligne.</string>
-    <string name="err_payment_correction_method">Ce moyen de paiement n\'est pas accepté en caisse (espèces, carte, titres-repas).</string>
+    <string name="err_payment_correction_method">Ce moyen de paiement n\'est pas accepté en caisse (espèces, carte, chèques-repas).</string>
     <string name="err_payment_correction_gift_voucher">Un paiement par bon cadeau ne peut pas être corrigé : il a débité le bon.</string>
     <string name="err_payment_correction_rounding">Cette correction demanderait un arrondi : elle n\'est pas possible pour cette vente.</string>
     <string name="err_order_no_lines">La commande est vide.</string>
@@ -167,13 +167,14 @@
     <string name="err_gift_voucher_settings_invalid">Réglage des bons cadeaux invalide ({field}).</string>
     <string name="err_gift_voucher_amount_invalid">Un bon cadeau vaut au moins 1,00 EUR et au plus {max} EUR.</string>
     <string name="err_gift_voucher_line_fixed">La quantité d\'un bon cadeau ne change pas : ajoutez un autre bon ou supprimez la ligne.</string>
+    <string name="err_gift_voucher_line_no_kitchen">Un bon cadeau ne part pas en cuisine : il n\'a ni service ni note.</string>
     <string name="err_gift_voucher_not_found">Aucun bon cadeau avec ce code.</string>
     <string name="err_gift_voucher_code_invalid">Code invalide : 12 chiffres attendus, vérifiez la saisie.</string>
     <string name="err_gift_voucher_lookup_throttled">Trop d\'essais. Réessayez dans {seconds} secondes.</string>
     <string name="err_gift_voucher_not_usable">Ce bon cadeau ne peut pas être utilisé ici (annulé, ou émis en mode formation / normal).</string>
     <string name="err_gift_voucher_expired">Ce bon cadeau a expiré.</string>
     <string name="err_gift_voucher_insufficient">Le montant dépasse le solde du bon cadeau.</string>
-    <string name="err_gift_voucher_payment_invalid">Paiement par bon cadeau refusé : un bon, ou un titre-repas, ne paie pas l\'achat d\'un bon cadeau, et un bon ne s\'utilise qu\'une fois par vente.</string>
+    <string name="err_gift_voucher_payment_invalid">Paiement par bon cadeau refusé : un bon, ou un chèque-repas, ne paie pas l\'achat d\'un bon cadeau, et un bon ne s\'utilise qu\'une fois par vente.</string>
     <string name="err_gift_voucher_used">Ce bon cadeau a déjà servi : sa vente ne peut pas être remboursée.</string>
     <string name="err_gift_vouchers_outstanding">Impossible de désactiver les bons cadeaux : {count} bon(s) vendu(s) peuvent encore être utilisés.</string>
     <string name="err_hubrise_not_connected">HubRise n\'est pas connecté.</string>

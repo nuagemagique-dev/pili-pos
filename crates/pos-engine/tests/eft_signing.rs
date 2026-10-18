@@ -495,12 +495,12 @@ mod meal_voucher {
         let meal_rows = |text: &str| -> Vec<String> {
             text.lines()
                 .map(|l| l.split_whitespace().collect::<Vec<_>>().join(" "))
-                .filter(|l| l.starts_with("Cheques-repas"))
+                .filter(|l| l.starts_with("Chèques-repas"))
                 .collect()
         };
         assert_eq!(
             meal_rows(&original),
-            ["Cheques-repas 5,00", "Cheques-repas Edenred 10,00"],
+            ["Chèques-repas 5,00", "Chèques-repas Edenred 10,00"],
             "{original}"
         );
         let copy = do_copy_ticket(&app.state, event, MANAGER.into())

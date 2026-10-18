@@ -167,6 +167,7 @@
     <string name="err_gift_voucher_settings_invalid">Invalid gift voucher setting ({field}).</string>
     <string name="err_gift_voucher_amount_invalid">A gift voucher is worth at least EUR 1.00 and at most EUR {max}.</string>
     <string name="err_gift_voucher_line_fixed">A gift voucher quantity cannot change: add another voucher or remove the line.</string>
+    <string name="err_gift_voucher_line_no_kitchen">A gift voucher never goes to the kitchen: it has no course and no note.</string>
     <string name="err_gift_voucher_not_found">No gift voucher has this code.</string>
     <string name="err_gift_voucher_code_invalid">Invalid code: 12 digits expected, check the entry.</string>
     <string name="err_gift_voucher_lookup_throttled">Too many tries. Try again in {seconds} seconds.</string>

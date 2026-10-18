@@ -167,7 +167,7 @@ chronologique des ajouts/corrections/remboursements est `order_entries`
 ### 2.3 `payments`
 
 Paiements enregistrés pour une commande. Plusieurs paiements
-possibles par commande (espèces + carte sur un partage, titres-repas).
+possibles par commande (espèces + carte sur un partage, chèques-repas).
 Modes limités à `cash`, `card`, `meal_voucher` (migration `008`) et
 `other`. Un mouvement de caisse (événement F) n'écrit aucune ligne
 `payments`.

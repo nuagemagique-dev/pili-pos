@@ -14,7 +14,7 @@ Logiciel de caisse v.: pili-pos/1.0.0
 TOTAL :                                   €14,86
 ................................................
 Mode de paiement :
-Cheques-repas                              11,52
+Chèques-repas                              11,52
 Especes                                     3,34
 Arrondi                                     0,01
 % TVA   CODE          HT       TVA      Brut

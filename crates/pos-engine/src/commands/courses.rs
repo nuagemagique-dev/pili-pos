@@ -195,6 +195,10 @@ pub fn do_set_line_course(state: &AppState, line_id: i64, course: i32) -> Result
     if status != "open" {
         return Err(errors::ORDER_NOT_OPEN.into());
     }
+    // A gift voucher line never goes to the kitchen (INT-D13).
+    if super::gift_vouchers::is_voucher_line(&db, line_id) {
+        return Err(errors::GIFT_VOUCHER_LINE_NO_KITCHEN.into());
+    }
     if pos_db::queries::pending_signs::order_has_open(&db, order_id).map_err(errors::internal)? {
         return Err(errors::ORDER_SIGN_PENDING.into());
     }

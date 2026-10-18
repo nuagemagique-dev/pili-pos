@@ -448,7 +448,7 @@ fn payment_kind_label(kind: PaymentKind, lang: ReceiptLanguage) -> &'static str 
         (Card, Fr) => "Carte",
         (Card, Nl) => "Kaart",
         (Card, De) => "Karte",
-        (MealVoucher, Fr) => "Cheques-repas",
+        (MealVoucher, Fr) => "Chèques-repas",
         (MealVoucher, Nl) => "Maaltijdcheques",
         (MealVoucher, De) => "Essensgutscheine",
         (GiftVoucher, Fr) => "Bon cadeau",
@@ -565,7 +565,7 @@ mod tests {
     fn recognizes_meal_vouchers() {
         assert_eq!(
             payment_label("Meal voucher", ReceiptLanguage::Fr),
-            "Cheques-repas"
+            "Chèques-repas"
         );
         assert_eq!(
             payment_label("CHEQUE_MEAL", ReceiptLanguage::Nl),
@@ -591,7 +591,11 @@ mod tests {
             assert_ne!(meal, card, "{lang:?}");
             assert_ne!(meal, cash, "{lang:?}");
             for label in [&cash, &card, &meal] {
-                assert!(label.is_ascii(), "{lang:?}: {label:?}");
+                // ASCII, plus the grave e of "Chèques-repas" (CP858 0x8A, printable on the till's printers).
+                assert!(
+                    label.chars().all(|c| c.is_ascii() || c == 'è'),
+                    "{lang:?}: {label:?}"
+                );
             }
         }
     }

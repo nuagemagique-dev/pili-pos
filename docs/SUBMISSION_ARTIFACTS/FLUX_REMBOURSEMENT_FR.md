@@ -149,15 +149,15 @@ Règles :
   payer), une commande en ligne, une vente déjà remboursée en tout ou en
   partie ;
 - **une seule correction par vente** ;
-- seule une ligne de paiement saisie à la main se corrige, à
-  l'exception de la ligne « Bon cadeau » (`VOUCHER_STORE`, saisie à la
-  main mais jamais corrigeable : son mouvement est écrit dans
-  l'archive de la vente, `payment_correction_gift_voucher`) : une carte
+- seule une ligne de paiement saisie à la main se corrige : une carte
   prise sur le terminal de paiement lié ne se corrige jamais ;
-- le nouveau moyen est espèces, carte ou titres-repas, différent de celui
+- la ligne « Bon cadeau » (`VOUCHER_STORE`) ne se corrige jamais, bien
+  qu'elle soit saisie à la main : son mouvement est écrit dans
+  l'archive de la vente (`payment_correction_gift_voucher`) ;
+- le nouveau moyen est espèces, carte ou chèques-repas, différent de celui
   de la ligne ; jamais « Bon cadeau » (`payment_correction_method`), et
-  jamais titres-repas sur une vente qui vend un bon cadeau (un bon ne
-  s'achète pas avec des titres-repas, `gift_voucher_payment_invalid`) ;
+  jamais chèques-repas sur une vente qui vend un bon cadeau (un bon ne
+  s'achète pas avec des chèques-repas, `gift_voucher_payment_invalid`) ;
 - aucune ligne d'arrondi n'est écrite : la correction est refusée si la
   ligne est en espèces et que la vente a un arrondi, ou si le nouveau
   moyen est espèces et que le montant n'est pas un multiple de 5

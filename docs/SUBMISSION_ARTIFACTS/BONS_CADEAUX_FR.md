@@ -23,6 +23,8 @@ La fonction est éteinte par défaut. Éteinte, rien ne change à l'écran ni da
   porte une pastille « Bon » à la place des boutons de quantité : un bon par ligne, la quantité
   ne change pas (`gift_voucher_line_fixed`). La ligne peut être supprimée avant la vente.
 - Aucune remise ni changement de prix ne s'applique à la ligne d'un bon.
+- La ligne d'un bon ne reçoit ni service (cuisine) ni note de cuisine : le moteur refuse ces deux demandes
+  (`gift_voucher_line_no_kitchen`), puisqu'un bon ne part jamais en cuisine.
 - Une commande qui vend un bon se règle en espèces ou par carte (manuelle ou terminal). Elle ne
   se règle ni avec des chèques-repas ni avec un bon cadeau (`gift_voucher_payment_invalid`), et
   ne peut pas être clôturée « sans paiement ».
@@ -146,7 +148,8 @@ Un profil sans le droit ne voit pas le bouton, et le moteur refuse de toute faç
 
 - **Remises.** Aucune remise ni offre ne s'applique à la ligne d'un bon (`discount_invalid`) ; une remise sur la
   commande donne à la ligne du bon un poids nul : le bon garde sa valeur faciale et la ligne X ne porte aucune
-  modification de prix. L'écran ne propose ni « Offert » ni « Note » sur cette ligne.
+  modification de prix. L'écran ne propose ni « Offert » ni « Note » sur cette ligne. Un service de cuisine
+  ou une note de cuisine est refusé de même (`gift_voucher_line_no_kitchen`).
 - **Facture à un client professionnel (événement I).** Une vente qui vend un bon ne peut pas être facturée
   (`invoice_gift_voucher_sale`) : la ligne est hors champ de T.V.A. (catégorie O) et la norme EN 16931 (règles
   BR-O-02 et BR-O-11 à BR-O-14) interdit une facture de catégorie O qui porte un identifiant de T.V.A. ou qui mêle

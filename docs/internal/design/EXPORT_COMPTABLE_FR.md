@@ -108,7 +108,7 @@ précédé d'une apostrophe (protection contre les formules des tableurs).
 | `LISEZMOI.txt` | | source, empreinte, périodes incluses et laissées de côté, conventions |
 | `MANIFEST.sha256` | fichier | empreinte SHA-256 de chaque autre fichier (format sha256sum) |
 
-Moyens de paiement : espèces, carte, titres-repas, bon cadeau (type VOUCHER_STORE),
+Moyens de paiement : espèces, carte, chèques-repas, bon cadeau (type VOUCHER_STORE),
 application, en ligne, autre. Les factures sont informatives : leurs tickets sont déjà
 dans les ventes de leur propre jour.
 
@@ -137,7 +137,7 @@ Comptes par défaut (plan comptable minimum normalisé), modifiables avec `--acc
 | --- | --- |
 | Ventes code A, B, C, D, X (hors bons) | 700000, 700100, 700200, 700300, 700400 |
 | TVA collectée 21 %, 12 %, 6 % | 451021, 451012, 451006 |
-| Espèces, carte, titres-repas, application, en ligne, autre | 570000, 580000, 580100, 580200, 580300, 580900 |
+| Espèces, carte, chèques-repas, application, en ligne, autre | 570000, 580000, 580100, 580200, 580300, 580900 |
 | Bons cadeaux en circulation | 489000 |
 | Arrondis (charge, produit) | 657000, 757000 |
 | Pourboires à reverser | 489100 |
@@ -179,7 +179,7 @@ Codes de sortie : 0 terminé, 1 erreur (`db_unreadable`, `not_a_pili_db`, `manif
 
 - rapprochement d'un jour réel construit par le moteur : le scénario Reports 1.3
   (T1 à T8 et le Z M184) ; chaque total du jour égale le Z signé au centime ;
-- une journée mêlant remboursement, titres-repas avec arrondi, vente à emporter, vente
+- une journée mêlant remboursement, chèques-repas avec arrondi, vente à emporter, vente
   de formation (absente), ticket provisoire (absent), commande ouverte (absente),
   entrée et sortie d'espèces, période sans Z (laissée de côté et nommée) ;
 - fichiers de référence octet pour octet (BOM, CRLF), équilibre du journal pour chaque

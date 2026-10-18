@@ -1226,7 +1226,7 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
 - **L1F-B2 Spellings (assumption).** Key = lowercase ASCII alphanumerics of the raw value: `edenred`, `ticketrestaurant`, `edenredticketrestaurant`, `edenredmeal`, `edenredmealvoucher`, `edenredrestaurant` give Edenred; `pluxee`, `sodexo`, `sodexopass`, `sodexolunchpass`, `lunchpass`, `sodexomeal`, `sodexomealvoucher`, `sodexocard`, `pluxeemeal`, `pluxeemealvoucher`, `pluxeecard`, `pluxeelunchpass` give Pluxee; `monizze`, `monizzemeal`, `monizzemealvoucher`, `monizzecard` give Monizze; `payflip`, `payflipmeal`, `payflipmealvoucher` give Payflip. Addition by the worker: CCV's own circuit codes `edrd`, `sodx`, `payf` (the `cardCircuitCollection` of the CCV request fixture) give Edenred, Pluxee, Payflip. Eco, gift, sport, culture and consumption variants (and anything else) stay raw and are not meal vouchers; never a prefix match. `receipt::brand_in` (CCV cloud fallback) also recognizes EDENRED, TICKET RESTAURANT, PLUXEE, SODEXO, MONIZZE, PAYFLIP. These spellings are an ASSUMPTION until a trace of a real Belgian terminal is available (same caveat as the OPI driver header); a field trace may extend the list in a certified hotfix.
 - **L1F-B3 The signed line.** `SettledPayment::payment_type` keeps `CardDebit`, `CardCredit` and `ChequeMeal` from a terminal card (anything else is `CardUnknown`). The line is id "3", name "Meal voucher" (the identity of the manual meal voucher), `CHEQUE_MEAL`, `AUTOMATIC`, `provider` the brand, `reference` the terminal reference. The part stays method `Card` in `PaymentPart`, exact amount, never rounded, no change. The reports total by id, name and type, so a manual and an automatic meal voucher make one row (they differ by `inputMethod` only), as the manual and terminal debit cards share id "2".
 - **L1F-B4 Local payment history.** `checkout.rs` stores the order's `payments` row as `meal_voucher` (not `card`) when the settled payment is `CHEQUE_MEAL`.
-- **L1F-B5 Ticket and copies.** The original prints "Cheques-repas Edenred" (method label then brand). `printed_payments` (used by copies) now prints the brand for a `CARD*` line or for any `AUTOMATIC` line with a provider, so a copy matches its original.
+- **L1F-B5 Ticket and copies.** The original prints "Chèques-repas Edenred" (method label then brand). `printed_payments` (used by copies) now prints the brand for a `CARD*` line or for any `AUTOMATIC` line with a provider, so a copy matches its original.
 - **L1F-B6 Screens.** `EftPayment` (engine, FFI record, Vue type) gains `meal_voucher: bool`; `card_type` keeps `debit|credit|unknown`. Both checkout screens keep the flag on the taken part and name an approved terminal part by the meal-voucher label ("Part 1 · Chèques-repas · Edenred"); the part is still sent as a card part with its `eft_payment_id`. No new string. The unsettled-card warning of the Z step and the table badge are unchanged.
 - **L1F-B7 Scheme-branded meal cards (open point for the owner).** A meal-voucher card that the terminal reports under a scheme brand (for example "Mastercard", as Payflip may do) is signed as a card: the spec says the terminal returns the card type itself. Also open: eco-cheque cards stay `CARD_UNKNOWN` cards (brand kept raw), which is the conservative reading (never a `CHEQUE_MEAL` for a non-meal voucher); whether a manual override is wanted later is a question for the owner.
 
@@ -2218,7 +2218,8 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
 - **INT-D27 Evidence for UC260 to UC262 and new ticket examples.** The replay evidence of the three use cases is
   captured by `capture_uc_evidence.sh` and embedded in `RESULTATS_TESTS_UC_FR.md`; five new ticket examples
   (voucher, voucher balance, allergen sheet, voucher payment ticket, course slips) are embedded in
-  `TICKETS_EXEMPLES_FR.md`. The PDFs and RAPPORT_TESTS_BASELINE totals are regenerated at the final commit.
+  `TICKETS_EXEMPLES_FR.md`. The PDFs are rebuilt at each freeze candidate; the totals of RAPPORT_TESTS_BASELINE are produced by
+  `scripts/generate_test_report.py` (rc3 run on this HEAD: 2562 workspace tests and 1173 cert tests, 0 failed), never typed by hand.
 - **INT-D28 Gift voucher rules propagated to flow documents.** FLUX_REMBOURSEMENT (refusal `gift_voucher_used`,
   atomic voucher cancel movement, M132 exclusions), FACTURATION_PEPPOL (`invoice_gift_voucher_sale`) and
   MANUEL_UTILISATEUR (§8 bis, §9 bis) now state the same rules as BONS_CADEAUX_FR.md, in both dossiers; the three
@@ -2229,3 +2230,13 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
 - Captures: retaken on the GMS emulator with the SPF test seed; new ids A130-A194 (collisions of A163/A164/A170 renumbered A190-A194). Peppol panel, A54/A55 and online orders not captured (no Peppol in test bundle, training toggle refused with open orders).
 - Engine fixes found while capturing: badge key creation race (pos-engine), menu editor refusing stored names in languages the till does not offer, pad refusal text shown as unexpected error (ReportsViewModel).
 - Known wording issue left unchanged: sales report "dont remboursements" counts discount reversal lines.
+- **INT-D29 A gift voucher line takes no kitchen course and no kitchen note (rc3).** `set_line_course` and
+  `set_line_note` refuse a VOUCHER line with the coded error `gift_voucher_line_no_kitchen` (matching INT-D13: a
+  voucher line is not a product that goes to the kitchen). The check runs after the line and order-status checks,
+  before anything is stored; engine test `a_voucher_line_takes_neither_a_course_nor_a_kitchen_note`. Strings fr/en/zh in
+  `ui/src/i18n.ts`, Android strings regenerated (1068 keys, 174 engine error codes).
+- **INT-D30 One word for the meal-voucher payment method (rc3).** "Chèques-repas" (the legal Belgian term) in both
+  dossiers, both UIs (`method_meal_voucher`, `meal_voucher`, `cash_part_taken`), the printed ticket label
+  (`Chèques-repas`, with the grave accent, CP858 0x8A; the label test accepts it next to ASCII), the
+  accountant export and the tests. The SPF documents under `docs/2025*` and `docs/2026*` keep their own wording, as
+  does the manual's checklist row "Chèque repas" (quoted from the SPF form).

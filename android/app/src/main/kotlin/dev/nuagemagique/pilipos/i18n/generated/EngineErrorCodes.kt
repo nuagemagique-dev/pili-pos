@@ -77,6 +77,7 @@ object EngineErrorCodes {
             "gift_voucher_settings_invalid",
             "gift_voucher_amount_invalid",
             "gift_voucher_line_fixed",
+            "gift_voucher_line_no_kitchen",
             "gift_voucher_not_found",
             "gift_voucher_code_invalid",
             "gift_voucher_lookup_throttled",

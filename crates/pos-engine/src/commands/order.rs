@@ -234,6 +234,10 @@ pub async fn do_set_line_note(
         if status != OrderStatus::Open || target.online {
             return Err(errors::ORDER_NOT_OPEN.into());
         }
+        // A gift voucher line never goes to the kitchen (INT-D13).
+        if super::gift_vouchers::is_voucher_line(&db, line_id) {
+            return Err(errors::GIFT_VOUCHER_LINE_NO_KITCHEN.into());
+        }
         unchanged_while_pending(&db, target.order_id)?;
         pos_db::queries::orders::set_kitchen_note(&db, line_id, note.as_deref())
             .map_err(line_error)?;

@@ -275,7 +275,7 @@ fn method_name(method: Method) -> &'static str {
     match method {
         Method::Cash => "especes",
         Method::Card => "carte",
-        Method::MealVoucher => "titres-repas",
+        Method::MealVoucher => "chèques-repas",
         Method::GiftVoucher => "bons cadeaux utilises",
         Method::App => "applications de commande",
         Method::Online => "paiements en ligne",

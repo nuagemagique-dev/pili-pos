@@ -42,7 +42,7 @@
     <string name="reports_pc_pick_method">Payé en réalité par</string>
     <string name="reports_pc_method_cash">Espèces</string>
     <string name="reports_pc_method_card">Carte</string>
-    <string name="reports_pc_method_meal_voucher">Titres-repas</string>
+    <string name="reports_pc_method_meal_voucher">Chèques-repas</string>
     <string name="reports_pc_summary">{from} {amount} € → {to} {amount} €</string>
     <string name="reports_pc_confirm">Corriger</string>
     <string name="reports_pc_pin_hint">Confirmez la correction du paiement avec votre code PIN.</string>

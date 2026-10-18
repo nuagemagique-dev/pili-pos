@@ -59,7 +59,7 @@ Factures 0
 ------------------------------------------------
              PAIEMENTS ENREGISTRES
 Especes                                     2,46
-Cheques-repas                              11,52
+Chèques-repas                               11,52
 Carte                                       0,88
 Total des paiements                        14,86
 Arrondis                                   -0,01

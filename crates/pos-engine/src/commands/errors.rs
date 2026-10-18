@@ -374,6 +374,8 @@ pub const GIFT_VOUCHER_SETTINGS_INVALID: &str = "gift_voucher_settings_invalid";
 pub const GIFT_VOUCHER_AMOUNT_INVALID: &str = "gift_voucher_amount_invalid";
 /// The quantity of a voucher line cannot change: one line, one voucher.
 pub const GIFT_VOUCHER_LINE_FIXED: &str = "gift_voucher_line_fixed";
+/// A voucher line has no kitchen course and no kitchen note: it never goes to the kitchen.
+pub const GIFT_VOUCHER_LINE_NO_KITCHEN: &str = "gift_voucher_line_no_kitchen";
 /// No voucher has this code.
 pub const GIFT_VOUCHER_NOT_FOUND: &str = "gift_voucher_not_found";
 /// The code is not 12 digits, or its check digits are wrong.
@@ -479,6 +481,7 @@ pub const ALL: &[&str] = &[
     GIFT_VOUCHER_SETTINGS_INVALID,
     GIFT_VOUCHER_AMOUNT_INVALID,
     GIFT_VOUCHER_LINE_FIXED,
+    GIFT_VOUCHER_LINE_NO_KITCHEN,
     GIFT_VOUCHER_NOT_FOUND,
     GIFT_VOUCHER_CODE_INVALID,
     GIFT_VOUCHER_LOOKUP_THROTTLED,

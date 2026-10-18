@@ -922,7 +922,7 @@ ligne de paiement sans rembourser.
 3. Choisissez la ligne de paiement à corriger (une carte prise sur le
    terminal de paiement lié porte la mention « Terminal » et ne se
    choisit pas), puis le moyen réel : « Espèces », « Carte » ou
-   « Titres-repas ».
+   « Chèques-repas ».
 4. Le résumé s'affiche (par exemple « Espèces 52,00 € → Carte
    52,00 € ») ; touchez « Corriger » et saisissez votre PIN.
 
@@ -945,7 +945,7 @@ Refus (le texte s'affiche dans la fenêtre) :
 - la ligne « Bon cadeau » ne se corrige pas : l'écran la montre
   verrouillée, avec une note (§9 ter) ;
 - on ne corrige pas vers « Bon cadeau », et une vente qui vend un bon
-  ne passe pas aux titres-repas ;
+  ne passe pas aux chèques-repas ;
 - le nouveau moyen doit différer de celui de la ligne ;
 - une correction qui demanderait un arrondi en espèces est refusée.
 

@@ -239,7 +239,7 @@ kind = "hors_perimetre"
 # -- Correction de paiement (avancée) --
 
 [UC4118]
-reason = "Le scénario (vente payée en crédit client, corrigée une semaine plus tard en Mastercard) n'est pas rejoué : le type de paiement crédit client n'est pas proposé à la caisse (espèces, carte, titres-repas). La correction de moyen de paiement elle-même existe et est rejouée par M132."
+reason = "Le scénario (vente payée en crédit client, corrigée une semaine plus tard en Mastercard) n'est pas rejoué : le type de paiement crédit client n'est pas proposé à la caisse (espèces, carte, chèques-repas). La correction de moyen de paiement elle-même existe et est rejouée par M132."
 kind = "hors_perimetre"
 
 # -- Acompte et libellé de TVA X --

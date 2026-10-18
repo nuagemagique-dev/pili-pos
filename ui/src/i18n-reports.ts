@@ -77,7 +77,7 @@ export const reportsMessages: Messages = {
   "reports_pc_pick_method": { fr: "Payé en réalité par", en: "Actually paid by", zh: "实际付款方式" },
   "reports_pc_method_cash": { fr: "Espèces", en: "Cash", zh: "现金" },
   "reports_pc_method_card": { fr: "Carte", en: "Card", zh: "银行卡" },
-  "reports_pc_method_meal_voucher": { fr: "Titres-repas", en: "Meal vouchers", zh: "餐券" },
+  "reports_pc_method_meal_voucher": { fr: "Chèques-repas", en: "Meal vouchers", zh: "餐券" },
   "reports_pc_summary": { fr: "{from} {amount} € → {to} {amount} €", en: "{from} {amount} € → {to} {amount} €", zh: "{from} {amount} € → {to} {amount} €" },
   "reports_pc_confirm": { fr: "Corriger", en: "Correct", zh: "更正" },
   "reports_pc_pin_hint": {

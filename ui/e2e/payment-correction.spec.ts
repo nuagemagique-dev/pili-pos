@@ -106,7 +106,7 @@ test.describe('Payment correction', () => {
     await expect(dialog.getByTestId('pc-method-cash')).toBeDisabled();
     await expect(dialog.getByTestId('pc-method-card')).toBeEnabled();
     await dialog.getByTestId('pc-method-meal_voucher').click();
-    await expect(dialog.getByTestId('pc-summary')).toHaveText('Espèces 32,00 € → Titres-repas 32,00 €');
+    await expect(dialog.getByTestId('pc-summary')).toHaveText('Espèces 32,00 € → Chèques-repas 32,00 €');
   });
 
   test('says why a sale cannot be corrected', async ({ page }) => {
@@ -181,7 +181,7 @@ test.describe('Payment correction', () => {
     await expect(dialog.getByTestId('pc-method-cash')).toBeDisabled();
     await expect(dialog.getByTestId('pc-method-card')).toBeEnabled();
     await dialog.getByTestId('pc-method-meal_voucher').click();
-    await expect(dialog.getByTestId('pc-summary')).toHaveText('Espèces 30,00 € → Titres-repas 30,00 €');
+    await expect(dialog.getByTestId('pc-summary')).toHaveText('Espèces 30,00 € → Chèques-repas 30,00 €');
     await expect(dialog.getByTestId('pc-confirm')).toBeEnabled();
 
     // The meal voucher line already is a meal voucher: the choice is cleared.
@@ -217,7 +217,7 @@ test.describe('Payment correction', () => {
     });
     await page.getByTestId('correct-payment-38').click();
     await expect(page.getByTestId('pc-refusal')).toHaveText('Ce paiement ne peut pas être corrigé');
-    await expect(page.getByTestId('pc-corrected')).toHaveText('Paiement corrigé : Espèces → Titres-repas');
+    await expect(page.getByTestId('pc-corrected')).toHaveText('Paiement corrigé : Espèces → Chèques-repas');
     await expect(page.getByTestId('pc-confirm')).toHaveCount(0);
   });
 

@@ -701,7 +701,7 @@ inactifs et cachés de l'éditeur de carte (`SCHEMA_BD_FR.md` §2.9.5).
 | `order_lines` (note de cuisine) | - | Colonnes locales `kitchen_note` et `kitchen_note_printed` (migration 31), sans clé : jamais copiées dans `order_entries`, jamais envoyées au FDM |
 | `orders` → `order_entries` | 1 → N | Le journal chronologique de la commande (ajouts, corrections, remboursements) |
 | `order_entries` → `fiscal_events` | N → 0..1 | `sent_event_id` : l'événement P ou N qui a transmis l'entrée |
-| `orders` → `payments` | 1 → N | Une commande peut être réglée par N paiements (split, titres-repas) |
+| `orders` → `payments` | 1 → N | Une commande peut être réglée par N paiements (split, chèques-repas) |
 | `orders` → `eft_payments` | 1 → 0..N | Les paiements demandés au terminal relié pour cette commande (aucun sans terminal relié) |
 | `eft_payments` → `fiscal_events` | N → 0..1 | `used_event_id` : l'événement N qui a réglé le paiement accepté |
 | `orders` → `fiscal_events` | 1 → 0..N | Une commande peut générer 0 (open) à plusieurs events fiscaux (P → N, ou N + C copie, etc.) |

@@ -14,7 +14,7 @@ Logiciel de caisse v.: pili-pos/1.0.0
 TOTAL :                                   €14,86
 ................................................
 Mode de paiement :
-Cheques-repas                               3,13
+Chèques-repas                               3,13
 Carte                                       3,97
 Especes                                     7,76
 Arrondi                                    -0,01

@@ -18,6 +18,7 @@ use pos_engine::commands::checkout::{
     CheckoutPaymentMethod::{Card, MealVoucher},
     CheckoutResult, PaymentPart, do_checkout_split,
 };
+use pos_engine::commands::courses::{CourseSettings, do_set_course_settings, do_set_line_course};
 use pos_engine::commands::errors;
 use pos_engine::commands::gift_vouchers::{
     GiftVoucherSettings, do_add_gift_voucher_line, do_get_gift_voucher_settings,
@@ -26,7 +27,7 @@ use pos_engine::commands::gift_vouchers::{
 };
 use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_remove_order_line,
-    do_update_order_line_quantity,
+    do_set_line_note, do_update_order_line_quantity,
 };
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::report::{do_generate_x_report, do_generate_z_report};
@@ -1623,4 +1624,41 @@ async fn the_voucher_is_still_sold_after_a_catalog_sync() {
     assert_eq!(system(&app), ("pili:gift-voucher".into(), "X".into(), 0));
     let order = new_order(&app);
     assert!(do_add_gift_voucher_line(&app.state, order, 1000).is_ok());
+}
+
+#[tokio::test]
+async fn a_voucher_line_takes_neither_a_course_nor_a_kitchen_note() {
+    let (app, _printer) = app().await;
+    do_set_course_settings(
+        &app.state,
+        CourseSettings {
+            enabled: true,
+            category_courses: Vec::new(),
+        },
+    )
+    .unwrap();
+    let order = new_order(&app);
+    let line = do_add_gift_voucher_line(&app.state, order, 5000).unwrap();
+    assert_eq!(
+        do_set_line_course(&app.state, line.id, 2).unwrap_err(),
+        errors::GIFT_VOUCHER_LINE_NO_KITCHEN
+    );
+    for note in [Some("sans sauce".to_string()), None] {
+        assert_eq!(
+            do_set_line_note(&app.state, line.id, note)
+                .await
+                .unwrap_err(),
+            errors::GIFT_VOUCHER_LINE_NO_KITCHEN
+        );
+    }
+    // Nothing was stored on the line.
+    let db = app.state.db.lock().unwrap();
+    let note: Option<String> = db
+        .query_row(
+            "SELECT kitchen_note FROM order_lines WHERE id = ?1",
+            [line.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(note, None);
 }

@@ -514,14 +514,15 @@ internal object VueStringIds {
         this["err_gift_voucher_settings_invalid"] = R.string.err_gift_voucher_settings_invalid
         this["err_gift_voucher_amount_invalid"] = R.string.err_gift_voucher_amount_invalid
         this["err_gift_voucher_line_fixed"] = R.string.err_gift_voucher_line_fixed
+        this["err_gift_voucher_line_no_kitchen"] = R.string.err_gift_voucher_line_no_kitchen
         this["err_gift_voucher_not_found"] = R.string.err_gift_voucher_not_found
         this["err_gift_voucher_code_invalid"] = R.string.err_gift_voucher_code_invalid
         this["err_gift_voucher_lookup_throttled"] = R.string.err_gift_voucher_lookup_throttled
         this["err_gift_voucher_not_usable"] = R.string.err_gift_voucher_not_usable
-        this["err_gift_voucher_expired"] = R.string.err_gift_voucher_expired
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["err_gift_voucher_expired"] = R.string.err_gift_voucher_expired
         this["err_gift_voucher_insufficient"] = R.string.err_gift_voucher_insufficient
         this["err_gift_voucher_payment_invalid"] = R.string.err_gift_voucher_payment_invalid
         this["err_gift_voucher_used"] = R.string.err_gift_voucher_used
@@ -771,10 +772,10 @@ internal object VueStringIds {
         this["settings_off_shift"] = R.string.settings_off_shift
         this["settings_presence_done_in"] = R.string.settings_presence_done_in
         this["settings_presence_done_out"] = R.string.settings_presence_done_out
-        this["settings_presence_fdm_down"] = R.string.settings_presence_fdm_down
     }
 
     private fun MutableMap<String, Int>.part3() {
+        this["settings_presence_fdm_down"] = R.string.settings_presence_fdm_down
         this["settings_presence_note"] = R.string.settings_presence_note
         this["settings_badges"] = R.string.settings_badges
         this["badge_reader_off"] = R.string.badge_reader_off
@@ -1024,10 +1025,10 @@ internal object VueStringIds {
         this["webshop_action_close_cancelled"] = R.string.webshop_action_close_cancelled
         this["webshop_cancelled_refund"] = R.string.webshop_cancelled_refund
         this["webshop_cancelled_close"] = R.string.webshop_cancelled_close
-        this["webshop_manager_needed"] = R.string.webshop_manager_needed
     }
 
     private fun MutableMap<String, Int>.part4() {
+        this["webshop_manager_needed"] = R.string.webshop_manager_needed
         this["webshop_status_refunded"] = R.string.webshop_status_refunded
         this["webshop_changed_after_signing"] = R.string.webshop_changed_after_signing
         this["webshop_attention_unknown_channel"] = R.string.webshop_attention_unknown_channel

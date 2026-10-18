@@ -179,7 +179,7 @@ async fn round4_meal_vouchers_then_cash() {
         ]
     );
     let ticket = printed(&printer, 1).await;
-    assert_eq!(text_row(&ticket, "Cheques-repas"), "Cheques-repas 11,52");
+    assert_eq!(text_row(&ticket, "Chèques-repas"), "Chèques-repas 11,52");
     assert_eq!(text_row(&ticket, "Especes"), "Especes 3,34");
     assert_eq!(text_row(&ticket, "Arrondi"), "Arrondi 0,01");
     assert_eq!(printer.drawer_kicks(), 1, "cash was taken");
@@ -213,7 +213,7 @@ async fn round5_meal_vouchers_card_and_cash() {
     );
     let ticket = printed(&printer, 1).await;
     for expected in [
-        "Cheques-repas 3,13",
+        "Chèques-repas 3,13",
         "Carte 3,97",
         "Especes 7,76",
         "Arrondi -0,01",
@@ -346,7 +346,7 @@ async fn the_x_report_totals_each_method_apart() {
         .into_iter()
         .find(|r| r.contains("CHIFFRE D'AFFAIRES"))
         .expect("the X report");
-    assert_eq!(text_row(&text, "Cheques-repas"), "Cheques-repas 3,13");
+    assert_eq!(text_row(&text, "Chèques-repas"), "Chèques-repas 3,13");
     assert_eq!(
         text_row(&text, "Total des paiements"),
         "Total des paiements 14,86"
@@ -392,7 +392,7 @@ async fn a_copy_of_a_split_sale_reprints_every_payment() {
     assert!(copy.success, "{:?}", copy.error);
     let text = printed(&printer, 2).await;
     assert!(text.contains("COPIE"), "{text}");
-    assert_eq!(text_row(&text, "Cheques-repas"), "Cheques-repas 3,13");
+    assert_eq!(text_row(&text, "Chèques-repas"), "Chèques-repas 3,13");
     assert_eq!(text_row(&text, "Carte"), "Carte 3,97");
     assert_eq!(text_row(&text, "Especes"), "Especes 7,76");
     assert_eq!(text_row(&text, "Arrondi"), "Arrondi -0,01");

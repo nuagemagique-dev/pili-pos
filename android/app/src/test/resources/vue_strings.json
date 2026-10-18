@@ -2016,6 +2016,12 @@
       "zh": "礼品券数量不能修改：请再添加一张或删除该行。",
       "area": "errors"
     },
+    "err_gift_voucher_line_no_kitchen": {
+      "fr": "Un bon cadeau ne part pas en cuisine : il n'a ni service ni note.",
+      "en": "A gift voucher never goes to the kitchen: it has no course and no note.",
+      "zh": "礼品券不会送到厨房：无法设置出菜顺序或备注。",
+      "area": "errors"
+    },
     "err_gift_voucher_lookup_throttled": {
       "fr": "Trop d'essais. Réessayez dans {seconds} secondes.",
       "en": "Too many tries. Try again in {seconds} seconds.",
@@ -2035,7 +2041,7 @@
       "area": "errors"
     },
     "err_gift_voucher_payment_invalid": {
-      "fr": "Paiement par bon cadeau refusé : un bon, ou un titre-repas, ne paie pas l'achat d'un bon cadeau, et un bon ne s'utilise qu'une fois par vente.",
+      "fr": "Paiement par bon cadeau refusé : un bon, ou un chèque-repas, ne paie pas l'achat d'un bon cadeau, et un bon ne s'utilise qu'une fois par vente.",
       "en": "Gift voucher payment refused: a voucher or meal voucher cannot pay for a gift voucher, and a voucher is used once per sale.",
       "zh": "礼品券支付被拒绝：礼品券或餐券不能用于购买礼品券，且每笔销售只能使用一次同一张礼品券。",
       "area": "errors"
@@ -2359,7 +2365,7 @@
       "area": "errors"
     },
     "err_payment_correction_method": {
-      "fr": "Ce moyen de paiement n'est pas accepté en caisse (espèces, carte, titres-repas).",
+      "fr": "Ce moyen de paiement n'est pas accepté en caisse (espèces, carte, chèques-repas).",
       "en": "This payment method is not taken at the till (cash, card, meal vouchers).",
       "zh": "收银台不接受此付款方式（现金、银行卡、餐券）。",
       "area": "errors"
@@ -4891,7 +4897,7 @@
       "area": "reports"
     },
     "reports_pc_method_meal_voucher": {
-      "fr": "Titres-repas",
+      "fr": "Chèques-repas",
       "en": "Meal vouchers",
       "zh": "餐券",
       "area": "reports"
@@ -6526,6 +6532,7 @@
     "gift_voucher_settings_invalid",
     "gift_voucher_amount_invalid",
     "gift_voucher_line_fixed",
+    "gift_voucher_line_no_kitchen",
     "gift_voucher_not_found",
     "gift_voucher_code_invalid",
     "gift_voucher_lookup_throttled",

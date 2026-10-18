@@ -56,7 +56,7 @@ Réponse au tableau « Contenu du ticket » du manuel §VI. Une ligne par élém
 
 Cases relevées sur les transcriptions des sections 1 à 8 ci-dessous.
 
-**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE), fixée par installation (GARANTIE_MAJ_LANGUES_FR.md §3.2). Les exemples sont présentés en français ; le rapport Z l'est aussi en néerlandais et en allemand (section 7), obtenus en réglant `language` du fichier `pos.json` de l'appareil de test puis en redémarrant l'application. Les libellés fixes (moyens de paiement, « Unite d'etablissement », « Denomination legale »...) sont imprimés sans accents, à dessein : `labels.rs` les garde en ASCII pour qu'ils s'impriment de la même façon quelle que soit la page de codes de l'imprimante (seuls les textes saisis, comme les produits et l'adresse, passent par CP858). Les exemples reprennent donc « Especes » et « Cheques-repas » tels qu'imprimés.
+**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE), fixée par installation (GARANTIE_MAJ_LANGUES_FR.md §3.2). Les exemples sont présentés en français ; le rapport Z l'est aussi en néerlandais et en allemand (section 7), obtenus en réglant `language` du fichier `pos.json` de l'appareil de test puis en redémarrant l'application. Les libellés fixes (moyens de paiement, « Unite d'etablissement », « Denomination legale »...) sont imprimés sans accents, à dessein : `labels.rs` les garde en ASCII pour qu'ils s'impriment de la même façon quelle que soit la page de codes de l'imprimante (seuls les textes saisis, comme les produits et l'adresse, passent par CP858). Les exemples reprennent donc « Especes » et « Chèques-repas » tels qu'imprimés.
 
 ---
 
@@ -361,7 +361,7 @@ Factures 0
 ------------------------------------------------
              PAIEMENTS ENREGISTRES
 Especes                                     2,46
-Cheques-repas                              11,52
+Chèques-repas                               11,52
 Carte                                       0,88
 Total des paiements                        14,86
 Arrondis                                   -0,01
@@ -442,7 +442,7 @@ Factures 0
 ------------------------------------------------
              PAIEMENTS ENREGISTRES
 Especes                                     2,46
-Cheques-repas                              11,52
+Chèques-repas                               11,52
 Carte                                       0,88
 Total des paiements                        14,86
 Arrondis                                   -0,01
@@ -774,7 +774,7 @@ Logiciel de caisse v.: pili-pos-android/1.0.0
 TOTAL :                                   €14,86
 ................................................
 Mode de paiement :
-Cheques-repas                              11,52
+Chèques-repas                               11,52
 Carte Visa                                  0,88
 Especes                                     2,46
 Arrondi                                    -0,01
@@ -1041,4 +1041,4 @@ Qte   Article
 ```
 
 ## 12. Note sur la reproduction
-Les rendus sont imprimés par le pipeline d'impression réel de l'application et ne peuvent pas diverger de la sortie papier. Les accents des libellés (« Especes », « Cheques-repas ») sont retirés à l'impression sur ce profil. Au rendez-vous d'admission, le distributeur apporte la machine test connectée à l'imprimante réelle (`À effectuer (EV-15 : imprimante réelle, ou mention du profil émulé)`) ; les exemplaires physiques sont archivés avec le dossier final.
+Les rendus sont imprimés par le pipeline d'impression réel de l'application et ne peuvent pas diverger de la sortie papier. Les accents des libellés (« Especes », « Chèques-repas ») sont retirés à l'impression sur ce profil. Au rendez-vous d'admission, le distributeur apporte la machine test connectée à l'imprimante réelle (`À effectuer (EV-15 : imprimante réelle, ou mention du profil émulé)`) ; les exemplaires physiques sont archivés avec le dossier final.
