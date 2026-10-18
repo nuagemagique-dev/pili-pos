@@ -335,3 +335,131 @@ async fn an_option_product_is_refused_too() {
         .is_ok()
     );
 }
+
+#[tokio::test]
+async fn an_online_order_for_a_sold_out_product_is_still_taken_and_signed() {
+    // V11-D14: the sold-out refusal belongs to the till (order.rs, modifiers.rs); an online
+    // order was already sold and paid on the platform, so it goes through unchanged.
+    let (app, _dir, mock) = started().await;
+    app.use_admission_mock().await;
+    let id = item(&app, "CALIFORNIA-8");
+    do_set_sold_out(&app.state, id, true, None).unwrap();
+    // The till itself refuses it.
+    let table = do_create_order(
+        &app.state,
+        CreateOrderInput {
+            order_type: OrderType::DineIn,
+            table_number: Some(4),
+            user_insz: INSZ.to_string(),
+        },
+    )
+    .unwrap()
+    .id;
+    assert!(
+        pos_engine::commands::order::do_add_order_line(
+            &app.state,
+            pos_engine::commands::order::AddOrderLineInput {
+                order_id: table,
+                menu_item_id: id,
+                quantity: 1,
+                modifiers_json: None,
+                unit_price_cents: None,
+            },
+        )
+        .is_err()
+    );
+
+    let hr = mock.inject_body(
+        pos_hubrise_mock::builders::OrderBuilder::new("Deliveroo", "delivery")
+            .item("CALIFORNIA-8", "California 8", 800, 2)
+            .paid_by("DELIVEROO", "Deliveroo")
+            .build(),
+    );
+    let hr_id = hr["id"].as_str().unwrap().to_owned();
+    pos_hubrise::poller::poll_once(&poller(&app)).await.unwrap();
+    let (order, total): (i64, i64) = app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .query_row(
+            "SELECT id, total_cents FROM orders WHERE hubrise_order_id = ?1",
+            [&hr_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .expect("the online order was created");
+    assert_eq!(total, 1600);
+    let sale = pos_engine::commands::webshop::do_accept_webshop_order(&app.state, order, None)
+        .await
+        .unwrap();
+    let lines: Vec<(i64, i64)> = app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .prepare("SELECT menu_item_id, quantity FROM order_lines WHERE order_id = ?1")
+        .unwrap()
+        .query_map([order], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
+    assert_eq!(lines, [(id, 2)], "the sold-out product is on the order");
+
+    let event = app
+        .fiscal_events()
+        .into_iter()
+        .find(|e| e.id == sale.fiscal_event_id)
+        .unwrap();
+    assert_eq!(event.event_type, "N");
+    assert!(event.fdm_id.is_some(), "signed by the FDM");
+
+    // The sold-out state of the product is untouched.
+    assert!(
+        pos_engine::commands::menu::do_get_menu_items(&app.state, None, None)
+            .unwrap()
+            .iter()
+            .any(|m| m.id == id && m.sold_out)
+    );
+}
+
+#[tokio::test]
+async fn the_outbox_loop_pushes_the_inventory_by_itself() {
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    let (app, _dir, mock) = started().await;
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let ctx = pos_hubrise::outbox::OutboxCtx {
+        http: app.state.shared_http.clone(),
+        db: app.state.poller_db.clone(),
+        wake: Arc::clone(&app.state.hubrise_outbox_wake),
+        enabled: app.state.hubrise_switch.clone(),
+    };
+    let task = tokio::spawn(pos_hubrise::outbox::run_loop(ctx, cancel.clone()));
+
+    // Marking the product wakes the loop; no pass is called by the test.
+    let id = item(&app, "CALIFORNIA-8");
+    do_set_sold_out(&app.state, id, false, None).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while mock.requests("PATCH", PATH).is_empty() && Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert_eq!(
+        patches(&mock),
+        [json!([{"sku_ref": "CALIFORNIA-8", "stock": "0"}])]
+    );
+    assert_eq!(state_of(&app, id).0, 0, "no longer dirty");
+
+    // With HubRise switched off the loop sends nothing.
+    app.state.hubrise_switch.set(false);
+    do_clear_sold_out(&app.state, id, None).unwrap();
+    app.state.hubrise_outbox_wake.notify_one();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(patches(&mock).len(), 1);
+
+    cancel.cancel();
+    tokio::time::timeout(Duration::from_secs(5), task)
+        .await
+        .expect("the loop stops with its token")
+        .unwrap();
+}
