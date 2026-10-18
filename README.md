@@ -108,3 +108,4 @@ sudo ./deploy/update.sh /path/to/pili-pos [--seed /path/to/seed.sql]
 - Remote troubleshooting: `deploy/REMOTE-OPS.md`
 - Update/rollback strategy: `deploy/UPDATE-STRATEGY.md`
 - Kiosk lockdown files: `deploy/kiosk/`
+- Gap to fill before the Linux product can be certified (it is not part of the v1 filing): `src-tauri/LINUX_RELEASE_GAP.md`

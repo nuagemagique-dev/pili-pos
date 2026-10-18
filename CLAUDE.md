@@ -9,6 +9,8 @@
 
 **Certification v1 (user decision 2026-10-18, INT-D41):** only `pili-pos-android` 1.0.0 (dossier `docs/android/dossier`) is submitted. The Linux product (Tauri shell, `ui/`, `deploy/`, `docs/SUBMISSION_ARTIFACTS`) stays in the repository and keeps building and passing (shared engine, parity checks), but it is not submitted and nothing in the Android dossier depends on it. The Android freeze tag is `android-v1.0.0-rc3` (local, never pushed); the record is `docs/android/ANDROID_FREEZE.md`.
 
+To submit the Linux product one day, read `src-tauri/LINUX_RELEASE_GAP.md` (what changed for the Android-only filing and what Linux still lacks).
+
 ---
 
 ## Architecture Overview
