@@ -64,7 +64,7 @@ Les deux produits embarquent le même moteur fiscal, avec les mêmes règles, le
 - Sur Linux, le moteur est lié au binaire Tauri. Sur Android, il est compilé dans la bibliothèque libpos_ffi.so, à l'intérieur de l'APK, et appelé par l'interface Kotlin au travers de la couche UniFFI. Aucune règle fiscale ou monétaire n'existe côté Kotlin : le moteur seul décide des événements envoyés au FDM, des totaux, des compteurs et des tickets (`PLATEFORME_ANDROID_FR.md` §2).
 - Le producteur le prouve de trois façons :
   1. le gel du moteur : un contrôle compare, à chaque modification, les chemins du moteur et de la build Linux avec l'étiquette de gel (`scripts/android/check_linux_frozen.sh`) ; il échoue si l'un d'eux a changé ;
-  2. la parité des commandes : chacune des 86 commandes de la build de certification, appelées par l'interface Linux, a sa méthode du même nom dans la couche UniFFI utilisée par l'interface Android, avec les mêmes paramètres (`scripts/android/check_command_parity.py`, résultat 86 sur 86) ;
+  2. la parité des commandes : chacune des 128 commandes de la build de certification, appelées par l'interface Linux, a sa méthode du même nom dans la couche UniFFI utilisée par l'interface Android, avec les mêmes paramètres (`scripts/android/check_command_parity.py`, résultat 128 sur 128) ;
   3. la comparaison des journaux : les mêmes scénarios, joués sur les deux produits, donnent les mêmes requêtes au FDM et le même journal fiscal. Résultat : À effectuer (EV-07 : comparaison du journal et des requêtes FDM entre Android et Linux).
 - Six documents décrivent le moteur seul. Ils sont communs aux deux demandes et ne sont pas recopiés : `INDEX_DOSSIER_FR.md` §2 et §3 donnent leur lecture sur Android.
 

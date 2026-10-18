@@ -324,7 +324,7 @@ la certification SCE 2.0.
 | Use cases Basic Set | v1.8 | 2026-08-21 |
 | Use cases Reports | v1.3 | 2026-08-21 |
 | Use cases Advanced Set | v1.6 | 2026-08-21 |
-| Peppol BIS Billing | 3.0 | - (code du dépôt, absent de la build Android) |
+| Peppol BIS Billing | 3.0 | Présent dans la build Android (`pos-peppol`, dépendance du moteur) |
 | FPSFIN API Protocol FDM-FinCloud | 1.10 | 2026-04-14 |
 
 ## 6. Périphériques pris en charge
@@ -343,7 +343,7 @@ la certification SCE 2.0.
 
 ## 7. Interface Android et parité avec l'interface Linux
 
-L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili-pos` et n'ajoute aucune règle fiscale : l'interface affiche et transmet, le moteur décide (`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` §1). L'index `docs/android/PARITY.md`, contrôlé par `scripts/android/check_ui_parity.py`, rattache chaque composant Vue à son équivalent Compose et chaque commande à son appelant. Sur les 112 commandes que l'interface Linux utilise, **103 sont appelées** par l'interface Android et **9 sont exclues**, avec leurs raisons (§7.2) ; aucune n'est manquante ni en attente. Les commandes de facture, de produit épuisé, d'édition de la carte et de rapport de ventes sont parmi les 103.
+L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili-pos` et n'ajoute aucune règle fiscale : l'interface affiche et transmet, le moteur décide (`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` §1). L'index `docs/android/PARITY.md`, contrôlé par `scripts/android/check_ui_parity.py`, rattache chaque composant Vue à son équivalent Compose et chaque commande à son appelant. Sur les 126 commandes que l'interface Linux utilise, **117 sont appelées** par l'interface Android et **9 sont exclues**, avec leurs raisons (§7.2) ; aucune n'est manquante ni en attente. Les commandes de facture, de produit épuisé, d'édition de la carte et de rapport de ventes sont parmi les 117.
 
 ### 7.1 Écrans offerts
 

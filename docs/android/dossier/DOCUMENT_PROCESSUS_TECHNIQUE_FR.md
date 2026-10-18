@@ -74,7 +74,7 @@ Sur Android, le moteur est enveloppé par deux couches. `android/rust/pos-ffi` e
 - Le verrouillage après 5 minutes d'inactivité : `commands::session::do_user_activity` et `background::run_idle_lock` ; l'interface se borne à transmettre l'activité de l'utilisateur, au plus une fois par seconde.
 - Le suivi du FDM (intervalle, recul, classement de l'état) : `commands::fdm_monitor::do_fdm_health` et l'événement `fdm-status` ; l'interface reçoit le résultat.
 - Le rendu en espèces, la ventilation de la TVA et l'aperçu du règlement : fonctions d'aide du moteur (`settlePreview`, `cashDueCents`, `vatSplit`). Un contrôle automatique (`scripts/android/p6_gate.sh`) interdit à la couche plateforme d'y toucher.
-- La parité avec l'interface Linux : 75 des 84 commandes de l'interface Linux sont appelées par l'interface Compose et 9 sont exclues, avec leurs raisons (`LISTE_FONCTIONNALITES_FR.md` §7).
+- La parité avec l'interface Linux : 117 des 126 commandes de l'interface Linux sont appelées par l'interface Compose et 9 sont exclues, avec leurs raisons (`LISTE_FONCTIONNALITES_FR.md` §7).
 
 ## 2. Comportement par événement
 

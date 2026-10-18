@@ -719,15 +719,16 @@ l'interrupteur, qui reçoit au moins la valeur de départ.
 
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
-Version actuelle du schéma : migrations `1` à `11`, puis `20` à `28`, puis `70`
-(vingt et une migrations ; 12 à 19 sont réservées aux correctifs du binaire
+Version actuelle du schéma : migrations `1` à `11`, `20` à `28`, `30` et `31`, `40` à `42`, puis `70`
+(vingt-six migrations ; 12 à 19 sont réservées aux correctifs du binaire
 certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `booking-periods`, `fiscal-archive-append-only`, `ticket-deliveries`,
 `original-prints`, `german-language`, `meal-voucher-payments`,
 `shifts-and-pre-bill`, `pending-signs`, `table-plan`, `hubrise-transport`,
 `catalog-sync`, `webshop-orders`, `price-changes`,
 `platform-charges`, `integration-switch`, `product-codes`,
-`eft-payments`, `presence-registration`, `staff-badges` - liste exacte dans
+`eft-payments`, `presence-registration`, `till-discounts`, `kitchen-notes`,
+`invoicing`, `sold-out`, `menu-editor`, `staff-badges` - liste exacte dans
 `SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs`
 (`MIGRATIONS`, `HUBRISE_MIGRATIONS`, `CATALOG_MIGRATIONS`). Les
-migrations 20 à 28 et 70 font partie du binaire certifié.
+migrations 20 à 28, 30, 31, 40 à 42 et 70 font partie du binaire certifié.
