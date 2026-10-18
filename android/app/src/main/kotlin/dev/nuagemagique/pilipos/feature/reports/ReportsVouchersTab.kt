@@ -32,8 +32,9 @@ import uniffi.pos_ffi.GiftVoucherView
 private val LookupWidth = 440.dp
 
 /**
- * The gift vouchers tab (`GiftVouchersReport.vue`): the lookup of a code on a pad (any role), and for a manager the
- * list of the vouchers issued with a status filter, their movements and the DUPLICATA reprint. Test tags:
+ * The gift vouchers tab (`GiftVouchersReport.vue`): the lookup of a code on a pad (cashiers and managers; the engine
+ * refuses a waiter), and for a manager the list of the vouchers issued with a status filter, their movements and
+ * the DUPLICATA reprint. Test tags:
  * `gv_report`, `gv_report_code`, `gv_report_lookup`, `gv_report_error`, `gv_report_found`, `gv_filter_<status|all>`,
  * `gv_list`, `gv_empty`, `gv_row_<id>`, `gv_head_<id>`, `gv_reprint_<id>`.
  */

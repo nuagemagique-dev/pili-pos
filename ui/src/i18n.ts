@@ -479,6 +479,7 @@ const coreMessages: Messages = {
   "err_gift_voucher_insufficient": { fr: "Le montant dépasse le solde du bon cadeau.", en: "The amount is more than the gift voucher balance.", zh: "金额超过礼品券余额。" },
   "err_gift_voucher_payment_invalid": { fr: "Paiement par bon cadeau refusé : un bon, ou un titre-repas, ne paie pas l'achat d'un bon cadeau, et un bon ne s'utilise qu'une fois par vente.", en: "Gift voucher payment refused: a voucher or meal voucher cannot pay for a gift voucher, and a voucher is used once per sale.", zh: "礼品券支付被拒绝：礼品券或餐券不能用于购买礼品券，且每笔销售只能使用一次同一张礼品券。" },
   "err_gift_voucher_used": { fr: "Ce bon cadeau a déjà servi : sa vente ne peut pas être remboursée.", en: "This gift voucher was already used: its sale cannot be refunded.", zh: "此礼品券已被使用：其销售不能退款。" },
+  "err_gift_vouchers_outstanding": { fr: "Impossible de désactiver les bons cadeaux : {count} bon(s) vendu(s) peuvent encore être utilisés.", en: "Gift vouchers cannot be switched off: {count} sold voucher(s) can still be used.", zh: "无法关闭礼品券：仍有 {count} 张已售礼品券可以使用。" },
   // Gift vouchers: selling one from the order screen
   "gv_sell_button": { fr: "Bon cadeau", en: "Gift voucher", zh: "礼品券" },
   "gv_sell_title": { fr: "Vendre un bon cadeau", en: "Sell a gift voucher", zh: "出售礼品券" },

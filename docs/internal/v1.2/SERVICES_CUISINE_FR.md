@@ -62,8 +62,9 @@ changements inclus.
 
 Le ticket de libération a le même titre et les mêmes mentions que le ticket de bar d'aujourd'hui
 (aucun montant ; la mention « ceci n'est pas un ticket de caisse T.V.A. valable »), plus la
-ligne « SUITE : Plats » sous la table et les en-têtes de temps. Un ticket réimprimé par
-`reprint_course_slip` porte « DUPLICATA » sous le titre et n'enregistre rien. Mode
+ligne « SUITE : Plats » sous la table et les en-têtes de temps. La réimpression d'un ticket
+(`reprint_course_slip`) est une fonction du moteur seul : aucun écran ne la propose dans cette
+version. Un ticket ainsi réimprimé porte « DUPLICATA » sous le titre et n'enregistre rien. Mode
 formation : la marque de formation reste sur ces tickets.
 
 ## 5. Pourquoi rien n'atteint le module fiscal

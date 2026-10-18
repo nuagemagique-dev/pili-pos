@@ -393,6 +393,7 @@ internal object VueStringIds {
         this["err_gift_voucher_insufficient"] = R.string.err_gift_voucher_insufficient
         this["err_gift_voucher_payment_invalid"] = R.string.err_gift_voucher_payment_invalid
         this["err_gift_voucher_used"] = R.string.err_gift_voucher_used
+        this["err_gift_vouchers_outstanding"] = R.string.err_gift_vouchers_outstanding
         this["gv_sell_button"] = R.string.gv_sell_button
         this["gv_sell_title"] = R.string.gv_sell_title
         this["gv_sell_item"] = R.string.gv_sell_item
@@ -518,10 +519,10 @@ internal object VueStringIds {
         this["settings_support_running"] = R.string.settings_support_running
         this["settings_support_unavailable"] = R.string.settings_support_unavailable
         this["settings_support_banner_note"] = R.string.settings_support_banner_note
-        this["settings_pin_set"] = R.string.settings_pin_set
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["settings_pin_set"] = R.string.settings_pin_set
         this["settings_pin_missing"] = R.string.settings_pin_missing
         this["settings_pin_button"] = R.string.settings_pin_button
         this["settings_insz_hint"] = R.string.settings_insz_hint

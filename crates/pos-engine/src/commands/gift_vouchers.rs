@@ -110,6 +110,19 @@ pub fn do_set_gift_voucher_settings(
         return Err(invalid("max_amount_cents"));
     }
     let db = state.db.lock().map_err(errors::internal)?;
+    // Switching off hides the payment method and the lookup, so vouchers
+    // already sold (valid at least 12 months) would become unredeemable:
+    // refused while a real one can still be used, like the HubRise
+    // switch-off while online orders are open.
+    if !input.enabled && settings(&db).enabled {
+        let open = db::count_redeemable(&db, &today()).map_err(errors::internal)?;
+        if open > 0 {
+            return Err(errors::coded(
+                errors::GIFT_VOUCHERS_OUTSTANDING,
+                &[("count", &open)],
+            ));
+        }
+    }
     owner_settings::set(&db, KEY_GIFT_VOUCHERS, &input, Some(&operator.insz))?;
     Ok(input)
 }

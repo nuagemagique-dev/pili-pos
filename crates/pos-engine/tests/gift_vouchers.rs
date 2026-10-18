@@ -29,7 +29,8 @@ use pos_engine::commands::order::{
     do_update_order_line_quantity,
 };
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
-use pos_engine::commands::report::do_generate_x_report;
+use pos_engine::commands::report::{do_generate_x_report, do_generate_z_report};
+use pos_engine::commands::tables::do_sign_table_order;
 use pos_fiscal::payment::PaymentMethod;
 use pos_fiscal::types::EventLabel;
 
@@ -154,6 +155,16 @@ fn payment_rows(app: &TestApp) -> Vec<(String, i64)> {
         .unwrap()
         .map(Result::unwrap)
         .collect()
+}
+
+/// The signed report request holds exactly one VAT X turnover entry,
+/// with no VAT, worth `expected` euros.
+fn assert_vat_x_turnover(request: &Value, expected: f64) {
+    let vats = request["turnover"]["vats"].as_array().unwrap();
+    let x: Vec<&Value> = vats.iter().filter(|v| v["label"] == "X").collect();
+    assert_eq!(x.len(), 1, "{vats:?}");
+    assert_eq!(x[0]["totalAmount"].as_f64().unwrap(), expected, "{x:?}");
+    assert_eq!(x[0]["vatAmount"].as_f64().unwrap(), 0.0, "{x:?}");
 }
 
 fn spaced(code: &str) -> String {
@@ -1034,8 +1045,7 @@ async fn the_x_report_totals_vat_x_and_the_voucher_payment_and_prints_its_label(
         payments.contains(&("CASH".to_string(), 50.0)),
         "{payments:?}"
     );
-    let vats = request["turnover"]["vats"].to_string();
-    assert!(vats.contains("\"X\"") || vats.contains("X"), "{vats}");
+    assert_vat_x_turnover(&request, 50.0);
 
     for _ in 0..40 {
         if printer
@@ -1326,4 +1336,194 @@ async fn the_vat_ticket_names_the_voucher_payment_and_the_layout_is_unchanged() 
         .find(|l| l.starts_with("Bon cadeau"))
         .expect("payment row");
     assert_eq!(row, "Bon cadeau 18,50");
+}
+
+#[tokio::test]
+async fn the_z_report_totals_vat_x_and_the_voucher_payment_and_prints_its_label() {
+    let (app, printer) = app().await;
+    let (_, id, _) = sell_voucher(&app, 5000).await;
+    let sale = pay(
+        &app,
+        dish_order(&app, PRICEY),
+        &[PaymentPart::gift_voucher(1850, id)],
+    )
+    .await;
+    assert!(sale.success, "{:?}", sale.error);
+    printer.settle(3).await;
+    let z = do_generate_z_report(&app.state, MANAGER.into())
+        .await
+        .unwrap();
+    assert!(z.success, "{:?}", z.error);
+
+    // The turnover report is the first R of the Z.
+    let report = app
+        .fiscal_events()
+        .into_iter()
+        .find(|e| e.event_label.as_deref() == Some("R"))
+        .unwrap();
+    let request: Value = serde_json::from_str(report.event_data_json.as_deref().unwrap()).unwrap();
+    assert_vat_x_turnover(&request, 50.0);
+    let vouchers: Vec<f64> = request["turnover"]["payments"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|p| p["type"] == "VOUCHER_STORE")
+        .flat_map(|p| p["amount"].as_array().unwrap().iter())
+        .map(|a| a["totalAmount"].as_f64().unwrap())
+        .collect();
+    assert_eq!(vouchers, [18.5]);
+
+    for _ in 0..40 {
+        if printer
+            .rendered()
+            .iter()
+            .any(|r| r.contains("Bon cadeau") && r.contains("18,50"))
+        {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    let texts = printer.rendered();
+    assert!(
+        texts
+            .iter()
+            .any(|t| t.contains("Bon cadeau") && t.contains("18,50")),
+        "{texts:#?}"
+    );
+}
+
+// ── Switching the feature off ──────────────────────────────────────
+
+fn off() -> GiftVoucherSettings {
+    GiftVoucherSettings {
+        enabled: false,
+        ..GiftVoucherSettings::default()
+    }
+}
+
+#[tokio::test]
+async fn switching_off_is_refused_while_a_real_voucher_can_still_be_redeemed() {
+    let (app, _printer) = app().await;
+    // Nothing sold yet: the switch-off is allowed, then back on.
+    assert!(do_set_gift_voucher_settings(&app.state, off()).is_ok());
+    do_set_gift_voucher_settings(&app.state, on()).unwrap();
+
+    let (_, id, _) = sell_voucher(&app, 5000).await;
+    assert_eq!(
+        do_set_gift_voucher_settings(&app.state, off()).unwrap_err(),
+        "gift_vouchers_outstanding|count=1"
+    );
+    assert!(do_get_gift_voucher_settings(&app.state).unwrap().enabled);
+    // Changing another setting while staying on is fine.
+    assert!(
+        do_set_gift_voucher_settings(
+            &app.state,
+            GiftVoucherSettings {
+                validity_months: 24,
+                ..on()
+            }
+        )
+        .is_ok()
+    );
+
+    // A training voucher does not hold the switch.
+    app.state.config.lock().unwrap().training_mode = true;
+    sell_voucher(&app, 4000).await;
+    app.state.config.lock().unwrap().training_mode = false;
+    assert_eq!(
+        do_set_gift_voucher_settings(&app.state, off()).unwrap_err(),
+        "gift_vouchers_outstanding|count=1"
+    );
+
+    // Partly used: still held.
+    let r = pay(
+        &app,
+        dish_order(&app, DISH),
+        &[PaymentPart::gift_voucher(1000, id)],
+    )
+    .await;
+    assert!(r.success, "{:?}", r.error);
+    assert_eq!(
+        do_set_gift_voucher_settings(&app.state, off()).unwrap_err(),
+        "gift_vouchers_outstanding|count=1"
+    );
+}
+
+#[tokio::test]
+async fn a_used_up_or_expired_voucher_does_not_hold_the_switch() {
+    let (app, _printer) = app().await;
+    let (event, id, order) = sell_voucher(&app, 1000).await;
+    assert!(do_set_gift_voucher_settings(&app.state, off()).is_err());
+    let r = pay(
+        &app,
+        dish_order(&app, DISH),
+        &[PaymentPart::gift_voucher(1000, id)],
+    )
+    .await;
+    assert!(r.success, "{:?}", r.error);
+    assert_eq!(voucher(&app, id).balance_cents, 0);
+    // Used up: the switch-off goes through.
+    assert!(do_set_gift_voucher_settings(&app.state, off()).is_ok());
+    do_set_gift_voucher_settings(&app.state, on()).unwrap();
+
+    // An expired voucher with a balance does not hold it either.
+    let yesterday =
+        (pos_fiscal::event::now_in_belgium().date_naive() - chrono::Days::new(1)).to_string();
+    {
+        let conn = app.state.db.lock().unwrap();
+        store::insert_voucher(
+            &conn,
+            &store::NewVoucher {
+                code: &pos_engine::commands::gift_vouchers::make_code(3_333_333_333),
+                face_value_cents: 3000,
+                issued_on: "2025-01-01",
+                expires_on: &yesterday,
+                training: false,
+                issue_event_id: event,
+                issue_order_id: order,
+                issue_line_id: 9997,
+            },
+        )
+        .unwrap();
+    }
+    assert!(do_set_gift_voucher_settings(&app.state, off()).is_ok());
+}
+
+// ── A table order that sells a voucher in an earlier round ─────────
+
+#[tokio::test]
+async fn a_voucher_line_in_an_earlier_round_keeps_the_sale_voucher_free_of_voucher_payments() {
+    let (app, _printer) = app().await;
+    let (_, paying, _) = sell_voucher(&app, 5000).await;
+    let order = do_create_order(
+        &app.state,
+        CreateOrderInput {
+            order_type: OrderType::DineIn,
+            table_number: Some(5),
+            user_insz: MANAGER.into(),
+        },
+    )
+    .unwrap()
+    .id;
+    add(&app, order, DISH);
+    do_add_gift_voucher_line(&app.state, order, 2000).unwrap();
+    do_sign_table_order(&app.state, order).await.unwrap();
+    add(&app, order, PRICEY);
+    do_sign_table_order(&app.state, order).await.unwrap();
+
+    // The order sells a voucher (its line sits in an earlier P): a voucher
+    // cannot pay it, and the refused attempt debits nothing.
+    let r = pay(&app, order, &[PaymentPart::gift_voucher(4850, paying)]).await;
+    assert_eq!(
+        r.error.as_deref(),
+        Some(errors::GIFT_VOUCHER_PAYMENT_INVALID)
+    );
+    assert_eq!(voucher(&app, paying).balance_cents, 5000);
+
+    // Paid by cash it issues its voucher once.
+    let r = pay(&app, order, &[PaymentPart::cash()]).await;
+    assert!(r.success, "{:?}", r.error);
+    let all = vouchers(&app);
+    assert_eq!(all.len(), 2);
+    assert_eq!(all[1].face_value_cents, 2000);
 }

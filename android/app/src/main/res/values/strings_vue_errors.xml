@@ -116,6 +116,7 @@
     <string name="err_gift_voucher_insufficient">Le montant dépasse le solde du bon cadeau.</string>
     <string name="err_gift_voucher_payment_invalid">Paiement par bon cadeau refusé : un bon, ou un titre-repas, ne paie pas l\'achat d\'un bon cadeau, et un bon ne s\'utilise qu\'une fois par vente.</string>
     <string name="err_gift_voucher_used">Ce bon cadeau a déjà servi : sa vente ne peut pas être remboursée.</string>
+    <string name="err_gift_vouchers_outstanding">Impossible de désactiver les bons cadeaux : {count} bon(s) vendu(s) peuvent encore être utilisés.</string>
     <string name="err_hubrise_not_connected">HubRise n\'est pas connecté.</string>
     <string name="err_hubrise_order_unknown">Commande en ligne inconnue.</string>
     <string name="err_hubrise_status_not_allowed">Ce statut ne peut pas être choisi ici.</string>

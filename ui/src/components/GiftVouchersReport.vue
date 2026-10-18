@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Reports, "Bons cadeaux": check a voucher by its code (any role), and,
+// Reports, "Bons cadeaux": check a voucher by its code (cashiers and managers; the engine refuses a waiter), and,
 // for a manager, the list of vouchers issued with a status filter and
 // the DUPLICATA reprint. Codes are masked everywhere: the full code is
 // on the printed voucher only.

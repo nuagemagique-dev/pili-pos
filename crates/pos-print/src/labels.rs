@@ -392,7 +392,7 @@ fn payment_kind_from_name(name: &str) -> Option<PaymentKind> {
     let lower = name.to_ascii_lowercase();
     if lower.contains("meal") || lower.contains("repas") {
         Some(PaymentKind::MealVoucher)
-    } else if lower.contains("gift") || lower.contains("cadeau") || lower == "voucher_store" {
+    } else if lower == "gift voucher" || lower == "voucher_store" {
         Some(PaymentKind::GiftVoucher)
     } else if lower.contains("cash") {
         Some(PaymentKind::Cash)
@@ -459,8 +459,12 @@ mod online_payment_label_tests {
 
     #[test]
     fn a_gift_voucher_payment_has_a_printed_name() {
-        for name in ["Gift voucher", "VOUCHER_STORE", "Bon cadeau"] {
+        for name in ["Gift voucher", "VOUCHER_STORE", "voucher_store"] {
             assert_eq!(payment_label(name, ReceiptLanguage::Fr), "Bon cadeau");
+        }
+        // Online payment names that merely mention a gift card keep their name.
+        for name in ["Carte cadeau", "Chèque cadeau"] {
+            assert_eq!(payment_label(name, ReceiptLanguage::Fr), name);
         }
         assert_eq!(
             payment_label("Gift voucher", ReceiptLanguage::Nl),

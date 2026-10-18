@@ -229,6 +229,24 @@ test.describe('Gift voucher settings', () => {
   });
 });
 
+test.describe('Gift voucher switch-off', () => {
+  test('the refusal while a sold voucher can still be redeemed is told and the setting stays on', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      get_gift_voucher_settings: () => ON,
+      set_gift_voucher_settings: live(() => { throw 'gift_vouchers_outstanding|count=2'; }),
+    } as any);
+    await loginAndGoto(page, '/settings');
+    const panel = page.getByTestId('gv-settings');
+    await panel.getByTestId('gv-enabled').click();
+    await panel.getByTestId('gv-settings-save').click();
+    await expect(panel.getByTestId('gv-settings-error')).toContainText('2 bon(s) vendu(s)');
+    await expect(panel.getByTestId('gv-settings-saved')).toHaveCount(0);
+    expect((await ipcCalls(page, 'set_gift_voucher_settings'))[0].input.enabled).toBe(false);
+  });
+});
+
 test.describe('Gift vouchers in the reports', () => {
   async function openTab(page: Page, extra: Record<string, unknown> = {}) {
     await mockTauriIPC(page, {

@@ -145,6 +145,26 @@ class GiftVoucherViewModelTest {
         }
 
     @Test
+    fun switchingOffWhileASoldVoucherCanBeUsedIsRefusedAndTheSettingStaysOn() =
+        runTest {
+            val r = start(stored = GiftVoucherSettings(true, 12, 50_000L))
+            val sent = mutableListOf<GiftVoucherSettings>()
+            coEvery { r.engine.setGiftVoucherSettings(capture(sent)) } throws
+                PosException.Coded("gift_vouchers_outstanding", mapOf("count" to "2"))
+
+            r.model.toggleEnabled()
+            r.model.save()
+            runCurrent()
+
+            assertEquals(listOf(GiftVoucherSettings(false, 12, 50_000L)), sent)
+            assertNotNull(r.state.error)
+            assertTrue(r.state.error!!.contains("2"))
+            assertFalse(r.state.saved)
+            assertTrue(r.state.stored!!.enabled)
+            assertFalse(r.state.busy)
+        }
+
+    @Test
     fun editingBeforeTheSettingIsReadDoesNothing() =
         runTest {
             val r = start(who = cashier)

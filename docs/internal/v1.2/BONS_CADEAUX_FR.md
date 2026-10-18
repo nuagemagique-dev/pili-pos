@@ -17,7 +17,7 @@ La fonction est éteinte par défaut. Éteinte, rien ne change à l'écran ni da
 - Un gérant active la fonction dans Réglages (panneau « Bons cadeaux ») : un interrupteur, la
   validité en mois (12 à 36, 12 par défaut) et le montant maximal d'un bon (de 1,00 à 10 000,00 ;
   500,00 par défaut). Réglage conservé dans `owner_settings` (clé `gift_vouchers`), journal des
-  changements inclus.
+  changements inclus. Elle ne se désactive pas tant qu'un bon réel (hors formation) peut encore être utilisé : le moteur refuse (`gift_vouchers_outstanding`), car les clients gardent des bons valables au moins douze mois.
 - Sur l'écran de commande, le bouton « Bon cadeau » demande le montant, de 1,00 au maximum réglé,
   et ajoute une ligne au panier : un produit système « Bon cadeau » (migration 63), taux de
   T.V.A. X (hors champ), département `GV`, prix libre, jamais affiché sur la grille. La ligne
@@ -88,16 +88,16 @@ bons réels ne servent pas en formation.
   section 8).
 - **Rapports.** Les rapports X et Z n'ont pas besoin de changer : le taux X est dans le calcul
   de T.V.A. du module fiscal, les paiements sont groupés par identité, nom et type. Le Z imprimé
-  nomme le paiement « Bon cadeau » (fr), « Cadeaubon » (nl), « Geschenkgutschein » (de) ou
-  « Gift voucher » (en).
+  nomme le paiement « Bon cadeau » (fr), « Cadeaubon » (nl), « Geschenkgutschein » (de) (l'anglais
+  et le chinois impriment en français).
 - **HubRise.** L'écho d'une vente de comptoir laisse de côté la vente qui vend un bon (aucune
   ligne de bon n'est envoyée) ; un paiement par bon y est nommé « Other ».
 
 ## 6. Tickets imprimés
 
 Impression non fiscale sur l'imprimante de tickets, avec la mention « ceci n'est pas un ticket de
-caisse T.V.A. valable ». Langues : français, néerlandais, anglais, allemand (le chinois imprime
-en français).
+caisse T.V.A. valable ». Langues : français, néerlandais, allemand (la langue de l'établissement ;
+l'anglais et le chinois impriment en français).
 
 | Ticket | Contenu |
 | --- | --- |
@@ -116,7 +116,7 @@ cadeaux »).
 | --- | --- |
 | Commande | bouton « Bon cadeau » (si la fonction est active), saisie du montant, ligne avec pastille « Bon » |
 | Encaissement | méthode « Bon cadeau » (saisie du code, solde, validité, état, montant retenu), notes d'impression à la fin de la vente |
-| Rapports, onglet « Bons cadeaux » | recherche par code (tout le personnel) ; pour un gérant, liste des bons (valides d'abord, filtre par état), mouvements, bouton « Réimprimer » |
+| Rapports, onglet « Bons cadeaux » | recherche par code (caissiers et gérants ; un serveur n'y a pas accès) ; pour un gérant, liste des bons (valides d'abord, filtre par état), mouvements, bouton « Réimprimer » |
 | Réglages, panneau « Bons cadeaux » | interrupteur, validité, montant maximal |
 
 Mêmes écrans et mêmes textes (fr, en, zh) sur Linux (Vue) et sur Android (Compose).
@@ -125,7 +125,7 @@ Mêmes écrans et mêmes textes (fr, en, zh) sur Linux (Vue) et sur Android (Com
 
 | Sujet | Raison |
 | --- | --- |
-| Bon à usage unique (SPV, UC270 et UC271) | La T.V.A. est due à la vente, sur les marchandises. L'utilisation est une ligne négative (`negQuantityReason VOUCHER`) dont le découpage de T.V.A. doit refléter la vente. Le cas officiel UC271 découpe un bon vendu à B 75,00 en A -18,00 et B -40,00 à l'utilisation : autre total, autre mélange de taux. Aucune règle claire ne permet de le reproduire : la lecture est ambiguë, nous ne devinons pas. À reprendre si le SPF publie une précision (question Q4) |
+| Bon à usage unique (SPV, UC270 et UC271) | La T.V.A. est due à la vente, sur les marchandises. L'utilisation est une ligne négative (`negQuantityReason VOUCHER`) dont le découpage de T.V.A. doit refléter la vente. Le cas officiel UC271 utilise le bon « SPV Menu all-in » (quantité -1, `negQuantityReason VOUCHER`, A -18,00 et B -40,00, soit -58,00), dont le découpage de T.V.A. reprend celui du produit composé « menu all-in » pour lequel le bon est valable ; UC270 est un autre bon (« Voucher Special Diner Offer », 2 menus d'affaires à B 75,00). Utiliser un bon à usage unique demande donc le découpage de T.V.A. d'un produit composé, et les produits composés ne sont pas pris en charge (même écart que pour UC261 et UC4109) : nous ne devinons pas. À reprendre avec les produits composés, ou si le SPF publie une précision (question Q4) |
 | Bon converti en espèces (UC4105) | Un bon cadeau n'est pas échangeable contre de l'argent ; aucun besoin |
 | Remboursement vers un bon | Le remboursement d'une vente payée par bon reste en espèces avec confirmation du gérant ; recréditer le bon est reporté (question Q6) |
 
@@ -154,7 +154,7 @@ depuis les mouvements. Aucune table fiscale n'est modifiée. Aucune donnée ne q
 
 ## 11. Tests
 
-Moteur (`crates/pos-engine/tests/gift_vouchers.rs`, 34 scénarios) : réglage et validation, ligne et
+Moteur (`crates/pos-engine/tests/gift_vouchers.rs`, 38 scénarios) : réglage et validation, ligne et
 montant, émission, réponse perdue puis reprise (un seul bon), utilisation partielle, deux bons,
 expiration, bons de formation séparés, remboursements (bon non utilisé, bon utilisé, vente payée
 par bon), rapports X et Z, limite de recherche, impressions, tables en ajout seulement, absence du

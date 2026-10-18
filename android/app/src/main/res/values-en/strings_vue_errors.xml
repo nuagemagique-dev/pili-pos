@@ -116,6 +116,7 @@
     <string name="err_gift_voucher_insufficient">The amount is more than the gift voucher balance.</string>
     <string name="err_gift_voucher_payment_invalid">Gift voucher payment refused: a voucher or meal voucher cannot pay for a gift voucher, and a voucher is used once per sale.</string>
     <string name="err_gift_voucher_used">This gift voucher was already used: its sale cannot be refunded.</string>
+    <string name="err_gift_vouchers_outstanding">Gift vouchers cannot be switched off: {count} sold voucher(s) can still be used.</string>
     <string name="err_hubrise_not_connected">HubRise is not connected.</string>
     <string name="err_hubrise_order_unknown">Unknown online order.</string>
     <string name="err_hubrise_status_not_allowed">This status cannot be set here.</string>

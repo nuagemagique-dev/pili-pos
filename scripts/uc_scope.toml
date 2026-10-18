@@ -104,11 +104,11 @@ kind = "hors_perimetre"
 # Les bons à usage multiple (UC260, UC261, UC262) sont implémentés en v1.2 et testés (spf_e2e_gift_vouchers.rs).
 
 [UC270]
-reason = "Les bons à usage unique (SPV) : différé en v1.2, car la T.V.A. due à la vente et le découpage du bon à l'utilisation (UC271) n'ont pas de règle claire dans le texte de la spécification."
+reason = "Les bons à usage unique (SPV) : différé en v1.2, car l'utilisation d'un tel bon (UC270 vend le bon, UC271 utilise un autre bon, « SPV Menu all-in ») reprend le découpage de T.V.A. d'un produit composé, et les produits composés ne sont pas pris en charge."
 kind = "hors_perimetre"
 
 [UC271]
-reason = "Les bons à usage unique (SPV) : différé en v1.2, car la T.V.A. due à la vente et le découpage du bon à l'utilisation (UC271) n'ont pas de règle claire dans le texte de la spécification."
+reason = "Les bons à usage unique (SPV) : différé en v1.2, car l'utilisation d'un tel bon (UC270 vend le bon, UC271 utilise un autre bon, « SPV Menu all-in ») reprend le découpage de T.V.A. d'un produit composé, et les produits composés ne sont pas pris en charge."
 kind = "hors_perimetre"
 
 [UC4105]

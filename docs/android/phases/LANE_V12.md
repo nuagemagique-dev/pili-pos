@@ -722,12 +722,13 @@ of this file (what was delivered, deviations, gate results).
 5. Cart grouped by course with chips and "Envoyer la suite"; course picker dialog; table plan with
    "Suite : Plats"; checkout warning about a held course.
 6. Printed kitchen slips: first course at the P, release slip "SUITE : Plats", direct sale with course
-   headers, DUPLICATA.
+   headers (the course reprint is engine-only, no screen: no DUPLICATA capture).
 7. Order screen "Bon cadeau" button and amount dialog; cart line with a voucher.
 8. Checkout "Bon cadeau" payment dialog (lookup active, expired, insufficient); split voucher + cash.
 9. VAT ticket of a voucher sale (VAT X) and of a sale paid by voucher; printed voucher; balance slip;
    duplicate.
-10. Reports "Bons cadeaux" tab (lookup, list); Settings "Bons cadeaux" panel.
+10. Reports "Bons cadeaux" tab (lookup, list); Settings "Bons cadeaux" panel, with the refusal of the
+    switch-off while a voucher can still be redeemed (`gift_vouchers_outstanding`).
 11. Z report printout with a "Bon cadeau" payment row and VAT X.
 12. Accountant export: `LISEZMOI.txt` and a sample of `journal.csv` (text, no screen).
 

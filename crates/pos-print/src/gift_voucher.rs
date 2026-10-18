@@ -70,18 +70,6 @@ fn words(lang: &str) -> &'static Words {
             balance_title: "SALDO VAN DE BON",
             balance: "Saldo",
         },
-        "en" => &Words {
-            title: "GIFT VOUCHER",
-            duplicate: "DUPLICATE",
-            value: "Value",
-            code: "Code",
-            issued: "Issued on",
-            valid_until: "Valid until",
-            rules: "Usable in one or several times, no change given",
-            reference: "Ticket",
-            balance_title: "VOUCHER BALANCE",
-            balance: "Balance",
-        },
         "de" => &Words {
             title: "GESCHENKGUTSCHEIN",
             duplicate: "DUPLIKAT",
@@ -136,9 +124,6 @@ pub fn spaced_code(code: &str) -> String {
 fn disclaimer(p: &mut EscPosBuilder, lang: &str) {
     p.align(Alignment::Center);
     p.textln_wrapped(invalid_disclaimer(receipt_lang(lang)));
-    if lang == "en" {
-        p.textln_wrapped("THIS IS NOT A VALID VAT RECEIPT");
-    }
 }
 
 fn training_mark(p: &mut EscPosBuilder, training: bool) {
@@ -311,6 +296,7 @@ mod tests {
 
     #[test]
     fn every_language_has_the_mention_and_the_dates() {
+        // The establishment language is fr, nl or de (zh and en print in French).
         for lang in ["fr", "nl", "en", "de", "zh"] {
             let out = one_line(&text(&voucher(lang)));
             assert!(out.contains("17.10.2027"), "{lang}: {out}");
@@ -321,7 +307,7 @@ mod tests {
             );
         }
         assert!(one_line(&text(&voucher("nl"))).contains("CADEAUBON"));
-        assert!(one_line(&text(&voucher("en"))).contains("GIFT VOUCHER"));
+        assert!(one_line(&text(&voucher("en"))).contains("BON CADEAU"));
         assert!(one_line(&text(&voucher("de"))).contains("GESCHENKGUTSCHEIN"));
     }
 

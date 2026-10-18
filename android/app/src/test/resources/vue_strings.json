@@ -1668,6 +1668,12 @@
       "zh": "礼品券已关闭（设置）。",
       "area": "errors"
     },
+    "err_gift_vouchers_outstanding": {
+      "fr": "Impossible de désactiver les bons cadeaux : {count} bon(s) vendu(s) peuvent encore être utilisés.",
+      "en": "Gift vouchers cannot be switched off: {count} sold voucher(s) can still be used.",
+      "zh": "无法关闭礼品券：仍有 {count} 张已售礼品券可以使用。",
+      "area": "errors"
+    },
     "err_hubrise_channel_invalid": {
       "fr": "Réglage de canal non valable.",
       "en": "Invalid channel setting.",
@@ -4334,6 +4340,7 @@
     "gift_voucher_insufficient",
     "gift_voucher_payment_invalid",
     "gift_voucher_used",
+    "gift_vouchers_outstanding",
     "not_logged_in",
     "forbidden",
     "not_the_operator",

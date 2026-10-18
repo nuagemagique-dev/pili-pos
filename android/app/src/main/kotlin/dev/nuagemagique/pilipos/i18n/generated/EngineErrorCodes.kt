@@ -45,6 +45,7 @@ object EngineErrorCodes {
             "gift_voucher_insufficient",
             "gift_voucher_payment_invalid",
             "gift_voucher_used",
+            "gift_vouchers_outstanding",
             "not_logged_in",
             "forbidden",
             "not_the_operator",

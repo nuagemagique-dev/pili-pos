@@ -249,6 +249,9 @@ pub const GIFT_VOUCHER_INSUFFICIENT: &str = "gift_voucher_insufficient";
 /// A voucher part that names no voucher, names one twice, or pays an
 /// order that sells a voucher (a voucher or meal voucher cannot pay a voucher).
 pub const GIFT_VOUCHER_PAYMENT_INVALID: &str = "gift_voucher_payment_invalid";
+/// Gift vouchers cannot be switched off while sold vouchers can still be
+/// redeemed: `gift_vouchers_outstanding|count=<n>`.
+pub const GIFT_VOUCHERS_OUTSTANDING: &str = "gift_vouchers_outstanding";
 /// The voucher sold on this line was already used: it cannot be refunded.
 pub const GIFT_VOUCHER_USED: &str = "gift_voucher_used";
 
@@ -303,6 +306,7 @@ pub const ALL: &[&str] = &[
     GIFT_VOUCHER_INSUFFICIENT,
     GIFT_VOUCHER_PAYMENT_INVALID,
     GIFT_VOUCHER_USED,
+    GIFT_VOUCHERS_OUTSTANDING,
     NOT_LOGGED_IN,
     FORBIDDEN,
     NOT_THE_OPERATOR,

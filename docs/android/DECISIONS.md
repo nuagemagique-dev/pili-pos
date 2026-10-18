@@ -1449,9 +1449,10 @@ appended by each task of the lane; T1 (accountant export) wrote the first entrie
 - **V12-D24 Multi-purpose vouchers only (T5, E).** Implemented: MPV. The sale is a line at VAT X (no VAT at
   issue), the use is a payment (VAT is due on the goods bought). Deferred, with the reasons in
   `docs/internal/v1.2/BONS_CADEAUX_FR.md` section 8: (1) SPV (UC270, UC271): VAT due at sale, use as a negative line
-  `negQuantityReason VOUCHER` whose VAT split must mirror the sale; the UC271 fixture splits a voucher sold at B 75
-  into A -18 / B -40 at use (a different total and VAT mix than the sale), which no clean rule reproduces, so the
-  reading is ambiguous and we do not guess (Q4); (2) voucher to cash (UC4105): vouchers are not exchangeable for
+  `negQuantityReason VOUCHER` whose VAT split must mirror the sale; UC270 ("Voucher Special Diner Offer", 2 business menus at B 75) and UC271 (redeems "SPV Menu all-in", quantity -1,
+  A -18 / B -40 = -58) are two different vouchers; the redemption mirrors the VAT split of the composite "menu all-in"
+  it is valid for, so SPV needs the VAT split of a composite product, which is not supported (same deviation as UC261
+  and UC4109); we do not guess (Q4); (2) voucher to cash (UC4105): vouchers are not exchangeable for
   cash, no need; (3) refund to a voucher (Q6). `scripts/uc_scope.toml` no longer lists UC260, UC261, UC262 (covered
   by `spf_e2e_gift_vouchers.rs`); UC270, UC271 and UC4105 stay `hors_perimetre` with "différé en v1.2" reasons.
 - **V12-D25 Sale as a system product (T5, E), as built.** Migration 63 inserts category 990000 `pili:system`
@@ -1555,3 +1556,29 @@ appended by each task of the lane; T1 (accountant export) wrote the first entrie
 - **Open questions left for the owner/orchestrator:** the live Telegram check of the alerts (T2); Winbooks and Yuki
   layouts of the accountant export are best effort (Q1); the merge with lanes 2 and 3 (see plan section 13); the
   captures of plan section 11 (none is possible without an emulator).
+
+### Fix round 1 of lane 4-v12 (2026-10-18)
+
+- **V12-D32 Gift vouchers cannot be switched off while vouchers can be redeemed (E).** `set_gift_voucher_settings`
+  with `enabled = false` is refused with `gift_vouchers_outstanding|count=<n>` while at least one non-training
+  voucher is not cancelled, has a positive balance and is not expired (usable through its expiry date). Reason: the
+  "Bon cadeau" payment method and the Reports lookup tab show only while the setting is on, and sold vouchers are
+  valid at least 12 months, so a switch-off would strand prepaid customer money. Same precedent as the HubRise
+  switch-off refused while online orders are unsettled. Chosen over "keep the method visible" because it keeps the
+  UIs unchanged. Training vouchers, used-up, cancelled and expired vouchers do not hold the switch. Strings in fr, en
+  and zh on both UIs (`err_gift_vouchers_outstanding`).
+- **V12-D33 Voucher lookup access (E).** The lookup stays Cashier (cashiers and managers), as planned in V12-D3: a
+  waiter gets `forbidden`. Comments (Vue, Compose) and the draft now say so.
+- **V12-D34 Printed languages of the voucher slips (E).** The slips follow the establishment receipt language (fr,
+  nl, de); en and zh print in French. The dead English wording of `pos-print` was removed and the draft corrected.
+- **V12-D35 Payment names (E).** Only "Gift voucher" and `VOUCHER_STORE` print as "Bon cadeau" (exact match,
+  case-insensitive); names such as a HubRise "Carte cadeau" print unchanged, as before v1.2.
+- **V12-D36 Course reprint is engine-only (D).** `reprint_course_slip` has no screen on either UI (excluded from UI
+  parity); the DUPLICATA capture of the course slip is dropped and the dossier draft says so.
+- **Not done, on purpose (minor items 5 and 6).** (5) The zero-quantity filter of `courses::per_entry` was left
+  alone: its entries are recorded as done through the slip items, so dropping them would leave them pending
+  forever; no zero-quantity entry can exist today. (6) The alerts printer probe still skips only while the signing
+  lock is held; a probe during the short follow-up print is harmless (the printer accepts a second connection and
+  the probe sends only a status request).
+- **Merge note.** `scripts/uc_scope.toml` marks UC260 to UC262 covered: run `uc_matrix.py --write` only against the
+  v1.2 dossier, never against the v1.0.0 `SUBMISSION_ARTIFACTS` matrix. The three stray `.kt-E` files were removed.

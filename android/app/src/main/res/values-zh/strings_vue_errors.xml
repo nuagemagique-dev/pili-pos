@@ -116,6 +116,7 @@
     <string name="err_gift_voucher_insufficient">金额超过礼品券余额。</string>
     <string name="err_gift_voucher_payment_invalid">礼品券支付被拒绝：礼品券或餐券不能用于购买礼品券，且每笔销售只能使用一次同一张礼品券。</string>
     <string name="err_gift_voucher_used">此礼品券已被使用：其销售不能退款。</string>
+    <string name="err_gift_vouchers_outstanding">无法关闭礼品券：仍有 {count} 张已售礼品券可以使用。</string>
     <string name="err_hubrise_not_connected">HubRise未连接。</string>
     <string name="err_hubrise_order_unknown">未知的在线订单。</string>
     <string name="err_hubrise_status_not_allowed">此处不能设置该状态。</string>

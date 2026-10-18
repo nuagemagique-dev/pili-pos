@@ -247,6 +247,15 @@ async fn a_voucher_is_sold_listed_used_and_printed_again() {
     assert_eq!(sale.gift_voucher_prints.len(), 1);
     assert_eq!(sale.gift_voucher_prints[0].kind, "voucher");
 
+    // Switching off is refused while the sold voucher can still be redeemed.
+    let mut off = on();
+    off.enabled = false;
+    let err = e.set_gift_voucher_settings(off).await.unwrap_err();
+    let (code, params) = coded(&err);
+    assert_eq!(code, "gift_vouchers_outstanding");
+    assert_eq!(params["count"], "1");
+    assert!(e.get_gift_voucher_settings().await.unwrap().enabled);
+
     let listed = e.list_gift_vouchers(None).await.unwrap();
     assert_eq!(listed.len(), 1);
     let voucher = &listed[0];

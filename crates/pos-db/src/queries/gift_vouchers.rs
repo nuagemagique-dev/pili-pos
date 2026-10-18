@@ -180,6 +180,22 @@ pub fn find_by_code(conn: &Connection, code: &str) -> Result<Option<VoucherRow>,
     .optional()
 }
 
+/// How many real (non-training) vouchers can still be redeemed: not
+/// cancelled, balance above zero, not expired on `today` (`YYYY-MM-DD`;
+/// a voucher is usable through its expiry date).
+pub fn count_redeemable(conn: &Connection, today: &str) -> Result<i64, rusqlite::Error> {
+    conn.query_row(
+        "SELECT COUNT(*) FROM gift_vouchers g
+         WHERE g.training = 0 AND g.expires_on >= ?1
+           AND NOT EXISTS (SELECT 1 FROM gift_voucher_movements m
+                           WHERE m.voucher_id = g.id AND m.kind = 'cancel')
+           AND COALESCE((SELECT SUM(m.amount_cents) FROM gift_voucher_movements m
+                         WHERE m.voucher_id = g.id), 0) > 0",
+        params![today],
+        |r| r.get(0),
+    )
+}
+
 /// The voucher a sale line created, if the sale was signed.
 pub fn find_by_line(
     conn: &Connection,
