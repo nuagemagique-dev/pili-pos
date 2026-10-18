@@ -359,6 +359,104 @@ du §1 ; rien n'y est supprimé (le champ `active` masque un élément).
 Index : `idx_menu_change_log_entity(entity_type, entity_id)`.
 Déclencheurs `menu_change_log_no_update` et `menu_change_log_no_delete`.
 
+### 2.9 Fonctions du propriétaire (migrations `060` à `063`)
+
+Quatre migrations ajoutent les réglages du propriétaire et leurs journaux,
+les allergènes, le service en plusieurs temps et les bons cadeaux. Elles
+existent dans toutes les versions du binaire (sans option de compilation)
+et ne modifient ni ne suppriment aucune table fiscale : elles ajoutent des
+tables, et la migration 63 ajoute deux lignes système à la carte.
+
+#### 2.9.1 `owner_settings`, `owner_settings_log` (migration `060`)
+
+`owner_settings` : une ligne par réglage (`key` clé primaire : `alerts`,
+`courses`, `gift_vouchers`), `value_json` (validé par le moteur, champs
+inconnus refusés), `changed_at`, `changed_by` (INSZ du gérant, nullable).
+Une clé absente veut dire « réglages par défaut » (fonction éteinte).
+
+`owner_settings_log` : une ligne par enregistrement (`id`, `key`,
+`value_json`, `changed_by`, `changed_at`), écrite dans la même transaction
+que `owner_settings` ; un enregistrement identique à la valeur courante
+n'écrit rien. Déclencheurs `owner_settings_log_no_update` et
+`owner_settings_log_no_delete`.
+
+#### 2.9.2 `owner_alert_log` Attention : APPEND-ONLY (migration `060`)
+
+Une ligne par message d'alerte au propriétaire, envoyé ou non.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `kind` | TEXT | `fdm`, `printer`, `terminal`, `z_missing`, `online_waiting`, `test` (contraint) |
+| `transition` | TEXT | `raised`, `reminder`, `resolved`, `test` (contraint) |
+| `detail` | TEXT (nullable) | Compteurs, date comptable, noms de canaux ; jamais de donnée personnelle |
+| `outcome` | TEXT | `sent`, `failed`, `suppressed` (contraint) |
+| `http_status` | INTEGER (nullable) | Code de réponse du service, s'il a répondu |
+| `created_at` | TEXT | Date / heure (UTC) |
+
+Index : `idx_owner_alert_log_kind(kind, id)`. Déclencheurs
+`owner_alert_log_no_update` et `owner_alert_log_no_delete`.
+
+#### 2.9.3 Allergènes (migration `061`)
+
+Les 14 allergènes de l'annexe II du règlement (UE) 1169/2011, par produit
+et par option. Données d'affichage et d'impression, jamais fiscales.
+
+| Table | Clé | Contenu |
+|---|---|---|
+| `menu_item_allergens` | (`menu_item_id` FK, `allergen`) | `allergen` parmi `gluten`, `crustaceans`, `eggs`, `fish`, `peanuts`, `soybeans`, `milk`, `nuts`, `celery`, `mustard`, `sesame`, `sulphites`, `lupin`, `molluscs` (contraint) ; `level` `contains` ou `may_contain` (contraint) |
+| `modifier_allergens` | (`modifier_id` FK, `allergen`) | Mêmes colonnes, pour une option |
+| `allergen_declarations` | (`entity_type`, `entity_id`) | `entity_type` `menu_item` ou `modifier` ; `source` `catalog` ou `local` ; `declared_at`, `declared_by` (nullable). Une ligne = liste déclarée, même vide ; sans ligne : information non disponible |
+| `allergen_change_log` | `id` | Une ligne par changement réel : `entity_type`, `entity_id`, `before_json`, `after_json`, `source`, `changed_by`, `changed_at` |
+
+Index : `idx_allergen_change_log_entity(entity_type, entity_id, id)`.
+Déclencheurs `allergen_change_log_no_update` et
+`allergen_change_log_no_delete`. Les lignes système de la carte
+(`external_id` commençant par `pili:`) ne reçoivent pas d'allergènes.
+
+#### 2.9.4 Service en plusieurs temps (migration `062`)
+
+Données de cuisine uniquement : rien de ces tables n'entre dans une ligne
+de commande, une requête de signature, un nom de produit ou un département.
+
+| Table | Clé | Contenu |
+|---|---|---|
+| `order_line_courses` | `line_id` (sans clé étrangère : le journal d'une ligne corrigée garde son temps) | `order_id` FK, `course` 0 à 3 (contraint), `set_by` (nullable), `set_at`. Sans ligne : temps 0 (Direct). Index `idx_order_line_courses_order(order_id)` |
+| `order_course_releases` | (`order_id` FK, `course`) | Temps libéré par « Envoyer la suite » (1 à 3, contraint), `released_by`, `released_at`. Sans ligne, le temps libéré est 1 |
+| `kitchen_slip_entries` | `entry_id` FK vers `order_entries` | Ligne du journal réellement imprimée sur un ticket de cuisine ou de bar : `course`, `printed_at`, `slip` `immediate`, `release` ou `sale` (contraint) |
+
+La migration reprend comme déjà imprimées (temps 0, `immediate`) les
+lignes du journal déjà transmises par un événement signé. Une ligne de
+modification de prix (`PRICE_CHANGE`) n'est jamais retenue par un temps.
+
+#### 2.9.5 Bons cadeaux (migration `063`)
+
+Bons cadeaux à usage multiple, vendus au taux X et encaissés par le moyen
+de paiement `VOUCHER_STORE`. Deux lignes système sont ajoutées à la carte,
+inactives (jamais affichées sur la grille, jamais touchées par la
+synchronisation du catalogue, jamais montrées par l'éditeur de carte) :
+
+| Table | Ligne | Contenu |
+|---|---|---|
+| `categories` | identifiant 990000, `external_id` `pili:system` | Inactive |
+| `menu_items` | identifiant 990001, `external_id` `pili:gift-voucher` | Taux X (sur place et à emporter), `vat_category` `out_of_scope`, pas d'imprimante de cuisine, prix libre, inactif |
+| `translations` | Noms du produit et de la catégorie | fr « Bon cadeau », en « Gift voucher », nl « Cadeaubon », zh « 礼品券 » |
+
+| Table | Contenu |
+|---|---|
+| `gift_vouchers` | `id`, `code` (12 chiffres, unique), `face_value_cents` (> 0, contraint), `issued_on`, `expires_on`, `training` (0 ou 1), `issue_event_id` FK vers `fiscal_events` (l'événement N ou T de la vente), `issue_order_id`, `issue_line_id` (unique : une ligne, un bon), `created_at` |
+| `gift_voucher_movements` | `id`, `voucher_id` FK, `kind` `issue`, `redeem` ou `cancel` (contraint), `amount_cents` signé, `fiscal_event_id` FK vers `fiscal_events`, `order_id` (nullable), `created_at`. Index `idx_gift_voucher_movements_voucher(voucher_id, id)` |
+| `gift_voucher_prints` | `id`, `voucher_id` FK, `kind` `original`, `duplicate` ou `balance` (contraint), `printed_by` (nullable), `printed_at` |
+
+Les trois tables sont en ajout seul (déclencheurs `*_no_update` et
+`*_no_delete`). Le solde d'un bon est la somme de ses mouvements ; son état
+(valide, épuisé, expiré, annulé) se calcule avec `expires_on` et la
+présence d'un mouvement `cancel`. Un bon est créé dans la transaction
+d'archive de la vente qui l'a vendu, un mouvement dans celle de la vente
+qui l'a utilisé. Une vente qui vend un bon ne peut pas être facturée et
+une ligne `VOUCHER_STORE` n'est jamais corrigée par une correction de
+moyen de paiement.
+
 ## 3. Tables fiscales (append-only)
 
 ### 3.1 `fiscal_events` Attention : APPEND-ONLY
@@ -903,8 +1001,8 @@ Index : `idx_hubrise_inventory_sync_dirty(dirty)` (partiel, `WHERE dirty = 1`).
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **vingt-six
-migrations** existent (1 à 11, 20 à 28, 30 et 31, 40 à 42, puis 70 ; 12 à 19 sont réservées aux
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **trente
+migrations** existent (1 à 11, 20 à 28, 30 et 31, 40 à 42, 60 à 63, puis 70 ; 12 à 19 sont réservées aux
 correctifs du binaire certifié), appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
@@ -935,6 +1033,10 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 40 | `invoicing` | `b2b_customers`, `invoices`, `invoice_sales`, colonnes de file de `peppol_deliveries`, `peppol_delivery_log`, vue `v_invoice_journal` (§4). |
 | 41 | `sold-out` | `menu_item_sold_out`, `sold_out_log`, `hubrise_inventory_sync` (§2.7, §5.8). |
 | 42 | `menu-editor` | `menu_change_log` et ses déclencheurs (§2.8). |
+| 60 | `owner-settings-alerts` | `owner_settings`, `owner_settings_log`, `owner_alert_log` et leurs déclencheurs (§2.9.1, §2.9.2). |
+| 61 | `allergens` | `menu_item_allergens`, `modifier_allergens`, `allergen_declarations`, `allergen_change_log` et ses déclencheurs (§2.9.3). |
+| 62 | `courses` | `order_line_courses`, `order_course_releases`, `kitchen_slip_entries` (§2.9.4), données de cuisine sans effet fiscal. |
+| 63 | `gift-vouchers` | Catégorie et produit système, `gift_vouchers`, `gift_voucher_movements`, `gift_voucher_prints` et leurs déclencheurs (§2.9.5). |
 | 70 | `staff-badges` | Les quatre tables des badges du personnel : `badge_settings`, `staff_badges`, `badge_log`, `badge_scans`, leurs index uniques partiels et leurs six déclencheurs (§2.6). Pas de colonne ajoutée aux tables existantes. Non conditionnée par une fonctionnalité de compilation : les tables existent sur toute installation et ne sont écrites que si le Gérant active le lecteur de badges. |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN

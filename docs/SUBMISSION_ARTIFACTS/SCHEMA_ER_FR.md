@@ -19,7 +19,7 @@ retiré. Le lien est applicatif.
 
 ## 1. Vue d'ensemble par domaines
 
-La base est organisée en 13 domaines logiques :
+La base est organisée en 19 domaines logiques :
 
 ```
 +-----------------+   +---------------+   +----------------+
@@ -85,6 +85,23 @@ La base est organisée en 13 domaines logiques :
 |  (liens, retrait seul), badge_log et badge_scans   |
 |  (ajout seul)                                      |
 +----------------------------------------------------+
+
++-------------------------------+   +--------------------------------+
+|  RÉGLAGES DU PROPRIÉTAIRE     |   |  ALLERGÈNES (migration 61)     |
+|  (migration 60)               |   |  menu_item_allergens,          |
+|  owner_settings,              |   |  modifier_allergens,           |
+|  owner_settings_log et        |   |  allergen_declarations,        |
+|  owner_alert_log (ajout seul) |   |  allergen_change_log (ajout    |
++-------------------------------+   |  seul)                         |
+                                    +--------------------------------+
+
++-------------------------------+   +--------------------------------+
+|  SERVICE EN PLUSIEURS TEMPS   |   |  BONS CADEAUX (migration 63)   |
+|  (migration 62, cuisine)      |   |  gift_vouchers,                |
+|  order_line_courses,          |   |  gift_voucher_movements,       |
+|  order_course_releases,       |   |  gift_voucher_prints (ajout    |
+|  kitchen_slip_entries         |   |  seul)                         |
++-------------------------------+   +--------------------------------+
 ```
 
 `_migrations_applied` (suivi des migrations) est hors domaine.
@@ -591,6 +608,85 @@ qu'un employé connu. Les journaux `badge_log` et `badge_scans` gardent
 l'INSZ sans clé étrangère. Le numéro du badge n'apparaît dans aucune
 colonne (`SECURITE_BD_FR.md` §2.5).
 
+### 2.11 Fonctions du propriétaire (migrations 60 à 63)
+
+```
++---------------------------+   +---------------------------+
+|      owner_settings       |   |    owner_settings_log     |
+|---------------------------|   |---------------------------|
+| key TEXT PK               |   | id INT PK                 |
+| value_json                |   | key, value_json           |
+| changed_at, changed_by    |   | changed_by, changed_at    |
++---------------------------+   +---------------------------+
+                                (ajout seul, par déclencheurs)
++---------------------------+
+|      owner_alert_log      |   (ajout seul, par déclencheurs)
+|---------------------------|
+| id INT PK                 |
+| kind, transition, detail  |
+| outcome, http_status      |
+| created_at                |
++---------------------------+
+
++---------------------------+   +---------------------------+
+|   menu_item_allergens     |   |    modifier_allergens     |
+|---------------------------|   |---------------------------|
+| menu_item_id FK  } PK     |   | modifier_id FK   } PK     |
+| allergen (14)    }        |   | allergen (14)    }        |
+| level contains|may_contain|   | level contains|may_contain|
++---------------------------+   +---------------------------+
++---------------------------+   +---------------------------+
+|  allergen_declarations    |   |   allergen_change_log     |
+|---------------------------|   |---------------------------|
+| entity_type } PK          |   | id INT PK                 |
+| entity_id   }             |   | entity_type, entity_id    |
+| source catalog|local      |   | before_json, after_json   |
+| declared_at, declared_by  |   | source, changed_by/at     |
++---------------------------+   +---------------------------+
+                                (ajout seul, par déclencheurs)
+
++---------------------------+   +---------------------------+
+|    order_line_courses     |   |   order_course_releases   |
+|---------------------------|   |---------------------------|
+| line_id INT PK (sans FK)  |   | order_id FK } PK          |
+| order_id FK -> orders     |   | course 1-3  }             |
+| course 0-3, set_by/at     |   | released_by, released_at  |
++---------------------------+   +---------------------------+
++---------------------------+
+|   kitchen_slip_entries    |
+|---------------------------|
+| entry_id PK, FK ----------------> order_entries.id
+| course 0-3, printed_at    |
+| slip immediate|release|   |
+|      sale                 |
++---------------------------+
+
++---------------------------+        +---------------------------+
+|       gift_vouchers       |        |  gift_voucher_movements   |
+|---------------------------|        |---------------------------|
+| id INT PK                 |<-------| voucher_id FK             |
+| code TEXT UNIQUE (12)     |        | kind issue|redeem|cancel  |
+| face_value_cents > 0      |        | amount_cents (signé)      |
+| issued_on, expires_on     |        | fiscal_event_id FK -------+--> fiscal_events.id
+| training 0|1              |        | order_id, created_at      |
+| issue_event_id FK --------+--> fiscal_events.id               |
+| issue_order_id,           |        +---------------------------+
+| issue_line_id UNIQUE      |        +---------------------------+
++---------------------------+<-------| gift_voucher_prints       |
+                                     | voucher_id FK             |
+                                     | kind original|duplicate|  |
+                                     |      balance              |
+                                     | printed_by, printed_at    |
+                                     +---------------------------+
+ (les trois tables des bons : ajout seul, par déclencheurs)
+```
+
+Les tables du service en plusieurs temps sont des données de cuisine :
+aucune n'est lue pour construire une requête de signature. Le produit
+système qui vend un bon (`menu_items` 990001, `external_id`
+`pili:gift-voucher`, taux X) et sa catégorie (990000, `pili:system`) sont
+inactifs et cachés de l'éditeur de carte (`SCHEMA_BD_FR.md` §2.9.5).
+
 ---
 
 ## 3. Relations principales (verbalisées)
@@ -620,6 +716,12 @@ colonne (`SECURITE_BD_FR.md` §2.5).
 | `invoices` → `b2b_customers` | N → 0..1 | Le client ; la facture garde son instantané |
 | `peppol_delivery_log` → `peppol_deliveries` | N → 1 | Une ligne par tentative d'envoi |
 | `menu_item_sold_out`, `sold_out_log`, `hubrise_inventory_sync` → `menu_items` | 0..1 → 1, N → 1, 0..1 → 1 | Produit épuisé et sa transmission au stock HubRise |
+| `menu_item_allergens` → `menu_items`, `modifier_allergens` → `modifiers` | N → 1 | Allergènes déclarés d'un produit ou d'une option (migration 61) ; `allergen_declarations` et `allergen_change_log` désignent l'élément par (`entity_type`, `entity_id`), sans clé étrangère |
+| `order_line_courses`, `order_course_releases` → `orders` | N → 1 | Temps de cuisine des lignes et temps libérés (migration 62) ; `line_id` sans clé étrangère |
+| `kitchen_slip_entries` → `order_entries` | 0..1 → 1 | Ligne du journal imprimée sur un ticket de cuisine ou de bar |
+| `gift_vouchers` → `fiscal_events` | N → 1 | `issue_event_id` : l'événement N ou T de la vente du bon (migration 63) |
+| `gift_voucher_movements` → `gift_vouchers`, `fiscal_events` | N → 1 | Émission, utilisation ou annulation d'un bon, avec l'événement signé qui l'a causée |
+| `gift_voucher_prints` → `gift_vouchers` | N → 1 | Original, duplicata ou solde imprimé |
 | `ticket_deliveries` → `fiscal_events` | 0..N → 1 | Une ligne par ticket dont le support demandé inclut l'e-mail (`DIGITAL`/`PAPER_DIGITAL`) ; ajoutée dans la même transaction que l'event N/T/C correspondant |
 | `original_prints` → `fiscal_events` | 0..1 → 1 | Au plus une ligne par événement dont l'original a été imprimé (contrainte de clé primaire = garde applicative contre une seconde impression) |
 | `webshop_orders` → `orders` | 1 → 1 | Une ligne par commande en ligne, à côté de sa ligne `orders` |
@@ -659,8 +761,14 @@ Les tables ci-dessous sont protégées **au niveau de la base** par des triggers
 | `staff_badges` | `staff_badges_no_delete`, `staff_badges_revoke_only` | Pas de DELETE ; la seule modification possible est un retrait, une fois (l'empreinte, l'INSZ et les données de lien sont immuables) |
 | `badge_log` | `badge_log_no_update`, `badge_log_no_delete` | Ni DELETE, ni UPDATE |
 | `badge_scans` | `badge_scans_no_update`, `badge_scans_no_delete` | Ni DELETE, ni UPDATE |
+| `owner_settings_log` | `owner_settings_log_no_update`, `owner_settings_log_no_delete` | Ni DELETE, ni UPDATE |
+| `owner_alert_log` | `owner_alert_log_no_update`, `owner_alert_log_no_delete` | Ni DELETE, ni UPDATE |
+| `allergen_change_log` | `allergen_change_log_no_update`, `allergen_change_log_no_delete` | Ni DELETE, ni UPDATE |
+| `gift_vouchers` | `gift_vouchers_no_update`, `gift_vouchers_no_delete` | Ni DELETE, ni UPDATE |
+| `gift_voucher_movements` | `gift_voucher_movements_no_update`, `gift_voucher_movements_no_delete` | Ni DELETE, ni UPDATE |
+| `gift_voucher_prints` | `gift_voucher_prints_no_update`, `gift_voucher_prints_no_delete` | Ni DELETE, ni UPDATE |
 
-Soit 48 triggers.
+Soit 60 triggers.
 
 Pour les autres tables (catalogue, commandes en cours, paiements, utilisateurs, `staff_shifts`, tables HubRise hors journal) les opérations UPDATE/DELETE sont autorisées via la couche commandes. Les `orders` sont marquées `status='closed'` ou `status='voided'` plutôt que supprimées. Le catalogue synchronisé met à jour ses lignes en place ; l'historique fiscal ne dépend pas de ces lignes (nom et prix sont figés dans `order_lines` / `order_entries`).
 
@@ -692,6 +800,10 @@ Index explicites (hors index implicites des clés primaires et des contraintes U
 | `till_discounts` | `idx_till_discounts_order` | `order_id, id` | Remises de caisse d'une commande |
 | `eft_payments` | `idx_eft_payments_order` | `order_id` | Paiements carte d'une commande |
 | `eft_payments` | `idx_eft_payments_open` (partiel, `WHERE status IN ('sent','unknown')`) | `status` | Paiements qui attendent encore leur réponse |
+| `owner_alert_log` | `idx_owner_alert_log_kind` | `kind, id` | Dernier message d'une alerte |
+| `allergen_change_log` | `idx_allergen_change_log_entity` | `entity_type, entity_id, id` | Historique d'un produit ou d'une option |
+| `order_line_courses` | `idx_order_line_courses_order` | `order_id` | Temps des lignes d'une commande |
+| `gift_voucher_movements` | `idx_gift_voucher_movements_voucher` | `voucher_id, id` | Solde et historique d'un bon |
 
 Index implicites utiles : `fiscal_events` (`id`, `UNIQUE(event_type, sequence_number)`), `users` (`insz`), `translations` (`UNIQUE(entity_type, entity_id, field, lang)`), `webshop_orders` (`order_id`, `hubrise_order_id`).
 
@@ -719,8 +831,8 @@ l'interrupteur, qui reçoit au moins la valeur de départ.
 
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
-Version actuelle du schéma : migrations `1` à `11`, `20` à `28`, `30` et `31`, `40` à `42`, puis `70`
-(vingt-six migrations ; 12 à 19 sont réservées aux correctifs du binaire
+Version actuelle du schéma : migrations `1` à `11`, `20` à `28`, `30` et `31`, `40` à `42`, `60` à `63`, puis `70`
+(trente migrations ; 12 à 19 sont réservées aux correctifs du binaire
 certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `booking-periods`, `fiscal-archive-append-only`, `ticket-deliveries`,
 `original-prints`, `german-language`, `meal-voucher-payments`,
@@ -728,7 +840,9 @@ certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `catalog-sync`, `webshop-orders`, `price-changes`,
 `platform-charges`, `integration-switch`, `product-codes`,
 `eft-payments`, `presence-registration`, `till-discounts`, `kitchen-notes`,
-`invoicing`, `sold-out`, `menu-editor`, `staff-badges` - liste exacte dans
+`invoicing`, `sold-out`, `menu-editor`, `owner-settings-alerts`,
+`allergens`, `courses`, `gift-vouchers`, `staff-badges` - liste exacte dans
 `SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs`
-(`MIGRATIONS`, `HUBRISE_MIGRATIONS`, `CATALOG_MIGRATIONS`). Les
-migrations 20 à 28, 30, 31, 40 à 42 et 70 font partie du binaire certifié.
+(`MIGRATIONS`, `HUBRISE_MIGRATIONS`, `CATALOG_MIGRATIONS`,
+`OWNER_MIGRATIONS`). Les migrations 20 à 28, 30, 31, 40 à 42, 60 à 63 et
+70 font partie du binaire certifié.
