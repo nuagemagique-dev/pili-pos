@@ -116,6 +116,19 @@ le même effet.
 5. Aucun message au FDM, aucun ticket TVA, aucune addition, aucune
    copie et aucun export ne contient la note.
 
+## 2 quinquies. Service en plusieurs temps (donnée locale de cuisine)
+
+1. Un Gérant règle le temps de chaque catégorie (`commands::courses::do_set_course_settings`, journal des
+   réglages). Une ligne nouvelle prend le temps de sa catégorie (`order_line_courses`).
+2. À l'envoi (événement P, ou N d'une vente directe), le ticket de cuisine imprime les lignes du temps 0 et des
+   temps libérés, groupées sous un en-tête ; les autres sont retenues. Le temps vit dans `CartLine` et
+   `TableInfo`, **jamais** dans les lignes d'une demande signée, un nom de produit ou un département.
+3. « Envoyer la suite » (`do_send_next_course`) signe d'abord les lignes non enregistrées par le chemin habituel de la
+   commande de table (module fiscal absent : refus, rien n'est signé ni imprimé), libère le temps suivant
+   (`order_course_releases`) et imprime ses lignes ; une ligne n'est inscrite comme imprimée
+   (`kitchen_slip_entries`) que si le ticket est sorti.
+4. Aucun message au FDM, aucun ticket de T.V.A. ni export ne contient un temps.
+
 ## 3. Le client paie - Vente (Événement N)
 
 **Action utilisateur.** Le client demande l'addition. L'opérateur tape
@@ -257,6 +270,33 @@ PIN.
    le même effet.
 4. Ni ticket ni ouverture du tiroir. Les rapports X et Z suivants
    comptent la correction dans les moyens de paiement.
+
+## 3 quater. Bons cadeaux : vente d'un bon et paiement avec un bon (Événement N)
+
+**Vente d'un bon.** 1. Le Serveur ou le Gérant touche « Bon cadeau » et tape le montant ;
+`commands::gift_vouchers::do_add_gift_voucher_line` ajoute au panier la ligne du produit système « Bon cadeau »
+(quantité fixe, code de T.V.A. X, département `GV`). 2. À l'encaissement (en espèces ou par carte seulement),
+l'étape de préparation tire le code du bon (12 chiffres dont 2 de contrôle) et le garde avec la vente en attente
+(`pending_signs`) : une réponse tardive du module fiscal crée le même code. 3. La demande N signée contient la
+ligne X et les lignes de paiement habituelles ; **aucun code de bon n'y figure**. 4. Après la réponse du module
+fiscal, la transaction SQLite de l'archive écrit l'événement N, le bon (`gift_vouchers`) et son mouvement
+d'émission (`gift_voucher_movements`), puis le bon s'imprime (`gift_voucher_prints`, seulement si le ticket est
+sorti).
+
+**Paiement avec un bon.** 1. Le code est saisi sur le pavé ; `do_lookup_gift_voucher` montre le solde, la validité
+et l'état (5 échecs par minute au plus ; code masqué partout sauf sur le bon imprimé). 2. La part retenue est la
+plus petite du solde et du reste à payer ; la demande N porte une ligne de paiement `VOUCHER_STORE` (identité
+« 8 », nom « Gift voucher », saisie `MANUAL`, montant exact, jamais arrondi). 3. Sous le verrou de signature et avant
+l'envoi au module fiscal, le moteur contrôle que le bon existe, est du bon mode (formation ou réel), n'est ni
+annulé ni expiré et que son solde couvre la part (`gift_voucher_not_found`, `_not_usable`, `_expired`,
+`_insufficient`, `_payment_invalid`). 4. Dans la transaction d'archive qui suit la réponse du module fiscal, le
+mouvement `redeem` débite le bon ; la table `payments` reçoit la ligne avec la méthode `other`. 5. Si le bon laisse un
+solde, un petit ticket « solde du bon » s'imprime après le ticket de T.V.A. Rien ne quitte la caisse : une vente qui
+vend un bon n'est pas renvoyée à HubRise.
+
+**Remboursement.** Rembourser la ligne d'un bon non utilisé l'annule (mouvement `cancel`, même transaction que le N
+négatif) ; un bon utilisé ne se rembourse pas. Une vente payée avec un bon se rembourse en espèces (choix de
+l'établissement) ; le bon n'est pas recrédité. Voir *BONS_CADEAUX_FR.md*.
 
 ## 4. Rapport X en cours de service
 
@@ -546,6 +586,18 @@ celles signées depuis deux jours.
 Si le FDM échoue à l'étape 2, la commande revient à `pending` et rien
 n'est mis en file.
 
+## 9 quater. Tâche de fond - Alertes du propriétaire (facultatif)
+
+1. Si le propriétaire a activé la fonction et qu'un jeton de robot est configuré, une boucle propre au moteur relit
+   les réglages (`owner_settings`) toutes les 30 secondes et observe l'état déjà connu de la caisse : réponse
+   du module fiscal, imprimantes et terminal de carte (contrôle toutes les 5 minutes, jamais pendant une vente, une
+   impression ou un paiement), période comptable ouverte après l'heure limite, commandes en ligne en attente.
+2. Pour une situation qui s'ouvre, dure ou se résout, la boucle compose un court texte sans donnée personnelle ni
+   montant (`crates/pos-engine/src/alerts/text.rs`), l'envoie en HTTPS à `api.telegram.org` sans tenir le verrou de
+   signature ni celui de la base, et écrit une ligne dans `owner_alert_log` (envoyé, échec ou retenu).
+3. La boucle ne signe rien, n'écrit aucun événement fiscal et n'attend jamais : un message qui n'arrive pas n'a aucun
+   effet sur une vente, un ticket ou un Z. Au plus 20 messages par heure.
+
 ## 10. Récapitulatif de persistance
 
 | Action | Tables touchées |
@@ -562,6 +614,12 @@ n'est mis en file.
 | Rapport Z | `fiscal_events` (append R, `ReportTurnoverZ` + `ReportUserZ`), `z_reports` (insert), fichier de backup DB |
 | Facture B2B | `fiscal_events` (append I), `invoices` et `invoice_sales` (insert), `fiscal_counters` (advance I), `peppol_deliveries` (insert si Peppol) ; `peppol_delivery_log` (append à chaque tentative d'envoi) |
 | Remboursement | `fiscal_events` (append N M111/M112 référençant l'original) |
+| Vente d'un bon cadeau | `fiscal_events` (append N), `payments` (insert), `gift_vouchers` (insert) et `gift_voucher_movements` (append `issue`), `gift_voucher_prints` (append à l'impression) |
+| Paiement avec un bon | `fiscal_events` (append N), `payments` (insert, méthode `other`), `gift_voucher_movements` (append `redeem`) |
+| Réglage d'une fonction du propriétaire | `owner_settings` (mise à jour), `owner_settings_log` (append) |
+| Alerte du propriétaire | `owner_alert_log` (append) |
+| Temps d'une ligne, « Envoyer la suite » | `order_line_courses`, `order_course_releases` (insert), `kitchen_slip_entries` (append après impression) ; aucun `fiscal_events` propre au temps |
+| Saisie des allergènes d'un produit | `menu_item_allergens` ou `modifier_allergens`, `allergen_declarations`, `allergen_change_log` (append) |
 | Ouverture tiroir (F-WAR) | `fiscal_events` (append F) |
 | Mouvement caisse | `fiscal_events` (append F) ; aucune ligne `payments` n'est écrite |
 | Ticket signé avec support numérique | `ticket_deliveries` (append, même tx que `fiscal_events`) |

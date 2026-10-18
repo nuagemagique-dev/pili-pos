@@ -72,7 +72,7 @@ Une fois l'installation initiale effectuée, toute modification du binaire passe
 
 Le commit du build de certification est tagué `vX.Y.Z` et signé GPG par le producteur. Le SHA git de ce tag est consigné dans le rapport de build et permet à tout moment de reproduire le build à l'identique à partir du dépôt source.
 
-Toute mise à jour ultérieure (correction de bug, nouvelle fonctionnalité) passe par :
+Toute mise à jour après la certification (correction de bug, nouvelle fonctionnalité) passe par :
 - Un nouveau tag `vX.Y.Z+1` signé.
 - Une nouvelle build cert (et donc nouveau SHA-1).
 - Une nouvelle demande de certification SPF Finances pour la mise à jour (procédure §II.E ci-dessous + Article 109 du Manuel).
@@ -154,6 +154,14 @@ Langues des mentions fiscales supportées par le code :
 - `de` (allemand) - **complète** (traduction de style officiel, en ASCII ; les libellés allemands ne sont pas tirés d'une version allemande de la spécification, qui ne fait pas partie des documents de référence)
 
 Langues d'affichage de l'interface (indépendantes du ticket) : `fr`, `en`, `zh`.
+
+Documents non fiscaux des fonctions du propriétaire : le bon cadeau et son solde sont imprimés en français, néerlandais
+ou allemand (langue de l'établissement ; toute autre valeur retombe sur le français) ; la fiche d'allergènes en
+français, néerlandais, anglais ou allemand ; les bons de commande par temps (« Direct », « Entrées », « Plats »,
+« Desserts ») en français, néerlandais ou allemand. Les messages d'alerte du propriétaire (hors ticket) existent en
+français, en chinois et en anglais, selon la langue réglée par le Gérant. Le nom du moyen de paiement « Bon cadeau »
+suit la langue du ticket : « Bon cadeau », « Cadeaubon », « Geschenkgutschein ».
+
 
 ### 3.2 Règle appliquée : langue de la région linguistique de l'établissement
 

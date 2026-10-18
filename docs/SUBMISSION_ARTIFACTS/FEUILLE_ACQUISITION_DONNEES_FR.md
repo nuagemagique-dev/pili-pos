@@ -118,6 +118,19 @@ résultat d'un terminal autonome.
 | Données personnelles associées | INSZ de l'employé, INSZ du Gérant qui a lié ou retiré (`staff_badges.user_insz`, `linked_by`, `revoked_by`, `badge_log`, `badge_scans`) |
 | Finalité | Enregistrement de la présence (événement S) et connexion à la caisse, rien d'autre ; aucune donnée biométrique |
 
+### 1.6 ter Fonctions du propriétaire (réglages, alertes, allergènes, temps, bons cadeaux)
+
+Tables de `pos.db` lisibles comme le reste de la base (§2 ci-dessous), migrations 60 à 63 (*SCHEMA_BD_FR.md* §2.9) :
+
+| Élément | Valeur |
+|---|---|
+| Réglages | `owner_settings` (valeur courante de chaque réglage, JSON) et `owner_settings_log` (chaque enregistrement : qui, quand, valeur ; ajout seul) |
+| Alertes | `owner_alert_log` (chaque message : situation, transition, détail sans donnée personnelle, résultat, code HTTP, heure ; ajout seul). Seul flux sortant : un court message HTTPS vers `api.telegram.org`, **uniquement** si le propriétaire a activé la fonction et fourni un jeton ; le jeton est un fichier, jamais en base |
+| Allergènes | `menu_item_allergens`, `modifier_allergens`, `allergen_declarations`, `allergen_change_log` (ajout seul) ; information d'affichage, aucune donnée personnelle |
+| Service en plusieurs temps | `order_line_courses`, `order_course_releases`, `kitchen_slip_entries` ; donnée de cuisine, jamais dans une demande signée |
+| Bons cadeaux | `gift_vouchers`, `gift_voucher_movements`, `gift_voucher_prints` (ajout seul) ; le code complet d'un bon n'est imprimé que sur le bon |
+| Données personnelles | Aucune donnée de client ni d'employé dans ces tables, hors l'INSZ du Gérant qui a réglé une fonction ou réimprimé un bon (`changed_by`, `printed_by`) |
+
 ## 2. Accessibilité
 
 ### 2.1 Sur la machine du commerçant

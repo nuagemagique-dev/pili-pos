@@ -350,6 +350,33 @@ SQLite qui archive l'événement signé, de sorte que :
   en charge.
 - Le mode formation ne débite jamais une vraie carte (`eft_training`).
 
+## 6quinquies. Fonctions du propriétaire, allergènes, service en plusieurs temps et bons cadeaux
+
+Quatre fonctions du binaire certifié, toutes éteintes ou inertes par défaut, réglées à l'écran par un Gérant
+(table `owner_settings`, journal des réglages en ajout seul) :
+
+- **Bons cadeaux à usage multiple (fiscal).** Vente : une ligne de code de T.V.A. X (hors champ) du produit système
+  « Bon cadeau » (département `GV`), dont le code à 12 chiffres est tiré à la préparation de la vente et conservé avec
+  la vente en attente. Utilisation : une ligne de paiement `VOUCHER_STORE` (identité « 8 », nom « Gift voucher »,
+  saisie `MANUAL`, montant exact, jamais arrondi). Les contrôles du bon se font sous le verrou de signature avant
+  l'envoi au module fiscal ; le bon et ses mouvements (tables en ajout seul) sont écrits dans la transaction
+  d'archive qui suit la réponse, comme le compteur. Cas officiels UC260, UC261 et UC262 rejoués. Le code d'un bon
+  n'entre dans aucune demande signée. Voir *BONS_CADEAUX_FR.md*.
+- **Service en plusieurs temps (cuisine).** Le temps d'une ligne ne vit que dans le panier et la table, jamais dans une
+  ligne de commande signée, un nom de produit, un département ni un ticket de T.V.A. ; éteint, les tickets sont
+  identiques octet pour octet. Voir *SERVICES_CUISINE_FR.md*.
+- **Allergènes (information).** Listes par produit et par option, importées du catalogue ou saisies par un Gérant,
+  affichées et imprimées sur un document non fiscal sans prix ; jamais dans une demande signée. Voir
+  *ALLERGENES_FR.md*.
+- **Alertes du propriétaire (communication sortante facultative).** Une boucle du moteur envoie un court message
+  Telegram, sans donnée personnelle ni montant, quand le module fiscal, une imprimante ou le terminal de carte est en
+  défaut, que le Z manque ou qu'une commande en ligne attend ; elle ne signe rien et n'attend jamais le verrou de
+  signature. Voir *ALERTES_PROPRIETAIRE_FR.md*.
+
+**Hors du binaire certifié.** L'export pour le comptable est un outil séparé (`pili-accounting`,
+`crates/pos-accounting`) : aucune crate livrée ne dépend de lui, il lit seulement une copie de l'export ou d'une
+sauvegarde, jamais la base en service, et il ne signe rien. Il n'est pas livré dans le paquet de la caisse.
+
 ## 7. Persistance
 
 - Moteur : **SQLite** (DB en un seul fichier dans
@@ -370,6 +397,9 @@ SQLite qui archive l'événement signé, de sorte que :
 - Paiements sur le terminal relié : table `eft_payments` (migration 27,
   ajout seul : jamais supprimée, une réponse définitive ne change plus ;
   voir `SCHEMA_BD_FR.md` et `SECURITE_BD_FR.md`).
+- Fonctions du propriétaire : `owner_settings` (réglages courants), `owner_settings_log`, `owner_alert_log`,
+  `allergen_change_log`, `gift_vouchers`, `gift_voucher_movements` et `gift_voucher_prints` sont en ajout seul
+  (migrations 60 à 63, voir `SCHEMA_BD_FR.md` §2.9 et `SECURITE_BD_FR.md`).
 - Log fiscal append-only : table `fiscal_events`. Le schéma impose
   la contrainte CHECK sur `event_type` et des triggers SQLite
   refusent tout `DELETE` et toute réécriture
@@ -444,4 +474,9 @@ $ nm target/release/pili-pos | grep -c pos_peppol                    # code de f
 | Requêtes `ticket_deliveries` / `original_prints` | `crates/pos-db/src/queries/{deliveries,prints}.rs` |
 | Impression ESC/POS | `crates/pos-print/src/escpos.rs` |
 | Layout ticket | `crates/pos-print/src/receipt.rs` |
+| Alertes du propriétaire (boucle, règles, texte, canal Telegram) | `crates/pos-engine/src/alerts/` |
+| Bons cadeaux (commandes, tickets) | `crates/pos-engine/src/commands/gift_vouchers.rs`, `crates/pos-print/src/gift_voucher.rs` |
+| Service en plusieurs temps | `crates/pos-engine/src/commands/courses.rs` |
+| Allergènes (commandes, fiche imprimée) | `crates/pos-engine/src/commands/allergens.rs`, `crates/pos-print/src/allergen_sheet.rs` |
+| Tables de la v1.0.0 : réglages du propriétaire, allergènes, temps, bons cadeaux (migrations 60 à 63) | `crates/pos-db/src/schema_owner.rs` |
 | Transport imprimante | `crates/pos-print/src/transport.rs` |

@@ -146,23 +146,39 @@ publiés et compare les formes de réponse/archive ; **il ne requiert
 pas qu'un opérateur puisse déclencher chaque flux depuis l'UI**. En
 conséquence :
 
-| Élément | Phase plan | Statut actuel | Reporté à |
+| Élément | Phase plan | Statut actuel | Décision |
 |---|---|---|---|
-| Builder produit composite + champ `OrderLine.line_kind` | 5 | Forme de réponse déjà acceptée ; helpers côté requête absents | mise à jour certifiée ultérieure |
+| Builder produit composite + champ `OrderLine.line_kind` | 5 | Forme de réponse déjà acceptée ; helpers côté requête absents | non offert en v1.0.0 |
 | `ModifierDialog.vue` (options HubRise d'un produit : le prix des options s'ajoute au prix unitaire de la ligne, calculé par le moteur) | 5 | Livré pour les options HubRise ; hors UC composite | sans objet |
 | `DiscountDialog.vue` (remise sur le ticket, article offert) | 5 | Livré : UC223, UC225A étape 2, UC225B étape 2 et UC229B sont couverts par la caisse ; rejoués par le moteur depuis la caisse : `uc223_event_discount_at_the_till` (écart listé : costCenter TABLE), `uc225a_discount_after_registration` (UC225A étape 2 et UC225B étape 2 ; écart listé : la remise de commande est de portée EVENT, la fixture à une ligne utilise LINE), `uc229b_free_line_at_the_till` (écarts listés : costCenter TABLE, libellé de TVA du Coca Cola A au catalogue contre B dans la requête de la fixture) ; UC4118 et UC4101 restent hors périmètre | sans objet |
-| Impl correcte de `pos-core::table.rs`, tables schéma `tables` / `table_orders` | 6 | `table.rs` est un stub de 9 lignes | mise à jour certifiée ultérieure |
-| UI `TableSplitDialog.vue`, `VoucherKeypad.vue` | 6 | Non implémentée | mise à jour certifiée ultérieure |
-| Table schéma `currency_rates`, champs currency/tip de `FinancialInput` | 7 | Forme de réponse déjà acceptée | mise à jour certifiée ultérieure |
-| UI `PaymentMethodPicker.vue` devise | 7 | Non implémentée | mise à jour certifiée ultérieure |
+| Impl correcte de `pos-core::table.rs`, tables schéma `tables` / `table_orders` | 6 | `table.rs` est un stub de 9 lignes | non offert en v1.0.0 |
+| UI `TableSplitDialog.vue` | 6 | Non implémentée | non offert en v1.0.0 |
+| `VoucherKeypad.vue` (bons à usage multiple) | 6 | Livré sous la forme de la fenêtre de paiement par bon cadeau et du bouton « Bon cadeau » de l'écran de commande : UC260, UC261 et UC262 rejoués (section ci-dessous) | sans objet |
+| Table schéma `currency_rates`, champs currency/tip de `FinancialInput` | 7 | Forme de réponse déjà acceptée | non offert en v1.0.0 |
+| UI `PaymentMethodPicker.vue` devise | 7 | Non implémentée | non offert en v1.0.0 |
 
 **Impact cert :** aucun. Le dossier cert déclarera dans le formulaire
 de demande quels flux opérateur sont accessibles depuis la build
 actuelle, et la validation côté fixtures ci-dessus prouve que le
 protocole fiscal est satisfait pour les 141 scénarios Advanced Set
 quand déclenchés (via le harness de test, durant le rendez-vous
-d'admission, ou - post-go-live - via le travail de complétion UI
-dans une mise à jour certifiée ultérieure).
+d'admission, ou, pour les flux non offerts en v1.0.0, seulement via le
+harness de test).
+
+---
+
+## Bons à usage multiple : UC260, UC261 et UC262 (rejoués)
+
+Les trois UC de bon à usage multiple (MPV) sont rejoués par `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs`, par les
+commandes que l'écran appelle (ligne de bon cadeau, encaissement fractionné), contre le module de contrôle simulé.
+UC260 : vente d'un bon de 50,00 EUR payée par carte (ligne de T.V.A. X). UC261 : deux menus d'affaires payés avec le
+bon et le reste en espèces. UC262 : commande mixte à emporter payée en entier par le bon. La comparaison avec la
+fixture est champ par champ ; les lignes de paiement (`VOUCHER_STORE`, saisie `MANUAL`, montants) sont identiques,
+et chaque autre écart est listé avec son motif (produit et département du bon ; produit composé géré comme un produit
+simple ; taux de la commande entière). Pièces : *RESULTATS_TESTS_UC_FR.md* (sections UC260 à UC262) et `evidence/uc/`.
+Détail : *BONS_CADEAUX_FR.md*. Les bons à usage unique (UC270, UC271) et la conversion d'un bon en espèces (UC4105) ne
+sont pas offerts en v1.0.0 : leurs fixtures se chargent (tableau ci-dessus) mais aucun parcours de la caisse ne les
+déclenche.
 
 ---
 

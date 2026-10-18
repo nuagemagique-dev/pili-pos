@@ -13,13 +13,19 @@ ni une commande en cours (voir le §4).
    **« Édition de la carte »**.
 2. Trois colonnes : les catégories, les produits de la catégorie choisie, et le formulaire de
    l'élément choisi. Les éléments masqués sont grisés et portent la mention « Masqué ».
-3. **Catégorie** : noms par langue, couleur, ordre, visible ou masquée.
+3. **Catégorie** : noms par langue, couleur, ordre, visible ou masquée ; avec le service en plusieurs temps
+   actif, le **temps** de la catégorie (Direct, Entrées, Plats, Desserts).
 4. **Produit** : noms par langue, catégorie, prix (pavé numérique), code de TVA sur place et à
    emporter (A, B, C, D, X), code du menu, prix libre, envoi en cuisine, ordre, visible ou
    masqué. Un produit neuf doit d'abord être enregistré avant de recevoir des options.
 5. **Groupe d'options** : noms, minimum et maximum de choix (le maximum est au moins 1 et au
    moins égal au minimum), ordre, visible ou masqué.
 6. **Option** : noms, supplément de prix, ordre, visible ou masquée.
+   **Allergènes** (produit et option) : les 14 allergènes de l'annexe II du règlement (UE) n° 1169/2011, un toucher
+   passant de « aucun » à « contient » puis à « peut contenir », et un interrupteur « déclaré » (une liste vide
+   déclarée n'est pas une absence de déclaration). Le même bouton **Enregistrer** écrit l'élément, puis ses
+   allergènes (et le temps d'une catégorie) ; un élément neuf s'enregistre d'abord. Voir *ALLERGENES_FR.md* et
+   *SERVICES_CUISINE_FR.md*.
 7. **Enregistrer** applique la modification ; **Annuler** referme le formulaire. Le bouton
    **« Historique »** liste les modifications : nature, élément, auteur, date et champs changés.
 
@@ -38,6 +44,8 @@ anglais et chinois.
 | Validation | Le nom dans la langue fiscale de l'établissement est obligatoire (les autres sont facultatifs) ; code de TVA parmi A, B, C, D, X ; prix de 0 à 999 999 centimes ; supplément d'option positif ou nul ; minimum et maximum cohérents. Refus : `menu_invalid` avec le champ en cause (`field=`) ; élément ou parent inconnu : `menu_not_found`. |
 | Aucune suppression | Un élément n'est jamais supprimé : il est masqué (`active = 0`). Les commandes et les ventes déjà enregistrées continuent de le référencer. |
 | Atomicité | Une modification écrit la ligne, ses traductions et la ligne du journal dans une seule transaction. Une modification qui ne change rien n'écrit rien. |
+| Lignes système | Les lignes dont l'identifiant externe commence par `pili:` (la catégorie et le produit système « Bon cadeau », *BONS_CADEAUX_FR.md*) n'apparaissent dans aucune liste de l'éditeur, ne peuvent être ni renommées, ni modifiées, ni activées, et la commande des allergènes les refuse comme inconnues. |
+| Allergènes et temps | La saisie locale des allergènes est réservée au gérant et refusée tant qu'un catalogue gère la carte ; un catalogue qui ne dit rien d'un produit n'efface jamais une liste saisie ici. Le temps d'une catégorie n'est écrit que si le service en plusieurs temps est actif. |
 | Options à la vente | Un produit propose le choix d'options dès qu'il possède au moins un groupe actif contenant au moins une option active (indicateur `has_modifiers`), avec ou sans HubRise. |
 
 ## 3. Journal

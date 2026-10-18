@@ -25,7 +25,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | M133 | Déclaration de fond de caisse (comptage) | `m133_drawer_declaration` | `[M133] an empty drawer is declared as 0`, `[M133] the counted cash is declared with the amount typed` | Couvert |
 | M140 | Entrée en service de l'utilisateur | `m140_work_in`, `m140_work_in_archives_s_event` | - | Couvert |
 | M141 | Sortie de service de l'utilisateur | `m141_work_out`, `m141_work_out_archives_s_event` | - | Couvert |
-| M150 | Facturation | `m150_invoice`, `m150_invoice_fdm_failure_does_not_advance_i_counter`, `m150_sign_invoice_archives_i_event_referencing_the_sale` | - | Couvert |
+| M150 | Facturation | `an_invoice_reads_the_m150_shape`, `m150_invoice`, `m150_invoice_fdm_failure_does_not_advance_i_counter`, `m150_sign_invoice_archives_i_event_referencing_the_sale` +2 | - | Couvert |
 | M160 | Copie d'un ticket de vente | `m160_copy_of_a_sale`, `m160_copy_of_sale_archives_c_event_with_ref_to_original`, `vi_copy_m160_a_copy_reproduces_the_original_sale` | - | Couvert |
 | M161 | Copie d'une commande | `m161_copy_of_an_order`, `m161_copy_of_order_archives_c_event_with_ref_to_p_event`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket` | - | Couvert |
 | M170 | Entrée en service en mode formation | `m170_work_in_in_training`, `m170_work_in_training_does_not_advance_normal_s_counter` | - | Couvert |
@@ -77,9 +77,9 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | UC250 | Fusion de tables | - | - | Hors périmètre |
 | UC251 | Fusion de tables (variante) | - | - | Hors périmètre |
 | UC252 | Fusion de tables avec remise | - | - | Hors périmètre |
-| UC260 | Vente d'un bon à usage multiple (MPV) | - | - | Hors périmètre |
-| UC261 | Utilisation d'un bon à usage multiple (MPV) | - | - | Hors périmètre |
-| UC262 | Utilisation d'un bon à usage multiple (MPV, variante) | - | - | Hors périmètre |
+| UC260 | Vente d'un bon à usage multiple (MPV) | `uc260_mpv_sale` | - | Couvert |
+| UC261 | Utilisation d'un bon à usage multiple (MPV) | `a_gift_voucher_part_is_exact_and_never_rounded`, `uc261_mpv_use` | - | Couvert |
+| UC262 | Utilisation d'un bon à usage multiple (MPV, variante) | `a_gift_voucher_part_is_exact_and_never_rounded`, `uc262_mpv_use` | - | Couvert |
 | UC270 | Vente d'un bon à usage unique (SPV) | - | - | Hors périmètre |
 | UC271 | Utilisation d'un bon à usage unique (SPV) | - | - | Hors périmètre |
 | UC280 | Produit composite | - | - | Hors périmètre |

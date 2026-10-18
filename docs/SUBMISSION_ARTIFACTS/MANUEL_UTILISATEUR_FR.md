@@ -13,16 +13,16 @@ chinois, §12.2). Les écrans correspondants figurent dans
 1. Profils : qui peut faire quoi
 2. Démarrage, connexion et PIN
 3. Pointage d'arrivée et de départ (événement S)
-4. L'écran de commande
+4. L'écran de commande ; 4 bis. Allergènes, service en plusieurs temps et bons cadeaux
 5. Tables, à emporter, prise de commande et produit épuisé (§5.4)
 6. Commande enregistrée et addition (événements P)
 7. Encaissement (vente, événement N)
 8. Copie de ticket (événement C) ; 8 bis. Facture à un client professionnel (événement I)
 9. Remboursement
-9 bis. Corriger un moyen de paiement (événement F)
+9 bis. Corriger un moyen de paiement (événement F) ; 9 ter. Remboursement et bons cadeaux
 10. Rapports X et Z (événements R) et rapport de ventes (§10.4)
 11. Mouvements de caisse, tiroir et comptage (événements F)
-12. Configuration (Gérant), dont la carte et le panneau Peppol (§12 bis)
+12. Configuration (Gérant), dont la carte et le panneau Peppol (§12 bis) et les fonctions du propriétaire (§12 ter)
 13. Mode formation (événements T)
 14. Que faire en cas de problème
 
@@ -276,6 +276,32 @@ aujourd'hui" s'affiche sur l'écran de commande quand une journée est
 ouverte et qu'il est plus de 22 h, ou qu'une journée précédente est
 restée ouverte (§10.2). L'onglet "Journée" des rapports affiche aussi
 "Rapport Z pas encore fait aujourd'hui".
+
+## 4 bis. Allergènes, service en plusieurs temps et bons cadeaux à l'écran de commande
+
+**Allergènes.** Les produits et les options portent des pastilles numérotées (numéro de l'annexe II du règlement
+(UE) n° 1169/2011, six au plus sur un produit puis « +n »). Le bouton « Allergènes » active un mode où toucher un
+produit ouvre sa fiche au lieu de l'ajouter à la commande : « Contient », « Traces possibles », les options, une
+légende des 14 numéros, et deux boutons « Imprimer cette fiche » et « Imprimer la carte complète ». Un produit sans
+déclaration affiche « Information non disponible, demandez au responsable », jamais « Aucun allergène ». Le mode
+« Allergènes » et le mode « Épuisé » (§5.4) s'excluent : en allumer un éteint l'autre. Voir *ALLERGENES_FR.md*.
+
+**Service en plusieurs temps** (si un Gérant l'a activé, §12 ter.2). Le panier est groupé par temps (Direct, Entrées,
+Plats, Desserts) et chaque ligne porte une pastille qui permet de changer son temps tant que le ticket de cuisine ne
+l'a pas portée. « Envoyer en cuisine » imprime le Direct et les entrées ; le bouton « Envoyer la suite (Plats) »
+imprime ensuite le temps suivant. Le plan des tables indique « Suite : Plats » sur une table qui retient un temps.
+À l'encaissement, un avertissement (« Suite non envoyée : Plats ») propose « Envoyer maintenant » : la caisse
+n'imprime jamais un temps toute seule. Si le module fiscal ne répond pas, « Envoyer la suite » est refusé et rien
+n'est imprimé. Voir *SERVICES_CUISINE_FR.md*.
+
+**Bon cadeau** (si un Gérant l'a activé, §12 ter.3). Le bouton « Bon cadeau » demande le montant (de 1,00 € au
+maximum réglé) et ajoute au panier une ligne « Bon cadeau » avec la pastille « Bon » à la place des boutons de
+quantité (un bon par ligne ; la ligne peut être retirée avant la vente). Aucune remise, aucun « Offert » et aucune
+« Note » sur cette ligne. Une commande qui vend un bon se règle en espèces ou par carte, jamais avec des
+chèques-repas ni un bon cadeau, et ne peut pas être clôturée sans paiement. Après la vente, le bon s'imprime ;
+si l'impression échoue, l'écran de fin de vente le dit (« Bon non imprimé : le réimprimer depuis Rapports, Bons
+cadeaux »). Une vente qui vend un bon ne peut pas être facturée à un client professionnel (§8 bis). Voir
+*BONS_CADEAUX_FR.md*.
 
 ## 5. Tables, à emporter, prise de commande et produit épuisé (§5.4)
 
@@ -624,6 +650,18 @@ l'arrondi des espèces.
 "Communication FDM..." s'affiche pendant la signature. La vente n'est
 enregistrée qu'une fois signée par le FDM.
 
+### 7.2 bis Payer avec un bon cadeau
+
+Si la fonction est active, la méthode « Bon cadeau » ouvre la saisie du code à 12 chiffres sur le pavé
+(« Code du bon (12 chiffres) », puis « Chercher »). La caisse montre le solde, « Valable jusqu'au jj.mm.aaaa » et
+l'état du bon : « Valide », « Épuisé », « Expiré », « Annulé » ou « Non utilisable (autre mode) » (un bon de
+formation ne sert qu'en formation, un bon réel jamais en formation). Seul un bon valide peut être utilisé :
+« Utiliser ce bon » retient le plus petit du solde et du reste à payer ; si le bon vaut plus que la note, le solde
+reste sur le bon (aucune monnaie rendue). Plusieurs bons peuvent payer une même vente, un bon une seule fois par
+vente ; le reste se règle par un autre moyen. Après cinq recherches ratées dans la minute, les recherches sont
+bloquées un instant. Le code n'est jamais affiché en entier : seuls les quatre derniers chiffres le sont. Quand
+un paiement laisse un solde sur un bon, un petit ticket « solde du bon » s'imprime après le ticket de T.V.A.
+
 ### 7.3 Fin de la vente
 
 L'écran "OK" rappelle le type de ticket, le total, le rendu éventuel et
@@ -862,6 +900,17 @@ Refus (le texte s'affiche dans la fenêtre) :
 Si le FDM ne répond pas, la réponse peut arriver plus tard : la demande reste en
 attente et la correction est reprise au prochain essai ou par la tâche de fond (§7.4). Le PIN est celui du Gérant connecté.
 
+## 9 ter. Remboursement et bons cadeaux
+
+- **Vente d'un bon.** Rembourser la ligne d'un bon qui n'a jamais servi annule ce bon. Un bon déjà utilisé ne se
+  rembourse pas (« gift_voucher_used » : la caisse refuse).
+- **Vente payée avec un bon.** Le bon n'est pas rendu et n'est jamais échangé contre de l'argent : le remboursement
+  de ces marchandises se fait en espèces (choix de l'établissement), avec la confirmation du Gérant, comme pour toute
+  vente ; le bon n'est pas recrédité.
+- **Correction d'un moyen de paiement (§9 bis).** La ligne « Bon cadeau » d'une vente apparaît verrouillée, avec une
+  note : elle ne se corrige pas, on ne corrige pas vers « Bon cadeau », et la ligne d'une vente qui vend un bon ne
+  passe pas aux chèques-repas.
+
 ## 10. Rapports X et Z (événements R) et rapport de ventes (§10.4)
 
 Réservé au Gérant : "Rapports". L'écran a quatre onglets : "Journée",
@@ -928,6 +977,14 @@ tickets et le total, et la concordance avec le rapport Z de chaque
 journée. Le titre porte "DOCUMENT NON FISCAL" ; "Imprimer" en tire une
 copie papier qui ne signe rien et ne remplace ni le X ni le Z
 (`RAPPORTS_VENTES_FR.md`).
+
+### 10.5 Onglet « Bons cadeaux »
+
+Visible si la fonction est active. Serveur et Gérant y cherchent un bon par son code (forme masquée, solde, état,
+validité). Le Gérant voit en plus la liste « Bons émis » (valides d'abord, filtres « Tous », « Valide », « Épuisé »,
+« Expiré », « Annulé »), les mouvements de chaque bon (« Émission », « Utilisation », « Annulation ») et le bouton
+« Réimprimer », qui tire un duplicata marqué DUPLICATA et le journalise. Dans le rapport de ventes (§10.4), la ligne
+de bon figure au rayon « Bons cadeaux » (T.V.A. X) et le total égale celui du rapport Z.
 
 ## 11. Mouvements de caisse, tiroir et comptage (événements F)
 
@@ -1246,6 +1303,36 @@ badge est conservée, jamais son numéro. Usage : présence et connexion
 uniquement." **Un employé peut refuser le badge** : son PIN (ou
 l'enregistrement de sa présence par le Gérant, §3) reste disponible sans
 aucun désavantage.
+
+### 12 ter. Fonctions du propriétaire (Gérant)
+
+Trois panneaux de "Config", chacun éteint par défaut. Chaque enregistrement est journalisé en ajout seul (qui,
+quand, valeur). Aucune de ces fonctions n'ajoute d'écran de rapport fiscal ni ne modifie un ticket de T.V.A.
+
+**12 ter.1 Alertes sur téléphone** (*ALERTES_PROPRIETAIRE_FR.md*). Le panneau « Alertes sur téléphone » montre
+« Robot Telegram configuré » ou « Robot Telegram absent » (le jeton est un fichier de la configuration, jamais
+affiché), la « Conversation Telegram » (identifiant numérique, négatif pour un groupe), le « Nom dans les
+messages », la « Langue des messages », les cinq situations de « Prévenir quand » (« La boîte noire ne répond plus »,
+« Une imprimante est injoignable », « Le terminal de paiement est injoignable », « Le Z du jour n'est pas fait »,
+« Une commande en ligne attend »), « Z attendu avant », « Commande en ligne en attente depuis » et « Rappel toutes
+les ». « Enregistrer » enregistre ; « Envoyer un message test » envoie un seul message et dit pourquoi Telegram
+refuse s'il refuse ; « Derniers messages » liste les envois (« Alerte », « Rappel », « Résolu », « Test », « Envoyé »,
+« Échec », « Retenu (limite horaire) »). Sans jeton, le message test est refusé (`alerts_token_missing`) et aucune alerte ne part.
+
+**12 ter.2 Service en plusieurs temps** (*SERVICES_CUISINE_FR.md*). Le panneau « Service en plusieurs temps » a un
+interrupteur « Actif » / « Inactif » et, pour chaque catégorie active, « Temps de chaque catégorie » (Direct,
+Entrées, Plats, Desserts). Le même réglage est dans le panneau de la catégorie de l'éditeur de carte (§12 bis).
+Éteint, les tickets de cuisine sont identiques à ceux d'avant.
+
+**12 ter.3 Bons cadeaux** (*BONS_CADEAUX_FR.md*). Le panneau « Bons cadeaux » a l'interrupteur « Actif » /
+« Inactif », « Validité (mois) » (12 à 36) et « Montant maximum (€) ». La fonction ne s'éteint pas tant qu'un bon
+réel peut encore être utilisé (la caisse refuse : les clients gardent des bons valables au moins douze mois).
+
+**12 ter.4 Allergènes dans l'éditeur de carte.** La fiche d'un produit ou d'une option (§12 bis) montre les 14
+allergènes : un toucher fait passer de « aucun » à « contient » puis à « peut contenir » ; l'interrupteur « déclaré »
+distingue une liste vide déclarée d'une absence de déclaration. Le même bouton « Enregistrer » écrit la fiche puis
+la liste (un produit neuf s'enregistre d'abord). L'éditeur reste verrouillé tant qu'un catalogue externe gère la
+carte ; le produit système « Bon cadeau » n'y apparaît jamais.
 
 ### 12 bis. Carte et panneau Peppol
 

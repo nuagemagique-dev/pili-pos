@@ -21,9 +21,11 @@ rejoués tels que définis (les fixtures référencent ces `productId`).
 ## Liste chargée
 
 9 des 25 produits du manuel exercent des fonctionnalités **déclarées
-non supportées en v1.0.0** (prix au poids, produits composés, vouchers
-multi/mono-usage - cf. REPONSES_MANUEL_CERT_FR.md §III.F
-"Fonctionnalités avancées"). Ils restent en base (`active = 0`) pour la
+non proposées à la vente en v1.0.0** (prix au poids, produits composés,
+vouchers mono-usage ; les quatre « Gift Voucher General » sont remplacés par
+le produit système « Bon cadeau » à montant libre - cf.
+REPONSES_MANUEL_CERT_FR.md §III.F "Fonctionnalités avancées" et
+*BONS_CADEAUX_FR.md*). Ils restent en base (`active = 0`) pour la
 traçabilité du `productId` mais ne sont **pas proposés à la vente** ;
 les départements 30 (Menus) et 400 (Vouchers) n'ont donc plus aucun
 produit disponible et sont masqués dans la grille (`categories.active
@@ -54,11 +56,11 @@ v1.0.0 - le prix libre est implémenté (cf. REPONSES_MANUEL_CERT_FR.md
 | ☐ | 30001 | Business menu | 30 Menus | 38,00 | PIECE | B | C | Produit composé : non supporté en v1.0.0 (fixtures parsent, UI non implémentée, cf. §III.F "Produits composés" / Advanced Set UC280) |
 | ☐ | 30010 | Business menu all-in | 30 Menus | 58,00 | PIECE | A&B | A&B | Idem (produit composé ; un seul label TVA en base, `B`) |
 | ☐ | 30020 | Menu drink | 30 Menus | 12,00 | PIECE | A | A | Idem (produit composé) |
-| ☐ | 40001 | Gift Voucher General | 400 Vouchers | 50,00 | PIECE | X | X | Voucher à but multiple : non supporté en v1.0.0 (cf. §III.F "Vouchers à but multiple", UC260/261) |
+| ☐ | 40001 | Gift Voucher General | 400 Vouchers | 50,00 | PIECE | X | X | Remplacé par le produit système « Bon cadeau » (montant saisi à la vente, rayon `GV`, T.V.A. X) : UC260 à UC262 rejoués (cf. §III.F "Vouchers à but multiple", *BONS_CADEAUX_FR.md*) |
 | ☐ | 40002 | Gift Voucher General | 400 Vouchers | 100,00 | PIECE | X | X | Idem |
 | ☐ | 40003 | Gift Voucher General | 400 Vouchers | 150,00 | PIECE | X | X | Idem |
 | ☐ | 40004 | Gift Voucher General | 400 Vouchers | 250,00 | PIECE | X | X | Idem |
-| ☐ | 40020 | Voucher Special Diner Offer | 400 Vouchers | 75,00 | PIECE | B | B | Voucher à but unique : non supporté en v1.0.0 (cf. §III.F "Vouchers à but unique", UC270/271) |
+| ☐ | 40020 | Voucher Special Diner Offer | 400 Vouchers | 75,00 | PIECE | B | B | Voucher à but unique : non offert en v1.0.0 (cf. §III.F "Vouchers à but unique", UC270/271) |
 | ☑ | 90001 | Bottle S | 90 Bottle Deposits | 0,01 | PIECE | X | X | |
 | ☑ | 90100 | Beer bin/ keg beer | 90 Bottle Deposits | 4,49 | PIECE | X | X | |
 | ☑ | 500001 | Cigarettes (20 pcs) | 500 Cigarettes | 8,40 | PIECE | D | D | |
@@ -89,13 +91,13 @@ L'image d'admission reprend aussi le reste de
 | Personnel | John (barman, `75061189702`), Elisa (chef de salle, `84022899837`), Sammy (sommelier, `80113078968`), rôle Serveur, avec les PIN de REPONSES_MANUEL_CERT_FR.md ; s'y ajoutent les comptes Technicien, Gérant et Apprenti |
 | Tables | 25 tables (`table_count`), BAR 1 à 4, DINING ROOM 5 à 15, TERRACE 16 à 25 |
 | Tiroir | un tiroir, sur le POS du BAR |
-| Moyens de paiement | espèces (EUR), carte (un moyen "Card", type `CARD_DEBIT`, saisie par l'opérateur : méthode `MANUAL`), chèques-repas électroniques. Les tests de ce document tournent sans terminal de paiement relié. Avec un terminal relié (réglage facultatif de l'installation, voir `MANUEL_INSTALLATION_FR.md` §4.2), la ligne de paiement carte est `AUTOMATIC` et son type vient du terminal : `CARD_DEBIT` (id "2", "Card"), `CARD_CREDIT` (id "6", "Credit card") ou `CARD_UNKNOWN` (id "7", "Card (type unknown)") ; une carte de chèques-repas (Edenred, Pluxee, Monizze, Payflip), reconnue à la marque, est une ligne `CHEQUE_MEAL` (id "3", "Meal voucher", `AUTOMATIC`) |
+| Moyens de paiement | espèces (EUR), carte (un moyen "Card", type `CARD_DEBIT`, saisie par l'opérateur : méthode `MANUAL`), chèques-repas électroniques, bons cadeaux (ligne `VOUCHER_STORE`, *BONS_CADEAUX_FR.md*). Les tests de ce document tournent sans terminal de paiement relié. Avec un terminal relié (réglage facultatif de l'installation, voir `MANUEL_INSTALLATION_FR.md` §4.2), la ligne de paiement carte est `AUTOMATIC` et son type vient du terminal : `CARD_DEBIT` (id "2", "Card"), `CARD_CREDIT` (id "6", "Credit card") ou `CARD_UNKNOWN` (id "7", "Card (type unknown)") ; une carte de chèques-repas (Edenred, Pluxee, Monizze, Payflip), reconnue à la marque, est une ligne `CHEQUE_MEAL` (id "3", "Meal voucher", `AUTOMATIC`) |
 
 Non reproduit, car hors périmètre v1.0.0 (REPONSES_MANUEL_CERT_FR.md
 §III.F) : le second POS `CPOS0031234568` de la réception et son PMS
 hôtel, les terminaux et handhelds (TER-1 à TER-5), la table haute du
 bar (8 chaises, sans numéro), les chaises comme centres de coût, les
-devises GBP/USD, les bons d'achat, la distinction des réseaux de cartes (Visa, Mastercard, Diners, American Express) et Payconiq / Apple Pay. Les lignes de paiement ne distinguent que le type de carte (débit, crédit, inconnu) ; avec un terminal relié, la marque rendue par le terminal est portée par le champ `provider` de la ligne et imprimée sur le ticket, sans créer de moyen de paiement distinct.
+devises GBP/USD, les bons d'achat à usage unique, la distinction des réseaux de cartes (Visa, Mastercard, Diners, American Express) et Payconiq / Apple Pay. Les lignes de paiement ne distinguent que le type de carte (débit, crédit, inconnu) ; avec un terminal relié, la marque rendue par le terminal est portée par le champ `provider` de la ligne et imprimée sur le ticket, sans créer de moyen de paiement distinct.
 
 ## Lignes d'un transfert de table (M122)
 
@@ -134,7 +136,7 @@ la cuisine.
 - **B = 12%** - services de restauration (consommation sur place)
 - **C = 6%** - vente à emporter (nourriture, boissons non alcoolisées)
 - **D = 0%** - taux zéro (cigarettes)
-- **X = N/A** - hors champ (bons d'achat multi-usage, consignes)
+- **X = N/A** - hors champ (vente d'un bon d'achat multi-usage, consignes)
 
 `menu_items.vat_code` porte le code **sur place** ; le passage en
 vente à emporter recalcule le code par ligne (`order_lines.vat_code`)

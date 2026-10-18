@@ -87,7 +87,9 @@ Intégration activée, le POS traite des données de clients (voir
   (`pos_print::kitchen_ticket`) imprime les lignes et les notes ;
 - les ventes de la caisse sont mises en file dans `hubrise_outbox` et
   envoyées à HubRise (lignes, totaux, paiements, sans données de
-  client) ;
+  client). Une vente qui vend un bon cadeau n'est pas renvoyée (aucune
+  ligne de bon n'est envoyée) et un paiement par bon y est nommé « Other »
+  (*BONS_CADEAUX_FR.md*) ;
 - le jeton d'accès HubRise (`hubrise_connection.access_token`) est
   stocké en clair dans `pos.db`, donc lisible par le compte `spf` de
   l'image d'admission et présent dans les sauvegardes.

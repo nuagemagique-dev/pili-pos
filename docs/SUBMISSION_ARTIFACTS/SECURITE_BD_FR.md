@@ -215,6 +215,27 @@ quatre tables existent sur toute installation (migration 70
 - Le badge ne remplace jamais l'INSZ : l'événement S reste signé par le
   FDM avec l'INSZ de l'employé.
 
+### 2.6 Fonctions du propriétaire (migrations 60 à 63)
+
+Les trois journaux et les trois tables de bons cadeaux sont en ajout seul, par déclencheurs SQLite (modification et
+suppression refusées, même par un accès direct à la base) :
+
+| Table | Déclencheurs | Garde |
+|---|---|---|
+| `owner_settings_log` | `owner_settings_log_no_update`, `owner_settings_log_no_delete` | chaque enregistrement d'un réglage (qui, quand, valeur) |
+| `owner_alert_log` | `owner_alert_log_no_update`, `owner_alert_log_no_delete` | chaque message d'alerte, envoyé ou non ; valeurs de `kind`, `transition` et `outcome` contraintes par `CHECK` |
+| `allergen_change_log` | `allergen_change_log_no_update`, `allergen_change_log_no_delete` | chaque changement réel d'une liste d'allergènes |
+| `gift_vouchers`, `gift_voucher_movements`, `gift_voucher_prints` | `*_no_update`, `*_no_delete` | un bon, ses mouvements (`issue`, `redeem`, `cancel`) et ses impressions ; le solde et l'état se calculent, ils ne se stockent pas |
+
+Contraintes `CHECK` : `allergen` parmi les 14 codes et `level` parmi `contains` et `may_contain`, `course` de 0 à 3,
+`gift_vouchers.face_value_cents > 0`, `gift_vouchers.training` 0 ou 1, `gift_voucher_movements.kind` parmi `issue`,
+`redeem` et `cancel`. Unicité : `gift_vouchers.code`, `gift_vouchers.issue_line_id` (une ligne, un bon). Le paiement
+`VOUCHER_STORE` s'enregistre avec la méthode `other` de `payments.method` : la liste des méthodes ne change pas.
+
+Le jeton du robot des alertes n'est ni dans la base ni dans un journal : c'est un fichier désigné par `pos.json`,
+au même régime de permissions que les autres fichiers secrets de la configuration (§3.1). Un test automatique
+cherche ce jeton dans les journaux, les erreurs renvoyées à l'écran et les lignes de `owner_alert_log`.
+
 ## 3. Mécanismes au niveau système
 
 ### 3.1 Permissions de fichiers
@@ -544,9 +565,17 @@ chaque sauvegarde de la base. Il est protégé comme le reste de la base :
 permissions `0640` du groupe `pos`, chiffrement LUKS2 de `/var` (§3.6).
 Il est supprimé à la déconnexion de HubRise.
 
+Alertes du propriétaire (facultatives). Un message Telegram ne contient jamais de donnée personnelle : ni nom
+d'employé ou de client, ni adresse, ni téléphone, ni montant, ni numéro de ticket ou de commande ; il contient le nom
+de l'installation, une phrase de situation et une heure (*ALERTES_PROPRIETAIRE_FR.md* §3). Le service Telegram est un
+tiers choisi par le propriétaire, qui peut retirer la fonction en la désactivant.
+
+Bons cadeaux. Le code complet d'un bon n'est imprimé que sur le bon ; il est masqué partout ailleurs et ne figure dans
+aucune demande signée. Aucune donnée de client n'est associée à un bon.
+
 Export : le POS n'exporte automatiquement aucune donnée fiscale ; les
-seuls flux sortants sont ceux ci-dessus (HubRise et Scaleway, selon
-la configuration de l'installation) et la communication avec le FDM.
+seuls flux sortants sont ceux ci-dessus (HubRise, Scaleway et, pour
+les alertes du propriétaire, Telegram, selon la configuration de l'installation) et la communication avec le FDM.
 
 ## 7. Audit trail croisé
 
