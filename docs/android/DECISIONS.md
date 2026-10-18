@@ -2243,8 +2243,10 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
 - **INT-D31 Command counts come from the parity scripts (rc3).** The dossiers quote 148 build commands, 146 IPC
   commands, 136 called by the Android UI and 10 excluded (the tenth being `reprint_course_slip`), as printed by
   `check_command_parity.py --strict`, `check_ui_parity.py --strict` and `check_ipc_wrappers.py`.
-- **INT-D32 rc2 to rc3 renaming scope.** Dossier texts now name `linux-v1.0.0-rc3`. Left for the freeze step: the
-  About string `plat_about_engine_ref`, the `PILI_P6_FREEZE_TAG` defaults of the p1a/p4/p6 gates,
+- **INT-D32 rc2 to rc3 renaming scope.** Dossier texts now name `linux-v1.0.0-rc3`. The About string
+  `plat_about_engine_ref` now reads `pili-pos 1.0.0, linux-v1.0.0-rc3 (pending)` (done in the rc3 bench pass, with the
+  tests that pin it and the `PILI_P6_FREEZE_TAG` default of `p6_gate.sh`; the short SHA is filled at tagging). Left for
+  the freeze step: the `PILI_P6_FREEZE_TAG` defaults of the p1a/p4/p6 gates,
   `check_linux_frozen.sh`, `LINUX_FREEZE.md` and `PLATFORM.md`; the historical sentence in EV-09 keeps rc2.
 - **INT-D33 Hand-edited evidence reverted.** The ticket evidence files, the TICKETS_EXEMPLES transcripts and the
   GMS e2e log were restored to what the 2026-10-15 run recorded (a595579b had edited them by hand, with wrong
@@ -2265,3 +2267,9 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
   restore the secret half of the committed key, or accept a regenerated pair (`make_dev_bundle.sh --write-pub`,
   committed) and run the bench. Until then A160 still shows "Titres-repas" and the ticket evidence still prints
   "Cheques-repas" (EV-08).
+- **INT-D37 Development minisign key rotated (rc3).** User decision of 2026-10-18: the secret half of the committed
+  development key was lost, so `android/app/provisioning/dev-minisign.pub` is now key `5F208F7636516D6B`, whose secret
+  half is `~/.cache/pili-android/dev-minisign/minisign.key` (commit 920a19ec). The debug `plat_update_keys.xml`, the
+  test fixture signature and the gate tests follow. The key is debug-only: the release key slot and the release
+  trust list are untouched, and the key must not be rotated again. This supersedes INT-D36: after a debug APK
+  rebuild, `make_dev_bundle.sh` and `capture_screens.sh` work again and the bench retake is done under INT-D38 onwards.
