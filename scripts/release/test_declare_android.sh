@@ -129,7 +129,7 @@ write_xml() { # write_xml RELEASE_KEY
     cat >"$PROJ/android/app/src/main/res/xml/plat_update_keys.xml" <<XML
 <?xml version="1.0" encoding="utf-8"?>
 <plat-update-keys>
-    <key build="debug">RWQmv3D5F4695q2BBUUzfk0ABpONbcMKPePaMqZkpr5UV8J0PCTEdO/v</key>
+    <key build="debug">RWRrbVE2do8gX6jV4FXRQpiK3QIKlruHZzxVT/P81uXp7QShDib1tTBj</key>
     <key build="release">$1</key>
 </plat-update-keys>
 XML

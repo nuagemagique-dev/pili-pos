@@ -14,7 +14,7 @@ import java.util.Base64
 /** The fixtures of `src/test/resources/platform/`, signed with the development minisign key. */
 object UpdateFixtures {
     /** The development public key line (`android/app/provisioning/dev-minisign.pub`). */
-    const val DEV_KEY = "RWQmv3D5F4695q2BBUUzfk0ABpONbcMKPePaMqZkpr5UV8J0PCTEdO/v"
+    const val DEV_KEY = "RWRrbVE2do8gX6jV4FXRQpiK3QIKlruHZzxVT/P81uXp7QShDib1tTBj"
 
     /** The bytes that `declared.json` describes: its SHA-1 and SHA-256 are in the fixture. */
     val ASSET_BYTES: ByteArray = "pili-pos-android-1.2.0 test payload\n".toByteArray()

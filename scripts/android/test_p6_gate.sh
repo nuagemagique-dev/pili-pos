@@ -62,7 +62,7 @@ tgit() {
 
 RES=android/app/src/main/res
 PLAT=android/app/src/main/kotlin/dev/nuagemagique/pilipos/platform
-DEV_KEY="RWQmv3D5F4695q2BBUUzfk0ABpONbcMKPePaMqZkpr5UV8J0PCTEdO/v"
+DEV_KEY="RWRrbVE2do8gX6jV4FXRQpiK3QIKlruHZzxVT/P81uXp7QShDib1tTBj"
 REL_KEY="RW$(printf 'B%.0s' $(seq 1 54))"
 
 # write FILE: stdin to FILE (directories are created)
@@ -153,7 +153,7 @@ object PlatformRoutes {
 }
 EOF
     write "$r/android/app/provisioning/dev-minisign.pub" <<EOF
-untrusted comment: minisign public key E6BD8E17F970BF26
+untrusted comment: minisign public key 5F208F7636516D6B
 $DEV_KEY
 EOF
     {
@@ -458,7 +458,7 @@ EOF
 }
 keys_case "plat-keys PASS with the dev key and an empty release key" "$DEV_KEY" "" PASS
 keys_case "plat-keys PASS with the dev key and a valid release key" "$DEV_KEY" "$REL_KEY" PASS
-keys_case "plat-keys FAIL with a wrong debug key" "RWQmv3D5F4695q2BBUUzfk0ABpONbcMKPePaMqZkpr5UV8J0PCTEdO/w" "" FAIL
+keys_case "plat-keys FAIL with a wrong debug key" "RWRrbVE2do8gX6jV4FXRQpiK3QIKlruHZzxVT/P81uXp7QShDib1tTBk" "" FAIL
 keys_case "plat-keys FAIL with an empty debug key" "" "" FAIL
 keys_case "plat-keys FAIL with a malformed release key" "$DEV_KEY" "RWshort" FAIL
 keys_case "plat-keys FAIL with a release key of the wrong prefix" "$DEV_KEY" "XX$(printf 'B%.0s' $(seq 1 54))" FAIL
