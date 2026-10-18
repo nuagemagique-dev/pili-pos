@@ -34,7 +34,8 @@ last section before relying on a number.
   presence registration, B2B invoices with the Peppol queue, sold-out products,
   kitchen notes, the menu editor, the non-fiscal sales report, the accountant
   export tool, owner alerts, allergens, courses, multi-purpose gift vouchers,
-  staff badges, and every rc3 fix listed in section 3. **The rc2 binary is
+  staff badges, meal-voucher cards on the linked terminal, and every rc3 fix
+  listed in section 3. **The rc2 binary is
   therefore not the Linux product as it stands in the repository; a new Linux
   freeze is mandatory.**
 - The Linux version in `Cargo.toml`, `src-tauri/tauri.conf.json` and
@@ -69,10 +70,14 @@ golden re-record. Decisions: INT-D41 to INT-D50.
 - The Android request framing (`CADRE_DEMANDE_FR.md`, `INDEX_DOSSIER_FR.md`,
   `REPONSES_MANUEL_CERT_FR.md`, `RAPPORT_TESTS_BASELINE_FR.md`, commit
   `1595f448`) was rewritten as one initial demand for `pili-pos-android`, with
-  no "commun" or Linux sibling. The Linux counterparts in
-  `docs/SUBMISSION_ARTIFACTS/` were not touched by that commit and still frame
-  the Linux demand as it was before (two initial filings together, Art. 99).
-  That framing is stale now (see section 6, step 8).
+  no "commun" or Linux sibling. The two-filing Art. 99 framing only ever lived
+  in the Android dossier (`git show 1595f448^:docs/android/dossier/CADRE_DEMANDE_FR.md`).
+  The Linux dossier has no request framing or index document:
+  `CADRE_DEMANDE_FR.md` and `INDEX_DOSSIER_FR.md` do not exist in
+  `docs/SUBMISSION_ARTIFACTS/` and never did, and its
+  `REPONSES_MANUEL_CERT_FR.md` mentions neither Art. 99 nor Android. A Linux
+  filing must create both documents (and list them in `MANIFEST.txt`), possibly
+  starting from the pre-`1595f448` Android text (see section 6, step 8).
 
 ### 2.2 Evidence items removed or redefined
 
@@ -91,8 +96,9 @@ golden re-record. Decisions: INT-D41 to INT-D50.
   commands, `check_ui_parity.py --strict`: called 136, excluded 10, pending 0).
 - Host engine runs (cargo test, `pos-uc-check` replay) are described in the
   Android dossier as "engine tests on the development host"; the 27/09/2026
-  module2 run under the Linux product identity is no longer cited; the Android
-  live run is EV-14. ROUND1-5 JSON became EV-06 (INT-D43). The Linux dossier
+  module2 run under the Linux product identity is no longer cited by the
+  Android dossier (the Linux dossier still cites it, see section 5); the
+  Android live run is EV-14. ROUND1-5 JSON became EV-06 (INT-D43). The Linux dossier
   was not edited for any of these, so it still describes its own evidence.
 
 ### 2.3 Gate checks retargeted or retired
@@ -140,6 +146,8 @@ this note.
 | Till discounts, payment correction M132, table transfer M122, presence registration, B2B invoices + Peppol (lane 1-2, 3-v11) | present (`DiscountDialog`, `PaymentCorrectionDialog`, `TablePickerDialog`, `InvoiceDialog`, `InvoiceList`, `PeppolPanel`, e2e specs `till-discount`, `payment-correction`, `table-transfer`, `invoice`, `peppol`); Tauri wrappers in `src-tauri/src/ipc` (148/148) | described (`FACTURATION_PEPPOL_FR.md`, `FLUX_REMBOURSEMENT_FR.md`, etc.), folded by `7145c11b`, `4a1ba557`, `484cb0ed` |
 | Sold-out, kitchen notes, menu editor, non-fiscal sales report (lane 3-v11) | present (`SoldOutDialog`, `NoteDialog`, `MenuEditorView`, `MenuEditorPanel`, `SalesReportPanel`) | `PRODUIT_EPUISE_FR.md`, `EDITEUR_CARTE_FR.md`, `RAPPORTS_VENTES_FR.md`; Linux capture `80_reports_sales.png` is a mock-data screen |
 | Owner alerts, allergens, courses, gift vouchers (lane 4-v12) | present (`OwnerAlertsSettings`, `AllergenBadges`, `AllergenSheetDialog`, `CoursePickerDialog`, `CoursesSettings`, `GiftVoucher*`) | annexes `ALERTES_PROPRIETAIRE_FR`, `ALLERGENES_FR`, `SERVICES_CUISINE_FR`, `BONS_CADEAUX_FR`; captures `81` to `92` in `docs/SUBMISSION_ARTIFACTS/screenshots` |
+| Meal-voucher cards on the linked terminal (lane 1-v1-fixes item B, L1F-B1 to B7): an Edenred, Pluxee, Monizze or Payflip brand is signed as `CHEQUE_MEAL` `AUTOMATIC`, shown on the ticket and its copies, labelled on both checkouts | present, in the cert binary (`ui/e2e/eft.spec.ts`) | capture `09l_eft_meal_voucher.png` (retaken by `a595579b`); ticket examples in `TICKETS_EXEMPLES_FR.md` |
+| Accountant export (lane 4 item A, `crates/pos-accounting`) | CLI outside the binary and outside the frozen app inputs; no Vue or Tauri surface, nothing to port | not in the Linux dossier; a Linux filing decides whether to cite it (it is not part of the certified binary) |
 | Staff badges (lane 5-nfc) | USB wedge reader only (`BadgeSettings`, `BadgeEnrolDialog`, `ui/src/utils/badgeWedge.ts`); a stored `nfc` reader is not a reader on Linux (commit `a2b0d156`). NFC is Android only (section 4) | covered inside the user manual and annexes; no dedicated Linux annex was checked |
 
 rc3 fixes:
@@ -150,7 +158,7 @@ rc3 fixes:
 | PIN-pad refusal text (`a9a50108`) | Android `ReportsViewModel` only | not needed; the Vue payment-correction dialog maps engine errors through `ui/src/i18n.ts` (`err_payment_correction_method`) | n/a |
 | Menu editor accepts stored names in languages the till does not offer (`94131505`) | engine | yes | nothing to change |
 | Sales report "dont remboursements" counts refund tickets only (`49d07289`, INT-D38) | engine; both UIs only display the figure | yes | `RAPPORTS_VENTES_FR.md` already states the rule (lines 41 and 119) |
-| "Chèques-repas" rename (`a595579b`, INT-D30) | engine labels, both UIs, ticket label | yes (`ui/src/i18n-checkout.ts`, `i18n-reports.ts`, `i18n.ts`) | 15 Linux annexes already say "chèques-repas"; the quoted manual checklist row keeps the SPF wording; ticket evidence under `docs/SUBMISSION_ARTIFACTS/evidence/tickets` was regenerated by `8baf5109` before the rename and should be checked |
+| "Chèques-repas" rename (`a595579b`, INT-D30) | engine labels, both UIs, ticket label | yes (`ui/src/i18n-checkout.ts`, `i18n-reports.ts`, `i18n.ts`) | 15 Linux annexes already say "chèques-repas"; the quoted manual checklist row keeps the SPF wording. `a595579b` hand-edited 3 Linux ticket evidence files (`ROUND4_ticket.txt`, `ROUND5_ticket.txt`, `ticket_N_paiement_mixte.txt` under `docs/SUBMISSION_ARTIFACTS/evidence/tickets`): they now read "Chèques-repas" but are not output of `scripts/generate_ticket_examples.sh`. INT-D33 reverted the same kind of hand edit on Android as wrong; the Linux ones were never reverted. Remaining action: regenerate those 3 files with the generator |
 | Gift voucher line takes no kitchen course or note (INT-D29) | engine | yes (`err_gift_voucher_line_no_kitchen` in `ui/src/i18n.ts`) | `BONS_CADEAUX_FR.md` lines 27 and 152 |
 | Dev minisign key rotation (`920a19ec`, INT-D37) | Android debug provisioning only (`android/app/provisioning/dev-minisign.pub`) | not applicable | n/a |
 
@@ -168,9 +176,10 @@ rc3 fixes:
     ticket and report photos of the real printer).
 - `docs/SUBMISSION_ARTIFACTS` has 103 screenshot files; they are the host
   Playwright captures retaken by `bf7d83b1` and rebuilt into the PDFs by
-  `9671ac30`. They predate the rc3 fixes (no UI code changed for them, but the
-  meal-voucher label did; check `method_meal_voucher` screens, see
-  `ui/e2e/captures*.spec.ts`).
+  `9671ac30`. They do not predate the label change: `a595579b` retook 7 Linux captures
+  (`07`, `08`, `09h`, `09l`, `62`, `88`, `90`) and rebuilt
+  `CAPTURES_ECRAN_FR.pdf` and every Linux PDF. They still predate the other rc3
+  fixes, which change no screen.
 - Open "A effectuer" markers elsewhere: `docs/internal/DOSSIER_SOUMISSION_FR.md`
   (signed request form, "Phase 12"; source archive of the cert tag).
 
@@ -205,8 +214,11 @@ rc3 fixes:
   fix it calls for changes `crates/pos-eft` and forces a new freeze
   (`LINUX_FREEZE.md`, "Open before filing"). Live probes need the owner's go-ahead.
 - **Live FDM run:** the module2 simulator run under the Linux product identity
-  (27/09/2026) is no longer cited by any dossier; redo it with the new freeze if
-  the Linux dossier cites it.
+  (27/09/2026) is still cited by the Linux dossier:
+  `REPONSES_MANUEL_CERT_FR.md` line 754 ("rejouées le 27/09/2026") and
+  `JOURNAL_TESTS_PRE_SOUMISSION_FR.md` line 59. A Linux filing must redo the
+  run on the new Linux freeze (with the owner's go-ahead, section 6 step 6) and
+  update those lines.
 - **Reproducible build:** Docker emulation on the Mac, from a clean clone
   outside the worktrees (`scripts/check_repro.sh`).
 
@@ -227,15 +239,18 @@ rc3 fixes:
    the three parity scripts, `(cd ui && npm run build && npx playwright test)`.
 4. Refresh the Linux evidence: `scripts/capture_uc_evidence.sh`,
    `scripts/capture_fdm_error_evidence.sh`, `scripts/generate_ticket_examples.sh`
-   and `scripts/embed_*.py`, then `scripts/generate_test_report.py` for
+   (this regenerates the 3 hand-edited ticket files of section 3) and `scripts/embed_*.py`, then `scripts/generate_test_report.py` for
    `RAPPORT_TESTS_BASELINE_FR.md`.
 5. Retake captures: `cd ui && npm run captures` (Playwright `captures` project)
-   so screens show "Chèques-repas" and the rc3 behaviour; rebuild
+   so screens reflect the current UI; rebuild
    `CAPTURES_ECRAN_FR.pdf` with `scripts/make_captures_pdf.sh`. Take the
    real-printer photos `50_` to `56_` on the hardware.
 6. Fill the hardware journal `JOURNAL_TESTS_PRE_SOUMISSION_FR.md` and the
    remaining "A effectuer" fields; restore the `MANIFEST.txt` header (remove the
-   Android-only note from `ccc7441c`).
+   Android-only note from `ccc7441c`). Redo the live module2 simulator run on
+   the Linux freeze (owner's go-ahead needed) and update the "27/09/2026" lines
+   in `REPONSES_MANUEL_CERT_FR.md` (line 754) and
+   `JOURNAL_TESTS_PRE_SOUMISSION_FR.md` (line 59).
 7. Rebuild PDFs: `scripts/make_dossier_pdfs.sh` (fixes the `MATRICE_TRACABILITE`
    freshness finding), then `python3 scripts/check_dossier.py --final` must
    report 0 findings.
@@ -244,9 +259,11 @@ rc3 fixes:
    Art. 99 (one demand per version or model of a cash register system). Art. 113
    (modification of an already certified system) does not apply, because Linux
    is not a modification of the Android product; it does not apply to the first
-   Linux version either. Update `CADRE_DEMANDE`, `INDEX_DOSSIER`,
-   `REPONSES_MANUEL_CERT` of `docs/SUBMISSION_ARTIFACTS` to say so, and do not
-   cite the Android evidence as Linux evidence. If Android is not yet certified,
+   Linux version either. Create `CADRE_DEMANDE_FR.md` and `INDEX_DOSSIER_FR.md`
+   in `docs/SUBMISSION_ARTIFACTS` (they do not exist there; start from the
+   pre-`1595f448` Android text), add them to `MANIFEST.txt`, check
+   `REPONSES_MANUEL_CERT_FR.md` is consistent, and do not cite the Android
+   evidence as Linux evidence. If Android is not yet certified,
    the earlier plan (two initial filings, INT-D10 of `DECISIONS.md` section 10)
    can be reused, with the Android dossier no longer sharing documents.
 9. Linux freeze: set the freeze tag (`linux-v1.0.0-rc3` or the final name), run
