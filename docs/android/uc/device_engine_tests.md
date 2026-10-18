@@ -1,8 +1,8 @@
-# Engine tests on the device, rerun on the P7 head (P7D18)
+# Engine tests on the device, rerun on the integration head (rc3)
 
-Run on 2026-10-10 by card P7-T10, on commit `778e9968` of `android/P7-P7-T10` (a child of the
-`android/lane-p7` head `ccd059a5`; `crates/`, `android/rust` and `Cargo.lock` are identical to it),
-on the emulator `sunmi_d3_pro_api33` (`emulator-5554`, arm64-v8a, API 33, started by the chain).
+Run on 2026-10-18 by the rc3 evidence worker, on commit `7f96ae02` of `android/int` (all five lanes merged; the
+commit also holds the badge key fix described below), on the emulator `sunmi_d3_pro_api33` (`emulator-5554`,
+arm64-v8a, API 33, started by the chain and stopped afterwards).
 
 Command:
 
@@ -13,38 +13,46 @@ bash scripts/android/device_engine_tests.sh --fixtures --check
 Result line:
 
 ```
-DEVICE | total | PASS | 89 binaries, passed 1397, failed 0, excluded 0, ignored 13, flaky 0
+DEVICE | total | PASS | 114 binaries, passed 2160, failed 0, excluded 0, ignored 13, flaky 0
 ```
 
-Cross-build 183 s (sccache warm), run 119 s. No `WARN` line: no Android behaviour difference, no flaky
-test, no test rerun.
+Cross-build 59 s (warm cache from the first run of the day), run 360 s. No `WARN` line: no Android behaviour
+difference, no flaky test, no test rerun on the final run.
+
+## A real bug found by this run
+
+A first run on `484cb0ed` ended `114 binaries, passed 2158, failed 1`: `badge_key::tests::concurrent_creators_all_get_the_winners_key`
+failed, also on its single rerun. The data directory of the emulator refuses hard links, so the creation of the
+badge key took the rename fallback of `load_or_create_with`, which replaces an existing file: eight concurrent
+creators each returned their own key and the last rename won. Fixed in `crates/pos-engine/src/badge_key.rs`: a
+process-wide lock now serialises the creation, and the new test
+`concurrent_creators_without_hard_links_all_get_the_winners_key` runs the same race through the rename fallback on
+every host. The second run (this one) is clean.
 
 ## Counts per crate
 
 | Crate | Test binaries | Passed | Failed | Excluded | Ignored | Flaky |
 |-------|--------------:|-------:|-------:|---------:|--------:|------:|
-| pos-engine | 56 | 591 | 0 | 0 | 11 | 0 |
-| pos-core | 1 | 73 | 0 | 0 | 0 | 0 |
-| pos-db | 1 | 124 | 0 | 0 | 0 | 0 |
-| pos-fiscal | 17 | 261 | 0 | 0 | 2 | 0 |
-| pos-print | 5 | 157 | 0 | 0 | 0 | 0 |
+| pos-engine | 81 | 1157 | 0 | 0 | 11 | 0 |
+| pos-core | 1 | 99 | 0 | 0 | 0 | 0 |
+| pos-db | 1 | 212 | 0 | 0 | 0 | 0 |
+| pos-fiscal | 17 | 288 | 0 | 0 | 2 | 0 |
+| pos-print | 5 | 206 | 0 | 0 | 0 | 0 |
 | pos-mail | 3 | 74 | 0 | 0 | 0 | 0 |
-| pos-hubrise | 2 | 68 | 0 | 0 | 0 | 0 |
-| pos-catalog | 2 | 32 | 0 | 0 | 0 | 0 |
+| pos-hubrise | 2 | 74 | 0 | 0 | 0 | 0 |
+| pos-catalog | 2 | 33 | 0 | 0 | 0 | 0 |
 | pos-hubrise-types | 2 | 17 | 0 | 0 | 0 | 0 |
-| **Total** | **89** | **1397** | **0** | **0** | **13** | **0** |
+| **Total** | **114** | **2160** | **0** | **0** | **13** | **0** |
 
 The 13 ignored tests are the live tests (`live_fdm`, `live_hubrise`, `live_combined`, `e2e_staging`):
 they call module2 or HubRise and stay ignored (nothing live is run by the chain).
 
-## Against the P3-T5 run
+## Against the P7 run
 
-P3-T5 (`docs/android/DEVICE_TESTS.md`) ran 88 binaries and 1371 passing tests with `--fixtures`, 13
-ignored. The export lane added one binary and 26 tests since: 1397 passed, 13 ignored, 0 failed.
+The P7 run (2026-10-10, commit `778e9968`) ran 89 binaries and 1397 passing tests, 13 ignored. The lanes added 25
+binaries and 763 tests since: 2160 passed, 13 ignored, 0 failed.
 The matrix claim "Couvert (tests moteur exécutés sur l'appareil)" of `docs/android/UC_MATRIX_ANDROID.md`
 rests on this run: `scripts/android/uc_matrix_android.py` reads the date and the commit above and gives
 that status only to an id with at least one test that existed at this commit. An id whose tests were
 all added later is "Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire)", and the later
 tests of a covered id are listed apart; a new device run updates this file and the matrix follows.
-
-The build output (`target/android-device-tests-fx`, 4.0 GB) was deleted after the run.

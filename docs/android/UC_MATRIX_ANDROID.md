@@ -10,15 +10,15 @@ Les 47 identifiants requis doivent chacun avoir un scénario Android au verdict 
 
 Légende du statut : Couvert (scénario Android) (un scénario liste l'identifiant et son résultat est PASS), Couvert (tests moteur exécutés sur l'appareil) (des tests Rust portent l'identifiant et au moins l'un d'eux a passé lors du dernier passage sur l'appareil), Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) (des tests Rust portent l'identifiant, mais aucun n'existait lors du dernier passage sur l'appareil : ils ont passé sur la machine hôte seulement), En attente (identifiant requis sans scénario au verdict PASS), Exclu sur Android (comportement d'écran couvert sur Linux par un test d'interface seulement, prouvé sur Android autrement ; raison en fin de document), Hors périmètre, Non applicable et Couvert par X (exclusions de la matrice Linux reprises à l'identique), MANQUANT (aucune couverture ni exclusion).
 
-Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur date du 2026-10-10 (`docs/android/uc/device_engine_tests.md`, commit `778e9968`). Un test qui n'existait pas encore à ce commit a passé sur la machine hôte seulement : son exécution sur l'appareil reste à faire (`scripts/android/device_engine_tests.sh`). Un identifiant dont aucun test n'existait à ce commit a le statut Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) ; pour un identifiant déjà couvert sur l'appareil, les tests ajoutés depuis sont listés à part (« sur l'hôte seulement »).
+Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur date du 2026-10-18 (`docs/android/uc/device_engine_tests.md`, commit `7f96ae02`). Un test qui n'existait pas encore à ce commit a passé sur la machine hôte seulement : son exécution sur l'appareil reste à faire (`scripts/android/device_engine_tests.sh`). Un identifiant dont aucun test n'existait à ce commit a le statut Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) ; pour un identifiant déjà couvert sur l'appareil, les tests ajoutés depuis sont listés à part (« sur l'hôte seulement »).
 
 ## Synthèse
 
 | Statut | Nombre |
 |---|---|
 | Couvert (scénario Android) | 47 |
-| Couvert (tests moteur exécutés sur l'appareil) | 27 |
-| Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) | 11 |
+| Couvert (tests moteur exécutés sur l'appareil) | 38 |
+| Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) | 0 |
 | En attente | 0 |
 | Exclu sur Android | 24 |
 | Hors périmètre | 45 |
@@ -36,15 +36,15 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 | M112A | Remboursement partiel combiné à une nouvelle vente | - | - | - | Non applicable |
 | M112B | Remboursement partiel en ticket séparé | `10_basic/030_M112B.json` | PASS | `m112b_partial_refund_as_a_separate_ticket`, `m112b_partial_refund_is_separate_event_chained_to_original` | Couvert (scénario Android) |
 | M121 | Commande en gestion de table | `10_basic/040_M121.json` | PASS | `m121_sign_order_archives_p_event_and_keeps_order_open`, `m121_sign_order_response_omits_n_only_fields`, `m121_table_order` | Couvert (scénario Android) |
-| M122 | Changement de centre de coût (transfert de table) | - | - | `m122_cost_center_change` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
+| M122 | Changement de centre de coût (transfert de table) | - | - | `m122_cost_center_change` | Couvert (tests moteur exécutés sur l'appareil) |
 | M123 | Addition provisoire (pre-bill) | `10_basic/050_M123.json` | PASS | `m123_pre_bill`, `m123_sign_pre_bill_archives_p_event_and_keeps_order_open`, `vi_proforma_m123_the_pre_bill_says_addition_provisoire_without_vat` | Couvert (scénario Android) |
 | M130 | Mouvement de caisse (argent entrant/sortant) | `10_basic/060_M130.json` | PASS | `m130_money_in`, `m130_money_in_out_archives_f_event` | Couvert (scénario Android) |
 | M131 | Ouverture du tiroir-caisse | `10_basic/070_M131.json` | PASS | `m131_drawer_open`, `m131_drawer_open_archives_f_event` | Couvert (scénario Android) |
-| M132 | Correction de paiement | - | - | `m132_payment_correction` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
+| M132 | Correction de paiement | - | - | `m132_payment_correction` | Couvert (tests moteur exécutés sur l'appareil) |
 | M133 | Déclaration de fond de caisse (comptage) | `10_basic/080_M133.json` | PASS | `m133_drawer_declaration` | Couvert (scénario Android) |
 | M140 | Entrée en service de l'utilisateur | `10_basic/090_M140.json` | PASS | `m140_work_in`, `m140_work_in_archives_s_event` | Couvert (scénario Android) |
 | M141 | Sortie de service de l'utilisateur | `10_basic/100_M141.json` | PASS | `m141_work_out`, `m141_work_out_archives_s_event` | Couvert (scénario Android) |
-| M150 | Facturation | - | - | `m150_invoice_fdm_failure_does_not_advance_i_counter`, `m150_sign_invoice_archives_i_event_referencing_the_sale` ; sur l'hôte seulement : `m150_invoice` | Couvert (tests moteur exécutés sur l'appareil) |
+| M150 | Facturation | - | - | `m150_invoice`, `m150_invoice_fdm_failure_does_not_advance_i_counter`, `m150_sign_invoice_archives_i_event_referencing_the_sale` | Couvert (tests moteur exécutés sur l'appareil) |
 | M160 | Copie d'un ticket de vente | `10_basic/110_M160.json` | PASS | `m160_copy_of_a_sale`, `m160_copy_of_sale_archives_c_event_with_ref_to_original`, `vi_copy_m160_a_copy_reproduces_the_original_sale` | Couvert (scénario Android) |
 | M161 | Copie d'une commande | `10_basic/120_M161.json` | PASS | `m161_copy_of_an_order`, `m161_copy_of_order_archives_c_event_with_ref_to_p_event`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket` | Couvert (scénario Android) |
 | M170 | Entrée en service en mode formation | `20_training/010_M170.json` | PASS | `m170_work_in_in_training`, `m170_work_in_training_does_not_advance_normal_s_counter` | Couvert (scénario Android) |
@@ -84,10 +84,10 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 | UC222 | Modification de prix sur un produit composite | - | - | - | Hors périmètre |
 | UC223 | Modification de prix au niveau de l'event de vente | `40_advanced/020_UC223.json` | PASS | `uc223_event_discount_at_the_till`, `uc223_event_discount_matches_the_published_transaction` | Couvert (scénario Android) |
 | UC224 | Modifications de prix multiples sur une vente | - | - | - | Hors périmètre |
-| UC225A | Modification de prix en vente indirecte (cas A) | - | - | `uc225a_discount_after_registration` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
-| UC225B | Modification de prix en vente indirecte (cas B) | - | - | `uc225a_discount_after_registration` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
+| UC225A | Modification de prix en vente indirecte (cas A) | - | - | `uc225a_discount_after_registration` | Couvert (tests moteur exécutés sur l'appareil) |
+| UC225B | Modification de prix en vente indirecte (cas B) | - | - | `uc225a_discount_after_registration` | Couvert (tests moteur exécutés sur l'appareil) |
 | UC226 | Modification de prix | - | - | - | Hors périmètre |
-| UC229B | Article gratuit en vente directe | - | - | `uc229b_free_line_at_the_till` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
+| UC229B | Article gratuit en vente directe | - | - | `uc229b_free_line_at_the_till` | Couvert (tests moteur exécutés sur l'appareil) |
 | UC230 | Correction d'une ligne de vente avant paiement | `40_advanced/030_UC230.json` | PASS | `uc230_a_line_corrected_before_payment` | Couvert (scénario Android) |
 | UC240 | Scission de table vers une nouvelle table | - | - | - | Hors périmètre |
 | UC241 | Scission de table vers une table existante | - | - | - | Hors périmètre |
@@ -96,9 +96,9 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 | UC250 | Fusion de tables | - | - | - | Hors périmètre |
 | UC251 | Fusion de tables (variante) | - | - | - | Hors périmètre |
 | UC252 | Fusion de tables avec remise | - | - | - | Hors périmètre |
-| UC260 | Vente d'un bon à usage multiple (MPV) | - | - | `uc260_mpv_sale` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
-| UC261 | Utilisation d'un bon à usage multiple (MPV) | - | - | `a_gift_voucher_part_is_exact_and_never_rounded`, `uc261_mpv_use` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
-| UC262 | Utilisation d'un bon à usage multiple (MPV, variante) | - | - | `a_gift_voucher_part_is_exact_and_never_rounded`, `uc262_mpv_use` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
+| UC260 | Vente d'un bon à usage multiple (MPV) | - | - | `uc260_mpv_sale` | Couvert (tests moteur exécutés sur l'appareil) |
+| UC261 | Utilisation d'un bon à usage multiple (MPV) | - | - | `a_gift_voucher_part_is_exact_and_never_rounded`, `uc261_mpv_use` | Couvert (tests moteur exécutés sur l'appareil) |
+| UC262 | Utilisation d'un bon à usage multiple (MPV, variante) | - | - | `a_gift_voucher_part_is_exact_and_never_rounded`, `uc262_mpv_use` | Couvert (tests moteur exécutés sur l'appareil) |
 | UC270 | Vente d'un bon à usage unique (SPV) | - | - | - | Hors périmètre |
 | UC271 | Utilisation d'un bon à usage unique (SPV) | - | - | - | Hors périmètre |
 | UC280 | Produit composite | - | - | - | Hors périmètre |
@@ -131,8 +131,8 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 | UC4119bis | Scission d'addition (bis) | - | - | - | Hors périmètre |
 | UC4120 | Supplément avec modification de prix | - | - | - | Hors périmètre |
 | UC4120bis | Supplément sur une ligne de transaction (bis) | - | - | - | Hors périmètre |
-| UC4121 | Facture client | - | - | `uc4121_an_invoice_of_three_sales` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
-| UC4122 | Note de crédit | - | - | `uc4122_an_invoice_of_a_refund_and_two_sales` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
+| UC4121 | Facture client | - | - | `uc4121_an_invoice_of_three_sales` | Couvert (tests moteur exécutés sur l'appareil) |
+| UC4122 | Note de crédit | - | - | `uc4122_an_invoice_of_a_refund_and_two_sales` | Couvert (tests moteur exécutés sur l'appareil) |
 | UC4123 | Changement de centre de coût par chaise | - | - | - | Hors périmètre |
 
 ## Manuel
@@ -144,7 +144,7 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 | ROUND3 | Arrondi cash, vente combinée 14,86 EUR (situation 3, arrondi -0,01 EUR) | `50_rounding/030_ROUND3.json` | PASS | `round3_14_86_is_paid_14_85`, `round3_both_desserts_cash` | Couvert (scénario Android) |
 | ROUND4 | Arrondi avec chèques-repas non arrondis + solde cash (situation 4, arrondi +0,01 EUR) | `50_rounding/040_ROUND4.json` | PASS | `round4_meal_vouchers_then_cash`, `round4_meal_vouchers_then_cash_rounds_the_cash_rest_only` | Couvert (scénario Android) |
 | ROUND5 | Arrondi multi-paiements: chèques-repas + carte de débit + cash (situation 5, arrondi -0,01 EUR) | `50_rounding/050_ROUND5.json` | PASS | `round5_meal_vouchers_card_and_cash` | Couvert (scénario Android) |
-| VI_BAR | Contenu des autres tickets sans désignation spécifique (cuisine, bar) | - | - | `vi_bar_a_bar_ticket_never_shows_a_price`, `vi_bar_a_correction_prints_as_a_negative_line`, `vi_bar_a_correction_prints_its_negative_quantity`, `vi_bar_a_direct_sale_has_no_table` +16 ; sur l'hôte seulement : `vi_bar_a_long_note_wraps_under_the_first_word`, `vi_bar_a_note_prints_in_cp858_not_as_question_marks`, `vi_bar_a_removed_note_says_so`, `vi_bar_an_item_note_prints_indented_under_its_item` +4 | Couvert (tests moteur exécutés sur l'appareil) |
+| VI_BAR | Contenu des autres tickets sans désignation spécifique (cuisine, bar) | - | - | `vi_bar_a_bar_ticket_never_shows_a_price`, `vi_bar_a_correction_prints_as_a_negative_line`, `vi_bar_a_correction_prints_its_negative_quantity`, `vi_bar_a_direct_sale_has_no_table` +24 | Couvert (tests moteur exécutés sur l'appareil) |
 | VI_COPY | Contenu du ticket copie (réimpression) | - | - | `vi_copy_m160_a_copy_reproduces_the_original_sale`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket`, `vi_copy_the_copy_mark_and_the_original_block_follow_the_language`, `vi_copy_the_official_copy_example` +1 | Couvert (tests moteur exécutés sur l'appareil) |
 | VI_N | Contenu du ticket de vente (event N, ticket de caisse TVA) | - | - | `vi_n_a_sale_ticket_has_no_original_block`, `vi_n_the_issuer_legal_name_is_printed`, `vi_n_the_official_vat_ticket_example`, `vi_n_uc201_the_ticket_shows_the_sale_total_and_the_rounding_apart` | Couvert (tests moteur exécutés sur l'appareil) |
 | VI_PROFORMA | Contenu du ticket pro forma (aperçu d'addition) | - | - | `vi_proforma_m123_the_pre_bill_says_addition_provisoire_without_vat`, `vi_proforma_the_official_pre_bill_example` | Couvert (tests moteur exécutés sur l'appareil) |
@@ -187,11 +187,11 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 |---|---|---|---|---|---|
 | FAQ_Q202 | signPreBill: usage et lien avec un signOrder préalable | - | - | `m123_sign_pre_bill_archives_p_event_and_keeps_order_open`, `pre_bill_fdm_failure_on_the_second_step_does_not_burn_its_ticket_or_resend_the_order` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q205 | Une transaction en cours doit-elle donner lieu à un event P ou N | `70_faq/010_FAQ_Q205.json` | PASS | `faq_q205_a_takeaway_closed_unpaid_is_a_direct_sale`, `faq_q205_a_takeaway_is_never_registered_as_an_order`, `faq_q205_open_takeaways_are_listed_until_paid` | Couvert (scénario Android) |
-| FAQ_Q206 | Vente soldée à 0,00 EUR (remise de 100%): enregistrement | - | - | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` ; sur l'hôte seulement : `a_sale_settled_at_zero_sends_empty_financials_faq_q206` | Couvert (tests moteur exécutés sur l'appareil) |
+| FAQ_Q206 | Vente soldée à 0,00 EUR (remise de 100%): enregistrement | - | - | `a_sale_settled_at_zero_sends_empty_financials_faq_q206`, `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q207 | Règles d'usage de signPreBill et signOrder en gestion de table | - | - | `faq_q207_a_second_order_carries_only_the_new_lines` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q209 | Ticket de caisse TVA obligatoire même pour une vente à 0,00 EUR | - | - | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q211 | Unicité de la référence de costCenter | - | - | `faq_q211_each_table_session_has_its_own_reference` | Couvert (tests moteur exécutés sur l'appareil) |
-| FAQ_Q212 | Évolution de la référence de costCenter lors d'un transfert de table | - | - | `m122_cost_center_change` | Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) |
+| FAQ_Q212 | Évolution de la référence de costCenter lors d'un transfert de table | - | - | `m122_cost_center_change` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q301 | Distinction entre motifs REFUND et CORRECTION (negQuantityReason) | - | - | `m111_full_refund`, `negative_quantity_reason_depends_on_the_sale`, `uc230_a_line_corrected_before_payment` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q303 | Base de comptage des negQuantityReason dans le rapport X/Z | - | - | `a_table_correction_counts_on_its_order_registration`, `negative_lines_are_counted_per_reason` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q401 | Money In/Out obligatoire dès que la caisse encaisse du cash, même sans tiroir | - | - | `m130_money_in`, `m130_money_in_out_archives_f_event` | Couvert (tests moteur exécutés sur l'appareil) |
@@ -202,7 +202,7 @@ Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur
 | FAQ_Q502 | Les events R de rapport sont exclus des timestamps de la période couverte | - | - | `m180_turnover_x_of_the_scenario_day` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q503 | signCopy obligatoire pour toute réimpression, y compris une facture A4 | - | - | `a_printed_original_can_not_be_printed_again`, `m160_copy_of_sale_archives_c_event_with_ref_to_original` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q504 | Le rapport de chiffre d'affaires n'inclut pas les events de type Copy | - | - | `faq_q504_a_copy_is_not_turnover` | Couvert (tests moteur exécutés sur l'appareil) |
-| FAQ_Q505 | Identification du deviceId (adresse MAC ou identifiant matériel unique) | - | - | `m110_sale` ; sur l'hôte seulement : `m150_invoice` | Couvert (tests moteur exécutés sur l'appareil) |
+| FAQ_Q505 | Identification du deviceId (adresse MAC ou identifiant matériel unique) | - | - | `m110_sale`, `m150_invoice` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q506 | La query Status du FDM est facultative | - | - | `faq_q506_a_sale_is_signed_without_a_status_query` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q507 | La mention TICKET DE CAISSE T.V.A. est réservée au ticket de caisse fiscal | - | - | `every_ticket_carries_its_type_label_and_identification`, `vi_training_a_training_sale_prints_its_training_marks` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q509 | Champ totalAmount du rapport Z (objet users): somme des transactionTotal | - | - | `faq_q509_the_user_total_leaves_the_rounding_out` | Couvert (tests moteur exécutés sur l'appareil) |
