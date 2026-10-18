@@ -145,6 +145,70 @@ Liste des 123 captures de P8b (plus A124 à A129, à prendre après la fusion de
 | A128 | `A128_pointage_badge.png` | Écran de commande, un badge présenté pendant qu'un caissier est connecté : message « Arrivée · <nom> · HH:MM » (puis « Départ · <nom> · HH:MM » au passage suivant, après dix secondes) | 3 |
 | A129 | `A129_connexion_badge.png` | Écran de connexion, lecteur de badges activé et connexion par badge autorisée : mention « Ou présentez votre badge » sous les tuiles ; en mode « Fin de service », mention « Présentez votre badge pour terminer le service » sous le pavé | 2.1, 2.3 |
 
+| A112 | `A112_en_ligne_a_verifier.png` | Capture rc3 (2026-10-18, jeu de test SPF) : en ligne a verifier | voir manuel |
+| A127b | `A127b_lier_badge_pin.png` | Capture rc3 (2026-10-18, jeu de test SPF) : lier badge pin | voir manuel |
+| A130 | `A130_service_plusieurs_temps_inactif.png` | Capture rc3 (2026-10-18, jeu de test SPF) : service plusieurs temps inactif | voir manuel |
+| A131 | `A131_service_plusieurs_temps_actif.png` | Capture rc3 (2026-10-18, jeu de test SPF) : service plusieurs temps actif | voir manuel |
+| A132 | `A132_bons_cadeaux_reglage.png` | Capture rc3 (2026-10-18, jeu de test SPF) : bons cadeaux reglage | voir manuel |
+| A133 | `A133_alertes_telephone_reglage.png` | Capture rc3 (2026-10-18, jeu de test SPF) : alertes telephone reglage | voir manuel |
+| A136 | `A136_commande_changer_de_table.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande changer de table | voir manuel |
+| A137 | `A137_commande_par_temps.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande par temps | voir manuel |
+| A138 | `A138_selecteur_de_table.png` | Capture rc3 (2026-10-18, jeu de test SPF) : selecteur de table | voir manuel |
+| A139 | `A139_tables_apres_transfert.png` | Capture rc3 (2026-10-18, jeu de test SPF) : tables apres transfert | voir manuel |
+| A140 | `A140_tables_deplacer_mode.png` | Capture rc3 (2026-10-18, jeu de test SPF) : tables deplacer mode | voir manuel |
+| A141 | `A141_tables_deplacer_source.png` | Capture rc3 (2026-10-18, jeu de test SPF) : tables deplacer source | voir manuel |
+| A142 | `A142_tables_deplacer_confirmation.png` | Capture rc3 (2026-10-18, jeu de test SPF) : tables deplacer confirmation | voir manuel |
+| A143 | `A143_remise_pourcentage.png` | Capture rc3 (2026-10-18, jeu de test SPF) : remise pourcentage | voir manuel |
+| A144 | `A144_remise_montant.png` | Capture rc3 (2026-10-18, jeu de test SPF) : remise montant | voir manuel |
+| A145 | `A145_remise_offert.png` | Capture rc3 (2026-10-18, jeu de test SPF) : remise offert | voir manuel |
+| A146 | `A146_remise_pin.png` | Capture rc3 (2026-10-18, jeu de test SPF) : remise pin | voir manuel |
+| A147 | `A147_commande_remise_commande.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande remise commande | voir manuel |
+| A148 | `A148_note_dialogue.png` | Capture rc3 (2026-10-18, jeu de test SPF) : note dialogue | voir manuel |
+| A149 | `A149_commande_ligne_note.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande ligne note | voir manuel |
+| A150 | `A150_offrir_ligne_dialogue.png` | Capture rc3 (2026-10-18, jeu de test SPF) : offrir ligne dialogue | voir manuel |
+| A151 | `A151_commande_ligne_offerte.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande ligne offerte | voir manuel |
+| A152 | `A152_commande_remise_et_offert.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande remise et offert | voir manuel |
+| A153 | `A153_choix_temps_service.png` | Capture rc3 (2026-10-18, jeu de test SPF) : choix temps service | voir manuel |
+| A154 | `A154_envoyer_la_suite.png` | Capture rc3 (2026-10-18, jeu de test SPF) : envoyer la suite | voir manuel |
+| A155 | `A155_addition_avec_remise.png` | Capture rc3 (2026-10-18, jeu de test SPF) : addition avec remise | voir manuel |
+| A156 | `A156_paiement_avec_remise.png` | Capture rc3 (2026-10-18, jeu de test SPF) : paiement avec remise | voir manuel |
+| A159 | `A159_correction_dialogue.png` | Capture rc3 (2026-10-18, jeu de test SPF) : correction dialogue | voir manuel |
+| A160 | `A160_correction_choix.png` | Capture rc3 (2026-10-18, jeu de test SPF) : correction choix | voir manuel |
+| A162 | `A162_tickets_vente_cochee_facture.png` | Capture rc3 (2026-10-18, jeu de test SPF) : tickets vente cochee facture | voir manuel |
+| A163 | `A163_facture_client.png` | Capture rc3 (2026-10-18, jeu de test SPF) : facture client | voir manuel |
+| A165 | `A165_facture_apercu.png` | Capture rc3 (2026-10-18, jeu de test SPF) : facture apercu | voir manuel |
+| A166 | `A166_facture_refus_peppol.png` | Capture rc3 (2026-10-18, jeu de test SPF) : facture refus peppol | voir manuel |
+| A167 | `A167_facture_etablie.png` | Capture rc3 (2026-10-18, jeu de test SPF) : facture etablie | voir manuel |
+| A168 | `A168_factures_liste.png` | Capture rc3 (2026-10-18, jeu de test SPF) : factures liste | voir manuel |
+| A169 | `A169_rapport_ventes.png` | Capture rc3 (2026-10-18, jeu de test SPF) : rapport ventes | voir manuel |
+| A171 | `A171_commande_ligne_bon_cadeau.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande ligne bon cadeau | voir manuel |
+| A172 | `A172_fin_vente_bon_cadeau.png` | Capture rc3 (2026-10-18, jeu de test SPF) : fin vente bon cadeau | voir manuel |
+| A173 | `A173_paiement_bon_cadeau_code.png` | Capture rc3 (2026-10-18, jeu de test SPF) : paiement bon cadeau code | voir manuel |
+| A174 | `A174_paiement_bon_cadeau_valide.png` | Capture rc3 (2026-10-18, jeu de test SPF) : paiement bon cadeau valide | voir manuel |
+| A175 | `A175_paiement_bon_cadeau_et_especes.png` | Capture rc3 (2026-10-18, jeu de test SPF) : paiement bon cadeau et especes | voir manuel |
+| A176 | `A176_fin_vente_payee_bon_cadeau.png` | Capture rc3 (2026-10-18, jeu de test SPF) : fin vente payee bon cadeau | voir manuel |
+| A177 | `A177_bons_cadeaux_liste.png` | Capture rc3 (2026-10-18, jeu de test SPF) : bons cadeaux liste | voir manuel |
+| A178 | `A178_bons_cadeaux_verification.png` | Capture rc3 (2026-10-18, jeu de test SPF) : bons cadeaux verification | voir manuel |
+| A179 | `A179_epuise_mode.png` | Capture rc3 (2026-10-18, jeu de test SPF) : epuise mode | voir manuel |
+| A180 | `A180_epuise_dialogue.png` | Capture rc3 (2026-10-18, jeu de test SPF) : epuise dialogue | voir manuel |
+| A181 | `A181_produit_epuise_refus.png` | Capture rc3 (2026-10-18, jeu de test SPF) : produit epuise refus | voir manuel |
+| A182 | `A182_produits_epuises_liste.png` | Capture rc3 (2026-10-18, jeu de test SPF) : produits epuises liste | voir manuel |
+| A183 | `A183_editeur_carte_liste.png` | Capture rc3 (2026-10-18, jeu de test SPF) : editeur carte liste | voir manuel |
+| A184 | `A184_editeur_carte_produit.png` | Capture rc3 (2026-10-18, jeu de test SPF) : editeur carte produit | voir manuel |
+| A185 | `A185_allergenes_grille.png` | Capture rc3 (2026-10-18, jeu de test SPF) : allergenes grille | voir manuel |
+| A186 | `A186_editeur_produit_enregistre.png` | Capture rc3 (2026-10-18, jeu de test SPF) : editeur produit enregistre | voir manuel |
+| A187 | `A187_editeur_categorie_temps.png` | Capture rc3 (2026-10-18, jeu de test SPF) : editeur categorie temps | voir manuel |
+| A188 | `A188_commande_allergenes.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande allergenes | voir manuel |
+| A189 | `A189_fiche_allergenes_produit.png` | Capture rc3 (2026-10-18, jeu de test SPF) : fiche allergenes produit | voir manuel |
+| A190 | `A190_ticket_paiement_corrige.png` | Capture rc3 (2026-10-18, jeu de test SPF) : ticket paiement corrige | voir manuel |
+| A191 | `A191_correction_refusee_terminal.png` | Capture rc3 (2026-10-18, jeu de test SPF) : correction refusee terminal | voir manuel |
+| A192 | `A192_facture_client_peppol_inconnu.png` | Capture rc3 (2026-10-18, jeu de test SPF) : facture client peppol inconnu | voir manuel |
+| A193 | `A193_bon_cadeau_vente_montant.png` | Capture rc3 (2026-10-18, jeu de test SPF) : bon cadeau vente montant | voir manuel |
+| A194 | `A194_rapport_ventes_periode_libre.png` | Capture rc3 (2026-10-18, jeu de test SPF) : rapport ventes periode libre | voir manuel |
+| A50b | `A50b_hubrise_code_refuse.png` | Capture rc3 (2026-10-18, jeu de test SPF) : hubrise code refuse | voir manuel |
+
 Lignes A80 à A87 : écrans propres à Android, sans équivalent Linux (mise en service, à propos, export pour le SPF, mise à jour), décrits dans MANUEL_INSTALLATION_FR.md et MANUEL_UTILISATEUR_FR.md. Lignes A88 à A129 : compléments pour les écrans que le manuel décrit et qu'aucune ligne plus haut ne couvrait.
 
 **Compilation finale.** Une fois toutes les captures dans le dossier screenshots, `scripts/make_captures_pdf.sh` (adapté au dossier Android en P8b) les assemble dans l'ordre du nom de fichier en CAPTURES_ECRAN_FR.pdf. Vérifier ensuite que ce PDF figure dans les annexes de REPONSES_MANUEL_CERT_FR.md §V et §VII.D.
+
+Captures reprises le 2026-10-18 pour la version rc3 : toutes les lignes ci-dessus dont l'écran a changé (connexion, tables, commande, paiement, rapports, configuration) ont été refaites sur le jeu de test SPF ; les lignes A130 et suivantes sont nouvelles.

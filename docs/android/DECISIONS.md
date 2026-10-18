@@ -2223,3 +2223,9 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
   atomic voucher cancel movement, M132 exclusions), FACTURATION_PEPPOL (`invoice_gift_voucher_sale`) and
   MANUEL_UTILISATEUR (§8 bis, §9 bis) now state the same rules as BONS_CADEAUX_FR.md, in both dossiers; the three
   PDFs of each dossier are rebuilt.
+
+## Lane rc3 (2026-10-17)
+
+- Captures: retaken on the GMS emulator with the SPF test seed; new ids A130-A194 (collisions of A163/A164/A170 renumbered A190-A194). Peppol panel, A54/A55 and online orders not captured (no Peppol in test bundle, training toggle refused with open orders).
+- Engine fixes found while capturing: badge key creation race (pos-engine), menu editor refusing stored names in languages the till does not offer, pad refusal text shown as unexpected error (ReportsViewModel).
+- Known wording issue left unchanged: sales report "dont remboursements" counts discount reversal lines.
