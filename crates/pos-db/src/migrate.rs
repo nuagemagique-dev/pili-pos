@@ -354,7 +354,10 @@ mod tests {
     /// (60 owner settings and alerts, 61 allergens, 62 courses, 63 gift vouchers).
     #[test]
     fn the_owner_migrations_are_60_to_63_and_in_every_build() {
-        let owner: Vec<(i64, &str)> = OWNER_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
+        let owner: Vec<(i64, &str)> = OWNER_MIGRATIONS
+            .iter()
+            .map(|m| (m.version, m.name))
+            .collect();
         assert_eq!(
             owner,
             vec![
