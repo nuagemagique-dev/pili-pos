@@ -334,8 +334,9 @@ onMounted(() => {
     <AppHeader />
 
     <div class="grid">
-      <!-- Column 1: training mode, language, remote support -->
-      <div class="column">
+      <!-- Column 1: training mode, language, product display, table plan, export, Peppol, remote support.
+           It scrolls as a whole, like column 3. -->
+      <div class="column column-scroll">
         <!-- UX Guide §9: training mode toggle, effect described next to it -->
         <section class="panel training-panel" :class="{ active: pos.trainingMode }">
           <div class="panel-head">
@@ -492,8 +493,9 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- Column 3: info, email tickets, HubRise -->
-      <div class="column">
+      <!-- Column 3: info, integrations, menu editor, email tickets, badges, HubRise. It scrolls as a
+           whole (like the Android column): six panels do not fit 1080 px, and shrinking them overlapped. -->
+      <div class="column column-scroll">
         <section class="panel info-section">
           <h2>{{ t('info') }}</h2>
           <div v-if="pos.settings" class="info-rows">
@@ -628,6 +630,10 @@ onMounted(() => {
   border: 1px solid var(--border); border-radius: var(--radius-lg);
 }
 .panel-grow { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+/* A scrolling column: its panels keep their natural height, the last one may still fill the rest. */
+.column-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.column-scroll > * { flex: 0 0 auto; }
+.column-scroll > .panel-grow { flex: 1 0 auto; overflow-y: visible; }
 .panel h2 { font-size: 28px; font-weight: var(--font-weight-heavy); line-height: 1.2; }
 .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .panel-text { font-size: 16px; color: var(--text-secondary); text-wrap: pretty; }
@@ -780,6 +786,7 @@ onMounted(() => {
 /* ── Email tickets ──────────────────────────────────────────── */
 .deliveries-section { flex-shrink: 1; max-height: 45%; }
 .deliveries-section.panel-grow { max-height: none; }
+.column-scroll > .deliveries-section { flex-shrink: 0; }
 .refresh-btn {
   height: 48px; padding: 0 16px; border-radius: var(--radius-sm);
   background: var(--bg-surface); color: var(--text-primary);
