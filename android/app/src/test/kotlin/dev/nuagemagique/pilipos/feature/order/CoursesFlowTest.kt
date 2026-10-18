@@ -24,6 +24,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.CourseSettings
 import uniffi.pos_ffi.HeldCourse
+import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.NextCourse
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SlipOutcome
@@ -170,6 +171,30 @@ class CoursesFlowTest {
 
             assertEquals(ToastVariant.Error, r.lastToast().variant)
             assertTrue(r.lastToast().message.contains("déjà partie en cuisine"))
+        }
+
+    @Test
+    fun theNextCourseIsOfferedRightAfterTheFirstSlipWentToTheKitchen() =
+        runTest {
+            val w = world().apply {
+                cart = listOf(cartLine(1, 10, "Maki saumon", unsent = 1, course = 0, kitchenState = "unsent"))
+                held = emptyList()
+            }
+            val r = ready(w)
+            assertNull(r.state.cart.nextHeldCourse)
+            // "Envoyer en cuisine" signs the order: the mains the first slip held now wait.
+            coEvery { r.f.engine.leaveOrder(ORDER_ID, LeaveReason.SEND_TO_KITCHEN) } coAnswers
+                {
+                    w.cart = listOf(cartLine(1, 10, "Maki saumon", course = 0, kitchenState = "printed"))
+                    w.held = listOf(HeldCourse(2, 1, 1))
+                    SlipOutcome.PRINTED
+                }
+
+            r.model.sendToKitchen()
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.leaveOrder(ORDER_ID, LeaveReason.SEND_TO_KITCHEN) }
+            assertEquals(2, r.state.cart.nextHeldCourse)
         }
 
     // ── Envoyer la suite ──────────────────────────────────────────

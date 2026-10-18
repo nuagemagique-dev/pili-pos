@@ -970,3 +970,59 @@ no em-dash was added, `CLAUDE.md` counts (116 wrappers, 114 in the cert build) a
 The "Captures to retake" list of section 11 matches what T1 to T5 built (items 1 to 12; the Worker notes of T2,
 T3, T4, T5 name the same screens). Disk note: under 10 GB free during the run, regenerable worktree build outputs
 were removed (see DECISIONS).
+
+## Feature to test map
+
+Added by the test round (Sonnet 5.5, 2026-10-18). Layers: E = Rust engine tests (`crates/pos-engine/tests`),
+F = Rust FFI contract tests (`android/rust/pos-ffi/tests/ffi`), V = Playwright (`ui/e2e`), K = Kotlin JVM tests
+(`android/app/src/test`).
+
+| Feature | Layer | Test(s) |
+| --- | --- | --- |
+| A. Accountant export (detail CSV, daily journal, reconciliation, CLI exit codes, isolation) | Rust | `crates/pos-accounting/tests/{reconcile_report_day,synthetic,cli,isolation}.rs` |
+| B. Alert rules, Telegram channel, suppression, reminders, log | E | `owner_alerts.rs` |
+| B. Alerts panel: off by default, save, language, kinds | V | `owner-alerts.spec.ts` (is off by default, a manager turns the alerts on) |
+| B. Z deadline hour 0 to 12, shown as "N h" | V | `owner-alerts.spec.ts` (the Z deadline hour is kept between 0 and 12) |
+| B. Test button needs a token and a chat id | V | `owner-alerts.spec.ts` (the test button needs a token and a chat id) |
+| B. Load refusal shows the error, hides the form, skips the log | V | `owner-alerts.spec.ts` (a refused read, two codes) |
+| B. Panel for a manager only (wide and narrow) | V, K | `settings.spec.ts` (alerts, courses and gift voucher panels are for a manager only); `SettingsManagerPanelsTest.kt` (wide and narrow) |
+| B. Alerts panel on Compose | K | `feature/settings/alerts/*Test.kt`, `OwnerAlertsScreenshotTest` |
+| C. Allergen data, sheets, print, option allergens, HubRise import | E | `allergens.rs` |
+| C. Unknown allergen refuses the catalog; the record reaches Android | F, K | `hubrise.rs` (`every_issue_code_converts`, catalog outcomes, status converts); `HubriseSectionTest` (allergen typo text) |
+| C. Badges, mode, sheet, print, bilingual sheet (en/zh + French in parentheses) | V | `allergens.spec.ts` (in English the sheet is read twice, in French once) |
+| C. Print language rule (zh prints in French, en in English) | V | `allergens.spec.ts` (with the UI in zh/en/fr the sheet prints in ...) |
+| C. Sheet, print and legend load errors | V, K | `allergens.spec.ts` (a sheet the engine cannot find, a print the engine refuses, a legend the engine refuses); `AllergenModeTest`, `AllergenBadgesTest` (legend error bar) |
+| C. Allergen badges on options in the option dialog | V, K | `allergens.spec.ts` (option picker); `ModifierAllergenTest.kt` |
+| D. Course assignment by category, hold, release, corrections, FDM down, reprint | E | `courses.rs` |
+| D. A line added with options takes its course; a reused line id is fresh | E | `courses.rs` (`with_options::*`) |
+| D. Cart grouped by course, chips, picker, "Envoyer la suite" | V, K | `courses.spec.ts`; `CoursesCartTest`, `CoursesFlowTest` |
+| D. "Envoyer la suite" refusals (FDM down, no course held) as toasts | V | `courses.spec.ts` (a refused release, a release with nothing held) |
+| D. Resend case (course null) and slip failure warnings | V | `courses.spec.ts` (re-printing a slip, a signed P or a course slip that failed) |
+| D. Dine-in only (takeaway grouped, no button) | V | `courses.spec.ts` (a takeaway is grouped by course) |
+| D. Cart read again after each change | V | `courses.spec.ts` (every cart change reads the courses again) |
+| D. Checkout "Envoyer maintenant" and its refusals | V, K | `courses.spec.ts` (checkout warns, refused "Envoyer maintenant"); `CheckoutHeldCourseTest` |
+| D. Next course offered right after the first slip | K | `OrderStoreTest` (leaving the order reads the held courses again), `CoursesFlowTest` (the next course is offered right after) |
+| D. Course slip reprint wrapper (no screen, V12-D36) | V | `courses.spec.ts` (the wrapper sends the order and the course; the engine refusal reaches the caller) |
+| D. Settings panel | V, K | `courses.spec.ts` (Courses settings panel); `feature/settings/courses/*` |
+| D. Settings layout keeps the employees in view | V | `settings.spec.ts` (the employees stay in view) |
+| D. Table plan badge | V, K | `courses.spec.ts`; `TablesHeldCourseTest` |
+| E. Voucher sale, redemption, balance, refunds, reports, slips | E | `gift_vouchers.rs`, `spf_e2e_gift_vouchers.rs` |
+| E. System product survives a catalog sync | E | `gift_vouchers.rs` (`the_voucher_is_still_sold_after_a_catalog_sync`) |
+| E. HubRise echo: no echo for a voucher sale, "Other" for a voucher payment | E | `hubrise_gift_voucher_echo.rs` |
+| E. Sell button (cashier and manager only, V12-D41) | V, K | `gift-vouchers.spec.ts` (a waiter is not offered the button); `OrderGiftVoucherTest` |
+| E. Voucher line: badge, no course chip | V | `gift-vouchers.spec.ts` (a voucher line has its badge and no course chip) |
+| E. Lookup pad: 12 digits, edit clears the result | V | `gift-vouchers.spec.ts` (the code is capped at 12 digits) |
+| E. Expiry dd.mm.yyyy and training tag | V | `gift-vouchers.spec.ts` (the expiry is shown as dd.mm.yyyy) |
+| E. Same voucher twice counts once | V | `gift-vouchers.spec.ts` (the same voucher applied twice) |
+| E. Taken voucher part in the checkout footer | K | `CheckoutContentTest` (a taken gift voucher part) |
+| E. Settings refusal `gift_voucher_settings_invalid` | V | `gift-vouchers.spec.ts` (a validity outside 12 to 36 months) |
+| E. Reports tab: lookup only for a cashier | V | `gift-vouchers.spec.ts` (a cashier can look a voucher up) |
+| E. Gift voucher panel on Compose | K | `feature/settings/vouchers/*`, `SettingsManagerPanelsTest` |
+
+### Test round notes
+
+- Decisions V12-D41 to V12-D45 in DECISIONS (waiter and the voucher button, legend error, `reloadCourses` removed,
+  employees list, FFI `IssueCode`).
+- The shared cargo target mixes artifacts of lanes that hold the same crate names (see the T1 finding): this round
+  built in the worktree's own `target`.
+- Captures to retake: none new. The waiter rule and the legend error have no capture; no golden was re-recorded.

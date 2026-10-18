@@ -247,12 +247,6 @@ class OrderStore
                 next
             }
 
-        /** Reads the courses setting again (after the manager saved it). */
-        suspend fun reloadCourses() {
-            val seen = generation.get()
-            readCourses(mutableCurrent.value?.id, seen)
-        }
-
         /** Reads the open orders again. */
         suspend fun loadOpenOrders() {
             mutableOpenOrders.value = gateway.call { engine -> engine.listOpenOrders() }

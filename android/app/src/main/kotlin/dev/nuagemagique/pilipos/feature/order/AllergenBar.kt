@@ -35,7 +35,7 @@ private val LegendBadge = 20.dp
 /**
  * The allergen strip above the products (`allergen-bar` of `OrderView.vue`): the "Allergènes" toggle and, while the
  * mode is on, the hint and the legend of the 14 numbers, and, with gift vouchers on, the "Bon cadeau" button. Test
- * tags: `allergen_mode`, `gift_voucher_sell`, `allergen_legend`, `allergen_legend_<n>`.
+ * tags: `allergen_mode`, `gift_voucher_sell`, `allergen_legend`, `allergen_legend_<n>`, `allergen_legend_error`.
  */
 @Composable
 internal fun AllergenBar(
@@ -76,6 +76,14 @@ internal fun AllergenBar(
                 style = t.body.copy(fontSize = t.sizeSm, fontWeight = t.weightBold),
                 color = c.accentInfo,
             )
+            menu.allergenLegendError?.let { error ->
+                Text(
+                    text = error,
+                    style = t.body.copy(fontSize = t.sizeSm, fontWeight = t.weightBold),
+                    color = c.accentDanger,
+                    modifier = Modifier.testTag("allergen_legend_error"),
+                )
+            }
             FlowRow(
                 modifier = Modifier.fillMaxWidth().testTag("allergen_legend"),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),

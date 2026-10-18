@@ -74,4 +74,25 @@ class AllergenBadgesTest {
         compose.waitForIdle()
         compose.onNodeWithTag("allergen_badges").assertDoesNotExist()
     }
+    @Test
+    fun theBarTellsALegendThatCouldNotBeRead() {
+        compose.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    AllergenBar(MenuState(allergenMode = true, allergenLegendError = "Produit ou option introuvable (0)."), onToggle = {})
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("allergen_legend_error").assertTextEquals("Produit ou option introuvable (0).")
+    }
+
+    @Test
+    fun theBarShowsNoLegendErrorWhenAllIsWell() {
+        compose.setContent {
+            PiliTheme { ProvideUiText(AppLanguage.FR, catalog) { AllergenBar(MenuState(allergenMode = true), onToggle = {}) } }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("allergen_legend_error").assertDoesNotExist()
+    }
 }

@@ -33,6 +33,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import uniffi.pos_ffi.GiftVoucherSettings
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.User
+import uniffi.pos_ffi.UserRole
 
 /** Selling a gift voucher from the order screen (`OrderView.vue`, `OrderLineItem.vue`). */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -88,6 +90,41 @@ class OrderGiftVoucherTest {
             assertFalse(r.state.menu.giftVouchersEnabled)
             r.model.askGiftVoucher()
             assertEquals(OrderDialog.None, r.state.dialog)
+        }
+
+    @Test
+    fun aWaiterIsNotOfferedTheButtonAndCannotOpenTheDialog() =
+        runTest {
+            val w = OrderWorld(cart = listOf(cartLine(1, 10, "Maki saumon")))
+            val f = orderFixture(tmp.root, w)
+            coEvery { f.engine.getGiftVoucherSettings() } returns GiftVoucherSettings(true, 12, 50_000L)
+            val r = startOrder(f, w, context)
+            val waiter = User(insz = "90010100456", name = "Chen", role = UserRole.WAITER, active = true, hasPin = true)
+            coEvery { f.engine.login(waiter.insz, any()) } returns waiter
+            r.session.login(waiter.insz, "1234")
+            runCurrent()
+
+            assertFalse(r.state.menu.giftVouchersEnabled)
+            r.model.askGiftVoucher()
+            assertEquals(OrderDialog.None, r.state.dialog)
+            coVerify(exactly = 0) { f.engine.addGiftVoucherLine(any(), any()) }
+        }
+
+    @Test
+    fun aCashierIsOfferedTheButton() =
+        runTest {
+            val w = OrderWorld(cart = listOf(cartLine(1, 10, "Maki saumon")))
+            val f = orderFixture(tmp.root, w)
+            coEvery { f.engine.getGiftVoucherSettings() } returns GiftVoucherSettings(true, 12, 50_000L)
+            val r = startOrder(f, w, context)
+            val cashier = User(insz = "90010100123", name = "Bob", role = UserRole.CASHIER, active = true, hasPin = true)
+            coEvery { f.engine.login(cashier.insz, any()) } returns cashier
+            r.session.login(cashier.insz, "1234")
+            runCurrent()
+
+            assertTrue(r.state.menu.giftVouchersEnabled)
+            r.model.askGiftVoucher()
+            assertEquals(OrderDialog.SellVoucher, r.state.dialog)
         }
 
     @Test

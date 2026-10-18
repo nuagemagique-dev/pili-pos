@@ -1607,3 +1607,19 @@ appended by each task of the lane; T1 (accountant export) wrote the first entrie
   the decision ids `V12-D..` and this heading stay. Migrations are not renumbered here (rc3 pass). `uc_scope.toml`
   keeps UC260 to UC262 covered; the reasons of UC270, UC271 and UC4105 no longer name a version. `uc_matrix.py
   --write` is for the orchestrator after the merge.
+- **V12-D41 Voucher sale is a cashier action in the UI too (E).** The engine sells a voucher to a cashier or a
+  manager (`add_gift_voucher_line` is Cashier level), so a waiter is not offered the "Bon cadeau" button, on Vue
+  (`OrderView.vue`, `auth.canTakePayment`) and on Compose (`MenuViewModel`: the button needs `canPay`, and
+  `askGiftVoucher` is a no-op without it). Same rule as the Pay button; the engine refusal stays as the backstop.
+- **V12-D42 An allergen legend that cannot be read is told (C).** `list_allergens` failing used to leave the legend
+  empty and silent. Vue shows the error next to the hint (`allergen-legend-error`), Compose in the allergen bar
+  (`allergen_legend_error`); the next successful read clears it.
+- **V12-D43 `OrderStore.reloadCourses` removed (D).** Nothing called it. Both UIs read the courses setting when an
+  order is started or loaded and after every cart change, so a setting the manager saved is picked up by the next
+  order screen; no live reload is needed and Vue does not reload either.
+- **V12-D44 Settings employees list keeps room, not the whole list (D, E).** With the courses and gift voucher
+  panels drawn, the employees list stays visible (at least one row) and scrolls inside its panel; the test pins that
+  the list is not squeezed out, not that every row fits at 1920 x 1080.
+- **V12-D45 FFI `IssueCode` mirrors the catalog's `UnknownAllergen` (C).** The record lacked it, so a catalog refused
+  for an allergen typo made `hubrise_sync_catalog`, `hubrise_status` and `hubrise_adopt_catalog` answer an
+  internal contract error on Android. The record has it now and the contract tests cover the sync and the status.

@@ -126,6 +126,8 @@ internal data class MenuState(
     val allergenLegend: List<AllergenEntry> = emptyList(),
     /** Gift vouchers are on: the "Bon cadeau" button shows next to "Allergènes". */
     val giftVouchersEnabled: Boolean = false,
+    /** The legend could not be read (`allergens.error` of `OrderView.vue`), already turned into text. */
+    val allergenLegendError: String? = null,
 )
 
 /** What the order screen shows. */

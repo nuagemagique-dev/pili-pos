@@ -5,6 +5,7 @@ import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.engine.EngineUnavailableException
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -823,6 +824,27 @@ class OrderStoreTest {
 
             assertTrue(r.store.courseSettings.value.enabled)
             assertEquals(listOf(HeldCourse(2, 1, 1)), r.store.heldCourses.value)
+        }
+
+    @Test
+    fun leavingTheOrderReadsTheHeldCoursesAgainSoTheNextCourseIsOfferedAtOnce() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, emptyList())
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10, unsent = 1)))
+            assertEquals(emptyList<HeldCourse>(), r.store.heldCourses.value)
+            // The first slip carried the starters and held the mains.
+            coEvery { r.f.engine.leaveOrder(1L, LeaveReason.SEND_TO_KITCHEN) } returns SlipOutcome.PRINTED
+            coEvery { r.f.engine.listCartLines(1L) } returns listOf(line(1, 10, unsent = 0))
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+
+            r.store.leave(LeaveReason.SEND_TO_KITCHEN)
+
+            assertEquals(listOf(HeldCourse(2, 1, 1)), r.store.heldCourses.value)
+            coVerifyOrder {
+                r.f.engine.leaveOrder(1L, LeaveReason.SEND_TO_KITCHEN)
+                r.f.engine.listHeldCourses(1L)
+            }
         }
 
     @Test

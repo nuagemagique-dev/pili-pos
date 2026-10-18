@@ -57,6 +57,7 @@ private data class Data(
     val allergenLegend: List<AllergenEntry> = emptyList(),
     val sendingNext: Boolean = false,
     val giftVouchersEnabled: Boolean = false,
+    val allergenLegendError: String? = null,
 )
 
 /** What the cart shows of the courses: the switch and the next held course. */
@@ -202,7 +203,7 @@ internal class MenuViewModel(
             menu =
                 MenuState(
                     d.categories, d.selectedCategoryId, d.items, quantities, l.language, l.labelMode, d.loaded,
-                    d.allergenMode, d.allergenLegend, d.giftVouchersEnabled,
+                    d.allergenMode, d.allergenLegend, d.giftVouchersEnabled && l.canPay, d.allergenLegendError,
                 ),
             cart =
                 OrderCartState(
@@ -384,7 +385,8 @@ internal class MenuViewModel(
 
     /** The "Bon cadeau" button: asks for the amount of the voucher. */
     fun askGiftVoucher() {
-        if (!isRouteOrderCurrent() || !data.value.giftVouchersEnabled) return
+        // The engine sells a voucher to a cashier or a manager only: a waiter is not offered the button.
+        if (!isRouteOrderCurrent() || !data.value.giftVouchersEnabled || !session.canTakePayment.value) return
         data.update { it.copy(dialog = OrderDialog.SellVoucher) }
     }
 
@@ -405,8 +407,12 @@ internal class MenuViewModel(
         if (on && data.value.allergenLegend.isEmpty()) {
             viewModelScope.launch {
                 attempt { gateway.call { engine -> engine.listAllergens() } }.fold(
-                    onSuccess = { legend -> data.update { it.copy(allergenLegend = legend) } },
-                    onFailure = { Timber.d(it, "Allergen legend not loaded") },
+                    onSuccess = { legend -> data.update { it.copy(allergenLegend = legend, allergenLegendError = null) } },
+                    onFailure = { error ->
+                        Timber.d(error, "Allergen legend not loaded")
+                        val text = entry.errors().text(error, settings.language.value)
+                        data.update { it.copy(allergenLegendError = text) }
+                    },
                 )
             }
         }

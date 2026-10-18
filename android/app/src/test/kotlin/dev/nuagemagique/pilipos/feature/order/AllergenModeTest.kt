@@ -128,6 +128,26 @@ class AllergenModeTest {
 
             assertTrue(r.state.menu.allergenMode)
             assertEquals(emptyList<AllergenEntry>(), r.state.menu.allergenLegend)
+            // The failure is told in the bar, like the legend error of the Vue screen.
+            assertNotNull(r.state.menu.allergenLegendError)
+        }
+
+    @Test
+    fun aLegendReadThatWorksAfterAFailureClearsTheError() =
+        runTest {
+            val r = ready()
+            coEvery { r.f.engine.listAllergens() } throws PosException.Coded("internal_error", mapOf("detail" to "x"))
+            r.model.toggleAllergenMode()
+            runCurrent()
+            assertNotNull(r.state.menu.allergenLegendError)
+
+            coEvery { r.f.engine.listAllergens() } returns legend
+            r.model.toggleAllergenMode()
+            r.model.toggleAllergenMode()
+            runCurrent()
+
+            assertEquals(legend, r.state.menu.allergenLegend)
+            assertNull(r.state.menu.allergenLegendError)
         }
 
     @Test

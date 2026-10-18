@@ -197,7 +197,7 @@ private fun vouchersCallbacksOf(model: GiftVoucherViewModel) =
 
 /** The manager panels of the second column: the courses and the gift vouchers. */
 @Composable
-private fun ManagerPanels(
+internal fun ManagerPanels(
     courses: CoursesUiState,
     coursesCallbacks: CoursesCallbacks,
     vouchers: GiftVoucherUiState,
