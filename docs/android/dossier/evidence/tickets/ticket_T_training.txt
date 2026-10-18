@@ -3,7 +3,7 @@
                     TRAINING
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:51
+18.10.2026                                 17:10
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000001
@@ -21,9 +21,9 @@ Especes                                    52,00
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:51:58Z;
+fdmDateTime: 2026-10-18T15:10:27Z;
 Event: T; eventCounter: 1;
-totalCounter: 12;
+totalCounter: 9;
 
 Denomination legale : Restaurant Test
 1 Rue du Test, 4000 Liege

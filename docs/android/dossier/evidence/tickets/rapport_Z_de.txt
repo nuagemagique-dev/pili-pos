@@ -4,24 +4,25 @@
                MwSt: BE0000000097
         Niederlassungseinheit 2000000042
 ------------------------------------------------
-BERICHT Z                      15/10/26 00:54:30
+BERICHT Z                      18/10/26 17:22:28
 Bericht Nr. 3
-Bon:                                      000006
+Bon:                                      000008
 Mitarbeiter:                         94060242576
 ------------------------------------------------
                Oeffnungszeitraum
-Datum:                                2026-10-14
+Datum:                                2026-10-18
 BookingPeriodId:
-bc64d77a-1105-415b-821c-f3994cbc9eaf
-Beginn                          2026-10-15 00:54
-Ende                            2026-10-15 00:54
+35d8e223-50fc-4dd7-8cc7-729108ddd471
+Beginn                          2026-10-18 17:21
+Ende                            2026-10-18 17:22
 POSID                             CPOS0031234567
 TerminalId                         POS-2-ANDROID
 FDMID                                MCK00000001
-Erstes                       16 2026-10-14 22:54
-Letztes                      16 2026-10-14 22:54
+Erstes                       22 2026-10-18 15:21
+Letztes                      23 2026-10-18 15:22
 ------------------------------------------------
 Event N Umsaetze 1                         12,00
+Event T Schulung 1                         52,00
 ------------------------------------------------
                 MwSt-Uebersicht
 Satz             Netto         MwSt       Brutto
@@ -44,7 +45,7 @@ Rueckerstattungen 0                         0,00
 Kassenschublade 0
 ------------------------------------------------
                     Schulung
-Schulungsbons 0                             0,00
+Schulungsbons 1                            52,00
 ------------------------------------------------
                     Rabatte
 Zeilenrabatte 0                             0,00
@@ -58,7 +59,7 @@ Bar                                        12,00
 Summe Zahlungen                            12,00
 Rundungen                                   0,00
 ------------------------------------------------
-       fdmDateTime: 2026-10-14T22:54:29Z;
+       fdmDateTime: 2026-10-18T15:22:28Z;
 ================================================
    DIES IST KEIN GUELTIGER MWST.-KASSENZETTEL
 

@@ -4,7 +4,7 @@
 **Produit :** pili-pos-android 1.0.0 (posSwVersion pili-pos-android/1.0.0)
 **Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
 **Date :** À effectuer (EV-18 : date de dépôt)
-**Tickets relevés le :** 15.10.2026, sur l'AVD `sunmi_d3_pro_gms_api33` (identifiant d'appareil imprimé `EMULATOR37X2X12X0`)
+**Tickets relevés le :** 18.10.2026 (relevé refait avec le libellé « Chèques-repas » et le code du lot rc3), sur l'AVD `sunmi_d3_pro_gms_api33` (identifiant d'appareil imprimé `EMULATOR37X2X12X0`)
 
 Conformément au §IV §1209-1210 du Manuel de certification SCE 2.0, le dossier doit contenir un exemple de chaque type de ticket imprimé par le système.
 
@@ -56,7 +56,7 @@ Réponse au tableau « Contenu du ticket » du manuel §VI. Une ligne par élém
 
 Cases relevées sur les transcriptions des sections 1 à 8 ci-dessous.
 
-**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE), fixée par installation (GARANTIE_MAJ_LANGUES_FR.md §3.2). Les exemples sont présentés en français ; le rapport Z l'est aussi en néerlandais et en allemand (section 7), obtenus en réglant `language` du fichier `pos.json` de l'appareil de test puis en redémarrant l'application. Les libellés fixes (moyens de paiement, « Unite d'etablissement », « Denomination legale »...) sont imprimés sans accents, à dessein : `labels.rs` les garde en ASCII pour qu'ils s'impriment de la même façon quelle que soit la page de codes de l'imprimante (seuls les textes saisis, comme les produits et l'adresse, passent par CP858). Les exemples reprennent « Especes » et « Cheques-repas » tels qu'ils ont été imprimés lors de l'exécution du 2026-10-15. Depuis, le libellé du moteur est « Chèques-repas » (e accent grave, point de code CP858 0x8A, imprimable sur les imprimantes du terminal) : les tickets de cette annexe sont à relever de nouveau sur l'appareil au commit de livraison, pour montrer le libellé définitif (`À effectuer`, voir EV-08).
+**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE), fixée par installation (GARANTIE_MAJ_LANGUES_FR.md §3.2). Les exemples sont présentés en français ; le rapport Z l'est aussi en néerlandais et en allemand (section 7), obtenus en réglant `language` du fichier `pos.json` de l'appareil de test puis en redémarrant l'application (les rapports Z nos 2 et 3, clôturés après une vente de 12,00 € et une vente de formation de 52,00 €). Les libellés fixes (moyens de paiement, « Unite d'etablissement », « Denomination legale »...) sont imprimés sans accents, à dessein (sauf « Chèques-repas », voir plus bas) : `labels.rs` les garde en ASCII pour qu'ils s'impriment de la même façon quelle que soit la page de codes de l'imprimante (seuls les textes saisis, comme les produits et l'adresse, passent par CP858). Les exemples reprennent « Especes » (ASCII) et « Chèques-repas » (e accent grave, point de code CP858 0x8A, imprimable sur les imprimantes du terminal), tels qu'ils ont été imprimés lors de l'exécution du 18.10.2026 : la carte y est une carte Bancontact encaissée par le terminal de paiement simulé (`pos-eft-mock`, marque « Bancontact » imprimée « Carte Bancontact »).
 
 ---
 
@@ -67,7 +67,7 @@ Scénario du manuel : 2 Dry Martini (12,00 €, TVA A) et 1 Burger du chef (28,0
             TICKET DE CAISSE T.V.A.
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:46
+18.10.2026                                 17:03
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000001
@@ -82,16 +82,16 @@ TOTAL :                                   €52,00
 Mode de paiement :
 Especes                                    52,00
 % TVA   CODE          HT       TVA      Brut
-21,00%  A          19,83      4,17     24,00
 12,00%  B          25,00      3,00     28,00
+21,00%  A          19,83      4,17     24,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:46:04Z;
+fdmDateTime: 2026-10-18T15:03:58Z;
 Event: N; eventCounter: 1;
 totalCounter: 4; shortSignature:
-0bf0f4adefa87f77457a0995208ffca905958e31;
+fc81cf1748b30fc38f6543978eff27c90f920371;
 
  [QR: https://www.gs2.be/M0000100004AbCdEfGhI]  
 
@@ -114,7 +114,7 @@ Même commande qu'au M110, juste avant l'encaissement. Ni QR code ni shortSignat
               ADDITION PROVISOIRE
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:45
+18.10.2026                                 17:03
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000002
@@ -130,7 +130,7 @@ TOTAL :                                   €52,00
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:45:58Z;
+fdmDateTime: 2026-10-18T15:03:47Z;
 Event: P; eventCounter: 2;
 totalCounter: 3;
 
@@ -155,7 +155,7 @@ Remboursement intégral du M110. Remboursement en espèces par « Rapports », �
                  REMBOURSEMENT
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:47
+18.10.2026                                 17:06
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000002
@@ -176,19 +176,19 @@ Especes                                   -52,00
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:47:29Z;
+fdmDateTime: 2026-10-18T15:06:33Z;
 Event: N; eventCounter: 2;
 totalCounter: 6; shortSignature:
-848cd607e989bdfe53ae5a21bb9452c463aaaf62;
+7113f6e64daaf8b9fba4e1ad40da29f446f3d61d;
 
  [QR: https://www.gs2.be/M0000200006AbCdEfGhI]  
 
 Informations FDM d'origine :
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:46:04Z;
+fdmDateTime: 2026-10-18T15:03:58Z;
 Event: N; eventCounter: 1;
 totalCounter: 4; shortSignature:
-0bf0f4adefa87f77457a0995208ffca905958e31;
+fc81cf1748b30fc38f6543978eff27c90f920371;
 
 Denomination legale : Restaurant Test
 1 Rue du Test, 4000 Liege
@@ -208,7 +208,7 @@ Copie du ticket M110. La copie reproduit le ticket de la section 1 et son QR cod
                      COPIE
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:46
+18.10.2026                                 17:03
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000001
@@ -223,13 +223,13 @@ TOTAL :                                   €52,00
 Mode de paiement :
 Especes                                    52,00
 % TVA   CODE          HT       TVA      Brut
-21,00%  A          19,83      4,17     24,00
 12,00%  B          25,00      3,00     28,00
+21,00%  A          19,83      4,17     24,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:46:42Z;
+fdmDateTime: 2026-10-18T15:04:17Z;
 Event: C; eventCounter: 1;
 totalCounter: 5;
 
@@ -237,11 +237,11 @@ totalCounter: 5;
 
 Informations FDM d'origine :
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:46:04Z;
+fdmDateTime: 2026-10-18T15:03:58Z;
 Event: N; eventCounter: 1;
 totalCounter: 4; shortSignature:
-0bf0f4adefa87f77457a0995208ffca905958e31;
-Copie etablie le 15.10.2026 00:46
+fc81cf1748b30fc38f6543978eff27c90f920371;
+Copie etablie le 18.10.2026 17:04
 
 Denomination legale : Restaurant Test
 1 Rue du Test, 4000 Liege
@@ -262,7 +262,7 @@ Même commande que M110 en mode formation. Mode formation actif dans Configurati
                     TRAINING
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:51
+18.10.2026                                 17:10
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000001
@@ -280,9 +280,9 @@ Especes                                    52,00
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:51:58Z;
+fdmDateTime: 2026-10-18T15:10:27Z;
 Event: T; eventCounter: 1;
-totalCounter: 12;
+totalCounter: 9;
 
 Denomination legale : Restaurant Test
 1 Rue du Test, 4000 Liege
@@ -307,36 +307,37 @@ Rapport X en cours de service. Tiré après les ventes des sections 1 à 4 et 10
                TVA: BE0000000097
         Unite d'etablissement 2000000042
 ------------------------------------------------
-RAPPORT X                      15/10/26 00:50:38
+RAPPORT X                      18/10/26 17:13:03
 Ticket:                                   000001
 Employe:                             94060242576
 ------------------------------------------------
               Periode d'ouverture
-Date:                                 2026-10-14
+Date:                                 2026-10-18
 BookingPeriodId:
-663a179a-4f60-4238-802a-dcdc466ce9f0
-Debut                           2026-10-15 00:45
-Fin                             2026-10-15 00:50
+7d253de1-e410-4c42-ab4f-fd59c9a016f1
+Debut                           2026-10-18 17:03
+Fin                             2026-10-18 17:12
 POSID                             CPOS0031234567
 TerminalId                         POS-2-ANDROID
 FDMID                                MCK00000001
-Premier                       1 2026-10-14 22:45
-Dernier                       8 2026-10-14 22:50
+Premier                       1 2026-10-18 15:03
+Dernier                      10 2026-10-18 15:12
 ------------------------------------------------
-Event N Ventes 4                           26,86
+Event N Ventes 5                           78,86
 Event P Pro forma 2                       104,00
+Event T Formation 1                        52,00
 ------------------------------------------------
                    Apercu TVA
 Taux                HT          TVA          TTC
-21%               9,92         2,08        12,00
-12%              13,27         1,59        14,86
+21%              29,75         6,25        36,00
+12%              38,27         4,59        42,86
 6%                   -            -            -
 0%                   -            -            -
-Total            23,19         3,67        26,86
+Total            68,02        10,84        78,86
 ------------------------------------------------
        Departements du chiffre d'affaires
-Aperitifs                                  12,00
-Main Dishes                                 0,00
+Aperitifs                                  36,00
+Main Dishes                                28,00
 Desserts                                   11,52
 Tapas                                       3,34
 ------------------------------------------------
@@ -350,7 +351,7 @@ Remboursements 1                          -52,00
 Tiroir-caisse 0
 ------------------------------------------------
                    Formation
-Tickets de formation 0                      0,00
+Tickets de formation 1                     52,00
 ------------------------------------------------
                    Reductions
 Reductions de lignes 0                      0,00
@@ -360,13 +361,13 @@ Reductions d'evenements 0                   0,00
 Factures 0
 ------------------------------------------------
              PAIEMENTS ENREGISTRES
-Especes                                     2,46
-Cheques-repas                              11,52
+Especes                                    54,46
 Carte                                       0,88
-Total des paiements                        14,86
+Chèques-repas                              11,52
+Total des paiements                        66,86
 Arrondis                                   -0,01
 ------------------------------------------------
-       fdmDateTime: 2026-10-14T22:50:37Z;
+       fdmDateTime: 2026-10-18T15:13:04Z;
 ================================================
    CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
                     VALABLE
@@ -387,37 +388,38 @@ Clôture journalière (Z n°1). Z n°1, tiré après le rapport X ; la clôture 
                TVA: BE0000000097
         Unite d'etablissement 2000000042
 ------------------------------------------------
-RAPPORT Z                      15/10/26 00:51:02
+RAPPORT Z                      18/10/26 17:14:01
 Rapport nr. 1
-Ticket:                                   000002
+Ticket:                                   000003
 Employe:                             94060242576
 ------------------------------------------------
               Periode d'ouverture
-Date:                                 2026-10-14
+Date:                                 2026-10-18
 BookingPeriodId:
-663a179a-4f60-4238-802a-dcdc466ce9f0
-Debut                           2026-10-15 00:45
-Fin                             2026-10-15 00:50
+7d253de1-e410-4c42-ab4f-fd59c9a016f1
+Debut                           2026-10-18 17:03
+Fin                             2026-10-18 17:13
 POSID                             CPOS0031234567
 TerminalId                         POS-2-ANDROID
 FDMID                                MCK00000001
-Premier                       1 2026-10-14 22:45
-Dernier                       9 2026-10-14 22:50
+Premier                       1 2026-10-18 15:03
+Dernier                      12 2026-10-18 15:13
 ------------------------------------------------
-Event N Ventes 4                           26,86
+Event N Ventes 5                           78,86
 Event P Pro forma 2                       104,00
+Event T Formation 1                        52,00
 ------------------------------------------------
                    Apercu TVA
 Taux                HT          TVA          TTC
-21%               9,92         2,08        12,00
-12%              13,27         1,59        14,86
+21%              29,75         6,25        36,00
+12%              38,27         4,59        42,86
 6%                   -            -            -
 0%                   -            -            -
-Total            23,19         3,67        26,86
+Total            68,02        10,84        78,86
 ------------------------------------------------
        Departements du chiffre d'affaires
-Aperitifs                                  12,00
-Main Dishes                                 0,00
+Aperitifs                                  36,00
+Main Dishes                                28,00
 Desserts                                   11,52
 Tapas                                       3,34
 ------------------------------------------------
@@ -431,7 +433,7 @@ Remboursements 1                          -52,00
 Tiroir-caisse 0
 ------------------------------------------------
                    Formation
-Tickets de formation 0                      0,00
+Tickets de formation 1                     52,00
 ------------------------------------------------
                    Reductions
 Reductions de lignes 0                      0,00
@@ -441,13 +443,13 @@ Reductions d'evenements 0                   0,00
 Factures 0
 ------------------------------------------------
              PAIEMENTS ENREGISTRES
-Especes                                     2,46
-Cheques-repas                              11,52
+Especes                                    54,46
 Carte                                       0,88
-Total des paiements                        14,86
+Chèques-repas                              11,52
+Total des paiements                        66,86
 Arrondis                                   -0,01
 ------------------------------------------------
-       fdmDateTime: 2026-10-14T22:51:02Z;
+       fdmDateTime: 2026-10-18T15:14:01Z;
 ================================================
    CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
                     VALABLE
@@ -468,22 +470,22 @@ Même Z, ticket en néerlandais. Z n°2 de l'appareil de test (nouvelle journée
                BTW: BE0000000097
           Vestigingseenheid 2000000042
 ------------------------------------------------
-RAPPORT Z                      15/10/26 00:53:30
+RAPPORT Z                      18/10/26 17:20:17
 Rapport nr. 2
-Ticket:                                   000004
+Ticket:                                   000006
 Werknemer:                           94060242576
 ------------------------------------------------
                 Openingsperiode
-Datum:                                2026-10-14
+Datum:                                2026-10-18
 BookingPeriodId:
-369a5777-2b22-4ba8-8321-01ea3bb0abd9
-Begin                           2026-10-15 00:51
-Einde                           2026-10-15 00:53
+4dd961d8-3cfd-49f1-ba0b-ef39f239f18d
+Begin                           2026-10-18 17:17
+Einde                           2026-10-18 17:19
 POSID                             CPOS0031234567
 TerminalId                         POS-2-ANDROID
 FDMID                                MCK00000001
-Eerste                       12 2026-10-14 22:51
-Laatste                      13 2026-10-14 22:53
+Eerste                       15 2026-10-18 15:17
+Laatste                      19 2026-10-18 15:19
 ------------------------------------------------
 Event N Verkoop 1                          12,00
 Event T Opleiding 1                        52,00
@@ -523,7 +525,7 @@ Contant                                    12,00
 Totaal betalingen                          12,00
 Afrondingen                                 0,00
 ------------------------------------------------
-       fdmDateTime: 2026-10-14T22:53:30Z;
+       fdmDateTime: 2026-10-18T15:20:17Z;
 ================================================
         DIT IS GEEN GELDIG BTW-KASTICKET
 
@@ -543,24 +545,25 @@ Même Z, ticket en allemand. Z n°3, `language` réglé sur `de`, même remarque
                MwSt: BE0000000097
         Niederlassungseinheit 2000000042
 ------------------------------------------------
-BERICHT Z                      15/10/26 00:54:30
+BERICHT Z                      18/10/26 17:22:28
 Bericht Nr. 3
-Bon:                                      000006
+Bon:                                      000008
 Mitarbeiter:                         94060242576
 ------------------------------------------------
                Oeffnungszeitraum
-Datum:                                2026-10-14
+Datum:                                2026-10-18
 BookingPeriodId:
-bc64d77a-1105-415b-821c-f3994cbc9eaf
-Beginn                          2026-10-15 00:54
-Ende                            2026-10-15 00:54
+35d8e223-50fc-4dd7-8cc7-729108ddd471
+Beginn                          2026-10-18 17:21
+Ende                            2026-10-18 17:22
 POSID                             CPOS0031234567
 TerminalId                         POS-2-ANDROID
 FDMID                                MCK00000001
-Erstes                       16 2026-10-14 22:54
-Letztes                      16 2026-10-14 22:54
+Erstes                       22 2026-10-18 15:21
+Letztes                      23 2026-10-18 15:22
 ------------------------------------------------
 Event N Umsaetze 1                         12,00
+Event T Schulung 1                         52,00
 ------------------------------------------------
                 MwSt-Uebersicht
 Satz             Netto         MwSt       Brutto
@@ -583,7 +586,7 @@ Rueckerstattungen 0                         0,00
 Kassenschublade 0
 ------------------------------------------------
                     Schulung
-Schulungsbons 0                             0,00
+Schulungsbons 1                            52,00
 ------------------------------------------------
                     Rabatte
 Zeilenrabatte 0                             0,00
@@ -597,7 +600,7 @@ Bar                                        12,00
 Summe Zahlungen                            12,00
 Rundungen                                   0,00
 ------------------------------------------------
-       fdmDateTime: 2026-10-14T22:54:29Z;
+       fdmDateTime: 2026-10-18T15:22:28Z;
 ================================================
    DIES IST KEIN GUELTIGER MWST.-KASSENZETTEL
 
@@ -613,7 +616,7 @@ Lignes envoyées d'une table ou d'une vente directe, jamais de prix. « Envoyer 
 ```
                 BON DE COMMANDE
 ================================================
-Date:                        15/10/2026 00:45:53
+Date:                        18/10/2026 17:03:42
 Operateur:                           Gerant Test
 Table 5
 ------------------------------------------------
@@ -712,10 +715,10 @@ Même vente M110 envoyée par e-mail (TICKET_NUMERIQUE_FR.md §2-3 et §5). Vent
             TICKET DE CAISSE T.V.A.
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:56
+18.10.2026                                 17:12
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
-Ticketnr.: 000007
+Ticketnr.: 000005
 POS Serial: CPOS0031234567
 Input device MAC: EMULATOR37X2X12X0
 Logiciel de caisse v.: pili-pos-android/1.0.0
@@ -727,18 +730,18 @@ TOTAL :                                   €52,00
 Mode de paiement :
 Especes                                    52,00
 % TVA   CODE          HT       TVA      Brut
-21,00%  A          19,83      4,17     24,00
 12,00%  B          25,00      3,00     28,00
+21,00%  A          19,83      4,17     24,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:56:16Z;
-Event: N; eventCounter: 7;
-totalCounter: 19; shortSignature:
-42aa7c69dd1f3a68b8024d422af41d7f5fc5006a;
+fdmDateTime: 2026-10-18T15:12:36Z;
+Event: N; eventCounter: 5;
+totalCounter: 10; shortSignature:
+71685c1778b1e9c8b3c23e19fee96d4468ae4746;
 
- [QR: https://www.gs2.be/M0000700019AbCdEfGhI]  
+ [QR: https://www.gs2.be/M0000500010AbCdEfGhI]  
 
 
 Denomination legale : Restaurant Test
@@ -751,7 +754,7 @@ TVA: BE0000000097
 ✂-----------------------------------------------
 
 
-https://www.gs2.be/M0000700019AbCdEfGhI
+https://www.gs2.be/M0000500010AbCdEfGhI
 ```
 
 ## 10. Paiement en plusieurs moyens (ROUND5 - Événement N)
@@ -761,7 +764,7 @@ Chèques-repas, carte et reste en espèces arrondi. Dame Blanche 11,52 € et Ta
             TICKET DE CAISSE T.V.A.
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:50
+18.10.2026                                 17:08
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000004
@@ -774,8 +777,8 @@ Logiciel de caisse v.: pili-pos-android/1.0.0
 TOTAL :                                   €14,86
 ................................................
 Mode de paiement :
-Cheques-repas                              11,52
-Carte Visa                                  0,88
+Chèques-repas                              11,52
+Carte Bancontact                            0,88
 Especes                                     2,46
 Arrondi                                    -0,01
 % TVA   CODE          HT       TVA      Brut
@@ -784,10 +787,10 @@ Arrondi                                    -0,01
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:50:14Z;
+fdmDateTime: 2026-10-18T15:08:57Z;
 Event: N; eventCounter: 4;
 totalCounter: 8; shortSignature:
-b9d7bbea8214876a11f8b2d3c78fb9c9a7f39854;
+4fbcb2ec8a71ece8f38368f10fbb7c76b8a6cda9;
 
  [QR: https://www.gs2.be/M0000400008AbCdEfGhI]  
 
@@ -809,7 +812,7 @@ Client parti sans payer, clôturé par le gérant avec son PIN. « Client parti 
             TICKET DE CAISSE T.V.A.
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:48
+18.10.2026                                 17:06
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000003
@@ -828,10 +831,10 @@ Non paye
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:48:05Z;
+fdmDateTime: 2026-10-18T15:06:55Z;
 Event: N; eventCounter: 3;
 totalCounter: 7; shortSignature:
-57a04b5e82231c24acdd4bef132a4e646dc89fc8;
+6e3f32e4a354df8f0d56b9686ab18b8d9e8efa05;
 
  [QR: https://www.gs2.be/M0000300007AbCdEfGhI]  
 
@@ -1041,4 +1044,4 @@ Qte   Article
 ```
 
 ## 12. Note sur la reproduction
-Les rendus sont imprimés par le pipeline d'impression réel de l'application et ne peuvent pas diverger de la sortie papier. Les exemples ci-dessus portent « Especes » et « Cheques-repas », tels qu'imprimés le 2026-10-15 ; le libellé du moteur est désormais « Chèques-repas » avec l'accent grave et sera relevé de nouveau au commit de livraison. Au rendez-vous d'admission, le distributeur apporte la machine test connectée à l'imprimante réelle (`À effectuer (EV-15 : imprimante réelle, ou mention du profil émulé)`) ; les exemplaires physiques sont archivés avec le dossier final.
+Les rendus sont imprimés par le pipeline d'impression réel de l'application et ne peuvent pas diverger de la sortie papier. Les exemples ci-dessus portent « Especes » et « Chèques-repas », tels qu'imprimés le 18.10.2026 sur le profil émulé. Au rendez-vous d'admission, le distributeur apporte la machine test connectée à l'imprimante réelle (`À effectuer (EV-15 : imprimante réelle, ou mention du profil émulé)`) ; les exemplaires physiques sont archivés avec le dossier final.

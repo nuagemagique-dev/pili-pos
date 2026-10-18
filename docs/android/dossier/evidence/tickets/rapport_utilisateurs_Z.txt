@@ -4,23 +4,23 @@
            1 Rue du Test, 4000 Liege
                TVA: BE0000000097
 
-Date:                                 2026-10-14
+Date:                                 2026-10-18
 Terminal:                          POS-2-ANDROID
 Employe:                             94060242576
-Ticket:                                       #3
+Ticket:                                       #4
 ================================================
-INSZ 94060242576                           26,86
-  Premier event:                2026-10-15 00:45
-  Dernier event:                2026-10-15 00:50
-  Pointage IN:                  2026-10-15 00:45
-  Especes (3x)                              2,46
-  Cheques-repas (1x)                       11,52
+INSZ 94060242576                           78,86
+  Premier event:                2026-10-18 17:03
+  Dernier event:                2026-10-18 17:12
+  Pointage IN:                  2026-10-18 17:03
+  Especes (4x)                             54,46
   Carte (1x)                                0,88
+  Chèques-repas (1x)                       11,52
 ------------------------------------------------
-TOTAL                                      26,86
+TOTAL                                      78,86
 ================================================
                 FDM: MCK00000001
-              2026-10-14T22:51:02Z
+              2026-10-18T15:14:01Z
 
 
 

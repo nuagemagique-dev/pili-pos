@@ -2,7 +2,7 @@
               ADDITION PROVISOIRE
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:45
+18.10.2026                                 17:03
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000002
@@ -18,7 +18,7 @@ TOTAL :                                   €52,00
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:45:58Z;
+fdmDateTime: 2026-10-18T15:03:47Z;
 Event: P; eventCounter: 2;
 totalCounter: 3;
 

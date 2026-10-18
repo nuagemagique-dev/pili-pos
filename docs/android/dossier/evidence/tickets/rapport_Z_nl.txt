@@ -4,22 +4,22 @@
                BTW: BE0000000097
           Vestigingseenheid 2000000042
 ------------------------------------------------
-RAPPORT Z                      15/10/26 00:53:30
+RAPPORT Z                      18/10/26 17:20:17
 Rapport nr. 2
-Ticket:                                   000004
+Ticket:                                   000006
 Werknemer:                           94060242576
 ------------------------------------------------
                 Openingsperiode
-Datum:                                2026-10-14
+Datum:                                2026-10-18
 BookingPeriodId:
-369a5777-2b22-4ba8-8321-01ea3bb0abd9
-Begin                           2026-10-15 00:51
-Einde                           2026-10-15 00:53
+4dd961d8-3cfd-49f1-ba0b-ef39f239f18d
+Begin                           2026-10-18 17:17
+Einde                           2026-10-18 17:19
 POSID                             CPOS0031234567
 TerminalId                         POS-2-ANDROID
 FDMID                                MCK00000001
-Eerste                       12 2026-10-14 22:51
-Laatste                      13 2026-10-14 22:53
+Eerste                       15 2026-10-18 15:17
+Laatste                      19 2026-10-18 15:19
 ------------------------------------------------
 Event N Verkoop 1                          12,00
 Event T Opleiding 1                        52,00
@@ -59,7 +59,7 @@ Contant                                    12,00
 Totaal betalingen                          12,00
 Afrondingen                                 0,00
 ------------------------------------------------
-       fdmDateTime: 2026-10-14T22:53:30Z;
+       fdmDateTime: 2026-10-18T15:20:17Z;
 ================================================
         DIT IS GEEN GELDIG BTW-KASTICKET
 

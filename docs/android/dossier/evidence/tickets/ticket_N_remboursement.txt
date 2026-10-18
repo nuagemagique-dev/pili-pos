@@ -2,7 +2,7 @@
                  REMBOURSEMENT
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:47
+18.10.2026                                 17:06
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000002
@@ -23,19 +23,19 @@ Especes                                   -52,00
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:47:29Z;
+fdmDateTime: 2026-10-18T15:06:33Z;
 Event: N; eventCounter: 2;
 totalCounter: 6; shortSignature:
-848cd607e989bdfe53ae5a21bb9452c463aaaf62;
+7113f6e64daaf8b9fba4e1ad40da29f446f3d61d;
 
  [QR: https://www.gs2.be/M0000200006AbCdEfGhI]  
 
 Informations FDM d'origine :
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:46:04Z;
+fdmDateTime: 2026-10-18T15:03:58Z;
 Event: N; eventCounter: 1;
 totalCounter: 4; shortSignature:
-0bf0f4adefa87f77457a0995208ffca905958e31;
+fc81cf1748b30fc38f6543978eff27c90f920371;
 
 Denomination legale : Restaurant Test
 1 Rue du Test, 4000 Liege

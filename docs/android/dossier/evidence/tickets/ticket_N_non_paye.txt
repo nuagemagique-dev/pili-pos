@@ -1,7 +1,7 @@
             TICKET DE CAISSE T.V.A.
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:48
+18.10.2026                                 17:06
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000003
@@ -20,10 +20,10 @@ Non paye
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:48:05Z;
+fdmDateTime: 2026-10-18T15:06:55Z;
 Event: N; eventCounter: 3;
 totalCounter: 7; shortSignature:
-57a04b5e82231c24acdd4bef132a4e646dc89fc8;
+6e3f32e4a354df8f0d56b9686ab18b8d9e8efa05;
 
  [QR: https://www.gs2.be/M0000300007AbCdEfGhI]  
 

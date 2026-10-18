@@ -1,7 +1,7 @@
             TICKET DE CAISSE T.V.A.
 Restaurant Test
 Unite d'etablissement 2000000042
-15.10.2026                                 00:50
+18.10.2026                                 17:08
 Utilisateur: Gerant Test
 Terminal: POS-2-ANDROID
 Ticketnr.: 000004
@@ -14,8 +14,8 @@ Logiciel de caisse v.: pili-pos-android/1.0.0
 TOTAL :                                   €14,86
 ................................................
 Mode de paiement :
-Cheques-repas                              11,52
-Carte Visa                                  0,88
+Chèques-repas                              11,52
+Carte Bancontact                            0,88
 Especes                                     2,46
 Arrondi                                    -0,01
 % TVA   CODE          HT       TVA      Brut
@@ -24,10 +24,10 @@ Arrondi                                    -0,01
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-14T22:50:14Z;
+fdmDateTime: 2026-10-18T15:08:57Z;
 Event: N; eventCounter: 4;
 totalCounter: 8; shortSignature:
-b9d7bbea8214876a11f8b2d3c78fb9c9a7f39854;
+4fbcb2ec8a71ece8f38368f10fbb7c76b8a6cda9;
 
  [QR: https://www.gs2.be/M0000400008AbCdEfGhI]  
 
