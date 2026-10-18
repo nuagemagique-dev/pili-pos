@@ -77,7 +77,9 @@ def layer(source: str, binary: str) -> str:
             continue
         paragraph.append(text)
     if paragraph:
-        text = " ".join(paragraph)
+        # No code quotes in a table cell: an identifier cited there is not
+        # a claim about the dossier and would be checked by check_dossier.
+        text = " ".join(paragraph).replace("`", "")
         # The first sentence is enough for a table cell.
         text = re.split(r"(?<=\.)\s", text, maxsplit=1)[0].rstrip(":")
         if len(text) > 160:
