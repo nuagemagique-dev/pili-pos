@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
 import dagger.Lazy
 import dagger.hilt.android.EntryPointAccessors
@@ -134,6 +135,9 @@ class SettingsRouteTest {
                 runCurrent()
                 coVerify(exactly = 1) { f.engine.setBadgeSettings(BadgeSettingsInput("off", false, 50L, 6L, 32L)) }
             } finally {
+                // A manager's route also polls the Peppol panel every 30 s: stop it, or runTest's final drain
+                // loops on virtual time until the heap is exhausted.
+                runCatching { ViewModelProvider(compose.activity)[PeppolViewModel::class.java].stopPolling() }
                 unmockkStatic(EntryPointAccessors::class)
             }
         }

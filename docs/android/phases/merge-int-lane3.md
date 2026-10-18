@@ -3,7 +3,7 @@
 Integrator report. Lanes 1, 2 and 5 were already on `android/int` (head `a882bf18`). Lane 3 (invoices and
 Peppol, sold-out, menu editor, sales reports) is merged with `git merge --no-ff android/lane-v11` as `cb9d39a1`.
 Nothing was pushed, `main` was not touched, no tag was set. Decisions: `docs/android/DECISIONS.md`,
-"Lane int (2026-10-17)", INT-D1 to INT-D10.
+"Lane int (2026-10-17)", INT-D1 to INT-D11.
 
 ## Commits
 
@@ -15,7 +15,8 @@ Nothing was pushed, `main` was not touched, no tag was set. Decisions: `docs/and
 | `fd369b5b` | Goldens re-recorded: `reports_tickets_manager`, `reports_payment_correction`, `settings_peppol` |
 | `ed4780c7` | UC evidence recaptured on the merged code, M122 and M132 embedded (INT-D5) |
 | `7145c11b` | Dossier reconciliation of both dossiers (INT-D6, INT-D7), matrices, PDFs, decisions, this plan |
-| next | Vue settings columns 1 and 3 scroll as a whole: the merged panels overlapped (INT-D10) |
+| `cd4052c6` | Vue settings columns 1 and 3 scroll as a whole: the merged panels overlapped (INT-D10) |
+| next | `SettingsRouteTest` stops the Peppol poll of the manager route it draws (INT-D11) |
 
 ## Conflicts
 
