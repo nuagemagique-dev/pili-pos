@@ -151,7 +151,7 @@ async function handlePriceConfirmed(priceCents: number) {
             {{ t('allergens_mode') }}
           </button>
           <button
-            v-if="giftVouchers.enabled && order.currentOrder"
+            v-if="giftVouchers.enabled && order.currentOrder && auth.canTakePayment"
             class="allergen-toggle"
             data-testid="gift-voucher-sell"
             @click="sellingVoucher = true"
@@ -160,6 +160,7 @@ async function handlePriceConfirmed(priceCents: number) {
           </button>
           <template v-if="allergens.mode">
             <span class="allergen-hint">{{ t('allergens_hint') }}</span>
+            <span v-if="allergens.error && !allergens.sheetItem" class="allergen-error" role="alert" data-testid="allergen-legend-error">{{ allergens.error }}</span>
             <ul class="allergen-legend" data-testid="allergen-legend" :aria-label="t('allergens_legend')">
               <li v-for="a in allergens.legend" :key="a.code" class="legend-item">
                 <span class="legend-num">{{ a.number }}</span>
@@ -252,6 +253,7 @@ async function handlePriceConfirmed(priceCents: number) {
 .allergen-toggle:active { transform: scale(var(--tap-scale)); }
 .allergen-toggle.on { background: var(--selected-bg); color: var(--selected-fg); }
 .allergen-hint { font-size: var(--font-size-sm); color: var(--accent-info); font-weight: var(--font-weight-bold); }
+.allergen-error { font-size: var(--font-size-sm); color: var(--accent-danger); font-weight: var(--font-weight-bold); }
 .allergen-legend {
   display: flex;
   flex-wrap: wrap;

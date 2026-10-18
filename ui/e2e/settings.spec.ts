@@ -449,4 +449,52 @@ test.describe('Settings - the HubRise switch', () => {
     await expect(page.getByTestId('integrations')).toContainText('1 commande(s) en ligne à terminer.');
     await expect(page.getByRole('button', { name: /En ligne/ })).toBeVisible();
   });
+  test('the alerts, courses and gift voucher panels are for a manager only', async ({ page }) => {
+    const cashier = { ...DEFAULT_USER, role: 'cashier' };
+    await mockTauriIPC(page, { login: () => cashier, list_users: () => [cashier] });
+    await loginAndGoto(page, '/settings');
+    await expect(page.locator('.workers-section')).toBeVisible();
+    await expect(page.getByTestId('alerts-panel')).toHaveCount(0);
+    await expect(page.getByTestId('courses-panel')).toHaveCount(0);
+    await expect(page.getByTestId('gv-settings')).toHaveCount(0);
+    // The panels load their settings when they mount: none did.
+    expect(await ipcCalls(page, 'get_owner_alerts')).toHaveLength(0);
+    expect(await ipcCalls(page, 'list_owner_alert_log')).toHaveLength(0);
+    expect(await ipcCalls(page, 'get_course_settings')).toHaveLength(0);
+  });
+
+  test('a manager sees the alerts, courses and gift voucher panels', async ({ page }) => {
+    await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
+    await loginAndGoto(page, '/settings');
+    await expect(page.getByTestId('alerts-panel')).toBeVisible();
+    await expect(page.getByTestId('courses-panel')).toBeVisible();
+    await expect(page.getByTestId('gv-settings')).toBeVisible();
+    expect(await ipcCalls(page, 'get_owner_alerts')).toHaveLength(1);
+    expect(await ipcCalls(page, 'get_course_settings')).not.toHaveLength(0);
+    expect(await ipcCalls(page, 'get_gift_voucher_settings')).not.toHaveLength(0);
+  });
+
+  test('the employees stay in view beside the courses and gift voucher panels', async ({ page }) => {
+    const users = ['Bruno Moyse', 'Wei', 'Lea', 'Tom'].map((name, i) => ({
+      ...DEFAULT_USER, insz: `9906024257${i}`, name, role: i === 0 ? 'admin' : 'cashier',
+    }));
+    await mockTauriIPC(page, { login: () => users[0], list_users: () => users });
+    await loginAndGoto(page, '/settings');
+    await expect(page.getByTestId('courses-panel')).toBeVisible();
+    await expect(page.getByTestId('gv-settings')).toBeVisible();
+    const rows = page.locator('.worker-row');
+    await expect(rows).toHaveCount(4);
+    await expect(rows.first()).toBeInViewport();
+    await expect(page.locator('.add-worker .add-btn')).toBeInViewport();
+    // The list keeps room for at least one row and scrolls inside its panel
+    // (nothing squeezes it to zero when the manager panels are drawn).
+    const listBox = await page.locator('.worker-list').boundingBox();
+    expect(listBox && listBox.height).toBeGreaterThanOrEqual(72);
+    await rows.last().scrollIntoViewIfNeeded();
+    await expect(rows.last()).toBeInViewport();
+    // The manager panels share the column with the list, below it.
+    const list = await page.locator('.workers-section').boundingBox();
+    const panels = await page.locator('.manager-panels').boundingBox();
+    expect(list && panels && panels.y >= list.y + list.height - 1).toBeTruthy();
+  });
 });

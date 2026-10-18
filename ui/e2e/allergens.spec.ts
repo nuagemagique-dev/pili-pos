@@ -152,4 +152,66 @@ test.describe('Allergens', () => {
     await expect(soja.getByTestId('allergen-badge')).toHaveText(['1', '6']);
     await expect(dialog.getByRole('button', { name: /Nature/ }).getByTestId('allergen-badge')).toHaveCount(0);
   });
+  test('in English the sheet is read twice and the French names follow in parentheses', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'en'));
+    await orderScreen(page);
+    await page.getByTestId('allergen-mode').click();
+    await page.locator('.item-btn', { hasText: 'Maki saumon x8' }).click();
+    await expect(page.getByTestId('allergen-contains')).toContainText(
+      '1 Cereals containing gluten, 4 Fish (Céréales contenant du gluten, Poissons)',
+    );
+    await expect(page.getByTestId('allergen-traces')).toContainText('14 Molluscs (Mollusques)');
+    expect(await ipcCalls(page, 'get_allergen_sheet')).toEqual([
+      { menuItemId: 1, lang: 'en' },
+      { menuItemId: 1, lang: 'fr' },
+    ]);
+  });
+
+  test('in French the sheet is read once, without a second language', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'fr'));
+    await orderScreen(page);
+    await page.getByTestId('allergen-mode').click();
+    await page.locator('.item-btn', { hasText: 'Maki saumon x8' }).click();
+    await expect(page.getByTestId('allergen-contains')).toContainText('1 Céréales contenant du gluten, 4 Poissons');
+    await expect(page.getByTestId('allergen-contains')).not.toContainText('(');
+    expect(await ipcCalls(page, 'get_allergen_sheet')).toEqual([{ menuItemId: 1, lang: 'fr' }]);
+  });
+
+  for (const [ui, printed] of [['zh', 'fr'], ['en', 'en'], ['fr', 'fr']] as const) {
+    test(`with the UI in ${ui} the sheet prints in ${printed}`, async ({ page }) => {
+      await page.addInitScript((l) => localStorage.setItem('pili-pos-language', l), ui);
+      await orderScreen(page);
+      await page.getByTestId('allergen-mode').click();
+      await page.locator('.item-btn', { hasText: 'Maki saumon x8' }).click();
+      await page.getByTestId('allergen-print-one').click();
+      await expect.poll(async () => (await ipcCalls(page, 'print_allergen_sheet')).length).toBe(1);
+      expect((await ipcCalls(page, 'print_allergen_sheet'))[0]).toEqual({ menuItemId: 1, lang: printed });
+    });
+  }
+
+  test('a sheet the engine cannot find is told and shows no allergens', async ({ page }) => {
+    await orderScreen(page, { get_allergen_sheet: live(() => { throw 'allergen_target_not_found|id=1'; }) });
+    await page.getByTestId('allergen-mode').click();
+    await page.locator('.item-btn', { hasText: 'Maki saumon x8' }).click();
+    await expect(page.getByTestId('allergen-error')).toHaveText('Produit ou option introuvable (1).');
+    await expect(page.getByTestId('allergen-contains')).toHaveCount(0);
+    await expect(page.getByTestId('allergen-unknown')).toHaveCount(0);
+  });
+
+  test('a print the engine refuses is told in the same place', async ({ page }) => {
+    await orderScreen(page, { print_allergen_sheet: live(() => { throw 'allergen_target_not_found|id=1'; }) });
+    await page.getByTestId('allergen-mode').click();
+    await page.locator('.item-btn', { hasText: 'Maki saumon x8' }).click();
+    await expect(page.getByTestId('allergen-contains')).toBeVisible();
+    await page.getByTestId('allergen-print-one').click();
+    await expect(page.getByTestId('allergen-error')).toHaveText('Produit ou option introuvable (1).');
+    await expect(page.getByTestId('allergen-print-outcome')).toHaveCount(0);
+  });
+
+  test('a legend the engine refuses is told when the mode opens', async ({ page }) => {
+    await orderScreen(page, { list_allergens: live(() => { throw 'allergen_target_not_found|id=0'; }) });
+    await page.getByTestId('allergen-mode').click();
+    await expect(page.getByTestId('allergen-legend-error')).toHaveText('Produit ou option introuvable (0).');
+    await expect(page.getByTestId('allergen-legend').locator('li')).toHaveCount(0);
+  });
 });

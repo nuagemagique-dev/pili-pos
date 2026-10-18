@@ -134,4 +134,52 @@ test.describe('Owner alerts panel', () => {
     await expect(panel.getByTestId('alerts-error')).toContainText('chat_id');
     await expect(panel.getByTestId('alerts-saved')).toHaveCount(0);
   });
+  test('the Z deadline hour is kept between 0 and 12', async ({ page }) => {
+    const panel = await openPanel(page, true);
+    await expect(panel.getByTestId('alerts-z-hour')).toHaveText('5 h');
+    await panel.getByTestId('alerts-z-hour').click();
+    await page.locator('.numpad .key-clear').click();
+    for (const d of '13') await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click();
+    await expect(page.getByTestId('number-entry-ok')).toBeDisabled();
+    await page.locator('.numpad .key-clear').click();
+    await page.locator('.numpad .key', { hasText: /^7$/ }).click();
+    await expect(page.getByTestId('number-entry-ok')).toBeEnabled();
+    await page.getByTestId('number-entry-ok').click();
+    await expect(panel.getByTestId('alerts-z-hour')).toHaveText('7 h');
+    await panel.getByTestId('alerts-save').click();
+    await expect(panel.getByTestId('alerts-saved')).toBeVisible();
+    const calls = await ipcCalls(page, 'set_owner_alerts');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].input.z_deadline_hour).toBe(7);
+  });
+
+  test('the test button needs a token and a chat id', async ({ page }) => {
+    const panel = await openPanel(page, true);
+    // The token is there, the chat id is not.
+    await expect(panel.getByTestId('alerts-token')).toContainText('Robot Telegram configuré');
+    await expect(panel.getByTestId('alerts-chat-id')).not.toHaveText(/\d/);
+    await expect(panel.getByTestId('alerts-test')).toBeDisabled();
+    await panel.getByTestId('alerts-chat-id').click();
+    await page.locator('.numpad .key', { hasText: /^5$/ }).click();
+    await page.getByTestId('number-entry-ok').click();
+    await expect(panel.getByTestId('alerts-test')).toBeEnabled();
+  });
+
+  for (const [code, text] of [
+    ['config_alerts', 'Réglage des alertes propriétaire invalide'],
+    ['alerts_token_missing', "Le jeton du robot Telegram n'est pas configuré"],
+  ] as const) {
+    test(`a refused read (${code}) shows the error and hides the form`, async ({ page }) => {
+      await mockTauriIPC(page, {
+        login: () => DEFAULT_USER,
+        list_users: () => [DEFAULT_USER],
+        get_owner_alerts: live(() => { throw (window as any).__REJECT; }),
+      } as any);
+      await page.addInitScript((c) => { (window as any).__REJECT = c; }, code);
+      await loginAndGoto(page, '/settings');
+      await expect(page.getByTestId('alerts-error')).toContainText(text);
+      await expect(page.getByTestId('alerts-chat-id')).toHaveCount(0);
+      expect(await ipcCalls(page, 'list_owner_alert_log')).toHaveLength(0);
+    });
+  }
 });
