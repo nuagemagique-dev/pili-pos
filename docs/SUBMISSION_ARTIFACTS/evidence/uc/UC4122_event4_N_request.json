@@ -1,6 +1,6 @@
 {
   "bookingDate": "2026-10-18",
-  "bookingPeriodId": "298d4907-e23a-4851-8c50-be7af34a36b6",
+  "bookingPeriodId": "b4ca254c-054a-4f78-ac48-a08bebf628a7",
   "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "84022899837",
   "estNo": "2000000042",
@@ -15,7 +15,7 @@
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-18T06:03:46.995+02:00",
+  "posDateTime": "2026-10-18T12:59:02.906+02:00",
   "posFiscalTicketNo": 3,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -29,8 +29,8 @@
         "mainProduct": {
           "departmentId": "1",
           "departmentName": "1",
-          "productId": "2",
-          "productName": "2",
+          "productId": "990003",
+          "productName": "990003",
           "quantity": 1.0,
           "quantityType": "PIECE",
           "unitPrice": 48.0,

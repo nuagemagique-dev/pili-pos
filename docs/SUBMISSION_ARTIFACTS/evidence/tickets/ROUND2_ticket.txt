@@ -1,7 +1,7 @@
             TICKET DE CAISSE T.V.A.
 The FPS Finances Experience
 Unite d'etablissement 2000000042
-18.10.2026                                 06:03
+18.10.2026                                 12:59
 Utilisateur: Test 12345678958
 Terminal: POS-1-BAR
 Ticketnr.: 000001
@@ -21,10 +21,10 @@ Arrondi                                     0,01
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-18T04:03:55Z;
+fdmDateTime: 2026-10-18T10:59:10Z;
 Event: N; eventCounter: 1;
 totalCounter: 1; shortSignature:
-9e7a9f8d01bbe357ac02a01c53f9a3b057cead56;
+4dd6a0ef922c7b19b17cc5567c87e4f80f55c90a;
 
  [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
 

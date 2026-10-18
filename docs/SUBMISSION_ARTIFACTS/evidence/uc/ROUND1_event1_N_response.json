@@ -1,22 +1,22 @@
 {
   "bufferCapacityUsed": 1.2,
   "deviceId": "F0:1D:3D:CC:13:C8",
-  "digitalSignature": "bW9jay1zaWctMS0xLTE3OTIyOTYyMzU=",
+  "digitalSignature": "bW9jay1zaWctMS0xLTE3OTIzMjExNTA=",
   "eventOperation": "SALE",
   "fdmRef": {
     "eventCounter": 1,
     "eventLabel": "N",
-    "fdmDateTime": "2026-10-18T04:03:55Z",
+    "fdmDateTime": "2026-10-18T10:59:10Z",
     "fdmId": "MCK00000001",
     "totalCounter": 1
   },
   "fdmSwVersion": "MOCK-FDM-1.0",
   "footer": [],
   "informations": [],
-  "posDateTime": "2026-10-18T06:03:55.006+02:00",
+  "posDateTime": "2026-10-18T12:59:10.606+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
-  "shortSignature": "9e7a9f8d01bbe357ac02a01c53f9a3b057cead56",
+  "shortSignature": "4dd6a0ef922c7b19b17cc5567c87e4f80f55c90a",
   "terminalId": "POS-1-BAR",
   "vatCalc": [
     {

@@ -22,7 +22,7 @@ DOC = ROOT / "docs/SUBMISSION_ARTIFACTS/RAPPORT_TESTS_BASELINE_FR.md"
 BEGIN = "<!-- TEST_TOTALS:BEGIN (scripts/generate_test_report.py) -->"
 END = "<!-- TEST_TOTALS:END -->"
 
-RUNNING = re.compile(r"^\s*Running (?:unittests )?(\S+) \(target/[^/]+/deps/([A-Za-z0-9_]+)-[0-9a-f]+\)")
+RUNNING = re.compile(r"^\s*Running (?:unittests )?(\S+) \(\S*?/deps/([A-Za-z0-9_]+)-[0-9a-f]+\)")
 RESULT = re.compile(r"^test result: \w+\. (\d+) passed; (\d+) failed; (\d+) ignored")
 
 

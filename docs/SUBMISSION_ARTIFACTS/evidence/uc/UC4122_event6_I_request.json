@@ -1,6 +1,6 @@
 {
   "bookingDate": "2026-10-18",
-  "bookingPeriodId": "298d4907-e23a-4851-8c50-be7af34a36b6",
+  "bookingPeriodId": "b4ca254c-054a-4f78-ac48-a08bebf628a7",
   "costCenter": {
     "id": "C1",
     "reference": "AUDI",
@@ -14,28 +14,28 @@
     {
       "eventCounter": 2,
       "eventLabel": "N",
-      "fdmDateTime": "2026-10-18T04:03:46Z",
+      "fdmDateTime": "2026-10-18T10:59:02Z",
       "fdmId": "MCK00000001",
       "totalCounter": 3
     },
     {
       "eventCounter": 3,
       "eventLabel": "N",
-      "fdmDateTime": "2026-10-18T04:03:46Z",
+      "fdmDateTime": "2026-10-18T10:59:02Z",
       "fdmId": "MCK00000001",
       "totalCounter": 4
     },
     {
       "eventCounter": 4,
       "eventLabel": "N",
-      "fdmDateTime": "2026-10-18T04:03:47Z",
+      "fdmDateTime": "2026-10-18T10:59:02Z",
       "fdmId": "MCK00000001",
       "totalCounter": 5
     }
   ],
   "invoiceNo": "20260002",
   "language": "FR",
-  "posDateTime": "2026-10-18T06:03:47.006+02:00",
+  "posDateTime": "2026-10-18T12:59:02.912+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",

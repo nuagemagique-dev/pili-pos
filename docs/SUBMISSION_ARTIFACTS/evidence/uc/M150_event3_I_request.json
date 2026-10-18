@@ -1,6 +1,6 @@
 {
   "bookingDate": "2026-10-18",
-  "bookingPeriodId": "8817ade4-f83b-428e-aea5-213b6f31208d",
+  "bookingPeriodId": "c0d5f6d3-b4fb-4a73-9588-f2c10f9b544f",
   "costCenter": {
     "id": "C1",
     "reference": "FIN",
@@ -28,7 +28,7 @@
   ],
   "invoiceNo": "20260001",
   "language": "FR",
-  "posDateTime": "2026-10-18T06:03:48.624+02:00",
+  "posDateTime": "2026-10-18T12:59:04.545+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
