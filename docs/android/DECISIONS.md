@@ -1503,3 +1503,12 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   release (V11-D50). Open owner items are unchanged: the Storecove sandbox trial and VAT X versus VATEX-EU-O
   (V11-D24). The screens of sections 12 "Captures to retake" are still to be captured before the screenshots PDF is
   final.
+
+- **V11-D8b Invoices: engine-Cashier, reached through the manager navigation only.** Amends V11-D8. The
+  engine commands that issue an invoice (`sign_invoice_fiscal`, the lookups, the customer form) stay
+  `Access::Cashier`, so the access matrix is permissive at the engine level and a cashier session signed under
+  their own INSZ is accepted. The invoice dialog lives on the Rapports screen (ticket list), and that entry is
+  shown to managers only on both UIs (`AppHeader.vue` `auth.isManager`, `AppHeader.kt` `isManager`). Conservative
+  reading: no new cashier entry is added in this release, a cashier asks a manager to open Rapports. Pinned by
+  `ui/e2e/invoice.spec.ts` (V11-D8 describe: no Rapports entry for a cashier, engine call accepted under the
+  cashier INSZ), `AppHeaderTest` and `PosScaffoldRouteTest` (no `header_nav_reports` for a cashier).
