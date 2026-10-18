@@ -76,7 +76,7 @@ Plus :
 
 Six annexes décrivent le moteur fiscal seul : `SCHEMA_BD_FR.md`, `SCHEMA_ER_FR.md`, `STRATEGIE_COMPTEURS_FR.md`, `COUVERTURE_FIXTURES_FR.md`, `COUVERTURE_RAPPORTS_FR.md` et `TICKET_NUMERIQUE_FR.md`. Le moteur est le même code source dans les deux produits (`CADRE_DEMANDE_FR.md` §4). Ces six documents sont donc les mêmes pour le dossier Linux et pour le dossier Android, et ne sont pas recopiés.
 
-- Le PDF de chacun est celui du dossier Linux, produit au même état du moteur : l'étiquette de gel `linux-v1.0.0-rc2`, puis l'étiquette finale. Commit de cette étiquette : À effectuer (EV-04 : commit de l'étiquette de gel du moteur et SHA-1 du binaire Linux du même moteur).
+- Le PDF de chacun est celui du dossier Linux, produit au même état du moteur : l'étiquette de gel `linux-v1.0.0-rc3`, puis l'étiquette finale. Commit de cette étiquette : À effectuer (EV-04 : commit de l'étiquette de gel du moteur et SHA-1 du binaire Linux du même moteur).
 - Le ZIP Android contient ces six PDF sous leur nom habituel. Dans `MANIFEST.txt`, ils portent le préfixe commun: pour les distinguer des documents propres au dossier Android.
 - Un document commun est vrai pour les deux produits, y compris ses tests, ses chemins de code et ses commandes (`cargo test` sur les crates du moteur). Seuls quelques passages citent la plateforme Linux ; la section 3 donne leur lecture sur Android.
 - Un renvoi, dans un document commun, vers une annexe qui existe en deux versions (par exemple `MANUEL_INSTALLATION_FR.md` ou `MANUEL_UTILISATEUR_FR.md`) désigne, dans le ZIP Android, l'annexe Android du même nom. Le mot « binaire » d'un document commun désigne, sur Android, le moteur contenu dans l'APK.
@@ -110,7 +110,7 @@ Le dossier Report_Testing suit le point 3.2 de la procédure du 3 septembre 2026
 | Report_Testing/uc | requête et réponse JSON de chaque cas d'utilisation (Basic Set 1.8, Advanced Set 1.6, Reports 1.3), jouées sur l'émulateur Android | À effectuer (EV-06 : résultats UC sur l'émulateur Android, requête et réponse JSON par UC) |
 | Report_Testing/tickets | tickets imprimés sur l'imprimante simulée, octets de statut retirés, imprimante Epson réelle si disponible | fait : `TICKETS_EXEMPLES_FR.md` et `evidence/tickets/` (impression sur l'Epson réelle : À effectuer (EV-15 : imprimante réelle)) |
 | Report_Testing/build | rapports de construction : empreinte de l'image de construction et SHA-1 de deux APK non signés identiques au commit de la version | À effectuer (EV-05 : empreinte de l'image de construction et SHA-1 des deux APK non signés identiques) |
-| CAPTURES_ECRAN_FR.pdf (annexe 28) | captures d'écran du profil sunmi_d3_pro_gms_api33 | 122 captures A01 à A122 du profil D3 Pro émulé, liste dans `internal/CAPTURES_ECRAN_RUNBOOK_FR.md` |
+| CAPTURES_ECRAN_FR.pdf (annexe 28) | captures d'écran du profil sunmi_d3_pro_gms_api33 | 188 captures A01 à A194 du profil D3 Pro émulé, liste dans `internal/CAPTURES_ECRAN_RUNBOOK_FR.md` |
 | RESULTATS_TESTS_UC_FR.pdf (annexe 27) | résultats par cas d'utilisation et comparaison avec le journal Linux | À effectuer (EV-07 : comparaison des journaux et requêtes FDM entre Android et Linux) |
 | JOURNAL_TESTS_PRE_SOUMISSION_FR.pdf (annexe 29) | déroulement complet sur l'appareil, 24 h de fonctionnement, reprise après coupure | À effectuer (EV-10 : déroulement sur les profils D3 Pro émulés), À effectuer (EV-11 : essai de 24 h du service au premier plan), À effectuer (EV-12 : reprise après coupure d'alimentation) |
 

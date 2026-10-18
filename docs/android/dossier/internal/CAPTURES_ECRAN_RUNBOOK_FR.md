@@ -3,7 +3,7 @@
 
 **Référence :** §V (comportement aux réponses du FDM) et §VII.D (rapports X/Z visibles et imprimables) du manuel de certification. Preuve EV-09 : captures du profil sunmi_d3_pro_gms_api33, prises le 15.10.2026.
 
-Liste des 123 captures de P8b (plus A124 à A129, à prendre après la fusion des voies 1-v1-fixes et 5-nfc), dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A98, les écrans du terminal de paiement A99 à A111 et des compléments A112 à A123. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
+Liste des 188 captures A01 à A194 (A01 à A123 de P8b, puis A124 à A194 des voies suivantes), dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A98, les écrans du terminal de paiement A99 à A111 et des compléments A112 à A123. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
 
 ## Méthode
 - **Terminal.** AVD `sunmi_d3_pro_gms_api33` (1920x1080 paysage, 160 dpi, Android 13), démarré par `PILI_AVD=sunmi_d3_pro_gms_api33 scripts/android/emulator.sh ensure` (profil à créer s'il manque ; un seul émulateur à la fois). Aucune capture de l'interface Linux n'est réutilisée.
@@ -145,67 +145,67 @@ Liste des 123 captures de P8b (plus A124 à A129, à prendre après la fusion de
 | A128 | `A128_pointage_badge.png` | Écran de commande, un badge présenté pendant qu'un caissier est connecté : message « Arrivée · <nom> · HH:MM » (puis « Départ · <nom> · HH:MM » au passage suivant, après dix secondes) | 3 |
 | A129 | `A129_connexion_badge.png` | Écran de connexion, lecteur de badges activé et connexion par badge autorisée : mention « Ou présentez votre badge » sous les tuiles ; en mode « Fin de service », mention « Présentez votre badge pour terminer le service » sous le pavé | 2.1, 2.3 |
 
-| A112 | `A112_en_ligne_a_verifier.png` | Capture rc3 (2026-10-18, jeu de test SPF) : en ligne a verifier | voir manuel |
-| A127b | `A127b_lier_badge_pin.png` | Capture rc3 (2026-10-18, jeu de test SPF) : lier badge pin | voir manuel |
-| A130 | `A130_service_plusieurs_temps_inactif.png` | Capture rc3 (2026-10-18, jeu de test SPF) : service plusieurs temps inactif | voir manuel |
-| A131 | `A131_service_plusieurs_temps_actif.png` | Capture rc3 (2026-10-18, jeu de test SPF) : service plusieurs temps actif | voir manuel |
-| A132 | `A132_bons_cadeaux_reglage.png` | Capture rc3 (2026-10-18, jeu de test SPF) : bons cadeaux reglage | voir manuel |
-| A133 | `A133_alertes_telephone_reglage.png` | Capture rc3 (2026-10-18, jeu de test SPF) : alertes telephone reglage | voir manuel |
-| A136 | `A136_commande_changer_de_table.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande changer de table | voir manuel |
-| A137 | `A137_commande_par_temps.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande par temps | voir manuel |
-| A138 | `A138_selecteur_de_table.png` | Capture rc3 (2026-10-18, jeu de test SPF) : selecteur de table | voir manuel |
-| A139 | `A139_tables_apres_transfert.png` | Capture rc3 (2026-10-18, jeu de test SPF) : tables apres transfert | voir manuel |
-| A140 | `A140_tables_deplacer_mode.png` | Capture rc3 (2026-10-18, jeu de test SPF) : tables deplacer mode | voir manuel |
-| A141 | `A141_tables_deplacer_source.png` | Capture rc3 (2026-10-18, jeu de test SPF) : tables deplacer source | voir manuel |
-| A142 | `A142_tables_deplacer_confirmation.png` | Capture rc3 (2026-10-18, jeu de test SPF) : tables deplacer confirmation | voir manuel |
-| A143 | `A143_remise_pourcentage.png` | Capture rc3 (2026-10-18, jeu de test SPF) : remise pourcentage | voir manuel |
-| A144 | `A144_remise_montant.png` | Capture rc3 (2026-10-18, jeu de test SPF) : remise montant | voir manuel |
-| A145 | `A145_remise_offert.png` | Capture rc3 (2026-10-18, jeu de test SPF) : remise offert | voir manuel |
-| A146 | `A146_remise_pin.png` | Capture rc3 (2026-10-18, jeu de test SPF) : remise pin | voir manuel |
-| A147 | `A147_commande_remise_commande.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande remise commande | voir manuel |
-| A148 | `A148_note_dialogue.png` | Capture rc3 (2026-10-18, jeu de test SPF) : note dialogue | voir manuel |
-| A149 | `A149_commande_ligne_note.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande ligne note | voir manuel |
-| A150 | `A150_offrir_ligne_dialogue.png` | Capture rc3 (2026-10-18, jeu de test SPF) : offrir ligne dialogue | voir manuel |
-| A151 | `A151_commande_ligne_offerte.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande ligne offerte | voir manuel |
-| A152 | `A152_commande_remise_et_offert.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande remise et offert | voir manuel |
-| A153 | `A153_choix_temps_service.png` | Capture rc3 (2026-10-18, jeu de test SPF) : choix temps service | voir manuel |
-| A154 | `A154_envoyer_la_suite.png` | Capture rc3 (2026-10-18, jeu de test SPF) : envoyer la suite | voir manuel |
-| A155 | `A155_addition_avec_remise.png` | Capture rc3 (2026-10-18, jeu de test SPF) : addition avec remise | voir manuel |
-| A156 | `A156_paiement_avec_remise.png` | Capture rc3 (2026-10-18, jeu de test SPF) : paiement avec remise | voir manuel |
-| A159 | `A159_correction_dialogue.png` | Capture rc3 (2026-10-18, jeu de test SPF) : correction dialogue | voir manuel |
-| A160 | `A160_correction_choix.png` | Capture rc3 (2026-10-18, jeu de test SPF) : correction choix | voir manuel |
-| A162 | `A162_tickets_vente_cochee_facture.png` | Capture rc3 (2026-10-18, jeu de test SPF) : tickets vente cochee facture | voir manuel |
-| A163 | `A163_facture_client.png` | Capture rc3 (2026-10-18, jeu de test SPF) : facture client | voir manuel |
-| A165 | `A165_facture_apercu.png` | Capture rc3 (2026-10-18, jeu de test SPF) : facture apercu | voir manuel |
-| A166 | `A166_facture_refus_peppol.png` | Capture rc3 (2026-10-18, jeu de test SPF) : facture refus peppol | voir manuel |
-| A167 | `A167_facture_etablie.png` | Capture rc3 (2026-10-18, jeu de test SPF) : facture etablie | voir manuel |
-| A168 | `A168_factures_liste.png` | Capture rc3 (2026-10-18, jeu de test SPF) : factures liste | voir manuel |
-| A169 | `A169_rapport_ventes.png` | Capture rc3 (2026-10-18, jeu de test SPF) : rapport ventes | voir manuel |
-| A171 | `A171_commande_ligne_bon_cadeau.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande ligne bon cadeau | voir manuel |
-| A172 | `A172_fin_vente_bon_cadeau.png` | Capture rc3 (2026-10-18, jeu de test SPF) : fin vente bon cadeau | voir manuel |
-| A173 | `A173_paiement_bon_cadeau_code.png` | Capture rc3 (2026-10-18, jeu de test SPF) : paiement bon cadeau code | voir manuel |
-| A174 | `A174_paiement_bon_cadeau_valide.png` | Capture rc3 (2026-10-18, jeu de test SPF) : paiement bon cadeau valide | voir manuel |
-| A175 | `A175_paiement_bon_cadeau_et_especes.png` | Capture rc3 (2026-10-18, jeu de test SPF) : paiement bon cadeau et especes | voir manuel |
-| A176 | `A176_fin_vente_payee_bon_cadeau.png` | Capture rc3 (2026-10-18, jeu de test SPF) : fin vente payee bon cadeau | voir manuel |
-| A177 | `A177_bons_cadeaux_liste.png` | Capture rc3 (2026-10-18, jeu de test SPF) : bons cadeaux liste | voir manuel |
-| A178 | `A178_bons_cadeaux_verification.png` | Capture rc3 (2026-10-18, jeu de test SPF) : bons cadeaux verification | voir manuel |
-| A179 | `A179_epuise_mode.png` | Capture rc3 (2026-10-18, jeu de test SPF) : epuise mode | voir manuel |
-| A180 | `A180_epuise_dialogue.png` | Capture rc3 (2026-10-18, jeu de test SPF) : epuise dialogue | voir manuel |
-| A181 | `A181_produit_epuise_refus.png` | Capture rc3 (2026-10-18, jeu de test SPF) : produit epuise refus | voir manuel |
-| A182 | `A182_produits_epuises_liste.png` | Capture rc3 (2026-10-18, jeu de test SPF) : produits epuises liste | voir manuel |
-| A183 | `A183_editeur_carte_liste.png` | Capture rc3 (2026-10-18, jeu de test SPF) : editeur carte liste | voir manuel |
-| A184 | `A184_editeur_carte_produit.png` | Capture rc3 (2026-10-18, jeu de test SPF) : editeur carte produit | voir manuel |
-| A185 | `A185_allergenes_grille.png` | Capture rc3 (2026-10-18, jeu de test SPF) : allergenes grille | voir manuel |
-| A186 | `A186_editeur_produit_enregistre.png` | Capture rc3 (2026-10-18, jeu de test SPF) : editeur produit enregistre | voir manuel |
-| A187 | `A187_editeur_categorie_temps.png` | Capture rc3 (2026-10-18, jeu de test SPF) : editeur categorie temps | voir manuel |
-| A188 | `A188_commande_allergenes.png` | Capture rc3 (2026-10-18, jeu de test SPF) : commande allergenes | voir manuel |
-| A189 | `A189_fiche_allergenes_produit.png` | Capture rc3 (2026-10-18, jeu de test SPF) : fiche allergenes produit | voir manuel |
-| A190 | `A190_ticket_paiement_corrige.png` | Capture rc3 (2026-10-18, jeu de test SPF) : ticket paiement corrige | voir manuel |
-| A191 | `A191_correction_refusee_terminal.png` | Capture rc3 (2026-10-18, jeu de test SPF) : correction refusee terminal | voir manuel |
-| A192 | `A192_facture_client_peppol_inconnu.png` | Capture rc3 (2026-10-18, jeu de test SPF) : facture client peppol inconnu | voir manuel |
-| A193 | `A193_bon_cadeau_vente_montant.png` | Capture rc3 (2026-10-18, jeu de test SPF) : bon cadeau vente montant | voir manuel |
-| A194 | `A194_rapport_ventes_periode_libre.png` | Capture rc3 (2026-10-18, jeu de test SPF) : rapport ventes periode libre | voir manuel |
-| A50b | `A50b_hubrise_code_refuse.png` | Capture rc3 (2026-10-18, jeu de test SPF) : hubrise code refuse | voir manuel |
+| A112 | `A112_en_ligne_a_verifier.png` | Écran « En ligne » : deux commandes « Nouvelles » (Webshop et Deliveroo, payées) avec l'encadré « À vérifier · Produit absent du menu » et les boutons « Refuser » et « Resynchroniser » | 12.8 |
+| A127b | `A127b_lier_badge_pin.png` | Config, lecteur de badges : fenêtre « Saisir le PIN » (« Confirmez avec votre PIN de gérant ») ouverte avant de lier un badge, sur le panneau « Lecteur de badges » réglé sur « Lecteur USB », « Connexion par badge » activée et réglages du lecteur | 12.13 |
+| A130 | `A130_service_plusieurs_temps_inactif.png` | Config, panneau « Service en plusieurs temps » à « Inactif » : liste « Temps de chaque catégorie » (Direct, Entrées, Plats, Desserts) ; à côté, les panneaux « Plan de salle », « Lecteur de badges » et « Alertes sur téléphone » (inactives, « Robot Telegram absent ») | 12 ter.2 |
+| A131 | `A131_service_plusieurs_temps_actif.png` | Même panneau à « Actif » : la catégorie « Starters » est réglée sur « Entrées » | 12 ter.2 |
+| A132 | `A132_bons_cadeaux_reglage.png` | Config, panneau « Bons cadeaux » à « Actif » : « Validité (mois) » 12, « Montant maximum (€) » 500, bouton « Enregistrer » | 12 ter.3 |
+| A133 | `A133_alertes_telephone_reglage.png` | Config, panneau « Alertes sur téléphone » : « Prévenir quand » (boîte noire, imprimante, terminal de paiement, Z du jour, commande en ligne), « Z attendu avant » 6 h, « Commande en ligne en attente depuis » 5 min, « Rappel toutes les » 60 min, « Enregistrer » et « Envoyer un message test » | 12 ter.1 |
+| A136 | `A136_commande_changer_de_table.png` | Commande de la table 4 : bouton « Changer de table » en haut du panier | 5.1 bis |
+| A137 | `A137_commande_par_temps.png` | Panier groupé par temps : « Direct », « Entrées », « Plats » (pastille « EN ATTENTE ») ; bouton « Envoyer la suite (Plats) » | 4 bis |
+| A138 | `A138_selecteur_de_table.png` | Fenêtre « Changer de table · Table 4 » : « Choisissez la table libre », grille des tables libres (la 7 est choisie), « Retour » et « Valider » | 5.1 bis |
+| A139 | `A139_tables_apres_transfert.png` | Plan des tables après le transfert : la table 7 porte 76,52 € (5 art., 2 min) et « Suite : Plats » ; bouton « Déplacer une table » | 5.1 bis |
+| A140 | `A140_tables_deplacer_mode.png` | Plan des tables, mode « Déplacer une table » allumé : « Touchez la table à déplacer » | 5.1 bis |
+| A141 | `A141_tables_deplacer_source.png` | Table 7 choisie (contour orange) : « Table 7 : touchez la table libre » | 5.1 bis |
+| A142 | `A142_tables_deplacer_confirmation.png` | Fenêtre « Déplacer la table 7 vers la table 17 ? » avec « Retour » et « Valider » | 5.1 bis |
+| A143 | `A143_remise_pourcentage.png` | Fenêtre « Remise sur la commande », onglet « % » (10 %, raccourcis 5 à 50 %), motif « Geste commercial », « Total 76,52 € → 68,87 € » | 5.3 |
+| A144 | `A144_remise_montant.png` | Même fenêtre, onglet « Montant » : remise de 5,00 €, « Total 76,52 € → 71,52 € » | 5.3 |
+| A145 | `A145_remise_offert.png` | Même fenêtre, onglet « Offert » : « Toute la commande est offerte : le ticket est à 0,00 € », « Total 76,52 € → 0,00 € » | 5.3 |
+| A146 | `A146_remise_pin.png` | « Saisir le PIN » : « La remise figure sur le ticket fiscal. Confirmez avec votre PIN. » | 5.3 |
+| A147 | `A147_commande_remise_commande.png` | Panier après une remise de 10 % : chaque ligne porte « Remise 10 % » et son montant négatif, le bouton « Remise » devient « Retirer la remise » | 5.3 |
+| A148 | `A148_note_dialogue.png` | Fenêtre « Note pour la cuisine » : note « sans glace », compteur « 10/60 », « Imprimée en cuisine maintenant », clavier du terminal | 5.3 |
+| A149 | `A149_commande_ligne_note.png` | Panier : la note « sans glace » s'affiche en italique sous le nom de la ligne et le bouton « Note » est en surbrillance | 5.3 |
+| A150 | `A150_offrir_ligne_dialogue.png` | Fenêtre « Offrir la ligne » : quatre motifs, précision libre, « Total 20,00 € → 0,00 € » | 5.3 |
+| A151 | `A151_commande_ligne_offerte.png` | Panier : la ligne offerte est à 0,00 € avec « Offert » et « -20,00 », bouton « Retirer la remise » | 5.3 |
+| A152 | `A152_commande_remise_et_offert.png` | Panier avec une remise de 10 % sur les autres lignes et une ligne offerte : total 61,67 € | 5.3 |
+| A153 | `A153_choix_temps_service.png` | Fenêtre « Temps du service » ouverte par la pastille d'une ligne : Direct, Entrées, Plats, Desserts, « Annuler » | 4 bis |
+| A154 | `A154_envoyer_la_suite.png` | Message « Suite envoyée : Plats » après « Envoyer la suite » : le temps Plats n'est plus « EN ATTENTE », les Desserts le sont encore | 4 bis |
+| A155 | `A155_addition_avec_remise.png` | Message « Addition provisoire imprimée » sur une commande remisée (lignes « Remise 10 % » et « Offert ») | 6.2 |
+| A156 | `A156_paiement_avec_remise.png` | Écran de paiement d'une commande remisée : lignes avec leur remise, « Sous-total 88,52 € », « Remise -26,85 € », « TOTAL 61,67 € », quatre moyens dont « Bon cadeau » | 7.2 |
+| A159 | `A159_correction_dialogue.png` | Rapports, onglet « Tickets » : fenêtre « Corriger le paiement » d'une vente, « Quelle ligne de paiement faut-il corriger ? », la ligne en espèces, « Payé en réalité par » (Espèces, Carte, Chèques-repas) | 9 bis |
+| A160 | `A160_correction_choix.png` | Même fenêtre, « Carte » choisie : résumé « Espèces … → Carte … » et bouton « Corriger » actif | 9 bis |
+| A162 | `A162_tickets_vente_cochee_facture.png` | Rapports, onglet « Tickets » : la vente #1 est cochée, bouton « Facture (1) » ; onglets « Journée », « Caisse », « Tickets », « Ventes » et « Bons cadeaux » | 8 bis |
+| A163 | `A163_facture_client.png` | Fenêtre « Facture entreprise », étape « 1 · Client » : « Client connu », « N° de TVA » (BE0123456789), « Vérifier », nom, adresse, code postal, ville, pays | 8 bis |
+| A165 | `A165_facture_apercu.png` | Étape « 2 · Aperçu » : client ACME SRL, pastille « Peppol inconnu (hors ligne) », lignes, TVA par taux, « Total TTC 61,67 € », « Déjà payé 61,67 €. Reste à payer 0,00 € », « Établir et imprimer la facture » | 8 bis |
+| A166 | `A166_facture_refus_peppol.png` | « La facture n'a pas été établie. » : « Ce client a un numéro de TVA belge : la facture doit passer par Peppol, qui n'est pas configuré sur cette installation. Contactez le support. » | 8 bis |
+| A167 | `A167_facture_etablie.png` | « Facture 20260001 établie », « Facture imprimée. », « Pas d'envoi Peppol pour cette facture. », « Terminer » | 8 bis |
+| A168 | `A168_factures_liste.png` | Onglet « Tickets » : la vente #1 porte « Facture 20260001 » ; tableau « Factures » (20260001, ACME SARL, 18/10/2026, 61,67 €, « Papier seulement », « Copie ») | 8 bis |
+| A169 | `A169_rapport_ventes.png` | Onglet « Ventes » : « Rapport de ventes » (« Document non fiscal… »), périodes, « Concordance avec les Z », 6 tickets, total 184,16 €, ventes par produit et par heure, « Imprimer » | 10.4 |
+| A171 | `A171_commande_ligne_bon_cadeau.png` | Commande de la table 2 : la ligne « Bon cadeau » (pastille « Bon », 1 × 50,00 €) à la place des boutons de quantité | 4 bis |
+| A172 | `A172_fin_vente_bon_cadeau.png` | Fin de vente d'un bon : « OK », ticket de caisse T.V.A. de 50,00 €, « Bon imprimé », « Ticket imprimé », « Terminer » | 7.3 |
+| A173 | `A173_paiement_bon_cadeau_code.png` | « Payer avec un bon cadeau » : « Code du bon (12 chiffres) » saisi (6471 0477 4259), « Retour » et « Chercher » | 7.2 bis |
+| A174 | `A174_paiement_bon_cadeau_valide.png` | Bon trouvé : code masqué (**** **** 4259), « Valide », « Solde 50,00 € », « Valable jusqu'au 18.10.2027 », « Montant utilisé 50,00 € », « Utiliser ce bon » | 7.2 bis |
+| A175 | `A175_paiement_bon_cadeau_et_especes.png` | Paiement de 60,00 € en deux parts : « Part 1 · Bon cadeau · 50,00 € » validée, « Part 2 · Espèces · 10,00 € », « Reste à payer 10,00 € » | 7.2 bis |
+| A176 | `A176_fin_vente_payee_bon_cadeau.png` | Fin de vente de 60,00 € payée avec le bon et des espèces : « OK », « Ticket imprimé », « Terminer » | 7.3 |
+| A177 | `A177_bons_cadeaux_liste.png` | Rapports, onglet « Bons cadeaux » : « Vérifier un bon », « Bons émis » avec les filtres (Tous, Valide, Épuisé, Expiré, Annulé) ; le bon **** **** 4259 est « Épuisé », 0,00 € / 50,00 € | 10.5 |
+| A178 | `A178_bons_cadeaux_verification.png` | Même onglet après « Chercher » : bon 6471 0477 4259, « Épuisé », « Solde 0,00 € », « Valable jusqu'au 18.10.2027 » | 10.5 |
+| A179 | `A179_epuise_mode.png` | Écran de commande, mode « Épuisé » allumé : « Touchez un produit pour changer sa disponibilité. » | 5.4 |
+| A180 | `A180_epuise_dialogue.png` | Fenêtre du produit « Dry Martini » : « Épuisé jusqu'à la fin de la journée », « Épuisé jusqu'à réactivation », « Disponible », « Retour » | 5.4 |
+| A181 | `A181_produit_epuise_refus.png` | Produit grisé avec la pastille « Épuisé », message « Ce produit est épuisé. », bouton « Produits épuisés (1) » | 5.4 |
+| A182 | `A182_produits_epuises_liste.png` | Fenêtre « Produits épuisés » : « Dry Martini, Jusqu'à la fin de la journée (19/10 05:00) », « Remettre en vente », « Retour » | 5.4 |
+| A183 | `A183_editeur_carte_liste.png` | Config, « Édition de la carte » : catégories (« Menus » et « Vouchers » masquées), produits de la catégorie, « + Nouvelle catégorie », « + Nouveau produit », « Historique » | 12 bis |
+| A184 | `A184_editeur_carte_produit.png` | Fiche du produit « Dry Martini » : noms par langue, catégorie, « Prix (€) », « TVA sur place », « TVA à emporter », « Code du menu », « Annuler » et « Enregistrer » | 12 bis |
+| A185 | `A185_allergenes_grille.png` | Même fiche, section « Allergènes » : « Liste déclarée », les 14 allergènes (Lait et Sulfites « Contient », Céréales « Traces possibles »), « Groupes d'options » | 12 ter.4 |
+| A186 | `A186_editeur_produit_enregistre.png` | Même fiche après « Enregistrer » : message « Carte enregistrée » | 12 bis |
+| A187 | `A187_editeur_categorie_temps.png` | Fiche de la catégorie « Starters » : noms par langue, couleur, « Temps du service en cuisine » (Entrées), position, « Visible à la caisse » | 12 ter.2 |
+| A188 | `A188_commande_allergenes.png` | Écran de commande, mode « Allergènes » allumé : légende des 14 numéros, pastilles 7 et 12 sur « Dry Martini », « Touchez un produit pour voir ses allergènes » | 4 bis |
+| A189 | `A189_fiche_allergenes_produit.png` | Fiche d'allergènes du produit : « Règlement (UE) n° 1169/2011, annexe II », « Contient 7 Lait, 12 Sulfites », « Traces possibles 1 Céréales contenant du gluten », « Imprimer cette fiche », « Imprimer la carte complète », « Fermer » | 4 bis |
+| A190 | `A190_ticket_paiement_corrige.png` | Rapports, onglet « Tickets » : la vente #1 porte la mention « Paiement corrigé : Espèces → Carte » à la place du bouton « Corriger le paiement » | 9 bis |
+| A191 | `A191_correction_refusee_terminal.png` | Fenêtre « Corriger le paiement » d'une vente payée sur le terminal lié : « Une carte prise sur le terminal lié ne peut pas être corrigée. », « Retour » | 9 bis |
+| A192 | `A192_facture_client_peppol_inconnu.png` | Facture entreprise, étape « 1 · Client » : numéro BE0123456749, pastille « Peppol inconnu (hors ligne) », « Peppol n'a pas répondu : la facture peut être établie, l'envoi sera retenu. » | 8 bis |
+| A193 | `A193_bon_cadeau_vente_montant.png` | Fenêtre « Vendre un bon cadeau » : « Montant du bon » 50,00 €, pavé numérique, « Retour » et « Valider » | 4 bis |
+| A194 | `A194_rapport_ventes_periode_libre.png` | Onglet « Ventes », « Période libre » : saisie « Du __/__/____ » et « Au __/__/____ » au pavé, bouton « Afficher » | 10.4 |
+| A50b | `A50b_hubrise_code_refuse.png` | Connexion à HubRise, code refusé : QR code et lien d'autorisation, code « abc123 » saisi, message rouge « HubRise a refusé ce code ou ne répond pas : vérifiez le code et la connexion, puis réessayez » avec le détail de la réponse (400) | 12.7 |
 
 Lignes A80 à A87 : écrans propres à Android, sans équivalent Linux (mise en service, à propos, export pour le SPF, mise à jour), décrits dans MANUEL_INSTALLATION_FR.md et MANUEL_UTILISATEUR_FR.md. Lignes A88 à A129 : compléments pour les écrans que le manuel décrit et qu'aucune ligne plus haut ne couvrait.
 

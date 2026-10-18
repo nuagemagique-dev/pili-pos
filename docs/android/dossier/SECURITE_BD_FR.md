@@ -390,7 +390,7 @@ sur le build reproductible (EV-01). Détail et reproductibilité du build :
 ### 4.3 Hash du code source
 
 Tag git de la révision certifiée (`android-v1.0.0`) et tag de gel du
-moteur commun `linux-v1.0.0-rc2` (À effectuer (EV-04 : commit du tag)).
+moteur commun `linux-v1.0.0-rc3` (À effectuer (EV-04 : commit du tag)).
 Permet de reproduire l'APK à l'identique et de vérifier l'absence de
 modifications post-certification.
 

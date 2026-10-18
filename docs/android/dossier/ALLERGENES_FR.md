@@ -84,3 +84,7 @@ Modèle et noms, migration (contraintes et journal inaltérable), import HubRise
 code inconnu, absence de déclaration, retrait), ticket (modèle exact en français, pas de prix,
 pieds de page), commandes du moteur (`crates/pos-engine/tests/allergens.rs`, 15 scénarios et un test d'accès),
 éditeur de carte (`crates/pos-engine/tests/menu_editor.rs` et `crates/pos-engine/tests/lane_interactions.rs`) et interface de l'application (tests sous `android/app/src/test/kotlin/dev/nuagemagique/pilipos/feature/order/` et `.../feature/settings/menu/`, façade `android/rust/pos-ffi/tests/ffi/allergens.rs`).
+
+## Captures d'écran
+
+Les écrans de cette fonction sont les captures A188 (pastilles et légende), A189 (fiche d'un produit), A185 (déclaration dans l'éditeur de carte) et A186 (enregistrement) de *CAPTURES_ECRAN_FR.pdf*.

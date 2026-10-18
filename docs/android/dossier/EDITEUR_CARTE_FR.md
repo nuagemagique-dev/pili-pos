@@ -102,3 +102,7 @@ une catégorie après le rapport Z, jamais en cours de période.
 
 Aucun cas du jeu d'essais de l'administration n'est concerné : aucun événement n'est produit
 par l'éditeur.
+
+## Captures d'écran
+
+Les écrans de cette fonction sont les captures A183 (panneau « Édition de la carte »), A184 (fiche produit), A185 (allergènes de la fiche), A186 (enregistrement) et A187 (fiche catégorie) de *CAPTURES_ECRAN_FR.pdf*.

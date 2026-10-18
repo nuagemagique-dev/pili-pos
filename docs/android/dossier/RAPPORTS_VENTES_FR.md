@@ -121,3 +121,7 @@ dernier contrôle par la marque de concordance de chaque période.
 | `the_range_is_limited_to_92_days`, `only_a_manager_may_read_or_print_it` | Plage et droits |
 | `crates/pos-print/src/sales_report.rs` (tests) | Titre, deux mentions de pied, aucun mot des rapports fiscaux dans le titre |
 | `ui/e2e/sales-report.spec.ts`, `SalesViewModelTest`, `SalesContentTest` | Les deux écrans : plages, tableaux, barres, concordance, impression |
+
+## Captures d'écran
+
+Les écrans de cette fonction sont les captures A169 (onglet « Ventes ») et A194 (période libre) de *CAPTURES_ECRAN_FR.pdf*.

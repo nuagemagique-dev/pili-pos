@@ -183,7 +183,7 @@ L'identité bit-à-bit entre la build cert soumise au SPF Finances et la build d
    (deux builds du même commit dans deux conteneurs sans réseau, comparées octet par octet. Seule la build en conteneur est la référence. Empreinte de l'image et SHA-1 des deux APK : À effectuer (EV-05 : empreinte de l'image de build et SHA-1 des deux APK non signés identiques).)
 2. **Empreinte SHA-1 de l'APK.** L'APK est signé après la vérification de reproductibilité. Le SHA-1 de l'APK signé, déclaré au formulaire §I.D, se lit sur toute caisse installée dans l'écran « À propos » (avec celui de `libpos_ffi.so` et celui du certificat de signature) et se recalcule sans la caisse sur l'artefact public déclaré. *Voir : GARANTIE_MAJ_LANGUES_FR.md* §1.2.
 3. **Terminal verrouillé.** Le déploiement client se fait par le producteur, qui installe l'APK signé sur un terminal mis sous propriétaire de l'appareil, sans compte Google (mode Lock Task, installations depuis des sources inconnues interdites, débogage coupé en production). Après la mise en service, le seul chemin d'arrivée de l'APK fiscal est l'outil de mise à jour déclarée, qui refuse tout APK dont l'empreinte ou le certificat diffèrent de la déclaration. *Voir : PLATEFORME_ANDROID_FR.md* §3 et *SECURITE_BD_FR.md* §3.
-4. **Tag git.** Le commit de la build cert est tagué `android-v1.0.0` ; le moteur fiscal commun est celui de l'étiquette de gel `linux-v1.0.0-rc2` (puis de l'étiquette finale) : À effectuer (EV-04 : commit de l'étiquette du moteur). Toute MAJ ultérieure passe par un nouveau cycle de certification (procédure §II.E + Article 109 du Manuel).
+4. **Tag git.** Le commit de la build cert est tagué `android-v1.0.0` ; le moteur fiscal commun est celui de l'étiquette de gel `linux-v1.0.0-rc3` (puis de l'étiquette finale) : À effectuer (EV-04 : commit de l'étiquette du moteur). Toute MAJ ultérieure passe par un nouveau cycle de certification (procédure §II.E + Article 109 du Manuel).
 
 
 ## §II.E Mises à jour
@@ -975,7 +975,7 @@ Le Gérant (rôle Admin) ouvre l'écran "Rapports" par le bouton de l'en-tête (
 
 Liste des fichiers du ZIP de soumission de `pili-pos-android` (la liste exacte, fichier par fichier, est `MANIFEST.txt`) :
 
-Dans le texte des annexes, un renvoi à un fichier `.md` (par exemple *SECURITE_BD_FR.md*) désigne l'annexe PDF du même nom. Une annexe marquée « commun » décrit le moteur seul : c'est celle du dossier Linux au même état du moteur (étiquette de gel `linux-v1.0.0-rc2`, puis étiquette finale), reprise sans modification (*INDEX_DOSSIER_FR.md* §2 et §3).
+Dans le texte des annexes, un renvoi à un fichier `.md` (par exemple *SECURITE_BD_FR.md*) désigne l'annexe PDF du même nom. Une annexe marquée « commun » décrit le moteur seul : c'est celle du dossier Linux au même état du moteur (étiquette de gel `linux-v1.0.0-rc3`, puis étiquette finale), reprise sans modification (*INDEX_DOSSIER_FR.md* §2 et §3).
 
 | # | Fichier | Section couverte |
 |---|---|---|

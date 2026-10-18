@@ -307,7 +307,7 @@ restée ouverte (§10.2). (capture A95 : bandeau Rapport Z non effectué aujourd
 produit ouvre sa fiche au lieu de l'ajouter à la commande : « Contient », « Traces possibles », les options, une
 légende des 14 numéros, et deux boutons « Imprimer cette fiche » et « Imprimer la carte complète ». Un produit sans
 déclaration affiche « Information non disponible, demandez au responsable », jamais « Aucun allergène ». Le mode
-« Allergènes » et le mode « Épuisé » (§5.4) s'excluent : en allumer un éteint l'autre. Voir *ALLERGENES_FR.md*.
+« Allergènes » et le mode « Épuisé » (§5.4) s'excluent : en allumer un éteint l'autre. Voir *ALLERGENES_FR.md*. (capture A188 : mode « Allergènes » avec la légende et les pastilles ; capture A189 : fiche d'un produit.)
 
 **Service en plusieurs temps** (si un Gérant l'a activé, §12 ter.2). Le panier est groupé par temps (Direct, Entrées,
 Plats, Desserts) et chaque ligne porte une pastille qui permet de changer son temps tant que le ticket de cuisine ne
@@ -315,7 +315,7 @@ l'a pas portée. « Envoyer en cuisine » imprime le Direct et les entrées ; le
 imprime ensuite le temps suivant. Le plan des tables indique « Suite : Plats » sur une table qui retient un temps.
 À l'encaissement, un avertissement (« Suite non envoyée : Plats ») propose « Envoyer maintenant » : la caisse
 n'imprime jamais un temps toute seule. Si le module fiscal ne répond pas, « Envoyer la suite » est refusé et rien
-n'est imprimé. Voir *SERVICES_CUISINE_FR.md*.
+n'est imprimé. Voir *SERVICES_CUISINE_FR.md*. (Captures : A137 panier groupé par temps ; A153 choix du temps d'une ligne ; A154 « Suite envoyée : Plats » ; A139 plan des tables avec « Suite : Plats ».)
 
 **Bon cadeau** (si un Gérant l'a activé, §12 ter.3). Le bouton « Bon cadeau » demande le montant (de 1,00 € au
 maximum réglé) et ajoute au panier une ligne « Bon cadeau » avec la pastille « Bon » à la place des boutons de
@@ -324,7 +324,7 @@ quantité (un bon par ligne ; la ligne peut être retirée avant la vente). Aucu
 chèques-repas ni un bon cadeau, et ne peut pas être clôturée sans paiement. Après la vente, le bon s'imprime ;
 si l'impression échoue, l'écran de fin de vente le dit (« Bon non imprimé : le réimprimer depuis Rapports, Bons
 cadeaux »). Une vente qui vend un bon ne peut pas être facturée à un client professionnel (§8 bis). Voir
-*BONS_CADEAUX_FR.md*.
+*BONS_CADEAUX_FR.md*. (Captures : A193 montant du bon ; A171 ligne « Bon » du panier ; A172 fin de vente, « Bon imprimé ».)
 
 ## 5. Tables, à emporter, prise de commande et produit épuisé (§5.4)
 
@@ -361,6 +361,7 @@ d'abord enregistrés sur l'ancienne table, puis le déplacement est signé
 contenu et sa référence ; aucun argent ne bouge. Un bon « TRANSFERT DE
 TABLE » (« Table 4 -> Table 9 », sans prix) sort à l'imprimante du bar.
 « Commande déplacée vers la table N » confirme.
+(Captures : A136 bouton « Changer de table » ; A138 choix de la table libre ; A140, A141 et A142 déplacement depuis le plan des tables ; A139 plan après le transfert.)
 
 Refus : une table qui a déjà une commande en cours n'est pas
 fusionnée (« Cette table a déjà une commande en cours : choisissez une
@@ -408,6 +409,7 @@ vente sans paiement (§7.5). (capture A12 : ventes à emporter en cours).
   s'affiche et l'envoi est refait à la commande suivante. Le motif reste dans
   le journal local de la caisse et n'est jamais envoyé au FDM. Les
   remises d'une commande en ligne viennent de la plateforme (§12.8).
+  (Captures : A143 remise en pourcentage ; A144 remise en montant ; A145 « Offert » ; A146 confirmation par PIN ; A147 panier remisé ; A150 « Offrir la ligne » ; A151 ligne offerte ; A152 remise et ligne offerte ; A155 addition remisée ; A156 paiement d'une commande remisée.)
 - **Note pour la cuisine** : chaque ligne du panier a un bouton « Note »
   (tout le personnel). Il ouvre la fenêtre « Note pour la cuisine » avec le
   clavier du terminal : taper la note (« sans wasabi », « allergie
@@ -423,7 +425,7 @@ vente sans paiement (§7.5). (capture A12 : ventes à emporter en cours).
   pas imprimer »). Ajouter le même article à une ligne qui porte une note
   crée une nouvelle ligne, pour que « un avec, un sans » restent deux
   lignes. La note ne figure sur aucun ticket TVA, addition ou copie et
-  n'est jamais envoyée au FDM.
+  n'est jamais envoyée au FDM. (Captures : A148 fenêtre « Note pour la cuisine » ; A149 note sous le nom de la ligne.)
 - **Prix libre** : certains articles n'ont pas de prix fixe (ex. "Plat
   du jour"). En les touchant, la fenêtre "Prix libre" demande le
   prix : taper les chiffres comme sur un terminal de paiement
@@ -461,7 +463,7 @@ et porte la pastille "Épuisé" ; le toucher affiche "Ce produit est
 les produits concernés, et "Remettre en vente" en rend un disponible.
 Si la caisse est reliée à HubRise, l'état est transmis au stock en
 ligne. La fonction ne produit aucun ticket et ne modifie aucun rapport
-(`PRODUIT_EPUISE_FR.md`).
+(`PRODUIT_EPUISE_FR.md`). (Captures : A179 mode « Épuisé » ; A180 choix de disponibilité ; A181 produit refusé ; A182 liste « Produits épuisés ».)
 
 ## 6. Commande enregistrée et addition (événements P)
 
@@ -693,6 +695,7 @@ reste sur le bon (aucune monnaie rendue). Plusieurs bons peuvent payer une même
 vente ; le reste se règle par un autre moyen. Après cinq recherches ratées dans la minute, les recherches sont
 bloquées un instant. Le code n'est jamais affiché en entier : seuls les quatre derniers chiffres le sont. Quand
 un paiement laisse un solde sur un bon, un petit ticket « solde du bon » s'imprime après le ticket de T.V.A.
+(Captures : A173 saisie du code ; A174 bon trouvé et « Utiliser ce bon » ; A175 bon cadeau et espèces sur une même vente ; A176 fin de la vente.)
 
 ### 7.3 Fin de la vente
 
@@ -846,6 +849,7 @@ Peppol, qui n'est pas configuré sur cette installation. Contactez le
 support.") : rien n'est signé et la vente reste facturable. Un client
 étranger reçoit la facture imprimée. Un envoi bloqué se relance depuis le panneau
 Peppol de "Config" (§12 bis). Détails : `FACTURATION_PEPPOL_FR.md`.
+(Captures : A162 vente cochée ; A163 client ; A192 client belge, Peppol inconnu ; A165 aperçu ; A166 refus faute de Peppol ; A167 facture établie ; A168 liste des factures.)
 
 ## 9. Remboursement
 
@@ -951,6 +955,7 @@ Refus (le texte s'affiche dans la fenêtre) :
 
 Si le FDM ne répond pas, la réponse peut arriver plus tard : la demande reste en
 attente et la correction est reprise au prochain essai ou par la tâche de fond (§7.4). Le PIN est celui du Gérant connecté.
+(Captures : A159 et A160 fenêtre « Corriger le paiement » ; A190 vente corrigée ; A191 carte du terminal lié refusée.)
 
 ## 9 ter. Remboursement et bons cadeaux
 
@@ -1031,6 +1036,7 @@ tickets et le total, et la concordance avec le rapport Z de chaque
 journée. Le titre porte "DOCUMENT NON FISCAL" ; "Imprimer" en tire une
 copie papier qui ne signe rien et ne remplace ni le X ni le Z
 (`RAPPORTS_VENTES_FR.md`).
+(Captures : A169 onglet « Ventes » ; A194 période libre.)
 
 ### 10.5 Onglet « Bons cadeaux »
 
@@ -1038,7 +1044,7 @@ Visible si la fonction est active. Serveur et Gérant y cherchent un bon par son
 validité). Le Gérant voit en plus la liste « Bons émis » (valides d'abord, filtres « Tous », « Valide », « Épuisé »,
 « Expiré », « Annulé »), les mouvements de chaque bon (« Émission », « Utilisation », « Annulation ») et le bouton
 « Réimprimer », qui tire un duplicata marqué DUPLICATA et le journalise. Dans le rapport de ventes (§10.4), la ligne
-de bon figure au rayon « Bons cadeaux » (T.V.A. X) et le total égale celui du rapport Z.
+de bon figure au rayon « Bons cadeaux » (T.V.A. X) et le total égale celui du rapport Z. (Captures : A177 liste « Bons émis » ; A178 vérification d'un bon.)
 
 ## 11. Mouvements de caisse, tiroir et comptage (événements F)
 
@@ -1515,22 +1521,22 @@ messages », la « Langue des messages », les cinq situations de « Prévenir q
 « Une commande en ligne attend »), « Z attendu avant », « Commande en ligne en attente depuis » et « Rappel toutes
 les ». « Enregistrer » enregistre ; « Envoyer un message test » envoie un seul message et dit pourquoi Telegram
 refuse s'il refuse ; « Derniers messages » liste les envois (« Alerte », « Rappel », « Résolu », « Test », « Envoyé »,
-« Échec », « Retenu (limite horaire) »). Sans jeton, le message test est refusé (`alerts_token_missing`) et aucune alerte ne part.
+« Échec », « Retenu (limite horaire) »). Sans jeton, le message test est refusé (`alerts_token_missing`) et aucune alerte ne part. (Capture A133.)
 
 **12 ter.2 Service en plusieurs temps** (*SERVICES_CUISINE_FR.md*). Le panneau « Service en plusieurs temps » a un
 interrupteur « Actif » / « Inactif » et, pour chaque catégorie active, « Temps de chaque catégorie » (Direct,
 Entrées, Plats, Desserts). Le même réglage est dans le panneau de la catégorie de l'éditeur de carte (§12 bis).
-Éteint, les tickets de cuisine sont identiques à ceux d'avant.
+Éteint, les tickets de cuisine sont identiques à ceux d'avant. (Captures : A130 panneau inactif ; A131 panneau actif ; A187 temps d'une catégorie.)
 
 **12 ter.3 Bons cadeaux** (*BONS_CADEAUX_FR.md*). Le panneau « Bons cadeaux » a l'interrupteur « Actif » /
 « Inactif », « Validité (mois) » (12 à 36) et « Montant maximum (€) ». La fonction ne s'éteint pas tant qu'un bon
-réel peut encore être utilisé (la caisse refuse : les clients gardent des bons valables au moins douze mois).
+réel peut encore être utilisé (la caisse refuse : les clients gardent des bons valables au moins douze mois). (Capture A132.)
 
 **12 ter.4 Allergènes dans l'éditeur de carte.** La fiche d'un produit ou d'une option (§12 bis) montre les 14
 allergènes : un toucher fait passer de « aucun » à « contient » puis à « peut contenir » ; l'interrupteur « déclaré »
 distingue une liste vide déclarée d'une absence de déclaration. Le même bouton « Enregistrer » écrit la fiche puis
 la liste (un produit neuf s'enregistre d'abord). L'éditeur reste verrouillé tant qu'un catalogue externe gère la
-carte ; le produit système « Bon cadeau » n'y apparaît jamais.
+carte ; le produit système « Bon cadeau » n'y apparaît jamais. (Captures : A185 allergènes d'une fiche ; A186 « Carte enregistrée ».)
 
 ### 12 bis. Carte et panneau Peppol
 
@@ -1541,6 +1547,7 @@ et à emporter), groupes d'options et options ; rien ne se supprime, un
 catalogue HubRise gère la carte, l'édition est refusée et l'écran
 l'indique (`EDITEUR_CARTE_FR.md`). Une modification s'applique aux
 commandes suivantes ; les ventes déjà signées ne changent pas.
+(Captures : A183 liste ; A184 fiche d'un produit ; A185 allergènes ; A186 enregistrement ; A187 fiche d'une catégorie.)
 
 **Peppol.** Le panneau Peppol de "Config" n'apparaît que si
 l'installation contient une section `peppol`. Il indique le fournisseur,
@@ -1669,3 +1676,73 @@ Messages de la caisse elle-même :
 
 En cas de doute : **ne jamais vendre sans le FDM**, et **terminer chaque
 journée par un rapport Z**.
+
+---
+
+## Annexe. Captures des fonctions complémentaires (A130 à A194)
+
+Les captures ci-dessous ont été prises le 18.10.2026 sur le profil `sunmi_d3_pro_gms_api33` (jeu de test SPF). Chacune est aussi citée dans la section indiquée et dans le fichier `CAPTURES_ECRAN_FR.pdf` ; l'annexe de chaque fonction renvoie aux siennes.
+
+| Id | Ce que montre l'écran | Section |
+|---|---|---|
+| A50b | Connexion à HubRise, code refusé : QR code et lien d'autorisation, code « abc123 » saisi, message rouge « HubRise a refusé ce code ou ne répond pas : vérifiez le code et la connexion, puis réessayez » avec le détail de la réponse (400) | §12.7 |
+| A112 | Écran « En ligne » : deux commandes « Nouvelles » (Webshop et Deliveroo, payées) avec l'encadré « À vérifier · Produit absent du menu » et les boutons « Refuser » et « Resynchroniser » | §12.8 |
+| A127b | Config, lecteur de badges : fenêtre « Saisir le PIN » (« Confirmez avec votre PIN de gérant ») ouverte avant de lier un badge, sur le panneau « Lecteur de badges » réglé sur « Lecteur USB », « Connexion par badge » activée et réglages du lecteur | §12.13 |
+| A130 | Config, panneau « Service en plusieurs temps » à « Inactif » : liste « Temps de chaque catégorie » (Direct, Entrées, Plats, Desserts) ; à côté, les panneaux « Plan de salle », « Lecteur de badges » et « Alertes sur téléphone » (inactives, « Robot Telegram absent ») | §12 ter.2 |
+| A131 | Même panneau à « Actif » : la catégorie « Starters » est réglée sur « Entrées » | §12 ter.2 |
+| A132 | Config, panneau « Bons cadeaux » à « Actif » : « Validité (mois) » 12, « Montant maximum (€) » 500, bouton « Enregistrer » | §12 ter.3 |
+| A133 | Config, panneau « Alertes sur téléphone » : « Prévenir quand » (boîte noire, imprimante, terminal de paiement, Z du jour, commande en ligne), « Z attendu avant » 6 h, « Commande en ligne en attente depuis » 5 min, « Rappel toutes les » 60 min, « Enregistrer » et « Envoyer un message test » | §12 ter.1 |
+| A136 | Commande de la table 4 : bouton « Changer de table » en haut du panier | §5.1 bis |
+| A137 | Panier groupé par temps : « Direct », « Entrées », « Plats » (pastille « EN ATTENTE ») ; bouton « Envoyer la suite (Plats) » | §4 bis |
+| A138 | Fenêtre « Changer de table · Table 4 » : « Choisissez la table libre », grille des tables libres (la 7 est choisie), « Retour » et « Valider » | §5.1 bis |
+| A139 | Plan des tables après le transfert : la table 7 porte 76,52 € (5 art., 2 min) et « Suite : Plats » ; bouton « Déplacer une table » | §5.1 bis |
+| A140 | Plan des tables, mode « Déplacer une table » allumé : « Touchez la table à déplacer » | §5.1 bis |
+| A141 | Table 7 choisie (contour orange) : « Table 7 : touchez la table libre » | §5.1 bis |
+| A142 | Fenêtre « Déplacer la table 7 vers la table 17 ? » avec « Retour » et « Valider » | §5.1 bis |
+| A143 | Fenêtre « Remise sur la commande », onglet « % » (10 %, raccourcis 5 à 50 %), motif « Geste commercial », « Total 76,52 € → 68,87 € » | §5.3 |
+| A144 | Même fenêtre, onglet « Montant » : remise de 5,00 €, « Total 76,52 € → 71,52 € » | §5.3 |
+| A145 | Même fenêtre, onglet « Offert » : « Toute la commande est offerte : le ticket est à 0,00 € », « Total 76,52 € → 0,00 € » | §5.3 |
+| A146 | « Saisir le PIN » : « La remise figure sur le ticket fiscal. Confirmez avec votre PIN. » | §5.3 |
+| A147 | Panier après une remise de 10 % : chaque ligne porte « Remise 10 % » et son montant négatif, le bouton « Remise » devient « Retirer la remise » | §5.3 |
+| A148 | Fenêtre « Note pour la cuisine » : note « sans glace », compteur « 10/60 », « Imprimée en cuisine maintenant », clavier du terminal | §5.3 |
+| A149 | Panier : la note « sans glace » s'affiche en italique sous le nom de la ligne et le bouton « Note » est en surbrillance | §5.3 |
+| A150 | Fenêtre « Offrir la ligne » : quatre motifs, précision libre, « Total 20,00 € → 0,00 € » | §5.3 |
+| A151 | Panier : la ligne offerte est à 0,00 € avec « Offert » et « -20,00 », bouton « Retirer la remise » | §5.3 |
+| A152 | Panier avec une remise de 10 % sur les autres lignes et une ligne offerte : total 61,67 € | §5.3 |
+| A153 | Fenêtre « Temps du service » ouverte par la pastille d'une ligne : Direct, Entrées, Plats, Desserts, « Annuler » | §4 bis |
+| A154 | Message « Suite envoyée : Plats » après « Envoyer la suite » : le temps Plats n'est plus « EN ATTENTE », les Desserts le sont encore | §4 bis |
+| A155 | Message « Addition provisoire imprimée » sur une commande remisée (lignes « Remise 10 % » et « Offert ») | §6.2 |
+| A156 | Écran de paiement d'une commande remisée : lignes avec leur remise, « Sous-total 88,52 € », « Remise -26,85 € », « TOTAL 61,67 € », quatre moyens dont « Bon cadeau » | §7.2 |
+| A159 | Rapports, onglet « Tickets » : fenêtre « Corriger le paiement » d'une vente, « Quelle ligne de paiement faut-il corriger ? », la ligne en espèces, « Payé en réalité par » (Espèces, Carte, Chèques-repas) | §9 bis |
+| A160 | Même fenêtre, « Carte » choisie : résumé « Espèces … → Carte … » et bouton « Corriger » actif | §9 bis |
+| A162 | Rapports, onglet « Tickets » : la vente #1 est cochée, bouton « Facture (1) » ; onglets « Journée », « Caisse », « Tickets », « Ventes » et « Bons cadeaux » | §8 bis |
+| A163 | Fenêtre « Facture entreprise », étape « 1 · Client » : « Client connu », « N° de TVA » (BE0123456789), « Vérifier », nom, adresse, code postal, ville, pays | §8 bis |
+| A165 | Étape « 2 · Aperçu » : client ACME SRL, pastille « Peppol inconnu (hors ligne) », lignes, TVA par taux, « Total TTC 61,67 € », « Déjà payé 61,67 €. Reste à payer 0,00 € », « Établir et imprimer la facture » | §8 bis |
+| A166 | « La facture n'a pas été établie. » : « Ce client a un numéro de TVA belge : la facture doit passer par Peppol, qui n'est pas configuré sur cette installation. Contactez le support. » | §8 bis |
+| A167 | « Facture 20260001 établie », « Facture imprimée. », « Pas d'envoi Peppol pour cette facture. », « Terminer » | §8 bis |
+| A168 | Onglet « Tickets » : la vente #1 porte « Facture 20260001 » ; tableau « Factures » (20260001, ACME SARL, 18/10/2026, 61,67 €, « Papier seulement », « Copie ») | §8 bis |
+| A169 | Onglet « Ventes » : « Rapport de ventes » (« Document non fiscal… »), périodes, « Concordance avec les Z », 6 tickets, total 184,16 €, ventes par produit et par heure, « Imprimer » | §10.4 |
+| A171 | Commande de la table 2 : la ligne « Bon cadeau » (pastille « Bon », 1 × 50,00 €) à la place des boutons de quantité | §4 bis |
+| A172 | Fin de vente d'un bon : « OK », ticket de caisse T.V.A. de 50,00 €, « Bon imprimé », « Ticket imprimé », « Terminer » | §7.3 |
+| A173 | « Payer avec un bon cadeau » : « Code du bon (12 chiffres) » saisi (6471 0477 4259), « Retour » et « Chercher » | §7.2 bis |
+| A174 | Bon trouvé : code masqué (**** **** 4259), « Valide », « Solde 50,00 € », « Valable jusqu'au 18.10.2027 », « Montant utilisé 50,00 € », « Utiliser ce bon » | §7.2 bis |
+| A175 | Paiement de 60,00 € en deux parts : « Part 1 · Bon cadeau · 50,00 € » validée, « Part 2 · Espèces · 10,00 € », « Reste à payer 10,00 € » | §7.2 bis |
+| A176 | Fin de vente de 60,00 € payée avec le bon et des espèces : « OK », « Ticket imprimé », « Terminer » | §7.3 |
+| A177 | Rapports, onglet « Bons cadeaux » : « Vérifier un bon », « Bons émis » avec les filtres (Tous, Valide, Épuisé, Expiré, Annulé) ; le bon **** **** 4259 est « Épuisé », 0,00 € / 50,00 € | §10.5 |
+| A178 | Même onglet après « Chercher » : bon 6471 0477 4259, « Épuisé », « Solde 0,00 € », « Valable jusqu'au 18.10.2027 » | §10.5 |
+| A179 | Écran de commande, mode « Épuisé » allumé : « Touchez un produit pour changer sa disponibilité. » | §5.4 |
+| A180 | Fenêtre du produit « Dry Martini » : « Épuisé jusqu'à la fin de la journée », « Épuisé jusqu'à réactivation », « Disponible », « Retour » | §5.4 |
+| A181 | Produit grisé avec la pastille « Épuisé », message « Ce produit est épuisé. », bouton « Produits épuisés (1) » | §5.4 |
+| A182 | Fenêtre « Produits épuisés » : « Dry Martini, Jusqu'à la fin de la journée (19/10 05:00) », « Remettre en vente », « Retour » | §5.4 |
+| A183 | Config, « Édition de la carte » : catégories (« Menus » et « Vouchers » masquées), produits de la catégorie, « + Nouvelle catégorie », « + Nouveau produit », « Historique » | §12 bis |
+| A184 | Fiche du produit « Dry Martini » : noms par langue, catégorie, « Prix (€) », « TVA sur place », « TVA à emporter », « Code du menu », « Annuler » et « Enregistrer » | §12 bis |
+| A185 | Même fiche, section « Allergènes » : « Liste déclarée », les 14 allergènes (Lait et Sulfites « Contient », Céréales « Traces possibles »), « Groupes d'options » | §12 ter.4 |
+| A186 | Même fiche après « Enregistrer » : message « Carte enregistrée » | §12 bis |
+| A187 | Fiche de la catégorie « Starters » : noms par langue, couleur, « Temps du service en cuisine » (Entrées), position, « Visible à la caisse » | §12 ter.2 |
+| A188 | Écran de commande, mode « Allergènes » allumé : légende des 14 numéros, pastilles 7 et 12 sur « Dry Martini », « Touchez un produit pour voir ses allergènes » | §4 bis |
+| A189 | Fiche d'allergènes du produit : « Règlement (UE) n° 1169/2011, annexe II », « Contient 7 Lait, 12 Sulfites », « Traces possibles 1 Céréales contenant du gluten », « Imprimer cette fiche », « Imprimer la carte complète », « Fermer » | §4 bis |
+| A190 | Rapports, onglet « Tickets » : la vente #1 porte la mention « Paiement corrigé : Espèces → Carte » à la place du bouton « Corriger le paiement » | §9 bis |
+| A191 | Fenêtre « Corriger le paiement » d'une vente payée sur le terminal lié : « Une carte prise sur le terminal lié ne peut pas être corrigée. », « Retour » | §9 bis |
+| A192 | Facture entreprise, étape « 1 · Client » : numéro BE0123456749, pastille « Peppol inconnu (hors ligne) », « Peppol n'a pas répondu : la facture peut être établie, l'envoi sera retenu. » | §8 bis |
+| A193 | Fenêtre « Vendre un bon cadeau » : « Montant du bon » 50,00 €, pavé numérique, « Retour » et « Valider » | §4 bis |
+| A194 | Onglet « Ventes », « Période libre » : saisie « Du __/__/____ » et « Au __/__/____ » au pavé, bouton « Afficher » | §10.4 |

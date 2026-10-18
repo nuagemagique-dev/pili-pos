@@ -388,7 +388,7 @@ la certification SCE 2.0.
 
 ## 7. Interface Android et parité avec l'interface Linux
 
-L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili-pos` et n'ajoute aucune règle fiscale : l'interface affiche et transmet, le moteur décide (`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` §1). L'index `docs/android/PARITY.md`, contrôlé par `scripts/android/check_ui_parity.py`, rattache chaque composant Vue à son équivalent Compose et chaque commande à son appelant. Sur les 126 commandes que l'interface Linux utilise, **117 sont appelées** par l'interface Android et **9 sont exclues**, avec leurs raisons (§7.2) ; aucune n'est manquante ni en attente. Les commandes de facture, de produit épuisé, d'édition de la carte et de rapport de ventes sont parmi les 117.
+L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili-pos` et n'ajoute aucune règle fiscale : l'interface affiche et transmet, le moteur décide (`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` §1). L'index `docs/android/PARITY.md`, contrôlé par `scripts/android/check_ui_parity.py`, rattache chaque composant Vue à son équivalent Compose et chaque commande à son appelant. Sur les 146 commandes que l'interface Linux utilise (la build de certification en compte 148), **136 sont appelées** par l'interface Android et **10 sont exclues**, avec leurs raisons (§7.2) ; aucune n'est manquante ni en attente. Les commandes de facture, de produit épuisé, d'édition de la carte et de rapport de ventes sont parmi les 136.
 
 ### 7.1 Écrans offerts
 
@@ -401,7 +401,7 @@ L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili
 - Facturation B2B (choix des ventes, client, aperçu, liste des factures, panneau Peppol) : §2.7. Produit épuisé : §2.1. Édition de la carte : §2.6. Rapport de ventes : §2.3.
 - Allergènes : §2.8. Service en plusieurs temps : §2.9. Bons cadeaux (bouton de commande, méthode d'encaissement, onglet de rapports) : §2.10. Alertes du propriétaire (réglages) : §2.11.
 
-### 7.2 Commandes exclues (9)
+### 7.2 Commandes exclues (10)
 
 | Commandes | Raison |
 |---|---|
@@ -409,6 +409,7 @@ L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili
 | `check_fdm_status` | Sans appelant côté Vue ; `fdm_health` et `fdm_check_now` le remplacent |
 | `list_fiscal_events` | Sans appelant côté Vue |
 | `sign_table_order` | Sans appelant côté Vue ; `leave_order` enregistre l'événement P |
+| `reprint_course_slip` | Aucun écran dans la version 1.0 : la réimpression en DUPLICATA d'un bon de service en plusieurs temps reste une commande du moteur seul (`SERVICES_CUISINE_FR.md`) |
 | `work_in`, `work_out` | Sans appelant côté Vue ; la connexion fait entrer et `end_shift` fait sortir ; le Gérant pointe un autre employé avec `clock_in_employee` et `clock_out_employee` |
 
 ### 7.3 Assistance à distance absente

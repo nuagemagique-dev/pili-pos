@@ -144,3 +144,7 @@ Il ne contient aucune donnée personnelle ni le jeton.
 
 Aucun cas d'usage SPF n'est modifié ni rejoué : la fonction ne produit aucun événement
 fiscal et ne change aucun ticket, rapport ou paiement.
+
+## Captures d'écran
+
+L'écran de cette fonction est la capture A133 (panneau « Alertes sur téléphone ») de *CAPTURES_ECRAN_FR.pdf*.

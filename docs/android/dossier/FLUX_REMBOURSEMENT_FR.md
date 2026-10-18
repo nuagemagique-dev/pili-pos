@@ -222,3 +222,7 @@ cargo test --package pos-engine --test spf_e2e_no_gap refund_fdm
 Côté Android, le test de bout en bout `EndToEndTest` (`docs/android/FFI.md` §12) signe et imprime un remboursement par la méthode FFI, contre les simulateurs de FDM et d'imprimante : À effectuer (EV-06 : résultats des cas d'utilisation sur l'émulateur Android).
 
 Totaux : totaux par binaire de test dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérés par `scripts/generate_test_report.py`.
+
+## Captures d'écran
+
+Les écrans de la correction d'un moyen de paiement sont les captures A159 et A160 (fenêtre « Corriger le paiement »), A190 (vente corrigée) et A191 (carte du terminal lié refusée) de *CAPTURES_ECRAN_FR.pdf*.

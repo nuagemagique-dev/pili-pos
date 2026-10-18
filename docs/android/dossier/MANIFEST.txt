@@ -8,7 +8,7 @@
 # Préfixe "commun:" : document commun aux deux demandes (moteur seul,
 # INDEX_DOSSIER_FR.md §2). Le PDF n'est pas produit pour le dossier
 # Android : c'est celui du dossier Linux (docs/SUBMISSION_ARTIFACTS/pdf_out/)
-# au même état du moteur, l'étiquette de gel linux-v1.0.0-rc2 puis
+# au même état du moteur, l'étiquette de gel linux-v1.0.0-rc3 puis
 # l'étiquette finale. Dans le ZIP il est placé à la racine sous son nom.
 #
 # Les PDF (pdf_out/), le constructeur du ZIP et la vérification finale

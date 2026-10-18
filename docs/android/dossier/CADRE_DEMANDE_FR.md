@@ -60,11 +60,11 @@ Le terminal montre la version à deux endroits : l'écran de connexion, sous les
 
 Les deux produits embarquent le même moteur fiscal, avec les mêmes règles, le même schéma de base de données et les mêmes tickets : la caisse `crates/pos-engine` et les crates de la build de certification (`pos-core`, `pos-fiscal`, `pos-db`, `pos-print`, `pos-mail`, `pos-hubrise`, `pos-catalog`, `pos-export`).
 
-- Les deux dossiers citent le même état du moteur : l'étiquette de gel `linux-v1.0.0-rc2`, puis l'étiquette finale. Valeurs de cette étiquette : À effectuer (EV-04 : commit de l'étiquette et SHA-1 du binaire Linux du même moteur).
+- Les deux dossiers citent le même état du moteur : l'étiquette de gel `linux-v1.0.0-rc3`, puis l'étiquette finale. Valeurs de cette étiquette : À effectuer (EV-04 : commit de l'étiquette et SHA-1 du binaire Linux du même moteur).
 - Sur Linux, le moteur est lié au binaire Tauri. Sur Android, il est compilé dans la bibliothèque libpos_ffi.so, à l'intérieur de l'APK, et appelé par l'interface Kotlin au travers de la couche UniFFI. Aucune règle fiscale ou monétaire n'existe côté Kotlin : le moteur seul décide des événements envoyés au FDM, des totaux, des compteurs et des tickets (`PLATEFORME_ANDROID_FR.md` §2).
 - Le producteur le prouve de trois façons :
   1. le gel du moteur : un contrôle compare, à chaque modification, les chemins du moteur et de la build Linux avec l'étiquette de gel (`scripts/android/check_linux_frozen.sh`) ; il échoue si l'un d'eux a changé ;
-  2. la parité des commandes : chacune des 128 commandes de la build de certification, appelées par l'interface Linux, a sa méthode du même nom dans la couche UniFFI utilisée par l'interface Android, avec les mêmes paramètres (`scripts/android/check_command_parity.py`, résultat 128 sur 128) ;
+  2. la parité des commandes : chacune des 148 commandes de la build de certification (dont les 146 de la couche IPC de l'interface Linux) a sa méthode du même nom dans la couche UniFFI utilisée par l'interface Android, avec les mêmes paramètres (`scripts/android/check_command_parity.py --strict`, résultat 148 sur 148) ;
   3. la comparaison des journaux : les mêmes scénarios, joués sur les deux produits, donnent les mêmes requêtes au FDM et le même journal fiscal. Résultat : À effectuer (EV-07 : comparaison du journal et des requêtes FDM entre Android et Linux).
 - Six documents décrivent le moteur seul. Ils sont communs aux deux demandes et ne sont pas recopiés : `INDEX_DOSSIER_FR.md` §2 et §3 donnent leur lecture sur Android.
 

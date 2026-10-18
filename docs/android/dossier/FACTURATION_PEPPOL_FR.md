@@ -166,3 +166,7 @@ Les pièces (requête construite par pili-pos, réponse du module de contrôle) 
 - Le contrôle du document par le schématron Peppol se fait au point d'accès réel ; le
   simulateur ne le reproduit pas. Un essai sur le bac à sable du fournisseur reste à faire par le
   propriétaire de l'installation avant la mise en service.
+
+## Captures d'écran
+
+Les écrans de cette fonction sont les captures A162 (sélection des ventes), A163 (client), A192 (client belge, Peppol inconnu), A165 (aperçu), A166 (refus faute de Peppol), A167 (facture établie) et A168 (liste des factures) de *CAPTURES_ECRAN_FR.pdf*.

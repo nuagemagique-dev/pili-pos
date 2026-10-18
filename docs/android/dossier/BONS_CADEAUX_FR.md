@@ -197,3 +197,7 @@ code dans les archives ; cas officiels UC260, UC261 et UC262 ; test d'accès par
 (`pos-fiscal`) : règles de paiement. Ticket (`pos-print`) : bon, solde, duplicata, formation.
 Migration (contraintes, déclencheurs). Interface de l'application (tests `OrderGiftVoucherTest`, `CheckoutGiftVoucherTest`, `GiftVouchersTest` et `GiftVoucherSectionTest`, façade `android/rust/pos-ffi/tests/ffi/gift_vouchers.rs`).
 Interactions avec les autres fonctions : `crates/pos-engine/tests/lane_interactions.rs`.
+
+## Captures d'écran
+
+Les écrans de cette fonction sont les captures A132 (réglage), A193 (montant du bon), A171 (ligne de bon), A172 (fin de vente d'un bon), A173 (code du bon), A174 (bon trouvé), A175 (bon et espèces), A176 (vente payée), A177 (liste des bons) et A178 (vérification d'un bon) de *CAPTURES_ECRAN_FR.pdf*.
