@@ -1,4 +1,4 @@
-//! Tests of the owner alerts facade (engine module alerts, v1.2): `get_owner_alerts`,
+//! Tests of the owner alerts facade (engine module alerts): `get_owner_alerts`,
 //! `set_owner_alerts`, `send_test_alert`, `list_owner_alert_log`.
 //!
 //! (a) Contract: the FFI records are the engine's field by field; an unknown key is a contract

@@ -37,7 +37,7 @@ pub struct CheckoutResult {
     /// The bar / kitchen slip of the lines not yet sent (sales only).
     pub kitchen_slip: Option<SlipOutcome>,
     /// The gift vouchers the sale sold and the balance slips it gave
-    /// (v1.2); empty for any other sale.
+    ///; empty for any other sale.
     pub gift_voucher_prints: Vec<GiftVoucherPrint>,
 }
 
@@ -346,7 +346,7 @@ async fn sell_locked(
     eft::attach_cards(&mut settlement, &terminal_cards);
     let unpaid = matches!(payment, Payment::Unpaid);
 
-    // Gift vouchers (v1.2): the vouchers this sale sells and redeems are
+    // Gift vouchers: the vouchers this sale sells and redeems are
     // checked here, under the signing lock, and the codes of the new ones
     // are drawn; they are written with the signed sale (`signing::apply`).
     let voucher_plan = {

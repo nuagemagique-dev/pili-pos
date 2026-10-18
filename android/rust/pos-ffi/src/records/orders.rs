@@ -122,7 +122,7 @@ pub struct CartLine {
     pub code: Option<String>,
     /// The quantity not yet sent to the bar or the kitchen.
     pub unsent_quantity: i64,
-    /// The line's course (v1.2, kitchen only): 0 "Direct", 1 to 3.
+    /// The line's course (kitchen only): 0 "Direct", 1 to 3.
     pub course: i32,
     /// `unsent`, `held` (waits for "Envoyer la suite") or `printed`.
     pub kitchen_state: String,

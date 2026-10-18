@@ -21,7 +21,7 @@ internal enum class ReportsTab {
     /** Copy and refund from one list of tickets. */
     TICKETS,
 
-    /** Gift vouchers (v1.2): lookup by code, and for a manager the list with the duplicate. */
+    /** Gift vouchers: lookup by code, and for a manager the list with the duplicate. */
     VOUCHERS,
 }
 

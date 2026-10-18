@@ -304,7 +304,7 @@ pub struct CartLine {
     /// The product's menu code ("A2"), when the catalog gives one.
     pub code: Option<String>,
     pub unsent_quantity: i64,
-    /// The line's course (v1.2, kitchen only): 0 "Direct", 1 to 3. Never
+    /// The line's course (kitchen only): 0 "Direct", 1 to 3. Never
     /// part of the signed order line.
     pub course: i32,
     /// `unsent`, `held` (a course above the released one waits for

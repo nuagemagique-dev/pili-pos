@@ -17,7 +17,7 @@ use crate::labels::bar_labels;
 pub struct BarItem {
     pub quantity: i32,
     pub name: String,
-    /// Course of the line (v1.2, kitchen only): `Some` when the slip is
+    /// Course of the line (kitchen only): `Some` when the slip is
     /// grouped by course, a header is printed whenever it changes.
     /// `None` prints the slip as before courses existed.
     pub course: Option<i32>,

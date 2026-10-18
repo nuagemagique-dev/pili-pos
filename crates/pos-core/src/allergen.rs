@@ -1,5 +1,5 @@
 //! The 14 allergens of Regulation (EU) No 1169/2011, Annex II, in
-//! Annex order (v1.2, decision V12-D17).
+//! Annex order (decision V12-D17).
 //!
 //! Non-fiscal data: it is displayed and printed, never signed and
 //! never sent to the FDM. A product either has a declared list (which

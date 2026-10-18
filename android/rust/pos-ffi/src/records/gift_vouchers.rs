@@ -1,4 +1,4 @@
-//! Records of the gift vouchers (engine module `gift_vouchers`, v1.2): the setting, a voucher as
+//! Records of the gift vouchers (engine module `gift_vouchers`): the setting, a voucher as
 //! the screens show it, and its movements. Mirrors the engine types (PD56): same field names,
 //! same serde form, `deny_unknown_fields`. `GiftVoucherPrint` (what became of a voucher slip
 //! after a sale) is in `common` with `CheckoutResult`.

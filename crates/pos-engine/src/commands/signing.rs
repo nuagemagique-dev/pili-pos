@@ -693,7 +693,7 @@ pub(crate) struct FollowUp {
     pub delivery: Option<DeliveryOutcome>,
     pub slip: Option<SlipOutcome>,
     /// The voucher and balance slips of a sale that sold or redeemed
-    /// gift vouchers (v1.2).
+    /// gift vouchers.
     pub vouchers: Vec<GiftVoucherPrint>,
 }
 
@@ -870,7 +870,7 @@ async fn print_slip_of(
         Ok(db) => pos_db::queries::orders::get_entries_sent_in(&db, event_id).unwrap_or_default(),
         Err(_) => Vec::new(),
     };
-    // Courses on (v1.2): the slip is grouped by course and holds the
+    // Courses on: the slip is grouped by course and holds the
     // courses above the released one. Off: the slip of v1.0.0.
     if crate::commands::courses::enabled(state)
         && let Some(order_id) = entries.first().map(|e| e.order_id)

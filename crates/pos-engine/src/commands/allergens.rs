@@ -1,4 +1,4 @@
-//! The 14 EU allergens (v1.2, decisions V12-D17 to D21): the legend, the
+//! The 14 EU allergens (decisions V12-D17 to D21): the legend, the
 //! allergen sheet of a product or of the whole menu (shown and printed)
 //! and the local edit of a product's or an option's list.
 //!

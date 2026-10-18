@@ -130,7 +130,7 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
         },
     )
     .map_err(|e| e.to_string())?;
-    // Kitchen data (v1.2): the line takes its category's course.
+    // Kitchen data: the line takes its category's course.
     super::courses::assign_new_line(&db, line.id, line.order_id, line.menu_item_id)?;
     Ok(line)
 }

@@ -116,7 +116,7 @@ pub struct PosConfig {
     /// terminal and confirmed by the operator (`MANUAL`).
     #[serde(default)]
     pub payment_terminal: Option<PaymentTerminalConfig>,
-    /// The owner alerts' transport (v1.2): where the Telegram bot token
+    /// The owner alerts' transport: where the Telegram bot token
     /// is, and the API base for tests. Absent: no alert can be sent
     /// (the switches and the chat id are owner settings, not here).
     #[serde(default)]

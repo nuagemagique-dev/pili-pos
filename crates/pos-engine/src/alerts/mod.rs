@@ -1,4 +1,4 @@
-//! The owner alerts (v1.2, V12-D11 to D16): a Telegram message to the
+//! The owner alerts (V12-D11 to D16): a Telegram message to the
 //! owner's phone when the FDM is unreachable or blocked, a printer is
 //! out of paper or offline, the linked card terminal does not answer,
 //! the day has no Z by a set hour or an online order waits unaccepted.

@@ -1,4 +1,4 @@
-//! The courses facade (engine module courses, v1.2): six commands as async methods of
+//! The courses facade (engine module courses): six commands as async methods of
 //! [`PosEngine`].
 //!
 //! Each method mirrors its Tauri wrapper (`src-tauri/src/ipc/courses.rs`): the same parameter

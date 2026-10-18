@@ -1,4 +1,4 @@
-//! Tests of the allergens facade (engine module allergens, v1.2): `list_allergens`,
+//! Tests of the allergens facade (engine module allergens): `list_allergens`,
 //! `get_allergen_sheet`, `print_allergen_sheet`, `set_allergens`.
 //!
 //! (a) Contract: the FFI records are the engine's field by field; an unknown key is a contract

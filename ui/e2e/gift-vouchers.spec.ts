@@ -4,7 +4,7 @@ import {
   DEFAULT_MENU_ITEM, tapUserTile, loginAndGoto,
 } from './fixtures/mock-ipc';
 
-// Multi-purpose gift vouchers (v1.2): the Settings panel, the "Bon
+// Multi-purpose gift vouchers: the Settings panel, the "Bon
 // cadeau" button and the voucher line on the order screen, paying with a
 // voucher at checkout, the print outcomes on the done screen, and the
 // Reports tab (lookup, list, DUPLICATA reprint).

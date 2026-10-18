@@ -247,7 +247,7 @@ private fun TableTop(
             if (table.preBillPrinted) {
                 Tag(vueText("pre_bill"), Modifier.testTag("table_${table.tableNumber}_bill"))
             }
-            // A later course waits for "Envoyer la suite" (v1.2).
+            // A later course waits for "Envoyer la suite".
             table.heldCourse?.takeIf { it > 0 }?.let { course ->
                 Tag(
                     vueText("table_held_course", "course" to vueText("course_$course")),

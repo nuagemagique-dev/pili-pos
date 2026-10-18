@@ -446,7 +446,7 @@ const coreMessages: Messages = {
   "allergens_regulation": { fr: "Règlement (UE) n° 1169/2011, annexe II", en: "Regulation (EU) No 1169/2011, Annex II", zh: "欧盟法规 (EU) 1169/2011 附件二" },
   "err_allergen_unknown": { fr: "Allergène inconnu : {code}.", en: "Unknown allergen: {code}.", zh: "未知过敏原：{code}。" },
   "err_allergen_target_not_found": { fr: "Produit ou option introuvable ({id}).", en: "Product or option not found ({id}).", zh: "找不到商品或选项（{id}）。" },
-  // Courses and "Envoyer la suite" (v1.2, kitchen printing only).
+  // Courses and "Envoyer la suite" (kitchen printing only).
   "course_0": { fr: "Direct", en: "Direct", zh: "即上" },
   "course_1": { fr: "Entrées", en: "Starters", zh: "前菜" },
   "course_2": { fr: "Plats", en: "Mains", zh: "主菜" },
@@ -466,7 +466,7 @@ const coreMessages: Messages = {
   "err_courses_disabled": { fr: "Le service en plusieurs temps est désactivé (Réglages).", en: "Courses are switched off (Settings).", zh: "分道出菜已关闭（设置）。" },
   "err_no_course_held": { fr: "Aucune suite en attente.", en: "No course is waiting.", zh: "没有待出的菜。" },
   "err_nothing_printed": { fr: "Aucun bon n'a été imprimé pour ce temps.", en: "No slip was printed for this course.", zh: "此顺序没有已打印的单据。" },
-  // Gift vouchers (v1.2).
+  // Gift vouchers.
   "err_gift_vouchers_disabled": { fr: "Les bons cadeaux sont désactivés (Réglages).", en: "Gift vouchers are switched off (Settings).", zh: "礼品券已关闭（设置）。" },
   "err_gift_voucher_settings_invalid": { fr: "Réglage des bons cadeaux invalide ({field}).", en: "Invalid gift voucher setting ({field}).", zh: "礼品券设置无效（{field}）。" },
   "err_gift_voucher_amount_invalid": { fr: "Un bon cadeau vaut au moins 1,00 EUR et au plus {max} EUR.", en: "A gift voucher is worth at least EUR 1.00 and at most EUR {max}.", zh: "礼品券面值最低 1.00 欧元，最高 {max} 欧元。" },

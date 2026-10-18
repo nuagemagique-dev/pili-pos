@@ -1,4 +1,4 @@
-//! Courses and "Envoyer la suite" (v1.2, V12-D22 and V12-D23).
+//! Courses and "Envoyer la suite" (V12-D22 and V12-D23).
 //!
 //! Kitchen printing only:
 //! - switched off (the default), every slip is the one the till always

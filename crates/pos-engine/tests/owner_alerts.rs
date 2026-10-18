@@ -1,4 +1,4 @@
-//! The owner alerts (v1.2): a Telegram message when the FDM, a printer
+//! The owner alerts: a Telegram message when the FDM, a printer
 //! or the card terminal is down, the day has no Z, or an online order
 //! waits. Everything runs against a local mock of the Bot API, never
 //! the real Telegram.

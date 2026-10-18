@@ -1,4 +1,4 @@
-//! Multi-purpose gift vouchers (v1.2, V12-D24 to V12-D31): sale as a
+//! Multi-purpose gift vouchers (V12-D24 to V12-D31): sale as a
 //! VAT X line, redemption as a `VOUCHER_STORE` payment, balance and
 //! expiry, refunds, prints, lookup.
 //!

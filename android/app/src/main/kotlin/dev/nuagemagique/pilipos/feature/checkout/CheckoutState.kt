@@ -161,7 +161,7 @@ internal data class CheckoutUiState(
     val nextHeldCourse: Int? = null,
     /** "Envoyer maintenant" is running. */
     val sendingHeld: Boolean = false,
-    /** Gift vouchers are on (v1.2): the "Bon cadeau" method shows. */
+    /** Gift vouchers are on: the "Bon cadeau" method shows. */
     val giftVouchersEnabled: Boolean = false,
     /** The sale sells a gift voucher: it is paid in cash or by card only. */
     val sellsVoucher: Boolean = false,

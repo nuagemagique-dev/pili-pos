@@ -1,4 +1,4 @@
-//! Tests of the courses facade (engine module courses, v1.2): `get_course_settings`,
+//! Tests of the courses facade (engine module courses): `get_course_settings`,
 //! `set_course_settings`, `set_line_course`, `list_held_courses`, `send_next_course`,
 //! `reprint_course_slip`.
 //!

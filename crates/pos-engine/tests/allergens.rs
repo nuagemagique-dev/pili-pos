@@ -1,4 +1,4 @@
-//! The 14 EU allergens (v1.2, V12-D17 to D21): the catalog import with
+//! The 14 EU allergens (V12-D17 to D21): the catalog import with
 //! its change log, the local edit and its lock while a source manages
 //! the menu, the sheet shown and printed, and the proof that no
 //! allergen data reaches a signed request.

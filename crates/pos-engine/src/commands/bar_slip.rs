@@ -45,7 +45,7 @@ pub(crate) struct SlipItem {
     pub entry_ids: Vec<i64>,
     pub quantity: i32,
     pub name: String,
-    /// `Some` groups the slip by course (v1.2); `None` is the slip as it
+    /// `Some` groups the slip by course; `None` is the slip as it
     /// was before courses existed.
     pub course: Option<i32>,
 }

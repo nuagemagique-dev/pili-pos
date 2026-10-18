@@ -1,4 +1,4 @@
-//! The owner alerts' commands (v1.2, V12-D11 to D16): the settings the
+//! The owner alerts' commands (V12-D11 to D16): the settings the
 //! owner edits, the test message and the log. The worker that watches
 //! and sends is `crate::alerts`.
 //!

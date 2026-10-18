@@ -1,4 +1,4 @@
-//! Courses and "Envoyer la suite" (v1.2, decisions V12-D22 and D23).
+//! Courses and "Envoyer la suite" (decisions V12-D22 and D23).
 //!
 //! Kitchen printing only, never fiscal: the course of a line lives in
 //! `order_line_courses` (migration 62) and nowhere else. It never enters

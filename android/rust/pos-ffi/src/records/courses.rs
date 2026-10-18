@@ -1,4 +1,4 @@
-//! Records of the courses (engine module `courses`, v1.2): the setting, the held courses and the
+//! Records of the courses (engine module `courses`): the setting, the held courses and the
 //! result of "Envoyer la suite". Mirrors the engine types (PD56): same field names, same serde
 //! form, `deny_unknown_fields`.
 

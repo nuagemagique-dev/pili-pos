@@ -1,5 +1,5 @@
-//! Schema of the v1.2 owner features, migrations 60 to 63, in every
-//! build (no cargo feature). Each task of the v1.2 lane adds its
+//! Schema of the owner features, migrations 60 to 63, in every
+//! build (no cargo feature). Each task of the owner-features lane adds its
 //! migration here: 60 owner settings and alerts, 61 allergens, 62
 //! courses, 63 gift vouchers.
 

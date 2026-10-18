@@ -1,4 +1,4 @@
-//! The owner alerts facade (engine module alerts, v1.2): four cert commands as async methods of
+//! The owner alerts facade (engine module alerts): four cert commands as async methods of
 //! [`PosEngine`].
 //!
 //! Each method mirrors its Tauri wrapper (`src-tauri/src/ipc/alerts.rs`): the same parameter names

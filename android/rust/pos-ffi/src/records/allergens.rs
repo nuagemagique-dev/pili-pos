@@ -1,4 +1,4 @@
-//! Records of the allergens (engine module `allergens`, v1.2): the legend, the allergen sheet and
+//! Records of the allergens (engine module `allergens`): the legend, the allergen sheet and
 //! the local edit. Mirrors the engine types (PD56): same field names, same serde form,
 //! `deny_unknown_fields`.
 

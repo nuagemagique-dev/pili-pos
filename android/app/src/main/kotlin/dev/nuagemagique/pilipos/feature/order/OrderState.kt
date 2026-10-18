@@ -86,7 +86,7 @@ internal data class OrderCartState(
     val preBilling: Boolean = false,
     /** A manager may close the open order unpaid (`canCloseUnpaid`). */
     val canCloseUnpaid: Boolean = false,
-    /** Courses are on (v1.2): the cart is grouped by course and each line has a chip. */
+    /** Courses are on: the cart is grouped by course and each line has a chip. */
     val coursesEnabled: Boolean = false,
     /** The next course waiting for "Envoyer la suite" (1 to 3); null when none is held. */
     val nextHeldCourse: Int? = null,
@@ -124,7 +124,7 @@ internal data class MenuState(
     val allergenMode: Boolean = false,
     /** The 14 allergens in Annex order (`list_allergens`), read when the mode is first turned on. */
     val allergenLegend: List<AllergenEntry> = emptyList(),
-    /** Gift vouchers are on (v1.2): the "Bon cadeau" button shows next to "Allergènes". */
+    /** Gift vouchers are on: the "Bon cadeau" button shows next to "Allergènes". */
     val giftVouchersEnabled: Boolean = false,
 )
 

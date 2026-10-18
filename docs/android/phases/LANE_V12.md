@@ -1,12 +1,14 @@
-# Lane 4-v12: owner features for the v1.2 certified update
+# Lane 4-v12: owner features of the certified v1.0.0 (accountant export, alerts, allergens, courses, gift vouchers)
 
 Planner: Opus 5.5, 2026-10-17. Branch `android/lane-v12`, from `android/int` at `b3248d2d`.
-Worktree `/Users/brunomoyse/Development/applications/PERSO/tokyosushi/moyun-pos-wt/lane-v12`.
+Worktree: `lane-v12` next to the other lane worktrees.
 
-This branch is NOT part of the v1.0.0 certified binary (lanes 1 and 2, rc3 freeze) nor of v1.1
-(lane 3, `android/lane-v11`). It merges after both. Every change it makes to the till is part of a
-later SPF update (one month notice, at most 12 updates a year, the certificate covers only documented
-functions), so each item says below whether it touches the certified binary.
+Scope (changed 2026-10-18): there is no later update. The certification is v1.0.0 and it includes
+everything on this branch (accountant export tool, owner alerts, allergens, courses, multi-purpose gift
+vouchers). The French drafts under `docs/internal/v1.2/` are folded into the v1.0 dossiers by the
+orchestrator after this branch merges into `android/int`; migrations are renumbered at the rc3 pass.
+Passages below that speak of a later SPF update or a separate certified update are the original plan
+text and no longer apply.
 
 ## 1. Goal
 
@@ -308,7 +310,7 @@ All decisions go to `docs/android/DECISIONS.md`, at the very end of the file, un
   ambiguous; (2) MPV to cash (UC4105, `signMoneyInOut` VOUCHER_STORE +x / CASH -x): no business need,
   and Belgian vouchers are not exchangeable for cash; (3) refund to a voucher. `scripts/uc_scope.toml`:
   remove UC260, UC261, UC262 (covered by tests); keep UC270, UC271, UC4105 `hors_perimetre` with the
-  reason updated to "différé en v1.2" wording (French).
+  reason reworded in French without any version framing.
 - **V12-D25 Sale.** A system product (migration 63) `menu_items` row `external_id = 'pili:gift-voucher'`,
   in a system category `external_id = 'pili:system'`, `vat_code = 'X'`, `vat_code_takeaway = 'X'`,
   `vat_category = 'out_of_scope'`, `kitchen_printer = 0`, `open_price = 1`, `active = 0` (never on
@@ -575,7 +577,7 @@ changes, `feature/reports/ReportsVouchersTab.kt`, `feature/settings/GiftVoucherS
 Every Bash call starts with:
 
 ```
-cd /Users/brunomoyse/Development/applications/PERSO/tokyosushi/moyun-pos-wt/lane-v12 && export ANDROID_HOME=$HOME/Library/Android/sdk CARGO_TARGET_DIR=/Users/brunomoyse/Development/applications/PERSO/tokyosushi/moyun-pos-wt/shared-target CARGO_INCREMENTAL=0 PILI_HEAVY_SLOTS=2 &&
+cd <worktree> && export ANDROID_HOME=$HOME/Library/Android/sdk CARGO_TARGET_DIR=<shared-target> CARGO_INCREMENTAL=0 PILI_HEAVY_SLOTS=2 &&
 ```
 
 Check `df -g /` before heavy builds (under 10 GB: `cargo clean --target-dir target` and
@@ -616,7 +618,7 @@ Check `df -g /` before heavy builds (under 10 GB: `cargo clean --target-dir targ
   `bash scripts/android/p6_gate.sh` through `heavy.sh` (background, poll), plus
   `bash scripts/android/test_inventory.sh --diff`.
 
-**Base reference.** `/Users/brunomoyse/Development/applications/PERSO/tokyosushi/moyun-pos-wt/gates-rc2.log`
+**Base reference.** `gates-rc2.log` (next to the worktrees)
 was taken at `6a7b5fc8` and its FFI line reads `FFI passed 23 failed 1`
 (`error::tests::every_code_of_both_lists_maps_to_coded`) and `ANDROID_GATE_FAIL`, although the brief
 calls it all green. T1 runs **F** at the base before any change and records the result in its summary

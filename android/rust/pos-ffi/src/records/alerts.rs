@@ -1,4 +1,4 @@
-//! Records of the owner alerts (engine module `alerts`, v1.2): the settings the owner edits, the
+//! Records of the owner alerts (engine module `alerts`): the settings the owner edits, the
 //! test result and the log rows. Mirrors the engine types (PD56): same field names, same serde
 //! form, `deny_unknown_fields`. The bot token is never part of a record.
 

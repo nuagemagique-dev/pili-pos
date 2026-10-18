@@ -29,7 +29,7 @@ pub fn system_item_id(conn: &Connection) -> Result<i64, rusqlite::Error> {
 pub fn ensure_system_item(conn: &Connection) -> Result<i64, rusqlite::Error> {
     match system_item_id(conn) {
         Err(rusqlite::Error::QueryReturnedNoRows) => {
-            conn.execute_batch(crate::schema_v12::MIGRATION_063_GIFT_VOUCHERS)?;
+            conn.execute_batch(crate::schema_owner::MIGRATION_063_GIFT_VOUCHERS)?;
             system_item_id(conn)
         }
         other => other,

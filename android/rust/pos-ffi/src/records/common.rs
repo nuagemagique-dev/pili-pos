@@ -334,7 +334,7 @@ pub struct CheckoutResult {
     pub delivery: Option<DeliveryOutcome>,
     /// The bar or kitchen slip of the lines not yet sent (sales only).
     pub kitchen_slip: Option<SlipOutcome>,
-    /// The gift vouchers the sale sold and the balance slips it gave (v1.2); empty otherwise.
+    /// The gift vouchers the sale sold and the balance slips it gave; empty otherwise.
     #[serde(default)]
     #[uniffi(default = [])]
     pub gift_voucher_prints: Vec<GiftVoucherPrint>,

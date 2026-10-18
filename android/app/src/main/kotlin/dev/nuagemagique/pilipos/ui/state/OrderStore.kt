@@ -184,7 +184,7 @@ class OrderStore
             }
 
         /**
-         * Sells a gift voucher of [amountCents]: a fixed-quantity line of the system product (v1.2). The engine
+         * Sells a gift voucher of [amountCents]: a fixed-quantity line of the system product. The engine
          * checks the setting, the amount and the order.
          *
          * @return false when the engine refused (the refusal is on [failures])

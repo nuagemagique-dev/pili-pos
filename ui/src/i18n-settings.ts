@@ -66,7 +66,7 @@ export const settingsMessages: Messages = {
 
   // HubRise panel
 
-  // Courses panel (v1.2): "Service en plusieurs temps"
+  // Courses panel: "Service en plusieurs temps"
   "courses_title": { fr: "Service en plusieurs temps", en: "Courses", zh: "分道出菜" },
   "courses_state_on": { fr: "Actif", en: "On", zh: "已开启" },
   "courses_state_off": { fr: "Inactif", en: "Off", zh: "未开启" },
@@ -80,7 +80,7 @@ export const settingsMessages: Messages = {
   "courses_save": { fr: "Enregistrer", en: "Save", zh: "保存" },
   "courses_saved": { fr: "Réglage enregistré", en: "Setting saved", zh: "已保存" },
 
-  // Owner alerts panel (v1.2): Telegram messages to the owner's phone
+  // Owner alerts panel: Telegram messages to the owner's phone
   "alerts_title": { fr: "Alertes sur téléphone", en: "Phone alerts", zh: "手机警报" },
   "alerts_state_on": { fr: "Actives", en: "On", zh: "已开启" },
   "alerts_state_off": { fr: "Inactives", en: "Off", zh: "未开启" },

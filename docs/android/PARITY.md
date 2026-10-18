@@ -98,5 +98,5 @@ list_fiscal_events excluded no Vue caller
 sign_table_order excluded no Vue caller; leave_order registers the P
 work_in excluded no Vue caller; login clocks in and end_shift clocks out since P1b
 work_out excluded no Vue caller; login clocks in and end_shift clocks out since P1b
-reprint_course_slip excluded no screen yet; the DUPLICATA reprint of a course slip is engine-only in v1.2 (DECISIONS, T4)
+reprint_course_slip excluded no screen yet; the DUPLICATA reprint of a course slip is engine-only (DECISIONS, T4)
 ```

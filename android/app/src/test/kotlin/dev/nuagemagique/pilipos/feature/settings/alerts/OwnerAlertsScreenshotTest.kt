@@ -27,7 +27,7 @@ import org.robolectric.annotation.Config
 
 /**
  * Goldens of the owner alerts panel in the settings screen at 1920 x 1080 dp: off with no bot token, on with a
- * token and a log, and the chat id dialog. They are the captures the plan of the v1.2 lane lists for the panel.
+ * token and a log, and the chat id dialog. They are the captures the plan of the owner-features lane lists for the panel.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w1920dp-h1080dp-mdpi")

@@ -1,4 +1,4 @@
-//! The gift vouchers facade (engine module gift_vouchers, v1.2): six commands as async methods of
+//! The gift vouchers facade (engine module gift_vouchers): six commands as async methods of
 //! [`PosEngine`].
 //!
 //! Each method mirrors its Tauri wrapper (`src-tauri/src/ipc/gift_vouchers.rs`): the same

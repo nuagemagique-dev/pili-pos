@@ -117,30 +117,30 @@ const EFT_MIGRATIONS: &[Migration] = &[Migration {
     sql: crate::schema_eft::MIGRATION_027_EFT_PAYMENTS,
 }];
 
-/// Migrations of the v1.2 owner features (60 to 63, `schema_v12.rs`),
+/// Migrations of the owner features (60 to 63, `schema_owner.rs`),
 /// in every build: 60 owner settings and alerts. The later tasks of the
 /// lane append 61 allergens, 62 courses and 63 gift vouchers. Renumbering
-/// at merge touches only `schema_v12.rs`, this slice and its test.
-const V12_MIGRATIONS: &[Migration] = &[
+/// at merge touches only `schema_owner.rs`, this slice and its test.
+const OWNER_MIGRATIONS: &[Migration] = &[
     Migration {
         version: 60,
         name: "owner-settings-alerts",
-        sql: crate::schema_v12::MIGRATION_060_OWNER_SETTINGS_ALERTS,
+        sql: crate::schema_owner::MIGRATION_060_OWNER_SETTINGS_ALERTS,
     },
     Migration {
         version: 61,
         name: "allergens",
-        sql: crate::schema_v12::MIGRATION_061_ALLERGENS,
+        sql: crate::schema_owner::MIGRATION_061_ALLERGENS,
     },
     Migration {
         version: 62,
         name: "courses",
-        sql: crate::schema_v12::MIGRATION_062_COURSES,
+        sql: crate::schema_owner::MIGRATION_062_COURSES,
     },
     Migration {
         version: 63,
         name: "gift-vouchers",
-        sql: crate::schema_v12::MIGRATION_063_GIFT_VOUCHERS,
+        sql: crate::schema_owner::MIGRATION_063_GIFT_VOUCHERS,
     },
 ];
 
@@ -196,7 +196,7 @@ fn registry() -> Vec<Migration> {
     #[allow(unused_mut)]
     let mut all = MIGRATIONS.to_vec();
     all.extend_from_slice(EFT_MIGRATIONS);
-    all.extend_from_slice(V12_MIGRATIONS);
+    all.extend_from_slice(OWNER_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -350,13 +350,13 @@ mod tests {
         assert!(EFT_MIGRATIONS.iter().all(|m| m.version >= 20));
     }
 
-    /// The v1.2 owner features are migrations 60 to 63, in every build
+    /// The owner features are migrations 60 to 63, in every build
     /// (60 owner settings and alerts, 61 allergens, 62 courses, 63 gift vouchers).
     #[test]
-    fn the_v12_migrations_are_60_to_63_and_in_every_build() {
-        let v12: Vec<(i64, &str)> = V12_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
+    fn the_owner_migrations_are_60_to_63_and_in_every_build() {
+        let owner: Vec<(i64, &str)> = OWNER_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
         assert_eq!(
-            v12,
+            owner,
             vec![
                 (60, "owner-settings-alerts"),
                 (61, "allergens"),
@@ -364,7 +364,7 @@ mod tests {
                 (63, "gift-vouchers")
             ]
         );
-        for (version, _) in &v12 {
+        for (version, _) in &owner {
             assert!(all_versions().contains(version), "{version}");
             assert!((60..=63).contains(version), "{version}");
         }
@@ -607,7 +607,7 @@ mod tests {
             .unwrap();
         assert_eq!(names, 4);
         // Running it again changes nothing (reseed repair).
-        conn.execute_batch(crate::schema_v12::MIGRATION_063_GIFT_VOUCHERS)
+        conn.execute_batch(crate::schema_owner::MIGRATION_063_GIFT_VOUCHERS)
             .unwrap();
         let count: i64 = conn
             .query_row(

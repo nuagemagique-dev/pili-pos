@@ -1,4 +1,4 @@
-//! Multi-purpose gift vouchers (v1.2, decisions V12-D24 to V12-D31).
+//! Multi-purpose gift vouchers (decisions V12-D24 to V12-D31).
 //!
 //! A voucher is sold as a line of the system product (VAT X, spec v2.2
 //! section 5: a multi-purpose voucher carries no VAT when it is sold; the

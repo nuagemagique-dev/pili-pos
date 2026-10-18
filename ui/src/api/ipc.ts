@@ -1040,7 +1040,7 @@ export function reprintCourseSlip(orderId: number, course: number): Promise<Slip
   return invoke("reprint_course_slip", { orderId, course });
 }
 
-// ── Multi-purpose gift vouchers (v1.2) ─────────────────────────────
+// ── Multi-purpose gift vouchers ─────────────────────────────
 
 export interface GiftVoucherSettings {
   enabled: boolean;

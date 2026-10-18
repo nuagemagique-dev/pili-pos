@@ -191,7 +191,7 @@ pub const CONFIG_PAYMENT_TERMINAL: &str = "config_payment_terminal";
 pub const CONFIG_ALERTS: &str = "config_alerts";
 pub const CONFIG_OTHER: &str = "config_other";
 
-// Owner alerts (v1.2).
+// Owner alerts.
 /// A setting of the owner alerts is out of range: `alerts_invalid|field=<name>`.
 pub const ALERTS_INVALID: &str = "alerts_invalid";
 /// No bot token: `pos.json` has no `alerts.telegram_bot_token_file`, or
@@ -201,7 +201,7 @@ pub const ALERTS_TOKEN_MISSING: &str = "alerts_token_missing";
 /// kind of transport error, never an address).
 pub const ALERTS_SEND_FAILED: &str = "alerts_send_failed";
 
-// Allergens (v1.2).
+// Allergens.
 /// A code that is not one of the 14 allergens of Annex II (or a sheet
 /// language that is not offered): `allergen_unknown|code=<code>`.
 pub const ALLERGEN_UNKNOWN: &str = "allergen_unknown";
@@ -209,7 +209,7 @@ pub const ALLERGEN_UNKNOWN: &str = "allergen_unknown";
 /// exist: `allergen_target_not_found|id=<id>`.
 pub const ALLERGEN_TARGET_NOT_FOUND: &str = "allergen_target_not_found";
 
-// Courses (v1.2).
+// Courses.
 /// The line already went out on a kitchen slip: its course can no longer change.
 pub const COURSE_ALREADY_SENT: &str = "course_already_sent";
 /// A course outside 0 to 3, or a category that does not exist or is listed
@@ -222,7 +222,7 @@ pub const NO_COURSE_HELD: &str = "no_course_held";
 /// A reprint of a course no slip ever printed.
 pub const NOTHING_PRINTED: &str = "nothing_printed";
 
-// Gift vouchers (v1.2).
+// Gift vouchers.
 /// Gift vouchers are switched off (Settings, "Bons cadeaux").
 pub const GIFT_VOUCHERS_DISABLED: &str = "gift_vouchers_disabled";
 /// A settings value out of range (validity 12 to 36 months, maximum

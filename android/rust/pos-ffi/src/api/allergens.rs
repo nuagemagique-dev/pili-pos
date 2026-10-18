@@ -1,4 +1,4 @@
-//! The allergens facade (engine module allergens, v1.2): four commands as async methods of
+//! The allergens facade (engine module allergens): four commands as async methods of
 //! [`PosEngine`].
 //!
 //! Each method mirrors its Tauri wrapper (`src-tauri/src/ipc/allergens.rs`): the same parameter
