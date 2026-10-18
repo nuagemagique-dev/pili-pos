@@ -77,6 +77,14 @@ ADVANCED = {
     "UC4122": "invoice_advanced.rs::uc4122_an_invoice_of_a_refund_and_two_sales",
 }
 
+# Advanced Set multi-purpose vouchers: UC -> test (crates/pos-engine/tests/spf_e2e_gift_vouchers.rs),
+# check files. The vouchers are sold by the voucher sale of UC260 (event 1 of UC261 and UC262).
+VOUCHERS = {
+    "UC260": ("spf_e2e_gift_vouchers.rs::uc260_mpv_sale", ["UC260"]),
+    "UC261": ("spf_e2e_gift_vouchers.rs::uc261_mpv_use", ["UC261_1", "UC261_2"]),
+    "UC262": ("spf_e2e_gift_vouchers.rs::uc262_mpv_use", ["UC262"]),
+}
+
 REPORTS = {
     "M180": "spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day",
     "M182": "spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day",
@@ -86,6 +94,26 @@ REPORTS = {
 VIA_M184 = {"M181": "signReportTurnoverZ", "M183": "signReportUserZ"}
 
 REASONS_FR = {
+    "the voucher is the system product 'Bon cadeau' (990001), not the test setup's 40001": (
+        "le bon est le produit système « Bon cadeau » (990001), pas le produit 40001 "
+        "de l'installation de test"
+    ),
+    "the voucher line is in department GV (Bons cadeaux), not the test setup's 400": (
+        "la ligne du bon est dans le département GV (Bons cadeaux), pas dans le "
+        "département 400 de l'installation de test"
+    ),
+    "composite products are not supported: the menu is a single product": (
+        "les produits composés ne sont pas pris en charge : le menu est un seul produit"
+    ),
+    "a single product carries its own VAT line (B 116,00)": (
+        "un produit simple porte sa propre ligne de T.V.A. (B 116,00)"
+    ),
+    "an order is dine-in or takeaway as a whole: sold as a takeaway, the burger takes the "
+    "takeaway label C (the fixture mixes a room burger B and a takeaway Perrier C on one ticket)": (
+        "une commande est sur place ou à emporter dans son ensemble : vendue à emporter, le "
+        "hamburger prend le taux C (la fixture mélange un hamburger en salle B et une boisson "
+        "à emporter C sur un même ticket)"
+    ),
     "dine-in sales are settled from a table and carry costCenter TABLE": (
         "une vente en salle est encaissée depuis sa table et porte le "
         "centre de coût TABLE"
@@ -276,6 +304,61 @@ def advanced_block(uc: str) -> str | None:
     return "\n".join(out)
 
 
+def voucher_block(uc: str) -> str | None:
+    test, checks = VOUCHERS[uc]
+    events = events_of(uc)
+    if not events:
+        return None
+    main = events[-1]
+    before = events[:-1]
+    out = [
+        START,
+        f"**Preuve pili-pos (build `cert`)** - rejeu de la fixture par "
+        f"`crates/pos-engine/tests/{test}`. Requête **construite et archivée par "
+        f"pili-pos** pour l'event de l'UC (`evidence/uc/{main.name}`) :",
+        "",
+        json_block(main),
+        "",
+    ]
+    if before:
+        out += [
+            f"Events préalables du scénario (vente du bon, ticket provisoire), archivés de "
+            f"même : {file_list(before)}. Réponses FDM archivées : fichiers "
+            f"`*_response.json` correspondants.",
+            "",
+        ]
+    for c in checks:
+        path = EVIDENCE / f"{c}_check.json"
+        if not path.exists():
+            sys.exit(f"missing {path}: run scripts/capture_uc_evidence.sh first")
+        check = json.loads(path.read_text(encoding="utf-8"))
+        out.append(
+            f"**Comparaison avec la fixture** (`evidence/uc/{path.name}`) : champs métier "
+            f"identiques, dont les lignes de paiement `VOUCHER_STORE` (type, saisie, montant)."
+        )
+        out.append("")
+        devs = check.get("deviations", [])
+        if devs:
+            out += [
+                "Écarts assumés :",
+                "",
+                "| Champ | Fixture | pili-pos | Motif |",
+                "|---|---|---|---|",
+            ]
+            for d in devs:
+                reason = REASONS_FR.get(d["reason"])
+                if reason is None:
+                    sys.exit(f"{path.name}: no French wording for {d['reason']!r}")
+                out.append(
+                    f"| `{d['path']}` | {fmt(d.get('fixture'))} | {fmt(d.get('piliPos'))} | {reason} |"
+                )
+            out.append("")
+        else:
+            out += ["Aucun écart.", ""]
+    out.append(END)
+    return "\n".join(out)
+
+
 def round_block(uc: str) -> str | None:
     events = events_of(uc)
     if not events:
@@ -380,6 +463,8 @@ def main() -> None:
             block = basic_block(uc)
         elif uc in ADVANCED:
             block = advanced_block(uc)
+        elif uc in VOUCHERS:
+            block = voucher_block(uc)
         elif uc in ROUND:
             block = round_block(uc)
         elif uc in REPORTS or uc in VIA_M184:

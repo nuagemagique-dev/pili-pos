@@ -1,0 +1,23 @@
+{
+  "deviations": [
+    {
+      "fixture": "COMPOSITE_PRODUCT",
+      "path": "transaction.transactionLines[0].lineType",
+      "piliPos": "SINGLE_PRODUCT",
+      "reason": "composite products are not supported: the menu is a single product"
+    },
+    {
+      "fixture": [],
+      "path": "transaction.transactionLines[0].vats",
+      "piliPos": [
+        {
+          "label": "B",
+          "price": 116.0,
+          "priceChanges": null
+        }
+      ],
+      "reason": "a single product carries its own VAT line (B 116,00)"
+    }
+  ],
+  "uc": "UC261_2"
+}

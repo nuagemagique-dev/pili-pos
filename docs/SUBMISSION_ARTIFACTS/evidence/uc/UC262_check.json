@@ -1,0 +1,11 @@
+{
+  "deviations": [
+    {
+      "fixture": "B",
+      "path": "transaction.transactionLines[1].vats[0].label",
+      "piliPos": "C",
+      "reason": "an order is dine-in or takeaway as a whole: sold as a takeaway, the burger takes the takeaway label C (the fixture mixes a room burger B and a takeaway Perrier C on one ticket)"
+    }
+  ],
+  "uc": "UC262"
+}

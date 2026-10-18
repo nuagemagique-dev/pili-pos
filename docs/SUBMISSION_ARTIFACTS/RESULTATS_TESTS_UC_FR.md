@@ -10,7 +10,8 @@ proposé par pili-pos (le remboursement partiel est toujours émis en
 ticket séparé, parcours M112B). La facture (**M150**, événement I) est
 rejouée comme les autres UC ; les deux UC de facture de l'Advanced Set
 (**UC4121** et **UC4122**) le sont aussi, dans la section qui suit les
-rapports. Pour chaque UC, il fournit :
+rapports, ainsi que les trois UC de bon cadeau à usage multiple (**UC260**,
+**UC261** et **UC262**) dans la section qui suit les factures. Pour chaque UC, il fournit :
 
 - Le scenario d'execution (extrait de la fixture officielle SPF Finances).
 - La requete et la reponse de reference de la fixture (fichiers Variables.json et *_Response.json publies).
@@ -5840,6 +5841,319 @@ Comparaison avec la fixture : champs métier identiques (`costCenter.type` et `c
 
 ---
 
+# Bons cadeaux à usage multiple de l'Advanced Set (UC260, UC261, UC262)
+
+Les trois UC de bon à usage multiple (MPV) de l'Advanced Set v1.6 sont rejoués par `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs`, par les commandes que l'écran appelle (ligne de bon cadeau, encaissement fractionné), contre le module de contrôle simulé qui rejoue la réponse de la fixture. Le test compare la requête archivée à celle de la fixture champ par champ : les lignes de paiement (`VOUCHER_STORE`, saisie, montants) doivent être identiques ; tout autre écart est listé avec son motif, et un écart non listé, ou listé et disparu, fait échouer le test. La fonction est décrite dans *BONS_CADEAUX_FR.md*. Les bons à usage unique (UC270, UC271) et la conversion d'un bon en espèces (UC4105) ne sont pas offerts en v1.0.0 (*MATRICE_TRACABILITE_FR.md*).
+
+## UC260_MPV_Sale
+
+**Mutation invoquee :** `signSale`
+
+**Scenario (fixture, en anglais) :**
+
+```
+Purchase of MPV - 50 EUR - payment CARD
+```
+
+**Test automatise :** `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs::uc260_mpv_sale`. La vente d'un bon de 50,00 EUR payée par carte produit une ligne T.V.A. X et une ligne de paiement ; le bon existe une fois la vente signée.
+
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs::uc260_mpv_sale`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/UC260_event1_N_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "42923765-e0b8-48b7-9ed6-aa44e6db3060",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 50.0,
+      "amountType": "PAYMENT",
+      "id": "2",
+      "inputMethod": "MANUAL",
+      "name": "Card",
+      "type": "CARD_DEBIT"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-18T11:23:57.182+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 50.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "GV",
+          "departmentName": "Bons cadeaux",
+          "productId": "990001",
+          "productName": "Bon cadeau",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 50.0,
+          "vats": [
+            {
+              "label": "X",
+              "price": 50.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 50.0
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+**Comparaison avec la fixture** (`evidence/uc/UC260_check.json`) : champs métier identiques, dont les lignes de paiement `VOUCHER_STORE` (type, saisie, montant).
+
+Écarts assumés :
+
+| Champ | Fixture | pili-pos | Motif |
+|---|---|---|---|
+| `transaction.transactionLines[0].departmentId` | `400` | `GV` | la ligne du bon est dans le département GV (Bons cadeaux), pas dans le département 400 de l'installation de test |
+| `transaction.transactionLines[0].productId` | `40001` | `990001` | le bon est le produit système « Bon cadeau » (990001), pas le produit 40001 de l'installation de test |
+
+<!-- pili-pos-evidence:end -->
+
+## UC261_MPV_Use
+
+**Mutation invoquee :** `signSale` (commande de table puis vente)
+
+**Scenario (fixture, en anglais) :**
+
+```
+Client comes to diner: 2 business menu all-in (total price 116 EUR)
+and pays with a Multi Purpose Voucher (value 50 EUR).
+The remaining balance is paid in cash.
+
+OPERATION 1: order on table 1: 2 business menu all-in
+OPERATION 2: Finalise ticket, payment by MPV and cash
+```
+
+**Test automatise :** `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs::uc261_mpv_use`. Le bon de 50,00 EUR sert pour une partie de la note de 116,00 EUR (paiement `VOUCHER_STORE`, identité « 8 », saisie `MANUAL`), le reste est réglé en espèces.
+
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs::uc261_mpv_use`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/UC261_event3_N_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "1e1bfc4c-8e4f-4ffc-a812-5db2ca81d969",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O2",
+    "type": "TABLE"
+  },
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 50.0,
+      "amountType": "PAYMENT",
+      "id": "8",
+      "inputMethod": "MANUAL",
+      "name": "Gift voucher",
+      "type": "VOUCHER_STORE"
+    },
+    {
+      "amount": 66.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-18T11:23:57.187+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 116.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "30",
+          "departmentName": "Menus",
+          "productId": "30010",
+          "productName": "Business menu all-in",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 58.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 116.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 116.0
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario (vente du bon, ticket provisoire), archivés de même : `evidence/uc/UC261_event1_N_request.json`, `evidence/uc/UC261_event2_P_request.json`. Réponses FDM archivées : fichiers `*_response.json` correspondants.
+
+**Comparaison avec la fixture** (`evidence/uc/UC261_1_check.json`) : champs métier identiques, dont les lignes de paiement `VOUCHER_STORE` (type, saisie, montant).
+
+Écarts assumés :
+
+| Champ | Fixture | pili-pos | Motif |
+|---|---|---|---|
+| `transaction.transactionLines[0].lineType` | `COMPOSITE_PRODUCT` | `SINGLE_PRODUCT` | les produits composés ne sont pas pris en charge : le menu est un seul produit |
+| `transaction.transactionLines[0].vats` | `[]` | `[{"label": "B", "price": 116.0, "priceChanges": null}]` | un produit simple porte sa propre ligne de T.V.A. (B 116,00) |
+
+**Comparaison avec la fixture** (`evidence/uc/UC261_2_check.json`) : champs métier identiques, dont les lignes de paiement `VOUCHER_STORE` (type, saisie, montant).
+
+Écarts assumés :
+
+| Champ | Fixture | pili-pos | Motif |
+|---|---|---|---|
+| `transaction.transactionLines[0].lineType` | `COMPOSITE_PRODUCT` | `SINGLE_PRODUCT` | les produits composés ne sont pas pris en charge : le menu est un seul produit |
+| `transaction.transactionLines[0].vats` | `[]` | `[{"label": "B", "price": 116.0, "priceChanges": null}]` | un produit simple porte sa propre ligne de T.V.A. (B 116,00) |
+
+<!-- pili-pos-evidence:end -->
+
+## UC262_MPV_Use
+
+**Mutation invoquee :** `signSale`
+
+**Scenario (fixture, en anglais) :**
+
+```
+Sale of
+    1 x Dry Martini (12 EUR, A)
+    1 x Burger of the chef (28 EUR, B)
+    1 x Perrier on take away (2.50 EUR, C)
+
+    Payment method = MPV
+```
+
+**Test automatise :** `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs::uc262_mpv_use`. La vente est réglée en entier par le bon.
+
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs::uc262_mpv_use`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/UC262_event2_N_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "e6149ea2-b96d-477a-8ed5-d1a27db18ef1",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 42.5,
+      "amountType": "PAYMENT",
+      "id": "8",
+      "inputMethod": "MANUAL",
+      "name": "Gift voucher",
+      "type": "VOUCHER_STORE"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-18T11:23:57.187+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 12.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 12.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 28.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "22",
+          "departmentName": "Main Dishes",
+          "productId": "22001",
+          "productName": "Burger of the CHEF",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 28.0,
+          "vats": [
+            {
+              "label": "C",
+              "price": 28.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 2.5,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "12",
+          "departmentName": "Soft Drinks",
+          "productId": "12007",
+          "productName": "Perrier",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 2.5,
+          "vats": [
+            {
+              "label": "C",
+              "price": 2.5
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 42.5
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario (vente du bon, ticket provisoire), archivés de même : `evidence/uc/UC262_event1_N_request.json`. Réponses FDM archivées : fichiers `*_response.json` correspondants.
+
+**Comparaison avec la fixture** (`evidence/uc/UC262_check.json`) : champs métier identiques, dont les lignes de paiement `VOUCHER_STORE` (type, saisie, montant).
+
+Écarts assumés :
+
+| Champ | Fixture | pili-pos | Motif |
+|---|---|---|---|
+| `transaction.transactionLines[1].vats[0].label` | `B` | `C` | une commande est sur place ou à emporter dans son ensemble : vendue à emporter, le hamburger prend le taux C (la fixture mélange un hamburger en salle B et une boisson à emporter C sur un même ticket) |
+
+<!-- pili-pos-evidence:end -->
+
+---
+
 # Arrondissement des methodes de paiement (manuel §IV)
 
 Le manuel demande les tests de base 1 et 2 dans tous les cas, le test 3
@@ -6528,7 +6842,8 @@ TVA: BE0000000097
 | Basic Set v1.8 | 22 | 21 (hors M112A) | OK (22/22) | OK : 19 UC rejoues et compares a la fixture dans `spf_e2e_fixtures.rs` (M110, M111, M112B, M121, M122, M123, M130, M131, M132, M133, M140, M141, M150, M160, M161, M170, M171, M171B, M172) ; M112A n'est pas un parcours propose (remboursement partiel toujours en ticket separe, parcours M112B) ; Q100/Q110 : `client_status.rs` |
 | Reports v1.3 | 5 | 5 | OK (5/5) | OK : journee T1–T8 jouee puis M180, M182 et M184 compares a la fixture dans `spf_e2e_report_fixtures.rs` ; M181/M183 signes par le Z combine de M184 |
 | Advanced Set v1.6 (factures) | 2 | 2 | OK | OK : UC4121 et UC4122 rejoues dans `invoice_advanced.rs` |
-| **Total** | **29** | **28** | **OK** | **OK** |
+| Advanced Set v1.6 (bons à usage multiple) | 3 | 3 | OK | OK : UC260, UC261 et UC262 rejoues et compares a la fixture dans `spf_e2e_gift_vouchers.rs` |
+| **Total** | **32** | **31** | **OK** | **OK** |
 
 Preuves d'annexe : **58 paires requete/reponse** construites et
 archivees par la build `cert` pour le Basic Set (M150 compris) et les rapports
@@ -6539,6 +6854,7 @@ champ avec la fixture), **5 paires** pour les situations d'arrondi
 paires pour six UC de l'Advanced Set rejoues par le meme harnais
 (UC223, UC225A, UC229B, UC230, UC4109, UC4119 ; voir *COUVERTURE_ADVANCED_SET_FR.md*), plus **10 paires** pour
 les deux factures de l'Advanced Set (UC4121 : 4 ; UC4122 : 6, dont les deux factures et
-le remboursement).
+le remboursement), plus **6 paires** pour les trois UC de bon cadeau
+(UC260 : 1 ; UC261 : 3 ; UC262 : 2).
 
 Pour le detail des couvertures, voir *COUVERTURE_FIXTURES_FR.md* et *COUVERTURE_RAPPORTS_FR.md*.

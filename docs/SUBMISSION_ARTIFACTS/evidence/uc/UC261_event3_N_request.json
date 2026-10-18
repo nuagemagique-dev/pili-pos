@@ -1,0 +1,62 @@
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "1e1bfc4c-8e4f-4ffc-a812-5db2ca81d969",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O2",
+    "type": "TABLE"
+  },
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 50.0,
+      "amountType": "PAYMENT",
+      "id": "8",
+      "inputMethod": "MANUAL",
+      "name": "Gift voucher",
+      "type": "VOUCHER_STORE"
+    },
+    {
+      "amount": 66.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-18T11:23:57.187+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 116.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "30",
+          "departmentName": "Menus",
+          "productId": "30010",
+          "productName": "Business menu all-in",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 58.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 116.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 116.0
+  },
+  "vatNo": "BE0000000097"
+}
