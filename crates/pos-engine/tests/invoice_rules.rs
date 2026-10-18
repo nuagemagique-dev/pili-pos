@@ -352,3 +352,222 @@ async fn a_customer_form_is_checked() {
     assert_eq!(first.id, second.id);
     assert_eq!(second.name, "New name");
 }
+
+fn request_of(app: &TestApp, event_id: i64) -> serde_json::Value {
+    let event = app
+        .fiscal_events()
+        .into_iter()
+        .find(|e| e.id == event_id)
+        .unwrap();
+    serde_json::from_str(event.event_data_json.as_deref().unwrap()).unwrap()
+}
+
+/// A sale closed unpaid (event N with empty `financials`), signed by a manager.
+async fn unpaid_sale(app: &TestApp, price_cents: i64) -> i64 {
+    pos_engine::commands::auth::do_set_pin(&app.state, OPERATOR.into(), "4321".into(), None)
+        .unwrap();
+    let order = app.order_of(price_cents);
+    let r = pos_engine::commands::unpaid::do_close_unpaid(&app.state, order, OPERATOR, "4321")
+        .await
+        .unwrap();
+    assert!(r.success, "{:?}", r.error);
+    r.fiscal_event_id.unwrap()
+}
+
+#[tokio::test]
+async fn a_training_sale_is_not_a_sale_to_invoice() {
+    let (app, customer) = app().await;
+    app.state.config.lock().unwrap().training_mode = true;
+    let training = app.sell_cash(1000).await;
+    app.state.config.lock().unwrap().training_mode = false;
+    let event = app
+        .fiscal_events()
+        .into_iter()
+        .find(|e| e.id == training)
+        .unwrap();
+    assert_eq!(event.event_type, "T");
+
+    let expected = format!("{}|event={training}", errors::INVOICE_NOT_A_SALE);
+    let err = do_sign_invoice_fiscal(&app.state, vec![training], customer, OPERATOR.into())
+        .await
+        .unwrap_err();
+    assert_eq!(err, expected);
+    let preview = do_invoice_preview(&app.state, &[training]).unwrap();
+    assert_eq!(preview.problems, [expected]);
+    assert!(preview.lines.is_empty());
+    assert_eq!(app.counter_for(EventLabel::I), 0);
+}
+
+#[tokio::test]
+async fn a_sale_closed_unpaid_is_not_a_sale_to_invoice() {
+    let (app, customer) = app().await;
+    let unpaid = unpaid_sale(&app, 1000).await;
+    // It is a signed N, but nothing was paid: the request has no payment line.
+    assert_eq!(
+        request_of(&app, unpaid)["financials"],
+        serde_json::json!([])
+    );
+    let event = app
+        .fiscal_events()
+        .into_iter()
+        .find(|e| e.id == unpaid)
+        .unwrap();
+    assert_eq!(event.event_type, "N");
+
+    let expected = format!("{}|event={unpaid}", errors::INVOICE_NOT_A_SALE);
+    let err = do_sign_invoice_fiscal(&app.state, vec![unpaid], customer, OPERATOR.into())
+        .await
+        .unwrap_err();
+    assert_eq!(err, expected);
+    let preview = do_invoice_preview(&app.state, &[unpaid]).unwrap();
+    assert_eq!(preview.problems, [expected]);
+    assert_eq!(app.counter_for(EventLabel::I), 0);
+
+    let paid = app.sell_cash(500).await;
+    let listed = do_list_invoiceable_sales(&app.state, None, None).unwrap();
+    let ids: Vec<i64> = listed.iter().map(|s| s.fiscal_event_id).collect();
+    assert_eq!(ids, [paid], "the unpaid sale is not offered");
+}
+
+#[tokio::test]
+async fn the_list_of_sales_is_newest_first_and_searchable() {
+    let (app, _) = app().await;
+    let s1 = app.sell_cash(1000).await;
+    app.state.config.lock().unwrap().training_mode = true;
+    let training = app.sell_cash(700).await;
+    app.state.config.lock().unwrap().training_mode = false;
+    let s2 = app.sell_cash(1100).await;
+    let unpaid = unpaid_sale(&app, 900).await;
+    let s3 = app.sell_cash(1200).await;
+
+    let list = |limit: Option<i64>, query: Option<&str>| -> Vec<i64> {
+        do_list_invoiceable_sales(&app.state, limit, query.map(String::from))
+            .unwrap()
+            .iter()
+            .map(|s| s.fiscal_event_id)
+            .collect()
+    };
+    // Newest first; the training sale and the unpaid one are left out.
+    assert_eq!(list(None, None), [s3, s2, s1]);
+    assert!(!list(None, None).contains(&training));
+    assert!(!list(None, None).contains(&unpaid));
+
+    // The limit is clamped to 1..=200.
+    assert_eq!(list(Some(2), None), [s3, s2]);
+    assert_eq!(list(Some(0), None), [s3]);
+    assert_eq!(list(Some(-7), None), [s3]);
+    assert_eq!(list(Some(100_000), None), [s3, s2, s1]);
+
+    // By ticket number: the prefix of one sale's number.
+    let ticket = |id: i64| request_of(&app, id)["posFiscalTicketNo"].as_i64().unwrap();
+    // (A year starts with 2, so a number starting with 1 cannot match a date.)
+    let t1 = ticket(s1).to_string();
+    assert!(t1.starts_with('1'), "{t1}");
+    assert_eq!(list(None, Some(&t1)), [s1]);
+    assert_eq!(list(None, Some(&ticket(s3).to_string())), [s3]);
+    assert!(list(None, Some("999999")).is_empty());
+
+    // By date: make the first sale an earlier day, then ask for each day.
+    let date_of = |id: i64| request_of(&app, id)["posDateTime"].as_str().unwrap()[..10].to_string();
+    let today = date_of(s3);
+    {
+        let db = app.state.db.lock().unwrap();
+        // The archive is append-only for real use; this test needs a sale of another day,
+        // so the guard is lifted in this throw-away database.
+        db.execute("DROP TRIGGER fiscal_events_no_rewrite", [])
+            .unwrap();
+        db.execute(
+            "UPDATE fiscal_events
+             SET event_data_json = json_set(event_data_json, '$.posDateTime', '2020-01-15T10:00:00Z')
+             WHERE id = ?1",
+            [s1],
+        )
+        .expect("move the first sale to another day");
+    }
+    assert_eq!(list(None, Some(&today)), [s3, s2]);
+    assert_eq!(list(None, Some("2020-01-15")), [s1]);
+    assert_eq!(list(None, Some("2020-01")), [s1]);
+    assert!(list(None, Some("1999")).is_empty());
+
+    // LIKE wildcards are stripped: "%" and "_" alone mean "no filter", and "%-" followed by
+    // the month would match every sale if it were a pattern.
+    assert_eq!(list(None, Some("%")), [s3, s2, s1]);
+    assert_eq!(list(None, Some("_")), [s3, s2, s1]);
+    assert_eq!(list(None, Some("  ")), [s3, s2, s1]);
+    let month = format!("%{}", &today[4..7]);
+    assert!(list(None, Some(&month)).is_empty(), "{month}");
+    assert_eq!(list(None, Some("2020%01")), [] as [i64; 0]);
+}
+
+#[tokio::test]
+async fn a_customer_is_updated_by_id() {
+    let (app, a) = app().await;
+    const OTHER_VAT: &str = "BE0123456749";
+    let b = app.save_customer(OTHER_VAT, "Autre Client SA");
+    let form = |id: Option<i64>, vat: &str, name: &str, street: &str| B2bCustomerInput {
+        id,
+        vat_number: vat.into(),
+        name: name.into(),
+        street: street.into(),
+        postal_code: "1000".into(),
+        city: "Bruxelles".into(),
+        country_code: String::new(),
+    };
+    let save = |f: B2bCustomerInput| do_save_b2b_customer(&app.state, f);
+
+    // An unknown id is refused, nothing is created.
+    assert_eq!(
+        save(form(Some(999), VAT, "X", "Rue 1")).unwrap_err(),
+        errors::CUSTOMER_NOT_FOUND
+    );
+    // B's number cannot be taken by A.
+    assert_eq!(
+        save(form(Some(a), OTHER_VAT, "X", "Rue 1")).unwrap_err(),
+        format!("{}|field=vat_number", errors::CUSTOMER_INCOMPLETE)
+    );
+    assert_eq!(rows(&app, "SELECT COUNT(*) FROM b2b_customers"), 2);
+
+    // A new name and address: same row, fields updated, operator recorded.
+    let updated = save(form(Some(a), VAT, "Nouveau Nom", "Rue Neuve 9")).unwrap();
+    assert_eq!(updated.id, a);
+    assert_eq!(updated.name, "Nouveau Nom");
+    assert_eq!(updated.street, "Rue Neuve 9");
+    assert_eq!(updated.postal_code, "1000");
+    assert_eq!(updated.city, "Bruxelles");
+    let by: String = app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .query_row(
+            "SELECT updated_by FROM b2b_customers WHERE id = ?1",
+            [a],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(by, OPERATOR);
+    // B is untouched.
+    let untouched = pos_db::queries::invoicing::get_customer(&app.state.db.lock().unwrap(), b)
+        .unwrap()
+        .unwrap();
+    assert_eq!(untouched.name, "Autre Client SA");
+
+    // A changed VAT number forgets what the network said about the old one.
+    {
+        let db = app.state.db.lock().unwrap();
+        pos_db::queries::invoicing::set_customer_peppol_status(
+            &db,
+            a,
+            "registered",
+            "2026-10-01T10:00:00Z",
+        )
+        .unwrap();
+    }
+    let same = save(form(Some(a), VAT, "Nouveau Nom", "Rue Neuve 9")).unwrap();
+    assert_eq!(same.peppol_status, "registered", "same number: cache kept");
+    let moved = save(form(Some(a), "BE0203201340", "Nouveau Nom", "Rue Neuve 9")).unwrap();
+    assert_eq!(moved.id, a);
+    assert_eq!(moved.vat_number, "BE0203201340");
+    assert_eq!(moved.peppol_status, "unknown");
+    assert_eq!(moved.peppol_checked_at, None);
+}
