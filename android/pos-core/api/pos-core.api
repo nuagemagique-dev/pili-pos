@@ -2329,6 +2329,8 @@ public final class uniffi/pos_ffi/FfiConverterOptionalTypeCorrectionDone : uniff
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/CorrectionDone;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/CorrectionDone;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterOptionalTypeCustomer : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterOptionalTypeCustomer;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -2725,6 +2727,24 @@ public final class uniffi/pos_ffi/FfiConverterSequenceString : uniffi/pos_ffi/Ff
 
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeActiveBadge : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeActiveBadge;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeAdminCategory : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeAdminCategory;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -3487,6 +3507,24 @@ public final class uniffi/pos_ffi/FfiConverterSequenceTypeResolvedLine : uniffi/
 
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeSalePaymentLine : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeSalePaymentLine;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeSalesDay : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeSalesDay;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -6280,6 +6318,8 @@ public final class uniffi/pos_ffi/FfiConverterTypeSalePayments : uniffi/pos_ffi/
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/SalePayments;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/SalePayments;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeSalesDay : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeSalesDay;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -8271,9 +8311,9 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun checkPaymentTerminal (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun checkPrinter (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun checkout (JLjava/util/List;Luniffi/pos_ffi/TicketDeliveryRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun clearSoldOut (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun clockInEmployee (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun clockOutEmployee (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun clearSoldOut (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun close ()V
 	public fun closeUnpaid (JLjava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun copyTicket (JLjava/lang/String;Luniffi/pos_ffi/TicketDeliveryRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8365,8 +8405,8 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun remoteSupportStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun removeDiscount (JLjava/lang/Long;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun removeOrderLine (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun revokeBadge (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun retryPeppolDelivery (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun revokeBadge (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun salesReport (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun saveB2bCustomer (Luniffi/pos_ffi/B2bCustomerInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun searchB2bCustomers (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8415,9 +8455,9 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun checkPaymentTerminal (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun checkPrinter (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun checkout (JLjava/util/List;Luniffi/pos_ffi/TicketDeliveryRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun clearSoldOut (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun clockInEmployee (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun clockOutEmployee (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun clearSoldOut (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun closeUnpaid (JLjava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun copyTicket (JLjava/lang/String;Luniffi/pos_ffi/TicketDeliveryRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun correctPayment (JILuniffi/pos_ffi/PaymentMethod;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -8504,8 +8544,8 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun remoteSupportStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun removeDiscount (JLjava/lang/Long;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun removeOrderLine (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun revokeBadge (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun retryPeppolDelivery (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun revokeBadge (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun salesReport (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun saveB2bCustomer (Luniffi/pos_ffi/B2bCustomerInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun searchB2bCustomers (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9110,6 +9150,13 @@ public final class uniffi/pos_ffi/SalePayments {
 	public final fun setLines (Ljava/util/List;)V
 	public final fun setRefusal (Ljava/lang/String;)V
 	public final fun setTicketNumber (J)V
+	public final fun setTotalCents (J)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/SalePayments$Companion {
+}
+
 public final class uniffi/pos_ffi/SalesDay {
 	public static final field Companion Luniffi/pos_ffi/SalesDay$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/lang/Long;JLjava/lang/Long;ZZLjava/lang/Long;)V
@@ -9246,7 +9293,6 @@ public final class uniffi/pos_ffi/SalesReport {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class uniffi/pos_ffi/SalePayments$Companion {
 public final class uniffi/pos_ffi/SalesReport$Companion {
 }
 
