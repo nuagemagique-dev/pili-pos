@@ -1554,3 +1554,73 @@ async fn a_voucher_line_in_an_earlier_round_keeps_the_sale_voucher_free_of_vouch
     assert_eq!(all.len(), 2);
     assert_eq!(all[1].face_value_cents, 2000);
 }
+
+// ── The system product survives a HubRise catalog sync ─────────────
+
+#[cfg(feature = "hubrise")]
+#[tokio::test]
+async fn the_voucher_is_still_sold_after_a_catalog_sync() {
+    use pos_engine::commands::menu::do_get_menu_items;
+
+    let (app, _printer) = app().await;
+    {
+        // A mirrored menu has external ids everywhere.
+        let mut conn = app.state.db.lock().unwrap();
+        conn.execute(
+            "UPDATE menu_items SET external_id = 'T' || id WHERE external_id IS NULL",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE categories SET external_id = 'C' || id WHERE external_id IS NULL",
+            [],
+        )
+        .unwrap();
+        let outcome =
+            pos_catalog::apply(&mut conn, "hubrise", &pos_catalog::testing::catalog()).unwrap();
+        assert!(
+            matches!(outcome, pos_catalog::ApplyOutcome::Applied { .. }),
+            "{outcome:?}"
+        );
+    }
+    let system = |app: &TestApp| -> (String, String, i64) {
+        app.state
+            .db
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT external_id, vat_code, active FROM menu_items WHERE id = ?1",
+                [VOUCHER_ITEM],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap()
+    };
+    assert_eq!(system(&app), ("pili:gift-voucher".into(), "X".into(), 0));
+
+    // The sync deactivated every row it does not list, the voucher sells.
+    let order = new_order(&app);
+    let line = do_add_gift_voucher_line(&app.state, order, 5000).unwrap();
+    assert_eq!(line.vat_code.as_str(), "X");
+    assert_eq!(line.department_id, "GV");
+    assert_eq!(line.menu_item_id, VOUCHER_ITEM);
+    let r = pay(&app, order, &[PaymentPart::cash()]).await;
+    assert!(r.success, "{:?}", r.error);
+    let request = request_of(&app, r.fiscal_event_id.unwrap());
+    let signed = &request["transaction"]["transactionLines"][0]["mainProduct"];
+    assert_eq!(signed["vats"][0]["label"], "X");
+    assert_eq!(signed["departmentId"], "GV");
+    assert_eq!(vouchers(&app).len(), 1);
+
+    // The grid never shows it.
+    let shown = do_get_menu_items(&app.state, None, None).unwrap();
+    assert!(shown.iter().all(|m| m.id != VOUCHER_ITEM));
+
+    // Syncing the same catalog again leaves it untouched.
+    {
+        let mut conn = app.state.db.lock().unwrap();
+        pos_catalog::apply(&mut conn, "hubrise", &pos_catalog::testing::catalog()).unwrap();
+    }
+    assert_eq!(system(&app), ("pili:gift-voucher".into(), "X".into(), 0));
+    let order = new_order(&app);
+    assert!(do_add_gift_voucher_line(&app.state, order, 1000).is_ok());
+}

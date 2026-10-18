@@ -1125,3 +1125,97 @@ fn strip_volatile(json: &str) -> String {
     walk(&mut value);
     value.to_string()
 }
+
+// ── A line added with options ──────────────────────────────────
+
+#[cfg(feature = "hubrise")]
+mod with_options {
+    use super::*;
+    use pos_engine::commands::modifiers::{
+        AddWithModifiersInput, do_add_order_line_with_modifiers,
+    };
+
+    fn give_options(app: &TestApp, item: i64, group: i64, option: i64) {
+        let conn = app.state.db.lock().unwrap();
+        conn.execute_batch(&format!(
+            "INSERT INTO modifier_groups (id, menu_item_id, min_select, max_select) VALUES ({group}, {item}, 0, 1);
+             INSERT INTO modifiers (id, group_id, price_cents, sort_order) VALUES ({option}, {group}, 100, 0);
+             INSERT INTO translations (entity_type, entity_id, field, lang, value) VALUES
+                ('modifier_group', {group}, 'name', 'fr', 'Sauce'),
+                ('modifier', {option}, 'name', 'fr', 'Soja');"
+        ))
+        .unwrap();
+    }
+
+    fn add_with(app: &TestApp, order: i64, item: i64, ids: Vec<i64>) -> i64 {
+        do_add_order_line_with_modifiers(
+            &app.state,
+            &AddWithModifiersInput {
+                order_id: order,
+                menu_item_id: item,
+                quantity: 1,
+                modifier_ids: ids,
+            },
+        )
+        .unwrap()
+        .id
+    }
+
+    fn state(app: &TestApp, order: i64, id: i64) -> (i32, String) {
+        do_list_cart_lines(&app.state, order)
+            .unwrap()
+            .into_iter()
+            .find(|l| l.line.id == id)
+            .map(|l| (l.course, l.kitchen_state))
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_line_with_options_takes_its_category_course_and_is_held() {
+        let app = app().await;
+        enable(&app);
+        give_options(&app, MAKI, 1, 1);
+        give_options(&app, SAKE, 2, 2);
+        let printer = PrinterSink::start().await;
+        app.set_printer(&printer.addr);
+        let o = table_order(&app, 4);
+        let maki = add_with(&app, o, MAKI, vec![1]);
+        let sake = add_with(&app, o, SAKE, vec![2]);
+        assert_eq!(state(&app, o, maki), (2, "held".to_string()));
+        assert_eq!(state(&app, o, sake), (0, "unsent".to_string()));
+        // The option priced the line, so it really went through the options path.
+        let lines = do_list_cart_lines(&app.state, o).unwrap();
+        let line = lines.iter().find(|l| l.line.id == maki).unwrap();
+        assert_eq!(line.line.unit_price_cents, 1300);
+
+        do_sign_table_order(&app.state, o).await.unwrap();
+        let slips = printer.settle_slips(1).await;
+        assert!(slips[0].contains("Sake"), "{}", slips[0]);
+        assert!(
+            !slips[0].contains("Maki"),
+            "held course left out: {}",
+            slips[0]
+        );
+        assert_eq!(state(&app, o, maki), (2, "held".to_string()));
+        assert_eq!(do_list_held_courses(&app.state, o).unwrap()[0].course, 2);
+    }
+
+    #[tokio::test]
+    async fn a_reused_line_id_gets_a_fresh_course() {
+        let app = app().await;
+        enable(&app);
+        give_options(&app, MAKI, 1, 1);
+        give_options(&app, SAKE, 2, 2);
+        let o = table_order(&app, 5);
+        let maki = add_with(&app, o, MAKI, vec![1]);
+        assert_eq!(state(&app, o, maki).0, 2);
+        do_remove_order_line(&app.state, maki).unwrap();
+        // A direct line (course 0) added next may reuse the freed id.
+        let sake = add_with(&app, o, SAKE, vec![2]);
+        assert_eq!(state(&app, o, sake), (0, "unsent".to_string()));
+        assert!(
+            do_list_held_courses(&app.state, o).unwrap().is_empty(),
+            "no stale held course"
+        );
+    }
+}
