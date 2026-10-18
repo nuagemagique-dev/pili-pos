@@ -126,7 +126,7 @@ MANIFEST_INTERNAL_SUBSTRINGS = (
     "dossier_review",
 )
 
-SCREENSHOT_RE = re.compile(r"(?:A\d{2,3}|\d\d[a-z]?)_[a-z0-9_]+\.(?:png|jpg)")
+SCREENSHOT_RE = re.compile(r"(?:A\d{2,3}[a-z]?|\d\d[a-z]?)_[a-z0-9_]+\.(?:png|jpg)")
 
 
 @dataclass(order=True)

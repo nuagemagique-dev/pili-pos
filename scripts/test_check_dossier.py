@@ -175,10 +175,13 @@ class CheckDossierTestCase(unittest.TestCase):
 
         # --- --final: screenshots -----------------------------------------
         write(dossier / "screenshots" / "01_login.png", "not a real png")
+        write(dossier / "screenshots" / "A127b_variant.png", "not a real png")
         write(
             dossier / "CAPTURES_ECRAN_RUNBOOK_FR.md",
             "### `01_login.png`\nexists on disk.\n\n"
-            "### `02_missing.png`\ndoes not exist on disk.\n",
+            "### `02_missing.png`\ndoes not exist on disk.\n\n"
+            "### `A127b_variant.png`\nletter suffix, exists on disk.\n\n"
+            "### `A50b_missing.png`\nletter suffix, does not exist on disk.\n",
         )
 
         # --- --final: pdf-freshness ----------------------------------------
@@ -311,8 +314,12 @@ class CheckDossierTestCase(unittest.TestCase):
     def test_screenshots_pass_and_fail(self):
         findings = self.run_rule("screenshots")
         msgs = self.messages_for(findings, "CAPTURES_ECRAN_RUNBOOK_FR.md")
-        self.assertEqual(len(msgs), 1)
+        self.assertEqual(len(msgs), 2, f"expected two missing captures, got:\n{msgs}")
         self.assertIn("02_missing.png", msgs[0])
+        # A letter suffix after an A-number is matched (INT-D48): the existing
+        # A127b capture is found, the missing A50b one is reported in full.
+        self.assertIn("A50b_missing.png", msgs[1])
+        self.assertFalse(any("A127b_variant" in m for m in msgs))
 
     # -- --final: pdf-freshness ------------------------------------------------
 
