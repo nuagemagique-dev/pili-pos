@@ -37,6 +37,8 @@
     <string name="reports_pc_line">{method} · {amount} €</string>
     <string name="reports_pc_terminal">Terminal</string>
     <string name="reports_pc_terminal_note">Une carte prise sur le terminal ne se corrige pas.</string>
+    <string name="reports_pc_voucher_note">Un paiement par bon cadeau ne se corrige pas : il a débité le bon.</string>
+    <string name="reports_pc_method_gift_voucher">Bon cadeau</string>
     <string name="reports_pc_pick_method">Payé en réalité par</string>
     <string name="reports_pc_method_cash">Espèces</string>
     <string name="reports_pc_method_card">Carte</string>

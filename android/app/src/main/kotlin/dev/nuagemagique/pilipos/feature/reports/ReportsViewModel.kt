@@ -486,9 +486,7 @@ internal class ReportsViewModel(
         updateCorrection(fiscalEventId) { flow ->
             // The only line left is picked on its own.
             val free =
-                payments.lines.filter {
-                    it.amountType == CorrectionFlow.AMOUNT_PAYMENT && it.inputMethod != CorrectionFlow.INPUT_AUTOMATIC
-                }
+                payments.lines.filter { it.amountType == CorrectionFlow.AMOUNT_PAYMENT && !isLockedLine(it) }
             val only = free.singleOrNull()?.index?.takeIf { payments.correctable }
             flow.copy(payments = payments, lineIndex = only)
         }
@@ -504,12 +502,12 @@ internal class ReportsViewModel(
         }
     }
 
-    /** Picks the payment line to correct; a card the linked terminal took cannot be picked. */
+    /** Picks the payment line to correct; a card the linked terminal took or a gift voucher cannot be picked. */
     fun pickCorrectionLine(index: Int) {
         own.update { current ->
             val flow = current.correctionFlow ?: return@update current
             val line = flow.lines.firstOrNull { it.index == index } ?: return@update current
-            if (line.inputMethod == CorrectionFlow.INPUT_AUTOMATIC) return@update current
+            if (isLockedLine(line)) return@update current
             // The method the line already has is not a choice.
             val method = flow.method?.takeIf { it != methodOf(line.paymentType) }
             current.copy(correctionFlow = flow.copy(lineIndex = index, method = method))

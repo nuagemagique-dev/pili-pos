@@ -75,6 +75,7 @@
     <string name="err_payment_correction_terminal_card">通过关联终端刷的卡不能更正。</string>
     <string name="err_payment_correction_same_method">请选择与该行不同的付款方式。</string>
     <string name="err_payment_correction_method">收银台不接受此付款方式（现金、银行卡、餐券）。</string>
+    <string name="err_payment_correction_gift_voucher">礼品券付款不能更正：它已从礼品券中扣除。</string>
     <string name="err_payment_correction_rounding">此更正需要四舍五入：此销售无法更正。</string>
     <string name="err_order_no_lines">订单为空。</string>
     <string name="err_payment_invalid">付款无效：请检查金额。</string>
@@ -142,6 +143,7 @@
     <string name="err_invoice_no_sales">请至少选择一笔要开发票的销售。</string>
     <string name="err_invoice_sale_not_found">找不到销售 {event}。</string>
     <string name="err_invoice_not_a_sale">事件 {event} 不是普通销售：只有销售可以开发票。</string>
+    <string name="err_invoice_gift_voucher_sale">票据 {event} 售出了礼品券：礼品券不属于增值税范围，不能开发票。</string>
     <string name="err_invoice_sale_already_invoiced">销售 {event} 已在发票 {invoice} 上。</string>
     <string name="err_invoice_training_mode">培训模式下不能开发票。</string>
     <string name="err_invoice_peppol_required">该客户有比利时增值税号：发票必须通过 Peppol 发送，但此安装未配置 Peppol。请联系支持。</string>

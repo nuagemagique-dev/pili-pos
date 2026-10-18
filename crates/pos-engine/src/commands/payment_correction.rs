@@ -16,7 +16,10 @@
 //!   approved is never turned into another method;
 //! - the new method is cash, card or meal voucher, different from the
 //!   line's; no ROUNDING line is ever written by a correction, so the
-//!   two cases that would need one are refused.
+//!   two cases that would need one are refused;
+//! - a gift voucher line (`VOUCHER_STORE`) is never corrected and no
+//!   line is ever corrected to a gift voucher: the voucher movement
+//!   written with the sale cannot follow a correction (INT-D4).
 
 use rusqlite::Connection;
 use serde::Serialize;
@@ -278,9 +281,25 @@ fn sale_refusal(
 }
 
 /// Whether a `financials` line may be corrected at all: a PAYMENT line
-/// typed by hand.
+/// typed by hand that did not debit a gift voucher.
 fn is_correctable_line(line: &Value) -> bool {
-    line["amountType"] == "PAYMENT" && line["inputMethod"] == "MANUAL"
+    line["amountType"] == "PAYMENT"
+        && line["inputMethod"] == "MANUAL"
+        && !is_gift_voucher_line(line)
+}
+
+/// A payment line that debited a gift voucher.
+fn is_gift_voucher_line(line: &Value) -> bool {
+    line["type"] == "VOUCHER_STORE"
+}
+
+/// The signed sale sold a gift voucher (a line of department `GV`).
+fn sells_gift_voucher(request: &Value) -> bool {
+    request["transaction"]["transactionLines"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .any(|l| l["mainProduct"]["departmentId"] == pos_db::queries::gift_vouchers::DEPARTMENT_ID)
 }
 
 /// The payment lines of the signed sale `fiscal_event_id` and whether
@@ -307,9 +326,17 @@ pub fn do_list_sale_payments(
         })
         .collect();
     let mut refusal = sale_refusal(&db, &config, &sale)?.map(str::to_string);
-    // Every payment is a terminal card: nothing to pick.
+    // Every payment is a terminal card or a gift voucher: nothing to pick.
     if refusal.is_none() && !financials(&sale).iter().any(is_correctable_line) {
-        refusal = Some(errors::PAYMENT_CORRECTION_TERMINAL_CARD.to_string());
+        let only_vouchers = financials(&sale)
+            .iter()
+            .filter(|l| l["amountType"] == "PAYMENT")
+            .all(is_gift_voucher_line);
+        refusal = Some(if only_vouchers {
+            errors::PAYMENT_CORRECTION_GIFT_VOUCHER.to_string()
+        } else {
+            errors::PAYMENT_CORRECTION_TERMINAL_CARD.to_string()
+        });
     }
     // The correction a sale already has is shown whatever else holds.
     let corrected = existing_correction(&db, &sale)?;
@@ -343,7 +370,7 @@ pub async fn do_correct_payment(
         Ok(user) => user,
         Err(e) => return Ok(FinancialResult::failed(e)),
     };
-    if !method.is_offered_at_till() {
+    if !method.is_offered_at_till() || method == PaymentMethod::GiftVoucher {
         return Ok(FinancialResult::failed(
             errors::PAYMENT_CORRECTION_METHOD.into(),
         ));
@@ -409,6 +436,9 @@ async fn sign_correction(
     if line["inputMethod"] == "AUTOMATIC" {
         return Err(errors::PAYMENT_CORRECTION_TERMINAL_CARD.into());
     }
+    if is_gift_voucher_line(line) {
+        return Err(errors::PAYMENT_CORRECTION_GIFT_VOUCHER.into());
+    }
     let from: PaymentType = serde_json::from_value(line["type"].clone())
         .map_err(|_| errors::PAYMENT_CORRECTION_BAD_LINE.to_string())?;
     let amount_cents = cents(&line["amount"]);
@@ -418,6 +448,11 @@ async fn sign_correction(
     let to = method.payment_type();
     if from == to {
         return Err(errors::PAYMENT_CORRECTION_SAME_METHOD.into());
+    }
+    // A sale that sold a gift voucher is paid in cash or by card only (V12-D27): a
+    // correction keeps that rule.
+    if method == PaymentMethod::MealVoucher && sells_gift_voucher(&sale.request) {
+        return Err(errors::GIFT_VOUCHER_PAYMENT_INVALID.into());
     }
     let sale_is_rounded = financials(&sale)
         .iter()

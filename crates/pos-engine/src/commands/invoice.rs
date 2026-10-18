@@ -316,6 +316,13 @@ pub(crate) fn read_sale(event: &FiscalEventRef) -> Result<SaleDoc, String> {
         .flatten()
     {
         let product = &line["mainProduct"];
+        // A sold gift voucher is out of the scope of VAT: never on a B2B invoice (INT-D3).
+        if product["departmentId"].as_str() == Some(pos_db::queries::gift_vouchers::DEPARTMENT_ID) {
+            return Err(coded(
+                errors::INVOICE_GIFT_VOUCHER_SALE,
+                &[("event", &event.id)],
+            ));
+        }
         let name = product["productName"].as_str().unwrap_or_default();
         let quantity_milli = (product["quantity"].as_f64().unwrap_or(1.0) * 1000.0).round() as i64;
         let unit = unit_code(product["quantityType"].as_str().unwrap_or("PIECE"));

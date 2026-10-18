@@ -37,6 +37,8 @@
     <string name="reports_pc_line">{method} · {amount} €</string>
     <string name="reports_pc_terminal">Terminal</string>
     <string name="reports_pc_terminal_note">A card taken on the terminal cannot be corrected.</string>
+    <string name="reports_pc_voucher_note">A gift voucher payment cannot be corrected: it debited the voucher.</string>
+    <string name="reports_pc_method_gift_voucher">Gift voucher</string>
     <string name="reports_pc_pick_method">Actually paid by</string>
     <string name="reports_pc_method_cash">Cash</string>
     <string name="reports_pc_method_card">Card</string>

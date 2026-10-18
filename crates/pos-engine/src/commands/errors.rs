@@ -158,10 +158,14 @@ pub const PAYMENT_CORRECTION_BAD_LINE: &str = "payment_correction_bad_line";
 pub const PAYMENT_CORRECTION_TERMINAL_CARD: &str = "payment_correction_terminal_card";
 /// The new method is the one the line already has.
 pub const PAYMENT_CORRECTION_SAME_METHOD: &str = "payment_correction_same_method";
-/// The new method is not one the till takes (cash, card, meal voucher).
+/// The new method is not one a correction can write (cash, card, meal voucher; never a gift
+/// voucher, which needs a voucher to debit).
 pub const PAYMENT_CORRECTION_METHOD: &str = "payment_correction_method";
 /// The correction would need a ROUNDING line: a cash line of a rounded sale, or a cash amount that is not a multiple of 5 cents.
 pub const PAYMENT_CORRECTION_ROUNDING: &str = "payment_correction_rounding";
+/// The line is a gift voucher payment (`VOUCHER_STORE`): it debited a voucher, which a
+/// correction cannot undo (decision INT-D4).
+pub const PAYMENT_CORRECTION_GIFT_VOUCHER: &str = "payment_correction_gift_voucher";
 
 // Tickets: copies and refunds.
 pub const EVENT_NOT_FOUND: &str = "event_not_found";
@@ -309,6 +313,11 @@ pub const INVOICE_NOT_A_SALE: &str = "invoice_not_a_sale";
 pub const INVOICE_SALE_ALREADY_INVOICED: &str = "invoice_sale_already_invoiced";
 /// No invoice in training mode (V11-D7).
 pub const INVOICE_TRAINING_MODE: &str = "invoice_training_mode";
+/// `event`: the sale sold a gift voucher (a VAT X line of department `GV`). A multi-purpose
+/// voucher is outside the scope of VAT; Peppol BIS allows category `O` only on an invoice with
+/// no other category and no VAT identifiers (BR-O-02, BR-O-11 to 14), so such a sale is never
+/// invoiced (decision INT-D3).
+pub const INVOICE_GIFT_VOUCHER_SALE: &str = "invoice_gift_voucher_sale";
 /// A Belgian VAT-registered customer must be invoiced through Peppol, and the installation
 /// has no `peppol` section (V11-D55).
 pub const INVOICE_PEPPOL_REQUIRED: &str = "invoice_peppol_required";
@@ -411,6 +420,7 @@ pub const ALL: &[&str] = &[
     PAYMENT_CORRECTION_SAME_METHOD,
     PAYMENT_CORRECTION_METHOD,
     PAYMENT_CORRECTION_ROUNDING,
+    PAYMENT_CORRECTION_GIFT_VOUCHER,
     DISCOUNT_ALREADY_APPLIED,
     DISCOUNT_NONE,
     DISCOUNT_INVALID,
@@ -447,6 +457,7 @@ pub const ALL: &[&str] = &[
     INVOICE_NOT_A_SALE,
     INVOICE_SALE_ALREADY_INVOICED,
     INVOICE_TRAINING_MODE,
+    INVOICE_GIFT_VOUCHER_SALE,
     INVOICE_PEPPOL_REQUIRED,
     CUSTOMER_VAT_INVALID,
     CUSTOMER_INCOMPLETE,

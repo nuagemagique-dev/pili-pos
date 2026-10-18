@@ -366,19 +366,28 @@ internal fun methodOf(paymentType: String): PaymentMethod? =
         paymentType == "CASH" -> PaymentMethod.CASH
         paymentType.startsWith("CARD") -> PaymentMethod.CARD
         paymentType == "CHEQUE_MEAL" -> PaymentMethod.MEAL_VOUCHER
+        paymentType == GIFT_VOUCHER_TYPE -> PaymentMethod.GIFT_VOUCHER
         else -> null
     }
+
+/** The signed payment type of a gift voucher payment. */
+internal const val GIFT_VOUCHER_TYPE: String = "VOUCHER_STORE"
+
+/** A payment line that cannot be picked: a card the linked terminal took, or a gift voucher (it debited a voucher). */
+internal fun isLockedLine(line: uniffi.pos_ffi.SalePaymentLine): Boolean =
+    line.inputMethod == CorrectionFlow.INPUT_AUTOMATIC || line.paymentType == GIFT_VOUCHER_TYPE
 
 /** The methods a payment can be corrected to, in the order of the buttons. */
 internal val CORRECTION_METHODS: List<PaymentMethod> = listOf(PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER)
 
-/** The Vue key of the name of [method] in the correction dialog; null for the app, online and gift voucher methods. */
+/** The Vue key of the name of [method] in the correction dialog; null for the app and online methods. */
 internal fun methodKey(method: PaymentMethod): String? =
     when (method) {
         PaymentMethod.CASH -> "reports_pc_method_cash"
         PaymentMethod.CARD -> "reports_pc_method_card"
         PaymentMethod.MEAL_VOUCHER -> "reports_pc_method_meal_voucher"
-        PaymentMethod.APP, PaymentMethod.ONLINE, PaymentMethod.GIFT_VOUCHER -> null
+        PaymentMethod.GIFT_VOUCHER -> "reports_pc_method_gift_voucher"
+        PaymentMethod.APP, PaymentMethod.ONLINE -> null
     }
 
 /** Everything the reports screen draws. */

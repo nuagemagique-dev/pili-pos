@@ -177,6 +177,7 @@ internal object VueStringIds {
         this["err_payment_correction_terminal_card"] = R.string.err_payment_correction_terminal_card
         this["err_payment_correction_same_method"] = R.string.err_payment_correction_same_method
         this["err_payment_correction_method"] = R.string.err_payment_correction_method
+        this["err_payment_correction_gift_voucher"] = R.string.err_payment_correction_gift_voucher
         this["err_payment_correction_rounding"] = R.string.err_payment_correction_rounding
         this["err_order_no_lines"] = R.string.err_order_no_lines
         this["err_payment_invalid"] = R.string.err_payment_invalid
@@ -244,6 +245,7 @@ internal object VueStringIds {
         this["err_invoice_no_sales"] = R.string.err_invoice_no_sales
         this["err_invoice_sale_not_found"] = R.string.err_invoice_sale_not_found
         this["err_invoice_not_a_sale"] = R.string.err_invoice_not_a_sale
+        this["err_invoice_gift_voucher_sale"] = R.string.err_invoice_gift_voucher_sale
         this["err_invoice_sale_already_invoiced"] = R.string.err_invoice_sale_already_invoiced
         this["err_invoice_training_mode"] = R.string.err_invoice_training_mode
         this["err_invoice_peppol_required"] = R.string.err_invoice_peppol_required
@@ -264,11 +266,11 @@ internal object VueStringIds {
         this["other_insz"] = R.string.other_insz
         this["digits_required"] = R.string.digits_required
         this["free"] = R.string.free
-        this["items_short"] = R.string.items_short
-        this["takeaway_new"] = R.string.takeaway_new
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["items_short"] = R.string.items_short
+        this["takeaway_new"] = R.string.takeaway_new
         this["takeaway_badge"] = R.string.takeaway_badge
         this["report_x"] = R.string.report_x
         this["report_z"] = R.string.report_z
@@ -517,11 +519,11 @@ internal object VueStringIds {
         this["err_gift_voucher_lookup_throttled"] = R.string.err_gift_voucher_lookup_throttled
         this["err_gift_voucher_not_usable"] = R.string.err_gift_voucher_not_usable
         this["err_gift_voucher_expired"] = R.string.err_gift_voucher_expired
-        this["err_gift_voucher_insufficient"] = R.string.err_gift_voucher_insufficient
-        this["err_gift_voucher_payment_invalid"] = R.string.err_gift_voucher_payment_invalid
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["err_gift_voucher_insufficient"] = R.string.err_gift_voucher_insufficient
+        this["err_gift_voucher_payment_invalid"] = R.string.err_gift_voucher_payment_invalid
         this["err_gift_voucher_used"] = R.string.err_gift_voucher_used
         this["err_gift_vouchers_outstanding"] = R.string.err_gift_vouchers_outstanding
         this["gv_sell_button"] = R.string.gv_sell_button
@@ -624,6 +626,8 @@ internal object VueStringIds {
         this["reports_pc_line"] = R.string.reports_pc_line
         this["reports_pc_terminal"] = R.string.reports_pc_terminal
         this["reports_pc_terminal_note"] = R.string.reports_pc_terminal_note
+        this["reports_pc_voucher_note"] = R.string.reports_pc_voucher_note
+        this["reports_pc_method_gift_voucher"] = R.string.reports_pc_method_gift_voucher
         this["reports_pc_pick_method"] = R.string.reports_pc_pick_method
         this["reports_pc_method_cash"] = R.string.reports_pc_method_cash
         this["reports_pc_method_card"] = R.string.reports_pc_method_card
@@ -768,13 +772,13 @@ internal object VueStringIds {
         this["settings_presence_done_in"] = R.string.settings_presence_done_in
         this["settings_presence_done_out"] = R.string.settings_presence_done_out
         this["settings_presence_fdm_down"] = R.string.settings_presence_fdm_down
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["settings_presence_note"] = R.string.settings_presence_note
         this["settings_badges"] = R.string.settings_badges
         this["badge_reader_off"] = R.string.badge_reader_off
         this["badge_reader_usb"] = R.string.badge_reader_usb
-    }
-
-    private fun MutableMap<String, Int>.part3() {
         this["settings_badge_login"] = R.string.settings_badge_login
         this["settings_badge_login_note"] = R.string.settings_badge_login_note
         this["settings_badge_usb_timing"] = R.string.settings_badge_usb_timing
@@ -1021,13 +1025,13 @@ internal object VueStringIds {
         this["webshop_attention_no_items"] = R.string.webshop_attention_no_items
         this["webshop_attention_item_without_ref"] = R.string.webshop_attention_item_without_ref
         this["webshop_attention_unknown_product"] = R.string.webshop_attention_unknown_product
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["webshop_attention_unknown_option"] = R.string.webshop_attention_unknown_option
         this["webshop_attention_unknown_charge"] = R.string.webshop_attention_unknown_charge
         this["webshop_attention_fractional_quantity"] = R.string.webshop_attention_fractional_quantity
         this["webshop_attention_bad_price"] = R.string.webshop_attention_bad_price
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["webshop_attention_vat_mismatch"] = R.string.webshop_attention_vat_mismatch
         this["webshop_attention_discount"] = R.string.webshop_attention_discount
         this["webshop_attention_total_mismatch"] = R.string.webshop_attention_total_mismatch

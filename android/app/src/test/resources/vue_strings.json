@@ -2154,6 +2154,12 @@
       "zh": "内部错误，请联系技术人员。（{detail}）",
       "area": "errors"
     },
+    "err_invoice_gift_voucher_sale": {
+      "fr": "Le ticket {event} vend un bon cadeau : un bon cadeau est hors du champ de la TVA et ne peut pas figurer sur une facture.",
+      "en": "Ticket {event} sells a gift voucher: a gift voucher is outside the scope of VAT and cannot be invoiced.",
+      "zh": "票据 {event} 售出了礼品券：礼品券不属于增值税范围，不能开发票。",
+      "area": "errors"
+    },
     "err_invoice_no_sales": {
       "fr": "Choisissez au moins une vente à facturer.",
       "en": "Choose at least one sale to invoice.",
@@ -2344,6 +2350,12 @@
       "fr": "Cette ligne de paiement n'existe pas.",
       "en": "This payment line does not exist.",
       "zh": "此付款行不存在。",
+      "area": "errors"
+    },
+    "err_payment_correction_gift_voucher": {
+      "fr": "Un paiement par bon cadeau ne peut pas être corrigé : il a débité le bon.",
+      "en": "A gift voucher payment cannot be corrected: it debited the voucher.",
+      "zh": "礼品券付款不能更正：它已从礼品券中扣除。",
       "area": "errors"
     },
     "err_payment_correction_method": {
@@ -4830,6 +4842,12 @@
       "zh": "现金",
       "area": "reports"
     },
+    "reports_pc_method_gift_voucher": {
+      "fr": "Bon cadeau",
+      "en": "Gift voucher",
+      "zh": "礼品券",
+      "area": "reports"
+    },
     "reports_pc_method_meal_voucher": {
       "fr": "Titres-repas",
       "en": "Meal vouchers",
@@ -4882,6 +4900,12 @@
       "fr": "Corriger le paiement",
       "en": "Correct the payment",
       "zh": "更正付款",
+      "area": "reports"
+    },
+    "reports_pc_voucher_note": {
+      "fr": "Un paiement par bon cadeau ne se corrige pas : il a débité le bon.",
+      "en": "A gift voucher payment cannot be corrected: it debited the voucher.",
+      "zh": "礼品券付款不能更正：它已从礼品券中扣除。",
       "area": "reports"
     },
     "reports_reason_fond_de_caisse": {
@@ -6401,6 +6425,7 @@
     "payment_correction_same_method",
     "payment_correction_method",
     "payment_correction_rounding",
+    "payment_correction_gift_voucher",
     "discount_already_applied",
     "discount_none",
     "discount_invalid",
@@ -6437,6 +6462,7 @@
     "invoice_not_a_sale",
     "invoice_sale_already_invoiced",
     "invoice_training_mode",
+    "invoice_gift_voucher_sale",
     "invoice_peppol_required",
     "customer_vat_invalid",
     "customer_incomplete",

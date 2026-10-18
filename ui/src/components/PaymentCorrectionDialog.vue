@@ -28,6 +28,8 @@ const { t } = useI18n();
 const auth = useAuthStore();
 
 const METHODS: CheckoutPaymentMethod[] = ["cash", "card", "meal_voucher"];
+/** The signed payment type of a gift voucher payment. */
+const GIFT_VOUCHER_TYPE = "VOUCHER_STORE";
 
 const sale = ref<ipc.SalePayments | null>(null);
 const loadError = ref<string | null>(null);
@@ -44,6 +46,7 @@ function methodOf(paymentType: string): CheckoutPaymentMethod | null {
 }
 
 function methodLabel(paymentType: string): string {
+  if (paymentType === GIFT_VOUCHER_TYPE) return t("reports_pc_method_gift_voucher");
   const m = methodOf(paymentType);
   return m ? t(`reports_pc_method_${m}`) : paymentType;
 }
@@ -57,8 +60,14 @@ const picked = computed(
   () => selectable.value.find(l => l.index === lineIndex.value) ?? null,
 );
 
+/** A gift voucher payment line: it debited a voucher, never corrected (the engine refuses it). */
+function isVoucher(line: ipc.SalePaymentLine): boolean {
+  return line.paymentType === GIFT_VOUCHER_TYPE;
+}
+
+/** A line that cannot be picked: a card the linked terminal took, or a gift voucher. */
 function isLocked(line: ipc.SalePaymentLine): boolean {
-  return line.inputMethod === "AUTOMATIC";
+  return line.inputMethod === "AUTOMATIC" || isVoucher(line);
 }
 
 const pickedMethod = computed(() => (picked.value ? methodOf(picked.value.paymentType) : null));
@@ -139,10 +148,11 @@ async function verify(pin: string) {
               {{ t('reports_pc_line', { method: methodLabel(line.paymentType), amount: formatPrice(line.amountCents) }) }}
               <span v-if="line.brand" class="pl-brand"> · {{ line.brand }}</span>
             </span>
-            <span v-if="isLocked(line)" class="pl-mark">{{ t('reports_pc_terminal') }}</span>
+            <span v-if="line.inputMethod === 'AUTOMATIC'" class="pl-mark">{{ t('reports_pc_terminal') }}</span>
           </button>
         </div>
-        <p v-if="selectable.some(isLocked)" class="muted">{{ t('reports_pc_terminal_note') }}</p>
+        <p v-if="selectable.some(l => l.inputMethod === 'AUTOMATIC')" class="muted">{{ t('reports_pc_terminal_note') }}</p>
+        <p v-if="selectable.some(isVoucher)" class="muted" data-testid="pc-voucher-note">{{ t('reports_pc_voucher_note') }}</p>
 
         <p class="step-title">{{ t('reports_pc_pick_method') }}</p>
         <div class="methods">

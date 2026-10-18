@@ -123,6 +123,14 @@ private fun CorrectionChoices(
         if (flow.lines.any { it.inputMethod == CorrectionFlow.INPUT_AUTOMATIC }) {
             Text(vueText("reports_pc_terminal_note"), style = t.body, color = c.textSecondary)
         }
+        if (flow.lines.any { it.paymentType == GIFT_VOUCHER_TYPE }) {
+            Text(
+                vueText("reports_pc_voucher_note"),
+                style = t.body,
+                color = c.textSecondary,
+                modifier = Modifier.testTag("correction_voucher_note"),
+            )
+        }
         Text(vueText("reports_pc_pick_method"), style = t.body.copy(fontWeight = t.weightBold), color = c.textPrimary)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(d.spaceSm)) {
             val current = flow.picked?.let { methodOf(it.paymentType) }
@@ -154,7 +162,7 @@ private fun PaymentLineChoice(
     selected: Boolean,
     onPick: (Int) -> Unit,
 ) {
-    val locked = line.inputMethod == CorrectionFlow.INPUT_AUTOMATIC
+    val locked = isLockedLine(line)
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
@@ -167,7 +175,7 @@ private fun PaymentLineChoice(
             enabled = !locked,
             modifier = Modifier.weight(1f).testTag("correction_line_${line.index}"),
         )
-        if (locked) {
+        if (line.inputMethod == CorrectionFlow.INPUT_AUTOMATIC) {
             Text(
                 vueText("reports_pc_terminal"),
                 style = PiliTheme.typography.body,

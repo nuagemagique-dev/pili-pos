@@ -75,6 +75,7 @@
     <string name="err_payment_correction_terminal_card">Une carte prise sur le terminal lié ne peut pas être corrigée.</string>
     <string name="err_payment_correction_same_method">Choisissez un autre moyen de paiement que celui de la ligne.</string>
     <string name="err_payment_correction_method">Ce moyen de paiement n\'est pas accepté en caisse (espèces, carte, titres-repas).</string>
+    <string name="err_payment_correction_gift_voucher">Un paiement par bon cadeau ne peut pas être corrigé : il a débité le bon.</string>
     <string name="err_payment_correction_rounding">Cette correction demanderait un arrondi : elle n\'est pas possible pour cette vente.</string>
     <string name="err_order_no_lines">La commande est vide.</string>
     <string name="err_payment_invalid">Paiement non valable : vérifiez les montants.</string>
@@ -142,6 +143,7 @@
     <string name="err_invoice_no_sales">Choisissez au moins une vente à facturer.</string>
     <string name="err_invoice_sale_not_found">La vente {event} est introuvable.</string>
     <string name="err_invoice_not_a_sale">L\'événement {event} n\'est pas une vente normale : seules les ventes sont facturables.</string>
+    <string name="err_invoice_gift_voucher_sale">Le ticket {event} vend un bon cadeau : un bon cadeau est hors du champ de la TVA et ne peut pas figurer sur une facture.</string>
     <string name="err_invoice_sale_already_invoiced">La vente {event} figure déjà sur la facture {invoice}.</string>
     <string name="err_invoice_training_mode">Pas de facture en mode formation.</string>
     <string name="err_invoice_peppol_required">Ce client a un numéro de TVA belge : la facture doit passer par Peppol, qui n\'est pas configuré sur cette installation. Contactez le support.</string>

@@ -68,6 +68,12 @@ export const reportsMessages: Messages = {
     en: "A card taken on the terminal cannot be corrected.",
     zh: "通过终端刷的卡不能更正。",
   },
+  "reports_pc_voucher_note": {
+    fr: "Un paiement par bon cadeau ne se corrige pas : il a débité le bon.",
+    en: "A gift voucher payment cannot be corrected: it debited the voucher.",
+    zh: "礼品券付款不能更正：它已从礼品券中扣除。",
+  },
+  "reports_pc_method_gift_voucher": { fr: "Bon cadeau", en: "Gift voucher", zh: "礼品券" },
   "reports_pc_pick_method": { fr: "Payé en réalité par", en: "Actually paid by", zh: "实际付款方式" },
   "reports_pc_method_cash": { fr: "Espèces", en: "Cash", zh: "现金" },
   "reports_pc_method_card": { fr: "Carte", en: "Card", zh: "银行卡" },
