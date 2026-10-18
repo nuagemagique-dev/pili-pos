@@ -33,7 +33,13 @@ Nothing was pushed, `main` was not touched, no tag was set. Decisions: `docs/and
 | `3a00344a` | `MenuAdmin.allergens` for the editor (INT-D20) |
 | `a9ac7432` | Allergens and course in the menu editor, both UIs (INT-D20) |
 | `3f7e0706` | Voucher lines in the discount, note and correction flows, both UIs (INT-D13, INT-D19) |
-| next | Schema documents and engine command map (INT-D22), route test and goldens (INT-D23), decisions, this plan |
+| `47bdaf07` | Schema documents and engine command map (INT-D22) |
+| `0f9c8dc1` | `SettingsRouteTest` scrolls to the badge nodes, 18 goldens re-recorded (INT-D23) |
+| `28cc209c` | Decisions INT-D12 to INT-D23, code references renumbered, this plan |
+| `5773c754` | Vue manager panels of the employees column capped at 42 % (INT-D24) |
+| `9a464cf7` | clippy `cloned_ref_to_slice_refs` in `lane_interactions.rs` |
+| `1a8807c2` | ktlint and detekt after the merge (`MenuViewModel`, `MenuEditorViewModel`, two composables) |
+| next | This gate section |
 
 ## Captures to retake
 
@@ -52,3 +58,29 @@ the Linux kiosk, Compose on the D3 Pro), French, then zh where the runbook asks 
 6. Tables: a table with a held course ("Suite : Plats") and the "Déplacer une table" button; the release slip after
    a transfer names the target table.
 7. Every capture listed in `LANE_V12.md` section 11, now on the merged build.
+
+## Gate
+
+Run on `1a8807c2` with a private `CARGO_TARGET_DIR` (`target/gate`), rustup toolchain first on `PATH` (Gradle too,
+INT-D23), every heavy command through `scripts/android/heavy.sh`.
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --all -- --check` (root and `android/rust`) | PASS |
+| `cargo clippy --workspace --all-targets -- -D warnings` | PASS (after `9a464cf7`) |
+| `cargo clippy -p pili-pos -p pos-engine --no-default-features --features cert --all-targets -- -D warnings` | PASS (after `9a464cf7`) |
+| `cargo test --workspace` | 2555 passed, 0 failed, 13 ignored |
+| `cargo test -p pili-pos --no-default-features --features cert` | 14 passed |
+| `cargo test -p pos-engine --no-default-features --features cert` | 1155 passed, 0 failed, 11 ignored |
+| FFI tests (`android/rust`, `cargo test`) | 315 passed |
+| `check_ipc_wrappers.py` / `check_command_parity.py` | 148/148 / 148/148 |
+| `check_ui_parity.py` | PASS, 146 commands (called 136, excluded 10) |
+| `check_lock_parity.sh` | 343 packages, identical |
+| `ui`: `npm run build` / `npx playwright test` | PASS / 711 passed (first run 710 + 1 failed, fixed by INT-D24) |
+| `p5_gate.sh` | 34 checks, 2 failed: linux-frozen, freeze-tag (allowed) |
+| `p6_gate.sh` | 57 checks, 2 failed: linux-frozen, freeze-tag (allowed) |
+| `check_dossier.py`, Linux and Android (`PILI_DOSSIER_DIR`) | PASS, no finding |
+
+In both gates `:app` unit tests 2806, kover LINE 97.8 %, BRANCH 74.7 %, kotlin-tests removes nothing (2851 to
+2851). The first p5 run also failed app-ktlint and app-detekt on merged code; fixed in `1a8807c2`.
+`lane_interactions.rs` rerun after the clippy fix: 16 passed.
