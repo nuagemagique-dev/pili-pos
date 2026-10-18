@@ -219,6 +219,29 @@ class MenuEditorContentTest {
     }
 
     @Test
+    fun theOptionFormHasTheNameThePricePositionAndVisibilityAndNothingOfAProduct() {
+        show(base.copy(form = formOf(sojaOption)))
+
+        compose.onNodeWithTag("menu_ed_form_title").assertTextContains("Soja")
+        compose.onNodeWithTag("menu_ed_name_fr").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("menu_ed_price").performScrollTo().assertTextContains("0,50")
+        compose.onNodeWithTag("menu_ed_pos_plus").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("menu_ed_active").performScrollTo().assertIsDisplayed()
+        // A product's fields do not belong on an option.
+        listOf("menu_ed_vat_A", "menu_ed_vat_takeaway_C", "menu_ed_kitchen", "menu_ed_cat_1", "menu_ed_open_price", "menu_ed_code")
+            .forEach { compose.onNodeWithTag(it).assertDoesNotExist() }
+
+        // The price opens the amount pad on the current price.
+        compose.onNodeWithTag("menu_ed_price").performScrollTo().performClick()
+        compose.onNodeWithTag("amount_value").assertTextContains("0,50", substring = true)
+        compose.onNodeWithTag("amount_confirm").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("menu_ed_parent").performClick()
+
+        assertEquals(listOf("price:50", "parent"), calls)
+    }
+
+    @Test
     fun aRefusalIsShownUnderTheForm() {
         show(base.copy(form = formOf(makiProduct), error = "Valeur invalide dans la carte : name."))
 

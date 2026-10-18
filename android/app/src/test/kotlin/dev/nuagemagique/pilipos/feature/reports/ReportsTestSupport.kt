@@ -186,6 +186,7 @@ internal class ReportsRig(
     val helpers: EngineHelpers,
     val invoiceModel: InvoiceViewModel,
     val salesModel: SalesViewModel,
+    val entry: ReportsEntryPoint,
 ) {
     val state get() = model.state.value
 
@@ -255,7 +256,7 @@ internal suspend fun TestScope.startReports(
     val invoiceModel = InvoiceViewModel(entry)
     val salesModel = SalesViewModel(entry) { SALES_NOW }
     runCurrent()
-    return ReportsRig(f, model, toasts, catalog, feed, errorTexts, delivery, helpers, invoiceModel, salesModel)
+    return ReportsRig(f, model, toasts, catalog, feed, errorTexts, delivery, helpers, invoiceModel, salesModel, entry)
 }
 
 /** A card payment approved and not yet settled: at table [table], or a takeaway when it is null. */

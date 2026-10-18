@@ -39,8 +39,14 @@ import dev.nuagemagique.pilipos.ui.theme.PiliTheme
  * tag means "feature root").
  */
 @Composable
-internal fun ReportsRoute(navigator: AppNavigator) {
-    val entry = rememberEntryPoint<ReportsEntryPoint>()
+internal fun ReportsRoute(navigator: AppNavigator) = ReportsRoute(navigator, rememberEntryPoint<ReportsEntryPoint>())
+
+/** The route over a given [entry] (the graph's, or the stores a test builds on a mocked engine). */
+@Composable
+internal fun ReportsRoute(
+    navigator: AppNavigator,
+    entry: ReportsEntryPoint,
+) {
     val model = viewModel { ReportsViewModel(entry) }
     val invoiceModel = viewModel { InvoiceViewModel(entry) }
     val salesModel = viewModel { SalesViewModel(entry) }

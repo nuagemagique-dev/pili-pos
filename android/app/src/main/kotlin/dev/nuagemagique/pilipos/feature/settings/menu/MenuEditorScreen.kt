@@ -110,8 +110,10 @@ internal data class MenuEditorCallbacks(
  * opens. Text is typed with the system keyboard (V11-D19), prices on the amount pad.
  */
 @Composable
-internal fun MenuEditorRoute(navigator: AppNavigator) {
-    val entry = rememberEntryPoint<SettingsFeatureEntryPoint>()
+internal fun MenuEditorRoute(
+    navigator: AppNavigator,
+    entry: SettingsFeatureEntryPoint = rememberEntryPoint<SettingsFeatureEntryPoint>(),
+) {
     val model = viewModel { MenuEditorViewModel(entry) }
     val state by model.state.collectAsState()
     LaunchedEffect(model, state.isManager) { if (state.isManager) model.load() }

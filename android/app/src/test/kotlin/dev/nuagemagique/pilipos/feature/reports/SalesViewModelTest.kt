@@ -7,6 +7,7 @@ import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
@@ -25,6 +26,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.UserRole
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Suppress("TooManyFunctions")
@@ -251,6 +253,54 @@ class SalesViewModelTest {
             r.salesModel.print()
             runCurrent()
 
+            coVerify(exactly = 0) { f.engine.printSalesReport(any(), any()) }
+        }
+
+    @Test
+    fun theLoadingNoticeLastsUntilTheReportArrives() =
+        runTest {
+            val f = reportsFixture(tmp.root)
+            val gate = CompletableDeferred<Unit>()
+            coEvery { f.engine.salesReport(any(), any()) } coAnswers
+                {
+                    gate.await()
+                    salesReport(from = firstArg(), to = secondArg())
+                }
+            val r = startReports(f, context)
+
+            r.salesModel.open()
+            runCurrent()
+            assertTrue(r.sales.loading)
+            assertNull(r.sales.report)
+
+            gate.complete(Unit)
+            runCurrent()
+            assertFalse(r.sales.loading)
+            assertNotNull(r.sales.report)
+        }
+
+    // V11-D8: the sales report is for managers; the tab is shown to everybody (as on the Vue screen) and the
+    // engine's refusal is what a cashier reads.
+    @Test
+    fun aCashierGetsTheEngineRefusalAndCannotPrint() =
+        runTest {
+            val f = reportsFixture(tmp.root)
+            coEvery { f.engine.login(any(), any()) } returns operatorUser.copy(role = UserRole.CASHIER)
+            coEvery { f.engine.salesReport(any(), any()) } throws PosException.Coded("forbidden", emptyMap())
+            coEvery { f.engine.printSalesReport(any(), any()) } throws PosException.Coded("forbidden", emptyMap())
+            val r = startReports(f, context)
+
+            r.salesModel.open()
+            runCurrent()
+
+            assertNull(r.sales.report)
+            assertFalse(r.sales.loading)
+            assertEquals(r.text("err_forbidden"), r.sales.error)
+            assertEquals("Action réservée à un autre profil.", r.sales.error)
+
+            // Nothing is shown, so there is nothing to print: no engine call is made.
+            r.salesModel.print()
+            runCurrent()
             coVerify(exactly = 0) { f.engine.printSalesReport(any(), any()) }
         }
 }

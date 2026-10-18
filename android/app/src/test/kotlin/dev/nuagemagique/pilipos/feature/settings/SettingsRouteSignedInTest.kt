@@ -19,6 +19,7 @@ import dev.nuagemagique.pilipos.feature.tables.RecordingNavigator
 import dev.nuagemagique.pilipos.nav.FakeEntry
 import dev.nuagemagique.pilipos.nav.NavRegistry
 import dev.nuagemagique.pilipos.nav.registryOf
+import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,7 +28,6 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import io.mockk.coEvery
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -60,8 +60,17 @@ class SettingsRouteSignedInTest {
 
     private val registry: NavRegistry =
         registryOf(
-            entries = setOf(FakeEntry("login", "login"), FakeEntry("settings", "settings"), FakeEntry("misc", "settings-open", SettingsRoutes.MENU)),
-            settings = setOf(rowOpen.copy(route = "settings-open", titleRes = R.string.plat_about_title), SettingsModule.provideMenuEditorSettings()),
+            entries =
+                setOf(
+                    FakeEntry("login", "login"),
+                    FakeEntry("settings", "settings"),
+                    FakeEntry("misc", "settings-open", SettingsRoutes.MENU),
+                ),
+            settings =
+                setOf(
+                    rowOpen.copy(route = "settings-open", titleRes = R.string.plat_about_title),
+                    SettingsModule.provideMenuEditorSettings(),
+                ),
         )
 
     @After

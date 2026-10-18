@@ -3,6 +3,8 @@ package dev.nuagemagique.pilipos.feature.reports
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
@@ -16,6 +18,7 @@ import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -106,6 +109,32 @@ class SalesContentTest {
         text("sales_hour_19").assertTextContains("4 tickets", substring = true)
         compose.onNodeWithTag("sales_hour_bar_19", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("sales_hour_bar_1", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun aClosedPeriodWithoutAZSaysSoAndIsNeitherIdenticalNorAGap() {
+        val missing = salesDay(date = "2026-10-15", z = null, total = 800L, zTotal = null, open = false)
+        show(shown.copy(report = salesReport(days = listOf(missing))))
+
+        text("sales_day_0").assertTextContains("Z introuvable pour cette période", substring = true)
+        text("sales_day_0").assertTextContains("15/10/2026", substring = true)
+        val shownText =
+            compose.onNodeWithTag("sales_day_0").fetchSemanticsNode().config
+                .getOrNull(SemanticsProperties.Text)
+                ?.joinToString { it.text }
+                .orEmpty()
+        assertFalse(shownText.contains("identique"))
+        assertFalse(shownText.contains("écart"))
+    }
+
+    @Test
+    fun theLoadingNoticeIsShownWhileAReportIsRead() {
+        show(SalesState(from = "2026-10-17", to = "2026-10-17", loading = true, businessDate = "2026-10-17"))
+
+        text("sales_loading").assertIsDisplayed()
+        text("sales_loading").assertTextEquals("Calcul en cours...")
+        text("sales_error").assertDoesNotExist()
+        text("sales_total").assertDoesNotExist()
     }
 
     @Test

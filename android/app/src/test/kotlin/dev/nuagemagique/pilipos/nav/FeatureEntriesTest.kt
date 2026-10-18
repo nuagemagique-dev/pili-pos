@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
+import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.feature.checkout.CheckoutRoutes
 import dev.nuagemagique.pilipos.feature.login.LoginRoutes
 import dev.nuagemagique.pilipos.feature.order.OrderRoutes
@@ -99,6 +100,19 @@ class FeatureEntriesTest {
         assertEquals(PlatformRoutes.ABOUT, about.route)
         assertEquals(registry.settingsEntries, registry.settingsEntries.sortedWith(compareBy({ it.order }, { it.id })))
         assertTrue(registry.entries.size == 10)
+    }
+
+    @Test
+    fun theMenuEditorHasItsSettingsRowForManagersOnly() {
+        hiltRule.inject()
+        val row = registry.settingsEntries.single { it.id == "settings.menu" }
+        assertEquals(SettingsRoutes.MENU, row.route)
+        assertTrue(row.managerOnly)
+        assertEquals(R.string.menu_editor_title, row.titleRes)
+        assertEquals(100, row.order)
+        // The route it opens belongs to its own entry (V11-D17), besides the settings screen's.
+        assertEquals(listOf("settings-menu"), entries.filter { SettingsRoutes.MENU in it.routes }.map { it.area })
+        assertEquals(listOf("settings"), entries.filter { SettingsRoutes.SETTINGS in it.routes }.map { it.area })
     }
 
     @Test

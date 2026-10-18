@@ -2,6 +2,8 @@ package dev.nuagemagique.pilipos.feature.order
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.state.EventFeed
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.Dispatchers
@@ -19,8 +21,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import dev.nuagemagique.pilipos.i18n.AppLanguage
-import dev.nuagemagique.pilipos.ui.state.EventFeed
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.User
