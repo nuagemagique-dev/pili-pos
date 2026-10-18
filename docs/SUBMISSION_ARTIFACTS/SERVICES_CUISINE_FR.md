@@ -122,3 +122,7 @@ lire le réglage, changer le temps d'une ligne qui n'a pas encore été envoyée
   l'autre.
 
 Ces interactions sont vérifiées par `crates/pos-engine/tests/lane_interactions.rs`.
+
+## Captures d'écran
+
+Les écrans de cette fonction sont les captures 84 (réglage), 85 (panier par temps et « Envoyer la suite »), 86 (choix du temps), 87 (plan de salle, « Suite : Plats »), 88 (avertissement au paiement) et 78 (temps d'une catégorie dans l'éditeur de carte) de *CAPTURES_ECRAN_FR.pdf*.

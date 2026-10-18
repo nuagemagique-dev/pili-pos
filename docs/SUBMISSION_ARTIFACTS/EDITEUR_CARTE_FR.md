@@ -99,3 +99,7 @@ une catégorie après le rapport Z, jamais en cours de période.
 
 Aucun cas du jeu d'essais de l'administration n'est concerné : aucun événement n'est produit
 par l'éditeur.
+
+## Captures d'écran
+
+Les écrans de cette fonction sont les captures 76 (panneau « Carte »), 77 (fiche produit), 78 (fiche catégorie) et 79 (historique) de *CAPTURES_ECRAN_FR.pdf*.

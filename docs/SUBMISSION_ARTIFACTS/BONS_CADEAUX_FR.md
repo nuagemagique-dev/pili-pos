@@ -194,3 +194,7 @@ code dans les archives ; cas officiels UC260, UC261 et UC262 ; test d'accès par
 (`pos-fiscal`) : règles de paiement. Ticket (`pos-print`) : bon, solde, duplicata, formation.
 Migration (contraintes, déclencheurs). Interface (Playwright, `ui/e2e/gift-vouchers.spec.ts`).
 Interactions avec les autres fonctions : `crates/pos-engine/tests/lane_interactions.rs`.
+
+## Captures d'écran
+
+Les écrans de cette fonction sont les captures 89 (bouton « Bon cadeau » et ligne de bon), 90 (paiement par bon), 91 (onglet « Bons cadeaux » des rapports) et 92 (réglage) de *CAPTURES_ECRAN_FR.pdf*. Les tickets sont dans *TICKETS_EXEMPLES_FR.md*.

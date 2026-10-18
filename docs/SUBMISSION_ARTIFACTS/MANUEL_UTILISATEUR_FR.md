@@ -323,6 +323,8 @@ imprimée.
 
 ### 5.1 bis Changer de table
 
+*Captures 60 (choix de la table) et 61 (déplacement depuis le plan) de CAPTURES_ECRAN_FR.pdf.*
+
 Une commande ouverte, déjà servie en salle, peut passer à une **autre
 table libre** (client qui change de place, tables regroupées).
 
@@ -366,7 +368,7 @@ vente sans paiement (§7.5).
 - Dans le panier, "+" ajoute une unité et "−" en retire une, sans
   descendre sous 1. Pour retirer une ligne, toucher la croix à sa
   droite.
-- **Remise (Gérant, code PIN)** : le panier propose « Remise » (sur
+- **Remise (Gérant, code PIN)** (captures 63 et 64 de CAPTURES_ECRAN_FR.pdf) : le panier propose « Remise » (sur
   toute la commande) et, sur une ligne, « Offrir ». « Remise » ouvre la
   fenêtre « Remise » : choisir « % » (raccourcis 5, 10, 15, 20
   et 50 %), « Montant » (à taper comme sur un terminal de paiement) ou
@@ -385,7 +387,7 @@ vente sans paiement (§7.5).
   s'affiche et l'envoi est refait à la commande suivante. Le motif reste dans
   le journal local de la caisse et n'est jamais envoyé au FDM. Les
   remises d'une commande en ligne viennent de la plateforme (§12.8).
-- **Note pour la cuisine** : chaque ligne du panier a un bouton « Note »
+- **Note pour la cuisine** (capture 65 de CAPTURES_ECRAN_FR.pdf) : chaque ligne du panier a un bouton « Note »
   (tout le personnel). Il ouvre la fenêtre « Note pour la cuisine » avec le
   clavier à l'écran : taper la note (« sans wasabi », « allergie
   arachide »), 60 caractères au plus, le compteur affiche « n/60 », puis
@@ -772,6 +774,8 @@ Un rapport Z se recopie depuis "Réimprimer un Z" (§10.3).
 
 ## 8 bis. Facture à un client professionnel (événement I)
 
+*Captures 66 à 71 de CAPTURES_ECRAN_FR.pdf (sélection, client, aperçu, résultat, refus faute de Peppol, liste des factures).*
+
 Réservé au Serveur et au Gérant pour l'établir ; l'écran y mène par
 "Rapports", réservé au Gérant. Une facture regroupe une ou plusieurs
 ventes déjà signées :
@@ -867,6 +871,8 @@ essai ou par la tâche de fond (§7.4). Elle n'est archivée qu'une fois, sans
 second ticket, et la vente n'est pas remboursée deux fois.
 
 ## 9 bis. Corriger un moyen de paiement (événement F)
+
+*Capture 62 de CAPTURES_ECRAN_FR.pdf.*
 
 Quand une vente a été encaissée avec le mauvais moyen (par exemple en
 espèces alors que le client a payé par carte), le Gérant corrige la
@@ -977,6 +983,8 @@ support, "Valider".
 
 ### 10.4 Rapport de ventes (non fiscal)
 
+*Capture 80 de CAPTURES_ECRAN_FR.pdf.*
+
 Onglet "Ventes", réservé au Gérant. Il présente, pour aujourd'hui, hier,
 la semaine, le mois ou une période saisie (92 jours au plus), les
 ventes par produit (quantité et montant), par heure, le nombre de
@@ -1044,6 +1052,8 @@ mentions imprimées sur les tickets suivent la langue de l'établissement
 fixée à l'installation, pas ce choix.
 
 ### 12.3 Employés
+
+*Captures 19 (employés) et 19a (pointage par le Gérant) de CAPTURES_ECRAN_FR.pdf.*
 
 La liste montre chaque employé (nom, profil, "PIN défini" ou "sans
 PIN") avec deux boutons :
@@ -1246,6 +1256,8 @@ message qui indique le format.
 
 ### 12.10 Lecteur de badges
 
+*Captures 19b (panneau), 19c (liaison d'un badge), 01b (invitation à l'écran de connexion) et 03b (pointage pendant une vente) de CAPTURES_ECRAN_FR.pdf.*
+
 Panneau "Lecteur de badges", réservé au Gérant. Il est replié par défaut
 (toucher son en-tête pour le déplier). Le lecteur sert à deux choses :
 pointer l'arrivée et le départ depuis n'importe quel écran (§3) et,
@@ -1313,6 +1325,8 @@ aucun désavantage.
 
 ### 12 ter. Fonctions du propriétaire (Gérant)
 
+*Captures 81 (alertes), 84 (service en plusieurs temps) et 92 (bons cadeaux) de CAPTURES_ECRAN_FR.pdf.*
+
 Trois panneaux de "Config", chacun éteint par défaut. Chaque enregistrement est journalisé en ajout seul (qui,
 quand, valeur). Aucune de ces fonctions n'ajoute d'écran de rapport fiscal ni ne modifie un ticket de T.V.A.
 
@@ -1342,6 +1356,8 @@ la liste (un produit neuf s'enregistre d'abord). L'éditeur reste verrouillé ta
 carte ; le produit système « Bon cadeau » n'y apparaît jamais.
 
 ### 12 bis. Carte et panneau Peppol
+
+*Captures 72 (panneau Peppol) et 76 à 79 (carte) de CAPTURES_ECRAN_FR.pdf.*
 
 **Carte.** Panneau "Carte" (Gérant) : "Édition de la carte". Le Gérant
 crée et modifie catégories, produits (noms, prix, code de TVA sur place

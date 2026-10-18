@@ -84,3 +84,7 @@ Modèle et noms, migration (contraintes et journal inaltérable), import HubRise
 code inconnu, absence de déclaration, retrait), ticket (modèle exact en français, pas de prix,
 pieds de page), commandes du moteur (`crates/pos-engine/tests/allergens.rs`, 15 scénarios et un test d'accès),
 éditeur de carte (`crates/pos-engine/tests/menu_editor.rs` et `crates/pos-engine/tests/lane_interactions.rs`) et interface (Playwright, `ui/e2e/allergens.spec.ts` et `ui/e2e/menu-editor.spec.ts`).
+
+## Captures d'écran
+
+Les écrans de cette fonction sont les captures 82 (pastilles et légende), 83 (fiche d'un produit) et 77 (déclaration dans l'éditeur de carte) de *CAPTURES_ECRAN_FR.pdf*.

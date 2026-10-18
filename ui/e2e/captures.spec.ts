@@ -444,8 +444,8 @@ test('12_copy - liste des tickets copiables', async ({ page }) => {
 test('13_training - bandeau et filigrane TRAINING', async ({ page }) => {
   await mockTauriIPC(page, { login: () => GERANT, list_users: () => STAFF });
   await loginAndGoto(page, '/settings');
-  await page.locator('.toggle').click();
-  await expect(page.locator('.toggle')).toContainText('Actif');
+  await page.getByRole('button', { name: 'Inactif', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Actif', exact: true })).toBeVisible();
   // The "Tables" button sits right under the banner: a real tap, which
   // the banner used to swallow (training-banner.spec.ts).
   await page.locator('.app-header .nav-btn', { hasText: 'Tables' }).click();

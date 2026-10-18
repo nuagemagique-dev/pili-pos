@@ -80,3 +80,7 @@ permises ; expiration par l'heure et ligne `expired` écrite une seule fois ; jo
 droits ; absence d'effet fiscal (aucun événement ajouté) ; corps et chemin de la requête
 HubRise dans les trois états ; regroupement de plusieurs changements ; essai après erreur 503 ;
 refus 403 et 422 mis de côté ; jeton refusé ; HubRise désactivé ; produit sans SKU.
+
+## Captures d'écran
+
+Les écrans de cette fonction sont les captures 73 (mode « Épuisé »), 74 (disponibilité d'un produit) et 75 (liste « Produits épuisés ») de *CAPTURES_ECRAN_FR.pdf*.
