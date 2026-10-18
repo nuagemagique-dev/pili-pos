@@ -600,6 +600,47 @@ impl std::io::Write for Sink {
     }
 }
 
+/// Make `subscriber` this thread's default for the wire trace and return
+/// its guard once both wire callsites (`wire_enabled` and `trace_wire`) see
+/// it.
+///
+/// Other tests run the drivers on other threads at the same time, with no
+/// subscriber. tracing-core computes a callsite's interest before it lists
+/// the callsite, so a first hit on another thread while `set_default`
+/// rebuilds the interests can leave the wire callsites cached as "never"
+/// for this thread too. The callsites are hit here first, then the cache is
+/// rebuilt until a probe event reaches the sink; the probe is then cleared.
+fn capture_wire(sink: &Sink) -> tracing::subscriber::DefaultGuard {
+    crate::util::trace_wire("send", "warm-up");
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .with_ansi(false)
+        .with_writer({
+            let sink = sink.clone();
+            move || sink.clone()
+        })
+        .finish();
+    let guard = tracing::subscriber::set_default(subscriber);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        tracing::callsite::rebuild_interest_cache();
+        let enabled = crate::util::wire_enabled();
+        if enabled {
+            crate::util::trace_wire("send", "wire-probe");
+        }
+        let seen = String::from_utf8_lossy(&sink.0.lock().unwrap()).contains("wire-probe");
+        if enabled && seen {
+            sink.0.lock().unwrap().clear();
+            return guard;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the wire callsites never saw the test subscriber"
+        );
+        std::thread::yield_now();
+    }
+}
+
 #[tokio::test]
 async fn the_wire_trace_shows_bodies_but_never_keys_or_queries() {
     for kind in ALL {
@@ -609,15 +650,7 @@ async fn the_wire_trace_shows_bodies_but_never_keys_or_queries() {
             rig.set_key("secret-key-123");
         }
         let sink = Sink::default();
-        let subscriber = tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::TRACE)
-            .with_ansi(false)
-            .with_writer({
-                let sink = sink.clone();
-                move || sink.clone()
-            })
-            .finish();
-        let guard = tracing::subscriber::set_default(subscriber);
+        let guard = capture_wire(&sink);
         let req = request(700);
         rig.t().pay(&req).await.unwrap();
         rig.t().status(&req.reference).await.unwrap();
