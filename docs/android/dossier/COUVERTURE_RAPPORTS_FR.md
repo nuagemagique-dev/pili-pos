@@ -1,6 +1,11 @@
-# Matrice de couverture des fixtures - SCE 2.0 Reports v1.3
+<!-- Repris de docs/SUBMISSION_ARTIFACTS/COUVERTURE_RAPPORTS_FR.md @ 459f463 et adapté à pili-pos-android -->
+# Matrice de couverture des fixtures - SCE 2.0 Reports v1.3 - pili-pos-android
 
-**Date :** 2026-05-14
+**Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
+**Produit :** pili-pos-android 1.0.0 (posSwVersion pili-pos-android/1.0.0)
+**Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
+**Date :** À effectuer (EV-18 : date de dépôt)
+
 **Test pilote :** `crates/pos-fiscal/tests/reports_fixtures.rs`
 **Fixtures source :** `docs/20260821_UC_Reports_1.3/`
 
@@ -87,7 +92,7 @@ rapports X.
 ## Écarts d'implémentation suivis
 
 Les deux écarts identifiés lors de l'audit fixture sont **résolus**
-dans la build de soumission :
+dans la build de soumission (la build de certification du moteur, contenue dans l'APK) :
 
 1. **Co-émission M184 - implémentée.**
    `crates/pos-engine/src/commands/report.rs::do_generate_z_report` émet
@@ -209,9 +214,9 @@ final (M184).
 ## Reproductibilité
 
 ```bash
-cd pili-pos
+# dans le dépôt du moteur, sur la machine de développement
 cargo test --package pos-fiscal --test reports_fixtures -- --nocapture
 ```
 
 S'exécute également dans le cadre de la suite de tests workspace
-complète ; totaux par binaire de test dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérés par `scripts/generate_test_report.py`.
+complète ; mesures du moteur sur la machine de développement dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérées par `scripts/generate_test_report.py`.

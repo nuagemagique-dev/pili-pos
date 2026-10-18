@@ -1,4 +1,10 @@
-# Ticket numérique par e-mail
+<!-- Repris de docs/SUBMISSION_ARTIFACTS/TICKET_NUMERIQUE_FR.md @ 459f463 et adapté à pili-pos-android -->
+# Ticket numérique par e-mail - pili-pos-android
+
+**Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
+**Produit :** pili-pos-android 1.0.0 (posSwVersion pili-pos-android/1.0.0)
+**Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
+**Date :** À effectuer (EV-18 : date de dépôt)
 
 **Référence :** §III.H "Emission des tickets numériques" du manuel de
 certification.
@@ -13,7 +19,7 @@ certification.
 
 ## 1. Vue d'ensemble
 
-`pili-pos` v1.0.0 émet le ticket numérique par **e-mail**, en plus du
+`pili-pos-android` 1.0.0 émet le ticket numérique par **e-mail**, en plus du
 QR Code de vérification imprimé sur tout ticket papier (URL publique
 du FDM SPF Finances, cf. §12 ci-dessous). L'opérateur choisit, avant
 l'encaissement (ou la copie, ou le remboursement), l'un des trois
@@ -29,9 +35,10 @@ Le support choisi (`ticketMedium` : `PAPER` / `DIGITAL` / `PAPER_DIGITAL`)
 fait partie de la requête **signée** par le FDM (POS spec v2.2 §1) : il
 est arrêté **avant** l'appel de signature, jamais après (voir §3). Sans
 bloc `digital_ticket` dans `pos.json`, l'option "E-mail" n'est pas
-proposée et le POS se comporte comme en v0.x (papier uniquement) - voir
+proposée et le POS se comporte comme avant (papier uniquement) - voir
 `MANUEL_INSTALLATION_FR.md` §4.2 "Ticket numérique par e-mail
-(optionnel)" pour la configuration.
+(facultatif)" pour la configuration. Le bloc `digital_ticket` du pos.json voyage dans le
+paquet de configuration signé, importé depuis une clé USB (§2.1 et §3.4 du même manuel).
 
 Code source : `crates/pos-engine/src/commands/delivery.rs` (résolution du
 support, mise en file, impression/envoi), `crates/pos-mail` (rendu de
@@ -45,7 +52,7 @@ l'e-mail, client Scaleway TEM, file d'attente avec réessais),
    l'opérateur choisit **Papier**, **E-mail** ou **Les deux**. Le choix
    "E-mail" seul n'est proposé que si le terminal est configuré et que
    le service a répondu à une sonde récente (§4).
-2. S'il choisit "E-mail" ou "Les deux", un clavier virtuel à l'écran
+2. S'il choisit "E-mail" ou "Les deux", le clavier à l'écran de l'application
    permet de saisir l'adresse. Une **adresse invalide ou vide** est
    refusée sur place, avant tout appel au FDM (code `email_invalid`) :
    l'opérateur corrige la saisie ou repasse sur "Papier".
@@ -208,7 +215,7 @@ seule fois** ; toute impression ultérieure doit être une **copie**
     repli automatique du §4.
 
 Conséquence pour l'écran "Copie de ticket" (`MANUEL_UTILISATEUR_FR.md`
-§7) : toute reproduction d'un ticket dont l'original est déjà sorti
+§8) : toute reproduction d'un ticket dont l'original est déjà sorti
 (papier ou e-mail) passe par cet écran et produit un événement **C**,
 jamais une seconde impression "libre" de l'original.
 
@@ -229,7 +236,7 @@ jamais une seconde impression "libre" de l'original.
   lisibilité du support/du dossier ; il ne permet pas de reconstituer
   l'adresse d'origine.
 - **Aucune adresse en clair dans les journaux applicatifs** ni dans
-  l'écran "Tickets numériques" des Paramètres (`list_ticket_deliveries` /
+  l'écran "Tickets numériques" des réglages de l'application (`list_ticket_deliveries` /
   `DeliveryView`) : cet écran n'expose que l'indice masqué, le statut,
   le nombre de tentatives et la dernière erreur - jamais le champ
   `recipient`. Voir `PROFIL_ENTREPRISE_FR.md` §6 pour la base légale
@@ -239,7 +246,7 @@ jamais une seconde impression "libre" de l'original.
 ## 8. Configuration
 
 Voir `MANUEL_INSTALLATION_FR.md` §4.2 "Ticket numérique par e-mail
-(optionnel)" pour le bloc `digital_ticket` de `pos.json` (Scaleway
+(facultatif)" pour le bloc `digital_ticket` de `pos.json`, importé avec le paquet de configuration signé depuis une clé USB (Scaleway
 Transactional Email : `project_id`, `from_email`, `from_name`,
 `api_key_file`, `allow_digital_only`, `region`). Sans ce bloc, le POS
 n'affiche pas le choix du support et n'ouvre aucune connexion sortante
@@ -267,14 +274,15 @@ non-fiscale (`MailState::from_config`).
 ## 10. Mock pour l'admission SPF Finances
 
 Pour les démonstrations et les captures d'écran hors connexion
-Internet, `crates/pos-fdm-mock` embarque un simulateur minimal de
+Internet (banc d'essai sur l'émulateur), `crates/pos-fdm-mock` embarque un simulateur minimal de
 l'API Scaleway TEM (`crates/pos-fdm-mock/src/tem.rs`) : il répond comme
 le service réel (`{"emails":[{...}]}`), écrit chaque e-mail simulé sur
 disque (`MOCK_TEM_OUTBOX`, un `.json` + un `.txt` par envoi) et refuse
 les requêtes sans `X-Auth-Token` (401), comme l'API réelle. La variable
 `MOCK_TEM_FAIL=1` fait répondre 503 à tout (envoi et sonde), pour
-démontrer le repli papier sans dépendre d'une vraie panne ; l'écran
-correspondant est la capture `09e` de *CAPTURES_ECRAN_FR.pdf*.
+démontrer le repli papier sans dépendre d'une vraie panne ; les
+écrans correspondants sont les captures A27 (repli papier) et A117 (e-mail en attente) de
+*CAPTURES_ECRAN_FR.pdf*.
 
 ## 11. QR Code (rappel)
 
@@ -284,7 +292,7 @@ d'erreur M, URL de 38 caractères fournie par le FDM). La description
 POS v2.2 §6.5 cite 25×25 modules (version 2) ; cette version ne peut
 pas contenir l'URL (préfixe en minuscules, valeur en base 62, donc mode
 octet ISO/IEC 18004, limité à 34 octets en version 2 même avec la
-correction la plus faible). `pili-pos` utilise donc la version 3
+correction la plus faible). `pili-pos-android` utilise donc la version 3
 (29×29 modules), la plus petite qui contienne les 38 caractères avec
 la correction M (`crates/pos-fiscal/src/qr.rs`). Ni l'arrêté
 ministériel du 29 avril 2024 ni la description POS n'imposent une autre
@@ -309,7 +317,7 @@ la version suit, parce qu'elle est la seule qui contienne l'URL.
 | Original imprimé une seule fois | `pos_db::queries::prints`, `delivery::print_original_once` | `prints.rs::tests::a_print_is_recorded_once` ; e2e `spf_e2e_digital::{a_printed_original_can_not_be_printed_again, an_unprinted_original_prints_once}` |
 | Rattrapage d'impression refusé si déjà imprimé / e-mail envoyé | `delivery::do_print_missing_original` | e2e `spf_e2e_digital::{printing_the_missing_original_of_a_digital_ticket_stops_its_email, an_emailed_digital_ticket_can_not_be_printed_as_an_original, printing_an_unknown_event_is_refused, a_missing_original_is_printed_from_the_archive, a_missing_refund_original_is_printed_with_the_sale_it_refunds, a_missing_copy_is_printed_as_the_copy, only_a_sale_or_a_copy_has_an_original_to_print}` |
 | Adresse effacée dès envoi/repli réussi, purge 72 h sinon | `pos_db::queries::deliveries::{mark_sent, mark_fallback_printed, purge_recipients_older_than}` | `deliveries.rs::tests::{mark_sent_nulls_recipient_and_sets_status, mark_fallback_printed_clears_the_recipient_and_stops_retries, purge_nulls_old_recipients, purge_flips_a_failed_row_to_purged}` |
-| Adresse jamais exposée en clair dans l'écran de support | `commands::delivery::{DeliveryView, do_list_ticket_deliveries}` (pas de champ `recipient`) | Revue de code : `DeliveryView` ne porte pas de champ `recipient`, seulement `recipient_hint` |
+| Adresse jamais exposée en clair dans l'écran des tickets numériques | `commands::delivery::{DeliveryView, do_list_ticket_deliveries}` (pas de champ `recipient`) | Revue de code : `DeliveryView` ne porte pas de champ `recipient`, seulement `recipient_hint` |
 | Copie (C) et remboursement (N) peuvent aussi être envoyés par e-mail | `commands/copy.rs`, `commands/refund.rs` | e2e `spf_e2e_digital::{a_copy_can_be_emailed_only, a_paper_copy_is_printed_and_recorded, a_refund_ticket_can_be_emailed, a_refund_with_a_bad_address_is_refused_before_signing}` |
 | Terminal sans configuration se comporte comme avant (papier seul) | `MailState::disabled` / `from_config` | `delivery.rs::tests::{a_disabled_mail_state_is_never_reachable, a_config_without_digital_ticket_disables_mail, a_missing_key_file_disables_mail}` |
 

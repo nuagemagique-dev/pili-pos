@@ -1,6 +1,11 @@
-# Matrice de couverture des fixtures - SCE 2.0 Basic Set v1.8
+<!-- Repris de docs/SUBMISSION_ARTIFACTS/COUVERTURE_FIXTURES_FR.md @ 459f463 et adapté à pili-pos-android -->
+# Matrice de couverture des fixtures - SCE 2.0 Basic Set v1.8 - pili-pos-android
 
-**Date :** 2026-05-14
+**Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
+**Produit :** pili-pos-android 1.0.0 (posSwVersion pili-pos-android/1.0.0)
+**Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
+**Date :** À effectuer (EV-18 : date de dépôt)
+
 **Test pilote :** `crates/pos-fiscal/tests/uc_fixtures.rs`
 **Fixtures source :** `docs/20260821_UC_BasicSet_POS_FDM_1.8/`
 
@@ -45,7 +50,10 @@ Deux colonnes :
 - **E2e applicatif** - `crates/pos-engine/tests/spf_e2e_basic.rs` pilote la
   fonction de commande du moteur `do_*` correspondante contre un wiremock
   FDM amorcé avec cette fixture, puis assert sur l'archive SQLite +
-  les compteurs + l'état de la commande.
+  les compteurs + l'état de la commande. Ces tests s'exécutent sur la machine
+  de développement ; les commandes `transfer_table` (M122) et `correct_payment` (M132)
+  sont appelées, dans l'application Android, par l'écran des tables et le panier
+  pour la première, par l'onglet Tickets des rapports pour la seconde.
 
 | UC | Label événement | Parse fixture | E2e applicatif |
 |---|---|---|---|
@@ -82,8 +90,8 @@ offert par le POS (le remboursement partiel est toujours émis en
 événement séparé = pattern M112B, déclaré au dossier). M122
 (transfert de table) et M132 (correction de paiement) sont implémentés et
 rejoués (`m122_cost_center_change`, `m132_payment_correction`). M150 (événement I, facture B2B) est
-implémenté dans tous les binaires, y compris la build de certification
-v1.0.0, et couvert par le parse fixture et par le rejeu
+implémenté dans le moteur, y compris la build de certification
+de l'APK 1.0.0, et couvert par le parse fixture et par le rejeu
 `spf_e2e_fixtures.rs::m150_invoice` (preuves : *RESULTATS_TESTS_UC_FR.md* ; règles et envoi Peppol :
 *FACTURATION_PEPPOL_FR.md*).
 
@@ -136,7 +144,7 @@ spécifiques, afin que toute dérive future de l'API échoue bruyamment :
 ## Reproductibilité
 
 ```bash
-cd pili-pos
+# dans le dépôt du moteur, sur la machine de développement
 cargo test --package pos-fiscal --test uc_fixtures -- --nocapture
 ```
 

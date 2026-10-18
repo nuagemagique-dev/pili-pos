@@ -1,6 +1,10 @@
-# Diagramme entité-relation de la base de données
+<!-- Repris de docs/SUBMISSION_ARTIFACTS/SCHEMA_ER_FR.md @ 459f463 et adapté à pili-pos-android -->
+# Diagramme entité-relation de la base de données - pili-pos-android
 
-**Date :** 2026-10-03
+**Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
+**Produit :** pili-pos-android 1.0.0 (posSwVersion pili-pos-android/1.0.0)
+**Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
+**Date :** À effectuer (EV-18 : date de dépôt)
 **Référence :** §II.C "Relations entre les tables" du manuel de certification.
 **Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs`, `schema_till.rs`, `schema_invoicing.rs` et `schema_badges.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 11, 20 à 28, 30 et 31, 40 à 42, puis 70).
 
@@ -832,7 +836,7 @@ l'interrupteur, qui reçoit au moins la valeur de départ.
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
 Version actuelle du schéma : migrations `1` à `11`, `20` à `28`, `30` et `31`, `40` à `42`, `60` à `63`, puis `70`
-(trente migrations ; 12 à 19 sont réservées aux correctifs du binaire
+(trente migrations ; 12 à 19 sont réservées aux correctifs du moteur
 certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `booking-periods`, `fiscal-archive-append-only`, `ticket-deliveries`,
 `original-prints`, `german-language`, `meal-voucher-payments`,
@@ -845,4 +849,4 @@ certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs`
 (`MIGRATIONS`, `HUBRISE_MIGRATIONS`, `CATALOG_MIGRATIONS`,
 `OWNER_MIGRATIONS`). Les migrations 20 à 28, 30, 31, 40 à 42, 60 à 63 et
-70 font partie du binaire certifié.
+70 font partie du moteur de l'APK.

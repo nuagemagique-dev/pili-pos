@@ -1,6 +1,11 @@
-# Stratégie de compteurs et durcissement du contrat FDM
+<!-- Repris de docs/SUBMISSION_ARTIFACTS/STRATEGIE_COMPTEURS_FR.md @ 459f463 et adapté à pili-pos-android -->
+# Stratégie de compteurs et durcissement du contrat FDM - pili-pos-android
 
-**Date :** 2026-10-03
+**Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
+**Produit :** pili-pos-android 1.0.0 (posSwVersion pili-pos-android/1.0.0)
+**Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
+**Date :** À effectuer (EV-18 : date de dépôt)
+
 **Périmètre :** Stratégie de numérotation séquentielle utilisée par le
 POS, mécanisme de déduplication par le FDM, et forme du payload sur
 le câble.
@@ -197,9 +202,9 @@ sont pris en charge à deux niveaux :
   Un FDM injoignable, ou un code bloquant (`BUFFER_FULL`, `FDM_LOCKED`,
   `FDM_NOT_OPERATIONAL`, `UNKNOWN_POS`), donne `connected = false`
   avec la gravité « bloquante », que l'interface reçoit par l'événement
-  `fdm-status` : voyant rouge et
+  `fdm-status`, qui sort du moteur et arrive à l'interface Compose par la couche UniFFI : voyant rouge et
   voile qui couvre les écrans de vente. Les autres codes donnent un
-  avertissement affiché (message FR de `ui/src/utils/fdmMessages.ts`).
+  avertissement affiché (messages français dans `android/app/src/main/res/values/strings_vue_fdm.xml`).
 - **Signature.** Même si l'interface ne bloquait pas, le FDM refuse
   lui-même de signer dans ces états (`BUFFER_FULL`, `FDM_LOCKED`,
   `FDM_NOT_OPERATIONAL`, `UNKNOWN_POS` sont dans la liste des refus de
@@ -297,7 +302,7 @@ deux fois.
   journalise, mais ne peut pas l'empêcher.
 - Une requête qui reste sans réponse bloque la signature jusqu'à la
   réponse du FDM ou l'intervention d'un technicien (procédure dans
-  *MANUEL_INSTALLATION_FR.md* et *MANUEL_UTILISATEUR_FR.md*).
+  *MANUEL_INSTALLATION_FR.md* §7.5 et *MANUEL_UTILISATEUR_FR.md* §7.4).
 - Une action de l'écran peut attendre jusqu'à 30 s derrière un Z
   automatique ou un renvoi.
 
@@ -353,11 +358,11 @@ cours.
 ## 7. Reproductibilité
 
 ```bash
-cd pili-pos
+# dans le dépôt du moteur, sur la machine de développement
 cargo test --package pos-fiscal --lib counter
 cargo test --package pos-fiscal --lib canonical
 cargo test --package pos-fiscal --lib idempotency_tests
 cargo test --package pos-engine --test spf_e2e_no_gap
 ```
 
-Totaux : totaux par binaire de test dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérés par `scripts/generate_test_report.py`.
+Totaux : mesures du moteur sur la machine de développement, dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérées par `scripts/generate_test_report.py`.

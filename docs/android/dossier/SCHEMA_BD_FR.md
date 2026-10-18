@@ -1,4 +1,10 @@
-# Schéma de la base de données - pili-pos
+<!-- Repris de docs/SUBMISSION_ARTIFACTS/SCHEMA_BD_FR.md @ 459f463 et adapté à pili-pos-android -->
+# Schéma de la base de données - pili-pos-android
+
+**Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
+**Produit :** pili-pos-android 1.0.0 (posSwVersion pili-pos-android/1.0.0)
+**Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
+**Date :** À effectuer (EV-18 : date de dépôt)
 
 Conformément au §II.C du Manuel de certification SCE 2.0, ce document
 liste **chaque table**, **chaque champ**, son **type**, sa **longueur**
@@ -7,10 +13,11 @@ liste **chaque table**, **chaque champ**, son **type**, sa **longueur**
 **Moteur** : SQLite 3.x bundled via `rusqlite` (Rust).
 **Encodage** : UTF-8.
 **Mode** : WAL (Write-Ahead Logging) - atomique crash-safe.
-**Fichier vivant** : `/var/lib/pili-pos/pos.db` en production.
+**Fichier vivant** : pos.db, dans le fichier files/engine/pos.db du stockage privé de l'application, jamais sur la carte SD (*PLATEFORME_ANDROID_FR.md* §5).
 **Source de vérité du schéma** : `crates/pos-db/src/schema.rs`,
-`schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs`, `schema_till.rs`, `schema_invoicing.rs` et `schema_badges.rs` (lecture machine via
-`sqlite3 pos.db ".schema"`).
+`schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs`, `schema_till.rs`, `schema_invoicing.rs` et `schema_badges.rs`. Le terminal verrouillé n'a pas de shell : le
+schéma se lit dans la copie de pos.db de l'export SPF, avec n'importe quel outil SQLite
+(*SECURITE_BD_FR.md* §8).
 
 ## 1. Tables de référence
 
@@ -219,7 +226,7 @@ facultatif `payment_terminal` de `pos.json`). Une ligne par paiement
 demandé, écrite **avant** l'appel du terminal (statut `sent`) : un
 arrêt entre l'appel et la réponse laisse la trace qu'une carte a peut-être
 été débitée. La table n'est écrite que si l'installation a un terminal
-relié ; elle fait partie du binaire certifié de toute installation.
+relié ; elle fait partie du moteur de l'APK, donc de toute installation.
 
 | Champ | Type | Description |
 |---|---|---|
@@ -363,7 +370,7 @@ Déclencheurs `menu_change_log_no_update` et `menu_change_log_no_delete`.
 
 Quatre migrations ajoutent les réglages du propriétaire et leurs journaux,
 les allergènes, le service en plusieurs temps et les bons cadeaux. Elles
-existent dans toutes les versions du binaire (sans option de compilation)
+font partie du moteur de l'APK (sans option de compilation)
 et ne modifient ni ne suppriment aucune table fiscale : elles ajoutent des
 tables, et la migration 63 ajoute deux lignes système à la carte.
 
@@ -707,8 +714,8 @@ Triggers :
   numérique y est alors effacée).
 - `pending_signs_no_reopen` : une ligne résolue ne change plus.
 - `pending_signs_no_delete` : suppression interdite. Une ligne ouverte
-  ne se supprime jamais à la main : voir la procédure de dépannage du
-  *MANUEL_INSTALLATION_FR.md*.
+  ne se supprime jamais à la main : voir la procédure de dépannage de
+  *MANUEL_INSTALLATION_FR.md* (§7.5).
 
 ### 3.10 Garde de période : `fiscal_events_period_open` (migration `010`)
 
@@ -1003,7 +1010,7 @@ Index : `idx_hubrise_inventory_sync_dirty(dirty)` (partiel, `WHERE dirty = 1`).
 Système de migrations versionné dans
 `crates/pos-db/src/migrate.rs`. À la version actuelle, **trente
 migrations** existent (1 à 11, 20 à 28, 30 et 31, 40 à 42, 60 à 63, puis 70 ; 12 à 19 sont réservées aux
-correctifs du binaire certifié), appliquées dans l'ordre et consignées dans la
+correctifs du moteur certifié), appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
 | Version | Nom | Contenu |
