@@ -1426,3 +1426,237 @@ pub fn do_retry_peppol_delivery(state: &AppState, delivery_id: i64) -> Result<()
     state.peppol_wake.notify_one();
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    //! The reading of an archived sale (V11-D3) on hand-made archives: cases the till cannot
+    //! produce (weighed goods, a product under two VAT labels, an FDM answer without `vatCalc`).
+
+    use serde_json::{Value, json};
+
+    use super::*;
+
+    fn event(request: &Value, response: Option<Value>) -> FiscalEventRef {
+        FiscalEventRef {
+            id: 11,
+            event_type: "N".into(),
+            sequence_number: 1,
+            order_id: Some(1),
+            fdm_id: Some("FDM001".into()),
+            fdm_datetime: Some("20261017T120000".into()),
+            event_label: Some("N".into()),
+            event_counter: Some(5),
+            total_counter: Some(9),
+            short_signature: None,
+            qr_data: None,
+            fdm_response_json: response.map(|r| r.to_string()),
+            user_insz: "75061189702".into(),
+            event_data_json: request.to_string(),
+        }
+    }
+
+    fn request(lines: Value, total: f64) -> Value {
+        json!({
+            "posFiscalTicketNo": 7,
+            "posDateTime": "2026-10-17T12:00:00Z",
+            "financials": [{"type": "CASH", "name": "Cash", "amount": total}],
+            "transaction": {"transactionTotal": total, "transactionLines": lines},
+        })
+    }
+
+    fn product(name: &str, quantity: f64, unit: &str, vats: Value) -> Value {
+        json!({"mainProduct": {
+            "productName": name, "quantity": quantity, "quantityType": unit, "vats": vats
+        }})
+    }
+
+    #[test]
+    fn the_vat_falls_back_to_the_lines_when_the_fdm_sent_no_vat_calc() {
+        let req = request(
+            json!([
+                product("Plat", 1.0, "PIECE", json!([{"label": "B", "price": 10.0}])),
+                product(
+                    "Biere",
+                    1.0,
+                    "PIECE",
+                    json!([{"label": "A", "price": 12.1}])
+                ),
+                product("Eau", 1.0, "PIECE", json!([{"label": "D", "price": 2.0}])),
+            ]),
+            24.1,
+        );
+        for response in [None, Some(json!({})), Some(json!({"vatCalc": []}))] {
+            let sale = read_sale(&event(&req, response)).unwrap();
+            let by = |l: &str| sale.vat.iter().find(|v| v.label == l).unwrap().clone();
+            // 10.00 at 12 %: base = round(1000 / 1.12) = 893, VAT 107.
+            let b = by("B");
+            assert_eq!(
+                (b.rate_hundredths, b.base_cents, b.vat_cents, b.total_cents),
+                (1200, 893, 107, 1000)
+            );
+            let a = by("A");
+            assert_eq!(
+                (a.rate_hundredths, a.base_cents, a.vat_cents, a.total_cents),
+                (2100, 1000, 210, 1210)
+            );
+            let d = by("D");
+            assert_eq!((d.base_cents, d.vat_cents, d.total_cents), (200, 0, 200));
+            assert_eq!(sale.vat.len(), 3);
+            assert_eq!(sale.total_cents, 2410);
+        }
+    }
+
+    #[test]
+    fn a_refund_falls_back_with_the_same_rounding_on_the_negative_side() {
+        let req = request(
+            json!([product(
+                "Plat",
+                -1.0,
+                "PIECE",
+                json!([{"label": "B", "price": -10.0}])
+            )]),
+            -10.0,
+        );
+        let sale = read_sale(&event(&req, None)).unwrap();
+        let b = &sale.vat[0];
+        assert_eq!(
+            (b.base_cents, b.vat_cents, b.total_cents),
+            (-893, -107, -1000)
+        );
+        assert!(sale.is_refund());
+    }
+
+    #[test]
+    fn the_fdm_vat_calc_wins_over_the_lines() {
+        let req = request(
+            json!([product(
+                "Plat",
+                1.0,
+                "PIECE",
+                json!([{"label": "B", "price": 10.0}])
+            )]),
+            10.0,
+        );
+        // Deliberately not what the lines would give: the FDM's figures are the ones kept.
+        let response = json!({"vatCalc": [
+            {"label": "B", "rate": 12.0, "taxableAmount": 8.9, "vatAmount": 1.1, "totalAmount": 10.0}
+        ]});
+        let sale = read_sale(&event(&req, Some(response))).unwrap();
+        let b = &sale.vat[0];
+        assert_eq!(
+            (b.rate_hundredths, b.base_cents, b.vat_cents, b.total_cents),
+            (1200, 890, 110, 1000)
+        );
+    }
+
+    #[test]
+    fn quantities_and_unit_codes_come_from_the_archive() {
+        let req = request(
+            json!([
+                product(
+                    "Riz",
+                    0.35,
+                    "KILOGRAM",
+                    json!([{"label": "C", "price": 3.5}])
+                ),
+                product("Huile", 1.5, "LITRE", json!([{"label": "C", "price": 6.0}])),
+                product("Ruban", 2.0, "METER", json!([{"label": "A", "price": 4.0}])),
+                product(
+                    "Conseil",
+                    0.5,
+                    "HOUR",
+                    json!([{"label": "A", "price": 20.0}])
+                ),
+                product("Pain", 3.0, "PIECE", json!([{"label": "C", "price": 6.0}])),
+            ]),
+            39.5,
+        );
+        let sale = read_sale(&event(&req, None)).unwrap();
+        let got: Vec<(&str, i64, &str)> = sale
+            .lines
+            .iter()
+            .map(|l| (l.name.as_str(), l.quantity_milli, l.unit_code))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("Riz", 350, "KGM"),
+                ("Huile", 1500, "LTR"),
+                ("Ruban", 2000, "MTR"),
+                ("Conseil", 500, "HUR"),
+                ("Pain", 3000, "H87"),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_product_under_two_vat_labels_is_one_row_per_label() {
+        let req = request(
+            json!([product(
+                "Menu",
+                2.0,
+                "PIECE",
+                json!([{"label": "A", "price": 5.0}, {"label": "B", "price": 7.0}])
+            )]),
+            12.0,
+        );
+        let sale = read_sale(&event(&req, None)).unwrap();
+        let got: Vec<(&str, i64, &str, i64, &str)> = sale
+            .lines
+            .iter()
+            .map(|l| {
+                (
+                    l.name.as_str(),
+                    l.quantity_milli,
+                    l.unit_code,
+                    l.incl_cents,
+                    l.vat_label.as_str(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("Menu (A)", 1000, "H87", 500, "A"),
+                ("Menu (B)", 1000, "H87", 700, "B"),
+            ]
+        );
+    }
+
+    #[test]
+    fn line_changes_go_into_the_line_and_event_changes_become_adjustments() {
+        let req = request(
+            json!([
+                product(
+                    "Plat",
+                    1.0,
+                    "PIECE",
+                    json!([{"label": "B", "price": 10.0, "priceChanges": [
+                        {"id": "L", "name": "Promo ligne", "scope": "LINE", "amount": -1.0},
+                        {"id": "E", "name": "Remise", "scope": "EVENT", "amount": -0.5}
+                    ]}])
+                ),
+                product(
+                    "Biere",
+                    1.0,
+                    "PIECE",
+                    json!([{"label": "A", "price": 4.0, "priceChanges": [
+                        {"id": "E", "name": "Remise", "scope": "EVENT", "amount": -0.25}
+                    ]}])
+                ),
+            ]),
+            12.25,
+        );
+        let sale = read_sale(&event(&req, None)).unwrap();
+        // The LINE change is part of the line; the EVENT ones are separate rows per label.
+        assert_eq!(sale.lines[0].incl_cents, 900);
+        assert_eq!(sale.lines[1].incl_cents, 400);
+        let adj: Vec<(&str, &str, i64)> = sale
+            .adjustments
+            .iter()
+            .map(|a| (a.reason.as_str(), a.vat_label.as_str(), a.incl_cents))
+            .collect();
+        assert_eq!(adj, [("Remise", "A", -25), ("Remise", "B", -50)]);
+        assert_eq!(sale.total_cents, 900 + 400 - 25 - 50);
+    }
+}
