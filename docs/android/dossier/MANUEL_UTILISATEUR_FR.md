@@ -826,7 +826,10 @@ ventes déjà signées :
    payé"), puis toucher "Établir et imprimer la facture". Le FDM signe
    la facture ; le numéro (année et séquence continue) et l'état de
    l'impression s'affichent. Un problème détecté (vente déjà facturée,
-   formation) bloque la signature et le message l'explique ; un client
+   formation, vente qui vend un bon cadeau : « invoice_gift_voucher_sale »,
+   la ligne du bon est hors champ de T.V.A. et ne se facture pas ; une vente
+   payée avec un bon se facture normalement) bloque la signature et le
+   message l'explique ; un client
    belge sans Peppol sur la caisse est refusé à la signature.
 
 La facture s'imprime sur papier, sans signature ni QR code. Elle ne
@@ -939,6 +942,10 @@ Refus (le texte s'affiche dans la fenêtre) :
 - une vente déjà remboursée, en tout ou en partie, ne se corrige plus ;
 - **une seule correction par vente** ;
 - une carte prise sur le terminal de paiement lié ne se corrige pas ;
+- la ligne « Bon cadeau » ne se corrige pas : l'écran la montre
+  verrouillée, avec une note (§9 ter) ;
+- on ne corrige pas vers « Bon cadeau », et une vente qui vend un bon
+  ne passe pas aux titres-repas ;
 - le nouveau moyen doit différer de celui de la ligne ;
 - une correction qui demanderait un arrondi en espèces est refusée.
 

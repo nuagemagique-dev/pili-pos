@@ -42,7 +42,7 @@ diffèrent (clavier à l'écran sur Linux, clavier du système sur Android).
 | Règle | Comportement |
 |---|---|
 | Une vente, une facture | Une vente ne figure que sur une seule facture. Une seconde tentative est refusée et le numéro de la facture existante est indiqué. |
-| Ventes admises | Seuls les tickets de vente normaux (événement N) sont facturables. Un remboursement (N négatif) peut figurer sur une facture (cas UC4122). Sont refusés : événements de formation, copies, commandes de table, ventes clôturées impayées. |
+| Ventes admises | Seuls les tickets de vente normaux (événement N) sont facturables. Un remboursement (N négatif) peut figurer sur une facture (cas UC4122). Sont refusés : événements de formation, copies, commandes de table, ventes clôturées impayées, ventes qui vendent un bon cadeau (`invoice_gift_voucher_sale` : ligne hors champ de T.V.A., catégorie O, incompatible avec nos factures ; voir `BONS_CADEAUX_FR.md` §8 bis). |
 | Mode formation | Aucune facture n'est établie en mode formation. |
 | Client belge sans Peppol | Sans section `peppol`, aucune facture n'est signée pour un numéro de TVA belge (`invoice_peppol_required`). |
 | Lignes et montants | Les lignes, la TVA et les totaux viennent des archives signées des ventes et des réponses du module de contrôle. L'écran n'envoie que des identifiants de ventes et de client. |

@@ -46,7 +46,10 @@ Le flux reflète l'encaissement standard de
      rembourserait une part que personne ne peut établir) ; la
      commande entière se rembourse, remises comprises, y compris une
      remise saisie à la caisse par un Gérant : le remboursement porte
-     sur le montant net, ligne par ligne, avec les remises en négatif.
+     sur le montant net, ligne par ligne, avec les remises en négatif ;
+   - `gift_voucher_used` : la vente a vendu un bon cadeau et la ligne
+     remboursée est celle d'un bon déjà utilisé (ou déjà annulé) ; un
+     bon qui a servi ne se rembourse pas (`BONS_CADEAUX_FR.md` §5).
 2. **Contrôles, puis construction de la commande de remboursement.**
    Chaque article est d'abord contrôlé (présent sur le ticket
    original, quantité positive, total remboursé sur l'ensemble des
@@ -82,6 +85,9 @@ Le flux reflète l'encaissement standard de
    unique que checkout (`signing::commit`) : `FiscalCounter::next` +
    `archive_event` + clôture de la commande + ligne `payments` dans une
    tx, rollback si l'un échoue. Cf. `STRATEGIE_COMPTEURS_FR.md` §5.
+   Rembourser la ligne d'un bon cadeau jamais utilisé écrit le
+   mouvement « cancel » de ce bon dans cette même transaction : le bon
+   est annulé si et seulement si le remboursement est archivé.
 7. **Impression ticket de remboursement + ouverture tiroir.**
    Best-effort - non-fatal si imprimante injoignable. Chaque ligne
    remboursée est imprimée avec sa quantité et son montant négatifs
@@ -148,10 +154,15 @@ Règles :
   payer), une commande en ligne, une vente déjà remboursée en tout ou en
   partie ;
 - **une seule correction par vente** ;
-- seule une ligne de paiement saisie à la main se corrige : une carte
+- seule une ligne de paiement saisie à la main se corrige, à
+  l'exception de la ligne « Bon cadeau » (`VOUCHER_STORE`, saisie à la
+  main mais jamais corrigeable : son mouvement est écrit dans
+  l'archive de la vente, `payment_correction_gift_voucher`) : une carte
   prise sur le terminal de paiement lié ne se corrige jamais ;
 - le nouveau moyen est espèces, carte ou titres-repas, différent de celui
-  de la ligne ;
+  de la ligne ; jamais « Bon cadeau » (`payment_correction_method`), et
+  jamais titres-repas sur une vente qui vend un bon cadeau (un bon ne
+  s'achète pas avec des titres-repas, `gift_voucher_payment_invalid`) ;
 - aucune ligne d'arrondi n'est écrite : la correction est refusée si la
   ligne est en espèces et que la vente a un arrondi, ou si le nouveau
   moyen est espèces et que le montant n'est pas un multiple de 5

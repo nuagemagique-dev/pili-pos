@@ -2219,3 +2219,7 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
   captured by `capture_uc_evidence.sh` and embedded in `RESULTATS_TESTS_UC_FR.md`; five new ticket examples
   (voucher, voucher balance, allergen sheet, voucher payment ticket, course slips) are embedded in
   `TICKETS_EXEMPLES_FR.md`. The PDFs and RAPPORT_TESTS_BASELINE totals are regenerated at the final commit.
+- **INT-D28 Gift voucher rules propagated to flow documents.** FLUX_REMBOURSEMENT (refusal `gift_voucher_used`,
+  atomic voucher cancel movement, M132 exclusions), FACTURATION_PEPPOL (`invoice_gift_voucher_sale`) and
+  MANUEL_UTILISATEUR (§8 bis, §9 bis) now state the same rules as BONS_CADEAUX_FR.md, in both dossiers; the three
+  PDFs of each dossier are rebuilt.
