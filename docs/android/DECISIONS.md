@@ -2253,3 +2253,15 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
   the ticket run are still to be redone at the freeze commit.
 - **INT-D34 Capture references.** Captures A130 to A194 are cited inline in the manual and in each annex, with a
   closing table in the manual and a per-annex "Captures d'écran" section.
+- **INT-D35 Test report figures traced to their runs (rc3).** `RAPPORT_TESTS_BASELINE_FR.md` now cites for each row the
+  run that produced it: 14 tests for the cert `pili-pos` binary, 2577 workspace tests listed by `test_inventory.sh --diff`
+  (2564 passing, 13 ignored; 1184 for the cert build), the parity scripts at the integration head (148/148, 136+10 of
+  146), 2807 `:app` unit tests (full `:app:verifyRoborazziDebug`), and the device run `--fixtures --check` (2160). The
+  1371 figure is kept as an earlier measure (2026-10-08) and the Kover percentages as a pre-rc3 measure, both to redo
+  at the freeze.
+- **INT-D36 Bench retake not done (rc3).** The retake of A159/A160 and of the ticket run needs the debug APK to trust
+  the dev-minisign key held in `~/.cache/pili-android`, which differs from the committed public key. Swapping the
+  committed trust key for the build was refused by the permission layer, so the retake stays with the owner: either
+  restore the secret half of the committed key, or accept a regenerated pair (`make_dev_bundle.sh --write-pub`,
+  committed) and run the bench. Until then A160 still shows "Titres-repas" and the ticket evidence still prints
+  "Cheques-repas" (EV-08).

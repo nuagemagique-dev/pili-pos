@@ -35,27 +35,27 @@ Les chiffres viennent des portes de contrôle des phases (`x1_gate.sh`, `p5_gate
 | Suite | Résultat | Rapport et commit |
 |---|---|---|
 | Workspace racine (`cargo test --workspace`) | 2564 passants, 0 échec, 13 ignorés (170 binaires de tests) | mesure de la voie rc3 à la tête de l'intégration (2026-10-18) |
-| Build cert, `pili-pos` | 8 passants, 0 échec | `X1-exit.md`, a364ad7 |
+| Build cert, `pili-pos` | 14 passants, 0 échec | mesure de la voie rc3 à la tête de l'intégration (2026-10-18) |
 | Build cert, `pos-engine` | 1159 passants, 0 échec, 11 ignorés (82 binaires) ; avec le binaire `pili-pos` (14 passants) : 1173 | mesure de la voie rc3 (2026-10-18), identique au rapport Linux |
-| Inventaire (`scripts/android/test_inventory.sh --diff`) | aucun test disparu : 1640 tests du workspace, contre 1355 à la baseline | `X1-exit.md`, a364ad7 |
+| Inventaire (`scripts/android/test_inventory.sh --diff`) | aucun test disparu : 2577 tests du workspace (2564 passants et 13 ignorés), 1184 pour la build cert, contre 1355 à la baseline | mesure de la voie rc3 à la tête de l'intégration (2026-10-18) |
 
 ### Couche Android, sur l'hôte de construction
 
 | Suite | Résultat | Rapport et commit |
 |---|---|---|
 | Tests Rust de la liaison (`android/rust`) | 315 passants, 0 échec (4 binaires) | mesure de la voie rc3 (2026-10-18) |
-| Parité des commandes moteur et interface Kotlin | 148/148, aucune manquante | `merge-lane-export-lane-ui-lane-plat.md`, 9a6d29e |
-| Parité des écrans (`check_ui_parity.py --strict`) | 136 commandes appelées et 10 exclues sur 146, 0 en attente, 0 manquante | idem ; les 10 exclues sont les 4 commandes d'assistance à distance (absente d'Android), 5 commandes sans appelant dans l'interface Linux et la réimpression d'un bon de service en plusieurs temps, sans écran dans la version 1.0 (`docs/android/PARITY.md`) |
+| Parité des commandes moteur et interface Kotlin | 148/148, aucune manquante | `check_command_parity.py --strict`, mesure de la voie rc3 à la tête de l'intégration (2026-10-18) |
+| Parité des écrans (`check_ui_parity.py --strict`) | 136 commandes appelées et 10 exclues sur 146, 0 en attente, 0 manquante | `check_ui_parity.py --strict`, même mesure ; les 10 exclues sont les 4 commandes d'assistance à distance (absente d'Android), 5 commandes sans appelant dans l'interface Linux et la réimpression d'un bon de service en plusieurs temps, sans écran dans la version 1.0 (`docs/android/PARITY.md`) |
 | Inventaire des tests Kotlin (`kotlin_test_inventory.py`) | 2852 identifiants de test à la tête de l'intégration, 0 supprimé | mesure de la voie rc3 (`kotlin_test_inventory.py --list`, 2026-10-18) |
-| Tests unitaires du module `:app` | Total à mesurer au commit de livraison par la porte `p6_gate.sh --app` (l'inventaire ci-dessus en donne le nombre de tests déclarés) | `À effectuer au gel` |
-| Couverture du module `:app` (seuils 80 % et 60 %) | lignes 97,4 %, branches 74,7 % | idem |
+| Tests unitaires du module `:app` | 2807 tests, 0 échec, 0 ignoré (`:app:verifyRoborazziDebug` complet) ; total du commit de livraison à refaire par la porte `p6_gate.sh --app` | mesure de la voie rc3 à la tête de l'intégration (2026-10-18) ; total final : `À effectuer (EV-17 : comptes finaux au commit de livraison)` |
+| Couverture du module `:app` (seuils 80 % et 60 %) | lignes 97,4 %, branches 74,7 % (mesure antérieure à l'intégration rc3, faite avec 1913 tests unitaires) | `merge-lane-export-lane-ui-lane-plat.md`, 9a6d29e ; à refaire au gel : `À effectuer (EV-17 : comptes finaux au commit de livraison)` |
 
 ### Terminal émulé (profil Sunmi D3 Pro, Android 13)
 
 | Parcours | Résultat | Rapport et commit |
 |---|---|---|
-| Tests du moteur sur l'émulateur (`scripts/android/device_engine_tests.sh --check`) | 114 binaires : 2160 passants, 0 échec, 13 ignorés (tests en ligne) | `docs/android/uc/device_engine_tests.md`, commit 7f96ae02, exécution du 2026-10-18 sur le profil sunmi_d3_pro_api33 |
-| Idem avec les fixtures poussées sur l'appareil (`--fixtures`) | 1371 passants, 0 échec, 13 ignorés | idem |
+| Tests du moteur sur l'émulateur, fixtures poussées sur l'appareil (`scripts/android/device_engine_tests.sh --fixtures --check`) | 114 binaires : 2160 passants, 0 échec, 13 ignorés (tests en ligne) | `docs/android/uc/device_engine_tests.md`, commit 7f96ae02, exécution du 2026-10-18 sur le profil sunmi_d3_pro_api33 |
+| Mesure antérieure, mode `--fixtures` (avant l'intégration des cinq voies) | 1371 passants, 0 échec, 13 ignorés | `docs/android/DEVICE_TESTS.md`, exécution du 2026-10-08 ; remplacée par la ligne ci-dessus |
 | Bout en bout de l'application (`app_e2e.sh`) | 11 contrôles sur 11, qui établissent la mise en service par paquet signé, le moteur prêt, le verrouillage kiosque, la connexion d'un gérant contre le FDM simulé et le retour prêt et verrouillé après un arrêt forcé | `P6-exit.md`, 4cfe0b3 ; `X1-exit.md`, a364ad7 |
 | Bout en bout de la plateforme (`plat_e2e.sh`) | 19 contrôles sur 19 : 13 restrictions du propriétaire d'appareil, export vers le SPF avec vérification de `MANIFEST.sha256`, mise à jour par session d'installation signée avec refus des cas `not_newer` et `sha256_mismatch`, redémarrage par le chien de garde, journal d'audit | `P6-exit.md`, 4cfe0b3 |
 
