@@ -1187,12 +1187,25 @@ pub fn has_digit_run(s: &str, n: usize) -> bool {
     false
 }
 
+/// True when `s` has the exact shape of a `user_ref` pseudonym: `u-` and 16
+/// lowercase hex characters (`pos_export::pseudonym::user_ref`). Its hex
+/// part comes from a hash under a random key, so it can hold a long digit
+/// run by chance (an 11-digit run in about 2 % of pseudonyms).
+pub fn is_pseudonym(s: &str) -> bool {
+    s.strip_prefix("u-").is_some_and(|hex| {
+        hex.len() == 16 && hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+    })
+}
+
 /// Fail unless the SQLite file at `path` holds no personal data.
 ///
 /// 1. No column name contains one of [`FORBIDDEN_COLUMN_PARTS`] (any case),
 ///    and no column is called `name` or `user_name` (`product_name` is fine).
 /// 2. No TEXT value of any table contains a run of 11 digits (an INSZ), an
-///    `@`, a bcrypt prefix (`$2a$`, `$2b$`, `$2y$`) or any of `secrets`.
+///    `@`, a bcrypt prefix (`$2a$`, `$2b$`, `$2y$`) or any of `secrets`. A
+///    value of the exact pseudonym shape ([`is_pseudonym`]) is spared the
+///    digit run rule only (a valid pseudonym never trips it); it is still
+///    checked against `secrets`, which hold the fixture's INSZ.
 /// 3. The raw bytes of the file contain none of the `secrets` either, so
 ///    nothing survives in free pages or in the schema text.
 pub fn assert_no_personal_data(path: &Path, secrets: &[String]) {
@@ -1222,7 +1235,7 @@ pub fn assert_no_personal_data(path: &Path, secrets: &[String]) {
                 .collect();
             for value in values {
                 assert!(
-                    !has_digit_run(&value, 11),
+                    is_pseudonym(&value) || !has_digit_run(&value, 11),
                     "{table}.{column} holds 11 digits: {value:?}"
                 );
                 assert!(
