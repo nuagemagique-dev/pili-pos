@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
 import dagger.Lazy
@@ -122,15 +123,16 @@ class SettingsRouteTest {
                 compose.setContent { SettingsRoute(navigator, lazyRegistry) }
                 compose.waitForIdle()
 
-                // The employee row of Bob (who holds a badge) then the confirmation: the revoke lambdas.
-                compose.onNodeWithTag("worker_${CASHIER_INSZ}_badge_button").performClick()
+                // The employee row of Bob (who holds a badge) then the confirmation: the revoke lambdas. The
+                // employees panel shares its column with the courses panel (lane 4), so the row is scrolled to.
+                compose.onNodeWithTag("worker_${CASHIER_INSZ}_badge_button").performScrollTo().performClick()
                 coVerify(exactly = 0) { f.engine.revokeBadge(any()) }
                 compose.onNodeWithTag("confirm_ok").performClick()
                 runCurrent()
                 coVerify(exactly = 1) { f.engine.revokeBadge(CASHIER_INSZ) }
 
                 // The panel header, then the reader choice: the "off" lambda, not another one.
-                compose.onNodeWithTag("badge_toggle").performClick()
+                compose.onNodeWithTag("badge_toggle").performScrollTo().performClick()
                 compose.onNodeWithTag("badge_reader_off").performClick()
                 runCurrent()
                 coVerify(exactly = 1) { f.engine.setBadgeSettings(BadgeSettingsInput("off", false, 50L, 6L, 32L)) }
