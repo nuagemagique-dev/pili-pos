@@ -1,0 +1,74 @@
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "c549c944-32b5-4c4c-b405-39a65c747456",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O1",
+    "type": "TABLE"
+  },
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-10-18T06:03:53.115+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "NONE",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": -40.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "20",
+          "departmentName": "Starters",
+          "negQuantityReason": "PRICE_CHANGE",
+          "productId": "20001",
+          "productName": "Carpaccio Beef",
+          "quantity": -2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 20.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": -40.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 32.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "20",
+          "departmentName": "Starters",
+          "productId": "20001",
+          "productName": "Carpaccio Beef",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 20.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 40.0,
+              "priceChanges": [
+                {
+                  "amount": -8.0,
+                  "groupingId": 1,
+                  "id": "TILL-DISCOUNT",
+                  "name": "Remise 20 %",
+                  "scope": "EVENT",
+                  "type": "PUBLIC"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": -8.0
+  },
+  "vatNo": "BE0000000097"
+}

@@ -1,0 +1,12 @@
+{
+  "checked": "business fields equal; identification fields by format; names present",
+  "deviations": [
+    {
+      "fixture": "CARD_CREDIT",
+      "path": "financials[0].type",
+      "piliPos": "CARD_DEBIT",
+      "reason": "without a linked terminal the operator cannot tell debit from credit: a card typed by hand is CARD_DEBIT, MANUAL (REPONSES_MANUEL_CERT §III.F); the comparator checks only type, amount and amountType, so the MANUAL input method (fixture AUTOMATIC) is not compared"
+    }
+  ],
+  "uc": "M132"
+}

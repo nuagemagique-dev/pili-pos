@@ -1,0 +1,18 @@
+{
+  "checked": "business fields equal; identification fields by format; names present",
+  "deviations": [
+    {
+      "fixture": null,
+      "path": "costCenter.type",
+      "piliPos": "TABLE",
+      "reason": "dine-in sales are settled from a table and carry costCenter TABLE"
+    },
+    {
+      "fixture": "B",
+      "path": "transaction.transactionLines[1].vats[0].label",
+      "piliPos": "A",
+      "reason": "the catalogue has the Coca Cola at VAT A (the scenario says A); the fixture's request labels it B"
+    }
+  ],
+  "uc": "UC229B"
+}

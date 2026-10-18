@@ -1,0 +1,83 @@
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "670d1147-45aa-42b8-b656-8c083273505b",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O1",
+    "type": "TABLE"
+  },
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 56.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-18T06:03:53.128+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 56.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "22",
+          "departmentName": "Main Dishes",
+          "productId": "22001",
+          "productName": "Burger of the CHEF",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 28.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 56.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 0.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "12",
+          "departmentName": "Soft Drinks",
+          "productId": "12009",
+          "productName": "Coca Cola",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.04,
+          "vats": [
+            {
+              "label": "A",
+              "price": 3.04,
+              "priceChanges": [
+                {
+                  "amount": -3.04,
+                  "groupingId": 1,
+                  "id": "TILL-FREE-LINE",
+                  "name": "Offert",
+                  "scope": "LINE",
+                  "type": "PUBLIC"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 56.0
+  },
+  "vatNo": "BE0000000097"
+}

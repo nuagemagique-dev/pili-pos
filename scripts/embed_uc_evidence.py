@@ -38,10 +38,12 @@ BASIC = {
         ["M112B_1", "M112B_2"],
     ),
     "M121": ("spf_e2e_fixtures.rs::m121_table_order", ["M121"]),
+    "M122": ("spf_e2e_fixtures.rs::m122_cost_center_change", ["M122"]),
     "M123": ("spf_e2e_fixtures.rs::m123_pre_bill", ["M123"]),
     "M130": ("spf_e2e_fixtures.rs::m130_money_in", ["M130"]),
     "M133": ("spf_e2e_fixtures.rs::m133_drawer_declaration", ["M133"]),
     "M131": ("spf_e2e_fixtures.rs::m131_drawer_open", ["M131"]),
+    "M132": ("spf_e2e_fixtures.rs::m132_payment_correction", ["M132"]),
     "M140": ("spf_e2e_fixtures.rs::m140_work_in", ["M140"]),
     "M141": ("spf_e2e_fixtures.rs::m141_work_out", ["M141"]),
     "M150": ("spf_e2e_fixtures.rs::m150_invoice", ["M150"]),
@@ -55,6 +57,10 @@ BASIC = {
     ),
     "M172": ("spf_e2e_fixtures.rs::m172_copy_in_training", ["M172"]),
 }
+
+# The event of the UC when it is not the last one the test archived (1-based):
+# M122 is the cost center change, followed by the sale on the new table.
+MAIN_EVENT = {"M122": 2}
 
 # Manual "Arrondissement des méthodes de paiement": situation -> test.
 ROUND = {
@@ -97,6 +103,16 @@ REASONS_FR = {
     "copies are printed in training mode too, so the medium is PAPER": (
         "les copies sont imprimées aussi en mode formation : le support "
         "est PAPER"
+    ),
+    "without a linked terminal the operator cannot tell debit from credit: a card typed by "
+    "hand is CARD_DEBIT, MANUAL (REPONSES_MANUEL_CERT §III.F); the comparator checks only "
+    "type, amount and amountType, so the MANUAL input method (fixture AUTOMATIC) is not "
+    "compared": (
+        "sans terminal relié, l'opérateur ne distingue pas débit et crédit : "
+        "une carte saisie à la main est CARD_DEBIT, MANUAL "
+        "(*REPONSES_MANUEL_CERT_FR.md* §III.F) ; la comparaison ne porte que "
+        "sur le type, le montant et le type de montant, la saisie MANUAL "
+        "(AUTOMATIC dans la fixture) n'est donc pas comparée"
     ),
 }
 
@@ -175,7 +191,8 @@ def basic_block(uc: str) -> str | None:
     events = events_of(uc)
     if not events:
         return None
-    main = events[-1]
+    main = events[MAIN_EVENT[uc] - 1] if uc in MAIN_EVENT else events[-1]
+    before = [e for e in events if e != main]
     out = [
         START,
         f"**Preuve pili-pos (build `cert`)** - rejeu de la fixture par "
@@ -185,10 +202,11 @@ def basic_block(uc: str) -> str | None:
         json_block(main),
         "",
     ]
-    if len(events) > 1:
+    if before:
         out += [
-            f"Events préalables du scénario, archivés de même : "
-            f"{file_list(events[:-1])}. Réponses FDM archivées : fichiers "
+            f"{'Autres events' if uc in MAIN_EVENT else 'Events préalables'} du scénario, "
+            f"archivés de même : "
+            f"{file_list(before)}. Réponses FDM archivées : fichiers "
             f"`*_response.json` correspondants.",
             "",
         ]
