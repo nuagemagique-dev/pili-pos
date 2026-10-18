@@ -116,10 +116,10 @@ All decisions go to `docs/android/DECISIONS.md`, at the very end of the file, un
 **Cross-cutting**
 
 - **V12-D1 Migrations 60 to 63.** 60 `owner-settings-alerts` (B), 61 `allergens` (C), 62 `courses`
-  (D), 63 `gift-vouchers` (E), in a new `crates/pos-db/src/schema_v12.rs`, registered in a new
-  `V12_MIGRATIONS` slice of `migrate.rs`, in every build (no cargo feature), with a test
-  `the_v12_migrations_are_60_to_63_and_in_every_build` (each task adds its version to the test).
-  Renumbering at merge only touches `schema_v12.rs`, the registry and that test.
+  (D), 63 `gift-vouchers` (E), in a new `crates/pos-db/src/schema_owner.rs`, registered in a new
+  `OWNER_MIGRATIONS` slice of `migrate.rs`, in every build (no cargo feature), with a test
+  `the_owner_migrations_are_60_to_63_and_in_every_build` (each task adds its version to the test).
+  Renumbering at merge only touches `schema_owner.rs`, the registry and that test.
 - **V12-D2 One owner-settings store.** Migration 60 creates `owner_settings(key TEXT PRIMARY KEY,
   value_json TEXT NOT NULL, changed_at TEXT NOT NULL, changed_by TEXT)` and the append-only
   `owner_settings_log(id, key, value_json, changed_by, changed_at)` (no-update, no-delete triggers).
@@ -668,7 +668,10 @@ of this file (what was delivered, deviations, gate results).
 | V12-T5 | E: migration 63, MPV sale, redemption, refunds, prints, UC260-262, both UIs | R, F, P, U, A, D |
 | V12-T6 | Full gate + fixes | G |
 
-## 9. Dossier changes (v1.2 drafts, French, brand-neutral, `docs/internal/v1.2/`)
+## 9. Dossier changes (French, brand-neutral; folded into both v1.0 dossiers by the int worker)
+
+The drafts were first written under `docs/internal/v1.2/`; that folder is deleted, see INT-D25 to INT-D28 in
+`DECISIONS.md` for where each draft went.
 
 - `NOTE_MISE_A_JOUR_V1_2_FR.md` (created by T1; one section per item): for the update declaration
   (manual intro, post-certification procedure): what changes, whether it is in the certified binary,
@@ -816,7 +819,7 @@ a line in `CLAUDE.md`, the drafts `docs/internal/v1.2/NOTE_MISE_A_JOUR_V1_2_FR.m
 
 ### V12-T2 (Sonnet 5.5, 2026-10-17): B, owner alerts
 
-Delivered: migration 60 (`crates/pos-db/src/schema_v12.rs`, `V12_MIGRATIONS`, `queries/owner_settings.rs`,
+Delivered: migration 60 (`crates/pos-db/src/schema_owner.rs`, `OWNER_MIGRATIONS`, `queries/owner_settings.rs`,
 `integrations::waiting_online_orders`); engine module `crates/pos-engine/src/alerts/` (`rules.rs`,
 `telegram.rs`, `text.rs`, `mod.rs`) and `commands/alerts.rs`, `commands/owner_settings.rs`; the `alerts`
 section of `pos.json` (`pos-core` config, `config_alerts` in `check_config`); four Tauri wrappers
@@ -874,7 +877,7 @@ records the precisions and deviations from D11 to D16).
 
 ### V12-T3 (Sonnet 5.5, 2026-10-17): C, the 14 EU allergens
 
-Delivered: migration 61 (`schema_v12.rs`, `V12_MIGRATIONS`, `queries/allergens.rs`); `pos-core/src/allergen.rs`
+Delivered: migration 61 (`schema_owner.rs`, `OWNER_MIGRATIONS`, `queries/allergens.rs`); `pos-core/src/allergen.rs`
 and the allergen fields of `MenuItem` and `Modifier`; the HubRise tag import (`pos-hubrise/src/catalog_map.rs`,
 `pos-catalog` model, validation `UnknownAllergen`, `apply.rs`); the slip `pos-print/src/allergen_sheet.rs`;
 the engine commands `commands/allergens.rs` (`list_allergens`, `get_allergen_sheet`, `print_allergen_sheet`,
@@ -907,7 +910,7 @@ strings, mock handlers, `ui/e2e/allergens.spec.ts`); the Compose UI (`feature/or
 
 ### V12-T4 (Sonnet 5.5, 2026-10-17): D, courses and "Envoyer la suite" (kitchen only)
 
-Delivered: migration 62 (`schema_v12.rs`: `order_line_courses`, `order_course_releases`, `kitchen_slip_entries`,
+Delivered: migration 62 (`schema_owner.rs`: `order_line_courses`, `order_course_releases`, `kitchen_slip_entries`,
 backfill; `queries/courses.rs`; `CartLine.course` and `kitchen_state`); the `courses` setting; six engine
 commands (`commands/courses.rs`) with the errors `course_already_sent`, `course_invalid`, `courses_disabled`,
 `no_course_held`, `nothing_printed`; the V12-D23 correction rules; the release slip "SUITE : <course>" and its
