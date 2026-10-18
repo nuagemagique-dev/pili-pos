@@ -214,7 +214,7 @@ async function print(): Promise<void> {
       <dl v-if="report" class="totals">
         <div><dt>{{ t('sales_tickets') }}</dt><dd class="mono" data-testid="sales-tickets">{{ report.ticketCount }}</dd></div>
         <div v-if="report.refundsCents !== 0"><dt>{{ t('sales_refunds') }}</dt><dd class="mono" data-testid="sales-refunds">{{ euros(report.refundsCents) }}</dd></div>
-        <div v-if="report.priceChangesCents !== 0"><dt>{{ t('sales_price_changes') }}</dt><dd class="mono">{{ euros(report.priceChangesCents) }}</dd></div>
+        <div v-if="report.priceChangesCents !== 0"><dt>{{ t('sales_price_changes') }}</dt><dd class="mono" data-testid="sales-price-changes">{{ euros(report.priceChangesCents) }}</dd></div>
         <div v-if="report.roundingCents !== 0"><dt>{{ t('sales_rounding') }}</dt><dd class="mono" data-testid="sales-rounding">{{ euros(report.roundingCents) }}</dd></div>
         <div class="grand"><dt>{{ t('sales_total') }}</dt><dd class="mono" data-testid="sales-total">{{ euros(report.totalCents) }}</dd></div>
       </dl>

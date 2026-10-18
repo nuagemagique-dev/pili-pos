@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mockTauriIPC, loginAndGoto, ipcCalls, overrideIPC, live } from './fixtures/mock-ipc';
+import { mockTauriIPC, loginAndGoto, ipcCalls, overrideIPC, live, DEFAULT_USER } from './fixtures/mock-ipc';
 
 // Non-fiscal sales report (V11-D20), fourth tab of Reports: presets, a typed range, the two
 // tables, the concordance lines and the print. The engine rules are tested in
@@ -168,6 +168,27 @@ test.describe('Sales report', () => {
     });
     await expect(page.getByText('Aucune vente sur cette période.')).toBeVisible();
     await expect(page.getByTestId('sales-total')).toHaveText('0,00 €');
+    // No price change: the line is not drawn at all.
+    await expect(page.getByTestId('sales-price-changes')).toHaveCount(0);
+  });
+
+  test('the price changes line shows the amount only when there is one', async ({ page }) => {
+    await salesTab(page);
+    const line = page.getByTestId('sales-price-changes');
+    await expect(line).toHaveText('-0,50 €');
+    await expect(line.locator('xpath=..')).toContainText('Modifications de prix (tickets)');
+  });
+
+  test('a closed period without a Z says so, neither identical nor a gap', async ({ page }) => {
+    const missing = { bookingDate: '2026-10-15', zNumber: null, totalCents: 800, zTotalCents: null, open: false, matchesZ: false, gapCents: null };
+    await salesTab(page, { ...REPORT, days: [...REPORT.days, missing] });
+    const days = page.getByTestId('sales-day');
+    await expect(days).toHaveCount(4);
+    const row = days.nth(3);
+    await expect(row).toContainText('15/10/2026');
+    await expect(row).toContainText('Z introuvable pour cette période');
+    await expect(row).not.toContainText('identique');
+    await expect(row).not.toContainText('écart');
   });
 
   test('Imprimer sends the shown range to the printer', async ({ page }) => {
@@ -181,10 +202,31 @@ test.describe('Sales report', () => {
     await expect(page.locator('.toast', { hasText: "Rapport de ventes envoyé à l'imprimante" })).toBeVisible();
   });
 
-  test('a printer problem is shown, not hidden', async ({ page }) => {
+  test('a printer problem is shown as an error toast, never as a success', async ({ page }) => {
     await salesTab(page);
     await overrideIPC(page, 'print_sales_report', { __reject: 'printer_not_configured' });
     await page.getByTestId('sales-print').click();
-    await expect(page.locator('.toast.error, .toast', { hasText: /imprimante/i })).toBeVisible();
+    await expect(page.locator('.toast-error')).toContainText('Aucune imprimante configurée.');
+    await expect(page.locator('.toast-success')).toHaveCount(0);
+    await expect(page.locator('.toast', { hasText: "envoyé à l'imprimante" })).toHaveCount(0);
+  });
+
+  // V11-D8: the sales report is for managers (the engine says forbidden). The tab is shown to
+  // everybody, like on Android (SalesViewModel), and the refusal is told in French.
+  test('a cashier who reaches the tab gets the engine refusal and cannot print', async ({ page }) => {
+    const cashier = { ...DEFAULT_USER, role: 'cashier' };
+    await mockTauriIPC(page, {
+      login: () => cashier,
+      list_users: () => [cashier],
+      print_sales_report: () => undefined,
+    });
+    await loginAndGoto(page, '/reports');
+    await overrideIPC(page, 'sales_report', { __reject: 'forbidden' });
+    await page.getByRole('tab', { name: 'Ventes' }).click();
+    await expect(page.getByTestId('sales-error')).toHaveText('Action réservée à un autre profil.');
+    await expect(page.getByTestId('sales-total')).toHaveCount(0);
+    await expect(page.getByTestId('sales-print')).toBeDisabled();
+    await page.getByTestId('sales-print').click({ force: true });
+    expect(await ipcCalls(page, 'print_sales_report')).toHaveLength(0);
   });
 });
