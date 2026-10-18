@@ -94,10 +94,10 @@ Non-goals (record any that a worker is tempted to cross as a decision, do not bu
 - **V11-D2 Migrations 40 and up.** The next free number at this base is 28, but the v1.0.x
   lanes (`lane-v1-fixes`, `lane-v1-features`) run in parallel and may claim 28+. The v1.1 lane
   takes its own block: 40 `invoicing`, 41 `sold-out`, 42 `menu-editor` (gaps are allowed by the
-  runner). They live in a new `crates/pos-db/src/schema_v11.rs`, registered in a new
+  runner). They live in a new `crates/pos-db/src/schema_invoicing.rs`, registered in a new
   `V11_MIGRATIONS` slice of `migrate.rs`, in every build (no feature gate), with a test
   `the_v11_migrations_are_40_to_42_and_in_every_build`. If the orchestrator wants consecutive
-  numbers at merge time, only `schema_v11.rs`, the registry and that test change.
+  numbers at merge time, only `schema_invoicing.rs`, the registry and that test change.
 - **V11-D3 Invoice lines come from the archive, never from the UI.** The engine builds the
   invoice (lines, VAT breakdown, totals) from the archived signed requests and FDM responses of
   the referenced N events. The UI only sends sale event ids and a customer id. Supplier data
@@ -120,6 +120,8 @@ Non-goals (record any that a worker is tempted to cross as a decision, do not bu
 - **V11-D8 Who.** Invoices: `Access::Cashier` (issued at the counter like the sale). Retrying a
   Peppol delivery and the Peppol panel: `Access::Admin`. Sold-out: `Access::Cashier`. Menu
   editor and sales reports: `Access::Admin`.
+  Amended by V11-D8b (`docs/android/DECISIONS.md`): invoices stay engine-Cashier but are reached
+  through the manager navigation only.
 - **V11-D9 Peppol identifiers.** A Belgian participant is `0208:<10-digit enterprise number>`
   (the VAT number without `BE`); the current `0208:BE...` value in `invoice.rs` is a bug. Only
   Belgian customers (`BE` VAT) are delivered over Peppol in v1.1; others are printed only and
@@ -223,7 +225,7 @@ Non-goals (record any that a worker is tempted to cross as a decision, do not bu
 
 ### A. B2B invoice and Peppol (event I, M150)
 
-**Data (migration 40 `invoicing`, `schema_v11.rs`):**
+**Data (migration 40 `invoicing`, `schema_invoicing.rs`):**
 
 - `b2b_customers(id, vat_number TEXT NOT NULL UNIQUE, name, street, postal_code, city,
   country_code, peppol_status TEXT CHECK IN ('unknown','registered','not_registered') DEFAULT
@@ -445,7 +447,7 @@ payloads, UI on both platforms, effort estimate (worker-days per layer), risks, 
 Every Bash call starts with:
 
 ```
-cd /Users/brunomoyse/Development/applications/PERSO/tokyosushi/moyun-pos-wt/lane-v11 && export ANDROID_HOME=$HOME/Library/Android/sdk CARGO_TARGET_DIR=/Users/brunomoyse/Development/applications/PERSO/tokyosushi/moyun-pos-wt/shared-target CARGO_INCREMENTAL=0 PILI_HEAVY_SLOTS=2 &&
+cd <worktree root> && export ANDROID_HOME=$HOME/Library/Android/sdk CARGO_TARGET_DIR=<shared target dir> CARGO_INCREMENTAL=0 PILI_HEAVY_SLOTS=2 &&
 ```
 
 Check `df -g /` before heavy builds (under 10 GB: `cargo clean --target-dir target` and
@@ -576,6 +578,8 @@ asks for it:
    its three states.
 3. Invoice dialog, preview step (lines, VAT breakdown, "déjà payé").
 4. Invoice result and the "Factures" list with Peppol statuses (queued, accepted, failed).
+   Also the invoice result with the Peppol refusal (`invoice_peppol_required`, Belgian VAT customer on an
+   installation without a `peppol` section, V11-D55), fr and zh, both UIs.
 5. Printed invoice (printer mock render) and printed invoice copy.
 6. Settings, Peppol panel with a parked delivery and "Réessayer".
 7. Order screen in "Épuisé" mode, the sold-out dialog, a greyed product with its badge, the
@@ -594,7 +598,7 @@ asks for it:
 
 **Delivered.** V11-D1 flip (no `peppol` feature; one `generate_handler!` list; parity scripts,
 `p2_gate.sh`, `build_and_hash.sh`, `uc_scope.toml`, `test.yml`, comments and `CLAUDE.md`
-follow); migration 40 (`schema_v11.rs`, `V11_MIGRATIONS`); `PosConfig.peppol` with
+follow); migration 40 (`schema_invoicing.rs`, `V11_MIGRATIONS`); `PosConfig.peppol` with
 `check_config` problems (`config_peppol`); `pos-peppol` rewritten (cents UBL with golden file,
 participant ids and offline VAT check, `AccessPoint` with `lookup` and `submit_to`, Storecove
 API v2 shape, `LoggingAccessPoint`); Storecove routes in `pos-fdm-mock` and the testkit helper
@@ -768,7 +772,7 @@ FFI tests under `android/rust/pos-ffi/tests/ffi/`.
 | Invoice lines, VAT fallback, unit codes, price changes | engine | `commands/invoice.rs` unit tests (VAT fallback, refund fallback, FDM vatCalc wins, unit codes, two-label split, LINE vs EVENT price changes); `invoice_content.rs` |
 | Customer form checks and update by id | engine | `invoice_rules::a_customer_is_checked`, `a_customer_form_is_checked`, `a_customer_is_updated_by_id` |
 | List of sales newest first and searchable | engine | `invoice_rules::the_list_of_sales_is_newest_first_and_searchable` |
-| Invoices engine-Cashier but reached through the manager nav only (V11-D8, amended by V11-D8b); Peppol panel and report admin only | engine, Vue, Kotlin | `access_control.rs` rows; `invoice.spec.ts` (V11-D8 describe: no Rapports entry for a cashier, invoice signed under the cashier INSZ); `AppHeaderTest` and `PosScaffoldRouteTest` (no `header_nav_reports` for a cashier); `peppol.spec.ts`; `SettingsRouteSignedInTest::aCashierNeverTriggersThePeppolReads` |
+| Invoices engine-Cashier but reached through the manager nav only (V11-D8, amended by V11-D8b); Peppol panel and report admin only | engine, Vue, Kotlin | `access_control.rs` rows; `invoice.spec.ts` (V11-D8 describe: no Rapports entry for a cashier, invoice signed under the cashier INSZ); `AppHeaderTest.reportsAndSettingsShowForManagersOnly` (no `header_nav_reports` for a cashier); `peppol.spec.ts`; `SettingsRouteSignedInTest::aCashierNeverTriggersThePeppolReads` |
 | Peppol queue: delivery, backoff, parked, retry, key stop | engine | `peppol_queue.rs` (`a_queued_invoice_is_delivered`, `a_transient_failure_is_retried_after_the_backoff`, `a_refusal_is_parked_and_a_retry_puts_it_back`, `a_rejected_key_parks_the_delivery_and_stops_the_pass`) |
 | Recipient not registered parked without sending | engine | `peppol_queue::a_recipient_who_is_not_registered_is_parked_without_sending`, `a_cached_not_registered_customer_is_parked_without_sending` |
 | Lookup freshness of 30 days (V11-D10) | engine | `peppol_queue::a_cached_status_is_used_only_while_it_is_fresh`, `a_cached_not_registered_recipient_the_network_now_knows_is_sent`, `a_cached_not_registered_recipient_is_parked_when_the_lookup_fails` |
