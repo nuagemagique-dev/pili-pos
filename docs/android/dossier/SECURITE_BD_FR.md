@@ -276,7 +276,7 @@ Les mesures propres à la variante avec services Google sont construites
 (Play Store et applications Google masqués, `DISALLOW_INSTALL_APPS` levée
 pour la seule session de l'outil de mise à jour, politique de mise à jour
 système à fenêtre de nuit de 03:00 à 05:00 : `PLATEFORME_ANDROID_FR.md`
-§3.7). Leur mesure sur le profil émulé avec services Google (15.10.2026, EV-13, `evidence/gms/EV13_2026-10-15.md`) : onze paquets Google masqués, restrictions d'installation posées, fenêtre de mise à jour de 03:00 à 05:00. Play Protect sur un vrai terminal : À effectuer (EV-15 : D3 Pro réel).
+§3.7). Leur mesure sur le profil émulé avec services Google (15.10.2026, EV-13, `evidence/gms/EV13_2026-10-23.md`) : onze paquets Google masqués, restrictions d'installation posées, fenêtre de mise à jour de 03:00 à 05:00. Play Protect sur un vrai terminal : À effectuer (EV-15 : D3 Pro réel).
 
 ### 3.3 Environnement verrouillé
 

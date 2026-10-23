@@ -117,7 +117,7 @@ adb shell dpm list-owners
 4. Tout message d'Android ou de Play Protect pendant l'installation
    (application non reconnue, analyse proposée) est **noté avec une
    capture, sans se connecter pour le faire disparaître**, au rapport
-   d'essai. Sur le profil émulé avec services Google, aucun message de Play Protect n'est apparu à l'installation ni à la mise à jour (EV-13, `evidence/gms/EV13_2026-10-15.md`) ; sur un vrai terminal : À effectuer (EV-15 : Play Protect sur le D3 Pro réel).
+   d'essai. Sur le profil émulé avec services Google, aucun message de Play Protect n'est apparu à l'installation ni à la mise à jour (EV-13, `evidence/gms/EV13_2026-10-23.md`) ; sur un vrai terminal : À effectuer (EV-15 : Play Protect sur le D3 Pro réel).
 5. Faire d'abord tout ce qui demande adb, et **joindre le réseau Wi-Fi
    du site avant l'import du lot** (§4.3) : au banc, soit dans
    l'assistant de configuration d'Android, en passant l'étape du
@@ -218,7 +218,7 @@ Le terminal porte les services Google, la caisse n'en utilise aucun.
   `PLATEFORME_ANDROID_FR.md` §3.7) ; le mode kiosque suspend en plus les
   autres écrans d'accueil et les Réglages. Mesuré sur le profil avec
   services Google : onze paquets Google présents et masqués, restrictions
-  d'installation posées (EV-13, `evidence/gms/EV13_2026-10-15.md`). Tout
+  d'installation posées (EV-13, `evidence/gms/EV13_2026-10-23.md`). Tout
   message de Play Protect est noté tel quel au rapport d'essai.
 
 ## 4. Configuration initiale

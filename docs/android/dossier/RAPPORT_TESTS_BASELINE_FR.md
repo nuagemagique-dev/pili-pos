@@ -58,7 +58,7 @@ Les chiffres viennent des portes de contrôle des phases (`x1_gate.sh`, `p5_gate
 | Bout en bout de l'application (`app_e2e.sh`) | 11 contrôles sur 11, qui établissent la mise en service par paquet signé, le moteur prêt, le verrouillage kiosque, la connexion d'un gérant contre le FDM simulé et le retour prêt et verrouillé après un arrêt forcé | `P6-exit.md`, 4cfe0b3 ; `X1-exit.md`, a364ad7 |
 | Bout en bout de la plateforme (`plat_e2e.sh`) | 19 contrôles sur 19 : 13 restrictions du propriétaire d'appareil, export vers le SPF avec vérification de `MANIFEST.sha256`, mise à jour par session d'installation signée avec refus des cas `not_newer` et `sha256_mismatch`, redémarrage par le chien de garde, journal d'audit | `P6-exit.md`, 4cfe0b3 |
 
-Le profil émulé de ces mesures est `sunmi_d3_pro_api33`. La variante avec services Google (`sunmi_d3_pro_gms_api33`) a reçu le parcours de la plateforme (`scripts/android/plat_e2e.sh`, 19 contrôles, 0 échec, 15.10.2026) : EV-13, `evidence/gms/EV13_2026-10-15.md`.
+Le profil émulé de ces mesures est `sunmi_d3_pro_api33`. La variante avec services Google (`sunmi_d3_pro_gms_api33`) a reçu le parcours de la plateforme (`scripts/android/plat_e2e.sh`, 19 contrôles, 0 échec, rejoué le 23.10.2026) : EV-13, `evidence/gms/EV13_2026-10-23.md`.
 
 ### Totaux à la livraison
 

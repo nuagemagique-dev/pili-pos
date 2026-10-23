@@ -82,7 +82,7 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       déclarée ; tout message de Play Protect noté. Comme construit :
       applications Google masquées (liste au `PLATEFORME_ANDROID_FR.md`
       §3.7), `DISALLOW_INSTALL_APPS` posée ; mesuré sur le profil avec services
-      Google le 15.10.2026 (EV-13, `evidence/gms/EV13_2026-10-15.md` : onze paquets Google
+      Google le 15.10.2026 (EV-13, `evidence/gms/EV13_2026-10-23.md` : onze paquets Google
       présents, onze masqués, mise à jour déclarée installée sous la
       restriction, fenêtre de mise à jour système de 03:00 à 05:00).
       Play Protect sur un vrai terminal : À effectuer (EV-15 : Play
