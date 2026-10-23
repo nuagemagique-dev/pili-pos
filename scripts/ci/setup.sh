@@ -24,6 +24,10 @@ apt-get update -q
 apt-get install -y -q --no-install-recommends \
     build-essential pkg-config ca-certificates curl git xz-utils python3 "${pkgs[@]}"
 
+# The checkout belongs to the runner user on the host, the job runs as root:
+# let git read it (system config, inside the container only).
+git config --system --add safe.directory '*'
+
 if [ "$rust" = 1 ]; then
     curl -sSf https://sh.rustup.rs | sh -s -- -y -q --profile minimal --default-toolchain none
     echo "$CARGO_HOME/bin" >>"$GITHUB_PATH"

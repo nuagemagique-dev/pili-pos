@@ -70,6 +70,10 @@ jobs:
           python3 scripts/android/check_command_parity.py --strict
           python3 scripts/android/check_command_parity.py --hygiene
 
+      # The lock parity check reads both dependency graphs offline.
+      - name: Fetch the root workspace crates
+        run: cargo fetch --locked
+
       - name: Lock parity
         run: bash scripts/android/check_lock_parity.sh
 
