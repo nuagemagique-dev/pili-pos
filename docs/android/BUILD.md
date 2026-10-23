@@ -269,8 +269,8 @@ scripts/android/check_repro.sh [--commit REF] [--keep-work] [--clean-prefetch]
   Results and the image id and Dockerfile sha256 of every run go to [REPRO.md](REPRO.md).
 - **Gate flag**: `scripts/android/p3_gate.sh --repro` runs it as the `apk-repro` check.
 - **Native x86_64 run**: the Docker VM on the Apple M1 runs amd64 under emulation. The run on a
-  native x86_64 Linux host is left to the user: manual run of the `repro` job of `android.yml`
-  (section 10).
+  native x86_64 Linux host is the manual `repro` job of `android.yml` (section 10); its rc3 run
+  (2026-10-23) gave the same APK as the M1 (`ANDROID_FREEZE.md`, "Native x86_64 run").
 
 ## 9. Gradle dependency verification
 
@@ -335,8 +335,10 @@ Permissions: `contents: read`; one concurrency group per workflow and ref.
 
 There is no emulator job: the instrumented tests, the smoke run and the engine tests on the
 device need the `sunmi_d3_pro_api33` AVD and stay local (section 6). The first manual run of the
-`repro` job on `ubuntu-latest` (native x86_64) is the run DECISIONS 11.13 leaves to the user;
-record its result in REPRO.md.
+`repro` job on `ubuntu-latest` (native x86_64), the run DECISIONS 11.13 leaves to the user, was
+done on 2026-10-23 with the user's go-ahead (INT-D53); its values are in `ANDROID_FREEZE.md`. The
+job frees the runner disk, keeps the hosted SDK for `check_apk.sh` (zipalign) and installs the
+pinned NDK (llvm-readelf).
 
 ## 11. Housekeeping
 

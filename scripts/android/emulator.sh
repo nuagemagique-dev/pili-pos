@@ -57,7 +57,7 @@ mkdir -p "$STATE"
 # ── helpers ─────────────────────────────────────────────────────
 now() { date +%s; }
 
-file_mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0; }
+file_mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
 
 HAVE_LOCK=0
 release_lock() { [[ "$HAVE_LOCK" -eq 0 ]] || { rmdir "$LOCK" 2>/dev/null || rm -rf "$LOCK"; HAVE_LOCK=0; }; }

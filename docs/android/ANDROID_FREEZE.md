@@ -182,6 +182,36 @@ apk-check PASS (`check_apk.sh`, 6 checks). Free disk 36 GB before the run, 19 GB
 
 Total line: `REPRO | total | PASS | the two unsigned APKs are byte-identical (commit 8c53acc3c7a0)`.
 
+### Native x86_64 run (2026-10-23)
+
+The `repro` job of `android.yml` (run 40002227571, job 120602734808), started by hand on a
+GitHub-hosted `ubuntu-latest` x86_64 runner, no emulation. Commit built:
+`e9fa578a48bf21ce9579b41707a58521c7d8aba5` on main; `check_android_frozen.sh --tag
+android-v1.0.0-rc3` is clean there (23 paths), so the frozen inputs are those of the tag commit
+(INT-D53).
+
+| Item | Value |
+|------|-------|
+| image id | `sha256:7913b4330c7446e3b539d65727eccb9445e02e77055aa3dedf7a6d29ff4bdbec` (built by the job, 4012467026 bytes) |
+| Dockerfile sha256 | `0045c8c5ef960329ecce979bed48b21127880f7a9c9784ad7869bf1e2767369f` (same) |
+| SOURCE_DATE_EPOCH | 1792779509 (2026-10-23T18:18:29Z, the commit time) |
+| prefetch key | `02c313528ccc924a14d0c75d55186c777a7cd7da296672928ac44347191b70e3` (same), filled in 235 s, 1600 MB |
+| unsigned APK SHA-1, build 1 and build 2 | `34566c79c177c894c9f0616b1a00043516650f9c` (the rc3 value) |
+| unsigned APK SHA-256 | `2417930a0ccc716ee56436191ded5077bc6639b5a51fe8af41edfdf7f5835e17` (the rc3 value), 21904420 bytes |
+| `libpos_ffi.so` in the APK (stripped) SHA-1 | `bc17c72f1ccfeb4625395b4a186893bb0d90f2ec` (same) |
+| `libpos_ffi.so` cargo output (unstripped) SHA-1 | `94867993105b244284bf305c95b50f102f4eceec` in both builds (same) |
+| entry-manifest sha256 | `54ee8ea2f107ceb032bb50899fcdba4afdabb99c77daba0f564d8835e47b535c`, 117 entries (same) |
+| duration | build 1: 851 s wall (gradle 830 s), build 2: 789 s wall (gradle 758 s) |
+
+Checks: build-1 PASS, build-2 PASS, apk-identical PASS, so-identical PASS, entry-manifest PASS.
+apk-check could not run: the job had deleted the hosted Android SDK to free disk, so
+`check_apk.sh` found no zipalign (precondition, exit 2) and the total line was FAIL. The APK is
+byte-identical to the rc3 one, on which `check_apk.sh` passed its 6 checks (table above). The job
+now keeps the SDK and installs build-tools 35.0.0 and the pinned NDK (INT-D53).
+
+The image id differs from the M1 one: the image records the time it was built. The Dockerfile, the
+prefetch key and every output are the same.
+
 ### Gates at the tag commit
 
 The full gate ran on `8c53acc3` before the tag (clean private Cargo target, `gradlew clean`
@@ -215,8 +245,6 @@ After the tag, at the post-tag documentation commit: see INT-D50 in `DECISIONS.m
   unsigned APK SHA-1) belong to the final `android-v1.0.0` release, not to rc3 (INT-D47).
 - EV-14: the live run against the real FDM service.
 - EV-15: real hardware (Sunmi D3 Pro, Epson printer, CCV A920 probe).
-- The native x86_64 reproducibility run: still to be done by the user (see
-  `docs/android/REPRO.md`, "Limits").
 
 ## Relation to linux-v1.0.0-rc2
 

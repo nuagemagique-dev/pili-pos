@@ -42,7 +42,7 @@ else
     bad "signature-verifies-prehashed" "minisign -V failed or the signature is not prehashed"
 fi
 
-mode="$(stat -f '%Lp' "$KEYS/minisign.key" 2>/dev/null || stat -c '%a' "$KEYS/minisign.key")"
+mode="$(stat -c '%a' "$KEYS/minisign.key" 2>/dev/null || stat -f '%Lp' "$KEYS/minisign.key")"
 if [[ "$mode" == "600" ]]; then ok "secret-key-mode-600"; else bad "secret-key-mode-600" "mode $mode"; fi
 
 if python3 -I - "$TMP/b1" <<'PY'

@@ -91,6 +91,9 @@ STARTED=()   # names of the containers this run started (removed on exit)
 RESULT_FILE=""
 PENDING=()
 n_fail=0
+# GNU stat first: on GNU coreutils "stat -f" is the file system mode and succeeds.
+file_size() { stat -c %s "$1" 2>/dev/null || stat -f %z "$1"; }
+
 emit() { # check status detail
     local line
     line="$(printf 'REPRO | %s | %s | %s' "$1" "$2" "$3")"
@@ -158,12 +161,14 @@ for l in ${PENDING[@]+"${PENDING[@]}"}; do printf '%s\n' "$l" >>"$RESULT_FILE"; 
 emit commit INFO "$COMMIT"
 emit image INFO "$IMAGE_ID ($IMAGE)"
 emit dockerfile-sha256 INFO "$DOCKERFILE_SHA"
-emit source-date-epoch INFO "$EPOCH ($(date -u -r "$EPOCH" +%Y-%m-%dT%H:%M:%SZ))"
+# GNU date takes -d @EPOCH, BSD date (macOS) -r EPOCH.
+epoch_utc="$(date -u -d "@$EPOCH" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -r "$EPOCH" +%Y-%m-%dT%H:%M:%SZ)"
+emit source-date-epoch INFO "$EPOCH ($epoch_utc)"
 emit free-disk INFO "$((free_kb * 1024 / 1000000000)) GB free before the run (minimum $MIN_FREE_GB)"
 
 # ── snapshot ────────────────────────────────────────────────────
 git archive --format=tar -o "$SNAP" "$COMMIT" || precondition_fail snapshot "git archive failed"
-emit snapshot INFO "sha256 $(shasum -a 256 "$SNAP" | cut -d' ' -f1), $(stat -f %z "$SNAP" 2>/dev/null || stat -c %s "$SNAP") bytes"
+emit snapshot INFO "sha256 $(shasum -a 256 "$SNAP" | cut -d' ' -f1), $(file_size "$SNAP") bytes"
 
 # ── prefetch ────────────────────────────────────────────────────
 KEY="$({
@@ -330,7 +335,7 @@ if [[ "${build_ok[1]}" -eq 1 && "${build_ok[2]}" -eq 1 ]]; then
     fi
     u1="$(shasum -a 1 "$WORK/run1/libpos_ffi.so" 2>/dev/null | cut -d' ' -f1)"
     u2="$(shasum -a 1 "$WORK/run2/libpos_ffi.so" 2>/dev/null | cut -d' ' -f1)"
-    us="$(stat -f %z "$WORK/run1/libpos_ffi.so" 2>/dev/null || stat -c %s "$WORK/run1/libpos_ffi.so" 2>/dev/null)"
+    us="$(file_size "$WORK/run1/libpos_ffi.so" 2>/dev/null)"
     emit so-unstripped INFO "libpos_ffi.so (cargo output) SHA-1 build-1 $u1 build-2 $u2 $([[ "$u1" == "$u2" ]] && echo same || echo DIFFERENT), $us bytes"
 
     # content digest of the entries
@@ -359,7 +364,7 @@ if [[ "${build_ok[1]}" -eq 1 && "${build_ok[2]}" -eq 1 ]]; then
 
     emit apk-sha1 INFO "$s1"
     emit apk-sha256 INFO "$(shasum -a 256 "$A1" | cut -d' ' -f1)"
-    emit apk-size INFO "$(stat -f %z "$A1" 2>/dev/null || stat -c %s "$A1") bytes"
+    emit apk-size INFO "$(file_size "$A1") bytes"
     so_stripped_size="$(unzip -l "$A1" lib/arm64-v8a/libpos_ffi.so 2>/dev/null | awk '$4=="lib/arm64-v8a/libpos_ffi.so" {print $1}')"
     emit so-stripped INFO "libpos_ffi.so in the APK SHA-1 $(unzip -p "$A1" lib/arm64-v8a/libpos_ffi.so | shasum -a 1 | cut -d' ' -f1), ${so_stripped_size:-?} bytes"
 else
