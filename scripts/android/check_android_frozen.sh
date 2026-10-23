@@ -7,7 +7,7 @@
 # (built by android/docker/build_in_container.sh) with the freeze tag, working
 # tree included:
 #
-#   Cargo.toml rust-toolchain.toml android/rust android/build.gradle.kts
+#   Cargo.toml rust-toolchain.toml android/rust (minus pos-ffi/tests) android/build.gradle.kts
 #   android/settings.gradle.kts android/gradle.properties android/gradle
 #   android/gradlew android/docker
 #   android/app           (minus src/test and src/androidTest)
@@ -115,6 +115,7 @@ excludes=(
     ':(exclude)android/app/src/test'
     ':(exclude)android/app/src/androidTest'
     ':(exclude)android/pos-core/src/test'
+    ':(exclude)android/rust/pos-ffi/tests'
 )
 status=0
 

@@ -240,10 +240,13 @@ async fn cancelled_shutdown_then_shutdown_ends_the_streams() {
     call.await.unwrap().unwrap();
     t.engine.shutdown().await.unwrap();
 
-    let next = tokio::time::timeout(Duration::from_secs(5), stream.next())
-        .await
-        .expect("the stream ends once the engine is shut down");
-    assert!(next.is_none());
+    // Events sent before the shutdown (the clock-out's) are still delivered, then the stream
+    // ends: on a slow machine the clock-out event can still be queued here.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while stream.next().await.is_some() {}
+    })
+    .await
+    .expect("the stream ends once the engine is shut down");
     assert!(matches!(
         t.engine.events().await,
         Err(PosError::EngineClosed)

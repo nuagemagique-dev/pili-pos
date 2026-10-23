@@ -29,7 +29,7 @@ tag (documentation only, not an APK input).
 The inputs of the APK built by `android/docker/build_in_container.sh`:
 
 - `Cargo.toml`, `rust-toolchain.toml`
-- `android/rust`, `android/build.gradle.kts`, `android/settings.gradle.kts`,
+- `android/rust` minus `pos-ffi/tests` (integration tests, not compiled into the APK; INT-D52), `android/build.gradle.kts`, `android/settings.gradle.kts`,
   `android/gradle.properties`, `android/gradle`, `android/gradlew`, `android/docker`
 - `android/app` minus `src/test` and `src/androidTest`
 - `android/pos-core` minus `src/test`
@@ -135,6 +135,7 @@ crates/pos-print
 :(exclude)android/app/src/test
 :(exclude)android/app/src/androidTest
 :(exclude)android/pos-core/src/test
+:(exclude)android/rust/pos-ffi/tests
 ```
 
 ### Build inputs

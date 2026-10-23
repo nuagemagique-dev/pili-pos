@@ -4,6 +4,7 @@
 #   clean                              -> 0
 #   edit of an android/app/src/main file -> 1
 #   edit of an android/app/src/test file -> 0 (tests are not APK inputs)
+#   edit of an android/rust/pos-ffi/tests file -> 0 (same)
 #   edit of a crates/pos-engine file   -> 1
 #   edit of a ui/ file                 -> 0 (Linux only)
 #   edit of a src-tauri file           -> 0 (Linux only)
@@ -76,6 +77,10 @@ suite() {
         echo '// edit' >>"$test_file"
         run "$label/edit-app-test" 0
         git checkout -q -- "$test_file"
+
+        echo '// edit' >>android/rust/pos-ffi/tests/ffi/lifecycle.rs
+        run "$label/edit-ffi-test" 0
+        git checkout -q -- android/rust/pos-ffi/tests/ffi/lifecycle.rs
 
         echo '# edit' >>crates/pos-engine/Cargo.toml
         run "$label/edit-pos-engine" 1 'differ'

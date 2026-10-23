@@ -164,7 +164,7 @@ jobs:
         run: >-
           scripts/ci/setup.sh --rust --node "$NODE_VERSION"
           libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev patchelf
-          xvfb webkit2gtk-driver
+          xvfb webkitgtk-webdriver
 
       - name: Install tauri-driver
         run: cargo install tauri-driver --version 2.0.6 --locked
