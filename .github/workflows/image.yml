@@ -56,7 +56,8 @@ jobs:
         with:
           name: deploy-dist
           path: deploy/dist/
-          retention-days: 14
+          # Only passes the build to the next job; the account artifact quota is shared.
+          retention-days: 1
 
       - name: Upload both build_info reports
         if: always()
@@ -142,7 +143,8 @@ jobs:
           path: |
             deploy/image/mkosi.output/${{ matrix.profile }}/*.img.xz
             deploy/image/mkosi.output/${{ matrix.profile }}/pili-pos-embedded-binary.sha1
-          retention-days: 14
+          # Large images: kept one day (the account artifact quota is shared).
+          retention-days: 1
 
   # ── Boot smoke test: does the admission image actually come up? ──
   boot-smoke:
