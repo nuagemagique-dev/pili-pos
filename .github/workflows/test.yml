@@ -11,12 +11,24 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  # The engine has over a hundred integration test binaries. With full debug
-  # info and incremental data the debug target outgrows the runner disk
-  # (ld died with SIGBUS, then "No space left on device"). Tests do not need
-  # debug info; backtraces still name the functions.
+  # The engine has over a hundred integration test binaries: without debug
+  # info and incremental data the debug target stays a few GB. Tests do not
+  # need debug info; backtraces still name the functions.
   CARGO_INCREMENTAL: "0"
   CARGO_PROFILE_DEV_DEBUG: "0"
+  # Toolchains and caches live inside the job container, never in the
+  # host-mounted home (scripts/ci/setup.sh).
+  RUSTUP_HOME: /opt/rustup
+  CARGO_HOME: /opt/cargo
+  npm_config_cache: /tmp/npm-cache
+  PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
+  NODE_VERSION: "24.21.0"  # latest LTS, same as deploy/build-release.sh
+
+# Every job runs on the homelab runner (self-hosted, Linux ARM64, label
+# moyun-pos) in a fresh Ubuntu container. Nothing stays on the host after a
+# job: the build output is inside the container, which the runner removes,
+# and the last step (scripts/ci/cleanup.sh, run even on failure) empties the
+# host-mounted checkout, temp and home folders. No cache, no artifact upload.
 
 jobs:
   # ── Layer 1: Rust - format, lint and every test ──────────────
@@ -26,7 +38,8 @@ jobs:
   # suites all run here; any failure or warning blocks.
   rust:
     name: Rust (${{ matrix.features.name }})
-    runs-on: ubuntu-26.04
+    runs-on: [self-hosted, moyun-pos]
+    container: ubuntu:26.04
     strategy:
       fail-fast: false
       matrix:
@@ -35,46 +48,24 @@ jobs:
             flags: ""
           - name: cert
             flags: "--no-default-features --features cert"
+    env:
+      CARGO_TARGET_DIR: /tmp/target
     steps:
+      - name: Git for the checkout
+        run: apt-get update -q && apt-get install -y -q --no-install-recommends git ca-certificates
+
       - uses: actions/checkout@v7
-
-      # Preinstalled SDKs this workflow never uses take most of the disk.
-      - name: Free runner disk
-        run: |
-          df -h /
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
-          df -h /
-
-      - name: Install system deps (webkit2gtk for Tauri)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libssl-dev \
-            patchelf
-
-      # rust-toolchain.toml pins the compiler; rustup installs it here.
-      - name: Toolchain
-        run: rustup show active-toolchain
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.features.name }}
+          persist-credentials: false
+
+      - name: Toolchain and system deps (webkit2gtk for Tauri)
+        run: >-
+          scripts/ci/setup.sh --rust ${{ matrix.features.name == 'cert' && '--node "$NODE_VERSION"' || '' }}
+          libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev patchelf
 
       # The cert build embeds the UI bundle (tauri.conf.json frontendDist,
       # custom-protocol): build it as scripts/build_and_hash.sh does,
       # webshop left out.
-      - name: Setup Node (cert)
-        if: matrix.features.name == 'cert'
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24.21.0"  # latest LTS, same as deploy/build-release.sh
-          cache: npm
-          cache-dependency-path: ui/package-lock.json
-
       - name: UI bundle (cert)
         if: matrix.features.name == 'cert'
         working-directory: ui
@@ -110,83 +101,76 @@ jobs:
         if: matrix.features.name == 'cert'
         run: cargo test -p pos-engine ${{ matrix.features.flags }} --no-fail-fast
 
+      - name: Clean up the runner
+        if: always()
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/cleanup.sh" || find "$GITHUB_WORKSPACE" -mindepth 1 -delete
+
   # ── Layer 2: Playwright E2E (mock IPC) ────────────────────────
   playwright-e2e:
     name: Playwright E2E
-    runs-on: ubuntu-26.04
-    defaults:
-      run:
-        working-directory: ui
+    runs-on: [self-hosted, moyun-pos]
+    container: ubuntu:26.04
     steps:
-      - uses: actions/checkout@v7
+      - name: Git for the checkout
+        run: apt-get update -q && apt-get install -y -q --no-install-recommends git ca-certificates
 
-      - name: Setup Node
-        uses: actions/setup-node@v7
+      - uses: actions/checkout@v7
         with:
-          node-version: "24.21.0"  # latest LTS, same as deploy/build-release.sh
-          cache: npm
-          cache-dependency-path: ui/package-lock.json
+          persist-credentials: false
+
+      - name: Node
+        run: scripts/ci/setup.sh --node "$NODE_VERSION"
 
       - name: Install deps
+        working-directory: ui
         run: npm ci
 
       - name: Type-check and build
+        working-directory: ui
         run: npm run build
 
       - name: Install Playwright browsers
+        working-directory: ui
         run: npx playwright install --with-deps webkit
 
       - name: Run E2E tests
+        working-directory: ui
         run: npx playwright test --reporter=github
 
-      - name: Upload test results
+      - name: Clean up the runner
         if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-report
-          path: ui/test-results/
-          retention-days: 7
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/cleanup.sh" || find "$GITHUB_WORKSPACE" -mindepth 1 -delete
 
   # ── Layer 3: Integration (real binary + WebDriver) ────────────
-  # Runs only on the main branch (or a manual run) to avoid burning CI
-  # minutes on feature branches. The certification binary, its real
-  # SQLite database and IPC, driven over WebDriver: tauri-driver +
-  # WebKitWebDriver, as Tauri documents for Linux (ui/e2e/real-binary/).
+  # Runs only on the main branch (or a manual run). The certification
+  # binary, its real SQLite database and IPC, driven over WebDriver:
+  # tauri-driver + WebKitWebDriver, as Tauri documents for Linux
+  # (ui/e2e/real-binary/).
   integration:
     name: Integration (real binary)
-    runs-on: ubuntu-26.04
+    runs-on: [self-hosted, moyun-pos]
+    container: ubuntu:26.04
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     needs: [rust, playwright-e2e]
     steps:
+      - name: Git for the checkout
+        run: apt-get update -q && apt-get install -y -q --no-install-recommends git ca-certificates
+
       - uses: actions/checkout@v7
-
-      - name: Install system deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libssl-dev \
-            patchelf \
-            xvfb \
-            webkitgtk-webdriver
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
         with:
-          node-version: "24.21.0"  # latest LTS, same as deploy/build-release.sh
-          cache: npm
-          cache-dependency-path: ui/package-lock.json
+          persist-credentials: false
+
+      - name: Toolchain and system deps
+        run: >-
+          scripts/ci/setup.sh --rust --node "$NODE_VERSION"
+          libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev patchelf
+          xvfb webkit2gtk-driver
 
       - name: Install tauri-driver
         run: cargo install tauri-driver --version 2.0.6 --locked
 
       # The certification build, UI bundle embedded: the binary under
-      # test is the one declared to SPF Finances.
+      # test is the one of the Linux product.
       - name: Build the certification binary
         run: scripts/build_and_hash.sh
 
@@ -227,25 +211,32 @@ jobs:
         if: always()
         run: cat /tmp/tauri-driver.log || true
 
+      - name: Clean up the runner
+        if: always()
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/cleanup.sh" || find "$GITHUB_WORKSPACE" -mindepth 1 -delete
+
   # ── Dossier: certification bundle consistency ──────────────────
   # Cross-checks docs/SUBMISSION_ARTIFACTS against the code (Rust
   # identifiers, repo paths, brand-neutral wording, no em dashes, no
-  # leftover placeholders). The dossier is being rewritten in parallel,
-  # so this job may be red for a while; that is expected, not a bug in
-  # the checker.
+  # leftover placeholders).
   dossier:
     name: Dossier consistency
-    runs-on: ubuntu-26.04
+    runs-on: [self-hosted, moyun-pos]
+    container: ubuntu:26.04
     steps:
-      - uses: actions/checkout@v7
+      - name: Git and Python
+        run: apt-get update -q && apt-get install -y -q --no-install-recommends git ca-certificates python3
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - uses: actions/checkout@v7
         with:
-          python-version: "3.12"
+          persist-credentials: false
 
       - name: Run checker unit tests
         run: python3 scripts/test_check_dossier.py -v
 
       - name: Check dossier against the code
         run: python3 scripts/check_dossier.py
+
+      - name: Clean up the runner
+        if: always()
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/cleanup.sh" || find "$GITHUB_WORKSPACE" -mindepth 1 -delete
