@@ -9,6 +9,11 @@ on:
     paths-ignore: ['android/**', 'docs/android/**']
   workflow_dispatch: {}
 
+# One runner: a newer run of the same branch replaces a queued or running one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   # The engine has over a hundred integration test binaries: without debug
