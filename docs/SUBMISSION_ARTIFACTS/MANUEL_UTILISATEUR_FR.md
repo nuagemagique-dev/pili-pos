@@ -1323,6 +1323,40 @@ uniquement." **Un employé peut refuser le badge** : son PIN (ou
 l'enregistrement de sa présence par le Gérant, §3) reste disponible sans
 aucun désavantage.
 
+### 12.11 Export nocturne
+
+Panneau « Export nocturne » de « Config ». Réservé au Gérant. Il
+montre où en est l'envoi automatique, après chaque rapport Z réel, de la
+sauvegarde chiffrée et de la copie statistique de l'établissement
+(`EXPORT_NOCTURNE_FR.md`). Ce panneau n'est qu'un témoin : une vente, un
+Z ou un rapport n'attendent jamais l'export, et rien n'est à faire tant
+que l'état est « À jour ». Le panneau se met à jour tout seul toutes les
+30 secondes.
+
+L'état, en haut du panneau :
+
+| État | Signification | Que faire |
+|---|---|---|
+| « Non configuré » | L'établissement n'envoie rien : la fonction n'a pas été installée. | Rien. |
+| « Configuration invalide » | La configuration de l'export est refusée (la cause s'affiche dessous). L'export est arrêté, la caisse vend normalement. | Appeler l'installateur (§14). |
+| « À jour » | Tous les exports préparés sont arrivés au point de réception. | Rien. |
+| « n exports en attente » | Des exports ne sont pas encore livrés (réseau coupé, point de réception en panne, jeton refusé). Ils sont réessayés automatiquement, de plus en plus espacés (de 1 à 60 minutes), tant qu'ils sont conservés (`keep_days` jours). | Si l'état dure, lire « Dernière erreur » et appeler l'installateur. |
+
+Les lignes du panneau : « Destination » (serveur de réception, sans
+chemin), « Dernier export » (identifiant et heure de préparation),
+« Dernier envoi » (heure du dernier export arrivé complet), « Prochain
+essai » (quand des exports attendent), « Dernière erreur » (avec son
+heure ; disparaît au premier succès), « Conservés : n sur 14 jours »
+(les copies gardées sur la caisse ; le nombre de jours est celui de
+l'installation) et « Abandonnés » (exports jamais livrés qui ont été
+supprimés de la caisse après la durée de conservation). Le bouton
+« Réessayer maintenant » rend tout de suite possible un nouvel essai des
+exports en attente ; il n'est affiché que si l'export est actif. Si
+« Abandonnés » augmente, prévenir l'installateur : la caisse n'a pas pu
+joindre le point de réception pendant toute la durée de conservation.
+
+Un Z de formation (§13) ne produit aucun export.
+
 ### 12 ter. Fonctions du propriétaire (Gérant)
 
 *Captures 81 (alertes), 84 (service en plusieurs temps) et 92 (bons cadeaux) de CAPTURES_ECRAN_FR.pdf.*

@@ -62,6 +62,7 @@ pdf_out/ALERTES_PROPRIETAIRE_FR.pdf
 pdf_out/ALLERGENES_FR.pdf
 pdf_out/SERVICES_CUISINE_FR.pdf
 pdf_out/BONS_CADEAUX_FR.pdf
+pdf_out/EXPORT_NOCTURNE_FR.pdf
 
 # Preuves brutes (Report_Testing dans le ZIP, voir plus haut)
 evidence/uc

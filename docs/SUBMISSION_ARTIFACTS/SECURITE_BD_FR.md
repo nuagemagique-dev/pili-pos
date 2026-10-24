@@ -510,11 +510,46 @@ Politique :
   `commands::report::backup_database_impl`, via SQLite Online Backup
   API). Un échec de sauvegarde est journalisé et n'annule pas le Z.
 - Fichier daté à la seconde, **jamais écrasé**.
-- Stockage local - pas de sauvegarde cloud automatisée (le
-  distributeur peut configurer une copie distante si demandé par le
-  commerçant, en dehors du périmètre certifié).
-- Rétention indéfinie (au moins 7 ans, exigence légale belge).
+- Stockage local. Aucune sauvegarde n'est envoyée hors de la caisse
+  par défaut ; la seule copie distante prévue est l'export nocturne
+  facultatif et chiffré du §5.1.
+- Les 7 sauvegardes les plus récentes sont gardées
+  (`FEUILLE_ACQUISITION_DONNEES_FR.md` §1.2) ; la conservation légale
+  (au moins 7 ans, exigence belge) porte sur `pos.db`, qui garde tout
+  le journal fiscal en ajout seul.
 - La clé des badges (§2.5) n'est **pas** sauvegardée avec la base : restaurer une sauvegarde sur un autre appareil retire les badges (motif `key_changed`), à lier de nouveau.
+
+### 5.1 Sauvegarde chiffrée de bout en bout (export nocturne, facultatif)
+
+Seulement si la section `export` de `pos.json` est renseignée
+(`EXPORT_NOCTURNE_FR.md`). Elle s'ajoute aux sauvegardes locales
+ci-dessus, qu'elle ne remplace pas ni ne modifie.
+
+- **Chiffrement de bout en bout.** La copie de `pos.db` est chiffrée
+  sur la caisse avec age (X25519) pour la clé publique du propriétaire
+  de l'établissement et, en option, du producteur, avant d'être
+  envoyée. Les clés privées ne sont jamais sur la caisse ni sur le
+  serveur de réception, qui ne détient la sauvegarde que sous forme
+  chiffrée et ne peut pas la lire (il reçoit aussi la copie statistique
+  et le manifeste, non chiffrés).
+- **Aucun texte clair conservé.** La copie intermédiaire de la base
+  n'existe que le temps du chiffrement, dans un répertoire de travail
+  vidé au démarrage et avant chaque préparation ; elle est supprimée
+  aussi en cas d'échec. Seule la copie statistique (sans donnée
+  directement identifiante, opérateurs sous pseudonyme) est conservée
+  en clair, avec le fichier chiffré.
+- **Intégrité.** Chaque fichier est envoyé avec son empreinte SHA-256,
+  que le récepteur vérifie ; le manifeste, envoyé en dernier, répète
+  les empreintes et les tailles et marque l'export complet.
+- **Transport.** HTTPS vers le point de réception propre à
+  l'installation ; jeton porteur dans un fichier séparé de `pos.json`,
+  jamais journalisé.
+- **Aucune écriture dans la base.** La préparation lit `pos.db` par une
+  connexion en lecture seule, hors du verrou de signature : elle ne
+  peut ni modifier `fiscal_events` ni retarder une vente ou un Z.
+- **Stockage local** sur le disque interne, à côté de `pos.db`
+  (protégé comme elle : permissions du service, chiffrement LUKS2 de
+  `/var`, §3.6), jamais sur un support amovible.
 
 ## 6. Confidentialité (GDPR)
 
@@ -573,9 +608,14 @@ tiers choisi par le propriétaire, qui peut retirer la fonction en la désactiva
 Bons cadeaux. Le code complet d'un bon n'est imprimé que sur le bon ; il est masqué partout ailleurs et ne figure dans
 aucune demande signée. Aucune donnée de client n'est associée à un bon.
 
-Export : le POS n'exporte automatiquement aucune donnée fiscale ; les
-seuls flux sortants sont ceux ci-dessus (HubRise, Scaleway et, pour
-les alertes du propriétaire, Telegram, selon la configuration de l'installation) et la communication avec le FDM.
+Export : par défaut, le POS n'exporte automatiquement aucune donnée
+fiscale ; les seuls flux sortants sont ceux ci-dessus (HubRise, Scaleway
+et, pour les alertes du propriétaire, Telegram, selon la configuration
+de l'installation), la communication avec le FDM et, si la section
+`export` de `pos.json` est renseignée, l'export nocturne (§5.1) : une
+sauvegarde chiffrée de bout en bout, que le serveur de réception ne
+peut pas lire, et une copie statistique sans donnée directement
+identifiante (`EXPORT_NOCTURNE_FR.md`).
 
 ## 7. Audit trail croisé
 

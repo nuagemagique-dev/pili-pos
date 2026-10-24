@@ -377,6 +377,20 @@ Quatre fonctions du binaire certifié, toutes éteintes ou inertes par défaut, 
 `crates/pos-accounting`) : aucune crate livrée ne dépend de lui, il lit seulement une copie de l'export ou d'une
 sauvegarde, jamais la base en service, et il ne signe rien. Il n'est pas livré dans le paquet de la caisse.
 
+## 6sexies. Export nocturne (facultatif)
+
+- Crate : `crates/pos-export` (sauvegarde par l'API Online Backup sur
+  une connexion en lecture seule, chiffrement age, copie statistique,
+  manifeste, client HTTPS, file d'attente) ; intégration au moteur dans
+  `crates/pos-engine/src/commands/export.rs` et une boucle de tâche de
+  fond dans `background.rs`.
+- Section `export` de `pos.json` ; absente, rien n'est créé et aucune
+  connexion n'est ouverte.
+- Déclenché après chaque rapport Z réel (jamais en formation) ; hors du
+  verrou de signature, hors du verrou de la base des commandes : une
+  vente ou un Z n'attend jamais l'export. Le journal légal reste local.
+  Détail : `EXPORT_NOCTURNE_FR.md`.
+
 ## 7. Persistance
 
 - Moteur : **SQLite** (DB en un seul fichier dans
@@ -475,6 +489,8 @@ $ nm target/release/pili-pos | grep -c pos_peppol                    # code de f
 | Impression ESC/POS | `crates/pos-print/src/escpos.rs` |
 | Layout ticket | `crates/pos-print/src/receipt.rs` |
 | Alertes du propriétaire (boucle, règles, texte, canal Telegram) | `crates/pos-engine/src/alerts/` |
+| Export nocturne : moteur (état, passage, commandes) | `crates/pos-engine/src/commands/export.rs` |
+| Export nocturne : sauvegarde chiffrée, copie statistique, envoi, file d'attente | `crates/pos-export/src/` |
 | Bons cadeaux (commandes, tickets) | `crates/pos-engine/src/commands/gift_vouchers.rs`, `crates/pos-print/src/gift_voucher.rs` |
 | Service en plusieurs temps | `crates/pos-engine/src/commands/courses.rs` |
 | Allergènes (commandes, fiche imprimée) | `crates/pos-engine/src/commands/allergens.rs`, `crates/pos-print/src/allergen_sheet.rs` |
