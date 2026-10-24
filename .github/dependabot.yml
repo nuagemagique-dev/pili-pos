@@ -19,6 +19,10 @@ updates:
     ignore:
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # TypeScript 7.0.x: wait for 7.1 before moving the UI to the new major
+      # (remove this entry once on 7.1).
+      - dependency-name: 'typescript'
+        versions: ['7.0.x']
     groups:
       # Security fixes, opened as soon as an advisory lands (no cooldown).
       security:
