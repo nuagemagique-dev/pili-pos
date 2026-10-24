@@ -1,0 +1,5 @@
+# Mechanical reformatting commits, skipped by `git blame`
+# (git config blame.ignoreRevsFile .git-blame-ignore-revs; GitHub reads it by itself).
+
+# style(ui): format the UI with vp fmt (oxfmt)
+bd913557dd435f1313ba0497075dac2e43ff0643

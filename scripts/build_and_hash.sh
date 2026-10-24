@@ -29,7 +29,9 @@ echo "── 1/5 Certification build ──────────────�
 # build the UI bundle first so it gets embedded (`custom-protocol`,
 # pulled in by the `cert` feature). The bundle has the HubRise screens;
 # the installation's switch decides whether they show.
-(cd ui && npm ci && npm run build)
+# VP_GIT_HOOKS=0: `npm ci` runs `vp config` (prepare), which would point the
+# checkout's git hooks at ui/.vite-hooks; a build never needs them.
+(cd ui && VP_GIT_HOOKS=0 npm ci && npm run build)
 (cd src-tauri && cargo build --release --no-default-features --features cert)
 [[ -f "$BINARY" ]] || { echo "✗ binary not found: $BINARY"; exit 1; }
 
