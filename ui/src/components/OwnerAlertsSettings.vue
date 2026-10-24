@@ -66,6 +66,11 @@ async function test() {
   await store.sendTest();
 }
 
+function toggleEnabled() {
+  if (draft.value) draft.value.enabled = !draft.value.enabled
+  saved.value = false
+}
+
 function toggleKind(k: KindKey) {
   if (draft.value) draft.value.kinds[k] = !draft.value.kinds[k];
   saved.value = false;
@@ -122,7 +127,7 @@ const time = (iso: string) => formatTimestamp(iso, formatDayTime);
         data-testid="alerts-enabled"
         role="switch"
         :aria-checked="draft.enabled"
-        @click="draft.enabled = !draft.enabled; saved = false"
+        @click="toggleEnabled"
       >
         <span>{{ draft.enabled ? t('alerts_state_on') : t('alerts_state_off') }}</span>
         <span class="track"><span class="thumb"></span></span>

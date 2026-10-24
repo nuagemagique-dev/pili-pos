@@ -177,6 +177,28 @@ function selectCategory(id: number) {
   selectedCategory.value = id;
 }
 
+/** A row of the lists: select it and, unless HubRise manages the menu, open it in the form. */
+function openCategory(c: ipc.AdminCategory) {
+  selectCategory(c.id)
+  showHistory.value = false
+  if (!locked.value) editCategory(c)
+}
+
+function newCategory() {
+  showHistory.value = false
+  editCategory()
+}
+
+function openProduct(p: ipc.AdminProduct) {
+  showHistory.value = false
+  if (!locked.value) editProduct(p)
+}
+
+function newProduct() {
+  showHistory.value = false
+  editProduct()
+}
+
 function startPrice(cents: number) {
   priceDigits.value = cents > 0 ? String(cents) : "";
 }
@@ -484,7 +506,7 @@ const ui = reactive({ colors: PALETTE });
               class="row"
               :class="{ selected: selectedCategory === c.id, hidden: !c.active }"
               data-testid="menu-ed-category-row"
-              @click="selectCategory(c.id); showHistory = false; if (!locked) editCategory(c)"
+              @click="openCategory(c)"
             >
               <span class="swatch" :style="{ background: c.color ?? 'transparent' }"></span>
               <span class="row-name">{{ labelOf(c.names) }}</span>
@@ -492,7 +514,7 @@ const ui = reactive({ colors: PALETTE });
             </button>
           </li>
         </ul>
-        <button v-if="!locked" class="add-btn" data-testid="menu-ed-add-category" @click="showHistory = false; editCategory()">
+        <button v-if="!locked" class="add-btn" data-testid="menu-ed-add-category" @click="newCategory">
           + {{ t('menu_ed_add_category') }}
         </button>
       </section>
@@ -507,7 +529,7 @@ const ui = reactive({ colors: PALETTE });
               class="row"
               :class="{ selected: currentProduct?.id === p.id, hidden: !p.active }"
               data-testid="menu-ed-product-row"
-              @click="showHistory = false; if (!locked) editProduct(p)"
+              @click="openProduct(p)"
             >
               <span class="row-name">{{ labelOf(p.names) }}</span>
               <span v-if="!p.active" class="tag">{{ t('menu_ed_hidden') }}</span>
@@ -520,7 +542,7 @@ const ui = reactive({ colors: PALETTE });
           class="add-btn"
           data-testid="menu-ed-add-product"
           :disabled="selectedCategory === null"
-          @click="showHistory = false; editProduct()"
+          @click="newProduct"
         >+ {{ t('menu_ed_add_product') }}</button>
       </section>
 

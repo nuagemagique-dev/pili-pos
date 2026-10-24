@@ -99,6 +99,12 @@ function closePin() {
   chosenPin.value = null;
 }
 
+/** A PIN chosen or changed: the list shows it. */
+function pinDone() {
+  closePin()
+  void loadWorkers()
+}
+
 async function confirmWithManagerPin(operatorPin: string) {
   const pin = chosenPin.value ?? "";
   if (newManager.value) {
@@ -602,7 +608,7 @@ onMounted(() => {
       v-if="pinFor && ownPin"
       :insz="pinFor.insz"
       :user-name="pinFor.name"
-      @done="closePin(); loadWorkers()"
+      @done="pinDone"
       @cancel="closePin"
     />
     <PinDialog
@@ -618,7 +624,7 @@ onMounted(() => {
       :user-name="auth.currentUser.name"
       :hint="t('pin_confirm_manager')"
       :verify="confirmWithManagerPin"
-      @done="closePin(); loadWorkers()"
+      @done="pinDone"
       @cancel="closePin"
     />
   </div>
