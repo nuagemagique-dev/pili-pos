@@ -51,10 +51,18 @@ const store = useToastStore()
   animation: toast-in 150ms ease-out;
 }
 
-.toast-success { border-left-color: var(--accent-success); }
-.toast-warning { border-left-color: var(--accent-warning); }
-.toast-error   { border-left-color: var(--accent-danger); }
-.toast-info    { border-left-color: var(--accent-info); }
+.toast-success {
+  border-left-color: var(--accent-success);
+}
+.toast-warning {
+  border-left-color: var(--accent-warning);
+}
+.toast-error {
+  border-left-color: var(--accent-danger);
+}
+.toast-info {
+  border-left-color: var(--accent-info);
+}
 
 @keyframes toast-in {
   from {

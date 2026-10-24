@@ -1,24 +1,24 @@
 <script setup lang="ts">
 // The free tables of the plan, to move an order to one of them.
 // Tapping a table selects it; "Valider" asks for the move.
-import { ref } from "vue";
-import type { TableInfo } from "../api/ipc";
-import { useI18n } from "../i18n";
+import { ref } from 'vue'
+import type { TableInfo } from '../api/ipc'
+import { useI18n } from '../i18n'
 
 defineProps<{
   /** The tables the order can move to (free ones, the current one left out). */
-  tables: TableInfo[];
+  tables: TableInfo[]
   /** The table the order is on now. */
-  from: number;
-}>();
+  from: number
+}>()
 
 const emit = defineEmits<{
-  confirm: [tableNumber: number];
-  cancel: [];
-}>();
+  confirm: [tableNumber: number]
+  cancel: []
+}>()
 
-const { t } = useI18n();
-const selected = ref<number | null>(null);
+const { t } = useI18n()
+const selected = ref<number | null>(null)
 </script>
 
 <template>
@@ -73,8 +73,14 @@ const selected = ref<number | null>(null);
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
 }
-.title { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
-.hint { font-size: var(--font-size-md); color: var(--text-secondary); }
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+.hint {
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
 .grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -93,13 +99,19 @@ const selected = ref<number | null>(null);
   border: 2px solid transparent;
   transition: transform var(--tap-duration) ease;
 }
-.pick:active { transform: scale(var(--tap-scale)); }
+.pick:active {
+  transform: scale(var(--tap-scale));
+}
 .pick.selected {
   border-color: var(--accent-primary);
   background: var(--accent-primary);
   color: var(--text-on-accent);
 }
-.actions { display: flex; gap: var(--space-sm); width: 100%; }
+.actions {
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
+}
 .btn {
   flex: 1;
   height: 56px;
@@ -108,8 +120,18 @@ const selected = ref<number | null>(null);
   border-radius: var(--radius-md);
   transition: transform var(--tap-duration) ease;
 }
-.btn:active { transform: scale(var(--tap-scale)); }
-.btn-cancel { background: var(--bg-surface); color: var(--text-secondary); }
-.btn-confirm { background: var(--accent-primary); color: var(--text-on-accent); }
-.btn-confirm:disabled { opacity: 0.4; }
+.btn:active {
+  transform: scale(var(--tap-scale));
+}
+.btn-cancel {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+.btn-confirm {
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+}
+.btn-confirm:disabled {
+  opacity: 0.4;
+}
 </style>

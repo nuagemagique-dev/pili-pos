@@ -4,73 +4,75 @@
  * device lights, operator, table, clock, workspaces and the lock.
  * 64 px high so its buttons can be 48 px (§4.1, §13).
  */
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
-import { useIntegrationsStore } from "../stores/integrations";
-import { useRoute, useRouter } from "vue-router";
-import { useAuthStore } from "../stores/auth";
-import { useOrderStore } from "../stores/order";
-import { useToastStore } from "../stores/toast";
-import { useI18n } from "../i18n";
-import { describeError } from "../utils/errorMessages";
-import { formatTime } from "../utils/datetime";
-import PiliLogo from "./PiliLogo.vue";
-import StatusLights from "./StatusLights.vue";
-import PinDialog from "./PinDialog.vue";
-import FdmAlerts from "./FdmAlerts.vue";
-import TrainingBanner from "./TrainingBanner.vue";
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
+import { useIntegrationsStore } from '../stores/integrations'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+import { useOrderStore } from '../stores/order'
+import { useToastStore } from '../stores/toast'
+import { useI18n } from '../i18n'
+import { describeError } from '../utils/errorMessages'
+import { formatTime } from '../utils/datetime'
+import PiliLogo from './PiliLogo.vue'
+import StatusLights from './StatusLights.vue'
+import PinDialog from './PinDialog.vue'
+import FdmAlerts from './FdmAlerts.vue'
+import TrainingBanner from './TrainingBanner.vue'
 
 // While HubRise runs, or online orders are still to settle.
-const OnlineOrdersNavButton = defineAsyncComponent(() => import("./OnlineOrdersNavButton.vue"));
-const integrations = useIntegrationsStore();
+const OnlineOrdersNavButton = defineAsyncComponent(() => import('./OnlineOrdersNavButton.vue'))
+const integrations = useIntegrationsStore()
 
-const route = useRoute();
-const router = useRouter();
-const auth = useAuthStore();
-const order = useOrderStore();
-const toast = useToastStore();
-const { t } = useI18n();
+const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+const order = useOrderStore()
+const toast = useToastStore()
+const { t } = useI18n()
 
-const clock = ref(formatTime(new Date()));
-let clockTimer: ReturnType<typeof setInterval> | undefined;
+const clock = ref(formatTime(new Date()))
+let clockTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
-  clockTimer = setInterval(() => (clock.value = formatTime(new Date())), 10_000);
-});
-onUnmounted(() => clearInterval(clockTimer));
+  clockTimer = setInterval(() => (clock.value = formatTime(new Date())), 10_000)
+})
+onUnmounted(() => clearInterval(clockTimer))
 
-const onOrderScreen = computed(() => route.name === "order" || route.name === "checkout");
-const orderType = computed(() => (onOrderScreen.value ? order.currentOrder?.order_type : undefined));
-const tableNumber = computed(() => (orderType.value === "dine_in" ? order.currentOrder?.table_number : null));
+const onOrderScreen = computed(() => route.name === 'order' || route.name === 'checkout')
+const orderType = computed(() => (onOrderScreen.value ? order.currentOrder?.order_type : undefined))
+const tableNumber = computed(() =>
+  orderType.value === 'dine_in' ? order.currentOrder?.table_number : null,
+)
 
 // "You are here" (§2.3): a dine-in order belongs to Tables.
-const tablesActive = computed(() => route.name === "tables" || orderType.value === "dine_in");
-const takeawayActive = computed(() => orderType.value === "takeaway");
+const tablesActive = computed(() => route.name === 'tables' || orderType.value === 'dine_in')
+const takeawayActive = computed(() => orderType.value === 'takeaway')
 
-const roleLabel = computed(() => (auth.currentUser ? t(`role_${auth.currentUser.role}`) : ""));
+const roleLabel = computed(() => (auth.currentUser ? t(`role_${auth.currentUser.role}`) : ''))
 
 // The operator changing their own PIN (tap on their name).
-const pinOpen = ref(false);
+const pinOpen = ref(false)
 
 /** Start a fresh takeaway order. A second tap while already on a
  * takeaway is a no-op instead of silently replacing the cart. */
 async function startTakeaway() {
-  if (route.name === "order" && takeawayActive.value) return;
-  if (route.name === "order") {
+  if (route.name === 'order' && takeawayActive.value) return
+  if (route.name === 'order') {
     // Staying on the order screen: the engine registers the table order
     // (P) here, since the router guard only runs when leaving the screen.
     try {
-      await order.leave("switch_order");
+      await order.leave('switch_order')
     } catch (e) {
-      toast.show(`${t("order_register_failed")} : ${describeError(e)}`, "error", 6000);
-      return;
+      toast.show(`${t('order_register_failed')} : ${describeError(e)}`, 'error', 6000)
+      return
     }
   }
   try {
-    await order.startOrder(null);
+    await order.startOrder(null)
   } catch (e) {
-    toast.show(describeError(e), "error", 5000);
-    return;
+    toast.show(describeError(e), 'error', 5000)
+    return
   }
-  if (route.name !== "order") await router.push({ name: "order" });
+  if (route.name !== 'order') await router.push({ name: 'order' })
 }
 
 /** Lock the screen. The operator stays on shift: clocking out is done
@@ -78,12 +80,16 @@ async function startTakeaway() {
 async function lock() {
   // The engine registers the open order (P) while the session is open,
   // then closes the session; a failed registration never blocks the lock.
-  const outcome = await auth.lock();
+  const outcome = await auth.lock()
   if (outcome.orderError) {
-    toast.show(`${t("order_register_failed")} : ${describeError(outcome.orderError)}`, "error", 6000);
+    toast.show(
+      `${t('order_register_failed')} : ${describeError(outcome.orderError)}`,
+      'error',
+      6000,
+    )
   }
-  order.resetLocal();
-  await router.push({ name: "login" });
+  order.resetLocal()
+  await router.push({ name: 'login' })
 }
 </script>
 
@@ -107,12 +113,16 @@ async function lock() {
           class="nav-btn"
           :class="{ 'nav-btn-active': tablesActive }"
           @click="router.push({ name: 'tables' })"
-        >{{ t('tables') }}</button>
+        >
+          {{ t('tables') }}
+        </button>
         <button
           class="nav-btn"
           :class="{ 'nav-btn-active': takeawayActive }"
           @click="startTakeaway"
-        >{{ t('takeaway_new') }}</button>
+        >
+          {{ t('takeaway_new') }}
+        </button>
         <OnlineOrdersNavButton v-if="integrations.hubriseVisible" />
       </div>
       <div v-if="auth.isManager" class="admin-nav">
@@ -120,12 +130,16 @@ async function lock() {
           class="nav-btn nav-admin"
           :class="{ 'nav-btn-active': route.name === 'reports' }"
           @click="router.push({ name: 'reports' })"
-        >{{ t('reports') }}</button>
+        >
+          {{ t('reports') }}
+        </button>
         <button
           class="nav-btn nav-admin"
           :class="{ 'nav-btn-active': route.name === 'settings' }"
           @click="router.push({ name: 'settings' })"
-        >{{ t('config') }}</button>
+        >
+          {{ t('config') }}
+        </button>
       </div>
       <button class="nav-btn nav-logout" @click="lock">{{ t('lock') }}</button>
     </nav>
@@ -173,9 +187,20 @@ async function lock() {
   text-align: left;
   transition: transform var(--tap-duration) ease;
 }
-.header-user:active { transform: scale(var(--tap-scale)); background: var(--bg-surface); }
-.user-name { font-size: 16px; font-weight: var(--font-weight-bold); line-height: 1.15; }
-.user-role { font-size: 12px; color: var(--text-secondary); line-height: 1.2; }
+.header-user:active {
+  transform: scale(var(--tap-scale));
+  background: var(--bg-surface);
+}
+.user-name {
+  font-size: 16px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.15;
+}
+.user-role {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
 
 /* The current table: outlined in Brume, never an action colour. */
 .header-table,
@@ -248,7 +273,9 @@ async function lock() {
   transition: transform var(--tap-duration) ease;
 }
 
-.nav-btn:active { transform: scale(var(--tap-scale)); }
+.nav-btn:active {
+  transform: scale(var(--tap-scale));
+}
 .segmented .nav-btn.nav-btn-active,
 .nav-admin.nav-btn-active {
   background: var(--selected-bg);

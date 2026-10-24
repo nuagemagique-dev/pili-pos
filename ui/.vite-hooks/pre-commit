@@ -1,0 +1,8 @@
+# Runs from the repository root (git hooks do). core.hooksPath is shared by every worktree, and the Rust and
+# Android checkouts have no ui/node_modules, so the hook only acts on a commit that stages ui/ files.
+git diff --cached --name-only --diff-filter=ACMR -- ui/ | grep -q . || exit 0
+if [ ! -x ui/node_modules/.bin/vp ]; then
+  echo "pre-commit: ui/ is staged but ui/node_modules is missing, run npm ci in ui/ (check skipped)"
+  exit 0
+fi
+cd ui && ./node_modules/.bin/vp staged

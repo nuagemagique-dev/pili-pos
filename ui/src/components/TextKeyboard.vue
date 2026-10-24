@@ -5,46 +5,47 @@
 // accents of French names and the punctuation of addresses. The
 // component owns no text: it returns the whole new value through
 // v-model, so one keyboard can serve several fields.
-import { ref } from "vue";
-import { useI18n } from "../i18n";
+import { ref } from 'vue'
+import { useI18n } from '../i18n'
 
-const props = withDefaults(
-  defineProps<{
-    modelValue: string;
-    /** Longest text the field accepts. */
-    maxLength?: number;
-    /** Offers a lower case key (menu names are not printed in capitals). */
-    caseToggle?: boolean;
-  }>(),
-  { maxLength: 80, caseToggle: false }
-);
+const {
+  modelValue,
+  maxLength = 80,
+  caseToggle = false,
+} = defineProps<{
+  modelValue: string
+  /** Longest text the field accepts. */
+  maxLength?: number
+  /** Offers a lower case key (menu names are not printed in capitals). */
+  caseToggle?: boolean
+}>()
 
 const emit = defineEmits<{
-  "update:modelValue": [value: string];
+  'update:modelValue': [value: string]
   /** The enter key (moves to the next field). */
-  submit: [];
-}>();
+  submit: []
+}>()
 
-const { t } = useI18n();
-const lower = ref(false);
-const shown = (ch: string) => (lower.value ? ch.toLowerCase() : ch);
+const { t } = useI18n()
+const lower = ref(false)
+const shown = (ch: string) => (lower.value ? ch.toLowerCase() : ch)
 
-const DIGITS = "1234567890".split("");
-const ROWS = ["AZERTYUIOP", "QSDFGHJKLM", "WXCVBN"].map((r) => r.split(""));
-const ACCENTS = ["É", "È", "Ê", "À", "Ç", "Ù"];
-const PUNCTUATION = ["-", "'", ".", ",", "/", "&"];
+const DIGITS = '1234567890'.split('')
+const ROWS = ['AZERTYUIOP', 'QSDFGHJKLM', 'WXCVBN'].map((r) => r.split(''))
+const ACCENTS = ['É', 'È', 'Ê', 'À', 'Ç', 'Ù']
+const PUNCTUATION = ['-', "'", '.', ',', '/', '&']
 
 function press(ch: string) {
-  if (props.modelValue.length >= props.maxLength) return;
-  emit("update:modelValue", props.modelValue + shown(ch));
+  if (modelValue.length >= maxLength) return
+  emit('update:modelValue', modelValue + shown(ch))
 }
 
 function backspace() {
-  emit("update:modelValue", props.modelValue.slice(0, -1));
+  emit('update:modelValue', modelValue.slice(0, -1))
 }
 
 function clear() {
-  emit("update:modelValue", "");
+  emit('update:modelValue', '')
 }
 </script>
 
@@ -60,11 +61,17 @@ function clear() {
         class="key key-back"
         :aria-label="t('keyboard_backspace')"
         @click="backspace"
-      >&#9003;</button>
+      >
+        &#9003;
+      </button>
     </div>
     <div class="kbd-row">
-      <button v-for="a in ACCENTS" :key="a" class="key key-accent" @click="press(a)">{{ shown(a) }}</button>
-      <button v-for="p in PUNCTUATION" :key="p" class="key key-punct" @click="press(p)">{{ p }}</button>
+      <button v-for="a in ACCENTS" :key="a" class="key key-accent" @click="press(a)">
+        {{ shown(a) }}
+      </button>
+      <button v-for="p in PUNCTUATION" :key="p" class="key key-punct" @click="press(p)">
+        {{ p }}
+      </button>
     </div>
     <div class="kbd-row">
       <button class="key key-clear" @click="clear">{{ t('clear') }}</button>
@@ -76,8 +83,12 @@ function clear() {
         :aria-label="t('menu_ed_case')"
         data-testid="keyboard-case"
         @click="lower = !lower"
-      >Aa</button>
-      <button class="key key-space" :aria-label="t('keyboard_space')" @click="press(' ')">&#9251;</button>
+      >
+        Aa
+      </button>
+      <button class="key key-space" :aria-label="t('keyboard_space')" @click="press(' ')">
+        &#9251;
+      </button>
       <button class="key key-enter" @click="emit('submit')">{{ t('keyboard_next') }}</button>
     </div>
   </div>
@@ -115,11 +126,30 @@ function clear() {
 }
 
 .key-accent,
-.key-punct { color: var(--text-secondary); }
-.key-back { color: var(--accent-danger); }
-.key-clear { width: 152px; color: var(--accent-warning); font-size: var(--font-size-md); }
-.key-case { font-size: var(--font-size-md); color: var(--text-secondary); }
-.key-case.on { background: var(--selected-bg); color: var(--selected-fg); }
-.key-space { width: 440px; }
-.key-enter { width: 152px; font-size: var(--font-size-md); }
+.key-punct {
+  color: var(--text-secondary);
+}
+.key-back {
+  color: var(--accent-danger);
+}
+.key-clear {
+  width: 152px;
+  color: var(--accent-warning);
+  font-size: var(--font-size-md);
+}
+.key-case {
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+.key-case.on {
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+}
+.key-space {
+  width: 440px;
+}
+.key-enter {
+  width: 152px;
+  font-size: var(--font-size-md);
+}
 </style>

@@ -2,43 +2,47 @@
 // Amount entry: the price of a free-price product ("Prix libre"), or
 // the cash counted in the drawer. Digits are typed as cents, like a
 // payment terminal: 2 0 0 0 → 20,00 €.
-import { computed, ref } from "vue";
-import NumPad from "./NumPad.vue";
-import { formatPrice } from "../utils/format";
-import { useI18n } from "../i18n";
+import { computed, ref } from 'vue'
+import NumPad from './NumPad.vue'
+import { formatPrice } from '../utils/format'
+import { useI18n } from '../i18n'
 
-const props = defineProps<{
-  itemName: string;
+const {
+  itemName,
+  title = undefined,
+  allowZero,
+} = defineProps<{
+  itemName: string
   /** Defaults to the free-price title. */
-  title?: string;
+  title?: string
   /** An empty drawer is counted as 0,00 €; a price never is. */
-  allowZero?: boolean;
-}>();
+  allowZero?: boolean
+}>()
 
 const emit = defineEmits<{
-  confirm: [priceCents: number];
-  cancel: [];
-}>();
+  confirm: [priceCents: number]
+  cancel: []
+}>()
 
-const { t } = useI18n();
+const { t } = useI18n()
 
 // Up to 9 999,99 € - far above any menu price, and keeps the display short.
-const MAX_DIGITS = 6;
-const digits = ref("");
-const cents = computed(() => Number(digits.value || "0"));
+const MAX_DIGITS = 6
+const digits = ref('')
+const cents = computed(() => Number(digits.value || '0'))
 
 function onKey(key: string) {
-  if (key === "BACKSPACE") digits.value = digits.value.slice(0, -1);
-  else if (key === "CLEAR") digits.value = "";
-  else if (digits.value.length < MAX_DIGITS && !(digits.value === "" && key === "0")) {
-    digits.value += key;
+  if (key === 'BACKSPACE') digits.value = digits.value.slice(0, -1)
+  else if (key === 'CLEAR') digits.value = ''
+  else if (digits.value.length < MAX_DIGITS && !(digits.value === '' && key === '0')) {
+    digits.value += key
   }
 }
 
-const valid = computed(() => cents.value > 0 || (props.allowZero === true && cents.value === 0));
+const valid = computed(() => cents.value > 0 || (allowZero === true && cents.value === 0))
 
 function confirm() {
-  if (valid.value) emit("confirm", cents.value);
+  if (valid.value) emit('confirm', cents.value)
 }
 </script>
 
@@ -78,15 +82,25 @@ function confirm() {
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
 }
-.title { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
-.item { font-size: var(--font-size-md); color: var(--text-secondary); }
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+.item {
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
 .amount {
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   color: var(--accent-primary);
   font-variant-numeric: tabular-nums;
 }
-.actions { display: flex; gap: var(--space-sm); width: 100%; }
+.actions {
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
+}
 .btn {
   flex: 1;
   height: 56px;
@@ -95,8 +109,18 @@ function confirm() {
   border-radius: var(--radius-md);
   transition: transform var(--tap-duration) ease;
 }
-.btn:active { transform: scale(var(--tap-scale)); }
-.btn-cancel { background: var(--bg-surface); color: var(--text-secondary); }
-.btn-confirm { background: var(--accent-primary); color: var(--text-on-accent); }
-.btn-confirm:disabled { opacity: 0.4; }
+.btn:active {
+  transform: scale(var(--tap-scale));
+}
+.btn-cancel {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+.btn-confirm {
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+}
+.btn-confirm:disabled {
+  opacity: 0.4;
+}
 </style>

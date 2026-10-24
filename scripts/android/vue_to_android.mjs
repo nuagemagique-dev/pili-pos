@@ -204,7 +204,8 @@ class Parser {
       if (this.cur.k === "id" && this.cur.v === "return" && this.t[this.i + 1]?.k === "str") {
         this.i++;
         out.push(this.str());
-        this.eatP(";");
+        // ui/ is formatted without semicolons (oxfmt), older sources had them.
+        if (this.isP(";")) this.i++;
         continue;
       }
       this.i++;

@@ -6,7 +6,8 @@
   padding: 0;
 }
 
-html, body {
+html,
+body {
   height: 100%;
   overflow: hidden;
   -webkit-user-select: none;
@@ -15,7 +16,10 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-input, button, textarea, select {
+input,
+button,
+textarea,
+select {
   font: inherit;
 }
 
@@ -27,7 +31,8 @@ button {
   touch-action: manipulation;
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
 }
 

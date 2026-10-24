@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useI18n } from "../i18n";
-import TextKeypad from "./TextKeypad.vue";
+import { useI18n } from '../i18n'
+import TextKeypad from './TextKeypad.vue'
 
 // On-screen keyboard for typing a customer's email address - the
 // kiosk has no physical keyboard. Two steps: type (with live
@@ -9,21 +9,21 @@ import TextKeypad from "./TextKeypad.vue";
 // layout are the shared TextKeypad.
 
 defineEmits<{
-  confirm: [email: string];
-  cancel: [];
-}>();
+  confirm: [email: string]
+  cancel: []
+}>()
 
-const { t } = useI18n();
+const { t } = useI18n()
 
-const QUICK_KEYS = [".be", ".com", "@gmail.com"];
-const SYMBOLS = ["@", ".", "-", "_", "+"];
+const QUICK_KEYS = ['.be', '.com', '@gmail.com']
+const SYMBOLS = ['@', '.', '-', '_', '+']
 
 // Basic local@domain.tld shape, no whitespace. The backend re-validates
 // authoritatively before signing - this is just to save the operator a
 // round trip on an obvious typo.
 function isEmail(v: string): boolean {
-  if (!v || /\s/.test(v)) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  if (!v || /\s/u.test(v)) return false
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(v)
 }
 </script>
 

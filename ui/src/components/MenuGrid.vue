@@ -1,20 +1,24 @@
 <script setup lang="ts">
-import type { MenuItem } from "../types";
-import { useI18n } from "../i18n";
-import MenuItemButton from "./MenuItemButton.vue";
+import type { MenuItem } from '../types'
+import { useI18n } from '../i18n'
+import MenuItemButton from './MenuItemButton.vue'
 
-const { t } = useI18n();
+const { t } = useI18n()
 
-const props = defineProps<{
-  items: MenuItem[];
-  categoryColor?: string | null;
+const {
+  items,
+  categoryColor = undefined,
+  cartQuantities = undefined,
+} = defineProps<{
+  items: MenuItem[]
+  categoryColor?: string | null
   /** Quantity already in the cart, per product id. */
-  cartQuantities?: Map<number, number>;
-}>();
+  cartQuantities?: Map<number, number>
+}>()
 
 const emit = defineEmits<{
-  addItem: [item: MenuItem];
-}>();
+  addItem: [item: MenuItem]
+}>()
 </script>
 
 <template>
@@ -26,8 +30,8 @@ const emit = defineEmits<{
       v-for="item in items"
       :key="item.id"
       :item="item"
-      :category-color="props.categoryColor ?? undefined"
-      :in-cart="props.cartQuantities?.get(item.id) ?? 0"
+      :category-color="categoryColor ?? undefined"
+      :in-cart="cartQuantities?.get(item.id) ?? 0"
       @add="emit('addItem', $event)"
     />
     <div v-if="items.length === 0" class="empty">

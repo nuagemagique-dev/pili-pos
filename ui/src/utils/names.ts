@@ -1,21 +1,21 @@
-import { usePosStore } from "../stores/pos";
+import { usePosStore } from '../stores/pos'
 
 /** Something with a name in the UI language and, when known, its
  * French and Chinese names (categories, products, cart lines). */
 export interface Named {
-  name: string;
-  name_fr?: string | null;
-  name_zh?: string | null;
+  name: string
+  name_fr?: string | null
+  name_zh?: string | null
   /** Menu code ("A2"): products and cart lines from a catalog that has one. */
-  code?: string | null;
+  code?: string | null
 }
 
 export interface BilingualName {
-  primary: string;
+  primary: string
   /** The other language, smaller underneath; null when it adds nothing. */
-  secondary: string | null;
+  secondary: string | null
   /** `primary` is the menu code (Settings: products shown by code). */
-  isCode: boolean;
+  isCode: boolean
 }
 
 /**
@@ -26,15 +26,15 @@ export interface BilingualName {
  * and keeps its name in the UI language underneath.
  */
 export function useBilingualName() {
-  const pos = usePosStore();
+  const pos = usePosStore()
 
   return function bilingual(item: Named): BilingualName {
-    const zh = pos.language === "zh";
-    const primary = zh ? (item.name_zh ?? item.name) : item.name;
-    const code = item.code?.trim();
-    if (pos.productLabel === "code" && code) {
-      return { primary: code, secondary: primary, isCode: true };
+    const zh = pos.language === 'zh'
+    const primary = zh ? (item.name_zh ?? item.name) : item.name
+    const code = item.code?.trim()
+    if (pos.productLabel === 'code' && code !== undefined && code !== '') {
+      return { primary: code, secondary: primary, isCode: true }
     }
-    return { primary, secondary: null, isCode: false };
-  };
+    return { primary, secondary: null, isCode: false }
+  }
 }

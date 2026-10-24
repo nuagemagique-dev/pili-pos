@@ -1,41 +1,42 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import type { OrderLine, VatCode } from "../types";
-import { formatPrice as fmt } from "../utils/format";
-import { useI18n } from "../i18n";
-import { lineNetCents } from "../utils/cartAmounts";
+import { computed } from 'vue'
+import type { OrderLine, VatCode } from '../types'
+import { formatPrice as fmt } from '../utils/format'
+import { useI18n } from '../i18n'
+import { lineNetCents } from '../utils/cartAmounts'
 
-const { t } = useI18n();
+const { t } = useI18n()
 
-const props = defineProps<{
+const { lines } = defineProps<{
   /** Cart lines: `discount_cents` (negative) is taken off their amount. */
-  lines: Array<OrderLine & { discount_cents?: number }>;
-}>();
+  lines: (OrderLine & { discount_cents?: number })[]
+}>()
 
-const VAT_RATES: Record<VatCode, number> = { A: 21, B: 12, C: 6, D: 0, X: 0 };
+const VAT_RATES: Record<VatCode, number> = { A: 21, B: 12, C: 6, D: 0, X: 0 }
 
 interface VatRow {
-  code: VatCode;
-  rate: number;
-  totalInclCents: number;
-  vatCents: number;
+  code: VatCode
+  rate: number
+  totalInclCents: number
+  vatCents: number
 }
 
 const vatRows = computed<VatRow[]>(() => {
-  const map = new Map<VatCode, number>();
-  for (const line of props.lines) {
-    const total = lineNetCents(line);
-    map.set(line.vat_code, (map.get(line.vat_code) ?? 0) + total);
+  const map = new Map<VatCode, number>()
+  for (const line of lines) {
+    const total = lineNetCents(line)
+    map.set(line.vat_code, (map.get(line.vat_code) ?? 0) + total)
   }
-  return (["A", "B", "C", "D"] as VatCode[])
+  return (['A', 'B', 'C', 'D'] as VatCode[])
     .filter((code) => map.has(code))
     .map((code) => {
-      const totalIncl = map.get(code)!;
-      const rate = VAT_RATES[code];
-      const vatCents = rate > 0 ? totalIncl - Math.round((totalIncl * 10000) / (10000 + rate * 100)) : 0;
-      return { code, rate, totalInclCents: totalIncl, vatCents };
-    });
-});
+      const totalIncl = map.get(code)!
+      const rate = VAT_RATES[code]
+      const vatCents =
+        rate > 0 ? totalIncl - Math.round((totalIncl * 10000) / (10000 + rate * 100)) : 0
+      return { code, rate, totalInclCents: totalIncl, vatCents }
+    })
+})
 </script>
 
 <template>

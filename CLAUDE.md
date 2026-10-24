@@ -76,7 +76,7 @@ The fiscal core is Tauri-free and lives in `crates/pos-engine`; `src-tauri` is a
 - **Pinia** - state management (orders, current user, FDM status)
 - **Tauri IPC** via `@tauri-apps/api` - all business logic stays in Rust, Vue only handles UI
 - **CSS** - scoped styles in SFCs + CSS custom properties in `tokens.css` for theming. No Tailwind, no UI framework.
-- **Vite** - bundler (Tauri v2 default with Vue template)
+- **Vite+** (`vite-plus`, the `vp` CLI) - bundler, formatter (oxfmt), type-aware linter (oxlint) and unit tests (vitest) in one toolchain, set up in `ui/vite.config.ts` like the sibling Pili frontends. `cd ui && npm run check` is the gate (format, lint, types, Vite+ pin); `npm test` runs the unit tests (`src/**/*.test.ts`, `scripts/**/*.test.ts`); the pre-commit hook (`ui/.vite-hooks/pre-commit`, installed by `npm ci` through `prepare`) runs `vp staged` on staged `ui/` files. Set `VP_GIT_HOOKS=0` where no hook should be installed (CI, Docker builds).
 - Touch-first: large buttons (min 48x48px), no hover states, high contrast
 - **CSS Grid/Flexbox** - responsive touch layout for 15.6" 1920x1080
 
@@ -243,8 +243,8 @@ pili-pos/
 │   ├── pos-fdm-mock/           # Mock FDM (SCE 2.0 GraphQL) and mock TEM
 │   └── pos-printer-mock/       # Network thermal printer mock
 └── ui/
-    ├── index.html              # Vite entry point
-    ├── vite.config.ts
+    ├── index.html              # Vite+ entry point
+    ├── vite.config.ts          # build, fmt, lint, staged and test settings (Vite+)
     ├── tsconfig.json
     ├── package.json            # Fonts come from @fontsource packages (Archivo, JetBrains Mono, Noto Sans)
     ├── e2e/                    # Playwright tests

@@ -1,29 +1,34 @@
 <script setup lang="ts">
 // "Produits épuisés": every product sold out now, each one re-enabled with one tap.
-import { onMounted, ref } from "vue";
-import { useMenuStore } from "../stores/menu";
-import { useI18n } from "../i18n";
-import { endOfDayLabel } from "../utils/soldOut";
+import { onMounted, ref } from 'vue'
+import { useMenuStore } from '../stores/menu'
+import { useI18n } from '../i18n'
+import { endOfDayLabel } from '../utils/soldOut'
 
-const emit = defineEmits<{ done: [] }>();
+const emit = defineEmits<{ done: [] }>()
 
-const { t } = useI18n();
-const menu = useMenuStore();
-const busy = ref<number | null>(null);
+const { t } = useI18n()
+const menu = useMenuStore()
+const busy = ref<number | null>(null)
 
-onMounted(() => menu.loadSoldOut());
+onMounted(() => menu.loadSoldOut())
 
 async function reenable(menuItemId: number) {
-  if (busy.value !== null) return;
-  busy.value = menuItemId;
-  await menu.setAvailability(menuItemId, "available");
-  busy.value = null;
+  if (busy.value !== null) return
+  busy.value = menuItemId
+  await menu.setAvailability(menuItemId, 'available')
+  busy.value = null
 }
 </script>
 
 <template>
   <div class="backdrop" @click.self="emit('done')">
-    <div class="dialog" role="dialog" data-testid="soldout-list" :aria-label="t('soldout_list_title')">
+    <div
+      class="dialog"
+      role="dialog"
+      data-testid="soldout-list"
+      :aria-label="t('soldout_list_title')"
+    >
       <h2 class="title">{{ t('soldout_list_title') }}</h2>
       <p v-if="menu.soldOut.length === 0" class="empty" data-testid="soldout-list-empty">
         {{ t('soldout_list_empty') }}
@@ -78,9 +83,27 @@ async function reenable(menuItemId: number) {
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
 }
-.title { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); text-align: center; }
-.empty { text-align: center; color: var(--text-secondary); font-size: var(--font-size-md); padding: var(--space-lg); }
-.rows { display: flex; flex-direction: column; gap: var(--space-sm); overflow-y: auto; min-height: 0; list-style: none; padding: 0; margin: 0; }
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+}
+.empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  padding: var(--space-lg);
+}
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  overflow-y: auto;
+  min-height: 0;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
 .row {
   display: flex;
   align-items: center;
@@ -90,9 +113,19 @@ async function reenable(menuItemId: number) {
   border-radius: var(--radius-md);
   background: var(--bg-surface);
 }
-.info { display: flex; flex-direction: column; min-width: 0; }
-.name { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); }
-.until { font-size: 14px; color: var(--text-secondary); }
+.info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.name {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+.until {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
 .reenable {
   flex-shrink: 0;
   min-width: 160px;
@@ -104,8 +137,12 @@ async function reenable(menuItemId: number) {
   background: var(--accent-primary);
   color: var(--text-on-accent);
 }
-.reenable:active { transform: scale(var(--tap-scale)); }
-.reenable:disabled { opacity: 0.5; }
+.reenable:active {
+  transform: scale(var(--tap-scale));
+}
+.reenable:disabled {
+  opacity: 0.5;
+}
 .btn-cancel {
   min-height: 56px;
   font-size: var(--font-size-md);

@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { usePosStore } from "../stores/pos";
-import { useI18n } from "../i18n";
-import { describeError } from "../utils/errorMessages";
+import { computed } from 'vue'
+import { usePosStore } from '../stores/pos'
+import { useI18n } from '../i18n'
+import { describeError } from '../utils/errorMessages'
 
-const pos = usePosStore();
-const { t } = useI18n();
+const pos = usePosStore()
+const { t } = useI18n()
 
 // pos.json holds an identity the FDM would refuse: every sale would
 // fail. Each problem is a coded error (`config_<setting>|detail=...`):
 // its text is in the screen's language and ends with the English detail
 // for the installer.
-const problems = computed(() => pos.settings?.configProblems ?? []);
+const problems = computed(() => pos.settings?.configProblems ?? [])
 </script>
 
 <template>

@@ -2,33 +2,38 @@
 // Connecting to HubRise from the kiosk, which has no browser: the
 // login link as a QR code to open on a phone, and the field for the
 // code HubRise shows once the location is picked.
-import { ref } from "vue";
-import type { HubriseAuthorizeLink } from "../api/ipc";
-import { useI18n } from "../i18n";
+import { ref } from 'vue'
+import type { HubriseAuthorizeLink } from '../api/ipc'
+import { useI18n } from '../i18n'
 
 defineProps<{
-  link: HubriseAuthorizeLink;
-  loading: boolean;
-  error: string | null;
-}>();
+  link: HubriseAuthorizeLink
+  loading: boolean
+  error: string | null
+}>()
 
 const emit = defineEmits<{
-  submit: [code: string];
-  cancel: [];
-}>();
+  submit: [code: string]
+  cancel: []
+}>()
 
-const { t } = useI18n();
-const code = ref("");
+const { t } = useI18n()
+const code = ref('')
 
 function submit() {
-  const value = code.value.trim();
-  if (value) emit("submit", value);
+  const value = code.value.trim()
+  if (value) emit('submit', value)
 }
 </script>
 
 <template>
   <div class="backdrop" @click.self="emit('cancel')">
-    <div class="dialog" role="dialog" :aria-label="t('hubrise_open_authorize_url')" data-testid="hubrise-authorize">
+    <div
+      class="dialog"
+      role="dialog"
+      :aria-label="t('hubrise_open_authorize_url')"
+      data-testid="hubrise-authorize"
+    >
       <h2 class="title">{{ t('hubrise_open_authorize_url') }}</h2>
       <div class="body">
         <!-- SVG rendered by the backend from the URL alone. -->
@@ -79,8 +84,15 @@ function submit() {
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
 }
-.title { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
-.body { display: flex; gap: var(--space-lg); align-items: flex-start; }
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+.body {
+  display: flex;
+  gap: var(--space-lg);
+  align-items: flex-start;
+}
 .qr {
   flex-shrink: 0;
   width: 320px;
@@ -89,9 +101,23 @@ function submit() {
   border-radius: var(--radius-md);
   background: #ffffff;
 }
-.qr :deep(svg) { display: block; width: 100%; height: 100%; }
-.steps { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-md); }
-.help { font-size: 20px; line-height: 1.4; text-wrap: pretty; }
+.qr :deep(svg) {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.steps {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.help {
+  font-size: 20px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
 .url {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -99,7 +125,9 @@ function submit() {
   overflow-wrap: anywhere;
   user-select: all;
 }
-.code-row { display: flex; }
+.code-row {
+  display: flex;
+}
 .field {
   flex: 1;
   min-width: 0;
@@ -112,9 +140,18 @@ function submit() {
   font-family: var(--font-mono);
   font-size: 18px;
 }
-.field::placeholder { color: var(--text-secondary); font-family: var(--font-family); }
-.error { color: var(--accent-danger); font-size: 16px; }
-.actions { display: flex; gap: var(--space-sm); }
+.field::placeholder {
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+}
+.error {
+  color: var(--accent-danger);
+  font-size: 16px;
+}
+.actions {
+  display: flex;
+  gap: var(--space-sm);
+}
 .btn {
   flex: 1;
   height: 56px;
@@ -123,8 +160,18 @@ function submit() {
   border-radius: var(--radius-md);
   transition: transform var(--tap-duration) ease;
 }
-.btn:active { transform: scale(var(--tap-scale)); }
-.btn-cancel { background: var(--bg-surface); color: var(--text-secondary); }
-.btn-confirm { background: var(--accent-primary); color: var(--text-on-accent); }
-.btn-confirm:disabled { opacity: 0.4; }
+.btn:active {
+  transform: scale(var(--tap-scale));
+}
+.btn-cancel {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+.btn-confirm {
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+}
+.btn-confirm:disabled {
+  opacity: 0.4;
+}
 </style>

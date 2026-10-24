@@ -1,114 +1,120 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
-import { useRouter } from "vue-router";
-import { useOrderStore } from "../stores/order";
-import { useAuthStore } from "../stores/auth";
-import * as ipc from "../api/ipc";
-import { useI18n } from "../i18n";
-import { describeError } from "../utils/errorMessages";
-import { useToastStore } from "../stores/toast";
-import { formatPrice } from "../utils/format";
-import { formatTimestamp, formatTime, minutesSince } from "../utils/datetime";
-import AppHeader from "../components/AppHeader.vue";
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useOrderStore } from '../stores/order'
+import { useAuthStore } from '../stores/auth'
+import * as ipc from '../api/ipc'
+import { useI18n } from '../i18n'
+import { describeError } from '../utils/errorMessages'
+import { useToastStore } from '../stores/toast'
+import { formatPrice } from '../utils/format'
+import { formatTimestamp, formatTime, minutesSince } from '../utils/datetime'
+import AppHeader from '../components/AppHeader.vue'
 
-const router = useRouter();
-const { t } = useI18n();
-const order = useOrderStore();
-const auth = useAuthStore();
-const toast = useToastStore();
+const router = useRouter()
+const { t } = useI18n()
+const order = useOrderStore()
+const auth = useAuthStore()
+const toast = useToastStore()
 
-const tables = ref<ipc.TableInfo[]>([]);
+const tables = ref<ipc.TableInfo[]>([])
 // Takeaways left unpaid: each one must still end in a sale (FAQ Q205).
-const takeaways = ref<ipc.TakeawayInfo[]>([]);
+const takeaways = ref<ipc.TakeawayInfo[]>([])
 // Orders whose card was charged and not yet settled by a sale.
-const cardCharged = ref(new Set<number>());
+const cardCharged = ref(new Set<number>())
 
 // Minutes open, refreshed while the screen is shown.
-const now = ref(new Date());
-let nowTimer: ReturnType<typeof setInterval> | undefined;
+const now = ref(new Date())
+let nowTimer: ReturnType<typeof setInterval> | undefined
 
 onMounted(async () => {
-  if (!auth.currentUser) { router.push({ name: "login" }); return; }
-  nowTimer = setInterval(() => (now.value = new Date()), 30_000);
-  tables.value = await ipc.listTables();
-  takeaways.value = await ipc.listOpenTakeaways();
+  if (!auth.currentUser) {
+    router.push({ name: 'login' })
+    return
+  }
+  nowTimer = setInterval(() => (now.value = new Date()), 30_000)
+  tables.value = await ipc.listTables()
+  takeaways.value = await ipc.listOpenTakeaways()
   try {
-    cardCharged.value = new Set((await ipc.listUnsettledCardPayments()).map((p) => p.order_id));
+    cardCharged.value = new Set((await ipc.listUnsettledCardPayments()).map((p) => p.order_id))
   } catch {
     /* only a badge */
   }
-});
-onUnmounted(() => clearInterval(nowTimer));
+})
+onUnmounted(() => clearInterval(nowTimer))
 
 async function resumeTakeaway(takeaway: ipc.TakeawayInfo) {
   try {
-    await order.loadOrder(takeaway.orderId);
+    await order.loadOrder(takeaway.orderId)
   } catch (e) {
-    toast.show(describeError(e), "error", 5000);
-    return;
+    toast.show(describeError(e), 'error', 5000)
+    return
   }
-  router.push({ name: "order" });
+  router.push({ name: 'order' })
 }
 
 async function newTakeaway() {
   try {
-    await order.startOrder(null);
+    await order.startOrder(null)
   } catch (e) {
-    toast.show(describeError(e), "error", 5000);
-    return;
+    toast.show(describeError(e), 'error', 5000)
+    return
   }
-  router.push({ name: "order" });
+  router.push({ name: 'order' })
 }
 
 // "Déplacer une table": tap the occupied table, then a free one, then
 // confirm. The engine signs the move (event P, cost center change).
-const moving = ref(false);
-const source = ref<ipc.TableInfo | null>(null);
-const target = ref<ipc.TableInfo | null>(null);
-const transferring = ref(false);
+const moving = ref(false)
+const source = ref<ipc.TableInfo | null>(null)
+const target = ref<ipc.TableInfo | null>(null)
+const transferring = ref(false)
 
 const moveHint = computed(() =>
   source.value
-    ? t("transfer_pick_free", { from: source.value.tableNumber })
-    : t("transfer_pick_source"),
-);
+    ? t('transfer_pick_free', { from: source.value.tableNumber })
+    : t('transfer_pick_source'),
+)
 
 function toggleMove() {
-  moving.value = !moving.value;
-  source.value = null;
-  target.value = null;
+  moving.value = !moving.value
+  source.value = null
+  target.value = null
 }
 
 /** In the mode only a source (occupied) or, once chosen, a target
  * (free) can be tapped. */
 function selectable(table: ipc.TableInfo): boolean {
-  if (!source.value) return table.status === "occupied" && table.orderId != null;
-  return table.status === "free";
+  if (!source.value) return table.status === 'occupied' && table.orderId !== null
+  return table.status === 'free'
 }
 
 function pickInMoveMode(table: ipc.TableInfo) {
-  if (!selectable(table)) return;
-  if (!source.value) source.value = table;
-  else target.value = table;
+  if (!selectable(table)) return
+  if (source.value) {
+    target.value = table
+  } else {
+    source.value = table
+  }
 }
 
 async function confirmMove() {
-  const from = source.value;
-  const to = target.value;
-  if (!from?.orderId || !to || transferring.value) return;
-  transferring.value = true;
+  const from = source.value
+  const to = target.value
+  if (!from?.orderId || !to || transferring.value) return
+  transferring.value = true
   try {
-    await order.transferOrder(from.orderId, to.tableNumber);
-    toast.show(t("transfer_done", { to: to.tableNumber }), "success");
+    await order.transferOrder(from.orderId, to.tableNumber)
+    toast.show(t('transfer_done', { to: to.tableNumber }), 'success')
   } catch (e) {
-    toast.show(describeError(e), "error", 6000);
+    toast.show(describeError(e), 'error', 6000)
   } finally {
-    transferring.value = false;
-    moving.value = false;
-    source.value = null;
-    target.value = null;
+    transferring.value = false
+    moving.value = false
+    source.value = null
+    target.value = null
     try {
-      tables.value = await ipc.listTables();
+      tables.value = await ipc.listTables()
     } catch {
       /* the list is read again at the next visit */
     }
@@ -117,23 +123,23 @@ async function confirmMove() {
 
 async function selectTable(table: ipc.TableInfo) {
   if (moving.value) {
-    pickInMoveMode(table);
-    return;
+    pickInMoveMode(table)
+    return
   }
   try {
     if (table.orderId) {
       // Rehydrate the existing order AND its lines so the cart is
       // repopulated (fixes the bug where tapping a busy table after
       // a takeaway switch showed an empty cart).
-      await order.loadOrder(table.orderId);
+      await order.loadOrder(table.orderId)
     } else {
-      await order.startOrder(table.tableNumber);
+      await order.startOrder(table.tableNumber)
     }
   } catch (e) {
-    toast.show(describeError(e), "error", 5000);
-    return;
+    toast.show(describeError(e), 'error', 5000)
+    return
   }
-  router.push({ name: "order" });
+  router.push({ name: 'order' })
 }
 </script>
 
@@ -144,44 +150,57 @@ async function selectTable(table: ipc.TableInfo) {
     <div class="main">
       <!-- §5.3: occupied tables filled, total in bold; free ones dashed. -->
       <div class="plan">
-      <div class="plan-bar">
-        <button
-          class="move-toggle"
-          :class="{ active: moving }"
-          data-testid="move-toggle"
-          @click="toggleMove"
-        >
-          {{ t('transfer_mode') }}
-        </button>
-        <span v-if="moving" class="move-hint" data-testid="move-hint">{{ moveHint }}</span>
-      </div>
-      <div class="grid">
-        <button
-          v-for="tbl in tables"
-          :key="tbl.tableNumber"
-          class="table-card"
-          :class="{
-            occupied: tbl.status === 'occupied',
-            dimmed: moving && !selectable(tbl) && source?.tableNumber !== tbl.tableNumber,
-            chosen: moving && source?.tableNumber === tbl.tableNumber,
-          }"
-          @click="selectTable(tbl)"
-        >
-          <span class="table-top">
-            <span class="table-num">{{ tbl.tableNumber }}</span>
-            <span v-if="tbl.preBillPrinted" class="bill-tag">{{ t('pre_bill') }}</span>
-            <span v-if="tbl.heldCourse" class="bill-tag" :data-testid="`held-course-${tbl.tableNumber}`">{{ t('table_held_course', { course: t(`course_${tbl.heldCourse}`) }) }}</span>
-            <span v-if="tbl.orderId && cardCharged.has(tbl.orderId)" class="bill-tag charged-tag" data-testid="card-charged">{{ t('card_charged_badge') }}</span>
-          </span>
-          <span v-if="tbl.status === 'occupied'" class="table-info">
-            <span class="table-total">{{ formatPrice(tbl.totalCents) }} €</span>
-            <span class="table-meta">
-              {{ tbl.lineCount }} {{ t('items_short') }}<template v-if="tbl.openedAt"> · {{ minutesSince(tbl.openedAt, now) }} min</template>
+        <div class="plan-bar">
+          <button
+            class="move-toggle"
+            :class="{ active: moving }"
+            data-testid="move-toggle"
+            @click="toggleMove"
+          >
+            {{ t('transfer_mode') }}
+          </button>
+          <span v-if="moving" class="move-hint" data-testid="move-hint">{{ moveHint }}</span>
+        </div>
+        <div class="grid">
+          <button
+            v-for="tbl in tables"
+            :key="tbl.tableNumber"
+            class="table-card"
+            :class="{
+              occupied: tbl.status === 'occupied',
+              dimmed: moving && !selectable(tbl) && source?.tableNumber !== tbl.tableNumber,
+              chosen: moving && source?.tableNumber === tbl.tableNumber,
+            }"
+            @click="selectTable(tbl)"
+          >
+            <span class="table-top">
+              <span class="table-num">{{ tbl.tableNumber }}</span>
+              <span v-if="tbl.preBillPrinted" class="bill-tag">{{ t('pre_bill') }}</span>
+              <span
+                v-if="tbl.heldCourse"
+                class="bill-tag"
+                :data-testid="`held-course-${tbl.tableNumber}`"
+                >{{ t('table_held_course', { course: t(`course_${tbl.heldCourse}`) }) }}</span
+              >
+              <span
+                v-if="tbl.orderId && cardCharged.has(tbl.orderId)"
+                class="bill-tag charged-tag"
+                data-testid="card-charged"
+                >{{ t('card_charged_badge') }}</span
+              >
             </span>
-          </span>
-          <span v-else class="table-free">{{ t('free') }}</span>
-        </button>
-      </div>
+            <span v-if="tbl.status === 'occupied'" class="table-info">
+              <span class="table-total">{{ formatPrice(tbl.totalCents) }} €</span>
+              <span class="table-meta">
+                {{ tbl.lineCount }} {{ t('items_short')
+                }}<template v-if="tbl.openedAt">
+                  · {{ minutesSince(tbl.openedAt, now) }} min</template
+                >
+              </span>
+            </span>
+            <span v-else class="table-free">{{ t('free') }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- Open takeaways where the cart usually is; the main action at
@@ -199,9 +218,16 @@ async function selectTable(table: ipc.TableInfo) {
             @click="resumeTakeaway(tk)"
           >
             <span class="takeaway-text">
-              <span class="takeaway-time">{{ t('takeaway_started_at', { time: formatTimestamp(tk.createdAt, formatTime) }) }}</span>
+              <span class="takeaway-time">{{
+                t('takeaway_started_at', { time: formatTimestamp(tk.createdAt, formatTime) })
+              }}</span>
               <span class="takeaway-meta">{{ tk.lineCount }} {{ t('items_short') }}</span>
-              <span v-if="cardCharged.has(tk.orderId)" class="bill-tag charged-tag" data-testid="card-charged">{{ t('card_charged_badge') }}</span>
+              <span
+                v-if="cardCharged.has(tk.orderId)"
+                class="bill-tag charged-tag"
+                data-testid="card-charged"
+                >{{ t('card_charged_badge') }}</span
+              >
             </span>
             <span class="takeaway-total">{{ formatPrice(tk.totalCents) }} €</span>
           </button>
@@ -211,12 +237,13 @@ async function selectTable(table: ipc.TableInfo) {
         </div>
       </aside>
     </div>
-    <div
-      v-if="source && target"
-      class="backdrop"
-      @click.self="target = null"
-    >
-      <div class="dialog" role="dialog" :aria-label="t('transfer_table')" data-testid="move-confirm">
+    <div v-if="source && target" class="backdrop" @click.self="target = null">
+      <div
+        class="dialog"
+        role="dialog"
+        :aria-label="t('transfer_table')"
+        data-testid="move-confirm"
+      >
         <p class="dialog-text">
           {{ t('transfer_confirm', { from: source.tableNumber, to: target.tableNumber }) }}
         </p>
@@ -275,7 +302,9 @@ async function selectTable(table: ipc.TableInfo) {
   font-weight: var(--font-weight-bold);
   transition: transform var(--tap-duration) ease;
 }
-.move-toggle:active { transform: scale(var(--tap-scale)); }
+.move-toggle:active {
+  transform: scale(var(--tap-scale));
+}
 .move-toggle.active {
   background: var(--accent-warning);
   color: var(--text-on-accent);
@@ -284,8 +313,13 @@ async function selectTable(table: ipc.TableInfo) {
   font-size: 18px;
   color: var(--text-secondary);
 }
-.table-card.dimmed { opacity: 0.3; pointer-events: none; }
-.table-card.chosen { outline: 4px solid var(--accent-warning); }
+.table-card.dimmed {
+  opacity: 0.3;
+  pointer-events: none;
+}
+.table-card.chosen {
+  outline: 4px solid var(--accent-warning);
+}
 
 .backdrop {
   position: fixed;
@@ -305,8 +339,14 @@ async function selectTable(table: ipc.TableInfo) {
   background: var(--bg-secondary);
   min-width: 480px;
 }
-.dialog-text { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
-.dialog-actions { display: flex; gap: var(--space-sm); }
+.dialog-text {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+.dialog-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
 .btn {
   flex: 1;
   height: 56px;
@@ -315,10 +355,20 @@ async function selectTable(table: ipc.TableInfo) {
   border-radius: var(--radius-md);
   transition: transform var(--tap-duration) ease;
 }
-.btn:active { transform: scale(var(--tap-scale)); }
-.btn-cancel { background: var(--bg-surface); color: var(--text-secondary); }
-.btn-confirm { background: var(--accent-primary); color: var(--text-on-accent); }
-.btn-confirm:disabled { opacity: 0.4; }
+.btn:active {
+  transform: scale(var(--tap-scale));
+}
+.btn-cancel {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+.btn-confirm {
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+}
+.btn-confirm:disabled {
+  opacity: 0.4;
+}
 
 .grid {
   flex: 1;
@@ -343,7 +393,9 @@ async function selectTable(table: ipc.TableInfo) {
   text-align: left;
   transition: transform var(--tap-duration) ease;
 }
-.table-card:active { transform: scale(var(--tap-scale)); }
+.table-card:active {
+  transform: scale(var(--tap-scale));
+}
 
 .table-card.occupied {
   background: var(--bg-secondary);
@@ -352,7 +404,7 @@ async function selectTable(table: ipc.TableInfo) {
 }
 /* Brume band on top: taken, at a glance. */
 .table-card.occupied::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   right: 0;
@@ -374,7 +426,9 @@ async function selectTable(table: ipc.TableInfo) {
   line-height: 1;
 }
 /* A provisional bill is on the table (signPreBill, P). */
-.charged-tag { align-self: flex-start; }
+.charged-tag {
+  align-self: flex-start;
+}
 .bill-tag {
   padding: 2px 8px;
   border-radius: 6px;
@@ -399,7 +453,9 @@ async function selectTable(table: ipc.TableInfo) {
   font-size: 15px;
   color: var(--text-secondary);
 }
-.table-free { font-size: 16px; }
+.table-free {
+  font-size: 16px;
+}
 
 .takeaways {
   width: var(--cart-width);
@@ -450,7 +506,9 @@ async function selectTable(table: ipc.TableInfo) {
   text-align: left;
   transition: transform var(--tap-duration) ease;
 }
-.takeaway-card:active { transform: scale(var(--tap-scale)); }
+.takeaway-card:active {
+  transform: scale(var(--tap-scale));
+}
 .takeaway-text {
   display: flex;
   flex-direction: column;
@@ -486,5 +544,7 @@ async function selectTable(table: ipc.TableInfo) {
   letter-spacing: 0.02em;
   transition: transform var(--tap-duration) ease;
 }
-.new-takeaway-btn:active { transform: scale(var(--tap-scale)); }
+.new-takeaway-btn:active {
+  transform: scale(var(--tap-scale));
+}
 </style>

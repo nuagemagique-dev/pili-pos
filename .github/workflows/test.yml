@@ -32,6 +32,8 @@ env:
   npm_config_cache: /tmp/npm-cache
   PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
   NODE_VERSION: "24.21.0"  # latest LTS, same as deploy/build-release.sh
+  # `npm ci` in ui/ runs `vp config` (prepare): no git hooks in a CI checkout.
+  VP_GIT_HOOKS: "0"
 
 # Every job runs on a GitHub-hosted Linux ARM64 runner (free for a public
 # repository) in a fresh Ubuntu container; the runner VM is discarded after
@@ -109,9 +111,9 @@ jobs:
         if: matrix.features.name == 'cert'
         run: cargo test -p pos-engine ${{ matrix.features.flags }} --no-fail-fast
 
-  # ── Layer 2: Playwright E2E (mock IPC) ────────────────────────
+  # ── Layer 2: UI - Vite+ gate, unit tests, Playwright E2E (mock IPC) ──
   playwright-e2e:
-    name: Playwright E2E
+    name: UI (Vite+ check, unit tests, Playwright E2E)
     runs-on: ubuntu-24.04-arm
     container: ubuntu:26.04
     steps:
@@ -128,6 +130,15 @@ jobs:
       - name: Install deps
         working-directory: ui
         run: npm ci
+
+      # oxfmt, type-aware oxlint and the type check, then the Vite+ pin.
+      - name: Format, lint and types (Vite+)
+        working-directory: ui
+        run: npm run check
+
+      - name: Unit tests
+        working-directory: ui
+        run: npm test
 
       - name: Type-check and build
         working-directory: ui

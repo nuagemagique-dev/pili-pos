@@ -2,20 +2,20 @@
 // Shown on every screen while a remote support session runs, so the
 // staff know someone may be watching or acting on the terminal. Logged
 // out, anyone may stop it here.
-import { computed } from "vue";
-import { useSupportStore } from "../stores/support";
-import { useAuthStore } from "../stores/auth";
-import { useI18n } from "../i18n";
+import { computed } from 'vue'
+import { useSupportStore } from '../stores/support'
+import { useAuthStore } from '../stores/auth'
+import { useI18n } from '../i18n'
 
-const support = useSupportStore();
-const auth = useAuthStore();
-const { t } = useI18n();
-const running = computed(() => support.status?.running === true);
-const loggedOut = computed(() => !auth.currentUser);
+const support = useSupportStore()
+const auth = useAuthStore()
+const { t } = useI18n()
+const running = computed(() => support.status?.running === true)
+const loggedOut = computed(() => !auth.currentUser)
 
 async function stop() {
   try {
-    await support.stop();
+    await support.stop()
   } catch {
     // The next poll shows whether it still runs.
   }
@@ -25,11 +25,15 @@ async function stop() {
 <template>
   <div v-if="running" class="support-banner" role="status">
     <span>
-      {{ support.status?.startedBy
-        ? t('support_banner', { name: support.status.startedBy })
-        : t('support_banner_anonymous') }}
+      {{
+        support.status?.startedBy
+          ? t('support_banner', { name: support.status.startedBy })
+          : t('support_banner_anonymous')
+      }}
     </span>
-    <button v-if="loggedOut" type="button" class="stop" @click="stop">{{ t('support_stop') }}</button>
+    <button v-if="loggedOut" type="button" class="stop" @click="stop">
+      {{ t('support_stop') }}
+    </button>
   </div>
 </template>
 

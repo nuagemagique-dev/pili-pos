@@ -121,7 +121,7 @@ const lateCount = computed(() => store.orders.filter(isLate).length)
 
 // ── Display helpers ──────────────────────────────────────────────
 function formatEuros(cents: number): string {
-  return formatPrice(cents) + ' €'
+  return `${formatPrice(cents)} €`
 }
 
 function formatClock(iso: string | null): string {
@@ -164,7 +164,9 @@ function doneLabel(order: WebshopOrderSummary): string {
  * age for new orders (amber, they are waiting), target time in the
  * kitchen, ready time once ready.
  */
-function keyTime(order: WebshopOrderSummary): { text: string; tone: 'alarm' | 'warn' | 'info' | 'plain' | 'muted' } | null {
+function keyTime(
+  order: WebshopOrderSummary,
+): { text: string; tone: 'alarm' | 'warn' | 'info' | 'plain' | 'muted' } | null {
   switch (stageOf(order)) {
     case 'new': {
       const minutes = waitingMinutes(order)
@@ -226,14 +228,21 @@ function isOwnWebshop(order: WebshopOrderSummary): boolean {
  */
 function deliveryAddress(order: WebshopOrderSummary): string | null {
   if (!isOwnWebshop(order) || order.service_type !== 'delivery') return null
-  const street = [order.customer_address_1, order.customer_address_2].filter(Boolean).join(' ').trim()
+  const street = [order.customer_address_1, order.customer_address_2]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
   const city = [order.customer_postal_code, order.customer_city].filter(Boolean).join(' ').trim()
   const text = [street, city].filter(Boolean).join(', ')
   return text || null
 }
 
 function itemName(item: WebshopOrderItem) {
-  return bilingual({ name: item.product_name, name_fr: item.product_name, name_zh: item.product_name_zh })
+  return bilingual({
+    name: item.product_name,
+    name_fr: item.product_name,
+    name_zh: item.product_name_zh,
+  })
 }
 
 // ── Actions ──────────────────────────────────────────────────────
@@ -250,10 +259,16 @@ function nextAction(
   switch (fiscalOf(order)) {
     case 'refund_pending':
       return auth.isManager
-        ? { label: t('webshop_action_refund'), run: () => store.refundOrder(order, auth.currentUser!.insz) }
+        ? {
+            label: t('webshop_action_refund'),
+            run: () => store.refundOrder(order, auth.currentUser!.insz),
+          }
         : null
     case 'cancel_pending':
-      return { label: t('webshop_action_close_cancelled'), run: () => store.closeCancelledOrder(order) }
+      return {
+        label: t('webshop_action_close_cancelled'),
+        run: () => store.closeCancelledOrder(order),
+      }
   }
   switch (statusOf(order)) {
     case 'new':
@@ -267,7 +282,10 @@ function nextAction(
       return { label: t('webshop_action_ready'), run: () => store.markReady(id) }
     case 'awaiting_collection':
       if (isOwnWebshop(order) && order.service_type === 'delivery') {
-        return { label: t('webshop_action_out_for_delivery'), run: () => store.markOutForDelivery(id) }
+        return {
+          label: t('webshop_action_out_for_delivery'),
+          run: () => store.markOutForDelivery(id),
+        }
       }
       return finishAction(order)
     case 'in_delivery':
@@ -278,7 +296,9 @@ function nextAction(
 }
 
 /** Handing over: an unpaid order is collected (its sale N), a prepaid one completed. */
-function finishAction(order: WebshopOrderSummary): { label: string; run: () => Promise<void> } | null {
+function finishAction(
+  order: WebshopOrderSummary,
+): { label: string; run: () => Promise<void> } | null {
   if (isUnpaid(order)) {
     return { label: t('webshop_action_collect_cash'), run: () => store.collectOrder(order, 'cash') }
   }
@@ -306,14 +326,17 @@ function reviewReasons(order: WebshopOrderSummary): string[] {
 }
 
 function changedAfterSigning(order: WebshopOrderSummary): boolean {
-  return fiscalOf(order) !== 'pending' &&
+  return (
+    fiscalOf(order) !== 'pending' &&
     (order.webshop?.attention ?? []).some((a) => a.code === 'changed_after_signing')
+  )
 }
 
 /** "Payée" / "À encaisser", once the payment is known. */
 function paymentBadge(order: WebshopOrderSummary): { text: string; tone: 'paid' | 'due' } | null {
   const mode = order.webshop?.payment_mode
-  if (fiscalOf(order) === 'signed_n' || mode === 'prepaid') return { text: t('webshop_badge_prepaid'), tone: 'paid' }
+  if (fiscalOf(order) === 'signed_n' || mode === 'prepaid')
+    return { text: t('webshop_badge_prepaid'), tone: 'paid' }
   if (mode === 'unpaid') return { text: t('webshop_badge_unpaid'), tone: 'due' }
   return null
 }
@@ -433,12 +456,7 @@ onUnmounted(() => clearInterval(nowTimer))
     </p>
 
     <main class="board">
-      <section
-        v-for="col in columns"
-        :key="col.id"
-        class="column"
-        :class="`column-${col.id}`"
-      >
+      <section v-for="col in columns" :key="col.id" class="column" :class="`column-${col.id}`">
         <header class="column-head">
           <span class="column-dot" />
           <span class="column-title">{{ col.title }}</span>
@@ -478,7 +496,8 @@ onUnmounted(() => clearInterval(nowTimer))
                 v-if="keyTime(order)"
                 class="key-time"
                 :class="`key-time-${keyTime(order)!.tone}`"
-              >{{ keyTime(order)!.text }}</span>
+                >{{ keyTime(order)!.text }}</span
+              >
             </header>
 
             <div v-if="metaLine(order) || paymentBadge(order)" class="card-meta">
@@ -488,13 +507,18 @@ onUnmounted(() => clearInterval(nowTimer))
                 class="pay-badge"
                 :class="`pay-badge-${paymentBadge(order)!.tone}`"
                 data-testid="pay-badge"
-              >{{ paymentBadge(order)!.text }}</span>
+                >{{ paymentBadge(order)!.text }}</span
+              >
             </div>
 
             <div v-if="cancelledBanner(order)" class="fiscal-banner" data-testid="cancelled-banner">
               {{ cancelledBanner(order) }}
             </div>
-            <div v-if="changedAfterSigning(order)" class="fiscal-banner" data-testid="changed-banner">
+            <div
+              v-if="changedAfterSigning(order)"
+              class="fiscal-banner"
+              data-testid="changed-banner"
+            >
               {{ t('webshop_changed_after_signing') }}
             </div>
 
@@ -517,7 +541,11 @@ onUnmounted(() => clearInterval(nowTimer))
                     <span class="item-name" :class="{ zh: uiIsZh }">
                       {{ itemName(item).primary }}
                     </span>
-                    <span v-if="itemName(item).secondary" class="item-name-alt" :class="{ zh: !uiIsZh }">
+                    <span
+                      v-if="itemName(item).secondary"
+                      class="item-name-alt"
+                      :class="{ zh: !uiIsZh }"
+                    >
                       {{ itemName(item).secondary }}
                     </span>
                   </span>
@@ -525,9 +553,7 @@ onUnmounted(() => clearInterval(nowTimer))
                 <div v-if="item.options.length > 0" class="item-options">
                   {{ item.options.join(' · ') }}
                 </div>
-                <div v-if="item.customer_notes" class="item-notes">
-                  “{{ item.customer_notes }}”
-                </div>
+                <div v-if="item.customer_notes" class="item-notes">“{{ item.customer_notes }}”</div>
               </li>
             </ul>
 
@@ -540,7 +566,9 @@ onUnmounted(() => clearInterval(nowTimer))
                 :key="m"
                 class="chip-delay"
                 @click="handleDelay(order, m)"
-              >+{{ m }}</button>
+              >
+                +{{ m }}
+              </button>
             </div>
 
             <footer class="card-actions">
@@ -713,9 +741,15 @@ onUnmounted(() => clearInterval(nowTimer))
   border-radius: 50%;
   background: var(--text-secondary);
 }
-.column-new .column-dot { background: var(--accent-warning); }
-.column-kitchen .column-dot { background: var(--accent-info); }
-.column-ready .column-dot { background: var(--accent-success); }
+.column-new .column-dot {
+  background: var(--accent-warning);
+}
+.column-kitchen .column-dot {
+  background: var(--accent-info);
+}
+.column-ready .column-dot {
+  background: var(--accent-success);
+}
 .column-title {
   font-size: 24px;
   font-weight: 800;
@@ -787,10 +821,18 @@ onUnmounted(() => clearInterval(nowTimer))
   width: 6px;
   background: var(--channel-color, var(--text-secondary));
 }
-.ch-deliveroo { --channel-color: var(--channel-deliveroo); }
-.ch-uber { --channel-color: var(--channel-uber-eats); }
-.ch-takeaway { --channel-color: var(--channel-takeaway); }
-.ch-webshop { --channel-color: var(--accent-primary); }
+.ch-deliveroo {
+  --channel-color: var(--channel-deliveroo);
+}
+.ch-uber {
+  --channel-color: var(--channel-uber-eats);
+}
+.ch-takeaway {
+  --channel-color: var(--channel-takeaway);
+}
+.ch-webshop {
+  --channel-color: var(--accent-primary);
+}
 .card-completed,
 .card-rejected,
 .card-cancelled {
@@ -828,11 +870,23 @@ onUnmounted(() => clearInterval(nowTimer))
   font-weight: 700;
   white-space: nowrap;
 }
-.key-time-warn { color: var(--accent-warning); }
-.key-time-alarm { color: var(--accent-danger); font-weight: 800; }
-.key-time-info { color: var(--accent-info); }
-.key-time-plain { color: var(--text-primary); }
-.key-time-muted { color: var(--text-secondary); font-size: 18px; }
+.key-time-warn {
+  color: var(--accent-warning);
+}
+.key-time-alarm {
+  color: var(--accent-danger);
+  font-weight: 800;
+}
+.key-time-info {
+  color: var(--accent-info);
+}
+.key-time-plain {
+  color: var(--text-primary);
+}
+.key-time-muted {
+  color: var(--text-secondary);
+  font-size: 18px;
+}
 
 .card-meta {
   font-size: 16px;

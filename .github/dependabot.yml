@@ -1,9 +1,44 @@
 version: 2
-# GitHub Actions only, checked daily; "CI watch" merges a green minor/patch PR.
-# No version updates for Cargo, npm or Gradle: the crates and the UI bundle are
-# locked to the certified build (lock parity, PD59), so they move by hand with a
-# dossier update. Dependabot alerts still cover them.
+# Daily checks; "CI watch" merges a green minor/patch PR (majors wait for a
+# human). cooldown: version updates wait until a release is 3 days old;
+# security updates are immediate.
+# No version updates for Cargo or Gradle: the crates are locked to the
+# certified build (lock parity, PD59), so they move by hand with a dossier
+# update. Dependabot alerts still cover them.
 updates:
+  # The Vue UI of the Linux product (ui/). Its bundle is embedded in the Linux
+  # binary, never in the Android APK.
+  - package-ecosystem: 'npm'
+    directory: '/ui'
+    schedule:
+      interval: 'daily'
+      time: '06:00'
+      timezone: 'Europe/Brussels'
+    cooldown:
+      default-days: 3
+    ignore:
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+    groups:
+      # Security fixes, opened as soon as an advisory lands (no cooldown).
+      security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+      # Vite+ ships its own oxc, Rolldown and vitest builds: the CLI and its
+      # packages move together. Dependabot cannot move the `overrides.vite`
+      # alias (vite-plus-core): .github/workflows/dependabot-vite-plus.yml
+      # pushes that commit on the PR, then CI watch merges it when green.
+      vite-plus:
+        patterns:
+          - 'vite-plus'
+          - '@voidzero-dev/*'
+      # Every other non-major bump in one daily PR. Groups above take
+      # precedence; majors get their own PR.
+      minor-and-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:

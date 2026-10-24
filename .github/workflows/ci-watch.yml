@@ -4,7 +4,9 @@ name: CI watch
 # - posts failures on main, release tags and Dependabot branches to Telegram,
 # - reports the outcome of every release tag build,
 # - squash-merges a Dependabot PR once all its checks are green, unless it holds
-#   a major update (those get a Telegram note and wait for a human).
+#   a major update (those get a Telegram note and wait for a human). Besides
+#   Dependabot's commits, only the override commit of dependabot-vite-plus.yml
+#   is allowed on the branch.
 # workflow_run always uses this file from main, with the repository secrets,
 # also for runs that Dependabot started.
 
@@ -125,13 +127,17 @@ jobs:
             exit 0
           fi
 
-          # A commit pushed by hand on the branch means a human merges it.
-          if gh pr view "$number" --json commits --jq '[.commits[].authors[].login // ""] | any(test("dependabot") | not)' | grep -q true; then
+          # A commit pushed by hand on the branch means a human merges it. The
+          # one exception is the vite-plus-core override commit of the
+          # "Dependabot Vite+ pin" workflow.
+          gh pr view "$number" --json commits --jq '.commits' > commits.json
+          if jq -e 'any(.[]; ((.authors | any((.login // "") | test("dependabot"))) or (.messageHeadline | startswith("build(deps): move the vite-plus-core override to "))) | not)' commits.json >/dev/null; then
             echo "PR #$number has commits not made by Dependabot: leaving it."
             exit 0
           fi
 
-          msg=$(gh api "repos/$GH_REPO/commits/$HEAD_SHA" --jq .commit.message)
+          # Dependabot's own commits carry the update metadata.
+          msg=$(jq -r '.[] | select(.authors | any((.login // "") | test("dependabot"))) | .messageHeadline + "\n" + .messageBody' commits.json)
           if ! grep -q 'updated-dependencies:' <<<"$msg" || grep -q 'update-type: version-update:semver-major' <<<"$msg"; then
             if ! jq -e '.labels | any(.name == "needs-review")' <<<"$pr" >/dev/null; then
               gh label create needs-review --color d93f0b --description "Major update: green CI, human merge" --force >/dev/null
