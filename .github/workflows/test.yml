@@ -44,6 +44,8 @@ jobs:
   rust:
     name: Rust (${{ matrix.features.name }})
     runs-on: [self-hosted, moyun-pos]
+    # Self-hosted runner: never for a pull request from a fork (public repository).
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     container: ubuntu:26.04
     strategy:
       fail-fast: false
@@ -114,6 +116,8 @@ jobs:
   playwright-e2e:
     name: Playwright E2E
     runs-on: [self-hosted, moyun-pos]
+    # Self-hosted runner: never for a pull request from a fork (public repository).
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     container: ubuntu:26.04
     steps:
       - name: Git for the checkout
@@ -227,6 +231,8 @@ jobs:
   dossier:
     name: Dossier consistency
     runs-on: [self-hosted, moyun-pos]
+    # Self-hosted runner: never for a pull request from a fork (public repository).
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     container: ubuntu:26.04
     steps:
       - name: Git and Python
