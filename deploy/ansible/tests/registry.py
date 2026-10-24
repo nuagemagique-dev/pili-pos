@@ -119,10 +119,15 @@ def make_handler(root, repo):
                     return self.send(404)
                 if inside(root, "blobs", digest) is None:
                     return self.send(404)
+                # The header carries the stored file's own name (from the
+                # directory listing), never the request's string.
+                stored = next((n for n in os.listdir(os.path.join(root, "blobs")) if n == digest), None)
+                if stored is None or not valid_digest_hex(stored):
+                    return self.send(404)
                 # Another host name, as ghcr.io's redirect to its storage:
                 # curl must drop the Authorization header there.
                 port = self.server.server_address[1]
-                return self.send(307, location="http://localhost:%d/storage/%s" % (port, digest))
+                return self.send(307, location="http://localhost:%d/storage/%s" % (port, stored))
 
             if path.startswith("/storage/"):
                 if self.headers.get("Authorization"):
