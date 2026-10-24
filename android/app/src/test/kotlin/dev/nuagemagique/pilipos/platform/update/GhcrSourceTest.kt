@@ -64,10 +64,10 @@ class GhcrSourceTest {
 
             val seen = registry.server.seen
             val token = seen.first { it.path == "/token" }
-            assertEquals("repository:brunomoyse/moyun-pos:pull", token.query?.substringAfter("scope=")?.substringBefore("&"))
+            assertEquals("repository:nuagemagique-dev/pili-pos:pull", token.query?.substringAfter("scope=")?.substringBefore("&"))
             assertEquals("service=ghcr.io", token.query?.substringAfter("&"))
             assertNull(token.authorization)
-            val manifest = seen.first { it.path == "/v2/brunomoyse/moyun-pos/manifests/declared-android" }
+            val manifest = seen.first { it.path == "/v2/nuagemagique-dev/pili-pos/manifests/declared-android" }
             assertEquals("application/vnd.oci.image.manifest.v1+json", manifest.accept)
             assertEquals("Bearer test-token", manifest.authorization)
             val blobs = seen.filter { it.path.contains("/blobs/sha256:") }
@@ -208,7 +208,7 @@ class GhcrSourceTest {
             registry.layer("declared.json.minisig", UpdateFixtures.minisig.toByteArray())
             registry.publish()
             val digest = "sha256:" + sha256Hex(UpdateFixtures.json)
-            registry.server.redirect("/v2/brunomoyse/moyun-pos/blobs/$digest", "http://evil.example.org/blob")
+            registry.server.redirect("/v2/nuagemagique-dev/pili-pos/blobs/$digest", "http://evil.example.org/blob")
             val error = refusal { source(registry).fetchDescriptor() }
             assertEquals(UpdateRefusalCode.NETWORK, error.code)
         }
@@ -221,7 +221,7 @@ class GhcrSourceTest {
             registry.layer("declared.json.minisig", UpdateFixtures.minisig.toByteArray())
             registry.publish()
             val digest = "sha256:" + sha256Hex(UpdateFixtures.json)
-            registry.server.redirect("/v2/brunomoyse/moyun-pos/blobs/$digest", "/loop1")
+            registry.server.redirect("/v2/nuagemagique-dev/pili-pos/blobs/$digest", "/loop1")
             (1..9).forEach { registry.server.redirect("/loop$it", "/loop${it + 1}") }
             val error = refusal { source(registry).fetchDescriptor() }
             assertEquals(UpdateRefusalCode.NETWORK, error.code)
@@ -236,7 +236,7 @@ class GhcrSourceTest {
             registry.layer("declared.json.minisig", UpdateFixtures.minisig.toByteArray())
             registry.publish()
             val digest = "sha256:" + sha256Hex(UpdateFixtures.json)
-            registry.server.redirect("/v2/brunomoyse/moyun-pos/blobs/$digest", "/elsewhere", status = 302)
+            registry.server.redirect("/v2/nuagemagique-dev/pili-pos/blobs/$digest", "/elsewhere", status = 302)
             registry.server.serve("/elsewhere", UpdateFixtures.json)
             assertArrayEquals(UpdateFixtures.json, source(registry).fetchDescriptor().jsonBytes)
             assertEquals("Bearer test-token", registry.server.seen.last { it.path == "/elsewhere" }.authorization)
@@ -246,7 +246,7 @@ class GhcrSourceTest {
     fun anHttpErrorIsNetwork() =
         runTest {
             val registry = registry()
-            registry.server.serve("/v2/brunomoyse/moyun-pos/manifests/declared-android", ByteArray(0), status = 404)
+            registry.server.serve("/v2/nuagemagique-dev/pili-pos/manifests/declared-android", ByteArray(0), status = 404)
             val error = refusal { source(registry).fetchDescriptor() }
             assertEquals(UpdateRefusalCode.NETWORK, error.code)
             assertTrue(error.detail, error.detail.contains("404"))
@@ -294,9 +294,9 @@ class GhcrSourceTest {
     fun aManifestWithoutLayersOrNotJsonIsRefused() =
         runTest {
             val registry = registry()
-            registry.server.serve("/v2/brunomoyse/moyun-pos/manifests/declared-android", "{}".toByteArray())
+            registry.server.serve("/v2/nuagemagique-dev/pili-pos/manifests/declared-android", "{}".toByteArray())
             assertEquals(UpdateRefusalCode.BAD_DESCRIPTOR, refusal { source(registry).fetchDescriptor() }.code)
-            registry.server.serve("/v2/brunomoyse/moyun-pos/manifests/declared-android", "<html>".toByteArray())
+            registry.server.serve("/v2/nuagemagique-dev/pili-pos/manifests/declared-android", "<html>".toByteArray())
             assertEquals(UpdateRefusalCode.NETWORK, refusal { source(registry).fetchDescriptor() }.code)
         }
 
@@ -308,7 +308,7 @@ class GhcrSourceTest {
 
             fun layer(name: String) = "{\"digest\":\"sha512:abc\",\"size\":3,\"annotations\":{\"$title\":\"$name\"}}"
             val manifest = "{\"layers\":[${layer("declared.json")},${layer("declared.json.minisig")}]}"
-            registry.server.serve("/v2/brunomoyse/moyun-pos/manifests/declared-android", manifest.toByteArray())
+            registry.server.serve("/v2/nuagemagique-dev/pili-pos/manifests/declared-android", manifest.toByteArray())
             assertEquals(UpdateRefusalCode.BAD_DESCRIPTOR, refusal { source(registry).fetchDescriptor() }.code)
         }
 
@@ -336,7 +336,7 @@ class GhcrSourceTest {
     @Test
     fun theDefaultsPointAtThePublicPackage() {
         assertEquals("https://ghcr.io", GhcrSource.DEFAULT_BASE_URL)
-        assertEquals("brunomoyse/moyun-pos", GhcrSource.DEFAULT_REPOSITORY)
+        assertEquals("nuagemagique-dev/pili-pos", GhcrSource.DEFAULT_REPOSITORY)
         assertEquals("declared-android", GhcrSource.DEFAULT_TAG)
         assertEquals("ghcr", GhcrSource().label)
     }

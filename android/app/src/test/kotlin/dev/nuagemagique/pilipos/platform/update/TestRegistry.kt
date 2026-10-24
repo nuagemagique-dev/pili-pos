@@ -149,7 +149,7 @@ class TestServer {
  * Blobs are served by this server, or through a redirect to [cdn] when set.
  */
 class TestRegistry(
-    private val repository: String = "brunomoyse/moyun-pos",
+    private val repository: String = "nuagemagique-dev/pili-pos",
     private val tag: String = "declared-android",
     private val token: String = "test-token",
 ) {

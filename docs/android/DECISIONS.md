@@ -968,8 +968,8 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   - **PD211 Update source format.** One signed descriptor `declared.json` per declared Android version:
     `{"format":1,"platform":"android","package":"dev.nuagemagique.pilipos","version":"X.Y.Z","versionCode":N,"asset":"pili-pos-android-X.Y.Z.apk","sha1":"..","sha256":"..","signerSha256":"..","declared_at":".."}`
     with `declared.json.minisig` (trusted comment `pili-pos-android X.Y.Z declared <ts>`).
-    - **Online:** an OCI artifact, tag `declared-android` of the public package `ghcr.io/brunomoyse/moyun-pos` (same package as the Linux `:declared`), pulled anonymously:
-      1. `GET /token?scope=repository:brunomoyse/moyun-pos:pull&service=ghcr.io`;
+    - **Online:** an OCI artifact, tag `declared-android` of the public package `ghcr.io/nuagemagique-dev/pili-pos` (same package as the Linux `:declared`), pulled anonymously:
+      1. `GET /token?scope=repository:nuagemagique-dev/pili-pos:pull&service=ghcr.io`;
       2. the manifest (`application/vnd.oci.image.manifest.v1+json`); the layers are found by their `org.opencontainers.image.title` annotation;
       3. the blobs, checked against their digest. Redirects are followed by hand, and the bearer token is never sent to another host.
     - **USB (Q8):** the same three files in a SAF folder.

@@ -229,11 +229,11 @@ A missing, mistyped or empty field, an unknown `format`, another `platform` or a
 
 `UpdateSource` has two calls: `fetchDescriptor()` returns `DescriptorFiles(jsonBytes, minisigText)`, `fetchAsset(name, dest, maxBytes = 200 MiB)` writes the APK to `dest` (through `dest.part`, so a failed copy leaves nothing). A source moves bytes and trusts nothing; failures are an `UpdateException(code, detail)`.
 
-**`GhcrSource` (online).** An OCI artifact, tag `declared-android` of the public package `ghcr.io/brunomoyse/moyun-pos` (the same package as the Linux `:declared`), pulled anonymously:
+**`GhcrSource` (online).** An OCI artifact, tag `declared-android` of the public package `ghcr.io/nuagemagique-dev/pili-pos` (the same package as the Linux `:declared`), pulled anonymously:
 
-1. `GET {base}/token?scope=repository:brunomoyse/moyun-pos:pull&service=ghcr.io`, JSON `{"token":"..."}` (`access_token` is accepted too);
-2. `GET {base}/v2/brunomoyse/moyun-pos/manifests/declared-android` with `Accept: application/vnd.oci.image.manifest.v1+json` and `Authorization: Bearer <token>`;
-3. `GET {base}/v2/brunomoyse/moyun-pos/blobs/<digest>` for each layer, with the bearer.
+1. `GET {base}/token?scope=repository:nuagemagique-dev/pili-pos:pull&service=ghcr.io`, JSON `{"token":"..."}` (`access_token` is accepted too);
+2. `GET {base}/v2/nuagemagique-dev/pili-pos/manifests/declared-android` with `Accept: application/vnd.oci.image.manifest.v1+json` and `Authorization: Bearer <token>`;
+3. `GET {base}/v2/nuagemagique-dev/pili-pos/blobs/<digest>` for each layer, with the bearer.
 
 The token and the manifest are fetched once per source object, so the descriptor and the APK come from the same manifest. Every blob is hashed while it streams and compared with its `sha256:` digest: a wrong digest is `sha256_mismatch` for the APK and `bad_descriptor` for the descriptor files. A layer larger than its limit is `too_large` before the blob is requested, and a blob that turns out longer than the manifest says is refused (`too_large`) as soon as it passes the limit, and nothing is kept. Timeouts: 15 s to connect, 60 s to read. Redirects (the registry sends blobs to a CDN) are followed by hand, at most 5, and the `Authorization` header goes only to the origin (scheme, host and port) of the base URL, never to the target of a redirect. TLS is required, apart from the debug override below. Any HTTP error or transport failure is `network`.
 
@@ -243,7 +243,7 @@ The token and the manifest are fetched once per source object, so the descriptor
 
 ### 8.3 OCI layout that P6-T9 must produce
 
-`oras push ghcr.io/brunomoyse/moyun-pos:declared-android` with exactly these three files, each pushed as a layer whose `org.opencontainers.image.title` annotation is the file name (oras sets it from the file name):
+`oras push ghcr.io/nuagemagique-dev/pili-pos:declared-android` with exactly these three files, each pushed as a layer whose `org.opencontainers.image.title` annotation is the file name (oras sets it from the file name):
 
 | Layer title | Content |
 | --- | --- |

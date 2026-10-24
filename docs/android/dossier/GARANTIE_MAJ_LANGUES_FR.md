@@ -61,7 +61,7 @@ Ces valeurs doivent être égales à celles de EV-01, EV-02 et EV-03. Les mêmes
 
 **Vérification indépendante**, sans la caisse :
 ```bash
-# 1. L'artefact public déclaré (ghcr.io/brunomoyse/moyun-pos, étiquette declared-android)
+# 1. L'artefact public déclaré (ghcr.io/nuagemagique-dev/pili-pos, étiquette declared-android)
 #    contient declared.json, sa signature minisign et l'APK
 shasum -a 1 pili-pos-android-1.0.0.apk            # doit correspondre à EV-01
 unzip -p pili-pos-android-1.0.0.apk lib/arm64-v8a/libpos_ffi.so | shasum -a 1   # EV-02

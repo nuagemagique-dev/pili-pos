@@ -248,6 +248,6 @@ Non-blocking review findings, carried forward (PD229).
 3. **Update precheck (PD213).** Should an engine `update_precheck` (booking period closed, no pending sign) be added with the re-freeze?
 4. **Power menu (PD206).** Do you confirm that the staff lose the power menu in production (lock task features NONE)?
 5. **Declaration key (PD212, PD216).** Should `declared-android` reuse the Linux minisign declaration key, or get a second one? Who holds the RSA 4096 APK signing key?
-6. **Package location (PD211).** Is `ghcr.io/brunomoyse/moyun-pos` with the tag `declared-android` the right public channel, given the brand-neutral dossier?
+6. **Package location (PD211).** Is `ghcr.io/nuagemagique-dev/pili-pos` with the tag `declared-android` the right public channel, given the brand-neutral dossier?
 7. **Manager PIN (PD214).** Is the logged-in Admin session enough, or do you want a second PIN prompt before an update?
 8. **GMS variant (PD230).** Should the next platform card hide the Play Store and other user-facing Google apps, block other installs, and set a windowed system update policy? If so, what are the service hours for that window?
