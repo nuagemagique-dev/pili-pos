@@ -1,0 +1,12 @@
+# Site directory layout (deploy/usb/site.example/secrets/) -> where
+# each file lands under /etc/pili-pos, and the pos.json key it feeds.
+pili_secret_map:
+  - { key: fdm_token, src: fdm/token, dest: fdm/token }
+  - { key: fdm_ca, src: fdm/ca.pem, dest: fdm/ca.pem }
+  - { key: fdm_client_cert, src: fdm/client.pem, dest: fdm/client.pem }
+  - { key: fdm_client_key, src: fdm/client.key, dest: fdm/client.key }
+  - { key: hubrise_secret, src: hubrise.secret, dest: secrets/hubrise.secret }
+  - { key: tem_key, src: tem.key, dest: secrets/tem.key }
+
+# false only for tests that reuse one site directory.
+pili_wipe_site_secrets: true

@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
 # pili-pos - Update Script
-# Usage: sudo ./update.sh /path/to/pili-pos --sha1 <declared SHA-1>
+# Usage: sudo ./update.sh /path/to/pili-pos --sha1 <declared SHA-1> [--no-service]
+#
+# --no-service: neither stop nor start pili-pos.service. Only for the
+# first-boot bootstrap (deploy/ansible, pili-bootstrap.service): it runs
+# before the kiosk has ever started, while the kiosk's start job is
+# queued behind it - a stop would cancel that job, a start would wait
+# on the bootstrap itself.
 #
 # Every modification of the POS requires an update certification
 # request to SPF Finances (manual §II.E). Only install a binary whose
@@ -21,11 +27,13 @@ SERVICE="pili-pos.service"
 
 BINARY_PATH="${1:-}"
 EXPECTED_SHA1=""
+MANAGE_SERVICE=1
 
 shift || true
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --sha1) EXPECTED_SHA1="$2"; shift 2 ;;
+        --no-service) MANAGE_SERVICE=0; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -35,7 +43,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 if [[ -z "$BINARY_PATH" || ! -f "$BINARY_PATH" || -z "$EXPECTED_SHA1" ]]; then
-    echo "Usage: sudo $0 /path/to/pili-pos --sha1 <declared SHA-1>"
+    echo "Usage: sudo $0 /path/to/pili-pos --sha1 <declared SHA-1> [--no-service]"
     exit 1
 fi
 
@@ -68,9 +76,14 @@ restore_root_ro() {
 }
 trap restore_root_ro EXIT
 
-echo "▸ Stopping POS service..."
-systemctl stop "$SERVICE" 2>/dev/null || true
-sleep 1
+if [[ "$MANAGE_SERVICE" -eq 1 ]]; then
+    echo "▸ Stopping POS service..."
+    systemctl stop "$SERVICE" 2>/dev/null || true
+    sleep 1
+elif systemctl is-active --quiet "$SERVICE"; then
+    echo "ERROR: --no-service, but $SERVICE is running - refusing."
+    exit 1
+fi
 
 echo "▸ Backing up current binary..."
 if [[ -f "$POS_BIN_DIR/pili-pos" ]]; then
@@ -94,6 +107,11 @@ install -m 755 "$BINARY_PATH" "$POS_BIN_DIR/pili-pos"
 echo "▸ Migrating database..."
 runuser -u pos -- env PILI_POS_DATA_DIR="$POS_HOME" \
     "$POS_BIN_DIR/pili-pos" --init-db
+
+if [[ "$MANAGE_SERVICE" -eq 0 ]]; then
+    echo "✓ $("$POS_BIN_DIR/pili-pos" --version) installed (--no-service: the kiosk starts after the bootstrap)"
+    exit 0
+fi
 
 echo "▸ Starting POS service..."
 systemctl start "$SERVICE"

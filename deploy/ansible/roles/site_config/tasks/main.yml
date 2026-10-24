@@ -1,0 +1,156 @@
+# pos.json + secrets from the site directory (deploy/usb/site.example/).
+#
+# site.yml's `pos:` mapping IS pos.json (keys of crates/pos-core/src/
+# config.rs PosConfig), written as JSON. This role only adds:
+#   - device_id from the NIC MAC when site.yml leaves it out (same rule
+#     as provision.sh / pili-provision detect_device_id());
+#   - the *_file paths of the secrets it installed, unless site.yml
+#     names them itself.
+#
+# Secrets go to /etc/pili-pos (on the encrypted /var on the kiosk
+# image), root:pos 0640 in root:pos 0750 dirs as provision.sh does,
+# then are DELETED from the site directory: on the terminal that is the
+# ESP, which is not encrypted.
+- name: Site config
+  when: pili_site.pos is defined
+  block:
+    - name: Secret directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: "{{ pili_pos_user }}"
+        mode: "0750"
+      # /etc/pili-pos itself is left as pili-provision / provision.sh made it.
+      loop:
+        - "{{ pili_etc_dir }}/fdm"
+        - "{{ pili_etc_dir }}/secrets"
+
+    - name: Install the secrets found in the site directory
+      ansible.builtin.copy:
+        src: "{{ pili_site_dir }}/secrets/{{ item.src }}"
+        dest: "{{ pili_etc_dir }}/{{ item.dest }}"
+        owner: root
+        group: "{{ pili_pos_user }}"
+        mode: "0640"
+        remote_src: true
+      loop: "{{ pili_secret_map }}"
+      loop_control:
+        label: "{{ item.dest }}"
+      when: (pili_site_dir ~ '/secrets/' ~ item.src) is file
+
+    - name: Which secrets are installed (this run or an earlier one)
+      ansible.builtin.stat:
+        path: "{{ pili_etc_dir }}/{{ item.dest }}"
+        get_checksum: false
+      loop: "{{ pili_secret_map }}"
+      loop_control:
+        label: "{{ item.dest }}"
+      register: pili_secret_stat
+
+    - name: Secret paths for pos.json
+      ansible.builtin.set_fact:
+        pili_secret_paths: >-
+          {{ pili_secret_paths | default({}) | combine({item.item.key: pili_etc_dir ~ '/' ~ item.item.dest}) }}
+      loop: "{{ pili_secret_stat.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+      when: item.stat.exists
+
+    # Same rule as detect_device_id() in deploy/provision/provision.sh
+    # and pili-provision (keep the three in sync): the interface of the
+    # default route, else the first non-loopback interface with a MAC.
+    - name: Device id from the NIC MAC
+      ansible.builtin.shell: |
+        set -o pipefail
+        iface="$(ip -o route show default 2>/dev/null \
+            | awk '!found {for (i=1;i<NF;i++) if ($i=="dev") {print $(i+1); found=1; break}}')"
+        if [[ -z "$iface" ]]; then
+            for c in /sys/class/net/*; do
+                n="$(basename "$c")"
+                [[ "$n" == lo ]] && continue
+                [[ -s "$c/address" ]] && { iface="$n"; break; }
+            done
+        fi
+        [[ -n "$iface" ]] || exit 1
+        mac="$(tr '[:upper:]' '[:lower:]' < "/sys/class/net/$iface/address")"
+        [[ -n "$mac" && "$mac" != 00:00:00:00:00:00 ]] || exit 1
+        echo "$mac"
+      args:
+        executable: /bin/bash
+      register: pili_mac_cmd
+      changed_when: false
+      failed_when: false
+
+    - name: Keep the MAC
+      ansible.builtin.set_fact:
+        pili_mac: "{{ pili_mac_cmd.stdout | trim }}"
+
+    - name: Build pos.json
+      ansible.builtin.set_fact:
+        # site.yml wins over everything this role fills in.
+        pili_pos_json: "{{ pili_pos_auto | combine(pili_site.pos, recursive=true) }}"
+      vars:
+        pili_sp: "{{ pili_secret_paths | default({}) }}"
+        pili_pos_auto: >-
+          {{ ({'device_id': pili_mac} if pili_mac | length > 0 else {})
+             | combine({'fdm_token_file': pili_sp.fdm_token} if 'fdm_token' in pili_sp else {})
+             | combine({'fdm_ca_file': pili_sp.fdm_ca} if 'fdm_ca' in pili_sp else {})
+             | combine({'fdm_client_cert_file': pili_sp.fdm_client_cert} if 'fdm_client_cert' in pili_sp else {})
+             | combine({'fdm_client_key_file': pili_sp.fdm_client_key} if 'fdm_client_key' in pili_sp else {})
+             | combine({'hubrise': {'client_secret_file': pili_sp.hubrise_secret}}
+                       if ('hubrise_secret' in pili_sp and pili_site.pos.hubrise is defined) else {})
+             | combine({'digital_ticket': {'api_key_file': pili_sp.tem_key}}
+                       if ('tem_key' in pili_sp and pili_site.pos.digital_ticket is defined) else {}) }}
+
+    - name: Check the identity fields pos.json cannot boot without
+      ansible.builtin.assert:
+        that:
+          - pili_pos_json[item] is defined
+          - pili_pos_json[item] | string | length > 0
+        fail_msg: "site.yml pos.{{ item }} is missing"
+        quiet: true
+      loop: [pos_id, terminal_id, device_id, restaurant_name, restaurant_address, restaurant_vat, restaurant_est_no, fdm_url]
+
+    - name: Write pos.json
+      ansible.builtin.copy:
+        dest: "{{ pili_etc_dir }}/pos.json"
+        content: "{{ pili_pos_json | to_nice_json(indent=2) }}\n"
+        owner: root
+        group: "{{ pili_pos_user }}"
+        mode: "0640"
+        # The link /etc/pili-pos -> /var/lib/pili-etc/pili-pos is the
+        # kiosk image's own; never replace it with a file.
+        follow: true
+
+    - name: Keep a copy of site.yml next to pos.json (re-runs after the ESP copy is gone)
+      ansible.builtin.copy:
+        src: "{{ pili_site_dir }}/site.yml"
+        dest: "{{ pili_etc_dir }}/site.yml"
+        remote_src: true
+        owner: root
+        group: "{{ pili_pos_user }}"
+        mode: "0640"
+      # Not when re-run with --site /etc/pili-pos itself.
+      when:
+        - (pili_site_dir ~ '/site.yml') is file
+        - (pili_site_dir | realpath) != (pili_etc_dir | realpath)
+
+    - name: Delete the secrets from the site directory (unencrypted ESP)
+      ansible.builtin.file:
+        path: "{{ pili_site_dir }}/secrets"
+        state: absent
+      when: pili_wipe_site_secrets | bool
+
+    - name: Ask the POS whether the identity is usable
+      ansible.builtin.command: "{{ pili_bin }} --check-config"
+      register: pili_check_config
+      changed_when: false
+      failed_when: false
+
+    - name: Record the site config result
+      ansible.builtin.set_fact:
+        pili_site_result: "{{ 'pos.json écrit (device_id ' ~ pili_pos_json.device_id ~ ')' }}"
+        pili_warnings: >-
+          {{ pili_warnings + (['pos.json refusé par --check-config : ' ~ (pili_check_config.stdout_lines + pili_check_config.stderr_lines) | join(' / ')]
+             if pili_check_config.rc != 0 else []) }}

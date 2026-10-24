@@ -18,6 +18,11 @@ disable pos-fdm-mock.service
 # is the kiosk's: pili-pos.service conflicts with its getty.
 enable getty@.service tty2
 
+# First real boot, after pili-provision: site config + declared binary
+# (deploy/ansible). Runs once (stamp in /var). Off on the admission
+# image (mkosi.profiles/admission/.../05-pili-admission.preset).
+enable pili-bootstrap.service
+
 # systemd 257's pcrlock policy units: the data volume is bound to PCR 7
 # directly (pili-provision, systemd-cryptenroll --tpm2-pcrs=7), not to a
 # pcrlock policy. Enabled, they run on every boot (the UKI is measured)

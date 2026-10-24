@@ -1,0 +1,67 @@
+# LAN address of the terminal (SCHEMA_ASSEMBLAGE_FR.md: POS .10, FDM
+# .20, printer .30). DHCP needs nothing: NetworkManager brings any
+# wired link up on its own. A static address is a NetworkManager
+# profile, stored in /var/lib/pili-etc/system-connections on the kiosk
+# image (linked from /etc, so it survives the read-only root).
+#
+# Plain nmcli: ansible-core ships no nmcli module (that one lives in
+# community.general, not installed on the terminal).
+- name: Static address
+  when: (pili_site.network.mode | default('dhcp')) == 'static'
+  block:
+    - name: Check the static address settings
+      ansible.builtin.assert:
+        that:
+          - pili_site.network.address is defined
+          - pili_site.network.address is search('/')
+          - pili_site.network.gateway is defined
+        fail_msg: "site.yml network.mode=static needs network.address (CIDR, e.g. 192.168.1.10/24) and network.gateway"
+
+    - name: Find the first wired interface
+      ansible.builtin.shell: |
+        set -o pipefail
+        nmcli -t -f DEVICE,TYPE device | awk -F: '$2 == "ethernet" {print $1; exit}'
+      args:
+        executable: /bin/bash
+      register: pili_eth
+      changed_when: false
+      when: pili_site.network.interface is not defined
+
+    - name: Set the interface
+      ansible.builtin.set_fact:
+        pili_iface: "{{ pili_site.network.interface | default(pili_eth.stdout | trim) }}"
+
+    - name: Fail without a wired interface
+      ansible.builtin.assert:
+        that: pili_iface | length > 0
+        fail_msg: "no ethernet interface found by NetworkManager"
+
+    - name: Replace the pili-lan profile
+      ansible.builtin.shell: |
+        nmcli connection delete pili-lan >/dev/null 2>&1 || true
+        nmcli connection add type ethernet con-name pili-lan ifname {{ pili_iface | quote }} \
+          ipv4.method manual \
+          ipv4.addresses {{ pili_site.network.address | quote }} \
+          ipv4.gateway {{ pili_site.network.gateway | quote }} \
+          ipv4.dns {{ (pili_site.network.dns | default([pili_site.network.gateway])) | join(' ') | quote }} \
+          ipv6.method disabled \
+          connection.autoconnect yes \
+          connection.autoconnect-priority 100
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Bring pili-lan up
+      ansible.builtin.command: nmcli --wait 30 connection up pili-lan
+      register: pili_nm_up
+      changed_when: pili_nm_up.rc == 0
+      failed_when: false
+
+    - name: Warn when the link did not come up
+      ansible.builtin.set_fact:
+        pili_warnings: "{{ pili_warnings + ['réseau: pili-lan ne monte pas (câble ? ' ~ (pili_nm_up.stderr | default('') | trim) ~ ')'] }}"
+      when: pili_nm_up.rc != 0
+
+    - name: Refresh the network facts after the change
+      ansible.builtin.setup:
+        gather_subset: [network]

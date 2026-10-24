@@ -1,0 +1,34 @@
+[Unit]
+Description=pili-pos site bootstrap (site config, declared binary)
+# After the first-boot LUKS2/TPM2 setup and the /var mount it feeds,
+# and after the network had its chance: NetworkManager-wait-online
+# gives up after its own timeout, network-online.target is reached
+# anyway, and the playbook then keeps the embedded binary (offline).
+After=pili-provision.service network-online.target
+Wants=network-online.target
+RequiresMountsFor=/var/lib/pili-pos
+# Before the kiosk, which then starts whatever the outcome (no
+# Requires= from pili-pos.service: a failed bootstrap never leaves the
+# terminal without its POS). Owns tty1 until it is done, as
+# pili-provision does.
+Before=pili-pos.service
+# Once: usr/local/lib/pili-pos/pili-bootstrap writes the stamp on
+# success. A failed run retries on the next boot.
+ConditionPathExists=!/var/lib/pili-pos/.bootstrapped
+# Never on a USB installer/updater boot (see pili-installer.service).
+ConditionKernelCommandLine=!pili.installer
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYReset=yes
+TTYVHangup=yes
+TimeoutStartSec=30min
+ExecStart=/usr/local/lib/pili-pos/pili-bootstrap
+
+[Install]
+WantedBy=multi-user.target

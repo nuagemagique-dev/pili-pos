@@ -30,10 +30,10 @@ et activer avant de commencer (§3.1).
 ### 2.1 Télécharger l'image kiosque
 
 L'image est fournie par le distributeur sous forme d'un fichier
-`pili-pos-kiosk-vX.Y.Z.img.xz`. Sur la machine du distributeur :
+`pili-pos-kiosk-linux-vX.Y.Z.img.xz`. Sur la machine du distributeur :
 
 ```bash
-xz -d pili-pos-kiosk-vX.Y.Z.img.xz
+xz -d pili-pos-kiosk-linux-vX.Y.Z.img.xz
 ```
 
 ### 2.2 Écrire l'image sur la clé USB
@@ -48,10 +48,43 @@ lsblk        # Linux
 diskutil list # macOS
 
 # Écrire l'image (remplacer /dev/sdX par le bon device)
-sudo dd if=pili-pos-kiosk-vX.Y.Z.img of=/dev/sdX bs=4M status=progress conv=fsync
+sudo dd if=pili-pos-kiosk-linux-vX.Y.Z.img of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 Sur Windows : utiliser **Rufus** ou **Balena Etcher** avec l'image.
+
+### 2.3 Clé d'installation d'un site (installations de production)
+
+Pour une installation chez un client, le distributeur prépare plutôt une
+clé par site avec `deploy/usb/make-key.sh` (macOS ou Linux), qui écrit
+l'image de production et ajoute sur la partition ESP de la clé :
+
+- l'entrée de démarrage "Install" par défaut (menu de 5 secondes) ;
+- le dossier du site (`site.yml` : identité `pos.json`, adresse réseau,
+  URL du FDM ; `secrets/` : jeton et certificats du FDM).
+
+```bash
+deploy/usb/make-key.sh linux-vX.Y.Z --site deploy/usb/sites/<site> /dev/diskN
+```
+
+Au premier démarrage réel (après le §3.4), le service
+`pili-bootstrap.service` applique ce dossier en local (Ansible) : adresse
+réseau, `pos.json` et secrets (effacés ensuite de l'ESP), puis la version
+**déclarée** du binaire, lue sans jeton dans le paquet public
+`ghcr.io/nuagemagique-dev/pili-pos`. Ce binaire n'est installé que si la
+signature minisign du propriétaire, la plateforme `linux`, le SHA-256 de
+l'archive et le SHA-1 déclaré concordent, et s'il n'est pas plus ancien
+que celui de l'image ; sinon (hors ligne, doute) le binaire embarqué dans
+l'image est conservé. Un résumé reste affiché 60 secondes, puis le kiosque
+démarre. Ce n'est pas une mise à jour automatique : le service ne
+s'exécute qu'une fois (relance manuelle `pili-bootstrap --rerun` depuis la
+console de maintenance).
+
+L'image d'**admission** (machine de test du SPF) n'exécute jamais ce
+service : elle fonctionne avec le binaire embarqué et l'identité du
+dossier. Le contenu de la clé : `deploy/usb/README.md`. Une fois les
+terminaux du site installés, effacer les secrets de la clé
+(`deploy/usb/make-key.sh --wipe-secrets /dev/diskN`).
 
 ## 3. Installation sur le terminal POS
 
@@ -97,6 +130,13 @@ fait le travail :
 
 1. Détection du disque interne (le premier disque autre que la clé
    USB elle-même).
+   Confirmation avant toute écriture :
+   - **Install** sur un disque sans partition `pili-data` (terminal
+     neuf) : l'installation démarre seule après un compte à rebours de
+     15 secondes ; une touche quelconque l'annule.
+   - **Install** sur un disque qui contient déjà une partition
+     `pili-data` (base fiscale), et **Update** dans tous les cas : il
+     faut taper `OUI` en majuscules.
 2. **Install** : réplication complète de la table de partitions de la
    clé (`sgdisk --replicate` + `-G` pour de nouveaux UUID) puis copie
    partition par partition (ESP + racine ; la partition `pili-data`
@@ -112,6 +152,13 @@ fait le travail :
    seule pour la racine - mais rien n'est encore déchiffré ni
    configuré : cette étape ne fait que poser les partitions ESP/racine
    sur le disque interne.
+4. Les entrées "Install" et "Update" sont retirées de l'ESP du disque
+   interne, qui démarre donc toujours sur pili-pos. Une entrée de
+   démarrage UEFI "pili-pos" pointant vers le disque interne est créée
+   et placée en tête de l'ordre de démarrage, puis le terminal
+   redémarre seul après 10 secondes : la clé USB peut rester branchée.
+   Si le firmware refuse cette entrée, le programme demande de retirer
+   la clé puis d'appuyer sur Entrée.
 
 Durée approximative : 3 à 6 minutes (copie de partitions brutes,
 beaucoup plus rapide que l'ancienne installation "à chaud" sur un
@@ -119,7 +166,7 @@ Debian nu).
 
 ### 3.4 Premier démarrage - chiffrement, mots de passe, clé de récupération
 
-Retirer la clé USB et redémarrer. Le terminal doit :
+Au redémarrage (§3.3, point 4), le terminal doit :
 
 1. Démarrer sur le disque interne (systemd-boot → UKI).
 2. `systemd-repart` finalise la partition `pili-data` (taille = tout

@@ -1,0 +1,49 @@
+# Site directory for deploy/usb/make-key.sh. Copy this whole directory
+# to deploy/usb/sites/<name>/ (git-ignored), fill it in, then:
+#   deploy/usb/make-key.sh linux-vX.Y.Z --site deploy/usb/sites/<name> /dev/diskN
+# Applied on the terminal's first boot by pili-bootstrap
+# (deploy/ansible/site.yml). make-key.sh refuses a file that still
+# contains CHANGE_ME.
+
+# LAN address (SCHEMA_ASSEMBLAGE_FR.md: POS .10, FDM .20, printer .30).
+# mode: dhcp needs nothing else (a router reservation for the MAC is
+# the simplest way to pin .10).
+network:
+  mode: static            # dhcp | static
+  address: 192.168.1.10/24
+  gateway: 192.168.1.1
+  dns: [192.168.1.1, 1.1.1.1]
+  # interface: enp1s0     # default: the first wired interface
+
+# pos.json, written as JSON (keys of crates/pos-core/src/config.rs).
+# Filled in automatically unless set here:
+#   device_id              the NIC MAC
+#   fdm_token_file         when secrets/fdm/token exists
+#   fdm_ca_file            when secrets/fdm/ca.pem exists
+#   fdm_client_cert_file   when secrets/fdm/client.pem exists
+#   fdm_client_key_file    when secrets/fdm/client.key exists
+#   hubrise.client_secret_file       when secrets/hubrise.secret exists
+#   digital_ticket.api_key_file      when secrets/tem.key exists
+pos:
+  pos_id: CHANGE_ME_14CH
+  terminal_id: POS1
+  restaurant_name: CHANGE_ME
+  # restaurant_legal_name: CHANGE_ME SRL
+  restaurant_address: CHANGE_ME
+  restaurant_vat: BE0000000000
+  restaurant_est_no: "0000000000"
+  fdm_url: https://192.168.1.20/graphql
+  printer_address: 192.168.1.30:9100
+  # kitchen_printer_address: 192.168.1.31:9100
+  language: fr
+  day_end_hour: 5
+  training_mode: false
+  backup_dir: /var/lib/pili-pos/backups
+  hubrise_enabled: false
+  # hubrise:
+  #   client_id: CHANGE_ME.clients.hubrise.com
+  # digital_ticket:
+  #   project_id: CHANGE_ME
+  #   from_email: tickets@example.be
+  #   from_name: CHANGE_ME
+  #   allow_digital_only: true

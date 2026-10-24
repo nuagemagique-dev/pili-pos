@@ -258,6 +258,13 @@ phase_image() {
         install -D -m 755 "$SCRIPT_DIR/../update.sh" "$POS_BIN_DIR/deploy/update.sh"
     fi
     chmod 755 "$POS_BIN_DIR/deploy/update.sh"
+    # Site bootstrap playbook (deploy/ansible): already in place in the
+    # kiosk image build (deploy/image/build.sh stages it), copied from
+    # the source tree on a plain Debian box.
+    if [[ -d "$SCRIPT_DIR/../ansible" && ! "$SCRIPT_DIR/../ansible" -ef "$POS_BIN_DIR/deploy/ansible" ]]; then
+        rm -rf "$POS_BIN_DIR/deploy/ansible"
+        cp -R "$SCRIPT_DIR/../ansible" "$POS_BIN_DIR/deploy/ansible"
+    fi
     echo "  ✓ $POS_BIN_DIR/pili-pos"
 
     echo "▸ [image:$VARIANT] Building the factory database…"
@@ -357,7 +364,10 @@ POSCONF
     # phase only enables what is already present in the tree (symlinks
     # only - `systemctl enable` works offline in a chroot, per mkosi's
     # documented behaviour for postinst.chroot scripts).
-    for unit in pili-provision.service pili-installer.service systemd-repart.service; do
+    for unit in pili-provision.service pili-installer.service pili-bootstrap.service systemd-repart.service; do
+        # The admission (SPF test) machine runs the embedded binary and
+        # the dossier identity only: no site bootstrap there.
+        [[ "$unit" == pili-bootstrap.service && "$VARIANT" == admission ]] && continue
         if [[ -f "/usr/lib/systemd/system/$unit" || -f "/etc/systemd/system/$unit" ]]; then
             systemctl enable "$unit" 2>/dev/null || true
         fi

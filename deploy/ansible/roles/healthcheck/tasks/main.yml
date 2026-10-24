@@ -1,0 +1,59 @@
+# Last look before the kiosk starts. Warnings only: the FDM and the
+# printer are often switched on after the terminal, and the POS itself
+# blocks sales while the FDM is unreachable.
+- name: Version that will run
+  ansible.builtin.command: "{{ pili_bin }} --version"
+  register: pili_final_version
+  changed_when: false
+
+- name: Configuration as the kiosk will read it
+  ansible.builtin.command: "{{ pili_bin }} --check-config"
+  register: pili_final_check
+  changed_when: false
+  failed_when: false
+
+- name: Read pos.json
+  ansible.builtin.slurp:
+    src: "{{ pili_etc_dir }}/pos.json"
+  register: pili_pos_json_raw
+  failed_when: false
+
+- name: Peripherals to probe
+  ansible.builtin.set_fact:
+    pili_version_line: "{{ pili_final_version.stdout | trim }}"
+    pili_probe: >-
+      {%- set c = (pili_pos_json_raw.content | b64decode | from_json) if pili_pos_json_raw.content is defined else {} -%}
+      {%- set out = [] -%}
+      {%- if c.fdm_url | default('') | length > 0 -%}
+        {%- set u = c.fdm_url | urlsplit -%}
+        {%- set _ = out.append({'name': 'FDM', 'host': u.hostname,
+              'port': u.port or (443 if u.scheme == 'https' else 80)}) -%}
+      {%- endif -%}
+      {%- for key in ['printer_address', 'kitchen_printer_address'] -%}
+        {%- if c[key] | default('') | length > 0 -%}
+          {%- set hp = c[key].rsplit(':', 1) -%}
+          {%- set _ = out.append({'name': key, 'host': hp[0], 'port': (hp[1] if hp | length > 1 else 9100) | int}) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ out }}
+
+- name: Reachability
+  ansible.builtin.wait_for:
+    host: "{{ item.host }}"
+    port: "{{ item.port }}"
+    timeout: 5
+  loop: "{{ pili_probe }}"
+  loop_control:
+    label: "{{ item.name }} {{ item.host }}:{{ item.port }}"
+  register: pili_reach
+  # ignore_errors (not failed_when: false) keeps `failed` on each result.
+  ignore_errors: true
+
+- name: Collect the warnings
+  ansible.builtin.set_fact:
+    pili_warnings: >-
+      {{ pili_warnings
+         + (['configuration refusée : ' ~ (pili_final_check.stdout_lines + pili_final_check.stderr_lines) | join(' / ')]
+            if pili_final_check.rc != 0 else [])
+         + (pili_reach.results | selectattr('failed') | map(attribute='item.name')
+            | map('regex_replace', '$', ' injoignable (allumé ? câblé ?)') | list) }}

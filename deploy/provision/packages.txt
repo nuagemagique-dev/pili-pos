@@ -57,3 +57,9 @@ wireplumber
 # Fetching/verifying the RustDesk AppImage and other downloads
 curl
 ca-certificates
+
+# Site bootstrap (deploy/ansible/site.yml, run locally on the terminal by
+# pili-bootstrap): Ansible itself, and minisign to check the owner's
+# signature on the declared-version manifest (scripts/release/declare.sh)
+ansible-core
+minisign

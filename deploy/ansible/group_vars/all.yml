@@ -1,0 +1,33 @@
+# Defaults for deploy/ansible/site.yml. Override with -e on the
+# command line (pili-bootstrap passes pili_site_dir and pili_offline).
+
+# Site directory written on the USB key by deploy/usb/make-key.sh
+# (copied to the internal ESP by pili-installer). pili-bootstrap mounts
+# the ESP on /run/pili-esp.
+pili_site_dir: /run/pili-esp/pili/site
+pili_offline: false
+# true when pili-bootstrap.service runs it (kiosk not started yet).
+pili_first_boot: false
+
+# Terminal layout (deploy/provision/provision.sh, deploy/update.sh).
+# /etc/pili-pos is a link into the encrypted /var on the kiosk image.
+pili_etc_dir: /etc/pili-pos
+pili_pos_user: pos
+pili_bin: /opt/pili-pos/pili-pos
+pili_update_script: /opt/pili-pos/deploy/update.sh
+pili_report_file: /var/lib/pili-pos/bootstrap-report.txt
+
+# Declared version (scripts/release/declare.sh): the "declared" tag of
+# the public package ghcr.io/nuagemagique-dev/pili-pos holds the tarball +
+# declared.json + declared.json.minisig, signed with the owner's offline
+# minisign key. Pulled anonymously: no token on the key or the terminal.
+# (The Android till reads "declared-android" of the same package.)
+pili_registry: https://ghcr.io
+pili_registry_repo: nuagemagique-dev/pili-pos
+pili_registry_tag: declared
+pili_declared_pubkey: /usr/share/pili-pos/declared.pub
+pili_work_dir: /run/pili-bootstrap/fetch
+pili_fetch_timeout: 60
+
+# Filled by the roles.
+pili_warnings: []

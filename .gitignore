@@ -26,6 +26,10 @@ ui/playwright-report/
 /deploy/image/mkosi.extra/opt/pili-pos/.build-input/
 /deploy/image/mkosi.extra/opt/pili-pos/deploy/
 /deploy/image/mkosi.profiles/admission/mkosi.extra/opt/pili-pos/.build-input/
+/deploy/image/mkosi.profiles/production/mkosi.extra/usr/share/pili-pos/declared.pub
+
+# Real site directories for deploy/usb/make-key.sh (identity + secrets).
+/deploy/usb/sites/
 
 
 # Python bytecode (scripts/)

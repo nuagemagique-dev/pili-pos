@@ -1,0 +1,223 @@
+# The POS binary the owner DECLARED to SPF Finances
+# (deploy/UPDATE-STRATEGY.md), pulled anonymously from the public
+# package ghcr.io/nuagemagique-dev/pili-pos.
+#
+# A linux-vX.Y.Z tag pushes the tarball there as tag linux-vX.Y.Z and
+# opens a prerelease (.github/workflows/release.yml). Once SPF has accepted the
+# SHA-1, scripts/release/declare.sh pushes the artifact tagged
+# "declared": the tarball + declared.json + declared.json.minisig. This
+# role only ever reads "declared", and installs its binary only if
+#   1. declared.json carries the owner's minisign signature (offline
+#      key; public key baked into the image) and declares the Linux
+#      kiosk (platform "linux": the same key declares the Android till),
+#   2. every blob matches its registry digest, and the tarball the
+#      manifest's SHA-256,
+#   3. the binary in it matches the manifest's SHA-1,
+#   4. it is not older than the binary already installed.
+# No network or any doubt: the binary embedded in the image stays (it
+# was declared when the image was built) and a warning is shown.
+# Installation goes through deploy/update.sh (SHA-1 gate again, .bak
+# copy, DB backup, --init-db migrations).
+- name: Installed binary
+  ansible.builtin.stat:
+    path: "{{ pili_bin }}"
+    checksum_algorithm: sha1
+  register: pili_bin_stat
+
+- name: Installed version
+  ansible.builtin.command: "{{ pili_bin }} --version"
+  register: pili_installed_version
+  changed_when: false
+
+- name: Start from the installed binary
+  ansible.builtin.set_fact:
+    pili_installed_sha1: "{{ pili_bin_stat.stat.checksum }}"
+    pili_installed_semver: "{{ pili_installed_version.stdout | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+') }}"
+    pili_binary_result: "binaire embarqué (pili-pos {{ pili_installed_version.stdout | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+') }})"
+    pili_candidate: ""
+
+- name: Fetch the declared version
+  when: not (pili_offline | bool)
+  block:
+    - name: Signature key present in the image
+      ansible.builtin.stat:
+        path: "{{ pili_declared_pubkey }}"
+      register: pili_pubkey
+
+    - name: No key, no fetch
+      ansible.builtin.fail:
+        msg: "{{ pili_declared_pubkey }} absent de l’image (clé minisign non générée au build)"
+      when: not pili_pubkey.stat.exists
+
+    - name: Fresh work directory
+      ansible.builtin.file:
+        path: "{{ pili_work_dir }}"
+        state: "{{ item }}"
+        mode: "0700"
+      loop: [absent, directory]
+
+    # Anonymous pull token of a public package (OCI distribution auth).
+    - name: Registry pull token
+      ansible.builtin.uri:
+        url: "{{ pili_registry }}/token?scope=repository:{{ pili_registry_repo }}:pull"
+        timeout: "{{ pili_fetch_timeout }}"
+        return_content: true
+      register: pili_registry_token
+      retries: 3
+      delay: 5
+      until: pili_registry_token is succeeded
+
+    - name: Manifest of the "declared" artifact
+      ansible.builtin.uri:
+        url: "{{ pili_registry }}/v2/{{ pili_registry_repo }}/manifests/{{ pili_registry_tag }}"
+        headers:
+          Authorization: "Bearer {{ pili_registry_token.json.token }}"
+          Accept: application/vnd.oci.image.manifest.v1+json
+        timeout: "{{ pili_fetch_timeout }}"
+        return_content: true
+      register: pili_oci_manifest
+
+    - name: Files of the artifact by name
+      ansible.builtin.set_fact:
+        # title annotation -> digest ("org.opencontainers.image.title"
+        # has dots, so no map(attribute=...)).
+        pili_blobs: >-
+          {%- set d = {} -%}
+          {%- for l in pili_oci_manifest.json.layers -%}
+            {%- set _ = d.update({(l.annotations | default({}))['org.opencontainers.image.title'] | default(l.digest): l.digest}) -%}
+          {%- endfor -%}
+          {{ d }}
+
+    - name: The artifact must carry a signed manifest
+      ansible.builtin.assert:
+        that:
+          - "'declared.json' in pili_blobs"
+          - "'declared.json.minisig' in pili_blobs"
+          - pili_blobs.values() | select('match', '^sha256:[0-9a-f]{64}$') | list | length == pili_blobs | length
+        fail_msg: "l’artefact {{ pili_registry_tag }} n’a pas de declared.json signé"
+        quiet: true
+
+    - name: Download declared.json and its signature
+      ansible.builtin.command:
+        argv: >-
+          {{ pili_curl_blob + ['-o', pili_work_dir ~ '/' ~ item,
+             pili_registry ~ '/v2/' ~ pili_registry_repo ~ '/blobs/' ~ pili_blobs[item]] }}
+      loop: [declared.json, declared.json.minisig]
+      changed_when: false
+
+    - name: Check the owner's signature
+      ansible.builtin.command:
+        argv: [minisign, -V, -q, -p, "{{ pili_declared_pubkey }}",
+               -m, "{{ pili_work_dir }}/declared.json", -x, "{{ pili_work_dir }}/declared.json.minisig"]
+      changed_when: false
+
+    - name: Read the manifest
+      ansible.builtin.set_fact:
+        pili_declared: "{{ lookup('ansible.builtin.file', pili_work_dir ~ '/declared.json') | from_json }}"
+
+    - name: Manifest is well formed
+      ansible.builtin.assert:
+        that:
+          - pili_declared.platform | default('') == 'linux'
+          - pili_declared.version is match('^[0-9]+\.[0-9]+\.[0-9]+$')
+          - pili_declared.sha1 is match('^[0-9a-f]{40}$')
+          - pili_declared.sha256 is match('^[0-9a-f]{64}$')
+          - pili_declared.asset in pili_blobs
+          - pili_blobs[pili_declared.asset] == 'sha256:' ~ pili_declared.sha256
+        fail_msg: "declared.json mal formé ou ne correspondant pas à l’artefact"
+        quiet: true
+
+    - name: Already the declared binary
+      ansible.builtin.set_fact:
+        pili_binary_result: "version déclarée déjà installée (pili-pos {{ pili_declared.version }})"
+      when: pili_declared.sha1 == pili_installed_sha1
+
+    - name: Declared version older than the image's
+      ansible.builtin.set_fact:
+        pili_warnings: >-
+          {{ pili_warnings + ['version déclarée ' ~ pili_declared.version ~ ' plus ancienne que celle de l’image ('
+             ~ pili_installed_semver ~ ') : binaire embarqué conservé'] }}
+      when:
+        - pili_declared.sha1 != pili_installed_sha1
+        - pili_declared.version is version(pili_installed_semver, '<')
+
+    - name: Download and verify the declared binary
+      when:
+        - pili_declared.sha1 != pili_installed_sha1
+        - pili_declared.version is version(pili_installed_semver, '>=')
+      block:
+        - name: Download the tarball
+          ansible.builtin.command:
+            argv: >-
+              {{ pili_curl_blob + ['-o', pili_work_dir ~ '/pili-pos.tar.gz',
+                 pili_registry ~ '/v2/' ~ pili_registry_repo ~ '/blobs/' ~ pili_blobs[pili_declared.asset]] }}
+          changed_when: false
+
+        - name: SHA-256 of the tarball
+          ansible.builtin.stat:
+            path: "{{ pili_work_dir }}/pili-pos.tar.gz"
+            checksum_algorithm: sha256
+          register: pili_tar_stat
+
+        - name: It must be the declared tarball
+          ansible.builtin.assert:
+            that: pili_tar_stat.stat.checksum == pili_declared.sha256
+            fail_msg: "SHA-256 de l’archive différent du manifeste : refusé"
+            quiet: true
+
+        - name: Unpack it
+          ansible.builtin.unarchive:
+            src: "{{ pili_work_dir }}/pili-pos.tar.gz"
+            dest: "{{ pili_work_dir }}"
+            remote_src: true
+            include: [pili-pos]
+
+        - name: SHA-1 of the downloaded binary
+          ansible.builtin.stat:
+            path: "{{ pili_work_dir }}/pili-pos"
+            checksum_algorithm: sha1
+          register: pili_new_stat
+
+        - name: It must be the declared binary
+          ansible.builtin.assert:
+            that: pili_new_stat.stat.exists and pili_new_stat.stat.checksum == pili_declared.sha1
+            fail_msg: >-
+              SHA-1 du binaire téléchargé ({{ pili_new_stat.stat.checksum | default('absent') }})
+              différent de la valeur déclarée ({{ pili_declared.sha1 }}) : refusé
+            quiet: true
+
+        - name: Candidate ready
+          ansible.builtin.set_fact:
+            pili_candidate: "{{ pili_work_dir }}/pili-pos"
+
+  rescue:
+    - name: Keep the embedded binary
+      ansible.builtin.set_fact:
+        pili_candidate: ""
+        pili_warnings: >-
+          {{ pili_warnings + ['version déclarée non récupérée (' ~ ansible_failed_task.name ~ ' : '
+             ~ (ansible_failed_result.msg | default('') | string | truncate(160)) ~ ') : binaire embarqué conservé'] }}
+
+# Outside the block on purpose: a failure here (migration refused, ...)
+# is a local problem the operator must see, not a reason to fall back.
+- name: Install the declared binary (deploy/update.sh)
+  ansible.builtin.command:
+    # First boot: pili-bootstrap.service runs Before=pili-pos.service,
+    # so the kiosk must be neither stopped (that cancels its queued
+    # start) nor started (that waits on this very unit): --no-service.
+    # A re-run from the console restarts the running kiosk as usual.
+    argv: >-
+      {{ [pili_update_script, pili_candidate, '--sha1', pili_declared.sha1]
+         + (['--no-service'] if (pili_first_boot | bool) else []) }}
+  when: pili_candidate | length > 0
+  changed_when: true
+
+- name: Record the binary result
+  ansible.builtin.set_fact:
+    pili_binary_result: "mis à jour vers la version déclarée {{ pili_declared.version }} ({{ pili_declared.sha1 }})"
+  when: pili_candidate | length > 0
+
+- name: Clean up the work directory
+  ansible.builtin.file:
+    path: "{{ pili_work_dir }}"
+    state: absent

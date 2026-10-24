@@ -1,0 +1,6 @@
+# Admission (SPF test machine) image only. Sorts before 10-pili.preset,
+# and the first matching line wins: the test machine runs exactly the
+# binary embedded in the image, with the identity of the dossier, so
+# the site bootstrap (site config from the USB key, declared binary
+# from ghcr.io) stays off.
+disable pili-bootstrap.service

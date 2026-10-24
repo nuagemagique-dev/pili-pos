@@ -139,9 +139,15 @@ PROFILES=("$@")
 
 BUILD_INPUT_BASE="$IMAGE_DIR/mkosi.extra/opt/pili-pos/.build-input"
 BUILD_INPUT_ADMISSION="$IMAGE_DIR/mkosi.profiles/admission/mkosi.extra/opt/pili-pos/.build-input"
+# Public half of the owner's minisign key (scripts/release/declare.sh
+# --init-key): pili-bootstrap only installs a downloaded binary whose
+# declared.json carries that signature. Production image only - the
+# admission machine never fetches anything.
+DECLARED_PUB="$PROJECT_ROOT/deploy/release/declared.pub"
+DECLARED_PUB_STAGED="$IMAGE_DIR/mkosi.profiles/production/mkosi.extra/usr/share/pili-pos/declared.pub"
 
 cleanup_staging() {
-    rm -rf "$BUILD_INPUT_BASE" "$BUILD_INPUT_ADMISSION"
+    rm -rf "$BUILD_INPUT_BASE" "$BUILD_INPUT_ADMISSION" "$DECLARED_PUB_STAGED"
 }
 trap cleanup_staging EXIT
 cleanup_staging
@@ -167,6 +173,20 @@ stage_shared_inputs() {
         "$IMAGE_DIR/mkosi.extra/opt/pili-pos/deploy/pili-pos.service"
     install -D -m 644 "$PROJECT_ROOT/deploy/kiosk/pam.d-pili-pos" \
         "$IMAGE_DIR/mkosi.extra/opt/pili-pos/deploy/kiosk/pam.d-pili-pos"
+    # The site bootstrap playbook (pili-bootstrap.service runs it from
+    # /opt/pili-pos/deploy/ansible on the first real boot).
+    rm -rf "$IMAGE_DIR/mkosi.extra/opt/pili-pos/deploy/ansible"
+    cp -R "$PROJECT_ROOT/deploy/ansible" "$IMAGE_DIR/mkosi.extra/opt/pili-pos/deploy/ansible"
+    chmod -R u=rwX,go=rX "$IMAGE_DIR/mkosi.extra/opt/pili-pos/deploy/ansible"
+}
+
+stage_production_inputs() {
+    if [[ -f "$DECLARED_PUB" ]]; then
+        install -D -m 644 "$DECLARED_PUB" "$DECLARED_PUB_STAGED"
+    else
+        echo "  ⚠ $DECLARED_PUB missing (scripts/release/declare.sh --init-key):" >&2
+        echo "    this image will never fetch a declared binary, it keeps its own." >&2
+    fi
 }
 
 stage_admission_inputs() {
@@ -263,6 +283,7 @@ build_profile() {
 
     stage_shared_inputs
     [[ "$profile" == "admission" ]] && stage_admission_inputs
+    [[ "$profile" == "production" ]] && stage_production_inputs
 
     log "Building profile '$profile'…"
     ( cd "$IMAGE_DIR" && "$MKOSI" --profile="$profile" --output-dir="$out_dir" build )

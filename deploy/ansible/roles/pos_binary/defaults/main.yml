@@ -1,0 +1,14 @@
+# Blob download from the registry: follows the redirect to GitHub's
+# package storage, where curl no longer sends the Authorization header
+# (the storage URL is pre-signed and refuses a second authentication).
+# The token is the anonymous pull token of a public package, not a secret.
+pili_curl_blob:
+  - curl
+  - -fsSL
+  - --max-time
+  - "300"
+  - --retry
+  - "3"
+  - --retry-all-errors
+  - -H
+  - "Authorization: Bearer {{ pili_registry_token.json.token }}"

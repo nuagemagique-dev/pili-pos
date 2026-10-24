@@ -10,7 +10,7 @@ name: CI watch
 
 on:
   workflow_run:
-    workflows: [Tests, Android Rust, Android, Kiosk image]
+    workflows: [Tests, Android Rust, Android, Kiosk image, Release]
     types: [completed]
 
 permissions:
