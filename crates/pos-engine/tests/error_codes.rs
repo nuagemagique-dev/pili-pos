@@ -15,7 +15,7 @@ fn entry(key: &str) -> Option<&'static str> {
 }
 
 fn entry_in(source: &'static str, key: &str) -> Option<&'static str> {
-    let start = source.find(&format!("\"{key}\": {{"))?;
+    let start = key_at(source, key)?;
     let rest = &source[start..];
     let mut depth = 0;
     for (i, c) in rest.char_indices() {
@@ -31,6 +31,30 @@ fn entry_in(source: &'static str, key: &str) -> Option<&'static str> {
         }
     }
     None
+}
+
+/// Where the entry of `key` starts: `key: {` as oxfmt writes it (quotes only
+/// when needed), or `"key": {`. A bare key must not be the tail of a longer one.
+fn key_at(source: &str, key: &str) -> Option<usize> {
+    if let Some(at) = source.find(&format!("\"{key}\": {{")) {
+        return Some(at);
+    }
+    let bare = format!("{key}: {{");
+    source.match_indices(&bare).map(|(at, _)| at).find(|&at| {
+        source[..at]
+            .chars()
+            .next_back()
+            .is_none_or(|c| !(c.is_ascii_alphanumeric() || c == '_'))
+    })
+}
+
+#[test]
+fn entries_are_found_with_bare_or_quoted_keys() {
+    let source =
+        "const m = {\n  err_a: { fr: 'a' },\n  \"err_b\": { fr: 'b' },\n  xerr_c: { fr: 'x' },\n}";
+    assert_eq!(entry_in(source, "err_a"), Some("err_a: { fr: 'a' }"));
+    assert_eq!(entry_in(source, "err_b"), Some("\"err_b\": { fr: 'b' }"));
+    assert_eq!(entry_in(source, "err_c"), None);
 }
 
 #[test]
