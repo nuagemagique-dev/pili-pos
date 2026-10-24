@@ -1,0 +1,26 @@
+version: 2
+# GitHub Actions only, checked daily; "CI watch" merges a green minor/patch PR.
+# No version updates for Cargo, npm or Gradle: the crates and the UI bundle are
+# locked to the certified build (lock parity, PD59), so they move by hand with a
+# dossier update. Dependabot alerts still cover them.
+updates:
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'daily'
+      time: '06:00'
+      timezone: 'Europe/Brussels'
+    cooldown:
+      default-days: 3
+    groups:
+      # Security fixes, opened as soon as an advisory lands (no cooldown).
+      security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+      all:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
