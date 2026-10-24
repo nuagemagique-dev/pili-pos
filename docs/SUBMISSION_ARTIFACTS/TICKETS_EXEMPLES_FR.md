@@ -33,12 +33,12 @@ colonne par type de ticket émis par pili-pos.
 | IX. Date et heure de délivrance | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ |
 | X. N° de ticket continu (série ininterrompue) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XI.1. Lignes produits : qté, désignation, prix, code TVA | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | ☑ (désignation seule, pas de prix) |
-| XI.2. Modifications de prix sur la ligne | ☑ (commandes en ligne : remise imprimée sous sa ligne) | ☑ (remise reprise en négatif) | N/A | ☑ (copie d'une vente en ligne) | N/A | - |
+| XI.2. Modifications de prix sur la ligne | ☑ (commandes en ligne et « Offrir » à la caisse : remise imprimée sous sa ligne) | ☑ (remise reprise en négatif) | N/A | ☑ (copie d'une vente en ligne) | N/A | - |
 | XI.3. GTIN (optionnel) | N/A | N/A | N/A | N/A | N/A | - |
 | XII. Total à payer TVA comprise | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | - |
 | XIII. Base imposable par taux de TVA (calculée par le FDM) | ☑ | ☑ | - (jamais sur une addition) | ☑ | ☑ | - |
 | XIV. Montant TVA par taux (calculé par le FDM) | ☑ | ☑ | - | ☑ | ☑ | - |
-| XV. Modifications de prix hors lignes produits | N/A (les remises d'une commande en ligne sont réparties sur les lignes et imprimées sous chacune, voir XI.2) | N/A | N/A | N/A | N/A | - |
+| XV. Modifications de prix hors lignes produits | ☑ (la remise d'une commande, saisie à la caisse par un Gérant ou venue d'une commande en ligne, est répartie sur les lignes et imprimée sous chacune, voir XI.2 ; « Offert » signe la vente à 0,00) | ☑ (remise reprise en négatif) | ☑ (l'addition imprime les remises) | N/A | N/A | - |
 | XVI.I. Pied de page configuré par SPF Finances | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.II. fdmId | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.III. fdmDateTime | ☑ | ☑ | ☑ | ☑ | ☑ | - |
@@ -62,7 +62,7 @@ colonne par type de ticket émis par pili-pos.
 
 Le remboursement et la copie référencent le ticket original dans l'événement envoyé au FDM (champ `fdmRef` : fdmId, fdmDateTime, eventLabel, compteurs de l'original) et l'impriment sous « Informations FDM d'origine », comme les tickets d'exemple du SPF du 24/09/2026. La copie reproduit le ticket original (tous les champs, données de contrôle comprises) et réimprime le QR code de l'événement N original (spec POS v2.2 §1.8, §6.5). La mise en page suit les tickets d'exemple du SPF ; `crates/pos-print/tests/official_examples.rs` imprime les données de chacun des six exemples et vérifie chaque mention, dans l'ordre de l'exemple.
 
-**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE, paramètre `pos.json::language`, cf. *GARANTIE_MAJ_LANGUES_FR.md* §3.2). Les exemples de tickets (sections 1 à 5) sont présentés en français ; le rapport Z (section 7) est aussi présenté en néerlandais et en allemand pour illustrer la règle, les rapports X/Z, les rapports utilisateur (M182/M183/M184) et les noms de moyen de paiement imprimés (Especes/Contant/Bar, Carte/Kaart/Karte) suivant tous la même langue de ticket que les reçus (`crates/pos-print/src/labels.rs`). La langue des tickets et celle de l'interface sont toutes deux fixées par installation, par le paramètre `pos.json::language` (`fr`, `nl`, `de`, `en` ou `zh` pour l'écran ; les tickets suivent cette clé restreinte à FR/NL/DE, toute autre valeur imprime en FR) : il n'y a pas de langue par utilisateur. Les désignations de produits sont rendues dans cette langue à partir de la table `translations`.
+**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE, paramètre `pos.json::language`, cf. *GARANTIE_MAJ_LANGUES_FR.md* §3.2). Les exemples de tickets (sections 1 à 5) sont présentés en français ; le rapport Z (section 7) est aussi présenté en néerlandais et en allemand pour illustrer la règle, les rapports X/Z, les rapports utilisateur (M182/M183/M184) et les noms de moyen de paiement imprimés (Especes/Contant/Bar, Carte/Kaart/Karte) suivant tous la même langue de ticket que les reçus (`crates/pos-print/src/labels.rs`). Les libellés fixes (moyens de paiement, « Unite d'etablissement », « Denomination legale »...) sont imprimés sans accents, à dessein : `labels.rs` les garde en ASCII pour qu'ils s'impriment de la même façon quelle que soit la page de codes de l'imprimante (seuls les textes saisis, comme les produits et l'adresse, passent par CP858). Les exemples ci-dessous reprennent donc « Especes » et « Chèques-repas » tels qu'imprimés. La langue des tickets et celle de l'interface sont toutes deux fixées par installation, par le paramètre `pos.json::language` (`fr`, `nl`, `de`, `en` ou `zh` pour l'écran ; les tickets suivent cette clé restreinte à FR/NL/DE, toute autre valeur imprime en FR) : il n'y a pas de langue par utilisateur. Les désignations de produits sont rendues dans cette langue à partir de la table `translations`.
 
 ---
 
@@ -676,6 +676,82 @@ Qte   Article
 ✂-----------------------------------------------
 ```
 
+### Bon de commande avec note de cuisine
+
+Scénario : la ligne « Burger du chef » porte la note « allergie arachide
+- sans oignons ». La note s'imprime en retrait sous l'article, sans prix ;
+elle n'a aucun effet sur le message envoyé au FDM.
+
+```
+                BON DE COMMANDE
+================================================
+Date:                        03/07/2026 12:31:05
+Operateur:                          Marie Dupont
+Table 4
+------------------------------------------------
+Qte   Article
+2 x Dry Martini
+1 x Burger du chef
+   > allergie arachide - sans oignons
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### Bon de modification de note (note changée après l'envoi)
+
+Scénario : la note du « Burger du chef », déjà en cuisine, devient « bien
+cuit ». Le bon sort tout de suite, sans quantité ni prix, avec la mention
+d'invalidité en bas ; ce n'est ni une commande ni un ticket TVA, et il
+n'envoie rien au FDM. Une note effacée imprime « Note supprimee ».
+
+```
+                  MODIFICATION
+================================================
+Date:                        03/07/2026 12:38:12
+Operateur:                          Marie Dupont
+Table 4
+------------------------------------------------
+Burger du chef
+Note : bien cuit
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### Bon de transfert de table (M122 - Événement P)
+
+Scénario : une commande ouverte passe de la table 4 à la table 9
+(`signCostCenterChange`). Le bon sort sur l'imprimante du bar, sans
+aucun article ni prix, avec la mention d'invalidité en bas ; une
+impression en échec n'annule jamais la signature.
+
+```
+               TRANSFERT DE TABLE
+================================================
+Date:                        03/07/2026 12:35:40
+Operateur:                          Marie Dupont
+Table 4 -> Table 9
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
 ## 9. Ticket numérique par e-mail (exemple)
 
 Scénario : la même vente M110 qu'à la section 1, envoyée par e-mail
@@ -777,7 +853,7 @@ Logiciel de caisse v.: pili-pos/1.0.0
 TOTAL :                                   €14,86
 ................................................
 Mode de paiement :
-Cheques-repas                               3,13
+Chèques-repas                               3,13
 Carte                                       3,97
 Especes                                     7,76
 Arrondi                                    -0,01
@@ -878,6 +954,198 @@ reproduite dans ce fichier :
 - **Rapports X et Z par utilisateur** (M182, M183, M184) :
   `pos_print::report::format_user_report`, imprimés avec le rapport
   chiffre d'affaires correspondant (`commands::report::print_user_report`).
+
+## 11 ter. Bons cadeaux, allergènes et service en plusieurs temps
+
+Documents des fonctions décrites dans *BONS_CADEAUX_FR.md*, *ALLERGENES_FR.md* et *SERVICES_CUISINE_FR.md*,
+produits par le pipeline d'impression réel (`crates/pos-print/tests/ticket_examples.rs`). Le ticket de T.V.A. d'une
+vente payée avec un bon est un ticket N ordinaire dont une ligne de paiement porte le nom du moyen ; les autres
+documents sont non fiscaux, sans signature, et portent la mention d'un document qui n'est pas un ticket de caisse
+T.V.A. valable.
+
+### 11 ter.1 Vente payée avec un bon cadeau (UC261 - Événement N)
+
+Deux menus d'affaires (116,00 €), payés 50,00 € avec un bon et 66,00 € en espèces. Le code du bon n'est jamais
+imprimé sur un ticket de T.V.A.
+
+```
+            TICKET DE CAISSE T.V.A.
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000015
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: pili-pos/1.0.0
+................................................
+2 Menu d'affaires                      116,00  B
+TOTAL :                                  €116,00
+................................................
+Mode de paiement :
+Bon cadeau                                 50,00
+Especes                                    66,00
+% TVA   CODE          HT       TVA      Brut
+12,00%  B         103,57     12,43    116,00
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: FDM02000425;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: N; eventCounter: 15;
+totalCounter: 59; shortSignature:
+a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
+
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+
+
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
+      www.systemedecaisseenregistreuse.be
+
+
+
+
+✂-----------------------------------------------
+```
+
+### 11 ter.2 Bon cadeau (après la vente qui le vend)
+
+```
+                   BON CADEAU
+          The FPS Finances Experience
+             Boulevard Albert II 33
+                 1030 Brussels
+================================================
+               Valeur: 50,00 EUR
+
+                      Code
+                 1234 5678 9095
+               [QR: 123456789095]               
+
+              Emis le: 03.07.2026
+          Valable jusqu'au 03.07.2027
+------------------------------------------------
+Utilisable en une ou plusieurs fois, sans rendu
+                   de monnaie
+                  Ticket: N 12
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### 11 ter.3 Solde du bon (après un paiement qui laisse un solde)
+
+Le code est masqué : seuls les quatre derniers chiffres sont imprimés.
+
+```
+                  SOLDE DU BON
+          The FPS Finances Experience
+------------------------------------------------
+              Code: **** **** 9095
+                Solde: 30,00 EUR
+          Valable jusqu'au 03.07.2027
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### 11 ter.4 Fiche d'allergènes
+
+Un produit à la liste déclarée, un produit déclaré sans allergène, un produit sans déclaration. Aucun prix.
+
+```
+                   ALLERGÈNES
+          The FPS Finances Experience
+                   03/07/2026
+================================================
+Maki saumon
+  Contient: Poissons, Sésame
+  Traces possibles: Mollusques
+  Options:
+  - Sauce soja
+      Contient: Soja, Céréales contenant du
+      gluten
+------------------------------------------------
+Riz nature
+  Aucun allergène
+------------------------------------------------
+Dessert du jour
+  Information non disponible, demandez au
+  responsable
+------------------------------------------------
+Selon le règlement (UE) n° 1169/2011, annexe II.
+    Informations fournies par l'exploitant.
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### 11 ter.5 Premier bon de commande d'une table servie en plusieurs temps
+
+Le Direct et les entrées partent, les plats et les desserts sont retenus.
+
+```
+                BON DE COMMANDE
+================================================
+Date:                        03/07/2026 12:31:05
+Operateur:                          Marie Dupont
+Table 4
+------------------------------------------------
+Qte   Article
+-- Direct --
+2 x Dry Martini
+-- Entrees --
+2 x Carpaccio
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### 11 ter.6 Bon de commande « Envoyer la suite »
+
+```
+                BON DE COMMANDE
+================================================
+Date:                        03/07/2026 12:58:40
+Operateur:                          Marie Dupont
+Table 4
+SUITE : Plats
+------------------------------------------------
+Qte   Article
+-- Plats --
+1 x Burger du chef
+1 x Tapas Variation
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
 
 ## 12. Note sur la reproduction
 

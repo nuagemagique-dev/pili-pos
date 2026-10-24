@@ -7,10 +7,19 @@ import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useI18n } from "../i18n";
 import { formatPrice } from "../utils/format";
+import { lineNetCents } from "../utils/cartAmounts";
 import { formatTimestamp, formatTime, minutesSince } from "../utils/datetime";
 import OrderLineItem from "./OrderLineItem.vue";
 import VatSummary from "./VatSummary.vue";
 import PinDialog from "./PinDialog.vue";
+import TablePickerDialog from "./TablePickerDialog.vue";
+import DiscountDialog from "./DiscountDialog.vue";
+import NoteDialog from "./NoteDialog.vue";
+import type { DiscountInput } from "../types";
+import * as ipc from "../api/ipc";
+import CoursePickerDialog from "./CoursePickerDialog.vue";
+import { GIFT_VOUCHER_DEPARTMENT } from "../stores/giftVouchers";
+import type { CartLine } from "../types";
 
 const router = useRouter();
 const order = useOrderStore();
@@ -28,6 +37,50 @@ const sentLines = computed(() =>
 const pendingLines = computed(() =>
   isDineIn.value ? order.lines.filter((l) => (l.unsent_quantity ?? 0) > 0) : [],
 );
+
+// Courses on: the lines are grouped by course, lowest first, under a
+// header. A takeaway groups too (its slip is printed with the same headers).
+const courseGroups = computed(() => {
+  const groups = new Map<number, CartLine[]>();
+  for (const line of order.lines) {
+    const list = groups.get(line.course) ?? [];
+    list.push(line);
+    groups.set(line.course, list);
+  }
+  return [...groups.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([course, lines]) => ({ course, lines }));
+});
+
+const pickingLine = ref<CartLine | null>(null);
+
+async function pickCourse(course: number) {
+  const line = pickingLine.value;
+  pickingLine.value = null;
+  if (line && course !== line.course) await order.setLineCourse(line.id, course);
+}
+
+// "Envoyer la suite": signs what is unsent, releases the next held
+// course and prints it.
+const sendingNext = ref(false);
+
+async function sendNextCourse() {
+  if (sendingNext.value || order.nextHeldCourse === null) return;
+  sendingNext.value = true;
+  try {
+    const next = await order.sendNextCourse();
+    if (next) {
+      toast.show(
+        next.course === null ? t("course_resent") : t("course_sent", { course: t(`course_${next.course}`) }),
+        "success",
+      );
+    }
+  } catch (e) {
+    toast.show(describeError(e), "error", 6000);
+  } finally {
+    sendingNext.value = false;
+  }
+}
 
 // "19:05 · 37 min": when the order was opened, and for how long.
 const now = ref(new Date());
@@ -102,6 +155,116 @@ async function printPreBill() {
   }
 }
 
+// Move the order to another table (event P, cost center change): the
+// free tables of the plan, current one left out.
+const canTransfer = computed(
+  () =>
+    isDineIn.value &&
+    order.currentOrder?.status === "open" &&
+    order.currentOrder.table_number != null &&
+    order.lines.length > 0,
+);
+const picking = ref(false);
+const freeTables = ref<ipc.TableInfo[]>([]);
+const transferring = ref(false);
+
+async function openTablePicker() {
+  if (!canTransfer.value || transferring.value) return;
+  try {
+    const current = order.currentOrder?.table_number;
+    freeTables.value = (await ipc.listTables()).filter(
+      (tbl) => tbl.status === "free" && tbl.tableNumber !== current,
+    );
+  } catch (e) {
+    toast.show(describeError(e), "error", 5000);
+    return;
+  }
+  picking.value = true;
+}
+
+async function transferTo(toTable: number) {
+  if (transferring.value) return;
+  transferring.value = true;
+  try {
+    await order.transferTable(toTable);
+    picking.value = false;
+    toast.show(t("transfer_done", { to: toTable }), "success");
+  } catch (e) {
+    picking.value = false;
+    toast.show(describeError(e), "error", 6000);
+  } finally {
+    transferring.value = false;
+  }
+}
+
+// Kitchen note of a line: any staff member, on an open order. The dialog
+// says whether the note prints now (the line already went to the kitchen)
+// or with the order.
+const canNote = computed(() => order.currentOrder?.status === "open");
+const noteLineId = ref<number | null>(null);
+const noteLine = computed(() => order.lines.find((l) => l.id === noteLineId.value) ?? null);
+
+async function saveNote(text: string) {
+  const id = noteLineId.value;
+  noteLineId.value = null;
+  if (id !== null) await order.setLineNote(id, text);
+}
+
+// Discount at the till (manager, PIN): an order discount, a line for
+// free, or the removal of either. The dialog collects the input, the PIN
+// confirms it, the engine applies every rule.
+// An online order has its own discounts: the engine refuses one at the
+// till (discount_online_order), so the button and the line actions hide.
+const canDiscount = computed(
+  () =>
+    auth.isManager &&
+    order.currentOrder?.status === "open" &&
+    order.lines.length > 0 &&
+    !order.lines.some((l) => l.online === true),
+);
+type DiscountStep =
+  | { kind: "ask"; lineId: number | null }
+  | { kind: "pin-apply"; input: DiscountInput }
+  | { kind: "pin-remove"; lineId: number | null };
+const discountStep = ref<DiscountStep | null>(null);
+
+function lineHasOwnChange(lineId: number): boolean {
+  const line = order.lines.find((l) => l.id === lineId);
+  return !!line?.price_changes?.some((c) => c.scope === "LINE");
+}
+function canOfferLine(lineId: number): boolean {
+  const line = order.lines.find((l) => l.id === lineId);
+  if (line?.department_id === GIFT_VOUCHER_DEPARTMENT) return false;
+  return canDiscount.value && !order.orderDiscounted && (line?.price_changes?.length ?? 0) === 0;
+}
+function canRemoveLineDiscount(lineId: number): boolean {
+  return canDiscount.value && lineHasOwnChange(lineId);
+}
+
+/** What the open dialog applies to: the line's amount, or the order total. */
+const discountBase = computed(() => {
+  const step = discountStep.value;
+  if (step?.kind === "ask" && step.lineId !== null) {
+    const line = order.lines.find((l) => l.id === step.lineId);
+    return line ? lineNetCents(line) : 0;
+  }
+  // The order total, as on Android (no money arithmetic in the Compose UI): a gift voucher
+  // line never shares an order discount, the engine leaves it out (V12 merge decision).
+  return order.totalCents;
+});
+
+async function verifyDiscount(pin: string) {
+  const step = discountStep.value;
+  if (step?.kind === "pin-apply") await order.applyDiscount(step.input, pin);
+  else if (step?.kind === "pin-remove") await order.removeDiscount(step.lineId, pin);
+}
+
+function onDiscountDone() {
+  const removed = discountStep.value?.kind === "pin-remove";
+  discountStep.value = null;
+  toast.show(t(removed ? "discount_removed" : "discount_applied"), "success");
+}
+
 // The customer left without paying (UC4109): a manager closes the
 // order, confirmed by their PIN; the sale is signed with no payment.
 const canCloseUnpaid = computed(
@@ -125,17 +288,55 @@ async function onUnpaidClosed() {
   <aside class="cart">
     <div class="cart-header">
       <h2>{{ cartTitle }}</h2>
+      <button
+        v-if="canTransfer"
+        class="transfer-btn"
+        data-testid="transfer-table"
+        :disabled="transferring"
+        @click="openTablePicker"
+      >
+        {{ t('transfer_table') }}
+      </button>
       <span class="cart-opened">{{ openedAt }}</span>
     </div>
 
     <div class="cart-lines scroll-touch">
+      <template v-if="order.coursesEnabled">
+        <template v-for="group in courseGroups" :key="group.course">
+          <div class="course-label" :data-testid="`course-group-${group.course}`">{{ t(`course_${group.course}`) }}</div>
+          <OrderLineItem
+            v-for="line in group.lines"
+            :key="line.id"
+            :line="line"
+            :pending="isDineIn && (line.unsent_quantity ?? 0) > 0"
+            show-course
+            :can-offer="canOfferLine(line.id)"
+            :can-remove-discount="canRemoveLineDiscount(line.id)"
+            :can-note="canNote"
+            @note="noteLineId = $event"
+            @increment="increment"
+            @decrement="decrement"
+            @remove="order.removeLine($event)"
+            @offer="discountStep = { kind: 'ask', lineId: $event }"
+            @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
+            @course="pickingLine = order.lines.find((l) => l.id === $event) ?? null"
+          />
+        </template>
+      </template>
+      <template v-else>
       <OrderLineItem
         v-for="line in sentLines"
         :key="line.id"
         :line="line"
+        :can-offer="canOfferLine(line.id)"
+        :can-remove-discount="canRemoveLineDiscount(line.id)"
+        :can-note="canNote"
+        @note="noteLineId = $event"
         @increment="increment"
         @decrement="decrement"
         @remove="order.removeLine($event)"
+        @offer="discountStep = { kind: 'ask', lineId: $event }"
+        @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
       />
       <template v-if="pendingLines.length">
         <div class="pending-label">
@@ -146,10 +347,17 @@ async function onUnpaidClosed() {
           :key="line.id"
           :line="line"
           pending
+          :can-offer="canOfferLine(line.id)"
+          :can-remove-discount="canRemoveLineDiscount(line.id)"
+          :can-note="canNote"
+          @note="noteLineId = $event"
           @increment="increment"
           @decrement="decrement"
           @remove="order.removeLine($event)"
+          @offer="discountStep = { kind: 'ask', lineId: $event }"
+          @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
         />
+      </template>
       </template>
       <div v-if="order.lines.length === 0" class="cart-empty">
         {{ t('no_items') }}
@@ -158,9 +366,27 @@ async function onUnpaidClosed() {
 
     <div class="cart-footer">
       <div class="cart-total">
-        <button v-if="canCloseUnpaid" class="unpaid-btn" @click="confirmUnpaid = true">
-          {{ t('unpaid_close') }}
-        </button>
+        <div v-if="canCloseUnpaid || canDiscount" class="manager-actions">
+          <button
+            v-if="canDiscount && !order.orderDiscounted"
+            class="discount-btn"
+            data-testid="discount-open"
+            @click="discountStep = { kind: 'ask', lineId: null }"
+          >
+            {{ t('discount_button') }}
+          </button>
+          <button
+            v-if="canDiscount && order.orderDiscounted"
+            class="discount-btn"
+            data-testid="discount-remove"
+            @click="discountStep = { kind: 'pin-remove', lineId: null }"
+          >
+            {{ t('discount_remove') }}
+          </button>
+          <button v-if="canCloseUnpaid" class="unpaid-btn" @click="confirmUnpaid = true">
+            {{ t('unpaid_close') }}
+          </button>
+        </div>
         <div class="total-block">
           <span class="total-amount">{{ formatPrice(order.totalCents) }} €</span>
           <VatSummary :lines="order.lines" />
@@ -186,6 +412,16 @@ async function onUnpaidClosed() {
         </button>
       </div>
 
+      <button
+        v-if="isDineIn && order.nextHeldCourse !== null"
+        class="next-course-btn"
+        :disabled="sendingNext"
+        data-testid="send-next-course"
+        @click="sendNextCourse"
+      >
+        {{ t('send_next_course', { course: t(`course_${order.nextHeldCourse}`) }) }}
+      </button>
+
       <!-- UX guide §2.3: the main action, always bottom right. -->
       <button
         v-if="auth.canTakePayment"
@@ -197,6 +433,47 @@ async function onUnpaidClosed() {
         <span class="checkout-amount">{{ formatPrice(order.totalCents) }} €</span>
       </button>
     </div>
+
+    <TablePickerDialog
+      v-if="picking && order.currentOrder?.table_number != null"
+      :tables="freeTables"
+      :from="order.currentOrder.table_number"
+      @confirm="transferTo"
+      @cancel="picking = false"
+    />
+
+    <NoteDialog
+      v-if="noteLine"
+      :initial="noteLine.kitchen_note"
+      :sent="noteLine.quantity - (noteLine.unsent_quantity ?? 0) > 0"
+      @confirm="saveNote"
+      @cancel="noteLineId = null"
+    />
+
+    <DiscountDialog
+      v-if="discountStep?.kind === 'ask'"
+      :base-cents="discountBase"
+      :line-id="discountStep.lineId ?? undefined"
+      @confirm="discountStep = { kind: 'pin-apply', input: $event }"
+      @cancel="discountStep = null"
+    />
+
+    <PinDialog
+      v-if="(discountStep?.kind === 'pin-apply' || discountStep?.kind === 'pin-remove') && auth.currentUser"
+      :insz="auth.currentUser.insz"
+      :user-name="auth.currentUser.name"
+      :hint="discountStep.kind === 'pin-apply' ? t('discount_hint') : t('discount_remove_hint')"
+      :verify="verifyDiscount"
+      @done="onDiscountDone"
+      @cancel="discountStep = null"
+    />
+
+    <CoursePickerDialog
+      v-if="pickingLine"
+      :current="pickingLine.course"
+      @pick="pickCourse"
+      @cancel="pickingLine = null"
+    />
 
     <PinDialog
       v-if="confirmUnpaid && auth.currentUser"
@@ -233,6 +510,20 @@ async function onUnpaidClosed() {
   font-weight: var(--font-weight-heavy);
   line-height: 1.2;
 }
+.transfer-btn {
+  margin-left: auto;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  transition: transform var(--tap-duration) ease;
+}
+.transfer-btn:active { transform: scale(var(--tap-scale)); }
+.transfer-btn:disabled { opacity: 0.35; pointer-events: none; }
 .cart-opened {
   font-family: var(--font-mono);
   font-size: 15px;
@@ -265,6 +556,17 @@ async function onUnpaidClosed() {
   height: 10px;
   border-radius: 50%;
   background: var(--accent-warning);
+}
+
+/* Course header of the grouped cart. */
+.course-label {
+  padding: 14px 0 4px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 
 .cart-empty {
@@ -303,6 +605,20 @@ async function onUnpaidClosed() {
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
+
+.manager-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.discount-btn {
+  height: 48px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  transition: transform var(--tap-duration) ease;
+}
+.discount-btn:active { transform: scale(var(--tap-scale)); }
 
 /* Rare manager action: small, outlined, apart from the payment buttons. */
 .unpaid-btn {
@@ -356,6 +672,19 @@ async function onUnpaidClosed() {
   align-items: center;
   justify-content: center;
 }
+
+/* Releases the next held course: the kitchen's second action, above Pay. */
+.next-course-btn {
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
+  transition: transform var(--tap-duration) ease;
+}
+.next-course-btn:active { transform: scale(var(--tap-scale)); }
+.next-course-btn:disabled { opacity: 0.35; pointer-events: none; }
 
 /* Volt: the screen's one main action. Full width × 80 px (§4.1 ≥ 72). */
 .checkout-btn {

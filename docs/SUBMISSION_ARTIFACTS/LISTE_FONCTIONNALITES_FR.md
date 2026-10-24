@@ -14,14 +14,19 @@ build `--no-default-features --features cert`).
 | N (rembours.) | Remboursement complet ou partiel (M111, M112B) | `signSale` avec lignes négatives + `fdmRef` | `crates/pos-engine/src/commands/refund.rs::do_refund_checkout` |
 | P | Commande en cuisine (pro-forma) | `signOrder` | `crates/pos-engine/src/commands/tables.rs::do_sign_table_order` |
 | P | Addition (pré-ticket) | `signPreBill` | `crates/pos-engine/src/commands/tables.rs::do_sign_pre_bill` |
+| P | Changement de table (transfert d'une commande ouverte) | `signCostCenterChange` | `crates/pos-engine/src/commands/table_transfer.rs::do_transfer_table` |
 | T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` / `do_checkout_split` avec `training_mode=true` |
-| T | Présence en formation | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` |
-| C | Copie de ticket | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
-| I | Facture B2B (hors binaire certifié v1.0.0, voir §3 bis) | `signInvoice` | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`), sous `#[cfg(feature = "peppol")]` |
+| T | Présence en formation (aucune prestation n'est ouverte dans `staff_shifts` ; le Gérant ne peut pas pointer un autre employé en formation, ni un badge pointer en formation) | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` ; le pointage par badge est refusé en formation (`presence_training`), la connexion par badge reste possible |
+| F | Correction du moyen de paiement d'une vente (Gérant + PIN) | `signPaymentCorrection` | `crates/pos-engine/src/commands/payment_correction.rs::do_correct_payment` |
+| C | Copie de ticket, ou d'une facture (réservée au gérant) | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
+| I | Facture B2B (client professionnel, à partir de ventes déjà encaissées) | `signInvoice` | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` ; impression `crates/pos-print/src/invoice.rs` ; envoi Peppol `crates/pos-engine/src/commands/peppol_queue.rs` (*FACTURATION_PEPPOL_FR.md*) |
 | F | Mouvement de fonds | `signMoneyInOut` | `crates/pos-engine/src/commands/financial.rs::do_money_in_out` |
 | F-WAR | Ouverture tiroir hors-vente | `signDrawerOpen` | `crates/pos-engine/src/commands/financial.rs::do_open_drawer_fiscal` |
 | S | Pointage entrée | `signWorkIn` | `crates/pos-engine/src/commands/social.rs::do_work_in` |
 | S | Pointage sortie | `signWorkOut` | `crates/pos-engine/src/commands/social.rs::do_work_out` |
+| S | Pointage d'un autre employé par le Gérant (arrivée, départ ; profil « Présence seule ») | `signWorkIn` / `signWorkOut` au nom de l'employé | `crates/pos-engine/src/commands/social.rs::{do_clock_in_employee,do_clock_out_employee}` |
+| S | Pointage par badge (arrivée, départ), depuis n'importe quel écran, sans déconnecter l'opérateur ; option désactivée par défaut, badge lié par un Gérant avec son PIN, empreinte HMAC seule conservée | `signWorkIn` / `signWorkOut` au nom du titulaire du badge | `crates/pos-engine/src/commands/badges.rs::do_badge_tap` (lien : `do_link_badge`, retrait : `do_revoke_badge`), signature `crates/pos-engine/src/commands/social.rs::sign_work_event` |
+| S | Pointage de fin de service par badge sur l'écran de connexion (départ seul, sans session) | `signWorkOut` au nom du titulaire du badge | `crates/pos-engine/src/commands/badges.rs::do_badge_tap` avec `end_shift` |
 | R | Rapport X (intermédiaire) | `signReportTurnoverX` | `crates/pos-engine/src/commands/report.rs::do_generate_x_report` |
 | R | Rapport utilisateurs X | `signReportUserX` | `crates/pos-engine/src/commands/report.rs::do_generate_user_x_report` |
 | R | Rapport Z (clôture, M184) | `signReportTurnoverZ` + `signReportUserZ` (une seule opération GraphQL) | `crates/pos-engine/src/commands/report.rs::do_generate_z_report` |
@@ -34,7 +39,7 @@ build `--no-default-features --features cert`).
 | B | 12 % | Service en salle (cuisine consommée sur place) |
 | C | 6 % | À emporter (cuisine non consommée sur place) |
 | D | 0 % | Produits exonérés |
-| X | - | Hors champ TVA |
+| X | - | Hors champ TVA (vente d'un bon cadeau, *BONS_CADEAUX_FR.md*) |
 
 Implémentation : `crates/pos-core/src/vat.rs::VatCode`.
 
@@ -126,10 +131,11 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
   `keep_days` jours.
 - Tâche de fond sur une connexion SQLite en lecture seule, hors du
   verrou de signature : elle ne retarde jamais une vente ni un Z.
-- Copies locales conservées `keep_days` jours (14 par défaut), dans la
-  mémoire interne, jamais sur une carte SD.
+- Copies locales conservées `keep_days` jours (14 par défaut), sur le
+  disque interne (sous-répertoire `exports` de `/var/lib/pili-pos`), jamais sur un support
+  amovible.
 - État et nouvel essai réservés au Gérant (panneau « Export nocturne »
-  de « Config » sur Linux, écran dédié sur Android).
+  de « Config »).
 - Le journal légal `fiscal_events` reste local ; l'export est une copie
   et ne fait pas du POS un POS dans le cloud.
 
@@ -139,17 +145,59 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
 
 - Plan de tables (`TablesView.vue`) avec statut "libre" / "occupée" ;
   nombre de tables réglé par `table_count` (20 par défaut, 25 sur
-  l'image d'admission, comme le jeu de test SPF).
+  l'image d'admission, comme le jeu de test SPF), ou numéros choisis
+  par la clé `tables` de `pos.json` (nombres et plages, de 1 à 999,
+  200 tables au plus).
+- Plan de salle modifiable par un Gérant dans "Config", panneau "Plan
+  de salle" ; chaque changement est journalisé en ajout seul
+  (`table_plan_log`). Une table hors plan qui a encore une commande
+  ouverte reste affichée : aucune commande non réglée n'est masquée.
 - Grille catégories + items (`OrderView.vue`) optimisée tactile (boutons
   ≥ 48 × 48 px).
 - Modificateurs par item (sauces, cuisson...) - table `modifier_groups`.
 - Réutilisation d'une commande ouverte vide pour la même table
   (anti-doublon, `crates/pos-db/src/queries/orders.rs::create_order`).
+- Changement de table : « Changer de table » dans la commande, ou « Déplacer une table » sur le plan ;
+  la commande garde son contenu et sa référence et passe à une table libre. Une table occupée est
+  refusée (pas de fusion) ; un bon de transfert sans prix est imprimé au bar.
+- Note de cuisine par ligne (« Note » dans le panier, tout le personnel) :
+  60 caractères au plus, imprimables par l'imprimante du bar ou de la
+  cuisine ; la note s'imprime sous l'article sur le bon de commande, et une
+  note modifiée après l'envoi imprime un bon « MODIFICATION » sans quantité
+  ni prix (`crates/pos-engine/src/commands/order.rs::do_set_line_note`). La
+  note reste dans la base locale (`order_lines`, migration 31) : elle n'est
+  jamais envoyée au FDM ni imprimée sur un ticket TVA, une addition, une
+  copie ou un export.
+- **Produit épuisé** : un caissier ou un gérant déclare un produit
+  « Épuisé » jusqu'à la fin de la journée commerciale ou jusqu'à
+  réactivation ; la caisse refuse de l'ajouter à une commande ou
+  d'augmenter sa quantité (`product_sold_out`). Journal en ajout seul
+  (`sold_out_log`), transmission à l'inventaire HubRise si l'intégration
+  est activée. Aucun effet fiscal (*PRODUIT_EPUISE_FR.md*).
 
 ### 2.2 Encaissement
 
-- Modes de paiement : espèces, carte et chèques-repas électroniques
-  (saisie manuelle - pas de terminal intégré dans cette version).
+- Modes de paiement : espèces, carte, chèques-repas électroniques et bons cadeaux
+  (ligne `VOUCHER_STORE`, §2.10).
+  Par défaut la carte est saisie à la main (terminal autonome, méthode
+  `MANUAL`, `CARD_DEBIT`).
+- **Terminal de paiement relié (facultatif, par installation)** : réglage
+  `payment_terminal` de `pos.json`. La caisse envoie le montant au
+  terminal (Worldline Terminal API, CCV Payment API ou OPI) et enregistre
+  sa réponse dans `eft_payments` avant et après l'appel. Rien n'est
+  débité si le FDM n'est pas opérationnel. La ligne de paiement signée
+  est `AUTOMATIC` : le type de carte vient du terminal (`CARD_DEBIT`
+  id "2", `CARD_CREDIT` id "6", `CARD_UNKNOWN` id "7", ou `CHEQUE_MEAL`
+  id "3" pour une carte de chèques-repas Edenred, Pluxee, Monizze ou
+  Payflip), la marque est
+  dans `provider`, l'identifiant de transaction dans `reference` ; le
+  ticket imprime la marque. Une réponse inconnue bloque la vente de la
+  commande jusqu'à vérification ; un paiement accepté doit être repris
+  par la vente. Pas d'arrondi des paiements par carte EFT, pour toute
+  installation. Mode formation : aucune vraie carte n'est débitée.
+  Remboursement toujours en espèces. Terminal Worldline C-TEP (Yomani,
+  Yoximo) non pris en charge (protocole fermé). Voir
+  `MANUEL_UTILISATEUR_FR.md` §7.2 et `MANUEL_INSTALLATION_FR.md` §4.2.
 - Paiement en plusieurs moyens sur un seul ticket : carte et
   chèques-repas pour un montant exact, espèces pour le reste
   (`crates/pos-fiscal/src/payment.rs::settle`).
@@ -182,6 +230,11 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
   60 s ; FAQ producteurs Q501c). Une journée sans activité n'a pas de Z.
 - Sauvegarde automatique de la base après chaque Z, juste après son
   archivage.
+- **Rapport de ventes (non fiscal)** : quatrième onglet « Ventes » des
+  Rapports, par produit, par heure et avec la concordance avec les
+  rapports Z ; imprimable sous le titre « RAPPORT DE VENTES - DOCUMENT
+  NON FISCAL ». Il ne signe rien et ne touche à aucun compteur
+  (*RAPPORTS_VENTES_FR.md*).
 
 ### 2.4 Mode formation
 
@@ -199,6 +252,70 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
   Nederlands (nl), Deutsch (de, migration `007`), English (en).
 - Langue d'affichage et langue des tickets fixées par installation (`pos.json::language`) ; pas de choix par utilisateur.
 
+### 2.6 Édition de la carte
+
+Un gérant crée et modifie les catégories, les produits (prix, TVA sur
+place et à emporter, noms en français, néerlandais, anglais et chinois),
+les groupes d'options et les options directement à la caisse, dans
+"Config", panneau "Carte". Rien n'est supprimé (un élément est masqué),
+chaque modification est journalisée en ajout seul (`menu_change_log`),
+l'éditeur est verrouillé tant qu'un catalogue externe (HubRise) gère la
+carte. Aucun effet fiscal : une commande ouverte et un événement signé
+gardent le nom, le prix, la TVA et le département d'origine (arrêté
+ministériel, art. 44). Voir *EDITEUR_CARTE_FR.md*.
+
+### 2.7 Facturation B2B
+
+Une facture à un client professionnel est établie à partir d'une ou de
+plusieurs ventes déjà encaissées (Rapports, onglet Tickets, « Facture ») :
+choix ou création du client (numéro de TVA contrôlé hors ligne), aperçu,
+signature (événement I), impression papier, copie réservée au gérant,
+liste des factures. Une vente figure sur une seule facture ; numérotation
+continue ; le remboursement (N négatif) peut figurer sur une facture. Le
+journal des factures (art. 33) est la vue `v_invoice_journal`. Voir
+*FACTURATION_PEPPOL_FR.md*.
+
+### 2.8 Allergènes (information, non fiscale)
+
+Les 14 allergènes à déclaration obligatoire (annexe II du règlement (UE) n° 1169/2011) s'affichent sur les
+produits et les options (pastilles numérotées, mode « Allergènes », fiche du produit) et s'impriment sur une fiche
+non fiscale, sans prix, pour un produit ou toute la carte. Listes importées du catalogue HubRise ou saisies par un
+gérant dans l'éditeur de carte ; une absence de déclaration s'affiche « information non disponible », jamais
+« aucun allergène ». Aucun allergène n'entre dans une demande signée. Voir *ALLERGENES_FR.md*.
+
+### 2.9 Service en plusieurs temps (cuisine, non fiscal)
+
+Fonction éteinte par défaut, réglée par un gérant : chaque catégorie a un temps (Direct, Entrées, Plats, Desserts),
+le premier ticket de cuisine imprime le Direct et les entrées, « Envoyer la suite » imprime ensuite les plats puis
+les desserts. Le temps d'une ligne n'entre dans aucune demande signée, aucun nom de produit ni aucun ticket de
+T.V.A. ; éteinte, les tickets sont identiques octet pour octet. Voir *SERVICES_CUISINE_FR.md*.
+
+### 2.10 Bons cadeaux à usage multiple (fiscal)
+
+Fonction éteinte par défaut, réglée par un gérant. Vente d'un bon : ligne de T.V.A. X (hors champ), département
+`GV`, code à 12 chiffres dont 2 de contrôle, bon imprimé. Utilisation : méthode de paiement « Bon cadeau »,
+ligne `VOUCHER_STORE` (identité « 8 », saisie `MANUAL`), montant exact jamais arrondi, solde conservé sur le bon,
+sans rendu de monnaie. Cas officiels UC260, UC261 et UC262 rejoués (*RESULTATS_TESTS_UC_FR.md*). Un bon vendu et
+non utilisé se rembourse (le bon est annulé) ; une vente payée avec un bon se rembourse en espèces (choix de
+l'établissement). Voir *BONS_CADEAUX_FR.md*. Non offerts en v1.0.0 : bons à usage unique (UC270, UC271),
+conversion d'un bon en espèces (UC4105), remboursement vers un bon.
+
+### 2.11 Alertes du propriétaire sur téléphone (non fiscales)
+
+Fonction éteinte par défaut : un court message Telegram quand le module fiscal ne répond plus, qu'une imprimante
+ou le terminal de carte est en défaut, que le Z du jour n'est pas fait ou qu'une commande en ligne attend. Aucune
+donnée personnelle ni montant dans les messages ; la caisse n'attend jamais l'envoi. Voir
+*ALERTES_PROPRIETAIRE_FR.md*.
+
+### 2.12 Outil d'export pour le comptable (hors du binaire certifié)
+
+Un outil en ligne de commande distinct, `pili-accounting` (`crates/pos-accounting`), produit pour le comptable des
+fichiers CSV et un journal équilibré à partir d'une copie de l'export de la caisse ou d'une sauvegarde. Il n'est pas
+dans le binaire certifié ni dans le paquet livré avec la caisse : aucune crate livrée ne dépend de lui (test
+d'isolation), il ne lit jamais la base en service (une copie en service est refusée), n'écrit jamais dans la source,
+ne signe rien et n'envoie rien au module fiscal. Il ne touche donc aucun événement fiscal ; il ne figure ici que
+pour expliquer qu'il est hors du périmètre du binaire soumis.
+
 ## 3. Commandes en ligne (plateformes et webshop)
 
 Présentes dans le binaire certifié, activées par installation
@@ -215,30 +332,47 @@ changement journalisé). Détail : `COMMANDES_EN_LIGNE_FR.md`.
   remboursement confirmé par un Gérant, avec `fdmRef`. Annulation après
   le P : corrections et N à 0,00 EUR.
 - Remises en `priceChanges` ; frais des plateformes exclus par défaut.
+- Remise à la caisse : pourcentage, montant ou « Offert » sur la commande
+  ou sur une ligne, confirmée par le PIN d'un Gérant, signée en
+  `priceChanges` (`TILL-DISCOUNT`, `TILL-FREE`, et `TILL-FREE-LINE` pour une ligne offerte, portée LINE) ; le motif reste dans la
+  table locale `till_discounts`.
 - Menu de la caisse reflet du catalogue HubRise, verrouillé pendant la
   connexion.
 
 ## 3 bis. Fonctionnalités exclues (hors scope cert)
 
-- **Facturation B2B (événement I, Peppol)** : absente du binaire
-  certifié (feature Cargo `peppol` hors de `cert`), livrée dans une
-  mise à jour certifiée ultérieure. Voir §4.
+- **Crédit client et compte client différé** : absents ; les ventes des
+  cas UC4121 et UC4122 payées « crédit client » sont rejouées au comptant.
+- **Facture en mode formation** : refusée. **Envoi Peppol vers un client
+  étranger** : la facture est imprimée seulement.
+- **Note de crédit autonome** : absente (un remboursement se reprend sur
+  une facture, *FLUX_REMBOURSEMENT_FR.md* §3).
+- **Bons cadeaux : non offerts en v1.0.0** : bons à usage unique (UC270, UC271 : leur utilisation reprend le
+  découpage de T.V.A. d'un produit composé), conversion d'un bon en espèces (UC4105), remboursement vers un bon
+  (une vente payée avec un bon se rembourse en espèces).
+- **Division et fusion de tables** : absentes ; seul le transfert d'une
+  commande vers une table libre (changement de centre de coût, M122) est
+  proposé. **Correction d'un paiement par terminal** : une carte prise sur
+  le terminal de paiement relié ne se corrige pas ; la correction de
+  paiement (M132) porte sur une ligne saisie à la main.
 
 ## 4. Intégration Peppol (B2B)
 
-Hors binaire certifié v1.0.0 (voir §3 bis). Voir `DECISION_PEPPOL_AP_FR.md` pour le détail.
+Dans tous les binaires, sans fonction Cargo. Voir `FACTURATION_PEPPOL_FR.md` (règles, file d'envoi) et `DECISION_PEPPOL_AP_FR.md` (point d'accès).
 
-Implémentation présente :
 - Sérialiseur UBL 2.1 BIS Billing 3.0 (`crates/pos-peppol/src/ubl.rs`).
 - Trait `AccessPoint` (`crates/pos-peppol/src/access_point.rs`) avec
-  implémentation `LoggingAccessPoint` (no-op pour développement) et
-  stub `StorecoveAccessPoint` (intégration commerciale à finaliser).
-- Commande Tauri `issue_b2b_invoice`
-  (`crates/pos-engine/src/commands/invoice.rs`).
-- Table `peppol_deliveries` pour la traçabilité.
+  `StorecoveAccessPoint` (API Storecove v2, recherche du destinataire et
+  envoi) et `LoggingAccessPoint` (développement, refusé en production).
+- File d'envoi avec nouvelles tentatives et journal en ajout seul
+  (`crates/pos-engine/src/commands/peppol_queue.rs`, tables
+  `peppol_deliveries` et `peppol_delivery_log`) ; panneau Peppol du
+  gérant (envois en attente, remis, bloqués, relance).
+- Réglages : section `peppol` de `pos.json` (*MANUEL_INSTALLATION_FR.md*).
 
-Le déploiement avec un Access Point en production est une étape
-contractuelle indépendante de la certification SCE 2.0.
+Le déploiement avec un Access Point en production (compte, clé,
+essai sur le bac à sable) est une étape de l'exploitant indépendante de
+la certification SCE 2.0.
 
 ## 5. Versions de spécifications implémentées
 

@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "id": "UC230",
+  "ids": ["UC230"],
+  "title": "UC230: 3 Dry Martini ordered, corrected at once to 2, paid by debit card",
+  "fixture": "docs/20260821_UC_AdvancedSet_POS_FDM_1.6/UC230_signSale_Correction",
+  "fixtureDeviations": [
+    {"path": "costCenter.type", "reason": "dine-in sales are settled from a table and carry costCenter TABLE"}
+  ],
+  "steps": [
+    {"cmd": "login", "args": {"insz": "84022899837", "pin": "2222"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 1, "user_insz": "84022899837"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 10006, "quantity": 3, "modifiers_json": null}}, "save": "line"},
+    {"cmd": "update_order_line_quantity", "args": {"lineId": "$line.id", "quantity": 2}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "card", "amount_cents": 2400}]}}
+  ]
+}

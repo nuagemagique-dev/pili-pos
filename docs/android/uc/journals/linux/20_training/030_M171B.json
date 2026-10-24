@@ -1,0 +1,307 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "20_training",
+  "scenario": "030_M171B",
+  "ids": [
+    "M171B"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "94060242576",
+        "name": "Gerant Test",
+        "role": "admin"
+      }
+    },
+    {
+      "cmd": "set_training_mode",
+      "ok": true,
+      "error": null,
+      "result": true
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:07:08.608832Z",
+        "id": 2,
+        "order_type": "dine_in",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": 2,
+        "total_cents": 0,
+        "user_insz": "94060242576"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:08.609633Z",
+        "department_id": "12",
+        "department_name": "Soft Drinks",
+        "id": 3,
+        "menu_item_id": 12007,
+        "modifiers_json": null,
+        "name": "Perrier",
+        "order_id": 2,
+        "quantity": 2,
+        "unit_price_cents": 250,
+        "vat_code": "A"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:08.609986Z",
+        "department_id": "22",
+        "department_name": "Main Dishes",
+        "id": 4,
+        "menu_item_id": 22001,
+        "modifiers_json": null,
+        "name": "Burger of the CHEF",
+        "order_id": 2,
+        "quantity": 1,
+        "unit_price_cents": 2800,
+        "vat_code": "B"
+      }
+    },
+    {
+      "cmd": "checkout",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": {
+          "deliveryId": null,
+          "email": "not_requested",
+          "fiscalEventId": 4,
+          "medium": "PAPER",
+          "needsPaper": false,
+          "paperPrinted": true,
+          "recipientHint": null
+        },
+        "error": null,
+        "fdm_connected": true,
+        "fiscal_event_id": 4,
+        "kitchen_slip": "printed",
+        "success": true,
+        "ticket": {
+          "copy_made_at": null,
+          "device_id": "pos-json-device",
+          "event_label": "T",
+          "fdm_ref": {
+            "eventCounter": 3,
+            "eventLabel": "T",
+            "fdmDateTime": "2026-10-10T06:07:08Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 4
+          },
+          "footer": [],
+          "is_refund": false,
+          "is_training": true,
+          "lang": "fr",
+          "lines": [
+            {
+              "description": "Perrier",
+              "quantity": 2.0,
+              "total": 5.0,
+              "unit_price": 2.5,
+              "vat_code": "A"
+            },
+            {
+              "description": "Burger of the CHEF",
+              "quantity": 1.0,
+              "total": 28.0,
+              "unit_price": 28.0,
+              "vat_code": "B"
+            }
+          ],
+          "operator": "Gerant Test",
+          "original": null,
+          "payments": [
+            {
+              "amount": 33.0,
+              "method": "Cash"
+            }
+          ],
+          "pos_datetime": "2026-10-10T08:07:08.610+02:00",
+          "pos_id": "CPOS0031234567",
+          "pos_sw_version": "pili-pos/1.1.0",
+          "restaurant_address": "1 Rue du Test, 4000 Liege",
+          "restaurant_est_no": "2000000042",
+          "restaurant_legal_name": "Restaurant Test",
+          "restaurant_name": "Restaurant Test",
+          "restaurant_vat": "BE0000000097",
+          "rounding": null,
+          "short_signature": null,
+          "subtotal": 33.0,
+          "terminal_id": "POS-2-ANDROID",
+          "ticket_number": 3,
+          "ticket_type_label": "TRAINING",
+          "total": 33.0,
+          "unpaid": false,
+          "vat_breakdown": [],
+          "verification_url": null
+        }
+      }
+    },
+    {
+      "cmd": "list_fiscal_events",
+      "ok": true,
+      "error": null,
+      "result": [
+        {
+          "eventLabel": "T",
+          "eventType": "T",
+          "fdmDatetime": "2026-10-10T06:07:08Z",
+          "fdmId": "MCK00000001",
+          "id": 4,
+          "orderId": 2,
+          "sequenceNumber": 3,
+          "shortSignature": null
+        }
+      ]
+    },
+    {
+      "cmd": "set_training_mode",
+      "ok": true,
+      "error": null,
+      "result": false
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signSale",
+      "request": {
+        "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "387219c5-cc55-4377-b58e-ed2a3e7227e0",
+            "costCenter": {
+              "id": "T02",
+              "reference": "O2",
+              "type": "TABLE"
+            },
+            "deviceId": "pos-json-device",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "financials": [
+              {
+                "amount": 33.0,
+                "amountType": "PAYMENT",
+                "id": "1",
+                "inputMethod": "MANUAL",
+                "name": "Cash",
+                "type": "CASH"
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:08.610+02:00",
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 5.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "12",
+                    "departmentName": "Soft Drinks",
+                    "productId": "12007",
+                    "productName": "Perrier",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 2.5,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 5.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 28.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "22",
+                    "departmentName": "Main Dishes",
+                    "productId": "22001",
+                    "productName": "Burger of the CHEF",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 28.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 28.0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 33.0
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": true
+        }
+      },
+      "response": {
+        "data": {
+          "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMy00LTE3OTE2MTI0Mjg=",
+            "eventOperation": "SALE",
+            "fdmRef": {
+              "eventCounter": 3,
+              "eventLabel": "T",
+              "fdmDateTime": "2026-10-10T06:07:08Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 4
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:08.610+02:00",
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [],
+  "tickets": [
+    "        TRAINING\n================================================\n                    TRAINING\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:07\nUtilisateur: Gerant Test\nTerminal: POS-2-ANDROID\nTicketnr.: 000003\nPOS Serial: CPOS0031234567\nInput device MAC: pos-json-device\nLogiciel de caisse v.: pili-pos/1.1.0\n................................................\n2 Perrier                                5,00  A\n1 Burger of the CHEF                    28,00  B\nTOTAL :                                   €33,00\n................................................\nMode de paiement :\nEspeces                                    33,00\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:07:08Z;\nEvent: T; eventCounter: 3;\ntotalCounter: 4;\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n",
+    "",
+    "                    TRAINING\n                BON DE COMMANDE\n================================================\nDate:                        10/10/2026 08:07:08\nOperateur:                           Gerant Test\nTable 2\n------------------------------------------------\nQte   Article\n1 x Burger of the CHEF\n------------------------------------------------\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

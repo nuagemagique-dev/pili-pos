@@ -1,0 +1,38 @@
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "c0d5f6d3-b4fb-4a73-9588-f2c10f9b544f",
+  "costCenter": {
+    "id": "C1",
+    "reference": "FIN",
+    "type": "CUSTOMER"
+  },
+  "customerVatNo": "BE0308357159",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmRefs": [
+    {
+      "eventCounter": 15,
+      "eventLabel": "N",
+      "fdmDateTime": "2024-07-29T11:00:08.000Z",
+      "fdmId": "FOD01000001",
+      "totalCounter": 59
+    },
+    {
+      "eventCounter": 15,
+      "eventLabel": "N",
+      "fdmDateTime": "2024-07-29T11:00:08.000Z",
+      "fdmId": "FOD01000001",
+      "totalCounter": 59
+    }
+  ],
+  "invoiceNo": "20260001",
+  "language": "FR",
+  "posDateTime": "2026-10-18T12:59:04.545+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "vatNo": "BE0000000097"
+}

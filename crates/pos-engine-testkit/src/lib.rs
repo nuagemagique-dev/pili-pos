@@ -20,6 +20,7 @@
 
 pub mod compare;
 pub mod devices;
+pub mod eft;
 pub mod fdm_drop;
 pub mod fixtures;
 pub mod harness;
@@ -32,6 +33,8 @@ pub use compare::*;
 #[allow(unused_imports)]
 pub use devices::*;
 #[allow(unused_imports)]
+pub use eft::*;
+#[allow(unused_imports)]
 pub use fdm_drop::*;
 #[allow(unused_imports)]
 pub use fixtures::*;
@@ -39,5 +42,7 @@ pub use fixtures::*;
 pub use harness::*;
 #[allow(unused_imports)]
 pub use live::*;
+#[allow(unused_imports)]
+pub use pos_eft;
 #[allow(unused_imports)]
 pub use pos_print::render::one_line;

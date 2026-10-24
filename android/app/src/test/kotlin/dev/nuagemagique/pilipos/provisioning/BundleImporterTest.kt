@@ -99,10 +99,14 @@ class BundleImporterTest {
     fun configProblemsAreJoinedIntoTheDetail() =
         runTest {
             installedBundle()
-            fx.natives.configProblems = listOf("fdm_url_invalid", "table_count_invalid")
+            fx.natives.configProblems =
+                listOf("config_fdm_url|detail=fdm_url: http(s) URL expected", "config_tables|detail=tables: ranges expected")
             val problem = failure(fx.importer().import(BundleSource.Directory(bundleDir(tmp.root))))
             assertEquals("config_invalid", problem.code)
-            assertEquals("fdm_url_invalid; table_count_invalid", problem.params["detail"])
+            assertEquals(
+                "config_fdm_url|detail=fdm_url: http(s) URL expected\nconfig_tables|detail=tables: ranges expected",
+                problem.params["detail"],
+            )
             assertEquals("old", fx.paths.posJson.readText())
             assertTrue(stagingDirs().isEmpty())
             assertFalse(fx.paths.databaseFile.exists())

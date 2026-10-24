@@ -388,34 +388,6 @@ class HygieneRules(unittest.TestCase):
         ) as t:
             self.assertEqual(t.hygiene()[0], 0)
 
-    def test_h7_peppol_and_invoice(self):
-        lines = self.violations("hyg_h7", "H7")
-        self.assertEqual(len(lines), 2)
-        self.assertIn("api/x.rs:3", lines[0])
-        self.assertIn("api/x.rs:9", lines[1])  # peppol_gated
-
-    def test_h7_allows_bare_invoice_vocabulary_and_strings(self):
-        # the cert engine has invoice vocabulary (event kind, Z-report data)
-        src = (
-            '#[derive(Debug, uniffi::Enum, serde::Serialize, serde::Deserialize)]\n'
-            'pub enum FiscalKind { Invoice, Ticket }\n'
-            'pub struct ZData { pub invoices: i64 }\n'
-            'pub fn f() -> String { "peppol sign_invoice".into() }\n'
-        )
-        with TempFfi({"x.rs": src}) as t:
-            code, out = t.hygiene()
-            self.assertEqual(code, 0, out)
-
-    def test_h7_camel_case_identifiers(self):
-        with TempFfi({"x.rs": "pub struct IssueB2bInvoiceInput;\npub fn SignInvoiceFiscal() {}\n"}) as t:
-            code, out = t.hygiene()
-            self.assertEqual(code, 1)
-            self.assertEqual(out.count("H7"), 2)
-
-    def test_h7_ignores_comments(self):
-        with TempFfi({"x.rs": "// peppol invoice\n/* invoice */\npub fn f() {}\n"}) as t:
-            self.assertEqual(t.hygiene()[0], 0)
-
     def test_bare_uniffi_derives_are_still_checked(self):
         # `use uniffi::Record;` + `#[derive(Record)]` must not escape H3, H4, H6
         src = "use uniffi::Record;\n#[derive(Debug, Record)]\npub struct Sneaky { pub n: u32 }\n"
@@ -480,22 +452,22 @@ class RealRepo(unittest.TestCase):
         if (REAL_ROOT / cp.DEFAULT_FFI).exists():
             self.skipTest("pos-ffi exists")
         r = self.script()
-        self.assertEqual((r.returncode, r.stdout), (0, "parity: 0/86 (no pos-ffi yet)\n"))
+        self.assertEqual((r.returncode, r.stdout), (0, "parity: 0/148 (no pos-ffi yet)\n"))
         r = self.script("--strict")
-        self.assertEqual((r.returncode, r.stdout), (1, "parity: 0/86 (no pos-ffi yet)\n"))
+        self.assertEqual((r.returncode, r.stdout), (1, "parity: 0/148 (no pos-ffi yet)\n"))
         r = self.script("--hygiene")
         self.assertEqual((r.returncode, r.stdout), (0, "hygiene: no pos-ffi yet\n"))
 
-    def test_markdown_lists_the_86_cert_commands(self):
+    def test_markdown_lists_the_148_cert_commands(self):
         r = self.script("--markdown")
         self.assertEqual(r.returncode, 0, r.stderr)
         rows = [l for l in r.stdout.splitlines() if l.startswith("| ") and l[2].islower()]
-        self.assertEqual(len(rows), 86)
-        self.assertNotIn("sign_invoice_fiscal", r.stdout)
-        self.assertNotIn("issue_b2b_invoice", r.stdout)
+        self.assertEqual(len(rows), 148)
+        self.assertIn("sign_invoice", r.stdout)
+        self.assertIn("send_next_course", r.stdout)
         if not (REAL_ROOT / cp.DEFAULT_FFI).exists():
             self.assertTrue(all(row.endswith("| missing |") for row in rows))
-            self.assertTrue(r.stdout.rstrip().endswith("Parity: 0/86."))
+            self.assertTrue(r.stdout.rstrip().endswith("Parity: 0/148."))
         self.assertEqual(rows, sorted(rows))
 
 

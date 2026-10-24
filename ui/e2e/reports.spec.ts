@@ -13,7 +13,7 @@ test.describe('Reports View', () => {
     await mockTauriIPC(page);
     await loginAndGoto(page, '/reports');
     await expect(page.getByRole('tab', { name: 'Journée' })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByRole('tab')).toHaveText(['Journée', 'Caisse', 'Tickets']);
+    await expect(page.getByRole('tab')).toHaveText(['Journée', 'Caisse', 'Tickets', 'Ventes']);
     await expect(page.getByRole('button', { name: /^Rapport X/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Rapport utilisateurs X/ })).toBeVisible();
     await expect(page.locator('.z-btn')).toHaveText('Clôturer la journée (Z)');

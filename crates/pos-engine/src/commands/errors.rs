@@ -35,11 +35,46 @@ pub const SYSTEM_USER: &str = "system_user";
 pub const NAME_REQUIRED: &str = "name_required";
 pub const ROLE_INVALID: &str = "role_invalid";
 pub const DEACTIVATE_SELF: &str = "deactivate_self";
+/// A presence-only employee cannot log in, end a shift or have a PIN.
+pub const PRESENCE_ONLY_USER: &str = "presence_only_user";
+/// An employee on shift cannot be deactivated: clock them out first.
+pub const DEACTIVATE_ON_SHIFT: &str = "deactivate_on_shift";
+/// A manager clocking an employee in or out while training mode is on.
+pub const PRESENCE_TRAINING: &str = "presence_training";
+/// A manager clocking themself in or out (login and end of shift do it).
+pub const PRESENCE_SELF: &str = "presence_self";
+/// Clock-in for an employee already on shift.
+pub const PRESENCE_ALREADY_IN: &str = "presence_already_in";
+/// Clock-out for an employee who is not on shift.
+pub const PRESENCE_NOT_IN: &str = "presence_not_in";
+
+// Staff badges (`commands::badges`).
+/// The badge reader setting is `off`: nothing reads or links badges.
+pub const BADGE_READER_OFF: &str = "badge_reader_off";
+/// The reader output is not a badge number (4 to 64 hexadecimal digits).
+pub const BADGE_TOKEN_INVALID: &str = "badge_token_invalid";
+/// `badge.key` exists but cannot be read (or created): nothing is
+/// revoked, badge commands wait for the key to be readable.
+pub const BADGE_KEY_UNAVAILABLE: &str = "badge_key_unavailable";
+/// No badge with this number was ever linked.
+pub const BADGE_UNKNOWN: &str = "badge_unknown";
+/// The badge was linked and then removed.
+pub const BADGE_REVOKED: &str = "badge_revoked";
+/// The badge is active for another employee.
+pub const BADGE_IN_USE: &str = "badge_in_use";
+/// The employee already has an active badge.
+pub const BADGE_ALREADY_LINKED: &str = "badge_already_linked";
+/// Revoking the badge of an employee who has none.
+pub const BADGE_NONE: &str = "badge_none";
+/// A badge setting out of range, or an unknown reader.
+pub const BADGE_SETTINGS_INVALID: &str = "badge_settings_invalid";
 
 // Orders.
 pub const OPERATOR_INVALID: &str = "operator_invalid";
 pub const DINE_IN_NEEDS_TABLE: &str = "dine_in_needs_table";
 pub const TAKEAWAY_HAS_NO_TABLE: &str = "takeaway_has_no_table";
+/// The table plan is not a list of table numbers and ranges ("1-12, 20-25").
+pub const TABLE_PLAN_INVALID: &str = "table_plan_invalid";
 /// A takeaway is a direct sale: it ends in a sale, never in an order
 /// registration (FAQ Q205).
 pub const TAKEAWAY_NOT_REGISTERED: &str = "takeaway_not_registered";
@@ -50,6 +85,12 @@ pub const PRICE_POSITIVE: &str = "price_positive";
 pub const FIXED_PRICE: &str = "fixed_price";
 /// `product`: the menu item id.
 pub const PRODUCT_UNAVAILABLE: &str = "product_unavailable";
+/// The product is marked sold out ("Épuisé", V11-D14). `product`: the menu item id.
+pub const PRODUCT_SOLD_OUT: &str = "product_sold_out";
+/// A menu editor field is missing or out of range (V11-D17). `field`: the input's field name.
+pub const MENU_INVALID: &str = "menu_invalid";
+/// The category, product, option group or option an edit names does not exist.
+pub const MENU_NOT_FOUND: &str = "menu_not_found";
 pub const LINE_NOT_FOUND: &str = "line_not_found";
 pub const ORDER_NO_LINES: &str = "order_no_lines";
 pub const ORDER_TOTAL_NEGATIVE: &str = "order_total_negative";
@@ -57,6 +98,74 @@ pub const AMOUNT_NEGATIVE: &str = "amount_negative";
 /// The business day before is still open: its automatic Z comes first.
 pub const PREVIOUS_DAY_OPEN: &str = "previous_day_open";
 pub const ORDER_ALREADY_CLOSED: &str = "order_already_closed";
+
+// Table transfer (a P event, signCostCenterChange).
+/// The target is the table the order is already on.
+pub const TABLE_TRANSFER_SAME_TABLE: &str = "table_transfer_same_table";
+/// The target table has an open order with lines: merging two tables is
+/// not supported.
+pub const TABLE_TRANSFER_TARGET_BUSY: &str = "table_transfer_target_busy";
+/// The target is not a table of the plan (1 to 999).
+pub const TABLE_TRANSFER_TARGET_INVALID: &str = "table_transfer_target_invalid";
+/// Only the open order of a table in the room moves: not a takeaway, not
+/// an online order.
+pub const TABLE_TRANSFER_NOT_A_TABLE: &str = "table_transfer_not_a_table";
+/// The move is signed at the FDM but the target got an order with lines
+/// meanwhile (late answer): the order stays on its source table.
+pub const TABLE_TRANSFER_NOT_MOVED: &str = "table_transfer_not_moved";
+
+// Discount at the till (price changes, manager PIN).
+/// An order discount already applies (remove it first), or the line
+/// already carries a change.
+pub const DISCOUNT_ALREADY_APPLIED: &str = "discount_already_applied";
+/// Nothing to remove: no discount applies to that order or line.
+pub const DISCOUNT_NONE: &str = "discount_none";
+/// The percent is not 1 to 99, the amount not 1 cent to the net total,
+/// there is nothing to discount, or the kind does not fit the target.
+pub const DISCOUNT_INVALID: &str = "discount_invalid";
+/// The reason is not one of the list, or its text is too long.
+pub const DISCOUNT_REASON_INVALID: &str = "discount_reason_invalid";
+/// An online order has its own discounts: none is taken at the till.
+pub const DISCOUNT_ONLINE_ORDER: &str = "discount_online_order";
+/// A line with a discount keeps its quantity: remove the discount first.
+pub const LINE_HAS_PRICE_CHANGES: &str = "line_has_price_changes";
+
+// Kitchen note on an order line (local, never fiscal).
+/// The note is longer than 60 characters after trimming.
+pub const NOTE_TOO_LONG: &str = "note_too_long";
+/// The note has a control character (a line break, say) or a character
+/// the slip printer cannot print (a Chinese note would print "?").
+pub const NOTE_UNPRINTABLE: &str = "note_unprintable";
+
+// Payment correction (an F event, signPaymentCorrection).
+/// Only a sale ticket (N, or T in training) is corrected: not a refund, a copy or any other event.
+pub const PAYMENT_CORRECTION_NOT_A_SALE: &str = "payment_correction_not_a_sale";
+/// A training sale is corrected only in training, a real sale only outside it.
+pub const PAYMENT_CORRECTION_TRAINING: &str = "payment_correction_training";
+/// The sale belongs to a booking period a Z report has already closed.
+pub const PAYMENT_CORRECTION_PERIOD_CLOSED: &str = "payment_correction_period_closed";
+/// A sale closed unpaid has no payment to correct.
+pub const PAYMENT_CORRECTION_UNPAID: &str = "payment_correction_unpaid";
+/// An online order (APP / ONLINE payment) is paid by the platform, not at the till.
+pub const PAYMENT_CORRECTION_ONLINE: &str = "payment_correction_online";
+/// The sale was refunded, in whole or in part, since it was signed.
+pub const PAYMENT_CORRECTION_REFUNDED: &str = "payment_correction_refunded";
+/// One correction per sale: this sale's payment was already corrected.
+pub const PAYMENT_CORRECTION_ALREADY_DONE: &str = "payment_correction_already_done";
+/// The line index is not a payment line of the sale.
+pub const PAYMENT_CORRECTION_BAD_LINE: &str = "payment_correction_bad_line";
+/// A card the linked terminal approved is never corrected (no reversal support).
+pub const PAYMENT_CORRECTION_TERMINAL_CARD: &str = "payment_correction_terminal_card";
+/// The new method is the one the line already has.
+pub const PAYMENT_CORRECTION_SAME_METHOD: &str = "payment_correction_same_method";
+/// The new method is not one a correction can write (cash, card, meal voucher; never a gift
+/// voucher, which needs a voucher to debit).
+pub const PAYMENT_CORRECTION_METHOD: &str = "payment_correction_method";
+/// The correction would need a ROUNDING line: a cash line of a rounded sale, or a cash amount that is not a multiple of 5 cents.
+pub const PAYMENT_CORRECTION_ROUNDING: &str = "payment_correction_rounding";
+/// The line is a gift voucher payment (`VOUCHER_STORE`): it debited a voucher, which a
+/// correction cannot undo (decision INT-D19).
+pub const PAYMENT_CORRECTION_GIFT_VOUCHER: &str = "payment_correction_gift_voucher";
 
 // Tickets: copies and refunds.
 pub const EVENT_NOT_FOUND: &str = "event_not_found";
@@ -94,6 +203,38 @@ pub const PAYMENT_INCOMPLETE: &str = "payment_incomplete";
 /// 0,00 EUR is paid normally (a cash payment of 0, FAQ Q206).
 pub const UNPAID_NOTHING_DUE: &str = "unpaid_nothing_due";
 
+// Payment terminal (EFT). Nothing was charged unless a code says otherwise.
+/// `pos.json` has no `payment_terminal`: cards are typed by hand.
+pub const EFT_NOT_CONFIGURED: &str = "eft_not_configured";
+/// Training mode: a training sale never charges a real card; cards are
+/// typed by hand.
+pub const EFT_TRAINING: &str = "eft_training";
+/// Zero or less, or more than what is still due on the order after its
+/// other approved terminal payments.
+pub const EFT_AMOUNT_INVALID: &str = "eft_amount_invalid";
+/// A terminal payment of the till waits for its answer (sent or
+/// unknown): check it first, nothing else is charged or signed meanwhile.
+pub const EFT_PENDING: &str = "eft_pending";
+/// The terminal is busy with another payment.
+pub const EFT_BUSY: &str = "eft_busy";
+/// The terminal or its provider cannot be reached (`detail`).
+pub const EFT_UNREACHABLE: &str = "eft_unreachable";
+/// The terminal or its provider refused the request itself, or the
+/// `payment_terminal` section of `pos.json` cannot drive it (`detail`).
+pub const EFT_REJECTED: &str = "eft_rejected";
+/// The payment named by a card part is not an approved, unused payment
+/// of this order for that amount, or an approved payment of the order
+/// was left out of the parts.
+pub const EFT_PAYMENT_NOT_USABLE: &str = "eft_payment_not_usable";
+/// The customer's card was charged `{amount}` (euros) on this order:
+/// an edit may not bring the total under it, since the sale must settle
+/// the payment to the cent. Nothing was changed.
+pub const EFT_BELOW_CHARGED: &str = "eft_below_charged";
+/// A terminal payment of the order waits for its answer (sent or
+/// unknown): its amount is not final, so the order cannot be edited
+/// until it is checked. Nothing was changed.
+pub const EFT_EDIT_PENDING: &str = "eft_edit_pending";
+
 // Settings.
 pub const OPEN_ORDERS_TRAINING: &str = "open_orders_training";
 
@@ -105,6 +246,9 @@ pub const EMAIL_SENT: &str = "email_sent";
 pub const PRINTER_NOT_CONFIGURED: &str = "printer_not_configured";
 /// `detail`: the printer's error, for the technician.
 pub const PRINT_FAILED: &str = "print_failed";
+/// The sales report range is not a valid range of booking dates (V11-D20): bad date, end
+/// before start, or more than 92 days.
+pub const SALES_REPORT_RANGE_INVALID: &str = "sales_report_range_invalid";
 
 // Remote support.
 pub const SUPPORT_UNAVAILABLE: &str = "support_unavailable";
@@ -120,7 +264,11 @@ pub const ORDER_SIGN_PENDING: &str = "order_sign_pending";
 /// The event names a booking period its Z closed.
 pub const PERIOD_CLOSED: &str = "period_closed";
 /// A sign request waits for the FDM's answer (`label`, `ticket`): no
-/// other event is signed until it comes. Starts with "FDM", so the
+/// other event is signed until it comes. `fdm`, when the FDM did answer
+/// but not with a signature (INTERNAL_ERROR, UNDEFINED_ERROR,
+/// UNDEFINED_OTHER, or `FDM_RESPONSE_MISMATCH` for an answer that does
+/// not echo the request): the screens show that code's message first,
+/// then say the same request is sent again. Starts with "FDM", so the
 /// screen shows it as an FDM message.
 pub const FDM_ANSWER_PENDING: &str = "FDM_ANSWER_PENDING";
 
@@ -132,8 +280,217 @@ pub const CONCURRENT_OPERATION: &str = "concurrent_operation";
 /// `detail`: what went wrong, for the technician. Also logged.
 pub const INTERNAL_ERROR: &str = "internal_error";
 
+// Configuration problems (`pos.json`), shown in the screen's language
+// with the English text of the problem as `detail` for the installer.
+// One code per setting, see `pos_core::config::problem_code`.
+pub const CONFIG_TABLES: &str = "config_tables";
+pub const CONFIG_POS_ID: &str = "config_pos_id";
+pub const CONFIG_RESTAURANT_VAT: &str = "config_restaurant_vat";
+pub const CONFIG_RESTAURANT_EST_NO: &str = "config_restaurant_est_no";
+pub const CONFIG_IDENTITY: &str = "config_identity";
+pub const CONFIG_TICKET_HEADER: &str = "config_ticket_header";
+pub const CONFIG_FDM_URL: &str = "config_fdm_url";
+pub const CONFIG_FDM_FILES: &str = "config_fdm_files";
+pub const CONFIG_LANGUAGE: &str = "config_language";
+pub const CONFIG_DAY_END_HOUR: &str = "config_day_end_hour";
+pub const CONFIG_MISSING: &str = "config_missing";
+pub const CONFIG_HUBRISE: &str = "config_hubrise";
+pub const CONFIG_DIGITAL_TICKET: &str = "config_digital_ticket";
+pub const CONFIG_EXPORT: &str = "config_export";
+pub const CONFIG_PAYMENT_TERMINAL: &str = "config_payment_terminal";
+pub const CONFIG_PEPPOL: &str = "config_peppol";
+pub const CONFIG_ALERTS: &str = "config_alerts";
+pub const CONFIG_OTHER: &str = "config_other";
+
+// B2B invoices (event I) and the Peppol delivery queue (V11).
+/// No sale was chosen for the invoice.
+pub const INVOICE_NO_SALES: &str = "invoice_no_sales";
+/// `event`: a sale event id the archive does not hold.
+pub const INVOICE_SALE_NOT_FOUND: &str = "invoice_sale_not_found";
+/// `event`: an event that is not a normal sale N (training, copy, order...).
+pub const INVOICE_NOT_A_SALE: &str = "invoice_not_a_sale";
+/// `event`, `invoice`: the sale is on an invoice already (V11-D4).
+pub const INVOICE_SALE_ALREADY_INVOICED: &str = "invoice_sale_already_invoiced";
+/// No invoice in training mode (V11-D7).
+pub const INVOICE_TRAINING_MODE: &str = "invoice_training_mode";
+/// `event`: the sale sold a gift voucher (a VAT X line of department `GV`). A multi-purpose
+/// voucher is outside the scope of VAT; Peppol BIS allows category `O` only on an invoice with
+/// no other category and no VAT identifiers (BR-O-02, BR-O-11 to 14), so such a sale is never
+/// invoiced (decision INT-D18).
+pub const INVOICE_GIFT_VOUCHER_SALE: &str = "invoice_gift_voucher_sale";
+/// A Belgian VAT-registered customer must be invoiced through Peppol, and the installation
+/// has no `peppol` section (V11-D55).
+pub const INVOICE_PEPPOL_REQUIRED: &str = "invoice_peppol_required";
+/// The VAT number does not pass the offline check (V11-D10).
+pub const CUSTOMER_VAT_INVALID: &str = "customer_vat_invalid";
+/// `field`: a customer field that is empty.
+pub const CUSTOMER_INCOMPLETE: &str = "customer_incomplete";
+pub const CUSTOMER_NOT_FOUND: &str = "customer_not_found";
+/// `pos.json` has no `peppol` section.
+pub const PEPPOL_NOT_CONFIGURED: &str = "peppol_not_configured";
+pub const PEPPOL_DELIVERY_NOT_FOUND: &str = "peppol_delivery_not_found";
+/// Only a parked (failed) delivery is re-queued.
+pub const PEPPOL_DELIVERY_NOT_PARKED: &str = "peppol_delivery_not_parked";
+
+// Owner alerts.
+/// A setting of the owner alerts is out of range: `alerts_invalid|field=<name>`.
+pub const ALERTS_INVALID: &str = "alerts_invalid";
+/// No bot token: `pos.json` has no `alerts.telegram_bot_token_file`, or
+/// the file is missing or empty.
+pub const ALERTS_TOKEN_MISSING: &str = "alerts_token_missing";
+/// The test message did not arrive (`detail`: the HTTP status or the
+/// kind of transport error, never an address).
+pub const ALERTS_SEND_FAILED: &str = "alerts_send_failed";
+
+// Allergens.
+/// A code that is not one of the 14 allergens of Annex II (or a sheet
+/// language that is not offered): `allergen_unknown|code=<code>`.
+pub const ALLERGEN_UNKNOWN: &str = "allergen_unknown";
+/// The product or option to edit, or the product to print, does not
+/// exist: `allergen_target_not_found|id=<id>`.
+pub const ALLERGEN_TARGET_NOT_FOUND: &str = "allergen_target_not_found";
+
+// Courses.
+/// The line already went out on a kitchen slip: its course can no longer change.
+pub const COURSE_ALREADY_SENT: &str = "course_already_sent";
+/// A course outside 0 to 3, or a category that does not exist or is listed
+/// twice: `course_invalid|course=<n>` or `course_invalid|category=<id>`.
+pub const COURSE_INVALID: &str = "course_invalid";
+/// Courses are switched off (Settings, "Service en plusieurs temps").
+pub const COURSES_DISABLED: &str = "courses_disabled";
+/// "Envoyer la suite" with no course waiting and nothing left to print.
+pub const NO_COURSE_HELD: &str = "no_course_held";
+/// A reprint of a course no slip ever printed.
+pub const NOTHING_PRINTED: &str = "nothing_printed";
+
+// Gift vouchers.
+/// Gift vouchers are switched off (Settings, "Bons cadeaux").
+pub const GIFT_VOUCHERS_DISABLED: &str = "gift_vouchers_disabled";
+/// A settings value out of range (validity 12 to 36 months, maximum
+/// amount at least 1,00 EUR): `gift_voucher_settings_invalid|field=<name>`.
+pub const GIFT_VOUCHER_SETTINGS_INVALID: &str = "gift_voucher_settings_invalid";
+/// A voucher amount under 1,00 EUR or over the maximum:
+/// `gift_voucher_amount_invalid|max=<euros>`.
+pub const GIFT_VOUCHER_AMOUNT_INVALID: &str = "gift_voucher_amount_invalid";
+/// The quantity of a voucher line cannot change: one line, one voucher.
+pub const GIFT_VOUCHER_LINE_FIXED: &str = "gift_voucher_line_fixed";
+/// A voucher line has no kitchen course and no kitchen note: it never goes to the kitchen.
+pub const GIFT_VOUCHER_LINE_NO_KITCHEN: &str = "gift_voucher_line_no_kitchen";
+/// No voucher has this code.
+pub const GIFT_VOUCHER_NOT_FOUND: &str = "gift_voucher_not_found";
+/// The code is not 12 digits, or its check digits are wrong.
+pub const GIFT_VOUCHER_CODE_INVALID: &str = "gift_voucher_code_invalid";
+/// Too many failed lookups in a minute: `gift_voucher_lookup_throttled|seconds=<n>`.
+pub const GIFT_VOUCHER_LOOKUP_THROTTLED: &str = "gift_voucher_lookup_throttled";
+/// The voucher cannot be used here: cancelled, or sold in the other mode
+/// (training or normal).
+pub const GIFT_VOUCHER_NOT_USABLE: &str = "gift_voucher_not_usable";
+/// The voucher's validity ended.
+pub const GIFT_VOUCHER_EXPIRED: &str = "gift_voucher_expired";
+/// The part is more than the voucher's balance.
+pub const GIFT_VOUCHER_INSUFFICIENT: &str = "gift_voucher_insufficient";
+/// A voucher part that names no voucher, names one twice, or pays an
+/// order that sells a voucher (a voucher or meal voucher cannot pay a voucher).
+pub const GIFT_VOUCHER_PAYMENT_INVALID: &str = "gift_voucher_payment_invalid";
+/// Gift vouchers cannot be switched off while sold vouchers can still be
+/// redeemed: `gift_vouchers_outstanding|count=<n>`.
+pub const GIFT_VOUCHERS_OUTSTANDING: &str = "gift_vouchers_outstanding";
+/// The voucher sold on this line was already used: it cannot be refunded.
+pub const GIFT_VOUCHER_USED: &str = "gift_voucher_used";
+
+/// A problem of `pos.json` (an English text of
+/// `PosConfig::problems`) as a coded error: its `config_<setting>` code
+/// and the text as `detail`.
+pub fn config_problem(problem: &str) -> String {
+    coded(
+        &format!("config_{}", pos_core::config::problem_code(problem)),
+        &[("detail", &problem)],
+    )
+}
+
 /// Every code, for the translation check.
 pub const ALL: &[&str] = &[
+    PAYMENT_CORRECTION_NOT_A_SALE,
+    PAYMENT_CORRECTION_TRAINING,
+    PAYMENT_CORRECTION_PERIOD_CLOSED,
+    PAYMENT_CORRECTION_UNPAID,
+    PAYMENT_CORRECTION_ONLINE,
+    PAYMENT_CORRECTION_REFUNDED,
+    PAYMENT_CORRECTION_ALREADY_DONE,
+    PAYMENT_CORRECTION_BAD_LINE,
+    PAYMENT_CORRECTION_TERMINAL_CARD,
+    PAYMENT_CORRECTION_SAME_METHOD,
+    PAYMENT_CORRECTION_METHOD,
+    PAYMENT_CORRECTION_ROUNDING,
+    PAYMENT_CORRECTION_GIFT_VOUCHER,
+    DISCOUNT_ALREADY_APPLIED,
+    DISCOUNT_NONE,
+    DISCOUNT_INVALID,
+    DISCOUNT_REASON_INVALID,
+    DISCOUNT_ONLINE_ORDER,
+    LINE_HAS_PRICE_CHANGES,
+    NOTE_TOO_LONG,
+    NOTE_UNPRINTABLE,
+    CONFIG_TABLES,
+    TABLE_TRANSFER_SAME_TABLE,
+    TABLE_TRANSFER_TARGET_BUSY,
+    TABLE_TRANSFER_TARGET_INVALID,
+    TABLE_TRANSFER_NOT_A_TABLE,
+    TABLE_TRANSFER_NOT_MOVED,
+    CONFIG_POS_ID,
+    CONFIG_RESTAURANT_VAT,
+    CONFIG_RESTAURANT_EST_NO,
+    CONFIG_IDENTITY,
+    CONFIG_TICKET_HEADER,
+    CONFIG_FDM_URL,
+    CONFIG_FDM_FILES,
+    CONFIG_LANGUAGE,
+    CONFIG_DAY_END_HOUR,
+    CONFIG_MISSING,
+    CONFIG_HUBRISE,
+    CONFIG_DIGITAL_TICKET,
+    CONFIG_EXPORT,
+    CONFIG_PAYMENT_TERMINAL,
+    CONFIG_PEPPOL,
+    CONFIG_ALERTS,
+    CONFIG_OTHER,
+    INVOICE_NO_SALES,
+    INVOICE_SALE_NOT_FOUND,
+    INVOICE_NOT_A_SALE,
+    INVOICE_SALE_ALREADY_INVOICED,
+    INVOICE_TRAINING_MODE,
+    INVOICE_GIFT_VOUCHER_SALE,
+    INVOICE_PEPPOL_REQUIRED,
+    CUSTOMER_VAT_INVALID,
+    CUSTOMER_INCOMPLETE,
+    CUSTOMER_NOT_FOUND,
+    PEPPOL_NOT_CONFIGURED,
+    PEPPOL_DELIVERY_NOT_FOUND,
+    PEPPOL_DELIVERY_NOT_PARKED,
+    ALERTS_INVALID,
+    ALERTS_TOKEN_MISSING,
+    ALERTS_SEND_FAILED,
+    ALLERGEN_UNKNOWN,
+    ALLERGEN_TARGET_NOT_FOUND,
+    COURSE_ALREADY_SENT,
+    COURSE_INVALID,
+    COURSES_DISABLED,
+    NO_COURSE_HELD,
+    NOTHING_PRINTED,
+    GIFT_VOUCHERS_DISABLED,
+    GIFT_VOUCHER_SETTINGS_INVALID,
+    GIFT_VOUCHER_AMOUNT_INVALID,
+    GIFT_VOUCHER_LINE_FIXED,
+    GIFT_VOUCHER_LINE_NO_KITCHEN,
+    GIFT_VOUCHER_NOT_FOUND,
+    GIFT_VOUCHER_CODE_INVALID,
+    GIFT_VOUCHER_LOOKUP_THROTTLED,
+    GIFT_VOUCHER_NOT_USABLE,
+    GIFT_VOUCHER_EXPIRED,
+    GIFT_VOUCHER_INSUFFICIENT,
+    GIFT_VOUCHER_PAYMENT_INVALID,
+    GIFT_VOUCHER_USED,
+    GIFT_VOUCHERS_OUTSTANDING,
     NOT_LOGGED_IN,
     FORBIDDEN,
     NOT_THE_OPERATOR,
@@ -150,15 +507,34 @@ pub const ALL: &[&str] = &[
     NAME_REQUIRED,
     ROLE_INVALID,
     DEACTIVATE_SELF,
+    PRESENCE_ONLY_USER,
+    DEACTIVATE_ON_SHIFT,
+    PRESENCE_TRAINING,
+    PRESENCE_SELF,
+    PRESENCE_ALREADY_IN,
+    PRESENCE_NOT_IN,
+    BADGE_READER_OFF,
+    BADGE_TOKEN_INVALID,
+    BADGE_KEY_UNAVAILABLE,
+    BADGE_UNKNOWN,
+    BADGE_REVOKED,
+    BADGE_IN_USE,
+    BADGE_ALREADY_LINKED,
+    BADGE_NONE,
+    BADGE_SETTINGS_INVALID,
     OPERATOR_INVALID,
     DINE_IN_NEEDS_TABLE,
     TAKEAWAY_HAS_NO_TABLE,
+    TABLE_PLAN_INVALID,
     TAKEAWAY_NOT_REGISTERED,
     QUANTITY_POSITIVE,
     ORDER_NOT_OPEN,
     PRICE_POSITIVE,
     FIXED_PRICE,
     PRODUCT_UNAVAILABLE,
+    PRODUCT_SOLD_OUT,
+    MENU_INVALID,
+    MENU_NOT_FOUND,
     LINE_NOT_FOUND,
     ORDER_NO_LINES,
     ORDER_TOTAL_NEGATIVE,
@@ -182,6 +558,16 @@ pub const ALL: &[&str] = &[
     PAYMENT_EXCEEDS_TOTAL,
     PAYMENT_INCOMPLETE,
     UNPAID_NOTHING_DUE,
+    EFT_NOT_CONFIGURED,
+    EFT_TRAINING,
+    EFT_AMOUNT_INVALID,
+    EFT_PENDING,
+    EFT_BUSY,
+    EFT_UNREACHABLE,
+    EFT_REJECTED,
+    EFT_PAYMENT_NOT_USABLE,
+    EFT_BELOW_CHARGED,
+    EFT_EDIT_PENDING,
     OPEN_ORDERS_TRAINING,
     DIGITAL_UNAVAILABLE,
     EMAIL_INVALID,
@@ -189,6 +575,7 @@ pub const ALL: &[&str] = &[
     EMAIL_SENT,
     PRINTER_NOT_CONFIGURED,
     PRINT_FAILED,
+    SALES_REPORT_RANGE_INVALID,
     SUPPORT_UNAVAILABLE,
     SUPPORT_RUNNING,
     SUPPORT_START_FAILED,
@@ -252,6 +639,9 @@ pub mod hubrise {
     /// Switching off waits until every online order is settled
     /// ({count}).
     pub const ONLINE_ORDERS_OPEN: &str = "hubrise_online_orders_open";
+    /// HubRise refused the code of the connection, or did not answer
+    /// (`detail`: what it said, for the installer).
+    pub const OAUTH_FAILED: &str = "hubrise_oauth_failed";
 
     pub const ALL: &[&str] = &[
         NOT_CONNECTED,
@@ -276,6 +666,7 @@ pub mod hubrise {
         ONLINE_ORDERS_OPEN,
         NOT_CONFIGURED,
         SECRET_UNREADABLE,
+        OAUTH_FAILED,
     ];
 }
 

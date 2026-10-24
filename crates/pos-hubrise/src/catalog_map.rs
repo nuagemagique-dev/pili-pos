@@ -17,12 +17,18 @@
 //! - Tags on the product or the SKU: `pos:open_price` (price entered on
 //!   the POS), `pos:no_kitchen` (no bar/kitchen slip), `pos:hidden`
 //!   (sold online only).
+//! - Allergen tags (V12-D18) on the product, the SKU or an option:
+//!   `allergen:<code>` (contains), `traces:<code>` (may contain),
+//!   `allergen:none` (declared, no allergen); the 14 codes are those of
+//!   `pos_core::allergen`. Any allergen tag declares the list; without
+//!   one there is no information. An unknown code refuses the catalog.
 //! - A disabled restriction (`restrictions.enabled = false`) takes an
 //!   element off sale. Deals and discounts are not mapped.
 
 use std::collections::HashMap;
 
 use pos_catalog::{Catalog, Category, Choice, Group, Issue, IssueCode, Item, ItemKind, Names};
+use pos_core::allergen::AllergenSet;
 use pos_core::vat::VatCode;
 use pos_hubrise_types::money::{parse_cents, parse_rate_hundredths};
 use pos_hubrise_types::{CatalogData, OptionList, Product, Restrictions, Sku, TaxRate};
@@ -37,6 +43,35 @@ pub const CHARGES_CATEGORY: &str = "pos:charges";
 pub const TAG_OPEN_PRICE: &str = "pos:open_price";
 pub const TAG_NO_KITCHEN: &str = "pos:no_kitchen";
 pub const TAG_HIDDEN: &str = "pos:hidden";
+/// `allergen:<code>`: the item contains the allergen.
+pub const TAG_ALLERGEN_PREFIX: &str = "allergen:";
+/// `traces:<code>`: the item may contain traces of the allergen.
+pub const TAG_TRACES_PREFIX: &str = "traces:";
+/// `allergen:none`: the list is declared and empty.
+pub const TAG_ALLERGEN_NONE: &str = "allergen:none";
+
+/// The allergen list the tags give: `None` without any allergen tag
+/// (no information), otherwise a declared list. Codes are matched in
+/// lower case; unknown ones are kept for the catalog validation.
+pub(crate) fn allergens_of<'a>(tags: impl Iterator<Item = &'a String>) -> Option<AllergenSet> {
+    let mut set = AllergenSet::default();
+    let mut declared = false;
+    for tag in tags {
+        let tag = tag.trim().to_lowercase();
+        if let Some(code) = tag.strip_prefix(TAG_ALLERGEN_PREFIX) {
+            declared = true;
+            if code != "none" {
+                set.contains.push(code.trim().to_owned());
+            }
+        } else if let Some(code) = tag.strip_prefix(TAG_TRACES_PREFIX) {
+            declared = true;
+            if code != "none" {
+                set.may_contain.push(code.trim().to_owned());
+            }
+        }
+    }
+    declared.then(|| set.normalized())
+}
 
 /// The neutral catalog, and the issues found while mapping (they
 /// refuse the catalog like validation issues do).
@@ -148,6 +183,7 @@ pub fn to_neutral(data: &CatalogData) -> (Catalog, Vec<Issue>) {
             on_pos: false,
             available: Restrictions::is_enabled(&charge.restrictions),
             groups: Vec::new(),
+            allergens: None,
         });
     }
 
@@ -245,6 +281,7 @@ fn map_sku(
         on_pos: !tagged(TAG_HIDDEN),
         available: Restrictions::is_enabled(&sku.restrictions),
         groups,
+        allergens: allergens_of(product.tags.iter().chain(&sku.tags)),
     }
 }
 
@@ -266,6 +303,7 @@ fn map_list(sku_key: &str, list: &OptionList, issues: &mut Vec<Issue>) -> Group 
                     .map_or(0, |p| price(p, &opt_key, issues)),
                 names: fr_name(&opt.name),
                 available: Restrictions::is_enabled(&opt.restrictions),
+                allergens: allergens_of(opt.tags.iter()),
                 key: opt_key,
             }
         })
@@ -404,6 +442,82 @@ mod tests {
             .into_iter()
             .map(|i| (i.code, i.key))
             .collect()
+    }
+
+    #[test]
+    fn a_catalog_without_allergen_tags_has_no_information() {
+        let (c, _) = to_neutral(&data(sample()));
+        assert!(c.items.iter().all(|i| i.allergens.is_none()));
+        assert!(
+            c.items
+                .iter()
+                .flat_map(|i| &i.groups)
+                .flat_map(|g| &g.options)
+                .all(|o| o.allergens.is_none())
+        );
+    }
+
+    #[test]
+    fn allergen_tags_on_product_sku_and_option_are_mapped() {
+        let mut v = sample();
+        v["products"][0]["tags"] = json!(["allergen:fish", "traces:molluscs"]);
+        v["products"][0]["skus"][0]["tags"] = json!(["allergen:Sesame", "allergen:fish"]);
+        v["option_lists"][0]["options"][0]["tags"] =
+            json!(["allergen:soybeans", "allergen:gluten"]);
+        v["option_lists"][0]["options"][1]["tags"] = json!(["allergen:none"]);
+        let (c, issues) = to_neutral(&data(v));
+        assert!(issues.is_empty(), "{issues:?}");
+        assert!(pos_catalog::validate(&c).is_empty());
+        let a6 = c.items[0].allergens.as_ref().unwrap();
+        assert_eq!(a6.contains, vec!["fish", "sesame"]);
+        assert_eq!(a6.may_contain, vec!["molluscs"]);
+        // The product's tags reach the second SKU too.
+        let a12 = c.items[1].allergens.as_ref().unwrap();
+        assert_eq!(a12.contains, vec!["fish"]);
+        assert!(c.items[2].allergens.is_none());
+        let soja = &c.items[0].groups[0].options[0];
+        assert_eq!(
+            soja.allergens.as_ref().unwrap().contains,
+            vec!["gluten", "soybeans"]
+        );
+        let spicy = &c.items[0].groups[0].options[1];
+        assert_eq!(
+            spicy.allergens,
+            Some(AllergenSet::default()),
+            "declared, none"
+        );
+    }
+
+    #[test]
+    fn allergen_none_declares_an_empty_list_on_a_sku() {
+        let mut v = sample();
+        v["products"][1]["skus"][0]["tags"] = json!(["allergen:none"]);
+        let (c, _) = to_neutral(&data(v));
+        assert_eq!(c.items[2].allergens, Some(AllergenSet::default()));
+    }
+
+    #[test]
+    fn a_traces_only_tag_declares_the_list() {
+        let mut v = sample();
+        v["products"][1]["tags"] = json!(["traces:nuts"]);
+        let (c, _) = to_neutral(&data(v));
+        let a = c.items[2].allergens.as_ref().unwrap();
+        assert!(a.contains.is_empty());
+        assert_eq!(a.may_contain, vec!["nuts"]);
+    }
+
+    #[test]
+    fn an_unknown_allergen_code_refuses_the_catalog() {
+        let mut v = sample();
+        v["products"][1]["tags"] = json!(["allergen:glutten"]);
+        v["option_lists"][0]["options"][0]["tags"] = json!(["traces:peanut"]);
+        let (c, _) = to_neutral(&data(v));
+        let found: Vec<(IssueCode, String)> = pos_catalog::validate(&c)
+            .into_iter()
+            .map(|i| (i.code, i.key))
+            .collect();
+        assert!(found.contains(&(IssueCode::UnknownAllergen, "COCA".into())));
+        assert!(found.contains(&(IssueCode::UnknownAllergen, "MAKI-6|SAUCE|SOJA".into())));
     }
 
     #[test]

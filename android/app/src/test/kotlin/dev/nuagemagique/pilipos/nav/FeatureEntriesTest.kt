@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
+import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.feature.checkout.CheckoutRoutes
 import dev.nuagemagique.pilipos.feature.login.LoginRoutes
 import dev.nuagemagique.pilipos.feature.order.OrderRoutes
@@ -14,6 +15,7 @@ import dev.nuagemagique.pilipos.feature.reports.ReportsRoutes
 import dev.nuagemagique.pilipos.feature.settings.SettingsRoutes
 import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
 import dev.nuagemagique.pilipos.feature.webshop.WebshopRoutes
+import dev.nuagemagique.pilipos.nightly.NightlyRoutes
 import dev.nuagemagique.pilipos.platform.PlatformRoutes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -50,10 +52,10 @@ class FeatureEntriesTest {
     fun theSetHoldsSevenFeaturesAndThePlatform() {
         hiltRule.inject()
         assertEquals(
-            setOf("login", "tables", "order", "checkout", "reports", "settings", "webshop", "platform"),
+            setOf("login", "tables", "order", "checkout", "reports", "settings", "settings-menu", "webshop", "platform", "nightly"),
             entries.map { it.area }.toSet(),
         )
-        assertEquals(8, entries.size)
+        assertEquals(10, entries.size)
     }
 
     @Test
@@ -69,8 +71,12 @@ class FeatureEntriesTest {
                 CheckoutRoutes.CHECKOUT,
                 ReportsRoutes.REPORTS,
                 SettingsRoutes.SETTINGS,
+                SettingsRoutes.MENU,
                 WebshopRoutes.WEBSHOP,
                 PlatformRoutes.ABOUT,
+                NightlyRoutes.NIGHTLY,
+                PlatformRoutes.EXPORT,
+                PlatformRoutes.UPDATE,
             ),
             routes.toSet(),
         )
@@ -93,7 +99,20 @@ class FeatureEntriesTest {
         val about = settings.single { it.id == "platform.about" }
         assertEquals(PlatformRoutes.ABOUT, about.route)
         assertEquals(registry.settingsEntries, registry.settingsEntries.sortedWith(compareBy({ it.order }, { it.id })))
-        assertTrue(registry.entries.size == 8)
+        assertTrue(registry.entries.size == 10)
+    }
+
+    @Test
+    fun theMenuEditorHasItsSettingsRowForManagersOnly() {
+        hiltRule.inject()
+        val row = registry.settingsEntries.single { it.id == "settings.menu" }
+        assertEquals(SettingsRoutes.MENU, row.route)
+        assertTrue(row.managerOnly)
+        assertEquals(R.string.menu_editor_title, row.titleRes)
+        assertEquals(100, row.order)
+        // The route it opens belongs to its own entry (V11-D17), besides the settings screen's.
+        assertEquals(listOf("settings-menu"), entries.filter { SettingsRoutes.MENU in it.routes }.map { it.area })
+        assertEquals(listOf("settings"), entries.filter { SettingsRoutes.SETTINGS in it.routes }.map { it.area })
     }
 
     @Test

@@ -13,7 +13,7 @@ use std::sync::Arc;
 // Every shipped build has the HubRise integration (switched on or off
 // per installation); the handler lists below assume it.
 #[cfg(not(feature = "hubrise"))]
-compile_error!("pili-pos is built with feature `hubrise` (`cert` and `peppol` include it)");
+compile_error!("pili-pos is built with feature `hubrise` (`cert` includes it)");
 
 fn main() {
     // Offline commands (image build, install scripts) run before any
@@ -188,21 +188,21 @@ fn main() {
             }
         });
 
-    // The invoke_handler list differs between the dev build (with the
-    // invoicing commands, feature `peppol`) and the certification build
-    // (without). tauri::generate_handler! doesn't accept `#[cfg]` on
-    // individual commands, so we branch the whole call. HubRise is in
-    // both: whether it runs is the installation's switch.
-    #[cfg(feature = "peppol")]
+    // One handler list for every build: HubRise and invoicing are always
+    // compiled in; whether they run is the installation's switch.
     let builder = builder.invoke_handler(tauri::generate_handler![
         // Menu
         ipc::menu::get_categories,
         ipc::menu::get_menu_items,
+        ipc::menu::list_sold_out,
+        ipc::menu::set_sold_out,
+        ipc::menu::clear_sold_out,
         // Orders
         ipc::order::create_order,
         ipc::order::add_order_line,
         ipc::order::remove_order_line,
         ipc::order::update_order_line_quantity,
+        ipc::order::set_line_note,
         ipc::order::get_order,
         ipc::order::list_order_lines,
         ipc::order::list_open_orders,
@@ -218,6 +218,12 @@ fn main() {
         // Checkout
         ipc::checkout::checkout,
         ipc::unpaid::close_unpaid,
+        ipc::eft::eft_pay,
+        ipc::eft::eft_abort,
+        ipc::eft::eft_check,
+        ipc::eft::list_eft_payments,
+        ipc::eft::check_payment_terminal,
+        ipc::eft::list_unsettled_card_payments,
         ipc::checkout::check_fdm_status,
         ipc::fdm_monitor::fdm_health,
         ipc::fdm_monitor::fdm_check_now,
@@ -241,13 +247,38 @@ fn main() {
         // Settings
         ipc::settings::get_settings,
         ipc::settings::set_training_mode,
+        // Owner alerts (Telegram)
+        ipc::alerts::get_owner_alerts,
+        ipc::alerts::set_owner_alerts,
+        ipc::alerts::send_test_alert,
+        ipc::alerts::list_owner_alert_log,
+        // Allergens
+        ipc::allergens::list_allergens,
+        ipc::allergens::get_allergen_sheet,
+        ipc::allergens::print_allergen_sheet,
+        ipc::allergens::set_allergens,
+        ipc::courses::get_course_settings,
+        ipc::courses::set_course_settings,
+        ipc::courses::set_line_course,
+        ipc::courses::list_held_courses,
+        ipc::courses::send_next_course,
+        ipc::courses::reprint_course_slip,
+        ipc::gift_vouchers::get_gift_voucher_settings,
+        ipc::gift_vouchers::set_gift_voucher_settings,
+        ipc::gift_vouchers::add_gift_voucher_line,
+        ipc::gift_vouchers::lookup_gift_voucher,
+        ipc::gift_vouchers::list_gift_vouchers,
+        ipc::gift_vouchers::print_gift_voucher,
         // Tables
         ipc::tables::list_tables,
+        ipc::tables::get_table_plan,
+        ipc::tables::set_table_plan,
         ipc::order::list_cart_lines,
         ipc::social::list_open_shifts,
         ipc::tables::list_open_takeaways,
         ipc::tables::sign_table_order,
         ipc::tables::sign_pre_bill,
+        ipc::tables::transfer_table,
         // Reports
         ipc::report::generate_x_report,
         ipc::report::generate_user_x_report,
@@ -255,6 +286,8 @@ fn main() {
         ipc::report::list_z_reports,
         ipc::report::needs_z_report,
         ipc::report::backup_database,
+        ipc::report::sales_report,
+        ipc::report::print_sales_report,
         // Copy
         ipc::copy::copy_ticket,
         ipc::copy::list_fiscal_events,
@@ -269,10 +302,21 @@ fn main() {
         // Social (Event S - ONSS clock in/out)
         ipc::social::work_in,
         ipc::social::work_out,
+        ipc::social::clock_in_employee,
+        ipc::social::clock_out_employee,
         ipc::social::end_shift,
+        // Staff badges (reader setting, enrolment, scans)
+        ipc::badges::get_badge_settings,
+        ipc::badges::set_badge_settings,
+        ipc::badges::list_badges,
+        ipc::badges::link_badge,
+        ipc::badges::revoke_badge,
+        ipc::badges::badge_tap,
         // Financial (Event F - cash in/out, drawer)
         ipc::financial::money_in_out,
         ipc::financial::open_drawer_fiscal,
+        ipc::financial::list_sale_payments,
+        ipc::financial::correct_payment,
         // HubRise
         ipc::hubrise::hubrise_get_connection_status,
         ipc::hubrise::hubrise_start_oauth_flow,
@@ -287,8 +331,16 @@ fn main() {
         ipc::hubrise::hubrise_adopt_catalog,
         ipc::hubrise::hubrise_list_channels,
         ipc::hubrise::hubrise_set_channel,
+        ipc::menu_admin::menu_admin_get,
+        ipc::menu_admin::menu_save_category,
+        ipc::menu_admin::menu_save_product,
+        ipc::menu_admin::menu_save_modifier_group,
+        ipc::menu_admin::menu_save_modifier,
+        ipc::menu_admin::list_menu_changes,
         ipc::modifiers::get_item_modifiers,
         ipc::modifiers::add_order_line_with_modifiers,
+        ipc::discount::apply_discount,
+        ipc::discount::remove_discount,
         ipc::webshop::webshop_accept_order,
         ipc::webshop::webshop_handover_order,
         ipc::webshop::webshop_reject_order,
@@ -297,117 +349,16 @@ fn main() {
         ipc::webshop::webshop_close_cancelled_order,
         ipc::integrations::get_integrations,
         ipc::integrations::set_hubrise_enabled,
-        // Peppol B2B invoicing (dev build only - not in the v1.0.0 cert scope)
+        // B2B invoices (event I) and the Peppol delivery queue
+        ipc::invoice::list_invoiceable_sales,
+        ipc::invoice::invoice_preview,
+        ipc::invoice::lookup_b2b_customer,
+        ipc::invoice::search_b2b_customers,
+        ipc::invoice::save_b2b_customer,
         ipc::invoice::sign_invoice_fiscal,
-        ipc::invoice::issue_b2b_invoice,
-    ]);
-
-    #[cfg(not(feature = "peppol"))]
-    let builder = builder.invoke_handler(tauri::generate_handler![
-        // Menu
-        ipc::menu::get_categories,
-        ipc::menu::get_menu_items,
-        // Orders
-        ipc::order::create_order,
-        ipc::order::add_order_line,
-        ipc::order::remove_order_line,
-        ipc::order::update_order_line_quantity,
-        ipc::order::get_order,
-        ipc::order::list_order_lines,
-        ipc::order::list_open_orders,
-        // Auth
-        ipc::auth::login,
-        ipc::auth::login_with_new_pin,
-        ipc::auth::list_users,
-        ipc::auth::create_user,
-        ipc::auth::set_pin,
-        ipc::auth::get_current_user,
-        ipc::auth::logout,
-        ipc::auth::deactivate_user,
-        // Checkout
-        ipc::checkout::checkout,
-        ipc::unpaid::close_unpaid,
-        ipc::checkout::check_fdm_status,
-        ipc::fdm_monitor::fdm_health,
-        ipc::fdm_monitor::fdm_check_now,
-        // Ticket delivery (paper / email)
-        ipc::delivery::check_mail_status,
-        ipc::delivery::list_ticket_deliveries,
-        ipc::delivery::print_missing_original,
-        // Nightly export
-        ipc::export::export_status,
-        ipc::export::export_run_now,
-        // Print
-        ipc::print::check_printer,
-        ipc::print::check_kitchen_printer,
-        // Session
-        ipc::session::set_active_order,
-        ipc::session::leave_order,
-        ipc::session::lock_session,
-        ipc::session::user_activity,
-        // Settings
-        ipc::settings::get_settings,
-        ipc::settings::set_training_mode,
-        // Tables
-        ipc::tables::list_tables,
-        ipc::order::list_cart_lines,
-        ipc::social::list_open_shifts,
-        ipc::tables::list_open_takeaways,
-        ipc::tables::sign_table_order,
-        ipc::tables::sign_pre_bill,
-        // Reports
-        ipc::report::generate_x_report,
-        ipc::report::generate_user_x_report,
-        ipc::report::generate_z_report,
-        ipc::report::list_z_reports,
-        ipc::report::needs_z_report,
-        ipc::report::backup_database,
-        // Copy
-        ipc::copy::copy_ticket,
-        ipc::copy::list_fiscal_events,
-        ipc::copy::list_copyable_tickets,
-        ipc::support::remote_support_status,
-        ipc::support::remote_support_running,
-        ipc::support::start_remote_support,
-        ipc::support::stop_remote_support,
-        // Refund
-        ipc::refund::list_refundable_events,
-        ipc::refund::refund_checkout,
-        // Social (Event S - ONSS clock in/out)
-        ipc::social::work_in,
-        ipc::social::work_out,
-        ipc::social::end_shift,
-        // Financial (Event F - cash in/out, drawer)
-        ipc::financial::money_in_out,
-        ipc::financial::open_drawer_fiscal,
-        // No invoice (I event) commands: invoicing is not part of the
-        // v1.0.0 certification scope.
-        // HubRise (switched per installation, ipc::integrations)
-        ipc::print::print_webshop_kitchen,
-        ipc::print::print_webshop_customer,
-        ipc::hubrise::hubrise_get_connection_status,
-        ipc::hubrise::hubrise_start_oauth_flow,
-        ipc::hubrise::hubrise_complete_oauth,
-        ipc::hubrise::hubrise_disconnect,
-        ipc::hubrise::hubrise_list_webshop_orders,
-        ipc::hubrise::hubrise_patch_order_status,
-        ipc::hubrise::hubrise_set_confirmed_time,
-        ipc::hubrise::hubrise_status,
-        ipc::hubrise::hubrise_sync_catalog,
-        ipc::hubrise::hubrise_adoption_preview,
-        ipc::hubrise::hubrise_adopt_catalog,
-        ipc::hubrise::hubrise_list_channels,
-        ipc::hubrise::hubrise_set_channel,
-        ipc::modifiers::get_item_modifiers,
-        ipc::modifiers::add_order_line_with_modifiers,
-        ipc::webshop::webshop_accept_order,
-        ipc::webshop::webshop_handover_order,
-        ipc::webshop::webshop_reject_order,
-        ipc::webshop::webshop_refund_order,
-        ipc::webshop::webshop_complete_order,
-        ipc::webshop::webshop_close_cancelled_order,
-        ipc::integrations::get_integrations,
-        ipc::integrations::set_hubrise_enabled,
+        ipc::invoice::list_invoices,
+        ipc::invoice::list_peppol_deliveries,
+        ipc::invoice::retry_peppol_delivery,
     ]);
 
     builder

@@ -1,6 +1,8 @@
 use tauri::State;
 
 use pos_engine::commands::bar_slip::SlipOutcome;
+use pos_engine::commands::table_plan::TablePlan;
+use pos_engine::commands::table_transfer::TableTransferResult;
 use pos_engine::commands::tables::{TableInfo, TakeawayInfo};
 
 use super::Managed;
@@ -46,4 +48,28 @@ pub async fn sign_pre_bill(
     order_id: i64,
 ) -> Result<SlipOutcome, String> {
     pos_engine::commands::tables::do_sign_pre_bill(state.inner(), order_id).await
+}
+
+/// Move the open order of a table to a free table (event P, cost
+/// center change). Entries not yet registered are sent first; the
+/// result says what became of the kitchen slip and the transfer notice.
+#[tauri::command]
+pub async fn transfer_table(
+    state: State<'_, Managed>,
+    order_id: i64,
+    to_table: i32,
+) -> Result<TableTransferResult, String> {
+    pos_engine::commands::table_transfer::do_transfer_table(state.inner(), order_id, to_table).await
+}
+
+/// The table plan (the table numbers in use) and its changes.
+#[tauri::command]
+pub fn get_table_plan(state: State<'_, Managed>) -> Result<TablePlan, String> {
+    pos_engine::commands::table_plan::do_get_table_plan(state.inner())
+}
+
+/// Set the table plan ("1-12, 20-25"); managers only.
+#[tauri::command]
+pub fn set_table_plan(state: State<'_, Managed>, plan: String) -> Result<TablePlan, String> {
+    pos_engine::commands::table_plan::do_set_table_plan(state.inner(), &plan)
 }

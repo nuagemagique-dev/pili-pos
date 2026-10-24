@@ -1,0 +1,29 @@
+{
+    "data": {
+        "fdmStatus": {
+            "device": {
+                "bufferCapacityUsed": 1.2,
+                "fdmDateTime": "2026-10-18T11:00:57Z",
+                "fdmId": "MCK00000001",
+                "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [
+                {
+                    "extensions": {
+                        "category": "FDM",
+                        "code": "UNKNOWN_POS",
+                        "showPos": "MANDATORY"
+                    },
+                    "message": "Le FDM a re\u00e7u un message d'un POS non repris dans la liste d'autorisation"
+                }
+            ],
+            "informations": [],
+            "initialized": false,
+            "warnings": []
+        }
+    },
+    "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+    }
+}

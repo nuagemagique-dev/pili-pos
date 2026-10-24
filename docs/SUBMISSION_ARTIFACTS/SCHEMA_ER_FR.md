@@ -2,7 +2,7 @@
 
 **Date :** 2026-10-03
 **Référence :** §II.C "Relations entre les tables" du manuel de certification.
-**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs` et `schema_catalog.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 10, puis 20 à 25).
+**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs`, `schema_till.rs`, `schema_invoicing.rs` et `schema_badges.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 11, 20 à 28, 30 et 31, 40 à 42, puis 70).
 
 Ce document décrit visuellement les relations entre les tables de la
 base SQLite `pos.db`. Pour l'inventaire détaillé champ-par-champ,
@@ -19,7 +19,7 @@ retiré. Le lien est applicatif.
 
 ## 1. Vue d'ensemble par domaines
 
-La base est organisée en 10 domaines logiques :
+La base est organisée en 19 domaines logiques :
 
 ```
 +-----------------+   +---------------+   +----------------+
@@ -56,15 +56,52 @@ La base est organisée en 10 domaines logiques :
 +-----------------------+   +-----------------------------+
 
 +-------------------------------+   +--------------------------+
-|  COMMANDES EN LIGNE (HubRise, |   |  PEPPOL (livraisons B2B) |
-|  migrations 20 à 25)          |   |  peppol_deliveries :     |
-|  webshop_orders,              |   |  table présente, jamais  |
-|  hubrise_channels,            |   |  écrite par la build     |
-|  hubrise_cash_payment_refs,   |   |  cert (hors v1.0.0)      |
+|  COMMANDES EN LIGNE (HubRise, |   |  FACTURATION (migration 40)|
+|  migrations 20 à 25)          |   |  b2b_customers, invoices,|
+|  webshop_orders,              |   |  invoice_sales,          |
+|  hubrise_channels,            |   |  peppol_deliveries,      |
+|  hubrise_cash_payment_refs,   |   |  peppol_delivery_log     |
 |  hubrise_connection/events/   |   +--------------------------+
 |  outbox, order_price_changes, |
 |  integration_switches/_log    |
 +-------------------------------+
+
++-------------------------------+   +--------------------------------+
+|  PRODUIT ÉPUISÉ (migration 41)|   |  ÉDITEUR DE CARTE (migration 42)|
+|  menu_item_sold_out,          |   |  menu_change_log (append-only) |
+|  sold_out_log (append-only),  |   +--------------------------------+
+|  hubrise_inventory_sync       |
++-------------------------------+
+
++-------------------------------+   +--------------------------------+
+|  PLAN DE SALLE (migration 11) |   |  TERMINAL DE PAIEMENT RELIÉ    |
+|  table_plan (plan en vigueur),|   |  (migration 27)                |
+|  table_plan_log (append-only) |   |  eft_payments (append-only)    |
++-------------------------------+   +--------------------------------+
+
++----------------------------------------------------+
+|  BADGES DU PERSONNEL (migration 70, option)        |
+|  badge_settings (réglage unique), staff_badges     |
+|  (liens, retrait seul), badge_log et badge_scans   |
+|  (ajout seul)                                      |
++----------------------------------------------------+
+
++-------------------------------+   +--------------------------------+
+|  RÉGLAGES DU PROPRIÉTAIRE     |   |  ALLERGÈNES (migration 61)     |
+|  (migration 60)               |   |  menu_item_allergens,          |
+|  owner_settings,              |   |  modifier_allergens,           |
+|  owner_settings_log et        |   |  allergen_declarations,        |
+|  owner_alert_log (ajout seul) |   |  allergen_change_log (ajout    |
++-------------------------------+   |  seul)                         |
+                                    +--------------------------------+
+
++-------------------------------+   +--------------------------------+
+|  SERVICE EN PLUSIEURS TEMPS   |   |  BONS CADEAUX (migration 63)   |
+|  (migration 62, cuisine)      |   |  gift_vouchers,                |
+|  order_line_courses,          |   |  gift_voucher_movements,       |
+|  order_course_releases,       |   |  gift_voucher_prints (ajout    |
+|  kitchen_slip_entries         |   |  seul)                         |
++-------------------------------+   +--------------------------------+
 ```
 
 `_migrations_applied` (suivi des migrations) est hors domaine.
@@ -284,10 +321,14 @@ La base est organisée en 10 domaines logiques :
 | name   TEXT         |  - - -| user_insz  TEXT     |
 | role   TEXT         | lien  | started_at TEXT     |
 | pin_hash TEXT       | appli-| ended_at   TEXT     |
-| active   INT        | catif +---------------------+
-+---------------------+       (migration 9 ; index local des postes
- role : admin|cashier|waiter   ouverts par un S WorkIn, clos par un
-                               S WorkOut ; sans FK)
+| active   INT        | catif | started_by TEXT     |
+| presence_only INT   |       | ended_by   TEXT     |
++---------------------+       +---------------------+
+ role : admin|cashier|waiter   (migration 9 ; index local des postes
+ presence_only : 0|1           ouverts par un S WorkIn, clos par un
+ (migration 28)                S WorkOut ; sans FK ; started_by et
+                               ended_by : migration 28, INSZ de qui a
+                               enregistré, NULL avant)
 ```
 
 ### 2.5 Ticket numérique et impressions d'original
@@ -414,30 +455,237 @@ La base est organisée en 10 domaines logiques :
                                (append-only par triggers)
 ```
 
-### 2.7 Peppol (hors binaire certifié v1.0.0)
+### 2.7 Facturation et Peppol (migration 40)
 
 ```
++------------------+   1..n   +---------------+   1..n   +-----------------+
+|  b2b_customers   |<---------|   invoices    |---------->|  invoice_sales  |
+|------------------|          |---------------|           |-----------------|
+| id INT PK        |          | id INT PK     |           | invoice_id FK   |
+| vat_number UNIQ  |          | invoice_seq   |           | sale_fiscal_    |
+| name, street,    |          | invoice_no    |           |   event_id UNIQ |
+| postal_code,     |          | customer_id FK|           | position        |
+| city, country    |          | customer_json |           +--------+--------+
+| peppol_status    |          | issue_date    |                    |
+| peppol_checked_at|          | total_cents   |                    | n..1
++------------------+          | vat_json      |                    v
+                              | fiscal_event_ |              fiscal_events
+                              |   id FK UNIQ  |--------------> (event_type='I'
+                              +-------+-------+                 et ventes 'N')
+                                      | 1..n
+                                      v
++--------------------------+   +--------------------------+
+|   peppol_deliveries      |   |   peppol_delivery_log    |
+|--------------------------|   |--------------------------|
+| id              INT PK   |<--| delivery_id FK           |
+| fiscal_event_id INT FK   |   | attempt, outcome         |
+| invoice_no      TEXT     |   | http_status, detail, at  |
+| customer_endpoint_id     |   +--------------------------+
+| ap_vendor, ap_message_id |
+| ubl_xml, ap_response_json|   Vue v_invoice_journal :
+| status (queued|accepted| |   invoices + fiscal_events
+|         failed)          |   + dernier envoi Peppol
+| attempts, next_attempt_at|
+| last_attempt_at,         |
+| parked_at, lookup_status |
+| error_msg, created_at,   |
+| accepted_at              |
 +--------------------------+
-|   peppol_deliveries      |
-|--------------------------|
-| id              INT PK   |
-| fiscal_event_id INT FK   |---+
-| invoice_no      TEXT     |   |
-| customer_       TEXT     |   |
-|     endpoint_id          |   |
-| ap_vendor       TEXT     |   | 0..1
-| ap_message_id   TEXT     |   v
-| ubl_xml         TEXT     |  fiscal_events
-| ap_response_    TEXT     |  (event_type='I')
-|     json                 |
-| status          TEXT     |
-| error_msg       TEXT     |
-| created_at      TEXT     |
-| accepted_at     TEXT     |
-+--------------------------+
-(créée par la migration 1 dans toute build, jamais écrite par la
- build cert : l'événement I est hors périmètre de la v1.0.0)
+(invoices, invoice_sales et peppol_delivery_log sont en ajout seul,
+ par déclencheurs)
 ```
+
+### 2.7 bis Produit épuisé et éditeur de carte (migrations 41 et 42)
+
+```
++---------------------------+   +---------------------------+
+|     menu_item_sold_out    |   |       sold_out_log        |
+|---------------------------|   |---------------------------|
+| menu_item_id INT PK, FK   |   | id INT PK                 |
+| until TEXT (NULL = jusqu'à|   | menu_item_id FK           |
+|   réactivation)           |   | action set|clear|expired  |
+| set_by, set_at            |   | until, by, at             |
++---------------------------+   +---------------------------+
+                                (ajout seul, par déclencheurs)
+
++---------------------------+   +---------------------------+
+|  hubrise_inventory_sync   |   |    menu_change_log        |
+|---------------------------|   |---------------------------|
+| menu_item_id INT PK, FK   |   | id INT PK                 |
+| sku_ref, dirty, version   |   | entity_type, entity_id    |
+| attempts, next_attempt_at |   | action create|update      |
+| last_attempt_at, parked_at|   | before_json, after_json   |
+| error_msg, synced_at      |   | changed_by, changed_at    |
++---------------------------+   +---------------------------+
+                                (ajout seul, par déclencheurs)
+```
+
+### 2.8 Plan de salle (migration 11)
+
+```
++---------------------------+  +---------------------------+
+|        table_plan         |  |      table_plan_log       |
+|---------------------------|  |---------------------------|
+| id INT PK (toujours 1)    |  | id INT PK                 |
+| plan TEXT ("1-12, 20-25") |  | plan TEXT                 |
+| config_plan TEXT          |  | source config|admin       |
+| changed_at TEXT           |  | changed_by TEXT           |
+| changed_by TEXT (INSZ ou  |  | changed_at TEXT           |
+|   NULL pour pos.json)     |  +---------------------------+
++---------------------------+  (append-only par triggers)
+```
+
+Aucune clé étrangère : le plan ne porte que des numéros de table, et
+`changed_by` est l'INSZ du Gérant (lien applicatif). Les commandes
+gardent leur numéro de table (`orders.table_number`) ; le plan ne
+détermine que les tables que l'écran des tables affiche, plus toute table
+hors plan qui a une commande ouverte.
+
+### 2.9 Terminal de paiement relié (migration 27)
+
+```
++----------------------------------+
+|           eft_payments           |
+|----------------------------------|
+| id INT PK                        |
+| reference TEXT UNIQUE (UUID)     |
+| order_id INT FK ---------------------> orders
+| terminal_kind TEXT               |
+| amount_cents INT > 0             |
+| status sent|approved|declined|   |
+|   cancelled|unknown|not_sent     |
+| card_type debit|credit|unknown   |
+| brand, terminal_reference,       |
+| authorisation_code, masked_pan,  |
+| customer_receipt, detail TEXT    |
+| user_insz TEXT (pas de FK)       |
+| created_at, resolved_at TEXT     |
+| used_event_id INT FK ----------------> fiscal_events (nullable)
++----------------------------------+
+ ajout seul par triggers (voir §4)
+```
+
+Une ligne par paiement demandé au terminal, écrite avant l'appel. Elle
+référence sa commande et, une fois la vente signée, l'événement N qui l'a
+réglée (`used_event_id`, une seule fois). Un paiement `approved` impose
+un `card_type` (`CHECK`).
+
+### 2.10 Badges du personnel (migration 70)
+
+```
++----------------------------------+
+|          badge_settings          |   une seule ligne (id = 1)
+|----------------------------------|
+| reader off|nfc|usb               |
+| login_enabled 0|1                |
+| wedge_max_gap_ms, wedge_min_len, |
+| wedge_max_len                    |
+| key_check, changed_at/by         |
++----------------------------------+
+
++----------------------------------+        +-------------------------------+
+|           staff_badges           |        |           badge_log           |
+|----------------------------------|        |-------------------------------|
+| id INT PK                        |<-------| badge_id INT FK (nullable)    |
+| badge_hash TEXT(64) (HMAC)       |        | action link|revoke|settings   |
+| user_insz TEXT FK ----------------------> users.insz                      |
+| linked_at, linked_by TEXT        |        | user_insz, detail, changed_by |
+| revoked_at, revoked_by TEXT      |        | changed_at                    |
+| revoke_reason manager|           |        +-------------------------------+
+|   deactivated|key_changed        |
++----------------------------------+        +-------------------------------+
+ index unique partiel : une empreinte        |          badge_scans          |
+ active ; un badge actif par employé         |-------------------------------|
+                                             | outcome clock_in|clock_out|   |
+                                             |  presence_failed|login|...   |
+                                             | user_insz, badge_ref(12), ... |
+                                             +-------------------------------+
+```
+
+`staff_badges.user_insz` est, contrairement aux colonnes `user_insz` des
+tables fiscales, une clé étrangère vers `users` : un badge ne désigne
+qu'un employé connu. Les journaux `badge_log` et `badge_scans` gardent
+l'INSZ sans clé étrangère. Le numéro du badge n'apparaît dans aucune
+colonne (`SECURITE_BD_FR.md` §2.5).
+
+### 2.11 Fonctions du propriétaire (migrations 60 à 63)
+
+```
++---------------------------+   +---------------------------+
+|      owner_settings       |   |    owner_settings_log     |
+|---------------------------|   |---------------------------|
+| key TEXT PK               |   | id INT PK                 |
+| value_json                |   | key, value_json           |
+| changed_at, changed_by    |   | changed_by, changed_at    |
++---------------------------+   +---------------------------+
+                                (ajout seul, par déclencheurs)
++---------------------------+
+|      owner_alert_log      |   (ajout seul, par déclencheurs)
+|---------------------------|
+| id INT PK                 |
+| kind, transition, detail  |
+| outcome, http_status      |
+| created_at                |
++---------------------------+
+
++---------------------------+   +---------------------------+
+|   menu_item_allergens     |   |    modifier_allergens     |
+|---------------------------|   |---------------------------|
+| menu_item_id FK  } PK     |   | modifier_id FK   } PK     |
+| allergen (14)    }        |   | allergen (14)    }        |
+| level contains|may_contain|   | level contains|may_contain|
++---------------------------+   +---------------------------+
++---------------------------+   +---------------------------+
+|  allergen_declarations    |   |   allergen_change_log     |
+|---------------------------|   |---------------------------|
+| entity_type } PK          |   | id INT PK                 |
+| entity_id   }             |   | entity_type, entity_id    |
+| source catalog|local      |   | before_json, after_json   |
+| declared_at, declared_by  |   | source, changed_by/at     |
++---------------------------+   +---------------------------+
+                                (ajout seul, par déclencheurs)
+
++---------------------------+   +---------------------------+
+|    order_line_courses     |   |   order_course_releases   |
+|---------------------------|   |---------------------------|
+| line_id INT PK (sans FK)  |   | order_id FK } PK          |
+| order_id FK -> orders     |   | course 1-3  }             |
+| course 0-3, set_by/at     |   | released_by, released_at  |
++---------------------------+   +---------------------------+
++---------------------------+
+|   kitchen_slip_entries    |
+|---------------------------|
+| entry_id PK, FK ----------------> order_entries.id
+| course 0-3, printed_at    |
+| slip immediate|release|   |
+|      sale                 |
++---------------------------+
+
++---------------------------+        +---------------------------+
+|       gift_vouchers       |        |  gift_voucher_movements   |
+|---------------------------|        |---------------------------|
+| id INT PK                 |<-------| voucher_id FK             |
+| code TEXT UNIQUE (12)     |        | kind issue|redeem|cancel  |
+| face_value_cents > 0      |        | amount_cents (signé)      |
+| issued_on, expires_on     |        | fiscal_event_id FK -------+--> fiscal_events.id
+| training 0|1              |        | order_id, created_at      |
+| issue_event_id FK --------+--> fiscal_events.id               |
+| issue_order_id,           |        +---------------------------+
+| issue_line_id UNIQUE      |        +---------------------------+
++---------------------------+<-------| gift_voucher_prints       |
+                                     | voucher_id FK             |
+                                     | kind original|duplicate|  |
+                                     |      balance              |
+                                     | printed_by, printed_at    |
+                                     +---------------------------+
+ (les trois tables des bons : ajout seul, par déclencheurs)
+```
+
+Les tables du service en plusieurs temps sont des données de cuisine :
+aucune n'est lue pour construire une requête de signature. Le produit
+système qui vend un bon (`menu_items` 990001, `external_id`
+`pili:gift-voucher`, taux X) et sa catégorie (990000, `pili:system`) sont
+inactifs et cachés de l'éditeur de carte (`SCHEMA_BD_FR.md` §2.9.5).
 
 ---
 
@@ -450,21 +698,36 @@ La base est organisée en 10 domaines logiques :
 | `modifier_groups` → `modifiers` | 1 → N | Chaque groupe contient N options (Soja, Wasabi, ...) |
 | `orders` → `order_lines` | 1 → N | Une commande contient N lignes |
 | `order_lines` → `menu_items` | N → 1 | Référence vers l'article (nom + prix copiés, figés) |
+| `order_lines` (note de cuisine) | - | Colonnes locales `kitchen_note` et `kitchen_note_printed` (migration 31), sans clé : jamais copiées dans `order_entries`, jamais envoyées au FDM |
 | `orders` → `order_entries` | 1 → N | Le journal chronologique de la commande (ajouts, corrections, remboursements) |
 | `order_entries` → `fiscal_events` | N → 0..1 | `sent_event_id` : l'événement P ou N qui a transmis l'entrée |
-| `orders` → `payments` | 1 → N | Une commande peut être réglée par N paiements (split, titres-repas) |
+| `orders` → `payments` | 1 → N | Une commande peut être réglée par N paiements (split, chèques-repas) |
+| `orders` → `eft_payments` | 1 → 0..N | Les paiements demandés au terminal relié pour cette commande (aucun sans terminal relié) |
+| `eft_payments` → `fiscal_events` | N → 0..1 | `used_event_id` : l'événement N qui a réglé le paiement accepté |
 | `orders` → `fiscal_events` | 1 → 0..N | Une commande peut générer 0 (open) à plusieurs events fiscaux (P → N, ou N + C copie, etc.) |
 | `fiscal_events` → `orders` | N → 0..1 | Un event fiscal référence 0 (events système comme S, F-WAR) ou 1 commande |
 | `users` → `orders` / `fiscal_events` / `pending_signs` / `staff_shifts` | 1 → N | Par la valeur de `user_insz` ; **aucune clé étrangère** (lien applicatif) |
 | `booking_periods` → `fiscal_events` | 0..1 → 1 | `closing_event_id` : l'événement R qui clôt la période ; un événement ne peut être archivé dans une période close |
 | `pending_signs` → `fiscal_events` | 0..1 → 1 | `fiscal_event_id` : l'événement archivé (premier événement si `ticket_count = 2`) |
 | `z_reports` → `fiscal_events` | 0..1 → 1 | Chaque Z archive un event R correspondant. `sequence_number` n'est pas unique (la contrainte d'unicité est portée par `fiscal_events`) |
-| `peppol_deliveries` → `fiscal_events` | 0..1 → 1 | Liée à un event I ; table jamais écrite par la build cert |
+| `peppol_deliveries` → `fiscal_events` | 0..1 → 1 | Liée à un event I ; une ligne par facture envoyée sur Peppol |
+| `invoices` → `fiscal_events` | 1 → 1 | L'événement I de la facture (unique) |
+| `invoice_sales` → `invoices`, `fiscal_events` | N → 1 et 1 → 1 | Les ventes N couvertes par la facture ; une vente figure sur une seule facture (unique) |
+| `invoices` → `b2b_customers` | N → 0..1 | Le client ; la facture garde son instantané |
+| `peppol_delivery_log` → `peppol_deliveries` | N → 1 | Une ligne par tentative d'envoi |
+| `menu_item_sold_out`, `sold_out_log`, `hubrise_inventory_sync` → `menu_items` | 0..1 → 1, N → 1, 0..1 → 1 | Produit épuisé et sa transmission au stock HubRise |
+| `menu_item_allergens` → `menu_items`, `modifier_allergens` → `modifiers` | N → 1 | Allergènes déclarés d'un produit ou d'une option (migration 61) ; `allergen_declarations` et `allergen_change_log` désignent l'élément par (`entity_type`, `entity_id`), sans clé étrangère |
+| `order_line_courses`, `order_course_releases` → `orders` | N → 1 | Temps de cuisine des lignes et temps libérés (migration 62) ; `line_id` sans clé étrangère |
+| `kitchen_slip_entries` → `order_entries` | 0..1 → 1 | Ligne du journal imprimée sur un ticket de cuisine ou de bar |
+| `gift_vouchers` → `fiscal_events` | N → 1 | `issue_event_id` : l'événement N ou T de la vente du bon (migration 63) |
+| `gift_voucher_movements` → `gift_vouchers`, `fiscal_events` | N → 1 | Émission, utilisation ou annulation d'un bon, avec l'événement signé qui l'a causée |
+| `gift_voucher_prints` → `gift_vouchers` | N → 1 | Original, duplicata ou solde imprimé |
 | `ticket_deliveries` → `fiscal_events` | 0..N → 1 | Une ligne par ticket dont le support demandé inclut l'e-mail (`DIGITAL`/`PAPER_DIGITAL`) ; ajoutée dans la même transaction que l'event N/T/C correspondant |
 | `original_prints` → `fiscal_events` | 0..1 → 1 | Au plus une ligne par événement dont l'original a été imprimé (contrainte de clé primaire = garde applicative contre une seconde impression) |
 | `webshop_orders` → `orders` | 1 → 1 | Une ligne par commande en ligne, à côté de sa ligne `orders` |
 | `webshop_orders` → `fiscal_events` | N → 0..1 | `p_event_id`, `n_event_id`, `refund_event_id` |
 | `order_price_changes` → `orders`, `order_entries` | N → 1 | Remises d'une commande en ligne, par ligne du journal ; `line_id` désigne la ligne d'`order_lines` |
+| `till_discounts` → `orders`, `order_entries` | N → 1 | Pose ou retrait d'une remise de caisse (motif et Gérant, jamais envoyés au FDM) ; `line_id` NULL pour une remise de commande |
 | `translations` → (polymorphe) | N → 1 | Traduction d'un champ d'une entité (category / menu_item / modifier_group / modifier) dans une langue (FR / NL / DE / EN / ZH) |
 | `translations` → `languages` | N → 1 | Référence le code langue |
 | `fiscal_counters` (autonome) | - | Pas de FK ; clé `event_label` ∈ {N, P, T, C, I, F, S, R} |
@@ -480,15 +743,32 @@ Les tables ci-dessous sont protégées **au niveau de la base** par des triggers
 | `fiscal_events` | `fiscal_events_no_delete`, `fiscal_events_no_rewrite` | Ni DELETE, ni UPDATE |
 | `fiscal_events` | `fiscal_events_period_open` (BEFORE INSERT) | Refuse un événement dont le `bookingPeriodId` désigne une période close |
 | `z_reports` | `z_reports_no_delete`, `z_reports_no_rewrite` | Ni DELETE, ni UPDATE |
-| `order_entries` | `order_entries_no_delete`, `order_entries_no_rewrite` | Pas de DELETE ; UPDATE interdit sauf `sent_event_id` |
+| `order_entries` | `order_entries_no_delete`, `order_entries_no_rewrite`, `order_entries_till_op_fixed` | Pas de DELETE ; UPDATE interdit sauf `sent_event_id` ; la marque `till_op` (migration 30) ne change jamais |
 | `booking_periods` | `booking_periods_no_reopen`, `booking_periods_no_delete` | Une période close ne change plus ; pas de DELETE |
 | `ticket_deliveries` | `ticket_deliveries_no_delete`, `ticket_deliveries_no_rewrite` | Pas de DELETE ; `fiscal_event_id`, `ticket_text`, `medium` immuables (les autres colonnes suivent le cycle de vie de l'envoi : append-only **partiel**) |
 | `original_prints` | `original_prints_no_delete`, `original_prints_no_update` | Ni DELETE, ni UPDATE, aucune exception |
 | `pending_signs` | `pending_signs_request_immutable`, `pending_signs_context_on_resolution`, `pending_signs_no_reopen`, `pending_signs_no_delete` | Ce qui a été envoyé est immuable ; une ligne résolue ne change plus ; pas de DELETE |
 | `order_price_changes` | `order_price_changes_no_delete`, `order_price_changes_no_update` | Ni DELETE, ni UPDATE |
+| `till_discounts` | `till_discounts_no_delete`, `till_discounts_no_update` | Ni DELETE, ni UPDATE |
 | `integration_switch_log` | `integration_switch_log_no_update`, `integration_switch_log_no_delete` | Ni DELETE, ni UPDATE |
+| `table_plan_log` | `table_plan_log_no_update`, `table_plan_log_no_delete` | Ni DELETE, ni UPDATE |
+| `invoices` | `invoices_no_update`, `invoices_no_delete` | Ni DELETE, ni UPDATE |
+| `invoice_sales` | `invoice_sales_no_update`, `invoice_sales_no_delete` | Ni DELETE, ni UPDATE |
+| `peppol_delivery_log` | `peppol_delivery_log_no_update`, `peppol_delivery_log_no_delete` | Ni DELETE, ni UPDATE |
+| `sold_out_log` | `sold_out_log_no_update`, `sold_out_log_no_delete` | Ni DELETE, ni UPDATE |
+| `menu_change_log` | `menu_change_log_no_update`, `menu_change_log_no_delete` | Ni DELETE, ni UPDATE |
+| `eft_payments` | `eft_payments_no_delete`, `eft_payments_starts_sent`, `eft_payments_request_fixed`, `eft_payments_status_moves`, `eft_payments_answer_final`, `eft_payments_used_once` | Pas de DELETE ; une ligne naît `sent` et non utilisée ; la demande (commande, montant, référence, opérateur) est immuable ; seuls `sent` et `unknown` changent de statut ; une réponse définitive ne change plus (hors `used_event_id`, posé une fois pour un paiement `approved`) |
+| `staff_badges` | `staff_badges_no_delete`, `staff_badges_revoke_only` | Pas de DELETE ; la seule modification possible est un retrait, une fois (l'empreinte, l'INSZ et les données de lien sont immuables) |
+| `badge_log` | `badge_log_no_update`, `badge_log_no_delete` | Ni DELETE, ni UPDATE |
+| `badge_scans` | `badge_scans_no_update`, `badge_scans_no_delete` | Ni DELETE, ni UPDATE |
+| `owner_settings_log` | `owner_settings_log_no_update`, `owner_settings_log_no_delete` | Ni DELETE, ni UPDATE |
+| `owner_alert_log` | `owner_alert_log_no_update`, `owner_alert_log_no_delete` | Ni DELETE, ni UPDATE |
+| `allergen_change_log` | `allergen_change_log_no_update`, `allergen_change_log_no_delete` | Ni DELETE, ni UPDATE |
+| `gift_vouchers` | `gift_vouchers_no_update`, `gift_vouchers_no_delete` | Ni DELETE, ni UPDATE |
+| `gift_voucher_movements` | `gift_voucher_movements_no_update`, `gift_voucher_movements_no_delete` | Ni DELETE, ni UPDATE |
+| `gift_voucher_prints` | `gift_voucher_prints_no_update`, `gift_voucher_prints_no_delete` | Ni DELETE, ni UPDATE |
 
-Soit 21 triggers.
+Soit 60 triggers.
 
 Pour les autres tables (catalogue, commandes en cours, paiements, utilisateurs, `staff_shifts`, tables HubRise hors journal) les opérations UPDATE/DELETE sont autorisées via la couche commandes. Les `orders` sont marquées `status='closed'` ou `status='voided'` plutôt que supprimées. Le catalogue synchronisé met à jour ses lignes en place ; l'historique fiscal ne dépend pas de ces lignes (nom et prix sont figés dans `order_lines` / `order_entries`).
 
@@ -517,6 +797,13 @@ Index explicites (hors index implicites des clés primaires et des contraintes U
 | `hubrise_outbox` | `idx_hubrise_outbox_order` (partiel, `WHERE sent_at IS NULL`) | `hubrise_order_id, id` | Envoi dans l'ordre, par commande |
 | `webshop_orders` | `idx_webshop_orders_state` | `fiscal_state, resolution` | Liste des commandes en ligne par état |
 | `order_price_changes` | `idx_order_price_changes_order` | `order_id, entry_id` | Remises d'une commande |
+| `till_discounts` | `idx_till_discounts_order` | `order_id, id` | Remises de caisse d'une commande |
+| `eft_payments` | `idx_eft_payments_order` | `order_id` | Paiements carte d'une commande |
+| `eft_payments` | `idx_eft_payments_open` (partiel, `WHERE status IN ('sent','unknown')`) | `status` | Paiements qui attendent encore leur réponse |
+| `owner_alert_log` | `idx_owner_alert_log_kind` | `kind, id` | Dernier message d'une alerte |
+| `allergen_change_log` | `idx_allergen_change_log_entity` | `entity_type, entity_id, id` | Historique d'un produit ou d'une option |
+| `order_line_courses` | `idx_order_line_courses_order` | `order_id` | Temps des lignes d'une commande |
+| `gift_voucher_movements` | `idx_gift_voucher_movements_voucher` | `voucher_id, id` | Solde et historique d'un bon |
 
 Index implicites utiles : `fiscal_events` (`id`, `UNIQUE(event_type, sequence_number)`), `users` (`insz`), `translations` (`UNIQUE(entity_type, entity_id, field, lang)`), `webshop_orders` (`order_id`, `hubrise_order_id`).
 
@@ -544,14 +831,18 @@ l'interrupteur, qui reçoit au moins la valeur de départ.
 
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
-Version actuelle du schéma : migrations `1` à `10`, puis `20` à `25`
-(seize migrations ; 11 à 19 sont réservées aux correctifs du binaire
+Version actuelle du schéma : migrations `1` à `11`, `20` à `28`, `30` et `31`, `40` à `42`, `60` à `63`, puis `70`
+(trente migrations ; 12 à 19 sont réservées aux correctifs du binaire
 certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `booking-periods`, `fiscal-archive-append-only`, `ticket-deliveries`,
 `original-prints`, `german-language`, `meal-voucher-payments`,
-`shifts-and-pre-bill`, `pending-signs`, `hubrise-transport`,
+`shifts-and-pre-bill`, `pending-signs`, `table-plan`, `hubrise-transport`,
 `catalog-sync`, `webshop-orders`, `price-changes`,
-`platform-charges`, `integration-switch` - liste exacte dans
+`platform-charges`, `integration-switch`, `product-codes`,
+`eft-payments`, `presence-registration`, `till-discounts`, `kitchen-notes`,
+`invoicing`, `sold-out`, `menu-editor`, `owner-settings-alerts`,
+`allergens`, `courses`, `gift-vouchers`, `staff-badges` - liste exacte dans
 `SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs`
-(`MIGRATIONS`, `HUBRISE_MIGRATIONS`, `CATALOG_MIGRATIONS`). Les
-migrations 20 à 25 font partie du binaire certifié.
+(`MIGRATIONS`, `HUBRISE_MIGRATIONS`, `CATALOG_MIGRATIONS`,
+`OWNER_MIGRATIONS`). Les migrations 20 à 28, 30, 31, 40 à 42, 60 à 63 et
+70 font partie du binaire certifié.

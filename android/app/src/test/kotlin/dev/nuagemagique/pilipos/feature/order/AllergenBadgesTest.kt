@@ -1,0 +1,99 @@
+package dev.nuagemagique.pilipos.feature.order
+
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.i18n.I18nTestSupport
+import dev.nuagemagique.pilipos.ui.text.ProvideUiText
+import dev.nuagemagique.pilipos.ui.theme.PiliTheme
+import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+/** The numbered circles of the 14 allergens: the pure rules and the drawn badges. */
+@RunWith(RobolectricTestRunner::class)
+@Config(qualifiers = "w1920dp-h1080dp-mdpi")
+class AllergenBadgesTest {
+    @get:Rule
+    val compose = createComposeRule()
+
+    private val catalog = I18nTestSupport.catalog()
+
+    @Test
+    fun theFourteenAllergensAreNumberedInAnnexOrder() {
+        assertEquals(14, ALLERGEN_CODES.size)
+        assertEquals(1, allergenNumber("gluten"))
+        assertEquals(7, allergenNumber("milk"))
+        assertEquals(14, allergenNumber("molluscs"))
+        assertEquals(0, allergenNumber("glutten"))
+        assertEquals((1..14).toList(), ALLERGEN_CODES.map { allergenNumber(it) })
+    }
+
+    @Test
+    fun codesComeInAnnexOrderWithoutDuplicatesOrUnknownCodes() {
+        assertEquals(listOf("gluten", "fish", "milk"), inAnnexOrder(listOf("milk", "nope", "fish", "gluten", "fish")))
+    }
+
+    @Test
+    fun aTileShowsAtMostSixNumbersThenTheRest() {
+        val eight = listOf("sesame", "fish", "gluten", "milk", "eggs", "soybeans", "nuts", "celery")
+        val badges = tileBadges(eight)
+        assertEquals(listOf(1, 3, 4, 6, 7, 8), badges.shown)
+        assertEquals(2, badges.more)
+        assertEquals(TileBadges(listOf(1), 0), tileBadges(listOf("gluten")))
+        assertEquals(TileBadges(emptyList(), 0), tileBadges(emptyList()))
+    }
+
+    @Test
+    fun theBadgesAreDrawnAndNothingIsDrawnWithoutAllergen() {
+        compose.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    androidx.compose.foundation.layout.Column {
+                        AllergenBadges(listOf("fish", "gluten", "milk", "eggs", "soybeans", "nuts", "celery"))
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("allergen_badges").assertIsDisplayed()
+        compose.onNodeWithTag("allergen_badge_1").assertTextEquals("1")
+        compose.onNodeWithTag("allergen_badge_8").assertTextEquals("8")
+        compose.onNodeWithTag("allergen_badge_9").assertDoesNotExist()
+        compose.onNodeWithTag("allergen_more", useUnmergedTree = true).assertTextEquals("+1")
+    }
+
+    @Test
+    fun noBadgeWithoutAnAllergen() {
+        compose.setContent { PiliTheme { ProvideUiText(AppLanguage.FR, catalog) { AllergenBadges(emptyList()) } } }
+        compose.waitForIdle()
+        compose.onNodeWithTag("allergen_badges").assertDoesNotExist()
+    }
+
+    @Test
+    fun theBarTellsALegendThatCouldNotBeRead() {
+        compose.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    AllergenBar(MenuState(allergenMode = true, allergenLegendError = "Produit ou option introuvable (0)."), onToggle = {})
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("allergen_legend_error").assertTextEquals("Produit ou option introuvable (0).")
+    }
+
+    @Test
+    fun theBarShowsNoLegendErrorWhenAllIsWell() {
+        compose.setContent {
+            PiliTheme { ProvideUiText(AppLanguage.FR, catalog) { AllergenBar(MenuState(allergenMode = true), onToggle = {}) } }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("allergen_legend_error").assertDoesNotExist()
+    }
+}

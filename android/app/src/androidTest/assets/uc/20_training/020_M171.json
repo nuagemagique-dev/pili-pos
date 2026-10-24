@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "id": "M171",
+  "ids": ["M171"],
+  "title": "Sale in training mode (T event)",
+  "fixture": "docs/20260821_UC_BasicSet_POS_FDM_1.8/M171_signSale_Training",
+  "fixtureDeviations": [{"path": "costCenter.type", "reason": "dine-in sales are settled from a table and carry costCenter TABLE"}],
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "set_training_mode", "args": {"enabled": true}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 1, "user_insz": "94060242576"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 12007, "quantity": 2, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 22001, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "cash"}]}},
+    {"cmd": "list_fiscal_events", "args": {"limit": 1}, "save": "ev", "expect": {"fields": {"0.eventLabel": "T"}}},
+    {"cmd": "set_training_mode", "args": {"enabled": false}}
+  ]
+}

@@ -1,5 +1,7 @@
 # S4 exit report: D3 Pro platform spike on the emulator
 
+> Correction (2026-10-10): the Linux build is not filed as v1.1 under Art. 113. Nothing was filed, so Linux and Android are both version 1.0.0 initial filings (Art. 99), and the freeze tag is `linux-v1.0.0-rc1`, not `linux-v1.1.0-rc1` (`docs/android/DECISIONS.md`, "Decided by the user"). The report below is unchanged.
+
 Written by the S4 planner on 2026-10-07, at the end of the S4 run.
 - **Base:** `android/int` at `0b68587` (`docs(android): P0 exit report, phase cards and decisions`).
 - **Integration branch:** `android/int`, docs only. main was not touched.

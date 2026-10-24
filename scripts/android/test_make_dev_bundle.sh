@@ -8,7 +8,8 @@
 # committed public key (PILI_DEV_PUB), so the real development key is never touched. Cases: a bundle is
 # created, verified and prehashed; --seed adds seed.sql to the manifest; an --out or --keydir inside a git
 # work tree is refused; a different public key is refused; a non-empty foreign --out is refused; the
-# manifest is sorted and identical between two runs; pos.json carries the given fdm url and printer.
+# manifest is sorted and identical between two runs; pos.json carries the given fdm url and printer; the demo
+# payment terminal section appears only with PILI_BUNDLE_PAYMENT_TERMINAL_OPI and its address and device port are checked.
 # Prints one line per case and a summary; exits 1 when a case fails.
 # ─────────────────────────────────────────────────────────────────
 set -uo pipefail
@@ -41,7 +42,7 @@ else
     bad "signature-verifies-prehashed" "minisign -V failed or the signature is not prehashed"
 fi
 
-mode="$(stat -f '%Lp' "$KEYS/minisign.key" 2>/dev/null || stat -c '%a' "$KEYS/minisign.key")"
+mode="$(stat -c '%a' "$KEYS/minisign.key" 2>/dev/null || stat -f '%Lp' "$KEYS/minisign.key")"
 if [[ "$mode" == "600" ]]; then ok "secret-key-mode-600"; else bad "secret-key-mode-600" "mode $mode"; fi
 
 if python3 -I - "$TMP/b1" <<'PY'
@@ -102,7 +103,48 @@ out7="$(bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/d1" 2>&1)"
 rc=$?
 if [[ $rc -eq 0 && ! -e "$TMP/d1/seed.sql" ]]; then ok "rerun-replaces-bundle"; else bad "rerun-replaces-bundle" "rc=$rc: $out7"; fi
 
-# Case 8: a usage error.
+# Case 8: the demo terminal: PILI_BUNDLE_PAYMENT_TERMINAL_OPI adds a ccv_opi payment_terminal section, valid JSON,
+# next to the other optional sections; without it pos.json has none; a malformed address or port is refused.
+out8="$(PILI_BUNDLE_PAYMENT_TERMINAL_OPI=127.0.0.1:19410 PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT=19412 PILI_BUNDLE_HUBRISE_ENABLED=1 PILI_BUNDLE_KITCHEN_PRINTER=127.0.0.1:19392 \
+    bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t1" 2>&1)"
+rc=$?
+if [[ $rc -eq 0 && "$out8" == *"DEVBUNDLE | PASS"* ]] && python3 -I - "$TMP/t1" <<'PY'
+import json, sys
+pos = json.load(open(sys.argv[1] + "/pos.json"))
+t = pos["payment_terminal"]
+assert t == {"kind": "ccv_opi", "address": "127.0.0.1:19410", "device_port": 19412, "timeout_seconds": 60}, t
+assert pos["hubrise_enabled"] is True and pos["kitchen_printer_address"] == "127.0.0.1:19392" and pos["table_count"] == 25
+PY
+then ok "payment-terminal-section"; else bad "payment-terminal-section" "rc=$rc: $out8"; fi
+if python3 -I -c 'import json,sys; sys.exit("payment_terminal" in json.load(open(sys.argv[1]))) ' "$TMP/b2/pos.json"; then ok "no-payment-terminal-by-default"; else bad "no-payment-terminal-by-default" "pos.json has a terminal"; fi
+out8b="$(PILI_BUNDLE_PAYMENT_TERMINAL_OPI='x"y:1' bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t2" 2>&1)"
+rc=$?
+if [[ $rc -ne 0 && "$out8b" == *"PILI_BUNDLE_PAYMENT_TERMINAL_OPI"* && ! -e "$TMP/t2/MANIFEST.json" ]]; then ok "payment-terminal-address-checked"; else bad "payment-terminal-address-checked" "rc=$rc: $out8b"; fi
+out8c="$(PILI_BUNDLE_PAYMENT_TERMINAL_OPI=127.0.0.1:19410 PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT=70000 bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t3" 2>&1)"
+rc=$?
+if [[ $rc -ne 0 && "$out8c" == *"PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT"* && ! -e "$TMP/t3/MANIFEST.json" ]]; then ok "payment-terminal-device-port-checked"; else bad "payment-terminal-device-port-checked" "rc=$rc: $out8c"; fi
+out8d="$(PILI_BUNDLE_PAYMENT_TERMINAL_OPI=192.168.1.50:4100 bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t4" 2>&1)"
+rc=$?
+if [[ $rc -eq 0 ]] && python3 -I -c 'import json,sys; t=json.load(open(sys.argv[1]))["payment_terminal"]; sys.exit(0 if t=={"kind":"ccv_opi","address":"192.168.1.50:4100","timeout_seconds":60} else 1)' "$TMP/t4/pos.json"; then ok "payment-terminal-device-port-optional"; else bad "payment-terminal-device-port-optional" "rc=$rc: $out8d"; fi
+
+# Case 8e: PILI_BUNDLE_PEPPOL_API adds a storecove peppol section (a valid sender id) and its key file; a malformed URL is refused.
+out8e="$(PILI_BUNDLE_PEPPOL_API=http://127.0.0.1:19380 bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t5" 2>&1)"
+rc=$?
+if [[ $rc -eq 0 && "$out8e" == *"DEVBUNDLE | PASS"* && -s "$TMP/t5/peppol_key" ]] && python3 -I - "$TMP/t5" <<'PY'
+import json, sys
+pos = json.load(open(sys.argv[1] + "/pos.json"))
+p = pos["peppol"]
+assert p["provider"] == "storecove" and p["base_url"] == "http://127.0.0.1:19380/storecove", p
+assert p["api_key_file"] == "peppol_key" and p["sender_id"] == "0208:0000000097" and p["legal_entity_id"] == 1, p
+assert pos["table_count"] == 25
+PY
+then ok "peppol-section"; else bad "peppol-section" "rc=$rc: $out8e"; fi
+if python3 -I -c 'import json,sys; sys.exit("peppol" in json.load(open(sys.argv[1]))) ' "$TMP/b2/pos.json"; then ok "no-peppol-by-default"; else bad "no-peppol-by-default" "pos.json has a peppol section"; fi
+out8f="$(PILI_BUNDLE_PEPPOL_API='x"y' bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t6" 2>&1)"
+rc=$?
+if [[ $rc -ne 0 && "$out8f" == *"PILI_BUNDLE_PEPPOL_API"* && ! -e "$TMP/t6/MANIFEST.json" ]]; then ok "peppol-url-checked"; else bad "peppol-url-checked" "rc=$rc: $out8f"; fi
+
+# Case 9: a usage error.
 bash "$SCRIPT" --nonsense >/dev/null 2>&1
 rc=$?
 if [[ $rc -eq 2 ]]; then ok "usage-error-2"; else bad "usage-error-2" "rc=$rc"; fi

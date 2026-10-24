@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="plat_export_title">Export pour le SPF</string>
+    <string name="plat_export_checking">Vérification en cours…</string>
+    <string name="plat_export_not_manager">Réservé au gérant. Connectez-vous avec un compte administrateur pour exporter les données.</string>
+    <string name="plat_export_no_stick">Insérez la clé USB ou la carte SD.</string>
+    <string name="plat_export_need_folder">Choisissez le dossier de la clé ou de la carte qui recevra les exports. Créez-y un dossier nommé PILI-EXPORT, puis choisissez-le.</string>
+    <string name="plat_export_pick_folder">Choisir le dossier</string>
+    <string name="plat_export_volume">Support : %1$s</string>
+    <string name="plat_export_folder">Dossier : %1$s</string>
+    <string name="plat_export_change_folder">Changer de dossier</string>
+    <string name="plat_export_start">Exporter</string>
+    <string name="plat_export_ready_hint">L\'export copie la base de données, les sauvegardes, les journaux et l\'identité de la caisse, puis relit et vérifie chaque fichier.</string>
+    <string name="plat_export_running">Export en cours. Ne retirez pas la clé ou la carte.</string>
+    <string name="plat_export_progress">%1$d / %2$d fichiers, %3$s / %4$s</string>
+    <string name="plat_export_current">Fichier : %1$s</string>
+    <string name="plat_export_done_title">Export terminé</string>
+    <string name="plat_export_done_folder">Dossier : %1$s/%2$s</string>
+    <string name="plat_export_done_files">%1$d fichiers, %2$s</string>
+    <string name="plat_export_done_manifest">Empreinte SHA-256 de MANIFEST.sha256</string>
+    <string name="plat_export_done_hint">Vous pouvez retirer la clé ou la carte. Pour contrôler l\'export : shasum -a 256 -c MANIFEST.sha256</string>
+    <string name="plat_export_failed_title">Export interrompu</string>
+    <string name="plat_export_failed_step">Étape : %1$s</string>
+    <string name="plat_export_failed_file">Fichier : %1$s</string>
+    <string name="plat_export_failed_detail">Détail : %1$s</string>
+    <string name="plat_export_failed_kept">Les fichiers déjà écrits sont conservés. Rien n\'a été supprimé.</string>
+    <string name="plat_export_dismiss">Fermer</string>
+    <string name="plat_export_err_root">Ce dossier est la racine du support. Créez un dossier nommé PILI-EXPORT et choisissez-le.</string>
+    <string name="plat_export_err_wrong_volume">Ce dossier n\'est pas sur la clé ou la carte choisie. Choisissez un dossier du même support.</string>
+    <string name="plat_export_err_open_orders">Une commande ou une vente à emporter est ouverte. Terminez-la avant d\'exporter.</string>
+    <string name="plat_export_err_engine">Le moteur de la caisse n\'est pas prêt. Réessayez dans un instant.</string>
+    <string name="plat_export_err_no_volume">La clé ou la carte n\'est plus détectée. Réinsérez-la.</string>
+    <string name="plat_export_err_no_folder">Aucun dossier n\'est choisi sur ce support.</string>
+    <string name="plat_export_err_plan">La copie de la base de données ou la liste des fichiers n\'a pas pu être préparée.</string>
+    <string name="plat_export_err_write">Un fichier n\'a pas pu être écrit sur le support (support plein, retiré ou en lecture seule).</string>
+    <string name="plat_export_err_fat32_hint">Un fichier de 4 Go ou plus n\'a pas pu être écrit : le support est probablement en FAT32. Utilisez un support formaté en exFAT.</string>
+    <string name="plat_export_err_mismatch">Un fichier relu sur le support ne correspond pas à ce qui a été écrit. L\'export est invalide : recommencez avec un autre support.</string>
+    <string name="plat_export_err_read">Un fichier n\'a pas pu être lu (sur la caisse ou sur le support).</string>
+    <string name="plat_export_err_other">Erreur inattendue pendant l\'export.</string>
+    <string name="plat_export_step_precheck">Vérifications</string>
+    <string name="plat_export_step_plan">Préparation</string>
+    <string name="plat_export_step_create_dir">Création du dossier</string>
+    <string name="plat_export_step_copy">Copie</string>
+    <string name="plat_export_step_verify">Vérification par relecture</string>
+    <string name="plat_export_step_manifest">Manifeste</string>
+</resources>

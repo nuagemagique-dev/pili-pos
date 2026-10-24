@@ -3,7 +3,7 @@
 
 Default run (parity): the cert set is the Tauri command map
 (check_ipc_wrappers.py --map) minus the commands of the modules gated by
-the peppol feature in src-tauri/src/ipc/mod.rs. Every method of
+a cargo feature in src-tauri/src/ipc/mod.rs (none today). Every method of
 `#[uniffi::export] impl PosEngine` (except open, shutdown, events) must be
 a cert command, be `async`, take the wrapper's parameter names in the same
 order, call the map's engine function and use self.blocking for a sync
@@ -13,7 +13,7 @@ engine function or self.spawn for an async one.
   --ffi-dir DIR         pos-ffi sources (default: android/rust/pos-ffi/src)
   --strict              exit 1 when a cert command has no valid FFI method
   --require-modules M   comma list of engine modules that must be complete
-  --hygiene             FFI hygiene rules H1 to H7 (see HYGIENE below)
+  --hygiene             FFI hygiene rules H1 to H6 (see HYGIENE below)
   --markdown            the parity table for the docs
   --parity              run the parity check even with --hygiene/--markdown
 
@@ -22,8 +22,8 @@ H2 cfg(target_os only in logging.rs; H3 records/enums of the contract files
 derive Serialize + Deserialize and records carry deny_unknown_fields
 (unless `// contract: custom` sits above them); H4 unique uniffi type
 names; H5 no process-wide statics outside logging.rs; H6 no unsigned
-integers except Vec<u8> in records, enums and exported signatures; H7 no
-peppol, sign_invoice or b2b_invoice identifiers.
+integers except Vec<u8> in records, enums and exported signatures. (H7, no
+peppol or invoice identifiers, was dropped by V11-D1: invoicing is in every build.)
 
 uniffi kinds are found through `uniffi::Record|Enum|Object|Error` derive
 paths, through an alias of the crate (`use uniffi as u;`) and through bare
@@ -56,10 +56,6 @@ STATIC_PATTERNS = [
     (re.compile(r"\bOnceCell\b"), "OnceCell"),
     (re.compile(r"\bLazyLock\b"), "LazyLock"),
 ]
-# H7: the identifiers of the peppol-gated commands, matched on text stripped of
-# comments and string literals. A bare "invoice" is allowed: the cert engine
-# still has invoice vocabulary (fiscal event kind, Z-report data).
-H7_RE = re.compile(r"peppol|sign_?invoice|b2b_?invoice", re.I)
 H3_FILES = {"events.rs", "helpers.rs", "install.rs", "core.rs"}
 H3_DIRS = ("records/", "api/")
 UNIFFI_KINDS = ("Record", "Enum", "Object", "Error")
@@ -743,9 +739,6 @@ def run_hygiene(args, sources, ffi_exists, ffi_dir, out):
             for rx, label in STATIC_PATTERNS:
                 for m in rx.finditer(src.blank):
                     add(src, src.line_of(m.start()), "H5", f"`{label}` outside logging.rs")
-        # H7
-        for m in H7_RE.finditer(src.blank):
-            add(src, src.line_of(m.start()), "H7", f"`{m.group(0)}` is not part of the cert build")
         # types
         for t in parse_types(src):
             if not t.uniffi:

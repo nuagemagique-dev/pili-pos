@@ -140,6 +140,11 @@ pub struct TicketLine {
 pub struct TicketPayment {
     pub method: String,
     pub amount: f64,
+    /// The card brand a linked terminal returned ("Bancontact"):
+    /// printed after the method. Absent for every other payment, and in
+    /// tickets stored before the field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brand: Option<String>,
 }
 
 /// Parameters for building a FiscalTicket.
@@ -360,6 +365,17 @@ pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Opt
         .map(|f| TicketPayment {
             method: printed_method(f),
             amount: cents(&f["amount"]) as f64 / 100.0,
+            // The provider of a card line, or of any line a terminal
+            // took (`AUTOMATIC`, such as a meal-voucher card), is the
+            // brand it gave.
+            brand: Some(&f)
+                .filter(|f| {
+                    f["type"].as_str().is_some_and(|t| t.starts_with("CARD"))
+                        || f["inputMethod"] == "AUTOMATIC"
+                })
+                .and_then(|f| f["provider"].as_str())
+                .filter(|b| !b.trim().is_empty())
+                .map(str::to_string),
         })
         .collect();
     let rounding: i64 = financials
@@ -387,6 +403,7 @@ fn printed_method(line: &serde_json::Value) -> String {
     match line["type"].as_str().unwrap_or("") {
         "CASH" => "Cash".to_string(),
         "CHEQUE_MEAL" => "Meal voucher".to_string(),
+        "VOUCHER_STORE" => "Gift voucher".to_string(),
         t if t.starts_with("CARD") => "Card".to_string(),
         _ => line["name"].as_str().unwrap_or("-").to_string(),
     }
@@ -487,6 +504,38 @@ mod tests {
         assert_eq!(payments[0].method, "Card");
         assert_eq!(payments[0].amount, 12.5);
         assert_eq!(rounding, None);
+    }
+
+    #[test]
+    fn a_copy_of_a_terminal_card_sale_prints_the_brand_too() {
+        let request = json!({"financials": [
+            {"id": "2", "name": "Card", "type": "CARD_DEBIT", "provider": "Bancontact",
+             "inputMethod": "AUTOMATIC", "amountType": "PAYMENT", "amount": 12.5},
+            {"id": "6", "name": "Credit card", "type": "CARD_CREDIT", "provider": "Visa",
+             "inputMethod": "AUTOMATIC", "amountType": "PAYMENT", "amount": 3.0},
+            {"id": "7", "name": "Card (type unknown)", "type": "CARD_UNKNOWN",
+             "inputMethod": "AUTOMATIC", "amountType": "PAYMENT", "amount": 1.0},
+            {"id": "3", "type": "CHEQUE_MEAL", "provider": "Edenred",
+             "amountType": "PAYMENT", "amount": 2.0},
+        ]});
+        let (payments, _) = printed_payments(&request);
+        let brands: Vec<_> = payments.iter().map(|p| p.brand.as_deref()).collect();
+        assert_eq!(brands, [Some("Bancontact"), Some("Visa"), None, None]);
+        assert_eq!(payments[1].method, "Card");
+    }
+
+    #[test]
+    fn a_copy_of_a_terminal_meal_voucher_prints_the_brand_like_the_original() {
+        let request = json!({"financials": [
+            {"id": "3", "name": "Meal voucher", "type": "CHEQUE_MEAL", "provider": "Edenred",
+             "inputMethod": "AUTOMATIC", "reference": "T1", "amountType": "PAYMENT", "amount": 9.0},
+            {"id": "3", "name": "Meal voucher", "type": "CHEQUE_MEAL",
+             "inputMethod": "MANUAL", "amountType": "PAYMENT", "amount": 4.0},
+        ]});
+        let (payments, _) = printed_payments(&request);
+        assert_eq!(payments[0].method, "Meal voucher");
+        assert_eq!(payments[0].brand.as_deref(), Some("Edenred"));
+        assert_eq!(payments[1].brand, None);
     }
 
     #[test]
@@ -610,6 +659,7 @@ mod tests {
             payments: vec![TicketPayment {
                 method: "Cash".into(),
                 amount: 10.0,
+                brand: None,
             }],
             total: 10.0,
             is_training: false,
@@ -770,6 +820,7 @@ mod tests {
             payments: vec![TicketPayment {
                 method: "Cash".into(),
                 amount: 12.55,
+                brand: None,
             }],
             total: 12.53,
             is_training: false,

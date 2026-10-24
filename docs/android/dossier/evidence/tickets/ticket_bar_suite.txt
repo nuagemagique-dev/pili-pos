@@ -1,0 +1,18 @@
+                BON DE COMMANDE
+================================================
+Date:                        18/10/2026 18:59:40
+Operateur:                           Gerant Test
+Table 6
+SUITE : Plats
+------------------------------------------------
+Qte   Article
+-- Plats --
+1 x Burger of the CHEF
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------

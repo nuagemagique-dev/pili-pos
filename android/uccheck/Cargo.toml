@@ -1,0 +1,18 @@
+# The host side of the P7 end-to-end parity proof (decision P7D5): `pos-uc-check` records
+# a scenario group with the engine compiled for the host (the reference run) and compares
+# its journals with the ones the Android run wrote.
+#
+# Its own Cargo workspace, like android/rust: the root Cargo.toml lists "android" in
+# `exclude`, so it is never a member of the root one. It consumes the engine crates by path
+# and shares their versions through a pruned copy of the root Cargo.lock (never `cargo update`;
+# scripts/android/uc_lock_parity.sh proves the shared versions equal the root's). It is never
+# part of the certification build graph and ships nowhere.
+[workspace]
+resolver = "3"
+members = ["pos-uc-check"]
+
+[workspace.package]
+edition = "2024"
+
+[profile.dev]
+debug = "line-tables-only"

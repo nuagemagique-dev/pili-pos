@@ -99,6 +99,7 @@ fn vat_ticket() -> FiscalTicket {
         payments: vec![TicketPayment {
             method: "Cash".to_string(),
             amount: 3.04,
+            brand: None,
         }],
         rounding: Some(0.01),
         fdm_ref: Some(fdm_ref(EventLabel::N, 214, 1587, "2026-06-23T11:35:18.472")),
@@ -295,14 +296,20 @@ fn vi_bar_the_official_bar_ticket_example() {
             BarItem {
                 quantity: 1,
                 name: "Dry Martini".to_string(),
+                note: None,
+                course: None,
             },
             BarItem {
                 quantity: 1,
                 name: "Plat du jour".to_string(),
+                note: None,
+                course: None,
             },
         ],
         lang: ReceiptLanguage::Fr,
         is_training: false,
+        release: None,
+        duplicate: false,
     }));
     assert_in_order(
         &text,
@@ -405,6 +412,7 @@ fn vi_z_the_official_z_report_example() {
             event_reductions: (0, 0),
             invoices: vec![("314".to_string(), 1204)],
             rounding_cents: 3,
+            payment_corrections: (0, 0),
         },
     };
     let text = normalized(&format_report(&data));

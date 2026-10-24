@@ -44,14 +44,17 @@ test.describe('Login View', () => {
         trainingMode: false,
         language: 'fr',
         posSwVersion: 'pili-pos/1.0.0',
-        configProblems: ['restaurant_vat: BE followed by 10 digits, got "BE123"'],
+        configProblems: ['config_restaurant_vat|detail=restaurant_vat: BE followed by 10 digits, got "BE123"'],
       }),
     });
     await page.goto('/');
     const banner = page.locator('.config-problems');
     await expect(banner).toBeVisible();
     await expect(banner).toContainText('Configuration invalide');
-    await expect(banner.locator('li')).toHaveText(['restaurant_vat: BE followed by 10 digits, got "BE123"']);
+    // The setting in French, then the installer's English detail.
+    await expect(banner.locator('li')).toHaveText([
+      'Numéro de TVA du restaurant invalide : BE suivi de 10 chiffres (par exemple BE0499999960). Détail : restaurant_vat: BE followed by 10 digits, got "BE123"',
+    ]);
   });
 
   test('shows the software version declared to the FDM', async ({ page }) => {
@@ -220,6 +223,34 @@ test('a PIN-protected user typed by INSZ gets the PIN overlay', async ({ page })
   await page.locator('.submit-btn').click();
   await expect(page.locator('.pin-overlay')).toBeVisible();
   await expect(page.locator('.pin-user')).toHaveText(DEFAULT_USER_WITH_PIN.name);
+});
+
+test.describe('Presence-only staff', () => {
+  const COOK = { insz: '88010112345', name: 'Chen', role: 'waiter', active: true, has_pin: false, presence_only: true };
+
+  test('have no tile on the login screen', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER, COOK] });
+    await page.goto('/');
+    await expect(page.locator('.user-btn')).toHaveCount(1);
+    await expect(page.locator('.user-name')).toHaveText('Bruno Moyse');
+  });
+
+  test('with only presence-only staff the INSZ numpad opens directly', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [COOK] });
+    await page.goto('/');
+    await expect(page.locator('.user-btn')).toHaveCount(0);
+    await expect(page.locator('.numpad-section')).toBeVisible();
+  });
+
+  test('typing their INSZ shows the presence_only_user error', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER, COOK] });
+    await page.goto('/');
+    await overrideIPC(page, 'login', { __reject: 'presence_only_user' });
+    await page.click('.other-btn');
+    for (const d of COOK.insz) await page.click(`.numpad-section .nk:has-text("${d}")`);
+    await page.locator('.submit-btn').click();
+    await expect(page.locator('.error-msg')).toContainText('présence seulement');
+  });
 });
 
 test.describe('Shifts (clock-in / clock-out, event S)', () => {

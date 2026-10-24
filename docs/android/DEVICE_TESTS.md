@@ -329,3 +329,17 @@ changes Linux behaviour.
 - Time sensitive tests ran with the default number of test threads while another worker used
   the same emulator; none was flaky, but a loaded host could change that, which is what the
   lone rerun and the flaky report are for.
+
+## Badge reader checks on the Sunmi D3 Pro (lane 5-nfc)
+
+These four checks need the real device and cannot be run on the emulator (no NFC, no USB reader). They are manual, by a
+technician before the badge reader is enabled at an installation; the result goes in the installation checklist. The
+engine and the Compose logic are covered by the JVM tests (`WedgeDetectorTest`, `KeyWedgeSourceTest`,
+`NfcBadgeSourceTest`, `BadgeStoreTest`) and the FFI tests; what follows is hardware only.
+
+| # | Check | How | Expected |
+| --- | --- | --- | --- |
+| Q1 | Does the NFC of the D3 Pro customer display appear as a standard `NfcAdapter` of the main unit? | With the customer display fitted, run `adb shell pm list features \| grep -i nfc` and open Settings > Badge reader. | `android.hardware.nfc` listed and the choice "NFC intégré" drawn: choose it, present a card to the customer display, the toast "Arrivée / Départ" follows. If the feature is NOT listed, the main unit has no NFC (the sheet of the D3 Pro says only the optional display has it, for SoftPOS): use a USB reader. Record the answer in `DECISIONS.md`. |
+| Q2 | Does the soft keyboard stay available while the USB reader (a hardware keyboard) is plugged? | Plug the reader, open Settings, tap the employee name field in the add form. | The on-screen keyboard shows. If it does not, turn on "Afficher le clavier virtuel" in the Android physical keyboard settings of the device and keep it on (installation manual). Text fields are rare (manager settings only). |
+| Q2b | USB reader on the Type-A port | Plug a keyboard-emulation reader (UID then Enter) in the Type-A port, choose "Lecteur USB", enrol a badge, present it on the login screen and on the order screen. | The scan is swallowed (no character in a focused field, no idle-lock restart), the toast names the employee, the sound is the high two-tone for a registered scan and the low tone for a refusal. |
+| Q3 | Wedge gap timing | With the USB reader, present a badge 20 times in a row (10 seconds apart, so the repeat window of the engine is over); then type 20 PINs by hand at a normal pace. | Every badge is recognised and no typed digit is taken for a badge. If a badge is missed (the Android USB stack batches characters), raise "Écart maximal entre caractères" (default 50 ms, up to 200) in Settings and repeat; if a reader sends a prefix, a suffix or a Tab instead of Enter, configure the reader to send the number and Enter only. |

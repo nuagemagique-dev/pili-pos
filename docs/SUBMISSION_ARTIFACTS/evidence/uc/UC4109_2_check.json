@@ -13,7 +13,8 @@
       "piliPos": [
         {
           "label": "B",
-          "price": 58.0
+          "price": 58.0,
+          "priceChanges": null
         }
       ],
       "reason": "a single product carries its own VAT line (B 58,00)"

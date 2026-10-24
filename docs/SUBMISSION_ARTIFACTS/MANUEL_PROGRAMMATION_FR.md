@@ -10,7 +10,11 @@ restaurant.** Elles requièrent l'accès maintenance au kiosque
 (console locale `tty2`, combinaison de touches cachée, mot de passe
 `root`). Le menu et les employés peuvent aussi être gérés depuis
 l'écran par un Gérant : les employés dans "Config" (§6), le menu par
-HubRise quand celui-ci gère le catalogue (§4.5).
+HubRise quand celui-ci gère le catalogue (§4.5). Quand aucun catalogue
+externe ne gère la carte, le Gérant peut aussi créer et modifier
+catégories, produits, groupes d'options et options depuis "Config",
+panneau "Carte" (`EDITEUR_CARTE_FR.md`) : les requêtes SQL de ce
+manuel restent l'outil du distributeur pour une reprise en masse.
 
 ## 1. Accès en mode programmation
 
@@ -342,8 +346,9 @@ sqlite3 /var/lib/pili-pos/pos.db \
 ```
 
 La caisse écrit aussi une sauvegarde dans `/var/lib/pili-pos/backups/`
-après chaque rapport Z, et `deploy/update.sh` une avant chaque mise à
-jour. `/tmp` est en mémoire : ne pas y laisser une sauvegarde.
+après chaque rapport Z (elle en garde les 7 plus récentes, et ne
+supprime jamais une copie `manual-*` ou `pre-update-*`), et
+`deploy/update.sh` une avant chaque mise à jour. `/tmp` est en mémoire : ne pas y laisser une sauvegarde.
 
 ### 10.2 Restauration : jamais par-dessus `pos.db`
 
@@ -376,6 +381,9 @@ SELECT version, name, applied_at
 FROM _migrations_applied
 ORDER BY version;
 ```
+
+Les migrations 60 à 63 (réglages du propriétaire et alertes, allergènes, service en plusieurs temps, bons
+cadeaux) font partie du binaire certifié (*SCHEMA_BD_FR.md* §2.9).
 
 Toute nouvelle migration introduite par un patch pili-pos suivra le
 même mécanisme - aucune intervention manuelle n'est requise du
@@ -432,6 +440,41 @@ nc -zv 192.168.1.30 9100
 echo -e "Test impression\n\n\n\x1bm" | nc -w 1 192.168.1.30 9100
 ```
 
+## 12 bis. Fonctions du propriétaire : réglages et diagnostic
+
+Quatre fonctions non fiscales ou annexes (migrations 60 à 63, *SCHEMA_BD_FR.md* §2.9) se règlent à l'écran, jamais
+en SQL. Le tableau dit où lire leur état.
+
+| Fonction | Réglage (écran « Config », Gérant) | État lisible en SQL | Annexe |
+|---|---|---|---|
+| Alertes sur téléphone | panneau « Alertes sur téléphone » ; jeton dans le fichier `alerts.telegram_bot_token_file` de `pos.json` | `owner_settings` (clé `alerts`), `owner_alert_log` | *ALERTES_PROPRIETAIRE_FR.md* |
+| Service en plusieurs temps | panneau « Service en plusieurs temps » | `owner_settings` (clé `courses`), `order_line_courses`, `order_course_releases`, `kitchen_slip_entries` | *SERVICES_CUISINE_FR.md* |
+| Bons cadeaux | panneau « Bons cadeaux » | `owner_settings` (clé `gift_vouchers`), `gift_vouchers`, `gift_voucher_movements`, `gift_voucher_prints` | *BONS_CADEAUX_FR.md* |
+| Allergènes | éditeur de carte, ou catalogue HubRise | `menu_item_allergens`, `modifier_allergens`, `allergen_declarations`, `allergen_change_log` | *ALLERGENES_FR.md* |
+
+Une clé absente de `owner_settings` veut dire « fonction éteinte ». Les journaux (`owner_settings_log`,
+`owner_alert_log`, `allergen_change_log`) et les trois tables de bons cadeaux sont en ajout seul : leurs
+déclencheurs refusent toute modification et toute suppression. Lectures utiles (lecture seule, sur une copie de la
+base) :
+
+```sql
+-- Derniers messages d'alerte et leur résultat (le jeton n'y est jamais)
+SELECT created_at, kind, transition, outcome, http_status
+FROM owner_alert_log ORDER BY id DESC LIMIT 20;
+
+-- Solde et état d'un bon : somme de ses mouvements
+SELECT v.id, v.expires_on, SUM(m.amount_cents) AS solde_centimes
+FROM gift_vouchers v JOIN gift_voucher_movements m ON m.voucher_id = v.id
+GROUP BY v.id;
+```
+
+Un message test (`Envoyer un message test`) vérifie la conversation sans attendre une panne. Si les alertes ne
+partent pas, le journal dit pourquoi (`failed` avec le code HTTP, ou `suppressed` après 20 messages dans l'heure).
+
+**Hors de la caisse.** L'export pour le comptable est un outil séparé, `pili-accounting` (`crates/pos-accounting`),
+qui ne fait pas partie du binaire certifié ni du paquet livré avec la caisse : il lit seulement une copie de
+l'export ou d'une sauvegarde, jamais la base en service, et ne signe rien. Il ne s'exécute pas sur la caisse.
+
 ## 13. Procédure de release par le distributeur
 
 À partir du dépôt git, chaque release suit la séquence :
@@ -444,7 +487,7 @@ cargo fmt --all --check
 
 # 2. Build de certification de référence (conteneur épinglé), qui
 #    vérifie aussi le périmètre du binaire (commandes en ligne
-#    présentes, facturation B2B absente) et
+#    présentes, facturation B2B présente) et
 #    produit le rapport build_info_*.txt (SHA-1, SHA-256, MD5)
 ./deploy/build-release.sh --docker
 
@@ -480,5 +523,6 @@ sudo deploy/image/build.sh admission
 | `training_mode: true` en production | Toujours `false` après installation |
 | Suppression d'une catégorie ayant des items | `UPDATE ... SET active = 0` |
 | Modifier en SQL un menu géré par HubRise | Modifier le produit dans HubRise (la synchronisation écrase le SQL, §4.5) |
+| Modifier en SQL `owner_settings`, `gift_vouchers` ou `allergen_declarations` | Régler à l'écran (§12 bis) : les journaux inaltérables gardent la trace et les déclencheurs refusent la modification des bons |
 | Restaurer une sauvegarde par-dessus `pos.db` | Ne jamais restaurer ; contacter le distributeur (§10.2) |
 | Changement de `pos_id` ou `restaurant_vat` sans déclaration SPF | Procédure post-cert obligatoire |

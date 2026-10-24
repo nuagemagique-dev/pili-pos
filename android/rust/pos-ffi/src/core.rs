@@ -56,7 +56,7 @@ pub struct EngineOptions {
     pub timers: Option<EngineTimersMs>,
 }
 
-/// The `posSwVersion` this build signs with, for example `pili-pos-android/1.0.0-dev`.
+/// The `posSwVersion` this build signs with, for example `pili-pos-android/1.0.0`.
 #[cfg(not(feature = "abi-mismatch"))]
 #[uniffi::export]
 pub async fn pos_sw_version() -> String {
@@ -145,6 +145,9 @@ fn timers_from(options: Option<&EngineTimersMs>) -> Result<EngineTimers, PosErro
         idle_lock: positive_ms("idle_lock_ms", t.idle_lock_ms)?,
         fdm_poll: positive_ms("fdm_poll_ms", t.fdm_poll_ms)?,
         export_outbox: EngineTimers::default().export_outbox,
+        badge_repeat: EngineTimers::default().badge_repeat,
+        peppol_outbox: EngineTimers::default().peppol_outbox,
+        terminal_probe: EngineTimers::default().terminal_probe,
     })
 }
 
@@ -525,7 +528,7 @@ mod tests {
 
     #[test]
     fn the_software_identity_fits_the_fdm_limit() {
-        assert_eq!(SW_VERSION, "pili-pos-android/1.0.0-dev");
+        assert_eq!(SW_VERSION, "pili-pos-android/1.0.0");
         assert!(SoftwareIdentity::new(SW_VERSION).is_ok());
     }
 }

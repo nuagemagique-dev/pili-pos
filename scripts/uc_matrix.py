@@ -612,8 +612,8 @@ def _match_row(item: Item, rust_tests: list, ui_tests: list, scope: dict) -> Row
             row.ui_tests.append(t.title)
 
     entry = scope.get(item.id)
-    # A feature outside the certified build stays out of scope even
-    # when the development build has tests for it (e.g. M150 invoices).
+    # A declared out-of-scope feature stays out of scope even if an
+    # incidental test carries its id.
     if entry and entry["kind"] == "hors_perimetre":
         row.status = "hors_perimetre"
         return row

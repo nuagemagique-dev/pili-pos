@@ -87,7 +87,9 @@ Intégration activée, le POS traite des données de clients (voir
   (`pos_print::kitchen_ticket`) imprime les lignes et les notes ;
 - les ventes de la caisse sont mises en file dans `hubrise_outbox` et
   envoyées à HubRise (lignes, totaux, paiements, sans données de
-  client) ;
+  client). Une vente qui vend un bon cadeau n'est pas renvoyée (aucune
+  ligne de bon n'est envoyée) et un paiement par bon y est nommé « Other »
+  (*BONS_CADEAUX_FR.md*) ;
 - le jeton d'accès HubRise (`hubrise_connection.access_token`) est
   stocké en clair dans `pos.db`, donc lisible par le compte `spf` de
   l'image d'admission et présent dans les sauvegardes.
@@ -99,7 +101,7 @@ Intégration activée, le POS traite des données de clients (voir
 | Commande payée (plateforme) | Acceptation | N | `APP` | Ticket de caisse TVA papier |
 | Commande payée (webshop) | Acceptation | N | `ONLINE` | Ticket de caisse TVA papier |
 | Commande à payer | Acceptation | P (`signOrder`) | aucun | Bon de cuisine (« ceci n'est pas un ticket de caisse TVA valable ») |
-| Commande à payer | Remise et encaissement | N, qui clôt le P (FAQ Q203 b) | espèces, carte, titres-repas, comme à la caisse | Ticket de caisse TVA papier |
+| Commande à payer | Remise et encaissement | N, qui clôt le P (FAQ Q203 b) | espèces, carte, chèques-repas, comme à la caisse ("Encaisser carte" passe par le terminal de paiement relié quand l'installation en a un : `MANUEL_UTILISATEUR_FR.md` §7.2) | Ticket de caisse TVA papier |
 | Commande refusée | Refus | aucun | aucun | aucun |
 
 Chaque commande porte un `costCenter` :
@@ -147,7 +149,7 @@ est toujours une vente réelle.
 |---|---|
 | Avant l'acceptation | La commande est annulée localement. Rien n'est signé. |
 | Après le N (commande payée) | La commande passe « remboursement à faire ». Rien n'est signé automatiquement. Un Gérant confirme le remboursement avec son PIN : un N de remboursement (`negQuantityReason` `REFUND`) reprend chaque ligne au prix de la vente, frais et remises compris, avec la `fdmRef` de la vente d'origine (FAQ Q301 a). Paiement `APP` ou `ONLINE` : la plateforme ou le prestataire de paiement rembourse le client, le tiroir reste fermé. |
-| Après le P (commande à payer) | La commande passe « clôture à faire ». Chaque ligne est corrigée (`CORRECTION`), puis un N à 0,00 EUR avec un paiement de 0,00 EUR clôt le P avec le même `costCenter`, et son ticket de caisse TVA est imprimé (FAQ Q206, Q209). |
+| Après le P (commande à payer) | La commande passe « clôture à faire ». Chaque ligne est corrigée (`CORRECTION`), puis un N à 0,00 EUR avec un tableau `financials` vide (FAQ Q206 b) clôt le P avec le même `costCenter`, et son ticket de caisse TVA est imprimé (FAQ Q206, Q209). |
 
 Une annulation reçue pendant que la caisse était éteinte est trouvée
 au démarrage suivant : pili-pos relit les commandes signées des deux

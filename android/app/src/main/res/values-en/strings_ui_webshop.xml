@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Online orders screen: the texts that have no Vue key (empty states, confirmations, delay minutes). -->
+    <string name="ui_webshop_signed_out">Nobody is logged in. Log in to see the online orders.</string>
+    <string name="ui_webshop_hubrise_off">HubRise is switched off. Switch it on in the settings to receive online orders.</string>
+    <string name="ui_webshop_reject_message">The platform and the customer will be told of the refusal. This cannot be undone.</string>
+    <string name="ui_webshop_refund_message">Refund {amount}? The refund is recorded in the name of {name}.</string>
+    <string name="ui_webshop_delay_minutes">+{minutes} min</string>
+</resources>

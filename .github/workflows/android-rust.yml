@@ -1,0 +1,77 @@
+name: Android Rust
+
+# The Rust half of the Android app on every push that touches it: the UniFFI
+# facade (android/rust, its own workspace and lock file) over the shared
+# engine, plus the command and lock parity checks. It runs on a GitHub-hosted
+# Linux ARM64 runner in a fresh Ubuntu container (see test.yml). The Gradle build, the Kotlin tests and
+# the APK checks need the x86_64 Android SDK: they stay in android.yml
+# (GitHub-hosted, by hand or on an android-v* tag) and in the local gates.
+on:
+  push:
+    branches: [main, feat/*]
+    paths:
+      - 'android/rust/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'rust-toolchain.toml'
+      - 'src-tauri/src/ipc/**'
+      - 'scripts/android/check_command_parity.py'
+      - 'scripts/android/check_lock_parity.sh'
+      - 'scripts/android/lock_parity*'
+      - 'scripts/ci/**'
+      - '.github/workflows/android-rust.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  RUSTUP_HOME: /opt/rustup
+  CARGO_HOME: /opt/cargo
+
+jobs:
+  ffi:
+    name: UniFFI facade and parity
+    runs-on: ubuntu-24.04-arm
+    container: ubuntu:26.04
+    steps:
+      - name: Git for the checkout
+        run: apt-get update -q && apt-get install -y -q --no-install-recommends git ca-certificates
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Toolchain
+        run: scripts/ci/setup.sh --rust libssl-dev
+
+      - name: Rust format
+        working-directory: android/rust
+        run: cargo fmt --all --check
+
+      - name: Rust clippy
+        working-directory: android/rust
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Rust tests
+        working-directory: android/rust
+        run: cargo test --workspace --locked
+
+      - name: Command parity
+        run: |
+          python3 scripts/android/check_command_parity.py --strict
+          python3 scripts/android/check_command_parity.py --hygiene
+
+      # The lock parity check reads both dependency graphs offline.
+      - name: Fetch the root workspace crates
+        run: cargo fetch --locked
+
+      - name: Lock parity
+        run: bash scripts/android/check_lock_parity.sh

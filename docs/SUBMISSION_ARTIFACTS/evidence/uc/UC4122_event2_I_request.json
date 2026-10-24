@@ -1,0 +1,31 @@
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "b4ca254c-054a-4f78-ac48-a08bebf628a7",
+  "costCenter": {
+    "id": "C1",
+    "reference": "AUDI",
+    "type": "CUSTOMER"
+  },
+  "customerVatNo": "BE0308357159",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "fdmRefs": [
+    {
+      "eventCounter": 1,
+      "eventLabel": "N",
+      "fdmDateTime": "2026-10-18T10:59:02Z",
+      "fdmId": "MCK00000001",
+      "totalCounter": 1
+    }
+  ],
+  "invoiceNo": "20260001",
+  "language": "FR",
+  "posDateTime": "2026-10-18T12:59:02.900+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "vatNo": "BE0000000097"
+}

@@ -1,0 +1,8 @@
+{
+  "format": 1,
+  "generated": "2026-10-10T00:00:00Z",
+  "reference": "engine on the host",
+  "scenarios": [
+    { "group": "10_basic", "scenario": "010_M110", "ids": ["M110"], "checks": { "steps": "PASS" }, "verdict": "PASS" }
+  ]
+}

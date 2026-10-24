@@ -187,6 +187,7 @@ d'attaque réseau côté client au temps d'une intervention.
 | INSZ (Numéro National Belge, 11 chiffres) | Employé du restaurant | Art. 6.1.c - Obligation légale fiscale et sociale | `users.insz`, `orders.user_insz`, `fiscal_events.user_insz`, payload FDM |
 | Nom de l'employé | Employé | Art. 6.1.c - Obligation contractuelle | `users.name` |
 | Code PIN (haché bcrypt) | Employé | Art. 6.1.f - Intérêt légitime (sécurité opérationnelle) | `users.pin_hash` |
+| Empreinte du badge d'un employé (HMAC-SHA256, jamais le numéro du badge), historique des liens et retraits, journal des passages (heure, INSZ, résultat) ; option désactivée par défaut | Employé | Art. 6.1.f - Intérêt légitime de l'employeur (enregistrer la présence, art. 1, 9° et art. 9 de l'AM du 29 avril 2024, et sécuriser l'accès à la caisse) | `staff_badges.badge_hash`, `badge_log`, `badge_scans` ; la clé n'est pas dans la base (`badge.key`) |
 | TVA client B2B | Client professionnel | Art. 6.1.c - Obligation légale facturation | `peppol_deliveries.customer_endpoint_id`, payload UBL |
 | Nom et adresse client B2B | Client professionnel | Idem | Payload UBL stocké dans `peppol_deliveries.ubl_xml` |
 | Nom, téléphone et adresse de livraison du client d'une commande en ligne (HubRise, activé par installation, coupé par défaut) | Client B2C | Art. 6.1.b - Exécution de la commande passée par le client auprès du webshop ou de la plateforme | `orders.raw_hubrise_json`, `hubrise_events.payload_json` (JSON reçu de HubRise) ; bon client non fiscal imprimé |
@@ -201,6 +202,31 @@ téléphone et l'adresse de livraison que HubRise transmet avec la commande
 (`COMMANDES_EN_LIGNE_FR.md` §3 bis). Pas de programme de fidélité, pas
 de tracking, pas de WiFi guest, pas de base clients.
 
+**Badge du personnel (lecteur de badges, option).** Quand l'établissement
+active le lecteur de badges (désactivé par défaut), un badge (carte ou
+porte-clés) peut servir à pointer sa présence et à se connecter à la
+caisse (Serveurs et Apprentis ; un Gérant garde son PIN). Garanties :
+
+- **aucune donnée biométrique** : seul le numéro de série du badge est
+  lu, jamais un contenu, une empreinte digitale ni un visage ;
+- **empreinte seule** : le numéro n'est jamais écrit (ni dans la base,
+  ni dans les journaux, ni dans un événement) ; la caisse conserve une
+  empreinte HMAC-SHA256 calculée avec une clé secrète de 32 octets
+  propre au terminal (`badge.key`, créée sur place, mode 0600). La clé
+  **ne quitte jamais le terminal** : elle est hors de `pos.db`, donc
+  absente des sauvegardes et de l'export nocturne ; sans elle,
+  l'empreinte ne permet pas de retrouver le numéro, même par
+  énumération ;
+- **finalité limitée** à l'enregistrement de la présence (événement S) et
+  à la connexion à la caisse ; aucun suivi de déplacement, aucune autre
+  exploitation du journal des passages ;
+- **le badge est facultatif** : un employé peut le refuser, il garde son
+  PIN et l'enregistrement de sa présence par un Gérant, sans
+  conséquence ;
+- **un retrait supprime l'accès** (le Gérant retire le badge, ou la
+  désactivation de l'employé le retire) ; les lignes ne sont pas
+  effacées, pour l'audit.
+
 ### 6.2 Bases légales détaillées
 
 - **INSZ** : Article 25 de la loi du 30 juillet 2018 relative à la
@@ -210,6 +236,7 @@ de tracking, pas de WiFi guest, pas de base clients.
   d'identification fiscale (article 21bis du Code de la TVA).
 - **PIN haché** : intérêt légitime - sécurité du POS contre
   l'usurpation d'identité par d'autres employés.
+- **Badge du personnel** : intérêt légitime de l'employeur (article 6.1.f RGPD) à enregistrer la présence du personnel, obligation sociale reprise par l'événement S, et à sécuriser l'accès à la caisse ; l'employé peut refuser le badge (PIN et enregistrement par un Gérant restent disponibles), ce qui évite d'en faire une condition d'emploi.
 - **VAT client B2B** : obligation de facturation conforme (article
   10 de l'arrêté royal n°1 du 29 décembre 1992).
 - **Adresse e-mail (ticket numérique)** : consentement du client,
@@ -229,6 +256,7 @@ de tracking, pas de WiFi guest, pas de base clients.
 - **PIN haché** : durée du contrat de travail. À la fin du contrat,
   l'utilisateur est marqué `active = 0` mais NON supprimé (pour ne
   pas casser la FK depuis `fiscal_events`).
+- **Badge** (`staff_badges`, `badge_log`, `badge_scans`) : conservés avec les données de présence de l'employé. Le retrait du badge ou la désactivation de l'employé met fin à l'accès sans effacer la ligne (ajout seul, pour l'audit) ; l'empreinte est inutilisable sans la clé du terminal, qui n'est jamais exportée ni sauvegardée.
 - **Données client d'une commande en ligne** : conservées avec la
   commande (`orders.raw_hubrise_json`, `hubrise_events.payload_json`) ;
   aucune purge automatique n'est implémentée à ce jour.
@@ -262,9 +290,16 @@ de tracking, pas de WiFi guest, pas de base clients.
   légale supérieure).
 - **Droit à la portabilité** : sur demande, export JSON/CSV des
   données concernées (cf. `FEUILLE_ACQUISITION_DONNEES_FR.md`).
-- **Droit d'opposition** : INAPPLICABLE pour les obligations légales.
+- **Droit d'opposition** : INAPPLICABLE pour les obligations légales. Pour le badge, l'employé peut s'y opposer : il n'est jamais obligatoire.
 
 ### 6.5 Sous-traitants
+
+**Point d'accès Peppol** (Storecove ; connexion HTTPS sortante vers
+l'adresse `peppol.base_url`, seulement quand la section `peppol` est
+configurée et pour un client belge) reçoit le document de la facture
+(nom, adresse et numéro de TVA du client professionnel, lignes et
+montants) pour le remettre au destinataire sur le réseau Peppol
+(`FACTURATION_PEPPOL_FR.md`, `DECISION_PEPPOL_AP_FR.md`).
 
 **HubRise** (concentrateur de commandes en ligne ; connexion HTTPS
 sortante vers `api.hubrise.com`, seulement quand `hubrise_enabled` est
@@ -322,6 +357,7 @@ Synthèse :
   de référence). Pour les déploiements multi-sites, HTTPS via VPN.
 - Authentification : PIN par utilisateur (optionnel), INSZ
   obligatoire.
+- Badges (option) : empreinte HMAC-SHA256 avec une clé propre au terminal hors de la base ; un Gérant n'est jamais connecté par un badge seul (PIN obligatoire) ; liens, retraits et passages journalisés en ajout seul (`SECURITE_BD_FR.md` §badges).
 - Audit log : `fiscal_events` couvre TOUTES les actions fiscales,
   horodatées et signées.
 - Sauvegarde : journalière, conservée localement ; en option, copie

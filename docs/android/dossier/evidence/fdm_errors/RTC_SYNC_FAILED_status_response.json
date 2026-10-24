@@ -1,0 +1,29 @@
+{
+    "data": {
+        "fdmStatus": {
+            "device": {
+                "bufferCapacityUsed": 1.2,
+                "fdmDateTime": "2026-10-18T11:00:58Z",
+                "fdmId": "MCK00000001",
+                "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": [
+                {
+                    "extensions": {
+                        "category": "SPF_FOD",
+                        "code": "RTC_SYNC_FAILED",
+                        "showPos": "OPTIONAL"
+                    },
+                    "message": "Le FDM n'a pas pu synchroniser l'horloge en temps r\u00e9el"
+                }
+            ]
+        }
+    },
+    "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+    }
+}

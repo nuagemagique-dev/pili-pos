@@ -21,7 +21,7 @@ use pos_engine::commands::export::{ExportStatus, do_export_run_now, do_export_st
 use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
-use pos_engine::commands::report::{close_overdue_day, do_generate_z_report};
+use pos_engine::commands::report::{BACKUPS_KEPT, close_overdue_day, do_generate_z_report};
 use pos_engine::{
     ConfigSource, Engine, EngineConfig, EnginePaths, EngineTimers, HttpTls, NullSink,
     SoftwareIdentity,
@@ -215,6 +215,7 @@ impl Rig {
             role,
             active: true,
             has_pin: false,
+            presence_only: false,
         });
     }
 
@@ -508,6 +509,65 @@ async fn a_real_z_starts_the_export_without_waiting_for_the_tick() {
     let mut rig = Rig::start_with(Section::Valid, Duration::from_secs(3600)).await;
     let (id, _) = rig.export_a_day().await;
     assert!(id.ends_with("-z000001"), "{id}");
+    rig.close_engine().await;
+}
+
+// ── Backup retention after each Z ──────────────────────────────────
+
+/// The engine backups (`pos-<timestamp>.db`) of the backup directory.
+fn engine_backups(dir: &Path) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| n.starts_with("pos-") && n.ends_with(".db"))
+        .collect();
+    names.sort();
+    names
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn nine_z_in_a_row_leave_the_seven_newest_backups() {
+    let mut rig = Rig::start_with(Section::Valid, Duration::from_secs(3600)).await;
+    let backups = rig.data_dir.join("backups");
+    std::fs::create_dir_all(&backups).unwrap();
+    // A copy made by hand (REMOTE-OPS.md) is not the engine's to delete.
+    std::fs::write(backups.join("manual-20250101-000000.db"), "by hand").unwrap();
+
+    let mut made = Vec::new();
+    for day in 1..=9 {
+        let before = engine_backups(&backups);
+        assert!(rig.sell().await.unwrap());
+        let z = rig.z().await;
+        assert!(z.success, "Z {day}: {:?}", z.error);
+        let after = engine_backups(&backups);
+        let new: Vec<_> = after.iter().filter(|n| !before.contains(n)).collect();
+        assert_eq!(new.len(), 1, "one backup per Z: {after:?}");
+        made.push(new[0].clone());
+        assert_eq!(after.len(), day.min(BACKUPS_KEPT), "{after:?}");
+    }
+
+    assert_eq!(engine_backups(&backups), made[made.len() - BACKUPS_KEPT..]);
+    assert!(backups.join("manual-20250101-000000.db").is_file());
+    assert!(rig.data_dir.join("pos.db").is_file(), "pos.db untouched");
+    // The nightly export of the ninth day goes out as usual.
+    rig.wait_status("the ninth export to be uploaded", |s| {
+        s.pending == 0
+            && s.last_uploaded_id
+                .as_deref()
+                .is_some_and(|i| i.ends_with("-z000009"))
+    })
+    .await;
+    assert!(rig.exports_dir().is_dir());
+    // The newest backup holds the ninth Z.
+    let newest = backups.join(made.last().unwrap());
+    let z_events: i64 = ro(&newest)
+        .query_row(
+            "SELECT COUNT(*) FROM fiscal_events WHERE event_type = 'R'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(z_events >= 9, "{z_events} R events");
     rig.close_engine().await;
 }
 
@@ -953,6 +1013,16 @@ fn column_names(conn: &Connection, table: &str) -> Vec<String> {
         .collect()
 }
 
+/// True when `s` is a user pseudonym of the statistics file: `u-` and 16
+/// lowercase hex characters (`pos_export::pseudonym`).
+fn is_pseudonym(s: &str) -> bool {
+    s.strip_prefix("u-").is_some_and(|h| {
+        h.len() == 16
+            && h.chars()
+                .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+    })
+}
+
 /// True when `s` holds a run of at least `n` ASCII digits.
 fn has_digit_run(s: &str, n: usize) -> bool {
     let mut run = 0;
@@ -1003,8 +1073,10 @@ fn assert_no_personal_data(path: &Path, secrets: &[String]) {
                 .map(Result::unwrap)
                 .collect();
             for value in values {
+                // A pseudonym is 16 random hex characters: about one in 30
+                // holds 11 digits in a row, which is not an INSZ.
                 assert!(
-                    !has_digit_run(&value, 11),
+                    is_pseudonym(&value) || !has_digit_run(&value, 11),
                     "{table}.{column} holds 11 digits: {value:?}"
                 );
                 assert!(

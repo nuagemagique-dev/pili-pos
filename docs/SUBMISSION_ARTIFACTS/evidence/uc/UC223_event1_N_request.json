@@ -1,0 +1,93 @@
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "9dd8f4e4-5511-43dc-81b8-646d29daa9a3",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O1",
+    "type": "TABLE"
+  },
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 26.0,
+      "amountType": "PAYMENT",
+      "id": "2",
+      "inputMethod": "MANUAL",
+      "name": "Card",
+      "type": "CARD_DEBIT"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-18T12:59:07.750+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 20.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "20",
+          "departmentName": "Starters",
+          "productId": "20001",
+          "productName": "Carpaccio Beef",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 20.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 40.0,
+              "priceChanges": [
+                {
+                  "amount": -20.0,
+                  "groupingId": 1,
+                  "id": "TILL-DISCOUNT",
+                  "name": "Remise 50 %",
+                  "scope": "EVENT",
+                  "type": "PUBLIC"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 6.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 12.0,
+              "priceChanges": [
+                {
+                  "amount": -6.0,
+                  "groupingId": 1,
+                  "id": "TILL-DISCOUNT",
+                  "name": "Remise 50 %",
+                  "scope": "EVENT",
+                  "type": "PUBLIC"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 26.0
+  },
+  "vatNo": "BE0000000097"
+}

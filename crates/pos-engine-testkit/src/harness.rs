@@ -106,6 +106,10 @@ impl TestApp {
 
         let config = PosConfig {
             table_count: 25,
+            tables: None,
+            payment_terminal: None,
+            peppol: None,
+            alerts: None,
             pos_id: "CPOS0031234567".to_string(),
             terminal_id: "POS-1-BAR".to_string(),
             // The terminal's MAC address, as install fills it (§VI row VII).
@@ -155,11 +159,18 @@ impl TestApp {
             session: Mutex::new(None),
             support: pos_engine::commands::support::SupportState::disabled(),
             pin_throttle: Default::default(),
+            gift_voucher_lookups: Default::default(),
             signing: Default::default(),
             fdm_status_cache: Mutex::new(None),
             session_rules: Default::default(),
             fdm_monitor: Default::default(),
             export: pos_engine::commands::export::ExportState::disabled(),
+            peppol_wake: tokio::sync::Notify::new(),
+            eft_in_flight: Mutex::new(None),
+            eft_line: tokio::sync::Mutex::new(()),
+            badge_repeats: Default::default(),
+            owner_alerts: Default::default(),
+            eft_terminal_override: None,
         };
 
         let app = Self {
@@ -191,6 +202,7 @@ impl TestApp {
             role,
             active: true,
             has_pin: false,
+            presence_only: false,
         };
         *self.state.session.lock().unwrap() = Some(user);
     }
@@ -247,6 +259,41 @@ impl TestApp {
         .expect("query_map")
         .collect::<Result<Vec<_>, _>>()
         .expect("collect")
+    }
+
+    /// Assert that the `fdmRefs` of an archived invoice request point at the given sales, in
+    /// that order: each ref must equal the `fdmRef` the FDM answered for that archived N event
+    /// (fdmId, fdmDateTime, eventCounter, totalCounter) and carry the label N.
+    pub fn assert_fdm_refs_of(&self, invoice_request: &serde_json::Value, sale_event_ids: &[i64]) {
+        let refs = invoice_request["fdmRefs"]
+            .as_array()
+            .expect("fdmRefs array");
+        assert_eq!(refs.len(), sale_event_ids.len(), "{refs:?}");
+        let events = self.fiscal_events();
+        for (i, id) in sale_event_ids.iter().enumerate() {
+            let sale = events.iter().find(|e| e.id == *id).expect("sale event");
+            assert_eq!(
+                sale.event_type, "N",
+                "fdmRefs[{i}] must point at an N event"
+            );
+            let answered: serde_json::Value =
+                serde_json::from_str(sale.fdm_response_json.as_deref().expect("response"))
+                    .expect("response json");
+            let want = &answered["fdmRef"];
+            let got = &refs[i];
+            for key in [
+                "fdmId",
+                "fdmDateTime",
+                "eventLabel",
+                "eventCounter",
+                "totalCounter",
+            ] {
+                assert!(!want[key].is_null(), "answered fdmRef lacks {key}: {want}");
+                assert_eq!(got[key], want[key], "fdmRefs[{i}].{key}");
+            }
+            assert_eq!(got["eventLabel"], "N");
+            assert_eq!(sale.fdm_id.as_deref(), got["fdmId"].as_str());
+        }
     }
 
     /// Current counter value for an event label (without incrementing).

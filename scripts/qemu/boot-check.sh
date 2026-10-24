@@ -75,12 +75,16 @@ fi
 echo "✓ pili-pos.service still running after 30s"
 
 # The login screen's own background (ui/src/styles/tokens.css
-# --bg-primary), not just "something is drawn". WebKit renders in
-# software under QEMU: allow it up to two minutes.
+# --bg-primary, the first one: the normal theme, not training), not just
+# "something is drawn". Read from the tokens so a restyle cannot leave a
+# stale colour here. WebKit renders in software under QEMU: allow it up
+# to two minutes.
+BG="$(grep -m1 -oE -- '--bg-primary: *#[0-9a-fA-F]{6}' "$REPO_ROOT/ui/src/styles/tokens.css" | grep -oE '[0-9a-fA-F]{6}$')" \
+    || fail "no --bg-primary colour in ui/src/styles/tokens.css"
 SHOT="$REPO_ROOT/docs/SUBMISSION_ARTIFACTS/screenshots/$OUT.png"
 for attempt in $(seq 1 12); do
     "$SCRIPT_DIR/screendump.sh" "$NAME" "$OUT" >/dev/null
-    if python3 "$SCRIPT_DIR/check-not-blank.py" "$SHOT" --expect-color 1a1a2e --min-fraction 0.3; then
+    if python3 "$SCRIPT_DIR/check-not-blank.py" "$SHOT" --expect-color "$BG" --min-fraction 0.3; then
         echo "✓ kiosk UI on screen (attempt $attempt)"
         break
     fi

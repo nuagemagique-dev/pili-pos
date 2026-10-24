@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings screen: the texts that have no Vue key (the rows section, two confirmations, the QR description). -->
+    <string name="ui_settings_rows_title">Autres réglages</string>
+    <string name="ui_settings_deactivate_message">Désactiver {name} ? Cet employé ne pourra plus se connecter.</string>
+    <string name="ui_settings_hubrise_disconnect_message">Les commandes en ligne ne seront plus reçues tant que HubRise n\'est pas reconnecté.</string>
+    <string name="ui_settings_qr_description">Code QR du lien de connexion HubRise</string>
+    <!-- Badge reader (lane 5): the texts that exist only on Android (built-in NFC). -->
+    <string name="ui_settings_badge_reader_nfc">NFC intégré</string>
+    <string name="ui_settings_badge_nfc_disabled">Le NFC est désactivé dans les réglages de l\'appareil</string>
+</resources>

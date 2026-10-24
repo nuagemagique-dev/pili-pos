@@ -17,7 +17,7 @@ export const usePosStore = defineStore("pos", () => {
     (localStorage.getItem(LANG_KEY) as AppLanguage) || "fr"
   );
   const productLabel = ref<ProductLabel>(
-    localStorage.getItem(PRODUCT_LABEL_KEY) === "code" ? "code" : "name"
+    localStorage.getItem(PRODUCT_LABEL_KEY) === "name" ? "name" : "code"
   );
 
   async function loadSettings() {

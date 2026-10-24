@@ -3,9 +3,9 @@
 **Date :** 2026-10-03
 **Code :** `crates/pos-engine/src/commands/refund.rs`
 **Périmètre cert :** M111 (remboursement complet), M112B
-(remboursement partiel - ticket séparé). La correction de paiement
-(M132, UC4118) et la note de crédit (UC4122) ne sont pas dans le
-périmètre de la v1.0.0 (voir §2 et §3).
+(remboursement partiel - ticket séparé), M132 (correction de paiement,
+voir §2). La note de crédit (UC4122) est dans le périmètre et rejouée
+(voir §3).
 
 ---
 
@@ -39,7 +39,12 @@ Le flux reflète l'encaissement standard de
    - `refund_discounted_line` : une ligne de commande en ligne portant
      une remise (la remise est répartie sur ses lignes : une partie
      rembourserait une part que personne ne peut établir) ; la
-     commande entière se rembourse, remises comprises.
+     commande entière se rembourse, remises comprises, y compris une
+     remise saisie à la caisse par un Gérant : le remboursement porte
+     sur le montant net, ligne par ligne, avec les remises en négatif ;
+   - `gift_voucher_used` : la vente a vendu un bon cadeau et la ligne
+     remboursée est celle d'un bon déjà utilisé (ou déjà annulé) ; un
+     bon qui a servi ne se rembourse pas (`BONS_CADEAUX_FR.md` §5).
 2. **Contrôles, puis construction de la commande de remboursement.**
    Chaque article est d'abord contrôlé (présent sur le ticket
    original, quantité positive, total remboursé sur l'ensemble des
@@ -75,6 +80,9 @@ Le flux reflète l'encaissement standard de
    unique que checkout (`signing::commit`) : `FiscalCounter::next` +
    `archive_event` + clôture de la commande + ligne `payments` dans une
    tx, rollback si l'un échoue. Cf. `STRATEGIE_COMPTEURS_FR.md` §5.
+   Rembourser la ligne d'un bon cadeau jamais utilisé écrit le
+   mouvement « cancel » de ce bon dans cette même transaction : le bon
+   est annulé si et seulement si le remboursement est archivé.
 7. **Impression ticket de remboursement + ouverture tiroir.**
    Best-effort - non-fatal si imprimante injoignable. Chaque ligne
    remboursée est imprimée avec sa quantité et son montant négatifs
@@ -118,25 +126,67 @@ flux UI.
 
 ---
 
-## 2. Correction de paiement (hors périmètre v1.0.0)
+## 2. Correction de paiement (M132)
 
-La correction de paiement (M132, UC4118) n'est pas déclarée dans le
-périmètre de la v1.0.0. `FdmClient::sign_payment_correction` existe
-avec la forme `PaymentCorrectionInput`, mais aucune commande Tauri ni
-écran ne l'appelle : pour une erreur de moyen de paiement, l'opérateur
-utilise le remboursement puis une nouvelle vente.
+**Code :** `crates/pos-engine/src/commands/payment_correction.rs`
+(`do_list_sale_payments`, `do_correct_payment`) ; requête construite par
+`build_payment_correction_input` (`crates/pos-fiscal/src/event.rs`).
+
+Quand l'opérateur s'est trompé de moyen de paiement (« payé par carte,
+pas en espèces »), un Gérant, confirmé par son PIN, corrige **une ligne
+de paiement** d'une vente de la journée en cours. La caisse signe un
+événement **F** `signPaymentCorrection` : deux lignes de paiement
+saisies à la main, la ligne retirée en négatif et le même montant sous
+le nouveau moyen en positif, avec le `fdmRef` de la vente corrigée. Rien
+ne s'imprime (`ticketMedium` NONE) et le tiroir ne s'ouvre pas.
+
+Règles :
+
+- la vente est un N (ou un T, en mode formation, et seulement en mode
+  formation), de la période comptable en cours (pas encore couverte par
+  un rapport Z) ;
+- refusées : un remboursement, une vente non payée (client parti sans
+  payer), une commande en ligne, une vente déjà remboursée en tout ou en
+  partie ;
+- **une seule correction par vente** ;
+- seule une ligne de paiement saisie à la main se corrige : une carte
+  prise sur le terminal de paiement lié ne se corrige jamais ;
+- la ligne « Bon cadeau » (`VOUCHER_STORE`) ne se corrige jamais, bien
+  qu'elle soit saisie à la main : son mouvement est écrit dans
+  l'archive de la vente (`payment_correction_gift_voucher`) ;
+- le nouveau moyen est espèces, carte ou chèques-repas, différent de celui
+  de la ligne ; jamais « Bon cadeau » (`payment_correction_method`), et
+  jamais chèques-repas sur une vente qui vend un bon cadeau (un bon ne
+  s'achète pas avec des chèques-repas, `gift_voucher_payment_invalid`) ;
+- aucune ligne d'arrondi n'est écrite : la correction est refusée si la
+  ligne est en espèces et que la vente a un arrondi, ou si le nouveau
+  moyen est espèces et que le montant n'est pas un multiple de 5
+  centimes ;
+- si le FDM ne répond pas, la demande reste en attente : un nouvel essai ou la tâche de fond archive la réponse arrivée plus tard, sans second ticket (même circuit qu'une vente, MANUEL_UTILISATEUR §7.4).
+
+Dans les rapports X et Z, la ligne retirée va en « corrections
+négatives » et la ligne ajoutée en « corrections positives » du moyen
+concerné (`correctionsCount` compte chaque ligne) ; le total par moyen
+est la somme des trois. Dans le rapport par utilisateur, la correction
+est portée par le Gérant qui l'a signée. Le rapport imprimé ajoute une
+ligne « Corrections de paiement » (nombre et montant ajouté). Pour tout
+autre cas (moyen de paiement non corrigeable, vente d'une journée
+clôturée), l'opérateur utilise le remboursement puis une nouvelle vente.
+
+Fixture M132 : rejeu `m132_payment_correction`. La comparaison porte sur le type, le montant et le type de montant de chaque ligne de paiement ; un écart est déclaré (type de la carte, `CARD_DEBIT` au lieu de `CARD_CREDIT`, car sans terminal relié l'opérateur ne distingue pas débit et crédit). Deux autres différences ne sont pas comparées : la nouvelle ligne de carte part en saisie manuelle (`inputMethod` MANUAL, la fixture a AUTOMATIC) et la ligne d'espèces n'indique pas de tiroir (champ optionnel, la fixture nomme le tiroir 1).
 
 ---
 
-## 3. Note de crédit (hors périmètre v1.0.0)
+## 3. Facture d'un remboursement (note de crédit)
 
-Selon la spec, une note de crédit est une mutation `signInvoice`
-avec des montants négatifs et un `fdmRef` vers la facture originale.
-La facture (événement I) n'est pas dans le binaire certifié de la
-v1.0.0 (code sous `#[cfg(feature = "peppol")]`) : il n'y a donc ni
-facture ni note de crédit émise. `FdmClient::sign_invoice` existe, sans
-commande ni écran pour l'appeler dans la build cert. La note de crédit
-sera livrée avec la facture dans une mise à jour certifiée ultérieure.
+Le POS n'émet pas de note de crédit autonome. Un remboursement est un
+événement **N** de montants négatifs (§1) ; il peut être repris sur une
+**facture** (événement I) avec d'autres ventes, ses montants comptant en
+négatif (cas UC4122 du jeu Advanced 1.6). Si la vente d'origine avait déjà
+été facturée, le remboursement figure sur une nouvelle facture : la
+première, en ajout seul, ne change pas. Le document Peppol est une
+facture dont la ligne remboursée garde une quantité négative. Voir
+*FACTURATION_PEPPOL_FR.md*.
 
 ---
 

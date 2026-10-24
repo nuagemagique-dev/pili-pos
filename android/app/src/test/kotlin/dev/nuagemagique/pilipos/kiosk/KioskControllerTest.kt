@@ -2,6 +2,7 @@ package dev.nuagemagique.pilipos.kiosk
 
 import android.app.Activity
 import android.app.ActivityManager
+import android.app.Application
 import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
@@ -23,8 +24,11 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 
+// A plain Application: the real PiliApplication would run PolicyHook, whose background apply races the test (PD225).
 @RunWith(RobolectricTestRunner::class)
+@Config(application = Application::class)
 class KioskControllerTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val manager: DevicePolicyManager = context.getSystemService(DevicePolicyManager::class.java)

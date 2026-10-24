@@ -1,0 +1,58 @@
+{
+    "data": {
+        "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+            "digitalSignature": "bW9jay1zaWctMS0xLTE3OTIzMjEyNTc=",
+            "eventOperation": "SALE",
+            "fdmRef": {
+                "eventCounter": 1,
+                "eventLabel": "N",
+                "fdmDateTime": "2026-10-18T11:00:57Z",
+                "fdmId": "MCK00000001",
+                "totalCounter": 1
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2024-07-29T13:00:00.000+02:00",
+            "posFiscalTicketNo": 1000,
+            "posId": "CPOS0031234567",
+            "shortSignature": "173c5cd42d653d4817f3076dd68ce10d3f072540",
+            "terminalId": "TER-2-DIN",
+            "vatCalc": [
+                {
+                    "label": "B",
+                    "outOfScope": false,
+                    "rate": 12.0,
+                    "taxableAmount": 25.0,
+                    "totalAmount": 28.0,
+                    "vatAmount": 3.0
+                },
+                {
+                    "label": "A",
+                    "outOfScope": false,
+                    "rate": 21.0,
+                    "taxableAmount": 19.83,
+                    "totalAmount": 24.0,
+                    "vatAmount": 4.17
+                }
+            ],
+            "verificationUrl": "https://www.gs2.be/M0000100001AbCdEfGhI",
+            "warnings": [
+                {
+                    "extensions": {
+                        "category": "SPF_FOD",
+                        "code": "CLIENT_CERT_EXPIRED",
+                        "showPos": "MANDATORY"
+                    },
+                    "message": "Le certificat du client a expir\u00e9"
+                }
+            ]
+        }
+    },
+    "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+    }
+}

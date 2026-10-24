@@ -24,25 +24,11 @@ name: Kiosk image
 #
 # runs-on: ubuntu-26.04 everywhere (needs KVM, and matches the
 # platform deploy/image/build.sh and the manual assume).
+# By hand or on a Linux release tag only (GitHub-hosted x86_64 with KVM; the
+# test runners are ARM64). The Linux product is not part of the v1 filing.
 on:
   push:
-    branches: [main, feat/*]
-    paths:
-      - 'deploy/**'
-      - 'scripts/qemu/**'
-      - 'src-tauri/**'
-      - 'crates/**'
-      - 'ui/**'
-      - '.github/workflows/image.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'deploy/**'
-      - 'scripts/qemu/**'
-      - 'src-tauri/**'
-      - 'crates/**'
-      - 'ui/**'
-      - '.github/workflows/image.yml'
+    tags: ['linux-v*']
   workflow_dispatch: {}
 
 env:
@@ -56,7 +42,7 @@ jobs:
     outputs:
       sha1: ${{ steps.compare.outputs.sha1 }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build twice from a clean tree and compare
         id: compare
@@ -66,15 +52,16 @@ jobs:
           echo "sha1=$(cat /tmp/repro/sha1)" >> "$GITHUB_OUTPUT"
 
       - name: Upload deploy/dist (build #2 - feeds the `image` job)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: deploy-dist
           path: deploy/dist/
-          retention-days: 14
+          # Only passes the build to the next job; the account artifact quota is shared.
+          retention-days: 1
 
       - name: Upload both build_info reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: repro-build-info
           path: |
@@ -93,10 +80,10 @@ jobs:
       matrix:
         profile: [production, admission]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download deploy/dist from the repro job
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: deploy-dist
           path: deploy/dist
@@ -150,13 +137,14 @@ jobs:
           echo "✓ Embedded binary matches the certified SHA-1"
 
       - name: Upload .img.xz
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kiosk-image-${{ matrix.profile }}
           path: |
             deploy/image/mkosi.output/${{ matrix.profile }}/*.img.xz
             deploy/image/mkosi.output/${{ matrix.profile }}/pili-pos-embedded-binary.sha1
-          retention-days: 14
+          # Large images: kept one day (the account artifact quota is shared).
+          retention-days: 1
 
   # ── Boot smoke test: does the admission image actually come up? ──
   boot-smoke:
@@ -164,7 +152,7 @@ jobs:
     needs: image
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Enable /dev/kvm for this runner
         # GitHub-hosted Linux runners expose /dev/kvm but not
@@ -186,7 +174,7 @@ jobs:
             netcat-openbsd python3 python3-pil
 
       - name: Download the admission image
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: kiosk-image-admission
           path: deploy/image/mkosi.output/admission
@@ -227,7 +215,7 @@ jobs:
 
       - name: Upload the screenshot and guest journal (always, including on failure)
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: boot-smoke-screenshot
           path: |

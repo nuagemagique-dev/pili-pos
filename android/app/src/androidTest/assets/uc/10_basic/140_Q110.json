@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "id": "Q110",
+  "ids": ["Q110"],
+  "title": "Status query with FDM messages (shape of the answer, messages in the operator language)",
+  "compare": {"status": "shape"},
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "fdm_control", "args": {"warnings": ["BUFFER_NEAR_FULL"]}},
+    {"cmd": "sleep_ms", "args": {"ms": 10000}},
+    {"cmd": "sleep_ms", "args": {"ms": 10000}},
+    {"cmd": "check_fdm_status", "args": {}},
+    {"cmd": "fdm_control_reset", "args": {}}
+  ]
+}

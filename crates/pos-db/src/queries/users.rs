@@ -3,7 +3,7 @@ use rusqlite::{Connection, params};
 
 pub fn get_user(conn: &Connection, insz: &str) -> Result<Option<User>, rusqlite::Error> {
     let mut stmt = conn.prepare(
-        "SELECT insz, name, role, active, pin_hash IS NOT NULL
+        "SELECT insz, name, role, active, pin_hash IS NOT NULL, presence_only
          FROM users WHERE insz = ?1 AND active = 1",
     )?;
 
@@ -21,6 +21,7 @@ pub fn get_user(conn: &Connection, insz: &str) -> Result<Option<User>, rusqlite:
             })?,
             active: row.get::<_, i32>(3)? != 0,
             has_pin: row.get::<_, bool>(4)?,
+            presence_only: row.get::<_, i32>(5)? != 0,
         })
     })?;
 
@@ -33,7 +34,7 @@ pub fn get_user(conn: &Connection, insz: &str) -> Result<Option<User>, rusqlite:
 
 pub fn list_users(conn: &Connection) -> Result<Vec<User>, rusqlite::Error> {
     let mut stmt = conn.prepare(
-        "SELECT insz, name, role, active, pin_hash IS NOT NULL
+        "SELECT insz, name, role, active, pin_hash IS NOT NULL, presence_only
          FROM users WHERE active = 1 AND insz <> ?1 ORDER BY name",
     )?;
 
@@ -52,6 +53,7 @@ pub fn list_users(conn: &Connection) -> Result<Vec<User>, rusqlite::Error> {
             })?,
             active: row.get::<_, i32>(3)? != 0,
             has_pin: row.get::<_, bool>(4)?,
+            presence_only: row.get::<_, i32>(5)? != 0,
         })
     })?;
 
@@ -64,18 +66,32 @@ pub fn create_user(
     name: &str,
     role: UserRole,
 ) -> Result<User, rusqlite::Error> {
+    create_user_flagged(conn, insz, name, role, false)
+}
+
+/// [`create_user`] with the presence-only flag: an employee who never
+/// uses the till (kitchen), clocked in and out by a manager. The
+/// caller keeps the role at `waiter` and stores no PIN for them.
+pub fn create_user_flagged(
+    conn: &Connection,
+    insz: &str,
+    name: &str,
+    role: UserRole,
+    presence_only: bool,
+) -> Result<User, rusqlite::Error> {
     // A deactivated user (never deleted: their INSZ is on archived
-    // events) comes back with the new name and role, and no PIN.
+    // events) comes back with the new name, role and flag, and no PIN.
     // An active one is a duplicate: the UNIQUE constraint refuses it.
     let reactivated = conn.execute(
-        "UPDATE users SET name = ?2, role = ?3, pin_hash = NULL, active = 1
+        "UPDATE users SET name = ?2, role = ?3, pin_hash = NULL, active = 1,
+                presence_only = ?4
          WHERE insz = ?1 AND active = 0",
-        params![insz, name, role.as_str()],
+        params![insz, name, role.as_str(), presence_only],
     )?;
     if reactivated == 0 {
         conn.execute(
-            "INSERT INTO users (insz, name, role) VALUES (?1, ?2, ?3)",
-            params![insz, name, role.as_str()],
+            "INSERT INTO users (insz, name, role, presence_only) VALUES (?1, ?2, ?3, ?4)",
+            params![insz, name, role.as_str(), presence_only],
         )?;
     }
 
@@ -85,6 +101,7 @@ pub fn create_user(
         role,
         active: true,
         has_pin: false,
+        presence_only,
     })
 }
 
@@ -193,6 +210,44 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM users", [], |r| r.get(0))
             .unwrap();
         assert_eq!(rows, 1, "never deleted, never duplicated");
+    }
+
+    #[test]
+    fn the_presence_only_flag_is_stored_listed_and_reset_on_rehire() {
+        let conn = db();
+        let user =
+            create_user_flagged(&conn, "12345678958", "Kim", UserRole::Waiter, true).unwrap();
+        assert!(user.presence_only);
+        assert!(
+            get_user(&conn, "12345678958")
+                .unwrap()
+                .unwrap()
+                .presence_only
+        );
+        assert!(list_users(&conn).unwrap()[0].presence_only);
+        // A plain user is not flagged.
+        let plain = create_user(&conn, "11111111111", "Alice", UserRole::Waiter).unwrap();
+        assert!(!plain.presence_only);
+
+        // Deactivate then create again as a till user: the flag goes.
+        deactivate_user(&conn, "12345678958").unwrap();
+        let back = create_user(&conn, "12345678958", "Kim", UserRole::Cashier).unwrap();
+        assert!(!back.presence_only);
+        assert!(
+            !get_user(&conn, "12345678958")
+                .unwrap()
+                .unwrap()
+                .presence_only
+        );
+        // And the other way round.
+        deactivate_user(&conn, "12345678958").unwrap();
+        create_user_flagged(&conn, "12345678958", "Kim", UserRole::Waiter, true).unwrap();
+        assert!(
+            get_user(&conn, "12345678958")
+                .unwrap()
+                .unwrap()
+                .presence_only
+        );
     }
 
     #[test]

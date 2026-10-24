@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dagger.hilt.android.EntryPointAccessors
+import dev.nuagemagique.pilipos.BuildConfig
 import dev.nuagemagique.pilipos.MainActivity
 import dev.nuagemagique.pilipos.debugtools.E2eEntryPoint
 import dev.nuagemagique.pilipos.engine.EngineState
@@ -107,7 +108,7 @@ class ProvisioningE2eTest {
         // 2. Import from the debug inbox: the engine becomes Ready with the software version of this build.
         compose.onNodeWithTag("prov_import_inbox").performClick()
         val ready = awaitReady()
-        assertEquals("pili-pos-android/1.0.0-dev", ready.posSwVersion)
+        assertEquals("pili-pos-android/${BuildConfig.VERSION_NAME}", ready.posSwVersion)
 
         // 3. The record binds the bundle to this device: deviceId == Build.getSerial().
         val record = runBlocking { app.provisioning().refresh() } ?: throw AssertionError("no provisioning record after the import")

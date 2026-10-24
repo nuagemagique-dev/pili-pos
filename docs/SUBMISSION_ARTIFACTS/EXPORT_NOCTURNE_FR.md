@@ -258,24 +258,22 @@ fichier vers `<url>/<identifiant>/<nom du fichier>` :
 
 ## 9. Stockage local
 
-Les exports se trouvent dans la **mémoire interne** de l'appareil, à
-côté de la base : dans le sous-répertoire `exports` de `/var/lib/pili-pos`
-sur le kiosque Linux, dans le répertoire privé de l'application sur un terminal Android. **Ils
-ne sont jamais écrits sur une carte SD ni sur un autre support
+Les exports se trouvent sur le **disque interne** du kiosque, à côté
+de la base : dans le sous-répertoire `exports` de `/var/lib/pili-pos`
+(partition `/var` chiffrée LUKS2, `SECURITE_BD_FR.md` §3.6). **Ils ne
+sont jamais écrits sur une carte SD ni sur un autre support
 amovible.**
 
 Ordre de grandeur de l'espace : chaque sauvegarde a la taille de
 `pos.db` (le chiffrement ne comprime pas), la copie statistique est bien
 plus petite que la base, et on garde `keep_days` exports : prévoir
 environ `keep_days` fois la taille de la base, en plus de la base
-elle-même.
+elle-même et de ses 7 sauvegardes locales après Z.
 
 ## 10. État visible par le Gérant
 
-L'état de l'export est réservé aux Gérants :
-
-- **Linux** : bouton « Config », panneau « Export nocturne » ;
-- **Android** : écran dédié « Export nocturne » du menu des réglages.
+L'état de l'export est réservé aux Gérants : bouton « Config »,
+panneau « Export nocturne » (`MANUEL_UTILISATEUR_FR.md` §12.11).
 
 Il indique : l'état (« Non configuré », « Configuration invalide »,
 « À jour » ou « n exports en attente »), la destination (schéma, hôte et

@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "id": "T7",
+  "ids": ["T7"],
+  "title": "T7: table 10, the pre-bill",
+  "fixture": "docs/20260821_UC_Reports_1.3/InputReport/T7",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "84022899837", "pin": "2222"}},
+    {"cmd": "list_fiscal_events", "args": {"limit": 1}, "save": "last"},
+    {"cmd": "sign_pre_bill", "args": {"orderId": "$last.0.orderId"}}
+  ]
+}

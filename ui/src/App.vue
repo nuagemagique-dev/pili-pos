@@ -5,10 +5,13 @@ import { usePosStore } from "./stores/pos";
 import { useAuthStore } from "./stores/auth";
 import * as ipc from "./api/ipc";
 import { useOrderChime } from "./composables/useOrderChime";
+import { useBadgeReader } from "./composables/useBadgeReader";
+import { useBadgeStore } from "./stores/badge";
 import TrainingBanner from "./components/TrainingBanner.vue";
 import ToastStack from "./components/ToastStack.vue";
 import ConfigProblemsBanner from "./components/ConfigProblemsBanner.vue";
 import SupportBanner from "./components/SupportBanner.vue";
+import EftOverlay from "./components/EftOverlay.vue";
 import { useSupportStore } from "./stores/support";
 import { useFdmStore } from "./stores/fdm";
 import { useOrderStore } from "./stores/order";
@@ -48,6 +51,13 @@ function forwardActivity() {
   }
 }
 
+// USB badge reader: its capture listener is installed while the reader
+// is `usb`, before any other keyboard listener, and swallows the scans so
+// they are neither typed nor activity. Keys it held that were typing
+// after all count as activity here.
+const badge = useBadgeStore();
+useBadgeReader(forwardActivity);
+
 // Remote support banner: polled on every screen, logged in or not.
 const support = useSupportStore();
 let supportPoll: ReturnType<typeof setInterval> | undefined;
@@ -59,6 +69,7 @@ const { t } = useI18n();
 
 onMounted(() => {
   pos.loadSettings();
+  void badge.load();
   void fdm.listenSignMessages();
   void fdm.listenStatus();
   void auth.listenPresenceFailed();
@@ -88,6 +99,7 @@ onUnmounted(() => {
   <TrainingBanner v-if="route.name === 'login'" />
   <RouterView />
   <div v-if="pos.trainingMode" class="training-watermark" aria-hidden="true">TRAINING</div>
+  <EftOverlay />
   <ToastStack />
   <ConfigProblemsBanner />
   <SupportBanner />

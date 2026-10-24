@@ -124,6 +124,26 @@ pub async fn drain_outbox(app: &TestApp) -> pos_hubrise::outbox::PassReport {
         .expect("outbox pass")
 }
 
+/// One inventory pass (the sold-out products pushed to HubRise).
+pub async fn drain_inventory(app: &TestApp) -> pos_hubrise::outbox::PassReport {
+    pos_hubrise::inventory::process_pending(&app.state.shared_http, &app.state.poller_db)
+        .await
+        .expect("inventory pass")
+}
+
+/// Make every retried inventory row due now.
+pub fn inventory_due_now(app: &TestApp) {
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "UPDATE hubrise_inventory_sync SET next_attempt_at = NULL",
+            [],
+        )
+        .unwrap();
+}
+
 /// Make every retried outbox row due now.
 pub fn outbox_due_now(app: &TestApp) {
     app.state

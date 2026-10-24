@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "id": "M121",
+  "ids": ["M121"],
+  "title": "Table order signed as an order (signOrder P), the order stays open",
+  "fixture": "docs/20260821_UC_BasicSet_POS_FDM_1.8/M121_signOrder",
+  "fixtureDeviations": [{"path": "ticketMedium", "reason": "orders are not printed in v1.0.0 (no kitchen ticket), so the medium is NONE"}],
+  "steps": [
+    {"cmd": "login", "args": {"insz": "75061189702", "pin": "4444"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 4, "user_insz": "75061189702"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 10006, "quantity": 2, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 28007, "quantity": 4, "modifiers_json": null}}},
+    {"cmd": "sign_table_order", "args": {"orderId": "$order.id"}}
+  ]
+}

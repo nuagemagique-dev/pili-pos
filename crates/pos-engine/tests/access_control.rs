@@ -26,21 +26,34 @@ use pos_engine::commands::auth::{
     ERR_PIN_SETUP_REQUIRED, ERR_SYSTEM_USER, do_create_user, do_deactivate_user, do_login,
     do_login_with_new_pin, do_logout, do_set_pin,
 };
+use pos_engine::commands::badges::{
+    BadgeSettingsInput, do_badge_tap, do_get_badge_settings, do_link_badge, do_list_badges,
+    do_revoke_badge, do_set_badge_settings,
+};
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
+use pos_engine::commands::discount::{
+    DiscountInput, DiscountKind, DiscountReason, DiscountTarget, do_apply_discount,
+    do_remove_discount,
+};
 use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
 use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_remove_order_line,
     do_update_order_line_quantity,
 };
+use pos_engine::commands::payment_correction::{do_correct_payment, do_list_sale_payments};
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::report::{
     do_backup_database, do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
 };
 use pos_engine::commands::settings::{ERR_OPEN_ORDERS, do_get_settings, do_set_training_mode};
-use pos_engine::commands::social::{do_work_in, do_work_out};
+use pos_engine::commands::social::{
+    do_clock_in_employee, do_clock_out_employee, do_work_in, do_work_out,
+};
+use pos_engine::commands::table_transfer::do_transfer_table;
 use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_engine::commands::unpaid::do_close_unpaid;
+use pos_fiscal::payment::PaymentMethod;
 
 const MANAGER: &str = "94060242576";
 const SERVER: &str = "84022899837";
@@ -123,6 +136,17 @@ async fn manager_commands(
     insz: &str,
     sale: i64,
 ) -> Vec<(&'static str, Result<(), String>)> {
+    // Before the refund: a refunded sale is no longer corrected.
+    let correction = do_correct_payment(
+        &app.state,
+        sale,
+        0,
+        PaymentMethod::MealVoucher,
+        insz.into(),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .unwrap();
     let refund = do_refund_checkout(
         &app.state,
         sale,
@@ -147,6 +171,31 @@ async fn manager_commands(
             |r| r.get(0),
         )
         .unwrap();
+    // A discount and its removal, before the table is closed unpaid.
+    let discount = do_apply_discount(
+        &app.state,
+        left_unpaid,
+        DiscountInput {
+            target: DiscountTarget::Order,
+            kind: DiscountKind::Percent,
+            value: Some(10),
+            reason_code: DiscountReason::Other,
+            reason_text: None,
+        },
+        insz.into(),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .map(|_| ());
+    let removal = do_remove_discount(
+        &app.state,
+        left_unpaid,
+        None,
+        insz.into(),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .map(|_| ());
     let unpaid = do_close_unpaid(&app.state, left_unpaid, insz, MANAGER_PIN)
         .await
         .unwrap();
@@ -159,6 +208,15 @@ async fn manager_commands(
                 .then_some(())
                 .ok_or(refund.error.unwrap_or_default()),
         ),
+        (
+            "payment correction",
+            correction
+                .success
+                .then_some(())
+                .ok_or(correction.error.unwrap_or_default()),
+        ),
+        ("discount", discount),
+        ("remove discount", removal),
         (
             "copy",
             copy.success
@@ -248,11 +306,31 @@ async fn nothing_is_signed_without_a_logged_in_operator() {
         ERR_NOT_LOGGED_IN
     );
     assert_eq!(
+        do_transfer_table(&app.state, open, 2).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_sale_payments(&app.state, sale).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
         do_work_in(&app.state, MANAGER.into()).await.unwrap_err(),
         ERR_NOT_LOGGED_IN
     );
     assert_eq!(
         do_work_out(&app.state, MANAGER.into()).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_clock_in_employee(&app.state, SERVER.into())
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_clock_out_employee(&app.state, SERVER.into())
+            .await
+            .unwrap_err(),
         ERR_NOT_LOGGED_IN
     );
     assert_eq!(add_line(&app, open).unwrap_err(), ERR_NOT_LOGGED_IN);
@@ -831,6 +909,7 @@ async fn a_new_manager_gets_a_pin_confirmed_by_the_creating_manager() {
         role: "admin".into(),
         initial_pin: initial.map(Into::into),
         operator_pin: operator.map(Into::into),
+        presence_only: false,
     };
 
     assert_eq!(
@@ -884,6 +963,121 @@ async fn a_server_or_apprentice_without_pin_still_logs_in() {
         assert!(!user.has_pin, "{insz}");
         do_logout(&app.state).unwrap();
     }
+}
+
+/// Registering someone else's presence is a manager's act: a server and
+/// an apprentice are refused before anything is signed.
+#[tokio::test]
+async fn only_a_manager_registers_another_employees_presence() {
+    let app = app().await;
+    insert_user(&app, APPRENTICE, "waiter");
+    let before = app.fiscal_events().len();
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert_eq!(
+            do_clock_in_employee(&app.state, APPRENTICE.into())
+                .await
+                .unwrap_err(),
+            ERR_FORBIDDEN,
+            "{insz} in"
+        );
+        assert_eq!(
+            do_clock_out_employee(&app.state, APPRENTICE.into())
+                .await
+                .unwrap_err(),
+            ERR_FORBIDDEN,
+            "{insz} out"
+        );
+    }
+    assert_eq!(app.fiscal_events().len(), before, "nothing signed");
+    assert!(
+        app.fdm
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .is_empty(),
+        "nothing reached the FDM"
+    );
+}
+
+/// The badge commands: the setting is readable by the login screen and a
+/// scan needs no session (the badge is the identification); changing the
+/// setting, listing, linking and removing badges are a manager's.
+#[tokio::test]
+async fn only_a_manager_manages_badges_and_a_scan_needs_no_session() {
+    let app = app().await;
+    insert_user(&app, APPRENTICE, "waiter");
+    let input = || BadgeSettingsInput {
+        reader: "usb".into(),
+        login_enabled: false,
+        wedge_max_gap_ms: 50,
+        wedge_min_len: 6,
+        wedge_max_len: 32,
+    };
+
+    // Nobody logged in: the setting is readable, the rest is refused, a
+    // scan is answered by the engine (the reader is off).
+    app.logout();
+    assert_eq!(do_get_badge_settings(&app.state).unwrap().reader, "off");
+    assert_eq!(
+        do_badge_tap(&app.state, "04A1B2C3".into(), false)
+            .await
+            .unwrap_err(),
+        errors::BADGE_READER_OFF
+    );
+    assert_eq!(
+        do_set_badge_settings(&app.state, input()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(do_list_badges(&app.state).unwrap_err(), ERR_NOT_LOGGED_IN);
+    assert_eq!(
+        do_revoke_badge(&app.state, APPRENTICE.into()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_link_badge(
+            &app.state,
+            APPRENTICE.into(),
+            "04A1B2C3".into(),
+            Some("1234".into())
+        )
+        .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+
+    // A server and an apprentice: refused, whatever the reader says.
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert_eq!(do_get_badge_settings(&app.state).unwrap().reader, "off");
+        assert_eq!(
+            do_set_badge_settings(&app.state, input()).unwrap_err(),
+            ERR_FORBIDDEN,
+            "{insz}"
+        );
+        assert_eq!(do_list_badges(&app.state).unwrap_err(), ERR_FORBIDDEN);
+        assert_eq!(
+            do_revoke_badge(&app.state, APPRENTICE.into()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_link_badge(
+                &app.state,
+                APPRENTICE.into(),
+                "04A1B2C3".into(),
+                Some("1234".into())
+            )
+            .unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+    assert_eq!(do_get_badge_settings(&app.state).unwrap().reader, "off");
+
+    as_(&app, MANAGER, UserRole::Admin);
+    assert_eq!(
+        do_set_badge_settings(&app.state, input()).unwrap().reader,
+        "usb"
+    );
+    assert!(do_list_badges(&app.state).is_ok());
 }
 
 #[tokio::test]
@@ -971,5 +1165,563 @@ async fn wrong_pins_lock_the_user_out_even_for_the_right_pin() {
         )
         .unwrap_err()
         .starts_with("pin_locked|")
+    );
+}
+
+// ── Invoices and Peppol ───────────────────────────────────
+
+#[tokio::test]
+async fn invoice_commands_follow_the_roles() {
+    use pos_engine::commands::invoice::{
+        B2bCustomerInput, do_invoice_preview, do_list_invoiceable_sales, do_list_invoices,
+        do_list_peppol_deliveries, do_lookup_b2b_customer, do_retry_peppol_delivery,
+        do_save_b2b_customer, do_search_b2b_customers, do_sign_invoice_fiscal,
+    };
+    const CASHIER: &str = "75061189702";
+    let form = || B2bCustomerInput {
+        id: None,
+        vat_number: "BE0308357159".into(),
+        name: "Client".into(),
+        street: "Rue 1".into(),
+        postal_code: "4000".into(),
+        city: "Liege".into(),
+        country_code: String::new(),
+    };
+    let app = app().await;
+    let sale = paid_sale(&app).await;
+
+    // Nobody logged in: everything is refused.
+    app.logout();
+    assert_eq!(
+        do_list_invoiceable_sales(&app.state, None, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_invoice_preview(&app.state, &[sale]).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_search_b2b_customers(&app.state, "BE").unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_save_b2b_customer(&app.state, form()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_invoices(&app.state, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_peppol_deliveries(&app.state, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_retry_peppol_delivery(&app.state, 1).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_lookup_b2b_customer(&app.state, "BE0308357159")
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_sign_invoice_fiscal(&app.state, vec![sale], 1, CASHIER.into())
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+
+    // A waiter takes orders, not invoices.
+    as_(&app, APPRENTICE, UserRole::Waiter);
+    assert_eq!(
+        do_list_invoiceable_sales(&app.state, None, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_save_b2b_customer(&app.state, form()).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_sign_invoice_fiscal(&app.state, vec![sale], 1, APPRENTICE.into())
+            .await
+            .unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_list_peppol_deliveries(&app.state, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+
+    // A cashier invoices and manages customers, but the Peppol panel is for managers.
+    as_(&app, CASHIER, UserRole::Cashier);
+    let customer = do_save_b2b_customer(&app.state, form()).unwrap();
+    assert_eq!(
+        do_search_b2b_customers(&app.state, "BE03").unwrap().len(),
+        1
+    );
+    assert!(do_list_invoiceable_sales(&app.state, None, None).is_ok());
+    assert!(do_list_invoices(&app.state, None).is_ok());
+    assert_eq!(
+        do_list_peppol_deliveries(&app.state, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_retry_peppol_delivery(&app.state, 1).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    // A Belgian customer needs Peppol, which this installation does not have (V11-D55); a
+    // foreign customer is invoiced on paper.
+    let err = do_sign_invoice_fiscal(&app.state, vec![sale], customer.id, CASHIER.into())
+        .await
+        .unwrap_err();
+    assert_eq!(err, pos_engine::commands::errors::INVOICE_PEPPOL_REQUIRED);
+    let foreign = do_save_b2b_customer(
+        &app.state,
+        B2bCustomerInput {
+            vat_number: "FR12345678901".into(),
+            ..form()
+        },
+    )
+    .unwrap();
+    // Nobody signs in someone else's name.
+    assert_eq!(
+        do_sign_invoice_fiscal(&app.state, vec![sale], foreign.id, MANAGER.into())
+            .await
+            .unwrap_err(),
+        ERR_NOT_THE_OPERATOR
+    );
+    let signed = do_sign_invoice_fiscal(&app.state, vec![sale], foreign.id, CASHIER.into())
+        .await
+        .unwrap();
+    assert!(signed.success, "{:?}", signed.error);
+
+    // A manager reaches the panel (Peppol is not set up on this installation).
+    as_(&app, MANAGER, UserRole::Admin);
+    let panel = do_list_peppol_deliveries(&app.state, None).unwrap();
+    assert!(!panel.configured);
+}
+
+// ── Sold-out products ──────────────────────────────────────
+
+#[tokio::test]
+async fn sold_out_commands_follow_the_roles() {
+    use pos_engine::commands::sold_out::{do_clear_sold_out, do_list_sold_out, do_set_sold_out};
+    const CASHIER: &str = "75061189702";
+    let app = app().await;
+
+    app.logout();
+    assert_eq!(
+        do_set_sold_out(&app.state, 1, true, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_clear_sold_out(&app.state, 1, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_sold_out(&app.state, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+
+    // A waiter takes orders; the sold-out switch is for the counter.
+    as_(&app, APPRENTICE, UserRole::Waiter);
+    assert_eq!(
+        do_set_sold_out(&app.state, 1, true, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_clear_sold_out(&app.state, 1, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_list_sold_out(&app.state, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+
+    as_(&app, CASHIER, UserRole::Cashier);
+    assert_eq!(do_set_sold_out(&app.state, 1, true, None).unwrap().len(), 1);
+    assert_eq!(do_list_sold_out(&app.state, None).unwrap().len(), 1);
+    assert!(do_clear_sold_out(&app.state, 1, None).unwrap().is_empty());
+
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(do_set_sold_out(&app.state, 1, false, None).is_ok());
+    assert!(do_clear_sold_out(&app.state, 1, None).is_ok());
+}
+
+// ── Menu editor ───────────────────────────────────────────
+
+#[cfg(feature = "hubrise")]
+#[tokio::test]
+async fn menu_editor_commands_follow_the_roles() {
+    use pos_engine::commands::menu_admin::{
+        SaveCategoryInput, SaveModifierGroupInput, SaveModifierInput, SaveProductInput,
+        do_list_menu_changes, do_menu_admin_get, do_menu_save_category, do_menu_save_modifier,
+        do_menu_save_modifier_group, do_menu_save_product,
+    };
+    let app = app().await;
+    let names = || [("fr".to_string(), "Sushi".to_string())].into();
+    let category = || SaveCategoryInput {
+        id: None,
+        names: names(),
+        sort_order: 1,
+        color: None,
+        active: true,
+    };
+    let product = |category_id| SaveProductInput {
+        id: None,
+        category_id,
+        names: names(),
+        price_cents: 500,
+        vat_code: "B".into(),
+        vat_code_takeaway: None,
+        kitchen_printer: true,
+        code: None,
+        open_price: false,
+        sort_order: 1,
+        active: true,
+    };
+    let group = || SaveModifierGroupInput {
+        id: None,
+        menu_item_id: 1,
+        names: names(),
+        min_select: 0,
+        max_select: 1,
+        sort_order: 1,
+        active: true,
+    };
+    let option = || SaveModifierInput {
+        id: None,
+        group_id: 1,
+        names: names(),
+        price_cents: 0,
+        sort_order: 1,
+        active: true,
+    };
+
+    app.logout();
+    assert_eq!(
+        do_menu_admin_get(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_menu_changes(&app.state, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_menu_save_category(&app.state, category()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+
+    // The editor is for the manager: a cashier and a waiter are refused on every command.
+    for role in [UserRole::Cashier, UserRole::Waiter] {
+        as_(&app, SERVER, role);
+        assert_eq!(do_menu_admin_get(&app.state).unwrap_err(), ERR_FORBIDDEN);
+        assert_eq!(
+            do_list_menu_changes(&app.state, None).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_menu_save_category(&app.state, category()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_menu_save_product(&app.state, product(1)).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_menu_save_modifier_group(&app.state, group()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_menu_save_modifier(&app.state, option()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+
+    as_(&app, MANAGER, UserRole::Admin);
+    let saved = do_menu_save_category(&app.state, category()).unwrap();
+    assert!(do_menu_save_product(&app.state, product(saved.id)).is_ok());
+    assert_eq!(do_menu_admin_get(&app.state).unwrap().categories.len(), 2);
+    assert_eq!(do_list_menu_changes(&app.state, None).unwrap().len(), 2);
+}
+
+// ── Sales report ──────────────────────────────────────────
+
+#[tokio::test]
+async fn sales_report_commands_are_for_managers() {
+    use pos_engine::commands::sales_report::{do_print_sales_report, do_sales_report};
+    let app = app().await;
+    let (from, to) = ("2026-07-01".to_string(), "2026-07-01".to_string());
+
+    app.logout();
+    assert_eq!(
+        do_sales_report(&app.state, from.clone(), to.clone()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_print_sales_report(&app.state, from.clone(), to.clone())
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+
+    for (insz, role) in [
+        (APPRENTICE, UserRole::Waiter),
+        ("75061189702", UserRole::Cashier),
+    ] {
+        as_(&app, insz, role);
+        assert_eq!(
+            do_sales_report(&app.state, from.clone(), to.clone()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_print_sales_report(&app.state, from.clone(), to.clone())
+                .await
+                .unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(do_sales_report(&app.state, from, to).is_ok());
+}
+
+#[tokio::test]
+async fn only_a_manager_touches_the_owner_alerts() {
+    use pos_engine::commands::alerts::{
+        AlertKinds, OwnerAlertsInput, do_get_owner_alerts, do_list_owner_alert_log,
+        do_send_test_alert, do_set_owner_alerts,
+    };
+    let app = app().await;
+    let input = || OwnerAlertsInput {
+        enabled: false,
+        chat_id: "123".into(),
+        label: String::new(),
+        language: "fr".into(),
+        kinds: AlertKinds::default(),
+        z_deadline_hour: 6,
+        online_wait_minutes: 5,
+        reminder_minutes: 60,
+    };
+    app.logout();
+    assert_eq!(
+        do_get_owner_alerts(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert_eq!(do_get_owner_alerts(&app.state).unwrap_err(), ERR_FORBIDDEN);
+        assert_eq!(
+            do_set_owner_alerts(&app.state, input()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_send_test_alert(&app.state).await.unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_list_owner_alert_log(&app.state, 5).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(!do_get_owner_alerts(&app.state).unwrap().enabled);
+    assert!(do_set_owner_alerts(&app.state, input()).is_ok());
+    assert!(do_list_owner_alert_log(&app.state, 5).unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn any_operator_reads_the_allergens_and_only_a_manager_edits_them() {
+    use pos_engine::commands::allergens::{
+        SetAllergensInput, do_get_allergen_sheet, do_list_allergens, do_print_allergen_sheet,
+        do_set_allergens,
+    };
+    let app = app().await;
+    let edit = || SetAllergensInput {
+        entity_type: "menu_item".into(),
+        entity_id: 1,
+        declared: true,
+        contains: vec!["milk".into()],
+        may_contain: vec![],
+    };
+    app.logout();
+    assert_eq!(
+        do_list_allergens(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_get_allergen_sheet(&app.state, None, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_print_allergen_sheet(&app.state, None, None)
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_allergens(&app.state, edit()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert_eq!(do_list_allergens(&app.state).unwrap().len(), 14);
+        assert!(do_get_allergen_sheet(&app.state, None, None).is_ok());
+        assert_eq!(
+            do_set_allergens(&app.state, edit()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+    as_(&app, MANAGER, UserRole::Admin);
+    assert_eq!(do_set_allergens(&app.state, edit()), Ok(true));
+}
+
+#[tokio::test]
+async fn any_operator_works_the_courses_and_only_a_manager_sets_them() {
+    use pos_engine::commands::courses::{
+        CourseSettings, do_get_course_settings, do_list_held_courses, do_reprint_course_slip,
+        do_send_next_course, do_set_course_settings, do_set_line_course,
+    };
+    let app = app().await;
+    as_(&app, MANAGER, UserRole::Admin);
+    let order = table(&app, MANAGER, 12);
+    app.logout();
+    assert_eq!(
+        do_get_course_settings(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_course_settings(&app.state, CourseSettings::default()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_line_course(&app.state, 1, 1).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_held_courses(&app.state, order).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_send_next_course(&app.state, order).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_reprint_course_slip(&app.state, order, 1)
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert!(do_get_course_settings(&app.state).is_ok());
+        assert_eq!(
+            do_set_course_settings(&app.state, CourseSettings::default()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        // Allowed to try: the refusals below come from the rules, not the role.
+        assert_eq!(
+            do_set_line_course(&app.state, 1, 1).unwrap_err(),
+            errors::COURSES_DISABLED
+        );
+        assert!(do_list_held_courses(&app.state, order).unwrap().is_empty());
+        assert_eq!(
+            do_send_next_course(&app.state, order).await.unwrap_err(),
+            errors::COURSES_DISABLED
+        );
+        assert_eq!(
+            do_reprint_course_slip(&app.state, order, 1)
+                .await
+                .unwrap_err(),
+            errors::NOTHING_PRINTED
+        );
+    }
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(do_set_course_settings(&app.state, CourseSettings::default()).is_ok());
+}
+
+#[tokio::test]
+async fn the_gift_voucher_commands_follow_their_roles() {
+    use pos_engine::commands::gift_vouchers::{
+        GiftVoucherSettings, do_add_gift_voucher_line, do_get_gift_voucher_settings,
+        do_list_gift_vouchers, do_lookup_gift_voucher, do_print_gift_voucher,
+        do_set_gift_voucher_settings,
+    };
+    let app = app().await;
+    as_(&app, MANAGER, UserRole::Admin);
+    let order = table(&app, MANAGER, 13);
+    let on = GiftVoucherSettings {
+        enabled: true,
+        ..GiftVoucherSettings::default()
+    };
+    app.logout();
+    assert_eq!(
+        do_get_gift_voucher_settings(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_gift_voucher_settings(&app.state, on.clone()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_add_gift_voucher_line(&app.state, order, 2000).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_lookup_gift_voucher(&app.state, "123456789095").unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_gift_vouchers(&app.state, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_print_gift_voucher(&app.state, 1).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    // A cashier reads the setting, sells and looks up; the setting, the
+    // list and the duplicate are the manager's.
+    as_(&app, SERVER, UserRole::Cashier);
+    assert!(do_get_gift_voucher_settings(&app.state).is_ok());
+    assert_eq!(
+        do_set_gift_voucher_settings(&app.state, on.clone()).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_add_gift_voucher_line(&app.state, order, 2000).unwrap_err(),
+        errors::GIFT_VOUCHERS_DISABLED
+    );
+    assert_eq!(
+        do_lookup_gift_voucher(&app.state, "123456789095").unwrap_err(),
+        errors::GIFT_VOUCHER_NOT_FOUND
+    );
+    assert_eq!(
+        do_list_gift_vouchers(&app.state, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_print_gift_voucher(&app.state, 1).await.unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    // A waiter reads the setting and does nothing else with vouchers.
+    as_(&app, APPRENTICE, UserRole::Waiter);
+    assert!(do_get_gift_voucher_settings(&app.state).is_ok());
+    assert_eq!(
+        do_add_gift_voucher_line(&app.state, order, 2000).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_lookup_gift_voucher(&app.state, "123456789095").unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(do_set_gift_voucher_settings(&app.state, on).is_ok());
+    assert!(do_add_gift_voucher_line(&app.state, order, 2000).is_ok());
+    assert!(do_list_gift_vouchers(&app.state, None).unwrap().is_empty());
+    assert_eq!(
+        do_print_gift_voucher(&app.state, 1).await.unwrap_err(),
+        errors::GIFT_VOUCHER_NOT_FOUND
     );
 }

@@ -156,6 +156,23 @@ impl FdmError {
             _ => SignOutcome::Unknown,
         }
     }
+
+    /// The FDM's own word for the failure, to show the operator what it
+    /// said: the first code of its refusal that does not mean "not
+    /// signed" (the one that makes the outcome unknown), else the first
+    /// code, or `FDM_RESPONSE_MISMATCH` for an answer that does not echo
+    /// the request.
+    pub fn fdm_code(&self) -> Option<String> {
+        match self {
+            Self::Refused { codes, .. } => codes
+                .iter()
+                .find(|c| !NOT_SIGNED_CODES.contains(&c.as_str()))
+                .or_else(|| codes.first())
+                .cloned(),
+            Self::ResponseMismatch(_) => Some("FDM_RESPONSE_MISMATCH".to_string()),
+            _ => None,
+        }
+    }
 }
 
 /// A sign mutation; the Z pair of M184 is one request.

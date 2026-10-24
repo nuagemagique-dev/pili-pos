@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useOrderStore } from "../stores/order";
 import { useAuthStore } from "../stores/auth";
@@ -20,6 +20,8 @@ const toast = useToastStore();
 const tables = ref<ipc.TableInfo[]>([]);
 // Takeaways left unpaid: each one must still end in a sale (FAQ Q205).
 const takeaways = ref<ipc.TakeawayInfo[]>([]);
+// Orders whose card was charged and not yet settled by a sale.
+const cardCharged = ref(new Set<number>());
 
 // Minutes open, refreshed while the screen is shown.
 const now = ref(new Date());
@@ -30,6 +32,11 @@ onMounted(async () => {
   nowTimer = setInterval(() => (now.value = new Date()), 30_000);
   tables.value = await ipc.listTables();
   takeaways.value = await ipc.listOpenTakeaways();
+  try {
+    cardCharged.value = new Set((await ipc.listUnsettledCardPayments()).map((p) => p.order_id));
+  } catch {
+    /* only a badge */
+  }
 });
 onUnmounted(() => clearInterval(nowTimer));
 
@@ -53,7 +60,66 @@ async function newTakeaway() {
   router.push({ name: "order" });
 }
 
+// "Déplacer une table": tap the occupied table, then a free one, then
+// confirm. The engine signs the move (event P, cost center change).
+const moving = ref(false);
+const source = ref<ipc.TableInfo | null>(null);
+const target = ref<ipc.TableInfo | null>(null);
+const transferring = ref(false);
+
+const moveHint = computed(() =>
+  source.value
+    ? t("transfer_pick_free", { from: source.value.tableNumber })
+    : t("transfer_pick_source"),
+);
+
+function toggleMove() {
+  moving.value = !moving.value;
+  source.value = null;
+  target.value = null;
+}
+
+/** In the mode only a source (occupied) or, once chosen, a target
+ * (free) can be tapped. */
+function selectable(table: ipc.TableInfo): boolean {
+  if (!source.value) return table.status === "occupied" && table.orderId != null;
+  return table.status === "free";
+}
+
+function pickInMoveMode(table: ipc.TableInfo) {
+  if (!selectable(table)) return;
+  if (!source.value) source.value = table;
+  else target.value = table;
+}
+
+async function confirmMove() {
+  const from = source.value;
+  const to = target.value;
+  if (!from?.orderId || !to || transferring.value) return;
+  transferring.value = true;
+  try {
+    await order.transferOrder(from.orderId, to.tableNumber);
+    toast.show(t("transfer_done", { to: to.tableNumber }), "success");
+  } catch (e) {
+    toast.show(describeError(e), "error", 6000);
+  } finally {
+    transferring.value = false;
+    moving.value = false;
+    source.value = null;
+    target.value = null;
+    try {
+      tables.value = await ipc.listTables();
+    } catch {
+      /* the list is read again at the next visit */
+    }
+  }
+}
+
 async function selectTable(table: ipc.TableInfo) {
+  if (moving.value) {
+    pickInMoveMode(table);
+    return;
+  }
   try {
     if (table.orderId) {
       // Rehydrate the existing order AND its lines so the cart is
@@ -77,17 +143,35 @@ async function selectTable(table: ipc.TableInfo) {
 
     <div class="main">
       <!-- §5.3: occupied tables filled, total in bold; free ones dashed. -->
+      <div class="plan">
+      <div class="plan-bar">
+        <button
+          class="move-toggle"
+          :class="{ active: moving }"
+          data-testid="move-toggle"
+          @click="toggleMove"
+        >
+          {{ t('transfer_mode') }}
+        </button>
+        <span v-if="moving" class="move-hint" data-testid="move-hint">{{ moveHint }}</span>
+      </div>
       <div class="grid">
         <button
           v-for="tbl in tables"
           :key="tbl.tableNumber"
           class="table-card"
-          :class="{ occupied: tbl.status === 'occupied' }"
+          :class="{
+            occupied: tbl.status === 'occupied',
+            dimmed: moving && !selectable(tbl) && source?.tableNumber !== tbl.tableNumber,
+            chosen: moving && source?.tableNumber === tbl.tableNumber,
+          }"
           @click="selectTable(tbl)"
         >
           <span class="table-top">
             <span class="table-num">{{ tbl.tableNumber }}</span>
             <span v-if="tbl.preBillPrinted" class="bill-tag">{{ t('pre_bill') }}</span>
+            <span v-if="tbl.heldCourse" class="bill-tag" :data-testid="`held-course-${tbl.tableNumber}`">{{ t('table_held_course', { course: t(`course_${tbl.heldCourse}`) }) }}</span>
+            <span v-if="tbl.orderId && cardCharged.has(tbl.orderId)" class="bill-tag charged-tag" data-testid="card-charged">{{ t('card_charged_badge') }}</span>
           </span>
           <span v-if="tbl.status === 'occupied'" class="table-info">
             <span class="table-total">{{ formatPrice(tbl.totalCents) }} €</span>
@@ -97,6 +181,7 @@ async function selectTable(table: ipc.TableInfo) {
           </span>
           <span v-else class="table-free">{{ t('free') }}</span>
         </button>
+      </div>
       </div>
 
       <!-- Open takeaways where the cart usually is; the main action at
@@ -116,6 +201,7 @@ async function selectTable(table: ipc.TableInfo) {
             <span class="takeaway-text">
               <span class="takeaway-time">{{ t('takeaway_started_at', { time: formatTimestamp(tk.createdAt, formatTime) }) }}</span>
               <span class="takeaway-meta">{{ tk.lineCount }} {{ t('items_short') }}</span>
+              <span v-if="cardCharged.has(tk.orderId)" class="bill-tag charged-tag" data-testid="card-charged">{{ t('card_charged_badge') }}</span>
             </span>
             <span class="takeaway-total">{{ formatPrice(tk.totalCents) }} €</span>
           </button>
@@ -124,6 +210,28 @@ async function selectTable(table: ipc.TableInfo) {
           <button class="new-takeaway-btn" @click="newTakeaway">{{ t('takeaway_start') }}</button>
         </div>
       </aside>
+    </div>
+    <div
+      v-if="source && target"
+      class="backdrop"
+      @click.self="target = null"
+    >
+      <div class="dialog" role="dialog" :aria-label="t('transfer_table')" data-testid="move-confirm">
+        <p class="dialog-text">
+          {{ t('transfer_confirm', { from: source.tableNumber, to: target.tableNumber }) }}
+        </p>
+        <div class="dialog-actions">
+          <button class="btn btn-cancel" @click="target = null">{{ t('back') }}</button>
+          <button
+            class="btn btn-confirm"
+            :disabled="transferring"
+            data-testid="move-validate"
+            @click="confirmMove"
+          >
+            {{ t('validate') }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -143,6 +251,74 @@ async function selectTable(table: ipc.TableInfo) {
   min-height: 0;
   overflow: hidden;
 }
+
+.plan {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.plan-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px 0;
+}
+.move-toggle {
+  height: 56px;
+  padding: 0 20px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
+  transition: transform var(--tap-duration) ease;
+}
+.move-toggle:active { transform: scale(var(--tap-scale)); }
+.move-toggle.active {
+  background: var(--accent-warning);
+  color: var(--text-on-accent);
+}
+.move-hint {
+  font-size: 18px;
+  color: var(--text-secondary);
+}
+.table-card.dimmed { opacity: 0.3; pointer-events: none; }
+.table-card.chosen { outline: 4px solid var(--accent-warning); }
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 50;
+}
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  min-width: 480px;
+}
+.dialog-text { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
+.dialog-actions { display: flex; gap: var(--space-sm); }
+.btn {
+  flex: 1;
+  height: 56px;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-md);
+  transition: transform var(--tap-duration) ease;
+}
+.btn:active { transform: scale(var(--tap-scale)); }
+.btn-cancel { background: var(--bg-surface); color: var(--text-secondary); }
+.btn-confirm { background: var(--accent-primary); color: var(--text-on-accent); }
+.btn-confirm:disabled { opacity: 0.4; }
 
 .grid {
   flex: 1;
@@ -198,6 +374,7 @@ async function selectTable(table: ipc.TableInfo) {
   line-height: 1;
 }
 /* A provisional bill is on the table (signPreBill, P). */
+.charged-tag { align-self: flex-start; }
 .bill-tag {
   padding: 2px 8px;
   border-radius: 6px;

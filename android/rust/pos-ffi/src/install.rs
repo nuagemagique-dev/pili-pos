@@ -68,12 +68,13 @@ pub async fn install_init_db(
 
 /// What the engine would refuse in the provisioning bundle's `pos.json` (the absolute path
 /// `config_bundle`), or why it cannot be loaded; empty when it is usable. Relative paths inside
-/// it are resolved against its directory.
+/// it are resolved against its directory. Each problem is a coded error `config_<setting>|detail=<English
+/// text>` (FFI.md section 9): the screen says it in its language and keeps the text as detail.
 #[uniffi::export]
 pub async fn check_config_bundle(config_bundle: String) -> Result<Vec<String>, PosError> {
     let path = absolute("check_config_bundle", "config_bundle", &config_bundle)?;
     on_thread("pos-ffi-install", move || {
-        Ok(pos_engine::install::check_config_source(
+        Ok(pos_engine::install::check_config_source_coded(
             &ConfigSource::Bundle(path),
         ))
     })

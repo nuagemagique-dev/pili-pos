@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="plat_export_title">税务机关数据导出</string>
+    <string name="plat_export_checking">正在检查…</string>
+    <string name="plat_export_not_manager">仅限店长。请使用管理员账户登录后再导出数据。</string>
+    <string name="plat_export_no_stick">请插入 U 盘或 SD 卡。</string>
+    <string name="plat_export_need_folder">请选择 U 盘或 SD 卡上用于存放导出文件的文件夹。请先在其中新建名为 PILI-EXPORT 的文件夹，然后选择它。</string>
+    <string name="plat_export_pick_folder">选择文件夹</string>
+    <string name="plat_export_volume">存储设备：%1$s</string>
+    <string name="plat_export_folder">文件夹：%1$s</string>
+    <string name="plat_export_change_folder">更换文件夹</string>
+    <string name="plat_export_start">导出</string>
+    <string name="plat_export_ready_hint">导出会复制数据库、备份、日志和收银机的身份信息，然后逐个读回并校验每个文件。</string>
+    <string name="plat_export_running">正在导出。请勿拔出 U 盘或 SD 卡。</string>
+    <string name="plat_export_progress">%1$d / %2$d 个文件，%3$s / %4$s</string>
+    <string name="plat_export_current">文件：%1$s</string>
+    <string name="plat_export_done_title">导出完成</string>
+    <string name="plat_export_done_folder">文件夹：%1$s/%2$s</string>
+    <string name="plat_export_done_files">%1$d 个文件，%2$s</string>
+    <string name="plat_export_done_manifest">MANIFEST.sha256 的 SHA-256</string>
+    <string name="plat_export_done_hint">现在可以拔出 U 盘或 SD 卡。校验导出：shasum -a 256 -c MANIFEST.sha256</string>
+    <string name="plat_export_failed_title">导出已中断</string>
+    <string name="plat_export_failed_step">步骤：%1$s</string>
+    <string name="plat_export_failed_file">文件：%1$s</string>
+    <string name="plat_export_failed_detail">详情：%1$s</string>
+    <string name="plat_export_failed_kept">已写入的文件会保留，没有删除任何内容。</string>
+    <string name="plat_export_dismiss">关闭</string>
+    <string name="plat_export_err_root">该文件夹是存储设备的根目录。请新建名为 PILI-EXPORT 的文件夹并选择它。</string>
+    <string name="plat_export_err_wrong_volume">该文件夹不在所选的 U 盘或 SD 卡上。请选择同一存储设备上的文件夹。</string>
+    <string name="plat_export_err_open_orders">有未结的订单或外卖单。请先完成后再导出。</string>
+    <string name="plat_export_err_engine">收银机引擎尚未就绪。请稍后重试。</string>
+    <string name="plat_export_err_no_volume">未检测到 U 盘或 SD 卡。请重新插入。</string>
+    <string name="plat_export_err_no_folder">该存储设备上尚未选择文件夹。</string>
+    <string name="plat_export_err_plan">无法准备数据库副本或文件列表。</string>
+    <string name="plat_export_err_write">无法向存储设备写入文件（已满、已拔出或只读）。</string>
+    <string name="plat_export_err_fat32_hint">无法写入 4 GB 或更大的文件：该存储设备很可能是 FAT32 格式。请使用 exFAT 格式的存储设备。</string>
+    <string name="plat_export_err_mismatch">从存储设备读回的文件与写入内容不一致。导出无效：请换一个存储设备重新导出。</string>
+    <string name="plat_export_err_read">无法读取文件（在收银机上或存储设备上）。</string>
+    <string name="plat_export_err_other">导出时发生意外错误。</string>
+    <string name="plat_export_step_precheck">检查</string>
+    <string name="plat_export_step_plan">准备</string>
+    <string name="plat_export_step_create_dir">创建文件夹</string>
+    <string name="plat_export_step_copy">复制</string>
+    <string name="plat_export_step_verify">读回校验</string>
+    <string name="plat_export_step_manifest">清单</string>
+</resources>

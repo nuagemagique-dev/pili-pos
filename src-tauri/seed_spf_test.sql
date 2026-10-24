@@ -33,9 +33,12 @@ PRAGMA foreign_keys = ON;
 DELETE FROM order_lines;
 DELETE FROM payments;
 DELETE FROM orders;
-DELETE FROM translations WHERE entity_type IN ('category', 'menu_item');
-DELETE FROM menu_items;
-DELETE FROM categories;
+-- Les lignes systeme du bon cadeau (migration 63) restent : categorie
+-- 'pili:system' et produit 'pili:gift-voucher' (inactifs, hors menu).
+DELETE FROM translations WHERE entity_type IN ('category', 'menu_item')
+    AND entity_id NOT IN (990000, 990001);
+DELETE FROM menu_items WHERE external_id IS NOT 'pili:gift-voucher';
+DELETE FROM categories WHERE external_id IS NOT 'pili:system';
 
 -- ── Langues supportees ───────────────────────────────────────────
 -- Le schema initialise fr/nl/de/en/zh ('de' depuis la migration v7).

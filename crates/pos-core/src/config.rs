@@ -70,9 +70,15 @@ pub struct PosConfig {
     /// automatic Z (producers FAQ Q501c).
     #[serde(default = "default_day_end_hour")]
     pub day_end_hour: u32,
-    /// Number of tables on the table plan, numbered from 1.
+    /// Number of tables on the table plan, numbered from 1. Used when
+    /// `tables` is absent.
     #[serde(default = "default_table_count")]
     pub table_count: u32,
+    /// The table numbers as ranges ("1-12, 20-25", see
+    /// [`crate::table_plan`]): the starting plan, which a manager can
+    /// change in the settings. Absent: 1 to `table_count`.
+    #[serde(default)]
+    pub tables: Option<String>,
     /// Training mode flag
     #[serde(default)]
     pub training_mode: bool,
@@ -104,6 +110,21 @@ pub struct PosConfig {
     /// no export.
     #[serde(default)]
     pub export: Option<ExportConfig>,
+    /// The card payment terminal linked to the till (EFT): the till
+    /// sends the amount and records the terminal's answer, payment lines
+    /// `AUTOMATIC`. Absent: card payments are typed on a standalone
+    /// terminal and confirmed by the operator (`MANUAL`).
+    #[serde(default)]
+    pub payment_terminal: Option<PaymentTerminalConfig>,
+    /// Peppol delivery of B2B invoices (event I). Absent: invoices are
+    /// still made and printed, but nothing is queued for delivery.
+    #[serde(default)]
+    pub peppol: Option<PeppolConfig>,
+    /// The owner alerts' transport: where the Telegram bot token
+    /// is, and the API base for tests. Absent: no alert can be sent
+    /// (the switches and the chat id are owner settings, not here).
+    #[serde(default)]
+    pub alerts: Option<AlertsConfig>,
 }
 
 fn default_language() -> String {
@@ -116,6 +137,21 @@ fn default_day_end_hour() -> u32 {
 
 fn default_table_count() -> u32 {
     20
+}
+
+impl PosConfig {
+    /// The starting table plan in its canonical form: `tables` when it
+    /// reads, else 1 to `table_count` (within the plan's limits).
+    pub fn table_plan(&self) -> String {
+        if let Some(text) = &self.tables
+            && let Ok(plan) = crate::table_plan::normalize(text)
+        {
+            return plan;
+        }
+        let count = self.table_count.min(crate::table_plan::MAX_TABLES as u32);
+        let numbers: Vec<u32> = (1..=count).collect();
+        crate::table_plan::format(&numbers)
+    }
 }
 
 impl PosConfig {
@@ -135,7 +171,8 @@ impl PosConfig {
     /// required - a fiscal terminal must not boot with a partial
     /// identity. Only printer_address, kitchen_printer_address,
     /// training_mode, language, day_end_hour, backup_dir,
-    /// digital_ticket, export, hubrise_enabled and hubrise may be omitted.
+    /// digital_ticket, export, hubrise_enabled, hubrise and
+    /// payment_terminal may be omitted.
     pub fn load_from_file(path: &Path) -> Result<Self, ConfigError> {
         let raw = std::fs::read_to_string(path).map_err(|source| ConfigError::Io {
             path: path.display().to_string(),
@@ -150,8 +187,9 @@ impl PosConfig {
     /// Make every relative file or directory path of the configuration
     /// absolute by joining it to `base`: `fdm_token_file`, `fdm_ca_file`,
     /// `fdm_client_cert_file`, `fdm_client_key_file`, `backup_dir`,
-    /// `hubrise.client_secret_file`, `digital_ticket.api_key_file` and
-    /// `export.token_file`.
+    /// `hubrise.client_secret_file`, `digital_ticket.api_key_file`,
+    /// `export.token_file`, `payment_terminal.api_key_file` and
+    /// `alerts.telegram_bot_token_file`.
     /// An absolute path, an empty value, a URL or any other field is left
     /// as it is. Used for a configuration bundle that names its files
     /// relative to its own directory.
@@ -177,6 +215,23 @@ impl PosConfig {
         if let Some(e) = &mut self.export {
             resolve_path(&mut e.token_file, base);
         }
+        if let Some(path) = self
+            .payment_terminal
+            .as_mut()
+            .and_then(|t| t.api_key_file.as_mut())
+        {
+            resolve_path(path, base);
+        }
+        if let Some(path) = self.peppol.as_mut().and_then(|p| p.api_key_file.as_mut()) {
+            resolve_path(path, base);
+        }
+        if let Some(path) = self
+            .alerts
+            .as_mut()
+            .and_then(|a| a.telegram_bot_token_file.as_mut())
+        {
+            resolve_path(path, base);
+        }
     }
 
     /// What the FDM would refuse in this identity (POS spec v2.2
@@ -186,6 +241,13 @@ impl PosConfig {
     /// installation, not as refused sales on opening day.
     pub fn problems(&self) -> Vec<String> {
         let mut out = Vec::new();
+        if let Some(text) = &self.tables
+            && let Err(e) = crate::table_plan::parse(text)
+        {
+            out.push(format!(
+                "tables: ranges such as \"1-12, 20-25\" expected: {e}"
+            ));
+        }
         let pos_id_ok = self.pos_id.len() == 14
             && self
                 .pos_id
@@ -286,9 +348,75 @@ impl PosConfig {
         if let Some(e) = &self.export {
             out.extend(e.problems());
         }
+        if let Some(t) = &self.payment_terminal {
+            out.extend(t.problems());
+        }
+        if let Some(p) = &self.peppol {
+            out.extend(p.problems());
+        }
+        if let Some(a) = &self.alerts {
+            out.extend(a.problems());
+        }
         out
     }
 }
+
+/// The stable code of one text of [`PosConfig::problems`] (without the
+/// `config_` prefix the screens' texts carry): the setting it is about.
+/// The texts are English, for the installer; screens show a translated
+/// headline chosen by this code and keep the text as a detail. Every
+/// problem names its setting first (`key: ...`); an unknown one is
+/// `other`.
+pub fn problem_code(problem: &str) -> &'static str {
+    let key = problem.split([':', ' ']).next().unwrap_or_default();
+    match key {
+        "tables" => "tables",
+        "pos_id" => "pos_id",
+        "restaurant_vat" => "restaurant_vat",
+        "restaurant_est_no" => "restaurant_est_no",
+        "terminal_id" | "device_id" => "identity",
+        "restaurant_name" | "restaurant_address" => "ticket_header",
+        "fdm_url" if problem.starts_with("fdm_url is https") => "fdm_files",
+        "fdm_url" => "fdm_url",
+        "language" => "language",
+        "fdm_token_file"
+        | "fdm_ca_file"
+        | "fdm_client_cert_file"
+        | "fdm_client_key_file"
+        | "FDM" => "fdm_files",
+        "day_end_hour" => "day_end_hour",
+        "no" if problem.starts_with("no configuration") => "missing",
+        k if k.starts_with("hubrise.") => "hubrise",
+        k if k.starts_with("digital_ticket.") => "digital_ticket",
+        k if k.starts_with("export.") => "export",
+        k if k.starts_with("payment_terminal.") => "payment_terminal",
+        k if k.starts_with("peppol.") => "peppol",
+        k if k.starts_with("alerts.") => "alerts",
+        _ => "other",
+    }
+}
+
+/// Every code [`problem_code`] can return, for the translation check.
+pub const PROBLEM_CODES: &[&str] = &[
+    "tables",
+    "pos_id",
+    "restaurant_vat",
+    "restaurant_est_no",
+    "identity",
+    "ticket_header",
+    "fdm_url",
+    "fdm_files",
+    "language",
+    "day_end_hour",
+    "missing",
+    "hubrise",
+    "digital_ticket",
+    "export",
+    "payment_terminal",
+    "peppol",
+    "alerts",
+    "other",
+];
 
 /// Join `path` to `base` when it is a non-empty relative path.
 fn resolve_path(path: &mut String, base: &Path) {
@@ -330,6 +458,10 @@ impl Default for PosConfig {
     fn default() -> Self {
         Self {
             table_count: default_table_count(),
+            tables: None,
+            payment_terminal: None,
+            peppol: None,
+            alerts: None,
             pos_id: String::new(),
             terminal_id: String::new(),
             device_id: String::new(),
@@ -492,6 +624,348 @@ pub struct ExportConfig {
     pub keep_days: u32,
 }
 
+/// Which protocol the linked payment terminal speaks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentTerminalKind {
+    /// Worldline Terminal API (nexo Retailer 5.1 JSON over HTTPS, the
+    /// terminal reached through the Worldline cloud): Worldline Android
+    /// terminals running the Terminal API app.
+    WorldlineTerminalApi,
+    /// CCV Payment API, method `terminal` (HTTPS, through the CCV cloud).
+    CcvPaymentApi,
+    /// OPI (Open Payment Initiative XML) over the shop's LAN, as CCV
+    /// terminals speak it: channel 0 to the terminal, channel 1 back.
+    CcvOpi,
+}
+
+impl PaymentTerminalKind {
+    /// The `pos.json` spelling, also stored with each terminal payment.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::WorldlineTerminalApi => "worldline_terminal_api",
+            Self::CcvPaymentApi => "ccv_payment_api",
+            Self::CcvOpi => "ccv_opi",
+        }
+    }
+}
+
+fn default_terminal_timeout_seconds() -> u64 {
+    180
+}
+
+/// The card payment terminal linked to the till, from `pos.json` as
+/// `payment_terminal`. Which fields a terminal needs depends on `kind`
+/// (see [`PaymentTerminalConfig::problems`]); secrets live in files.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PaymentTerminalConfig {
+    pub kind: PaymentTerminalKind,
+    /// Cloud kinds: the API base URL. Absent: the vendor's production
+    /// URL. Set for the vendor's test environment, a relay that holds
+    /// the API key, or the local mock.
+    #[serde(default)]
+    pub base_url: Option<String>,
+    /// Cloud kinds: file holding the API key and nothing else
+    /// (whitespace trimmed). Absent when `base_url` is a relay that
+    /// authenticates the till itself.
+    #[serde(default)]
+    pub api_key_file: Option<String>,
+    /// Worldline: the merchant id (UMID).
+    #[serde(default)]
+    pub merchant_id: Option<String>,
+    /// Worldline: the terminal id (UTID). CCV Payment API: the terminal
+    /// id assigned by CCV. OPI: the workstation id sent to the terminal.
+    #[serde(default)]
+    pub terminal_id: Option<String>,
+    /// Worldline: the integrator id Worldline issues to the producer.
+    #[serde(default)]
+    pub integrator_id: Option<String>,
+    /// CCV Payment API: the terminal's management system id.
+    #[serde(default)]
+    pub management_system_id: Option<String>,
+    /// CCV Payment API: the terminal's access protocol (`OPI_NL` when
+    /// absent).
+    #[serde(default)]
+    pub access_protocol: Option<String>,
+    /// OPI: the terminal on the LAN, `host:port` (channel 0, usually
+    /// port 4100).
+    #[serde(default)]
+    pub address: Option<String>,
+    /// OPI: the till's port for the terminal's channel 1 (display and
+    /// printing requests), 4102 when absent.
+    #[serde(default)]
+    pub device_port: Option<u16>,
+    /// Longest wait for the terminal's answer to one payment, 30 to 600
+    /// seconds (180 when absent). Past it the outcome is asked again.
+    #[serde(default = "default_terminal_timeout_seconds")]
+    pub timeout_seconds: u64,
+}
+
+impl PaymentTerminalConfig {
+    /// The API key, read from `api_key_file`; `Ok(None)` without one.
+    pub fn api_key(&self) -> Result<Option<String>, String> {
+        let Some(path) = &self.api_key_file else {
+            return Ok(None);
+        };
+        match std::fs::read_to_string(path) {
+            Ok(s) if !s.trim().is_empty() => Ok(Some(s.trim().to_string())),
+            Ok(_) => Err(format!("payment_terminal.api_key_file: {path:?} is empty")),
+            Err(e) => Err(format!(
+                "payment_terminal.api_key_file: cannot read {path:?}: {e}"
+            )),
+        }
+    }
+
+    /// What would make the terminal unusable. Each message starts with
+    /// `payment_terminal.<field>: `.
+    pub fn problems(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        let missing = |out: &mut Vec<String>, key: &str, v: &Option<String>| {
+            if v.as_deref().is_none_or(|s| s.trim().is_empty()) {
+                out.push(format!(
+                    "payment_terminal.{key}: required for {}",
+                    self.kind.as_str()
+                ));
+            }
+        };
+        match self.kind {
+            PaymentTerminalKind::WorldlineTerminalApi => {
+                missing(&mut out, "merchant_id", &self.merchant_id);
+                missing(&mut out, "terminal_id", &self.terminal_id);
+                missing(&mut out, "integrator_id", &self.integrator_id);
+            }
+            PaymentTerminalKind::CcvPaymentApi => {
+                missing(&mut out, "terminal_id", &self.terminal_id);
+                missing(&mut out, "management_system_id", &self.management_system_id);
+            }
+            PaymentTerminalKind::CcvOpi => {
+                missing(&mut out, "address", &self.address);
+                if let Some(a) = &self.address
+                    && !a.trim().is_empty()
+                    && a.rsplit_once(':')
+                        .is_none_or(|(h, p)| h.is_empty() || p.parse::<u16>().is_err())
+                {
+                    out.push(format!(
+                        "payment_terminal.address: host:port expected, got {a:?}"
+                    ));
+                }
+            }
+        }
+        if self.kind != PaymentTerminalKind::CcvOpi {
+            if let Some(url) = &self.base_url
+                && !(url.starts_with("https://") || url.starts_with("http://"))
+            {
+                out.push(format!(
+                    "payment_terminal.base_url: http(s) URL expected, got {url:?}"
+                ));
+            }
+            if self.api_key_file.is_none() && self.base_url.is_none() {
+                out.push(format!(
+                    "payment_terminal.api_key_file: required for {} without a relay base_url",
+                    self.kind.as_str()
+                ));
+            }
+            if let Err(e) = self.api_key() {
+                out.push(e);
+            }
+        }
+        if !(30..=600).contains(&self.timeout_seconds) {
+            out.push(format!(
+                "payment_terminal.timeout_seconds: 30 to 600 expected, got {}",
+                self.timeout_seconds
+            ));
+        }
+        out
+    }
+}
+
+fn default_supplier_country() -> String {
+    "BE".to_string()
+}
+
+fn default_peppol_provider() -> String {
+    "logging".to_string()
+}
+
+/// Peppol delivery of B2B invoices, from `pos.json` as `peppol` (V11-D12,
+/// V11-D13). `provider` is `storecove` (the Storecove API v2 shape, a real
+/// access point) or `logging` (development: the document is logged, nothing is
+/// sent). The API key stays in a file.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PeppolConfig {
+    /// `storecove` or `logging` (default).
+    #[serde(default = "default_peppol_provider")]
+    pub provider: String,
+    /// Storecove API base URL, e.g. `https://api.storecove.com`. Required for
+    /// `storecove`.
+    #[serde(default)]
+    pub base_url: Option<String>,
+    /// File holding the API key and nothing else (whitespace trimmed).
+    #[serde(default)]
+    pub api_key_file: Option<String>,
+    /// The Storecove legal entity the invoices are sent for.
+    #[serde(default)]
+    pub legal_entity_id: Option<i64>,
+    /// The supplier's Peppol participant id: `0208:` and the 10-digit
+    /// enterprise number.
+    pub sender_id: String,
+    pub supplier_street: String,
+    pub supplier_postal_code: String,
+    pub supplier_city: String,
+    /// ISO 3166-1 alpha-2, `BE` when absent.
+    #[serde(default = "default_supplier_country")]
+    pub supplier_country: String,
+}
+
+impl PeppolConfig {
+    /// The API key, read from `api_key_file`; `Ok(None)` without one.
+    pub fn api_key(&self) -> Result<Option<String>, String> {
+        let Some(path) = &self.api_key_file else {
+            return Ok(None);
+        };
+        match std::fs::read_to_string(path) {
+            Ok(s) if !s.trim().is_empty() => Ok(Some(s.trim().to_string())),
+            Ok(_) => Err(format!("peppol.api_key_file: {path:?} is empty")),
+            Err(e) => Err(format!("peppol.api_key_file: cannot read {path:?}: {e}")),
+        }
+    }
+
+    /// What would make the delivery unusable. Each message starts with
+    /// `peppol.<field>: `.
+    ///
+    /// The `logging` provider sends nothing, so a release build refuses it:
+    /// it would show every B2B invoice as delivered (V11-D12).
+    pub fn problems(&self) -> Vec<String> {
+        self.problems_with(cfg!(debug_assertions))
+    }
+
+    fn problems_with(&self, allow_logging: bool) -> Vec<String> {
+        let mut out = Vec::new();
+        match self.provider.as_str() {
+            "logging" if allow_logging => {}
+            "logging" => out.push(
+                "peppol.provider: logging sends nothing and is refused in a release build, \
+                 use storecove"
+                    .to_string(),
+            ),
+            "storecove" => {
+                match &self.base_url {
+                    Some(u) if u.starts_with("https://") || u.starts_with("http://") => {}
+                    other => out.push(format!(
+                        "peppol.base_url: http(s) URL expected for storecove, got {other:?}"
+                    )),
+                }
+                if self.api_key_file.is_none() {
+                    out.push("peppol.api_key_file: required for storecove".to_string());
+                }
+                if self.legal_entity_id.is_none() {
+                    out.push("peppol.legal_entity_id: required for storecove".to_string());
+                }
+            }
+            other => out.push(format!(
+                "peppol.provider: storecove or logging expected, got {other:?}"
+            )),
+        }
+        if self.api_key_file.is_some()
+            && let Err(e) = self.api_key()
+        {
+            out.push(e);
+        }
+        let id_ok = self
+            .sender_id
+            .strip_prefix("0208:")
+            .is_some_and(|n| n.len() == 10 && n.chars().all(|c| c.is_ascii_digit()) && mod97_ok(n));
+        if !id_ok {
+            out.push(format!(
+                "peppol.sender_id: 0208: and a 10-digit enterprise number expected, got {:?}",
+                self.sender_id
+            ));
+        }
+        for (key, v) in [
+            ("supplier_street", &self.supplier_street),
+            ("supplier_postal_code", &self.supplier_postal_code),
+            ("supplier_city", &self.supplier_city),
+        ] {
+            if v.trim().is_empty() {
+                out.push(format!("peppol.{key}: must not be empty"));
+            }
+        }
+        if self.supplier_country.len() != 2
+            || !self
+                .supplier_country
+                .chars()
+                .all(|c| c.is_ascii_uppercase())
+        {
+            out.push(format!(
+                "peppol.supplier_country: two upper-case letters expected, got {:?}",
+                self.supplier_country
+            ));
+        }
+        out
+    }
+}
+
+/// The Telegram Bot API the owner alerts talk to.
+pub const DEFAULT_TELEGRAM_API_BASE: &str = "https://api.telegram.org";
+
+/// The owner alerts' transport, from `pos.json` as `alerts`. The bot
+/// token is a secret: it lives in a file, never in `pos.json`, never in
+/// the database and never in a log. The chat id and the switches are
+/// owner settings (`owner_settings`, key `alerts`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct AlertsConfig {
+    /// File holding the bot token and nothing else (whitespace
+    /// trimmed). Absent: alerts cannot be sent (`alerts_token_missing`).
+    #[serde(default)]
+    pub telegram_bot_token_file: Option<String>,
+    /// The Bot API base URL. Absent: [`DEFAULT_TELEGRAM_API_BASE`]. Set
+    /// for tests only.
+    #[serde(default)]
+    pub telegram_api_base: Option<String>,
+}
+
+impl AlertsConfig {
+    /// The bot token, read from `telegram_bot_token_file`; `Ok(None)`
+    /// without a file. The error text never contains the token.
+    pub fn bot_token(&self) -> Result<Option<String>, String> {
+        let Some(path) = &self.telegram_bot_token_file else {
+            return Ok(None);
+        };
+        match std::fs::read_to_string(path) {
+            Ok(s) if !s.trim().is_empty() => Ok(Some(s.trim().to_string())),
+            Ok(_) => Err(format!("alerts.telegram_bot_token_file: {path:?} is empty")),
+            Err(e) => Err(format!(
+                "alerts.telegram_bot_token_file: cannot read {path:?}: {e}"
+            )),
+        }
+    }
+
+    /// The Bot API base URL without a trailing slash.
+    pub fn api_base(&self) -> String {
+        self.telegram_api_base
+            .as_deref()
+            .filter(|b| !b.trim().is_empty())
+            .unwrap_or(DEFAULT_TELEGRAM_API_BASE)
+            .trim_end_matches('/')
+            .to_string()
+    }
+
+    /// What would make the alert transport unusable. Each message starts
+    /// with `alerts.<field>: `.
+    pub fn problems(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if let Err(e) = self.bot_token() {
+            out.push(e);
+        }
+        if let Some(base) = &self.telegram_api_base
+            && let Some(p) = endpoint_problem("alerts.telegram_api_base", base)
+        {
+            out.push(p);
+        }
+        out
+    }
+}
+
 /// Lowercase bech32 data alphabet (no 1, b, i, o).
 const BECH32_CHARSET: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
@@ -501,27 +975,28 @@ fn looks_like_age_recipient(s: &str) -> bool {
     s.len() == 62 && s.starts_with("age1") && s[4..].chars().all(|c| BECH32_CHARSET.contains(c))
 }
 
-/// Why `url` is not an acceptable export endpoint, or `None`.
-fn export_url_problem(url: &str) -> Option<String> {
+/// Why `url` is not an acceptable endpoint for the setting `field`
+/// (`export.url`, `alerts.telegram_api_base`), or `None`.
+fn endpoint_problem(field: &str, url: &str) -> Option<String> {
     let (secure, rest) = if let Some(r) = url.strip_prefix("https://") {
         (true, r)
     } else if let Some(r) = url.strip_prefix("http://") {
         (false, r)
     } else {
-        return Some("export.url: an https:// URL expected".to_string());
+        return Some(format!("{field}: an https:// URL expected"));
     };
     if url.contains('?') || url.contains('#') {
-        return Some("export.url: no query or fragment allowed".to_string());
+        return Some(format!("{field}: no query or fragment allowed"));
     }
     let authority = rest.split('/').next().unwrap_or("");
     if authority.contains('@') {
-        return Some("export.url: no user info allowed".to_string());
+        return Some(format!("{field}: no user info allowed"));
     }
     // host[:port], with [::1] in brackets.
     let (host, port) = if let Some(after) = authority.strip_prefix('[') {
         match after.split_once(']') {
             Some((h, tail)) => (format!("[{h}]"), tail.strip_prefix(':')),
-            None => return Some("export.url: malformed host".to_string()),
+            None => return Some(format!("{field}: malformed host")),
         }
     } else {
         match authority.rsplit_once(':') {
@@ -530,18 +1005,17 @@ fn export_url_problem(url: &str) -> Option<String> {
         }
     };
     if host.is_empty() || host == "[]" {
-        return Some("export.url: a host is required".to_string());
+        return Some(format!("{field}: a host is required"));
     }
     if let Some(p) = port
         && (p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()))
     {
-        return Some("export.url: malformed port".to_string());
+        return Some(format!("{field}: malformed port"));
     }
     if !secure && !["127.0.0.1", "localhost", "[::1]", "10.0.2.2"].contains(&host.as_str()) {
-        return Some(
-            "export.url: plain http is only allowed to 127.0.0.1, localhost, [::1] or 10.0.2.2"
-                .to_string(),
-        );
+        return Some(format!(
+            "{field}: plain http is only allowed to 127.0.0.1, localhost, [::1] or 10.0.2.2"
+        ));
     }
     None
 }
@@ -551,7 +1025,7 @@ impl ExportConfig {
     /// `export.<field>: `.
     pub fn problems(&self) -> Vec<String> {
         let mut out = Vec::new();
-        if let Some(p) = export_url_problem(&self.url) {
+        if let Some(p) = endpoint_problem("export.url", &self.url) {
             out.push(p);
         }
         if self.token_file.trim().is_empty() {
@@ -708,6 +1182,73 @@ mod tests {
             ..valid()
         };
         assert!(spf.problems().is_empty(), "{:?}", spf.problems());
+    }
+
+    #[test]
+    fn every_problem_text_has_a_known_code() {
+        for (text, code) in [
+            ("tables: ranges such as \"1-12\" expected: x", "tables"),
+            ("pos_id: 14 upper-case letters", "pos_id"),
+            ("restaurant_vat: BE followed by 10 digits", "restaurant_vat"),
+            ("restaurant_est_no: 10 digits", "restaurant_est_no"),
+            ("terminal_id: 1 to 600 characters expected", "identity"),
+            ("device_id: 1 to 600 characters expected", "identity"),
+            ("restaurant_name: printed on every ticket", "ticket_header"),
+            (
+                "restaurant_address: printed on every ticket",
+                "ticket_header",
+            ),
+            ("fdm_url: http(s) URL expected", "fdm_url"),
+            (
+                "fdm_url is https: set fdm_ca_file to the FDM's CA",
+                "fdm_files",
+            ),
+            ("language: one of fr", "language"),
+            ("fdm_token_file: \"x\" is empty", "fdm_files"),
+            ("fdm_ca_file: cannot read", "fdm_files"),
+            (
+                "fdm_client_cert_file and fdm_client_key_file go together",
+                "fdm_files",
+            ),
+            ("FDM HTTPS: bad CA", "fdm_files"),
+            ("day_end_hour: 0 to 12 expected", "day_end_hour"),
+            ("hubrise.client_id: must not be empty", "hubrise"),
+            (
+                "digital_ticket.project_id: must not be empty",
+                "digital_ticket",
+            ),
+            ("export.keep_days: 1 to 365", "export"),
+            ("alerts.telegram_bot_token_file: cannot read", "alerts"),
+            (
+                "payment_terminal.address: host:port expected",
+                "payment_terminal",
+            ),
+            ("no configuration: the development identity", "missing"),
+            ("expected value at line 1", "other"),
+        ] {
+            assert_eq!(problem_code(text), code, "{text}");
+            assert!(PROBLEM_CODES.contains(&code), "{code}");
+        }
+    }
+
+    #[test]
+    fn the_problems_of_a_very_bad_config_all_have_a_code() {
+        let bad = PosConfig {
+            pos_id: "x".into(),
+            restaurant_vat: "x".into(),
+            restaurant_est_no: "x".into(),
+            terminal_id: String::new(),
+            restaurant_name: String::new(),
+            fdm_url: "ftp://x".into(),
+            language: "xx".into(),
+            day_end_hour: 20,
+            ..valid()
+        };
+        let problems = bad.problems();
+        assert!(problems.len() >= 8, "{problems:?}");
+        for p in &problems {
+            assert_ne!(problem_code(p), "other", "{p}");
+        }
     }
 
     /// The key a problem must name, and the typo that causes it.
@@ -1186,5 +1727,191 @@ mod tests {
         };
         let back: PosConfig = serde_json::from_str(&serde_json::to_string(&c).unwrap()).unwrap();
         assert_eq!(back.export, Some(e));
+    }
+
+    fn peppol() -> PeppolConfig {
+        PeppolConfig {
+            provider: "logging".into(),
+            base_url: None,
+            api_key_file: None,
+            legal_entity_id: None,
+            sender_id: "0208:0499999960".into(),
+            supplier_street: "Rue de l'Exemple 1".into(),
+            supplier_postal_code: "4000".into(),
+            supplier_city: "Liège".into(),
+            supplier_country: "BE".into(),
+        }
+    }
+
+    #[test]
+    fn the_logging_provider_is_refused_in_a_release_build() {
+        let mut p = PeppolConfig {
+            provider: "logging".into(),
+            base_url: None,
+            api_key_file: None,
+            legal_entity_id: None,
+            sender_id: "0208:0308357159".into(),
+            supplier_street: "Rue 1".into(),
+            supplier_postal_code: "4000".into(),
+            supplier_city: "Liege".into(),
+            supplier_country: "BE".into(),
+        };
+        let release = p.problems_with(false);
+        assert!(
+            release.iter().any(|m| m.starts_with("peppol.provider:")),
+            "{release:?}"
+        );
+        assert!(
+            p.problems_with(true)
+                .iter()
+                .all(|m| !m.starts_with("peppol.provider:"))
+        );
+        p.provider = "nope".into();
+        assert!(!p.problems_with(true).is_empty());
+    }
+
+    #[test]
+    fn a_peppol_section_defaults_to_the_logging_provider_and_belgium() {
+        let json = r#"{"sender_id":"0208:0499999960","supplier_street":"a","supplier_postal_code":"4000","supplier_city":"Liège"}"#;
+        let p: PeppolConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            (p.provider.as_str(), p.supplier_country.as_str()),
+            ("logging", "BE")
+        );
+        assert!(p.problems().is_empty(), "{:?}", p.problems());
+    }
+
+    #[test]
+    fn peppol_problems_name_their_setting() {
+        let mut p = peppol();
+        p.sender_id = "0208:BE0499999960".into();
+        p.supplier_city = " ".into();
+        p.supplier_country = "be".into();
+        p.provider = "other".into();
+        let problems = p.problems();
+        for key in [
+            "peppol.sender_id",
+            "peppol.supplier_city",
+            "peppol.supplier_country",
+            "peppol.provider",
+        ] {
+            assert!(
+                problems.iter().any(|t| t.starts_with(key)),
+                "{key}: {problems:?}"
+            );
+        }
+        // A sender id with a wrong check digit pair is refused.
+        let mut p = peppol();
+        p.sender_id = "0208:0499999961".into();
+        assert!(
+            p.problems()
+                .iter()
+                .any(|t| t.starts_with("peppol.sender_id"))
+        );
+    }
+
+    #[test]
+    fn storecove_needs_its_url_key_and_legal_entity() {
+        let mut p = peppol();
+        p.provider = "storecove".into();
+        let problems = p.problems();
+        for key in [
+            "peppol.base_url",
+            "peppol.api_key_file",
+            "peppol.legal_entity_id",
+        ] {
+            assert!(
+                problems.iter().any(|t| t.starts_with(key)),
+                "{key}: {problems:?}"
+            );
+        }
+        let dir = std::env::temp_dir().join(format!("pos-core-peppol-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let key_file = dir.join("key");
+        std::fs::write(&key_file, "  secret \n").unwrap();
+        p.base_url = Some("https://api.storecove.com".into());
+        p.api_key_file = Some(key_file.to_string_lossy().into_owned());
+        p.legal_entity_id = Some(7);
+        assert!(p.problems().is_empty(), "{:?}", p.problems());
+        assert_eq!(p.api_key().unwrap().as_deref(), Some("secret"));
+        std::fs::write(&key_file, "\n").unwrap();
+        assert!(p.problems().iter().any(|t| t.contains("is empty")));
+        p.api_key_file = Some(dir.join("missing").to_string_lossy().into_owned());
+        assert!(p.problems().iter().any(|t| t.contains("cannot read")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_peppol_key_file_resolves_against_the_bundle_and_has_a_problem_code() {
+        let mut c = valid();
+        let mut p = peppol();
+        p.api_key_file = Some("peppol.key".into());
+        c.peppol = Some(p);
+        c.resolve_relative_to(Path::new("/bundle"));
+        assert_eq!(
+            c.peppol.as_ref().unwrap().api_key_file.as_deref(),
+            Some("/bundle/peppol.key")
+        );
+        assert_eq!(problem_code("peppol.sender_id: x"), "peppol");
+        assert!(PROBLEM_CODES.contains(&"peppol"));
+    }
+
+    #[test]
+    fn the_alerts_section_is_optional_and_resolves_its_token_file() {
+        let mut c = valid();
+        assert!(c.alerts.is_none());
+        c.alerts = Some(AlertsConfig {
+            telegram_bot_token_file: Some("secrets/tg.token".into()),
+            telegram_api_base: Some("http://127.0.0.1:1".into()),
+        });
+        c.resolve_relative_to(Path::new("/bundle"));
+        let a = c.alerts.unwrap();
+        assert_eq!(
+            a.telegram_bot_token_file.as_deref(),
+            Some("/bundle/secrets/tg.token")
+        );
+        // A URL is not a path.
+        assert_eq!(a.telegram_api_base.as_deref(), Some("http://127.0.0.1:1"));
+    }
+
+    #[test]
+    fn the_alerts_section_is_checked_and_never_names_the_token() {
+        let dir = std::env::temp_dir().join(format!("pos-core-alerts-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let good = dir.join("good.token");
+        std::fs::write(&good, "123:SECRET\n").unwrap();
+        let empty = dir.join("empty.token");
+        std::fs::write(&empty, " \n").unwrap();
+
+        let mut a = AlertsConfig {
+            telegram_bot_token_file: Some(good.to_string_lossy().into_owned()),
+            telegram_api_base: None,
+        };
+        assert!(a.problems().is_empty());
+        assert_eq!(a.bot_token().unwrap().as_deref(), Some("123:SECRET"));
+        assert_eq!(a.api_base(), "https://api.telegram.org");
+
+        a.telegram_bot_token_file = Some(empty.to_string_lossy().into_owned());
+        assert!(a.problems()[0].starts_with("alerts.telegram_bot_token_file: "));
+        a.telegram_bot_token_file = Some(dir.join("absent").to_string_lossy().into_owned());
+        assert!(a.problems()[0].contains("cannot read"));
+        a.telegram_bot_token_file = None;
+        assert_eq!(a.bot_token().unwrap(), None);
+
+        a.telegram_api_base = Some("http://example.com/".into());
+        assert!(a.problems()[0].starts_with("alerts.telegram_api_base: plain http"));
+        a.telegram_api_base = Some("http://127.0.0.1:8080/".into());
+        assert!(a.problems().is_empty());
+        assert_eq!(a.api_base(), "http://127.0.0.1:8080");
+
+        let mut c = valid();
+        c.alerts = Some(AlertsConfig {
+            telegram_bot_token_file: Some(empty.to_string_lossy().into_owned()),
+            telegram_api_base: None,
+        });
+        let problems = c.problems();
+        assert_eq!(problems.len(), 1);
+        assert_eq!(problem_code(&problems[0]), "alerts");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

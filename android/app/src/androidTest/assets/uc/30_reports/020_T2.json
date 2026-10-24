@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "id": "T2",
+  "ids": ["T2"],
+  "title": "T2: table 1 of T1 is paid in cash",
+  "fixture": "docs/20260821_UC_Reports_1.3/InputReport/T2",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "75061189702", "pin": "4444"}},
+    {"cmd": "list_fiscal_events", "args": {"limit": 1}, "save": "last"},
+    {"cmd": "checkout", "args": {"orderId": "$last.0.orderId", "payments": [{"method": "cash"}]}}
+  ]
+}

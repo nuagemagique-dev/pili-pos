@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "id": "T5",
+  "ids": ["T5"],
+  "title": "T5: table 10, first round of 2 Dry Martini ordered by Elisa",
+  "fixture": "docs/20260821_UC_Reports_1.3/InputReport/T5",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "84022899837", "pin": "2222"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 10, "user_insz": "84022899837"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 10006, "quantity": 2, "modifiers_json": null}}},
+    {"cmd": "sign_table_order", "args": {"orderId": "$order.id"}}
+  ]
+}

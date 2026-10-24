@@ -662,6 +662,8 @@ fn payment_parts_and_the_delivery_request_convert_field_by_field() {
     let part = PaymentPart {
         method: PaymentMethod::MealVoucher,
         amount_cents: Some(1152),
+        eft_payment_id: None,
+        gift_voucher_id: None,
     };
     let engine: EnginePaymentPart = contract_inp(&part).unwrap();
     assert_eq!(
@@ -671,6 +673,8 @@ fn payment_parts_and_the_delivery_request_convert_field_by_field() {
     let cash = PaymentPart {
         method: PaymentMethod::Cash,
         amount_cents: None,
+        eft_payment_id: None,
+        gift_voucher_id: None,
     };
     assert_eq!(
         contract_inp::<_, EnginePaymentPart>(&cash).unwrap(),
@@ -745,6 +749,8 @@ fn cash_only() -> Vec<PaymentPart> {
     vec![PaymentPart {
         method: PaymentMethod::Cash,
         amount_cents: None,
+        eft_payment_id: None,
+        gift_voucher_id: None,
     }]
 }
 
@@ -920,6 +926,8 @@ fn card(amount: i64) -> PaymentPart {
     PaymentPart {
         method: PaymentMethod::Card,
         amount_cents: Some(amount),
+        eft_payment_id: None,
+        gift_voucher_id: None,
     }
 }
 
@@ -927,6 +935,8 @@ fn voucher(amount: i64) -> PaymentPart {
     PaymentPart {
         method: PaymentMethod::MealVoucher,
         amount_cents: Some(amount),
+        eft_payment_id: None,
+        gift_voucher_id: None,
     }
 }
 
@@ -934,6 +944,8 @@ fn cash() -> PaymentPart {
     PaymentPart {
         method: PaymentMethod::Cash,
         amount_cents: None,
+        eft_payment_id: None,
+        gift_voucher_id: None,
     }
 }
 
@@ -1088,6 +1100,8 @@ async fn refused_settlements_answer_the_checkout_codes() {
         vec![PaymentPart {
             method: PaymentMethod::Card,
             amount_cents: None,
+            eft_payment_id: None,
+            gift_voucher_id: None,
         }],
     )
     .await;
@@ -1097,6 +1111,8 @@ async fn refused_settlements_answer_the_checkout_codes() {
         vec![PaymentPart {
             method: PaymentMethod::Cash,
             amount_cents: Some(500),
+            eft_payment_id: None,
+            gift_voucher_id: None,
         }],
     )
     .await;
@@ -1123,6 +1139,8 @@ async fn refused_settlements_answer_the_checkout_codes() {
             vec![PaymentPart {
                 method,
                 amount_cents: Some(1000),
+                eft_payment_id: None,
+                gift_voucher_id: None,
             }],
         )
         .await;

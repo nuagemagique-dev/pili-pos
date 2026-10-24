@@ -1,0 +1,110 @@
+# uc_scope_android.toml - declared exclusions of scripts/android/uc_matrix_android.py
+#
+# One table per official test identifier that the Linux matrix covers only with a Playwright or
+# real-binary UI test (no Rust test) and that has no Android scenario. Fields:
+#   reason = French, one sentence, why the Android matrix needs no scenario for this id.
+#   kind   = "exclu_android" (optional, the only value).
+#
+# An id of the 47 required ids of P7D9 can never be listed here (it needs a scenario), and an
+# entry for an id that gets a scenario, that the device run covers with Rust tests, or that Linux
+# already excludes is reported as stale by --check.
+
+# ---------------------------------------------------------------------------
+# Certification manual, section V: messages of the FDM (banner under the header)
+# ---------------------------------------------------------------------------
+
+[V_CLIENT_CERT_EXPIRED]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_CLIENT_CERT_NEAR_EXPIRATION]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_CORRUPT_RECORD_ENCOUNTERED]
+reason = "Ce code ne doit jamais être affiché (showPos NEVER) : sur Linux il n'est prouvé que par le test d'interface qui vérifie l'absence de bandeau (ui/e2e/fdm-messages.spec.ts, messages jamais affichés) ; sur Android la classification du moteur écarte ces codes, ce que prouvent les tests errors_that_are_never_shown_are_ignored et a_never_error_does_not_hide_a_warning de fdm_monitor.rs exécutés sur l'appareil, et le test Robolectric FdmBannerTest.nothingIsDrawnWithoutAMessage prouve qu'aucun bandeau n'est dessiné sans message."
+kind = "exclu_android"
+
+[V_DUPLICATE_REQUEST]
+reason = "Ce code ne doit jamais être affiché (showPos NEVER) : sur Linux il n'est prouvé que par le test d'interface qui vérifie l'absence de bandeau (ui/e2e/fdm-messages.spec.ts, messages jamais affichés) ; sur Android la classification du moteur écarte ces codes, ce que prouvent les tests errors_that_are_never_shown_are_ignored et a_never_error_does_not_hide_a_warning de fdm_monitor.rs exécutés sur l'appareil, et le test Robolectric FdmBannerTest.nothingIsDrawnWithoutAMessage prouve qu'aucun bandeau n'est dessiné sans message."
+kind = "exclu_android"
+
+[V_FDM_NOT_OPERATIONAL]
+reason = "Sur Linux ce code bloquant n'est prouvé que par un test d'interface (voile qui recouvre les écrans de vente) ; sur Android le voile est indépendant du code et prouvé par les tests Robolectric FdmBlockingVeilTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_INITIALIZATION_FAILED]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_INTERNAL_ERROR]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_INVALID_REQUEST]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_NOP_FAILED]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_RTC_NOT_INITIALIZED]
+reason = "Ce code ne doit jamais être affiché (showPos NEVER) : sur Linux il n'est prouvé que par le test d'interface qui vérifie l'absence de bandeau (ui/e2e/fdm-messages.spec.ts, messages jamais affichés) ; sur Android la classification du moteur écarte ces codes, ce que prouvent les tests errors_that_are_never_shown_are_ignored et a_never_error_does_not_hide_a_warning de fdm_monitor.rs exécutés sur l'appareil, et le test Robolectric FdmBannerTest.nothingIsDrawnWithoutAMessage prouve qu'aucun bandeau n'est dessiné sans message."
+kind = "exclu_android"
+
+[V_RTC_SYNC_FAILED]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_SERVER_CERT_RESOLVE_FAILED]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_TASK_FEEDBACK_FAILED]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_TOO_MANY_MEMORY_ERRORS]
+reason = "Ce code ne doit jamais être affiché (showPos NEVER) : sur Linux il n'est prouvé que par le test d'interface qui vérifie l'absence de bandeau (ui/e2e/fdm-messages.spec.ts, messages jamais affichés) ; sur Android la classification du moteur écarte ces codes, ce que prouvent les tests errors_that_are_never_shown_are_ignored et a_never_error_does_not_hide_a_warning de fdm_monitor.rs exécutés sur l'appareil, et le test Robolectric FdmBannerTest.nothingIsDrawnWithoutAMessage prouve qu'aucun bandeau n'est dessiné sans message."
+kind = "exclu_android"
+
+[V_TRANSACTION_UPLOAD_FAILED]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_UNDEFINED_ERROR]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_UNDEFINED_OTHER]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_UPDATE_CLIENT_CERT_FAILED]
+reason = "Ce code ne doit jamais être affiché (showPos NEVER) : sur Linux il n'est prouvé que par le test d'interface qui vérifie l'absence de bandeau (ui/e2e/fdm-messages.spec.ts, messages jamais affichés) ; sur Android la classification du moteur écarte ces codes, ce que prouvent les tests errors_that_are_never_shown_are_ignored et a_never_error_does_not_hide_a_warning de fdm_monitor.rs exécutés sur l'appareil, et le test Robolectric FdmBannerTest.nothingIsDrawnWithoutAMessage prouve qu'aucun bandeau n'est dessiné sans message."
+kind = "exclu_android"
+
+[V_UPDATE_PARAMS_FAILED]
+reason = "Ce code ne doit jamais être affiché (showPos NEVER) : sur Linux il n'est prouvé que par le test d'interface qui vérifie l'absence de bandeau (ui/e2e/fdm-messages.spec.ts, messages jamais affichés) ; sur Android la classification du moteur écarte ces codes, ce que prouvent les tests errors_that_are_never_shown_are_ignored et a_never_error_does_not_hide_a_warning de fdm_monitor.rs exécutés sur l'appareil, et le test Robolectric FdmBannerTest.nothingIsDrawnWithoutAMessage prouve qu'aucun bandeau n'est dessiné sans message."
+kind = "exclu_android"
+
+[V_UPDATE_POS_ALLOWLIST_FAILED]
+reason = "Ce code ne doit jamais être affiché (showPos NEVER) : sur Linux il n'est prouvé que par le test d'interface qui vérifie l'absence de bandeau (ui/e2e/fdm-messages.spec.ts, messages jamais affichés) ; sur Android la classification du moteur écarte ces codes, ce que prouvent les tests errors_that_are_never_shown_are_ignored et a_never_error_does_not_hide_a_warning de fdm_monitor.rs exécutés sur l'appareil, et le test Robolectric FdmBannerTest.nothingIsDrawnWithoutAMessage prouve qu'aucun bandeau n'est dessiné sans message."
+kind = "exclu_android"
+
+[V_UPDATE_TASK_LIST_FAILED]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_UPDATE_TRUST_CERT_FAILED]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_UPDATE_URLS_FAILED]
+reason = "Sur Linux ce code n'est prouvé que par un test d'interface (bandeau sous l'en-tête) ; sur Android le bandeau est indépendant du code et prouvé par les tests Robolectric FdmBannerTest, avec le rendu vérifié par le test Roborazzi FdmScreenshotTest ; le texte français du code est généré depuis la table de l'interface Linux (ui/src/utils/fdmMessages.ts) et sa synchronisation est contrôlée par `node scripts/android/vue_to_android.mjs --check` ; la classification du code est prouvée par les tests du moteur (fdm_monitor.rs) exécutés sur l'appareil."
+kind = "exclu_android"
+
+[V_UPDATE_VAT_RATES_FAILED]
+reason = "Ce code ne doit jamais être affiché (showPos NEVER) : sur Linux il n'est prouvé que par le test d'interface qui vérifie l'absence de bandeau (ui/e2e/fdm-messages.spec.ts, messages jamais affichés) ; sur Android la classification du moteur écarte ces codes, ce que prouvent les tests errors_that_are_never_shown_are_ignored et a_never_error_does_not_hide_a_warning de fdm_monitor.rs exécutés sur l'appareil, et le test Robolectric FdmBannerTest.nothingIsDrawnWithoutAMessage prouve qu'aucun bandeau n'est dessiné sans message."
+kind = "exclu_android"

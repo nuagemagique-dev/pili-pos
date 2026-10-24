@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Online orders screen: the texts that have no Vue key (empty states, confirmations, delay minutes). -->
+    <string name="ui_webshop_signed_out">当前没有登录的操作员。请登录后查看线上订单。</string>
+    <string name="ui_webshop_hubrise_off">HubRise 已关闭。请在设置中开启以接收线上订单。</string>
+    <string name="ui_webshop_reject_message">平台和顾客将收到拒绝通知。此操作无法撤销。</string>
+    <string name="ui_webshop_refund_message">退款 {amount}？退款将以 {name} 的名义登记。</string>
+    <string name="ui_webshop_delay_minutes">+{minutes} 分钟</string>
+</resources>

@@ -40,6 +40,56 @@ class FdmTextsTest {
         assertEquals("FDM_ANSWER_PENDING", fdm.fdmCode(text))
     }
 
+    private val retry = "La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire."
+
+    @Test
+    fun aSaleAnsweredWithAnUnknownOutcomeCodeShowsTheFdmMessageThenTheRetryNote() {
+        val raw = "FDM error: FDM_ANSWER_PENDING|label=N|ticket=3|fdm=INTERNAL_ERROR|cause=GraphQL error: INTERNAL_ERROR: x"
+        assertEquals("INTERNAL_ERROR", fdm.pendingFdmCode(raw))
+        assertEquals("Erreur technique de la boîte noire. Contactez votre technicien. $retry", fdm.translate(raw))
+        assertEquals(
+            "Erreur indéfinie de la boîte noire. Contactez votre technicien. $retry",
+            fdm.translate("FDM error: FDM_ANSWER_PENDING|label=N|ticket=3|fdm=UNDEFINED_ERROR|cause=y"),
+        )
+        assertEquals(
+            "Erreur de la boîte noire. Contactez votre technicien. $retry",
+            fdm.translate("FDM error: FDM_ANSWER_PENDING|label=N|ticket=3|fdm=UNDEFINED_OTHER|cause=y"),
+        )
+    }
+
+    @Test
+    fun anInconsistentAnswerShowsTheMismatchMessageThenTheRetryNote() {
+        val raw = "FDM error: FDM_ANSWER_PENDING|label=N|ticket=3|fdm=FDM_RESPONSE_MISMATCH|cause=FDM_RESPONSE_MISMATCH: posId"
+        assertEquals(
+            "Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. $retry",
+            fdm.translate(raw),
+        )
+    }
+
+    @Test
+    fun aLostAnswerWithoutAnFdmCodeKeepsThePendingText() {
+        val raw = "FDM error: FDM_ANSWER_PENDING|label=N|ticket=3|cause=GraphQL error: INTERNAL_ERROR: only in the cause"
+        assertNull(fdm.pendingFdmCode(raw))
+        assertEquals(
+            "La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez.",
+            fdm.translate(raw),
+        )
+    }
+
+    @Test
+    fun theChineseLineFollowsTheSameOrder() {
+        val raw = "FDM error: FDM_ANSWER_PENDING|label=N|ticket=3|fdm=FDM_RESPONSE_MISMATCH|cause=x"
+        assertEquals(
+            "黑匣子回应不一致，销售未登记。请联系技术人员。 销售尚未登记：下次尝试将向黑匣子重新发送同一请求。",
+            fdm.translateZh(raw),
+        )
+        // INTERNAL_ERROR has no Chinese line of its own: the generic one comes first.
+        assertEquals(
+            "黑匣子错误。请联系技术人员。 销售尚未登记：下次尝试将向黑匣子重新发送同一请求。",
+            fdm.translateZh("FDM error: FDM_ANSWER_PENDING|label=N|ticket=3|fdm=INTERNAL_ERROR|cause=x"),
+        )
+    }
+
     @Test
     fun theVendorTextMapsToUnauthorized() {
         assertEquals(unauthorized, fdm.translate("401 Not a valid Token"))

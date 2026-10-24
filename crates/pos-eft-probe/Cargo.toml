@@ -1,0 +1,36 @@
+[package]
+name = "pos-eft-probe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+# One manual test of the till's card terminal link against a real
+# terminal, run by a person: reachability check, one payment after the
+# operator typed YES, status and abort of a reference, with a masked
+# trace of every frame. Not part of the certified build: no shipped
+# crate depends on it.
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "pos-eft-probe"
+path = "src/main.rs"
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+pos-eft = { path = "../pos-eft" }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+
+[dev-dependencies]
+pos-eft-mock = { path = "../pos-eft-mock" }
+tempfile = "3"
+tokio = { workspace = true, features = ["rt", "macros"] }

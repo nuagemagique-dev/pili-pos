@@ -30,6 +30,11 @@ pub struct User {
     pub active: bool,
     /// True when a PIN hash is stored: the login screen shows the numpad.
     pub has_pin: bool,
+    /// A kitchen employee who never uses the till: no login, no PIN, a manager clocks them in
+    /// and out.
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub presence_only: bool,
 }
 
 /// `pos_engine::commands::auth::CreateUserInput`. `role` is the role name as text (`admin`,
@@ -46,6 +51,10 @@ pub struct CreateUserInput {
     /// The creating manager's own PIN.
     #[serde(default)]
     pub operator_pin: Option<String>,
+    /// A kitchen employee who never uses the till (role `waiter`, no PIN).
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub presence_only: bool,
 }
 
 /// `pos_db::queries::integrations::SwitchChange`: one change of the HubRise switch.

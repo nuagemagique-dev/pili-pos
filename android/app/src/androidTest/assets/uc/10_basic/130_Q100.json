@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "id": "Q100",
+  "ids": ["Q100"],
+  "title": "Status query of a healthy FDM (shape of the answer)",
+  "compare": {"status": "shape"},
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "check_fdm_status", "args": {}}
+  ]
+}

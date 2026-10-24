@@ -13,6 +13,27 @@ fn cents_to_hubrise(cents: i64) -> String {
     pos_hubrise_types::money::format_cents(cents)
 }
 
+/// The discounts of a till sale for the echo: one per discount name and
+/// grouping, the amount taken off (positive), from the consolidated
+/// changes of its lines.
+pub(crate) fn order_discounts(
+    changes: &pos_fiscal::price_change::LineChanges,
+) -> Vec<(String, i64)> {
+    let mut by_group: std::collections::BTreeMap<(i32, String), i64> = Default::default();
+    for change in changes.values().flatten() {
+        if change.change_type == pos_fiscal::types::PriceChangeType::Public {
+            *by_group
+                .entry((change.grouping_id, change.name.clone()))
+                .or_default() -= change.amount_cents;
+        }
+    }
+    by_group
+        .into_iter()
+        .filter(|(_, cents)| *cents != 0)
+        .map(|((_, name), cents)| (name, cents))
+        .collect()
+}
+
 /// Build the JSON body for `POST /v1/locations/:loc/orders`.
 ///
 /// The order is pushed as `status: "completed"` because POS orders
@@ -23,6 +44,7 @@ pub fn build_hubrise_order_body(
     order: &Order,
     lines: &[OrderLine],
     payments: &[(&str, i64)],
+    discounts: &[(String, i64)],
 ) -> Value {
     let service_type = match order.order_type {
         OrderType::DineIn => "eat_in",
@@ -64,6 +86,17 @@ pub fn build_hubrise_order_body(
         "payments": payments,
         "created_at": order.created_at.to_rfc3339(),
     });
+
+    // The till's discounts, so the echoed order's total matches its
+    // payments: `price_off` is the amount taken off (positive).
+    if !discounts.is_empty() {
+        body["discounts"] = json!(
+            discounts
+                .iter()
+                .map(|(name, cents)| json!({ "name": name, "price_off": cents_to_hubrise(*cents) }))
+                .collect::<Vec<_>>()
+        );
+    }
 
     // Dine-in: encode the table number as a collection_code so
     // tsb-service / tsb-dashboard can display "Table 5" in its UI.

@@ -9,11 +9,12 @@
 # See docs/internal/CAPTURES_ECRAN_RUNBOOK_FR.md for how
 # the screenshots are produced (mostly `cd ui && npm run captures`).
 # Usage: scripts/make_captures_pdf.sh
+# Another dossier: PILI_DOSSIER_DIR=docs/android/dossier scripts/make_captures_pdf.sh
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DOSSIER="$PROJECT_ROOT/docs/SUBMISSION_ARTIFACTS"
+DOSSIER="$PROJECT_ROOT/${PILI_DOSSIER_DIR:-docs/SUBMISSION_ARTIFACTS}"
 SCREENSHOTS_DIR="$DOSSIER/screenshots"
 OUT="$DOSSIER/CAPTURES_ECRAN_FR.pdf"
 

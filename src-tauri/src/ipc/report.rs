@@ -2,6 +2,7 @@ use pos_db::queries::reports::ZReportSummary;
 use tauri::State;
 
 use pos_engine::commands::report::ReportResult;
+use pos_engine::commands::sales_report::SalesReport;
 
 use super::Managed;
 
@@ -53,4 +54,25 @@ pub async fn generate_user_x_report(
 #[tauri::command]
 pub fn backup_database(state: State<'_, Managed>) -> Result<String, String> {
     pos_engine::commands::report::do_backup_database(state.inner())
+}
+
+/// The non-fiscal sales report of the booking dates `from..=to` (`YYYY-MM-DD`, at most 92 days).
+#[tauri::command]
+pub fn sales_report(
+    state: State<'_, Managed>,
+    from_date: String,
+    to_date: String,
+) -> Result<SalesReport, String> {
+    pos_engine::commands::sales_report::do_sales_report(state.inner(), from_date, to_date)
+}
+
+/// Print the non-fiscal sales report of the range on the ticket printer.
+#[tauri::command]
+pub async fn print_sales_report(
+    state: State<'_, Managed>,
+    from_date: String,
+    to_date: String,
+) -> Result<(), String> {
+    pos_engine::commands::sales_report::do_print_sales_report(state.inner(), from_date, to_date)
+        .await
 }

@@ -157,7 +157,8 @@ class BundleImporter
                 }
             if (problems.isNotEmpty()) {
                 Timber.w("provisioning: pos.json has %d problem(s)", problems.size)
-                abort(ProvisioningProblem.of("config_invalid", "detail" to problems.joinToString("; ")))
+                // Coded problems (`config_<setting>|detail=...`), one per line: the screen says them in its language.
+                abort(ProvisioningProblem.of("config_invalid", "detail" to problems.joinToString("\n")))
             }
         }
 

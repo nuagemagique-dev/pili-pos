@@ -46,6 +46,11 @@ export const POS_CHECK_MESSAGES: Record<string, string> = {
   // (commands/signing.rs). First, as its cause may name another code.
   FDM_ANSWER_PENDING:
     "La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez.",
+  // Said after the FDM's own message when it answered a sale with a
+  // code that leaves the outcome unknown (INTERNAL_ERROR, ...): the
+  // error carries `fdm=<code>` (see pendingFdmCode below).
+  FDM_RETRY_SAME_REQUEST:
+    "La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire.",
   // The FDM answered, but not to the request sent: nothing was
   // recorded (pos_fiscal::response_check).
   FDM_RESPONSE_MISMATCH:
@@ -65,8 +70,21 @@ export const VENDOR_MESSAGES: Record<string, string> = {
   "Not a valid Token": ERROR_MESSAGES.UNAUTHORIZED,
 };
 
+// `FDM_ANSWER_PENDING|label=N|ticket=3|fdm=INTERNAL_ERROR|cause=...`:
+// the code the FDM answered with, when it did answer.
+const PENDING_WITH_CODE = /FDM_ANSWER_PENDING(?:\|(?!fdm=)[a-z]+=[^|]*)*\|fdm=([A-Z][A-Z0-9_]*)/;
+
+/** The FDM's code in a "request kept to send again" error, or null. */
+export function pendingFdmCode(raw: string | null): string | null {
+  return raw?.match(PENDING_WITH_CODE)?.[1] ?? null;
+}
+
 export function translateFdmError(raw: string | null): string | null {
   if (!raw) return null;
+  // What the FDM said first, then that the same request goes again.
+  const said = pendingFdmCode(raw);
+  const saidText = said ? (ERROR_MESSAGES[said] ?? POS_CHECK_MESSAGES[said]) : undefined;
+  if (saidText) return `${saidText} ${POS_CHECK_MESSAGES.FDM_RETRY_SAME_REQUEST}`;
   for (const [code, msg] of Object.entries(POS_CHECK_MESSAGES)) {
     if (raw.includes(code)) return msg;
   }
@@ -87,6 +105,7 @@ export function translateFdmError(raw: string | null): string | null {
 // is in Chinese. The French text stays: it is the certified wording.
 const MESSAGES_ZH: Record<string, string> = {
   FDM_ANSWER_PENDING: "收银机正在等待黑匣子对上一操作的回应。请检查连接后重试。",
+  FDM_RETRY_SAME_REQUEST: "销售尚未登记：下次尝试将向黑匣子重新发送同一请求。",
   FDM_RESPONSE_MISMATCH: "黑匣子回应不一致，销售未登记。请联系技术人员。",
   FDM_NOT_INITIALIZED: "黑匣子尚未初始化。",
   FDM_CERTIFICATE_REFUSED: "与黑匣子的安全连接被拒绝（证书）。请联系技术人员。",
@@ -106,6 +125,8 @@ const MESSAGES_ZH: Record<string, string> = {
 
 export function translateFdmErrorZh(raw: string | null): string | null {
   if (!raw) return null;
+  const said = pendingFdmCode(raw);
+  if (said) return `${MESSAGES_ZH[said] ?? "黑匣子错误。请联系技术人员。"} ${MESSAGES_ZH.FDM_RETRY_SAME_REQUEST}`;
   for (const [code, msg] of Object.entries(MESSAGES_ZH)) {
     if (raw.includes(code)) return msg;
   }

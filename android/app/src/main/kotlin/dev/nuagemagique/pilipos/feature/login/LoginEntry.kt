@@ -4,10 +4,9 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.FeatureEntry
-import dev.nuagemagique.pilipos.nav.PlaceholderScreen
 import javax.inject.Inject
 
-/** Navigation entry of the login feature (placeholder until P5). */
+/** Navigation entry of the login feature: the login screen (P5-T9). */
 internal class LoginEntry
     @Inject
     constructor() : FeatureEntry {
@@ -18,6 +17,6 @@ internal class LoginEntry
             builder: NavGraphBuilder,
             navigator: AppNavigator,
         ) {
-            builder.composable(LoginRoutes.LOGIN) { PlaceholderScreen(area, LoginRoutes.LOGIN) }
+            builder.composable(LoginRoutes.LOGIN) { LoginRoute(navigator) }
         }
     }

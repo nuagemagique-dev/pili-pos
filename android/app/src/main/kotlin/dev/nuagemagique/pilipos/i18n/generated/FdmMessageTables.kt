@@ -12,6 +12,7 @@ internal object FdmMessageTables {
     val POS_CHECK: List<Pair<String, Int>> =
         listOf(
             "FDM_ANSWER_PENDING" to R.string.fdm_msg_fdm_answer_pending,
+            "FDM_RETRY_SAME_REQUEST" to R.string.fdm_msg_fdm_retry_same_request,
             "FDM_RESPONSE_MISMATCH" to R.string.fdm_msg_fdm_response_mismatch,
             "FDM_NOT_INITIALIZED" to R.string.fdm_msg_fdm_not_initialized,
             "FDM_CERTIFICATE_REFUSED" to R.string.fdm_msg_fdm_certificate_refused,
@@ -55,6 +56,7 @@ internal object FdmMessageTables {
     val ZH: List<Pair<String, Int>> =
         listOf(
             "FDM_ANSWER_PENDING" to R.string.fdm_zh_fdm_answer_pending,
+            "FDM_RETRY_SAME_REQUEST" to R.string.fdm_zh_fdm_retry_same_request,
             "FDM_RESPONSE_MISMATCH" to R.string.fdm_zh_fdm_response_mismatch,
             "FDM_NOT_INITIALIZED" to R.string.fdm_zh_fdm_not_initialized,
             "FDM_CERTIFICATE_REFUSED" to R.string.fdm_zh_fdm_certificate_refused,

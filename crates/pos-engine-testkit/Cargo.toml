@@ -7,7 +7,8 @@ publish = false
 # Shared harness of the pos-engine integration tests (crates/pos-engine/tests):
 # an in-memory AppState with a mock FDM, the HubRise mock, the UC fixture
 # loader and the live-run helpers. A test-support library: never a
-# dependency of a shipped crate (pos-engine dev-depends on it, nothing else).
+# dependency of a shipped crate (pos-engine and the stand-alone export tool
+# pos-accounting dev-depend on it, nothing else).
 
 [dependencies]
 pos-core = { path = "../pos-core" }
@@ -17,7 +18,9 @@ pos-db = { path = "../pos-db" }
 pos-mail = { path = "../pos-mail" }
 # Every shipped build has HubRise, so the harness always builds the
 # AppState with its HubRise fields.
-pos-engine = { path = "../pos-engine", default-features = false, features = ["hubrise"] }
+pos-engine = { path = "../pos-engine", default-features = false, features = ["hubrise", "eft-scripted"] }
+# The scripted payment terminal the EFT tests drive.
+pos-eft = { path = "../pos-eft", features = ["scripted"] }
 pos-hubrise = { path = "../pos-hubrise" }
 pos-fdm-mock = { path = "../pos-fdm-mock" }
 pos-printer-mock = { path = "../pos-printer-mock" }

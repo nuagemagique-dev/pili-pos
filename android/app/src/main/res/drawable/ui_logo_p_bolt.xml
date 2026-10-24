@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The bolt of ui_logo_bolt.xml in the viewport of ui_logo_p.xml (0,0 100x140); the part outside the p is
+    clipped. Drawn over the ink in the colour of what lies behind the mark.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="140dp"
+    android:viewportWidth="100"
+    android:viewportHeight="140">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M84,-30L42,60L70,52L24,170"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineJoin="miter"
+        android:strokeMiterLimit="4"
+        android:strokeWidth="10" />
+</vector>

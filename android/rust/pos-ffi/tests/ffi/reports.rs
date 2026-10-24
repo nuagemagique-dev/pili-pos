@@ -5,7 +5,7 @@
 //! the engine's serde form and the FFI record's must be equal. The one input type, `MoneyDirection`,
 //! is converted variant by variant.
 //!
-//! (b) Wiring tests: each of the 16 methods is called through a `PosEngine` opened on the seeded
+//! (b) Wiring tests: each of the 18 methods is called through a `PosEngine` opened on the seeded
 //! database (`support::open_seeded`). The facade has no login (that is the auth domain), so a
 //! command that needs an operator answers `not_logged_in` on a plain engine; to run them for real
 //! the gated tests keep an operator session open: `end_shift` (PIN check, session open, clock-out
@@ -27,6 +27,10 @@ use pos_engine::commands::financial::{
 use pos_engine::commands::report::{
     ReportResult as EngineReportResult, do_generate_user_x_report, do_generate_x_report,
     do_generate_z_report, do_list_z_reports,
+};
+use pos_engine::commands::sales_report::{
+    SalesDay as EngineSalesDay, SalesHour as EngineSalesHour, SalesProduct as EngineSalesProduct,
+    SalesReport as EngineSalesReport, do_sales_report,
 };
 use pos_engine::commands::settings::{PosSettings as EnginePosSettings, do_get_settings};
 use pos_engine::commands::social::{
@@ -132,6 +136,71 @@ fn report_results_with_every_option_set_or_empty_convert() {
         let record: ffi::ReportResult = out_equal(&engine);
         assert_eq!(record.report_no, report_no);
     }
+}
+
+// ───────────────────────────── SalesReport ─────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_sales_report_of_a_real_day_converts() {
+    let app = app_on_mock().await;
+    let day = pos_fiscal::event::now_in_belgium().date_naive().to_string();
+    let report = do_sales_report(&app.state, day.clone(), day.clone()).unwrap();
+    let record: ffi::SalesReport = out_equal(&report);
+    assert_eq!(record.from, day);
+    assert_eq!(record.total_cents, 0);
+    assert!(record.days.is_empty());
+}
+
+#[test]
+fn a_sales_report_with_every_field_set_converts() {
+    let engine = EngineSalesReport {
+        from: "2026-10-16".into(),
+        to: "2026-10-17".into(),
+        generated_at: "2026-10-17T18:30:00+02:00".into(),
+        business_date: "2026-10-17".into(),
+        days: vec![
+            EngineSalesDay {
+                booking_date: "2026-10-16".into(),
+                z_number: Some(12),
+                total_cents: 1550,
+                z_total_cents: Some(1550),
+                open: false,
+                matches_z: true,
+                gap_cents: Some(0),
+            },
+            EngineSalesDay {
+                booking_date: "2026-10-17".into(),
+                z_number: None,
+                total_cents: 400,
+                z_total_cents: None,
+                open: true,
+                matches_z: false,
+                gap_cents: None,
+            },
+        ],
+        open_period: true,
+        by_product: vec![EngineSalesProduct {
+            product_id: "10006".into(),
+            name: "Maki".into(),
+            department: "Plats".into(),
+            quantity_milli: -2000,
+            amount_cents: -1300,
+        }],
+        by_hour: vec![EngineSalesHour {
+            hour: 19,
+            tickets: 3,
+            amount_cents: 1950,
+            bar_percent: 100,
+        }],
+        price_changes_cents: -50,
+        rounding_cents: 2,
+        refunds_cents: -1300,
+        ticket_count: 3,
+        total_cents: 1950,
+    };
+    let record: ffi::SalesReport = out_equal(&engine);
+    assert_eq!(record.days.len(), 2);
+    assert_eq!(record.by_hour[0].hour, 19);
 }
 
 // ───────────────────────────── ZReportSummary ─────────────────────────────
@@ -257,6 +326,72 @@ async fn a_failed_financial_event_converts() {
     assert!(record.error.is_some());
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn the_payment_lines_of_a_real_sale_and_its_correction_convert() {
+    use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+    use pos_engine::commands::payment_correction::{do_correct_payment, do_list_sale_payments};
+    let app = app_on_mock().await;
+    pos_engine::commands::auth::do_set_pin(&app.state, INSZ.into(), "4321".into(), None).unwrap();
+    let order = app.order_of(5200);
+    let sale = do_checkout(&app.state, order, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap()
+        .fiscal_event_id
+        .unwrap();
+
+    let before = do_list_sale_payments(&app.state, sale).unwrap();
+    assert!(before.correctable);
+    let record: ffi::SalePayments = out_equal(&before);
+    assert_eq!(record.lines.len(), 1);
+    assert_eq!(record.lines[0].payment_type, "CASH");
+    assert!(record.corrected.is_none() && record.refusal.is_none());
+
+    let done = do_correct_payment(
+        &app.state,
+        sale,
+        0,
+        pos_fiscal::payment::PaymentMethod::Card,
+        INSZ.into(),
+        "4321".into(),
+    )
+    .await
+    .unwrap();
+    assert!(done.success, "{:?}", done.error);
+    let _: ffi::FinancialResult = out_equal(&done);
+
+    let after = do_list_sale_payments(&app.state, sale).unwrap();
+    let record: ffi::SalePayments = out_equal(&after);
+    assert!(!record.correctable);
+    assert_eq!(
+        record.refusal.as_deref(),
+        Some("payment_correction_already_done")
+    );
+    let corrected = record.corrected.expect("the correction is shown");
+    assert_eq!(
+        (corrected.from_type.as_str(), corrected.to_type.as_str()),
+        ("CASH", "CARD_DEBIT")
+    );
+}
+
+#[test]
+fn sale_payments_with_every_option_set_or_empty_convert() {
+    let engine = serde_json::json!({
+        "fiscalEventId": 3, "ticketNumber": 12, "totalCents": 4000,
+        "lines": [{ "index": 0, "paymentType": "CARD_DEBIT", "name": "Card", "amountCents": 4000,
+                    "inputMethod": "AUTOMATIC", "amountType": "PAYMENT", "brand": "Bancontact" }],
+        "correctable": false, "refusal": "payment_correction_terminal_card",
+        "corrected": { "fromType": "CASH", "toType": "CARD_DEBIT", "amountCents": 100, "at": "2026-10-17 10:00:00" }
+    });
+    let record: ffi::SalePayments = out_equal(&engine);
+    assert_eq!(record.lines[0].brand.as_deref(), Some("Bancontact"));
+    let empty = serde_json::json!({
+        "fiscalEventId": 3, "ticketNumber": 12, "totalCents": 0,
+        "lines": [], "correctable": true, "refusal": null, "corrected": null
+    });
+    let record: ffi::SalePayments = out_equal(&empty);
+    assert!(record.lines.is_empty() && record.correctable);
+}
+
 #[test]
 fn financial_results_with_the_error_set_or_empty_convert() {
     for error in [Some("fdm down".to_string()), None] {
@@ -303,15 +438,13 @@ fn settings_with_every_option_set_or_empty_convert() {
             } else {
                 vec![]
             },
-            pos_sw_version: "pili-pos-android/1.0.0-dev".into(),
+            pos_sw_version: "pili-pos-android/1.0.0".into(),
+            payment_terminal: full.then(|| "worldline_terminal_api".to_string()),
         };
         let record: ffi::PosSettings = out_equal(&engine);
         assert_eq!(record.config_problems.len(), if full { 2 } else { 0 });
         // The camelCase key of the wire form.
-        assert_eq!(
-            json_of(&record)["posSwVersion"],
-            "pili-pos-android/1.0.0-dev"
-        );
+        assert_eq!(json_of(&record)["posSwVersion"], "pili-pos-android/1.0.0");
     }
 }
 
@@ -321,7 +454,7 @@ fn settings_with_every_option_set_or_empty_convert() {
 async fn get_settings_carries_the_ffi_software_version() {
     let t = support::open_seeded().await;
     let settings = t.engine.get_settings().await.unwrap();
-    assert_eq!(settings.pos_sw_version, "pili-pos-android/1.0.0-dev");
+    assert_eq!(settings.pos_sw_version, "pili-pos-android/1.0.0");
     assert_eq!(settings.pos_sw_version, pos_ffi::pos_sw_version().await);
     assert_eq!(settings.pos_id, "CPOS0031234567");
     assert_eq!(settings.terminal_id, "POS-2-ANDROID");
@@ -368,8 +501,16 @@ async fn commands_that_need_an_operator_are_refused_without_a_session() {
             .await
             .unwrap_err(),
         e.backup_database().await.unwrap_err(),
+        e.sales_report("2026-10-01".into(), "2026-10-01".into())
+            .await
+            .unwrap_err(),
+        e.print_sales_report("2026-10-01".into(), "2026-10-01".into())
+            .await
+            .unwrap_err(),
         e.work_in(MANAGER_INSZ.into()).await.unwrap_err(),
         e.work_out(MANAGER_INSZ.into()).await.unwrap_err(),
+        e.clock_in_employee(INSZ.into()).await.unwrap_err(),
+        e.clock_out_employee(INSZ.into()).await.unwrap_err(),
         e.money_in_out(
             MANAGER_INSZ.into(),
             1000,
@@ -379,11 +520,25 @@ async fn commands_that_need_an_operator_are_refused_without_a_session() {
         .await
         .unwrap_err(),
         e.open_drawer_fiscal(MANAGER_INSZ.into()).await.unwrap_err(),
+        e.list_sale_payments(1).await.unwrap_err(),
         e.set_training_mode(true).await.unwrap_err(),
     ];
     for err in &errors {
         assert!(coded(err, "not_logged_in"), "{err:?}");
     }
+    // The correction answers like the other PIN-confirmed command: a refused result.
+    let refused = e
+        .correct_payment(
+            1,
+            0,
+            pos_ffi::records::common::PaymentMethod::Card,
+            MANAGER_INSZ.into(),
+            MANAGER_PIN.into(),
+        )
+        .await
+        .unwrap();
+    assert!(!refused.success);
+    assert_eq!(refused.error.as_deref(), Some("not_logged_in"));
     e.shutdown().await.unwrap();
 }
 
@@ -554,6 +709,22 @@ async fn commands_that_do_not_sign_run_for_the_operator() {
     );
     assert!(std::fs::metadata(&path).unwrap().len() > 0);
 
+    // The sales report: read-only, range checked by the engine.
+    let report = e
+        .sales_report("2026-10-01".into(), "2026-10-01".into())
+        .await
+        .unwrap();
+    assert_eq!(report.total_cents, 0);
+    let err = e
+        .sales_report("2026-10-02".into(), "2026-10-01".into())
+        .await
+        .unwrap_err();
+    assert!(coded(&err, "sales_report_range_invalid"), "{err:?}");
+    // The seeded engine has a printer mock: the report prints.
+    e.print_sales_report("2026-10-01".into(), "2026-10-01".into())
+        .await
+        .unwrap();
+
     // Queries.
     e.list_z_reports().await.unwrap();
     e.list_open_shifts().await.unwrap();
@@ -623,6 +794,66 @@ async fn signing_commands_run_for_the_operator() {
     assert_eq!(history.len(), 1);
     assert_eq!(history[0].sequence_number, 1);
     t.rig.engine.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_manager_registers_the_presence_of_a_presence_only_employee() {
+    let t = open_with_gate(false).await;
+    let e = &t.rig.engine;
+    e.login(MANAGER_INSZ.into(), Some(MANAGER_PIN.into()))
+        .await
+        .unwrap();
+    let kitchen = e
+        .create_user(pos_ffi::records::auth::CreateUserInput {
+            insz: INSZ.into(),
+            name: "Cuisine".into(),
+            role: "waiter".into(),
+            initial_pin: None,
+            operator_pin: None,
+            presence_only: true,
+        })
+        .await
+        .unwrap();
+    assert!(kitchen.presence_only && !kitchen.has_pin);
+
+    // Refusals are coded, nothing is signed.
+    let err = e.clock_out_employee(INSZ.into()).await.unwrap_err();
+    assert!(coded(&err, "presence_not_in"), "{err:?}");
+    let err = e.clock_in_employee(MANAGER_INSZ.into()).await.unwrap_err();
+    assert!(coded(&err, "presence_self"), "{err:?}");
+    assert!(
+        !e.list_open_shifts()
+            .await
+            .unwrap()
+            .iter()
+            .any(|s| s.user_insz == INSZ)
+    );
+
+    let r = e.clock_in_employee(INSZ.into()).await.unwrap();
+    assert!(r.success, "{:?}", r.error);
+    let open = e.list_open_shifts().await.unwrap();
+    assert!(open.iter().any(|s| s.user_insz == INSZ), "{open:?}");
+    let err = e.clock_in_employee(INSZ.into()).await.unwrap_err();
+    assert!(coded(&err, "presence_already_in"), "{err:?}");
+    // On shift: not deactivable.
+    let err = e.deactivate_user(INSZ.into()).await.unwrap_err();
+    assert!(coded(&err, "deactivate_on_shift"), "{err:?}");
+
+    let r = e.clock_out_employee(INSZ.into()).await.unwrap();
+    assert!(r.success, "{:?}", r.error);
+    assert!(
+        !e.list_open_shifts()
+            .await
+            .unwrap()
+            .iter()
+            .any(|s| s.user_insz == INSZ)
+    );
+
+    // They never log in.
+    e.logout().await.unwrap();
+    let err = e.login(INSZ.into(), None).await.unwrap_err();
+    assert!(coded(&err, "presence_only_user"), "{err:?}");
+    e.shutdown().await.unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread")]

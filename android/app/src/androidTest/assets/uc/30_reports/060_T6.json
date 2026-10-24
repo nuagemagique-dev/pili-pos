@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "id": "T6",
+  "ids": ["T6"],
+  "title": "T6: table 10, second round of 2 dishes of the day at the 20,00 EUR the operator types in and 1 Bourgogne",
+  "fixture": "docs/20260821_UC_Reports_1.3/InputReport/T6",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "84022899837", "pin": "2222"}},
+    {"cmd": "list_fiscal_events", "args": {"limit": 1}, "save": "last"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$last.0.orderId", "menu_item_id": 22010, "quantity": 2, "modifiers_json": null, "unit_price_cents": 2000}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$last.0.orderId", "menu_item_id": 15001, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "sign_table_order", "args": {"orderId": "$last.0.orderId"}}
+  ]
+}

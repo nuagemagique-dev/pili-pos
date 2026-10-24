@@ -1,0 +1,40 @@
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "1f39b930-1b9e-42f7-9256-a8573dda4d83",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmRef": {
+    "eventCounter": 14,
+    "eventLabel": "N",
+    "fdmDateTime": "2024-07-29T11:35:09.000Z",
+    "fdmId": "FOD01000001",
+    "totalCounter": 50
+  },
+  "financials": [
+    {
+      "amount": -52.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": 52.0,
+      "amountType": "PAYMENT",
+      "id": "2",
+      "inputMethod": "MANUAL",
+      "name": "Card",
+      "type": "CARD_DEBIT"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-18T12:59:07.168+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "NONE",
+  "vatNo": "BE0000000097"
+}

@@ -1,4 +1,5 @@
 # Contenu exact du ZIP de soumission SCE 2.0 (pili-pos).
+# Version 1.0.0 : seul pili-pos-android est déposé (décision du producteur du 18.10.2026, docs/android/dossier) ; ce dossier Linux reste dans le dépôt et n'est pas soumis.
 #
 # Une entrée par ligne, relative à docs/SUBMISSION_ARTIFACTS/ ; "#"
 # commence un commentaire. Un répertoire est repris en entier, sans ses
@@ -53,6 +54,14 @@ pdf_out/CHECKLIST_DEPLOIEMENT_KIOSK_FR.pdf
 pdf_out/GARANTIE_MAJ_LANGUES_FR.pdf
 pdf_out/TICKET_NUMERIQUE_FR.pdf
 pdf_out/COMMANDES_EN_LIGNE_FR.pdf
+pdf_out/FACTURATION_PEPPOL_FR.pdf
+pdf_out/EDITEUR_CARTE_FR.pdf
+pdf_out/PRODUIT_EPUISE_FR.pdf
+pdf_out/RAPPORTS_VENTES_FR.pdf
+pdf_out/ALERTES_PROPRIETAIRE_FR.pdf
+pdf_out/ALLERGENES_FR.pdf
+pdf_out/SERVICES_CUISINE_FR.pdf
+pdf_out/BONS_CADEAUX_FR.pdf
 pdf_out/EXPORT_NOCTURNE_FR.pdf
 
 # Preuves brutes (Report_Testing dans le ZIP, voir plus haut)

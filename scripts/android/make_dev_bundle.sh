@@ -3,7 +3,7 @@
 # pili-pos - make a DEVELOPMENT provisioning bundle (PD108)
 #
 # Usage: scripts/android/make_dev_bundle.sh [--out DIR] [--keydir DIR] [--fdm-url URL]
-#                                           [--printer HOST:PORT] [--seed] [--write-pub]
+#                                           [--printer HOST:PORT] [--seed | --seed-file F] [--write-pub]
 #   --out DIR       bundle directory (default $HOME/.cache/pili-android/dev-bundle). Replaced when it
 #                   already holds a bundle (a MANIFEST.json) or nothing; any other content is refused.
 #   --keydir DIR    holds minisign.key (secret) and minisign.pub (default
@@ -12,6 +12,19 @@
 #   --fdm-url URL   fdm_url of pos.json (default http://127.0.0.1:19380/graphql)
 #   --printer H:P   printer_address of pos.json (default 127.0.0.1:19390)
 #   --seed          also ship src-tauri/seed_spf_test.sql as seed.sql
+#   --seed-file F   ship F as seed.sql instead (implies --seed; e.g. the demo seed)
+# Environment (demo only): PILI_BUNDLE_RESTAURANT_NAME, PILI_BUNDLE_RESTAURANT_ADDRESS, PILI_BUNDLE_KITCHEN_PRINTER (adds
+#   kitchen_printer_address), PILI_BUNDLE_HUBRISE_ENABLED=1 (adds "hubrise_enabled": true), PILI_BUNDLE_EXPORT_URL + _RECIPIENT + _TOKEN (adds the nightly export section and an
+#   export_token file), PILI_BUNDLE_PAYMENT_TERMINAL_OPI (host:port; adds a payment_terminal
+#   section of kind ccv_opi whose address is that value, a CCV terminal on the LAN; the pos-eft-mock OPI side) with
+#   PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT (the till's channel 1 port, optional: 4102 when absent). Defaults keep the test identity.
+#   PILI_BUNDLE_VAT (restaurant_vat, default BE0000000097; a malformed value makes the import refuse the bundle: capture bench),
+#   PILI_BUNDLE_DIGITAL_TICKET_API (base URL of the Scaleway TEM API, e.g. the pos-fdm-mock on http://127.0.0.1:19380; adds a
+#   digital_ticket section with allow_digital_only and a tem_key file), PILI_BUNDLE_HUBRISE_MOCK (base URL of pos-hubrise-mock,
+#   e.g. http://127.0.0.1:3001; adds a hubrise section pointing at it with a hubrise_secret file),
+#   PILI_BUNDLE_PEPPOL_API (base URL of the pos-fdm-mock, e.g. http://127.0.0.1:19380; adds a peppol section of provider
+#   storecove at <URL>/storecove (the mock's Storecove routes), a peppol_key file and the sender 0208:0000000097 of the
+#   test identity: the Peppol panel of Settings and the delivery of invoices then work against the mock).
 #   --write-pub     copy keydir/minisign.pub to android/app/provisioning/dev-minisign.pub (the committed
 #                   public key); used once when the development key is (re)generated
 #
@@ -58,6 +71,7 @@ while [[ $# -gt 0 ]]; do
         --fdm-url) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; FDM_URL="$2"; shift 2 ;;
         --printer) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; PRINTER="$2"; shift 2 ;;
         --seed) SEED=1; shift ;;
+        --seed-file) [[ $# -ge 2 ]] || die "--seed-file needs a path"; SEED=1; SEED_SOURCE="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"; shift 2 ;;
         --write-pub) WRITE_PUB=1; shift ;;
         *) echo "make_dev_bundle: unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -140,17 +154,58 @@ if [[ -e "$OUT" ]]; then
 fi
 mkdir -p "$OUT"
 
+KITCHEN_LINE=""
+HUBRISE_LINE=""
+[[ "${PILI_BUNDLE_HUBRISE_ENABLED:-0}" == 1 ]] && HUBRISE_LINE=$'\n  "hubrise_enabled": true,'
+EXPORT_LINE=""
+if [[ -n "${PILI_BUNDLE_EXPORT_URL:-}" ]]; then
+    [[ -n "${PILI_BUNDLE_EXPORT_RECIPIENT:-}" && -n "${PILI_BUNDLE_EXPORT_TOKEN:-}" ]] ||
+        die "PILI_BUNDLE_EXPORT_URL needs PILI_BUNDLE_EXPORT_RECIPIENT and PILI_BUNDLE_EXPORT_TOKEN"
+    printf '%s\n' "$PILI_BUNDLE_EXPORT_TOKEN" >"$OUT/export_token"
+    EXPORT_LINE=$'\n  "export": {"url": "'"$PILI_BUNDLE_EXPORT_URL"'", "token_file": "export_token", "owner_recipient": "'"$PILI_BUNDLE_EXPORT_RECIPIENT"'", "keep_days": 7},'
+fi
+TERMINAL_LINE=""
+if [[ -n "${PILI_BUNDLE_PAYMENT_TERMINAL_OPI:-}" ]]; then
+    [[ "$PILI_BUNDLE_PAYMENT_TERMINAL_OPI" =~ ^[A-Za-z0-9._-]+:[0-9]+$ ]] ||
+        die "PILI_BUNDLE_PAYMENT_TERMINAL_OPI must look like 127.0.0.1:19410, got '$PILI_BUNDLE_PAYMENT_TERMINAL_OPI'"
+    DEVICE_PORT_PART=""
+    if [[ -n "${PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT:-}" ]]; then
+        [[ "$PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT" =~ ^[0-9]{1,5}$ && "$PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT" -le 65535 ]] ||
+            die "PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT must be a port, got '$PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT'"
+        DEVICE_PORT_PART=', "device_port": '"$PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT"
+    fi
+    TERMINAL_LINE=$'\n  "payment_terminal": {"kind": "ccv_opi", "address": "'"$PILI_BUNDLE_PAYMENT_TERMINAL_OPI"'"'"$DEVICE_PORT_PART"', "timeout_seconds": 60},'
+fi
+DIGITAL_LINE=""
+if [[ -n "${PILI_BUNDLE_DIGITAL_TICKET_API:-}" ]]; then
+    [[ "$PILI_BUNDLE_DIGITAL_TICKET_API" =~ ^http://[A-Za-z0-9._-]+:[0-9]+$ ]] || die "PILI_BUNDLE_DIGITAL_TICKET_API must look like http://127.0.0.1:19380"
+    printf 'dev-tem-key\n' >"$OUT/tem_key"
+    DIGITAL_LINE=$'\n  "digital_ticket": {"project_id": "11111111-1111-1111-1111-111111111111", "from_email": "tickets@restaurant-test.be", "from_name": "Restaurant Test", "api_base": "'"$PILI_BUNDLE_DIGITAL_TICKET_API"'", "api_key_file": "tem_key", "allow_digital_only": true},'
+fi
+HUBRISE_MOCK_LINE=""
+if [[ -n "${PILI_BUNDLE_HUBRISE_MOCK:-}" ]]; then
+    [[ "$PILI_BUNDLE_HUBRISE_MOCK" =~ ^http://[A-Za-z0-9._-]+:[0-9]+$ ]] || die "PILI_BUNDLE_HUBRISE_MOCK must look like http://127.0.0.1:3001"
+    printf 'dev-hubrise-secret\n' >"$OUT/hubrise_secret"
+    HUBRISE_MOCK_LINE=$'\n  "hubrise": {"client_id": "pili-pos", "client_secret_file": "hubrise_secret", "oauth_base_url": "'"$PILI_BUNDLE_HUBRISE_MOCK"'/oauth2/v1", "api_base_url": "'"$PILI_BUNDLE_HUBRISE_MOCK"'/v1"},'
+fi
+PEPPOL_LINE=""
+if [[ -n "${PILI_BUNDLE_PEPPOL_API:-}" ]]; then
+    [[ "$PILI_BUNDLE_PEPPOL_API" =~ ^http://[A-Za-z0-9._-]+:[0-9]+$ ]] || die "PILI_BUNDLE_PEPPOL_API must look like http://127.0.0.1:19380"
+    printf 'dev-peppol-key\n' >"$OUT/peppol_key"
+    PEPPOL_LINE=$'\n  "peppol": {"provider": "storecove", "base_url": "'"$PILI_BUNDLE_PEPPOL_API"'/storecove", "api_key_file": "peppol_key", "legal_entity_id": 1, "sender_id": "0208:0000000097", "supplier_street": "1 Rue du Test", "supplier_postal_code": "4000", "supplier_city": "Liege"},'
+fi
+[[ -n "${PILI_BUNDLE_KITCHEN_PRINTER:-}" ]] && KITCHEN_LINE=$'\n  "kitchen_printer_address": "'"$PILI_BUNDLE_KITCHEN_PRINTER"'",'
 cat >"$OUT/pos.json" <<JSON
 {
   "pos_id": "CPOS0031234567",
   "terminal_id": "POS-2-ANDROID",
   "device_id": "pos-json-device",
-  "restaurant_name": "Restaurant Test",
-  "restaurant_address": "1 Rue du Test, 4000 Liege",
-  "restaurant_vat": "BE0000000097",
+  "restaurant_name": "${PILI_BUNDLE_RESTAURANT_NAME:-Restaurant Test}",
+  "restaurant_address": "${PILI_BUNDLE_RESTAURANT_ADDRESS:-1 Rue du Test, 4000 Liege}",
+  "restaurant_vat": "${PILI_BUNDLE_VAT:-BE0000000097}",
   "restaurant_est_no": "2000000042",
   "fdm_url": "$FDM_URL",
-  "printer_address": "$PRINTER",
+  "printer_address": "$PRINTER",$KITCHEN_LINE$HUBRISE_LINE$EXPORT_LINE$TERMINAL_LINE$DIGITAL_LINE$HUBRISE_MOCK_LINE$PEPPOL_LINE
   "table_count": 25
 }
 JSON
