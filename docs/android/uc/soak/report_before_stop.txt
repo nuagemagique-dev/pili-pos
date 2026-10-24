@@ -1,0 +1,12 @@
+SOAK | pid-stable | PASS | pid 11268 in 177 samples
+SOAK | no-crash | PASS | 0 markers in 177 samples, 0 driver errors
+SOAK | sales-signed | PASS | driver ok 300, failed 0, FDM signSale 300 (running: 0 not yet in the journal)
+SOAK | counters-continuous | PASS | 435 events, total counter 1..435
+SOAK | z-done | PASS | 3 Z ok, 0 failed, 3 days started, 2 full days elapsed, FDM Z signed 3
+SOAK | memory | PASS | PSS +1.95 MB/h, native heap +1.16 MB/h over 2.0 h (limit 5)
+SOAK | threads | PASS | baseline 35, max 43, growth 8 (limit 20)
+SOAK | fds | PASS | baseline 135, max 135, growth 0 (limit 50)
+SOAK | beats | PASS | 1057 beats, largest gap 10 s (limit 120)
+SOAK | storage | PASS | free /data min 6.11 GiB (limit 1); pos.db growth 11373 B/sale; backups 2572288 B/Z (3 Z)
+SOAK | min-hours | PASS | 2.97 h covered, no minimum asked
+SOAK | total | PASS | 0 failed (11 checks)
