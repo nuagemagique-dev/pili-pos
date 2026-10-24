@@ -2,9 +2,8 @@ name: Android Rust
 
 # The Rust half of the Android app on every push that touches it: the UniFFI
 # facade (android/rust, its own workspace and lock file) over the shared
-# engine, plus the command and lock parity checks. It runs on the homelab
-# runner (self-hosted, Linux ARM64) in a fresh Ubuntu container and leaves
-# nothing on the host (see test.yml). The Gradle build, the Kotlin tests and
+# engine, plus the command and lock parity checks. It runs on a GitHub-hosted
+# Linux ARM64 runner in a fresh Ubuntu container (see test.yml). The Gradle build, the Kotlin tests and
 # the APK checks need the x86_64 Android SDK: they stay in android.yml
 # (GitHub-hosted, by hand or on an android-v* tag) and in the local gates.
 on:
@@ -40,7 +39,7 @@ env:
 jobs:
   ffi:
     name: UniFFI facade and parity
-    runs-on: [self-hosted, moyun-pos]
+    runs-on: ubuntu-24.04-arm
     container: ubuntu:26.04
     steps:
       - name: Git for the checkout
@@ -76,7 +75,3 @@ jobs:
 
       - name: Lock parity
         run: bash scripts/android/check_lock_parity.sh
-
-      - name: Clean up the runner
-        if: always()
-        run: bash "$GITHUB_WORKSPACE/scripts/ci/cleanup.sh" || find "$GITHUB_WORKSPACE" -mindepth 1 -delete

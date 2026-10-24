@@ -25,7 +25,7 @@ name: Kiosk image
 # runs-on: ubuntu-26.04 everywhere (needs KVM, and matches the
 # platform deploy/image/build.sh and the manual assume).
 # By hand or on a Linux release tag only (GitHub-hosted x86_64 with KVM; the
-# homelab runner is ARM64). The Linux product is not part of the v1 filing.
+# test runners are ARM64). The Linux product is not part of the v1 filing.
 on:
   push:
     tags: ['linux-v*']

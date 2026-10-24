@@ -9,7 +9,7 @@ on:
     paths-ignore: ['android/**', 'docs/android/**']
   workflow_dispatch: {}
 
-# One runner: a newer run of the same branch replaces a queued or running one.
+# A newer run of the same branch replaces a queued or running one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -29,11 +29,10 @@ env:
   PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
   NODE_VERSION: "24.21.0"  # latest LTS, same as deploy/build-release.sh
 
-# Every job runs on the homelab runner (self-hosted, Linux ARM64, label
-# moyun-pos) in a fresh Ubuntu container. Nothing stays on the host after a
-# job: the build output is inside the container, which the runner removes,
-# and the last step (scripts/ci/cleanup.sh, run even on failure) empties the
-# host-mounted checkout, temp and home folders. No cache, no artifact upload.
+# Every job runs on a GitHub-hosted Linux ARM64 runner (free for a public
+# repository) in a fresh Ubuntu container; the runner VM is discarded after
+# the job. No cache, no artifact upload. Pull requests from forks run only
+# after a maintainer approves them (repository setting).
 
 jobs:
   # ── Layer 1: Rust - format, lint and every test ──────────────
@@ -43,9 +42,7 @@ jobs:
   # suites all run here; any failure or warning blocks.
   rust:
     name: Rust (${{ matrix.features.name }})
-    runs-on: [self-hosted, moyun-pos]
-    # Self-hosted runner: never for a pull request from a fork (public repository).
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04-arm
     container: ubuntu:26.04
     strategy:
       fail-fast: false
@@ -108,16 +105,10 @@ jobs:
         if: matrix.features.name == 'cert'
         run: cargo test -p pos-engine ${{ matrix.features.flags }} --no-fail-fast
 
-      - name: Clean up the runner
-        if: always()
-        run: bash "$GITHUB_WORKSPACE/scripts/ci/cleanup.sh" || find "$GITHUB_WORKSPACE" -mindepth 1 -delete
-
   # ── Layer 2: Playwright E2E (mock IPC) ────────────────────────
   playwright-e2e:
     name: Playwright E2E
-    runs-on: [self-hosted, moyun-pos]
-    # Self-hosted runner: never for a pull request from a fork (public repository).
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04-arm
     container: ubuntu:26.04
     steps:
       - name: Git for the checkout
@@ -146,10 +137,6 @@ jobs:
         working-directory: ui
         run: npx playwright test --reporter=github
 
-      - name: Clean up the runner
-        if: always()
-        run: bash "$GITHUB_WORKSPACE/scripts/ci/cleanup.sh" || find "$GITHUB_WORKSPACE" -mindepth 1 -delete
-
   # ── Layer 3: Integration (real binary + WebDriver) ────────────
   # Runs only on the main branch (or a manual run). The certification
   # binary, its real SQLite database and IPC, driven over WebDriver:
@@ -157,7 +144,7 @@ jobs:
   # (ui/e2e/real-binary/).
   integration:
     name: Integration (real binary)
-    runs-on: [self-hosted, moyun-pos]
+    runs-on: ubuntu-24.04-arm
     container: ubuntu:26.04
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     needs: [rust, playwright-e2e]
@@ -220,19 +207,13 @@ jobs:
         if: always()
         run: cat /tmp/tauri-driver.log || true
 
-      - name: Clean up the runner
-        if: always()
-        run: bash "$GITHUB_WORKSPACE/scripts/ci/cleanup.sh" || find "$GITHUB_WORKSPACE" -mindepth 1 -delete
-
   # ── Dossier: certification bundle consistency ──────────────────
   # Cross-checks docs/SUBMISSION_ARTIFACTS against the code (Rust
   # identifiers, repo paths, brand-neutral wording, no em dashes, no
   # leftover placeholders).
   dossier:
     name: Dossier consistency
-    runs-on: [self-hosted, moyun-pos]
-    # Self-hosted runner: never for a pull request from a fork (public repository).
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04-arm
     container: ubuntu:26.04
     steps:
       - name: Git and Python
@@ -247,7 +228,3 @@ jobs:
 
       - name: Check dossier against the code
         run: python3 scripts/check_dossier.py
-
-      - name: Clean up the runner
-        if: always()
-        run: bash "$GITHUB_WORKSPACE/scripts/ci/cleanup.sh" || find "$GITHUB_WORKSPACE" -mindepth 1 -delete

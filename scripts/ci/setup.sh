@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Prepares a fresh Ubuntu job container on the self-hosted runner.
-# Everything is installed inside the container (apt packages, rustup under
-# /opt/rustup and /opt/cargo, Node under /opt/node), never in the host-mounted
-# home, so nothing survives the job on the runner host.
+# Prepares a fresh Ubuntu job container on the CI runner. Everything is
+# installed inside the container (apt packages, rustup under /opt/rustup and
+# /opt/cargo, Node under /opt/node), never in the host-mounted home.
 #
 # Usage: scripts/ci/setup.sh [--rust] [--node VERSION] [apt packages...]
 set -euo pipefail
