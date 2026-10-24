@@ -53,6 +53,12 @@ be listed. To check on the next run (`ls -la files/engine/backups`).
 
 ## Earlier runs
 
+- `p7-24h` (2026-10-10): started for 24 h, stopped cleanly after 2.98 h
+  (three compressed days, 300 sales signed, 3 Z, all 11 checks PASS), on
+  the engine before the 7-backups retention. Its record, with the
+  storage projections and the card size advice, is
+  [uc/soak/p7-24h/README.md](uc/soak/p7-24h/README.md), next to its
+  raw files.
 - `rc1-soak` (2026-10-13): stopped at provisioning, `ProvisioningE2eTest`
   still expected the `-dev` version suffix; fixed in `f0d60192`.
 - `rc1-soak-2` (2026-10-13 to 14): the Mac was on battery with the lid
@@ -64,3 +70,4 @@ be listed. To check on the next run (`ls -la files/engine/backups`).
 - The 24 h length of the plan: this run is 10 h, above the 4 h acceptance
   (P7D12).
 - A real D3 Pro and a real plug pull (EV-15).
+- The 24 h soak on the real unit: `RUNBOOK_D3PRO.md` section 9.

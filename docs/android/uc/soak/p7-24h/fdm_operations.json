@@ -1,0 +1,13 @@
+{
+  "source": "target/android-soak/p7-24h/fdm_journal.jsonl (not committed, 1.2 MB)",
+  "operations": {
+    "signOrder": 60,
+    "signPreBill": 60,
+    "signReportTurnoverX": 3,
+    "signReportTurnoverZ": 3,
+    "signSale": 300,
+    "signWorkIn": 3,
+    "signWorkOut": 3
+  },
+  "total": 432
+}
