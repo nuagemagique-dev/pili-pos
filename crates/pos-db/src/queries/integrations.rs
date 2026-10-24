@@ -121,6 +121,26 @@ pub fn hubrise_log(conn: &Connection, limit: i64) -> Result<Vec<SwitchChange>, r
     .collect()
 }
 
+/// Online orders that wait for acceptance (`fiscal_state` `pending`)
+/// and arrived at or before `arrived_before` (SQLite datetime text,
+/// UTC): how many per channel, in channel-name order. Names and counts
+/// only, nothing about the customer or the content (owner alerts,
+/// V12-D14).
+pub fn waiting_online_orders(
+    conn: &Connection,
+    arrived_before: &str,
+) -> Result<Vec<(String, i64)>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT channel, COUNT(*) FROM webshop_orders
+         WHERE fiscal_state = 'pending' AND resolved_at <= ?1
+         GROUP BY channel ORDER BY channel",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![arrived_before], |r| {
+        Ok((r.get(0)?, r.get(1)?))
+    })?;
+    rows.collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -169,7 +169,7 @@ La clé expose aussi `render()` pour des lignes de log grep-friendly :
 
 ## 4. Blocage opérationnel sur déconnexion
 
-**Implémenté dans** `src-tauri/src/commands/checkout.rs` : la vente
+**Implémenté dans** `crates/pos-engine/src/commands/checkout.rs` : la vente
 (`do_checkout`, `do_checkout_split`) passe par `checkout::sell`, qui
 signe par `signing::sign`. Quand le FDM n'est pas joignable,
 `FdmError::outcome()` renvoie `SignOutcome::NotSent` : la ligne
@@ -190,11 +190,14 @@ Le FDM expose aussi des drapeaux de dégradation opérationnelle via la
 query `status` (`errors[]`, `warnings[]`, `bufferCapacityUsed`). Ils
 sont pris en charge à deux niveaux :
 
-- **Interface.** Le store `ui/src/stores/fdm.ts` interroge le statut
-  toutes les 30 s (recul jusqu'à 5 min si le FDM ne répond pas). Un
-  FDM injoignable, ou un code bloquant (`BUFFER_FULL`, `FDM_LOCKED`,
-  `FDM_NOT_OPERATIONAL`, `UNKNOWN_POS`), passe l'état à
-  `connected = false` avec la gravité « bloquante » : voyant rouge et
+- **Moteur et interface.** Le moteur
+  (`crates/pos-engine/src/background.rs`, `commands/fdm_monitor.rs`)
+  interroge le statut toutes les 30 s tant qu'une session est ouverte
+  (recul jusqu'à 5 min si le FDM ne répond pas) et classe la réponse.
+  Un FDM injoignable, ou un code bloquant (`BUFFER_FULL`, `FDM_LOCKED`,
+  `FDM_NOT_OPERATIONAL`, `UNKNOWN_POS`), donne `connected = false`
+  avec la gravité « bloquante », que l'interface reçoit par l'événement
+  `fdm-status` : voyant rouge et
   voile qui couvre les écrans de vente. Les autres codes donnent un
   avertissement affiché (message FR de `ui/src/utils/fdmMessages.ts`).
 - **Signature.** Même si l'interface ne bloquait pas, le FDM refuse
@@ -217,13 +220,12 @@ Correctif B3 : `FiscalCounter::peek_next` lit le prochain numéro sans
 laissait deux risques : deux opérations simultanées pouvaient lire le
 même numéro, et une réponse perdue (le FDM a signé, le POS n'a rien
 reçu) pouvait laisser un événement signé sans archive. Le flux est
-désormais le suivant (`src-tauri/src/commands/signing.rs`) :
+désormais le suivant (`crates/pos-engine/src/commands/signing.rs`) :
 
 1. **Verrou global.** Toute opération qui signe un événement FDM
    (vente N, remboursement, commande de table P, pré-addition P,
    rapports X, X utilisateur et Z, copie C, entrée/sortie de travail S,
-   mouvements d'argent et tiroir F ; la facture I, hors binaire certifié
-   v1.0.0, passerait par le même verrou) s'exécute sous un seul
+   mouvements d'argent et tiroir F, facture I) s'exécute sous un seul
    verrou (`tokio::sync::Mutex`). Le numéro de ticket est lu (`peek_next`)
    et la période d'ouverture choisie **à l'intérieur** du verrou : deux
    opérations ne partagent jamais un numéro, et un Z attend une vente en
@@ -282,12 +284,12 @@ première tentative a reçu sa réponse tardivement, n'est pas enregistré
 deux fois.
 
 **Tests :**
-- `src-tauri/tests/spf_e2e_no_gap.rs` : un échec FDM (500) ne fait pas
+- `crates/pos-engine/tests/spf_e2e_no_gap.rs` : un échec FDM (500) ne fait pas
   avancer le compteur et n'archive rien d'inconnu (à lire avec les
   tests ci-dessous pour le cas "réponse perdue").
-- `src-tauri/tests/spf_e2e_signing_serialized.rs` : 14 tests (courses et
+- `crates/pos-engine/tests/spf_e2e_signing_serialized.rs` : 14 tests (courses et
   réponses perdues) contre `pos-fdm-mock` derrière un relais qui perd
-  les réponses (`tests/common/fdm_drop.rs`).
+  les réponses (`crates/pos-engine-testkit/src/fdm_drop.rs`).
 
 **Risques résiduels :**
 - Un FDM qui aurait perdu sa mémoire des doublons signerait le renvoi
@@ -355,7 +357,7 @@ cd pili-pos
 cargo test --package pos-fiscal --lib counter
 cargo test --package pos-fiscal --lib canonical
 cargo test --package pos-fiscal --lib idempotency_tests
-cargo test --package pili-pos --test spf_e2e_no_gap
+cargo test --package pos-engine --test spf_e2e_no_gap
 ```
 
 Totaux : totaux par binaire de test dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérés par `scripts/generate_test_report.py`.

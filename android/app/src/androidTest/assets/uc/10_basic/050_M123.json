@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "id": "M123",
+  "ids": ["M123"],
+  "title": "Pre-bill signed (signPreBill P), the order stays open",
+  "fixture": "docs/20260821_UC_BasicSet_POS_FDM_1.8/M123_signPrebill",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "75061189702", "pin": "4444"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 5, "user_insz": "75061189702"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 10006, "quantity": 2, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 28007, "quantity": 4, "modifiers_json": null}}},
+    {"cmd": "sign_pre_bill", "args": {"orderId": "$order.id"}}
+  ]
+}

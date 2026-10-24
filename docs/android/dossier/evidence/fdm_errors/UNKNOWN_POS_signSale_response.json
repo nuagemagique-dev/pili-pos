@@ -1,0 +1,12 @@
+{
+    "errors": [
+        {
+            "extensions": {
+                "category": "FDM",
+                "code": "UNKNOWN_POS",
+                "showPos": "MANDATORY"
+            },
+            "message": "Le FDM a re\u00e7u un message d'un POS non repris dans la liste d'autorisation"
+        }
+    ]
+}

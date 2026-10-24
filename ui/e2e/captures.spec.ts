@@ -10,6 +10,15 @@ import {
   live,
   DEFAULT_CATEGORY,
   DEFAULT_MENU_ITEM,
+  fdmHealth,
+  fdmMocks,
+  shiftsInit,
+  badgeInit,
+  scanBadge,
+  eftScript,
+  settingsWith,
+  DEFAULT_ORDER,
+  DEFAULT_ORDER_LINE,
 } from './fixtures/mock-ipc';
 
 // Certification dossier screenshot tour (docs/SUBMISSION_ARTIFACTS/
@@ -36,6 +45,9 @@ const SCREENSHOTS_DIR = path.resolve(
  * kiosk is always full-screen, so every capture is a plain viewport
  * shot (no `fullPage`). */
 async function capture(page: Page, name: string) {
+  // PILI_CAPTURES_DRY=1 runs the scenarios (and their assertions) without
+  // writing a PNG, to check a scenario without touching the dossier.
+  if (process.env.PILI_CAPTURES_DRY) return;
   await page.screenshot({
     path: path.join(SCREENSHOTS_DIR, `${name}.png`),
     animations: 'disabled',
@@ -47,6 +59,8 @@ const GERANT = { insz: '94060242576', name: 'Gérant Test', role: 'admin' as con
 const SERVEUR = { insz: '84022899837', name: 'Elisa', role: 'cashier' as const, active: true, has_pin: false };
 const APPRENTI = { insz: '99012345667', name: 'Apprenti Test', role: 'waiter' as const, active: true, has_pin: false };
 const STAFF = [GERANT, SERVEUR, APPRENTI];
+// Kitchen staff who never use the till: no tile, no PIN, a manager clocks them in and out.
+const CUISINIER = { insz: '88010112345', name: 'Cuisinier Test', role: 'waiter' as const, active: true, has_pin: false, presence_only: true };
 
 // ── Menu seed for the main sale flow - 3 categories, VAT A/B/C ──────
 const CATEGORIES = [
@@ -114,9 +128,6 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
       login: () => GERANT,
       list_users: () => STAFF,
       list_tables: () => TABLES_BEFORE,
-      // A healthy FDM, not the suite-wide default (disconnected) - this
-      // flow depicts a normal working sale, not an FDM incident.
-      check_fdm_status: () => ({ connected: true }),
       get_categories: () => CATEGORIES,
       // Live: the real backend resolves name/price/VAT/category from
       // the menu_item_id, so this must react to the actual argument
@@ -247,7 +258,7 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
     await overrideIPC(page, 'list_cart_lines', FILLED_LINES);
     await page.locator('.nav-btn', { hasText: 'Tables' }).click();
     await page.waitForURL(/tables/);
-    await expect.poll(() => ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+    await expect.poll(() => ipcCalls(page, 'leave_order')).toHaveLength(1);
     const table4 = page.locator('.table-card').nth(3);
     await expect(table4).toHaveClass(/occupied/);
     await expect(table4.locator('.table-total')).toContainText('40,00');
@@ -372,9 +383,6 @@ test('10_pre_bill - addition provisoire imprimée pour une table', async ({ page
     list_users: () => STAFF,
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
-    // A healthy FDM, not the suite-wide default (disconnected) - this
-    // flow depicts a normal working sale, not an FDM incident.
-    check_fdm_status: () => ({ connected: true }),
   });
   await page.goto('/');
   await tapUserTile(page, 'Gérant Test');
@@ -436,8 +444,8 @@ test('12_copy - liste des tickets copiables', async ({ page }) => {
 test('13_training - bandeau et filigrane TRAINING', async ({ page }) => {
   await mockTauriIPC(page, { login: () => GERANT, list_users: () => STAFF });
   await loginAndGoto(page, '/settings');
-  await page.locator('.toggle').click();
-  await expect(page.locator('.toggle')).toContainText('Actif');
+  await page.getByRole('button', { name: 'Inactif', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Actif', exact: true })).toBeVisible();
   // The "Tables" button sits right under the banner: a real tap, which
   // the banner used to swallow (training-banner.spec.ts).
   await page.locator('.app-header .nav-btn', { hasText: 'Tables' }).click();
@@ -497,13 +505,93 @@ test('18_logout - retour à l\'écran de connexion', async ({ page }) => {
   await capture(page, '18_logout');
 });
 
-test('19_admin_users - employés et formulaire d\'ajout', async ({ page }) => {
-  await mockTauriIPC(page, { login: () => GERANT, list_users: () => STAFF });
+// The badge reader of the captures: a USB wedge reader, badge login on,
+// and one badge already linked (Elisa).
+const BADGE_ELISA = { insz: SERVEUR.insz, name: 'Elisa', linkedAt: '2026-10-17 09:10:00', linkedBy: GERANT.insz, linkedByName: 'Gérant Test' };
+const BADGE_LOG = [
+  { action: 'link', insz: SERVEUR.insz, name: 'Elisa', by: GERANT.insz, byName: 'Gérant Test', at: '2026-10-17 09:10:00', detail: null },
+  { action: 'settings', insz: null, name: null, by: GERANT.insz, byName: 'Gérant Test', at: '2026-10-17 09:05:00', detail: null },
+];
+const BADGE_SETTINGS = { reader: 'usb' as const, loginEnabled: true, wedgeMaxGapMs: 50, wedgeMinLen: 6, wedgeMaxLen: 32 };
+
+test('19_admin_users - employés, présence, badges et formulaire d\'ajout', async ({ page }) => {
+  await badgeInit(page, { settings: BADGE_SETTINGS, badges: [BADGE_ELISA], log: BADGE_LOG });
+  await mockTauriIPC(page, { login: () => GERANT, list_users: () => [...STAFF, CUISINIER] });
+  await shiftsInit(page, [{ userInsz: SERVEUR.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
   await loginAndGoto(page, '/settings');
-  await expect(page.locator('.worker-row')).toHaveCount(3);
+  await expect(page.locator('.worker-row')).toHaveCount(4);
   await expect(page.locator('.worker-row', { hasText: 'Gérant Test' }).locator('.worker-meta')).toContainText('Gérant');
-  await expect(page.locator('.role-btn')).toHaveCount(3);
+  await expect(page.locator('.worker-row', { hasText: 'Cuisinier Test' }).locator('.worker-meta')).toHaveText('Présence seule');
+  await expect(page.locator('.worker-row', { hasText: 'Elisa' }).getByTestId('badge-state')).toHaveText('Badge lié le 17/10/2026');
+  await expect(page.locator('.worker-row', { hasText: 'Elisa' }).getByTestId('badge-btn')).toHaveText('Retirer le badge');
+  await expect(page.locator('.worker-row', { hasText: 'Cuisinier Test' }).getByTestId('badge-btn')).toHaveText('Lier un badge');
+  await expect(page.locator('.role-btn')).toHaveCount(4);
   await capture(page, '19_admin_users');
+});
+
+// Proposed capture (runbook): the "Lecteur de badges" panel of the manager.
+test('19b_admin_badges - le panneau Lecteur de badges', async ({ page }) => {
+  await badgeInit(page, { settings: BADGE_SETTINGS, badges: [BADGE_ELISA], log: BADGE_LOG });
+  await mockTauriIPC(page, { login: () => GERANT, list_users: () => [...STAFF, CUISINIER] });
+  await loginAndGoto(page, '/settings');
+  const panel = page.getByTestId('badge-settings');
+  // The panel is folded by default: unfold it for the capture.
+  await panel.getByTestId('badge-toggle').click();
+  await expect(panel.locator('h2')).toHaveText('Lecteur de badges');
+  await expect(panel.locator('.reader-btn.active')).toHaveText('Lecteur USB');
+  await expect(panel.getByTestId('badge-login-switch')).toHaveAttribute('aria-checked', 'true');
+  await expect(panel.getByTestId('badge-wedgeMaxGapMs')).toHaveText('50');
+  await expect(panel.getByTestId('badge-log').locator('li')).toHaveCount(2);
+  await panel.scrollIntoViewIfNeeded();
+  await capture(page, '19b_admin_badges');
+});
+
+// Proposed capture (runbook): the dialog waiting for the badge to link.
+test('19c_badge_enrol - présentation du badge à lier', async ({ page }) => {
+  await badgeInit(page, { settings: BADGE_SETTINGS, badges: [BADGE_ELISA], log: BADGE_LOG });
+  await mockTauriIPC(page, { login: () => GERANT, list_users: () => [...STAFF, CUISINIER] });
+  await loginAndGoto(page, '/settings');
+  await page.locator('.worker-row', { hasText: 'Apprenti Test' }).getByTestId('badge-btn').click();
+  await expect(page.getByTestId('badge-present')).toHaveText('Présentez le badge de Apprenti Test');
+  await capture(page, '19c_badge_enrol');
+});
+
+// Proposed capture (runbook): the manager has just clocked the presence-only employee in.
+test('19a_admin_presence - le Gérant pointe un employé', async ({ page }) => {
+  await mockTauriIPC(page, { login: () => GERANT, list_users: () => [...STAFF, CUISINIER] });
+  await loginAndGoto(page, '/settings');
+  await page.locator('.worker-row', { hasText: 'Cuisinier Test' }).getByTestId('presence-btn').click();
+  await expect(page.locator('.toast', { hasText: 'Arrivée enregistrée · Cuisinier Test' })).toBeVisible();
+  await expect(page.locator('.worker-row', { hasText: 'Cuisinier Test' }).getByTestId('presence-btn')).toHaveText('Départ');
+  await capture(page, '19a_admin_presence');
+});
+
+// Proposed capture (runbook): a cashier is at the till and a colleague
+// presents their badge; the till shows the arrival and keeps the cashier.
+test('03b_badge_toast - pointage par badge pendant une vente', async ({ page }) => {
+  await badgeInit(page, {
+    settings: BADGE_SETTINGS,
+    taps: [{ kind: 'clock_in', insz: APPRENTI.insz, name: 'Apprenti Test', at: '2026-10-17T12:02:00+02:00' }],
+  });
+  await mockTauriIPC(page, { login: () => SERVEUR, list_users: () => STAFF, list_tables: () => TABLES_BEFORE });
+  await page.goto('/');
+  await page.waitForTimeout(200);
+  await tapUserTile(page, 'Elisa');
+  await page.waitForURL(/tables/);
+  await scanBadge(page, '04A1B2C3');
+  await expect(page.locator('.toast', { hasText: 'Arrivée · Apprenti Test' })).toHaveText('Arrivée · Apprenti Test · 12:02');
+  await capture(page, '03b_badge_toast');
+});
+
+// Proposed capture (runbook): the login screen with the badge reader on.
+// A separate file: 01_login stays as it is (reader off, the default).
+test('01b_login_badge - invitation à présenter son badge', async ({ page }) => {
+  await badgeInit(page, { settings: BADGE_SETTINGS });
+  await mockTauriIPC(page, { list_users: () => STAFF });
+  await page.goto('/');
+  await expect(page.getByTestId('badge-login-hint')).toHaveText('Ou présentez votre badge');
+  await expect(page.locator('.user-btn')).toHaveCount(3);
+  await capture(page, '01b_login_badge');
 });
 
 test.describe('Section 2 - messages du FDM (§V)', () => {
@@ -540,11 +628,12 @@ test.describe('Section 2 - messages du FDM (§V)', () => {
       list_users: () => STAFF,
       get_categories: () => [DEFAULT_CATEGORY],
       get_menu_items: () => [DEFAULT_MENU_ITEM],
-      check_fdm_status: () => ({
-        initialized: true,
-        errors: [],
-        warnings: [{ message: code, extensions: { category: 'FDM', code, showPos } }],
-      }),
+      // The health the engine reports for such a warning.
+      ...fdmMocks(
+        showPos === 'NEVER'
+          ? fdmHealth()
+          : fdmHealth({ severity: 'warning', code, mandatory: showPos === 'MANDATORY' }),
+      ),
     });
     await page.goto('/');
     await tapUserTile(page, 'Gérant Test');
@@ -566,9 +655,32 @@ test.describe('Section 2 - messages du FDM (§V)', () => {
     { num: '23', file: '23_unknown_pos', code: 'UNKNOWN_POS', message: "Cette caisse n'est pas reconnue par la boîte noire." },
     { num: '27', file: '27_unauthorized', code: 'UNAUTHORIZED', message: "La caisse n'est pas autorisée à parler à la boîte noire." },
     { num: '28', file: '28_invalid_request', code: 'INVALID_REQUEST', message: 'Erreur de communication avec la boîte noire. Contactez votre technicien.' },
+  ];
+
+  // Group A2: the codes that leave the outcome unknown (the FDM may have
+  // signed the sale). The engine keeps the request to send it again
+  // (commands/signing.rs) and the error carries the FDM's code: its
+  // message first, then the retry note. The text mocked here is the one
+  // the engine returns (spf_e2e_fdm_failures.rs, ticket 1).
+  const RETRY_NOTE =
+    "La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire.";
+  const GROUP_A2: { num: string; file: string; code: string; message: string }[] = [
     { num: '29', file: '29_internal_error', code: 'INTERNAL_ERROR', message: 'Erreur technique de la boîte noire. Contactez votre technicien.' },
     { num: '30', file: '30_undefined_error', code: 'UNDEFINED_ERROR', message: 'Erreur indéfinie de la boîte noire. Contactez votre technicien.' },
+    { num: '31', file: '31_undefined_other', code: 'UNDEFINED_OTHER', message: 'Erreur de la boîte noire. Contactez votre technicien.' },
   ];
+
+  for (const { num, file, code, message } of GROUP_A2) {
+    test(`${num} - ${code} : encaissement en attente de renvoi`, async ({ page }) => {
+      await openCheckoutRefused(
+        page,
+        `FDM error: FDM_ANSWER_PENDING|label=N|ticket=1|fdm=${code}|cause=GraphQL error: ${code}: Error simulated by the mock`,
+      );
+      await expect(page.locator('.checkout .error-msg')).toHaveText(`${message} ${RETRY_NOTE}`);
+      await expect(page.locator('.card-btn')).toBeVisible();
+      await capture(page, file);
+    });
+  }
 
   for (const { num, file, code, message } of GROUP_A) {
     test(`${num} - ${code} : encaissement refusé`, async ({ page }) => {
@@ -585,7 +697,6 @@ test.describe('Section 2 - messages du FDM (§V)', () => {
     { num: '24', file: '24_buffer_near_full', code: 'BUFFER_NEAR_FULL', showPos: 'MANDATORY', message: 'La boîte noire est presque pleine. Programmez une intervention.' },
     { num: '25', file: '25_client_cert_expired', code: 'CLIENT_CERT_EXPIRED', showPos: 'MANDATORY', message: 'Le certificat de la boîte noire a expiré. Contactez votre technicien.' },
     { num: '26', file: '26_client_cert_near_expiration', code: 'CLIENT_CERT_NEAR_EXPIRATION', showPos: 'RECOMMENDED', message: 'Le certificat de la boîte noire expire bientôt.' },
-    { num: '31', file: '31_undefined_other', code: 'UNDEFINED_OTHER', showPos: 'RECOMMENDED', message: 'Erreur de la boîte noire. Contactez votre technicien.' },
     { num: '32', file: '32_rtc_sync_failed', code: 'RTC_SYNC_FAILED', showPos: 'RECOMMENDED', message: "L'horloge de la boîte noire n'a pas pu se synchroniser." },
     { num: '33', file: '33_update_urls_failed', code: 'UPDATE_URLS_FAILED', showPos: 'RECOMMENDED', message: 'Mise à jour des URLs de la boîte noire échouée.' },
     { num: '34', file: '34_update_trust_cert_failed', code: 'UPDATE_TRUST_CERT_FAILED', showPos: 'RECOMMENDED', message: 'Mise à jour des certificats de confiance échouée.' },
@@ -626,7 +737,8 @@ test.describe('Écrans additionnels (42-44)', () => {
       checkout: () => ({
         success: false,
         ticket: null,
-        error: 'FDM error: FDM_RESPONSE_MISMATCH: posFiscalTicketNo attendu 42, reçu 41',
+        error:
+          'FDM error: FDM_ANSWER_PENDING|label=N|ticket=42|fdm=FDM_RESPONSE_MISMATCH|cause=FDM_RESPONSE_MISMATCH: posFiscalTicketNo attendu 42, reçu 41',
         fdm_connected: false,
         fiscal_event_id: null,
         delivery: null,
@@ -643,7 +755,7 @@ test.describe('Écrans additionnels (42-44)', () => {
     await page.locator('.card-btn').click();
     await page.locator('.card-confirm').click();
     await expect(page.locator('.checkout .error-msg')).toHaveText(
-      'Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien.',
+      "Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire.",
     );
     await capture(page, '42_fdm_response_mismatch');
   });
@@ -803,5 +915,125 @@ test.describe('Écrans additionnels (45-49, 09g)', () => {
     await expect(page.locator('.success-icon')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Imprimer le ticket' })).toBeVisible();
     await capture(page, '09g_checkout_done_print_ticket');
+  });
+});
+
+// ── Terminal de paiement lié (EFT) ─────────────────────────────────
+// Captures 01a, 03a, 03b, 09h-09l, 15a. The terminal is scripted
+// through eftScript / settingsWith / check_payment_terminal /
+// list_unsettled_card_payments (mock-ipc.ts); nothing is charged.
+
+const TERMINAL_OK = { configured: true, kind: 'worldline_terminal_api', connected: true, busy: false, detail: null };
+const EFT_LINE = { ...DEFAULT_ORDER_LINE, id: 1, unit_price_cents: 1200 };
+
+/** The checkout of a 12,00 EUR order with a linked terminal. */
+async function eftCheckout(page: Page, script: Parameters<typeof eftScript>[1]) {
+  await eftScript(page, script);
+  await mockTauriIPC(page, {
+    login: () => GERANT,
+    list_users: () => STAFF,
+    get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
+    list_cart_lines: () => [EFT_LINE],
+    get_categories: () => [DEFAULT_CATEGORY],
+    get_menu_items: () => [DEFAULT_MENU_ITEM],
+    get_settings: settingsWith({ paymentTerminal: 'worldline_terminal_api' }),
+    check_payment_terminal: () => TERMINAL_OK,
+  });
+  await page.goto('/');
+  await tapUserTile(page, 'Gérant Test');
+  await page.waitForURL(/tables/);
+  await page.locator('.table-card').first().click();
+  await page.waitForURL(/order/);
+  await page.locator('.checkout-btn').click();
+  await page.waitForURL(/checkout/);
+}
+
+test.describe('Terminal de paiement lié (EFT)', () => {
+  test('01a - démarrage : ligne « Terminal de paiement »', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => STAFF, check_payment_terminal: () => TERMINAL_OK, check_printer: () => true });
+    await page.goto('/');
+    const row = page.locator('.check', { hasText: 'Terminal de paiement' });
+    await expect(row).toHaveClass(/ok/);
+    await expect(row.locator('.check-text')).toHaveText('connecté');
+    await capture(page, '01a_login_terminal_row');
+  });
+
+  test('03a-03b - voyant TERMINAL, tables et « Carte encaissée »', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => GERANT,
+      list_users: () => STAFF,
+      list_tables: () => TABLES_AFTER,
+      check_payment_terminal: () => TERMINAL_OK,
+      check_printer: () => true,
+      list_unsettled_card_payments: () => [
+        { payment_id: 1, order_id: TABLE4_ORDER_ID, order_type: 'dine_in', table_number: 4, amount_cents: FILLED_TOTAL_CENTS, brand: 'Bancontact', created_at: '2026-10-13 12:00:00' },
+      ],
+    });
+    await page.goto('/');
+    await tapUserTile(page, 'Gérant Test');
+    await page.waitForURL(/tables/);
+    await expect(page.getByTestId('light-terminal')).toHaveClass(/ok/);
+    await expect(page.getByTestId('light-terminal')).toContainText('Terminal');
+    await expect(page.locator('.table-card').nth(3).getByTestId('card-charged')).toHaveText('Carte encaissée');
+    await capture(page, '03a_tables_terminal_card_charged');
+  });
+
+  test('09h - encaissement : Terminal ou Saisie manuelle', async ({ page }) => {
+    await eftCheckout(page, { pay: [{ status: 'approved' }] });
+    await page.locator('.card-btn').click();
+    await expect(page.getByTestId('eft-mode')).toBeVisible();
+    await expect(page.locator('.card-hint')).toHaveText('Le montant est envoyé au terminal à la validation');
+    await capture(page, '09h_checkout_eft_mode');
+  });
+
+  test('09i - « Paiement sur le terminal »', async ({ page }) => {
+    await eftCheckout(page, { pay: [{ status: 'approved', hold: true }] });
+    await page.locator('.card-btn').click();
+    await page.locator('.validate-btn').click();
+    await expect(page.getByTestId('eft-title')).toHaveText('Paiement sur le terminal');
+    await expect(page.getByTestId('eft-overlay')).toContainText('Le client présente sa carte sur le terminal');
+    await capture(page, '09i_eft_overlay');
+  });
+
+  test('09j - paiement refusé', async ({ page }) => {
+    await eftCheckout(page, { pay: [{ status: 'declined', detail: 'Carte refusée par la banque' }] });
+    await page.locator('.card-btn').click();
+    await page.locator('.validate-btn').click();
+    await expect(page.getByTestId('eft-title')).toHaveText('Paiement refusé');
+    await expect(page.getByTestId('eft-detail')).toHaveText('Carte refusée par la banque');
+    await capture(page, '09j_eft_declined');
+  });
+
+  test('09l - carte de chèques-repas acceptée : Chèques-repas · Edenred', async ({ page }) => {
+    await eftCheckout(page, { pay: [{ status: 'approved', brand: 'Edenred' }] });
+    await page.locator('.card-btn').click();
+    for (const d of '5') await page.locator('.nk', { hasText: d }).first().click();
+    await page.locator('.validate-btn').click();
+    await expect(page.locator('.paid-part')).toContainText('Chèques-repas');
+    await expect(page.locator('.paid-part')).toContainText('Edenred');
+    await capture(page, '09l_eft_meal_voucher');
+  });
+
+  test('09k - réponse inconnue : Vérifier', async ({ page }) => {
+    await eftCheckout(page, { pay: [{ status: 'unknown', detail: 'no answer' }], check: [{ status: 'approved' }] });
+    await page.locator('.card-btn').click();
+    await page.locator('.validate-btn').click();
+    await expect(page.getByTestId('eft-title')).toHaveText('Réponse du terminal inconnue');
+    await expect(page.getByTestId('eft-check')).toBeVisible();
+    await capture(page, '09k_eft_unknown');
+  });
+
+  test('15a - Z : cartes encaissées pas encore enregistrées', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => GERANT,
+      list_users: () => STAFF,
+      list_unsettled_card_payments: () => [
+        { payment_id: 1, order_id: 42, order_type: 'dine_in', table_number: 4, amount_cents: 1700, brand: 'Bancontact', created_at: '2026-10-13 12:00:00' },
+        { payment_id: 2, order_id: 43, order_type: 'takeaway', table_number: null, amount_cents: 950, brand: null, created_at: '2026-10-13 12:05:00' },
+      ],
+    });
+    await loginAndGoto(page, '/reports');
+    await expect(page.getByTestId('z-unsettled')).toContainText('Paiements par carte encaissés mais pas encore enregistrés dans une vente :');
+    await capture(page, '15a_reports_z_unsettled_cards');
   });
 });

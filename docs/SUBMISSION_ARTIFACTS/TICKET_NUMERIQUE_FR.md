@@ -33,7 +33,7 @@ proposée et le POS se comporte comme en v0.x (papier uniquement) - voir
 `MANUEL_INSTALLATION_FR.md` §4.2 "Ticket numérique par e-mail
 (optionnel)" pour la configuration.
 
-Code source : `src-tauri/src/commands/delivery.rs` (résolution du
+Code source : `crates/pos-engine/src/commands/delivery.rs` (résolution du
 support, mise en file, impression/envoi), `crates/pos-mail` (rendu de
 l'e-mail, client Scaleway TEM, file d'attente avec réessais),
 `crates/pos-db/src/schema.rs` migrations v5 (`ticket_deliveries`) et v6
@@ -65,7 +65,7 @@ fonctionnalité.
 ## 3. Résolution du support (avant signature)
 
 La fonction pure `delivery::resolve_with` (testée unitairement,
-`src-tauri/src/commands/delivery.rs::tests`) applique ces règles, dans
+`crates/pos-engine/src/commands/delivery.rs::tests`) applique ces règles, dans
 l'ordre :
 
 | Cas | Résultat |
@@ -116,7 +116,7 @@ décision prise après coup.
 3. **Réessais en tâche de fond.** Un e-mail non envoyé dans le budget
    de 8 s (ou tenté hors du flux de caisse) reste `pending` et est
    repris par le worker `run_outbox_once`, exécuté toutes les 30
-   secondes (`OUTBOX_INTERVAL`, câblé dans `src-tauri/src/main.rs`).
+   secondes (`OUTBOX_INTERVAL`, câblé dans `crates/pos-engine/src/background.rs`).
    Backoff exponentiel après chaque échec retryable (réseau, 5xx,
    429) : 1 min, 5 min, 15 min, 60 min, pour un total de 5 tentatives
    avant abandon (`pos_mail::outbox::DeliveryPolicy`). Une erreur
@@ -313,7 +313,7 @@ la version suit, parce qu'elle est la seule qui contienne l'URL.
 | Copie (C) et remboursement (N) peuvent aussi être envoyés par e-mail | `commands/copy.rs`, `commands/refund.rs` | e2e `spf_e2e_digital::{a_copy_can_be_emailed_only, a_paper_copy_is_printed_and_recorded, a_refund_ticket_can_be_emailed, a_refund_with_a_bad_address_is_refused_before_signing}` |
 | Terminal sans configuration se comporte comme avant (papier seul) | `MailState::disabled` / `from_config` | `delivery.rs::tests::{a_disabled_mail_state_is_never_reachable, a_config_without_digital_ticket_disables_mail, a_missing_key_file_disables_mail}` |
 
-**34 tests** end-to-end couvrent ce fichier (`src-tauri/tests/spf_e2e_digital.rs`),
+**34 tests** end-to-end couvrent ce fichier (`crates/pos-engine/tests/spf_e2e_digital.rs`),
 en plus des tests unitaires cités ci-dessus dans `delivery.rs`,
 `crates/pos-mail` et `crates/pos-db/src/queries/{deliveries,prints}.rs`.
 

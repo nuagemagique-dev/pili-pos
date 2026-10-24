@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="engine_channel_name">Moteur de caisse</string>
+    <string name="engine_notification_title">Caisse en service</string>
+    <string name="engine_notification_text">Le moteur de la caisse est actif.</string>
+    <string name="engine_unavailable">La caisse démarre, veuillez patienter.</string>
+    <string name="engine_fatal">Erreur interne de la caisse. Elle va redémarrer.</string>
+</resources>

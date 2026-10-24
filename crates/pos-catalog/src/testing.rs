@@ -26,6 +26,7 @@ pub fn item(key: &str, category_key: &str, kind: ItemKind, price_cents: i64) -> 
         category_key: category_key.into(),
         kind,
         names: names(key),
+        code: None,
         price_cents,
         vat_eat_in: VatCode::B,
         vat_takeaway: VatCode::C,
@@ -34,6 +35,7 @@ pub fn item(key: &str, category_key: &str, kind: ItemKind, price_cents: i64) -> 
         on_pos: kind == ItemKind::Product,
         available: true,
         groups: Vec::new(),
+        allergens: None,
     }
 }
 
@@ -53,6 +55,7 @@ pub fn choice(key: &str, price_cents: i64) -> Choice {
         names: names(key),
         price_cents,
         available: true,
+        allergens: None,
     }
 }
 

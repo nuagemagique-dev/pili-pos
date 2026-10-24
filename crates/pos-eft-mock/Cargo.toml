@@ -1,0 +1,34 @@
+[package]
+name = "pos-eft-mock"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+# A card payment terminal standing in for Worldline's Terminal API, CCV's
+# Payment API and a CCV terminal speaking OPI on the LAN, for the tests of
+# pos-eft, demos and the emulator. Never a normal dependency of a shipped
+# crate: dev-dependencies and the binary of its own.
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "pos-eft-mock"
+path = "src/main.rs"
+
+[dependencies]
+axum = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+base64 = "0.23"
+quick-xml = "0.42"
+tracing = "0.1"
+
+[dev-dependencies]
+reqwest = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }

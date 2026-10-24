@@ -51,6 +51,10 @@ fn next_total() -> i64 {
 fn test_config(fdm_url: &str) -> PosConfig {
     PosConfig {
         table_count: 20,
+        tables: None,
+        payment_terminal: None,
+        peppol: None,
+        alerts: None,
         pos_id: "CFOD0061234567".to_string(),
         terminal_id: "POS1".to_string(),
         device_id: "DEV001".to_string(),
@@ -73,6 +77,7 @@ fn test_config(fdm_url: &str) -> PosConfig {
         restaurant_legal_name: None,
         day_end_hour: 5,
         digital_ticket: None,
+        export: None,
     }
 }
 
@@ -265,6 +270,7 @@ async fn test_direct_sale() {
     // Build and send
     let sale = build_sale_input(
         &config,
+        &ident(),
         &order,
         &lines,
         ticket_no,
@@ -374,6 +380,7 @@ async fn test_complete_refund() {
 
     let mut sale = build_sale_input(
         &config,
+        &ident(),
         &order,
         &lines,
         2,
@@ -431,7 +438,14 @@ async fn test_interrupted_sale_table_flow() {
     .await;
 
     let p_ticket = FiscalCounter::next(&conn, EventLabel::P).unwrap();
-    let order_input = build_order_input(&config, &order, &initial_lines, p_ticket, &bk(&bp_id));
+    let order_input = build_order_input(
+        &config,
+        &ident(),
+        &order,
+        &initial_lines,
+        p_ticket,
+        &bk(&bp_id),
+    );
 
     // Verify cost center is mandatory for signOrder
     assert_eq!(order_input.cost_center.id, "T07");
@@ -485,6 +499,7 @@ async fn test_interrupted_sale_table_flow() {
     let n_ticket = FiscalCounter::next(&conn, EventLabel::N).unwrap();
     let sale = build_sale_input(
         &config,
+        &ident(),
         &order,
         &all_lines,
         n_ticket,
@@ -534,7 +549,7 @@ async fn test_pre_bill() {
     .await;
 
     let ticket_no = FiscalCounter::next(&conn, EventLabel::P).unwrap();
-    let pre_bill = build_pre_bill_input(&config, &order, &lines, ticket_no, &bk(&bp_id));
+    let pre_bill = build_pre_bill_input(&config, &ident(), &order, &lines, ticket_no, &bk(&bp_id));
 
     // PreBill has transaction but no financials (no payment yet)
     assert_eq!(pre_bill.transaction.transaction_lines.len(), 3);
@@ -588,6 +603,7 @@ async fn test_training_mode() {
 
     let sale = build_sale_input(
         &config,
+        &ident(),
         &order,
         &lines,
         ticket_no,
@@ -662,6 +678,7 @@ async fn test_copy_ticket() {
     let ticket_no = FiscalCounter::next(&conn, EventLabel::C).unwrap();
     let copy = build_copy_input(
         &config,
+        &ident(),
         ticket_no,
         "85073000148",
         &bk(&bp_id),
@@ -782,6 +799,7 @@ async fn test_z_report() {
 
     let report = build_report_turnover_z(
         &config,
+        &ident(),
         ticket_no,
         "85073000148",
         &bk(&bp_id),
@@ -841,7 +859,7 @@ async fn test_employee_work_in_out() {
     .await;
 
     let s_ticket = FiscalCounter::next(&conn, EventLabel::S).unwrap();
-    let work_in = build_work_in_out(&config, s_ticket, "85073000148", &bk(&bp_id));
+    let work_in = build_work_in_out(&config, &ident(), s_ticket, "85073000148", &bk(&bp_id));
     assert_eq!(work_in.common.employee_id, "85073000148");
 
     let fdm = FdmClient::new(config.fdm_url.as_str());
@@ -862,7 +880,7 @@ async fn test_employee_work_in_out() {
 
     let s_ticket2 = FiscalCounter::next(&conn, EventLabel::S).unwrap();
     assert_eq!(s_ticket2, 2);
-    let work_out = build_work_in_out(&config, s_ticket2, "85073000148", &bk(&bp_id));
+    let work_out = build_work_in_out(&config, &ident(), s_ticket2, "85073000148", &bk(&bp_id));
 
     let result2 = fdm.sign_work_out(work_out, false).await.unwrap();
     assert_eq!(result2.event_operation, EventOperation::WorkOut);
@@ -924,7 +942,7 @@ async fn test_full_service_day() {
     .await;
     let fdm = FdmClient::new(config.fdm_url.as_str());
     let s1 = FiscalCounter::next(&conn, EventLabel::S).unwrap();
-    let wi = build_work_in_out(&config, s1, "85073000148", &bk(&bp_id));
+    let wi = build_work_in_out(&config, &ident(), s1, "85073000148", &bk(&bp_id));
     fdm.sign_work_in(wi, false).await.unwrap();
 
     // 2. Table 1 orders (P event)
@@ -940,7 +958,7 @@ async fn test_full_service_day() {
     let p1 = FiscalCounter::next(&conn, EventLabel::P).unwrap();
     let order1 = test_order(Some(1));
     let lines1 = vec![food_line(3, "M1", 1790, 1)];
-    let oi = build_order_input(&config, &order1, &lines1, p1, &bk(&bp_id));
+    let oi = build_order_input(&config, &ident(), &order1, &lines1, p1, &bk(&bp_id));
     fdm.sign_order(oi, false).await.unwrap();
 
     // 3. Table 1 pays (N event)
@@ -956,6 +974,7 @@ async fn test_full_service_day() {
     let n1 = FiscalCounter::next(&conn, EventLabel::N).unwrap();
     let sale1 = build_sale_input(
         &config,
+        &ident(),
         &order1,
         &lines1,
         n1,
@@ -980,6 +999,7 @@ async fn test_full_service_day() {
     let c1 = FiscalCounter::next(&conn, EventLabel::C).unwrap();
     let copy = build_copy_input(
         &config,
+        &ident(),
         c1,
         "85073000148",
         &bk(&bp_id),
@@ -1054,6 +1074,7 @@ async fn test_full_service_day() {
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
     let z = build_report_turnover_z(
         &config,
+        &ident(),
         r1,
         "85073000148",
         &bk(&bp_id),
@@ -1074,7 +1095,7 @@ async fn test_full_service_day() {
     )
     .await;
     let s2 = FiscalCounter::next(&conn, EventLabel::S).unwrap();
-    let wo = build_work_in_out(&config, s2, "85073000148", &bk(&bp_id));
+    let wo = build_work_in_out(&config, &ident(), s2, "85073000148", &bk(&bp_id));
     fdm.sign_work_out(wo, false).await.unwrap();
 
     // Verify all counters
@@ -1083,4 +1104,9 @@ async fn test_full_service_day() {
     assert_eq!(FiscalCounter::current(&conn, EventLabel::N).unwrap(), 1);
     assert_eq!(FiscalCounter::current(&conn, EventLabel::C).unwrap(), 1);
     assert_eq!(FiscalCounter::current(&conn, EventLabel::R).unwrap(), 1);
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }

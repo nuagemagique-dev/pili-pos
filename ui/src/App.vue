@@ -3,14 +3,21 @@ import { onMounted, onUnmounted, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { usePosStore } from "./stores/pos";
 import { useAuthStore } from "./stores/auth";
-import { useIdleTimer } from "./composables/useIdleTimer";
+import * as ipc from "./api/ipc";
 import { useOrderChime } from "./composables/useOrderChime";
+import { useBadgeReader } from "./composables/useBadgeReader";
+import { useBadgeStore } from "./stores/badge";
 import TrainingBanner from "./components/TrainingBanner.vue";
 import ToastStack from "./components/ToastStack.vue";
 import ConfigProblemsBanner from "./components/ConfigProblemsBanner.vue";
 import SupportBanner from "./components/SupportBanner.vue";
+import EftOverlay from "./components/EftOverlay.vue";
 import { useSupportStore } from "./stores/support";
 import { useFdmStore } from "./stores/fdm";
+import { useOrderStore } from "./stores/order";
+import { useToastStore } from "./stores/toast";
+import { useI18n } from "./i18n";
+import { describeError } from "./utils/errorMessages";
 
 const pos = usePosStore();
 const auth = useAuthStore();
@@ -26,33 +33,65 @@ watchEffect(() => {
 // arrives with HubRise switched off.
 useOrderChime();
 
-// Auto-lock after 5 minutes of inactivity - redirects to login
-// silently. Prevents unauthorized POS use when the operator walks
-// away from the terminal. Only fires if someone is actually logged in.
-// Like the lock button, it keeps the operator on shift.
-useIdleTimer(5 * 60 * 1000, () => {
-  if (auth.currentUser) {
-    // Navigate first: the router guard registers the open order (P)
-    // while the operator's session is still open.
-    void router.push({ name: "login" }).then(() => auth.lock());
+// The 5 minute idle lock belongs to the engine (it registers the open
+// order and emits `session-locked`, handled below). The UI only tells it
+// the operator is active, at most once per second.
+const ACTIVITY_EVENTS = ["touchstart", "mousedown", "keydown"] as const;
+const ACTIVITY_THROTTLE_MS = 1000;
+let lastActivity = Number.NEGATIVE_INFINITY;
+
+function forwardActivity() {
+  const now = Date.now();
+  if (now - lastActivity < ACTIVITY_THROTTLE_MS) return;
+  lastActivity = now;
+  try {
+    ipc.userActivity().catch(() => {});
+  } catch {
+    /* no engine to tell */
   }
-});
+}
+
+// USB badge reader: its capture listener is installed while the reader
+// is `usb`, before any other keyboard listener, and swallows the scans so
+// they are neither typed nor activity. Keys it held that were typing
+// after all count as activity here.
+const badge = useBadgeStore();
+useBadgeReader(forwardActivity);
 
 // Remote support banner: polled on every screen, logged in or not.
 const support = useSupportStore();
 let supportPoll: ReturnType<typeof setInterval> | undefined;
 
 const fdm = useFdmStore();
+const order = useOrderStore();
+const toast = useToastStore();
+const { t } = useI18n();
 
 onMounted(() => {
   pos.loadSettings();
+  void badge.load();
   void fdm.listenSignMessages();
+  void fdm.listenStatus();
+  void auth.listenPresenceFailed();
+  for (const evt of ACTIVITY_EVENTS) document.addEventListener(evt, forwardActivity, { passive: true });
+  // The engine locked the session (the order is already registered
+  // there): forget the local order and go back to the login screen.
+  void auth.listenSessionLocked((e) => {
+    order.resetLocal();
+    if (e.orderError) {
+      toast.show(`${t("order_register_failed")} : ${describeError(e.orderError)}`, "error", 6000);
+    }
+    void router.push({ name: "login" });
+  });
   const pollSupport = () => void (auth.currentUser ? support.refresh() : support.refreshRunning());
   pollSupport();
   supportPoll = setInterval(pollSupport, 5000);
 });
 
-onUnmounted(() => clearInterval(supportPoll));
+onUnmounted(() => {
+  clearInterval(supportPoll);
+  for (const evt of ACTIVITY_EVENTS) document.removeEventListener(evt, forwardActivity);
+});
 </script>
 
 <template>
@@ -60,6 +99,7 @@ onUnmounted(() => clearInterval(supportPoll));
   <TrainingBanner v-if="route.name === 'login'" />
   <RouterView />
   <div v-if="pos.trainingMode" class="training-watermark" aria-hidden="true">TRAINING</div>
+  <EftOverlay />
   <ToastStack />
   <ConfigProblemsBanner />
   <SupportBanner />

@@ -1,0 +1,26 @@
+# Test moves: pure moves of tests between packages or modules.
+#
+# Format: old_prefix<TAB>new_prefix, one rule per line. # comments and blank
+# lines are ignored. scripts/android/test_inventory.sh --diff renames every
+# baseline line "<section>:<rest>" whose <rest> starts with an old prefix
+# (longest prefix wins) before comparing it with the current inventory.
+#
+# Only pure moves belong here: the test body and its name stay the same, only
+# its package, target or module path changes. A new, renamed-in-substance or
+# deleted test is never a rule. A rule that matches no baseline line (stale)
+# or two baseline lines mapped to one name (collision) fail the check.
+#
+# Each block starts with a comment naming the card that moved the tests.
+#
+# P1a-T5: commands/, state.rs and the install functions moved to crates/pos-engine
+pili-pos::lib:pili_pos::commands::	pos-engine::lib:pos_engine::commands::
+pili-pos::lib:pili_pos::state::	pos-engine::lib:pos_engine::state::
+pili-pos::lib:pili_pos::cli::tests::check_config_reports_a_missing_broken_or_wrong_file	pos-engine::lib:pos_engine::install::tests::check_config_reports_a_missing_broken_or_wrong_file
+pili-pos::lib:pili_pos::cli::tests::spf_test_seed_loads_the_manual_product_lines	pos-engine::lib:pos_engine::install::tests::spf_test_seed_loads_the_manual_product_lines
+pili-pos::lib:pili_pos::cli::tests::restaurant_seed_applies_on_a_fresh_schema	pos-engine::lib:pos_engine::install::tests::restaurant_seed_applies_on_a_fresh_schema
+pili-pos::lib:pili_pos::cli::tests::seeding_is_refused_once_fiscal_events_exist	pos-engine::lib:pos_engine::install::tests::seeding_is_refused_once_fiscal_events_exist
+pili-pos::lib:pili_pos::cli::tests::seeding_is_refused_while_a_catalog_manages_the_menu	pos-engine::lib:pos_engine::install::tests::seeding_is_refused_while_a_catalog_manages_the_menu
+pili-pos::lib:pili_pos::cli::tests::init_db_creates_the_database_file	pos-engine::lib:pos_engine::install::tests::init_db_creates_the_database_file
+#
+# P1a-T6: integration tests moved from src-tauri/tests to crates/pos-engine/tests
+pili-pos::test:	pos-engine::test:

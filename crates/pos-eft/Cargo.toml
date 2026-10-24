@@ -1,0 +1,35 @@
+[package]
+name = "pos-eft"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+# The card payment terminal linked to the till (EFT): send an amount,
+# read the terminal's answer. Source-neutral outcome model plus one
+# driver per protocol (Worldline Terminal API, CCV Payment API, OPI on
+# the LAN). No database, no fiscal logic: the engine records the
+# answer and signs the sale.
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true, features = ["net", "io-util", "time", "sync", "rt"] }
+uuid = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+quick-xml = "0.42"
+tracing = "0.1"
+
+[features]
+# Terminal::scripted, a terminal answering from a script: tests only.
+scripted = []
+
+[dev-dependencies]
+pos-eft-mock = { path = "../pos-eft-mock" }
+tempfile = "3"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net", "io-util"] }

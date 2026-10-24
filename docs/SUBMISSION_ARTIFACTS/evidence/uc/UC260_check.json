@@ -1,0 +1,17 @@
+{
+  "deviations": [
+    {
+      "fixture": "400",
+      "path": "transaction.transactionLines[0].departmentId",
+      "piliPos": "GV",
+      "reason": "the voucher line is in department GV (Bons cadeaux), not the test setup's 400"
+    },
+    {
+      "fixture": "40001",
+      "path": "transaction.transactionLines[0].productId",
+      "piliPos": "990001",
+      "reason": "the voucher is the system product 'Bon cadeau' (990001), not the test setup's 40001"
+    }
+  ],
+  "uc": "UC260"
+}

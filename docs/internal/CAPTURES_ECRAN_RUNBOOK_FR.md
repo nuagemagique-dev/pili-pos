@@ -13,7 +13,7 @@ produire. Les fichiers vont dans
 
 ## Méthode
 
-Les sections 1 et 2 (captures `01` à `49`, `09a` à `09g`) sont produites
+Les sections 1, 1 bis et 2 (captures `01` à `49`, `01a`, `03a`, `09a` à `09l`, `15a`, `60` à `92`) sont produites
 automatiquement par une visite Playwright de l'interface, la couche
 IPC Tauri étant simulée (comme le reste de la suite e2e de `ui/`) :
 pas de FDM simulé, pas de base SQLite, pas de `cargo tauri dev`.
@@ -47,8 +47,8 @@ l'écran via le socket QMP de l'instance en cours.
 La section 3 (tickets imprimés) reste manuelle - voir plus bas.
 
 **Nommage.** `01_` à `19_` : flux fonctionnels ; `09a_` à `09g_` :
-ticket numérique ; `20_` à `49_` : messages du FDM (§V) et écrans
-additionnels (`45_` à `49_` : assistance à distance, PIN, FDM_ANSWER_PENDING, remboursement par ligne) ; `50_` à `56_` : tickets imprimés.
+ticket numérique ; `09h_` à `09l_`, `01a_`, `03a_`, `15a_` : terminal de paiement lié (EFT) ; `20_` à `49_` : messages du FDM (§V) et écrans
+additionnels (`45_` à `49_` : assistance à distance, PIN, FDM_ANSWER_PENDING, remboursement par ligne) ; `50_` à `56_` : tickets imprimés ; `60_` à `92_` : fonctions de la v1.0 (transfert de table, correction de paiement, remise, note de cuisine, factures, produits épuisés, éditeur de carte, rapport de ventes, alertes, allergènes, service en plusieurs temps, bons cadeaux).
 
 ---
 
@@ -144,6 +144,53 @@ capture.
 - **Écran attendu :** écran de fin d'encaissement avec le bouton « Imprimer le ticket » (une seule action d'impression : l'original manquant, jamais un second original) et « Terminer ».
 - **Capture :** plein écran.
 
+### Terminal de paiement lié (EFT), `payment_terminal` configuré
+
+Le mock IPC simule le terminal (`eftScript`, `settingsWith({ paymentTerminal })`,
+`check_payment_terminal`, `list_unsettled_card_payments` de
+`ui/e2e/fixtures/mock-ipc.ts`) : aucun débit réel.
+
+### `09h_checkout_eft_mode.png`
+- **Action :** "PAYER", "CARTE" avec un terminal relié.
+- **Écran attendu :** choix "Terminal" (actif) / "Saisie manuelle" et l'aide « Le montant est envoyé au terminal à la validation ».
+- **Capture :** plein écran.
+
+### `09i_eft_overlay.png`
+- **Action :** "Valider" sur une part carte, le terminal attend la carte.
+- **Écran attendu :** fenêtre « Paiement sur le terminal », le montant, « Le client présente sa carte sur le terminal », bouton "Annuler".
+- **Capture :** plein écran.
+
+### `09j_eft_declined.png`
+- **Action :** le terminal refuse le paiement.
+- **Écran attendu :** « Paiement refusé », le motif du terminal, « Rien n'a été débité. », bouton "OK".
+- **Capture :** plein écran.
+
+### `09k_eft_unknown.png`
+- **Action :** le terminal ne répond pas (réponse inconnue).
+- **Écran attendu :** « Réponse du terminal inconnue », le message « La carte a peut-être été débitée... », boutons "Vérifier" et "Fermer" ; la vente reste bloquée (« Un paiement par carte attend la réponse du terminal »).
+- **Capture :** plein écran.
+
+### `09l_eft_meal_voucher.png` (proposée, à produire par le script de captures puis à ajouter au PDF)
+- **Mock :** `eftScript` avec un paiement accepté de marque « Edenred ».
+- **Action :** « Carte », terminal, taper un montant partiel, « Valider ».
+- **Écran attendu :** la part prise s'affiche « Part 1 · Chèques-repas · Edenred » avec la pastille « Accepté ».
+- **Capture :** plein écran.
+
+### `01a_login_terminal_row.png`
+- **Action :** écran de connexion avec un terminal relié et joignable.
+- **Écran attendu :** panneau "Démarrage" avec la ligne « Terminal de paiement : connecté ».
+- **Capture :** plein écran.
+
+### `03a_tables_terminal_card_charged.png`
+- **Action :** écran des tables, terminal joignable, un paiement carte accepté pas encore enregistré dans une vente (table 4).
+- **Écran attendu :** voyant "Terminal" vert dans l'en-tête et pastille « Carte encaissée » sur la table 4.
+- **Capture :** plein écran.
+
+### `15a_reports_z_unsettled_cards.png`
+- **Action :** "Rapports", onglet "Journée", avec deux paiements carte encaissés mais pas encore enregistrés (une table, une vente à emporter).
+- **Écran attendu :** l'avertissement « Paiements par carte encaissés mais pas encore enregistrés dans une vente : » avec ses lignes, et « La clôture reste possible » ; le bouton Z n'est pas bloqué.
+- **Capture :** plein écran.
+
 ### `10_pre_bill.png`
 - **Action :** sur une autre table avec des articles, toucher "Addition".
 - **Écran attendu :** "Addition provisoire imprimée" ; l'addition sort marquée "PRO FORMA".
@@ -190,8 +237,204 @@ capture.
 - **Capture :** plein écran.
 
 ### `19_admin_users.png`
-- **Action :** "Config", section "Employés".
-- **Écran attendu :** chaque employé (nom, profil, INSZ) avec "PIN" et "Désactiver" ; formulaire "Ajouter" (nom, INSZ, profil Gérant / Serveur / Apprenti).
+- **Action :** "Config", section "Employés", connecté en Gérant. Préparer : un Serveur en service (arrivée enregistrée depuis 12:02), un Apprenti hors service, un employé « Présence seule » ; le lecteur de badges réglé sur « Lecteur USB » et un badge lié au Serveur.
+- **Écran attendu :** la note « Personnel sans accès à la caisse (cuisine) : le Gérant enregistre son arrivée et son départ ici. » ; chaque employé (nom, profil, état « En service depuis 12:02 » ou « Hors service ») avec « Arrivée » ou « Départ », "Code PIN" et "Désactiver" ; la ligne « Présence seule » sans bouton "Code PIN" ; l'état du badge (« Badge lié le 17/10/2026 » ou « Aucun badge ») avec « Retirer le badge » ou « Lier un badge » ; pas de bouton d'arrivée sur la ligne du Gérant connecté ; formulaire "Ajouter" (nom, INSZ, profil Gérant / Serveur / Apprenti / Présence seule).
+- **Capture :** plein écran.
+
+### `19a_admin_presence.png`
+- **Action :** "Config", section "Employés" : toucher « Arrivée » sur la ligne de l'employé « Présence seule ».
+- **Écran attendu :** message « Arrivée enregistrée · <nom> » ; la ligne passe à « En service depuis HH:MM » et son bouton devient « Départ ». Variante facultative : FDM débranché, les deux boutons grisés avec « FDM indisponible : pointage impossible ».
+- **Capture :** plein écran, message visible.
+
+### `19b_admin_badges.png` (proposée, à produire par le script de captures puis à ajouter au PDF)
+- **Action :** "Config", connecté en Gérant, panneau « Lecteur de badges » (troisième colonne). Préparer : lecteur « Lecteur USB », « Connexion par badge » activée, un badge lié, deux lignes dans le journal.
+- **Écran attendu :** les choix « Désactivé » et « Lecteur USB » (le second sélectionné), l'interrupteur « Connexion par badge » avec sa note sur le PIN des Gérants, les trois réglages du lecteur USB (écart 50 ms, longueurs 6 et 32), la note de confidentialité (seule une empreinte chiffrée est conservée) et les derniers événements (« Badge lié », « Réglages modifiés », avec le Gérant et l'heure).
+- **Capture :** plein écran.
+
+### `19c_badge_enrol.png` (proposée, à produire par le script de captures puis à ajouter au PDF)
+- **Action :** "Config", section "Employés" : toucher « Lier un badge » sur la ligne d'un employé sans badge.
+- **Écran attendu :** fenêtre « Lier un badge » avec « Présentez le badge de <nom> » et le bouton "Retour". Après le passage du badge, la fenêtre suivante demande le PIN du Gérant connecté.
+- **Capture :** plein écran, fenêtre d'attente du badge.
+
+### `03b_badge_toast.png` (proposée, à produire par le script de captures puis à ajouter au PDF)
+- **Action :** un Serveur est connecté (écran des tables) ; un collègue passe son badge sur le lecteur.
+- **Écran attendu :** message « Arrivée · <nom> · HH:MM » (heure de Bruxelles) ; le Serveur reste sur son écran, sa session n'est pas fermée.
+- **Capture :** plein écran, message visible.
+
+### `01b_login_badge.png` (proposée, à produire par le script de captures puis à ajouter au PDF)
+- **Action :** ouvrir l'application avec le lecteur de badges activé et la connexion par badge activée.
+- **Écran attendu :** les tuiles des employés et, dessous, l'invitation « Ou présentez votre badge ». `01_login.png` reste la capture du réglage par défaut (lecteur désactivé).
+- **Capture :** plein écran.
+
+---
+
+## Section 1 bis - Écrans des fonctions de la v1.0 (60 à 92)
+
+Produits par `ui/e2e/captures-features.spec.ts` (`npm run captures`, même projet Playwright, mêmes données de test que la section 1). Chaque test affirme l'écran attendu avant la capture. Les tickets imprimés de ces fonctions (bon cadeau, solde, fiche allergènes, bons de cuisine, note, transfert) figurent dans `TICKETS_EXEMPLES_FR.md`.
+
+### `60_table_transfer_picker.png`
+- **Action :** Table 1 ouverte avec un article : toucher « Changer de table », choisir la table 5.
+- **Écran attendu :** « Changer de table · Table 1 », la liste des tables libres (la table courante et les tables occupées en sont absentes), la table 5 choisie, « Valider » actif.
+- **Capture :** plein écran.
+
+### `61_table_transfer_move_mode.png`
+- **Action :** Plan de salle : « Déplacer une table », toucher la table 3 (occupée), puis la table libre 7.
+- **Écran attendu :** L'invitation « Table 3 : touchez la table libre » et la confirmation « Déplacer la table 3 vers la table 7 ? ».
+- **Capture :** plein écran.
+
+### `62_payment_correction.png`
+- **Action :** Rapports, onglet « Tickets » : « Corriger le paiement » sur une vente payée en espèces, choisir « Carte ».
+- **Écran attendu :** La ligne de paiement « Espèces · 52,00 € », le résumé « Espèces 52,00 € → Carte 52,00 € » et le bouton « Corriger » ; le code PIN du Gérant est demandé ensuite.
+- **Capture :** plein écran.
+
+### `63_discount_dialog.png`
+- **Action :** Commande de deux articles (Gérant) : « Remise », 50 %, motif « Repas du personnel ».
+- **Écran attendu :** « Remise sur la commande », les onglets %, Montant, Offert, l'aperçu « Total 24,00 € → 12,00 € » et « Appliquer la remise ».
+- **Capture :** plein écran.
+
+### `64_cart_discount.png`
+- **Action :** La même commande après la remise.
+- **Écran attendu :** La ligne « Remise 50 % » sous l'article, le total net 12,00 € et le bouton « Retirer la remise ».
+- **Capture :** plein écran.
+
+### `65_kitchen_note.png`
+- **Action :** Commande avec un article non encore envoyé : « Note » sur la ligne, saisir « sans wasabi ».
+- **Écran attendu :** « Note pour la cuisine », le texte saisi, le compteur 11/60 et « Imprimée en cuisine avec la commande » ; la note s'affiche sous le nom de l'article.
+- **Capture :** plein écran.
+
+### `66_reports_tickets_invoice.png`
+- **Action :** Rapports, onglet « Tickets » : cocher deux ventes.
+- **Écran attendu :** Les cases cochées, « Facture (2) », les quatre onglets Journée, Caisse, Tickets, Ventes, la vente déjà facturée sans case (« Facture 20260001 ») et la liste « Factures ».
+- **Capture :** plein écran.
+
+### `67_invoice_customer.png`
+- **Action :** « Facture (2) » : saisir le numéro de TVA, « Vérifier », compléter l'adresse.
+- **Écran attendu :** Étape « 1 · Client », la puce « Inscrit sur Peppol », le clavier à l'écran et « Continuer » actif.
+- **Capture :** plein écran.
+
+### `68_invoice_preview.png`
+- **Action :** « Continuer » à l'étape client.
+- **Écran attendu :** Étape « 2 · Aperçu » : le client, les tickets repris, les lignes, le détail de la TVA, « Total TTC 39,00 € » et la mention « Déjà payé ».
+- **Capture :** plein écran.
+
+### `69_invoice_result.png`
+- **Action :** « Établir et imprimer la facture ».
+- **Écran attendu :** Étape « 3 · Facture » : « Facture 20260002 établie », « Facture imprimée. » et « Envoi Peppol en file d'attente. ».
+- **Capture :** plein écran.
+
+### `70_invoice_peppol_required.png`
+- **Action :** Même parcours sur une installation sans section `peppol`, client à numéro de TVA belge.
+- **Écran attendu :** « La facture n'a pas été établie. » et le motif en français (la facture doit passer par Peppol) ; aucun code technique affiché.
+- **Capture :** plein écran.
+
+### `71_invoice_list.png`
+- **Action :** Rapports, onglet « Tickets », liste « Factures » en bas de page.
+- **Écran attendu :** Quatre factures avec l'état Peppol de chacune : en attente, remise, bloquée, papier seulement.
+- **Capture :** plein écran.
+
+### `72_settings_peppol.png`
+- **Action :** Config, panneau « Peppol » avec un envoi bloqué.
+- **Écran attendu :** Fournisseur, identifiant d'envoi, compteurs (en attente, remises, bloquées), l'envoi bloqué avec son motif et le bouton « Réessayer ».
+- **Capture :** plein écran.
+
+### `73_soldout_mode.png`
+- **Action :** Commande : « Épuisé ».
+- **Écran attendu :** Le mode actif avec « Touchez un produit pour changer sa disponibilité. », deux produits grisés avec la pastille « Épuisé », « Produits épuisés (2) ».
+- **Capture :** plein écran.
+
+### `74_soldout_dialog.png`
+- **Action :** Mode « Épuisé » : toucher un produit épuisé pour la journée.
+- **Écran attendu :** La disponibilité du produit, l'état « Jusqu'à la fin de la journée (18/10 04:00) », les trois choix et « Retour ».
+- **Capture :** plein écran.
+
+### `75_soldout_list.png`
+- **Action :** Commande : « Produits épuisés (2) ».
+- **Écran attendu :** La liste des deux produits avec leur durée et le bouton « Remettre en vente ».
+- **Capture :** plein écran.
+
+### `76_settings_carte.png`
+- **Action :** Config, panneau « Carte » (carte non gérée par un catalogue).
+- **Écran attendu :** Le panneau « Carte » et le bouton « Modifier la carte ».
+- **Capture :** plein écran.
+
+### `77_menu_editor_product.png`
+- **Action :** « Modifier la carte », toucher un produit, faire défiler jusqu'aux allergènes.
+- **Écran attendu :** Trois colonnes (catégories, produits, fiche), la section « Allergènes » avec « Liste déclarée », « Contient » (Poissons, Soja) et « Traces possibles » (Sésame).
+- **Capture :** plein écran.
+
+### `78_menu_editor_category.png`
+- **Action :** Éditeur de carte : toucher une catégorie.
+- **Écran attendu :** La fiche de la catégorie, ses noms, sa couleur et « Temps du service en cuisine » (Entrées choisi).
+- **Capture :** plein écran.
+
+### `79_menu_editor_history.png`
+- **Action :** Éditeur de carte : « Historique ».
+- **Écran attendu :** La liste des modifications avec l'auteur, la date et les champs modifiés.
+- **Capture :** plein écran.
+
+### `80_reports_sales.png`
+- **Action :** Rapports, onglet « Ventes ».
+- **Écran attendu :** « Document non fiscal », les préréglages de période, la concordance avec les Z (identique, écart, période en cours), les ventes par produit et par heure, le total.
+- **Capture :** plein écran.
+
+### `81_settings_owner_alerts.png`
+- **Action :** Config, panneau « Alertes sur téléphone » (robot configuré, alertes actives).
+- **Écran attendu :** « Robot Telegram configuré », la conversation, la langue, les cinq événements surveillés et les délais ; aucun jeton affiché.
+- **Capture :** plein écran.
+
+### `82_order_allergens.png`
+- **Action :** Commande : « Allergènes ».
+- **Écran attendu :** Le mode actif, la légende des 14 allergènes numérotés et les pastilles sur les produits (six au plus, puis « +2 »).
+- **Capture :** plein écran.
+
+### `83_allergen_sheet.png`
+- **Action :** Mode « Allergènes » : toucher un produit.
+- **Écran attendu :** La fiche : « Contient », « Traces possibles », les options (« Information non disponible, demandez au responsable » pour une option non déclarée) et les boutons d'impression.
+- **Capture :** plein écran.
+
+### `84_settings_courses.png`
+- **Action :** Config, panneau « Service en plusieurs temps ».
+- **Écran attendu :** L'interrupteur, une ligne de quatre boutons (Direct, Entrées, Plats, Desserts) par catégorie et « Enregistrer ».
+- **Capture :** plein écran.
+
+### `85_cart_courses.png`
+- **Action :** Commande avec des articles à plusieurs temps.
+- **Écran attendu :** Le panier groupé par temps (Direct, Entrées, Plats), la pastille « EN ATTENTE » et le bouton « Envoyer la suite (Plats) ».
+- **Capture :** plein écran.
+
+### `86_course_picker.png`
+- **Action :** Toucher la pastille d'un article en attente.
+- **Écran attendu :** Le choix du temps à quatre boutons, le temps courant marqué.
+- **Capture :** plein écran.
+
+### `87_tables_held_course.png`
+- **Action :** Plan de salle avec une table dont un temps est retenu.
+- **Écran attendu :** La pastille « Suite : Plats » sur la table 2.
+- **Capture :** plein écran.
+
+### `88_checkout_held_course.png`
+- **Action :** « Payer » sur la commande aux temps retenus.
+- **Écran attendu :** L'avertissement « Suite non envoyée : Plats » et le bouton « Envoyer maintenant » au-dessus des modes de paiement.
+- **Capture :** plein écran.
+
+### `89_order_gift_voucher.png`
+- **Action :** Commande : « Bon cadeau », saisir 25,00 €.
+- **Écran attendu :** « Vendre un bon cadeau », le montant, et la ligne « Bon cadeau » avec la pastille « Bon » sans boutons de quantité.
+- **Capture :** plein écran.
+
+### `90_checkout_gift_voucher.png`
+- **Action :** Paiement : « Bon cadeau », saisir le code à 12 chiffres, « Chercher ».
+- **Écran attendu :** « Payer avec un bon cadeau », le code masqué (**** **** 9095), « Valide », le solde, la date de validité et le montant utilisé.
+- **Capture :** plein écran.
+
+### `91_reports_gift_vouchers.png`
+- **Action :** Rapports, onglet « Bons cadeaux ».
+- **Écran attendu :** « Vérifier un bon », la liste « Bons émis » avec ses filtres et les mouvements d'un bon déplié.
+- **Capture :** plein écran.
+
+### `92_settings_gift_vouchers.png`
+- **Action :** Config, panneau « Bons cadeaux ».
+- **Écran attendu :** L'interrupteur « Actif », la validité en mois et le montant maximum.
 - **Capture :** plein écran.
 
 ---
@@ -431,7 +674,7 @@ transcriptions texte de ces tickets sont dans `TICKETS_EXEMPLES_FR.md`.
 ## Compilation finale
 
 Une fois toutes les captures dans `docs/SUBMISSION_ARTIFACTS/screenshots/`
-(sections 1 et 2 via `npm run captures`, `00_boot_admission` via QEMU,
+(sections 1, 1 bis et 2 via `npm run captures`, `00_boot_admission` via QEMU,
 section 3 photographiée) :
 
 ```bash
@@ -450,7 +693,7 @@ Puis vérifier que `CAPTURES_ECRAN_FR.pdf` figure dans les annexes de
 
 ## Estimation de temps
 
-- Sections 1 et 2 (50 écrans) : quelques secondes, `npm run captures`.
+- Sections 1, 1 bis et 2 (95 écrans) : quelques secondes, `npm run captures`.
 - `00_boot_admission` (QEMU, CI) : automatique, aucune action manuelle.
 - Section 3 (7 tickets) : 20 à 30 minutes (impression et photo).
 - Compilation (`scripts/make_captures_pdf.sh`) : quelques secondes.

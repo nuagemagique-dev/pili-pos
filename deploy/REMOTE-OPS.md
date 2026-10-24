@@ -21,7 +21,7 @@ session **RustDesk** ouverte à la demande, le temps de l'intervention.
   boot.
 - Ouverture : depuis la caisse, par un Gérant connecté. "Config",
   section "Assistance à distance", bouton "Démarrer", puis son PIN
-  (`src-tauri/src/commands/support.rs::do_start_remote_support`, rôle
+  (`crates/pos-engine/src/commands/support.rs::do_start_remote_support`, rôle
   `admin` et PIN obligatoires). RustDesk s'ouvre et affiche un
   identifiant et un mot de passe à usage unique, que le Gérant lit au
   technicien par téléphone.
@@ -59,7 +59,7 @@ pour transférer ni installer un binaire.
 > en **lecture seule** : le technicien voit l'écran et guide le Gérant
 > par téléphone. Le déclenchement, le bandeau et l'arrêt décrits
 > ci-dessus sont implémentés et testés
-> (`src-tauri/tests/remote_support.rs`, `ui/e2e/support.spec.ts`).
+> (`crates/pos-engine/tests/remote_support.rs`, `ui/e2e/support.spec.ts`).
 
 ## Emplacements
 

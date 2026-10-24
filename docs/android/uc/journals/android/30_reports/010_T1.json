@@ -1,0 +1,302 @@
+{
+  "format": 1,
+  "side": "android",
+  "group": "30_reports",
+  "scenario": "010_T1",
+  "ids": [
+    "T1"
+  ],
+  "posSwVersion": "pili-pos-android/1.0.0-dev",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "75061189702",
+        "name": "John",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:01:55.704086330Z",
+        "id": 1,
+        "order_type": "dine_in",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": 1,
+        "total_cents": 0,
+        "user_insz": "75061189702"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:01:55.711575621Z",
+        "department_id": "10",
+        "department_name": "Aperitifs",
+        "id": 1,
+        "menu_item_id": 10006,
+        "modifiers_json": null,
+        "name": "Dry Martini",
+        "order_id": 1,
+        "quantity": 2,
+        "unit_price_cents": 1200,
+        "vat_code": "A"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:01:55.714758746Z",
+        "department_id": "22",
+        "department_name": "Main Dishes",
+        "id": 2,
+        "menu_item_id": 22001,
+        "modifiers_json": null,
+        "name": "Burger of the CHEF",
+        "order_id": 1,
+        "quantity": 1,
+        "unit_price_cents": 2800,
+        "vat_code": "B"
+      }
+    },
+    {
+      "cmd": "sign_table_order",
+      "ok": true,
+      "error": null,
+      "result": "printed"
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signWorkIn",
+      "request": {
+        "query": "mutation($data: WorkInOutInput!, $isTraining: Boolean!) { signWorkIn(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "8d1fff9c-8732-48d6-b6c1-cf505fb9f012",
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "75061189702",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:01:55.702+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signWorkIn": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctMS0xLTE3OTE2MTIxMTc=",
+            "eventOperation": "WORK_IN",
+            "fdmRef": {
+              "eventCounter": 1,
+              "eventLabel": "S",
+              "fdmDateTime": "2026-10-10T06:01:57Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 1
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:01:55.702+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "operation": "signOrder",
+      "request": {
+        "query": "mutation($data: OrderInput!, $isTraining: Boolean!) { signOrder(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "8d1fff9c-8732-48d6-b6c1-cf505fb9f012",
+            "costCenter": {
+              "id": "T01",
+              "reference": "O1",
+              "type": "TABLE"
+            },
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "75061189702",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:01:55.717+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 24.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "10",
+                    "departmentName": "Aperitifs",
+                    "productId": "10006",
+                    "productName": "Dry Martini",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 12.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 24.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 28.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "22",
+                    "departmentName": "Main Dishes",
+                    "productId": "22001",
+                    "productName": "Burger of the CHEF",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 28.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 28.0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 52.0
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signOrder": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctMS0yLTE3OTE2MTIxMTc=",
+            "eventOperation": "ORDER",
+            "fdmRef": {
+              "eventCounter": 1,
+              "eventLabel": "P",
+              "fdmDateTime": "2026-10-10T06:01:57Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 2
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:01:55.717+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:01:55Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:02:02Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "tickets": [
+    "                BON DE COMMANDE\n================================================\nDate:                        10/10/2026 08:01:55\nOperateur:                                  John\nTable 1\n------------------------------------------------\nQte   Article\n1 x Burger of the CHEF\n------------------------------------------------\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="plat_export_title">Export for the tax authority</string>
+    <string name="plat_export_checking">Checking…</string>
+    <string name="plat_export_not_manager">Manager only. Log in with an administrator account to export the data.</string>
+    <string name="plat_export_no_stick">Insert the USB stick or SD card.</string>
+    <string name="plat_export_need_folder">Choose the folder of the stick or card that will receive the exports. Create a folder named PILI-EXPORT there, then choose it.</string>
+    <string name="plat_export_pick_folder">Choose the folder</string>
+    <string name="plat_export_volume">Medium: %1$s</string>
+    <string name="plat_export_folder">Folder: %1$s</string>
+    <string name="plat_export_change_folder">Change folder</string>
+    <string name="plat_export_start">Export</string>
+    <string name="plat_export_ready_hint">The export copies the database, the backups, the logs and the identity of the till, then reads back and checks every file.</string>
+    <string name="plat_export_running">Export running. Do not remove the stick or card.</string>
+    <string name="plat_export_progress">%1$d / %2$d files, %3$s / %4$s</string>
+    <string name="plat_export_current">File: %1$s</string>
+    <string name="plat_export_done_title">Export finished</string>
+    <string name="plat_export_done_folder">Folder: %1$s/%2$s</string>
+    <string name="plat_export_done_files">%1$d files, %2$s</string>
+    <string name="plat_export_done_manifest">SHA-256 of MANIFEST.sha256</string>
+    <string name="plat_export_done_hint">You can remove the stick or card. To check the export: shasum -a 256 -c MANIFEST.sha256</string>
+    <string name="plat_export_failed_title">Export stopped</string>
+    <string name="plat_export_failed_step">Step: %1$s</string>
+    <string name="plat_export_failed_file">File: %1$s</string>
+    <string name="plat_export_failed_detail">Detail: %1$s</string>
+    <string name="plat_export_failed_kept">The files already written are kept. Nothing was deleted.</string>
+    <string name="plat_export_dismiss">Close</string>
+    <string name="plat_export_err_root">This folder is the root of the medium. Create a folder named PILI-EXPORT and choose it.</string>
+    <string name="plat_export_err_wrong_volume">This folder is not on the chosen stick or card. Choose a folder of the same medium.</string>
+    <string name="plat_export_err_open_orders">An order or a takeaway is open. Finish it before exporting.</string>
+    <string name="plat_export_err_engine">The engine of the till is not ready. Try again in a moment.</string>
+    <string name="plat_export_err_no_volume">The stick or card is no longer detected. Insert it again.</string>
+    <string name="plat_export_err_no_folder">No folder is chosen on this medium.</string>
+    <string name="plat_export_err_plan">The copy of the database or the list of files could not be prepared.</string>
+    <string name="plat_export_err_write">A file could not be written to the medium (full, removed or read-only).</string>
+    <string name="plat_export_err_fat32_hint">A file of 4 GB or more could not be written: the medium is probably FAT32. Use a medium formatted as exFAT.</string>
+    <string name="plat_export_err_mismatch">A file read back from the medium does not match what was written. The export is invalid: start again with another medium.</string>
+    <string name="plat_export_err_read">A file could not be read (on the till or on the medium).</string>
+    <string name="plat_export_err_other">Unexpected error during the export.</string>
+    <string name="plat_export_step_precheck">Checks</string>
+    <string name="plat_export_step_plan">Preparation</string>
+    <string name="plat_export_step_create_dir">Creating the folder</string>
+    <string name="plat_export_step_copy">Copy</string>
+    <string name="plat_export_step_verify">Check by reading back</string>
+    <string name="plat_export_step_manifest">Manifest</string>
+</resources>

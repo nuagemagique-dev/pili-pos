@@ -1,8 +1,9 @@
-use std::sync::OnceLock;
+use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Serialize;
 
+use crate::http_tls::HttpTls;
 use crate::inputs::*;
 use crate::response::*;
 use crate::response_check::{ExpectedEvent, check_sign_result};
@@ -10,6 +11,7 @@ use crate::response_check::{ExpectedEvent, check_sign_result};
 /// Parse one sign result out of the GraphQL `data` object and check it
 /// against the request it answers before anyone can archive it.
 fn parse_checked<D: Serialize>(
+    sink: Option<&SignMessageSink>,
     data: &serde_json::Value,
     mutation_name: &str,
     request: &D,
@@ -33,7 +35,7 @@ fn parse_checked<D: Serialize>(
         );
         FdmError::ResponseMismatch(mismatch.to_string())
     })?;
-    report_sign_messages(mutation_name, &request, &result);
+    report_sign_messages(sink, mutation_name, &request, &result);
     Ok(result)
 }
 
@@ -49,21 +51,16 @@ pub struct SignMessages {
     pub informations: Vec<MessageItem>,
 }
 
-type SignMessageSink = Box<dyn Fn(&SignMessages) + Send + Sync>;
+/// Where one client reports the messages of its signed events.
+pub type SignMessageSink = Arc<dyn Fn(&SignMessages) + Send + Sync>;
 
-static SIGN_MESSAGE_SINK: OnceLock<SignMessageSink> = OnceLock::new();
-
-/// Where the messages of signed events go. POS description v2.2,
-/// Message: a warning received with a mutation's response is shown at
-/// least once per bookingDate, so every sign response's warnings and
-/// informations reach `sink`, whichever command signed. Set once;
-/// returns false if a sink was already set.
-pub fn on_sign_messages(sink: impl Fn(&SignMessages) + Send + Sync + 'static) -> bool {
-    SIGN_MESSAGE_SINK.set(Box::new(sink)).is_ok()
-}
-
-fn report_sign_messages(mutation_name: &str, request: &serde_json::Value, result: &SignResult) {
-    let Some(sink) = SIGN_MESSAGE_SINK.get() else {
+fn report_sign_messages(
+    sink: Option<&SignMessageSink>,
+    mutation_name: &str,
+    request: &serde_json::Value,
+    result: &SignResult,
+) {
+    let Some(sink) = sink else {
         return;
     };
     let shown = |items: &Option<Vec<MessageItem>>| -> Vec<MessageItem> {
@@ -157,6 +154,23 @@ impl FdmError {
                 SignOutcome::Refused
             }
             _ => SignOutcome::Unknown,
+        }
+    }
+
+    /// The FDM's own word for the failure, to show the operator what it
+    /// said: the first code of its refusal that does not mean "not
+    /// signed" (the one that makes the outcome unknown), else the first
+    /// code, or `FDM_RESPONSE_MISMATCH` for an answer that does not echo
+    /// the request.
+    pub fn fdm_code(&self) -> Option<String> {
+        match self {
+            Self::Refused { codes, .. } => codes
+                .iter()
+                .find(|c| !NOT_SIGNED_CODES.contains(&c.as_str()))
+                .or_else(|| codes.first())
+                .cloned(),
+            Self::ResponseMismatch(_) => Some("FDM_RESPONSE_MISMATCH".to_string()),
+            _ => None,
         }
     }
 }
@@ -396,6 +410,8 @@ pub struct FdmClient {
     /// Sent as `Authorization: Bearer ...` when the FDM requires it (a
     /// cloud simulator); never logged.
     bearer_token: Option<String>,
+    /// Where the messages of signed events go ([`FdmClient::with_sign_messages`]).
+    sign_messages: Option<SignMessageSink>,
 }
 
 #[derive(Serialize)]
@@ -415,25 +431,36 @@ impl FdmClient {
     /// exercise a real timeout in milliseconds instead of waiting out
     /// the full 10s production budget.
     pub fn with_timeouts(fdm_url: &str, connect_timeout: Duration, timeout: Duration) -> Self {
-        Self::build(fdm_url, connect_timeout, timeout, None)
+        Self::build(fdm_url, connect_timeout, timeout, None, &HttpTls::Platform)
     }
 
+    /// `tls` is the preconfigured mTLS setup of the FDM's own files
+    /// ([`crate::fdm_tls`]); without it the client trusts what
+    /// `http_tls` says.
+    ///
+    /// # Panics
+    ///
+    /// When `http_tls` cannot make a client (no roots, an invalid
+    /// certificate). The engine checks its `HttpTls` when it opens, so
+    /// that never happens past that point.
     fn build(
         fdm_url: &str,
         connect_timeout: Duration,
         timeout: Duration,
         tls: Option<rustls::ClientConfig>,
+        http_tls: &HttpTls,
     ) -> Self {
-        let mut http = reqwest::Client::builder()
-            .connect_timeout(connect_timeout)
-            .timeout(timeout);
-        if let Some(tls) = tls {
-            http = http.tls_backend_preconfigured(tls);
-        }
+        let http = match tls {
+            // The FDM's own CA and client certificate: unchanged.
+            Some(tls) => reqwest::Client::builder().tls_backend_preconfigured(tls),
+            None => http_tls.client_builder().expect("valid HttpTls"),
+        };
+        let http = http.connect_timeout(connect_timeout).timeout(timeout);
         Self {
             http: http.build().expect("reqwest client builder"),
             url: fdm_url.to_string(),
             bearer_token: None,
+            sign_messages: None,
         }
     }
 
@@ -442,6 +469,13 @@ impl FdmClient {
     /// file is logged and the request goes without one: the FDM then
     /// refuses it (UNAUTHORIZED), which the operator sees.
     pub fn from_config(config: &pos_core::config::PosConfig) -> Self {
+        Self::from_config_with(config, &HttpTls::Platform)
+    }
+
+    /// [`FdmClient::from_config`], trusting `http_tls` when the FDM's
+    /// own TLS files are not configured. `http_tls` must be usable
+    /// ([`HttpTls::client_builder`]).
+    pub fn from_config_with(config: &pos_core::config::PosConfig, http_tls: &HttpTls) -> Self {
         let token =
             config
                 .fdm_token_file
@@ -462,6 +496,7 @@ impl FdmClient {
             Duration::from_secs(5),
             Duration::from_secs(10),
             Self::tls_from_config(config),
+            http_tls,
         )
         .with_bearer_token(token)
     }
@@ -507,6 +542,16 @@ impl FdmClient {
     /// Send `token` as a bearer token with every request.
     pub fn with_bearer_token(mut self, token: Option<String>) -> Self {
         self.bearer_token = token;
+        self
+    }
+
+    /// Where the messages of signed events go. POS description v2.2,
+    /// Message: a warning received with a mutation's response is shown
+    /// at least once per bookingDate, so every sign response's warnings
+    /// and informations (minus `showPos: NEVER`) reach `sink`, whichever
+    /// command signed.
+    pub fn with_sign_messages(mut self, sink: SignMessageSink) -> Self {
+        self.sign_messages = Some(sink);
         self
     }
 
@@ -805,7 +850,15 @@ impl FdmClient {
             .fields()
             .iter()
             .zip(&inputs)
-            .map(|((field, _, _), input)| parse_checked(&data, field, input, request.is_training()))
+            .map(|((field, _, _), input)| {
+                parse_checked(
+                    self.sign_messages.as_ref(),
+                    &data,
+                    field,
+                    input,
+                    request.is_training(),
+                )
+            })
             .collect()
     }
 

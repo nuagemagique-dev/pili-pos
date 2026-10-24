@@ -9,7 +9,7 @@ liste **chaque table**, **chaque champ**, son **type**, sa **longueur**
 **Mode** : WAL (Write-Ahead Logging) - atomique crash-safe.
 **Fichier vivant** : `/var/lib/pili-pos/pos.db` en production.
 **Source de vérité du schéma** : `crates/pos-db/src/schema.rs`,
-`schema_hubrise.rs` et `schema_catalog.rs` (lecture machine via
+`schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs`, `schema_till.rs`, `schema_invoicing.rs` et `schema_badges.rs` (lecture machine via
 `sqlite3 pos.db ".schema"`).
 
 ## 1. Tables de référence
@@ -157,6 +157,8 @@ historique).
 | `department_name` | TEXT (nullable, migration `002`) | Nom du département au moment de l'ajout, envoyé comme `departmentName` |
 | `modifiers_json` | TEXT (nullable) | Modificateurs sélectionnés en JSON |
 | `created_at` | TEXT | Date / heure d'ajout |
+| `kitchen_note` | TEXT (nullable, migration `031`) | Note de cuisine de la ligne (« sans wasabi »), 60 caractères au plus, écrite par le personnel sur une commande ouverte. Donnée locale : jamais envoyée au FDM, jamais copiée dans `order_entries`, jamais imprimée sur un ticket TVA |
+| `kitchen_note_printed` | TEXT (nullable, migration `031`) | Dernière note imprimée sur un bon du bar ou de la cuisine (NULL si aucune) ; une note différente n'est pas encore arrivée en cuisine |
 
 `order_lines` reste la vue consolidée affichée/imprimée ; le journal
 chronologique des ajouts/corrections/remboursements est `order_entries`
@@ -165,7 +167,7 @@ chronologique des ajouts/corrections/remboursements est `order_entries`
 ### 2.3 `payments`
 
 Paiements enregistrés pour une commande. Plusieurs paiements
-possibles par commande (espèces + carte sur un partage, titres-repas).
+possibles par commande (espèces + carte sur un partage, chèques-repas).
 Modes limités à `cash`, `card`, `meal_voucher` (migration `008`) et
 `other`. Un mouvement de caisse (événement F) n'écrit aucune ligne
 `payments`.
@@ -177,6 +179,283 @@ Modes limités à `cash`, `card`, `meal_voucher` (migration `008`) et
 | `method` | TEXT | `cash`, `card`, `meal_voucher` ou `other` (contraint) |
 | `amount_cents` | INTEGER | Montant en centimes (positif) |
 | `created_at` | TEXT | Date / heure du paiement |
+
+### 2.4 `table_plan`, `table_plan_log` (migration `011`)
+
+Plan de salle : les numéros de table que l'établissement utilise,
+écrits en nombres et plages séparés par des virgules (`1-12, 20-25`),
+de 1 à 999, 200 tables au plus. Aucune donnée fiscale n'en dépend : le
+numéro de table figurait déjà sur la commande et ne change ni le
+ticket, ni la charge utile envoyée au FDM.
+
+`table_plan` (une seule ligne, `id` = 1) :
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire, toujours 1 (`CHECK(id = 1)`) |
+| `plan` | TEXT | Plan en vigueur, sous sa forme canonique (`1-12, 20-25`) |
+| `config_plan` | TEXT | Plan que `pos.json` (clé `tables`, ou 1 à `table_count`) donnait au dernier démarrage |
+| `changed_at` | TEXT | Date du dernier changement |
+| `changed_by` | TEXT (nullable) | INSZ du Gérant ; NULL pour un changement venu de `pos.json` (pas de clé étrangère) |
+
+`table_plan_log` (ajout seul) : une ligne par changement. Champs `id`,
+`plan`, `source` (`config` ou `admin`, contraint), `changed_by` (INSZ du
+Gérant, NULL pour `config`) et `changed_at` (défaut `datetime('now')`).
+Les déclencheurs `table_plan_log_no_update` et `table_plan_log_no_delete`
+refusent `UPDATE` et `DELETE`.
+
+Même règle que l'interrupteur HubRise (§5.4) : au premier démarrage, ou
+quand `pos.json` donne un plan nouveau, ce plan s'applique et est
+journalisé (source `config`) ; sinon la dernière valeur reste, y compris
+celle qu'un Gérant a fixée dans Réglages (source `admin`). L'écran des
+tables affiche les tables du plan, plus toute table hors plan qui a
+encore une commande ouverte : aucune commande non réglée n'est donc
+masquée.
+
+### 2.5 `eft_payments` Attention : APPEND-ONLY (migration `027`)
+
+Paiements par carte demandés au terminal de paiement relié (réglage
+facultatif `payment_terminal` de `pos.json`). Une ligne par paiement
+demandé, écrite **avant** l'appel du terminal (statut `sent`) : un
+arrêt entre l'appel et la réponse laisse la trace qu'une carte a peut-être
+été débitée. La table n'est écrite que si l'installation a un terminal
+relié ; elle fait partie du binaire certifié de toute installation.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `reference` | TEXT | Unique. UUID v4 envoyé au terminal (clé d'idempotence, clé de relecture du statut) |
+| `order_id` | INTEGER (FK → `orders.id`) | Commande payée |
+| `terminal_kind` | TEXT | `worldline_terminal_api`, `ccv_payment_api` ou `ccv_opi` |
+| `amount_cents` | INTEGER | Montant demandé en centimes (strictement positif) |
+| `status` | TEXT | `sent` (attend la réponse), `approved`, `declined`, `cancelled`, `unknown` (réponse perdue, à redemander) ou `not_sent` (rien n'a été débité) ; contraint |
+| `card_type` | TEXT (nullable) | `debit`, `credit` ou `unknown` ; obligatoire pour un paiement `approved` (`CHECK`) |
+| `brand` | TEXT (nullable) | Marque de la carte rendue par le terminal (par exemple Bancontact) |
+| `terminal_reference` | TEXT (nullable) | Identifiant de transaction du terminal (devient la `reference` de la ligne de paiement signée) |
+| `authorisation_code` | TEXT (nullable) | Code d'autorisation |
+| `masked_pan` | TEXT (nullable) | Numéro de carte masqué par le terminal ; le numéro complet n'arrive jamais à la caisse |
+| `customer_receipt` | TEXT (nullable) | Ticket client du terminal, conservé avec l'approbation |
+| `detail` | TEXT (nullable) | Motif du refus, ce qui manque pour un paiement `unknown`, erreur d'un `not_sent` |
+| `user_insz` | TEXT | INSZ de l'opérateur qui a demandé le paiement (pas de clé étrangère) |
+| `created_at` | TEXT | Date / heure de la demande (défaut `datetime('now')`) |
+| `resolved_at` | TEXT (nullable) | Date / heure de la réponse définitive |
+| `used_event_id` | INTEGER (FK → `fiscal_events.id`, nullable) | La vente (événement N) qui a réglé ce paiement ; une seule fois |
+
+Index : `idx_eft_payments_order` (`order_id`) et `idx_eft_payments_open`
+(partiel, `WHERE status IN ('sent','unknown')`, les paiements qui
+attendent encore leur réponse).
+
+Six déclencheurs (`RAISE(ABORT, ...)`), détaillés dans
+`SECURITE_BD_FR.md` : `eft_payments_no_delete` (jamais de `DELETE`),
+`eft_payments_starts_sent` (une ligne naît `sent` et non utilisée),
+`eft_payments_request_fixed` (ce qui a été demandé ne change jamais),
+`eft_payments_status_moves` (seuls `sent` et `unknown` évoluent, jamais
+vers `sent`), `eft_payments_answer_final` (une réponse `approved`,
+`declined`, `cancelled` ou `not_sent` ne change plus) et
+`eft_payments_used_once` (seul un paiement `approved` est utilisé, une
+fois).
+
+### 2.6 `badge_settings`, `staff_badges`, `badge_log`, `badge_scans` (migration `070`)
+
+Badges du personnel (carte ou porte-clés), pour pointer la présence et se
+connecter à la caisse. Option désactivée par défaut ; les quatre tables
+existent sur toute installation. **Le numéro du badge n'est jamais
+stocké** : seulement une empreinte HMAC-SHA256 calculée avec une clé
+(`badge.key`) qui reste hors de la base (`SECURITE_BD_FR.md` §2.5).
+
+`badge_settings` (une seule ligne, `id = 1`) :
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire, CHECK `id = 1` |
+| `reader` | TEXT | `off` (par défaut), `nfc` ou `usb` (CHECK) |
+| `login_enabled` | INTEGER | 0 par défaut, 1 = connexion par badge pour les Serveurs et les Apprentis (CHECK 0 ou 1) |
+| `wedge_max_gap_ms` | INTEGER | Écart maximal entre deux caractères du lecteur USB, 50 par défaut (CHECK 10 à 200) |
+| `wedge_min_len` | INTEGER | Longueur minimale du code lu, 6 par défaut (CHECK 4 à 32) |
+| `wedge_max_len` | INTEGER | Longueur maximale, 32 par défaut (CHECK 4 à 64 ; CHECK minimum inférieur ou égal au maximum) |
+| `key_check` | TEXT (nullable) | 16 premiers caractères hexadécimaux de `HMAC(clé, "pili-badge-check/1")`, qui permet de détecter une clé perdue ; NULL tant qu'aucune clé n'existe |
+| `changed_at`, `changed_by` | TEXT | Dernière modification et INSZ du Gérant |
+
+`staff_badges` (jamais supprimée) :
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `badge_hash` | TEXT (64) | Empreinte HMAC-SHA256 en hexadécimal minuscule (CHECK longueur 64) |
+| `user_insz` | TEXT | INSZ de l'employé, clé étrangère vers `users(insz)` |
+| `linked_at`, `linked_by` | TEXT | Date du lien et INSZ du Gérant qui l'a fait |
+| `revoked_at` | TEXT (nullable) | Date du retrait ; NULL = badge actif |
+| `revoked_by` | TEXT (nullable) | INSZ du Gérant ; NULL avec le motif `key_changed` (retrait par le moteur) |
+| `revoke_reason` | TEXT (nullable) | `manager`, `deactivated` ou `key_changed` (CHECK) |
+
+Index uniques partiels : `staff_badges_active_badge` (une empreinte active
+au plus) et `staff_badges_active_user` (un badge actif au plus par
+employé) ; après un retrait, le même badge peut être lié de nouveau.
+Déclencheurs : `staff_badges_no_delete` (aucune suppression) et
+`staff_badges_revoke_only` (la seule modification possible est un retrait,
+une seule fois ; l'empreinte, l'INSZ et les données de lien ne changent
+jamais).
+
+`badge_log` (ajout seul) : `id`, `action` (`link`, `revoke` ou `settings`),
+`badge_id` (clé étrangère vers `staff_badges`), `user_insz`, `detail` (motif
+d'un retrait, ou JSON des nouvelles valeurs d'un réglage), `changed_by`
+(INSZ du Gérant ; NULL pour le moteur), `changed_at`. Déclencheurs
+`badge_log_no_update` et `badge_log_no_delete`.
+
+`badge_scans` (ajout seul) : `id`, `outcome` (`clock_in`, `clock_out`,
+`presence_failed`, `login`, `pin_required`, `unknown`, `revoked` ou
+`refused`), `user_insz`, `badge_ref` (12 premiers caractères de
+l'empreinte, jamais le numéro), `detail` (code du refus ou texte du FDM),
+`scanned_at`. Un second passage ignoré par l'anti-rebond de 10 secondes
+n'est pas consigné. Déclencheurs `badge_scans_no_update` et
+`badge_scans_no_delete`.
+
+### 2.7 `menu_item_sold_out`, `sold_out_log` (migration `041`)
+
+Produit déclaré « Épuisé » (annexe *PRODUIT_EPUISE_FR.md*). Aucun effet
+fiscal : ni événement, ni compteur.
+
+`menu_item_sold_out` : l'état courant, une ligne par produit épuisé.
+
+| Champ | Type | Description |
+|---|---|---|
+| `menu_item_id` | INTEGER (PK, FK → `menu_items.id`) | Produit épuisé |
+| `until` | TEXT (nullable) | Fin de la journée commerciale (RFC 3339, décalage de Bruxelles) ; NULL = jusqu'à réactivation |
+| `set_by` | TEXT | INSZ de l'opérateur qui l'a déclaré |
+| `set_at` | TEXT | Date / heure (défaut `datetime('now')`) |
+
+`sold_out_log` Attention : APPEND-ONLY. Chaque déclaration, levée et expiration.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `menu_item_id` | INTEGER (FK) | Produit |
+| `action` | TEXT | `set`, `clear` ou `expired` (contraint) |
+| `until` | TEXT (nullable) | Fin de journée de la déclaration |
+| `by` | TEXT (nullable) | INSZ de l'opérateur (NULL pour une expiration) |
+| `at` | TEXT | Date / heure |
+
+Index : `idx_sold_out_log_item(menu_item_id)`. Déclencheurs
+`sold_out_log_no_update` et `sold_out_log_no_delete`.
+
+### 2.8 `menu_change_log` Attention : APPEND-ONLY (migration `042`)
+
+Journal de l'éditeur de carte (annexe *EDITEUR_CARTE_FR.md*) : chaque
+création et chaque modification d'une catégorie, d'un produit, d'un
+groupe d'options ou d'une option. L'éditeur écrit les tables de la carte
+du §1 ; rien n'y est supprimé (le champ `active` masque un élément).
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `entity_type` | TEXT | `category`, `product`, `modifier_group` ou `modifier` (contraint) |
+| `entity_id` | INTEGER | Identifiant de l'élément |
+| `action` | TEXT | `create` ou `update` (contraint) |
+| `before_json` | TEXT (nullable) | La ligne avant la modification (noms par langue compris) ; NULL à la création |
+| `after_json` | TEXT | La ligne après la modification |
+| `changed_by` | TEXT | INSZ du gérant |
+| `changed_at` | TEXT | Date / heure |
+
+Index : `idx_menu_change_log_entity(entity_type, entity_id)`.
+Déclencheurs `menu_change_log_no_update` et `menu_change_log_no_delete`.
+
+### 2.9 Fonctions du propriétaire (migrations `060` à `063`)
+
+Quatre migrations ajoutent les réglages du propriétaire et leurs journaux,
+les allergènes, le service en plusieurs temps et les bons cadeaux. Elles
+existent dans toutes les versions du binaire (sans option de compilation)
+et ne modifient ni ne suppriment aucune table fiscale : elles ajoutent des
+tables, et la migration 63 ajoute deux lignes système à la carte.
+
+#### 2.9.1 `owner_settings`, `owner_settings_log` (migration `060`)
+
+`owner_settings` : une ligne par réglage (`key` clé primaire : `alerts`,
+`courses`, `gift_vouchers`), `value_json` (validé par le moteur, champs
+inconnus refusés), `changed_at`, `changed_by` (INSZ du gérant, nullable).
+Une clé absente veut dire « réglages par défaut » (fonction éteinte).
+
+`owner_settings_log` : une ligne par enregistrement (`id`, `key`,
+`value_json`, `changed_by`, `changed_at`), écrite dans la même transaction
+que `owner_settings` ; un enregistrement identique à la valeur courante
+n'écrit rien. Déclencheurs `owner_settings_log_no_update` et
+`owner_settings_log_no_delete`.
+
+#### 2.9.2 `owner_alert_log` Attention : APPEND-ONLY (migration `060`)
+
+Une ligne par message d'alerte au propriétaire, envoyé ou non.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `kind` | TEXT | `fdm`, `printer`, `terminal`, `z_missing`, `online_waiting`, `test` (contraint) |
+| `transition` | TEXT | `raised`, `reminder`, `resolved`, `test` (contraint) |
+| `detail` | TEXT (nullable) | Compteurs, date comptable, noms de canaux ; jamais de donnée personnelle |
+| `outcome` | TEXT | `sent`, `failed`, `suppressed` (contraint) |
+| `http_status` | INTEGER (nullable) | Code de réponse du service, s'il a répondu |
+| `created_at` | TEXT | Date / heure (UTC) |
+
+Index : `idx_owner_alert_log_kind(kind, id)`. Déclencheurs
+`owner_alert_log_no_update` et `owner_alert_log_no_delete`.
+
+#### 2.9.3 Allergènes (migration `061`)
+
+Les 14 allergènes de l'annexe II du règlement (UE) 1169/2011, par produit
+et par option. Données d'affichage et d'impression, jamais fiscales.
+
+| Table | Clé | Contenu |
+|---|---|---|
+| `menu_item_allergens` | (`menu_item_id` FK, `allergen`) | `allergen` parmi `gluten`, `crustaceans`, `eggs`, `fish`, `peanuts`, `soybeans`, `milk`, `nuts`, `celery`, `mustard`, `sesame`, `sulphites`, `lupin`, `molluscs` (contraint) ; `level` `contains` ou `may_contain` (contraint) |
+| `modifier_allergens` | (`modifier_id` FK, `allergen`) | Mêmes colonnes, pour une option |
+| `allergen_declarations` | (`entity_type`, `entity_id`) | `entity_type` `menu_item` ou `modifier` ; `source` `catalog` ou `local` ; `declared_at`, `declared_by` (nullable). Une ligne = liste déclarée, même vide ; sans ligne : information non disponible |
+| `allergen_change_log` | `id` | Une ligne par changement réel : `entity_type`, `entity_id`, `before_json`, `after_json`, `source`, `changed_by`, `changed_at` |
+
+Index : `idx_allergen_change_log_entity(entity_type, entity_id, id)`.
+Déclencheurs `allergen_change_log_no_update` et
+`allergen_change_log_no_delete`. Les lignes système de la carte
+(`external_id` commençant par `pili:`) ne reçoivent pas d'allergènes.
+
+#### 2.9.4 Service en plusieurs temps (migration `062`)
+
+Données de cuisine uniquement : rien de ces tables n'entre dans une ligne
+de commande, une requête de signature, un nom de produit ou un département.
+
+| Table | Clé | Contenu |
+|---|---|---|
+| `order_line_courses` | `line_id` (sans clé étrangère : le journal d'une ligne corrigée garde son temps) | `order_id` FK, `course` 0 à 3 (contraint), `set_by` (nullable), `set_at`. Sans ligne : temps 0 (Direct). Index `idx_order_line_courses_order(order_id)` |
+| `order_course_releases` | (`order_id` FK, `course`) | Temps libéré par « Envoyer la suite » (1 à 3, contraint), `released_by`, `released_at`. Sans ligne, le temps libéré est 1 |
+| `kitchen_slip_entries` | `entry_id` FK vers `order_entries` | Ligne du journal réellement imprimée sur un ticket de cuisine ou de bar : `course`, `printed_at`, `slip` `immediate`, `release` ou `sale` (contraint) |
+
+La migration reprend comme déjà imprimées (temps 0, `immediate`) les
+lignes du journal déjà transmises par un événement signé. Une ligne de
+modification de prix (`PRICE_CHANGE`) n'est jamais retenue par un temps.
+
+#### 2.9.5 Bons cadeaux (migration `063`)
+
+Bons cadeaux à usage multiple, vendus au taux X et encaissés par le moyen
+de paiement `VOUCHER_STORE`. Deux lignes système sont ajoutées à la carte,
+inactives (jamais affichées sur la grille, jamais touchées par la
+synchronisation du catalogue, jamais montrées par l'éditeur de carte) :
+
+| Table | Ligne | Contenu |
+|---|---|---|
+| `categories` | identifiant 990000, `external_id` `pili:system` | Inactive |
+| `menu_items` | identifiant 990001, `external_id` `pili:gift-voucher` | Taux X (sur place et à emporter), `vat_category` `out_of_scope`, pas d'imprimante de cuisine, prix libre, inactif |
+| `translations` | Noms du produit et de la catégorie | fr « Bon cadeau », en « Gift voucher », nl « Cadeaubon », zh « 礼品券 » |
+
+| Table | Contenu |
+|---|---|
+| `gift_vouchers` | `id`, `code` (12 chiffres, unique), `face_value_cents` (> 0, contraint), `issued_on`, `expires_on`, `training` (0 ou 1), `issue_event_id` FK vers `fiscal_events` (l'événement N ou T de la vente), `issue_order_id`, `issue_line_id` (unique : une ligne, un bon), `created_at` |
+| `gift_voucher_movements` | `id`, `voucher_id` FK, `kind` `issue`, `redeem` ou `cancel` (contraint), `amount_cents` signé, `fiscal_event_id` FK vers `fiscal_events`, `order_id` (nullable), `created_at`. Index `idx_gift_voucher_movements_voucher(voucher_id, id)` |
+| `gift_voucher_prints` | `id`, `voucher_id` FK, `kind` `original`, `duplicate` ou `balance` (contraint), `printed_by` (nullable), `printed_at` |
+
+Les trois tables sont en ajout seul (déclencheurs `*_no_update` et
+`*_no_delete`). Le solde d'un bon est la somme de ses mouvements ; son état
+(valide, épuisé, expiré, annulé) se calcule avec `expires_on` et la
+présence d'un mouvement `cancel`. Un bon est créé dans la transaction
+d'archive de la vente qui l'a vendu, un mouvement dans celle de la vente
+qui l'a utilisé. Une vente qui vend un bon ne peut pas être facturée et
+une ligne `VOUCHER_STORE` n'est jamais corrigée par une correction de
+moyen de paiement.
 
 ## 3. Tables fiscales (append-only)
 
@@ -359,8 +638,9 @@ Utilisateurs du POS. INSZ comme clé primaire. Voir
 | `role` | TEXT | `admin`, `cashier`, ou `waiter` (contraint) |
 | `pin_hash` | TEXT (nullable) | Hash bcrypt du PIN optionnel |
 | `active` | INTEGER | 1 = utilisateur actif, 0 = désactivé |
+| `presence_only` | INTEGER | 0 par défaut, 1 = personnel sans accès à la caisse (profil « Présence seule », `PROFILS_UTILISATEURS_FR.md` §2.4) : pas de PIN, pas de connexion, pointé par un Gérant. CHECK 0 ou 1 (migration `028`) |
 
-### 3.8 bis `staff_shifts` (migration `009`)
+### 3.8 bis `staff_shifts` (migration `009`, colonnes d'audit ajoutées par `028`)
 
 Index local des postes de travail : une ligne par prestation, ouverte
 par un événement S `WorkIn` signé et close par un S `WorkOut` signé,
@@ -376,10 +656,13 @@ mis à jour).
 | `user_insz` | TEXT | INSZ de l'employé (pas de clé étrangère) |
 | `started_at` | TEXT (ISO 8601, UTC) | Début du poste |
 | `ended_at` | TEXT (nullable) | Fin du poste ; NULL = poste ouvert |
+| `started_by` | TEXT (nullable) | INSZ de la personne qui a enregistré l'arrivée : l'employé lui-même (connexion) ou le Gérant qui l'a pointé ; NULL pour les lignes d'avant la migration `028` (migration `028`) |
+| `ended_by` | TEXT (nullable) | Idem pour le départ (migration `028`) |
 
 Index : `idx_staff_shifts_open(user_insz, ended_at)`. Au plus un poste
 ouvert par employé (la requête d'ouverture ne crée rien s'il en existe
-un).
+un). Un événement S d'entraînement (étiquette T) n'ouvre ni ne ferme
+jamais de poste : l'index ne reflète que la présence réelle.
 
 ### 3.9 `pending_signs` (migration `010`)
 
@@ -435,31 +718,114 @@ period is closed`, code applicatif `period_closed`) l'archivage d'un
 déjà fermée (`booking_periods.closed_at` non nul). Un événement signé
 ne peut donc pas être rattaché à un jour déjà clôturé.
 
-## 4. Tables Peppol (hors binaire certifié v1.0.0)
+## 4. Tables de facturation et Peppol (migration `040`)
 
-### 4.1 `peppol_deliveries`
+Annexe *FACTURATION_PEPPOL_FR.md*. Les tables `invoices`, `invoice_sales`
+et `peppol_delivery_log` sont en ajout seul ; la vue `v_invoice_journal`
+est le sous-journal des factures émises de l'article 33 de l'arrêté
+ministériel du 29 avril 2024.
 
-Audit trail des factures B2B livrées via Access Point Peppol. La table
-est créée par la migration 1 dans toute build, mais le code Peppol
-(`#[cfg(feature = "peppol")]`) n'est pas dans le binaire certifié de la
-v1.0.0 : aucune ligne n'y est jamais écrite.
+### 4.1 `b2b_customers`
+
+Les clients à qui une facture est adressée. Table de travail, modifiable
+(la facture garde son propre instantané du client, `invoices.customer_json`).
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `vat_number` | TEXT | Numéro de TVA (unique) |
+| `name`, `street`, `postal_code`, `city` | TEXT | Identité et adresse |
+| `country_code` | TEXT | Pays (`BE` par défaut) |
+| `peppol_status` | TEXT | Dernier résultat de la recherche Peppol : `unknown` (défaut), `registered` ou `not_registered` (contraint) |
+| `peppol_checked_at` | TEXT (nullable) | Date de cette recherche |
+| `created_at`, `updated_at`, `updated_by` | TEXT | Création et dernière modification |
+
+### 4.2 `invoices` Attention : APPEND-ONLY
+
+Une ligne par événement I signé.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `invoice_seq` | INTEGER | Séquence continue de toutes les factures, jamais remise à zéro (unique) |
+| `invoice_no` | TEXT | Numéro de facture : année d'émission et séquence (unique) |
+| `fiscal_event_id` | INTEGER (FK → `fiscal_events.id`) | L'événement I archivé (unique) |
+| `customer_id` | INTEGER (FK, nullable) | Le client |
+| `customer_json` | TEXT | Le client tel qu'imprimé (nom, adresse, TVA), figé à la signature |
+| `issue_date` | TEXT | Date d'émission |
+| `total_cents` | INTEGER | Total en centimes (négatif si le remboursement l'emporte) |
+| `vat_json` | TEXT | Base, TVA et total par code de TVA, en centimes |
+| `created_by` | TEXT | INSZ de l'opérateur |
+| `created_at` | TEXT | Date / heure |
+
+Déclencheurs `invoices_no_update` et `invoices_no_delete`.
+
+### 4.3 `invoice_sales` Attention : APPEND-ONLY
+
+Les ventes (événements N) couvertes par chaque facture.
+
+| Champ | Type | Description |
+|---|---|---|
+| `invoice_id` | INTEGER (FK → `invoices.id`) | La facture |
+| `sale_fiscal_event_id` | INTEGER (FK → `fiscal_events.id`) | La vente ; **unique** : une vente figure sur une seule facture |
+| `position` | INTEGER | Rang de la vente dans la facture (clé primaire avec `invoice_id`) |
+
+Déclencheurs `invoice_sales_no_update` et `invoice_sales_no_delete`.
+
+### 4.4 `peppol_deliveries`
+
+File d'envoi et audit des factures livrées par un point d'accès Peppol.
+La table est créée par la migration 1 ; la migration 40 la transforme en
+file d'attente. Une ligne par facture envoyée sur Peppol (clients
+belges, installation avec une section `peppol`).
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | INTEGER | Clé primaire |
 | `fiscal_event_id` | INTEGER (FK) | Lien vers l'événement I correspondant |
 | `invoice_no` | TEXT | Numéro de facture émetteur |
-| `customer_endpoint_id` | TEXT | Identifiant Peppol du destinataire (`0208:BE...`) |
-| `ap_vendor` | TEXT | Nom du fournisseur AP ("storecove", "unifiedpost", "logging-only") |
-| `ap_message_id` | TEXT (nullable) | ID retourné par l'AP |
-| `ubl_xml` | TEXT | Document UBL 2.1 complet pour audit |
-| `ap_response_json` | TEXT (nullable) | Réponse de l'AP |
-| `status` | TEXT | `queued`, `accepted`, ou `failed` (contraint) |
-| `error_msg` | TEXT (nullable) | Message d'erreur si `failed` |
-| `created_at` | TEXT | Date / heure de l'envoi |
-| `accepted_at` | TEXT (nullable) | Date / heure d'acceptation par l'AP |
+| `customer_endpoint_id` | TEXT | Identifiant Peppol du destinataire (`0208:` et le numéro d'entreprise) |
+| `ap_vendor` | TEXT | Fournisseur du point d'accès (`storecove` ; `logging` en développement) |
+| `ap_message_id` | TEXT (nullable) | ID retourné par le point d'accès |
+| `ubl_xml` | TEXT | Document UBL 2.1 complet, pour audit |
+| `ap_response_json` | TEXT (nullable) | Réponse du point d'accès |
+| `status` | TEXT | `queued` (en attente ou à retenter), `accepted` (remis) ou `failed` (mis de côté) ; contraint |
+| `error_msg` | TEXT (nullable) | Raison de l'échec ou de la mise de côté |
+| `created_at` | TEXT | Date / heure de la mise en file |
+| `accepted_at` | TEXT (nullable) | Date / heure d'acceptation par le point d'accès |
+| `attempts` | INTEGER (migration `040`) | Nombre de tentatives |
+| `next_attempt_at` | TEXT (nullable, migration `040`) | Prochaine tentative |
+| `last_attempt_at` | TEXT (nullable, migration `040`) | Dernière tentative |
+| `parked_at` | TEXT (nullable, migration `040`) | Mis de côté |
+| `lookup_status` | TEXT (migration `040`) | Résultat de la recherche du destinataire : `unknown`, `registered` ou `not_registered` |
 
-Index : `idx_peppol_deliveries_invoice(invoice_no)`.
+Index : `idx_peppol_deliveries_invoice(invoice_no)` et
+`idx_peppol_deliveries_queue(next_attempt_at)` (partiel, `WHERE status = 'queued'`).
+
+### 4.5 `peppol_delivery_log` Attention : APPEND-ONLY
+
+Chaque tentative d'envoi, quel que soit son résultat.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `delivery_id` | INTEGER (FK → `peppol_deliveries.id`) | L'envoi |
+| `attempt` | INTEGER | Numéro de la tentative |
+| `outcome` | TEXT | Résultat |
+| `http_status` | INTEGER (nullable) | Code HTTP |
+| `detail` | TEXT (nullable) | Détail |
+| `at` | TEXT | Date / heure |
+
+Déclencheurs `peppol_delivery_log_no_update` et `peppol_delivery_log_no_delete`.
+
+### 4.6 Vue `v_invoice_journal`
+
+Une ligne par facture, dans l'ordre de la séquence : `invoice_no`,
+`issue_date`, `customer_vat_number`, `customer_name`, base et TVA des
+codes A, B et C (`base_a_cents`, `vat_a_cents`, ...), base D et X, total,
+`fdm_id`, `event_label`, `fdm_datetime`, `event_sequence` (numéro d'ordre
+de l'événement I) et `peppol_status` (état du dernier envoi). La requête
+d'audit est dans *FACTURATION_PEPPOL_FR.md* §5.
 
 ## 5. Tables des commandes en ligne (migrations 20 à 25)
 
@@ -509,6 +875,22 @@ regroupe une remise appliquée à plusieurs lignes à la fois, les remises
 successives l'incrémentant (FAQ producteurs Q304). Index
 `idx_order_price_changes_order(order_id, entry_id)`. Déclencheurs
 refusant `UPDATE` et `DELETE`.
+
+### 5.3 bis `till_discounts` (ajout seul, migration `030`)
+
+Journal local des remises saisies à la caisse par un Gérant (ce qui ne
+part jamais au FDM : le motif). Une ligne par pose (`action` = `apply`)
+ou par retrait (`remove`) : `order_id`, `line_id` (NULL pour une remise
+de commande), `kind` (`percent` / `amount` / `free`, NULL au retrait),
+`value`, `amount_cents` (négatif à la pose), `change_id`, `grouping_id`,
+`reason_code`, `reason_text` (facultatif), `manager_insz` (le Gérant qui
+a confirmé par son PIN) et `created_at`. Index
+`idx_till_discounts_order(order_id, id)`. Déclencheurs refusant `UPDATE`
+et `DELETE`. La migration ajoute aussi `order_entries.till_op`
+(`price_change` ou NULL) qui marque les lignes du journal portant une
+remise de caisse, non modifiable une fois posée. Les montants signés
+sont dans `order_price_changes` (§5.3) avec les identifiants
+`TILL-DISCOUNT`, `TILL-FREE` et `TILL-FREE-LINE`.
 
 ### 5.4 `integration_switches`, `integration_switch_log` (ajout seul)
 
@@ -599,11 +981,28 @@ La migration 21 ajoute aussi `categories.hidden`, `menu_items.kind`,
 lignes en place (jamais de suppression) ; l'historique fiscal est figé
 dans `order_lines` et `order_entries`.
 
+### 5.8 `hubrise_inventory_sync` (migration `041`)
+
+État de stock d'un produit épuisé à transmettre à HubRise (seulement si
+HubRise est activé et si le produit a une référence de SKU ; voir
+*PRODUIT_EPUISE_FR.md* §4). Une ligne par produit.
+
+| Champ | Type | Description |
+|---|---|---|
+| `menu_item_id` | INTEGER (PK, FK → `menu_items.id`) | Produit |
+| `sku_ref` | TEXT | Référence de SKU dans le catalogue HubRise |
+| `dirty` | INTEGER | 1 = à transmettre |
+| `version` | INTEGER | Compte les changements : un changement fait pendant un envoi n'est pas perdu |
+| `attempts`, `next_attempt_at`, `last_attempt_at`, `parked_at`, `error_msg` | | File de nouvelles tentatives, comme `hubrise_outbox` |
+| `synced_at` | TEXT (nullable) | Dernier envoi réussi |
+
+Index : `idx_hubrise_inventory_sync_dirty(dirty)` (partiel, `WHERE dirty = 1`).
+
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **seize
-migrations** existent (1 à 10, puis 20 à 25 ; 11 à 19 sont réservées aux
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **trente
+migrations** existent (1 à 11, 20 à 28, 30 et 31, 40 à 42, 60 à 63, puis 70 ; 12 à 19 sont réservées aux
 correctifs du binaire certifié), appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
@@ -619,12 +1018,26 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 8 | `meal-voucher-payments` | Autorise le moyen de paiement `meal_voucher` dans `payments` (table reconstruite avec ses lignes, SQLite ne modifiant pas un CHECK). |
 | 9 | `shifts-and-pre-bill` | Ajoute `staff_shifts` (index local des prestations ouvertes par un S WorkIn) et `orders.pre_bill_at`. |
 | 10 | `pending-signs` | Ajoute `pending_signs` (requêtes de signature stockées avant envoi, §3.9) et le déclencheur `fiscal_events_period_open` (§3.10). |
+| 11 | `table-plan` | Ajoute `table_plan`, `table_plan_log` et ses déclencheurs (§2.4, plan de salle). |
 | 20 | `hubrise-transport` | Colonnes de nouvelle tentative et d'erreur sur `hubrise_connection`, `hubrise_events`, `hubrise_outbox` (§5.5). |
 | 21 | `catalog-sync` | Menu reflet d'un catalogue externe, `catalog_sync_state` (§5.5). |
 | 22 | `webshop-orders` | `webshop_orders`, `hubrise_channels`, `hubrise_cash_payment_refs` (§5.1, §5.2). |
 | 23 | `price-changes` | `order_price_changes` et ses déclencheurs (§5.3). |
 | 24 | `platform-charges` | Frais des plateformes exclus par défaut (§5.2). |
 | 25 | `integration-switch` | `integration_switches`, `integration_switch_log` et ses déclencheurs (§5.4). |
+| 26 | `product-codes` | Colonne `code` de `menu_items` (code de menu affiché, sans effet fiscal). |
+| 27 | `eft-payments` | `eft_payments`, ses index et ses six déclencheurs (§2.5, terminal de paiement relié). |
+| 28 | `presence-registration` | Colonne `users.presence_only` (profil « Présence seule », §3.8) et colonnes d'audit `staff_shifts.started_by` / `ended_by` (§3.8 bis) : le Gérant qui pointe un autre employé. Non conditionnée par une fonctionnalité de compilation. |
+| 30 | `till-discounts` | `till_discounts`, ses déclencheurs et la colonne `order_entries.till_op` (§5.3 bis). |
+| 31 | `kitchen-notes` | Colonnes `kitchen_note` et `kitchen_note_printed` de `order_lines` (§2.2), notes de cuisine locales. |
+| 40 | `invoicing` | `b2b_customers`, `invoices`, `invoice_sales`, colonnes de file de `peppol_deliveries`, `peppol_delivery_log`, vue `v_invoice_journal` (§4). |
+| 41 | `sold-out` | `menu_item_sold_out`, `sold_out_log`, `hubrise_inventory_sync` (§2.7, §5.8). |
+| 42 | `menu-editor` | `menu_change_log` et ses déclencheurs (§2.8). |
+| 60 | `owner-settings-alerts` | `owner_settings`, `owner_settings_log`, `owner_alert_log` et leurs déclencheurs (§2.9.1, §2.9.2). |
+| 61 | `allergens` | `menu_item_allergens`, `modifier_allergens`, `allergen_declarations`, `allergen_change_log` et ses déclencheurs (§2.9.3). |
+| 62 | `courses` | `order_line_courses`, `order_course_releases`, `kitchen_slip_entries` (§2.9.4), données de cuisine sans effet fiscal. |
+| 63 | `gift-vouchers` | Catégorie et produit système, `gift_vouchers`, `gift_voucher_movements`, `gift_voucher_prints` et leurs déclencheurs (§2.9.5). |
+| 70 | `staff-badges` | Les quatre tables des badges du personnel : `badge_settings`, `staff_badges`, `badge_log`, `badge_scans`, leurs index uniques partiels et leurs six déclencheurs (§2.6). Pas de colonne ajoutée aux tables existantes. Non conditionnée par une fonctionnalité de compilation : les tables existent sur toute installation et ne sont écrites que si le Gérant active le lecteur de badges. |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette

@@ -1,7 +1,7 @@
 # Commandes en ligne (plateformes de livraison et webshop)
 
 **Date :** 2026-10-03
-**Code :** `src-tauri/src/commands/webshop.rs`, `src-tauri/src/commands/integrations.rs`, `crates/pos-hubrise/src/webshop.rs`
+**Code :** `crates/pos-engine/src/commands/webshop.rs`, `crates/pos-engine/src/commands/integrations.rs`, `crates/pos-hubrise/src/webshop.rs`
 **Références SPF :** FAQ producteurs Q203, Q204 a/b, Q206, Q209, Q211, Q212, Q213, Q301
 
 ---
@@ -44,7 +44,7 @@ encaissement d'une commande enregistrée (P puis N), remboursement
 d'une commande annulée, clôture à 0,00 EUR. Aucune vente signée ne
 peut donc rester sans suite.
 
-Code : `src-tauri/src/commands/integrations.rs` (`require_hubrise`,
+Code : `crates/pos-engine/src/commands/integrations.rs` (`require_hubrise`,
 `do_set_hubrise_enabled`), `crates/pos-db/src/queries/integrations.rs`,
 `crates/pos-hubrise/src/switch.rs`.
 
@@ -87,7 +87,9 @@ Intégration activée, le POS traite des données de clients (voir
   (`pos_print::kitchen_ticket`) imprime les lignes et les notes ;
 - les ventes de la caisse sont mises en file dans `hubrise_outbox` et
   envoyées à HubRise (lignes, totaux, paiements, sans données de
-  client) ;
+  client). Une vente qui vend un bon cadeau n'est pas renvoyée (aucune
+  ligne de bon n'est envoyée) et un paiement par bon y est nommé « Other »
+  (*BONS_CADEAUX_FR.md*) ;
 - le jeton d'accès HubRise (`hubrise_connection.access_token`) est
   stocké en clair dans `pos.db`, donc lisible par le compte `spf` de
   l'image d'admission et présent dans les sauvegardes.
@@ -99,7 +101,7 @@ Intégration activée, le POS traite des données de clients (voir
 | Commande payée (plateforme) | Acceptation | N | `APP` | Ticket de caisse TVA papier |
 | Commande payée (webshop) | Acceptation | N | `ONLINE` | Ticket de caisse TVA papier |
 | Commande à payer | Acceptation | P (`signOrder`) | aucun | Bon de cuisine (« ceci n'est pas un ticket de caisse TVA valable ») |
-| Commande à payer | Remise et encaissement | N, qui clôt le P (FAQ Q203 b) | espèces, carte, titres-repas, comme à la caisse | Ticket de caisse TVA papier |
+| Commande à payer | Remise et encaissement | N, qui clôt le P (FAQ Q203 b) | espèces, carte, chèques-repas, comme à la caisse ("Encaisser carte" passe par le terminal de paiement relié quand l'installation en a un : `MANUEL_UTILISATEUR_FR.md` §7.2) | Ticket de caisse TVA papier |
 | Commande refusée | Refus | aucun | aucun | aucun |
 
 Chaque commande porte un `costCenter` :
@@ -147,7 +149,7 @@ est toujours une vente réelle.
 |---|---|
 | Avant l'acceptation | La commande est annulée localement. Rien n'est signé. |
 | Après le N (commande payée) | La commande passe « remboursement à faire ». Rien n'est signé automatiquement. Un Gérant confirme le remboursement avec son PIN : un N de remboursement (`negQuantityReason` `REFUND`) reprend chaque ligne au prix de la vente, frais et remises compris, avec la `fdmRef` de la vente d'origine (FAQ Q301 a). Paiement `APP` ou `ONLINE` : la plateforme ou le prestataire de paiement rembourse le client, le tiroir reste fermé. |
-| Après le P (commande à payer) | La commande passe « clôture à faire ». Chaque ligne est corrigée (`CORRECTION`), puis un N à 0,00 EUR avec un paiement de 0,00 EUR clôt le P avec le même `costCenter`, et son ticket de caisse TVA est imprimé (FAQ Q206, Q209). |
+| Après le P (commande à payer) | La commande passe « clôture à faire ». Chaque ligne est corrigée (`CORRECTION`), puis un N à 0,00 EUR avec un tableau `financials` vide (FAQ Q206 b) clôt le P avec le même `costCenter`, et son ticket de caisse TVA est imprimé (FAQ Q206, Q209). |
 
 Une annulation reçue pendant que la caisse était éteinte est trouvée
 au démarrage suivant : pili-pos relit les commandes signées des deux
@@ -202,16 +204,16 @@ Migrations 20 à 25 (`crates/pos-db/src/schema_hubrise.rs`,
 ## 10. Preuves
 
 Tests d'intégration, exécutés contre un FDM simulé et un HubRise
-simulé dans le processus (`cargo test -p pili-pos --no-default-features --features cert`) :
+simulé dans le processus (`cargo test -p pos-engine --no-default-features --features cert`) :
 
 | Fichier | Couvre |
 |---|---|
-| `src-tauri/tests/hubrise_orders_ingest.rs` | Réception, contrôle, « à vérifier », exclusion des tables et ventes à emporter |
-| `src-tauri/tests/hubrise_orders_signing.rs` | N à l'acceptation (APP, ONLINE), TVA B sur place et C en livraison, P puis N à la remise avec le même `costCenter`, refus jamais signé, double appui, FDM injoignable, arrêt brutal, mode formation et Apprenti refusés |
-| `src-tauri/tests/hubrise_cancellations.rs` | Annulation avant acceptation, remboursement par un Gérant avec `fdmRef`, clôture d'un P par corrections et N à 0,00 EUR, annulation trouvée au démarrage |
-| `src-tauri/tests/hubrise_discounts.rs` | Remises en `priceChanges` sur le N, le P et le remboursement |
-| `src-tauri/tests/hubrise_switch.rs` | Intégration coupée : aucun appel, aucune acceptation ; une commande signée reste soldable ; changements par un Gérant seulement, journalisés ; coupure refusée tant qu'une commande n'est pas soldée |
-| `src-tauri/tests/hubrise_catalog.rs` | Menu reflet du catalogue, identifiants stables, catalogue invalide refusé |
+| `crates/pos-engine/tests/hubrise_orders_ingest.rs` | Réception, contrôle, « à vérifier », exclusion des tables et ventes à emporter |
+| `crates/pos-engine/tests/hubrise_orders_signing.rs` | N à l'acceptation (APP, ONLINE), TVA B sur place et C en livraison, P puis N à la remise avec le même `costCenter`, refus jamais signé, double appui, FDM injoignable, arrêt brutal, mode formation et Apprenti refusés |
+| `crates/pos-engine/tests/hubrise_cancellations.rs` | Annulation avant acceptation, remboursement par un Gérant avec `fdmRef`, clôture d'un P par corrections et N à 0,00 EUR, annulation trouvée au démarrage |
+| `crates/pos-engine/tests/hubrise_discounts.rs` | Remises en `priceChanges` sur le N, le P et le remboursement |
+| `crates/pos-engine/tests/hubrise_switch.rs` | Intégration coupée : aucun appel, aucune acceptation ; une commande signée reste soldable ; changements par un Gérant seulement, journalisés ; coupure refusée tant qu'une commande n'est pas soldée |
+| `crates/pos-engine/tests/hubrise_catalog.rs` | Menu reflet du catalogue, identifiants stables, catalogue invalide refusé |
 
 Les mêmes parcours (catalogue, commande payée annulée puis remboursée,
 commande à payer encaissée à la remise) ont été rejoués contre l'API

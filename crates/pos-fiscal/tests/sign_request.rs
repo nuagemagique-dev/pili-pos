@@ -12,6 +12,10 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 fn config(fdm_url: &str) -> PosConfig {
     PosConfig {
         table_count: 20,
+        tables: None,
+        payment_terminal: None,
+        peppol: None,
+        alerts: None,
         pos_id: "CPOS0031234567".to_string(),
         terminal_id: "POS1".to_string(),
         device_id: "DEV001".to_string(),
@@ -34,6 +38,7 @@ fn config(fdm_url: &str) -> PosConfig {
         restaurant_legal_name: None,
         day_end_hour: 5,
         digital_ticket: None,
+        export: None,
     }
 }
 
@@ -42,7 +47,13 @@ fn work_in() -> pos_fiscal::inputs::WorkInOutInput {
         period_id: "bp-1".into(),
         date: "2026-07-03".into(),
     };
-    build_work_in_out(&config("http://unused"), 1, "93051800189", &booking)
+    build_work_in_out(
+        &config("http://unused"),
+        &ident(),
+        1,
+        "93051800189",
+        &booking,
+    )
 }
 
 /// The body as every sign call built it before requests were stored.
@@ -205,6 +216,26 @@ async fn failures_say_whether_the_event_may_be_signed() {
         SignOutcome::Unknown
     );
     assert_eq!(refused(&[]).outcome(), SignOutcome::Unknown);
+    // The code the operator is told about: the one that makes the
+    // outcome unknown.
+    assert_eq!(
+        refused(&["BUFFER_FULL", "INTERNAL_ERROR"])
+            .fdm_code()
+            .as_deref(),
+        Some("INTERNAL_ERROR")
+    );
+    assert_eq!(
+        refused(&["BUFFER_FULL"]).fdm_code().as_deref(),
+        Some("BUFFER_FULL")
+    );
+    assert_eq!(refused(&[]).fdm_code(), None);
+    assert_eq!(
+        FdmError::ResponseMismatch("posId".into())
+            .fdm_code()
+            .as_deref(),
+        Some("FDM_RESPONSE_MISMATCH")
+    );
+    assert_eq!(FdmError::BadResponse("no data".into()).fdm_code(), None);
     assert_eq!(
         FdmError::BadResponse("no data".into()).outcome(),
         SignOutcome::Unknown
@@ -228,4 +259,9 @@ async fn failures_say_whether_the_event_may_be_signed() {
     );
     let err = client.sign_work_in(work_in(), false).await.unwrap_err();
     assert_eq!(err.outcome(), SignOutcome::Unknown, "{err:?}");
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }

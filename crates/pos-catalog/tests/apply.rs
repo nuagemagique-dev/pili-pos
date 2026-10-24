@@ -4,8 +4,10 @@ use pos_catalog::testing::{catalog, category, choice, group, item, names};
 use pos_catalog::{
     ApplyOutcome, IssueCode, ItemKind, adopt_and_apply, adoption_preview, apply, managed_by,
 };
+use pos_core::order::OrderType;
 use pos_core::vat::VatCode;
 use pos_db::queries::menu::{get_categories, get_menu_items, resolve_catalogue_line};
+use pos_db::queries::orders::{NewOrderLine, add_order_line, create_order, get_cart_lines};
 use rusqlite::{Connection, params};
 
 const SOURCE: &str = "hubrise";
@@ -123,6 +125,56 @@ fn applying_twice_keeps_the_ids_and_writes_nothing() {
 }
 
 #[test]
+fn the_menu_code_reaches_the_grid_and_the_cart() {
+    let mut conn = db();
+    let mut c = catalog();
+    c.items[0].code = Some("A2".into());
+    applied(apply(&mut conn, SOURCE, &c).unwrap());
+    let maki = id_of(&conn, "MAKI-6");
+    let grid = get_menu_items(&conn, None, "fr").unwrap();
+    let code_of = |id: i64| grid.iter().find(|i| i.id == id).unwrap().code.clone();
+    assert_eq!(code_of(maki).as_deref(), Some("A2"));
+    assert_eq!(code_of(id_of(&conn, "COCA")), None);
+
+    let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
+    add_order_line(
+        &conn,
+        NewOrderLine {
+            order_id: order.id,
+            menu_item_id: maki,
+            quantity: 1,
+            unit_price_cents: 650,
+            vat_code: VatCode::B,
+            name: "Maki",
+            modifiers_json: None,
+            department_id: "1",
+            department_name: "Maki",
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        get_cart_lines(&conn, order.id).unwrap()[0].code.as_deref(),
+        Some("A2")
+    );
+
+    // Renumbered on the menu card: same product, new code.
+    c.items[0].code = Some("B14".into());
+    applied(apply(&mut conn, SOURCE, &c).unwrap());
+    assert_eq!(id_of(&conn, "MAKI-6"), maki);
+    assert_eq!(
+        get_cart_lines(&conn, order.id).unwrap()[0].code.as_deref(),
+        Some("B14")
+    );
+}
+
+#[test]
+fn a_catalog_without_codes_keeps_its_hash() {
+    let c = catalog();
+    let json = serde_json::to_string(&c).unwrap();
+    assert!(!json.contains("\"code\""));
+}
+
+#[test]
 fn a_rename_or_price_change_keeps_the_id() {
     let mut conn = db();
     apply(&mut conn, SOURCE, &catalog()).unwrap();
@@ -229,7 +281,7 @@ fn an_invalid_catalog_leaves_the_menu_untouched() {
     bad.items[0].price_cents = 1;
     bad.items[1].category_key = "nowhere".into();
 
-    let ApplyOutcome::Rejected(issues) = apply(&mut conn, SOURCE, &bad).unwrap() else {
+    let ApplyOutcome::Rejected { issues } = apply(&mut conn, SOURCE, &bad).unwrap() else {
         panic!("applied an invalid catalog");
     };
     assert_eq!(issues[0].code, IssueCode::UnknownCategory);
@@ -251,6 +303,58 @@ fn an_invalid_catalog_leaves_the_menu_untouched() {
     );
     let state = pos_catalog::state(&conn, SOURCE).unwrap().unwrap();
     assert!(state.rejected_at.is_none() && state.issues.is_empty());
+}
+
+#[test]
+fn every_outcome_serializes_with_its_tag() {
+    // The Tauri commands and the FFI hand the outcome over as JSON: a
+    // rejected catalog must serialize with its issues, not fail.
+    let issue = pos_catalog::validate::Issue::new(IssueCode::NegativePrice, "MAKI-6");
+    let cases = [
+        (
+            ApplyOutcome::Applied {
+                hash: "h".into(),
+                active_items: 3,
+                deactivated_items: 1,
+            },
+            serde_json::json!({
+                "outcome": "applied", "hash": "h", "active_items": 3, "deactivated_items": 1
+            }),
+        ),
+        (
+            ApplyOutcome::Unchanged,
+            serde_json::json!({"outcome": "unchanged"}),
+        ),
+        (
+            ApplyOutcome::AwaitingAdoption,
+            serde_json::json!({"outcome": "awaiting_adoption"}),
+        ),
+        (
+            ApplyOutcome::Rejected {
+                issues: vec![issue],
+            },
+            serde_json::json!({
+                "outcome": "rejected",
+                "issues": [{"code": "negative_price", "key": "MAKI-6"}]
+            }),
+        ),
+    ];
+    for (outcome, expected) in cases {
+        assert_eq!(serde_json::to_value(&outcome).unwrap(), expected);
+    }
+}
+
+#[test]
+fn a_rejected_outcome_serializes_the_issues_it_stored() {
+    let mut conn = db();
+    let mut bad = catalog();
+    bad.items[1].category_key = "nowhere".into();
+    let outcome = apply(&mut conn, SOURCE, &bad).unwrap();
+    let json = serde_json::to_value(&outcome).expect("a rejected outcome serializes");
+    assert_eq!(json["outcome"], "rejected");
+    let state = pos_catalog::state(&conn, SOURCE).unwrap().unwrap();
+    assert_eq!(json["issues"], serde_json::to_value(&state.issues).unwrap());
+    assert!(!state.issues.is_empty());
 }
 
 #[test]

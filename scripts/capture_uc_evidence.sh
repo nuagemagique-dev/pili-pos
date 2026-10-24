@@ -10,6 +10,9 @@
 #     field-by-field comparison with the fixture;
 #   - spf_e2e_report_fixtures: the Reports v1.3 service day T1–T8
 #     followed by the M180, M182 and M184 reports;
+#   - invoice_advanced: the Advanced Set invoices UC4121 and UC4122 (event I);
+#   - spf_e2e_gift_vouchers: the Advanced Set multi-purpose vouchers UC260
+#     (sale), UC261 and UC262 (use);
 #   - spf_e2e_rounding: the five situations of the manual's
 #     "Arrondissement des méthodes de paiement" (ROUND1 to ROUND5; only
 #     the cash is rounded, so basic tests 1, 2 and 3 apply). Besides the
@@ -38,10 +41,11 @@ mkdir -p "$TICKETS"
 rm -f "$OUT"/*.json   # stale evidence from renamed/renumbered UCs
 rm -f "$TICKETS"/ROUND*_ticket.txt
 
-UC_EVIDENCE_DIR="$OUT" TICKET_EVIDENCE_DIR="$TICKETS" cargo test -p pili-pos \
+UC_EVIDENCE_DIR="$OUT" TICKET_EVIDENCE_DIR="$TICKETS" cargo test -p pos-engine \
     --no-default-features --features cert \
     --test spf_e2e_fixtures --test spf_e2e_report_fixtures \
-    --test spf_e2e_rounding
+    --test spf_e2e_rounding --test invoice_advanced \
+    --test spf_e2e_gift_vouchers
 
 python3 "$PROJECT_ROOT/scripts/embed_uc_evidence.py"
 

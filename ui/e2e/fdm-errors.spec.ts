@@ -54,15 +54,43 @@ test('an FDM error code gets its §V message', async ({ page }) => {
   );
 });
 
-test('an FDM answer that does not match the sale is explained', async ({ page }) => {
+const RETRY_NOTE =
+  "La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire.";
+
+test('an FDM answer that does not match the sale is explained, then the retry', async ({ page }) => {
+  // As the engine returns it (the sale is kept to be sent again).
   await payByCard(
     page,
-    refused('FDM error: FDM_RESPONSE_MISMATCH: posFiscalTicketNo attendu 42, reçu 41'),
+    refused(
+      'FDM error: FDM_ANSWER_PENDING|label=N|ticket=42|fdm=FDM_RESPONSE_MISMATCH|cause=FDM_RESPONSE_MISMATCH: posFiscalTicketNo attendu 42, reçu 41',
+    ),
   );
   await expect(page.locator('.checkout .error-msg')).toHaveText(
-    'Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien.',
+    `Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. ${RETRY_NOTE}`,
   );
   await expect(page.locator('.card-btn')).toBeVisible();
+});
+
+for (const [code, message] of [
+  ['INTERNAL_ERROR', 'Erreur technique de la boîte noire. Contactez votre technicien.'],
+  ['UNDEFINED_ERROR', 'Erreur indéfinie de la boîte noire. Contactez votre technicien.'],
+  ['UNDEFINED_OTHER', 'Erreur de la boîte noire. Contactez votre technicien.'],
+] as const) {
+  test(`${code} on a sale shows the FDM message, then that the sale goes again`, async ({ page }) => {
+    await payByCard(
+      page,
+      refused(`FDM error: FDM_ANSWER_PENDING|label=N|ticket=1|fdm=${code}|cause=GraphQL error: ${code}: x`),
+    );
+    await expect(page.locator('.checkout .error-msg')).toHaveText(`${message} ${RETRY_NOTE}`);
+    await expect(page.locator('.card-btn')).toBeVisible();
+  });
+}
+
+test('a lost answer (no FDM code) keeps the plain pending text', async ({ page }) => {
+  await payByCard(page, refused('FDM error: FDM_ANSWER_PENDING|label=N|ticket=1|cause=timeout'));
+  await expect(page.locator('.checkout .error-msg')).toHaveText(
+    "La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez.",
+  );
 });
 
 test('an error that is not the FDM’s gets its own message', async ({ page }) => {

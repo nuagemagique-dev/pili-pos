@@ -1,0 +1,29 @@
+{
+    "data": {
+        "fdmStatus": {
+            "device": {
+                "bufferCapacityUsed": 1.2,
+                "fdmDateTime": "2026-10-18T11:00:57Z",
+                "fdmId": "MCK00000001",
+                "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [
+                {
+                    "extensions": {
+                        "category": "FDM",
+                        "code": "FDM_NOT_OPERATIONAL",
+                        "showPos": "MANDATORY"
+                    },
+                    "message": "Le FDM ne fonctionne pas"
+                }
+            ],
+            "informations": [],
+            "initialized": false,
+            "warnings": []
+        }
+    },
+    "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+    }
+}

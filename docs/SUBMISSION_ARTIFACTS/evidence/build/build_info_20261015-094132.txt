@@ -1,0 +1,20 @@
+pili-pos certification build report
+Generated : 20261015-094132
+Host      : Linux 7.0.14-linuxkit x86_64
+
+Build command : cargo build --release --no-default-features --features cert
+Toolchain     : rustc 1.99.0 (b940084d7 2026-09-28)
+Git commit    : f0c3078d2063ab685e4c1727bd35eac8cd9dfa18
+Git tag       : (untagged)
+Working tree  : clean
+
+Binary        : /workspace/target/linux-amd64/release/pili-pos
+Size          : 41576856 bytes
+SHA-1         : ed9489009301cf909d60bbef46d7348da0be9323
+SHA-256       : 764f41727900e1e5d1c427f4447c857ade2a5dd383f81f0efe10c630d5b10a00
+MD5           : 14402ea39b42b1a95a9006b39c41e318
+
+Checks
+  HubRise integration ............ present (installation switch, off by default)
+  pos_peppol symbols ............. 0
+  fiscal_events DELETE/UPDATE .... none in source

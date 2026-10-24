@@ -1,14 +1,14 @@
 # E-facturation B2B Peppol - Décision d'Access Point et déploiement
 
-**État à la date de soumission (2026-10-03) :** Sérialiseur UBL +
-abstraction AccessPoint implémentés et couverts par tests unitaires,
-mais **non activés dans la build de certification v1.0.0**
-(`cargo build --release --no-default-features --features cert`
-n'active pas le feature flag `peppol` - voir `src-tauri/Cargo.toml`).
-L'événement fiscal **I (Invoice)** n'est donc pas disponible en
-v1.0.0. L'e-facturation B2B Peppol est planifiée comme **mise à jour
-certifiée v1.1**, suivant la procédure officielle de mise à jour
-(REPONSES_MANUEL_CERT_FR.md §II.E).
+**État à la date de soumission :** la facture B2B (événement fiscal **I**)
+et son envoi sur le réseau Peppol sont **dans la version 1.0.0** et dans
+tous ses binaires : il n'y a pas de fonction Cargo `peppol`, et le choix
+du point d'accès est celui décrit ci-dessous. Le comportement complet
+(parcours de l'opérateur, règles, numérotation, impression, journal,
+file d'envoi, cas M150, UC4121 et UC4122) est dans
+*FACTURATION_PEPPOL_FR.md*. Le point d'accès n'a été exercé que contre un
+simulateur local fourni avec le logiciel : aucun appel réel n'a été fait
+à un fournisseur (voir « Ce qui reste à faire par l'exploitant »).
 
 ## Contexte réglementaire
 
@@ -21,29 +21,25 @@ régit la délivrance des documents au niveau B2B.
 
 Source : Arrêté Royal de 2024, transposant la Directive UE 2010/45/UE.
 
-## Périmètre à la date de soumission
+## Comment la caisse s'y conforme
 
-Les établissements HoReCa ciblés par pili-pos sont massivement B2C
-(clients sur place + emporter). Les factures B2B sont exceptionnelles -
-typiquement quand un client entreprise commande un plateau à
-emporter.
+La caisse appelle l'API d'un point d'accès Peppol agréé (réponse à
+l'encadré « facturation » du manuel de certification, §III.F : API du POS
+vers un point d'accès du réseau Peppol).
 
-Le dossier de certification déclare donc Peppol / l'événement I
-comme :
+- La facture est signée par le module de contrôle (événement I) et
+  imprimée sur papier ; **en plus**, pour un client belge et dans une
+  installation qui a une section `peppol`, un document UBL 2.1 au
+  profil BIS Billing 3.0 est mis en file puis envoyé au point d'accès.
+- Un client étranger reçoit la facture imprimée seulement.
+- Une installation **sans** section `peppol` ne signe aucune facture pour un
+  client qui a un numéro de TVA belge (code `invoice_peppol_required`) :
+  depuis le 01.01.2026 une telle facture doit passer par Peppol, et le manuel
+  de certification demande de désactiver l'émission quand elle ne serait pas
+  conforme. Rien n'est signé et aucun numéro n'est consommé. Un client sans
+  numéro de TVA belge reçoit la facture imprimée comme avant.
 
-> **Hors périmètre v1.0.0, mise à jour certifiée prévue v1.1.** La
-> génération UBL 2.1 BIS Billing 3.0 est implémentée et testée contre
-> un jeu d'échantillons interne, mais le feature flag `peppol` n'est
-> pas activé dans la build cert soumise. Le transport AS4 sera délégué
-> à un Peppol Access Point lors de la mise à jour v1.1 ; le choix de
-> l'AP et l'enregistrement du Peppol endpoint-ID resteront des
-> formalités côté opérateur indépendantes de la revue SCE-2.0.
->
-> **En attendant v1.1**, les factures B2B de l'établissement sont
-> émises en dehors de `pili-pos`, via son outil de
-> comptabilité/facturation.
-
-## Candidats Access Point
+## Candidats Access Point et choix
 
 | Fournisseur | Style API | Tarification | Participant Peppol belge | Notes |
 |---|---|---|---|---|
@@ -51,98 +47,82 @@ comme :
 | **Unifiedpost** | REST | Sur contrat | Oui | Acteur plus important, onboarding plus enterprise. |
 | **Doccle** | REST | Sur contrat | Oui | Belge, orienté B2C-friendly. |
 
-**Recommandation :** **Storecove** pour le premier déploiement v1.1 -
-API REST la plus simple, onboarding le plus rapide, prix par facture
-compatible avec le volume attendu d'un restaurant (< 5 factures B2B
-par mois).
+**Choix :** **Storecove** - API REST la plus simple, onboarding le plus
+rapide, prix par facture compatible avec le volume attendu d'un
+restaurant (< 5 factures B2B par mois). Le fournisseur est un réglage
+d'installation (`peppol.provider`) ; en changer plus tard est un
+changement de configuration et un ajustement de l'enveloppe, sans
+migration de base (la colonne `ap_vendor` conserve le nom du fournisseur
+pour l'audit sans en dépendre).
 
-## État de l'implémentation
+## Implémentation
 
-Crate : `crates/pos-peppol`
+Crate : `crates/pos-peppol`.
 
-- `ubl.rs` - Sérialiseur UBL 2.1 BIS Billing 3.0. Mappe les labels TVA
-  SCE-2.0 (A/B/C/D/X) sur les catégories fiscales BIS (S/Z/E + %).
-  5 tests unitaires couvrent les namespaces, la propagation du n° de
-  facture, les codes de schéma d'endpoint-id de partie, les helpers
-  de date et la couverture complète des labels TVA.
-- `access_point.rs` - Trait async `AccessPoint`. Deux implémentations :
-  - `LoggingAccessPoint` - dev/no-op (défaut dans la build cert tant
-    qu'aucune clé d'AP live n'est configurée). Retourne un
-    `DeliveryReceipt` synthétique pour que l'opérateur puisse quand
-    même répéter le flux B2B de bout en bout.
-  - `StorecoveAccessPoint` - squelette de production. `submit()`
-    retourne une erreur explicite "not wired up" qui pointe vers ce
-    document.
-- `errors.rs` - Enum `PeppolError` (`Xml`, `MissingField`,
-  `AccessPoint`, `Http`).
+- `ubl.rs` - Sérialiseur UBL 2.1 BIS Billing 3.0, en centimes entiers
+  (aucun nombre flottant pour l'argent). Les codes de TVA A, B et C sont
+  la catégorie `S` à 21, 12 et 6 %, D la catégorie `Z`, X la catégorie `E`
+  avec le motif d'exonération `vatex-eu-o`. Une ligne de TVA par
+  catégorie, les remises et majorations de ticket en `AllowanceCharge`, le
+  montant déjà payé en `PrepaidAmount` et un arrondi de document qui ramène
+  le solde à 0,00.
+- `access_point.rs` - Trait asynchrone `AccessPoint` (envoi et recherche
+  du destinataire) et deux implémentations : `StorecoveAccessPoint`
+  (API Storecove v2 : recherche `POST /api/v2/discovery/receives`, envoi
+  `POST /api/v2/document_submissions`, jeton porteur) et
+  `LoggingAccessPoint` (développement : journalise le document, n'envoie
+  rien ; **refusé dans une version de production**, où `peppol.provider`
+  doit être `storecove`).
+- `errors.rs` - `PeppolError` : panne passagère (retentée), refus
+  (envoi mis de côté), clé refusée (envoi mis de côté et passe arrêtée).
 
-IPC : `src-tauri/src/commands/invoice.rs::issue_b2b_invoice`. Construit
-l'UBL à partir des lignes d'articles + détails fournisseur/acheteur,
-soumet via l'`AccessPoint` configuré, persiste dans `peppol_deliveries`.
+Commandes du moteur : `crates/pos-engine/src/commands/invoice.rs`
+(facture, clients, journal) et `peppol_queue.rs` (file d'envoi). Tables :
+`peppol_deliveries` et `peppol_delivery_log` (ajout seul), voir
+*SCHEMA_BD_FR.md* §4. Réglages : section `peppol` de `pos.json` (clé API
+dans un fichier à part ; *MANUEL_INSTALLATION_FR.md*).
 
-Schéma : table `peppol_deliveries` (append-only, même règle de
-rétention que `fiscal_events`). Colonnes : `fiscal_event_id`,
-`invoice_no`, `customer_endpoint_id`, `ap_vendor`, `ap_message_id`,
-`ubl_xml`, `ap_response_json`, `status` (queued / accepted / failed),
-`error_msg`, `created_at`, `accepted_at`.
-
-Feature flag : `peppol` (existe dans le workspace, **non activé** dans
-la build `cert` v1.0.0 - `cert = ["custom-protocol", "hubrise"]` dans
-`src-tauri/Cargo.toml` : HubRise (commandes en ligne) est dans la build
-cert, seul `peppol` en est absent. Sera activé pour la mise à jour
-certifiée v1.1).
-
-## Plan de déploiement (côté opérateur, pour la mise à jour v1.1)
+## Ce qui reste à faire par l'exploitant
 
 1. **Enregistrer le Peppol endpoint-ID de l'établissement.** Le TVA
    belge utilise le schéma `0208` (numéro d'entreprise BCE, 10 chiffres
    sans préfixe `BE`) ; l'endpoint-ID est `0208:` suivi de ce numéro BCE (par exemple
-   `0208:0123456789`). L'enregistrement est effectué par l'AP choisi
-   à l'onboarding - prend typiquement 1 à 2 jours ouvrables.
-2. **Ouvrir un compte Storecove**, demander une clé API sandbox,
-   exécuter un test de bout en bout contre leur récepteur de
-   référence (Storecove fournit un endpoint de test qui renvoie l'UBL
-   en écho).
-3. **Câbler les credentials.** Définir
-   `PEPPOL_AP_BASE_URL=https://api.storecove.com` et
-   `PEPPOL_AP_API_KEY=...` dans l'environnement kiosk. Basculer la
-   factory `AccessPoint` dans `commands/invoice.rs` de
-   `LoggingAccessPoint` vers `StorecoveAccessPoint`.
-4. **Compléter le corps de `StorecoveAccessPoint::submit()`** -
-   envelopper l'UBL dans le JSON `LegalDocumentInvoice` de Storecove,
-   POST sur `/v2/legal_documents`, parser le `document_id` dans notre
-   `message_id`. Déjà ébauché dans les commentaires inline.
-5. **Smoke test production** - émettre une facture de 1 € vers un
-   récepteur de test connu, vérifier la délivrance dans le dashboard
-   Storecove, vérifier que la ligne `peppol_deliveries` transitionne
-   queued → accepted.
+   `0208:0123456789`). L'enregistrement est effectué par le point d'accès
+   choisi à l'onboarding - prend typiquement 1 à 2 jours ouvrables.
+2. **Ouvrir un compte Storecove**, demander une clé API sandbox et
+   l'identifiant d'entité légale, renseigner la section `peppol` (adresse
+   de l'API, fichier de la clé, `legal_entity_id`, `sender_id`, adresse du
+   vendeur) et exécuter un essai de bout en bout sur leur bac à sable : le
+   contrôle du document par le schématron Peppol et la forme exacte de
+   l'API réelle n'ont pas pu être vérifiés avec le simulateur.
+3. **Smoke test production** - établir une facture de 1 € vers un
+   récepteur de test connu, vérifier la délivrance dans le tableau de bord
+   du fournisseur et que l'envoi passe de « en file » à « remis » dans le
+   panneau Peppol.
+4. **Confirmer le traitement du code de TVA X** (exonéré, motif
+   `vatex-eu-o`) sur le bac à sable.
 
-## Pourquoi ce report est acceptable pour la soumission cert
+## Pourquoi la facture ne dépend pas du point d'accès
 
-- L'obligation Peppol est **séparée** de SCE-2.0 - la revue
-  certification SPF Finances porte sur le flux FDM/POS (events
-  N/P/T/C/F/S/R), pas sur le transport AS4 ni sur l'événement I.
-- L'UBL est **déjà généré et testé** au niveau du code ; seul le
-  câblage HTTP vers l'AP et l'activation du feature flag `peppol`
-  restent à faire pour la mise à jour v1.1.
-- La table d'audit `peppol_deliveries` est déjà dans le schéma, prête
-  à recevoir des lignes le jour où l'AP est câblé et le flag activé.
-- Le périmètre déclaré dans le formulaire de demande cert est
-  "E-facturation B2B Peppol : NON, prévu v1.1" - pleinement véridique
-  et vérifiable (`nm pili-pos | grep -c pos_peppol` → `0` sur le
-  binaire cert v1.0.0).
+- L'obligation Peppol est **séparée** de SCE-2.0 : la facture (événement I)
+  ne dépend que du module de contrôle. Une panne du point d'accès ou du
+  réseau ne bloque jamais l'établissement ni l'impression de la facture.
+- Les documents attendent dans la base (`peppol_deliveries`), retentés
+  sans fin avec une attente de 30 secondes qui double jusqu'à 30 minutes ;
+  un refus, un destinataire non inscrit ou une clé refusée met l'envoi de
+  côté avec sa raison, visible du gérant qui peut le relancer.
 
 ## Risques
 
-- **Panne AP** - si Storecove est down, l'opérateur reçoit une erreur
-  UI et peut redéclencher depuis l'écran de détail commande. Nous ne
-  perdons PAS silencieusement le document ; la ligne `peppol_deliveries`
-  reste en `status='failed'` avec `error_msg` rempli, et apparaît
-  donc dans le rapport de fin de journée comme action à traiter.
+- **Panne du point d'accès** - le document n'est jamais perdu : la ligne
+  reste en file (`queued`) ou est mise de côté (`failed`) avec
+  `error_msg` rempli, et chaque tentative est ajoutée à
+  `peppol_delivery_log`. Le gérant la voit dans le panneau Peppol.
+- **Écart de quelques centimes sur la TVA du document Peppol** - la TVA
+  du document est recalculée à partir des lignes arrondies, alors que la
+  facture imprimée reprend la TVA par taux du module de contrôle ; l'écart
+  éventuel est absorbé par le montant d'arrondi à payer du document, le
+  total à payer restant celui des tickets (*FACTURATION_PEPPOL_FR.md* §6).
 - **Coût par facture** - à moins de 5 factures B2B par mois, un
-  restaurant type est confortablement sous le seuil où le coût AP devient
-  sensible.
-- **Verrouillage AP** - changer d'AP plus tard est un changement de
-  config + un ajustement d'enveloppe UBL, sans migration DB nécessaire
-  (la colonne `ap_vendor` stocke intentionnellement la chaîne du
-  fournisseur pour l'audit mais n'est pas une référence dure).
+  restaurant type est confortablement sous le seuil où le coût du point
+  d'accès devient sensible.

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- The UniFFI bindings are generated into build/ and are never committed. -->
+    <issue id="all">
+        <ignore path="**/build/generated/**" />
+    </issue>
+</lint>

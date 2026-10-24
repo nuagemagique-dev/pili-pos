@@ -95,6 +95,11 @@ class CheckDossierTestCase(unittest.TestCase):
             root / "src-tauri" / "src" / "commands" / "checkout.rs",
             "pub fn do_checkout() -> bool {\n    true\n}\n",
         )
+        # The engine is part of the program: its path literals are known.
+        write(
+            root / "crates" / "pos-engine" / "src" / "install.rs",
+            'pub const ENGINE_DATA: &str = "/opt/pili-engine/data";\n',
+        )
 
         # --- deploy/: the source of truth for absolute install paths -----
         write(
@@ -139,6 +144,7 @@ class CheckDossierTestCase(unittest.TestCase):
             "- `/var/lib/pili-etc/pili-pos`\n"
             "- `/var/lib/pili-pos/logs/pos.log.YYYY-MM-DD`\n"
             "- `/var/lib/pili-pos/pos.db-wal`\n"
+            "- `/opt/pili-engine/data`\n"
             "- `crates/pos-fiscal/src/{signature,missing_but_braced}.rs`\n"
             "- `commands/checkout.rs`\n"
             "\n"
@@ -169,10 +175,13 @@ class CheckDossierTestCase(unittest.TestCase):
 
         # --- --final: screenshots -----------------------------------------
         write(dossier / "screenshots" / "01_login.png", "not a real png")
+        write(dossier / "screenshots" / "A127b_variant.png", "not a real png")
         write(
             dossier / "CAPTURES_ECRAN_RUNBOOK_FR.md",
             "### `01_login.png`\nexists on disk.\n\n"
-            "### `02_missing.png`\ndoes not exist on disk.\n",
+            "### `02_missing.png`\ndoes not exist on disk.\n\n"
+            "### `A127b_variant.png`\nletter suffix, exists on disk.\n\n"
+            "### `A50b_missing.png`\nletter suffix, does not exist on disk.\n",
         )
 
         # --- --final: pdf-freshness ----------------------------------------
@@ -256,6 +265,10 @@ class CheckDossierTestCase(unittest.TestCase):
         self.assertTrue(any("unknown-YYYY.db" in m for m in msgs))
         self.assertEqual(len(msgs), 4, f"expected exactly 4 repo-path findings, got:\n{joined}")
 
+    def test_engine_path_literals_are_known(self):
+        allowed = self.cd.collect_abs_allowed_paths(self.root)
+        self.assertIn("/opt/pili-engine/data", allowed)
+
     def test_shell_variables_are_expanded(self):
         text = 'ETC_DIR="/var/lib/pili-etc"\ncp a "$ETC_DIR/pili-pos/pos.json" "${ETC_DIR}/x"\n'
         out = self.cd.expand_shell_vars(text)
@@ -301,8 +314,12 @@ class CheckDossierTestCase(unittest.TestCase):
     def test_screenshots_pass_and_fail(self):
         findings = self.run_rule("screenshots")
         msgs = self.messages_for(findings, "CAPTURES_ECRAN_RUNBOOK_FR.md")
-        self.assertEqual(len(msgs), 1)
+        self.assertEqual(len(msgs), 2, f"expected two missing captures, got:\n{msgs}")
         self.assertIn("02_missing.png", msgs[0])
+        # A letter suffix after an A-number is matched (INT-D48): the existing
+        # A127b capture is found, the missing A50b one is reported in full.
+        self.assertIn("A50b_missing.png", msgs[1])
+        self.assertFalse(any("A127b_variant" in m for m in msgs))
 
     # -- --final: pdf-freshness ------------------------------------------------
 

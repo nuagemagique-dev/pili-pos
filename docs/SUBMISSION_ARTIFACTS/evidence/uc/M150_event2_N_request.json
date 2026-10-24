@@ -1,0 +1,73 @@
+{
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "c0d5f6d3-b4fb-4a73-9588-f2c10f9b544f",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O2",
+    "type": "TABLE"
+  },
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 52.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-18T12:59:04.532+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 24.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 24.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 28.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "22",
+          "departmentName": "Main Dishes",
+          "productId": "22001",
+          "productName": "Burger of the CHEF",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 28.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 28.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 52.0
+  },
+  "vatNo": "BE0000000097"
+}

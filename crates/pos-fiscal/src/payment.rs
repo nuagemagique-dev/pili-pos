@@ -9,7 +9,16 @@
 //! - cash pays what is left; the 5-cent rounding applies to that rest
 //!   only and goes on its own ROUNDING line;
 //! - the payments add up to the sale total, the rounding apart;
-//! - a sale of 0,00 EUR is a cash payment of 0 (FAQ Q206).
+//! - a sale of 0,00 EUR is a cash payment of 0 (FAQ Q206);
+//! - a card part taken on a linked terminal (`eft_payment_id`) carries
+//!   what the terminal returned ([`TerminalCard`]): the payment line is
+//!   `AUTOMATIC` (spec v2.2, `inputMethod`), of the card type the
+//!   terminal gave, with the brand as `provider`. It is an exact amount
+//!   like any card part;
+//! - a multi-purpose gift voucher part (`VOUCHER_STORE`, spec v2.2 §5
+//!   and `tb_paymentTypes`) is an exact amount like a meal voucher: never
+//!   rounded, no change given on it, never above what is left to pay. It
+//!   names the voucher it redeems (`gift_voucher_id`).
 
 use serde::{Deserialize, Serialize};
 
@@ -24,6 +33,8 @@ pub enum PaymentMethod {
     Card,
     /// Electronic meal vouchers, paid on the card terminal.
     MealVoucher,
+    /// A multi-purpose gift voucher sold by the restaurant (`VOUCHER_STORE`).
+    GiftVoucher,
     /// Paid in an ordering platform's app (an online order signed at
     /// acceptance). Never offered at the till.
     App,
@@ -38,6 +49,7 @@ impl PaymentMethod {
             PaymentMethod::Cash => PaymentType::Cash,
             PaymentMethod::Card => PaymentType::CardDebit,
             PaymentMethod::MealVoucher => PaymentType::ChequeMeal,
+            PaymentMethod::GiftVoucher => PaymentType::VoucherStore,
             PaymentMethod::App => PaymentType::App,
             PaymentMethod::Online => PaymentType::Online,
         }
@@ -48,7 +60,10 @@ impl PaymentMethod {
     pub fn is_offered_at_till(self) -> bool {
         matches!(
             self,
-            PaymentMethod::Cash | PaymentMethod::Card | PaymentMethod::MealVoucher
+            PaymentMethod::Cash
+                | PaymentMethod::Card
+                | PaymentMethod::MealVoucher
+                | PaymentMethod::GiftVoucher
         )
     }
 }
@@ -56,24 +71,44 @@ impl PaymentMethod {
 /// The `id` and `name` of a payment line (spec §2.2.2
 /// `financials.id`). The reports total the payments per id, name and
 /// type, so each method keeps the same pair on every event.
+///
+/// Cards: a card typed by hand is `CARD_DEBIT` ("2", "Card", `MANUAL`).
+/// A linked terminal returns its own card type; a debit card from the
+/// terminal is the same method as the manual one ("2", "Card": the Z
+/// report counts both in one row, they differ by `inputMethod` only),
+/// while credit and unspecified cards get a pair of their own, so the
+/// reports (which count the lines of a payment by id and name) never
+/// mix two card types in one count.
 pub fn payment_line_identity(payment_type: PaymentType) -> (&'static str, &'static str) {
     match payment_type {
         PaymentType::Cash => ("1", "Cash"),
         PaymentType::CardDebit => ("2", "Card"),
+        PaymentType::CardCredit => ("6", "Credit card"),
+        PaymentType::CardUnknown => ("7", "Card (type unknown)"),
         PaymentType::ChequeMeal => ("3", "Meal voucher"),
         PaymentType::App => ("4", "App"),
         PaymentType::Online => ("5", "Online"),
+        PaymentType::VoucherStore => ("8", "Gift voucher"),
         _ => ("9", "Payment"),
     }
 }
 
 /// One part of a payment as the operator takes it. A cash part has no
 /// amount: it pays the rest.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PaymentPart {
     pub method: PaymentMethod,
     #[serde(default)]
     pub amount_cents: Option<i64>,
+    /// The card payment the linked terminal approved for this part
+    /// (`eft_payments.id`). Absent: the card was typed by hand on a
+    /// standalone terminal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eft_payment_id: Option<i64>,
+    /// The gift voucher this part redeems (`gift_vouchers.id`), from
+    /// `lookup_gift_voucher`. Only a gift voucher part names one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gift_voucher_id: Option<i64>,
 }
 
 impl PaymentPart {
@@ -81,6 +116,8 @@ impl PaymentPart {
         Self {
             method: PaymentMethod::Cash,
             amount_cents: None,
+            eft_payment_id: None,
+            gift_voucher_id: None,
         }
     }
 
@@ -88,15 +125,88 @@ impl PaymentPart {
         Self {
             method,
             amount_cents: Some(amount_cents),
+            eft_payment_id: None,
+            gift_voucher_id: None,
+        }
+    }
+
+    /// A gift voucher part redeeming `amount_cents` of voucher `voucher_id`.
+    pub fn gift_voucher(amount_cents: i64, voucher_id: i64) -> Self {
+        Self {
+            gift_voucher_id: Some(voucher_id),
+            ..Self::of(PaymentMethod::GiftVoucher, amount_cents)
+        }
+    }
+
+    /// A card part settling the terminal payment `eft_payment_id`.
+    pub fn terminal(amount_cents: i64, eft_payment_id: i64) -> Self {
+        Self {
+            eft_payment_id: Some(eft_payment_id),
+            ..Self::of(PaymentMethod::Card, amount_cents)
         }
     }
 }
 
+/// What a linked terminal returned for a card payment, as it goes on
+/// the payment line.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TerminalCard {
+    /// `CARD_DEBIT`, `CARD_CREDIT`, `CARD_UNKNOWN`, or `CHEQUE_MEAL` for
+    /// a meal-voucher card (Edenred, Pluxee, Monizze, Payflip).
+    pub card_type: PaymentType,
+    /// The card brand: the payment line's `provider`.
+    pub brand: Option<String>,
+    /// The terminal's transaction id: the payment line's `reference`.
+    pub reference: Option<String>,
+}
+
 /// A settled payment line: the amount this method pays of the sale.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SettledPayment {
     pub method: PaymentMethod,
     pub amount_cents: i64,
+    /// The terminal payment it settles, from [`PaymentPart::eft_payment_id`].
+    pub eft_payment_id: Option<i64>,
+    /// The gift voucher it redeems, from [`PaymentPart::gift_voucher_id`].
+    pub gift_voucher_id: Option<i64>,
+    /// What that terminal payment returned; the caller fills it in
+    /// (this module knows nothing of the database).
+    pub terminal: Option<TerminalCard>,
+}
+
+impl SettledPayment {
+    /// The payment type of its line: the method's, or, for a card the
+    /// linked terminal took, the card type it returned (a terminal card
+    /// type that is neither a card type nor `CHEQUE_MEAL` is
+    /// `CARD_UNKNOWN`).
+    pub fn payment_type(&self) -> PaymentType {
+        match (&self.terminal, self.method) {
+            (Some(t), PaymentMethod::Card) => match t.card_type {
+                PaymentType::CardDebit | PaymentType::CardCredit | PaymentType::ChequeMeal => {
+                    t.card_type
+                }
+                _ => PaymentType::CardUnknown,
+            },
+            _ => self.method.payment_type(),
+        }
+    }
+
+    /// What the terminal returned, for a card it took.
+    pub fn terminal_card(&self) -> Option<&TerminalCard> {
+        self.terminal
+            .as_ref()
+            .filter(|_| self.method == PaymentMethod::Card)
+    }
+
+    fn plain(method: PaymentMethod, amount_cents: i64) -> Self {
+        Self {
+            method,
+            amount_cents,
+            eft_payment_id: None,
+            gift_voucher_id: None,
+            terminal: None,
+        }
+    }
 }
 
 /// How a sale is settled: its payment lines (non-cash parts first, in
@@ -116,10 +226,7 @@ impl Settlement {
             other => PaymentPart::of(other, total_cents),
         };
         settle(total_cents, &[part]).unwrap_or_else(|_| Settlement {
-            payments: vec![SettledPayment {
-                method,
-                amount_cents: total_cents,
-            }],
+            payments: vec![SettledPayment::plain(method, total_cents)],
             rounding_cents: 0,
         })
     }
@@ -157,10 +264,7 @@ pub enum PaymentError {
 pub fn settle(total_cents: i64, parts: &[PaymentPart]) -> Result<Settlement, PaymentError> {
     if total_cents == 0 {
         return Ok(Settlement {
-            payments: vec![SettledPayment {
-                method: PaymentMethod::Cash,
-                amount_cents: 0,
-            }],
+            payments: vec![SettledPayment::plain(PaymentMethod::Cash, 0)],
             rounding_cents: 0,
         });
     }
@@ -177,17 +281,26 @@ pub fn settle(total_cents: i64, parts: &[PaymentPart]) -> Result<Settlement, Pay
     let mut non_cash = 0_i64;
     for part in parts {
         match (part.method, part.amount_cents) {
-            (PaymentMethod::Cash, None) if !cash => cash = true,
+            (PaymentMethod::Cash, None)
+                if !cash && part.eft_payment_id.is_none() && part.gift_voucher_id.is_none() =>
+            {
+                cash = true
+            }
             (PaymentMethod::Cash, _) => return Err(PaymentError::Invalid),
-            (method, Some(amount)) if amount > 0 => {
+            // A gift voucher part names its voucher; no other part does.
+            (method, Some(amount))
+                if amount > 0
+                    && (method == PaymentMethod::GiftVoucher) == part.gift_voucher_id.is_some() =>
+            {
                 // Checked per part so the sum cannot wrap past the total.
                 non_cash = non_cash
                     .checked_add(amount)
                     .filter(|sum| *sum <= total_cents)
                     .ok_or(PaymentError::ExceedsTotal)?;
                 payments.push(SettledPayment {
-                    method,
-                    amount_cents: amount,
+                    eft_payment_id: part.eft_payment_id,
+                    gift_voucher_id: part.gift_voucher_id,
+                    ..SettledPayment::plain(method, amount)
                 });
             }
             _ => return Err(PaymentError::Invalid),
@@ -200,10 +313,7 @@ pub fn settle(total_cents: i64, parts: &[PaymentPart]) -> Result<Settlement, Pay
             return Err(PaymentError::Incomplete);
         }
         rounding_cents = round_to_5_cents(rest);
-        payments.push(SettledPayment {
-            method: PaymentMethod::Cash,
-            amount_cents: rest,
-        });
+        payments.push(SettledPayment::plain(PaymentMethod::Cash, rest));
     }
     Ok(Settlement {
         payments,
@@ -324,7 +434,9 @@ mod tests {
                 1000,
                 &[PaymentPart {
                     method: Card,
-                    amount_cents: None
+                    amount_cents: None,
+                    eft_payment_id: None,
+                    gift_voucher_id: None,
                 }]
             ),
             Err(Invalid)
@@ -363,5 +475,205 @@ mod tests {
             .map(|m| payment_line_identity(m.payment_type()))
             .collect();
         assert_eq!(ids, [("1", "Cash"), ("2", "Card"), ("3", "Meal voucher")]);
+    }
+
+    #[test]
+    fn a_terminal_part_is_an_exact_card_amount_that_keeps_its_payment_id() {
+        let s = settle(1486, &[PaymentPart::terminal(1000, 7), PaymentPart::cash()]).unwrap();
+        assert_eq!(lines(&s), [(Card, 1000), (Cash, 486)]);
+        assert_eq!(s.payments[0].eft_payment_id, Some(7));
+        assert_eq!(s.payments[1].eft_payment_id, None);
+        assert!(s.payments.iter().all(|p| p.terminal.is_none()));
+        assert_eq!(s.rounding_cents, -1, "only the cash rest is rounded");
+        // The whole sale on the terminal: exact, no cash needed.
+        let s = settle(1152, &[PaymentPart::terminal(1152, 3)]).unwrap();
+        assert_eq!(lines(&s), [(Card, 1152)]);
+        assert_eq!(s.rounding_cents, 0);
+    }
+
+    #[test]
+    fn a_cash_part_cannot_name_a_terminal_payment() {
+        let cash = PaymentPart {
+            eft_payment_id: Some(1),
+            ..PaymentPart::cash()
+        };
+        assert_eq!(settle(1000, &[cash]), Err(PaymentError::Invalid));
+    }
+
+    #[test]
+    fn the_terminal_id_is_not_written_when_absent() {
+        let json = serde_json::to_value(PaymentPart::of(Card, 100)).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({"method": "card", "amount_cents": 100})
+        );
+        let json = serde_json::to_value(PaymentPart::terminal(100, 4)).unwrap();
+        assert_eq!(json["eft_payment_id"], 4);
+        let part: PaymentPart =
+            serde_json::from_str(r#"{"method":"card","amount_cents":100}"#).unwrap();
+        assert_eq!(part, PaymentPart::of(Card, 100));
+    }
+
+    #[test]
+    fn a_terminal_card_keeps_debit_credit_and_meal_voucher_and_nothing_else() {
+        use PaymentType::*;
+        let settled = |card_type| SettledPayment {
+            method: Card,
+            amount_cents: 500,
+            eft_payment_id: Some(1),
+            gift_voucher_id: None,
+            terminal: Some(TerminalCard {
+                card_type,
+                brand: Some("Edenred".into()),
+                reference: None,
+            }),
+        };
+        assert_eq!(settled(CardDebit).payment_type(), CardDebit);
+        assert_eq!(settled(CardCredit).payment_type(), CardCredit);
+        assert_eq!(settled(ChequeMeal).payment_type(), ChequeMeal);
+        assert_eq!(settled(CardUnknown).payment_type(), CardUnknown);
+        assert_eq!(settled(Cash).payment_type(), CardUnknown);
+        assert_eq!(settled(Online).payment_type(), CardUnknown);
+        // The line identity is the manual meal voucher's.
+        assert_eq!(
+            payment_line_identity(settled(ChequeMeal).payment_type()),
+            payment_line_identity(MealVoucher.payment_type())
+        );
+    }
+
+    #[test]
+    fn a_gift_voucher_is_vat_store_type_8_and_offered_at_the_till() {
+        assert_eq!(GiftVoucher.payment_type(), PaymentType::VoucherStore);
+        assert!(GiftVoucher.is_offered_at_till());
+        assert_eq!(
+            payment_line_identity(GiftVoucher.payment_type()),
+            ("8", "Gift voucher")
+        );
+    }
+
+    // covers: UC261, UC262
+    #[test]
+    fn a_gift_voucher_part_is_exact_and_never_rounded() {
+        // UC261: 116,00 EUR, 50,00 EUR of voucher then the rest in cash.
+        let s = settle(
+            11600,
+            &[PaymentPart::gift_voucher(5000, 9), PaymentPart::cash()],
+        )
+        .unwrap();
+        assert_eq!(lines(&s), [(GiftVoucher, 5000), (Cash, 6600)]);
+        assert_eq!(s.payments[0].gift_voucher_id, Some(9));
+        assert_eq!(s.rounding_cents, 0);
+        // UC262: the voucher pays the whole 42,50 EUR, no cash, no rounding.
+        let s = settle(4250, &[PaymentPart::gift_voucher(4250, 3)]).unwrap();
+        assert_eq!(lines(&s), [(GiftVoucher, 4250)]);
+        assert_eq!(s.rounding_cents, 0);
+        // An odd cent stays exact on the voucher; only the cash rest rounds.
+        let s = settle(1152, &[PaymentPart::gift_voucher(1152, 1)]).unwrap();
+        assert_eq!(lines(&s), [(GiftVoucher, 1152)]);
+        let s = settle(
+            1486,
+            &[PaymentPart::gift_voucher(1152, 1), PaymentPart::cash()],
+        )
+        .unwrap();
+        assert_eq!(lines(&s), [(GiftVoucher, 1152), (Cash, 334)]);
+        assert_eq!(s.rounding_cents, 1);
+    }
+
+    #[test]
+    fn two_vouchers_and_a_card_settle_in_the_order_taken() {
+        let s = settle(
+            10000,
+            &[
+                PaymentPart::gift_voucher(3000, 1),
+                PaymentPart::gift_voucher(2000, 2),
+                PaymentPart::of(Card, 5000),
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            lines(&s),
+            [(GiftVoucher, 3000), (GiftVoucher, 2000), (Card, 5000)]
+        );
+        assert_eq!(
+            s.payments
+                .iter()
+                .map(|p| p.gift_voucher_id)
+                .collect::<Vec<_>>(),
+            [Some(1), Some(2), None]
+        );
+    }
+
+    #[test]
+    fn a_gift_voucher_part_never_exceeds_the_total_and_always_names_a_voucher() {
+        assert_eq!(
+            settle(1000, &[PaymentPart::gift_voucher(1001, 1)]),
+            Err(PaymentError::ExceedsTotal)
+        );
+        // Without a voucher id, or with one on another method: refused.
+        assert_eq!(
+            settle(1000, &[PaymentPart::of(GiftVoucher, 1000)]),
+            Err(PaymentError::Invalid)
+        );
+        let named_card = PaymentPart {
+            gift_voucher_id: Some(1),
+            ..PaymentPart::of(Card, 1000)
+        };
+        assert_eq!(settle(1000, &[named_card]), Err(PaymentError::Invalid));
+        let named_cash = PaymentPart {
+            gift_voucher_id: Some(1),
+            ..PaymentPart::cash()
+        };
+        assert_eq!(settle(1000, &[named_cash]), Err(PaymentError::Invalid));
+        assert_eq!(
+            settle(
+                1000,
+                &[PaymentPart::gift_voucher(0, 1), PaymentPart::cash()]
+            ),
+            Err(PaymentError::Invalid)
+        );
+        // Something left and no cash: incomplete.
+        assert_eq!(
+            settle(1000, &[PaymentPart::gift_voucher(400, 1)]),
+            Err(PaymentError::Incomplete)
+        );
+    }
+
+    #[test]
+    fn the_voucher_id_is_written_only_when_present_and_defaults_when_absent() {
+        let json = serde_json::to_value(PaymentPart::gift_voucher(500, 4)).unwrap();
+        assert_eq!(json["gift_voucher_id"], 4);
+        assert_eq!(json["method"], "gift_voucher");
+        let json = serde_json::to_value(PaymentPart::of(Card, 100)).unwrap();
+        assert!(json.get("gift_voucher_id").is_none());
+        let part: PaymentPart = serde_json::from_str(
+            r#"{"method":"gift_voucher","amount_cents":500,"gift_voucher_id":4}"#,
+        )
+        .unwrap();
+        assert_eq!(part, PaymentPart::gift_voucher(500, 4));
+    }
+
+    #[test]
+    fn card_types_have_their_own_line_identity_except_the_manual_debit() {
+        use PaymentType::*;
+        assert_eq!(payment_line_identity(CardDebit), ("2", "Card"));
+        assert_eq!(payment_line_identity(CardCredit), ("6", "Credit card"));
+        assert_eq!(
+            payment_line_identity(CardUnknown),
+            ("7", "Card (type unknown)")
+        );
+        let ids: std::collections::HashSet<_> = [
+            Cash,
+            CardDebit,
+            CardCredit,
+            CardUnknown,
+            ChequeMeal,
+            App,
+            Online,
+            VoucherStore,
+        ]
+        .into_iter()
+        .map(payment_line_identity)
+        .collect();
+        assert_eq!(ids.len(), 8, "one pair per payment type");
     }
 }

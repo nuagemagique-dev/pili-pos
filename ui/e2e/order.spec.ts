@@ -123,16 +123,18 @@ test.describe('Order View - kitchen and cart lines', () => {
     await expect(page.locator('.kitchen-count')).toHaveText('2');
   });
 
-  test('names show in the UI language first, Chinese underneath', async ({ page }) => {
+  test('names show in the UI language only, no second language underneath', async ({ page }) => {
     const line = page.locator('.order-line.pending');
     await expect(line.locator('.line-name')).toHaveText('Edamame');
-    await expect(line.locator('.line-sub')).toHaveText('毛豆');
+    await expect(line.locator('.line-sub')).toHaveCount(0);
   });
 
   test('"Envoyer en cuisine" registers the order without leaving the table', async ({ page }) => {
     await page.locator('.kitchen-btn').click();
     await expect(page.locator('.toast-success')).toContainText('Envoyé en cuisine · 2 articles');
-    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+    const calls = await ipcCalls(page, 'leave_order');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].reason).toBe('send_to_kitchen');
     await expect(page).toHaveURL(/order/);
     await expect(page.locator('.pending-label')).toHaveCount(0);
     await expect(page.locator('.kitchen-btn')).toBeDisabled();
@@ -149,5 +151,43 @@ test.describe('Order View - kitchen and cart lines', () => {
 
   test('the menu button shows how many are already in the cart', async ({ page }) => {
     await expect(page.locator('.item-btn .item-qty')).toHaveText('1');
+  });
+});
+
+test.describe('Order View - products shown by code', () => {
+  const CODED = { ...DEFAULT_CART_LINE, id: 1, name: 'Edamame', name_fr: 'Edamame', name_zh: '毛豆', code: 'A2' };
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('pili-pos-product-label', 'code'));
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
+      list_cart_lines: () => [CODED],
+      get_categories: () => [DEFAULT_CATEGORY],
+      get_menu_items: () => [
+        { ...DEFAULT_MENU_ITEM, code: 'B14' },
+        { ...DEFAULT_MENU_ITEM, id: 2, name: 'Tuna Roll x8', code: null },
+      ],
+    });
+    await page.goto('/');
+    await tapUserTile(page);
+    await page.waitForURL(/tables/);
+    await page.locator('.table-card').first().click();
+    await page.waitForURL(/order/);
+  });
+
+  test('the code leads, the name goes underneath', async ({ page }) => {
+    const coded = page.locator('.item-btn').first();
+    await expect(coded.locator('.item-name')).toHaveText('B14');
+    await expect(coded.locator('.item-name')).toHaveClass(/code/);
+    await expect(coded.locator('.item-sub')).toHaveText(DEFAULT_MENU_ITEM.name);
+    const line = page.locator('.order-line').first();
+    await expect(line.locator('.line-name')).toHaveText('A2');
+    await expect(line.locator('.line-sub')).toHaveText('Edamame');
+  });
+
+  test('a product without a code keeps its name', async ({ page }) => {
+    await expect(page.locator('.item-btn').nth(1).locator('.item-name')).toHaveText('Tuna Roll x8');
   });
 });

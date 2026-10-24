@@ -32,7 +32,7 @@ mkdir -p "$OUT"
 echo "── building pos-fdm-mock ─────────────────────────────────"
 cargo build --release --package pos-fdm-mock
 
-MOCK_BIN="$PROJECT_ROOT/target/release/pos-fdm-mock"
+MOCK_BIN="${CARGO_TARGET_DIR:-$PROJECT_ROOT/target}/release/pos-fdm-mock"
 MOCK_PID=""
 
 start_mock() {

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kiosk_not_owner_title">收银机未锁定</string>
+    <string name="kiosk_not_owner_body">此设备未设置为专用收银机：kiosk 模式未启用。请先设置设备再使用。</string>
+</resources>

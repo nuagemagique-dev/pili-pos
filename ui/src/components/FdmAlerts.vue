@@ -7,7 +7,7 @@
  *   message closes itself after 10 s; a MANDATORY one stays while the
  *   FDM reports it, as §V requires.
  * - a blocking error covers the sales screens with a veil that cannot
- *   be dismissed: only "Réessayer", and the store's poller tries again
+ *   be dismissed: only "Réessayer", and the engine's monitor tries again
  *   on its own (backing off while the FDM does not answer). Reports and
  *   Config stay reachable so the manager can act.
  */
@@ -66,7 +66,7 @@ watch(
 
 // ── Blocking veil ─────────────────────────────────────────────────
 const blocking = computed(() => fdm.severity === "blocking" && SALES_ROUTES.has(String(route.name)));
-// Seconds until the poller's next try, refreshed every second.
+// Seconds until the engine's next try, refreshed every second.
 const now = ref(Date.now());
 let tick: ReturnType<typeof setInterval> | undefined;
 const retryIn = computed(() =>
@@ -82,9 +82,9 @@ watch(
   { immediate: true },
 );
 
-/** An explicit try, on top of the poller's own. */
+/** An explicit try, on top of the engine monitor's own. */
 async function retry() {
-  await fdm.checkStatus();
+  await fdm.checkNow();
 }
 
 onUnmounted(() => {

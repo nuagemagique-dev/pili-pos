@@ -11,7 +11,7 @@ comportement de bout en bout avec des signatures non mockées.
 
 Deux harnais, tous deux ignorés par défaut et jamais lancés en CI :
 
-- `src-tauri/tests/live_fdm.rs` : une journée d'exploitation par les
+- `crates/pos-engine/tests/live_fdm.rs` : une journée d'exploitation par les
   vraies commandes du POS (pointage entrée, commande de table,
   pré-addition, vente, remboursement, copie, entrée d'argent,
   ouverture du tiroir, comptage de caisse, vente en formation, rapport
@@ -40,7 +40,7 @@ harnais ont été validés à blanc contre le mock FDM local
 - [ ] Build cert en place (binaire final, tag `v1.0.0`) :
       `cargo build --release --no-default-features --features cert`
       (la feature `cert` inclut `hubrise`, désactivée par défaut à
-      l'installation ; seule la facturation Peppol est absente).
+      l'installation ; la facturation B2B et la file Peppol sont dans tout binaire).
 - [ ] Jeux de tests de référence : Basic Set 1.8, Reports 1.3, Advanced
       Set 1.6 (`docs/20260821_*`), configuration de test
       `UC_TestSetup_20240806` (procédure 20260903, point 3.1).
@@ -149,10 +149,10 @@ ticket, même contenu) et le FDM renvoie sa signature avec
 `DUPLICATE_REQUEST` ; sinon le numéro libre est réutilisé par une
 nouvelle requête.
 
-Automatisé (sans FDM réel) : `src-tauri/tests/spf_e2e_signing_serialized.rs`,
+Automatisé (sans FDM réel) : `crates/pos-engine/tests/spf_e2e_signing_serialized.rs`,
 14 tests (courses entre opérations, réponses perdues, Z manuel puis Z
 automatique, renvoi, ligne ouverte) contre `pos-fdm-mock` placé derrière
-un relais qui perd les réponses (`src-tauri/tests/common/fdm_drop.rs`).
+un relais qui perd les réponses (`crates/pos-engine-testkit/src/fdm_drop.rs`).
 
 ```
 Durée déconnexion : À effectuer s

@@ -47,7 +47,7 @@ export default defineConfig({
               locale: 'fr-BE',
               hasTouch: true,
             },
-            testMatch: /captures\.spec\.ts$/,
+            testMatch: /captures(-features)?\.spec\.ts$/,
           },
         ]
       : []),

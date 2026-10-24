@@ -1,6 +1,6 @@
 {
-  "bookingDate": "2026-10-04",
-  "bookingPeriodId": "41c5ec65-66fc-4f65-94f5-17840d7f365c",
+  "bookingDate": "2026-10-18",
+  "bookingPeriodId": "94f382f2-ba80-416b-bd92-2be445fd3c8e",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
@@ -20,7 +20,7 @@
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-04T11:01:41.847+02:00",
+  "posDateTime": "2026-10-18T12:59:05.233+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",

@@ -4,6 +4,7 @@
 
 use std::collections::BTreeMap;
 
+use pos_core::allergen::AllergenSet;
 use pos_core::vat::VatCode;
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +49,12 @@ pub struct Item {
     pub category_key: String,
     pub kind: ItemKind,
     pub names: Names,
+    /// The menu code staff know the product by ("A2", "B14"), shown in
+    /// place of the name when the till is set to. Display only: never
+    /// printed nor sent to the FDM. Left out of the JSON when absent,
+    /// so a catalog without codes keeps its hash.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
     pub price_cents: i64,
     /// VAT label eaten in, and taken away or delivered.
     pub vat_eat_in: VatCode,
@@ -62,6 +69,11 @@ pub struct Item {
     pub available: bool,
     /// Option groups, in display order.
     pub groups: Vec<Group>,
+    /// The 14 EU allergens: `None` is "no information", `Some` a
+    /// complete list (possibly empty). Left out of the JSON when
+    /// absent, so a catalog without allergens keeps its hash.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allergens: Option<AllergenSet>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -83,6 +95,9 @@ pub struct Choice {
     pub names: Names,
     pub price_cents: i64,
     pub available: bool,
+    /// As [`Item::allergens`], for the option.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allergens: Option<AllergenSet>,
 }
 
 /// The name printed and sent to the FDM: French, then English, then

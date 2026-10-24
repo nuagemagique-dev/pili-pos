@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "id": "UC201",
+  "ids": ["UC201"],
+  "title": "UC201: 2 Coca Cola of the dining room paid in cash, the 6,08 EUR is rounded and the rounding is its own payment line",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "84022899837", "pin": "2222"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 1, "user_insz": "84022899837"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 12009, "quantity": 2, "modifiers_json": null}}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "cash"}]}}
+  ]
+}

@@ -140,10 +140,17 @@ pub struct TicketLine {
 pub struct TicketPayment {
     pub method: String,
     pub amount: f64,
+    /// The card brand a linked terminal returned ("Bancontact"):
+    /// printed after the method. Absent for every other payment, and in
+    /// tickets stored before the field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brand: Option<String>,
 }
 
 /// Parameters for building a FiscalTicket.
 pub struct TicketParams<'a> {
+    /// The `posSwVersion` printed on the ticket.
+    pub identity: &'a crate::identity::SoftwareIdentity,
     pub result: &'a SignResult,
     pub restaurant_name: &'a str,
     pub restaurant_address: &'a str,
@@ -216,8 +223,13 @@ impl TicketDraft {
 
 impl FiscalTicket {
     /// The ticket of `draft`, signed as `result`.
-    pub fn from_draft(draft: &TicketDraft, result: &SignResult) -> Self {
+    pub fn from_draft(
+        draft: &TicketDraft,
+        result: &SignResult,
+        identity: &crate::identity::SoftwareIdentity,
+    ) -> Self {
         let mut ticket = Self::from_sign_result(TicketParams {
+            identity,
             result,
             restaurant_name: &draft.restaurant_name,
             restaurant_address: &draft.restaurant_address,
@@ -257,7 +269,7 @@ impl FiscalTicket {
                 params.restaurant_legal_name.to_string()
             },
             pos_id: result.pos_id.clone(),
-            pos_sw_version: crate::event::POS_SW_VERSION.to_string(),
+            pos_sw_version: params.identity.to_string(),
             terminal_id: result.terminal_id.clone().unwrap_or_default(),
             device_id: result.device_id.clone(),
             operator: params.operator.to_string(),
@@ -353,6 +365,17 @@ pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Opt
         .map(|f| TicketPayment {
             method: printed_method(f),
             amount: cents(&f["amount"]) as f64 / 100.0,
+            // The provider of a card line, or of any line a terminal
+            // took (`AUTOMATIC`, such as a meal-voucher card), is the
+            // brand it gave.
+            brand: Some(&f)
+                .filter(|f| {
+                    f["type"].as_str().is_some_and(|t| t.starts_with("CARD"))
+                        || f["inputMethod"] == "AUTOMATIC"
+                })
+                .and_then(|f| f["provider"].as_str())
+                .filter(|b| !b.trim().is_empty())
+                .map(str::to_string),
         })
         .collect();
     let rounding: i64 = financials
@@ -380,6 +403,7 @@ fn printed_method(line: &serde_json::Value) -> String {
     match line["type"].as_str().unwrap_or("") {
         "CASH" => "Cash".to_string(),
         "CHEQUE_MEAL" => "Meal voucher".to_string(),
+        "VOUCHER_STORE" => "Gift voucher".to_string(),
         t if t.starts_with("CARD") => "Card".to_string(),
         _ => line["name"].as_str().unwrap_or("-").to_string(),
     }
@@ -483,6 +507,38 @@ mod tests {
     }
 
     #[test]
+    fn a_copy_of_a_terminal_card_sale_prints_the_brand_too() {
+        let request = json!({"financials": [
+            {"id": "2", "name": "Card", "type": "CARD_DEBIT", "provider": "Bancontact",
+             "inputMethod": "AUTOMATIC", "amountType": "PAYMENT", "amount": 12.5},
+            {"id": "6", "name": "Credit card", "type": "CARD_CREDIT", "provider": "Visa",
+             "inputMethod": "AUTOMATIC", "amountType": "PAYMENT", "amount": 3.0},
+            {"id": "7", "name": "Card (type unknown)", "type": "CARD_UNKNOWN",
+             "inputMethod": "AUTOMATIC", "amountType": "PAYMENT", "amount": 1.0},
+            {"id": "3", "type": "CHEQUE_MEAL", "provider": "Edenred",
+             "amountType": "PAYMENT", "amount": 2.0},
+        ]});
+        let (payments, _) = printed_payments(&request);
+        let brands: Vec<_> = payments.iter().map(|p| p.brand.as_deref()).collect();
+        assert_eq!(brands, [Some("Bancontact"), Some("Visa"), None, None]);
+        assert_eq!(payments[1].method, "Card");
+    }
+
+    #[test]
+    fn a_copy_of_a_terminal_meal_voucher_prints_the_brand_like_the_original() {
+        let request = json!({"financials": [
+            {"id": "3", "name": "Meal voucher", "type": "CHEQUE_MEAL", "provider": "Edenred",
+             "inputMethod": "AUTOMATIC", "reference": "T1", "amountType": "PAYMENT", "amount": 9.0},
+            {"id": "3", "name": "Meal voucher", "type": "CHEQUE_MEAL",
+             "inputMethod": "MANUAL", "amountType": "PAYMENT", "amount": 4.0},
+        ]});
+        let (payments, _) = printed_payments(&request);
+        assert_eq!(payments[0].method, "Meal voucher");
+        assert_eq!(payments[0].brand.as_deref(), Some("Edenred"));
+        assert_eq!(payments[1].brand, None);
+    }
+
+    #[test]
     fn an_unpaid_sale_has_no_payment_line_and_something_sold() {
         let sale = |financials: serde_json::Value, total: f64| {
             serde_json::json!({
@@ -555,12 +611,38 @@ mod tests {
         }
     }
 
+    fn ident() -> crate::identity::SoftwareIdentity {
+        crate::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
+    }
+
     // ── Ticket construction ────────────────────────────────────
+
+    #[test]
+    fn a_ticket_carries_the_identity_it_is_built_with() {
+        let result = mock_sign_result(EventLabel::N);
+        let other = crate::identity::SoftwareIdentity::new("other-pos/9.9.9").unwrap();
+        let draft = TicketDraft::new(
+            &pos_core::config::PosConfig::default(),
+            vec![],
+            vec![],
+            0.0,
+            "Test",
+        );
+        assert_eq!(
+            FiscalTicket::from_draft(&draft, &result, &other).pos_sw_version,
+            "other-pos/9.9.9"
+        );
+        assert_eq!(
+            FiscalTicket::from_draft(&draft, &result, &ident()).pos_sw_version,
+            "pili-pos/1.0.0"
+        );
+    }
 
     #[test]
     fn normal_sale_label() {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Tokyo Sushi Bar",
             restaurant_address: "Rue Test 1",
@@ -577,6 +659,7 @@ mod tests {
             payments: vec![TicketPayment {
                 method: "Cash".into(),
                 amount: 10.0,
+                brand: None,
             }],
             total: 10.0,
             is_training: false,
@@ -593,6 +676,7 @@ mod tests {
     fn refund_detected_when_all_negative() {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -622,6 +706,7 @@ mod tests {
     fn training_label() {
         let result = mock_sign_result(EventLabel::T);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -644,6 +729,7 @@ mod tests {
     fn pro_forma_needs_disclaimer() {
         let result = mock_sign_result(EventLabel::P);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -666,6 +752,7 @@ mod tests {
     fn copy_label_and_disclaimer() {
         let result = mock_sign_result(EventLabel::C);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -688,6 +775,7 @@ mod tests {
     fn fdm_data_populated() {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -715,6 +803,7 @@ mod tests {
     fn rounding_applied_to_total() {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -731,6 +820,7 @@ mod tests {
             payments: vec![TicketPayment {
                 method: "Cash".into(),
                 amount: 12.55,
+                brand: None,
             }],
             total: 12.53,
             is_training: false,
@@ -747,6 +837,7 @@ mod tests {
     fn no_rounding_for_card() {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",

@@ -10,6 +10,7 @@ import { useOrderStore } from "../stores/order";
 import { usePosStore } from "../stores/pos";
 import { useI18n } from "../i18n";
 import { formatPrice } from "../utils/format";
+import AllergenBadges from "./AllergenBadges.vue";
 
 const props = defineProps<{ item: MenuItem }>();
 const emit = defineEmits<{ done: [] }>();
@@ -108,6 +109,7 @@ async function confirm() {
           >
             <span>{{ o.name }}</span>
             <span v-if="o.price_cents > 0" class="price">+{{ formatPrice(o.price_cents) }} €</span>
+            <AllergenBadges v-if="o.allergens?.length" :codes="o.allergens" />
           </button>
         </div>
       </section>

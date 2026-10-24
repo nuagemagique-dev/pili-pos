@@ -1,0 +1,367 @@
+@file:Suppress("MatchingDeclarationName")
+
+package dev.nuagemagique.pilipos.feature.reports
+
+import android.content.Context
+import dev.nuagemagique.pilipos.engine.DisposableEngine
+import dev.nuagemagique.pilipos.engine.EngineEvents
+import dev.nuagemagique.pilipos.engine.EngineFixture
+import dev.nuagemagique.pilipos.engine.EngineGateway
+import dev.nuagemagique.pilipos.engine.EngineHelpers
+import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.i18n.ErrorTexts
+import dev.nuagemagique.pilipos.i18n.FdmTexts
+import dev.nuagemagique.pilipos.i18n.MessageCatalog
+import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
+import dev.nuagemagique.pilipos.ui.feedback.ToastStore
+import dev.nuagemagique.pilipos.ui.state.DeliveryStore
+import dev.nuagemagique.pilipos.ui.state.EventFeed
+import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
+import dev.nuagemagique.pilipos.ui.state.SessionStore
+import io.mockk.coEvery
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.setMain
+import uniffi.pos_ffi.CheckoutResult
+import uniffi.pos_ffi.CopyResult
+import uniffi.pos_ffi.CopyableTicket
+import uniffi.pos_ffi.CorrectionDone
+import uniffi.pos_ffi.FinancialResult
+import uniffi.pos_ffi.OrderLine
+import uniffi.pos_ffi.RefundableEvent
+import uniffi.pos_ffi.ReportResult
+import uniffi.pos_ffi.RequestedMedium
+import uniffi.pos_ffi.SalePaymentLine
+import uniffi.pos_ffi.SalePayments
+import uniffi.pos_ffi.TicketDeliveryRequest
+import uniffi.pos_ffi.UnsettledCardPayment
+import uniffi.pos_ffi.User
+import uniffi.pos_ffi.UserRole
+import uniffi.pos_ffi.VatCode
+import uniffi.pos_ffi.ZReportSummary
+import java.io.File
+
+/** The clock of the sales tab in the tests: Saturday 17 October 2026, 18:30 in Brussels. */
+internal val SALES_NOW: java.time.Instant = java.time.Instant.parse("2026-10-17T16:30:00Z")
+
+internal const val OPERATOR_INSZ = "85010100123"
+
+internal val operatorUser = User(insz = OPERATOR_INSZ, name = "Alice", role = UserRole.ADMIN, active = true, hasPin = true)
+
+internal fun zSummary(
+    id: Long,
+    fiscalEventId: Long? = id,
+): ZReportSummary =
+    ZReportSummary(
+        id = id,
+        reportDate = "2026-10-09",
+        sequenceNumber = id,
+        createdAt = "2026-10-09T22:00:00",
+        fiscalEventId = fiscalEventId,
+    )
+
+internal fun reportResult(
+    success: Boolean = true,
+    error: String? = null,
+    reportNo: Long? = null,
+    type: String = "X",
+): ReportResult = ReportResult(success = success, error = error, reportNo = reportNo, reportType = type)
+
+internal fun financial(
+    success: Boolean = true,
+    error: String? = null,
+): FinancialResult = FinancialResult(success = success, error = error)
+
+internal fun copyable(
+    id: Long,
+    label: String = "N",
+    totalCents: Long = 1000L,
+): CopyableTicket =
+    CopyableTicket(
+        fiscalEventId = id,
+        eventLabel = label,
+        ticketNumber = id,
+        tableNumber = 4,
+        totalCents = totalCents,
+        createdAt = "2026-10-09T12:00:00",
+    )
+
+internal fun refundable(
+    id: Long,
+    orderId: Long = id * 10L,
+): RefundableEvent =
+    RefundableEvent(
+        fiscalEventId = id,
+        orderId = orderId,
+        ticketNumber = id,
+        tableNumber = 4,
+        totalCents = 1000L,
+        createdAt = "2026-10-09T12:00:00",
+    )
+
+@Suppress("LongParameterList")
+internal fun paymentLine(
+    index: Int,
+    type: String = "CASH",
+    amountCents: Long = 1000L,
+    input: String = "MANUAL",
+    amountType: String = "PAYMENT",
+    brand: String? = null,
+): SalePaymentLine =
+    SalePaymentLine(
+        index = index,
+        paymentType = type,
+        name = type,
+        amountCents = amountCents,
+        inputMethod = input,
+        amountType = amountType,
+        brand = brand,
+    )
+
+internal fun salePayments(
+    id: Long,
+    lines: List<SalePaymentLine> = listOf(paymentLine(0)),
+    correctable: Boolean = true,
+    refusal: String? = null,
+    corrected: CorrectionDone? = null,
+): SalePayments =
+    SalePayments(
+        fiscalEventId = id,
+        ticketNumber = id,
+        totalCents = 1000L,
+        lines = lines,
+        correctable = correctable,
+        refusal = refusal,
+        corrected = corrected,
+    )
+
+internal fun orderLine(
+    id: Long,
+    quantity: Int,
+    menuItemId: Long = id * 100L,
+): OrderLine =
+    OrderLine(
+        id = id,
+        orderId = 1L,
+        menuItemId = menuItemId,
+        quantity = quantity,
+        unitPriceCents = 500L,
+        vatCode = VatCode.B,
+        name = "item$id",
+        modifiersJson = "[]",
+        createdAt = "2026-10-09T10:00:00",
+        departmentId = "d",
+        departmentName = "Dept",
+    )
+
+internal fun copyResult(
+    success: Boolean = true,
+    error: String? = null,
+): CopyResult = CopyResult(success = success, error = error, ticket = null, fiscalEventId = 7L, delivery = null)
+
+internal fun checkoutResult(
+    success: Boolean = true,
+    error: String? = null,
+): CheckoutResult =
+    CheckoutResult(
+        success = success,
+        ticket = null,
+        error = error,
+        fdmConnected = true,
+        fiscalEventId = 8L,
+        delivery = null,
+        kitchenSlip = null,
+    )
+
+internal fun delivery(
+    medium: RequestedMedium,
+    email: String? = null,
+): TicketDeliveryRequest = TicketDeliveryRequest(medium = medium, email = email)
+
+/** The reports entry point over real stores and a mocked engine. */
+@Suppress("LongParameterList")
+internal class TestReportsEntryPoint(
+    private val gateway: EngineGateway,
+    private val helpers: EngineHelpers,
+    private val events: EngineEvents,
+    private val session: SessionStore,
+    private val settings: PosSettingsStore,
+    private val errors: ErrorPresenter,
+    private val toasts: ToastStore,
+    private val catalog: MessageCatalog,
+    private val delivery: DeliveryStore,
+) : ReportsEntryPoint {
+    override fun gateway(): EngineGateway = gateway
+
+    override fun helpers(): EngineHelpers = helpers
+
+    override fun events(): EngineEvents = events
+
+    override fun session(): SessionStore = session
+
+    override fun settings(): PosSettingsStore = settings
+
+    override fun errors(): ErrorPresenter = errors
+
+    override fun toasts(): ToastStore = toasts
+
+    override fun catalog(): MessageCatalog = catalog
+
+    override fun delivery(): DeliveryStore = delivery
+}
+
+/** A started reports view model with the real stores it drives, built on one engine fixture. */
+@Suppress("LongParameterList")
+internal class ReportsRig(
+    val f: EngineFixture,
+    val model: ReportsViewModel,
+    val toasts: ToastStore,
+    val catalog: MessageCatalog,
+    val feed: EventFeed,
+    private val errorTexts: ErrorTexts,
+    val delivery: DeliveryStore,
+    val helpers: EngineHelpers,
+    val invoiceModel: InvoiceViewModel,
+    val salesModel: SalesViewModel,
+    val entry: ReportsEntryPoint,
+) {
+    val state get() = model.state.value
+
+    /** The invoice flow state. */
+    val invoices get() = invoiceModel.state.value
+
+    /** The sales tab state. */
+    val sales get() = salesModel.state.value
+    val engine: DisposableEngine get() = f.engine
+
+    /** The French text of Vue [key]. */
+    fun text(key: String): String = catalog.text(key, AppLanguage.FR)
+
+    /** The French screen text of the raw engine error [raw]. */
+    fun errorText(raw: String): String = errorTexts.describe(raw, AppLanguage.FR)
+
+    /** The messages of the toasts shown so far. */
+    fun toastTexts(): List<String> = toasts.toasts.value.map { it.message }
+}
+
+/** Stubs the reads the screen makes at start; a test overrides the one it cares about afterwards. */
+internal fun stubReportReads(engine: DisposableEngine) {
+    coEvery { engine.listZReports() } returns emptyList()
+    coEvery { engine.needsZReport() } returns false
+    coEvery { engine.listUnsettledCardPayments() } returns emptyList()
+    coEvery { engine.listCopyableTickets(any()) } returns emptyList()
+    coEvery { engine.listRefundableEvents(any()) } returns emptyList()
+    coEvery { engine.listInvoiceableSales(any(), any()) } returns emptyList()
+    coEvery { engine.listInvoices(any()) } returns emptyList()
+    coEvery { engine.login(any(), any()) } returns operatorUser
+}
+
+/** An engine fixture whose reads are stubbed; the main dispatcher is the fixture's. */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun TestScope.reportsFixture(root: File): EngineFixture {
+    val f = EngineFixture(this, root)
+    Dispatchers.setMain(f.dispatcher)
+    stubReportReads(f.engine)
+    return f
+}
+
+/** Builds the view model over real stores on [f]; the engine is opened first and the operator logged in unless told otherwise. */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal suspend fun TestScope.startReports(
+    f: EngineFixture,
+    context: Context,
+    open: Boolean = true,
+    loggedIn: Boolean = true,
+): ReportsRig {
+    val feed = EventFeed(f)
+    val gateway = f.gateway(this)
+    val toasts = ToastStore(backgroundScope)
+    val catalog = MessageCatalog(context)
+    val errorTexts = ErrorTexts(catalog, FdmTexts(catalog))
+    val errors = ErrorPresenter(toasts, errorTexts)
+    val session = SessionStore(gateway, f.events, backgroundScope)
+    val settings = PosSettingsStore(context, gateway, f.events, backgroundScope)
+    val helpers = EngineHelpers(f.natives, f.dispatcher)
+    if (open) {
+        f.holder.open()
+        runCurrent()
+    }
+    if (loggedIn && open) session.login(OPERATOR_INSZ, "1234")
+    val delivery = DeliveryStore(gateway, errors, settings)
+    val entry = TestReportsEntryPoint(gateway, helpers, f.events, session, settings, errors, toasts, catalog, delivery)
+    val model = ReportsViewModel(entry)
+    val invoiceModel = InvoiceViewModel(entry)
+    val salesModel = SalesViewModel(entry) { SALES_NOW }
+    runCurrent()
+    return ReportsRig(f, model, toasts, catalog, feed, errorTexts, delivery, helpers, invoiceModel, salesModel, entry)
+}
+
+/** A card payment approved and not yet settled: at table [table], or a takeaway when it is null. */
+internal fun unsettled(
+    paymentId: Long,
+    orderId: Long = paymentId + 40L,
+    table: Int? = null,
+    amountCents: Long = 1_700L,
+    brand: String? = "Bancontact",
+): UnsettledCardPayment =
+    UnsettledCardPayment(
+        paymentId = paymentId,
+        orderId = orderId,
+        orderType = if (table != null) "dine_in" else "takeaway",
+        tableNumber = table,
+        amountCents = amountCents,
+        brand = brand,
+        createdAt = "2026-10-13 12:00:00",
+    )
+
+internal fun salesDay(
+    date: String = "2026-10-16",
+    z: Long? = 12L,
+    total: Long = 12_550L,
+    zTotal: Long? = total,
+    open: Boolean = false,
+): uniffi.pos_ffi.SalesDay =
+    uniffi.pos_ffi.SalesDay(
+        bookingDate = date,
+        zNumber = z,
+        totalCents = total,
+        zTotalCents = zTotal,
+        open = open,
+        matchesZ = !open && zTotal == total,
+        gapCents = if (open || zTotal == null) null else total - zTotal,
+    )
+
+internal fun salesReport(
+    from: String = "2026-10-17",
+    to: String = "2026-10-17",
+    businessDate: String = "2026-10-17",
+    days: List<uniffi.pos_ffi.SalesDay> =
+        listOf(salesDay(), salesDay(total = 4_000L, z = 13L, zTotal = 3_800L), salesDay("2026-10-17", null, 1_500L, null, open = true)),
+): uniffi.pos_ffi.SalesReport =
+    uniffi.pos_ffi.SalesReport(
+        from = from,
+        to = to,
+        generatedAt = "2026-10-17T18:30:00+02:00",
+        businessDate = businessDate,
+        days = days,
+        openPeriod = days.any { it.open },
+        byProduct =
+            listOf(
+                uniffi.pos_ffi.SalesProduct("1", "Maki saumon", "Plats", 3_000L, 1_950L),
+                uniffi.pos_ffi.SalesProduct("2", "Sashimi", "Plats", 12_000L, 900L),
+                uniffi.pos_ffi.SalesProduct("3", "Soupe", "Entrees", -1_000L, -400L),
+            ),
+        byHour =
+            listOf(
+                uniffi.pos_ffi.SalesHour(19L, 4L, 9_000L, 100L),
+                uniffi.pos_ffi.SalesHour(20L, 2L, 4_500L, 50L),
+                uniffi.pos_ffi.SalesHour(1L, 1L, 500L, 6L),
+            ),
+        priceChangesCents = -50L,
+        roundingCents = 2L,
+        refundsCents = -400L,
+        ticketCount = 7L,
+        totalCents = 18_050L,
+    )

@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "id": "M160",
+  "ids": ["M160"],
+  "title": "Copy of a sale ticket (signCopy C referencing the sale)",
+  "fixture": "docs/20260821_UC_BasicSet_POS_FDM_1.8/M160_signCopy_Sale",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 6, "user_insz": "94060242576"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 10006, "quantity": 2, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 22001, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "cash"}]}, "save": "sale"},
+    {"cmd": "copy_ticket", "args": {"fiscalEventId": "$sale.fiscal_event_id", "employeeInsz": "94060242576"}}
+  ]
+}

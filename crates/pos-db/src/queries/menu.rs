@@ -2,6 +2,8 @@ use pos_core::menu::{Category, MenuItem};
 use pos_core::vat::VatCode;
 use rusqlite::{Connection, params};
 
+use super::allergens;
+
 /// With a mirrored catalog, the grid leaves out hidden categories
 /// (charges) and items not sold on the POS; they still resolve on an
 /// order line.
@@ -13,6 +15,24 @@ const GRID_CATEGORY_FILTER: &str = "";
 const GRID_ITEM_FILTER: &str = " AND m.on_pos = 1 AND m.kind = 'product'";
 #[cfg(not(feature = "catalog-sync"))]
 const GRID_ITEM_FILTER: &str = "";
+/// The product's menu code, a column of the mirrored catalog.
+#[cfg(feature = "catalog-sync")]
+const ITEM_CODE: &str = "m.code";
+#[cfg(not(feature = "catalog-sync"))]
+const ITEM_CODE: &str = "NULL";
+
+/// Whether the product has at least one active option group with an active option (V11-D18):
+/// the order screen then opens the option picker. Option groups are a column of the mirrored
+/// catalog's schema (migration 21); without it no product has any.
+#[cfg(feature = "catalog-sync")]
+const HAS_MODIFIERS: &str = "EXISTS(SELECT 1 FROM modifier_groups g WHERE g.menu_item_id = m.id AND g.active = 1 AND EXISTS(SELECT 1 FROM modifiers o WHERE o.group_id = g.id AND o.active = 1))";
+#[cfg(not(feature = "catalog-sync"))]
+const HAS_MODIFIERS: &str = "0";
+
+/// Whether the product is sold out right now (a row of `menu_item_sold_out` whose end of day
+/// is not past), and until when. Evaluated by SQLite's clock, like every `datetime('now')`.
+const SOLD_OUT_FLAG: &str = "EXISTS(SELECT 1 FROM menu_item_sold_out s WHERE s.menu_item_id = m.id AND (s.until IS NULL OR julianday(s.until) > julianday('now')))";
+const SOLD_OUT_UNTIL: &str = "(SELECT s.until FROM menu_item_sold_out s WHERE s.menu_item_id = m.id AND s.until IS NOT NULL AND julianday(s.until) > julianday('now'))";
 
 pub fn get_categories(conn: &Connection, lang: &str) -> Result<Vec<Category>, rusqlite::Error> {
     let mut stmt = conn.prepare(&format!(
@@ -53,7 +73,9 @@ pub fn get_menu_items(
                 m.kitchen_printer, m.sort_order, m.active,
                 COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price,
                 (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'fr'),
-                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh')
+                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh'),
+                {ITEM_CODE},
+                {SOLD_OUT_FLAG}, {SOLD_OUT_UNTIL}, {HAS_MODIFIERS}
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -65,7 +87,9 @@ pub fn get_menu_items(
                 m.kitchen_printer, m.sort_order, m.active,
                 COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price,
                 (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'fr'),
-                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh')
+                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh'),
+                {ITEM_CODE},
+                {SOLD_OUT_FLAG}, {SOLD_OUT_UNTIL}, {HAS_MODIFIERS}
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -82,7 +106,16 @@ pub fn get_menu_items(
         stmt.query_map(params![lang], map_menu_item)?
     };
 
-    rows.collect()
+    let mut items = rows.collect::<Result<Vec<MenuItem>, _>>()?;
+    let declared = allergens::load_all(conn, allergens::Entity::MenuItem)?;
+    for item in &mut items {
+        if let Some(set) = declared.get(&item.id) {
+            item.allergens = set.contains.clone();
+            item.traces = set.may_contain.clone();
+            item.allergens_declared = true;
+        }
+    }
+    Ok(items)
 }
 
 fn map_menu_item(row: &rusqlite::Row<'_>) -> Result<MenuItem, rusqlite::Error> {
@@ -104,6 +137,13 @@ fn map_menu_item(row: &rusqlite::Row<'_>) -> Result<MenuItem, rusqlite::Error> {
         open_price: row.get::<_, i32>(9)? != 0,
         name_fr: row.get(10)?,
         name_zh: row.get(11)?,
+        code: row.get(12)?,
+        sold_out: row.get::<_, i32>(13)? != 0,
+        sold_out_until: row.get(14)?,
+        has_modifiers: row.get::<_, i32>(15)? != 0,
+        allergens: Vec::new(),
+        traces: Vec::new(),
+        allergens_declared: false,
     })
 }
 
@@ -431,6 +471,11 @@ pub struct Modifier {
     pub id: i64,
     pub name: String,
     pub price_cents: i64,
+    /// Allergen codes the option contains / may contain as traces.
+    pub allergens: Vec<String>,
+    pub traces: Vec<String>,
+    /// The option's allergen list is declared (possibly empty).
+    pub allergens_declared: bool,
 }
 
 /// The active option groups of `menu_item_id`, names in `lang` (then
@@ -485,9 +530,20 @@ pub fn get_modifier_groups(
                     id: r.get(0)?,
                     name: r.get(1)?,
                     price_cents: r.get(2)?,
+                    allergens: Vec::new(),
+                    traces: Vec::new(),
+                    allergens_declared: false,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
+    }
+    let declared = allergens::load_all(conn, allergens::Entity::Modifier)?;
+    for option in groups.iter_mut().flat_map(|g| g.options.iter_mut()) {
+        if let Some(set) = declared.get(&option.id) {
+            option.allergens = set.contains.clone();
+            option.traces = set.may_contain.clone();
+            option.allergens_declared = true;
+        }
     }
     // A group with nothing to pick is not offered.
     groups.retain(|g| !g.options.is_empty());

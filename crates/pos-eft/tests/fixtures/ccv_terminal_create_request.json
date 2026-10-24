@@ -1,0 +1,22 @@
+{
+    "amount": 9.99,
+    "currency": "eur",
+    "method": "terminal",
+    "returnUrl": "https://shop/return?order=123456",
+    "webhookUrl": "https://shop/payhook?order=123456",
+    "merchantOrderReference": "123456",
+    "description": "Order 123456",
+    "language": "eng",
+    "details" : {
+        "port" : 6235,
+        "managementSystemId" : "000103030",
+        "ip" : "127.0.0.1",
+        "terminalId" : "1234536",
+        "accessProtocol" : "OPI_NL",
+        "operatingEnvironment" : "ATTENDED",
+        "merchantLanguage" : "NLD",
+        "supportPartialApproval" : true,
+        "acquirerDiscretionaryData" : "01",
+        "cardCircuitCollection" : [ "SODX", "EDRD", "PAYF" ]
+      }
+}

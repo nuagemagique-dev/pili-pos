@@ -1,0 +1,4 @@
+# Android exclusions of the fake repository.
+[V_UPDATE_URLS_FAILED]
+reason = "Prouvé sur Android par le test Robolectric FdmBannerTest."
+kind = "exclu_android"

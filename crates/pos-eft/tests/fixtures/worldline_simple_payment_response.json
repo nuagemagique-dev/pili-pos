@@ -1,0 +1,60 @@
+{
+  "data": {
+    "SaleToPOIServiceResponse": {
+      "Header": {
+        "MessageFunction": "SaleFinancialServiceResponse",
+        "ProtocolVersion": "5.1-WL2.1.1",
+        "ExchangeIdentification": "550e8400-e29b-41d4-a716-446655440000",
+        "CreationDateTime": "2026-05-07T14:35:22.0+01:00",
+        "InitiatingParty": {
+          "Identification": "WL000D5T0000004",
+          "Type": "Merchant"
+        },
+        "SalesSystemInfo": {
+          "IntegratorId": "9b2e6f1a1c3d4e5f8a7b0c1d2e3f4a5b",
+          "SaleSoftware": [
+            {
+              "Type": "ECR",
+              "SubTypeInformation": "Checkout",
+              "Identification": {
+                "ProviderIdentification": "YourSoftware",
+                "Identification": "YourPOS",
+                "SerialNumber": "SN-0001"
+              },
+              "Status": {
+                "VersionNumber": "1.4.2"
+              }
+            }
+          ]
+        }
+      },
+      "ServiceResponse": {
+        "Response": {
+          "Result": "Success"
+        },
+        "PaymentResponse": {
+          "PaymentTransaction": {
+            "TransactionType": "CardPayment",
+            "TransactionIdentification": {
+              "TransactionDateTime": "2026-05-07T14:35:22.0+01:00",
+              "TransactionReference": "R26197055"
+            },
+            "TransactionDetails": {
+              "Currency": "EUR",
+              "TotalAmount": 104.11
+            },
+            "TransactionResponse": {
+              "AuthorisationResult": {
+                "ResponseToAuthorisation": {
+                  "Response": "Approved"
+                },
+                "AuthorisationCode": "678803"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "requestId": "550e8400-e29b-41d4-a716-446655440000"
+}

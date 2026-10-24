@@ -1,23 +1,29 @@
 <script setup lang="ts">
 import { describeError } from "../utils/errorMessages";
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useOrderStore, warnIfSlipFailed } from "../stores/order";
 import { useDeliveryStore } from "../stores/delivery";
 import { usePosStore } from "../stores/pos";
-import type { CartLine, CheckoutResult, PaymentPart } from "../types";
+import { useEftStore } from "../stores/eft";
+import type { CartLine, CheckoutResult, EftPayment, PaymentPart } from "../types";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
 import { formatPrice, round5 } from "../utils/format";
 import { useBilingualName } from "../utils/names";
+import { lineNetCents, discountTotalCents } from "../utils/cartAmounts";
 import AppHeader from "../components/AppHeader.vue";
 import TicketMediumPicker from "../components/TicketMediumPicker.vue";
 import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
+import GiftVoucherDialog from "../components/GiftVoucherDialog.vue";
+import { useGiftVouchersStore, GIFT_VOUCHER_DEPARTMENT } from "../stores/giftVouchers";
 
 const router = useRouter();
 const order = useOrderStore();
 const delivery = useDeliveryStore();
 const pos = usePosStore();
+const eft = useEftStore();
+const giftVouchers = useGiftVouchersStore();
 const bilingual = useBilingualName();
 const { t } = useI18n();
 
@@ -34,14 +40,26 @@ const { t } = useI18n();
 // taken before the last one is sent last (as "the rest"): with all the
 // other parts exact, the backend's cash rest is that part's amount, so
 // its 5-cent rounding is the one shown here.
-type Method = "cash" | "card" | "meal_voucher";
-const METHODS: Method[] = ["cash", "card", "meal_voucher"];
+type Method = "cash" | "card" | "meal_voucher" | "gift_voucher";
+const ALL_METHODS: Method[] = ["cash", "card", "meal_voucher", "gift_voucher"];
 
 interface TakenPart {
   method: Method;
   cents: number;
   /** Change handed back for a cash part, in cents. */
   changeCents: number;
+  /** A card part taken on the linked terminal: the approved payment it
+   * settles. Such a part is locked (the card is charged): it cannot be
+   * removed and its amount is fixed. */
+  eftPaymentId?: number;
+  /** The card brand the terminal gave ("Bancontact"). */
+  brand?: string | null;
+  /** The approved terminal card is a meal-voucher card: shown (and signed)
+   * as meal vouchers, the part itself stays method card. */
+  mealVoucher?: boolean;
+  /** A gift voucher part: the voucher it redeems, and its masked code. */
+  giftVoucherId?: number;
+  codeMasked?: string;
 }
 
 const step = ref<"pay" | "processing" | "done">("pay");
@@ -60,15 +78,38 @@ const parts = ref<TakenPart[]>([]);
 // next key replaces it instead of appending to it.
 const entry = ref("");
 const fresh = ref(false);
+// Card parts: sent to the linked terminal, or typed by hand when it is down.
+const cardManual = ref(false);
 
 // The picker needs a fresh mail probe every time it's about to be
 // shown - cheap, the backend caches the probe for 60s.
 watch(step, (s) => { if (s === "pay") delivery.refreshMailStatus(); }, { immediate: true });
 
+// The amount due is the net total: till discounts are already taken off.
 const totalCents = computed(() => order.totalCents);
+const discountCents = computed(() => discountTotalCents(order.lines));
+/** A sale that sells a gift voucher is paid in cash or by card only. */
+const sellsVoucher = computed(() => order.lines.some((l) => l.department_id === GIFT_VOUCHER_DEPARTMENT));
+/** The gift voucher method needs the setting on; meal and gift vouchers
+ * are hidden when the sale sells a voucher. */
+const METHODS = computed<Method[]>(() =>
+  ALL_METHODS.filter((m) =>
+    sellsVoucher.value
+      ? m === "cash" || m === "card"
+      : m !== "gift_voucher" || giftVouchers.enabled,
+  ),
+);
 const paidCents = computed(() => parts.value.reduce((sum, p) => sum + p.cents, 0));
 const restCents = computed(() => Math.max(0, totalCents.value - paidCents.value));
 const hasCashPart = computed(() => parts.value.some((p) => p.method === "cash"));
+/** A card part goes to the linked terminal (not typed by hand). */
+const viaTerminal = computed(() => eft.active && !cardManual.value);
+/** Every part is taken (card parts approved by the terminal): the sale
+ * only waits to be signed, for instance after a failed signature or a
+ * restart. */
+const allPaid = computed(() => parts.value.length > 0 && restCents.value === 0);
+/** A terminal payment waits for its answer: no sale until it is checked. */
+const eftBlocked = computed(() => eft.open.length > 0);
 
 /** `total` in `n` parts, the remainder cents on the first parts:
  * 6030 / 4 -> 1508 1508 1507 1507. */
@@ -122,7 +163,9 @@ const changeCents = computed(() => Math.max(0, entryCents.value - roundedDueCent
 const exactTooHigh = computed(() => method.value !== "cash" && entryCents.value > restCents.value);
 const canConfirmExact = computed(() => entryCents.value > 0 && !exactTooHigh.value);
 
-const canValidate = computed(() => (method.value === "cash" ? canPayCash.value : canConfirmExact.value));
+const canValidate = computed(
+  () => !eftBlocked.value && (allPaid.value || (method.value === "cash" ? canPayCash.value : canConfirmExact.value)),
+);
 
 /** Likely amounts handed over (§7.3): the next 5 / 10 € above the
  * amount due, then bank notes above it. */
@@ -136,6 +179,11 @@ function methodLabel(m: Method): string {
   return t(`method_${m}`);
 }
 
+/** What a part taken is called: a meal-voucher card is a meal voucher. */
+function takenLabel(p: TakenPart): string {
+  return methodLabel(p.mealVoucher ? "meal_voucher" : p.method);
+}
+
 /** Every part: taken, the current one, and the ones to come. */
 const partChips = computed(() => {
   const count = Math.max(splitCount.value, parts.value.length + (restCents.value > 0 ? 1 : 0));
@@ -144,7 +192,7 @@ const partChips = computed(() => {
   for (let i = 0; i < count; i++) {
     const taken = parts.value[i];
     if (taken) {
-      chips.push({ state: "paid", label: `${methodLabel(taken.method)} · ${formatPrice(taken.cents)} € ✓` });
+      chips.push({ state: "paid", label: `${takenLabel(taken)} · ${formatPrice(taken.cents)} € ✓` });
       continue;
     }
     const amount = i >= splitCount.value - 1 ? left : Math.min(shares.value[i], left);
@@ -237,7 +285,34 @@ function quickActive(n: number): boolean {
 
 function selectMethod(m: Method) {
   if (m === "cash" && hasCashPart.value) return;
+  if (m === "gift_voucher") {
+    redeeming.value = true;
+    return;
+  }
   method.value = m;
+}
+
+// ── Gift voucher ──
+
+const redeeming = ref(false);
+
+/** The dialog found a usable voucher: it pays `cents` of the rest. */
+async function takeVoucher(voucher: ipc.GiftVoucherView, cents: number) {
+  redeeming.value = false;
+  if (parts.value.some((p) => p.giftVoucherId === voucher.id)) return;
+  const part: TakenPart = {
+    method: "gift_voucher",
+    cents,
+    changeCents: 0,
+    giftVoucherId: voucher.id,
+    codeMasked: voucher.code_masked,
+  };
+  if (cents >= restCents.value) {
+    await doCheckout([...parts.value, part]);
+    return;
+  }
+  parts.value.push(part);
+  method.value = hasCashPart.value ? "card" : "cash";
 }
 
 function selectSplit(n: number) {
@@ -245,7 +320,8 @@ function selectSplit(n: number) {
 }
 
 function clearParts() {
-  parts.value = [];
+  // A card the terminal approved is charged: its part stays.
+  parts.value = parts.value.filter((p) => p.eftPaymentId !== undefined);
   error.value = null;
   method.value = "cash";
 }
@@ -255,26 +331,104 @@ function clearParts() {
 function payload(all: TakenPart[]): PaymentPart[] {
   const list: PaymentPart[] = all
     .filter((p) => p.method !== "cash")
-    .map((p) => ({ method: p.method, amount_cents: p.cents }));
+    .map((p) => {
+      if (p.giftVoucherId !== undefined) {
+        return { method: p.method, amount_cents: p.cents, gift_voucher_id: p.giftVoucherId };
+      }
+      return p.eftPaymentId === undefined
+        ? { method: p.method, amount_cents: p.cents }
+        : { method: p.method, amount_cents: p.cents, eft_payment_id: p.eftPaymentId };
+    });
   if (all.some((p) => p.method === "cash")) list.push({ method: "cash" });
   return list;
 }
 
 /** Take the current part: the sale is signed once nothing is left to
  * pay, otherwise on to the next part. */
-function validate() {
+async function validate() {
   if (!canValidate.value) return;
+  if (allPaid.value) {
+    await doCheckout(parts.value);
+    return;
+  }
   const isCash = method.value === "cash";
   const part: TakenPart = isCash
     ? { method: "cash", cents: dueCents.value, changeCents: changeCents.value }
     : { method: method.value, cents: entryCents.value, changeCents: 0 };
+  if (method.value === "card" && viaTerminal.value) {
+    // The terminal charges the card; its approved payment becomes a
+    // locked part. A refusal leaves the part editable.
+    const paid = await takeOnTerminal(part.cents);
+    if (!paid) return;
+    if (restCents.value === 0) {
+      await doCheckout(parts.value);
+      return;
+    }
+    method.value = hasCashPart.value ? method.value : "cash";
+    return;
+  }
   if (part.cents >= restCents.value) {
-    doCheckout([...parts.value, part]);
+    await doCheckout([...parts.value, part]);
     return;
   }
   parts.value.push(part);
   // One cash part at most; otherwise back to cash, the default.
   method.value = hasCashPart.value ? (isCash ? "card" : method.value) : "cash";
+}
+
+// ── Linked card terminal ──
+
+/** An approved payment becomes a locked card part, once. */
+function adopt(p: EftPayment) {
+  if (p.status !== "approved" || p.used) return;
+  if (parts.value.some((x) => x.eftPaymentId === p.id)) return;
+  parts.value.push({ method: "card", cents: p.amount_cents, changeCents: 0, eftPaymentId: p.id, brand: p.brand, mealVoucher: p.meal_voucher });
+}
+
+/** Charge `cents` on the terminal (the overlay waits for the card). */
+async function takeOnTerminal(cents: number): Promise<EftPayment | null> {
+  if (!order.currentOrder) return null;
+  const paid = await eft.charge(order.currentOrder.id, cents);
+  if (paid) adopt(paid);
+  return paid;
+}
+
+/** Vérifier: ask the terminal where a waiting payment stands. */
+async function verifyOpen(p: EftPayment) {
+  const answer = await eft.verify(p);
+  if (answer) adopt(answer);
+}
+
+async function refreshEft() {
+  if (eft.linked && order.currentOrder) await eft.load(order.currentOrder.id);
+}
+
+// An approved payment the engine knows (after a crash, a restart or a
+// check) must be used by this sale: it appears as a locked part.
+watch(() => eft.approved, (list) => list.forEach(adopt));
+
+onMounted(async () => {
+  if (!pos.settings) {
+    try { await pos.loadSettings(); } catch { /* the card stays manual */ }
+  }
+  await refreshEft();
+});
+onUnmounted(() => eft.clear());
+
+// Courses still held at the table: the sale does not print them. Warn
+// before paying; "Envoyer maintenant" releases the next one.
+const sendingNext = ref(false);
+async function sendHeldNow() {
+  if (sendingNext.value) return;
+  sendingNext.value = true;
+  error.value = null;
+  try {
+    await order.sendNextCourse();
+  } catch (e) {
+    error.value = describeError(e);
+  } finally {
+    sendingNext.value = false;
+  }
 }
 
 async function doCheckout(all: TakenPart[]) {
@@ -286,23 +440,40 @@ async function doCheckout(all: TakenPart[]) {
     result.value = await ipc.checkout(order.currentOrder.id, payload(all), req);
     if (result.value.success) {
       warnIfSlipFailed(result.value.kitchen_slip);
+      void giftVouchers.load();
       changeDueCents.value = all.reduce((sum, p) => sum + p.changeCents, 0);
       // Clear the order from the store immediately so it can't be
       // re-submitted. The "done" screen reads from result.value.
       order.clearOrder();
       parts.value = [];
+      eft.clear();
       // Next customer starts from Papier.
       delivery.reset();
       step.value = "done";
     } else {
       error.value = describeError(result.value.error);
       step.value = "pay";
+      void refreshEft();
     }
   } catch (e) {
     error.value = describeError(e);
     step.value = "pay";
+    void refreshEft();
   }
 }
+
+/** What became of the voucher slips (vouchers sold, balances left). */
+const giftVoucherNotes = computed(() =>
+  (result.value?.gift_voucher_prints ?? []).map((p, i) => {
+    const ok = p.outcome === "printed";
+    const text = ok
+      ? t(p.kind === "balance" ? "gv_print_balance_ok" : "gv_print_voucher_ok")
+      : p.outcome === "no_printer"
+        ? t("gv_print_no_printer")
+        : t("gv_print_failed");
+    return { key: `${p.voucher_id}-${p.kind}-${i}`, ok, text };
+  }),
+);
 
 function finish() {
   result.value = null;
@@ -316,6 +487,12 @@ function finish() {
 
     <div v-if="step === 'pay'" class="pay-row">
       <section class="pay-main">
+        <div v-if="order.nextHeldCourse !== null" class="held-warning" role="alert" data-testid="held-warning">
+          <span>{{ t('checkout_held_warning', { course: t(`course_${order.nextHeldCourse}`) }) }}</span>
+          <button class="held-send" :disabled="sendingNext" data-testid="held-send-now" @click="sendHeldNow">
+            {{ t('checkout_send_now') }}
+          </button>
+        </div>
         <!-- §7.2: the three methods side by side -->
         <div class="methods">
           <button
@@ -324,6 +501,7 @@ function finish() {
             class="method-btn"
             :class="[m === 'cash' ? 'cash-btn' : m === 'card' ? 'card-btn' : 'meal-btn', { active: method === m }]"
             :disabled="m === 'cash' && hasCashPart"
+            :data-testid="`method-${m}`"
             @click="selectMethod(m)"
           >{{ methodLabel(m) }}</button>
         </div>
@@ -381,7 +559,11 @@ function finish() {
             </template>
             <template v-else>
               <p v-if="exactTooHigh" class="exact-too-high">{{ t('amount_over_rest') }}</p>
-              <p class="card-hint">{{ t('card_wait') }}</p>
+              <div v-if="method === 'card' && eft.active" class="segmented eft-mode" data-testid="eft-mode">
+                <button class="seg-btn" :class="{ active: !cardManual }" data-testid="eft-mode-terminal" @click="cardManual = false">{{ t('eft_mode_terminal') }}</button>
+                <button class="seg-btn" :class="{ active: cardManual }" data-testid="eft-mode-manual" @click="cardManual = true">{{ t('eft_mode_manual') }}</button>
+              </div>
+              <p class="card-hint">{{ method === 'card' && eft.active && !cardManual ? t('eft_hint_terminal') : t('card_wait') }}</p>
               <p v-if="hasCashPart" class="card-hint">{{ t('cash_part_taken') }}</p>
             </template>
           </div>
@@ -417,31 +599,59 @@ function finish() {
           <div v-for="line in order.lines" :key="line.id" class="sum-line">
             <span class="line-qty">{{ line.quantity }}×</span>
             <div class="line-name">
-              <span class="name-primary" :class="{ zh: pos.language === 'zh' }">{{ bilingual(line).primary }}</span>
+              <span class="name-primary" :class="{ zh: pos.language === 'zh' && !bilingual(line).isCode, code: bilingual(line).isCode }">{{ bilingual(line).primary }}</span>
               <span v-if="bilingual(line).secondary" class="name-secondary">{{ bilingual(line).secondary }}</span>
               <span v-if="lineNotes(line)" class="line-notes">{{ lineNotes(line) }}</span>
             </div>
-            <span class="line-total">{{ formatPrice(line.unit_price_cents * line.quantity) }}</span>
+            <span class="line-total">{{ formatPrice(lineNetCents(line)) }}</span>
+            <div v-for="(c, i) in line.price_changes" :key="`${c.id}-${i}`" class="line-change" data-testid="summary-change">
+              <span>{{ c.name }}</span><span>{{ formatPrice(c.amount_cents) }}</span>
+            </div>
           </div>
         </div>
 
         <div class="summary-foot">
+          <template v-if="discountCents !== 0">
+            <div class="foot-row" data-testid="summary-subtotal">
+              <span>{{ t('checkout_subtotal') }}</span><span>{{ formatPrice(totalCents - discountCents) }} €</span>
+            </div>
+            <div class="foot-row discount-row" data-testid="summary-discount">
+              <span>{{ t('checkout_discount') }}</span><span>{{ formatPrice(discountCents) }} €</span>
+            </div>
+          </template>
           <div class="foot-row total-row">
             <span>{{ t('total') }}</span><span>{{ formatPrice(totalCents) }} €</span>
           </div>
-          <div v-for="(p, i) in parts" :key="i" class="foot-row paid-part">
-            <span>{{ t('part_n', { n: i + 1 }) }} · {{ methodLabel(p.method) }}</span>
+          <div
+            v-for="(p, i) in parts"
+            :key="p.eftPaymentId ?? `m${i}`"
+            class="foot-row paid-part"
+            :class="{ locked: p.eftPaymentId !== undefined }"
+          >
+            <span>
+              {{ t('part_n', { n: i + 1 }) }} · {{ takenLabel(p) }}
+              <template v-if="p.codeMasked"> · {{ p.codeMasked }}</template>
+              <template v-if="p.eftPaymentId !== undefined">
+                <template v-if="p.brand"> · {{ p.brand }}</template>
+                <span class="eft-badge" data-testid="eft-approved">{{ t('eft_approved') }}</span>
+              </template>
+            </span>
             <span>− {{ formatPrice(p.cents) }} €</span>
+          </div>
+          <div v-for="p in eft.open" :key="`open${p.id}`" class="foot-row eft-open" data-testid="eft-open">
+            <span>{{ methodLabel('card') }} · {{ formatPrice(p.amount_cents) }} € · {{ t('eft_unknown_row') }}</span>
+            <button class="eft-verify" data-testid="eft-verify" @click="verifyOpen(p)">{{ t('eft_check') }}</button>
           </div>
           <div class="rest-row">
             <span class="total-label">{{ t('rest_to_pay') }}</span>
             <span class="rest-amount"><span class="total-value">{{ formatPrice(restShownCents) }}</span> €</span>
           </div>
 
+          <p v-if="eftBlocked" class="error-msg" data-testid="eft-blocking">{{ t('eft_blocking') }}</p>
           <p v-if="error" class="error-msg shake">{{ error }}</p>
 
           <div class="foot-actions">
-            <button v-if="parts.length" class="back-btn parts-clear" @click="clearParts">{{ t('clear_payments') }}</button>
+            <button v-if="parts.some((p) => p.eftPaymentId === undefined)" class="back-btn parts-clear" @click="clearParts">{{ t('clear_payments') }}</button>
             <button v-else class="back-btn" @click="router.push({ name: 'order' })">{{ t('back') }}</button>
             <button
               class="validate-btn"
@@ -488,6 +698,9 @@ function finish() {
         <div v-if="!result?.fdm_connected" class="fdm-warn">
           {{ t('fdm_no_sig') }}
         </div>
+        <ul v-if="giftVoucherNotes.length" class="gv-notes" data-testid="gv-prints">
+          <li v-for="note in giftVoucherNotes" :key="note.key" :class="note.ok ? 'ok' : 'bad'">{{ note.text }}</li>
+        </ul>
         <DeliveryOutcomePanel
           :outcome="result?.delivery ?? null"
           :fiscal-event-id="result?.fiscal_event_id ?? null"
@@ -497,6 +710,13 @@ function finish() {
         </div>
       </div>
     </div>
+
+    <GiftVoucherDialog
+      v-if="redeeming"
+      :rest-cents="restCents"
+      @confirm="takeVoucher"
+      @cancel="redeeming = false"
+    />
   </div>
 </template>
 
@@ -526,7 +746,10 @@ button:active:not(:disabled) { transform: scale(var(--tap-scale)); }
   overflow-y: auto;
 }
 
-.methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.gv-notes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 17px; font-weight: var(--font-weight-bold); }
+.gv-notes .ok { color: var(--accent-success); }
+.gv-notes .bad { color: var(--accent-danger); }
 .method-btn {
   height: 88px;
   border-radius: 14px;
@@ -564,6 +787,29 @@ button:active:not(:disabled) { transform: scale(var(--tap-scale)); }
 }
 .seg-btn.active { background: var(--selected-bg); color: var(--selected-fg); }
 .seg-btn:disabled { color: var(--text-secondary); opacity: 0.5; }
+
+.eft-mode { width: 420px; }
+.eft-badge {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--accent-success);
+  color: var(--text-on-accent);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.eft-open { align-items: center; color: var(--accent-warning); }
+.eft-verify {
+  height: 48px;
+  padding: 0 20px;
+  border-radius: var(--radius-md);
+  background: var(--accent-warning);
+  color: var(--text-on-accent);
+  font-size: 17px;
+  font-weight: 800;
+}
 
 .part-chips { display: flex; gap: 8px; }
 .part-chip {
@@ -732,9 +978,19 @@ button:active:not(:disabled) { transform: scale(var(--tap-scale)); }
 .line-name { min-width: 0; display: flex; flex-direction: column; }
 .name-primary { font-size: 17px; font-weight: 700; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .name-primary.zh { font-family: var(--font-zh); }
+.name-primary.code { font-family: var(--font-mono); }
 .name-secondary { font-size: 13px; color: var(--text-secondary); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-notes { font-size: 13px; color: var(--accent-warning); }
 .line-total { font-family: var(--font-mono); font-size: 17px; font-weight: 700; }
+.line-change {
+  grid-column: 2 / -1;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--accent-warning);
+}
+.discount-row { color: var(--accent-warning); }
 
 .summary-foot {
   border-top: 1px solid var(--border);
@@ -753,6 +1009,20 @@ button:active:not(:disabled) { transform: scale(var(--tap-scale)); }
 .rest-row { display: flex; justify-content: space-between; align-items: baseline; }
 .total-label { font-size: 20px; font-weight: 700; }
 .rest-amount { font-family: var(--font-mono); font-size: 44px; font-weight: 700; line-height: 1.1; }
+
+.held-warning {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; border-radius: 10px; font-size: 16px; font-weight: 700;
+  color: var(--accent-warning);
+  background: color-mix(in srgb, var(--accent-warning) 12%, transparent);
+  border: 1px solid var(--accent-warning);
+}
+.held-send {
+  height: 56px; padding: 0 20px; border-radius: var(--radius-md);
+  background: var(--selected-bg); color: var(--selected-fg);
+  font-size: 16px; font-weight: 700; flex-shrink: 0;
+}
+.held-send:disabled { opacity: 0.4; }
 
 .error-msg {
   color: var(--accent-danger);

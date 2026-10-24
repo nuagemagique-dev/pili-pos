@@ -1,0 +1,652 @@
+[
+  {
+    "at": "2026-10-06T18:46:13.479455759+00:00",
+    "operation": "Status",
+    "request": {
+      "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+      "variables": null
+    },
+    "response": {
+      "data": {
+        "fdmStatus": {
+          "device": {
+            "bufferCapacityUsed": 1.2,
+            "fdmDateTime": "2026-10-06T18:46:13Z",
+            "fdmId": "MCK00000001",
+            "fdmSwVersion": "MOCK-FDM-1.0"
+          },
+          "errors": [],
+          "informations": [],
+          "initialized": true,
+          "warnings": []
+        }
+      },
+      "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+      }
+    }
+  },
+  {
+    "at": "2026-10-06T18:46:18.609709553+00:00",
+    "operation": "signWorkIn",
+    "request": {
+      "query": "mutation($data: WorkInOutInput!, $isTraining: Boolean!) { signWorkIn(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+      "variables": {
+        "data": {
+          "bookingDate": "2026-10-06",
+          "bookingPeriodId": "8e9bd8a3-d84b-43f2-9558-068fe14f4114",
+          "deviceId": "00:1b:44:11:3a:b7",
+          "employeeId": "94060242576",
+          "estNo": "2123456791",
+          "language": "FR",
+          "posDateTime": "2026-10-06T20:46:18.240+02:00",
+          "posFiscalTicketNo": 1,
+          "posId": "CFOD0061234567",
+          "posSwVersion": "pili-pos/1.0.0",
+          "terminalId": "POS1",
+          "ticketMedium": "NONE",
+          "vatNo": "BE0499999960"
+        },
+        "isTraining": false
+      }
+    },
+    "response": {
+      "data": {
+        "signWorkIn": {
+          "bufferCapacityUsed": 1.2,
+          "deviceId": "00:1b:44:11:3a:b7",
+          "digitalSignature": "bW9jay1zaWctMS0xLTE3OTEzMTIzNzg=",
+          "eventOperation": "WORK_IN",
+          "fdmRef": {
+            "eventCounter": 1,
+            "eventLabel": "S",
+            "fdmDateTime": "2026-10-06T18:46:18Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 1
+          },
+          "fdmSwVersion": "MOCK-FDM-1.0",
+          "footer": [],
+          "informations": [],
+          "posDateTime": "2026-10-06T20:46:18.240+02:00",
+          "posFiscalTicketNo": 1,
+          "posId": "CFOD0061234567",
+          "shortSignature": null,
+          "terminalId": "POS1",
+          "vatCalc": null,
+          "verificationUrl": null,
+          "warnings": []
+        }
+      },
+      "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+      }
+    }
+  },
+  {
+    "at": "2026-10-06T18:46:31.843921128+00:00",
+    "operation": "signSale",
+    "request": {
+      "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+      "variables": {
+        "data": {
+          "bookingDate": "2026-10-06",
+          "bookingPeriodId": "8e9bd8a3-d84b-43f2-9558-068fe14f4114",
+          "costCenter": {
+            "id": "DELIVEROO",
+            "reference": "o00001",
+            "type": "PLATFORM"
+          },
+          "deviceId": "00:1b:44:11:3a:b7",
+          "employeeId": "94060242576",
+          "estNo": "2123456791",
+          "financials": [
+            {
+              "amount": 24.0,
+              "amountType": "PAYMENT",
+              "id": "4",
+              "inputMethod": "MANUAL",
+              "name": "App",
+              "type": "APP"
+            }
+          ],
+          "language": "FR",
+          "posDateTime": "2026-10-06T20:46:31.730+02:00",
+          "posFiscalTicketNo": 1,
+          "posId": "CFOD0061234567",
+          "posSwVersion": "pili-pos/1.0.0",
+          "terminalId": "POS1",
+          "ticketMedium": "PAPER",
+          "transaction": {
+            "transactionLines": [
+              {
+                "lineTotal": 21.0,
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "departmentId": "1",
+                  "departmentName": "Makis",
+                  "productId": "2",
+                  "productName": "Maki saumon 12 pièces (Soja sucrée)",
+                  "quantity": 2.0,
+                  "quantityType": "PIECE",
+                  "unitPrice": 10.5,
+                  "vats": [
+                    {
+                      "label": "C",
+                      "price": 21.0
+                    }
+                  ]
+                }
+              },
+              {
+                "lineTotal": 3.0,
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "departmentId": "3",
+                  "departmentName": "Boissons",
+                  "productId": "5",
+                  "productName": "Coca-Cola 33cl",
+                  "quantity": 1.0,
+                  "quantityType": "PIECE",
+                  "unitPrice": 3.0,
+                  "vats": [
+                    {
+                      "label": "C",
+                      "price": 3.0
+                    }
+                  ]
+                }
+              }
+            ],
+            "transactionTotal": 24.0
+          },
+          "vatNo": "BE0499999960"
+        },
+        "isTraining": false
+      }
+    },
+    "response": {
+      "data": {
+        "signSale": {
+          "bufferCapacityUsed": 1.2,
+          "deviceId": "00:1b:44:11:3a:b7",
+          "digitalSignature": "bW9jay1zaWctMS0yLTE3OTEzMTIzOTE=",
+          "eventOperation": "SALE",
+          "fdmRef": {
+            "eventCounter": 1,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-06T18:46:31Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 2
+          },
+          "fdmSwVersion": "MOCK-FDM-1.0",
+          "footer": [],
+          "informations": [],
+          "posDateTime": "2026-10-06T20:46:31.730+02:00",
+          "posFiscalTicketNo": 1,
+          "posId": "CFOD0061234567",
+          "shortSignature": "09e78f85e37123581d5603155db884755bab9738",
+          "terminalId": "POS1",
+          "vatCalc": [
+            {
+              "label": "C",
+              "outOfScope": false,
+              "rate": 6.0,
+              "taxableAmount": 22.64,
+              "totalAmount": 24.0,
+              "vatAmount": 1.36
+            }
+          ],
+          "verificationUrl": "https://www.gs2.be/M0000100002AbCdEfGhI",
+          "warnings": []
+        }
+      },
+      "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+      }
+    }
+  },
+  {
+    "at": "2026-10-06T18:46:48.353082595+00:00",
+    "operation": "Status",
+    "request": {
+      "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+      "variables": null
+    },
+    "response": {
+      "data": {
+        "fdmStatus": {
+          "device": {
+            "bufferCapacityUsed": 1.2,
+            "fdmDateTime": "2026-10-06T18:46:48Z",
+            "fdmId": "MCK00000001",
+            "fdmSwVersion": "MOCK-FDM-1.0"
+          },
+          "errors": [],
+          "informations": [],
+          "initialized": true,
+          "warnings": []
+        }
+      },
+      "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+      }
+    }
+  },
+  {
+    "at": "2026-10-06T18:47:01.939502337+00:00",
+    "operation": "signSale",
+    "request": {
+      "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+      "variables": {
+        "data": {
+          "bookingDate": "2026-10-06",
+          "bookingPeriodId": "8e9bd8a3-d84b-43f2-9558-068fe14f4114",
+          "deviceId": "00:1b:44:11:3a:b7",
+          "employeeId": "94060242576",
+          "estNo": "2123456791",
+          "fdmRef": {
+            "eventCounter": 1,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-06T18:46:31Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 2
+          },
+          "financials": [
+            {
+              "amount": -24.0,
+              "amountType": "PAYMENT",
+              "id": "4",
+              "inputMethod": "MANUAL",
+              "name": "App",
+              "type": "APP"
+            }
+          ],
+          "language": "FR",
+          "posDateTime": "2026-10-06T20:47:01.886+02:00",
+          "posFiscalTicketNo": 2,
+          "posId": "CFOD0061234567",
+          "posSwVersion": "pili-pos/1.0.0",
+          "terminalId": "POS1",
+          "ticketMedium": "PAPER",
+          "transaction": {
+            "transactionLines": [
+              {
+                "lineTotal": -21.0,
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "departmentId": "1",
+                  "departmentName": "Makis",
+                  "negQuantityReason": "REFUND",
+                  "productId": "2",
+                  "productName": "Maki saumon 12 pièces (Soja sucrée)",
+                  "quantity": -2.0,
+                  "quantityType": "PIECE",
+                  "unitPrice": 10.5,
+                  "vats": [
+                    {
+                      "label": "C",
+                      "price": -21.0
+                    }
+                  ]
+                }
+              },
+              {
+                "lineTotal": -3.0,
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "departmentId": "3",
+                  "departmentName": "Boissons",
+                  "negQuantityReason": "REFUND",
+                  "productId": "5",
+                  "productName": "Coca-Cola 33cl",
+                  "quantity": -1.0,
+                  "quantityType": "PIECE",
+                  "unitPrice": 3.0,
+                  "vats": [
+                    {
+                      "label": "C",
+                      "price": -3.0
+                    }
+                  ]
+                }
+              }
+            ],
+            "transactionTotal": -24.0
+          },
+          "vatNo": "BE0499999960"
+        },
+        "isTraining": false
+      }
+    },
+    "response": {
+      "data": {
+        "signSale": {
+          "bufferCapacityUsed": 1.2,
+          "deviceId": "00:1b:44:11:3a:b7",
+          "digitalSignature": "bW9jay1zaWctMi0zLTE3OTEzMTI0MjE=",
+          "eventOperation": "SALE",
+          "fdmRef": {
+            "eventCounter": 2,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-06T18:47:01Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 3
+          },
+          "fdmSwVersion": "MOCK-FDM-1.0",
+          "footer": [],
+          "informations": [],
+          "posDateTime": "2026-10-06T20:47:01.886+02:00",
+          "posFiscalTicketNo": 2,
+          "posId": "CFOD0061234567",
+          "shortSignature": "6d84cd353a93e0b116db0ddb924fdc14ba68cd5e",
+          "terminalId": "POS1",
+          "vatCalc": [
+            {
+              "label": "C",
+              "outOfScope": false,
+              "rate": 6.0,
+              "taxableAmount": -22.64,
+              "totalAmount": -24.0,
+              "vatAmount": -1.36
+            }
+          ],
+          "verificationUrl": "https://www.gs2.be/M0000200003AbCdEfGhI",
+          "warnings": []
+        }
+      },
+      "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+      }
+    }
+  },
+  {
+    "at": "2026-10-06T18:47:18.470955970+00:00",
+    "operation": "Status",
+    "request": {
+      "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+      "variables": null
+    },
+    "response": {
+      "data": {
+        "fdmStatus": {
+          "device": {
+            "bufferCapacityUsed": 1.2,
+            "fdmDateTime": "2026-10-06T18:47:18Z",
+            "fdmId": "MCK00000001",
+            "fdmSwVersion": "MOCK-FDM-1.0"
+          },
+          "errors": [],
+          "informations": [],
+          "initialized": true,
+          "warnings": []
+        }
+      },
+      "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+      }
+    }
+  },
+  {
+    "at": "2026-10-06T18:47:31.324355086+00:00",
+    "operation": "signOrder",
+    "request": {
+      "query": "mutation($data: OrderInput!, $isTraining: Boolean!) { signOrder(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+      "variables": {
+        "data": {
+          "bookingDate": "2026-10-06",
+          "bookingPeriodId": "8e9bd8a3-d84b-43f2-9558-068fe14f4114",
+          "costCenter": {
+            "id": "WEBSITE",
+            "reference": "o00006",
+            "type": "WEBSHOP"
+          },
+          "deviceId": "00:1b:44:11:3a:b7",
+          "employeeId": "94060242576",
+          "estNo": "2123456791",
+          "language": "FR",
+          "posDateTime": "2026-10-06T20:47:31.155+02:00",
+          "posFiscalTicketNo": 1,
+          "posId": "CFOD0061234567",
+          "posSwVersion": "pili-pos/1.0.0",
+          "terminalId": "POS1",
+          "ticketMedium": "NONE",
+          "transaction": {
+            "transactionLines": [
+              {
+                "lineTotal": 8.9,
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "departmentId": "1",
+                  "departmentName": "Makis",
+                  "productId": "3",
+                  "productName": "California roll",
+                  "quantity": 1.0,
+                  "quantityType": "PIECE",
+                  "unitPrice": 8.9,
+                  "vats": [
+                    {
+                      "label": "C",
+                      "price": 8.9
+                    }
+                  ]
+                }
+              },
+              {
+                "lineTotal": 6.0,
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "departmentId": "3",
+                  "departmentName": "Boissons",
+                  "productId": "5",
+                  "productName": "Coca-Cola 33cl",
+                  "quantity": 2.0,
+                  "quantityType": "PIECE",
+                  "unitPrice": 3.0,
+                  "vats": [
+                    {
+                      "label": "C",
+                      "price": 6.0
+                    }
+                  ]
+                }
+              }
+            ],
+            "transactionTotal": 14.9
+          },
+          "vatNo": "BE0499999960"
+        },
+        "isTraining": false
+      }
+    },
+    "response": {
+      "data": {
+        "signOrder": {
+          "bufferCapacityUsed": 1.2,
+          "deviceId": "00:1b:44:11:3a:b7",
+          "digitalSignature": "bW9jay1zaWctMS00LTE3OTEzMTI0NTE=",
+          "eventOperation": "ORDER",
+          "fdmRef": {
+            "eventCounter": 1,
+            "eventLabel": "P",
+            "fdmDateTime": "2026-10-06T18:47:31Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 4
+          },
+          "fdmSwVersion": "MOCK-FDM-1.0",
+          "footer": [],
+          "informations": [],
+          "posDateTime": "2026-10-06T20:47:31.155+02:00",
+          "posFiscalTicketNo": 1,
+          "posId": "CFOD0061234567",
+          "shortSignature": null,
+          "terminalId": "POS1",
+          "vatCalc": null,
+          "verificationUrl": null,
+          "warnings": []
+        }
+      },
+      "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+      }
+    }
+  },
+  {
+    "at": "2026-10-06T18:47:33.241730587+00:00",
+    "operation": "signSale",
+    "request": {
+      "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+      "variables": {
+        "data": {
+          "bookingDate": "2026-10-06",
+          "bookingPeriodId": "8e9bd8a3-d84b-43f2-9558-068fe14f4114",
+          "costCenter": {
+            "id": "WEBSITE",
+            "reference": "o00006",
+            "type": "WEBSHOP"
+          },
+          "deviceId": "00:1b:44:11:3a:b7",
+          "employeeId": "94060242576",
+          "estNo": "2123456791",
+          "financials": [
+            {
+              "amount": 14.9,
+              "amountType": "PAYMENT",
+              "id": "1",
+              "inputMethod": "MANUAL",
+              "name": "Cash",
+              "type": "CASH"
+            }
+          ],
+          "language": "FR",
+          "posDateTime": "2026-10-06T20:47:33.201+02:00",
+          "posFiscalTicketNo": 3,
+          "posId": "CFOD0061234567",
+          "posSwVersion": "pili-pos/1.0.0",
+          "terminalId": "POS1",
+          "ticketMedium": "PAPER",
+          "transaction": {
+            "transactionLines": [
+              {
+                "lineTotal": 8.9,
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "departmentId": "1",
+                  "departmentName": "Makis",
+                  "productId": "3",
+                  "productName": "California roll",
+                  "quantity": 1.0,
+                  "quantityType": "PIECE",
+                  "unitPrice": 8.9,
+                  "vats": [
+                    {
+                      "label": "C",
+                      "price": 8.9
+                    }
+                  ]
+                }
+              },
+              {
+                "lineTotal": 6.0,
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "departmentId": "3",
+                  "departmentName": "Boissons",
+                  "productId": "5",
+                  "productName": "Coca-Cola 33cl",
+                  "quantity": 2.0,
+                  "quantityType": "PIECE",
+                  "unitPrice": 3.0,
+                  "vats": [
+                    {
+                      "label": "C",
+                      "price": 6.0
+                    }
+                  ]
+                }
+              }
+            ],
+            "transactionTotal": 14.9
+          },
+          "vatNo": "BE0499999960"
+        },
+        "isTraining": false
+      }
+    },
+    "response": {
+      "data": {
+        "signSale": {
+          "bufferCapacityUsed": 1.2,
+          "deviceId": "00:1b:44:11:3a:b7",
+          "digitalSignature": "bW9jay1zaWctMy01LTE3OTEzMTI0NTM=",
+          "eventOperation": "SALE",
+          "fdmRef": {
+            "eventCounter": 3,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-06T18:47:33Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 5
+          },
+          "fdmSwVersion": "MOCK-FDM-1.0",
+          "footer": [],
+          "informations": [],
+          "posDateTime": "2026-10-06T20:47:33.201+02:00",
+          "posFiscalTicketNo": 3,
+          "posId": "CFOD0061234567",
+          "shortSignature": "4e8b6157f1a8fa0985525c4f529ee990e3046e2b",
+          "terminalId": "POS1",
+          "vatCalc": [
+            {
+              "label": "C",
+              "outOfScope": false,
+              "rate": 6.0,
+              "taxableAmount": 14.06,
+              "totalAmount": 14.9,
+              "vatAmount": 0.84
+            }
+          ],
+          "verificationUrl": "https://www.gs2.be/M0000300005AbCdEfGhI",
+          "warnings": []
+        }
+      },
+      "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+      }
+    }
+  },
+  {
+    "at": "2026-10-06T18:47:48.529957595+00:00",
+    "operation": "Status",
+    "request": {
+      "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+      "variables": null
+    },
+    "response": {
+      "data": {
+        "fdmStatus": {
+          "device": {
+            "bufferCapacityUsed": 1.2,
+            "fdmDateTime": "2026-10-06T18:47:48Z",
+            "fdmId": "MCK00000001",
+            "fdmSwVersion": "MOCK-FDM-1.0"
+          },
+          "errors": [],
+          "informations": [],
+          "initialized": true,
+          "warnings": []
+        }
+      },
+      "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+      }
+    }
+  }
+]

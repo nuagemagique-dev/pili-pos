@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "id": "V_BUFFER_FULL",
+  "ids": ["V_BUFFER_FULL"],
+  "title": "A full FDM buffer refuses the sale; after the reset the same order is sold",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "takeaway", "table_number": null, "user_insz": "94060242576"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 10006, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "fdm_control", "args": {"errors": ["BUFFER_FULL"]}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "cash"}]}, "expect": {"error": "BUFFER_FULL"}},
+    {"cmd": "fdm_control_reset", "args": {}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "cash"}]}, "save": "sale"}
+  ]
+}

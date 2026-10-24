@@ -1,17 +1,20 @@
 <script setup lang="ts">
 /**
  * Device lights in the header (UX guide §8.1): the FDM, the ticket
- * printer, the kitchen printer and HubRise. Green = OK, amber =
- * warning, red = error, grey = not configured.
+ * printer, the kitchen printer, the linked card terminal (only when one
+ * is configured; amber while a payment runs on it) and HubRise.
+ * Green = OK, amber = warning, red = error, grey = not configured.
  *
- * The FDM is polled by the store's one poller (30 s, backing off while
- * it does not answer), which also keeps FdmAlerts current.
+ * The FDM light follows the engine's monitor (store fdm, event
+ * "fdm-status"), which also keeps FdmAlerts current.
  */
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useIntegrationsStore } from "../stores/integrations";
 import * as ipc from "../api/ipc";
+import { useEftStore } from "../stores/eft";
 import { useFdmStore } from "../stores/fdm";
 import { useI18n } from "../i18n";
+import type { PaymentTerminalStatus } from "../types";
 
 type Light = "ok" | "warn" | "err" | "none";
 
@@ -26,6 +29,20 @@ const fdmLight = computed<Light>(() => {
 const ticket = ref<Light>("none");
 const kitchen = ref<Light>("none");
 const hubrise = ref<Light>("none");
+const eft = useEftStore();
+const terminalStatus = ref<PaymentTerminalStatus | null>(null);
+// Hidden until the engine says a terminal is configured.
+const terminalLight = computed(() => {
+  const status = terminalStatus.value;
+  if (!status?.configured) return null;
+  const state: Light = status.busy ? "warn" : status.connected ? "ok" : "err";
+  const why = status.busy
+    ? t("check_payment_busy")
+    : status.connected
+      ? t("check_connected")
+      : [t("check_unreachable"), status.detail].filter(Boolean).join(": ");
+  return { state, title: why };
+});
 // Only while the integration runs.
 const integrations = useIntegrationsStore();
 const hubriseLights = computed(() =>
@@ -54,6 +71,20 @@ async function checkPrinters() {
     kitchen.value = "none";
   }
 }
+
+async function checkTerminal() {
+  try {
+    terminalStatus.value = await ipc.checkPaymentTerminal();
+  } catch {
+    terminalStatus.value = null;
+  }
+}
+
+// A payment starting or ending changes what the terminal answers.
+watch(
+  () => eft.phase,
+  () => void checkTerminal(),
+);
 
 async function checkHubrise() {
   if (!integrations.hubriseEnabled) return;
@@ -92,14 +123,16 @@ let printerTimer: ReturnType<typeof setInterval> | undefined;
 let hubriseTimer: ReturnType<typeof setInterval> | undefined;
 
 onMounted(() => {
-  fdm.startPolling();
   void checkPrinters();
+  void checkTerminal();
   void checkHubrise();
-  printerTimer = setInterval(() => void checkPrinters(), 30_000);
+  printerTimer = setInterval(() => {
+    void checkPrinters();
+    void checkTerminal();
+  }, 30_000);
   hubriseTimer = setInterval(() => void checkHubrise(), 60_000);
 });
 onUnmounted(() => {
-  fdm.stopPolling();
   clearInterval(printerTimer);
   clearInterval(hubriseTimer);
 });
@@ -118,6 +151,10 @@ onUnmounted(() => {
     <div class="light" :class="kitchen">
       <span class="dot" />
       <span>{{ t('status_kitchen') }}</span>
+    </div>
+    <div v-if="terminalLight" class="light" :class="terminalLight.state" :title="terminalLight.title" data-testid="light-terminal">
+      <span class="dot" />
+      <span>{{ t('status_terminal') }}</span>
     </div>
     <div v-for="light in hubriseLights" :key="light.label" class="light" :class="light.state">
       <span class="dot" />

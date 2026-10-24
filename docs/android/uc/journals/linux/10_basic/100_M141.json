@@ -1,0 +1,94 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "10_basic",
+  "scenario": "100_M141",
+  "ids": [
+    "M141"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "84022899837",
+        "name": "Elisa",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "work_out",
+      "ok": true,
+      "error": null,
+      "result": {
+        "error": null,
+        "success": true
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signWorkOut",
+      "request": {
+        "query": "mutation($data: WorkInOutInput!, $isTraining: Boolean!) { signWorkOut(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "40101cd2-441d-4c6b-97ec-6482404fd59e",
+            "deviceId": "pos-json-device",
+            "employeeId": "84022899837",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:06:44.065+02:00",
+            "posFiscalTicketNo": 6,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signWorkOut": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctNi0xNy0xNzkxNjEyNDA0",
+            "eventOperation": "WORK_OUT",
+            "fdmRef": {
+              "eventCounter": 6,
+              "eventLabel": "S",
+              "fdmDateTime": "2026-10-10T06:06:44Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 17
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:06:44.065+02:00",
+            "posFiscalTicketNo": 6,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [],
+  "tickets": [],
+  "verdict": "PASS"
+}

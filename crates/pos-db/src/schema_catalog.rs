@@ -1,5 +1,5 @@
 //! Schema of the menu mirrored from an external catalog (feature
-//! `catalog-sync`, part of `hubrise`), migration 21.
+//! `catalog-sync`, part of `hubrise`), migrations 21 and 26.
 
 /// v21 - catalog sync: charges and online-only items stay out of the
 /// POS grid, option groups and options can be taken off sale, and the
@@ -23,4 +23,10 @@ CREATE TABLE IF NOT EXISTS catalog_sync_state (
     issues_json TEXT,
     catalog_json TEXT
 );
+"#;
+
+/// v26 - the menu code of a product ("A2"), from the catalog. Display
+/// only: the till can show it in place of the name.
+pub(crate) const MIGRATION_026_PRODUCT_CODES: &str = r#"
+ALTER TABLE menu_items ADD COLUMN code TEXT;
 "#;

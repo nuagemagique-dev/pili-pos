@@ -1,0 +1,426 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "60_fdm_errors",
+  "scenario": "010_V_FDM_LOCKED",
+  "ids": [
+    "V_FDM_LOCKED"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "94060242576",
+        "name": "Gerant Test",
+        "role": "admin"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:07:26.745066Z",
+        "id": 1,
+        "order_type": "takeaway",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": null,
+        "total_cents": 0,
+        "user_insz": "94060242576"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:26.745711Z",
+        "department_id": "10",
+        "department_name": "Aperitifs",
+        "id": 1,
+        "menu_item_id": 10006,
+        "modifiers_json": null,
+        "name": "Dry Martini",
+        "order_id": 1,
+        "quantity": 1,
+        "unit_price_cents": 1200,
+        "vat_code": "A"
+      }
+    },
+    {
+      "cmd": "fdm_control",
+      "ok": true,
+      "error": null,
+      "result": null
+    },
+    {
+      "cmd": "checkout",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": null,
+        "error": "FDM error: GraphQL error: FDM_LOCKED: Le FDM est verrouillé",
+        "fdm_connected": true,
+        "fiscal_event_id": null,
+        "kitchen_slip": null,
+        "success": false,
+        "ticket": null
+      }
+    },
+    {
+      "cmd": "fdm_control_reset",
+      "ok": true,
+      "error": null,
+      "result": null
+    },
+    {
+      "cmd": "checkout",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": {
+          "deliveryId": null,
+          "email": "not_requested",
+          "fiscalEventId": 2,
+          "medium": "PAPER",
+          "needsPaper": false,
+          "paperPrinted": true,
+          "recipientHint": null
+        },
+        "error": null,
+        "fdm_connected": true,
+        "fiscal_event_id": 2,
+        "kitchen_slip": "nothing_to_print",
+        "success": true,
+        "ticket": {
+          "copy_made_at": null,
+          "device_id": "pos-json-device",
+          "event_label": "N",
+          "fdm_ref": {
+            "eventCounter": 1,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-10T06:07:26Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 2
+          },
+          "footer": [],
+          "is_refund": false,
+          "is_training": false,
+          "lang": "fr",
+          "lines": [
+            {
+              "description": "Dry Martini",
+              "quantity": 1.0,
+              "total": 12.0,
+              "unit_price": 12.0,
+              "vat_code": "A"
+            }
+          ],
+          "operator": "Gerant Test",
+          "original": null,
+          "payments": [
+            {
+              "amount": 12.0,
+              "method": "Cash"
+            }
+          ],
+          "pos_datetime": "2026-10-10T08:07:26.748+02:00",
+          "pos_id": "CPOS0031234567",
+          "pos_sw_version": "pili-pos/1.1.0",
+          "restaurant_address": "1 Rue du Test, 4000 Liege",
+          "restaurant_est_no": "2000000042",
+          "restaurant_legal_name": "Restaurant Test",
+          "restaurant_name": "Restaurant Test",
+          "restaurant_vat": "BE0000000097",
+          "rounding": null,
+          "short_signature": "4f95e8dbdf55b6913a573b7e32626403aa2ac27a",
+          "subtotal": 12.0,
+          "terminal_id": "POS-2-ANDROID",
+          "ticket_number": 1,
+          "ticket_type_label": "TICKET DE CAISSE T.V.A.",
+          "total": 12.0,
+          "unpaid": false,
+          "vat_breakdown": [
+            {
+              "label": "A",
+              "outOfScope": false,
+              "rate": 21.0,
+              "taxableAmount": 9.92,
+              "totalAmount": 12.0,
+              "vatAmount": 2.08
+            }
+          ],
+          "verification_url": "https://www.gs2.be/M0000100002AbCdEfGhI"
+        }
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signWorkIn",
+      "request": {
+        "query": "mutation($data: WorkInOutInput!, $isTraining: Boolean!) { signWorkIn(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "1864af51-02fe-4b7c-bf26-81211f649fea",
+            "deviceId": "pos-json-device",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:26.669+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signWorkIn": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMS0xLTE3OTE2MTI0NDY=",
+            "eventOperation": "WORK_IN",
+            "fdmRef": {
+              "eventCounter": 1,
+              "eventLabel": "S",
+              "fdmDateTime": "2026-10-10T06:07:26Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 1
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:26.669+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "operation": "signSale",
+      "request": {
+        "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "1864af51-02fe-4b7c-bf26-81211f649fea",
+            "deviceId": "pos-json-device",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "financials": [
+              {
+                "amount": 12.0,
+                "amountType": "PAYMENT",
+                "id": "1",
+                "inputMethod": "MANUAL",
+                "name": "Cash",
+                "type": "CASH"
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:26.746+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 12.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "10",
+                    "departmentName": "Aperitifs",
+                    "productId": "10006",
+                    "productName": "Dry Martini",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 12.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 12.0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 12.0
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "errors": [
+          {
+            "extensions": {
+              "category": "SPF_FOD",
+              "code": "FDM_LOCKED",
+              "showPos": "MANDATORY"
+            },
+            "message": "Le FDM est verrouillé"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "signSale",
+      "request": {
+        "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "1864af51-02fe-4b7c-bf26-81211f649fea",
+            "deviceId": "pos-json-device",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "financials": [
+              {
+                "amount": 12.0,
+                "amountType": "PAYMENT",
+                "id": "1",
+                "inputMethod": "MANUAL",
+                "name": "Cash",
+                "type": "CASH"
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:26.748+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 12.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "10",
+                    "departmentName": "Aperitifs",
+                    "productId": "10006",
+                    "productName": "Dry Martini",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 12.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 12.0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 12.0
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMS0yLTE3OTE2MTI0NDY=",
+            "eventOperation": "SALE",
+            "fdmRef": {
+              "eventCounter": 1,
+              "eventLabel": "N",
+              "fdmDateTime": "2026-10-10T06:07:26Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 2
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:26.748+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "shortSignature": "4f95e8dbdf55b6913a573b7e32626403aa2ac27a",
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": [
+              {
+                "label": "A",
+                "outOfScope": false,
+                "rate": 21.0,
+                "taxableAmount": 9.92,
+                "totalAmount": 12.0,
+                "vatAmount": 2.08
+              }
+            ],
+            "verificationUrl": "https://www.gs2.be/M0000100002AbCdEfGhI",
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [
+    {
+      "operation": "Status",
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:07:26Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "tickets": [
+    "            TICKET DE CAISSE T.V.A.\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:07\nUtilisateur: Gerant Test\nTerminal: POS-2-ANDROID\nTicketnr.: 000001\nPOS Serial: CPOS0031234567\nInput device MAC: pos-json-device\nLogiciel de caisse v.: pili-pos/1.1.0\n................................................\n1 Dry Martini                           12,00  A\nTOTAL :                                   €12,00\n................................................\nMode de paiement :\nEspeces                                    12,00\n% TVA   CODE          HT       TVA      Brut\n21,00%  A           9,92      2,08     12,00\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:07:26Z;\nEvent: N; eventCounter: 1;\ntotalCounter: 2; shortSignature:\n4f95e8dbdf55b6913a573b7e32626403aa2ac27a;\n\n [QR: https://www.gs2.be/M0000100002AbCdEfGhI]  \n\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n\n\n\n✂-----------------------------------------------\n",
+    ""
+  ],
+  "verdict": "PASS"
+}

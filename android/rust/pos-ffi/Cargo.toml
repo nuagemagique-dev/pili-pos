@@ -1,0 +1,52 @@
+[package]
+name = "pos-ffi"
+version = "1.0.0"
+edition.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+# Test only (P2-T6): changes the signature of `pos_sw_version` so that bindings generated from
+# the normal build no longer match the library (UniFFI checksum mismatch demo).
+abi-mismatch = []
+
+[dependencies]
+# The engine, built like the certification set: HubRise in, invoicing (pos-peppol) in every build (V11-D1).
+pos-engine = { path = "../../../crates/pos-engine", default-features = false, features = ["cert"] }
+pos-core = { path = "../../../crates/pos-core" }
+pos-fiscal = { path = "../../../crates/pos-fiscal" }
+pos-db = { path = "../../../crates/pos-db" }
+pos-print = { path = "../../../crates/pos-print" }
+pos-mail = { path = "../../../crates/pos-mail" }
+pos-hubrise = { path = "../../../crates/pos-hubrise" }
+pos-hubrise-types = { path = "../../../crates/pos-hubrise-types" }
+pos-catalog = { path = "../../../crates/pos-catalog" }
+uniffi = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+tracing-appender = "0.2.5"
+webpki-root-certs = "1.0.9"
+sha2 = "0.10.9"
+hex = "0.4"
+minisign-verify = "=0.3.0"
+
+[dev-dependencies]
+pos-engine-testkit = { path = "../../../crates/pos-engine-testkit" }
+pos-export = { path = "../../../crates/pos-export" }
+pos-export-mock = { path = "../../../crates/pos-export-mock" }
+pos-eft-mock = { path = "../../../crates/pos-eft-mock" }
+pos-fdm-mock = { path = "../../../crates/pos-fdm-mock" }
+pos-printer-mock = { path = "../../../crates/pos-printer-mock" }
+tempfile = "3"
+axum = "0.8"
+# Tests only: sign a test artefact with a key generated in the test, so no secret key is committed.
+minisign = "=0.10.0"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

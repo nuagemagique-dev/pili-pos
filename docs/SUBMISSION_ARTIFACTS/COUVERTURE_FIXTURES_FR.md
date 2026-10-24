@@ -42,8 +42,8 @@ Deux colonnes :
 - **Parse fixture** - `crates/pos-fiscal/tests/uc_fixtures.rs` charge
   le `*_Response.json` publié et le désérialise via les types
   production `SignResult` / `FdmStatus`.
-- **E2e applicatif** - `src-tauri/tests/spf_e2e_basic.rs` pilote la
-  fonction de commande Tauri `do_*` correspondante contre un wiremock
+- **E2e applicatif** - `crates/pos-engine/tests/spf_e2e_basic.rs` pilote la
+  fonction de commande du moteur `do_*` correspondante contre un wiremock
   FDM amorcé avec cette fixture, puis assert sur l'archive SQLite +
   les compteurs + l'état de la commande.
 
@@ -56,15 +56,15 @@ Deux colonnes :
 | M112B_signSale_RefundPartial / M112B_1_OriginalSale | N | ✓ | ✓ (chaîné) |
 | M112B_signSale_RefundPartial / M112B_2_PartialRefund | N | ✓ | ✓ (chaîné) |
 | M121_signOrder | P | ✓ | ✓ |
-| M122_signCostCenterChange | P | ✓ | - (pas d'IPC encore) |
+| M122_signCostCenterChange | P | ✓ | ✓ (`transfer_table`) |
 | M123_signPrebill | P | ✓ | ✓ |
 | M130_signMoneyInOut | F | ✓ | ✓ |
 | M131_signDrawerOpen | F | ✓ | ✓ |
-| M132_signPaymentCorrection | F | ✓ | - (pas d'IPC encore) |
+| M132_signPaymentCorrection | F | ✓ | ✓ (`correct_payment`) |
 | M133_signMoneyInOut_DrawerDeclaration | F | ✓ | - (variante de M130) |
 | M140_signWorkIn | S | ✓ | ✓ |
 | M141_signWorkOut | S | ✓ | ✓ |
-| M150_signInvoice | I | ✓ | ✓ (`sign_invoice_fiscal`, chaîné à la vente) |
+| M150_signInvoice | I | ✓ | ✓ (`m150_invoice` dans `spf_e2e_fixtures.rs` ; `do_sign_invoice_fiscal`, chaîné aux ventes) |
 | M160_signCopy_Sale | C | ✓ | ✓ |
 | M161_signCopy_Order | C | ✓ | ✓ (copie d'un événement P) |
 | M170_signWorkIn_Training | T | ✓ | ✓ |
@@ -74,18 +74,18 @@ Deux colonnes :
 | Q100_Status | - (statut) | ✓ | ✓ au niveau client (`client_status.rs`, voir ci-dessous) |
 | Q110_Status_multi_lang_messages | - (statut) | ✓ | ✓ au niveau client (`client_status.rs`) |
 
-**Parse fixture : 24 / 24 passent. E2e applicatif : 16 orchestrations
-uniques dans `spf_e2e_basic.rs` + 4 Reports dans `spf_e2e_reports.rs`.**
+**Parse fixture : 24 / 24 passent. E2e applicatif : 19 UC rejoués dans
+`spf_e2e_fixtures.rs` (M122, M132 et M150 compris) + les orchestrations de `spf_e2e_basic.rs` + 4 Reports dans `spf_e2e_reports.rs`.**
 Les lignes "variante" restantes (M133, M171B) sont couvertes
 transitivement par l'e2e de l'UC parent ; M112A n'est pas un pattern
 offert par le POS (le remboursement partiel est toujours émis en
-événement séparé = pattern M112B, déclaré au dossier) ; M122 et M132
-sont reportés et non déclarés. M150 (événement I, e-facturation
-Peppol) est bien implémenté et couvert par le parse fixture et l'e2e
-(feature `peppol` activée par défaut pour les tests), mais ce feature
-flag n'est **pas** activé dans la build de certification v1.0.0
-(`cert = ["custom-protocol"]`) - événement I reporté en mise à jour
-certifiée v1.1, voir *DECISION_PEPPOL_AP_FR.md*.
+événement séparé = pattern M112B, déclaré au dossier). M122
+(transfert de table) et M132 (correction de paiement) sont implémentés et
+rejoués (`m122_cost_center_change`, `m132_payment_correction`). M150 (événement I, facture B2B) est
+implémenté dans tous les binaires, y compris la build de certification
+v1.0.0, et couvert par le parse fixture et par le rejeu
+`spf_e2e_fixtures.rs::m150_invoice` (preuves : *RESULTATS_TESTS_UC_FR.md* ; règles et envoi Peppol :
+*FACTURATION_PEPPOL_FR.md*).
 
 ### Enveloppe Q100/Q110 - divergence résolue
 
@@ -98,8 +98,7 @@ de `crates/pos-fiscal/tests/client_status.rs` (argument de langue,
 fallback d'orthographe, parsing de l'enveloppe multi-langue Q110).
 
 **Labels d'événements exercés :** les 8 sur 8 - N, P, F, S, I, C, T
-dans `spf_e2e_basic.rs` (I testé mais hors périmètre de la build
-cert v1.0.0, cf. ci-dessus), et R dans `spf_e2e_reports.rs` (M180,
+dans `spf_e2e_basic.rs` et `spf_e2e_fixtures.rs` (I compris, cf. ci-dessus), et R dans `spf_e2e_reports.rs` (M180,
 M182, M184) en complément du parsing `crates/pos-fiscal/tests/reports_fixtures.rs`.
 
 ---

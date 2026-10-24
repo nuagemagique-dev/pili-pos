@@ -29,4 +29,91 @@ export const checkoutMessages: Messages = {
   // Main action.
   "validate_part": { fr: "Valider part {n}", en: "Confirm part {n}", zh: "确认第{n}份" },
   "received_amount": { fr: "reçu {amount} €", en: "received {amount} €", zh: "收到 {amount} €" },
+
+  // Linked card payment terminal (EFT): the waiting overlay, locked card
+  // parts, manual entry, and the settings line. The refusal texts
+  // (err_eft_*) live in i18n.ts with the other backend errors.
+  // The blocking overlay while the terminal works.
+  "eft_overlay_title": { fr: "Paiement sur le terminal", en: "Payment on the terminal", zh: "终端支付" },
+  "eft_present_card": {
+    fr: "Le client présente sa carte sur le terminal",
+    en: "The customer presents the card on the terminal",
+    zh: "请顾客在终端上刷卡",
+  },
+  "eft_cancel": { fr: "Annuler", en: "Cancel", zh: "取消" },
+  "eft_cancel_requested": { fr: "Annulation demandée...", en: "Cancellation requested...", zh: "已请求取消..." },
+  "eft_checking": { fr: "Vérification auprès du terminal...", en: "Asking the terminal...", zh: "正在向终端查询..." },
+  "eft_declined": { fr: "Paiement refusé", en: "Payment declined", zh: "付款被拒绝" },
+  "eft_cancelled": { fr: "Paiement annulé", en: "Payment cancelled", zh: "付款已取消" },
+  "eft_not_charged": { fr: "Rien n'a été débité.", en: "Nothing was charged.", zh: "未扣款。" },
+  "eft_refused": { fr: "Paiement impossible", en: "Payment not possible", zh: "无法付款" },
+  "eft_unknown_title": { fr: "Réponse du terminal inconnue", en: "Terminal answer unknown", zh: "终端结果未知" },
+  "eft_unknown_explain": {
+    fr: "La carte a peut-être été débitée. La vente attend la réponse du terminal : vérifiez le paiement pour continuer.",
+    en: "The card may have been charged. The sale waits for the terminal's answer: check the payment to continue.",
+    zh: "银行卡可能已被扣款。销售需等待终端的结果：请先查询付款状态。",
+  },
+  "eft_check": { fr: "Vérifier", en: "Check", zh: "查询" },
+  "eft_close": { fr: "Fermer", en: "Close", zh: "关闭" },
+  "eft_ok": { fr: "OK", en: "OK", zh: "好" },
+
+  // Card parts of the checkout.
+  "eft_approved": { fr: "Accepté", en: "Approved", zh: "已批准" },
+  "eft_unknown_row": { fr: "Réponse inconnue", en: "Answer unknown", zh: "结果未知" },
+  "eft_blocking": {
+    fr: "Un paiement par carte attend la réponse du terminal : vérifiez-le pour continuer.",
+    en: "A card payment is waiting for the terminal's answer: check it to continue.",
+    zh: "有一笔刷卡付款在等待终端结果：请先查询后再继续。",
+  },
+  "eft_mode_terminal": { fr: "Terminal", en: "Terminal", zh: "终端" },
+  "eft_mode_manual": { fr: "Saisie manuelle", en: "Manual entry", zh: "手动录入" },
+  "eft_hint_terminal": {
+    fr: "Le montant est envoyé au terminal à la validation",
+    en: "The amount is sent to the terminal on confirmation",
+    zh: "确认后金额将发送到终端",
+  },
+
+  // Settings: the linked terminal.
+  "settings_payment_terminal_label": { fr: "Terminal de paiement", en: "Payment terminal", zh: "支付终端" },
+  "settings_payment_terminal_none": { fr: "Aucun (saisie manuelle)", en: "None (manual entry)", zh: "无（手动录入）" },
+  "eft_kind_worldline_terminal_api": { fr: "Worldline", en: "Worldline", zh: "Worldline" },
+  "eft_kind_ccv_payment_api": { fr: "CCV cloud", en: "CCV cloud", zh: "CCV 云端" },
+  "eft_kind_ccv_opi": { fr: "CCV réseau local", en: "CCV local network", zh: "CCV 局域网" },
+
+  // Discount in the order summary.
+  "checkout_subtotal": { fr: "Sous-total", en: "Subtotal", zh: "小计" },
+  "checkout_discount": { fr: "Remise", en: "Discount", zh: "折扣" },
+  // Gift vouchers: paying with one, and what the done screen says about the slips.
+  "method_gift_voucher": { fr: "Bon cadeau", en: "Gift voucher", zh: "礼品券" },
+  "gv_dialog_title": { fr: "Payer avec un bon cadeau", en: "Pay with a gift voucher", zh: "使用礼品券支付" },
+  "gv_code_label": { fr: "Code du bon (12 chiffres)", en: "Voucher code (12 digits)", zh: "礼品券编号（12位）" },
+  "gv_lookup": { fr: "Chercher", en: "Look up", zh: "查询" },
+  "gv_balance": { fr: "Solde", en: "Balance", zh: "余额" },
+  "gv_expires": { fr: "Valable jusqu'au {date}", en: "Valid until {date}", zh: "有效期至 {date}" },
+  "gv_status_active": { fr: "Valide", en: "Valid", zh: "有效" },
+  "gv_status_used": { fr: "Épuisé", en: "Used up", zh: "已用完" },
+  "gv_status_expired": { fr: "Expiré", en: "Expired", zh: "已过期" },
+  "gv_status_cancelled": { fr: "Annulé", en: "Cancelled", zh: "已作废" },
+  "gv_status_not_usable": { fr: "Non utilisable (autre mode)", en: "Not usable (other mode)", zh: "不可使用（另一模式）" },
+  "gv_training_tag": { fr: "Bon d'entraînement", en: "Training voucher", zh: "培训券" },
+  "gv_use_amount": { fr: "Montant utilisé", en: "Amount used", zh: "使用金额" },
+  "gv_apply": { fr: "Utiliser ce bon", en: "Use this voucher", zh: "使用此券" },
+  "gv_applied": { fr: "Bon {code} : {amount}", en: "Voucher {code}: {amount}", zh: "礼品券 {code}：{amount}" },
+  "gv_sold_no_other": {
+    fr: "Un bon cadeau vendu se règle en espèces ou par carte.",
+    en: "A gift voucher sold is paid in cash or by card.",
+    zh: "出售的礼品券只能用现金或银行卡支付。",
+  },
+  "gv_print_voucher_ok": { fr: "Bon imprimé", en: "Voucher printed", zh: "礼品券已打印" },
+  "gv_print_balance_ok": { fr: "Solde imprimé", en: "Balance printed", zh: "余额已打印" },
+  "gv_print_failed": {
+    fr: "Bon non imprimé : le réimprimer depuis Rapports, Bons cadeaux.",
+    en: "Voucher not printed: print it again from Reports, Gift vouchers.",
+    zh: "礼品券未打印：请在“报表-礼品券”中重新打印。",
+  },
+  "gv_print_no_printer": {
+    fr: "Aucune imprimante : le bon n'est pas imprimé.",
+    en: "No printer: the voucher is not printed.",
+    zh: "没有打印机：礼品券未打印。",
+  },
 };

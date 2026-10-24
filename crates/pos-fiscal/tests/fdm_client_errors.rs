@@ -29,6 +29,10 @@ fn bk(period_id: &str) -> pos_fiscal::event::Booking {
 fn config(fdm_url: &str) -> PosConfig {
     PosConfig {
         table_count: 20,
+        tables: None,
+        payment_terminal: None,
+        peppol: None,
+        alerts: None,
         pos_id: "CFOD0061234567".to_string(),
         terminal_id: "POS1".to_string(),
         device_id: "DEV001".to_string(),
@@ -51,6 +55,7 @@ fn config(fdm_url: &str) -> PosConfig {
         restaurant_legal_name: None,
         day_end_hour: 5,
         digital_ticket: None,
+        export: None,
     }
 }
 
@@ -87,7 +92,7 @@ async fn sign_work_in_call(
     client: &FdmClient,
     cfg: &PosConfig,
 ) -> Result<pos_fiscal::response::SignResult, FdmError> {
-    let input = build_work_in_out(cfg, 1, "93051800189", &bk("bp-1"));
+    let input = build_work_in_out(cfg, &ident(), 1, "93051800189", &bk("bp-1"));
     client.sign_work_in(input, false).await
 }
 
@@ -519,4 +524,9 @@ async fn the_mismatch_reaches_the_ui_with_its_code() {
         ui_text.starts_with("FDM error: FDM_RESPONSE_MISMATCH: "),
         "{ui_text}"
     );
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }

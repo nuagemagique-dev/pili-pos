@@ -8,6 +8,8 @@
 
 use std::collections::HashSet;
 
+use pos_core::allergen::AllergenSet;
+use pos_db::queries::allergens::{self, Entity};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde::Serialize;
 
@@ -42,8 +44,10 @@ pub enum ApplyOutcome {
     /// ([`adopt_and_apply`]); the menu is untouched.
     AwaitingAdoption,
     /// The catalog has issues: the menu is untouched, the issues are
-    /// stored for Settings.
-    Rejected(Vec<Issue>),
+    /// stored for Settings. A struct variant, so the internally tagged
+    /// form serializes: `{"outcome": "rejected", "issues": [...]}` (a
+    /// tagged newtype holding a sequence has no serde form).
+    Rejected { issues: Vec<Issue> },
 }
 
 /// Validate `catalog` and, if it is sound, make the menu mirror it.
@@ -64,7 +68,7 @@ pub fn apply_checked(
     issues.extend(validate(catalog));
     if !issues.is_empty() {
         record_rejection(conn, source, catalog, &issues)?;
-        return Ok(ApplyOutcome::Rejected(issues));
+        return Ok(ApplyOutcome::Rejected { issues });
     }
     if has_unkeyed_items(conn)? {
         hold_for_adoption(conn, source, catalog)?;
@@ -125,7 +129,7 @@ pub fn adopt_and_apply(
     let issues = validate(&catalog);
     if !issues.is_empty() {
         record_rejection(conn, source, &catalog, &issues)?;
-        return Ok(Some(ApplyOutcome::Rejected(issues)));
+        return Ok(Some(ApplyOutcome::Rejected { issues }));
     }
     adopt(conn, adoptions)?;
     write_menu(conn, source, &catalog).map(Some)
@@ -175,12 +179,14 @@ fn write_menu(conn: &mut Connection, source: &str, catalog: &Catalog) -> Result<
     for (sort, item) in catalog.items.iter().enumerate() {
         let id = upsert_item(&tx, item, sort)?;
         write_names(&tx, "menu_item", id, &item.names)?;
+        write_allergens(&tx, Entity::MenuItem, id, item.allergens.as_ref())?;
         for (group_sort, group) in item.groups.iter().enumerate() {
             let group_id = upsert_group(&tx, id, group, group_sort)?;
             write_names(&tx, "modifier_group", group_id, &group.names)?;
             for (option_sort, choice) in group.options.iter().enumerate() {
                 let option_id = upsert_choice(&tx, group_id, choice, option_sort)?;
                 write_names(&tx, "modifier", option_id, &choice.names)?;
+                write_allergens(&tx, Entity::Modifier, option_id, choice.allergens.as_ref())?;
             }
         }
     }
@@ -237,14 +243,15 @@ fn upsert_item(tx: &Transaction<'_>, item: &Item, sort: usize) -> Result<i64> {
     let id = tx.query_row(
         "INSERT INTO menu_items
             (external_id, category_id, price_cents, vat_code, vat_code_takeaway, vat_category,
-             kitchen_printer, sort_order, active, open_price, kind, on_pos)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+             kitchen_printer, sort_order, active, open_price, kind, on_pos, code)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
          ON CONFLICT(external_id) DO UPDATE SET
             category_id = excluded.category_id, price_cents = excluded.price_cents,
             vat_code = excluded.vat_code, vat_code_takeaway = excluded.vat_code_takeaway,
             vat_category = excluded.vat_category, kitchen_printer = excluded.kitchen_printer,
             sort_order = excluded.sort_order, active = excluded.active,
-            open_price = excluded.open_price, kind = excluded.kind, on_pos = excluded.on_pos
+            open_price = excluded.open_price, kind = excluded.kind, on_pos = excluded.on_pos,
+            code = excluded.code
          RETURNING id",
         params![
             item.key,
@@ -259,6 +266,7 @@ fn upsert_item(tx: &Transaction<'_>, item: &Item, sort: usize) -> Result<i64> {
             item.open_price,
             kind,
             item.on_pos,
+            item.code,
         ],
         |r| r.get(0),
     )?;
@@ -300,6 +308,18 @@ fn upsert_choice(tx: &Transaction<'_>, group_id: i64, choice: &Choice, sort: usi
         |r| r.get(0),
     )?;
     Ok(id)
+}
+
+/// The catalog's allergen statement about one row: a log row only when
+/// the list really changes (V12-D18).
+fn write_allergens(
+    tx: &Transaction<'_>,
+    entity: Entity,
+    id: i64,
+    set: Option<&AllergenSet>,
+) -> Result<()> {
+    allergens::write_from_catalog(tx, entity, id, set)?;
+    Ok(())
 }
 
 /// Replace the names of one row. Translations are display data, not

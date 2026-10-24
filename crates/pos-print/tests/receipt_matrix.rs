@@ -123,6 +123,7 @@ fn ticket(kind: Kind, lang: ReceiptLanguage) -> FiscalTicket {
             vec![TicketPayment {
                 method: "Cash".to_string(),
                 amount: 52.00 * sign,
+                brand: None,
             }]
         },
         rounding: None,

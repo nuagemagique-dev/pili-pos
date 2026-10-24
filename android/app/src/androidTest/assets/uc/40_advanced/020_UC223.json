@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "id": "UC223",
+  "ids": ["UC223"],
+  "title": "UC223: the sale of the event price change example (2 Carpaccio and 1 Dry Martini by card) without the discount, which no operator command can enter (it exists for HubRise online orders only and is covered by the pos-fiscal test price_change_uc)",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "84022899837", "pin": "2222"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "takeaway", "table_number": null, "user_insz": "84022899837"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 20001, "quantity": 2, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 10006, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "card", "amount_cents": 5200}]}}
+  ]
+}

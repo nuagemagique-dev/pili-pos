@@ -31,7 +31,7 @@ fiscal déjà signé par le FDM.
   les déclencheurs la refusent. Les dossiers `tests/` contiennent le
   même type de preuve.
 - Aucune commande `#[tauri::command]` n'expose une opération de
-  suppression. Cf. `src-tauri/src/commands/mod.rs`.
+  suppression. Cf. `crates/pos-engine/src/commands/mod.rs`.
 
 ## 2. Modification d'enregistrements fiscaux
 
@@ -58,8 +58,27 @@ fiscal après sa signature par le FDM.
 - La commande Tauri qui "corrige" un encaissement (`refund_checkout`,
   le remboursement) produit un **nouvel événement fiscal séparé**
   référençant l'original via `fdmRef` - la ligne originale reste
-  intacte. Il n'existe pas de commande de correction de paiement
-  (M132, hors périmètre v1.0.0).
+  intacte. La correction de paiement (M132) est une commande de
+  Gérant confirmée par son PIN : elle signe un événement F
+  `signPaymentCorrection` qui référence la vente (`fdmRef`), ne masque
+  ni ne supprime aucune vente, ne vise qu'une ligne de paiement saisie
+  à la main d'une vente de la journée en cours, et n'est possible
+  qu'une fois par vente (`crates/pos-engine/src/commands/payment_correction.rs::do_correct_payment`).
+
+La remise de caisse n'ouvre aucune modification : elle n'altère ni un
+ticket signé ni un événement archivé. Elle n'est possible que sur une
+commande ouverte, par un Gérant confirmé par son PIN ; sur une commande
+déjà enregistrée en salle elle signe un événement P de plus. Chaque pose
+et chaque retrait s'inscrit dans la table `till_discounts`, qui refuse
+`UPDATE` et `DELETE` (déclencheurs `till_discounts_no_update` et
+`till_discounts_no_delete`), avec le Gérant et le motif.
+
+La note de cuisine d'une ligne (60 caractères au plus) ne modifie aucun
+enregistrement fiscal : elle est écrite dans une colonne locale de
+`order_lines` (`kitchen_note`), ne passe ni dans un message au FDM, ni dans
+le journal `order_entries`, ni sur un ticket TVA ; elle n'est possible que
+sur une commande ouverte et jamais sur une commande en ligne ou
+clôturée (une commande de table déjà enregistrée par un P reste ouverte et accepte une note).
 
 ## 3. Ajout rétroactif d'enregistrements antidatés
 
@@ -140,10 +159,13 @@ utilisateur.
   `DELETE` et tout `UPDATE`.
 - L'opérateur n'a pas les droits root sur la machine (image scellée).
 - Une sauvegarde de la base est faite après chaque Z, une fois le Z
-  signé et archivé (`src-tauri/src/commands/signing.rs`, suite
+  signé et archivé (`crates/pos-engine/src/commands/signing.rs`, suite
   `ReportZ`, puis `report.rs::backup_database_impl`) ; elle s'écrit
-  dans un nouveau fichier horodaté (`pos-YYYYMMDD-HHMMSS.db`). Un
-  échec de sauvegarde n'annule pas le Z.
+  dans un nouveau fichier horodaté (`pos-YYYYMMDD-HHMMSS-mmm.db`). Un
+  échec de sauvegarde n'annule pas le Z. Le moteur garde les 7
+  sauvegardes les plus récentes ; il ne supprime une ancienne copie
+  qu'après avoir vérifié la nouvelle, et jamais `pos.db`, dont la table
+  `fiscal_events` reste en ajout seul.
 
 ## 7. Réimpression silencieuse d'un ticket comme s'il était neuf
 
@@ -153,7 +175,7 @@ sans marquage "COPIE".
 **Preuves :**
 
 - La commande `copy_ticket`
-  (`src-tauri/src/commands/copy.rs::do_copy_ticket`) émet
+  (`crates/pos-engine/src/commands/copy.rs::do_copy_ticket`) émet
   obligatoirement un événement C (`signCopy`) auprès du FDM, qui
   appose son propre `eventLabel = "C"` sur la réponse signée.
 - Le ticket de copie porte en en-tête la dénomination "**COPIE**"

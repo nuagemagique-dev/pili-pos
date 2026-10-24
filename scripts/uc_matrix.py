@@ -406,10 +406,9 @@ def _rust_test_dirs(root: Path) -> list:
                 d = crate_dir / sub
                 if d.is_dir():
                     dirs.append(d)
-    for extra in ("src-tauri/tests", "src-tauri/src"):
-        d = root / extra
-        if d.is_dir():
-            dirs.append(d)
+    d = root / "src-tauri/src"
+    if d.is_dir():
+        dirs.append(d)
     return dirs
 
 
@@ -613,8 +612,8 @@ def _match_row(item: Item, rust_tests: list, ui_tests: list, scope: dict) -> Row
             row.ui_tests.append(t.title)
 
     entry = scope.get(item.id)
-    # A feature outside the certified build stays out of scope even
-    # when the development build has tests for it (e.g. M150 invoices).
+    # A declared out-of-scope feature stays out of scope even if an
+    # incidental test carries its id.
     if entry and entry["kind"] == "hors_perimetre":
         row.status = "hors_perimetre"
         return row
@@ -713,7 +712,7 @@ def render_markdown(report: Report, root: Path) -> str:
     lines.append(
         "Généré automatiquement par `scripts/uc_matrix.py` à partir des dossiers "
         "sous `docs/`, des sources de test (`crates/*/tests`, `crates/*/src`, "
-        "`src-tauri/tests`, `src-tauri/src`, `ui/e2e/`) et des exclusions "
+        "`src-tauri/src`, `ui/e2e/`) et des exclusions "
         "déclarées dans `scripts/uc_scope.toml`. Une réexécution sans "
         "changement de code ou de documentation produit un fichier identique."
     )

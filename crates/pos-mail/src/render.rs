@@ -167,6 +167,10 @@ mod tests {
     use pos_fiscal::ticket::{ReceiptLanguage, TicketLine, TicketParams, TicketPayment};
     use pos_fiscal::types::{EventLabel, EventOperation};
 
+    fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+        pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
+    }
+
     fn mock_sign_result(event_label: EventLabel, verification_url: Option<&str>) -> SignResult {
         SignResult {
             pos_id: "CFOD0061234567".to_string(),
@@ -197,6 +201,7 @@ mod tests {
     fn ticket_with(lines: Vec<TicketLine>, verification_url: Option<&str>) -> FiscalTicket {
         let result = mock_sign_result(EventLabel::N, verification_url);
         FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Restaurant Exemple",
             restaurant_address: "Rue Test 1",
@@ -207,6 +212,7 @@ mod tests {
             payments: vec![TicketPayment {
                 method: "Cash".into(),
                 amount: 10.0,
+                brand: None,
             }],
             total: 10.0,
             is_training: false,
@@ -331,6 +337,7 @@ mod tests {
             Some("https://www.gs2.be/1234567890abcdefghi012345678901234"),
         );
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Restaurant Exemple",
             restaurant_address: "",

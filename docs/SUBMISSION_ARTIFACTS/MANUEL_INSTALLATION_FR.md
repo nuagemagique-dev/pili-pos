@@ -16,6 +16,7 @@ pili-pos chez un client HoReCa.
 | Switch / box internet | 4 ports minimum | 1 |
 | Clé USB d'installation/mise à jour | 8 Go minimum - l'image kiosque complète (`pili-pos-kiosk-<profil>.img.xz`) y est écrite telle quelle (§2), pas un simple installeur FAT32 | 1 |
 | Onduleur (recommandé) | 600 VA minimum | 1 |
+| Lecteur de badges (option) | Lecteur de cartes NFC USB HID de type « clavier » (il tape le numéro de la carte puis Entrée), sans pilote ; le terminal n'a pas de NFC | 0 ou 1 |
 
 **Puce TPM 2.0 obligatoire** (fTPM Intel PTT intégré au J6412, ou
 puce dTPM discrète selon la carte mère) : le premier démarrage chiffre
@@ -254,7 +255,9 @@ Champs :
 | `kitchen_printer_address` | Facultatif. IP:port de l'imprimante du bar ou de la cuisine, qui reçoit le « BON DE COMMANDE » (sans prix, avec la mention « ceci n'est pas un ticket de caisse TVA valable ») des lignes que l'écran de commande envoie en cuisine (§4.6, `MANUEL_UTILISATEUR_FR.md` §6.1). Absent : le bon sort sur `printer_address`. Le voyant "Cuisine" de l'en-tête reste gris tant qu'il est absent. | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. C'est la valeur de départ : un Gérant peut changer le mode dans "Config" (§4.7). | Distributeur |
 | `hubrise_enabled` | Facultatif, `false` par défaut. `true` : les commandes en ligne (plateformes de livraison, webshop, par HubRise) sont activées dès le démarrage. Un Gérant peut ensuite les activer ou les couper dans "Config", panneau "Intégrations" ; chaque changement est journalisé et le dernier l'emporte. Voir `COMMANDES_EN_LIGNE_FR.md`. | Client |
-| `table_count` | Nombre de tables du plan de salle, numérotées à partir de 1 ; défaut `20`. | Client |
+| `peppol` | Facultatif. Envoi des factures B2B sur le réseau Peppol (`FACTURATION_PEPPOL_FR.md`, `DECISION_PEPPOL_AP_FR.md`) : `provider` (`storecove` obligatoire en production), `base_url`, `api_key_file` (fichier contenant la seule clé de l'API), `legal_entity_id`, `sender_id` (`0208:` et le numéro d'entreprise à 10 chiffres), `supplier_street`, `supplier_postal_code`, `supplier_city`, `supplier_country` (`BE` par défaut). Sans cette section, une facture à un client étranger est établie et imprimée, et une facture à un client dont le numéro de TVA commence par `BE` est refusée (`invoice_peppol_required`). | Client |
+| `table_count` | Nombre de tables du plan de salle, numérotées à partir de 1 ; défaut `20`. Ignoré quand `tables` est présent. | Client |
+| `tables` | Facultatif. Numéros de table du plan de salle, en nombres et plages séparés par des virgules (ex. `"1-12, 20-25"`) : de 1 à 999, 200 tables au plus. Absent : les tables 1 à `table_count`. C'est la valeur de départ : un Gérant peut changer le plan dans "Config", panneau "Plan de salle" ; chaque changement est journalisé et le dernier l'emporte (une nouvelle valeur de `pos.json`, lue au démarrage, compte comme un changement). Une valeur invalide est signalée par `--check-config`. | Client |
 | `day_end_hour` | Heure (0 à 12, heure belge) à laquelle la journée commerciale se termine ; défaut `5`. Un service qui dépasse minuit reste sur sa journée jusqu'à cette heure. Une journée restée ouverte au-delà est clôturée par un rapport Z automatique (FAQ producteurs Q501). | Client |
 | `language` | Langue par défaut de l'interface : `fr` / `nl` / `de` / `en` / `zh`. Les mentions fiscales imprimées suivent cette clé, restreinte aux langues nationales (fr/nl/de) - toute autre valeur émet le ticket en FR. | Client |
 | `backup_dir` | Répertoire des sauvegardes (défaut : `/var/lib/pili-pos/backups`) | Distributeur |
@@ -271,7 +274,7 @@ Le FDM refuse tout événement dont l'identification est mal formée
 La commande lit `pos.json` comme le POS et affiche `configuration OK`,
 ou la liste des champs à corriger (code de sortie 1) : format du
 `pos_id`, numéros de TVA et d'établissement (longueur, premier chiffre,
-modulo 97), champs vides, URL du FDM, langue, bloc `digital_ticket`.
+modulo 97), champs vides, URL du FDM, langue, clé `tables`, bloc `digital_ticket`.
 Tant qu'un champ est refusé, le POS le signale aussi dans un bandeau
 rouge au bas de l'écran et dans le journal (`journalctl -u pili-pos`).
 
@@ -377,6 +380,50 @@ l'établissement, puis taper dans la caisse le code affiché par HubRise
 sortant ajouté est HTTPS (443) vers `manager.hubrise.com` et
 `api.hubrise.com`.
 
+**Facturation B2B et Peppol.** La caisse établit des factures à des
+clients professionnels étrangers sans aucun réglage (`FACTURATION_PEPPOL_FR.md`).
+Pour facturer un client belge, qui doit être facturé sur le réseau Peppol, ajouter à
+`pos.json` la section du point d'accès, après avoir ouvert un compte chez
+le fournisseur (`DECISION_PEPPOL_AP_FR.md`) :
+
+```json
+"peppol": {
+  "provider": "storecove",
+  "base_url": "https://api.storecove.com",
+  "api_key_file": "/etc/pili-pos/secrets/peppol.key",
+  "legal_entity_id": 123456,
+  "sender_id": "0208:0123456789",
+  "supplier_street": "Rue de l'Exemple 1",
+  "supplier_postal_code": "4000",
+  "supplier_city": "Liège"
+}
+```
+
+| Champ | Description |
+|---|---|
+| `provider` | `storecove` (obligatoire en production). `logging` journalise le document sans rien envoyer : réservé au développement, refusé par une version de production. |
+| `base_url`, `api_key_file`, `legal_entity_id` | Requis pour `storecove` : adresse de l'API, fichier contenant la seule clé (jamais la clé dans `pos.json`), entité légale du fournisseur. |
+| `sender_id` | Identifiant Peppol du vendeur : `0208:` et le numéro d'entreprise à 10 chiffres (valide modulo 97). |
+| `supplier_street`, `supplier_postal_code`, `supplier_city` | Adresse du vendeur dans le document. |
+| `supplier_country` | Facultatif, `BE` par défaut (deux lettres majuscules). |
+
+Installer la clé comme celle du ticket numérique :
+
+```bash
+(umask 027; cat > /etc/pili-pos/secrets/peppol.key)   # coller la clé, Entrée, puis Ctrl+D
+chown root:pos /etc/pili-pos/secrets/peppol.key
+pili-pos --check-config        # signale chaque réglage invalide : code config_peppol et nom du réglage
+systemctl restart pili-pos
+```
+
+Sans cette section, une facture à un client étranger est établie et
+imprimée sans envoi, et une facture à un client dont le numéro de TVA
+commence par `BE` est refusée (`invoice_peppol_required`) : la section est
+requise pour une installation qui facture des clients professionnels
+belges. Le trafic sortant ajouté est
+HTTPS (443) vers l'adresse `base_url` (`api.storecove.com`). Le gérant
+suit les envois dans « Config », panneau « Peppol ».
+
 ### 4.3 Configuration réseau LAN
 
 Le POS et le FDM doivent être sur le **même LAN privé**. Schéma type :
@@ -443,6 +490,38 @@ de commande. Ne pas créer l'INSZ
 (Voir `MANUEL_PROGRAMMATION_FR.md` pour la création/modification
 de menus, modificateurs etc.)
 
+### 4.4 bis Lecteur de badges (option)
+
+Facultatif et **désactivé par défaut** : sans lecteur, rien à faire. Pour
+pointer et se connecter avec un badge (`MANUEL_UTILISATEUR_FR.md`
+§12.10) :
+
+- **Lecteur USB HID « clavier ».** Brancher un lecteur de cartes NFC USB
+  qui se comporte comme un clavier : il « tape » le numéro de la carte
+  (identifiant de série, en hexadécimal si le lecteur le permet, dans
+  l'ordre des octets du lecteur) puis la touche **Entrée**. Aucun pilote ;
+  la disposition du clavier (AZERTY compris) n'a pas d'importance, car la
+  caisse lit les touches physiques. Le lecteur doit envoyer Entrée à la
+  fin (sinon le configurer ainsi) ; préfixes et suffixes autres que
+  Entrée ne sont pas pris en charge.
+- Le terminal Linux n'a pas de NFC : le lecteur USB est la seule source.
+- Un seul type de lecteur par caisse : deux lecteurs peuvent écrire la
+  même carte différemment (hexadécimal ou décimal, ordre des octets).
+  Utiliser le même lecteur pour tous les badges, sans quoi les badges
+  sont à lier de nouveau.
+- Les réglages (Désactivé, Lecteur USB, connexion par badge, délais du
+  lecteur) se font ensuite dans « Config », panneau « Lecteur de badges »,
+  par le Gérant ; la clé qui protège les badges est créée sur l'appareil à
+  la première utilisation, reste sur l'appareil et n'est ni sauvegardée
+  ni exportée (`SECURITE_BD_FR.md` §2.5).
+- **Test après l'installation.** Dans « Config », « Lecteur de badges » :
+  choisir « Lecteur USB », puis « Lier un badge » sur un employé de test (pas le Gérant connecté),
+  présenter la carte, confirmer avec le PIN du Gérant, puis présenter de
+  nouveau la carte depuis l'écran de commande : « Arrivée · nom · heure »
+  (ou « Départ »), l'événement S est signé par le FDM. Retirer ensuite le
+  badge de test et remettre le réglage voulu par l'établissement.
+
+
 ### 4.5 Synchronisation horaire
 
 Vérifier que `chrony` est actif :
@@ -479,19 +558,83 @@ ou sur celle des tickets si `kitchen_printer_address` est absent).
 
 7. Tirer un rapport X pour validation finale ("Rapports", onglet "Journée", "Rapport X").
 
+**Terminal de paiement par carte relié (facultatif).** Sans bloc
+`payment_terminal`, rien ne change : la carte est payée sur un terminal
+de paiement autonome, que l'opérateur saisit à la caisse (méthode
+`MANUAL`, type `CARD_DEBIT`). Avec ce bloc, la caisse envoie le montant
+au terminal et enregistre sa réponse (ligne de paiement `AUTOMATIC`,
+`MANUEL_UTILISATEUR_FR.md` §7.2). Trois protocoles sont pris en charge,
+chacun d'après une spécification publique ; `kind` choisit l'un d'eux :
+
+| `kind` | Protocole | Chemin |
+|---|---|---|
+| `worldline_terminal_api` | Worldline Terminal API (nexo Retailer, JSON sur HTTPS) | La caisse parle au nuage Worldline, qui joint le terminal (terminal Android Worldline avec l'application "Terminal API") |
+| `ccv_payment_api` | CCV Payment API, méthode `terminal` (JSON sur HTTPS) | La caisse parle au nuage CCV, qui joint le terminal |
+| `ccv_opi` | OPI (Open Payment Initiative, XML sur TCP) | Directement sur le LAN du restaurant, sans nuage |
+
+Le terminal Worldline C-TEP (gamme Yomani / Yoximo) n'est pas pris en
+charge : son protocole est fermé (bibliothèque et certification
+Worldline).
+
+```json
+"payment_terminal": {
+  "kind": "worldline_terminal_api",
+  "merchant_id": "<UMID>",
+  "terminal_id": "<UTID>",
+  "integrator_id": "<identifiant d'intégrateur>",
+  "api_key_file": "/etc/pili-pos/secrets/terminal.key"
+}
+```
+
+| Champ | Description |
+|---|---|
+| `kind` | `worldline_terminal_api`, `ccv_payment_api` ou `ccv_opi`. Obligatoire. |
+| `base_url` | Types nuage seulement. Absent : l'adresse de production du fournisseur. À renseigner pour l'environnement de test du fournisseur ou pour un relais (voir plus bas). |
+| `api_key_file` | Types nuage seulement. Fichier contenant la seule clé d'API, jamais la clé elle-même dans `pos.json`. Absent seulement quand `base_url` est un relais qui authentifie la caisse lui-même. |
+| `merchant_id`, `terminal_id`, `integrator_id` | Worldline, tous trois obligatoires : identifiant du commerçant (UMID), du terminal (UTID) et de l'intégrateur que Worldline délivre au producteur. |
+| `terminal_id`, `management_system_id` | CCV Payment API, tous deux obligatoires : identifiant du terminal attribué par CCV et identifiant du système de gestion du terminal. |
+| `access_protocol` | CCV Payment API, facultatif : protocole d'accès du terminal, `OPI_NL` si absent. |
+| `address` | OPI, obligatoire : `hôte:port` du terminal sur le LAN (canal 0, en général le port 4100). |
+| `device_port` | OPI, facultatif : port d'écoute de la caisse pour le canal 1 du terminal (affichage et impression), 4102 si absent. |
+| `terminal_id` | OPI, facultatif : identifiant de poste envoyé au terminal. |
+| `timeout_seconds` | Facultatif, 30 à 600, 180 si absent : attente la plus longue de la réponse du terminal pour un paiement. Passé ce délai, le résultat est redemandé (statut inconnu, voir `MANUEL_UTILISATEUR_FR.md` §7.2). |
+
+Règle CCV : la clé d'API CCV ne doit pas se trouver sur un appareil du
+restaurant. Pour `ccv_payment_api`, renseigner alors `base_url` avec
+l'adresse d'un relais du distributeur, qui détient la clé et
+authentifie la caisse, et ne pas mettre `api_key_file`. Pour Worldline,
+la clé est un fichier de secret comme les autres :
+
+```bash
+(umask 027; cat > /etc/pili-pos/secrets/terminal.key)   # coller la clé, Entrée, puis Ctrl+D
+chown root:pos /etc/pili-pos/secrets/terminal.key
+pili-pos --check-config        # signale un champ manquant ou un fichier vide
+systemctl restart pili-pos
+```
+
+Le seul trafic sortant ajouté est HTTPS (443) vers le nuage du
+fournisseur (types nuage), ou une connexion TCP vers le terminal sur le
+LAN (`ccv_opi` : la caisse ouvre le canal 0 vers `address` et écoute
+sur `device_port` pour le canal 1 ; aucun autre port entrant).
+Chaque fournisseur certifie lui-même l'intégration avant tout usage
+réel et délivre les identifiants nécessaires : la configuration d'un
+établissement n'est livrée qu'avec ces éléments. Les paiements par carte
+ne sont jamais arrondis, pour toute installation.
+
 ### 4.7 Paramètres de l'installation, journaux, réseau et comptes
 
 **Qui peut modifier quoi.**
 
 | Paramètre | Valeur d'origine | Qui le modifie | Où |
 |---|---|---|---|
-| Identité et réseau : `pos_id`, `restaurant_*`, `fdm_*`, `printer_address`, `kitchen_printer_address`, `language`, `day_end_hour`, `table_count`, `backup_dir`, `digital_ticket`, `hubrise` | Gabarit d'usine (`CHANGE_ME_14CH` pour `pos_id`, `terminal_id` `POS1`) | Le technicien seul, en `root` sur la console `tty2` | `/etc/pili-pos/pos.json`, puis `systemctl restart pili-pos` (la configuration est lue au démarrage) |
+| Identité et réseau : `pos_id`, `restaurant_*`, `fdm_*`, `printer_address`, `kitchen_printer_address`, `language`, `day_end_hour`, `table_count`, `tables`, `backup_dir`, `digital_ticket`, `hubrise`, `peppol`, `payment_terminal` | Gabarit d'usine (`CHANGE_ME_14CH` pour `pos_id`, `terminal_id` `POS1`) | Le technicien seul, en `root` sur la console `tty2` | `/etc/pili-pos/pos.json`, puis `systemctl restart pili-pos` (la configuration est lue au démarrage) |
 | `device_id` | Adresse MAC, inscrite au premier démarrage | Personne (sauf changement de la carte réseau) | `/etc/pili-pos/pos.json` |
 | `training_mode` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Mode Formation" | Le réglage de "Config" est en mémoire : il vaut jusqu'au redémarrage, qui revient à la valeur du fichier |
 | `hubrise_enabled` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Intégrations" | Chaque changement est journalisé, ne s'efface pas, et le dernier l'emporte |
+| `tables` (ou `table_count`) | Plan de 1 à `table_count` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Plan de salle" | Chaque changement est journalisé (`table_plan_log`), ne s'efface pas, et le dernier l'emporte |
 | Langue d'affichage de l'interface | Clé `language` | Le Gérant, dans "Config", panneau "Langue" | Sans effet sur la langue des mentions imprimées |
 | Employés et PIN | Aucun employé à l'origine (§4.4) | Le technicien (premiers comptes) puis le Gérant, dans "Config" | Table `users` de `pos.db` |
-| Catalogue (catégories, articles, TVA) | Vide en production | Le technicien (`MANUEL_PROGRAMMATION_FR.md`), ou HubRise si celui-ci gère le menu | `pos.db` |
+| Catalogue (catégories, articles, TVA) | Vide en production | Le technicien (`MANUEL_PROGRAMMATION_FR.md`), le Gérant dans "Config", panneau "Carte" (`EDITEUR_CARTE_FR.md`, journalisé), ou HubRise si celui-ci gère le menu | `pos.db` |
 
 **Journaux.** Le POS écrit un fichier par jour,
 `/var/lib/pili-pos/logs/pos.log.AAAA-MM-JJ`. Le journal du système
@@ -500,7 +643,9 @@ l'interface. L'archive fiscale, la table `fiscal_events` de `pos.db`,
 n'est pas un journal : la base refuse toute modification ou suppression
 de ses lignes (déclencheurs SQL), elle est donc en ajout seul. Des
 sauvegardes de `pos.db` sont écrites dans `/var/lib/pili-pos/backups/`
-après chaque rapport Z et avant chaque mise à jour.
+après chaque rapport Z et avant chaque mise à jour. La caisse garde les
+7 sauvegardes les plus récentes qu'elle a faites ; elle ne supprime
+jamais les copies d'avant mise à jour ni les copies manuelles.
 
 **Réseau.** Le terminal est raccordé en Ethernet (RJ45) ; NetworkManager
 gère la connexion et son adresse (DHCP, ou adresse fixe réservée sur
@@ -508,7 +653,7 @@ le routeur, §4.3). Le trafic **sortant** est le suivant : le FDM sur le
 LAN (HTTPS 443, ou HTTP 80), l'imprimante sur le LAN (TCP 9100),
 HTTPS 443 vers `api.scaleway.com` si `digital_ticket` est configuré,
 HTTPS 443 vers `manager.hubrise.com` et `api.hubrise.com` si HubRise est
-activé, et une session RustDesk, à la demande d'un Gérant. Aucun port
+activé, HTTPS 443 vers `api.storecove.com` si `peppol` est configuré, et une session RustDesk, à la demande d'un Gérant. Aucun port
 n'est ouvert en entrée.
 
 **Comptes du système.** `root` (mot de passe aléatoire noté au premier

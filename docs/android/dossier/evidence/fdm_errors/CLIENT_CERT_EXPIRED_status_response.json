@@ -1,0 +1,29 @@
+{
+    "data": {
+        "fdmStatus": {
+            "device": {
+                "bufferCapacityUsed": 1.2,
+                "fdmDateTime": "2026-10-18T11:00:57Z",
+                "fdmId": "MCK00000001",
+                "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": [
+                {
+                    "extensions": {
+                        "category": "SPF_FOD",
+                        "code": "CLIENT_CERT_EXPIRED",
+                        "showPos": "MANDATORY"
+                    },
+                    "message": "Le certificat du client a expir\u00e9"
+                }
+            ]
+        }
+    },
+    "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+    }
+}

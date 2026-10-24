@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "id": "M181",
+  "ids": ["M181"],
+  "title": "M181: the Z report that closes the service day T1 to T8 (the till signs the turnover Z and the user Z in one operation, compared with the combined M184 fixture; DIVERGENCE: the user Z does NOT reproduce the published one, John 52,00 cash, Elisa 102,04 and Gerant -52,00 here against John 0 and Elisa 102,04 published, because the T3 refund is signed by the Gerant; the fixture check only compares the ticket medium)",
+  "fixture": "docs/20260821_UC_Reports_1.3/M184_signReportTurnoverZUserZ",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "generate_z_report", "args": {"employeeInsz": "94060242576"}, "expect": {"fields": {"success": true, "reportType": "Z", "reportNo": 1}}}
+  ]
+}

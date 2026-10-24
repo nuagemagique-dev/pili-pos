@@ -4,6 +4,7 @@ import {
   overrideIPC,
   loginAndGoto,
   ipcCalls,
+  emitTauriEvent,
   DEFAULT_USER,
   DEFAULT_ORDER,
   DEFAULT_ORDER_LINE,
@@ -55,7 +56,7 @@ const orderOf = (id: number) => ({
 });
 
 test.describe('Takeaway drafts (direct sale)', () => {
-  test('[FAQ_Q205] leaving an unpaid takeaway registers nothing', async ({ page }) => {
+  test('[FAQ_Q205] leaving an unpaid takeaway leaves the registration to the engine', async ({ page }) => {
     await openTable(page, {
       create_order: live(({ input }: any = {}) => ({
         id: input?.order_type === 'takeaway' ? 502 : 501,
@@ -78,9 +79,11 @@ test.describe('Takeaway drafts (direct sale)', () => {
     await navButton(page, 'Tables').click();
     await page.waitForURL(/tables/);
 
-    // Only the table was registered, when the takeaway was started.
-    const signed = (await ipcCalls(page, 'sign_table_order')).map((c) => c.orderId);
-    expect(signed).toEqual([501]);
+    // The UI leaves both orders through the engine; registering is the
+    // engine's rule (a table yes, a takeaway never).
+    const left = (await ipcCalls(page, 'leave_order')).map((c) => `${c.orderId}:${c.reason}`);
+    expect(left).toEqual(['501:switch_order', '502:navigate']);
+    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(0);
   });
 
   test('[FAQ_Q205] an unpaid takeaway is listed on the tables and resumes', async ({ page }) => {
@@ -125,30 +128,31 @@ test.describe('Table order registration (P)', () => {
     await navButton(page, 'Tables').click();
     await page.waitForURL(/tables/);
 
-    const calls = await ipcCalls(page, 'sign_table_order');
+    const calls = await ipcCalls(page, 'leave_order');
     expect(calls).toHaveLength(1);
     expect(calls[0].orderId).toBeGreaterThan(0);
+    expect(calls[0].reason).toBe('navigate');
   });
 
   test('leaving for the reports registers it', async ({ page }) => {
     await openTable(page);
     await navButton(page, 'Rapports').click();
     await page.waitForURL(/reports/);
-    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+    expect(await ipcCalls(page, 'leave_order')).toMatchObject([{ reason: 'navigate' }]);
   });
 
   test('leaving for the settings registers it', async ({ page }) => {
     await openTable(page);
     await navButton(page, 'Config').click();
     await page.waitForURL(/settings/);
-    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+    expect(await ipcCalls(page, 'leave_order')).toMatchObject([{ reason: 'navigate' }]);
   });
 
   test('going to the payment does not register it (the sale carries it)', async ({ page }) => {
     await openTable(page);
     await page.locator('.checkout-btn').click();
     await page.waitForURL(/checkout/);
-    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(0);
+    expect(await ipcCalls(page, 'leave_order')).toHaveLength(0);
   });
 
   test('leaving the payment screen for another screen registers it', async ({ page }) => {
@@ -157,7 +161,7 @@ test.describe('Table order registration (P)', () => {
     await page.waitForURL(/checkout/);
     await page.evaluate(() => { window.location.hash = '#/tables'; });
     await page.waitForURL(/tables/);
-    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+    expect(await ipcCalls(page, 'leave_order')).toMatchObject([{ reason: 'navigate' }]);
   });
 
   test('[FAQ_Q205] switching to a takeaway registers the table first', async ({ page }) => {
@@ -169,22 +173,26 @@ test.describe('Table order registration (P)', () => {
     await expect.poll(() => ipcCalls(page, 'create_order').then((c) => c.length)).toBe(2);
     const order = await page.evaluate(() =>
       ((window as any).__ipcCalls as Array<{ cmd: string; args: any }>)
-        .filter((c) => c.cmd === 'sign_table_order' || c.cmd === 'create_order')
+        .filter((c) => c.cmd === 'leave_order' || c.cmd === 'create_order')
         .map((c) => c.cmd === 'create_order' ? `create:${c.args.input.order_type}` : 'sign'),
     );
     expect(order).toEqual(['create:dine_in', 'sign', 'create:takeaway']);
+    expect(await ipcCalls(page, 'leave_order')).toMatchObject([{ reason: 'switch_order' }]);
   });
 
   test('[FAQ_Q205] locking the screen registers it', async ({ page }) => {
     await openTable(page);
     await navButton(page, 'Verrouiller').click();
     await page.waitForURL(/#\/$/);
-    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+    // The engine registers the open order while locking: the UI does not.
+    expect(await ipcCalls(page, 'lock_session')).toHaveLength(1);
+    expect(await ipcCalls(page, 'leave_order')).toHaveLength(0);
+    expect(await ipcCalls(page, 'logout')).toHaveLength(0);
   });
 
   test('an FDM refusal keeps the operator on the order and says so', async ({ page }) => {
     await openTable(page);
-    await overrideIPC(page, 'sign_table_order', '__THROW__');
+    await overrideIPC(page, 'leave_order', '__THROW__');
     await navButton(page, 'Tables').click();
 
     await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée');
@@ -193,7 +201,7 @@ test.describe('Table order registration (P)', () => {
 
   test('an FDM refusal does not start the takeaway', async ({ page }) => {
     await openTable(page);
-    await overrideIPC(page, 'sign_table_order', '__THROW__');
+    await overrideIPC(page, 'leave_order', '__THROW__');
     await navButton(page, 'À emporter').click();
 
     await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée');
@@ -203,10 +211,84 @@ test.describe('Table order registration (P)', () => {
 
   test('an FDM refusal never blocks locking the screen', async ({ page }) => {
     await openTable(page);
-    await overrideIPC(page, 'sign_table_order', '__THROW__');
+    await overrideIPC(page, 'lock_session', { orderError: 'FDM_UNREACHABLE' });
     await navButton(page, 'Verrouiller').click();
     await page.waitForURL(/#\/$/);
     await expect(page.locator('.user-btn').first()).toBeVisible();
+    await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée');
+  });
+});
+
+test.describe('Leaving and locking through the engine', () => {
+  test('leaving a table registers it through leave_order with the reason navigate', async ({ page }) => {
+    // One id everywhere: the order is whichever the mocks return.
+    const table = { ...DEFAULT_ORDER, id: 501, total_cents: 1200 };
+    await openTable(page, { create_order: () => table, get_order: () => table });
+    await navButton(page, 'Tables').click();
+    await page.waitForURL(/tables/);
+    expect(await ipcCalls(page, 'leave_order')).toEqual([{ orderId: 501, reason: 'navigate' }]);
+    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(0);
+  });
+
+  test('a refused leave keeps the operator on the order with the toast', async ({ page }) => {
+    await openTable(page);
+    await overrideIPC(page, 'leave_order', { __reject: 'FDM_UNREACHABLE' });
+    await navButton(page, 'Rapports').click();
+    await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée');
+    await expect(page).toHaveURL(/order/);
+  });
+
+  test('the lock button calls lock_session and returns to the login screen', async ({ page }) => {
+    await openTable(page);
+    await navButton(page, 'Verrouiller').click();
+    await page.waitForURL(/#\/$/);
+    await expect(page.locator('.user-btn').first()).toBeVisible();
+    expect(await ipcCalls(page, 'lock_session')).toHaveLength(1);
+    expect(await ipcCalls(page, 'logout')).toHaveLength(0);
+    await expect(page.locator('.toast-error')).toHaveCount(0);
+  });
+
+  test('the lock button shows the toast when the order could not be registered', async ({ page }) => {
+    await openTable(page);
+    await overrideIPC(page, 'lock_session', { orderError: 'FDM_UNREACHABLE' });
+    await navButton(page, 'Verrouiller').click();
+    await page.waitForURL(/#\/$/);
+    await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée');
+    await expect(page.locator('.user-btn').first()).toBeVisible();
+  });
+
+  test('a session-locked event returns to the login screen from the order screen', async ({ page }) => {
+    await openTable(page);
+    await emitTauriEvent(page, 'session-locked', { reason: 'idle', orderError: null });
+    await page.waitForURL(/#\/$/);
+    await expect(page.locator('.user-btn').first()).toBeVisible();
+    await expect(page.locator('.toast-error')).toHaveCount(0);
+    // The engine locked it: the UI does not lock again.
+    expect(await ipcCalls(page, 'lock_session')).toHaveLength(0);
+  });
+
+  test('a session-locked event with an order error shows the toast', async ({ page }) => {
+    await openTable(page);
+    await emitTauriEvent(page, 'session-locked', { reason: 'idle', orderError: 'FDM_UNREACHABLE' });
+    await page.waitForURL(/#\/$/);
+    await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée');
+  });
+
+  test('opening a table sets the active order in the engine', async ({ page }) => {
+    await openTable(page, { create_order: () => ({ ...DEFAULT_ORDER, id: 777 }) });
+    const calls = await ipcCalls(page, 'set_active_order');
+    expect(calls[0]).toEqual({ orderId: 777 });
+  });
+
+  test('clearing the order after payment sets the active order to null', async ({ page }) => {
+    await openTable(page);
+    await page.locator('.checkout-btn').click();
+    await page.waitForURL(/checkout/);
+    await page.locator('.card-btn').click();
+    await page.locator('.card-confirm').click();
+    await expect(page.locator('.success-icon')).toBeVisible();
+    const calls = await ipcCalls(page, 'set_active_order');
+    expect(calls[calls.length - 1]).toEqual({ orderId: null });
   });
 });
 
@@ -260,7 +342,7 @@ test.describe('[VI_BAR] Bar / kitchen order slip', () => {
 
   test('[VI_BAR] a slip that did not print is told, the order stays registered', async ({ page }) => {
     await openTable(page);
-    await overrideIPC(page, 'sign_table_order', 'failed');
+    await overrideIPC(page, 'leave_order', 'failed');
     await navButton(page, 'Tables').click();
     await page.waitForURL(/tables/);
     await expect(page.locator('.toast-warning')).toContainText(SLIP_WARNING);
@@ -271,7 +353,7 @@ test.describe('[VI_BAR] Bar / kitchen order slip', () => {
     await openTable(page);
     await navButton(page, 'Tables').click();
     await page.waitForURL(/tables/);
-    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+    expect(await ipcCalls(page, 'leave_order')).toHaveLength(1);
     await expect(page.locator('.toast-warning')).toHaveCount(0);
   });
 
@@ -305,20 +387,24 @@ test.describe('[VI_BAR] Bar / kitchen order slip', () => {
 });
 
 test.describe('FDM refusals on presence and cash events', () => {
-  test('a refused clock-in is reported but does not block the login', async ({ page }) => {
+  test('a presence-failed event is reported but does not block the login', async ({ page }) => {
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,
       list_users: () => [DEFAULT_USER],
-      work_in: () => ({ success: false, error: 'FDM error: offline' }),
     });
     await page.goto('/');
     await tapUserTile(page);
     await page.waitForURL(/tables/);
+    await emitTauriEvent(page, 'presence-failed', {
+      insz: DEFAULT_USER.insz,
+      clockIn: true,
+      error: 'FDM error: offline',
+    });
     await expect(page.locator('.toast-error')).toContainText('Pointage non enregistré');
     await expect(page.locator('.toast-error')).toContainText('Erreur boîte noire. Contactez votre technicien.');
   });
 
-  test('a successful clock-in shows no error', async ({ page }) => {
+  test('a successful login shows no clock-in error and the UI sends no work_in', async ({ page }) => {
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,
       list_users: () => [DEFAULT_USER],
@@ -326,7 +412,8 @@ test.describe('FDM refusals on presence and cash events', () => {
     await page.goto('/');
     await tapUserTile(page);
     await page.waitForURL(/tables/);
-    expect(await ipcCalls(page, 'work_in')).toHaveLength(1);
+    await page.waitForTimeout(300);
+    expect(await ipcCalls(page, 'work_in')).toHaveLength(0);
     await expect(page.locator('.toast-error')).toHaveCount(0);
   });
 });

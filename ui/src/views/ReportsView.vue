@@ -6,8 +6,9 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useDeliveryStore } from "../stores/delivery";
+import { useInvoiceStore } from "../stores/invoice";
 import { formatPrice, round5 } from "../utils/format";
-import type { CheckoutResult, OrderLine } from "../types";
+import type { CheckoutResult, OrderLine, UnsettledCardPayment } from "../types";
 import type { CopyResult, RefundableEvent, RefundItem } from "../api/ipc";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
@@ -15,26 +16,39 @@ import AppHeader from "../components/AppHeader.vue";
 import TicketMediumPicker from "../components/TicketMediumPicker.vue";
 import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
 import PriceDialog from "../components/PriceDialog.vue";
+import PaymentCorrectionDialog from "../components/PaymentCorrectionDialog.vue";
+import InvoiceDialog from "../components/InvoiceDialog.vue";
+import InvoiceList from "../components/InvoiceList.vue";
+import SalesReportPanel from "../components/SalesReportPanel.vue";
+import GiftVouchersReport from "../components/GiftVouchersReport.vue";
+import { useGiftVouchersStore } from "../stores/giftVouchers";
 
 const router = useRouter();
 const auth = useAuthStore();
 const toast = useToastStore();
 const delivery = useDeliveryStore();
+const invoice = useInvoiceStore();
+const giftVouchers = useGiftVouchersStore();
 const { t } = useI18n();
 
-// §2.1: three tabs, never more than 6-8 actions visible at once.
-type Tab = "day" | "cash" | "tickets";
-const TABS: { id: Tab; label: string }[] = [
+// §2.1: four or five tabs, never more than 6-8 actions visible at once.
+type Tab = "day" | "cash" | "tickets" | "sales" | "vouchers";
+const TABS = computed<{ id: Tab; label: string }[]>(() => [
   { id: "day", label: "reports_tab_day" },
   { id: "cash", label: "reports_tab_cash" },
   { id: "tickets", label: "reports_tab_tickets" },
-];
+  { id: "sales", label: "reports_tab_sales" },
+  ...(giftVouchers.enabled ? [{ id: "vouchers" as const, label: "reports_tab_vouchers" }] : []),
+]);
 const tab = ref<Tab>("day");
 
 const loading = ref(false);
 const loadingKind = ref<"x" | "userx" | "z" | null>(null);
 const zHistory = ref<ipc.ZReportSummary[]>([]);
 const zPending = ref(false);
+// Card payments taken on the terminal that no sale records yet: told to
+// the operator at the Z, which they never block.
+const unsettled = ref<UnsettledCardPayment[]>([]);
 
 async function loadHistory() {
   try {
@@ -53,13 +67,36 @@ async function loadZPending() {
   }
 }
 
+async function loadUnsettled() {
+  try {
+    unsettled.value = await ipc.listUnsettledCardPayments();
+  } catch {
+    /* only a warning: the Z does not depend on it */
+    unsettled.value = [];
+  }
+}
+
+function unsettledWhere(p: UnsettledCardPayment): string {
+  return p.table_number != null ? `${t('table')} ${p.table_number}` : t('takeaway_badge');
+}
+
+function unsettledLine(p: UnsettledCardPayment): string {
+  return t('reports_z_unsettled_item', {
+    where: unsettledWhere(p),
+    amount: formatPrice(p.amount_cents),
+    brand: p.brand ? ` · ${p.brand}` : '',
+  });
+}
+
 onMounted(() => {
+  void giftVouchers.load();
   if (!auth.currentUser) {
     router.push({ name: "login" });
     return;
   }
   loadHistory();
   loadZPending();
+  loadUnsettled();
 });
 
 const lastZ = computed(() => zHistory.value[0] ?? null);
@@ -117,6 +154,7 @@ watch(tab, () => {
 async function generateZ() {
   if (!auth.currentUser || loading.value) return;
   if (!zArmed.value) {
+    loadUnsettled();
     zArmed.value = true;
     zDisarm = setTimeout(() => { zArmed.value = false; }, 5000);
     return;
@@ -134,6 +172,7 @@ async function generateZ() {
       toast.show(label, "success", 4000);
       await loadHistory();
       await loadZPending();
+      await loadUnsettled();
     } else {
       toast.show(describeError(result.error), "error", 5000);
     }
@@ -321,6 +360,8 @@ interface TicketRow {
   copyable: ipc.CopyableTicket | null;
   /** Present when the ticket can be refunded (listRefundableEvents). */
   refundable: RefundableEvent | null;
+  /** Present when the sale can go on an invoice (listInvoiceableSales). */
+  invoiceable: ipc.InvoiceableSale | null;
 }
 
 const copyTickets = ref<ipc.CopyableTicket[]>([]);
@@ -331,6 +372,8 @@ async function loadTickets() {
   const [copyable, refundable] = await Promise.allSettled([
     ipc.listCopyableTickets(),
     ipc.listRefundableEvents(20),
+    invoice.loadSales(),
+    invoice.loadInvoices(),
   ]);
   if (copyable.status === "fulfilled") {
     copyTickets.value = copyable.value;
@@ -340,6 +383,48 @@ async function loadTickets() {
   }
   refundEvents.value = refundable.status === "fulfilled" ? refundable.value : [];
   ticketsLoaded.value = true;
+  void loadCorrections();
+}
+
+// ── Payment correction (manager): one action per sale ────────────
+/** The correction each sale already has, by fiscal event id. */
+const corrections = ref<Map<number, ipc.CorrectionDone>>(new Map());
+const correctionTarget = ref<TicketRow | null>(null);
+
+/** A sale ticket (N, or T in training) the payment of which may be corrected. */
+function isSaleRow(row: TicketRow): boolean {
+  if (row.totalCents <= 0) return false;
+  if (row.copyable) return row.copyable.eventLabel === "N" || row.copyable.eventLabel === "T";
+  return row.refundable !== null;
+}
+
+/** Best effort: which sales were corrected, to mark them. */
+async function loadCorrections() {
+  if (!auth.isManager) return;
+  const next = new Map<number, ipc.CorrectionDone>();
+  await Promise.allSettled(
+    ticketRows.value.filter(isSaleRow).map(async (row) => {
+      const payments = await ipc.listSalePayments(row.fiscalEventId);
+      if (payments.corrected) next.set(row.fiscalEventId, payments.corrected);
+    }),
+  );
+  corrections.value = next;
+}
+
+function correctionText(c: ipc.CorrectionDone): string {
+  const name = (type: string) => {
+    if (type === "CASH") return t("reports_pc_method_cash");
+    if (type.startsWith("CARD")) return t("reports_pc_method_card");
+    if (type === "CHEQUE_MEAL") return t("reports_pc_method_meal_voucher");
+    return type;
+  };
+  return t("reports_pc_corrected", { from: name(c.fromType), to: name(c.toType) });
+}
+
+function onCorrected() {
+  correctionTarget.value = null;
+  toast.show(t("reports_pc_done"), "success");
+  loadTickets();
 }
 
 watch(tab, (next) => {
@@ -358,6 +443,7 @@ const ticketRows = computed<TicketRow[]>(() => {
       kind: copyKind(tk),
       copyable: tk,
       refundable: null,
+      invoiceable: null,
     });
   }
   for (const ev of refundEvents.value) {
@@ -374,6 +460,25 @@ const ticketRows = computed<TicketRow[]>(() => {
         kind: t("copy_kind_sale"),
         copyable: null,
         refundable: ev,
+        invoiceable: null,
+      });
+    }
+  }
+  for (const sale of invoice.sales) {
+    const row = rows.get(sale.fiscalEventId);
+    if (row) {
+      row.invoiceable = sale;
+    } else {
+      rows.set(sale.fiscalEventId, {
+        fiscalEventId: sale.fiscalEventId,
+        ticketNumber: sale.ticketNumber,
+        tableNumber: null,
+        totalCents: sale.totalCents,
+        createdAt: sale.posDateTime,
+        kind: sale.isRefund ? t("copy_kind_refund") : t("copy_kind_sale"),
+        copyable: null,
+        refundable: null,
+        invoiceable: sale,
       });
     }
   }
@@ -529,6 +634,13 @@ function formatRefundTime(iso: string): string {
         <div class="spacer"></div>
 
         <div class="z-bar">
+          <div v-if="unsettled.length" class="z-unsettled" role="status" data-testid="z-unsettled">
+            <p class="z-unsettled-title">{{ t('reports_z_unsettled') }}</p>
+            <ul>
+              <li v-for="p in unsettled" :key="p.payment_id">{{ unsettledLine(p) }}</li>
+            </ul>
+            <p class="z-unsettled-note">{{ t('reports_z_unsettled_note') }}</p>
+          </div>
           <p class="z-explain">{{ t('reports_z_explain') }}</p>
           <button class="z-btn" :class="{ armed: zArmed }" :disabled="loading" @click="generateZ">
             <span v-if="loadingKind === 'z'" class="spinner" aria-hidden="true"></span>
@@ -603,17 +715,41 @@ function formatRefundTime(iso: string): string {
       </section>
 
       <!-- ── Tickets: copy and refund from one list ─────────────── -->
+      <SalesReportPanel v-else-if="tab === 'sales'" />
+      <GiftVouchersReport v-else-if="tab === 'vouchers'" />
+
       <section v-else class="tab-body tickets">
         <div class="panel tickets-panel">
           <div class="tickets-head">
             <h2>{{ t('reports_tickets_title') }}</h2>
-            <p class="tickets-hint">{{ t('reports_tickets_hint') }}</p>
+            <p class="tickets-hint">{{ t('reports_tickets_hint') }} {{ t('invoice_select_hint') }}</p>
+            <button
+              class="invoice-btn"
+              data-testid="invoice-action"
+              :disabled="invoice.selected.length === 0"
+              @click="invoice.openDialog()"
+            >{{ invoice.selected.length > 0 ? t('invoice_action_count', { n: invoice.selected.length }) : t('invoice_action') }}</button>
           </div>
           <p v-if="ticketsLoaded && ticketRows.length === 0" class="tickets-empty">{{ t('copy_none') }}</p>
           <ul v-else class="ticket-list">
-            <li v-for="row in ticketRows" :key="row.fiscalEventId" class="ticket-row">
+            <li v-for="row in ticketRows" :key="row.fiscalEventId" class="ticket-row" :data-testid="`ticket-row-${row.fiscalEventId}`">
+              <span class="rt-check">
+                <button
+                  v-if="row.invoiceable && !row.invoiceable.invoicedBy"
+                  class="check-box"
+                  :class="{ on: invoice.selected.includes(row.fiscalEventId) }"
+                  role="checkbox"
+                  :aria-checked="invoice.selected.includes(row.fiscalEventId)"
+                  :aria-label="t('invoice_select_row', { no: row.ticketNumber })"
+                  :data-testid="`ticket-check-${row.fiscalEventId}`"
+                  @click="invoice.toggleSale(row.fiscalEventId)"
+                >{{ invoice.selected.includes(row.fiscalEventId) ? '&#10003;' : '' }}</button>
+              </span>
               <span class="rt-num">#{{ row.ticketNumber }}</span>
-              <span class="rt-kind">{{ row.kind }}</span>
+              <span class="rt-kind">
+                {{ row.kind }}
+                <span v-if="row.invoiceable?.invoicedBy" class="rt-invoiced" :data-testid="`ticket-invoiced-${row.fiscalEventId}`">{{ t('invoice_invoiced_by', { no: row.invoiceable.invoicedBy }) }}</span>
+              </span>
               <span class="rt-table">{{ row.tableNumber ? `T${row.tableNumber}` : '' }}</span>
               <span class="rt-time">{{ formatRefundTime(row.createdAt) }}</span>
               <span class="rt-total" :class="{ negative: row.totalCents < 0 }">{{ formatPrice(row.totalCents) }} €</span>
@@ -628,12 +764,36 @@ function formatRefundTime(iso: string): string {
                   class="refund-btn"
                   @click="openRefund(row.refundable)"
                 >{{ t('refund_confirm') }}</button>
+                <span
+                  v-if="auth.isManager && corrections.get(row.fiscalEventId)"
+                  class="corrected-mark"
+                  :data-testid="`corrected-${row.fiscalEventId}`"
+                >{{ correctionText(corrections.get(row.fiscalEventId)!) }}</span>
+                <button
+                  v-else-if="auth.isManager && isSaleRow(row)"
+                  class="correct-btn"
+                  :data-testid="`correct-payment-${row.fiscalEventId}`"
+                  @click="correctionTarget = row"
+                >{{ t('reports_pc_action') }}</button>
               </span>
             </li>
           </ul>
         </div>
+        <InvoiceList v-if="invoice.invoices.length > 0" />
       </section>
     </div>
+
+    <!-- Payment correction (event F): lines, new method, PIN -->
+    <Teleport to="body">
+      <PaymentCorrectionDialog
+        v-if="correctionTarget"
+        :fiscal-event-id="correctionTarget.fiscalEventId"
+        :ticket-number="correctionTarget.ticketNumber"
+        @done="onCorrected"
+        @cancel="correctionTarget = null"
+      />
+    </Teleport>
+    <InvoiceDialog />
 
     <!-- Z history: pick the report to reprint -->
     <Teleport to="body">
@@ -780,7 +940,7 @@ function formatRefundTime(iso: string): string {
 /* ── Tabs (segmented control) ─────────────────────────────── */
 .tabs {
   width: 900px; max-width: 100%;
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
   padding: 4px; background: var(--bg-surface); border-radius: 12px;
   flex-shrink: 0;
 }
@@ -811,6 +971,16 @@ function formatRefundTime(iso: string): string {
   background: var(--accent-warning); color: var(--text-on-accent);
   font-size: 18px; font-weight: var(--font-weight-bold);
 }
+
+/* Charged cards waiting for their sale: told, never blocking. */
+.z-unsettled {
+  padding: 14px 20px; border-radius: var(--radius-md);
+  background: var(--accent-warning); color: var(--text-on-accent);
+  font-size: 18px;
+}
+.z-unsettled-title { font-weight: var(--font-weight-bold); }
+.z-unsettled ul { margin: 6px 0; padding-left: 22px; font-family: var(--font-mono); }
+.z-unsettled-note { font-size: 16px; }
 
 .report-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .report-card {
@@ -915,7 +1085,7 @@ function formatRefundTime(iso: string): string {
 .cash-submit:disabled { opacity: 0.4; }
 
 /* ── Tickets ──────────────────────────────────────────────── */
-.tickets-panel { flex: 1; }
+.tickets-panel { flex: 3; }
 .tickets-head { display: flex; align-items: baseline; gap: 24px; }
 .tickets-hint { font-size: 17px; color: var(--text-secondary); }
 .tickets-empty { font-size: 18px; color: var(--text-secondary); padding: 32px 0; text-align: center; }
@@ -927,7 +1097,7 @@ function formatRefundTime(iso: string): string {
 }
 .ticket-row {
   display: grid;
-  grid-template-columns: 120px 200px 80px 100px minmax(0, 1fr) auto;
+  grid-template-columns: 56px 120px 200px 80px 100px minmax(0, 1fr) auto;
   align-items: center; gap: 16px;
   min-height: 80px; padding: 8px 0;
   border-bottom: 1px solid var(--border);
@@ -939,8 +1109,30 @@ function formatRefundTime(iso: string): string {
 .rt-time { font-family: var(--font-mono); font-size: 17px; color: var(--text-secondary); }
 .rt-total { font-family: var(--font-mono); font-size: 22px; font-weight: var(--font-weight-bold); text-align: right; }
 .rt-total.negative { color: var(--accent-danger); }
-.row-actions { display: flex; gap: 8px; justify-content: flex-end; min-width: 368px; }
+.rt-check { display: flex; align-items: center; justify-content: center; }
+.check-box {
+  width: 48px; height: 48px; border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--selected-fg);
+  border: 2px solid var(--text-secondary);
+  font-size: 28px; font-weight: var(--font-weight-heavy); line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform var(--tap-duration) ease;
+}
+.check-box.on { background: var(--selected-bg); border-color: var(--selected-bg); }
+.check-box:active { transform: scale(var(--tap-scale)); }
+.rt-invoiced { display: block; font-family: var(--font-mono); font-size: 14px; color: var(--accent-info); }
+.tickets-head { align-items: center; }
+.invoice-btn {
+  margin-left: auto; height: 64px; min-width: 200px; padding: 0 24px; border-radius: var(--radius-md);
+  background: var(--accent-primary); color: var(--text-on-accent);
+  font-size: 20px; font-weight: var(--font-weight-heavy);
+  transition: transform var(--tap-duration) ease;
+}
+.invoice-btn:active { transform: scale(var(--tap-scale)); }
+.invoice-btn:disabled { opacity: 0.3; pointer-events: none; }
+.row-actions { display: flex; gap: 8px; justify-content: flex-end; min-width: 368px; flex-wrap: wrap; }
 .copy-ticket-btn,
+.correct-btn,
 .refund-btn {
   height: 64px; min-width: 180px; padding: 0 20px; border-radius: var(--radius-md);
   font-size: 18px; font-weight: var(--font-weight-bold);
@@ -948,7 +1140,13 @@ function formatRefundTime(iso: string): string {
 }
 .copy-ticket-btn { background: var(--bg-surface); color: var(--text-primary); }
 .refund-btn { background: transparent; color: var(--text-primary); border: 2px solid var(--accent-danger); }
+.correct-btn { background: transparent; color: var(--text-primary); border: 2px solid var(--border); }
+.corrected-mark {
+  align-self: center; font-size: 16px; font-weight: var(--font-weight-bold);
+  color: var(--text-secondary); max-width: 260px; text-align: right;
+}
 .copy-ticket-btn:active,
+.correct-btn:active,
 .refund-btn:active { transform: scale(var(--tap-scale)); }
 
 /* ── Modals (Z history, refund, copy) ─────────────────────── */

@@ -1,0 +1,27 @@
+# Playwright test moves (phase P1b onwards), read by scripts/android/playwright_inventory.py --diff.
+#
+# A rewritten Vue test keeps its place in the inventory when its rename is declared here.
+# One rule per line: <old title><TAB><new title>
+# Both titles are normalised inventory lines as they appear in playwright_list.txt:
+#   <name>.spec.ts <U+203A> <describe part> <U+203A> <title>
+# (no project prefix, no line:column; the separator is the character U+203A with one space on each side).
+#
+# A rule is stale, and fails the diff, when
+#   - its old title is still present in the current list,
+#   - its new title is absent from the current list,
+#   - its old title is not in the baseline (docs/android/baseline/playwright_list.txt),
+# and two rules with the same old title fail too.
+# Blank lines and lines starting with # are ignored. The baseline itself is never edited.
+#
+# No rule yet.
+fiscal-flow.spec.ts › Takeaway drafts (direct sale) › [FAQ_Q205] leaving an unpaid takeaway registers nothing	fiscal-flow.spec.ts › Takeaway drafts (direct sale) › [FAQ_Q205] leaving an unpaid takeaway leaves the registration to the engine
+fiscal-flow.spec.ts › FDM refusals on presence and cash events › a refused clock-in is reported but does not block the login	fiscal-flow.spec.ts › FDM refusals on presence and cash events › a presence-failed event is reported but does not block the login
+fiscal-flow.spec.ts › FDM refusals on presence and cash events › a successful clock-in shows no error	fiscal-flow.spec.ts › FDM refusals on presence and cash events › a successful login shows no clock-in error and the UI sends no work_in
+login.spec.ts › Shifts (clock-in / clock-out, event S) › "Fin de service" then the PIN clocks out and stays on the login screen	login.spec.ts › Shifts (clock-in / clock-out, event S) › "Fin de service" then the PIN ends the shift through the engine and stays on the login screen
+login.spec.ts › Shifts (clock-in / clock-out, event S) › an employee off shift is clocked in at login	login.spec.ts › Shifts (clock-in / clock-out, event S) › the UI no longer clocks in at login, the engine does
+fdm-polling.spec.ts › the FDM status is polled every 30 s while the FDM answers	fdm-polling.spec.ts › the FDM indicator follows the fdm-status events of the engine
+fdm-polling.spec.ts › an FDM that does not answer is polled less and less often	fdm-polling.spec.ts › the blocking veil counts down to the next check of the engine
+fdm-polling.spec.ts › changing screens keeps the one poller going, without a second one	fdm-polling.spec.ts › changing screens makes no FDM call from the UI
+order.spec.ts › Order View - kitchen and cart lines › names show in the UI language first, Chinese underneath	order.spec.ts › Order View - kitchen and cart lines › names show in the UI language only, no second language underneath
+settings.spec.ts › Settings View › products can be shown by their menu code	settings.spec.ts › Settings View › products are shown by their menu code by default, names are a switch away
+fdm-errors.spec.ts › an FDM answer that does not match the sale is explained	fdm-errors.spec.ts › an FDM answer that does not match the sale is explained, then the retry

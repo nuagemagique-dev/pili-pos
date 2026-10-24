@@ -41,7 +41,7 @@ echo "→ live FDM: ${PILI_LIVE_FDM_URL}"
 echo "→ token: $([[ -n "${PILI_LIVE_FDM_TOKEN:-}" ]] && echo set || echo none)"
 echo "→ evidence: ${UC_EVIDENCE_DIR}"
 
-cargo test -p pili-pos --features hubrise --test live_combined -- --ignored --exact \
+cargo test -p pos-engine --features hubrise --test live_combined -- --ignored --exact \
     --test-threads=1 --nocapture "$@" 2>&1 \
     | tee "$ROOT/target/live-combined.log" \
     | grep -E "^(live FDM call|[0-9]+ live calls|live HubRise|outbox pass|[0-9]+ live HubRise calls|test |thread|  left|  right|assertion)" || true

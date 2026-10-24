@@ -14,6 +14,9 @@
  */
 import type { Page } from '@playwright/test';
 
+// Handlers run inside the page, so they inline the meal-voucher brands the engine accepts
+// (pos_eft::brand::is_meal_voucher): Edenred, Pluxee, Monizze, Payflip.
+
 // ── Default fixtures ────────────────────────────────────────────
 
 // A manager always has a PIN (a manager without one must choose it at
@@ -29,6 +32,35 @@ const DEFAULT_USER = {
 const DEFAULT_USER_WITH_PIN = {
   ...DEFAULT_USER,
   has_pin: true,
+};
+
+// The nightly export as the engine reports it when it is not configured.
+const EXPORT_STATUS_DISABLED = {
+  enabled: false,
+  problem: null,
+  endpoint: null,
+  keepDays: 30,
+  lastExportId: null,
+  lastPreparedAt: null,
+  lastUploadedId: null,
+  lastUploadedAt: null,
+  pending: 0,
+  nextAttemptAt: null,
+  lastError: null,
+  lastErrorAt: null,
+  kept: 0,
+  dropped: 0,
+};
+
+// The menu editor's view of a menu with nothing in it (languages as a French till offers them).
+const MENU_ADMIN_EMPTY = {
+  managed_by: null,
+  languages: ['fr', 'nl', 'en', 'zh'],
+  categories: [],
+  products: [],
+  groups: [],
+  options: [],
+  allergens: [],
 };
 
 const DEFAULT_CATEGORY = {
@@ -83,6 +115,12 @@ const DEFAULT_CART_LINE = {
   name_fr: 'Maki saumon x8',
   name_zh: '三文鱼细卷',
   unsent_quantity: 1,
+  discount_cents: 0,
+  price_changes: [],
+  kitchen_note: null,
+  online: false,
+  course: 0,
+  kitchen_state: 'unsent',
 };
 
 const DEFAULT_TABLE = (n: number) => ({
@@ -93,7 +131,26 @@ const DEFAULT_TABLE = (n: number) => ({
   status: 'free',
   openedAt: null,
   preBillPrinted: false,
+  heldCourse: null,
 });
+
+// The 14 allergens of Annex II (what `list_allergens` returns).
+const ALLERGEN_LEGEND = [
+  ['gluten', 'Céréales contenant du gluten', 'Glutenbevattende granen', 'Cereals containing gluten', '含麸质的谷物'],
+  ['crustaceans', 'Crustacés', 'Schaaldieren', 'Crustaceans', '甲壳类'],
+  ['eggs', 'Œufs', 'Eieren', 'Eggs', '蛋'],
+  ['fish', 'Poissons', 'Vis', 'Fish', '鱼'],
+  ['peanuts', 'Arachides', "Pinda's", 'Peanuts', '花生'],
+  ['soybeans', 'Soja', 'Soja', 'Soybeans', '大豆'],
+  ['milk', 'Lait', 'Melk', 'Milk', '奶'],
+  ['nuts', 'Fruits à coque', 'Noten', 'Nuts', '坚果'],
+  ['celery', 'Céleri', 'Selderij', 'Celery', '芹菜'],
+  ['mustard', 'Moutarde', 'Mosterd', 'Mustard', '芥末'],
+  ['sesame', 'Sésame', 'Sesamzaad', 'Sesame', '芝麻'],
+  ['sulphites', 'Sulfites', 'Sulfiet', 'Sulphites', '亚硫酸盐'],
+  ['lupin', 'Lupin', 'Lupine', 'Lupin', '羽扇豆'],
+  ['molluscs', 'Mollusques', 'Weekdieren', 'Molluscs', '软体动物'],
+].map(([code, fr, nl, en, zh], i) => ({ code, number: i + 1, names: { fr, nl, en, zh } }));
 
 // ── Handler registry ────────────────────────────────────────────
 
@@ -129,6 +186,99 @@ export function live(fn: Handler): Handler {
   return fn;
 }
 
+/** Seed the open shifts `list_open_shifts` reports (before the page loads). */
+export async function shiftsInit(page: Page, shifts: Array<{ userInsz: string; startedAt: string }>) {
+  await page.addInitScript((v) => {
+    (window as any).__shifts = v;
+  }, shifts);
+}
+
+
+/** The badge reader setting as the engine reports it (reader off). */
+export const BADGE_SETTINGS_OFF = {
+  reader: 'off',
+  loginEnabled: false,
+  wedgeMaxGapMs: 150,
+  wedgeMinLen: 6,
+  wedgeMaxLen: 32,
+  relinkNeeded: false,
+};
+
+/** One scripted answer of `badge_tap`: an outcome, or a refusal code. */
+export type BadgeTapStep =
+  | { kind: 'ignored' | 'clock_in' | 'clock_out' | 'presence_failed' | 'logged_in' | 'pin_required';
+      insz?: string | null; name?: string | null; at?: string | null; error?: string | null; user?: unknown }
+  | { reject: string };
+
+/**
+ * The badge reader's state, before the page loads: the settings, the active
+ * badges and log `list_badges` returns, the answers of `badge_tap` in turn
+ * (once the script is out, a tap is `ignored`) and the refusal of the next
+ * `link_badge`, if any. The state lives in the page (`window.__badge`) so
+ * the settings, link and revoke handlers stay consistent.
+ */
+export async function badgeInit(
+  page: Page,
+  init: {
+    settings?: Partial<typeof BADGE_SETTINGS_OFF>;
+    badges?: Array<{ insz: string; name: string; linkedAt: string; linkedBy: string; linkedByName: string | null }>;
+    log?: unknown[];
+    taps?: BadgeTapStep[];
+    linkReject?: string;
+    /** Names `link_badge` reports, by INSZ. */
+    names?: Record<string, string>;
+  },
+) {
+  await page.addInitScript(
+    ([settings, rest]) => {
+      (window as any).__badge = {
+        settings,
+        badges: rest.badges ?? [],
+        log: rest.log ?? [],
+        taps: [...(rest.taps ?? [])],
+        linkReject: rest.linkReject ?? null,
+        names: rest.names ?? {},
+      };
+    },
+    [{ ...BADGE_SETTINGS_OFF, ...(init.settings ?? {}) }, init] as const,
+  );
+}
+
+/** Press a badge on a USB wedge reader: the number typed fast, then Enter. */
+export async function scanBadge(page: Page, token: string) {
+  await page.keyboard.type(token, { delay: 5 });
+  await page.keyboard.press('Enter');
+}
+
+/** The engine's FdmHealth (event "fdm-status"); healthy unless overridden. */
+export interface FdmHealthMock {
+  connected: boolean;
+  answered: boolean;
+  severity: 'blocking' | 'warning' | 'info';
+  code: string | null;
+  mandatory: boolean;
+  checkedAt: string;
+  nextCheckAt: string | null;
+}
+
+export function fdmHealth(over: Partial<FdmHealthMock> = {}): FdmHealthMock {
+  return {
+    connected: true,
+    answered: true,
+    severity: 'info',
+    code: null,
+    mandatory: false,
+    checkedAt: '2026-10-08T10:00:00+02:00',
+    nextCheckAt: null,
+    ...over,
+  };
+}
+
+/** `fdm_check_now` and `fdm_health` answering with this health. */
+export function fdmMocks(health: FdmHealthMock): Record<string, Handler> {
+  return { fdm_check_now: () => health, fdm_health: () => health };
+}
+
 function defaultHandlers(): Record<string, Handler> {
   let nextOrderId = 1;
   let nextLineId = 1;
@@ -152,6 +302,10 @@ function defaultHandlers(): Record<string, Handler> {
     // Menu
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
+    // Sold out ("Épuisé"): nothing is sold out by default.
+    list_sold_out: () => [],
+    set_sold_out: () => [],
+    clear_sold_out: () => [],
 
     // Orders
     create_order: ({ input }: any) => ({
@@ -170,6 +324,8 @@ function defaultHandlers(): Record<string, Handler> {
     }),
     remove_order_line: () => undefined,
     update_order_line_quantity: () => undefined,
+    // A kitchen note: the slip outcome (a note changed after sending prints one).
+    set_line_note: () => 'nothing_to_print',
     get_order: () => DEFAULT_ORDER,
     list_order_lines: () => [DEFAULT_ORDER_LINE],
     // The cart reads its lines here (both names, quantity not yet sent).
@@ -185,12 +341,95 @@ function defaultHandlers(): Record<string, Handler> {
       return tables;
     },
     sign_table_order: () => 'printed',
+    leave_order: () => 'printed',
+    set_active_order: () => undefined,
+    lock_session: () => ({ orderError: null }),
     sign_pre_bill: () => 'printed',
+    transfer_table: live(({ orderId, toTable }: any = {}) => ({
+      orderId: orderId ?? 1,
+      fromTable: 1,
+      toTable: toTable ?? 2,
+      kitchenSlip: 'nothing_to_print',
+      transferSlip: 'printed',
+    })),
+
+    // Till discount (manager + PIN): the order after the change; specs that
+    // look at the cart afterwards override list_cart_lines / get_order.
+    apply_discount: () => ({ order: DEFAULT_ORDER, kitchenSlip: 'nothing_to_print', registrationError: null }),
+    remove_discount: () => ({ order: DEFAULT_ORDER, kitchenSlip: 'nothing_to_print', registrationError: null }),
+
+
+    // Staff badges: the state lives in `window.__badge` (see `badgeInit`).
+    get_badge_settings: live(() => {
+      const b = (window as any).__badge;
+      return b
+        ? b.settings
+        : { reader: 'off', loginEnabled: false, wedgeMaxGapMs: 150, wedgeMinLen: 6, wedgeMaxLen: 32, relinkNeeded: false };
+    }),
+    set_badge_settings: live((args: any = {}) => {
+      const w = window as any;
+      w.__badge = w.__badge ?? { settings: {}, badges: [], log: [], taps: [], linkReject: null };
+      w.__badge.settings = { ...w.__badge.settings, ...args.input, relinkNeeded: false };
+      w.__badge.log = [
+        { action: 'settings', insz: null, name: null, by: '94060242576', byName: 'Bruno Moyse', at: '2026-10-17 12:10:00', detail: null },
+        ...w.__badge.log,
+      ];
+      return w.__badge.settings;
+    }),
+    list_badges: live(() => {
+      const b = (window as any).__badge;
+      return { badges: b ? b.badges : [], log: b ? b.log : [] };
+    }),
+    link_badge: live((args: any = {}) => {
+      const w = window as any;
+      const b = w.__badge;
+      if (b && b.linkReject) return Promise.reject(b.linkReject);
+      const name = (b && b.names && b.names[args.employeeInsz]) || args.employeeInsz;
+      const at = '2026-10-17 12:15:00';
+      if (b) {
+        b.badges = b.badges.concat([{ insz: args.employeeInsz, name, linkedAt: at, linkedBy: '94060242576', linkedByName: 'Bruno Moyse' }]);
+        b.log = [{ action: 'link', insz: args.employeeInsz, name, by: '94060242576', byName: 'Bruno Moyse', at, detail: null }, ...b.log];
+      }
+      return { insz: args.employeeInsz, name, linkedAt: at };
+    }),
+    revoke_badge: live((args: any = {}) => {
+      const b = (window as any).__badge;
+      if (b) {
+        b.badges = b.badges.filter((x: any) => x.insz !== args.employeeInsz);
+        b.log = [{ action: 'revoke', insz: args.employeeInsz, name: null, by: '94060242576', byName: 'Bruno Moyse', at: '2026-10-17 12:20:00', detail: 'manager' }, ...b.log];
+      }
+      return null;
+    }),
+    badge_tap: live(() => {
+      const b = (window as any).__badge;
+      const step = b && b.taps.shift();
+      if (step && step.reject) return Promise.reject(step.reject);
+      return { kind: 'ignored', insz: null, name: null, at: null, error: null, user: null, ...(step ?? {}) };
+    }),
 
     // Social (S) and financial (F) events
     work_in: () => ({ success: true, error: null }),
     work_out: () => ({ success: true, error: null }),
-    list_open_shifts: () => [],
+    // Presence registered by a manager: the open shifts live in the page
+    // (`window.__shifts`, seeded by `shiftsInit`), so clock-in then out
+    // shows in the next `list_open_shifts`.
+    list_open_shifts: live(() => {
+      return ((window as any).__shifts ?? []).slice();
+    }),
+    clock_in_employee: live((args: any = {}) => {
+      const w = window as any;
+      w.__shifts = (w.__shifts ?? []).concat([
+        { userInsz: args.employeeInsz, startedAt: '2026-10-17T12:02:00+02:00' },
+      ]);
+      return { success: true, error: null };
+    }),
+    clock_out_employee: live((args: any = {}) => {
+      const w = window as any;
+      w.__shifts = (w.__shifts ?? []).filter((s: any) => s.userInsz !== args.employeeInsz);
+      return { success: true, error: null };
+    }),
+    end_shift: () => ({ success: true, error: null }),
+    user_activity: () => null,
     money_in_out: () => ({ success: true, error: null }),
     open_drawer_fiscal: () => ({ success: true, error: null }),
 
@@ -227,13 +466,24 @@ function defaultHandlers(): Record<string, Handler> {
       success: true, ticket: null, error: null, fdm_connected: true,
       fiscal_event_id: 9, delivery: null, kitchen_slip: 'printed',
     }),
-    // A healthy FDM: a blocking status covers the sales screens with a
-    // veil (FdmAlerts), so FDM specs set their own status.
+    // A healthy FDM, as the engine monitor reports it: a blocking
+    // status covers the sales screens with a veil (FdmAlerts), so FDM
+    // specs set their own health (`fdmMocks`). check_fdm_status stays a
+    // valid command but the UI no longer calls it.
+    fdm_health: () => fdmHealth(),
+    fdm_check_now: () => fdmHealth(),
     check_fdm_status: () => ({ initialized: true, errors: [], warnings: [] }),
 
     // Refund (event N, negative lines)
     list_refundable_events: () => [],
     list_copyable_tickets: () => [],
+    // Payment correction (event F): a cash sale of 52,00 EUR by default.
+    list_sale_payments: () => ({
+      fiscalEventId: 1, ticketNumber: 1, totalCents: 5200,
+      lines: [{ index: 0, paymentType: 'CASH', name: 'Cash', amountCents: 5200, inputMethod: 'MANUAL', amountType: 'PAYMENT', brand: null }],
+      correctable: true, refusal: null, corrected: null,
+    }),
+    correct_payment: () => ({ success: true, error: null }),
     refund_checkout: live(({ delivery }: any = {}) => {
       function maskEmailForMock(email: string): string {
         const at = email.indexOf('@');
@@ -273,6 +523,12 @@ function defaultHandlers(): Record<string, Handler> {
     list_z_reports: () => [],
     needs_z_report: () => false,
     backup_database: () => '/tmp/backup.db',
+    sales_report: ({ fromDate, toDate }: any = {}) => ({
+      from: fromDate, to: toDate, generatedAt: '2026-10-17T18:30:00+02:00', businessDate: '2026-10-17',
+      days: [], openPeriod: false, byProduct: [], byHour: [],
+      priceChangesCents: 0, roundingCents: 0, refundsCents: 0, ticketCount: 0, totalCents: 0,
+    }),
+    print_sales_report: () => undefined,
 
     // Copy (event C)
     copy_ticket: live(({ delivery }: any = {}) => {
@@ -302,10 +558,102 @@ function defaultHandlers(): Record<string, Handler> {
     }),
     list_fiscal_events: () => [],
 
+    // B2B invoices and Peppol: nothing to invoice and no Peppol unless a spec says so.
+    list_invoiceable_sales: () => [],
+    list_invoices: () => [],
+    search_b2b_customers: () => [],
+    list_peppol_deliveries: () => ({
+      configured: false, provider: null, senderId: null, queued: 0, accepted: 0, failed: 0, deliveries: [],
+    }),
+
     // Ticket delivery (paper / email / both)
     check_mail_status: () => ({ configured: false, reachable: false, allowDigitalOnly: false }),
     list_ticket_deliveries: () => [],
     print_missing_original: () => undefined,
+
+    // Menu editor (manager only): an empty, unmanaged menu unless a spec says otherwise
+    menu_admin_get: () => MENU_ADMIN_EMPTY,
+    menu_save_category: () => ({ id: 1, menu: MENU_ADMIN_EMPTY }),
+    menu_save_product: () => ({ id: 1, menu: MENU_ADMIN_EMPTY }),
+    menu_save_modifier_group: () => ({ id: 1, menu: MENU_ADMIN_EMPTY }),
+    menu_save_modifier: () => ({ id: 1, menu: MENU_ADMIN_EMPTY }),
+    list_menu_changes: () => [],
+
+    // Nightly export (manager only): not configured unless a spec says otherwise
+    export_status: () => EXPORT_STATUS_DISABLED,
+    export_run_now: () => EXPORT_STATUS_DISABLED,
+
+    // Not linked unless a spec answers `check_payment_terminal` (overrides / overrideIPC).
+    check_payment_terminal: () => ({ configured: false, kind: null, connected: false, busy: false, detail: null }),
+
+    // Card payments charged and not yet settled by a sale: none unless a spec overrides it.
+    list_unsettled_card_payments: () => [],
+
+    // Linked card terminal: none unless a spec overrides get_settings.paymentTerminal.
+    // The commands follow the script of `eftScript` (window.__eft), else approve.
+    list_eft_payments: live((args: any = {}) => {
+      const e = (window as any).__eft;
+      if (!e) return [];
+      return Object.values(e.payments).filter(
+        (p: any) =>
+          p.order_id === args.orderId && !p.used &&
+          (p.status === 'approved' || p.status === 'sent' || p.status === 'unknown'),
+      );
+    }),
+    eft_abort: live(() => {
+      const e = (window as any).__eft;
+      if (e) {
+        e.aborted = true;
+        if (e.release) e.release();
+      }
+      return undefined;
+    }),
+    eft_pay: live((args: any = {}) => {
+      const e = (window as any).__eft;
+      function make(step: any, id: number) {
+        const ok = step.status === 'approved';
+        return {
+          id, order_id: args.orderId, amount_cents: args.amountCents, status: step.status,
+          card_type: ok ? 'debit' : null, brand: ok ? (step.brand ?? 'Bancontact') : null,
+          terminal_reference: ok ? `T-${id}` : null, authorisation_code: ok ? 'A1' : null,
+          masked_pan: ok ? 'XXXX XXXX XXXX 1234' : null, meal_voucher: ok && ['Edenred', 'Pluxee', 'Monizze', 'Payflip'].includes(step.brand), detail: step.detail ?? null,
+          created_at: '2026-10-12 10:00:00', used: false,
+        };
+      }
+      if (!e) return make({ status: 'approved' }, 1);
+      const step = e.pay.shift() ?? { status: 'approved' };
+      e.payCalls.push({ orderId: args.orderId, amountCents: args.amountCents });
+      if (step.reject) return Promise.reject(step.reject);
+      const id = e.nextId++;
+      if (step.hold) {
+        // The terminal waits for the card until eft_abort (or a test) releases it.
+        return new Promise((resolve) => {
+          e.release = () => {
+            e.release = null;
+            const after = step.afterAbort ?? { status: 'cancelled' };
+            e.payments[id] = make(after, id);
+            resolve(e.payments[id]);
+          };
+        });
+      }
+      e.payments[id] = make(step, id);
+      return e.payments[id];
+    }),
+    eft_check: live((args: any = {}) => {
+      const e = (window as any).__eft;
+      const known = e ? e.payments[args.id] : null;
+      const step = (e && e.check.shift()) || { status: 'approved' };
+      const ok = step.status === 'approved';
+      const base = known ?? { id: args.id, order_id: 1, amount_cents: 0, created_at: '2026-10-12 10:00:00', used: false };
+      const next = {
+        ...base, status: step.status,
+        card_type: ok ? 'debit' : null, brand: ok ? (step.brand ?? 'Bancontact') : null,
+        terminal_reference: ok ? `T-${args.id}` : null, authorisation_code: ok ? 'A1' : null,
+        masked_pan: ok ? 'XXXX XXXX XXXX 1234' : null, meal_voucher: ok && ['Edenred', 'Pluxee', 'Monizze', 'Payflip'].includes(step.brand), detail: step.detail ?? null,
+      };
+      if (e) e.payments[args.id] = next;
+      return next;
+    }),
 
     // Settings
     get_settings: () => ({
@@ -316,10 +664,58 @@ function defaultHandlers(): Record<string, Handler> {
       printerAddress: null,
       trainingMode: false,
       language: 'fr',
+      posSwVersion: 'pili-pos/1.0.0',
       configProblems: [],
     }),
     set_training_mode: () => undefined,
     new_booking_period: () => undefined,
+
+    // Table plan: 1 to 20 until a spec changes it.
+    get_table_plan: () => ({ plan: '1-20', table_count: 20, log: [] }),
+    set_table_plan: (args: any) => ({ plan: args.plan, table_count: 0, log: [] }),
+
+    // Owner alerts: off, no token, until a spec says otherwise.
+    get_owner_alerts: () => ({
+      enabled: false, chat_id: '', label: '', language: 'fr',
+      kinds: { fdm: true, printer: true, terminal: true, z_missing: true, online_waiting: true },
+      z_deadline_hour: 5, online_wait_minutes: 5, reminder_minutes: 60,
+      token_configured: false,
+    }),
+    set_owner_alerts: (args: any) => ({ ...args.input, token_configured: false }),
+    send_test_alert: () => ({ sent: true, detail: 'ok' }),
+    list_owner_alert_log: () => [],
+
+    // Courses: off until a spec says otherwise.
+    get_course_settings: () => ({ enabled: false, category_courses: [] }),
+    set_course_settings: live((args: any) => args.input),
+    set_line_course: () => null,
+    list_held_courses: () => [],
+    send_next_course: () => ({ course: null, signed: null, slip: 'nothing_to_print' }),
+    reprint_course_slip: () => 'printed',
+
+    // Gift vouchers: off until a spec says otherwise.
+    get_gift_voucher_settings: () => ({ enabled: false, validity_months: 12, max_amount_cents: 50000 }),
+    set_gift_voucher_settings: live((args: any) => args.input),
+    add_gift_voucher_line: (args: any) => ({
+      id: 900, order_id: args.orderId, menu_item_id: 990001, quantity: 1,
+      unit_price_cents: args.amountCents, vat_code: 'X', name: 'Bon cadeau', modifiers_json: null,
+      created_at: '2026-10-17T10:00:00+02:00', department_id: 'GV', department_name: 'Bon cadeau',
+    }),
+    lookup_gift_voucher: live(() => { throw 'gift_voucher_not_found'; }),
+    list_gift_vouchers: () => [],
+    print_gift_voucher: () => 'printed',
+
+    // The 14 EU allergens: the legend, and an undeclared product by default.
+    list_allergens: () => ALLERGEN_LEGEND,
+    set_allergens: live(() => true),
+    get_allergen_sheet: live((args: any) => ({
+      lang: args?.lang ?? 'fr',
+      products: [{
+        id: args?.menuItemId ?? 1, name: 'Maki saumon x8', name_fr: 'Maki saumon x8',
+        declared: false, contains: [], traces: [], options: [],
+      }],
+    })),
+    print_allergen_sheet: () => 'printed',
 
     // HubRise: switched on by default (the webshop specs use it).
     get_integrations: () => ({ hubrise_enabled: true, online_orders_open: 0, hubrise_log: [] }),
@@ -505,6 +901,63 @@ export async function ipcCalls(page: Page, cmd: string): Promise<any[]> {
   );
 }
 
+/** One scripted answer of the terminal. */
+export interface EftStep {
+  status: 'approved' | 'declined' | 'cancelled' | 'unknown' | 'sent';
+  brand?: string;
+  detail?: string;
+  /** `eft_pay` rejects with this error (nothing was charged). */
+  reject?: string;
+  /** `eft_pay` waits (the terminal waits for the card) until `eft_abort`. */
+  hold?: boolean;
+  /** With `hold`: what the abort ends with (default cancelled). */
+  afterAbort?: EftStep;
+}
+
+/** A payment already known to the engine (crash recovery). */
+export interface EftKnown {
+  id: number;
+  order_id: number;
+  amount_cents: number;
+  status: 'approved' | 'unknown' | 'sent';
+  brand?: string | null;
+}
+
+/**
+ * The terminal's scripted answers: `pay` for each `eft_pay` in turn,
+ * `check` for each `eft_check`, `known` for payments that already exist
+ * (`list_eft_payments`). Call before the page loads.
+ */
+export async function eftScript(
+  page: Page,
+  script: { pay?: EftStep[]; check?: EftStep[]; known?: EftKnown[] },
+) {
+  await page.addInitScript((s) => {
+    const payments: Record<number, unknown> = {};
+    for (const k of s.known ?? []) {
+      const ok = k.status === 'approved';
+      payments[k.id] = {
+        ...k, card_type: ok ? 'debit' : null, brand: ok ? (k.brand ?? 'Bancontact') : null,
+        terminal_reference: ok ? `T-${k.id}` : null, authorisation_code: null, masked_pan: null,
+        meal_voucher: ok && ['Edenred', 'Pluxee', 'Monizze', 'Payflip'].includes(k.brand), detail: null, created_at: '2026-10-12 09:00:00', used: false,
+      };
+    }
+    (window as any).__eft = {
+      pay: [...(s.pay ?? [])], check: [...(s.check ?? [])], payments, nextId: 100,
+      payCalls: [], release: null, aborted: false,
+    };
+  }, script);
+}
+
+/** The settings of a till with a linked card terminal (or training). */
+export function settingsWith(over: Record<string, unknown>) {
+  return () => ({
+    posId: 'CPOS0031234567', terminalId: 'POS-1-BAR', restaurantName: 'The FPS Finances Experience',
+    fdmUrl: 'http://localhost:8081/graphql', printerAddress: null, trainingMode: false,
+    language: 'fr', posSwVersion: 'pili-pos/1.0.0', configProblems: [], ...over,
+  });
+}
+
 /** PIN typed by `tapUserTile` (the mocked `login` accepts any). */
 export const TEST_PIN = '1234';
 
@@ -549,4 +1002,4 @@ export async function loginAndGoto(page: Page, hashRoute: string) {
 }
 
 // Re-export fixtures for direct use in tests.
-export { DEFAULT_USER, DEFAULT_USER_WITH_PIN, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CART_LINE };
+export { MENU_ADMIN_EMPTY, EXPORT_STATUS_DISABLED, DEFAULT_USER, DEFAULT_USER_WITH_PIN, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CART_LINE };

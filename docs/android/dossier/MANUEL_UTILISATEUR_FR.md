@@ -1,0 +1,1753 @@
+<!-- Dérivé de docs/SUBMISSION_ARTIFACTS/MANUEL_UTILISATEUR_FR.md @ 86088e4 -->
+# Manuel utilisateur - pili-pos-android v1.0.0
+
+**Produit :** pili-pos-android 1.0.0 (posSwVersion pili-pos-android/1.0.0)
+**Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
+
+Ce manuel s'adresse au personnel de salle et de caisse qui utilise
+`pili-pos-android` au quotidien : connexion, prise de commande,
+addition, encaissement, copies, remboursements, rapports, mouvements de
+caisse et mode formation, ainsi que les écrans propres au terminal
+Android (à propos, export pour le SPF, mise à jour, export nocturne).
+Les libellés cités entre guillemets sont ceux de l'écran, en français
+(l'interface existe aussi en anglais et en chinois, §12.2). Les écrans
+correspondants figurent dans `CAPTURES_ECRAN_FR.pdf` : chaque renvoi
+"(capture ...)" du manuel désigne une page de ce
+fichier, réalisé sur le terminal D3 Pro émulé (AVD `sunmi_d3_pro_gms_api33`).
+
+## Sommaire
+
+1. Profils : qui peut faire quoi
+2. Démarrage, connexion et PIN
+3. Pointage d'arrivée et de départ (événement S)
+4. L'écran de commande ; 4 bis. Allergènes, service en plusieurs temps et bons cadeaux
+5. Tables, à emporter, prise de commande et produit épuisé (§5.4)
+6. Commande enregistrée et addition (événements P)
+7. Encaissement (vente, événement N)
+8. Copie de ticket (événement C) ; 8 bis. Facture à un client professionnel (événement I)
+9. Remboursement
+9 bis. Corriger un moyen de paiement (événement F) ; 9 ter. Remboursement et bons cadeaux
+10. Rapports X et Z (événements R) et rapport de ventes (§10.4)
+11. Mouvements de caisse, tiroir et comptage (événements F)
+12. Configuration (Gérant), dont la carte et le panneau Peppol (§12 bis) et les fonctions du propriétaire (§12 ter)
+13. Mode formation (événements T)
+14. Que faire en cas de problème
+
+---
+
+## 1. Profils : qui peut faire quoi
+
+Chaque employé a un profil, choisi par le Gérant à la création de son
+compte (§12.3). Le POS n'affiche que les boutons autorisés, et la caisse
+refuse de toute façon une action interdite au profil
+(`PROFILS_UTILISATEURS_FR.md` §3).
+
+| Action | Apprenti | Serveur | Gérant |
+|---|:-:|:-:|:-:|
+| Se connecter, pointer, prendre des commandes, "Envoyer en cuisine" | ☑ | ☑ | ☑ |
+| Changer son propre PIN | ☑ | ☑ | ☑ |
+| Commandes en ligne : "Préparer", "Prête", "Retarder" (§12.8) | ☑ | ☑ | ☑ |
+| Changer une commande de table (§5.1 bis) | ☑ | ☑ | ☑ |
+| Imprimer l'addition, encaisser, "Imprimer le ticket" (§7.3) | - | ☑ | ☑ |
+| Commandes en ligne : "Accepter", "Refuser", "Terminer", "Encaisser espèces", "Encaisser carte", "Clôturer" | - | ☑ | ☑ |
+| Rapports X / Z, copies, remboursements, corrections de paiement (§9 bis), mouvements de caisse, tiroir, comptage du tiroir | - | - | ☑ |
+| Déclarer un produit épuisé, le remettre en vente (§5.4) | - | ☑ | ☑ |
+| Établir une facture à un client professionnel (§8 bis, par "Rapports") | - | ☑ | ☑ |
+| Rapport de ventes (§10.4), édition de la carte et panneau Peppol (§12 bis) | - | - | ☑ |
+| Clôturer une vente sans paiement (client parti sans payer, §7.5, avec son PIN) | - | - | ☑ |
+| Commandes en ligne : "Rembourser" | - | - | ☑ |
+| Mode formation, employés (ajouter, "Désactiver", PIN des autres), HubRise (activer, catalogue, canaux), configuration | - | - | ☑ |
+| Lecteur de badges (réglages, §12.13), lier ou retirer le badge d'un employé (§12.3, avec son PIN) | - | - | ☑ |
+| Se connecter ou pointer avec un badge (§2.1, §3), si le Gérant a activé le lecteur ; le Gérant garde toujours son PIN | ☑ | ☑ | ☑ (pointage seul) |
+| "Export nocturne", "À propos", "Export pour le SPF", "Mise à jour" (§12.9 à §12.12) | - | - | ☑ |
+
+## 2. Démarrage, connexion et PIN
+
+Le terminal est une caisse dédiée : à l'allumage, il démarre seul sur
+pili-pos-android, en plein écran, et ne laisse lancer aucune autre
+application. Aucune intervention n'est nécessaire. Pendant le
+démarrage, l'écran affiche "Démarrage de la caisse…".
+
+### 2.1 Se connecter
+
+L'écran de connexion est coupé en deux.
+
+- À gauche, le panneau "Démarrage" donne l'état des appareils : "FDM"
+  ("connecté", "avertissement" ou "hors ligne"), "Imprimante ticket"
+  et "Imprimante cuisine" ("prête", "injoignable" ou "non configuré"),
+  "Terminal de paiement" (seulement si un terminal est relié à la
+  caisse : "connecté", "paiement en cours" ou "injoignable"),
+  "HubRise" (seulement s'il est activé : "connecté" ou "non connecté")
+  et "Email tickets" ("joignable", "injoignable" ou "non configuré"). Le
+  nom de l'établissement et l'identifiant du terminal sont en bas, avec
+  la version du logiciel ("Version pili-pos-android/<numéro>").
+- À droite, "Qui êtes-vous ?" affiche une tuile par employé (initiale,
+  nom, profil) et son état : "en service · 11:42" ou "hors service".
+
+```
+┌─────────────────────────┬────────────────────────────────────┐
+│ Démarrage               │ Qui êtes-vous ?                    │
+│  ● FDM        connecté  │  ┌────────┐ ┌────────┐ ┌────────┐  │
+│  ● Imprimante ticket    │  │ G      │ │ S      │ │ A      │  │
+│    prête                │  │ Gérant │ │ Serveur│ │Apprenti│  │
+│  ● Imprimante cuisine   │  │ en     │ │ hors   │ │ hors   │  │
+│    prête                │  │ service│ │ service│ │ service│  │
+│  ● Email tickets        │  └────────┘ └────────┘ └────────┘  │
+│    non configuré        │  [Autre personne (INSZ)]           │
+│ Restaurant Exemple POS1 │                                    │
+└─────────────────────────┴────────────────────────────────────┘
+```
+
+(capture A01 : écran de connexion ; capture A99 : ligne "Terminal de paiement"
+avec un terminal relié et connecté).
+
+En bas à droite des tuiles, trois boutons "Français", "English" et
+"中文" changent la langue de l'interface avant la connexion. Le choix
+est conservé sur la caisse ; il se règle aussi dans la Configuration
+(§12.2).
+
+1. Toucher sa tuile.
+2. Si l'employé a un PIN, un pavé "Code PIN" s'affiche à droite : taper
+   les 4 chiffres. La connexion part d'elle-même au 4e chiffre
+   ("connexion au 4ᵉ chiffre"). Le pavé a une touche pour effacer le
+   dernier chiffre et une touche "C" pour tout effacer.
+   (capture A02 : pavé du code PIN).
+3. Un PIN erroné affiche "PIN incorrect" et vide le pavé ; "Retour"
+   revient aux tuiles.
+
+"Autre personne (INSZ)" permet de se connecter en tapant son numéro
+INSZ (11 chiffres) puis "Connexion" ("Retour" revient aux tuiles). Si ce
+compte a un PIN, le pavé du PIN s'affiche ensuite, comme depuis la
+tuile. (capture A03 : saisie de l'INSZ).
+
+L'identité système `00000000029` (rapport Z automatique) n'a pas de
+tuile et ne peut pas se connecter.
+
+**Connexion par badge (si le Gérant l'a activée, §12.13).** Quand le
+réglage « Connexion par badge » est actif, l'écran de connexion affiche
+"Ou présentez votre badge". Un Serveur ou un Apprenti présente son badge
+(carte ou porte-clés) sur le lecteur : la session s'ouvre sans PIN, comme
+par la tuile, et l'arrivée est pointée de la même façon (§3). Pour un
+**Gérant**, le badge ne fait que choisir son compte : le pavé "Code PIN"
+s'affiche pour lui et son PIN reste obligatoire (aucune action de Gérant
+n'est possible avec un badge seul). Un badge inconnu, retiré ou illisible
+donne un message rouge (§14.1) et personne n'est connecté. Le PIN et la
+tuile restent toujours utilisables : un employé qui n'a pas de badge, qui
+l'a oublié ou qui refuse d'en porter un se connecte comme avant. Un
+employé "Présence seule" ne se connecte jamais : son badge enregistre
+seulement sa présence (§3).
+
+**Première connexion d'un Gérant.** Un Gérant doit avoir un PIN. Ce
+choix à l'écran de connexion n'existe qu'à la toute première mise en
+service, tant qu'aucun Gérant n'a de PIN : toucher sa tuile ouvre
+"Choisissez votre PIN" ; taper un PIN de 4 chiffres, puis une seconde
+fois ("Confirmer le PIN"). La session s'ouvre et "PIN enregistré"
+s'affiche. Si les deux saisies diffèrent, "Les PIN ne correspondent pas"
+s'affiche et personne n'est connecté. Le PIN est ensuite demandé à chaque
+connexion. Dès qu'un Gérant a un PIN, un autre Gérant sans PIN ne peut
+plus le choisir lui-même : la caisse répond "Un gérant doit choisir le
+PIN de ce compte dans Paramètres." et un Gérant déjà connecté le fixe
+(§2.2, §12.3). (capture A04 : choix du PIN à la première connexion; capture A07 : refus du second Gérant sans PIN).
+
+### 2.2 Le PIN
+
+Un Gérant a toujours un PIN. Un Serveur ou un Apprenti peut se connecter
+sans PIN, mais alors n'importe qui peut ouvrir sa session en touchant
+sa tuile. Tant qu'il n'a pas de PIN, un avertissement s'affiche à sa
+connexion : "PIN non configuré : touchez votre nom en haut de l'écran".
+
+- **Son propre PIN** : sur l'écran de commande, toucher son nom dans
+  l'en-tête (il porte la mention "PIN"). Taper le nouveau PIN ("Saisir
+  le PIN"), puis une seconde fois ("Confirmer le PIN"). S'ils diffèrent,
+  "Les PIN ne correspondent pas" s'affiche et rien n'est enregistré.
+  Sinon, "PIN modifié". (capture A05 : changement de son propre PIN).
+- **Le PIN d'un autre employé** (Gérant) : bouton "Config", puis le bouton
+  "Code PIN" sur la ligne de l'employé (§12.3). Le Gérant tape d'abord
+  le nouveau PIN de l'employé (deux fois), puis la caisse demande
+  "Confirmez avec votre PIN de gérant" : le Gérant tape son propre PIN.
+  Sans ce PIN, rien n'est enregistré.
+
+Le PIN est enregistré sous forme de hachage (bcrypt), jamais en clair.
+
+**Verrou après des PIN erronés.** Après 5 PIN incorrects de suite pour un
+même employé (à la connexion ou lors d'une confirmation par PIN), la
+caisse refuse tout essai, même avec le bon PIN, pendant 30 secondes. Elle
+affiche "Trop de PIN incorrects : réessayez dans {seconds} s.", avec le
+temps restant. Chaque nouvel échec double l'attente, jusqu'à 15 minutes.
+Un PIN correct remet le compteur à zéro. Un redémarrage de la caisse le
+remet aussi à zéro. (capture A06 : verrou après des PIN erronés).
+
+### 2.3 Verrouiller, fin de service et verrouillage automatique
+
+- "Verrouiller" (en haut à droite) ferme la session et revient à l'écran
+  de connexion. L'employé **reste en service** : sa tuile affiche "en
+  service". Quand il se reconnecte, aucune nouvelle arrivée n'est
+  pointée. (capture A08 : retour à la connexion, tuile "en service").
+- Après **5 minutes sans toucher l'écran**, la caisse se verrouille
+  d'elle-même, de la même façon. L'employé reste en service.
+- Le départ de l'employé se signe uniquement depuis l'écran de connexion
+  ("Fin de service", §3).
+  Avec un lecteur de badges actif, après avoir touché "Fin de service",
+  l'écran dit "Présentez votre badge pour terminer le service" : le badge
+  de l'employé signe le départ à la place du PIN (§3).
+
+Dans les deux cas de verrouillage, la commande en cours est d'abord
+enregistrée auprès du FDM (§6.1). Le terminal reste en mode caisse
+dédiée : verrouiller la session ne donne accès à aucune autre
+application ni aux réglages de l'appareil.
+
+## 3. Pointage d'arrivée et de départ (événement S)
+
+- **À la connexion**, la caisse enregistre l'arrivée de l'employé
+  (événement S, `signWorkIn`), sauf s'il est déjà "en service" (écran
+  seulement verrouillé). Il n'y a pas de bouton.
+- **À la fin de service**, le départ (événement S, `signWorkOut`) se
+  signe sur l'écran de connexion : toucher sa tuile (elle indique "en
+  service"), toucher "Fin de service", puis taper son PIN ("le code PIN
+  termine le service"). La caisse signe le départ, ferme la session et
+  affiche "Service terminé · <nom>". La tuile repasse à "hors service".
+  Un employé sans PIN touche sa tuile puis "Fin de service" sans PIN.
+  (capture A09 : fin de service).
+- "Verrouiller" et le verrouillage automatique ne pointent **pas** le
+  départ (§2.3).
+- **Pour le personnel qui n'utilise pas la caisse** (cuisine, plonge), le
+  Gérant enregistre l'arrivée et le départ dans "Config", panneau
+  "Employés" (§12.3) : un seul bouton par employé, "Arrivée" ou "Départ".
+  Le même événement S est signé, au nom de l'employé.
+- **Avec un badge** (si le Gérant a activé le lecteur, §12.13) : présenter
+  son badge sur le lecteur, **depuis n'importe quel écran**, enregistre
+  l'arrivée de son titulaire s'il n'est pas en service, ou son départ
+  s'il l'est. L'employé qui est en train d'utiliser la caisse n'est pas
+  déconnecté : le badge d'un collègue (cuisine, plonge, ou tout autre
+  employé) se présente pendant qu'un Serveur travaille. Le même événement
+  S est signé par le FDM, au nom du titulaire du badge. La caisse montre
+  un message vert "Arrivée · <nom> · 14:02" ou "Départ · <nom> · 14:02"
+  (heure de Bruxelles) et joue un double son aigu ; tout refus ou échec
+  donne un message rouge et un son grave. Sur l'écran de connexion en
+  mode "Fin de service" (§2.3), le badge signe seulement le départ, sans
+  ouvrir de session. Règles :
+  - le badge de l'employé connecté est refusé ("Votre arrivée et votre
+    départ se font à la connexion et par « Fin de service »") : sa
+    présence passe par la connexion et "Fin de service" ;
+  - **un second passage du même badge dans les 10 secondes est ignoré**,
+    sans message : un badge oublié sur le lecteur ou un double geste ne
+    pointe jamais l'arrivée puis le départ ;
+  - si le FDM ne répond pas ou refuse, la caisse affiche "Pointage refusé
+    · <nom> : <texte du FDM>" et rien n'est enregistré ; repasser le
+    badge quand le voyant "FDM" est vert (la présence n'est jamais
+    enregistrée en différé) ;
+  - en **mode formation** (§13), le pointage par badge est refusé ("Mode
+    formation : le pointage d'un employé est impossible. Quittez le mode
+    formation.") parce qu'un événement d'entraînement n'enregistre aucune
+    présence ; la connexion par badge reste possible ;
+  - sur un écran de connexion en mode "Fin de service", un employé qui
+    n'est pas en service reçoit "Cet employé n'est pas en service".
+
+Si le FDM ne répond pas, la connexion ou la fin de service se fait quand
+même, mais un message rouge l'indique : "Pointage non enregistré", suivi
+de la raison. Prévenir le Gérant pour qu'il régularise.
+(capture A94 : message Pointage non enregistré).
+
+## 4. L'écran de commande
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│ FDM ● Ticket ● Cuisine ●  Marie · PIN   Table 4   14:05           │
+│     [Tables] [À emporter] [Rapports] [Config] [Verrouiller]       │
+├───────────────────────────────────────────┬───────────────────────┤
+│ [Makis] [Plats chauds] [Boissons] ...     │ Commande · Table 4    │
+│                                           │ 14:05 · 12 min        │
+│ ┌────────┐ ┌────────┐ ┌────────┐ ┌──────┐ │ Saumon roll x8  8,50  │
+│ │Saumon  │ │Califor.│ │Sashimi │ │Coca  │ │   [-] 1 [+]      [x]  │
+│ │roll x8 │ │roll x8 │ │mix     │ │33cl  │ │ Pas encore en cuisine │
+│ │ 8,50 € │ │ 9,00 € │ │14,00 € │ │3,50 €│ │ Coca 33cl       3,50  │
+│ └────────┘ └────────┘ └────────┘ └──────┘ │   [-] 1 [+]      [x]  │
+│                                           │ 12,00 €   TVA ...     │
+│                                           │ [Envoyer en cuisine 1]│
+│                                           │ [Addition]            │
+│                                           │ [PAYER        12,00 €]│
+└───────────────────────────────────────────┴───────────────────────┘
+```
+
+(capture A10 : écran de commande).
+
+L'en-tête montre en permanence :
+
+- les voyants des appareils : **FDM** (la "boîte noire"), **Ticket**
+  (imprimante de tickets), **Cuisine** (imprimante du bar ou de la
+  cuisine), **Terminal** (le terminal de paiement relié, seulement s'il
+  y en a un) et **HubRise** (seulement s'il est activé). Vert : tout va
+  bien. Orange ou rouge : un problème. Gris : appareil non configuré. Le
+  FDM est interrogé toutes les 30 secondes (moins souvent tant qu'il ne
+  répond pas) ; son message en clair s'affiche dans un bandeau sous
+  l'en-tête (ex. "Connexion perdue avec la boîte noire. Vérifiez le
+  câble réseau."). Les imprimantes et le terminal de paiement sont
+  vérifiés toutes les 30 secondes (le voyant "Terminal" est orange
+  pendant qu'un paiement est en cours sur le terminal, et rouge quand le
+  terminal ne répond pas). Cette vérification ne débite jamais rien et
+  ne dérange pas un paiement en cours (capture A100 : voyant "Terminal"
+  vert ; capture A102 : voyant orange pendant un paiement) ;
+- le nom de l'employé connecté, son profil et "PIN" (le toucher pour
+  changer son PIN, §2.2), puis la table ("Table 4") ou "À emporter", et
+  l'heure ;
+- les boutons "Tables", "À emporter", "En ligne" (seulement si HubRise
+  est activé), "Rapports" et "Config" (ces deux derniers pour le Gérant
+  seulement) et "Verrouiller".
+
+**Rappel du rapport Z** : un bandeau "Rapport Z non effectué
+aujourd'hui" s'affiche sur l'écran de commande quand une journée est
+ouverte et qu'il est plus de 22 h, ou qu'une journée précédente est
+restée ouverte (§10.2). (capture A95 : bandeau Rapport Z non effectué aujourd'hui ; capture A122 : même mention sur l'écran des rapports). L'onglet "Journée" des rapports affiche aussi
+"Rapport Z pas encore fait aujourd'hui".
+
+## 4 bis. Allergènes, service en plusieurs temps et bons cadeaux à l'écran de commande
+
+**Allergènes.** Les produits et les options portent des pastilles numérotées (numéro de l'annexe II du règlement
+(UE) n° 1169/2011, six au plus sur un produit puis « +n »). Le bouton « Allergènes » active un mode où toucher un
+produit ouvre sa fiche au lieu de l'ajouter à la commande : « Contient », « Traces possibles », les options, une
+légende des 14 numéros, et deux boutons « Imprimer cette fiche » et « Imprimer la carte complète ». Un produit sans
+déclaration affiche « Information non disponible, demandez au responsable », jamais « Aucun allergène ». Le mode
+« Allergènes » et le mode « Épuisé » (§5.4) s'excluent : en allumer un éteint l'autre. Voir *ALLERGENES_FR.md*. (capture A188 : mode « Allergènes » avec la légende et les pastilles ; capture A189 : fiche d'un produit.)
+
+**Service en plusieurs temps** (si un Gérant l'a activé, §12 ter.2). Le panier est groupé par temps (Direct, Entrées,
+Plats, Desserts) et chaque ligne porte une pastille qui permet de changer son temps tant que le ticket de cuisine ne
+l'a pas portée. « Envoyer en cuisine » imprime le Direct et les entrées ; le bouton « Envoyer la suite (Plats) »
+imprime ensuite le temps suivant. Le plan des tables indique « Suite : Plats » sur une table qui retient un temps.
+À l'encaissement, un avertissement (« Suite non envoyée : Plats ») propose « Envoyer maintenant » : la caisse
+n'imprime jamais un temps toute seule. Si le module fiscal ne répond pas, « Envoyer la suite » est refusé et rien
+n'est imprimé. Voir *SERVICES_CUISINE_FR.md*. (Captures : A137 panier groupé par temps ; A153 choix du temps d'une ligne ; A154 « Suite envoyée : Plats » ; A139 plan des tables avec « Suite : Plats ».)
+
+**Bon cadeau** (si un Gérant l'a activé, §12 ter.3). Le bouton « Bon cadeau » demande le montant (de 1,00 € au
+maximum réglé) et ajoute au panier une ligne « Bon cadeau » avec la pastille « Bon » à la place des boutons de
+quantité (un bon par ligne ; la ligne peut être retirée avant la vente). Aucune remise, aucun « Offert » et aucune
+« Note » sur cette ligne. Une commande qui vend un bon se règle en espèces ou par carte, jamais avec des
+chèques-repas ni un bon cadeau, et ne peut pas être clôturée sans paiement. Après la vente, le bon s'imprime ;
+si l'impression échoue, l'écran de fin de vente le dit (« Bon non imprimé : le réimprimer depuis Rapports, Bons
+cadeaux »). Une vente qui vend un bon ne peut pas être facturée à un client professionnel (§8 bis). Voir
+*BONS_CADEAUX_FR.md*. (Captures : A193 montant du bon ; A171 ligne « Bon » du panier ; A172 fin de vente, « Bon imprimé ».)
+
+## 5. Tables, à emporter, prise de commande et produit épuisé (§5.4)
+
+### 5.1 Choisir une table
+
+"Tables" affiche le plan des tables (c'est le premier écran après la
+connexion). Une table **libre** porte la
+mention "Libre". Une table **occupée** affiche son total, son nombre
+d'articles et depuis combien de minutes elle est ouverte ("3 art. · 12
+min"), et la mention "Addition" quand l'addition provisoire a été
+imprimée. (capture A11 : plan des tables). Tant qu'un paiement par carte
+accepté sur le terminal relié n'est pas enregistré dans la vente de sa
+commande, la table porte la pastille "Carte encaissée" (capture A105).
+
+- Toucher une table libre ouvre une nouvelle commande pour cette table.
+- Toucher une table occupée reprend sa commande en cours, avec tous ses
+  articles dans le panier. Une table n'a jamais qu'une seule commande
+  ouverte.
+
+### 5.1 bis Changer de table
+
+Une commande ouverte, déjà servie en salle, peut passer à une **autre
+table libre** (client qui change de place, tables regroupées).
+
+- Dans la commande : touchez « Changer de table » (en haut du panier),
+  choisissez la table libre, puis « Valider ».
+- Sur le plan des tables : touchez « Déplacer une table », puis la table
+  occupée, puis la table libre, et confirmez par « Valider » (« Retour »
+  annule).
+
+Ce que fait la caisse : les articles pas encore envoyés en cuisine sont
+d'abord enregistrés sur l'ancienne table, puis le déplacement est signé
+(événement P, « changement de centre de coût »). La commande garde son
+contenu et sa référence ; aucun argent ne bouge. Un bon « TRANSFERT DE
+TABLE » (« Table 4 -> Table 9 », sans prix) sort à l'imprimante du bar.
+« Commande déplacée vers la table N » confirme.
+(Captures : A136 bouton « Changer de table » ; A138 choix de la table libre ; A140, A141 et A142 déplacement depuis le plan des tables ; A139 plan après le transfert.)
+
+Refus : une table qui a déjà une commande en cours n'est pas
+fusionnée (« Cette table a déjà une commande en cours : choisissez une
+table libre ») ; seule une commande en salle, avec au moins un article,
+peut changer de table. Si le FDM ne répond pas, le déplacement reste
+en attente et est repris comme une vente (§7.4) ; la table ne change
+qu'à la signature.
+
+### 5.2 Vente à emporter
+
+"À emporter" (en-tête) ouvre une commande sans table. L'addition (§6.2)
+n'existe pas pour une commande à emporter : on encaisse directement.
+
+Une vente à emporter est une vente directe : quitter la commande avant
+de l'encaisser n'enregistre rien auprès du FDM (pas d'événement P). La
+commande reste en cours, listée sur l'écran "Tables" sous "À emporter en
+cours" ("Commencée à 14:05", nombre d'articles, total) ; la toucher la
+reprend. "Nouvelle vente à emporter" en ouvre une autre. Elle se termine
+par l'encaissement (§7) ou, si le client est parti sans payer, par une
+vente sans paiement (§7.5). (capture A12 : ventes à emporter en cours).
+
+### 5.3 Ajouter, modifier, retirer
+
+- Choisir une catégorie dans la barre du haut, puis toucher un article :
+  il s'ajoute au panier (à droite).
+- Dans le panier, "+" ajoute une unité et "−" en retire une, sans
+  descendre sous 1. Pour retirer une ligne, toucher la croix à sa
+  droite.
+- **Remise (Gérant, code PIN)** : le panier propose « Remise » (sur
+  toute la commande) et, sur une ligne, « Offrir ». « Remise » ouvre la
+  fenêtre « Remise » : choisir « % » (raccourcis 5, 10, 15, 20
+  et 50 %), « Montant » (à taper comme sur un terminal de paiement) ou
+  « Offert », puis un motif (« Geste commercial », « Repas du personnel »,
+  « Problème de service », « Autre ») et, si besoin, une précision libre de 120
+  caractères au plus. L'aperçu montre le total après remise ; « Appliquer la remise »
+  demande le code PIN d'un Gérant. Le panier, l'écran de paiement et le
+  ticket affichent alors le prix net, avec une ligne « Remise » sous la
+  ligne concernée. « Retirer la remise » (même code PIN) annule la
+  remise. Une seule remise s'applique à la fois (retirer l'actuelle avant d'en
+  poser une autre) ; elle ne peut pas dépasser le total, et un article
+  offert garde sa ligne à 0,00 sur le ticket. Une ligne remisée n'est
+  plus fusionnée avec une nouvelle unité du même article. Sur une
+  commande déjà enregistrée en salle (§6), la remise est signée
+  tout de suite (événement P) ; si le FDM ne répond pas, un avertissement
+  s'affiche et l'envoi est refait à la commande suivante. Le motif reste dans
+  le journal local de la caisse et n'est jamais envoyé au FDM. Les
+  remises d'une commande en ligne viennent de la plateforme (§12.8).
+  (Captures : A143 remise en pourcentage ; A144 remise en montant ; A145 « Offert » ; A146 confirmation par PIN ; A147 panier remisé ; A150 « Offrir la ligne » ; A151 ligne offerte ; A152 remise et ligne offerte ; A155 addition remisée ; A156 paiement d'une commande remisée.)
+- **Note pour la cuisine** : chaque ligne du panier a un bouton « Note »
+  (tout le personnel). Il ouvre la fenêtre « Note pour la cuisine » avec le
+  clavier du terminal : taper la note (« sans wasabi », « allergie
+  arachide »), 60 caractères au plus, le compteur affiche « n/60 », puis
+  « Valider ». Une note vide efface la note. La fenêtre rappelle quand la
+  note sort : « Imprimée en cuisine avec la commande » si la ligne n'est
+  pas encore partie, « Imprimée en cuisine maintenant » si elle est déjà
+  en cuisine (un bon « MODIFICATION » sort aussitôt sur l'imprimante de la
+  cuisine). La note s'affiche en italique sous le nom de l'article. Seuls
+  les caractères que l'imprimante sait imprimer sont acceptés (lettres
+  latines, chiffres, accents, ponctuation usuelle) : une note en chinois
+  est refusée (« La note a un caractère que l'imprimante de cuisine ne sait
+  pas imprimer »). Ajouter le même article à une ligne qui porte une note
+  crée une nouvelle ligne, pour que « un avec, un sans » restent deux
+  lignes. La note ne figure sur aucun ticket TVA, addition ou copie et
+  n'est jamais envoyée au FDM. (Captures : A148 fenêtre « Note pour la cuisine » ; A149 note sous le nom de la ligne.)
+- **Prix libre** : certains articles n'ont pas de prix fixe (ex. "Plat
+  du jour"). En les touchant, la fenêtre "Prix libre" demande le
+  prix : taper les chiffres comme sur un terminal de paiement
+  (2 0 0 0 = 20,00 €), puis "Valider" ("Retour" annule).
+  (capture A14 : fenêtre Prix libre).
+- **Options** : quand HubRise est activé (§12.7), un article qui a des
+  groupes d'options ouvre la fenêtre "Options". Chaque groupe indique sa
+  règle : "Choisir {min}", "{min} à {max}", "Jusqu'à {max}" ou
+  "Facultatif". Un groupe à un seul choix remplace la sélection
+  précédente ; les autres se cochent. "Ajouter" (avec le prix) reste
+  grisé tant qu'un minimum n'est pas atteint ; un maximum ne peut pas
+  être dépassé. Le prix des options s'ajoute à celui de l'article et
+  figure dans le nom de la ligne. Sans option à choisir, l'article
+  s'ajoute directement. (capture A15 : fenêtre Options ; capture A120 : groupe facultatif).
+
+**Annulation.** Avant l'encaissement, retirer la ligne suffit. Une fois
+la vente signée, elle ne se modifie plus : l'annuler, c'est la
+rembourser (§9).
+
+**Épuisé et facture.** Un produit déclaré épuisé ne s'ajoute plus
+(§5.4). Une facture à un client professionnel s'établit après la vente
+(§8 bis) ; le ticket de caisse reste le document remis au comptoir.
+
+Le panier affiche en permanence le total et le détail de la TVA par
+taux. (capture A13 : panier rempli).
+
+### 5.4 Produit épuisé
+
+Réservé au Serveur et au Gérant. Sur l'écran de commande, le bouton
+"Épuisé" active le mode : toucher un produit ouvre une fenêtre à trois
+choix, "Épuisé jusqu'à la fin de la journée", "Épuisé jusqu'à
+réactivation" et "Disponible". Hors du mode, un produit épuisé est grisé
+et porte la pastille "Épuisé" ; le toucher affiche "Ce produit est
+épuisé." et rien n'est ajouté. Le bouton "Produits épuisés (n)" liste
+les produits concernés, et "Remettre en vente" en rend un disponible.
+Si la caisse est reliée à HubRise, l'état est transmis au stock en
+ligne. La fonction ne produit aucun ticket et ne modifie aucun rapport
+(`PRODUIT_EPUISE_FR.md`). (Captures : A179 mode « Épuisé » ; A180 choix de disponibilité ; A181 produit refusé ; A182 liste « Produits épuisés ».)
+
+## 6. Commande enregistrée et addition (événements P)
+
+### 6.1 Envoyer en cuisine et enregistrement de la commande
+
+Dans une commande de table, les articles pas encore transmis sont listés
+sous la mention **"Pas encore en cuisine"**. "Envoyer en cuisine"
+(avec le nombre d'articles concernés) les enregistre auprès du FDM
+(événement P, `signOrder`) et imprime un **bon de commande** pour le bar
+ou la cuisine, sans quitter la table. "Envoyé en cuisine · n articles"
+confirme. (capture A16 : Envoyé en cuisine).
+
+La même chose se produit **dès que l'on quitte la commande d'une table**
+(jamais pour une vente à emporter, §5.2) : "Tables", "À emporter",
+"Rapports", "Config", "Verrouiller" ou verrouillage automatique. Les
+articles retirés entre-temps sont enregistrés aussi, comme corrections.
+
+Le bon de commande ("BON DE COMMANDE") ne liste que les lignes qui
+viennent d'être enregistrées, pour les articles marqués "cuisine" au
+catalogue ; il ne porte pas de prix et la mention "CECI N'EST PAS UN
+TICKET DE CAISSE T.V.A. VALABLE". Il sort sur
+l'imprimante de la cuisine si elle est configurée, sinon sur celle des
+tickets. Pour une vente à emporter, le bon sort à l'encaissement.
+
+La note d'une ligne (§5.3) s'imprime sur le bon, en retrait sous l'article
+(« > sans wasabi »), sans prix. Une note écrite, changée ou effacée après
+l'envoi de la ligne sort sur son propre bon « MODIFICATION » : le nom de
+l'article et « Note : ... » (ou « Note supprimee »), sans quantité ni
+prix, avec la mention « CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+VALABLE ». Ce n'est pas une commande et aucun événement n'est envoyé au
+FDM. Si ce bon ne s'imprime pas, le message « Bon de commande non
+imprimé » s'affiche ; valider de nouveau la même note le réimprime.
+
+Si l'impression du bon échoue, la commande est quand même enregistrée et
+le message "Bon de commande non imprimé : prévenez le bar ou la cuisine."
+s'affiche : prévenir le bar ou la cuisine de vive voix.
+
+Si le FDM ne répond pas, le message "Commande non enregistrée par le
+FDM" s'affiche et l'on reste sur la commande ; réessayer une fois le
+FDM revenu. Rien n'est perdu : ce qui n'a pas pu être envoyé part au
+prochain enregistrement, à l'addition ou à l'encaissement.
+
+### 6.2 Addition
+
+"Addition" (Serveur et Gérant, commandes en salle avec au moins un
+article) imprime l'addition provisoire à présenter au client
+(événement P, `signPreBill`) et enregistre d'abord ce qui n'était pas
+encore transmis. "Addition provisoire imprimée" confirme ; en cas
+d'échec, "Addition non enregistrée" suivi de la raison.
+
+L'addition est marquée "**PRO FORMA**" et "**CECI N'EST PAS UN TICKET
+DE CAISSE T.V.A. VALABLE**". Elle porte les données de contrôle du FDM
+(identifiant, date, compteurs), mais ni QR code ni signature courte :
+le FDM ne les donne qu'aux ventes (N). Elle ne clôture pas la table.
+(capture A17 : addition provisoire imprimée).
+
+## 7. Encaissement (vente, événement N)
+
+"PAYER" (Serveur et Gérant) ouvre l'écran de paiement, qui affiche le
+total à payer. Les trois moyens de paiement ("Espèces", "Carte",
+"Chèques-repas") sont côte à côte, l'espèces étant choisie d'office.
+(capture A18 : écran de paiement).
+
+### 7.1 Choix du support du ticket (si activé sur ce terminal)
+
+Quand le ticket numérique est configuré (`MANUEL_INSTALLATION_FR.md`
+§4.2), trois boutons apparaissent sur la ligne "Ticket" :
+
+- **Papier** (choix par défaut).
+- **E-mail** : le ticket part par e-mail seulement. Ce bouton n'apparaît
+  que si l'installateur l'a autorisé et que le service d'envoi répond.
+- **Les deux** : le papier sort, et l'e-mail part en plus.
+
+(capture A19 : choix du support du ticket).
+
+"E-mail" ou "Les deux" ouvre un clavier ("Adresse e-mail du client")
+avec des raccourcis (`.be`, `.com`, `@gmail.com`). Une adresse mal
+formée est signalée ("Adresse invalide"). (capture A20 : clavier Adresse e-mail du client).
+Un écran "Confirmer
+l'adresse" l'affiche ensuite en grand : la faire relire au client si
+possible, puis "Confirmer l'adresse" ("Modifier" pour corriger,
+"Annuler" pour revenir au papier). (capture A21 : écran Confirmer l'adresse).
+
+Si le service d'envoi ne répond pas, la caisse le dit ("Service e-mail
+indisponible : le ticket papier sera imprimé, l'e-mail sera envoyé dès
+que possible").
+
+Sans ticket numérique configuré, ces boutons n'apparaissent pas : le
+ticket est imprimé.
+
+### 7.2 Paiement
+
+Une vente se paie en un ou plusieurs moyens de paiement, **sur un seul
+ticket** (un seul événement N, même payée en plusieurs parts).
+
+- **Espèces** : taper le montant reçu sur le pavé ("Montant reçu"), ou
+  toucher "Exact" ou un raccourci de billet. La caisse affiche le montant
+  à rendre ("Rendu"). Le montant en espèces est **arrondi aux 5 cents**
+  (règle belge) ; le montant exact avant arrondi reste affiché
+  ("exact 3,34 · arrondi 5 cts"). "Valider". (capture A22 : paiement en espèces).
+- **Carte** : le pavé propose le montant à payer ; le laisser ou taper
+  un montant plus petit (jamais plus que le reste : "Plus que le reste à
+  payer"). Sans terminal de paiement relié à la caisse : encaisser ce
+  montant sur le terminal de paiement ("Encaisser sur le terminal"), qui
+  n'est pas relié à la caisse, puis "Valider" une fois le paiement
+  accepté. Avec un terminal relié, voir "Carte sur le terminal relié"
+  ci-dessous. Pas d'arrondi pour une carte.
+- **Chèques-repas** (chèques-repas électroniques, payés sur le terminal
+  de paiement) : comme la carte, pour le montant payé en chèques-repas.
+  Pas d'arrondi, pas de rendu sur des chèques-repas.
+
+**Carte sur le terminal relié (si l'installation en a un).** Quand le
+terminal de paiement est relié à la caisse (réglage de l'installation :
+section `payment_terminal` du fichier `pos.json` du lot de mise en
+service, `MANUEL_INSTALLATION_FR.md` §4.2, « Terminal de paiement par
+carte relié »), l'opérateur ne tape plus la carte : la caisse envoie le montant
+au terminal et reçoit sa réponse. La caisse montre aussi si le terminal
+relié est joignable : le voyant "Terminal" de l'en-tête (§4) et la ligne
+"Terminal de paiement" du panneau "Démarrage" (§2.1). Cette vérification
+se contente de demander au terminal s'il répond : elle ne débite jamais
+rien, elle n'est jamais faite pendant un paiement (le voyant est alors
+orange) et elle n'empêche pas de se connecter ni de vendre. Le type de
+terminal relié figure dans Configuration, "Informations" (§12.4,
+capture A111).
+
+Captures : A101 (choix "Terminal" ou "Saisie manuelle"), A125 (carte de
+chèques-repas acceptée : « Part 1 · Chèques-repas · Edenred » avec la
+pastille « Accepté »), A102 (fenêtre
+"Paiement sur le terminal"), A107 (paiement refusé), A108 (réponse
+inconnue et bouton "Vérifier"), A109 et A110 (paiement à vérifier, puis
+accepté après "Vérifier"), A103 et A104 (carte acceptée mais vente non
+enregistrée car la boîte noire ne fonctionne plus).
+
+1. Choisir "Carte" (le choix "Terminal" est actif, l'écran indique "Le
+   montant est envoyé au terminal à la validation"), laisser ou taper le
+   montant (comme ci-dessus), puis toucher "Valider". Une fenêtre
+   "Paiement sur le terminal" s'ouvre avec le montant et le message "Le
+   client présente sa carte sur le terminal". La caisse n'envoie le
+   montant que si le FDM est opérationnel à cet instant : sinon rien
+   n'est débité.
+2. Le terminal répond. Paiement accepté : la fenêtre se ferme et la part
+   est prise, avec le type de carte et la marque que le terminal rend
+   (la marque s'imprime sur le ticket, par exemple "Carte Bancontact").
+   Paiement refusé ou abandonné par le client : la fenêtre le dit
+   ("Paiement refusé", "Rien n'a été débité.") et l'opérateur peut
+   recommencer ou prendre un autre moyen de paiement.
+3. "Annuler" dans la fenêtre demande au terminal d'abandonner le
+   paiement en cours. Si le terminal l'avait déjà accepté, c'est lui qui
+   l'emporte : le paiement accepté reste, il faut l'utiliser.
+4. Si la réponse du terminal est inconnue (câble ou réseau coupé,
+   terminal éteint, panne de courant de la caisse), la fenêtre affiche
+   "Réponse du terminal inconnue" : un débit est peut-être passé. **Tant
+   que la réponse n'est pas connue, la vente de cette commande est
+   bloquée.** Toucher "Vérifier" redemande le résultat au terminal (tout
+   utilisateur peut le faire) ; la ligne du paiement passe alors à
+   accepté, refusé ou reste inconnue. Après un redémarrage de la caisse,
+   un paiement envoyé et sans réponse devient lui aussi "inconnu" et se
+   vérifie de la même façon.
+5. Un paiement accepté **doit être utilisé par la vente** de sa commande,
+   pour son montant exact : la caisse refuse de signer la vente autrement
+   et le reste à payer se prend par un autre moyen (espèces,
+   chèques-repas, ou une autre carte). Si la boîte noire cesse de
+   fonctionner juste après l'acceptation, la part reste prise, le message
+   de la boîte noire s'affiche et "Valider" signe la vente dès que le FDM
+   répond de nouveau.
+6. Si le terminal est injoignable et que rien n'a été débité, l'opérateur
+   peut aussi saisir la carte à la main, comme sans terminal relié
+   (choix "Saisie manuelle" pour la part carte, paiement tapé sur le
+   terminal, puis "Valider") : la ligne est alors `MANUAL`. Ce repli est
+   refusé tant qu'un paiement de cette commande attend sa réponse ou
+   qu'un paiement accepté n'est pas encore utilisé par la vente.
+
+Une carte de chèques-repas (Edenred, Pluxee, Monizze, Payflip) se paie
+elle aussi avec "Carte" quand un terminal est relié : la caisse la
+reconnaît à la marque que le terminal rend et l'enregistre comme
+chèques-repas. La part s'affiche alors "Chèques-repas · Edenred", le
+ticket imprime "Chèques-repas Edenred" (la copie aussi), et les rapports
+comptent ces montants avec les chèques-repas saisis à la main (une seule
+rangée). Le bouton "Chèques-repas" reste la saisie manuelle (chèques
+papier ou terminal autonome). Les cartes éco-chèques, cadeau, sport ou
+culture ne sont pas des chèques-repas : elles ne sont pas reconnues
+comme telles et restent des cartes.
+
+Tant qu'un paiement accepté n'est pas enregistré dans la vente de sa
+commande, la table ou la vente à emporter porte la pastille "Carte
+encaissée" (capture A105), et la clôture Z (§10.2) le signale ; la
+commande ne peut alors pas descendre sous le montant déjà débité.
+
+**Partager la note en parts égales.** Sous les moyens de paiement, la
+ligne "Partager en" propose 1 à 5 "parts égales". Les centimes de reste
+vont aux premières parts. Le choix se fait avant le premier paiement. Une
+pastille par part ("Part 1", "Part 2"...) indique le moyen et le montant,
+avec une coche une fois la part prise. Le bouton devient "Valider part
+n" ; chaque part se paie par le moyen de son choix (par exemple une part
+en espèces et l'autre par carte). La vente n'est signée qu'une fois la
+dernière part validée, sur **un seul ticket**.
+(capture A23 : paiement partagé en parts).
+
+**Une seule part en espèces** au plus : une fois qu'une part est payée en
+espèces, le bouton "Espèces" est grisé et la caisse rappelle "Une part
+est déjà payée en espèces : les autres se paient par carte ou
+chèques-repas." Les espèces prennent ce qui reste après les parts payées
+par carte ou chèques-repas.
+
+Tant qu'il reste un montant, chaque paiement pris s'affiche avec son
+montant et la caisse affiche le "Reste à payer". La vente est signée dès que le reste est payé.
+(capture A24 : reste à payer). Exemple : 14,86 € payés 11,52 € en
+chèques-repas, puis 3,34 € en espèces, encaissés 3,35 € (arrondi
++0,01 €).
+
+"Annuler les paiements" (qui remplace "Retour" dès qu'un paiement est
+pris) efface les paiements pris tant que la vente n'est pas signée (rien
+n'est encore enregistré ; rembourser au client ce qui a déjà été passé
+sur le terminal).
+
+Le ticket liste chaque moyen de paiement et son montant, puis
+l'arrondi des espèces.
+
+"Communication FDM..." s'affiche pendant la signature. La vente n'est
+enregistrée qu'une fois signée par le FDM.
+
+### 7.2 bis Payer avec un bon cadeau
+
+Si la fonction est active, la méthode « Bon cadeau » ouvre la saisie du code à 12 chiffres sur le pavé
+(« Code du bon (12 chiffres) », puis « Chercher »). La caisse montre le solde, « Valable jusqu'au jj.mm.aaaa » et
+l'état du bon : « Valide », « Épuisé », « Expiré », « Annulé » ou « Non utilisable (autre mode) » (un bon de
+formation ne sert qu'en formation, un bon réel jamais en formation). Seul un bon valide peut être utilisé :
+« Utiliser ce bon » retient le plus petit du solde et du reste à payer ; si le bon vaut plus que la note, le solde
+reste sur le bon (aucune monnaie rendue). Plusieurs bons peuvent payer une même vente, un bon une seule fois par
+vente ; le reste se règle par un autre moyen. Après cinq recherches ratées dans la minute, les recherches sont
+bloquées un instant. Le code n'est jamais affiché en entier : seuls les quatre derniers chiffres le sont. Quand
+un paiement laisse un solde sur un bon, un petit ticket « solde du bon » s'imprime après le ticket de T.V.A.
+(Captures : A173 saisie du code ; A174 bon trouvé et « Utiliser ce bon » ; A175 bon cadeau et espèces sur une même vente ; A176 fin de la vente.)
+
+### 7.3 Fin de la vente
+
+L'écran "OK" rappelle le type de ticket, le total, le rendu éventuel et
+l'identifiant du FDM, puis ce qui est arrivé au ticket :
+
+- "Ticket imprimé" ; écran : (capture A25 : fin de vente, ticket imprimé) ;
+- "Ticket envoyé à j\*\*\*@e\*\*\*.be" (adresse masquée) ; écran :
+  (capture A26 : fin de vente, ticket envoyé par e-mail) ;
+- "E-mail en attente, nouvel essai automatique" : l'envoi n'a pas abouti
+  tout de suite, la caisse réessaie seule. Si le client avait choisi
+  "E-mail" seul et que l'envoi échoue, la caisse imprime le ticket
+  papier à la place : le client repart toujours avec son ticket. Écran
+  du repli : (capture A27 : fin de vente, repli sur le ticket papier ; capture A121 : paiement avec le service d'e-mail indisponible ; capture A117 : "Les deux", e-mail en attente).
+- **"Imprimer le ticket"** : ce bouton apparaît sur cet écran de fin
+  (de vente, de remboursement ou de copie) quand un ticket papier était
+  prévu mais n'a pas pu sortir (ex. papier épuisé). Il est réservé au
+  Serveur et au Gérant. La caisse reconstitue le ticket original à partir
+  de l'archive du FDM et l'imprime, **une seule fois**. Elle refuse si
+  l'original est déjà imprimé ("Le ticket original est déjà imprimé :
+  imprimez une copie.") ou si le ticket a été envoyé par e-mail ("Le
+  ticket a été envoyé par e-mail : imprimez une copie."). Le bouton
+  n'existe que sur cet écran : après "Terminer", il disparaît. Pour toute
+  autre reproduction, faire une copie (§8). Écran :
+  (capture A28 : fin de vente avec le bouton Imprimer le ticket).
+
+Le tiroir-caisse s'ouvre quand une partie est payée en espèces (jamais
+pour une carte ou des chèques-repas seuls). La table redevient libre.
+"Terminer" revient à la prise de commande.
+
+### 7.4 Si le FDM ne répond pas
+
+Sans FDM, **aucune vente n'est possible**. Un voile rouge couvre les
+écrans de vente (tables, commande, paiement) avec le message du FDM et le
+bouton "Réessayer maintenant" ; la caisse réessaie aussi seule ("nouvel
+essai automatique dans {s} s", de moins en moins souvent, jusqu'à 5
+minutes). "Rapports" et "Config" restent accessibles au Gérant. Rien
+n'est enregistré, la commande reste ouverte, le tiroir reste fermé.
+(capture A29 : voile rouge, FDM indisponible).
+
+Vérifier le câble réseau et l'alimentation du FDM, que la caisse reste
+connectée au réseau de l'établissement, puis réessayer.
+Appeler le distributeur si le problème persiste. Ne jamais encaisser en
+dehors de la caisse. Les messages du FDM et de la caisse sont réunis
+dans la table du §14.1.
+
+Si le message est "La caisse attend la réponse de la boîte noire pour
+l'opération précédente. Vérifiez la connexion et réessayez.", la
+dernière opération a été envoyée au FDM mais sa réponse n'est pas
+revenue. Rien n'est perdu : la caisse la renvoie seule toutes les
+minutes, et toute nouvelle opération la renvoie d'abord. Vérifier le
+câble et l'alimentation du FDM, attendre une minute, puis réessayer. Ne
+pas refaire la vente à la main. Tant que cette réponse est attendue, la
+commande concernée ne peut pas être modifiée ("Cette commande attend la
+réponse de la boîte noire : elle ne peut pas changer pour l'instant.").
+Si le message persiste, appeler le distributeur.
+
+Si le FDM répond autre chose que ce qui lui a été demandé, la caisse
+refuse l'opération : "Réponse de la boîte noire incohérente. Vente non
+enregistrée. Contactez votre technicien." Rien n'est enregistré.
+
+Le message "La caisse enregistre une autre opération : réessayez dans un
+instant." apparaît si la caisse a attendu environ 30 secondes derrière
+une autre opération (par exemple la clôture automatique de la
+journée) : réessayer.
+
+### 7.5 Client parti sans payer
+
+Réservé au Gérant. Quand un client part sans payer, ce qui a été servi
+est tout de même vendu : la commande ne doit pas rester ouverte.
+
+1. Ouvrir la commande (la table, ou l'emporter en cours).
+2. Dans le panier, toucher "**Client parti sans payer**".
+3. Confirmer avec son PIN ("La vente sera enregistrée sans paiement et
+   son ticket imprimé. Confirmez avec votre PIN.").
+   (capture A30 : confirmation par PIN de la vente sans paiement).
+
+Le FDM signe la vente (événement N) sans aucun paiement. Le ticket de
+caisse TVA est imprimé, avec "**Non paye**" à la place des paiements.
+Le tiroir ne s'ouvre pas et aucun paiement n'est compté dans les
+rapports ; le chiffre d'affaires, lui, compte la vente. La table
+redevient libre ("Vente clôturée sans paiement"). (capture A31 : vente clôturée sans paiement).
+
+Une vente sans paiement ne se rembourse pas (rien n'a été encaissé : "Cette
+vente n'a pas été payée : rien à rembourser.") et n'apparaît pas dans la
+liste des remboursements. Sa copie (§8) est possible. Un PIN erroné est
+refusé ("PIN incorrect") et rien n'est enregistré ; une commande à
+0,00 € s'encaisse normalement ("Rien à payer : encaissez la vente
+normalement."). En mode formation, la vente est une vente de formation
+(T).
+
+## 8. Copie de ticket (événement C) ; 8 bis. Facture à un client professionnel (événement I)
+
+Réservé au Gérant. Pour un client qui a perdu son ticket ou son e-mail,
+ou qui demande un double :
+
+1. "Rapports", onglet "Tickets". La liste "Tickets récents" montre les
+   derniers tickets remis à un client : ventes, remboursements,
+   additions et tickets de formation, avec leur numéro, leur type ("Vente",
+   "Remboursement", "Addition", "Formation"), la table, l'heure et le
+   montant ("Choisissez un ticket pour en faire une copie ou le
+   rembourser."). (capture A32 : onglet Tickets).
+2. Toucher "Copie" sur la ligne du ticket, choisir le support (Papier /
+   E-mail / Les deux, §7.1) puis "Valider". "Retour" annule.
+   (capture A33 : copie, choix du support).
+3. "Communication FDM..." s'affiche, puis l'écran de résultat ; "Terminer"
+   ferme la fenêtre.
+
+La copie est signée par le FDM (événement C) et marquée "**COPIE**" et
+"**CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE**". Un e-mail de copie
+ne contient ni lien ni QR code : le FDM n'en donne pas pour une copie.
+C'est la **seule** façon de reproduire un ticket déjà remis : la caisse
+n'imprime jamais un original deux fois.
+
+Un rapport Z se recopie depuis "Réimprimer un Z" (§10.3).
+
+## 8 bis. Facture à un client professionnel (événement I)
+
+Réservé au Serveur et au Gérant pour l'établir ; l'écran y mène par
+"Rapports", réservé au Gérant. Une facture regroupe une ou plusieurs
+ventes déjà signées :
+
+1. "Rapports", onglet "Tickets" : cocher les ventes concernées, puis
+   toucher "Facture". Une vente déjà facturée porte son numéro de
+   facture et ne peut plus être cochée.
+2. Saisir le numéro de TVA du client et toucher "Vérifier", ou chercher
+   un client connu par son nom. Un numéro inconnu ouvre un formulaire
+   (nom, adresse, code postal, ville, pays). Une pastille indique si le
+   client est inscrit sur Peppol, non inscrit ou inconnu (réseau absent).
+3. Contrôler l'aperçu (client, lignes, TVA par taux, total, "déjà
+   payé"), puis toucher "Établir et imprimer la facture". Le FDM signe
+   la facture ; le numéro (année et séquence continue) et l'état de
+   l'impression s'affichent. Un problème détecté (vente déjà facturée,
+   formation, vente qui vend un bon cadeau : « invoice_gift_voucher_sale »,
+   la ligne du bon est hors champ de T.V.A. et ne se facture pas ; une vente
+   payée avec un bon se facture normalement) bloque la signature et le
+   message l'explique ; un client
+   belge sans Peppol sur la caisse est refusé à la signature.
+
+La facture s'imprime sur papier, sans signature ni QR code. Elle ne
+s'établit pas en mode formation. Sous la liste des tickets, le tableau
+des factures indique pour chacune l'état de l'envoi Peppol ("en
+attente", "remise", "bloquée" ou aucun envoi) et propose "Copie" au
+Gérant. Si la caisse est configurée pour Peppol et que le client est
+belge, la facture est envoyée automatiquement, avec nouvel essai
+automatique en cas de panne ; sans réseau, la facture est quand même
+établie et imprimée. Si la caisse n'est pas configurée pour Peppol, une
+facture à un client dont le numéro de TVA commence par BE est refusée
+("Ce client a un numéro de TVA belge : la facture doit passer par
+Peppol, qui n'est pas configuré sur cette installation. Contactez le
+support.") : rien n'est signé et la vente reste facturable. Un client
+étranger reçoit la facture imprimée. Un envoi bloqué se relance depuis le panneau
+Peppol de "Config" (§12 bis). Détails : `FACTURATION_PEPPOL_FR.md`.
+(Captures : A162 vente cochée ; A163 client ; A192 client belge, Peppol inconnu ; A165 aperçu ; A166 refus faute de Peppol ; A167 facture établie ; A168 liste des factures.)
+
+## 9. Remboursement
+
+Réservé au Gérant. Un remboursement annule tout ou partie d'une vente
+déjà signée ; c'est la seule façon d'annuler une vente après coup.
+
+1. "Rapports", onglet "Tickets". Toucher "Rembourser" sur la ligne de la
+   vente à rembourser (seules les ventes ont ce bouton).
+2. "Articles à rembourser" : la fenêtre liste chaque **ligne du ticket
+   d'origine**. Toucher chaque ligne concernée, et ajuster la quantité
+   avec "-" / "+" (jamais plus que la quantité vendue). Tout cocher
+   rembourse le ticket entier ; une partie seulement fait un
+   remboursement partiel. Le bouton "Rembourser" affiche le montant à
+   rendre en espèces, arrondi aux 5 centimes ("Rembourser 3,05 €" pour
+   un Coca Cola de 3,04) ; le total est repris sous "À rembourser en
+   espèces". Si le montant d'une ligne ne peut pas être calculé à
+   l'écran, la fenêtre indique "Montant calculé par le moteur à la
+   signature." et le montant exact figure sur le ticket.
+   (capture A34 : sélection des articles à rembourser).
+3. Étape du support du ticket (§7.1) : choisir Papier / E-mail / Les
+   deux, puis "Rembourser" avec le montant de nouveau. "Retour" revient
+   à la sélection des articles.
+   (capture A98 : support du ticket de remboursement).
+4. "Communication FDM...", puis le résultat ; "Terminer" ferme la
+   fenêtre.
+
+Le FDM signe un nouveau ticket (événement N, quantités négatives,
+référence au ticket d'origine) : un ticket de caisse TVA marqué
+"REMBOURSEMENT", qui imprime les données de contrôle du ticket
+d'origine sous « Informations FDM d'origine ». Le ticket d'origine
+n'est jamais modifié. Le tiroir s'ouvre pour rendre les espèces.
+
+Le remboursement est toujours rendu en espèces, quel que soit le moyen
+de paiement de la vente (carte, chèques-repas, plusieurs moyens). Comme
+pour une vente en espèces, le montant rendu est arrondi aux 5 centimes :
+le ticket imprime le montant exact puis une ligne "Arrondi" (3,04
+remboursés : "Espèces -3,04", "Arrondi -0,01", 3,05 rendus).
+
+La caisse refuse :
+
+- de rembourser un remboursement ("Un remboursement ne se rembourse
+  pas.") ;
+- de rembourser plus que ce qui a été vendu ("Produit {produit} :
+  {demandé} demandé(s), {vendu} vendu(s), {remboursé} déjà
+  remboursé(s).") ;
+- de rembourser une vente sans paiement (§7.5) ;
+- de rembourser une vente réelle en mode formation ("Une vente réelle
+  ne se rembourse pas en mode formation.") ;
+- un produit vendu à plusieurs prix sur le même ticket sans que la
+  ligne soit choisie : "Le produit {produit} a été vendu à plusieurs
+  prix : choisissez la ligne à rembourser." (choisir la ligne exacte
+  dans la liste) ; écran :
+  (capture A35 : remboursement d'un produit vendu à plusieurs prix) ;
+- une ligne vendue avec une remise (commande en ligne) : "Ligne vendue
+  avec une remise : remboursez la commande entière." ;
+- de valider sans article choisi ("Choisissez au moins un article à
+  rembourser.").
+
+Si le FDM refuse, rien n'est enregistré et la vente reste remboursable.
+
+Si le FDM ne répond pas, la réponse peut arriver plus tard : la demande de
+remboursement reste en attente et elle est reprise à l'identique au prochain
+essai ou par la tâche de fond (§7.4). Elle n'est archivée qu'une fois, sans
+second ticket, et la vente n'est pas remboursée deux fois.
+
+## 9 bis. Corriger un moyen de paiement (événement F)
+
+Quand une vente a été encaissée avec le mauvais moyen (par exemple en
+espèces alors que le client a payé par carte), le Gérant corrige la
+ligne de paiement sans rembourser.
+
+1. Rapports > « Tickets ».
+2. Sur la vente, touchez « Corriger le paiement ».
+3. Choisissez la ligne de paiement à corriger (une carte prise sur le
+   terminal de paiement lié porte la mention « Terminal » et ne se
+   choisit pas), puis le moyen réel : « Espèces », « Carte » ou
+   « Chèques-repas ».
+4. Le résumé s'affiche (par exemple « Espèces 52,00 € → Carte
+   52,00 € ») ; touchez « Corriger » et saisissez votre PIN.
+
+La caisse signe un événement F qui référence la vente. Aucun ticket ne
+s'imprime et le tiroir ne s'ouvre pas ; « Paiement corrigé » confirme et
+la vente porte désormais la mention « Paiement corrigé : Espèces →
+Carte ». Les rapports X et Z comptent la correction dans les moyens de
+paiement (corrections négatives et positives) et le Z imprimé ajoute une
+ligne « Corrections de paiement ».
+
+Refus (le texte s'affiche dans la fenêtre) :
+
+- seule une vente peut être corrigée (ni remboursement, ni vente non
+  payée, ni commande en ligne) ;
+- la vente doit appartenir à la journée en cours (pas encore clôturée
+  par un Z) ;
+- une vente déjà remboursée, en tout ou en partie, ne se corrige plus ;
+- **une seule correction par vente** ;
+- une carte prise sur le terminal de paiement lié ne se corrige pas ;
+- la ligne « Bon cadeau » ne se corrige pas : l'écran la montre
+  verrouillée, avec une note (§9 ter) ;
+- on ne corrige pas vers « Bon cadeau », et une vente qui vend un bon
+  ne passe pas aux chèques-repas ;
+- le nouveau moyen doit différer de celui de la ligne ;
+- une correction qui demanderait un arrondi en espèces est refusée.
+
+Si le FDM ne répond pas, la réponse peut arriver plus tard : la demande reste en
+attente et la correction est reprise au prochain essai ou par la tâche de fond (§7.4). Le PIN est celui du Gérant connecté.
+Une correction qui demanderait un arrondi en espèces est refusée au moment du PIN : la fenêtre « Saisir le PIN » affiche alors « Cette correction demanderait un arrondi : elle n'est pas possible pour cette vente. ».
+(Captures : A159 et A160 fenêtre « Corriger le paiement » ; A190 vente corrigée ; A191 carte du terminal lié refusée ; A196 refus au pavé du PIN.)
+
+## 9 ter. Remboursement et bons cadeaux
+
+- **Vente d'un bon.** Rembourser la ligne d'un bon qui n'a jamais servi annule ce bon. Un bon déjà utilisé ne se
+  rembourse pas (« gift_voucher_used » : la caisse refuse).
+- **Vente payée avec un bon.** Le bon n'est pas rendu et n'est jamais échangé contre de l'argent : le remboursement
+  de ces marchandises se fait en espèces (choix de l'établissement), avec la confirmation du Gérant, comme pour toute
+  vente ; le bon n'est pas recrédité.
+- **Correction d'un moyen de paiement (§9 bis).** La ligne « Bon cadeau » d'une vente apparaît verrouillée, avec une
+  note : elle ne se corrige pas, on ne corrige pas vers « Bon cadeau », et la ligne d'une vente qui vend un bon ne
+  passe pas aux chèques-repas.
+
+## 10. Rapports X et Z (événements R) et rapport de ventes (§10.4)
+
+Réservé au Gérant : "Rapports". L'écran a quatre onglets : "Journée",
+"Caisse" (§11), "Tickets" (§8, §8 bis, §9) et "Ventes" (§10.4).
+
+### 10.1 Rapports X
+
+Onglet "Journée" :
+
+- "Rapport X" ("Résumé en cours de journée") : chiffre d'affaires, TVA
+  et paiements depuis le dernier Z.
+- "Rapport utilisateurs X" ("Ventes et pointages par employé") : les
+  mêmes chiffres par employé, avec les pointages.
+
+Un rapport X ne clôture rien : il peut être tiré à tout moment, autant
+de fois que nécessaire. Il est signé par le FDM et imprimé ; "Rapport
+généré (X)" confirme. Le résultat du dernier rapport reste affiché dans
+un cadre sous les boutons (le texte de l'erreur s'y affiche en cas de
+refus). (capture A36 : onglet Journée; capture A37 : rapport X généré).
+
+### 10.2 Rapport Z (clôture de la journée)
+
+Onglet "Journée", en bas de l'écran ("La clôture remet les compteurs à
+zéro. Le premier appui arme le bouton, le second dans les 5 secondes
+confirme.") :
+
+1. "Clôturer la journée (Z)". Le bouton affiche alors "Confirmer la
+   clôture ?". (capture A38 : bouton Z armé).
+2. Toucher à nouveau dans les 5 secondes pour clôturer. Sans second
+   appui, ou en changeant d'onglet, le bouton revient à son état normal
+   et rien ne se passe.
+
+Si un paiement par carte a été encaissé sur le terminal relié mais pas
+encore enregistré dans une vente, la caisse l'indique au-dessus du bouton
+("Paiements par carte encaissés mais pas encore enregistrés dans une
+vente : ...", avec la table, le montant et la marque) : le Z reste
+possible, ce paiement sera enregistré avec la vente de sa commande
+(capture A106). Sur l'écran des tables et la liste des ventes à emporter,
+la commande concernée porte la pastille "Carte encaissée" (capture A105).
+
+Le Z est signé par le FDM, imprimé, et "Rapport généré (Z #n)"
+confirme. (capture A39 : rapport Z généré). La journée est close ; la suivante commence au prochain
+enregistrement. Terminer **chaque** journée par un Z.
+
+Une journée restée ouverte au-delà de l'heure de fin de journée du
+terminal (5 h par défaut) est clôturée par un Z automatique. Tant que
+ce Z automatique n'est pas passé, la caisse répond "La journée
+précédente n'est pas clôturée : son rapport Z automatique est en cours.
+Réessayez dans une minute." Un enregistrement dont la journée est déjà
+clôturée est refusé ("La journée de cet enregistrement est déjà
+clôturée : rien n'a été enregistré.").
+
+### 10.3 Réimprimer un Z
+
+La carte "Réimprimer un Z" indique le dernier Z ("Dernier : Z #n ·
+date"). La toucher ouvre "Historique Z" (numéro et date de chaque Z
+passé). "Réimprimer" en produit une copie (événement C, §8) : choisir le
+support, "Valider". (capture A40 : Historique Z).
+
+### 10.4 Rapport de ventes (non fiscal)
+
+Onglet "Ventes", réservé au Gérant. Il présente, pour aujourd'hui, hier,
+la semaine, le mois ou une période saisie (92 jours au plus), les
+ventes par produit (quantité et montant), par heure, le nombre de
+tickets et le total, et la concordance avec le rapport Z de chaque
+journée. Le titre porte "DOCUMENT NON FISCAL" ; "Imprimer" en tire une
+copie papier qui ne signe rien et ne remplace ni le X ni le Z
+(`RAPPORTS_VENTES_FR.md`).
+(Captures : A169 onglet « Ventes » ; A194 période libre.)
+
+### 10.5 Onglet « Bons cadeaux »
+
+Visible si la fonction est active. Serveur et Gérant y cherchent un bon par son code (forme masquée, solde, état,
+validité). Le Gérant voit en plus la liste « Bons émis » (valides d'abord, filtres « Tous », « Valide », « Épuisé »,
+« Expiré », « Annulé »), les mouvements de chaque bon (« Émission », « Utilisation », « Annulation ») et le bouton
+« Réimprimer », qui tire un duplicata marqué DUPLICATA et le journalise. Dans le rapport de ventes (§10.4), la ligne
+de bon figure au rayon « Bons cadeaux » (T.V.A. X) et le total égale celui du rapport Z. (Captures : A177 liste « Bons émis » ; A178 vérification d'un bon.)
+
+## 11. Mouvements de caisse, tiroir et comptage (événements F)
+
+Réservé au Gérant : "Rapports", onglet "Caisse".
+
+### 11.1 Entrée ou sortie d'espèces
+
+L'écran suit trois étapes, puis un "Récapitulatif" :
+
+1. "1 · Sens" : "Entrée" ou "Sortie".
+2. "2 · Motif" : les motifs dépendent du sens. En "Entrée" : "Fond de
+   caisse" ou "Pourboire". En "Sortie" : "Retrait" ou "Pourboire".
+3. "3 · Montant" : "10 €", "20 €", "50 €", "100 €", ou "Autre" pour taper
+   un autre montant ("Autre montant").
+
+Le bouton "Enregistrer l'entrée" (ou "Enregistrer la sortie") reste
+grisé tant qu'aucun montant n'est choisi. Le mouvement
+est signé par le FDM (événement F) ; "Mouvement enregistré" confirme.
+(capture A41 : onglet Caisse, saisie du mouvement; capture A42 : mouvement enregistré).
+
+### 11.2 Ouvrir le tiroir hors vente
+
+"Ouvrir le tiroir" ouvre le tiroir en dehors d'une vente. Chaque
+ouverture est signée par le FDM (événement F) et figure dans les
+rapports ("Tiroir ouvert"). En dehors de ce bouton, le tiroir ne s'ouvre
+que pour un encaissement ou un remboursement en espèces (capture A43 : tiroir ouvert).
+
+### 11.3 Déclarer le contenu du tiroir (comptage)
+
+"Déclarer le tiroir" enregistre le montant d'espèces compté dans le
+tiroir, par exemple en fin de service. La fenêtre "Déclarer le contenu
+du tiroir" ("Montant compté dans le tiroir") demande le montant ; taper
+0 pour un tiroir vide, puis "Valider". La caisse fait signer la
+déclaration par le FDM (événement F, cas d'usage M133) : "Contenu du
+tiroir déclaré" confirme. La déclaration ne modifie aucun solde : elle
+consigne ce que le Gérant a compté. (capture A44 : déclaration du contenu du tiroir).
+
+## 12. Configuration (Gérant), dont la carte et le panneau Peppol (§12 bis)
+
+Le bouton "Config" de l'en-tête ouvre la page Paramètres. Elle regroupe
+le mode formation, la langue, les employés, les informations, les
+intégrations et les envois par e-mail ; sous "Autres réglages", elle
+liste les écrans propres au terminal : "Export nocturne", "À propos",
+"Export pour le SPF" et "Mise à jour" (§12.9 à §12.12).
+(capture A45 : page Paramètres).
+
+### 12.1 Mode formation
+
+Voir §13.
+
+### 12.2 Langue
+
+Français, English ou 中文 : la langue de l'interface et des noms de
+produits à l'écran ("Les noms des produits restent bilingues."). Les
+mentions imprimées sur les tickets suivent la langue de l'établissement
+fixée à l'installation, pas ce choix.
+
+### 12.3 Employés
+
+La liste montre chaque employé (nom, profil, "PIN défini" ou "sans
+PIN") avec deux boutons : (capture A46 : liste des employés).
+
+- **"Arrivée" / "Départ"** (Gérant, pour les autres employés) : la ligne
+  de chaque employé dit "En service depuis HH:MM" ou "Hors service" ; le
+  bouton enregistre son arrivée ou son départ au nom de l'employé
+  (événement S signé par le FDM), puis la caisse affiche "Arrivée
+  enregistrée · <nom>" ou "Départ enregistré · <nom>". Le Gérant n'a pas
+  de bouton sur sa propre ligne : sa présence est celle de la connexion
+  et de "Fin de service" (§3). Les boutons sont grisés, avec la mention
+  "FDM indisponible : pointage impossible", tant que le voyant "FDM"
+  n'est pas vert, et, avec la mention du mode formation, tant que le
+  mode formation est actif. Si le FDM refuse, son message s'affiche et
+  rien n'est enregistré.
+- **"Code PIN"** : fixer ou changer son PIN (§2.2).
+- **"Lier un badge" / "Retirer le badge"** (Gérant, seulement quand le
+  lecteur de badges est actif, §12.13) : la ligne de chaque employé dit
+  "Aucun badge" ou "Badge lié le <date>". "Lier un badge" ouvre la
+  fenêtre "Présentez le badge de <nom>" : présenter le badge sur le
+  lecteur dans les 30 secondes (sans quoi "Aucun badge présenté" et rien
+  n'est lié), puis taper **son propre PIN de Gérant** (un badge sert à se
+  connecter : le Gérant le confirme comme un PIN d'employé). Un PIN erroné
+  laisse la fenêtre ouverte pour un nouvel essai. La caisse affiche "Badge
+  lié · <nom>". N'importe quel employé actif peut recevoir un badge, y
+  compris un employé "Présence seule" (cas courant), mais pas
+  l'identité système ; un employé n'a qu'un badge, et un badge n'appartient
+  qu'à un employé (messages en §14.1). "Retirer le badge" demande une
+  confirmation ("Retirer le badge de <nom> ?") puis affiche "Badge retiré
+  · <nom>" ; le retrait ne demande pas de PIN et marche même lecteur
+  éteint. **Remplacer un badge** (perdu, abîmé) : le retirer, puis lier le
+  nouveau ; le même badge physique peut être relié plus tard. "Désactiver"
+  un employé retire aussi son badge. Chaque lien et chaque retrait sont
+  inscrits dans le journal du panneau "Lecteur de badges" (§12.13).
+- **"Désactiver"** : pour un employé qui quitte l'établissement. Une
+  fenêtre demande confirmation ("Désactiver {nom} ? Cet employé ne
+  pourra plus se connecter.") : "Désactiver" confirme, "Retour" annule.
+  Son historique reste dans l'archive ; il ne peut plus se connecter. On
+  ne peut pas se désactiver soi-même.
+
+"Ajouter" : taper le nom et l'INSZ (11 chiffres), choisir le profil
+(Gérant, Serveur, Apprenti ou "Présence seule"), puis "Ajouter l’employé". Pour un Serveur
+ou un Apprenti, demander ensuite à l'employé de fixer son PIN (§2.2).
+Pour un **nouveau Gérant**, la caisse demande d'abord le PIN du nouveau
+Gérant (deux fois), puis "Confirmez avec votre PIN de gérant" : le
+Gérant qui le crée tape son propre PIN. Le nouveau Gérant a donc son PIN
+dès sa création.
+
+Le profil **"Présence seule"** est pour le personnel qui n'utilise jamais
+la caisse (cuisine, plonge) : pas de PIN, pas de tuile sur l'écran de
+connexion, aucun droit. La ligne affiche "Présence seule" sans bouton
+"Code PIN" (le bouton "Désactiver" reste). Seul le Gérant enregistre son
+arrivée et son départ, avec les boutons ci-dessus, ou l'employé lui-même s'il a un badge (§3). On ne peut pas
+désactiver un employé en service : enregistrer d'abord son départ. Pour
+qu'un employé "Présence seule" devienne un utilisateur de la caisse, le
+désactiver puis le créer à nouveau avec le même INSZ et le profil voulu.
+
+### 12.4 Informations
+
+Identifiant du POS ("POS ID"), "Terminal", "Restaurant", "FDM" (adresse)
+"Imprimante" et, si un terminal de paiement est relié, "Terminal de
+paiement" (type de terminal, capture A111), tels que configurés à
+l'installation (lecture seule).
+
+Si cette configuration contient une erreur que le FDM refuserait (ex.
+un numéro de TVA mal formé), un **bandeau rouge** s'affiche en bas de
+l'écran : "Configuration invalide : le FDM refusera les tickets.
+Appelez l'installateur." suivi de la liste des champs en cause. Chaque ligne dit en français (ou dans la langue de l'écran) quel réglage est en cause, par exemple « Numéro de TVA du restaurant invalide : BE suivi de 10 chiffres (par exemple BE0499999960). », puis, après « Détail : », le texte technique anglais pour l'installateur. Il reste
+affiché tant que l'erreur n'est pas corrigée.
+(capture A47 : configuration invalide).
+
+### 12.5 Tickets par email
+
+Panneau "Tickets par email". Visible dans tous les cas : il indique si
+le service d'envoi est "Configuré" ou "Non configuré", puis "Joignable"
+ou "Injoignable", et liste les derniers envois : adresse **masquée**
+(ex. `j***@e***.be`), statut ("En attente", "Envoi…", "Envoyé", "Échec",
+"Imprimé (secours)", "Purgé"), nombre de tentatives ("Tentatives") et
+dernière erreur. "Actualiser" recharge la liste. (capture A48 : panneau Tickets par email).
+
+L'adresse complète n'est jamais affichée ; elle est effacée dès l'envoi
+réussi, et au plus tard après 72 h (`TICKET_NUMERIQUE_FR.md`).
+
+### 12.6 Assistance à distance
+
+Sans objet sur Android : `pili-pos-android` ne comporte aucun programme
+d'assistance à distance, ni bouton, ni bandeau, ni mot de passe à lire
+au téléphone. Le technicien intervient sur place
+(`PLATEFORME_ANDROID_FR.md` §7).
+
+### 12.7 Intégrations et HubRise
+
+Panneau "Intégrations". Les commandes des plateformes de livraison et
+du webshop ne sont reçues que si HubRise est activé sur cette caisse
+(désactivé à l'installation, sauf demande du client). HubRise est
+inclus dans le programme certifié : seul l'interrupteur décide s'il
+fonctionne. (capture A49 : panneau Intégrations).
+
+- **"Activer" / "Désactiver"** : réservé au Gérant. Chaque changement
+  est inscrit dans "Historique" (date, gérant ou fichier de
+  configuration) et ne peut pas être effacé.
+- Tant qu'une commande en ligne n'est pas terminée, "Désactiver" est
+  refusé et le panneau indique "<n> commande(s) en ligne à terminer".
+
+Une fois HubRise activé, le panneau "HubRise" apparaît dans "Config" :
+
+- **Connexion** : "Se connecter à HubRise". La caisse n'a pas de
+  navigateur : elle affiche un QR code. Le scanner avec un téléphone, se
+  connecter à HubRise, choisir l'établissement, puis taper le code
+  affiché ("Code d'autorisation") et toucher "Valider la connexion". Le
+  panneau indique ensuite "Connecté", le compte, l'établissement et le
+  catalogue ; "Déconnecter" demande d'abord confirmation ("Les
+  commandes en ligne ne seront plus reçues tant que HubRise n'est pas
+  reconnecté.") puis met fin à la connexion.
+  (capture A50 : connexion à HubRise par QR code; capture A51 : HubRise connecté).
+- **Catalogue** : la date de la dernière synchronisation ("Synchronisé
+  …") et "Resynchroniser". Si HubRise refuse un catalogue, "Catalogue
+  refusé : le menu précédent reste en place." et la liste des anomalies
+  s'affichent. À la première connexion, "Reprise du menu" permet au Gérant
+  de cocher les produits locaux qui gardent leur historique, puis
+  "Reprendre le menu" ; les autres sont désactivés. Tant qu'une commande est ouverte, la reprise est refusée avec le message « Clôturez d'abord toutes les commandes ouvertes. » (capture A123).
+- **Menu géré par HubRise** : une fois le catalogue repris, le bandeau
+  "Menu géré par HubRise : les produits se modifient dans HubRise."
+  s'affiche. Les produits se modifient dans HubRise, pas à la caisse.
+- **Canaux** : un canal par plateforme ou par webshop (Plateforme ou
+  Webshop, "Frais inclus" ou "Frais exclus"), avec "Ajouter un canal".
+  Une commande d'un canal inconnu reste bloquée jusqu'à ce que le canal
+  soit enregistré.
+- Le panneau signale aussi une connexion refusée ("HubRise refuse la
+  connexion : reconnectez-vous."), des envois en attente et des messages
+  non traités.
+
+### 12.8 Commandes en ligne
+
+Le bouton "En ligne" de l'en-tête (seulement si HubRise est activé)
+ouvre le tableau des commandes reçues, en trois colonnes : "Nouvelles",
+"En cuisine" et "Prêtes". Un filtre "Terminées" montre les commandes
+closes. Une alarme s'affiche quand des commandes attendent depuis plus
+de 5 minutes. Chaque carte porte l'heure, le canal, le type de service
+("Livraison", "À emporter", "Sur place"), les articles et le total, et
+l'étiquette "Payée" ou "À encaisser". (capture A52 : tableau des commandes en ligne ; capture A112 : commandes à vérifier ; capture A113 : confirmation du refus ; capture A114 : commandes terminées).
+
+L'avancement d'une commande suit ces boutons :
+
+- **"Accepter"** (Serveur ou Gérant) : une commande déjà payée sur la
+  plateforme ou le webshop est vendue (événement N) et son ticket de
+  caisse TVA imprimé ; une commande "À encaisser" est enregistrée
+  (événement P) et le bon part en cuisine. **"Refuser"** : la caisse
+  demande confirmation ("La plateforme et le client seront prévenus du
+  refus. Cette action est définitive."), puis la commande est refusée ;
+  rien n'est signé.
+- **"Préparer"** (la commande passe en "En cuisine"), puis **"Prête"**
+  (colonne "Prêtes"), pour tous les profils.
+- **"Retarder"** (commande acceptée ou en préparation) : une fenêtre
+  propose "+15 min", "+30 min" et "+45 min" ; un appui repousse l'heure
+  promise de ce nombre de minutes (message "Délai appliqué") et ferme la
+  fenêtre. (capture A91 : fenêtre Retarder).
+- Pour une livraison du webshop, **"En livraison"** précède
+  **"Terminer"** (commande déjà payée). Pour une commande "À encaisser",
+  la remise se fait par **"Encaisser espèces"** ou **"Encaisser carte"** :
+  vente (événement N) et ticket, comme au §7.
+- **"Réimprimer"** ouvre "Ticket cuisine" et "Ticket client" pour
+  réimprimer les bons ("Ticket envoyé à l'imprimante").
+- **"À vérifier"** : la commande ne correspond pas au menu (produit
+  absent, TVA différente, total incohérent...) ; elle ne peut pas être
+  acceptée. "Resynchroniser" relit le menu, sinon la refuser.
+- **"Rembourser"** (Gérant) : une commande annulée par la plateforme
+  après la vente ; la caisse demande de confirmer le montant
+  ("Rembourser {montant} ? Le remboursement est enregistré au nom de
+  {nom}."). Le remboursement cite la vente d'origine, le tiroir reste
+  fermé (la plateforme rembourse le client).
+- **"Clôturer"** : une commande à encaisser annulée après son
+  enregistrement ; ticket à 0,00 EUR.
+
+Si le FDM ne répond pas, rien n'est signé et la commande reste à
+accepter (§7.4). Une commande en ligne ne se prend pas en mode formation
+("Pas de commande en ligne en mode formation."). Le détail fiscal est
+dans `COMMANDES_EN_LIGNE_FR.md`.
+
+### 12.9 Export nocturne
+
+Écran « Export nocturne » : « Config », section « Autres réglages »,
+ligne « Export nocturne » (« Retour » revient aux réglages). Réservé au
+Gérant. Il montre où en est l'envoi automatique, après chaque rapport Z réel, de la
+sauvegarde chiffrée et de la copie statistique de l'établissement
+(`EXPORT_NOCTURNE_FR.md`). Cet écran n'est qu'un témoin : une vente, un
+Z ou un rapport n'attendent jamais l'export, et rien n'est à faire tant
+que l'état est « À jour ». L'écran se met à jour tout seul toutes les
+30 secondes tant qu'il est affiché ("Chargement…" à l'ouverture).
+
+L'état, en haut de l'écran :
+
+| État | Signification | Que faire |
+|---|---|---|
+| « Non configuré » | L'établissement n'envoie rien : la fonction n'a pas été installée. | Rien. |
+| « Configuration invalide » | La configuration de l'export est refusée (la cause s'affiche dessous). L'export est arrêté, la caisse vend normalement. | Appeler l'installateur (§14). |
+| « À jour » | Tous les exports préparés sont arrivés au point de réception. | Rien. |
+| « n exports en attente » (« 1 export en attente » au singulier) | Des exports ne sont pas encore livrés (réseau coupé, point de réception en panne, jeton refusé). Ils sont réessayés automatiquement, de plus en plus espacés (de 1 à 60 minutes), tant qu'ils sont conservés (`keep_days` jours). | Si l'état dure, lire « Dernière erreur » et appeler l'installateur. |
+
+Les lignes de l'écran, affichées dans les états « À jour » et « n
+exports en attente » : « Destination » (serveur de réception, sans
+chemin), « Dernier export » (identifiant et heure de préparation ;
+« Jamais » s'il n'y en a pas),
+« Dernier envoi » (heure du dernier export arrivé complet), « Prochain
+essai » (quand des exports attendent), « Dernière erreur » (avec son
+heure ; disparaît au premier succès), « Conservés : n sur 14 jours »
+(les copies gardées sur la caisse ; le nombre de jours est celui de
+l'installation) et « Abandonnés » (ligne affichée seulement s'il y en a : exports jamais
+livrés qui ont été supprimés de la caisse après la durée de
+conservation). Le bouton « Réessayer maintenant » (en haut à droite ;
+« Nouvel essai… » pendant l'essai) rend tout de suite possible un nouvel essai des
+exports en attente ; il n'est affiché que si l'export est actif. Si
+« Abandonnés » augmente, prévenir l'installateur : la caisse n'a pas pu
+joindre le point de réception pendant toute la durée de conservation.
+
+Écrans : (capture A53 : export nocturne, état À jour) ; (capture A54 : export nocturne, exports en attente).
+
+Un Z de formation (§13) ne produit aucun export.
+
+### 12.10 À propos (identité de la caisse)
+
+« Config », section « Autres réglages », ligne « À propos ». Écran en
+lecture seule qui donne l'identité exacte de la caisse, utile pour un
+contrôle ou un appel au distributeur ; « Actualiser » relit les valeurs
+et « Indisponible » remplace une valeur illisible. Quatre blocs :
+
+- « Version » : « Version de l'application », « Code de version »,
+  « Version logicielle du moteur » (la version affichée à la
+  connexion, §2.1) et « Référence du moteur » (version du moteur et
+  étiquette de gel, par exemple « pili-pos 1.0.0, android-v1.0.0-rc3 »,
+  capture A82).
+- « Intégrité » : « SHA-1 de base.apk », « SHA-256 de base.apk »,
+  « SHA-1 de libpos_ffi.so » et « SHA-256 du certificat de signature ».
+  Un contrôleur les compare à celles de la version déposée : À effectuer
+  (EV-01 : empreintes de l'APK signé), À effectuer (EV-02 : SHA-1 de
+  libpos_ffi.so) et À effectuer (EV-03 : empreinte du certificat de
+  signature).
+- « Appareil » : « Identifiant de l'appareil (deviceId) » (le numéro de
+  série du terminal, imprimé sur les tickets), « Identifiant de la
+  caisse (posId) », « Identifiant du terminal (terminalId) », « Android »
+  (version et niveau d'API) et « Modèle ».
+- « Stockage » : « Espace libre » et « Sauvegardes de la base » (nombre
+  de copies et taille). Deux avertissements peuvent s'afficher :
+  « Moins de 2 Go libres sur la caisse. Prévenez le support. » et « Les
+  sauvegardes occupent plus de la moitié de l'espace libre. Prévenez le
+  support. » ; dans les deux cas, prévenir le distributeur.
+
+Écran : (capture A82 : À propos).
+
+### 12.11 Export pour le SPF (clé USB ou carte SD)
+
+Réservé au Gérant : « Config », « Autres réglages », « Export pour le
+SPF ». Cet écran remet aux contrôleurs du SPF Finances les données de la
+caisse : il copie la base de données, les sauvegardes, les journaux et
+l'identité de la caisse, puis relit et vérifie chaque fichier (voir
+`FEUILLE_ACQUISITION_DONNEES_FR.md`).
+
+1. Insérer la clé USB ou la carte SD. Tant que rien n'est détecté,
+   l'écran affiche « Insérez la clé USB ou la carte SD. » (capture A96 : export pour le SPF, aucun support). Ports et
+   lecteur du matériel réel : À effectuer (EV-15 : ports USB et lecteur
+   de carte du D3 Pro réel).
+2. À la première utilisation d'un support, « Choisir le dossier » : créer
+   sur la clé ou la carte un dossier nommé PILI-EXPORT, puis le choisir.
+   La racine du support et un dossier d'un autre support sont refusés.
+   L'écran rappelle ensuite « Support : » et « Dossier : » ; « Changer de
+   dossier » en choisit un autre.
+3. « Exporter » (écran : capture A83 : export pour le SPF, prêt ; capture A116 : support détecté ; capture A115 : export refusé tant qu'une commande ou une vente à emporter est ouverte).
+   Pendant l'export (« Export en cours. Ne retirez pas la clé ou la
+   carte. »), l'écran compte les fichiers et la taille copiés.
+4. « Export terminé » : le dossier créé, le nombre de fichiers, la taille
+   et l'empreinte SHA-256 de MANIFEST.sha256. On peut alors retirer le
+   support ; le contrôleur vérifie l'export sur un ordinateur avec
+   « shasum -a 256 -c MANIFEST.sha256 ». Écran :
+   (capture A84 : export pour le SPF, terminé).
+
+L'export ne démarre pas tant qu'une commande ou une vente à emporter est
+ouverte (« Une commande ou une vente à emporter est ouverte. Terminez-la
+avant d'exporter. ») ou que le moteur n'est pas prêt. Il ne supprime
+rien, ni sur le support ni sur la caisse. S'il s'arrête (« Export
+interrompu » avec l'étape, le fichier et le détail), les fichiers déjà
+écrits sont conservés : refaire l'export. Si le message évoque un
+fichier de 4 Go ou plus, le support est probablement en FAT32 : utiliser
+un support formaté en exFAT. Si un fichier relu ne correspond pas à ce
+qui a été écrit, l'export est invalide : le recommencer avec un autre
+support. Écran de l'arrêt :
+(capture A97 : export pour le SPF, interrompu).
+
+### 12.12 Mise à jour de l'application
+
+Réservé au Gérant : « Config », « Autres réglages », « Mise à jour ».
+Aucune mise à jour ne se fait seule : seul le Gérant la lance, et la
+caisse n'installe qu'une version déclarée et signée par le producteur
+(`GARANTIE_MAJ_LANGUES_FR.md`).
+
+1. L'écran rappelle « Version installée : … (code …) » et « SHA-1 de
+   l'APK installé : … ». Écran : (capture A85 : mise à jour, écran initial).
+2. « Vérifier en ligne » cherche la version déclarée sur Internet ;
+   « Depuis une clé USB » la lit sur la clé ou la carte (« Aucune clé USB
+   ni carte SD détectée. Insérez celle qui contient la mise à jour, puis
+   recommencez. » sinon). Pendant la vérification (« Vérification de la
+   mise à jour en cours. Ne quittez pas cet écran. »), la caisse contrôle
+   la signature, le paquet, la version et les empreintes.
+3. Si tout est correct, « Mise à jour disponible et vérifiée » affiche la
+   « Version déclarée », le « SHA-1 de l'APK » et le « Signataire
+   (SHA-256) ». Sinon « Mise à jour refusée » donne la cause (« Détail : … »)
+   et rien n'est installé : par exemple version pas plus récente que celle
+   installée, ou APK signé par une autre clé. Écran :
+   (capture A86 : mise à jour vérifiée; capture A87 : mise à jour refusée).
+4. « Installer la mise à jour » n'est possible que si la caisse est prête.
+   Sinon « La mise à jour ne peut pas démarrer maintenant : » liste ce qu'il
+   faut faire : une commande ou une vente à emporter est encore ouverte
+   (l'encaisser ou l'annuler) ; un rapport Z est dû ou n'a pas été fait
+   depuis les dernières opérations fiscales (le faire, §10.2) ; le moteur
+   n'est pas prêt (attendre quelques secondes) ; ou la personne connectée
+   n'est pas Gérant. Écran : (capture A92 : mise à jour bloquée ; capture A118 : rapport Z dû).
+5. L'installation sauvegarde d'abord la base, ferme la caisse, installe la
+   nouvelle version puis la redémarre seule, sur l'écran de connexion
+   (« Installation en cours, la caisse redémarre. » : ne toucher à rien
+   et ne pas éteindre la caisse). Si elle ne peut pas commencer (sauvegarde
+   échouée, moteur impossible à arrêter, installation refusée par le
+   système), « La mise à jour n'a pas été installée » le dit et la caisse
+   continue de fonctionner avec la version installée.
+
+Il n'existe pas de retour en arrière : une version défectueuse se corrige
+par une version plus récente, déclarée et vérifiée de la même façon.
+
+### 12.13 Lecteur de badges
+
+Panneau "Lecteur de badges", réservé au Gérant. Il est replié par défaut
+(toucher son en-tête pour le déplier). Le lecteur sert à deux choses :
+pointer l'arrivée et le départ depuis n'importe quel écran (§3) et,
+si on le veut, remplacer le PIN à la connexion des Serveurs et des
+Apprentis (§2.1). **Il est désactivé tant que le Gérant ne l'active pas** :
+désactivé, la caisse ne lit rien, un numéro tapé sur le lecteur n'est pas
+pris pour un badge, et toute commande de badge est refusée ("Le lecteur de
+badges est désactivé").
+
+- **Désactivé** : aucune lecture.
+- **« Lecteur USB »** : lecteur de cartes qui se branche en USB et se
+  comporte comme un clavier : il « tape » le numéro de la carte, suivi de
+  la touche Entrée (aucun pilote, tout clavier physique convient). Il
+  doit être configuré pour envoyer Entrée à la fin.
+- **« NFC intégré »** n'est proposé que si l'appareil déclare un lecteur
+  NFC (cartes et porte-clés approchés de l'appareil). **L'unité principale
+  du Sunmi D3 Pro n'a pas de NFC** : sur ce terminal, choisir « Lecteur
+  USB ». Le NFC de l'écran client optionnel n'est utilisable que si
+  l'appareil le présente comme un lecteur NFC standard (à confirmer sur
+  place). Si le réglage mémorisé est « NFC intégré » alors que l'appareil
+  n'en a plus (ou que le NFC est coupé dans les réglages Android), le
+  panneau le dit et rien n'est lu.
+- **« Connexion par badge »** (interrupteur) : permet aux Serveurs et
+  aux Apprentis de se connecter avec leur badge (§2.1). Note affichée :
+  "Les Gérants saisissent toujours leur PIN après le badge." Interrupteur
+  éteint, un badge présenté sur l'écran de connexion ne fait que pointer
+  l'arrivée ou le départ.
+- **"Réglages du lecteur USB"** (réglages d'usine suffisants pour la
+  plupart des lecteurs) : "Écart maximal entre caractères (ms)" (10 à
+  200, 50 par défaut), "Longueur minimale du code" (4 à 32, 6 par défaut) et
+  "Longueur maximale du code" (4 à 64, 32 par défaut, jamais en dessous du
+  minimum), appliqués par "Enregistrer". La caisse prend pour un badge une
+  rafale de caractères tapés très vite (moins que l'écart maximal entre
+  deux) et terminée par Entrée ; une frappe humaine est plus lente et reste
+  une frappe. Agrandir l'écart si un lecteur lent n'est pas reconnu. La
+  lecture suit les touches physiques, quelle que soit la disposition du
+  clavier (AZERTY compris), et un badge présenté ne tombe jamais dans un
+  champ de texte.
+- Un seul type de lecteur par caisse : deux lecteurs peuvent écrire le
+  même badge différemment (hexadécimal ou décimal, ordre des octets).
+  Changer de type de lecteur peut obliger à relier les badges (§12.3).
+- **"Derniers événements"** : le journal des liens, retraits et
+  changements de réglage ("Badge lié", "Badge retiré", "Réglages
+  modifiés"), avec l'employé, le Gérant qui l'a fait et l'heure ; "Aucun
+  événement" s'il est vide. Le journal ne peut ni être modifié ni effacé.
+- **Clé renouvelée.** La caisse garde une clé secrète propre à l'appareil
+  (voir ci-dessous). Si elle est perdue (restauration d'une sauvegarde sur
+  un autre matériel, par exemple), tous les badges sont retirés
+  automatiquement et le panneau affiche "La clé des badges a été
+  renouvelée : liez de nouveau les badges". Si le fichier de la clé existe
+  mais ne peut pas être lu, les badges ne sont pas retirés et la caisse
+  répond "Clé des badges inaccessible : contactez l'assistance".
+- Chaque passage fait un son : deux notes aiguës pour une arrivée, un
+  départ ou une connexion, une note grave pour un refus ou un échec.
+
+**Clavier virtuel (Android).** Un lecteur USB est vu par Android comme un
+clavier physique, ce qui peut masquer le clavier à l'écran. Le réglage
+Android « Afficher le clavier virtuel » doit rester activé (installateur,
+`MANUEL_INSTALLATION_FR.md`), pour que les champs de texte du panneau
+« Employés » restent saisissables.
+
+**Protection des données (RGPD).** Un badge est une donnée liée à un
+employé. La caisse n'en garde **jamais le numéro** : elle en conserve
+uniquement une empreinte chiffrée (HMAC-SHA256) calculée avec une clé
+secrète stockée sur l'appareil, hors de la base de données, des
+sauvegardes et de l'export nocturne, et qui ne le quitte jamais ; sans
+cette clé, l'empreinte est inutilisable. Aucune donnée biométrique n'est
+lue : seul le numéro de série de la carte sert. L'usage est limité à
+l'enregistrement de la présence et à la connexion à la caisse. Sont
+conservés avec les données de présence : l'empreinte, l'historique des
+liens et retraits (qui, quand) et le journal des passages (heure,
+employé, résultat). Le panneau rappelle : "Seule une empreinte chiffrée du
+badge est conservée, jamais son numéro. Usage : présence et connexion
+uniquement." **Un employé peut refuser le badge** : son PIN (ou
+l'enregistrement de sa présence par le Gérant, §3) reste disponible sans
+aucun désavantage.
+
+### 12 ter. Fonctions du propriétaire (Gérant)
+
+Trois panneaux de "Config", chacun éteint par défaut. Chaque enregistrement est journalisé en ajout seul (qui,
+quand, valeur). Aucune de ces fonctions n'ajoute d'écran de rapport fiscal ni ne modifie un ticket de T.V.A.
+
+**12 ter.1 Alertes sur téléphone** (*ALERTES_PROPRIETAIRE_FR.md*). Le panneau « Alertes sur téléphone » montre
+« Robot Telegram configuré » ou « Robot Telegram absent » (le jeton est un fichier de la configuration, jamais
+affiché), la « Conversation Telegram » (identifiant numérique, négatif pour un groupe), le « Nom dans les
+messages », la « Langue des messages », les cinq situations de « Prévenir quand » (« La boîte noire ne répond plus »,
+« Une imprimante est injoignable », « Le terminal de paiement est injoignable », « Le Z du jour n'est pas fait »,
+« Une commande en ligne attend »), « Z attendu avant », « Commande en ligne en attente depuis » et « Rappel toutes
+les ». « Enregistrer » enregistre ; « Envoyer un message test » envoie un seul message et dit pourquoi Telegram
+refuse s'il refuse ; « Derniers messages » liste les envois (« Alerte », « Rappel », « Résolu », « Test », « Envoyé »,
+« Échec », « Retenu (limite horaire) »). Sans jeton, le message test est refusé (`alerts_token_missing`) et aucune alerte ne part. (Capture A133.)
+
+**12 ter.2 Service en plusieurs temps** (*SERVICES_CUISINE_FR.md*). Le panneau « Service en plusieurs temps » a un
+interrupteur « Actif » / « Inactif » et, pour chaque catégorie active, « Temps de chaque catégorie » (Direct,
+Entrées, Plats, Desserts). Le même réglage est dans le panneau de la catégorie de l'éditeur de carte (§12 bis).
+Éteint, les tickets de cuisine sont identiques à ceux d'avant. (Captures : A130 panneau inactif ; A131 panneau actif ; A187 temps d'une catégorie.)
+
+**12 ter.3 Bons cadeaux** (*BONS_CADEAUX_FR.md*). Le panneau « Bons cadeaux » a l'interrupteur « Actif » /
+« Inactif », « Validité (mois) » (12 à 36) et « Montant maximum (€) ». La fonction ne s'éteint pas tant qu'un bon
+réel peut encore être utilisé (la caisse refuse : les clients gardent des bons valables au moins douze mois). (Capture A132.)
+
+**12 ter.4 Allergènes dans l'éditeur de carte.** La fiche d'un produit ou d'une option (§12 bis) montre les 14
+allergènes : un toucher fait passer de « aucun » à « contient » puis à « peut contenir » ; l'interrupteur « déclaré »
+distingue une liste vide déclarée d'une absence de déclaration. Le même bouton « Enregistrer » écrit la fiche puis
+la liste (un produit neuf s'enregistre d'abord). L'éditeur reste verrouillé tant qu'un catalogue externe gère la
+carte ; le produit système « Bon cadeau » n'y apparaît jamais. (Captures : A185 allergènes d'une fiche ; A186 « Carte enregistrée ».)
+
+### 12 bis. Carte et panneau Peppol
+
+**Carte.** Panneau "Carte" (Gérant) : "Édition de la carte". Le Gérant
+crée et modifie catégories, produits (noms, prix, code de TVA sur place
+et à emporter), groupes d'options et options ; rien ne se supprime, un
+élément se masque. "Historique" liste les modifications. Tant qu'un
+catalogue HubRise gère la carte, l'édition est refusée et l'écran
+l'indique (`EDITEUR_CARTE_FR.md`). Une modification s'applique aux
+commandes suivantes ; les ventes déjà signées ne changent pas.
+(Captures : A183 liste ; A184 fiche d'un produit ; A185 allergènes ; A186 enregistrement ; A187 fiche d'une catégorie.)
+
+**Peppol.** Le panneau Peppol de "Config" n'apparaît que si
+l'installation contient une section `peppol`. Il indique le fournisseur,
+le nombre d'envois en attente, remis et bloqués, et pour chaque envoi
+bloqué son motif et le bouton "Réessayer".
+(Capture : A195 panneau Peppol, installation sans envoi en cours.)
+
+## 13. Mode formation (événements T)
+
+Pour former un employé sans toucher aux ventes réelles. Seul un Gérant
+l'active. Il le fait pour toute la caisse : tant qu'il est actif, un
+Apprenti prend des commandes comme d'habitude mais ne peut pas
+encaisser (§1), et tout ce qu'un Serveur ou un Gérant encaisse est un
+événement de formation.
+
+1. Encaisser ou vider les commandes ouvertes : sinon la caisse refuse
+   ("Encaissez ou videz les commandes ouvertes avant de changer de
+   mode"), pour qu'une vraie table ne soit jamais encaissée en
+   formation, ni l'inverse.
+2. "Config", panneau "Mode Formation" ("Fond violet, bandeau et filigrane
+   sur tous les écrans. Les tickets sont marqués TRAINING.") : le
+   bouton passe de "Inactif" à "Actif".
+3. Un bandeau violet "MODE FORMATION · Les transactions ne sont PAS
+   enregistrées" et un filigrane "TRAINING" restent affichés.
+   (capture A55 : mode formation actif).
+
+En formation, tout ce qui est signé est un événement **T** : compteur à
+part, tickets marqués "**TRAINING**" et "**CECI N'EST PAS UN TICKET DE
+CAISSE T.V.A. VALABLE**", sans effet sur le chiffre d'affaires des
+rapports. Un remboursement de vente réelle est refusé en formation.
+
+Pour revenir au mode normal : même bouton, qui repasse à "Inactif"
+(mêmes conditions).
+
+Le réglage du bouton vaut jusqu'au redémarrage de la caisse : au
+démarrage, le mode est celui du fichier de configuration (`false` en
+production, `MANUEL_INSTALLATION_FR.md` §4.2).
+
+## 14. Que faire en cas de problème
+
+### 14.1 Messages de la boîte noire (FDM) et de la caisse
+
+Les messages ci-dessous s'affichent dans le bandeau sous l'en-tête ou, pour
+les erreurs bloquantes, dans le voile rouge qui couvre les écrans de
+vente. Un avertissement du FDM s'affiche dans un bandeau orange, qui se
+referme seul au bout de 10 secondes ("se ferme dans {s} s"), sauf s'il
+est obligatoire : il reste alors tant que le FDM le signale. Pour une
+erreur bloquante, "Réessayer maintenant" relance une vérification
+immédiate ; la caisse réessaie aussi seule. Les écrans correspondants
+sont indiqués dans la colonne "Capture" du premier tableau
+(`CAPTURES_ECRAN_FR.pdf`).
+
+| Code | Message affiché | Effet | Que faire | Capture |
+|---|---|---|---|---|
+| `BUFFER_FULL` | La boîte noire est pleine. Contactez votre technicien. | Bloquant : plus de vente | Appeler le distributeur | (capture A56) |
+| `FDM_LOCKED` | La boîte noire est verrouillée. Contactez votre technicien. | Bloquant | Appeler le distributeur | (capture A57) |
+| `FDM_NOT_OPERATIONAL` | La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. | Bloquant | Vérifier câble et alimentation, puis appeler le distributeur | (capture A58) |
+| `UNKNOWN_POS` | Cette caisse n'est pas reconnue par la boîte noire. | Bloquant | Appeler le distributeur | (capture A59) |
+| `BUFFER_NEAR_FULL` | La boîte noire est presque pleine. Programmez une intervention. | Avertissement obligatoire | Prévenir le distributeur | (capture A60) |
+| `CLIENT_CERT_EXPIRED` | Le certificat de la boîte noire a expiré. Contactez votre technicien. | Avertissement obligatoire | Appeler le distributeur | (capture A61) |
+| `UPDATE_POS_VATNO` | Le numéro de TVA de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. | Avertissement obligatoire | Appeler l'installateur | (capture A88) |
+| `UPDATE_POS_ESTNO` | Le numéro d'unité d'établissement de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. | Avertissement obligatoire | Appeler l'installateur | (capture A89) |
+| `CLIENT_CERT_NEAR_EXPIRATION` | Le certificat de la boîte noire expire bientôt. | Avertissement | Prévenir le distributeur | (capture A62) |
+| `UNAUTHORIZED` | La caisse n'est pas autorisée à parler à la boîte noire. | Avertissement | Appeler le distributeur | (capture A63) |
+| `TRANSACTION_UPLOAD_FAILED` | La boîte noire échoue à transmettre les transactions au SPF Finances. | Avertissement | Vérifier la connexion Internet du FDM | (capture A75) |
+| `FDM_ANSWER_PENDING` | La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez. | Opération refusée, renvoi automatique | Attendre une minute, réessayer (§7.4) | (capture A79) |
+| `FDM_RESPONSE_MISMATCH` | Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. | Opération en attente, renvoi à l'identique | Appeler le distributeur | (capture A78) |
+| `FDM_NOT_INITIALIZED` | La boîte noire n'est pas encore initialisée. | Voyant orange | Appeler le distributeur | (capture A90) |
+| `FDM_CERTIFICATE_REFUSED` | Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien. | Bloquant | Appeler l'installateur | (capture A93) |
+| (réseau coupé) | Connexion perdue avec la boîte noire. Vérifiez le câble réseau. | Bloquant | Vérifier le câble réseau et l'alimentation du FDM | (capture A77 : réseau coupé) |
+
+Les autres codes du FDM (erreurs de communication, d'horloge, de mise à
+jour des certificats ou des tâches...) s'affichent avec un message
+analogue ; leur liste complète est dans le manuel de certification, §V.
+Écrans : captures A64 (INVALID_REQUEST), A65 (INTERNAL_ERROR), A66 (UNDEFINED_ERROR), A67 (UNDEFINED_OTHER), A68 (RTC_SYNC_FAILED), A69 (UPDATE_URLS_FAILED), A70 (UPDATE_TRUST_CERT_FAILED), A71 (UPDATE_TASK_LIST_FAILED), A72 (TASK_FEEDBACK_FAILED), A73 (NOP_FAILED), A74 (SERVER_CERT_RESOLVE_FAILED), A76 (INITIALIZATION_FAILED). Pour A65 et A66, sur une vente, la boîte noire a peut-être signé l'événement (résultat inconnu) : la caisse affiche d'abord le message de la boîte noire (par exemple « Erreur technique de la boîte noire. Contactez votre technicien. »), puis « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » ; le nouvel essai renvoie la même requête et la vente n'est jamais perdue ni doublée. Pour A67 (UNDEFINED_OTHER), le simulateur ne refuse pas la signature : la vente aboutit et le bandeau d'erreur facultative s'affiche.
+
+Messages de la caisse elle-même :
+
+| Message | Cause | Que faire |
+|---|---|---|
+| La caisse enregistre une autre opération : réessayez dans un instant. | Une autre opération signe (ex. Z automatique) | Réessayer |
+| Cette commande attend la réponse de la boîte noire : elle ne peut pas changer pour l'instant. | Réponse du FDM attendue pour cette commande | Attendre, réessayer (§7.4) |
+| La journée précédente n'est pas clôturée : son rapport Z automatique est en cours. Réessayez dans une minute. | Une journée restée ouverte est en cours de clôture | Attendre une minute |
+| La journée de cet enregistrement est déjà clôturée : rien n'a été enregistré. | Un enregistrement visait une journée déjà close | Refaire l'opération |
+| Une autre opération était en cours : rien n'a été enregistré, réessayez. | Deux opérations simultanées | Réessayer |
+| Trop de PIN incorrects : réessayez dans {seconds} s. | Verrou après 5 PIN erronés (§2.2) | Attendre la fin du décompte |
+| Employé enregistré pour la présence seulement : pas de connexion à la caisse | Un employé du profil "Présence seule" a tenté de se connecter, de fixer un PIN ou de terminer son service | Le Gérant enregistre sa présence dans "Config" (§12.3) |
+| Mode formation : le pointage d'un employé est impossible. Quittez le mode formation. | Le Gérant a touché "Arrivée" ou "Départ", ou un badge a été présenté, en mode formation (un événement d'entraînement n'enregistre aucune présence) | Quitter le mode formation (§12.1), puis recommencer |
+| Votre arrivée et votre départ se font à la connexion et par « Fin de service » | Le Gérant a tenté de pointer sa propre présence depuis le panneau "Employés", ou l'employé connecté a présenté son propre badge | Se connecter, ou utiliser "Fin de service" (§3) |
+| Cet employé est déjà en service | "Arrivée" pour un employé dont l'arrivée est déjà enregistrée (liste pas à jour) | Actualiser le panneau ; au besoin enregistrer le départ |
+| Cet employé n'est pas en service | "Départ" pour un employé qui n'est pas en service, ou badge présenté en mode "Fin de service" par un employé hors service | Actualiser le panneau |
+| Cet employé est en service : enregistrez d'abord son départ | Désactivation d'un employé dont le départ n'est pas enregistré | Enregistrer son départ (§12.3), puis le désactiver |
+| FDM indisponible : pointage impossible | Les deux boutons du panneau "Employés" sont grisés tant que le voyant "FDM" n'est pas vert | Attendre le retour du FDM (§14.1) |
+| Le lecteur de badges est désactivé | Un badge a été présenté ou lié alors que le réglage est « Désactivé » | Le Gérant active le lecteur (§12.13) |
+| Badge illisible : présentez-le de nouveau | Le numéro lu n'est pas un numéro de badge valide (4 à 64 caractères 0 à 9 et A à F) | Présenter de nouveau le badge ; vérifier le réglage du lecteur (§12.13) |
+| Clé des badges inaccessible : contactez l'assistance | Le fichier de la clé existe mais ne peut pas être lu | Appeler le distributeur ; rien n'est retiré |
+| Badge inconnu | Ce badge n'est lié à aucun employé | Le Gérant le lie (§12.3), ou utiliser le PIN |
+| Badge retiré : demandez un nouveau badge au Gérant | Ce badge a été retiré (perdu, remplacé, clé renouvelée) | Le Gérant lie un nouveau badge (§12.3) |
+| Ce badge est déjà lié à un autre employé | Liaison d'un badge qui a déjà un titulaire | Utiliser un autre badge, ou retirer d'abord l'ancien lien |
+| Cet employé a déjà un badge : retirez-le d'abord | Liaison pour un employé qui a un badge actif | "Retirer le badge" (§12.3), puis lier |
+| Cet employé n'a pas de badge | Retrait demandé pour un employé sans badge (liste pas à jour) | Actualiser le panneau |
+| Réglages du lecteur de badges invalides | Une valeur du panneau est hors limites (ex. minimum supérieur au maximum) | Corriger les valeurs (§12.13) |
+| Aucun badge présenté | Le badge n'a pas été présenté dans les 30 secondes de la fenêtre "Lier un badge" | Recommencer |
+| Pointage refusé · <nom> : <texte> | Le FDM n'a pas répondu ou a refusé le pointage par badge (§3) | Rien n'est enregistré : repasser le badge quand le voyant "FDM" est vert |
+
+### 14.2 Autres problèmes
+
+| Problème | Que faire |
+|---|---|
+| Voyant "FDM" orange ou rouge, vente refusée | Lire le message affiché (§14.1). Vérifier le câble réseau et l'alimentation du FDM, puis réessayer. Si le problème persiste, appeler le distributeur. **Ne jamais vendre en dehors de la caisse.** |
+| Voyant "Terminal" rouge | La caisse ne joint pas le terminal de paiement. Vérifier son alimentation et son câble ou son réseau. Tant qu'il ne répond pas, les cartes se prennent à la main (saisie manuelle, §7.2) ; rien n'est débité par cette vérification. |
+| Voyant "Ticket" rouge, ou "Papier épuisé", "Capot ouvert", "Vérifiez l'imprimante" | Vérifier l'imprimante. Plus de papier : charger un rouleau thermique de 80 mm, puis toucher "Imprimer le ticket" sur l'écran de fin de vente (§7.3). Rien n'est réimprimé automatiquement. |
+| Imprimante hors ligne | La vente est quand même enregistrée. Toucher "Imprimer le ticket" une fois l'imprimante revenue (§7.3), ou faire plus tard une copie (§8). |
+| "Bon de commande non imprimé : prévenez le bar ou la cuisine." | Vérifier l'imprimante de la cuisine (voyant "Cuisine") ; la commande est enregistrée, prévenir le bar ou la cuisine (§6.1). |
+| "Pointage non enregistré" | Le FDM n'a pas répondu à la connexion ou à la fin de service. Prévenir le Gérant. |
+| Un badge n'est pas reconnu | Vérifier que le lecteur est « Lecteur USB » (ou « NFC intégré ») dans le panneau "Lecteur de badges" (§12.13), que le badge est lié (§12.3) et que le lecteur envoie Entrée à la fin ; élargir l'écart maximal entre caractères si le lecteur est lent. Sinon, se connecter par PIN. |
+| "Commande non enregistrée par le FDM" | Rester sur la commande et réessayer quand le FDM répond (§6.1). |
+| "La caisse attend la réponse de la boîte noire pour l'opération précédente" | Vérifier câble et alimentation du FDM, attendre une minute (la caisse renvoie seule), puis réessayer. Ne pas refaire l'opération. Appeler le distributeur si le message persiste (§7.4). |
+| Le tiroir ne s'ouvre pas | Vérifier le câble RJ11 entre l'imprimante et le tiroir, et la serrure du tiroir. |
+| L'écran ne réagit plus | Maintenir le bouton marche jusqu'à l'extinction de l'appareil (le menu d'alimentation n'est pas proposé en mode caisse), puis le rallumer ; durée de l'appui sur le matériel réel : À effectuer (EV-15 : appui long sur le D3 Pro réel). pili-pos-android redémarre seul ; les commandes non encaissées restent ouvertes (reprise après coupure : À effectuer (EV-12 : essai de coupure d'alimentation)). |
+| "PIN incorrect" répété, ou "Trop de PIN incorrects" | Attendre la fin du décompte (§2.2). Le Gérant peut fixer un nouveau PIN (§12.3). Redémarrer la caisse remet le compteur à zéro. |
+| INSZ refusé | Vérifier la saisie. L'employé doit exister et être actif (§12.3). |
+| Bandeau rouge "Configuration invalide" | Appeler l'installateur (§12.4). |
+| "La caisse démarre, veuillez patienter." | Le moteur de la caisse n'est pas encore prêt : attendre quelques secondes, puis réessayer. Si le message reste, redémarrer la caisse (ligne "L'écran ne réagit plus"), puis appeler le distributeur. |
+| Écran "La caisse doit redémarrer" | Une erreur interne a arrêté le moteur. La caisse redémarre seule en quelques secondes ; après trois redémarrages en dix minutes, elle reste sur cet écran : l'éteindre et la rallumer. Si le problème se répète, appeler le technicien en lui lisant la ligne de détail affichée sous le message. |
+| Écran "Mise en service de la caisse" (capture A80 ; capture A119 pour un lot refusé), "Appareil non préparé", "Configuration d'un autre appareil", "Numéro de série illisible" ou "Caisse non verrouillée" | Ces écrans concernent la préparation de l'appareil par l'installateur. Ne pas insister : appeler le distributeur. Écrans : (capture A80 : mise en service de la caisse; capture A81 : paquet de configuration refusé). |
+
+En cas de doute : **ne jamais vendre sans le FDM**, et **terminer chaque
+journée par un rapport Z**.
+
+---
+
+## Annexe. Captures des fonctions complémentaires (A130 à A196)
+
+Les captures ci-dessous ont été prises le 18.10.2026 sur le profil `sunmi_d3_pro_gms_api33` (jeu de test SPF). Chacune est aussi citée dans la section indiquée et dans le fichier `CAPTURES_ECRAN_FR.pdf` ; l'annexe de chaque fonction renvoie aux siennes.
+
+| Id | Ce que montre l'écran | Section |
+|---|---|---|
+| A50b | Connexion à HubRise, code refusé : QR code et lien d'autorisation, code « abc123 » saisi, message rouge « HubRise a refusé ce code ou ne répond pas : vérifiez le code et la connexion, puis réessayez » avec le détail de la réponse (400) | §12.7 |
+| A112 | Écran « En ligne » : deux commandes « Nouvelles » (Webshop et Deliveroo, payées) avec l'encadré « À vérifier · Produit absent du menu » et les boutons « Refuser » et « Resynchroniser » | §12.8 |
+| A127b | Config, lecteur de badges : fenêtre « Saisir le PIN » (« Confirmez avec votre PIN de gérant ») ouverte avant de lier un badge, sur le panneau « Lecteur de badges » réglé sur « Lecteur USB », « Connexion par badge » activée et réglages du lecteur | §12.13 |
+| A130 | Config, panneau « Service en plusieurs temps » à « Inactif » : liste « Temps de chaque catégorie » (Direct, Entrées, Plats, Desserts) ; à côté, les panneaux « Plan de salle », « Lecteur de badges » et « Alertes sur téléphone » (inactives, « Robot Telegram absent ») | §12 ter.2 |
+| A131 | Même panneau à « Actif » : la catégorie « Starters » est réglée sur « Entrées » | §12 ter.2 |
+| A132 | Config, panneau « Bons cadeaux » à « Actif » : « Validité (mois) » 12, « Montant maximum (€) » 500, bouton « Enregistrer » | §12 ter.3 |
+| A133 | Config, panneau « Alertes sur téléphone » : « Prévenir quand » (boîte noire, imprimante, terminal de paiement, Z du jour, commande en ligne), « Z attendu avant » 6 h, « Commande en ligne en attente depuis » 5 min, « Rappel toutes les » 60 min, « Enregistrer » et « Envoyer un message test » | §12 ter.1 |
+| A136 | Commande de la table 4 : bouton « Changer de table » en haut du panier | §5.1 bis |
+| A137 | Panier groupé par temps : « Direct », « Entrées », « Plats » (pastille « EN ATTENTE ») ; bouton « Envoyer la suite (Plats) » | §4 bis |
+| A138 | Fenêtre « Changer de table · Table 4 » : « Choisissez la table libre », grille des tables libres (la 7 est choisie), « Retour » et « Valider » | §5.1 bis |
+| A139 | Plan des tables après le transfert : la table 7 porte 76,52 € (5 art., 2 min) et « Suite : Plats » ; bouton « Déplacer une table » | §5.1 bis |
+| A140 | Plan des tables, mode « Déplacer une table » allumé : « Touchez la table à déplacer » | §5.1 bis |
+| A141 | Table 7 choisie (contour orange) : « Table 7 : touchez la table libre » | §5.1 bis |
+| A142 | Fenêtre « Déplacer la table 7 vers la table 17 ? » avec « Retour » et « Valider » | §5.1 bis |
+| A143 | Fenêtre « Remise sur la commande », onglet « % » (10 %, raccourcis 5 à 50 %), motif « Geste commercial », « Total 76,52 € → 68,87 € » | §5.3 |
+| A144 | Même fenêtre, onglet « Montant » : remise de 5,00 €, « Total 76,52 € → 71,52 € » | §5.3 |
+| A145 | Même fenêtre, onglet « Offert » : « Toute la commande est offerte : le ticket est à 0,00 € », « Total 76,52 € → 0,00 € » | §5.3 |
+| A146 | « Saisir le PIN » : « La remise figure sur le ticket fiscal. Confirmez avec votre PIN. » | §5.3 |
+| A147 | Panier après une remise de 10 % : chaque ligne porte « Remise 10 % » et son montant négatif, le bouton « Remise » devient « Retirer la remise » | §5.3 |
+| A148 | Fenêtre « Note pour la cuisine » : note « sans glace », compteur « 10/60 », « Imprimée en cuisine maintenant », clavier du terminal | §5.3 |
+| A149 | Panier : la note « sans glace » s'affiche en italique sous le nom de la ligne et le bouton « Note » est en surbrillance | §5.3 |
+| A150 | Fenêtre « Offrir la ligne » : quatre motifs, précision libre, « Total 20,00 € → 0,00 € » | §5.3 |
+| A151 | Panier : la ligne offerte est à 0,00 € avec « Offert » et « -20,00 », bouton « Retirer la remise » | §5.3 |
+| A152 | Panier avec une remise de 10 % sur les autres lignes et une ligne offerte : total 61,67 € | §5.3 |
+| A153 | Fenêtre « Temps du service » ouverte par la pastille d'une ligne : Direct, Entrées, Plats, Desserts, « Annuler » | §4 bis |
+| A154 | Message « Suite envoyée : Plats » après « Envoyer la suite » : le temps Plats n'est plus « EN ATTENTE », les Desserts le sont encore | §4 bis |
+| A155 | Message « Addition provisoire imprimée » sur une commande remisée (lignes « Remise 10 % » et « Offert ») | §6.2 |
+| A156 | Écran de paiement d'une commande remisée : lignes avec leur remise, « Sous-total 88,52 € », « Remise -26,85 € », « TOTAL 61,67 € », quatre moyens dont « Bon cadeau » | §7.2 |
+| A159 | Rapports, onglet « Tickets » : fenêtre « Corriger le paiement » d'une vente, « Quelle ligne de paiement faut-il corriger ? », la ligne en espèces, « Payé en réalité par » (Espèces, Carte, Chèques-repas) | §9 bis |
+| A160 | Même fenêtre, « Carte » choisie : résumé « Espèces … → Carte … » et bouton « Corriger » actif | §9 bis |
+| A162 | Rapports, onglet « Tickets » : la vente #1 est cochée, bouton « Facture (1) » ; onglets « Journée », « Caisse », « Tickets », « Ventes » et « Bons cadeaux » | §8 bis |
+| A163 | Fenêtre « Facture entreprise », étape « 1 · Client » : « Client connu », « N° de TVA » (BE0123456789), « Vérifier », nom, adresse, code postal, ville, pays | §8 bis |
+| A165 | Étape « 2 · Aperçu » : client ACME SRL, pastille « Peppol inconnu (hors ligne) », lignes, TVA par taux, « Total TTC 61,67 € », « Déjà payé 61,67 €. Reste à payer 0,00 € », « Établir et imprimer la facture » | §8 bis |
+| A166 | « La facture n'a pas été établie. » : « Ce client a un numéro de TVA belge : la facture doit passer par Peppol, qui n'est pas configuré sur cette installation. Contactez le support. » | §8 bis |
+| A167 | « Facture 20260001 établie », « Facture imprimée. », « Pas d'envoi Peppol pour cette facture. », « Terminer » | §8 bis |
+| A168 | Onglet « Tickets » : la vente #1 porte « Facture 20260001 » ; tableau « Factures » (20260001, ACME SARL, 18/10/2026, 61,67 €, « Papier seulement », « Copie ») | §8 bis |
+| A169 | Onglet « Ventes » : « Rapport de ventes » (« Document non fiscal… »), périodes, « Concordance avec les Z », 6 tickets, total 184,16 €, ventes par produit et par heure, « Imprimer » | §10.4 |
+| A171 | Commande de la table 2 : la ligne « Bon cadeau » (pastille « Bon », 1 × 50,00 €) à la place des boutons de quantité | §4 bis |
+| A172 | Fin de vente d'un bon : « OK », ticket de caisse T.V.A. de 50,00 €, « Bon imprimé », « Ticket imprimé », « Terminer » | §7.3 |
+| A173 | « Payer avec un bon cadeau » : « Code du bon (12 chiffres) » saisi (6471 0477 4259), « Retour » et « Chercher » | §7.2 bis |
+| A174 | Bon trouvé : code masqué (**** **** 4259), « Valide », « Solde 50,00 € », « Valable jusqu'au 18.10.2027 », « Montant utilisé 50,00 € », « Utiliser ce bon » | §7.2 bis |
+| A175 | Paiement de 60,00 € en deux parts : « Part 1 · Bon cadeau · 50,00 € » validée, « Part 2 · Espèces · 10,00 € », « Reste à payer 10,00 € » | §7.2 bis |
+| A176 | Fin de vente de 60,00 € payée avec le bon et des espèces : « OK », « Ticket imprimé », « Terminer » | §7.3 |
+| A177 | Rapports, onglet « Bons cadeaux » : « Vérifier un bon », « Bons émis » avec les filtres (Tous, Valide, Épuisé, Expiré, Annulé) ; le bon **** **** 4259 est « Épuisé », 0,00 € / 50,00 € | §10.5 |
+| A178 | Même onglet après « Chercher » : bon 6471 0477 4259, « Épuisé », « Solde 0,00 € », « Valable jusqu'au 18.10.2027 » | §10.5 |
+| A179 | Écran de commande, mode « Épuisé » allumé : « Touchez un produit pour changer sa disponibilité. » | §5.4 |
+| A180 | Fenêtre du produit « Dry Martini » : « Épuisé jusqu'à la fin de la journée », « Épuisé jusqu'à réactivation », « Disponible », « Retour » | §5.4 |
+| A181 | Produit grisé avec la pastille « Épuisé », message « Ce produit est épuisé. », bouton « Produits épuisés (1) » | §5.4 |
+| A182 | Fenêtre « Produits épuisés » : « Dry Martini, Jusqu'à la fin de la journée (19/10 05:00) », « Remettre en vente », « Retour » | §5.4 |
+| A183 | Config, « Édition de la carte » : catégories (« Menus » et « Vouchers » masquées), produits de la catégorie, « + Nouvelle catégorie », « + Nouveau produit », « Historique » | §12 bis |
+| A184 | Fiche du produit « Dry Martini » : noms par langue, catégorie, « Prix (€) », « TVA sur place », « TVA à emporter », « Code du menu », « Annuler » et « Enregistrer » | §12 bis |
+| A185 | Même fiche, section « Allergènes » : « Liste déclarée », les 14 allergènes (Lait et Sulfites « Contient », Céréales « Traces possibles »), « Groupes d'options » | §12 ter.4 |
+| A186 | Même fiche après « Enregistrer » : message « Carte enregistrée » | §12 bis |
+| A187 | Fiche de la catégorie « Starters » : noms par langue, couleur, « Temps du service en cuisine » (Entrées), position, « Visible à la caisse » | §12 ter.2 |
+| A188 | Écran de commande, mode « Allergènes » allumé : légende des 14 numéros, pastilles 7 et 12 sur « Dry Martini », « Touchez un produit pour voir ses allergènes » | §4 bis |
+| A189 | Fiche d'allergènes du produit : « Règlement (UE) n° 1169/2011, annexe II », « Contient 7 Lait, 12 Sulfites », « Traces possibles 1 Céréales contenant du gluten », « Imprimer cette fiche », « Imprimer la carte complète », « Fermer » | §4 bis |
+| A190 | Rapports, onglet « Tickets » : la vente #1 porte la mention « Paiement corrigé : Espèces → Carte » à la place du bouton « Corriger le paiement » | §9 bis |
+| A191 | Fenêtre « Corriger le paiement » d'une vente payée sur le terminal lié : « Une carte prise sur le terminal lié ne peut pas être corrigée. », « Retour » | §9 bis |
+| A192 | Facture entreprise, étape « 1 · Client » : numéro BE0123456749, pastille « Peppol inconnu (hors ligne) », « Peppol n'a pas répondu : la facture peut être établie, l'envoi sera retenu. » | §8 bis |
+| A193 | Fenêtre « Vendre un bon cadeau » : « Montant du bon » 50,00 €, pavé numérique, « Retour » et « Valider » | §4 bis |
+| A194 | Onglet « Ventes », « Période libre » : saisie « Du __/__/____ » et « Au __/__/____ » au pavé, bouton « Afficher » | §10.4 |
+| A195 | Config, panneau « Peppol » : fournisseur, identifiant d'envoi, compteurs « En attente », « Remises » et « Bloquées », « Aucun envoi bloqué. » | §12 bis |
+| A196 | Fenêtre « Saisir le PIN » d'une correction de paiement refusée : message rouge « Cette correction demanderait un arrondi : elle n'est pas possible pour cette vente. » | §9 bis |

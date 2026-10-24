@@ -22,6 +22,7 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 use sha1::Digest;
 
+pub mod storecove;
 mod tem;
 pub mod tls;
 
@@ -165,6 +166,12 @@ pub fn app() -> Router {
 
 /// Same as [`app`], with explicit settings.
 pub fn app_with(control: Control) -> Router {
+    app_with_storecove(control, storecove::StorecoveMock::new())
+}
+
+/// Same as [`app_with`], with the Storecove mock (Peppol access point, routes under
+/// [`storecove::PREFIX`]) answering from `storecove`, so a test can script and read it.
+pub fn app_with_storecove(control: Control, storecove: storecove::StorecoveMock) -> Router {
     let state: Shared = Arc::new(Mutex::new(FdmState {
         control,
         ..Default::default()
@@ -175,6 +182,7 @@ pub fn app_with(control: Control) -> Router {
         .route("/mock/requests", get(get_requests).delete(clear_requests))
         .with_state(state)
         .merge(tem::router())
+        .merge(storecove::router(storecove))
 }
 
 fn lock(state: &Shared) -> std::sync::MutexGuard<'_, FdmState> {

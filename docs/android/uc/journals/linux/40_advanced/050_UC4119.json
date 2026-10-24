@@ -1,0 +1,592 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "40_advanced",
+  "scenario": "050_UC4119",
+  "ids": [
+    "UC4119"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "75061189702",
+        "name": "John",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:07:22.517537Z",
+        "id": 5,
+        "order_type": "dine_in",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": 1,
+        "total_cents": 0,
+        "user_insz": "75061189702"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:22.518347Z",
+        "department_id": "20",
+        "department_name": "Starters",
+        "id": 8,
+        "menu_item_id": 20001,
+        "modifiers_json": null,
+        "name": "Carpaccio Beef",
+        "order_id": 5,
+        "quantity": 2,
+        "unit_price_cents": 2000,
+        "vat_code": "B"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:22.518770Z",
+        "department_id": "22",
+        "department_name": "Main Dishes",
+        "id": 9,
+        "menu_item_id": 22001,
+        "modifiers_json": null,
+        "name": "Burger of the CHEF",
+        "order_id": 5,
+        "quantity": 1,
+        "unit_price_cents": 2800,
+        "vat_code": "B"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:22.519079Z",
+        "department_id": "15",
+        "department_name": "Wines",
+        "id": 10,
+        "menu_item_id": 15003,
+        "modifiers_json": null,
+        "name": "Wine (glass)",
+        "order_id": 5,
+        "quantity": 2,
+        "unit_price_cents": 800,
+        "vat_code": "A"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:22.519362Z",
+        "department_id": "12",
+        "department_name": "Soft Drinks",
+        "id": 11,
+        "menu_item_id": 12009,
+        "modifiers_json": null,
+        "name": "Coca Cola",
+        "order_id": 5,
+        "quantity": 3,
+        "unit_price_cents": 304,
+        "vat_code": "A"
+      }
+    },
+    {
+      "cmd": "sign_table_order",
+      "ok": true,
+      "error": null,
+      "result": "printed"
+    },
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "84022899837",
+        "name": "Elisa",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "checkout",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": {
+          "deliveryId": null,
+          "email": "not_requested",
+          "fiscalEventId": 10,
+          "medium": "PAPER",
+          "needsPaper": false,
+          "paperPrinted": true,
+          "recipientHint": null
+        },
+        "error": null,
+        "fdm_connected": true,
+        "fiscal_event_id": 10,
+        "kitchen_slip": "nothing_to_print",
+        "success": true,
+        "ticket": {
+          "copy_made_at": null,
+          "device_id": "pos-json-device",
+          "event_label": "N",
+          "fdm_ref": {
+            "eventCounter": 5,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-10T06:07:22Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 10
+          },
+          "footer": [],
+          "is_refund": false,
+          "is_training": false,
+          "lang": "fr",
+          "lines": [
+            {
+              "description": "Carpaccio Beef",
+              "quantity": 2.0,
+              "total": 40.0,
+              "unit_price": 20.0,
+              "vat_code": "B"
+            },
+            {
+              "description": "Burger of the CHEF",
+              "quantity": 1.0,
+              "total": 28.0,
+              "unit_price": 28.0,
+              "vat_code": "B"
+            },
+            {
+              "description": "Wine (glass)",
+              "quantity": 2.0,
+              "total": 16.0,
+              "unit_price": 8.0,
+              "vat_code": "A"
+            },
+            {
+              "description": "Coca Cola",
+              "quantity": 3.0,
+              "total": 9.12,
+              "unit_price": 3.04,
+              "vat_code": "A"
+            }
+          ],
+          "operator": "Elisa",
+          "original": null,
+          "payments": [
+            {
+              "amount": 31.04,
+              "method": "Card"
+            },
+            {
+              "amount": 31.04,
+              "method": "Meal voucher"
+            },
+            {
+              "amount": 31.04,
+              "method": "Cash"
+            }
+          ],
+          "pos_datetime": "2026-10-10T08:07:22.815+02:00",
+          "pos_id": "CPOS0031234567",
+          "pos_sw_version": "pili-pos/1.1.0",
+          "restaurant_address": "1 Rue du Test, 4000 Liege",
+          "restaurant_est_no": "2000000042",
+          "restaurant_legal_name": "Restaurant Test",
+          "restaurant_name": "Restaurant Test",
+          "restaurant_vat": "BE0000000097",
+          "rounding": 0.01,
+          "short_signature": "3f5ffb783e2595b1590316ffa94aca530cfe54eb",
+          "subtotal": 93.12,
+          "terminal_id": "POS-2-ANDROID",
+          "ticket_number": 5,
+          "ticket_type_label": "TICKET DE CAISSE T.V.A.",
+          "total": 93.13000000000001,
+          "unpaid": false,
+          "vat_breakdown": [
+            {
+              "label": "A",
+              "outOfScope": false,
+              "rate": 21.0,
+              "taxableAmount": 20.76,
+              "totalAmount": 25.119999999999997,
+              "vatAmount": 4.36
+            },
+            {
+              "label": "B",
+              "outOfScope": false,
+              "rate": 12.0,
+              "taxableAmount": 60.71,
+              "totalAmount": 68.0,
+              "vatAmount": 7.29
+            }
+          ],
+          "verification_url": "https://www.gs2.be/M0000500010AbCdEfGhI"
+        }
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signOrder",
+      "request": {
+        "query": "mutation($data: OrderInput!, $isTraining: Boolean!) { signOrder(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "098bf679-cbd0-4d5e-93fa-f7014f64c89e",
+            "costCenter": {
+              "id": "T01",
+              "reference": "O5",
+              "type": "TABLE"
+            },
+            "deviceId": "pos-json-device",
+            "employeeId": "75061189702",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:22.519+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 40.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "20",
+                    "departmentName": "Starters",
+                    "productId": "20001",
+                    "productName": "Carpaccio Beef",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 20.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 40.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 28.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "22",
+                    "departmentName": "Main Dishes",
+                    "productId": "22001",
+                    "productName": "Burger of the CHEF",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 28.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 28.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 16.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "15",
+                    "departmentName": "Wines",
+                    "productId": "15003",
+                    "productName": "Wine (glass)",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 8.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 16.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 9.12,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "12",
+                    "departmentName": "Soft Drinks",
+                    "productId": "12009",
+                    "productName": "Coca Cola",
+                    "quantity": 3.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 3.04,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 9.12
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 93.12
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signOrder": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMi05LTE3OTE2MTI0NDI=",
+            "eventOperation": "ORDER",
+            "fdmRef": {
+              "eventCounter": 2,
+              "eventLabel": "P",
+              "fdmDateTime": "2026-10-10T06:07:22Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 9
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:22.519+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "operation": "signSale",
+      "request": {
+        "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "098bf679-cbd0-4d5e-93fa-f7014f64c89e",
+            "costCenter": {
+              "id": "T01",
+              "reference": "O5",
+              "type": "TABLE"
+            },
+            "deviceId": "pos-json-device",
+            "employeeId": "84022899837",
+            "estNo": "2000000042",
+            "financials": [
+              {
+                "amount": 31.04,
+                "amountType": "PAYMENT",
+                "id": "2",
+                "inputMethod": "MANUAL",
+                "name": "Card",
+                "type": "CARD_DEBIT"
+              },
+              {
+                "amount": 31.04,
+                "amountType": "PAYMENT",
+                "id": "3",
+                "inputMethod": "MANUAL",
+                "name": "Meal voucher",
+                "type": "CHEQUE_MEAL"
+              },
+              {
+                "amount": 31.04,
+                "amountType": "PAYMENT",
+                "id": "1",
+                "inputMethod": "MANUAL",
+                "name": "Cash",
+                "type": "CASH"
+              },
+              {
+                "amount": 0.01,
+                "amountType": "ROUNDING",
+                "id": "1",
+                "inputMethod": "MANUAL",
+                "name": "Cash",
+                "type": "CASH"
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:22.815+02:00",
+            "posFiscalTicketNo": 5,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 40.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "20",
+                    "departmentName": "Starters",
+                    "productId": "20001",
+                    "productName": "Carpaccio Beef",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 20.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 40.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 28.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "22",
+                    "departmentName": "Main Dishes",
+                    "productId": "22001",
+                    "productName": "Burger of the CHEF",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 28.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 28.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 16.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "15",
+                    "departmentName": "Wines",
+                    "productId": "15003",
+                    "productName": "Wine (glass)",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 8.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 16.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 9.12,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "12",
+                    "departmentName": "Soft Drinks",
+                    "productId": "12009",
+                    "productName": "Coca Cola",
+                    "quantity": 3.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 3.04,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 9.12
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 93.12
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctNS0xMC0xNzkxNjEyNDQy",
+            "eventOperation": "SALE",
+            "fdmRef": {
+              "eventCounter": 5,
+              "eventLabel": "N",
+              "fdmDateTime": "2026-10-10T06:07:22Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 10
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:22.815+02:00",
+            "posFiscalTicketNo": 5,
+            "posId": "CPOS0031234567",
+            "shortSignature": "3f5ffb783e2595b1590316ffa94aca530cfe54eb",
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": [
+              {
+                "label": "A",
+                "outOfScope": false,
+                "rate": 21.0,
+                "taxableAmount": 20.76,
+                "totalAmount": 25.119999999999997,
+                "vatAmount": 4.36
+              },
+              {
+                "label": "B",
+                "outOfScope": false,
+                "rate": 12.0,
+                "taxableAmount": 60.71,
+                "totalAmount": 68.0,
+                "vatAmount": 7.29
+              }
+            ],
+            "verificationUrl": "https://www.gs2.be/M0000500010AbCdEfGhI",
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [],
+  "tickets": [
+    "                BON DE COMMANDE\n================================================\nDate:                        10/10/2026 08:07:22\nOperateur:                                  John\nTable 1\n------------------------------------------------\nQte   Article\n2 x Carpaccio Beef\n1 x Burger of the CHEF\n------------------------------------------------\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n",
+    "            TICKET DE CAISSE T.V.A.\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:07\nUtilisateur: Elisa\nTerminal: POS-2-ANDROID\nTicketnr.: 000005\nPOS Serial: CPOS0031234567\nInput device MAC: pos-json-device\nLogiciel de caisse v.: pili-pos/1.1.0\n................................................\n2 Carpaccio Beef                        40,00  B\n1 Burger of the CHEF                    28,00  B\n2 Wine (glass)                          16,00  A\n3 Coca Cola                              9,12  A\nTOTAL :                                   €93,12\n................................................\nMode de paiement :\nCarte                                      31,04\nChèques-repas                              31,04\nEspeces                                    31,04\nArrondi                                     0,01\n% TVA   CODE          HT       TVA      Brut\n21,00%  A          20,76      4,36     25,12\n12,00%  B          60,71      7,29     68,00\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:07:22Z;\nEvent: N; eventCounter: 5;\ntotalCounter: 10; shortSignature:\n3f5ffb783e2595b1590316ffa94aca530cfe54eb;\n\n [QR: https://www.gs2.be/M0000500010AbCdEfGhI]  \n\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n\n\n\n✂-----------------------------------------------\n",
+    ""
+  ],
+  "verdict": "PASS"
+}

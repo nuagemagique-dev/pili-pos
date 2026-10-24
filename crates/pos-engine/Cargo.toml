@@ -1,0 +1,83 @@
+[package]
+name = "pos-engine"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+pos-fiscal = { path = "../pos-fiscal" }
+pos-print = { path = "../pos-print" }
+pos-db = { path = "../pos-db" }
+pos-mail = { path = "../pos-mail" }
+# The nightly export after each real Z (phase X1).
+pos-export = { path = "../pos-export" }
+# The card payment terminal linked to the till (commands/eft.rs).
+pos-eft = { path = "../pos-eft" }
+pos-hubrise = { path = "../pos-hubrise", optional = true }
+pos-catalog = { path = "../pos-catalog", optional = true }
+pos-hubrise-types = { path = "../pos-hubrise-types", optional = true }
+# Event I invoices and the Peppol delivery queue (commands/invoice.rs).
+pos-peppol = { path = "../pos-peppol" }
+# The HubRise login link as a QR code (Settings), as for tickets.
+qrcode = { version = "0.14", optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+rusqlite = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+bcrypt = "0.19"
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+# The badge key and the keyed hash of a badge number (badge_key.rs).
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+getrandom = "0.3"
+
+[dev-dependencies]
+# The integration tests (tests/) share this harness. The cycle with the
+# testkit (which depends on pos-engine) is intended: integration tests
+# only, no pos-engine unit test uses the testkit.
+pos-engine-testkit = { path = "../pos-engine-testkit" }
+tempfile = "3"
+# Captures the log output: no raw badge number (tests/badges.rs) and no
+# owner alert bot token (tests/owner_alerts.rs) in the logs.
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
+wiremock = "0.6"
+# The admission image's mock FDM, served in-process by tests/admission_mock.rs.
+pos-fdm-mock = { path = "../pos-fdm-mock" }
+# A printer with switchable paper, cover and error states.
+pos-printer-mock = { path = "../pos-printer-mock" }
+# The HubRise API, served in-process by the hubrise_* suites.
+pos-hubrise-mock = { path = "../pos-hubrise-mock" }
+# The export receiver, served in-process by tests/export_nightly.rs.
+pos-export-mock = { path = "../pos-export-mock" }
+# The payment terminals (Worldline, CCV cloud, OPI), served in-process by
+# tests/eft_drivers.rs.
+pos-eft-mock = { path = "../pos-eft-mock" }
+axum = "0.8"
+base64 = "0.23"
+
+[features]
+# Same feature set as the pili-pos shell, which forwards its own to these.
+default = ["hubrise"]
+# The HubRise integration (online orders signed by the FDM, the menu
+# mirrored from the catalog): outbox, the engine commands.
+hubrise = [
+    "dep:pos-hubrise",
+    "dep:pos-hubrise-types",
+    "dep:pos-catalog",
+    "dep:qrcode",
+    "pos-db/hubrise",
+]
+# The certification build: HubRise in. Invoicing (event I) and the Peppol
+# queue are compiled in every build (V11-D1), no feature.
+cert = ["hubrise"]
+# `AppState::eft_terminal_override`: a terminal answering from a script,
+# for the engine's tests. Only the test harness turns it on; no shipped
+# build has the field or the scripted terminal.
+eft-scripted = ["pos-eft/scripted"]

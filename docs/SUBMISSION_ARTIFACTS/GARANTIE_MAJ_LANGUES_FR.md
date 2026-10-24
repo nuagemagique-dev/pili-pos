@@ -39,8 +39,8 @@ Deux builds du même commit produisent donc le même SHA-1. La CI le vérifie à
 
 Le script `scripts/build_and_hash.sh` :
 1. Compile le build de certification.
-2. Vérifie le périmètre du binaire (vérification anti-régression) : commandes en ligne présentes, facturation B2B (`pos_peppol`) absente.
-3. Vérifie l'absence de `DELETE FROM fiscal_events` ou `UPDATE fiscal_events` dans le source, hors blocs de test (ceux-ci exécutent ces requêtes pour prouver que la base les refuse).
+2. Vérifie le périmètre du binaire (vérification anti-régression) : commandes en ligne présentes, facturation B2B (`pos_peppol`) présente.
+3. Vérifie l'absence de `DELETE FROM fiscal_events` ou `UPDATE fiscal_events` dans le source compilé dans le binaire : tous les fichiers `*.rs` et `*.sql` de `crates/` et de `src-tauri/src/`. Seul le code de test, jamais compilé dans le binaire, en est exclu : les dossiers de tests d'intégration Cargo (le dossier `tests/` à la racine d'une crate, soit `crates/*/tests/`, compilé uniquement par `cargo test`) et les blocs `#[cfg(test)]`. Ces tests exécutent ces requêtes pour prouver que la base les refuse.
 4. Calcule SHA-1, SHA-256 et MD5 du binaire.
 5. Produit un rapport `build_info_YYYYMMDD-HHMMSS.txt`.
 
@@ -72,7 +72,7 @@ Une fois l'installation initiale effectuée, toute modification du binaire passe
 
 Le commit du build de certification est tagué `vX.Y.Z` et signé GPG par le producteur. Le SHA git de ce tag est consigné dans le rapport de build et permet à tout moment de reproduire le build à l'identique à partir du dépôt source.
 
-Toute mise à jour ultérieure (correction de bug, nouvelle fonctionnalité) passe par :
+Toute mise à jour après la certification (correction de bug, nouvelle fonctionnalité) passe par :
 - Un nouveau tag `vX.Y.Z+1` signé.
 - Une nouvelle build cert (et donc nouveau SHA-1).
 - Une nouvelle demande de certification SPF Finances pour la mise à jour (procédure §II.E ci-dessous + Article 109 du Manuel).
@@ -94,7 +94,7 @@ La procédure de mise à jour est la suivante :
 1. **Côté producteur :**
    - Implémentation des modifications dans une branche dédiée.
    - Tests automatisés (`cargo test --workspace`) passent à 100%.
-   - Anti-régression : `cargo build --release --no-default-features --features cert` + `scripts/build_and_hash.sh` (périmètre du binaire : commandes en ligne présentes, `nm pili-pos | grep -c pos_peppol == 0`).
+   - Anti-régression : `cargo build --release --no-default-features --features cert` + `scripts/build_and_hash.sh` (périmètre du binaire : commandes en ligne et facturation B2B présentes).
    - Nouveau tag git signé `vX.Y.Z+1`.
    - Production du nouvel exécutable Tauri (`pili-pos`) via la commande de build de certification.
    - Calcul du SHA-1 du nouveau build.
@@ -121,7 +121,7 @@ Le manuel recommande l'usage d'une solution d'accès à distance (TeamViewer, An
 
 **Compromis pratique :** pour l'assistance et le diagnostic d'un problème reporté par le client (jamais pour installer ou remplacer un binaire, qui arrive toujours sur place par clé USB) :
 - Client : RustDesk portable (open source, AppImage autonome), version épinglée et vérifiée par SHA-256 à la construction de l'image, extrait dans `/opt/pili-pos/rustdesk/` (lancé via `/opt/pili-pos/rustdesk/AppRun`). Il fait partie de l'image scellée (donc couvert par la garantie d'identité machine de test / production, §1) mais **n'est jamais lancé au boot** et n'installe aucun service.
-- Ouverture : depuis la caisse, par un Gérant connecté qui confirme avec son PIN ("Config" > "Assistance à distance" > "Démarrer", `src-tauri/src/commands/support.rs`). RustDesk affiche un identifiant et un mot de passe à usage unique, communiqués au producteur par téléphone.
+- Ouverture : depuis la caisse, par un Gérant connecté qui confirme avec son PIN ("Config" > "Assistance à distance" > "Démarrer", `crates/pos-engine/src/commands/support.rs`). RustDesk affiche un identifiant et un mot de passe à usage unique, communiqués au producteur par téléphone.
 - Pendant la session, chaque écran de la caisse, écran de connexion compris, affiche le bandeau "Assistance à distance en cours" ; la session continue après une déconnexion. Démarrage et arrêt sont journalisés (qui, quand).
 - La session prend fin par "Arrêter la session" (dans "Config", ou sur le bandeau de l'écran de connexion, par n'importe qui), à la fermeture de RustDesk, au redémarrage du terminal, ou au plus tard 2 heures après le démarrage. Une seule session à la fois. Aucun accès permanent, aucun port en écoute hors session.
 - La session donne accès à l'écran de la caisse, pas à un shell : les mises à jour du binaire se font sur place (clé USB, `deploy/update.sh --sha1`). La saisie à distance (clavier, tactile) sous le compositeur kiosque (Cage) n'est pas garantie : à défaut, la session reste en lecture seule et le producteur guide le Gérant par téléphone.
@@ -154,6 +154,14 @@ Langues des mentions fiscales supportées par le code :
 - `de` (allemand) - **complète** (traduction de style officiel, en ASCII ; les libellés allemands ne sont pas tirés d'une version allemande de la spécification, qui ne fait pas partie des documents de référence)
 
 Langues d'affichage de l'interface (indépendantes du ticket) : `fr`, `en`, `zh`.
+
+Documents non fiscaux des fonctions du propriétaire : le bon cadeau et son solde sont imprimés en français, néerlandais
+ou allemand (langue de l'établissement ; toute autre valeur retombe sur le français) ; la fiche d'allergènes en
+français, néerlandais, anglais ou allemand ; les bons de commande par temps (« Direct », « Entrées », « Plats »,
+« Desserts ») en français, néerlandais ou allemand. Les messages d'alerte du propriétaire (hors ticket) existent en
+français, en chinois et en anglais, selon la langue réglée par le Gérant. Le nom du moyen de paiement « Bon cadeau »
+suit la langue du ticket : « Bon cadeau », « Cadeaubon », « Geschenkgutschein ».
+
 
 ### 3.2 Règle appliquée : langue de la région linguistique de l'établissement
 

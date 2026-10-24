@@ -11,11 +11,24 @@
 //! 3. `dirs::data_dir()/pili-pos` - development machines.
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Directory holding `pos.db`, `logs/` and `backups/`.
 /// The configuration of an installed terminal (installation manual).
 pub const PRODUCTION_CONFIG: &str = "/etc/pili-pos/pos.json";
+
+/// Where the image installs RustDesk (`deploy/provision/provision.sh`).
+pub const REMOTE_SUPPORT_PROGRAM: &str = "/opt/pili-pos/rustdesk/AppRun";
+
+/// The remote support program the engine is given: RustDesk as installed
+/// on the kiosk, when it is there.
+pub fn support_program() -> Option<PathBuf> {
+    support_program_at(Path::new(REMOTE_SUPPORT_PROGRAM))
+}
+
+fn support_program_at(program: &Path) -> Option<PathBuf> {
+    program.exists().then(|| program.to_path_buf())
+}
 
 pub fn data_dir() -> PathBuf {
     resolve_data_dir(
@@ -69,6 +82,17 @@ mod tests {
     }
 
     #[test]
+    fn the_support_program_is_given_only_when_it_exists() {
+        let dir = std::env::temp_dir().join(format!("pili-paths-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let program = dir.join("AppRun");
+        assert_eq!(support_program_at(&program), None);
+        std::fs::write(&program, "").unwrap();
+        assert_eq!(support_program_at(&program), Some(program.clone()));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn override_wins_over_systemd() {
         let dir = resolve_data_dir(
             Some("/tmp/image-build".into()),
@@ -98,5 +122,13 @@ mod tests {
     fn empty_values_fall_back_to_user_data_dir() {
         let dir = resolve_data_dir(Some("".into()), Some("".into()), fallback());
         assert_eq!(dir, fallback());
+    }
+
+    #[test]
+    fn the_engine_layout_is_the_production_layout() {
+        let paths = pos_engine::engine::EnginePaths::under(data_dir());
+        assert_eq!(paths.db, db_path());
+        assert_eq!(paths.backups, backups_dir());
+        assert_eq!(paths.data_dir, data_dir());
     }
 }

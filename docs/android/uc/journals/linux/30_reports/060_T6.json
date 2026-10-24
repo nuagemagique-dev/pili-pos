@@ -1,0 +1,194 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "30_reports",
+  "scenario": "060_T6",
+  "ids": [
+    "T6"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "84022899837",
+        "name": "Elisa",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "list_fiscal_events",
+      "ok": true,
+      "error": null,
+      "result": [
+        {
+          "eventLabel": "P",
+          "eventType": "P",
+          "fdmDatetime": "2026-10-10T06:07:12Z",
+          "fdmId": "MCK00000001",
+          "id": 8,
+          "orderId": 4,
+          "sequenceNumber": 2,
+          "shortSignature": null
+        }
+      ]
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:13.456431Z",
+        "department_id": "22",
+        "department_name": "Main Dishes",
+        "id": 7,
+        "menu_item_id": 22010,
+        "modifiers_json": null,
+        "name": "Dish of the day",
+        "order_id": 4,
+        "quantity": 2,
+        "unit_price_cents": 2000,
+        "vat_code": "B"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:13.457158Z",
+        "department_id": "15",
+        "department_name": "Wines",
+        "id": 8,
+        "menu_item_id": 15001,
+        "modifiers_json": null,
+        "name": "Bourgogne Red",
+        "order_id": 4,
+        "quantity": 1,
+        "unit_price_cents": 3500,
+        "vat_code": "A"
+      }
+    },
+    {
+      "cmd": "sign_table_order",
+      "ok": true,
+      "error": null,
+      "result": "printed"
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signOrder",
+      "request": {
+        "query": "mutation($data: OrderInput!, $isTraining: Boolean!) { signOrder(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "ab29aec2-53da-491c-8c61-2d5191b1d93b",
+            "costCenter": {
+              "id": "T10",
+              "reference": "O4",
+              "type": "TABLE"
+            },
+            "deviceId": "pos-json-device",
+            "employeeId": "84022899837",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:13.457+02:00",
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 40.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "22",
+                    "departmentName": "Main Dishes",
+                    "productId": "22010",
+                    "productName": "Dish of the day",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 20.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 40.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 35.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "15",
+                    "departmentName": "Wines",
+                    "productId": "15001",
+                    "productName": "Bourgogne Red",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 35.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 35.0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 75.0
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signOrder": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMy05LTE3OTE2MTI0MzM=",
+            "eventOperation": "ORDER",
+            "fdmRef": {
+              "eventCounter": 3,
+              "eventLabel": "P",
+              "fdmDateTime": "2026-10-10T06:07:13Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 9
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:13.457+02:00",
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [],
+  "tickets": [
+    "                BON DE COMMANDE\n================================================\nDate:                        10/10/2026 08:07:13\nOperateur:                                 Elisa\nTable 10\n------------------------------------------------\nQte   Article\n2 x Dish of the day\n------------------------------------------------\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

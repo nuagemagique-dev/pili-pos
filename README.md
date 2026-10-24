@@ -1,103 +1,107 @@
 # pili-pos
 
-Desktop kiosk POS for Tokyo Sushi Bar.
+Point-of-sale system for Belgian restaurants, built for the SCE 2.0 certification (fiscal data module, signed events, fiscal tickets and reports).
 
-`pili-pos` is a Tauri v2 application with a Rust backend and a Vue 3 touchscreen UI, designed for on-site restaurant operations and fiscal workflows.
+One Rust fiscal engine (`crates/pos-engine`) runs behind two front ends:
 
-## Stack
+| Product | Platform | UI | Status |
+|---|---|---|---|
+| `pili-pos-android` 1.0.0 | Android 13 (API 33), Sunmi D3 Pro, arm64 | Kotlin + Jetpack Compose, engine through UniFFI (`libpos_ffi.so`) | **Submitted for the v1 certification.** Dossier `docs/android/dossier`, freeze `android-v1.0.0-rc3` (`docs/android/ANDROID_FREEZE.md`) |
+| `pili-pos` 1.0.0 | Linux x86_64 kiosk terminal (Debian minimal, Cage) | Tauri v2 + Vue 3 | Builds and passes its tests, **not submitted for v1**. What it still needs: `src-tauri/LINUX_RELEASE_GAP.md` |
 
-- Tauri v2
-- Rust workspace (domain, fiscal, print, database, integrations)
-- Vue 3 + TypeScript (Vite)
-- SQLite local persistence
-- ESC/POS printing
+Every fiscal and monetary rule lives in the engine; neither UI computes totals, counters or tickets. Parity scripts keep both UIs and their command layers in step (`scripts/android/check_command_parity.py`, `check_ui_parity.py`, `check_ipc_wrappers.py`).
 
-## Workspace layout
+## Features
 
-- `src-tauri/` - Tauri shell and command handlers
-- `crates/pos-core` - core business domain
-- `crates/pos-fiscal` - fiscal events, counters, QR/signature flows
-- `crates/pos-print` - receipt and ticket printing
-- `crates/pos-db` - SQLite schema and query layer
-- `crates/pos-fdm-mock` - local FDM mock server
-- `crates/pos-hubrise*` - HubRise integrations and mock tooling
-- `ui/` - Vue app and Playwright tests
-- `deploy/` - install, update, service, and kiosk hardening scripts
+- Sales, refunds, pro formas, invoices, payment corrections, copies and staff presence signed by the FDM; fiscal tickets, X, Z and user reports, training mode, automatic Z
+- Tables and takeaway, table plan, table transfer (M122), payment correction (M132), discounts, kitchen notes and slips, courses
+- Payments: cash, card through a linked terminal (Worldline, CCV), meal vouchers (chèques-repas), multi-purpose gift vouchers
+- B2B invoices (event I, M150) with Peppol delivery
+- Menu editor, sold-out items, the 14 EU allergens, sales reports
+- Online orders from HubRise (switched per installation), digital tickets by email
+- Staff badges (USB reader, or NFC on Android), owner alerts on Telegram, nightly encrypted export, accountant export
+- UI in French, English or Chinese; tickets in French, Dutch or German, set per installation
 
-## Local setup
+## Repository layout
 
-### Prerequisites
+**Engine and shared crates** (`crates/`)
 
-- Rust toolchain (edition 2024 workspace)
-- `cargo-tauri`
-- Node.js (for `ui/`)
-- Linux build dependencies for Tauri/WebKitGTK when building native Linux binaries
+- `pos-engine`: the fiscal engine without any UI: commands, state, background tasks (automatic Z, mail outbox, HubRise poller, alerts, presence, idle lock, FDM status), events. Integration tests in `crates/pos-engine/tests`
+- `pos-core`: business domain. `pos-fiscal`: fiscal events, counters, signing. `pos-db`: SQLite schema and queries. `pos-print`: ESC/POS tickets and slips
+- `pos-catalog`: the menu as a mirror of an external catalog. `pos-hubrise`, `pos-hubrise-types`: HubRise client
+- `pos-eft`: card terminal drivers. `pos-peppol`: Peppol e-invoicing. `pos-mail`: digital tickets. `pos-export`: nightly export
+- `pos-accounting`: stand-alone accountant export, outside the certified build
+- `pos-engine-testkit`: test harness of the engine tests
+- Development mocks: `pos-fdm-mock`, `pos-printer-mock`, `pos-hubrise-mock`, `pos-eft-mock`, `pos-export-mock`; on-site card terminal check: `pos-eft-probe`
 
-### Environment
+**Android** (`android/`)
 
-The app loads environment variables from `.env` at startup (if present).
+- `app/`: the till app (Compose, device owner, Lock Task, declared-only updater)
+- `pos-core/`: Android library with the Kotlin bindings and `libpos_ffi.so`
+- `rust/`: separate Cargo workspace with `pos-ffi` (UniFFI facade over the engine) and `uniffi-bindgen`
+- `smoke/`: test app that is never shipped; `uccheck/`: host replay of the official UC journals; `docker/`: reproducible build image
 
-HubRise-related variables used by the Tauri layer include:
+**Linux** (not submitted for v1)
 
-- `HUBRISE_OAUTH_BASE_URL`
-- `HUBRISE_BASE_URL`
-- `HUBRISE_POS_CLIENT_ID`
-- `HUBRISE_POS_CLIENT_SECRET`
-- `HUBRISE_POS_REDIRECT_URI`
-- `HUBRISE_POS_SCOPE` (optional)
+- `src-tauri/`: thin Tauri shell; `src-tauri/src/ipc/` wraps each engine command in one call
+- `ui/`: Vue 3 app and Playwright tests
+- `deploy/`: release build, install, update, kiosk image and hardening
 
-### Run in development
+**Docs and scripts**
+
+- `docs/android/`: Android build, decisions (`DECISIONS.md`), freeze records, UC matrix, dossier and its evidence
+- `docs/SUBMISSION_ARTIFACTS/`: Linux dossier (kept, not submitted)
+- `docs/` (dated folders): official SPF specifications and UC fixtures
+- `scripts/android/`: gates (`p*_gate.sh`), emulator, captures, device tests, reproducibility; `scripts/`: dossier and evidence tools
+
+`CLAUDE.md` holds the detailed architecture, SCE 2.0 rules, schema and decisions.
+
+## Prerequisites
+
+- Rust from `rust-toolchain.toml` (rustup first in `PATH`), `cargo-ndk`
+- Android SDK with NDK 27.1.12297006, JDK 17
+- Node.js for `ui/`; `cargo-tauri` and the WebKitGTK build dependencies for native Linux builds
+- Docker for the reproducible builds
 
 ```bash
-# Install UI dependencies
-cd ui && npm install
-
-# Start desktop app in dev mode
-cd ..
-cargo tauri dev
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.1.12297006"
+export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
 ```
 
 ## Build and test
 
 ```bash
-# Rust tests
+# Engine and workspace
 cargo test --workspace
+cargo test -p pos-engine --no-default-features --features cert
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all -- --check
 
-# Lint
-cargo clippy --workspace -- -D warnings
+# Android: FFI crate, then the app
+(cd android/rust && cargo test --workspace --locked)
+(cd android && ./gradlew :app:assembleDebug :app:testDebugUnitTest)
 
-# Format
-cargo fmt --all
+# Android gates and device runs (see docs/android/BUILD.md)
+scripts/android/p6_gate.sh
+scripts/android/emulator.sh ensure
+scripts/android/device_engine_tests.sh --check
 
-# UI end-to-end tests
-cd ui && npm run test:e2e
+# Linux shell and UI
+cargo test -p pili-pos --no-default-features --features cert
+cd ui && npm ci && npm run test:e2e
+cargo tauri dev
 ```
 
-## Release packaging and install
+Development mocks: `cargo run -p pos-fdm-mock` (FDM and email API on :8081) and `cargo run -p pos-printer-mock` (printer on :9100). The Android dev bundle and screen captures use `scripts/android/make_dev_bundle.sh` and `scripts/android/capture_screens.sh`.
 
-Build a release package with bundled deployment artifacts:
+## Release and reproducibility
 
-```bash
-./deploy/build-release.sh
-# or from macOS via containerized Linux build
-./deploy/build-release.sh --docker
-```
+- **Android**: `scripts/android/check_repro.sh` builds the unsigned release APK twice in clean offline containers and compares them byte for byte; `scripts/android/check_android_frozen.sh` checks that the frozen inputs match the freeze tag. Signing happens outside the build with the release key (`docs/android/REPRO.md`).
+- **Linux**: `./deploy/build-release.sh --docker` builds the release, `scripts/check_repro.sh` checks it twice. Install and update with `deploy/install.sh` and `deploy/update.sh`; operations in `deploy/REMOTE-OPS.md` and `deploy/UPDATE-STRATEGY.md`.
 
-Install on target terminal:
+Live calls to the FDM simulator, HubRise or the card terminals are run by hand only, never in CI.
 
-```bash
-sudo ./deploy/install.sh --binary /path/to/pili-pos --seed /path/to/seed.sql
-```
+## License
 
-Update an installed terminal:
-
-```bash
-sudo ./deploy/update.sh /path/to/pili-pos [--seed /path/to/seed.sql]
-```
-
-## Operations
-
-- Service unit: `deploy/pili-pos.service`
-- Remote troubleshooting: `deploy/REMOTE-OPS.md`
-- Update/rollback strategy: `deploy/UPDATE-STRATEGY.md`
-- Kiosk lockdown files: `deploy/kiosk/`
+Proprietary (nuagemagique.dev).

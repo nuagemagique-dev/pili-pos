@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="plat_update_title">Mise à jour</string>
+    <string name="plat_update_err_key_missing">Aucune clé de déclaration n\'est installée sur cette caisse : la mise à jour est refusée.</string>
+    <string name="plat_update_err_network">La source des mises à jour est injoignable ou a répondu de façon inattendue.</string>
+    <string name="plat_update_err_bad_descriptor">Le descripteur de la version est illisible ou incomplet.</string>
+    <string name="plat_update_err_bad_signature">La signature du descripteur n\'est pas valide : la mise à jour est refusée.</string>
+    <string name="plat_update_err_wrong_package">Cette version n\'est pas destinée à cette application.</string>
+    <string name="plat_update_err_not_newer">Cette version n\'est pas plus récente que celle qui est installée.</string>
+    <string name="plat_update_err_too_large">Un fichier de la mise à jour dépasse la taille autorisée.</string>
+    <string name="plat_update_err_sha256_mismatch">L\'empreinte SHA-256 du fichier ne correspond pas à celle déclarée.</string>
+    <string name="plat_update_err_sha1_mismatch">L\'empreinte SHA-1 du fichier ne correspond pas à celle déclarée.</string>
+    <string name="plat_update_err_archive_mismatch">Le contenu de l\'APK (paquet, version) ne correspond pas au descripteur.</string>
+    <string name="plat_update_err_signer_mismatch">L\'APK n\'est pas signé par la même clé que l\'application installée.</string>
+    <string name="plat_update_err_usb_missing_file">Un fichier de la mise à jour est absent du dossier choisi.</string>
+    <string name="plat_update_installed">Version installée : %1$s (code %2$d)</string>
+    <string name="plat_update_installed_sha1">SHA-1 de l\'APK installé : %1$s</string>
+    <string name="plat_update_unknown">inconnu</string>
+    <string name="plat_update_check_online">Vérifier en ligne</string>
+    <string name="plat_update_from_usb">Depuis une clé USB</string>
+    <string name="plat_update_checking">Vérification de la mise à jour en cours. Ne quittez pas cet écran.</string>
+    <string name="plat_update_no_stick">Aucune clé USB ni carte SD détectée. Insérez celle qui contient la mise à jour, puis recommencez.</string>
+    <string name="plat_update_result_title">Mise à jour disponible et vérifiée</string>
+    <string name="plat_update_result_version">Version déclarée : %1$s (code %2$d)</string>
+    <string name="plat_update_result_sha1">SHA-1 de l\'APK : %1$s</string>
+    <string name="plat_update_result_signer">Signataire (SHA-256) : %1$s</string>
+    <string name="plat_update_install_hint">L\'installation ferme la caisse, installe la nouvelle version puis la redémarre toute seule. Ne l\'éteignez pas.</string>
+    <string name="plat_update_refused_title">Mise à jour refusée</string>
+    <string name="plat_update_refused_detail">Détail : %1$s</string>
+    <string name="plat_update_not_manager">Réservé au gérant. Connectez-vous avec un compte administrateur pour mettre à jour la caisse.</string>
+    <string name="plat_update_blocked_title">La mise à jour ne peut pas démarrer maintenant :</string>
+    <string name="plat_update_pre_not_manager">Seul un administrateur peut mettre à jour la caisse.</string>
+    <string name="plat_update_pre_open_order">Une commande ou une vente à emporter est encore ouverte : encaissez-la ou annulez-la.</string>
+    <string name="plat_update_pre_z_due">Un rapport Z est dû : faites-le avant la mise à jour.</string>
+    <string name="plat_update_pre_z_not_done">Faites le rapport Z de la journée : des opérations fiscales ont eu lieu depuis le dernier rapport Z.</string>
+    <string name="plat_update_pre_engine_not_ready">Le moteur de la caisse n\'est pas prêt : attendez quelques secondes et recommencez.</string>
+    <string name="plat_update_install">Installer la mise à jour</string>
+    <string name="plat_update_installing">Installation en cours, la caisse redémarre.</string>
+    <string name="plat_update_installing_hint">Ne touchez à rien et n\'éteignez pas la caisse. Elle revient seule à l\'écran de connexion.</string>
+    <string name="plat_update_install_failed_title">La mise à jour n\'a pas été installée</string>
+    <string name="plat_update_install_backup_failed">La sauvegarde de la base a échoué : la mise à jour est refusée, la caisse continue de fonctionner.</string>
+    <string name="plat_update_install_engine_busy">Le moteur de la caisse n\'a pas pu s\'arrêter à temps : la mise à jour est refusée, la caisse continue de fonctionner.</string>
+    <string name="plat_update_install_silent_install_refused">Le système demande une confirmation à l\'écran, ce qui est impossible sur cette caisse : la mise à jour est refusée.</string>
+    <string name="plat_update_install_install_failed">L\'installation a échoué avant de commencer ou a été refusée par le système. La caisse continue de fonctionner.</string>
+</resources>

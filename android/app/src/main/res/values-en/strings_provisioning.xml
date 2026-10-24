@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Provisioning screens (P4-T11). Placeholders are written {name} and replaced in Kotlin. -->
+    <string name="prov_title">Till set-up</string>
+    <string name="prov_instructions">Plug in the configuration USB stick, then choose the folder that holds the signed configuration bundle.</string>
+    <string name="prov_choose_folder">Choose the folder</string>
+    <string name="prov_import_inbox">Import from the test inbox</string>
+    <string name="prov_importing">Importing…</string>
+    <string name="prov_done">Configuration imported. The till is starting.</string>
+    <string name="prov_mismatch_title">Configuration of another device</string>
+    <string name="prov_mismatch_body">The installed configuration was prepared for device {stored}, but this device is {actual}. Import a new signed configuration for this device.</string>
+    <string name="prov_owner_required_title">Device not prepared</string>
+    <string name="prov_owner_required_body">The app must be installed as the device owner before set-up. Contact the installer.</string>
+    <string name="prov_device_id_title">Serial number unreadable</string>
+    <string name="prov_device_id_body">The serial number of the device cannot be read ({detail}). The till does not start without it.</string>
+
+    <!-- Import problems. -->
+    <string name="prov_err_bundle_signature_invalid">The signature of the configuration bundle is missing or invalid.</string>
+    <string name="prov_err_bundle_manifest_invalid">The manifest of the configuration bundle is missing or unreadable.</string>
+    <string name="prov_err_bundle_path_invalid">File path refused in the bundle: {path}</string>
+    <string name="prov_err_bundle_file_missing">File missing from the bundle: {path}</string>
+    <string name="prov_err_bundle_size_mismatch">Unexpected file size: {path}</string>
+    <string name="prov_err_bundle_hash_mismatch">File content changed: {path}</string>
+    <string name="prov_err_bundle_unlisted_file">File not expected in the bundle: {path}</string>
+    <string name="prov_err_minisign_key_invalid">The public verification key is invalid.</string>
+    <string name="prov_err_minisign_signature_invalid">The signature is invalid.</string>
+    <string name="prov_err_key_missing">This version has no verification key: no configuration can be imported.</string>
+    <string name="prov_err_not_device_owner">The app is not the device owner: import is not possible.</string>
+    <string name="prov_err_device_id_unavailable">The serial number of the device cannot be read: {detail}</string>
+    <string name="prov_err_config_invalid">The configuration is invalid: {detail}</string>
+    <string name="prov_err_engine_open">The till engine is open: close it before importing.</string>
+    <string name="prov_err_copy_failed">The bundle cannot be copied: {detail}</string>
+    <string name="prov_err_too_large">The bundle is too large or holds too many files.</string>
+    <string name="prov_err_symlink">The bundle contains a symbolic link, which is refused: {path}</string>
+    <string name="prov_err_busy">An import is already running.</string>
+    <string name="prov_err_unexpected">Unexpected error: {detail}</string>
+</resources>

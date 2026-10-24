@@ -1,0 +1,9 @@
+# Linux exclusions of the fake repository.
+[M122]
+reason = "Hors périmètre dans la caisse de test."
+kind = "hors_perimetre"
+
+[M181]
+reason = "Le rapport Z est toujours combiné."
+kind = "couvert_par"
+by = "M184"

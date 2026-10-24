@@ -1,0 +1,306 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "40_advanced",
+  "scenario": "020_UC223",
+  "ids": [
+    "UC223"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "84022899837",
+        "name": "Elisa",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:07:19.972874Z",
+        "id": 2,
+        "order_type": "takeaway",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": null,
+        "total_cents": 0,
+        "user_insz": "84022899837"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:19.973312Z",
+        "department_id": "20",
+        "department_name": "Starters",
+        "id": 2,
+        "menu_item_id": 20001,
+        "modifiers_json": null,
+        "name": "Carpaccio Beef",
+        "order_id": 2,
+        "quantity": 2,
+        "unit_price_cents": 2000,
+        "vat_code": "C"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:19.973778Z",
+        "department_id": "10",
+        "department_name": "Aperitifs",
+        "id": 3,
+        "menu_item_id": 10006,
+        "modifiers_json": null,
+        "name": "Dry Martini",
+        "order_id": 2,
+        "quantity": 1,
+        "unit_price_cents": 1200,
+        "vat_code": "A"
+      }
+    },
+    {
+      "cmd": "checkout",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": {
+          "deliveryId": null,
+          "email": "not_requested",
+          "fiscalEventId": 3,
+          "medium": "PAPER",
+          "needsPaper": false,
+          "paperPrinted": true,
+          "recipientHint": null
+        },
+        "error": null,
+        "fdm_connected": true,
+        "fiscal_event_id": 3,
+        "kitchen_slip": "printed",
+        "success": true,
+        "ticket": {
+          "copy_made_at": null,
+          "device_id": "pos-json-device",
+          "event_label": "N",
+          "fdm_ref": {
+            "eventCounter": 2,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-10T06:07:19Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 3
+          },
+          "footer": [],
+          "is_refund": false,
+          "is_training": false,
+          "lang": "fr",
+          "lines": [
+            {
+              "description": "Carpaccio Beef",
+              "quantity": 2.0,
+              "total": 40.0,
+              "unit_price": 20.0,
+              "vat_code": "C"
+            },
+            {
+              "description": "Dry Martini",
+              "quantity": 1.0,
+              "total": 12.0,
+              "unit_price": 12.0,
+              "vat_code": "A"
+            }
+          ],
+          "operator": "Elisa",
+          "original": null,
+          "payments": [
+            {
+              "amount": 52.0,
+              "method": "Card"
+            }
+          ],
+          "pos_datetime": "2026-10-10T08:07:19.974+02:00",
+          "pos_id": "CPOS0031234567",
+          "pos_sw_version": "pili-pos/1.1.0",
+          "restaurant_address": "1 Rue du Test, 4000 Liege",
+          "restaurant_est_no": "2000000042",
+          "restaurant_legal_name": "Restaurant Test",
+          "restaurant_name": "Restaurant Test",
+          "restaurant_vat": "BE0000000097",
+          "rounding": null,
+          "short_signature": "783b9f7dc1709134f1cb030a637516d83f17dfaf",
+          "subtotal": 52.0,
+          "terminal_id": "POS-2-ANDROID",
+          "ticket_number": 2,
+          "ticket_type_label": "TICKET DE CAISSE T.V.A.",
+          "total": 52.0,
+          "unpaid": false,
+          "vat_breakdown": [
+            {
+              "label": "C",
+              "outOfScope": false,
+              "rate": 6.0,
+              "taxableAmount": 37.74,
+              "totalAmount": 40.0,
+              "vatAmount": 2.26
+            },
+            {
+              "label": "A",
+              "outOfScope": false,
+              "rate": 21.0,
+              "taxableAmount": 9.92,
+              "totalAmount": 12.0,
+              "vatAmount": 2.08
+            }
+          ],
+          "verification_url": "https://www.gs2.be/M0000200003AbCdEfGhI"
+        }
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signSale",
+      "request": {
+        "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "098bf679-cbd0-4d5e-93fa-f7014f64c89e",
+            "deviceId": "pos-json-device",
+            "employeeId": "84022899837",
+            "estNo": "2000000042",
+            "financials": [
+              {
+                "amount": 52.0,
+                "amountType": "PAYMENT",
+                "id": "2",
+                "inputMethod": "MANUAL",
+                "name": "Card",
+                "type": "CARD_DEBIT"
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:19.974+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 40.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "20",
+                    "departmentName": "Starters",
+                    "productId": "20001",
+                    "productName": "Carpaccio Beef",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 20.0,
+                    "vats": [
+                      {
+                        "label": "C",
+                        "price": 40.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 12.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "10",
+                    "departmentName": "Aperitifs",
+                    "productId": "10006",
+                    "productName": "Dry Martini",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 12.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 12.0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 52.0
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMi0zLTE3OTE2MTI0Mzk=",
+            "eventOperation": "SALE",
+            "fdmRef": {
+              "eventCounter": 2,
+              "eventLabel": "N",
+              "fdmDateTime": "2026-10-10T06:07:19Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 3
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:19.974+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "shortSignature": "783b9f7dc1709134f1cb030a637516d83f17dfaf",
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": [
+              {
+                "label": "C",
+                "outOfScope": false,
+                "rate": 6.0,
+                "taxableAmount": 37.74,
+                "totalAmount": 40.0,
+                "vatAmount": 2.26
+              },
+              {
+                "label": "A",
+                "outOfScope": false,
+                "rate": 21.0,
+                "taxableAmount": 9.92,
+                "totalAmount": 12.0,
+                "vatAmount": 2.08
+              }
+            ],
+            "verificationUrl": "https://www.gs2.be/M0000200003AbCdEfGhI",
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [],
+  "tickets": [
+    "            TICKET DE CAISSE T.V.A.\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:07\nUtilisateur: Elisa\nTerminal: POS-2-ANDROID\nTicketnr.: 000002\nPOS Serial: CPOS0031234567\nInput device MAC: pos-json-device\nLogiciel de caisse v.: pili-pos/1.1.0\n................................................\n2 Carpaccio Beef                        40,00  C\n1 Dry Martini                           12,00  A\nTOTAL :                                   €52,00\n................................................\nMode de paiement :\nCarte                                      52,00\n% TVA   CODE          HT       TVA      Brut\n6,00%   C          37,74      2,26     40,00\n21,00%  A           9,92      2,08     12,00\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:07:19Z;\nEvent: N; eventCounter: 2;\ntotalCounter: 3; shortSignature:\n783b9f7dc1709134f1cb030a637516d83f17dfaf;\n\n [QR: https://www.gs2.be/M0000200003AbCdEfGhI]  \n\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n\n\n\n✂-----------------------------------------------\n",
+    "                BON DE COMMANDE\n================================================\nDate:                        10/10/2026 08:07:19\nOperateur:                                 Elisa\nVente directe\n------------------------------------------------\nQte   Article\n2 x Carpaccio Beef\n------------------------------------------------\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

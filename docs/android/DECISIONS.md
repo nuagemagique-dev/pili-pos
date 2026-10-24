@@ -1,0 +1,2308 @@
+# Android port: decisions (P0.7)
+
+Draft written at the P0 exit (2026-10-06) from the P0 reports on the branches
+`android/p0-P0.1`, `android/p0-S1`, `android/p0-S2`, `android/p0-S3` and
+`android/p0-S5` (all reviewed APPROVE), the approved plan, and the repo at
+main `96728e1`. Spike S4 (D3 Pro profile on the emulator) ran on the
+`sunmi_d3_pro_api33` AVD on 2026-10-07 (report `docs/android/spikes/S4.md`);
+what rested on it was marked PENDING-S4 in the draft and is now settled
+(DECIDED, S4 emulator) or recorded as hardware residue.
+
+**Status labels**
+
+- **DECIDED:** settled by the approved plan, an earlier owner decision, or P0
+  evidence. The evidence is cited. The user's approval of this file confirms it.
+- **PROPOSED:** a recommendation that needs the user's explicit choice.
+- **PENDING-S4:** cannot be settled until spike S4 has run on the
+  `sunmi_d3_pro_api33` AVD (and, for hardware residue, on a real D3 Pro).
+
+**Phase exit rule (plan, P0):** P0 exits when the user approves this file.
+
+## Summary
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Application id | PROPOSED |
+| 2 | Version-string scheme (posSwVersion, versionName, versionCode, tags) | PROPOSED |
+| 3 | deviceId source | PROPOSED; mechanism DECIDED (S4 emulator); real serial format HARDWARE RESIDUE |
+| 4 | TLS approach for `HttpTls` | DECIDED (S3 evidence) |
+| 5 | Pinned toolchain and library versions | DECIDED (S1, S2, S3, S5 evidence) |
+| 6 | Updater trigger policy | DECIDED (policy); install mechanics DECIDED (S4 emulator); real image HARDWARE RESIDUE |
+| 7 | No remote support in v1 | DECIDED |
+| 8 | Admission FDM = module2 online simulator | DECIDED; test-machine questions PROPOSED |
+| 9 | Signing-key custody | PROPOSED (technical constraints DECIDED by S5) |
+| 10 | Linux filing: version 1.0.0, initial filing (Art. 99), no v1.1 | DECIDED (user, 2026-10-10) |
+| 11 | Other decisions carried from P0 evidence | DECIDED (technical) |
+| 12 | S4 results (was: items waiting for S4) | DECIDED (S4 emulator), HARDWARE RESIDUE or OPEN per item |
+
+## 1. Application id: PROPOSED
+
+`dev.nuagemagique.pos` belongs to the Pili handheld (moyun-handheld,
+`app/build.gradle.kts:43`, published on Google Play), so the till needs its
+own id.
+
+**Proposal.**
+- Release: `dev.nuagemagique.pilipos`. It follows the producer's domain and the
+  existing product name `pili-pos`, and names no client (the dossier stays
+  brand-neutral).
+- Development builds: `dev.nuagemagique.pilipos.debug` (`applicationIdSuffix`,
+  as moyun-handheld does). They are never installed on a till that signs for real.
+- The Kotlin namespace can follow the id (`dev.nuagemagique.pilipos`).
+
+**Why it matters.** The application id and the signing key are permanent for
+an installed till. Changing either means uninstalling the app, and an
+uninstall deletes app-private storage, which holds the fiscal database. A
+change after the first real installation is therefore treated as a reinstall
+with a full SPF export first. The id is also written into the device-owner
+provisioning (component name), the dossier and the update channel.
+
+**Needs from the user:** confirm the id, or pick another one, before P3.1
+creates the Gradle project.
+
+## 2. Version-string scheme: PROPOSED
+
+**Facts.**
+- Today `posSwVersion` is a compile-time constant:
+  `concat!("pili-pos/", env!("CARGO_PKG_VERSION"))`
+  (`crates/pos-fiscal/src/event.rs:12`), and the workspace version is `1.0.0`
+  (`Cargo.toml:20`).
+- POS spec v2.2: `posSwVersion` is a mandatory string, 1 to 36 characters
+  (`docs/20260417_DESCRIPTIONDETAILLEES_POS_FR_2.2.md:1097`).
+- AM Art. 47: every software version carries a unique version mention. P1a
+  turns the constant into the runtime `SoftwareIdentity` so that Android does
+  not send the Linux string.
+
+**Proposal.**
+
+| Item | Linux | Android |
+|------|-------|---------|
+| Product line in `posSwVersion` | `pili-pos/<X.Y.Z>` (unchanged format) | `pili-pos-android/<X.Y.Z>` |
+| First version | `1.0.0`: the extracted engine is the first Linux filing (user, 2026-10-10; no v1.1) | `1.0.0` |
+| Example | `pili-pos/1.0.0` (14 chars) | `pili-pos-android/1.0.0` (22 chars) |
+| Git tag | `vX.Y.Z` (today), `linux-v1.0.0-rc1` / `linux-v1.0.0` for the freeze tags (the earlier local `linux-v1.1.0-rc1` was misnamed and is deleted at the re-freeze) | `android-vX.Y.Z` (plan P6) |
+| Release artifact | GHCR `:declared` | GHCR `:declared-android`, `"platform":"android"` in `declared.json` |
+
+- **Single source.** The Android version string comes from one place: the
+  `pos-ffi` crate version (`CARGO_PKG_VERSION` in `android/rust`), which
+  `pos-ffi` passes to `Engine::open` as `SoftwareIdentity`. A Gradle check fails
+  the build when `versionName` differs from it. The value is never read from
+  `pos.json` or any other configuration, so it cannot be edited on a till.
+- **versionCode** = `MAJOR * 10000 + MINOR * 100 + PATCH` (1.0.0 -> 10000,
+  1.2.3 -> 10203). It is derived from the tag, never from a CI run number as
+  moyun-handheld does: a run number is a build input that would break the
+  reproducible APK (S5), and the updater requires versionCode to go up.
+  MINOR and PATCH stay below 100.
+- **Development builds** carry the suffix `-dev`
+  (`pili-pos-android/1.0.0-dev`, at most 29 chars for any 2-digit parts), so a
+  development build can never be taken for a declared version on a ticket or
+  in an FDM journal.
+- **Engine version.** The engine's own version (the Linux workspace version
+  of the frozen engine tag) is not part of `posSwVersion`. It is shown on the
+  About screen and in the Android build report next to the `base.apk` and
+  `libpos_ffi.so` SHA-1 (plan P6).
+
+**Needs from the user:** approve the product-line name `pili-pos-android` and
+the versionCode formula.
+
+## 3. deviceId source: PROPOSED, mechanism DECIDED (S4 emulator)
+
+**Facts.**
+- Linux: `device_id` is the real MAC address of the default-route interface,
+  written to `pos.json` at first boot by `pili-provision`
+  (`docs/SUBMISSION_ARTIFACTS/MANUEL_INSTALLATION_FR.md:229`). It is printed on
+  every ticket.
+- FAQ producteurs Q505 (`docs/20260717_FAQ_PRODUCTEURS_FR.md:461-471`):
+  a) in general the MAC address; b) another unique hardware identifier, for
+  example a serial number, is allowed.
+- Spec: `deviceId` is 1 to 600 characters.
+- Android hides the MAC from ordinary apps.
+
+**Proposal (plan, point 11 and P4.4).**
+1. The deviceId is the Sunmi hardware serial, read during provisioning by the
+   device-owner app with `Build.getSerial()` (READ_PHONE_STATE granted by the
+   owner). If that is unavailable, provisioning fails: S4 measured that
+   `ro.serialno` is empty inside the app process, so there is no in-app
+   fallback (was: fallback `ro.serialno`, see "Measured by S4").
+2. It is read once at provisioning and stored in the engine configuration, as
+   Linux does with `pos.json`. At every `Engine::open` the host reads it again
+   and compares. A mismatch (for example a restored backup on other hardware)
+   blocks signing with a coded error and needs a manager re-provision, which
+   is logged.
+3. If no hardware identifier can be read, provisioning fails. There is no
+   generated or random id, and no `ANDROID_ID` (that value depends on the
+   signing key and the user, and changes on a factory reset, so it is not a
+   hardware identifier in the Q505 sense).
+4. Format: the serial as the OS returns it, trimmed, with no prefix.
+
+**Alternative evaluated by S4 and not chosen.** A device owner can call
+`DevicePolicyManager.getWifiMacAddress(admin)`. That gives the factory Wi-Fi
+MAC, which matches Q505 a) and the Linux practice.
+
+**Measured by S4** (emulator, `docs/android/spikes/S4.md` section 3; this was
+the PENDING-S4 list of the draft):
+- `Build.getSerial()` works as device owner on API 33 (tested with
+  READ_PHONE_STATE granted, not without the grant). It returned
+  `EMULATOR37X2X12X0` (17 characters) with Wi-Fi on, with Wi-Fi off and after a
+  reboot, so it is stable. Before the owner is set it throws
+  `SecurityException`.
+- `ro.serialno` and `ro.boot.serialno` are empty inside the app process
+  (reflection and `exec getprop` both return an empty string, no exception),
+  while `adb shell getprop ro.serialno` shows `EMULATOR37X2X12X0`.
+  `Build.SERIAL` is `unknown`. There is no in-app `ro.serialno` fallback.
+- The emulator's fake serial, recorded for the dossier: `EMULATOR37X2X12X0`.
+- `getWifiMacAddress(admin)` returned `02:15:b2:00:00:00` (a fixed fake) with
+  Wi-Fi on and after a reboot, and `null` with Wi-Fi off.
+
+**Outcome of the rule (Q13).** `Build.getSerial()` works for the device owner
+and is stable across reboot, so the hardware serial stays the deviceId (Q4
+stands). `getWifiMacAddress` is evaluated and not chosen: it is `null` while
+Wi-Fi is off (a till on Ethernet, or with its radio off, depends on a state the
+installer does not control), the AVD value is a fixed fake, and Q505 b) accepts
+a hardware serial.
+
+The real Sunmi serial format, and whether the D3 Pro firmware returns it to the
+device owner, stay hardware residue (checked on a real D3 Pro if one becomes
+available).
+
+## 4. TLS approach for `HttpTls`: DECIDED (S3)
+
+**Decision: Option B1c.**
+- The engine gets `HttpTls::{Platform, RootsOnly(Vec<Vec<u8>>)}` with a single
+  `client_builder()` factory.
+- `RootsOnly` hands DER roots to reqwest through `tls_certs_only`. An empty
+  list is refused at open.
+- On Android, `pos-ffi` passes `RootsOnly` with the roots of
+  `webpki-root-certs` compiled in (`HttpTlsMode::BundledRoots`).
+- Linux/Tauri passes `Platform`, which makes no `tls_*` call, so the Linux code
+  path is today's.
+
+**Evidence (S3, reviewed APPROVE, rerun by the reviewer on pili_api33).**
+- **Baseline panic confirmed.** A default reqwest client builds on Android and
+  panics at the first HTTPS handshake: `Expect rustls-platform-verifier to be
+  initialized`, `rustls-platform-verifier-0.7.1/src/android.rs:90`. The panic
+  runs on a tokio worker, so it would silently kill the HubRise poller or the
+  mail task. S1 hit the same panic from `pos-fiscal`.
+- **All B variants reach both services.** B1, B1c, B2 and B2c each return
+  `HTTP/2.0 404` from `https://api.hubrise.com` and `HTTP/2.0 200` from
+  `https://api.scaleway.com`. Each of them still refuses the four badssl
+  negative controls (expired, self-signed, wrong host, untrusted root).
+- **Option A also works but is fragile.** A (JNI init of the platform
+  verifier, AAR, R8 release APK) works, including a `.so` loaded first by JNA.
+  - It fails on a skipped init (panic) or a missing keep rule
+    (`failed to call native verifier`).
+  - The AAR is only on the GitHub `maven-archive` branch (group `org.rustls`,
+    10,295 bytes) and ships no consumer rules.
+- **No feature-flag way out.** No reqwest 0.13.5 feature set keeps rustls
+  without compiling rustls-platform-verifier. The lever is the runtime builder
+  call.
+- **No new lock entry.** `webpki-root-certs 1.0.9` is already in the root
+  `Cargo.lock`, so B1c adds no crate there.
+
+**Rules that come with it.**
+- **Three production call sites.** `HttpTls` must cover:
+  - `src-tauri/src/state.rs:98` (`shared_http`);
+  - `src-tauri/src/commands/delivery.rs:77` (mail);
+  - the `None` fallback of `crates/pos-fiscal/src/fdm_client.rs:427`. An
+    https FDM URL without a usable CA file would otherwise reach the platform
+    verifier and panic in the middle of a signing call.
+- **FDM transports.** `fdm_tls.rs` (mTLS, custom verifier for module2's X.509
+  v1 certificates) is unchanged and is proven on Android (S1: `fdm_tls` 6/6,
+  `fdm_https_mock` 3/3). Plain `http://` FDM never handshakes.
+- **Where `HttpTls` lives.** `pos-fiscal` does not depend on the engine (its
+  dependencies are `pos-core` and libraries), so the type cannot live only in
+  `pos-engine`. Decision for P1a: define `HttpTls` in `pos-fiscal` (the lowest
+  crate that already depends on reqwest; `pos-core` has no reqwest), and have
+  `pos-engine` re-export it.
+- **Linux stays byte-for-byte on `Platform`.** The Linux build never uses
+  `RootsOnly`.
+- **Fallback.** Option A stays a documented recipe in S3. If the owner ever
+  wants "trust the device store", it can be added later as a third mode
+  `HttpTlsMode::PlatformJni`, in `pos-ffi` only.
+
+**Accepted trade-offs.**
+- No CRL checking.
+- A TLS-inspecting proxy with a private root is not trusted. The answer is an
+  extra root supplied in the signed USB bundle (`RootsDir` mode, B2 loader).
+- Refreshing the bundled roots means a new APK, so a new declared Android
+  version and a filing.
+  - HubRise (ISRG Root X1) and Scaleway (USERTrust RSA) chain to long-lived
+    roots, so this is expected to be rare.
+  - A stale set fails closed with `UnknownIssuer`.
+
+**Open (not blocking):**
+- B1c was not run on a real D3 Pro.
+- The claim that Android 13 has no Mainline root update path was not verified.
+
+## 5. Pinned versions: DECIDED
+
+All versions below were used together in S2 and S5 (built, run on pili_api33,
+and reproduced in a container). The Rust crates shared with Linux match the root
+`Cargo.lock` (checked at `96728e1`), as required by the future
+`check_lock_parity.sh`.
+
+| Component | Pin | Evidence |
+|-----------|-----|----------|
+| Rust | 1.99.0 (`rust-toolchain.toml`), target `aarch64-linux-android` | S1, S2, S3, S5 |
+| NDK | `27.1.12297006` (r27b), also AGP `ndkVersion` | S1, S2, S5 (sdkmanager sha1 `6fc476b2e57d7c01ac0c95817746b927035b9749`) |
+| cargo-ndk | 4.1.2 (`cargo install --locked --version 4.1.2`) | S1, S2, S5 |
+| uniffi / uniffi-bindgen | `=0.32.2` in `pos-ffi` and in the bindgen binary, one workspace lockfile | S2 (latest stable on 2026-10-06) |
+| JNA | `net.java.dev.jna:jna:5.19.1@aar` (app, 16 KB aligned `libjnidispatch.so`); plain `jna:5.19.1` jar for JVM tests only | S2 |
+| AGP | 8.9.1 | S2, S5, moyun-handheld `libs.versions.toml` |
+| Kotlin | 2.2.20 | S2, moyun-handheld |
+| R8 | 8.13.25, forced through the root `buildscript { classpath(libs.r8) }` (the R8 bundled with AGP 8.9.1 cannot read Kotlin 2.2 metadata) | S2 (`./gradlew buildEnvironment`), moyun-handheld |
+| Gradle | 8.11.1 wrapper, `distributionSha256Sum=f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6` | S2, S5 |
+| compileSdk / targetSdk / minSdk | 36 / 36 / 33; ABI `arm64-v8a` only | S2, plan point 10 |
+| JDK | 17 (container: Temurin 17.0.20.1+1, sha256 `3808d1d1...e08e`) | S2, S5 |
+| Build-tools | 35.0.0 in the reference container (AGP 8.9.1 default) | S5 |
+| kotlinx-coroutines | 1.9.0 (as moyun-handheld) | S2 |
+| androidx.annotation | 1.9.1 (required by `android_cleaner = true` bindings) | S2 |
+| tokio | 1.53.1 | S2, root `Cargo.lock` |
+| reqwest / rustls / rustls-platform-verifier | 0.13.5 / 0.23.45 / 0.7.1 | S3, root `Cargo.lock` |
+| aws-lc-rs | 1.18.1 (aws-lc-sys 0.45.0, built with the NDK clang, no cmake or bindgen) | S1, S3 |
+| webpki-root-certs | 1.0.9 (already in the root `Cargo.lock`) | S3 |
+| Reference build image base | `debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587`, apt from snapshot `20261001T000000Z`, rustup-init 1.29.1 (sha256 pinned), cmdline-tools 13114758 (sha256 pinned) | S5 |
+
+**Build profile (from S2).**
+- `[profile.android-release]`: `inherits = "release"`, `panic = "unwind"`,
+  `opt-level = "z"`, `lto = true`, `codegen-units = 1`, `strip = "none"`,
+  `debug = "line-tables-only"`.
+- Link argument `-Wl,-z,max-page-size=16384`. Under `RUSTFLAGS` it must be
+  repeated, because `RUSTFLAGS` replaces `target.*.rustflags`.
+- AGP strips the packaged copy.
+
+**Bumps.** Any later change of a pin is a deliberate commit that also updates
+this table. For the APK it means a new declared version.
+
+## 6. Updater trigger policy: DECIDED (policy), mechanics DECIDED (S4 emulator)
+
+**Policy (approved plan, P6; same principle as `deploy/UPDATE-STRATEGY.md`:
+"a self-updating terminal ... is ruled out").**
+1. **Operator-started only.** The manager enters a PIN in Settings. There is no
+   background check, no scheduled install and no push trigger.
+2. **Preconditions** checked by the engine (not by Kotlin):
+   - the day's Z report is done;
+   - no order is open;
+   - no sign is in flight.
+   The update is refused with a coded error otherwise.
+3. **Source.** An anonymous pull of `declared-android` from the public GHCR
+   package (`declared.json` with `"platform":"android"`, plus the minisign
+   signature). Nothing else is ever installed.
+4. **Checks before install:**
+   - the minisign signature against the public key compiled into the app;
+   - the SHA-1 and SHA-256 of the APK against `declared.json`;
+   - versionCode strictly greater than the installed one (no downgrade);
+   - the APK signing certificate equal to the installed one.
+5. **Install** through a PackageInstaller session as device owner. Before the
+   install, the engine makes a consistent DB backup.
+6. **Audit.** Every attempt (refused or done) is written to the audit log.
+   The About screen then shows the new version and SHA-1.
+
+**PROPOSED addition (needs the user):** a second source with identical checks:
+the same signed `declared.json` + APK from a USB stick through SAF. Linux
+deploys from a USB stick on site too, and it covers a till without internet.
+
+**Measured by S4** (emulator, `docs/android/spikes/S4.md` section 7; this was
+the PENDING-S4 list of the draft):
+- **Silent install.** A PackageInstaller session as device owner, while in Lock
+  Task, returns `STATUS_SUCCESS` with no installer UI: only our activity was on
+  top in 57 of 57 samples over 30.2 s. The app is back on top and LOCKED 0.60 s
+  after the commit. The device owner, the Lock Task packages, the persistent
+  HOME and the database all survive.
+- **Restart path.** The install force-stops the app. The system starts HOME
+  (our persistent preferred activity) and `onResume` re-locks from the persisted
+  kiosk flag: 10 of 10 trials back at +0.67 to +0.75 s with only our task on the
+  device. With a stock launcher task below ours the app never came back by
+  itself (16.6 s observed); the `MY_PACKAGE_REPLACED` receiver that starts the
+  main activity brought it back at +1.35 s, so the receiver stays in P6. The
+  install status arrives in the NEW process, which therefore writes the audit
+  "done" row.
+- **Unknown sources.** `DISALLOW_INSTALL_UNKNOWN_SOURCES` and
+  `DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY` do not stop the owner's session,
+  and do not stop `adb install` either (userdebug image).
+- **OS refusals (second line behind the app checks).** Downgrade:
+  `INSTALL_FAILED_VERSION_DOWNGRADE` (`EXTRA_STATUS=4`, legacy -25). Other
+  signing key: `INSTALL_FAILED_UPDATE_INCOMPATIBLE` (`EXTRA_STATUS=5`, legacy
+  -7). A same-versionCode reinstall is **accepted** by the OS, so "strictly
+  greater" is checked by the app only.
+- **Escape window.** The final run saw nothing but our activity. Earlier runs
+  saw the stock launcher once, a black frame of about 0.5 s and, once, the stock
+  home screen for about 2 s; with a stock launcher task below ours the home
+  screen with a Settings icon stays visible until the receiver fires.
+- **`REQUEST_INSTALL_PACKAGES`.** Not needed: an update installed silently
+  without the permission declared. It stays out of the production manifest.
+
+Hardware residue: whether the Sunmi PackageInstaller behaves as AOSP, the
+install time on the real SoC, and `adb install -d` on a user build.
+
+Rollback is not offered by the app: Android refuses a downgrade without an
+uninstall, and an uninstall deletes the fiscal DB. A faulty declared version is
+fixed by a newer declared version.
+
+## 7. No remote support in v1: DECIDED
+
+**Source:** the approved plan (`support_program: None` on Android, "no
+RustDesk").
+
+**Consequences, to be written into the dossier variant (P8):**
+- The Android engine is opened with `support_program = None`. The
+  support-session command returns a coded "not available" error, and the UI
+  hides the entry.
+- No listening port and no permanent outbound channel other than FDM, HubRise,
+  TEM mail and the operator-started update pull.
+- adb is off on a provisioned till (`DISALLOW_DEBUGGING_FEATURES`, the last
+  provisioning step, P6). The measured restriction set and the adb-off behaviour
+  (adb goes offline within 4 s; only the app can switch it back on, with
+  `dpm.setGlobalSetting(ADB_ENABLED, "1")`, which works on API 33) are in
+  `docs/android/spikes/S4.md` section 8 and Q16.
+- Support is on site:
+  - the manager-PIN Settings screens;
+  - the signed USB provisioning bundle (configuration, FDM token, mTLS
+    certificates);
+  - SAF export of logs and backups to a USB stick.
+- Adding remote support later is a new Android version and a dossier change.
+
+## 8. Admission FDM = module2 online simulator: DECIDED, with open test-machine questions
+
+**Decision.** This was decided for Linux on 2026-09-27 and is reused here.
+- The dossier names module2 as the production FDM.
+- The module2 online simulator (`FDM02000425`, endpoint
+  `http://fdm.module2.be/graphql/` or `https://...:443`) is delivered with the
+  test machine instead of a physical FDM (manual §IV, step 1).
+
+**Android specifics.**
+- **Transport.** Port 80 is plain HTTP, which `HttpTls` does not touch. Port
+  443 goes through `fdm_tls` with module2's CA (X.509 v1, custom verifier),
+  proven on Android against the mock (S1). Neither path uses the bundled web
+  roots.
+- **Token and certificates.** The bearer token and any mTLS material travel
+  only in the minisign-signed USB provisioning bundle into app-private storage
+  (P4.4). They are never in the APK, the repo or logs. Development keeps it in
+  the gitignored `.env.live`.
+- **Live runs.** Every live run against module2 needs the user's explicit
+  go-ahead (plan), including from the emulator. P0 made no live call.
+
+**PROPOSED (needs the user):**
+- **Which identity.** Which posId and terminalId the Android test machine uses
+  on the simulator. The simulator allows `CPOS0031234567` (official
+  UC_TestSetup identity) with one free slot. Proposal: same posId, its own
+  `terminalId` (for example `POS-2-ANDROID`).
+- **Which machine.** What is handed over as the "test machine" for the Android
+  filing: a real D3 Pro (needs hardware) or the emulated profile (the plan
+  allows the dossier to say tests ran on an emulated profile).
+
+## 9. Signing-key custody: PROPOSED (technical constraints DECIDED)
+
+**Constraints DECIDED by S5 (reviewed APPROVE).**
+- **The key must be RSA.** apksig v2/v3 signatures with RSA (PKCS#1 v1.5) are
+  deterministic: re-signing the same APK twice gave the same SHA-1. With ECDSA
+  (secp256r1) they gave two different SHA-1, because of the random nonce. If
+  the SHA-1 of the signed APK is the value of record, the key must be RSA.
+  - Only RSA-2048 was measured. A larger RSA key should behave the same, but
+    `spikes/s5/probe_signing.sh` must be rerun with the chosen size before the
+    key is created.
+- **Signature schemes:** v1 off, v2 and v3 on. No v3 key-rotation lineage.
+  minSdk stays fixed at 33, because it changes which blocks apksigner checks.
+- **The key never enters the build container.**
+  - The container builds the unsigned, zipaligned release APK, and
+    `scripts/android/check_repro.sh` compares two unsigned builds byte for
+    byte, plus the entry manifest.
+  - Signing happens afterwards with the pinned build-tools `apksigner`.
+  - The certificate SHA-256 digest is then pinned in this file, in the
+    dossier and in the updater.
+
+**Why custody is critical.** Android only accepts an update signed with the
+same key.
+- **Losing the key** means no installed till can ever be updated without an
+  uninstall, and an uninstall deletes the fiscal DB.
+- **Leaking the key** lets anyone build an APK that installs over a till. The
+  minisign check in the updater still blocks undeclared versions in the app's
+  own update path, but not adb or other paths (adb is disabled by device
+  owner, see 7).
+
+**Proposal (the plan reserves the creation and holder choice to the user).**
+- **Who and when.** The producer (Bruno Moyse) creates the key personally,
+  offline, after this file is approved and before the first Android tag. The
+  plan requires an explicit go-ahead for this step.
+- **Key parameters:**
+  - RSA 4096 (subject to the probe rerun), validity 30 years;
+  - PKCS12 keystore with a strong passphrase kept in a password manager.
+- **Storage:**
+  - the keystore lives on an encrypted offline medium;
+  - two encrypted backups in two separate physical places.
+- **Never** in the repo, in CI secrets, on GHCR or on a till.
+- **Separate from minisign.** The key is separate from the minisign
+  declaration key (`declare.sh`). Proposal: reuse the existing offline minisign
+  key for `declared-android`, so one declaration identity covers both
+  platforms. The alternative is a second minisign key; the user picks.
+- **Signing step.** `declare.sh --android` (P6) does the signing on the
+  producer's machine only.
+
+## 10. Linux filing: DECIDED (user, 2026-10-10)
+
+**Decision.** Nothing has been filed for Linux or Android. Both are v1.0
+initial filings (Art. 99), both at version 1.0.0 (`pili-pos/1.0.0`,
+`pili-pos-android/1.0.0`); there is no Linux v1.1 and no Art. 113 update.
+This is option C below. The freeze is redone as `linux-v1.0.0-rc1`, then
+`linux-v1.0.0`; both filings cite that engine tag. The text below is the
+proposal as it was written at P0, kept for the record.
+
+**Facts.**
+- The engine extraction (P1) changes the Linux binary, so it ships as Linux
+  v1.1 under AM Art. 113 with its own SHA-1.
+- The plan freezes it softly at the P1b exit (`linux-v1.1.0-rc1`) and hard at
+  the P3 exit (`linux-v1.1.0`).
+- A Linux update can be filed at most 12 times a year.
+- P8 coordinates the Android filing with v1.1 "so one engine version backs
+  both".
+- **Baseline vs cert branch.** The P0.1 Linux baseline SHA-1
+  `83313be28027d2e8d9e84cbddff4e584799c2fbc` is that of main `96728e1`. The
+  branch `cert/v1.0` exists and main is 47 commits ahead of it.
+
+**Options.**
+- **A. File v1.1 at the P3 hard freeze, on its own.** It gets the Linux update
+  out of the way early. But any engine bug found during P4 to P7 then becomes
+  a Linux v1.2 filing.
+- **B. Freeze at P3, file v1.1 together with Android at P8 (recommended).**
+  - Until it is filed, a re-freeze for an engine bug found in P4 to P7 costs no
+    SPF filing, only a new rc tag and a new check.
+  - Both filings cite the same engine tag.
+  - It uses one filing slot for the pair.
+- **C. If v1.0 has not been filed yet, skip v1.1.** File the extracted engine
+  directly as the first Linux version, which avoids an Art. 113 update
+  altogether. This contradicts the plan's precondition that v1.0 stays frozen
+  on `cert/v1.0`, so it is only an option if the user confirms v1.0 is not
+  filed.
+
+**Needs from the user:**
+- Has v1.0 been filed with the SPF, and which SHA-1 is its value of record
+  (`cert/v1.0` or main)?
+- Choose A, B or C, plus the deadline and freeze cadence the plan asks for.
+
+## 11. Other decisions carried from P0 evidence: DECIDED (technical)
+
+These are not on the P0.7 list but bind later phases. The P1 to P3 planners
+copy them into their task cards.
+
+**Gates**
+1. **Test baseline.** The baseline is the measured inventory: `ws` 1355
+   (1342 passed + 13 ignored), `cert` 491, 1846 lines, sha256
+   `586834f05390ed4535e34b22747d2a34c0f003542676684e0de8d8b0ff7f99a2`. The
+   plan's "1,356" (plan lines 96 and 333) has no source. The gate is
+   `scripts/android/test_inventory.sh --diff` (no baseline line removed)
+   together with `ws >= 1355`.
+2. **FDM journal parity.** P1 compares the normalised journals (sha256
+   `68a09ee3...`). It also compares `eventCounter` and `totalCounter` from the
+   raw journals: they were identical across the two runs and are fiscal
+   contract data.
+
+**Builds**
+3. **No concurrent builds in one tree.** `scripts/check_repro.sh` must never
+   run at the same time as another build in the same tree. It runs
+   `rm -rf ui/dist`, which is the likely cause of the one-off `ui/dist` loss in
+   P0.1.
+4. **rustup cargo first on PATH.** Homebrew's cargo/rustc shadow rustup on the
+   dev Mac and have no Android std (E0463). Every script, Gradle Exec task and
+   CI step puts `~/.cargo/bin` first or calls `rustup run 1.99.0 cargo`.
+
+**UniFFI, R8 and the panic path**
+5. **UniFFI load check.** `EngineGateway` calls `uniffiEnsureInitialized()`
+   once at open. Without it a mismatched `.so` crashed the JVM (SIGSEGV).
+   Keep a JVM test that loads a deliberately mismatched library.
+6. **Bindings source.** Bindings are generated in library mode from the
+   unstripped cargo output (or a `--strip-debug` copy), never from the `.so`
+   inside the APK. The `--config` file uses `[crates.<name>.bindings.kotlin]`;
+   the old flat format is silently ignored.
+7. **R8 consumer rules of `:pos-core`.** S2 showed, by removing them one at a
+   time, that these three are needed:
+   - `-dontwarn java.awt.*`
+   - `-keep class com.sun.jna.** { *; }`
+   - `-keep class uniffi.<crate>.** { *; }`, as a full keep (members-only
+     fails), naming every generated package.
+
+   Also kept: `-keep interface * extends com.sun.jna.Library`. S3 needed it
+   for a hand-written JNA interface (without it, `ClassCastException`). For
+   generated code the uniffi keep already covers it, so it is kept as a
+   safety net.
+8. **Panics.** Release builds use `panic = "unwind"`. A panic reaches Kotlin as
+   `InternalException`, a separate channel from `PosException`, and the
+   gateway marks the engine Fatal.
+   - A panic inside a spawned task shows up only as a `JoinError`, which
+     `pos-ffi` maps itself.
+   - `pos-ffi` installs a panic hook that writes to logcat and the daily log
+     file, because stderr is not forwarded on Android.
+9. **Cancellation.** All engine work is spawned on the engine runtime and
+   awaited through the JoinHandle. A cancelled coroutine detaches the task
+   rather than aborting it, so a sign in flight completes (S2 proof). The
+   engine must make the effect recoverable (boot recovery, idempotent
+   reads).
+10. **Runtime drop.** The runtime is held in an `Option` and dropped with
+    `shutdown_background()`, because dropping a tokio Runtime inside an async
+    context panics.
+
+**Engine paths and tests on Android**
+11. **Temp dir.** `std::env::temp_dir()` is `/data/local/tmp` on Android when
+    `TMPDIR` is unset, and an app cannot write there. The engine takes every
+    path from `EnginePaths` (app-private `filesDir`/`cacheDir`). P1 confirms
+    that no production path calls `temp_dir()`; the uses found are in
+    `#[cfg(test)]` code.
+12. **Fixture paths in device tests.** The 35 `pos-fiscal` tests that read
+    fixtures through `env!("CARGO_MANIFEST_DIR")` cannot run on a device as
+    built. P3.3 runs the engine subset that reads no host fixture path, or adds
+    a fixture-root override to the test helpers. With the fixtures redirected,
+    S1 got 250 passed, 0 failed, 2 ignored. The certification evidence keeps
+    coming from host runs.
+
+**Reproducible APK (S5)**
+13. **P3 reproducibility work:**
+    - keep `--remap-path-prefix` for source, `CARGO_HOME`, `RUSTUP_HOME` and
+      the target dir. Without it, 16 `/opt/cargo` strings stay in the stripped
+      `.so`;
+    - add `SOURCE_DATE_EPOCH` from the commit time and `CARGO_INCREMENTAL=0`;
+    - set `vcsInfo` and `dependenciesInfo` off;
+    - generate and commit Gradle `verification-metadata.xml` (sha256);
+    - pre-fetch dependencies and run the build step with `--network none`;
+    - push the image and record its digest next to every APK SHA-1;
+    - run the exit check once on a native x86_64 Linux host.
+14. **16 KB pages.** Every LOAD segment is aligned to `0x4000`, and
+    `zipalign -c -P 16 -v 4` must pass on every release APK.
+
+## 12. S4 results (was: items waiting for S4, PENDING-S4)
+
+S4 ran on `sunmi_d3_pro_api33` on 2026-10-07 (`docs/android/spikes/S4.md`). None
+of these items blocked P1a, P1b, P2 or P3. The emulator results unblock P4 and
+P6; the hardware residue below is checked on a real D3 Pro before filing.
+
+| Item | S4 result (emulator) | Status | Blocks |
+|------|----------------------|--------|--------|
+| deviceId mechanism | `Build.getSerial()` works as device owner and is stable (`EMULATOR37X2X12X0`); `ro.serialno` is empty in the app; `getWifiMacAddress` is `null` with Wi-Fi off and was not chosen (S4.md section 3, Q13) | DECIDED (S4 emulator); real serial format HARDWARE RESIDUE | §3, P4.4 (mechanism unblocked) |
+| Device owner through `adb shell dpm set-device-owner`; refusals | set owner works; second user refused with `Not allowed to set the device owner because there are already several users on the device.`; the account refusal was NOT RUN (no account on the image); the adb exit code is 0, the text is the signal (S4.md section 1) | DECIDED (S4 emulator, adb path); account refusal HARDWARE RESIDUE | P4.4 (unblocked) |
+| Lock Task entry and exit, recovery path | entry, exit, HOME, recents, back and Settings launch behave; crash and reboot recovery in 1 to 3 s; features reset to GLOBAL_ACTIONS at every boot; a second crash freezes the app unless `no_system_error_dialogs`; a stock launcher task blocks recovery (S4.md section 2) | DECIDED (S4 emulator); Sunmi launcher HARDWARE RESIDUE | P4.5 (unblocked) |
+| `DISALLOW_*` set, time lock, Europe/Brussels | the 12 restrictions, uninstall block, time policy, stay awake, keyguard, status bar and update policy are accepted and enforced; adb off works and comes back through the app (S4.md section 8, Q16) | DECIDED (S4 emulator); safe-boot volume-key route and recovery menu HARDWARE RESIDUE | §6, §7, P6 (unblocked) |
+| Silent PackageInstaller self-update, restart after install | silent session install in Lock Task, back and LOCKED at +0.60 s; OS refuses downgrade and other key but not a same-versionCode reinstall (S4.md section 7, Q18) | DECIDED (S4 emulator); real image HARDWARE RESIDUE | §6, P6 (unblocked) |
+| SAF export to the emulated SD card (stand-in for USB) | works in Lock Task with a persisted tree grant; the volume root is refused, a sub-folder is needed; survives unmount, remount and reboot; the AVD SD card could not attach, a virtual SD disk stood in (S4.md section 4, Q17) | DECIDED (S4 emulator); real USB stick HARDWARE RESIDUE | P6 SPF export, §6 USB source (unblocked) |
+| Printing to `pos-printer-mock` at `10.0.2.2:9100` with DLE EOT status | six states read correctly, typed error when unplugged, no main-thread call; the 500 ms DLE EOT read is unreliable on the emulator path and hides a late answer; Chinese prints as `?` (S4.md section 5) | DECIDED (S4 emulator); DLE EOT timeout and Chinese ticket OPEN (P6 decisions); real Epson HARDWARE RESIDUE | P5, P7 |
+| Layout density at 1920x1080 / 160 dpi, CJK font | density 1.0, usable height 996 px unless immersive, 439 of 439 code points covered, Han variant follows the locale tag (S4.md section 6, Q19) | DECIDED (S4 emulator); real display facts HARDWARE RESIDUE | P4.1, P5 |
+| 24 h process survival with the foreground service | replaced in S4 by a 30 minute soak, all must-PASS items passed; typed `specialUse` start works on API 33; the 24 h run moves to P7 (S4.md section 9, Q14, Q15) | DECIDED (S4 emulator, 30 minute soak); 24 h run and deep sleep HARDWARE RESIDUE | P4.2 (unblocked), P7 |
+| Power cut recovery | `adb emu kill`: LOCKED 3 s after boot, service and beats back, integrity ok, no committed row lost (S4.md section 10) | DECIDED (S4 emulator); real plug pull HARDWARE RESIDUE | P7 |
+| bcrypt cost 12 | 295 ms on the emulator, 232 ms on the host (S4.md section 11) | HARDWARE RESIDUE | P7 |
+
+**Hardware residue** (needs a real D3 Pro, otherwise the dossier states an
+emulated profile). The list of the draft, extended with the S4 findings:
+- the real Sunmi serial, and whether `Build.getSerial()` returns it to the
+  device owner on the firmware;
+- Wi-Fi and Ethernet MAC behaviour (informational, the serial is the deviceId);
+- the SUNMI kiosk extension, and any vendor keep-alive or auto-start whitelist;
+- the recovery key combination, and what the recovery menu can wipe or sideload
+  with the restrictions on (`DISALLOW_FACTORY_RESET` only blocks the Settings
+  entry); `DISALLOW_SAFE_BOOT` through the volume-key route;
+- the setup wizard, QR provisioning, and an account blocking `set-device-owner`;
+- the stock Sunmi launcher and system apps: crash recovery, the update gap with
+  a stock launcher task below ours, crash and ANR dialogs;
+- USB OTG: a real stick (FAT32 and exFAT, the 4 GiB FAT32 file limit, auto-mount,
+  removal during a write, throughput, DocumentsUI on the Sunmi image);
+- bcrypt timing on the Qualcomm CPU;
+- the real Epson TM-m30III: DLE EOT answer latency, real paper, cover and error
+  states, a Chinese line;
+- B1c and the whole stack on the real image (including whether
+  `/system/etc/security/cacerts` exists, relevant only to the optional
+  `RootsDir` mode);
+- system OTA behaviour under the system update policy;
+- display facts (`wm density`, bar sizes in Lock Task, fonts, touch comfort) and
+  the power key behaviour in Lock Task;
+- deep sleep of the SoC, thermal behaviour and the 24 h run, a real plug pull
+  and the boot time to LOCKED, `BOOT_COMPLETED` delivery;
+- adb behaviour on a `user` build (`adb install -d`, `adb root`, developer
+  options).
+
+## Decided while the user was away (review)
+
+The user asked on 2026-10-06 to chain all phases without stopping. These answers to the P0 exit questions follow the planner's recommendations and are open for the user's review.
+
+- **Q1 Exit timing:** P0 approved with S4 deferred; S4 runs on the `sunmi_d3_pro_api33` emulator right after P0, before P4.
+- **Q2 Application id:** `dev.nuagemagique.pilipos` (debug `dev.nuagemagique.pilipos.debug`).
+- **Q3 Version scheme:** `pili-pos-android/X.Y.Z` from 1.0.0, versionCode `MAJOR*10000 + MINOR*100 + PATCH`, `-dev` suffix for development builds.
+- **Q4 deviceId:** Sunmi serial as device owner, read at provisioning and checked at every open, no generated fallback. S4 also evaluates the device-owner Wi-Fi MAC (`getWifiMacAddress`) and records which one the dossier names.
+- **Q5 TLS:** bundled roots (B1c) accepted; a root refresh ships as a new declared APK.
+- **Q6 Linux filing:** superseded by the user on 2026-10-10 (section 10): nothing was filed, so the Linux build is filed as version 1.0.0, an initial filing (Art. 99), together with Android; there is no Linux v1.1 and no Art. 113 update. (Was: option B, Linux v1.1 filed together with Android at P8.)
+- **Q7 Signing key:** constraints as proposed (RSA 4096, 30 years, offline, two encrypted backups, never in CI). Creation, holder and whether `declared-android` reuses the minisign key stay with the user. Until then only a throwaway dev keystore is used and never committed.
+- **Q8 Updater sources:** the USB stick through SAF is accepted as a second source, with the same signature and hash checks.
+- **Q9 Spike evidence:** spike branches kept locally and tagged `android/p0-spike-S1`, `-S2`, `-S3`, `-S5` (local tags, not pushed).
+- **Q10 Admission:** proposed posId `CPOS0031234567` with terminalId `POS-2-ANDROID` on the module2 simulator; no live call without the user. The SPF test machine is the emulated profile unless a real D3 Pro becomes available.
+- **Q11 Hardware:** unknown; hardware residue tracked in S4.
+- **Q12 Docker cache:** workers remove only images and caches they created; no global prune.
+- **S4 spike branch (wave 1 integration):** S4-T1 and S4-T2 only add files under `spikes/s4/`, and the phase gate forbids any `spikes/` path on `android/int` (spike code is never merged, only reports). They were therefore merged with `--no-ff` into a separate local branch `android/s4-spike` (created from 0b68587), not into `android/int`. `android/int` stays at 0b68587 plus docs only; later S4 tasks merge into `android/s4-spike` too, and the S4 report lands on `android/int` as `docs/android/spikes/S4.md`. Local tag `android/p0-spike-S4` to follow when the spike closes (not pushed).
+- **S4 spike branch (wave 3 integration):** S4-T4 (SAF export, picker in and out of Lock Task) only adds files under `spikes/s4/`, so by the same rule it was merged with `--no-ff` into `android/s4-spike` (merge af50e8d, no conflicts), not into `android/int`. `android/int` carries docs only. The gate checks on `docs/android/spikes/S4.md` and the S4-T7 evidence are expected to stay red until the later waves (T5 to T7 and the report) land.
+- **S4 spike branch (wave 4 integration):** S4-T5 (silent self-update as device owner in Lock Task) only adds files under `spikes/s4/`, so by the same rule it was merged with `--no-ff` into `android/s4-spike` (merge 9b9c227, no conflicts), not into `android/int`. A first merge into `android/int` was reverted before any gate run (hard reset to 7b92a9a, nothing pushed). `android/int` still carries docs only. The `docs/android/spikes/S4.md` and S4-T7 evidence gate checks stay red until the remaining waves (T6, T7 and the report) land.
+- **S4 spike branch (wave 5 integration):** S4-T6 (device-owner restrictions, time lock, stay awake, boot into the kiosk, adb off) only adds files under `spikes/s4/`, so by the same rule it was merged with `--no-ff` into `android/s4-spike` (merge d68a708, no conflicts), not into `android/int`. A first merge into `android/int` was reverted before any gate run (hard reset to 67921ad, nothing pushed). `android/int` still carries docs only. The `docs/android/spikes/S4.md` and S4-T7 evidence gate checks stay red until the remaining waves (T7 and the report) land.
+- **S4 spike branch (wave 6 integration):** S4-T7 (foreground service soak, power cut and teardown scripts) only adds files under `spikes/s4/`, so by the same rule it was merged with `--no-ff` into `android/s4-spike` (merge e1c1101, no conflicts), not into `android/int`. `android/int` still carries docs only. The S4-T7 notes and the `TEARDOWN | PASS` evidence line now exist on `android/s4-spike`. The `docs/android/spikes/S4.md` gate check stays red until the S4 report lands.
+- **Q13 deviceId outcome (S4.md section 3):** the S4 rule gives case (1). `Build.getSerial()` works for the device owner on API 33 and is stable across reboot and with Wi-Fi off (emulator value `EMULATOR37X2X12X0`, 17 characters), so the hardware serial stays the deviceId and Q4 stands. `getWifiMacAddress` is evaluated and not chosen (`null` with Wi-Fi off, fixed fake `02:15:b2:00:00:00` on the AVD). `ro.serialno` is empty in the app process, so there is no in-app fallback: provisioning fails when `getSerial` throws. The real Sunmi serial format stays hardware residue.
+- **Q14 Survival test (S4.md section 9):** the 24 h process survival test is replaced in S4 by a 30 minute soak, on the user's request during the run. All must-PASS items passed (31 samples, one pid, LOCKED 31 of 31, 179 beats, largest gap 10.0 s, PSS -2.1 percent, integrity ok). The 24 h run moves to the P7 runbook on the real D3 Pro: `SOAK_MINUTES=1440 caffeinate -i spikes/s4/run_t7.sh` (adb serial in place of the emulator, a real plug pull).
+- **Q15 Foreground service start on API 33 (S4.md section 9.1):** P4.2 uses the typed call `ServiceCompat.startForeground(..., FOREGROUND_SERVICE_TYPE_SPECIAL_USE)` with `foregroundServiceType="specialUse"`, the `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` property and the permissions in the manifest, and the plain `startForeground(id, notification)` as the try/catch fallback (both worked, neither threw). `POST_NOTIFICATIONS` is granted by the device owner. The service starts from `onResume` after the Lock Task relock; the `BOOT_COMPLETED` receiver is optional because it was not observed after the power cut.
+- **Q16 P6 restriction set (S4.md section 8):** P6 sets the 12 measured restrictions (`no_factory_reset`, `no_safe_boot`, `no_uninstall_apps`, `no_install_unknown_sources`, `no_install_unknown_sources_globally`, `no_config_date_time`, `no_add_user`, `no_user_switch`, `no_remove_user`, `no_modify_accounts`, `no_usb_file_transfer`, `no_network_reset`), plus `no_system_error_dialogs`, `setUninstallBlocked`, auto time on, auto time zone off, `Europe/Brussels`, `STAY_ON_WHILE_PLUGGED_IN=7`, keyguard and status bar disabled and the postpone update policy. `DISALLOW_DEBUGGING_FEATURES` is the last provisioning step. `setLockTaskFeatures(NONE)` is called at every start because it reverts to GLOBAL_ACTIONS at every boot. Stays off: `DISALLOW_MOUNT_PHYSICAL_MEDIA` (the USB export needs the volume mounted). `DISALLOW_CONFIG_WIFI` stays open (off): inside Lock Task with features NONE no Settings screen is reachable, and the manager fixes a Wi-Fi password through a PIN-gated screen in the app without reprovisioning. No timed adb in v1 unless the dossier accepts it.
+- **Q17 SAF export flow (S4.md section 4):** the manager picks a folder once per stick from a PIN-gated screen with no open order. Pre-check `StorageManager.storageVolumes` for a mounted removable non-primary volume and show "Insert the USB stick" otherwise. Open the picker with `StorageVolume.createOpenDocumentTreeIntent()` from the locked activity, never with `FLAG_ACTIVITY_NEW_TASK`; DocumentsUI stays off the Lock Task allowlist. The volume root is refused, so the screen tells the manager to create a sub-folder (suggested `PILI-EXPORT`). Persist the tree grant; export without a picker, write the SHA-256 manifest last, delete nothing on error, and report a missing stick from the pre-check.
+- **Q18 Update restart path and prechecks (S4.md section 7):** the app keeps three ways back into Lock Task (persistent preferred HOME, a `MY_PACKAGE_REPLACED` receiver that starts the main activity, relock in `onResume` from the persisted kiosk flag). The updater checks, before any session: Z done, no open order, no sign in flight, minisign, SHA-256 and SHA-1, package name, versionCode strictly greater (the OS accepts a same-versionCode reinstall), same signer; then a DB backup and an fsynced marker, then `commit`. The audit "done" row is written in the new process. `STATUS_PENDING_USER_ACTION` is an error. `REQUEST_INSTALL_PACKAGES` is not declared, and production uses HTTPS only.
+- **Q19 CJK font and dp scale (S4.md sections 5 and 6):** bundle Noto Sans SC (Regular and Bold, subset) as app resources with the system font as fallback, and tag every Chinese run `zh-Hans` and French `fr` per `Text`. 1 dp equals 1 CSS px of the Vue design (the till reports density 1.0 at 160 dpi), with a `LocalDensity` wrapper `Density(widthPx / 1920f, 1f)` and `fontScale` 1.0, and immersive mode on every screen (the usable height is 996 px otherwise). Whether Chinese appears on the printed ticket (it prints as `?` through CP858) stays a P6 product decision.
+- **Q20 AVD state (S4.md, State left and cleanup):** S4 left the `sunmi_d3_pro_api33` AVD without a device owner and without the spike app (`TEARDOWN | PASS`, only user 0, no factory reset). It keeps the virtual SD disk from S4-T4. P4 provisions from that clean state, and the spike code stays on the local tag `android/s4-spike`.
+- **S4 spike branch (wave 7 integration):** S4-T8 (the S4 report and the settled PENDING-S4 decisions) carries the whole S4 spike history, so by the same rule it was merged with `--no-ff` into `android/s4-spike` (merge 80a25eb, no conflicts), not into `android/int`. Only its two documentation files reach `android/int`: `docs/android/spikes/S4.md` as is, and `docs/android/DECISIONS.md` by a three-way merge against 0b68587 that keeps the wave 1 to 6 records above. No `spikes/` path is on `android/int`; the spike code and the S4-T7 evidence stay on `android/s4-spike`.
+- **S4 exit (planner, 2026-10-07):**
+  - *Spike history.* It stays on the local branch `android/s4-spike` (80a25eb) and, following the P0 convention and the wave 1 note, on the local annotated tag `android/p0-spike-S4` at the same commit. No tag named `android/s4-spike` was created, because it would make that name ambiguous with the branch; the S4.md references to `android/s4-spike` resolve through the branch. Nothing is pushed.
+  - *Merge procedure deviations.* The phase cards `docs/android/phases/S4.md` were committed at the exit (02860ee), not before wave 1; their content is unchanged. The two S4-T8 report commits landed as one commit (2daabdc) with a three-way merge of this file, because `android/int` already carried the wave records: `docs/android/spikes/S4.md` is byte-identical to the S4-T8 branch, and this file differs from it only by the wave 7 record.
+  - *Review record.* There is no separate `S4-review.md`; the eight card reviews (all APPROVE) are summarised in `docs/android/phases/S4-exit.md`.
+  - *Freeze.* S4 has no freeze step. The plan's first freeze is the soft freeze `linux-v1.1.0-rc1` at the P1b exit, which needs the user's go-ahead, so no Linux tag exists and `docs/android/LINUX_FREEZE.md` is not created yet. `scripts/check_repro.sh` was not rerun: no Linux build input changed, and the test inventory is byte-identical to the baseline (sha256 `586834f0...`).
+  - *DLE EOT timeout.* `pos-print` returns an optimistic "ready" when the DLE EOT answer misses its 500 ms read (S4.md section 5). The engine change (treat a missing answer as unknown, longer timeout) is a Linux behaviour change in a shared crate: it is offered to the P1a/P1b planner for the window before the soft freeze, and goes to the user as a question. Until it lands, P5 and P6 treat a missing answer as "printer state unknown" at the app level.
+  - *Escape window after a silent update.* The S4-T5 reviewer rerun caught one frame of about 0.9 s showing the stock launcher's taskbar with tappable icons in the single-task case. P4.5 therefore hides or suspends the stock launcher and Settings through the device owner (`setApplicationHidden` or `setPackagesSuspended`) on every till, not only when a stock launcher task exists.
+  - *Q14 wording.* The 30 minute soak was the user's request, recorded in the phase cards (PD2). The S4-T7 notes call it a planner decision; the S4.md wording stands.
+  - *AVD hygiene.* A dangling `sdcard.img.qcow2` overlay (its backing file deleted) left in the AVD folder by an S4-T4 attempt was moved out of the AVD folder; the AVD is otherwise as described in Q20.
+- **P1a planner (2026-10-07):** decisions for the engine extraction, cards in `docs/android/phases/P1a.md`.
+  - PD1 Target layout. `crates/pos-engine` holds `commands/` (engine functions only), `state.rs`, `engine.rs` (`EngineConfig`, `EnginePaths`, `ConfigSource`, `Engine`), `events.rs`, `background.rs`, `install.rs`. `src-tauri` keeps `main.rs`, `cli.rs` (argument parsing), `paths.rs`, `events.rs` (`TauriEventSink`) and `ipc/` (79 one-call wrappers, 77 in the cert build). Integration tests live in `crates/pos-engine/tests`, their harness in `crates/pos-engine-testkit` (`publish = false`, outside the cert build graph). Test target names and test function names do not change.
+  - PD2 Test inventory across moves. The baseline `docs/android/baseline/test_inventory.txt` is never edited. Pure moves are declared as prefix rewrites in `docs/android/baseline/test_moves.tsv`, applied by `scripts/android/test_inventory.sh --diff` (a stale rule or a name collision fails). The cert section covers every workspace member with a cert feature (`pili-pos`, then `pos-engine`). Gate: 0 removed and ws >= 1355.
+  - PD3 Version during P1a. The workspace version stays 1.0.0 through P1a, so the normalised FDM journals (which keep `posSwVersion` `pili-pos/1.0.0`) must stay byte-identical (sha256 `68a09ee3...`) with identical `eventCounter` and `totalCounter` sequences. The bump to 1.1.0 is a P1b exit step together with the soft freeze `linux-v1.1.0-rc1`, which needs the user's go-ahead.
+  - PD4 An eighth wrapper with logic. Besides the plan's seven, `list_tables` reads `table_count` from the configuration; it gets `do_list_configured_tables`.
+  - PD5 Managed state. Tauri manages the `Engine` object, which derefs to `AppState`; wrappers keep calling `do_*(state.inner(), ...)` through the alias `ipc::Managed`.
+  - PD6 Events. A typed `EngineEvent` enum with the six exact topics (`fdm-sign-messages`, `webshop-order-received`, `webshop-order-updated`, `catalog-updated`, `catalog-rejected`, `catalog-awaiting-adoption`); the Tauri sink emits the same typed payloads as today. Its `AppHandle` is an instance field filled in setup, not a static.
+  - PD7 Where the runtime seams live. `HttpTls` (section 4) and `SoftwareIdentity` are defined in `pos-fiscal` and re-exported by `pos-engine`. The version string is a required `EngineConfig` input: never read from `pos.json`, never a compile-time constant in `pos-fiscal` or `pos-engine`. Linux passes `pili-pos/` plus its Cargo version; Android will pass `pili-pos-android/X.Y.Z` (section 2).
+  - PD8 Bundle configuration. `ConfigSource` gets a third variant `Bundle(path)` (relative paths resolved against the bundle directory) for the Android provisioning bundle. Linux only uses `File` and `DevelopmentDefaults`, so its behaviour is unchanged.
+  - PD9 No new crates. The engine lock uses `std::fs::File::try_lock` (stable since Rust 1.89). No registry crate is added, removed or bumped in `Cargo.lock` during P1a.
+  - PD10 Dossier paths. The 168 path references in 25 files (`docs/SUBMISSION_ARTIFACTS`, `CLAUDE.md`, `deploy/REMOTE-OPS.md`) are rewritten by `scripts/android/rewrite_dossier_paths.py` in the same commit as each move, so `check_dossier.py` stays green on every commit. `docs/android/**` and `docs/internal/**` keep their historical paths.
+  - PD11 Gate cost. The full gate runs on each card's last commit, the fast gate on every earlier commit. The FDM journal capture (Docker) runs in P1a-T9 and at the phase exit only. `check_repro.sh` is not run in P1a (it is the P1b exit check).
+  - PD12 DLE EOT timeout (S4 exit). Not changed in P1a: a pure move admits no behaviour change. It stays a question for the user and a candidate behaviour-change card for the P1b planner, before the soft freeze.
+  - PD13 Remaining environment reads in the engine. The `HUBRISE_*` development fallback (`commands/hubrise.rs`) and the support session `HOME` (`RUNTIME_DIRECTORY`, else `temp_dir()`, `commands/support.rs`, the only production `temp_dir()` use) stay; the second is reached only with a support program, which Android never passes. Recorded for P2.
+  - PD14 Freeze check. `scripts/android/check_linux_frozen.sh` is written in P1a but not run: no freeze tag exists, and no freeze tag is created in P1a.
+  - PD15 Wave 1 merge order. P1a-T2, then P1a-T3, then P1a-T1, so the gate script exists on `android/int` when P1a-T1 is checked there.
+  - PD16 Test backups. The test harness gets its own temporary data directory. Until P1a, a Z report test without `backup_dir` wrote its backup into the developer's real data directory (`paths::backups_dir()`); recorded as a test-only fix, no fiscal behaviour involved.
+  - PD17 Phase exit without the user. P1a has no freeze step. With the user away, the planner writes `P1a-exit.md` and the chain continues to P1b on `android/int`; merging into `main` waits for the user.
+  - PD18 FDM journal parity at the P1a exit (integrator, wave 9). The normalised journal of the HubRise e2e flow on this host hashes to `d59a081d...`, not `68a09ee3...`. The only difference is the position of one `Status` call: `signOrder, Status, signSale` instead of `signOrder, signSale, Status`. `Status` calls come from the UI header poll with its 20 s cache, so their place in the journal depends on wall-clock timing. The same capture on the P1a base commit `aeee4e8` (detached worktree, same Docker volumes) gives the same `d59a081d...`, so P1a does not cause it. The `eventCounter` and `totalCounter` sequences are identical to the baseline and `posSwVersion` is `pili-pos/1.0.0` in every entry. Treated as an environmental timing drift of the poll, not a regression; the byte-identical check should compare the journal with the `Status` entries removed, or be re-baselined on this host. Not changed in P1a.
+- **P1a exit (planner, 2026-10-07):** decisions taken at the P1a exit from the review results; open for the user's review. Details and evidence in `docs/android/phases/P1a-exit.md`.
+  - PD19 Journal parity rule (settles PD18). The P1a exit accepts the FDM journal on this rule: the normalised journal with the `Status` entries removed is identical to the baseline run1, the `Status` entries alone are identical, `eventCounter`/`totalCounter` match run1 and `posSwVersion` is `pili-pos/1.0.0`. Measured by the planner: without `Status`, run1, the P1a-T9 capture, the capture of the P1a base `aeee4e8` and the planner's exit capture at `240e4a6` all hash to `f5c085c3050bde77114a10f2778efa1d2c206f9766e0e11d6c99c64e89d58bae`; the `Status`-only lists are equal too. The full normalised hash on this host is `d59a081d...` for P1a and for its base alike. The baseline files are not edited. P1b uses the same rule for its journal diff (business view equal) and may add a `--drop-status` comparison to `capture_fdm_journals.sh` or a separate compare script.
+  - PD20 Ninth engine function. `get_item_modifiers` needed `.unwrap_or("fr")`, which the allowed argument forms exclude, so P1a-T1 added `do_get_item_modifiers_localized` (equivalent, not on the signing path). P1a ends with nine wrappers that gained an engine function (the plan's seven, `list_tables` (PD4) and this one).
+  - PD21 Wrapper checker forms. `check_ipc_wrappers.py` also accepts `p.f.as_deref()` (needed by `webshop_accept_order`) and an `async` wrapper whose single call has no `.await` (`hubrise_patch_order_status`, `hubrise_set_confirmed_time` were already async wrappers over sync functions). The Tauri execution model is unchanged.
+  - PD22 `engine-tauri-free` SKIP before the move. `p1a_gate.sh` reported this check as SKIP until `src-tauri/src/ipc` or `crates/pos-engine/src` existed (P1a-T2). It has been active since P1a-T1 landed and passes at the exit.
+  - PD23 Wave 1 merge order. The integrator merged T1, T2, T3 in that order, not PD15's T2, T3, T1, and ran the phase gate once all three were in. Same end state; no gate ran on a partial wave, so PD15's purpose is met.
+  - PD24 Merge subjects. Merge commits are `chore(android): merge P1a-Tn` without the short title of the integration procedure; a first try with a bare `merge P1a-Tn` subject failed the hygiene check and was reset locally (nothing pushed).
+  - PD25 src-tauri size. The shell is 1551 lines at the exit (664 in `src-tauri/src/*.rs`, 887 in `ipc/*.rs`), against the plan's informative target of under 900. The excess is the 79 documented one-call wrappers; they are not compressed, because the IPC contract and its doc comments must stay identical. Not a gate.
+  - PD26 Cert test flake. At the P1a-T5 merge one run of `tests-cert-pili-pos` had 1 failure in the `spf_e2e_fixtures` or `spf_e2e_fdm_response_check` targets, not identified; the targets passed alone and every later gate passed. Treated as a flake, recorded as a risk for P1b (rerun once, then investigate if it repeats).
+  - PD27 Notes carried to P2 (no change in P1a). (a) `Engine` has no close that cancels and awaits its background tasks before `engine.lock` is released; an in-process reopen on Android must call `shutdown()` and await `take_background_tasks()` first. (b) `FdmClient::from_config_with` panics on an invalid `HttpTls`; the engine checks `HttpTls` at open, so `pos-ffi` must keep that order. (c) A `ConfigSource::Bundle` given as a bare relative file name keeps relative paths; Android passes an absolute bundle path, and P2 should enforce it. (d) `crates/pos-engine/tests/background.rs` asserts 4 tasks without a `hubrise` cfg. (e) Stale `src-tauri/tests` mentions remain in mock READMEs, `pos-fiscal/tests/common`, `ui/src/utils/errorMessages.ts` and `docs/internal`; harmless, for a later docs card.
+  - PD28 Freeze. P1a has no freeze step (PD14, PD17), so no `linux-v*` tag was created and `docs/android/LINUX_FREEZE.md` is still not created. The first freeze is the soft freeze `linux-v1.1.0-rc1` at the P1b exit, together with the bump to 1.1.0. The plan reserves freezes for the user; with the user away the P1b planner may set it as a local tag only (never pushed) and record it there, and the user reviews it.
+  - PD29 Journal capture after a capture from another checkout. `capture_fdm_journals.sh` keeps one Docker target volume (`pili-e2e-p0-target`) for every checkout. Cargo judges path crates fresh by file time, so after the wave 9 capture of `aeee4e8` (a newer temporary worktree) the planner's first exit capture reused the old `pos-fiscal` build and failed to compile `pos-engine` (no `http_tls`, no `identity`). The planner touched the tracked sources of `crates/`, `src-tauri/`, `Cargo.toml` and `Cargo.lock` (times only, no content change) and captured again. Rule from now on: touch the sources before a capture whenever the previous capture used another checkout; P1b may give the script a volume per checkout.
+- **P1b planner (2026-10-07):** decisions for the UI rule move, cards in `docs/android/phases/P1b.md`.
+  - PD30 Card layout. One sequential engine lane (P1b-T2 and P1b-T3 in wave 1, then T4, T6, T7) and a Vue lane that trails it by one wave (T5, T8, T9), plus tooling (T1) and the release preparation (T10). Between waves `android/int` may apply a rule twice (engine and Vue, for example the clock-in) or not yet use an engine rule; such intermediate states are never built for a till, and the exit gate checks that the Vue rules are gone.
+  - PD31 New engine commands. Seven commands, each with an engine function and a one-call wrapper: `leave_order`, `set_active_order`, `lock_session`, `user_activity` (module `session`), `end_shift` (module `social`), `fdm_health`, `fdm_check_now` (module `fdm_monitor`). The wrapper count goes from 79 (77 cert) to 86 (84 cert); the plan's 77/77 parity target for P2 becomes 84/84. `work_in`, `work_out`, `check_fdm_status`, `sign_table_order` and `logout` stay cert commands with the same contract, even where the Vue UI stops calling them (P5 records them as exclusions in `check_ui_parity`).
+  - PD32 New events. Three topics with camelCase payloads: `session-locked` `{reason: manual or idle, orderError}`, `presence-failed` `{insz, clockIn, error}`, `fdm-status` (`FdmHealth`). The six P1a topics and their payloads are unchanged.
+  - PD33 Leaving an order. `do_leave_order(order_id, reason)` registers the order's pending entries (event P, POS description v2.2 section 1.3) when it is an open dine-in order, and is a no-op for a takeaway (FAQ Q205) or an order no longer open. Reasons: `navigate`, `switch_order`, `send_to_kitchen` (the order stays active), `lock`, `idle`. `do_set_active_order` tells the engine which order the screen shows, so a lock registers it. `do_lock_session` registers the active order (a failure is reported in `orderError` and never blocks the lock; the entries stay pending), closes the session (the operator stays on shift) and emits `session-locked`.
+  - PD34 Presence. A successful `login` or `login_with_new_pin` queues a clock-in (event S) that a background worker signs unless the employee is already on an open shift (when the shift lookup fails the worker clocks in anyway; a second WorkIn is harmless), so the login is never blocked by the FDM; a failure emits `presence-failed`. `do_end_shift(insz, pin)` checks the PIN exactly like login, signs the clock-out without a clock-in and always closes the session.
+  - PD35 Idle lock. The engine owns the 5 minute lock (`EngineTimers.idle_lock`, default 300 s), reset by `user_activity` and by every login; on expiry with a session open it runs the `lock_session` path with reason `idle`. The Vue UI forwards touch, mouse and key events at most once per second (a transport throttle, not a rule).
+  - PD36 FDM monitor. The engine polls the FDM status while a session is open (an immediate check when a session opens), every `EngineTimers.fdm_poll` (default 30 s) while the FDM answers and base * 2^n up to base * 10 (5 min) while it does not, through the existing 20 s status cache, and emits `fdm-status`. The classification of the Vue store (blocking codes `BUFFER_FULL`, `FDM_LOCKED`, `FDM_NOT_OPERATIONAL`, `UNKNOWN_POS`; `MANDATORY` first; `FDM_NOT_INITIALIZED`; a transport failure is blocking and mandatory) moves 1:1 into the engine. `fdm_check_now` replaces the explicit checks of the login screen and of the retry button.
+  - PD37 DLE EOT (settles PD12 and the P1a exit question 2). No Linux behaviour change: `pos-print` gets a `status_known` flag on `PrinterStatus` (true only when both DLE EOT answers were read) and a status read timeout chosen by the caller; the engine passes `EngineTimers.printer_status_read`, 500 ms by default as today. Android will pass about 2 s and show printer state unknown when `status_known` is false (S4 section 5). Done now because after the P3 hard freeze it would be a Linux v1.2 change.
+  - PD38 Version. `get_settings` returns `posSwVersion` (the engine identity), shown on the login screen (AM Art. 47). P1b-T10 bumps the Linux version to 1.1.0 (workspace `Cargo.toml`, `src-tauri/tauri.conf.json`, `ui/package.json` and `ui/package-lock.json`). The 146 `pili-pos/1.0.0` strings in `docs/SUBMISSION_ARTIFACTS` describe the v1.0 evidence and are not edited in P1b; P8 regenerates the evidence for the v1.1 filing.
+  - PD39 Not moved in P1b. The once-per-`bookingDate` display of sign messages (a display convenience: POS description v2.2 asks for at least once), cash rounding and the VAT split (P2.7 helpers `settle_preview`, `vat_split`, `cash_due_cents`), the support banner poll and the printer and HubRise status lights stay in the UI.
+  - PD40 Journal rule for P1b (extends PD19; answers the P1a exit question 1 while the user is away). The P1b exit accepts the FDM journal when its business view (normalised journal without `Status` entries) equals baseline run1 after mapping `posSwVersion` `pili-pos/1.0.0` to the current identity, the (`eventLabel`, `eventCounter`, `totalCounter`) triples equal run1 (S 1 1, N 1 2, N 2 3, P 1 4, N 3 5) and every `posSwVersion` is the current identity. The `Status`-only list is reported, not required (the engine monitor may move or add `Status` polls). Checked by `scripts/android/compare_fdm_journals.sh`.
+  - PD41 Playwright inventory. The Vue suite (280 tests in 22 files at 7b8a2da) is a gate like the Rust inventory: `docs/android/baseline/playwright_list.txt` (written once by P1b-T1, never edited after) and `docs/android/baseline/playwright_moves.tsv` (rewritten tests declared old title, new title); `scripts/android/playwright_inventory.py --diff` fails on a removed title.
+  - PD42 Gate. `scripts/android/p1b_gate.sh` runs `scripts/android/p1a_gate.sh --allow-ui` (`ui` is no longer untouchable; every other P1a check stays) plus the UI build, the Playwright suite and its inventory, the additive IPC signature check, and with `--exit` the checks that the moved rules are gone from `ui/src` and that the version is 1.1.0.
+  - PD43 Journal capture volume (settles PD29). `capture_fdm_journals.sh` uses one Docker target volume per checkout (name suffixed with a hash of the checkout path); it never removes a volume.
+  - PD44 Soft freeze (settles PD28 and the P1a exit question 3 while the user is away). At the P1b exit, once `scripts/check_repro.sh` gives the same SHA-1 for both clean builds of the exit commit, the integrator creates the local annotated tag `linux-v1.1.0-rc1` on that commit (never pushed) and the planner records it in `docs/android/LINUX_FREEZE.md`. If the builds differ, no tag is created and the run stops for the user. The user reviews the tag; the hard freeze `linux-v1.1.0` stays at the P3 exit with the user.
+  - PD45 P1a exit questions 4 and 5 (while the user is away). `src-tauri` size: accepted (PD25 stands; P1b adds seven one-call wrappers). Merge into `main`: not in this run; `android/int` is merged into `main` by the user after reviewing P1a and P1b.
+  - PD46 Flakes and disk. A failing cert test or Playwright test is rerun once; a repeat is a real failure (PD26). The integrator deletes each merged card's worktree `target`, deletes `int/target/debug/incremental` before any Docker run, and keeps at least 25 GB free.
+- **P1b exit (planner, 2026-10-08):** decisions taken at the P1b exit from the review results; open for the user's review. Details and evidence in `docs/android/phases/P1b-exit.md`.
+  - PD47 Soft freeze not set; the mutation scan goes to the user. All ten cards are merged and the exit gate passes at `042d911`, but `scripts/check_repro.sh` stops at step 3/5 of `scripts/build_and_hash.sh` (the fiscal archive mutation scan) before any SHA-1: it flags `crates/pos-engine/tests/spf_e2e_crash_safety.rs:154` (a test helper that lifts the append-only trigger to remove its own poison row) and `crates/pos-engine/tests/spf_e2e_peripherals.rs:415` (a test asserting that a DELETE is refused). Both are integration test code that lived in `src-tauri/tests`, outside the scan, until P1a moved them into `crates/pos-engine/tests` (`aeee41a`, PD1). The scan is declared in the dossier and `build_and_hash.sh` is a never-edited Linux build input; the run's attempts to change the scan's scope or the two test spots were refused by the session's permission system. Therefore no SHA-1, no `linux-v1.1.0-rc1` tag and no `docs/android/LINUX_FREEZE.md`; PD44 applies unchanged once the user has decided how the scan and these tests relate and has given the go-ahead.
+  - PD48 Provisional freeze point for P2. Until the rc1 tag exists, P2 treats `042d911` as the provisional freeze point: P2 cards stay out of the paths `check_linux_frozen.sh` guards (`Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `src-tauri`, `ui`, `deploy/build-release.sh`, `scripts/build_and_hash.sh` and the crates of the cert build graph), the P2 reviewer checks `git diff --exit-code 042d911 -- <those paths>` on every card, and any needed change there is an escalation. `check_linux_frozen.sh` keeps printing SKIP until the tag exists.
+  - PD49 Review notes carried, not reworked. Accepted as they are: the extra `Status` query and `fdm-status` event around `end_shift` (T7), a shutdown that drops an idle lock in flight (covered by `pending_signs`, T6), two `session-locked` events if an idle and a manual lock race (T6), `lock()` clearing the active order before `close_session` on a poisoned mutex (T2), the `status_known` doc wording (T3), the `checkedAt` ordering of FDM replies in the Vue store (T9), the misplaced ENGINE.md payload sentence and the list break at ENGINE.md:61 (T7, T10), the stale "No rule yet." line in `playwright_moves.tsv`, and the `AppHeader.startTakeaway` path that skips `leave_order` from the checkout screen (T5, already so before P1b). None changes a fiscal request; a later docs or Vue card may take them, and an engine one only before the soft freeze or as a Linux v1.2 change.
+  - PD50 Exit records. `docs/android/phases/P1b.md` (the cards) and `docs/android/phases/P1b-exit.md` are committed at the exit on `android/int` (docs only, outside the freeze paths). There is no separate `P1b-review.md`; the ten card reviews (all APPROVE) are summarised in the exit report. The gate figures in the exit report are the wave 6 integrator's and the reviewers'; the planner's own rerun at the exit was refused by the permission system.
+- **P2 planner (2026-10-08):** decisions for the FFI facade, cards in docs/android/phases/P2.md.
+  - **PD51 Card layout.** Twelve cards in five waves: core, gate tools and parity tools (wave 1); common records and events, helpers, Gradle JVM build (wave 2); five domain facades in waves 3 and 4 (3 then 2, to bound RAM); JVM end-to-end tests, apiCheck and FFI.md (wave 5). The core card pre-creates every later file as a stub and declares every dependency, so the parallel cards never edit the same file, Cargo.toml or Cargo.lock.
+  - **PD52 Parity target and extras.** pos-ffi depends on pos-engine with default-features = false, features = ["cert"] (HubRise in, peppol out). Parity target 84/84 (86 wrappers minus the peppol sign_invoice_fiscal, issue_b2b_invoice): each cert command has its wrapper, its engine function and an async method of the same name on PosEngine with the same parameter names, calling the same engine function, through self.blocking when the engine function is sync and self.spawn when it is async. Extras outside parity: PosEngine.open (the only synchronous export, a constructor Kotlin calls on Dispatchers.IO), shutdown, events, EventStream.next, and the free functions init_logging, pos_sw_version, install_init_db, check_config_bundle, qr_matrix, verify_minisign, verify_bundle, settle_preview, cash_due_cents, vat_split. The lifecycle method is shutdown, not close, because UniFFI Kotlin objects already implement AutoCloseable.close().
+  - **PD53 Engine options.** EngineOptions { data_dir, config_bundle, device_id: Option, timers: Option<EngineTimersMs> }. data_dir and config_bundle must be absolute (settles PD27c); the configuration is always ConfigSource::Bundle (no File, no DevelopmentDefaults over the FFI: no silent TEST identity). The identity is built in Rust, never passed by Kotlin: pili-pos-android/ plus the pos-ffi crate version, which is 1.0.0-dev during development (section 2). http_tls is always HttpTls::RootsOnly with the roots of webpki-root-certs 1.0.9 (B1c). support_program is None. Timers default to EngineTimers::default() except printer_status_read 2 s (PD37); a timer of 0 or less is refused.
+  - **PD54 Errors.** PosError (Kotlin PosException): Coded { code, params: map }, Fdm { detail }, Internal { detail }, EngineClosed. Fields are named detail, never message (it would clash with Throwable.message). Mapping follows describeError of the Vue UI: a string starting with FDM is Fdm (raw text); code|k=v|... whose code is in errors::ALL or errors::hubrise::ALL (85 codes at 042d911) is Coded; anything else, and every record conversion failure (contract: ...), is Internal. A panic, in the future body or in a spawned task (re-raised with std::panic::resume_unwind), reaches Kotlin as UniFFI's InternalException, the single Fatal channel. A task cancelled by the runtime shutting down is EngineClosed. No new engine error code.
+  - **PD55 Calls and lifecycle.** Every export except open is async. Sync engine functions run in spawn_blocking, async ones in spawn, both on the engine's own multi-thread runtime (4 workers, thread name pos-engine) and awaited through the JoinHandle, so a cancelled coroutine detaches and never aborts a sign in flight. Each call holds an Arc<Engine>. shutdown() refuses new calls (EngineClosed), cancels the shutdown token, awaits the background tasks and the in-flight calls for at most 30 s, then drops the engine, which releases engine.lock (settles PD27a); on timeout it returns Internal and keeps the engine. The runtime sits in an Option and is dropped with shutdown_background(). open runs Engine::open then start_background on the runtime.
+  - **PD56 Records.** FFI records and enums mirror the engine types with the same serde attributes, derive Serialize, Deserialize and uniffi::Record or uniffi::Enum, carry #[serde(deny_unknown_fields)] (except a type marked // contract: custom with its own conversion and test), and are converted through serde_json (convert::out engine to FFI, convert::inp FFI to engine). Unsigned integers become i64, chrono times String, serde_json::Value a JSON text String (convert::json_text), Vec<u8> stays bytes. The euro f64 amounts of FiscalTicket stay f64 (display only, the engine and Vue contract). check_fdm_status and list_fiscal_events get typed records built from their JSON shape. Each record has a contract test against the testkit.
+  - **PD57 Events.** PosEngine.events() subscribes an EventStream to a tokio broadcast channel (capacity 256) fed by the engine's EventSink. PosEvent has one variant per engine topic plus Resync { missed } when a reader lags. next() returns null after shutdown. A payload that fails conversion is logged and replaced by Resync { missed: 1 }.
+  - **PD58 Logging.** init_logging(log_dir, filter) installs a tracing-subscriber 0.3.23 subscriber with a daily tracing-appender 0.2.5 file (pili-pos.log.<date> in the app-private directory Kotlin passes, 90 files kept) and, on Android, logcat through __android_log_write of liblog declared in pos-ffi itself (no new crate). That file, src/logging.rs, holds the only cfg(target_os = "android") and the only globals of pos-ffi. A panic hook logs every panic to both sinks before the previous hook. The engine still has no global.
+  - **PD59 Workspace and lock.** android/rust is its own workspace (members pos-ffi, uniffi-bindgen). Its Cargo.lock is seeded with a copy of the root Cargo.lock so shared crates keep the root versions; target dir <repo>/target/android-rust through android/rust/.cargo/config.toml; [profile.dev] debug = "line-tables-only"; [profile.android-release] as S2. New crates, exactly pinned: uniffi and uniffi-bindgen =0.32.2, minisign-verify (latest 0.2.x, pinned by P2-T1), dev-only minisign (signing in tests, so no secret key is committed). Lock parity rule (check_lock_parity.sh): the set of (name, version) in cargo tree -p pos-engine -e normal,build --target all is identical in both workspaces (root with --no-default-features --features cert); a difference is allowed only with a reason line in scripts/android/lock_parity_allow.txt.
+  - **PD60 Kotlin side in P2.** A minimal Gradle build in android/ (wrapper 8.11.1 with the pinned sha256, Kotlin 2.2.20, JDK 17 toolchain, pins copied from moyun-handheld). In P2 :pos-core is a Kotlin/JVM library whose main sources are the UniFFI bindings generated in library mode from the host debug dylib with android/rust/jvm-uniffi.toml (package uniffi.pos_ffi, never committed); tests use the plain JNA 5.19.1 jar. P3.1 turns :pos-core into an Android library and keeps these tests as host unit tests. apiCheck (binary-compatibility-validator, pinned by P2-T12) snapshots android/pos-core/api/pos-core.api, written once in P2-T12. The checksum mismatch test uses a dylib built with the pos-ffi feature abi-mismatch in target/android-rust-mismatch, in a Gradle task mismatchTest wired into check.
+  - **PD61 Bundle format.** A provisioning bundle directory holds MANIFEST.json ({"format":1,"files":[{"path","size","sha256"}]}) and MANIFEST.json.minisig. verify_bundle(dir, public_key) checks the signature, then every listed file (relative path, no .., no absolute path, no symlink, size and SHA-256 equal), and refuses any unlisted regular file. Failures are not exceptions: BundleCheck and MinisignCheck carry valid and a problem string in the code|k=v form (codes bundle_signature_invalid, bundle_manifest_invalid, bundle_path_invalid, bundle_file_missing, bundle_size_mismatch, bundle_hash_mismatch, bundle_unlisted_file, minisign_key_invalid, minisign_signature_invalid; texts come with P4.3). The public key is a parameter. File work runs on a dedicated thread.
+  - **PD62 Money helpers.** settle_preview and cash_due_cents call pos_fiscal::payment::settle and map its errors to the codes the checkout uses. vat_split reproduces ui/src/components/VatSummary.vue exactly (JavaScript rounding, codes A B C D, X omitted); it can differ by one cent from pos_core::vat::VatCode::vat_from_inclusive (truncation), recorded and not changed: display only, the ticket VAT comes from the FDM. Kotlin never multiplies or rounds money.
+  - **PD63 Provisional freeze (PD48 applied).** Every card gate and the phase gate run scripts/android/check_linux_frozen.sh --ref 042d91135940cb3f678a3f5e2947744a9d05ce4d. P2 changes only android/, scripts/android/, docs/android/ (never docs/android/baseline/); anything else is an escalation.
+  - **PD64 Gate cost.** Card gates build on the host only. The arm64 android-release build with alignment and bindgen checks (--android), the root test inventory (--root) and the strict 84/84 parity, :pos-core:check and ffi-doc (--exit) run in the integrator's phase gate. Workers warm-start from int/target/android-rust, never from the whole int/target.
+  - **PD65 Mocks for JVM tests.** pos-fdm-mock and pos-printer-mock are built from the root workspace with cargo build --locked --manifest-path <repo>/Cargo.toml --target-dir <repo>/target/android-mocks and started by the tests as processes on free ports. Rust tests serve them in-process.
+  - **PD66 Exit without the user.** P2 sets no freeze tag and runs no check_repro.sh (PD47 still open). With the user away the planner writes P2-exit.md and the chain may continue to P3 on android/int; merging into main waits for the user.
+- **P2 exit (planner, 2026-10-08):** decisions taken at the P2 exit from the review results; open for the user's review. Details and evidence in `docs/android/phases/P2-exit.md`.
+  - PD67 minisign-verify 0.3.0. PD59 asked for the latest 0.2.x; the crates.io index has 0.3.0 as the newest release, so P2-T1 pinned `minisign-verify = "=0.3.0"` (and the dev-only `minisign = "=0.10.0"`). Accepted: the pin is exact and the helpers card was written against the 0.3 API. PD59 reads "exactly pinned, 0.3.0" from now on.
+  - PD68 Bundle verification details (completes PD61, chosen by P2-T5 and documented in `android/rust/pos-ffi/src/helpers.rs`). A public key that does not parse gives `minisign_key_invalid`; a missing or unparsable `MANIFEST.json`, or a path listed twice, gives `bundle_manifest_invalid`; a missing or non-UTF-8 `MANIFEST.json.minisig` gives `bundle_signature_invalid`; `files` is empty whenever `problem` is set. Only prehashed minisign signatures are accepted, so P4.4 and the P6 release signing must sign with prehashed minisign (the default `minisign -S`, never `-l`). Hardening carried to P4.4: refuse any non-UTF-8 file name as `bundle_unlisted_file` (today names go through `to_string_lossy`), and verify only in an app-private extraction directory (the symlink check and the open are not atomic).
+  - PD69 Till payment guard in `settle_preview` (P2-T8, accepted). Before `pos_fiscal::payment::settle`, `settle_preview` applies the engine's own `is_offered_at_till` predicate, the same pre-settle refusal as `do_checkout_split` and the webshop handover, so the preview never accepts an App or Online part that both till paths refuse. It is the engine's predicate, not money math in the facade; PD62 is read with this guard.
+  - PD70 `blocking` or `spawn` follows the Tauri wrapper (amends PD52 and PD55). The parity check (`check_command_parity.py`, from `check_ipc_wrappers.py --map`) classifies a command by its wrapper: an `async` wrapper is called through `self.spawn`, a sync one through `self.blocking`. Two engine functions are sync behind `async` wrappers, `do_patch_order_status` and `do_set_confirmed_time` (PD21), so their FFI methods use `self.spawn`, as Tauri does; they hold a std mutex only briefly. The script is the reference, PD52's "sync engine function" wording is replaced by "sync wrapper".
+  - PD71 Rejected catalog outcome (engine defect found by P2-T11, not fixed). `pos_catalog::ApplyOutcome` is `#[serde(tag = "outcome")]` with a tuple variant `Rejected(Vec<Issue>)`, which serde cannot serialize, so on Linux (per the P2-T11 review) the Tauri commands `hubrise_sync_catalog` and `hubrise_adopt_catalog` return an error instead of the rejection when HubRise sends an invalid catalog (the catalog is still refused whole, nothing is applied). The FFI converts the engine value itself (`records/hubrise.rs`, `// contract: custom`) and a tripwire test (`the_engine_cannot_serialize_a_rejected_outcome`) fails once the engine is fixed. The fix is in a frozen path (`crates/pos-catalog`), so it is a question for the user: before the soft freeze, or as a Linux v1.2 change.
+  - PD72 Empty order (P2-T12 finding). `checkout` on an order without lines answers `Ok` with a refused `CheckoutResult` (`order_no_lines` inside the result, as the Tauri command does), while `sign_pre_bill` raises `Coded { order_no_lines }`. Both mirror the engine; Kotlin handles both forms (P5 must read `CheckoutResult` before treating a checkout as done).
+  - PD73 Review notes carried, not reworked. Accepted as they are and offered to later cards: `shutdown` returns early without dropping `events_tx` when the engine is already gone after a cancelled shutdown (`core.rs:191`, open streams then end only when `PosEngine` is dropped; P3 or P4 card); the `abi-mismatch` feature breaks `--all-targets` builds of `tests/ffi/lifecycle.rs:121` (only the library is built with it); `records/mod.rs` ownership table rows (the FDM message types are also used by `check_fdm_status`, `ModifierGroup` is `pos_db::queries::menu::ModifierGroup`, a `Modifier` row is missing); four `#[allow(clippy::redundant_closure)]` kept for the parity checker in `api/orders.rs`; the seeded-engine fixtures copied in `tests/ffi/orders.rs`, `src/api/orders.rs` and `tests/ffi/reports.rs` (could move to `support.rs` and use the FFI login now that P2-T10 is in); `HubriseStatus` keeps `serde(flatten)` and so accepts unknown top-level keys (JSON-equality test covers drift); `hubrise_not_connected` and `hubrise_not_configured` not asserted through the FFI; hand-listed enum variants in `tests/ffi/common.rs`; `MocksSmokeTest` can leave the FDM mock running if the printer mock fails to start, and no JVM shutdown hook stops the mocks; `rustInputs` in `android/pos-core/build.gradle.kts` omits the root `Cargo.toml` and `rust-toolchain.toml`; weak assertions in `EndToEndTest.kt` (refund label, Z with a null `reportNo`, an `FdmStatus` event not strictly after login); the "never started" cancellation branch is asserted but not exercised (`CoroutineStart.UNDISPATCHED`); `so-align` accepts any multiple of 0x4000; `linux-frozen` would show SKIP if cargo were missing; `check_command_parity.py` refuses a renamed module alias (false positive only). None changes a fiscal request or a money value.
+  - PD74 Freeze at the P2 exit. Per PD66 no freeze tag is set and no `check_repro.sh` runs; `docs/android/LINUX_FREEZE.md` is still not created and `check_linux_frozen.sh` still prints SKIP. The provisional freeze point `042d911` stays for P3 (PD48, PD63), and `git diff 042d911..` on the freeze paths is empty at the P2 exit.
+  - PD75 Exit records. `docs/android/phases/P2.md` (the cards) and `docs/android/phases/P2-exit.md` are committed at the exit on `android/int` (docs only). There is no separate `P2-review.md`; the twelve card reviews (all APPROVE, no rework) are summarised in the exit report. The P2-T9 worker report gave 31 new tests; the diff adds 23, the exit report uses the reviewer's figure.
+- **P3 planner (2026-10-08):** decisions for the Android build pipeline, cards in docs/android/phases/P3.md.
+  - **PD76 Card layout.** Nine cards in five waves. Wave 1: gate tools (P3-T1), `:pos-core` as an Android library with the Gradle gates (P3-T2), the pos-ffi shutdown fix (P3-T3). Wave 2: the `:smoke` app and its emulator run (P3-T4), the engine tests on the emulator (P3-T5). Wave 3: the instrumented tests of `:pos-core` (P3-T6). Wave 4: the build image and Gradle dependency verification (P3-T7). Wave 5: the two-build APK reproducibility check (P3-T8), the CI workflow and `docs/android/BUILD.md` (P3-T9). The emulator cards sit in waves 2 and 3 and the Docker cards in waves 4 and 5 to bound RAM (16 GB host: the emulator takes 4 GB, the Docker VM up to 12 GB); the emulator is stopped before wave 4. P3-T2 declares every version catalog entry the later cards need, so parallel cards never edit the same file.
+  - **PD77 `:pos-core` is an Android library** (plan P3.1, PD60). Its main sources are the UniFFI bindings generated in library mode with `android/rust/android-uniffi.toml` from the unstripped arm64 `android-release` library that gets packaged (DECISIONS 11.6), never committed. The host unit tests (the 22 JVM tests of P2 and `mismatchTest`) run these same bindings against the host debug dylib: at `ac15866` the planner checked that the two flavours differ only in private cleaner code and carry identical UniFFI checksums, and UniFFI 0.32.2 uses `android.system.SystemCleaner` only from API 34, so on API 33 and on the host JVM the JNA cleaner is used. The APK gets JNA as `net.java.dev.jna:jna:5.19.1@aar`, the unit tests get the plain `jna:5.19.1` jar (host `libjnidispatch`). Debug and release package the same `android-release` library; there is no debug-profile arm64 build. `apiCheck` keeps `android/pos-core/api/pos-core.api`; a new dump is accepted only when the public API of the bindings is unchanged.
+  - **PD78 NDK platform 33.** Every arm64 build of pos-ffi runs `cargo ndk -t arm64-v8a --platform 33 ... build --locked --profile android-release -p pos-ffi` (minSdk 33; cargo-ndk's default, used in P2, is 21). The Gradle task `cargoNdkBuild` and the `ndk-build` check of `p2_gate.sh` run it without RUSTFLAGS, so they share one cargo cache in `target/android-rust`; only the container build adds RUSTFLAGS (path remapping, PD83).
+  - **PD79 Stripping and packaging.** Cargo keeps the symbols (`strip = "none"`, needed by library-mode bindgen); cargo-ndk copies the unstripped library to a generated jniLibs directory of `:pos-core` (`build/rustJniLibs/arm64-v8a` or the directory the AGP variant API assigns); AGP strips it when it packages, with the NDK of `ndkVersion` (27.1.12297006). Native libraries are stored uncompressed and 16 KB aligned (`useLegacyPackaging = false`). `scripts/android/check_apk.sh` checks each release APK: `zipalign -c -P 16 -v 4`, only `lib/arm64-v8a/`, `libpos_ffi.so` and `libjnidispatch.so` present and stored, every LOAD segment aligned to 0x4000, no `.debug_*` section in `libpos_ffi.so`, which stays under 20 MiB.
+  - **PD80 The `:smoke` app.** A never-shipped test app (`android/smoke`, application id `dev.nuagemagique.pilipos.smoke`) proves the consumer R8 rules of `:pos-core` on a minified release APK on the emulator (its own `proguard-rules.pro` adds no keep rule) and is the APK of the P3 reproducibility check. `:app` (P4.1) does not depend on it, and P6 moves the reproducibility check to `:app`. Release APKs are built unsigned (S5, DECISIONS 9: no key in the build). To install one on the emulator, `scripts/android/sign_dev.sh` signs a copy with a throwaway RSA-2048 development key kept under `~/.cache/pili-android/dev-keystore/`, outside the repo: never committed, never used for a release, unrelated to the release key of DECISIONS 9.
+  - **PD81 Emulator.** `scripts/android/emulator.sh ensure` reuses a running `sunmi_d3_pro_api33` or starts it headless and records that the chain started it; it never starts a second emulator. Workers never stop, wipe or provision it (no device owner in P3); the integrator runs `scripts/android/emulator.sh stop`, which stops it only when the chain started it, before wave 4 and at the phase end. Host mocks listen on free host ports and the device reaches them through `adb reverse` on fixed device ports per script (smoke: 19180 FDM, 19190 printer; instrumented tests: 19280 FDM, 19290 printer, 19291 printer HTTP), so two scripts can share the emulator; each script removes only its own reverse rules and packages.
+  - **PD82 Engine tests on the emulator** (plan P3.3, DECISIONS 11.12). `scripts/android/device_engine_tests.sh` cross-builds the tests of `pos-engine` (features `cert`) and of the crates of the cert build graph from the root workspace with `--locked` (root `Cargo.lock` unchanged; profile tweaks only through `CARGO_PROFILE_*` environment variables) into `target/android-device-tests`, and runs them through adb under `/data/local/tmp`. A test that fails only because it reads a file of the host checkout is listed in `scripts/android/device_tests_exclude.txt` with its reason. Any other failure is an Android behaviour difference: it is recorded in `docs/android/DEVICE_TESTS.md`, nothing under `crates/` changes, and it goes to the user as an engine question (a fix would change Linux).
+  - **PD83 Reproducible APK** (plan P3.4, DECISIONS 11.13, S5). The build image comes from `android/docker/Dockerfile` (the S5 pins plus the rustfmt and clippy components that `rust-toolchain.toml` names, so rustup needs no network); it is built locally as `pili-android-build:p3` and not pushed (a GHCR push needs the user); its image ID and Dockerfile sha256 are recorded with every APK hash. Gradle dependency verification (`android/gradle/verification-metadata.xml`, sha256, no signature check) covers the artifacts of the host gates (macOS) and of the container build (Linux); a dependency change updates it in the same commit, with the commands of `docs/android/BUILD.md`. `scripts/android/check_repro.sh` prefetches crates and Gradle artifacts once with the network on, then builds the unsigned release APK twice in fresh `--network none` containers and requires identical bytes. The run on a native x86_64 Linux host is left to the user (manual `repro` job of `android.yml`, not run).
+  - **PD84 CI.** `.github/workflows/android.yml` runs only on `workflow_dispatch` and on `android-v*` tags (Actions minutes); the chain writes and checks it locally and never pushes or runs it.
+  - **PD85 Gate.** `scripts/android/p3_gate.sh` runs every check of `p2_gate.sh` (with `ndk-build` at platform 33 and `.github/workflows/android.yml` admitted through `--extra-paths`) and adds the Gradle checks: `lint`, `ktlintCheck`, `detekt`, `:pos-core:testDebugUnitTest` with at least 22 tests, `:pos-core:mismatchTest`, `:pos-core:apiCheck`, the release AAR, `:smoke:assembleRelease` and `check_apk.sh`. `--emulator` (smoke run and instrumented tests), `--device-tests` (engine tests on the emulator) and `--repro` (two container builds) are run by the cards that own them and by the phase exit. Gradle always runs with `--no-daemon` and the Kotlin compiler in process; only the integrator, between waves, may run `./gradlew --stop`.
+  - **PD86 Freeze at the P3 exit.** The plan's hard freeze (`linux-v1.1.0`, signed by the user) needs the user and the soft freeze is still blocked (PD47), so P3 sets no `linux-*` tag and runs no Linux `scripts/check_repro.sh`; `042d911` stays the provisional freeze point that every card checks (`check_linux_frozen.sh --ref 042d911...`). The plan's P3 exit condition, the engine shown to run on Android, is met by the emulator smoke run, the instrumented tests and the engine tests on the emulator.
+  - **PD87 P2 review notes taken in P3** (from PD73): the shutdown after a cancelled shutdown (`core.rs:191`) and the `abi-mismatch` build of `tests/ffi/lifecycle.rs` (P3-T3); `rustInputs` without the root `Cargo.toml` and `rust-toolchain.toml`, and mocks left running by `MocksSmokeTest` or a crashed test JVM (P3-T2). The other PD73 notes stay carried.
+  - **PD88 Exit without the user.** With the user away, the planner writes `P3-exit.md` and the chain may continue to P4 on `android/int`; merging into main, the freezes, pushing the build image and the native x86_64 reproducibility run wait for the user.
+- **P3 exit (planner, 2026-10-08):** decisions taken at the P3 exit from the review results; open for the user's review. Details and evidence in `docs/android/phases/P3-exit.md`.
+  - PD89 Device engine tests with fixtures. `p3_gate.sh --device-tests` keeps the default mode of `device_engine_tests.sh`: the 193 tests that read files of the host checkout stay excluded as `host-fixture` (150 pos-engine through `workspace_root()` in `crates/pos-engine-testkit/src/fixtures.rs:56`, 35 pos-fiscal, 8 pos-hubrise-types), as the card asked (no fixture override in the gate). The opt-in `--fixtures` mode (a `RUSTC_WRAPPER` that only rewrites the compile-time `CARGO_MANIFEST_DIR` of the test builds, no source change, plus about 9.8 MB of fixtures pushed under `/data/local/tmp`) is the phase exit evidence: at the P3 exit it gave 1371 passed, 0 failed over 88 binaries. Whether it becomes the gate default is a question for the user; P6 or P7 may decide it. A reviewer note is carried: an exclusion matches a test by name only, not by its failure text.
+  - PD90 `abi-mismatch` build (P3-T3 deviation, accepted). Gating `tests/ffi/lifecycle.rs` alone could not build all targets, because `tests/ffi/reports.rs:325` also calls `pos_sw_version()`. Under the feature, `core.rs` exports `pos_sw_version_mismatch(extra: i64)` with `#[uniffi::export(name = "pos_sw_version")]` and keeps a plain, non-exported `pos_sw_version()` for the tests. The FFI symbol and checksum names come from the foreign name, so they are unchanged; the mismatch checksum of `pos_sw_version` is 25846 against 63646 in the normal build, so `ChecksumMismatchTest` still fails the load as intended.
+  - PD91 `:pos-core` build wiring (P3-T2, accepted). One shared `cargoNdkBuild` and one shared `uniffiBindgen`, a copy task per variant registered with `addGeneratedSourceDirectory`; the bindings reach the compiler through `variant.sources.java` (`sources.kotlin` was not picked up); the test helpers reach `ProcessHandle` by reflection (absent from `android.jar`); `rustInputs` covers the root `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `crates/**/*.sql` and `*.crt`, and `RUSTFLAGS`, `CARGO_ENCODED_RUSTFLAGS` and `SOURCE_DATE_EPOCH` are task inputs; no `suppressUnsupportedCompileSdk` (AGP printed no warning); `kotlin-jvm` stays in the catalog, unused. Carried: `uniffiBindgen` does not track the `uniffi-bindgen` wrapper sources, `CFLAGS_*` is not a task input, lint's `UseTomlInstead` warning on the `jna@aar` string.
+  - PD92 Smoke and signing choices (P3-T4, accepted). `sign_dev.sh` verifies with `apksigner verify --min-sdk-version 24` (v2 and v3 signatures, no v1); `emulator_smoke.sh` gives each step its own timeout; the smoke activity wakes the screen (`setShowWhenLocked`, `setTurnScreenOn`, `KEYCODE_WAKEUP`), and `run_android_tests.sh` sends `KEYCODE_WAKEUP` and `wm dismiss-keyguard`, changing no setting. The seed asset goes to the directory AGP assigns for `addGeneratedSourceDirectory`. Carried for the test app only: `SmokeScenario.step()` catches `CancellationException`, and a failed shutdown step leaks the first engine within the test process.
+  - PD93 Instrumented tests (P3-T6, accepted). With `useLegacyPackaging = false` the library is mapped straight from the APK, so `DeviceLoadTest` asserts that the APK holds `lib/arm64-v8a/libpos_ffi.so` stored with no other ABI, that any extracted copy lies under `nativeLibraryDir`, else that an `r-xp` mapping of the APK exists, plus `uniffiEnsureInitialized()`; this replaces the card's "in `nativeLibraryDir`". The default detekt source set does not include `src/androidTest` (ktlint does); the first P4 Gradle card adds `src/androidTest/kotlin` to `detekt.source` or `detektDebugAndroidTest` to the gate.
+  - PD94 Build image (P3-T7, accepted). Deviations from the S5 Dockerfile: `RUSTUP_TOOLCHAIN` is dropped so that `rust-toolchain.toml` selects 1.99.0 with its components; the toolchain is installed with rustfmt, clippy and `aarch64-linux-android`; a `profile.d` file sets PATH for `bash -lc`. The container runs as root (`cargoEnv` uses Java `user.home`; a non-root user needs `<home>/.cargo/bin` linked to `/opt/cargo/bin`). To pass its disk check the T7 worker deleted `~/.gradle/caches/9.3.1`, a regenerable cache of another Gradle version that this build does not use; recorded here, and from now on the chain deletes only build outputs of its own worktrees and `target` directories.
+  - PD95 Reproducibility check (P3-T8, accepted). `check_repro.sh` adds the overrides `PILI_MIN_FREE_GB` (default 25 kept), `PILI_PREFETCH_METHOD`, `PILI_REPRO_CACHE` and the option `--prefetch-only`; `apk_entry_diff.py` exits 0 when only the zip container differs (lines marked META), unlike the S5 tool. Carried defect: `check_repro.sh` lines 161, 166, 333 and 362 use BSD `date -r` and `stat -f %z`, which break four INFO lines of `result.txt` on GNU coreutils (PASS and FAIL unaffected); fix with `wc -c` and `date -u -d @EPOCH` before the first native Linux run. `REPRO.md` cites `f361e37` (amended into `7b9fbd5`) and says all runs used `PILI_MIN_FREE_GB=15` (only `2133e8a` did); doc nits, not reworked.
+  - PD96 Gate notes carried (P3-T1, P3-T2, P3-T5 reviews). Gradle up-to-date results can satisfy `jvm-tests`, `unit-tests` and `mismatch-test` without running the tests, so each phase exit forces `--rerun` of the test tasks (done at this exit: 22 + 1 passed). Also carried: `unit_tests` in `p3_gate.sh:267` re-invokes the script by a relative path (loud false FAIL when started by a relative path from another directory); `plugin_applied` is a word grep (apply the plugins as `alias(libs.plugins.ktlint)` and `alias(libs.plugins.detekt)`); `emulator.sh` treats an emulator whose AVD name is still empty as another AVD (exit 3, never a second emulator); `device_engine_tests.sh` defaults to a 5 GB free-disk floor against the run rule of 15 GB.
+  - PD97 Freeze at the P3 exit (applies PD86). No `linux-*` tag is set and the hard freeze waits for the user's signature. The planner found the branch `android/freeze-rc1` (tip `65b567f`, based on `623c90b`) with the user's PD47 and PD71 decisions (`228c562`, `2e1e3ad`, `8dec93a`) and `docs/android/LINUX_FREEZE.md` recording a soft freeze run (SHA-1 `9d230ef1bba90a4edde0157bcb107e4bb4d23d6e`), whose tag is to be "set by the orchestrator after review". That review is not part of the P3 cards, so the P3 exit neither tags nor merges it: `android/int` keeps `042d911` as the provisional freeze point, and its gates keep `--ref 042d911...` until the tag exists and the branch is merged; both steps then happen together, with every gate moved to the tag.
+  - PD98 Exit records. `docs/android/phases/P3.md` (the cards) and `docs/android/phases/P3-exit.md` are committed at the exit on `android/int` (docs only). There is no separate `P3-review.md`; the nine card reviews (all APPROVE, no rework) are summarised in the exit report.
+- **P4 planner (2026-10-08):** decisions for the app foundation and provisioning, cards in docs/android/phases/P4.md.
+  - **PD99 Card layout.** Twelve cards in four waves. Wave 1: the P4 gate tools and the freeze switch to the tag (P4-T1), the `:app` skeleton with every dependency of P4, P5 and P6, the full manifest and the stubs the later cards fill (P4-T2), the lane ownership file and its checker (P4-T4). Wave 2: the Vue strings converter (P4-T3), the engine runtime (P4-T5), provisioning (P4-T6), the theme tokens (P4-T8), the navigation registry with the feature placeholders (P4-T9). Wave 3: the Kotlin side of the strings (P4-T7), Lock Task and the user activity forwarding (P4-T10), the shell root and the provisioning screens (P4-T11). Wave 4: the emulator end-to-end run and `docs/android/APP.md` (P4-T12). Plan mapping: P4.1 = T2 + T8, P4.2 = T5, P4.3 = T3 + T7, P4.4 = T6 + T11, P4.5 = T9 + T10 + T11; the lane foundation = T2 (manifest, dependencies, stubs), T4 (LANES.md), T9 (routes per feature).
+  - **PD100 Freeze from P4 on.** The tag `linux-v1.1.0-rc1` (65b567f) exists and is merged into `android/int` (30b32a0), so every card and gate runs `scripts/android/check_linux_frozen.sh` in tag mode. The provisional point `042d911` is retired: `p2_gate.sh` reports `frozen-provisional` as SKIP once a `linux-v1.1.0*` tag exists, and `p4_gate.sh` adds `freeze-tag` (the tag exists, points at 65b567f, and the tag-mode check is clean). The hard freeze `linux-v1.1.0` stays the user's.
+  - **PD101 One `:app` module, packages per area.** The app is one Gradle module `android/app` (namespace and release application id `dev.nuagemagique.pilipos`, debug `dev.nuagemagique.pilipos.debug`) with one Kotlin package per area, not one Gradle module per feature: on the 16 GB host each extra module adds a Kotlin, KSP and Hilt pass per build, and the files two lanes would both edit (version catalog, `verification-metadata.xml`, build file, manifest) are the same with or without modules. P4-T2 therefore declares now every dependency the plan names for P4, P5 and P6 (Compose, navigation, lifecycle, Hilt, Timber, documentfile, Robolectric, Roborazzi, Kover, mockk, Turbine, Compose UI tests, AndroidX test) with both passes of BUILD.md section 9, and declares every manifest entry of P4 and P6 with stub classes. After P4 the shared build files change only through a `shared` card that runs alone in its wave (LANES.md).
+  - **PD102 Lanes.** `docs/android/LANES.md` assigns the paths of `android/app/`, the lane scripts and the lane docs to exactly one owner: `foundation` (P4; frozen for the lanes), `ui-common` (P5 run A: `ui/`), `ui-<view>` (P5 run B: one `feature/<view>/` per worker, with its strings file, tests, screenshots and `docs/android/parity/<view>.md`), `platform` (P6: `platform/`, the repro and CI files), `shared` (`docs/android/DECISIONS.md`, append only) or `frozen`. `scripts/android/lane_paths.py` reads the machine-readable block of LANES.md, prints the `--allow` regex of an owner or an owner prefix (`ui` covers every `ui-*`) and checks that every tracked file of `android/app/` has exactly one owner, that the probes map to their expected owner and that each hand-written strings file uses its name prefix. An append conflict in DECISIONS.md is resolved by keeping both blocks.
+  - **PD103 Manifest now.** P4-T2 writes the whole manifest: `MainActivity` (singleTask, lockTaskMode normal, sensorLandscape, LAUNCHER and HOME filters), the device admin receiver `provisioning.PiliAdminReceiver`, the `specialUse` service `engine.EngineService` with its subtype property, and the P6 receivers as stubs in `platform/` (`update.InstallResultReceiver`, `update.PackageReplacedReceiver` for MY_PACKAGE_REPLACED, `watchdog.BootReceiver` for BOOT_COMPLETED); permissions INTERNET, FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS, READ_PHONE_STATE, RECEIVE_BOOT_COMPLETED; no REQUEST_INSTALL_PACKAGES (S4); allowBackup false and dataExtractionRules `@xml/data_extraction_rules` (an exclude-everything file that P6 owns); `queries` for the HOME intent and the package `com.android.settings` (P4-T10 suspends them). A debug-only manifest (`src/debug`) adds the teardown receiver, protected by the permission `android.permission.DUMP` that only the shell holds.
+  - **PD104 Navigation.** String routes with navigation-compose. Each feature contributes a `FeatureEntry` through a Hilt `@IntoSet` binding in its own package and keeps its route constants in its own `<Feature>Routes` object; `NavRegistry` fails on a duplicate route and requires exactly one entry for `NavContract.START_ROUTE` (`login`); `AppNavHost` builds the graph from the set. Settings rows of other lanes come in as `SettingsEntry` (`@IntoSet`), overlays above every screen (the FDM banner of P5a) as `ShellOverlay` (`@IntoSet`). So a lane adds a screen, a Settings row or an overlay without editing a shared file. P4-T9 creates a placeholder entry per feature (login, tables, order, checkout, reports, settings, webshop) and one for `platform`.
+  - **PD105 Strings.** `scripts/android/vue_to_android.mjs` reads `ui/src/i18n*.ts`, `ui/src/utils/fdmMessages.ts` and the error registry `crates/pos-engine/src/commands/errors.rs` (all read only) with its own strict parser (no `node_modules`) and writes per area `res/values{,-en,-zh}/strings_vue_<area>.xml` (core, errors, checkout, reports, settings, webshop, fdm), generated Kotlin tables in `i18n/generated/` (key to resource id, the FDM tables in the order of `fdmMessages.ts`, the engine error codes) and a test snapshot `app/src/test/resources/vue_strings.json`; `--check` is the drift check. French is the default `values`; a language missing in Vue falls back to French, as `t()` does. `{name}` placeholders stay in the text and are replaced at run time like `t()`; the app never calls `getString(id, args)` on these strings. Resource ids are reached through the generated map, never `getIdentifier`, so R8 resource shrinking keeps them. The FDM texts stay French, with the Chinese line as separate resources, as in Vue. Hand-written strings live in one file per area with a fixed name prefix (`strings_shell.xml` `shell_`, `strings_engine.xml` `engine_`, `strings_provisioning.xml` `prov_`, `strings_kiosk.xml` `kiosk_`, `strings_ui_<area>.xml` `ui_<area>_`, `strings_plat_<area>.xml` `plat_<area>_`) that no Vue key may use. The plan's 86 error codes are replaced by what the registry lists: `errors::ALL` (85) plus `errors::hubrise::ALL` (22), 107 codes at 30b32a0, each with fr, en and zh texts.
+  - **PD106 Theme and fonts.** P4-T8 ports `ui/src/styles/tokens.css` (and its training palette) to Kotlin tokens and a `PiliTheme` with the Q19 density wrapper `Density(widthPx / 1920f, 1f)`; a unit test compares every token with `tokens.css`. P4 uses the system fonts (S4: 439 of 439 code points covered); bundling Noto Sans SC (Q19), JetBrains Mono and Archivo as `res/font` belongs to the UI lane (P5 run A). Robolectric runs SDK 35 (the cached `android-all-instrumented`, as in moyun-handheld); the device is API 33.
+  - **PD107 Engine runtime.** `EngineHolder` has the plan's four states, `Closed(reason)`, `Opening`, `Ready(posSwVersion)` and `Fatal(reason)`; `open()` is idempotent, runs `initLogging`, `uniffiEnsureInitialized` and `PosEngine.open` on the IO dispatcher, starts the event pump before it publishes Ready, never opens without a provisioned launch configuration (no silent TEST identity), and stays Fatal until the process restarts. `EngineGateway.call { }` is the only way to an engine method: it runs on the IO dispatcher, throws a typed unavailable error when the engine is not Ready, and turns `InternalException` into Fatal. `EngineHelpers` wraps the free FFI helpers (`settlePreview`, `cashDueCents`, `vatSplit`, `qrMatrix`, `posSwVersion`) on the IO dispatcher. The event bus is a `SharedFlow<PosEvent>` that suspends the pump when full, so a slow reader makes the engine broadcast lag and the stream yields `Resync` instead of the app dropping events. The `specialUse` foreground service (Q15 typed start with the plain fallback) opens the engine and keeps the process alive; P6 adds the restart after Fatal. Native entry points (`PosEngine.open`, the free functions) appear only in `engine/` and `provisioning/` (gate check `ffi-boundary`).
+  - **PD108 Provisioning.** Device owner is required on every build: `Build.getSerial()` needs it (S4) and there is no non-owner path. The serial is read at provisioning and at every start; a mismatch keeps the engine closed and the only way out is importing a signed bundle again, which records the new serial. DECISIONS 3.2 says manager re-provision: the manager PIN needs an open engine, so possession of a bundle signed by the producer's key stands in for it (for the user's review). The bundle (`pos.json`, the files it names, an optional `seed.sql`, `MANIFEST.json`, `MANIFEST.json.minisig`) is copied from a SAF tree (or, in debug builds only, from the app's external files directory `provisioning-inbox`) into a staging directory, checked with `verifyBundle` and `checkConfigBundle`, then swapped into `filesDir/provisioning/bundle`; a failed import keeps the previous bundle. `seed.sql` is applied with `installInitDb` only to a database that does not exist yet. The public key is a build input: debug builds embed the committed development key `android/app/provisioning/dev-minisign.pub` (its secret half lives only under `~/.cache/pili-android/dev-minisign/`), release builds take the Gradle property `piliProvisioningPublicKey` and, without it, refuse every bundle (`prov_err_key_missing`). The release key and its holder are the user's (DECISIONS 9).
+  - **PD109 Kiosk (plan P4.5).** Lock Task is entered as soon as the app is device owner, also before provisioning (S4: the SAF picker works in Lock Task). At every start: lock task packages = the app, lock task features = GLOBAL_ACTIONS (the power menu), the app as persistent preferred HOME, the other HOME packages and `com.android.settings` suspended with `setPackagesSuspended` (reversible; S4 exit note), immersive system bars; `onResume` relocks from the persisted kiosk flag and then starts the engine service (Q15). The `DISALLOW_*` restrictions, the time policy and adb off stay in P6. The debug teardown receiver undoes all of it and clears the device owner, for the emulator only.
+  - **PD110 User activity.** `MainActivity.onUserInteraction()` feeds a conflated forwarder that calls `userActivity()` through the gateway at most once per second while the engine is Ready; errors are logged, never shown. The engine keeps the idle timer and the lock rule (P1b); the one-second bound changes the lock time by under one second.
+  - **PD111 Gate.** `scripts/android/p4_gate.sh` runs every check of `p3_gate.sh` and adds `freeze-tag`, `hygiene-keys`, `lanes`, `vue-strings`, `kotlin-tests` (no Kotlin test removed against the base, `scripts/android/kotlin_test_inventory.py`), `ffi-boundary`, `app-manifest` and the `:app` Gradle checks (lint, ktlint, detekt, unit tests, Roborazzi verify, `koverVerifyDebug`, `assembleRelease`, `check_apk.sh` on the unsigned app APK); `--exit` adds the plan's literal command `./gradlew lint ktlintCheck detekt test koverVerifyDebug assembleRelease`; `--app-e2e` and `--linux-repro` add the emulator run and the Linux `scripts/check_repro.sh`. `--app` is the lean card profile for cards that change only `:app` and the P4 scripts: hygiene and freeze from the new `p2_gate.sh --hygiene-only`, no Rust or `:pos-core` checks, and a FAIL if the card touches `android/rust`, `android/pos-core`, `android/smoke` or `android/docker`. Kover floor on `:app`: 80 percent of lines and 60 percent of branches (generated code, Hilt and previews excluded); the lanes may raise it, never lower it. Screenshot goldens are recorded and verified on this Mac only. `scripts/android/heavy.sh` lets at most two Gradle or cargo builds of the chain run at once (`PILI_HEAVY_SLOTS`), and `p4_gate.sh` takes a slot for each build it starts.
+  - **PD112 Dependency verification.** P4-T2 writes the host entries and merges the container entries (BUILD.md section 9) once for all the new dependencies; no later P4 card adds a dependency, except that P4-T12 may add entries its device run resolves.
+  - **PD113 Emulator in P4.** Only P4-T12 and the phase exit use `sunmi_d3_pro_api33`. They install the debug app, make it device owner with `dpm set-device-owner`, provision it with a development bundle, run the instrumented test with `am instrument` (Gradle's connected tasks uninstall the app, which a device owner forbids), and tear everything down (lock task released, packages unsuspended, owner cleared, app uninstalled, own `adb reverse` rules removed); the AVD is never wiped. Device ports 19380 (FDM), 19390 (printer), 19391 (printer HTTP).
+  - **PD114 Exit checks and disk.** The root test inventory (`--root`, a 13 GB build) and the Linux `scripts/check_repro.sh` (Docker, from a clean clone of the tag; SHA-1 `9d230ef1bba90a4edde0157bcb107e4bb4d23d6e` expected) run once at the phase exit, after the worktrees' build outputs are deleted; every card is barred from the Linux build inputs and checks the tag, so they cannot change in between. The APK reproducibility check stays on `:smoke` and is not rerun at the P4 exit (P4-T2's container metadata pass builds it with `:app` in the build); P6 moves it to `:app` (PD80). If the disk cannot hold an exit check, the exit report records it as not run.
+  - **PD115 Exit without the user.** With the user away, the planner writes `P4-exit.md` and the chain may continue with the UI lane (P5) and the platform lane (P6) in parallel on `android/int`; merging into main, the hard freeze, pushes and the release keys wait for the user.
+- **P4 exit (planner, 2026-10-08):** decisions taken at the end of P4, report in docs/android/phases/P4-exit.md.
+  - **PD116 Gate base of a merged card.** When a card branch is already an ancestor of `android/int` at review time, `android/int...<branch>` is empty and `--base android/int` makes `kotlin-tests` count the later cards' tests as removed. The reviewer then gates the card against its own fork point (`30b32a0` for wave 1, `556063c` for wave 2, `13a4441` or `9e5642f` for wave 3) with the card's `--allow` regex. All P4 reviews did so; this is the rule for P5 and P6 too.
+  - **PD117 Accepted path exception (P4-T5).** `android/app/src/test/kotlin/dev/nuagemagique/pilipos/StubsTest.kt` changed one assertion from `START_NOT_STICKY` to `START_STICKY`, outside the card regex, because the card itself required `EngineService.onStartCommand` to return `START_STICKY`. Accepted, not a rework; the P4-T2 stub test could not stay as it was.
+  - **PD118 Restart check by process kill, not force-stop (P4-T12).** On API 33, `am force-stop` and `am crash` are ignored for the device-owner package (`Ignoring request to force stop protected package`), and `run-as kill` cannot see the pid. The e2e restart check sends the debug-only `DebugKillReceiver` broadcast (`dev.nuagemagique.pilipos.debug.KILL`, exported, protected by `android.permission.DUMP`), which SIGKILLs its own process; the system restarts the persistent HOME app and the check compares pids and reads only the new pid's log. P6's restart and watchdog design must not rely on `am force-stop` either. Copied from `docs/android/APP.md` section 10, as the reviewer asked.
+  - **PD119 Error-code count corrected.** `errors::ALL` lists 63 codes (`errors.rs` declares 64 top-level constants; `FDM_ANSWER_PENDING` is not in `ALL` and has its own FDM text) and `errors::hubrise::ALL` 22: 85 codes, each with fr, en and zh texts (`EngineErrorCodesTest`: `error codes checked: 85 (63 engine + 22 hubrise), 3 languages each`). The figures "`errors::ALL` 85, 107 codes" in PD105 and in `phases/P4.md` are wrong; PD54's "85 codes" is right. PD105 stays as written (append only); this bullet corrects it.
+  - **PD120 FDM prefix in Kotlin.** `ErrorTexts.isFdm` uses `startsWith("FDM")` (PD54, FFI.md section 6), not Vue's `/^FDM\b/`. In Vue, `FDM_ANSWER_PENDING|label=N` fails `^FDM\b` (the underscore is a word character) and probably shows `err_unexpected`, although the comment at `errors.rs:122-124` says it shows as an FDM message. The Kotlin behaviour is kept. The Linux UI is frozen, so it is a question for the user (it could be fixed with the v1.0 re-freeze, see PD121).
+  - **PD121 No freeze step at the P4 exit.** The plan requires no tag at the end of P4: the Linux SHA-1 reproduction and the tag-mode freeze check are the P4 exit obligations, and both pass. The plan's update of 2026-10-08 says the local tag `linux-v1.1.0-rc1` was misnamed and the freeze is redone as `linux-v1.0.0-rc1` after the nightly export feature is merged; that feature is not on `android/int`, and a re-freeze needs the user's go-ahead. So no tag was set and P5 and P6 keep checking `linux-v1.1.0-rc1` (65b567f) in tag mode until the user re-freezes. Recorded in `docs/android/LINUX_FREEZE.md`.
+  - **PD122 Review findings carried forward.** The non-blocking findings of the P4 reviews are listed in `phases/P4-exit.md` ("Risks"). The ones in foundation files (`engine/`, `provisioning/`, `kiosk/`, `shell/`, `scripts/android/`) are fixed by one foundation card that runs alone in the first wave of the next run, before the UI and platform lanes branch, because the lanes may not edit foundation files (PD102). The ones that touch the restart after Fatal (event stream ending while Ready, `Closed(Shutdown)` shown as Opening) belong to P6's restart design.
+- **X1 planner (2026-10-08):** decisions of the export lane (plan update 2026-10-08, nightly export), cards in docs/android/phases/X1.md.
+  - **X1D1 Card layout.** Ten cards in six waves, at most two per wave because the Mac is shared with the UI and platform lanes: wave 1 X1-T1 (lane gate, these decisions) and X1-T2 (export configuration, pos-export base, mock crate skeleton); wave 2 X1-T3 (statistics copy) and X1-T4 (upload client, mock receiver); wave 3 X1-T5 (outbox and status); wave 4 X1-T6 (engine); wave 5 X1-T7 (Tauri and FFI) and X1-T8 (Vue); wave 6 X1-T9 (Android screen) and X1-T10 (dossier). Card branches android/X1-T<n> from android/lane-export, merged into it with --no-ff after review.
+  - **X1D2 Lane gate.** scripts/android/x1_gate.sh replaces the freeze check for X1 cards only. It runs scripts/android/p1b_gate.sh (root Rust: fmt, clippy -D warnings, workspace and cert tests, test inventory diff, dossier checks; UI build and Playwright) and scripts/android/p4_gate.sh (android/rust, lock and command parity, :pos-core, :app), prefixes their checks with root: and android:, and waives exactly the six checks that any change of a Linux build input fails by construction: root:linux-frozen, root:hygiene-cargo-lock, android:linux-frozen, android:freeze-tag, android:hygiene-root-lock, android:hygiene-paths. It compensates with x1-paths (the card's --allow regex), x1-scope (since the fork point ba57adf, every changed Linux build input, android/rust, android/pos-core or dossier file is in the export allowlist), x1-lock-additive (both Cargo.lock files only gain packages) and check_command_parity.py --strict. No foundation gate script is edited.
+  - **X1D3 No re-freeze and no version change in X1.** The version stays 1.1.0 and linux-v1.1.0-rc1 stays the only freeze tag; the rename to 1.0.0 and the freeze linux-v1.0.0-rc1 need the user (plan: freeze and re-freeze always need the user). Once android/lane-export is merged into android/int, check_linux_frozen.sh against linux-v1.1.0-rc1 fails there by design, and so do the freeze checks of the p2 and p4 gates for every lane. Recommendation: merge android/lane-export into android/int after the UI and platform lanes of this run, then the user re-freezes; until then android/int is gated with x1_gate.sh. The phase exit builds the new Linux binary twice (x1_gate.sh --linux-repro) and reports its SHA-1 for that re-freeze.
+  - **X1D4 Where the code lives.** New crate crates/pos-export (in the cert build graph through pos-engine): configuration check, SQLite online snapshot, age encryption, manifest, statistics copy, pseudonyms, Z lookup, upload client, outbox and status. New crate crates/pos-export-mock: the mock receiver (library and binary), a dev-dependency only, outside the cert graph; the admission FDM mock pos-fdm-mock is not changed. Engine glue in crates/pos-engine/src/commands/export.rs and one loop in background.rs. No pos.db schema change: the outbox state lives in files under <data_dir>/exports.
+  - **X1D5 Configuration.** Optional pos.json section export (PosConfig.export; absent means off and nothing is created): url (https; plain http only to 127.0.0.1, localhost, [::1] or 10.0.2.2, for tests and the emulator), token_file (the bearer token, trimmed, never in pos.json, resolved relative to a provisioning bundle), owner_recipient (age X25519 public key age1...), producer_recipient (optional, same form), keep_days (default 14, 1 to 365). PosConfig::problems() and install::check_config_source report a malformed section, so pili-pos --check-config and the Android bundle check refuse it; Engine::open never fails because of it: an invalid section disables the export and the status shows the problem.
+  - **X1D6 Trigger and isolation.** After every real Z (manual, automatic, or one found at start-up), never after a training Z. The Z path only wakes the export worker; the worker runs outside the signing lock, on its own read-only SQLite connection and on spawn_blocking threads, so the Z answer, its printouts and the next sale never wait for it. Each pass prepares an export for every real Z newer than the cursor (exports/cursor.json) whose booking date is within keep_days; when the export is first enabled the cursor starts just before the latest Z (that Z only, no history backfill).
+  - **X1D7 Files.** export_id is <booking date YYYYMMDD>-z<Z number on 6 digits>, for example 20261008-z000042. Directory exports/<export_id>/ holds pos-<id>.db.age (SQLite online backup of pos.db, binary age format, recipients owner and optional producer), stats-<id>.sqlite (cleaned copy of the booking period closed by that Z, schema v1), manifest-<id>.json (format pili-export/1: export id, pos_id, terminal_id, pos_sw_version, Z number, booking date, creation time, stats schema version, the recipients' public keys, and name, size and SHA-256 of the two data files) and state.json. An export is built in exports/.tmp/ and renamed into place when complete; the plaintext snapshot exists only there and is deleted after encryption; .tmp is emptied at start-up and before each preparation.
+  - **X1D8 Upload.** HTTPS PUT of <url>/<export_id>/<file name> with Authorization: Bearer <token>, Content-Type and X-Content-SHA256, in the order backup, stats, manifest (the manifest last marks a complete export). 2xx is success; any other answer or a transport error is retried after 1, 2, 4 ... minutes, capped at 60, without limit; 401 and 403 show as unauthorized. The client comes from the engine's HttpTls with a 120 s timeout per file; a file is read into memory (the reqwest stream feature is not added to the cert build) and a file above 512 MiB is refused with an error. Local exports older than keep_days are deleted whether sent or not; an unsent one deleted that way is counted in dropped and logged.
+  - **X1D9 Statistics copy v1.** Tables meta, users (user_ref, role), tickets, ticket_lines (product code, name, department, quantity, prices, VAT label and rate, discount), ticket_vat, ticket_payments, ticket_discounts, z_report, z_vat, z_payments. Channel table, takeaway, delivery or online from the order type and source; refunds are tickets of kind refund with negative amounts; only the sales (N events) and the Z of that period: no training, presence (S), copy, order (P), pro forma, drawer, money or invoice event. Users are pseudonyms: user_ref is u- and 16 hex characters of SHA-256 over a domain tag, a 32-byte per-installation key (exports/pseudonym.key, created once, mode 0600, never exported, not inside pos.db so not in the backup either) and the INSZ; the system identity is system. No INSZ or NISS, user name, PIN hash, token, e-mail, phone, address, customer name, HubRise payload, ticket text or signature. The receiver-facing description is crates/pos-export/STATS_SCHEMA.md.
+  - **X1D10 Commands.** Two new cert commands, export_status and export_run_now (Access::Admin, async), each a one-call Tauri wrapper, an engine function (do_export_status, do_export_run_now) and an FFI method of PosEngine: the cert command count goes from 84 to 86. ExportStatus (camelCase JSON, i64 counts, RFC 3339 UTC times): enabled, problem, endpoint (scheme, host and port only), keepDays, lastExportId, lastPreparedAt, lastUploadedId, lastUploadedAt, pending, nextAttemptAt, lastError, lastErrorAt, kept, dropped. export_run_now makes every pending export due now, wakes the worker and returns the status at once. No new error code (errors.rs unchanged, so the Android error tables and their tests do not move) and no new event topic (the screens poll the status every 30 s while shown).
+  - **X1D11 Linux UI.** A panel of SettingsView (ui/src/components/ExportStatusPanel.vue), admin only. Its texts are in ui/src/i18n-export.ts with a local lookup, deliberately not merged into ui/src/i18n.ts, so scripts/android/vue_to_android.mjs and the generated Android strings stay unchanged.
+  - **X1D12 Android screen.** Package dev.nuagemagique.pilipos.nightly: route nightly, a FeatureEntry and a SettingsEntry (id nightly.export, managerOnly, order 800), strings_nightly.xml in fr, en and zh with the prefix nightly_, engine calls only through EngineGateway. A new LANES.md owner nightly and the prefix in lane_paths.py are the lane's only foundation edits, appended lines only, made by X1-T9 as a shared card; its wave partner X1-T10 touches only the dossier, so no file is shared within the wave.
+  - **X1D13 Dossier.** French and brand-neutral: a new EXPORT_NOCTURNE_FR.md, and updates of the data sheet section B (networks and devices: the connection to the installation's own receiver), REPONSES_MANUEL_CERT_FR (Internet configuration, DAS recap, cloud question), SECURITE_BD_FR (backup security), FEUILLE_ACQUISITION_DONNEES_FR and PROFIL_ENTREPRISE_FR (GDPR minimisation), the installation and user manuals, MANIFEST.txt and the PDFs. The legal framing (the legal record stays local; the export is a copy and not a cloud POS) is the planner's draft for the user's review.
+  - **X1D14 Storage on the device (the user's SD card question).** pos.db and the exports stay in internal storage: on Android in the app's private files directory (files/engine, exports in files/engine/exports), on Linux under /var/lib/pili-pos; X1 writes nothing to an SD card. Removable media stay reserved for the manager's SAF export of P6. X1-T6 measures the three files for its test day; the exit report gives an estimate of the space needed.
+  - **X1D15 Pins.** age with an exact pin and default features off, the newest release on crates.io that builds with Rust 1.99.0, chosen and recorded by X1-T2 (comment in crates/pos-export/Cargo.toml and its report); every other dependency at a version already in Cargo.lock where one exists. X1-T2 declares all dependencies of pos-export and pos-export-mock at once, so the parallel cards of wave 2 never edit Cargo.toml or Cargo.lock.
+  - **X1D16 Merge and exit.** With the user away, the integrator merges android/lane-export into android/int (after the other lanes, X1D3) and the planner writes docs/android/phases/X1-exit.md. main, the re-freeze, pushes and the dossier's legal framing wait for the user.
+  - **X1D17 Integrator, wave 1.** Merged android/X1-X1-T1 (X1 gate) and android/X1-X1-T2 (pos-export base crate) into android/lane-export with no conflict. Exit gate (x1_gate.sh --exit), app-e2e gate (11 checks on the emulator) and the parity, lock, lane-path, Vue and dossier checks pass. pos-export is not yet a dependency of the cert build (cargo tree shows neither pos-export nor pos-export-mock), as expected before the wiring cards. The dossier --final check reports the known manifest finding on evidence/build, identical on android/int. The Linux double build (--linux-repro) could not run: the shared disk filled up while three lanes built in parallel and Docker's VM filesystem went read-only; it must be re-run by the X1 exit once Docker is restarted and the disk has room (not an effect of the merge).
+  - **X1D18 Integrator, wave 2.** Merged android/X1-X1-T3 (statistics build and pseudonymisation) and android/X1-X1-T4 (export mock receiver and upload client) into android/lane-export with no conflict. Exit gate (x1_gate.sh --exit): 97 of 98 checks pass, 6 waived by X1D2. The single failure, ui-e2e (0 of 296), came from a missing Playwright WebKit browser in the local cache (the cache directory had been wiped, probably by the low-disk cleanup); after `npx playwright install webkit` the 296 tests pass, and this merge touches nothing under ui. The app-e2e gate (11 checks on the emulator), the test inventory, the command parity (strict and hygiene), the IPC wrappers, the lock parity, the lane paths, the Vue strings and `check_dossier.py` all pass. `check_dossier.py --final --rules pdf-freshness,manifest` reports only the known manifest finding on evidence/build (same on android/int). pos-export is still not a dependency of the cert build (cargo tree prints neither pos-export nor pos-export-mock), as expected before the wiring cards. The Linux double build (--linux-repro) could not run again: `docker info` hangs (Docker Desktop VM unresponsive after the shared disk filled up, a second lane's check_repro.sh is stuck behind it too). Not an effect of the merge; it must be re-run by the X1 exit once Docker is restarted and the disk has room. The disk reached 100% during this run; only regenerable cargo outputs of this worktree were deleted.
+  - **X1D19 Integrator, wave 3.** Merged android/X1-X1-T5 (export outbox and status) into android/lane-export with no conflict (only crates/pos-export changed). Exit gate (x1_gate.sh --exit): 97 of 98 checks pass, 6 waived by X1D2. The single failure, app-detekt, was Gradle's "build daemon has been stopped: stop command received" (another agent ran a Gradle stop on the shared daemons); `./gradlew :app:detekt` re-run alone passes. The app-e2e gate (11 checks on the emulator), the test inventory (1626 tests, none removed), the command parity (strict and hygiene), the IPC wrappers, the lock parity, the lane paths, the Vue strings and `check_dossier.py` all pass. `check_dossier.py --final --rules pdf-freshness,manifest` reports only the known manifest finding on evidence/build (same on android/int). pos-export is still not a dependency of the cert build (cargo tree prints neither pos-export nor pos-export-mock), as expected before the wiring cards. The Linux double build (--linux-repro) could not run again: Docker Desktop is not running (`docker info` fails and `open -a Docker` did not bring it up within 200 s). Not an effect of the merge (only crates/pos-export changed, outside the frozen paths); it must be re-run by the X1 exit once Docker is started.
+  - **X1D20 Integrator, wave 4.** Merged android/X1-X1-T6 (nightly export in the engine) into android/lane-export with no conflict. Exit gate (x1_gate.sh --exit): 98 checks, 0 failed, 6 waived by X1D2. Test inventory (no test removed), command parity (strict and hygiene), IPC wrappers, lock parity (339 packages), lane paths, Vue strings and `check_dossier.py` pass; `--final --rules pdf-freshness,manifest` still reports only the known manifest finding on evidence/build. `cargo tree` of the cert build now prints `pos-export` and never `pos-export-mock`, as intended. The app-e2e gate passes. The Linux double build failed on the merge: the two runs gave different SHA-1 (`565c81a` and `441bca3`). Cause: pos-export is now in the cert graph and its `age` dependency embeds its translations with rust-embed, which stamps each embedded file with its build-host times. Fix `dc29f43` (attempt 1 of 2): pos-export depends on `rust-embed` with the `deterministic-timestamps` feature, unified by cargo onto age's copy, so the stamps are 0 (both lock files gain one edge, no crate is added, lock parity holds). The second run of `--fast --linux-repro` then passes: two identical builds, SHA-1 `f28d684c65eb087c8776bf9530bc2f909ef954cf`. Later waves must keep this feature when they touch the pos-export dependencies.
+  - **X1D21 Integrator, wave 5.** Merged android/X1-X1-T7 (export commands and FFI) and android/X1-X1-T8 (export status panel in the UI) into android/lane-export with no conflict. Exit gate (x1_gate.sh --exit): 98 checks, 0 failed, 6 waived by X1D2; app-e2e gate and Linux reproducibility gate (x1-linux-repro) pass, 0 failed. The scripted checks (test inventory, command and IPC parity, lock parity, lane paths, Vue strings, dossier) pass. pos-export is in the cert dependency tree and pos-export-mock is not. The only dossier finding is the manifest entry evidence/build, which is documented as absent until the final build, and is not caused by the merge.
+  - **X1D22 Integrator, wave 6.** Merged android/X1-X1-T9 (nightly export status screen for managers, Kotlin only: android/app nightly package, strings, lane owner registration) into android/lane-export with no conflict; android/X1-X1-T10 was deliberately not merged in this wave. Exit gate (x1_gate.sh --exit): the first run failed one check, android:rust-tests, on `lifecycle::cancelled_shutdown_then_shutdown_ends_the_streams` (pos-ffi, `assert!(next.is_none())`), a timing flake while the machine was at load average 12 to 20 with three lanes building; this merge changes no Rust. The test passes 3 of 3 times alone and the full exit gate re-run passes: 98 checks, 0 failed, 6 waived by X1D2. Test inventory (no test removed), command parity (strict and hygiene), IPC wrappers, lock parity (339 packages), lane paths, Vue strings and `check_dossier.py` pass; `--final --rules pdf-freshness,manifest` reports only the known manifest finding on evidence/build (same on android/int). The cert build contains pos-export and not pos-export-mock. The app-e2e gate and the Linux reproducibility gate (SHA-1 `d4fb09a2ae2cf2501fe4d6847eb72e954d0b95ed`, two identical builds) pass, 0 failed. Note for the exit: the pos-ffi lifecycle test above can flake under heavy load; the stream may deliver an event before it ends, and a re-run alone is green.
+  - **X1D23 Planner, X1 exit: X1-T10.** The review of X1-T10 (dossier) was REWORK on two points: the cloud answer of REPONSES_MANUEL_CERT_FR §VII.B still said "100% local, aucune donnée fiscale dans le cloud", and the annex and the installation manual fixed the export connection at port 443 while `url` may carry another port. The planner applied exactly those fixes on android/X1-X1-T10 (`86088e4`, also the assembly schema and the network needs answer for the port; four PDFs rebuilt; check_dossier.py, its 19 self-tests and pdf-freshness green). The merge into android/lane-export was refused by the session's permission check, so T10 is not merged: it needs a re-review of `86088e4` and a --no-ff merge before android/lane-export goes into android/int. The worktree moyun-pos-wt/X1-X1-T10 is kept.
+  - **X1D24 Planner, X1 exit: accepted scope widenings.** Each was unavoidable and edits only counts or additions: X1-T7 scripts/android/test_check_command_parity.py (84 to 86 cert commands); X1-T9 android/app/src/test/kotlin/dev/nuagemagique/pilipos/nav/FeatureEntriesTest.kt (8 to 9 feature entries; expect a textual conflict with the platform lane, resolve by counting both lanes' entries; the test name theSetHoldsSevenFeaturesAndThePlatform is stale); X1-T5 added two helpers to crates/pos-export/tests/common/mod.rs (owned by X1-T3).
+  - **X1D25 Planner, X1 exit: accepted design details.** STATS_SCHEMA.md v1 may gain tables and CHECK values as well as columns (receivers ignore what they do not know); an operator whose INSZ is missing from users gets role cashier (documented); the first export pass after start-up calls retry_now so exports left in backoff become due at once; the export loop is spawned only when the export is enabled; N events with a NULL label (tests only) are exported.
+  - **X1D26 Planner, X1 exit: follow-ups for a later export card**, none blocking: the run_now and worker race on state.json (move retry_now into the worker through a flag); validate the token as a header value up front (today a bad token is a retried Transport error); reject a query, fragment or junk after a bracketed host in export.url; an attempt limit for the online backup under continuous writes; make the pseudonym key fallback fail instead of rename; the Vue panel reload after Retry during a poll; on Android keep the last status next to an error; a Send check on upload_due; the stale comment in export_nightly scenario (f); records/mod.rs ownership row for ExportStatus; the pos-export-mock README bind advice.
+  - **X1D27 Planner, X1 exit: no freeze step.** The plan and X1D3 leave the re-freeze to the user. No tag is set; linux-v1.1.0-rc1 stays the only freeze tag. The candidate for linux-v1.0.0-rc1 is the Linux SHA-1 reproduced at a364ad7, d4fb09a2ae2cf2501fe4d6847eb72e954d0b95ed (integrate-6), to be reproduced again on android/int after the merge; recorded in LINUX_FREEZE.md "X1 exit check".
+  - **X1D28 Planner, X1 exit: storage estimate.** The encrypted backup is the size of pos.db plus a few hundred bytes and the statistics file starts at 80 KB; the local exports take about keep_days times (pos.db plus one statistics file). From a development database (about 1.5 KB of JSON per fiscal event) a working figure of 5 to 10 KB per ticket gives about 30 MB a month and 350 MB a year at 150 tickets a day, so 14 full copies reach several GB within a year and pos.db passes the 512 MiB upload limit after about 18 months. This replaces the "megabytes per month" guess of X1.md section 2 and is a question for the user (keep_days, streamed upload). Nothing is stored on an SD card.
+  - **X1D29 Planner, X1 exit: sccache and removed worktrees.** The exit gate failed twice on root:tests-cert-pos-engine (441 passed, 150 failed) because sccache served a pos-engine-testkit rlib built in the removed X1-X1-T9 worktree, whose embedded CARGO_MANIFEST_DIR no longer exists (fixtures.rs workspace_root panics). After cargo clean -p pos-engine-testkit and a run without RUSTC_WRAPPER the same gate passes, 98 checks, 0 failed, 6 waived (591 cert engine tests). Rule: a failure on a missing workspace path after a worktree removal is rerun that way before it counts as a code failure.
+- **P5 planner, UI lane (2026-10-08):** decisions for P5 run A and the first views, cards in docs/android/phases/P5.md. The numbers from PD201 belong to the UI lane so that they never clash with the numbers the parallel lanes append.
+  - **PD201 Run layout.** Twelve cards in five waves on `android/lane-ui`. Run A (shared components and shared UI state) is P5-T1 to P5-T8 in waves 1 to 3; Login (P5-T9) runs in wave 3, Tables (P5-T10) and the menu half of Order (P5-T11) in wave 4, the cart half of Order (P5-T12) in wave 5. Checkout, Reports, Settings (with the HubRise QR and typed-code OAuth) and WebshopOrders are planned in phase P5b. Order is split over two consecutive cards of the same owner because its Vue side is about 1,350 lines.
+  - **PD202 PD122 is not in the UI lane.** The foundation fix card of PD122 edits `engine/`, `provisioning/`, `kiosk/`, `shell/` and `scripts/android/`, which no lane may edit (PD102). It runs on `android/int` alone in its wave, scheduled by the integrator or the platform lane. None of its findings blocks a UI card.
+  - **PD203 Fonts (P4 exit question 4, for review).** No font is bundled and `res/font/` stays empty. The Vue UI also relies on the system fonts (`--font-family` in `tokens.css`, no font file under `ui/`), S4 found 439 of 439 code points covered on the image, and a bundle would add licence notices and several MB to a hashed, declared APK. Figures keep `FontFamily.Monospace` from `PiliTypography`. To revisit if the real D3 Pro lacks a glyph.
+  - **PD204 The foundation tests pin the feature entries.** `FeatureEntriesTest` and `ShellContentTest` (foundation, frozen for the lanes) require exactly the eight routes of P4, eight `FeatureEntry` bindings, `LoginEntry()` without arguments and the tag `placeholder_<area>` on each feature screen, with the engine closed and a plain `ComponentActivity` as host. P5 therefore adds no route and no `FeatureEntry`, keeps every entry constructor, puts `testTag("placeholder_<area>")` on the root of each real screen (the tag now means "feature root") and makes every screen render while the engine is not Ready. Sub-screens are in-screen state or dialogs. A later shared foundation card may rename the tag and allow sub-routes.
+  - **PD205 ViewModels without `hiltViewModel()`.** `hiltViewModel()` needs a Hilt activity, which those tests do not use. A screen takes its dependencies from an application `@EntryPoint` (`rememberEntryPoint<T>()` in `ui/di/`, P5-T4) and builds its ViewModel with `viewModel { ... }`. A screen never navigates by itself when it starts: Vue's "no user, go to login" and "no order, go to tables" redirects become in-place empty states. The shell already returns to login on `SessionLocked`, and an automatic redirect would break the navigation tests.
+  - **PD206 Shared UI state is owned by ui-common.** The Pinia stores used by more than one view become `@Singleton` classes: `PosSettingsStore` (`stores/pos.ts`), `SessionStore` (`stores/auth.ts`), `IntegrationsStore` (`stores/integrations.ts`), `OrderStore` (`stores/order.ts`), `FdmStore` (`stores/fdm.ts`) and `ToastStore` (`stores/toast.ts`). They load when `gateway.ready` turns true and on `PosEvent.Resync`. View-only stores (`stores/menu.ts`, `stores/webshopOrders.ts`, `stores/delivery.ts`) stay in their feature. The UI language and the product label live in the private `SharedPreferences` file `pili_ui` (Vue keeps them in `localStorage`), never in the system locale.
+  - **PD207 Order state comes from the engine.** `OrderStore` re-reads `getOrder` and `listCartLines` after every cart change instead of patching a local copy as `stores/order.ts` does, and the order total is `Order.totalCents` (Vue sums the lines; the engine total is the stored value). The unsent count is a sum of quantities, not of money.
+  - **PD208 Money display.** `formatCents` (`ui/format/Money.kt`) gives the text of Vue's `formatPrice` (`toLocaleString('fr-BE')`, two decimals, its grouping and signs) with integer quotient and remainder only, no floating point and no rounding; it is the only Kotlin code that divides a cents value, each such line marked `// money-format-only`. A cart line amount (Vue: `unit_price_cents * quantity`) is the single row of `EngineHelpers.vatSplit` on that line; a line that `vatSplit` leaves out (code X) shows quantity and unit price as text, without a product. The VAT summary is `vatSplit` on the cart lines. `p5_gate.sh` adds the heuristic check `ui-money`; the reviewer stays the authority.
+  - **PD209 FDM banner and veil.** The FDM warning banner is a `ShellOverlay` drawn on every screen under the 64 dp header band; a MANDATORY message never closes by itself and an optional one closes after 10 s, as in `FdmAlerts.vue`. The blocking veil cannot be an overlay, which does not know the route: `PosScaffold` draws it over the content of the sales screens (tables, order, checkout) only, so Reports and Settings stay reachable, as Vue's `SALES_ROUTES`.
+  - **PD210 Leaving an order and locking.** Vue's router guard (`router/index.ts`) becomes `OrderStore.leaveIfActive(reason)`, called by the header actions before they leave the order or checkout screen (`NAVIGATE`, or `SWITCH_ORDER` for a new takeaway) and by the order screen's own exits. A refusal shows `order_register_failed : <error>` for 6 s and the operator stays, except when going to login. The lock button calls `SessionStore.lock()` (the engine registers the P), shows a returned order error, then calls `OrderStore.resetLocal()` and goes to login. On `SessionLocked` the shell already returns to login (P4) and `OrderStore` forgets its order by itself.
+  - **PD211 After login: Tables.** Login and the first-PIN flow end with `replaceAll(TablesRoutes.TABLES)`. Vue pushes `order`, whose screen bounces to Tables without an order, and the Kotlin order route needs an order id.
+  - **PD212 Command parity.** `scripts/android/check_ui_parity.py` reads the 82 commands of `ui/src/api/ipc.ts` (80) and `ui/src/api/ipc-modifiers.ts` (2), finds the Kotlin call sites inside `EngineGateway.call { }` lambdas of `android/app/src/main`, and reads the declaration block of `docs/android/PARITY.md`. Excluded for good: `start_remote_support`, `stop_remote_support`, `remote_support_status` and `remote_support_running` (no remote support in v1, section 7), and `check_fdm_status`, `list_fiscal_events`, `sign_table_order`, `work_in` and `work_out`, wrappers of `ipc.ts` that no Vue screen calls (`fdm_health` and `fdm_check_now` replace the first, `leave_order` registers the P, P1b moved the clock-in into `login` and the clock-out into `end_shift`). Every other command is `pending:<card>` until a card calls it. A pending command that has a call site is a warning in P5 and an error with `--strict`, which the P5b exit runs.
+  - **PD213 One writer per shared file and wave.** `strings_ui_common.xml` (three locales) is written by P5-T2 in wave 1, P5-T7 in wave 2 and P5-T8 in wave 3 only; the other run A cards use Vue keys. `docs/android/PARITY.md` is written by P5-T1 and P5-T8 only, and `DECISIONS.md` by P5-T1 only (the planner appends the exit decisions).
+  - **PD214 Components take resolved texts; dialogs stay in the window.** The wave 1 components (`NumPad`, `PinPad`, `PinDialog`, `PiliDialog`, `ConfirmDialog`, the toasts, `QrCanvas`) take their texts as parameters; screens resolve them with `vueText(key)` from `ui/text/` (P5-T4), which reads the app language. Dialogs are drawn in the screen's own layout (a full-size scrim and a card), not in a separate dialog window, so the kiosk's immersive mode is never lost; `PosScaffold` gives screens an overlay slot above the header.
+  - **PD215 Goldens.** Screen goldens are taken at `w1920dp-h1080dp-mdpi` (the D3 Pro at density 1, Q19) in the standard palette, at most four per view card, plus one training-palette golden of the scaffold; component goldens capture the node. They are recorded and verified on this Mac only (PD111).
+  - **PD216 Gates and base.** Wave 1 cards run `p4_gate.sh --app`, since P5-T1 writes `p5_gate.sh` in the same wave; from wave 2 every card runs `p5_gate.sh` (the P4 `--app` checks plus `ui-parity`, `ui-contracts`, `ui-money` and `ui-strings`). The base is `android/lane-ui`; a reviewer of an already merged card gates it against its fork point (PD116).
+  - **PD217 No emulator in the cards.** The views are proven with Robolectric and Roborazzi. The integrator runs the P4 app end-to-end run once after wave 5, to show that provisioning, the engine start and the user-activity probe stay green with the real login screen. The UC flows on the emulator belong to P7.
+  - **PD218 QR rendering.** `QrCanvas` draws the `EngineHelpers.qrMatrix` modules black on white with a four-module quiet zone whatever the palette, since a scanner needs dark on light; it is the only fixed colour pair outside `ui/theme/`. The HubRise authorize link, which Vue shows as the engine's `qr_svg`, is drawn from `qrMatrix` of the link in P5b.
+  - **PD219 No price preview of options.** `ModifierDialog.vue` adds the option prices to the item price for its button label. Kotlin may not add amounts, so the Android dialog shows the item price and each option's own price, and the button carries no total; the engine prices the line, as the Vue comment says.
+- **P5-T6 (planner, FDM health banner and check-now, 2026-10-09):** REJECTED and rescheduled. Decided by the planner while the user was away; the user should review it.
+  - *What happened.* Nothing was built, so there was nothing to merge. The branch `android/P5-P5-T6` and its worktree were never created and there are zero commits. The worker stopped correctly under the disk rule (stop and report below 8 GB free); `df -h /System/Volumes/Data` showed 3.4 GB free at 100 percent use. None of the acceptance items are met: the five `ui/fdm` files, `FdmBannerOverlay` as order 200 `@IntoSet`, the four test classes and the three `fdm_*` goldens. The `fdm_health` and `fdm_check_now` parity rows stay `pending:P5-T6`. The gates were not run since there is no diff. The worker and the reviewer fabricated nothing.
+  - *Gap and closure.* (1) Disk recovery is an orchestrator step and must happen before any rerun. The space is taken by regenerable Rust build output of other lanes (`moyun-pos-wt/lane-plat/target`, about 18 GB, and `moyun-pos-wt/lane-export/target`, about 14 GB). The orchestrator cleans them only once those lanes are idle (no cargo, cargo-ndk or Gradle process with that worktree as cwd), by deleting debug, incremental and stale cross-build subtrees or running `cargo clean` there. No card worker or reviewer deletes outside its own card paths. Target: at least 15 GB free before P5-T6 restarts, since two lanes run in parallel and 8 GB is the per-card floor. (2) P5-T6 is rerun unchanged from the `android/lane-ui` head that has P5-T3, P5-T4, P5-T5 and now P5-T7 merged (`git worktree add moyun-pos-wt/P5-P5-T6 -b android/P5-P5-T6 android/lane-ui`, warm start, card as written); `p5_gate.sh --fast --base android/lane-ui --allow <card regex>` and `check_ui_parity.py` must pass before acceptance. (3) The SD card question gets its own no-code research card, scheduled now: SD-1, "engine storage location on the Sunmi D3 Pro and SD card role". The answer goes in `docs/android/spikes/SD1.md` for the user's review.
+  - *SD-1 starting facts (checked by the planner in the code on `android/lane-ui`, to be confirmed by SD-1).* `ProvisioningPaths.kt:39` sets `dataDir = File(context.filesDir, "engine")`, `EngineHolder.kt:220` passes it to the engine, and `crates/pos-engine/src/engine.rs:39-43` puts `pos.db` and `backups/` under that directory. So the SQLite journal and its local backups live in app-internal storage, not on the SD card. The only external path is the debug inbox (`getExternalFilesDir`, `ProvisioningPaths.kt:63`). Expected role of the SD card: a SAF export or off-device backup target only, never the live journal (tamper and removal risk under the fiscal retention rules, sudden removal while SQLite writes, no app-sandbox protection on removable media); SD-1 checks this against the S4 SAF findings (section 12). SD-1 gives the size recommendation from the measured `pos.db` growth per ticket times the retention period. Until SD-1 is written, no figure is given to the user.
+- **P5 wave 2 integration (integrator, 2026-10-09):** P5-T7 (money, Brussels time and cart amount formatting; VAT summary, amount dialog, training and config banners) merged with `--no-ff` into `android/lane-ui`, no conflict. P5-T6 was not merged (see above). Static gate checks (clean tree, refs, linux frozen, frozen paths, lane scope, lane paths, kotlin test inventory removed 0 with 543 tests at head, UI parity missing 0) pass, and the full `p5_gate.sh` run (34 checks, 0 failed) passed on the merged tree, including lint, ktlint, detekt, 500 unit tests, Roborazzi verify and Kover (LINE 96.3 percent, BRANCH 76.4 percent). The P5-T7 task worktree was removed and its branch kept.
+- **P5 exit, UI lane (planner, 2026-10-09):** decisions taken at the exit of the UI lane run, report in `docs/android/phases/P5-exit.md`. Decided by the planner while the user was away; the user should review them. The numbers start at PD240 because the platform lane's P6 block also uses PD201 to PD221 (see PD245).
+  - **PD240 The run closes partial.** Merged into `android/lane-ui`: P5-T1, T2, T3, T4, T5 (wave 1), T7 (wave 2) and T9 (wave 3). Not delivered: P5-T6 (the worker stopped under the 8 GB disk rule, no branch), P5-T8 (needs `FdmStore` and `FdmBlockingVeil` of T6), P5-T10 and P5-T11 (need `PosScaffold` of T8) and P5-T12 (needs T11). No card failed review on its code, no card hit the REWORK limit, there was no freeze violation and no ESCALATE on code; the P5-T2 ESCALATE was the full disk. The lane head builds and passes the phase gate (P5-exit.md), so the next run starts from it.
+  - **PD241 Continuation run before P5b.** The five open cards run again unchanged, from the `android/lane-ui` head, in a short UI run "P5 completion": wave 1 T6; wave 2 T8; wave 3 T10 and T11; wave 4 T12. Before each wave the orchestrator checks the dependency by file presence (for example `git ls-tree android/lane-ui -- android/app/src/main/kotlin/dev/nuagemagique/pilipos/ui/scaffold/PosScaffold.kt` before T10 and T11), not by `merge-base --is-ancestor`, because an empty card branch (T8 at `22b1b0d`) is an ancestor and passed the old check. The card branches `android/P5-P5-T8`, `T10` and `T11` have no commits and are reset to the new head; their worktrees can be removed. Disk precondition: at least 15 GB free, after the idle lanes' `target` directories are cleaned (DECISIONS P5-T6 entry). P5b starts after this run.
+  - **PD242 Parity pruned at the exit.** The 27 `pending:P5-T<n>` lines whose command is CALLED were deleted from `docs/android/PARITY.md` (exit step 2), and a note under the run A table says that the `ui/fdm/` and `ui/scaffold/` rows have not landed. Totals: called 28, excluded 9, pending 45, stale 0, missing 0. The planned totals (called 38, pending 35) are reached when the continuation run calls `fdm_health` (T6), `hubrise_status` and `set_pin` (T8), `list_tables` and `list_open_takeaways` (T10) and the five T11 commands.
+  - **PD243 Deviations accepted at review.** (1) P5-T3: `ErrorPresenter` maps `EngineUnavailableException` to the engine-starting text of `ErrorTexts.describe`, not to the unexpected-error text of the brief, because error texts go only through `ErrorTexts`. (2) P5-T4: `typealias EndShiftResult = SocialResult`, the test seam `PosSettingsStore.publish`, and `ProvideTextStyle(TextStyle(localeList = ...))`. (3) P5-T7: the watermark uses `weightHeavy` (800) where Vue uses 900. (4) P5-T9: without `FdmStore` the login start-up checks call `fdm_check_now` through `GatewayFdmProbe` (`feature/login/LoginStartupChecks.kt`). After T6 lands, a small ui-login card switches the probe to `FdmStore.checkNow()`, since T6 may not edit `feature/login/`. (5) P5-T2 deviations as recorded in its wave 1 entry.
+  - **PD244 Follow-ups carried to the continuation run or a UI polish card.** `SessionStore` keeps `currentUser` when `gateway.ready` turns false; `OrderStore.resetLocal()` runs outside the mutex, so a refresh in flight can republish the old order after `SessionLocked`; a cart mutation whose follow-up read fails reports a failure although the line exists; `QrCode` reserves a 21-module placeholder while ticket QR codes are 29 modules; the 150 ms toast slide-in is not ported; `docs/android/parity/login.md` says "otherwise ok" where an unanswered FDM gives `check_not_configured`; the `ui-money` heuristic does not see `sum()` over mapped cents, `shl`, `inc()`, `Math.floorDiv`, aliasing through `let`, or an operator split over two lines (PD208 keeps the reviewer as the authority). P5-T9's per-commit fast gate is not evidenced (its final full gate is).
+  - **PD245 Decision number clash between lanes.** PD201 said the numbers from PD201 belong to the UI lane, but the platform lane's P6 block (`android/lane-plat`) also uses PD201 to PD221 with other meanings. At the merge into `android/int` both blocks stay (append rule) and a reference is read as "PD2nn (UI lane, P5)" or "PD2nn (platform lane, P6)"; the UI lane's exit numbers start at PD240 to avoid more overlap. From P5b on, each lane prefixes its numbers with its lane name (for example `UI-PD301`), as the export lane already does (`X1D`).
+  - **PD246 Entries filed under the wrong heading.** The wave 1 entries "P5 wave 1 integration, card P5-T2" and "P5 wave 1 integration" were appended under "## Decided by the user", although the planner and the integrator took them while the user was away. The file is append-only, so they stay where they are; they are to be reviewed with this section.
+  - **PD247 No freeze step at the P5 exit.** As at the P4 exit (PD121), the plan sets no tag at the end of P5: the soft freeze `linux-v1.1.0-rc1` stays the reference, the hard freeze waits for the user, and the re-freeze as `linux-v1.0.0-rc1` waits for the export lane's merge and the user. No tag was created and `docs/android/LINUX_FREEZE.md` is unchanged (it is outside the UI lane's paths). The Linux SHA-1 reproduction belongs to the P5 exit on `android/int`.
+  - **PD248 The SD card answer.** The location part is verified in the code by four reviewers and agrees with the platform lane's PD220: `pos.db`, its backups, `engine.lock`, the bundle and the logs live in app-private internal storage, never on the SD card, which is only a SAF export target. The size part (`phases/P5.md`, "The relayed SD card question") is an unmeasured estimate and is relayed as one; the reviewers' own guesses differ by two orders of magnitude, so it narrows the rule of the P5-T6 entry ("no figure until SD-1") to "no figure presented as measured". Two facts from the platform lane matter for the size: the engine keeps every post-Z backup (platform PD219), so internal storage, not the card, holds the growth, and one export copies the 7 newest backups, so an export set is about 7 database sizes plus logs. Research card SD-1 (no code) still runs: `pos.db` bytes per ticket and per Z in the engine test harness, times the retention period, the free internal storage of the D3 Pro, and the largest card it accepts.
+  - **PD249 Gate notes for the merge into `android/int`.** The UI lane's head passes `p5_gate.sh --exit` (the `plan-gradle` check passed on a rerun after another agent's `gradlew --stop` killed its daemon) and, at `c3f555c`, `p4_gate.sh --fast --app-e2e` (11 of 11). The `android/int` merge gate repeats `p4_gate.sh --app` with Roborazzi verify and Kover (P5-T2 caveat), `p4_gate.sh --exit --root --android` and the Linux reproduction (`9d230ef1bba90a4edde0157bcb107e4bb4d23d6e`). Integrators of the parallel lanes call `./gradlew --stop` only when no other Gradle build runs, since it stops every daemon of the user.
+- **P5b planner, UI lane (2026-10-09):** decisions for P5b (the P5 completion and the remaining views), cards in `docs/android/phases/P5b.md`. Decided by the planner while the user was away; the user should review them. Numbers carry the lane prefix `UI-` (PD245).
+  - **UI-PD301 One run instead of two.** PD241 planned a separate "P5 completion" run for P5-T6, T8, T10, T11 and T12 before P5b. This run folds them into P5b so that the lane reaches parity in one run of twelve cards in four waves (mapping above). The empty branches `android/P5-P5-T8`, `T10`, `T11` and their worktrees are not reused; the orchestrator removes the worktrees.
+  - **UI-PD302 State before screens.** To use wave 1 while the critical path (FDM, then scaffold) runs, the Reports and Settings view models and the webshop store are built in wave 1 without a screen; their screens come in wave 3, by the same owner. A state card leaves its feature's placeholder screen and entry untouched.
+  - **UI-PD303 More shared state in ui-common (amends PD206).** `stores/delivery.ts` (used by checkout, refund, copy and settings) becomes `ui/state/DeliveryStore`, and `stores/webshopOrders.ts` (header badge, global chime, webshop view) becomes `ui/state/WebshopOrdersStore`. `TicketMediumPicker`, `EmailKeypad` and `DeliveryOutcomePanel` (checkout and reports) become ui-common components. The menu store stays in `feature/order`; Settings does not reload the menu, the order screen reloads its categories when the language changes or `PosEvent.CatalogUpdated` or `Resync` arrives.
+  - **UI-PD304 The order chime is an overlay.** `useOrderChime()` (App.vue) becomes `OrderChimeOverlay`, a `ShellOverlay` (order 10) that draws nothing and plays C5 then E5 (150 ms each, sine, fading) through `android.media.AudioTrack` with generated samples, behind an `OrderChimePlayer` interface (a fake in tests), each time `WebshopOrdersStore.pendingCount` goes up. No sound file, no new dependency.
+  - **UI-PD305 Single writers in this run.** `docs/android/PARITY.md`: P5b-T12 only; the other cards leave their `pending:` lines, which the checker reports as stale (a warning, an error only with `--strict`). `strings_ui_common.xml` (three locales): P5b-T2 in wave 1 and P5b-T6 in wave 2. `scripts/android/p5_gate.sh` and `test_p5_gate.sh`: P5b-T2 only. `ui/di/UiEntryPoints.kt`: nobody; every package declares its own `@EntryPoint`. `docs/android/DECISIONS.md`: planner and integrator only; a worker reports its deviations in its card report.
+  - **UI-PD306 Checkout display arithmetic (question for the user).** The Vue checkout and refund compute four amounts for which the engine offers no helper: the change from the cash handed over, the equal shares of a split, the quick amounts above the cash due, and the refund preview total (sum of the selected lines). The engine is frozen (any change means a re-freeze and an escalation). The planner allows exactly one file, `ui/format/CashDisplay.kt`, with four integer functions ported from `CheckoutView.vue` and `ReportsView.vue`: `changeCents`, `equalShares`, `quickAmountsCents`, `sumCents`. No rounding, no floating point, each arithmetic line ending with `// money-display-only`; `ui-money` exempts those lines in that file only (P5b-T2 extends the gate and its self-test). The 5-cent cash rounding and every signed amount stay in the engine: the rest to pay and the rounded cash due come from `EngineHelpers.settlePreview` and `cashDueCents`, the sale from `checkout`, the refund from `refund_checkout`, and the engine refuses any inconsistent set of parts. Alternatives for the user: engine helpers in a later engine change (re-freeze), or no change and split display.
+  - **UI-PD307 Refund preview.** The refund confirmation shows the selected lines (each line amount is the single `vatSplit` row of that line, as `CartAmounts.lineAmount`), the VAT summary of the selection, and a preview total: `CashDisplay.sumCents` of the line totals, then `EngineHelpers.cashDueCents(total, [cash part])` for the cash rounding. When a selected line has VAT code X (left out by `vatSplit`), no preview total is shown; the engine's refund result gives the amount.
+  - **UI-PD308 Settings reaches the platform screens through rows only.** The settings screen lists `NavRegistry.settingsEntries` (sorted by order, then id), hides `managerOnly` rows from non-managers, keeps `testTag("settings_row_<id>")` on every row (the foundation test asserts `settings_row_platform.about` with the engine closed), and calls `navigator.navigate(row.route)`. No import from `dev.nuagemagique.pilipos.platform`, no platform route literal. The agreed names are the platform lane's "Platform routes" table in its `LANES.md`; until that lane merges, only `platform.about` appears.
+  - **UI-PD309 No third-party platform logos.** `WebshopOrdersView.vue` shows the Deliveroo, Uber Eats and Takeaway logos. Android shows the channel as a text chip. This keeps trademark artwork out of a declared APK and the dossier brand-neutral; `ui-webshop` owns no drawable path.
+  - **UI-PD310 The PD204 tags stay.** No foundation card runs in this lane (the foundation is frozen for the lanes and question 2 of `P5-exit.md` is open). Every screen keeps `testTag("placeholder_<area>")` on its root; sub-screens are in-screen state or dialogs.
+  - **UI-PD311 Follow-ups taken in this run.** P5b-T1 replaces the login `GatewayFdmProbe` by a probe over `FdmStore.checkNow()` (PD243 item 4) and corrects `docs/android/parity/login.md` (an unanswered FDM gives `check_not_configured`, PD244). P5b-T5 makes `SessionStore` forget the user when `gateway.ready` turns false, and makes `OrderStore.resetLocal()` safe against a refresh in flight (PD244). The other PD244 items (21-module QR placeholder, toast slide-in, `ui-money` heuristic gaps) stay open.
+  - **UI-PD312 Icons.** Icons come from Material Icons Extended (`Icons.*`, already a dependency). The header logo `res/drawable/ui_logo.xml` is a conversion of the paths of the existing `ui/src/components/PiliLogo.vue`, nothing drawn by hand.
+  - **UI-PD313 Disk staging.** 14 GB were free at planning time; a card worktree takes about 3 GB with its Gradle outputs. The orchestrator starts a card only with at least 11 GB free, in the start order above, and deletes each merged card's `target` and `android/app/build` at once. A worker below 8 GB free waits up to 30 minutes (polling every 5 minutes) before it stops and reports; in P5, P5-T6 stopped at once and stalled four cards.
+  - **UI-PD314 Dependencies by file presence** (PD241 rule). Before a wave the orchestrator checks with `git ls-tree android/lane-ui -- <path>` the files listed in the card table, never branch ancestry.
+  - **UI-PD315 Gates.** Cards run `p5_gate.sh` (PD216). The strict parity runs in P5b-T12 and at the phase exit: `check_ui_parity.py --strict` must print `called 73, excluded 9, pending 0, stale 0, missing 0`. The root Rust test inventory (`test_inventory.sh --diff`) and the Linux SHA-1 reproduction run once at the exit when at least 20 GB are free; otherwise they are recorded as not run and done at the lanes' merge into `android/int`, as at the P5 exit (the UI lane changes no Rust and no frozen path, which the frozen-path diff proves).
+  - **UI-PD316 No emulator in the cards** (PD217). The integrator runs `p4_gate.sh --fast --app-e2e` once after wave 4, reusing a running emulator and never stopping one it did not start.
+  - **UI-PD317 Webshop amounts.** The webshop screen shows the amounts of the engine's webshop records through `formatCents` only; a webshop refund is `webshop_refund_order` with the engine's own amounts. Time arithmetic (preparation minutes, delays, ages) is not money and is allowed, in `Europe/Brussels`.
+  - **UI-PD318 The SD card question, relayed again.** The answer of PD248 stands (section at the end of this file); this run adds no measurement.
+- **P5b exit, UI lane (planner, 2026-10-09):** decisions taken at the exit of the P5b run, report in `docs/android/phases/P5b-exit.md`. Decided by the planner while the user was away; the user should review them.
+  - **UI-PD319 The run closes complete.** All twelve cards are merged into `android/lane-ui` with an APPROVE verdict, no escalation, no rejection; P5b-T7 was approved at its third review (two rework rounds, within the limit). `check_ui_parity.py --strict` gives `called 73, excluded 9, pending 0, stale 0, missing 0`, so run B of the plan's P5 is done for the UI lane. The lane is ready for the merge into `android/int`. The integration entries of waves 1 to 4 (and those of P5) were appended at the end of this file, inside "Decided by the user"; they are decisions taken while the user was away and stay where they are under the append-only rule.
+  - **UI-PD320 No freeze step at the P5b exit.** As at the P4 and P5 exits (PD121, PD247), the plan sets no tag at the end of P5b: `linux-v1.1.0-rc1` (`65b567f`) stays the reference of `check_linux_frozen.sh`, the hard freeze waits for the user, and the re-freeze as `linux-v1.0.0-rc1` waits for the export lane's merge and the user's go-ahead. No tag was created. `docs/android/LINUX_FREEZE.md` is outside the UI lane's paths and is unchanged; this entry records the decision instead. The Linux SHA-1 reproduction belongs to the merge into `android/int`.
+  - **UI-PD321 Deviations from Vue accepted at the exit** (each documented on its parity page under `docs/android/parity/`): the FDM banner draws on every screen, login included (PD209); `quickAmountsCents` follows Vue at an exact multiple; Settings refuses an INSZ that is not 11 digits before calling the engine, as Login does; the HubRise section reloads its health on the catalog events; Settings shows the employees panel to managers only (a cashier changes the own PIN from the header, `HeaderViewModel` `set_pin`, as in Vue's header); "New takeaway" registers the current order from every screen, not only from the order screen; the HubRise status light follows `hubriseVisible`; the order line's minus is disabled at quantity 1 with a separate delete control (UX guide 4.3); the checkout done step always shows the total; the webshop board confirms reject and refund and puts the delay in a dialog; channels are text chips (UI-PD309). The double `orderError` toast that the P5b-T1 review feared does not happen: `SessionStore.onSessionLocked` ignores the event while a manual lock runs.
+  - **UI-PD322 Follow-ups for a later UI polish card** (none blocking, none fiscal; the engine settles, rounds and refuses): (1) disable checkout validate while an amount recompute is pending (`CheckoutViewModel`); (2) take the `OrderStore` generation at mutex acquisition so a reset during a cart command is not undone; (3) `WebshopOrdersStore.publish` checks `active`; (4) a login that completes after `forget()` does not remember the user (`SessionStore`); (5) the header lock never waits on the shared busy flag, and `TablesViewModel` serializes its init and resume loads; (6) `ReportsViewModel` checks the flow identity when a copy or refund answer arrives, and the PROCESSING step stays non-dismissable; (7) `HubriseViewModel` ignores writes after its reset; (8) comment nits: `strings_ui_order.xml` header comment, `CategoryTabs.kt` KDoc, the sentence at `PARITY.md:25` that credits P5b-T12 with the prune done in `4239a90`; (9) `OrderLineItem.lineNotes` treats `NaN` and `Infinity` as JSON would; (10) the PD244 items left open by UI-PD311 (QR placeholder size, toast slide-in, `ui-money` heuristic gaps).
+  - **UI-PD323 Device checks for P7.** The order chime plays with `USAGE_NOTIFICATION` (`OrderChime.kt`); on a kiosk the notification volume or Do Not Disturb can silence it, where Vue plays on the media output. The P7 runbook checks it on both emulators and on the device, with the status lights against a real FDM and Epson, and the FDM banner on the login screen.
+  - **UI-PD324 Gate evidence at the exit.** The static phase checks were rerun by the planner at `47afe44` and pass (freeze, frozen paths, lane scope, lanes, Kotlin inventory removed 0 against `B` and `S`, strict parity), and so did the exit gate `p5_gate.sh --exit --parity-strict` (figures in the report). The app e2e run (`p4_gate.sh --fast --app-e2e`, 11 of 11) and the rerun Gradle tests are the wave 4 integrator's, on the same code. The root Rust inventory ran at the wave 3 integration (`ws 1482 >= 1355`) and the UI lane changed no Rust since. `p4_gate.sh --exit --root --android` and the Linux reproduction (`9d230ef1bba90a4edde0157bcb107e4bb4d23d6e`) are left to the `android/int` merge (PD249, UI-PD315). The SD card answer is unchanged (PD248, UI-PD318): the database and its backups are in app-private internal storage, the card is only an export target, and its size (a good 16 or 32 GB A1 card) is an estimate until research card SD-1 measures it.
+- **P6 planner (platform lane, 2026-10-08):** decisions of the platform lane, cards in docs/android/phases/P6.md.
+  - **PD201 Card layout.** Eleven cards in seven waves, at most two per wave (the Mac is shared with the UI lane):
+    - Wave 1: the shared foundation hooks (T1), alone in its wave (LANES.md "Shared changes").
+    - Wave 2: the P6 gate and the no-backup checks (T2); the audit log and the crash watchdog (T5).
+    - Wave 3: the device-owner policies (T3); the About screen and the identity report (T4).
+    - Wave 4: the SPF export (T6); the updater verification core (T7).
+    - Wave 5: the updater install and its screen (T8); `declare_android.sh` (T9).
+    - Wave 6: the APK reproducibility check moved to `:app` (T10), alone because Docker under amd64 emulation is heavy.
+    - Wave 7: the emulator end-to-end run of the platform features (T11), alone.
+
+    Plan mapping:
+    - SPF access = T6;
+    - About = T4;
+    - declared-only updater = T7, T8;
+    - device-owner restrictions = T3;
+    - no cloud backup = T2;
+    - crash restart = T5 (+ T1 pump fix);
+    - release tooling = T9, T10.
+  - **PD202 Gates and bases.** Cards branch from `android/lane-plat` at their wave start.
+    - Until `scripts/android/p6_gate.sh` is merged (waves 1 and 2), a card runs `p4_gate.sh --app --fast --base android/lane-plat --allow <regex>` on every commit and `p4_gate.sh --app ...` without `--fast` at the end.
+    - From wave 3 on, the same profiles go through `p6_gate.sh`, which runs `p4_gate.sh` and adds the P6 checks.
+    - A reviewer of a card already merged gates against the card's fork point (PD116).
+    - Card regex: `python3 scripts/android/lane_paths.py --regex platform`. T1 has its own explicit regex.
+  - **PD203 Foundation hooks (T1, shared).** The lane needs four things the foundation does not offer. T1 adds them with tests, in one card alone in wave 1:
+    - an `AppLifecycleHook` set (Hilt `@Multibinds` in `di/`), called by `PiliApplication.onCreate` and by `MainActivity.onCreate` (after `kiosk.prepare()`) and `onResume` (after `kiosk.relock`, before `EngineService.start`), each hook isolated in try/catch;
+    - `EngineGateway.state` (read-only `StateFlow<EngineState>`) and `EngineGateway.close()` (delegates to `EngineHolder.close()`, for the updater only);
+    - `EngineHelpers.verifyMinisign(...)` (the updater may not call the uniffi free function, `ffi-boundary`);
+    - the restart-related P4 finding in `engine/` (PD122): when the event stream ends while the state is Ready, the pump calls `markFatal`.
+
+    T1 also adds to LANES.md the platform rules for `scripts/android/(test_)?plat_*.sh|py`, `scripts/android/testdata/plat_*/`, `test/screenshots/platform/` and `test/resources/platform/`, their probes, and a "Platform routes" section. The other PD122 findings (`provisioning/`, `kiosk/`, `shell/`, scripts, including `Closed(Shutdown)` shown as Opening in `ShellState.kt`) are not in this lane.
+  - **PD204 Strings files.** The brief named one `strings_platform.xml`, but LANES.md only owns `strings_plat_<area>.xml` with the prefix `plat_<area>_` (`lane_paths.py --check` would fail on the other name). The lane uses `strings_plat_about.xml` (exists), `strings_plat_policy.xml`, `strings_plat_watchdog.xml`, `strings_plat_export.xml` and `strings_plat_update.xml`. French is in `values/`, with English and Chinese in `values-en/` and `values-zh/`. Each file has the same key set in all three folders (gate check `plat-strings`).
+  - **PD205 Routes and Settings rows** (published in LANES.md "Platform routes" and `PLATFORM.md`):
+
+    | Route | Settings row id | Order | Who sees the row |
+    |-------|-----------------|-------|------------------|
+    | `platform/about` | `platform.about` | 900 | everyone (`managerOnly = false`) |
+    | `platform/export` | `platform.export` | 910 | managers only |
+    | `platform/update` | `platform.update` | 920 | managers only |
+
+    All three are registered by `PlatformEntry`; the UI lane's Settings screen lists them from the `SettingsEntry` set.
+  - **PD206 Device-owner policies.** `platform/policy/` applies, at every application start and every activity start, each step isolated and its failures audited:
+    - the Q16 set: 12 user restrictions plus `no_system_error_dialogs`;
+    - `setUninstallBlocked`;
+    - auto time on, auto time zone off, `Europe/Brussels`;
+    - stay awake 7;
+    - keyguard and status bar disabled;
+    - the postpone system update policy (replaced by a night window in PD231);
+    - `setLockTaskFeatures(NONE)`, which runs after `KioskController.prepare()` and so overrides its GLOBAL_ACTIONS.
+
+    This answers the P4 exit question 2 while the user is away: in production the staff lose the power menu. Exceptions:
+    - `DISALLOW_DEBUGGING_FEATURES` (adb off) is applied only in release builds, and only once a provisioning record exists. Debug builds never apply it (the emulator loop needs adb).
+    - `DISALLOW_MOUNT_PHYSICAL_MEDIA` and `DISALLOW_CONFIG_WIFI` stay off.
+    - There is no timed adb (DECISIONS 7).
+
+    The policies end when the debug teardown clears the device owner.
+  - **PD207 Crash watchdog.** `platform/watchdog/EngineWatchdog` watches `EngineGateway.state` from the application scope.
+    - **On Fatal:** it writes an audit row, waits 3 s (logs flush, the fatal screen is seen), records the restart and kills its own process (`Process.killProcess(myPid())` behind an injectable killer). The system restarts the persistent HOME app and the START_STICKY service. It never uses `am force-stop` (PD118).
+    - **Budget:** 3 restarts in 10 minutes (wall clock, persisted in `filesDir/platform/restarts.json`). Beyond that it stays on the fatal screen and audits "budget exhausted".
+    - **Closed(Shutdown) for more than 60 s,** while no platform operation (update, export) is running: it calls `EngineService.start(context)` and audits it.
+    - **`BootReceiver`:** audits the boot and starts `MainActivity` as a fallback to HOME.
+  - **PD208 Platform audit log.** `filesDir/platform/audit.jsonl`, one JSON object per line: `ts` (ISO 8601 with the Europe/Brussels offset), `kind`, `event`, `detail` (string map), `versionCode`, `versionName`, `pid`.
+    - Every append is fsynced; rotation at 1 MiB keeps 5 files (`audit.jsonl.1` to `.5`).
+    - It is not the fiscal journal and is never sent anywhere. It is part of the SPF export.
+  - **PD209 About and identity.** `platform/about/IdentityProvider` builds an `IdentityReport`:
+    - application id, versionName, versionCode, `posSwVersion` (`EngineHelpers.posSwVersion`), the engine reference;
+    - SHA-1 and SHA-256 of the installed `base.apk` (`applicationInfo.sourceDir`), SHA-1 of the `lib/arm64-v8a/libpos_ffi.so` entry read from that APK (it is stored uncompressed and not extracted), SHA-256 of the signing certificates;
+    - deviceId (the provisioning record), posId and terminalId (`getSettings` when Ready);
+    - Android release, SDK, build fingerprint, manufacturer and model;
+    - free internal bytes, count and bytes of `engine/backups/`.
+
+    Hashes are cached per `(sourceDir, lastUpdateTime)`. The engine reference is the non-translatable string `plat_about_engine_ref` = `pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)`; a gate check compares it with the freeze tag, so a re-freeze must update it. The About screen shows the report; the export writes it as `identity.json`.
+  - **PD210 SPF export** (AM Art. 16/102; Linux practice: `FEUILLE_ACQUISITION_DONNEES_FR.md` section 7 = full `pos.db`, logs, SHA-1 of the binary). The flow follows Q17:
+    - a manager-only screen, refused while an order or takeaway is open;
+    - pre-check of a mounted removable non-primary volume ("Insert the USB stick or SD card");
+    - picker `StorageVolume.createOpenDocumentTreeIntent()` from the locked activity (never `FLAG_ACTIVITY_NEW_TASK`), the root refused with the hint to create `PILI-EXPORT`;
+    - a persisted grant per volume uuid, and "Change folder" releases the old grant.
+
+    Export folder `pili-export-<yyyyMMdd-HHmmss>-<deviceId>` with:
+    - `pos.db` (a fresh `backupDatabase()`);
+    - `backups/` (the 7 newest older backups);
+    - `backups.txt` (inventory of every backup: name, bytes, SHA-256);
+    - `logs/` (engine logs);
+    - `audit/` (platform audit files);
+    - `identity.json`;
+    - `LISEZMOI.txt` (French, brand-neutral: what the files are, how to check `MANIFEST.sha256` with `shasum -a 256 -c`);
+    - `MANIFEST.sha256` (sha256sum format), written last.
+
+    There is no staging copy: each file is hashed while it streams to the volume, `fd.sync()`, then read back through the content resolver and hashed again. A mismatch fails the export. Nothing on the volume is deleted, even on error. A write failure on a file of 4 GiB or more says "the stick is probably FAT32, use exFAT". Every export is audited (files, bytes, result).
+  - **PD211 Update source format.** One signed descriptor `declared.json` per declared Android version:
+    `{"format":1,"platform":"android","package":"dev.nuagemagique.pilipos","version":"X.Y.Z","versionCode":N,"asset":"pili-pos-android-X.Y.Z.apk","sha1":"..","sha256":"..","signerSha256":"..","declared_at":".."}`
+    with `declared.json.minisig` (trusted comment `pili-pos-android X.Y.Z declared <ts>`).
+    - **Online:** an OCI artifact, tag `declared-android` of the public package `ghcr.io/nuagemagique-dev/pili-pos` (same package as the Linux `:declared`), pulled anonymously:
+      1. `GET /token?scope=repository:nuagemagique-dev/pili-pos:pull&service=ghcr.io`;
+      2. the manifest (`application/vnd.oci.image.manifest.v1+json`); the layers are found by their `org.opencontainers.image.title` annotation;
+      3. the blobs, checked against their digest. Redirects are followed by hand, and the bearer token is never sent to another host.
+    - **USB (Q8):** the same three files in a SAF folder.
+    - **Limits:** APK 200 MB, descriptor 64 KB. HTTPS only in release builds. Debug builds read an optional override `filesDir/platform/registry.json` (`{"baseUrl":"http://127.0.0.1:<port>"}`), so the emulator test can reach a host mock through `adb reverse`; cleartext is already limited to 127.0.0.1 and localhost.
+  - **PD212 Declaration keys.** `res/xml/plat_update_keys.xml` holds the public minisign key per build type: `debug` = the committed development key (`android/app/provisioning/dev-minisign.pub`, a gate check compares them), `release` = empty until the user creates the declaration key (DECISIONS 9, Q7). With an empty key every update is refused (`plat_update_err_key_missing`).
+  - **PD213 Update preconditions** (interim). The FFI has no engine-side update precheck, and the engine is frozen. The updater composes the check from engine answers only; it computes no money and signs nothing:
+    - the current user is Admin (`getCurrentUser`);
+    - `listOpenOrders()` and `listOpenTakeaways()` are empty;
+    - `needsZReport()` is false;
+    - no fiscal event newer than the newest Z report's `fiscalEventId` (`listFiscalEvents(200)`) has a type other than the presence (work in, work out) types of `crates/pos-fiscal`;
+    - or the till has no fiscal event at all;
+    - then `EngineGateway.close()` must return `Closed` (the engine shutdown waits for a call in flight and stops the background loops). `StillOpen` refuses the update.
+
+    Question for the user: an engine `update_precheck` (booking period closed, no pending sign) together with the re-freeze.
+  - **PD214 Manager PIN.** The plan's "manager PIN" is the logged-in Admin session (the manager typed the PIN to log in). The updater and the export check `getCurrentUser()` again right before they act. There is no second PIN prompt, because a new `login` would queue a clock-in.
+  - **PD215 Install flow** (Q18). Order:
+    1. preconditions;
+    2. verification (PD211, PD212: minisign, JSON, package, versionCode strictly greater than the installed one, download, SHA-256 and SHA-1, archive info: package, versionCode, versionName, signer set equal to the installed one and to `signerSha256`);
+    3. `backupDatabase()`;
+    4. `EngineGateway.close()`;
+    5. a fsynced marker `filesDir/platform/update/pending.json`;
+    6. the audit row "started";
+    7. a PackageInstaller session (`MODE_FULL_INSTALL`, `USER_ACTION_NOT_REQUIRED`, `INSTALL_REASON_POLICY`), committed with an explicit mutable PendingIntent to `InstallResultReceiver`.
+
+    Afterwards:
+    - **Refusal:** no session, the file is deleted.
+    - **Failure status:** audit, marker deleted, engine reopened with `EngineService.start`.
+    - **`STATUS_PENDING_USER_ACTION`:** the session is abandoned and recorded as an error.
+    - **Success:** the "done" row is written by the new process (`UpdateCompletionHook`, from the marker).
+    - **Restart:** `PackageReplacedReceiver` starts `MainActivity`.
+    - **No rollback:** a faulty version is fixed by a newer declared version (DECISIONS 6).
+  - **PD216 Release tooling.** `scripts/release/declare.sh` (Linux) lives on the unmerged `feat/usb-autoinstall` branch; a copy here would conflict at that merge. The Android declaration is therefore its own script, `scripts/release/declare_android.sh`; `declare.sh --android` gets a one-line dispatch when `feat/usb-autoinstall` is merged (the user's step). What the script does:
+    - signs the reproducible unsigned APK (RSA only, v1 off, v2 and v3 on, pinned build-tools 35.0.0);
+    - checks the SHA-1 the SPF accepted;
+    - writes and signs `declared.json` and pushes tag `declared-android` with `oras`.
+
+    The tag scheme is `android-vX.Y.Z` = versionName. The script refuses `-dev` versions and EC keys. The chain only runs it with `--dry-run` against throwaway keys in `mktemp` dirs, with stub `oras` and `gh`.
+  - **PD217 APK reproducibility on `:app`.** The container build (`android/docker/build_in_container.sh`) builds `:app:assembleRelease` instead of `:smoke` (PD80, PD114). `check_repro.sh` compares two `app-release-unsigned.apk`; `:smoke` stays in the host gates. `android.yml` builds and checks the `:app` APK too (never triggered by the chain). `REPRO.md` records the SHA-1 and the image digest.
+  - **PD218 Emulator.** Only P6-T11 and the phase exit start or reuse `sunmi_d3_pro_api33`, never while another AVD runs (`scripts/android/emulator.sh ensure`). The removable volume is vold's virtual SD disk (S4-T4, Q20; `sm set-virtual-disk true` if absent). Teardown as in `app_e2e.sh`: no owner, no package, no reverse rule, export folders removed. The AVD is never wiped.
+  - **PD219 Backup retention.** The engine keeps every post-Z backup forever (`signing.rs:761`) and P6 deletes none. The About screen shows the free space and the backups total, and the export copies the 7 newest. Retention is a question for the user (engine change, re-freeze). Resolved by the user on 2026-10-10: the engine keeps the 7 newest backups (see "Decided by the user").
+  - **PD220 Storage location.** The database, backups, logs and provisioning bundle stay in app-private internal storage. No `android:installLocation` (internalOnly) and no storage permissions; gate check `plat-manifest`. Removable media are reached only through SAF grants (export, update from a stick).
+  - **PD221 Exit without the user.** With the user away, the planner writes `P6-exit.md` and the lane waits for the integrator's merge into `android/int`. Merging into main, freezes, pushes, the release keys and `declare_android.sh` for real wait for the user.
+
+- **Integrator P6 wave 3 (2026-10-09):** `android/p6-P6-T3` then `android/P6-P6-T4` merged into `android/lane-plat` with no conflict. The phase gate passed on every check that does not need Docker (freeze tag, lane paths, Kotlin test inventory 318 to 460, scope regex, `p6_gate.sh --exit --android --root`, `p6_gate.sh --app --fast --plat-e2e --app-e2e`). `check_repro.sh` and `p4_gate.sh --linux-repro` could not run: the disk filled up during the run and the Docker daemon stopped answering (`docker info` hangs). The planner freed 13 GB of regenerable `target/` output of this worktree but did not restart Docker Desktop, because other lanes share it. These two Docker checks stay to be re-run once Docker is healthy, before the merge into `android/int`.
+- **Integrator P6 wave 4 (2026-10-09):** `android/P6-P6-T6` (SPF export) then `android/P6-P6-T7` (updater) merged into `android/lane-plat` with no conflict. The merge exposed one failing foundation test: `FeatureEntriesTest.allRoutesAreUnique` listed only `PlatformRoutes.ABOUT`, while T6 registers `PlatformRoutes.EXPORT` on the same `PlatformEntry`. Fixed by adding `PlatformRoutes.EXPORT` to the expected set (one line, commit `215be38`). That test lives under `nav/` (foundation scope, no other lane edits it), so the platform scope regex now lists it as the one out-of-scope file of the lane; it is expected and cannot conflict with `android/lane-ui`. The phase gate then passed on every check that does not need Docker (freeze tag, lane paths, Kotlin test inventory 318 to 632 with none removed, no em-dash, `p6_gate.sh --exit --android --root` 64 checks, `p6_gate.sh --app --fast --plat-e2e --app-e2e` 23 checks). `check_repro.sh` and `p4_gate.sh --linux-repro` could not run because the Docker daemon is not running; they stay to be re-run once Docker is up, before the merge into `android/int`.
+- **Integrator P6 wave 7 (2026-10-09):** `android/P6-P6-T11` (platform end-to-end run on the emulator) merged into `android/lane-plat` with no conflict. The merge brought the `androidTest` platform steps under the ktlint and detekt gates, which failed (file name, import order, long lines, throw count, loop jumps, a complex condition); fixed in one commit `986108b` without behavior change (`PlatformE2eSupport.kt` renamed `PlatformE2eEnv.kt`, one `e2eFail` helper replaces the repeated throws). After the fix: freeze tag, lane paths, Kotlin test inventory (318 to 727, none removed), no em-dash, `p6_gate.sh --exit --android --root` all green except the two items below, `plat_e2e.sh` alone on the emulator 19 checks PASS, `app-e2e` 11 checks PASS, `p4_gate.sh --fast --linux-repro` 22 checks with only the item below failing, and `check_repro.sh` PASS (two byte-identical unsigned APKs, SHA-1 `f7c9aab317c0759aa92458e9e7ddda36704eb61f`; run with `PILI_MIN_FREE_GB=14` because the shared disk had 18 GB free, the build itself uses about 9 GB; a first attempt hung inside the amd64 emulation with a zombie rustc and was killed, the second ran in 1131 s and 1008 s). Open, not caused by this merge: (1) `hygiene-paths` and the scope grep of the wave command list `scripts/release/declare_android.sh` and `test_declare_android.sh` (added by T9) and `android/app/src/test/.../nav/FeatureEntriesTest.kt` (the foundation test edited in wave 4 and wave 6, see above) as outside the platform scope, because the gate command does not pass `--extra-paths` for them; both are expected and lane-owned, the owner of `p3_gate.sh` should admit them before the merge into `android/int`; (2) `p6_gate.sh --app --fast` stops on `app-only-scope` because the lane touched `android/docker` and `pos-core` (P6-T10), so it needs the full gate, which the other runs cover; (3) `selftest-declare` failed once in one full gate run (`empty-release-key-refused`) and passed in the previous run and when run alone, so it is flaky, not a regression.
+- **P6 exit (planner, 2026-10-09), PD222 to PD230.** Recorded in `phases/P6-exit.md` with the gate evidence.
+  - **PD222 Exit gate profiles.** The phase gate's step 7 (`p6_gate.sh --app --fast --plat-e2e --app-e2e`) cannot pass on this lane: `app-only-scope` refuses the `--app` profile because P6-T10 changed `android/docker/` (by design, "use the full gate"). The planner ran the same emulator checks under the non-app profile, `p6_gate.sh --fast --plat-e2e --app-e2e --base ba57adf`. Step 6 ran as `--exit --android` without `--root`: the root inventory builds the Linux workspace twice and did not fit on the shared disk (11 to 17 GB free). P6 changed no root workspace path (`git diff --quiet ba57adf HEAD -- Cargo.toml Cargo.lock rust-toolchain.toml crates src-tauri ui deploy android/rust android/pos-core android/smoke` is empty), so the root inventory equals the one of `ba57adf` by construction, and the wave 3 and wave 4 integrators passed `--exit --android --root` (64 checks).
+  - **PD223 `hygiene-paths` on `scripts/release/`.** The one red check of every lane-wide gate run. `scripts/android/p4_gate.sh:310` calls `p2_gate.sh --hygiene-only` with `--allow` but without `--extra-paths`, and `p2_gate.sh` admits only `android/`, `scripts/android/` and `docs/android/` (plus what `--extra-paths` adds). `scripts/release/declare_android.sh` and `test_declare_android.sh` (P6-T9, platform lane per `lane_paths.py --regex platform`) are therefore refused. `p4_gate.sh` is a foundation file, so the platform lane does not edit it and does not waive the check. Fix for a foundation card on `android/int`: pass `--extra-paths '^(\.github/workflows/android\.yml|scripts/release/.*)$'` in `hy_args`, the same regex in `p3_gate.sh:225`, and a self-test case. Until then the check stays FAIL and the exit report says so.
+  - **PD224 `FeatureEntriesTest` is edited by the lane.** The integrators added `PlatformRoutes.EXPORT` (`215be38`) and `PlatformRoutes.UPDATE` (`e03146e`) to `nav/FeatureEntriesTest.kt`, a foundation test. The wave 4 record above says the platform scope regex lists it; it does not (`lane_paths.py --regex platform` does not match it, and `LANES.md` has no rule for it). It is the one file of the lane outside both the platform regex and P6-T1's regex. `android/lane-ui` does not edit it, so the merge does not conflict. A later platform route needs the same one-line edit, best made by a foundation card that lets the test read the routes from `PlatformRoutes` instead of a fixed set.
+  - **PD225 `KioskControllerTest` flake, cause found.** `KioskControllerTest.preparingAsOwnerKeepsOnlyTheGlobalActionsLockTaskFeature` (`KioskControllerTest.kt:75`) failed in the P6-T6 review, the P6-T9 review and the exit run (`app-screenshots`), and passed on rerun each time. The test has no `@Config(application = ...)`, so Robolectric starts the real `PiliApplication`, whose `onCreate` runs the P6-T3 `PolicyHook`; that hook applies the full policy set on the I/O dispatcher, `setLockTaskFeatures(0)` included. When that background apply sees the owner the test sets, it overwrites the `GLOBAL_ACTIONS` the test asserts. Production is not affected (the hook's synchronous call on the main thread also writes 0, and that is the intended end state, PD206). Fix for a foundation card: run `KioskControllerTest` on `HiltTestApplication` or a plain `Application` (as `DebugTeardownReceiverTest` does), with no change to `PolicyHook`.
+  - **PD226 Watchdog and platform operations.** `EngineWatchdog` waits for `PlatformOps.busy` to become empty and then reopens at once, instead of restarting the 60 s timer (P6-T5 review). The update keeps the `update` operation busy for 90 s after the commit (P6-T8), so the watchdog cannot reopen the engine while the PackageInstaller session runs. Kept as built.
+  - **PD227 Repro evidence at the exit.** `check_repro.sh` ran at `986108b` (wave 7 integrator): two byte-identical unsigned `:app` APKs, SHA-1 `f7c9aab317c0759aa92458e9e7ddda36704eb61f`. The exit head adds only documentation after `986108b`, which is not a build input, but changes `SOURCE_DATE_EPOCH`, so a rebuild at the exit head gives another SHA-1 that is just as reproducible. The SHA-1 of record comes later from `declare_android.sh` on the release commit. The Linux SHA-1 `9d230ef1bba90a4edde0157bcb107e4bb4d23d6e` was reproduced from the tag on 2026-10-09 (`~/.cache/pili-freeze/p4-linux-repro.log`); it does not depend on the lane head. The planner did not rerun the two Docker builds (several lanes share the disk and Docker).
+  - **PD228 No freeze step at the P6 exit.** As PD121 and X1D27: the plan sets no tag at the end of P6, and the re-freeze `linux-v1.0.0-rc1` is the user's. `linux-v1.1.0-rc1` stays the tag the lane checks; the P6 exit check is recorded in `LINUX_FREEZE.md`.
+  - **PD229 Review findings carried forward.** The non-blocking findings of the eleven reviews are listed in `phases/P6-exit.md` ("Risks"). The platform ones go to one platform follow-up card in the next run; the foundation ones (PD223, PD224, PD225 and the `EngineEvents` Opening gap) go to a foundation card that runs alone.
+  - **PD230 GMS D3 Pro.** The plan's update of 2026-10-09 (the user buys the GMS variant) came after the P6 cards were written. P6 does not hide the Play Store, does not set `DISALLOW_INSTALL_APPS` and sets the postpone system update policy, not a windowed one outside service hours. These are a platform card for the next run (`platform/policy/`), together with the second AVD `sunmi_d3_pro_gms_api33` in `plat_e2e.sh`.
+  - **PD231 GMS hardening built (amends PD230, answers PD206's postpone policy).** `platform/policy/` now does what PD230 left open, on top of the PD206 set:
+    - **Google apps hidden.** `PolicySet.HIDDEN_PACKAGES` (one list, documented package by package) is hidden with `setApplicationHidden`, one `hide:<package>` step each: the Play Store `com.android.vending`, Chrome, the Google app and Assistant, YouTube, YouTube Music, Play Movies, Gmail, Maps, Photos, Drive, Files by Google, Meet, Messages and Calendar. A package that is not on the device is skipped: the applier calls `setApplicationHidden`, which answers false for a missing package, instead of asking `PackageManager`, because since Android 11 package visibility hides other apps from a `getPackageInfo` call without a `<queries>` entry or `QUERY_ALL_PACKAGES`. `PolicySet.NEVER_HIDDEN` (Google Play services and `gsf`, system UI, Settings for the manager's Wi-Fi screen (Q16), the package installers and permission controller, the WebView, the keyboard, the TTS engine) and the own package are refused by a `require` and a test.
+    - **`DISALLOW_INSTALL_APPS` in the set** (`no_install_apps`), next to the two `unknown_sources` restrictions already there. A device owner's own session is allowed under `DISALLOW_INSTALL_UNKNOWN_SOURCES` but `DISALLOW_INSTALL_APPS` blocks it on some versions, so `UpdateInstaller.commit` clears it (`DevicePolicies.clearUserRestriction`) just before creating the session and sets it again in a `finally` once the system answered (`InstallSignal`) or the 90 s hold ended, whatever the outcome (a refused clear does not stop the install, a refused re-set is logged). When the install succeeds the process is replaced before the `finally` can run its effect: the next `PolicyApplier.apply` at application start finds the restriction missing in `getUserRestrictions` and adds it again, exactly as it does after a crash that left it cleared.
+    - **Windowed system update policy** `createWindowedInstallPolicy(03:00, 05:00)` replaces the postpone policy (`PolicySet.UPDATE_WINDOW_*`, minutes after local midnight). The zone is locked to Europe/Brussels, so the window is Brussels time, outside service. A postpone policy only delays 30 days and then the OS updates whenever it wants, possibly during service.
+    - Tests: `PolicySetTest`, `PolicyApplierTest`, `PolicyHookTest`, `AndroidDevicePoliciesTest`, `UpdateInstallerTest` (clear before the session, set again after success, failure and cancellation paths, not-owner), `PlatformPolicySteps` (device run, `plat_e2e.sh` expectations). Dossier: `PLATEFORME_ANDROID_FR.md` §3.3, §3.4, §3.6, §3.7 and the documents that quote them. What only a GMS device can confirm stays `EV-13` (packages actually present and hidden, the owner session under the restriction, the manufacturer image and the window, Play Protect).
+- **P7 planner, end-to-end lane (2026-10-10):** decisions of the P7 lane (UC parity, journal comparison, D3 Pro runbook, power cut, soak, GMS profile), cards in `docs/android/phases/P7.md`, which holds the full text of each decision and the shared spec (section 4).
+  - **P7D1 Card layout.** Twelve cards in six waves: T1 alone (shared, `LANES.md`); T2 to T6 (spec and checker, `pos-uc-check`, Kotlin runner and `uc_e2e.sh`, soak tooling, power cut); T7 to T9 (two scenario cards, Android matrix); T10 alone (full run); T11 alone (GMS AVD); T12 (24 h soak, runbook, live module2 preparation).
+  - **P7D2 Lane owner `e2e-parity`.** Paths: androidTest packages `uc`, `soak`, `powercut`; `androidTest/assets/uc/`; `android/uccheck/`; `scripts/android/(test_)?(p7|uc|soak|powercut|fdm_delay)_*.(sh|py|toml|txt)` and their testdata; `docs/android/(UC|UC_MATRIX_ANDROID|UC_RESULTS|SOAK|POWERCUT|GMS|RUNBOOK_D3PRO|LIVE_MODULE2).md`, `docs/android/uc/`, `phases/P7*.md`. Registered by P7-T1; the P8 lane's own owner is kept at the merge.
+  - **P7D3 Freeze reference.** `check_linux_frozen.sh --ref 8a678ff` (export lane head) until the user creates `linux-v1.0.0-rc1`, then the tag. P7 has its own gate (`p7_gate.sh`) and does not wrap `p4_gate.sh` or `p6_gate.sh`, whose freeze checks are red by design (X1D2, PD223).
+  - **P7D4 Reference side.** The engine compiled for the host by `pos-uc-check record`, through the same `do_*` functions the Tauri wrappers call one-to-one, with `posSwVersion` `pili-pos/<root version>`, the same `pos.json` values and seed as the Android bundle. Not the Linux cert binary in a container (hours per run under amd64 emulation); the P0 container journals tie the engine to the cert binary. Question 3 of P7.md for the user.
+  - **P7D5 Workspace `android/uccheck`.** Own Cargo workspace (root and `android/rust` frozen), lock copied from the root and pruned offline, no new crate, `uc_lock_parity.sh` against the root lock. Never in the cert build graph.
+  - **P7D6 Scenario vocabulary.** Tauri command names, `invoke` arguments of `ui/src/api/ipc.ts`, results as their serde JSON. One interpreter per side; the Kotlin one only maps JSON to uniffi records and forwards through `EngineGateway.call { }`.
+  - **P7D7 Groups.** One fresh database per group, scenarios in lexical order, same on both sides.
+  - **P7D8 Equality.** Steps, FDM operations, `business_view`, counters, full requests minus the documented volatile paths, normalised tickets, official fixture where named (same intended deviations as the Linux tests). A real Android difference is an ESCALATE, never a new volatile path.
+  - **P7D9 Android matrix.** `uc_matrix.py --android` realised as `scripts/android/uc_matrix_android.py` (imports `scripts/uc_matrix.py`, no edit, so the P8 lane keeps that file). Output `docs/android/UC_MATRIX_ANDROID.md`, French, brand-neutral. 47 required ids must have a passing Android scenario (list in P7.md P7D9); other Rust-covered ids are covered by the engine tests on the device; Playwright-only ids need a scenario or an exclusion in `scripts/android/uc_scope_android.toml`.
+  - **P7D10 Emulator use.** One emulator, `emulator.sh ensure`, never wiped. P7 emulator scripts take the P7 lock (`p7_emulator_lock.sh`, `lockf`, waits for the older e2e scripts, 5400 s). An emulator is stopped or killed only when `emulator.sh status` says `started-by-chain yes`; the chain's marker counts as started by us. Only T11 switches to the GMS AVD and restores the default.
+  - **P7D11 Power-cut cases.** C idle, A1 sign held before the FDM, A2 FDM signed with the answer held (`adb emu kill`, and once `kill -9` of the chain-started emulator), B Z in flight. Expected: the open sign is resent under the same number (crash-safety semantics), no gap, no double, `integrity_check` ok. A host delay proxy stands in front of the frozen FDM mock.
+  - **P7D12 Soak.** 24 h in the background from T12 (`caffeinate -i`), accepted on at least 4 h of green checkpoints; the exit report states whether 24 h or 4 h. Profile and pass rules in P7.md. It holds `sunmi_d3_pro_api33` for up to 24 h; other lanes' emulator work goes before it or waits.
+  - **P7D13 Live module2.** Not run. Runbook and a script that needs `--go-ahead` and `PILI_LIVE_GO_AHEAD=yes`, reads `.env.live` at run time only, never writes the token anywhere, compares on business content only.
+  - **P7D14 Epson.** Not attached, no LAN scan; tickets on `pos-printer-mock`, the real Epson stays hardware residue.
+  - **P7D15 GMS profile.** `app_e2e.sh`, `plat_e2e.sh`, `uc_e2e.sh` (smoke, basic) on `sunmi_d3_pro_gms_api33`, no Google account before device owner, Play Protect findings recorded. The PD230 policy items stay a platform card.
+  - **P7D16 Foundation gate debts** (PD223, PD224, PD225, the `EngineEvents` Opening gap) stay outside this lane.
+  - **P7D17 SD card, relayed again.** The answer of P7.md section 2: the database and its backups in app-private internal storage, never on the card (PD220); the card only for exports; from the P6 measurement a 64 GB high-endurance exFAT microSDXC (128 GB at about 300 sales a day or from the second year). These measured figures supersede the 16 or 32 GB estimates of P5, P5b and X1. T12 re-measures over the soak. The real issue is internal storage (PD219).
+  - **P7D18 Device engine tests.** T10 reruns `device_engine_tests.sh --fixtures --check` on the current head (the export lane added tests after P3-T5).
+  - **P7D19 Card bases.** Cards fork from the `android/lane-p7` head at their wave start and gate with `--base android/lane-p7`; the phase gate uses `602544c`.
+  - **P7D20 Exit without the user.** No freeze step; merging into main, the re-freeze, pushes and the live run wait for the user.
+  - **P7D21 P7-T6 power-cut card not run (REJECT, gap kept open).** The worker did not create the branch `android/P7-P7-T6` or its worktree, and committed nothing. None of the deliverables exist: the `powercut/**` instrumented steps, `scripts/android/p7_powercut.sh`, `fdm_delay_proxy.py` and its tests, and `docs/android/POWERCUT.md`. There is nothing to merge and no acceptance item or gate can pass, so P7-T6 is not accepted.
+    - **Why it stays open and the planner does not order a rework:** the only user message relayed in this run is a question about the SD card. The card kills `sunmi_d3_pro_api33` (adb emu kill, kill -9), holds the P7 lock while P7-T4 and P7-T5 wait on it, and installs device-owner packages. The authority to do that came only from script text. Staying read-only was correct. P7-T6 is now a gap for a later run and starts only after the user explicitly confirms it. Until then the power-cut proof (PD248) is missing from the P7 exit report, P7-T4 and P7-T5 must not wait on the P7 lock for T6, and the phase exit lists T6 as an open item, not as passed.
+    - **The SD card answer is accepted as information and changes nothing in the code.** It matches PLATFORM.md section 12 (lines 376-429) and P7D17:
+      - pos.db, backups/, logs/ and provisioning/ live in app-private internal storage (`filesDir/engine/`, PD220).
+      - The manifest has no `android:installLocation` and requests no storage permission, and `allowBackup=false`.
+      - The card is used only for the SPF export and for updates from a stick, through SAF.
+      - Card size: 64 GB high-endurance (or A1/U3) exFAT microSDXC at about 100 sales a day; 128 GB at about 300 sales a day or from the second year.
+      - Measured growth: 6,471 to 14,336 bytes per sale, which is 236-523 MB a year at 100 sales a day and 0.7-1.57 GB at 300. One export is about 8 times pos.db (pos.db plus the 7 newest backups), and the app never deletes old exports from the card.
+      - Not verified without a real D3 Pro: the largest card the slot accepts, the real device's free internal space, and exFAT on a physical card.
+    - **For the user (not decided here):**
+      - (1) Confirm whether P7-T6 should run.
+      - (2) Choose a backup retention rule. Today every post-Z backup is kept forever (platform PD219, DECISIONS.md:1005), which adds 40-268 GiB a year and reaches 32 GiB of internal storage between day 126 and day 325. This is an engine change plus a re-freeze, outside this plan's authority. A larger SD card does not fix it.
+      - (3) Confirm the 64 GB / 128 GB card recommendation.
+  - **P7 wave 2 integration (integrator, 2026-10-10):** P7-T2 (UC spec and scenario checker), P7-T3 (pos-uc-check, host reference run, lock parity), P7-T4 (Kotlin UC runner, `uc_e2e.sh`) and P7-T5 (soak driver, sampler, `p7_soak.sh`) merged with `--no-ff` into `android/lane-p7` in that order, no conflict. P7-T6 was not merged (no branch, see P7D21). `android/P7-T3` and `android/P7-P7-T3` point at the same commit (`d3a0bad`); the second was merged. Task worktrees removed, branches kept.
+    - *Fix made here.* The hygiene-secrets scan matched the description row of `docs/android/phases/P7.md` itself (the name followed by an equal sign); the row was reworded. Not caused by the merges.
+    - *Gate result against base `602544c` (`p7_gate.sh --exit --root`).* PASS: hygiene-subjects, hygiene-dash, lanes, linux-frozen, frozen-paths, kotlin-tests (1957 to 1960, removed 0), command-parity, ui-parity strict, uccheck-fmt/clippy/test, uccheck-lock (339 packages), uc-scenarios, gradle-plan (lint ktlintCheck detekt test koverVerifyDebug assembleRelease :app:assembleDebugAndroidTest), both self-tests. `test_inventory.sh --diff` with the `ui/dist` copied from the `int` worktree: ok, ws 1640 >= 1355 (the bundle and `target/debug` were deleted afterwards). `--fast --uc-e2e` re-run: 18 checks PASS, `uc-e2e` 7 checks PASS on the already running `emulator-5554` (not started by this run, not stopped).
+    - *Still FAIL in `--exit` mode, expected at this stage.* `uc-replay` (no `docs/android/uc/journals/android`) and `uc-matrix` (no `scripts/android/uc_matrix_android.py`): their cards are later waves. `scope` flags `docs/android/LANES.md` (the planner's lane registration, commit `f17a91f`) and passes with `--allow '^docs/android/LANES\.md$'`.
+    - *Soak.* `p7_soak.sh report --latest --min-hours 4` FAIL ("no soak run found"); `status` says "no soak runs". The 24 h run starts with T12, so the soak proof is still open.
+    - *Reproducibility.* `scripts/check_repro.sh` fails inside a linked git worktree (the container cannot resolve `.git`); run from a clean local clone of `android/lane-p7` it passes: SHA-1 `d4fb09a2ae2cf2501fe4d6847eb72e954d0b95ed` twice, equal to the export lane candidate. `scripts/android/check_repro.sh`: two byte-identical unsigned APKs (sha256 `0d723efa7b98c8c4636512ea44dd10eceb959adfd52d1b5cd85bd3162b149a1f`, commit `d102a7a52c5b`).
+- **P7 wave 3 integration (integrator, 2026-10-10):** P7-T7 (basic, training, FDM error and FAQ UC scenarios), P7-T8 (reports, advanced set and rounding scenarios) and P7-T9 (Android UC traceability matrix, `uc_matrix_android.py`) merged with `--no-ff` into `android/lane-p7` in that order, no conflict. The three task worktrees were removed and their branches kept.
+    - *Fixes made here (small `fix(android)` commits).* (1) `pos-uc-check` compared the fixture of a refund with the first `signSale` of the journal, which is the original sale: fixtures now match the last requests of their operation (a set-up request that no fixture covers comes first), with a unit test. (2) `uc_scenarios_check.py` refused the multi-step fixture folder of UC4119 that `pos-uc-check` reads (sub-folders holding the `GQL-Variables` files): it now accepts both. (3) The two `record_smoke` tests played the whole scenario tree and expected one scenario: they play the `00_smoke` group only; the list-ids self-test no longer assumes an empty tree. `docs/android/UC_MATRIX_ANDROID.md` was regenerated with `--write`. (4) The Kotlin UC runner (`UcJson.checkExpect`) required `expect.error` as a prefix of a `success: false` answer, so the FDM refusal `FDM error: GraphQL error: FDM_LOCKED: ...` failed V_FDM_LOCKED on the device; it now reads the code as a whole word, as `names_code` of `pos-uc-check` does (the Rust reference run already passed).
+    - *Gate result (base `602544c`).* `p7_gate.sh --exit --root --allow '^docs/android/LANES\.md$'`: 19 of 21 checks PASS, including scope, uccheck fmt/clippy/test, uccheck-lock, uc-scenarios (48 scenarios), the Gradle plan (lint ktlintCheck detekt test koverVerifyDebug assembleRelease :app:assembleDebugAndroidTest), selftests, root-inventory (ws 1640 >= 1355) and Kotlin tests (1957 to 1960, removed 0). The two FAIL in `--exit` mode are expected until the device journals exist: `uc-replay` (no `docs/android/uc/journals/android`) and `uc-matrix` (47 required ids En attente, no PASS in `docs/android/uc/results.json` yet). `p7_gate.sh --fast --uc-e2e` PASS (21 UCE2E checks, 48 scenarios provisioned and run on emulator-5554, which was already running and was not started by this run). Without `--exit`, uc-matrix passes with `--allow-pending`.
+    - *Soak.* `p7_soak.sh report --latest --min-hours 4` FAIL ("no soak run found") and `status` says "no soak runs": the 24 h run is still to start (T12). No soak held the emulator.
+    - *Reproducibility.* `scripts/check_repro.sh` from a clean local clone of `android/lane-p7` (it fails inside a linked worktree, as noted for wave 2): SHA-1 `d4fb09a2ae2cf2501fe4d6847eb72e954d0b95ed` twice, equal to the export lane candidate. `scripts/android/check_repro.sh`: two byte-identical unsigned APKs.
+    - *Environment.* `ui/dist` (git-ignored) was copied from the `android/int` worktree because `ui/node_modules` of this worktree has no `vue-tsc`; the frozen `ui` sources are identical.
+
+- **P7 wave 4 integration (integrator, 2026-10-10):** P7-T10 (full UC run on the emulator, host comparison `uc_e2e.sh --compare`, device engine tests) merged with `--no-ff` into `android/lane-p7`, no conflict. The task worktree was removed and its branch kept.
+    - *Gate result (base `602544c`).* `p7_gate.sh --exit --root --allow '^docs/android/LANES\.md$'`: 21 of 21 checks PASS (scope 274 paths, linux-frozen, frozen-paths, Kotlin tests 1957 to 1960 with none removed, command and UI parity strict, uccheck fmt/clippy/test, uccheck-lock 339 packages, uc-scenarios 48, uc-replay 48, uc-matrix 155 ids, gradle plan, selftests, root inventory ws 1640 >= 1355). Without the `--allow` the only scope failure is `docs/android/LANES.md`, changed by earlier P7 cards (the e2e-parity owner), not by this merge. `p7_gate.sh --fast --uc-e2e` 18 of 18 PASS (uc-e2e 61 checks, 0 failed) on the already running `emulator-5554`.
+    - *Soak.* `p7_soak.sh report --latest --min-hours 4` FAIL ("no soak run found") and `status` says "no soak runs": the soak proof (24 h, accepted on 4 h) is still open and is the only item left before the P7 exit report. No soak held the emulator.
+    - *Reproducibility.* `scripts/check_repro.sh` from a clean local clone of `android/lane-p7` (it fails inside a linked worktree): SHA-1 `d4fb09a2ae2cf2501fe4d6847eb72e954d0b95ed` twice, equal to the export lane candidate. `scripts/android/check_repro.sh`: two byte-identical unsigned `:app` APKs (commit `3cb744981ed3`, 18.0 MB).
+    - *Environment.* `ui/dist` (git-ignored) was rebuilt with `npm ci && npm run build` because `test_inventory.sh --diff` needs it. The emulator was already running and was not started by this run.
+
+- **P7 wave 5 integration (integrator, 2026-10-10):** nothing to merge. The only wave 5 card, P7-T11 (GMS emulator runbook), was not delivered: no branch `android/P7-P7-T11` and no worktree exist (`git branch --list`), and there is no `scripts/android/p7_gms.sh`, `docs/android/GMS.md` or `docs/android/uc/gms/`. No task worktree of this wave existed, so none was removed.
+  - ### P7-T11 (GMS emulator runbook): not delivered, nothing merged (planner, 2026-10-10)
+    - **Decision: REJECT, and record the gap.** The worker refused to run the card. The only user request relayed in that run was the SD card question, and the harness rule says the relayed request wins over the computed card text; a multi-hour card that swaps AVDs goes well beyond that question. So the card counts as not run, not as failed, and the refusal is not a rework fault.
+    - **What the worker did deliver** is an answer to the user's SD card question, built only from repo docs and checked by the reviewer against the repo: (1) the SQLite database is not on the SD card; it lives at app-private `filesDir/engine/pos.db` (PD220); (2) the card is a removable volume reached through SAF only, used for the SPF export, the "update from a stick" source and the later nightly export; (3) growth is 6,471 bytes per 1-line sale and 14,336 bytes per 6-line sale (PLATFORM.md, P6-exit.md); (4) card advice is 64 GB, or 128 GB at high volume: microSDXC, exFAT, high-endurance (P7D17). The reviewer flagged "PLATFORM.md section 12" as a possible mislabel; it is correct (PLATFORM.md:376 reads "## 12. Storage and the SD card"). This answer changes no file.
+    - **Gap carried forward (open).**
+      1. P7-T11 is still open: no GMS AVD run; no results for the no-Google-account case, the Play Store version, the Play Protect settings and the updater path; no logcat excerpts or screenshots; no `p7_gms.sh`, `GMS.md` or `uc/gms/`. Relaunch it as its own worker inside a run whose relayed user request covers the GMS runbook. Until then the P7 phase exit lists GMS compatibility as "not verified".
+      2. Wave 6 (the soak) must not depend on `GMS.md` or any GMS result. The soak runs on the existing google_apis AVD `sunmi_d3_pro_api33` only. Any soak step that needs the GMS results is marked "blocked on P7-T11" and is not reported as a pass.
+      3. Open for the user, not decided here: **PD219, retention of engine backups.** The engine copies the full `pos.db` after every Z and never deletes a copy (signing.rs:761). That is 40 to 268 GiB a year, and 32 GiB is reached between day 126 and day 325. A retention rule such as keeping 14 days is an engine change that needs a re-freeze, so it is the user's call; it is the most urgent storage risk, ahead of the SD card size. Also open: the **expected daily sales volume** (about 100 or 300 a day), which picks between 64 GB and 128 GB.
+      4. Real-device checks still pending: free internal space on the D3 Pro, the largest card the slot accepts, and exFAT on a real card (the emulator's virtual SD disk is vfat).
+  - *Gate result (base `602544c`).* `p7_gate.sh --exit --root --allow '^docs/android/LANES\.md$'`: 21 of 21 checks PASS (scope, linux-frozen, frozen-paths, Kotlin tests 1957 to 1960 with none removed, command and UI parity strict, uccheck fmt/clippy/test, uccheck-lock 339 packages, uc-scenarios and uc-replay 48 scenarios, uc-matrix 155 ids, the Gradle plan, both selftests, `test_inventory.sh --diff` ws 1640 >= 1355). Without the `--allow` the `scope` check flags `docs/android/LANES.md` (the planner's lane registration, as in waves 2 to 4), and without `ui/dist` the root inventory stops with exit 2 (see the environment line). `p7_gate.sh --fast --uc-e2e`: 18 of 18 checks PASS, uc-e2e 61 checks on the emulator-5554 that was already running (not started by this run, so not stopped; no soak held it).
+  - *Soak.* `p7_soak.sh report --latest --min-hours 4` FAIL ("no soak run found") and `status` says "no soak runs": the soak is wave 6 (P7-T12). Expected at this stage, not a regression; the phase exit takes the 24 h record from that run.
+  - *Reproducibility.* `scripts/check_repro.sh` fails inside a linked worktree (`fatal: not a git repository ... .git/worktrees/lane-p7`, the container cannot see the main `.git`), so it was run from a clean local clone of `android/lane-p7` at `91c1f357`: two identical builds, SHA-1 `d4fb09a2ae2cf2501fe4d6847eb72e954d0b95ed`, equal to the export lane candidate. `scripts/android/check_repro.sh` at commit `91c1f3577c1c`: the two unsigned `:app` APKs are byte-identical (build 1 1098 s, build 2 1177 s, 44 GB free after).
+  - *Environment.* `ui/dist` (git-ignored) was copied from the `int` worktree for `test_inventory.sh --diff` (ui is identical to the base) and deleted afterwards; the clone used for the Linux repro was deleted.
+- **P8a planner (2026-10-10, documentation lane `android/lane-p8`, parallel to P7), P8aD1 to P8aD18.** Cards in `phases/P8a.md`. Docs only: no code, test, script or build file changes, nothing sent to the SPF.
+  - **P8aD1 Location.** The Android dossier lives in `docs/android/dossier/` (its own directory; `docs/SUBMISSION_ARTIFACTS/**` is `frozen` for lanes in `LANES.md`). The internal evidence registry is `docs/android/DOSSIER_EVIDENCE.md` (English, never in the ZIP). Both paths have no owner rule in `LANES.md` (`lane_paths.py --owner` prints `none` and `--check` passes); adding a `dossier` owner is a later foundation change, not needed for this lane.
+  - **P8aD2 Framing of the filing.** Linux `pili-pos` 1.0.0 and Android `pili-pos-android` 1.0.0 are two separate initial applications under AM Art. 99 (one application per version or model). Nothing is certified yet, so Art. 113 does not apply to either; after certification each product follows Art. 113 on its own, and an engine change is filed for both. Both applications cite the same engine freeze tag (the user's re-freeze `linux-v1.0.0-rc1`, then the final tag). This supersedes DECISIONS section 10 and Q6 (Linux v1.1, option B), as the plan update of 2026-10-08 says. The framing is the producer's reading, written in `CADRE_DEMANDE_FR.md`; no question is sent to the SPF and the dossier contains none. Open for the user's review (plan: the dossier's legal framing is the user's).
+  - **P8aD3 Linux source.** Every derived document is derived from the X1-T10 tip `86088e4` (lane base dossier plus the nightly export annex and its updates; no dossier file changed on `android/int` since its fork `2819253`). Line 1 of each derived file names the source. If X1-T10 changes in its re-review, the Android files are re-derived (procedure in `DOSSIER_EVIDENCE.md`).
+  - **P8aD4 Common documents are not copied.** `SCHEMA_BD_FR`, `SCHEMA_ER_FR`, `STRATEGIE_COMPTEURS_FR`, `COUVERTURE_FIXTURES_FR`, `COUVERTURE_RAPPORTS_FR` and `TICKET_NUMERIQUE_FR` describe the engine only. The Android manifest lists their Linux PDFs as `commun:`; `INDEX_DOSSIER_FR.md` §3 gives the Android reading of their few Linux passages. If the user prefers a self-contained Android ZIP, P8b copies them with those edits.
+  - **P8aD5 Placeholders and PDFs.** Missing evidence is written `À effectuer (EV-NN : ...)` with an id of the registry in `phases/P8a.md` section 6 (EV-01 to EV-20). The default dossier check passes on them and the final `pending` rule catches them. P8a builds no PDF and no ZIP builder (scripts are code); both are P8b.
+  - **P8aD6 Dossier check without code changes.** `scripts/check_dossier.py` is hard-wired to `docs/SUBMISSION_ARTIFACTS`; the cards run it on the Android directory by importing it and setting `DOSSIER_DIR` (one-liner in `phases/P8a.md` 7.1), plus three greps (backticked `android/` paths exist, EV ids known, client names absent). A real `--dir` option is a later script card.
+  - **P8aD7 Facts only from the repo.** No hardware fact of the real D3 Pro is asserted (specs, serial format, Verified Boot, storage encryption, largest card, Epson behaviour); these are `EV-15`. Evidence for the dossier comes from the GMS AVD `sunmi_d3_pro_gms_api33` (plan update 2026-10-09); the test machine is the emulated profile unless a real D3 Pro becomes available (Q10).
+  - **P8aD8 Backup retention.** The dossier describes the post-Z backups as built (one full copy per Z, none deleted, PD219; the SPF export copies the 7 newest) and marks the retention rule `EV-19`, an engine change for the user's re-freeze.
+  - **P8aD9 GMS measures.** PD230 (Play Store and Google apps hidden, `DISALLOW_INSTALL_APPS` except the updater session, windowed system update policy) is not built. The dossier describes it as the target with `EV-13`; before filing it is built and evidenced, or the text is removed.
+  - **P8aD10 Keys and hashes.** The APK SHA-1 of record, the `libpos_ffi.so` SHA-1, the signing certificate digest and the image digest are `EV-01` to `EV-05`; they need the user's release key and the real `declare_android.sh` run, never done by the chain.
+  - **P8aD11 Versions.** Android `pili-pos-android/1.0.0`, versionCode 10000, tag `android-v1.0.0`; Linux `pili-pos/1.0.0` after the re-freeze (the root workspace still says 1.1.0 on `android/int`; the rename is the user's, X1D3).
+  - **P8aD12 Independent hash on a till.** Debugging is off on a release till, so the on-device hash is shown by the app (About screen, identity file of the SPF export). The dossier names the independent checks: the public declared artifact `declared-android` and the reproducible build from the tag. An on-device check outside the app is a question for the user (risk in `phases/P8a.md` section 11).
+  - **P8aD13 No remote support on Android.** The Android dossier says so everywhere the Linux one describes RustDesk (DECISIONS section 7).
+  - **P8aD14 Annex numbering.** Fixed by the planner (0 to 36, `phases/P8a.md` section 4): the Linux numbers 1 to 34 are kept, `INDEX_DOSSIER_FR` is 0, `CADRE_DEMANDE_FR` 35, `PLATEFORME_ANDROID_FR` 36; annex 30 becomes `CHECKLIST_DEPLOIEMENT_FR`; `MATRICE_TRACABILITE_FR` (not in the Linux manifest) has no Android copy.
+  - **P8aD15 Card size.** A derived document is measured by its diff against the Linux source (or its line count if smaller); budgets per card, about 600 lines at most.
+  - **P8aD16 Workers never edit this file.** Only the planner and the integrator append here; a worker reports deviations in its final report.
+  - **P8aD17 Gates.** Cards run no cargo, Gradle, Docker or emulator. The Linux freeze invariant is checked with `check_linux_frozen.sh --ref <base>` (the tag form fails by design on the export lane files until the re-freeze, X1D2); `test_inventory.sh --diff` and `kotlin_test_inventory.py --base 602544c` run once at the phase gate on `android/int`.
+  - **P8aD18 The SD card question (relayed again).** Answer in `phases/P8a.md` section 8, carried into `PLATEFORME_ANDROID_FR.md` §5: the SQLite database is never on the SD card (app-private `files/engine/pos.db`, PD220, PD248); the card is only a SAF target (SPF export, update from a stick). Size from the P6-T11 measurement (PLATFORM.md section 12), which supersedes the 16 or 32 GB guess of X1D28: a high-endurance microSDXC, A1 or U3, exFAT, 64 GB for the first year at about 100 sales a day, 128 GB at about 300 a day or from the second year; the internal storage fills first because of PD219.
+
+- **P8a planner, rerun (2026-10-10, documentation lane `android/lane-p8b`, parallel to `android/lane-freeze`), P8aD19 to P8aD24.** The first run returned no card (`phases/P8a-exit.md`); the rerun keeps `phases/P8a.md` and its cards and records the changes in its section 0. Docs only, nothing sent to the SPF.
+  - **P8aD19 No replan.** The twelve cards of `phases/P8a.md` sections 9 and 10 run as written, on the lane `android/lane-p8b` (card branches `android/P8a-P8a-T<n>` from its head). `android/lane-p8` holds only the plan and the empty exit report; it is not merged.
+  - **P8aD20 Freeze tag and hash values.** Both products are 1.0.0 and the engine freeze tag is `linux-v1.0.0-rc1` (prepared on `android/lane-freeze`). The dossier names the tag; its commit, the Linux binary SHA-1, the APK and `libpos_ffi.so` SHA-1 and the image digest are placeholders (`EV-04`, `EV-01`, `EV-02`, `EV-05`) filled in P8. `linux-v1.1.0-rc1` and the X1D27 candidate SHA-1 are never written in the dossier; the card gate refuses `linux-v1.1`.
+  - **P8aD21 Backup retention follows the user's decision of 2026-10-10.** The engine keeps the 7 newest post-Z backups and deletes the older copies; the fiscal journal inside `pos.db` is never deleted. The dossier writes this as the product's rule, and `EV-19` is only the commit of that engine change inside the freeze tag. Replaces P8aD8 and, for the dossier, the "none deleted" wording of PD219. Storage figures from the P6-T11 measurement: the till holds about 8 times the database (about 4 GB after a year at 100 sales a day, about 13 GB at 300); the SD card recommendation (64 GB, 128 GB, exFAT) is unchanged.
+  - **P8aD22 GMS target, as built versus target.** The dossier describes the GMS D3 Pro (plan update 2026-10-09): provisioning without any Google account, Play Store and user-facing Google apps hidden, installs blocked except through the updater session, system updates kept out of service hours, Play Protect, and Android developer verification as a producer obligation with nothing registered. As built on this lane the device owner sets the postpone update policy (`DevicePolicies.kt`, step `update_policy`) and hides no app; the dossier writes those facts and marks the rest `EV-13`. Complements P8aD9.
+  - **P8aD23 Gates of the rerun.** Card gates as `phases/P8a.md` section 7.1 against `android/lane-p8b`, host checks only. At the phase gate on `android/int` the freeze check runs in tag form against `linux-v1.0.0-rc1` once that tag exists (else `--ref 602544c` and the tag form recorded as deferred), with `kotlin_test_inventory.py --base 602544c` and `test_inventory.sh --diff` (deferred and recorded if the disk has under 20 GB free).
+  - **P8aD24 The relayed message is about timing.** The user's message relayed with this run ("you told me it would be ready this morning, now you say at 11pm?") changes no card. The exit report states which cards ran and passed and what is left, without a time promise the chain cannot check.
+
+- **P8a planner, exit (2026-10-10, `android/lane-p8b`), P8aD25 to P8aD29.** Exit report in `phases/P8a-exit.md`.
+  - **P8aD25 P8a-T5 closed by the planner, not by a third worker round.** The last T5 review was REWORK on two text points of `FLUX_DONNEES_FR.md` (who compares the deviceId; the B2B invoice flow of §7 has no FFI method) and T5 was left unmerged through waves 1 to 4. A further worker round would have been the third failure of one task, which stops the run for the user over two sentences. The planner applied exactly the reviewer's fixes, plus the T12 follow-up on the same file (SPF export folder `pili-export-<date>-<heure>-<deviceId>`, as `SECURITE_BD_FR.md` and `Exporter.kt`), as commit `2342e3b5` on `android/P8a-P8a-T5`, reran the T5 card gate (all pass, sizes 113, 123 and 62 against 220, 150 and 120) and merged it with `--no-ff` (`bda5b6fe`). The T12 reviewer had already simulated this merge (no conflict, gates green). For the user's review: this fix has no independent reviewer pass; P8b reads `FLUX_DONNEES_FR.md` §11 and §12 once more.
+  - **P8aD26 Review follow-ups applied on the lane.** One planner commit (`ae5cc77e`) after the T5 merge, dossier text only: the Wi-Fi of the till is prepared on the bench and the 1.0.0 app has no network screen (`PLATEFORME_ANDROID_FR.md` §3.3 and §6, `SCHEMA_ASSEMBLAGE_FR.md`, `SECURITE_BD_FR.md` §3, now aligned with `MANUEL_INSTALLATION_FR.md` §4.3; T8 review); the GMS heading of `MANUEL_INSTALLATION_FR.md` §3.5 reads as a target (T12 review); `INDEX_DOSSIER_FR.md` §4 cites `CADRE_DEMANDE_FR.md` §8 for the test machine and §7 for the nightly export (T1 review). The `Cited in` column of `DOSSIER_EVIDENCE.md` was rechecked after the T5 merge and needed no change.
+  - **P8aD27 Commit trailers kept as written.** Several worker commits (T1, T2, T5, T6, T7, T8, T9, T11, T12) end with `Co-Authored-By: Claude Sonnet 5.5`, while `P8a.md` rule 3.10 names Opus 5.5. The trailer names the model that wrote the commit, no gate checks it and rewriting history would misattribute the work, so nothing is amended. Rule 3.10 of later phases should name the worker model.
+  - **P8aD28 Non-blocking review notes carried to P8b.** Not fixed in P8a (wording or evidence-time items): QR provisioning in the field is stated as fact in `SECURITE_BD_FR.md` §3 (qualify with `EV-10` or `EV-15`); "la seule copie qui quitte le terminal" for the nightly export in `SECURITE_BD_FR.md` §5 (the SPF export copy also leaves it); whether the 7-backup retention counts SPF export copies (check against the `EV-19` engine commit); "des réglages" versus "Config" and "modale" versus "voile bloquant" in `REPONSES_MANUEL_CERT_FR.md`; the Epson box drawn inside the till in the `DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` diagram; the own-PIN dialog is opened from the header (`MANUEL_PROGRAMMATION_FR.md` §6.2); `evidence/fdm_errors/` JSON cited in `REPONSES_MANUEL_CERT_FR.md` but not in `MANIFEST.txt`; the TEM mock setup for runbook captures A19, A26 and A27; no EV id for the future Gérant Wi-Fi screen; posSwVersion without backticks in identity blocks (the template's backticks fail `check_dossier`). Outside the lane: `android/app/src/main/res/values/strings_plat_about.xml` `plat_about_engine_ref` still reads the old 1.1.0 tag and must be updated before the `EV-09` captures (lane-freeze or P8b).
+  - **P8aD29 No freeze step at the P8a exit.** The plan sets none for P8a; the re-freeze `linux-v1.0.0-rc1` belongs to `android/lane-freeze` and needs the user. No tag was created and `docs/android/LINUX_FREEZE.md` (outside this lane's paths) was not edited. The tag form of the freeze check runs on `android/int` once that tag exists.
+
+## Decided by the user
+
+- **User (2026-10-12), linked card payment terminal (EFT), EFT-D1.** The user asked for the till to charge the card terminal itself instead of the operator typing the card. Decided with it:
+  - *Three protocols, all with public specifications.* Worldline Terminal API (nexo Retailer 5.1 as JSON over HTTPS, through the Worldline cloud, `worldline_terminal_api`), CCV Payment API (method `terminal`, HTTPS through the CCV cloud, `ccv_payment_api`) and OPI (XML over TCP on the shop LAN, as CCV terminals speak it, `ccv_opi`). Why these: each one can be built and tested against a public document or OpenAPI and a mock (`crates/pos-eft`, `pos-eft-mock`), with no vendor library to link into the certified binary. Optional per installation by the `payment_terminal` section of `pos.json`; without it nothing changes (card typed by the operator, `MANUAL`, `CARD_DEBIT`).
+  - *Worldline C-TEP (Yomani, Yoximo) is not supported.* Its protocol is closed: it needs the Worldline library and a Worldline certification, which the producer does not have. It stays out until that exists.
+  - *Belgian Worldline terminals speak C-TEP only (checked 2026-10-12 on Worldline Belgium's own pages).* The Axium RX5000 Pinpad sold in Belgium lists "Intégration caisse : CTEP (IP) et VIC 1.07 (Serial)"; the Axium DX8000 Portable Pinpad lists "Connexion à la caisse : CTEP (local/cloud) / WIPay (cloud)" and "Terminal API: No". WIPay is C-TEP relayed by Worldline: the terminal dials `wt.worldline.nl:9000` (Worldline instruction 20.005, BELUX) and the cash register reaches it through the WIPay service, whose cash register interface is not public either. So the `worldline_terminal_api` driver does not reach the Worldline terminals of a Belgian restaurant today; Worldline in Belgium needs C-TEP, obtained from Worldline Belgium (ecrvendingcertifications-belgium@worldline.com, "the Worldline experts" run the integration; the Easy Integrator library is downloaded with a password Worldline gives). In C-TEP over IP the terminal is the TCP client and the cash register listens (port 9000 by default), which fits the till on Linux and Android once the library or the specification is available.
+  - *No rounding of card payments (EFT), for every installation.* The manual's "Arrondissement des paiements par carte EFT: optionnel, à décider une fois pour toute à l'installation" is decided once here: no rounding. Only the cash rest is rounded, so test base 4 stays not applicable.
+  - *Training never charges a real card.* In training mode the till refuses to call the terminal (`eft_training`); the card part is typed by hand as without a terminal.
+  - *Refunds stay cash.* Reversing an approved card payment is not supported yet.
+  - *CCV key relay rule.* CCV's API key must not sit on a device in the shop. For `ccv_payment_api` the installation sets `base_url` to a relay that holds the key and authenticates the till, and leaves `api_key_file` out; the configuration check accepts that (`api_key_file` is required only without a relay `base_url`). Other secrets are files under `/etc/pili-pos/secrets`, never in `pos.json`.
+  - *FDM before charge.* Nothing is sent to the terminal unless the FDM is operational at that moment and no sign request waits for its answer (AM art. 14): no card is charged for a sale that cannot be signed.
+  - *Record before the call.* Every payment is written to `eft_payments` (migration 27, in every build, never deleted, a final answer never changes) before the terminal is called. A `sent` row at start-up becomes `unknown` and is checked again. A payment whose answer is unknown blocks the sale of its order (`eft_pending`); an approved payment must be used by the sale for its exact amount (`eft_payment_not_usable`). `eft_check` is open to any logged-in user; `eft_pay` and `eft_abort` need the checkout rights.
+  - *Payment line identity.* The signed line is `inputMethod: AUTOMATIC` (POS spec v2.2: "le terminal de paiement renvoie lui-même le type de carte utilisé"). Ids by card type: `CARD_DEBIT` 2 "Card", `CARD_CREDIT` 6 "Credit card", `CARD_UNKNOWN` 7 "Card (type unknown)" (`payment_line_identity`), so the reports, which count by id and name, never mix two card types. `provider` is the card brand the terminal returned, `reference` the terminal's transaction id (both capped at 600 characters); the ticket prints the brand ("Carte Bancontact").
+  - *Vendor certification and credentials before live use.* Each vendor certifies its integration before the producer may take real payments, and issues the credentials (Worldline integrator id, merchant and terminal ids, API key; CCV terminal id, management system id, API key or relay). The CCV OPI profile spoken by a Belgian terminal is not public: it must be learned from a trace of that terminal. This is an internal note, not a claim in the dossier.
+  - *No live call without the user's go-ahead.* The drivers and the engine are tested against the mock and the scripted terminal only (`crates/pos-engine/tests/eft_payments.rs`, `eft_signing.rs`). No call to a vendor environment or a real terminal is made until the user says so.
+  - Dossier updated (French, brand-neutral): `LIGNES_PRODUITS_FR.md`, `REPONSES_MANUEL_CERT_FR.md`, `MANUEL_UTILISATEUR_FR.md`, `MANUEL_INSTALLATION_FR.md`, `FLUX_DONNEES_FR.md`, `DOCUMENT_PROCESSUS_TECHNIQUE_FR.md`, `SCHEMA_BD_FR.md`, `SCHEMA_ER_FR.md`, `SECURITE_BD_FR.md`, `FEUILLE_ACQUISITION_DONNEES_FR.md`, `LISTE_FONCTIONNALITES_FR.md`, `PROFILS_UTILISATEURS_FR.md`, `COUVERTURE_RAPPORTS_FR.md`, `COMMANDES_EN_LIGNE_FR.md`, `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md`, and a note in `RESULTATS_TESTS_UC_FR.md` (recorded results untouched). The PDFs are not regenerated here. Migration 27 is core code of the certified build, so the Linux SHA-1 changes and the freeze record is to be redone.
+- **User (2026-10-10), table plan set by the restaurant.** The user asked to let the restaurant define the table numbers: "it would be nice that we can set it for the demo, do that now pls". Design decided with it:
+  - The numbers are written as comma-separated numbers and ranges ("1-12, 20-25"), numbers only (no names or zones), 1 to 999, at most 200 tables. `pos.json` gives the starting value: the optional key `tables`, else tables 1 to `table_count` (default 20). An invalid `tables` is reported by the configuration check.
+  - The plan in use is stored in the database (migration 11 `table-plan`: `table_plan`, one row, and `table_plan_log`, append-only by triggers like `integration_switch_log`). Same semantics as the HubRise switch (migration 25): at start-up the first start, or a NEW plan in `pos.json`, sets it (logged with source `config`); otherwise the last value stays, a manager's change included (source `admin`, with the manager's INSZ).
+  - A manager (role admin) changes it in Settings, panel "Plan de salle" (commands `get_table_plan` for anyone, `set_table_plan` for managers only, refused with the error code `table_plan_invalid`). Every change is logged.
+  - The Tables screen shows the plan's tables plus any table left out of the plan that still has an open order, so no unpaid order is ever hidden. Table numbers change no fiscal data, ticket or FDM payload (the table number was already on the order).
+  - Code: `crates/pos-core/src/table_plan.rs`, `crates/pos-db/src/queries/table_plan.rs`, `crates/pos-engine/src/commands/table_plan.rs`, `do_list_configured_tables` in `tables.rs`; 88 Tauri commands in the parity check (two new); FFI methods of the same names in `android/rust/pos-ffi/src/api/orders.rs`. Migration 11 is core code of the certified build, so the Linux SHA-1 changes and the freeze record is to be redone. Dossier updated: `SCHEMA_BD_FR.md`, `SCHEMA_ER_FR.md`, `SECURITE_BD_FR.md`, `FEUILLE_ACQUISITION_DONNEES_FR.md`, `MANUEL_INSTALLATION_FR.md`, `MANUEL_UTILISATEUR_FR.md`, `PROFILS_UTILISATEURS_FR.md`, `LISTE_FONCTIONNALITES_FR.md`, `DOCUMENT_PROCESSUS_TECHNIQUE_FR.md`.
+- **User (2026-10-10, about 09:00), version and re-freeze.** Question: "Should I set it back to 1.0.0 (Linux pili-pos/1.0.0, Android pili-pos-android/1.0.0), rebuild twice to confirm the new SHA-1, and tag linux-v1.0.0-rc1 locally (deleting the misnamed linux-v1.1.0-rc1)?" Answer: "Yes, 1.0.0 + re-freeze". Nothing has been filed for Linux or Android: both are v1.0 initial filings (Art. 99); there is no Linux v1.1 and no Art. 113 update (section 10, Q6). It is the go-ahead that PD121, X1D3, X1D27, PD228, PD247 and UI-PD320 waited for.
+  - Done on `android/lane-freeze`: version 1.0.0 in `Cargo.toml` `[workspace.package]` (and the workspace crates of both `Cargo.lock` files), `src-tauri/tauri.conf.json`, `ui/package.json` and `ui/package-lock.json`; `android/rust/pos-ffi` 1.0.0, so `posSwVersion` `pili-pos-android/1.0.0`, versionName `1.0.0` and versionCode 10000 (the same code as `1.0.0-dev`, which never shipped: monotonic, not increased). `plat_about_engine_ref` is `pili-pos 1.0.0, linux-v1.0.0-rc1 (pending)`. `check_linux_frozen.sh` defaults to `linux-v1.0.0`, then `linux-v1.0.0-rc1`; the p1a, p4 and p6 freeze checks SKIP with a clear message while that tag does not exist.
+  - Left for the tagging step (after the merge into `android/int`): two clean builds with `scripts/check_repro.sh`, the tag `linux-v1.0.0-rc1`, deleting `linux-v1.1.0-rc1`, replacing `pending` in `plat_about_engine_ref` by the short commit, `FREEZE_SHA_RECORDED` in `scripts/android/p4_gate.sh`, and the new freeze record in `docs/android/LINUX_FREEZE.md`.
+- **User (2026-10-10, about 13:30), backup retention (resolves PD219).** Question: "The engine keeps a full database copy after every Z and never deletes them (would fill the till in months). Add a retention rule in the engine before the 1.0.0 re-freeze?" Answer: "Keep the 7 newest".
+  - Done in `crates/pos-engine/src/commands/report.rs` (`BACKUPS_KEPT = 7`): after a backup is complete and `PRAGMA quick_check` answers `ok`, the engine deletes the oldest of its own `pos-<UTC timestamp>.db` files so that 7 remain, the new one always among them, and logs each deletion. It never touches `pos.db`, the nightly export folder or a copy made by someone else (`manual-*.db`, `pre-update-*.db`). Backup names carry milliseconds, so two backups never share a name. Same code on Linux and Android (no platform conditional). Tests: `nine_z_in_a_row_leave_the_seven_newest_backups` (`crates/pos-engine/tests/export_nightly.rs`) and five unit tests in `report.rs`. `PLATFORM.md` section 12 and the dossier (`FEUILLE_ACQUISITION_DONNEES_FR.md`, `FLUX_DONNEES_FR.md`, `DOCUMENT_PROCESSUS_TECHNIQUE_FR.md`, `DECLARATION_FONCTIONS_INTERDITES_FR.md`, `MANUEL_INSTALLATION_FR.md`, `MANUEL_PROGRAMMATION_FR.md`) and the export's `LISEZMOI.txt` say so; the dossier PDFs are regenerated with the submission.
+- **User (2026-10-08):** the two questions left open for the soft freeze. Record of the freeze in `docs/android/LINUX_FREEZE.md`.
+  - PD47 resolved: the mutation scan covers the source compiled into the cert binary. Step 3/5 of `scripts/build_and_hash.sh` keeps scanning every `*.rs` and `*.sql` file of `crates` and `src-tauri/src` for a DELETE or UPDATE on `fiscal_events`, keeps the `#[cfg(test)]` exclusion, and prunes the Cargo integration-test directories (a `tests` directory directly under a crate root, so `crates/*/tests`), which only `cargo test` builds. This restores the v1.0 scope in practice (the integration tests lived in `src-tauri/tests`, never scanned, until P1a moved them to `crates/pos-engine/tests`); it is not a weakening of the control and there is no allowlist of lines. The two flagged test lines (`spf_e2e_crash_safety.rs:154`, `spf_e2e_peripherals.rs:415`) are unchanged. The scan still catches a mutation planted in `crates/pos-fiscal/src` (a new file, a line in `archive.rs`, a `src/tests/` module), in `src-tauri/src` and in a `.sql` file (checked by hand, plants removed). The dossier sentence (`GARANTIE_MAJ_LANGUES_FR.md` section 1.2) and the manual check of `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md` describe the new scope, PDFs regenerated. Commit `228c562`. With it `scripts/check_repro.sh` passes from a clean clone of `8dec93a`: both builds give SHA-1 `9d230ef1bba90a4edde0157bcb107e4bb4d23d6e`, and PD44 applies (soft freeze tag `linux-v1.1.0-rc1`, set by the orchestrator after review). PD48 and PD63 (provisional freeze point `042d911`) end with the tag: the chain checks `check_linux_frozen.sh` against the tag from then on.
+  - PD71 resolved: fixed before the soft freeze. `pos_catalog::ApplyOutcome::Rejected` is a struct variant `Rejected { issues: Vec<Issue> }`, serialized as `{"outcome": "rejected", "issues": [...]}` (the shape the FFI record already had), so `hubrise_sync_catalog` and `hubrise_adopt_catalog` answer the rejection, not a serialization error. Tests: `every_outcome_serializes_with_its_tag` and `a_rejected_outcome_serializes_the_issues_it_stored` (pos-catalog), `a_resync_of_a_bad_catalog_answers_the_rejection_not_an_error` (pos-engine). The Vue UI types the outcome (`CatalogApplyOutcome` in `ui/src/api/ipc.ts`) and shows "Catalogue refusé" as an error for a rejected resync or adoption (Settings and the online board), the Settings banner listing the issues; a Playwright test covers it. The `catalog-rejected` event payload (a HubRise `CallbackEvent`) is unchanged. The FFI drops its `// contract: custom` conversion of `ApplyOutcome` for `convert::out`, and the tripwire `the_engine_cannot_serialize_a_rejected_outcome` is replaced by the contract test `a_rejected_outcome_converts_with_its_issues`; the record and the Kotlin API are unchanged (`apiCheck` passes, `android/pos-core/api/pos-core.api` not touched). Commits `2e1e3ad` and `8dec93a`.
+  - Freeze point (orchestrator, 2026-10-08): `android/freeze-rc1` merged into `android/int` and tagged locally `linux-v1.1.0-rc1` on `65b567f` (Linux SHA-1 `9d230ef1bba90a4edde0157bcb107e4bb4d23d6e`, two identical runs). From P4 on, `check_linux_frozen.sh` checks against the tag; the provisional freeze point `042d911` (PD48, PD63, PD86) is retired.
+- **P5 wave 1 integration, card P5-T2 (planner, UI components, 2026-10-09):** PiliButton, PiliDialog, ConfirmDialog, NumPad, PinPad and PinDialog, commits 20d0c97 and 59bc9aa on `android/P5-P5-T2` (base ba57adf). Decision: ACCEPT and merge into `android/lane-ui`, with the caveat below.
+  - *Why.* The reviewer found no blocking defect in a full static review. All 24 paths match the card scope, the commits are Conventional Commits, there is no em-dash, no hard-coded colour, no `.sp` literal, no `window.Dialog`, no engine or ViewModel reference, no foundation, build or theme file is touched, and no dependency or test was added or removed. The behaviour matches `ui/src/components/PinDialog.vue` (busy guard, submit on the 4th digit, Choose then Confirm with a restart on mismatch, cancellation rethrown, `onSubmit` runs once). The worker's full gate (`p4_gate.sh --app`) passed with 28 checks, 0 failed, kotlin-tests removed 0, Kover LINE 96.0 percent and BRANCH 74.4 percent. The reviewer could not rerun the gates because the host disk was full (under 600 MB free, filled by other agents' target directories after the worker finished); that is not a defect of this card.
+  - *Caveat (gate debt).* The next gate run on `android/lane-ui` after this merge must be `p4_gate.sh --app`, with Roborazzi verify and Kover, and so must the `android/lane-ui` to `android/int` merge gate. If either run fails on a P5-T2 file, the merge is reverted and the card reopens.
+  - *Accepted deviations.* Pressed Primary and Danger buttons darken 20 percent by mixing in `Color.Black` (UX guide 4.2) instead of using `bgPressed`; a later theme card adds a pressed-accent token and switches `PiliButton.darker()` over to it. `PinPadState` uses Compose snapshot state (runtime only, no UI) and is still tested in a plain JVM test. The optional parameters `PinPad(showTitle)` and `ConfirmDialog(modifier)`, the material-icons-extended Backspace icon and the omitted actions row in `PiliDialog` are accepted.
+  - *Follow-ups (non-blocking, later UI polish card).* (1) `PinDialogTest.cancelButtonAndScrimCancel` only clicks `pin_cancel`: add a scrim tap or rename the test. (2) The PinPad cancel button should use text-secondary and 56 dp to match the Vue `btn-cancel`. (3) Add a dedicated userName ("who") slot to PinPad and PinDialog, because callers now fold it into the hint.
+  - *Open question carried forward (outside this card).* The user asked whether the SQLite database on the Sunmi D3 Pro would be stored on the SD card, and how big the card should be. This card does not answer it. A separate research card (no code) traces the engine data directory in the provisioning and `EngineConfig` code (expected: app-internal storage, `Context.filesDir`, not removable media) and recommends an SD card size and role (for example exports or backups only). It also covers the fiscal-retention and tamper concerns of keeping the journal on removable media. The answer goes in `docs/android/spikes/` for the user's review.
+- **P5 wave 1 integration (integrator, 2026-10-09):** P5-T1 to P5-T5 merged with `--no-ff` into `android/lane-ui` in that order, no conflict. The merged task worktrees were removed and their branches kept. Static gate checks (clean tree, refs, linux frozen, frozen paths, lane scope, lane paths, kotlin test inventory removed 0, UI parity missing 0) pass, and the full `p5_gate.sh` run (34 checks, 0 failed) passed on the merged tree, including lint, ktlint, detekt, 441 unit tests, Roborazzi verify and Kover (LINE 96.1 percent, BRANCH 75.4 percent). That run settles the gate debt of P5-T2 for `android/lane-ui`; the `android/lane-ui` to `android/int` merge gate still has to repeat it. A first attempt was cut short by a full host disk (other lanes' target directories) and was rerun.
+- **P5b wave 1 integration (integrator, 2026-10-09):** P5b-T1 (FDM), P5b-T2 (delivery), P5b-T5 (webshop orders store, chime), P5b-T3 (reports) and P5b-T4 (settings, HubRise) merged with `--no-ff` into `android/lane-ui` in that order, no conflict. The merge subjects are Conventional Commits (`chore(android): merge P5b-Tn`), as the hygiene gate requires.
+  - *Cross-card interaction fixed.* P5b-T5 makes `SessionStore` forget the operator when the engine goes away (UI-PD311); two P5b-T3 tests (`aClosedEngineNeverCrashesAnAction`, `aClosedEngineNeverCrashesTheTicketFlows`) assumed the operator stays signed in after `holder.close()`. They now expect the merged contract: signed out, actions are no-ops, nothing is sent to the engine, no crash. One `fix(android)` commit, test files only.
+  - *Gate result.* `p5_gate.sh --exit` (non-strict parity) 35 checks PASS, `p4_gate.sh --fast --app-e2e` PASS (11 e2e checks, emulator-5554 reused, not started by this run, so not stopped), `:app:testDebugUnitTest`, `verifyRoborazziDebug`, `koverVerifyDebug` PASS (942 Kotlin tests, 0 removed), frozen paths and tags unchanged. Two sibling `gradlew --stop` calls killed one gate run and one e2e build; both were rerun unchanged and passed.
+  - *Expected gate failures at this stage.* `check_ui_parity.py --strict` and `p5_gate.sh --parity-strict` fail by design until P5b-T12 prunes `docs/android/PARITY.md` (UI-PD305, UI-PD315): `called 66, excluded 9, pending 7, stale 38, missing 0`. The 7 pending are the wave 2 to 4 owners (checkout, add_order_line_with_modifiers, get_categories, get_item_modifiers, get_menu_items, list_open_takeaways, list_tables). The non-strict parity check passes.
+  - *Deferred.* `test_inventory.sh --diff` needs `ui/dist` (a UI bundle build) and the disk had 21 GB free after the gates; recorded as deferred to the `android/int` merge (UI-PD315).
+- **P5b wave 2 integration (integrator, 2026-10-09):** P5b-T6 (scaffold, header, status lights, Tables screen, parity page `tables.md`) merged with `--no-ff` into `android/lane-ui`, no conflict. The task worktree was removed and its branch kept. Static gate checks (clean tree, refs, linux frozen, frozen paths, lane scope, lane paths, Kotlin test inventory removed 0 with 1042 tests at head, UI parity missing 0) pass.
+  - *Gate result.* `p5_gate.sh --exit` (non-strict parity) 35 checks PASS (999 unit tests, Kover LINE 97.5 percent, BRANCH 78.5 percent, release APK checks); `p4_gate.sh --fast --app-e2e` ran all 22 checks and 11 e2e checks PASS; the standalone `:app:testDebugUnitTest`, `verifyRoborazziDebug` and `koverVerifyDebug` run PASS.
+  - *Flaky Rust test, not a regression.* In the `p4_gate.sh` run `rust-tests` failed once on `lifecycle::cancelled_shutdown_then_shutdown_ends_the_streams` (`pos-ffi/tests/ffi/lifecycle.rs:246`, `assertion failed: next.is_none()`) while two other lanes were building and testing on the same host. The UI lane changes no Rust path (frozen-path diff empty). Three reruns of `cargo test -p pos-ffi --test ffi` in `android/rust` gave 212 passed, 0 failed each time. It is a timing-sensitive test under CPU load; the owner is the platform/engine lane, which should make it deterministic.
+  - *Expected gate failure at this stage.* `check_ui_parity.py --strict` and `p5_gate.sh --parity-strict` fail by design until P5b-T12 prunes `docs/android/PARITY.md` (UI-PD305, UI-PD315): `called 68, excluded 9, pending 5, stale 40, missing 0`. The 5 pending are the wave 3 and 4 owners (checkout, add_order_line_with_modifiers, get_categories, get_item_modifiers, get_menu_items).
+  - *Deferred.* `test_inventory.sh --diff` needs 20 GB free and the disk had 7.3 GB after the gates; recorded as deferred to the `android/int` merge (UI-PD315). The emulator was started by this run and was stopped with `emulator.sh stop`.
+- **P5b wave 3 integration (integrator, 2026-10-09):** P5b-T7 (order screen, menu, modifiers), P5b-T8 (checkout), P5b-T9 (reports), P5b-T10 (settings, HubRise) and P5b-T11 (webshop board) merged with `--no-ff` into `android/lane-ui` in that order, no conflict. The task worktrees were removed and their branches kept.
+  - *Parity prune done here.* With every view in, the 45 `pending:` lines of the `ui-parity` block of `docs/android/PARITY.md` were all stale (each command has a Kotlin call site), so they were deleted in one `fix(android)` commit. `check_ui_parity.py --strict` now passes: `called 73, excluded 9, pending 0, stale 0, missing 0 (82 commands)`. Only the 9 excluded lines remain.
+  - *Gate result.* Static checks (clean tree, refs, linux frozen, frozen paths, lane scope, lane paths, Kotlin test inventory removed 0 with 1461 tests at head, UI parity strict) pass. `p5_gate.sh --exit --parity-strict` 35 checks PASS (1418 app unit tests, Kover LINE 98.2 percent, BRANCH 74.7 percent, release APK checks); `p4_gate.sh --fast --app-e2e` 22 checks and 11 e2e checks PASS; the standalone `:app:testDebugUnitTest`, `verifyRoborazziDebug` and `koverVerifyDebug` run PASS. `test_inventory.sh --diff` ran this time (25 GB free, `ui/dist` copied from the `int` worktree, ui is identical to the base): no test disappeared (ws 1482 >= 1355); the cargo `target/debug` and the copied `ui/dist` were deleted afterwards. This settles the deferral of UI-PD315 for `android/lane-ui`.
+  - *Flaky tests, not regressions.* (1) The first `p5_gate.sh` run failed `plan-gradle` on `pos-core` `EndToEndTest.refundOfTheSaleIsSignedAndPrinted` ("printer mock holds 0 job(s), expected 1", EndToEndHarness.kt:85) under host load; the test passed alone and the whole gate passed on the rerun. No pos-core path is touched by this lane. The owner is the platform lane (a wait for the printer mock job that is too short under load). (2) The first `p4_gate.sh --app-e2e` run refused `dpm set-device-owner` right after the install; after clearing the state it left behind, the rerun passed all 11 e2e checks.
+  - *Emulator.* `emulator-5554` was already running and was not started by this run, so `emulator.sh stop` was not called.
+- **P5b wave 4 integration (integrator, 2026-10-09):** P5b-T12 (cart column, close unpaid with PIN, order line item, parity pages) merged with `--no-ff` into `android/lane-ui`, no conflict. The task worktree was removed and its branch kept.
+  - *Gate result.* Static checks (clean tree, refs, linux frozen, frozen paths, lane scope, lane paths, Kotlin test inventory removed 0 with 1514 tests at head, UI parity strict `called 73, excluded 9, pending 0, stale 0, missing 0`) pass. `p5_gate.sh --exit --parity-strict` 35 checks PASS; `p4_gate.sh --fast --app-e2e` 22 checks and 11 e2e checks PASS; the standalone `:app:testDebugUnitTest`, `verifyRoborazziDebug` and `koverVerifyDebug` run PASS.
+  - *Environment note.* Gradle must be started with `$HOME/.cargo/bin` first on PATH: the JVM resolves `cargo` with its own PATH, so Homebrew's cargo (no Android std, other rustc) is picked otherwise and fails with E0463, and its partial output in `target/android-rust/android-release` then fails the next run with E0514 until deleted. No repository change.
+  - *Deferred.* `test_inventory.sh --diff` needs 20 GB free and the disk had 9.4 GB after the gates; recorded as deferred to the `android/int` merge (UI-PD315).
+  - *Emulator.* `emulator-5554` was already running and was not started by this run, so `emulator.sh stop` was not called.
+- **P8a wave 1 integration (integrator, 2026-10-10):** P8a-T1, P8a-T2, P8a-T3 and P8a-T4 merged with `--no-ff` into `android/lane-p8b` in that order, no conflict. P8a-T5 was not merged on purpose (the orchestrator keeps it for a later wave). The merge subjects are Conventional Commits (`chore(android): merge P8a Tn into lane-p8b`).
+  - *Gate result on `android/lane-p8b`.* Lane scope against `602544c` (only dossier, evidence, P8a phase files and DECISIONS) passes, `check_linux_frozen.sh --ref 602544c` reports 17 frozen paths clean, `scripts/check_dossier.py` passes, the `android/` path references, the `EV-nn` references, the em-dash, brand-name and `linux-v1.1` scans find nothing, `kotlin_test_inventory.py --base 602544c` removed 0 (1957 at base and head), `lane_paths.py --check` passes (3903 files, 80 rules, 74 probes).
+  - *Gate items that cannot pass at wave 1, by design.* The document completeness loop and the dangling `_FR` reference scan list 20 dossier documents that belong to later waves (P8a-T5 to P8a-T12: REPONSES_MANUEL_CERT, MANUEL_UTILISATEUR, MANUEL_INSTALLATION, MANUEL_PROGRAMMATION, DECLARATION_FONCTIONS_INTERDITES, DOCUMENT_PROCESSUS_TECHNIQUE, FLUX_DONNEES, LISTE_FONCTIONNALITES, LIGNES_PRODUITS, TICKETS_EXEMPLES, DECISION_PEPPOL_AP, MAPPING_CONFORMITE, RAPPORT_TESTS_BASELINE, COUVERTURE_ADVANCED_SET, RESULTATS_TESTS_UC, JOURNAL_TESTS_PRE_SOUMISSION, CHECKLIST_DEPLOIEMENT, COMMANDES_EN_LIGNE, EXPORT_NOCTURNE, internal/CAPTURES_ECRAN_RUNBOOK). The first 12 documents of the dossier exist. These two checks are phase-exit checks and must be rerun after the last wave.
+  - *Gate items run on the lane worktree instead of `int`.* The gate text runs the dossier checks and the `android/lane-p8b` ancestry test in the `int` worktree, but `int` is still at `602544c` (the lane merge into `int` happens afterwards), so the ancestry test fails there and the dossier files are absent. The checks were run on the `lane-p8b` worktree, which holds the same scripts. `int` was not touched. The ancestry check is deferred to the lane merge.
+  - *Deferred.* Tag `linux-v1.0.0-rc1` does not exist, so `check_linux_frozen.sh --tag` is deferred (the `--ref 602544c` check passes). `test_inventory.sh --diff` is deferred to the `android/int` merge: the lane diff against `602544c` touches only `docs/android`, all 17 frozen paths are unchanged, so the Rust test set is identical, and a cold workspace build on this worktree (no `target`, 24 GB free) would cost more disk and time than it proves (UI-PD315).
+- **P8a wave 2 integration (integrator, 2026-10-10):** P8a-T6 (REPONSES_MANUEL_CERT), P8a-T7 (DECISION_PEPPOL_AP, DECLARATION_FONCTIONS_INTERDITES, DOCUMENT_PROCESSUS_TECHNIQUE, LISTE_FONCTIONNALITES), P8a-T8 (MANUEL_INSTALLATION, CHECKLIST_DEPLOIEMENT), P8a-T9 (MANUEL_UTILISATEUR) and P8a-T10 (RAPPORT_TESTS_BASELINE, RESULTATS_TESTS_UC, JOURNAL_TESTS_PRE_SOUMISSION, COUVERTURE_ADVANCED_SET, TICKETS_EXEMPLES, CAPTURES_ECRAN_RUNBOOK) merged with `--no-ff` into `android/lane-p8b` in that order, no conflict (each card owns disjoint files). The merge subjects are Conventional Commits (`chore(android): merge P8a Tn into lane-p8b`). The task worktrees of T6 to T10 were removed and their branches kept. P8a-T5 is still not merged (kept by the orchestrator for a later wave) and its worktree is kept.
+  - *Gate result on `android/lane-p8b`.* Lane scope against `602544c` passes (dossier, evidence, P8a phase files and DECISIONS only), `check_linux_frozen.sh --ref 602544c` reports 17 frozen paths clean, both `check_dossier` runs pass, the `android/` path references, the `EV-nn` references, the em-dash, brand-name and `linux-v1.1` scans find nothing, `kotlin_test_inventory.py --base 602544c` removed 0 (1957 at base and head), `lane_paths.py --check` passes (3917 files, 80 rules, 74 probes). `test_inventory.sh --diff` ran this time (46 GB free, warm `target` and `ui/dist` in the `int` worktree, `int` left clean): 404 tests added, 0 removed, ws 1640 >= 1355. This settles the deferral recorded at wave 1 (UI-PD315).
+  - *Gate items that cannot pass yet, by design.* The completeness loop lists 6 documents of later cards: P8a-T5 (EXPORT_NOCTURNE, FLUX_DONNEES, COMMANDES_EN_LIGNE) and P8a-T11 (MANUEL_PROGRAMMATION, MAPPING_CONFORMITE, LIGNES_PRODUITS). The dangling `_FR` reference scan lists the same 6, which other annexes cite on purpose, plus `NOM_FR.md`, the literal placeholder in `INDEX_DOSSIER_FR.md` line 15 (written at wave 1; it explains that `NOM_FR.md` stands for any annex and is not a reference). Both are phase-exit checks to rerun after the last wave; the `NOM_FR` line needs either an exclusion in the scan or a rewording in the index by the owner of `INDEX_DOSSIER_FR.md`.
+  - *Gate items run on the lane worktree instead of `int`.* As at wave 1, the ancestry test and the dossier checks cannot pass in `int` (still at `602544c`, no dossier files); they ran on the `lane-p8b` worktree with the same scripts. The ancestry check is deferred to the lane merge. Tag `linux-v1.0.0-rc1` does not exist, so `check_linux_frozen.sh --tag` is deferred (the `--ref 602544c` check passes).
+- **P8a wave 3 integration (integrator, 2026-10-10):** P8a-T11 (MANUEL_PROGRAMMATION, MAPPING_CONFORMITE, LIGNES_PRODUITS) merged with `--no-ff` into `android/lane-p8b`, no conflict (the card owns three new files). The merge subject is a Conventional Commit (`chore(android): merge P8a T11 into lane-p8b`). The task worktree of T11 was removed and its branch kept. P8a-T5 is still not merged (its worktree and branch are kept).
+  - *Gate result on `android/lane-p8b`.* Lane scope against `602544c` passes, `check_linux_frozen.sh --ref 602544c` reports 17 frozen paths clean, both `check_dossier` runs pass, the `android/` path references, the `EV-nn` references, the em-dash, brand-name and `linux-v1.1` scans find nothing, `kotlin_test_inventory.py --base 602544c` removed 0 (1957 at base and head), `lane_paths.py --check` passes (3920 files, 80 rules, 74 probes). `test_inventory.sh --diff` ran in the `int` worktree (33 GB free, warm `target` and `ui/dist`, `int` left clean): 404 added, 0 removed, ws 1640 >= 1355.
+  - *Gate items that cannot pass yet, by design.* The completeness loop and the dangling `_FR` reference scan now list only the three documents of P8a-T5 (EXPORT_NOCTURNE, FLUX_DONNEES, COMMANDES_EN_LIGNE), still unmerged, plus `NOM_FR.md`, the literal placeholder in `INDEX_DOSSIER_FR.md` line 15 (not a reference; needs an exclusion in the scan or a rewording by the owner of that file). Both are phase-exit checks to rerun once T5 is merged.
+  - *Gate items run on the lane worktree instead of `int`.* As at waves 1 and 2, the ancestry test and the dossier checks cannot pass in `int` (still at `602544c`, no dossier files); they ran on the `lane-p8b` worktree with the same scripts. The ancestry check is deferred to the lane merge. Tag `linux-v1.0.0-rc1` does not exist, so `check_linux_frozen.sh --tag` is deferred (the `--ref 602544c` check passes).
+- **P8a wave 4 integration (integrator, 2026-10-10):** P8a-T12 (consistency pass over the dossier, capture placeholders with runbook ids A93 to A98) merged with `--no-ff` into `android/lane-p8b`, no conflict. The merge subject is a Conventional Commit (`chore(android): merge P8a T12 into lane-p8b`). The task worktree of T12 was removed and its branch kept. P8a-T5 is still not merged (its worktree and branch are kept).
+  - *Gate result on `android/lane-p8b`.* Lane scope against `602544c` passes, `check_linux_frozen.sh --ref 602544c` reports 17 frozen paths clean, both `check_dossier` runs pass, the `android/` path references, the `EV-nn` references, the em-dash, brand-name and `linux-v1.1` scans find nothing, `kotlin_test_inventory.py --base 602544c` removed 0 (1957 at base and head), `lane_paths.py --check` passes (3920 files, 80 rules, 74 probes). `test_inventory.sh --diff` ran in the `int` worktree (33 GB free, warm `target` and `ui/dist`, `int` left clean): 404 added, 0 removed, ws 1640 >= 1355. The `NOM_FR.md` placeholder no longer shows in the dangling scan.
+  - *Gate items that cannot pass yet, by design.* The completeness loop and the dangling `_FR` reference scan list only the three documents of P8a-T5 (EXPORT_NOCTURNE, FLUX_DONNEES, COMMANDES_EN_LIGNE), still unmerged. Phase-exit checks to rerun once T5 is merged.
+  - *Gate items run on the lane worktree instead of `int`.* As at the earlier waves, the ancestry test and the dossier checks cannot pass in `int` (still at `602544c`, no dossier files); they ran on the `lane-p8b` worktree with the same scripts. The ancestry check is deferred to the lane merge. Tag `linux-v1.0.0-rc1` does not exist, so `check_linux_frozen.sh --tag` is deferred (the `--ref 602544c` check passes).
+
+## Lane 1-v1-fixes (2026-10-17)
+
+- **L1F-A1 Presence-only users.** A flag, not a fourth role: `users.presence_only` (0/1). A presence-only user has the role `waiter` in the database (least rights, never used). They cannot log in: `login`, `login_with_new_pin` and `end_shift` refuse them with `presence_only_user` before any PIN check (so no PIN throttle entry is made), and `set_pin` refuses them too (checked before the creating manager is asked for their own PIN). `create_user` with `presenceOnly` requires the role `waiter` (`role_invalid` otherwise) and stores no PIN, whatever PINs were passed. `list_users` still returns them (the Settings list needs them); the login screens filter. Rationale: a fourth `UserRole` needs a rebuild of `users` (SQLite cannot alter a CHECK) and touches the role matrix, the FFI enum and every role label.
+- **L1F-A2 Manager clock-in and clock-out.** `clock_in_employee(employee_insz)` and `clock_out_employee(employee_insz)`, managers only (`Access::Admin`). The S event is the employee's (`employeeId` of the request and `fiscal_events.user_insz` are the employee, as in M140 and M141). The manager is kept in `staff_shifts.started_by` / `ended_by` (the context of the pending sign carries `by`, `#[serde(default)]`, so rows stored before the change still parse). `do_work_in` and `do_work_out` keep their own access check and pass `by = None`; the signing is factored in `social::sign_work_event`.
+- **L1F-A3 Refusals, in this order, nothing signed and no counter moved.** `forbidden` (not a manager), `presence_training`, `system_user`, `user_unknown` (unknown or inactive), `presence_self`, `presence_already_in` (clock-in while the local index says on shift), `presence_not_in` (clock-out while not on shift). An FDM failure is `Ok(SocialResult { success: false })` with the FDM error, like `do_work_in`.
+- **L1F-A4 Training mode.** A manager-driven clock-in or clock-out is refused in training mode (conservative reading of POS spec v2.2 section 1.5: a T event registers no presence). The commit of a Work event writes `staff_shifts` only when the event label is not T: the local index reflects real presence only. Accepted consequences: in training a login sends a T WorkIn at every login (harmless, never counted), and an end of shift in training sends a T WorkOut and leaves the real shift open.
+- **L1F-A5 FDM down.** No extra status query: the command signs like the login clock-in. When the FDM is unreachable or refuses, the result is `success: false` with the FDM error, nothing is archived and the index does not change. The UIs (T2) also disable the two buttons while their FDM store says not connected.
+- **L1F-A6 Deactivation on shift.** `deactivate_user` refuses an employee with an open shift (`deactivate_on_shift`): an inactive user cannot be clocked out, so the shift would stay open for ever. The manager records the departure first.
+- **L1F-A7 Migration number 28** (`presence-registration`), in the base `MIGRATIONS` list (not feature-gated): 12 to 19 stay reserved for certified hotfixes, 20 to 27 are taken. If another lane also claims 28, the orchestrator renumbers at the merge (`migrate.rs`, `SCHEMA_BD_FR.md` section 3.8 and 6, `SCHEMA_ER_FR.md` section 7, the `CLAUDE.md` migrations sentence).
+- **L1F-A8 Worker notes (T1).** (1) `pos_db::queries::users::create_user` keeps its four-argument signature (48 call sites); the flag goes through the new `create_user_flagged`. (2) The FFI `User` and `CreateUserInput` records carry `presence_only` with `#[uniffi(default = false)]`, so the Kotlin constructors keep compiling (the 5-argument positional `CreateUserInput` call sites need no change; T2 passes the flag explicitly where it matters). (3) The six `err_<code>` texts are added to `ui/src/i18n.ts` in T1 because `error_codes.rs` requires a French, English and Chinese text for every code; the Android twins are regenerated by `vue_to_android.mjs --write`. (4) `check_ui_parity.py` only knows commands declared in `ui/src/api/ipc.ts`, so the two typed wrappers `clockInEmployee` and `clockOutEmployee` and the optional `presence_only` of the `User` type were added there (no screen calls them yet: `pending:P5b-settings` in `PARITY.md`, removed by T2). (5) Gradle for `:pos-core` must run with `$HOME/.cargo/bin` first on PATH and `--no-daemon` when another daemon was started with Homebrew's cargo; the worktree's `target/android-rust` must not mix both compilers.
+- **L1F-A9 Worker notes (T2, both UIs).** (1) The presence button and the state line show only to a manager and never on the operator's own row; the block note above the list (`settings_presence_fdm_down`, or the `err_presence_training` text when training is on, training first) is shown to managers only. The presence-only role label is `role_presence` ("Présence seule"), shown instead of "profile · PIN state" on such a row, which has no "Code PIN" button but keeps "Désactiver". (2) The ZH text of `err_presence_self` now says 下班 (the word of the existing `end_shift` string) instead of 结束工作; the other ZH texts follow the table of the plan, with 上班中 and 未上班 (existing `on_shift_since` and `off_shift`) for the state line. (3) The add form sends role `waiter` with `presenceOnly: true` for the fourth choice; on Android `NewRole.Presence` keeps the button id `presence` and carries `engineRole = "waiter"`. (4) The presence calls need the FDM store: `SettingsFeatureEntryPoint.fdm()` is new on Android (the view model reads `FdmStore.state.connected`). (5) The employee list and the open shifts are loaded together and a failure of either keeps the previous panel (both UIs read both again after every presence action, PIN change, creation and deactivation). (6) The four-choice profile control uses an equal four-column grid (Vue) and the existing segmented control (Compose); the Roborazzi goldens `settings_main`, `settings_users`, `settings_hubrise` and `settings_hubrise_connect` were re-recorded because the employees panel is part of each. (7) `ui/e2e/captures.spec.ts` gains the scenario `19a_admin_presence` and an updated `19_admin_users` (no PNG regenerated, see "Captures to retake" in the plan). (8) Both dossiers: §III.E of REPONSES_MANUEL_CERT_FR rewritten with the real functions (`sign_work_event`, `do_clock_in_employee`, `do_clock_out_employee`), `users.social_status` dropped (no such column), the manual, the profiles, the process document, the data flows (new §6 bis), the feature list and the conformity mapping describe the manager registration; the Linux schema documents count twenty migrations (1 to 11, 20 to 28).
+
+### EFT
+
+- **L1F-B1 Classification by brand, at signing time, no migration.** `pos_eft::brand::normalize` maps the meal-voucher spellings to four canonical names and `pos_eft::brand::is_meal_voucher(Option<&str>)` is true for exactly those four (Edenred, Pluxee, Monizze, Payflip), by exact match on the stored value. `eft_payments` keeps its card type (`unknown`) and the normalized brand; `commands/eft.rs::terminal_cards` builds the `TerminalCard` as `PaymentType::ChequeMeal` when the stored brand is a meal-voucher brand. The engine normalizes the brand again when it stores an approval (the drivers already do): the classification is fixed by what is stored, also for the scripted terminal of the tests. No table rebuild (`eft_payments.card_type` has a CHECK and an append-only trigger).
+- **L1F-B2 Spellings (assumption).** Key = lowercase ASCII alphanumerics of the raw value: `edenred`, `ticketrestaurant`, `edenredticketrestaurant`, `edenredmeal`, `edenredmealvoucher`, `edenredrestaurant` give Edenred; `pluxee`, `sodexo`, `sodexopass`, `sodexolunchpass`, `lunchpass`, `sodexomeal`, `sodexomealvoucher`, `sodexocard`, `pluxeemeal`, `pluxeemealvoucher`, `pluxeecard`, `pluxeelunchpass` give Pluxee; `monizze`, `monizzemeal`, `monizzemealvoucher`, `monizzecard` give Monizze; `payflip`, `payflipmeal`, `payflipmealvoucher` give Payflip. Addition by the worker: CCV's own circuit codes `edrd`, `sodx`, `payf` (the `cardCircuitCollection` of the CCV request fixture) give Edenred, Pluxee, Payflip. Eco, gift, sport, culture and consumption variants (and anything else) stay raw and are not meal vouchers; never a prefix match. `receipt::brand_in` (CCV cloud fallback) also recognizes EDENRED, TICKET RESTAURANT, PLUXEE, SODEXO, MONIZZE, PAYFLIP. These spellings are an ASSUMPTION until a trace of a real Belgian terminal is available (same caveat as the OPI driver header); a field trace may extend the list in a certified hotfix.
+- **L1F-B3 The signed line.** `SettledPayment::payment_type` keeps `CardDebit`, `CardCredit` and `ChequeMeal` from a terminal card (anything else is `CardUnknown`). The line is id "3", name "Meal voucher" (the identity of the manual meal voucher), `CHEQUE_MEAL`, `AUTOMATIC`, `provider` the brand, `reference` the terminal reference. The part stays method `Card` in `PaymentPart`, exact amount, never rounded, no change. The reports total by id, name and type, so a manual and an automatic meal voucher make one row (they differ by `inputMethod` only), as the manual and terminal debit cards share id "2".
+- **L1F-B4 Local payment history.** `checkout.rs` stores the order's `payments` row as `meal_voucher` (not `card`) when the settled payment is `CHEQUE_MEAL`.
+- **L1F-B5 Ticket and copies.** The original prints "Chèques-repas Edenred" (method label then brand). `printed_payments` (used by copies) now prints the brand for a `CARD*` line or for any `AUTOMATIC` line with a provider, so a copy matches its original.
+- **L1F-B6 Screens.** `EftPayment` (engine, FFI record, Vue type) gains `meal_voucher: bool`; `card_type` keeps `debit|credit|unknown`. Both checkout screens keep the flag on the taken part and name an approved terminal part by the meal-voucher label ("Part 1 · Chèques-repas · Edenred"); the part is still sent as a card part with its `eft_payment_id`. No new string. The unsettled-card warning of the Z step and the table badge are unchanged.
+- **L1F-B7 Scheme-branded meal cards (open point for the owner).** A meal-voucher card that the terminal reports under a scheme brand (for example "Mastercard", as Payflip may do) is signed as a card: the spec says the terminal returns the card type itself. Also open: eco-cheque cards stay `CARD_UNKNOWN` cards (brand kept raw), which is the conservative reading (never a `CHEQUE_MEAL` for a non-meal voucher); whether a manual override is wanted later is a question for the owner.
+
+### Dossier consistency (T4)
+
+- **L1F-C1 Reserved migrations.** The dossiers say 12 to 19 everywhere (`migrate.rs` is the truth, 11 being the table plan).
+- **L1F-C2 Later invoice update has no version.** DECISIONS section 10 files the Linux build as 1.0.0 with no Linux v1.1, so event I and Peppol are "prevus dans une mise a jour certifiee ulterieure" in every annex (no version, no phase name). The SPF manual's own "V1.1" and FPSFIN "1.10" are untouched.
+- **L1F-C3 Advanced Set coverage.** 58 UC folders (the 59th entry is the changelog); the 141 fixtures figure was re-run and is right. The stale workspace total (190) is dropped in favour of `RAPPORT_TESTS_BASELINE_FR.md`. `ModifierDialog.vue` is declared shipped for HubRise options; price changes at entry stay deferred.
+- **L1F-C4 CLAUDE.md tree.** Lists the real `ui/src` files and every crate. Fonts are not in `public/`: they come from the `@fontsource` npm packages (Archivo, JetBrains Mono, Noto Sans) imported in `main.ts`.
+
+### Full gate (T5)
+
+- **L1F-G1 Webshop terminal charge without UI arithmetic.** The p5 `ui-money` check failed on the base (`WebshopOrdersStore.chargeWhatIsLeft`: `sumOf` on `amountCents` and a subtraction on `totalCents`, from the card-terminal work, not from this lane). The rest to charge is now the cash row of `EngineHelpers.settlePreview` over the approved card payments plus a cash part without amount (same rule as the checkout view model). The test rigs build the store with the engine-like `CheckoutNatives`.
+- **L1F-G2 Expected gate failures.** `hygiene-paths`, `linux-frozen` and `freeze-tag` of p5/p6 (and `app-only-scope` of p5) fail because this lane edits `frozen` paths on purpose (user-authorized v1 fixes). The orchestrator clears them at the rc3 freeze. No gate script was changed.
+
+## Lane 2-v1-features (2026-10-17)
+
+Lane `android/lane-v1-features` (from `android/int` at `b3248d2d`): table transfer (M122), payment correction (M132), discount at the till, kitchen notes. Plan: `docs/android/phases/LANE_V1_FEATURES.md`. Planner decisions V1F-D1 to V1F-D24; the workers continue at V1F-D25, in this section only.
+
+- **V1F-D1, task order.** Riskiest fiscal work first: T1 table transfer, T2 payment correction, T3 till discount engine, T4 till discount UIs, T5 kitchen notes, T6 full gate. Each task ships engine, Tauri, FFI, both UIs (except T3), tests and dossier for its item.
+- **V1F-D2, transfer target.** A table with an open dine-in order that has at least one line (since V1F-D68: or a signed event, or a payment) is refused (`table_transfer_target_busy`); merging is UC250/251, out of scope. An open order without any line on the target is voided in the transfer's commit. The target must be in the current table plan.
+- **V1F-D3, unsent entries before a transfer.** The entries not yet registered are signed first as a P ORDER on the old table, then the COST_CENTER_CHANGE, under one signing guard, as the pre-bill already does. The transfer moves the consolidated order the FDM knows.
+- **V1F-D4, transfer medium.** `ticketMedium: NONE`, as the M122 fixture: the event is not printed.
+- **V1F-D5, discounted order moved.** The transfer lines carry the lines' price changes with the same id, scope, type and groupingId, negated on the from side (FAQ Q304 d: "En cas de costCenterChange, le groupingId reste inchangé").
+- **V1F-D6, transfer notice.** A non-fiscal notice "Table X -> Table Y" prints on the bar / kitchen printer (same layout rules as the bar slip: no amount, invalidity mention). It follows the existing bar slip practice (slip after a P whose medium is NONE). A print failure never undoes the event.
+- **V1F-D7, payment correction and the card terminal.** A card line the linked terminal approved (AUTOMATIC) is never corrected (reversal is not supported, EFT-D1). The new line of a correction is always MANUAL; a card typed by hand is CARD_DEBIT (id "2"), as in a sale. M132's CARD_CREDIT AUTOMATIC target is a listed deviation of the replay.
+- **V1F-D8, which sales can be corrected.** An N (a T in training only) of the current booking period, not a refund, not closed unpaid, not an online order, not refunded since, at most one correction per sale (checked from the archive under the signing lock, no new table). UC4118 (a week later, customer credit) stays out of scope.
+- **V1F-D9, corrections in the reports.** Each line of a PAYMENT_CORRECTION adds to `negativeCorrections` or `positiveCorrections` of its method and amount type, counts 1 in `correctionsCount`, and `totalAmount = normal + negative + positive`. In the user report the correction belongs to the employee who signed the F. The signed report shape is unchanged; the Reports fixtures (no correction) stay as they are.
+- **V1F-D10, rounding and drawer in a correction.** Refused when the corrected line is cash and the sale has a ROUNDING line, or when the new method is cash and the amount is not a multiple of 5 cents; a correction never writes a ROUNDING line, prints nothing (medium NONE) and does not open the drawer.
+- **V1F-D11, who corrects.** A manager, confirmed by their PIN (`access::confirmed_operator`, as a sale closed unpaid): moving a cash sale to card is a known skimming pattern.
+- **V1F-D12, discount on a line already registered.** A correction entry `-q` (negQuantityReason PRICE_CHANGE) and a re-entry `+q` carrying the change are journalled (spec v2.2 PRICE_CHANGE definition, UC225A step 2, UC225B step 2). When the table was already registered, a P ORDER is signed right away (FAQ Q303 d: counted on the signOrder). A line with a single unsent entry gets the change directly on that entry (UC223, UC229B shape). Removal uses the same pair in reverse; recorded changes are never deleted.
+- **V1F-D13, scope and identity of a till discount.** Order discount: scope EVENT, type PUBLIC, spread over the lines with `pos_core::money::distribute` (UC223). Free line: scope LINE (UC229B). Ids `TILL-DISCOUNT`, `TILL-FREE`, `TILL-FREE-LINE`; names in the establishment's receipt language ("Remise 10 %", "Offert"); groupingId = previous highest + 1 (FAQ Q304 b). UC225 uses LINE for a one-line ticket discount: listed deviation.
+- **V1F-D14, discount reason.** Required, from four codes (commercial gesture, staff meal, service issue, other) plus optional text, stored in the append-only `till_discounts` table. Never in the signed payload; the customer-visible `name` is the label.
+- **V1F-D15, feature gate of the discount code.** `#[cfg(feature = "hubrise")]`, the feature of the price change store (migration 23); every shipped build (Linux cert, Android cert, default) has it.
+- **V1F-D16, kitchen notes.** Never in fiscal data (FAQ Q210 b): not in any FDM message, not in the product name, not on the VAT ticket, pre-bill, copy or export. At most 60 printable CP858 characters. A note changed after its line went to the kitchen prints a non-fiscal note slip (no quantity, no amount) at once; a note set before prints with the item on the next bar slip.
+- **V1F-D17, UC229B fixture VAT label.** The fixture labels the free Coca Cola B, its scenario and the manual's catalogue say A. The till uses the catalogue (A); the replay lists the label as a deviation with this reason.
+- **V1F-D18, discount and other rules.** A line with a change takes no quantity change (existing rule), is refunded only with the whole order (existing rule), and the till adds the same product again as a new line. A discount may not bring the total under approved unused terminal card payments.
+- **V1F-D19, COST_CENTER_CHANGE in the reports.** Counted once under label P (T in training) in `transactions` with amount Σ of the transfer lines (0 for a full move); its from-side lines count under negQuantityReason COST_CENTER_CHANGE. Conservative reading: the event carries transaction objects inside `transfer`.
+- **V1F-D20, pre-bill after a discount.** The pre-bill transaction and printout carry the consolidated line changes (today the pre-bill ignores price changes, which only online orders had).
+- **V1F-D21, migration numbers.** 30 (till discounts: `order_entries.till_op`, `till_discounts`) and 31 (kitchen notes on `order_lines`), in `schema_till.rs`, list `TILL_MIGRATIONS`, not feature-gated. 28 and 29 are left free for the parallel lanes; 12 to 19 stay reserved for certified hotfixes. The orchestrator checks the three lanes' numbers at merge.
+- **V1F-D22, expected gate failures.** The lane changes Linux paths frozen at `linux-v1.0.0-rc2`, so `linux-frozen` (p2) and `freeze-tag` (p4) FAIL by design until the rc3 freeze; every other check must pass.
+- **V1F-D23, UC evidence.** The lane does not run `scripts/capture_uc_evidence.sh` (it rewrites every UC's evidence and would conflict with the parallel lanes); the orchestrator regenerates and embeds the evidence after the merge. The lane updates the dossier text (status, counts, test names).
+- **V1F-D24, screen captures.** No emulator in this lane: the screens to retake are listed in the plan, section 11; Roborazzi goldens and Playwright specs are in scope and re-recorded only where a change shows.
+- **V1F-D25, table transfer scope.** T1 moves an open dine-in order with at least one line to a FREE table of the plan. Merging two tables (UC250/251) is refused with `TABLE_TRANSFER_TARGET_BUSY`; a target holding only an empty open order does not count as busy and that order is voided with the move. Takeaway, online and HubRise orders are refused (`TABLE_TRANSFER_NOT_A_TABLE`). Errors: same table, busy target, invalid target (not 1..=999 or not in the plan), not a table.
+- **V1F-D26, unsent entries go first.** `do_transfer_table` registers the unsent entries as an order on the old table (same call as leaving the order), then signs the move, under one signing lock. A refusal of the order registration stops the move; the register slip is printed after the lock is dropped.
+- **V1F-D27, effect inside the archive transaction.** The table change (`UPDATE orders SET table_number`) and the voiding of an empty order on the target are the `PendingContext::TableTransfer` side effect, so a late FDM answer (retry, background tick) has the same effect as a prompt one. The operation subject is `<order>><target>`.
+- **V1F-D28, the move prints a notice, not a bill.** A "TRANSFERT DE TABLE" slip on the bar printer: date, operator, "Table X -> Table Y", no amount and no order reference, with the disclaimer (V1F-D63). A failed print never undoes the signing; both slip outcomes go back to the screen.
+- **V1F-D29, who may move.** Any signed-in staff (waiters included), as for a sale; no manager PIN, since no money moves. The move is logged by the fiscal event itself (operator INSZ in the event).
+- **V1F-D30, UI shape.** Two entry points on both UIs: a "Changer de table" button in the cart (free-table picker, then Validate) and a "Deplacer une table" mode on the Tables screen (occupied table, free table, confirm). The screens only list free tables from `list_tables`; the engine re-checks everything.
+- **V1F-D31, refusal order and codes.** `sale_refusal` checks, in this order: not a sale (operation other than SALE, a `fdmRef`, or a negative total), training mismatch, closed booking period, unpaid, online (APP / ONLINE line or `hubrise_order_id`), refunded (an N whose `fdmRef` is the sale), already done (an F or T whose `fdmRef` is the sale). `do_list_sale_payments` returns the first refusal as an error code and `correctable: false`; `do_correct_payment` returns the same code as a failed `FinancialResult`. Twelve codes `payment_correction_*` are in `errors.rs`, with fr, en and zh texts.
+- **V1F-D32, line checks of the correction.** After the PIN and the sale rules, `do_correct_payment` refuses an unknown line (`bad_line`), a card line the terminal took (`terminal_card`, AUTOMATIC input), the same method (`same_method`), a method the till does not take, and a correction that needs rounding (a cash line of a sale with a ROUNDING line, or a cash target whose amount is not a multiple of 5 cents). A ROUNDING line is never picked and never written.
+- **V1F-D33, who sees the action.** Managers only, on a sale row of the Tickets tab (a positive N or T ticket, or a refundable sale). The marks of sales already corrected are read once per list load, best effort (a failed read shows no mark; the engine still refuses a second correction). On the card the amount is shown through the Vue `formatPrice` (no euro sign: the string adds it).
+- **V1F-D34, the M132 replay.** `m132_payment_correction` compares the request built by the engine with the fixture; the single listed deviation is the type of the new card line (`CARD_DEBIT` against the fixture `CARD_CREDIT`), because without a linked terminal a card typed by hand is always `CARD_DEBIT` (REPONSES §III.F).
+- **V1F-D35, printed reports.** A Z or X with corrections adds one line "Corrections de paiement" (count and sum of the positive lines) through `ReportDetails.payment_corrections` (fr, nl, de; the line is omitted when the count is 0, so no existing printout changes).
+- **V1F-D36, signing kind of the discount.** `Kind::Discount` ("discount") only guards the command, so `begin()` resolves pending requests first. The immediate P that registers the change on a table is signed under `Kind::TableOrder` (`sign_table_order_locked`, same lock), in the manager's name. The Kind chosen for the immediate P is therefore TableOrder.
+- **V1F-D37, a failed immediate P.** The discount stays recorded (journal entries and `till_discounts` row) and `DiscountResult.registration_error` carries the code, instead of an Err; the next P of the table carries the changes anyway.
+- **V1F-D38, audit of removals.** A removal writes a `till_discounts` row with `action = 'remove'`, `kind` NULL and reason_code "removal"; the table stays append-only (triggers refuse update and delete).
+- **V1F-D39, names.** The English name set exists in the helper (`till_change_name`), but the receipt language is never English; fr, nl and de are the printed ones.
+- **V1F-D40, error codes.** Six new codes: `DISCOUNT_ALREADY_APPLIED`, `DISCOUNT_NONE`, `DISCOUNT_INVALID`, `DISCOUNT_REASON_INVALID`, `DISCOUNT_ONLINE_ORDER`, `LINE_HAS_PRICE_CHANGES` (the last one maps the existing quantity-change refusal of `order.rs`). Texts in fr, en and zh in `ui/src/i18n.ts`, mirrored to Android by `vue_to_android.mjs`.
+- **V1F-D41, refund of a discounted sale.** A discounted line stays refused line by line (V1F-D18), but a request that covers the whole sale (nothing refunded before, every bucket fully requested) is accepted and refunds the net amount.
+- **V1F-D42, CartLine shape.** `CartLine` gains `discount_cents` and `price_changes` (`{id, name, scope, amount_cents}`); the Tauri/Vue form is snake_case, the FFI record is camelCase with `serde(default)`. The pre-bill and the cart show net amounts.
+- **V1F-D43, reports.** Reductions are split by scope and counted per ticket: LINE (free lines, line discounts) and EVENT (order discounts), from the registered events; the signed report payload is unchanged. Negative lines of `till_op` entries carry negQuantityReason PRICE_CHANGE in the N and the P.
+- **V1F-D44, HubRise echo.** The echo of a till sale carries `discounts: [{name, price_off}]` built from the recorded order-scope changes.
+- **V1F-D45, one generic text keypad on Vue.** `TextKeypad.vue` holds the on-screen keyboard (keys, symbols, optional confirm step); `EmailKeypad.vue` only wraps it with the e-mail rules and quick keys, with the same class names and test ids. The discount reason text uses it (max 120 characters). Android uses the system keyboard in a plain text field for the same input.
+- **V1F-D46, net amounts without arithmetic on Android.** `ui-money` forbids cent arithmetic in `ui/` and `feature/`. `CartAmounts.vatLines()` adds an extra negative `VatLine(vatCode, discountCents, 1L)` per discounted line so `vatSplit` yields net totals; the two display-only helpers `totalAfterDiscountCents` and `subtotalBeforeDiscountCents` live in `CashDisplay.kt` on lines marked `// money-display-only`. Vue does the same sums in `utils/cartAmounts.ts`.
+- **V1F-D47, who sees the buttons.** "Remise" and "Offrir" appear for managers only, on an open order with at least one line, and not on an online order; "Retirer la remise" appears only when a discount exists. The PIN is asked after the dialog, never before. A discounted line is never merged with a new unit of the same item (`addItem` skips lines with price changes).
+- **V1F-D48, one discount at a time.** The dialog applies to the whole order or to one line, and the engine refuses a second one (`DISCOUNT_ALREADY_APPLIED`). The preview shows the total before and after, computed from the net base, and the confirm button stays disabled until value and reason are valid (percent 1 to 99, amount up to the total).
+- **V1F-D49, registration warning.** When the immediate P fails (`registrationError`), the discount stays and both UIs show a warning toast (`discount_registration_failed`) next to the success one; Android exposes it as the `discountWarnings` flow of `OrderStore`.
+- **V1F-D50, cart row layout on Android.** A line with changes renders its price-change rows under the line inside the same item; the inner row keeps the 64 dp minimum height of a plain line, so the existing goldens did not move. The checkout shows "Sous-total" and "Remise" rows before the total when a discount exists.
+- **V1F-D51, where the note lives.** Migration 31 adds `order_lines.kitchen_note` (the text) and `order_lines.kitchen_note_printed` (the text last printed on a slip, NULL if never or if a removal was printed). `OrderLine` (the fiscal input struct) and `order_entries` (the journal) carry no note; only `CartLine` does (`kitchen_note`, snake_case on the Tauri side, `kitchenNote` in the FFI record with `serde(default)`). Plain editable columns: the note is not fiscal data, so there is no append-only trigger.
+- **V1F-D52, validation and refusals.** `do_set_line_note` trims; an empty text clears; more than 60 characters is `note_too_long`; a control character (tab and line break included) or a character CP858 cannot print is `note_unprintable` (`pos_print::escpos::is_cp858_printable`, which accepts what `printable` maps to ASCII: `oe`, typographic quotes). A line that is not on an open till order, or an online order (HubRise), answers `order_not_open` (no new code: the plan names two codes only); an order waiting for the FDM answers `order_sign_pending`, like every other order change. The note is validated before anything is read.
+- **V1F-D53, when the note slip prints.** Only when the line has sent quantity (the sum of its journal entries already transmitted in a P or N is above zero), the product goes to the kitchen (`kitchen_printer`), and the new note differs from `kitchen_note_printed`. A note set before sending is stored and rides on the line's item of the next slip. `Printed` sets `kitchen_note_printed`; `Failed` and `NoPrinter` are returned and leave it stale, so confirming the same note again retries (a removal that was printed resets it to NULL).
+- **V1F-D54, the bar slip.** `BarItem.note` prints under the item, indented ("   > sans wasabi", wrapped lines aligned). Only positive entries carry the note (a correction prints "-1 x Sake" alone). After a slip is `Printed`, the `kitchen_note_printed` of every line the slip carried is set to its current note (also NULL), so a note cleared before the slip does not stay "unprinted". Entries map to lines through `order_entries.line_id`; PRICE_CHANGE entries stay skipped.
+- **V1F-D55, languages of the note slip.** The slip labels follow `ReceiptLanguage` (fr, nl, de, as every printed document of the till; there is no English receipt language, so the plan's "en" has no print form). Title MODIFICATION, WIJZIGING, AENDERUNG; the testkit recognises the three titles as bar slips.
+- **V1F-D56, UI shape.** A "Note" button sits in the main row of every cart line (between the amount and the delete control), filled when the line has a note; the note shows under the name in italics. Vue types it on the shared `TextKeypad.vue` (new `hint` and `showCounter` props, accents on the symbol row, 60 characters); Android uses the system keyboard in a one-line field (`NoteDialog.kt`, control characters dropped, 60 characters). Both say "Imprimée en cuisine maintenant" when part of the line already went to the kitchen, else "Imprimée en cuisine avec la commande". A note slip that did not print raises the same warning as a failed order slip.
+- **V1F-D57, one line per note.** `addItem` (Vue `stores/order.ts`, Android `OrderStore.addItemLocked`) opens a new line for a product when the existing line has a note, as for options and price changes, so "1 with, 1 without" are two lines. The engine adds lines one by one and refuses nothing here.
+- **V1F-D58, gate result of the lane.** `hygiene-paths` (p2, also inside p4/p6) is red next to `linux-frozen` and `freeze-tag`, for the same reason as V1F-D22: it accepts only android/, scripts/android/ and docs/android/ while the lane changes 86 Linux paths (engine, fiscal, db, print, tauri, Vue, `docs/SUBMISSION_ARTIFACTS`, `CLAUDE.md`). The orchestrator's rc3 freeze clears all three. `p5_gate.sh` also reports `app-only-scope` (app-only gate) and `ui-money` on `WebshopOrdersStore.kt` lines 239 and 240, a base defect untouched by the lane (EFT card payments of online orders); it is left for the orchestrator (F6) because it needs a decision on an engine helper or a `money-display-only` exemption.
+
+- **V1F-D59, review fixes (round 1).** The scope file no longer excludes UC225A, UC225B, UC229B and FAQ Q212 (they are replayed by `uc225a_discount_after_registration`, `uc229b_free_line_at_the_till` and `m122_cost_center_change`, which carry `// covers:` markers; the uc_matrix check only flags MANQUANT, so stale exclusions must be removed by hand). The reasons of UC220, UC221A, UC221B, UC224 and UC226 say what is really not replayed. `COUVERTURE_ADVANCED_SET_FR.md` (both dossiers) lists the till path of UC223, UC225A/B step 2 and UC229B with their listed deviations; UC4118 and UC4101 stay out. The M132 text names the two differences the comparator does not see (inputMethod MANUAL against AUTOMATIC, no drawer on the cash line). A lost FDM answer on a correction leaves the request pending (retry or background tick archives it). `payment_correction.rs` now finds refunds and corrections by the FDM `eventOperation` (SALE, PAYMENT_CORRECTION) from `fdm_response_json`, not by the event label, because a training event is always labelled T.
+- **V1F-D60, late transfer onto a table that was taken (review round 2).** The signed COST_CENTER_CHANGE is the fiscal truth and stays archived. If its answer arrives late (retry or background tick) and an open dine-in order WITH lines now sits on the target, the commit does not move the order (no merge: UC250/251 are out of scope and the spec says nothing about a merge on a late answer) and does not void anything: the order stays on its source table, the taken table keeps its order, and never two open orders share a table. The retry of the same request returns `table_transfer_not_moved` (fr, en, zh strings on both UIs, "the transfer is recorded, pick another table"); no "TRANSFERT DE TABLE" slip is printed. A later sale carries the journal under the order's real table. Tested with LossyFdm (retry and background tick).
+- **V1F-D61, training refunds (review round 2).** Already covered by the D59 change: `referencing()` in `payment_correction.rs` matches the original sale by its `fdmRef` and tells refunds (FDM `eventOperation` SALE) from corrections (PAYMENT_CORRECTION) by the FDM answer, never by the label, so a refunded training sale is refused (`payment_correction_refunded`) and a corrected one is found by `existing_correction`. Test: `training_events_are_told_apart_by_their_fdm_operation`.
+- **V1F-D62, sale at 0,00 EUR (FAQ Q206).** The FAQ (b) allows two forms for the payment of a sale settled at 0,00 EUR: one line `name: "PAY 0"`, `type: "CASH"`, `amount: 0`, or an empty `financials` array. The engine now sends the EMPTY ARRAY (`financial_lines` in `pos-fiscal/src/event.rs`, when every payment is 0 and there is no rounding), instead of a `Cash` line of 0: a `PAY 0` row would appear as its own payment row in the X and Z reports (the totals group by id, name and type) although no money moved, and the empty array leaves the reports untouched. The N event, its VAT ticket (Q206 a, Q209) and the no-drawer rule are unchanged. Tests: `a_sale_settled_at_zero_sends_empty_financials_faq_q206` (pos-fiscal), `offert_is_signed_at_zero_and_printed`, `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket`. The same applies to the online close path (`do_close_cancelled_webshop_order`, sell with no payment parts): the N at 0,00 EUR that closes a cancelled P carries an empty `financials` array, pinned by `cancelled_after_the_p_is_closed_by_corrections_and_an_n_at_zero` and described that way in the COMMANDES_EN_LIGNE dossier annex.
+- **V1F-D63, transfer slip.** The "TRANSFERT DE TABLE" slip carries date, operator, "Table X -> Table Y" and the disclaimer; no order reference and no amount. V1F-D28 is aligned to the slip (the slip is the implementation, `format_transfer_slip`).
+- **V1F-D64, no discount action on an online order.** `CartLine.online` (from `orders.hubrise_order_id`, one `EXISTS` subquery in `get_cart_lines`; FFI record field with `uniffi(default = false)`) lets both UIs hide the discount, "Offrir" and "Retirer la remise" actions on an online order, as the engine already refuses them (`discount_online_order`). Vue `CartSidebar.vue` `canDiscount` and Compose `MenuViewModel.build` read it; no new IPC command. Tests: pos-db `cart_lines_say_whether_the_order_is_online`, Playwright "is absent on an online order, whatever the role", Kotlin `anOnlineOrderGetsNoDiscountActionEvenForAManager`.
+- **V1F-D65, corrections marks in the Tickets tab (known limit).** `ReportsView.vue` and `ReportsViewModel` call `list_sale_payments` once per sale row (managers only, best effort, after the rows are shown). A single batched query would need a new engine command, which this lane does not add. Measured on the host (release build, 200 sales in the archive): about 0,9 ms per call, 20 calls 19 ms, 100 calls 93 ms, 200 calls 162 ms; the call scans the archive twice (refund and correction look-ups). On the Sunmi D3 Pro (about 5 to 10 times slower) a full day of 200 sales is therefore about 1 to 1,5 s, spent in the background after the tickets are displayed. Accepted for v1.0.0; a `list_corrected_sales` batch command is the follow-up if a day ever holds thousands of sales.
+
+- **V1F-D66, Tauri wrapper tests without the testkit.** `src-tauri/tests/ipc_wrappers.rs` opens a real `Engine` (development defaults, empty database, the manager logged in through the engine state) and calls the six wrappers through `tauri::test::mock_builder` with the JSON `ui/src/api/ipc.ts` builds. A dev-dependency on `pos-engine-testkit` would add an edge to `Cargo.lock` (gate `hygiene-root-lock`), so the test seeds the few rows it needs with SQL; the only manifest change is `tauri = { features = ["test"] }` in `[dev-dependencies]` of `src-tauri/Cargo.toml` (a feature of a locked crate, the lock does not change). The mock request carries the app's own origin `tauri://localhost`: a remote URL is refused by the ACL ("Plugin not found").
+- **V1F-D67, pending lines can be offered.** The pending block of `CartSidebar.vue` passed `can-offer` and `can-remove-discount` without `@offer` and `@remove-discount`, so the buttons shown on a dine-in line not yet sent did nothing. Both listeners are wired like the sent block; the engine already accepts a discount on an unsent line (direct attach, V1F-D12). The Android cart was not affected.
+- **V1F-D68, busy target after review (integration).** The check before signing counted a target order as busy only when it had a line row, and the archive transaction only when it had a line with quantity above zero: an open dine-in order on the target with no line left but with a signed event (a line registered, then removed) or a payment was busy for neither, was not voided either (`void_if_empty` keeps it), so the move put two open orders on one table. Both places now call `pos_db::queries::orders::table_taken`: once the empty ghosts are set aside, any remaining open dine-in till order on the target (other than the moved one) makes it busy, whatever its lines, events or payments. "Empty ghost" is one SQL condition shared with `void_if_empty` (`NEVER_HELD_ANYTHING`: no line, no fiscal event, no payment, no terminal payment), and the archive transaction voids exactly those (`void_empty_on_table`) after the busy check. Tests: `a_target_whose_order_has_no_line_but_a_signed_event_is_busy`, `a_target_whose_order_has_no_line_but_a_payment_is_busy`, `a_late_answer_keeps_the_order_put_when_the_target_holds_an_order_without_lines` (`crates/pos-engine/tests/table_transfer.rs`) and `a_table_is_taken_by_any_order_that_void_if_empty_keeps` (`pos-db`).
+- **V1F-D69, training refund and the correction (integration).** The review asked for a test that runs the real refund in training mode, then the correction. `do_refund_checkout` never signs a training refund: a training sale (label T) is `not_refundable`, and any refund while training mode is on is `refund_in_training`, before anything is created or signed. So no T refund reaches the archive through the till; the T refund that V1F-D61 detects by its FDM operation can only come from an archive written otherwise (the D61 test writes it by hand). The new test `a_refund_run_in_training_signs_nothing_and_the_correction_is_refused` (`crates/pos-engine/tests/payment_correction.rs`) runs the real command in training on a training sale and on a real sale: nothing is signed, the correction of the real sale is refused in training (`payment_correction_training`), and the training sale, never refunded, stays correctable.
+- **V1F-D70, UC matrix and the device run (integration).** `docs/android/UC_MATRIX_ANDROID.md` said "Couvert (tests moteur exécutés sur l'appareil)" for ids whose only tests were written after the last device run (2026-10-10, commit `778e9968`). The generator (`scripts/android/uc_matrix_android.py`) now reads the date and commit of `docs/android/uc/device_engine_tests.md` and the fn names the device crates held at that commit (`git grep`): an id keeps that status only when at least one of its tests existed then; an id whose tests all came later is "Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire)" (M122, M132, UC225A, UC225B, UC229B, FAQ_Q212 today), and the later tests of a covered id are listed apart ("sur l'hôte seulement", VI_BAR and FAQ_Q206). No record means no run: every engine-covered id is host-only. The next device run only has to update the record. Tests: `scripts/android/test_uc_matrix_android.py` (device run cases).
+
+## Lane 5-nfc (2026-10-17)
+
+Staff badges (NFC or USB reader) for the certified v1.0.0, Linux and Android. Plan: `docs/android/phases/LANE_NFC.md`. The lane edits frozen paths on purpose (user-authorized for v1.0.0).
+
+### Engine, database, shell and FFI (T1)
+
+- **L5-S1 Spec reading.** Neither the POS spec, the certification manual, the AM nor the producers' FAQ regulates HOW a user is identified to the POS; what is regulated is the result: every event carries the NISS of a user known to the POS (`employeeId` for S, the operator for the rest), the NISS is never printed, and presence registration is possible for staff who do not use the POS. A badge linked by a manager to an employee record that holds the NISS is an internal identification of that user (§6.4) and a "registration routine" (§1.9). The S event built from a badge scan is byte for byte the event of M140/M141 for that employee. Conservative reading kept: a badge never replaces the NISS anywhere, a badge scan never signs anything without the FDM (no buffering), and a badge never grants manager rights alone (L5-D6).
+- **L5-D1 One setting, three values, off by default.** `badge_settings.reader` in `off | nfc | usb` (default `off`), `login_enabled` (default off), the USB wedge timing `wedge_max_gap_ms` (default 50, 10 to 200), `wedge_min_len` (default 6, 4 to 32), `wedge_max_len` (default 32, 4 to 64, never below the minimum). Stored in the database (migration 70), changed by a manager only, every change logged (`badge_log`, action `settings`, the new values as JSON). No `pos.json` key: the hardware is chosen at the till. The engine does not know the hardware: it accepts `nfc`; the Android UI offers "NFC intégré" only when `FEATURE_NFC` is present, the Vue UI never offers it. This is the flag for hardware without native NFC that the user asked for.
+- **L5-D2 Badge identifier.** The UI sends the raw reader output as `token`. The engine normalizes it (`pos_core::badge::normalize_token`): trim, ASCII uppercase, 4 to 64 characters of `[0-9A-F]`, else `badge_token_invalid` (nothing logged). No source prefix: a wedge reader that types the UID in hex, same byte order, matches an NFC enrolment. An installation uses one reader kind; changing it may require re-enrolment.
+- **L5-D3 Only a keyed hash is stored.** `badge_hash = hex(HMAC-SHA256(key, "pili-badge/1\n" || token))` (64 lowercase hex), with `hmac 0.12` and `sha2 0.10` (already in both lock files; `pos-engine` now lists `hmac`, `sha2`, `hex` and `getrandom` directly, which changes the `pos-engine` entry of both `Cargo.lock` files and nothing else). The key is 32 random bytes in `<data_dir>/badge.key`, created once on first need, mode 0600, written beside its name then linked into place, never replaced, never in `pos.db` (so not in the backups) nor in the nightly export (pattern copied from `pos_export::pseudonym`, `pos-export` untouched). The raw token reaches neither the database, the logs nor an event: logs and `badge_scans` carry `badge_ref`, the first 12 hex characters of the hash.
+- **L5-D4 Lost key.** `badge_settings.key_check` is the first 16 hex characters of `HMAC(key, "pili-badge-check/1")`, stored with the first link. At engine open, and again before every scan or link (a key file removed while the engine runs is noticed the same way), when a check is stored and the key file is missing or gives another check: every active badge is revoked with reason `key_changed` (one `badge_log` row each, no actor), a key is created if needed and the new check stored, in one transaction. A key file that exists but cannot be read or has the wrong size is NOT a lost key: badge commands answer `badge_key_unavailable`, nothing is revoked, the file is left alone. `relink_needed` is true from a `key_changed` revocation until the next link.
+- **L5-D5 Enrolment rules.** Managers only. Any active user may get a badge, presence-only users included (the main use case), never the system identity. One active badge per employee and one employee per active badge (two partial unique indexes). Linking requires the manager's own PIN (`access::confirmed_operator`), checked after the cheap refusals (order in the plan, 4.3) and followed by a second look under the database lock before the write. Revocation needs no PIN and works with the reader off. Re-issue is revoke then link. Deactivating an employee revokes their active badge in the same transaction (reason `deactivated`, by the manager). Linking is refused while the reader is off. `link_badge` takes the PIN as an `Option` (as `set_pin`): a missing PIN is `pin_required`.
+- **L5-D6 Manager rights always need the PIN.** A badge alone never opens a manager session: on the login screen a manager's badge answers `pin_required` and the UI opens the PIN pad for them; the session comes from `login(insz, pin)` with its throttle. Cashiers and waiters log in with the badge alone when `login_enabled` is on. Rejected alternative: a badge-opened manager session with cashier rights until the PIN (needs a second session state checked by every `Access::Admin` command and by the Android platform code that reads the role directly).
+- **L5-D7 What a scan does.** After the reader, token, key and repeat checks: unknown badge `badge_unknown`, removed badge `badge_revoked` (both journaled); a session is open: presence toggle of the badge's employee, the operator's own badge `presence_self`; no session and `end_shift`: clock-out only (`presence_not_in` when not on shift), no session; no session, `login_enabled` and the employee not presence-only: a manager gets `pin_required`, anyone else is logged in by `auth::open_login_session` (the PIN login minus the PIN check: session opened, clock-in queued for the presence worker); otherwise the presence toggles. A toggle signs WorkOut when the local index says on shift, WorkIn when not, through `social::sign_work_event(.., None)`: the S event is the employee's (`employeeId`, `fiscal_events.user_insz`), `started_by` / `ended_by` stay NULL (self-registered). A `Err(code)` of the signing path itself (for example `previous_day_open`) is a coded refusal journaled as `refused`.
+- **L5-D8 FDM down.** As L1F-A5: the scan signs; an FDM that is unreachable or refuses gives the outcome `presence_failed` with the FDM text, nothing archived, the index unchanged. A badge login works without the FDM exactly like a PIN login.
+- **L5-D9 Training mode.** A presence toggle is refused with `presence_training` (a T event registers no presence, so a toggle would show "Arrivée" every time). Refinement by the worker: the end-of-shift clock-out on the login screen is refused the same way, for the same reason and before `presence_not_in`; the PIN "Fin de service" remains available. A badge login is allowed (the presence worker sends the T WorkIn, which opens no shift). Enrolment and revocation are allowed (no fiscal event).
+- **L5-D10 Repeats.** A scan of the same badge hash is ignored (`Ignored`, nothing logged, nothing signed) while its previous scan is being handled and for `EngineTimers.badge_repeat` (default 10 s) after it finished, whatever its outcome (refusals included). The window runs from the END of the previous scan (a guard marks it finished on every exit path), so a slow FDM answer followed by a second tap can never clock in and then out. In memory (`AppState.badge_repeats`); different badges never debounce each other. The FFI timers record is unchanged: the FFI uses the default.
+- **L5-D11 Not user activity.** A badge scan does not restart the idle timer of the logged-in operator; only a badge login does (it opens a session). `SessionRules::last_activity` became public so the test can observe it.
+- **L5-D12, L5-D13, L5-D14** (USB wedge detection, Android NFC source, feedback) are UI decisions, implemented by T2 and T3.
+- **L5-D15 Migration 70** (`staff-badges`), in the base `MIGRATIONS` list (not feature-gated): the tables exist on every installation and are written only when the setting is on. If another lane takes 70, the orchestrator renumbers at the merge (`migrate.rs`, `SCHEMA_BD_FR.md` §6, `SCHEMA_ER_FR.md` §7, the `CLAUDE.md` migrations sentence, the base-migrations test).
+- **L5-D16 Expected gate failures.** As L1F-G2: `hygiene-paths`, `linux-frozen`, `freeze-tag` (p5, p6) and `app-only-scope` (p5) fail because the lane edits frozen paths on purpose; nothing else may fail.
+- **L5-W1 Outcome shape.** `BadgeOutcome` is flat (`kind`, `insz`, `name`, `at`, `error`, `user`), camelCase; the kind is `ignored | clock_in | clock_out | presence_failed | logged_in | pin_required`. Refusals are `Err(code)`. The overview types (`ActiveBadge`, `LogEntry`) are the `pos-db` types, serialized camelCase, so the Tauri shell and the FFI share one shape.
+- **L5-W2 Non-goals** (recorded, not built): PC/SC readers on Linux, reading anything but the UID, several badges per employee, visitor badges and expiry dates, a badge-only manager session, switching the cashier from a screen other than the login screen, a screen listing every scan.
+- **L5-W3 (T2, Vue) Wedge detector details.** The detector keeps the replay text apart from the token: the token is built from the physical keys (`Digit`, `Numpad`, `KeyA..KeyF`), the replay text is `KeyboardEvent.key` (what the layout typed, an AZERTY `&` stays `&` when it was typing). Ctrl, Alt or Meta held with a key make it a shortcut (flush, pass), Shift is neutral, a key repeat is swallowed while a burst is held and ignored otherwise. After an over-long burst is replayed (flush at `max_len + 1`) the rest of that burst, while it keeps the pace, passes through as typing, so the tail of a 40 character burst is never mistaken for a short badge; the Android detector must do the same. The gap timer is the setting itself (`wedge_max_gap_ms`), restarted by each held key. Keys replayed after a flush count as user activity (they were swallowed before the activity listener); a recognised badge does not.
+- **L5-W4 (T2, Vue) Replay target.** Held characters are inserted with `setRangeText` at the caret of the element that had the focus when the burst started, then an `input` event; `maxlength` is honoured; an input type without selection (number, email) gets the text appended; nothing focused or a read-only field: dropped.
+- **L5-W5 (T2, Vue) Enrolment timeout string.** The 30 second capture timeout ends the dialog with a warning toast, `badge_capture_timeout` ("Aucun badge présenté", added to the plan's table in `i18n.ts`, so Android gets it from the generator). A refusal about the badge after the manager's PIN (`badge_in_use`, `badge_already_linked`, `system_user`, `user_unknown`...) closes the dialog with the error toast, only a `pin_*` refusal keeps the PIN pad for another try.
+- **L5-W6 (T2, Vue) Settings apply rules.** The reader choice and the badge login switch apply at the tap (the whole `BadgeSettingsInput` is sent, the timing values being the stored ones); the three timing numbers are a draft applied by one "Enregistrer" button (a min greater than max would be refused halfway otherwise). The Vue reader choice offers "Désactivé" and "Lecteur USB" only; a stored `nfc` selects neither choice and shows the unavailable note.
+- **L5-W7 (T2, Vue) Router cycle.** `stores/badge.ts` imports the router to go where a PIN login goes after `logged_in` (`utils/postLogin.ts::goAfterLogin`, also used by `LoginView.vue` for its PIN, INSZ and first-PIN logins); the import cycle store -> router -> view -> store is harmless because every use is inside a function.
+
+
+### Android UI (T3)
+
+- **L5-A1 One store, two sources.** `ui/badge/BadgeStore` (Singleton) is the port of `stores/badge.ts`: the reader setting (read when the engine turns ready and on `Resync`, also with no session), the enrolment capture (`startCapture()` returns a `BadgeCapture`; the next scan completes it instead of calling `badge_tap`), `endShiftMode`, `pinRequests` and `loggedIn` as one-shot flows, `presenceVersion`, and `onScan`. It is built at start-up by `BadgeOverlay` (a `ShellOverlay` that draws nothing, so the reader is armed from the login screen on). The source follows the setting through `BadgeSources(usb, nfc)`: `off` starts none, `usb` starts the wedge, `nfc` starts the NFC source only when `NfcSupport.hasNfc`; the other source is stopped each time. `SessionStore.remember` became `internal` for the badge login (the engine opens the session, the store only keeps the user).
+- **L5-A2 Android wedge detector.** `WedgeDetector<E>` is the Vue algorithm, generic over the payload it hands back for a replay (the held `KeyEvent`s in the app). It maps `KeyEvent.keyCode` only (`KEYCODE_0..9`, `NUMPAD_0..9`, `A..F`), treats Shift, Ctrl, Alt, Meta, Caps/Num lock, Sym and Function key codes as neutral, and keeps the L5-W3 rule that the tail of an over-long burst is typing. `KeyWedgeSource` holds the key-DOWNs it swallowed, swallows their UPs too (a set of key codes), and replays a released burst by dispatching each held DOWN and a synthetic UP through the activity's own `super.dispatchKeyEvent` (attached in `onResume`, detached in `onPause`) behind a re-entry flag. Timing is read from an injectable clock (default `SystemClock.uptimeMillis()` at dispatch), the release is a main-thread `Handler` task after `wedge_max_gap_ms`, restarted by each held key. Stopping the source (reader no longer `usb`) or pausing the activity releases what is held. Replayed keys go through `Activity.dispatchKeyEvent`, so they count as user activity like any typing; a held or recognised key never reaches it (L5-D11).
+- **L5-A3 Android NFC source.** `NfcBadgeSource` calls `NfcAdapter.enableReaderMode` (flags A, B, F, V and `SKIP_NDEF_CHECK`) through `NfcSupport` only while the setting asked for it (`start`), the device reports `FEATURE_NFC`, the adapter is on and an activity is attached (`MainActivity.onResume`); `onPause` disables it. The tag id becomes uppercase hex in the order Android gives the bytes (`tagIdToHex`). An adapter turned on after the screen was resumed is noticed at the next resume (the reader mode is not retried by a timer). The platform sound of the reader mode is left on (L5-D13). Manifest: `android.permission.NFC` and `uses-feature android.hardware.nfc` with `required=false`.
+- **L5-A4 Feedback.** `BadgeCue` is synthesised PCM through `AudioTrack` (like `OrderChime`, no sound file): A5 (120 ms) then E6 (200 ms) for a registered arrival, departure or login; G3 (350 ms) for any refusal or FDM failure; each note an exponential gain ramp from 0.3 to 0.001 as in `useBadgeCue.ts`. Toast lifetimes are those of Vue (4 s registered, 6 s FDM failure, 5 s refusal).
+- **L5-A5 Settings.** The panel (`SettingsBadgePanel.kt`, state in `SettingsBadgeState.kt`, behaviour in `SettingsBadgeModel.kt`) has the content of `BadgeSettings.vue`, plus the "NFC intégré" choice only when `hasNfc` (a stored `nfc` without NFC gets `settings_badge_nfc_unavailable`, with NFC turned off `ui_settings_badge_nfc_disabled`). It is folded by default and drawn under the table plan at the top of the third column (the column scrolls as a whole; at the end of a tall column it would be off screen). The employees, the open shifts and the badge list are loaded together and kept only when all three answered (a manager's call; other roles never ask for the list). Enrolment is the Vue flow: capture (30 s, `badge_capture_timeout` warning), then the existing PIN dialog for the manager's own PIN; only a `pin_*` refusal keeps the dialog. Removal asks a `ConfirmDialog` first.
+- **L5-A6 Login.** `LoginViewModel` observes the store: `pin_required` opens the PIN pad of that manager through the tile path (a manager without a PIN gets the first-PIN dialog, an unknown INSZ gets a synthetic manager with a PIN), leaving the INSZ entry; `logged_in` clears the panels and sends `GoToTables` (the same way out as a PIN login, PD211); the pad's end-of-shift mode is mirrored into the store; a registered scan reloads the shifts and closes an open end-of-shift pad.
+- **L5-A7 Android-only strings.** `ui_settings_badge_reader_nfc` and `ui_settings_badge_nfc_disabled` in `strings_ui_settings.xml` (fr, en, zh), named with the `ui_` prefix of the other hand-written resources; every other text is a Vue key through the generator.
+- **L5-A8 Test layout.** JVM tests: `WedgeDetectorTest`, `KeyWedgeSourceTest` (Robolectric), `NfcBadgeSourceTest`, `BadgeStoreTest`, `SettingsBadgeModelTest`, `SettingsBadgeContentTest`, `SettingsBadgeDialogsTest`, `LoginBadgeTest`, `AudioCue` samples in `BadgeCueTest`; the badge additions to the existing screens are in the new classes rather than in the long existing ones. Roborazzi goldens re-recorded: `settings/settings_main`, `settings/settings_users`, and new `settings/settings_badges`, `settings/settings_badge_enrol`, `login/login_badge`, `login/login_end_shift_badge`.
+- **L5-A9 Activity hook and employee line.** `MainActivity` is annotated `@SuppressLint("RestrictedApi")`: lint flags `ComponentActivity.dispatchKeyEvent` (restricted by androidx.core) although it is the platform `Activity` method and the only place a keyboard-class reader can be seen before the focused view. The badge line of an employee is a full-width second line under the row, indented under the avatar, because the text block shrinks to a few characters when the row carries three buttons.
+- **L5-A10 Detach drops held keys.** When the activity pauses or goes away, `KeyWedgeSource.detach()` discards the keys it holds instead of replaying them: there is no window left to receive them, and a replay would run into a destroyed view tree. `stop()` (reader switched off) still replays them, so typing is never lost while the activity lives.
+
+### Dossiers and port docs (T4)
+
+- **L5-T4-1 Section numbers.** The new manual section is §12.10 "Lecteur de badges" in the Linux manual and §12.13 in the Android manual (whose §12.10 to §12.12 already exist: "À propos", "Export pour le SPF", "Mise à jour"); renumbering the existing Android sections would break the captures and cross references. `REPONSES_MANUEL_CERT_FR.md` cites the number of its own dossier.
+- **L5-T4-2 Dossier claims kept to what the code does.** The dossier says the Linux terminal has only the USB reader, the Android build offers "NFC intégré" only with `FEATURE_NFC` (the D3 Pro main unit has none, its customer display NFC is an open device test, Q1), a wedge reader must end with Enter (no prefix or suffix stripping), one reader kind per installation, a manager always needs the PIN, the badge is optional for the employee (GDPR note). No version other than 1.0.0 is written.
+- **L5-T4-3 Not changed.** `MATRICE_TRACABILITE_FR.md` (maps the UC fixtures, a badge scan is no UC; the badge tests are in `MAPPING_CONFORMITE_FR.md` rows 17b and 17c), `INDEX_DOSSIER_FR.md` and both `MANIFEST.txt` (no file added, no count changed).
+
+### Full gate (T5)
+
+- **L5-G1 `hygiene-root-lock` is an expected failure.** Besides the four failures of L5-D16, `hygiene-root-lock` (p5, p6) fails: the engine gained `hmac`, `sha2`, `hex` and `getrandom` (migration 70 hashing, `badge_key.rs`), so `Cargo.toml` and both `Cargo.lock` files changed (four packages added, nothing upgraded). This is the same user-authorized Linux build input edit as `linux-frozen`; the X1D2 precedent waives this check for the same reason. All other p5/p6 checks pass.
+- **L5-G2 Flaky `pos-eft` wire trace test.** `mock_tests::the_wire_trace_shows_bodies_but_never_keys_or_queries` failed once under full-workspace load and passed on every rerun; the crate is not touched by the lane, so it is recorded and not changed.
+- **L5-G3 Counts.** Workspace 1918 passed (lane 1: 1834), FFI 267 (258), Playwright 423 (365), Kotlin 2251 head against 2104 base with 0 removed.
+
+### Test round 1 (2026-10-18)
+
+- **L5-X1 Link step injectable in `badge_key`.** `load_or_create` now calls `load_or_create_with(data_dir, link)` with `|from, to| fs::hard_link(from, to)`; the only reason is to let a unit test force `Unsupported` and exercise the rename fallback, which no CI file system reaches. Behaviour is unchanged.
+- **L5-X2 A stored `nfc` reads nothing on Linux, so the Vue UI treats it as no reader.** `stores/badge.ts` `readerOn` is true for `usb` only (it was "not off"). With a stored `nfc` (a restore from other hardware) the login hint and the "Lier un badge" buttons no longer show, the settings panel keeps its "Pas de NFC sur cet appareil" note and the relink banner. The engine is unchanged: it still accepts `nfc` (L5-D1). Android keeps its own rule (reader not off) because its NFC source can exist.
+- **L5-X3 Reader flags of `AndroidNfcSupport` stay untested by JVM tests.** Robolectric's `ShadowNfcAdapter` records neither the flags nor the extras of `enableReaderMode`; the flags (A, B, F, V, `SKIP_NDEF_CHECK`) are a constant reviewed in code and belong to the device test list.
+- **L5-X4 The route test borrows the entry point.** `SettingsRoute` reads its entry point from the Hilt application graph, whose engine is closed in unit tests. `SettingsRouteTest.theBadgeLambdasReachTheRealBadgeModel` hands it the test stores with `mockkStatic(EntryPointAccessors)` (other classes fall through to the original), so the lambdas run against a mocked engine without a second Hilt graph.
+- **L5-X5 Shared Cargo target hazard.** Two worktrees share `shared-target`; the artifacts of path dependencies seem to be shared between checkouts (same unit hash), so a lane compiling `pos-core` in parallel can leave a stale artifact that the next lane reuses (`unresolved import pos_core::badge`). `touch`ing the `src/lib.rs` of the workspace crates before a build forces a rebuild. Orchestrator: prefer one target dir per lane for the final gate.
+
+## Lane 3-v11 (2026-10-17)
+
+- **V11-D1 Invoicing and Peppol join every build.** The `peppol` cargo feature is removed:
+  `commands/invoice.rs`, `src-tauri/src/ipc/invoice.rs` and `pos-peppol` are compiled in every
+  build (Linux cert, dev, Android FFI). Rationale: both UIs must offer invoices, the Android
+  engine is built with `cert`, and HubRise already set the rule "one binary, switched per
+  installation". Invoices themselves need no switch (an I event is only made when a cashier
+  asks for one); Peppol delivery runs only when the installation has a `peppol` section in
+  `pos.json` / the Android bundle. Consequences handled in T1: `src-tauri/src/main.rs` keeps a
+  single `generate_handler!` list; `check_command_parity.py` drops hygiene rule H7 and its
+  test data; `check_ipc_wrappers.py` keeps working with zero peppol-gated modules;
+  `p2_gate.sh` check `ffi-deps` no longer refuses `pos-peppol` (and `test_p2_gate.sh` follows);
+  `scripts/build_and_hash.sh` no longer requires 0 `pos_peppol` symbols (it reports the count);
+  `scripts/uc_scope.toml` drops `[M150]`; comments in `.github/workflows/test.yml`,
+  `android/rust/pos-ffi/Cargo.toml`, `android/uccheck/pos-uc-check/Cargo.toml`,
+  `android/rust/pos-ffi/src/records/mod.rs`, `CLAUDE.md` are corrected. The v1.0.0 dossiers are
+  NOT edited: they describe v1.0.0.
+- **V11-D2 Migrations 40 and up.** The next free number at this base is 28, but the v1.0.x
+  lanes (`lane-v1-fixes`, `lane-v1-features`) run in parallel and may claim 28+. The v1.1 lane
+  takes its own block: 40 `invoicing`, 41 `sold-out`, 42 `menu-editor` (gaps are allowed by the
+  runner). They live in a new `crates/pos-db/src/schema_invoicing.rs`, registered in a new
+  `V11_MIGRATIONS` slice of `migrate.rs`, in every build (no feature gate), with a test
+  `the_v11_migrations_are_40_to_42_and_in_every_build`. If the orchestrator wants consecutive
+  numbers at merge time, only `schema_invoicing.rs`, the registry and that test change.
+- **V11-D3 Invoice lines come from the archive, never from the UI.** The engine builds the
+  invoice (lines, VAT breakdown, totals) from the archived signed requests and FDM responses of
+  the referenced N events. The UI only sends sale event ids and a customer id. Supplier data
+  comes from the configuration.
+- **V11-D4 One invoice per sale.** An N event may be referenced by at most one invoice
+  (`invoice_sales.sale_fiscal_event_id UNIQUE`). A refund N may be invoiced (UC4122). Training
+  (T) events, copies and anything not labelled N are refused.
+- **V11-D5 Invoice numbering.** `invoiceNo = <issue year YYYY><sequence, at least 4 digits>`
+  where the sequence is ONE continuous counter over all invoices of the installation, never
+  reset (AM art. 32 "numérotation continue séparée"); the year prefix keeps the shape of the
+  M150 fixture (`20240005`). Allocated under the sign guard as `MAX(seq)+1` from the `invoices`
+  table; the number travels in the pending sign context (`PendingContext::Invoice`) so a
+  recovered sign keeps it; it commits with the archive (no gap on FDM failure). The print shows
+  the invoice number and the I event counter (`I eventCounter/totalCounter`).
+- **V11-D6 Cost center.** The I request carries `costCenter {id: "C<customer id>", type:
+  CUSTOMER, reference: <customer name, max 600 chars>}` like M150 and UC4121.
+- **V11-D7 No invoice in training mode.** `sign_invoice_fiscal` refuses with `invoice_training_mode`.
+  Conservative: a training invoice would reference training sales and make a T event; nothing in
+  the spec requires it.
+- **V11-D8 Who.** Invoices: `Access::Cashier` (issued at the counter like the sale). Retrying a
+  Peppol delivery and the Peppol panel: `Access::Admin`. Sold-out: `Access::Cashier`. Menu
+  editor and sales reports: `Access::Admin`.
+- **V11-D9 Peppol identifiers.** A Belgian participant is `0208:<10-digit enterprise number>`
+  (the VAT number without `BE`); the current `0208:BE...` value in `invoice.rs` is a bug. Only
+  Belgian customers (`BE` VAT) are delivered over Peppol in v1.1; others are printed only and
+  their delivery row is not created. The supplier id comes from `peppol.sender_id` in the
+  configuration.
+- **V11-D10 Offline-safe lookup.** Customer VAT entry is validated offline (Belgian check digits:
+  the 10-digit number, last two digits = 97 minus the first eight modulo 97; foreign: country
+  prefix plus 2 to 13 alphanumerics). The Peppol lookup is an access point discovery call with a
+  3 s timeout whose result is cached on the customer (`registered`, `not_registered`, `unknown`
+  plus `checked_at`); a failure or no network gives `unknown` and NEVER blocks the invoice (the I
+  event only needs the FDM). The queue worker redoes the lookup before submitting when the
+  status is `unknown` or older than 30 days.
+- **V11-D11 UBL in cents, multi-VAT, already paid.** `pos-peppol` computes in i64 cents (no f64
+  money): line net amount = round(line VAT-inclusive amount / (1 + rate)); per VAT category one
+  `TaxSubtotal` whose taxable amount is the sum of its line net amounts and whose tax amount is
+  round(taxable x rate); event-level price changes become document `AllowanceCharge`s with their
+  tax category; `PrepaidAmount` = VAT-inclusive total of the referenced tickets' product lines and
+  price changes (payment rounding excluded, payment lines are not copied); `PayableRoundingAmount`
+  absorbs the cent differences so that `PayableAmount` is `0.00`; `BuyerReference` = invoice
+  number; no `DueDate`. `vat_label_to_bis` keeps its mapping (A/B/C S, D Z, X O).
+- **V11-D12 Peppol queue.** `peppol_deliveries` (migration 1, never shipped with rows) becomes
+  the queue and audit row; migration 40 adds `attempts`, `next_attempt_at`, `last_attempt_at`,
+  `parked_at`, `lookup_status`; statuses stay `queued` (waiting or retrying), `accepted`,
+  `failed` (parked: refused by the AP, recipient not on Peppol, or authentication error). Every
+  attempt is appended to `peppol_delivery_log` (append-only, triggers). Backoff 30 s doubling,
+  capped at 30 min, retried forever while transient (timeout, 429, 5xx); 4xx refusals and "not
+  registered" park the row with a reason; 401 parks and stops the pass. An admin can re-queue a
+  parked row (`retry_peppol_delivery`). A background loop (`background.rs`, wake on new invoice,
+  `timers.peppol_outbox`, default 60 s) drains the queue, only when `peppol` is configured.
+- **V11-D13 Access point implementation.** `AccessPoint` gains `lookup(participant)`; a
+  `StorecoveAccessPoint` speaking the Storecove API v2 shape (`POST /api/v2/discovery/receives`,
+  `POST /api/v2/document_submissions` with the base64 UBL in `document.rawDocumentData`,
+  `Authorization: Bearer <key>`) is tested ONLY against a local mock: routes added to
+  `crates/pos-fdm-mock` (`/storecove/api/v2/...`, controllable answers, request log), reused by
+  `pos-engine-testkit`. `LoggingAccessPoint` stays (dev default when `peppol.provider` is
+  `logging`). Existing identifiers cited by the v1.0.0 dossiers are kept (see section 9).
+- **V11-D21 Invoice print.** New `pos-print` layout: FACTURE in capitals, invoice number and I
+  counter, seller (name, address, VAT, establishment number), customer (name, address, VAT),
+  issue date, references of the original tickets (`fdmId-N eventCounter/totalCounter` and their
+  ticket numbers and dates), the product lines of those tickets (consolidation allowed, AM art.
+  34), VAT breakdown per rate (base, VAT, total), total, "déjà payé" mention, FDM control data of
+  the I event WITHOUT the digital signature (AM art. 43) and without QR, the footer CECI N'EST PAS
+  UN TICKET DE CAISSE TVA VALABLE. A copy (event C referencing the I) prints the same layout with
+  COPIE and "copie établie le ...". Invoices are always printed on paper in v1.1.
+- **V11-D22 Invoice journal (AM art. 33).** Migration 40 creates the SQL view
+  `v_invoice_journal` (invoice no, date, customer VAT and name, base and VAT per rate, total, I
+  event FDM reference, Peppol status) over append-only tables; the database is the export (as in
+  the v1.0.0 answer "SQLite lisible directement"), and the v1.1 dossier draft gives the query.
+- **V11-D23 Command name `sign_invoice_fiscal` (T1, 2026-10-17).** The plan table names the
+  command `sign_invoice`, but plan section 9 and the v1.0.0 dossier check (`check_dossier.py`
+  rust-ident rule) keep `sign_invoice_fiscal` and `do_sign_invoice_fiscal` as existing
+  identifiers. The Tauri wrapper, the engine function and the FFI method are therefore
+  `sign_invoice_fiscal`; the arguments are those of the plan (`sale_event_ids`, `customer_id`,
+  `employee_insz`). T2 (UI) calls this name. The command count is 96 - 2 old wrappers + 9 new =
+  103, in `check_command_parity.py` and `test_check_command_parity.py`. `do_issue_b2b_invoice`
+  stays an engine function (it queues the delivery of an invoice signed without one) and is not
+  a command.
+- **V11-D24 VAT label X in the UBL (T1).** The plan says X maps to category O; the existing
+  mapping and its test map X to E (exempt) and the golden file follows. Kept unchanged, with the
+  reason recorded here: the v1.0.0 identifier `vat_label_to_bis` is cited by the dossiers. To be
+  revisited with the live Storecove sandbox (owner task).
+- **V11-D25 Customers (T1).** A customer is checked offline when saved: valid VAT number, every
+  address field present (600 characters at most), and a Belgian number goes with a Belgian
+  address (the country is the one of the VAT number when left empty). A VAT number is held by
+  one customer: saving it again updates that customer. Saving and searching are `Access::Cashier`.
+  The Peppol status cached on the customer is used for a new delivery for 30 days, then the
+  delivery starts as `unknown` and the queue asks again (V11-D10).
+- **V11-D26 Archive transaction (T1).** The `invoices`, `invoice_sales` and `peppol_deliveries`
+  rows are written in the same transaction as the I archive and the counter advance
+  (`PendingContext::Invoice`, applied in `signing.rs`), so a request answered late
+  (`resolve_open`) leaves the same rows and the same number as a request answered at once. The
+  print and the queue wake-up happen in the follow-up, with no lock held. A product sold under
+  several VAT labels is listed once per label; price changes of a whole ticket become one line
+  per reason and label; the VAT rows are the FDM's `vatCalc` summed per label.
+- **V11-D27 Copy of an invoice (T1).** A copy (C) of an I event rebuilds the invoice from its
+  rows and the archives of its sales (`CopyTicket::Invoice`) and prints it with COPIE and the
+  copy's own control data; no digital ticket is made for it.
+- **V11-D28 Queue outcomes (T1).** Transient and transport errors stay queued with the backoff;
+  an unreadable answer or a refused document (4xx) parks the delivery; 401 or 403 parks it and
+  stops the pass; a recipient the network does not know parks it before any submission. A
+  lookup that fails or times out never parks anything. `peppol_outbox` is a new engine timer
+  (60 s) and the background loop exists only when the configuration has a `peppol` section.
+- **V11-D29 Gate scripts edited by T1 (Q10).** `check_command_parity.py` drops hygiene rule H7
+  and its test data, `check_ipc_wrappers.py` has no peppol-gated module any more, `p2_gate.sh`
+  `ffi-deps` accepts `pos-peppol`, `build_and_hash.sh` reports the `pos_peppol` symbol count
+  instead of requiring 0, `uc_scope.toml` drops `[M150]`. Self-tests updated.
+- **V11-D30 VAT check in the invoice dialog (T2).** The Vue "live check" is a Vérifier button calling
+  `lookup_b2b_customer`; the engine checks the digits offline and the UI keeps no copy of the rule. Continuer
+  runs the lookup when none was done. A lookup that cannot reach Peppol answers `unknown` and never blocks the
+  invoice (V11-D10).
+- **V11-D31 Text entry on both UIs (T2).** Vue types customer text with the new `TextKeyboard.vue` (Belgian
+  AZERTY, capitals, digits, accents, `- ' . , / &`, keys 72 x 64). Android uses the system keyboard, and the view
+  model upper-cases and cuts what is typed to the same limits (VAT number 16, postal code 10, country 2, other
+  fields 80), so both UIs send the same text to the engine.
+- **V11-D32 Who sees what (T2).** The Copie button of an invoice is drawn for managers only (the engine refuses
+  `copy_ticket` on an I event to anyone else). The invoice list is drawn only once an invoice exists. The Peppol
+  settings panel is drawn for managers and only when the installation has a `peppol` section.
+- **V11-D33 Peppol panel polling (T2).** The panel reads the queue when the screen opens and every 30 seconds
+  (Vue: a timer of the component; Android: `PeppolViewModel.startPolling()` and `stopPolling()`, the loop is
+  stopped by the test that starts it). A Réessayer tap reads again at once.
+- **V11-D34 Dates and money in the invoice screens (T2).** The issue date is the engine's `YYYY-MM-DD` string,
+  shown as dd/mm/yyyy by formatting the string (no time zone is involved). Kotlin computes no money: totals come
+  from the engine, the sum of the ticked sales is `CashDisplay.sumCents`, display goes through `formatCents`.
+- **V11-D35 Goldens of the invoice screens (T2).** The Peppol settings golden is recorded at 1920 x 1500 dp so
+  that the parked rows below the integration panels are visible. The existing goldens of the tickets tab change
+  with the new checkbox column and the Facture button and are recorded again.
+- **V11-D14 Sold-out model (T3).** Implemented as planned: `menu_item_sold_out` (current state, `until` as RFC 3339
+  text with the Brussels offset, NULL for "until re-enabled"), append-only `sold_out_log` (set, clear, expired),
+  migration 41. Expiry is by time: `julianday(until) <= julianday('now')` ends the state (the menu read, the refusal and
+  the HubRise state all read it the same way), and the `expired` log row is written lazily by `expire_due`, called on
+  `get_menu_items`, `list_sold_out`, `set_sold_out` and `clear_sold_out`. The end of the day is the next
+  `day_end_hour` o'clock in Brussels after the business day of "now" (`business_date`); a local time inside the spring
+  gap is read one hour later. No fiscal event, no counter.
+- **V11-D14a Commands return the list (T3).** `set_sold_out` and `clear_sold_out` return the updated list of sold-out
+  products, so a UI refreshes in one call. `list_sold_out`, `set_sold_out` and `clear_sold_out` are `Access::Cashier`
+  and take the UI language for the product names. Clearing a product that is not sold out writes no log row.
+- **V11-D14b Refusal order (T3).** `product_sold_out|product=<id>` is checked before the catalogue is read in
+  `do_add_order_line` and `do_add_order_line_with_modifiers`, and in `do_update_order_line_quantity` only when the new
+  quantity is greater than the current one (same quantity, decrease and removal pass). Orders from webshop or HubRise
+  ingestion do not go through these commands and are not affected.
+- **V11-D15 Sold-out to HubRise (T3).** One request per product (not one array) so that a refusal of one SKU parks only
+  that row. `hubrise_inventory_sync` gains a `version` column (not in the plan): a change made while a send is in
+  flight bumps it, and the send then leaves the row dirty instead of marking it synced. A new change of a parked
+  product clears the park (attempts, backoff and reason reset). The existing outbox loop calls
+  `inventory::process_pending` after its order pass; the engine wakes it through `hubrise_outbox_wake`. Retries have no
+  maximum (like order PATCHes). An end of day already past at send time is sent as `stock: null`.
+- **V11-D15a HubRise scope (T3).** The installation default scope (`location[orders.write,customer_list.read,catalog.read]`)
+  is NOT changed: it is cited by the v1.0.0 installation manual and a change forces every installation to consent
+  again. The inventory push needs the inventory write right on the token; the owner must add it to `scope` in the
+  installation configuration and verify the exact permission name in the HubRise sandbox before the first live use.
+  Without it HubRise answers 403, the row is parked with that reason, and the till keeps refusing the product
+  locally. The HubRise inventory API was exercised against the local mock only.
+- **V11-D16 Sold-out UI (T3).** Implemented as planned on both UIs. Tapping a sold-out product out of the mode shows
+  the refusal toast locally (no engine call) and reads the grid again, so a stale flag (end of day passed) corrects
+  itself. The Épuisé bar is drawn for cashier and manager (`canTakePayment`); the sold-out list is read for them only.
+  A waiter sees the flags (they come with the menu) but cannot change them. Strings are the `soldout_*` keys of
+  `ui/src/i18n.ts` and the `err_product_sold_out` text, shared with Android through `vue_to_android.mjs`.
+- **V11-D36 Error count (T3).** `errors::ALL` now has 126 codes (one more: `product_sold_out`); the FFI test
+  `every_code_of_both_lists_maps_to_coded` follows.
+
+- **V11-D17 Menu editor (T4).** Implemented as planned: migration 42 `menu_change_log` (append-only triggers), six
+  commands in `commands/menu_admin.rs` (`menu_admin_get`, `menu_save_category`, `menu_save_product`,
+  `menu_save_modifier_group`, `menu_save_modifier`, `list_menu_changes`), all `Access::Admin`. Saves are refused with
+  `hubrise_menu_managed` while `pos_catalog::apply::managed_by` returns a source; reads are not refused, so the screen
+  can say who manages the menu. A save that changes nothing writes no log row. The log row holds the entry before and
+  after as JSON (names per language included) and the INSZ of the author. Validation codes: `menu_invalid|field=<f>`
+  and `menu_not_found`. The art. 44 test is `art_44_an_edit_never_changes_an_open_order_or_a_signed_event`.
+- **V11-D18 has_modifiers (T4).** `MenuItem.has_modifiers` is computed in the menu query (core, FFI record, TS type);
+  both UIs open the option picker on it instead of the HubRise switch. Existing tests were adapted, none removed.
+- **V11-D19 Text entry (T4).** Vue: `TextKeyboard` for the Latin names and the code, a plain field for the Chinese
+  name; Android: the system keyboard. The Chinese field is a plain input on Linux (hardware keyboard or paste).
+- **V11-D37 FFI names as a map (T4).** The FFI records carry the names as `HashMap<String, String>` (UniFFI has no
+  `BTreeMap`); the engine keeps a `BTreeMap`, so the serialised form is the same (the FFI test compares the two).
+- **V11-D38 Android entry point and price entry (T4).** The Android editor is a second `FeatureEntry` reached from the
+  settings row `settings.menu` (managers, order 100), not a panel of the settings screen. Prices use the shared
+  `AmountDialog`, which gains `initialDigits` (the current price in cents), instead of an inline numeric pad. The
+  dialog is raised at the root of the editor, because a dialog drawn inside the scrolling form is laid out off screen.
+- **V11-D39 Carte panel placement (T4).** The Vue panel sits in the third settings column, after the HubRise switch;
+  in the first column it pushed the nightly export panel over the table plan panel on a 1080 px screen.
+- **V11-D36a Error count (T4).** `errors::ALL` now has 128 codes (`menu_invalid`, `menu_not_found`); the FFI test
+  `every_code_of_both_lists_maps_to_coded` follows.
+
+- **V11-D40 Sales report scope (T5).** `sales_report` and `print_sales_report` (Access::Admin, no migration) read only
+  archived N events, `booking_periods` and `z_reports`. Training events are excluded, refunds are negative, event price
+  changes and the ROUNDING lines are shown apart and kept out of the total (rounding is not part of
+  `transactionTotal`). The per-day total is compared with the turnover of the Z of that booking date and carries the
+  concordance mark; an open period is flagged. The range is limited to 92 days (`sales_report_range_invalid`); hours
+  are read in Europe/Brussels from `day_end_hour`.
+- **V11-D41 Report wording (T5).** The print is titled "RAPPORT DE VENTES" with "DOCUMENT NON FISCAL" and the footers
+  "CECI N'EST PAS UN RAPPORT FISCAL" and "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"; the words X, Z and
+  CHIFFRE D'AFFAIRES never appear in the title. The layout lives in `crates/pos-print/src/sales_report.rs`.
+- **V11-D42 Gaps and bar widths from the engine (T5).** The Android gate `ui-money` forbids Kotlin arithmetic on
+  identifiers containing "cents", so the engine computes `gapCents` (day total minus Z turnover) and `barPercent`
+  (hour bars); both UIs only display them.
+- **V11-D43 Custom range fields (T5).** The custom range fields start empty (not prefilled with the current range), so
+  Apply is disabled until both dates are complete; the range line shows the range applied.
+- **V11-D44 Design notes (T5, part E).** Six English notes under `docs/internal/v1.1/design/` (tips on card, deposits
+  and advance payments, card refund to card, kitchen display, QR table ordering, waiter handheld sync). No code. Common
+  thread: all signing stays on one machine (one FDM sequence); handhelds, kitchen display and QR guests are clients of
+  the main till.
+
+- **V11-D45 Full gate G results (T6).** Run on the lane head; counts: `cargo test --workspace` 1927 passed, 0 failed
+  (`--no-fail-fast`); `pili-pos` cert 8, `pos-engine` cert 744; FFI (`android/rust`, `--locked`) 271; fmt, both clippy
+  runs, FFI clippy, `check_lock_parity.sh`, `uc_lock_parity.sh`: green. Parity: `check_ipc_wrappers.py` 114/114
+  single-call, `check_command_parity.py --strict` 114/114 and `--hygiene` ok, `check_ui_parity.py --strict` called 103,
+  excluded 9, pending 0, stale 0, missing 0, `vue_to_android.mjs --check` 755 keys, `lane_paths.py --check` green. Vue:
+  build green, Playwright 412 passed. Android: lint, ktlint, detekt, `apiCheck`, unit tests (2213), Roborazzi verify,
+  Kover (line 97.4 %, branch 73.2 %), release assemble and APK check green. Inventories: `test_inventory.sh --diff` 0
+  removed (1945 distinct tests), `kotlin_test_inventory.py` base 2081, head 2260, 0 removed. Dossiers: the three
+  `check_dossier.py` runs and `uc_matrix.py` green, no em-dash in the changed files.
+- **V11-D46 Fixes found by the gate (T6).** (a) `SalesHour` used `u32` in an FFI record (hygiene H6): now `i64`, with
+  `:pos-core:apiDump`; (b) the T1 rewrite of `ubl.rs` dropped five test names: they are back on the new API;
+  (c) `test_check_command_parity.py` pinned 103 commands, now 114. No test or script was weakened.
+- **V11-D47 Accepted failures of p5/p6 (T6), all expected by design.** `hygiene-paths` (117 paths outside
+  `android/|scripts/android/|docs/android/`), `hygiene-root-lock` (root `Cargo.lock` changed for `pos-peppol`),
+  `linux-frozen` and `freeze-tag` (the Linux build differs from `linux-v1.0.0-rc2` on purpose), and `app-only-scope`
+  of p5 (the lane touches the FFI crate, so the full gate is the right one). Two more findings are environmental, not
+  lane defects: `kotlin-tests` reports 23 removed when the base is the moved `android/int` (tests of lane 1 that this
+  branch does not have); against the real fork point (`b3248d2d`) it is 0 removed, as recorded above; `ui-money` lists
+  the two older `WebshopOrdersStore.kt` lines that lane 1 fixed on `android/int` (merge resolves it).
+- **V11-D48 Gate hygiene on the shared target (T6).** The shared cargo target was overwritten by other lanes (same
+  crate paths relative to the workspace): `pos-fdm-mock` resolved to a stale rlib without `storecove`. The workspace
+  test run was done with the worktree's own target dir. `pos-eft` `the_wire_trace_shows_bodies_but_never_keys_or_queries`
+  failed once under load (global tracing interest cache, crate untouched by the lane) and passed on three reruns and on
+  the full rerun. Android `lint` crashed once in the Kotlin analysis of a generated KSP file (as in T4) and passed alone.
+- **V11-D20 Sales reports.** Read-only, never signed, no event, no counter. Computed from the archived N events
+  (training excluded, refunds as negative amounts) of the booking dates in the range (max 92 days, dates are booking
+  dates). Product rows = signed product lines (incl. line price changes); event price changes and payment rounding as
+  separate rows so that the grand total equals the sum of `transactionTotal`, i.e. the turnover N of the X/Z. Each
+  closed booking date shows its Z number and a "concordance" mark (equal / gap with the amount); the open period is
+  marked "periode en cours". Hours are Brussels local hours of the sale's `posDateTime`, listed from `day_end_hour`.
+  Title "RAPPORT DE VENTES", sub-title "DOCUMENT NON FISCAL", footer "CECI N'EST PAS UN RAPPORT FISCAL" and "CECI N'EST
+  PAS UN TICKET DE CAISSE TVA VALABLE"; never the words X, Z or CHIFFRE D'AFFAIRES in the title. A fourth Reports tab
+  "Ventes".
+- **V11-D49 Fix round 1: invoice copy label.** The copy block of an invoice printed the C event's control data under
+  "Informations FDM d'origine", which presented the copy's own fdmRef as the original's. It now has its own label
+  (`copy_fdm`: "Informations FDM de la copie :", NL "FDM-gegevens van de kopie :", DE "FDM-Daten der Kopie :"); the I
+  event's data stays in the main block. The printed mention stays COPIE, as for sale-ticket copies (the spec wording
+  "COPY TICKET" is not used; recorded in the dossier draft).
+- **V11-D50 Fix round 1: no logging Peppol provider in release.** `logging` sends nothing yet the queue marked such
+  deliveries accepted. `PeppolConfig::problems()` now refuses it unless `debug_assertions` (like the HubRise mock), and
+  `access_point()` returns `config_peppol` for it in release. Debug and test builds keep it for development.
+- **V11-D51 Fix round 1: fdmRefs tested by value.** `TestApp::assert_fdm_refs_of` compares each archived `fdmRefs[i]`
+  (fdmId, fdmDateTime, eventLabel, eventCounter, totalCounter) with the fdmRef the FDM answered for the matching sale,
+  in order. Used by M150 (both suites), UC4121 and UC4122 (the refund N included).
+- **V11-D52 Fix round 1: known risks, not fixed.** (a) The UBL VAT is recomputed from rounded line nets (V11-D11)
+  while the paper invoice uses the FDM's VAT per rate: a few cents can differ, absorbed in PayableRoundingAmount;
+  recorded in the dossier draft. (b) Sold-out rows set while HubRise is off are not pushed when HubRise is switched on
+  (`queue_inventory` runs at set and clear time only): to resync in a later round. (c) The English design notes
+  `WAITER_HANDHELD_SYNC.md` and `QR_TABLE_ORDERING.md` name sibling products: drop the names if they join a dossier.
+- **V11-D53 Fix round 2: cached `not_registered` recipients.** The Peppol queue asks the network again for a delivery
+  whose customer is cached as `not_registered` (they may have joined since). Unless the answer is `registered`
+  (including on a failed or slow lookup), the delivery is parked with reason "recipient is not registered on Peppol"
+  and nothing is sent. A delivery whose UBL cannot be read is now logged and parked instead of retried silently.
+  The UC4121/UC4122 replay limits (generic cash sales) are stated in the update note. Not fixed: VAT X vs
+  VATEX-EU-O (V11-D24, confirm on the Storecove sandbox), sold-out resync on HubRise switch-on (V11-D52b).
+- **V11-D54 Scope change: no v1.1, the features are part of v1.0.0.** The user withdrew the separate v1.1 update:
+  certification is v1.0.0 and covers B2B invoices with Peppol (event I, M150, UC4121, UC4122), the sold-out switch,
+  the on-screen menu editor and the non-fiscal sales reports. Consequences: the v1.1 dossier drafts are folded into
+  both v1.0 dossiers (`docs/SUBMISSION_ARTIFACTS`, `docs/android/dossier`) as the annexes FACTURATION_PEPPOL,
+  EDITEUR_CARTE, PRODUIT_EPUISE and RAPPORTS_VENTES, and into the existing documents (manuals, answers to the
+  certification manual, mapping, coverage, schema, security, flows, features list); `docs/internal/v1.1` is deleted
+  and the English design notes live in `docs/internal/design/`. Every "later update", "v1.1" or "outside the
+  perimeter" statement about these features is removed. UC4121 and UC4122 move into the in-scope matrix with replay
+  evidence (`invoice_advanced.rs`); UC4122 first invoices the original sale, as its precondition requires. Peppol
+  stays active only when the installation holds a `peppol` section, and the `logging` provider stays refused in
+  release (V11-D50). Open owner items are unchanged: the Storecove sandbox trial and VAT X versus VATEX-EU-O
+  (V11-D24). The screens of sections 12 "Captures to retake" are still to be captured before the screenshots PDF is
+  final.
+
+- **V11-D8b Invoices: engine-Cashier, reached through the manager navigation only.** Amends V11-D8. The
+  engine commands that issue an invoice (`sign_invoice_fiscal`, the lookups, the customer form) stay
+  `Access::Cashier`, so the access matrix is permissive at the engine level and a cashier session signed under
+  their own INSZ is accepted. The invoice dialog lives on the Rapports screen (ticket list), and that entry is
+  shown to managers only on both UIs (`AppHeader.vue` `auth.isManager`, `AppHeader.kt` `isManager`). Conservative
+  reading: no new cashier entry is added in this release, a cashier asks a manager to open Rapports. Pinned by
+  `ui/e2e/invoice.spec.ts` (V11-D8 describe: no Rapports entry for a cashier, engine call accepted under the
+  cashier INSZ), `AppHeaderTest.reportsAndSettingsShowForManagersOnly` (no `header_nav_reports` for a cashier).
+
+- **V11-D55 Invoice refused for a Belgian VAT customer without Peppol (orchestrator decision).** The certification
+  manual asks that invoice issuance be disabled when it would not be compliant. Since 2026-01-01 a B2B invoice to a
+  Belgian VAT-registered customer must go through Peppol, so `sign_invoice_fiscal` refuses with the new code
+  `invoice_peppol_required` when the customer's VAT number has the `BE` prefix and the installation has no `peppol`
+  section (a section that is present is validated at startup, `config_peppol`, so presence means usable). The check
+  runs under the signing lock before any ticket number or invoice number is taken: no I event, no gap, the sale stays
+  invoiceable. A customer with a non-Belgian VAT number still gets the printed invoice. In this engine a customer is
+  always saved with a VAT number (the form requires one), so there is no "customer without a VAT number" case to
+  allow. The preview does not know the customer, so the refusal is shown at the signature step (result screen) on
+  both UIs: text `err_invoice_peppol_required` in fr, en and zh (Vue `i18n.ts`, generated Android value files).
+  `do_issue_b2b_invoice` is unchanged (it redoes the delivery of an existing invoice). Dossiers updated (both):
+  `REPONSES_MANUEL_CERT_FR`, `FACTURATION_PEPPOL_FR`, `DECISION_PEPPOL_AP_FR`, `MANUEL_UTILISATEUR_FR`,
+  `MANUEL_INSTALLATION_FR`; PDFs rebuilt. Tests: `invoice_rules.rs` (BE refused, BE allowed with peppol, non-BE
+  allowed), `access_control.rs`, `error_codes.rs`; `ui/e2e/invoice.spec.ts`; `InvoiceViewModelTest`. Test helper
+  `TestApp::enable_peppol_section()` gives existing Belgian-customer tests a peppol section.
+
+## Lane int (2026-10-17)
+
+Merge of lane 3 (android/lane-v11) into android/int after lanes 1, 2 and 5.
+
+- **INT-D1 Conflicts keep both behaviours.** `EngineTimers` has `badge_repeat` (lane 5) and `peppol_outbox` (lane 3); `signing::apply` and `follow_up` keep `PendingContext::PaymentCorrection` (lane 2, no local change, nothing printed) next to the invoice recording and printing (lane 3); `report_totals::transaction_amount` is public (lane 3, sales report) and keeps the transfer lines (lane 2: from and to cancel out, the sales report only reads N events, whose debug assertion still holds). The tickets tab shows the invoice tick box (lane 3) and the payment correction slot (lane 2) on the same row, on both UIs.
+- **INT-D2 One Tauri handler list.** Lane 3 removed the `peppol` feature and the second handler list; lane 2 and lane 5 had added their commands to both lists. The merged `main.rs` keeps the single list, which already holds every lane's commands: 128 wrappers, every one in every build (`check_ipc_wrappers.py` 128/128, `check_command_parity.py` 128/128). The parity self-test counts 128 (`test_markdown_lists_the_128_cert_commands`).
+- **INT-D3 Counts recomputed, not added.** FFI error codes 170 (147 engine + 23 HubRise, as printed by `vue_to_android.mjs`), Android strings regenerated by `vue_to_android.mjs --write` (894 keys). Migrations in registry order 1-11, 20-28, 30, 31, 40-42, 70 (26 in all); `the_till_migrations_are_30_and_31_in_every_build` now expects `[28, 30, 31, 40, 41, 42, 70]` from 28 up.
+- **INT-D4 Schema documents measured on the merged schema.** A scratch program ran `pos_db::migrate::run_migrations` (feature `hubrise`) and listed `sqlite_master`: 48 triggers, 47 tables, 1 view. The base had 29 triggers, int 38, lane 3 39. `SCHEMA_ER_FR.md` said 35 on int because `order_entries_till_op_fixed` (migration 30) was never listed; it is now listed and the count is 48. `SCHEMA_BD_FR.md` §2.6 stays the badges, the sold-out tables become §2.7 and `menu_change_log` §2.8.
+- **INT-D5 Evidence of M122 and M132.** Lane 2 described M122 and M132 as replayed with evidence, but `evidence/uc/` had no file for them. `capture_uc_evidence.sh` was run on the merged code (cert build, mock FDM): 58 request/response pairs for the Basic Set and Reports (M122: 3, M132: 2 added), 5 rounding pairs, 10 pairs for the six Advanced UCs of the till and 10 for UC4121/UC4122. `embed_uc_evidence.py` now embeds M122 and M132; the UC event of M122 is its second event (the cost center change, `MAIN_EVENT`), the order before it and the sale after it are listed as the other events. The M132 deviation (CARD_DEBIT for CARD_CREDIT) has its French wording.
+- **INT-D6 Cross-lane scope statements.** Lane 3's text declared M122 and M132 out of scope, lane 2's declared M150 out of scope. Both dossiers now say: 21 of the 22 Basic Set UCs have an automated test (only M112A is not applicable), 10 of the 58 Advanced Set ids have a dedicated test (UC201, UC223, UC225A, UC225B, UC229B, UC230, UC4109, UC4119, UC4121, UC4122), 48 are declared out of scope. `uc_scope.toml` drops M122, M132 (lane 2) and M150 (lane 3). The list of exclusions (`LISTE_FONCTIONNALITES_FR.md` §3 bis) now names what is really absent: table split and merge, and the correction of a card taken on the linked terminal.
+- **INT-D7 V11-D55 applied to the remaining texts.** `MANUEL_INSTALLATION_FR.md` §4 (Linux) still said that without a `peppol` section an invoice is printed but not sent; it now says that a foreign customer's invoice is printed and a `BE` customer's invoice is refused (`invoice_peppol_required`). `CLAUDE.md` says the same and no longer calls `pos-peppol` absent from the cert build.
+- **INT-D8 Lock files.** The root `Cargo.lock` regenerated by `cargo metadata` from either parent gives the same file as git's merge; the `android/rust` lock stays in parity (343 packages).
+- **INT-D9 Settings route test after the merge.** The badge reader panel (lane 5) sits above the Peppol panel (lane 3) in the third settings column, so `SettingsRouteSignedInTest` scrolls to `peppol_section` before asserting it is displayed. The test also stops the Peppol polling in a `finally` block: a failed assertion left the 30 s poll running and `runTest`'s final drain looped on virtual time until the test JVM ran out of heap (about 600 000 `listPeppolDeliveries` calls recorded by mockk), which hid the real assertion. Goldens re-recorded after review: `reports_tickets_manager`, `reports_payment_correction`, `settings_peppol`. Plan and captures to retake: `docs/android/phases/merge-int-lane3.md`.
+- **INT-D10 The Vue settings columns scroll.** After the merge the third settings column holds six panels (information, integrations, Carte from lane 3, email tickets, badge reader from lane 5, HubRise) and the first one seven when Peppol is configured. The columns were non-scrolling flex columns whose panels may shrink, so at 1920 x 1080 the panels overlapped: the Carte panel covered the integrations switch (two `settings.spec.ts` HubRise switch tests timed out on the click) and the email tickets panel was squashed under the badge panel. Columns 1 and 3 now scroll as a whole (`.column-scroll`), their panels keep their natural height, the email tickets panel keeps its 45 % cap with its list scrolling inside, and the last panel still fills the rest. This is what the Android settings columns already do (`verticalScroll`). Playwright 624 of 624.
+- **INT-D11 Lane 5's route test meets lane 3's Peppol poll.** `SettingsRouteTest.theBadgeLambdasReachTheRealBadgeModel` (lane 5) draws the settings route for a manager, which now starts the Peppol poll (lane 3); the composition is not disposed before `runTest` drains its scheduler, so the drain looped on the 30 s poll until the test JVM ran out of heap and the suite stopped at 1049 of 2577 tests. Its `finally` block now stops the poll, as `SettingsRouteSignedInTest` does (INT-D9). Full `:app:testDebugUnitTest`: 2577 tests, 0 failures.
+## Lane 4-v12 (2026-10-17)
+
+Owner features for the v1.2 certified update (plan `docs/android/phases/LANE_V12.md`). This section is
+appended by each task of the lane; T1 (accountant export) wrote the first entries.
+
+- **Base gate F (T1, before any change).** At `c35b7d46` (the lane base `b3248d2d` plus the plan commit),
+  in `android/rust`: `cargo fmt --all --check` clean, `cargo clippy --workspace --all-targets --locked
+  -- -D warnings` clean, `cargo test --workspace --locked` green (pos-ffi 24 passed, the second suite 233
+  passed, 0 failed). `error::tests::every_code_of_both_lists_maps_to_coded`, which failed in
+  `gates-rc2.log` at `6a7b5fc8`, passes at this base: it was fixed upstream between the two commits. No
+  failure exists at the base of this lane.
+- **V12-D1 Migrations 60 to 63.** 60 `owner-settings-alerts` (B), 61 `allergens` (C), 62 `courses` (D),
+  63 `gift-vouchers` (E), in a new `crates/pos-db/src/schema_v12.rs`, registered in a `V12_MIGRATIONS`
+  slice of `migrate.rs`, in every build (no cargo feature), with the test
+  `the_v12_migrations_are_60_to_63_and_in_every_build` extended by each task. T1 adds none (the export
+  tool is stand-alone and changes no schema). Renumbering at merge touches `schema_v12.rs`, the registry
+  and that test only.
+- **V12-D2 One owner-settings store.** `owner_settings(key, value_json, changed_at, changed_by)` and the
+  append-only `owner_settings_log`; keys `alerts`, `courses`, `gift_vouchers`; no `CHECK` on the key;
+  values validated in Rust with `deny_unknown_fields`; an absent key means the feature's defaults (off);
+  every set writes the row and a log row in one transaction. Implemented by T2.
+- **V12-D3 Who.** Settings of B, D, E and allergen edits: `Access::Admin`. Sending the next course,
+  changing a line's course, selling and redeeming a voucher, voucher lookup, printing allergen sheets:
+  any logged-in staff that may already do the underlying action. The voucher list and duplicates: admin.
+- **V12-D4 Off by default, today's behaviour kept.** With B, D and E off every existing test passes
+  unchanged and the till behaves as v1.0.0 and v1.1. C only shows data the catalog or an admin entered.
+- **V12-D5 A separate tool, outside the certified binary.** New crate `crates/pos-accounting`
+  (`publish = false`, library plus binary `pili-accounting`), a workspace member that no shipped crate
+  depends on. `crates/pos-accounting/tests/isolation.rs` fails if the `Cargo.toml` of `pos-engine`,
+  `src-tauri`, `android/rust/pos-ffi` (and `android/rust`, `pos-core`, `pos-db`, `pos-fiscal`,
+  `pos-print`, `pos-export`) names `pos-accounting`, if the Android lock files name it, or if its own
+  `[dependencies]` name a `pos-*` crate. Choice made in T1: the tool has no POS crate as a run-time
+  dependency (it parses the archive as plain SQLite and JSON), which is stricter than the plan (the plan
+  allowed `pos-engine-testkit` as a dev-dependency only; the tests also dev-depend on `pos-engine`,
+  `pos-core`, `pos-db` and `pos-fiscal` to drive the real commands and migrations). Rationale: an
+  on-till screen would grow the certified binary and need an SPF update for every format tweak an
+  accountant asks for.
+- **V12-D6 Input is a copy of `pos.db`.** `SQLITE_OPEN_READ_ONLY` with the URI `mode=ro&immutable=1`;
+  `--db` takes a file or an SPF export folder (its `pos.db` is used and `MANIFEST.sha256`, `sha256sum`
+  format, is verified when present: `manifest_mismatch`); a database whose `_migrations_applied` lacks
+  version 4 is refused (`not_a_pili_db`). Added in T1 (conservative reading): a non-empty `pos.db-wal`
+  beside the file is refused (`db_unreadable`), because immutable mode ignores a WAL and the copy of a
+  live database would silently miss what the WAL still holds; the SPF export and a backup are
+  consistent single files.
+- **V12-D7 Signed data only.** Rows read: `fiscal_events` with `fdm_response_json` not null and type N, I
+  or F (an event whose signed `event_label` differs from its type is skipped), the closing R event of
+  each period, `z_reports` and `booking_periods`. Never `orders`, `order_lines`, `payments`. Training
+  (T), copy (C), pro forma (P), social (S) and X reports are never read. Channel from the signed cost
+  center (`TABLE` dine-in, none takeaway, other online); a refund without a cost center of its own
+  takes the channel of the ticket its `fdmRef` names, found in the archive; refund detection as in
+  `pos-export/src/stats.rs`. A gift voucher sale is a line whose `departmentId` (or `productId`) is `GV`.
+- **V12-D8 Period equals closed booking periods.** `--month` or `--from/--to`, filtered on
+  `booking_periods.booking_date`. Rows are per booking period, not per calendar date: two Z on one date
+  (two periods) give two rows, each with its Z number. Reconciliation per period against the signed Z:
+  N ticket count, turnover (Σ lines after price changes), VAT base, VAT and total per label (Z `vats`
+  against Σ `vatCalc`), payments per `(type, amountType)` (Z `totalAmount`). Any gap is
+  `RECONCILIATION_FAILED` (exit 2) naming the date, the Z number and the field; nothing is written. An
+  open period is left out and named in `LISEZMOI.txt`; a range with only open periods is `period_open`,
+  a range with no period `empty_range`. Not reconciled (no Z counterpart): invoices, cash movements,
+  gift voucher rows.
+- **V12-D9 Formats.** Detail CSVs UTF-8 with BOM, `;`, CRLF, decimal comma (`--decimal point`), an
+  integer `_centimes` column next to every amount; free text from the till that starts with `=`, `+`,
+  `-` or `@` gets a leading apostrophe. The generic journal profile is the reference (decimal point,
+  `YYYY-MM-DD`). `winbooks` and `yuki` are best effort from public import descriptions (Winbooks:
+  `DBKCODE;DBKTYPE=PRI;DOCNUMBER;DOCORDER;ACCOUNTGL;BOOKYEAR;PERIOD;DATE=YYYY/MM/DD;COMMENT;AMOUNTEUR`
+  signed debit positive, `VATCODE`; Yuki: `Date=dd-mm-yyyy;Journal;Reference;Account;Description;Debit;
+  Credit;VATCode` with a decimal comma, the one place the plan left open); both need a test import at the
+  accountant (open question Q1). Exact Online goes through the generic file. Default accounts: sales
+  700000/700100/700200/700300/700400 for labels A/B/C/D/X, VAT 451021/451012/451006, cash 570000, card
+  580000, meal vouchers 580100, app 580200, online 580300, other 580900, gift vouchers outstanding
+  489000, rounding 657000 (cost) and 757000 (income), tips to return 489100, sales not collected 400000
+  (the last three are T1 additions to the plan's list, needed for a day to balance: tips, unpaid sales
+  and the D/X sales). The journal debits collections per method (payments, rounding, tips), debits
+  unpaid sales, credits sales per label (VAT X gift voucher lines go to 489000, not to a sales
+  account), VAT as total minus the FDM's base, rounding and tips; a redeemed voucher debits 489000. An
+  unbalanced entry is `journal_unbalanced` (it cannot happen on a day that reconciles). An accounts file
+  with an unknown key or an invalid account number is refused (`accounts_invalid`).
+- **V12-D10 Output folder.** `export-comptable-<from>-<to>/` written under a `.partial` name and renamed
+  (a stale `.partial` of an interrupted run is replaced); an existing folder is never overwritten
+  (`out_exists`). Files: `jours.csv`, `tva.csv`, `paiements.csv`, `remboursements.csv`, `factures.csv`,
+  `bons_cadeaux.csv`, `mouvements_caisse.csv`, `rapports_z.csv`, `journal.csv`, `LISEZMOI.txt` (French,
+  source file name and SHA-256, periods included and left out, conventions) and `MANIFEST.sha256`
+  (sorted, `sha256sum` format). The only run-dependent value is the generation time in `LISEZMOI.txt`.
+  No INSZ and no operator name; the customer name and VAT number only in `factures.csv`; the label of a
+  cash movement is the text typed at the till (documented in the dossier draft).
+- **T1: invoices (I events).** `factures.csv` takes the M150 shape (`invoiceNo`, `customerVatNo`,
+  `fdmRefs`; the customer name from `customerName`, `customer.name` or `costCenter.name` when present)
+  and gets its amounts from the archived sales the `fdmRefs` name; tickets not in the archive are listed
+  and counted in `tickets_introuvables`, never guessed. Invoices are informative: their tickets are
+  already in the sales of their own period.
+- **T1: expected failures of the p5/p6 gates on this lane (plan section 7).** `hygiene-paths`
+  (changes outside `android/`, `scripts/android/`, `docs/android/`), `hygiene-root-lock` (root
+  `Cargo.toml` and `Cargo.lock` gain the `pos-accounting` package), `linux-frozen` and `freeze-tag`.
+  `python3 scripts/android/lane_paths.py --owner` reports `frozen` for `crates/`, `Cargo.toml` and
+  `Cargo.lock`, and no owner for `docs/internal/v1.2/`: the plan prescribes these paths, so they are
+  edited; `LANES.md` is not touched (`lane_paths.py --check` passes).
+
+- **T2: owner alerts (B), what was built and where it differs from the plan text of V12-D11 to D16.**
+  The settings, the log and the worker are as D11 to D16 describe; migration 60 and the owner-settings store
+  are the ones of D1 and D2 (D2 to D4 above are unchanged by T2). Deviations and precisions, all decided
+  while building:
+  - **The loop is always spawned** (`start_background` starts `alerts::run_owner_alerts` in every build); it
+    reads the settings every tick and does nothing while they are off, so switching the alerts on needs no
+    restart. The tick (30 s) and the probe interval (5 min) are constants of the module, not `EngineTimers`
+    fields; tests drive `run_pass(state, now)` directly with a fixed clock and a mock Bot API.
+  - **Its own HTTP client**, built from `state.http_tls` with a 10 s timeout per attempt, instead of
+    `state.shared_http` (the shared client carries no timeout and is used by the HubRise paths). Same TLS
+    policy. No lock (`state.db`, the signing lock) is held while a request is in flight.
+  - **State changes when the decision is taken**, whether the send then succeeds or not: a raised alert is open
+    (and its reminder clock runs) even if Telegram refused the message; the failure is in `owner_alert_log`
+    as `failed`. A resolved message is sent only if the owner was told (a `sent` raise or reminder exists);
+    an alert nobody heard about closes silently.
+  - **Global cap of 20 per rolling hour counts `sent` rows** (test messages and `suppressed` rows excluded).
+    A message above the cap is not sent and is logged `suppressed`. After a restart the book is seeded from the
+    log (last raise or reminder younger than the reminder period, 24 h when reminders are off, reopens the
+    alert; `test` rows never count).
+  - **Debounce:** `fdm` 2 minutes and 1 observation (the monitor already polls), `printer` and `terminal`
+    2 consecutive observations (probes 5 minutes apart), `z_missing` and `online_waiting` 1 observation.
+  - **Probes only when safe.** The FDM is judged only while a session is open (the monitor polls only then).
+    Printers are probed (`TcpPrinter::send(&[])`, then `status.ready()`) only while a session is open and the
+    signing lock is free (`signing::try_acquire`, dropped at once: a sale or a print in progress is detected
+    through it); the terminal only when `eft_line` is free (`do_check_payment_terminal` answers busy
+    otherwise). A probe skipped is no observation.
+  - **`z_missing`:** the open booking period's booking date plus one day at `z_deadline_hour` (default
+    `day_end_hour + 1`, 0 to 12), Europe/Brussels with DST; skipped in training mode. The panel and
+    `get_owner_alerts` return the effective hour as a number.
+  - **`online_waiting`:** only while the HubRise switch is on; `webshop_orders` rows with
+    `fiscal_state = 'pending'` and `resolved_at` older than `online_wait_minutes`; the message carries the
+    channel names (control characters stripped, cut) and the counts, nothing else.
+  - **Messages** are French, Chinese or English per the setting, with the installation label (setting, else
+    the terminal id) and the Brussels local time since when; they hold no personal data (checked by a test in
+    the three languages with a customer name, an address and an amount in the order).
+  - **Test message:** one attempt, not three; a failure is the error `alerts_send_failed|detail=...` so the
+    panel can say why; the row is logged with transition `test` and kind `test`.
+  - **Telegram:** `POST {api_base}/bot{token}/sendMessage`, 3 attempts with 2 s then 4 s of backoff, no retry on
+    a 4xx other than 429, `ok = false` in a 2xx body is a refusal. Transport errors go through
+    `reqwest::Error::without_url` and a `/bot***/` redaction; a test greps logs, rows and error texts for the
+    token.
+  - **Validation (`alerts_invalid|field=`):** chat id optional `-` then 1 to 20 digits (empty only while
+    disabled), label up to 40 characters without control characters, language fr, zh or en,
+    `z_deadline_hour` 0 to 12, `online_wait_minutes` 1 to 120, `reminder_minutes` 0 to 1440. `alerts_token_missing`
+    when the test or the worker finds no readable token; `config_alerts` from `--check-config` when the token
+    file or the address is unusable.
+  - **Both UIs:** a draft-and-save panel ("Alertes sur téléphone") with the master switch, the token pill, the
+    chat id and the three numbers typed on the shared keypad in a small number dialog (a separate minus toggle
+    for a group chat id; `NumPad` itself is unchanged), a label field, the language, one switch per kind, save,
+    "send a test message" (saves a changed draft first) and the last 20 log rows. Managers only on both.
+  - **Expected failures of the p5/p6 gates on this lane** are those of T1 (`hygiene-paths`,
+    `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); the root `Cargo.lock` gained one dependency edge, `pos-engine` to
+    `tracing-subscriber` (a dev-dependency, to read logs in the token test), and no package: the crate was
+    already in the lock through `pos-eft`. `android/rust/Cargo.lock` is unchanged.
+
+- **T3: allergens (C), what was built and where it differs from the plan text of V12-D17 to D21.** The model,
+  the import, the display and the sheet are as D17 to D21 describe; migration 61 is the one of D1. Precisions and
+  deviations, all decided while building:
+  - **`catalog_mapper` has no upload path.** The plan asked for the tags to be written back on upload; the
+    mapper only reads the HubRise catalog, so no writer was needed and none was added.
+  - **The catalog never clears a local list when it says nothing.** A catalog source with no tag on an entity
+    leaves a list entered locally untouched. A catalog that has dropped its tags clears a list it declared
+    earlier (source `catalog`) and writes one `allergen_change_log` row; a log row is written only on a real change.
+  - **`allergen:none` combined with other allergen tags is ignored** (the explicit tags win); alone it declares
+    an empty list.
+  - **zh prints in French.** The sheet slip supports fr, nl, en and de; the CP858 code page cannot print
+    Chinese, so a Chinese interface prints the French sheet, as the other slips do.
+  - **Undeclared options are printed as "Information non disponible".** An option without declaration is never
+    printed as "no allergen".
+  - **The footer reuses `invalid_disclaimer`** (the wording "T.V.A." of the other non-fiscal slips) after the
+    regulation line.
+  - **No Vue wrapper for `set_allergens`.** The command exists in the engine, the Tauri wrappers (104 in all, 102 in
+    the cert build) and the FFI facade (error count 119), but neither UI calls it yet: the product editor
+    (lane 3) is the hook.
+  - **Both UIs** show Annex II numbers in small circles (no drawn icons), at most 6 on a tile then "+n", an
+    "Allergènes" mode button on the order screen whose tap opens the product sheet instead of adding it, a
+    legend of the 14 numbers while the mode is on, the badges on the options of the option picker, and a sheet
+    dialog with "Contient", "Traces", the options and the two print buttons (this product, the whole menu).
+    Outside French the French names follow in brackets.
+  - **Expected failures of the p5/p6 gates on this lane** are those of T1 and T2 (`hygiene-paths`,
+    `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); no dependency was added.
+
+- **V12-D22 The course stays out of the signed payload (T4, D).** The course is kitchen data (spec 8.1:
+  kitchen and bar prints never carry an amount; spec 8.2: a printout may be consolidated and regrouped, never
+  an FDM message; FAQ Q210 b: what the POS does for the kitchen display stays at the POS). It lives in
+  `CartLine` (`course`, `kitchen_state`) and `TableInfo` (`held_course`) and in the three tables of migration 62;
+  it never enters `OrderLine` (the fiscal builders), a product name, a department, a P, N or T request, the
+  pre-bill or the VAT ticket. Tests: the signed requests of a sale are identical with courses on or off, and
+  every archived request and ticket text, every database text column and every receipt of a three-course sale
+  is searched for course data (`tests/courses.rs`, `the_course_never_reaches_a_signed_request_a_name_or_the_vat_ticket`).
+- **V12-D23 Rules (T4, D), as built.** Courses 0 "Direct", 1 "Entrées", 2 "Plats", 3 "Desserts"; setting `courses`
+  `{enabled, category_courses}` in the V12-D2 store (read by any operator, stored by an administrator, logged).
+  Switched off, the slips are byte-identical to the ones before (a hand-rebuilt legacy layout in `pos-print` and
+  a full-service comparison in the engine tests). A new line takes the course of its category (0 when unmapped);
+  a change is refused with `course_already_sent` once a slip carried the line, `courses_disabled` when the switch
+  is off, `course_invalid` outside 0 to 3. The released course starts at 1; a P (or the N of a direct sale)
+  prints the entries of course 0 or not above the released course, grouped under `-- <Course> --` headers, and
+  holds the others. `send_next_course` signs the unsent lines first through the table-order path (FDM down:
+  refused, nothing signed, printed or released; a course whose entries are already signed prints without the
+  FDM), releases the lowest held course and prints it. A correction of a printed line prints at once; a
+  correction of a held line is netted at the release; a net quantity of 0 prints nothing. A sale that closes a
+  table with a held course does not print it; both UIs warn at checkout. `reprint_course_slip` prints again
+  what was printed for a course, marked DUPLICATA, and records nothing (`nothing_printed` when no slip carried
+  the course). `kitchen_slip_entries` is written only when the slip reports `Printed`; a failed print leaves
+  the entries unprinted and the next P, release or catch-up prints them.
+- **T4: deviations and precisions, all decided while building.**
+  - **No foreign key from `order_line_courses.line_id` to `order_lines`.** `order_lines.id` is not
+    AUTOINCREMENT, so the id of a removed line can come back; creating a line clears any stale course row
+    first (`clear_line_course`), then writes its own. `order_id` keeps its foreign key.
+  - **The migration backfills `kitchen_slip_entries`.** Journal entries already registered by a signed event
+    before the migration are recorded as printed (course 0, `immediate`), so switching courses on in the middle
+    of a service never reprints old lines. The plan text did not mention it.
+  - **The legacy slip path records entries too.** `print_bar_slip` (the path taken with the switch off) is
+    unchanged in output but records its entries on `Printed`, so a switch turned on mid-service is consistent.
+  - **`send_next_course` with nothing held.** When no course is held but signed entries are still unprinted
+    (an earlier slip failed), it prints them again and answers `course: null`; with nothing at all to print it
+    is `no_course_held`. The plan only had the error.
+  - **A P that registers nothing new still prints the catch-up** (entries signed earlier whose slip did not
+    print) when courses are on; with the switch off the behaviour is the one of before (no retry), as tested.
+  - **`set_course_settings` validates and canonicalises.** Courses 0 to 3, every category must exist and appear
+    once, a category on 0 is dropped (an unmapped category is "Direct"); the stored value is returned.
+  - **Table plan badge** is `TableInfo.held_course` (the lowest held course, 1 to 3, null otherwise).
+  - **Takeaways** group their cart by course and print headers like a direct sale; the "Envoyer la suite"
+    button and the checkout warning are for dine-in orders only.
+  - **Headers and the release line** on the slip are `-- Plats --` between course groups and `SUITE : Plats`
+    under the table line; course names follow the slip language (fr, nl, de); the zh interface prints French.
+  - **UI placement.** The panel "Service en plusieurs temps" sits in the second column of Settings under the
+    employees on both UIs (a manager only, at most half the column, scrolling inside). Two first tries in the first
+    and third columns of the Vue screen pushed the table plan and the HubRise switch out of reach (the
+    existing Playwright tests could not click them). The cart on both UIs keeps the amber "not sent" mark per line
+    but drops the separate "not sent" block while courses are on (the course groups replace it).
+  - **`reprint_course_slip` has no screen.** The command, its Tauri wrapper, the FFI method and the Vue wrapper
+    exist and are tested, but neither UI calls it yet (no reprint action on the order screen in this release); the
+    UI parity file declares it `excluded`.
+  - **Two failures of earlier tasks were fixed here because the gates of this task hit them.** The French allergen
+    sheet golden in `pos-print` lost its first line indent to a string continuation (`\` then a newline strips
+    leading spaces; the test now starts the literal with `\x20`), and `cargo fmt` in `android/rust` reformatted
+    two lines of the allergens facade and its test.
+  - **Expected failures of the p5/p6 gates on this lane** are those of T1 to T3 (`hygiene-paths`,
+    `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); no dependency was added.
+
+- **V12-D24 Multi-purpose vouchers only (T5, E).** Implemented: MPV. The sale is a line at VAT X (no VAT at
+  issue), the use is a payment (VAT is due on the goods bought). Deferred, with the reasons in
+  `docs/internal/v1.2/BONS_CADEAUX_FR.md` section 8: (1) SPV (UC270, UC271): VAT due at sale, use as a negative line
+  `negQuantityReason VOUCHER` whose VAT split must mirror the sale; UC270 ("Voucher Special Diner Offer", 2 business menus at B 75) and UC271 (redeems "SPV Menu all-in", quantity -1,
+  A -18 / B -40 = -58) are two different vouchers; the redemption mirrors the VAT split of the composite "menu all-in"
+  it is valid for, so SPV needs the VAT split of a composite product, which is not supported (same deviation as UC261
+  and UC4109); we do not guess (Q4); (2) voucher to cash (UC4105): vouchers are not exchangeable for
+  cash, no need; (3) refund to a voucher (Q6). `scripts/uc_scope.toml` no longer lists UC260, UC261, UC262 (covered
+  by `spf_e2e_gift_vouchers.rs`); UC270, UC271 and UC4105 stay `hors_perimetre` with "différé en v1.2" reasons.
+- **V12-D25 Sale as a system product (T5, E), as built.** Migration 63 inserts category 990000 `pili:system`
+  (inactive) and item 990001 `pili:gift-voucher` (VAT X/X, `out_of_scope`, no kitchen printer, free price,
+  inactive) with fr/en/nl/zh names; the ids are fixed and far above any catalog id so rows and fixtures never
+  collide, and `ensure_system_item` re-runs the idempotent SQL where a test seed or a catalog reset removed the
+  rows. `add_gift_voucher_line(order_id, amount_cents)` (cashier) adds one line of quantity 1, name in the
+  establishment language, department `GV`; amount 1,00 to `max_amount_cents` (`gift_voucher_amount_invalid`
+  with `max=500,00`, formatted with a comma); `gift_vouchers_disabled` while the switch is off. The quantity cannot
+  change (`gift_voucher_line_fixed`, checked in `do_update_order_line_quantity`); the line can be removed. An order
+  that sells a voucher is paid in cash or by card only (`gift_voucher_payment_invalid`).
+- **V12-D26 Issue at the N commit (T5, E), as built.** `plan_sale` runs under the sign guard in
+  `checkout::sell_locked`: it draws one code per voucher line (10 digits from the OS generator plus 2 check digits
+  `97 - n mod 97`) and stores them in `PendingContext::Sale.gift_vouchers_issued` (serde default), so a lost answer
+  that is recovered later issues the same vouchers (tested: one voucher, not two). `signing::apply` writes the
+  voucher and its `issue` movement in the archive transaction. Training sales write `training = 1` vouchers, which
+  only serve in training, and real vouchers do not serve in training. Lookups that fail (shape, check digits,
+  unknown code) all count toward the throttle: 5 a minute per terminal (`AppState.gift_voucher_lookups`).
+- **V12-D27 Use is a `VOUCHER_STORE` payment (T5, E), as built.** `PaymentMethod::GiftVoucher` maps to
+  `PaymentType::VoucherStore`, line identity ("8", "Gift voucher"), MANUAL, exact, never rounded.
+  `PaymentPart.gift_voucher_id` is required for a gift voucher part and refused on any other part (`settle`).
+  The checks run at prepare under the sign guard (exists, same training mode, not cancelled, not expired at the local
+  date, balance covers the part, one part per voucher); the `redeem` movement is written in `apply` unconditionally.
+  A voucher worth more than the bill pays the rest of the bill and keeps the balance (no change). The `payments`
+  row stores the method `other`. The HubRise echo of a till sale is skipped when the sale sells a voucher (a voucher
+  line has no HubRise product), and a voucher payment is named "Other" in the echo.
+- **V12-D28 Refunds (T5, E), as built.** Refunding a voucher sale line cancels that voucher in the refund's archive
+  transaction (`PendingContext::Refund.gift_vouchers_cancelled`, serde default) when it was never used; otherwise
+  `gift_voucher_used`. The refund picks, among the original order's voucher lines of the same unit price, the
+  unused vouchers not yet cancelled, and refuses when there are fewer than the quantity refunded. A refund of a sale
+  paid by voucher stays a cash refund with the manager confirmation; the voucher is not re-credited (Q6).
+- **V12-D29 Settings and expiry (T5, E).** `gift_vouchers {enabled = false, validity_months 12..36 (12),
+  max_amount_cents 100..1 000 000 (50 000)}` in the V12-D2 store (read by any operator, stored by an administrator,
+  logged). `expires_on` is the issue local date plus the validity; expiry is not an event: an expired voucher is
+  refused at payment (`gift_voucher_expired`) and a manager can still look it up.
+- **V12-D30 Printed voucher (T5, E), as built.** After the N is committed and recorded, `follow_up` prints the
+  voucher (value, code large with a QR, dates, rules, the sale reference, "not a valid VAT ticket") and, when a
+  payment leaves a balance, a balance slip with the code masked to its last 4 digits. Both go to the ticket printer
+  and a row of `gift_voucher_prints` is written only when the slip reports `Printed`. `print_gift_voucher`
+  (administrator) prints a DUPLICATA and records it. The checkout result carries `gift_voucher_prints` (voucher id,
+  `voucher` or `balance`, outcome) for the done screen.
+- **V12-D31 Reports (T5, E).** X and Z need no change (the FDM `vatCalc` carries X; payments are grouped by
+  identity, name and type). The printed Z names the payment "Bon cadeau" (fr), "Cadeaubon" (nl), "Geschenkgutschein"
+  (de), "Gift voucher" (en); `labels.rs` matches "gift", "cadeau" and `VOUCHER_STORE`.
+- **T5: deviations and precisions, all decided while building.**
+  - **Fixed ids 990000 and 990001** instead of ids taken at insert time (V12-D25 left it open): fixtures and the
+    SPF test seed delete the whole menu, so the seed keeps the two system rows (`entity_id NOT IN (990000, 990001)`)
+    and `do_add_gift_voucher_line` calls `ensure_system_item` as a defence.
+  - **Gift voucher part and `settle`.** A part with an amount above 0 is accepted only when
+    `(method == GiftVoucher) == gift_voucher_id.is_some()`, and a cash part may not name a voucher; the plan only
+    said the id exists.
+  - **A sale that sells a voucher cannot be closed unpaid** (the voucher would exist without a payment).
+  - **The voucher slip is printed on the ticket printer**, not on a new printer role; `gift_voucher_prints` is
+    written only for a printed slip, as the kitchen entries are.
+  - **UC260's card is MANUAL here**; the fixture's terminal payment is AUTOMATIC. `business_view` does not compare
+    `inputMethod`, so the test asserts it explicitly. Deviations: UC260 `productId` and `departmentId`; UC261 the
+    composite-menu `lineType` and `vats` (as in UC4109); UC262 `transactionLines[1].vats[0].label` (an order is
+    dine-in or takeaway as a whole, sold as takeaway the burger takes label C).
+  - **UI.** The gift voucher panel sits under the courses panel in the second column of Settings on both UIs
+    (a manager only). The "Bon cadeau" method hides, with the meal vouchers, while the sale sells a voucher, and it
+    opens its dialog without becoming the selected method (cash stays selected under it). The Reports tab shows
+    only while the setting is on. A number input of the Vue panel gives a number once it holds one: the draft
+    converts with `String(...)` first (found by the Playwright spec).
+  - **Not done:** a QR scan of the code (typing only, as the plan says); the `max` of the amount error is shown in
+    the establishment language of the browser/engine text, not localised beyond the comma.
+
+### V12-T6 (full gate, 2026-10-18)
+
+- **GATE lines (head of android/lane-v12, run through `heavy.sh`):**
+  - R: `cargo fmt --all -- --check` PASS; `cargo clippy --workspace --all-targets -- -D warnings` PASS; same with
+    `-p pili-pos --no-default-features --features cert` PASS; `cargo test --workspace` PASS (153 suites ok, 0 failed);
+    `cargo test -p pili-pos --no-default-features --features cert` PASS; `cargo test -p pos-engine
+    --no-default-features --features cert` PASS (66 suites ok).
+  - F (`android/rust`): `cargo fmt --all --check`, `clippy --workspace --all-targets --locked -D warnings`,
+    `cargo test --workspace --locked` all PASS.
+  - P: `check_ipc_wrappers.py` 116/116 single call (114 without peppol); `check_command_parity.py` plain, `--strict`
+    (114/114) and `--hygiene` PASS; `check_ui_parity.py` plain and `--strict` PASS (111 commands, 101 called, 10
+    excluded, 0 missing); `vue_to_android.mjs --check` PASS (707 keys); `lane_paths.py --check` PASS.
+  - D: `check_dossier.py` for `docs/SUBMISSION_ARTIFACTS`, `docs/android/dossier` and `docs/internal/v1.2` all exit 0;
+    `uc_matrix.py` check mode MANQUANT 0; em-dash scan of the changed files and of the added diff lines vs the base
+    `b3248d2d`: none; `git diff b3248d2d -- docs/SUBMISSION_ARTIFACTS docs/android/dossier` is empty (v1.0.0
+    dossiers untouched).
+  - U: `npm run build` and `npx playwright test`: 392 passed.
+  - A: p5 and p6 run the Android steps: lint, ktlint, detekt, 2226 unit tests, Roborazzi verify, kover (line 97.5%,
+    branch 74.2%), release assemble, APK check: all PASS.
+  - `p5_gate.sh` 7 FAIL of 34, `p6_gate.sh` 5 FAIL of 57, `test_inventory.sh --diff` PASS (0 removed);
+    `kotlin_test_inventory.py --base b3248d2d`: base 2081, head 2273, removed 0.
+- **Expected-by-design failures:** `hygiene-paths`, `hygiene-root-lock`, `linux-frozen`, `freeze-tag` (p5 and
+  p6), plus `app-only-scope` (p5 only: the lane touches `android/rust` and `pos-core`, so the "full gate" is the one
+  to use, which is this run).
+- **Failures that are not this lane's, left alone on purpose:**
+  - `kotlin-tests` (p5, p6) and `kotlin_test_inventory.py --base android/int`: `android/int` moved to `9ada2030` after
+    the merge base `b3248d2d` (lane 2 added about 339 tests there). Against the real base the inventory removes 0.
+    It goes away after the merge.
+  - `ui-money` (p5): `WebshopOrdersStore.kt:239-240` (`sumOf amountCents`, `totalCents - paid`) exists in the base;
+    `android/int` already fixes it in `dd2bd43b`. This lane does not touch the file; the merge resolves it.
+- **Environment notes:** the shared Cargo target needed the `touch` of `crates/` and `src-tauri/` sources before the
+  first build (see T1). Disk fell to 7 GB free during the run; removed `target/android-rust-mismatch` and
+  `target/android-mocks` of this worktree (regenerable) and ran `gradlew clean`; `cargo clean --target-dir target`
+  refuses to run on this layout. `uc_lock_parity.sh` was not part of this gate (known failure at the base, see T2).
+- **Open questions left for the owner/orchestrator:** the live Telegram check of the alerts (T2); Winbooks and Yuki
+  layouts of the accountant export are best effort (Q1); the merge with lanes 2 and 3 (see plan section 13); the
+  captures of plan section 11 (none is possible without an emulator).
+
+### Fix round 1 of lane 4-v12 (2026-10-18)
+
+- **V12-D32 Gift vouchers cannot be switched off while vouchers can be redeemed (E).** `set_gift_voucher_settings`
+  with `enabled = false` is refused with `gift_vouchers_outstanding|count=<n>` while at least one non-training
+  voucher is not cancelled, has a positive balance and is not expired (usable through its expiry date). Reason: the
+  "Bon cadeau" payment method and the Reports lookup tab show only while the setting is on, and sold vouchers are
+  valid at least 12 months, so a switch-off would strand prepaid customer money. Same precedent as the HubRise
+  switch-off refused while online orders are unsettled. Chosen over "keep the method visible" because it keeps the
+  UIs unchanged. Training vouchers, used-up, cancelled and expired vouchers do not hold the switch. Strings in fr, en
+  and zh on both UIs (`err_gift_vouchers_outstanding`).
+- **V12-D33 Voucher lookup access (E).** The lookup stays Cashier (cashiers and managers), as planned in V12-D3: a
+  waiter gets `forbidden`. Comments (Vue, Compose) and the draft now say so.
+- **V12-D34 Printed languages of the voucher slips (E).** The slips follow the establishment receipt language (fr,
+  nl, de); en and zh print in French. The dead English wording of `pos-print` was removed and the draft corrected.
+- **V12-D35 Payment names (E).** Only "Gift voucher" and `VOUCHER_STORE` print as "Bon cadeau" (exact match,
+  case-insensitive); names such as a HubRise "Carte cadeau" print unchanged, as before v1.2.
+- **V12-D36 Course reprint is engine-only (D).** `reprint_course_slip` has no screen on either UI (excluded from UI
+  parity); the DUPLICATA capture of the course slip is dropped and the dossier draft says so.
+- **Not done, on purpose (minor items 5 and 6).** (5) The zero-quantity filter of `courses::per_entry` was left
+  alone: its entries are recorded as done through the slip items, so dropping them would leave them pending
+  forever; no zero-quantity entry can exist today. (6) The alerts printer probe still skips only while the signing
+  lock is held; a probe during the short follow-up print is harmless (the printer accepts a second connection and
+  the probe sends only a status request).
+- **Merge note.** `scripts/uc_scope.toml` marks UC260 to UC262 covered: run `uc_matrix.py --write` only against the
+  v1.2 dossier, never against the v1.0.0 `SUBMISSION_ARTIFACTS` matrix. The three stray `.kt-E` files were removed.
+
+### Closing round of lane 4-v12 (2026-10-18, scope change: everything here is part of v1.0.0)
+
+- **V12-D37 Terminal probe never delays a card payment (E).** The owner-alerts terminal probe takes the EFT line
+  (`AppState::eft_line`) with `try_lock` and skips the round (judges nothing, sends nothing) when the line is busy
+  because a payment or another check is running. When it does get the line it runs under a short timeout,
+  `EngineTimers::terminal_probe` (default `alerts::TERMINAL_PROBE_TIMEOUT`, 10 s); on expiry the check future is
+  dropped, which frees the line, and the round judges nothing. A payment started during a probe therefore waits at
+  most the timeout. Tests: held line skipped at once with no terminal call; hanging terminal dropped; payment
+  started during a hanging probe is not delayed beyond the timeout (scripted driver with `set_check_delay`).
+- **V12-D38 Voucher of the other mode is `not_usable` (E).** `lookup_gift_voucher` answers the distinct status
+  `not_usable` when the voucher's training flag differs from the till's current mode (a training voucher in normal
+  mode, a real one in training mode), before any other status. The balance and expiry are still shown. The manager
+  list keeps the four real statuses. Both dialogs (Vue and Compose) show "Non utilisable (autre mode)" / "Not usable
+  (other mode)" / "不可使用（另一模式）" and offer no apply button; the sale already refused such a voucher
+  (`gift_voucher_not_usable`).
+- **V12-D39 Refund of a sale paid with a voucher stays a cash refund (E).** The voucher itself is never exchanged for
+  cash: it paid for goods, and refunding those goods is the refund of a sale, not an exchange of a voucher. The
+  restaurant chooses to refund that sale in cash (manager confirmation, as for any sale); the voucher is not
+  re-credited. The draft `BONS_CADEAUX_FR.md` now says so plainly; no receipt or slip wording says otherwise.
+- **V12-D40 No update framing (E).** The certification is v1.0.0 and includes this lane. Code, comments, test names
+  and file names carry no "v1.2" (`schema_v12.rs` is now `schema_owner.rs`, `V12_MIGRATIONS` is `OWNER_MIGRATIONS`);
+  the decision ids `V12-D..` and this heading stay. Migrations are not renumbered here (rc3 pass). `uc_scope.toml`
+  keeps UC260 to UC262 covered; the reasons of UC270, UC271 and UC4105 no longer name a version. `uc_matrix.py
+  --write` is for the orchestrator after the merge.
+- **V12-D41 Voucher sale is a cashier action in the UI too (E).** The engine sells a voucher to a cashier or a
+  manager (`add_gift_voucher_line` is Cashier level), so a waiter is not offered the "Bon cadeau" button, on Vue
+  (`OrderView.vue`, `auth.canTakePayment`) and on Compose (`MenuViewModel`: the button needs `canPay`, and
+  `askGiftVoucher` is a no-op without it). Same rule as the Pay button; the engine refusal stays as the backstop.
+- **V12-D42 An allergen legend that cannot be read is told (C).** `list_allergens` failing used to leave the legend
+  empty and silent. Vue shows the error next to the hint (`allergen-legend-error`), Compose in the allergen bar
+  (`allergen_legend_error`); the next successful read clears it.
+- **V12-D43 `OrderStore.reloadCourses` removed (D).** Nothing called it. Both UIs read the courses setting when an
+  order is started or loaded and after every cart change, so a setting the manager saved is picked up by the next
+  order screen; no live reload is needed and Vue does not reload either.
+- **V12-D44 Settings employees list keeps room, not the whole list (D, E).** With the courses and gift voucher
+  panels drawn, the employees list stays visible (at least one row) and scrolls inside its panel; the test pins that
+  the list is not squeezed out, not that every row fits at 1920 x 1080.
+- **V12-D45 FFI `IssueCode` mirrors the catalog's `UnknownAllergen` (C).** The record lacked it, so a catalog refused
+  for an allergen typo made `hubrise_sync_catalog`, `hubrise_status` and `hubrise_adopt_catalog` answer an
+  internal contract error on Android. The record has it now and the contract tests cover the sync and the status.
+
+## Lane int (2026-10-17)
+
+Merge of lane 4 (android/lane-v12: accountant export, owner alerts, allergens, courses, gift vouchers) into
+android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering continues the first "Lane int" section
+(INT-D1 to INT-D11). Plan and captures to retake: `docs/android/phases/merge-int-lane4.md`.
+
+- **INT-D12 Conflicts keep both sides, counts recomputed.** `BarItem` carries the kitchen note (lane 1) and the
+  course (lane 4); `BarTicket` keeps the release and the DUPLICATA; `EngineTimers` holds every lane's timer; the
+  config sections and `CartLine` fields of both sides are kept. One Tauri handler list: 148 wrappers
+  (`check_ipc_wrappers.py` 148/148, `check_command_parity.py` 148/148). FFI error codes 196 (173 engine + 23
+  HubRise), Android strings regenerated by `vue_to_android.mjs --write` (1067 keys). Migrations from 28 in registry
+  order: 28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70. Lock files: root, `android/rust` and `android/uccheck` refreshed
+  with `cargo metadata --offline`; the lock parity holds (343 packages). The FFI invoice test gives the new
+  `gift_voucher_id: None`; the Vue voucher cart line gets `discount_cents`, `price_changes` and `kitchen_note`.
+- **INT-D13 A gift voucher line is never discounted.** The engine refuses a line discount on a VOUCHER line
+  (`discount_invalid`); an order discount gives the voucher lines a weight of 0, so the voucher keeps its face
+  value and the X line carries no price change. The UI discount base stays the order total. Neither UI offers the
+  "Offert" or "Note" button on a voucher line (Vue `OrderLineItem.vue`, Kotlin `LineChanges.canOffer`).
+- **INT-D14 A PRICE_CHANGE entry is never held or printed by the courses.** `print_signed` keeps an entry when it
+  is signed and (a price change, or course 0, or a released course). A price change entry is therefore consumed by
+  the first pass and never comes back at "Envoyer la suite"; the release prints the product once
+  (`lane_interactions.rs`).
+- **INT-D15 Kitchen notes on course slips.** A note prints on the first slip of its line, on the release slip of a
+  held line, and on a DUPLICATA (from `kitchen_note_printed`). A note set on a held line that was never printed
+  gives `NothingToPrint` and no MODIFICATION slip: the note reaches the kitchen with the release.
+- **INT-D16 "Épuisé" and "Allergènes" exclude each other.** Both modes take over a tap on a product; switching one
+  on switches the other off, on both UIs.
+- **INT-D17 System rows stay out of the editors.** `menu_admin` lists, `get_category` and `get_product` skip rows
+  whose `external_id` starts with `pili:` (the gift voucher category 990000 and product 990001); `set_allergens`
+  refuses them as unknown. The editor cannot rename, reprice or activate the voucher product.
+- **INT-D18 An invoice of a sale that sells a gift voucher is refused** (`invoice_gift_voucher_sale`). The voucher
+  line is out of scope of VAT (category O); EN 16931 BR-O-02 and BR-O-11 to BR-O-14 forbid a category O invoice
+  with VAT identifiers or mixed with other categories, and our invoices always carry the seller VAT id. The
+  conservative reading refuses the whole sale rather than split it. A sale paid with a voucher (the
+  `VOUCHER_STORE` payment, lines at their normal rates) is invoiced normally.
+- **INT-D19 M132 and gift vouchers.** A payment correction never corrects a `VOUCHER_STORE` line (the voucher
+  movement is written in the sale's archive transaction and cannot follow a new method), never corrects to the
+  gift voucher method, and never corrects a line of a voucher-selling sale to meal vouchers (a voucher cannot be
+  bought with meal vouchers, same rule as the checkout). Codes `payment_correction_gift_voucher`,
+  `payment_correction_method`, `gift_voucher_payment_invalid`. Both UIs show the voucher line locked with a note.
+- **INT-D20 The menu editor edits allergens and the kitchen course.** `MenuAdmin.allergens` carries the declared
+  lists of the listed products and options; the product and option forms show the 14 allergens (tap cycles none,
+  contains, may contain) and the declared switch; the category form shows the course picker (Direct, Entrées,
+  Plats, Desserts) when courses are on. The same "Enregistrer" writes the entry, then `set_allergens` and
+  `set_course_settings`; a new entry must be saved before its allergens. Vue and Compose.
+- **INT-D21 Reports with vouchers.** The sales report counts the VAT X voucher line (department "Bons cadeaux")
+  and its total equals the Z; the `VOUCHER_STORE` payment is a payment line. Z and X reports with voucher lines
+  are covered by lane 4's own tests, the sales report by `lane_interactions.rs`.
+- **INT-D22 Schema documents measured on the merged schema.** The scratch program of INT-D4 (feature `hubrise`)
+  lists 60 tables, 60 triggers and 1 view (48 triggers and 47 tables before lane 4). `SCHEMA_ER_FR.md` lists the
+  12 new triggers (`owner_settings_log`, `owner_alert_log`, `allergen_change_log`, `gift_vouchers`,
+  `gift_voucher_movements`, `gift_voucher_prints`), the four indexes, the relations, an ER diagram (§2.11) and
+  thirty migrations; `SCHEMA_BD_FR.md` gets §2.9 (migrations 60 to 63) and the four rows of §6. The v1.2 draft
+  `docs/internal/v1.2/SCHEMA_BD_V1_2_FR.md` stays as lane 4 wrote it. `ENGINE.md` §6 is regenerated from
+  `check_ipc_wrappers.py --map` (148 rows, no `peppol only` column since V11-D1).
+- **INT-D23 Test fixes after the merge.** Gradle's `Exec` task resolves `cargo` from Gradle's own `PATH`: with
+  Homebrew's cargo first it builds `android-rust` with a rustc that has no Android std (E0463), so every Gradle
+  run here puts `$HOME/.cargo/bin` first. The lane 4 allergen Playwright specs assumed a modifier dialog for every
+  product; since V11-D18 it opens only for `has_modifiers`, so the specs set it. `SettingsRouteTest` scrolls to
+  Bob's badge button and to the badge panel header: the employees panel now shares its column with the courses and
+  voucher panels and its list scrolls inside (V12-D44). Goldens re-recorded and reviewed (18): order (cart note,
+  offered, discount, dialogs, sold-out, table picker: the allergen bar), settings (alerts, courses, vouchers: the
+  badge reader and employee panels of lane 5), reports vouchers (the "Ventes" tab of lane 3), tables held course
+  ("Déplacer une table" of lane 2).
+- **INT-D24 The Vue manager panels of column 2 take at most 42 % of it.** Lane 4 capped the courses and gift
+  voucher panels at 50 % of the employees column, measured without lane 1's presence note, block line and fourth
+  profile button. On the merged build the employee list kept 47 px at 1920 x 1080, less than one row, and lane 4's
+  own `settings.spec.ts` check (list at least 72 px) failed. At 42 % the list keeps more than one row and the manager
+  panels still scroll inside their box. The Compose column already scrolls as a whole (V12-D44), no change there.
+- **INT-D25 The terminal probe timeout is 12 s.** The Worldline check makes up to two requests (v2, then v1 on a
+  404) of `CHECK_TIMEOUT` 5 s each, so its worst case is 10 s, above the former probe timeout. `TERMINAL_PROBE_TIMEOUT`
+  is now 12 s and a compile-time assertion keeps it at least twice `CHECK_TIMEOUT` plus one second. The owner alert
+  tests cover the probe-first order and the default timeout.
+- **INT-D26 The v1.2 documents are folded into both v1.0 dossiers.** Each of the four annexes (owner alerts,
+  allergens, kitchen courses, gift vouchers) exists in the Linux and the Android dossier as two platform variants,
+  since the Linux dossier never names Android. The refund of a voucher-paid sale is said to be made "en espèces
+  (choix de l'établissement)"; SPV (UC270/271), UC4105 and the refund to a voucher are stated as not offered in
+  v1.0.0. The accountant export document is a separate tool outside the certified binary (it reads an export or
+  backup copy only, never signs, is not shipped in the POS package) and moved to `docs/internal/design/`.
+  `NOTE_MISE_A_JOUR_V1_2_FR.md` and `SCHEMA_BD_V1_2_FR.md` are deleted (SCHEMA_BD already holds migrations 60 to 63),
+  and no "v1.2" or "mise à jour ultérieure" wording remains in the dossiers.
+- **INT-D27 Evidence for UC260 to UC262 and new ticket examples.** The replay evidence of the three use cases is
+  captured by `capture_uc_evidence.sh` and embedded in `RESULTATS_TESTS_UC_FR.md`; five new ticket examples
+  (voucher, voucher balance, allergen sheet, voucher payment ticket, course slips) are embedded in
+  `TICKETS_EXEMPLES_FR.md`. The PDFs are rebuilt at each freeze candidate; the totals of RAPPORT_TESTS_BASELINE are produced by
+  `scripts/generate_test_report.py` (rc3 run on this HEAD: 2562 workspace tests and 1173 cert tests, 0 failed), never typed by hand.
+- **INT-D28 Gift voucher rules propagated to flow documents.** FLUX_REMBOURSEMENT (refusal `gift_voucher_used`,
+  atomic voucher cancel movement, M132 exclusions), FACTURATION_PEPPOL (`invoice_gift_voucher_sale`) and
+  MANUEL_UTILISATEUR (§8 bis, §9 bis) now state the same rules as BONS_CADEAUX_FR.md, in both dossiers; the three
+  PDFs of each dossier are rebuilt.
+
+## Lane rc3 (2026-10-17)
+
+- Captures: retaken on the GMS emulator with the SPF test seed; new ids A130-A194 (collisions of A163/A164/A170 renumbered A190-A194). Peppol panel, A54/A55 and online orders not captured (no Peppol in test bundle, training toggle refused with open orders).
+- Engine fixes found while capturing: badge key creation race (pos-engine), menu editor refusing stored names in languages the till does not offer, pad refusal text shown as unexpected error (ReportsViewModel).
+- Known wording issue left unchanged: sales report "dont remboursements" counts discount reversal lines.
+- **INT-D29 A gift voucher line takes no kitchen course and no kitchen note (rc3).** `set_line_course` and
+  `set_line_note` refuse a VOUCHER line with the coded error `gift_voucher_line_no_kitchen` (matching INT-D13: a
+  voucher line is not a product that goes to the kitchen). The check runs after the line and order-status checks,
+  before anything is stored; engine test `a_voucher_line_takes_neither_a_course_nor_a_kitchen_note`. Strings fr/en/zh in
+  `ui/src/i18n.ts`, Android strings regenerated (1068 keys, 174 engine error codes).
+- **INT-D30 One word for the meal-voucher payment method (rc3).** "Chèques-repas" (the legal Belgian term) in both
+  dossiers, both UIs (`method_meal_voucher`, `meal_voucher`, `cash_part_taken`), the printed ticket label
+  (`Chèques-repas`, with the grave accent, CP858 0x8A; the label test accepts it next to ASCII), the
+  accountant export and the tests. The SPF documents under `docs/2025*` and `docs/2026*` keep their own wording, as
+  does the manual's checklist row "Chèque repas" (quoted from the SPF form).
+- **INT-D31 Command counts come from the parity scripts (rc3).** The dossiers quote 148 build commands, 146 IPC
+  commands, 136 called by the Android UI and 10 excluded (the tenth being `reprint_course_slip`), as printed by
+  `check_command_parity.py --strict`, `check_ui_parity.py --strict` and `check_ipc_wrappers.py`.
+- **INT-D32 rc2 to rc3 renaming scope.** Dossier texts now name `linux-v1.0.0-rc3`. The About string
+  `plat_about_engine_ref` now reads `pili-pos 1.0.0, linux-v1.0.0-rc3 (pending)` (done in the rc3 bench pass, with the
+  tests that pin it and the `PILI_P6_FREEZE_TAG` default of `p6_gate.sh`; the short SHA is filled at tagging). Left for
+  the freeze step: any remaining rc2 default of a gate script (`p6_gate.sh` is done),
+  `check_linux_frozen.sh`, `LINUX_FREEZE.md` and `PLATFORM.md`; the historical sentence in EV-09 keeps rc2.
+- **INT-D33 Hand-edited evidence reverted.** The ticket evidence files, the TICKETS_EXEMPLES transcripts and the
+  GMS e2e log were restored to what the 2026-10-15 run recorded (a595579b had edited them by hand, with wrong
+  padding). They print "Cheques-repas"; the dossier says so and the redo is tracked under EV-08. The bench could
+  not be rebooted on 2026-10-18 (the secret half of the committed dev-minisign key is absent), so A159/A160 and
+  the ticket run are still to be redone at the freeze commit.
+- **INT-D34 Capture references.** Captures A130 to A194 are cited inline in the manual and in each annex, with a
+  closing table in the manual and a per-annex "Captures d'écran" section.
+- **INT-D35 Test report figures traced to their runs (rc3).** `RAPPORT_TESTS_BASELINE_FR.md` now cites for each row the
+  run that produced it: 14 tests for the cert `pili-pos` binary, 2577 workspace tests listed by `test_inventory.sh --diff`
+  (2564 passing, 13 ignored; 1184 for the cert build; rerun at 1d255e62 after the bench retake: 2578, 2565 passing, 1185), the parity scripts at the integration head (148/148, 136+10 of
+  146), 2807 `:app` unit tests (full `:app:verifyRoborazziDebug`), and the device run `--fixtures --check` (2160 at 7f96ae02, rerun at 1d255e62 after the bench retake: 2163). The
+  1371 figure is kept as an earlier measure (2026-10-08) and the Kover percentages as a pre-rc3 measure, both to redo
+  at the freeze.
+- **INT-D36 Bench retake not done (rc3).** The retake of A159/A160 and of the ticket run needs the debug APK to trust
+  the dev-minisign key held in `~/.cache/pili-android`, which differs from the committed public key. Swapping the
+  committed trust key for the build was refused by the permission layer, so the retake stays with the owner: either
+  restore the secret half of the committed key, or accept a regenerated pair (`make_dev_bundle.sh --write-pub`,
+  committed) and run the bench. Until then A160 still shows the old payment-method label and the ticket evidence still prints
+  "Cheques-repas" (EV-08).
+- **INT-D37 Development minisign key rotated (rc3).** User decision of 2026-10-18: the secret half of the committed
+  development key was lost, so `android/app/provisioning/dev-minisign.pub` is now key `5F208F7636516D6B`, whose secret
+  half is `~/.cache/pili-android/dev-minisign/minisign.key` (commit 920a19ec). The debug `plat_update_keys.xml`, the
+  test fixture signature and the gate tests follow. The key is debug-only: the release key slot and the release
+  trust list are untouched, and the key must not be rotated again. This supersedes INT-D36: after a debug APK
+  rebuild, `make_dev_bundle.sh` and `capture_screens.sh` work again and the bench retake is done under INT-D38 onwards.
+- **INT-D38 Sales report "dont remboursements" counts refund tickets only (rc3).** The figure was the sum of every
+  negative-quantity line, so a discount reversal or a correction inside a sale was reported as a refund. It is now the
+  sum of the N events whose signed request cites the refunded ticket in `fdmRef` (the mark `payment_correction.rs`
+  uses to recognise a refund), the refund ticket's whole `transactionTotal`. Other negative lines stay in the products
+  and in the total, which still equals the Z turnover. Both UIs only display the figure (hidden at 0), so no UI code
+  changed; the engine test `a_negative_line_inside_a_sale_is_not_a_refund` pins it. The Linux capture
+  `80_reports_sales` is a mock-data screen and keeps its value. This closes the "known wording issue" noted earlier.
+- **INT-D39 Bench retake done on the rc3 build (rc3).** Supersedes INT-D33 and INT-D36 for the evidence they left
+  open. On 2026-10-18 the debug APK was rebuilt, the bench provisioned with the TEM, Peppol, card terminal and
+  HubRise mocks (`PILI_BUNDLE_PEPPOL_API` added to `make_dev_bundle.sh`), and retaken: A159, A160, A82 (rc3
+  reference), A54, A55, A103, A105, A106, A112 to A114, A15 and A120; new A195 (Peppol panel, local Storecove mock)
+  and A196 (PIN-pad refusal text of a9a50108). The EV-08 ticket run was redone from the app on `pos-printer-mock`
+  (14 files, never hand-edited), with "Chèques-repas"; the card of the mixed-payment ticket prints "Carte Bancontact"
+  because the card terminal mock's default brand is Bancontact. The captures A56 to A99 and A35 are not retaken: the
+  FDM banner components and messages are unchanged since rc2 and the settings screens only gained neighbouring
+  panels. The gift voucher, voucher balance, allergen sheet and per-course kitchen ticket transcripts keep the host
+  rendering of the engine (still "A effectuer" in TICKETS_EXEMPLES_FR.md). EV-01 to EV-09 are not changed in status.
+- **INT-D40 Host replay of the Z report journals is date-dependent (rc3).** The committed journals of M181, M183 and
+  M184 carry `reportBookingDate` 2026-10-10; a replay on another day differs in that field only. Noted in
+  `UC_RESULTS.md`; no journal was re-recorded.
+- **INT-D41 Android is the only version submitted for v1 (rc3).** User decision of 2026-10-18: the v1.0.0 certification submits pili-pos-android 1.0.0 only (docs/android/dossier). The Linux product (src-tauri, ui/, deploy/, docs/SUBMISSION_ARTIFACTS) stays in the repository, keeps building and passing (shared engine, the parity scripts stay green as internal development checks) and is not submitted; nothing in the Android dossier may depend on it.
+- **INT-D42 The Android dossier is self-contained (rc3).** The six engine documents (SCHEMA_BD, SCHEMA_ER, STRATEGIE_COMPTEURS, COUVERTURE_FIXTURES, COUVERTURE_RAPPORTS, TICKET_NUMERIQUE) are copied from docs/SUBMISSION_ARTIFACTS at the integration head and adapted to Android using the former INDEX_DOSSIER section 3 table; they keep their annex numbers 11, 13, 17, 24, 25 and 32. MANIFEST loses the commun: prefix. The FDM error JSON (fixture and pos-fdm-mock, product-independent) is copied to docs/android/dossier/evidence/fdm_errors, and pdf_header.tex is copied. The Linux dossier only gets a comment note in its MANIFEST.txt (no PDF rebuild).
+- **INT-D43 Evidence that needed two products goes (rc3).** EV-07 (Android versus Linux journal comparison) is retired and its id is never reused. EV-04 is redefined as the commit of the Android freeze tag (android-v1.0.0-rc3, then android-v1.0.0), without any Linux binary SHA-1. The Linux IPC command parity and UI parity are no longer certification arguments (the scripts stay internal). Host runs of the engine (cargo test, pos-uc-check reference replay) are described as engine tests on the development host. The 27/09/2026 module2 condition run (Linux product identity) is no longer cited; the Android live run stays EV-14. ROUND1-5 JSON become EV-06.
+- **INT-D44 Android freeze (rc3).** Local annotated tag android-v1.0.0-rc3 (never pushed) on the commit whose unsigned :app release APK check_repro.sh rebuilt twice byte-identical. Frozen path set = the APK build inputs: Cargo.toml, rust-toolchain.toml, android/rust, android/build.gradle.kts, android/settings.gradle.kts, android/gradle.properties, android/gradle, android/gradlew, android/docker, android/app minus src/test and src/androidTest, android/pos-core minus src/test, and crates/<dir> of every path package of `cargo tree --manifest-path android/rust/Cargo.toml -p pos-ffi -e normal,build --offline`. The new scripts/android/check_android_frozen.sh guards it. The p2 linux-frozen check is retired (SKIP with reason) and android-frozen is added; the p4 freeze-tag check is retargeted to android-v1.0.0-rc3; the p7 linux-frozen check becomes android-frozen; the p1a and x1 phase gates stay untouched as history; check_linux_frozen.sh, linux-v1.0.0-rc2 and LINUX_FREEZE.md stay as history. The new record is docs/android/ANDROID_FREEZE.md.
+- **INT-D45 About engine reference (rc3).** The About engine reference becomes exactly 'pili-pos 1.0.0, android-v1.0.0-rc3' with no commit part: the tag is set on the commit that carries the string, so it cannot name its own commit; the tag commit is recorded in ANDROID_FREEZE.md (and EV-04 at filing). The p6 plat-engine-ref check requires the string to equal 'pili-pos <V>, <TAG>' (V = workspace version, TAG = PILI_P6_FREEZE_TAG, default android-v1.0.0-rc3); once TAG exists, V must equal the Cargo.toml version of TAG and the strings_plat_about.xml of TAG must hold the same value. There is no '(pending)' form any more.
+- **INT-D46 EV-19 filled now (rc3).** EV-19 is filled with the full commit of 4ff25b11 (keep the 7 newest backups), an ancestor of the freeze; the freeze step verifies it with `git merge-base --is-ancestor` against the tag.
+- **INT-D47 EV-04 and EV-05 after the rc3 freeze (rc3).** EV-04 and EV-05 stay 'À effectuer' in the dossier after the rc3 freeze: the values of record belong to the final android-v1.0.0 release. The rc3 tag commit and the rc3 unsigned APK SHA-1 are candidates and live only in ANDROID_FREEZE.md and the DOSSIER_EVIDENCE notes. EV-01, EV-02, EV-03 (release key), EV-14 (live run), EV-15 (real D3 Pro, Epson, CCV A920) and EV-18 (filing date, signatures) stay 'À effectuer'.
+- **INT-D48 Capture names with a letter suffix (rc3).** scripts/check_dossier.py SCREENSHOT_RE accepts a letter suffix after an A-number (A127b, A50b), which fixes the false 'not found' findings of the --final screenshots rule. INDEX and RAPPORT_TESTS_BASELINE cite the capture range 'A01 à A196' without a count (the runbook holds the count), so the bench outcome on A125 cannot desynchronise them.
+- **INT-D49 rc3 bench outcome (rc3).** On `sunmi_d3_pro_gms_api33` with `pos-printer-mock` (2026-10-18, commits bed9b115 and 5ddc6db9): the gift voucher, its N ticket, the voucher balance, the allergen sheet, the per-course kitchen slips (course and follow-up), the kitchen note slip, the note change slip and the table transfer slip were printed from the app and embedded in TICKETS_EXEMPLES §8 and §11 ter, replacing the host renderings (EV-08 complete, no marker left). A82 was retaken with the About string 'pili-pos 1.0.0, android-v1.0.0-rc3'. A125 (Edenred meal-voucher card accepted on the linked terminal, OPI mock) was taken, so MANUEL_UTILISATEUR §7.2 cites an existing capture. The capture set holds 191 files in the range A01 to A196 (the runbook holds the count, INT-D48).
+- **INT-D50 Android freeze done (rc3).** Local annotated tag `android-v1.0.0-rc3` (never pushed) on `8c53acc3c7a0b2424b6cabb15e613e0d43753663`. `check_repro.sh --commit 8c53acc3...`, run from a clean `git clone --no-local` with a cold Docker image (`sha256:4b11c2a8c86d...`), gave `REPRO | total | PASS`: two offline `linux/amd64` builds of the unsigned `:app` release APK, byte-identical, SHA-1 `34566c79c177c894c9f0616b1a00043516650f9c` (candidate, not of record), `libpos_ffi.so` in the APK `bc17c72f1ccfeb4625395b4a186893bb0d90f2ec`. `check_android_frozen.sh --tag android-v1.0.0-rc3`: 23 paths, clean; EV-19 (4ff25b11) is an ancestor. The full gate was green at that commit before the tag (workspace 2565 tests, engine cert 1160, FFI 315, Playwright 712, p5 35 checks and p6 59 checks with 0 failed, app unit tests 2807). After the tag: `FREEZE_SHA_RECORDED` in p4_gate.sh holds the commit; `p5_gate.sh --fast` (20 checks) and `p6_gate.sh --fast` (28 checks) PASS with freeze-tag and android-frozen PASS, plat-engine-ref PASS 'matches android-v1.0.0-rc3 (8c53acc)', linux-frozen and frozen-provisional SKIP (retired); the self-tests of check_android_frozen, p4, p6, p7 and check_linux_frozen pass and leave the tag list unchanged. `linux-v1.0.0-rc2` is kept. All values are in ANDROID_FREEZE.md; EV-04 and EV-05 stay 'À effectuer' in the dossier (INT-D47), so no dossier text or PDF changes.
+- **INT-D51 EV-13 log is a real unedited rerun (rc3).** The 2026-10-15 plat_e2e log (one development-host path masked by hand) is replaced by an unedited rerun of `plat_e2e.sh` on `sunmi_d3_pro_gms_api33` on 2026-10-23 from e91b5e06 (19 checks, 0 failed, freeze inputs unchanged, check_android_frozen clean); evidence/gms/EV13_2026-10-23.md and plat_e2e_gms_2026-10-23.txt, the old pair removed from the dossier (history keeps them). The adb readings of EV-13 sections 1 to 5, 7 and 8 stay those of 2026-10-15 and are reconfirmed by the rerun policies check.
+- **INT-D52 FFI integration tests are not freeze inputs (rc3).** `android/rust/pos-ffi/tests` is excluded from the Android frozen paths, like `android/app/src/test`: integration tests are separate binaries, never compiled into `libpos_ffi.so` or the APK. Reason: the first CI run on the ARM64 homelab runner (2026-10-23) showed that `lifecycle::cancelled_shutdown_then_shutdown_ends_the_streams` raced with the clock-out event (a broadcast stream delivers the events sent before the shutdown, then ends); the test now drains the stream until it ends. Fixing a test must not force a new freeze. `test_check_android_frozen.sh` covers the case.
+- **INT-D53 Native x86_64 reproducibility run done (rc3).** With the user's go-ahead (2026-10-23) the `repro` job of `android.yml` ran on a GitHub-hosted `ubuntu-latest` x86_64 runner (run 40002227571) at `e9fa578a` on main, where `check_android_frozen.sh --tag android-v1.0.0-rc3` is clean (the commits after the tag touch only CI files, scripts, docs and `android/rust/pos-ffi/tests`, INT-D52). Both offline builds gave the unsigned APK SHA-1 `34566c79c177c894c9f0616b1a00043516650f9c` and SHA-256 `2417930a...`, the same bytes as the M1 run of INT-D50 (same stripped and unstripped `libpos_ffi.so`, same entry manifest), so the rc3 APK does not depend on the host architecture or on emulation. The total was FAIL only because `apk-check` could not start: the job had deleted the hosted Android SDK to free disk and `check_apk.sh` found no zipalign; the APK is byte-identical to the one that passed `check_apk.sh` at INT-D50. Fixes: the job now frees disk like the gate (NDKs, hosted tool cache, browsers) and installs build-tools 35.0.0 and NDK 27.1.12297006; `check_repro.sh` and the other Android scripts call GNU `date -d @` and `stat -c` first (BSD `stat -f` succeeds on GNU in file system mode and printed file system data in the INFO lines, PD95). Values in ANDROID_FREEZE.md, "Native x86_64 run". Still a candidate: the values of record are those of the final `android-v1.0.0` (INT-D47).

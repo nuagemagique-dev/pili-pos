@@ -1,22 +1,20 @@
 //! POS description v2.2, Message: a warning the FDM attaches to a
 //! mutation's response is shown at least once per bookingDate. Every
 //! checked sign response hands its messages (minus showPos NEVER) to
-//! the sink set with `on_sign_messages`, which the app forwards to the
-//! screen.
+//! the sink attached to the client with `with_sign_messages`, which the
+//! engine forwards to the screen.
 
 mod common;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use pos_core::config::PosConfig;
 use pos_fiscal::event::{Booking, build_work_in_out};
-use pos_fiscal::fdm_client::{FdmClient, SignMessages, on_sign_messages};
+use pos_fiscal::fdm_client::{FdmClient, SignMessages};
 use pos_fiscal::types::FdmWarningCode;
 use serde_json::{Value, json};
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer};
-
-static RECEIVED: Mutex<Vec<SignMessages>> = Mutex::new(Vec::new());
 
 fn message(code: &str, show_pos: &str) -> Value {
     json!({
@@ -51,10 +49,7 @@ fn work_in_answer(warnings: Value) -> Value {
 
 #[tokio::test]
 async fn sign_response_warnings_reach_the_sink_once_per_response() {
-    assert!(on_sign_messages(|m| RECEIVED
-        .lock()
-        .unwrap()
-        .push(m.clone())));
+    let received: Arc<Mutex<Vec<SignMessages>>> = Arc::default();
     let server = MockServer::start().await;
     let config = PosConfig {
         pos_id: "CPOS0031234567".into(),
@@ -67,7 +62,9 @@ async fn sign_response_warnings_reach_the_sink_once_per_response() {
         period_id: "8f1c2c1e-0000-4000-8000-000000000001".into(),
         date: "2026-09-27".into(),
     };
-    let fdm = FdmClient::from_config(&config);
+    let sink = received.clone();
+    let fdm = FdmClient::from_config(&config)
+        .with_sign_messages(Arc::new(move |m| sink.lock().unwrap().push(m.clone())));
 
     let warned = work_in_answer(json!([
         message("BUFFER_NEAR_FULL", "MANDATORY"),
@@ -79,7 +76,7 @@ async fn sign_response_warnings_reach_the_sink_once_per_response() {
         .mount(&server)
         .await;
     fdm.sign_work_in(
-        build_work_in_out(&config, 1, "75061189702", &booking),
+        build_work_in_out(&config, &ident(), 1, "75061189702", &booking),
         false,
     )
     .await
@@ -90,13 +87,13 @@ async fn sign_response_warnings_reach_the_sink_once_per_response() {
         .mount(&server)
         .await;
     fdm.sign_work_in(
-        build_work_in_out(&config, 2, "75061189702", &booking),
+        build_work_in_out(&config, &ident(), 2, "75061189702", &booking),
         false,
     )
     .await
     .unwrap();
 
-    let received = RECEIVED.lock().unwrap();
+    let received = received.lock().unwrap();
     assert_eq!(
         received.len(),
         1,
@@ -111,5 +108,9 @@ async fn sign_response_warnings_reach_the_sink_once_per_response() {
         FdmWarningCode::BufferNearFull
     );
     assert!(got.informations.is_empty());
-    assert!(!on_sign_messages(|_| {}), "the sink is set once");
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }

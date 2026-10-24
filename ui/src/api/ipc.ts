@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   Category,
   MenuItem,
+  SoldOutItem,
   Order,
   OrderLine,
   CartLine,
@@ -9,6 +10,10 @@ import type {
   CreateOrderInput,
   AddOrderLineInput,
   PaymentPart,
+  CheckoutPaymentMethod,
+  EftPayment,
+  PaymentTerminalStatus,
+  UnsettledCardPayment,
   CheckoutResult,
   FiscalTicket,
   TicketDeliveryRequest,
@@ -16,6 +21,10 @@ import type {
   MailStatus,
   DeliveryView,
   SlipOutcome,
+  ExportStatus,
+  DiscountInput,
+  DiscountResult,
+  SalesReport,
 } from "../types";
 
 // Menu
@@ -28,6 +37,26 @@ export function getMenuItems(
   lang?: string
 ): Promise<MenuItem[]> {
   return invoke("get_menu_items", { categoryId, lang });
+}
+
+// Sold out ("Épuisé"): cashier and manager.
+export function listSoldOut(lang?: string): Promise<SoldOutItem[]> {
+  return invoke("list_sold_out", { lang });
+}
+
+export function setSoldOut(
+  menuItemId: number,
+  untilEndOfDay: boolean,
+  lang?: string
+): Promise<SoldOutItem[]> {
+  return invoke("set_sold_out", { menuItemId, untilEndOfDay, lang });
+}
+
+export function clearSoldOut(
+  menuItemId: number,
+  lang?: string
+): Promise<SoldOutItem[]> {
+  return invoke("clear_sold_out", { menuItemId, lang });
 }
 
 // Orders
@@ -48,6 +77,13 @@ export function updateOrderLineQuantity(
   quantity: number
 ): Promise<void> {
   return invoke("update_order_line_quantity", { lineId, quantity });
+}
+
+/** Set (or clear, with null or an empty text) the kitchen note of a
+ * line. A note changed after the line went to the kitchen prints a note
+ * slip; the answer says what became of it. Throws the error code. */
+export function setLineNote(lineId: number, note: string | null): Promise<SlipOutcome> {
+  return invoke("set_line_note", { lineId, note });
 }
 
 export function getOrder(orderId: number): Promise<Order> {
@@ -83,6 +119,25 @@ export function logout(): Promise<void> {
   return invoke("logout");
 }
 
+/** What locking the screen reports: a failed registration of the open
+ * order never blocks the lock, its error code comes back here. */
+export interface LockOutcome {
+  orderError: string | null;
+}
+
+/** Lock the screen through the engine: it registers the active order,
+ * closes the session (the operator stays on shift) and emits
+ * `session-locked`. */
+export function lockSession(): Promise<LockOutcome> {
+  return invoke("lock_session");
+}
+
+/** Payload of the `session-locked` event. */
+export interface SessionLocked {
+  reason: "manual" | "idle";
+  orderError: string | null;
+}
+
 /** First login of a user without a PIN (required for a manager):
  * stores the chosen PIN and opens the session in one step. */
 export function loginWithNewPin(insz: string, newPin: string): Promise<User> {
@@ -105,6 +160,8 @@ export function createUser(input: {
   role: string;
   initialPin?: string;
   operatorPin?: string;
+  /** Role must be `waiter`; no PIN is stored. */
+  presenceOnly?: boolean;
 }): Promise<User> {
   return invoke("create_user", { input });
 }
@@ -134,12 +191,126 @@ export function checkout(
   return invoke("checkout", { orderId, payments, delivery });
 }
 
+// Linked card payment terminal (EFT): only with a payment_terminal in pos.json
+// (see PosSettings.paymentTerminal).
+
+/** Charge `amountCents` of the order on the terminal; resolves with the payment whatever
+ * the terminal said (approved, declined, cancelled, unknown). Rejects when nothing was charged. */
+export function eftPay(orderId: number, amountCents: number): Promise<EftPayment> {
+  return invoke("eft_pay", { orderId, amountCents });
+}
+
+/** Ask the terminal to stop the payment in progress (a request, not a guarantee). */
+export function eftAbort(): Promise<void> {
+  return invoke("eft_abort");
+}
+
+/** Ask the terminal where a `sent` or `unknown` payment stands. */
+export function eftCheck(id: number): Promise<EftPayment> {
+  return invoke("eft_check", { id });
+}
+
+/** An order's approved payments not yet settled and those still waiting for an answer, oldest first. */
+export function listEftPayments(orderId: number): Promise<EftPayment[]> {
+  return invoke("list_eft_payments", { orderId });
+}
+
+/** Whether the linked terminal answers. Charges nothing; "busy" (and connected) while a payment runs. */
+export function checkPaymentTerminal(): Promise<PaymentTerminalStatus> {
+  return invoke("check_payment_terminal");
+}
+
+/** The approved card payments of every order that no sale has settled yet, oldest first: money taken that no ticket records. */
+export function listUnsettledCardPayments(): Promise<UnsettledCardPayment[]> {
+  return invoke("list_unsettled_card_payments");
+}
+
 /** Close an order the customer left without paying (manager, PIN):
  * the sale is signed with no payment line (UC4109). */
 export function closeUnpaid(orderId: number, insz: string, pin: string): Promise<CheckoutResult> {
   return invoke("close_unpaid", { orderId, insz, pin });
 }
 
+/** One line of a signed sale's payments (command `list_sale_payments`). */
+export interface SalePaymentLine {
+  /** Position in the sale's payment lines: the index to correct. */
+  index: number;
+  /** CASH, CARD_DEBIT, CHEQUE_MEAL, ... */
+  paymentType: string;
+  name: string;
+  amountCents: number;
+  /** AUTOMATIC: a card the linked terminal took (never corrected). */
+  inputMethod: "MANUAL" | "AUTOMATIC";
+  /** PAYMENT, or ROUNDING (the cash rounding, not a payment). */
+  amountType: "PAYMENT" | "ROUNDING";
+  brand: string | null;
+}
+
+/** The correction a sale already has. */
+export interface CorrectionDone {
+  fromType: string;
+  toType: string;
+  amountCents: number;
+  at: string;
+}
+
+/** A signed sale's payment lines and whether one can be corrected. */
+export interface SalePayments {
+  fiscalEventId: number;
+  ticketNumber: number;
+  totalCents: number;
+  lines: SalePaymentLine[];
+  correctable: boolean;
+  /** Why not, as an engine error code, when `correctable` is false. */
+  refusal: string | null;
+  corrected: CorrectionDone | null;
+}
+
+/** The payment lines of a signed sale and whether one can be corrected (manager). */
+export function listSalePayments(fiscalEventId: number): Promise<SalePayments> {
+  return invoke("list_sale_payments", { fiscalEventId });
+}
+
+/** Correct the method of one payment line of a sale signed today (event F), confirmed by the manager's PIN. A refusal comes back as `success: false` with its error code. */
+export function correctPayment(
+  fiscalEventId: number,
+  lineIndex: number,
+  method: CheckoutPaymentMethod,
+  insz: string,
+  pin: string,
+): Promise<{ success: boolean; error: string | null }> {
+  return invoke("correct_payment", { fiscalEventId, lineIndex, method, insz, pin });
+}
+
+/** The engine's reading of the FDM (event "fdm-status", commands
+ * `fdm_health` and `fdm_check_now`). The engine classifies the FDM
+ * status; the UI only shows it. */
+export interface FdmHealth {
+  /** The FDM answered and is neither blocked nor uninitialised. */
+  connected: boolean;
+  /** The FDM answered at all (false on a transport failure). */
+  answered: boolean;
+  severity: "blocking" | "warning" | "info";
+  code: string | null;
+  /** The FDM asks the POS to keep showing the message. */
+  mandatory: boolean;
+  /** RFC 3339 */
+  checkedAt: string;
+  /** RFC 3339, when the monitor checks next; null when it does not say. */
+  nextCheckAt: string | null;
+}
+
+/** The last reading of the engine's FDM monitor, null before the first. */
+export function fdmHealth(): Promise<FdmHealth | null> {
+  return invoke("fdm_health");
+}
+
+/** Check the FDM at once (also without a session); the monitor is rescheduled. */
+export function fdmCheckNow(): Promise<FdmHealth> {
+  return invoke("fdm_check_now");
+}
+
+/** Still a valid command; the UI no longer calls it (the engine monitors the FDM). */
 export function checkFdmStatus(): Promise<unknown> {
   return invoke("check_fdm_status");
 }
@@ -159,6 +330,20 @@ export function printMissingOriginal(fiscalEventId: number): Promise<void> {
   return invoke("print_missing_original", { fiscalEventId });
 }
 
+// ── Nightly export (manager only) ───────────────────────────────────
+
+/** The nightly export state: configuration, last export and upload,
+ * the outbox. Needs an admin session. */
+export function exportStatus(): Promise<ExportStatus> {
+  return invoke("export_status");
+}
+
+/** Make the pending exports due now and return at once; read
+ * `exportStatus()` afterwards. Needs an admin session. */
+export function exportRunNow(): Promise<ExportStatus> {
+  return invoke("export_run_now");
+}
+
 // Settings
 export interface PosSettings {
   trainingMode: boolean;
@@ -168,8 +353,12 @@ export interface PosSettings {
   terminalId: string;
   restaurantName: string;
   language: string;
+  /** Software version declared to the FDM (AM Art. 47), e.g. pili-pos/1.0.0. */
+  posSwVersion: string;
   /** What the FDM would refuse in pos.json; empty when usable. */
   configProblems: string[];
+  /** Kind of the linked card payment terminal (as in pos.json); absent when cards are typed by hand. */
+  paymentTerminal?: string;
 }
 
 export function getSettings(): Promise<PosSettings> {
@@ -191,6 +380,8 @@ export interface TableInfo {
   openedAt: string | null;
   /** A provisional bill was printed and the order has not changed since. */
   preBillPrinted: boolean;
+  /** The next course waiting for "Envoyer la suite" (1 to 3), when courses are on. */
+  heldCourse: number | null;
 }
 
 export function listTables(): Promise<TableInfo[]> {
@@ -209,6 +400,20 @@ export function listOpenTakeaways(): Promise<TakeawayInfo[]> {
   return invoke("list_open_takeaways");
 }
 
+export type LeaveReason = "navigate" | "switch_order" | "send_to_kitchen";
+
+/** The operator leaves the order: the engine registers what was ordered
+ * (event P) for an open dine-in order and does nothing otherwise. Throws
+ * the error code on failure. */
+export function leaveOrder(orderId: number, reason: LeaveReason): Promise<SlipOutcome> {
+  return invoke("leave_order", { orderId, reason });
+}
+
+/** Tell the engine which order the operator is working on (null: none). */
+export function setActiveOrder(orderId: number | null): Promise<void> {
+  return invoke("set_active_order", { orderId });
+}
+
 /** Register (event P) what was ordered at a table since the last
  * registration, then print it on the bar / kitchen slip. No-op when
  * nothing changed. */
@@ -219,6 +424,37 @@ export function signTableOrder(orderId: number): Promise<SlipOutcome> {
 /** Pre-bill; its new lines go to the bar / kitchen slip first. */
 export function signPreBill(orderId: number): Promise<SlipOutcome> {
   return invoke("sign_pre_bill", { orderId });
+}
+
+/** What moving an order to another table did. */
+export interface TableTransferResult {
+  orderId: number;
+  fromTable: number;
+  toTable: number;
+  /** The bar / kitchen slip of what was registered before the move. */
+  kitchenSlip: SlipOutcome;
+  /** The notice that the order moved. */
+  transferSlip: SlipOutcome;
+}
+
+/** Move the open order of a table to a free table (event P, cost center
+ * change). Entries not yet registered are sent first. Throws the error
+ * code on a refusal. */
+export function transferTable(orderId: number, toTable: number): Promise<TableTransferResult> {
+  return invoke("transfer_table", { orderId, toTable });
+}
+
+/** Give a discount on an open till order (manager, PIN): a percent, an
+ * amount or the whole order off, or one line for free. A table already
+ * registered gets its P signed at once. Throws the error code. */
+export function applyDiscount(orderId: number, input: DiscountInput, insz: string, pin: string): Promise<DiscountResult> {
+  return invoke("apply_discount", { orderId, input, insz, pin });
+}
+
+/** Remove the order discount (no `lineId`) or the free line `lineId`
+ * (manager, PIN). */
+export function removeDiscount(orderId: number, lineId: number | null, insz: string, pin: string): Promise<DiscountResult> {
+  return invoke("remove_discount", { orderId, lineId, insz, pin });
 }
 
 // Reports
@@ -235,6 +471,17 @@ export function generateXReport(employeeInsz: string): Promise<ReportResult> {
 
 export function generateZReport(employeeInsz: string): Promise<ReportResult> {
   return invoke("generate_z_report", { employeeInsz });
+}
+
+/** The non-fiscal sales report of the booking dates `fromDate..=toDate` (YYYY-MM-DD, 92 days at
+ * most). Manager only; signs nothing. */
+export function salesReport(fromDate: string, toDate: string): Promise<SalesReport> {
+  return invoke("sales_report", { fromDate, toDate });
+}
+
+/** Print the same report on the ticket printer. */
+export function printSalesReport(fromDate: string, toDate: string): Promise<void> {
+  return invoke("print_sales_report", { fromDate, toDate });
 }
 
 export function generateUserXReport(employeeInsz: string): Promise<ReportResult> {
@@ -337,12 +584,43 @@ export interface SocialResult {
   error: string | null;
 }
 
+/** Raised by the engine when the clock-in it does itself after a login
+ * was not registered (event `presence-failed`). */
+export interface PresenceFailed {
+  insz: string;
+  clockIn: boolean;
+  error: string;
+}
+
+/** End the employee's shift from the login screen: the engine checks the
+ * PIN (a refused PIN is thrown, as for a login), signs the clock-out and
+ * always ends the session. */
+export function endShift(insz: string, pin?: string): Promise<SocialResult> {
+  return invoke("end_shift", { insz, pin: pin ?? null });
+}
+
+/** Tell the engine the operator touched the screen: it owns the idle lock. */
+export function userActivity(): Promise<void> {
+  return invoke("user_activity");
+}
+
 export function workIn(employeeInsz: string): Promise<SocialResult> {
   return invoke("work_in", { employeeInsz });
 }
 
 export function workOut(employeeInsz: string): Promise<SocialResult> {
   return invoke("work_out", { employeeInsz });
+}
+
+/** A manager registers another employee's arrival (S event of the employee).
+ * Refusals are thrown error codes; an FDM failure is `success: false`. */
+export function clockInEmployee(employeeInsz: string): Promise<SocialResult> {
+  return invoke("clock_in_employee", { employeeInsz });
+}
+
+/** A manager registers another employee's departure. */
+export function clockOutEmployee(employeeInsz: string): Promise<SocialResult> {
+  return invoke("clock_out_employee", { employeeInsz });
 }
 
 /** An employee on shift: clocked in, not yet clocked out. */
@@ -354,6 +632,119 @@ export interface OpenShift {
 
 export function listOpenShifts(): Promise<OpenShift[]> {
   return invoke("list_open_shifts");
+}
+
+// ── Staff badges (NFC or USB reader) ────────────────────────────────
+
+export type BadgeReader = "off" | "nfc" | "usb";
+
+/** The reader setting, as the screens read it (no personal data). */
+export interface BadgeSettings {
+  reader: BadgeReader;
+  loginEnabled: boolean;
+  wedgeMaxGapMs: number;
+  wedgeMinLen: number;
+  wedgeMaxLen: number;
+  /** True after the badge key changed, until a badge is linked again. */
+  relinkNeeded: boolean;
+}
+
+export interface BadgeSettingsInput {
+  reader: BadgeReader;
+  loginEnabled: boolean;
+  wedgeMaxGapMs: number;
+  wedgeMinLen: number;
+  wedgeMaxLen: number;
+}
+
+/** An active badge in the manager's list (never the badge number). */
+export interface ActiveBadge {
+  insz: string;
+  name: string;
+  /** UTC, `YYYY-MM-DD HH:MM:SS`. */
+  linkedAt: string;
+  linkedBy: string;
+  linkedByName: string | null;
+}
+
+export interface BadgeLogEntry {
+  /** `link`, `revoke` or `settings`. */
+  action: "link" | "revoke" | "settings";
+  insz: string | null;
+  name: string | null;
+  by: string | null;
+  byName: string | null;
+  /** UTC, `YYYY-MM-DD HH:MM:SS`. */
+  at: string;
+  /** Revoke: the reason; settings: the new values as JSON. */
+  detail: string | null;
+}
+
+export interface BadgeOverview {
+  badges: ActiveBadge[];
+  log: BadgeLogEntry[];
+}
+
+export interface BadgeLink {
+  insz: string;
+  name: string;
+  linkedAt: string;
+}
+
+export type BadgeOutcomeKind =
+  | "ignored"
+  | "clock_in"
+  | "clock_out"
+  | "presence_failed"
+  | "logged_in"
+  | "pin_required";
+
+/** What a scan did. Refusals are thrown error codes, not outcomes. */
+export interface BadgeOutcome {
+  kind: BadgeOutcomeKind;
+  insz: string | null;
+  name: string | null;
+  /** RFC 3339 UTC time of a registered presence. */
+  at: string | null;
+  /** The FDM text of `presence_failed`. */
+  error: string | null;
+  /** The session opened by `logged_in`. */
+  user: User | null;
+}
+
+/** The badge reader setting. No session needed (the login screen reads it). */
+export function getBadgeSettings(): Promise<BadgeSettings> {
+  return invoke("get_badge_settings");
+}
+
+/** Change the badge reader setting (managers only, logged). */
+export function setBadgeSettings(input: BadgeSettingsInput): Promise<BadgeSettings> {
+  return invoke("set_badge_settings", { input });
+}
+
+/** The active badges and the latest log rows (managers only). */
+export function listBadges(): Promise<BadgeOverview> {
+  return invoke("list_badges");
+}
+
+/** Link a badge to an employee: a manager, confirmed by their own PIN. */
+export function linkBadge(
+  employeeInsz: string,
+  token: string,
+  operatorPin?: string,
+): Promise<BadgeLink> {
+  return invoke("link_badge", { employeeInsz, token, operatorPin: operatorPin ?? null });
+}
+
+/** Remove an employee's badge (managers only, no PIN). */
+export function revokeBadge(employeeInsz: string): Promise<void> {
+  return invoke("revoke_badge", { employeeInsz });
+}
+
+/** A badge scan: the engine decides (presence, login or a PIN request).
+ * `endShift` is true while the login screen is in its end-of-shift mode. */
+export function badgeTap(token: string, endShift: boolean): Promise<BadgeOutcome> {
+  return invoke("badge_tap", { token, endShift });
 }
 
 // ── Financial (Event F - cash in/out, drawer) ───────────────────────
@@ -544,7 +935,16 @@ export function hubriseAdoptionPreview(): Promise<CatalogAdoption[]> {
   return invoke("hubrise_adoption_preview");
 }
 
-export function hubriseAdoptCatalog(adoptions: CatalogAdoption[]): Promise<unknown> {
+/** What applying a HubRise catalog did (`pos_catalog::ApplyOutcome`,
+ * tagged by `outcome`). A refused catalog comes with its issues; the
+ * menu is then untouched. */
+export type CatalogApplyOutcome =
+  | { outcome: "applied"; hash: string; active_items: number; deactivated_items: number }
+  | { outcome: "unchanged" }
+  | { outcome: "awaiting_adoption" }
+  | { outcome: "rejected"; issues: CatalogIssue[] };
+
+export function hubriseAdoptCatalog(adoptions: CatalogAdoption[]): Promise<CatalogApplyOutcome> {
   return invoke("hubrise_adopt_catalog", { adoptions });
 }
 
@@ -566,7 +966,7 @@ export function hubriseSetChannel(channel: HubriseChannel): Promise<number> {
 }
 
 /** Fetch the HubRise catalog now (after an order to check). */
-export function hubriseSyncCatalog(): Promise<unknown> {
+export function hubriseSyncCatalog(): Promise<CatalogApplyOutcome | null> {
   return invoke("hubrise_sync_catalog");
 }
 
@@ -689,4 +1089,581 @@ export function getIntegrations(): Promise<Integrations> {
 /** Admins only; switching off waits until every online order is settled. */
 export function setHubriseEnabled(enabled: boolean): Promise<Integrations> {
   return invoke("set_hubrise_enabled", { enabled });
+}
+
+/** One change of the table plan. */
+export interface TablePlanChange {
+  plan: string;
+  source: "config" | "admin";
+  changed_by: string | null;
+  changed_at: string;
+}
+
+/** The table numbers in use, as ranges ("1-12, 20-25"). */
+export interface TablePlan {
+  plan: string;
+  table_count: number;
+  log: TablePlanChange[];
+}
+
+export function getTablePlan(): Promise<TablePlan> {
+  return invoke("get_table_plan");
+}
+
+/** Managers only. A table left out that still has an open order stays on the Tables screen. */
+export function setTablePlan(plan: string): Promise<TablePlan> {
+  return invoke("set_table_plan", { plan });
+}
+
+// ── B2B invoices (event I, M150) and Peppol ───────────────────
+
+/** A saved B2B customer. */
+export interface B2bCustomer {
+  id: number;
+  vatNumber: string;
+  name: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  countryCode: string;
+  /** `unknown`, `registered` or `not_registered`. */
+  peppolStatus: PeppolStatus;
+  peppolCheckedAt: string | null;
+}
+
+export type PeppolStatus = "unknown" | "registered" | "not_registered";
+
+/** The customer form; `id` set edits a known customer. */
+export interface B2bCustomerInput {
+  id: number | null;
+  vatNumber: string;
+  name: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  /** ISO 3166-1 alpha-2; the country of the VAT number when empty. */
+  countryCode: string;
+}
+
+/** A signed sale that can go on an invoice. */
+export interface InvoiceableSale {
+  fiscalEventId: number;
+  ticketNumber: number;
+  posDateTime: string;
+  totalCents: number;
+  fdmId: string;
+  eventCounter: number;
+  totalCounter: number;
+  isRefund: boolean;
+  /** The number of the invoice that already covers this sale, or null. */
+  invoicedBy: string | null;
+}
+
+export interface InvoicePreviewLine {
+  description: string;
+  /** Thousandths (2 pieces = 2000). */
+  quantityMilli: number;
+  totalCents: number;
+  vatLabel: string;
+}
+
+export interface InvoicePreviewVat {
+  label: string;
+  /** Hundredths of a percent (21 % = 2100). */
+  rateHundredths: number;
+  baseCents: number;
+  vatCents: number;
+  totalCents: number;
+}
+
+/** What an invoice would contain; `problems` are coded errors that stop it. */
+export interface InvoicePreview {
+  sales: InvoiceableSale[];
+  lines: InvoicePreviewLine[];
+  vat: InvoicePreviewVat[];
+  totalCents: number;
+  problems: string[];
+}
+
+/** The answer to a VAT number lookup (offline check, cached customer, Peppol). */
+export interface CustomerLookup {
+  vatNumber: string;
+  countryCode: string;
+  customer: B2bCustomer | null;
+  peppolStatus: PeppolStatus;
+  peppolChecked: boolean;
+  deliverable: boolean;
+}
+
+export interface InvoiceResult {
+  success: boolean;
+  fiscalEventId: number | null;
+  invoiceNo: string | null;
+  printed: boolean;
+  /** `queued` when a Peppol delivery was queued. */
+  deliveryStatus: string | null;
+  error: string | null;
+}
+
+export interface InvoiceSummary {
+  id: number;
+  invoiceNo: string;
+  fiscalEventId: number;
+  issueDate: string;
+  customerName: string;
+  customerVatNumber: string;
+  totalCents: number;
+  saleEventIds: number[];
+  /** `queued`, `accepted`, `failed`, or null (printed only). */
+  deliveryStatus: string | null;
+  deliveryId: number | null;
+}
+
+/** One Peppol delivery of the queue. */
+export interface PeppolDelivery {
+  id: number;
+  fiscalEventId: number | null;
+  invoiceNo: string;
+  customerEndpointId: string;
+  apVendor: string;
+  apMessageId: string | null;
+  /** `queued`, `accepted` or `failed` (parked). */
+  status: string;
+  errorMsg: string | null;
+  attempts: number;
+  nextAttemptAt: string | null;
+  lastAttemptAt: string | null;
+  parkedAt: string | null;
+  acceptedAt: string | null;
+  createdAt: string;
+  lookupStatus: string;
+}
+
+/** The Peppol panel: setup, queue counts and deliveries. */
+export interface PeppolDeliveries {
+  configured: boolean;
+  provider: string | null;
+  senderId: string | null;
+  queued: number;
+  accepted: number;
+  failed: number;
+  deliveries: PeppolDelivery[];
+}
+
+/** Recent signed sales a cashier can put on an invoice. */
+export function listInvoiceableSales(
+  limit?: number,
+  query?: string
+): Promise<InvoiceableSale[]> {
+  return invoke("list_invoiceable_sales", { limit, query });
+}
+
+/** What an invoice of these sales would contain, without signing. */
+export function invoicePreview(saleEventIds: number[]): Promise<InvoicePreview> {
+  return invoke("invoice_preview", { saleEventIds });
+}
+
+/** Checks a VAT number (offline) and asks Peppol about it (3 s at most). */
+export function lookupB2bCustomer(vatNumber: string): Promise<CustomerLookup> {
+  return invoke("lookup_b2b_customer", { vatNumber });
+}
+
+/** Known customers whose VAT number or name starts with `query`. */
+export function searchB2bCustomers(query: string): Promise<B2bCustomer[]> {
+  return invoke("search_b2b_customers", { query });
+}
+
+/** Creates or updates a customer. */
+export function saveB2bCustomer(customer: B2bCustomerInput): Promise<B2bCustomer> {
+  return invoke("save_b2b_customer", { customer });
+}
+
+/** M150: signs the invoice (event I) of the chosen sales for a saved customer, then prints it. */
+export function signInvoiceFiscal(
+  saleEventIds: number[],
+  customerId: number,
+  employeeInsz: string
+): Promise<InvoiceResult> {
+  return invoke("sign_invoice_fiscal", { saleEventIds, customerId, employeeInsz });
+}
+
+/** The newest invoices, with the state of their Peppol delivery. */
+export function listInvoices(limit?: number): Promise<InvoiceSummary[]> {
+  return invoke("list_invoices", { limit });
+}
+
+/** Admins only. */
+export function listPeppolDeliveries(limit?: number): Promise<PeppolDeliveries> {
+  return invoke("list_peppol_deliveries", { limit });
+}
+
+/** Admins only: puts a parked delivery back in the queue. */
+export function retryPeppolDelivery(deliveryId: number): Promise<void> {
+  return invoke("retry_peppol_delivery", { deliveryId });
+}
+
+// Menu editor (managers; saves are refused while a catalog manages the menu, V11-D17).
+/** Names per language code (`fr`, `nl`, `en`, `zh`, `de`). */
+export type MenuNames = Record<string, string>;
+
+export interface AdminCategory {
+  id: number;
+  names: MenuNames;
+  sort_order: number;
+  color: string | null;
+  active: boolean;
+}
+
+export interface AdminProduct {
+  id: number;
+  category_id: number;
+  names: MenuNames;
+  price_cents: number;
+  vat_code: string;
+  vat_code_takeaway: string | null;
+  kitchen_printer: boolean;
+  code: string | null;
+  open_price: boolean;
+  sort_order: number;
+  active: boolean;
+}
+
+export interface AdminGroup {
+  id: number;
+  menu_item_id: number;
+  names: MenuNames;
+  min_select: number;
+  max_select: number;
+  sort_order: number;
+  active: boolean;
+}
+
+export interface AdminOption {
+  id: number;
+  group_id: number;
+  names: MenuNames;
+  price_cents: number;
+  sort_order: number;
+  active: boolean;
+}
+
+export interface MenuAdmin {
+  /** The source that manages the menu (`hubrise`): the editor is then read-only. */
+  managed_by: string | null;
+  /** Language codes a name can be given in; the first is required. */
+  languages: string[];
+  categories: AdminCategory[];
+  products: AdminProduct[];
+  groups: AdminGroup[];
+  options: AdminOption[];
+  /** Declared allergen lists of the products and options above; an entry with none has no information. */
+  allergens: AdminAllergens[];
+}
+
+/** The declared allergen list of a product (`menu_item`) or an option (`modifier`) of the editor. */
+export interface AdminAllergens {
+  entity_type: "menu_item" | "modifier";
+  entity_id: number;
+  contains: string[];
+  may_contain: string[];
+}
+
+export interface MenuSaved {
+  id: number;
+  menu: MenuAdmin;
+}
+
+export interface MenuChange {
+  id: number;
+  entity_type: "category" | "product" | "modifier_group" | "modifier";
+  entity_id: number;
+  action: "create" | "update";
+  label: string;
+  changed_fields: string[];
+  before_json: string | null;
+  after_json: string;
+  changed_by: string;
+  changed_by_name: string;
+  changed_at: string;
+}
+
+export type SaveCategoryInput = Omit<AdminCategory, "id"> & { id: number | null };
+export type SaveProductInput = Omit<AdminProduct, "id"> & { id: number | null };
+export type SaveModifierGroupInput = Omit<AdminGroup, "id"> & { id: number | null };
+export type SaveModifierInput = Omit<AdminOption, "id"> & { id: number | null };
+
+/** The whole menu with its names per language, hidden entries included. */
+export function menuAdminGet(): Promise<MenuAdmin> {
+  return invoke("menu_admin_get");
+}
+
+export function menuSaveCategory(input: SaveCategoryInput): Promise<MenuSaved> {
+  return invoke("menu_save_category", { input });
+}
+
+export function menuSaveProduct(input: SaveProductInput): Promise<MenuSaved> {
+  return invoke("menu_save_product", { input });
+}
+
+export function menuSaveModifierGroup(input: SaveModifierGroupInput): Promise<MenuSaved> {
+  return invoke("menu_save_modifier_group", { input });
+}
+
+export function menuSaveModifier(input: SaveModifierInput): Promise<MenuSaved> {
+  return invoke("menu_save_modifier", { input });
+}
+
+/** The change log of the menu, newest first. */
+export function listMenuChanges(limit?: number): Promise<MenuChange[]> {
+  return invoke("list_menu_changes", { limit });
+}
+
+// ── Owner alerts (Telegram messages to the owner's phone) ──────────
+
+/** One switch per kind of alert. */
+export interface AlertKinds {
+  fdm: boolean;
+  printer: boolean;
+  terminal: boolean;
+  z_missing: boolean;
+  online_waiting: boolean;
+}
+
+/** What the owner edits. */
+export interface OwnerAlertsInput {
+  enabled: boolean;
+  chat_id: string;
+  label: string;
+  language: "fr" | "zh" | "en";
+  kinds: AlertKinds;
+  z_deadline_hour: number;
+  online_wait_minutes: number;
+  reminder_minutes: number;
+}
+
+/** The settings as stored, plus whether the bot token can be read (the token never leaves the engine). */
+export interface OwnerAlerts extends Omit<OwnerAlertsInput, "language"> {
+  language: string;
+  token_configured: boolean;
+}
+
+export interface AlertTestResult {
+  sent: boolean;
+  detail: string;
+}
+
+export interface AlertLogRow {
+  id: number;
+  kind: string;
+  transition: string;
+  detail: string | null;
+  outcome: string;
+  http_status: number | null;
+  created_at: string;
+}
+
+export function getOwnerAlerts(): Promise<OwnerAlerts> {
+  return invoke("get_owner_alerts");
+}
+
+/** Managers only. Logged. */
+export function setOwnerAlerts(input: OwnerAlertsInput): Promise<OwnerAlerts> {
+  return invoke("set_owner_alerts", { input });
+}
+
+/** Managers only. Sends one message now; refuses with `alerts_send_failed|detail=...`. */
+export function sendTestAlert(): Promise<AlertTestResult> {
+  return invoke("send_test_alert");
+}
+
+/** Managers only. Newest first. */
+export function listOwnerAlertLog(limit: number): Promise<AlertLogRow[]> {
+  return invoke("list_owner_alert_log", { limit });
+}
+
+// ── The 14 EU allergens ────────────────────────────────────────────
+
+/** One of the 14 allergens of Annex II, with its name per language. */
+export interface AllergenEntry {
+  code: string;
+  /** Annex II number, 1 to 14. */
+  number: number;
+  names: { fr: string; nl: string; en: string; zh: string };
+}
+
+/** An allergen on a sheet, named in the sheet's language. */
+export interface AllergenRef {
+  code: string;
+  number: number;
+  name: string;
+}
+
+export interface AllergenSheetOption {
+  group: string;
+  name: string;
+  declared: boolean;
+  contains: AllergenRef[];
+  traces: AllergenRef[];
+}
+
+export interface AllergenSheetProduct {
+  id: number;
+  name: string;
+  name_fr: string;
+  /** False: no information (never "no allergen"). */
+  declared: boolean;
+  contains: AllergenRef[];
+  traces: AllergenRef[];
+  options: AllergenSheetOption[];
+}
+
+export interface AllergenSheet {
+  lang: string;
+  products: AllergenSheetProduct[];
+}
+
+/** The 14 allergens in Annex order, for the legend. */
+export function listAllergens(): Promise<AllergenEntry[]> {
+  return invoke("list_allergens");
+}
+
+/** The sheet of one product, or of the whole active menu (`null`). */
+export function getAllergenSheet(menuItemId: number | null, lang?: string): Promise<AllergenSheet> {
+  return invoke("get_allergen_sheet", { menuItemId, lang });
+}
+
+/** Prints the sheet (fr, nl, en or de); a printer failure is the outcome, not an error. */
+export function printAllergenSheet(menuItemId: number | null, lang?: string): Promise<SlipOutcome> {
+  return invoke("print_allergen_sheet", { menuItemId, lang });
+}
+
+/** The edit of one list; `declared: false` puts the entry back to "no information". */
+export interface SetAllergensInput {
+  entity_type: "menu_item" | "modifier";
+  entity_id: number;
+  declared: boolean;
+  contains: string[];
+  may_contain: string[];
+}
+
+/** Managers only; refused while a catalog manages the menu. Answers whether anything changed. */
+export function setAllergens(input: SetAllergensInput): Promise<boolean> {
+  return invoke("set_allergens", { input });
+}
+
+// ── Courses and "Envoyer la suite" (kitchen printing only) ─────────
+
+/** A category and the course its products take (1 to 3; 0 is "Direct"). */
+export interface CategoryCourse {
+  category_id: number;
+  course: number;
+}
+
+export interface CourseSettings {
+  enabled: boolean;
+  category_courses: CategoryCourse[];
+}
+
+/** A course waiting for "Envoyer la suite". */
+export interface HeldCourse {
+  course: number;
+  lines: number;
+  quantity: number;
+}
+
+/** What "Envoyer la suite" did. */
+export interface NextCourse {
+  /** The course released; null when the call printed again what a failed slip had not delivered. */
+  course: number | null;
+  /** The slip of the P that registered the unsent lines first. */
+  signed: SlipOutcome | null;
+  slip: SlipOutcome;
+}
+
+export function getCourseSettings(): Promise<CourseSettings> {
+  return invoke("get_course_settings");
+}
+
+/** Managers only. */
+export function setCourseSettings(input: CourseSettings): Promise<CourseSettings> {
+  return invoke("set_course_settings", { input });
+}
+
+/** Refused with `course_already_sent` once a slip carried the line. */
+export function setLineCourse(lineId: number, course: number): Promise<void> {
+  return invoke("set_line_course", { lineId, course });
+}
+
+export function listHeldCourses(orderId: number): Promise<HeldCourse[]> {
+  return invoke("list_held_courses", { orderId });
+}
+
+/** Signs the unsent lines first (FDM down: refused, nothing printed), then releases and prints. */
+export function sendNextCourse(orderId: number): Promise<NextCourse> {
+  return invoke("send_next_course", { orderId });
+}
+
+/** Prints a course slip again, marked DUPLICATA. */
+export function reprintCourseSlip(orderId: number, course: number): Promise<SlipOutcome> {
+  return invoke("reprint_course_slip", { orderId, course });
+}
+
+// ── Multi-purpose gift vouchers ─────────────────────────────
+
+export interface GiftVoucherSettings {
+  enabled: boolean;
+  /** 12 to 36. */
+  validity_months: number;
+  /** Largest voucher sold, in cents. */
+  max_amount_cents: number;
+}
+
+export interface GiftVoucherMovement {
+  /** `issue`, `redeem` or `cancel`. */
+  kind: "issue" | "redeem" | "cancel";
+  amount_cents: number;
+  date: string;
+  /** The ticket that made it (`N 1234`). */
+  ticket: string;
+}
+
+export interface GiftVoucherView {
+  id: number;
+  /** The code is masked: it is printed in full on the voucher only. */
+  code_masked: string;
+  face_value_cents: number;
+  balance_cents: number;
+  issued_on: string;
+  expires_on: string;
+  status: "active" | "used" | "expired" | "cancelled";
+  training: boolean;
+  movements: GiftVoucherMovement[];
+}
+
+export function getGiftVoucherSettings(): Promise<GiftVoucherSettings> {
+  return invoke("get_gift_voucher_settings");
+}
+
+export function setGiftVoucherSettings(input: GiftVoucherSettings): Promise<GiftVoucherSettings> {
+  return invoke("set_gift_voucher_settings", { input });
+}
+
+/** Sells a voucher: a fixed-quantity line of the system product. */
+export function addGiftVoucherLine(orderId: number, amountCents: number): Promise<OrderLine> {
+  return invoke("add_gift_voucher_line", { orderId, amountCents });
+}
+
+/** Finds a voucher by its 12-digit code (5 failures a minute, then a wait). */
+export function lookupGiftVoucher(code: string): Promise<GiftVoucherView> {
+  return invoke("lookup_gift_voucher", { code });
+}
+
+/** Managers only; `status` filters on active, used, expired or cancelled. */
+export function listGiftVouchers(status?: string): Promise<GiftVoucherView[]> {
+  return invoke("list_gift_vouchers", { status: status ?? null });
+}
+
+/** Prints a voucher again, marked DUPLICATA (managers only). */
+export function printGiftVoucher(voucherId: number): Promise<SlipOutcome> {
+  return invoke("print_gift_voucher", { voucherId });
 }

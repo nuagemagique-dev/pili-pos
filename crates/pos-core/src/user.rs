@@ -45,6 +45,10 @@ pub struct User {
     /// True when a PIN hash is stored in the DB - the frontend uses
     /// this to decide whether to show the PIN numpad at login.
     pub has_pin: bool,
+    /// A kitchen employee who never uses the till: no login, no PIN,
+    /// clocked in and out by a manager (role `waiter` in the database).
+    #[serde(default)]
+    pub presence_only: bool,
 }
 
 /// Validates an INSZ (Belgian national number) format: 11 digits with mod-97 check.
