@@ -85,7 +85,7 @@ test.describe('Orders with a charged card', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await expect(page.locator('.table-card').nth(0).getByTestId('card-charged')).toHaveText(
       'Carte encaissée',
     )

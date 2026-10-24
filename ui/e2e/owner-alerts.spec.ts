@@ -33,13 +33,13 @@ async function openPanel(page: Page, tokenConfigured: boolean) {
           z_deadline_hour: 5,
           online_wait_minutes: 5,
           reminder_minutes: 60,
-          token_configured: !!w.__TOKEN,
+          token_configured: Boolean(w.__TOKEN),
         }
       )
     }),
     set_owner_alerts: live((args: any) => {
       const w = window as any
-      w.__alerts = { ...args.input, token_configured: !!w.__TOKEN }
+      w.__alerts = { ...args.input, token_configured: Boolean(w.__TOKEN) }
       return w.__alerts
     }),
   } as any)
@@ -69,7 +69,7 @@ test.describe('Owner alerts panel', () => {
     await panel.getByTestId('alerts-chat-id').click()
     await page.getByTestId('number-entry-minus').click()
     for (const d of '10012345')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await expect(page.getByTestId('number-entry-value')).toHaveText('-10012345')
     await page.getByTestId('number-entry-ok').click()
     await expect(panel.getByTestId('alerts-chat-id')).toHaveText('-10012345')
@@ -106,17 +106,17 @@ test.describe('Owner alerts panel', () => {
     await page.locator('.numpad .key-clear').click()
     await expect(page.getByTestId('number-entry-ok')).toBeDisabled()
     for (const d of '999')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await expect(page.getByTestId('number-entry-ok')).toBeDisabled()
     await page.locator('.numpad .key-back').click()
     await page.locator('.numpad .key-back').click()
-    await page.locator('.numpad .key', { hasText: /^2$/ }).click()
+    await page.locator('.numpad .key', { hasText: /^2$/u }).click()
     await page.getByTestId('number-entry-ok').click()
     await expect(panel.getByTestId('alerts-online-wait')).toHaveText('92 min')
 
     await panel.getByTestId('alerts-reminder').click()
     await page.locator('.numpad .key-clear').click()
-    await page.locator('.numpad .key', { hasText: /^0$/ }).click()
+    await page.locator('.numpad .key', { hasText: /^0$/u }).click()
     await page.getByTestId('number-entry-ok').click()
     await expect(panel.getByTestId('alerts-reminder')).toHaveText('Jamais')
   })
@@ -146,7 +146,7 @@ test.describe('Owner alerts panel', () => {
     ])
     await panel.getByTestId('alerts-chat-id').click()
     for (const d of '42')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await page.getByTestId('number-entry-ok').click()
     await panel.getByTestId('alerts-test').click()
 
@@ -164,7 +164,7 @@ test.describe('Owner alerts panel', () => {
   test('a refused message says why', async ({ page }) => {
     const panel = await openPanel(page, true)
     await panel.getByTestId('alerts-chat-id').click()
-    await page.locator('.numpad .key', { hasText: /^7$/ }).click()
+    await page.locator('.numpad .key', { hasText: /^7$/u }).click()
     await page.getByTestId('number-entry-ok').click()
     await overrideIPC(page, 'send_test_alert', { __reject: 'alerts_send_failed|detail=HTTP 401' })
     await panel.getByTestId('alerts-test').click()
@@ -186,10 +186,10 @@ test.describe('Owner alerts panel', () => {
     await panel.getByTestId('alerts-z-hour').click()
     await page.locator('.numpad .key-clear').click()
     for (const d of '13')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await expect(page.getByTestId('number-entry-ok')).toBeDisabled()
     await page.locator('.numpad .key-clear').click()
-    await page.locator('.numpad .key', { hasText: /^7$/ }).click()
+    await page.locator('.numpad .key', { hasText: /^7$/u }).click()
     await expect(page.getByTestId('number-entry-ok')).toBeEnabled()
     await page.getByTestId('number-entry-ok').click()
     await expect(panel.getByTestId('alerts-z-hour')).toHaveText('7 h')
@@ -204,10 +204,10 @@ test.describe('Owner alerts panel', () => {
     const panel = await openPanel(page, true)
     // The token is there, the chat id is not.
     await expect(panel.getByTestId('alerts-token')).toContainText('Robot Telegram configuré')
-    await expect(panel.getByTestId('alerts-chat-id')).not.toHaveText(/\d/)
+    await expect(panel.getByTestId('alerts-chat-id')).not.toHaveText(/\d/u)
     await expect(panel.getByTestId('alerts-test')).toBeDisabled()
     await panel.getByTestId('alerts-chat-id').click()
-    await page.locator('.numpad .key', { hasText: /^5$/ }).click()
+    await page.locator('.numpad .key', { hasText: /^5$/u }).click()
     await page.getByTestId('number-entry-ok').click()
     await expect(panel.getByTestId('alerts-test')).toBeEnabled()
   })

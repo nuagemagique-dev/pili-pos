@@ -84,9 +84,9 @@ async function orderScreen(page: Page, cart = CART, extra: Record<string, unknow
   }, cart)
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 test.describe('Courses in the cart', () => {
@@ -306,7 +306,7 @@ test.describe('Courses on the table plan and at checkout', () => {
     } as any)
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await expect(page.getByTestId('held-course-2')).toHaveText('Suite : Plats')
     await expect(page.locator('[data-testid^="held-course-"]')).toHaveCount(1)
   })
@@ -314,7 +314,7 @@ test.describe('Courses on the table plan and at checkout', () => {
   test('checkout warns about a held course and sends it now', async ({ page }) => {
     await orderScreen(page)
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     const warning = page.getByTestId('held-warning')
     await expect(warning).toContainText('Suite non envoyée : Plats')
     await page.getByTestId('held-send-now').click()
@@ -333,7 +333,7 @@ test.describe('Courses on the table plan and at checkout', () => {
       }),
     })
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     await page.getByTestId('held-send-now').click()
     await expect(page.locator('.error-msg')).toContainText('Connexion perdue avec la boîte noire')
     await expect(page.getByTestId('held-warning')).toContainText('Suite non envoyée : Plats')
@@ -346,7 +346,7 @@ test.describe('Courses on the table plan and at checkout', () => {
       }),
     })
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     await page.getByTestId('held-send-now').click()
     await expect(page.locator('.error-msg')).toContainText('Aucune suite en attente.')
     await expect(page.getByTestId('held-warning')).toContainText('Suite non envoyée : Plats')
@@ -355,7 +355,7 @@ test.describe('Courses on the table plan and at checkout', () => {
   test('without a held course the checkout shows no warning', async ({ page }) => {
     await orderScreen(page, [LINE(1, 'Sake', 0, 'printed')])
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     await expect(page.getByTestId('held-warning')).toHaveCount(0)
   })
 })
@@ -386,7 +386,7 @@ test.describe('Courses settings panel', () => {
       'Plats',
       'Desserts',
     ])
-    await expect(p.getByTestId('courses-cat-1-0')).toHaveClass(/active/)
+    await expect(p.getByTestId('courses-cat-1-0')).toHaveClass(/active/u)
     await expect(p.getByTestId('courses-cat-2')).toContainText('Desserts maison')
   })
 
@@ -426,7 +426,11 @@ test.describe('Course slip reprint (engine command, no screen)', () => {
     await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] } as any)
     await page.goto('/')
     const outcome = await page.evaluate(async () => {
-      const ipc = await import('/src/api/ipc.ts')
+      // The dev server's module, not a file of this repository's type graph.
+      const ipcModule = '/src/api/ipc.ts'
+      const ipc = (await import(ipcModule)) as {
+        reprintCourseSlip: (orderId: number, course: number) => Promise<string>
+      }
       return ipc.reprintCourseSlip(9, 2)
     })
     expect(outcome).toBe('printed')
@@ -443,7 +447,11 @@ test.describe('Course slip reprint (engine command, no screen)', () => {
     } as any)
     await page.goto('/')
     const err = await page.evaluate(async () => {
-      const ipc = await import('/src/api/ipc.ts')
+      // The dev server's module, not a file of this repository's type graph.
+      const ipcModule = '/src/api/ipc.ts'
+      const ipc = (await import(ipcModule)) as {
+        reprintCourseSlip: (orderId: number, course: number) => Promise<string>
+      }
       try {
         await ipc.reprintCourseSlip(9, 3)
         return null

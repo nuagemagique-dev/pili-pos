@@ -7,7 +7,11 @@ import NumPad from './NumPad.vue'
 import { formatPrice } from '../utils/format'
 import { useI18n } from '../i18n'
 
-const props = defineProps<{
+const {
+  itemName,
+  title = undefined,
+  allowZero,
+} = defineProps<{
   itemName: string
   /** Defaults to the free-price title. */
   title?: string
@@ -35,7 +39,7 @@ function onKey(key: string) {
   }
 }
 
-const valid = computed(() => cents.value > 0 || (props.allowZero === true && cents.value === 0))
+const valid = computed(() => cents.value > 0 || (allowZero === true && cents.value === 0))
 
 function confirm() {
   if (valid.value) emit('confirm', cents.value)

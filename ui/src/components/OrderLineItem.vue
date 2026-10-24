@@ -7,7 +7,7 @@ import { useI18n } from '../i18n'
 import { lineNetCents } from '../utils/cartAmounts'
 import { GIFT_VOUCHER_DEPARTMENT } from '../stores/giftVouchers'
 
-const props = defineProps<{
+const { line, pending, canOffer, canRemoveDiscount, canNote, showCourse } = defineProps<{
   line: CartLine
   /** Not yet sent to the bar / kitchen: amber mark on the left. */
   pending?: boolean
@@ -33,14 +33,14 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const bilingual = useBilingualName()
-const names = computed(() => bilingual(props.line))
+const names = computed(() => bilingual(line))
 /** A gift voucher sold: the quantity is fixed (one line per voucher). */
-const isVoucher = computed(() => props.line.department_id === GIFT_VOUCHER_DEPARTMENT)
+const isVoucher = computed(() => line.department_id === GIFT_VOUCHER_DEPARTMENT)
 
 /** Notes on the line ("Sans sésame"), when the line carries any:
  * `modifiers_json` holds a string or a list of strings. */
 const notes = computed(() => {
-  const raw = props.line.modifiers_json
+  const raw = line.modifiers_json
   if (!raw) return ''
   try {
     const value: unknown = JSON.parse(raw)
@@ -51,11 +51,11 @@ const notes = computed(() => {
   }
 })
 
-const changes = computed(() => props.line.price_changes ?? [])
+const changes = computed(() => line.price_changes ?? [])
 /** A voucher line is never discounted and goes to no kitchen: no offer, no note. */
-const canOfferHere = computed(() => !!props.canOffer && !isVoucher.value)
-const canNoteHere = computed(() => !!props.canNote && !isVoucher.value)
-const hasActions = computed(() => canOfferHere.value || props.canRemoveDiscount)
+const canOfferHere = computed(() => Boolean(canOffer) && !isVoucher.value)
+const canNoteHere = computed(() => Boolean(canNote) && !isVoucher.value)
+const hasActions = computed(() => canOfferHere.value || canRemoveDiscount)
 
 const lineRef = ref<HTMLElement | null>(null)
 
@@ -84,12 +84,12 @@ defineExpose({
         class="qty-btn"
         :disabled="line.quantity <= 1"
         :aria-label="t('qty_less')"
-        @click="emit('decrement', props.line.id)"
+        @click="emit('decrement', line.id)"
       >
         −
       </button>
       <span class="qty">{{ line.quantity }}</span>
-      <button class="qty-btn" :aria-label="t('qty_more')" @click="emit('increment', props.line.id)">
+      <button class="qty-btn" :aria-label="t('qty_more')" @click="emit('increment', line.id)">
         +
       </button>
     </div>
@@ -108,7 +108,7 @@ defineExpose({
         :disabled="line.kitchen_state === 'printed'"
         :aria-label="t('course_chip_label', { course: t(`course_${line.course}`) })"
         :data-testid="`course-chip-${line.id}`"
-        @click="emit('course', props.line.id)"
+        @click="emit('course', line.id)"
       >
         {{ t(`course_${line.course}`) }}
         <span v-if="line.kitchen_state === 'held'" class="chip-held">{{
@@ -123,15 +123,11 @@ defineExpose({
       :class="{ filled: !!line.kitchen_note }"
       data-testid="line-note"
       :aria-label="t('note_button')"
-      @click="emit('note', props.line.id)"
+      @click="emit('note', line.id)"
     >
       {{ t('note_button') }}
     </button>
-    <button
-      class="remove-btn"
-      :aria-label="t('line_remove')"
-      @click="emit('remove', props.line.id)"
-    >
+    <button class="remove-btn" :aria-label="t('line_remove')" @click="emit('remove', line.id)">
       <svg width="14" height="14" viewBox="0 0 14 14">
         <path
           d="M2 2l10 10M12 2L2 12"
@@ -158,7 +154,7 @@ defineExpose({
         v-if="canOfferHere"
         class="act-btn"
         data-testid="line-offer"
-        @click="emit('offer', props.line.id)"
+        @click="emit('offer', line.id)"
       >
         {{ t('discount_offer') }}
       </button>
@@ -166,7 +162,7 @@ defineExpose({
         v-if="canRemoveDiscount"
         class="act-btn"
         data-testid="line-remove-discount"
-        @click="emit('removeDiscount', props.line.id)"
+        @click="emit('removeDiscount', line.id)"
       >
         {{ t('discount_remove') }}
       </button>

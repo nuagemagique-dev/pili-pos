@@ -8,12 +8,18 @@ export type AppLanguage = 'fr' | 'en' | 'zh'
 export type ProductLabel = 'name' | 'code'
 
 const LANG_KEY = 'pili-pos-language'
+const LANGUAGES: readonly AppLanguage[] = ['fr', 'en', 'zh']
+
+function isAppLanguage(value: string | null): value is AppLanguage {
+  return LANGUAGES.some((language) => language === value)
+}
 const PRODUCT_LABEL_KEY = 'pili-pos-product-label'
 
 export const usePosStore = defineStore('pos', () => {
   const trainingMode = ref(false)
   const settings = ref<ipc.PosSettings | null>(null)
-  const language = ref<AppLanguage>((localStorage.getItem(LANG_KEY) as AppLanguage) || 'fr')
+  const storedLanguage = localStorage.getItem(LANG_KEY)
+  const language = ref<AppLanguage>(isAppLanguage(storedLanguage) ? storedLanguage : 'fr')
   const productLabel = ref<ProductLabel>(
     localStorage.getItem(PRODUCT_LABEL_KEY) === 'name' ? 'name' : 'code',
   )

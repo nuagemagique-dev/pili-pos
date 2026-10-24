@@ -29,9 +29,9 @@ async function toOrder(page: Page, user = DEFAULT_USER) {
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 async function typePin(page: Page, pin: string) {
@@ -45,7 +45,7 @@ test('[UC4109] a manager closes the table unpaid with their PIN', async ({ page 
   await expect(page.locator('.pin-dialog .hint')).toContainText('sans paiement')
   await typePin(page, '4321')
 
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await expect(page.locator('.toast', { hasText: 'Vente clôturée sans paiement' })).toBeVisible()
   expect(await ipcCalls(page, 'close_unpaid')).toEqual([
     { orderId: expect.any(Number), insz: DEFAULT_USER.insz, pin: '4321' },
@@ -67,7 +67,7 @@ test('a wrong PIN closes nothing and says so', async ({ page }) => {
   await page.locator('.unpaid-btn').click()
   await typePin(page, '0000')
   await expect(page.locator('.pin-dialog .error-msg')).toHaveText('PIN incorrect')
-  await expect(page).toHaveURL(/order/)
+  await expect(page).toHaveURL(/order/u)
 })
 
 test('back leaves the order open', async ({ page }) => {
@@ -76,7 +76,7 @@ test('back leaves the order open', async ({ page }) => {
   await page.locator('.pin-dialog').getByRole('button', { name: 'Retour' }).click()
   await expect(page.locator('.pin-dialog')).toHaveCount(0)
   expect(await ipcCalls(page, 'close_unpaid')).toHaveLength(0)
-  await expect(page).toHaveURL(/order/)
+  await expect(page).toHaveURL(/order/u)
 })
 
 test('a cashier does not see the button', async ({ page }) => {

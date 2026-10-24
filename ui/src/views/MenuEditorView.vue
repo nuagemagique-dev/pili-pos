@@ -57,7 +57,7 @@ const MAX_PRICE_DIGITS = 6
 /** Languages typed on the on-screen keyboard; Chinese has no input method on the kiosk. */
 const KEYBOARD_LANGS = new Set(['fr', 'nl', 'en', 'de'])
 
-const locked = computed(() => menu.value?.managed_by != null)
+const locked = computed(() => typeof menu.value?.managed_by === 'string')
 const languages = computed(() => menu.value?.languages ?? ['fr'])
 const products = computed(() =>
   (menu.value?.products ?? []).filter((p) => p.category_id === selectedCategory.value),
@@ -486,13 +486,13 @@ const formTitle = computed(() => {
 const currentProduct = computed(() => {
   const f = form.value
   if (!f || f.kind !== 'product') return null
-  const id = f.data.id
+  const { id } = f.data
   return id === null ? null : { ...f.data, id }
 })
 const currentGroup = computed(() => {
   const f = form.value
   if (!f || f.kind !== 'group') return null
-  const id = f.data.id
+  const { id } = f.data
   return id === null ? null : { ...f.data, id }
 })
 

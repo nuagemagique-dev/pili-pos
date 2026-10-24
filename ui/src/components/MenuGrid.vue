@@ -5,7 +5,11 @@ import MenuItemButton from './MenuItemButton.vue'
 
 const { t } = useI18n()
 
-const props = defineProps<{
+const {
+  items,
+  categoryColor = undefined,
+  cartQuantities = undefined,
+} = defineProps<{
   items: MenuItem[]
   categoryColor?: string | null
   /** Quantity already in the cart, per product id. */
@@ -26,8 +30,8 @@ const emit = defineEmits<{
       v-for="item in items"
       :key="item.id"
       :item="item"
-      :category-color="props.categoryColor ?? undefined"
-      :in-cart="props.cartQuantities?.get(item.id) ?? 0"
+      :category-color="categoryColor ?? undefined"
+      :in-cart="cartQuantities?.get(item.id) ?? 0"
       @add="emit('addItem', $event)"
     />
     <div v-if="items.length === 0" class="empty">

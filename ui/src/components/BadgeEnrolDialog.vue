@@ -9,7 +9,7 @@ import { useToastStore } from '../stores/toast'
 import { useI18n } from '../i18n'
 import { describeError, errorCode } from '../utils/errorMessages'
 
-const props = defineProps<{ insz: string; name: string }>()
+const { insz, name } = defineProps<{ insz: string; name: string }>()
 const emit = defineEmits<{ done: []; cancel: [] }>()
 
 /** How long the dialog waits for the badge. */
@@ -47,7 +47,7 @@ onUnmounted(() => {
  * employee already linked...) ends the dialog, a PIN refusal is retried. */
 async function verify(pin: string) {
   try {
-    await badge.link(props.insz, token.value ?? '', pin)
+    await badge.link(insz, token.value ?? '', pin)
   } catch (e) {
     if (errorCode(e)?.startsWith('pin_')) throw e
     failed = true
@@ -59,7 +59,7 @@ async function verify(pin: string) {
 
 function onDone() {
   if (failed) return
-  toast.show(t('badge_linked_done', { name: props.name }), 'success')
+  toast.show(t('badge_linked_done', { name }), 'success')
   emit('done')
 }
 </script>

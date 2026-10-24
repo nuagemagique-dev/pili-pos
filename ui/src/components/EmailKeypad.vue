@@ -22,8 +22,8 @@ const SYMBOLS = ['@', '.', '-', '_', '+']
 // authoritatively before signing - this is just to save the operator a
 // round trip on an obvious typo.
 function isEmail(v: string): boolean {
-  if (!v || /\s/.test(v)) return false
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+  if (!v || /\s/u.test(v)) return false
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(v)
 }
 </script>
 

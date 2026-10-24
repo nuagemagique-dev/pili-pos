@@ -72,9 +72,9 @@ onUnmounted(() => {
 
 const time = (iso: string | null) => (iso ? formatTimestamp(iso, formatDayTime) : t('never'))
 
-const invalid = computed(() => !!status.value?.problem)
-const disabled = computed(() => !!status.value && !status.value.enabled && !invalid.value)
-const canRetry = computed(() => !!status.value && status.value.enabled && !invalid.value)
+const invalid = computed(() => Boolean(status.value?.problem))
+const disabled = computed(() => status.value !== null && !status.value.enabled && !invalid.value)
+const canRetry = computed(() => status.value !== null && status.value.enabled && !invalid.value)
 
 const stateText = computed(() => {
   const s = status.value

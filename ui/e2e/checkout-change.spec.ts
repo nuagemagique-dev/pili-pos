@@ -68,14 +68,14 @@ async function toPayment(page: Page, checkout: object = SALE) {
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
   await page.locator('.item-btn').first().click()
   // The tap is applied once the cart shows the second unit.
   await expect(page.locator('.total-amount')).toContainText('24,00')
   await page.locator('.checkout-btn').click()
-  await page.waitForURL(/checkout/)
+  await page.waitForURL(/checkout/u)
   await expect(page.locator('.total-value')).toHaveText('24,00')
 }
 
@@ -119,7 +119,7 @@ test('the success screen names the FDM that signed the sale', async ({ page }) =
 test('the exact amount gives no change line', async ({ page }) => {
   await toPayment(page)
   // §7.1: PAYER -> Exact -> Valider (cash is selected by default).
-  await expect(page.locator('.cash-btn')).toHaveClass(/active/)
+  await expect(page.locator('.cash-btn')).toHaveClass(/active/u)
   await page.locator('.shortcut.exact').click()
   await page.locator('.validate-btn').click()
   await expect(page.locator('.success-icon')).toBeVisible()

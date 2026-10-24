@@ -17,20 +17,18 @@ export function lineNetCents(
 
 /** Σ of the lines' net amounts: the amount due. */
 export function netTotalCents(
-  lines: ReadonlyArray<
-    Pick<CartLine, 'unit_price_cents' | 'quantity'> & { discount_cents?: number }
-  >,
+  lines: readonly (Pick<CartLine, 'unit_price_cents' | 'quantity'> & { discount_cents?: number })[],
 ): number {
   return lines.reduce((sum, line) => sum + lineNetCents(line), 0)
 }
 
 /** Σ of the discounts of the lines (zero or negative). */
-export function discountTotalCents(lines: ReadonlyArray<{ discount_cents?: number }>): number {
+export function discountTotalCents(lines: readonly { discount_cents?: number }[]): number {
   return lines.reduce((sum, line) => sum + (line.discount_cents ?? 0), 0)
 }
 
 /** Whether an order discount (scope EVENT) applies to some line. */
-export function hasOrderDiscount(lines: ReadonlyArray<Pick<CartLine, 'price_changes'>>): boolean {
+export function hasOrderDiscount(lines: readonly Pick<CartLine, 'price_changes'>[]): boolean {
   return lines.some((l) => l.price_changes?.some((c) => c.scope === 'EVENT'))
 }
 

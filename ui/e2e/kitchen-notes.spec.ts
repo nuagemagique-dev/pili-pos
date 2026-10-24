@@ -35,9 +35,9 @@ async function toOrder(page: Page, lines: unknown[] = [UNSENT], user = DEFAULT_U
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 /** Type `text` on the keypad: letters, digits, the space bar and symbols. */
@@ -47,7 +47,9 @@ async function type(page: Page, text: string) {
     if (ch === ' ') await pad.locator('.key-space').click()
     else
       await pad
-        .locator('.key', { hasText: new RegExp(`^${ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) })
+        .locator('.key', {
+          hasText: new RegExp(`^${ch.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u'),
+        })
         .click()
   }
 }
@@ -97,14 +99,14 @@ test.describe('Note dialog', () => {
     await expect(page.locator('.keypad-modal')).toHaveCount(0)
     expect(await ipcCalls(page, 'set_line_note')).toEqual([{ lineId: 1, note: 'sans wasabi' }])
     await expect(page.getByTestId('line-kitchen-note')).toHaveText('sans wasabi')
-    await expect(page.getByTestId('line-note')).toHaveClass(/filled/)
+    await expect(page.getByTestId('line-note')).toHaveClass(/filled/u)
   })
 
   test('accents and punctuation are on the keypad', async ({ page }) => {
     await toOrder(page)
     await page.getByTestId('line-note').click()
     await type(page, 'caf')
-    await page.locator('.keypad-modal .key', { hasText: /^é$/ }).click()
+    await page.locator('.keypad-modal .key', { hasText: /^é$/u }).click()
     await page.locator('.keypad-modal .act-btn.primary').click()
     expect(await ipcCalls(page, 'set_line_note')).toEqual([{ lineId: 1, note: 'café' }])
   })
@@ -115,7 +117,7 @@ test.describe('Note dialog', () => {
     const pad = page.locator('.keypad-modal')
     for (let i = 0; i < 6; i++) await type(page, 'abcdefghijk')
     await expect(pad.getByTestId('keypad-counter')).toHaveText('60/60')
-    await expect(pad.getByTestId('keypad-display')).toHaveText('abcdefghijk'.repeat(5) + 'abcde')
+    await expect(pad.getByTestId('keypad-display')).toHaveText(`${'abcdefghijk'.repeat(5)}abcde`)
   })
 
   test('a noted line opens with its note; clearing it removes the note', async ({ page }) => {

@@ -51,7 +51,7 @@ onMounted(() => void store.load())
 const dirty = computed(() => {
   const s = store.settings
   const d = draft.value
-  return !!s && !!d && JSON.stringify(toDraft(s)) !== JSON.stringify(d)
+  return s !== null && d !== null && JSON.stringify(toDraft(s)) !== JSON.stringify(d)
 })
 
 async function save(): Promise<boolean> {

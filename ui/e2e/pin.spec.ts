@@ -22,9 +22,9 @@ test.describe('Own PIN - tap your name on the order screen', () => {
     await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await page.locator('.table-card').first().click()
-    await page.waitForURL(/order/)
+    await page.waitForURL(/order/u)
     await page.locator('.header-user').click()
   })
 

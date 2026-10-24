@@ -140,7 +140,6 @@ export const useBadgeStore = defineStore('badge', () => {
           6000,
         )
         cue.refused()
-        return
     }
   }
 

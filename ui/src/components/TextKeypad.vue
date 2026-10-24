@@ -8,50 +8,48 @@ import { useI18n } from '../i18n'
 // optional reason of a till discount. Class names are shared with the
 // email keypad so both look and test the same.
 
-const props = withDefaults(
-  defineProps<{
-    title: string
-    placeholder?: string
-    /** Text the keypad opens with. */
-    initial?: string
-    maxLen?: number
-    /** Shortcut chunks above the keys (".com"). */
-    quickKeys?: string[]
-    /** Extra symbol keys after the digits. */
-    symbols?: string[]
-    /** A space bar, for free text. */
-    space?: boolean
-    /** Whether the buffer may be confirmed; default: any text, empty included. */
-    valid?: (value: string) => boolean
-    /** Shown under the display while a non-empty buffer is not valid. */
-    invalidText?: string
-    /** A line of explanation under the display. */
-    hint?: string
-    /** Show "n/max" under the display. */
-    showCounter?: boolean
-    /** Second screen that shows the text large before it is used. */
-    confirmStep?: boolean
-    confirmTitle?: string
-    editLabel?: string
-    confirmLabel?: string
-  }>(),
-  {
-    placeholder: '',
-    initial: '',
-    maxLen: 60,
-    quickKeys: () => [],
-    symbols: () => [],
-    space: false,
-    valid: () => true,
-    invalidText: '',
-    hint: '',
-    showCounter: false,
-    confirmStep: false,
-    confirmTitle: '',
-    editLabel: '',
-    confirmLabel: '',
-  },
-)
+const {
+  title,
+  placeholder = '',
+  initial = '',
+  maxLen = 60,
+  quickKeys = [],
+  symbols = [],
+  space = false,
+  valid = () => true,
+  invalidText = '',
+  hint = '',
+  showCounter = false,
+  confirmStep = false,
+  confirmTitle = '',
+  editLabel = '',
+  confirmLabel = '',
+} = defineProps<{
+  title: string
+  placeholder?: string
+  /** Text the keypad opens with. */
+  initial?: string
+  maxLen?: number
+  /** Shortcut chunks above the keys (".com"). */
+  quickKeys?: string[]
+  /** Extra symbol keys after the digits. */
+  symbols?: string[]
+  /** A space bar, for free text. */
+  space?: boolean
+  /** Whether the buffer may be confirmed; default: any text, empty included. */
+  valid?: (value: string) => boolean
+  /** Shown under the display while a non-empty buffer is not valid. */
+  invalidText?: string
+  /** A line of explanation under the display. */
+  hint?: string
+  /** Show "n/max" under the display. */
+  showCounter?: boolean
+  /** Second screen that shows the text large before it is used. */
+  confirmStep?: boolean
+  confirmTitle?: string
+  editLabel?: string
+  confirmLabel?: string
+}>()
 
 const emit = defineEmits<{
   confirm: [text: string]
@@ -60,19 +58,19 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const buffer = ref(props.initial.slice(0, props.maxLen))
+const buffer = ref(initial.slice(0, maxLen))
 const step = ref<'type' | 'confirm'>('type')
 
 const LETTER_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
 const DIGIT_ROW = '1234567890'.split('')
 
 function press(ch: string) {
-  if (buffer.value.length >= props.maxLen) return
+  if (buffer.value.length >= maxLen) return
   buffer.value += ch
 }
 
 function pressQuick(chunk: string) {
-  if (buffer.value.length + chunk.length > props.maxLen) return
+  if (buffer.value.length + chunk.length > maxLen) return
   buffer.value += chunk
 }
 
@@ -84,11 +82,11 @@ function clear() {
   buffer.value = ''
 }
 
-const isValid = computed(() => props.valid(buffer.value))
+const isValid = computed(() => valid(buffer.value))
 
 function goConfirm() {
   if (!isValid.value) return
-  if (props.confirmStep) step.value = 'confirm'
+  if (confirmStep) step.value = 'confirm'
   else emit('confirm', buffer.value)
 }
 

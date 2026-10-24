@@ -6,17 +6,14 @@ import { computed } from 'vue'
 import { TILE_BADGES, tileBadges } from '../utils/allergens'
 import { useI18n } from '../i18n'
 
-const props = withDefaults(
-  defineProps<{
-    /** Allergen codes the item contains (traces are not shown on a tile). */
-    codes: readonly string[]
-    max?: number
-  }>(),
-  { max: TILE_BADGES },
-)
+const { codes, max = TILE_BADGES } = defineProps<{
+  /** Allergen codes the item contains (traces are not shown on a tile). */
+  codes: readonly string[]
+  max?: number
+}>()
 
 const { t } = useI18n()
-const badges = computed(() => tileBadges(props.codes, props.max))
+const badges = computed(() => tileBadges(codes, max))
 const label = computed(
   () =>
     `${t('allergens_contains')}: ${badges.value.shown.join(', ')}${badges.value.more ? ` +${badges.value.more}` : ''}`,

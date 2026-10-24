@@ -85,11 +85,11 @@ async function toCheckout(page: Page, setup: Setup = {}) {
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
   await page.locator('.checkout-btn').click()
-  await page.waitForURL(/checkout/)
+  await page.waitForURL(/checkout/u)
 }
 
 const overlay = (page: Page) => page.getByTestId('eft-overlay')

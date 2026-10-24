@@ -124,7 +124,7 @@ async function type(page: Page, text: string) {
 
 async function digits(page: Page, text: string) {
   for (const ch of text)
-    await page.locator('.numpad .key', { hasText: new RegExp(`^${ch}$`) }).click()
+    await page.locator('.numpad .key', { hasText: new RegExp(`^${ch}$`, 'u') }).click()
 }
 
 test.describe('Settings: Carte panel', () => {
@@ -133,7 +133,7 @@ test.describe('Settings: Carte panel', () => {
     await loginAndGoto(page, '/settings')
     await expect(page.getByTestId('menu-editor-panel').locator('h2')).toHaveText('Carte')
     await page.getByTestId('menu-editor-open').click()
-    await page.waitForURL(/menu-editor/)
+    await page.waitForURL(/menu-editor/u)
     await expect(page.getByTestId('menu-editor-view')).toBeVisible()
   })
 
@@ -163,7 +163,7 @@ test.describe('Settings: Carte panel', () => {
     const cashier = { ...DEFAULT_USER, role: 'cashier' }
     await mockTauriIPC(page, { login: () => cashier, list_users: () => [cashier] })
     await loginAndGoto(page, '/menu-editor')
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await expect(page.getByTestId('menu-editor-view')).toHaveCount(0)
   })
 })
@@ -366,20 +366,20 @@ test.describe('Menu editor: visibility instead of deletion (V11-D17)', () => {
     const hidden = { ...MENU, products: [{ ...MENU.products[0], active: false }, MENU.products[1]] }
     await editor(page, { menu_save_product: () => ({ id: 10, menu: hidden }) })
     await openProduct10(page)
-    await expect(page.getByTestId('menu-ed-active')).toHaveClass(/on/)
+    await expect(page.getByTestId('menu-ed-active')).toHaveClass(/on/u)
     await page.getByTestId('menu-ed-active').click()
-    await expect(page.getByTestId('menu-ed-active')).not.toHaveClass(/on/)
+    await expect(page.getByTestId('menu-ed-active')).not.toHaveClass(/on/u)
     await page.getByTestId('menu-ed-save').click()
     const calls = await ipcCalls(page, 'menu_save_product')
     expect(calls).toHaveLength(1)
     expect(calls[0].input).toMatchObject({ id: 10, active: false })
     await expect(page.getByTestId('menu-ed-product-row').first()).toContainText('Masqué')
     // There is no way to delete: no such button, no such command.
-    await expect(page.getByRole('button', { name: /supprimer|delete/i })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /supprimer|delete/iu })).toHaveCount(0)
     const names: string[] = await page.evaluate(() =>
       (window as any).__ipcCalls.map((c: any) => c.cmd),
     )
-    expect(names.filter((n) => /delete|remove/.test(n))).toEqual([])
+    expect(names.filter((n) => /delete|remove/u.test(n))).toEqual([])
   })
 
   test('a category is hidden the same way', async ({ page }) => {
@@ -569,7 +569,7 @@ test.describe('Menu editor: other errors', () => {
     await page.evaluate(() => {
       window.location.hash = '/settings'
     })
-    await page.waitForURL(/settings/)
+    await page.waitForURL(/settings/u)
     await expect(page.getByTestId('menu-editor-open')).toBeEnabled()
   })
 
@@ -602,7 +602,7 @@ test.describe('Menu editor: leaving', () => {
   test('Retour goes back to Settings', async ({ page }) => {
     await editor(page)
     await page.getByTestId('menu-ed-back').click()
-    await page.waitForURL(/settings/)
+    await page.waitForURL(/settings/u)
     await expect(page.getByTestId('menu-editor-panel')).toBeVisible()
   })
 })
@@ -624,7 +624,7 @@ test.describe('Menu editor: kitchen course and allergens (lane 4 in the editor)'
       set_course_settings: live((args: any) => args.input),
     })
     await page.getByTestId('menu-ed-category-row').first().click()
-    await expect(page.getByTestId('menu-ed-course-1')).toHaveClass(/on/)
+    await expect(page.getByTestId('menu-ed-course-1')).toHaveClass(/on/u)
     await expect(page.getByTestId('menu-ed-course-off')).toHaveCount(0)
     await page.getByTestId('menu-ed-course-2').click()
     await page.getByTestId('menu-ed-save').click()
@@ -658,7 +658,7 @@ test.describe('Menu editor: kitchen course and allergens (lane 4 in the editor)'
   test('with courses off the picker says the choice waits for the switch', async ({ page }) => {
     await editor(page)
     await page.getByTestId('menu-ed-category-row').first().click()
-    await expect(page.getByTestId('menu-ed-course-0')).toHaveClass(/on/)
+    await expect(page.getByTestId('menu-ed-course-0')).toHaveClass(/on/u)
     await expect(page.getByTestId('menu-ed-course-off')).toBeVisible()
   })
 
@@ -667,7 +667,7 @@ test.describe('Menu editor: kitchen course and allergens (lane 4 in the editor)'
   }) => {
     await editor(page)
     await page.getByTestId('menu-ed-product-row').first().click()
-    await expect(page.getByTestId('menu-ed-allergens-declared')).toHaveClass(/on/)
+    await expect(page.getByTestId('menu-ed-allergens-declared')).toHaveClass(/on/u)
     await expect(page.getByTestId('menu-ed-allergen-fish')).toHaveAttribute(
       'data-level',
       'contains',
@@ -695,7 +695,10 @@ test.describe('Menu editor: kitchen course and allergens (lane 4 in the editor)'
       entity_id: 10,
       declared: true,
     })
-    expect([...calls[0].input.contains].sort()).toEqual(['milk', 'soybeans'])
+    expect([...calls[0].input.contains].sort((a, b) => a.localeCompare(b))).toEqual([
+      'milk',
+      'soybeans',
+    ])
     expect(calls[0].input.may_contain).toEqual(['fish'])
     // The editor reads the menu again for the new list.
     expect((await ipcCalls(page, 'menu_admin_get')).length).toBeGreaterThanOrEqual(2)

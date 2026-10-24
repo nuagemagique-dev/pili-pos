@@ -1,6 +1,9 @@
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite-plus'
 
+// `TAURI_DEBUG` is set (to any text) by `tauri dev` and `tauri build --debug`.
+const debug = (process.env.TAURI_DEBUG ?? '') !== ''
+
 export default defineConfig({
   plugins: [vue()],
   clearScreen: false,
@@ -11,8 +14,13 @@ export default defineConfig({
   envPrefix: ['VITE_', 'TAURI_'],
   build: {
     target: 'esnext',
-    minify: process.env.TAURI_DEBUG ? false : 'oxc',
-    sourcemap: Boolean(process.env.TAURI_DEBUG),
+    minify: debug ? false : 'oxc',
+    sourcemap: debug,
+  },
+  // Unit tests only: the Playwright specs (e2e/*.spec.ts) and the real-binary tests (e2e/real-binary/*.test.mjs)
+  // have their own runners.
+  test: {
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
   },
   staged: {
     '*': 'vp check --fix',
@@ -67,6 +75,14 @@ export default defineConfig({
     },
     overrides: [
       {
+        // A wrapper takes its Tauri command's arguments one by one, in the order of the engine function and the
+        // Android FFI method it is checked against (scripts/android/check_command_parity.py).
+        files: ['src/api/**'],
+        rules: {
+          'max-params': 'off',
+        },
+      },
+      {
         // Playwright specs and the WebDriver tests of the real binary drive a page from the outside: they cast mocks,
         // build partial objects and read untyped values from the page. These rules are noise there, and only there.
         files: ['e2e/**'],
@@ -88,6 +104,19 @@ export default defineConfig({
           'prefer-named-capture-group': 'off',
           'new-cap': 'off',
           'func-names': 'off',
+          // Tauri's invoke rejects with the backend's refusal string, never an Error: the IPC mock and the handlers of
+          // the specs reject and throw strings as the real commands do.
+          'no-throw-literal': 'off',
+          'typescript/only-throw-error': 'off',
+          'prefer-promise-reject-errors': 'off',
+          'typescript/prefer-promise-reject-errors': 'off',
+        },
+      },
+      {
+        // node:test registers each top-level `test()`; the runner owns the promise it returns.
+        files: ['e2e/real-binary/**'],
+        rules: {
+          'typescript/no-floating-promises': 'off',
         },
       },
     ],

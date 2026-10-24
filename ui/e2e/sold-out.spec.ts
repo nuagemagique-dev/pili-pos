@@ -92,9 +92,9 @@ async function orderScreen(
   )
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 test.describe('Sold out (Épuisé)', () => {
@@ -108,7 +108,7 @@ test.describe('Sold out (Épuisé)', () => {
 
     const dialog = page.getByTestId('soldout-dialog')
     await expect(dialog).toBeVisible()
-    await expect(dialog.getByTestId('soldout-choice-available')).toHaveClass(/current/)
+    await expect(dialog.getByTestId('soldout-choice-available')).toHaveClass(/current/u)
     await dialog.getByTestId('soldout-choice-day').click()
     await expect(dialog).toHaveCount(0)
 
@@ -117,7 +117,7 @@ test.describe('Sold out (Épuisé)', () => {
     ])
     // The tile is greyed with its badge; nothing was added to the order.
     const tile = page.locator('.item-btn', { hasText: 'Maki saumon' })
-    await expect(tile).toHaveClass(/sold-out/)
+    await expect(tile).toHaveClass(/sold-out/u)
     await expect(tile.getByTestId('soldout-badge')).toHaveText('Épuisé')
     expect(await ipcCalls(page, 'add_order_line')).toHaveLength(0)
   })
@@ -136,10 +136,10 @@ test.describe('Sold out (Épuisé)', () => {
     await page.locator('.item-btn', { hasText: 'Edamame' }).click()
     const dialog = page.getByTestId('soldout-dialog')
     await expect(dialog.getByTestId('soldout-status')).toHaveText("Jusqu'à réactivation")
-    await expect(dialog.getByTestId('soldout-choice-until')).toHaveClass(/current/)
+    await expect(dialog.getByTestId('soldout-choice-until')).toHaveClass(/current/u)
     await dialog.getByTestId('soldout-choice-available').click()
     expect(await ipcCalls(page, 'clear_sold_out')).toEqual([{ menuItemId: 2, lang: 'fr' }])
-    await expect(page.locator('.item-btn', { hasText: 'Edamame' })).not.toHaveClass(/sold-out/)
+    await expect(page.locator('.item-btn', { hasText: 'Edamame' })).not.toHaveClass(/sold-out/u)
   })
 
   test('the dialog shows the end of the day in Brussels time', async ({ page }) => {
@@ -149,7 +149,7 @@ test.describe('Sold out (Épuisé)', () => {
     await expect(page.getByTestId('soldout-status')).toHaveText(
       "Jusqu'à la fin de la journée (18/10 04:00)",
     )
-    await expect(page.getByTestId('soldout-choice-day')).toHaveClass(/current/)
+    await expect(page.getByTestId('soldout-choice-day')).toHaveClass(/current/u)
     // Retour changes nothing.
     await page.getByTestId('soldout-cancel').click()
     await expect(page.getByTestId('soldout-dialog')).toHaveCount(0)
@@ -182,7 +182,7 @@ test.describe('Sold out (Épuisé)', () => {
     await expect(list.getByTestId('soldout-row')).toHaveCount(1)
     expect(await ipcCalls(page, 'clear_sold_out')).toEqual([{ menuItemId: 1, lang: 'fr' }])
     await expect(page.getByTestId('soldout-list-button')).toHaveText('Produits épuisés (1)')
-    await expect(page.locator('.item-btn', { hasText: 'Maki saumon' })).not.toHaveClass(/sold-out/)
+    await expect(page.locator('.item-btn', { hasText: 'Maki saumon' })).not.toHaveClass(/sold-out/u)
 
     await list.getByTestId('soldout-reenable').click()
     await expect(list.getByTestId('soldout-list-empty')).toHaveText('Aucun produit épuisé.')
@@ -198,7 +198,7 @@ test.describe('Sold out (Épuisé)', () => {
     await expect(page.getByTestId('soldout-list-button')).toHaveCount(0)
     expect(await ipcCalls(page, 'list_sold_out')).toHaveLength(0)
     // The flag still greys the tile and the tap says why.
-    await expect(page.locator('.item-btn', { hasText: 'Maki saumon' })).toHaveClass(/sold-out/)
+    await expect(page.locator('.item-btn', { hasText: 'Maki saumon' })).toHaveClass(/sold-out/u)
     await page.locator('.item-btn', { hasText: 'Maki saumon' }).click()
     await expect(page.locator('.toast-error', { hasText: 'Ce produit est épuisé.' })).toBeVisible()
   })
@@ -280,7 +280,7 @@ test.describe('Sold out: stale grid, leaving the mode, list failure', () => {
     })
     await page.locator('.item-btn', { hasText: 'Maki saumon' }).click()
     const dialog = page.getByTestId('modifier-dialog')
-    await dialog.getByRole('button', { name: /Soja/ }).click()
+    await dialog.getByRole('button', { name: /Soja/u }).click()
     await dialog.locator('.btn-confirm').click()
     await expect(page.locator('.toast-error', { hasText: 'Ce produit est épuisé.' })).toBeVisible()
     await expect(page.locator('.cart-lines .cart-line')).toHaveCount(0)
@@ -291,7 +291,7 @@ test.describe('Sold out: stale grid, leaving the mode, list failure', () => {
   }) => {
     await orderScreen(page, 'cashier', { 1: END_OF_DAY })
     const tile = page.locator('.item-btn', { hasText: 'Maki saumon' })
-    await expect(tile).toHaveClass(/sold-out/)
+    await expect(tile).toHaveClass(/sold-out/u)
     // The product was put back on sale elsewhere; this grid has not heard yet.
     await page.evaluate(() => {
       delete (globalThis as any).__soldOut[1]
@@ -302,7 +302,7 @@ test.describe('Sold out: stale grid, leaving the mode, list failure', () => {
     await expect
       .poll(async () => (await ipcCalls(page, 'get_menu_items')).length)
       .toBeGreaterThan(before)
-    await expect(tile).not.toHaveClass(/sold-out/)
+    await expect(tile).not.toHaveClass(/sold-out/u)
     expect(await ipcCalls(page, 'add_order_line')).toHaveLength(0)
   })
 
@@ -324,7 +324,7 @@ test.describe('Sold out: stale grid, leaving the mode, list failure', () => {
     await orderScreen(page)
     await page.getByTestId('soldout-mode').click()
     await page.locator('.item-btn', { hasText: 'Edamame' }).click()
-    await expect(page.getByTestId('soldout-choice-available')).toHaveClass(/current/)
+    await expect(page.getByTestId('soldout-choice-available')).toHaveClass(/current/u)
     await page.getByTestId('soldout-choice-available').click()
     await expect(page.getByTestId('soldout-dialog')).toHaveCount(0)
     expect(await ipcCalls(page, 'set_sold_out')).toHaveLength(0)
@@ -337,7 +337,7 @@ test.describe('Sold out: stale grid, leaving the mode, list failure', () => {
     await orderScreen(page, 'admin', { 2: END_OF_DAY })
     await page.getByTestId('soldout-mode').click()
     await page.locator('.item-btn', { hasText: 'Edamame' }).click()
-    await expect(page.getByTestId('soldout-choice-day')).toHaveClass(/current/)
+    await expect(page.getByTestId('soldout-choice-day')).toHaveClass(/current/u)
     await page.getByTestId('soldout-choice-day').click()
     await expect(page.getByTestId('soldout-dialog')).toHaveCount(0)
     expect(await ipcCalls(page, 'set_sold_out')).toHaveLength(0)

@@ -208,7 +208,7 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
     async runSale(action: () => Promise<CheckoutResult>) {
       await this.run(async () => {
         const result = await action()
-        if (!result.success) throw result.error ?? 'internal'
+        if (!result.success) throw new Error(result.error ?? 'internal')
       })
     },
 
@@ -219,13 +219,13 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
     },
 
     async startPreparation(hubriseOrderId: string) {
-      return this.patchStatus(hubriseOrderId, 'in_preparation')
+      await this.patchStatus(hubriseOrderId, 'in_preparation')
     },
     async markReady(hubriseOrderId: string) {
-      return this.patchStatus(hubriseOrderId, 'awaiting_collection')
+      await this.patchStatus(hubriseOrderId, 'awaiting_collection')
     },
     async markOutForDelivery(hubriseOrderId: string) {
-      return this.patchStatus(hubriseOrderId, 'in_delivery')
+      await this.patchStatus(hubriseOrderId, 'in_delivery')
     },
 
     /**
@@ -240,7 +240,8 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
       const { t } = useI18n()
       const target = this.orders.find((o) => o.hubrise_order_id === hubriseOrderId)
       const now = Date.now()
-      const currentMs = target?.confirmed_time ? new Date(target.confirmed_time).getTime() : now
+      const confirmed = target?.confirmed_time ?? ''
+      const currentMs = confirmed === '' ? now : new Date(confirmed).getTime()
       const baseMs = Number.isFinite(currentMs) ? Math.max(currentMs, now) : now
       const iso = new Date(baseMs + minutes * 60_000).toISOString()
       try {
@@ -287,11 +288,11 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
       if (this.listenersAttached) return
       this.listenersAttached = true
 
-      await listen('webshop-order-received', async () => {
-        await this.fetchOrders()
+      await listen('webshop-order-received', () => {
+        void this.fetchOrders()
       })
-      await listen('webshop-order-updated', async () => {
-        await this.fetchOrders()
+      await listen('webshop-order-updated', () => {
+        void this.fetchOrders()
       })
     },
   },

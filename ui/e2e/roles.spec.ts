@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import {
   mockTauriIPC,
   DEFAULT_USER,
@@ -11,7 +11,7 @@ import {
 
 // PROFILS_UTILISATEURS_FR.md §2: the backend refuses what a role may
 // not do; the UI does not offer it.
-async function openTableAs(page: import('@playwright/test').Page, role: string) {
+async function openTableAs(page: Page, role: string) {
   const user = { ...DEFAULT_USER, role }
   await mockTauriIPC(page, {
     login: () => user,
@@ -23,9 +23,9 @@ async function openTableAs(page: import('@playwright/test').Page, role: string) 
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 test.describe('What each role is offered', () => {
@@ -58,9 +58,9 @@ test.describe('What each role is offered', () => {
     await openTableAs(page, 'cashier')
     await page.locator('.nav-logout').click()
     await expect
-      .poll(async () =>
+      .poll(() =>
         page.evaluate(() =>
-          ((window as any).__ipcCalls as Array<{ cmd: string }>)
+          ((window as any).__ipcCalls as { cmd: string }[])
             .map((c) => c.cmd)
             .filter((c) => c === 'lock_session' || c === 'work_out' || c === 'logout'),
         ),

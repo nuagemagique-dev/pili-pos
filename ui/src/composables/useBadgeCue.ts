@@ -4,7 +4,13 @@
 
 let audioCtx: AudioContext | null = null
 
-function tone(ctx: AudioContext, freq: number, start: number, length: number, volume: number) {
+interface Note {
+  freq: number
+  start: number
+  length: number
+}
+
+function tone(ctx: AudioContext, { freq, start, length }: Note, volume: number) {
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
   osc.type = 'sine'
@@ -16,11 +22,11 @@ function tone(ctx: AudioContext, freq: number, start: number, length: number, vo
   osc.stop(start + length)
 }
 
-function play(notes: Array<[number, number, number]>) {
+function play(notes: [number, number, number][]) {
   try {
-    if (!audioCtx) audioCtx = new AudioContext()
+    audioCtx ??= new AudioContext()
     const now = audioCtx.currentTime
-    for (const [freq, at, length] of notes) tone(audioCtx, freq, now + at, length, 0.3)
+    for (const [freq, at, length] of notes) tone(audioCtx, { freq, start: now + at, length }, 0.3)
   } catch {
     // Blocked by the autoplay policy or no audio device: the toast is the cue.
   }
@@ -29,12 +35,15 @@ function play(notes: Array<[number, number, number]>) {
 export function useBadgeCue() {
   return {
     /** A2 then E6: arrival, departure or login registered. */
-    ok: () =>
+    ok: () => {
       play([
         [880, 0, 0.12],
         [1318.5, 0.12, 0.2],
-      ]),
+      ])
+    },
     /** A low tone: refused or failed. */
-    refused: () => play([[196, 0, 0.35]]),
+    refused: () => {
+      play([[196, 0, 0.35]])
+    },
   }
 }

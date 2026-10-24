@@ -66,7 +66,7 @@ const findAll = async (css) =>
 const js = (script, ...args) => cmd('POST', '/execute/sync', { script, args })
 // textContent: WebKitWebDriver's rendered text drops line-clamped text.
 const text = async (id) =>
-  (await js('return arguments[0].textContent;', { [ELEMENT]: id })).replace(/\s+/g, ' ').trim()
+  (await js('return arguments[0].textContent;', { [ELEMENT]: id })).replace(/\s+/gu, ' ').trim()
 const click = (id) => cmd('POST', `/element/${id}/click`, {})
 const type = (id, value) => cmd('POST', `/element/${id}/value`, { text: value })
 const go = (hash) => js(`window.location.hash = ${JSON.stringify(hash)};`)
@@ -81,9 +81,11 @@ async function waitFor(what, probe, timeoutMs = 30_000) {
     } catch (e) {
       last = e
     }
-    await new Promise((r) => setTimeout(r, 300))
+    await new Promise((r) => {
+      setTimeout(r, 300)
+    })
   }
-  assert.fail(`timed out waiting for ${what} (last: ${last})`)
+  throw new assert.AssertionError({ message: `timed out waiting for ${what} (last: ${last})` })
 }
 
 /** The first `css` match whose text contains `label`. */
@@ -145,7 +147,7 @@ function eventsOf(hubriseId) {
 }
 /** The event's cost center, as `{ type, reference }`. */
 const costCenter = (e) => {
-  const found = JSON.stringify(e.request).match(/"costCenter":\{[^}]*\}/)
+  const found = /"costCenter":\{[^}]*\}/u.exec(JSON.stringify(e.request))
   const cc = found && JSON.parse(`{${found[0]}}`).costCenter
   return cc && { type: cc.type, reference: cc.reference }
 }
@@ -156,7 +158,7 @@ async function printed() {
   return (Array.isArray(jobs) ? jobs : (jobs.jobs ?? [])).map((j) => j.text ?? '')
 }
 
-async function card(column) {
+function card(column) {
   return find(`.column-${column} .card`)
 }
 
@@ -177,7 +179,7 @@ after(async () => {
 test('the manager logs in with the PIN', { skip }, async () => {
   await tap('.user-btn', MANAGER.name)
   for (const digit of MANAGER.pin) await tap('.pin-overlay .nk', digit)
-  await waitFor('the tables route', async () => /#\/tables/.test(await cmd('GET', '/url')))
+  await waitFor('the tables route', async () => /#\/tables/u.test(await cmd('GET', '/url')))
 })
 
 test('HubRise connects through the login dialog', { skip }, async () => {
@@ -225,7 +227,7 @@ test('a prepaid platform order is accepted and signed N', { skip }, async () => 
   await tap('.column-new .btn-primary', 'Accepter')
   await waitFor('the order in the kitchen', () => card('kitchen'))
 
-  const [sale] = await waitFor('the signed sale', async () => {
+  const [sale] = await waitFor('the signed sale', () => {
     const e = eventsOf(prepaid)
     return e.length === 1 && e
   })
@@ -240,7 +242,7 @@ test('a prepaid platform order is accepted and signed N', { skip }, async () => 
     return all.length >= 2 && all
   })
   assert.ok(
-    tickets.some((t) => /TVA|BTW/.test(t)),
+    tickets.some((t) => /TVA|BTW/u.test(t)),
     tickets.join('\n----\n'),
   )
   // HubRise hears it, through the outbox.
@@ -252,7 +254,7 @@ test('the platform cancels; the manager refunds the signed sale', { skip }, asyn
   await waitFind('[data-testid="cancelled-banner"]', 'remboursement', ORDER_WAIT)
   await tap('.btn-primary', 'Rembourser')
 
-  const [sale, refund] = await waitFor('the refund signed', async () => {
+  const [sale, refund] = await waitFor('the refund signed', () => {
     const e = eventsOf(prepaid)
     return e.length === 2 && e
   })
@@ -277,7 +279,7 @@ test('an unpaid webshop order is accepted and registered P', { skip }, async () 
     'À encaisser',
   )
   await tap('.column-new .btn-primary', 'Accepter')
-  const [order] = await waitFor('the P', async () => {
+  const [order] = await waitFor('the P', () => {
     const e = eventsOf(unpaid)
     return e.length === 1 && e
   })
@@ -300,7 +302,7 @@ test('the unpaid order is cashed in at handover and signed N', { skip }, async (
     45_000,
   )
   await click(cash)
-  const [order, sold] = await waitFor('the sale', async () => {
+  const [order, sold] = await waitFor('the sale', () => {
     const e = eventsOf(unpaid)
     return e.length === 2 && e
   })
@@ -315,23 +317,25 @@ test('the unpaid order is cashed in at handover and signed N', { skip }, async (
 test('a catalog change on HubRise reaches the menu', { skip }, async () => {
   const current = await mock('PUT', '/mock/catalog', {})
   const data = current.data ?? current
-  const sku = data.products[0].skus[0]
-  const before = sql(`SELECT id, price_cents FROM menu_items WHERE external_id = '${sku.ref}'`)[0]
-  assert.ok(before, `the menu item of ${sku.ref}`)
-  const cents = before.price_cents + 100
+  const [sku] = data.products[0].skus
+  const [itemBefore] = sql(
+    `SELECT id, price_cents FROM menu_items WHERE external_id = '${sku.ref}'`,
+  )
+  assert.ok(itemBefore, `the menu item of ${sku.ref}`)
+  const cents = itemBefore.price_cents + 100
   sku.price = `${(cents / 100).toFixed(2)} EUR`
   await mock('PUT', '/mock/catalog', { data })
 
   // HubRise announces it (catalog.update); the POS applies it at its
   // next poll, nobody touching the till.
-  const after = await waitFor(
+  const itemAfter = await waitFor(
     'the new price',
-    async () => {
-      const row = sql(`SELECT id, price_cents FROM menu_items WHERE external_id = '${sku.ref}'`)[0]
+    () => {
+      const [row] = sql(`SELECT id, price_cents FROM menu_items WHERE external_id = '${sku.ref}'`)
       return row.price_cents === cents && row
     },
     ORDER_WAIT,
   )
   // Same product, same id: the productId the FDM knows.
-  assert.equal(after.id, before.id)
+  assert.equal(itemAfter.id, itemBefore.id)
 })

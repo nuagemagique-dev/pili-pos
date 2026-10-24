@@ -202,7 +202,7 @@ test.describe('Invoices: the dialog', () => {
       city: 'LIEGE',
     })
     const previewCalls = await ipcCalls(page, 'invoice_preview')
-    expect([...previewCalls[0].saleEventIds].sort()).toEqual([11, 12])
+    expect([...previewCalls[0].saleEventIds].sort((a, b) => a - b)).toEqual([11, 12])
     await expect(page.getByTestId('invoice-lines').locator('li')).toHaveCount(2)
     await expect(page.getByTestId('invoice-vat').locator('tbody tr')).toHaveCount(2)
     await expect(page.getByTestId('invoice-total')).toContainText('39,00')
@@ -216,7 +216,7 @@ test.describe('Invoices: the dialog', () => {
     )
     const signed = await ipcCalls(page, 'sign_invoice_fiscal')
     expect(signed).toHaveLength(1)
-    expect([...signed[0].saleEventIds].sort()).toEqual([11, 12])
+    expect([...signed[0].saleEventIds].sort((a, b) => a - b)).toEqual([11, 12])
     expect(signed[0].customerId).toBe(7)
     expect(signed[0].employeeInsz).toBe(DEFAULT_USER.insz)
 
@@ -538,7 +538,7 @@ test.describe('Invoices: the list', () => {
     await page.getByRole('tab', { name: 'Tickets' }).click()
     await page.getByTestId('invoice-copy-3').click()
     await expect.poll(() => ipcCalls(page, 'copy_ticket')).toHaveLength(1)
-    const call = (await ipcCalls(page, 'copy_ticket'))[0]
+    const [call] = await ipcCalls(page, 'copy_ticket')
     expect(call.fiscalEventId).toBe(43)
     expect(call.employeeInsz).toBe(DEFAULT_USER.insz)
     await expect(page.locator('.toast', { hasText: 'Copie' })).toBeVisible()
@@ -600,10 +600,10 @@ test.describe('Invoices: the tickets list merges the invoiceable sales', () => {
     await expect(sale.locator('.rt-kind')).toContainText('Vente')
     await expect(refund.locator('.rt-kind')).toContainText('Remboursement')
     await expect(refund.locator('.rt-total')).toHaveText('-9,00 €')
-    await expect(refund.locator('.rt-total')).toHaveClass(/negative/)
-    await expect(sale.locator('.rt-total')).not.toHaveClass(/negative/)
+    await expect(refund.locator('.rt-total')).toHaveClass(/negative/u)
+    await expect(sale.locator('.rt-total')).not.toHaveClass(/negative/u)
     // Newest first.
-    await expect(page.locator('[data-testid^="ticket-row-"]')).toHaveText([/#103/, /#101/])
+    await expect(page.locator('[data-testid^="ticket-row-"]')).toHaveText([/#103/u, /#101/u])
 
     await expect(page.getByTestId('ticket-check-13')).toBeVisible()
     await page.getByTestId('ticket-check-13').click()
@@ -612,7 +612,7 @@ test.describe('Invoices: the tickets list merges the invoiceable sales', () => {
     await page.getByTestId('invoice-action').click()
     await toPreview(page)
     const previewCalls = await ipcCalls(page, 'invoice_preview')
-    expect([...previewCalls[0].saleEventIds].sort()).toEqual([11, 13])
+    expect([...previewCalls[0].saleEventIds].sort((a, b) => a - b)).toEqual([11, 13])
   })
 
   test('a sale invoiced meanwhile is dropped from the ticks when the list reloads', async ({
@@ -766,7 +766,7 @@ test.describe('Invoices: the customer form', () => {
       .getByRole('button', { name: 'Effacer une lettre' })
       .click()
     await typeKeys(page, '8')
-    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE030835715' + '8')
+    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE0308357158')
     await expect(page.getByTestId('invoice-chip')).toHaveCount(0)
 
     await page.getByTestId('invoice-continue').click()
@@ -852,8 +852,8 @@ test.describe('Invoices: preview and signing', () => {
     await expect(sales.nth(0).locator('.neg')).toHaveCount(0)
     const lines = page.getByTestId('invoice-lines').locator('li')
     await expect(lines.nth(1).locator('.amt')).toHaveText('-9,00')
-    await expect(lines.nth(1).locator('.amt')).toHaveClass(/neg/)
-    await expect(lines.nth(0).locator('.amt')).not.toHaveClass(/neg/)
+    await expect(lines.nth(1).locator('.amt')).toHaveClass(/neg/u)
+    await expect(lines.nth(0).locator('.amt')).not.toHaveClass(/neg/u)
     await expect(page.getByTestId('invoice-total')).toContainText('17,77 €')
   })
 
@@ -899,18 +899,16 @@ test.describe('Invoices: preview and signing', () => {
         sign_invoice_fiscal: live(
           () =>
             new Promise((resolve) => {
-              setTimeout(
-                () =>
-                  resolve({
-                    success: true,
-                    fiscalEventId: 40,
-                    invoiceNo: '20260002',
-                    printed: true,
-                    deliveryStatus: 'queued',
-                    error: null,
-                  }),
-                1000,
-              )
+              setTimeout(() => {
+                resolve({
+                  success: true,
+                  fiscalEventId: 40,
+                  invoiceNo: '20260002',
+                  printed: true,
+                  deliveryStatus: 'queued',
+                  error: null,
+                })
+              }, 1000)
             }),
         ),
       }),
@@ -920,7 +918,7 @@ test.describe('Invoices: preview and signing', () => {
     await page.getByTestId('invoice-confirm').dblclick()
     await expect(page.getByTestId('invoice-processing')).toBeVisible()
     await expect(page.getByTestId('invoice-confirm')).toHaveCount(0)
-    await expect(page.locator('.inv-steps li.on')).toHaveText(/Aperçu/)
+    await expect(page.locator('.inv-steps li.on')).toHaveText(/Aperçu/u)
     await expect(page.getByTestId('invoice-result')).toContainText('Facture 20260002 établie')
     await expect(page.getByTestId('invoice-processing')).toHaveCount(0)
     expect(await ipcCalls(page, 'sign_invoice_fiscal')).toHaveLength(1)
@@ -981,7 +979,7 @@ test.describe('Invoices: a cashier (V11-D8, Access::Cashier)', () => {
     await mockTauriIPC(page, base({ login: () => cashier, list_users: () => [cashier] }))
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables|order/)
+    await page.waitForURL(/tables|order/u)
     await expect(page.locator('.nav-btn', { hasText: 'Rapports' })).toHaveCount(0)
   })
 
@@ -994,6 +992,6 @@ test.describe('Invoices: a cashier (V11-D8, Access::Cashier)', () => {
     const signed = await ipcCalls(page, 'sign_invoice_fiscal')
     expect(signed).toHaveLength(1)
     expect(signed[0].employeeInsz).toBe(cashier.insz)
-    expect([...signed[0].saleEventIds].sort()).toEqual([11, 12])
+    expect([...signed[0].saleEventIds].sort((a, b) => a - b)).toEqual([11, 12])
   })
 })

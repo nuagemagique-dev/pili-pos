@@ -1,6 +1,4 @@
-import { computed } from 'vue'
-import { usePosStore } from './stores/pos'
-import type { AppLanguage } from './stores/pos'
+import { usePosStore, type AppLanguage } from './stores/pos'
 import { webshopMessages } from './i18n-webshop'
 import { checkoutMessages } from './i18n-checkout'
 import { reportsMessages } from './i18n-reports'
@@ -1619,8 +1617,8 @@ export function useI18n() {
   /** `vars` fills `{name}` placeholders in the resolved string, e.g.
    * `t('delivery_outcome_sent', { hint: 'j***@e***.be' })`. */
   function t(key: string, vars?: Record<string, string | number>): string {
-    const entry = messages[key]
-    let value = entry ? (entry[pos.language] ?? entry.fr ?? key) : key
+    const entry = Object.hasOwn(messages, key) ? messages[key] : undefined
+    let value = entry === undefined ? key : (entry[pos.language] ?? entry.fr ?? key)
     if (vars) {
       for (const [name, v] of Object.entries(vars)) {
         value = value.replaceAll(`{${name}}`, String(v))

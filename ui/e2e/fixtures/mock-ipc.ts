@@ -193,10 +193,7 @@ export function live(fn: Handler): Handler {
 }
 
 /** Seed the open shifts `list_open_shifts` reports (before the page loads). */
-export async function shiftsInit(
-  page: Page,
-  shifts: Array<{ userInsz: string; startedAt: string }>,
-) {
+export async function shiftsInit(page: Page, shifts: { userInsz: string; startedAt: string }[]) {
   await page.addInitScript((v) => {
     ;(window as any).__shifts = v
   }, shifts)
@@ -235,13 +232,13 @@ export async function badgeInit(
   page: Page,
   init: {
     settings?: Partial<typeof BADGE_SETTINGS_OFF>
-    badges?: Array<{
+    badges?: {
       insz: string
       name: string
       linkedAt: string
       linkedBy: string
       linkedByName: string | null
-    }>
+    }[]
     log?: unknown[]
     taps?: BadgeTapStep[]
     linkReject?: string
@@ -415,7 +412,7 @@ function defaultHandlers(): Record<string, Handler> {
     }),
     set_badge_settings: live((args: any = {}) => {
       const w = window as any
-      w.__badge = w.__badge ?? { settings: {}, badges: [], log: [], taps: [], linkReject: null }
+      w.__badge ??= { settings: {}, badges: [], log: [], taps: [], linkReject: null }
       w.__badge.settings = { ...w.__badge.settings, ...args.input, relinkNeeded: false }
       w.__badge.log = [
         {
@@ -439,7 +436,7 @@ function defaultHandlers(): Record<string, Handler> {
       const w = window as any
       const b = w.__badge
       if (b && b.linkReject) return Promise.reject(b.linkReject)
-      const name = (b && b.names && b.names[args.employeeInsz]) || args.employeeInsz
+      const name = b?.names?.[args.employeeInsz] ?? args.employeeInsz
       const at = '2026-10-17 12:15:00'
       if (b) {
         b.badges = b.badges.concat([
@@ -506,9 +503,7 @@ function defaultHandlers(): Record<string, Handler> {
     // Presence registered by a manager: the open shifts live in the page
     // (`window.__shifts`, seeded by `shiftsInit`), so clock-in then out
     // shows in the next `list_open_shifts`.
-    list_open_shifts: live(() => {
-      return ((window as any).__shifts ?? []).slice()
-    }),
+    list_open_shifts: live(() => ((window as any).__shifts ?? []).slice()),
     clock_in_employee: live((args: any = {}) => {
       const w = window as any
       w.__shifts = (w.__shifts ?? []).concat([
@@ -857,7 +852,7 @@ function defaultHandlers(): Record<string, Handler> {
     eft_check: live((args: any = {}) => {
       const e = (window as any).__eft
       const known = e ? e.payments[args.id] : null
-      const step = (e && e.check.shift()) || { status: 'approved' }
+      const step = e?.check.shift() ?? { status: 'approved' }
       const ok = step.status === 'approved'
       const base = known ?? {
         id: args.id,
@@ -1062,7 +1057,8 @@ export async function mockTauriIPC(page: Page, overrides?: Record<string, Handle
     for (const [k, v] of Object.entries(raw)) {
       if (v && typeof v === 'object' && '__live' in v) {
         try {
-          // eslint-disable-next-line no-new-func
+          // A live handler travels as its source text and is rebuilt in the page.
+          // eslint-disable-next-line no-new-func, typescript/no-implied-eval
           map[k] = new Function(`return (${(v as { __live: string }).__live})`)()
         } catch {
           map[k] = null
@@ -1081,7 +1077,7 @@ export async function mockTauriIPC(page: Page, overrides?: Record<string, Handle
     }
 
     // Every app command, in call order - read with `ipcCalls()`.
-    const calls: Array<{ cmd: string; args: any }> = []
+    const calls: { cmd: string; args: any }[] = []
     ;(window as any).__ipcCalls = calls
 
     ;(window as any).__TAURI_INTERNALS__ = {
@@ -1109,7 +1105,7 @@ export async function mockTauriIPC(page: Page, overrides?: Record<string, Handle
         console.warn(`[mock-ipc] unmocked command: ${cmd}`, args)
         return Promise.resolve(null)
       },
-      transformCallback: (fn: Function) => {
+      transformCallback: (fn: (...args: unknown[]) => unknown) => {
         // Tauri uses this to register JS callbacks for events.
         // Return a numeric ID that maps to the callback.
         const id = Math.floor(Math.random() * 100000)
@@ -1137,14 +1133,14 @@ export async function overrideIPC(page: Page, cmd: string, value: any) {
     ([c, v]) => {
       const tauri = (window as any).__TAURI_INTERNALS__
       const prev = tauri.invoke
-      tauri.invoke = (cmd: string, args?: any) => {
-        if (cmd === c) {
+      tauri.invoke = (command: string, args?: any) => {
+        if (command === c) {
           if (v === '__THROW__') return Promise.reject(v)
           // { __reject: 'message' }: the backend's error string.
           if (v && typeof v === 'object' && '__reject' in v) return Promise.reject(v.__reject)
           return Promise.resolve(v)
         }
-        return prev(cmd, args)
+        return prev(command, args)
       }
     },
     [cmd, value] as const,
@@ -1157,10 +1153,10 @@ export async function emitTauriEvent(page: Page, event: string, payload: unknown
 }
 
 /** Arguments of each call of `cmd` so far, oldest first. */
-export async function ipcCalls(page: Page, cmd: string): Promise<any[]> {
+export function ipcCalls(page: Page, cmd: string): Promise<any[]> {
   return page.evaluate(
     (c) =>
-      ((window as any).__ipcCalls as Array<{ cmd: string; args: any }>)
+      ((window as any).__ipcCalls as { cmd: string; args: any }[])
         .filter((call) => call.cmd === c)
         .map((call) => call.args),
     cmd,
@@ -1209,7 +1205,7 @@ export async function eftScript(
         terminal_reference: ok ? `T-${k.id}` : null,
         authorisation_code: null,
         masked_pan: null,
-        meal_voucher: ok && ['Edenred', 'Pluxee', 'Monizze', 'Payflip'].includes(k.brand),
+        meal_voucher: ok && ['Edenred', 'Pluxee', 'Monizze', 'Payflip'].includes(k.brand ?? ''),
         detail: null,
         created_at: '2026-10-12 09:00:00',
         used: false,
@@ -1256,7 +1252,7 @@ export async function tapUserTile(page: Page, name?: string) {
     : page.locator('.user-btn').first()
   await tile.click()
   const overlay = page.locator('.pin-overlay')
-  await Promise.race([page.waitForURL(/tables|order/), overlay.waitFor({ state: 'visible' })])
+  await Promise.race([page.waitForURL(/tables|order/u), overlay.waitFor({ state: 'visible' })])
   if (await overlay.isVisible()) {
     for (const d of TEST_PIN) await overlay.locator('.nk', { hasText: d }).first().click()
   }
@@ -1272,7 +1268,7 @@ export async function loginAndGoto(page: Page, hashRoute: string) {
   await page.goto('/')
   await tapUserTile(page)
   // After login, the app redirects to /#/tables or /#/order.
-  await page.waitForURL(/tables|order/)
+  await page.waitForURL(/tables|order/u)
   // Client-side navigation (no page reload → Pinia state preserved).
   if (!hashRoute.includes('tables')) {
     await page.evaluate((route) => {

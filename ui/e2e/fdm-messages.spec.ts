@@ -47,12 +47,12 @@ async function orderScreenWithStatus(page: Page, code: string, nature: Nature, s
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   // A blocking error veils the sales screens (FdmAlerts): the message is
   // read there, over the Tables screen. Otherwise, go on to the order.
   if (nature === 'Error' && BLOCKING.has(code) && showPos !== 'NEVER') return
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 /** A displayed code: its message, and the indicator's color. */
@@ -356,9 +356,9 @@ test('an FDM that is not initialized says so under the header', async ({ page })
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
   await expect(page.locator('.fdm.warn')).toBeVisible()
   await expect(page.locator('.fdm-alert .msg')).toHaveText(
     "La boîte noire n'est pas encore initialisée.",

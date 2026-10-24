@@ -85,14 +85,17 @@ function toggleMove() {
 /** In the mode only a source (occupied) or, once chosen, a target
  * (free) can be tapped. */
 function selectable(table: ipc.TableInfo): boolean {
-  if (!source.value) return table.status === 'occupied' && table.orderId != null
+  if (!source.value) return table.status === 'occupied' && table.orderId !== null
   return table.status === 'free'
 }
 
 function pickInMoveMode(table: ipc.TableInfo) {
   if (!selectable(table)) return
-  if (!source.value) source.value = table
-  else target.value = table
+  if (source.value) {
+    target.value = table
+  } else {
+    source.value = table
+  }
 }
 
 async function confirmMove() {

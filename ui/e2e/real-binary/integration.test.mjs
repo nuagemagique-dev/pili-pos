@@ -70,9 +70,11 @@ async function waitFor(what, probe, timeoutMs = 30_000) {
     } catch (e) {
       last = e
     }
-    await new Promise((r) => setTimeout(r, 250))
+    await new Promise((r) => {
+      setTimeout(r, 250)
+    })
   }
-  assert.fail(`timed out waiting for ${what} (last: ${last})`)
+  throw new assert.AssertionError({ message: `timed out waiting for ${what} (last: ${last})` })
 }
 
 async function texts(css) {
@@ -105,14 +107,14 @@ test('tapping the tile logs in and shows the 20 tables', { skip }, async () => {
   const tile = tiles[names.findIndex((n) => n.includes('CI Server'))]
   assert.ok(tile, 'CI Server tile')
   await click(tile)
-  await waitFor('the tables route', async () => /#\/tables/.test(await url()))
+  await waitFor('the tables route', async () => /#\/tables/u.test(await url()))
   await waitFor('20 table cards', async () => (await findAll('.table-card')).length === 20)
 })
 
 test('a table opens an order with the seeded menu', { skip }, async () => {
   const [first] = await findAll('.table-card')
   await click(first)
-  await waitFor('the order route', async () => /#\/order/.test(await url()))
+  await waitFor('the order route', async () => /#\/order/u.test(await url()))
   // The first category (Sushi) holds two of the three seeded items.
   const items = await waitFor('the Sushi items', async () => {
     const t = await texts('.item-btn')

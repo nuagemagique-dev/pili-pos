@@ -8,14 +8,14 @@ import { useI18n } from '../i18n'
 import { useBilingualName } from '../utils/names'
 import { availabilityOf, endOfDayLabel, type Availability } from '../utils/soldOut'
 
-const props = defineProps<{ item: MenuItem }>()
+const { item } = defineProps<{ item: MenuItem }>()
 const emit = defineEmits<{ done: [] }>()
 
 const { t } = useI18n()
 const menu = useMenuStore()
 const bilingual = useBilingualName()
-const names = computed(() => bilingual(props.item))
-const current = computed(() => availabilityOf(props.item))
+const names = computed(() => bilingual(item))
+const current = computed(() => availabilityOf(item))
 const busy = ref(false)
 
 const choices: { value: Availability; label: string }[] = [
@@ -31,7 +31,7 @@ async function choose(choice: Availability) {
     return
   }
   busy.value = true
-  const ok = await menu.setAvailability(props.item.id, choice)
+  const ok = await menu.setAvailability(item.id, choice)
   busy.value = false
   if (ok) emit('done')
 }

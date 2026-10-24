@@ -15,11 +15,10 @@ import PinDialog from './PinDialog.vue'
 import TablePickerDialog from './TablePickerDialog.vue'
 import DiscountDialog from './DiscountDialog.vue'
 import NoteDialog from './NoteDialog.vue'
-import type { DiscountInput } from '../types'
+import type { CartLine, DiscountInput } from '../types'
 import * as ipc from '../api/ipc'
 import CoursePickerDialog from './CoursePickerDialog.vue'
 import { GIFT_VOUCHER_DEPARTMENT } from '../stores/giftVouchers'
-import type { CartLine } from '../types'
 
 const router = useRouter()
 const order = useOrderStore()
@@ -163,7 +162,7 @@ const canTransfer = computed(
   () =>
     isDineIn.value &&
     order.currentOrder?.status === 'open' &&
-    order.currentOrder.table_number != null &&
+    order.currentOrder.table_number !== null &&
     order.lines.length > 0,
 )
 const picking = ref(false)
@@ -232,7 +231,7 @@ const discountStep = ref<DiscountStep | null>(null)
 
 function lineHasOwnChange(lineId: number): boolean {
   const line = order.lines.find((l) => l.id === lineId)
-  return !!line?.price_changes?.some((c) => c.scope === 'LINE')
+  return Boolean(line?.price_changes?.some((c) => c.scope === 'LINE'))
 }
 function canOfferLine(lineId: number): boolean {
   const line = order.lines.find((l) => l.id === lineId)

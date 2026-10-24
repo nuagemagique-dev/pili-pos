@@ -14,7 +14,7 @@ export interface CodedError {
   vars: Record<string, string>
 }
 
-const CODE = /^[a-z][a-z_]*$/
+const CODE = /^[a-z][a-z_]*$/u
 
 /** `code|name=value|...` split back, or null when `text` is not a code. */
 export function parseErrorCode(text: string): CodedError | null {
@@ -28,16 +28,25 @@ export function parseErrorCode(text: string): CodedError | null {
   return { code, vars }
 }
 
+/** The text of a refusal: Tauri rejects with the backend's string, the stores throw it inside an Error. */
+export function errorText(raw: unknown): string {
+  if (typeof raw === 'string') return raw
+  if (raw instanceof Error) return raw.message
+  if (raw === null || raw === undefined) return ''
+  if (typeof raw === 'number' || typeof raw === 'boolean') return String(raw)
+  return JSON.stringify(raw) ?? ''
+}
+
 /** The code of a backend error, or null. */
 export function errorCode(raw: unknown): string | null {
-  return parseErrorCode(String(raw ?? ''))?.code ?? null
+  return parseErrorCode(errorText(raw))?.code ?? null
 }
 
 export function describeError(raw: unknown): string {
   const { t } = useI18n()
-  const text = String(raw ?? '').trim()
+  const text = errorText(raw).trim()
   if (!text) return t('err_failed')
-  if (/^FDM\b/.test(text)) return translateFdmError(text) ?? text
+  if (/^FDM\b/u.test(text)) return translateFdmError(text) ?? text
   const coded = parseErrorCode(text)
   if (coded && hasMessage(`err_${coded.code}`)) return t(`err_${coded.code}`, coded.vars)
   return t('err_unexpected', { detail: text })

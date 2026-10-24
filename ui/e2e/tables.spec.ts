@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { mockTauriIPC, DEFAULT_USER, DEFAULT_ORDER, tapUserTile } from './fixtures/mock-ipc'
+import { mockTauriIPC, DEFAULT_USER, tapUserTile } from './fixtures/mock-ipc'
 
 test.describe('Tables View', () => {
   test.beforeEach(async ({ page }) => {
@@ -10,7 +10,7 @@ test.describe('Tables View', () => {
     // Login then navigate to tables
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
   })
 
   test('renders 20 tables', async ({ page }) => {
@@ -49,7 +49,7 @@ test.describe('Tables View', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
 
     const occupied = page.locator('.table-card.occupied')
     await expect(occupied).toHaveCount(1)
@@ -58,6 +58,6 @@ test.describe('Tables View', () => {
 
   test('tapping a free table navigates to order view', async ({ page }) => {
     await page.locator('.table-card').first().click()
-    await expect(page).toHaveURL(/order/)
+    await expect(page).toHaveURL(/order/u)
   })
 })

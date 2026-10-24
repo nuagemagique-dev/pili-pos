@@ -121,7 +121,7 @@ const lateCount = computed(() => store.orders.filter(isLate).length)
 
 // ── Display helpers ──────────────────────────────────────────────
 function formatEuros(cents: number): string {
-  return formatPrice(cents) + ' €'
+  return `${formatPrice(cents)} €`
 }
 
 function formatClock(iso: string | null): string {

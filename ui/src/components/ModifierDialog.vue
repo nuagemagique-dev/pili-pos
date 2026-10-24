@@ -16,7 +16,7 @@ import { useI18n } from '../i18n'
 import { formatPrice } from '../utils/format'
 import AllergenBadges from './AllergenBadges.vue'
 
-const props = defineProps<{ item: MenuItem }>()
+const { item } = defineProps<{ item: MenuItem }>()
 const emit = defineEmits<{ done: [] }>()
 
 const { t } = useI18n()
@@ -30,13 +30,13 @@ const busy = ref(false)
 
 onMounted(async () => {
   try {
-    groups.value = (await getItemModifiers(props.item.id, pos.language)) ?? []
+    groups.value = (await getItemModifiers(item.id, pos.language)) ?? []
   } finally {
     loaded.value = true
   }
   // Nothing to pick: the plain product, as without options.
   if (groups.value.length === 0) {
-    await order.addItem(props.item)
+    await order.addItem(item)
     emit('done')
   }
 })
@@ -76,7 +76,7 @@ const valid = computed(() =>
 
 const total = computed(
   () =>
-    props.item.price_cents +
+    item.price_cents +
     groups.value
       .flatMap((g) => g.options)
       .filter((o) => picked.value.has(o.id))
@@ -87,9 +87,7 @@ async function confirm() {
   if (!valid.value || busy.value) return
   busy.value = true
   const ids = [...picked.value]
-  await order.addLineWith(props.item, 1, (orderId) =>
-    addOrderLineWithModifiers(orderId, props.item.id, 1, ids),
-  )
+  await order.addLineWith(item, 1, (orderId) => addOrderLineWithModifiers(orderId, item.id, 1, ids))
   busy.value = false
   emit('done')
 }

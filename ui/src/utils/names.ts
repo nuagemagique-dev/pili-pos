@@ -32,7 +32,7 @@ export function useBilingualName() {
     const zh = pos.language === 'zh'
     const primary = zh ? (item.name_zh ?? item.name) : item.name
     const code = item.code?.trim()
-    if (pos.productLabel === 'code' && code) {
+    if (pos.productLabel === 'code' && code !== undefined && code !== '') {
       return { primary: code, secondary: primary, isCode: true }
     }
     return { primary, secondary: null, isCode: false }

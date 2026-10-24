@@ -7,9 +7,9 @@ import { lineNetCents } from '../utils/cartAmounts'
 
 const { t } = useI18n()
 
-const props = defineProps<{
+const { lines } = defineProps<{
   /** Cart lines: `discount_cents` (negative) is taken off their amount. */
-  lines: Array<OrderLine & { discount_cents?: number }>
+  lines: (OrderLine & { discount_cents?: number })[]
 }>()
 
 const VAT_RATES: Record<VatCode, number> = { A: 21, B: 12, C: 6, D: 0, X: 0 }
@@ -23,7 +23,7 @@ interface VatRow {
 
 const vatRows = computed<VatRow[]>(() => {
   const map = new Map<VatCode, number>()
-  for (const line of props.lines) {
+  for (const line of lines) {
     const total = lineNetCents(line)
     map.set(line.vat_code, (map.get(line.vat_code) ?? 0) + total)
   }

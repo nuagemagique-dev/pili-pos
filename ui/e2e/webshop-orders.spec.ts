@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { mockTauriIPC, loginAndGoto, DEFAULT_USER, live, ipcCalls } from './fixtures/mock-ipc'
 
 const SAMPLE_ORDER = {
@@ -42,10 +42,10 @@ const SAMPLE_ORDER = {
     channel_kind: 'platform',
     service_type: 'delivery',
     payment_mode: 'prepaid',
-    payment_type: 'APP',
+    payment_type: 'APP' as string | null,
     fiscal_state: 'pending',
     resolution: 'ok',
-    attention: [],
+    attention: [] as { code: string; sku_ref?: string }[],
     warnings: [],
   },
 }
@@ -57,7 +57,7 @@ type Order = typeof SAMPLE_ORDER
  * orders as the Rust commands do, and the list reads them back.
  */
 async function board(
-  page: import('@playwright/test').Page,
+  page: Page,
   orders: unknown[],
   role = 'admin',
   extra: Record<string, (args?: any) => any> = {},

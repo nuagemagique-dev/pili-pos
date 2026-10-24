@@ -40,9 +40,9 @@ test.describe('Order View', () => {
     // Login → tables → pick table 1
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await page.locator('.table-card').first().click()
-    await page.waitForURL(/order/)
+    await page.waitForURL(/order/u)
   })
 
   test('shows header with table or takeaway badge', async ({ page }) => {
@@ -70,7 +70,7 @@ test.describe('Order View', () => {
     await expect(dialog).toBeVisible()
     await expect(dialog.getByRole('button', { name: 'Valider' })).toBeDisabled()
     for (const d of ['2', '0', '0', '0']) {
-      await dialog.locator('.key', { hasText: new RegExp(`^${d}$`) }).click()
+      await dialog.locator('.key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     }
     await expect(dialog.getByTestId('open-price-amount')).toHaveText('20,00 €')
     await dialog.getByRole('button', { name: 'Valider' }).click()
@@ -107,9 +107,9 @@ test.describe('Order View - busy table', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await page.locator('.table-card').first().click()
-    await page.waitForURL(/order/)
+    await page.waitForURL(/order/u)
     const cart = page.locator('.cart-lines')
     await expect(cart).toContainText(DEFAULT_ORDER_LINE.name)
     await expect(page.locator('.cart-empty')).toHaveCount(0)
@@ -140,9 +140,9 @@ test.describe('Order View - kitchen and cart lines', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await page.locator('.table-card').first().click()
-    await page.waitForURL(/order/)
+    await page.waitForURL(/order/u)
   })
 
   test('lines not yet sent are grouped under their own label', async ({ page }) => {
@@ -164,7 +164,7 @@ test.describe('Order View - kitchen and cart lines', () => {
     const calls = await ipcCalls(page, 'leave_order')
     expect(calls).toHaveLength(1)
     expect(calls[0].reason).toBe('send_to_kitchen')
-    await expect(page).toHaveURL(/order/)
+    await expect(page).toHaveURL(/order/u)
     await expect(page.locator('.pending-label')).toHaveCount(0)
     await expect(page.locator('.kitchen-btn')).toBeDisabled()
   })
@@ -194,7 +194,9 @@ test.describe('Order View - products shown by code', () => {
   }
 
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('pili-pos-product-label', 'code'))
+    await page.addInitScript(() => {
+      localStorage.setItem('pili-pos-product-label', 'code')
+    })
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,
       list_users: () => [DEFAULT_USER],
@@ -208,15 +210,15 @@ test.describe('Order View - products shown by code', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await page.locator('.table-card').first().click()
-    await page.waitForURL(/order/)
+    await page.waitForURL(/order/u)
   })
 
   test('the code leads, the name goes underneath', async ({ page }) => {
     const coded = page.locator('.item-btn').first()
     await expect(coded.locator('.item-name')).toHaveText('B14')
-    await expect(coded.locator('.item-name')).toHaveClass(/code/)
+    await expect(coded.locator('.item-name')).toHaveClass(/code/u)
     await expect(coded.locator('.item-sub')).toHaveText(DEFAULT_MENU_ITEM.name)
     const line = page.locator('.order-line').first()
     await expect(line.locator('.line-name')).toHaveText('A2')

@@ -55,8 +55,8 @@ onUnmounted(() => {
 // (commands/auth.rs::do_login_with_new_pin).
 const firstPinUser = ref<{ insz: string; name: string } | null>(null)
 
-function nameOf(insz: string): string {
-  return savedUsers.value.find((u) => u.insz === insz)?.name ?? insz
+function nameOf(userInsz: string): string {
+  return savedUsers.value.find((u) => u.insz === userInsz)?.name ?? userInsz
 }
 
 /** When the employee's open shift started, or null when off shift. */
@@ -112,7 +112,7 @@ async function loadShifts() {
 }
 
 // ── Start-up checks (§2.3, §8.1): the devices, before the users ──
-type Check = {
+interface Check {
   key: string
   label: string
   state: 'ok' | 'warn' | 'err' | 'none'
@@ -156,9 +156,9 @@ async function probeDevices() {
   list.push({
     key: 'ticket',
     label: t('check_ticket_printer'),
-    state: printer == null ? 'none' : printer ? 'ok' : 'err',
+    state: printer === null ? 'none' : printer ? 'ok' : 'err',
     text:
-      printer == null
+      printer === null
         ? t('check_not_configured')
         : printer
           ? t('check_ready')
@@ -169,9 +169,9 @@ async function probeDevices() {
   list.push({
     key: 'kitchen',
     label: t('check_kitchen_printer'),
-    state: kitchen == null ? 'none' : kitchen ? 'ok' : 'err',
+    state: kitchen === null ? 'none' : kitchen ? 'ok' : 'err',
     text:
-      kitchen == null
+      kitchen === null
         ? t('check_not_configured')
         : kitchen
           ? t('check_ready')
@@ -199,7 +199,7 @@ async function probeDevices() {
     list.push({
       key: 'hubrise',
       label: 'HubRise',
-      state: hub == null ? 'none' : hub.connected ? 'ok' : 'warn',
+      state: hub === null ? 'none' : hub.connected ? 'ok' : 'warn',
       text: hub?.connected ? t('check_connected') : t('check_not_connected'),
     })
   }
@@ -208,12 +208,12 @@ async function probeDevices() {
   list.push({
     key: 'mail',
     label: t('check_email'),
-    state: !mail?.configured ? 'none' : mail.reachable ? 'ok' : 'warn',
-    text: !mail?.configured
-      ? t('check_not_configured')
-      : mail.reachable
+    state: mail?.configured ? (mail.reachable ? 'ok' : 'warn') : 'none',
+    text: mail?.configured
+      ? mail.reachable
         ? t('check_reachable')
-        : t('check_unreachable'),
+        : t('check_unreachable')
+      : t('check_not_configured'),
   })
 
   checks.value = list

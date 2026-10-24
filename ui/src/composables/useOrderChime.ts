@@ -16,9 +16,7 @@ export function useOrderChime() {
 
   function playChime() {
     try {
-      if (!audioCtx) {
-        audioCtx = new AudioContext()
-      }
+      audioCtx ??= new AudioContext()
       const now = audioCtx.currentTime
 
       // Note 1: C5 (523 Hz)

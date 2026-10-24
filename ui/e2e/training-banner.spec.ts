@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
 })
 
 test('the banner sits under the header, not over it', async ({ page }) => {
@@ -39,7 +39,7 @@ test('the banner sits under the header, not over it', async ({ page }) => {
 
 test('the header buttons still answer a real tap', async ({ page }) => {
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
   // The operator's name, in the header above the banner.
   await page.locator('.header-user').click()
   await expect(page.locator('.pin-display')).toBeVisible()
@@ -48,5 +48,5 @@ test('the header buttons still answer a real tap', async ({ page }) => {
 test('the watermark lets taps through', async ({ page }) => {
   await expect(page.locator('.training-watermark')).toHaveCSS('pointer-events', 'none')
   await page.locator('.table-card').nth(9).click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 })

@@ -380,7 +380,7 @@ test.describe('Payment correction: gift vouchers (lane 4)', () => {
       'Un paiement par bon cadeau ne se corrige pas : il a débité le bon.',
     )
     // The cash line is the only one left and is picked on its own.
-    await expect(dialog.getByTestId('pc-line-1')).toHaveClass(/selected/)
+    await expect(dialog.getByTestId('pc-line-1')).toHaveClass(/selected/u)
     await dialog.getByTestId('pc-method-card').click()
     await expect(dialog.getByTestId('pc-summary')).toHaveText('Espèces 32,00 € → Carte 32,00 €')
   })

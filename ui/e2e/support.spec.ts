@@ -101,7 +101,7 @@ test('every screen shows the banner while a session runs', async ({ page }) => {
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await expect(page.locator('.support-banner')).toHaveText(
     'Assistance à distance en cours (démarrée par Bruno Moyse)',
     { timeout: 8000 },

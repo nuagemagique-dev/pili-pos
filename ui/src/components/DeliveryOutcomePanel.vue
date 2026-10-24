@@ -12,7 +12,7 @@ import { useAuthStore } from '../stores/auth'
 // print action the "done" screen offers (never a second ORIGINAL: see
 // the cert note on print_missing_original in delivery.rs).
 
-const props = defineProps<{
+const { outcome, fiscalEventId } = defineProps<{
   outcome: DeliveryOutcome | null
   fiscalEventId: number | null
 }>()
@@ -25,7 +25,7 @@ const printing = ref(false)
 const printed = ref(false)
 
 const message = computed(() => {
-  const o = props.outcome
+  const o = outcome
   if (!o) return null
   if (o.email === 'sent') return t('delivery_outcome_sent', { hint: o.recipientHint ?? '' })
   if (o.email === 'queued') return t('delivery_outcome_queued')
@@ -37,14 +37,14 @@ const message = computed(() => {
 // gate as canTakePayment); hide the button for a waiter rather than
 // let them hit a "Forbidden" toast.
 const showNeedsPaper = computed(
-  () => !!props.outcome?.needsPaper && !printed.value && auth.canTakePayment,
+  () => Boolean(outcome?.needsPaper) && !printed.value && auth.canTakePayment,
 )
 
 async function printMissing() {
-  if (!props.fiscalEventId || printing.value) return
+  if (!fiscalEventId || printing.value) return
   printing.value = true
   try {
-    await ipc.printMissingOriginal(props.fiscalEventId)
+    await ipc.printMissingOriginal(fiscalEventId)
     printed.value = true
   } catch (e) {
     toast.show(describeError(e), 'error', 5000)

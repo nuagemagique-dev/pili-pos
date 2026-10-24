@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import {
   mockTauriIPC,
   DEFAULT_USER,
@@ -76,7 +76,7 @@ test.describe('Settings View', () => {
     ).toHaveText('Gérant · PIN défini')
     const meta = page.locator('.worker-row', { hasText: 'Wei' }).locator('.worker-meta')
     await expect(meta).toHaveText('Serveur · sans PIN')
-    await expect(meta).toHaveClass(/no-pin/)
+    await expect(meta).toHaveClass(/no-pin/u)
   })
 
   test('shows worker list with test user', async ({ page }) => {
@@ -189,7 +189,7 @@ test.describe('Settings View', () => {
       }),
       // The catalog comes with the connection: the panel shows it at once.
       hubrise_status: live(() => ({
-        connected: !!(window as any).__hubriseConnected,
+        connected: Boolean((window as any).__hubriseConnected),
         outbox: { pending: 0, parked: 0 },
         parked_events: 0,
         catalog: (window as any).__hubriseConnected
@@ -203,20 +203,20 @@ test.describe('Settings View', () => {
           : null,
         catalog_awaiting_adoption: false,
       })),
-      hubrise_complete_oauth: live(
-        () =>
-          ((window as any).__hubriseConnected = true) && {
-            connected: true,
-            account_id: 'acc-1',
-            account_name: 'Restaurant Exemple',
-            location_id: 'loc-1',
-            location_name: 'Liège',
-            catalog_id: 'cat-1',
-            catalog_name: 'Menu principal',
-            customer_list_id: null,
-            customer_list_name: null,
-          },
-      ),
+      hubrise_complete_oauth: live(() => {
+        ;(window as any).__hubriseConnected = true
+        return {
+          connected: true,
+          account_id: 'acc-1',
+          account_name: 'Restaurant Exemple',
+          location_id: 'loc-1',
+          location_name: 'Liège',
+          catalog_id: 'cat-1',
+          catalog_name: 'Menu principal',
+          customer_list_id: null,
+          customer_list_name: null,
+        }
+      }),
     })
     await page.goto('/#/settings')
 
@@ -327,10 +327,7 @@ const HEALTHY = {
   catalog_awaiting_adoption: false,
 }
 
-async function hubriseSettings(
-  page: import('@playwright/test').Page,
-  overrides: Record<string, unknown>,
-) {
+async function hubriseSettings(page: Page, overrides: Record<string, unknown>) {
   await mockTauriIPC(page, {
     login: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
@@ -371,7 +368,7 @@ test.describe('Settings - HubRise catalog and channels', () => {
     await expect(refused).toContainText('Catalogue refusé')
     await expect(refused).toContainText('Taux de TVA inconnu')
     await expect(refused).toContainText('MAKI-6')
-    await expect(page.locator('.lights .light', { hasText: 'HubRise' })).toHaveClass(/err/)
+    await expect(page.locator('.lights .light', { hasText: 'HubRise' })).toHaveClass(/err/u)
   })
 
   test('Resynchroniser fetches the catalog', async ({ page }) => {
@@ -484,7 +481,7 @@ test.describe('Settings - HubRise catalog and channels', () => {
       hubrise_status: () => ({ ...HEALTHY, auth_error_at: '2026-10-03 10:00:00' }),
     })
     await expect(page.getByText('HubRise refuse la connexion')).toBeVisible()
-    await expect(page.locator('.lights .light', { hasText: 'HubRise' })).toHaveClass(/err/)
+    await expect(page.locator('.lights .light', { hasText: 'HubRise' })).toHaveClass(/err/u)
   })
 })
 
@@ -497,14 +494,14 @@ test.describe('Settings - the HubRise switch', () => {
     const panel = page.getByTestId('integrations')
     await expect(panel.locator('.pill')).toHaveText('Activé')
     await expect(page.locator('.hubrise-section')).toBeVisible()
-    await expect(page.getByRole('button', { name: /En ligne/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /En ligne/u })).toBeVisible()
 
     await panel.getByRole('button', { name: 'Désactiver' }).click()
     await expect(panel.locator('.pill')).toHaveText('Désactivé')
     expect((await ipcCalls(page, 'set_hubrise_enabled'))[0]).toMatchObject({ enabled: false })
     await expect(panel.locator('.log li').first()).toContainText('gérant 85073003328')
     await expect(page.locator('.hubrise-section')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: /En ligne/ })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /En ligne/u })).toHaveCount(0)
   })
 
   test('switching off waits for the online orders: the refusal says how many', async ({ page }) => {
@@ -527,8 +524,8 @@ test.describe('Settings - the HubRise switch', () => {
       get_integrations: () => ({ hubrise_enabled: false, online_orders_open: 0, hubrise_log: [] }),
     })
     await loginAndGoto(page, '/webshop-orders')
-    await expect(page).toHaveURL(/#\/tables/)
-    await expect(page.getByRole('button', { name: /En ligne/ })).toHaveCount(0)
+    await expect(page).toHaveURL(/#\/tables/u)
+    await expect(page.getByRole('button', { name: /En ligne/u })).toHaveCount(0)
   })
 
   test('off with online orders still to settle, the board stays reachable', async ({ page }) => {
@@ -541,7 +538,7 @@ test.describe('Settings - the HubRise switch', () => {
     await expect(page.getByTestId('integrations')).toContainText(
       '1 commande(s) en ligne à terminer.',
     )
-    await expect(page.getByRole('button', { name: /En ligne/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /En ligne/u })).toBeVisible()
   })
   test('the alerts, courses and gift voucher panels are for a manager only', async ({ page }) => {
     const cashier = { ...DEFAULT_USER, role: 'cashier' }
@@ -608,8 +605,7 @@ test.describe('Presence registration by the manager (event S)', () => {
     has_pin: false,
     presence_only: true,
   }
-  const row = (page: import('@playwright/test').Page, name: string) =>
-    page.locator('.worker-row', { hasText: name })
+  const row = (page: Page, name: string) => page.locator('.worker-row', { hasText: name })
 
   test.beforeEach(async ({ page }) => {
     await mockTauriIPC(page, { list_users: () => [DEFAULT_USER, WEI, COOK] })
@@ -830,7 +826,9 @@ test.describe('Presence registration by the manager (event S)', () => {
   })
 
   test('the presence texts follow the language (Chinese)', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'zh'))
+    await page.addInitScript(() => {
+      localStorage.setItem('pili-pos-language', 'zh')
+    })
     await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }])
     await loginAndGoto(page, '/settings')
     await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('12:02 起上班中')
@@ -843,7 +841,9 @@ test.describe('Presence registration by the manager (event S)', () => {
   })
 
   test('the presence texts follow the language (English)', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'en'))
+    await page.addInitScript(() => {
+      localStorage.setItem('pili-pos-language', 'en')
+    })
     await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }])
     await loginAndGoto(page, '/settings')
     await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('On shift since 12:02')

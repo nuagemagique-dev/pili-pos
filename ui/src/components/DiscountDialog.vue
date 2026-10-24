@@ -12,7 +12,7 @@ import { useI18n } from '../i18n'
 import { formatPrice } from '../utils/format'
 import { discountPreviewCents } from '../utils/cartAmounts'
 
-const props = defineProps<{
+const { baseCents, lineId = undefined } = defineProps<{
   /** The amount the discount applies to: the order's net total, or the line's. */
   baseCents: number
   /** A line to give for free; absent: a discount on the whole order. */
@@ -32,8 +32,8 @@ const REASONS: DiscountReason[] = ['commercial_gesture', 'staff_meal', 'service_
 const TEXT_SYMBOLS = ['.', ',', '-', '/', '(', ')']
 const TEXT_MAX = 120
 
-const isLine = computed(() => props.lineId !== undefined)
-const kind = ref<DiscountKind>(props.lineId !== undefined ? 'free' : 'percent')
+const isLine = computed(() => lineId !== undefined)
+const kind = ref<DiscountKind>(lineId === undefined ? 'percent' : 'free')
 // Digits typed on the pad: a percent, or the amount in cents.
 const typed = ref('')
 const reason = ref<DiscountReason | null>(null)
@@ -49,7 +49,7 @@ function onKey(key: string) {
   const max = kind.value === 'percent' ? 2 : 7
   if (key === 'BACKSPACE') typed.value = typed.value.slice(0, -1)
   else if (key === 'CLEAR') typed.value = ''
-  else if (typed.value.length < max) typed.value = (typed.value + key).replace(/^0+/, '')
+  else if (typed.value.length < max) typed.value = (typed.value + key).replace(/^0+/u, '')
 }
 
 function quickPercent(p: number) {
@@ -61,22 +61,21 @@ const value = computed(() => (typed.value ? Number(typed.value) : 0))
 const valueOk = computed(() => {
   if (kind.value === 'free') return true
   if (kind.value === 'percent') return value.value >= 1 && value.value <= 99
-  return value.value >= 1 && value.value <= props.baseCents
+  return value.value >= 1 && value.value <= baseCents
 })
 
-const canConfirm = computed(() => valueOk.value && reason.value !== null && props.baseCents > 0)
+const canConfirm = computed(() => valueOk.value && reason.value !== null && baseCents > 0)
 
 const newTotal = computed(() => {
-  if (!valueOk.value) return props.baseCents
-  return props.baseCents - discountPreviewCents(kind.value, value.value, props.baseCents)
+  if (!valueOk.value) return baseCents
+  return baseCents - discountPreviewCents(kind.value, value.value, baseCents)
 })
 
 function confirm() {
   if (!canConfirm.value || reason.value === null) return
   const text = reasonText.value.trim()
   emit('confirm', {
-    target:
-      props.lineId !== undefined ? { type: 'line', line_id: props.lineId } : { type: 'order' },
+    target: lineId === undefined ? { type: 'order' } : { type: 'line', line_id: lineId },
     kind: kind.value,
     ...(kind.value === 'free' ? {} : { value: value.value }),
     reason_code: reason.value,

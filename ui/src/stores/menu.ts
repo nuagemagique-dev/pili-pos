@@ -48,7 +48,7 @@ export const useMenuStore = defineStore('menu', () => {
 
   async function reloadWithLanguage() {
     await loadCategories()
-    if (selectedCategoryId.value) {
+    if (selectedCategoryId.value !== null) {
       await loadItems(selectedCategoryId.value)
     }
   }
@@ -77,7 +77,7 @@ export const useMenuStore = defineStore('menu', () => {
       useToastStore().show(describeError(e), 'error', 5000)
       return false
     }
-    if (selectedCategoryId.value) await loadItems(selectedCategoryId.value)
+    if (selectedCategoryId.value !== null) await loadItems(selectedCategoryId.value)
     return true
   }
 

@@ -12,7 +12,7 @@ const calls = async (page: Page, cmd: string) => (await ipcCalls(page, cmd)).len
 
 async function openTable(page: Page) {
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
   await expect(page.locator('.fdm')).toBeVisible()
 }
 
@@ -21,7 +21,7 @@ async function openTable(page: Page) {
 async function onOrderScreen(page: Page, openOrder = true) {
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   if (openOrder) await openTable(page)
   else await expect(page.locator('.fdm')).toBeVisible()
 }
@@ -109,7 +109,7 @@ test('changing screens makes no FDM call from the UI', async ({ page }) => {
   await page.evaluate(() => {
     window.location.hash = '/tables'
   })
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await openTable(page)
   // Every screen shows the indicator (AppHeader): the engine's monitor
   // goes on through the screen changes and the UI asks for nothing,

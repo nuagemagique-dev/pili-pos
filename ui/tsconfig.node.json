@@ -17,6 +17,7 @@
     "playwright.config.ts",
     "e2e/**/*.ts",
     "e2e/**/*.mjs",
-    "scripts/**/*.mjs"
+    "scripts/**/*.mjs",
+    "scripts/**/*.ts"
   ]
 }

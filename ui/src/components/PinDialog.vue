@@ -14,7 +14,14 @@ import { describeError } from '../utils/errorMessages'
 import { useToastStore } from '../stores/toast'
 import { useAuthStore } from '../stores/auth'
 
-const props = defineProps<{
+const {
+  insz,
+  userName,
+  firstLogin,
+  verify = undefined,
+  hint = undefined,
+  save = undefined,
+} = defineProps<{
   insz: string
   userName: string
   firstLogin?: boolean
@@ -48,10 +55,10 @@ async function onKey(key: string) {
   else if (pin.value.length < 4) pin.value += key
   if (pin.value.length < 4) return
 
-  if (props.verify) {
+  if (verify) {
     saving.value = true
     try {
-      await props.verify(pin.value)
+      await verify(pin.value)
       emit('done')
     } catch (e) {
       error.value = describeError(e)
@@ -78,17 +85,17 @@ async function onKey(key: string) {
   }
   saving.value = true
   try {
-    if (props.save) {
-      await props.save(pin.value)
+    if (save) {
+      await save(pin.value)
       emit('done')
       return
     }
-    if (props.firstLogin) {
-      await useAuthStore().loginWithNewPin(props.insz, pin.value)
+    if (firstLogin) {
+      await useAuthStore().loginWithNewPin(insz, pin.value)
     } else {
-      await ipc.setPin(props.insz, pin.value)
+      await ipc.setPin(insz, pin.value)
     }
-    toast.show(t(props.firstLogin ? 'pin_chosen' : 'pin_changed'), 'success')
+    toast.show(t(firstLogin ? 'pin_chosen' : 'pin_changed'), 'success')
     emit('done')
   } catch (e) {
     error.value = describeError(e)

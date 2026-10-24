@@ -42,7 +42,7 @@ export const useEftStore = defineStore('eft', () => {
   let finish: ((p: EftPayment | null) => void) | null = null
 
   /** A terminal is linked (the installation's setting). */
-  const linked = computed(() => !!pos.settings?.paymentTerminal)
+  const linked = computed(() => Boolean(pos.settings?.paymentTerminal))
   /** Kind of the linked terminal, as in pos.json. */
   const kind = computed(() => pos.settings?.paymentTerminal ?? null)
   /** Card parts go to the terminal: linked, and not in training (the

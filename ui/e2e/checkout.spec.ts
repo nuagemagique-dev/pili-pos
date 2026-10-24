@@ -17,7 +17,7 @@ test.describe('Checkout View', () => {
 
   test('shows payment buttons, cash selected by default (§7.1)', async ({ page }) => {
     await loginAndGoto(page, '/checkout')
-    await expect(page.locator('.cash-btn')).toHaveClass(/active/)
+    await expect(page.locator('.cash-btn')).toHaveClass(/active/u)
     await expect(page.locator('.card-btn')).toHaveText('Carte')
     await expect(page.locator('.meal-btn')).toHaveText('Chèques-repas')
   })

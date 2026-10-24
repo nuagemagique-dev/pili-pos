@@ -39,11 +39,6 @@ const asManager = {
   list_users: () => [GERANT],
 }
 
-async function typePin(page: Page, pin: string) {
-  const dialog = page.locator('.pin-dialog')
-  for (const d of pin) await dialog.getByRole('button', { name: d, exact: true }).click()
-}
-
 async function toOrder(page: Page, extra: Record<string, unknown> = {}) {
   await mockTauriIPC(page, {
     ...asManager,
@@ -54,9 +49,9 @@ async function toOrder(page: Page, extra: Record<string, unknown> = {}) {
   } as any)
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 /** A settings panel, brought into view in its scrolling column. */
@@ -100,10 +95,10 @@ test.describe('Lot 2 - transfert de table, correction de paiement, remise, note 
     await mockTauriIPC(page, { ...asManager, list_tables: tablesWith({ 3: 42, 4: 44 }) } as any)
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await page.getByTestId('move-toggle').click()
     await page.locator('.table-card.occupied').first().click()
-    await page.locator('.table-card .table-num', { hasText: /^7$/ }).click()
+    await page.locator('.table-card .table-num', { hasText: /^7$/u }).click()
     await expect(page.getByTestId('move-confirm')).toContainText(
       'Déplacer la table 3 vers la table 7 ?',
     )
@@ -695,7 +690,7 @@ test.describe('Lot 3 - factures, produits épuisés, éditeur de carte, rapport 
   test('78_menu_editor_category - catégorie avec son temps de service', async ({ page }) => {
     await menuEditor(page)
     await page.getByTestId('menu-ed-category-row').first().click()
-    await expect(page.getByTestId('menu-ed-course-1')).toHaveClass(/on/)
+    await expect(page.getByTestId('menu-ed-course-1')).toHaveClass(/on/u)
     await capture(page, '78_menu_editor_category')
   })
 
@@ -993,7 +988,7 @@ test.describe('Lot 4 - alertes, allergènes, service en plusieurs temps, bons ca
     } as any)
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await expect(page.getByTestId('held-course-2')).toHaveText('Suite : Plats')
     await capture(page, '87_tables_held_course')
   })
@@ -1001,7 +996,7 @@ test.describe('Lot 4 - alertes, allergènes, service en plusieurs temps, bons ca
   test("88_checkout_held_course - avertissement d'une suite non envoyée", async ({ page }) => {
     await courseOrder(page)
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     await expect(page.getByTestId('held-warning')).toContainText('Suite non envoyée : Plats')
     await capture(page, '88_checkout_held_course')
   })
@@ -1046,7 +1041,7 @@ test.describe('Lot 4 - alertes, allergènes, service en plusieurs temps, bons ca
     await page.getByTestId('gift-voucher-sell').click()
     await expect(page.getByRole('dialog', { name: 'Vendre un bon cadeau' })).toBeVisible()
     for (const d of '2500')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await expect(page.getByTestId('open-price-amount')).toContainText('25,00')
     await capture(page, '89_order_gift_voucher')
   })
@@ -1059,11 +1054,11 @@ test.describe('Lot 4 - alertes, allergènes, service en plusieurs temps, bons ca
       lookup_gift_voucher: () => VOUCHER,
     })
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     await page.getByTestId('method-gift_voucher').click()
     await expect(page.getByTestId('gv-dialog')).toBeVisible()
     for (const d of '123456789095')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await page.getByTestId('gv-lookup').click()
     await expect(page.getByTestId('gv-status')).toHaveText('Valide')
     await expect(page.getByTestId('gv-balance')).toContainText('30,00')

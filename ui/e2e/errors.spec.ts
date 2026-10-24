@@ -23,9 +23,9 @@ async function openTable(page: Page) {
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 test('a refused item is explained, in French', async ({ page }) => {
@@ -59,7 +59,9 @@ test('an unexpected error says so and keeps the detail for the technician', asyn
 })
 
 test('the text follows the screen language', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'zh'))
+  await page.addInitScript(() => {
+    localStorage.setItem('pili-pos-language', 'zh')
+  })
   await openTable(page)
   await overrideIPC(page, 'add_order_line', { __reject: 'order_not_open' })
   await page.locator('.item-btn').first().click()
@@ -70,13 +72,13 @@ test('a refused table stays on the tables screen, with the reason', async ({ pag
   await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await overrideIPC(page, 'create_order', { __reject: 'not_logged_in' })
   await page.locator('.table-card').first().click()
   await expect(
     page.locator('.toast', { hasText: 'Session fermée : reconnectez-vous.' }),
   ).toBeVisible()
-  await expect(page).toHaveURL(/tables/)
+  await expect(page).toHaveURL(/tables/u)
 })
 
 test('a failed payment without detail says it failed', async ({ page }) => {
@@ -97,12 +99,12 @@ test('a failed payment without detail says it failed', async ({ page }) => {
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
   await page.locator('.item-btn').first().click()
   await page.locator('.checkout-btn').click()
-  await page.waitForURL(/checkout/)
+  await page.waitForURL(/checkout/u)
   await page.locator('.card-btn').click()
   await page.locator('.card-confirm').click()
   await expect(page.locator('.checkout .error-msg')).toHaveText("L'opération a échoué.")

@@ -74,7 +74,7 @@ const blocking = computed(() => fdm.severity === 'blocking' && SALES_ROUTES.has(
 const now = ref(Date.now())
 let tick: ReturnType<typeof setInterval> | undefined
 const retryIn = computed(() =>
-  fdm.nextCheckAt == null ? null : Math.max(0, Math.ceil((fdm.nextCheckAt - now.value) / 1000)),
+  fdm.nextCheckAt === null ? null : Math.max(0, Math.ceil((fdm.nextCheckAt - now.value) / 1000)),
 )
 
 watch(

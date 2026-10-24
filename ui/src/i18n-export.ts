@@ -38,8 +38,8 @@ export function useExportText() {
   const pos = usePosStore()
 
   function t(key: string, params?: Record<string, string | number>): string {
-    const entry = exportMessages[key]
-    let value = entry ? (entry[pos.language] ?? entry.fr ?? key) : key
+    const entry = Object.hasOwn(exportMessages, key) ? exportMessages[key] : undefined
+    let value = entry === undefined ? key : (entry[pos.language] ?? entry.fr ?? key)
     if (params) {
       for (const [name, v] of Object.entries(params)) {
         value = value.replaceAll(`{${name}}`, String(v))

@@ -77,7 +77,7 @@ async function loadUnsettled() {
 }
 
 function unsettledWhere(p: UnsettledCardPayment): string {
-  return p.table_number != null ? `${t('table')} ${p.table_number}` : t('takeaway_badge')
+  return p.table_number === null ? t('takeaway_badge') : `${t('table')} ${p.table_number}`
 }
 
 function unsettledLine(p: UnsettledCardPayment): string {
@@ -274,7 +274,8 @@ const cashReason = ref<string>(CASH_REASONS.in[0])
 
 function setCashDirection(dir: CashDirection) {
   cashDirection.value = dir
-  if (!CASH_REASONS[dir].includes(cashReason.value)) cashReason.value = CASH_REASONS[dir][0]
+  const [first] = CASH_REASONS[dir]
+  if (!CASH_REASONS[dir].includes(cashReason.value)) cashReason.value = first
 }
 
 function reasonLabel(key: string): string {

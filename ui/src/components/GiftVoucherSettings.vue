@@ -43,7 +43,7 @@ onMounted(async () => {
 })
 
 const dirty = computed(
-  () => !!stored.value && JSON.stringify(draft()) !== JSON.stringify(stored.value),
+  () => Boolean(stored.value) && JSON.stringify(draft()) !== JSON.stringify(stored.value),
 )
 
 function toggle() {

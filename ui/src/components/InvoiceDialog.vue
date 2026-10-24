@@ -5,8 +5,7 @@
 // sales, numbering, printing, the Peppol queue). Text is typed on the
 // on-screen TextKeyboard (the kiosk has no OS keyboard, V11-D19).
 import { computed } from 'vue'
-import { useInvoiceStore } from '../stores/invoice'
-import type { CustomerField } from '../stores/invoice'
+import { useInvoiceStore, type CustomerField } from '../stores/invoice'
 import { formatPrice } from '../utils/format'
 import { describeError } from '../utils/errorMessages'
 import { useI18n } from '../i18n'

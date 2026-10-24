@@ -140,7 +140,7 @@ test.describe('Sales report', () => {
     await expect(page.getByTestId('sales-apply')).toBeDisabled()
     await type('01102026')
     // The "to" field takes over once the first date is complete.
-    await expect(page.getByTestId('sales-field-to')).toHaveClass(/active/)
+    await expect(page.getByTestId('sales-field-to')).toHaveClass(/active/u)
     await type('1510')
     await expect(page.getByTestId('sales-apply')).toBeDisabled()
     await type('2026')
@@ -199,9 +199,9 @@ test.describe('Sales report', () => {
     await expect(days.nth(0)).toContainText('16/10/2026')
     await expect(days.nth(0)).toContainText('Z 12 : identique')
     await expect(days.nth(1)).toContainText('Z 13 : écart de 2,00 € (Z : 38,00 €)')
-    await expect(days.nth(1)).toHaveClass(/gap/)
+    await expect(days.nth(1)).toHaveClass(/gap/u)
     await expect(days.nth(2)).toContainText('Période en cours')
-    await expect(days.nth(2)).toHaveClass(/open/)
+    await expect(days.nth(2)).toHaveClass(/open/u)
   })
 
   test('shows the totals with the rounding apart', async ({ page }) => {

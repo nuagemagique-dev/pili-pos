@@ -81,11 +81,11 @@ async function toPayment(page: Page) {
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
   await page.locator('.checkout-btn').click()
-  await page.waitForURL(/checkout/)
+  await page.waitForURL(/checkout/u)
   // Cash alone: 14,86 is paid 14,85.
   await expect(page.locator('.total-value')).toHaveText('14,85')
 }
@@ -197,7 +197,7 @@ test('two equal parts: card 7,43, then cash for the other 7,43 rounded to 7,45',
   await expect(page.locator('.part-chip.paid')).toContainText('Carte · 7,43 €')
   await expect(page.locator('.paid-part')).toContainText('− 7,43')
   // Cash is back as the method for the last part, rounded.
-  await expect(page.locator('.cash-btn')).toHaveClass(/active/)
+  await expect(page.locator('.cash-btn')).toHaveClass(/active/u)
   await expect(page.locator('.total-value')).toHaveText('7,45')
   await expect(page.locator('.validate-btn')).toContainText('Valider part 2')
 
@@ -226,7 +226,7 @@ test('three parts, the first in cash: the cash part is sent last, as the rest', 
 
   // One cash part at most: the others go on card / meal vouchers.
   await expect(page.locator('.cash-btn')).toBeDisabled()
-  await expect(page.locator('.card-btn')).toHaveClass(/active/)
+  await expect(page.locator('.card-btn')).toHaveClass(/active/u)
   await expect(page.locator('.exact-value')).toHaveText('4,95')
   await page.locator('.card-confirm').click()
   await expect(page.locator('.exact-value')).toHaveText('4,95')

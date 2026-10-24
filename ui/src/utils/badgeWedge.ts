@@ -65,12 +65,8 @@ const MODIFIERS = new Set([
 
 /** The badge character of a physical key, or null for any other key. */
 export function badgeChar(code: string): string | null {
-  let m = /^Digit(\d)$/.exec(code)
-  if (m) return m[1]
-  m = /^Numpad(\d)$/.exec(code)
-  if (m) return m[1]
-  m = /^Key([A-F])$/.exec(code)
-  return m ? m[1] : null
+  const m = /^(?:(?:Digit|Numpad)(?<digit>\d)|Key(?<hex>[A-F]))$/u.exec(code)
+  return m?.groups?.digit ?? m?.groups?.hex ?? null
 }
 
 function isEnter(code: string): boolean {
@@ -89,7 +85,11 @@ export class WedgeDetector {
   // keeps the pace, is typing too, never the tail of a short badge.
   private overlong = false
 
-  constructor(private cfg: WedgeConfig) {}
+  private cfg: WedgeConfig
+
+  constructor(cfg: WedgeConfig) {
+    this.cfg = cfg
+  }
 
   /** New timing settings; anything held is let go first (use `flush`). */
   configure(cfg: WedgeConfig) {
@@ -109,7 +109,7 @@ export class WedgeDetector {
 
   onKey(k: WedgeKey): WedgeResult {
     if (MODIFIERS.has(k.code)) return { action: 'neutral', replay: '' }
-    if (k.repeat) {
+    if (k.repeat === true) {
       // A held key repeating inside a burst is swallowed, not counted.
       return this.held.length > 0
         ? { action: 'hold', replay: '' }
@@ -123,7 +123,7 @@ export class WedgeDetector {
     if (k.at - this.lastAt > this.cfg.maxGapMs) this.overlong = false
     this.lastAt = k.at
 
-    const chord = !!(k.ctrl || k.alt || k.meta)
+    const chord = k.ctrl === true || k.alt === true || k.meta === true
     const ch = chord ? null : badgeChar(k.code)
 
     if (isEnter(k.code) && !chord) {

@@ -44,9 +44,9 @@ async function toOrder(page: Page, lines: unknown[] = [PLAIN], total = 2400, use
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 async function typePin(page: Page, pin: string) {
@@ -220,7 +220,7 @@ test.describe('Order discount', () => {
     await dialog.getByTestId('discount-reason-service_issue').click()
     await dialog.getByTestId('discount-reason-text').click()
     for (const ch of 'froid')
-      await page.locator('.keypad-modal .key', { hasText: new RegExp(`^${ch}$`) }).click()
+      await page.locator('.keypad-modal .key', { hasText: new RegExp(`^${ch}$`, 'u') }).click()
     await expect(page.locator('.keypad-modal [data-testid="keypad-display"]')).toContainText(
       'froid',
     )
@@ -303,9 +303,9 @@ test.describe('Order discount', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await page.getByRole('button', { name: 'Nouvelle vente à emporter' }).click()
-    await page.waitForURL(/order/)
+    await page.waitForURL(/order/u)
     await expect(page.getByTestId('transfer-table')).toHaveCount(0)
 
     // A takeaway starts empty: the first product makes the discount possible.
@@ -518,7 +518,7 @@ test.describe('Net amounts', () => {
   test('checkout owes the net total and shows the discount rows', async ({ page }) => {
     await toOrder(page, [HALF_OFF], 1200)
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     await expect(page.getByTestId('summary-subtotal')).toContainText('24,00')
     await expect(page.getByTestId('summary-discount')).toContainText('-12,00')
     await expect(page.getByTestId('summary-change')).toContainText('Remise 50 %')
@@ -528,7 +528,7 @@ test.describe('Net amounts', () => {
   test('checkout of an offered order owes nothing', async ({ page }) => {
     await toOrder(page, [OFFERED], 0)
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     await expect(page.getByTestId('summary-discount')).toContainText('-24,00')
     await expect(page.locator('.rest-amount')).toContainText('0,00')
   })

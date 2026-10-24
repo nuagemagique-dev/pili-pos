@@ -23,7 +23,7 @@ const readerLabel = computed(() => {
 const readers: BadgeReader[] = ['off', 'usb']
 
 type TimingKey = 'wedgeMaxGapMs' | 'wedgeMinLen' | 'wedgeMaxLen'
-const timing: Array<{ key: TimingKey; label: string }> = [
+const timing: { key: TimingKey; label: string }[] = [
   { key: 'wedgeMaxGapMs', label: 'settings_badge_gap' },
   { key: 'wedgeMinLen', label: 'settings_badge_min_len' },
   { key: 'wedgeMaxLen', label: 'settings_badge_max_len' },
@@ -51,7 +51,7 @@ watch(() => badge.settings, syncDraft, { immediate: true })
 const dirty = computed(() => {
   const s = badge.settings
   return (
-    !!s &&
+    s !== null &&
     (draft.value.wedgeMaxGapMs !== String(s.wedgeMaxGapMs) ||
       draft.value.wedgeMinLen !== String(s.wedgeMinLen) ||
       draft.value.wedgeMaxLen !== String(s.wedgeMaxLen))

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import {
   mockTauriIPC,
   ipcCalls,
@@ -9,6 +9,9 @@ import {
   DEFAULT_MENU_ITEM,
   tapUserTile,
 } from './fixtures/mock-ipc'
+
+// Set on the page by the init script of `orderScreen` and read by the live handler there.
+declare const GROUPS_JSON: unknown
 
 // The option picker (HubRise builds): groups from the mirrored catalog,
 // only the ids go to the backend, which prices and names the line.
@@ -35,7 +38,7 @@ const GROUPS = [
   },
 ]
 
-async function orderScreen(page: import('@playwright/test').Page, extra: Record<string, any> = {}) {
+async function orderScreen(page: Page, extra: Record<string, any> = {}) {
   await mockTauriIPC(page, {
     login: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
@@ -66,9 +69,9 @@ async function orderScreen(page: import('@playwright/test').Page, extra: Record<
   }, GROUPS)
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 test.describe('Option picker', () => {
@@ -81,13 +84,13 @@ test.describe('Option picker', () => {
     // The sauce is required.
     await expect(add).toBeDisabled()
     await dialog
-      .getByRole('button', { name: /^Soja\b/ })
+      .getByRole('button', { name: /^Soja\b/u })
       .first()
       .click()
-    await dialog.getByRole('button', { name: /Soja sucrée/ }).click()
+    await dialog.getByRole('button', { name: /Soja sucrée/u }).click()
     // A single choice: the second sauce replaces the first.
     await expect(dialog.locator('.option.selected')).toHaveCount(1)
-    await dialog.getByRole('button', { name: /Avocat/ }).click()
+    await dialog.getByRole('button', { name: /Avocat/u }).click()
     await expect(add).toContainText('13,50')
     await add.click()
     await expect(dialog).toHaveCount(0)
@@ -125,8 +128,8 @@ test.describe('Option picker with HubRise off', () => {
     await page.locator('.item-btn', { hasText: 'Maki saumon x8' }).click()
     const dialog = page.getByTestId('modifier-dialog')
     await expect(dialog).toBeVisible()
-    await dialog.getByRole('button', { name: /Soja sucrée/ }).click()
-    await dialog.getByRole('button', { name: /Avocat/ }).click()
+    await dialog.getByRole('button', { name: /Soja sucrée/u }).click()
+    await dialog.getByRole('button', { name: /Avocat/u }).click()
     await dialog.locator('.btn-confirm').click()
     await expect(dialog).toHaveCount(0)
     const calls = await ipcCalls(page, 'add_order_line_with_modifiers')

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import {
   mockTauriIPC,
   overrideIPC,
@@ -20,7 +20,7 @@ const SERVER_NO_PIN = {
   has_pin: false,
 }
 
-async function typeOnDialog(page: import('@playwright/test').Page, pin: string) {
+async function typeOnDialog(page: Page, pin: string) {
   const dialog = page.locator('.pin-dialog')
   for (const d of pin) await dialog.getByRole('button', { name: d, exact: true }).click()
 }
@@ -78,7 +78,7 @@ test.describe('Login View', () => {
 
   test('a manager logs in with their PIN', async ({ page }) => {
     await tapUserTile(page)
-    await expect(page).toHaveURL(/tables/)
+    await expect(page).toHaveURL(/tables/u)
     expect(await ipcCalls(page, 'login')).toEqual([{ insz: DEFAULT_USER.insz, pin: '1234' }])
   })
 
@@ -86,7 +86,7 @@ test.describe('Login View', () => {
     await mockTauriIPC(page, { list_users: () => [SERVER_NO_PIN], login: () => SERVER_NO_PIN })
     await page.goto('/')
     await page.click('.user-btn')
-    await expect(page).toHaveURL(/tables/)
+    await expect(page).toHaveURL(/tables/u)
     await expect(page.locator('.toast', { hasText: 'touchez votre nom' })).toBeVisible()
     expect(await ipcCalls(page, 'login')).toEqual([{ insz: SERVER_NO_PIN.insz, pin: null }])
   })
@@ -116,7 +116,7 @@ test.describe('Login View', () => {
       await page.click(`.nk:has-text("${d}")`)
     }
     // The 4th digit auto-submits.
-    await expect(page).toHaveURL(/tables/)
+    await expect(page).toHaveURL(/tables/u)
   })
 
   test('wrong PIN shows error and clears dots', async ({ page }) => {
@@ -187,7 +187,7 @@ test.describe('First login of a manager without PIN', () => {
     await expect(dialog.locator('.title')).toHaveText('Confirmer le PIN')
     await typeOnDialog(page, '4321')
 
-    await expect(page).toHaveURL(/tables/)
+    await expect(page).toHaveURL(/tables/u)
     expect(await ipcCalls(page, 'login_with_new_pin')).toEqual([
       { insz: NEW_MANAGER.insz, newPin: '4321' },
     ])
@@ -201,7 +201,7 @@ test.describe('First login of a manager without PIN', () => {
     await typeOnDialog(page, '1234')
     await expect(page.locator('.pin-dialog .error-msg')).toHaveText('Les PIN ne correspondent pas')
     expect(await ipcCalls(page, 'login_with_new_pin')).toHaveLength(0)
-    await expect(page).not.toHaveURL(/tables/)
+    await expect(page).not.toHaveURL(/tables/u)
   })
 
   test('back closes the dialog and stays on the login screen', async ({ page }) => {
@@ -282,7 +282,7 @@ test.describe('Shifts (clock-in / clock-out, event S)', () => {
     await mockTauriIPC(page, { list_users: () => [DEFAULT_USER], list_open_shifts: () => ON_SHIFT })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables|order/)
+    await page.waitForURL(/tables|order/u)
     await page.waitForTimeout(300)
     expect(await ipcCalls(page, 'work_in')).toHaveLength(0)
   })
@@ -293,7 +293,7 @@ test.describe('Shifts (clock-in / clock-out, event S)', () => {
     await expect(page.locator('.user-shift')).toContainText('hors service')
     const listed = (await ipcCalls(page, 'list_open_shifts')).length
     await tapUserTile(page)
-    await page.waitForURL(/tables|order/)
+    await page.waitForURL(/tables|order/u)
     await page.waitForTimeout(300)
     expect(await ipcCalls(page, 'work_in')).toHaveLength(0)
     // Only the login screen lists the open shifts, for its display.
@@ -304,7 +304,7 @@ test.describe('Shifts (clock-in / clock-out, event S)', () => {
     await mockTauriIPC(page, { list_users: () => [DEFAULT_USER] })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables|order/)
+    await page.waitForURL(/tables|order/u)
     await emitTauriEvent(page, 'presence-failed', {
       insz: DEFAULT_USER.insz,
       clockIn: true,
@@ -315,7 +315,7 @@ test.describe('Shifts (clock-in / clock-out, event S)', () => {
       'Erreur boîte noire. Contactez votre technicien.',
     )
     // The login is not blocked.
-    await expect(page).toHaveURL(/tables|order/)
+    await expect(page).toHaveURL(/tables|order/u)
   })
 
   test('"Fin de service" then the PIN ends the shift through the engine and stays on the login screen', async ({
@@ -333,7 +333,7 @@ test.describe('Shifts (clock-in / clock-out, event S)', () => {
     for (const cmd of ['login', 'work_out', 'work_in', 'lock_session', 'logout']) {
       expect(await ipcCalls(page, cmd)).toHaveLength(0)
     }
-    await expect(page).toHaveURL(/#\/$/)
+    await expect(page).toHaveURL(/#\/$/u)
     await expect(page.locator('.toast-error')).toHaveCount(0)
   })
 
@@ -371,7 +371,7 @@ test.describe('Shifts (clock-in / clock-out, event S)', () => {
       'Erreur boîte noire. Contactez votre technicien.',
     )
     await expect(page.locator('.toast-success')).toHaveCount(0)
-    await expect(page).toHaveURL(/#\/$/)
+    await expect(page).toHaveURL(/#\/$/u)
   })
 
   test('without being on shift, there is no "Fin de service"', async ({ page }) => {
@@ -419,9 +419,9 @@ test.describe('Idle lock (owned by the engine)', () => {
     await mockTauriIPC(page, { list_users: () => [DEFAULT_USER] })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables|order/)
+    await page.waitForURL(/tables|order/u)
     await page.clock.runFor(6 * 60 * 1000)
-    await expect(page).toHaveURL(/tables|order/)
+    await expect(page).toHaveURL(/tables|order/u)
     expect(await ipcCalls(page, 'lock_session')).toHaveLength(0)
   })
 
@@ -429,9 +429,9 @@ test.describe('Idle lock (owned by the engine)', () => {
     await mockTauriIPC(page, { list_users: () => [DEFAULT_USER] })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables|order/)
+    await page.waitForURL(/tables|order/u)
     await emitTauriEvent(page, 'session-locked', { reason: 'idle', orderError: null })
-    await page.waitForURL(/#\/$/)
+    await page.waitForURL(/#\/$/u)
     await expect(page.locator('.user-btn').first()).toBeVisible()
   })
 })

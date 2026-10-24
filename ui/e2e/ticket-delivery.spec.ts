@@ -56,12 +56,12 @@ async function goToCheckoutMethodStep(page: Page, overrides: Handlers = {}) {
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
   await page.locator('.item-btn').first().click()
   await page.locator('.checkout-btn').click()
-  await page.waitForURL(/checkout/)
+  await page.waitForURL(/checkout/u)
 }
 
 async function payExact(page: Page) {
@@ -260,7 +260,7 @@ test.describe('Checkout request', () => {
     // finish() routes to "order", but OrderView immediately bounces to
     // "tables" (no active order left - it was cleared on success), so
     // "tables" is the only settled URL worth waiting for here.
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
 
     // Re-enter the checkout screen fresh: the store must be back at Papier.
     await page.evaluate(() => {

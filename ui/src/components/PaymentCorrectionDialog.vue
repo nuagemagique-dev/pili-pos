@@ -12,7 +12,7 @@ import { describeError } from '../utils/errorMessages'
 import { formatPrice } from '../utils/format'
 import PinDialog from './PinDialog.vue'
 
-const props = defineProps<{
+const { fiscalEventId, ticketNumber } = defineProps<{
   /** The signed sale (fiscal event id). */
   fiscalEventId: number
   ticketNumber: number
@@ -89,7 +89,7 @@ const corrected = computed(() => {
 
 onMounted(async () => {
   try {
-    const loaded = await ipc.listSalePayments(props.fiscalEventId)
+    const loaded = await ipc.listSalePayments(fiscalEventId)
     sale.value = loaded
     const free = loaded.lines.filter((l) => l.amountType === 'PAYMENT' && !isLocked(l))
     if (loaded.correctable && free.length === 1) lineIndex.value = free[0].index
@@ -107,15 +107,9 @@ function pickLine(line: ipc.SalePaymentLine) {
 async function verify(pin: string) {
   const insz = auth.currentUser?.insz
   if (!insz || lineIndex.value === null || !method.value) throw new Error('No correction')
-  const result = await ipc.correctPayment(
-    props.fiscalEventId,
-    lineIndex.value,
-    method.value,
-    insz,
-    pin,
-  )
+  const result = await ipc.correctPayment(fiscalEventId, lineIndex.value, method.value, insz, pin)
   // The error code as the backend sent it, for describeError.
-  if (!result.success) throw result.error ?? ''
+  if (!result.success) throw new Error(result.error ?? '')
 }
 </script>
 

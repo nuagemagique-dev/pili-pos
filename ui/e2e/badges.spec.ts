@@ -4,7 +4,6 @@ import {
   badgeInit,
   scanBadge,
   ipcCalls,
-  loginAndGoto,
   shiftsInit,
   tapUserTile,
   overrideIPC,
@@ -98,7 +97,7 @@ test.describe('Burst detection', () => {
     await open(page)
     // An AZERTY digit row types & é " ' ( § but the keys are Digit1..6.
     await page.evaluate(() => {
-      const keys: Array<[string, string]> = [
+      const keys: [string, string][] = [
         ['Digit1', '&'],
         ['Digit2', 'é'],
         ['Digit3', '"'],
@@ -243,11 +242,11 @@ test.describe('What a scan shows', () => {
       taps: [{ kind: 'clock_in', insz: WEI.insz, name: 'Wei', at: '2026-10-17T10:02:00Z' }],
     })
     await tapUserTile(page)
-    await page.waitForURL(/tables|order/)
+    await page.waitForURL(/tables|order/u)
     await scanBadge(page, TOKEN)
     await expect(page.locator('.toast')).toHaveText('Arrivée · Wei · 12:02')
     // The cashier stays where they are.
-    await expect(page).toHaveURL(/tables|order/)
+    await expect(page).toHaveURL(/tables|order/u)
   })
 
   test('a departure shows Départ', async ({ page }) => {
@@ -275,7 +274,7 @@ test.describe('What a scan shows', () => {
     await expect(page.locator('.toast')).toHaveCount(0)
   })
 
-  const REFUSALS: Array<[string, string]> = [
+  const REFUSALS: [string, string][] = [
     ['badge_unknown', 'Badge inconnu'],
     ['badge_revoked', 'Badge retiré : demandez un nouveau badge au Gérant'],
     ['badge_reader_off', 'Le lecteur de badges est désactivé'],
@@ -297,7 +296,9 @@ test.describe('What a scan shows', () => {
   }
 
   test('English texts', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'en'))
+    await page.addInitScript(() => {
+      localStorage.setItem('pili-pos-language', 'en')
+    })
     await open(page, {
       taps: [
         { kind: 'clock_in', name: 'Wei', at: '2026-10-17T10:02:00Z' },
@@ -311,7 +312,9 @@ test.describe('What a scan shows', () => {
   })
 
   test('Chinese texts', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'zh'))
+    await page.addInitScript(() => {
+      localStorage.setItem('pili-pos-language', 'zh')
+    })
     await open(page, {
       taps: [
         { kind: 'clock_out', name: 'Wei', at: '2026-10-17T10:02:00Z' },
@@ -349,7 +352,7 @@ test.describe('Login screen', () => {
       [CASHIER],
     )
     await scanBadge(page, TOKEN)
-    await expect(page).toHaveURL(/tables|order/)
+    await expect(page).toHaveURL(/tables|order/u)
     expect(await ipcCalls(page, 'login')).toEqual([])
   })
 
@@ -362,9 +365,9 @@ test.describe('Login screen', () => {
     const overlay = page.locator('.pin-overlay')
     await expect(overlay).toBeVisible()
     await expect(overlay.locator('.pin-user')).toHaveText('Bruno Moyse')
-    await expect(page).toHaveURL(/#\/$/)
+    await expect(page).toHaveURL(/#\/$/u)
     for (const d of TEST_PIN) await overlay.locator('.nk', { hasText: d }).first().click()
-    await expect(page).toHaveURL(/tables|order/)
+    await expect(page).toHaveURL(/tables|order/u)
     expect(await ipcCalls(page, 'login')).toEqual([{ insz: DEFAULT_USER.insz, pin: TEST_PIN }])
   })
 
@@ -717,7 +720,9 @@ test.describe('Settings: employees and badges', () => {
   })
 
   test('the texts follow the language (Chinese)', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'zh'))
+    await page.addInitScript(() => {
+      localStorage.setItem('pili-pos-language', 'zh')
+    })
     await settings(page)
     await expect(row(page, 'Chen').getByTestId('badge-state')).toHaveText('无工牌')
     await expect(row(page, 'Chen').getByTestId('badge-btn')).toHaveText('绑定工牌')
@@ -727,22 +732,28 @@ test.describe('Settings: employees and badges', () => {
 
 // ── Test round 1: the paths no spec reached ─────────────────────────
 
-type Kd = { code: string; key: string; ctrl?: boolean; repeat?: boolean; composing?: boolean }
+interface Kd {
+  code: string
+  key: string
+  ctrl?: boolean
+  repeat?: boolean
+  composing?: boolean
+}
 const digit = (d: string): Kd => ({ code: `Digit${d}`, key: d })
 const ENTER: Kd = { code: 'Enter', key: 'Enter' }
 
 /** Dispatch raw keydowns on the focused element (or the body); returns,
  * for each, whether the page cancelled it (a held key is cancelled). */
-async function keydowns(page: Page, keys: Kd[]): Promise<boolean[]> {
+function keydowns(page: Page, keys: Kd[]): Promise<boolean[]> {
   return page.evaluate((list) => {
     const target = document.activeElement ?? document.body
     return list.map((k) => {
       const e = new KeyboardEvent('keydown', {
         code: k.code,
         key: k.key,
-        ctrlKey: !!k.ctrl,
-        repeat: !!k.repeat,
-        isComposing: !!k.composing,
+        ctrlKey: Boolean(k.ctrl),
+        repeat: Boolean(k.repeat),
+        isComposing: Boolean(k.composing),
         bubbles: true,
         cancelable: true,
       })
@@ -757,7 +768,7 @@ async function toSettings(page: Page) {
   await page.evaluate(() => {
     window.location.hash = '/settings'
   })
-  await page.waitForURL(/settings/)
+  await page.waitForURL(/settings/u)
 }
 
 /** An extra text field on the page, for the replay target tests. */
@@ -1006,6 +1017,9 @@ test.describe('Sound cue', () => {
           return {
             type: '',
             frequency: {
+              get value() {
+                return 0
+              },
               set value(v: number) {
                 ;(window as any).__tones.push(v)
               },
@@ -1072,7 +1086,7 @@ test.describe('Sound cue', () => {
       [CASHIER],
     )
     await scanBadge(page, TOKEN)
-    await expect(page).toHaveURL(/tables|order/)
+    await expect(page).toHaveURL(/tables|order/u)
     expect(await tones(page)).toEqual(HIGH)
   })
 
@@ -1115,7 +1129,7 @@ test.describe('Login screen: more paths', () => {
     await expect
       .poll(() => ipcCalls(page, 'login'))
       .toEqual([{ insz: DEFAULT_USER.insz, pin: TEST_PIN }])
-    await expect(page).toHaveURL(/tables|order/)
+    await expect(page).toHaveURL(/tables|order/u)
   })
 
   test('a registered scan on the login screen reloads who is on shift', async ({ page }) => {

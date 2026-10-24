@@ -91,7 +91,7 @@ export function useBadgeReader(onReplay?: () => void) {
       void badge.onScan(r.token)
       return
     }
-    if (!focusAtHold) focusAtHold = document.activeElement
+    focusAtHold ??= document.activeElement
     timer = setTimeout(release, badge.settings?.wedgeMaxGapMs ?? 50)
   }
 

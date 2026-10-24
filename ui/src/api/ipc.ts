@@ -742,8 +742,8 @@ export function revokeBadge(employeeInsz: string): Promise<void> {
 
 /** A badge scan: the engine decides (presence, login or a PIN request).
  * `endShift` is true while the login screen is in its end-of-shift mode. */
-export function badgeTap(token: string, endShift: boolean): Promise<BadgeOutcome> {
-  return invoke('badge_tap', { token, endShift })
+export function badgeTap(token: string, endOfShift: boolean): Promise<BadgeOutcome> {
+  return invoke('badge_tap', { token, endShift: endOfShift })
 }
 
 // ── Financial (Event F - cash in/out, drawer) ───────────────────────

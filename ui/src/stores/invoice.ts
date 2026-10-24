@@ -67,7 +67,9 @@ export const useInvoiceStore = defineStore('invoice', () => {
       sales.value = []
     }
     // A sale invoiced meanwhile cannot stay ticked.
-    const open = new Set(sales.value.filter((s) => !s.invoicedBy).map((s) => s.fiscalEventId))
+    const open = new Set(
+      sales.value.filter((s) => (s.invoicedBy ?? '') === '').map((s) => s.fiscalEventId),
+    )
     selected.value = selected.value.filter((id) => open.has(id))
   }
 
@@ -212,16 +214,16 @@ export const useInvoiceStore = defineStore('invoice', () => {
     try {
       const answer = await ipc.lookupB2bCustomer(form.value.vatNumber)
       lookup.value = answer
-      if (answer?.customer) {
+      if (answer.customer) {
         fillFrom(answer.customer)
-      } else if (answer) {
+      } else {
         form.value = {
           ...form.value,
           vatNumber: answer.vatNumber,
           countryCode: form.value.countryCode || answer.countryCode,
         }
       }
-      return answer != null
+      return true
     } catch (e) {
       lookup.value = null
       customerError.value = describeError(e)
@@ -265,7 +267,14 @@ export const useInvoiceStore = defineStore('invoice', () => {
   async function confirm() {
     const c = customer.value
     const insz = auth.currentUser?.insz
-    if (!c || !insz || busy.value || (preview.value?.problems.length ?? 0) > 0) return
+    if (
+      !c ||
+      insz === undefined ||
+      insz === '' ||
+      busy.value ||
+      (preview.value?.problems.length ?? 0) > 0
+    )
+      return
     busy.value = true
     step.value = 'processing'
     try {
@@ -286,7 +295,7 @@ export const useInvoiceStore = defineStore('invoice', () => {
   }
 
   /** A copy (event C) of a signed invoice; printed with the invoice layout. */
-  async function copyInvoice(fiscalEventId: number): Promise<ipc.CopyResult> {
+  function copyInvoice(fiscalEventId: number): Promise<ipc.CopyResult> {
     const insz = auth.currentUser?.insz ?? ''
     return ipc.copyTicket(fiscalEventId, insz)
   }

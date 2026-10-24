@@ -67,7 +67,7 @@ test.describe('Nightly export panel', () => {
     await expect(panel(page)).toContainText('exp-2026-10-08')
     // 22:30 UTC on the 8th is 00:30 on the 9th in Brussels (CEST).
     await expect(panel(page).locator('.row', { hasText: 'Dernier envoi' })).toContainText(
-      /09\/10.*00:30/,
+      /09\/10.*00:30/u,
     )
     await expect(panel(page)).toContainText('Conservés : 12 sur 30 jours')
     await expect(panel(page).locator('.error-row')).toHaveCount(0)
@@ -79,9 +79,9 @@ test.describe('Nightly export panel', () => {
     await openSettings(page, { ...PENDING, dropped: 1 })
     await expect(panel(page)).toContainText('2 exports en attente')
     await expect(panel(page).locator('.error-row')).toContainText('HTTP 503')
-    await expect(panel(page).locator('.error-row')).toContainText(/09\/10.*02:45/)
+    await expect(panel(page).locator('.error-row')).toContainText(/09\/10.*02:45/u)
     await expect(panel(page).locator('.row', { hasText: 'Prochain essai' })).toContainText(
-      /09\/10.*03:15/,
+      /09\/10.*03:15/u,
     )
     await expect(panel(page).locator('.row', { hasText: 'Abandonnés' })).toContainText('1')
   })

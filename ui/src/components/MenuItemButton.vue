@@ -6,7 +6,11 @@ import { useI18n } from '../i18n'
 import { useBilingualName } from '../utils/names'
 import AllergenBadges from './AllergenBadges.vue'
 
-const props = defineProps<{
+const {
+  item,
+  categoryColor = undefined,
+  inCart = undefined,
+} = defineProps<{
   item: MenuItem
   categoryColor?: string
   /** Quantity of this product already in the cart (badge when > 0). */
@@ -19,11 +23,11 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const bilingual = useBilingualName()
-const names = computed(() => bilingual(props.item))
+const names = computed(() => bilingual(item))
 const btnRef = ref<HTMLElement | null>(null)
 
 function handleTap() {
-  emit('add', props.item)
+  emit('add', item)
   // UX guide §4.2: 200 ms confirmation flash
   const el = btnRef.value
   if (el) {

@@ -10,7 +10,7 @@ import { formatPrice } from '../utils/format'
 import { describeError } from '../utils/errorMessages'
 import { useI18n } from '../i18n'
 
-const props = defineProps<{
+const { restCents } = defineProps<{
   /** What is left to pay on the sale, in cents. */
   restCents: number
 }>()
@@ -29,8 +29,8 @@ const error = ref<string | null>(null)
 const busy = ref(false)
 
 /** `4812 0000 9095`, as the voucher prints it. */
-const shown = computed(() => (digits.value.match(/.{1,4}/g) ?? []).join(' '))
-const amount = computed(() => Math.min(voucher.value?.balance_cents ?? 0, props.restCents))
+const shown = computed(() => (digits.value.match(/.{1,4}/gu) ?? []).join(' '))
+const amount = computed(() => Math.min(voucher.value?.balance_cents ?? 0, restCents))
 
 function onKey(key: string) {
   error.value = null

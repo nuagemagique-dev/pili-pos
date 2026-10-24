@@ -25,7 +25,7 @@ export const TILE_BADGES = 6
 
 /** The Annex number (1 to 14) of a code, 0 for an unknown one. */
 export function allergenNumber(code: string): number {
-  return ALLERGEN_CODES.indexOf(code as AllergenCode) + 1
+  return ALLERGEN_CODES.findIndex((known) => known === code) + 1
 }
 
 /** Codes in Annex order, unknown ones left out. */

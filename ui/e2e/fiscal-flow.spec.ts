@@ -32,9 +32,9 @@ async function openTable(page: Page, overrides: Handlers = {}) {
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
   await page.locator('.item-btn').first().click()
   await expect(page.locator('.cart-lines')).not.toContainText('Aucun article')
 }
@@ -90,7 +90,7 @@ test.describe('Takeaway drafts (direct sale)', () => {
     await expect(page.locator('.header-takeaway')).toBeVisible()
     await page.locator('.item-btn').first().click()
     await navButton(page, 'Tables').click()
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
 
     // The UI leaves both orders through the engine; registering is the
     // engine's rule (a table yes, a takeaway never).
@@ -113,14 +113,14 @@ test.describe('Takeaway drafts (direct sale)', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
 
     const card = page.locator('.takeaway-card')
     await expect(card).toHaveCount(1)
     await expect(card).toContainText('6,08')
     await expect(card).toContainText('12:05')
     await card.click()
-    await page.waitForURL(/order/)
+    await page.waitForURL(/order/u)
     await expect(page.locator('.header-takeaway')).toBeVisible()
     expect((await ipcCalls(page, 'get_order')).map((c) => c.orderId)).toContain(502)
   })
@@ -129,7 +129,7 @@ test.describe('Takeaway drafts (direct sale)', () => {
     await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await expect(page.locator('.table-card').first()).toBeVisible()
     await expect(page.locator('.takeaway-card')).toHaveCount(0)
   })
@@ -139,7 +139,7 @@ test.describe('Table order registration (P)', () => {
   test('[FAQ_Q205] leaving the order for the tables registers it', async ({ page }) => {
     await openTable(page)
     await navButton(page, 'Tables').click()
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
 
     const calls = await ipcCalls(page, 'leave_order')
     expect(calls).toHaveLength(1)
@@ -150,32 +150,32 @@ test.describe('Table order registration (P)', () => {
   test('leaving for the reports registers it', async ({ page }) => {
     await openTable(page)
     await navButton(page, 'Rapports').click()
-    await page.waitForURL(/reports/)
+    await page.waitForURL(/reports/u)
     expect(await ipcCalls(page, 'leave_order')).toMatchObject([{ reason: 'navigate' }])
   })
 
   test('leaving for the settings registers it', async ({ page }) => {
     await openTable(page)
     await navButton(page, 'Config').click()
-    await page.waitForURL(/settings/)
+    await page.waitForURL(/settings/u)
     expect(await ipcCalls(page, 'leave_order')).toMatchObject([{ reason: 'navigate' }])
   })
 
   test('going to the payment does not register it (the sale carries it)', async ({ page }) => {
     await openTable(page)
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     expect(await ipcCalls(page, 'leave_order')).toHaveLength(0)
   })
 
   test('leaving the payment screen for another screen registers it', async ({ page }) => {
     await openTable(page)
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     await page.evaluate(() => {
       window.location.hash = '#/tables'
     })
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     expect(await ipcCalls(page, 'leave_order')).toMatchObject([{ reason: 'navigate' }])
   })
 
@@ -187,7 +187,7 @@ test.describe('Table order registration (P)', () => {
     // the table is registered before the takeaway order is created.
     await expect.poll(() => ipcCalls(page, 'create_order').then((c) => c.length)).toBe(2)
     const order = await page.evaluate(() =>
-      ((window as any).__ipcCalls as Array<{ cmd: string; args: any }>)
+      ((window as any).__ipcCalls as { cmd: string; args: any }[])
         .filter((c) => c.cmd === 'leave_order' || c.cmd === 'create_order')
         .map((c) => (c.cmd === 'create_order' ? `create:${c.args.input.order_type}` : 'sign')),
     )
@@ -198,7 +198,7 @@ test.describe('Table order registration (P)', () => {
   test('[FAQ_Q205] locking the screen registers it', async ({ page }) => {
     await openTable(page)
     await navButton(page, 'Verrouiller').click()
-    await page.waitForURL(/#\/$/)
+    await page.waitForURL(/#\/$/u)
     // The engine registers the open order while locking: the UI does not.
     expect(await ipcCalls(page, 'lock_session')).toHaveLength(1)
     expect(await ipcCalls(page, 'leave_order')).toHaveLength(0)
@@ -211,7 +211,7 @@ test.describe('Table order registration (P)', () => {
     await navButton(page, 'Tables').click()
 
     await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée')
-    await expect(page).toHaveURL(/order/)
+    await expect(page).toHaveURL(/order/u)
   })
 
   test('an FDM refusal does not start the takeaway', async ({ page }) => {
@@ -228,7 +228,7 @@ test.describe('Table order registration (P)', () => {
     await openTable(page)
     await overrideIPC(page, 'lock_session', { orderError: 'FDM_UNREACHABLE' })
     await navButton(page, 'Verrouiller').click()
-    await page.waitForURL(/#\/$/)
+    await page.waitForURL(/#\/$/u)
     await expect(page.locator('.user-btn').first()).toBeVisible()
     await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée')
   })
@@ -242,7 +242,7 @@ test.describe('Leaving and locking through the engine', () => {
     const table = { ...DEFAULT_ORDER, id: 501, total_cents: 1200 }
     await openTable(page, { create_order: () => table, get_order: () => table })
     await navButton(page, 'Tables').click()
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     expect(await ipcCalls(page, 'leave_order')).toEqual([{ orderId: 501, reason: 'navigate' }])
     expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(0)
   })
@@ -252,13 +252,13 @@ test.describe('Leaving and locking through the engine', () => {
     await overrideIPC(page, 'leave_order', { __reject: 'FDM_UNREACHABLE' })
     await navButton(page, 'Rapports').click()
     await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée')
-    await expect(page).toHaveURL(/order/)
+    await expect(page).toHaveURL(/order/u)
   })
 
   test('the lock button calls lock_session and returns to the login screen', async ({ page }) => {
     await openTable(page)
     await navButton(page, 'Verrouiller').click()
-    await page.waitForURL(/#\/$/)
+    await page.waitForURL(/#\/$/u)
     await expect(page.locator('.user-btn').first()).toBeVisible()
     expect(await ipcCalls(page, 'lock_session')).toHaveLength(1)
     expect(await ipcCalls(page, 'logout')).toHaveLength(0)
@@ -271,7 +271,7 @@ test.describe('Leaving and locking through the engine', () => {
     await openTable(page)
     await overrideIPC(page, 'lock_session', { orderError: 'FDM_UNREACHABLE' })
     await navButton(page, 'Verrouiller').click()
-    await page.waitForURL(/#\/$/)
+    await page.waitForURL(/#\/$/u)
     await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée')
     await expect(page.locator('.user-btn').first()).toBeVisible()
   })
@@ -281,7 +281,7 @@ test.describe('Leaving and locking through the engine', () => {
   }) => {
     await openTable(page)
     await emitTauriEvent(page, 'session-locked', { reason: 'idle', orderError: null })
-    await page.waitForURL(/#\/$/)
+    await page.waitForURL(/#\/$/u)
     await expect(page.locator('.user-btn').first()).toBeVisible()
     await expect(page.locator('.toast-error')).toHaveCount(0)
     // The engine locked it: the UI does not lock again.
@@ -291,7 +291,7 @@ test.describe('Leaving and locking through the engine', () => {
   test('a session-locked event with an order error shows the toast', async ({ page }) => {
     await openTable(page)
     await emitTauriEvent(page, 'session-locked', { reason: 'idle', orderError: 'FDM_UNREACHABLE' })
-    await page.waitForURL(/#\/$/)
+    await page.waitForURL(/#\/$/u)
     await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée')
   })
 
@@ -304,7 +304,7 @@ test.describe('Leaving and locking through the engine', () => {
   test('clearing the order after payment sets the active order to null', async ({ page }) => {
     await openTable(page)
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     await page.locator('.card-btn').click()
     await page.locator('.card-confirm').click()
     await expect(page.locator('.success-icon')).toBeVisible()
@@ -325,7 +325,7 @@ test.describe('Pre-bill ("Addition")', () => {
     expect(calls).toHaveLength(1)
     expect(calls[0].orderId).toBeGreaterThan(0)
     // The order stays open on screen: a pre-bill is not a payment.
-    await expect(page).toHaveURL(/order/)
+    await expect(page).toHaveURL(/order/u)
   })
 
   test('an FDM refusal is shown', async ({ page }) => {
@@ -351,9 +351,9 @@ test.describe('Pre-bill ("Addition")', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await page.locator('.table-card').first().click()
-    await page.waitForURL(/order/)
+    await page.waitForURL(/order/u)
     await expect(page.getByRole('button', { name: 'Addition' })).toBeDisabled()
   })
 })
@@ -367,7 +367,7 @@ test.describe('[VI_BAR] Bar / kitchen order slip', () => {
     await openTable(page)
     await overrideIPC(page, 'leave_order', 'failed')
     await navButton(page, 'Tables').click()
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await expect(page.locator('.toast-warning')).toContainText(SLIP_WARNING)
     await expect(page.locator('.toast-error')).toHaveCount(0)
   })
@@ -375,7 +375,7 @@ test.describe('[VI_BAR] Bar / kitchen order slip', () => {
   test('[VI_BAR] a printed slip needs no message', async ({ page }) => {
     await openTable(page)
     await navButton(page, 'Tables').click()
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     expect(await ipcCalls(page, 'leave_order')).toHaveLength(1)
     await expect(page.locator('.toast-warning')).toHaveCount(0)
   })
@@ -403,7 +403,7 @@ test.describe('[VI_BAR] Bar / kitchen order slip', () => {
       }),
     })
     await page.locator('.checkout-btn').click()
-    await page.waitForURL(/checkout/)
+    await page.waitForURL(/checkout/u)
     await page.locator('.card-btn').click()
     await page.locator('.card-confirm').click()
     await expect(page.locator('.success-icon')).toBeVisible()
@@ -419,7 +419,7 @@ test.describe('FDM refusals on presence and cash events', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await emitTauriEvent(page, 'presence-failed', {
       insz: DEFAULT_USER.insz,
       clockIn: true,
@@ -440,7 +440,7 @@ test.describe('FDM refusals on presence and cash events', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await page.waitForTimeout(300)
     expect(await ipcCalls(page, 'work_in')).toHaveLength(0)
     await expect(page.locator('.toast-error')).toHaveCount(0)
@@ -506,7 +506,7 @@ test.describe('Cash events (F)', () => {
     await gotoCashTab(page)
     await page.locator('.declaration-btn').click()
     for (const key of ['3', '4', '7', '2', '0']) {
-      await page.locator('.numpad button', { hasText: new RegExp(`^${key}$`) }).click()
+      await page.locator('.numpad button', { hasText: new RegExp(`^${key}$`, 'u') }).click()
     }
     await expect(page.getByTestId('open-price-amount')).toContainText('347,20')
     await page.locator('.btn-confirm').click()

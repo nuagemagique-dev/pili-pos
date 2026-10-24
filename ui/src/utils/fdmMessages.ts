@@ -73,19 +73,21 @@ export const VENDOR_MESSAGES: Record<string, string> = {
 
 // `FDM_ANSWER_PENDING|label=N|ticket=3|fdm=INTERNAL_ERROR|cause=...`:
 // the code the FDM answered with, when it did answer.
-const PENDING_WITH_CODE = /FDM_ANSWER_PENDING(?:\|(?!fdm=)[a-z]+=[^|]*)*\|fdm=([A-Z][A-Z0-9_]*)/
+const PENDING_WITH_CODE =
+  /FDM_ANSWER_PENDING(?:\|(?!fdm=)[a-z]+=[^|]*)*\|fdm=(?<code>[A-Z][A-Z0-9_]*)/u
 
 /** The FDM's code in a "request kept to send again" error, or null. */
 export function pendingFdmCode(raw: string | null): string | null {
-  return raw?.match(PENDING_WITH_CODE)?.[1] ?? null
+  return PENDING_WITH_CODE.exec(raw ?? '')?.groups?.code ?? null
 }
 
 export function translateFdmError(raw: string | null): string | null {
-  if (!raw) return null
+  if (raw === null || raw === '') return null
   // What the FDM said first, then that the same request goes again.
   const said = pendingFdmCode(raw)
-  const saidText = said ? (ERROR_MESSAGES[said] ?? POS_CHECK_MESSAGES[said]) : undefined
-  if (saidText) return `${saidText} ${POS_CHECK_MESSAGES.FDM_RETRY_SAME_REQUEST}`
+  const saidText = said === null ? undefined : (ERROR_MESSAGES[said] ?? POS_CHECK_MESSAGES[said])
+  if (saidText !== undefined && saidText !== '')
+    return `${saidText} ${POS_CHECK_MESSAGES.FDM_RETRY_SAME_REQUEST}`
   for (const [code, msg] of Object.entries(POS_CHECK_MESSAGES)) {
     if (raw.includes(code)) return msg
   }
@@ -125,9 +127,9 @@ const MESSAGES_ZH: Record<string, string> = {
 }
 
 export function translateFdmErrorZh(raw: string | null): string | null {
-  if (!raw) return null
+  if (raw === null || raw === '') return null
   const said = pendingFdmCode(raw)
-  if (said)
+  if (said !== null)
     return `${MESSAGES_ZH[said] ?? '黑匣子错误。请联系技术人员。'} ${MESSAGES_ZH.FDM_RETRY_SAME_REQUEST}`
   for (const [code, msg] of Object.entries(MESSAGES_ZH)) {
     if (raw.includes(code)) return msg
@@ -140,7 +142,7 @@ export function translateFdmErrorZh(raw: string | null): string | null {
 
 /** The FDM code in `raw`, for the technician (shown small). */
 export function fdmCode(raw: string | null): string | null {
-  if (!raw) return null
+  if (raw === null || raw === '') return null
   const known = [...Object.keys(POS_CHECK_MESSAGES), ...Object.keys(ERROR_MESSAGES)]
   return known.find((code) => raw.includes(code)) ?? null
 }

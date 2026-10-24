@@ -19,11 +19,11 @@ const pendingMedium = ref<Exclude<TicketMediumRequest, 'paper'>>('paper_digital'
 // terminal allows it AND the mail service answered a probe recently -
 // otherwise the backend would downgrade it to PAPER_DIGITAL anyway.
 const showDigitalOnly = computed(
-  () => !!delivery.mailStatus?.allowDigitalOnly && !!delivery.mailStatus?.reachable,
+  () => Boolean(delivery.mailStatus?.allowDigitalOnly) && Boolean(delivery.mailStatus?.reachable),
 )
 
 const showUnreachableNote = computed(
-  () => !!delivery.mailStatus?.configured && !delivery.mailStatus?.reachable,
+  () => Boolean(delivery.mailStatus?.configured) && !delivery.mailStatus?.reachable,
 )
 
 function selectPaper() {

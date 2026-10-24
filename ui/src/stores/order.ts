@@ -1,12 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Order, OrderLine, CartLine, MenuItem } from '../types'
+import type {
+  Order,
+  OrderLine,
+  CartLine,
+  MenuItem,
+  SlipOutcome,
+  DiscountInput,
+  DiscountResult,
+} from '../types'
 import * as ipc from '../api/ipc'
 import { useAuthStore } from './auth'
 import { useToastStore } from './toast'
 import { describeError } from '../utils/errorMessages'
 import { useI18n } from '../i18n'
-import type { SlipOutcome, DiscountInput, DiscountResult } from '../types'
 import { netTotalCents, hasOrderDiscount } from '../utils/cartAmounts'
 
 /** The order is signed either way; a slip that did not print must be
@@ -61,12 +68,15 @@ export const useOrderStore = defineStore('order', () => {
     if (!auth.currentUser) throw new Error('Not logged in')
 
     currentOrder.value = await ipc.createOrder({
-      order_type: tableNumber ? 'dine_in' : 'takeaway',
+      order_type: tableNumber !== null && tableNumber !== 0 ? 'dine_in' : 'takeaway',
       table_number: tableNumber,
       user_insz: auth.currentUser.insz,
     })
     // A busy table returns its open order: show its lines.
-    lines.value = tableNumber ? await ipc.listCartLines(currentOrder.value.id) : []
+    lines.value =
+      tableNumber !== null && tableNumber !== 0
+        ? await ipc.listCartLines(currentOrder.value.id)
+        : []
     await ipc.setActiveOrder(currentOrder.value.id)
     await loadCourses()
   }
@@ -162,9 +172,9 @@ export const useOrderStore = defineStore('order', () => {
       : lines.value.find(
           (l) =>
             l.menu_item_id === item.id &&
-            !l.modifiers_json &&
+            (l.modifiers_json ?? '') === '' &&
             (l.price_changes?.length ?? 0) === 0 &&
-            !l.kitchen_note,
+            (l.kitchen_note ?? '') === '',
         )
     if (existing) {
       await updateQuantityUnreported(existing.id, existing.quantity + quantity)
@@ -335,7 +345,8 @@ export const useOrderStore = defineStore('order', () => {
   /** Move the order on screen to a free table. */
   async function transferTable(toTable: number) {
     if (!currentOrder.value) throw new Error('No active order')
-    return transferOrder(currentOrder.value.id, toTable)
+    const result = await transferOrder(currentOrder.value.id, toTable)
+    return result
   }
 
   /** Take the engine's view of the order again after a discount: the
@@ -352,7 +363,7 @@ export const useOrderStore = defineStore('order', () => {
 
   async function discountDone(orderId: number, result: DiscountResult) {
     warnIfSlipFailed(result.kitchenSlip)
-    if (result.registrationError) {
+    if ((result.registrationError ?? '') !== '') {
       useToastStore().show(useI18n().t('discount_registration_failed'), 'warning', 8000)
     }
     await reloadFromEngine(orderId)
@@ -363,7 +374,7 @@ export const useOrderStore = defineStore('order', () => {
   async function applyDiscount(input: DiscountInput, pin: string) {
     const current = currentOrder.value
     const insz = useAuthStore().currentUser?.insz
-    if (!current || !insz) throw new Error('No active order')
+    if (!current || insz === undefined || insz === '') throw new Error('No active order')
     await discountDone(current.id, await ipc.applyDiscount(current.id, input, insz, pin))
   }
 
@@ -371,7 +382,7 @@ export const useOrderStore = defineStore('order', () => {
   async function removeDiscount(lineId: number | null, pin: string) {
     const current = currentOrder.value
     const insz = useAuthStore().currentUser?.insz
-    if (!current || !insz) throw new Error('No active order')
+    if (!current || insz === undefined || insz === '') throw new Error('No active order')
     await discountDone(current.id, await ipc.removeDiscount(current.id, lineId, insz, pin))
   }
 
@@ -381,10 +392,10 @@ export const useOrderStore = defineStore('order', () => {
   async function closeUnpaid(pin: string) {
     const current = currentOrder.value
     const insz = useAuthStore().currentUser?.insz
-    if (!current || !insz) throw new Error('No active order')
+    if (!current || insz === undefined || insz === '') throw new Error('No active order')
     const result = await ipc.closeUnpaid(current.id, insz, pin)
     // The error code as the backend sent it, for describeError.
-    if (!result.success) throw result.error ?? ''
+    if (!result.success) throw new Error(result.error ?? '')
     warnIfSlipFailed(result.kitchen_slip)
     clearOrder()
   }

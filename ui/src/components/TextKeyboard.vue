@@ -8,16 +8,17 @@
 import { ref } from 'vue'
 import { useI18n } from '../i18n'
 
-const props = withDefaults(
-  defineProps<{
-    modelValue: string
-    /** Longest text the field accepts. */
-    maxLength?: number
-    /** Offers a lower case key (menu names are not printed in capitals). */
-    caseToggle?: boolean
-  }>(),
-  { maxLength: 80, caseToggle: false },
-)
+const {
+  modelValue,
+  maxLength = 80,
+  caseToggle = false,
+} = defineProps<{
+  modelValue: string
+  /** Longest text the field accepts. */
+  maxLength?: number
+  /** Offers a lower case key (menu names are not printed in capitals). */
+  caseToggle?: boolean
+}>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
@@ -35,12 +36,12 @@ const ACCENTS = ['É', 'È', 'Ê', 'À', 'Ç', 'Ù']
 const PUNCTUATION = ['-', "'", '.', ',', '/', '&']
 
 function press(ch: string) {
-  if (props.modelValue.length >= props.maxLength) return
-  emit('update:modelValue', props.modelValue + shown(ch))
+  if (modelValue.length >= maxLength) return
+  emit('update:modelValue', modelValue + shown(ch))
 }
 
 function backspace() {
-  emit('update:modelValue', props.modelValue.slice(0, -1))
+  emit('update:modelValue', modelValue.slice(0, -1))
 }
 
 function clear() {

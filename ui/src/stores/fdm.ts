@@ -54,7 +54,8 @@ export const useFdmStore = defineStore('fdm', () => {
     severity.value = h.severity
     lastError.value = h.code
     mandatory.value = h.mandatory
-    nextCheckAt.value = h.nextCheckAt ? Date.parse(h.nextCheckAt) : null
+    nextCheckAt.value =
+      h.nextCheckAt === null || h.nextCheckAt === '' ? null : Date.parse(h.nextCheckAt)
   }
 
   let statusListened = false
@@ -64,7 +65,9 @@ export const useFdmStore = defineStore('fdm', () => {
   async function listenStatus() {
     if (statusListened) return
     statusListened = true
-    await listen<ipc.FdmHealth>('fdm-status', (event) => apply(event.payload))
+    await listen<ipc.FdmHealth>('fdm-status', (event) => {
+      apply(event.payload)
+    })
     try {
       const last = await ipc.fdmHealth()
       if (last) apply(last)
@@ -99,14 +102,14 @@ export const useFdmStore = defineStore('fdm', () => {
 
   function showSignMessages(signed: SignMessages) {
     const toast = useToastStore()
-    const groups: Array<[FdmMessage[], 'warning' | 'info']> = [
+    const groups: [FdmMessage[], 'warning' | 'info'][] = [
       [signed.warnings ?? [], 'warning'],
       [signed.informations ?? [], 'info'],
     ]
     for (const [items, variant] of groups) {
       for (const item of items) {
         const code = item.extensions?.code
-        if (!code) continue
+        if (code === undefined || code === '') continue
         const key = `${signed.bookingDate ?? ''}|${code}`
         if (shownSignMessages.has(key)) continue
         shownSignMessages.add(key)
@@ -137,7 +140,9 @@ export const useFdmStore = defineStore('fdm', () => {
   async function listenSignMessages() {
     if (signMessagesListened) return
     signMessagesListened = true
-    await listen<SignMessages>('fdm-sign-messages', (event) => showSignMessages(event.payload))
+    await listen<SignMessages>('fdm-sign-messages', (event) => {
+      showSignMessages(event.payload)
+    })
   }
 
   return {

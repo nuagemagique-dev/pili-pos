@@ -6,7 +6,14 @@ import { computed, ref } from 'vue'
 import NumPad from './NumPad.vue'
 import { useI18n } from '../i18n'
 
-const props = defineProps<{
+const {
+  title,
+  initial,
+  maxDigits,
+  allowMinus,
+  min = undefined,
+  max = undefined,
+} = defineProps<{
   title: string
   /** The value being edited ("-123" or "45"). */
   initial: string
@@ -25,25 +32,25 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const minus = ref(props.allowMinus === true && props.initial.startsWith('-'))
-const digits = ref(props.initial.replace(/^-/, ''))
+const minus = ref(allowMinus === true && initial.startsWith('-'))
+const digits = ref(initial.replace(/^-/u, ''))
 
 function onKey(key: string) {
   if (key === 'BACKSPACE') digits.value = digits.value.slice(0, -1)
   else if (key === 'CLEAR') digits.value = ''
-  else if (digits.value.length < props.maxDigits) digits.value += key
+  else if (digits.value.length < maxDigits) digits.value += key
 }
 
 const text = computed(() => (digits.value === '' ? '' : (minus.value ? '-' : '') + digits.value))
 const valid = computed(() => {
   if (digits.value === '') return false
-  if (props.allowMinus) return true
+  if (allowMinus) return true
   const n = Number(digits.value)
-  return n >= (props.min ?? 0) && n <= (props.max ?? Number.MAX_SAFE_INTEGER)
+  return n >= (min ?? 0) && n <= (max ?? Number.MAX_SAFE_INTEGER)
 })
 
 function confirm() {
-  if (valid.value) emit('confirm', props.allowMinus ? text.value : String(Number(digits.value)))
+  if (valid.value) emit('confirm', allowMinus ? text.value : String(Number(digits.value)))
 }
 </script>
 

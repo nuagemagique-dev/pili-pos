@@ -42,12 +42,16 @@ export function presetRange(preset: Exclude<Preset, 'custom'>, today: string): [
     }
     case 'month':
       return [`${today.slice(0, 8)}01`, today]
+    default: {
+      const unknown: never = preset
+      throw new Error(`unknown preset ${String(unknown)}`)
+    }
   }
 }
 
 /** `ddmmyyyy` typed on the pad into `YYYY-MM-DD`, or null when it is not a real date. */
 export function parseTyped(digits: string): string | null {
-  if (!/^\d{8}$/.test(digits)) return null
+  if (!/^\d{8}$/u.test(digits)) return null
   const d = Number(digits.slice(0, 2))
   const m = Number(digits.slice(2, 4))
   const y = Number(digits.slice(4))

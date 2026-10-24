@@ -10,6 +10,7 @@
     "check": "vp check && node scripts/check-vite-plus-pin.mjs",
     "fmt": "vp fmt",
     "lint": "vp lint",
+    "test": "vp test",
     "prepare": "vp config",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",

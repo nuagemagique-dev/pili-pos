@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig } from '@playwright/test'
 
 // PW_PORT lets two checkouts (e.g. git worktrees) run their suites at
 // once: with reuseExistingServer, a shared port would silently test
@@ -21,8 +21,8 @@ export default defineConfig({
         locale: 'fr-BE',
         hasTouch: true,
       },
-      testMatch: /\.spec\.ts$/,
-      testIgnore: [/real-binary/, /captures/],
+      testMatch: /\.spec\.ts$/u,
+      testIgnore: [/real-binary/u, /captures/u],
     },
     // Layer 3 (the real binary) is not Playwright: WebKitGTK is driven
     // over WebDriver by tauri-driver, see e2e/real-binary/.
@@ -35,8 +35,9 @@ export default defineConfig({
     // matches the kiosk's 15.6" FHD touchscreen. Longer timeout than the
     // default 15s: several captures walk a full sale (login, tables,
     // order, checkout) in one test, screenshotting along the way.
-    ...(process.env.PW_CAPTURES
-      ? [
+    ...((process.env.PW_CAPTURES ?? '') === ''
+      ? []
+      : [
           {
             name: 'captures',
             timeout: 60_000,
@@ -47,10 +48,9 @@ export default defineConfig({
               locale: 'fr-BE',
               hasTouch: true,
             },
-            testMatch: /captures(-features)?\.spec\.ts$/,
+            testMatch: /captures(?:-features)?\.spec\.ts$/u,
           },
-        ]
-      : []),
+        ]),
   ],
 
   // Vite dev server for the e2e project.

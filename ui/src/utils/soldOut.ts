@@ -15,6 +15,6 @@ export function availabilityOf(item: {
   sold_out?: boolean
   sold_out_until?: string | null
 }): Availability {
-  if (!item.sold_out) return 'available'
-  return item.sold_out_until ? 'day' : 'until'
+  if (item.sold_out !== true) return 'available'
+  return (item.sold_out_until ?? '') === '' ? 'until' : 'day'
 }

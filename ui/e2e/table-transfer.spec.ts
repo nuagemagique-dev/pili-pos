@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import {
   mockTauriIPC,
   ipcCalls,
@@ -32,7 +32,7 @@ const tables =
     return all
   }
 
-async function openTable1(page: import('@playwright/test').Page, extra: Record<string, any> = {}) {
+async function openTable1(page: Page, extra: Record<string, any> = {}) {
   await mockTauriIPC(page, {
     login: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
@@ -42,9 +42,9 @@ async function openTable1(page: import('@playwright/test').Page, extra: Record<s
   })
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 test.describe('From the cart', () => {
@@ -102,7 +102,7 @@ test.describe('From the cart', () => {
   }) => {
     const pending = { ...DEFAULT_CART_LINE, quantity: 2, unsent_quantity: 2 }
     await openTable1(page, { list_cart_lines: () => [pending] })
-    await expect(page.locator('.cart-header h2')).toHaveText(/Table 1$/)
+    await expect(page.locator('.cart-header h2')).toHaveText(/Table 1$/u)
     await expect(page.locator('.pending-label')).toBeVisible()
     await expect(page.locator('.order-line.pending')).toHaveCount(1)
 
@@ -113,7 +113,7 @@ test.describe('From the cart', () => {
     await page.getByTestId('transfer-confirm').click()
 
     await expect(page.getByText('Commande déplacée vers la table 5')).toBeVisible()
-    await expect(page.locator('.cart-header h2')).toHaveText(/Table 5$/)
+    await expect(page.locator('.cart-header h2')).toHaveText(/Table 5$/u)
     await expect(page.locator('.pending-label')).toHaveCount(0)
     await expect(page.locator('.order-line.pending')).toHaveCount(0)
     await expect(page.locator('.order-line')).toHaveCount(1)
@@ -176,9 +176,9 @@ test.describe('From the cart', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     await page.getByRole('button', { name: 'Nouvelle vente à emporter' }).click()
-    await page.waitForURL(/order/)
+    await page.waitForURL(/order/u)
     await expect(page.getByTestId('transfer-table')).toHaveCount(0)
   })
 })
@@ -192,7 +192,7 @@ test.describe('From the Tables screen', () => {
     })
     await page.goto('/')
     await tapUserTile(page)
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
   })
 
   test('source, then target, then confirmation', async ({ page }) => {
@@ -202,7 +202,7 @@ test.describe('From the Tables screen', () => {
     // A free table is no source: tapping it does nothing.
     await page.locator('.table-card', { hasText: 'Libre' }).first().click({ force: true })
     await expect(page.getByTestId('move-hint')).toHaveText('Touchez la table à déplacer')
-    await expect(page).toHaveURL(/tables/)
+    await expect(page).toHaveURL(/tables/u)
 
     await page.locator('.table-card.occupied').first().click()
     await expect(page.getByTestId('move-hint')).toHaveText('Table 3 : touchez la table libre')
@@ -210,7 +210,7 @@ test.describe('From the Tables screen', () => {
     await page.locator('.table-card.occupied').nth(1).click({ force: true })
     await expect(page.getByTestId('move-confirm')).toHaveCount(0)
 
-    await page.locator('.table-card .table-num', { hasText: /^7$/ }).click()
+    await page.locator('.table-card .table-num', { hasText: /^7$/u }).click()
     const confirm = page.getByTestId('move-confirm')
     await expect(confirm).toContainText('Déplacer la table 3 vers la table 7 ?')
     await page.getByTestId('move-validate').click()
@@ -230,7 +230,7 @@ test.describe('From the Tables screen', () => {
 
     await page.getByTestId('move-toggle').click()
     await page.locator('.table-card.occupied').first().click()
-    await page.locator('.table-card .table-num', { hasText: /^7$/ }).click()
+    await page.locator('.table-card .table-num', { hasText: /^7$/u }).click()
     await page.getByTestId('move-validate').click()
 
     await expect(page.getByText('Cette table a déjà une commande en cours')).toBeVisible()
@@ -242,25 +242,25 @@ test.describe('From the Tables screen', () => {
   test('a move reads the plan again: the target shows occupied', async ({ page }) => {
     const card = (n: number) =>
       page.locator('.table-card', {
-        has: page.locator('.table-num', { hasText: new RegExp(`^${n}$`) }),
+        has: page.locator('.table-num', { hasText: new RegExp(`^${n}$`, 'u') }),
       })
-    await expect(card(7)).not.toHaveClass(/occupied/)
+    await expect(card(7)).not.toHaveClass(/occupied/u)
     await overrideIPC(page, 'list_tables', tables({ 4: 44, 7: 42 })())
 
     await page.getByTestId('move-toggle').click()
     await page.locator('.table-card.occupied').first().click()
-    await page.locator('.table-card .table-num', { hasText: /^7$/ }).click()
+    await page.locator('.table-card .table-num', { hasText: /^7$/u }).click()
     await page.getByTestId('move-validate').click()
 
     await expect(page.getByText('Commande déplacée vers la table 7')).toBeVisible()
-    await expect(card(7)).toHaveClass(/occupied/)
-    await expect(card(3)).not.toHaveClass(/occupied/)
+    await expect(card(7)).toHaveClass(/occupied/u)
+    await expect(card(3)).not.toHaveClass(/occupied/u)
   })
 
   test('cancelling the confirmation or the mode moves nothing', async ({ page }) => {
     await page.getByTestId('move-toggle').click()
     await page.locator('.table-card.occupied').first().click()
-    await page.locator('.table-card .table-num', { hasText: /^8$/ }).click()
+    await page.locator('.table-card .table-num', { hasText: /^8$/u }).click()
     await page.getByTestId('move-confirm').getByRole('button', { name: 'Retour' }).click()
     await expect(page.getByTestId('move-confirm')).toHaveCount(0)
 

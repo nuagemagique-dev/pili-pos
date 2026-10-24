@@ -8,7 +8,7 @@ import { useI18n } from '../i18n'
 // hint says when it prints: now when the line already went to the
 // kitchen, else with the order.
 
-const props = defineProps<{
+const { initial = undefined, sent } = defineProps<{
   /** The line's current note, if any. */
   initial?: string | null
   /** The line already went to the kitchen: a change prints a note slip now. */
@@ -28,14 +28,14 @@ const NOTE_MAX = 60
 // rows lack. Every one prints on the slip printer (CP858).
 const NOTE_SYMBOLS = ['é', 'è', 'à', 'ç', 'ê', ',', '.', '-', "'", '/', '(', ')', '+', '%']
 
-const hint = computed(() => t(props.sent ? 'note_hint_now' : 'note_hint_with_order'))
+const hint = computed(() => t(sent ? 'note_hint_now' : 'note_hint_with_order'))
 </script>
 
 <template>
   <TextKeypad
     :title="t('note_title')"
     :placeholder="t('note_placeholder')"
-    :initial="props.initial ?? ''"
+    :initial="initial ?? ''"
     :max-len="NOTE_MAX"
     :symbols="NOTE_SYMBOLS"
     :hint="hint"

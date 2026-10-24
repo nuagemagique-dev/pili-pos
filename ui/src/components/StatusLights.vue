@@ -66,7 +66,7 @@ async function checkPrinters() {
   }
   try {
     const reachable = await ipc.checkKitchenPrinter()
-    kitchen.value = reachable == null ? 'none' : reachable ? 'ok' : 'err'
+    kitchen.value = reachable === null ? 'none' : reachable ? 'ok' : 'err'
   } catch {
     kitchen.value = 'none'
   }
@@ -103,7 +103,8 @@ async function checkHubrise() {
  */
 function hubriseLight(h: ipc.HubriseHealth): Light {
   const catalogRefused =
-    !!h.catalog?.rejected_at &&
+    typeof h.catalog?.rejected_at === 'string' &&
+    h.catalog.rejected_at !== '' &&
     (!h.catalog.applied_at || h.catalog.rejected_at >= h.catalog.applied_at)
   if (h.auth_error_at || catalogRefused || h.parked_events > 0 || h.outbox.parked > 0) {
     return 'err'

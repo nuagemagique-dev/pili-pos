@@ -101,15 +101,17 @@ async function orderScreen(page: Page, extra: Record<string, unknown> = {}) {
   } as any)
   await page.addInitScript(
     ([maker]) => {
+      // The sheet maker travels as its source text and is rebuilt in the page.
+      // eslint-disable-next-line no-new-func, typescript/no-implied-eval
       ;(globalThis as any).SHEET_OF = new Function(`return (${maker})`)()
     },
     [SHEET.toString()],
   )
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 test.describe('Allergens', () => {
@@ -234,16 +236,18 @@ test.describe('Allergens', () => {
     await page.locator('.item-btn', { hasText: 'Maki saumon x8' }).click()
     const dialog = page.getByTestId('modifier-dialog')
     await expect(dialog).toBeVisible()
-    const soja = dialog.getByRole('button', { name: /Soja/ })
+    const soja = dialog.getByRole('button', { name: /Soja/u })
     await expect(soja.getByTestId('allergen-badge')).toHaveText(['1', '6'])
     await expect(
-      dialog.getByRole('button', { name: /Nature/ }).getByTestId('allergen-badge'),
+      dialog.getByRole('button', { name: /Nature/u }).getByTestId('allergen-badge'),
     ).toHaveCount(0)
   })
   test('in English the sheet is read twice and the French names follow in parentheses', async ({
     page,
   }) => {
-    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'en'))
+    await page.addInitScript(() => {
+      localStorage.setItem('pili-pos-language', 'en')
+    })
     await orderScreen(page)
     await page.getByTestId('allergen-mode').click()
     await page.locator('.item-btn', { hasText: 'Maki saumon x8' }).click()
@@ -258,7 +262,9 @@ test.describe('Allergens', () => {
   })
 
   test('in French the sheet is read once, without a second language', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'fr'))
+    await page.addInitScript(() => {
+      localStorage.setItem('pili-pos-language', 'fr')
+    })
     await orderScreen(page)
     await page.getByTestId('allergen-mode').click()
     await page.locator('.item-btn', { hasText: 'Maki saumon x8' }).click()
@@ -275,7 +281,9 @@ test.describe('Allergens', () => {
     ['fr', 'fr'],
   ] as const) {
     test(`with the UI in ${ui} the sheet prints in ${printed}`, async ({ page }) => {
-      await page.addInitScript((l) => localStorage.setItem('pili-pos-language', l), ui)
+      await page.addInitScript((l) => {
+        localStorage.setItem('pili-pos-language', l)
+      }, ui)
       await orderScreen(page)
       await page.getByTestId('allergen-mode').click()
       await page.locator('.item-btn', { hasText: 'Maki saumon x8' }).click()

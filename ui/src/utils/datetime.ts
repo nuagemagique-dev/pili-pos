@@ -6,7 +6,7 @@ export const TIME_ZONE = 'Europe/Brussels'
  * "YYYY-MM-DD HH:MM:SS" in UTC, without a zone; ISO strings with a
  * zone are taken as they are. */
 export function parseTimestamp(iso: string): Date | null {
-  const hasZone = /(Z|[+-]\d{2}:?\d{2})$/.test(iso)
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/u.test(iso)
   const d = new Date(iso.replace(' ', 'T') + (hasZone ? '' : 'Z'))
   return Number.isNaN(d.getTime()) ? null : d
 }

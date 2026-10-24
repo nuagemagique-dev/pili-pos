@@ -161,7 +161,7 @@ test.describe('Settings: the Peppol panel polls', () => {
     await page.evaluate(() => {
       window.location.hash = '/tables'
     })
-    await page.waitForURL(/tables/)
+    await page.waitForURL(/tables/u)
     const before = (await ipcCalls(page, 'list_peppol_deliveries')).length
     await page.clock.runFor(95_000)
     expect(await ipcCalls(page, 'list_peppol_deliveries')).toHaveLength(before)

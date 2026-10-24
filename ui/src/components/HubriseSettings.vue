@@ -98,7 +98,11 @@ const newChannel = ref('')
 
 const catalogRefused = computed(() => {
   const c = health.value?.catalog
-  return !!c?.rejected_at && (!c.applied_at || c.rejected_at >= c.applied_at)
+  return (
+    typeof c?.rejected_at === 'string' &&
+    c.rejected_at !== '' &&
+    (!c.applied_at || c.rejected_at >= c.applied_at)
+  )
 })
 
 const catalogSynced = computed(() => {

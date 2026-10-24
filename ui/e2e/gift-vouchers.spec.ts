@@ -91,9 +91,9 @@ async function toOrder(page: Page, extra: Record<string, unknown> = {}) {
   } as any)
   await page.goto('/')
   await tapUserTile(page)
-  await page.waitForURL(/tables/)
+  await page.waitForURL(/tables/u)
   await page.locator('.table-card').first().click()
-  await page.waitForURL(/order/)
+  await page.waitForURL(/order/u)
 }
 
 test.describe('Selling a gift voucher', () => {
@@ -150,7 +150,7 @@ test.describe('Selling a gift voucher', () => {
     await page.getByTestId('gift-voucher-sell').click()
     await expect(page.getByRole('dialog', { name: 'Vendre un bon cadeau' })).toBeVisible()
     for (const d of '2500')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await expect(page.getByTestId('open-price-amount')).toContainText('25,00')
     await page.getByRole('button', { name: 'Valider' }).click()
 
@@ -198,7 +198,7 @@ test.describe('Selling a gift voucher', () => {
     })
     await page.getByTestId('gift-voucher-sell').click()
     for (const d of '99999')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await page.getByRole('button', { name: 'Valider' }).click()
     await expect(page.getByText('500,00')).toBeVisible()
   })
@@ -211,7 +211,7 @@ async function toCheckout(page: Page, lines: unknown[], extra: Record<string, un
     ...extra,
   })
   await page.locator('.checkout-btn').click()
-  await page.waitForURL(/checkout/)
+  await page.waitForURL(/checkout/u)
 }
 
 test.describe('Paying with a gift voucher', () => {
@@ -243,7 +243,7 @@ test.describe('Paying with a gift voucher', () => {
     await page.getByTestId('method-gift_voucher').click()
     await expect(page.getByTestId('gv-dialog')).toBeVisible()
     for (const d of '123456789095')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await expect(page.getByTestId('gv-code')).toHaveText('1234 5678 9095')
     await page.getByTestId('gv-lookup').click()
     await expect(page.getByTestId('gv-status')).toHaveText('Valide')
@@ -258,7 +258,7 @@ test.describe('Paying with a gift voucher', () => {
     await page.locator('.validate-btn').click()
     await expect(page.locator('.success-icon')).toBeVisible()
 
-    const call = (await ipcCalls(page, 'checkout'))[0]
+    const [call] = await ipcCalls(page, 'checkout')
     expect(call.payments).toEqual([
       { method: 'gift_voucher', amount_cents: 3000, gift_voucher_id: 7 },
       { method: 'cash' },
@@ -277,7 +277,7 @@ test.describe('Paying with a gift voucher', () => {
     })
     await page.getByTestId('method-gift_voucher').click()
     for (const d of '123456789095')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await page.getByTestId('gv-lookup').click()
     await page.getByTestId('gv-apply').click()
     await expect(page.locator('.success-icon')).toBeVisible()
@@ -291,7 +291,7 @@ test.describe('Paying with a gift voucher', () => {
     await toCheckout(page, LINES)
     await page.getByTestId('method-gift_voucher').click()
     for (const d of '000000000000')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await page.getByTestId('gv-lookup').click()
     await expect(page.getByTestId('gv-error')).toBeVisible()
     await expect(page.getByTestId('gv-apply')).toHaveCount(0)
@@ -303,7 +303,7 @@ test.describe('Paying with a gift voucher', () => {
     })
     await page.getByTestId('method-gift_voucher').click()
     for (const d of '123456789095')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await page.getByTestId('gv-lookup').click()
     await expect(page.getByTestId('gv-status')).toHaveText('Expiré')
     await expect(page.getByTestId('gv-apply')).toHaveCount(0)
@@ -317,7 +317,7 @@ test.describe('Paying with a gift voucher', () => {
     })
     await page.getByTestId('method-gift_voucher').click()
     for (const d of '123456789095')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await page.getByTestId('gv-lookup').click()
     await expect(page.getByTestId('gv-status')).toHaveText('Non utilisable (autre mode)')
     await expect(page.getByTestId('gv-apply')).toHaveCount(0)
@@ -327,10 +327,10 @@ test.describe('Paying with a gift voucher', () => {
     await toCheckout(page, LINES, { lookup_gift_voucher: () => VOUCHER })
     await page.getByTestId('method-gift_voucher').click()
     for (const d of '12345678901')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await expect(page.getByTestId('gv-lookup')).toBeDisabled()
     for (const d of '234')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await expect(page.getByTestId('gv-code')).toHaveText('1234 5678 9012')
     await expect(page.getByTestId('gv-lookup')).toBeEnabled()
 
@@ -351,7 +351,7 @@ test.describe('Paying with a gift voucher', () => {
     }, VOUCHER)
     await page.getByTestId('method-gift_voucher').click()
     for (const d of '123456789095')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await page.getByTestId('gv-lookup').click()
     await expect(page.getByTestId('gv-found')).toContainText('01.10.2027')
     await expect(page.getByTestId('gv-found')).not.toContainText("Bon d'entraînement")
@@ -363,7 +363,7 @@ test.describe('Paying with a gift voucher', () => {
       { ...VOUCHER, training: true },
     )
     await page.locator('.numpad .key-back').click()
-    await page.locator('.numpad .key', { hasText: /^5$/ }).click()
+    await page.locator('.numpad .key', { hasText: /^5$/u }).click()
     await page.getByTestId('gv-lookup').click()
     await expect(page.getByTestId('gv-found')).toContainText("Bon d'entraînement")
     await expect(page.getByTestId('gv-found')).toContainText('01.10.2027')
@@ -377,7 +377,7 @@ test.describe('Paying with a gift voucher', () => {
     const apply = async () => {
       await page.getByTestId('method-gift_voucher').click()
       for (const d of '123456789095')
-        await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+        await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
       await page.getByTestId('gv-lookup').click()
       await page.getByTestId('gv-apply').click()
     }
@@ -510,7 +510,7 @@ test.describe('Gift vouchers in the reports', () => {
     })
     await expect(page.getByTestId('gv-report-lookup')).toBeVisible()
     for (const d of '123456789095')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await page.getByTestId('gv-report-lookup').click()
     await expect(page.getByTestId('gv-report-found')).toContainText('**** **** 9095')
     await expect(page.getByTestId('gv-list')).toHaveCount(0)
@@ -522,7 +522,7 @@ test.describe('Gift vouchers in the reports', () => {
   test('a code is looked up and its masked form shown', async ({ page }) => {
     await openTab(page, { lookup_gift_voucher: () => VOUCHER })
     for (const d of '123456789095')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     await page.getByTestId('gv-report-lookup').click()
     await expect(page.getByTestId('gv-report-found')).toContainText('**** **** 9095')
     await expect(page.getByTestId('gv-report-found')).toContainText('30,00')
@@ -551,14 +551,14 @@ test.describe('Gift vouchers in the reports', () => {
         }
       }),
     })
-    const colorOf = async () =>
+    const colorOf = () =>
       page
         .getByTestId('gv-report-found')
         .locator('.status')
         .evaluate((el) => getComputedStyle(el).color)
     const colors: string[] = []
     for (const d of '123456789095')
-      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click()
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
     for (let i = 0; i < 3; i++) {
       await page.getByTestId('gv-report-lookup').click()
       await expect(page.getByTestId('gv-report-found').locator('.status')).toHaveText(
