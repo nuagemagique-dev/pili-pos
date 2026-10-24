@@ -1,0 +1,38 @@
+{
+    "data": {
+        "fdmStatus": {
+            "device": {
+                "bufferCapacityUsed": 100.0,
+                "fdmDateTime": "2026-10-18T11:00:57Z",
+                "fdmId": "MCK00000001",
+                "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [
+                {
+                    "extensions": {
+                        "category": "SPF_FOD",
+                        "code": "BUFFER_FULL",
+                        "showPos": "MANDATORY"
+                    },
+                    "message": "Le buffer du FDM est plein"
+                }
+            ],
+            "informations": [],
+            "initialized": false,
+            "warnings": [
+                {
+                    "extensions": {
+                        "category": "SPF_FOD",
+                        "code": "BUFFER_NEAR_FULL",
+                        "showPos": "MANDATORY"
+                    },
+                    "message": "L'utilisation du buffer du FDM d\u00e9passe 70%"
+                }
+            ]
+        }
+    },
+    "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
+    }
+}

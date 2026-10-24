@@ -39,6 +39,8 @@ internal class LoginStartupChecks(
             add(fdmCheck())
             add(printerCheck(CheckId.Ticket, quiet { gateway.call { engine -> engine.checkPrinter() } }))
             add(printerCheck(CheckId.Kitchen, quiet { gateway.call { engine -> engine.checkKitchenPrinter() } }))
+            // Informative like the printers: a terminal that does not answer never blocks the login.
+            terminalCheck()?.let(::add)
             if (hubriseEnabled) add(hubriseCheck())
             add(mailCheck())
         }
@@ -61,6 +63,17 @@ internal class LoginStartupChecks(
             true -> StartupCheck(id, CheckState.Ok, "check_ready")
             false -> StartupCheck(id, CheckState.Err, "check_unreachable")
         }
+
+    /** The linked card terminal; no line when none is configured (or the engine did not answer). */
+    private suspend fun terminalCheck(): StartupCheck? {
+        val status = quiet { gateway.call { engine -> engine.checkPaymentTerminal() } }
+        return when {
+            status == null || !status.configured -> null
+            status.busy -> StartupCheck(CheckId.Terminal, CheckState.Warn, "check_payment_busy")
+            status.connected -> StartupCheck(CheckId.Terminal, CheckState.Ok, "check_connected")
+            else -> StartupCheck(CheckId.Terminal, CheckState.Err, "check_unreachable", status.detail)
+        }
+    }
 
     private suspend fun hubriseCheck(): StartupCheck {
         val connected = quiet { gateway.call { engine -> engine.hubriseGetConnectionStatus() } }?.connected

@@ -53,11 +53,11 @@ Status: as built (P6-T3)
 Order inside `apply`, each step in its own try/catch (a refusal is recorded and the next step still runs):
 
 1. `setAutoTimeZoneEnabled(false)`, then `setTimeZone("Europe/Brussels")` (the zone is set only once the automatic zone is off), then `setAutoTimeEnabled(true)`;
-2. the 13 restrictions one by one: `no_factory_reset`, `no_safe_boot`, `no_uninstall_apps`, `no_install_unknown_sources`, `no_install_unknown_sources_globally`, `no_config_date_time`, `no_add_user`, `no_user_switch`, `no_remove_user`, `no_modify_accounts`, `no_usb_file_transfer`, `no_network_reset`, `no_system_error_dialogs`. One `getUserRestrictions` read comes first, and a restriction already listed is not added again (the step counts as ok and is marked skipped), so a normal start makes few calls;
-3. `setUninstallBlocked` for the own package;
+2. the 14 restrictions one by one: `no_factory_reset`, `no_safe_boot`, `no_uninstall_apps`, `no_install_apps`, `no_install_unknown_sources`, `no_install_unknown_sources_globally`, `no_config_date_time`, `no_add_user`, `no_user_switch`, `no_remove_user`, `no_modify_accounts`, `no_usb_file_transfer`, `no_network_reset`, `no_system_error_dialogs`. One `getUserRestrictions` read comes first, and a restriction already listed is not added again (the step counts as ok and is marked skipped), so a normal start makes few calls;
+3. `setUninstallBlocked` for the own package, then one `hide:<package>` step per entry of `PolicySet.HIDDEN_PACKAGES` (PD231: the Play Store and the user-facing Google apps, `setApplicationHidden`; a missing or already hidden package is a skipped step, never an error; `NEVER_HIDDEN` and the own package are refused);
 4. stay awake while plugged in (`STAY_ON_WHILE_PLUGGED_IN` = "7");
 5. keyguard disabled, status bar disabled (a `false` return from the system is a failed step);
-6. the postpone system update policy;
+6. the windowed system update policy, 03:00 to 05:00 local (Europe/Brussels) (PD231; a postpone policy only delays 30 days);
 7. `setLockTaskFeatures(0)`;
 8. last, only when the build is release and a provisioning record exists: `no_debugging_features` (adb off).
 
@@ -127,9 +127,9 @@ Status: as built (P6-T4)
 
 The hashes are cached per `(sourceDir, lastUpdateTime)`, so a new install recomputes them and a second report of the same install reads nothing. A failed read of the APK is not cached. `toJson()` has a stable key order (the order above, fields as named in the table) and writes a missing value as JSON `null`, never as an absent key.
 
-The engine reference is `pili-pos <version>, <freeze tag> (<short sha>)`, for example `pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)`. The gate check `plat-engine-ref` compares it with the freeze tag, so a re-freeze must update the string.
+The engine reference is `pili-pos <version>, <freeze tag>` with no commit part (INT-D45: the tag is set on the commit that carries the string, so it cannot name its own commit), for example `pili-pos 1.0.0, android-v1.0.0-rc3`. The tag commit is recorded in `ANDROID_FREEZE.md`. There is no `(pending)` form any more. The gate check `plat-engine-ref` compares the string with the freeze tag, so a re-freeze must update it. v1 submits Android only (INT-D41), so the reference names the Android freeze tag.
 
-`AboutScreen` has four sections: Version (version, code, engine version, engine reference), Integrity (APK SHA-1 and SHA-256, library SHA-1, signer SHA-256), Device (deviceId, posId, terminalId, Android, model) and Storage (free space, backups count and size). Hashes use the monospace figure style and the text is selectable. A warning line shows under Storage when less than 2 GiB are free or when the backups take more than half of the free space (PD219: the platform deletes nothing). Test tags: `about_root`, `about_apk_sha1`, `about_so_sha1`, `about_device_id`, plus `about_refresh`, `about_free_space`, `about_backups`, `about_warning_low_space`, `about_warning_backups`.
+`AboutScreen` has four sections: Version (version, code, engine version, engine reference), Integrity (APK SHA-1 and SHA-256, library SHA-1, signer SHA-256), Device (deviceId, posId, terminalId, Android, model) and Storage (free space, backups count and size). Hashes use the monospace figure style and the text is selectable. A warning line shows under Storage when less than 2 GiB are free or when the backups take more than half of the free space (PD219: the platform deletes nothing; since the 1.0.0 re-freeze the engine keeps only its 7 newest backups, so the backups warning is a safety net). Test tags: `about_root`, `about_apk_sha1`, `about_so_sha1`, `about_device_id`, plus `about_refresh`, `about_free_space`, `about_backups`, `about_warning_low_space`, `about_warning_backups`.
 
 `AboutScreen` takes its `AboutViewModel` from an entry point of the Hilt graph (not `hiltViewModel()`), so it renders under any host activity. The golden is `android/app/src/test/screenshots/platform/about.png` (Roborazzi, 960 px window at density 0.5, the 1920 px till).
 
@@ -168,7 +168,7 @@ The root tag is `export_root`. The screen looks for a stick that was inserted or
 | Entry | Content |
 | --- | --- |
 | `pos.db` | a fresh `backupDatabase()`: a consistent SQLite copy made by the online backup API (it opens as is, `PRAGMA integrity_check` answers `ok`) |
-| `backups/` | the 7 newest other `*.db` of `engine/backups` (never more) |
+| `backups/` | the 7 newest other `*.db` of `engine/backups` (never more; in practice at most 6, because the engine keeps its 7 newest backups and the fresh `pos.db` copy is one of them) |
 | `backups.txt` | inventory of every other backup of the till, sorted by name, one line each: `<name><TAB><bytes><TAB><sha256>` (the fresh copy is `pos.db`, not listed) |
 | `logs/` | every file of `filesDir/logs`, copied up to the size it had when the plan was made |
 | `audit/` | the platform audit files (`PlatformAudit.files()`), including the row "started" of this export |
@@ -184,7 +184,7 @@ The root tag is `export_root`. The screen looks for a stick that was inserted or
 3. For each file, in plan order: stream it in 1 MiB chunks through a SHA-256 `DigestOutputStream` to the target, `fd.sync()`, close, open it again through the target, hash it again; a different hash fails the export. Then `MANIFEST.sha256` the same way.
 4. Audit row `done` (files, bytes, folder).
 
-On any error the export stops, keeps what was written and reports the step (`precheck`, `plan`, `create_dir`, `copy`, `verify`, `manifest`), the file and the reason; the audit row `failed` carries `step`, `file`, `problem`, `reason`. A write error on a file of 4 GiB or more is reported as `plat_export_err_fat32_hint` (the stick is probably FAT32, use exFAT). The export never deletes anything, neither on the volume nor in `filesDir` (the fresh `pos.db` copy stays in `engine/backups` like every backup the engine made, so each export adds one backup to the till; retention is the open question of section 12).
+On any error the export stops, keeps what was written and reports the step (`precheck`, `plan`, `create_dir`, `copy`, `verify`, `manifest`), the file and the reason; the audit row `failed` carries `step`, `file`, `problem`, `reason`. A write error on a file of 4 GiB or more is reported as `plat_export_err_fat32_hint` (the stick is probably FAT32, use exFAT). The platform never deletes anything, neither on the volume nor in `filesDir`. The fresh `pos.db` copy stays in `engine/backups` like every backup the engine made; it is an engine backup, so the engine's retention (section 12) then keeps the 7 newest backups and may remove the oldest one.
 
 **Targets.** All export logic is above `ExportTarget` (`createDirectory`, `createFile` returning an `ExportOutput` with `sync()`, `openForRead`). `SafTarget` uses `DocumentsContract.createDocument`, `openFileDescriptor("w")` with `FileOutputStream(fd)` and `fd.sync()`, and reads back through `ContentResolver.openInputStream`; every file is created with the MIME type `application/octet-stream` so that the provider never adds an extension to `MANIFEST.sha256`. `FileTarget` writes plain files (unit tests, and the P6-T11 device test on the removable volume's app-specific directory).
 
@@ -229,11 +229,11 @@ A missing, mistyped or empty field, an unknown `format`, another `platform` or a
 
 `UpdateSource` has two calls: `fetchDescriptor()` returns `DescriptorFiles(jsonBytes, minisigText)`, `fetchAsset(name, dest, maxBytes = 200 MiB)` writes the APK to `dest` (through `dest.part`, so a failed copy leaves nothing). A source moves bytes and trusts nothing; failures are an `UpdateException(code, detail)`.
 
-**`GhcrSource` (online).** An OCI artifact, tag `declared-android` of the public package `ghcr.io/brunomoyse/moyun-pos` (the same package as the Linux `:declared`), pulled anonymously:
+**`GhcrSource` (online).** An OCI artifact, tag `declared-android` of the public package `ghcr.io/nuagemagique-dev/pili-pos` (the same package as the Linux `:declared`), pulled anonymously:
 
-1. `GET {base}/token?scope=repository:brunomoyse/moyun-pos:pull&service=ghcr.io`, JSON `{"token":"..."}` (`access_token` is accepted too);
-2. `GET {base}/v2/brunomoyse/moyun-pos/manifests/declared-android` with `Accept: application/vnd.oci.image.manifest.v1+json` and `Authorization: Bearer <token>`;
-3. `GET {base}/v2/brunomoyse/moyun-pos/blobs/<digest>` for each layer, with the bearer.
+1. `GET {base}/token?scope=repository:nuagemagique-dev/pili-pos:pull&service=ghcr.io`, JSON `{"token":"..."}` (`access_token` is accepted too);
+2. `GET {base}/v2/nuagemagique-dev/pili-pos/manifests/declared-android` with `Accept: application/vnd.oci.image.manifest.v1+json` and `Authorization: Bearer <token>`;
+3. `GET {base}/v2/nuagemagique-dev/pili-pos/blobs/<digest>` for each layer, with the bearer.
 
 The token and the manifest are fetched once per source object, so the descriptor and the APK come from the same manifest. Every blob is hashed while it streams and compared with its `sha256:` digest: a wrong digest is `sha256_mismatch` for the APK and `bad_descriptor` for the descriptor files. A layer larger than its limit is `too_large` before the blob is requested, and a blob that turns out longer than the manifest says is refused (`too_large`) as soon as it passes the limit, and nothing is kept. Timeouts: 15 s to connect, 60 s to read. Redirects (the registry sends blobs to a CDN) are followed by hand, at most 5, and the `Authorization` header goes only to the origin (scheme, host and port) of the base URL, never to the target of a redirect. TLS is required, apart from the debug override below. Any HTTP error or transport failure is `network`.
 
@@ -243,7 +243,7 @@ The token and the manifest are fetched once per source object, so the descriptor
 
 ### 8.3 OCI layout that P6-T9 must produce
 
-`oras push ghcr.io/brunomoyse/moyun-pos:declared-android` with exactly these three files, each pushed as a layer whose `org.opencontainers.image.title` annotation is the file name (oras sets it from the file name):
+`oras push ghcr.io/nuagemagique-dev/pili-pos:declared-android` with exactly these three files, each pushed as a layer whose `org.opencontainers.image.title` annotation is the file name (oras sets it from the file name):
 
 | Layer title | Content |
 | --- | --- |
@@ -310,10 +310,13 @@ UpdateScreen            UpdateInstaller                 engine / disk / system
                         gateway.close()  -> Closed          (StillOpen: Refused engine_busy, EngineService.start)
                         write filesDir/platform/update/pending.json  (tmp file, fsync, rename)
                         audit update/started {from, to, version, sha1}
+                        clearUserRestriction(no_install_apps)   (PD231; set again in a finally, after the system answered or the hold ended)
                         PackageInstaller session: MODE_FULL_INSTALL, own package, INSTALL_REASON_POLICY,
                           USER_ACTION_NOT_REQUIRED, setSize, openWrite + fsync, commit(broadcast to InstallResultReceiver)
                         returns Committed (the result is not awaited)
 ```
+
+`DISALLOW_INSTALL_APPS` (PD231) is lifted only around the session. If the install succeeds the process is replaced before the restriction is set again, and the next `PolicyApplier.apply` at application start adds it back (the same repair as after a crash). A refused clear or re-set is logged and does not change the outcome.
 
 Any exception from the marker on, before the commit returns: abandon the session, delete the marker, `EngineService.start`, audit `failed` (code `install_failed`), result `Refused(INSTALL_FAILED)`. A cancellation does the same, then rethrows. After the commit the call only keeps the `update` operation open for at most 90 s (or until the receiver reports), so that the watchdog does not reopen the engine while the system installs; it decides nothing from the answer. The screen then shows "installing, the till restarts".
 
@@ -406,7 +409,7 @@ The database has no free pages after the run, so the figures are the growth and 
 | 100 | 236 MB a year (225 MiB) | 523 MB a year (499 MiB) |
 | 300 | 709 MB a year (676 MiB) | 1.57 GB a year (1.46 GiB) |
 
-**Backups, if every Z copies the whole database and nothing deletes the copies.** The copy of day *d* weighs the database of day *d*, so after 365 days the copies together weigh `365 x 294,912 + daily growth x 365 x 366 / 2`:
+**Backups, if every Z copies the whole database and nothing deletes the copies (the engine before the 1.0.0 re-freeze; kept for the record).** The copy of day *d* weighs the database of day *d*, so after 365 days the copies together weigh `365 x 294,912 + daily growth x 365 x 366 / 2`:
 
 | Sales a day | 1-line sale | 6-line sale |
 | --- | --- | --- |
@@ -415,15 +418,17 @@ The database has no free pages after the run, so the figures are the growth and 
 
 The database itself stays small (about 0.2 to 1.5 GiB a year); the backups are 100 times bigger than it after a year.
 
-**A finding that matters more than the card size.** The engine writes a full copy of `pos.db` to `backups/` after every Z (`crates/pos-engine/src/commands/signing.rs:761`) and never deletes one (PD219). After a year that is about 365 copies of a database that keeps growing, which is far more than the database itself: the measurement above gives 40 to 268 GiB of backups after a year, and 32 GiB are reached between day 126 and day 325 depending on the volume. That fills the internal storage of the till within months (the free space of the real D3 Pro is read from its About screen; the emulator says nothing about it). The platform lane deletes nothing, because the engine is frozen and deleting is a decision for the user. The About screen shows the free internal space and the size of `backups/`, and the export copies only the 7 newest backups. A retention rule (for example "keep 14 days on the till") is an engine change, best made with the re-freeze that the nightly export lane needs anyway.
+**Retention (user decision of 2026-10-10, "Keep the 7 newest", PD219).** The engine writes a full copy of `pos.db` to `backups/` after every Z (`crates/pos-engine/src/commands/signing.rs`, `report::backup_database_impl`) and, before the 1.0.0 re-freeze, never deleted one: the table above gave 40 to 268 GiB of backups after a year, which would fill the internal storage of the till within months. Since the re-freeze the engine keeps only the 7 newest of its own backups (`report::BACKUPS_KEPT`). It deletes only after the new copy is complete and `PRAGMA quick_check` answers `ok`, only files named `pos-<UTC timestamp>.db`, never `pos.db`, the nightly export folder (`exports/`) or a file someone else put there (`manual-*.db`, `pre-update-*.db` on Linux), and it logs each deletion. Every engine backup counts, whatever made it (the Z, the Backup button, the SPF export's fresh copy). The rule is the same on Linux and Android (no platform conditional) and is tested by `nine_z_in_a_row_leave_the_seven_newest_backups` (`crates/pos-engine/tests/export_nightly.rs`). Nothing legal is lost: the live `pos.db` keeps the whole fiscal journal; the off-till copy is the nightly export.
+
+**Backups with retention.** The copies together weigh at most 7 times the database: about 2 MiB at the start, then at the end of the first year about 1.5 GiB at 100 sales a day of 1 line, 3.4 GiB at 100 sales of 6 lines, 4.6 GiB at 300 sales of 1 line and 10.2 GiB at 300 sales of 6 lines (7 x the yearly projection above plus the seed). The database and its 7 copies grow linearly, not quadratically.
 
 **Recommendation.** The database stays in internal storage only (above). The SD card is for exports and updates:
 - exFAT, because FAT32 refuses files of 4 GiB or more, which the database alone reaches after about 3 years at 300 sales a day of 6 lines;
 - a good-quality microSDXC card, "high endurance" or class A1/U3;
-- **64 GB** is enough for the first year at 100 sales a day: one export is `pos.db` plus the 7 newest backups, about 8 times the database, so about 0.2 GiB at the start and 3.9 GiB at the end of the first year, which leaves room for about 15 exports at the end of that year;
+- **64 GB** is enough for the first year at 100 sales a day: one export is `pos.db` plus at most 6 other backups, about 7 times the database (the figures here keep the earlier 8 as a margin), so about 0.2 GiB at the start and 3.9 GiB at the end of the first year, which leaves room for about 15 exports at the end of that year;
 - **128 GB** at 300 sales a day or from the second year: one export weighs about 12 GiB at the end of the first year at 300 sales a day (6-line sales), and the app never deletes a folder on the card, so the manager has to clear old exports.
 
-The measurement does not change "internal only" nor the card kind; it makes the size depend on the volume and shows that the card cannot be the answer to the backups: only a retention rule on the till (for example "keep 14 days", an engine change, PD219) keeps the internal storage from filling.
+The measurement does not change "internal only" nor the card kind; it makes the size depend on the volume and shows that the card cannot be the answer to the backups: the retention rule on the till (the engine keeps the 7 newest backups, PD219) is what keeps the internal storage from filling.
 
 Not checked, hardware residue: the largest card the D3 Pro accepts and its slot behaviour (there is no real D3 Pro here), the free internal space of the real device, and exFAT on a real card (the virtual SD disk of the emulator is vfat). The SD card is never the only copy: the SPF export is a manager action, and the off-till copy belongs to the nightly export lane.
 
@@ -440,7 +445,7 @@ Status: as built (P6-T11)
 | `build`, `newer-apk` | `:app:assembleDebug :app:assembleDebugAndroidTest`; then the same debug app as versionCode + 1 and the next patch version (`1.0.1`, no `-dev`, as the descriptor wants) |
 | `mocks` | FDM and printer mocks as `app_e2e.sh`, plus `plat_registry_mock.py` (device ports 19392, and 19393 for its redirect target) |
 | `bundle`, `install`, `launch`, `push` | as `app_e2e.sh` |
-| `policies` | step `provision_and_policies`: import from the inbox, Ready, then through the system: the 13 restrictions of PD206, `no_debugging_features` absent in debug, `no_physical_media` and `no_config_wifi` absent, lock task features 0, auto time on, auto time zone off, zone Europe/Brussels, uninstall blocked, stay awake 7, keyguard off |
+| `policies` | step `provision_and_policies`: import from the inbox, Ready, then through the system: the 14 restrictions of PD206 and PD231, `no_debugging_features` absent in debug, `no_physical_media` and `no_config_wifi` absent, lock task features 0, auto time on, auto time zone off, zone Europe/Brussels, uninstall blocked, stay awake 7, keyguard off |
 | `sales` | step `sales`: manager login, 50 sales of one line then 10 of 6 lines, each `createOrder` (takeaway), `addOrderLine`, `checkout` with one cash part without an amount (the engine settles it, no arithmetic in the test), then `generateZReport`; the PASS detail carries `bytes_per_sale` and the sizes of section 12 |
 | `export` | step `export`: `Exporter` with a `FileTarget` on the app-specific directory of the removable volume, every `MANIFEST.sha256` entry hashed again in the app; then `sha256sum -c` on the device, the folder pulled and `shasum -a 256 -c` on the host, and `PRAGMA integrity_check` of the exported `pos.db` |
 | `declared` | the host copies the newer APK to the registry directory and writes `declared.json` (PD211) with the hashes and the signer from `apksigner verify --print-certs`, signed with the development minisign key (read in place) and verified with `dev-minisign.pub` |
@@ -457,7 +462,7 @@ Choices to know:
 - The instrumented steps do not use `am force-stop` (PD118). The install and the watchdog end the instrumented process on purpose, so the restart checks compare pids and read only the log of the new pid.
 
 **Run of 2026-10-09 (this card), after the fix of `UpdatePreconditions.zIsDone`: `PLATE2E | total | PASS | 0 failed (19 checks)`.** Every check passes, `emulator` to `teardown`. Lines (detail shortened; the full output of the run is kept in `target/android-plat-e2e/final2.out` of the work tree):
-- `policies | PASS | PLATE2E_POLICIES ok restrictions=13 zone=Europe/Brussels`
+- `policies | PASS | PLATE2E_POLICIES ok restrictions=14 zone=Europe/Brussels`
 - `sales | PASS | sales=50 ... bytes_per_sale=88544 (file sizes, WAL included); logical: bytes_per_sale=6471; multi-line: sales=10 lines=6 bytes_per_sale=14336; backups: after_z files=1 bytes=778240`
 - `export | PASS | 8 files, 1562220 bytes ...; MANIFEST.sha256 verified on the device (sha256sum -c: 7 OK) and on the host (shasum -a 256 -c: 7 OK); pos.db integrity_check ok`
 - `declared | PASS | pili-pos-android-1.0.1.apk ... declared.json signed with the development key and verified with dev-minisign.pub`
@@ -482,11 +487,11 @@ Status: as built (P6-T2)
 | `plat-strings` | every `values/strings_plat_<area>.xml` has a twin in `values-en/` and `values-zh/` with the same names, each starting with `plat_<area>_`, no empty value; `translatable="false"` only in `values/` |
 | `plat-boundary` | under `platform/` (comments ignored): no `EngineHolder`, `force-stop`, `forceStop`, `killBackgroundProcesses`, `settlePreview`, `vatSplit`, `cashDueCents`; `http://` only on a line with `127.0.0.1` or `localhost` |
 | `plat-keys` | SKIP while `plat_update_keys.xml` is absent; else the `debug` key equals the key line of `dev-minisign.pub` and the `release` key is empty or matches `^RW[A-Za-z0-9+/]{54}$` |
-| `plat-engine-ref` | SKIP while `plat_about_engine_ref` does not exist; else it equals `pili-pos <V>, <TAG> (<SHORT>)` for the freeze tag (`PILI_P6_FREEZE_TAG`, default `linux-v1.1.0-rc1`) |
+| `plat-engine-ref` | SKIP while `plat_about_engine_ref` does not exist; else the value must equal `pili-pos <V>, <TAG>` with V from the working tree and TAG = `PILI_P6_FREEZE_TAG` (default `android-v1.0.0-rc3`); any other value (the old `(pending)` and `(SHORT)` forms too) is a FAIL. TAG absent: PASS "tag TAG not set yet". TAG present: FAIL unless `git show TAG:Cargo.toml` has version V and `TAG:android/app/src/main/res/values/strings_plat_about.xml` holds the same value, else PASS "matches TAG (<short>)" |
 | `selftest-p6-gate` | full mode only: `scripts/android/test_p6_gate.sh` |
 | `selftest-declare` | full mode only: `scripts/release/test_declare_android.sh`, SKIP while absent |
 | `plat-e2e` | `--plat-e2e` only: `scripts/android/plat_e2e.sh`, SKIP while absent |
 
 Profiles (PD202): `p6_gate.sh --app --fast --base android/lane-plat --allow "$(python3 scripts/android/lane_paths.py --regex platform)"` for every commit of a card, without `--fast` at the end; the card that changes `android/docker/` drops `--app`; P6-T11 adds `--plat-e2e --app-e2e`. The Kover floor stays at 80 percent of lines and 60 percent of branches.
 
-Self-test: `bash scripts/android/test_p6_gate.sh` builds temporary git repositories, uses a stub sub-gate and prints `TESTP6 | total | PASS | <n> tests`. The `plat_engine_ref` check follows a re-freeze: when the freeze tag changes, the string and `PILI_P6_FREEZE_TAG` (and `p4_gate.sh`) must follow.
+Self-test: `bash scripts/android/test_p6_gate.sh` builds temporary git repositories, uses a stub sub-gate and prints `TESTP6 | total | PASS | <n> tests`. The `plat_engine_ref` check follows a re-freeze: when the freeze tag changes, the string and `PILI_P6_FREEZE_TAG` (and `p4_gate.sh`, `p7_gate.sh`) must follow.

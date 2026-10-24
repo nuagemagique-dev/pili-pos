@@ -246,6 +246,68 @@ async fn checkout_refused_with_a_spec_shaped_error_hands_its_code_to_the_ui() {
     }
 }
 
+/// An FDM that answers a sale with INTERNAL_ERROR, UNDEFINED_ERROR or
+/// UNDEFINED_OTHER may have signed it: the outcome stays unknown (the
+/// same request is sent again), but the error carries the FDM's code so
+/// that the screens show what it said (certification manual §V).
+#[tokio::test]
+async fn checkout_with_an_unknown_outcome_error_carries_the_fdm_code() {
+    for code in ["INTERNAL_ERROR", "UNDEFINED_ERROR", "UNDEFINED_OTHER"] {
+        let app = TestApp::new().await;
+        let order_id = seed_minimal_open_order(&app);
+        Mock::given(method("POST"))
+            .and(path("/graphql"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "errors": [{
+                    "message": "something failed",
+                    "extensions": { "category": "SPF_FOD", "code": code, "showPos": "OPTIONAL" }
+                }]
+            })))
+            .mount(&app.fdm)
+            .await;
+
+        let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+            .await
+            .expect("checkout returns a result");
+        assert!(!result.success, "{code}");
+        let error = result.error.unwrap_or_default();
+        assert!(
+            error.starts_with(&format!(
+                "FDM error: FDM_ANSWER_PENDING|label=N|ticket=1|fdm={code}|cause="
+            )),
+            "{code}: {error}"
+        );
+        assert_eq!(app.fiscal_events().len(), 0, "{code}");
+        assert_eq!(
+            app.order_status(order_id).as_deref(),
+            Some("open"),
+            "{code}"
+        );
+    }
+}
+
+/// A refusal that does not name an FDM code (a dropped answer) has no
+/// `fdm` value: the screens show the instruction alone.
+#[tokio::test]
+async fn checkout_with_a_lost_answer_has_no_fdm_code() {
+    let app = TestApp::new().await;
+    let order_id = seed_minimal_open_order(&app);
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&app.fdm)
+        .await;
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .expect("checkout returns a result");
+    let error = result.error.unwrap_or_default();
+    assert!(
+        error.contains("FDM_ANSWER_PENDING|label=N|ticket=1|cause="),
+        "{error}"
+    );
+    assert!(!error.contains("|fdm="), "{error}");
+}
+
 #[tokio::test]
 async fn checkout_unreachable_fdm_blocks_the_sale_without_archiving() {
     let app = TestApp::new().await;

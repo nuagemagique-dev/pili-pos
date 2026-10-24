@@ -62,7 +62,7 @@ tgit() {
 
 RES=android/app/src/main/res
 PLAT=android/app/src/main/kotlin/dev/nuagemagique/pilipos/platform
-DEV_KEY="RWQmv3D5F4695q2BBUUzfk0ABpONbcMKPePaMqZkpr5UV8J0PCTEdO/v"
+DEV_KEY="RWRrbVE2do8gX6jV4FXRQpiK3QIKlruHZzxVT/P81uXp7QShDib1tTBj"
 REL_KEY="RW$(printf 'B%.0s' $(seq 1 54))"
 
 # write FILE: stdin to FILE (directories are created)
@@ -85,7 +85,7 @@ version = "0.0.1"
 members = []
 
 [workspace.package]
-version = "1.1.0"
+version = "1.0.0"
 edition = "2021"
 EOF
     write "$r/android/app/src/main/AndroidManifest.xml" <<'EOF'
@@ -153,7 +153,7 @@ object PlatformRoutes {
 }
 EOF
     write "$r/android/app/provisioning/dev-minisign.pub" <<EOF
-untrusted comment: minisign public key E6BD8E17F970BF26
+untrusted comment: minisign public key 5F208F7636516D6B
 $DEV_KEY
 EOF
     {
@@ -161,12 +161,11 @@ EOF
         tgit "$r" add -A
         tgit "$r" commit -q -m "chore: base"
         tgit "$r" tag base
-        tgit "$r" tag linux-v1.1.0-rc1
+        tgit "$r" tag android-v1.0.0-rc3
     } >/dev/null 2>&1
 }
 build_pristine
-SHORT="$(tgit "$PRISTINE" rev-parse 'linux-v1.1.0-rc1^{commit}' | cut -c1-7)"
-GOOD_REF="pili-pos 1.1.0, linux-v1.1.0-rc1 (${SHORT})"
+GOOD_REF="pili-pos 1.0.0, android-v1.0.0-rc3"
 
 # new_repo: a copy of the pristine repository. Prints its path.
 new_repo() {
@@ -457,7 +456,7 @@ EOF
 }
 keys_case "plat-keys PASS with the dev key and an empty release key" "$DEV_KEY" "" PASS
 keys_case "plat-keys PASS with the dev key and a valid release key" "$DEV_KEY" "$REL_KEY" PASS
-keys_case "plat-keys FAIL with a wrong debug key" "RWQmv3D5F4695q2BBUUzfk0ABpONbcMKPePaMqZkpr5UV8J0PCTEdO/w" "" FAIL
+keys_case "plat-keys FAIL with a wrong debug key" "RWRrbVE2do8gX6jV4FXRQpiK3QIKlruHZzxVT/P81uXp7QShDib1tTBk" "" FAIL
 keys_case "plat-keys FAIL with an empty debug key" "" "" FAIL
 keys_case "plat-keys FAIL with a malformed release key" "$DEV_KEY" "RWshort" FAIL
 keys_case "plat-keys FAIL with a release key of the wrong prefix" "$DEV_KEY" "XX$(printf 'B%.0s' $(seq 1 54))" FAIL
@@ -482,30 +481,73 @@ fast "$r"
 expect "plat-keys FAIL when dev-minisign.pub is missing" plat-keys FAIL
 
 # ── plat-engine-ref ─────────────────────────────────────────────
+ENGINE_REF_XML='</resources>'
+ref_xml() { printf '<string name="plat_about_engine_ref" translatable="false">%s</string></resources>' "$1"; }
+# Before the tag exists: the string must equal 'pili-pos V, TAG'.
 r="$(new_repo)"
-subst "$r/$RES/values/strings_plat_about.xml" '</resources>' "<string name=\"plat_about_engine_ref\" translatable=\"false\">$GOOD_REF</string></resources>"
+tgit "$r" tag -d android-v1.0.0-rc3 >/dev/null 2>&1
+subst "$r/$RES/values/strings_plat_about.xml" "$ENGINE_REF_XML" "$(ref_xml "$GOOD_REF")"
 fast "$r"
-expect "plat-engine-ref PASS when the string equals 'pili-pos V, TAG (SHORT)'" plat-engine-ref PASS
+expect "plat-engine-ref PASS before the tag when the string equals 'pili-pos V, TAG'" plat-engine-ref PASS
 expect "plat-strings still PASS with the engine ref string" plat-strings PASS
-check "the PASS detail is the reference" "$([[ "$(detail_of plat-engine-ref)" == "$GOOD_REF" ]] && echo 0 || echo 1)" "detail=$(detail_of plat-engine-ref)"
-for wrong in "pili-pos 1.1.1, linux-v1.1.0-rc1 (${SHORT})" "pili-pos 1.1.0, linux-v1.1.0-rc1 (0000000)" "pili-pos 1.1.0, linux-v1.0.0-rc1 (${SHORT})" "pili-pos 0.0.1, linux-v1.1.0-rc1 (${SHORT})" "pili-pos 1.1.0 , linux-v1.1.0-rc1 (${SHORT})"; do
+check "the PASS detail says the tag is not set yet" "$([[ "$(detail_of plat-engine-ref)" == "'$GOOD_REF' (tag android-v1.0.0-rc3 not set yet)" ]] && echo 0 || echo 1)" "detail=$(detail_of plat-engine-ref)"
+for wrong in "pili-pos 1.0.0, android-v1.0.0-rc3 (pending)" "pili-pos 1.0.0, android-v1.0.0-rc3 (0000000)" "pili-pos 1.0.1, android-v1.0.0-rc3" "pili-pos 1.0.0, android-v1.1.0-rc1" "pili-pos 1.0.0, linux-v1.0.0-rc3 (pending)" "pili-pos 1.0.0 , android-v1.0.0-rc3"; do
     r="$(new_repo)"
-    subst "$r/$RES/values/strings_plat_about.xml" '</resources>' "<string name=\"plat_about_engine_ref\" translatable=\"false\">$wrong</string></resources>"
+    tgit "$r" tag -d android-v1.0.0-rc3 >/dev/null 2>&1
+    subst "$r/$RES/values/strings_plat_about.xml" "$ENGINE_REF_XML" "$(ref_xml "$wrong")"
     fast "$r"
     expect "plat-engine-ref FAIL on '$wrong'" plat-engine-ref FAIL
 done
+# Tag present: the string was committed with the tag and is unchanged.
 r="$(new_repo)"
-tgit "$r" tag custom-freeze >/dev/null 2>&1
+tgit "$r" tag -d android-v1.0.0-rc3 >/dev/null 2>&1
+subst "$r/$RES/values/strings_plat_about.xml" "$ENGINE_REF_XML" "$(ref_xml "$GOOD_REF")"
+tgit "$r" commit -q -am "chore: engine ref" >/dev/null 2>&1
+tgit "$r" tag android-v1.0.0-rc3 >/dev/null 2>&1
+short="$(tgit "$r" rev-parse 'android-v1.0.0-rc3^{commit}' | cut -c1-7)"
+fast "$r"
+expect "plat-engine-ref PASS when the tag holds the same string" plat-engine-ref PASS
+check "the PASS detail names the tag commit" "$([[ "$(detail_of plat-engine-ref)" == "matches android-v1.0.0-rc3 ($short)" ]] && echo 0 || echo 1)" "detail=$(detail_of plat-engine-ref)"
+# Tag present whose file holds another value (the tag is older than a string edit).
 printf '\n' >>"$r/Cargo.toml"
-subst "$r/Cargo.toml" 'version = "1.1.0"' 'version = "2.0.0"'
-tgit "$r" commit -q -am "chore: bump" >/dev/null 2>&1
-tgit "$r" tag custom-freeze-2 >/dev/null 2>&1
-short2="$(tgit "$r" rev-parse 'custom-freeze-2^{commit}' | cut -c1-7)"
-subst "$r/$RES/values/strings_plat_about.xml" '</resources>' "<string name=\"plat_about_engine_ref\" translatable=\"false\">pili-pos 2.0.0, custom-freeze-2 (${short2})</string></resources>"
-run_gate "$r" PILI_P6_FREEZE_TAG=custom-freeze-2 -- --fast
+subst "$r/$RES/values/strings_plat_about.xml" "$GOOD_REF" "pili-pos 1.0.0, android-v1.0.0-rc3 "
+fast "$r"
+expect "plat-engine-ref PASS when only whitespace differs after trimming" plat-engine-ref PASS
+r="$(new_repo)"
+subst "$r/$RES/values/strings_plat_about.xml" "$ENGINE_REF_XML" "$(ref_xml "$GOOD_REF")"
+fast "$r"
+expect "plat-engine-ref FAIL when the tag file holds no engine ref" plat-engine-ref FAIL
+r="$(new_repo)"
+tgit "$r" tag -d android-v1.0.0-rc3 >/dev/null 2>&1
+subst "$r/$RES/values/strings_plat_about.xml" "$ENGINE_REF_XML" "$(ref_xml "pili-pos 1.0.0, android-v1.0.0-rc3x")"
+tgit "$r" commit -q -am "chore: other value" >/dev/null 2>&1
+tgit "$r" tag android-v1.0.0-rc3 >/dev/null 2>&1
+subst "$r/$RES/values/strings_plat_about.xml" "rc3x" "rc3"
+fast "$r"
+expect "plat-engine-ref FAIL when the tag file holds another value" plat-engine-ref FAIL
+# Version of the tag differs from the working tree.
+r="$(new_repo)"
+tgit "$r" tag -d android-v1.0.0-rc3 >/dev/null 2>&1
+subst "$r/$RES/values/strings_plat_about.xml" "$ENGINE_REF_XML" "$(ref_xml "$GOOD_REF")"
+tgit "$r" commit -q -am "chore: engine ref" >/dev/null 2>&1
+tgit "$r" tag android-v1.0.0-rc3 >/dev/null 2>&1
+subst "$r/Cargo.toml" 'version = "1.0.0"' 'version = "1.0.1"'
+subst "$r/$RES/values/strings_plat_about.xml" "$GOOD_REF" "pili-pos 1.0.1, android-v1.0.0-rc3"
+fast "$r"
+expect "plat-engine-ref FAIL when the tag Cargo.toml has another version" plat-engine-ref FAIL
+# PILI_P6_FREEZE_TAG override (tag present, same string committed).
+r="$(new_repo)"
+subst "$r/$RES/values/strings_plat_about.xml" "$ENGINE_REF_XML" "$(ref_xml "pili-pos 1.0.0, custom-freeze")"
+tgit "$r" commit -q -am "chore: engine ref" >/dev/null 2>&1
+tgit "$r" tag custom-freeze >/dev/null 2>&1
+run_gate "$r" PILI_P6_FREEZE_TAG=custom-freeze -- --fast
 expect "plat-engine-ref follows PILI_P6_FREEZE_TAG" plat-engine-ref PASS
+# Override naming a nonexistent tag with a matching string: PASS 'not set yet'.
+r="$(new_repo)"
+subst "$r/$RES/values/strings_plat_about.xml" "$ENGINE_REF_XML" "$(ref_xml "pili-pos 1.0.0, no-such-tag")"
 run_gate "$r" PILI_P6_FREEZE_TAG=no-such-tag -- --fast
-expect "plat-engine-ref FAIL when the freeze tag does not exist" plat-engine-ref FAIL
+expect "plat-engine-ref PASS for a nonexistent override tag with a matching string" plat-engine-ref PASS
+check "the override PASS detail says not set yet" "$([[ "$(detail_of plat-engine-ref)" == *"tag no-such-tag not set yet"* ]] && echo 0 || echo 1)" "detail=$(detail_of plat-engine-ref)"
 
 # ── full mode: self-tests ───────────────────────────────────────
 r="$(new_repo)"

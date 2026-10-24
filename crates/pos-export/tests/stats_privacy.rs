@@ -277,6 +277,34 @@ fn the_proof_catches_a_leaking_value() {
     ));
 }
 
+/// A pseudonym is a hash under a random key: its 16 hex characters can be
+/// digits only by chance, and that never makes it an INSZ. Anything that is
+/// not exactly `u-` and 16 lowercase hex characters keeps the digit rule,
+/// and a pseudonym still may not hold a secret.
+#[test]
+fn the_proof_accepts_a_pseudonym_made_of_digits_but_nothing_else() {
+    let user = |value: &str, secrets: &[&str]| {
+        check(
+            &format!("CREATE TABLE users (user_ref TEXT); INSERT INTO users VALUES ('{value}');"),
+            secrets,
+        )
+    };
+    assert!(user("u-1234567890123456", &[]));
+    assert!(user("u-0a12345678901bcd", &[]));
+    for value in [
+        "u-12345678901",
+        "u-12345678901234567",
+        "u-1234567890123456 ",
+        "U-1234567890123456",
+        "u-12345678901ABCDE",
+        "x-1234567890123456",
+        "1234567890123456",
+    ] {
+        assert!(!user(value, &[]), "value {value} was accepted");
+    }
+    assert!(!user("u-75061189702abcde", &["75061189702"]));
+}
+
 #[test]
 fn the_proof_catches_a_secret_left_in_the_file_bytes() {
     // The value was deleted, but the page still holds it.

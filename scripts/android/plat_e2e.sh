@@ -489,7 +489,7 @@ gradle_in "$NEWER_WT" "$OUTDIR/gradle-newer.log" :app:assembleDebug || {
 }
 newer_ok "$NEWER_WT/android/app/build/outputs/apk/debug/app-debug.apk" || abort newer-apk "the APK built in $NEWER_WT is not $NEW_NAME ($NEW_CODE)"
 cp "$NEWER_WT/android/app/build/outputs/apk/debug/app-debug.apk" "$WORK_DIR/apk/newer.apk"
-newer_method="a throwaway export of HEAD in $NEWER_WT (removed at the end)"
+newer_method="a throwaway export of HEAD in <dépôt>/${NEWER_WT#"$ROOT"/} (removed at the end)"
 pass newer-apk "$NEW_NAME ($NEW_CODE) built with $newer_method"
 
 # ── mocks ───────────────────────────────────────────────────────
@@ -592,7 +592,7 @@ note "am instrument step=provision_and_policies (log $OUTDIR/step-provision_and_
 run_step provision_and_policies 240
 policy_line="$(step_line provision_and_policies POLICIES)"
 if [[ "$STEP_OK" -eq 1 && "$policy_line" == "PLATE2E_POLICIES ok"* ]]; then
-    pass policies "$policy_line; restrictions, lock task features 0, auto time on, zone off, uninstall blocked, keyguard"
+    pass policies "$policy_line; restrictions (install apps included), lock task features 0, auto time on, zone off, uninstall blocked, Google apps hidden, update window 03:00-05:00, keyguard"
 else
     abort policies "step provision_and_policies did not pass: $(step_failure provision_and_policies)"
 fi

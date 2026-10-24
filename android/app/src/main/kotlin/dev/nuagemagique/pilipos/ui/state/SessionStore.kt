@@ -159,7 +159,8 @@ class SessionStore
             mutableLocked.tryEmit(locked)
         }
 
-        private fun remember(user: User): User {
+        /** Keeps [user] as the logged-in operator; a badge login (the engine already opened the session) calls this. */
+        internal fun remember(user: User): User {
             mutableUser.value = user
             mutableManager.value = user.role == UserRole.ADMIN
             mutablePayment.value = user.role == UserRole.ADMIN || user.role == UserRole.CASHIER

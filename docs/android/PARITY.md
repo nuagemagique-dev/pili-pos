@@ -54,7 +54,11 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | stores/pos.ts | ui/state/PosSettingsStore.kt | `get_settings` `set_training_mode` |
 | stores/auth.ts | ui/state/SessionStore.kt | `login` `login_with_new_pin` `logout` `lock_session` `end_shift` |
 | stores/integrations.ts | ui/state/IntegrationsStore.kt | `get_integrations` `set_hubrise_enabled` |
+| stores/ownerAlerts.ts | feature/settings/alerts/OwnerAlertsViewModel.kt | `get_owner_alerts` `set_owner_alerts` `send_test_alert` `list_owner_alert_log` |
 | i18n.ts (useI18n, language) | ui/text/UiText.kt (PosUiRoot, LocalUiLanguage, vueText, uiText) | - |
+| stores/allergens.ts | feature/order/MenuViewModel.kt (allergen legend, mode and sheet state) | `list_allergens` `get_allergen_sheet` `print_allergen_sheet` |
+| stores/order.ts (courses: courseSettings, heldCourses, setLineCourse, sendNextCourse) | ui/state/OrderStore.kt (courseSettings, heldCourses, setLineCourse, sendNextCourse) | `get_course_settings` `set_line_course` `list_held_courses` `send_next_course` |
+| stores/giftVouchers.ts, stores/order.ts (addGiftVoucher) | feature/order/MenuViewModel.kt, feature/checkout/CheckoutViewModel.kt, feature/reports/ReportsViewModel.kt (each reads `get_gift_voucher_settings`), ui/state/OrderStore.kt (addGiftVoucher) | `get_gift_voucher_settings` `add_gift_voucher_line` |
 | stores/order.ts | ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` `add_order_line` `remove_order_line` `update_order_line_quantity` `leave_order` `sign_pre_bill` `close_unpaid` `list_open_orders` |
 | utils/names.ts | ui/format/ProductNames.kt | - |
 | stores/fdm.ts | ui/fdm/FdmStore.kt | `fdm_health` `fdm_check_now` |
@@ -66,7 +70,8 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | components/TrainingBanner.vue and the App.vue watermark | ui/components/TrainingBanner.kt, TrainingWatermarkOverlay | - |
 | components/ConfigProblemsBanner.vue | ui/components/ConfigProblemsBanner.kt | - |
 | components/AppHeader.vue, PiliLogo.vue, OnlineOrdersNavButton.vue | ui/scaffold/AppHeader.kt (AppHeader, PiliLogo), PosScaffold.kt, HeaderViewModel.kt | `set_pin` |
-| components/StatusLights.vue | ui/scaffold/StatusLights.kt | `check_printer` `check_kitchen_printer` `hubrise_status` |
+| views/TablesView.vue, views/ReportsView.vue (card charged badge, Z warning) | feature/tables/TablesScreen.kt, feature/reports/ReportsDayTab.kt | `list_unsettled_card_payments` |
+| components/StatusLights.vue | ui/scaffold/StatusLights.kt | `check_printer` `check_kitchen_printer` `check_payment_terminal` `hubrise_status` |
 | stores/delivery.ts | ui/state/DeliveryStore.kt | `check_mail_status` `print_missing_original` |
 | components/TicketMediumPicker.vue | ui/components/TicketMediumPicker.kt | - |
 | components/EmailKeypad.vue | ui/components/EmailKeypad.kt | - |
@@ -76,6 +81,9 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | composables/useOrderChime.ts | ui/feedback/OrderChime.kt | - |
 | router/index.ts leave guard | ui/scaffold/HeaderActions.kt and OrderStore.leaveIfActive | `leave_order` |
 | App.vue activity forwarding | foundation kiosk/UserActivityForwarder.kt | `user_activity` |
+| stores/badge.ts, composables/useBadgeReader.ts and utils/badgeWedge.ts (the global scan handling: USB wedge, outcomes, enrolment capture, end-of-shift flag, PIN request) | ui/badge/BadgeStore.kt, KeyWedgeSource.kt, WedgeDetector.kt, BadgeSource.kt, BadgeModule.kt, wired in MainActivity.dispatchKeyEvent | `get_badge_settings` `set_badge_settings` `list_badges` `link_badge` `revoke_badge` `badge_tap` |
+| composables/useBadgeCue.ts | ui/badge/BadgeCue.kt (AudioTrackBadgeCue) | - |
+| (Android only: built-in NFC reader, lane 5-nfc) | ui/badge/NfcBadgeSource.kt (NfcBadgeSource, NfcSupport), wired in MainActivity.onResume and onPause | - |
 
 Not ported: components/SupportBanner.vue and stores/support.ts. There is no remote support in v1 (DECISIONS section 7).
 
@@ -91,6 +99,7 @@ remote_support_running excluded no remote support in v1, DECISIONS section 7
 check_fdm_status excluded no Vue caller; fdm_health and fdm_check_now replace it
 list_fiscal_events excluded no Vue caller
 sign_table_order excluded no Vue caller; leave_order registers the P
-work_in excluded no Vue caller; login clocks in and end_shift clocks out since P1b
-work_out excluded no Vue caller; login clocks in and end_shift clocks out since P1b
+work_in excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else with clock_in_employee from the employees panel (own presence stays login and end of shift, so no UI calls work_in)
+work_out excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else out with clock_out_employee from the employees panel (no UI calls work_out)
+reprint_course_slip excluded no screen yet; the DUPLICATA reprint of a course slip is engine-only (DECISIONS, T4)
 ```

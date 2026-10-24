@@ -46,12 +46,14 @@ async function board(
   page: import('@playwright/test').Page,
   orders: unknown[],
   role = 'admin',
+  extra: Record<string, (args?: any) => any> = {},
 ) {
   const user = { ...DEFAULT_USER, role };
   await page.addInitScript((o) => {
     (window as any).__webshop = o;
   }, orders);
   await mockTauriIPC(page, {
+    ...extra,
     login: () => user,
     list_users: () => [user],
     print_webshop_kitchen: () => undefined,

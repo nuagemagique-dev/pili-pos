@@ -11,11 +11,15 @@ checks, end of shift); the screen only calls it through the shared stores and th
 | ui/src/views/LoginView.vue | feature/login/LoginScreen.kt (LoginRoute, LoginContent), LoginBrand.kt, LoginPeople.kt, LoginPinPanel.kt, LoginViewModel.kt, LoginStartupChecks.kt, LoginState.kt, LoginEntryPoint.kt | `list_users` `list_open_shifts` `check_printer` `check_kitchen_printer` `check_mail_status` `hubrise_get_connection_status` |
 | stores/auth.ts (login, loginWithNewPin, endShift driven by the tiles, the PIN pad, the INSZ entry and the first PIN) | ui/state/SessionStore.kt | `login` `login_with_new_pin` `end_shift` |
 | stores/fdm.ts (checkNow, read by the start-up checks) | feature/login/LoginStartupChecks.kt (StoreFdmProbe over ui/fdm/FdmStore.kt, which makes the call) | `fdm_check_now` |
+| LoginView.vue (badge hints, a manager's badge opens the PIN pad, a badge login, the end-of-shift mode mirrored for the scans) | feature/login/LoginViewModel.kt (`observeBadges`), LoginPeople.kt (BadgeHint), LoginPinPanel.kt over ui/badge/BadgeStore.kt | `get_badge_settings` `badge_tap` |
 | components/PinDialog.vue (first login) | ui/components/PinPad.kt (PinDialog in PinMode.Choose), drawn inside the screen layout | - |
 | components/PiliLogo.vue | feature/login/LoginBrand.kt (wordmark as text) | - |
 
 ## Differences
 
+- **Presence-only staff have no tile (lane 1-v1-fixes).** Both screens drop the users flagged `presence_only` from the
+  tiles (kitchen staff never log in; a manager clocks them in and out from Settings). Typing their INSZ in "Autre
+  (INSZ)" shows the engine's `presence_only_user` text. When only presence-only users exist, the INSZ entry shows.
 - **No redirect on start.** Vue has no redirect here, and the Compose screen adds none either (PD205): it never
   navigates when it starts, only after an action of the operator succeeded. A test proves that no effect is sent
   while the screen loads and while the operator only browses (tile, PIN panel, INSZ entry, language).
@@ -51,3 +55,26 @@ checks, end of shift); the screen only calls it through the shared stores and th
   bundled brand font and logo asset land (PD106).
 - **Fonts and sizes.** Text sizes use the theme tokens only; the Vue sizes that have no token (40, 26, 18 px) use the
   nearest token or a multiple of one.
+- **Badge scan on the login screen (lane 5-nfc, Vue side).** The scan handling is global (`stores/badge.ts`, one
+  capture-phase keyboard listener while the reader is `usb`, installed before any other keyboard listener); the login
+  screen only adds three things. (1) The hint `login_badge_hint` ("Ou présentez votre badge", tag `badge-login-hint`)
+  under the tiles, when the reader is on and badge login is enabled. (2) Its "Fin de service" mode is mirrored into
+  the store (`endShiftMode`), so a scan in that mode is sent as `badge_tap(token, true)`; the pad shows
+  `end_shift_badge_hint` (tag `end-shift-badge-hint`) while the reader is on, and closes when the scan registered a
+  departure. (3) The outcome `pin_required` (a manager's badge) selects that manager's tile and opens their PIN
+  pad (the same path as a tap on the tile, so a manager without a PIN still gets the first-PIN dialog); a badge never
+  opens a manager session. The outcome `logged_in` stores the user and goes where a PIN login goes
+  (`goAfterLogin`). A registered arrival or departure reloads the tiles' shift state. Refusals and presence toasts are
+  the ones of the whole app (`badge_clock_in`, `badge_clock_out`, `badge_presence_failed`, the `err_` texts) with a
+  high or a low tone (Web Audio on Vue, `AudioTrack` on Android).
+- **Badge scan on the login screen (lane 5-nfc, Android side).** The scan handling is global too (`BadgeStore`, fed by
+  `MainActivity.dispatchKeyEvent` for the USB wedge reader and by the NFC reader mode); the login screen adds the same
+  three things as Vue. (1) The hint `login_badge_hint` (tag `login_badge_hint`) under the tiles, when the reader is on
+  and badge login is enabled (`LoginUiState.badgeLoginOn`). (2) Its "Fin de service" mode is mirrored into the store
+  (`setEndShiftMode`), so a scan is sent as `badge_tap(token, true)`; the pad shows `end_shift_badge_hint` (tag
+  `login_end_shift_badge_hint`) while the reader is on, and closes when the scan registered a departure. (3) The
+  outcome `pin_required` selects that manager (the INSZ entry gives way to the tiles) and opens their PIN pad through
+  the tile path (a manager without a PIN gets the first-PIN dialog); a badge never opens a manager session. The
+  outcome `logged_in` has already opened the session in the engine: the store keeps the user (`SessionStore.remember`)
+  and the screen sends `GoToTables`, the same way out as a PIN login. A registered arrival or departure reloads the
+  shift state of the tiles. Toasts and the high or low tone (`AudioTrackBadgeCue`) are the ones of the whole app.

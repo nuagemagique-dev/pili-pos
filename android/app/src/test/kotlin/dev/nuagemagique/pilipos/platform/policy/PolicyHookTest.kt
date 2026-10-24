@@ -96,7 +96,7 @@ class PolicyHookTest {
             val detail = rows.single().second
             assertEquals("start", detail.getString("trigger"))
             assertEquals("", detail.getString("failed"))
-            assertEquals((3 + PolicySet.RESTRICTIONS.size + 6 + 1).toString(), detail.getString("ok"))
+            assertEquals((3 + PolicySet.RESTRICTIONS.size + PolicySet.HIDDEN_PACKAGES.size + 6 + 1).toString(), detail.getString("ok"))
         }
 
     @Test

@@ -12,7 +12,7 @@
 #                            sha256, signerSha256, declared_at }   (PD211, PLATFORM.md 8.1)
 #   declared.json.minisig  prehashed minisign signature with the declaration key
 # and the signed APK, pushed together as tag "declared-android" of the public package
-# ghcr.io/brunomoyse/moyun-pos (the layer title of each file is its name, PLATFORM.md 8.3) and
+# ghcr.io/nuagemagique-dev/pili-pos (the layer title of each file is its name, PLATFORM.md 8.3) and
 # attached to the GitHub release android-vX.Y.Z.
 #
 # Usage:
@@ -34,7 +34,7 @@
 #
 # Environment:
 #   PILI_KS_PASS_FILE   file holding the keystore password (required)
-#   PILI_REPO           GitHub repository (default brunomoyse/moyun-pos)
+#   PILI_REPO           GitHub repository (default nuagemagique-dev/pili-pos)
 #   PILI_DECLARED_PUB   public key that verifies the signature, a file or the base64 key line
 #                       (default: the release key of android/app/src/main/res/xml/plat_update_keys.xml;
 #                       an override is accepted only with --dry-run)
@@ -99,7 +99,7 @@ if [[ -n "${PILI_DECLARED_PUB:-}" && "$DRY" -eq 0 ]]; then
     usage_error "PILI_DECLARED_PUB is accepted only with --dry-run (a real run verifies with the release key of plat_update_keys.xml)"
 fi
 
-REPO="${PILI_REPO:-brunomoyse/moyun-pos}"
+REPO="${PILI_REPO:-nuagemagique-dev/pili-pos}"
 PACKAGE="ghcr.io/$(echo "$REPO" | tr '[:upper:]' '[:lower:]')"
 ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 BT="$ANDROID_HOME/build-tools/$BUILD_TOOLS"

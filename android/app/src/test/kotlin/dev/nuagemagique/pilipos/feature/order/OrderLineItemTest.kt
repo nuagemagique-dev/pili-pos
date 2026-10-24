@@ -110,11 +110,11 @@ class OrderLineItemTest {
     }
 
     @Test
-    fun theLineShowsBothNamesTheQuantityAndTheEngineAmount() {
+    fun theLineShowsTheNameTheQuantityAndTheEngineAmount() {
         show(row(2))
 
         compose.onNodeWithTag("cart_line_1_name").assertTextEquals("Maki saumon")
-        compose.onNodeWithTag("cart_line_1_sub").assertTextEquals("三文鱼卷")
+        compose.onNodeWithTag("cart_line_1_sub").assertDoesNotExist()
         compose.onNodeWithTag("cart_line_1_qty").assertTextEquals("2")
         compose.onNodeWithTag("cart_line_1_amount").assertTextEquals("13,00 €")
     }

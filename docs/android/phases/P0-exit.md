@@ -1,5 +1,7 @@
 # P0 exit report: decisions, baselines, spikes
 
+> Correction (2026-10-10): the Linux build is not filed as v1.1 under Art. 113. Nothing was filed, so Linux and Android are both version 1.0.0 initial filings (Art. 99), and the freeze tag is `linux-v1.0.0-rc1`, not `linux-v1.1.0-rc1` (`docs/android/DECISIONS.md`, "Decided by the user"). The report below is unchanged.
+
 Written by the P0 planner on 2026-10-06.
 - **Base:** main `96728e1` (`feat(menu): show products by their menu code`).
 - **Phase branch:** `android/p0`. It still points at `96728e1`; no task has

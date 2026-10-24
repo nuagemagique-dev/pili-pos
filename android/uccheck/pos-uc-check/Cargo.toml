@@ -13,7 +13,7 @@ name = "pos-uc-check"
 path = "src/main.rs"
 
 [dependencies]
-# The engine, built like the certification set: HubRise in, peppol out.
+# The engine, built like the certification set: HubRise in, invoicing (pos-peppol) in every build (V11-D1).
 pos-engine = { path = "../../../crates/pos-engine", default-features = false, features = ["cert"] }
 pos-core = { path = "../../../crates/pos-core" }
 pos-fiscal = { path = "../../../crates/pos-fiscal" }

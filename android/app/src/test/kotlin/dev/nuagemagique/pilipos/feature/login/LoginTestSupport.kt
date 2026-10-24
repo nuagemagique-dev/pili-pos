@@ -11,6 +11,11 @@ import dev.nuagemagique.pilipos.i18n.ErrorTexts
 import dev.nuagemagique.pilipos.i18n.FdmTexts
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.nav.AppNavigator
+import dev.nuagemagique.pilipos.ui.badge.BadgeRig
+import dev.nuagemagique.pilipos.ui.badge.BadgeStore
+import dev.nuagemagique.pilipos.ui.badge.badgeRigOver
+import dev.nuagemagique.pilipos.ui.badge.badgeView
+import dev.nuagemagique.pilipos.ui.badge.noBadges
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
@@ -30,6 +35,7 @@ import uniffi.pos_ffi.HubriseConnectionInfo
 import uniffi.pos_ffi.Integrations
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.OpenShift
+import uniffi.pos_ffi.PaymentTerminalStatus
 import uniffi.pos_ffi.PosSettings
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
@@ -39,13 +45,15 @@ internal const val ADMIN_INSZ = "85010100123"
 internal const val CASHIER_INSZ = "90020200234"
 internal const val WAITER_INSZ = "95030300345"
 
+@Suppress("LongParameterList")
 internal fun user(
     insz: String,
     name: String,
     role: UserRole,
     hasPin: Boolean = true,
     active: Boolean = true,
-): User = User(insz = insz, name = name, role = role, active = active, hasPin = hasPin)
+    presenceOnly: Boolean = false,
+): User = User(insz = insz, name = name, role = role, active = active, hasPin = hasPin, presenceOnly = presenceOnly)
 
 internal val admin = user(ADMIN_INSZ, "Alice", UserRole.ADMIN)
 internal val cashier = user(CASHIER_INSZ, "Bob", UserRole.CASHIER)
@@ -95,6 +103,20 @@ internal fun mailStatus(
     reachable: Boolean,
 ): MailStatus = MailStatus(configured = configured, reachable = reachable, allowDigitalOnly = false)
 
+internal fun terminalStatus(
+    configured: Boolean = true,
+    connected: Boolean = true,
+    busy: Boolean = false,
+    detail: String? = null,
+): PaymentTerminalStatus =
+    PaymentTerminalStatus(
+        configured = configured,
+        kind = if (configured) "ccv_opi" else null,
+        connected = connected,
+        busy = busy,
+        detail = detail,
+    )
+
 internal fun shift(
     insz: String,
     startedAt: String = "2026-10-09 09:05:00",
@@ -112,11 +134,14 @@ internal fun stubReads(
     coEvery { engine.checkPrinter() } returns true
     coEvery { engine.checkKitchenPrinter() } returns null
     coEvery { engine.checkMailStatus() } returns mailStatus(configured = false, reachable = false)
+    coEvery { engine.checkPaymentTerminal() } returns terminalStatus(configured = false, connected = false)
     coEvery { engine.hubriseGetConnectionStatus() } returns hubriseInfo(true)
     coEvery { engine.fdmHealth() } returns null
     coEvery { engine.fdmCheckNow() } returns fdmHealth(FdmSeverity.INFO)
     coEvery { engine.getSettings() } returns settings()
     coEvery { engine.getIntegrations() } returns hubriseSwitch(hubrise)
+    coEvery { engine.getBadgeSettings() } returns badgeView()
+    coEvery { engine.listBadges() } returns noBadges()
 }
 
 /** The login entry point over the given real stores. */
@@ -131,6 +156,7 @@ internal class TestEntryPoint(
     private val toasts: ToastStore,
     private val catalog: MessageCatalog,
     private val errorTexts: ErrorTexts,
+    private val badges: BadgeStore,
 ) : LoginEntryPoint {
     override fun session(): SessionStore = session
 
@@ -149,6 +175,8 @@ internal class TestEntryPoint(
     override fun catalog(): MessageCatalog = catalog
 
     override fun errorTexts(): ErrorTexts = errorTexts
+
+    override fun badges(): BadgeStore = badges
 }
 
 /** An [AppNavigator] that records what it was asked. */
@@ -179,6 +207,7 @@ internal class LoginRig(
     val toasts: ToastStore,
     val settings: PosSettingsStore,
     val catalog: MessageCatalog,
+    val badges: BadgeRig,
 ) {
     val state get() = model.state.value
 
@@ -230,8 +259,9 @@ internal suspend fun TestScope.startLogin(
         f.holder.open()
         runCurrent()
     }
-    val entry = TestEntryPoint(session, settings, integrations, fdm, gateway, errors, toasts, catalog, errorTexts)
+    val badges = badgeRigOver(f, gateway, session, toasts, errors, settings, catalog)
+    val entry = TestEntryPoint(session, settings, integrations, fdm, gateway, errors, toasts, catalog, errorTexts, badges.store)
     val model = LoginViewModel(entry)
     runCurrent()
-    return LoginRig(f, model, toasts, settings, catalog)
+    return LoginRig(f, model, toasts, settings, catalog, badges)
 }

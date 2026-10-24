@@ -1,0 +1,137 @@
+{
+  "SaleToPOIServiceResponse": {
+    "Header": {
+      "MessageFunction": "SaleFinancialServiceResponse",
+      "ProtocolVersion": "5.1-WL2.1.1",
+      "ExchangeIdentification": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "CreationDateTime": "2020-05-04T18:13:51.0+01:00",
+      "InitiatingParty": {
+        "Identification": "WL000D5T0000004",
+        "Type": "Merchant"
+      },
+      "SalesSystemInfo": {
+        "IntegratorId": "9b2e6f1a1c3d4e5f8a7b0c1d2e3f4a5b",
+        "SaleSoftware": [
+          {
+            "Type": "ECR",
+            "SubTypeInformation": "Checkout",
+            "Identification": {
+              "ProviderIdentification": "YourSoftware",
+              "Identification": "YourPOS",
+              "SerialNumber": "SN-0001"
+            },
+            "Status": {
+              "VersionNumber": "1.4.2"
+            }
+          }
+        ]
+      },
+      "WebhookUrl": "https://example.com/webhook?transactionId=a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "NumberOfRetries": 3
+    },
+    "ServiceResponse": {
+      "Environment": {
+        "Acquirer": {
+          "Identification": {
+            "Identification": "00999100022"
+          }
+        },
+        "Merchant": {
+          "Identification": {
+            "Identification": "WL000D5T0000004"
+          }
+        },
+        "POI": {
+          "Identification": {
+            "Identification": "26197214"
+          }
+        },
+        "Card": {
+          "CardBrand": "VISA CREDIT",
+          "MaskedPin": "XXXXXXXXXXXX0119"
+        },
+        "CardHolder": {
+          "Language": "FR",
+          "Authentication": [
+            {
+              "AuthenticationMethod": "OfflinePIN"
+            },
+            {
+              "AuthenticationMethod": "SignatureCapture"
+            }
+          ]
+        }
+      },
+      "Context": {
+        "PaymentContext": {
+          "OnLineContext": false,
+          "CardDataEntryMode": "Physical"
+        },
+        "SaleContext": {
+          "SaleIdentification": "SaleTermA"
+        }
+      },
+      "ServiceContent": "FinancialPaymentResponse",
+      "PaymentResponse": {
+        "SaleTransactionIdentification": {
+          "TransactionDateTime": "2020-05-04T18:13:51.0+01:00",
+          "TransactionReference": "R26197055"
+        },
+        "POITransactionIdentification": {
+          "TransactionDateTime": "2020-05-04T18:13:51.0+01:00",
+          "TransactionReference": "2;00999100022;19940829991;79429;010099910002219940829991;"
+        },
+        "RetailerPaymentResult": {
+          "TransactionType": "CardPayment",
+          "RequestedTransaction": {
+            "TransactionType": "CardPayment",
+            "AdditionalService": [
+              "Gratuity"
+            ],
+            "TransactionIdentification": {
+              "TransactionDateTime": "2020-05-04T18:13:51.0+01:00",
+              "TransactionReference": "579"
+            },
+            "TransactionDetails": {
+              "TotalAmount": 104.11,
+              "Currency": "EUR",
+              "DetailedAmount": {
+                "Gratuity": 3.0
+              }
+            }
+          },
+          "TransactionResponse": {
+            "AuthorisationResult": {
+              "ResponseToAuthorisation": {
+                "Response": "Approved"
+              },
+              "AuthorisationCode": "00"
+            }
+          },
+          "CustomerLanguage": "FR"
+        },
+        "PaymentReceipt": [
+          {
+            "DocumentQualifier": "CustomerReceipt",
+            "OutputContent": {
+              "MessageDestination": "CardholderReceipt",
+              "Format": "SimpleText",
+              "MessageContent": "--------------------------------\n                QA NIEXP\n          Chau. de Haecht 1442\n              1130 Brussels\n              --------------------------------\n\n          ***Cardholder Receipt***\n          \n      Purchase\n      VISA CREDIT contactless\n      XXXXXXXXXXXX0119\n      Account Type:             Credit\n      \n      03.07.2024              14:16:23\n      Trm-Id:                 26197214\n      AID:              A0000000031010\n      Trx. Seq-Cnt:              79429\n      Trx. Ref-No:         19940829991\n      Auth. Code:               057737\n      Acq-Id:                999100022\n      \n      \n      Total-EFT EUR:             104.11\n      \n      Transaction OK\n"
+            }
+          },
+          {
+            "DocumentQualifier": "CashierReceipt",
+            "OutputContent": {
+              "MessageDestination": "MerchantReceipt",
+              "Format": "SimpleText",
+              "MessageContent": "--------------------------------\n                QA NIEXP\n          Chau. de Haecht 1442\n              1130 Brussels\n              --------------------------------\n\n      Purchase\n      VISA CREDIT contactless\n      XXXXXXXXXXXX0119\n      Account Type:             Credit\n      \n      03.07.2024              14:16:23\n      Trm-Id:                 26197214\n      Act-Id:                       40\n      AID:              A0000000031010\n      Trx. Seq-Cnt:              79429\n      Trx. Ref-No:         19940829991\n      Auth. Code:               057737\n      Acq-Id:                999100022\n      E4B00E9F1B979BCEF016662BF9C201D5\n                                          02/10\n                                          \n      \n      Total-EFT EUR:             104.11\n      \n      Transaction OK\n"
+            }
+          }
+        ]
+      },
+      "Response": {
+        "Response": "Success"
+      }
+    }
+  }
+}

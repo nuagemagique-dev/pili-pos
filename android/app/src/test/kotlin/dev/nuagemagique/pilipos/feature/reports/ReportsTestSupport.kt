@@ -27,17 +27,24 @@ import kotlinx.coroutines.test.setMain
 import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.CopyResult
 import uniffi.pos_ffi.CopyableTicket
+import uniffi.pos_ffi.CorrectionDone
 import uniffi.pos_ffi.FinancialResult
 import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.ReportResult
 import uniffi.pos_ffi.RequestedMedium
+import uniffi.pos_ffi.SalePaymentLine
+import uniffi.pos_ffi.SalePayments
 import uniffi.pos_ffi.TicketDeliveryRequest
+import uniffi.pos_ffi.UnsettledCardPayment
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
 import uniffi.pos_ffi.VatCode
 import uniffi.pos_ffi.ZReportSummary
 import java.io.File
+
+/** The clock of the sales tab in the tests: Saturday 17 October 2026, 18:30 in Brussels. */
+internal val SALES_NOW: java.time.Instant = java.time.Instant.parse("2026-10-17T16:30:00Z")
 
 internal const val OPERATOR_INSZ = "85010100123"
 
@@ -92,6 +99,42 @@ internal fun refundable(
         tableNumber = 4,
         totalCents = 1000L,
         createdAt = "2026-10-09T12:00:00",
+    )
+
+@Suppress("LongParameterList")
+internal fun paymentLine(
+    index: Int,
+    type: String = "CASH",
+    amountCents: Long = 1000L,
+    input: String = "MANUAL",
+    amountType: String = "PAYMENT",
+    brand: String? = null,
+): SalePaymentLine =
+    SalePaymentLine(
+        index = index,
+        paymentType = type,
+        name = type,
+        amountCents = amountCents,
+        inputMethod = input,
+        amountType = amountType,
+        brand = brand,
+    )
+
+internal fun salePayments(
+    id: Long,
+    lines: List<SalePaymentLine> = listOf(paymentLine(0)),
+    correctable: Boolean = true,
+    refusal: String? = null,
+    corrected: CorrectionDone? = null,
+): SalePayments =
+    SalePayments(
+        fiscalEventId = id,
+        ticketNumber = id,
+        totalCents = 1000L,
+        lines = lines,
+        correctable = correctable,
+        refusal = refusal,
+        corrected = corrected,
     )
 
 internal fun orderLine(
@@ -180,8 +223,17 @@ internal class ReportsRig(
     private val errorTexts: ErrorTexts,
     val delivery: DeliveryStore,
     val helpers: EngineHelpers,
+    val invoiceModel: InvoiceViewModel,
+    val salesModel: SalesViewModel,
+    val entry: ReportsEntryPoint,
 ) {
     val state get() = model.state.value
+
+    /** The invoice flow state. */
+    val invoices get() = invoiceModel.state.value
+
+    /** The sales tab state. */
+    val sales get() = salesModel.state.value
     val engine: DisposableEngine get() = f.engine
 
     /** The French text of Vue [key]. */
@@ -198,8 +250,11 @@ internal class ReportsRig(
 internal fun stubReportReads(engine: DisposableEngine) {
     coEvery { engine.listZReports() } returns emptyList()
     coEvery { engine.needsZReport() } returns false
+    coEvery { engine.listUnsettledCardPayments() } returns emptyList()
     coEvery { engine.listCopyableTickets(any()) } returns emptyList()
     coEvery { engine.listRefundableEvents(any()) } returns emptyList()
+    coEvery { engine.listInvoiceableSales(any(), any()) } returns emptyList()
+    coEvery { engine.listInvoices(any()) } returns emptyList()
     coEvery { engine.login(any(), any()) } returns operatorUser
 }
 
@@ -237,6 +292,76 @@ internal suspend fun TestScope.startReports(
     val delivery = DeliveryStore(gateway, errors, settings)
     val entry = TestReportsEntryPoint(gateway, helpers, f.events, session, settings, errors, toasts, catalog, delivery)
     val model = ReportsViewModel(entry)
+    val invoiceModel = InvoiceViewModel(entry)
+    val salesModel = SalesViewModel(entry) { SALES_NOW }
     runCurrent()
-    return ReportsRig(f, model, toasts, catalog, feed, errorTexts, delivery, helpers)
+    return ReportsRig(f, model, toasts, catalog, feed, errorTexts, delivery, helpers, invoiceModel, salesModel, entry)
 }
+
+/** A card payment approved and not yet settled: at table [table], or a takeaway when it is null. */
+internal fun unsettled(
+    paymentId: Long,
+    orderId: Long = paymentId + 40L,
+    table: Int? = null,
+    amountCents: Long = 1_700L,
+    brand: String? = "Bancontact",
+): UnsettledCardPayment =
+    UnsettledCardPayment(
+        paymentId = paymentId,
+        orderId = orderId,
+        orderType = if (table != null) "dine_in" else "takeaway",
+        tableNumber = table,
+        amountCents = amountCents,
+        brand = brand,
+        createdAt = "2026-10-13 12:00:00",
+    )
+
+internal fun salesDay(
+    date: String = "2026-10-16",
+    z: Long? = 12L,
+    total: Long = 12_550L,
+    zTotal: Long? = total,
+    open: Boolean = false,
+): uniffi.pos_ffi.SalesDay =
+    uniffi.pos_ffi.SalesDay(
+        bookingDate = date,
+        zNumber = z,
+        totalCents = total,
+        zTotalCents = zTotal,
+        open = open,
+        matchesZ = !open && zTotal == total,
+        gapCents = if (open || zTotal == null) null else total - zTotal,
+    )
+
+internal fun salesReport(
+    from: String = "2026-10-17",
+    to: String = "2026-10-17",
+    businessDate: String = "2026-10-17",
+    days: List<uniffi.pos_ffi.SalesDay> =
+        listOf(salesDay(), salesDay(total = 4_000L, z = 13L, zTotal = 3_800L), salesDay("2026-10-17", null, 1_500L, null, open = true)),
+): uniffi.pos_ffi.SalesReport =
+    uniffi.pos_ffi.SalesReport(
+        from = from,
+        to = to,
+        generatedAt = "2026-10-17T18:30:00+02:00",
+        businessDate = businessDate,
+        days = days,
+        openPeriod = days.any { it.open },
+        byProduct =
+            listOf(
+                uniffi.pos_ffi.SalesProduct("1", "Maki saumon", "Plats", 3_000L, 1_950L),
+                uniffi.pos_ffi.SalesProduct("2", "Sashimi", "Plats", 12_000L, 900L),
+                uniffi.pos_ffi.SalesProduct("3", "Soupe", "Entrees", -1_000L, -400L),
+            ),
+        byHour =
+            listOf(
+                uniffi.pos_ffi.SalesHour(19L, 4L, 9_000L, 100L),
+                uniffi.pos_ffi.SalesHour(20L, 2L, 4_500L, 50L),
+                uniffi.pos_ffi.SalesHour(1L, 1L, 500L, 6L),
+            ),
+        priceChangesCents = -50L,
+        roundingCents = 2L,
+        refundsCents = -400L,
+        ticketCount = 7L,
+        totalCents = 18_050L,
+    )

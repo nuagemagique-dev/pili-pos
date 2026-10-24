@@ -565,6 +565,54 @@ BEGIN
 END;
 "#;
 
+/// Migration 11: the table plan (the table numbers a manager set, the
+/// starting value coming from `pos.json`) and the log of its changes.
+pub(crate) const MIGRATION_011_TABLE_PLAN: &str = r#"
+CREATE TABLE IF NOT EXISTS table_plan (
+    id INTEGER PRIMARY KEY CHECK(id = 1),
+    -- The table numbers as ranges, canonical form ("1-12, 20-25").
+    plan TEXT NOT NULL,
+    -- The plan pos.json gave at the last start-up.
+    config_plan TEXT NOT NULL,
+    changed_at TEXT NOT NULL,
+    -- INSZ of the manager, NULL for a pos.json change.
+    changed_by TEXT
+);
+
+-- Append-only, like the fiscal archive.
+CREATE TABLE IF NOT EXISTS table_plan_log (
+    id INTEGER PRIMARY KEY,
+    plan TEXT NOT NULL,
+    source TEXT NOT NULL CHECK(source IN ('config', 'admin')),
+    changed_by TEXT,
+    changed_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TRIGGER IF NOT EXISTS table_plan_log_no_update
+BEFORE UPDATE ON table_plan_log
+BEGIN
+    SELECT RAISE(ABORT, 'table_plan_log is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS table_plan_log_no_delete
+BEFORE DELETE ON table_plan_log
+BEGIN
+    SELECT RAISE(ABORT, 'table_plan_log is append-only');
+END;
+"#;
+
+/// Migration 28: presence registration. A user can be "presence only"
+/// (kitchen staff clocked in and out by a manager, never logging in),
+/// and the local shift index records who registered each end.
+pub(crate) const MIGRATION_028_PRESENCE_REGISTRATION: &str = r#"
+ALTER TABLE users ADD COLUMN presence_only INTEGER NOT NULL DEFAULT 0
+    CHECK (presence_only IN (0, 1));
+-- INSZ of who registered the clock-in / clock-out (NULL: the employee
+-- themself, or a row from before this migration).
+ALTER TABLE staff_shifts ADD COLUMN started_by TEXT;
+ALTER TABLE staff_shifts ADD COLUMN ended_by TEXT;
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;

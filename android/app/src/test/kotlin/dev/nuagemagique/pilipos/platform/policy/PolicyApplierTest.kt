@@ -15,6 +15,9 @@ class PolicyApplierTest {
     private val restrictionCalls =
         PolicySet.RESTRICTIONS.map { "addUserRestriction($it)" }
 
+    private val hideCalls =
+        PolicySet.HIDDEN_PACKAGES.flatMap { listOf("isApplicationHidden($it)", "setApplicationHidden($it,true)") }
+
     @Test
     fun theCallsRunInTheDocumentedOrder() {
         val (applier, fake) = rig()
@@ -28,10 +31,12 @@ class PolicyApplierTest {
             ) + restrictionCalls +
                 listOf(
                     "setUninstallBlocked($pkg,true)",
+                ) + hideCalls +
+                listOf(
                     "setGlobalSetting(stay_on_while_plugged_in,7)",
                     "setKeyguardDisabled(true)",
                     "setStatusBarDisabled(true)",
-                    "setSystemUpdatePolicyPostpone",
+                    "setSystemUpdatePolicyWindowed(180,300)",
                     "setLockTaskFeatures(0)",
                     "addUserRestriction(no_debugging_features)",
                 ),
@@ -115,7 +120,7 @@ class PolicyApplierTest {
         assertFalse(fake.calls.contains("addUserRestriction(no_factory_reset)"))
         assertFalse(fake.calls.contains("addUserRestriction(no_add_user)"))
         assertTrue(fake.calls.contains("addUserRestriction(no_safe_boot)"))
-        val skipped = report.steps.filter { it.skipped }
+        val skipped = report.steps.filter { it.skipped && it.name.startsWith("restriction:") }
         assertEquals(listOf("restriction:no_factory_reset", "restriction:no_add_user"), skipped.map { it.name })
         assertTrue(skipped.all { it.ok && it.error == null })
         assertTrue(report.allOk)
@@ -159,5 +164,63 @@ class PolicyApplierTest {
     fun aFailedLockTaskStepIsReported() {
         val (applier, _) = rig(FakeDevicePolicies(failing = mutableSetOf("setLockTaskFeatures")))
         assertEquals(listOf("lock_task_features"), applier.applyLockTaskFeatures().failed.map { it.name })
+    }
+
+    @Test
+    fun installAppsIsInTheSetAndComesBackAfterACrashLeftItCleared() {
+        val (applier, fake) = rig(FakeDevicePolicies(present = PolicySet.RESTRICTIONS.toSet() - PolicySet.INSTALL_APPS))
+        val report = applier.apply(release = false, provisioned = false)
+        assertEquals(listOf("addUserRestriction(no_install_apps)"), fake.calls.filter { it.startsWith("addUserRestriction(") })
+        assertTrue(report.allOk)
+        assertFalse(report.steps.single { it.name == "restriction:no_install_apps" }.skipped)
+    }
+
+    @Test
+    fun theInstalledGoogleAppsAreHiddenAndTheMissingOnesAreSkipped() {
+        val fake = FakeDevicePolicies(installed = mutableSetOf("com.android.vending", "com.android.chrome"))
+        val (applier, _) = rig(fake)
+        val report = applier.apply(release = false, provisioned = false)
+        assertEquals(setOf("com.android.vending", "com.android.chrome"), fake.hidden)
+        val hide = report.steps.filter { it.name.startsWith("hide:") }
+        assertEquals(PolicySet.HIDDEN_PACKAGES.size, hide.size)
+        assertEquals(
+            listOf(false, false),
+            hide.filter {
+                it.name in setOf("hide:com.android.vending", "hide:com.android.chrome")
+            }.map { it.skipped },
+        )
+        assertEquals(PolicySet.HIDDEN_PACKAGES.size - 2, hide.count { it.skipped })
+        assertTrue(report.allOk)
+    }
+
+    @Test
+    fun anAppThatIsAlreadyHiddenIsNotHiddenAgain() {
+        val fake = FakeDevicePolicies(installed = mutableSetOf("com.android.vending"), hidden = mutableSetOf("com.android.vending"))
+        val (applier, _) = rig(fake)
+        val report = applier.apply(release = false, provisioned = false)
+        assertFalse("setApplicationHidden(com.android.vending,true)" in fake.calls)
+        assertTrue(report.steps.single { it.name == "hide:com.android.vending" }.skipped)
+    }
+
+    @Test
+    fun aRefusedHideIsAFailedStepAndTheOthersStillRun() {
+        val fake =
+            FakeDevicePolicies(
+                installed = mutableSetOf("com.android.chrome"),
+                failing = mutableSetOf("setApplicationHidden(com.android.vending,true)"),
+            )
+        val (applier, _) = rig(fake)
+        val report = applier.apply(release = false, provisioned = false)
+        assertEquals(listOf("hide:com.android.vending"), report.failed.map { it.name })
+        assertTrue("com.android.chrome" in fake.hidden)
+        assertTrue("setSystemUpdatePolicyWindowed(180,300)" in fake.calls)
+    }
+
+    @Test
+    fun playServicesAndTheSystemAreNeverTouched() {
+        val (applier, fake) = rig()
+        applier.apply(release = true, provisioned = true)
+        val touched = fake.calls.filter { it.startsWith("setApplicationHidden(") }.map { it.substringAfter('(').substringBefore(',') }
+        assertTrue(touched.none { it in PolicySet.NEVER_HIDDEN || it == pkg })
     }
 }

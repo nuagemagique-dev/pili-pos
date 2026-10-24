@@ -123,10 +123,10 @@ test.describe('Order View - kitchen and cart lines', () => {
     await expect(page.locator('.kitchen-count')).toHaveText('2');
   });
 
-  test('names show in the UI language first, Chinese underneath', async ({ page }) => {
+  test('names show in the UI language only, no second language underneath', async ({ page }) => {
     const line = page.locator('.order-line.pending');
     await expect(line.locator('.line-name')).toHaveText('Edamame');
-    await expect(line.locator('.line-sub')).toHaveText('毛豆');
+    await expect(line.locator('.line-sub')).toHaveCount(0);
   });
 
   test('"Envoyer en cuisine" registers the order without leaving the table', async ({ page }) => {

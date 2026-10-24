@@ -232,7 +232,7 @@ async fn round4_meal_vouchers_then_cash() {
             row("CASH", "ROUNDING", 0.01),
         ]
     );
-    assert_eq!(text_row(&ticket, "Cheques-repas"), "Cheques-repas 11,52");
+    assert_eq!(text_row(&ticket, "Chèques-repas"), "Chèques-repas 11,52");
     assert_eq!(text_row(&ticket, "Arrondi"), "Arrondi 0,01");
 }
 

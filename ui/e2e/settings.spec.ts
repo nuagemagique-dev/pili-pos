@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockTauriIPC, DEFAULT_USER, ipcCalls, loginAndGoto, overrideIPC, live } from './fixtures/mock-ipc';
+import { mockTauriIPC, DEFAULT_USER, ipcCalls, loginAndGoto, overrideIPC, live, shiftsInit, fdmHealth, fdmMocks, settingsWith } from './fixtures/mock-ipc';
 
 test.describe('Settings View', () => {
   test.beforeEach(async ({ page }) => {
@@ -19,13 +19,34 @@ test.describe('Settings View', () => {
     await expect(page.locator('.lang-btn.active')).toHaveText('Français');
   });
 
-  test('products can be shown by their menu code', async ({ page }) => {
+  test('products are shown by their menu code by default, names are a switch away', async ({ page }) => {
     await expect(page.locator('.label-btn')).toHaveText(['Nom', 'Code']);
+    await expect(page.locator('.label-btn.active')).toHaveText('Code');
+    await page.locator('.label-btn', { hasText: 'Nom' }).click();
     await expect(page.locator('.label-btn.active')).toHaveText('Nom');
-    await page.locator('.label-btn', { hasText: 'Code' }).click();
-    await expect(page.locator('.label-btn.active')).toHaveText('Code');
     await page.reload();
-    await expect(page.locator('.label-btn.active')).toHaveText('Code');
+    await expect(page.locator('.label-btn.active')).toHaveText('Nom');
+  });
+
+  test('a manager sets the table plan as ranges', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    const panel = page.locator('.table-plan');
+    await expect(panel.locator('h2')).toHaveText('Plan de salle');
+    await expect(panel.locator('.table-plan-current')).toHaveText('20 tables : 1-20');
+    await overrideIPC(page, 'set_table_plan', { plan: '1-12, 20-25', table_count: 18, log: [] });
+    await panel.locator('input').fill('20-25,1-12');
+    await panel.locator('.table-plan-save').click();
+    await expect(panel.locator('.table-plan-current')).toHaveText('18 tables : 1-12, 20-25');
+    await expect(panel.locator('input')).toHaveValue('1-12, 20-25');
+  });
+
+  test('a wrong table plan says how to write it', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    const panel = page.locator('.table-plan');
+    await overrideIPC(page, 'set_table_plan', { __reject: 'table_plan_invalid' });
+    await panel.locator('input').fill('A1');
+    await panel.locator('.table-plan-save').click();
+    await expect(panel.locator('.add-error')).toContainText('1-12, 20-25');
   });
 
   test('an employee without a PIN is flagged', async ({ page }) => {
@@ -427,5 +448,250 @@ test.describe('Settings - the HubRise switch', () => {
     await loginAndGoto(page, '/settings');
     await expect(page.getByTestId('integrations')).toContainText('1 commande(s) en ligne à terminer.');
     await expect(page.getByRole('button', { name: /En ligne/ })).toBeVisible();
+  });
+  test('the alerts, courses and gift voucher panels are for a manager only', async ({ page }) => {
+    const cashier = { ...DEFAULT_USER, role: 'cashier' };
+    await mockTauriIPC(page, { login: () => cashier, list_users: () => [cashier] });
+    await loginAndGoto(page, '/settings');
+    await expect(page.locator('.workers-section')).toBeVisible();
+    await expect(page.getByTestId('alerts-panel')).toHaveCount(0);
+    await expect(page.getByTestId('courses-panel')).toHaveCount(0);
+    await expect(page.getByTestId('gv-settings')).toHaveCount(0);
+    // The panels load their settings when they mount: none did.
+    expect(await ipcCalls(page, 'get_owner_alerts')).toHaveLength(0);
+    expect(await ipcCalls(page, 'list_owner_alert_log')).toHaveLength(0);
+    expect(await ipcCalls(page, 'get_course_settings')).toHaveLength(0);
+  });
+
+  test('a manager sees the alerts, courses and gift voucher panels', async ({ page }) => {
+    await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
+    await loginAndGoto(page, '/settings');
+    await expect(page.getByTestId('alerts-panel')).toBeVisible();
+    await expect(page.getByTestId('courses-panel')).toBeVisible();
+    await expect(page.getByTestId('gv-settings')).toBeVisible();
+    expect(await ipcCalls(page, 'get_owner_alerts')).toHaveLength(1);
+    expect(await ipcCalls(page, 'get_course_settings')).not.toHaveLength(0);
+    expect(await ipcCalls(page, 'get_gift_voucher_settings')).not.toHaveLength(0);
+  });
+
+  test('the employees stay in view beside the courses and gift voucher panels', async ({ page }) => {
+    const users = ['Bruno Moyse', 'Wei', 'Lea', 'Tom'].map((name, i) => ({
+      ...DEFAULT_USER, insz: `9906024257${i}`, name, role: i === 0 ? 'admin' : 'cashier',
+    }));
+    await mockTauriIPC(page, { login: () => users[0], list_users: () => users });
+    await loginAndGoto(page, '/settings');
+    await expect(page.getByTestId('courses-panel')).toBeVisible();
+    await expect(page.getByTestId('gv-settings')).toBeVisible();
+    const rows = page.locator('.worker-row');
+    await expect(rows).toHaveCount(4);
+    await expect(rows.first()).toBeInViewport();
+    await expect(page.locator('.add-worker .add-btn')).toBeInViewport();
+    // The list keeps room for at least one row and scrolls inside its panel
+    // (nothing squeezes it to zero when the manager panels are drawn).
+    const listBox = await page.locator('.worker-list').boundingBox();
+    expect(listBox && listBox.height).toBeGreaterThanOrEqual(72);
+    await rows.last().scrollIntoViewIfNeeded();
+    await expect(rows.last()).toBeInViewport();
+    // The manager panels share the column with the list, below it.
+    const list = await page.locator('.workers-section').boundingBox();
+    const panels = await page.locator('.manager-panels').boundingBox();
+    expect(list && panels && panels.y >= list.y + list.height - 1).toBeTruthy();
+  });
+});
+
+test.describe('Presence registration by the manager (event S)', () => {
+  const WEI = { insz: '99012345667', name: 'Wei', role: 'cashier', active: true, has_pin: true };
+  const COOK = { insz: '88010112345', name: 'Chen', role: 'waiter', active: true, has_pin: false, presence_only: true };
+  const row = (page: import('@playwright/test').Page, name: string) => page.locator('.worker-row', { hasText: name });
+
+  test.beforeEach(async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER, WEI, COOK] });
+  });
+
+  test('the panel says who is on shift and who is not, and offers the right button', async ({ page }) => {
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await expect(page.locator('.workers-section .panel-text')).toContainText('Personnel sans accès à la caisse');
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toHaveText('Départ');
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toHaveText('Hors service');
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toHaveText('Arrivée');
+    // The operator's own row has no presence button.
+    await expect(row(page, 'Bruno').getByTestId('presence-btn')).toHaveCount(0);
+  });
+
+  test('clock in then clock out, with a toast each time and the state refreshed', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    await row(page, 'Chen').getByTestId('presence-btn').click();
+    await expect(page.locator('.toast')).toContainText('Arrivée enregistrée · Chen');
+    await expect.poll(() => ipcCalls(page, 'clock_in_employee')).toEqual([{ employeeInsz: COOK.insz }]);
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toContainText('En service depuis');
+    await row(page, 'Chen').getByTestId('presence-btn').click();
+    await expect(page.locator('.toast', { hasText: 'Départ enregistré · Chen' })).toBeVisible();
+    await expect.poll(() => ipcCalls(page, 'clock_out_employee')).toEqual([{ employeeInsz: COOK.insz }]);
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toHaveText('Hors service');
+  });
+
+  test('an FDM failure is shown and the state does not change', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    await overrideIPC(page, 'clock_in_employee', { success: false, error: 'FDM injoignable' });
+    await row(page, 'Wei').getByTestId('presence-btn').click();
+    // The FDM error goes through the §V mapping.
+    await expect(page.locator('.toast')).toContainText('Erreur boîte noire');
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('Hors service');
+  });
+
+  test('a refusal code is shown as its text', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    await overrideIPC(page, 'clock_in_employee', { __reject: 'presence_already_in' });
+    await row(page, 'Wei').getByTestId('presence-btn').click();
+    await expect(page.locator('.toast')).toContainText('Cet employé est déjà en service');
+  });
+
+  test('the buttons are off while the FDM is not connected', async ({ page }) => {
+    await mockTauriIPC(page, {
+      list_users: () => [DEFAULT_USER, WEI, COOK],
+      ...fdmMocks(fdmHealth({ connected: false, severity: 'blocking', code: 'FDM_DOWN' })),
+    });
+    await loginAndGoto(page, '/settings');
+    await expect(page.getByTestId('presence-block')).toHaveText('FDM indisponible : pointage impossible');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toBeDisabled();
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toBeDisabled();
+  });
+
+  test('the buttons are off in training mode, with the reason', async ({ page }) => {
+    await mockTauriIPC(page, {
+      list_users: () => [DEFAULT_USER, WEI, COOK],
+      get_settings: settingsWith({ trainingMode: true }),
+    });
+    await loginAndGoto(page, '/settings');
+    await expect(page.getByTestId('presence-block')).toContainText('Mode formation : le pointage');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toBeDisabled();
+  });
+
+  test('a presence-only row has its own label, no PIN button, and keeps Désactiver', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    const cook = row(page, 'Chen');
+    await expect(cook.locator('.worker-meta')).toHaveText('Présence seule');
+    await expect(cook.getByRole('button', { name: 'Code PIN' })).toHaveCount(0);
+    await expect(cook.getByRole('button', { name: 'Désactiver' })).toBeVisible();
+    await expect(row(page, 'Wei').getByRole('button', { name: 'Code PIN' })).toBeVisible();
+  });
+
+  test('a presence-only employee is added without a PIN dialog', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    await page.getByPlaceholder('Nom').fill('Plongeur');
+    await page.locator('input[inputmode="numeric"]').fill('77010112345');
+    await page.getByRole('radio', { name: 'Présence seule' }).click();
+    await page.getByRole('button', { name: 'Ajouter l’employé' }).click();
+    await expect.poll(() => ipcCalls(page, 'create_user')).toEqual([
+      { input: { insz: '77010112345', name: 'Plongeur', role: 'waiter', presenceOnly: true } },
+    ]);
+    await expect(page.locator('.pin-dialog')).toHaveCount(0);
+  });
+  test('a cashier sees no presence button and no presence note, but still the state line', async ({ page }) => {
+    const CASHIER = { ...DEFAULT_USER, insz: '12345678958', name: 'Lena', role: 'cashier', has_pin: true };
+    await mockTauriIPC(page, {
+      login: () => CASHIER,
+      list_users: () => [CASHIER, WEI, COOK],
+      ...fdmMocks(fdmHealth({ connected: false, severity: 'blocking', code: 'FDM_DOWN' })),
+    });
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await expect(row(page, 'Wei')).toBeVisible();
+    await expect(page.getByTestId('presence-btn')).toHaveCount(0);
+    await expect(page.getByTestId('presence-block')).toHaveCount(0);
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toHaveText('Hors service');
+  });
+
+  test('one presence call at a time: every button is off while one runs, a second tap is ignored', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    // Hold the clock-in until the test releases it.
+    await page.evaluate(() => {
+      const w = window as any;
+      const tauri = w.__TAURI_INTERNALS__;
+      const prev = tauri.invoke;
+      tauri.invoke = (cmd: string, args?: any) => {
+        if (cmd !== 'clock_in_employee') return prev(cmd, args);
+        w.__ipcCalls.push({ cmd, args: args ?? {} });
+        return new Promise((resolve) => {
+          w.__release = () => {
+            w.__shifts = (w.__shifts ?? []).concat([{ userInsz: args.employeeInsz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+            resolve({ success: true, error: null });
+          };
+        });
+      };
+    });
+    await row(page, 'Chen').getByTestId('presence-btn').click();
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toBeDisabled();
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toBeDisabled();
+    // A tap on the disabled button does nothing.
+    await row(page, 'Wei').getByTestId('presence-btn').click({ force: true });
+    expect(await ipcCalls(page, 'clock_in_employee')).toEqual([{ employeeInsz: COOK.insz }]);
+    await page.evaluate(() => (window as any).__release());
+    await expect(page.locator('.toast')).toContainText('Arrivée enregistrée · Chen');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toBeEnabled();
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toBeEnabled();
+    expect(await ipcCalls(page, 'clock_in_employee')).toEqual([{ employeeInsz: COOK.insz }]);
+  });
+
+  test('adding or deactivating an employee re-reads the open shifts and keeps them', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER, WEI, COOK], deactivate_user: () => undefined });
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+    const afterLoad = (await ipcCalls(page, 'list_open_shifts')).length;
+
+    await page.getByPlaceholder('Nom').fill('Plongeur');
+    await page.locator('input[inputmode="numeric"]').fill('77010112345');
+    await page.getByRole('radio', { name: 'Présence seule' }).click();
+    await page.getByRole('button', { name: 'Ajouter l’employé' }).click();
+    await expect.poll(() => ipcCalls(page, 'create_user')).toHaveLength(1);
+    await expect.poll(async () => (await ipcCalls(page, 'list_open_shifts')).length).toBe(afterLoad + 1);
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+
+    await row(page, 'Chen').getByRole('button', { name: 'Désactiver' }).click();
+    await row(page, 'Chen').getByRole('button', { name: 'Confirmer ?' }).click();
+    await expect.poll(() => ipcCalls(page, 'deactivate_user')).toEqual([{ insz: COOK.insz }]);
+    await expect.poll(async () => (await ipcCalls(page, 'list_open_shifts')).length).toBe(afterLoad + 2);
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+  });
+
+  test('deactivating an employee on shift is refused with its text and the row stays', async ({ page }) => {
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await overrideIPC(page, 'deactivate_user', { __reject: 'deactivate_on_shift' });
+    await row(page, 'Wei').getByRole('button', { name: 'Désactiver' }).click();
+    await row(page, 'Wei').getByRole('button', { name: 'Confirmer ?' }).click();
+    await expect(page.locator('.add-error')).toHaveText("Cet employé est en service : enregistrez d'abord son départ");
+    await expect(row(page, 'Wei')).toBeVisible();
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+  });
+
+  test('the presence texts follow the language (Chinese)', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'zh'));
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('12:02 起上班中');
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toHaveText('未上班');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toHaveText('下班打卡');
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toHaveText('上班打卡');
+    await expect(row(page, 'Chen').locator('.worker-meta')).toHaveText('仅考勤');
+    await row(page, 'Chen').getByTestId('presence-btn').click();
+    await expect(page.locator('.toast')).toContainText('已登记上班 · Chen');
+  });
+
+  test('the presence texts follow the language (English)', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'en'));
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('On shift since 12:02');
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toHaveText('Off shift');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toHaveText('Clock out');
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toHaveText('Clock in');
+    await expect(row(page, 'Chen').locator('.worker-meta')).toHaveText('Presence only');
+    await row(page, 'Chen').getByTestId('presence-btn').click();
+    await expect(page.locator('.toast')).toContainText('Clock-in registered · Chen');
   });
 });

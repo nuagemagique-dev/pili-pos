@@ -1,0 +1,12 @@
+{
+    "errors": [
+        {
+            "extensions": {
+                "category": "FDM",
+                "code": "FDM_NOT_OPERATIONAL",
+                "showPos": "MANDATORY"
+            },
+            "message": "Le FDM ne fonctionne pas"
+        }
+    ]
+}

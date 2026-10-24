@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,7 +30,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.ui.components.PiliButton
@@ -52,7 +49,6 @@ private val ActionHeight = 64.dp
 private val UnpaidHeight = 48.dp
 private val BadgeSize = 26.dp
 private val Hairline = 1.dp
-private val PendingDot = 10.dp
 
 /** How often "opened at" is refreshed, in milliseconds (30 s in `CartSidebar.vue`). */
 private const val OPENED_TICK_MS = 30_000L
@@ -66,8 +62,8 @@ private const val OPENED_TICK_MS = 30_000L
  * nothing is unsent or while it runs. Refusals are the screen's, shown by the view model through `ErrorPresenter`.
  *
  * Test tags: `cart_column`, `cart_title`, `cart_opened`, `cart_empty`, `cart_pending_label`, `cart_unpaid`,
- * `cart_total`, `vat_summary`, `cart_send`, `cart_send_count`, `cart_prebill`, `cart_pay`, `cart_pay_amount`, and
- * those of [OrderLineItem].
+ * `cart_transfer`, `cart_discount`, `cart_discount_remove`, `cart_total`, `vat_summary`, `cart_send`,
+ * `cart_send_count`, `cart_prebill`, `cart_pay`, `cart_pay_amount`, and those of [OrderLineItem].
  */
 @Composable
 internal fun OrderCartColumn(
@@ -79,9 +75,6 @@ internal fun OrderCartColumn(
     val d = PiliTheme.dimens
     val t = PiliTheme.typography
     val dineIn = state.order?.orderType == OrderType.DINE_IN
-    // Dine-in lines not yet sent go last under an amber label; a takeaway's lines all go out with the sale.
-    val sent = if (dineIn) state.rows.filter { it.line.unsentQuantity <= 0 } else state.rows
-    val pending = if (dineIn) state.rows.filter { it.line.unsentQuantity > 0 } else emptyList()
     Column(
         modifier =
             modifier
@@ -89,50 +82,20 @@ internal fun OrderCartColumn(
                 .drawBehind { drawRect(c.border, size = Size(Hairline.toPx(), size.height)) }
                 .testTag("cart_column"),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().drawBottomLine(c.border).padding(horizontal = d.spaceMd, vertical = d.spaceMd),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = cartTitle(state.order),
-                style = t.title,
-                color = c.textPrimary,
-                modifier = Modifier.weight(1f).testTag("cart_title"),
-            )
-            OpenedAt(state.order)
-        }
-        Column(
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = d.spaceMd),
-        ) {
-            sent.forEach { OrderLineItem(it, state, actions, pending = false) }
-            if (pending.isNotEmpty()) {
-                PendingLabel()
-                pending.forEach { OrderLineItem(it, state, actions, pending = true) }
-            }
-            if (state.rows.isEmpty()) {
-                Box(Modifier.fillMaxWidth().height(EmptyHeight), contentAlignment = Alignment.Center) {
-                    Text(text = vueText("no_items"), style = t.body, color = c.textSecondary, modifier = Modifier.testTag("cart_empty"))
-                }
-            }
-        }
+        CartHeader(state, actions)
+        CartLines(state, actions, dineIn, Modifier.weight(1f))
         Column(
             modifier = Modifier.fillMaxWidth().drawTopLine(c.border).padding(d.spaceMd),
             verticalArrangement = Arrangement.spacedBy(d.spaceMd),
         ) {
             TotalRow(state, actions)
             if (dineIn) KitchenRow(state, actions)
+            val next = state.nextHeldCourse
+            if (dineIn && next != null) NextCourseButton(next, state.sendingNext, actions)
             if (state.canPay) PayButton(state, actions)
         }
     }
 }
-
-private val EmptyHeight = 120.dp
 
 /** "Order · Table 4" or "Order · Takeaway" (`cartTitle` of `CartSidebar.vue`). */
 @Composable
@@ -170,30 +133,6 @@ private fun OpenedAt(order: Order?) {
     )
 }
 
-/** The amber label over the lines that were not sent to the bar or kitchen yet. */
-@Composable
-private fun PendingLabel() {
-    val c = PiliTheme.colors
-    val t = PiliTheme.typography
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(top = PiliTheme.dimens.spaceMd, bottom = PiliTheme.dimens.spaceXs)
-                .semantics(mergeDescendants = true) {}
-                .testTag("cart_pending_label"),
-        horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(PendingDot).background(c.accentWarning, CircleShape))
-        Text(
-            text = vueText("not_sent_to_kitchen").uppercase(),
-            style = t.figure.copy(fontSize = t.sizeSm, fontWeight = t.weightBold),
-            color = c.accentWarning,
-        )
-    }
-}
-
 /** The unpaid button on the left (a manager only), the engine total and the VAT included on the right. */
 @Composable
 private fun TotalRow(
@@ -204,23 +143,38 @@ private fun TotalRow(
     val d = PiliTheme.dimens
     val t = PiliTheme.typography
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-        if (state.canCloseUnpaid) {
-            Box(
-                modifier =
-                    Modifier
-                        .defaultMinSize(minHeight = UnpaidHeight)
-                        .border(Hairline, c.accentDanger, RoundedCornerShape(d.radiusMd))
-                        .clickable(role = Role.Button, onClick = actions.onCloseUnpaid)
-                        .padding(horizontal = d.spaceMd)
-                        .testTag("cart_unpaid"),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = vueText("unpaid_close"),
-                    style = t.body.copy(fontWeight = t.weightBold),
-                    color = c.accentDanger,
-                    textAlign = TextAlign.Center,
-                )
+        if (state.canCloseUnpaid || state.canDiscount) {
+            Column(verticalArrangement = Arrangement.spacedBy(d.spaceSm)) {
+                if (state.canDiscount) {
+                    PiliButton(
+                        text = vueText(if (state.orderDiscounted) "discount_remove" else "discount_button"),
+                        onClick = if (state.orderDiscounted) actions.onRemoveOrderDiscount else actions.onDiscount,
+                        variant = PiliButtonVariant.Secondary,
+                        modifier =
+                            Modifier.defaultMinSize(
+                                minHeight = UnpaidHeight,
+                            ).testTag(if (state.orderDiscounted) "cart_discount_remove" else "cart_discount"),
+                    )
+                }
+                if (state.canCloseUnpaid) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .defaultMinSize(minHeight = UnpaidHeight)
+                                .border(Hairline, c.accentDanger, RoundedCornerShape(d.radiusMd))
+                                .clickable(role = Role.Button, onClick = actions.onCloseUnpaid)
+                                .padding(horizontal = d.spaceMd)
+                                .testTag("cart_unpaid"),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = vueText("unpaid_close"),
+                            style = t.body.copy(fontWeight = t.weightBold),
+                            color = c.accentDanger,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
             }
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
@@ -315,3 +269,34 @@ private fun Modifier.drawBottomLine(color: Color): Modifier =
     drawBehind { drawRect(color, topLeft = Offset(0f, size.height - Hairline.toPx()), size = Size(size.width, Hairline.toPx())) }
 
 private fun Modifier.drawTopLine(color: Color): Modifier = drawBehind { drawRect(color, size = Size(size.width, Hairline.toPx())) }
+
+/** The title of the order, "Change table" when the order can move, and the opening time. */
+@Composable
+private fun CartHeader(
+    state: OrderCartState,
+    actions: OrderCartActions,
+) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    Row(
+        modifier = Modifier.fillMaxWidth().drawBottomLine(c.border).padding(horizontal = d.spaceMd, vertical = d.spaceMd),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = cartTitle(state.order),
+            style = PiliTheme.typography.title,
+            color = c.textPrimary,
+            modifier = Modifier.weight(1f).testTag("cart_title"),
+        )
+        if (state.canTransfer) {
+            PiliButton(
+                text = vueText("transfer_table"),
+                onClick = actions.onTransfer,
+                variant = PiliButtonVariant.Secondary,
+                modifier = Modifier.padding(horizontal = d.spaceSm).testTag("cart_transfer"),
+            )
+        }
+        OpenedAt(state.order)
+    }
+}

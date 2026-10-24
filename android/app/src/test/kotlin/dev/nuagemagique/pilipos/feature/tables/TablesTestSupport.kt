@@ -64,6 +64,7 @@ internal fun table(
     totalCents: Long = 0,
     openedAt: String? = null,
     preBill: Boolean = false,
+    heldCourse: Int? = null,
 ): TableInfo =
     TableInfo(
         tableNumber = number,
@@ -73,6 +74,7 @@ internal fun table(
         status = if (orderId != null) "occupied" else "free",
         openedAt = openedAt,
         preBillPrinted = preBill,
+        heldCourse = heldCourse,
     )
 
 internal fun takeaway(
@@ -120,6 +122,8 @@ internal class TestTablesEntry(
     private val events: EngineEvents,
     private val errors: ErrorPresenter,
     private val settings: PosSettingsStore,
+    private val toasts: ToastStore,
+    private val catalog: MessageCatalog,
 ) : TablesEntryPoint {
     override fun session(): SessionStore = session
 
@@ -132,6 +136,10 @@ internal class TestTablesEntry(
     override fun errors(): ErrorPresenter = errors
 
     override fun settings(): PosSettingsStore = settings
+
+    override fun toasts(): ToastStore = toasts
+
+    override fun catalog(): MessageCatalog = catalog
 }
 
 /** An [AppNavigator] that records what it was asked. */
@@ -194,6 +202,7 @@ internal fun TestScope.tablesFixture(
     coEvery { f.engine.getSettings() } returns posSettings()
     coEvery { f.engine.listTables() } returns tables
     coEvery { f.engine.listOpenTakeaways() } returns takeaways
+    coEvery { f.engine.listUnsettledCardPayments() } returns emptyList()
     coEvery { f.engine.listCartLines(any()) } returns emptyList()
     coEvery { f.engine.setActiveOrder(any()) } returns Unit
     return f
@@ -219,7 +228,7 @@ internal suspend fun TestScope.startTables(
         f.holder.open()
         runCurrent()
     }
-    val entry = TestTablesEntry(session, order, gateway, f.events, errors, settings)
+    val entry = TestTablesEntry(session, order, gateway, f.events, errors, settings, toasts, catalog)
     val model = TablesViewModel(entry, clock)
     val seen = mutableListOf<TablesEffect>()
     val collector = CoroutineScope(UnconfinedTestDispatcher(testScheduler)).launch { model.effects.collect { seen += it } }

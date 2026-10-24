@@ -244,7 +244,7 @@ async fn faq_q403_rounding_is_reported_apart_and_left_out_of_the_turnover() {
 }
 
 /// Q206, Q209: a sale that comes to 0,00 EUR is an N event with a VAT
-/// ticket, paid as cash 0, and opens no drawer.
+/// ticket, sent with an empty `financials` array (Q206 b), and opens no drawer.
 #[tokio::test]
 // covers: FAQ_Q209
 async fn faq_q206_a_zero_sale_is_signed_with_a_vat_ticket() {
@@ -264,11 +264,9 @@ async fn faq_q206_a_zero_sale_is_signed_with_a_vat_ticket() {
     let request: Value = serde_json::from_str(event.event_data_json.as_deref().unwrap()).unwrap();
     assert_eq!(request["transaction"]["transactionTotal"], json!(0.0));
     assert_ne!(request["ticketMedium"], "NONE");
-    let financials = request["financials"].as_array().unwrap();
-    assert_eq!(financials.len(), 1);
-    assert_eq!(financials[0]["type"], "CASH");
-    assert_eq!(financials[0]["amountType"], "PAYMENT");
-    assert_eq!(financials[0]["amount"], json!(0.0));
+    // Q206 b: no money moved, so the empty `financials` array (the
+    // other allowed form is a `PAY 0` cash line).
+    assert_eq!(request["financials"], json!([]));
 
     printer.settle(1).await;
     assert_eq!(printer.drawer_kicks(), 0, "nothing to put in the drawer");

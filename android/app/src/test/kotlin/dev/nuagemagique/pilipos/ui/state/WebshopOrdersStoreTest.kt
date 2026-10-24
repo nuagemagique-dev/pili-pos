@@ -1,6 +1,8 @@
 package dev.nuagemagique.pilipos.ui.state
 
 import dev.nuagemagique.pilipos.engine.EngineFixture
+import dev.nuagemagique.pilipos.engine.EngineHelpers
+import dev.nuagemagique.pilipos.feature.checkout.CheckoutNatives
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
@@ -15,6 +17,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -34,6 +37,7 @@ import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.HandoverRequest
 import uniffi.pos_ffi.PatchStatusRequest
 import uniffi.pos_ffi.PaymentMethod
+import uniffi.pos_ffi.PaymentPart
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.RefundRequest
@@ -116,6 +120,7 @@ class WebshopOrdersStoreTest {
         val feed: EventFeed,
         val store: WebshopOrdersStore,
         val toasts: ToastStore,
+        val eft: EftStore,
     )
 
     /** An engine that is ready, HubRise [visible] unless told otherwise, [orders] as the first answer of the list. */
@@ -123,6 +128,7 @@ class WebshopOrdersStoreTest {
         orders: List<WebshopOrderSummary> = emptyList(),
         visible: Boolean = true,
         open: Boolean = true,
+        terminal: Boolean = false,
     ): Rig {
         val f = EngineFixture(this, tmp.root)
         val feed = EventFeed(f)
@@ -130,16 +136,25 @@ class WebshopOrdersStoreTest {
         coEvery { f.engine.hubriseListWebshopOrders() } returns orders
         val gateway = f.gateway(this)
         val toasts = ToastStore(backgroundScope)
-        val settings = mockk<PosSettingsStore> { every { language } returns MutableStateFlow(AppLanguage.EN) }
+        val settings =
+            mockk<PosSettingsStore> {
+                every { language } returns MutableStateFlow(AppLanguage.EN)
+                every { this@mockk.settings } returns MutableStateFlow(if (terminal) linkedSettings() else null)
+                every { trainingMode } returns MutableStateFlow(false)
+            }
+        val errors = ErrorPresenter(toasts, I18nTestSupport.errorTexts())
+        val eft = EftStore(gateway, errors, settings, backgroundScope)
         val store =
             WebshopOrdersStore(
                 gateway,
                 f.events,
-                ErrorPresenter(toasts, I18nTestSupport.errorTexts()),
+                errors,
                 toasts,
                 IntegrationsStore(gateway, f.events, backgroundScope),
                 settings,
                 I18nTestSupport.catalog(),
+                eft,
+                EngineHelpers(CheckoutNatives(), UnconfinedTestDispatcher(testScheduler)),
                 backgroundScope,
             )
         store.clock = Clock.fixed(now, ZoneOffset.UTC)
@@ -147,7 +162,7 @@ class WebshopOrdersStoreTest {
             f.holder.open()
             runCurrent()
         }
-        return Rig(f, feed, store, toasts)
+        return Rig(f, feed, store, toasts, eft)
     }
 
     private fun Rig.lastToast() = toasts.toasts.value.last()
@@ -475,6 +490,130 @@ class WebshopOrdersStoreTest {
 
             assertEquals(PaymentMethod.CARD, request.captured.payments[0].method)
             assertEquals(1_850L, request.captured.payments[0].amountCents)
+        }
+
+    // ── Card on the linked terminal ───────────────────────────────
+
+    @Test
+    fun aCardOnTheTerminalIsChargedFirstThenHandedOverWithItsPaymentId() =
+        runTest {
+            val o = order(60, fiscal = "signed_p", hubrise = "awaiting_collection", totalCents = 1_850)
+            val r = rig(listOf(o), terminal = true)
+            coEvery { r.f.engine.listEftPayments(60L) } returns emptyList()
+            coEvery { r.f.engine.eftPay(60L, 1_850L) } returns eftPayment(5, EFT_APPROVED, 1_850, orderId = 60)
+            val request = slot<HandoverRequest>()
+            coEvery { r.f.engine.webshopHandoverOrder(capture(request)) } returns sale()
+
+            assertTrue(r.store.collectOrder(o, PaymentMethod.CARD))
+
+            coVerify(exactly = 1) { r.f.engine.eftPay(60L, 1_850L) }
+            assertEquals(listOf(PaymentPart(PaymentMethod.CARD, 1_850L, 5L)), request.captured.payments)
+            assertTrue(r.eft.payments.value.isEmpty())
+            assertFalse(r.eft.overlay.value.visible)
+        }
+
+    @Test
+    fun aDeclinedCardSignsNothingAndTheOperatorMayTryAgain() =
+        runTest {
+            val o = order(61, fiscal = "signed_p", hubrise = "awaiting_collection", totalCents = 1_850)
+            val r = rig(listOf(o), terminal = true)
+            coEvery { r.f.engine.listEftPayments(61L) } returns emptyList()
+            coEvery { r.f.engine.eftPay(61L, 1_850L) } returns eftPayment(6, EFT_DECLINED, 1_850, orderId = 61)
+
+            val result = async { r.store.collectOrder(o, PaymentMethod.CARD) }
+            runCurrent()
+            assertEquals(EftPhase.RESULT, r.eft.overlay.value.phase)
+            r.eft.dismiss()
+            runCurrent()
+
+            assertFalse(result.await())
+            coVerify(exactly = 0) { r.f.engine.webshopHandoverOrder(any()) }
+            assertTrue(r.eft.payments.value.isEmpty())
+        }
+
+    @Test
+    fun anApprovedPaymentLeftByACrashIsUsedWithoutChargingAgain() =
+        runTest {
+            val o = order(62, fiscal = "signed_p", hubrise = "awaiting_collection", totalCents = 1_850)
+            val r = rig(listOf(o), terminal = true)
+            coEvery { r.f.engine.listEftPayments(62L) } returns listOf(eftPayment(7, EFT_APPROVED, 1_850, orderId = 62))
+            val request = slot<HandoverRequest>()
+            coEvery { r.f.engine.webshopHandoverOrder(capture(request)) } returns sale()
+
+            assertTrue(r.store.collectOrder(o, PaymentMethod.CARD))
+
+            coVerify(exactly = 0) { r.f.engine.eftPay(any(), any()) }
+            assertEquals(listOf(PaymentPart(PaymentMethod.CARD, 1_850L, 7L)), request.captured.payments)
+        }
+
+    @Test
+    fun onlyWhatIsLeftIsChargedAfterAPartialApprovedPayment() =
+        runTest {
+            val o = order(63, fiscal = "signed_p", hubrise = "awaiting_collection", totalCents = 1_850)
+            val r = rig(listOf(o), terminal = true)
+            val first = eftPayment(8, EFT_APPROVED, 1_000, orderId = 63)
+            val second = eftPayment(9, EFT_APPROVED, 850, orderId = 63)
+            coEvery { r.f.engine.listEftPayments(63L) } returns listOf(first)
+            coEvery { r.f.engine.eftPay(63L, 850L) } returns second
+            val request = slot<HandoverRequest>()
+            coEvery { r.f.engine.webshopHandoverOrder(capture(request)) } returns sale()
+
+            assertTrue(r.store.collectOrder(o, PaymentMethod.CARD))
+
+            coVerify(exactly = 1) { r.f.engine.eftPay(63L, 850L) }
+            assertEquals(
+                listOf(PaymentPart(PaymentMethod.CARD, 1_000L, 8L), PaymentPart(PaymentMethod.CARD, 850L, 9L)),
+                request.captured.payments,
+            )
+        }
+
+    @Test
+    fun aPaymentWaitingForItsAnswerIsCheckedBeforeAnythingElse() =
+        runTest {
+            val o = order(64, fiscal = "signed_p", hubrise = "awaiting_collection", totalCents = 1_850)
+            val r = rig(listOf(o), terminal = true)
+            coEvery { r.f.engine.listEftPayments(64L) } returns listOf(eftPayment(10, EFT_UNKNOWN, 1_850, orderId = 64))
+            coEvery { r.f.engine.eftCheck(10L) } returns eftPayment(10, EFT_APPROVED, 1_850, orderId = 64)
+            val request = slot<HandoverRequest>()
+            coEvery { r.f.engine.webshopHandoverOrder(capture(request)) } returns sale()
+
+            assertTrue(r.store.collectOrder(o, PaymentMethod.CARD))
+
+            coVerify(exactly = 1) { r.f.engine.eftCheck(10L) }
+            coVerify(exactly = 0) { r.f.engine.eftPay(any(), any()) }
+            assertEquals(listOf(PaymentPart(PaymentMethod.CARD, 1_850L, 10L)), request.captured.payments)
+        }
+
+    @Test
+    fun aStillUnknownPaymentStopsTheCollectionAndStaysListedUntilChecked() =
+        runTest {
+            val o = order(65, fiscal = "signed_p", hubrise = "awaiting_collection", totalCents = 1_850)
+            val r = rig(listOf(o), terminal = true)
+            val unknown = eftPayment(11, EFT_UNKNOWN, 1_850, orderId = 65)
+            coEvery { r.f.engine.listEftPayments(65L) } returns listOf(unknown)
+            coEvery { r.f.engine.eftCheck(11L) } returns unknown
+
+            val result = async { r.store.collectOrder(o, PaymentMethod.CARD) }
+            runCurrent()
+            assertTrue(r.eft.overlay.value.unknown)
+            r.eft.dismiss()
+            runCurrent()
+
+            assertFalse(result.await())
+            coVerify(exactly = 0) { r.f.engine.webshopHandoverOrder(any()) }
+        }
+
+    @Test
+    fun cashIsNeverSentToTheTerminal() =
+        runTest {
+            val o = order(66, fiscal = "signed_p", hubrise = "awaiting_collection", totalCents = 1_850)
+            val r = rig(listOf(o), terminal = true)
+            coEvery { r.f.engine.webshopHandoverOrder(any()) } returns sale()
+
+            assertTrue(r.store.collectOrder(o, PaymentMethod.CASH))
+
+            coVerify(exactly = 0) { r.f.engine.eftPay(any(), any()) }
+            coVerify(exactly = 0) { r.f.engine.listEftPayments(any()) }
         }
 
     @Test

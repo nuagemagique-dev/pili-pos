@@ -18,7 +18,7 @@
 //! `flatten` with `deny_unknown_fields`, so the record lists the `OrderLine` fields itself; the
 //! serde form is the same.
 
-use super::common::VatCode;
+use super::common::{SlipOutcome, VatCode};
 
 /// `pos_core::order::OrderType`.
 #[derive(
@@ -122,6 +122,96 @@ pub struct CartLine {
     pub code: Option<String>,
     /// The quantity not yet sent to the bar or the kitchen.
     pub unsent_quantity: i64,
+    /// Σ of the line's price changes in cents (negative for a discount).
+    #[serde(default)]
+    pub discount_cents: i64,
+    /// The line's consolidated price changes (a till discount, an online order's).
+    #[serde(default)]
+    pub price_changes: Vec<CartPriceChange>,
+    /// The note for the kitchen ("sans wasabi"), local only.
+    #[serde(default)]
+    pub kitchen_note: Option<String>,
+    /// The line belongs to an online order: no till discount.
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub online: bool,
+    /// The line's course (kitchen only): 0 "Direct", 1 to 3.
+    pub course: i32,
+    /// `unsent`, `held` (waits for "Envoyer la suite") or `printed`.
+    pub kitchen_state: String,
+}
+
+/// `pos_db::queries::orders::CartPriceChange`: a price change on a cart line.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct CartPriceChange {
+    pub id: String,
+    pub name: String,
+    /// `LINE` or `EVENT`.
+    pub scope: String,
+    pub amount_cents: i64,
+}
+
+/// `pos_engine::commands::discount::DiscountTarget`: what a discount applies to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Enum)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum DiscountTarget {
+    /// The whole order, spread over its lines.
+    Order,
+    /// One line, for free.
+    Line { line_id: i64 },
+}
+
+/// `pos_engine::commands::discount::DiscountKind`.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, uniffi::Enum,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscountKind {
+    /// An integer percent, 1 to 99.
+    Percent,
+    /// An amount in cents, 1 to the net total.
+    Amount,
+    /// Everything ("Offert").
+    Free,
+}
+
+/// `pos_engine::commands::discount::DiscountReason`: why the manager gives it (audit only).
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, uniffi::Enum,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscountReason {
+    CommercialGesture,
+    StaffMeal,
+    ServiceIssue,
+    Other,
+}
+
+/// `pos_engine::commands::discount::DiscountInput`: a discount to apply.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct DiscountInput {
+    pub target: DiscountTarget,
+    pub kind: DiscountKind,
+    /// The percent or the amount in cents; ignored for `Free`.
+    #[serde(default)]
+    pub value: Option<i64>,
+    pub reason_code: DiscountReason,
+    #[serde(default)]
+    pub reason_text: Option<String>,
+}
+
+/// `pos_engine::commands::discount::DiscountResult`: what a discount command did.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DiscountResult {
+    pub order: Order,
+    /// The kitchen slip of the entries the immediate P registered.
+    pub kitchen_slip: SlipOutcome,
+    /// Set when the immediate P could not be signed: the discount is recorded and goes with the
+    /// next registration or the sale.
+    pub registration_error: Option<String>,
 }
 
 /// `pos_core::menu::Category`.
@@ -164,6 +254,40 @@ pub struct MenuItem {
     pub kitchen_printer: bool,
     pub sort_order: i32,
     pub active: bool,
+    /// Sold out right now ("Épuisé"): the till refuses to add it to an order.
+    #[serde(default)]
+    pub sold_out: bool,
+    /// End of the business day it is sold out until (RFC 3339); `None` with `sold_out` means
+    /// "until re-enabled".
+    #[serde(default)]
+    pub sold_out_until: Option<String>,
+    /// The product has an active option group with an active option: the option picker opens.
+    #[serde(default)]
+    pub has_modifiers: bool,
+    /// Allergen codes the product contains (Annex II codes of `list_allergens`).
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub allergens: Vec<String>,
+    /// Allergen codes the product may contain as traces.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub traces: Vec<String>,
+    /// The allergen list is complete (possibly empty); false means no information.
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub allergens_declared: bool,
+}
+
+/// `pos_db::queries::sold_out::SoldOutItem`: a product that is sold out now.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct SoldOutItem {
+    pub menu_item_id: i64,
+    pub name: String,
+    /// End of the business day (RFC 3339); `None`: until re-enabled.
+    pub until: Option<String>,
+    pub set_by: String,
+    pub set_at: String,
 }
 
 /// `pos_db::queries::menu::Modifier`: an option of a group.
@@ -173,6 +297,18 @@ pub struct Modifier {
     pub id: i64,
     pub name: String,
     pub price_cents: i64,
+    /// Allergen codes the option contains.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub allergens: Vec<String>,
+    /// Allergen codes the option may contain as traces.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub traces: Vec<String>,
+    /// The option's allergen list is complete (possibly empty); false means no information.
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub allergens_declared: bool,
 }
 
 /// `pos_db::queries::menu::ModifierGroup`: an option group of a product.
@@ -210,6 +346,20 @@ pub struct TableInfo {
     pub opened_at: Option<String>,
     /// A provisional bill was printed and the order has not changed since.
     pub pre_bill_printed: bool,
+    /// The next course waiting for "Envoyer la suite" (1 to 3), when the table holds one.
+    pub held_course: Option<i32>,
+}
+
+/// `pos_engine::commands::table_transfer::TableTransferResult`: what moving an order to another
+/// table did (the kitchen slip of what was registered first, the transfer notice).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TableTransferResult {
+    pub order_id: i64,
+    pub from_table: i32,
+    pub to_table: i32,
+    pub kitchen_slip: SlipOutcome,
+    pub transfer_slip: SlipOutcome,
 }
 
 /// `pos_engine::commands::tables::TakeawayInfo`.
@@ -267,4 +417,26 @@ pub struct VatSplitRow {
     pub total_incl_cents: i64,
     /// The VAT included in the total, rounded as `VatSummary.vue` does.
     pub vat_cents: i64,
+}
+
+/// `pos_db::queries::table_plan::PlanChange`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct TablePlanChange {
+    pub plan: String,
+    /// `config` (pos.json) or `admin` (a manager).
+    pub source: String,
+    pub changed_by: Option<String>,
+    pub changed_at: String,
+}
+
+/// `pos_engine::commands::table_plan::TablePlan`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct TablePlan {
+    /// The table numbers as ranges, canonical form ("1-12, 20-25").
+    pub plan: String,
+    pub table_count: i64,
+    /// The latest changes first.
+    pub log: Vec<TablePlanChange>,
 }

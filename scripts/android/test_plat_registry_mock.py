@@ -15,7 +15,7 @@ SPEC = importlib.util.spec_from_file_location("plat_registry_mock", os.path.join
 MOCK = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MOCK)
 
-REPO = "brunomoyse/moyun-pos"
+REPO = "nuagemagique-dev/pili-pos"
 APK = b"PK\x03\x04 not really an apk " * 100
 
 

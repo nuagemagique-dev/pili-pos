@@ -3,6 +3,6 @@
      (the gate check plat-keys compares them). release stays empty until the declaration key exists: every
      update is then refused (key_missing). Never put a secret key here. -->
 <plat-update-keys>
-    <key build="debug">RWQmv3D5F4695q2BBUUzfk0ABpONbcMKPePaMqZkpr5UV8J0PCTEdO/v</key>
+    <key build="debug">RWRrbVE2do8gX6jV4FXRQpiK3QIKlruHZzxVT/P81uXp7QShDib1tTBj</key>
     <key build="release"></key>
 </plat-update-keys>

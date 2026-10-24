@@ -18,6 +18,16 @@ class ErrorTextsTest {
         "La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez."
 
     @Test
+    fun anFdmFailureOfASaleShowsWhatTheFdmSaidThenThePendingInstruction() {
+        val raw = PosException.Fdm("FDM error: FDM_ANSWER_PENDING|label=N|ticket=3|fdm=INTERNAL_ERROR|cause=x")
+        assertEquals(
+            "Erreur technique de la boîte noire. Contactez votre technicien. " +
+                "La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire.",
+            errors.describe(raw, AppLanguage.FR),
+        )
+    }
+
+    @Test
     fun parseErrorCodeSplitsCodeAndValues() {
         assertEquals(CodedError("pin_locked", mapOf("seconds" to "30")), parseErrorCode("pin_locked|seconds=30"))
         assertEquals(CodedError("order_no_lines", emptyMap()), parseErrorCode("  order_no_lines  "))

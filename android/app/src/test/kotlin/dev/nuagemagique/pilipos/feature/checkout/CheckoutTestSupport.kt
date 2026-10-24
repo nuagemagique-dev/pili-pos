@@ -16,6 +16,7 @@ import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.format.CartAmounts
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
+import dev.nuagemagique.pilipos.ui.state.EftStore
 import dev.nuagemagique.pilipos.ui.state.OrderStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
@@ -30,6 +31,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import uniffi.pos_ffi.CartLine
+import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.Order
@@ -111,6 +113,9 @@ internal class CheckoutNatives(
     /** Every `settlePreview` call, to prove what the view model asked of the engine. */
     val previews: MutableList<Pair<Long, List<PaymentPart>>> = mutableListOf()
 
+    /** When set, the VAT helper throws it (the recap falls back to the lines' own prices). */
+    var vatFailure: Throwable? = null
+
     override suspend fun settlePreview(
         totalCents: Long,
         parts: List<PaymentPart>,
@@ -124,8 +129,10 @@ internal class CheckoutNatives(
         parts: List<PaymentPart>,
     ): Long = settleLikeEngine(totalCents, parts).cashDueCents
 
-    override suspend fun vatSplit(lines: List<VatLine>): List<VatSplitRow> =
-        lines.filter { it.vatCode != VatCode.X }.map { VatSplitRow(it.vatCode, 6, it.unitPriceCents * it.quantity, 0L) }
+    override suspend fun vatSplit(lines: List<VatLine>): List<VatSplitRow> {
+        vatFailure?.let { throw it }
+        return lines.filter { it.vatCode != VatCode.X }.map { VatSplitRow(it.vatCode, 6, it.unitPriceCents * it.quantity, 0L) }
+    }
 }
 
 internal fun checkoutOrder(
@@ -153,6 +160,8 @@ internal fun cartLine(
     unitPriceCents: Long = 500L,
     vat: VatCode = VatCode.C,
     modifiersJson: String? = null,
+    discountCents: Long = 0L,
+    priceChanges: List<CartPriceChange> = emptyList(),
 ): CartLine =
     CartLine(
         id = id,
@@ -170,6 +179,11 @@ internal fun cartLine(
         nameZh = null,
         code = null,
         unsentQuantity = 0,
+        discountCents = discountCents,
+        priceChanges = priceChanges,
+        kitchenNote = null,
+        course = 0,
+        kitchenState = "unsent",
     )
 
 internal fun posSettings(): PosSettings =
@@ -219,6 +233,7 @@ internal class TestCheckoutEntry(
     private val toasts: ToastStore,
     private val catalog: MessageCatalog,
     private val amounts: CartAmounts,
+    private val eft: EftStore,
 ) : CheckoutEntryPoint {
     override fun gateway() = gateway
 
@@ -239,6 +254,8 @@ internal class TestCheckoutEntry(
     override fun catalog() = catalog
 
     override fun amounts() = amounts
+
+    override fun eft() = eft
 }
 
 /** An [AppNavigator] that records what it was asked. */
@@ -276,6 +293,7 @@ internal class CheckoutRig(
     val natives: CheckoutNatives,
     val effects: List<CheckoutEffect>,
     private val collector: Job,
+    val eft: EftStore,
 ) {
     val state get() = model.state.value
 
@@ -308,12 +326,14 @@ internal fun TestScope.checkoutFixture(
 
 /** Builds the view model over real stores on [f]; the engine is opened and [user] logged in first unless told not to. */
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LongParameterList")
 internal suspend fun TestScope.startCheckout(
     f: EngineFixture,
     context: Context,
     open: Boolean = true,
     user: User? = cashier,
     orderId: Long = ORDER_ID,
+    natives: CheckoutNatives = CheckoutNatives(),
 ): CheckoutRig {
     val gateway = f.gateway(this)
     val toasts = ToastStore(backgroundScope)
@@ -324,7 +344,7 @@ internal suspend fun TestScope.startCheckout(
     val settings = PosSettingsStore(context, gateway, f.events, backgroundScope)
     val order = OrderStore(gateway, f.events, backgroundScope)
     val delivery = DeliveryStore(gateway, errors, settings)
-    val natives = CheckoutNatives()
+    val eft = EftStore(gateway, errors, settings, backgroundScope)
     val helpers = EngineHelpers(natives, f.dispatcher)
     if (open) {
         f.holder.open()
@@ -335,12 +355,12 @@ internal suspend fun TestScope.startCheckout(
         session.login(user.insz, "1234")
     }
     val entry =
-        TestCheckoutEntry(gateway, helpers, order, session, delivery, settings, errors, toasts, catalog, CartAmounts(helpers))
+        TestCheckoutEntry(gateway, helpers, order, session, delivery, settings, errors, toasts, catalog, CartAmounts(helpers), eft)
     val model = CheckoutViewModel(entry, orderId)
     val seen = mutableListOf<CheckoutEffect>()
     val collector = CoroutineScope(UnconfinedTestDispatcher(testScheduler)).launch { model.effects.collect { seen += it } }
     runCurrent()
-    return CheckoutRig(f, model, session, order, delivery, toasts, catalog, errorTexts, natives, seen, collector)
+    return CheckoutRig(f, model, session, order, delivery, toasts, catalog, errorTexts, natives, seen, collector, eft)
 }
 
 /** A row of the VAT summary, for the content tests. */

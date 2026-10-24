@@ -24,6 +24,27 @@ pub async fn work_out(
     pos_engine::commands::social::do_work_out(state.inner(), employee_insz).await
 }
 
+/// A manager registers another employee's arrival (kitchen staff who
+/// never use the till): the S event is the employee's, the manager is
+/// kept for the audit. Refusals are error codes, an FDM failure is
+/// `success: false`.
+#[tauri::command]
+pub async fn clock_in_employee(
+    state: State<'_, Managed>,
+    employee_insz: String,
+) -> Result<SocialResult, String> {
+    pos_engine::commands::social::do_clock_in_employee(state.inner(), employee_insz).await
+}
+
+/// A manager registers another employee's departure.
+#[tauri::command]
+pub async fn clock_out_employee(
+    state: State<'_, Managed>,
+    employee_insz: String,
+) -> Result<SocialResult, String> {
+    pos_engine::commands::social::do_clock_out_employee(state.inner(), employee_insz).await
+}
+
 /// End the employee's shift: the PIN is checked like a login (a refusal
 /// is an error, nothing is signed), the clock-out is signed (event S)
 /// and the session is closed in every case.

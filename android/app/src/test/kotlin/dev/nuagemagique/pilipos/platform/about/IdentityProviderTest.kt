@@ -73,9 +73,9 @@ class IdentityProviderTest {
     ): AppFacts =
         AppFacts(
             applicationId = "dev.nuagemagique.pilipos",
-            versionName = "1.1.0",
-            versionCode = 10100,
-            engineRef = "pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)",
+            versionName = "1.0.0",
+            versionCode = 10000,
+            engineRef = "pili-pos 1.0.0, android-v1.0.0-rc3",
             sourceDir = apk.path,
             lastUpdateTime = updated,
             filesDir = filesDir(),
@@ -109,7 +109,7 @@ class IdentityProviderTest {
         factsSource: () -> AppFacts,
         store: ProvisioningStore = store(),
         ready: Boolean = true,
-        natives: EngineNatives = FakeNatives().also { it.version = "pili-pos-android/1.1.0" },
+        natives: EngineNatives = FakeNatives().also { it.version = "pili-pos-android/1.0.0" },
         settingsAnswer: (() -> PosSettings)? = { settings() },
     ): IdentityProvider {
         val fixture = EngineFixture(this, tmp.root, if (ready) null else LaunchResult.NotProvisioned)
@@ -142,10 +142,10 @@ class IdentityProviderTest {
         runTest {
             val report = provider({ facts(buildApk()) }).report()
             assertEquals("dev.nuagemagique.pilipos", report.applicationId)
-            assertEquals("1.1.0", report.versionName)
-            assertEquals(10100L, report.versionCode)
-            assertEquals("pili-pos-android/1.1.0", report.posSwVersion)
-            assertEquals("pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)", report.engineRef)
+            assertEquals("1.0.0", report.versionName)
+            assertEquals(10000L, report.versionCode)
+            assertEquals("pili-pos-android/1.0.0", report.posSwVersion)
+            assertEquals("pili-pos 1.0.0, android-v1.0.0-rc3", report.engineRef)
             assertEquals("SN-0001", report.deviceId)
             assertEquals("POS-01", report.posId)
             assertEquals("TERM-01", report.terminalId)

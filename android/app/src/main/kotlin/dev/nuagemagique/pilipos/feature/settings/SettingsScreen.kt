@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,12 +34,27 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.Lazy
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.feature.settings.alerts.NumberEntryActions
+import dev.nuagemagique.pilipos.feature.settings.alerts.NumberEntryDialog
+import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsCallbacks
+import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsSection
+import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsViewModel
+import dev.nuagemagique.pilipos.feature.settings.courses.CoursesCallbacks
+import dev.nuagemagique.pilipos.feature.settings.courses.CoursesSection
+import dev.nuagemagique.pilipos.feature.settings.courses.CoursesUiState
+import dev.nuagemagique.pilipos.feature.settings.courses.CoursesViewModel
+import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherCallbacks
+import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherSection
+import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherUiState
+import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherViewModel
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.NavRegistry
 import dev.nuagemagique.pilipos.nav.SettingsEntry
 import dev.nuagemagique.pilipos.ui.components.ConfirmDialog
+import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
+import dev.nuagemagique.pilipos.ui.components.PiliDialog
 import dev.nuagemagique.pilipos.ui.components.PinDialog
 import dev.nuagemagique.pilipos.ui.components.PinMode
 import dev.nuagemagique.pilipos.ui.components.PinPadTexts
@@ -76,6 +92,8 @@ internal data class SettingsCallbacks(
     val onToggleTraining: () -> Unit = {},
     val onLanguage: (AppLanguage) -> Unit = {},
     val onProductLabel: (ProductLabel) -> Unit = {},
+    val onTablePlanInput: (String) -> Unit = {},
+    val onSaveTablePlan: () -> Unit = {},
     val onRow: (SettingsEntry) -> Unit = {},
     val onNewName: (String) -> Unit = {},
     val onNewInsz: (String) -> Unit = {},
@@ -83,8 +101,10 @@ internal data class SettingsCallbacks(
     val onAddEmployee: () -> Unit = {},
     val onPin: (User) -> Unit = {},
     val onDeactivate: (String) -> Unit = {},
+    val onPresence: (User) -> Unit = {},
     val onToggleHubrise: () -> Unit = {},
     val onReloadDeliveries: () -> Unit = {},
+    val badge: BadgeCallbacks = BadgeCallbacks(),
 )
 
 /** What the PIN dialogs of the screen call (the view model's PIN flow). */
@@ -109,16 +129,25 @@ internal data class DeactivateActions(
  * engine closed, never navigates when it starts and asks the mail status once on open. The root carries the tag
  * `placeholder_settings` (PD204).
  */
+@Suppress("LongMethod")
 @Composable
 internal fun SettingsRoute(
     navigator: AppNavigator,
     registry: Lazy<NavRegistry>,
+    entry: SettingsFeatureEntryPoint = rememberEntryPoint<SettingsFeatureEntryPoint>(),
 ) {
-    val entry = rememberEntryPoint<SettingsFeatureEntryPoint>()
     val model = viewModel { SettingsViewModel(entry) }
     val hubriseModel = viewModel { HubriseViewModel(entry) }
+    val peppolModel = viewModel { PeppolViewModel(entry) }
+    val alertsModel = viewModel { OwnerAlertsViewModel(entry) }
+    val coursesModel = viewModel { CoursesViewModel(entry) }
+    val vouchersModel = viewModel { GiftVoucherViewModel(entry) }
     val loaded by model.state.collectAsState()
     val hubrise by hubriseModel.state.collectAsState()
+    val peppol by peppolModel.state.collectAsState()
+    val alerts by alertsModel.state.collectAsState()
+    val courses by coursesModel.state.collectAsState()
+    val vouchers by vouchersModel.state.collectAsState()
     val pending by entry.webshop().pendingCount.collectAsState()
     LaunchedEffect(hubriseModel) {
         hubriseModel.effects.collect {
@@ -132,9 +161,18 @@ internal fun SettingsRoute(
     val callbacks = settingsCallbacks(model, navigator)
     val pinActions = pinActionsOf(model)
     val hubriseCallbacks = hubriseCallbacksOf(hubriseModel)
+    val badgeActions = badgeActionsOf(model.badge)
+    val alertsCallbacks = alertsCallbacksOf(alertsModel)
+    val coursesCallbacks = CoursesCallbacks(coursesModel::toggleEnabled, coursesModel::setCourse, coursesModel::save)
+    val vouchersCallbacks = vouchersCallbacksOf(vouchersModel)
     val connectActions = HubriseConnectActions(onSubmit = hubriseModel::submitCode, onCancel = hubriseModel::cancelConnect)
     val qr = remember(entry) { entry.qrMatrices() }
     LaunchedEffect(model) { entry.delivery().refreshMailStatus() }
+    // The panel is read every 30 s while the screen is shown, and no longer once it is left.
+    DisposableEffect(peppolModel, peppol.isManager) {
+        if (peppol.isManager) peppolModel.startPolling()
+        onDispose { peppolModel.stopPolling() }
+    }
     PosScaffold(
         HeaderArea.SETTINGS,
         navigator,
@@ -144,6 +182,7 @@ internal fun SettingsRoute(
                 state = state,
                 pinActions = pinActions,
                 deactivate = DeactivateActions(onConfirm = model::deactivate, onCancel = model::cancelDeactivate),
+                badge = badgeActions,
             )
             HubriseDialogs(
                 state = hubrise,
@@ -152,11 +191,36 @@ internal fun SettingsRoute(
                 onConfirmDisconnect = hubriseModel::confirmDisconnect,
                 onCancelDisconnect = hubriseModel::cancelDisconnect,
             )
+            alerts.entry?.let { number ->
+                NumberEntryDialog(number, alertsActionsOf(alertsModel))
+            }
         },
     ) {
-        SettingsContent(state, callbacks, hubriseSection = {
-            HubriseSection(hubrise, pending, hubriseCallbacks)
-        })
+        SettingsContent(
+            state,
+            callbacks,
+            hubriseSection = { HubriseSection(hubrise, pending, hubriseCallbacks) },
+            peppolSection = { PeppolSection(peppol, PeppolCallbacks(onRetry = peppolModel::retry)) },
+            alertsSection = { OwnerAlertsSection(alerts, alertsCallbacks) },
+            coursesSection = { ManagerPanels(courses, coursesCallbacks, vouchers, vouchersCallbacks) },
+        )
+    }
+}
+
+private fun vouchersCallbacksOf(model: GiftVoucherViewModel) =
+    GiftVoucherCallbacks(model::toggleEnabled, model::setValidity, model::setMax, model::save)
+
+/** The manager panels of the second column: the courses and the gift vouchers. */
+@Composable
+internal fun ManagerPanels(
+    courses: CoursesUiState,
+    coursesCallbacks: CoursesCallbacks,
+    vouchers: GiftVoucherUiState,
+    vouchersCallbacks: GiftVoucherCallbacks,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
+        CoursesSection(courses, coursesCallbacks)
+        GiftVoucherSection(vouchers, vouchersCallbacks)
     }
 }
 
@@ -169,6 +233,8 @@ private fun settingsCallbacks(
         onToggleTraining = model::toggleTraining,
         onLanguage = model::setLanguage,
         onProductLabel = model::setProductLabel,
+        onTablePlanInput = model::setTablePlanInput,
+        onSaveTablePlan = model::saveTablePlan,
         onRow = { navigator.navigate(it.route) },
         onNewName = model::setNewName,
         onNewInsz = model::setNewInsz,
@@ -176,8 +242,33 @@ private fun settingsCallbacks(
         onAddEmployee = model::addEmployee,
         onPin = model::openPin,
         onDeactivate = model::deactivate,
+        onPresence = model::togglePresence,
         onToggleHubrise = model::toggleHubrise,
         onReloadDeliveries = model::reloadDeliveries,
+        badge = badgeCallbacksOf(model.badge),
+    )
+
+/** What the badge panel and the employee rows call on [model]. */
+private fun badgeCallbacksOf(model: SettingsBadgeModel): BadgeCallbacks =
+    BadgeCallbacks(
+        onToggle = model::toggle,
+        onReader = model::setReader,
+        onToggleLogin = model::toggleLogin,
+        onEditField = model::editField,
+        onKey = model::onKey,
+        onSaveTiming = model::saveTiming,
+        onEmployee = model::onEmployee,
+    )
+
+/** What the badge dialogs call on [model]. */
+private fun badgeActionsOf(model: SettingsBadgeModel): BadgeDialogActions =
+    BadgeDialogActions(
+        onCancelEnrol = model::cancelEnrol,
+        onEnrolPin = model::confirmEnrolPin,
+        onEnrolDone = model::onEnrolDone,
+        describeError = model::describe,
+        onConfirmRevoke = model::confirmRevoke,
+        onCancelRevoke = model::cancelRevoke,
     )
 
 /** The PIN flow of [model] as the PIN dialogs call it. */
@@ -188,6 +279,27 @@ private fun pinActionsOf(model: SettingsViewModel): SettingsPinActions =
         describeError = model::describe,
         onDone = model::onPinDone,
         onCancel = model::closePin,
+    )
+
+/** What the owner alerts panel calls on [model]. */
+private fun alertsCallbacksOf(model: OwnerAlertsViewModel): OwnerAlertsCallbacks =
+    OwnerAlertsCallbacks(
+        onToggleEnabled = model::toggleEnabled,
+        onToggleKind = model::toggleKind,
+        onLanguage = model::setLanguage,
+        onLabel = model::setLabel,
+        onEdit = model::openEntry,
+        onSave = model::save,
+        onTest = model::sendTest,
+    )
+
+/** What the number dialog of the owner alerts panel calls on [model]. */
+private fun alertsActionsOf(model: OwnerAlertsViewModel): NumberEntryActions =
+    NumberEntryActions(
+        onKey = model::pressKey,
+        onMinus = model::toggleMinus,
+        onConfirm = model::confirmEntry,
+        onCancel = model::cancelEntry,
     )
 
 /** What the HubRise panel calls on [model]. */
@@ -217,12 +329,15 @@ internal fun SettingsContent(
     callbacks: SettingsCallbacks,
     modifier: Modifier = Modifier,
     hubriseSection: @Composable () -> Unit = {},
+    peppolSection: @Composable () -> Unit = {},
+    alertsSection: @Composable () -> Unit = {},
+    coursesSection: (@Composable () -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary).testTag("settings_content")) {
         if (maxWidth >= WideLayoutMin) {
-            WideLayout(state, callbacks, hubriseSection)
+            WideLayout(state, callbacks, hubriseSection, peppolSection, alertsSection, coursesSection)
         } else {
-            NarrowLayout(state, callbacks, hubriseSection)
+            NarrowLayout(state, callbacks, hubriseSection, peppolSection, alertsSection, coursesSection)
         }
     }
 }
@@ -232,6 +347,9 @@ private fun WideLayout(
     state: SettingsUiState,
     callbacks: SettingsCallbacks,
     hubriseSection: @Composable () -> Unit,
+    peppolSection: @Composable () -> Unit,
+    alertsSection: @Composable () -> Unit,
+    coursesSection: (@Composable () -> Unit)?,
 ) {
     val gap = PiliTheme.dimens.spaceLg
     Row(Modifier.fillMaxSize().padding(gap), horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -242,15 +360,22 @@ private fun WideLayout(
             RowsPanel(state.rows, callbacks.onRow, Modifier.weight(1f), scroll = true)
         }
         if (state.isManager) {
-            EmployeesPanel(state, callbacks, Modifier.weight(1f).fillMaxHeight(), scrollList = true)
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(gap)) {
+                EmployeesPanel(state, callbacks, Modifier.weight(1f), scrollList = true)
+                if (coursesSection != null) CoursesSlot(coursesSection)
+            }
         }
         Column(
             Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
+            if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
+            if (state.isManager) BadgePanel(state.badge, callbacks.badge)
+            if (state.isManager) alertsSection()
             InfoPanel(state.info)
             IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
             if (state.hubrise.visible) hubriseSection()
+            peppolSection()
             DeliveriesPanel(state.deliveries, state.deliveriesLoading, state.mailStatus, callbacks.onReloadDeliveries)
         }
     }
@@ -261,6 +386,9 @@ private fun NarrowLayout(
     state: SettingsUiState,
     callbacks: SettingsCallbacks,
     hubriseSection: @Composable () -> Unit,
+    peppolSection: @Composable () -> Unit,
+    alertsSection: @Composable () -> Unit,
+    coursesSection: (@Composable () -> Unit)?,
 ) {
     val gap = PiliTheme.dimens.spaceMd
     Column(
@@ -271,13 +399,26 @@ private fun NarrowLayout(
         TrainingPanel(state.training, callbacks.onToggleTraining)
         LanguagePanel(state.language, callbacks.onLanguage)
         ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
+        if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
+        if (state.isManager) BadgePanel(state.badge, callbacks.badge)
+        if (state.isManager) alertsSection()
         if (state.isManager) EmployeesPanel(state, callbacks, Modifier, scrollList = false)
+        if (state.isManager && coursesSection != null) coursesSection()
         InfoPanel(state.info)
         IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
         if (state.hubrise.visible) hubriseSection()
+        peppolSection()
         DeliveriesPanel(state.deliveries, state.deliveriesLoading, state.mailStatus, callbacks.onReloadDeliveries)
     }
 }
+
+/** The courses panel under the employees: at most half of the column, scrolling inside when it needs more. */
+@Composable
+private fun CoursesSlot(coursesSection: @Composable () -> Unit) {
+    Column(Modifier.fillMaxWidth().heightIn(max = CoursesMaxHeight).verticalScroll(rememberScrollState())) { coursesSection() }
+}
+
+private val CoursesMaxHeight = 480.dp
 
 // ── Column 1: training, language, product label, rows ─────────────
 
@@ -337,6 +478,49 @@ private fun ProductLabelPanel(
     }
 }
 
+/** The table plan of a manager: the plan in use, a field and its save button (`.table-plan`). */
+@Composable
+private fun TablePlanPanel(
+    plan: TablePlanState,
+    callbacks: SettingsCallbacks,
+) {
+    Panel(modifier = Modifier.testTag("settings_tables")) {
+        PanelTitle(vueText("settings_tables"))
+        if (plan.plan != null) {
+            Text(
+                vueText("settings_tables_current", "count" to plan.count, "plan" to plan.plan),
+                style = PiliTheme.typography.body,
+                color = PiliTheme.colors.textPrimary,
+                modifier = Modifier.testTag("settings_tables_current"),
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SettingsTextField(
+                value = plan.input,
+                onValueChange = callbacks.onTablePlanInput,
+                placeholder = vueText("settings_tables_placeholder"),
+                modifier = Modifier.weight(1f).testTag("settings_tables_input"),
+                mono = true,
+                onDone = callbacks.onSaveTablePlan,
+            )
+            ActionButton(vueText("settings_tables_save"), callbacks.onSaveTablePlan, Modifier.testTag("settings_tables_save"))
+        }
+        if (plan.error != null) {
+            Text(
+                plan.error,
+                style = PiliTheme.typography.body,
+                color = PiliTheme.colors.accentDanger,
+                modifier = Modifier.testTag("settings_tables_error"),
+            )
+        }
+        PanelText(vueText("settings_tables_note"))
+    }
+}
+
 /**
  * The rows the other features contribute (UI-PD308): one button per row, in the order given, tagged
  * `settings_row_<id>`. Nothing here knows what a route is: a tap hands the row to [onRow].
@@ -391,20 +575,32 @@ private fun EmployeesPanel(
 ) {
     Panel(modifier = modifier.testTag("settings_workers")) {
         PanelTitle(vueText("employees"))
+        PanelText(vueText("settings_presence_note"), Modifier.testTag("settings_presence_note"))
+        val block = state.presenceBlock
+        if (state.isManager && block != null) {
+            PanelText(
+                vueText(if (block == PresenceBlock.Training) "err_presence_training" else "settings_presence_fdm_down"),
+                Modifier.testTag("settings_presence_block"),
+                color = PiliTheme.colors.accentWarning,
+            )
+        }
         val listModifier = if (scrollList) Modifier.weight(1f).verticalScroll(rememberScrollState()) else Modifier
         Column(listModifier.fillMaxWidth()) {
-            state.users.forEach { user -> WorkerRow(user, state.isSelf(user.insz), callbacks) }
+            state.users.forEach { user -> WorkerRow(user, state, callbacks) }
         }
         AddEmployeeForm(state.form, callbacks)
     }
 }
 
+@Suppress("LongMethod")
 @Composable
 private fun WorkerRow(
     user: User,
-    self: Boolean,
+    state: SettingsUiState,
     callbacks: SettingsCallbacks,
 ) {
+    val self = state.isSelf(user.insz)
+    val since = state.openShifts[user.insz]
     val colors = PiliTheme.colors
     Column(Modifier.fillMaxWidth().testTag("worker_" + user.insz)) {
         Row(
@@ -426,15 +622,24 @@ private fun WorkerRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    vueText("role_" + user.role.name.lowercase()) + " · " +
-                        vueText(if (user.hasPin) "settings_pin_set" else "settings_pin_missing"),
+                    if (user.presenceOnly) {
+                        vueText("role_presence")
+                    } else {
+                        vueText("role_" + user.role.name.lowercase()) + " · " +
+                            vueText(if (user.hasPin) "settings_pin_set" else "settings_pin_missing")
+                    },
                     style = PiliTheme.typography.body,
-                    color = if (user.hasPin) colors.textSecondary else colors.accentWarning,
+                    color = if (user.hasPin || user.presenceOnly) colors.textSecondary else colors.accentWarning,
                     modifier = Modifier.testTag("worker_" + user.insz + "_meta"),
                 )
+                ShiftState(user.insz, since)
             }
             GapRow {
-                ActionButton(vueText("settings_pin_button"), { callbacks.onPin(user) }, Modifier.testTag("worker_" + user.insz + "_pin"))
+                if (state.isManager && !self) PresenceButton(user, since != null, state, callbacks)
+                if (!user.presenceOnly) {
+                    val pinTag = "worker_" + user.insz + "_pin"
+                    ActionButton(vueText("settings_pin_button"), { callbacks.onPin(user) }, Modifier.testTag(pinTag))
+                }
                 if (!self) {
                     ActionButton(
                         vueText("deactivate"),
@@ -444,8 +649,51 @@ private fun WorkerRow(
                 }
             }
         }
+        if (state.showBadges) {
+            WorkerBadgeLine(
+                user.insz,
+                state.badgeOf(user.insz)?.linkedAt,
+                Modifier.padding(start = AvatarSize + PiliTheme.dimens.spaceMd, bottom = PiliTheme.dimens.spaceSm),
+            ) { callbacks.badge.onEmployee(user) }
+        }
         Hairline()
     }
+}
+
+/** "En service depuis HH:MM" (Brussels time of [since]) or "Hors service". */
+@Composable
+private fun ShiftState(
+    insz: String,
+    since: String?,
+) {
+    val colors = PiliTheme.colors
+    Text(
+        if (since == null) {
+            vueText("settings_off_shift")
+        } else {
+            vueText("settings_on_shift_since", "time" to PosDateTime.formatTimestamp(since, PosDateTime::formatTime))
+        },
+        style = PiliTheme.typography.body,
+        color = if (since == null) colors.textSecondary else colors.textPrimary,
+        modifier = Modifier.testTag("worker_" + insz + "_presence"),
+    )
+}
+
+/** "Arrivée" when [onShift] is false, "Départ" when true; off while the FDM is down, in training or a call runs. */
+@Composable
+private fun PresenceButton(
+    user: User,
+    onShift: Boolean,
+    state: SettingsUiState,
+    callbacks: SettingsCallbacks,
+) {
+    val suffix = if (onShift) "_presence_out" else "_presence_in"
+    ActionButton(
+        vueText(if (onShift) "settings_presence_out" else "settings_presence_in"),
+        { callbacks.onPresence(user) },
+        Modifier.testTag("worker_" + user.insz + suffix),
+        enabled = state.presenceBlock == null && state.presenceBusy == null,
+    )
 }
 
 @Composable
@@ -507,6 +755,7 @@ private fun InfoPanel(info: PosSettings?) {
                 InfoRow(vueText("settings_restaurant_label"), info.restaurantName)
                 InfoRow(vueText("settings_fdm_label"), info.fdmUrl)
                 InfoRow(vueText("settings_printer_label"), info.printerAddress ?: vueText("printer_none"))
+                InfoRow(uiText(R.string.ui_eft_terminal_label), paymentTerminalLabel(info.paymentTerminal))
             }
         }
     }
@@ -681,7 +930,21 @@ internal fun SettingsDialogs(
     state: SettingsUiState,
     pinActions: SettingsPinActions,
     deactivate: DeactivateActions,
+    badge: BadgeDialogActions = BadgeDialogActions(),
 ) {
+    state.enrol?.let { enrol -> key(enrol.token != null) { BadgeEnrolDialog(enrol, badge) } }
+    state.revokeBadge?.let { ask ->
+        ConfirmDialog(
+            title = vueText("badge_revoke"),
+            message = vueText("badge_revoke_confirm", "name" to ask.name),
+            confirmText = vueText("badge_revoke"),
+            cancelText = vueText("back"),
+            onConfirm = badge.onConfirmRevoke,
+            onCancel = badge.onCancelRevoke,
+            destructive = true,
+            modifier = Modifier.testTag("badge_revoke_dialog"),
+        )
+    }
     val flow = state.pin
     if (flow != null) key(flow.stage) { SettingsPinDialog(flow, pinActions) }
     val armed = state.confirmDeactivate
@@ -729,3 +992,68 @@ private fun SettingsPinDialog(
         modifier = Modifier.testTag("settings_pin_dialog"),
     )
 }
+
+/**
+ * Link a badge to an employee (`BadgeEnrolDialog.vue`): "Présentez le badge de ..." waits for the next scan, then
+ * the manager's own PIN confirms. Test tags: `badge_enrol_dialog`, `badge_enrol_cancel`, `badge_enrol_pin`.
+ */
+@Composable
+private fun BadgeEnrolDialog(
+    enrol: BadgeEnrolFlow,
+    actions: BadgeDialogActions,
+) {
+    if (enrol.token == null) {
+        PiliDialog(
+            title = vueText("badge_link"),
+            onDismissRequest = actions.onCancelEnrol,
+            modifier = Modifier.testTag("badge_enrol_dialog"),
+            actions = {
+                PiliButton(
+                    text = vueText("back"),
+                    onClick = actions.onCancelEnrol,
+                    variant = PiliButtonVariant.Secondary,
+                    modifier = Modifier.testTag("badge_enrol_cancel"),
+                )
+            },
+        ) {
+            Text(
+                vueText("badge_present_for", "name" to enrol.name),
+                style = PiliTheme.typography.body,
+                color = PiliTheme.colors.textPrimary,
+                modifier = Modifier.testTag("badge_enrol_present"),
+            )
+        }
+        return
+    }
+    val texts =
+        PinPadTexts(
+            title = vueText("pin_enter"),
+            hint = vueText("pin_confirm_manager"),
+            enterPrompt = vueText("pin_enter"),
+            confirmPrompt = vueText("pin_confirm"),
+            mismatch = vueText("pin_mismatch"),
+            cancel = vueText("back"),
+            clearLabel = uiText(R.string.ui_common_numpad_clear),
+            backspaceLabel = uiText(R.string.ui_common_numpad_backspace),
+        )
+    PinDialog(
+        mode = PinMode.Verify,
+        texts = texts,
+        onSubmit = actions.onEnrolPin,
+        describeError = actions.describeError,
+        onDone = actions.onEnrolDone,
+        onCancel = actions.onCancelEnrol,
+        modifier = Modifier.testTag("badge_enrol_pin"),
+    )
+}
+
+/** "Worldline", "CCV (cloud)", "CCV (reseau local)", or "Aucun (saisie manuelle)" for a till whose cards are typed by hand. */
+@Composable
+internal fun paymentTerminalLabel(kind: String?): String =
+    when (kind) {
+        null -> uiText(R.string.ui_eft_terminal_none)
+        "worldline_terminal_api" -> uiText(R.string.ui_eft_kind_worldline_terminal_api)
+        "ccv_payment_api" -> uiText(R.string.ui_eft_kind_ccv_payment_api)
+        "ccv_opi" -> uiText(R.string.ui_eft_kind_ccv_opi)
+        else -> kind
+    }

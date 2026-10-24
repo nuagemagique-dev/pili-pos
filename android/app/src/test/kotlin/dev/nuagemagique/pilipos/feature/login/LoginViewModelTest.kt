@@ -4,12 +4,18 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.scaffold.PRINTER_POLL_MS
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -24,6 +30,8 @@ import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.FdmSeverity
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.UserRole
+
+private const val SLOW_TERMINAL_MS = 45_000L
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -60,6 +68,32 @@ class LoginViewModelTest {
             assertEquals("2026-10-09 09:05:00", r.state.shiftStart(CASHIER_INSZ))
             assertNull(r.state.shiftStart(ADMIN_INSZ))
             assertFalse(r.state.numpadMode)
+        }
+
+    @Test
+    fun presenceOnlyStaffHaveNoTile() =
+        runTest {
+            val f = fixture()
+            val cook = user("88010112345", "Dao", UserRole.WAITER, hasPin = false, presenceOnly = true)
+            stubReads(f.engine, users = listOf(admin, cook, cashier))
+
+            val r = start(f)
+
+            assertEquals(listOf(admin, cashier), r.state.users)
+            assertFalse(r.state.numpadMode)
+        }
+
+    @Test
+    fun aListOfPresenceOnlyStaffAloneGivesTheNumpadMode() =
+        runTest {
+            val f = fixture()
+            val cook = user("88010112345", "Dao", UserRole.WAITER, hasPin = false, presenceOnly = true)
+            stubReads(f.engine, users = listOf(cook))
+
+            val r = start(f)
+
+            assertTrue(r.state.users.isEmpty())
+            assertTrue(r.state.numpadMode)
         }
 
     @Test
@@ -194,6 +228,120 @@ class LoginViewModelTest {
             val byId = r.state.checks.associateBy { it.id }
             assertEquals(StartupCheck(CheckId.Ticket, CheckState.Err, "check_unreachable"), byId[CheckId.Ticket])
             assertEquals(StartupCheck(CheckId.Kitchen, CheckState.None, "check_not_configured"), byId[CheckId.Kitchen])
+        }
+
+    @Test
+    fun theTerminalHasALineOnlyWhenOneIsConfigured() =
+        runTest {
+            val f = fixture()
+            val none = start(f)
+            assertNull(none.state.checks.firstOrNull { it.id == CheckId.Terminal })
+
+            val g = fixture()
+            coEvery { g.engine.checkPaymentTerminal() } returns terminalStatus()
+            val ok = start(g)
+            val line = ok.state.checks.single { it.id == CheckId.Terminal }
+            assertEquals(StartupCheck(CheckId.Terminal, CheckState.Ok, "check_connected"), line)
+            // After the printers, before the mail line.
+            assertEquals(
+                listOf(CheckId.Fdm, CheckId.Ticket, CheckId.Kitchen, CheckId.Terminal, CheckId.Mail),
+                ok.state.checks.map { it.id },
+            )
+        }
+
+    @Test
+    fun theTerminalStatesAndItsReason() =
+        runTest {
+            val busy = fixture()
+            coEvery { busy.engine.checkPaymentTerminal() } returns terminalStatus(busy = true)
+            assertEquals(
+                StartupCheck(CheckId.Terminal, CheckState.Warn, "check_payment_busy"),
+                start(busy).state.checks.single { it.id == CheckId.Terminal },
+            )
+
+            val down = fixture()
+            coEvery { down.engine.checkPaymentTerminal() } returns terminalStatus(connected = false, detail = "connection refused")
+            val r = start(down)
+            assertEquals(
+                StartupCheck(CheckId.Terminal, CheckState.Err, "check_unreachable", "connection refused"),
+                r.state.checks.single { it.id == CheckId.Terminal },
+            )
+            // Informative: the users are still there to log in.
+            assertTrue(r.state.users.isNotEmpty() || r.state.numpadMode)
+
+            val failed = fixture()
+            coEvery { failed.engine.checkPaymentTerminal() } throws PosException.Coded("boom", emptyMap())
+            assertNull(start(failed).state.checks.firstOrNull { it.id == CheckId.Terminal })
+        }
+
+    @Test
+    fun theDevicesAreCheckedAgainEvery30SecondsWhileTheScreenIsShown() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.checkPaymentTerminal() } returns terminalStatus()
+            coEvery { f.engine.checkPrinter() } returns true
+            val r = start(f)
+            val polling = launch { r.model.pollChecks() }
+            runCurrent()
+            assertEquals(CheckState.Ok, r.state.checks.single { it.id == CheckId.Terminal }.state)
+            assertEquals(CheckState.Ok, r.state.checks.single { it.id == CheckId.Ticket }.state)
+
+            // The terminal and the printer drop; nothing changes before the tick.
+            coEvery { f.engine.checkPaymentTerminal() } returns terminalStatus(connected = false, detail = "connection refused")
+            coEvery { f.engine.checkPrinter() } returns false
+            advanceTimeBy(PRINTER_POLL_MS - 1)
+            runCurrent()
+            assertEquals(CheckState.Ok, r.state.checks.single { it.id == CheckId.Terminal }.state)
+
+            advanceTimeBy(1)
+            runCurrent()
+            val down = r.state.checks.single { it.id == CheckId.Terminal }
+            assertEquals(StartupCheck(CheckId.Terminal, CheckState.Err, "check_unreachable", "connection refused"), down)
+            assertEquals(CheckState.Err, r.state.checks.single { it.id == CheckId.Ticket }.state)
+
+            // And back.
+            coEvery { f.engine.checkPaymentTerminal() } returns terminalStatus()
+            advanceTimeBy(PRINTER_POLL_MS)
+            runCurrent()
+            assertEquals(CheckState.Ok, r.state.checks.single { it.id == CheckId.Terminal }.state)
+            polling.cancel()
+        }
+
+    @Test
+    fun theDevicesAreNotCheckedWhenThePollingIsNotRunning() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+            val before = r.state.checks
+            coEvery { f.engine.checkPrinter() } returns false
+            advanceTimeBy(PRINTER_POLL_MS * 3)
+            runCurrent()
+            assertEquals(before, r.state.checks)
+            coVerify(exactly = 1) { f.engine.checkPrinter() }
+        }
+
+    @Test
+    fun theTerminalIsNeverCheckedTwiceAtOnce() =
+        runTest {
+            val f = fixture()
+            // The terminal takes 45 s to answer.
+            coEvery { f.engine.checkPaymentTerminal() } coAnswers
+                {
+                    delay(SLOW_TERMINAL_MS)
+                    terminalStatus()
+                }
+            val r = start(f)
+            val polling = launch { r.model.pollChecks() }
+            // The first check is still waiting at the tick of 30 s: no second probe.
+            advanceTimeBy(PRINTER_POLL_MS + 1)
+            runCurrent()
+            coVerify(exactly = 1) { f.engine.checkPaymentTerminal() }
+            // It answered at 45 s; the tick of 60 s probes again.
+            advanceTimeBy(PRINTER_POLL_MS)
+            runCurrent()
+            coVerify(exactly = 2) { f.engine.checkPaymentTerminal() }
+            polling.cancel()
+            advanceUntilIdle()
         }
 
     @Test

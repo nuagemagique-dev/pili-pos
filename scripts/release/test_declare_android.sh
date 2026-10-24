@@ -129,7 +129,7 @@ write_xml() { # write_xml RELEASE_KEY
     cat >"$PROJ/android/app/src/main/res/xml/plat_update_keys.xml" <<XML
 <?xml version="1.0" encoding="utf-8"?>
 <plat-update-keys>
-    <key build="debug">RWQmv3D5F4695q2BBUUzfk0ABpONbcMKPePaMqZkpr5UV8J0PCTEdO/v</key>
+    <key build="debug">RWRrbVE2do8gX6jV4FXRQpiK3QIKlruHZzxVT/P81uXp7QShDib1tTBj</key>
     <key build="release">$1</key>
 </plat-update-keys>
 XML
@@ -236,8 +236,8 @@ expect "asset-signature-v1-off-v3-on" "$ok" "apksigner verify: $(printf '%s' "$v
 PILI_DECLARED_PUB="$KEYS/decl.pub" run --apk "$T/ok.apk" --version 1.0.1 --sha1 "$SHA1_OK" \
     --keystore "$KEYS/rsa.p12" --alias rel --minisign-key "$KEYS/decl.key" --out "$T/out1b" --dry-run
 ok=1
-has "oras push ghcr.io/brunomoyse/moyun-pos:declared-android --artifact-type application/vnd.pili-pos.declared-android.v1 pili-pos-android-1.0.1.apk:application/vnd.android.package-archive declared.json:application/json declared.json.minisig:text/plain" \
-    && has "gh release upload android-v1.0.1 -R brunomoyse/moyun-pos --clobber" && ok=0
+has "oras push ghcr.io/nuagemagique-dev/pili-pos:declared-android --artifact-type application/vnd.pili-pos.declared-android.v1 pili-pos-android-1.0.1.apk:application/vnd.android.package-archive declared.json:application/json declared.json.minisig:text/plain" \
+    && has "gh release upload android-v1.0.1 -R nuagemagique-dev/pili-pos --clobber" && ok=0
 expect "dry-run-prints-commands" "$ok" "the exact oras and gh commands are not printed"
 
 # 3. the stubs were never called in the dry runs
@@ -373,10 +373,10 @@ ok=1
 [[ "$RC" -eq 0 ]] && has "DECLARE | total | PASS" && ok=0
 expect "real-run-with-stubs-passes" "$ok" "exit $RC: $(tail -n 3 "$OUTTXT" | tr '\n' ' ')"
 ok=1
-grep -qF "oras push ghcr.io/brunomoyse/moyun-pos:declared-android --artifact-type application/vnd.pili-pos.declared-android.v1 pili-pos-android-1.0.1.apk:application/vnd.android.package-archive declared.json:application/json declared.json.minisig:text/plain" "$STUBLOG" && ok=0
+grep -qF "oras push ghcr.io/nuagemagique-dev/pili-pos:declared-android --artifact-type application/vnd.pili-pos.declared-android.v1 pili-pos-android-1.0.1.apk:application/vnd.android.package-archive declared.json:application/json declared.json.minisig:text/plain" "$STUBLOG" && ok=0
 expect "real-run-oras-push-arguments" "$ok" "stub log: $(cat "$STUBLOG" | tr '\n' ';')"
 ok=1
-grep -qF "gh release upload android-v1.0.1 -R brunomoyse/moyun-pos --clobber pili-pos-android-1.0.1.apk declared.json declared.json.minisig" "$STUBLOG" && ok=0
+grep -qF "gh release upload android-v1.0.1 -R nuagemagique-dev/pili-pos --clobber pili-pos-android-1.0.1.apk declared.json declared.json.minisig" "$STUBLOG" && ok=0
 expect "real-run-gh-release-upload-arguments" "$ok" "stub log: $(cat "$STUBLOG" | tr '\n' ';')"
 : >"$STUBLOG"
 PILI_REPO="Example/Repo-Name" run --apk "$T/ok.apk" --version 1.0.1 --sha1 "$SHA1_OK" \

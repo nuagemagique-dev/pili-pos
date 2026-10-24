@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.EntryPointAccessors
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.platform.PlatformBackButton
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 
 @Composable
@@ -37,9 +38,12 @@ private fun rememberAboutViewModel(): AboutViewModel {
 
 /** The About screen (route `platform/about`): version, file hashes, device and storage. */
 @Composable
-fun AboutScreen(viewModel: AboutViewModel = rememberAboutViewModel()) {
+fun AboutScreen(
+    onBack: () -> Unit = {},
+    viewModel: AboutViewModel = rememberAboutViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    AboutContent(state = state, onRefresh = viewModel::refresh)
+    AboutContent(state = state, onRefresh = viewModel::refresh, onBack = onBack)
 }
 
 /** The stateless body of [AboutScreen]. */
@@ -47,6 +51,7 @@ fun AboutScreen(viewModel: AboutViewModel = rememberAboutViewModel()) {
 internal fun AboutContent(
     state: AboutUiState,
     onRefresh: () -> Unit,
+    onBack: () -> Unit = {},
 ) {
     val colors = PiliTheme.colors
     val dimens = PiliTheme.dimens
@@ -55,19 +60,26 @@ internal fun AboutContent(
         modifier = Modifier.fillMaxSize().background(colors.bgPrimary).testTag("about_root"),
     ) {
         when (state) {
-            AboutUiState.Loading ->
+            AboutUiState.Loading -> {
+                PlatformBackButton(
+                    onBack = onBack,
+                    tag = "about_back",
+                    modifier = Modifier.align(Alignment.TopStart).padding(dimens.spaceLg),
+                )
                 Text(
                     text = stringResource(R.string.plat_about_loading),
                     style = type.body,
                     color = colors.textSecondary,
                     modifier = Modifier.align(Alignment.Center),
                 )
+            }
             is AboutUiState.Loaded ->
                 Column(
                     modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(dimens.spaceLg),
                     verticalArrangement = Arrangement.spacedBy(dimens.spaceMd),
                 ) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        PlatformBackButton(onBack = onBack, tag = "about_back")
                         Text(
                             text = stringResource(R.string.plat_about_title),
                             style = type.title,

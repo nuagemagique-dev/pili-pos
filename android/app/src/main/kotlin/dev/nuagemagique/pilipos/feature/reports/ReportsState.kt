@@ -3,12 +3,18 @@ package dev.nuagemagique.pilipos.feature.reports
 import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.CopyResult
 import uniffi.pos_ffi.CopyableTicket
+import uniffi.pos_ffi.CorrectionDone
+import uniffi.pos_ffi.GiftVoucherView
 import uniffi.pos_ffi.OrderLine
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.ReportResult
+import uniffi.pos_ffi.SalePaymentLine
+import uniffi.pos_ffi.SalePayments
+import uniffi.pos_ffi.UnsettledCardPayment
 import uniffi.pos_ffi.ZReportSummary
 
-/** The three tabs of the reports screen (`Tab` of `ReportsView.vue`, UX guide 2.1). */
+/** The tabs of the reports screen (`Tab` of `ReportsView.vue`, UX guide 2.1): four, five with gift vouchers on. */
 internal enum class ReportsTab {
     /** X, user X and Z reports and the Z history. */
     DAY,
@@ -18,7 +24,36 @@ internal enum class ReportsTab {
 
     /** Copy and refund from one list of tickets. */
     TICKETS,
+
+    /** The non-fiscal sales report (by product, by hour, concordance with the Z). */
+    SALES,
+
+    /** Gift vouchers: lookup by code, and for a manager the list with the duplicate. */
+    VOUCHERS,
 }
+
+/** The statuses the manager's list filters on, `null` being all of them (`FILTERS` of `GiftVouchersReport.vue`). */
+internal val VOUCHER_FILTERS: List<String?> = listOf(null, "active", "used", "expired", "cancelled")
+
+/**
+ * The gift vouchers tab (`GiftVouchersReport.vue`): the lookup of a code (any role) and, for a manager, the list.
+ * [enabled] is the setting; the tab is offered only then. Codes are masked everywhere.
+ */
+internal data class VouchersState(
+    val enabled: Boolean = false,
+    val manager: Boolean = false,
+    /** The digits of the code typed for the lookup. */
+    val digits: String = "",
+    val found: GiftVoucherView? = null,
+    val lookupError: String? = null,
+    val busy: Boolean = false,
+    /** The status filter of the list; null is all. */
+    val filter: String? = null,
+    val list: List<GiftVoucherView> = emptyList(),
+    val listError: String? = null,
+    /** The voucher whose movements are open. */
+    val open: Long? = null,
+)
 
 /** The report a button of the day tab generates. */
 internal enum class ReportKind {
@@ -67,6 +102,8 @@ internal data class DayState(
     val zHistory: List<ZReportSummary> = emptyList(),
     /** True when the end-of-day Z is due (`needs_z_report`). */
     val zPending: Boolean = false,
+    /** Card payments taken on the terminal that no sale records yet: told at the Z, which they never block. */
+    val unsettled: List<UnsettledCardPayment> = emptyList(),
     /** The report being generated, or null: while set, every report button is disabled. */
     val loadingKind: ReportKind? = null,
     /** True after the first tap on the Z button; the second tap within [Z_ARM_WINDOW_MS] generates it. */
@@ -171,7 +208,26 @@ internal data class TicketRow(
     val kind: TicketKind,
     val copyable: CopyableTicket?,
     val refundable: RefundableEvent?,
-)
+) {
+    /**
+     * True for a sale ticket whose payment may be corrected (`isSaleRow` of `ReportsView.vue`): a positive N or T
+     * ticket, or a refundable sale. The engine decides whether it really can.
+     */
+    val isSale: Boolean
+        get() {
+            if (totalCents <= 0L) return false
+            return if (copyable != null) {
+                copyable.eventLabel == LABEL_SALE || copyable.eventLabel == LABEL_TRAINING_SALE
+            } else {
+                refundable != null
+            }
+        }
+
+    private companion object {
+        const val LABEL_SALE = "N"
+        const val LABEL_TRAINING_SALE = "T"
+    }
+}
 
 /** The tickets tab. */
 internal data class TicketsState(
@@ -183,6 +239,10 @@ internal data class TicketsState(
     val refundable: List<RefundableEvent> = emptyList(),
     /** Both lists in one, newest first. */
     val rows: List<TicketRow> = emptyList(),
+    /** True for a manager: the payment correction is offered on the sale rows. */
+    val canCorrect: Boolean = false,
+    /** The correction each sale already has, by fiscal event id (read for a manager, best effort). */
+    val corrections: Map<Long, CorrectionDone> = emptyMap(),
 )
 
 /** What a copy is a copy of. */
@@ -264,16 +324,87 @@ internal data class RefundFlow(
     val hasSelection: Boolean get() = checked.isNotEmpty()
 }
 
+/**
+ * The payment correction flow (event F): the payment lines of a sale, the line and the method picked, and the
+ * manager PIN that confirms it.
+ */
+internal data class CorrectionFlow(
+    val fiscalEventId: Long,
+    val ticketNumber: Long,
+    /** The engine's answer (`list_sale_payments`), null while it loads. */
+    val payments: SalePayments? = null,
+    /** The screen text of a failed read, null otherwise. */
+    val loadFailure: String? = null,
+    /** The picked payment line (its index in the sale), or null. */
+    val lineIndex: Int? = null,
+    /** The method the payment really was made with, or null. */
+    val method: PaymentMethod? = null,
+    /** True while the PIN dialog is open. */
+    val askPin: Boolean = false,
+) {
+    /** The lines that can be shown as choices: payments, not the cash rounding. */
+    val lines: List<SalePaymentLine> get() = payments?.lines.orEmpty().filter { it.amountType == AMOUNT_PAYMENT }
+
+    /** The picked line, or null. */
+    val picked: SalePaymentLine? get() = lines.firstOrNull { it.index == lineIndex }
+
+    /** True when a line and a method are picked: the confirm button is enabled. */
+    val canConfirm: Boolean get() = picked != null && method != null
+
+    companion object {
+        /** `amountType` of a payment line (the other one is the rounding). */
+        const val AMOUNT_PAYMENT: String = "PAYMENT"
+
+        /** `inputMethod` of a card the linked terminal took: never corrected. */
+        const val INPUT_AUTOMATIC: String = "AUTOMATIC"
+    }
+}
+
+/** The method a payment line of `paymentType` belongs to; null for a type the till does not take. */
+internal fun methodOf(paymentType: String): PaymentMethod? =
+    when {
+        paymentType == "CASH" -> PaymentMethod.CASH
+        paymentType.startsWith("CARD") -> PaymentMethod.CARD
+        paymentType == "CHEQUE_MEAL" -> PaymentMethod.MEAL_VOUCHER
+        paymentType == GIFT_VOUCHER_TYPE -> PaymentMethod.GIFT_VOUCHER
+        else -> null
+    }
+
+/** The signed payment type of a gift voucher payment. */
+internal const val GIFT_VOUCHER_TYPE: String = "VOUCHER_STORE"
+
+/** A payment line that cannot be picked: a card the linked terminal took, or a gift voucher (it debited a voucher). */
+internal fun isLockedLine(line: uniffi.pos_ffi.SalePaymentLine): Boolean =
+    line.inputMethod == CorrectionFlow.INPUT_AUTOMATIC || line.paymentType == GIFT_VOUCHER_TYPE
+
+/** The methods a payment can be corrected to, in the order of the buttons. */
+internal val CORRECTION_METHODS: List<PaymentMethod> = listOf(PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER)
+
+/** The Vue key of the name of [method] in the correction dialog; null for the app and online methods. */
+internal fun methodKey(method: PaymentMethod): String? =
+    when (method) {
+        PaymentMethod.CASH -> "reports_pc_method_cash"
+        PaymentMethod.CARD -> "reports_pc_method_card"
+        PaymentMethod.MEAL_VOUCHER -> "reports_pc_method_meal_voucher"
+        PaymentMethod.GIFT_VOUCHER -> "reports_pc_method_gift_voucher"
+        PaymentMethod.APP, PaymentMethod.ONLINE -> null
+    }
+
 /** Everything the reports screen draws. */
 internal data class ReportsState(
     val tab: ReportsTab = ReportsTab.DAY,
     val day: DayState = DayState(),
     val cash: CashState = CashState(),
     val tickets: TicketsState = TicketsState(),
+    val vouchers: VouchersState = VouchersState(),
     /** The copy flow, or null when no copy is in progress. */
     val copyFlow: CopyFlow? = null,
     /** The refund flow, or null when no refund is in progress. */
     val refundFlow: RefundFlow? = null,
+    /** The payment correction flow, or null when none is in progress. */
+    val correctionFlow: CorrectionFlow? = null,
     /** True when an operator is logged in; without one the screen shows an in-place empty state (PD205). */
     val signedIn: Boolean = false,
+    /** The name of the operator, for the PIN dialog of the payment correction. */
+    val userName: String = "",
 )

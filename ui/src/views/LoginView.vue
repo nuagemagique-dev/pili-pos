@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useIntegrationsStore } from "../stores/integrations";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { usePosStore } from "../stores/pos";
 import { useFdmStore } from "../stores/fdm";
+import { useBadgeStore } from "../stores/badge";
+import { goAfterLogin } from "../utils/postLogin";
 import { useToastStore } from "../stores/toast";
 import type { User } from "../types";
 import * as ipc from "../api/ipc";
@@ -20,6 +22,7 @@ const auth = useAuthStore();
 const pos = usePosStore();
 const fdm = useFdmStore();
 const toast = useToastStore();
+const badge = useBadgeStore();
 const { t } = useI18n();
 
 const savedUsers = ref<User[]>([]);
@@ -35,6 +38,10 @@ const pin = ref("");
 const pinError = ref<string | null>(null);
 // The PIN ends the selected employee's shift instead of logging in.
 const endShiftMode = ref(false);
+
+// A badge scan while this mode is on clocks its holder out (plan L5-D7).
+watch(endShiftMode, (on) => { badge.endShiftMode = on; }, { immediate: true });
+onUnmounted(() => { badge.endShiftMode = false; });
 
 // A manager without a PIN chooses one before logging in
 // (commands/auth.rs::do_login_with_new_pin).
@@ -57,9 +64,34 @@ function openPinOverlay(user: User) {
   endShiftMode.value = false;
 }
 
+// A manager's badge never opens a session by itself: it selects the
+// manager and opens their PIN pad (plan L5-D6).
+watch(
+  () => badge.pinRequest,
+  (req) => {
+    if (!req) return;
+    badge.pinRequest = null;
+    error.value = null;
+    showNumpad.value = false;
+    const known = savedUsers.value.find((u) => u.insz === req.insz);
+    if (known) void quickLogin(known);
+    else openPinOverlay({ insz: req.insz, name: req.name, role: "admin", active: true, has_pin: true });
+  },
+);
+
+// A badge registered someone's arrival or departure: the tiles show it,
+// and an open "Fin de service" pad has done its job.
+watch(
+  () => badge.presenceVersion,
+  () => {
+    if (endShiftMode.value) cancelPin();
+    void loadShifts();
+  },
+);
+
 function onFirstPinDone() {
   firstPinUser.value = null;
-  router.push({ name: "order" });
+  void goAfterLogin(router);
 }
 
 async function loadShifts() {
@@ -71,10 +103,31 @@ async function loadShifts() {
 }
 
 // ── Start-up checks (§2.3, §8.1): the devices, before the users ──
-type Check = { key: string; label: string; state: "ok" | "warn" | "err" | "none"; text: string };
+type Check = {
+  key: string;
+  label: string;
+  state: "ok" | "warn" | "err" | "none";
+  text: string;
+  /** Why a device is not reachable (tooltip). */
+  detail?: string;
+};
 const checks = ref<Check[]>([]);
 
+// One run at a time: a slow device (the payment terminal waits for its
+// answer) must not be probed again by the next tick.
+let checking = false;
+
 async function runChecks() {
+  if (checking) return;
+  checking = true;
+  try {
+    await probeDevices();
+  } finally {
+    checking = false;
+  }
+}
+
+async function probeDevices() {
   const list: Check[] = [];
 
   await fdm.checkNow();
@@ -101,6 +154,18 @@ async function runChecks() {
     text: kitchen == null ? t("check_not_configured") : kitchen ? t("check_ready") : t("check_unreachable"),
   });
 
+  // Informative like the printers: a terminal that does not answer never blocks the login.
+  const terminal = await ipc.checkPaymentTerminal().catch(() => null);
+  if (terminal?.configured) {
+    list.push({
+      key: "terminal",
+      label: t("check_payment_terminal"),
+      state: terminal.busy ? "warn" : terminal.connected ? "ok" : "err",
+      text: terminal.busy ? t("check_payment_busy") : terminal.connected ? t("check_connected") : t("check_unreachable"),
+      detail: terminal.detail ?? undefined,
+    });
+  }
+
   if (integrations.hubriseEnabled) {
     const hub = await ipc.hubriseGetConnectionStatus().catch(() => null);
     list.push({
@@ -126,11 +191,19 @@ const footerPlace = computed(() =>
   [pos.settings?.restaurantName, pos.settings?.terminalId].filter(Boolean).join(" · "),
 );
 
+// A device that drops while the login screen stays open must not stay
+// green: the list is checked again every 30 s, as the header lights are.
+const CHECKS_EVERY_MS = 30_000;
+let checksTimer: ReturnType<typeof setInterval> | undefined;
+onUnmounted(() => clearInterval(checksTimer));
+
 onMounted(async () => {
   void runChecks();
+  checksTimer = setInterval(() => void runChecks(), CHECKS_EVERY_MS);
   void loadShifts();
   try {
-    savedUsers.value = await ipc.listUsers();
+    // Presence-only staff (kitchen) never log in: no tile for them.
+    savedUsers.value = (await ipc.listUsers()).filter((u) => !u.presence_only);
     if (savedUsers.value.length === 0) {
       showNumpad.value = true;
     }
@@ -164,7 +237,7 @@ async function loginWithoutPin(user: User) {
   try {
     await auth.loginWithInsz(user.insz);
     toast.show(t("pin_not_set_warning"), "warning", 5000);
-    router.push({ name: "order" });
+    void goAfterLogin(router);
   } catch (e) {
     if (errorCode(e) === "pin_setup_required") {
       firstPinUser.value = { insz: user.insz, name: user.name };
@@ -198,7 +271,7 @@ async function submitPin() {
   }
   try {
     await auth.loginWithInsz(pinUser.value.insz, pin.value);
-    router.push({ name: "order" });
+    void goAfterLogin(router);
   } catch (e) {
     pinError.value = describeError(e);
     pin.value = "";
@@ -256,7 +329,7 @@ async function submitInsz() {
     // required, so the user must use the tile path for PIN-protected
     // accounts).
     await auth.loginWithInsz(insz.value);
-    router.push({ name: "order" });
+    void goAfterLogin(router);
   } catch (e) {
     const code = errorCode(e);
     if (code === "pin_setup_required") {
@@ -283,7 +356,7 @@ async function submitInsz() {
       </div>
       <div class="checks">
         <div class="checks-label">{{ t('check_title') }}</div>
-        <div v-for="c in checks" :key="c.key" class="check" :class="c.state">
+        <div v-for="c in checks" :key="c.key" class="check" :class="c.state" :title="c.detail">
           <span class="dot" />
           <span class="check-label">{{ c.label }}</span>
           <span class="check-text">{{ c.text }}</span>
@@ -350,6 +423,8 @@ async function submitInsz() {
           </button>
         </div>
 
+        <p v-if="badge.loginOn && !showNumpad" class="badge-hint" data-testid="badge-login-hint">{{ t('login_badge_hint') }}</p>
+
         <button v-if="savedUsers.length > 0" class="other-btn" @click="toggleInsz">
           {{ showNumpad ? t('back') : t('other_person_insz') }}
         </button>
@@ -375,6 +450,7 @@ async function submitInsz() {
             <button class="nk nk-back" @click="handlePinKey('BS')">&#9003;</button>
           </div>
           <span class="pin-hint">{{ endShiftMode ? t('end_shift_hint') : t('pin_auto_hint') }}</span>
+          <span v-if="endShiftMode && badge.readerOn" class="pin-hint" data-testid="end-shift-badge-hint">{{ t('end_shift_badge_hint') }}</span>
         </template>
         <!-- On shift without a PIN: log in, or end the shift. -->
         <button v-else class="submit-btn" @click="loginWithoutPin(pinUser)">{{ t('login') }}</button>
@@ -705,6 +781,12 @@ async function submitInsz() {
 }
 .nk-clear { color: var(--accent-warning); }
 .nk-back { color: var(--accent-danger); }
+
+.badge-hint {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--text-secondary);
+}
 
 .pin-hint {
   font-family: var(--font-mono);

@@ -112,10 +112,20 @@ export const useFdmStore = defineStore("fdm", () => {
         shownSignMessages.add(key);
         const text = ERROR_MESSAGES[code] ?? item.message ?? code;
         toast.show(text, variant, SIGN_MESSAGE_TTL_MS);
-        // The header indicator shows it too until the next status.
-        if (variant === "warning" && severity.value === "info") {
-          severity.value = "warning";
-          lastError.value = code;
+        // The header indicator shows it too until the next status. A
+        // MANDATORY one keeps its banner open, as the monitor's reading
+        // of the same code would (a sale can bring it before the next
+        // status check).
+        if (variant === "warning") {
+          const keep = item.extensions?.showPos === "MANDATORY";
+          if (severity.value === "info") {
+            severity.value = "warning";
+            lastError.value = code;
+            mandatory.value = keep;
+          } else if (severity.value === "warning" && keep && !mandatory.value) {
+            lastError.value = code;
+            mandatory.value = true;
+          }
         }
       }
     }

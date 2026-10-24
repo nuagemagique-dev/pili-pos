@@ -1,8 +1,11 @@
 package dev.nuagemagique.pilipos
 
+import android.os.Looper
 import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.View
+import android.view.ViewGroup
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -28,6 +31,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.concurrent.TimeUnit
 
 @HiltAndroidTest
 @RunWith(RobolectricTestRunner::class)
@@ -75,6 +79,53 @@ class MainActivityTest {
         composeRule.runOnUiThread {
             composeRule.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
         }
+        verify(atLeast = 1) { forwarder.onInteraction() }
+    }
+
+    @Test
+    fun withTheReaderOffADigitKeyIsNotTakenByTheBadgeWedge() {
+        composeRule.runOnUiThread {
+            composeRule.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_5))
+        }
+        verify(atLeast = 1) { forwarder.onInteraction() }
+    }
+
+    @Test
+    fun aKeyHeldByTheUsbBadgeWedgeIsSwallowedAndIsNotUserActivity() {
+        composeRule.runOnUiThread {
+            composeRule.activity.wedge.start()
+            val taken = composeRule.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_5))
+            assertEquals(true, taken)
+        }
+        verify(exactly = 0) { forwarder.onInteraction() }
+    }
+
+    @Test
+    fun keysTheWedgeReleasesAreReplayedIntoTheViewHierarchyAndCountAsUserActivity() {
+        val seen = mutableListOf<Pair<Int, Int>>()
+        composeRule.runOnUiThread {
+            val probe =
+                View(composeRule.activity).apply {
+                    isFocusable = true
+                    isFocusableInTouchMode = true
+                    setOnKeyListener { _, _, event ->
+                        seen += event.action to event.keyCode
+                        true
+                    }
+                }
+            composeRule.activity.addContentView(probe, ViewGroup.LayoutParams(10, 10))
+            probe.requestFocus()
+            composeRule.activity.wedge.start()
+            // A lone digit is held: nothing reaches the views, nothing is activity.
+            assertEquals(true, composeRule.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_5)))
+        }
+        assertEquals(emptyList<Pair<Int, Int>>(), seen)
+        verify(exactly = 0) { forwarder.onInteraction() }
+
+        // The gap passes: the key is replayed through the activity's own dispatch (the attached sink).
+        shadowOf(Looper.getMainLooper()).idleFor(500, TimeUnit.MILLISECONDS)
+
+        assertEquals(listOf(KeyEvent.ACTION_DOWN to KeyEvent.KEYCODE_5, KeyEvent.ACTION_UP to KeyEvent.KEYCODE_5), seen)
         verify(atLeast = 1) { forwarder.onInteraction() }
     }
 

@@ -183,7 +183,7 @@ internal class HubriseViewModel(
         viewModelScope.launch {
             attempt { entry.gateway().call { engine -> engine.hubriseSyncCatalog() } }.fold(
                 onSuccess = { outcome -> showCatalogOutcome(outcome) },
-                onFailure = { fail(it) },
+                onFailure = { failVisibly(it) },
             )
             own.update { it.copy(catalogBusy = false) }
             loadHealth()
@@ -209,7 +209,7 @@ internal class HubriseViewModel(
                     own.update { it.copy(adoptions = emptyList(), adopted = emptySet()) }
                     showCatalogOutcome(outcome)
                 },
-                onFailure = { fail(it) },
+                onFailure = { failVisibly(it) },
             )
             own.update { it.copy(catalogBusy = false) }
             loadHealth()
@@ -301,6 +301,16 @@ internal class HubriseViewModel(
 
     private fun fail(error: Throwable) {
         own.update { it.copy(error = entry.errors().text(error, language())) }
+    }
+
+    /**
+     * A refusal of a button the operator pressed (the sync and the take-over of the menu, for instance refused
+     * while an order is open): the panel's error line sits below the channels, out of sight on a small screen, so
+     * the text is also toasted.
+     */
+    private fun failVisibly(error: Throwable) {
+        fail(error)
+        own.value.error?.let { entry.toasts().show(it, ToastVariant.Error) }
     }
 
     private fun language(): AppLanguage = settings.language.value

@@ -217,7 +217,7 @@ class GhcrSource(
         const val DEFAULT_BASE_URL = "https://ghcr.io"
 
         /** The public package shared with the Linux `:declared` tag. */
-        const val DEFAULT_REPOSITORY = "brunomoyse/moyun-pos"
+        const val DEFAULT_REPOSITORY = "nuagemagique-dev/pili-pos"
 
         /** The tag of the Android declaration. */
         const val DEFAULT_TAG = "declared-android"

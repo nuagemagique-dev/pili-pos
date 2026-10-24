@@ -43,6 +43,7 @@ pub(crate) struct Labels {
     pub(crate) copy: &'static str,
     pub(crate) copy_made_at: &'static str,
     pub(crate) original_fdm: &'static str,
+    pub(crate) copy_fdm: &'static str,
 }
 
 pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
@@ -71,6 +72,7 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             copy: "COPIE",
             copy_made_at: "Copie etablie le",
             original_fdm: "Informations FDM d'origine :",
+            copy_fdm: "Informations FDM de la copie :",
         },
         ReceiptLanguage::Nl => &Labels {
             vat_no: "BTW",
@@ -96,6 +98,7 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             copy: "KOPIE",
             copy_made_at: "Kopie gemaakt op",
             original_fdm: "Oorspronkelijke FDM-gegevens :",
+            copy_fdm: "FDM-gegevens van de kopie :",
         },
         ReceiptLanguage::De => &Labels {
             vat_no: "MwSt",
@@ -121,6 +124,7 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             copy: "KOPIE",
             copy_made_at: "Kopie erstellt am",
             original_fdm: "Urspruengliche FDM-Daten :",
+            copy_fdm: "FDM-Daten der Kopie :",
         },
     }
 }
@@ -162,6 +166,8 @@ pub(crate) struct ReportLabels {
     pub(crate) payments_title: &'static str,
     pub(crate) payments_total: &'static str,
     pub(crate) roundings: &'static str,
+    /// Payment method corrections (count, amount moved).
+    pub(crate) payment_corrections: &'static str,
     /// User report (M182 / M183).
     pub(crate) user_report_prefix: &'static str,
     pub(crate) first_event: &'static str,
@@ -199,6 +205,7 @@ pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
             payments_title: "PAIEMENTS ENREGISTRES",
             payments_total: "Total des paiements",
             roundings: "Arrondis",
+            payment_corrections: "Corrections de paiement",
             user_report_prefix: "RAPPORT UTIL.",
             first_event: "Premier event:",
             last_event: "Dernier event:",
@@ -232,6 +239,7 @@ pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
             payments_title: "GEREGISTREERDE BETALINGEN",
             payments_total: "Totaal betalingen",
             roundings: "Afrondingen",
+            payment_corrections: "Betalingscorrecties",
             user_report_prefix: "RAPPORT GEBR.",
             first_event: "Eerste event:",
             last_event: "Laatste event:",
@@ -265,6 +273,7 @@ pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
             payments_title: "ERFASSTE ZAHLUNGEN",
             payments_total: "Summe Zahlungen",
             roundings: "Rundungen",
+            payment_corrections: "Zahlungskorrekturen",
             user_report_prefix: "BERICHT BENUTZER",
             first_event: "Erstes Event:",
             last_event: "Letztes Event:",
@@ -282,6 +291,20 @@ pub(crate) struct BarLabels {
     pub(crate) table: &'static str,
     pub(crate) direct_sale: &'static str,
     pub(crate) items_header: &'static str,
+    /// Title of the table transfer notice.
+    pub(crate) transfer_title: &'static str,
+    /// Title of the kitchen note change slip.
+    pub(crate) note_title: &'static str,
+    /// Label before a line's kitchen note on the note slip.
+    pub(crate) note: &'static str,
+    /// Printed when a kitchen note was removed.
+    pub(crate) note_removed: &'static str,
+    /// Prefix of a release slip's mention ("SUITE : Plats").
+    pub(crate) release: &'static str,
+    /// Mention of a reprinted slip.
+    pub(crate) duplicate: &'static str,
+    /// Course names, index 0 to 3: Direct, Entrees, Plats, Desserts.
+    pub(crate) courses: [&'static str; 4],
 }
 
 pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
@@ -293,6 +316,13 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Table",
             direct_sale: "Vente directe",
             items_header: "Qte   Article",
+            transfer_title: "TRANSFERT DE TABLE",
+            note_title: "MODIFICATION",
+            note: "Note :",
+            note_removed: "Note supprimee",
+            release: "SUITE",
+            duplicate: "DUPLICATA",
+            courses: ["Direct", "Entrees", "Plats", "Desserts"],
         },
         ReceiptLanguage::Nl => &BarLabels {
             title: "BESTELBON",
@@ -301,6 +331,13 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Tafel",
             direct_sale: "Directe verkoop",
             items_header: "Aantal Artikel",
+            transfer_title: "TAFELVERPLAATSING",
+            note_title: "WIJZIGING",
+            note: "Opmerking:",
+            note_removed: "Opmerking verwijderd",
+            release: "VOLGENDE",
+            duplicate: "DUPLICAAT",
+            courses: ["Direct", "Voorgerechten", "Hoofdgerechten", "Desserts"],
         },
         ReceiptLanguage::De => &BarLabels {
             title: "BESTELLSCHEIN",
@@ -309,6 +346,13 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Tisch",
             direct_sale: "Direktverkauf",
             items_header: "Menge  Artikel",
+            transfer_title: "TISCHWECHSEL",
+            note_title: "AENDERUNG",
+            note: "Hinweis:",
+            note_removed: "Hinweis geloescht",
+            release: "FOLGEGANG",
+            duplicate: "DUPLIKAT",
+            courses: ["Sofort", "Vorspeisen", "Hauptgerichte", "Desserts"],
         },
     }
 }
@@ -358,6 +402,8 @@ enum PaymentKind {
     Cash,
     Card,
     MealVoucher,
+    /// A multi-purpose gift voucher (`VOUCHER_STORE`, "Gift voucher").
+    GiftVoucher,
     /// Paid in an ordering platform's app (online orders).
     App,
     /// Paid online on the restaurant's webshop (online orders).
@@ -375,6 +421,8 @@ fn payment_kind_from_name(name: &str) -> Option<PaymentKind> {
     let lower = name.to_ascii_lowercase();
     if lower.contains("meal") || lower.contains("repas") {
         Some(PaymentKind::MealVoucher)
+    } else if lower == "gift voucher" || lower == "voucher_store" {
+        Some(PaymentKind::GiftVoucher)
     } else if lower.contains("cash") {
         Some(PaymentKind::Cash)
     } else if lower.contains("card") {
@@ -391,7 +439,7 @@ fn payment_kind_from_name(name: &str) -> Option<PaymentKind> {
 }
 
 fn payment_kind_label(kind: PaymentKind, lang: ReceiptLanguage) -> &'static str {
-    use PaymentKind::{App, Card, Cash, MealVoucher, Online, Other};
+    use PaymentKind::{App, Card, Cash, GiftVoucher, MealVoucher, Online, Other};
     use ReceiptLanguage::{De, Fr, Nl};
     match (kind, lang) {
         (Cash, Fr) => "Especes",
@@ -400,9 +448,12 @@ fn payment_kind_label(kind: PaymentKind, lang: ReceiptLanguage) -> &'static str 
         (Card, Fr) => "Carte",
         (Card, Nl) => "Kaart",
         (Card, De) => "Karte",
-        (MealVoucher, Fr) => "Cheques-repas",
+        (MealVoucher, Fr) => "Chèques-repas",
         (MealVoucher, Nl) => "Maaltijdcheques",
         (MealVoucher, De) => "Essensgutscheine",
+        (GiftVoucher, Fr) => "Bon cadeau",
+        (GiftVoucher, Nl) => "Cadeaubon",
+        (GiftVoucher, De) => "Geschenkgutschein",
         (App, Fr) => "Application",
         (App, Nl) => "App",
         (App, De) => "App",
@@ -434,6 +485,25 @@ pub(crate) fn payment_label(name: &str, lang: ReceiptLanguage) -> String {
 #[cfg(test)]
 mod online_payment_label_tests {
     use super::*;
+
+    #[test]
+    fn a_gift_voucher_payment_has_a_printed_name() {
+        for name in ["Gift voucher", "VOUCHER_STORE", "voucher_store"] {
+            assert_eq!(payment_label(name, ReceiptLanguage::Fr), "Bon cadeau");
+        }
+        // Online payment names that merely mention a gift card keep their name.
+        for name in ["Carte cadeau", "Chèque cadeau"] {
+            assert_eq!(payment_label(name, ReceiptLanguage::Fr), name);
+        }
+        assert_eq!(
+            payment_label("Gift voucher", ReceiptLanguage::Nl),
+            "Cadeaubon"
+        );
+        assert_eq!(
+            payment_label("Gift voucher", ReceiptLanguage::De),
+            "Geschenkgutschein"
+        );
+    }
 
     #[test]
     fn app_and_online_payments_have_printed_names() {
@@ -495,7 +565,7 @@ mod tests {
     fn recognizes_meal_vouchers() {
         assert_eq!(
             payment_label("Meal voucher", ReceiptLanguage::Fr),
-            "Cheques-repas"
+            "Chèques-repas"
         );
         assert_eq!(
             payment_label("CHEQUE_MEAL", ReceiptLanguage::Nl),
@@ -521,7 +591,11 @@ mod tests {
             assert_ne!(meal, card, "{lang:?}");
             assert_ne!(meal, cash, "{lang:?}");
             for label in [&cash, &card, &meal] {
-                assert!(label.is_ascii(), "{lang:?}: {label:?}");
+                // ASCII, plus the grave e of "Chèques-repas" (CP858 0x8A, printable on the till's printers).
+                assert!(
+                    label.chars().all(|c| c.is_ascii() || c == 'è'),
+                    "{lang:?}: {label:?}"
+                );
             }
         }
     }

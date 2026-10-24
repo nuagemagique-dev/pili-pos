@@ -68,14 +68,14 @@ new_repo() {
     r="$(mktemp -d "$TMP/repo.XXXXXX")"
     mkdir -p "$r/scripts/android" "$r/android" "$r/docs/android"
     cp "$ROOT/scripts/android/kotlin_test_inventory.py" "$r/scripts/android/"
-    printf '#!/bin/sh\necho "frozen against stub"\n' >"$r/scripts/android/check_linux_frozen.sh"
+    printf '#!/bin/sh\necho "frozen against stub"\n' >"$r/scripts/android/check_android_frozen.sh"
     echo "x" >"$r/README.md"
     {
         git -C "$r" init -q -b main
         tgit "$r" add -A
         tgit "$r" commit -q -m "chore: base"
         tgit "$r" tag base
-        tgit "$r" tag linux-v1.1.0-rc1
+        tgit "$r" tag android-v1.0.0-rc3
     } >/dev/null 2>&1
     printf '%s' "$r"
 }
@@ -91,7 +91,7 @@ run_gate() {
     shift
     local sha
     [[ "$repo" == "$TMP"/* && -d "$repo/.git" ]] || { echo "run_gate: bad repo '$repo'" >&2; exit 1; }
-    sha="$(tgit "$repo" rev-parse 'linux-v1.1.0-rc1^{commit}')"
+    sha="$(tgit "$repo" rev-parse 'android-v1.0.0-rc3^{commit}' 2>/dev/null)"
     OUT="$(env PILI_P4_ROOT="$repo" PILI_P4_SUBGATE="$STUB_SUBGATE" PILI_P4_FREEZE_SHA="$sha" STUB_LOG="$TMP/stub.log" ${envs[@]+"${envs[@]}"} \
         bash "$GATE" "$@" 2>"$TMP/err.txt")"
     RC=$?
@@ -127,6 +127,20 @@ run_gate "$R" -- --app --fast --base base
 ok_app=1
 [[ "$(status_of stub-one)" == "PASS" && "$(status_of app-only-scope)" == "PASS" ]] && ok_app=0
 check "--app runs the hygiene sub-gate and app-only-scope" "$ok_app" "out=$OUT"
+
+# PD223: both gates let hygiene-paths accept scripts/release/ next to the workflow.
+pd223_re='--extra-paths '"'"'^(\.github/workflows/android\.yml|scripts/release/.*)$'"'"
+pd223=0
+grep -qF -- "$pd223_re" "$GATE" || pd223=1
+grep -qF -- "$pd223_re" "$ROOT/scripts/android/p3_gate.sh" || pd223=1
+check "p4 and p3 gates pass --extra-paths for scripts/release to hygiene-paths" "$pd223" "regex missing in p4_gate.sh or p3_gate.sh"
+# The regex accepts the release scripts and the workflow, and refuses other paths.
+pd223_match=0
+for f in scripts/release/declare_android.sh scripts/release/test_declare_android.sh .github/workflows/android.yml; do
+    [[ "$f" =~ ^(\.github/workflows/android\.yml|scripts/release/.*)$ ]] || pd223_match=1
+done
+[[ "scripts/other/x.sh" =~ ^(\.github/workflows/android\.yml|scripts/release/.*)$ ]] && pd223_match=1
+check "the PD223 regex accepts scripts/release and refuses scripts/other" "$pd223_match" "regex mismatch"
 
 total_lines="$(printf '%s\n' "$OUT" | grep -c '^GATE | total | ')"
 last="$(printf '%s\n' "$OUT" | tail -n 1)"
@@ -169,18 +183,25 @@ check "app-only-scope sees committed changes of BASE...HEAD" "$([[ "$(status_of 
 R="$(new_repo)"
 run_gate "$R" -- --fast --base base
 check "freeze-tag passes with the tag, the commit and a clean tag-mode check" "$([[ "$(status_of freeze-tag)" == "PASS" ]] && echo 0 || echo 1)" "out=$OUT"
-tgit "$R" tag -d linux-v1.1.0-rc1 >/dev/null
+tgit "$R" tag -d android-v1.0.0-rc3 >/dev/null
 OUT="$(env PILI_P4_ROOT="$R" PILI_P4_SUBGATE="$STUB_SUBGATE" bash "$GATE" --fast --base base 2>/dev/null)"
-check "freeze-tag fails without the tag" "$([[ "$(status_of freeze-tag)" == "FAIL" ]] && echo 0 || echo 1)" "out=$OUT"
-tgit "$R" tag linux-v1.1.0-rc1
+RC=$?
+check "freeze-tag is SKIP with a clear message while the Android freeze tag does not exist" "$([[ "$(status_of freeze-tag)" == "SKIP" && "$(detail_of freeze-tag)" == *"no tag android-v1.0.0-rc3 yet"* && $RC -eq 0 ]] && echo 0 || echo 1)" "rc=$RC out=$OUT"
+tgit "$R" tag linux-v1.0.0-rc2
 OUT="$(env PILI_P4_ROOT="$R" PILI_P4_SUBGATE="$STUB_SUBGATE" bash "$GATE" --fast --base base 2>/dev/null)"
+check "a linux-v1.0.0-rc2 tag is not an Android freeze tag" "$([[ "$(status_of freeze-tag)" == "SKIP" ]] && echo 0 || echo 1)" "out=$OUT"
+tgit "$R" tag -d linux-v1.0.0-rc2 >/dev/null
+tgit "$R" tag android-v1.0.0-rc3
+OUT="$(env PILI_P4_ROOT="$R" PILI_P4_SUBGATE="$STUB_SUBGATE" PILI_P4_FREEZE_SHA= bash "$GATE" --fast --base base 2>/dev/null)"
+check "freeze-tag fails when the tag exists and the recorded commit is not filled in" "$([[ "$(status_of freeze-tag)" == "FAIL" && "$(detail_of freeze-tag)" == *"FREEZE_SHA_RECORDED"*"not filled in"* ]] && echo 0 || echo 1)" "out=$OUT"
+OUT="$(env PILI_P4_ROOT="$R" PILI_P4_SUBGATE="$STUB_SUBGATE" PILI_P4_FREEZE_SHA=65b567fdd2497277300340979c2c61ff17abc918 bash "$GATE" --fast --base base 2>/dev/null)"
 check "freeze-tag fails when the tag points at another commit" "$([[ "$(status_of freeze-tag)" == "FAIL" && "$(detail_of freeze-tag)" == *"expected 65b567fd"* ]] && echo 0 || echo 1)" "out=$OUT"
-printf '#!/bin/sh\necho "not frozen" >&2\nexit 1\n' >"$R/scripts/android/check_linux_frozen.sh"
+printf '#!/bin/sh\necho "not frozen" >&2\nexit 1\n' >"$R/scripts/android/check_android_frozen.sh"
 tgit "$R" add -A
 tgit "$R" commit -q -m "chore: change"
-tgit "$R" tag -f linux-v1.1.0-rc1 >/dev/null
+tgit "$R" tag -f android-v1.0.0-rc3 >/dev/null
 run_gate "$R" -- --fast --base base
-check "freeze-tag fails when check_linux_frozen.sh --tag fails" "$([[ "$(status_of freeze-tag)" == "FAIL" ]] && echo 0 || echo 1)" "out=$OUT"
+check "freeze-tag fails when check_android_frozen.sh --tag fails" "$([[ "$(status_of freeze-tag)" == "FAIL" ]] && echo 0 || echo 1)" "out=$OUT"
 
 # ── hygiene-keys ────────────────────────────────────────────────
 R="$(new_repo)"
@@ -472,7 +493,7 @@ exit \${REPRO_RC:-0}
 STUB
 tgit "$R" add -A
 tgit "$R" commit -q -m "chore: repro stub"
-tgit "$R" tag -f linux-v1.1.0-rc1 >/dev/null
+tgit "$R" tag -f linux-v1.0.0-rc2 >/dev/null
 tgit "$R" tag -f base >/dev/null HEAD~1
 run_gate "$R" PATH="$TMP/bin:$PATH" -- --fast --linux-repro --base base
 okr=1

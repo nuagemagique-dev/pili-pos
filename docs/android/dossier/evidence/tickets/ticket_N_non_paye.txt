@@ -1,0 +1,38 @@
+            TICKET DE CAISSE T.V.A.
+Restaurant Test
+Unite d'etablissement 2000000042
+18.10.2026                                 17:06
+Utilisateur: Gerant Test
+Terminal: POS-2-ANDROID
+Ticketnr.: 000003
+POS Serial: CPOS0031234567
+Input device MAC: EMULATOR37X2X12X0
+Logiciel de caisse v.: pili-pos-android/1.0.0
+................................................
+1 Dry Martini                           12,00  A
+TOTAL :                                   €12,00
+................................................
+Mode de paiement :
+Non paye
+% TVA   CODE          HT       TVA      Brut
+21,00%  A           9,92      2,08     12,00
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: MCK00000001;
+fdmDateTime: 2026-10-18T15:06:55Z;
+Event: N; eventCounter: 3;
+totalCounter: 7; shortSignature:
+6e3f32e4a354df8f0d56b9686ab18b8d9e8efa05;
+
+ [QR: https://www.gs2.be/M0000300007AbCdEfGhI]  
+
+
+Denomination legale : Restaurant Test
+1 Rue du Test, 4000 Liege
+TVA: BE0000000097
+
+
+
+
+✂-----------------------------------------------

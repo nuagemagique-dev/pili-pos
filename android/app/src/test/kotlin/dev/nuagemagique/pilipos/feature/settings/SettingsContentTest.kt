@@ -21,6 +21,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
@@ -50,6 +51,8 @@ class SettingsContentTest {
             onToggleTraining = { taps += "training" },
             onLanguage = { taps += "language:${it.code}" },
             onProductLabel = { taps += "label:${it.code}" },
+            onTablePlanInput = { taps += "tables:$it" },
+            onSaveTablePlan = { taps += "tables:save" },
             onRow = { navigator.navigate(it.route) },
             onNewName = { taps += "name:$it" },
             onNewInsz = { taps += "insz:$it" },
@@ -57,6 +60,7 @@ class SettingsContentTest {
             onAddEmployee = { taps += "add" },
             onPin = { taps += "pin:${it.insz}" },
             onDeactivate = { taps += "deactivate:$it" },
+            onPresence = { taps += "presence:${it.insz}" },
             onToggleHubrise = { taps += "hubrise" },
             onReloadDeliveries = { taps += "reload" },
         )
@@ -202,6 +206,31 @@ class SettingsContentTest {
         assertEquals(listOf("label:code"), taps)
     }
 
+    // ── Table plan ────────────────────────────────────────────────
+
+    @Test
+    fun aManagerSeesTheTablePlanAndSavesWhatTheFieldHolds() {
+        show(managerState().copy(tablePlan = TablePlanState(plan = "1-12, 20-25", count = 18L, input = "1-12, 20-25")))
+
+        compose.onNodeWithTag("settings_tables_current").assertTextEquals("18 tables : 1-12, 20-25")
+        compose.onNodeWithTag("settings_tables_input").performTextInput("9")
+        compose.onNodeWithTag("settings_tables_save").performClick()
+
+        assertEquals(listOf("tables:91-12, 20-25", "tables:save"), taps)
+    }
+
+    @Test
+    fun aRefusedTablePlanShowsItsReason() {
+        show(managerState().copy(tablePlan = TablePlanState(plan = "1-20", count = 20L, input = "A1", error = "format")))
+        compose.onNodeWithTag("settings_tables_error").assertTextEquals("format")
+    }
+
+    @Test
+    fun aWorkerSeesNoTablePlan() {
+        show(workerState())
+        compose.onNodeWithTag("settings_tables").assertDoesNotExist()
+    }
+
     // ── Employees ─────────────────────────────────────────────────
 
     private fun User.tag(suffix: String) = "worker_$insz$suffix"
@@ -232,6 +261,74 @@ class SettingsContentTest {
         compose.onNodeWithTag(cashier.tag("_deactivate")).performClick()
 
         assertEquals(listOf("pin:$CASHIER_INSZ", "deactivate:$CASHIER_INSZ"), taps)
+    }
+
+    @Test
+    fun theNoteAndTheStateOfEachEmployeeShow() {
+        val since = "2026-10-17T10:02:00Z"
+        show(managerState().copy(fdmConnected = true, openShifts = mapOf(CASHIER_INSZ to since)))
+
+        compose.onNodeWithTag("settings_presence_note").assertTextEquals(text("settings_presence_note"))
+        compose.onNodeWithTag("settings_presence_block").assertDoesNotExist()
+        compose.onNodeWithTag(cashier.tag("_presence")).assertTextEquals(text("settings_on_shift_since", mapOf("time" to "12:02")))
+        compose.onNodeWithTag(waiter.tag("_presence")).assertTextEquals(text("settings_off_shift"))
+    }
+
+    @Test
+    fun aManagerGetsArriveeOrDepartButOnlyForTheOthers() {
+        show(managerState().copy(fdmConnected = true, openShifts = mapOf(CASHIER_INSZ to "2026-10-17T10:02:00Z")))
+
+        compose.onNodeWithTag(admin.tag("_presence_in")).assertDoesNotExist()
+        compose.onNodeWithTag(admin.tag("_presence_out")).assertDoesNotExist()
+        compose.onNodeWithTag(waiter.tag("_presence_in")).assertTextEquals(text("settings_presence_in"))
+        compose.onNodeWithTag(cashier.tag("_presence_out")).assertTextEquals(text("settings_presence_out"))
+        compose.onNodeWithTag(waiter.tag("_presence_in")).performClick()
+        compose.onNodeWithTag(cashier.tag("_presence_out")).performClick()
+
+        assertEquals(listOf("presence:$WAITER_INSZ", "presence:$CASHIER_INSZ"), taps)
+    }
+
+    @Test
+    fun theButtonsAreOffWithTheNoteWhileTheFdmIsDown() {
+        show(managerState().copy(fdmConnected = false))
+
+        compose.onNodeWithTag("settings_presence_block").assertTextEquals(text("settings_presence_fdm_down"))
+        compose.onNodeWithTag(waiter.tag("_presence_in")).assertIsNotEnabled()
+    }
+
+    @Test
+    fun theButtonsAreOffWithTheTrainingTextInTrainingMode() {
+        show(managerState().copy(fdmConnected = true, training = true))
+
+        compose.onNodeWithTag("settings_presence_block").assertTextEquals(text("err_presence_training"))
+        compose.onNodeWithTag(waiter.tag("_presence_in")).assertIsNotEnabled()
+    }
+
+    @Test
+    fun aNonManagerSeesNoPresenceButton() {
+        show(workerState().copy(users = listOf(admin, cashier)))
+
+        compose.onNodeWithTag(admin.tag("_presence_in")).assertDoesNotExist()
+    }
+
+    @Test
+    fun aPresenceOnlyRowHasItsLabelNoPinButtonAndKeepsDeactivate() {
+        show(managerState().copy(fdmConnected = true, users = listOf(admin, cook)))
+
+        compose.onNodeWithTag(cook.tag("_meta")).assertTextEquals(text("role_presence"))
+        compose.onNodeWithTag(cook.tag("_pin")).assertDoesNotExist()
+        compose.onNodeWithTag(cook.tag("_deactivate")).assertIsDisplayed()
+        compose.onNodeWithTag(cook.tag("_presence_in")).assertIsEnabled()
+    }
+
+    @Test
+    fun theFourthProfileChoiceIsOfferedAndForwarded() {
+        show(managerState().copy(form = NewEmployeeForm(role = NewRole.Presence)))
+
+        compose.onNodeWithTag("settings_role_presence").assertIsSelected()
+        compose.onNodeWithTag("settings_role_waiter").performClick()
+        compose.onNodeWithTag("settings_role_presence").performClick()
+        assertEquals(listOf("role:waiter", "role:presence"), taps)
     }
 
     @Test
@@ -290,6 +387,31 @@ class SettingsContentTest {
         compose.onNodeWithText(text("printer_none")).assertIsDisplayed()
     }
 
+    private fun terminalRow(
+        kind: String,
+        label: String,
+    ) {
+        show(managerState().copy(info = engineSettings().copy(paymentTerminal = kind)))
+        compose.onNodeWithText(catalog.text(R.string.ui_eft_terminal_label, AppLanguage.FR)).assertIsDisplayed()
+        compose.onNodeWithText(label).assertIsDisplayed()
+    }
+
+    @Test
+    fun theInformationPanelShowsAWorldlineTerminal() = terminalRow("worldline_terminal_api", "Worldline")
+
+    @Test
+    fun theInformationPanelShowsACcvCloudTerminal() = terminalRow("ccv_payment_api", "CCV (cloud)")
+
+    @Test
+    fun theInformationPanelShowsACcvLocalNetworkTerminal() = terminalRow("ccv_opi", "CCV (réseau local)")
+
+    @Test
+    fun withoutATerminalTheInformationPanelSaysCardsAreEnteredByHand() {
+        show(managerState())
+
+        compose.onNodeWithText(catalog.text(R.string.ui_eft_terminal_none, AppLanguage.FR)).assertIsDisplayed()
+    }
+
     @Test
     fun theSwitchShowsOffAndTurnsOnWithOneTap() {
         show(managerState())
@@ -338,7 +460,7 @@ class SettingsContentTest {
     fun theDeliveriesShowStatusDateAttemptsAndTheLastErrorInBrusselsTime() {
         show(managerState())
 
-        compose.onNodeWithTag("delivery_1").assertIsDisplayed()
+        compose.onNodeWithTag("delivery_1").assertExists()
         compose.onNodeWithTag("delivery_1_status").assertTextEquals(text("delivery_status_sent"))
         compose.onNodeWithTag("delivery_1_date").assertTextEquals("09/10 11:05")
         compose.onNodeWithTag("delivery_2_status").assertTextEquals(text("delivery_status_failed"))

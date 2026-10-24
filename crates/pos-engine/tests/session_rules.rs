@@ -393,3 +393,105 @@ fn the_lock_payloads_are_camel_case() {
         json!({ "orderError": null })
     );
 }
+
+// ── Empty orders ───────────────────────────────────────────────────
+
+/// An order created by opening a table or the takeaway tab, left with
+/// nothing on it.
+fn empty_order(app: &TestApp, order_type: OrderType, table: Option<i32>) -> i64 {
+    seed_catalog(app);
+    let conn = app.state.db.lock().unwrap();
+    pos_db::queries::orders::create_order(&conn, order_type, table, INSZ)
+        .expect("create order")
+        .id
+}
+
+#[tokio::test]
+async fn leaving_an_empty_order_voids_it_whatever_the_screen() {
+    let (app, _) = app_with_recorder().await;
+    for (reason, order_type, table) in [
+        (LeaveReason::Navigate, OrderType::DineIn, Some(1)),
+        (LeaveReason::Navigate, OrderType::Takeaway, None),
+        (LeaveReason::SwitchOrder, OrderType::Takeaway, None),
+        (LeaveReason::Lock, OrderType::DineIn, Some(2)),
+        (LeaveReason::Idle, OrderType::DineIn, Some(3)),
+    ] {
+        let id = empty_order(&app, order_type, table);
+        do_set_active_order(&app.state, Some(id)).unwrap();
+        do_leave_order(&app.state, id, reason).await.unwrap();
+        assert_eq!(
+            app.order_status(id).as_deref(),
+            Some("voided"),
+            "{reason:?}"
+        );
+        assert_eq!(app.state.session_rules.active_order(), None);
+    }
+    assert_eq!(fdm_requests(&app).await, 0, "nothing to register");
+    let open = pos_db::queries::orders::list_open_orders(&app.state.db.lock().unwrap()).unwrap();
+    assert!(open.is_empty());
+}
+
+#[tokio::test]
+async fn sending_an_empty_order_to_the_kitchen_keeps_it_open() {
+    let (app, _) = app_with_recorder().await;
+    let id = empty_order(&app, OrderType::DineIn, Some(1));
+    do_leave_order(&app.state, id, LeaveReason::SendToKitchen)
+        .await
+        .unwrap();
+    assert_eq!(app.order_status(id).as_deref(), Some("open"));
+}
+
+#[tokio::test]
+async fn an_order_with_a_line_is_never_voided_on_leaving() {
+    let (app, _) = app_with_recorder().await;
+    let id = order_with_line(&app, OrderType::Takeaway, None);
+    do_leave_order(&app.state, id, LeaveReason::Navigate)
+        .await
+        .unwrap();
+    assert_eq!(app.order_status(id).as_deref(), Some("open"));
+}
+
+/// A signed order whose lines were removed again keeps its fiscal
+/// event: it stays open, never voided.
+#[tokio::test]
+async fn an_order_with_a_fiscal_event_is_never_voided_even_without_lines() {
+    let (app, _) = app_with_recorder().await;
+    let id = dine_in(&app);
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M121")).await;
+    do_leave_order(&app.state, id, LeaveReason::SendToKitchen)
+        .await
+        .unwrap();
+    assert_eq!(app.fiscal_events().len(), 1);
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute("DELETE FROM order_lines WHERE order_id = ?1", [id])
+        .unwrap();
+
+    do_leave_order(&app.state, id, LeaveReason::Navigate)
+        .await
+        .unwrap();
+    assert_eq!(app.order_status(id).as_deref(), Some("open"));
+}
+
+#[tokio::test]
+async fn an_order_with_a_terminal_payment_is_never_voided() {
+    let (app, _) = app_with_recorder().await;
+    let id = empty_order(&app, OrderType::DineIn, Some(1));
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "INSERT INTO eft_payments
+                (reference, order_id, terminal_kind, amount_cents, status, card_type, user_insz)
+             VALUES ('ref-1', ?1, 'scripted', 1000, 'sent', NULL, ?2)",
+            rusqlite::params![id, INSZ],
+        )
+        .unwrap();
+    do_leave_order(&app.state, id, LeaveReason::Navigate)
+        .await
+        .unwrap();
+    assert_eq!(app.order_status(id).as_deref(), Some("open"));
+}

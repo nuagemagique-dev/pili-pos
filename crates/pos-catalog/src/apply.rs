@@ -8,6 +8,8 @@
 
 use std::collections::HashSet;
 
+use pos_core::allergen::AllergenSet;
+use pos_db::queries::allergens::{self, Entity};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde::Serialize;
 
@@ -177,12 +179,14 @@ fn write_menu(conn: &mut Connection, source: &str, catalog: &Catalog) -> Result<
     for (sort, item) in catalog.items.iter().enumerate() {
         let id = upsert_item(&tx, item, sort)?;
         write_names(&tx, "menu_item", id, &item.names)?;
+        write_allergens(&tx, Entity::MenuItem, id, item.allergens.as_ref())?;
         for (group_sort, group) in item.groups.iter().enumerate() {
             let group_id = upsert_group(&tx, id, group, group_sort)?;
             write_names(&tx, "modifier_group", group_id, &group.names)?;
             for (option_sort, choice) in group.options.iter().enumerate() {
                 let option_id = upsert_choice(&tx, group_id, choice, option_sort)?;
                 write_names(&tx, "modifier", option_id, &choice.names)?;
+                write_allergens(&tx, Entity::Modifier, option_id, choice.allergens.as_ref())?;
             }
         }
     }
@@ -304,6 +308,18 @@ fn upsert_choice(tx: &Transaction<'_>, group_id: i64, choice: &Choice, sort: usi
         |r| r.get(0),
     )?;
     Ok(id)
+}
+
+/// The catalog's allergen statement about one row: a log row only when
+/// the list really changes (V12-D18).
+fn write_allergens(
+    tx: &Transaction<'_>,
+    entity: Entity,
+    id: i64,
+    set: Option<&AllergenSet>,
+) -> Result<()> {
+    allergens::write_from_catalog(tx, entity, id, set)?;
+    Ok(())
 }
 
 /// Replace the names of one row. Translations are display data, not

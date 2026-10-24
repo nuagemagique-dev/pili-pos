@@ -44,6 +44,8 @@ pub enum PaymentMethod {
     Card,
     /// Electronic meal vouchers, paid on the card terminal.
     MealVoucher,
+    /// A multi-purpose gift voucher sold by the restaurant (`VOUCHER_STORE`).
+    GiftVoucher,
     /// Paid in an ordering platform's app. Never offered at the till.
     App,
     /// Paid online on the restaurant's own webshop. Never offered at the till.
@@ -58,6 +60,16 @@ pub struct PaymentPart {
     pub method: PaymentMethod,
     #[serde(default)]
     pub amount_cents: Option<i64>,
+    /// The card payment the linked terminal approved for this part (`eft_payments.id`); `None`
+    /// for a card typed by hand.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[uniffi(default = None)]
+    pub eft_payment_id: Option<i64>,
+    /// The gift voucher this part redeems (`gift_vouchers.id`, from `lookup_gift_voucher`); only
+    /// a gift voucher part names one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[uniffi(default = None)]
+    pub gift_voucher_id: Option<i64>,
 }
 
 // ───────────────────────────── Ticket delivery ─────────────────────────────
@@ -241,6 +253,10 @@ pub struct TicketLine {
 pub struct TicketPayment {
     pub method: String,
     pub amount: f64,
+    /// The card brand a linked terminal returned ("Bancontact"); `None` for every other payment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[uniffi(default = None)]
+    pub brand: Option<String>,
 }
 
 /// `pos_fiscal::ticket::OriginalControlData`: control data of the event a refund or copy refers to.
@@ -318,6 +334,21 @@ pub struct CheckoutResult {
     pub delivery: Option<DeliveryOutcome>,
     /// The bar or kitchen slip of the lines not yet sent (sales only).
     pub kitchen_slip: Option<SlipOutcome>,
+    /// The gift vouchers the sale sold and the balance slips it gave; empty otherwise.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub gift_voucher_prints: Vec<GiftVoucherPrint>,
+}
+
+/// `pos_engine::commands::gift_vouchers::GiftVoucherPrint`: what became of one voucher slip after a
+/// sale.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct GiftVoucherPrint {
+    pub voucher_id: i64,
+    /// `voucher` (the voucher itself) or `balance` (what is left on it).
+    pub kind: String,
+    pub outcome: SlipOutcome,
 }
 
 // ───────────────────────────── FDM health and messages ─────────────────────────────

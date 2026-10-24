@@ -166,11 +166,11 @@ Overlays are drawn above the navigation host by ascending `order`.
 
 | Profile | Use |
 | --- | --- |
-| `--app --fast --base android/int --allow '<card regex>'` | every commit of an `:app` card: hygiene (paths, em-dash, artifacts, Conventional Commits, `Cargo.lock`), freeze tag, `lanes`, `vue-strings`, `kotlin-tests`, `ffi-boundary`, `app-manifest` |
+| `--app --fast --base android/int --allow '<card regex>'` | every commit of an `:app` card: hygiene (paths, em-dash, artifacts, Conventional Commits, `Cargo.lock`), the Android freeze tag (`freeze-tag`, `android-v1.0.0-rc3`; the `linux-frozen` check is retired, `android-frozen` guards the APK inputs), `lanes`, `vue-strings`, `kotlin-tests`, `ffi-boundary`, `app-manifest` |
 | `--app` (without `--fast`) | adds the self-tests and the `:app` Gradle checks: lint, ktlint, detekt, unit tests, Roborazzi verify, Kover, `assembleRelease`, `check_apk.sh` |
 | `--exit` | adds the plan's literal command `lint ktlintCheck detekt test koverVerifyDebug assembleRelease` |
 | `--app-e2e` | adds `scripts/android/app_e2e.sh` (section 9) |
-| `--linux-repro` | builds the frozen Linux tag twice in Docker and compares the SHA-1 with `LINUX_FREEZE.md` |
+| `--linux-repro` | Linux history, not part of the v1 freeze (INT-D41): builds the frozen Linux tag `linux-v1.0.0-rc2` twice in Docker and compares the SHA-1 with `LINUX_FREEZE.md` |
 
 - **`heavy.sh`** gives every Gradle or cargo build a global slot (`PILI_HEAVY_SLOTS`, default 2) because several agents share one 16 GB Mac. Start builds as `scripts/android/heavy.sh ./gradlew --no-daemon --console=plain --offline -Dorg.gradle.jvmargs='-Xmx2g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8' <tasks>`; `p4_gate.sh` takes its slots itself. Never stop a daemon you did not start.
 - **Kover floor** on `:app`: 80 percent of lines and 60 percent of branches (`koverVerifyDebug`; generated code, Hilt and previews are excluded). A lane may raise it, never lower it.

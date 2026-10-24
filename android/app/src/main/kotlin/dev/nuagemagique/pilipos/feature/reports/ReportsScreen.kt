@@ -39,12 +39,26 @@ import dev.nuagemagique.pilipos.ui.theme.PiliTheme
  * tag means "feature root").
  */
 @Composable
-internal fun ReportsRoute(navigator: AppNavigator) {
-    val entry = rememberEntryPoint<ReportsEntryPoint>()
+internal fun ReportsRoute(navigator: AppNavigator) = ReportsRoute(navigator, rememberEntryPoint<ReportsEntryPoint>())
+
+/** The route over a given [entry] (the graph's, or the stores a test builds on a mocked engine). */
+@Composable
+internal fun ReportsRoute(
+    navigator: AppNavigator,
+    entry: ReportsEntryPoint,
+) {
     val model = viewModel { ReportsViewModel(entry) }
+    val invoiceModel = viewModel { InvoiceViewModel(entry) }
+    val salesModel = viewModel { SalesViewModel(entry) }
     val state by model.state.collectAsState()
+    val invoices by invoiceModel.state.collectAsState()
+    val sales by salesModel.state.collectAsState()
     val scope = rememberCoroutineScope()
-    val callbacks = remember(model) { reportsCallbacks(model, entry.delivery(), scope) }
+    val callbacks =
+        remember(model, invoiceModel, salesModel) {
+            reportsCallbacks(model, entry.delivery(), scope)
+                .copy(invoice = invoiceCallbacks(invoiceModel), sales = salesCallbacks(salesModel))
+        }
     val mailStatus by entry.delivery().mailStatus.collectAsState()
     val request by entry.delivery().request.collectAsState()
     val canPay by entry.session().canTakePayment.collectAsState()
@@ -55,26 +69,36 @@ internal fun ReportsRoute(navigator: AppNavigator) {
     val amounts by produceState(emptyMap<Long, LineAmount>(), lines) { value = lineAmounts(entry.helpers(), lines) }
     val preview by produceState(RefundPreview(), selected) { value = refundPreview(entry.helpers(), selected) }
     LaunchedEffect(model, state.signedIn) { if (state.signedIn) model.load() }
+    // The invoiceable sales and the invoices are read again whenever the tickets list is (tab opened, refund or copy signed).
+    LaunchedEffect(invoiceModel, state.signedIn, state.tickets.loaded, state.tickets.rows) {
+        if (state.signedIn && state.tickets.loaded) invoiceModel.load()
+    }
+    // The sales tab shows today whenever it is opened, as the Vue panel does when it mounts.
+    LaunchedEffect(salesModel, state.signedIn, state.tab) {
+        if (state.signedIn && state.tab == ReportsTab.SALES) salesModel.open()
+    }
     PosScaffold(
         area = HeaderArea.REPORTS,
         navigator = navigator,
         modifier = Modifier.testTag("placeholder_reports"),
-        overlay = { ReportsOverlay(state, delivery, RefundUi(amounts, preview), callbacks) },
+        overlay = { ReportsOverlay(state, delivery, RefundUi(amounts, preview), callbacks, invoices) },
     ) {
-        ReportsContent(state, callbacks)
+        ReportsContent(state, callbacks, invoices = invoices, sales = sales)
     }
 }
 
 /**
- * The reports screen, stateless: the three tabs (day, cash, tickets) and the body of the chosen one, laid out for
- * 1920 x 1080 dp. Without a user it shows an empty state instead.
- * Test tags: `reports_empty`, `reports_tab_day`, `reports_tab_cash`, `reports_tab_tickets`, `reports_body`.
+ * The reports screen, stateless: the four tabs (day, cash, tickets, sales; vouchers too when on) and the body of the
+ * chosen one, laid out for 1920 x 1080 dp. Without a user it shows an empty state instead.
+ * Test tags: `reports_empty`, `reports_tab_day`, `reports_tab_cash`, `reports_tab_tickets`, `reports_tab_sales`, `reports_body`.
  */
 @Composable
 internal fun ReportsContent(
     state: ReportsState,
     callbacks: ReportsCallbacks,
     modifier: Modifier = Modifier,
+    invoices: InvoicesState = InvoicesState(),
+    sales: SalesState = SalesState(),
 ) {
     val d = PiliTheme.dimens
     if (!state.signedIn) {
@@ -87,12 +111,20 @@ internal fun ReportsContent(
         modifier = modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary).padding(horizontal = d.spaceXl, vertical = d.spaceLg),
         verticalArrangement = Arrangement.spacedBy(d.spaceLg),
     ) {
-        TabBar(state.tab, callbacks.onTab)
+        TabBar(state.tab, state.vouchers.enabled, callbacks.onTab)
         Box(Modifier.weight(1f).fillMaxWidth().testTag("reports_body")) {
             when (state.tab) {
                 ReportsTab.DAY -> DayTab(state.day, callbacks.day)
                 ReportsTab.CASH -> CashTab(state.cash, callbacks.cash)
-                ReportsTab.TICKETS -> TicketsTab(state.tickets, callbacks.tickets)
+                ReportsTab.TICKETS ->
+                    TicketsTab(
+                        state.tickets,
+                        callbacks.tickets,
+                        invoices = invoices,
+                        invoiceCallbacks = callbacks.invoice,
+                    )
+                ReportsTab.SALES -> SalesTab(sales, callbacks.sales)
+                ReportsTab.VOUCHERS -> VouchersTab(state.vouchers, callbacks.vouchers)
             }
         }
     }
@@ -101,10 +133,12 @@ internal fun ReportsContent(
 @Composable
 private fun TabBar(
     selected: ReportsTab,
+    vouchers: Boolean,
     onTab: (ReportsTab) -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm)) {
-        ReportsTab.entries.forEach { tab ->
+        // The gift vouchers tab is offered only while the setting is on.
+        ReportsTab.entries.filter { it != ReportsTab.VOUCHERS || vouchers }.forEach { tab ->
             val key = tabKey(tab)
             ChoiceButton(
                 text = vueText(key),
@@ -121,11 +155,13 @@ private fun tabKey(tab: ReportsTab): String =
         ReportsTab.DAY -> "reports_tab_day"
         ReportsTab.CASH -> "reports_tab_cash"
         ReportsTab.TICKETS -> "reports_tab_tickets"
+        ReportsTab.SALES -> "reports_tab_sales"
+        ReportsTab.VOUCHERS -> "reports_tab_vouchers"
     }
 
 /**
- * The dialogs of the screen, for the scaffold's overlay slot: the Z history, the two amount keypads, the copy flow
- * and the refund flow. Nothing is drawn while no dialog is open.
+ * The dialogs of the screen, for the scaffold's overlay slot: the Z history, the two amount keypads, the copy flow,
+ * the refund flow, the payment correction and the invoice flow. Nothing is drawn while no dialog is open.
  */
 @Composable
 internal fun BoxScope.ReportsOverlay(
@@ -133,10 +169,13 @@ internal fun BoxScope.ReportsOverlay(
     delivery: ReportsDelivery,
     refund: RefundUi,
     callbacks: ReportsCallbacks,
+    invoices: InvoicesState = InvoicesState(),
 ) {
     if (!state.signedIn) return
     if (state.day.zListOpen) ZListDialog(state.day.zHistory, callbacks.day)
     CashDialogs(state.cash, callbacks.cash)
     state.copyFlow?.let { CopyDialog(it, delivery, callbacks) }
     state.refundFlow?.let { RefundDialog(it, state.tickets.refundable, delivery, refund, callbacks) }
+    state.correctionFlow?.let { CorrectionDialog(it, state.userName, callbacks.correction) }
+    invoices.flow?.let { InvoiceDialog(it, invoices.sales, callbacks.invoice) }
 }

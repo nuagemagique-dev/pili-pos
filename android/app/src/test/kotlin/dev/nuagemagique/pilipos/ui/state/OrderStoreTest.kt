@@ -5,6 +5,7 @@ import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.engine.EngineUnavailableException
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -23,10 +24,19 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import uniffi.pos_ffi.AddOrderLineInput
 import uniffi.pos_ffi.CartLine
+import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.CheckoutResult
+import uniffi.pos_ffi.CourseSettings
 import uniffi.pos_ffi.CreateOrderInput
+import uniffi.pos_ffi.DiscountInput
+import uniffi.pos_ffi.DiscountKind
+import uniffi.pos_ffi.DiscountReason
+import uniffi.pos_ffi.DiscountResult
+import uniffi.pos_ffi.DiscountTarget
+import uniffi.pos_ffi.HeldCourse
 import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.MenuItem
+import uniffi.pos_ffi.NextCourse
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.OrderStatus
@@ -34,6 +44,7 @@ import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SlipOutcome
+import uniffi.pos_ffi.TableTransferResult
 import uniffi.pos_ffi.VatCode
 
 @Suppress("LongParameterList", "LargeClass", "TooManyFunctions")
@@ -65,6 +76,8 @@ class OrderStoreTest {
         unsent: Long = 0,
         modifiers: String? = null,
         unitPriceCents: Long = 500,
+        priceChanges: List<CartPriceChange> = emptyList(),
+        kitchenNote: String? = null,
     ) = CartLine(
         id = id,
         orderId = 1,
@@ -81,6 +94,11 @@ class OrderStoreTest {
         nameZh = null,
         code = null,
         unsentQuantity = unsent,
+        discountCents = 0,
+        priceChanges = priceChanges,
+        kitchenNote = kitchenNote,
+        course = 0,
+        kitchenState = "unsent",
     )
 
     private fun item(
@@ -101,6 +119,9 @@ class OrderStoreTest {
         kitchenPrinter = true,
         sortOrder = 1,
         active = true,
+        soldOut = false,
+        soldOutUntil = null,
+        hasModifiers = false,
     )
 
     private fun orderLine(menuItemId: Long) =
@@ -797,6 +818,421 @@ class OrderStoreTest {
             r.store.seed(r, order(id = 1), listOf(line(1, 10, quantity = 4, unsent = 3), line(2, 11, unsent = 0), line(3, 12, unsent = -2)))
 
             assertEquals(3, r.store.unsentCount.value)
+        }
+
+    @Test
+    fun transferringTheCurrentOrderMovesItAndReadsItAgain() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10, unsent = 1)))
+            val moved = TableTransferResult(1L, 3, 5, SlipOutcome.PRINTED, SlipOutcome.PRINTED)
+            coEvery { r.f.engine.transferTable(1L, 5) } returns moved
+            r.stubReads(order(id = 1, table = 5), listOf(line(1, 10, unsent = 0)))
+
+            val result = r.store.transferTable(5)
+
+            assertEquals(moved, result)
+            assertEquals(5, r.store.current.value?.tableNumber)
+            assertEquals(0, r.store.unsentCount.value)
+        }
+
+    @Test
+    fun transferringAnotherOrderLeavesTheCurrentOneAlone() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), emptyList())
+            coEvery { r.f.engine.transferTable(9L, 5) } returns
+                TableTransferResult(9L, 4, 5, SlipOutcome.NOTHING_TO_PRINT, SlipOutcome.PRINTED)
+
+            r.store.transferOrder(9L, 5)
+
+            assertEquals(3, r.store.current.value?.tableNumber)
+            coVerify(exactly = 1) { r.f.engine.getOrder(1L) }
+        }
+
+    @Test
+    fun aTransferSlipThatDidNotPrintIsEmittedOnSlipFailures() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), emptyList())
+            coEvery { r.f.engine.transferTable(1L, 5) } returns TableTransferResult(1L, 3, 5, SlipOutcome.FAILED, SlipOutcome.FAILED)
+            r.stubReads(order(id = 1, table = 5), emptyList())
+
+            r.store.slipFailures.test {
+                r.store.transferTable(5)
+                awaitItem()
+                awaitItem()
+            }
+        }
+
+    // ── Courses ───────────────────────────────────────────────────
+
+    private fun Rig.stubCourses(
+        enabled: Boolean,
+        held: List<HeldCourse> = emptyList(),
+    ) {
+        coEvery { f.engine.getCourseSettings() } returns CourseSettings(enabled, emptyList())
+        coEvery { f.engine.listHeldCourses(any()) } returns held
+    }
+
+    @Test
+    fun theCoursesSettingAndTheHeldCoursesAreReadWithTheOrder() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+
+            assertTrue(r.store.courseSettings.value.enabled)
+            assertEquals(listOf(HeldCourse(2, 1, 1)), r.store.heldCourses.value)
+        }
+
+    @Test
+    fun leavingTheOrderReadsTheHeldCoursesAgainSoTheNextCourseIsOfferedAtOnce() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, emptyList())
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10, unsent = 1)))
+            assertEquals(emptyList<HeldCourse>(), r.store.heldCourses.value)
+            // The first slip carried the starters and held the mains.
+            coEvery { r.f.engine.leaveOrder(1L, LeaveReason.SEND_TO_KITCHEN) } returns SlipOutcome.PRINTED
+            coEvery { r.f.engine.listCartLines(1L) } returns listOf(line(1, 10, unsent = 0))
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+
+            r.store.leave(LeaveReason.SEND_TO_KITCHEN)
+
+            assertEquals(listOf(HeldCourse(2, 1, 1)), r.store.heldCourses.value)
+            coVerifyOrder {
+                r.f.engine.leaveOrder(1L, LeaveReason.SEND_TO_KITCHEN)
+                r.f.engine.listHeldCourses(1L)
+            }
+        }
+
+    @Test
+    fun aTransferRefusalIsThrownToTheCaller() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), emptyList())
+            val refusal = PosException.Coded("table_transfer_target_busy", emptyMap())
+            coEvery { r.f.engine.transferTable(any(), any()) } throws refusal
+
+            try {
+                r.store.transferTable(5)
+                fail("expected the refusal")
+            } catch (e: PosException.Coded) {
+                assertSame(refusal, e)
+            }
+            assertEquals(3, r.store.current.value?.tableNumber)
+        }
+
+    private fun halfOff() = listOf(CartPriceChange("TILL-DISCOUNT", "Remise 50 %", "EVENT", -250))
+
+    private fun discount(
+        kind: DiscountKind = DiscountKind.PERCENT,
+        value: Long? = 50,
+    ) = DiscountInput(DiscountTarget.Order, kind, value, DiscountReason.STAFF_MEAL, null)
+
+    @Test
+    fun addingTheSameProductAgainOpensANewLineWhenTheLineHasAPriceChange() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10, priceChanges = halfOff())))
+            coEvery { r.f.engine.addOrderLine(any()) } returns orderLine(10)
+
+            r.store.addItem(item(10))
+
+            coVerify(exactly = 1) { r.f.engine.addOrderLine(any()) }
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+        }
+
+    @Test
+    fun addingTheSameProductAgainStillMergesIntoAPlainLine() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10)))
+            coEvery { r.f.engine.updateOrderLineQuantity(1L, 2) } returns Unit
+
+            r.store.addItem(item(10))
+
+            coVerify(exactly = 1) { r.f.engine.updateOrderLineQuantity(1L, 2) }
+            coVerify(exactly = 0) { r.f.engine.addOrderLine(any()) }
+        }
+
+    @Test
+    fun addingTheSameProductAgainOpensANewLineWhenTheLineHasAKitchenNote() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10, kitchenNote = "sans wasabi")))
+            coEvery { r.f.engine.addOrderLine(any()) } returns orderLine(10)
+
+            r.store.addItem(item(10))
+
+            coVerify(exactly = 1) { r.f.engine.addOrderLine(any()) }
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+        }
+
+    @Test
+    fun aKitchenNoteIsSentAndTheLinesAreReadAgain() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10)))
+            coEvery { r.f.engine.setLineNote(1L, "sans wasabi") } returns SlipOutcome.NOTHING_TO_PRINT
+            r.stubReads(order(id = 1, table = 3), listOf(line(1, 10, kitchenNote = "sans wasabi")))
+
+            assertTrue(r.store.setLineNote(1L, "  sans wasabi "))
+
+            assertEquals("sans wasabi", r.store.lines.value.single().kitchenNote)
+            coVerify(exactly = 1) { r.f.engine.setLineNote(1L, "sans wasabi") }
+        }
+
+    @Test
+    fun anEmptyKitchenNoteClearsIt() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10, kitchenNote = "sans wasabi")))
+            coEvery { r.f.engine.setLineNote(1L, null) } returns SlipOutcome.NOTHING_TO_PRINT
+            r.stubReads(order(id = 1, table = 3), listOf(line(1, 10)))
+
+            assertTrue(r.store.setLineNote(1L, "   "))
+
+            assertNull(r.store.lines.value.single().kitchenNote)
+            coVerify(exactly = 1) { r.f.engine.setLineNote(1L, null) }
+        }
+
+    @Test
+    fun aNoteSlipThatDidNotPrintIsEmittedOnSlipFailures() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10)))
+            coEvery { r.f.engine.setLineNote(1L, "sans wasabi") } returns SlipOutcome.FAILED
+            r.stubReads(order(id = 1, table = 3), listOf(line(1, 10, kitchenNote = "sans wasabi")))
+
+            r.store.slipFailures.test {
+                r.store.setLineNote(1L, "sans wasabi")
+                awaitItem()
+            }
+        }
+
+    @Test
+    fun aRefusedNoteIsReportedAndTheCartKeepsItsLines() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10)))
+            val refusal = PosException.Coded("note_too_long", emptyMap())
+            coEvery { r.f.engine.setLineNote(any(), any()) } throws refusal
+
+            r.store.failures.test {
+                assertFalse(r.store.setLineNote(1L, "x".repeat(61)))
+                assertSame(refusal, awaitItem())
+            }
+            assertNull(r.store.lines.value.single().kitchenNote)
+        }
+
+    @Test
+    fun applyingADiscountSendsTheInputWithThePinAndReadsTheOrderAgain() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val input = discount()
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3, totalCents = 250), SlipOutcome.NOTHING_TO_PRINT, null)
+            r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
+
+            r.store.applyDiscount(input, "insz", "4321")
+
+            assertEquals(250L, r.store.current.value?.totalCents)
+            assertEquals(1, r.store.lines.value.single().priceChanges.size)
+            coVerify(exactly = 1) { r.f.engine.applyDiscount(1L, input, "insz", "4321") }
+        }
+
+    @Test
+    fun aDiscountThatCouldNotBeRegisteredIsWarnedAndKept() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val input = discount()
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, "fdm_unreachable")
+            r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
+
+            r.store.discountWarnings.test {
+                r.store.applyDiscount(input, "insz", "4321")
+                awaitItem()
+            }
+            assertEquals(250L, r.store.current.value?.totalCents)
+        }
+
+    @Test
+    fun aDiscountSlipThatDidNotPrintIsEmittedOnSlipFailures() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val input = discount()
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.FAILED, null)
+            r.stubReads(order(id = 1, table = 3), listOf(line(1, 10)))
+
+            r.store.slipFailures.test {
+                r.store.applyDiscount(input, "insz", "4321")
+                awaitItem()
+            }
+        }
+
+    @Test
+    fun withCoursesOffTheHeldCoursesAreNotRead() =
+        runTest {
+            val r = rig()
+            r.stubCourses(false)
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+
+            assertFalse(r.store.courseSettings.value.enabled)
+            assertEquals(emptyList<HeldCourse>(), r.store.heldCourses.value)
+            coVerify(exactly = 0) { r.f.engine.listHeldCourses(any()) }
+        }
+
+    @Test
+    fun anEngineThatCannotAnswerLeavesCoursesOff() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getCourseSettings() } throws PosException.Coded("not_ready", emptyMap())
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+
+            assertFalse(r.store.courseSettings.value.enabled)
+            assertEquals(1, r.store.lines.value.size)
+        }
+
+    @Test
+    fun aCourseChangeIsStoredAndTheCartAndHeldCoursesAreReadAgain() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+            coEvery { r.f.engine.setLineCourse(1, 1) } returns Unit
+            r.stubCourses(true, emptyList())
+
+            assertTrue(r.store.setLineCourse(1, 1))
+
+            coVerify(exactly = 1) { r.f.engine.setLineCourse(1, 1) }
+            assertEquals(emptyList<HeldCourse>(), r.store.heldCourses.value)
+        }
+
+    @Test
+    fun aRefusedCourseChangeIsReportedAndAnswersFalse() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true)
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+            coEvery { r.f.engine.setLineCourse(any(), any()) } throws PosException.Coded("course_already_sent", emptyMap())
+
+            r.store.failures.test {
+                assertFalse(r.store.setLineCourse(1, 1))
+                assertTrue(awaitItem() is PosException)
+            }
+        }
+
+    @Test
+    fun sendNextCourseAnswersTheEnginesResultAndReadsTheCartAgain() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1), HeldCourse(3, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+            val next = NextCourse(course = 2, signed = null, slip = SlipOutcome.PRINTED)
+            coEvery { r.f.engine.sendNextCourse(1) } returns next
+            r.stubCourses(true, listOf(HeldCourse(3, 1, 1)))
+
+            assertEquals(next, r.store.sendNextCourse())
+
+            assertEquals(listOf(HeldCourse(3, 1, 1)), r.store.heldCourses.value)
+        }
+
+    @Test
+    fun aSlipThatDidNotPrintIsReportedOnTheSlipFailures() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+            coEvery { r.f.engine.sendNextCourse(1) } returns NextCourse(2, null, SlipOutcome.FAILED)
+
+            r.store.slipFailures.test {
+                r.store.sendNextCourse()
+                awaitItem()
+            }
+        }
+
+    @Test
+    fun aDiscountRefusalIsThrownAndTheCartKeepsItsLines() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val refusal = PosException.Coded("pin_wrong", emptyMap())
+            coEvery { r.f.engine.applyDiscount(any(), any(), any(), any()) } throws refusal
+
+            try {
+                r.store.applyDiscount(discount(), "insz", "0000")
+                fail("expected the refusal")
+            } catch (e: PosException.Coded) {
+                assertSame(refusal, e)
+            }
+            assertEquals(500L, r.store.current.value?.totalCents)
+            assertTrue(r.store.lines.value.single().priceChanges.isEmpty())
+        }
+
+    @Test
+    fun removingAnOrderDiscountPassesNoLineAndReadsTheOrderAgain() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
+            coEvery { r.f.engine.removeDiscount(1L, null, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3, totalCents = 500), SlipOutcome.NOTHING_TO_PRINT, null)
+            r.stubReads(order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+
+            r.store.removeDiscount(null, "insz", "4321")
+
+            assertEquals(500L, r.store.current.value?.totalCents)
+            assertTrue(r.store.lines.value.single().priceChanges.isEmpty())
+        }
+
+    @Test
+    fun removingAnOfferedLinePassesTheLineId() =
+        runTest {
+            val r = rig()
+            r.store.seed(
+                r,
+                order(id = 1, table = 3),
+                listOf(line(4, 10, priceChanges = listOf(CartPriceChange("TILL-FREE-LINE", "Offert", "LINE", -500)))),
+            )
+            coEvery { r.f.engine.removeDiscount(1L, 4L, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null)
+            r.stubReads(order(id = 1, table = 3, totalCents = 500), listOf(line(4, 10)))
+
+            r.store.removeDiscount(4L, "insz", "4321")
+
+            coVerify(exactly = 1) { r.f.engine.removeDiscount(1L, 4L, "insz", "4321") }
+        }
+
+    @Test
+    fun aRefusedReleaseIsThrownToTheCaller() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+            coEvery { r.f.engine.sendNextCourse(1) } throws PosException.Coded("fdm_unreachable", emptyMap())
+
+            val refusal = runCatching { r.store.sendNextCourse() }.exceptionOrNull()
+
+            assertTrue(refusal is PosException)
+            assertEquals(listOf(HeldCourse(2, 1, 1)), r.store.heldCourses.value)
+        }
+
+    @Test
+    fun forgettingTheOrderForgetsItsHeldCourses() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+
+            r.store.resetLocal()
+
+            assertEquals(emptyList<HeldCourse>(), r.store.heldCourses.value)
         }
 
     /** Puts [order] and [cart] in the store through the engine, as a screen would (loadOrder). */

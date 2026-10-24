@@ -149,8 +149,18 @@ sur des sommes comme 3,04 €, voir
 
 Les identifiants de paiement sont ceux de pili-pos
 (`crates/pos-fiscal/src/event.rs`) : `"1"`/`"Cash"` pour les espèces,
-`"2"`/`"Card"` pour la carte - toujours `CARD_DEBIT`, l'opérateur ne
-distinguant pas débit et crédit à l'encaissement.
+`"2"`/`"Card"` pour la carte. Sans terminal de paiement relié, la carte
+est toujours `CARD_DEBIT` : l'opérateur ne distingue pas débit et crédit
+à l'encaissement (méthode `MANUAL`). Avec un terminal relié, le terminal
+rend lui-même le type de carte (méthode `AUTOMATIC`) et les rapports
+comptent chaque type à part : `"2"`/`"Card"` (`CARD_DEBIT`),
+`"6"`/`"Credit card"` (`CARD_CREDIT`) et `"7"`/`"Card (type unknown)"`
+(`CARD_UNKNOWN`), sans jamais mélanger deux types dans un même
+décompte (`crates/pos-fiscal/src/payment.rs`). Une carte de chèques-repas
+(Edenred, Pluxee, Monizze, Payflip), reconnue à la marque que rend le
+terminal, est une ligne `CHEQUE_MEAL` (`"3"`/`"Meal voucher"`, méthode
+`AUTOMATIC`) : elle se totalise dans la même rangée que les chèques-repas
+saisis à la main, qui ne diffèrent que par la méthode.
 
 ### Rejeu du scénario complet InputReport (T1-T8)
 
@@ -183,7 +193,7 @@ avril 2024 (art. 29, t : le nombre et le montant des tickets de chaque
 type), différent du chiffre publié dans la fixture. Aucun texte ne
 permet d'exclure T1 : ce choix est délibéré. Écarts additionnels documentés et volontaires :
 l'`id`/`name` de paiement sont ceux de pili-pos (ci-dessus), les
-paiements carte sont `CARD_DEBIT` (fixture : `CARD_CREDIT`), les noms
+paiements carte sont `CARD_DEBIT` sans terminal relié (fixture : `CARD_CREDIT`), les noms
 de département sont ceux du catalogue en français, et
 `posDevices`/`fdmDevices` reflètent le terminal unique et le FDM
 simulé du test.

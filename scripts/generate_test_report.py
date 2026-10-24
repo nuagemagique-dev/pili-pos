@@ -22,7 +22,7 @@ DOC = ROOT / "docs/SUBMISSION_ARTIFACTS/RAPPORT_TESTS_BASELINE_FR.md"
 BEGIN = "<!-- TEST_TOTALS:BEGIN (scripts/generate_test_report.py) -->"
 END = "<!-- TEST_TOTALS:END -->"
 
-RUNNING = re.compile(r"^\s*Running (?:unittests )?(\S+) \(target/[^/]+/deps/([A-Za-z0-9_]+)-[0-9a-f]+\)")
+RUNNING = re.compile(r"^\s*Running (?:unittests )?(\S+) \(\S*?/deps/([A-Za-z0-9_]+)-[0-9a-f]+\)")
 RESULT = re.compile(r"^test result: \w+\. (\d+) passed; (\d+) failed; (\d+) ignored")
 
 
@@ -77,7 +77,9 @@ def layer(source: str, binary: str) -> str:
             continue
         paragraph.append(text)
     if paragraph:
-        text = " ".join(paragraph)
+        # No code quotes in a table cell: an identifier cited there is not
+        # a claim about the dossier and would be checked by check_dossier.
+        text = " ".join(paragraph).replace("`", "")
         # The first sentence is enough for a table cell.
         text = re.split(r"(?<=\.)\s", text, maxsplit=1)[0].rstrip(":")
         if len(text) > 160:

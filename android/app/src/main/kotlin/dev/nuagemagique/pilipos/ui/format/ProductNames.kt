@@ -29,15 +29,15 @@ data class BilingualName(
 )
 
 /**
- * Product names are shown in two languages (UX guide section 10): the UI language first, then French or
- * Chinese underneath, so French- and Chinese-speaking staff both read the same button (`useBilingualName`).
+ * Product names are shown in the UI language only (user decision 2026-10-10, same rule as `useBilingualName`):
+ * no second language underneath; [nameFr] stays a parameter for the callers.
  *
  * In [ProductLabelMode.CODE] a product with a (non-blank) [code] leads with it and keeps its name in the UI
  * language underneath; a product without a code falls back to the name rule.
  *
  * Pure: no rule of the till lives here, only the choice of which text to show.
  */
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "UnusedParameter")
 fun bilingualName(
     name: String,
     nameFr: String?,
@@ -52,9 +52,7 @@ fun bilingualName(
     if (mode == ProductLabelMode.CODE && !trimmedCode.isNullOrEmpty()) {
         return BilingualName(primary = trimmedCode, secondary = primary, isCode = true)
     }
-    val other = if (zh) nameFr else nameZh
-    val secondary = if (!other.isNullOrEmpty() && other != primary) other else null
-    return BilingualName(primary = primary, secondary = secondary, isCode = false)
+    return BilingualName(primary = primary, secondary = null, isCode = false)
 }
 
 /** [bilingualName] of a menu item (a product button). */

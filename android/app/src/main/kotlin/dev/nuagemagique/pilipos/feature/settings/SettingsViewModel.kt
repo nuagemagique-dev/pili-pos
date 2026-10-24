@@ -11,9 +11,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import uniffi.pos_ffi.BadgeOverview
+import uniffi.pos_ffi.BadgeSettingsView
 import uniffi.pos_ffi.CreateUserInput
 import uniffi.pos_ffi.Integrations
 import uniffi.pos_ffi.MailStatus
@@ -25,6 +29,9 @@ private const val DELIVERIES_LIMIT: Long = 50L
 
 /** Lifetime of the toast that reports a refused training switch, in milliseconds (6000 in `SettingsView.vue`). */
 private const val TRAINING_TOAST_MS: Long = 6000L
+
+/** Lifetime of the toast of a refused presence registration, in milliseconds (6000 in `SettingsView.vue`). */
+private const val PRESENCE_TOAST_MS: Long = 6000L
 
 /** An INSZ has 11 digits. */
 internal const val INSZ_LENGTH: Int = 11
@@ -38,10 +45,17 @@ private data class Shared(
     val language: AppLanguage,
 )
 
-/** The product label and the mail status, gathered before the screen state is built. */
+/** What the badge store holds: the reader setting and the badge list. */
+private data class BadgeStores(
+    val settings: BadgeSettingsView?,
+    val overview: BadgeOverview?,
+)
+
+/** The product label, the mail status and the FDM connection, gathered before the screen state is built. */
 private data class Pieces(
     val label: ProductLabel,
     val mail: MailStatus?,
+    val fdmConnected: Boolean,
 )
 
 /**
@@ -67,7 +81,11 @@ internal class SettingsViewModel(
     private val session = entry.session()
     private val integrations = entry.integrations()
     private val delivery = entry.delivery()
+    private val badges = entry.badges()
     private val own = MutableStateFlow(SettingsUiState())
+
+    /** The badge half of the screen: reader panel, enrolment, removal. */
+    val badge: SettingsBadgeModel = SettingsBadgeModel(entry, own, viewModelScope) { loadUsers() }
 
     /** What the screen draws. */
     val state: StateFlow<SettingsUiState> =
@@ -80,15 +98,22 @@ internal class SettingsViewModel(
                 settings.language,
                 ::Shared,
             ),
-            combine(settings.productLabel, delivery.mailStatus, ::Pieces),
+            combine(settings.productLabel, delivery.mailStatus, entry.fdm().state.map { it.connected }, ::Pieces),
             integrations.state,
+            combine(badges.settings, badges.overview, ::BadgeStores),
             own,
-        ) { shared, pieces, switch, base ->
-            build(base, shared, pieces, switch)
+        ) { shared, pieces, switch, stored, base ->
+            build(base, shared, pieces, switch, stored)
         }.stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            build(own.value, currentShared(), Pieces(settings.productLabel.value, delivery.mailStatus.value), integrations.state.value),
+            build(
+                own.value,
+                currentShared(),
+                currentPieces(),
+                integrations.state.value,
+                BadgeStores(badges.settings.value, badges.overview.value),
+            ),
         )
 
     init {
@@ -96,6 +121,14 @@ internal class SettingsViewModel(
         viewModelScope.launch {
             entry.gateway().ready.collect { ready -> if (ready) refresh() }
         }
+        // A badge registered someone's arrival or departure: who is on shift changed (`watch(presenceVersion)`).
+        viewModelScope.launch {
+            badges.presenceVersion.drop(1).collect { loadUsers() }
+        }
+    }
+
+    override fun onCleared() {
+        badge.clear()
     }
 
     // ── Loading ───────────────────────────────────────────────────
@@ -103,16 +136,35 @@ internal class SettingsViewModel(
     /** Loads the employees, the mail status, the deliveries and the HubRise switch again. */
     suspend fun refresh() {
         settings.load()
+        badges.load()
         integrations.load()
         loadUsers()
         refreshMailStatus()
         loadDeliveries()
+        loadTablePlan()
     }
 
-    /** Lists the employees; a failure keeps the previous list (`loadWorkers`). */
+    /** Reads the table plan; a failure keeps the panel as it was. */
+    suspend fun loadTablePlan() {
+        attempt { entry.gateway().call { engine -> engine.getTablePlan() } }
+            .onSuccess { plan -> own.update { it.copy(tablePlan = TablePlanState(plan.plan, plan.tableCount, plan.plan)) } }
+    }
+
+    /**
+     * Lists the employees and the open shifts together (`loadWorkers`); a failure of either keeps the previous
+     * state. Run after every action of the panel.
+     */
     suspend fun loadUsers() {
-        attempt { entry.gateway().call { engine -> engine.listUsers() } }
-            .onSuccess { list -> own.update { it.copy(users = list) } }
+        val users = attempt { entry.gateway().call { engine -> engine.listUsers() } }
+        val shifts = attempt { entry.gateway().call { engine -> engine.listOpenShifts() } }
+        // The badges are listed with the employees (a manager's call); all three answer or the screen keeps its state.
+        val linked = if (session.isManager.value) attempt { badges.fetchOverview() } else null
+        val badgesOk = linked == null || linked.isSuccess
+        if (users.isSuccess && shifts.isSuccess && badgesOk) {
+            val open = shifts.getOrThrow().associate { it.userInsz to it.startedAt }
+            own.update { it.copy(users = users.getOrThrow(), openShifts = open) }
+            linked?.getOrNull()?.let(badges::publishOverview)
+        }
     }
 
     /** Asks the engine whether the mail service is configured and reachable (through the delivery store). A failure gives no status. */
@@ -200,7 +252,8 @@ internal class SettingsViewModel(
             return
         }
         viewModelScope.launch {
-            attempt { entry.gateway().call { engine -> engine.createUser(CreateUserInput(form.insz, name, form.role.code, null, null)) } }
+            val input = CreateUserInput(form.insz, name, form.role.engineRole, null, null, form.role.presenceOnly)
+            attempt { entry.gateway().call { engine -> engine.createUser(input) } }
                 .fold(
                     onSuccess = {
                         own.update { it.copy(form = it.form.copy(name = "", insz = "")) }
@@ -208,6 +261,40 @@ internal class SettingsViewModel(
                     },
                     onFailure = { failure -> own.update { it.copy(form = it.form.copy(error = describe(failure))) } },
                 )
+        }
+    }
+
+    // ── Presence (event S, registered by a manager) ───────────────
+
+    /**
+     * The presence button of [user] (`togglePresence`): clocks them in when off shift, out when on shift. Ignored
+     * while the buttons are off ([SettingsUiState.presenceBlock]) or another call runs. The engine signs the S event
+     * of the employee; a refused FDM is shown with the FDM texts and a refusal code with its text; the panel is
+     * read again whatever happens.
+     */
+    fun togglePresence(user: User) {
+        val now = state.value
+        if (now.presenceBlock != null || now.presenceBusy != null) return
+        val clockIn = !now.openShifts.containsKey(user.insz)
+        own.update { it.copy(presenceBusy = user.insz) }
+        viewModelScope.launch {
+            attempt {
+                entry.gateway().call { engine ->
+                    if (clockIn) engine.clockInEmployee(user.insz) else engine.clockOutEmployee(user.insz)
+                }
+            }.fold(
+                onSuccess = { result ->
+                    if (result.success) {
+                        val key = if (clockIn) "settings_presence_done_in" else "settings_presence_done_out"
+                        entry.toasts().show(text(key, mapOf("name" to user.name)), ToastVariant.Success)
+                    } else {
+                        entry.errors().showRaw(result.error, language(), ttlMs = PRESENCE_TOAST_MS)
+                    }
+                },
+                onFailure = { entry.errors().show(it, language(), ttlMs = PRESENCE_TOAST_MS) },
+            )
+            own.update { it.copy(presenceBusy = null) }
+            loadUsers()
         }
     }
 
@@ -287,6 +374,25 @@ internal class SettingsViewModel(
         viewModelScope.launch { loadUsers() }
     }
 
+    // ── Table plan ────────────────────────────────────────────────
+
+    /** The table plan field. */
+    fun setTablePlanInput(text: String) {
+        own.update { it.copy(tablePlan = it.tablePlan.copy(input = text, error = null)) }
+    }
+
+    /** Saves the field as the table plan (managers only, the engine checks it); a refusal shows under the field. */
+    fun saveTablePlan() {
+        val input = own.value.tablePlan.input
+        viewModelScope.launch {
+            attempt { entry.gateway().call { engine -> engine.setTablePlan(input) } }
+                .onSuccess { plan ->
+                    own.update { it.copy(tablePlan = TablePlanState(plan.plan, plan.tableCount, plan.plan)) }
+                    entry.toasts().show(text("settings_tables_saved"), ToastVariant.Success)
+                }.onFailure { error -> own.update { it.copy(tablePlan = it.tablePlan.copy(error = describe(error))) } }
+        }
+    }
+
     // ── HubRise switch ────────────────────────────────────────────
 
     /**
@@ -314,6 +420,13 @@ internal class SettingsViewModel(
 
     private fun text(key: String): String = entry.catalog().text(key, language())
 
+    private fun text(
+        key: String,
+        vars: Map<String, Any>,
+    ): String = entry.catalog().text(key, language(), vars)
+
+    private fun currentPieces(): Pieces = Pieces(settings.productLabel.value, delivery.mailStatus.value, entry.fdm().state.value.connected)
+
     private fun currentShared(): Shared =
         Shared(session.currentUser.value, session.isManager.value, settings.settings.value, settings.trainingMode.value, language())
 
@@ -322,8 +435,16 @@ internal class SettingsViewModel(
         shared: Shared,
         pieces: Pieces,
         switch: Integrations?,
+        stored: BadgeStores,
     ): SettingsUiState =
         base.copy(
+            badge =
+                base.badge.copy(
+                    settings = stored.settings,
+                    overview = stored.overview,
+                    hasNfc = badges.hasNfc,
+                    nfcEnabled = badges.nfcEnabled,
+                ),
             rows = visibleRows(entry.registry().settingsEntries, shared.manager),
             isManager = shared.manager,
             currentInsz = shared.user?.insz,
@@ -331,6 +452,7 @@ internal class SettingsViewModel(
             language = shared.language,
             productLabel = pieces.label,
             mailStatus = pieces.mail,
+            fdmConnected = pieces.fdmConnected,
             info = shared.engine,
             hubrise =
                 base.hubrise.copy(

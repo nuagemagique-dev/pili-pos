@@ -63,6 +63,9 @@ pub struct AppState {
     pub support: crate::commands::support::SupportState,
     /// Wrong PIN attempts (`commands::access::verify_pin`).
     pub pin_throttle: crate::commands::access::PinThrottle,
+    /// Failed gift voucher lookups of the last minute
+    /// (`commands::gift_vouchers`).
+    pub gift_voucher_lookups: crate::commands::gift_vouchers::LookupThrottle,
     /// Held while a fiscal event is signed (`commands::signing`).
     pub signing: crate::commands::signing::SigningLock,
     /// The last FDM status answer (`commands::checkout::do_check_fdm_status`).
@@ -76,6 +79,39 @@ pub struct AppState {
     /// client and the wake-up of its background loop
     /// (`commands::export`). Disabled without an `export` section.
     pub export: crate::commands::export::ExportState,
+    /// Wakes the Peppol delivery queue: an invoice was signed or a
+    /// parked delivery re-queued (`commands::peppol_queue`).
+    pub peppol_wake: tokio::sync::Notify,
+    /// The terminal running the payment in progress, with its reference
+    /// (`commands::eft`): an abort goes to the same instance, which
+    /// keeps the state of the call (a cancel ends as Cancelled).
+    pub eft_in_flight: Mutex<Option<(String, std::sync::Arc<pos_eft::Terminal>)>>,
+    /// The terminal's line: a terminal serves one connection at a time,
+    /// so a payment and a status question hold it for their whole
+    /// exchange and the reachability probe only looks at it
+    /// (`commands::eft`). An abort never takes it: it reaches the
+    /// payment's own instance, or opens its own connection.
+    pub eft_line: tokio::sync::Mutex<()>,
+    /// Badge scans being handled or just handled, by badge hash
+    /// (`commands::badges`, L5-D10). In memory: a restart clears it.
+    pub badge_repeats: Mutex<std::collections::HashMap<String, Repeat>>,
+    /// What the owner alert worker remembers between passes
+    /// (`crate::alerts`).
+    pub owner_alerts: crate::alerts::AlertRuntime,
+    /// A terminal that answers from a script, used in place of the
+    /// configured one (`commands::eft`). Tests only: the field exists
+    /// under the `eft-scripted` feature, which no shipped build enables.
+    #[cfg(feature = "eft-scripted")]
+    pub eft_terminal_override: Option<std::sync::Arc<pos_eft::scripted::Script>>,
+}
+
+/// Where a badge's last scan stands, for the repeat window.
+#[derive(Debug, Clone, Copy)]
+pub enum Repeat {
+    /// The scan is still being handled.
+    InFlight,
+    /// The scan finished at this instant.
+    Done(std::time::Instant),
 }
 
 /// One cached FDM status answer: the key of everything that reaches the
@@ -198,6 +234,35 @@ mod tests {
         event(&conn, 2, "N", Some(voided));
         assert_eq!(recover_orphaned_checkouts(&conn).unwrap(), 0);
         assert_eq!(status(&conn, voided), "voided");
+    }
+
+    #[test]
+    fn empty_open_orders_are_voided_at_boot_and_the_others_kept() {
+        let conn = db();
+        let empty = order(&conn, "open");
+        let signed = order(&conn, "open");
+        event(&conn, 1, "P", Some(signed));
+        let with_line = order(&conn, "open");
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order, active) VALUES (1, 0, 1);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code, sort_order, active)
+                VALUES (1, 1, 1000, 'B', 0, 1);",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO order_lines (order_id, menu_item_id, quantity, unit_price_cents, vat_code, name)
+             VALUES (?1, 1, 1, 1000, 'B', 'x')",
+            [with_line],
+        )
+        .unwrap();
+        let closed = order(&conn, "closed");
+
+        assert_eq!(pos_db::queries::orders::void_all_empty(&conn).unwrap(), 1);
+        assert_eq!(status(&conn, empty), "voided");
+        assert_eq!(status(&conn, signed), "open");
+        assert_eq!(status(&conn, with_line), "open");
+        assert_eq!(status(&conn, closed), "closed");
+        assert_eq!(pos_db::queries::orders::void_all_empty(&conn).unwrap(), 0);
     }
 
     #[test]

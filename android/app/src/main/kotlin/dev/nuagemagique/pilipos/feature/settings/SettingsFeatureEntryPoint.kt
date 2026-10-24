@@ -8,7 +8,9 @@ import dev.nuagemagique.pilipos.engine.EngineGateway
 import dev.nuagemagique.pilipos.engine.EngineHelpers
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.nav.NavRegistry
+import dev.nuagemagique.pilipos.ui.badge.BadgeStore
 import dev.nuagemagique.pilipos.ui.components.QrMatrices
+import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
@@ -60,6 +62,12 @@ internal interface SettingsFeatureEntryPoint {
 
     /** The online orders: a saved HubRise channel releases held orders, so the board is read again. */
     fun webshop(): WebshopOrdersStore
+
+    /** The FDM health: the presence buttons of the employees panel are off while it is not connected. */
+    fun fdm(): FdmStore
+
+    /** The badge reader: its setting, the enrolment capture and the badge list (lane 5). */
+    fun badges(): BadgeStore
 
     /** The QR matrices of the engine: the HubRise authorize link is drawn from them (PD218). */
     fun qrMatrices(): QrMatrices

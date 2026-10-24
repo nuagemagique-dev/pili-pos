@@ -150,6 +150,21 @@ pub struct EngineTimers {
     /// interval, and at once after a real Z. Nothing runs without an
     /// `export` section in the configuration.
     pub export_outbox: Duration,
+    /// Staff badges: a scan of the same badge is ignored while its
+    /// previous scan is being handled and for this long after it
+    /// finished, whatever its outcome (a card left on the reader must
+    /// not clock in and then out; L5-D10).
+    pub badge_repeat: Duration,
+    /// Peppol delivery queue: due deliveries are sent at this interval, and at
+    /// once after an invoice is signed or a parked delivery re-queued. Nothing
+    /// runs without a `peppol` section in the configuration.
+    pub peppol_outbox: Duration,
+    /// How long the owner-alerts probe may keep the card terminal's
+    /// line (`AppState::eft_line`) for its reachability check. A
+    /// payment started meanwhile waits at most this long; the probe is
+    /// dropped (the line freed) when the terminal does not answer in
+    /// time.
+    pub terminal_probe: Duration,
 }
 
 impl Default for EngineTimers {
@@ -161,6 +176,9 @@ impl Default for EngineTimers {
             idle_lock: Duration::from_secs(300),
             fdm_poll: Duration::from_secs(30),
             export_outbox: Duration::from_secs(60),
+            badge_repeat: Duration::from_secs(10),
+            peppol_outbox: Duration::from_secs(60),
+            terminal_probe: crate::alerts::TERMINAL_PROBE_TIMEOUT,
         }
     }
 }
@@ -240,6 +258,7 @@ pub struct BackgroundTicks {
     pub auto_z: AtomicU64,
     pub mail_outbox: AtomicU64,
     pub export_outbox: AtomicU64,
+    pub peppol_outbox: AtomicU64,
 }
 
 impl Engine {
@@ -274,10 +293,33 @@ impl Engine {
 
         let conn = Connection::open(&db_path)?;
         schema::run_migrations(&conn)?;
+        // A badge key that is gone or changed (a restore on new hardware)
+        // revokes the badges it hashed (L5-D4); never a reason not to open.
+        match crate::badge_key::open_check(&conn, &paths.data_dir) {
+            Ok(0) => {}
+            Ok(n) => tracing::warn!(n, "boot: badge key changed, badge(s) revoked"),
+            Err(e) => tracing::warn!(%e, "boot: badge key not checked"),
+        }
 
         let recovered = recover_orphaned_checkouts(&conn).unwrap_or(0);
         if recovered > 0 {
             tracing::warn!(recovered, "boot: recovered orphaned checkout(s)");
+        }
+        // Orders a session left empty (a crash on a fresh table): not to
+        // block the SPF export, an update or a menu refresh.
+        match pos_db::queries::orders::void_all_empty(&conn) {
+            Ok(0) => {}
+            Ok(n) => tracing::info!(voided = n, "boot: voided empty open order(s)"),
+            Err(e) => tracing::warn!(%e, "boot: empty open orders not voided"),
+        }
+        // Card payments whose answer was lost with a crash.
+        match crate::commands::eft::recover_after_crash(&conn) {
+            Ok(0) => {}
+            Ok(n) => tracing::warn!(
+                n,
+                "boot: card payment(s) left without an answer, to be checked"
+            ),
+            Err(e) => tracing::error!(%e, "boot: card payment recovery failed"),
         }
         // Online orders a crash left half-signed.
         #[cfg(feature = "hubrise")]
@@ -309,6 +351,8 @@ impl Engine {
                 tracing::warn!(%e, "export: cannot empty the work area");
             }
         }
+        let table_plan = pos_db::queries::table_plan::at_start(&conn, &config.table_plan())?;
+        tracing::info!(%table_plan, "table plan");
         #[cfg(feature = "hubrise")]
         let hubrise_on =
             pos_db::queries::integrations::hubrise_at_start(&conn, config.hubrise_enabled)?;
@@ -345,11 +389,19 @@ impl Engine {
                 session: Mutex::new(None),
                 support: crate::commands::support::SupportState::with_program(support_program),
                 pin_throttle: Default::default(),
+                gift_voucher_lookups: Default::default(),
                 signing: Default::default(),
                 fdm_status_cache: Mutex::new(None),
                 session_rules: Default::default(),
                 fdm_monitor: Default::default(),
                 export,
+                peppol_wake: tokio::sync::Notify::new(),
+                eft_in_flight: Mutex::new(None),
+                eft_line: tokio::sync::Mutex::new(()),
+                badge_repeats: Default::default(),
+                owner_alerts: Default::default(),
+                #[cfg(feature = "eft-scripted")]
+                eft_terminal_override: None,
             }),
             tasks: Mutex::new(Vec::new()),
             ticks: Arc::new(BackgroundTicks::default()),
@@ -710,6 +762,8 @@ mod tests {
         assert_eq!(t.idle_lock, Duration::from_secs(300));
         assert_eq!(t.fdm_poll, Duration::from_secs(30));
         assert_eq!(t.export_outbox, Duration::from_secs(60));
+        assert_eq!(t.badge_repeat, Duration::from_secs(10));
+        assert_eq!(t.peppol_outbox, Duration::from_secs(60));
     }
 
     #[test]

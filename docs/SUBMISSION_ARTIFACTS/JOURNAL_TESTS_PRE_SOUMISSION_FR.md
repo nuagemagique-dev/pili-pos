@@ -40,7 +40,7 @@ harnais ont été validés à blanc contre le mock FDM local
 - [ ] Build cert en place (binaire final, tag `v1.0.0`) :
       `cargo build --release --no-default-features --features cert`
       (la feature `cert` inclut `hubrise`, désactivée par défaut à
-      l'installation ; seule la facturation Peppol est absente).
+      l'installation ; la facturation B2B et la file Peppol sont dans tout binaire).
 - [ ] Jeux de tests de référence : Basic Set 1.8, Reports 1.3, Advanced
       Set 1.6 (`docs/20260821_*`), configuration de test
       `UC_TestSetup_20240806` (procédure 20260903, point 3.1).

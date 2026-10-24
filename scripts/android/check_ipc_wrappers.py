@@ -223,17 +223,6 @@ def read_handler_lists():
     return lists
 
 
-def peppol_modules():
-    """Modules of ipc/mod.rs gated by the peppol feature."""
-    # Not strip_comments: it blanks the "peppol" string literal.
-    text = "\n".join(
-        line for line in (IPC_DIR / "mod.rs").read_text().split("\n") if not line.lstrip().startswith("//")
-    )
-    return set(
-        re.findall(rf'#\[cfg\(feature = "peppol"\)\]\s*pub\s+mod\s+({IDENT})\s*;', text)
-    )
-
-
 def run_check():
     problems = []
     wrappers = []
@@ -249,13 +238,10 @@ def run_check():
         if key in names:
             problems.append(f"{w.path.relative_to(ROOT)}:{w.line}: {w.name}: duplicate wrapper")
         names[key] = w
-    peppol_mods = peppol_modules()
     all_set = set(names)
-    base_set = {k for k in names if k[0] not in peppol_mods}
     lists = read_handler_lists()
     if not lists:
         problems.append(f"{MAIN_RS.relative_to(ROOT)}:1: no generate_handler! list found")
-    variants = []
     for n, entries in enumerate(lists, 1):
         listed = []
         for e in entries:
@@ -269,10 +255,7 @@ def run_check():
         if len(listed) != len(set(listed)):
             problems.append(f"{MAIN_RS.relative_to(ROOT)}:1: handler list {n} has a duplicate entry")
         listed_set = set(listed)
-        # A list is either every wrapper (peppol build) or every wrapper
-        # outside the peppol-only modules (build without peppol).
-        expected = all_set if listed_set & (all_set - base_set) else base_set
-        variants.append(expected is all_set)
+        expected = all_set
         for key in sorted(listed_set - expected):
             problems.append(
                 f"{MAIN_RS.relative_to(ROOT)}:1: handler list {n}: ipc::{key[0]}::{key[1]} has no wrapper in src-tauri/src/ipc"
@@ -282,18 +265,13 @@ def run_check():
             problems.append(
                 f"{w.path.relative_to(ROOT)}:{w.line}: {w.name}: missing from handler list {n} of main.rs"
             )
-    if peppol_mods and lists and sorted(variants) != [False, True]:
-        problems.append(
-            f"{MAIN_RS.relative_to(ROOT)}:1: expected one handler list with and one without the peppol commands"
-        )
     if problems:
         for p in problems:
             print(p)
         return 1
     total = len(wrappers)
-    without = len([k for k in names if k[0] not in peppol_mods])
     ok = total - len(problems)
-    print(f"commands: {total} ({without} without peppol), single-call: {ok}/{total}")
+    print(f"commands: {total}, single-call: {ok}/{total}")
     return 0
 
 

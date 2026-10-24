@@ -110,3 +110,25 @@ async fn an_installation_connects_with_its_pos_json_client() {
         .unwrap();
     assert_eq!(stored_base, mock.api(), "the API of the pos.json section");
 }
+
+/// A code HubRise does not accept is a coded refusal (said in the
+/// screen's language, HubRise's own words as the detail), never a bare
+/// English sentence.
+#[tokio::test]
+async fn a_refused_connection_code_is_a_coded_error() {
+    let (app, _db) = TestApp::with_shared_db().await;
+    let mock = HubriseMock::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let secret = dir.path().join("hubrise.secret");
+    std::fs::write(&secret, "s3cret").unwrap();
+    app.state.config.lock().unwrap().hubrise = Some(section(&mock, &secret));
+    app.state.hubrise_switch.set(true);
+
+    let refused = do_hubrise_complete_oauth(&app.state, "not-a-code")
+        .await
+        .unwrap_err();
+    assert!(
+        refused.starts_with(&format!("{}|detail=", errors::hubrise::OAUTH_FAILED)),
+        "{refused}"
+    );
+}

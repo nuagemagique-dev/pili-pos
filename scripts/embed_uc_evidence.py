@@ -38,12 +38,15 @@ BASIC = {
         ["M112B_1", "M112B_2"],
     ),
     "M121": ("spf_e2e_fixtures.rs::m121_table_order", ["M121"]),
+    "M122": ("spf_e2e_fixtures.rs::m122_cost_center_change", ["M122"]),
     "M123": ("spf_e2e_fixtures.rs::m123_pre_bill", ["M123"]),
     "M130": ("spf_e2e_fixtures.rs::m130_money_in", ["M130"]),
     "M133": ("spf_e2e_fixtures.rs::m133_drawer_declaration", ["M133"]),
     "M131": ("spf_e2e_fixtures.rs::m131_drawer_open", ["M131"]),
+    "M132": ("spf_e2e_fixtures.rs::m132_payment_correction", ["M132"]),
     "M140": ("spf_e2e_fixtures.rs::m140_work_in", ["M140"]),
     "M141": ("spf_e2e_fixtures.rs::m141_work_out", ["M141"]),
+    "M150": ("spf_e2e_fixtures.rs::m150_invoice", ["M150"]),
     "M160": ("spf_e2e_fixtures.rs::m160_copy_of_a_sale", ["M160"]),
     "M161": ("spf_e2e_fixtures.rs::m161_copy_of_an_order", ["M161"]),
     "M170": ("spf_e2e_fixtures.rs::m170_work_in_in_training", ["M170"]),
@@ -55,6 +58,10 @@ BASIC = {
     "M172": ("spf_e2e_fixtures.rs::m172_copy_in_training", ["M172"]),
 }
 
+# The event of the UC when it is not the last one the test archived (1-based):
+# M122 is the cost center change, followed by the sale on the new table.
+MAIN_EVENT = {"M122": 2}
+
 # Manual "Arrondissement des méthodes de paiement": situation -> test.
 ROUND = {
     "ROUND1": "spf_e2e_rounding.rs::round1_dame_blanche_cash",
@@ -62,6 +69,20 @@ ROUND = {
     "ROUND3": "spf_e2e_rounding.rs::round3_both_desserts_cash",
     "ROUND4": "spf_e2e_rounding.rs::round4_meal_vouchers_then_cash",
     "ROUND5": "spf_e2e_rounding.rs::round5_meal_vouchers_card_and_cash",
+}
+
+# Advanced Set invoices: UC -> test (crates/pos-engine/tests/invoice_advanced.rs).
+ADVANCED = {
+    "UC4121": "invoice_advanced.rs::uc4121_an_invoice_of_three_sales",
+    "UC4122": "invoice_advanced.rs::uc4122_an_invoice_of_a_refund_and_two_sales",
+}
+
+# Advanced Set multi-purpose vouchers: UC -> test (crates/pos-engine/tests/spf_e2e_gift_vouchers.rs),
+# check files. The vouchers are sold by the voucher sale of UC260 (event 1 of UC261 and UC262).
+VOUCHERS = {
+    "UC260": ("spf_e2e_gift_vouchers.rs::uc260_mpv_sale", ["UC260"]),
+    "UC261": ("spf_e2e_gift_vouchers.rs::uc261_mpv_use", ["UC261_1", "UC261_2"]),
+    "UC262": ("spf_e2e_gift_vouchers.rs::uc262_mpv_use", ["UC262"]),
 }
 
 REPORTS = {
@@ -73,6 +94,26 @@ REPORTS = {
 VIA_M184 = {"M181": "signReportTurnoverZ", "M183": "signReportUserZ"}
 
 REASONS_FR = {
+    "the voucher is the system product 'Bon cadeau' (990001), not the test setup's 40001": (
+        "le bon est le produit système « Bon cadeau » (990001), pas le produit 40001 "
+        "de l'installation de test"
+    ),
+    "the voucher line is in department GV (Bons cadeaux), not the test setup's 400": (
+        "la ligne du bon est dans le département GV (Bons cadeaux), pas dans le "
+        "département 400 de l'installation de test"
+    ),
+    "composite products are not supported: the menu is a single product": (
+        "les produits composés ne sont pas pris en charge : le menu est un seul produit"
+    ),
+    "a single product carries its own VAT line (B 116,00)": (
+        "un produit simple porte sa propre ligne de T.V.A. (B 116,00)"
+    ),
+    "an order is dine-in or takeaway as a whole: sold as a takeaway, the burger takes the "
+    "takeaway label C (the fixture mixes a room burger B and a takeaway Perrier C on one ticket)": (
+        "une commande est sur place ou à emporter dans son ensemble : vendue à emporter, le "
+        "hamburger prend le taux C (la fixture mélange un hamburger en salle B et une boisson "
+        "à emporter C sur un même ticket)"
+    ),
     "dine-in sales are settled from a table and carry costCenter TABLE": (
         "une vente en salle est encaissée depuis sa table et porte le "
         "centre de coût TABLE"
@@ -90,6 +131,16 @@ REASONS_FR = {
     "copies are printed in training mode too, so the medium is PAPER": (
         "les copies sont imprimées aussi en mode formation : le support "
         "est PAPER"
+    ),
+    "without a linked terminal the operator cannot tell debit from credit: a card typed by "
+    "hand is CARD_DEBIT, MANUAL (REPONSES_MANUEL_CERT §III.F); the comparator checks only "
+    "type, amount and amountType, so the MANUAL input method (fixture AUTOMATIC) is not "
+    "compared": (
+        "sans terminal relié, l'opérateur ne distingue pas débit et crédit : "
+        "une carte saisie à la main est CARD_DEBIT, MANUAL "
+        "(*REPONSES_MANUEL_CERT_FR.md* §III.F) ; la comparaison ne porte que "
+        "sur le type, le montant et le type de montant, la saisie MANUAL "
+        "(AUTOMATIC dans la fixture) n'est donc pas comparée"
     ),
 }
 
@@ -168,7 +219,8 @@ def basic_block(uc: str) -> str | None:
     events = events_of(uc)
     if not events:
         return None
-    main = events[-1]
+    main = events[MAIN_EVENT[uc] - 1] if uc in MAIN_EVENT else events[-1]
+    before = [e for e in events if e != main]
     out = [
         START,
         f"**Preuve pili-pos (build `cert`)** - rejeu de la fixture par "
@@ -178,10 +230,11 @@ def basic_block(uc: str) -> str | None:
         json_block(main),
         "",
     ]
-    if len(events) > 1:
+    if before:
         out += [
-            f"Events préalables du scénario, archivés de même : "
-            f"{file_list(events[:-1])}. Réponses FDM archivées : fichiers "
+            f"{'Autres events' if uc in MAIN_EVENT else 'Events préalables'} du scénario, "
+            f"archivés de même : "
+            f"{file_list(before)}. Réponses FDM archivées : fichiers "
             f"`*_response.json` correspondants.",
             "",
         ]
@@ -194,6 +247,95 @@ def basic_block(uc: str) -> str | None:
         if checked is None:
             sys.exit(f"{path.name}: no French wording for {check['checked']!r}")
         out.append(f"**Comparaison avec la fixture** (`evidence/uc/{path.name}`) : {checked}.")
+        out.append("")
+        devs = check.get("deviations", [])
+        if devs:
+            out += [
+                "Écarts assumés :",
+                "",
+                "| Champ | Fixture | pili-pos | Motif |",
+                "|---|---|---|---|",
+            ]
+            for d in devs:
+                reason = REASONS_FR.get(d["reason"])
+                if reason is None:
+                    sys.exit(f"{path.name}: no French wording for {d['reason']!r}")
+                out.append(
+                    f"| `{d['path']}` | {fmt(d.get('fixture'))} | {fmt(d.get('piliPos'))} | {reason} |"
+                )
+            out.append("")
+        else:
+            out += ["Aucun écart.", ""]
+    out.append(END)
+    return "\n".join(out)
+
+
+def advanced_block(uc: str) -> str | None:
+    events = [p for p in events_of(uc)]
+    if not events:
+        return None
+    main = events[-1]
+    if not main.name.endswith("_I_request.json"):
+        sys.exit(f"{main.name}: the last event of {uc} must be the invoice (I)")
+    resp = EVIDENCE / main.name.replace("_request.json", "_response.json")
+    out = [
+        START,
+        f"**Preuve pili-pos (build `cert`)** - scénario rejoué par "
+        f"`crates/pos-engine/tests/{ADVANCED[uc]}` avec des ventes au comptant "
+        f"génériques à la place des étapes de vente de la fixture (le crédit client "
+        f"n'existe pas dans le produit ; la demande de facture n'en dépend pas). "
+        f"Requête **construite et archivée par pili-pos** (`evidence/uc/{main.name}`), "
+        f"réponse FDM archivée : `evidence/uc/{resp.name}`.",
+        "",
+        json_block(main),
+        "",
+        f"Events préalables du scénario, archivés de même : {file_list(events[:-1])}.",
+        "",
+        "Comparaison avec la fixture : champs métier identiques (`costCenter.type` et "
+        "`costCenter.reference`, `customerVatNo`, libellés des `fdmRefs`) ; chaque "
+        "`fdmRefs[i]` (`fdmId`, `fdmDateTime`, `eventLabel`, `eventCounter`, "
+        "`totalCounter`) est comparé à la référence que le module de contrôle a "
+        "répondue pour la vente correspondante, dans l'ordre ; numéro de facture "
+        "contrôlé sur son format (année et séquence). Écarts voulus : numéro de "
+        "facture, identifiant du centre de coût (`C` suivi du numéro du client) et "
+        "compteurs, qui sont ceux de la session de test.",
+        END,
+    ]
+    return "\n".join(out)
+
+
+def voucher_block(uc: str) -> str | None:
+    test, checks = VOUCHERS[uc]
+    events = events_of(uc)
+    if not events:
+        return None
+    main = events[-1]
+    before = events[:-1]
+    out = [
+        START,
+        f"**Preuve pili-pos (build `cert`)** - rejeu de la fixture par "
+        f"`crates/pos-engine/tests/{test}`. Requête **construite et archivée par "
+        f"pili-pos** pour l'event de l'UC (`evidence/uc/{main.name}`) :",
+        "",
+        json_block(main),
+        "",
+    ]
+    if before:
+        out += [
+            f"Events préalables du scénario (vente du bon, ticket provisoire), archivés de "
+            f"même : {file_list(before)}. Réponses FDM archivées : fichiers "
+            f"`*_response.json` correspondants.",
+            "",
+        ]
+    for c in checks:
+        path = EVIDENCE / f"{c}_check.json"
+        if not path.exists():
+            sys.exit(f"missing {path}: run scripts/capture_uc_evidence.sh first")
+        check = json.loads(path.read_text(encoding="utf-8"))
+        out.append(
+            f"**Comparaison avec la fixture** (`evidence/uc/{path.name}`) : champs métier "
+            f"identiques, dont les lignes de paiement `VOUCHER_STORE` (type, saisie, montant)."
+        )
         out.append("")
         devs = check.get("deviations", [])
         if devs:
@@ -299,7 +441,7 @@ def sections(text: str) -> list[tuple[str, int, int]]:
     """(uc, start, end) of every '## <UC>_…' section."""
     heads = [
         (m.group(1), m.start())
-        for m in re.finditer(r"^## (M\d+[A-Z]?|ROUND\d)_", text, re.M)
+        for m in re.finditer(r"^## (M\d+[A-Z]?|ROUND\d|UC\d+)_", text, re.M)
     ]
     bounds = [m.start() for m in re.finditer(r"^#{1,2} ", text, re.M)]
     out = []
@@ -319,6 +461,10 @@ def main() -> None:
     for uc, start, end in reversed(sections(text)):
         if uc in BASIC:
             block = basic_block(uc)
+        elif uc in ADVANCED:
+            block = advanced_block(uc)
+        elif uc in VOUCHERS:
+            block = voucher_block(uc)
         elif uc in ROUND:
             block = round_block(uc)
         elif uc in REPORTS or uc in VIA_M184:

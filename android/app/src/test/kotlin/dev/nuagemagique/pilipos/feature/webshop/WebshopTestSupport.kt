@@ -5,6 +5,8 @@ package dev.nuagemagique.pilipos.feature.webshop
 import android.content.Context
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.engine.EngineGateway
+import dev.nuagemagique.pilipos.engine.EngineHelpers
+import dev.nuagemagique.pilipos.feature.checkout.CheckoutNatives
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.ErrorTexts
 import dev.nuagemagique.pilipos.i18n.FdmTexts
@@ -12,6 +14,7 @@ import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
+import dev.nuagemagique.pilipos.ui.state.EftStore
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
@@ -20,6 +23,7 @@ import io.mockk.coEvery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import uniffi.pos_ffi.AcceptResult
@@ -202,6 +206,7 @@ internal class TestWebshopEntry(
     private val errors: ErrorPresenter,
     private val toasts: ToastStore,
     private val catalog: MessageCatalog,
+    private val eft: EftStore,
 ) : WebshopEntryPoint {
     override fun webshop(): WebshopOrdersStore = webshop
 
@@ -216,6 +221,8 @@ internal class TestWebshopEntry(
     override fun toasts(): ToastStore = toasts
 
     override fun catalog(): MessageCatalog = catalog
+
+    override fun eft(): EftStore = eft
 }
 
 /** A started webshop view model with the real stores it drives, built on one engine fixture. */
@@ -277,13 +284,26 @@ internal suspend fun TestScope.startWebshop(
     val session = SessionStore(gateway, f.events, backgroundScope)
     val settings = PosSettingsStore(context, gateway, f.events, backgroundScope)
     val integrations = IntegrationsStore(gateway, f.events, backgroundScope)
-    val store = WebshopOrdersStore(gateway, f.events, errors, toasts, integrations, settings, catalog, backgroundScope)
+    val eft = EftStore(gateway, errors, settings, backgroundScope)
+    val store =
+        WebshopOrdersStore(
+            gateway,
+            f.events,
+            errors,
+            toasts,
+            integrations,
+            settings,
+            catalog,
+            eft,
+            EngineHelpers(CheckoutNatives(), UnconfinedTestDispatcher(testScheduler)),
+            backgroundScope,
+        )
     store.clock = clock
     if (open) {
         f.holder.open()
         runCurrent()
     }
-    val entry = TestWebshopEntry(store, session, settings, integrations, errors, toasts, catalog)
+    val entry = TestWebshopEntry(store, session, settings, integrations, errors, toasts, catalog, eft)
     val model = WebshopViewModel(entry, clock)
     runCurrent()
     return WebshopRig(f, model, store, session, toasts, catalog, clock)

@@ -2,12 +2,15 @@
 import { computed } from "vue";
 import { usePosStore } from "../stores/pos";
 import { useI18n } from "../i18n";
+import { describeError } from "../utils/errorMessages";
 
 const pos = usePosStore();
 const { t } = useI18n();
 
 // pos.json holds an identity the FDM would refuse: every sale would
-// fail. The details are for the installer, so they stay untranslated.
+// fail. Each problem is a coded error (`config_<setting>|detail=...`):
+// its text is in the screen's language and ends with the English detail
+// for the installer.
 const problems = computed(() => pos.settings?.configProblems ?? []);
 </script>
 
@@ -15,7 +18,7 @@ const problems = computed(() => pos.settings?.configProblems ?? []);
   <div v-if="problems.length" class="config-problems" role="alert">
     <strong>{{ t('config_problems') }}</strong>
     <ul>
-      <li v-for="p in problems" :key="p">{{ p }}</li>
+      <li v-for="p in problems" :key="p">{{ describeError(p) }}</li>
     </ul>
   </div>
 </template>

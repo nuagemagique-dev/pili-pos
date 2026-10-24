@@ -3,9 +3,13 @@ package dev.nuagemagique.pilipos.feature.reports
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_CODE_LENGTH
+import dev.nuagemagique.pilipos.ui.components.NumPadKey
+import dev.nuagemagique.pilipos.ui.components.pressVoucherKey
 import dev.nuagemagique.pilipos.ui.feedback.DEFAULT_TOAST_TTL_MS
 import dev.nuagemagique.pilipos.ui.feedback.ERROR_TOAST_TTL_MS
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
+import dev.nuagemagique.pilipos.ui.state.OrderRefusedException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -18,11 +22,15 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import uniffi.pos_ffi.CopyableTicket
+import uniffi.pos_ffi.CorrectionDone
 import uniffi.pos_ffi.MoneyDirection
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.RefundItem
 import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.RequestedMedium
+import uniffi.pos_ffi.SalePayments
+import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.TicketDeliveryRequest
 
 /** How many recent sales the refund list asks for (`listRefundableEvents(20)` of `ReportsView.vue`). */
@@ -58,8 +66,13 @@ internal class ReportsViewModel(
 
     /** What the screen draws. */
     val state: StateFlow<ReportsState> =
-        combine(own, entry.session().currentUser) { base, user -> base.copy(signedIn = user != null) }
-            .stateIn(viewModelScope, SharingStarted.Eagerly, own.value.copy(signedIn = entry.session().currentUser.value != null))
+        combine(own, entry.session().currentUser, entry.session().isManager) { base, user, manager ->
+            withOperator(base, user?.name, manager)
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            withOperator(own.value, entry.session().currentUser.value?.name, entry.session().isManager.value),
+        )
 
     init {
         // Subscribed right here (no replay): a Resync reloads the day tab.
@@ -72,7 +85,10 @@ internal class ReportsViewModel(
 
     /** Loads the day tab: the Z history and the reminder that a Z is due (`onMounted`). */
     fun load() {
-        viewModelScope.launch { loadDay() }
+        viewModelScope.launch {
+            loadDay()
+            loadVoucherSetting()
+        }
     }
 
     /** Chooses a tab; leaving the day tab disarms the Z, opening the tickets tab loads the lists. */
@@ -80,11 +96,87 @@ internal class ReportsViewModel(
         disarmZ()
         own.update { it.copy(tab = tab) }
         if (tab == ReportsTab.TICKETS) loadTickets()
+        if (tab == ReportsTab.VOUCHERS) viewModelScope.launch { loadVouchers() }
+    }
+
+    // ── Gift vouchers tab ─────────────────────────────────────────
+
+    /** Reads the gift voucher switch (`load` of `giftVouchers.ts`): the tab is offered only when it is on. */
+    private suspend fun loadVoucherSetting() {
+        val enabled = attempt { entry.gateway().call { engine -> engine.getGiftVoucherSettings() } }.map { it.enabled }.getOrDefault(false)
+        val manager = entry.session().isManager.value
+        own.update { it.copy(vouchers = it.vouchers.copy(enabled = enabled, manager = manager)) }
+    }
+
+    /** The list of the vouchers for a manager, with the status filter (`loadList`). */
+    private suspend fun loadVouchers() {
+        if (!entry.session().isManager.value) return
+        val filter = own.value.vouchers.filter
+        attempt { entry.gateway().call { engine -> engine.listGiftVouchers(filter) } }.fold(
+            onSuccess = { list -> own.update { it.copy(vouchers = it.vouchers.copy(list = list, listError = null)) } },
+            onFailure = { failure ->
+                val text = entry.errors().text(failure, language())
+                own.update { it.copy(vouchers = it.vouchers.copy(listError = text)) }
+            },
+        )
+    }
+
+    /** A key of the code pad: a change of the digits forgets the voucher found and the refusal. */
+    fun voucherKey(key: NumPadKey) {
+        own.update {
+            val v = it.vouchers
+            it.copy(vouchers = v.copy(digits = pressVoucherKey(v.digits, key), found = null, lookupError = null))
+        }
+    }
+
+    /** "Chercher": the engine finds the voucher by its code. */
+    fun lookupVoucher() {
+        val v = own.value.vouchers
+        if (v.digits.length != GIFT_VOUCHER_CODE_LENGTH || v.busy) return
+        own.update { it.copy(vouchers = v.copy(busy = true, lookupError = null)) }
+        viewModelScope.launch {
+            attempt { entry.gateway().call { engine -> engine.lookupGiftVoucher(v.digits) } }.fold(
+                onSuccess = { found -> own.update { it.copy(vouchers = it.vouchers.copy(found = found, busy = false)) } },
+                onFailure = { failure ->
+                    val text = entry.errors().text(failure, language())
+                    own.update { it.copy(vouchers = it.vouchers.copy(found = null, lookupError = text, busy = false)) }
+                },
+            )
+        }
+    }
+
+    /** A filter button of the list; null shows all the vouchers. */
+    fun filterVouchers(status: String?) {
+        own.update { it.copy(vouchers = it.vouchers.copy(filter = status)) }
+        viewModelScope.launch { loadVouchers() }
+    }
+
+    /** Opens or closes the movements of a voucher of the list. */
+    fun toggleVoucher(id: Long) {
+        own.update { it.copy(vouchers = it.vouchers.copy(open = if (it.vouchers.open == id) null else id)) }
+    }
+
+    /** "Réimprimer": prints the voucher again, marked DUPLICATA (managers only). */
+    fun reprintVoucher(id: Long) {
+        viewModelScope.launch {
+            attempt { entry.gateway().call { engine -> engine.printGiftVoucher(id) } }.fold(
+                onSuccess = { outcome ->
+                    when (outcome) {
+                        SlipOutcome.PRINTED -> toast(ToastVariant.Success, text("gv_reprinted"), REPORT_TOAST_MS)
+                        SlipOutcome.NO_PRINTER -> toast(ToastVariant.Warning, text("gv_print_no_printer"), WARNING_TOAST_MS)
+                        SlipOutcome.FAILED -> toast(ToastVariant.Warning, text("kitchen_slip_failed"), WARNING_TOAST_MS)
+                        SlipOutcome.NOTHING_TO_PRINT -> Unit
+                    }
+                },
+                onFailure = { errorOf(it, ERROR_TOAST_TTL_MS) },
+            )
+        }
     }
 
     private suspend fun loadDay() {
         loadHistory()
         loadZPending()
+        loadUnsettled()
     }
 
     private suspend fun loadHistory() {
@@ -98,6 +190,12 @@ internal class ReportsViewModel(
         // The notice is only a reminder: a failure means no notice.
         val pending = attempt { entry.gateway().call { engine -> engine.needsZReport() } }.getOrDefault(false)
         own.update { it.copy(day = it.day.copy(zPending = pending)) }
+    }
+
+    private suspend fun loadUnsettled() {
+        // Only a warning: a failure means none, and the Z does not depend on it.
+        val list = attempt { entry.gateway().call { engine -> engine.listUnsettledCardPayments() } }.getOrDefault(emptyList())
+        own.update { it.copy(day = it.day.copy(unsettled = list)) }
     }
 
     // ── Day: X, user X, Z ─────────────────────────────────────────
@@ -119,6 +217,7 @@ internal class ReportsViewModel(
     fun generateZ() {
         if (operatorInsz() == null || own.value.day.busy) return
         if (!own.value.day.zArmed) {
+            viewModelScope.launch { loadUnsettled() }
             own.update { it.copy(day = it.day.copy(zArmed = true)) }
             zDisarm?.cancel()
             zDisarm =
@@ -336,6 +435,7 @@ internal class ReportsViewModel(
         val refundable =
             attempt { entry.gateway().call { engine -> engine.listRefundableEvents(REFUNDABLE_LIMIT) } }
                 .getOrDefault(emptyList())
+        val rows = mergeRows(copyable, refundable)
         own.update {
             it.copy(
                 tickets =
@@ -344,10 +444,122 @@ internal class ReportsViewModel(
                         loading = false,
                         copyable = copyable,
                         refundable = refundable,
-                        rows = mergeRows(copyable, refundable),
+                        rows = rows,
+                        corrections = it.tickets.corrections,
                     ),
             )
         }
+        loadCorrections(rows)
+    }
+
+    /** Best effort: which sales already have a payment correction, to mark them (a manager only). */
+    private suspend fun loadCorrections(rows: List<TicketRow>) {
+        if (!entry.session().isManager.value) return
+        val found = LinkedHashMap<Long, CorrectionDone>()
+        for (row in rows.filter { it.isSale }) {
+            val payments = attempt { entry.gateway().call { engine -> engine.listSalePayments(row.fiscalEventId) } }.getOrNull()
+            payments?.corrected?.let { found[row.fiscalEventId] = it }
+        }
+        own.update { it.copy(tickets = it.tickets.copy(corrections = found)) }
+    }
+
+    // ── Payment correction flow (event F) ─────────────────────────
+
+    /** Opens the correction dialog on a sale and reads its payment lines; a failed read is shown in the dialog. */
+    fun openCorrection(row: TicketRow) {
+        own.update { it.copy(correctionFlow = CorrectionFlow(row.fiscalEventId, row.ticketNumber)) }
+        viewModelScope.launch {
+            attempt { entry.gateway().call { engine -> engine.listSalePayments(row.fiscalEventId) } }.fold(
+                onSuccess = { payments -> showPayments(row.fiscalEventId, payments) },
+                onFailure = { failure ->
+                    val message = entry.errors().text(failure, language())
+                    updateCorrection(row.fiscalEventId) { it.copy(loadFailure = message) }
+                },
+            )
+        }
+    }
+
+    private fun showPayments(
+        fiscalEventId: Long,
+        payments: SalePayments,
+    ) {
+        updateCorrection(fiscalEventId) { flow ->
+            // The only line left is picked on its own.
+            val free =
+                payments.lines.filter { it.amountType == CorrectionFlow.AMOUNT_PAYMENT && !isLockedLine(it) }
+            val only = free.singleOrNull()?.index?.takeIf { payments.correctable }
+            flow.copy(payments = payments, lineIndex = only)
+        }
+    }
+
+    private fun updateCorrection(
+        fiscalEventId: Long,
+        change: (CorrectionFlow) -> CorrectionFlow,
+    ) {
+        own.update { current ->
+            val flow = current.correctionFlow
+            if (flow == null || flow.fiscalEventId != fiscalEventId) current else current.copy(correctionFlow = change(flow))
+        }
+    }
+
+    /** Picks the payment line to correct; a card the linked terminal took or a gift voucher cannot be picked. */
+    fun pickCorrectionLine(index: Int) {
+        own.update { current ->
+            val flow = current.correctionFlow ?: return@update current
+            val line = flow.lines.firstOrNull { it.index == index } ?: return@update current
+            if (isLockedLine(line)) return@update current
+            // The method the line already has is not a choice.
+            val method = flow.method?.takeIf { it != methodOf(line.paymentType) }
+            current.copy(correctionFlow = flow.copy(lineIndex = index, method = method))
+        }
+    }
+
+    /** Picks the method the payment really was made with. */
+    fun pickCorrectionMethod(method: PaymentMethod) {
+        own.update { current ->
+            val flow = current.correctionFlow ?: return@update current
+            val line = flow.picked ?: return@update current
+            val allowed = method in CORRECTION_METHODS && method != methodOf(line.paymentType)
+            if (allowed) current.copy(correctionFlow = flow.copy(method = method)) else current
+        }
+    }
+
+    /** The confirm button: asks for the manager PIN. */
+    fun askCorrectionPin() {
+        own.update { current ->
+            val flow = current.correctionFlow
+            if (flow == null || !flow.canConfirm) current else current.copy(correctionFlow = flow.copy(askPin = true))
+        }
+    }
+
+    /** Back from the PIN dialog to the choices. */
+    fun cancelCorrectionPin() {
+        own.update { current -> current.copy(correctionFlow = current.correctionFlow?.copy(askPin = false)) }
+    }
+
+    /**
+     * The PIN typed in the dialog: the engine corrects the payment for the logged-in manager, or refuses and the
+     * error is thrown to the dialog, which shows it on the pad.
+     */
+    suspend fun correctPayment(pin: String) {
+        val insz = operatorInsz() ?: error("No user")
+        val flow = own.value.correctionFlow ?: error("No correction")
+        val line = flow.picked ?: error("No line")
+        val method = flow.method ?: error("No method")
+        val result = entry.gateway().call { engine -> engine.correctPayment(flow.fiscalEventId, line.index, method, insz, pin) }
+        if (!result.success) throw OrderRefusedException(result.error.orEmpty())
+    }
+
+    /** The correction was signed: the dialog closes, the toast says so and the lists are read again. */
+    fun correctionDone() {
+        own.update { it.copy(correctionFlow = null) }
+        toast(ToastVariant.Success, text("reports_pc_done"))
+        loadTickets()
+    }
+
+    /** Closes the correction dialog without a correction. */
+    fun closeCorrection() {
+        own.update { it.copy(correctionFlow = null) }
     }
 
     // ── Copy flow (event C) ───────────────────────────────────────
@@ -512,8 +724,13 @@ internal class ReportsViewModel(
 
     // ── Helpers ───────────────────────────────────────────────────
 
-    /** The screen text of a refusal, in the language of the till. */
-    fun describeError(error: Throwable): String = entry.errors().text(error, language())
+    /**
+     * The screen text of a refusal, in the language of the till. An [OrderRefusedException] (the engine's refusal of
+     * a result that was not a success, thrown to a PIN pad) carries the raw engine text and is told like it, not as
+     * an unexpected failure.
+     */
+    fun describeError(error: Throwable): String =
+        if (error is OrderRefusedException) describeRaw(error.raw) else entry.errors().text(error, language())
 
     /** The screen text of the raw error string of a result that was not a success, in the language of the till. */
     fun describeRaw(raw: String?): String = entry.errors().textRaw(raw, language())
@@ -556,11 +773,21 @@ internal class ReportsViewModel(
         /** Lifetime of the toast of a generated report, in milliseconds (4000 in `ReportsView.vue`). */
         const val REPORT_TOAST_MS: Long = 4000L
 
+        /** Lifetime of a print warning toast, in milliseconds (8000 in `warnIfSlipFailed`). */
+        const val WARNING_TOAST_MS: Long = 8000L
+
         /** Paper is the engine default: the Vue screen sends no request for it. */
         fun deliveryOf(request: TicketDeliveryRequest): TicketDeliveryRequest? =
             if (request.medium == RequestedMedium.PAPER) null else request
     }
 }
+
+/** [base] with what the session says: the operator's name (null when nobody is in) and whether they are a manager. */
+private fun withOperator(
+    base: ReportsState,
+    userName: String?,
+    manager: Boolean,
+): ReportsState = base.copy(signedIn = userName != null, userName = userName.orEmpty(), tickets = base.tickets.copy(canCorrect = manager))
 
 /** Both ticket lists in one, newest first (`ticketRows` of `ReportsView.vue`; fiscal event ids grow with time). */
 internal fun mergeRows(

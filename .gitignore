@@ -36,3 +36,6 @@ scripts/qemu/.run/
 
 # Live FDM credentials (scripts/live_fdm.sh), never committed.
 .env.live
+
+# Written by pos-fdm-mock (TEM mock) when run from the repo root
+/mock-tem-outbox/

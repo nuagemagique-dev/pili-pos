@@ -59,6 +59,7 @@ fun PosScaffold(
     val header by model.state.collectAsState()
     val fdm by entry.fdm().state.collectAsState()
     val training by entry.settings().trainingMode.collectAsState()
+    val eft by entry.eft().overlay.collectAsState()
     val lights = remember(entry) { DeviceLights(GatewayLightProbe(entry.gateway())) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(model) {
@@ -95,7 +96,7 @@ fun PosScaffold(
             training = training,
             clock = rememberClockText(),
             modifier = modifier,
-            lights = { StatusLights(fdm, lights, header.hubriseVisible) },
+            lights = { StatusLights(fdm, lights, header.hubriseVisible, eftPhase = eft.phase) },
             overlay = overlay,
             content = content,
         )

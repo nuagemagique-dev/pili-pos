@@ -93,6 +93,7 @@ fn engine_user(insz: &str, role: EngineUserRole, active: bool, has_pin: bool) ->
         role,
         active,
         has_pin,
+        presence_only: false,
     }
 }
 
@@ -173,10 +174,13 @@ fn a_user_record_has_no_pin_hash() {
         .cloned()
         .collect();
     keys.sort();
-    assert_eq!(keys, ["active", "has_pin", "insz", "name", "role"]);
+    assert_eq!(
+        keys,
+        ["active", "has_pin", "insz", "name", "presence_only", "role"]
+    );
     // A value carrying a hash is refused, not ignored.
     let with_hash = json!({
-        "insz": NEW_INSZ, "name": "n", "role": "admin", "active": true, "has_pin": true,
+        "insz": NEW_INSZ, "name": "n", "role": "admin", "active": true, "has_pin": true, "presence_only": false,
         "pin_hash": "$2y$12$x"
     });
     assert!(serde_json::from_value::<ffi::User>(with_hash).is_err());
@@ -190,6 +194,7 @@ fn create_user_input_converts_field_by_field() {
         role: "admin".into(),
         initial_pin: Some("1234".into()),
         operator_pin: Some("5678".into()),
+        presence_only: false,
     };
     let engine: EngineCreateUserInput = contract_inp(&full).unwrap_or_else(|e| panic!("{e}"));
     assert_eq!(engine.insz, NEW_INSZ);
@@ -209,17 +214,21 @@ fn create_user_input_converts_field_by_field() {
         role: "waiter".into(),
         initial_pin: None,
         operator_pin: None,
+        presence_only: true,
     };
     let engine: EngineCreateUserInput = contract_inp(&bare).unwrap();
     assert_eq!(engine.role, "waiter");
     assert_eq!(engine.initial_pin, None);
     assert_eq!(engine.operator_pin, None);
+    assert!(engine.presence_only);
+    assert_eq!(json_of(&bare)["presenceOnly"], true);
 
     // The optional fields may be absent, like the engine accepts; an unknown key is refused.
     let absent: ffi::CreateUserInput =
         serde_json::from_value(json!({"insz": "1", "name": "n", "role": "cashier"})).unwrap();
     assert_eq!(absent.initial_pin, None);
     assert_eq!(absent.operator_pin, None);
+    assert!(!absent.presence_only);
     assert!(
         serde_json::from_value::<ffi::CreateUserInput>(
             json!({"insz": "1", "name": "n", "role": "cashier", "extra": 1})
@@ -434,6 +443,7 @@ async fn users_and_pins_are_wired() {
         role: "waiter".into(),
         initial_pin: None,
         operator_pin: None,
+        presence_only: false,
     };
     assert_eq!(
         code_of(e.create_user(waiter.clone()).await),
@@ -454,6 +464,7 @@ async fn users_and_pins_are_wired() {
             role: ffi::UserRole::Waiter,
             active: true,
             has_pin: false,
+            presence_only: false,
         }
     );
     assert!(e.list_users().await.unwrap().contains(&created));
@@ -478,6 +489,7 @@ async fn users_and_pins_are_wired() {
         role: "admin".into(),
         initial_pin: Some("9999".into()),
         operator_pin: None,
+        presence_only: false,
     };
     assert_eq!(code_of(e.create_user(boss.clone()).await), "pin_required");
     let boss_user = e
@@ -549,6 +561,24 @@ async fn users_and_pins_are_wired() {
         code_of(e.deactivate_user(MANAGER_INSZ.into()).await),
         "deactivate_self"
     );
+    // The login clocked them in (the presence worker): the manager records the departure
+    // first, since an employee on shift cannot be deactivated.
+    for _ in 0..200 {
+        if e.list_open_shifts()
+            .await
+            .unwrap()
+            .iter()
+            .any(|s| s.user_insz == NEW_INSZ)
+        {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    assert_eq!(
+        code_of(e.deactivate_user(NEW_INSZ.into()).await),
+        "deactivate_on_shift"
+    );
+    assert!(e.clock_out_employee(NEW_INSZ.into()).await.unwrap().success);
     e.deactivate_user(NEW_INSZ.into()).await.unwrap();
     assert!(
         e.list_users()
@@ -599,6 +629,42 @@ async fn the_hubrise_switch_round_trips() {
     assert_eq!(back.hubrise_log.len(), flipped.hubrise_log.len() + 1);
     assert_eq!(back.hubrise_log[0].enabled, !first);
     assert_eq!(e.get_integrations().await.unwrap(), back);
+    e.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_table_plan_round_trips() {
+    let te = open_seeded().await;
+    let e = &te.engine;
+
+    let start = e.get_table_plan().await.unwrap();
+    assert_eq!(start.plan, format!("1-{}", start.table_count));
+    assert_eq!(
+        code_of(e.set_table_plan("1-4".into()).await),
+        "not_logged_in"
+    );
+
+    e.login(MANAGER_INSZ.into(), Some(MANAGER_PIN.into()))
+        .await
+        .unwrap();
+    assert_eq!(
+        code_of(e.set_table_plan("0-3".into()).await),
+        "table_plan_invalid"
+    );
+    let plan = e.set_table_plan("20-22,1-3".into()).await.unwrap();
+    assert_eq!(plan.plan, "1-3, 20-22");
+    assert_eq!(plan.table_count, 6);
+    assert_eq!(plan.log[0].source, "admin");
+    assert_eq!(plan.log[0].changed_by.as_deref(), Some(MANAGER_INSZ));
+    assert_eq!(e.get_table_plan().await.unwrap(), plan);
+    let numbers: Vec<i32> = e
+        .list_tables()
+        .await
+        .unwrap()
+        .iter()
+        .map(|t| t.table_number)
+        .collect();
+    assert_eq!(numbers, vec![1, 2, 3, 20, 21, 22]);
     e.shutdown().await.unwrap();
 }
 

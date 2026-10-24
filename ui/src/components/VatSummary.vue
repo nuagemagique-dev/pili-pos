@@ -3,11 +3,13 @@ import { computed } from "vue";
 import type { OrderLine, VatCode } from "../types";
 import { formatPrice as fmt } from "../utils/format";
 import { useI18n } from "../i18n";
+import { lineNetCents } from "../utils/cartAmounts";
 
 const { t } = useI18n();
 
 const props = defineProps<{
-  lines: OrderLine[];
+  /** Cart lines: `discount_cents` (negative) is taken off their amount. */
+  lines: Array<OrderLine & { discount_cents?: number }>;
 }>();
 
 const VAT_RATES: Record<VatCode, number> = { A: 21, B: 12, C: 6, D: 0, X: 0 };
@@ -22,7 +24,7 @@ interface VatRow {
 const vatRows = computed<VatRow[]>(() => {
   const map = new Map<VatCode, number>();
   for (const line of props.lines) {
-    const total = line.unit_price_cents * line.quantity;
+    const total = lineNetCents(line);
     map.set(line.vat_code, (map.get(line.vat_code) ?? 0) + total);
   }
   return (["A", "B", "C", "D"] as VatCode[])

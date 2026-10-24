@@ -138,6 +138,13 @@ async fn check_config_bundle_reports_a_missing_token_file() {
         problems.iter().any(|p| p.contains("fdm_token_file")),
         "{problems:?}"
     );
+    // Each problem is a coded error: the setting's code, the English text as detail.
+    assert!(
+        problems
+            .iter()
+            .all(|p| p.starts_with("config_fdm_files|detail=fdm_token_file:")),
+        "{problems:?}"
+    );
 
     // With the file next to it, the problem is gone.
     std::fs::write(dir.path().join("fdm.token"), "token").unwrap();

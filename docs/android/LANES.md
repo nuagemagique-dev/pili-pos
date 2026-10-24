@@ -19,7 +19,7 @@ Lanes start after P4. Until the P4 exit report is written, the foundation owner 
 | --- | --- | --- |
 | `foundation` | P4 | Frozen for the lanes. Changed only through a card marked shared (section "Shared changes"). |
 | `ui-common` | P5 run A | Theme, shared components, fonts, `strings_ui_common.xml`, the P5 gate, the parity index. |
-| `ui-login`, `ui-tables`, `ui-order`, `ui-checkout`, `ui-reports`, `ui-settings`, `ui-webshop` | P5 run B, one worker each | The `feature/<view>/` package, its tests, its screenshots, its `strings_ui_<view>.xml`, its parity file. |
+| `ui-login`, `ui-tables`, `ui-order`, `ui-checkout`, `ui-reports`, `ui-settings`, `ui-webshop` | P5 run B, one worker each | The `feature/<view>/` package, its tests, its screenshots, its `strings_ui_<view>.xml`, its parity file. `ui-checkout` also owns the card terminal strings `strings_ui_eft.xml` and screenshots `eft/`. |
 | `platform` | P6 | The `platform/` package, `strings_plat_*.xml`, platform XML and drawables, Docker, release tooling, the CI workflow. |
 | `nightly` | X1 (export lane) | The `nightly/` package, its tests, its screenshots, `strings_nightly.xml`. |
 | `e2e-parity` | P7 (end-to-end lane) | UC scenarios and runners, `android/uccheck`, soak, power cut, GMS run, runbook and parity docs. |
@@ -27,6 +27,8 @@ Lanes start after P4. Until the P4 exit report is written, the foundation owner 
 | `frozen` | nobody | Linux build inputs, the FFI and the P3 modules. A change is an escalation to the user, never a card. |
 
 The owner of a path is the owner of the single rule that matches it. A path matching rules of two different owners is a defect in this file and `lane_paths.py --check` fails. A path matching two rules of the same owner is fine.
+
+Note (INT-D41, INT-D44): v1 submits Android only. `scripts/android/check_android_frozen.sh`, its self-test and `docs/android/ANDROID_FREEZE.md` are unowned like their Linux twins (`check_linux_frozen.sh`, `LINUX_FREEZE.md`); no rule was added for them.
 
 ### Machine-readable rules
 
@@ -77,6 +79,8 @@ ui-order docs/android/parity/order[.]md
 ui-checkout android/app/src/(main|test|androidTest)/kotlin/dev/nuagemagique/pilipos/feature/checkout/.*
 ui-checkout android/app/src/test/screenshots/checkout/.*
 ui-checkout android/app/src/main/res/values(-[a-z]+)?/strings_ui_checkout[.]xml
+ui-checkout android/app/src/test/screenshots/eft/.*
+ui-checkout android/app/src/main/res/values(-[a-z]+)?/strings_ui_eft[.]xml
 ui-checkout docs/android/parity/checkout[.]md
 ui-reports android/app/src/(main|test|androidTest)/kotlin/dev/nuagemagique/pilipos/feature/reports/.*
 ui-reports android/app/src/test/screenshots/reports/.*
@@ -176,6 +180,8 @@ android/app/src/main/kotlin/dev/nuagemagique/pilipos/feature/login/LoginRoutes.k
 android/app/src/test/kotlin/dev/nuagemagique/pilipos/feature/tables/TablesScreenTest.kt ui-tables
 android/app/src/test/screenshots/order/order_empty.png ui-order
 android/app/src/main/kotlin/dev/nuagemagique/pilipos/feature/checkout/CheckoutViewModel.kt ui-checkout
+android/app/src/main/res/values/strings_ui_eft.xml ui-checkout
+android/app/src/test/screenshots/eft/eft_waiting.png ui-checkout
 android/app/src/main/res/values/strings_ui_reports.xml ui-reports
 docs/android/parity/settings.md ui-settings
 android/app/src/main/kotlin/dev/nuagemagique/pilipos/feature/webshop/WebshopScreen.kt ui-webshop

@@ -1,0 +1,12 @@
+{
+  "checked": "business fields equal; identification fields by format; names present",
+  "deviations": [
+    {
+      "fixture": "LINE",
+      "path": "transaction.transactionLines[2].vats[0].priceChanges[0].scope",
+      "piliPos": "EVENT",
+      "reason": "an order discount is an EVENT scope change, the fixture's one-line order uses LINE"
+    }
+  ],
+  "uc": "UC225B_2"
+}

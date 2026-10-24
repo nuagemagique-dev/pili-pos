@@ -31,9 +31,11 @@ export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
 | `docs/android/` | This file, DECISIONS, FFI, DEVICE_TESTS, REPRO, spikes, phase reports. |
 | `target/` | Build output, not committed: `android-rust` (cargo-ndk and bindgen), `android-mocks` (host mocks), `android-rust-mismatch`, `android-device-tests`, `smoke`, `android-tests`. |
 
-The Linux build is frozen while the port lands: `scripts/android/check_linux_frozen.sh --ref
-042d91135940cb3f678a3f5e2947744a9d05ce4d` must pass (exit 2 means no freeze tag exists, which is
-the case today; the `--ref` form is the provisional freeze point, PD86).
+v1 submits Android only (INT-D41). The Android release APK inputs are frozen by the Android freeze tag
+`android-v1.0.0-rc3`: `scripts/android/check_android_frozen.sh` must pass once the tag exists (exit 2
+means no freeze tag exists yet; `--ref COMMIT` checks against any commit; `--list` prints the frozen
+paths). The record is `ANDROID_FREEZE.md`. The Linux freeze (`check_linux_frozen.sh`,
+`linux-v1.0.0-rc2`, `LINUX_FREEZE.md`) is history.
 
 ## 2. Toolchain pins
 
@@ -147,11 +149,11 @@ Checks (from `p2_gate.sh` and `p3_gate.sh`):
 |---|---|
 | `hygiene-paths` | changed files only under `android/`, `scripts/android/`, `docs/android/` (not `docs/android/baseline/`), plus `.github/workflows/android.yml`, and the `--allow` regex |
 | `hygiene-emdash`, `hygiene-artifacts`, `hygiene-subjects`, `hygiene-root-lock` | no em-dash in added lines; no build output, key or local config tracked; Conventional Commit subjects; root `Cargo.toml` and `Cargo.lock` unchanged |
-| `frozen-provisional`, `linux-frozen` | `check_linux_frozen.sh` against the provisional freeze commit, and against the freeze tag when there is one |
+| `frozen-provisional`, `linux-frozen`, `android-frozen` | `frozen-provisional` is retired once a Linux tag exists; `linux-frozen` is retired (SKIP, INT-D44); `android-frozen` runs `check_android_frozen.sh` against the Android freeze tag (SKIP while there is none). `freeze-tag` (p4) follows `android-v1.0.0-rc3`; `--linux-repro` is Linux history, not part of the v1 freeze |
 | `rust-fmt`, `rust-clippy`, `rust-tests` | `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --locked` in `android/rust` |
 | `ffi-deps` | `pos-ffi` pulls in `pos-engine`, no `pos-peppol`, no tauri |
 | `lock-parity` | `check_lock_parity.sh`: crates shared with the certified build keep the versions of the root `Cargo.lock` (exceptions with a reason in `lock_parity_allow.txt`) |
-| `command-parity`, `ffi-hygiene` | `check_command_parity.py` (every cert command has a valid `PosEngine` method; `--strict` needs all 84) and `--hygiene` (rules H1 to H7) |
+| `command-parity`, `ffi-hygiene` | `check_command_parity.py` (every cert command has a valid `PosEngine` method; `--strict` needs all 88) and `--hygiene` (rules H1 to H6) |
 | `selftest-*` | self-tests of the gate tools |
 | `gradle-lint`, `gradle-ktlint`, `gradle-detekt` | `lint`, `ktlintCheck`, `detekt` |
 | `jvm-tests` | `:pos-core:test` (host JVM tests of the full p2 mode; SKIP before `android/settings.gradle.kts` exists) |
@@ -267,8 +269,8 @@ scripts/android/check_repro.sh [--commit REF] [--keep-work] [--clean-prefetch]
   Results and the image id and Dockerfile sha256 of every run go to [REPRO.md](REPRO.md).
 - **Gate flag**: `scripts/android/p3_gate.sh --repro` runs it as the `apk-repro` check.
 - **Native x86_64 run**: the Docker VM on the Apple M1 runs amd64 under emulation. The run on a
-  native x86_64 Linux host is left to the user: manual run of the `repro` job of `android.yml`
-  (section 10).
+  native x86_64 Linux host is the manual `repro` job of `android.yml` (section 10); its rc3 run
+  (2026-10-23) gave the same APK as the M1 (`ANDROID_FREEZE.md`, "Native x86_64 run").
 
 ## 9. Gradle dependency verification
 
@@ -333,8 +335,10 @@ Permissions: `contents: read`; one concurrency group per workflow and ref.
 
 There is no emulator job: the instrumented tests, the smoke run and the engine tests on the
 device need the `sunmi_d3_pro_api33` AVD and stay local (section 6). The first manual run of the
-`repro` job on `ubuntu-latest` (native x86_64) is the run DECISIONS 11.13 leaves to the user;
-record its result in REPRO.md.
+`repro` job on `ubuntu-latest` (native x86_64), the run DECISIONS 11.13 leaves to the user, was
+done on 2026-10-23 with the user's go-ahead (INT-D53); its values are in `ANDROID_FREEZE.md`. The
+job frees the runner disk, keeps the hosted SDK for `check_apk.sh` (zipalign) and installs the
+pinned NDK (llvm-readelf).
 
 ## 11. Housekeeping
 

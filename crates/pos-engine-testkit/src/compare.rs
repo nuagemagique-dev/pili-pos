@@ -10,30 +10,29 @@ pub fn business_view(d: &Value) -> Value {
     let mut view = serde_json::Map::new();
     view.insert("ticketMedium".into(), d["ticketMedium"].clone());
     if let Some(t) = d.get("transaction") {
-        let lines: Vec<Value> = t["transactionLines"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|l| {
-                let p = &l["mainProduct"];
-                json!({
-                    "lineType": l["lineType"],
-                    "productId": p["productId"],
-                    "departmentId": p["departmentId"],
-                    "quantity": p["quantity"],
-                    "quantityType": p["quantityType"],
-                    "negQuantityReason": p.get("negQuantityReason").cloned().unwrap_or(Value::Null),
-                    "unitPrice": p["unitPrice"],
-                    "vats": p["vats"].as_array().unwrap().iter()
-                        .map(|v| json!({ "label": v["label"], "price": v["price"] }))
-                        .collect::<Vec<_>>(),
-                    "lineTotal": l["lineTotal"],
-                })
-            })
-            .collect();
+        view.insert("transaction".into(), transaction_view(t));
+    }
+    // A table transfer: each side's cost center type and transaction.
+    if let Some(transfer) = d.get("transfer") {
+        let side = |name: &str| -> Value {
+            Value::Array(
+                transfer[name]
+                    .as_array()
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|item| {
+                        json!({
+                            "costCenter.type": item["costCenter"]["type"],
+                            "transaction": transaction_view(&item["transaction"]),
+                        })
+                    })
+                    .collect(),
+            )
+        };
         view.insert(
-            "transaction".into(),
-            json!({ "transactionLines": lines, "transactionTotal": t["transactionTotal"] }),
+            "transfer".into(),
+            json!({ "from": side("from"), "to": side("to") }),
         );
     }
     if let Some(f) = d.get("financials").and_then(Value::as_array) {
@@ -52,10 +51,65 @@ pub fn business_view(d: &Value) -> Value {
     if let Some(r) = d.get("fdmRef") {
         view.insert("fdmRef".into(), r.clone());
     }
+    // An invoice (M150, UC4121, UC4122): the customer and the labels of the events it
+    // references (the counters are the answers of the FDM that signed the sales).
+    if let Some(vat) = d.get("customerVatNo") {
+        view.insert("customerVatNo".into(), vat.clone());
+    }
+    if let Some(refs) = d.get("fdmRefs").and_then(Value::as_array) {
+        let labels: Vec<Value> = refs.iter().map(|r| r["eventLabel"].clone()).collect();
+        view.insert("fdmRefLabels".into(), Value::Array(labels));
+    }
     if d.get("drawer").is_some() {
         view.insert("drawer".into(), json!(true));
     }
     Value::Object(view)
+}
+
+/// The business content of a `transaction` object.
+fn transaction_view(t: &Value) -> Value {
+    let lines: Vec<Value> = t["transactionLines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| {
+            let p = &l["mainProduct"];
+            json!({
+                "lineType": l["lineType"],
+                "productId": p["productId"],
+                "departmentId": p["departmentId"],
+                "quantity": p["quantity"],
+                "quantityType": p["quantityType"],
+                "negQuantityReason": p.get("negQuantityReason").cloned().unwrap_or(Value::Null),
+                "unitPrice": p["unitPrice"],
+                "vats": p["vats"].as_array().unwrap().iter()
+                    .map(|v| json!({
+                        "label": v["label"],
+                        "price": v["price"],
+                        "priceChanges": price_changes_view(v),
+                    }))
+                    .collect::<Vec<_>>(),
+                "lineTotal": l["lineTotal"],
+            })
+        })
+        .collect();
+    json!({ "transactionLines": lines, "transactionTotal": t["transactionTotal"] })
+}
+
+/// The price changes of a VAT entry as `[{scope, type, amount}]`; the
+/// id and the name are free text and only their presence is checked
+/// (by the caller's `check_identification`-style tests), the
+/// `groupingId` is the POS's own counter. Null when the entry has none.
+fn price_changes_view(vat: &Value) -> Value {
+    match vat.get("priceChanges").and_then(Value::as_array) {
+        Some(changes) if !changes.is_empty() => Value::Array(
+            changes
+                .iter()
+                .map(|c| json!({ "scope": c["scope"], "type": c["type"], "amount": c["amount"] }))
+                .collect(),
+        ),
+        _ => Value::Null,
+    }
 }
 
 pub fn diff(path: &str, ours: &Value, fixture: &Value, out: &mut Vec<(String, Value, Value)>) {

@@ -640,4 +640,51 @@ class CheckoutViewModelTest {
             assertEquals(1, r.state.summary.vatRows.size)
             assertEquals(5, r.state.itemCount)
         }
+    // ── Discounts in the recap ────────────────────────────────────
+
+    private val discounted =
+        listOf(
+            cartLine(1, quantity = 2, unitPriceCents = 500L, discountCents = -500L),
+            cartLine(2, name = "Soupe", quantity = 1, unitPriceCents = 300L, discountCents = -225L),
+        )
+
+    @Test
+    fun theRecapSumsTheDiscountsOfTheCartLines() =
+        runTest {
+            val r = started(75, discounted)
+
+            assertEquals(discounted, r.state.summary.lines)
+            assertEquals(-725L, r.state.summary.discountCents)
+            // The engine's VAT split gave the amounts (the normal path).
+            assertTrue(r.state.summary.amounts.all { it is dev.nuagemagique.pilipos.ui.format.LineAmount.Total })
+            assertTrue(r.state.summary.vatRows.isNotEmpty())
+        }
+
+    @Test
+    fun theRecapKeepsTheDiscountWhenTheVatHelperFails() =
+        runTest {
+            val natives = CheckoutNatives().apply { vatFailure = IllegalStateException("vat split unavailable") }
+            val f = checkoutFixture(tmp.root, 75, discounted)
+            f.engine.stubSale()
+            val r = startCheckout(f, context, natives = natives)
+
+            assertEquals(discounted, r.state.summary.lines)
+            assertEquals(-725L, r.state.summary.discountCents)
+            assertEquals(
+                listOf(
+                    dev.nuagemagique.pilipos.ui.format.LineAmount.PerUnit(2, 500L),
+                    dev.nuagemagique.pilipos.ui.format.LineAmount.PerUnit(1, 300L),
+                ),
+                r.state.summary.amounts,
+            )
+            assertEquals(emptyList<uniffi.pos_ffi.VatSplitRow>(), r.state.summary.vatRows)
+        }
+
+    @Test
+    fun aRecapWithoutDiscountHasNone() =
+        runTest {
+            val r = started(1_000, listOf(cartLine(1, quantity = 2, unitPriceCents = 500L)))
+
+            assertEquals(0L, r.state.summary.discountCents)
+        }
 }

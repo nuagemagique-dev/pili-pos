@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.ui.components.tapScale
@@ -57,6 +58,7 @@ private val LogoHeight = 24.dp
 
 /** Width over height of the wordmark viewport (244 x 204 in `PiliLogo.vue`). */
 private const val LOGO_ASPECT = 244f / 204f
+private const val MARK_ASPECT = 100f / 140f
 
 private val DividerHeight = 32.dp
 private val ControlHeight = 48.dp
@@ -104,7 +106,7 @@ internal fun AppHeader(
         horizontalArrangement = Arrangement.spacedBy(d.spaceMd + d.spaceXs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PiliLogo(Modifier.testTag("header_logo"))
+        PiliMark(Modifier.testTag("header_logo"))
         HeaderDivider()
         lights()
         HeaderDivider()
@@ -140,19 +142,43 @@ private fun HeaderDivider() {
 internal fun PiliLogo(
     modifier: Modifier = Modifier,
     backdrop: Color = PiliTheme.colors.bgSecondary,
+    height: Dp = LogoHeight,
 ) {
     val c = PiliTheme.colors
     val description = uiText(R.string.ui_common_header_logo)
     Box(
         modifier =
             modifier
-                .height(LogoHeight)
-                .width(LogoHeight * LOGO_ASPECT)
+                .height(height)
+                .width(height * LOGO_ASPECT)
                 .semantics { contentDescription = description },
     ) {
         LogoLayer(R.drawable.ui_logo, ColorFilter.tint(c.textPrimary))
         LogoLayer(R.drawable.ui_logo_bolt, ColorFilter.tint(backdrop))
         LogoLayer(R.drawable.ui_logo_tones, ColorFilter.tint(c.accentPrimary))
+    }
+}
+
+/**
+ * The p of the wordmark alone, struck by its bolt (`ui_logo_p`, `ui_logo_p_bolt`): the header has little room, so it
+ * carries the mark and the login screen the full [PiliLogo].
+ */
+@Composable
+internal fun PiliMark(
+    modifier: Modifier = Modifier,
+    backdrop: Color = PiliTheme.colors.bgSecondary,
+    height: Dp = LogoHeight,
+) {
+    val description = uiText(R.string.ui_common_header_logo)
+    Box(
+        modifier =
+            modifier
+                .height(height)
+                .width(height * MARK_ASPECT)
+                .semantics { contentDescription = description },
+    ) {
+        LogoLayer(R.drawable.ui_logo_p, ColorFilter.tint(PiliTheme.colors.textPrimary))
+        LogoLayer(R.drawable.ui_logo_p_bolt, ColorFilter.tint(backdrop))
     }
 }
 

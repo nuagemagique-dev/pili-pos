@@ -32,6 +32,7 @@ import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.TicketMediumPicker
 import dev.nuagemagique.pilipos.ui.components.TicketMediumPickerState
 import dev.nuagemagique.pilipos.ui.components.defaultTicketMediumPickerTexts
+import dev.nuagemagique.pilipos.ui.format.CashDisplay
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.bilingualName
 import dev.nuagemagique.pilipos.ui.format.formatCents
@@ -44,6 +45,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONTokener
 import uniffi.pos_ffi.CartLine
+import uniffi.pos_ffi.EftPayment
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.RequestedMedium
@@ -69,6 +71,7 @@ private fun methodLabel(method: PaymentMethod): String =
         PaymentMethod.CASH -> vueText("method_cash")
         PaymentMethod.CARD -> vueText("method_card")
         PaymentMethod.MEAL_VOUCHER -> vueText("method_meal_voucher")
+        PaymentMethod.GIFT_VOUCHER -> vueText("method_gift_voucher")
         else -> method.name
     }
 
@@ -76,6 +79,7 @@ private fun methodTag(method: PaymentMethod): String =
     when (method) {
         PaymentMethod.CASH -> "checkout_method_cash"
         PaymentMethod.CARD -> "checkout_method_card"
+        PaymentMethod.GIFT_VOUCHER -> "checkout_method_gift_voucher"
         else -> "checkout_method_meal_voucher"
     }
 
@@ -92,6 +96,7 @@ internal fun PayPanel(
         modifier = modifier.padding(d.spaceLg).testTag("checkout_pay_panel"),
         verticalArrangement = Arrangement.spacedBy(d.spaceMd),
     ) {
+        state.nextHeldCourse?.let { HeldWarning(it, state.sendingHeld, callbacks) }
         MethodRow(state, callbacks)
         SplitRow(state, callbacks)
         if (state.amounts.chips.size > 1) ChipRow(state)
@@ -100,13 +105,52 @@ internal fun PayPanel(
     }
 }
 
+/** A later course is still held at the table: say so before paying, with "Envoyer maintenant" (`held-warning`). */
+@Composable
+private fun HeldWarning(
+    course: Int,
+    sending: Boolean,
+    callbacks: CheckoutCallbacks,
+) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(c.accentWarning.copy(alpha = HELD_ALPHA), RoundedCornerShape(d.radiusMd))
+                .border(1.dp, c.accentWarning, RoundedCornerShape(d.radiusMd))
+                .padding(horizontal = d.spaceMd, vertical = d.spaceSm)
+                .testTag("checkout_held_warning"),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = vueText("checkout_held_warning", "course" to vueText("course_$course")),
+            style = t.body.copy(fontWeight = t.weightBold),
+            color = c.accentWarning,
+            modifier = Modifier.weight(1f),
+        )
+        PiliButton(
+            text = vueText("checkout_send_now"),
+            onClick = callbacks.onSendHeld,
+            variant = PiliButtonVariant.Secondary,
+            enabled = !sending,
+            modifier = Modifier.height(QuickHeight).testTag("checkout_held_send"),
+        )
+    }
+}
+
+private const val HELD_ALPHA = 0.12f
+
 @Composable
 private fun MethodRow(
     state: CheckoutUiState,
     callbacks: CheckoutCallbacks,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
-        TILL_METHODS.forEach { method ->
+        state.methods.forEach { method ->
             PiliButton(
                 text = methodLabel(method),
                 onClick = { callbacks.onMethod(method) },
@@ -215,7 +259,7 @@ private fun EntryArea(
                 QuickAmounts(state, callbacks.onQuick)
                 ChangeBox(state)
             } else {
-                CardHints(state)
+                CardHints(state, callbacks)
             }
         }
         Column(Modifier.width(PadWidth), verticalArrangement = Arrangement.spacedBy(d.spaceMd)) {
@@ -305,7 +349,10 @@ private fun ChangeBox(state: CheckoutUiState) {
 }
 
 @Composable
-private fun CardHints(state: CheckoutUiState) {
+private fun CardHints(
+    state: CheckoutUiState,
+    callbacks: CheckoutCallbacks,
+) {
     val c = PiliTheme.colors
     val t = PiliTheme.typography
     if (state.exactTooHigh) {
@@ -316,9 +363,37 @@ private fun CardHints(state: CheckoutUiState) {
             modifier = Modifier.testTag("checkout_too_high"),
         )
     }
-    Text(vueText("card_wait"), style = t.body, color = c.textSecondary)
+    if (state.method == PaymentMethod.CARD && state.eftActive) CardModeRow(state, callbacks)
+    Text(
+        text = if (state.viaTerminal) uiText(R.string.ui_eft_hint_terminal) else vueText("card_wait"),
+        style = t.body,
+        color = c.textSecondary,
+        modifier = Modifier.testTag("checkout_card_hint"),
+    )
     if (state.hasCashPart) {
         Text(vueText("cash_part_taken"), style = t.body, color = c.textSecondary, modifier = Modifier.testTag("checkout_cash_taken"))
+    }
+}
+
+/** "Terminal" or "Saisie manuelle": the card part is charged on the linked terminal, or typed by hand (terminal down). */
+@Composable
+private fun CardModeRow(
+    state: CheckoutUiState,
+    callbacks: CheckoutCallbacks,
+) {
+    Row(Modifier.fillMaxWidth().testTag("checkout_eft_mode"), horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm)) {
+        PiliButton(
+            text = uiText(R.string.ui_eft_mode_terminal),
+            onClick = { callbacks.onCardManual(false) },
+            variant = if (!state.cardManual) PiliButtonVariant.Primary else PiliButtonVariant.Secondary,
+            modifier = Modifier.weight(1f).height(QuickHeight).testTag("checkout_eft_mode_terminal"),
+        )
+        PiliButton(
+            text = uiText(R.string.ui_eft_mode_manual),
+            onClick = { callbacks.onCardManual(true) },
+            variant = if (state.cardManual) PiliButtonVariant.Primary else PiliButtonVariant.Secondary,
+            modifier = Modifier.weight(1f).height(QuickHeight).testTag("checkout_eft_mode_manual"),
+        )
     }
 }
 
@@ -447,29 +522,41 @@ private fun SummaryLine(
     val t = PiliTheme.typography
     val name = bilingualName(line, LocalUiLanguage.current, state.labelMode)
     val notes = lineNotes(line.modifiersJson)
-    Row(
-        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}.testTag("checkout_line_${line.id}"),
-        horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Text(uiText(R.string.ui_checkout_line_qty, "quantity" to line.quantity), style = t.figure, color = c.textSecondary)
-        Column(Modifier.weight(1f)) {
-            Text(name.primary, style = t.body.copy(fontWeight = t.weightBold), color = c.textPrimary)
-            name.secondary?.let { Text(it, style = t.label, color = c.textSecondary) }
-            notes?.let { Text(it, style = t.label, color = c.accentWarning) }
+    Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}.testTag("checkout_line_${line.id}")) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Text(uiText(R.string.ui_checkout_line_qty, "quantity" to line.quantity), style = t.figure, color = c.textSecondary)
+            Column(Modifier.weight(1f)) {
+                Text(name.primary, style = t.body.copy(fontWeight = t.weightBold), color = c.textPrimary)
+                name.secondary?.let { Text(it, style = t.label, color = c.textSecondary) }
+                notes?.let { Text(it, style = t.label, color = c.accentWarning) }
+            }
+            Text(
+                text =
+                    when (amount) {
+                        is LineAmount.Total -> formatCents(amount.cents)
+                        is LineAmount.PerUnit ->
+                            uiText(R.string.ui_checkout_per_unit, "quantity" to amount.quantity, "unit" to formatCents(amount.unitCents))
+                        null -> ""
+                    },
+                style = t.figure.copy(fontWeight = t.weightBold),
+                color = c.textPrimary,
+                textAlign = TextAlign.End,
+            )
         }
-        Text(
-            text =
-                when (amount) {
-                    is LineAmount.Total -> formatCents(amount.cents)
-                    is LineAmount.PerUnit ->
-                        uiText(R.string.ui_checkout_per_unit, "quantity" to amount.quantity, "unit" to formatCents(amount.unitCents))
-                    null -> ""
-                },
-            style = t.figure.copy(fontWeight = t.weightBold),
-            color = c.textPrimary,
-            textAlign = TextAlign.End,
-        )
+        // The public price changes of the line (a till discount), under it.
+        line.priceChanges.forEachIndexed { index, change ->
+            Row(
+                Modifier.fillMaxWidth().testTag("checkout_line_${line.id}_change_$index"),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(change.name, style = t.label, color = c.accentWarning)
+                Text(formatCents(change.amountCents), style = t.figure.copy(fontSize = t.sizeSm), color = c.accentWarning)
+            }
+        }
     }
 }
 
@@ -501,25 +588,36 @@ private fun SummaryFoot(
         modifier = Modifier.fillMaxWidth().background(c.bgPrimary).padding(d.spaceMd),
         verticalArrangement = Arrangement.spacedBy(d.spaceSm),
     ) {
-        FootRow(vueText("total"), uiText(R.string.ui_checkout_amount_eur, "amount" to formatCents(state.totalCents)), "checkout_total")
-        state.taken.forEachIndexed { index, part ->
+        if (state.summary.discountCents != 0L) {
+            val before = CashDisplay.subtotalBeforeDiscountCents(state.totalCents, state.summary.discountCents)
             FootRow(
-                label =
-                    uiText(
-                        R.string.ui_checkout_part_label,
-                        "part" to vueText("part_n", "n" to (index + 1)),
-                        "method" to methodLabel(part.method),
-                    ),
-                value = uiText(R.string.ui_checkout_paid_part, "amount" to formatCents(part.cents)),
-                tag = "checkout_part_$index",
+                vueText("checkout_subtotal"),
+                uiText(R.string.ui_checkout_amount_eur, "amount" to formatCents(before)),
+                "checkout_subtotal",
+            )
+            FootRow(
+                vueText("checkout_discount"),
+                uiText(R.string.ui_checkout_amount_eur, "amount" to formatCents(state.summary.discountCents)),
+                "checkout_discount",
             )
         }
+        FootRow(vueText("total"), uiText(R.string.ui_checkout_amount_eur, "amount" to formatCents(state.totalCents)), "checkout_total")
+        state.taken.forEachIndexed { index, part -> TakenRow(index, part) }
+        state.eftOpen.forEach { OpenPaymentRow(it, callbacks.onVerify) }
         FootRow(
             vueText("rest_to_pay"),
             uiText(R.string.ui_checkout_amount_eur, "amount" to formatCents(state.amounts.restShownCents)),
             "checkout_rest",
             emphasised = true,
         )
+        if (state.eftBlocked) {
+            Text(
+                text = uiText(R.string.ui_eft_blocking),
+                style = t.body.copy(fontWeight = t.weightBold),
+                color = c.accentDanger,
+                modifier = Modifier.fillMaxWidth().testTag("checkout_eft_blocking"),
+            )
+        }
         state.error?.let {
             Text(
                 text = it,
@@ -547,7 +645,8 @@ private fun FootActions(
     callbacks: CheckoutCallbacks,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
-        if (state.taken.isNotEmpty()) {
+        // A card the terminal charged stays: only the parts typed by hand can be cleared.
+        if (state.taken.any { !it.locked }) {
             PiliButton(
                 text = vueText("clear_payments"),
                 onClick = callbacks.onClearParts,
@@ -563,6 +662,76 @@ private fun FootActions(
             )
         }
         ValidateButton(state, callbacks.onValidate, Modifier.weight(2f))
+    }
+}
+
+/** A part taken: for a card the terminal charged, its brand and the "Accepte" badge (the part is locked). */
+@Composable
+private fun TakenRow(
+    index: Int,
+    part: TakenPart,
+) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    val partName = vueText("part_n", "n" to (index + 1))
+    val value = uiText(R.string.ui_checkout_paid_part, "amount" to formatCents(part.cents))
+    if (!part.locked) {
+        val method = methodLabel(part.displayMethod) + (part.codeMasked?.let { " · $it" } ?: "")
+        val label = uiText(R.string.ui_checkout_part_label, "part" to partName, "method" to method)
+        FootRow(label, value, "checkout_part_$index")
+        return
+    }
+    val method = methodLabel(part.displayMethod)
+    val label =
+        part.brand?.let { uiText(R.string.ui_eft_locked_part, "part" to partName, "method" to method, "brand" to it) }
+            ?: uiText(R.string.ui_checkout_part_label, "part" to partName, "method" to method)
+    Row(
+        Modifier.fillMaxWidth().testTag("checkout_part_locked_$index"),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(d.spaceSm), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = t.body.copy(fontWeight = t.weightBold), color = c.textSecondary)
+            Text(
+                text = uiText(R.string.ui_eft_approved),
+                style = t.label.copy(fontWeight = t.weightBold),
+                color = c.textOnAccent,
+                modifier =
+                    Modifier
+                        .background(c.accentSuccess, RoundedCornerShape(d.radiusSm))
+                        .padding(horizontal = d.spaceSm, vertical = d.spaceXs)
+                        .testTag("checkout_part_eft_$index"),
+            )
+        }
+        Text(value, style = t.price, color = c.textPrimary, modifier = Modifier.testTag("checkout_part_$index"))
+    }
+}
+
+/** A card payment still waiting for the terminal's answer, with "Verifier" (the sale is blocked until it is checked). */
+@Composable
+private fun OpenPaymentRow(
+    payment: EftPayment,
+    onVerify: (EftPayment) -> Unit,
+) {
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    Row(
+        Modifier.fillMaxWidth().testTag("checkout_eft_open_${payment.id}"),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "${methodLabel(PaymentMethod.CARD)} · ${formatEuro(payment.amountCents)} · ${uiText(R.string.ui_eft_unknown_row)}",
+            style = t.body.copy(fontWeight = t.weightBold),
+            color = c.accentWarning,
+            modifier = Modifier.weight(1f),
+        )
+        PiliButton(
+            text = uiText(R.string.ui_eft_check),
+            onClick = { onVerify(payment) },
+            modifier = Modifier.height(QuickHeight).testTag("checkout_eft_verify_${payment.id}"),
+        )
     }
 }
 

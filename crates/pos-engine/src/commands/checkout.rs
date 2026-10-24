@@ -4,12 +4,14 @@ use pos_fiscal::event::build_sale_input_split;
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::payment::{PaymentError, Settlement, payment_line_identity};
 use pos_fiscal::ticket::{FiscalTicket, TicketDraft, TicketPayment};
-use pos_fiscal::types::EventLabel;
+use pos_fiscal::types::{EventLabel, PaymentType};
 
 use crate::commands::access::{self, Access};
 use crate::commands::bar_slip::SlipOutcome;
 use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
+use crate::commands::eft;
 use crate::commands::errors;
+use crate::commands::gift_vouchers::{self, GiftVoucherPrint};
 #[cfg(feature = "hubrise")]
 use crate::commands::hubrise_push;
 use crate::commands::signing::{
@@ -34,6 +36,9 @@ pub struct CheckoutResult {
     pub delivery: Option<DeliveryOutcome>,
     /// The bar / kitchen slip of the lines not yet sent (sales only).
     pub kitchen_slip: Option<SlipOutcome>,
+    /// The gift vouchers the sale sold and the balance slips it gave
+    ///; empty for any other sale.
+    pub gift_voucher_prints: Vec<GiftVoucherPrint>,
 }
 
 impl CheckoutResult {
@@ -47,6 +52,7 @@ impl CheckoutResult {
             fiscal_event_id: None,
             delivery: None,
             kitchen_slip: None,
+            gift_voucher_prints: Vec::new(),
         }
     }
 }
@@ -192,6 +198,7 @@ pub(crate) async fn sell(
         fiscal_event_id: Some(committed.event_ids[0]),
         delivery: done.delivery,
         kitchen_slip: done.slip,
+        gift_voucher_prints: done.vouchers,
     })
 }
 
@@ -205,6 +212,7 @@ fn recovered_sale(recovered: signing::Recovered) -> CheckoutResult {
         fiscal_event_id: Some(recovered.committed.event_ids[0]),
         delivery: recovered.follow_up.delivery,
         kitchen_slip: recovered.follow_up.slip,
+        gift_voucher_prints: recovered.follow_up.vouchers,
     }
 }
 
@@ -307,7 +315,22 @@ async fn sell_locked(
     // The payment: card and meal voucher parts are exact, cash pays the
     // rest, rounded to 5 cents (a sale at 0,00 EUR is a cash payment of
     // 0, FAQ Q206). Refused before anything is signed.
-    let settlement = match payment {
+    //
+    // Card parts taken on the linked terminal are checked first: a card
+    // that was charged is settled by this sale, to the cent, or the sale
+    // is refused (`commands::eft`).
+    let terminal_cards = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        let parts: &[PaymentPart] = match payment {
+            Payment::Parts(parts) => parts,
+            Payment::Unpaid => &[],
+        };
+        match eft::terminal_cards(&db, order_id, parts) {
+            Ok(cards) => cards,
+            Err(e) => return Ok(Err(CheckoutResult::refused(e))),
+        }
+    };
+    let mut settlement = match payment {
         Payment::Parts(parts) => match pos_fiscal::payment::settle(order.total_cents, parts) {
             Ok(s) => s,
             Err(e) => return Ok(Err(CheckoutResult::refused(payment_error(e)))),
@@ -320,7 +343,19 @@ async fn sell_locked(
         },
         Payment::Unpaid => return Ok(Err(CheckoutResult::refused(errors::UNPAID_NOTHING_DUE))),
     };
+    eft::attach_cards(&mut settlement, &terminal_cards);
     let unpaid = matches!(payment, Payment::Unpaid);
+
+    // Gift vouchers: the vouchers this sale sells and redeems are
+    // checked here, under the signing lock, and the codes of the new ones
+    // are drawn; they are written with the signed sale (`signing::apply`).
+    let voucher_plan = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        match gift_vouchers::plan_sale(&db, config, order_id, (!unpaid).then_some(&settlement)) {
+            Ok(plan) => plan,
+            Err(e) => return Ok(Err(CheckoutResult::refused(e))),
+        }
+    };
 
     // The number this sale takes; the counter advances only when the
     // signed sale is archived, so a refused sale leaves no gap.
@@ -344,6 +379,20 @@ async fn sell_locked(
         &settlement,
     );
     pos_fiscal::price_change::apply(&mut sale_input.transaction, &entries, &entry_changes);
+    // The corrections of a PRICE_CHANGE pair (a till discount) say why.
+    #[cfg(feature = "hubrise")]
+    {
+        let pair_entries = {
+            let db = state.db.lock().map_err(|e| e.to_string())?;
+            pos_db::queries::till_discounts::price_change_entry_ids(&db, order_id)
+                .map_err(|e| e.to_string())?
+        };
+        pos_fiscal::price_change::mark_price_change_reason(
+            &mut sale_input.transaction,
+            &entries,
+            &pair_entries,
+        );
+    }
     sale_input.common.ticket_medium = resolved.medium;
     if let Some(cost_center) = options.cost_center.clone() {
         sale_input.cost_center = Some(cost_center);
@@ -374,8 +423,16 @@ async fn sell_locked(
         .map(|p| {
             let (method, amount_cents) = match p.method {
                 CheckoutPaymentMethod::Cash => ("cash", p.amount_cents + settlement.rounding_cents),
+                // A meal-voucher card taken on the linked terminal is
+                // history as a meal voucher, like the signed line.
+                CheckoutPaymentMethod::Card if p.payment_type() == PaymentType::ChequeMeal => {
+                    ("meal_voucher", p.amount_cents)
+                }
                 CheckoutPaymentMethod::Card => ("card", p.amount_cents),
                 CheckoutPaymentMethod::MealVoucher => ("meal_voucher", p.amount_cents),
+                // Not a cash, card or meal voucher payment: "other", as the
+                // nightly statistics file counts it (STATS_SCHEMA.md v1).
+                CheckoutPaymentMethod::GiftVoucher => ("other", p.amount_cents),
                 // Paid to the platform or the webshop's provider.
                 CheckoutPaymentMethod::App | CheckoutPaymentMethod::Online => {
                     ("other", p.amount_cents)
@@ -391,18 +448,28 @@ async fn sell_locked(
     // A till sale is echoed to HubRise through the outbox, queued with
     // the sale.
     #[cfg(feature = "hubrise")]
-    let hubrise_echo = (!unpaid && !options.online && state.hubrise_switch.is_on()).then(|| {
+    // A sale that sells a gift voucher is not echoed: HubRise has no such
+    // line, and the echo would not add up (V12-D31).
+    let hubrise_echo = (!unpaid
+        && !options.online
+        && voucher_plan.issued.is_empty()
+        && state.hubrise_switch.is_on())
+    .then(|| {
+        // A gift voucher is HubRise's generic "other" payment.
         let payments: Vec<(&str, i64)> = settlement
             .payments
             .iter()
             .map(|p| {
-                (
-                    payment_line_identity(p.method.payment_type()).1,
-                    p.amount_cents,
-                )
+                let name = if p.method == CheckoutPaymentMethod::GiftVoucher {
+                    "Other"
+                } else {
+                    payment_line_identity(p.payment_type()).1
+                };
+                (name, p.amount_cents)
             })
             .collect();
-        let body = hubrise_push::build_hubrise_order_body(&order, &lines, &payments);
+        let discounts = hubrise_push::order_discounts(&line_changes);
+        let body = hubrise_push::build_hubrise_order_body(&order, &lines, &payments, &discounts);
         serde_json::to_string(&body).unwrap_or_default()
     });
     #[cfg(not(feature = "hubrise"))]
@@ -422,6 +489,9 @@ async fn sell_locked(
         }),
         webshop_order_id,
         hubrise_echo,
+        eft_payment_ids: terminal_cards.iter().map(|(id, _)| *id).collect(),
+        gift_vouchers_issued: voucher_plan.issued,
+        gift_voucher_redemptions: voucher_plan.redemptions,
     };
     let prepared = Prepared {
         op,
@@ -450,6 +520,7 @@ async fn sell_locked(
             fiscal_event_id: None,
             delivery: None,
             kitchen_slip: None,
+            gift_voucher_prints: Vec::new(),
         })),
         Err(failure) => Ok(Err(CheckoutResult {
             success: false,
@@ -459,6 +530,7 @@ async fn sell_locked(
             fiscal_event_id: None,
             delivery: None,
             kitchen_slip: None,
+            gift_voucher_prints: Vec::new(),
         })),
     }
 }
@@ -470,8 +542,12 @@ fn ticket_payments(settlement: &Settlement) -> Vec<TicketPayment> {
         .payments
         .iter()
         .map(|p| TicketPayment {
-            method: payment_line_identity(p.method.payment_type()).1.to_string(),
+            method: payment_line_identity(p.payment_type()).1.to_string(),
             amount: p.amount_cents as f64 / 100.0,
+            brand: p
+                .terminal_card()
+                .and_then(|t| t.brand.clone())
+                .filter(|b| !b.trim().is_empty()),
         })
         .collect()
 }
@@ -512,6 +588,14 @@ pub async fn do_check_fdm_status(state: &AppState) -> Result<serde_json::Value, 
         *cache = Some((key, std::time::Instant::now(), value.clone()));
     }
     Ok(value)
+}
+
+/// Whether the FDM answers now and has no blocking condition: the
+/// answer is never taken from the cache, a card is charged on it.
+pub(crate) async fn fdm_operational_now(state: &AppState) -> Result<bool, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+    let status = query_fdm_status(state, &config).await?;
+    Ok(super::fdm_monitor::classify(&status).connected)
 }
 
 async fn query_fdm_status(

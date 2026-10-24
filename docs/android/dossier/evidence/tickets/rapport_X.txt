@@ -1,0 +1,75 @@
+              X CHIFFRE D'AFFAIRES
+                Restaurant Test
+           1 Rue du Test, 4000 Liege
+               TVA: BE0000000097
+        Unite d'etablissement 2000000042
+------------------------------------------------
+RAPPORT X                      18/10/26 17:13:03
+Ticket:                                   000001
+Employe:                             94060242576
+------------------------------------------------
+              Periode d'ouverture
+Date:                                 2026-10-18
+BookingPeriodId:
+7d253de1-e410-4c42-ab4f-fd59c9a016f1
+Debut                           2026-10-18 17:03
+Fin                             2026-10-18 17:12
+POSID                             CPOS0031234567
+TerminalId                         POS-2-ANDROID
+FDMID                                MCK00000001
+Premier                       1 2026-10-18 15:03
+Dernier                      10 2026-10-18 15:12
+------------------------------------------------
+Event N Ventes 5                           78,86
+Event P Pro forma 2                       104,00
+Event T Formation 1                        52,00
+------------------------------------------------
+                   Apercu TVA
+Taux                HT          TVA          TTC
+21%              29,75         6,25        36,00
+12%              38,27         4,59        42,86
+6%                   -            -            -
+0%                   -            -            -
+Total            68,02        10,84        78,86
+------------------------------------------------
+       Departements du chiffre d'affaires
+Aperitifs                                  36,00
+Main Dishes                                28,00
+Desserts                                   11,52
+Tapas                                       3,34
+------------------------------------------------
+                  Corrections
+Corrections                                 0,00
+------------------------------------------------
+                 Remboursements
+Remboursements 1                          -52,00
+------------------------------------------------
+                 Tiroir-caisse
+Tiroir-caisse 0
+------------------------------------------------
+                   Formation
+Tickets de formation 1                     52,00
+------------------------------------------------
+                   Reductions
+Reductions de lignes 0                      0,00
+Reductions d'evenements 0                   0,00
+------------------------------------------------
+                    FACTURE
+Factures 0
+------------------------------------------------
+             PAIEMENTS ENREGISTRES
+Especes                                    54,46
+Carte                                       0,88
+Chèques-repas                              11,52
+Total des paiements                        66,86
+Arrondis                                   -0,01
+------------------------------------------------
+       fdmDateTime: 2026-10-18T15:13:04Z;
+================================================
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------

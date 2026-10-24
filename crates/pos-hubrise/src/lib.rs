@@ -13,6 +13,7 @@ pub mod catalog_mapper;
 pub mod client;
 pub mod dispatcher;
 pub mod errors;
+pub mod inventory;
 pub mod oauth;
 pub mod outbox;
 pub mod poller;

@@ -63,6 +63,43 @@ pub fn save_z_report(
     Ok(conn.last_insert_rowid())
 }
 
+/// A booking period for the sales report: its id and date, and, once a Z closed it, the Z.
+#[derive(Debug, Clone)]
+pub struct PeriodZ {
+    pub period_id: String,
+    pub booking_date: String,
+    pub open: bool,
+    /// Z report number and the stored turnover Z request (JSON), when a Z closed the period.
+    pub z: Option<(i64, String)>,
+}
+
+/// The booking periods whose booking date is in `from..=to` (both `YYYY-MM-DD`), oldest first,
+/// each with its closing Z. Read-only, for the non-fiscal sales report.
+pub fn periods_with_z(
+    conn: &Connection,
+    from: &str,
+    to: &str,
+) -> Result<Vec<PeriodZ>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT p.id, p.booking_date, p.closed_at IS NULL, z.sequence_number, z.data_json
+         FROM booking_periods p
+         LEFT JOIN z_reports z ON z.fiscal_event_id = p.closing_event_id
+         WHERE p.booking_date >= ?1 AND p.booking_date <= ?2
+         ORDER BY p.opened_at, p.id",
+    )?;
+    let rows = stmt.query_map(params![from, to], |row| {
+        let number: Option<i64> = row.get(3)?;
+        let json: Option<String> = row.get(4)?;
+        Ok(PeriodZ {
+            period_id: row.get(0)?,
+            booking_date: row.get(1)?,
+            open: row.get(2)?,
+            z: number.zip(json),
+        })
+    })?;
+    rows.collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

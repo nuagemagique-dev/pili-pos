@@ -46,10 +46,15 @@
 #                      line (second line) of android/app/provisioning/dev-minisign.pub, and
 #                      the element with build="release" is empty or matches ^RW[A-Za-z0-9+/]{54}$
 #   plat-engine-ref    SKIP while no string plat_about_engine_ref exists in
-#                      res/values/strings_plat_*.xml. Else it equals
-#                      'pili-pos <V>, <TAG> (<SHORT>)': TAG = $PILI_P6_FREEZE_TAG (default
-#                      linux-v1.1.0-rc1), V = version under [workspace.package] of
-#                      'git show TAG:Cargo.toml', SHORT = first 7 hex of TAG's commit
+#                      res/values/strings_plat_*.xml. Else E = 'pili-pos <V>, <TAG>' with
+#                      TAG = $PILI_P6_FREEZE_TAG (default android-v1.0.0-rc3) and V = the
+#                      working tree's [workspace.package] version (INT-D45: no commit
+#                      part, the tag commit carries the string and cannot name itself).
+#                      Any value other than E is a FAIL (the old '(pending)' and
+#                      '(SHORT)' forms too). TAG absent: PASS ('tag TAG not set yet').
+#                      TAG present: FAIL unless 'git show TAG:Cargo.toml' has the same
+#                      version V and TAG's strings_plat_about.xml holds the same value;
+#                      else PASS 'matches TAG (<short>)'.
 #   Full mode only (not --fast):
 #   selftest-p6-gate   scripts/android/test_p6_gate.sh
 #   selftest-declare   scripts/release/test_declare_android.sh; SKIP while it is absent
@@ -68,7 +73,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 TOOLS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 SELF="$TOOLS/$(basename "${BASH_SOURCE[0]}")"
 ROOT="${PILI_P6_ROOT:-$(cd "$TOOLS/../.." && pwd -P)}"
-FREEZE_TAG="${PILI_P6_FREEZE_TAG:-linux-v1.1.0-rc1}"
+FREEZE_TAG="${PILI_P6_FREEZE_TAG:-android-v1.0.0-rc3}"
 
 fast=0
 do_plat_e2e=0
@@ -510,10 +515,9 @@ sys.exit(3)
 PY
 }
 
-plat_engine_ref() {
-    local got="$1" ver short want
-    git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1 || { echo "tag $FREEZE_TAG does not exist"; return 1; }
-    ver="$(git show "$FREEZE_TAG:Cargo.toml" 2>/dev/null | python3 -I -c '
+# workspace_version: the version under [workspace.package] of the Cargo.toml on stdin.
+workspace_version() {
+    python3 -I -c '
 import re
 import sys
 
@@ -529,15 +533,62 @@ for line in sys.stdin:
         if v:
             print(v.group(1))
             break
-')"
-    [[ -n "$ver" ]] || { echo "no version under [workspace.package] in $FREEZE_TAG:Cargo.toml"; return 1; }
-    short="$(git rev-parse "$FREEZE_TAG^{commit}" | cut -c1-7)"
-    want="pili-pos ${ver}, ${FREEZE_TAG} (${short})"
+'
+}
+
+# The value plat_about_engine_ref must hold (INT-D45): 'pili-pos <V>, <TAG>'.
+engine_ref_expected() {
+    local ver
+    ver="$(workspace_version <Cargo.toml 2>/dev/null)"
+    echo "pili-pos ${ver}, ${FREEZE_TAG}"
+}
+
+# engine_ref_in_xml: the value of plat_about_engine_ref in the XML on stdin.
+engine_ref_in_xml() {
+    python3 -I -c '
+import sys
+import xml.etree.ElementTree as ET
+
+try:
+    root = ET.fromstring(sys.stdin.read())
+except ET.ParseError:
+    sys.exit(3)
+for el in root.iter("string"):
+    if el.get("name") == "plat_about_engine_ref":
+        print("".join(el.itertext()).strip())
+        sys.exit(0)
+sys.exit(3)
+'
+}
+
+plat_engine_ref() {
+    local got="$1" want ver tagver tagref short
+    want="$(engine_ref_expected)"
     if [[ "$got" != "$want" ]]; then
         echo "plat_about_engine_ref is '$got', expected '$want'"
         return 1
     fi
-    echo "$got"
+    if ! git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1; then
+        echo "'$want' (tag $FREEZE_TAG not set yet)"
+        return 0
+    fi
+    ver="$(workspace_version <Cargo.toml 2>/dev/null)"
+    tagver="$(git show "$FREEZE_TAG:Cargo.toml" 2>/dev/null | workspace_version)"
+    [[ -n "$tagver" ]] || { echo "no version under [workspace.package] in $FREEZE_TAG:Cargo.toml"; return 1; }
+    if [[ "$tagver" != "$ver" ]]; then
+        echo "version $ver differs from $tagver in $FREEZE_TAG:Cargo.toml"
+        return 1
+    fi
+    tagref="$(git show "$FREEZE_TAG:android/app/src/main/res/values/strings_plat_about.xml" 2>/dev/null | engine_ref_in_xml)" || {
+        echo "no plat_about_engine_ref in $FREEZE_TAG:android/app/src/main/res/values/strings_plat_about.xml"
+        return 1
+    }
+    if [[ "$tagref" != "$got" ]]; then
+        echo "$FREEZE_TAG holds plat_about_engine_ref '$tagref', the working tree '$got'"
+        return 1
+    fi
+    short="$(git rev-parse "$FREEZE_TAG^{commit}" | cut -c1-7)"
+    echo "matches $FREEZE_TAG ($short)"
 }
 if ref="$(engine_ref_value 2>/dev/null)"; then
     gate plat-engine-ref plat_engine_ref "$ref"

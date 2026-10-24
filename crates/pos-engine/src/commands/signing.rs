@@ -27,6 +27,7 @@ use serde::{Deserialize, Serialize};
 use crate::commands::bar_slip::{self, SlipOutcome};
 use crate::commands::delivery::{self, DeliveryOutcome, ResolvedDelivery};
 use crate::commands::errors;
+use crate::commands::gift_vouchers::{self, GiftVoucherPrint, IssuedVoucher, Redemption};
 use crate::state::AppState;
 
 /// How long a command waits for another event to be signed.
@@ -70,6 +71,9 @@ pub(crate) enum Kind {
     Refund,
     TableOrder,
     PreBill,
+    TableTransfer,
+    PaymentCorrection,
+    Discount,
     WebshopOrder,
     ReportX,
     ReportUserX,
@@ -83,11 +87,14 @@ pub(crate) enum Kind {
 }
 
 impl Kind {
-    const ALL: [Kind; 14] = [
+    const ALL: [Kind; 17] = [
         Kind::Sale,
         Kind::Refund,
         Kind::TableOrder,
         Kind::PreBill,
+        Kind::TableTransfer,
+        Kind::PaymentCorrection,
+        Kind::Discount,
         Kind::WebshopOrder,
         Kind::ReportX,
         Kind::ReportUserX,
@@ -106,6 +113,9 @@ impl Kind {
             Kind::Refund => "refund",
             Kind::TableOrder => "table_order",
             Kind::PreBill => "pre_bill",
+            Kind::TableTransfer => "table_transfer",
+            Kind::PaymentCorrection => "payment_correction",
+            Kind::Discount => "discount",
             Kind::WebshopOrder => "webshop_order",
             Kind::ReportX => "report_x",
             Kind::ReportUserX => "report_user_x",
@@ -197,6 +207,9 @@ pub(crate) struct BarSlip {
 pub(crate) enum CopyTicket {
     Original(Box<FiscalTicket>),
     Draft(Box<TicketDraft>),
+    /// The copy of an invoice: the invoice print, the copy's own control data added when the
+    /// copy is signed.
+    Invoice(Box<pos_print::invoice::InvoicePrint>),
 }
 
 /// What an event does besides its archive, stored with its request so
@@ -216,6 +229,19 @@ pub(crate) enum PendingContext {
         webshop_order_id: Option<i64>,
         /// The till sale echoed to HubRise.
         hubrise_echo: Option<String>,
+        /// The card payments the linked terminal took that this sale
+        /// settles (`eft_payments.id`): marked used with the sale, in
+        /// its archive transaction, also when the answer comes late.
+        /// Absent in requests stored before the terminal existed.
+        #[serde(default)]
+        eft_payment_ids: Vec<i64>,
+        /// The gift vouchers this sale sells (codes drawn at prepare) and
+        /// redeems: written in its archive transaction, also when the
+        /// answer comes late, so a late answer creates the same codes.
+        #[serde(default)]
+        gift_vouchers_issued: Vec<IssuedVoucher>,
+        #[serde(default)]
+        gift_voucher_redemptions: Vec<Redemption>,
     },
     Refund {
         refund_order_id: i64,
@@ -226,6 +252,10 @@ pub(crate) enum PendingContext {
         delivery: StoredDelivery,
         ticket: TicketDraft,
         webshop_order_id: Option<i64>,
+        /// The gift vouchers the refunded sale sold, cancelled with this
+        /// refund (`vouchers_to_cancel`).
+        #[serde(default)]
+        gift_vouchers_cancelled: Vec<i64>,
     },
     TableOrder {
         bar_slip: BarSlip,
@@ -233,6 +263,19 @@ pub(crate) enum PendingContext {
     PreBill {
         order_id: i64,
         ticket: TicketDraft,
+    },
+    /// An open order moved to another table (`signCostCenterChange`).
+    TableTransfer {
+        order_id: i64,
+        from_table: i32,
+        to_table: i32,
+        operator_insz: String,
+    },
+    /// The payment method of sale `corrected_event_id` (its archive
+    /// id) corrected (`signPaymentCorrection`). No local table changes:
+    /// the reports read the archive; the context only names the sale.
+    PaymentCorrection {
+        corrected_event_id: i64,
     },
     WebshopOrder {
         order_id: i64,
@@ -258,11 +301,24 @@ pub(crate) enum PendingContext {
     Work {
         insz: String,
         is_in: bool,
+        /// INSZ of who registered it when not the employee (a manager).
+        /// Absent in contexts stored before migration 28.
+        #[serde(default)]
+        by: Option<String>,
     },
     Money,
     Drawer,
     Invoice {
         invoice_no: String,
+        invoice_seq: i64,
+        sale_event_ids: Vec<i64>,
+        customer_id: i64,
+        customer_json: String,
+        issue_date: String,
+        total_cents: i64,
+        vat_json: String,
+        print: Box<pos_print::invoice::InvoicePrint>,
+        peppol: Option<crate::commands::invoice::PendingPeppol>,
     },
 }
 
@@ -327,13 +383,24 @@ impl From<String> for SignFailure {
     }
 }
 
-fn answer_pending(label: &str, ticket_no: i64, cause: &dyn std::fmt::Display) -> String {
+/// `fdm`: what the FDM said (its error code, or `FDM_RESPONSE_MISMATCH`),
+/// when it answered: the screens show its message first, then the
+/// instruction that the same request is sent again.
+pub(crate) fn answer_pending(
+    label: &str,
+    ticket_no: i64,
+    fdm: Option<&str>,
+    cause: &dyn std::fmt::Display,
+) -> String {
+    let mut values: Vec<(&str, &dyn std::fmt::Display)> =
+        vec![("label", &label), ("ticket", &ticket_no)];
+    if let Some(code) = &fdm {
+        values.push(("fdm", code));
+    }
+    values.push(("cause", cause));
     format!(
         "FDM error: {}",
-        errors::coded(
-            errors::FDM_ANSWER_PENDING,
-            &[("label", &label), ("ticket", &ticket_no), ("cause", cause)]
-        )
+        errors::coded(errors::FDM_ANSWER_PENDING, &values)
     )
 }
 
@@ -424,7 +491,7 @@ fn failed(
     match e.outcome() {
         SignOutcome::Unknown => {
             tracing::error!(%detail, label, ticket_no, "FDM answer lost: request kept to send again");
-            answer_pending(label, ticket_no, &detail).into()
+            answer_pending(label, ticket_no, e.fdm_code().as_deref(), &detail).into()
         }
         _ => SignFailure {
             error: format!("FDM error: {e}"),
@@ -485,7 +552,15 @@ fn commit(
         }
         event_ids.push(id);
     }
-    let (ticket, delivery_id) = apply(&tx, &state.identity, events, context, &event_ids, &results)?;
+    let (ticket, delivery_id) = apply(
+        &tx,
+        &state.identity,
+        label,
+        events,
+        context,
+        &event_ids,
+        &results,
+    )?;
     let resolved = serde_json::to_string(&context.resolved()).map_err(errors::internal)?;
     pending_signs::mark_signed(&tx, pending_id, event_ids[0], &resolved)
         .map_err(errors::internal)?;
@@ -511,6 +586,7 @@ fn archive_error(e: rusqlite::Error) -> String {
 fn apply(
     tx: &rusqlite::Connection,
     identity: &pos_fiscal::identity::SoftwareIdentity,
+    label: EventLabel,
     events: &[ArchiveSpec],
     context: &PendingContext,
     event_ids: &[i64],
@@ -538,9 +614,21 @@ fn apply(
             delivery,
             ticket,
             hubrise_echo,
+            eft_payment_ids,
+            gift_vouchers_issued,
+            gift_voucher_redemptions,
             ..
         } => {
             close_order(*order_id)?;
+            crate::commands::eft::mark_used(tx, eft_payment_ids, event_ids[0])?;
+            gift_vouchers::apply_sale(
+                tx,
+                *order_id,
+                event_ids[0],
+                *training,
+                gift_vouchers_issued,
+                gift_voucher_redemptions,
+            )?;
             // Training moves no real money: no payment row.
             if !training {
                 for p in payments {
@@ -568,10 +656,17 @@ fn apply(
             total_cents,
             delivery,
             ticket,
+            gift_vouchers_cancelled,
             ..
         } => {
             // Closed even if it was voided while its answer was awaited.
             close_order(*refund_order_id)?;
+            gift_vouchers::apply_refund(
+                tx,
+                *refund_order_id,
+                event_ids[0],
+                gift_vouchers_cancelled,
+            )?;
             if !training {
                 pay(*refund_order_id, method, *total_cents)?;
             }
@@ -583,6 +678,32 @@ fn apply(
         PendingContext::PreBill { order_id, .. } => {
             pos_db::queries::orders::mark_pre_bill_printed(tx, *order_id)
                 .map_err(errors::internal)?;
+            Ok((None, None))
+        }
+        PendingContext::TableTransfer {
+            order_id, to_table, ..
+        } => {
+            // The signed move is the fiscal truth, but the local state
+            // must never hold two open orders on one table. An answer that
+            // arrives late can find the target taken meanwhile: an open
+            // order there with a line, a signed event or a payment. Then
+            // the order stays on its source table (V1F-D60) and the caller
+            // reports `table_transfer_not_moved`. Same query as the check
+            // before signing (V1F-D68).
+            if pos_db::queries::orders::table_taken(tx, *to_table, *order_id)
+                .map_err(errors::internal)?
+            {
+                return Ok((None, None));
+            }
+            // A ghost order (opened and left empty) on the target does
+            // not block the move; it is voided with it.
+            pos_db::queries::orders::void_empty_on_table(tx, *to_table, *order_id)
+                .map_err(errors::internal)?;
+            tx.execute(
+                "UPDATE orders SET table_number = ?1 WHERE id = ?2 AND status = 'open'",
+                rusqlite::params![to_table, order_id],
+            )
+            .map_err(errors::internal)?;
             Ok((None, None))
         }
         PendingContext::ReportZ {
@@ -608,23 +729,30 @@ fn apply(
             Ok((None, None))
         }
         PendingContext::Copy { delivery, ticket } => {
-            let ticket = ticket.as_ref().map(|t| match t {
-                CopyTicket::Original(original) => (**original).clone().into_copy(&results[0]),
-                CopyTicket::Draft(draft) => FiscalTicket::from_draft(draft, &results[0], identity),
+            let ticket = ticket.as_ref().and_then(|t| match t {
+                CopyTicket::Original(original) => Some((**original).clone().into_copy(&results[0])),
+                CopyTicket::Draft(draft) => {
+                    Some(FiscalTicket::from_draft(draft, &results[0], identity))
+                }
+                // Printed as an invoice copy; no digital ticket.
+                CopyTicket::Invoice(_) => None,
             });
             let delivery_id =
                 delivery::enqueue_in_tx(tx, event_ids[0], &delivery.resolved(), ticket.as_ref())?;
             Ok((ticket, delivery_id))
         }
-        PendingContext::Work { insz, is_in } => {
-            // The screen lock keeps a shift open; only a signed
-            // clock-out ends it.
-            if *is_in {
-                pos_db::queries::shifts::open_shift(tx, insz)
-            } else {
-                pos_db::queries::shifts::close_shift(tx, insz)
+        PendingContext::Work { insz, is_in, by } => {
+            // The local index reflects real presence only: a training
+            // (T) event registers none. The screen lock keeps a shift
+            // open; only a signed clock-out ends it.
+            if label != EventLabel::T {
+                if *is_in {
+                    pos_db::queries::shifts::open_shift(tx, insz, by.as_deref())
+                } else {
+                    pos_db::queries::shifts::close_shift(tx, insz, by.as_deref())
+                }
+                .map_err(errors::internal)?;
             }
-            .map_err(errors::internal)?;
             Ok((None, None))
         }
         PendingContext::TableOrder { .. }
@@ -633,7 +761,16 @@ fn apply(
         | PendingContext::ReportUserX { .. }
         | PendingContext::Money
         | PendingContext::Drawer
-        | PendingContext::Invoice { .. } => Ok((None, None)),
+        | PendingContext::PaymentCorrection { .. } => Ok((None, None)),
+        PendingContext::Invoice { .. } => {
+            crate::commands::invoice::record_in_tx(
+                tx,
+                event_ids[0],
+                &events[0].user_insz,
+                context,
+            )?;
+            Ok((None, None))
+        }
     }
 }
 
@@ -644,6 +781,11 @@ fn apply(
 pub(crate) struct FollowUp {
     pub delivery: Option<DeliveryOutcome>,
     pub slip: Option<SlipOutcome>,
+    /// An invoice reached the printer (`None` for other events).
+    pub invoice_printed: Option<bool>,
+    /// The voucher and balance slips of a sale that sold or redeemed
+    /// gift vouchers.
+    pub vouchers: Vec<GiftVoucherPrint>,
 }
 
 /// Print and send what an archived event gives: its ticket, its bar
@@ -672,6 +814,8 @@ pub(crate) async fn follow_up(
             cash,
             delivery,
             bar_slip,
+            gift_vouchers_issued,
+            gift_voucher_redemptions,
             ..
         } => {
             done.delivery = Some(
@@ -690,6 +834,14 @@ pub(crate) async fn follow_up(
                 Some(slip) => print_slip_of(state, config, slip, committed.event_id()).await,
                 None => SlipOutcome::NothingToPrint,
             });
+            done.vouchers = gift_vouchers::print_after_sale(
+                state,
+                config,
+                committed.event_id(),
+                gift_vouchers_issued,
+                gift_voucher_redemptions,
+            )
+            .await;
         }
         PendingContext::Refund {
             open_drawer,
@@ -709,6 +861,19 @@ pub(crate) async fn follow_up(
             );
             kick(with_drawer && *open_drawer).await;
         }
+        PendingContext::Copy {
+            ticket: Some(CopyTicket::Invoice(print)),
+            ..
+        } => {
+            let mut print = (**print).clone();
+            let control = crate::commands::invoice::control_of(committed.result());
+            print.copy = Some(pos_print::invoice::InvoiceCopy {
+                made_at: control.pos_date_time.clone(),
+                control,
+            });
+            done.invoice_printed =
+                Some(crate::commands::invoice::print_invoice(state, config, &print).await);
+        }
         PendingContext::Copy { delivery, .. } => {
             done.delivery = Some(
                 delivery::deliver(
@@ -724,6 +889,36 @@ pub(crate) async fn follow_up(
         }
         PendingContext::TableOrder { bar_slip } => {
             done.slip = Some(print_slip_of(state, config, bar_slip, committed.event_id()).await);
+        }
+        PendingContext::TableTransfer {
+            order_id,
+            from_table,
+            to_table,
+            operator_insz,
+        } => {
+            // No "moved" notice when a late commit kept the order put.
+            let moved = state.db.lock().is_ok_and(|db| {
+                db.query_row(
+                    "SELECT table_number = ?2 FROM orders WHERE id = ?1",
+                    rusqlite::params![order_id, to_table],
+                    |r| r.get::<_, Option<bool>>(0),
+                )
+                .ok()
+                .flatten()
+                .unwrap_or(false)
+            });
+            if moved {
+                done.slip = Some(
+                    bar_slip::print_transfer_slip(
+                        state,
+                        config,
+                        operator_insz,
+                        *from_table,
+                        *to_table,
+                    )
+                    .await,
+                );
+            }
         }
         PendingContext::PreBill { ticket, .. } => {
             if let Some(addr) = config.printer_address.as_deref() {
@@ -793,7 +988,18 @@ pub(crate) async fn follow_up(
         PendingContext::WebshopOrder { .. } => {}
         #[cfg(not(feature = "hubrise"))]
         PendingContext::WebshopOrder { .. } => {}
-        PendingContext::Work { .. } | PendingContext::Money | PendingContext::Invoice { .. } => {}
+        PendingContext::Work { .. }
+        | PendingContext::Money
+        | PendingContext::PaymentCorrection { .. } => {}
+        PendingContext::Invoice { print, peppol, .. } => {
+            let mut print = (**print).clone();
+            print.control = Some(crate::commands::invoice::control_of(committed.result()));
+            done.invoice_printed =
+                Some(crate::commands::invoice::print_invoice(state, config, &print).await);
+            if peppol.is_some() {
+                state.peppol_wake.notify_one();
+            }
+        }
     }
     done
 }
@@ -809,6 +1015,20 @@ async fn print_slip_of(
         Ok(db) => pos_db::queries::orders::get_entries_sent_in(&db, event_id).unwrap_or_default(),
         Err(_) => Vec::new(),
     };
+    // Courses on: the slip is grouped by course and holds the
+    // courses above the released one. Off: the slip of v1.0.0.
+    if crate::commands::courses::enabled(state)
+        && let Some(order_id) = entries.first().map(|e| e.order_id)
+    {
+        return crate::commands::courses::print_after_sign(
+            state,
+            config,
+            &slip.operator_insz,
+            slip.table_number,
+            order_id,
+        )
+        .await;
+    }
     bar_slip::print_bar_slip(
         state,
         config,
@@ -886,7 +1106,12 @@ pub(crate) async fn resolve_open(
             pending_signs::record_attempt(&db, row.id, Some(&e.to_string()))
                 .map_err(errors::internal)?;
             tracing::warn!(%e, label = %row.event_label, ticket = row.first_ticket_no, "pending request still unanswered");
-            return Err(answer_pending(&row.event_label, row.first_ticket_no, &e));
+            return Err(answer_pending(
+                &row.event_label,
+                row.first_ticket_no,
+                e.fdm_code().as_deref(),
+                &e,
+            ));
         }
     };
 
@@ -966,5 +1191,43 @@ impl Stored {
             events: serde_json::from_str(&row.archive_json).map_err(errors::internal)?,
             context: serde_json::from_str(&row.context_json).map_err(errors::internal)?,
         })
+    }
+}
+
+#[cfg(test)]
+mod work_context_tests {
+    use super::PendingContext;
+
+    /// A `pending_signs` row written before migration 28 has no `by`.
+    #[test]
+    fn a_stored_work_context_without_by_still_parses() {
+        for is_in in [true, false] {
+            let old = format!(r#"{{"type":"work","insz":"12345678958","is_in":{is_in}}}"#);
+            let context: PendingContext = serde_json::from_str(&old).expect("old context");
+            match context {
+                PendingContext::Work {
+                    insz,
+                    is_in: parsed,
+                    by,
+                } => {
+                    assert_eq!(insz, "12345678958");
+                    assert_eq!(parsed, is_in);
+                    assert_eq!(by, None);
+                }
+                _ => panic!("not a work context"),
+            }
+        }
+    }
+
+    #[test]
+    fn the_manager_survives_a_round_trip() {
+        let context = PendingContext::Work {
+            insz: "12345678958".into(),
+            is_in: true,
+            by: Some("94060242576".into()),
+        };
+        let json = serde_json::to_string(&context).unwrap();
+        let back: PendingContext = serde_json::from_str(&json).unwrap();
+        assert!(matches!(back, PendingContext::Work { by: Some(b), .. } if b == "94060242576"));
     }
 }

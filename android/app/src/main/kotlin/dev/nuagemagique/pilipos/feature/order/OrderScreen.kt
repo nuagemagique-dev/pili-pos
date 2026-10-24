@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.feature.checkout.CheckoutRoutes
 import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
+import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.AmountDialog
 import dev.nuagemagique.pilipos.ui.components.PinDialog
@@ -38,7 +39,9 @@ import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import kotlinx.coroutines.launch
+import uniffi.pos_ffi.DiscountInput
 import uniffi.pos_ffi.MenuItem
+import uniffi.pos_ffi.SoldOutItem
 
 /** What the operator can do on the menu part of the order screen. */
 internal data class OrderCallbacks(
@@ -46,12 +49,38 @@ internal data class OrderCallbacks(
     val onItem: (MenuItem) -> Unit = {},
     val onPrice: (Long) -> Unit = {},
     val onPicks: (List<Long>) -> Unit = {},
+    /** The "Allergènes" button: allergen mode on or off. */
+    val onAllergenMode: () -> Unit = {},
+    /** Print the open allergen sheet (`false`) or the whole menu's (`true`). */
+    val onAllergenPrint: (Boolean) -> Unit = {},
     val onDismiss: () -> Unit = {},
+    /** The "Bon cadeau" button: ask for the amount of a voucher to sell. */
+    val onSellVoucher: () -> Unit = {},
+    /** The amount typed for the voucher. */
+    val onVoucherAmount: (Long) -> Unit = {},
+    /** A course picked in the picker. */
+    val onCoursePick: (Int) -> Unit = {},
     /** The manager PIN of "customer left without paying"; throws what the engine refused. */
     val onUnpaidPin: suspend (String) -> Unit = {},
     val describeError: (Throwable) -> String = { it.message.orEmpty() },
     /** The sale was closed unpaid. */
     val onUnpaidDone: () -> Unit = {},
+    /** The free table picked in the table picker. */
+    val onTransferTarget: (Int) -> Unit = {},
+    /** The input of the discount dialog. */
+    val onDiscountChosen: (DiscountInput) -> Unit = {},
+    /** The manager PIN of a discount or its removal; throws what the engine refused. */
+    val onDiscountPin: suspend (String) -> Unit = {},
+    /** The discount was applied or removed. */
+    val onDiscountDone: () -> Unit = {},
+    /** The text typed in the note dialog (empty clears the note). */
+    val onNoteSaved: (String) -> Unit = {},
+    /** The "Épuisé" button: the mode is turned on or off. */
+    val onSoldOutMode: () -> Unit = {},
+    /** The "Produits épuisés (n)" button. */
+    val onSoldOutList: () -> Unit = {},
+    /** A choice of the availability dialog, or the re-enable of the list. */
+    val onAvailability: (menuItemId: Long, choice: SoldOutChoice) -> Unit = { _, _ -> },
 )
 
 /**
@@ -61,6 +90,7 @@ internal data class OrderCallbacks(
  * logged in, and without an order an empty state is shown. It leaves only for the checkout (the pay button) and
  * for the tables (a sale closed unpaid). The root carries the tag `placeholder_order` (PD204: the tag means "feature root").
  */
+@Suppress("LongMethod") // Wires every order callback (menu, cart, dialogs, courses, vouchers) to its view model.
 @Composable
 internal fun OrderRoute(
     navigator: AppNavigator,
@@ -80,9 +110,22 @@ internal fun OrderRoute(
             onItem = model::addItem,
             onPrice = model::confirmPrice,
             onPicks = model::confirmModifiers,
+            onAllergenMode = model::toggleAllergenMode,
+            onAllergenPrint = model::printAllergenSheet,
             onDismiss = model::dismissDialog,
+            onSoldOutMode = model::toggleSoldOutMode,
+            onSoldOutList = model::openSoldOutList,
+            onAvailability = model::setAvailability,
+            onSellVoucher = model::askGiftVoucher,
+            onVoucherAmount = model::confirmGiftVoucher,
+            onCoursePick = model::pickCourse,
             onUnpaidPin = model::closeUnpaid,
             describeError = model::describe,
+            onTransferTarget = model::confirmTransfer,
+            onDiscountChosen = model::chooseDiscount,
+            onDiscountPin = model::confirmDiscountPin,
+            onDiscountDone = model::discountDone,
+            onNoteSaved = model::saveNote,
             onUnpaidDone = {
                 model.unpaidClosed()
                 navigator.navigate(TablesRoutes.TABLES)
@@ -97,12 +140,20 @@ internal fun OrderRoute(
             onSend = model::sendToKitchen,
             onPreBill = model::printPreBill,
             onCloseUnpaid = model::askCloseUnpaid,
+            onTransfer = model::askTransfer,
+            onDiscount = { model.askDiscount() },
+            onRemoveOrderDiscount = { model.askRemoveDiscount() },
+            onOffer = { model.askDiscount(it) },
+            onRemoveLineDiscount = { model.askRemoveDiscount(it) },
+            onNote = model::askNote,
+            onCourse = model::openCoursePicker,
+            onSendNext = model::sendNextCourse,
         )
     PosScaffold(
         area = HeaderArea.ORDER,
         navigator = navigator,
         modifier = Modifier.testTag("placeholder_order"),
-        overlay = { OrderDialogs(state.dialog, callbacks) },
+        overlay = { OrderDialogs(state.dialog, callbacks, state.menu.soldOut, state.menu.language) },
     ) {
         OrderContent(state, callbacks, cartActions)
     }
@@ -147,6 +198,8 @@ internal fun OrderContent(
         Row(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 CategoryTabs(menu.categories, menu.selectedCategoryId, menu.language, callbacks.onCategory)
+                if (menu.canSoldOut) SoldOutBar(menu.soldOutMode, menu.soldOut.size, callbacks.onSoldOutMode, callbacks.onSoldOutList)
+                AllergenBar(menu, callbacks.onAllergenMode, onSellVoucher = callbacks.onSellVoucher)
                 MenuGrid(
                     items = menu.items,
                     categoryColor = parseCategoryColor(color),
@@ -164,13 +217,16 @@ internal fun OrderContent(
 }
 
 /**
- * The open dialog, over everything: the price of a free-price product, the options of a product (`OrderView.vue`)
- * or the manager PIN of an unpaid close (`CartSidebar.vue`).
+ * The open dialog, over everything: the price of a free-price product, the options of a product, the availability of a
+ * product or the list of the sold-out ones (`OrderView.vue`), or the free table to move the order to or the manager PIN
+ * of an unpaid close (`CartSidebar.vue`).
  */
 @Composable
 internal fun BoxScope.OrderDialogs(
     dialog: OrderDialog,
     callbacks: OrderCallbacks,
+    soldOut: List<SoldOutItem> = emptyList(),
+    language: AppLanguage = AppLanguage.FR,
 ) {
     when (dialog) {
         OrderDialog.None -> Unit
@@ -182,10 +238,46 @@ internal fun BoxScope.OrderDialogs(
                 onConfirm = callbacks.onPrice,
                 onCancel = callbacks.onDismiss,
             )
+        OrderDialog.SellVoucher ->
+            AmountDialog(
+                title = vueText("gv_sell_title"),
+                itemName = vueText("gv_sell_item"),
+                texts = defaultAmountDialogTexts(),
+                onConfirm = callbacks.onVoucherAmount,
+                onCancel = callbacks.onDismiss,
+            )
         is OrderDialog.Modifiers ->
             ModifierDialog(dialog.item, dialog.groups, onConfirm = callbacks.onPicks, onCancel = callbacks.onDismiss)
+        is OrderDialog.TablePicker ->
+            TablePickerDialog(dialog.from, dialog.tables, onConfirm = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
+        is OrderDialog.SoldOut -> SoldOutDialog(dialog.item, callbacks.onAvailability, callbacks.onDismiss)
+        OrderDialog.SoldOutList -> SoldOutList(soldOut, callbacks.onAvailability, callbacks.onDismiss)
         is OrderDialog.CloseUnpaid -> CloseUnpaidDialog(dialog.userName, callbacks)
+        is OrderDialog.Discount ->
+            DiscountDialog(dialog.baseCents, dialog.lineId, onConfirm = callbacks.onDiscountChosen, onCancel = callbacks.onDismiss)
+        is OrderDialog.DiscountPin -> DiscountPinDialog(dialog, callbacks)
+        is OrderDialog.Note -> NoteDialog(dialog.initial, dialog.sent, onConfirm = callbacks.onNoteSaved, onCancel = callbacks.onDismiss)
+        is OrderDialog.AllergenSheet ->
+            AllergenSheetDialog(dialog, language, onPrint = callbacks.onAllergenPrint, onClose = callbacks.onDismiss)
+        is OrderDialog.CoursePicker -> CoursePickerDialog(dialog.current, callbacks.onCoursePick, callbacks.onDismiss)
     }
+}
+
+/** The manager PIN of a discount or of its removal (`PinDialog.vue` with `discount_hint` or `discount_remove_hint`). */
+@Composable
+private fun DiscountPinDialog(
+    dialog: OrderDialog.DiscountPin,
+    callbacks: OrderCallbacks,
+) {
+    val hint = vueText(if (dialog.action is DiscountAction.Remove) "discount_remove_hint" else "discount_hint")
+    PinDialog(
+        mode = PinMode.Verify,
+        texts = pinTexts(if (dialog.userName.isBlank()) hint else dialog.userName + "\n" + hint),
+        onSubmit = callbacks.onDiscountPin,
+        describeError = callbacks.describeError,
+        onDone = callbacks.onDiscountDone,
+        onCancel = callbacks.onDismiss,
+    )
 }
 
 /** The manager PIN of "customer left without paying" (`PinDialog.vue` with the hint `unpaid_hint`). */
@@ -195,17 +287,7 @@ private fun CloseUnpaidDialog(
     callbacks: OrderCallbacks,
 ) {
     val hint = vueText("unpaid_hint")
-    val texts =
-        PinPadTexts(
-            title = vueText("pin_enter"),
-            hint = if (userName.isBlank()) hint else userName + "\n" + hint,
-            enterPrompt = vueText("pin_enter"),
-            confirmPrompt = vueText("pin_confirm"),
-            mismatch = vueText("pin_mismatch"),
-            cancel = vueText("back"),
-            clearLabel = uiText(R.string.ui_common_numpad_clear),
-            backspaceLabel = uiText(R.string.ui_common_numpad_backspace),
-        )
+    val texts = pinTexts(if (userName.isBlank()) hint else userName + "\n" + hint)
     PinDialog(
         mode = PinMode.Verify,
         texts = texts,
@@ -215,3 +297,17 @@ private fun CloseUnpaidDialog(
         onCancel = callbacks.onDismiss,
     )
 }
+
+/** The captions of the manager PIN pad, with [hint] under the title. */
+@Composable
+private fun pinTexts(hint: String): PinPadTexts =
+    PinPadTexts(
+        title = vueText("pin_enter"),
+        hint = hint,
+        enterPrompt = vueText("pin_enter"),
+        confirmPrompt = vueText("pin_confirm"),
+        mismatch = vueText("pin_mismatch"),
+        cancel = vueText("back"),
+        clearLabel = uiText(R.string.ui_common_numpad_clear),
+        backspaceLabel = uiText(R.string.ui_common_numpad_backspace),
+    )

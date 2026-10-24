@@ -22,6 +22,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import uniffi.pos_ffi.FdmMessageDisplay
 import uniffi.pos_ffi.FdmSeverity
 import uniffi.pos_ffi.FdmWarningCode
 import uniffi.pos_ffi.PosEvent
@@ -379,6 +380,58 @@ class FdmStoreTest {
 
             assertEquals(FdmSeverity.INFO, rig.store.state.value.severity)
             assertNull(rig.store.state.value.code)
+        }
+
+    @Test
+    fun aMandatoryWarningInASignResponseKeepsItsBannerOpen() =
+        runTest {
+            val f = fixture()
+            val feed = EventFeed(f)
+            val rig = opened(f)
+
+            feed.send(
+                PosEvent.FdmSignMessages(
+                    signMessages(listOf(message(FdmWarningCode.BUFFER_NEAR_FULL, showPos = FdmMessageDisplay.MANDATORY))),
+                ),
+            )
+            runCurrent()
+
+            assertEquals(FdmSeverity.WARNING, rig.store.state.value.severity)
+            assertEquals(true, rig.store.state.value.mandatory)
+        }
+
+    @Test
+    fun anOptionalWarningInASignResponseIsNotMandatory() =
+        runTest {
+            val f = fixture()
+            val feed = EventFeed(f)
+            val rig = opened(f)
+
+            feed.send(PosEvent.FdmSignMessages(signMessages(listOf(message(FdmWarningCode.RTC_SYNC_FAILED)))))
+            runCurrent()
+
+            assertEquals(FdmSeverity.WARNING, rig.store.state.value.severity)
+            assertEquals(false, rig.store.state.value.mandatory)
+        }
+
+    @Test
+    fun aMandatoryWarningTakesOverAnOptionalOne() =
+        runTest {
+            val f = fixture()
+            val feed = EventFeed(f)
+            val rig = opened(f)
+            feed.send(PosEvent.FdmStatus(health(FdmSeverity.WARNING, code = "RTC_SYNC_FAILED")))
+            runCurrent()
+
+            feed.send(
+                PosEvent.FdmSignMessages(
+                    signMessages(listOf(message(FdmWarningCode.CLIENT_CERT_EXPIRED, showPos = FdmMessageDisplay.MANDATORY))),
+                ),
+            )
+            runCurrent()
+
+            assertEquals("CLIENT_CERT_EXPIRED", rig.store.state.value.code)
+            assertEquals(true, rig.store.state.value.mandatory)
         }
 
     @Test

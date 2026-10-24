@@ -45,6 +45,24 @@ class AndroidDevicePoliciesTest {
     }
 
     @Test
+    fun aRestrictionIsClearedThroughTheAdmin() {
+        val users = context.getSystemService(UserManager::class.java)
+        policies.addUserRestriction(PolicySet.INSTALL_APPS)
+        assertTrue(users.hasUserRestriction(PolicySet.INSTALL_APPS))
+        policies.clearUserRestriction(PolicySet.INSTALL_APPS)
+        assertFalse(users.hasUserRestriction(PolicySet.INSTALL_APPS))
+    }
+
+    @Test
+    fun theHideCallsReachTheManagerWithoutError() {
+        // Robolectric's shadow does not model packages: what the framework answers for a missing or a present
+        // package, and showing again, are checked on a device run (EV-13).
+        policies.setApplicationHidden("com.android.vending", true)
+        policies.isApplicationHidden("com.android.vending")
+        policies.setApplicationHidden("com.android.vending", false)
+    }
+
+    @Test
     fun lockTaskFeaturesAreWrittenThroughTheAdmin() {
         policies.setLockTaskFeatures(DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS)
         policies.setLockTaskFeatures(PolicySet.LOCK_TASK_FEATURES_NONE)
@@ -57,16 +75,16 @@ class AndroidDevicePoliciesTest {
         policies.setUninstallBlocked(context.packageName, true)
         policies.setAutoTimeZoneEnabled(false)
         policies.setAutoTimeEnabled(true)
-        policies.setSystemUpdatePolicyPostpone()
+        policies.setSystemUpdatePolicyWindowed(PolicySet.UPDATE_WINDOW_START_MINUTE, PolicySet.UPDATE_WINDOW_END_MINUTE)
         policies.setGlobalSetting(PolicySet.STAY_ON_SETTING, PolicySet.STAY_ON_VALUE)
         val manager = context.getSystemService(DevicePolicyManager::class.java)
         assertTrue(manager.isUninstallBlocked(owner.adminComponent, context.packageName))
         assertTrue(manager.getAutoTimeEnabled(owner.adminComponent))
         assertFalse(manager.getAutoTimeZoneEnabled(owner.adminComponent))
-        assertEquals(
-            android.app.admin.SystemUpdatePolicy.TYPE_POSTPONE,
-            manager.getSystemUpdatePolicy()?.policyType,
-        )
+        val update = manager.getSystemUpdatePolicy()
+        assertEquals(android.app.admin.SystemUpdatePolicy.TYPE_INSTALL_WINDOWED, update?.policyType)
+        assertEquals(180, update?.installWindowStart)
+        assertEquals(300, update?.installWindowEnd)
         policies.setTimeZone(PolicySet.TIME_ZONE)
         policies.setKeyguardDisabled(true)
         policies.setStatusBarDisabled(true)

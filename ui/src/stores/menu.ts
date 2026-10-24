@@ -1,6 +1,9 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { Category, MenuItem } from "../types";
+import type { Category, MenuItem, SoldOutItem } from "../types";
+import type { Availability } from "../utils/soldOut";
+import { useToastStore } from "./toast";
+import { describeError } from "../utils/errorMessages";
 import * as ipc from "../api/ipc";
 import { usePosStore } from "./pos";
 
@@ -50,12 +53,41 @@ export const useMenuStore = defineStore("menu", () => {
     }
   }
 
+  // The products sold out now ("Épuisé"); read by cashiers and managers only.
+  const soldOut = ref<SoldOutItem[]>([]);
+
+  async function loadSoldOut() {
+    const pos = usePosStore();
+    try {
+      soldOut.value = await ipc.listSoldOut(pos.language);
+    } catch (e) {
+      useToastStore().show(describeError(e), "error", 5000);
+    }
+  }
+
+  /** Change a product's availability and refresh the grid. False when the till refused. */
+  async function setAvailability(menuItemId: number, choice: Availability): Promise<boolean> {
+    const pos = usePosStore();
+    try {
+      soldOut.value =
+        choice === "available"
+          ? await ipc.clearSoldOut(menuItemId, pos.language)
+          : await ipc.setSoldOut(menuItemId, choice === "day", pos.language);
+    } catch (e) {
+      useToastStore().show(describeError(e), "error", 5000);
+      return false;
+    }
+    if (selectedCategoryId.value) await loadItems(selectedCategoryId.value);
+    return true;
+  }
+
   function getCategoryName(categoryId: number): string {
     return categoryNames.value.get(categoryId) ?? "";
   }
 
   return {
     categories, items, selectedCategoryId, loading, categoryNames,
+    soldOut, loadSoldOut, setAvailability,
     loadCategories, loadItems, selectCategory, reloadWithLanguage, getCategoryName,
   };
 });

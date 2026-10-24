@@ -183,6 +183,7 @@ export const webshopMessages: Messages = {
   "catalog_issue_vat_mismatch": { fr: "TVA livraison et emporter différentes", en: "Delivery and collection VAT differ", zh: "外送与自取增值税不同" },
   "catalog_issue_missing_vat": { fr: "TVA manquante", en: "Missing VAT", zh: "缺少增值税" },
   "catalog_issue_unknown_option_list": { fr: "Liste d'options inconnue", en: "Unknown option list", zh: "未知选项列表" },
+  "catalog_issue_unknown_allergen": { fr: "Allergène inconnu (une étiquette allergen: ou traces: est mal écrite)", en: "Unknown allergen (an allergen: or traces: tag is misspelt)", zh: "未知过敏原（allergen: 或 traces: 标签拼写有误）" },
   // Option picker on the order screen.
   "modifier_title": { fr: "Options", en: "Options", zh: "选项" },
   "modifier_required": { fr: "Choisir {min}", en: "Pick {min}", zh: "请选 {min} 项" },
@@ -195,6 +196,7 @@ export const webshopMessages: Messages = {
   "err_hubrise_disabled": { fr: "HubRise est désactivé sur cette caisse.", en: "HubRise is switched off on this till.", zh: "此收银机已关闭 HubRise。" },
   "err_hubrise_not_configured": { fr: "HubRise n'est pas configuré sur cette caisse : ajoutez la section « hubrise » de pos.json.", en: "HubRise is not set up on this till: add the \"hubrise\" section of pos.json.", zh: "此收银机未配置 HubRise：请在 pos.json 中添加 “hubrise” 部分。" },
   "err_hubrise_secret_unreadable": { fr: "Le secret HubRise est illisible : vérifiez hubrise.client_secret_file dans pos.json.", en: "The HubRise secret cannot be read: check hubrise.client_secret_file in pos.json.", zh: "无法读取 HubRise 密钥：请检查 pos.json 中的 hubrise.client_secret_file。" },
+  "err_hubrise_oauth_failed": { fr: "HubRise a refusé ce code ou ne répond pas : vérifiez le code et la connexion, puis réessayez. Détail : {detail}", en: "HubRise refused this code or did not answer: check the code and the connection, then try again. Detail: {detail}", zh: "HubRise 拒绝了此代码或没有响应：请检查代码和网络后重试。详情：{detail}" },
   "err_hubrise_online_orders_open": { fr: "Terminez d'abord les {count} commande(s) en ligne en cours.", en: "First settle the {count} online order(s) in progress.", zh: "请先处理 {count} 个进行中的线上订单。" },
   "err_refund_discounted_line": { fr: "Ligne vendue avec une remise : remboursez la commande entière.", en: "Line sold with a discount: refund the whole order.", zh: "此行有折扣：请退整单。" },
   "err_modifier_open_price": { fr: "Un produit à prix libre n'a pas d'options.", en: "A free-price product has no options.", zh: "自定价产品没有选项。" },

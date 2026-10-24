@@ -7,6 +7,12 @@ export interface ModifierOption {
   id: number;
   name: string;
   price_cents: number;
+  /** Allergen codes the option contains. */
+  allergens?: string[];
+  /** Allergen codes it may contain as traces. */
+  traces?: string[];
+  /** The option's list is complete (possibly empty); false: no information. */
+  allergens_declared?: boolean;
 }
 
 export interface ModifierGroup {

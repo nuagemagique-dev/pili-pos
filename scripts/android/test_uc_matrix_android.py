@@ -16,6 +16,7 @@ import io
 import json
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -75,6 +76,23 @@ class Fake:
         with contextlib.redirect_stdout(out):
             code = uca.main(["--repo", str(self.root), *argv], required=required, ucm=self.ucm())
         return code, out.getvalue().splitlines()
+
+    def git(self, *args):
+        return subprocess.run(
+            ["git", "-C", str(self.root), "-c", "user.email=t@example.invalid", "-c", "user.name=t",
+             "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", *args],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+
+    def device_run(self, date="2026-10-10"):
+        """Commit the fake repository as it is and record a device run on that commit."""
+        if not self.path(".git").exists():
+            self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("commit", "-q", "--allow-empty", "-m", "run")
+        commit = self.git("rev-parse", "--short", "HEAD")
+        self.write(uca.DEVICE_RECORD, f"# Device run\n\nRun on {date} by a card, on commit `{commit}` of a branch.\n")
+        return commit
 
     def matrix(self, required=FAKE_REQUIRED):
         return uca.build_matrix(self.root, required, self.ucm())
@@ -140,10 +158,19 @@ class Statuses(unittest.TestCase):
         self.assertEqual(fake.row("V_FDM_LOCKED").status, uca.ST_PENDING)
 
     def test_not_required_id_with_rust_tests_is_covered_by_the_engine_tests(self):
-        row = Fake(self).row("M184")
+        fake = Fake(self)
+        fake.device_run()
+        row = fake.row("M184")
         self.assertEqual(row.status, uca.ST_ENGINE)
         self.assertEqual(row.status_label, "Couvert (tests moteur exécutés sur l'appareil)")
         self.assertEqual(row.rust_tests, ["m184_combined_z"])
+        self.assertEqual(row.host_only, [])
+
+    def test_without_a_recorded_device_run_the_engine_tests_ran_on_the_host_only(self):
+        row = Fake(self).row("M184")
+        self.assertEqual(row.status, uca.ST_ENGINE_HOST)
+        self.assertEqual(row.status_label, "Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire)")
+        self.assertEqual(row.host_only, ["m184_combined_z"])
 
     def test_linux_exclusions_are_mirrored(self):
         fake = Fake(self)
@@ -323,9 +350,42 @@ class DeviceTests(unittest.TestCase):
         fake = Fake(self)
         self._tauri_only_uc201(fake)
         fake.write("crates/pos-fiscal/src/lib.rs", "#[test]\nfn uc201_fiscal() {}\n")
+        fake.device_run()
         row = fake.row("UC201")
         self.assertEqual(row.status, uca.ST_ENGINE)
         self.assertEqual(row.rust_tests, ["uc201_fiscal"])
+
+    def test_a_test_added_after_the_device_run_ran_on_the_host_only(self):
+        fake = Fake(self)
+        self._tauri_only_uc201(fake)
+        fake.device_run()
+        fake.write("crates/pos-engine/tests/later.rs", "#[test]\nfn uc201_added_later() {}\n")
+        row = fake.row("UC201")
+        self.assertEqual(row.status, uca.ST_ENGINE_HOST)
+        self.assertEqual(row.host_only, ["uc201_added_later"])
+
+    def test_a_row_with_device_and_host_tests_lists_the_host_ones_apart(self):
+        fake = Fake(self)
+        fake.device_run()
+        fake.write("crates/pos-engine/tests/later.rs", "#[test]\nfn m184_added_later() {}\n")
+        row = fake.row("M184")
+        self.assertEqual(row.status, uca.ST_ENGINE)
+        self.assertEqual(row.host_only, ["m184_added_later"])
+        code, _ = fake.run("--write")
+        self.assertEqual(code, 0)
+        doc = fake.path(uca.OUTPUT_MD).read_text(encoding="utf-8")
+        line = next(ln for ln in doc.splitlines() if ln.startswith("| M184 |"))
+        self.assertIn("`m184_combined_z` ; sur l'hôte seulement : `m184_added_later`", line)
+        self.assertIn("Couvert (tests moteur exécutés sur l'appareil)", line)
+        self.assertIn("le dernier passage des tests du moteur sur l'émulateur date du 2026-10-10", doc)
+
+    def test_a_device_record_with_an_unknown_commit_is_an_input_problem(self):
+        fake = Fake(self)
+        fake.device_run()
+        fake.write(uca.DEVICE_RECORD, "Run on 2026-10-10 by a card, on commit `0123abc` of a branch.\n")
+        code, lines = fake.run("--check", "--allow-pending")
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL", check_line(lines, "inputs"))
 
     def test_android_exclusion_is_accepted_for_an_id_with_only_shell_tests(self):
         fake = Fake(self)

@@ -35,10 +35,16 @@ use pos_core::order::OrderType;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
 use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pos_engine::commands::invoice::{
+    B2bCustomerInput, do_save_b2b_customer, do_sign_invoice_fiscal,
+};
 use pos_engine::commands::order::{AddOrderLineInput, do_add_order_line};
+use pos_engine::commands::payment_correction::do_correct_payment;
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::social::{do_work_in, do_work_out};
+use pos_engine::commands::table_transfer::do_transfer_table;
 use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use pos_fiscal::payment::PaymentMethod;
 
 // ── Setup ──────────────────────────────────────────────────────────
 
@@ -147,6 +153,11 @@ fn requests(app: &TestApp) -> Vec<Value> {
         .filter_map(|e| e.event_data_json.as_deref())
         .map(|j| serde_json::from_str(j).unwrap())
         .collect()
+}
+
+/// The latest archived request.
+fn requests_last(app: &TestApp) -> Value {
+    requests(app).pop().expect("an archived request")
 }
 
 // ── Comparison ─────────────────────────────────────────────────────
@@ -427,7 +438,108 @@ async fn m123_pre_bill() {
     app.dump_evidence("M123");
 }
 
+// covers: FAQ_Q212
+#[tokio::test]
+async fn m122_cost_center_change() {
+    let vars = variables("M122");
+    let app = spf_app(&operator(&vars)).await;
+    // The order of M122 is its `to` side: the lines that end on T5.
+    let order_lines = json!({
+        "employeeId": vars["employeeId"],
+        "transaction": vars["transfer"]["to"][0]["transaction"],
+    });
+    let order_id = order_from(&app, &order_lines, OrderType::DineIn, Some(1));
+    // Unregistered lines are sent as an order before the move.
+    mock_uc(&app, "M121", None).await;
+    mock_uc(&app, "M122", None).await;
+
+    let moved = do_transfer_table(&app.state, order_id, 5).await.unwrap();
+    assert_eq!((moved.from_table, moved.to_table), (1, 5));
+
+    let requests = requests(&app);
+    assert_eq!(requests.len(), 2, "order, then cost center change");
+    assert!(
+        requests[0].get("transaction").is_some(),
+        "the P ORDER first"
+    );
+    let transfer = &requests[1];
+    assert_matches_fixture("M122", transfer, &vars, &[]);
+
+    // One reference for the whole order on both sides, two table ids.
+    let (from, to) = (
+        &transfer["transfer"]["from"][0]["costCenter"],
+        &transfer["transfer"]["to"][0]["costCenter"],
+    );
+    assert_eq!(from["reference"], to["reference"]);
+    assert_eq!(from["reference"], format!("O{order_id}"));
+    assert_ne!(from["id"], to["id"]);
+    assert_eq!(
+        (from["id"].as_str(), to["id"].as_str()),
+        (Some("T01"), Some("T05"))
+    );
+
+    // The sale that follows is on T05, same reference.
+    mock_uc(&app, "M110", None).await;
+    let sale = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(sale.success, "{:?}", sale.error);
+    let sale = requests_last(&app);
+    assert_eq!(sale["costCenter"]["id"], "T05");
+    assert_eq!(sale["costCenter"]["reference"], format!("O{order_id}"));
+    app.dump_evidence("M122");
+}
+
 // ── Financial (F) ──────────────────────────────────────────────────
+
+/// M132: the payment method of a cash sale corrected to a card. The
+/// corrected sale is M110 (52 EUR in cash); the correction cites its
+/// reference.
+#[tokio::test]
+async fn m132_payment_correction() {
+    use pos_engine::commands::auth::do_set_pin;
+    const PIN: &str = "4321";
+    let sale = variables("M110");
+    let vars = variables("M132");
+    let app = spf_app(&operator(&vars)).await;
+    do_set_pin(&app.state, operator(&vars), PIN.into(), None).unwrap();
+    let order_id = order_from(&app, &sale, OrderType::DineIn, Some(1));
+    // The sale's FDM response carries the reference the correction cites.
+    mock_uc(&app, "M110", Some(&vars["fdmRef"])).await;
+    mock_uc(&app, "M132", None).await;
+
+    let sold = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(sold.success, "{:?}", sold.error);
+    let original = app.fiscal_events()[0].id;
+
+    let done = do_correct_payment(
+        &app.state,
+        original,
+        0,
+        PaymentMethod::Card,
+        operator(&vars),
+        PIN.into(),
+    )
+    .await
+    .unwrap();
+    assert!(done.success, "{:?}", done.error);
+
+    let correction = &requests(&app)[1];
+    assert_matches_fixture(
+        "M132",
+        correction,
+        &vars,
+        &[Deviation {
+            path: "financials[0].type",
+            reason: "without a linked terminal the operator cannot tell debit from credit: a card typed by hand is CARD_DEBIT, MANUAL (REPONSES_MANUEL_CERT §III.F); the comparator checks only type, amount and amountType, so the MANUAL input method (fixture AUTOMATIC) is not compared",
+        }],
+    );
+    assert_eq!(correction["fdmRef"], vars["fdmRef"]);
+    assert_eq!(correction["ticketMedium"], "NONE");
+    app.dump_evidence("M132");
+}
 
 #[tokio::test]
 // covers: FAQ_Q401
@@ -511,6 +623,76 @@ async fn m141_work_out() {
 
     assert_matches_fixture("M141", &requests(&app)[0], &vars, &[]);
     app.dump_evidence("M141");
+}
+
+// ── Invoice (I) ────────────────────────────────────────────────────
+
+/// A saved customer named like the fixture's cost center reference.
+fn fixture_customer(app: &TestApp, vars: &Value) -> i64 {
+    do_save_b2b_customer(
+        &app.state,
+        B2bCustomerInput {
+            id: None,
+            vat_number: vars["customerVatNo"].as_str().unwrap().to_string(),
+            name: vars["costCenter"]["reference"]
+                .as_str()
+                .unwrap()
+                .to_string(),
+            street: "Rue du Test 1".to_string(),
+            postal_code: "4000".to_string(),
+            city: "Liege".to_string(),
+            country_code: "BE".to_string(),
+        },
+    )
+    .expect("save customer")
+    .id
+}
+
+#[tokio::test]
+// covers: FAQ_Q505
+async fn m150_invoice() {
+    let sale = variables("M110");
+    let invoice = variables("M150");
+    let app = spf_app(&operator(&invoice)).await;
+    // A Belgian customer is invoiced through Peppol (V11-D55).
+    app.enable_peppol_section();
+    let customer_id = fixture_customer(&app, &invoice);
+    // Two sales, as the fixture's invoice references two events.
+    let mut sale_ids = Vec::new();
+    for _ in 0..2 {
+        let order_id = order_from(&app, &sale, OrderType::DineIn, Some(1));
+        mock_uc(&app, "M110", None).await;
+        let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+            .await
+            .unwrap();
+        assert!(result.success, "{:?}", result.error);
+        sale_ids.push(app.fiscal_events().last().unwrap().id);
+    }
+    mock_uc(&app, "M150", None).await;
+
+    let invoiced = sale_ids.clone();
+    let result = do_sign_invoice_fiscal(&app.state, sale_ids, customer_id, operator(&invoice))
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+
+    let ours = &requests(&app)[2];
+    assert_matches_fixture("M150", ours, &invoice, &[]);
+    // The business fields the comparison does not cover: the invoice number is a year and a
+    // sequence, the cost center names the customer.
+    let no = ours["invoiceNo"].as_str().unwrap();
+    assert_eq!(no.len(), 8, "{no}");
+    assert!(no.chars().all(|c| c.is_ascii_digit()), "{no}");
+    assert!(no.ends_with("0001"), "{no}");
+    assert_eq!(ours["costCenter"]["type"], invoice["costCenter"]["type"]);
+    assert_eq!(
+        ours["costCenter"]["reference"],
+        invoice["costCenter"]["reference"]
+    );
+    assert_eq!(ours["costCenter"]["id"], format!("C{customer_id}"));
+    assert_eq!(ours["fdmRefs"].as_array().unwrap().len(), 2);
+    app.assert_fdm_refs_of(ours, &invoiced);
+    app.dump_evidence("M150");
 }
 
 // ── Copies (C) ─────────────────────────────────────────────────────
@@ -785,6 +967,213 @@ async fn uc4109_unpaid_table() {
     assert_matches_fixture("UC4109_1", &r[0], &order_vars, &menu);
     assert_matches_fixture("UC4109_2", &r[1], &sale_vars, &menu);
     app.dump_evidence("UC4109");
+}
+
+// ── Discounts taken at the till (Advanced Set 1.6) ───────────────────
+
+const MANAGER_PIN: &str = "4321";
+
+/// An order discount as a manager gives it at the till.
+fn order_discount(
+    kind: pos_engine::commands::discount::DiscountKind,
+    value: Option<i64>,
+) -> pos_engine::commands::discount::DiscountInput {
+    use pos_engine::commands::discount::{DiscountInput, DiscountReason, DiscountTarget};
+    DiscountInput {
+        target: DiscountTarget::Order,
+        kind,
+        value,
+        reason_code: DiscountReason::CommercialGesture,
+        reason_text: None,
+    }
+}
+
+/// UC223 through the till: a 50 % ticket discount on 2 Carpaccio and
+/// 1 Dry Martini, paid by card. The manager gives it on the order
+/// before payment; the sale carries it as a priceChange of scope EVENT
+/// on each line (26 = 20 + 6), `lineTotal` and `transactionTotal` after
+/// it.
+// covers: UC223
+#[tokio::test]
+async fn uc223_event_discount_at_the_till() {
+    use pos_engine::commands::auth::do_set_pin;
+    use pos_engine::commands::discount::{DiscountKind, do_apply_discount};
+    let fixture = load_uc(&advanced_set_root(), "UC223");
+    let vars = read_variables(&fixture)["data"].clone();
+    let app = spf_app(&operator(&vars)).await;
+    do_set_pin(&app.state, operator(&vars), MANAGER_PIN.into(), None).unwrap();
+    let order_id = order_from(&app, &vars, OrderType::DineIn, Some(1));
+    let done = do_apply_discount(
+        &app.state,
+        order_id,
+        order_discount(DiscountKind::Percent, Some(50)),
+        operator(&vars),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(done.order.total_cents, 2600);
+    assert!(done.registration_error.is_none());
+    mock_from_fixture(&app, &fixture).await;
+
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+
+    let ours = &requests(&app)[0];
+    let changes = |i: usize| {
+        &ours["transaction"]["transactionLines"][i]["mainProduct"]["vats"][0]["priceChanges"][0]
+    };
+    assert_eq!(changes(0)["amount"], -20.0);
+    assert_eq!(changes(1)["amount"], -6.0);
+    assert_eq!(changes(0)["groupingId"], 1);
+    assert_eq!(changes(0)["type"], "PUBLIC");
+    assert!(!changes(0)["name"].as_str().unwrap().is_empty());
+    assert_matches_fixture("UC223", ours, &vars, &[TABLE_SALE]);
+    app.dump_evidence("UC223");
+}
+
+/// UC225A step 2 and UC225B step 2 through the till: 2 Carpaccio
+/// registered by a P, then a 20 % discount. The table was already
+/// registered, so the discount signs a P right away: -2 with
+/// negQuantityReason PRICE_CHANGE, then +2 with the change (UC225A
+/// 2_ORDER). The cash sale then carries the journal: +2, -2
+/// PRICE_CHANGE, +2 with the change (UC225B 2_SALE, "version B").
+// covers: UC225A, UC225B
+#[tokio::test]
+async fn uc225a_discount_after_registration() {
+    use pos_engine::commands::auth::do_set_pin;
+    use pos_engine::commands::discount::{DiscountKind, do_apply_discount};
+    let first = load_uc(
+        &advanced_set_root(),
+        "UC225A_PriceChange_IndirectSale/1_ORDER",
+    );
+    let second = load_uc(
+        &advanced_set_root(),
+        "UC225A_PriceChange_IndirectSale/2_ORDER",
+    );
+    let sale = load_uc(
+        &advanced_set_root(),
+        "UC225B_PriceChange_IndirectSale/2_SALE",
+    );
+    let first_vars = read_variables(&first)["data"].clone();
+    let second_vars = read_variables(&second)["data"].clone();
+    let sale_vars = read_variables(&sale)["data"].clone();
+    let app = spf_app(&operator(&first_vars)).await;
+    do_set_pin(&app.state, operator(&first_vars), MANAGER_PIN.into(), None).unwrap();
+    let order_id = order_from(&app, &first_vars, OrderType::DineIn, Some(1));
+    mock_from_fixture(&app, &first).await;
+    mock_from_fixture(&app, &second).await;
+    mock_from_fixture(&app, &sale).await;
+
+    do_sign_table_order(&app.state, order_id).await.unwrap();
+    let done = do_apply_discount(
+        &app.state,
+        order_id,
+        order_discount(DiscountKind::Percent, Some(20)),
+        operator(&first_vars),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .unwrap();
+    assert!(done.registration_error.is_none(), "{done:?}");
+    assert_eq!(done.order.total_cents, 3200);
+
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+
+    let r = requests(&app);
+    assert_eq!(r.len(), 3, "order, immediate order, sale");
+    assert_matches_fixture("UC225A_1", &r[0], &first_vars, &[]);
+    let scope = |path: &'static str| Deviation {
+        path,
+        reason: "an order discount is an EVENT scope change, the fixture's one-line order uses LINE",
+    };
+    assert_matches_fixture(
+        "UC225A_2",
+        &r[1],
+        &second_vars,
+        &[scope(
+            "transaction.transactionLines[1].vats[0].priceChanges[0].scope",
+        )],
+    );
+    assert_matches_fixture(
+        "UC225B_2",
+        &r[2],
+        &sale_vars,
+        &[scope(
+            "transaction.transactionLines[2].vats[0].priceChanges[0].scope",
+        )],
+    );
+    app.dump_evidence("UC225A");
+}
+
+/// UC229B through the till: 2 Burger and 1 Coca Cola, the Coca Cola
+/// offered. A priceChange of scope LINE takes the whole line (-3,04),
+/// its `lineTotal` is 0 and the sale comes to 56,00 EUR in cash.
+// covers: UC229B
+#[tokio::test]
+async fn uc229b_free_line_at_the_till() {
+    use pos_engine::commands::auth::do_set_pin;
+    use pos_engine::commands::discount::{
+        DiscountInput, DiscountKind, DiscountReason, DiscountTarget, do_apply_discount,
+    };
+    let fixture = load_uc(&advanced_set_root(), "UC229B");
+    let vars = read_variables(&fixture)["data"].clone();
+    let app = spf_app(&operator(&vars)).await;
+    do_set_pin(&app.state, operator(&vars), MANAGER_PIN.into(), None).unwrap();
+    let order_id = order_from(&app, &vars, OrderType::DineIn, Some(1));
+    let coca = pos_engine::commands::order::do_list_order_lines(&app.state, order_id)
+        .unwrap()
+        .into_iter()
+        .find(|l| l.menu_item_id == 12009)
+        .expect("the Coca Cola line");
+    let done = do_apply_discount(
+        &app.state,
+        order_id,
+        DiscountInput {
+            target: DiscountTarget::Line { line_id: coca.id },
+            kind: DiscountKind::Free,
+            value: None,
+            reason_code: DiscountReason::CommercialGesture,
+            reason_text: None,
+        },
+        operator(&vars),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(done.order.total_cents, 5600);
+    mock_from_fixture(&app, &fixture).await;
+
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+
+    let ours = &requests(&app)[0];
+    let free = &ours["transaction"]["transactionLines"][1];
+    assert_eq!(free["lineTotal"], 0.0);
+    assert_eq!(
+        free["mainProduct"]["vats"][0]["priceChanges"][0]["scope"],
+        "LINE"
+    );
+    assert_matches_fixture(
+        "UC229B",
+        ours,
+        &vars,
+        &[
+            TABLE_SALE,
+            Deviation {
+                path: "transaction.transactionLines[1].vats[0].label",
+                reason: "the catalogue has the Coca Cola at VAT A (the scenario says A); the fixture's request labels it B",
+            },
+        ],
+    );
+    app.dump_evidence("UC229B");
 }
 
 // ── Catalogue guards ───────────────────────────────────────────────

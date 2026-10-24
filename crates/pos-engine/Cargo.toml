@@ -11,10 +11,13 @@ pos-db = { path = "../pos-db" }
 pos-mail = { path = "../pos-mail" }
 # The nightly export after each real Z (phase X1).
 pos-export = { path = "../pos-export" }
+# The card payment terminal linked to the till (commands/eft.rs).
+pos-eft = { path = "../pos-eft" }
 pos-hubrise = { path = "../pos-hubrise", optional = true }
 pos-catalog = { path = "../pos-catalog", optional = true }
 pos-hubrise-types = { path = "../pos-hubrise-types", optional = true }
-pos-peppol = { path = "../pos-peppol", optional = true }
+# Event I invoices and the Peppol delivery queue (commands/invoice.rs).
+pos-peppol = { path = "../pos-peppol" }
 # The HubRise login link as a QR code (Settings), as for tickets.
 qrcode = { version = "0.14", optional = true }
 serde = { workspace = true }
@@ -29,6 +32,11 @@ tokio-util = { workspace = true }
 bcrypt = "0.19"
 uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
+# The badge key and the keyed hash of a badge number (badge_key.rs).
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+getrandom = "0.3"
 
 [dev-dependencies]
 # The integration tests (tests/) share this harness. The cycle with the
@@ -36,6 +44,9 @@ tracing = "0.1"
 # only, no pos-engine unit test uses the testkit.
 pos-engine-testkit = { path = "../pos-engine-testkit" }
 tempfile = "3"
+# Captures the log output: no raw badge number (tests/badges.rs) and no
+# owner alert bot token (tests/owner_alerts.rs) in the logs.
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
 wiremock = "0.6"
 # The admission image's mock FDM, served in-process by tests/admission_mock.rs.
 pos-fdm-mock = { path = "../pos-fdm-mock" }
@@ -45,12 +56,15 @@ pos-printer-mock = { path = "../pos-printer-mock" }
 pos-hubrise-mock = { path = "../pos-hubrise-mock" }
 # The export receiver, served in-process by tests/export_nightly.rs.
 pos-export-mock = { path = "../pos-export-mock" }
+# The payment terminals (Worldline, CCV cloud, OPI), served in-process by
+# tests/eft_drivers.rs.
+pos-eft-mock = { path = "../pos-eft-mock" }
 axum = "0.8"
 base64 = "0.23"
 
 [features]
 # Same feature set as the pili-pos shell, which forwards its own to these.
-default = ["hubrise", "peppol"]
+default = ["hubrise"]
 # The HubRise integration (online orders signed by the FDM, the menu
 # mirrored from the catalog): outbox, the engine commands.
 hubrise = [
@@ -60,8 +74,10 @@ hubrise = [
     "dep:qrcode",
     "pos-db/hubrise",
 ]
-# Peppol BIS Billing 3.0 B2B e-invoicing: the UBL serializer, the
-# AccessPoint trait and the invoice (I event) commands.
-peppol = ["dep:pos-peppol", "hubrise"]
-# The certification build: HubRise in, invoicing (peppol) out.
+# The certification build: HubRise in. Invoicing (event I) and the Peppol
+# queue are compiled in every build (V11-D1), no feature.
 cert = ["hubrise"]
+# `AppState::eft_terminal_override`: a terminal answering from a script,
+# for the engine's tests. Only the test harness turns it on; no shipped
+# build has the field or the scripted terminal.
+eft-scripted = ["pos-eft/scripted"]

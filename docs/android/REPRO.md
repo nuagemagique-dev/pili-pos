@@ -1,8 +1,14 @@
 # Reproducible APK check (P3-T8)
 
-Status: done on the local Apple M1 host. Two clean offline builds of the unsigned `:smoke` release
-APK, in fresh `--network none` containers of the pinned image, give byte-identical APKs. The run on a
-native x86_64 Linux host is still to be done by the user (see "Limits").
+Status: done on the local Apple M1 host. Two clean offline builds of the unsigned release
+APK, in fresh `--network none` containers of the pinned image, give byte-identical APKs. Since
+P6-T10 the container builds `:app:assembleRelease` (`app-release-unsigned.apk`); the `:smoke`
+wording below is the history of the first version of this check. The Android freeze
+(`ANDROID_FREEZE.md`) uses `scripts/android/check_repro.sh --commit <tag commit>`. The rc3 freeze run
+(2026-10-18, commit `8c53acc3`, cold image, `REPRO | total | PASS`) is recorded there. The run on a
+native x86_64 Linux host was done on 2026-10-23 (`android.yml` job `repro` on a GitHub-hosted
+runner, frozen inputs unchanged): same unsigned APK SHA-1 `34566c79c177c894c9f0616b1a00043516650f9c`
+in both builds; values in `ANDROID_FREEZE.md`, "Native x86_64 run".
 
 Decisions behind this document: DECISIONS 11.13 and PD83 (plan P3.4), spike S5
 (`docs/android/spikes/S5.md`). The tool is `scripts/android/check_repro.sh`; the gate runs it as
@@ -10,7 +16,7 @@ Decisions behind this document: DECISIONS 11.13 and PD83 (plan P3.4), spike S5
 
 ## What is compared, and why
 
-The container builds `smoke-release-unsigned.apk` (`:smoke:assembleRelease`). The check compares the
+The container builds `app-release-unsigned.apk` (`:app:assembleRelease`; the first version of this check built `smoke-release-unsigned.apk`). The check compares the
 two **unsigned** APKs byte for byte (`cmp`), and then shows three more views of the same fact:
 
 | Check | What it proves |
@@ -170,9 +176,10 @@ RESULT | DIFFERENT | 1 entries
 - **The image is local.** `pili-android-build:p3` is built from the Dockerfile on the host and is
   not pushed. A GHCR push, and the image digest of record that goes with each release, need the
   user. Until then the Dockerfile sha256 and the image id above identify the toolchain.
-- **One architecture tested.** Both builds ran on an Apple M1 under Rosetta (linux/amd64). The
-  native x86_64 Linux run is still to be done by the user, with the manual `repro` job of
-  `.github/workflows/android.yml` (not run by any agent).
+- **Two hosts tested.** The builds of this document ran on an Apple M1 under Rosetta
+  (linux/amd64). The rc3 inputs were also built on a native x86_64 Linux host on 2026-10-23 (the
+  manual `repro` job of `.github/workflows/android.yml`, run 40002227571) with the same APK SHA-1
+  and SHA-256 as on the M1 (`ANDROID_FREEZE.md`, "Native x86_64 run").
 - **Trusted sources.** Maven artifacts are trusted through the sha256 values of
   `android/gradle/verification-metadata.xml` (no signature check); crates through the checksums of
   `android/rust/Cargo.lock`, which cargo verifies; the Gradle distribution through the
@@ -224,4 +231,4 @@ The SHA-1 above is the one of the unsigned APK. The **signed APK SHA-1 of record
 here: it is produced later by `scripts/release/declare_android.sh` with the release key
 (DECISIONS 9), which signs a copy of the unsigned APK outside any container. The release key must
 be RSA for that SHA-1 to be repeatable (see "What is compared, and why"). The native x86_64 run
-(`android.yml`, input `repro`) is still to be done by the user.
+(`android.yml`, input `repro`) was done on the rc3 inputs on 2026-10-23 (`ANDROID_FREEZE.md`).

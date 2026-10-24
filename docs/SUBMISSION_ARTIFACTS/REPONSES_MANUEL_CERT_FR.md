@@ -30,7 +30,7 @@ Convention :
 
 | Item | Réponse |
 |---|---|
-| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **à l'exclusion de M150 (event I, hors périmètre v1.0.0, cf. §III.F)**. Nombre exact d'UC couverts par les preuves d'annexe : 17 UC dans le périmètre v1.0.0 (14 du Basic Set : M110, M111, M112B, M121, M123, M130, M131, M140, M141, M160, M161, M170, M171, M172 ; 3 de Reports : M180, M182, M184 ; `docs/SUBMISSION_ARTIFACTS/evidence/uc/`, M150 exclu). |
+| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **M150 (event I) compris** et les deux UC de facture de l'Advanced Set (UC4121 et UC4122) et les trois UC de bon cadeau à usage multiple (UC260, UC261 et UC262). Nombre exact d'UC couverts par les preuves d'annexe : 22 UC du Basic Set et de Reports (19 du Basic Set : M110, M111, M112B, M121, M122, M123, M130, M131, M132, M133, M140, M141, M150, M160, M161, M170, M171, M171B, M172 ; 3 de Reports : M180, M182, M184 ; `docs/SUBMISSION_ARTIFACTS/evidence/uc/`), soit 58 paires requête/réponse, auxquelles s'ajoutent les 5 situations d'arrondi, 6 UC de l'Advanced Set (UC223, UC225A, UC229B, UC230, UC4109, UC4119 ; 10 paires), les deux factures UC4121 et UC4122 (10 paires) et les trois UC de bon cadeau UC260, UC261 et UC262 (6 paires). |
 
 ## §I.C Manuels du POS
 
@@ -184,7 +184,7 @@ L'identité bit-à-bit entre la build cert soumise au SPF Finances et la build d
 
 Toute modification du logiciel POS post-certification nécessite une nouvelle demande de certification (mise à jour). Sur la machine de test, le nouveau binaire est remis sur clé USB, puis installé sur place via `deploy/update.sh <binaire> --sha1 <SHA-1 déclaré>`, qui refuse tout binaire dont le SHA-1 diffère de la valeur déclarée. Aucune mise à jour automatique en arrière-plan n'est implémentée : c'est une décision explicite de scellement. *Voir : GARANTIE_MAJ_LANGUES_FR.md* §2.
 
-**Correctifs urgents.** La procédure du SPF Finances (Introduction à la certification, 2026-09-03, §4) prévoit : « Les mises à jour ayant un impact sur le volet SCE ne peuvent être installées chez les clients qu'après avoir été certifiées par nos soins. Les corrections urgentes de bugs ou les solutions à des blocages chez des clients constituent une exception à cette règle, mais doivent tout de même nous être signalées. » pili-pos s'y conforme : un correctif urgent peut être installé chez un client avant la nouvelle certification, à condition d'être signalé au SPF Finances, et il figure dans la demande de mise à jour suivante. Dans la base, les versions de migration 11 à 19 sont réservées à ces correctifs certifiés (`crates/pos-db/src/migrate.rs`) ; l'intégration HubRise commence à la version 20.
+**Correctifs urgents.** La procédure du SPF Finances (Introduction à la certification, 2026-09-03, §4) prévoit : « Les mises à jour ayant un impact sur le volet SCE ne peuvent être installées chez les clients qu'après avoir été certifiées par nos soins. Les corrections urgentes de bugs ou les solutions à des blocages chez des clients constituent une exception à cette règle, mais doivent tout de même nous être signalées. » pili-pos s'y conforme : un correctif urgent peut être installé chez un client avant la nouvelle certification, à condition d'être signalé au SPF Finances, et il figure dans la demande de mise à jour suivante. Dans la base, les versions de migrations 12 à 19 sont réservées à ces correctifs certifiés (`crates/pos-db/src/migrate.rs`) ; l'intégration HubRise commence à la version 20.
 
 **Solution d'accès à distance pour l'agent SPF :**
 
@@ -220,8 +220,8 @@ Cette absence de solution d'accès à distance permanente est délibérée : pou
 | Souris | ☐ | ☐ | Interface tactile uniquement |
 | Clavier | ☐ | ☐ | Idem (clavier virtuel à l'écran si nécessaire) |
 | Scanner de produits (client) | ☐ | ☐ | Non supporté |
-| Lecteur de carte | ☐ | ☐ | Paiement carte via terminal TPE externe (non intégré) |
-| Clés Dallas | ☐ | ☐ | Auth via INSZ + PIN, pas de support clés Dallas |
+| Lecteur de carte | ☐ | ☐ | Pas de lecteur intégré à la caisse. Par défaut, paiement carte sur un terminal TPE autonome, saisi par l'opérateur (`MANUAL`). Réglage facultatif par installation (`payment_terminal`) : un terminal de paiement relié (Worldline Terminal API, CCV Payment API ou OPI, voir *Facturation/paiement* ci-dessous et *MANUEL_INSTALLATION_FR.md* §4.2) auquel la caisse envoie le montant ; la caisse ne lit pas la carte elle-même |
+| Clés Dallas | ☐ | ☐ | Auth via INSZ + PIN, pas de support clés Dallas ; un badge facultatif (NFC ou lecteur USB), qui n'est pas une clé Dallas, peut remplacer le PIN des Serveurs et des Apprentis, jamais celui d'un Gérant (§III.E « Pointage par badge ») |
 | Périphérique supplémentaire | ☐ | ☐ | Aucun |
 | **Périphériques de sortie** | | | |
 | Écran utilisateur (client-facing) | ☐ | ☐ | Pas en MVP |
@@ -238,6 +238,7 @@ Cette absence de solution d'accès à distance permanente est délibérée : pou
 | App de commande avec facturation | ☐ | ☐ | |
 | Processus via site internet | ☐ | ☐ | |
 | Tiroir-caisse connecté | ☑ | ☑ | Tiroir RJ11 raccordé à l'imprimante, ouverture par séquence ESC/POS |
+| Terminal de paiement par carte relié | ☐ | ☑ | Facultatif, par installation (`pos.json::payment_terminal`). La caisse envoie le montant au terminal et enregistre sa réponse (ligne de paiement `AUTOMATIC`). Protocoles publics : Worldline Terminal API (nuage Worldline), CCV Payment API (nuage CCV), OPI (LAN). Terminal Worldline C-TEP (Yomani, Yoximo) non pris en charge. Chaque fournisseur certifie l'intégration avant tout usage réel. *Voir : MANUEL_UTILISATEUR_FR.md* §7.2, *MANUEL_INSTALLATION_FR.md* §4.2, *DOCUMENT_PROCESSUS_TECHNIQUE_FR.md* §6quater |
 | **Autres** | ☐ | ☐ | |
 
 ## §II.G Schéma d'assemblage
@@ -268,9 +269,9 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 
 | Item | Réponse |
 |---|---|
-| Le POS nécessite une connexion Internet | ☐ Non par défaut (le POS communique uniquement avec le FDM sur le LAN local). Toutefois, le FDM lui-même nécessite Internet pour communiquer avec SPF Finances. Deux connexions sortantes HTTPS (443) sont possibles, chacune seulement quand elle est activée : (a) si le ticket numérique par e-mail est configuré (`pos.json::digital_ticket`, §III.H), vers `api.scaleway.com` pour l'envoi des e-mails ; (b) si les commandes en ligne sont activées (`pos.json::hubrise_enabled`, coupé par défaut donc coupé sur la machine de test, §III.M), vers `api.hubrise.com` (commandes reçues, statuts, catalogue, ventes de la caisse sans données de client) et, le temps de l'autorisation du compte HubRise par le Gérant (OAuth), vers `manager.hubrise.com`. Sans ces deux configurations, aucun trafic sortant n'est initié par le POS lui-même au-delà du FDM. |
+| Le POS nécessite une connexion Internet | ☐ Non par défaut (le POS communique uniquement avec le FDM sur le LAN local). Toutefois, le FDM lui-même nécessite Internet pour communiquer avec SPF Finances. Cinq connexions sortantes sont possibles, chacune seulement quand elle est activée : (a) si le ticket numérique par e-mail est configuré (`pos.json::digital_ticket`, §III.H), vers `api.scaleway.com` pour l'envoi des e-mails ; (b) si les commandes en ligne sont activées (`pos.json::hubrise_enabled`, coupé par défaut donc coupé sur la machine de test, §III.M), vers `api.hubrise.com` (commandes reçues, statuts, catalogue, ventes de la caisse sans données de client) et, le temps de l'autorisation du compte HubRise par le Gérant (OAuth), vers `manager.hubrise.com` ; (c) si un terminal de paiement relié est configuré (`pos.json::payment_terminal`, §III.F), en HTTPS (443) vers le nuage du fournisseur (Worldline ou CCV) ou, pour OPI, en TCP vers le terminal sur le LAN du restaurant (aucune sortie Internet) ; (d) si l'envoi des factures sur Peppol est configuré (section `peppol` de `pos.json`, absente par défaut donc absente sur la machine de test), en HTTPS (443) vers le point d'accès Peppol (`peppol.base_url`, `api.storecove.com`), pour un client belge seulement, sans que l'établissement de la facture dépende de la réussite de l'envoi (*FACTURATION_PEPPOL_FR.md*) ; (e) si les alertes du propriétaire sont activées et qu'un jeton de robot est configuré (section `alerts` de `pos.json`, absente par défaut donc absente sur la machine de test), vers `api.telegram.org` pour un court message sans donnée personnelle ni montant, sans que la vente, le ticket ou le Z en dépendent (*ALERTES_PROPRIETAIRE_FR.md*). Sans ces configurations, aucun trafic sortant n'est initié par le POS lui-même au-delà du FDM. |
 | La connexion Internet peut se faire par | ☑ Ethernet (recommandé pour fiabilité) - ☐ Wifi (techniquement possible, déconseillé en production) |
-| Besoins spécifiques pour la mise en place du réseau | IP statique pour le FDM (réservation DHCP recommandée). Aucun port entrant à ouvrir sur le POS. Le POS ouvre une connexion sortante TCP vers l'IP/port GraphQL du FDM, et, seulement si elles sont activées, des connexions sortantes HTTPS (443) vers `api.scaleway.com` (ticket numérique configuré) et vers `api.hubrise.com` (`hubrise_enabled`, plus `manager.hubrise.com` pour l'autorisation OAuth). RustDesk (accès distant du distributeur, §II.E) ouvre lui aussi une connexion sortante, mais uniquement quand un Gérant démarre une session depuis la caisse - jamais au démarrage du terminal. |
+| Besoins spécifiques pour la mise en place du réseau | IP statique pour le FDM (réservation DHCP recommandée). Aucun port entrant à ouvrir sur le POS. Le POS ouvre une connexion sortante TCP vers l'IP/port GraphQL du FDM, et, seulement si elles sont activées, des connexions sortantes HTTPS (443) vers `api.scaleway.com` (ticket numérique configuré), vers `api.hubrise.com` (`hubrise_enabled`, plus `manager.hubrise.com` pour l'autorisation OAuth) et vers `api.telegram.org` (alertes du propriétaire activées, jeton configuré) ; avec un terminal de paiement relié, HTTPS (443) vers le nuage du fournisseur ou TCP vers le terminal sur le LAN (OPI : le canal 1 du terminal se connecte à la caisse sur `device_port`, 4102 par défaut). RustDesk (accès distant du distributeur, §II.E) ouvre lui aussi une connexion sortante, mais uniquement quand un Gérant démarre une session depuis la caisse - jamais au démarrage du terminal. |
 
 ## Configuration du POS - C. Utilisateurs & Mots de Passe
 
@@ -288,6 +289,8 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 | Identité système (robot) | INSZ : `00000000029` | Aucune connexion possible | NISS robot/automate standard SPF, utilisé comme opérateur du rapport Z automatique (FAQ Q501). Elle ouvre aussi la fiche d'une commande en ligne reçue ; les événements de cette commande sont signés au nom de l'employé qui l'accepte. Ce n'est pas un compte de connexion : il n'a pas de tuile et la caisse refuse de l'ouvrir en session. |
 
 Ces comptes sont créés par la base de test de l'image d'admission (`src-tauri/seed_spf_test.sql`) ; le test `access_control.rs::the_admission_seed_logs_in_every_documented_profile` se connecte avec chacun des six comptes de connexion, vérifie son rôle, et vérifie que l'identité système est refusée. Un Gérant doit toujours avoir un PIN. Au tout premier démarrage seulement (aucun Gérant n'a encore de PIN), un Gérant sans PIN choisit le sien à sa première connexion (`commands/auth.rs::do_login_with_new_pin`, `MANUEL_UTILISATEUR_FR.md` §2.1). Ensuite, un nouveau Gérant est créé avec son PIN, confirmé par le PIN du Gérant qui le crée (`commands/auth.rs::do_create_user`) ; un Gérant sans PIN ne peut plus choisir lui-même le sien (code `first_pin_needs_manager`).
+
+**Mode de connexion :** le POS s'ouvre par INSZ + PIN. Pour les Serveurs et les Apprentis, un badge (carte ou porte-clés) peut remplacer le PIN sur l'écran de connexion si le Gérant a activé « Lecteur de badges » et « Connexion par badge » (réglages désactivés par défaut) ; le badge est lié à l'employé par le Gérant avec son PIN (`commands::badges::do_link_badge`, §III.E « Pointage par badge »). Les Gérants se connectent **toujours avec leur PIN** : leur badge ne fait qu'ouvrir leur clavier de PIN. Un employé peut refuser le badge : le PIN et l'enregistrement de sa présence par un Gérant restent disponibles.
 
 ### Gestion des utilisateurs et rôles
 
@@ -338,7 +341,7 @@ Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`
 | S - Social | Obligatoire (☑) | N/A | N/A | N/A |
 | P - Pro Forma | ☑ | ☑ | ☐ (pas câblé sur `sign_table_order`/`sign_pre_bill` en v1.0.0) | ☑ (via M161 signCopy_Order) |
 | T - Mode Training | ☑ | ☑ (avec watermark TRAINING) | ☑ (même commande `checkout::checkout`, mentions TRAINING conservées) | ☑ (via M172 signCopy_Training) |
-| I - Invoice | ☐ non disponible en v1.0.0 (mise à jour certifiée prévue v1.1) | ☐ | ☐ | ☐ |
+| I - Invoice | ☑ (M150, UC4121, UC4122 ; `invoice::do_sign_invoice_fiscal`) | ☑ (facture papier, sans signature numérique ni QR, AM art. 43) | ☑ (document UBL envoyé sur Peppol : client belge, installation avec section `peppol`) | ☑ (événement C sur l'événement I, gérant) |
 | C - Copy | ☑ (M160/M161/M172) | ☑ | ☑ (e-mail, `copy::copy_ticket` - sans lien/QR, le FDM ne renvoie pas de `verificationUrl` pour C) | Interdit (par la spec) |
 | F - Financial | ☑ (M130 money_in_out, M131 drawer_open) | ☐ (events F sont non-imprimés en standard) | ☐ | ☐ |
 
@@ -434,22 +437,47 @@ consolidées.
 
 **Description de l'implémentation :**
 
-L'enregistrement du temps de présence est implémenté via l'event **S** (Work In / Work Out) du SCE 2.0. À la connexion d'un opérateur sur le POS, après saisie INSZ + PIN, le moteur met le pointage d'entrée en file (`commands::auth::do_login`) et un processus de présence du moteur (`crates/pos-engine/src/background.rs`) appelle `commands::social::do_work_in`, sans que la connexion attende le FDM ; l'interface ne fait qu'afficher l'événement `presence-failed` si l'entrée n'est pas enregistrée. `do_work_in` :
+L'enregistrement du temps de présence est implémenté via l'event **S** (Work In / Work Out) du SCE 2.0. À la connexion d'un opérateur sur le POS, après saisie INSZ + PIN (ou présentation du badge, pour un Serveur ou un Apprenti, voir « Pointage par badge » ci-dessous), le moteur met le pointage d'entrée en file (`commands::auth::do_login`) et un processus de présence du moteur (`crates/pos-engine/src/background.rs`) appelle `commands::social::do_work_in`, sans que la connexion attende le FDM ; l'interface ne fait qu'afficher l'événement `presence-failed` si l'entrée n'est pas enregistrée. `do_work_in` :
 
 1. Construit un `WorkInput` avec `pos_id`, `pos_date_time`, `terminal_id`, `employee_insz`, `device_id`.
 2. Envoie un `signWorkIn` au FDM.
-3. Sur succès, archive l'event S dans `fiscal_events` et bascule `users.social_status='present'`.
+3. Sur succès, archive l'event S dans `fiscal_events` et, dans la même transaction, ouvre la prestation de l'employé dans `staff_shifts` (index local des prestations ouvertes, migration 9), sauf pour un événement d'entraînement : un S étiqueté T n'enregistre aucune présence et ne touche jamais `staff_shifts`. La signature est factorisée dans `commands::social::sign_work_event`, partagée par la connexion, la fin de service et l'enregistrement par le Gérant décrit ci-dessous.
 
 Le même mécanisme côté `work_out`, mais à la fin de service seulement : le bouton « Verrouiller » de l'en-tête appelle `commands::session::do_lock_session` du moteur, qui enregistre la commande en cours puis verrouille la session, et l'employé reste en service (aucun S sortant ; à la reconnexion, aucun second `work_in` n'est émis tant que l'employé est en service). Le départ (`signWorkOut`) est signé depuis l'écran de connexion : l'employé en service touche sa tuile, puis « Fin de service » (avec son PIN s'il en a un) ; le moteur (`commands::social::do_end_shift`) contrôle le PIN, signe le départ au nom de l'employé, puis referme la session ; l'interface (`ui/src/views/LoginView.vue`) ne fait que l'appeler.
 
 **Enregistrement séparé pour les utilisateurs qui n'utilisent pas le POS :**
 
-L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manager de pointer des employés qui ne touchent pas le POS au quotidien (cuisine, salle). Ces pointages génèrent quand même des events S avec l'INSZ de l'employé concerné.
+Le manuel de certification (§II.E) impose que la présence reste enregistrable pour le personnel qui n'utilise pas la caisse (cuisine, plonge). Deux fonctions du moteur le permettent, réservées au rôle Gérant (`Access::Admin`) :
+
+- `commands::social::do_clock_in_employee` signe l'arrivée (`signWorkIn`) d'un autre employé ;
+- `commands::social::do_clock_out_employee` signe son départ (`signWorkOut`).
+
+Dans les deux cas l'événement S est celui de l'employé : le champ `employeeId` de la requête et la colonne `fiscal_events.user_insz` portent l'INSZ de l'employé, comme dans les cas d'usage M140 et M141. Le Gérant qui a fait l'enregistrement est conservé à part, dans `staff_shifts.started_by` (arrivée) et `staff_shifts.ended_by` (départ), pour l'audit ; il n'apparaît pas dans la requête envoyée au FDM. Depuis l'écran « Config » de la caisse, le panneau « Employés » affiche pour chaque autre employé actif « En service depuis HH:MM » ou « Hors service » et un seul bouton, « Arrivée » ou « Départ » (le Gérant n'a pas de bouton sur sa propre ligne : sa présence passe par la connexion et « Fin de service »). L'interface (`ui/src/views/SettingsView.vue`) ne fait qu'appeler ces deux commandes, puis relire la liste des employés et des prestations ouvertes.
+
+Règles du moteur, dans cet ordre, sans rien signer ni faire avancer de compteur en cas de refus : appelant qui n'est pas Gérant (`forbidden`) ; mode formation actif (`presence_training`) ; utilisateur système (`system_user`) ; employé inconnu ou désactivé (`user_unknown`) ; le Gérant lui-même (`presence_self`) ; arrivée alors que l'employé est déjà en service (`presence_already_in`) ; départ alors qu'il ne l'est pas (`presence_not_in`). Le mode formation est refusé parce qu'un événement T n'enregistre aucune présence : enregistrer celle d'un autre employé en formation serait trompeur. Si le FDM est injoignable ou refuse, la commande répond « échec » avec le texte du FDM, rien n'est archivé et `staff_shifts` ne change pas ; l'interface désactive en outre les deux boutons avec la mention « FDM indisponible : pointage impossible » tant que le FDM n'est pas connecté. La désactivation d'un employé en service est refusée (`deactivate_on_shift`) : le Gérant enregistre d'abord son départ.
+
+Les employés qui ne se servent jamais de la caisse sont créés avec le profil « Présence seule » (`users.presence_only = 1`, rôle `waiter` en base, aucun droit). Un tel employé n'a pas de PIN, n'apparaît pas sur les tuiles de l'écran de connexion et ne peut ni se connecter, ni choisir un PIN, ni terminer son service lui-même (erreur `presence_only_user`) : seul le Gérant enregistre son arrivée et son départ, ou son propre badge s'il en a reçu un (« Pointage par badge » ci-dessous). Ses événements S figurent dans les rapports par utilisateur comme ceux de tout employé.
+
+**Pointage par badge (lecteur de badges) :**
+
+Le manuel de certification (§II.E) et la description du POS (v2.2 §1.9) acceptent « n'importe quelle routine d'inscription » à condition que la caisse crée les données correctes pour l'event S ; ils ne prescrivent pas comment l'utilisateur s'identifie auprès du POS (v2.2 §6.4 : le POS relie son identification interne au NISS, qui n'est jamais imprimé). pili-pos propose donc en option un badge (carte ou porte-clés) comme identification interne : le Gérant lie un badge à un employé de la table `users`, lequel porte déjà le NISS. Le badge ne remplace jamais le NISS : l'event S reste signé par le FDM avec le NISS de l'employé. Le réglage « Lecteur de badges » est désactivé par défaut ; désactivé, aucune lecture n'a lieu et toute commande de badge est refusée (`badge_reader_off`). Le terminal n'a pas de lecteur NFC : le lecteur est un lecteur USB qui se comporte comme un clavier (il tape le numéro du badge puis Entrée), sans pilote.
+
+- **Passage d'un badge :** `commands::badges::do_badge_tap` normalise le numéro lu, le transforme en empreinte (HMAC-SHA256 avec une clé propre au terminal, voir ci-dessous), retrouve l'employé lié et décide, dans cet ordre : badge inconnu (`badge_unknown`) ou retiré (`badge_revoked`), refus journalisés ; session ouverte (n'importe quel écran) : bascule de présence de l'employé du badge, **sans déconnecter l'opérateur** (le badge de l'opérateur lui-même est refusé, `presence_self` : sa présence passe par la connexion et « Fin de service ») ; écran de connexion en mode « Fin de service » : départ seul, sans ouvrir de session ; écran de connexion avec la connexion par badge activée : ouverture de session comme une connexion par PIN, pour un Serveur ou un Apprenti seulement ; sinon bascule de présence (personnel « Présence seule », ou connexion par badge désactivée).
+- **Event S :** la bascule appelle `commands::social::sign_work_event` avec l'employé du badge : `signWorkIn` s'il n'est pas en service, `signWorkOut` s'il l'est (index local `staff_shifts`). La requête est celle des cas d'usage M140 et M141 pour cet employé : `employeeId` et `fiscal_events.user_insz` portent son INSZ, `staff_shifts.started_by` et `ended_by` restent vides (enregistrement par l'employé lui-même). Le badge n'apparaît que dans le journal `badge_scans`, jamais dans l'event.
+- **FDM indisponible :** le passage signe ; si le FDM est injoignable ou refuse, le résultat est « échec de présence » avec le texte du FDM, rien n'est archivé, `staff_shifts` ne change pas, et l'interface affiche ce texte. Aucune mise en tampon : un event S n'est jamais signé en différé. La connexion par badge fonctionne sans FDM, exactement comme la connexion par PIN (le processus de présence signale l'échec par l'événement `presence-failed`).
+- **Mode formation :** la bascule de présence est refusée (`presence_training`), pour la même raison que l'enregistrement par le Gérant : un event T n'enregistre aucune présence. La connexion par badge reste possible (le processus de présence envoie alors un `signWorkIn` d'entraînement, qui n'ouvre aucune prestation), de même que le lien et le retrait d'un badge (aucun event fiscal).
+- **Double passage :** le moteur ignore un second passage du même badge tant que le premier est en cours de traitement et pendant 10 secondes après sa fin, quel qu'en soit le résultat (refus compris). Un badge oublié sur le lecteur ou un double geste ne peut donc ni pointer l'arrivée puis le départ, ni remplir le journal.
+- **Les droits de Gérant exigent toujours le PIN :** le badge d'un Gérant sur l'écran de connexion se borne à sélectionner ce Gérant et à ouvrir son clavier de PIN (`pin_required`) ; la session est ouverte par la connexion habituelle (INSZ + PIN, avec son verrouillage). Aucune action réservée au Gérant n'est accessible par un badge seul.
+- **Lier, retirer :** `commands::badges::do_link_badge` (Gérant, avec son propre PIN, puisqu'un badge est un moyen de connexion) et `commands::badges::do_revoke_badge` (Gérant, sans PIN : retirer ne fait que supprimer un accès). Un employé a au plus un badge actif et un badge actif n'appartient qu'à un employé ; la désactivation d'un employé retire son badge dans la même transaction. Chaque lien, retrait et changement de réglage est journalisé (`badge_log`, qui, quand).
+- **Données :** seule une empreinte HMAC-SHA256 du numéro du badge est conservée, avec une clé de 32 octets tirée au hasard et stockée dans un fichier (`badge.key`) hors de `pos.db` : elle n'est donc ni dans les sauvegardes ni dans l'export nocturne, et elle ne quitte jamais le terminal. Le numéro lui-même n'est écrit nulle part (ni base, ni journaux, ni event). Voir *SECURITE_BD_FR.md* et *PROFIL_ENTREPRISE_FR.md* §6 pour le RGPD.
+
+Aucune nouvelle catégorie d'event n'est créée : le badge n'est qu'un déclencheur supplémentaire, équivalent aux boutons « Arrivée » et « Départ » de l'enregistrement par le Gérant et à la connexion par PIN.
+
 
 | Item | Réponse |
 |---|---|
-| ☑ Description de l'utilisation | *Voir : MANUEL_UTILISATEUR_FR.md* §3 "Pointage d'arrivée et de départ" |
-| ☑ L'enregistrement du temps de présence est lié aux boutons "Work In / Work Out" | Oui |
+| ☑ Description de l'utilisation | *Voir : MANUEL_UTILISATEUR_FR.md* §3 "Pointage d'arrivée et de départ", §12.3 "Employés" et §12.10 "Lecteur de badges" |
+| ☑ L'enregistrement du temps de présence est lié aux boutons "Work In / Work Out" | Oui (le passage d'un badge est un déclencheur équivalent, voir ci-dessus) |
 
 ## §III.F Fonctionnalités avancées
 
@@ -464,69 +492,71 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Commande en attente | ☑ | - | OK (gestion d'ordre ouvert sur table) |
 | Prebill Pro Forma | ☑ | M123 | OK |
 | Tous les events P sont imprimables | ☑ Format papier | - | OK |
-| Gestion des cost centers (attribution / division / fusion) | ☐ | M122 / UC240-243 / UC250-252 | Hors périmètre MVP (Advanced Set). Fixtures parsent mais UI non implémentée. |
-| Attribution | ☐ | - | Idem |
+| Gestion des cost centers (attribution / division / fusion) | ☑ attribution seule | M122 | Le transfert d'une commande ouverte vers une table libre est signé (`signCostCenterChange`, event P, test `m122_cost_center_change`). Division et fusion : hors périmètre (Advanced Set). |
+| Attribution | ☑ | M122 | OK : « Changer de table » (commande) et « Déplacer une table » (écran des tables) ; la commande garde sa référence ; une table déjà occupée est refusée (pas de fusion) |
 | Division | ☐ | UC240/241/243 | Idem |
 | Fusion | ☐ | UC250/251/252 | Idem |
 | Gestion d'addition (division table / addition / parts égales) | ☐ | - | Idem (Advanced Set) |
 | Division de table | ☐ | - | Idem |
 | Division d'addition (parts égales) | ☐ | - | Idem |
 | Division d'addition (montants égaux) | ☐ | - | Idem |
-| Invoice (I) | ☐ | M150 | Non disponible en v1.0.0. Le code (`crates/pos-peppol`) existe mais le feature flag `peppol` n'est pas activé dans la build cert (`cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` : HubRise est dans le binaire, seul `peppol` en est absent, voir `src-tauri/Cargo.toml`). Mise à jour certifiée prévue v1.1 *Voir : DECISION_PEPPOL_AP_FR.md* |
-| Note de crédit | ☐ | - | Reporté avec Peppol / event I (cf. *FLUX_REMBOURSEMENT_FR.md* §3) |
+| Invoice (I) | ☑ | M150 | Disponible dans tous les binaires (aucune fonction Cargo) : facture à un client professionnel à partir de ventes déjà encaissées, numérotation continue, impression, copie, journal (art. 33), envoi Peppol. *Voir : FACTURATION_PEPPOL_FR.md* et *DECISION_PEPPOL_AP_FR.md* |
+| Note de crédit | ☑ | UC4122 | Pas de note de crédit autonome : un remboursement (N négatif) se reprend sur une facture ; *voir FLUX_REMBOURSEMENT_FR.md* §3 |
 | Copy (C) | ☑ | M160 | OK |
 | Training (T) | ☑ | M171 | OK |
 | Gestion des cash flows | ☑ | M130 | OK |
 | Gestion du tiroir-caisse | ☑ | M131 | OK |
 | **Moyens de paiement** | | | |
 | Cash | ☑ | - | OK (arrondi belge implémenté) |
-| Carte de débit | ☑ | - | OK |
-| Carte de crédit | ☑ | - | OK (même flux que débit) |
+| Carte de débit | ☑ | - | OK. Sans terminal de paiement relié : saisie par l'opérateur, `inputMethod` `MANUAL`, `CARD_DEBIT` (id "2"). Avec un terminal relié : `AUTOMATIC`, type fourni par le terminal |
+| Carte de crédit | ☑ | - | OK (même flux que débit). Sans terminal relié, l'opérateur ne distingue pas débit et crédit : toujours `CARD_DEBIT`. Avec un terminal relié, le terminal renvoie lui-même le type (POS spec v2.2, `paymentLine.inputMethod`) : `CARD_CREDIT` (id "6", "Credit card") ou `CARD_UNKNOWN` (id "7", "Card (type unknown)") ont leur propre ligne, pour que les rapports ne mélangent pas deux types dans un même décompte. La marque de la carte est dans `provider`, l'identifiant de transaction du terminal dans `reference` |
 | Crédit client | ☐ | - | Pas de système clients (B2C) |
 | Facturation à l'hôtel | ☐ | - | Non supporté (POS destiné à la restauration) |
-| Chèque repas | ☑ | ROUND4, ROUND5 | Chèques-repas électroniques (`CHEQUE_MEAL`, id "3"), montant exact jamais arrondi, sans rendu, tiroir fermé |
+| Chèque repas | ☑ | ROUND4, ROUND5 | Chèques-repas électroniques (`CHEQUE_MEAL`, id "3"), montant exact jamais arrondi, sans rendu, tiroir fermé. Avec un terminal relié, une carte de chèques-repas (Edenred, Pluxee, Monizze, Payflip), reconnue à la marque que rend le terminal, est payée avec « Carte » et signée `CHEQUE_MEAL` (id "3", "Meal voucher", `AUTOMATIC`, marque dans `provider`) : même identité que la saisie manuelle, donc une seule rangée dans les rapports |
+| Bon cadeau (à usage multiple) | ☑ | UC261, UC262 | Ligne `VOUCHER_STORE` (identité « 8 », nom « Gift voucher »), saisie `MANUAL` (code saisi à la main), montant exact jamais arrondi, sans rendu ni tiroir, plusieurs bons possibles sur une vente. Enregistré avec la méthode `other` dans la table des paiements. *Voir : BONS_CADEAUX_FR.md* |
 | Paiement en plusieurs moyens (un ticket) | ☑ | UC4119, ROUND4, ROUND5 | Carte et chèques-repas pour un montant exact, espèces pour le reste (seul le reste en espèces est arrondi, ligne ROUNDING à part). Une ligne PAYMENT par moyen (`crates/pos-fiscal/src/payment.rs`) |
 | Vente sans paiement (client parti sans payer) | ☑ | UC4109 | Gérant + PIN : N signé avec `financials: []`, ticket TVA "Non paye", ni tiroir ni paiement, jamais remboursable (`crates/pos-engine/src/commands/unpaid.rs`). La description POS v2.2 ne prévoit des `financials` vides que pour un montant nul ; pili-pos suit le cas d'utilisation officiel UC4109_2 (58 EUR, `financials: []`) |
-| Changement de paiement (M132) | ☐ | M132 | Reporté (cf. *FLUX_REMBOURSEMENT_FR.md* §2) |
-| Vouchers à but multiple | ☐ | UC260/261 | Hors MVP |
-| Vouchers à but unique | ☐ | UC270/271 | Hors MVP |
+| Changement de paiement (M132) | ☑ | M132 | Gérant + PIN : le moyen d'une ligne de paiement saisie à la main, sur une vente de la journée en cours, est changé par un événement F `signPaymentCorrection` (`fdmRef` de la vente, ligne retirée en négatif, même montant sous le nouveau moyen), test `m132_payment_correction`. Une seule correction par vente. Refusées : vente remboursée, non payée, en ligne, d'une journée déjà clôturée, carte prise sur le terminal lié, arrondi en espèces. Aucun ticket, tiroir non ouvert ; les rapports X et Z comptent la correction (cf. *FLUX_REMBOURSEMENT_FR.md* §2) |
+| Vouchers à but multiple | ☑ | UC260, UC261, UC262 | Bons cadeaux : vente d'un bon (ligne de T.V.A. X, département `GV`), utilisation par une ligne `VOUCHER_STORE` (identité « 8 », nom « Gift voucher », saisie `MANUAL`, montant exact jamais arrondi, solde conservé sur le bon, sans rendu), expiration, code à 12 chiffres. Fonction éteinte par défaut, réglée par un Gérant. Cas officiels rejoués et conformes, écarts expliqués : `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs`. *Voir : BONS_CADEAUX_FR.md*, *RESULTATS_TESTS_UC_FR.md* |
+| Vouchers à but unique | ☐ | UC270/271 | Non offert en v1.0.0 : l'utilisation d'un bon à usage unique reprend le découpage de T.V.A. d'un produit composé, et les produits composés ne sont pas pris en charge. *Voir : BONS_CADEAUX_FR.md* §8 |
+| Bon converti en espèces | ☐ | UC4105 | Non offert en v1.0.0 : un bon cadeau n'est jamais échangé contre de l'argent |
+| Remboursement d'une vente payée avec un bon | ☑ | - | Le remboursement se fait en espèces (choix de l'établissement), avec la confirmation du Gérant, car la caisse ne rembourse qu'en espèces ; le bon n'est pas recrédité. *Voir : BONS_CADEAUX_FR.md* §5 |
 | Devise étrangère | ☐ | UC296 | Déclaré : EUR uniquement |
 | Arrondissement des paiements cash | ☑ | Roundings | Obligatoire pour le cash, implémenté (arrondi belge à 5 centimes) |
-| Arrondissement carte EFT | ☐ | Roundings | Optionnel - pas d'arrondi sur paiements EFT |
+| Arrondissement carte EFT | ☐ | Roundings | Optionnel (manuel : « à décider une fois pour toute à l'installation ») : décidé, pas d'arrondi des paiements par carte EFT, pour toutes les installations. Seul le reste payé en espèces est arrondi |
 | Gestion des livraisons | ☑ | - | Commandes en ligne uniquement (plateformes de livraison et webshop, par HubRise, activé par installation) : livraison ou enlèvement, signées par le FDM (N, ou P puis N à la remise). Aucune livraison n'est saisie à la caisse. *Voir : COMMANDES_EN_LIGNE_FR.md* |
-| Réductions | ☑ | UC223 | Uniquement les remises des commandes en ligne (code promo, réduction du webshop ou de la plateforme) : `priceChanges` de portée `EVENT`, type `PUBLIC`, réparties sur les lignes de produits (`crates/pos-engine/src/commands/price_changes.rs`, `crates/pos-fiscal/src/price_change.rs`, migration 23, test `crates/pos-engine/tests/hubrise_discounts.rs`). Aucune remise n'est saisie à la caisse : les modificateurs +/- sur prix oui, les réductions globales non. *Voir : COMMANDES_EN_LIGNE_FR.md* §5 |
+| Réductions | ☑ | UC223 | Remises des commandes en ligne (code promo, réduction du webshop ou de la plateforme) et remise saisie à la caisse par un Gérant avec son code PIN : pourcentage, montant ou « Offert » sur toute la commande ou sur une ligne. Ce sont des `priceChanges` (`crates/pos-engine/src/commands/price_changes.rs`, `crates/pos-fiscal/src/price_change.rs`, migration 30, tests `crates/pos-engine/tests/hubrise_discounts.rs` et `crates/pos-engine/tests/till_discounts.rs`). Le motif reste dans la table locale `till_discounts` (append-only), jamais dans la transaction signée. *Voir : MANUEL_UTILISATEUR_FR.md* §5.3 |
 | Produits composés | ☐ | UC280 | Fixtures parsent, UI non implémentée (Advanced Set) |
-| Modification de prix ligne | ☐ | UC220 | Pas de modification de prix de portée ligne (ni à la caisse ni dans les commandes en ligne) |
-| Modification de prix event | ☑ | UC223 | Commandes en ligne uniquement (cf. « Réductions ») : remise de portée `EVENT` répartie sur les lignes. La transaction construite par pili-pos est comparée à la fixture officielle UC223 (test `crates/pos-fiscal/tests/price_change_uc.rs`). Pas de modification de prix d'événement à la caisse |
+| Modification de prix ligne | ☑ | UC229B | À la caisse, seulement « Offert » sur une ligne entière (portée `LINE`, ligne à 0,00, identifiant `TILL-FREE-LINE`) ; pas de remise partielle sur une ligne. Test `crates/pos-engine/tests/till_discounts.rs` |
+| Modification de prix event | ☑ | UC223 | Remise de portée `EVENT` répartie sur les lignes, pour les commandes en ligne et pour la remise saisie à la caisse (identifiant `TILL-DISCOUNT`, Gérant + code PIN). La transaction construite par pili-pos est comparée à la fixture officielle UC223 (test `crates/pos-fiscal/tests/price_change_uc.rs`) |
 | Modification de prix multiple | ☐ | UC224 | Plusieurs remises de portée `EVENT` sont possibles sur une commande en ligne (un `groupingId` par remise), mais le scénario UC224 (remise de ligne combinée à une remise de ticket) n'est pas rejoué : pas de fixture UC224 dans les tests |
 | Corrections (modif quantité) | ☑ | UC230 | Correction d'une ligne avant paiement : quantité abaissée ou ligne retirée sur une commande ouverte, journalisée (`order_entries`, `kind` = `correction`) et envoyée avec `negQuantityReason` `CORRECTION` ; fixture UC230 rejouée (test `uc230_a_line_corrected_before_payment`). Après encaissement, la correction est un remboursement (M111/M112B) |
-| Article offert/gratuit (100% réduction) | ☐ | - | Hors MVP |
+| Article offert/gratuit (100% réduction) | ☑ | UC229B | « Offrir » sur une ligne, ou « Offert » sur toute la commande : signé à 0,00 et imprimé (test `crates/pos-engine/tests/till_discounts.rs`) |
 | Happy Hour programmé | ☐ | - | Hors MVP |
 | Gestion des clients | ☐ | - | B2C, pas de base clients |
 | Réduction membre | ☐ | - | Idem |
 | Mensualités | ☐ | - | Idem |
 | Prix libre / "prix du jour" | ☑ | - | Implémenté : colonne `menu_items.open_price` ; le produit `22010` (« Dish of the day » dans le manuel et le seed, affiché « Plat du jour » en français) du seed de certification est marqué `open_price = 1`, le prix est saisi par l'opérateur à l'ajout au lieu du prix catalogue. |
 | Prix au poids | ☐ | - | Pas de balance |
-| Ticket de service (bar / cuisine) | ☑ | - | Imprimante cuisine dédiée, ticket non-fiscal sans prix |
+| Ticket de service (bar / cuisine) | ☑ | - | Imprimante cuisine dédiée, ticket non-fiscal sans prix. La note de cuisine d'une ligne (60 caractères) s'imprime sous l'article et, si elle change après l'envoi, sur un bon « MODIFICATION » sans quantité ni prix ; elle reste locale (`order_lines.kitchen_note`) et n'entre dans aucun message FDM ni ticket TVA (FAQ producteurs Q210 b). Test `crates/pos-engine/tests/kitchen_notes.rs`. Service en plusieurs temps (facultatif, éteint par défaut) : entrées, plats et desserts envoyés à la demande, sans aucune donnée de temps dans un message signé ni sur un ticket de T.V.A. (*SERVICES_CUISINE_FR.md*), test `crates/pos-engine/tests/courses.rs` |
 | Autres | ☐ | - | - |
 
 ### Remarque importante - facturation B2B Peppol
 
-À partir du 01.01.2026, toutes les factures B2B doivent être émises via le réseau Peppol (BIS Billing 3.0). Cette obligation est **hors périmètre de la build cert v1.0.0** de `pili-pos` :
+À partir du 01.01.2026, toutes les factures B2B doivent être émises via le réseau Peppol (BIS Billing 3.0). Comment `pili-pos` s'y conforme (API du POS vers un point d'accès Peppol) :
 
-- **Sérialiseur UBL** et trait `AccessPoint` existent dans le workspace (crate `pos-peppol`, deux implémentations : `LoggingAccessPoint` no-op et `StorecoveAccessPoint` squelette de production) et sont couverts par des tests unitaires, mais ce code n'est **pas compilé dans la build cert** : `cargo build --release --no-default-features --features cert` n'active pas `peppol`, mais active `hubrise` (`src-tauri/Cargo.toml` : `cert = ["custom-protocol", "hubrise", "pos-engine/cert"]`). L'événement fiscal **I (Invoice)** n'est donc pas disponible en v1.0.0.
-- **Table d'audit** `peppol_deliveries` existe dans le schéma pour une activation future, mais n'est alimentée par aucun flux en v1.0.0.
-- **Mise à jour certifiée prévue v1.1** : câblage de l'Access Point (Storecove pressenti - voir *DECISION_PEPPOL_AP_FR.md*) et activation du feature flag `peppol`, suivis d'une nouvelle demande de certification (procédure §II.E).
-
-**En attendant v1.1**, les factures B2B du restaurant (cas exceptionnels - client entreprise, établissement voisin) sont émises **en dehors de `pili-pos`**, via l'outil de comptabilité/facturation du restaurant. `pili-pos` reste la seule source pour les events N/P/T/C/F/S/R fiscalisés ; aucune facture B2B n'est émise ni imprimée par le POS en v1.0.0.
+- **Facture** : l'événement fiscal **I** est signé par le module de contrôle à partir de ventes déjà encaissées, puis la facture est imprimée sur papier (*FACTURATION_PEPPOL_FR.md*). La fonction est dans tous les binaires de la version 1.0.0.
+- **Envoi** : pour un client belge et dans une installation qui a une section `peppol`, le **sérialiseur UBL 2.1** (BIS Billing 3.0, `crates/pos-peppol`) produit le document, mis en file dans `peppol_deliveries` puis envoyé au **point d'accès** (API Storecove v2, *DECISION_PEPPOL_AP_FR.md*), avec nouvelles tentatives et journal en ajout seul (`peppol_delivery_log`). L'envoi ne bloque jamais la facture une fois la section `peppol` présente : sans réseau, elle est établie et imprimée, l'envoi attend dans la base. Un client étranger reçoit la facture imprimée seulement.
+- **Non-conformité** : le manuel de certification demande de désactiver l'émission de factures quand elle ne serait pas conforme. Depuis le 01.01.2026, une facture B2B à un client assujetti belge doit passer par Peppol : le moteur **refuse donc de signer** une facture pour un client dont le numéro de TVA commence par `BE` quand l'installation n'a pas de section `peppol` utilisable (code `invoice_peppol_required`, message affiché à l'écran en français, anglais et chinois). Le refus a lieu avant toute signature : aucun événement I, aucun numéro de facture consommé, la vente reste facturable. Un client dont le numéro de TVA n'est pas belge reçoit la facture imprimée seulement, comme avant. La section `peppol` reste donc une condition pour facturer un client professionnel belge (*MANUEL_INSTALLATION_FR.md*).
+- **Réserve** : le point d'accès n'a été exercé que contre un simulateur local ; l'essai sur le bac à sable du fournisseur reste à faire par l'exploitant avant la mise en service (*DECISION_PEPPOL_AP_FR.md*).
 
 ## §III.G CostCenterChange (Gestion de Table)
 
 | Item | Réponse |
 |---|---|
 | Le POS permet le changement de cost center vers ROOM (chambre) | ☐ Non (POS destiné à la restauration, pas d'hôtellerie) |
-| Le POS permet de recalculer le changement de prix en cas de changement de cost center | ☐ Non (changement de cost center pas implémenté en MVP) |
-| Les liens dans la base de données sont décrits | N/A (fonctionnalité non implémentée) |
+| Le POS permet de recalculer le changement de prix en cas de changement de cost center | ☐ Non (les prix sont conservés tels quels ; une remise portée par une ligne suit sa ligne) |
+| Les liens dans la base de données sont décrits | ☑ La commande garde son identifiant et sa référence ; seul le numéro de table de la commande change, dans la transaction qui archive l'événement signé |
 
 ## §III.H Emission des tickets numériques
 
@@ -614,10 +644,11 @@ l'implémentation, la table exigence → code → test, et
 | Rapports Z : Un seul rapport par BookingDate | ☑ Oui (la clôture Z incrémente `bookingDate` ; deux Z dans la même journée fiscale sont refusés au niveau applicatif) |
 | Rapports Financier Z et Utilisateurs Z : sont-ils liés et émis ensemble ? | ☑ Oui (M184 - mutation GraphQL aliasant `signReportTurnoverZ` + `signReportUserZ` dans une seule opération atomique - cf. *COUVERTURE_RAPPORTS_FR.md* §M184) |
 | Rapports Financier Z et Utilisateurs Z : sont-ils émis automatiquement ? | ☑ Oui, en filet de sécurité. Le Z normal est celui du Gérant (« Fin de journée », après recompte de caisse). Si une journée reste ouverte sans Z, la caisse la clôture seule (`commands/report.rs::close_overdue_day`, au démarrage puis chaque minute, une fois la journée passée selon `day_end_hour`) avec le même Z combiné, signé au nom de l'identité système `00000000029` (FAQ Q501c, test `crates/pos-engine/tests/spf_e2e_auto_z.rs`). Tant que ce Z n'est pas fait, aucun nouvel événement n'entre dans l'ancienne journée. Pas de Z automatique en mode formation ni pour une journée sans événement ; si le FDM est injoignable, le Z est retenté à la minute suivante. |
-| Le POS dispose-t-il d'autres rapports que les rapports obligatoires X et Z ? | ☐ Non. Seuls X (turnover + user) et Z (turnover + user) sont implémentés. |
+| Le POS dispose-t-il d'autres rapports que les rapports obligatoires X et Z ? | ☑ Oui, un seul : le **rapport de ventes**, document de gestion **non fiscal** (par produit, par heure, avec concordance avec les rapports Z). Il ne signe rien, n'ajoute aucun événement et ne touche à aucun compteur. |
+| Description du rapport, correspondance avec les montants fiscaux, requêtes utilisées | *Voir : RAPPORTS_VENTES_FR.md* §1 (description), §2 (correspondance avec les rapports Z : total des ventes = chiffre d'affaires N du Z) et §3 (requêtes) |
 | Calcul des totaux (turnover, users, posDevices, fdmDevices) | Calculés par `crates/pos-fiscal/src/report_totals.rs` **exclusivement à partir des événements fiscaux archivés et signés** de la période d'ouverture en cours (`booking_periods`, cf. §III.J), jamais des tables `orders`/`order_lines`/`payments` mutables - conforme POS v2.2 §2.2.2. Détail : `departments`, `payments` et `negQuantities` sont calculés à partir des événements N uniquement ; `vats` est la somme du `vatCalc` renvoyé par le FDM pour chaque N (repli sur les taux standard A/B/C si absent) ; `users[].totalAmount` est la somme des `transactionTotal` des N de l'employé, et la plage d'activité (`first`/`lastPosDateTime`) couvre tous ses événements **sauf** les rapports R eux-mêmes. Chaque moyen de paiement a son propre `financials.id` (spec §2.2.2) - `"1"` espèces, `"2"` carte - pour que les rapports les distinguent. Tous les montants sont additionnés en centimes (pas de flottants) pour éviter la perte de centime observée avant ce correctif (3,04 € devenait 3,03 €). |
 | Rapport Z en mode formation | ☐ Un Z de formation **ne consomme pas de numéro de Z** et **ne clôture pas** la période d'ouverture (`booking_periods` reste ouverte) - cohérent avec le principe que les événements T ne comptent jamais fiscalement. |
-| Rejeu du scénario officiel Reports v1.3 | Les 8 tickets `T1`-`T8` du scénario SPF (`docs/20260821_UC_Reports_1.3/`) sont rejoués deux fois par les tests : purement via `report_totals` (`crates/pos-fiscal/tests/report_totals_fixtures.rs`) et de bout en bout via les commandes réelles (`crates/pos-engine/tests/spf_e2e_report_fixtures.rs`). Les deux correspondent aux rapports publiés M180-M184, avec un écart assumé et documenté dans le test : le rapport publié compte 3 tickets P pour 198 € (T1 exclu), alors que le scénario enregistre 4 événements P (commandes T1/T5/T6 + pré-addition T7) pour 250 € ; la spec définit `ticketCount` comme le nombre d'événements du label sur la `bookingDate` (§2.2.2 turnover), donc pili-pos rapporte 4 et 250 € - conforme à la spec, différent du chiffre publié dans la fixture. Les paiements carte sont toujours `CARD_DEBIT` (l'opérateur ne distingue pas débit/crédit à l'encaissement). |
+| Rejeu du scénario officiel Reports v1.3 | Les 8 tickets `T1`-`T8` du scénario SPF (`docs/20260821_UC_Reports_1.3/`) sont rejoués deux fois par les tests : purement via `report_totals` (`crates/pos-fiscal/tests/report_totals_fixtures.rs`) et de bout en bout via les commandes réelles (`crates/pos-engine/tests/spf_e2e_report_fixtures.rs`). Les deux correspondent aux rapports publiés M180-M184, avec un écart assumé et documenté dans le test : le rapport publié compte 3 tickets P pour 198 € (T1 exclu), alors que le scénario enregistre 4 événements P (commandes T1/T5/T6 + pré-addition T7) pour 250 € ; la spec définit `ticketCount` comme le nombre d'événements du label sur la `bookingDate` (§2.2.2 turnover), donc pili-pos rapporte 4 et 250 € - conforme à la spec, différent du chiffre publié dans la fixture. Sans terminal de paiement relié, les paiements carte sont toujours `CARD_DEBIT` (l'opérateur ne distingue pas débit/crédit à l'encaissement) ; avec un terminal relié, le terminal rend le type de carte (`CARD_DEBIT`, `CARD_CREDIT` ou `CARD_UNKNOWN`, ids "2", "6" et "7", ou `CHEQUE_MEAL` id "3" pour une carte de chèques-repas), compté à part dans les rapports. |
 
 ## §III.M Intégration des tiers-parties
 
@@ -669,7 +700,7 @@ Le manuel comprend une procédure de test détaillée par mutation (M110, M111, 
 **Statut pili-pos :**
 
 - Les 22 UC du Basic Set v1.8, les 5 UC de Reports v1.3 et les 141 fixtures (59 UC) de l'Advanced Set v1.6 sont chargées et parsées par les tests automatisés (*Voir : COUVERTURE_FIXTURES_FR.md, COUVERTURE_RAPPORTS_FR.md, COUVERTURE_ADVANCED_SET_FR.md*).
-- Dans le Basic Set, 18 des 22 UC ont un test automatisé ; les 4 autres sont exclues et déclarées : M150 (event I), M122 et M132, hors périmètre ; M112A, non applicable (le remboursement partiel est toujours émis en ticket séparé, M112B). Dans Reports, M180 à M184 ont des tests de fixtures (M181 et M183 par le Z combiné M184) et les 8 tickets T1 à T8 sont rejoués. Les tests e2e applicatifs (commande Tauri → tx SQLite → archive) rejouent ces UC avec la requête construite par pili-pos ; les JSON de 17 UC (14 Basic Set, 3 Reports) sont dans `evidence/uc/`. *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
+- Dans le Basic Set, 21 des 22 UC ont un test automatisé (M122, M132 et M150 compris) ; la dernière est exclue et déclarée : M112A, non applicable (le remboursement partiel est toujours émis en ticket séparé, M112B). Dans Reports, M180 à M184 ont des tests de fixtures (M181 et M183 par le Z combiné M184) et les 8 tickets T1 à T8 sont rejoués. Les tests e2e applicatifs (commande Tauri → tx SQLite → archive) rejouent ces UC avec la requête construite par pili-pos ; les JSON de 22 UC (19 Basic Set dont M122, M132 et M150, 3 Reports), plus UC4121 et UC4122, sont dans `evidence/uc/`. *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
 - **Document détaillé par UC** avec JSON request/response et ticket : *Voir : RESULTATS_TESTS_UC_FR.pdf*.
 
 Récap mappings UC <-> commande Tauri <-> test :
@@ -687,20 +718,17 @@ Récap mappings UC <-> commande Tauri <-> test :
 | M141 | signWorkOut | `social::work_out` | `spf_e2e_basic::m141_*` |
 | M160 | signCopy | `copy::copy_ticket` | `spf_e2e_basic::m160_*` |
 | M170/171/172 | signSale/Copy training | (mêmes commandes, flag is_training) | `spf_e2e_basic::m170_*` / `m171_*` / `m172_*` |
-| M150 | signInvoice | `invoice::sign_invoice_fiscal` | `spf_e2e_basic::m150_*` |
+| M150 | signInvoice | `invoice::do_sign_invoice_fiscal` | `spf_e2e_fixtures::m150_invoice`, `spf_e2e_basic::m150_*` |
 | M161 | signCopy (commande P) | `copy::copy_ticket` | `spf_e2e_basic::m161_*` |
 | M180 | signReportTurnoverX | `report::generate_x_report` | `spf_e2e_reports::m180_*` |
 | M182 | signReportUserX | `report::generate_user_x_report` | `spf_e2e_reports::m182_*` |
 | M184 (Z combiné) | signReportTurnoverZ + signReportUserZ (un document) | `report::generate_z_report` | `spf_e2e_reports::m184_*` |
 
-La ligne M150 ci-dessus décrit la couverture de test (code + e2e réels,
-sous les features par défaut) ; elle n'implique pas que l'événement I
-soit disponible dans la build cert v1.0.0 soumise - voir §III.F et
-*DECISION_PEPPOL_AP_FR.md*.
+Les cas de facture de l'Advanced Set (UC4121, UC4122) sont rejoués par `invoice_advanced.rs` (*RESULTATS_TESTS_UC_FR.md*).
 
 ## §IV - Arrondissement des méthodes de paiement
 
-Le manuel demande les tests de base 1 et 2 dans tous les cas, le test de base 3 si le POS n'arrondit que les paiements en espèces, et le test de base 4 seulement si le POS arrondit tous les moyens de paiement. pili-pos n'arrondit **que les espèces**, au 0,05 EUR le plus proche, dans une ligne `ROUNDING` à part ; la carte et les chèques-repas sont des montants exacts, jamais arrondis, et seul le reste payé en espèces est arrondi (`crates/pos-fiscal/src/payment.rs`). Les tests de base 1, 2 et 3 s'appliquent donc ; le test de base 4 (multi-paiements 2, POS qui arrondit tous les moyens de paiement) ne s'applique pas.
+Le manuel demande les tests de base 1 et 2 dans tous les cas, le test de base 3 si le POS n'arrondit que les paiements en espèces, et le test de base 4 seulement si le POS arrondit tous les moyens de paiement. pili-pos n'arrondit **que les espèces**, au 0,05 EUR le plus proche, dans une ligne `ROUNDING` à part ; la carte (saisie à la main ou payée sur un terminal relié) et les chèques-repas sont des montants exacts, jamais arrondis, et seul le reste payé en espèces est arrondi (`crates/pos-fiscal/src/payment.rs`). Les tests de base 1, 2 et 3 s'appliquent donc ; le test de base 4 (multi-paiements 2, POS qui arrondit tous les moyens de paiement) ne s'applique pas.
 
 | Test du manuel | Situation | Scénario | À payer / arrondi attendus | Test automatisé | Preuve JSON |
 |---|---|---|---|---|---|
@@ -755,11 +783,13 @@ Tableau de réponse (JSON fournis dans `evidence/fdm_errors/` ; captures d'écra
 | TOO_MANY_MEMORY_ERRORS | Erreur | N | - | - |
 | UNAUTHORIZED | Erreur | O | ☑ (mappé « La caisse n'est pas autorisée à parler à la boîte noire. ») | JSON : `evidence/fdm_errors/UNAUTHORIZED_*.json` ; écran 27 |
 | INVALID_REQUEST | Erreur | O | ☑ (mappé « Erreur de communication avec la boîte noire. Contactez votre technicien. ») | écran 28 |
-| INTERNAL_ERROR | Erreur | O | ☑ (mappé « Erreur technique de la boîte noire. Contactez votre technicien. ») | écran 29 |
-| UNDEFINED_ERROR | Erreur | O | ☑ (mappé « Erreur indéfinie de la boîte noire. Contactez votre technicien. ») | écran 30 |
-| UNDEFINED_OTHER | Erreur | O | ☑ (mappé « Erreur de la boîte noire. Contactez votre technicien. ») | écran 31 |
+| INTERNAL_ERROR | Erreur | O | ☑ (sur une vente : « Erreur technique de la boîte noire. Contactez votre technicien. » suivi de « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. ») | écran 29 |
+| UNDEFINED_ERROR | Erreur | O | ☑ (sur une vente : « Erreur indéfinie de la boîte noire. Contactez votre technicien. » suivi de « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. ») | écran 30 |
+| UNDEFINED_OTHER | Erreur | O | ☑ (sur une vente : « Erreur de la boîte noire. Contactez votre technicien. » suivi de « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. ») | écran 31 |
 | FDM_NOT_OPERATIONAL | Erreur | M | ☑ (mappé « La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. ») + modale bloquante | JSON : `evidence/fdm_errors/FDM_NOT_OPERATIONAL_*.json` ; écran 22 |
 | UNKNOWN_POS | Erreur | M | ☑ (mappé « Cette caisse n'est pas reconnue par la boîte noire. ») | JSON : `evidence/fdm_errors/UNKNOWN_POS_*.json` ; écran 23 |
+
+Sur une vente, les codes INTERNAL_ERROR, UNDEFINED_ERROR et UNDEFINED_OTHER, et une réponse qui ne reprend pas la requête (`FDM_RESPONSE_MISMATCH`, message « Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. »), laissent l'issue inconnue : la boîte noire a peut-être signé l'événement. La caisse garde la requête et la renvoie telle quelle (règle des doublons), mais l'opérateur lit d'abord ce que la boîte noire a répondu (le message du code, ci-dessus), puis que la vente n'est pas encore enregistrée et que le prochain essai renvoie la même demande. Le moteur joint le code de la boîte noire à l'erreur (`FDM_ANSWER_PENDING|label=..|ticket=..|fdm=<code>|cause=..`) ; les écrans 29, 30, 31 et 42 montrent ce texte tel que le moteur le renvoie (`crates/pos-engine/tests/spf_e2e_fdm_failures.rs`).
 
 La description détaillée POS v2.2 (`tb_messages`) liste en plus deux avertissements à affichage obligatoire, absents du tableau §V du manuel : `UPDATE_POS_VATNO` (« Le numéro de TVA de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. ») et `UPDATE_POS_ESTNO` (« Le numéro d'unité d'établissement de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. »). Tous deux sont mappés et testés (`ui/e2e/fdm-messages.spec.ts`).
 
@@ -800,7 +830,7 @@ Tableau des 18 éléments obligatoires × 6 types de tickets. *Voir : TICKETS_EX
 | XII. Total à payer TVA comprise | ☑ | ☑ | - (pas encore payé) | ☑ | ☑ | - |
 | XIII. Base imposable par taux | ☑ | ☑ | - | ☑ | ☑ | - |
 | XIV. Montant TVA par taux | ☑ | ☑ | - | ☑ | ☑ | - |
-| XV. Modifications prix non-lignes | ☐ à la caisse (aucune remise saisie) ; la remise d'une commande en ligne est imprimée sous chaque ligne qu'elle touche | ☐ | ☐ | ☐ | ☐ | - |
+| XV. Modifications prix non-lignes | ☑ à la caisse (Gérant + code PIN, remise sur la commande) et pour une commande en ligne ; imprimée sous chaque ligne qu'elle touche | ☑ (remise reprise en négatif) | ☑ (l'addition imprime les remises) | ☐ | ☐ | - |
 | XVI. Données FDM (footer, fdmId, dateTime, label, counters, shortSignature) | ☑ | ☑ | ☑ (sans shortSignature) | ☑ (sans shortSignature) | ☑ (sans shortSignature) | - |
 | XVII. Lignes paiement (arrondi, tips, remboursements) | ☑ | ☑ (négatif) | - | - | ☑ (FICTIF) | - |
 | XVIII. QR Code URL FDM | ☑ | ☑ | - (sans QR, le FDM ne renvoie pas de verificationUrl pour P) | ☑ | ☑ | - |
@@ -835,9 +865,23 @@ Les libellés FR sont ceux de la loi : arrêté royal du 30 décembre 2009, art.
 
 ## Contenu obligatoire de la facture imprimée (B2B)
 
-*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée de bout en bout côté code : `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture séquentiel, TVA client, `fdmRefs` vers les ventes sous-jacentes - forme de la fixture M150), l'envoie au FDM via `signInvoice` et archive l'événement I - exercé en e2e (`spf_e2e_basic::m150_*`) sous les features par défaut (`hubrise` + `peppol`). Mais ce code est **hors périmètre de la build cert v1.0.0** : `cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` n'active pas `peppol`, donc `invoice.rs` n'est pas compilé dans le binaire soumis. **Aucune facture B2B n'est émise ni imprimée par le POS au rendez-vous d'admission.** L'UI complète + le câblage AP Peppol sont planifiés pour la mise à jour certifiée v1.1.
+*Voir : FACTURATION_PEPPOL_FR.md* §4 (impression) et *DECISION_PEPPOL_AP_FR.md*. `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture continu, TVA client, `fdmRefs` vers les ventes sous-jacentes - forme de la fixture M150), l'envoie au FDM via `signInvoice`, archive l'événement I et imprime la facture (`crates/pos-print/src/invoice.rs`). Les 11 éléments obligatoires (a-k) de la facture imprimée :
 
-Les 11 éléments obligatoires (a-k) sur la facture seront couverts et cochés au dossier de mise à jour v1.1, une fois le feature flag `peppol` activé dans une build cert et le flux UI complet livré.
+| Réf. | Objet | Réponse |
+|---|---|---|
+| a | Le titre « FACTURE » | ☑ FACTURE (néerlandais FACTUUR, allemand RECHNUNG selon la langue de l'installation) |
+| b | Nom | ☑ Nom du vendeur et du client |
+| c | Adresse | ☑ Adresse du vendeur et du client |
+| d | Numéro d'identification à la T.V.A | ☑ Numéro de TVA du vendeur et du client |
+| e | Référence au(x) numéro(s) de ticket(s) original/originaux (FdmRefs array) | ☑ Liste « Tickets d'origine » : identifiant du module de contrôle, label, compteurs, numéro et date de chaque ticket |
+| f | Quantité | ☑ Quantité de chaque ligne (négative sur un remboursement) |
+| g | Nature des bien(s) et service(s) | ☑ Désignation de chaque ligne des tickets d'origine |
+| h | Prix TVA incluse, base imposable, taux de TVA appliqué, montant de la TVA | ☑ Prix TVA incluse et code de TVA par ligne ; base, TVA et total par taux dans le tableau de TVA |
+| i | Ventilation du montant de la TVA à payer par taux de TVA | ☑ Tableau de TVA par taux (TVA calculée par le module de contrôle pour les tickets) |
+| j | Mention « Ceci n'est pas un ticket de caisse T.V.A valable » | ☑ « CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE » (néerlandais et allemand : voir les libellés) |
+| k | Le pied de page FDM : FdmId, FdmDateTime, eventLabel, eventCounter, totalCounter, shortSignature | ☑ pour les cinq premiers éléments (événement I). `shortSignature` : non applicable, la réponse du module de contrôle à un événement I n'en porte pas (fixture M150) et l'article 43 de l'arrêté ministériel prévoit que la signature numérique n'est pas mentionnée sur les impressions autres que le ticket de caisse T.V.A. ; par prudence, le code QR est omis aussi |
+
+Les autres points du manuel (testing de la facture) : cohérence des montants et des numéros de ticket avec les tickets d'origine (☑, lignes et TVA lues dans l'archive signée) ; numérotation unique et continue (☑, `<année><séquence>` sans trou) ; document de sortie (☑, la facture papier et le document UBL conservé dans `peppol_deliveries.ubl_xml` ; la base est l'export, vue `v_invoice_journal`) ; impression papier, numérique ou les deux (☑, papier ; UBL sur Peppol pour un client belge) ; montant présenté hors TVA (☑, base imposable et TVA par taux).
 
 ---
 
@@ -869,7 +913,7 @@ Recap des réponses clés DAS (extrait, le détail est dans l'annexe) :
 | Date de certification | (à compléter par le SPF Finances) |
 | Agent de certification | (à compléter par le SPF Finances) |
 | SCE basé sur un système Cloud | ☐ Non |
-| Connexion internet requise | ☐ Non par défaut (le POS parle au FDM sur le LAN ; seul le FDM nécessite Internet). Sorties HTTPS (443) optionnelles, seulement si activées : `api.scaleway.com` (ticket numérique), `api.hubrise.com` et `manager.hubrise.com` (commandes en ligne, `hubrise_enabled`) - §III.B |
+| Connexion internet requise | ☐ Non par défaut (le POS parle au FDM sur le LAN ; seul le FDM nécessite Internet). Sorties HTTPS (443) optionnelles, seulement si activées : `api.scaleway.com` (ticket numérique), `api.hubrise.com` et `manager.hubrise.com` (commandes en ligne, `hubrise_enabled`), point d'accès Peppol `api.storecove.com` (envoi des factures, section `peppol`) - §III.B |
 | Connexion avec des logiciels externes (commande en ligne) | ☑ Oui : HubRise, coupé par défaut (`hubrise_enabled`, activé par installation par un Gérant) ; *COMMANDES_EN_LIGNE_FR.md* |
 | Connexion POS-FDM | ☑ Ethernet |
 | Périphériques supplémentaires | ☐ Non |
@@ -956,6 +1000,14 @@ Dans le texte des annexes, un renvoi à `NOM_FR.md` désigne l'annexe `NOM_FR.pd
 | 31 | GARANTIE_MAJ_LANGUES_FR.pdf | §II.E + §VI (langue du ticket) |
 | 32 | TICKET_NUMERIQUE_FR.pdf | §III.H |
 | 33 | COMMANDES_EN_LIGNE_FR.pdf | §III.M + livraison, commandes en ligne |
+| 34 | FACTURATION_PEPPOL_FR.pdf | §III.F (facture B2B, Peppol), §III.B |
+| 35 | EDITEUR_CARTE_FR.pdf | §I.C (édition de la carte), §III |
+| 36 | PRODUIT_EPUISE_FR.pdf | §III (produit épuisé) |
+| 37 | RAPPORTS_VENTES_FR.pdf | §III.L (autre rapport, non fiscal) |
+| 38 | ALERTES_PROPRIETAIRE_FR.pdf | §III (alertes du propriétaire sur téléphone, non fiscales) |
+| 39 | ALLERGENES_FR.pdf | §III (allergènes, non fiscaux) |
+| 40 | SERVICES_CUISINE_FR.pdf | §III (service en plusieurs temps, cuisine) |
+| 41 | BONS_CADEAUX_FR.pdf | §III.F (bons à usage multiple, UC260 à UC262) |
 
 Plus :
 - `20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM_signe.pdf` - formulaire SPF rempli et signé.

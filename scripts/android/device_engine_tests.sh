@@ -327,7 +327,7 @@ run_binary() { # <crate> <target> <host-path>
     strip="$(find_strip)" || die 3 "llvm-strip not found in the NDK"
     stripped="$STAGE/$crate/$target"
     "$strip" --strip-debug -o "$stripped" "$path" || die 3 "llvm-strip failed on $path"
-    echo "$(stat -f %z "$path" 2>/dev/null || stat -c %s "$path") $(stat -f %z "$stripped" 2>/dev/null || stat -c %s "$stripped")" >"$d/sizes.txt"
+    echo "$(stat -c %s "$path" 2>/dev/null || stat -f %z "$path") $(stat -c %s "$stripped" 2>/dev/null || stat -f %z "$stripped")" >"$d/sizes.txt"
     rdir="$DEV_DIR/$crate"
     local cwd="$rdir"
     [[ $fixtures -eq 0 ]] || cwd="$DEV_DIR/repo/crates/$crate"

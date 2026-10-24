@@ -1,5 +1,6 @@
 package dev.nuagemagique.pilipos.feature.checkout
 
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -7,6 +8,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
@@ -16,12 +18,14 @@ import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.DeliveryOutcome
 import uniffi.pos_ffi.EmailStatus
 import uniffi.pos_ffi.MailStatus
@@ -143,6 +147,15 @@ class CheckoutContentTest {
     }
 
     @Test
+    fun aTakenGiftVoucherPartNamesTheMethodTheMaskedCodeAndTheAmount() {
+        val voucher = TakenPart(PaymentMethod.GIFT_VOUCHER, 500L, 0L, giftVoucherId = 7L, codeMasked = "**** **** 9095")
+        show(base.copy(method = PaymentMethod.CASH, taken = listOf(voucher)))
+
+        text("checkout_part_0").assertTextContains("5,00", substring = true)
+        compose.onNodeWithText("Bon cadeau · **** **** 9095", substring = true, useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
     fun cashCannotBePickedAgainAfterACashPart() {
         show(base.copy(method = PaymentMethod.CARD, taken = listOf(TakenPart(PaymentMethod.CASH, 500L, 0L))))
 
@@ -186,6 +199,27 @@ class CheckoutContentTest {
         compose.onNodeWithTag("checkout_chip_1").assertTextContains("Espèces · 20,10 €", substring = true)
         compose.onNodeWithTag("checkout_chip_2").assertTextContains("20,10 €", substring = true)
         text("checkout_part_0").assertTextEquals("− 20,11 €")
+    }
+
+    @Test
+    fun thePaidChipOfAMealVoucherCardIsLabelledWithTheMealVoucherMethod() {
+        val chips =
+            listOf(
+                PartChip(ChipState.PAID, PaymentMethod.MEAL_VOUCHER, 800L),
+                PartChip(ChipState.CURRENT, PaymentMethod.CASH, 352L),
+            )
+        val taken = listOf(TakenPart(PaymentMethod.CARD, 800L, 0L, eftPaymentId = 12L, brand = "Edenred", mealVoucher = true))
+        show(base.copy(splitCount = 2, taken = taken, amounts = base.amounts.copy(chips = chips)))
+
+        val meal = catalog.text("method_meal_voucher", AppLanguage.FR)
+        compose.onNodeWithTag("checkout_chip_0").assertTextContains("$meal · 8,00 € ✓", substring = true)
+        val shown =
+            compose
+                .onNodeWithTag("checkout_chip_0")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.Text]
+                .joinToString(" ") { it.text }
+        assertFalse(shown, shown.contains(catalog.text("method_card", AppLanguage.FR)))
     }
 
     @Test
@@ -424,5 +458,49 @@ class CheckoutContentTest {
         show(base.copy(summary = base.summary.copy(lines = listOf(noted), amounts = listOf(LineAmount.Total(500L)))))
 
         compose.onNodeWithTag("checkout_line_1").assertTextContains("sans piment", substring = true)
+    }
+
+    // ── Discount rows ─────────────────────────────────────────────
+
+    private val discounted =
+        listOf(
+            cartLine(
+                1,
+                name = "Sushi",
+                quantity = 2,
+                unitPriceCents = 500L,
+                discountCents = -500L,
+                priceChanges = listOf(CartPriceChange("TILL-DISCOUNT", "Remise 50 %", "EVENT", -500L)),
+            ),
+        )
+
+    @Test
+    fun aDiscountedSaleShowsTheChangeRowTheSubtotalAndTheDiscount() {
+        show(
+            base.copy(
+                totalCents = 500L,
+                summary =
+                    CheckoutSummary(
+                        lines = discounted,
+                        amounts = listOf(LineAmount.Total(500L)),
+                        vatRows = listOf(vatRow(VatCode.C, 6, 28L)),
+                        discountCents = -500L,
+                    ),
+            ),
+        )
+
+        compose.onNodeWithTag("checkout_line_1").assertTextContains("Remise 50 %", substring = true)
+        compose.onNodeWithTag("checkout_line_1").assertTextContains("-5,00", substring = true)
+        text("checkout_subtotal").assertTextEquals("10,00 €")
+        text("checkout_discount").assertTextEquals("-5,00 €")
+        text("checkout_total").assertTextEquals("5,00 €")
+    }
+
+    @Test
+    fun aSaleWithoutDiscountHasNoSubtotalRow() {
+        show(base)
+
+        text("checkout_subtotal").assertDoesNotExist()
+        text("checkout_discount").assertDoesNotExist()
     }
 }

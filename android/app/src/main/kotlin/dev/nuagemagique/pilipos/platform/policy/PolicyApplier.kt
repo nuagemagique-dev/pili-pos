@@ -49,10 +49,15 @@ data class PolicyReport(
  * the app is not the device owner nothing is called and the report is [PolicyReport.NotOwner].
  *
  * The order is the one proven in S4: the automatic zone off before the zone is set, then the automatic time,
- * the restrictions, the uninstall block, stay awake, keyguard, status bar, the update policy, Lock Task
+ * the restrictions, the uninstall block, the Google apps hidden (PD230), stay awake, keyguard, status bar, the update policy, Lock Task
  * features NONE, and last (release, provisioned) adb off.
+ *
+ * A Google app that is not on the device is not an error: `setApplicationHidden` answers false for it and the
+ * step is recorded as skipped. A package that is already hidden is skipped without a call. The update policy
+ * is the night window of [PolicySet].
  */
 @Singleton
+@Suppress("TooManyFunctions")
 class PolicyApplier internal constructor(
     private val policies: DevicePolicies,
     private val packageName: String,
@@ -76,10 +81,14 @@ class PolicyApplier internal constructor(
         val present = presentRestrictions(steps)
         for (key in PolicySet.RESTRICTIONS) steps += restriction(key, present)
         steps += step("uninstall_block") { policies.setUninstallBlocked(packageName, true) }
+        for (pkg in PolicySet.HIDDEN_PACKAGES) steps += hide(pkg)
         steps += step("stay_awake") { policies.setGlobalSetting(PolicySet.STAY_ON_SETTING, PolicySet.STAY_ON_VALUE) }
         steps += step("keyguard_off") { check(policies.setKeyguardDisabled(true)) { "setKeyguardDisabled refused" } }
         steps += step("status_bar_off") { check(policies.setStatusBarDisabled(true)) { "setStatusBarDisabled refused" } }
-        steps += step("update_policy") { policies.setSystemUpdatePolicyPostpone() }
+        steps +=
+            step("update_policy") {
+                policies.setSystemUpdatePolicyWindowed(PolicySet.UPDATE_WINDOW_START_MINUTE, PolicySet.UPDATE_WINDOW_END_MINUTE)
+            }
         steps += lockTaskStep()
         if (release && provisioned) steps += restriction(PolicySet.DEBUGGING_FEATURES, present)
         return PolicyReport(steps).also { log(it) }
@@ -115,6 +124,19 @@ class PolicyApplier internal constructor(
         val name = "restriction:$key"
         if (key in present) return PolicyStep(name, ok = true, skipped = true)
         return step(name) { policies.addUserRestriction(key) }
+    }
+
+    private fun hide(pkg: String): PolicyStep {
+        require(pkg !in PolicySet.NEVER_HIDDEN && pkg != packageName) { "$pkg must never be hidden" }
+        val name = "hide:$pkg"
+        return isolated {
+            if (policies.isApplicationHidden(pkg)) return@isolated true
+            // False: the package is not installed, nothing to hide.
+            !policies.setApplicationHidden(pkg, true)
+        }.fold(
+            onSuccess = { skipped -> PolicyStep(name, ok = true, skipped = skipped) },
+            onFailure = { PolicyStep(name, ok = false, error = describe(it)) },
+        )
     }
 
     private fun step(

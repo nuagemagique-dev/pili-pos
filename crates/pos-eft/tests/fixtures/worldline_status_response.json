@@ -1,0 +1,97 @@
+{
+  "data": {
+    "SaleToPOIMessageStatusResponse": {
+      "Header": {
+        "MessageFunction": "MessageStatusResponse",
+        "ProtocolVersion": "5.1-WL2.1.1",
+        "ExchangeIdentification": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a",
+        "CreationDateTime": "2025-12-09T09:50:00.0+01:00",
+        "InitiatingParty": {
+          "Identification": "WL0015W90000001",
+          "Type": "Merchant"
+        },
+        "SalesSystemInfo": {
+          "IntegratorId": "9b2e6f1a1c3d4e5f8a7b0c1d2e3f4a5b",
+          "SaleSoftware": [
+            {
+              "Type": "ECR",
+              "SubTypeInformation": "Checkout",
+              "Identification": {
+                "ProviderIdentification": "YourSoftware",
+                "Identification": "YourPOS",
+                "SerialNumber": "SN-0001"
+              },
+              "Status": {
+                "VersionNumber": "1.4.2"
+              }
+            }
+          ]
+        },
+        "WebhookUrl": "https://example.com/webhook?transactionId=d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a",
+        "NumberOfRetries": 3
+      },
+      "StatusResponse": {
+        "Environment": {
+          "Acquirer": {
+            "Identification": {
+              "Identification": "00000000002"
+            }
+          },
+          "Merchant": {
+            "Identification": {
+              "Identification": "WL0015W90000001"
+            }
+          },
+          "POI": {
+            "Identification": {
+              "Identification": "26197006"
+            }
+          }
+        },
+        "MessageStatusResponseData": {
+          "ExchangeIdentification": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+          "InitiatingParty": {
+            "Identification": "SaleTermA",
+            "Type": "Merchant"
+          },
+          "TransactionResponse": {
+            "Response": "Successful"
+          },
+          "RepeatedPaymentResponse": {
+            "SaleTransactionIdentification": {
+              "TransactionDateTime": "2025-12-09T09:47:31+01:00",
+              "TransactionReference": "R26197055"
+            },
+            "POITransactionIdentification": {
+              "TransactionDateTime": "2025-12-09T09:47:31+01:00",
+              "TransactionReference": "2;00000000002;24863174332;13126;010000000000224863174332;"
+            },
+            "RetailerPaymentResult": {
+              "TransactionType": "CardPayment",
+              "RequestedTransaction": {
+                "TransactionType": "CardPayment",
+                "TransactionIdentification": {
+                  "TransactionDateTime": "2025-12-09T09:47:31+01:00",
+                  "TransactionReference": "R26197055"
+                },
+                "TransactionDetails": {
+                  "TotalAmount": 10.11,
+                  "Currency": "EUR"
+                }
+              },
+              "TransactionResponse": {
+                "AuthorisationResult": {
+                  "ResponseToAuthorisation": {
+                    "Response": "Approved"
+                  },
+                  "AuthorisationCode": "678803"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "requestId": "550e8400-e29b-41d4-a716-446655440000"
+}

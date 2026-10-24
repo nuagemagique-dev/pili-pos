@@ -1,5 +1,8 @@
 package dev.nuagemagique.pilipos.feature.login
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -161,6 +164,47 @@ class LoginContentTest {
         compose.onNodeWithText("le code PIN termine le service").assertIsDisplayed()
     }
 
+    // ── The badge hints (lane 5) ──────────────────────────────────
+
+    @Test
+    fun theTilesHintAtTheBadgeOnlyWithBadgeLoginAndNotInInszMode() {
+        show(base.copy(badgeReaderOn = true, badgeLoginOn = true))
+        compose.onNodeWithTag("login_badge_hint").assertIsDisplayed().assertTextEquals(catalog.text("login_badge_hint", AppLanguage.FR))
+    }
+
+    @Test
+    fun noBadgeHintInInszMode() {
+        show(base.copy(badgeReaderOn = true, badgeLoginOn = true, numpadMode = true))
+        compose.onNodeWithTag("login_badge_hint").assertDoesNotExist()
+    }
+
+    @Test
+    fun noBadgeHintWithoutBadgeLogin() {
+        show(base.copy(badgeReaderOn = true, badgeLoginOn = false))
+        compose.onNodeWithTag("login_badge_hint").assertDoesNotExist()
+    }
+
+    @Test
+    fun thePinPadHintsAtTheBadgeInEndShiftModeWithAReader() {
+        show(base.copy(badgeReaderOn = true, pin = PinPanel(cashier, endShift = true)))
+        compose
+            .onNodeWithTag("login_end_shift_badge_hint")
+            .assertIsDisplayed()
+            .assertTextEquals(catalog.text("end_shift_badge_hint", AppLanguage.FR))
+    }
+
+    @Test
+    fun noEndShiftBadgeHintOutsideEndShiftMode() {
+        show(base.copy(badgeReaderOn = true, pin = PinPanel(cashier, endShift = false)))
+        compose.onNodeWithTag("login_end_shift_badge_hint").assertDoesNotExist()
+    }
+
+    @Test
+    fun noEndShiftBadgeHintWithTheReaderOff() {
+        show(base.copy(badgeReaderOn = false, pin = PinPanel(cashier, endShift = true)))
+        compose.onNodeWithTag("login_end_shift_badge_hint").assertDoesNotExist()
+    }
+
     @Test
     fun anOperatorWithoutAPinOnShiftGetsLoginBackAndEndShift() {
         show(base.copy(shifts = listOf(shift(WAITER_INSZ)), pin = PinPanel(waiterNoPin, error = "PIN incorrect")))
@@ -257,6 +301,22 @@ class LoginContentTest {
         compose.onNodeWithText("FDM").assertIsDisplayed()
         compose.onNodeWithText("HubRise").assertIsDisplayed()
         compose.onNodeWithText("Imprimante ticket").assertIsDisplayed()
+    }
+
+    @Test
+    fun theTerminalLineSaysWhyItDoesNotAnswer() {
+        val checks =
+            listOf(
+                StartupCheck(CheckId.Fdm, CheckState.Ok, "check_connected"),
+                StartupCheck(CheckId.Terminal, CheckState.Err, "check_unreachable", "connection refused"),
+            )
+        show(base.copy(checks = checks))
+
+        compose.onNodeWithText("Terminal de paiement").assertIsDisplayed()
+        compose.onNodeWithTag("login_check_text_terminal").assertTextEquals("injoignable")
+        compose.onNodeWithTag("login_check_terminal").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf("connection refused")),
+        )
     }
 
     @Test

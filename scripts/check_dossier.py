@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_dossier.py - deterministic dossier/code consistency checker.
 
-Scans docs/SUBMISSION_ARTIFACTS/**/*.md (skipping pdf_out and any evidence
+Scans docs/SUBMISSION_ARTIFACTS/**/*.md (or $PILI_DOSSIER_DIR/**/*.md) (skipping pdf_out and any evidence
 JSON, which are not markdown anyway) and cross-checks it against the code
 and deploy tree. Each finding is printed as:
 
@@ -53,7 +53,10 @@ from pathlib import Path
 EM_DASH = chr(0x2014)
 
 ROOT = Path(__file__).resolve().parent.parent
-DOSSIER_DIR = ROOT / "docs" / "SUBMISSION_ARTIFACTS"
+# PILI_DOSSIER_DIR (relative to the repository root) points the checker at another dossier,
+# e.g. docs/android/dossier; the default is the Linux dossier.
+DOSSIER_REL = os.environ.get("PILI_DOSSIER_DIR", "docs/SUBMISSION_ARTIFACTS")
+DOSSIER_DIR = ROOT / DOSSIER_REL
 
 ALL_RULES = [
     "rust-ident",
@@ -123,7 +126,7 @@ MANIFEST_INTERNAL_SUBSTRINGS = (
     "dossier_review",
 )
 
-SCREENSHOT_RE = re.compile(r"\d\d[a-z]?_[a-z0-9_]+\.(?:png|jpg)")
+SCREENSHOT_RE = re.compile(r"(?:A\d{2,3}[a-z]?|\d\d[a-z]?)_[a-z0-9_]+\.(?:png|jpg)")
 
 
 @dataclass(order=True)
@@ -637,7 +640,8 @@ def rule_placeholder(md_files: list, allowlist: dict) -> list:
 
 def rule_screenshots(root: Path) -> list:
     candidates = [
-        root / "docs" / "SUBMISSION_ARTIFACTS" / "CAPTURES_ECRAN_RUNBOOK_FR.md",
+        root / DOSSIER_REL / "CAPTURES_ECRAN_RUNBOOK_FR.md",
+        root / DOSSIER_REL / "internal" / "CAPTURES_ECRAN_RUNBOOK_FR.md",
         root / "docs" / "internal" / "CAPTURES_ECRAN_RUNBOOK_FR.md",
     ]
     runbook = next((c for c in candidates if c.is_file()), None)
@@ -645,7 +649,7 @@ def rule_screenshots(root: Path) -> list:
         return []
 
     screenshot_dirs = [
-        root / "docs" / "SUBMISSION_ARTIFACTS" / "screenshots",
+        root / DOSSIER_REL / "screenshots",
         root / "docs" / "internal" / "screenshots",
     ]
 
@@ -668,7 +672,7 @@ def rule_screenshots(root: Path) -> list:
 
 
 def rule_pdf_freshness(root: Path) -> list:
-    dossier = root / "docs" / "SUBMISSION_ARTIFACTS"
+    dossier = root / DOSSIER_REL
     pdf_out = dossier / "pdf_out"
     if not dossier.is_dir() or not pdf_out.is_dir():
         return []
@@ -705,12 +709,12 @@ def is_manifest_internal(entry: str) -> bool:
 
 
 def rule_manifest(root: Path) -> list:
-    manifest = root / "docs" / "SUBMISSION_ARTIFACTS" / "MANIFEST.txt"
+    manifest = root / DOSSIER_REL / "MANIFEST.txt"
     if not manifest.is_file():
         return [Finding(rel(manifest), 1, "manifest", "MANIFEST.txt is missing: the ZIP has no content list")]
     findings = []
     relpath = rel(manifest)
-    dossier = root / "docs" / "SUBMISSION_ARTIFACTS"
+    dossier = root / DOSSIER_REL
     for lineno, raw_line in enumerate(read_text(manifest).splitlines(), 1):
         entry = raw_line.strip()
         if not entry or entry.startswith("#"):
@@ -735,10 +739,10 @@ PENDING_RE = re.compile(r"[AÀ]\s+effectuer", re.IGNORECASE)
 def manifest_sources(root: Path) -> list:
     """Text files behind the manifest's entries: a listed file itself when it
     is text, the source .md of a listed pdf_out/<name>.pdf."""
-    manifest = root / "docs" / "SUBMISSION_ARTIFACTS" / "MANIFEST.txt"
+    manifest = root / DOSSIER_REL / "MANIFEST.txt"
     if not manifest.is_file():
         return []
-    dossier = root / "docs" / "SUBMISSION_ARTIFACTS"
+    dossier = root / DOSSIER_REL
     sources = []
     for raw_line in read_text(manifest).splitlines():
         entry = raw_line.strip()
@@ -778,7 +782,7 @@ def rule_pending(root: Path) -> list:
 
 
 def rule_captures_pdf(root: Path) -> list:
-    dossier = root / "docs" / "SUBMISSION_ARTIFACTS"
+    dossier = root / DOSSIER_REL
     pdf = dossier / "CAPTURES_ECRAN_FR.pdf"
     shots = dossier / "screenshots"
     if not shots.is_dir():

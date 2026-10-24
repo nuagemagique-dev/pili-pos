@@ -1,9 +1,12 @@
 package dev.nuagemagique.pilipos.feature.reports
 
+import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import uniffi.pos_ffi.Customer
 import uniffi.pos_ffi.MailStatus
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.RequestedMedium
 import uniffi.pos_ffi.TicketDeliveryRequest
@@ -39,6 +42,8 @@ internal data class TicketsCallbacks(
     val onCopyConfirm: () -> Unit = {},
     val onCopyClose: () -> Unit = {},
     val onRefund: (RefundableEvent) -> Unit = {},
+    /** The "Corriger le paiement" button of a sale row. */
+    val onCorrect: (TicketRow) -> Unit = {},
     val onToggleLine: (lineId: Long) -> Unit = {},
     val onQuantity: (lineId: Long, delta: Int) -> Unit = { _, _ -> },
     val onRefundNext: () -> Unit = {},
@@ -48,6 +53,63 @@ internal data class TicketsCallbacks(
     /** The screen text of the raw error of a copy or a refund the engine did not sign. */
     val describeError: (String?) -> String = { it.orEmpty() },
 )
+
+/** What the operator can do in the payment correction dialog. */
+internal data class CorrectionCallbacks(
+    val onLine: (index: Int) -> Unit = {},
+    val onMethod: (PaymentMethod) -> Unit = {},
+    val onConfirm: () -> Unit = {},
+    val onClose: () -> Unit = {},
+    val onPinCancel: () -> Unit = {},
+    /** The PIN typed on the pad: the engine corrects the payment, or the refusal is thrown to the pad. */
+    val onPin: suspend (String) -> Unit = {},
+    val onDone: () -> Unit = {},
+    /** The screen text of a refusal thrown by [onPin], and of a refusal code of the engine. */
+    val describeThrowable: (Throwable) -> String = { it.message.orEmpty() },
+    val describeRaw: (String?) -> String = { it.orEmpty() },
+)
+
+/** What the operator can do with invoices: tick sales, fill the dialog, sign, copy. */
+@Suppress("LongParameterList")
+internal data class InvoiceCallbacks(
+    val onToggleSale: (fiscalEventId: Long) -> Unit = {},
+    val onOpen: () -> Unit = {},
+    val onClose: () -> Unit = {},
+    val onSearch: (String) -> Unit = {},
+    val onPickCustomer: (Customer) -> Unit = {},
+    val onVatNumber: (String) -> Unit = {},
+    val onCheckVat: () -> Unit = {},
+    val onName: (String) -> Unit = {},
+    val onStreet: (String) -> Unit = {},
+    val onPostalCode: (String) -> Unit = {},
+    val onCity: (String) -> Unit = {},
+    val onCountryCode: (String) -> Unit = {},
+    val onContinue: () -> Unit = {},
+    val onBack: () -> Unit = {},
+    val onConfirm: () -> Unit = {},
+    val onCopy: (fiscalEventId: Long) -> Unit = {},
+)
+
+/** What the operator can do on the sales tab: choose a range, type one, sort, print. */
+internal data class SalesCallbacks(
+    val onPreset: (SalesPreset) -> Unit = {},
+    val onField: (SalesField) -> Unit = {},
+    val onKey: (NumPadKey) -> Unit = {},
+    val onApply: () -> Unit = {},
+    val onSort: (SalesSort) -> Unit = {},
+    val onPrint: () -> Unit = {},
+)
+
+/** The actions of the sales tab over [model]. */
+internal fun salesCallbacks(model: SalesViewModel): SalesCallbacks =
+    SalesCallbacks(
+        onPreset = model::pick,
+        onField = model::setField,
+        onKey = model::onKey,
+        onApply = model::applyCustom,
+        onSort = model::setSort,
+        onPrint = model::print,
+    )
 
 /** What the delivery picker of the copy and refund dialogs does. */
 internal data class DeliveryCallbacks(
@@ -62,8 +124,42 @@ internal data class ReportsCallbacks(
     val day: DayCallbacks = DayCallbacks(),
     val cash: CashCallbacks = CashCallbacks(),
     val tickets: TicketsCallbacks = TicketsCallbacks(),
+    val correction: CorrectionCallbacks = CorrectionCallbacks(),
+    val invoice: InvoiceCallbacks = InvoiceCallbacks(),
+    val sales: SalesCallbacks = SalesCallbacks(),
     val delivery: DeliveryCallbacks = DeliveryCallbacks(),
+    val vouchers: VouchersCallbacks = VouchersCallbacks(),
 )
+
+/** Every action of the gift vouchers tab. */
+internal data class VouchersCallbacks(
+    val onKey: (NumPadKey) -> Unit = {},
+    val onLookup: () -> Unit = {},
+    val onFilter: (String?) -> Unit = {},
+    val onToggle: (Long) -> Unit = {},
+    val onReprint: (Long) -> Unit = {},
+)
+
+/** The actions of the invoice flow over [model]. */
+internal fun invoiceCallbacks(model: InvoiceViewModel): InvoiceCallbacks =
+    InvoiceCallbacks(
+        onToggleSale = model::toggleSale,
+        onOpen = model::openFlow,
+        onClose = model::closeFlow,
+        onSearch = model::setSearch,
+        onPickCustomer = model::pickCustomer,
+        onVatNumber = model::setVatNumber,
+        onCheckVat = model::checkVat,
+        onName = model::setName,
+        onStreet = model::setStreet,
+        onPostalCode = model::setPostalCode,
+        onCity = model::setCity,
+        onCountryCode = model::setCountryCode,
+        onContinue = model::continueToPreview,
+        onBack = model::backToCustomer,
+        onConfirm = model::confirm,
+        onCopy = model::copyInvoice,
+    )
 
 /** What the delivery picker shows: the mail probe, the choice made and whether a paper original may be printed. */
 internal data class ReportsDelivery(
@@ -93,6 +189,15 @@ internal fun reportsCallbacks(
         day = dayCallbacks(model, openPicker),
         cash = cashCallbacks(model),
         tickets = ticketsCallbacks(model, delivery, openPicker),
+        correction = correctionCallbacks(model),
+        vouchers =
+            VouchersCallbacks(
+                onKey = model::voucherKey,
+                onLookup = model::lookupVoucher,
+                onFilter = model::filterVouchers,
+                onToggle = model::toggleVoucher,
+                onReprint = model::reprintVoucher,
+            ),
         delivery =
             DeliveryCallbacks(
                 onPaper = delivery::setPaper,
@@ -149,6 +254,7 @@ private fun ticketsCallbacks(
             delivery.reset()
         },
         onRefund = model::openRefund,
+        onCorrect = model::openCorrection,
         onToggleLine = model::toggleRefundLine,
         onQuantity = model::adjustRefundQuantity,
         onRefundNext = {
@@ -162,4 +268,17 @@ private fun ticketsCallbacks(
             delivery.reset()
         },
         describeError = model::describeRaw,
+    )
+
+private fun correctionCallbacks(model: ReportsViewModel): CorrectionCallbacks =
+    CorrectionCallbacks(
+        onLine = model::pickCorrectionLine,
+        onMethod = model::pickCorrectionMethod,
+        onConfirm = model::askCorrectionPin,
+        onClose = model::closeCorrection,
+        onPinCancel = model::cancelCorrectionPin,
+        onPin = model::correctPayment,
+        onDone = model::correctionDone,
+        describeThrowable = model::describeError,
+        describeRaw = model::describeRaw,
     )

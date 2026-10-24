@@ -81,10 +81,45 @@ class SettingsScreenshotTest {
     }
 
     @Test
+    fun badges() {
+        // The unfolded reader panel: USB reader, badge login on, the gap being edited on the pad, the log.
+        val state =
+            managerState(
+                badge =
+                    badgePanel(
+                        reader = "usb",
+                        login = true,
+                        hasNfc = true,
+                        typed = BadgeTimingDraft("80", "6", "32"),
+                        editing = TimingField.Gap,
+                    ),
+            )
+        capture("settings_badges") { SettingsContent(state, SettingsCallbacks()) }
+    }
+
+    @Test
+    fun badgeEnrol() {
+        val state =
+            managerState(badge = badgePanel(reader = "usb", open = false))
+                .copy(enrol = BadgeEnrolFlow(WAITER_INSZ, "Chen"), openShifts = mapOf(CASHIER_INSZ to "2026-10-17T10:02:00Z"))
+        capture(
+            "settings_badge_enrol",
+            overlay = { SettingsDialogs(state, SettingsPinActions(), DeactivateActions(), BadgeDialogActions()) },
+        ) {
+            SettingsContent(state, SettingsCallbacks())
+        }
+    }
+
+    @Test
     fun users() {
         val state =
             managerState().copy(
+                // The manager's view of presence: one employee on shift, one presence-only kitchen employee.
+                users = listOf(admin, cashier, waiter, cook),
+                openShifts = mapOf(CASHIER_INSZ to "2026-10-17T10:02:00Z"),
                 confirmDeactivate = CASHIER_INSZ,
+                // A reader is on: each row says if it holds a badge and offers its button.
+                badge = badgePanel(reader = "usb", open = false),
                 form =
                     NewEmployeeForm(
                         name = "Eve",

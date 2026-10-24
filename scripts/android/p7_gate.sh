@@ -4,7 +4,7 @@
 #
 # One command that decides whether a P7 branch (UC scenarios and runners, android/uccheck,
 # soak, power cut, GMS run, runbook) is mergeable. It does NOT wrap p4_gate.sh or p6_gate.sh:
-# their freeze-tag, linux-frozen, hygiene-root-lock and hygiene-paths checks are red by
+# their freeze-tag, android-frozen, hygiene-root-lock and hygiene-paths checks are red by
 # design while the freeze is reopened (P7D3). It runs its own checks instead.
 # Prints one line per check:
 #     GATE | <check> | PASS|FAIL|SKIP | <detail>
@@ -38,8 +38,9 @@
 #                     --porcelain --untracked-files=all) matches 'lane_paths.py --regex
 #                     e2e-parity', 'lane_paths.py --regex shared' or an --allow
 #   lanes             lane_paths.py --check
-#   linux-frozen      check_linux_frozen.sh --tag linux-v1.0.0-rc1 when that tag exists, else
-#                     --ref ${PILI_P7_FREEZE_REF:-8a678ff}
+#   android-frozen    check_android_frozen.sh --tag android-v1.0.0-rc3 when that tag exists,
+#                     else SKIP ('no tag android-v1.0.0-rc3 yet'); v1 submits Android only
+#                     (INT-D44), the Linux freeze is history
 #   frozen-paths      no diff against BASE and no untracked file in Cargo.toml Cargo.lock
 #                     rust-toolchain.toml src-tauri ui crates deploy scripts/build_and_hash.sh
 #                     scripts/check_repro.sh scripts/uc_matrix.py scripts/uc_scope.toml
@@ -84,7 +85,6 @@
 #                       files of that tree, which is how the self-test swaps in stubs
 #   PILI_P7_NESTED=1    the two self-test checks are SKIP (set by the self-tests themselves)
 #   PILI_P7_STUB_DIR    a directory prepended to PATH (stub cargo, rustc, python3, git hooks...)
-#   PILI_P7_FREEZE_REF  commit used by linux-frozen when the tag is absent (default 8a678ff)
 #   PILI_P7_SOAK_MIN_HOURS  hours required by soak-report (default 4)
 #   PILI_GRADLE_JVMARGS     JVM args of the Gradle build (default -Xmx2g -XX:MaxMetaspaceSize=1g
 #                           -Dfile.encoding=UTF-8)
@@ -168,8 +168,7 @@ trap 'rm -rf "$TMP"' EXIT
 n_checks=0
 n_failed=0
 
-FREEZE_TAG="linux-v1.0.0-rc1"
-FREEZE_REF="${PILI_P7_FREEZE_REF:-8a678ff}"
+FREEZE_TAG="android-v1.0.0-rc3"
 UCCHECK=android/uccheck/Cargo.toml
 JOURNALS=docs/android/uc/journals/android
 HEAVY="scripts/android/heavy.sh"
@@ -370,15 +369,15 @@ gate scope h_scope
 # ── lanes ───────────────────────────────────────────────────────
 gate lanes python3 scripts/android/lane_paths.py --check
 
-# ── linux-frozen ────────────────────────────────────────────────
-linux_frozen() {
-    if git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1; then
-        bash scripts/android/check_linux_frozen.sh --tag "$FREEZE_TAG"
-    else
-        bash scripts/android/check_linux_frozen.sh --ref "$FREEZE_REF"
-    fi
+# ── android-frozen ──────────────────────────────────────────────
+android_frozen() {
+    bash scripts/android/check_android_frozen.sh --tag "$FREEZE_TAG"
 }
-gate linux-frozen linux_frozen
+if git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1; then
+    gate android-frozen android_frozen
+else
+    skip android-frozen "no tag $FREEZE_TAG yet"
+fi
 
 # ── frozen-paths ────────────────────────────────────────────────
 frozen_paths() {

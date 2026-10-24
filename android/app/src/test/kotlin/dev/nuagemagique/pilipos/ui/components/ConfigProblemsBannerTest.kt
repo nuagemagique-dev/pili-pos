@@ -36,6 +36,7 @@ class ConfigProblemsBannerTest {
     val compose = createComposeRule()
 
     private val catalog = I18nTestSupport.catalog()
+    private val errors = I18nTestSupport.errorTexts()
     private val problems = listOf("fdm_url: empty", "pos_id: too long")
 
     private val settingsFlow = MutableStateFlow<PosSettings?>(null)
@@ -64,12 +65,12 @@ class ConfigProblemsBannerTest {
 
     @Test
     fun theOverlayOrderIsSixty() {
-        assertEquals(60, ConfigProblemsOverlay(store, catalog).order)
+        assertEquals(60, ConfigProblemsOverlay(store, catalog, errors).order)
     }
 
     @Test
     fun theOverlayShowsNothingWhileSettingsAreMissingOrClean() {
-        val overlay = ConfigProblemsOverlay(store, catalog)
+        val overlay = ConfigProblemsOverlay(store, catalog, errors)
         compose.setContent { PiliTheme { overlay.Content() } }
         compose.onNodeWithTag("config_problems").assertDoesNotExist()
 
@@ -80,7 +81,7 @@ class ConfigProblemsBannerTest {
 
     @Test
     fun theOverlayFollowsTheSettingsAndTheLanguageWithoutAnExternalProvider() {
-        val overlay = ConfigProblemsOverlay(store, catalog)
+        val overlay = ConfigProblemsOverlay(store, catalog, errors)
         compose.setContent { PiliTheme { overlay.Content() } }
 
         settingsFlow.value = posSettings().copy(configProblems = problems)
@@ -98,10 +99,29 @@ class ConfigProblemsBannerTest {
     }
 
     @Test
+    fun theOverlayShowsACodedProblemInTheLanguageOfTheTillWithItsEnglishDetail() {
+        val overlay = ConfigProblemsOverlay(store, catalog, errors)
+        compose.setContent { PiliTheme { overlay.Content() } }
+        val detail = "restaurant_vat: BE followed by 10 digits, got \"BE123\""
+
+        settingsFlow.value = posSettings().copy(configProblems = listOf("config_restaurant_vat|detail=$detail"))
+        compose.waitForIdle()
+        compose.onNodeWithText(
+            "• Numéro de TVA du restaurant invalide : BE suivi de 10 chiffres (par exemple BE0499999960). Détail : $detail",
+        ).assertIsDisplayed()
+
+        languageFlow.value = AppLanguage.EN
+        compose.waitForIdle()
+        compose.onNodeWithText(
+            "• Invalid restaurant VAT number: BE followed by 10 digits (for example BE0499999960). Detail: $detail",
+        ).assertIsDisplayed()
+    }
+
+    @Test
     fun aButtonAboveTheBannerStaysClickable() {
         var clicks by mutableIntStateOf(0)
         settingsFlow.value = posSettings().copy(configProblems = problems)
-        val overlay = ConfigProblemsOverlay(store, catalog)
+        val overlay = ConfigProblemsOverlay(store, catalog, errors)
         compose.setContent {
             PiliTheme {
                 Box(Modifier.fillMaxSize()) {

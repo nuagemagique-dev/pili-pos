@@ -118,7 +118,7 @@ async fn a_missing_bundle_is_an_internal_error_and_leaves_the_directory_free() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn the_software_version_is_the_android_identity() {
-    assert_eq!(pos_sw_version().await, "pili-pos-android/1.0.0-dev");
+    assert_eq!(pos_sw_version().await, "pili-pos-android/1.0.0");
 }
 
 /// Logging is process-wide: this is the only test that calls `init_logging`.
@@ -240,10 +240,13 @@ async fn cancelled_shutdown_then_shutdown_ends_the_streams() {
     call.await.unwrap().unwrap();
     t.engine.shutdown().await.unwrap();
 
-    let next = tokio::time::timeout(Duration::from_secs(5), stream.next())
-        .await
-        .expect("the stream ends once the engine is shut down");
-    assert!(next.is_none());
+    // Events sent before the shutdown (the clock-out's) are still delivered, then the stream
+    // ends: on a slow machine the clock-out event can still be queued here.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while stream.next().await.is_some() {}
+    })
+    .await
+    .expect("the stream ends once the engine is shut down");
     assert!(matches!(
         t.engine.events().await,
         Err(PosError::EngineClosed)

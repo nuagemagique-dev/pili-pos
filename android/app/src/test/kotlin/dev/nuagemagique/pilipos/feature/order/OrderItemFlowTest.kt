@@ -42,6 +42,9 @@ class OrderItemFlowTest {
 
     private val refusal = PosException.Coded("order_not_open", emptyMap())
     private val maki = menuItem(10, 1, "Maki saumon", 650)
+
+    /** The same product with option groups: the tap reads them and opens the picker (V11-D18). */
+    private val makiOptions = menuItem(10, 1, "Maki saumon", 650, hasModifiers = true)
     private val freePrice = menuItem(30, 1, "Supplément", 0, openPrice = true)
 
     private suspend fun TestScope.ready(world: OrderWorld = OrderWorld()): OrderRig {
@@ -191,9 +194,9 @@ class OrderItemFlowTest {
                     gate.await()
                     orderLine(10)
                 }
-            r.model.addItem(maki)
+            r.model.addItem(makiOptions)
             runCurrent()
-            r.model.addItem(menuItem(11, 1, "Nigiri thon", 480))
+            r.model.addItem(menuItem(11, 1, "Nigiri thon", 480, hasModifiers = true))
             runCurrent()
             assertTrue(r.state.dialog is OrderDialog.Modifiers)
 
@@ -210,6 +213,31 @@ class OrderItemFlowTest {
     fun withHubriseOffAProductIsNeverCheckedForOptions() =
         runTest {
             val r = ready(OrderWorld(hubrise = false))
+
+            r.model.addItem(maki)
+            runCurrent()
+
+            coVerify(exactly = 0) { r.f.engine.getItemModifiers(any(), any()) }
+            coVerify(exactly = 1) { r.f.engine.addOrderLine(any()) }
+        }
+
+    @Test
+    fun aProductWithOptionsOpensThePickerWhateverTheHubriseSwitch() =
+        runTest {
+            val r = ready(OrderWorld(hubrise = false))
+            coEvery { r.f.engine.getItemModifiers(10L, any()) } returns sauces
+
+            r.model.addItem(makiOptions)
+            runCurrent()
+
+            assertEquals(OrderDialog.Modifiers(makiOptions, sauces), r.state.dialog)
+            coVerify(exactly = 0) { r.f.engine.addOrderLine(any()) }
+        }
+
+    @Test
+    fun aProductWithoutOptionGroupsIsNeverCheckedEvenWithHubriseOn() =
+        runTest {
+            val r = ready(OrderWorld(hubrise = true))
 
             r.model.addItem(maki)
             runCurrent()
@@ -290,10 +318,10 @@ class OrderItemFlowTest {
             runCurrent()
             coEvery { r.f.engine.getItemModifiers(10L, any()) } returns sauces
 
-            r.model.addItem(maki)
+            r.model.addItem(makiOptions)
             runCurrent()
 
-            assertEquals(OrderDialog.Modifiers(maki, sauces), r.state.dialog)
+            assertEquals(OrderDialog.Modifiers(makiOptions, sauces), r.state.dialog)
             coVerify { r.f.engine.getItemModifiers(10L, "en") }
             coVerify(exactly = 0) { r.f.engine.addOrderLine(any()) }
         }
@@ -310,7 +338,7 @@ class OrderItemFlowTest {
                     world.cart = listOf(cartLine(5, 10, "Maki saumon", modifiersJson = "[100]"))
                     orderLine(10)
                 }
-            r.model.addItem(maki)
+            r.model.addItem(makiOptions)
             runCurrent()
 
             r.model.confirmModifiers(listOf(100L, 102L))
@@ -328,7 +356,7 @@ class OrderItemFlowTest {
             val r = ready(OrderWorld(hubrise = true))
             coEvery { r.f.engine.getItemModifiers(10L, any()) } returns emptyList()
 
-            r.model.addItem(maki)
+            r.model.addItem(makiOptions)
             runCurrent()
 
             assertEquals(OrderDialog.None, r.state.dialog)
@@ -353,7 +381,7 @@ class OrderItemFlowTest {
             val r = ready(OrderWorld(hubrise = true))
             coEvery { r.f.engine.getItemModifiers(any(), any()) } throws refusal
 
-            r.model.addItem(maki)
+            r.model.addItem(makiOptions)
             runCurrent()
 
             assertEquals(1, r.toasts.toasts.value.size)
@@ -367,7 +395,7 @@ class OrderItemFlowTest {
             val r = ready(OrderWorld(hubrise = true))
             coEvery { r.f.engine.getItemModifiers(10L, any()) } returns sauces
             coEvery { r.f.engine.addOrderLineWithModifiers(any()) } throws PosException.Coded("modifier_count", emptyMap())
-            r.model.addItem(maki)
+            r.model.addItem(makiOptions)
             runCurrent()
 
             r.model.confirmModifiers(listOf(100L))
@@ -383,7 +411,7 @@ class OrderItemFlowTest {
         runTest {
             val r = ready(OrderWorld(hubrise = true))
             coEvery { r.f.engine.getItemModifiers(10L, any()) } returns sauces
-            r.model.addItem(maki)
+            r.model.addItem(makiOptions)
             runCurrent()
 
             r.model.dismissDialog()

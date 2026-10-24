@@ -101,7 +101,38 @@ class TablesScreenshotTest {
     }
 
     @Test
+    fun heldCourse() {
+        val held =
+            tables.map {
+                when (it.tableNumber) {
+                    2 -> table(2, orderId = 40, lines = 3, totalCents = 2_550, openedAt = "2026-10-09 10:00:00", heldCourse = 2)
+                    4 ->
+                        table(
+                            4,
+                            orderId = 41,
+                            lines = 8,
+                            totalCents = 18_940,
+                            openedAt = "2026-10-09 09:12:00",
+                            preBill = true,
+                            heldCourse = 3,
+                        )
+                    else -> it
+                }
+            }
+        capture(TablesUiState(held, emptyList(), now, signedIn = true, loaded = true), "tables_held_course")
+    }
+
+    @Test
     fun signedOut() {
         capture(TablesUiState(now = now, signedIn = false), "tables_signed_out", HeaderUiState(area = HeaderArea.TABLES))
+    }
+
+    @Test
+    fun moveMode() {
+        val source = tables.first { it.orderId != null }
+        capture(
+            TablesUiState(tables, takeaways, now, signedIn = true, loaded = true, move = MoveState(moving = true, source = source)),
+            "tables_move",
+        )
     }
 }

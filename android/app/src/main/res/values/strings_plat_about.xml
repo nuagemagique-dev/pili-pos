@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="plat_about_title">À propos</string>
+    <string name="plat_about_back">Retour</string>
     <string name="plat_about_loading">Lecture de l\'identité de la caisse…</string>
     <string name="plat_about_refresh">Actualiser</string>
     <string name="plat_about_unavailable">Indisponible</string>
@@ -12,7 +13,8 @@
     <string name="plat_about_version_code">Code de version</string>
     <string name="plat_about_pos_sw_version">Version logicielle du moteur</string>
     <string name="plat_about_engine_ref_label">Référence du moteur</string>
-    <string name="plat_about_engine_ref" translatable="false">pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)</string>
+    <!-- TAGGING: the tag android-v1.0.0-rc3 is set on the commit that carries this string, which therefore holds no commit (plat-engine-ref gate, p6_gate.sh). -->
+    <string name="plat_about_engine_ref" translatable="false">pili-pos 1.0.0, android-v1.0.0-rc3</string>
     <string name="plat_about_apk_sha1">SHA-1 de base.apk</string>
     <string name="plat_about_apk_sha256">SHA-256 de base.apk</string>
     <string name="plat_about_so_sha1">SHA-1 de libpos_ffi.so</string>

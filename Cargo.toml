@@ -18,13 +18,17 @@ members = [
     "crates/pos-engine-testkit",
     "crates/pos-export",
     "crates/pos-export-mock",
+    "crates/pos-eft",
+    "crates/pos-eft-mock",
+    "crates/pos-eft-probe",
+    "crates/pos-accounting",
 ]
 # The Android Rust workspace lives in android/rust (from phase P2): its own
 # workspace, never a member of this one.
 exclude = ["android"]
 
 [workspace.package]
-version = "1.1.0"
+version = "1.0.0"
 edition = "2024"
 license = "Proprietary"
 authors = ["Bruno <bruno@nuagemagique.dev>"]

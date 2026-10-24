@@ -18,16 +18,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.ui.scaffold.PiliLogo
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 
-/** The wordmark is drawn at four times the big type size, the hanzi and the title at 1.4 times it. */
-private const val WORDMARK_SCALE = 4f
+/** The wordmark is 120 dp high (LoginView.vue), the hanzi and the title 1.4 times the big type size. */
+private val WordmarkHeight = 120.dp
 private const val HEADLINE_SCALE = 1.4f
 
 /** Opacity of the dot of a check without a result, and of the version line. */
@@ -71,16 +74,11 @@ private fun BrandMark() {
     val colors = PiliTheme.colors
     val typography = PiliTheme.typography
     Column(verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
-        Text(
-            text = uiText(R.string.ui_login_brand),
-            style =
-                typography.body.copy(
-                    fontFamily = typography.familyBrand,
-                    fontSize = typography.sizeXl * WORDMARK_SCALE,
-                    fontWeight = typography.weightHeavy,
-                ),
-            color = colors.textPrimary,
+        // The Pili wordmark, as on the Vue login screen (PiliLogo, 120 px high), over the screen background.
+        PiliLogo(
             modifier = Modifier.testTag("login_brand"),
+            backdrop = colors.bgPrimary,
+            height = WordmarkHeight,
         )
         Text(
             text = uiText(R.string.ui_login_brand_hanzi),
@@ -123,7 +121,11 @@ private fun CheckRow(check: StartupCheck) {
     val colors = PiliTheme.colors
     val typography = PiliTheme.typography
     val tint = check.state.tint()
-    Column(Modifier.testTag("login_check_${check.id.name.lowercase()}")) {
+    Column(
+        Modifier
+            .testTag("login_check_${check.id.name.lowercase()}")
+            .then(check.detail?.let { detail -> Modifier.semantics { contentDescription = detail } } ?: Modifier),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().height(CheckRowHeight),
             verticalAlignment = Alignment.CenterVertically,

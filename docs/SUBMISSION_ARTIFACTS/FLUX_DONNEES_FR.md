@@ -66,11 +66,80 @@ se charge. Les clients commandent trois plats ; l'opérateur appuie sur
 Le compteur fiscal **P** avance de 1. Le compteur **N** reste intact
 jusqu'à ce que le client paie effectivement.
 
+## 2 bis. Changement de table (Événement P)
+
+**Action utilisateur.** Les clients changent de place : l'opérateur
+touche « Changer de table », choisit la table libre et valide.
+
+**Circulation des données.**
+
+1. L'interface appelle `commands::table_transfer::do_transfer_table`
+   (commande `transfer_table`). Sous le verrou de signature, la caisse
+   refuse une même table, une table occupée, une table hors plan, une
+   commande qui n'est pas en salle ou sans article.
+2. Les articles pas encore envoyés sont enregistrés (événement P) sur
+   l'ancienne table.
+3. Le déplacement est construit (`transfer.from` en quantités négatives,
+   `transfer.to` en quantités positives, même référence), stocké dans
+   `pending_signs`, signé par le FDM et archivé (événement P). Dans la
+   même transaction, la commande prend le numéro de la nouvelle table.
+4. Un bon « TRANSFERT DE TABLE » sort à l'imprimante du bar.
+
+Le compteur **N** reste intact. Une réponse du FDM arrivée en retard a
+le même effet.
+
+## 2 ter. Remise à la caisse (priceChanges)
+
+1. Le Gérant choisit la remise (pourcentage, montant ou « Offert », sur
+   la commande ou sur une ligne) et la confirme par son PIN.
+2. La caisse calcule le net, répartit la remise au centime près et
+   inscrit la pose dans `order_price_changes` et `till_discounts`.
+3. Commande en cours : la remise part avec la vente (N, §3) en
+   `priceChanges`. Commande déjà enregistrée en salle : un événement P est
+   signé tout de suite ; sans réponse du FDM, il est repris
+   (`pending_signs`).
+4. « Retirer la remise » (même PIN) inscrit un retrait et rétablit le
+   prix d'origine. Le motif ne quitte jamais la caisse.
+
+## 2 quater. Note de cuisine (donnée locale)
+
+1. Le personnel touche « Note » sur une ligne et tape la note (60
+   caractères au plus).
+2. `commands::order::do_set_line_note` vérifie la note et l'écrit dans
+   `order_lines.kitchen_note` ; rien n'est journalisé, rien n'est signé.
+3. Avant l'envoi de la ligne, la note part avec l'article sur le bon de
+   commande (`commands/bar_slip.rs`), qui note ensuite la valeur imprimée
+   dans `order_lines.kitchen_note_printed`.
+4. Après l'envoi, une note différente de la note imprimée sort sur un
+   bon « MODIFICATION » ; si l'impression échoue, la valeur imprimée ne
+   change pas et valider de nouveau la même note réimprime le bon.
+5. Aucun message au FDM, aucun ticket TVA, aucune addition, aucune
+   copie et aucun export ne contient la note.
+
+## 2 quinquies. Service en plusieurs temps (donnée locale de cuisine)
+
+1. Un Gérant règle le temps de chaque catégorie (`commands::courses::do_set_course_settings`, journal des
+   réglages). Une ligne nouvelle prend le temps de sa catégorie (`order_line_courses`).
+2. À l'envoi (événement P, ou N d'une vente directe), le ticket de cuisine imprime les lignes du temps 0 et des
+   temps libérés, groupées sous un en-tête ; les autres sont retenues. Le temps vit dans `CartLine` et
+   `TableInfo`, **jamais** dans les lignes d'une demande signée, un nom de produit ou un département.
+3. « Envoyer la suite » (`do_send_next_course`) signe d'abord les lignes non enregistrées par le chemin habituel de la
+   commande de table (module fiscal absent : refus, rien n'est signé ni imprimé), libère le temps suivant
+   (`order_course_releases`) et imprime ses lignes ; une ligne n'est inscrite comme imprimée
+   (`kitchen_slip_entries`) que si le ticket est sorti.
+4. Aucun message au FDM, aucun ticket de T.V.A. ni export ne contient un temps.
+
 ## 3. Le client paie - Vente (Événement N)
 
 **Action utilisateur.** Le client demande l'addition. L'opérateur tape
 "Payer" sur la table 12. Choisit "Carte". Le terminal carte renvoie
 OK. L'opérateur confirme.
+
+Ce scénario est celui d'une installation sans terminal de paiement
+relié : le terminal carte est autonome et l'opérateur saisit le
+résultat. Avec un terminal relié (réglage `payment_terminal`), la caisse
+envoie elle-même le montant au terminal ; voir la variante à la fin de
+cette section.
 
 **Circulation des données.**
 
@@ -130,6 +199,105 @@ OK. L'opérateur confirme.
    est aussitôt effacée. Sinon, elle reste `pending` et le papier de
    secours part (§10 ci-dessous, remise en file en tâche de fond).
 
+**Variante : carte payée sur le terminal relié.** Pour une part payée par
+carte sur un terminal relié (`payment_terminal` de `pos.json`), la
+carte n'est pas saisie par l'opérateur mais demandée au terminal, avant
+l'étape 1 :
+
+a. UI → `commands::eft::do_eft_pay` avec `{order_id, amount_cents}`.
+   La demande est refusée d'emblée si l'installation n'a pas de
+   terminal relié (`eft_not_configured`), en mode formation
+   (`eft_training`), si le montant n'est pas valable
+   (`eft_amount_invalid`) ou si un paiement attend encore sa réponse
+   (`eft_pending`).
+b. **Contrôle du FDM avant le débit** (AM art. 14) : rien n'est envoyé
+   au terminal si le FDM n'est pas opérationnel à cet instant, ni si une
+   requête de signature attend encore la réponse du FDM. Le message est
+   celui de la vente (« FDM not connected - cannot complete
+   transaction »).
+c. **Enregistrement avant l'appel** : une ligne `eft_payments` (statut
+   `sent`, référence UUID, montant, commande, type de terminal,
+   identité de l'opérateur) est écrite et validée **avant** que le
+   terminal soit appelé. Un arrêt de la caisse entre l'appel et la
+   réponse laisse donc la trace qu'une carte a peut-être été débitée.
+d. Le moteur envoie le montant au terminal (Worldline ou CCV par le
+   nuage du fournisseur, OPI sur le LAN) avec la même référence, qui sert
+   de clé d'idempotence : le même paiement envoyé deux fois n'est jamais
+   débité deux fois. Données envoyées : le montant, la référence, le
+   nom de l'établissement et la table, la langue d'affichage.
+e. La réponse (accepté, refusé, abandonné, inconnu) est enregistrée dans
+   la même ligne : type de carte (débit, crédit, inconnu), marque, numéro
+   masqué, code d'autorisation, référence du terminal, ticket client du
+   terminal. Une réponse définitive (accepté, refusé, abandonné, non
+   envoyé) ne change plus jamais. Une réponse inconnue se redemande au
+   terminal (`do_eft_check`, tout utilisateur) ; au redémarrage de la
+   caisse, un paiement resté `sent` devient `unknown`.
+f. À l'étape 1, la part carte porte l'identifiant du paiement
+   (`eft_payment_id`). À l'étape 5, la ligne de paiement signée est
+   `AUTOMATIC` : type fourni par le terminal (`CARD_DEBIT` id "2",
+   `CARD_CREDIT` id "6" ou `CARD_UNKNOWN` id "7" ; une carte de
+   chèques-repas Edenred, Pluxee, Monizze ou Payflip est `CHEQUE_MEAL`
+   id "3"), `provider` = marque
+   de la carte, `reference` = identifiant de transaction du terminal. Le
+   paiement est marqué utilisé dans la même transaction SQLite que
+   l'événement N. Une vente est refusée tant qu'un paiement de la
+   commande attend sa réponse (`eft_pending`) et si un paiement accepté
+   n'est pas repris, pour son montant exact, par une part de la vente
+   (`eft_payment_not_usable`) : une carte débitée n'est jamais oubliée.
+g. Le ticket imprime la marque (par exemple « Carte Bancontact »). Le
+   tiroir-caisse n'est pas ouvert. Aucun arrondi n'est appliqué à une
+   carte.
+
+## 3 ter. Correction du moyen de paiement (Événement F)
+
+**Action utilisateur.** Une vente a été encaissée avec le mauvais moyen :
+le Gérant ouvre Rapports > Tickets, touche « Corriger le paiement » sur
+la vente, choisit la ligne de paiement et le vrai moyen, puis saisit son
+PIN.
+
+**Circulation des données.**
+
+1. L'interface lit les lignes de paiement (`commands::payment_correction::do_list_sale_payments`,
+   commande `list_sale_payments`) : la caisse dit si la vente est
+   corrigeable et pourquoi sinon.
+2. La commande `correct_payment` vérifie le PIN du Gérant, puis, sous le
+   verrou de signature, les règles (vente de la journée en cours, ni
+   remboursée ni en ligne, pas déjà corrigée, ligne saisie à la main,
+   pas d'arrondi).
+3. La requête (ligne retirée en négatif, même montant sous le nouveau
+   moyen, `fdmRef` de la vente) est stockée dans `pending_signs`, signée
+   par le FDM et archivée (événement F). Une réponse arrivée en retard a
+   le même effet.
+4. Ni ticket ni ouverture du tiroir. Les rapports X et Z suivants
+   comptent la correction dans les moyens de paiement.
+
+## 3 quater. Bons cadeaux : vente d'un bon et paiement avec un bon (Événement N)
+
+**Vente d'un bon.** 1. Le Serveur ou le Gérant touche « Bon cadeau » et tape le montant ;
+`commands::gift_vouchers::do_add_gift_voucher_line` ajoute au panier la ligne du produit système « Bon cadeau »
+(quantité fixe, code de T.V.A. X, département `GV`). 2. À l'encaissement (en espèces ou par carte seulement),
+l'étape de préparation tire le code du bon (12 chiffres dont 2 de contrôle) et le garde avec la vente en attente
+(`pending_signs`) : une réponse tardive du module fiscal crée le même code. 3. La demande N signée contient la
+ligne X et les lignes de paiement habituelles ; **aucun code de bon n'y figure**. 4. Après la réponse du module
+fiscal, la transaction SQLite de l'archive écrit l'événement N, le bon (`gift_vouchers`) et son mouvement
+d'émission (`gift_voucher_movements`), puis le bon s'imprime (`gift_voucher_prints`, seulement si le ticket est
+sorti).
+
+**Paiement avec un bon.** 1. Le code est saisi sur le pavé ; `do_lookup_gift_voucher` montre le solde, la validité
+et l'état (5 échecs par minute au plus ; code masqué partout sauf sur le bon imprimé). 2. La part retenue est la
+plus petite du solde et du reste à payer ; la demande N porte une ligne de paiement `VOUCHER_STORE` (identité
+« 8 », nom « Gift voucher », saisie `MANUAL`, montant exact, jamais arrondi). 3. Sous le verrou de signature et avant
+l'envoi au module fiscal, le moteur contrôle que le bon existe, est du bon mode (formation ou réel), n'est ni
+annulé ni expiré et que son solde couvre la part (`gift_voucher_not_found`, `_not_usable`, `_expired`,
+`_insufficient`, `_payment_invalid`). 4. Dans la transaction d'archive qui suit la réponse du module fiscal, le
+mouvement `redeem` débite le bon ; la table `payments` reçoit la ligne avec la méthode `other`. 5. Si le bon laisse un
+solde, un petit ticket « solde du bon » s'imprime après le ticket de T.V.A. Rien ne quitte la caisse : une vente qui
+vend un bon n'est pas renvoyée à HubRise.
+
+**Remboursement.** Rembourser la ligne d'un bon non utilisé l'annule (mouvement `cancel`, même transaction que le N
+négatif) ; un bon utilisé ne se rembourse pas. Une vente payée avec un bon se rembourse en espèces (choix de
+l'établissement) ; le bon n'est pas recrédité. Voir *BONS_CADEAUX_FR.md*.
+
 ## 4. Rapport X en cours de service
 
 **Action utilisateur.** Le gérant tape "Rapport X" dans la vue
@@ -176,14 +344,16 @@ rapports pour voir les totaux en cours.
      tour si la signature est occupée et revérifie sous le verrou que
      la journée est toujours en retard : pas de second Z vide.
 4. Une fois le Z archivé, sauvegarde de la DB SQLite vers
-   `/var/lib/pili-pos/backups/pos-YYYYMMDD-HHMMSS.db` (heure UTC) via
+   `/var/lib/pili-pos/backups/pos-YYYYMMDD-HHMMSS-mmm.db` (heure UTC) via
    l'API Online Backup (`signing::follow_up` →
-   `backup_database_impl`), avant l'impression.
+   `backup_database_impl`), avant l'impression. La copie est vérifiée
+   (`PRAGMA quick_check`), puis seules les 7 sauvegardes les plus
+   récentes du moteur sont gardées.
 5. Deux tickets de rapport Z sont imprimés.
 
 ## 6. Fin de service - Pointage sortie (Événement S)
 
-**Action utilisateur.** L'opérateur tape "Pointer sortie".
+**Action utilisateur.** L'opérateur touche sa tuile sur l'écran de connexion, puis "Fin de service".
 
 **Circulation des données.**
 
@@ -195,35 +365,122 @@ rapports pour voir les totaux en cours.
 3. Le moteur ferme la session dans tous les cas ; l'UI revient à l'écran
    de login.
 
-## 7. Exception - Facture B2B (Événement I + Peppol) - hors binaire certifié v1.0.0
+## 6 bis. Pointage d'un autre employé par le Gérant (Événement S)
 
-Ce flux n'existe pas dans le binaire certifié de la v1.0.0 : le code
-est sous `#[cfg(feature = "peppol")]` et la build cert ne l'inclut pas
-(`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` §8). L'événement I est optionnel
-dans SCE 2.0 ; il est décrit ici pour une mise à jour ultérieure.
-
-**Action utilisateur.** Pendant le checkout, l'opérateur active
-"Générer facture B2B", saisit le n° TVA, le nom, l'adresse et le
-pays de l'acheteur.
+**Action utilisateur.** Le Gérant ouvre "Config", panneau "Employés", et
+touche "Arrivée" ou "Départ" sur la ligne d'un employé qui n'utilise pas
+la caisse (profil « Présence seule », cuisine, plonge) ou qui n'a pas pu
+se pointer lui-même.
 
 **Circulation des données.**
 
-1. Le checkout standard se déroule (Événement **N** si vente à
-   emporter, sinon en ligne dans le flux dine-in P/N).
-2. Additionnellement, `commands::checkout` invoque `sign_invoice`
-   pour émettre un événement **I** référençant la vente sous-jacente
-   (via `fdmRefs`).
-3. Après l'archivage de l'événement fiscal,
-   `commands::invoice::do_issue_b2b_invoice` est appelé avec les détails
-   du fournisseur + de l'acheteur et les lignes de vente :
-   - `pos-peppol::ubl::to_ubl_xml` construit un UBL BIS Billing 3.0.
-   - `AccessPoint::submit` envoie l'UBL à l'AP configuré
-     (actuellement `LoggingAccessPoint` ; câblage Storecove suivi
-     dans `DECISION_PEPPOL_AP_FR.md`).
-   - Ligne ajoutée à `peppol_deliveries` avec statut
-     `accepted` / `failed` et l'UBL complet conservé pour audit.
-4. Le ticket imprimé montre le n° TVA de l'acheteur et la phrase
-   "Une facture a été émise et délivrée via Peppol".
+1. UI → `commands::social::do_clock_in_employee` ou
+   `do_clock_out_employee` (Gérant uniquement). Le moteur refuse, sans
+   rien signer, dans cet ordre : appelant non Gérant, mode formation,
+   utilisateur système, employé inconnu ou désactivé, le Gérant
+   lui-même, arrivée alors que l'employé est en service, départ alors
+   qu'il ne l'est pas.
+2. Événement **S** construit au nom de l'**employé** (`employeeId` et
+   `fiscal_events.user_insz` : son INSZ) par `commands::social::sign_work_event`,
+   comme pour la connexion et la fin de service. Verrou de signature,
+   JSON canonique, FDM, archivage.
+3. Dans la même transaction, le poste de `staff_shifts` est ouvert ou
+   clos et le Gérant est inscrit dans `started_by` ou `ended_by`.
+4. Si le FDM est injoignable ou refuse, la commande répond « échec » avec
+   le texte du FDM : rien n'est archivé, `staff_shifts` ne change pas.
+5. L'UI relit les employés et les postes ouverts.
+
+## 6 ter. Pointage par badge (Événement S)
+
+**Action utilisateur.** L'employé présente son badge sur le lecteur,
+depuis n'importe quel écran (option « Lecteur de badges », désactivée par
+défaut). Un Serveur ou un Apprenti peut aussi s'en servir pour se
+connecter (§1), et un employé peut terminer son service par badge depuis
+l'écran de connexion (§6).
+
+**Circulation des données.**
+
+1. Lecteur → interface. Le lecteur USB (qui se comporte comme un clavier : numéro puis Entrée) remet un numéro brut à l'interface. Pour
+   l'USB, l'interface reconnaît une rafale de touches physiques rapides
+   terminée par Entrée (écart et longueur réglables) et la retient : le
+   numéro n'arrive jamais dans un champ de texte. Réglage « Désactivé » :
+   rien n'est lu.
+2. Interface → `commands::badges::do_badge_tap` (numéro brut, indicateur
+   « fin de service »), sans session requise : le badge est
+   l'identification. Le moteur normalise le numéro (4 à 64 caractères
+   hexadécimaux, sinon `badge_token_invalid`), le transforme en empreinte
+   HMAC-SHA256 avec la clé de l'appareil (`badge.key`, hors de `pos.db`) ;
+   **le numéro n'est plus jamais utilisé ni écrit** après ce point.
+3. Anti-rebond : un second passage de la même empreinte pendant le
+   traitement du premier, ou dans les 10 secondes qui suivent sa fin, est
+   ignoré (aucun journal, aucun événement).
+4. Recherche de l'empreinte dans `staff_badges` : inconnue
+   (`badge_unknown`) ou retirée (`badge_revoked`), refus consigné dans
+   `badge_scans`.
+5. Décision (même ordre que dans `REPONSES_MANUEL_CERT_FR.md` §III.E) :
+   session ouverte : bascule de présence de l'employé du badge, sans
+   toucher à la session de l'opérateur (son propre badge est refusé,
+   `presence_self`) ; écran de connexion en fin de service : départ seul
+   (`presence_not_in` s'il n'est pas en service) ; écran de connexion avec
+   la connexion par badge : session ouverte comme une connexion par PIN
+   pour un Serveur ou un Apprenti (`logged_in`), PIN demandé pour un
+   Gérant (`pin_required`, aucune session) ; sinon bascule de présence.
+6. Bascule de présence : refusée en mode formation (`presence_training`) ;
+   sinon `commands::social::sign_work_event` construit l'événement **S**
+   au nom de l'**employé du badge** (`signWorkIn` s'il n'est pas en
+   service, `signWorkOut` s'il l'est), exactement celui des flux §1, §6 et
+   §6 bis : verrou de signature, JSON canonique, FDM, archivage dans
+   `fiscal_events` (`user_insz` : l'INSZ de l'employé), ouverture ou clôture
+   du poste de `staff_shifts` dans la même transaction (`started_by` et
+   `ended_by` vides).
+7. Le passage est consigné dans `badge_scans` (résultat, INSZ, référence de
+   12 caractères de l'empreinte, jamais le numéro).
+8. Si le FDM est injoignable ou refuse : résultat « échec de présence »
+   avec le texte du FDM, rien n'est archivé, `staff_shifts` ne change pas,
+   et rien n'est mis en tampon. L'interface affiche le texte du FDM.
+9. Interface : message (« Arrivée · nom · heure » ou « Départ · nom ·
+   heure », rouge pour un refus) et son ; l'activité de l'opérateur n'est
+   pas renouvelée.
+
+## 7. Facture B2B (Événement I) et envoi Peppol
+
+Annexe *FACTURATION_PEPPOL_FR.md*. La facture est établie à partir de
+ventes déjà encaissées ; elle ne modifie ni ces ventes ni leurs tickets.
+
+**Action utilisateur.** Dans Rapports, onglet Tickets, le caissier ou le
+gérant coche une ou plusieurs ventes, touche « Facture », choisit ou
+saisit le client (numéro de TVA), contrôle l'aperçu puis touche
+« Établir et imprimer la facture ».
+
+**Circulation des données.**
+
+1. `commands::invoice::do_invoice_preview` lit les ventes (événements N
+   archivés), leurs lignes, la TVA et le total dans l'archive signée ;
+   l'écran n'envoie que des identifiants de ventes et de client. Une vente
+   déjà facturée, un événement de formation, une copie ou une commande de
+   table sont refusés.
+2. `commands::invoice::do_sign_invoice_fiscal` refuse le mode formation,
+   prend le verrou de signature, lit le numéro (`<année><séquence>`, sans
+   trou) et construit la requête **I** (centre de coût `CUSTOMER`, numéro de
+   TVA du client, `fdmRefs` des ventes), envoyée au module de contrôle
+   (`signInvoice`).
+3. Dans une seule transaction SQLite, après la réponse : archive de
+   l'événement I (`fiscal_events`), `invoices`, `invoice_sales`, avance du
+   compteur I et, si l'installation a une section `peppol` et que le client
+   est belge, la ligne `peppol_deliveries` (document UBL 2.1). Un échec du
+   module de contrôle n'écrit rien ; une réponse perdue est renvoyée
+   à l'identique (§8).
+4. La facture est imprimée sur papier (aucun code QR, aucune signature
+   numérique, AM art. 43).
+5. La tâche de fond `commands::peppol_queue::run_pass` (au démarrage, à
+   intervalle régulier et à chaque facture signée) envoie les documents
+   en file : recherche du destinataire (3 s au plus, jamais bloquante),
+   envoi au point d'accès, puis `accepted`, nouvel essai plus tard
+   (attente de 30 s doublée jusqu'à 30 min) ou `failed` (mis de côté avec
+   sa raison). Chaque tentative est ajoutée à `peppol_delivery_log`.
+
+La facture ne dépend que du module de contrôle : sans réseau Peppol, elle
+est établie et imprimée, et l'envoi attend dans la base.
 
 ## 8. Exception - FDM injoignable en cours de service
 
@@ -329,19 +586,40 @@ celles signées depuis deux jours.
 Si le FDM échoue à l'étape 2, la commande revient à `pending` et rien
 n'est mis en file.
 
+## 9 quater. Tâche de fond - Alertes du propriétaire (facultatif)
+
+1. Si le propriétaire a activé la fonction et qu'un jeton de robot est configuré, une boucle propre au moteur relit
+   les réglages (`owner_settings`) toutes les 30 secondes et observe l'état déjà connu de la caisse : réponse
+   du module fiscal, imprimantes et terminal de carte (contrôle toutes les 5 minutes, jamais pendant une vente, une
+   impression ou un paiement), période comptable ouverte après l'heure limite, commandes en ligne en attente.
+2. Pour une situation qui s'ouvre, dure ou se résout, la boucle compose un court texte sans donnée personnelle ni
+   montant (`crates/pos-engine/src/alerts/text.rs`), l'envoie en HTTPS à `api.telegram.org` sans tenir le verrou de
+   signature ni celui de la base, et écrit une ligne dans `owner_alert_log` (envoyé, échec ou retenu).
+3. La boucle ne signe rien, n'écrit aucun événement fiscal et n'attend jamais : un message qui n'arrive pas n'a aucun
+   effet sur une vente, un ticket ou un Z. Au plus 20 messages par heure.
+
 ## 10. Récapitulatif de persistance
 
 | Action | Tables touchées |
 |---|---|
 | Login | `users` (lecture) |
 | Pointage entrée/sortie | `staff_shifts` (ouverture / clôture), `fiscal_events` (append S) |
+| Pointage par badge | `staff_shifts` (ouverture / clôture), `fiscal_events` (append S), `badge_scans` (append) ; `staff_badges` (lecture) ; fichier `badge.key` (lecture) |
+| Lier / retirer un badge, régler le lecteur | `staff_badges` (insertion, ou une seule date de retrait), `badge_log` (append), `badge_settings` (mise à jour) |
 | Ajout ligne commande | `orders` (insert/update), `order_lines` (insert) |
-| Envoi cuisine | `fiscal_events` (append P), `order_entries` (lignes marquées envoyées) |
+| Envoi cuisine | `fiscal_events` (append P), `order_entries` (lignes marquées envoyées), `order_lines.kitchen_note_printed` (note imprimée) |
+| Note de cuisine | `order_lines.kitchen_note` (mise à jour locale, aucun événement) |
 | Paiement | `fiscal_events` (append N), `payments` (insert), `orders` (close), `fiscal_counters` (advance N) |
 | Rapport X | `fiscal_events` (append R, `ReportTurnoverX`) |
 | Rapport Z | `fiscal_events` (append R, `ReportTurnoverZ` + `ReportUserZ`), `z_reports` (insert), fichier de backup DB |
-| Facture B2B (hors binaire certifié v1.0.0) | `fiscal_events` (append I), `peppol_deliveries` (insert) ; les tables existent mais ne sont jamais écrites par la build cert |
+| Facture B2B | `fiscal_events` (append I), `invoices` et `invoice_sales` (insert), `fiscal_counters` (advance I), `peppol_deliveries` (insert si Peppol) ; `peppol_delivery_log` (append à chaque tentative d'envoi) |
 | Remboursement | `fiscal_events` (append N M111/M112 référençant l'original) |
+| Vente d'un bon cadeau | `fiscal_events` (append N), `payments` (insert), `gift_vouchers` (insert) et `gift_voucher_movements` (append `issue`), `gift_voucher_prints` (append à l'impression) |
+| Paiement avec un bon | `fiscal_events` (append N), `payments` (insert, méthode `other`), `gift_voucher_movements` (append `redeem`) |
+| Réglage d'une fonction du propriétaire | `owner_settings` (mise à jour), `owner_settings_log` (append) |
+| Alerte du propriétaire | `owner_alert_log` (append) |
+| Temps d'une ligne, « Envoyer la suite » | `order_line_courses`, `order_course_releases` (insert), `kitchen_slip_entries` (append après impression) ; aucun `fiscal_events` propre au temps |
+| Saisie des allergènes d'un produit | `menu_item_allergens` ou `modifier_allergens`, `allergen_declarations`, `allergen_change_log` (append) |
 | Ouverture tiroir (F-WAR) | `fiscal_events` (append F) |
 | Mouvement caisse | `fiscal_events` (append F) ; aucune ligne `payments` n'est écrite |
 | Ticket signé avec support numérique | `ticket_deliveries` (append, même tx que `fiscal_events`) |

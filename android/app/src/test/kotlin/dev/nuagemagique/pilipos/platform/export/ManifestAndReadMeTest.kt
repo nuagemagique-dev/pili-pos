@@ -32,6 +32,8 @@ class ManifestAndReadMeTest {
         }
         assertTrue(text.contains("API de sauvegarde en ligne de SQLite"))
         assertTrue(text.contains("Date de l'export"))
+        // The engine keeps the 7 newest backups (PD219, user decision 2026-10-10).
+        assertTrue(text.contains("La caisse garde les 7 plus récentes"))
         // Brand and client neutral.
         for (word in listOf("Tokyo", "Pili", "Nuage", "Moyun", "pili-pos", "restaurant")) {
             assertFalse("names $word", text.contains(word, ignoreCase = true))

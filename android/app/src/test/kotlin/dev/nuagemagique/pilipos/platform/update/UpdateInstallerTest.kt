@@ -4,6 +4,7 @@ import dev.nuagemagique.pilipos.engine.CloseResult
 import dev.nuagemagique.pilipos.platform.PlatformOps
 import dev.nuagemagique.pilipos.platform.audit.PlatformAudit
 import dev.nuagemagique.pilipos.platform.audit.PlatformClock
+import dev.nuagemagique.pilipos.platform.policy.FakeDevicePolicies
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,6 +36,7 @@ class UpdateInstallerTest {
     private val ops = PlatformOps()
     private val signal = InstallSignal()
     private val sessions = FakeSessions(log)
+    private val policies = FakeDevicePolicies()
     private var restarts = 0
     private var closeAnswer: () -> CloseResult = { CloseResult.Closed }
     private lateinit var updateDir: File
@@ -83,6 +85,7 @@ class UpdateInstallerTest {
         audit = audit,
         markers = markers,
         sessions = sessions,
+        policies = policies,
         restarter = { restarts++ },
         signal = signal,
         versionCode = { 101L },
@@ -218,6 +221,7 @@ class UpdateInstallerTest {
                     audit,
                     UpdateMarkerStore(File(blocked, "update")),
                     sessions,
+                    policies,
                     { restarts++ },
                     signal,
                     { 101L },
@@ -257,5 +261,84 @@ class UpdateInstallerTest {
             val json = JSONObject(File(updateDir, "pending.json").readText())
             assertEquals(setOf("fromVersionCode", "toVersionCode", "version", "sha1", "startedAt"), json.keys().asSequence().toSet())
             assertNotNull(json.getLong("startedAt"))
+        }
+
+    private val clear = "clearUserRestriction(no_install_apps)"
+    private val set = "addUserRestriction(no_install_apps)"
+
+    @Test
+    fun installAppsIsClearedForTheSessionAndSetAgainAfterTheAnswer() =
+        runTest {
+            var atWrite = emptyList<String>()
+            var atCommit = emptyList<String>()
+            sessions.onWrite = { atWrite = policies.calls.toList() }
+            sessions.onCommit = {
+                atCommit = policies.calls.toList()
+                signal.complete()
+            }
+            installer().install(verifiedOf(apk))
+
+            assertEquals(listOf(clear), atWrite)
+            assertEquals(listOf(clear), atCommit)
+            assertEquals(listOf(clear, set), policies.calls)
+        }
+
+    @Test
+    fun installAppsIsNotTouchedWhenAPreconditionBlocksTheInstall() =
+        runTest {
+            coEvery { engine.needsZReport() } returns true
+            installer().install(verifiedOf(apk))
+            assertEquals(emptyList<String>(), policies.calls)
+        }
+
+    @Test
+    fun installAppsIsSetAgainWhenTheSessionFails() =
+        runTest {
+            sessions.onWrite = { throw IOException("no space left") }
+            installer().install(verifiedOf(apk))
+            assertEquals(listOf(clear, set), policies.calls)
+
+            policies.calls.clear()
+            sessions.onWrite = {}
+            sessions.onCommit = { throw IllegalStateException("session is sealed") }
+            installer().install(verifiedOf(apk))
+            assertEquals(listOf(clear, set), policies.calls)
+        }
+
+    @Test
+    fun installAppsStaysClearedUntilTheHoldEnds() =
+        runTest {
+            sessions.onCommit = {}
+            var restoredAt = -1L
+            val hold = 5_000L
+            val before = currentTime
+            installer(hold = hold).install(verifiedOf(apk))
+            restoredAt = currentTime - before
+            assertEquals(hold, restoredAt)
+            assertEquals(listOf(clear, set), policies.calls)
+        }
+
+    @Test
+    fun aRefusedClearDoesNotStopTheInstallAndTheRestrictionIsStillSetAgain() =
+        runTest {
+            policies.failing += "clearUserRestriction"
+            val outcome = installer().install(verifiedOf(apk))
+            assertEquals(InstallOutcome.Committed, outcome)
+            assertEquals(listOf(clear, set), policies.calls)
+        }
+
+    @Test
+    fun aRefusedSetAgainDoesNotChangeTheOutcome() =
+        runTest {
+            policies.failing += "addUserRestriction"
+            assertEquals(InstallOutcome.Committed, installer().install(verifiedOf(apk)))
+        }
+
+    @Test
+    fun notBeingTheOwnerLeavesTheRestrictionAlone() =
+        runTest {
+            policies.owner = false
+            assertEquals(InstallOutcome.Committed, installer().install(verifiedOf(apk)))
+            assertEquals(emptyList<String>(), policies.calls)
         }
 }

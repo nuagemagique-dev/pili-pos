@@ -12,6 +12,9 @@ rounding, the signature, the ticket delivery); the screen only calls it through 
 | Vue | Compose | Commands |
 | --- | --- | --- |
 | ui/src/views/CheckoutView.vue | feature/checkout/CheckoutScreen.kt (CheckoutRoute, CheckoutContent), CheckoutPanels.kt, CheckoutViewModel.kt, CheckoutState.kt, CheckoutEntryPoint.kt | `checkout` |
+| CheckoutView.vue (summary: change rows, Sous-total, Remise) | feature/checkout/CheckoutPanels.kt (SummaryLine, SummaryFoot), CheckoutState.kt (CheckoutSummary.discountCents) | - |
+| CheckoutView.vue (`held-warning`, `sendHeldNow`: "Envoyer maintenant") | feature/checkout/CheckoutPanels.kt (HeldWarning), CheckoutViewModel.kt (sendHeldNow) over ui/state/OrderStore.kt | `send_next_course` |
+| CheckoutView.vue ("Bon cadeau" method, `GiftVoucherDialog.vue`, voucher notes `gv-prints` on the done screen) | feature/checkout/GiftVoucherDialog.kt, CheckoutPanels.kt (MethodRow), CheckoutScreen.kt (VoucherPrints), CheckoutViewModel.kt (voucherKey, lookupVoucher, applyVoucher) with ui/components/GiftVouchers.kt | `lookup_gift_voucher` `checkout` |
 | components/TicketMediumPicker.vue | ui/components/TicketMediumPicker.kt (TicketMediumPicker, TicketMediumKeypad) bound to ui/state/DeliveryStore.kt | - |
 | components/EmailKeypad.vue | ui/components/EmailKeypad.kt, drawn in the scaffold overlay of the checkout route | - |
 | components/DeliveryOutcomePanel.vue | ui/components/DeliveryOutcomePanel.kt with `DeliveryStore.printMissingOriginal` | `print_missing_original` |
@@ -27,6 +30,7 @@ No amount is computed in this package; there is no sum, difference, product, quo
 | Left to pay | the amount of the cash row of `EngineHelpers.settlePreview(total, parts taken + cash part without amount)`, 0 when there is no row |
 | Cash due, rounded | `cashDueCents` of the same preview (last part); for a cash part before the last one, of `settlePreview(part, [cash])` |
 | Left to pay shown | the rounded cash due when cash pays the last part, else the rest |
+| Subtotal and discount rows | `CashDisplay.sumCents` of the cart lines' `discountCents`, and `CashDisplay.subtotalBeforeDiscountCents(total, discount)`; shown only when a line carries a discount |
 | Equal shares | `CashDisplay.equalShares(total, n)` |
 | Amount of the current part | the share or the rest, the smaller by comparison |
 | Chips of the next parts | the cash row of a preview that holds the parts so far as exact amounts |
@@ -60,3 +64,8 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
   go through `ErrorPresenter` and are shown in the footer, back on the pay step with the parts kept.
 - **New order.** The finish button of the done screen goes to the tables (the order is gone); Vue goes to the order
   route, which bounces to the tables when there is no order.
+- **Meal-voucher card on the terminal.** `EftPayment.meal_voucher` (the stored brand is Edenred, Pluxee, Monizze or
+  Payflip) is kept on the taken part (Vue `TakenPart.mealVoucher`, Compose `TakenPart.mealVoucher`). The part stays
+  method `card` toward the engine (same `eft_payment_id` payload) but is named by the meal-voucher label ("Part 1 ·
+  Chèques-repas · Edenred") on the paid-part row and the part chip (Vue `takenLabel`, Compose `displayMethod`). No new
+  string.

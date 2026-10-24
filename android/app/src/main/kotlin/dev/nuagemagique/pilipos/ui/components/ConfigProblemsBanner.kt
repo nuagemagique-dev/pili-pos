@@ -22,6 +22,7 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
+import dev.nuagemagique.pilipos.i18n.ErrorTexts
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.nav.ShellOverlay
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
@@ -38,9 +39,9 @@ private val ListIndent = 20.dp
 
 /**
  * `ConfigProblemsBanner.vue`: a red band when `pos.json` holds an identity the FDM would refuse, so that every
- * sale would fail. The headline is translated; the [problems] are for the installer and stay as the engine
- * wrote them. The caller draws it only when [problems] is not empty. Test tags: `config_problems` (the band),
- * `config_problem_<index>`.
+ * sale would fail. The headline and the [problems] are translated (the overlay turns the engine's coded problems
+ * into texts, each ending with the installer's English detail). The caller draws it only when [problems] is not
+ * empty. Test tags: `config_problems` (the band), `config_problem_<index>`.
  */
 @Composable
 fun ConfigProblemsBanner(
@@ -80,6 +81,7 @@ class ConfigProblemsOverlay
     constructor(
         private val settings: PosSettingsStore,
         private val catalog: MessageCatalog,
+        private val errors: ErrorTexts,
     ) : ShellOverlay {
         override val order: Int = CONFIG_PROBLEMS_OVERLAY_ORDER
 
@@ -92,7 +94,8 @@ class ConfigProblemsOverlay
             // The shell gives the plain theme and no texts: provide the app language here.
             ProvideUiText(language, catalog) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                    ConfigProblemsBanner(problems)
+                    // Each problem is a coded error: its text in the till's language, then the installer's detail.
+                    ConfigProblemsBanner(problems.map { errors.describe(it, language) })
                 }
             }
         }

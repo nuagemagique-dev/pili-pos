@@ -81,11 +81,11 @@ class PosSettingsStoreTest {
         }
 
     @Test
-    fun defaultsAreFrenchAndTheProductName() =
+    fun defaultsAreFrenchAndTheProductCode() =
         runTest {
             val store = store(EngineFixture(this, tmp.root))
             assertEquals(AppLanguage.FR, store.language.value)
-            assertEquals(ProductLabel.NAME, store.productLabel.value)
+            assertEquals(ProductLabel.CODE, store.productLabel.value)
         }
 
     @Test
@@ -93,20 +93,20 @@ class PosSettingsStoreTest {
         runTest {
             val first = store(EngineFixture(this, tmp.root))
             first.setLanguage(AppLanguage.ZH)
-            first.setProductLabel(ProductLabel.CODE)
+            first.setProductLabel(ProductLabel.NAME)
             assertEquals(AppLanguage.ZH, first.language.value)
 
             val second = store(EngineFixture(this, tmp.root))
 
             assertEquals(AppLanguage.ZH, second.language.value)
-            assertEquals(ProductLabel.CODE, second.productLabel.value)
+            assertEquals(ProductLabel.NAME, second.productLabel.value)
             val prefs = context.getSharedPreferences("pili_ui", Context.MODE_PRIVATE)
             assertEquals("zh", prefs.getString("language", null))
-            assertEquals("code", prefs.getString("product_label", null))
+            assertEquals("name", prefs.getString("product_label", null))
         }
 
     @Test
-    fun anUnknownStoredCodeGivesFrenchAndTheName() =
+    fun anUnknownStoredCodeGivesFrenchAndTheCode() =
         runTest {
             context
                 .getSharedPreferences("pili_ui", Context.MODE_PRIVATE)
@@ -118,7 +118,7 @@ class PosSettingsStoreTest {
             val store = store(EngineFixture(this, tmp.root))
 
             assertEquals(AppLanguage.FR, store.language.value)
-            assertEquals(ProductLabel.NAME, store.productLabel.value)
+            assertEquals(ProductLabel.CODE, store.productLabel.value)
         }
 
     @Test

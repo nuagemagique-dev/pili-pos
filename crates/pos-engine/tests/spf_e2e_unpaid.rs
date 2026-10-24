@@ -292,7 +292,7 @@ async fn an_inconsistent_fdm_answer_leaves_the_order_open() {
         r.error
             .as_deref()
             .unwrap()
-            .contains("FDM_RESPONSE_MISMATCH"),
+            .contains("FDM_ANSWER_PENDING|label=N|ticket=1|fdm=FDM_RESPONSE_MISMATCH|"),
         "{:?}",
         r.error
     );

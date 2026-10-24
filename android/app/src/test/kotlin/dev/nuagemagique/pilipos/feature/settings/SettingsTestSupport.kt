@@ -8,6 +8,7 @@ import dev.nuagemagique.pilipos.engine.EngineEvents
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.engine.EngineGateway
 import dev.nuagemagique.pilipos.engine.EngineHelpers
+import dev.nuagemagique.pilipos.feature.checkout.CheckoutNatives
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.ErrorTexts
 import dev.nuagemagique.pilipos.i18n.FdmTexts
@@ -16,10 +17,19 @@ import dev.nuagemagique.pilipos.nav.FakeEntry
 import dev.nuagemagique.pilipos.nav.NavRegistry
 import dev.nuagemagique.pilipos.nav.SettingsEntry
 import dev.nuagemagique.pilipos.nav.registryOf
+import dev.nuagemagique.pilipos.ui.badge.BadgeRig
+import dev.nuagemagique.pilipos.ui.badge.BadgeStore
+import dev.nuagemagique.pilipos.ui.badge.FakeNfcSupport
+import dev.nuagemagique.pilipos.ui.badge.badgeRigOver
+import dev.nuagemagique.pilipos.ui.badge.badgeView
+import dev.nuagemagique.pilipos.ui.badge.noBadges
 import dev.nuagemagique.pilipos.ui.components.QrMatrices
+import dev.nuagemagique.pilipos.ui.fdm.FdmStore
+import dev.nuagemagique.pilipos.ui.fdm.health
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
+import dev.nuagemagique.pilipos.ui.state.EftStore
 import dev.nuagemagique.pilipos.ui.state.EventFeed
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
@@ -29,12 +39,14 @@ import io.mockk.coEvery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import uniffi.pos_ffi.DeliveryView
 import uniffi.pos_ffi.Integrations
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.PosSettings
+import uniffi.pos_ffi.TablePlan
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
 import java.io.File
@@ -44,17 +56,23 @@ internal const val CASHIER_INSZ = "90020200234"
 internal const val WAITER_INSZ = "95030300345"
 internal const val NEW_INSZ = "99040400456"
 
+@Suppress("LongParameterList")
 internal fun user(
     insz: String,
     name: String,
     role: UserRole,
     hasPin: Boolean = true,
     active: Boolean = true,
-): User = User(insz = insz, name = name, role = role, active = active, hasPin = hasPin)
+    presenceOnly: Boolean = false,
+): User = User(insz = insz, name = name, role = role, active = active, hasPin = hasPin, presenceOnly = presenceOnly)
 
 internal val admin = user(ADMIN_INSZ, "Alice", UserRole.ADMIN)
 internal val cashier = user(CASHIER_INSZ, "Bob", UserRole.CASHIER)
 internal val waiter = user(WAITER_INSZ, "Chen", UserRole.WAITER, hasPin = false)
+
+/** Kitchen staff who never use the till: a waiter row with the presence-only flag and no PIN. */
+internal const val COOK_INSZ = "88010112345"
+internal val cook = user(COOK_INSZ, "Dao", UserRole.WAITER, hasPin = false, presenceOnly = true)
 
 internal fun engineSettings(training: Boolean = false): PosSettings =
     PosSettings(
@@ -99,11 +117,16 @@ internal fun stubReads(
     hubrise: Boolean = false,
 ) {
     coEvery { engine.listUsers() } returns users
+    coEvery { engine.listOpenShifts() } returns emptyList()
+    coEvery { engine.fdmHealth() } returns health()
     coEvery { engine.checkMailStatus() } returns mail()
     coEvery { engine.listTicketDeliveries(50L) } returns listOf(delivery(1L), delivery(2L))
     coEvery { engine.getSettings() } returns engineSettings()
     coEvery { engine.getIntegrations() } returns integrationsOf(hubrise)
     coEvery { engine.hubriseListWebshopOrders() } returns emptyList()
+    coEvery { engine.getTablePlan() } returns TablePlan(plan = "1-20", tableCount = 20L, log = emptyList())
+    coEvery { engine.getBadgeSettings() } returns badgeView()
+    coEvery { engine.listBadges() } returns noBadges()
 }
 
 /** Three settings rows: one open to every role, two for managers, in a mixed order to prove the sort. */
@@ -137,6 +160,8 @@ internal class TestSettingsEntryPoint(
     private val registry: NavRegistry,
     private val delivery: DeliveryStore,
     private val webshop: WebshopOrdersStore,
+    private val fdm: FdmStore,
+    private val badges: BadgeStore,
 ) : SettingsFeatureEntryPoint {
     override fun gateway(): EngineGateway = gateway
 
@@ -162,6 +187,10 @@ internal class TestSettingsEntryPoint(
 
     override fun webshop(): WebshopOrdersStore = webshop
 
+    override fun fdm(): FdmStore = fdm
+
+    override fun badges(): BadgeStore = badges
+
     override fun qrMatrices(): QrMatrices = QrMatrices(helpers)
 }
 
@@ -179,6 +208,8 @@ internal class SettingsEnv(
     val integrations: IntegrationsStore,
     val delivery: DeliveryStore,
     val webshop: WebshopOrdersStore,
+    val fdm: FdmStore,
+    val badges: BadgeRig,
 ) {
     /** The French text of Vue [key]. */
     fun text(
@@ -217,6 +248,7 @@ internal fun TestScope.settingsFixture(
 internal fun TestScope.settingsEnv(
     f: EngineFixture,
     context: Context,
+    nfc: FakeNfcSupport = FakeNfcSupport(),
 ): SettingsEnv {
     val feed = EventFeed(f)
     val gateway = f.gateway(this)
@@ -228,12 +260,28 @@ internal fun TestScope.settingsEnv(
     val integrations = IntegrationsStore(gateway, f.events, backgroundScope)
     val helpers = EngineHelpers(f.natives, f.dispatcher)
     val delivery = DeliveryStore(gateway, errors, settings)
-    val webshop = WebshopOrdersStore(gateway, f.events, errors, toasts, integrations, settings, catalog, backgroundScope)
+    val eft = EftStore(gateway, errors, settings, backgroundScope)
+    val webshop =
+        WebshopOrdersStore(
+            gateway,
+            f.events,
+            errors,
+            toasts,
+            integrations,
+            settings,
+            catalog,
+            eft,
+            EngineHelpers(CheckoutNatives(), UnconfinedTestDispatcher(testScheduler)),
+            backgroundScope,
+        )
+    val fdm = FdmStore(gateway, f.events, errors, toasts, FdmTexts(catalog), settings, backgroundScope)
+    val badges = badgeRigOver(f, gateway, session, toasts, errors, settings, catalog, nfc)
     val entry =
         TestSettingsEntryPoint(
-            gateway, f.events, helpers, session, settings, integrations, errors, toasts, catalog, testRegistry(), delivery, webshop,
+            gateway, f.events, helpers, session, settings, integrations, errors, toasts, catalog, testRegistry(), delivery, webshop, fdm,
+            badges.store,
         )
-    return SettingsEnv(f, entry, feed, toasts, errors, catalog, session, settings, integrations, delivery, webshop)
+    return SettingsEnv(f, entry, feed, toasts, errors, catalog, session, settings, integrations, delivery, webshop, fdm, badges)
 }
 
 /** Opens the engine and lets the stores load. */

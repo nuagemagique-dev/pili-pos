@@ -1,0 +1,25 @@
+{
+  "amount": 9.99,
+  "created": 1776151734603,
+  "currency": "eur",
+  "description": "Order 123456",
+  "details": {
+    "operatingEnvironment": "ATTENDED",
+    "port": 6235,
+    "managementSystemId": "1234567",
+    "ip": "188.165.118.154",
+    "terminalId": "1234567",
+    "wakeUpType": "CLOUD_CONNECT",
+    "merchantLanguage": "ita",
+    "accessProtocol": "OPI_NL"
+  },
+  "language": "ita",
+  "lastUpdate": 1776151734603,
+  "merchantOrderReference": "123456",
+  "method": "terminal",
+  "payUrl": "https://onlinepayments.ccv.eu/terminal/poll?reference=TL260414072854599CB87E19B.3",
+  "reference": "TL260414072854599CB87E19B.3",
+  "returnUrl": "https://shop/return?order=123456",
+  "status": "pending",
+  "type": "sale"
+}

@@ -462,6 +462,19 @@ pub fn do_backup_database(state: &AppState) -> Result<String, String> {
     backup_database_impl(&db, &config, &state.paths.backups)
 }
 
+/// How many engine backups stay in the backup directory (user decision of
+/// 2026-10-10, "Keep the 7 newest"). The live `pos.db` keeps the whole
+/// fiscal journal, so an older copy carries nothing the database lost.
+pub const BACKUPS_KEPT: usize = 7;
+
+/// Copy the live database into the backup directory, check the copy, then
+/// keep only the [`BACKUPS_KEPT`] newest engine backups.
+///
+/// Retention runs only once the new copy is complete and passes SQLite's
+/// `quick_check`; a failed copy deletes nothing. It touches only the
+/// engine's own `pos-<UTC timestamp>.db` files of that directory, never
+/// `pos.db`, the nightly export folder or a file someone else put there
+/// (`manual-*.db`, `pre-update-*.db`).
 pub(crate) fn backup_database_impl(
     conn: &rusqlite::Connection,
     config: &pos_core::config::PosConfig,
@@ -473,19 +486,107 @@ pub(crate) fn backup_database_impl(
     };
     std::fs::create_dir_all(&backup_dir).map_err(|e| e.to_string())?;
 
-    let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
-    let filename = format!("pos-{timestamp}.db");
-    let dest_path = backup_dir.join(&filename);
-
-    let mut dest = rusqlite::Connection::open(&dest_path).map_err(|e| e.to_string())?;
-    let backup = rusqlite::backup::Backup::new(conn, &mut dest).map_err(|e| e.to_string())?;
-    backup
-        .run_to_completion(100, std::time::Duration::from_millis(50), None)
-        .map_err(|e| e.to_string())?;
+    let dest_path = fresh_backup_path(&backup_dir, chrono::Utc::now());
+    {
+        let mut dest = rusqlite::Connection::open(&dest_path).map_err(|e| e.to_string())?;
+        let backup = rusqlite::backup::Backup::new(conn, &mut dest).map_err(|e| e.to_string())?;
+        backup
+            .run_to_completion(100, std::time::Duration::from_millis(50), None)
+            .map_err(|e| e.to_string())?;
+    }
+    verify_backup(&dest_path)?;
 
     let path_str = dest_path.to_string_lossy().to_string();
     tracing::info!(path = %path_str, "database backup created");
+    prune_backups(&backup_dir, &dest_path, BACKUPS_KEPT);
     Ok(path_str)
+}
+
+/// `pos-YYYYMMDD-HHMMSS-mmm.db` at `now` (UTC), one millisecond later as
+/// long as that name is taken, so a backup never overwrites another one and
+/// the names sort in the order the backups were made.
+fn fresh_backup_path(
+    dir: &std::path::Path,
+    now: chrono::DateTime<chrono::Utc>,
+) -> std::path::PathBuf {
+    let mut at = now;
+    loop {
+        let path = dir.join(format!("pos-{}.db", at.format("%Y%m%d-%H%M%S-%3f")));
+        if !path.exists() {
+            return path;
+        }
+        at += chrono::Duration::milliseconds(1);
+    }
+}
+
+/// The copy opens and SQLite's `quick_check` finds it sound.
+fn verify_backup(path: &std::path::Path) -> Result<(), String> {
+    let copy = rusqlite::Connection::open_with_flags(
+        path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(|e| format!("backup check: {e}"))?;
+    let verdict: String = copy
+        .query_row("PRAGMA quick_check", [], |r| r.get(0))
+        .map_err(|e| format!("backup check: {e}"))?;
+    if verdict == "ok" {
+        Ok(())
+    } else {
+        Err(format!("backup check: {verdict}"))
+    }
+}
+
+/// An engine backup name: `pos-` then the UTC timestamp (digits and dashes,
+/// with or without milliseconds), then `.db`. `pos.db` is not one.
+fn is_engine_backup(name: &str) -> bool {
+    name.strip_prefix("pos-")
+        .and_then(|rest| rest.strip_suffix(".db"))
+        .is_some_and(|stamp| {
+            stamp.len() >= 15
+                && stamp.starts_with(|c: char| c.is_ascii_digit())
+                && stamp.chars().all(|c| c.is_ascii_digit() || c == '-')
+        })
+}
+
+/// Delete the oldest engine backups of `dir` so that `keep` remain, `fresh`
+/// (the backup just made and checked) always among them. Each deletion is
+/// logged; a deletion that fails is logged and the rest go on.
+fn prune_backups(dir: &std::path::Path, fresh: &std::path::Path, keep: usize) {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            tracing::warn!(%e, dir = %dir.display(), "backup retention: cannot list the backups");
+            return;
+        }
+    };
+    let fresh_name = fresh.file_name();
+    let mut older: Vec<std::path::PathBuf> = entries
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name() != fresh_name
+                && p.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(is_engine_backup)
+        })
+        .collect();
+    // Newest first: the names are UTC timestamps.
+    older.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+    for old in older.iter().skip(keep.saturating_sub(1)) {
+        match std::fs::remove_file(old) {
+            Ok(()) => tracing::info!(
+                path = %old.display(),
+                kept = keep,
+                "backup retention: oldest backup deleted"
+            ),
+            Err(e) => tracing::warn!(
+                %e,
+                path = %old.display(),
+                "backup retention: could not delete an old backup"
+            ),
+        }
+    }
 }
 
 /// Build the printed turnover report from the totals sent to the FDM,
@@ -544,7 +645,7 @@ fn build_print_data(
         short_signature: None,
         ticket_number,
         lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
-        details: report_details(config, period, data),
+        details: report_details(config, period, data, events),
     }
 }
 
@@ -553,6 +654,7 @@ fn report_details(
     config: &pos_core::config::PosConfig,
     period: &BookingPeriod,
     data: &TurnoverReportData,
+    events: &[ReportEvent],
 ) -> ReportDetails {
     let turnover = &data.turnover;
     let neg = |refund: bool| {
@@ -573,15 +675,11 @@ fn report_details(
                 (count + t.ticket_count, amount + cents(t.amount))
             })
     };
-    // Price changes are not made by this POS (Advanced Set, out of
-    // scope): whatever the FDM totals hold is shown as line reductions.
-    let reductions = turnover
-        .price_changes
-        .iter()
-        .fold((0, 0), |(count, amount), change| {
-            let sum: f64 = change.amount.iter().map(|a| a.negative + a.positive).sum();
-            (count + 1, amount + cents(sum))
-        });
+    // The public price changes of the sales, split by scope as the
+    // printout asks: a change on one line (a free line) or on the whole
+    // ticket (an order discount, an online order's). The signed totals
+    // (`turnover.priceChanges`) are not split.
+    let (line_reductions, event_reductions) = reductions_by_scope(events);
     ReportDetails {
         restaurant_est_no: config.restaurant_est_no.clone(),
         booking_period_id: period.id.clone(),
@@ -604,8 +702,8 @@ fn report_details(
         corrections_cents: neg(false).1,
         refunds: neg(true),
         training: transactions_of(EventLabel::T),
-        line_reductions: reductions,
-        event_reductions: (0, 0),
+        line_reductions,
+        event_reductions,
         invoices: turnover
             .invoices
             .iter()
@@ -619,7 +717,57 @@ fn report_details(
             .filter(|a| a.amount_type == PaymentLineType::Rounding)
             .map(|a| cents(a.total_amount))
             .sum(),
+        payment_corrections: payment_corrections(&turnover.payments),
     }
+}
+
+/// The reductions of the sales' lines, per scope: `(tickets, cents)` for
+/// `LINE` scope changes, then for `EVENT` scope ones. A ticket counts once
+/// per scope it has a public change of; the amount is their sum (negative
+/// for a discount).
+fn reductions_by_scope(events: &[ReportEvent]) -> ((i64, i64), (i64, i64)) {
+    let mut line = (0, 0);
+    let mut event = (0, 0);
+    for sale in events.iter().filter(|e| e.label == EventLabel::N) {
+        let (mut line_hit, mut event_hit) = (false, false);
+        for l in sale.lines() {
+            for vat in l["mainProduct"]["vats"].as_array().into_iter().flatten() {
+                for change in vat["priceChanges"].as_array().into_iter().flatten() {
+                    if change["type"].as_str() != Some("PUBLIC") {
+                        continue;
+                    }
+                    let amount = cents(change["amount"].as_f64().unwrap_or(0.0));
+                    if change["scope"].as_str() == Some("LINE") {
+                        line.1 += amount;
+                        line_hit = true;
+                    } else {
+                        event.1 += amount;
+                        event_hit = true;
+                    }
+                }
+            }
+        }
+        line.0 += i64::from(line_hit);
+        event.0 += i64::from(event_hit);
+    }
+    (line, event)
+}
+
+/// Payment corrections (event F) of the report: their number (each
+/// one is a negative and a positive line) and the amount they moved to
+/// another method.
+fn payment_corrections(payments: &[PaymentTotalInput]) -> (i64, i64) {
+    let (lines, moved) = payments
+        .iter()
+        .flat_map(|p| &p.amount)
+        .filter(|a| a.amount_type == PaymentLineType::Payment)
+        .fold((0, 0), |(lines, moved), a| {
+            (
+                lines + a.corrections_count,
+                moved + cents(a.positive_corrections),
+            )
+        });
+    (lines / 2, moved)
 }
 
 /// Printed payment lines: the signed totals, with the number of
@@ -947,6 +1095,142 @@ mod tests {
             crate::commands::business_date(at(2026, 7, 4, 5, 0), 5),
             "2026-07-04"
         );
+    }
+
+    fn backup_names(dir: &std::path::Path) -> Vec<String> {
+        let mut names: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        names
+    }
+
+    #[test]
+    fn engine_backup_names_are_recognised_and_nothing_else() {
+        assert!(is_engine_backup("pos-20261010-120000.db"));
+        assert!(is_engine_backup("pos-20261010-120000-042.db"));
+        for other in [
+            "pos.db",
+            "pos.db-wal",
+            "pos-.db",
+            "pos-latest.db",
+            "pos-20261010-120000.db-journal",
+            "pos-20261008-z000042.db.age",
+            "manual-20261010-120000.db",
+            "pre-update-20261010-120000.db",
+        ] {
+            assert!(!is_engine_backup(other), "{other}");
+        }
+    }
+
+    #[test]
+    fn a_backup_never_takes_the_name_of_another() {
+        let dir = tempfile::tempdir().unwrap();
+        let now = chrono::Utc
+            .with_ymd_and_hms(2026, 10, 10, 12, 0, 0)
+            .unwrap();
+        let first = fresh_backup_path(dir.path(), now);
+        std::fs::write(&first, "x").unwrap();
+        let second = fresh_backup_path(dir.path(), now);
+        assert_ne!(first, second);
+        assert!(second.file_name() > first.file_name(), "sorts after");
+        assert_eq!(
+            first.file_name().unwrap(),
+            "pos-20261010-120000-000.db",
+            "UTC timestamp with milliseconds"
+        );
+    }
+
+    #[test]
+    fn nine_backups_leave_the_seven_newest_and_nothing_else_is_touched() {
+        let data = tempfile::tempdir().unwrap();
+        let dir = data.path().join("backups");
+        std::fs::create_dir_all(&dir).unwrap();
+        // What retention must never touch.
+        let foreign = [
+            "manual-20250101-000000.db",
+            "pre-update-20250101-000000.db",
+            "notes.txt",
+        ];
+        for name in foreign {
+            std::fs::write(dir.join(name), "keep").unwrap();
+        }
+        std::fs::create_dir_all(dir.join("pos-20000101-000000.db")).unwrap();
+        let live = rusqlite::Connection::open(data.path().join("pos.db")).unwrap();
+        live.execute_batch("CREATE TABLE t (x INTEGER); INSERT INTO t VALUES (1);")
+            .unwrap();
+        let config = pos_core::config::PosConfig {
+            backup_dir: None,
+            ..Default::default()
+        };
+
+        let made: Vec<String> = (0..9)
+            .map(|_| {
+                let path = backup_database_impl(&live, &config, &dir).unwrap();
+                std::path::Path::new(&path)
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        let mut expected: Vec<String> = made[made.len() - BACKUPS_KEPT..].to_vec();
+        expected.extend(foreign.iter().map(|s| s.to_string()));
+        expected.push("pos-20000101-000000.db".into());
+        expected.sort();
+        assert_eq!(backup_names(&dir), expected);
+        assert!(data.path().join("pos.db").is_file(), "pos.db untouched");
+        // Every kept copy is a sound database.
+        for name in &made[made.len() - BACKUPS_KEPT..] {
+            verify_backup(&dir.join(name)).unwrap();
+        }
+    }
+
+    #[test]
+    fn the_fresh_backup_is_kept_even_when_an_older_name_sorts_after_it() {
+        let data = tempfile::tempdir().unwrap();
+        let dir = data.path().join("backups");
+        std::fs::create_dir_all(&dir).unwrap();
+        // Seven backups "from the future" (the clock went back since).
+        for i in 0..7 {
+            std::fs::write(dir.join(format!("pos-2099010{i}-000000.db")), "x").unwrap();
+        }
+        let live = rusqlite::Connection::open_in_memory().unwrap();
+        let config = pos_core::config::PosConfig::default();
+        let path = backup_database_impl(&live, &config, &dir).unwrap();
+        assert!(
+            std::path::Path::new(&path).is_file(),
+            "the fresh copy stays"
+        );
+        let names = backup_names(&dir);
+        assert_eq!(names.len(), BACKUPS_KEPT);
+        assert!(
+            !names.contains(&"pos-20990100-000000.db".to_string()),
+            "oldest name went"
+        );
+    }
+
+    #[test]
+    fn a_failed_backup_deletes_nothing() {
+        let data = tempfile::tempdir().unwrap();
+        let dir = data.path().join("backups");
+        std::fs::create_dir_all(&dir).unwrap();
+        for i in 0..9 {
+            std::fs::write(dir.join(format!("pos-2026010{i}-000000.db")), "x").unwrap();
+        }
+        let live = rusqlite::Connection::open_in_memory().unwrap();
+        // A file where the directory should be: the copy cannot be made.
+        let blocked = data.path().join("blocked");
+        std::fs::write(&blocked, "x").unwrap();
+        let config = pos_core::config::PosConfig::default();
+        assert!(backup_database_impl(&live, &config, &blocked).is_err());
+        assert_eq!(backup_names(&dir).len(), 9);
+        // A copy that fails its check deletes nothing either.
+        let corrupt = dir.join("pos-20260108-000000.db");
+        std::fs::write(&corrupt, vec![0u8; 4096]).unwrap();
+        assert!(verify_backup(&corrupt).is_err());
+        assert_eq!(backup_names(&dir).len(), 9);
     }
 
     #[test]

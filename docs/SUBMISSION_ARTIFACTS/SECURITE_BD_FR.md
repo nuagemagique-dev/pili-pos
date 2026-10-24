@@ -52,10 +52,19 @@ Au niveau colonne :
   code TVA invalide.
 - `payments.method IN ('cash','card','meal_voucher','other')`
   (migration 8) - restreint les modes de paiement.
+- `eft_payments.status IN ('sent','approved','declined','cancelled','unknown','not_sent')`
+  et `eft_payments.card_type IN ('debit','credit','unknown')` (migration
+  27) ; un paiement `approved` impose un `card_type` renseigné ;
+  `eft_payments.amount_cents > 0`.
 - `users.role IN ('admin','cashier','waiter')` - restreint les
   rôles à ceux mappés sur les profils SCE 2.0.
-- `peppol_deliveries.status IN ('queued','accepted','failed')` -
-  restreint les statuts de livraison Peppol.
+- `peppol_deliveries.status IN ('queued','accepted','failed')` et
+  `peppol_deliveries.lookup_status`, `b2b_customers.peppol_status IN
+  ('unknown','registered','not_registered')` (migration 40) - restreignent
+  les statuts de livraison et de recherche Peppol.
+- `sold_out_log.action IN ('set','clear','expired')` (migration 41),
+  `menu_change_log.entity_type` et `menu_change_log.action IN
+  ('create','update')` (migration 42).
 
 ### 1.4 Contraintes d'unicité
 
@@ -90,8 +99,23 @@ la suppression, même par un accès direct à la base :
   (migration 3) ;
 - `pending_signs_request_immutable`, `pending_signs_context_on_resolution`,
   `pending_signs_no_reopen` et `pending_signs_no_delete` (migration 10) ;
-- `ticket_deliveries_*`, `original_prints_*`, `order_price_changes_*` et
-  `integration_switch_log_*` (liste complète dans `SCHEMA_ER_FR.md` §4).
+- `eft_payments_no_delete`, `eft_payments_starts_sent`,
+  `eft_payments_request_fixed`, `eft_payments_status_moves`,
+  `eft_payments_answer_final` et `eft_payments_used_once` (migration 27,
+  paiements par carte du terminal relié) : jamais de `DELETE` ; une ligne
+  naît `sent` et non utilisée ; la demande (commande, montant,
+  référence, opérateur) ne change jamais ; seuls `sent` et `unknown`
+  changent de statut, jamais vers `sent` ; une réponse `approved`,
+  `declined`, `cancelled` ou `not_sent` ne change plus ; `used_event_id`
+  se pose une seule fois, pour un paiement `approved` ;
+- `till_discounts_no_delete`, `till_discounts_no_update` et
+  `order_entries_till_op_fixed` (migration 30 : remises de la caisse ;
+  la marque `till_op` d'une ligne du journal ne change jamais) ;
+- `invoices_*`, `invoice_sales_*` et `peppol_delivery_log_*` (migration 40 : factures émises et tentatives
+  d'envoi Peppol, jamais de `UPDATE` ni de `DELETE`), `sold_out_log_*`
+  (migration 41) et `menu_change_log_*` (migration 42) ;
+- `ticket_deliveries_*`, `original_prints_*`, `order_price_changes_*`,
+  `integration_switch_log_*` et `table_plan_log_*` (liste complète dans `SCHEMA_ER_FR.md` §4).
 
 **Revue de code (niveau applicatif).** Le code applicatif ne contient
 AUCUNE instruction `DELETE FROM fiscal_events` ni `UPDATE fiscal_events
@@ -150,6 +174,68 @@ exclusivement, jamais ne diminue). Voir
 - Horloge système **non modifiable** par l'opérateur (image kiosque,
   pas d'accès root, NTP via `chrony`).
 
+### 2.5 Badges du personnel (table `staff_badges` et journaux)
+
+Option désactivée par défaut (`badge_settings.reader = 'off'`), mais les
+quatre tables existent sur toute installation (migration 70
+`staff-badges`) :
+
+| Table | Rôle | Protections au niveau SQLite |
+|---|---|---|
+| `badge_settings` | Réglage unique (ligne `id = 1`) : lecteur (`off`, `nfc` ou `usb`), connexion par badge, réglages du lecteur USB, empreinte de contrôle de la clé | CHECK sur le lecteur, l'interrupteur et chaque borne (écart 10 à 200 ms, longueurs 4 à 32 et 4 à 64, minimum inférieur ou égal au maximum) |
+| `staff_badges` | Un lien badge / employé : empreinte (64 caractères hexadécimaux), INSZ, qui l'a lié et quand, retrait (quand, par qui, motif `manager`, `deactivated` ou `key_changed`) | Deux index uniques partiels : une seule empreinte active, un seul badge actif par employé. Déclencheur `staff_badges_no_delete` : aucune suppression. Déclencheur `staff_badges_revoke_only` : la seule modification possible d'une ligne est son retrait, une fois ; l'empreinte, l'INSZ et les dates de lien ne changent jamais |
+| `badge_log` | Journal des liens, retraits et changements de réglage (qui, quand, détail) | Ajout seul : déclencheurs contre toute modification et toute suppression |
+| `badge_scans` | Journal des passages (heure, INSZ, résultat, référence de 12 caractères de l'empreinte, texte du refus ou du FDM) | Ajout seul, comme `badge_log` |
+
+- **Aucun numéro de badge en base.** Le numéro lu est normalisé puis
+  transformé en empreinte `HMAC-SHA256(clé, "pili-badge/1" + numéro)`
+  avant toute écriture ; ni la base (et son WAL), ni les journaux
+  applicatifs, ni un événement fiscal ne contiennent le numéro (un test lit
+  les octets du fichier de la base après un lien et un passage pour le
+  vérifier). Les journaux ne portent que la référence de 12 caractères.
+- **La clé n'est pas dans la base.** Elle fait 32 octets tirés au hasard
+  (`getrandom`), est créée une seule fois sur l'appareil, dans
+  le répertoire d'état `/var/lib/pili-pos/`, sous le nom `badge.key` (mode 0600, écrite sous un nom provisoire puis liée à sa place,
+  jamais remplacée) et **ne quitte jamais l'appareil** : elle n'est pas
+  dans `pos.db`, donc ni dans les sauvegardes (`backups/`), ni dans l'export
+  de la base remis au SPF. Sans la clé, une base volée ne permet pas de
+  retrouver un numéro de badge, même en énumérant les numéros possibles
+  (4 à 7 octets seulement).
+- **Clé perdue.** `badge_settings.key_check` garde les 16 premiers
+  caractères hexadécimaux de `HMAC(clé, "pili-badge-check/1")`. À
+  l'ouverture du moteur, et avant chaque passage ou lien, si le fichier de
+  la clé manque (restauration d'une sauvegarde sur un autre matériel) ou
+  donne un autre contrôle, tous les badges actifs sont retirés avec le
+  motif `key_changed` (une ligne de `badge_log` chacun) ; un fichier qui
+  existe mais ne se lit pas n'est pas une clé perdue : les commandes
+  répondent `badge_key_unavailable` et rien n'est retiré.
+- **Un Gérant n'est jamais ouvert par un badge seul** : son badge
+  demande son PIN (`pin_required`), si bien que le vol d'un badge de
+  Gérant ne donne accès à aucune action de Gérant.
+- Le badge ne remplace jamais l'INSZ : l'événement S reste signé par le
+  FDM avec l'INSZ de l'employé.
+
+### 2.6 Fonctions du propriétaire (migrations 60 à 63)
+
+Les trois journaux et les trois tables de bons cadeaux sont en ajout seul, par déclencheurs SQLite (modification et
+suppression refusées, même par un accès direct à la base) :
+
+| Table | Déclencheurs | Garde |
+|---|---|---|
+| `owner_settings_log` | `owner_settings_log_no_update`, `owner_settings_log_no_delete` | chaque enregistrement d'un réglage (qui, quand, valeur) |
+| `owner_alert_log` | `owner_alert_log_no_update`, `owner_alert_log_no_delete` | chaque message d'alerte, envoyé ou non ; valeurs de `kind`, `transition` et `outcome` contraintes par `CHECK` |
+| `allergen_change_log` | `allergen_change_log_no_update`, `allergen_change_log_no_delete` | chaque changement réel d'une liste d'allergènes |
+| `gift_vouchers`, `gift_voucher_movements`, `gift_voucher_prints` | `*_no_update`, `*_no_delete` | un bon, ses mouvements (`issue`, `redeem`, `cancel`) et ses impressions ; le solde et l'état se calculent, ils ne se stockent pas |
+
+Contraintes `CHECK` : `allergen` parmi les 14 codes et `level` parmi `contains` et `may_contain`, `course` de 0 à 3,
+`gift_vouchers.face_value_cents > 0`, `gift_vouchers.training` 0 ou 1, `gift_voucher_movements.kind` parmi `issue`,
+`redeem` et `cancel`. Unicité : `gift_vouchers.code`, `gift_vouchers.issue_line_id` (une ligne, un bon). Le paiement
+`VOUCHER_STORE` s'enregistre avec la méthode `other` de `payments.method` : la liste des méthodes ne change pas.
+
+Le jeton du robot des alertes n'est ni dans la base ni dans un journal : c'est un fichier désigné par `pos.json`,
+au même régime de permissions que les autres fichiers secrets de la configuration (§3.1). Un test automatique
+cherche ce jeton dans les journaux, les erreurs renvoyées à l'écran et les lignes de `owner_alert_log`.
+
 ## 3. Mécanismes au niveau système
 
 ### 3.1 Permissions de fichiers
@@ -159,6 +245,7 @@ exclusivement, jamais ne diminue). Voir
 | `/var/lib/pili-pos/pos.db` | `pos:pos` | `0640` | Lecture/écriture par le service uniquement (le groupe `pos` donne un accès lecture au compte `spf`, voir §3.2) |
 | `/var/lib/pili-pos/pos.db-wal` | `pos:pos` | `0640` | Idem |
 | `/var/lib/pili-pos/pos.db-shm` | `pos:pos` | `0640` | Idem |
+| `badge.key` (dans `/var/lib/pili-pos/`) | `pos:pos` | `0600` | Clé des badges du personnel (§2.5) : 32 octets aléatoires, jamais lisible par le groupe `pos` ni par le compte `spf`, hors de la base, des sauvegardes et des exports |
 | `engine.lock` (dans `/var/lib/pili-pos/`) | `pos:pos` | `0640` | Fichier de verrou vide, sans aucune donnée : le moteur y prend un verrou exclusif à l'ouverture, pour qu'une seule instance écrive dans `pos.db` |
 | `/var/lib/pili-pos/backups/` | `pos:pos` | `0750` | Répertoire des sauvegardes |
 | `/var/lib/pili-pos/backups/pos-*.db` | `pos:pos` | `0640` | Sauvegardes journalières |
@@ -427,6 +514,7 @@ Politique :
   distributeur peut configurer une copie distante si demandé par le
   commerçant, en dehors du périmètre certifié).
 - Rétention indéfinie (au moins 7 ans, exigence légale belge).
+- La clé des badges (§2.5) n'est **pas** sauvegardée avec la base : restaurer une sauvegarde sur un autre appareil retire les badges (motif `key_changed`), à lier de nouveau.
 
 ## 6. Confidentialité (GDPR)
 
@@ -437,6 +525,7 @@ Données de l'équipe :
 
 - INSZ stocké en clair (donnée personnelle obligatoire fiscalement).
 - PIN stocké en hash bcrypt (jamais en clair).
+- Badges (option) : jamais le numéro du badge, seulement une empreinte HMAC-SHA256 avec une clé propre à l'appareil, hors de la base, des sauvegardes et des exports (§2.5) ; usage limité à la présence et à la connexion ; aucune donnée biométrique ; le badge est facultatif pour l'employé.
 - Aucun INSZ n'est écrit dans les journaux applicatifs.
 
 Données de clients. Le binaire certifié contient l'intégration HubRise
@@ -459,8 +548,14 @@ des données de clients, ce qu'il ne faisait pas sans elle :
   effacée (envoi réussi, repli papier, ou au plus tard 72 h après) ; une
   forme masquée reste. Le ticket et l'adresse du destinataire sont
   transmis à Scaleway Transactional Email pour l'envoi.
-- **Facture B2B** : hors binaire certifié v1.0.0 (aucune donnée de
-  client B2B n'est donc traitée).
+- **Facture B2B.** Le nom, l'adresse et le numéro de TVA du client
+  professionnel sont conservés dans `b2b_customers` (table de travail,
+  modifiable) et, figés, dans `invoices.customer_json` et dans le
+  document UBL `peppol_deliveries.ubl_xml` (ajout seul, conservés comme
+  le journal fiscal). Ils ne sont transmis à un tiers que pour un client
+  belge et si l'installation a une section `peppol` : le document est
+  alors envoyé au point d'accès Peppol (Storecove). Aucune donnée de
+  particulier : une facture est établie pour un numéro de TVA contrôlé.
 
 Jeton HubRise. `hubrise_connection.access_token` (jeton d'accès OAuth au
 compte HubRise de l'établissement) est stocké **en clair** dans
@@ -470,9 +565,17 @@ chaque sauvegarde de la base. Il est protégé comme le reste de la base :
 permissions `0640` du groupe `pos`, chiffrement LUKS2 de `/var` (§3.6).
 Il est supprimé à la déconnexion de HubRise.
 
+Alertes du propriétaire (facultatives). Un message Telegram ne contient jamais de donnée personnelle : ni nom
+d'employé ou de client, ni adresse, ni téléphone, ni montant, ni numéro de ticket ou de commande ; il contient le nom
+de l'installation, une phrase de situation et une heure (*ALERTES_PROPRIETAIRE_FR.md* §3). Le service Telegram est un
+tiers choisi par le propriétaire, qui peut retirer la fonction en la désactivant.
+
+Bons cadeaux. Le code complet d'un bon n'est imprimé que sur le bon ; il est masqué partout ailleurs et ne figure dans
+aucune demande signée. Aucune donnée de client n'est associée à un bon.
+
 Export : le POS n'exporte automatiquement aucune donnée fiscale ; les
-seuls flux sortants sont ceux ci-dessus (HubRise et Scaleway, selon
-la configuration de l'installation) et la communication avec le FDM.
+seuls flux sortants sont ceux ci-dessus (HubRise, Scaleway et, pour
+les alertes du propriétaire, Telegram, selon la configuration de l'installation) et la communication avec le FDM.
 
 ## 7. Audit trail croisé
 

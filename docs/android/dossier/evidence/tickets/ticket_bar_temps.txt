@@ -1,0 +1,21 @@
+                BON DE COMMANDE
+================================================
+Date:                        18/10/2026 18:59:33
+Operateur:                           Gerant Test
+Table 6
+------------------------------------------------
+Qte   Article
+-- Direct --
+1 x Dry Martini
+1 x Dry Martini
+-- Entrees --
+1 x Carpaccio Beef
+1 x Carpaccio Beef
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------

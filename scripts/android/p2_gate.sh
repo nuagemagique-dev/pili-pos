@@ -31,7 +31,7 @@
 #                facade must be complete in this card)
 #   --hygiene-only  run only hygiene-paths, hygiene-emdash, hygiene-artifacts,
 #                hygiene-subjects, hygiene-root-lock, frozen-provisional and
-#                linux-frozen (same --base/--allow/--extra-paths), then the total
+#                android-frozen (same --base/--allow/--extra-paths), then the total
 #                line; no Rust, parity, self-test, Gradle or --android/--root/--exit
 #                check (used by p4_gate.sh --app)
 #
@@ -50,22 +50,26 @@
 #                     Conventional Commit
 #   hygiene-root-lock Cargo.lock and Cargo.toml unchanged against BASE
 #   frozen-provisional  check_linux_frozen.sh --ref 042d911... (PD48, PD63); SKIP with
-#                     'retired: tag <name> exists (PD100)' once a linux-v1.1.0* tag
-#                     exists (the tag mode of linux-frozen replaces it)
-#   linux-frozen      check_linux_frozen.sh against the freeze tag; SKIP while there
-#                     is none (exit 2)
+#                     'retired: tag <name> exists (PD100)' once a linux-v1.0.0* or
+#                     linux-v1.1.0* tag exists (the tag mode of linux-frozen replaces it)
+#   linux-frozen      retired (SKIP): v1 submits Android only (INT-D44); the Linux
+#                     freeze stays as history (check_linux_frozen.sh, linux-v1.0.0-rc2)
+#   android-frozen    check_android_frozen.sh against the Android freeze tag
+#                     (android-v1.0.0, else android-v1.0.0-rc3); SKIP while there is
+#                     none (exit 2)
 #   rust-fmt, rust-clippy, rust-tests   in android/rust: cargo fmt --all --check,
 #                     cargo clippy --workspace --all-targets --locked -D warnings,
 #                     cargo test --workspace --locked (detail: summed passed count);
 #                     SKIP when android/rust/Cargo.toml is absent
 #   ffi-deps          cargo tree -p pos-ffi in android/rust lists pos-engine and no
-#                     pos-peppol and no tauri; SKIP when android/rust is absent
+#                     pos-engine (pos-peppol allowed since V11-D1) and no tauri; SKIP when android/rust is absent
 #   lock-parity       check_lock_parity.sh (exit 2 = SKIP)
 #   command-parity    check_command_parity.py [--require-modules LIST] [--strict with
 #                     --exit]; SKIP when the script is absent
 #   ffi-hygiene       check_command_parity.py --hygiene; SKIP when absent
 #   Full mode only (not --fast):
-#   selftest-frozen, selftest-lock-parity, selftest-command-parity (SKIP when the
+#   selftest-frozen (Linux history), selftest-android-frozen, selftest-lock-parity,
+#                     selftest-command-parity (SKIP when the
 #                     test is absent), jvm-tests (:pos-core:test in android/; SKIP
 #                     while android/settings.gradle.kts is absent)
 #   With --android:
@@ -289,13 +293,14 @@ h_root_lock() {
 gate hygiene-root-lock h_root_lock
 
 # ── freeze ──────────────────────────────────────────────────────
-freeze_tag="$(git tag -l 'linux-v1.1.0*' | head -n 1)"
+freeze_tag="$(git tag -l 'linux-v1.0.0*' 'linux-v1.1.0*' | head -n 1)"
 if [[ -n "$freeze_tag" ]]; then
     skip frozen-provisional "retired: tag $freeze_tag exists (PD100)"
 else
     gate frozen-provisional bash scripts/android/check_linux_frozen.sh --ref "$PROVISIONAL_REF"
 fi
-gate_skip2 linux-frozen "no freeze tag" bash scripts/android/check_linux_frozen.sh
+skip linux-frozen "retired: v1 submits Android only (INT-D44); android-frozen guards the APK inputs"
+gate_skip2 android-frozen "no Android freeze tag yet" bash scripts/android/check_android_frozen.sh
 
 finish() {
     if [[ "$n_failed" -eq 0 ]]; then
@@ -323,13 +328,12 @@ ffi_deps() {
     in_rust cargo tree --locked --offline -p pos-ffi -e normal,build --prefix none >"$tree" 2>&1 ||
         { tail -n 20 "$tree"; echo "cargo tree failed"; return 1; }
     grep -q '^pos-engine v' "$tree" || { echo "pos-engine is not a dependency of pos-ffi"; return 1; }
-    if grep -qE '^pos-peppol v' "$tree"; then echo "pos-peppol is in the dependency graph of pos-ffi"; return 1; fi
     if grep -qE '^tauri(-[a-z0-9_-]+)? v' "$tree"; then
         grep -E '^tauri(-[a-z0-9_-]+)? v' "$tree" | head -n 3
         echo "tauri is in the dependency graph of pos-ffi"
         return 1
     fi
-    echo "pos-engine yes, pos-peppol no, tauri no"
+    echo "pos-engine yes, pos-peppol allowed, tauri no"
 }
 
 if have_rust; then
@@ -362,6 +366,7 @@ fi
 # ── full mode ───────────────────────────────────────────────────
 if [[ "$fast" -eq 0 ]]; then
     gate selftest-frozen bash scripts/android/test_check_linux_frozen.sh
+    gate selftest-android-frozen bash scripts/android/test_check_android_frozen.sh
     gate selftest-lock-parity python3 scripts/android/test_lock_parity.py
     if [[ -f scripts/android/test_check_command_parity.py ]]; then
         gate selftest-command-parity python3 scripts/android/test_check_command_parity.py

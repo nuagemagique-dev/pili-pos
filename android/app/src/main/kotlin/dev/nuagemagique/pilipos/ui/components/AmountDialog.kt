@@ -82,8 +82,8 @@ fun defaultAmountDialogTexts(): AmountDialogTexts =
 /**
  * `PriceDialog.vue`: amount entry on a [NumPad], for the price of a free-price product or the cash counted in
  * the drawer. The typed amount is shown with [formatEuro]; confirm is enabled when the amount is valid
- * ([allowZero] lets 0,00 EUR through) and calls [onConfirm] with the cents. A tap outside the card or the
- * cancel button calls [onCancel].
+ * ([allowZero] lets 0,00 EUR through; [initialDigits] starts from a known amount, in cents) and calls [onConfirm] with
+ * the cents. A tap outside the card or the cancel button calls [onCancel].
  *
  * Test tags: `amount_dialog` (root), `amount_value`, `amount_confirm`, `amount_cancel`, plus the pad keys.
  */
@@ -96,10 +96,11 @@ fun AmountDialog(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     allowZero: Boolean = false,
+    initialDigits: String = "",
 ) {
     val colors = PiliTheme.colors
     val typography = PiliTheme.typography
-    var digits by rememberSaveable { mutableStateOf("") }
+    var digits by rememberSaveable { mutableStateOf(initialDigits) }
     val state = AmountEntryState(digits)
     Box(modifier = modifier.fillMaxSize().testTag("amount_dialog")) {
         PiliDialog(

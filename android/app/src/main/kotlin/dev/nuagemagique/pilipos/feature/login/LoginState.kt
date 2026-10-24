@@ -29,15 +29,20 @@ internal enum class CheckId(
     Fdm(null),
     Ticket("check_ticket_printer"),
     Kitchen("check_kitchen_printer"),
+    Terminal("check_payment_terminal"),
     Hubrise(null),
     Mail("check_email"),
 }
 
-/** One line of the checks panel: the device, its [state] and the Vue key of the [textKey] shown on the right. */
+/**
+ * One line of the checks panel: the device, its [state] and the Vue key of the [textKey] shown on the right. [detail]
+ * is why a device does not answer (the tooltip of the Vue row), when the engine said.
+ */
 internal data class StartupCheck(
     val id: CheckId,
     val state: CheckState,
     val textKey: String,
+    val detail: String? = null,
 )
 
 /**
@@ -85,6 +90,10 @@ internal data class LoginUiState(
     val language: AppLanguage = AppLanguage.FR,
     /** True while the till is in training mode. */
     val training: Boolean = false,
+    /** True when a badge reader is chosen (the end-of-shift pad invites to present the badge). */
+    val badgeReaderOn: Boolean = false,
+    /** True when the reader is on and a badge logs the cashiers and waiters in (the tiles invite to present it). */
+    val badgeLoginOn: Boolean = false,
 ) {
     /** When the open shift of [insz] started, or null when that operator is off shift. */
     fun shiftStart(insz: String): String? = shifts.firstOrNull { it.userInsz == insz }?.startedAt

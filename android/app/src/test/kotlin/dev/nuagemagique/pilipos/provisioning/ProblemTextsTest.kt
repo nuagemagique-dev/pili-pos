@@ -56,6 +56,42 @@ class ProblemTextsTest {
         assertEquals(19, en.size)
     }
 
+    private val badVat = "restaurant_vat: BE followed by 10 digits, got \"BE123\""
+
+    @Test
+    @Config(qualifiers = "fr")
+    fun aRefusedConfigurationIsSaidInFrenchWithTheEnglishDetail() {
+        val problem =
+            ProvisioningProblem.of(
+                "config_invalid",
+                "detail" to "config_restaurant_vat|detail=$badVat\nconfig_fdm_files|detail=fdm_ca_file: cannot read",
+            )
+        val text = problem.render(context.resources)
+        assertTrue(text, text.startsWith("La configuration est invalide :"))
+        val vat = "• Numéro de TVA du restaurant invalide : BE suivi de 10 chiffres (par exemple BE0499999960). Détail : $badVat"
+        assertTrue(text, text.contains(vat))
+        val files = "• Fichiers de la boîte noire (jeton, certificats) manquants ou inutilisables. Détail : fdm_ca_file: cannot read"
+        assertTrue(text, text.contains(files))
+    }
+
+    @Test
+    @Config(qualifiers = "en")
+    fun aRefusedConfigurationIsSaidInEnglishToo() {
+        val problem = ProvisioningProblem.of("config_invalid", "detail" to "config_restaurant_vat|detail=$badVat")
+        val text = problem.render(context.resources)
+        val vat = "• Invalid restaurant VAT number: BE followed by 10 digits (for example BE0499999960). Detail: $badVat"
+        assertTrue(text, text.contains(vat))
+    }
+
+    @Test
+    @Config(qualifiers = "fr")
+    fun aLineThatIsNotAKnownConfigCodeIsShownAsItIs() {
+        val problem = ProvisioningProblem.of("config_invalid", "detail" to "something else\nconfig_nope|detail=x")
+        val text = problem.render(context.resources)
+        assertTrue(text, text.contains("• something else"))
+        assertTrue(text, text.contains("• config_nope|detail=x"))
+    }
+
     @Test
     @Config(qualifiers = "zh")
     fun everyCodeHasAChineseText() {

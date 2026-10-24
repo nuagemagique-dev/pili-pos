@@ -254,12 +254,60 @@ async fn an_employee_off_shift_is_clocked_in_once() {
     rig.stop().await;
 }
 
+/// In training the login still sends a clock-in (event T), which
+/// registers no presence: it opens no shift, so the first real login
+/// after training signs a real clock-in.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_training_login_opens_no_shift_and_the_next_real_login_signs_a_real_clock_in() {
+    let rig = Rig::start(true).await;
+    rig.user(FIRST, None);
+
+    // The FDM answers a training clock-in with label T.
+    rig.fdm.reset().await;
+    let envelope = common::in_training(read_response_envelope(&load_uc(&basic_set_root(), "M140")));
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .and(body_string_contains("signWorkIn"))
+        .respond_with(EchoRequest(envelope))
+        .mount(&rig.fdm)
+        .await;
+    rig.engine.config.lock().unwrap().training_mode = true;
+
+    do_login(&rig.engine, FIRST.into(), None).expect("login");
+    assert_eq!(rig.wait_for("signWorkIn", 1).await.len(), 1);
+    assert!(rig.events.presence_failed().is_empty());
+    assert!(
+        pos_engine::commands::social::do_list_open_shifts(&rig.engine)
+            .unwrap()
+            .is_empty(),
+        "a training event registers no presence"
+    );
+
+    // Training off: the same employee logs in again and is clocked in for real.
+    rig.fdm.reset().await;
+    let envelope = read_response_envelope(&load_uc(&basic_set_root(), "M140"));
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .and(body_string_contains("signWorkIn"))
+        .respond_with(EchoRequest(envelope))
+        .mount(&rig.fdm)
+        .await;
+    rig.engine.config.lock().unwrap().training_mode = false;
+    do_login(&rig.engine, FIRST.into(), None).expect("login");
+    assert_eq!(rig.wait_for("signWorkIn", 1).await.len(), 1);
+    assert!(rig.events.presence_failed().is_empty());
+    let open = pos_engine::commands::social::do_list_open_shifts(&rig.engine).unwrap();
+    assert_eq!(open.len(), 1, "now on shift");
+    assert_eq!(open[0].user_insz, FIRST);
+    rig.stop().await;
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn an_employee_already_on_shift_is_not_clocked_in_again() {
     let rig = Rig::start(true).await;
     rig.user(FIRST, None);
     rig.user(SECOND, None);
-    pos_db::queries::shifts::open_shift(&rig.engine.db.lock().unwrap(), FIRST).unwrap();
+    pos_db::queries::shifts::open_shift(&rig.engine.db.lock().unwrap(), FIRST, None).unwrap();
 
     do_login(&rig.engine, FIRST.into(), None).expect("login");
     rig.settle().await;

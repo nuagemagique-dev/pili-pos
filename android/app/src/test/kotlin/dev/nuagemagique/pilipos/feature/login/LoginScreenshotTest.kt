@@ -62,6 +62,22 @@ class LoginScreenshotTest {
     }
 
     @Test
+    fun tilesWithBadgeHint() {
+        // The reader is on and a badge logs the cashiers in: "Ou présentez votre badge" under the tiles.
+        capture(base.copy(badgeReaderOn = true, badgeLoginOn = true), "login_badge")
+    }
+
+    @Test
+    fun endShiftBadgeHint() {
+        // The PIN pad in "Fin de service" mode with a reader on: a badge ends the shift too.
+        val pad = PinPadState(PinMode.Verify)
+        capture(
+            base.copy(badgeReaderOn = true, pin = PinPanel(cashier, endShift = true, pad = pad)),
+            "login_end_shift_badge",
+        )
+    }
+
+    @Test
     fun pin() {
         val pad = PinPadState(PinMode.Verify)
         pad.apply(NumPadKey.Digit('4'))

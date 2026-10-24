@@ -3514,7 +3514,7 @@ dependencies = [
 
 [[package]]
 name = "pili-pos"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "bcrypt",
@@ -3646,8 +3646,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "pos-accounting"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "pos-core",
+ "pos-db",
+ "pos-engine",
+ "pos-engine-testkit",
+ "pos-fiscal",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "pos-catalog"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "pos-core",
  "pos-db",
@@ -3660,7 +3680,7 @@ dependencies = [
 
 [[package]]
 name = "pos-core"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "proptest",
@@ -3671,7 +3691,7 @@ dependencies = [
 
 [[package]]
 name = "pos-db"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "pos-core",
@@ -3682,8 +3702,61 @@ dependencies = [
 ]
 
 [[package]]
+name = "pos-eft"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "chrono-tz",
+ "pos-core",
+ "pos-eft-mock",
+ "quick-xml",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "pos-eft-mock"
+version = "1.0.0"
+dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "chrono",
+ "quick-xml",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "pos-eft-probe"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "pos-core",
+ "pos-eft",
+ "pos-eft-mock",
+ "reqwest",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "pos-engine"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -3691,9 +3764,14 @@ dependencies = [
  "bcrypt",
  "chrono",
  "chrono-tz",
+ "getrandom 0.3.4",
+ "hex",
+ "hmac",
  "pos-catalog",
  "pos-core",
  "pos-db",
+ "pos-eft",
+ "pos-eft-mock",
  "pos-engine-testkit",
  "pos-export",
  "pos-export-mock",
@@ -3711,22 +3789,25 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tempfile",
  "tokio",
  "tokio-util",
  "tracing",
+ "tracing-subscriber",
  "uuid",
  "wiremock",
 ]
 
 [[package]]
 name = "pos-engine-testkit"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
  "pos-core",
  "pos-db",
+ "pos-eft",
  "pos-engine",
  "pos-fdm-mock",
  "pos-fiscal",
@@ -3747,7 +3828,7 @@ dependencies = [
 
 [[package]]
 name = "pos-export"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "age",
  "anyhow",
@@ -3773,7 +3854,7 @@ dependencies = [
 
 [[package]]
 name = "pos-export-mock"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "hex",
@@ -3786,7 +3867,7 @@ dependencies = [
 
 [[package]]
 name = "pos-fdm-mock"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "axum-server",
@@ -3803,7 +3884,7 @@ dependencies = [
 
 [[package]]
 name = "pos-fiscal"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "aws-lc-rs",
  "axum",
@@ -3833,7 +3914,7 @@ dependencies = [
 
 [[package]]
 name = "pos-hubrise"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -3858,7 +3939,7 @@ dependencies = [
 
 [[package]]
 name = "pos-hubrise-mock"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -3877,7 +3958,7 @@ dependencies = [
 
 [[package]]
 name = "pos-hubrise-types"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "serde",
@@ -3886,7 +3967,7 @@ dependencies = [
 
 [[package]]
 name = "pos-mail"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -3907,14 +3988,15 @@ dependencies = [
 
 [[package]]
 name = "pos-peppol"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
+ "axum",
+ "base64 0.23.1",
  "chrono",
- "pos-core",
- "quick-xml",
  "reqwest",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
@@ -3923,7 +4005,7 @@ dependencies = [
 
 [[package]]
 name = "pos-print"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "pos-core",
  "pos-fiscal",
@@ -3934,7 +4016,7 @@ dependencies = [
 
 [[package]]
 name = "pos-printer-mock"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "chrono",
@@ -4115,7 +4197,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41b1177fdf999d2321d3fb46ff47159d9c1fb9ad66a4879f8c50a0b504615e9b"
 dependencies = [
  "memchr",
- "serde",
 ]
 
 [[package]]

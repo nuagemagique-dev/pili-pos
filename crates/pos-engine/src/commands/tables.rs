@@ -3,7 +3,7 @@ use serde::Serialize;
 use pos_core::order::{OrderStatus, OrderType};
 use pos_fiscal::event::{build_order_input, build_pre_bill_input};
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
-use pos_fiscal::ticket::{TicketDraft, TicketLine};
+use pos_fiscal::ticket::TicketDraft;
 use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
@@ -26,6 +26,9 @@ pub struct TableInfo {
     pub opened_at: Option<String>,
     /// A provisional bill was printed and the order has not changed since.
     pub pre_bill_printed: bool,
+    /// The next course waiting for "Envoyer la suite" (1 to 3), when
+    /// courses are on and the table holds one.
+    pub held_course: Option<i32>,
 }
 
 /// List tables with their current order status.
@@ -35,16 +38,45 @@ pub struct TableInfo {
 /// tap-and-walk-away) are treated as free so the TablesView doesn't
 /// surface ghost "0.00 €" cards that add cognitive load for zero
 /// informational value (UX Guide §2.1).
+///
+/// The tables are those of the table plan ([`super::table_plan`]), plus
+/// any table left out of it that still has an open order, so no unpaid
+/// order is hidden.
 pub fn do_list_configured_tables(state: &AppState) -> Result<Vec<TableInfo>, String> {
-    let table_count = state.config.lock().map_err(|e| e.to_string())?.table_count;
-    do_list_tables(state, table_count as i32)
+    let mut numbers = super::table_plan::plan_numbers(state)?;
+    {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        let mut stmt = db
+            .prepare(
+                "SELECT DISTINCT o.table_number FROM orders o
+                 JOIN order_lines ol ON ol.order_id = o.id
+                 WHERE o.status = 'open' AND o.order_type = 'dine_in'
+                   AND o.table_number IS NOT NULL",
+            )
+            .map_err(|e| e.to_string())?;
+        let open: Vec<i32> = stmt
+            .query_map([], |r| r.get(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<_, _>>()
+            .map_err(|e| e.to_string())?;
+        numbers.extend(open);
+    }
+    numbers.sort_unstable();
+    numbers.dedup();
+    list_tables_numbered(state, &numbers)
 }
 
+/// Tables 1 to `table_count`.
 pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInfo>, String> {
+    let numbers: Vec<i32> = (1..=table_count).collect();
+    list_tables_numbered(state, &numbers)
+}
+
+fn list_tables_numbered(state: &AppState, numbers: &[i32]) -> Result<Vec<TableInfo>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut tables = Vec::new();
 
-    for t in 1..=table_count {
+    for &t in numbers {
         let row: Option<(i64, i64, i64, String, bool)> = db
             .query_row(
                 "SELECT o.id, o.total_cents, COUNT(ol.id), o.created_at, o.pre_bill_at IS NOT NULL
@@ -77,6 +109,7 @@ pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInf
                 status: "occupied".to_string(),
                 opened_at: Some(opened_at),
                 pre_bill_printed,
+                held_course: super::courses::held_course(&db, order_id),
             },
             None => TableInfo {
                 table_number: t,
@@ -86,6 +119,7 @@ pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInf
                 status: "free".to_string(),
                 opened_at: None,
                 pre_bill_printed: false,
+                held_course: None,
             },
         });
     }
@@ -153,15 +187,36 @@ pub async fn do_sign_table_order(state: &AppState, order_id: i64) -> Result<Slip
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let registered = sign_table_order_locked(state, &guard, &config, order_id, &operator).await?;
     drop(guard);
-    Ok(print_registered(state, &config, registered).await)
+    let nothing_new = registered.is_none();
+    let outcome = print_registered(state, &config, registered).await;
+    // Courses on: nothing new to sign still prints what is signed and
+    // waited for a printer, or for a course moved to an earlier one.
+    if nothing_new && super::courses::enabled(state) {
+        let table = state
+            .db
+            .lock()
+            .ok()
+            .and_then(|db| pos_db::queries::orders::get_order(&db, order_id).ok())
+            .and_then(|o| o.table_number);
+        return Ok(super::courses::print_signed(
+            state,
+            &config,
+            &operator.insz,
+            order_id,
+            table,
+            super::courses::Print::Immediate,
+        )
+        .await);
+    }
+    Ok(outcome)
 }
 
 /// An order's entries registered by a P, to print on the bar slip.
-type Registered = Option<(PendingContext, signing::Committed)>;
+pub(crate) type Registered = Option<(PendingContext, signing::Committed)>;
 
 /// Register the order's unsent entries (event P) in `operator`'s name.
 /// `None` when nothing changed since the last registration.
-async fn sign_table_order_locked(
+pub(crate) async fn sign_table_order_locked(
     state: &AppState,
     guard: &SignGuard<'_>,
     config: &pos_core::config::PosConfig,
@@ -192,7 +247,8 @@ async fn sign_table_order_locked(
 
     let label = EventLabel::P.in_mode(config.training_mode);
     let ticket_number = super::peek_ticket_number(state, guard, label)?;
-    let order_input = build_order_input(
+    #[allow(unused_mut)]
+    let mut order_input = build_order_input(
         config,
         &state.identity,
         &order,
@@ -200,6 +256,25 @@ async fn sign_table_order_locked(
         ticket_number,
         &bp_id,
     );
+    // A till discount: the changes of each entry, and the reason on the
+    // corrections of a PRICE_CHANGE pair.
+    #[cfg(feature = "hubrise")]
+    {
+        let (entry_changes, pair_entries) = {
+            let db = state.db.lock().map_err(|e| e.to_string())?;
+            (
+                super::price_changes::load(&db, order_id)?.0,
+                pos_db::queries::till_discounts::price_change_entry_ids(&db, order_id)
+                    .map_err(|e| e.to_string())?,
+            )
+        };
+        pos_fiscal::price_change::apply(&mut order_input.transaction, &entries, &entry_changes);
+        pos_fiscal::price_change::mark_price_change_reason(
+            &mut order_input.transaction,
+            &entries,
+            &pair_entries,
+        );
+    }
     let request = SignRequest::new(SignMutation::Order, &order_input, config.training_mode)
         .map_err(errors::internal)?;
     let context = PendingContext::TableOrder {
@@ -230,7 +305,7 @@ async fn sign_table_order_locked(
 }
 
 /// The bar / kitchen slip of what a P registered.
-async fn print_registered(
+pub(crate) async fn print_registered(
     state: &AppState,
     config: &pos_core::config::PosConfig,
     registered: Registered,
@@ -288,6 +363,15 @@ async fn sign_pre_bill_locked(
         let bp = super::booking(&db, guard, config)?;
         (order, lines, bp)
     };
+    // The consolidated lines' discounts (a till discount): the pre-bill
+    // shows the net amounts.
+    #[cfg(feature = "hubrise")]
+    let line_changes = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        super::price_changes::load(&db, order_id)?.1
+    };
+    #[cfg(not(feature = "hubrise"))]
+    let line_changes = pos_fiscal::price_change::LineChanges::new();
     order.user_insz = operator.insz.clone();
     if lines.is_empty() {
         return Err(errors::ORDER_NO_LINES.into());
@@ -295,7 +379,8 @@ async fn sign_pre_bill_locked(
 
     let label = EventLabel::P.in_mode(config.training_mode);
     let ticket_number = super::peek_ticket_number(state, guard, label)?;
-    let pre_bill = build_pre_bill_input(
+    #[allow(unused_mut)]
+    let mut pre_bill = build_pre_bill_input(
         config,
         &state.identity,
         &order,
@@ -303,20 +388,13 @@ async fn sign_pre_bill_locked(
         ticket_number,
         &bp_id,
     );
+    pos_fiscal::price_change::apply(&mut pre_bill.transaction, &lines, &line_changes);
     let request = SignRequest::new(SignMutation::PreBill, &pre_bill, config.training_mode)
         .map_err(errors::internal)?;
 
     let operator_name = super::operator_name(state, &order.user_insz);
-    let ticket_lines = lines
-        .iter()
-        .map(|l| TicketLine {
-            quantity: l.quantity as f64,
-            description: l.name.clone(),
-            unit_price: l.unit_price_cents as f64 / 100.0,
-            total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-            vat_code: l.vat_code.as_str().to_string(),
-        })
-        .collect();
+    // Each line, then its discounts.
+    let ticket_lines = pos_fiscal::price_change::ticket_lines(&lines, &line_changes);
     let context = PendingContext::PreBill {
         order_id,
         ticket: TicketDraft::new(
