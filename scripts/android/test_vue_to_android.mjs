@@ -175,6 +175,16 @@ test("fallbacks are extracted and the FDM texts are French and Chinese only, tra
   assert.match(run(env).out, /translateFdmError: expected 2 string returns/);
 });
 
+test("fallback returns without a semicolon (the oxfmt style of ui/) give the same outputs", () => {
+  const env = written();
+  const before = read(env, `${RES}/values/strings_vue_fdm.xml`);
+  edit(env, FDM, 'return "Connexion perdue.";', 'return "Connexion perdue."');
+  edit(env, FDM, 'return "黑匣子错误。";', 'return "黑匣子错误。"');
+  const r = run(env, "--write");
+  assert.equal(r.code, 0, r.out + r.err);
+  assert.equal(read(env, `${RES}/values/strings_vue_fdm.xml`), before);
+});
+
 test("errors.rs scopes are resolved, in registry order, and err_ keys go to the errors area", () => {
   const env = written();
   const snap = JSON.parse(read(env, "android/app/src/test/resources/vue_strings.json"));
