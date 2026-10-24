@@ -21,6 +21,10 @@ pub const VOLATILE_KEYS: &[(&str, &str)] = &[
         "calendar day of the run, so two runs on two days would differ",
     ),
     (
+        "reportBookingDate",
+        "booking day a report covers, the calendar day of the run like bookingDate",
+    ),
+    (
         "bookingPeriodId",
         "identifier generated when a booking period opens (a random UUID)",
     ),
@@ -102,6 +106,20 @@ mod tests {
                     "transaction": { "transactionLines": [{ "mainProduct": { "unitPrice": 2.5 } }] },
                 } },
             })
+        );
+    }
+
+    /// A Z run on another day than its committed journal still compares
+    /// (M181, M183 and M184 failed from the day after the recording).
+    #[test]
+    fn the_report_booking_date_is_volatile() {
+        let request = json!({ "variables": { "data": {
+            "reportBookingDate": "2026-10-24",
+            "reportType": "TURNOVER",
+        } } });
+        assert_eq!(
+            strip_volatile(&request),
+            json!({ "variables": { "data": { "reportType": "TURNOVER" } } })
         );
     }
 
