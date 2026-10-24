@@ -12,6 +12,11 @@ updates:
       timezone: 'Europe/Brussels'
     cooldown:
       default-days: 3
+    ignore:
+      # gradle/actions 6 moves caching into a proprietary component under the
+      # Gradle Terms of Use: staying on v5 (MIT) until the owner opts in.
+      - dependency-name: 'gradle/actions'
+        update-types: ['version-update:semver-major']
     groups:
       # Security fixes, opened as soon as an advisory lands (no cooldown).
       security:
