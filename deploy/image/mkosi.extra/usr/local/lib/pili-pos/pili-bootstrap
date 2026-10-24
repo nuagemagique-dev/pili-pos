@@ -6,7 +6,7 @@
 # network, pos.json + secrets from the site directory that
 # deploy/usb/make-key.sh put on the USB key's ESP (pili-installer copied
 # it to the internal ESP), then the binary the owner declared to SPF
-# Finances, fetched from GitHub Releases when the network allows.
+# Finances, fetched from ghcr.io/nuagemagique-dev/pili-pos when the network allows.
 #
 # Success writes /var/lib/pili-pos/.bootstrapped: the unit never runs
 # again (ConditionPathExists=). Failure leaves no stamp: the next boot

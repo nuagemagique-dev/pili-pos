@@ -18,7 +18,9 @@ channel.
 
 ## Release flow
 
-1. Tag `vX.Y.Z` (GPG-signed) on the certified commit.
+1. Tag `linux-vX.Y.Z` (GPG-signed) on the certified commit (the Android
+   till has its own `android-vX.Y.Z` tags and `scripts/release/declare_android.sh`,
+   `docs/android/PLATFORM.md` section 8).
 2. `deploy/build-release.sh --docker` builds the cert binary in a
    linux/amd64 Debian 13 container with the toolchain pinned by
    `rust-toolchain.toml`, and writes the `build_info_*.txt` report
@@ -29,19 +31,21 @@ channel.
 
 ## Publishing and declaring
 
-- **On the `vX.Y.Z` tag**, `.github/workflows/release.yml` does the same
-  reproducible build and image as `image.yml`, then:
-  - opens a **prerelease** in this (private) repository with:
-    - `pili-pos-vX.Y.Z-x86_64.tar.gz`;
-    - `pili-pos-kiosk-vX.Y.Z.img.xz`;
-    - `build_info-vX.Y.Z.txt`;
+- **On the `linux-vX.Y.Z` tag**, `.github/workflows/release.yml` does the
+  same reproducible build and image as `image.yml`, then:
+  - opens a **prerelease** in this repository with:
+    - `pili-pos-linux-vX.Y.Z-x86_64.tar.gz`;
+    - `pili-pos-kiosk-linux-vX.Y.Z.img.xz`;
+    - `build_info-linux-vX.Y.Z.txt`;
     - `SHA256SUMS`;
   - pushes the tarball to the **public** package
-    `ghcr.io/brunomoyse/moyun-pos` as tag `vX.Y.Z`.
+    `ghcr.io/nuagemagique-dev/pili-pos` as tag `linux-vX.Y.Z`.
 - **Once SPF has accepted the SHA-1**, the owner runs
-  `scripts/release/declare.sh vX.Y.Z --sha1 <SHA-1>`. It:
-  - signs `declared.json` (`version`, `sha1`, `sha256`, `asset`) with an
-    offline minisign key;
+  `scripts/release/declare.sh linux-vX.Y.Z --sha1 <SHA-1>`. It:
+  - signs `declared.json` (`format`, `platform` `linux`, `version`,
+    `sha1`, `sha256`, `asset`) with the offline minisign key (the same key
+    declares the Android till, whose descriptor says `android`: a
+    terminal accepts only `linux`);
   - pushes the tarball and the signed manifest as the package's
     `declared` tag;
   - turns the prerelease into the latest release.

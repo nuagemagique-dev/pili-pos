@@ -26,12 +26,13 @@ name: Kiosk image
 # platform deploy/image/build.sh and the manual assume).
 # By hand or on a Linux release tag only (GitHub-hosted x86_64 with KVM; the
 # test runners are ARM64). The Linux product is not part of the v1 filing.
+# A final linux-vX.Y.Z tag is built by release.yml, which calls this file
+# (workflow_call) and then publishes the artifacts: only a pre-release tag
+# (linux-vX.Y.Z-rcN) starts it directly, so no tag is built twice.
 on:
   push:
-    tags: ['linux-v*']
+    tags: ['linux-v*-*']
   workflow_dispatch: {}
-  # .github/workflows/release.yml (v* tags) runs these same jobs, then
-  # publishes their artifacts.
   workflow_call: {}
 
 env:

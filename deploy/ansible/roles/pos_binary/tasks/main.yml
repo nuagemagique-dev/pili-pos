@@ -1,15 +1,15 @@
 # The POS binary the owner DECLARED to SPF Finances
-# (deploy/UPDATE-STRATEGY.md), pulled anonymously from the PUBLIC
-# package ghcr.io/brunomoyse/moyun-pos (the source repository and its
-# GitHub Releases stay private).
+# (deploy/UPDATE-STRATEGY.md), pulled anonymously from the public
+# package ghcr.io/nuagemagique-dev/pili-pos.
 #
-# A vX.Y.Z tag pushes the tarball there as tag vX.Y.Z and opens a
-# prerelease (.github/workflows/release.yml). Once SPF has accepted the
+# A linux-vX.Y.Z tag pushes the tarball there as tag linux-vX.Y.Z and
+# opens a prerelease (.github/workflows/release.yml). Once SPF has accepted the
 # SHA-1, scripts/release/declare.sh pushes the artifact tagged
 # "declared": the tarball + declared.json + declared.json.minisig. This
 # role only ever reads "declared", and installs its binary only if
 #   1. declared.json carries the owner's minisign signature (offline
-#      key; public key baked into the image),
+#      key; public key baked into the image) and declares the Linux
+#      kiosk (platform "linux": the same key declares the Android till),
 #   2. every blob matches its registry digest, and the tarball the
 #      manifest's SHA-256,
 #   3. the binary in it matches the manifest's SHA-1,
@@ -118,6 +118,7 @@
     - name: Manifest is well formed
       ansible.builtin.assert:
         that:
+          - pili_declared.platform | default('') == 'linux'
           - pili_declared.version is match('^[0-9]+\.[0-9]+\.[0-9]+$')
           - pili_declared.sha1 is match('^[0-9a-f]{40}$')
           - pili_declared.sha256 is match('^[0-9a-f]{64}$')

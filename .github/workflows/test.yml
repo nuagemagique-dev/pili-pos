@@ -228,3 +228,33 @@ jobs:
 
       - name: Check dossier against the code
         run: python3 scripts/check_dossier.py
+
+  # ── Linux release tooling: site bootstrap and declaration ──────
+  # The first-boot playbook (deploy/ansible) against a throwaway Debian 13
+  # container with a mock registry and a throwaway minisign key, and
+  # scripts/release/declare.sh with stub oras and gh. x86_64 runner: the
+  # playbook test runs a linux/amd64 container (the terminal's platform).
+  release-tooling:
+    name: Linux release tooling
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: minisign and shellcheck
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends minisign shellcheck
+
+      - name: Shell scripts lint
+        run: |
+          shellcheck -S warning deploy/usb/make-key.sh scripts/release/declare.sh \
+            scripts/release/test_declare.sh deploy/ansible/tests/run.sh \
+            deploy/ansible/tests/in-container.sh scripts/qemu/make-test-key.sh \
+            deploy/image/mkosi.extra/usr/local/lib/pili-pos/pili-bootstrap \
+            deploy/image/mkosi.extra/usr/local/lib/pili-pos/pili-installer
+
+      - name: declare.sh self-test
+        run: bash scripts/release/test_declare.sh
+
+      - name: Site bootstrap playbook (Docker, Debian 13)
+        run: bash deploy/ansible/tests/run.sh

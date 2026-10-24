@@ -14,7 +14,7 @@
 #   site_config  pos.json from site.yml + secrets into /etc/pili-pos,
 #                then the secrets are deleted from the (unencrypted) ESP
 #   pos_binary   the binary the owner DECLARED to SPF Finances (signed
-#                manifest on GitHub Releases), SHA-1 checked, installed
+#                manifest from ghcr.io/nuagemagique-dev/pili-pos), SHA-1 checked, installed
 #                through deploy/update.sh; offline or any doubt: the
 #                binary embedded in the image stays
 #   healthcheck  --check-config, FDM and printer reachability (warnings)

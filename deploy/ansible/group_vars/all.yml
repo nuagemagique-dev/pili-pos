@@ -18,12 +18,12 @@ pili_update_script: /opt/pili-pos/deploy/update.sh
 pili_report_file: /var/lib/pili-pos/bootstrap-report.txt
 
 # Declared version (scripts/release/declare.sh): the "declared" tag of
-# the PUBLIC package ghcr.io/brunomoyse/moyun-pos holds the tarball +
+# the public package ghcr.io/nuagemagique-dev/pili-pos holds the tarball +
 # declared.json + declared.json.minisig, signed with the owner's offline
 # minisign key. Pulled anonymously: no token on the key or the terminal.
-# The source repository and its GitHub Releases stay private.
+# (The Android till reads "declared-android" of the same package.)
 pili_registry: https://ghcr.io
-pili_registry_repo: brunomoyse/moyun-pos
+pili_registry_repo: nuagemagique-dev/pili-pos
 pili_registry_tag: declared
 pili_declared_pubkey: /usr/share/pili-pos/declared.pub
 pili_work_dir: /run/pili-bootstrap/fetch

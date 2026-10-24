@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# pili-pos - declare a released version (owner only, on the Mac)
+# pili-pos - declare a released Linux version (owner only, on the Mac)
 #
+# Linux kiosk only; the Android till is declared by
+# scripts/release/declare_android.sh (tag "declared-android").
 # Once SPF Finances has accepted a version (deploy/UPDATE-STRATEGY.md),
 # this publishes what terminals trust:
-#   declared.json          { version, sha1, sha256, asset, declared_at }
+#   declared.json          { format, platform "linux", version, sha1,
+#                            sha256, asset, declared_at }
 #   declared.json.minisig  minisign signature with the owner's OFFLINE key
 # pushed with the release tarball as tag "declared" of the public package
-# ghcr.io/brunomoyse/moyun-pos, attached to the vX.Y.Z GitHub release
-# too, which then turns from prerelease into latest.
+# ghcr.io/nuagemagique-dev/pili-pos, attached to the linux-vX.Y.Z GitHub
+# release too, which then turns from prerelease into latest.
 #
 # pili-bootstrap (deploy/ansible/roles/pos_binary) installs nothing
 # else: no valid signature, no SHA-256/SHA-1 match, no install.
@@ -18,10 +21,12 @@
 #       once: creates the key pair. The secret key stays in
 #       ~/.minisign/ (password protected, back it up offline); the
 #       public key goes to deploy/release/declared.pub - commit it,
-#       every image built afterwards embeds it.
-#   scripts/release/declare.sh vX.Y.Z --sha1 <SHA-1 accepted by SPF>
+#       every image built afterwards embeds it. The same key declares
+#       the Android till (declare_android.sh): when the secret key
+#       already exists, only its public key is written out (minisign -R).
+#   scripts/release/declare.sh linux-vX.Y.Z --sha1 <SHA-1 accepted by SPF>
 #
-# Environment: PILI_REPO (default brunomoyse/moyun-pos),
+# Environment: PILI_REPO (default nuagemagique-dev/pili-pos),
 # PILI_MINISIGN_KEY (default ~/.minisign/pili-pos-declared.key).
 # Needs: gh (logged in, with the write:packages scope:
 # `gh auth refresh -s write:packages`), oras, minisign.
@@ -29,7 +34,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-REPO="${PILI_REPO:-brunomoyse/moyun-pos}"
+REPO="${PILI_REPO:-nuagemagique-dev/pili-pos}"
 PACKAGE="ghcr.io/$(echo "$REPO" | tr '[:upper:]' '[:lower:]')"
 SECRET_KEY="${PILI_MINISIGN_KEY:-$HOME/.minisign/pili-pos-declared.key}"
 PUBLIC_KEY="$PROJECT_ROOT/deploy/release/declared.pub"
@@ -38,7 +43,15 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 command -v minisign >/dev/null || die "minisign not found (brew install minisign)"
 
 if [[ "${1:-}" == "--init-key" ]]; then
-    [[ -f "$SECRET_KEY" ]] && die "$SECRET_KEY already exists - refusing to overwrite it"
+    if [[ -f "$SECRET_KEY" ]]; then
+        # The declaration key already exists (made for the Android till):
+        # never a second key, only its public half for the kiosk images.
+        [[ -f "$PUBLIC_KEY" ]] && die "$PUBLIC_KEY already exists - nothing to do"
+        mkdir -p "$(dirname "$PUBLIC_KEY")"
+        minisign -R -s "$SECRET_KEY" -p "$PUBLIC_KEY"
+        echo "✓ public key of the existing $SECRET_KEY: $PUBLIC_KEY (commit it; rebuild the images)"
+        exit 0
+    fi
     mkdir -p "$(dirname "$SECRET_KEY")" "$(dirname "$PUBLIC_KEY")"
     chmod 700 "$(dirname "$SECRET_KEY")"
     minisign -G -p "$PUBLIC_KEY" -s "$SECRET_KEY"
@@ -48,7 +61,10 @@ if [[ "${1:-}" == "--init-key" ]]; then
 fi
 
 VERSION="${1:-}"
-[[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "usage: $0 vX.Y.Z --sha1 <declared SHA-1>"
+# The release tag of the Linux product (release.yml); "vX.Y.Z" is taken
+# for "linux-vX.Y.Z".
+[[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] && VERSION="linux-$VERSION"
+[[ "$VERSION" =~ ^linux-v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "usage: $0 linux-vX.Y.Z --sha1 <declared SHA-1>"
 shift
 EXPECTED_SHA1=""
 while [[ $# -gt 0 ]]; do
@@ -84,10 +100,12 @@ if [[ "$SHA1" != "$EXPECTED_SHA1" ]]; then
 fi
 echo "✓ SHA-1 $SHA1 matches the declared value"
 
-SEMVER="${VERSION#v}"
+SEMVER="${VERSION#linux-v}"
 DECLARED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 cat > "$WORK/declared.json" <<JSON
 {
+  "format": 1,
+  "platform": "linux",
   "version": "$SEMVER",
   "sha1": "$SHA1",
   "sha256": "$SHA256",

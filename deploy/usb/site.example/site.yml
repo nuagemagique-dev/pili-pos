@@ -1,6 +1,6 @@
 # Site directory for deploy/usb/make-key.sh. Copy this whole directory
 # to deploy/usb/sites/<name>/ (git-ignored), fill it in, then:
-#   deploy/usb/make-key.sh vX.Y.Z --site deploy/usb/sites/<name> /dev/diskN
+#   deploy/usb/make-key.sh linux-vX.Y.Z --site deploy/usb/sites/<name> /dev/diskN
 # Applied on the terminal's first boot by pili-bootstrap
 # (deploy/ansible/site.yml). make-key.sh refuses a file that still
 # contains CHANGE_ME.

@@ -201,11 +201,42 @@ rc3 fixes:
 - **Kiosk hardware:** the target terminals (Penetek A3216 M82 or Advantech
   USC-360J) were never exercised by this chain; `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md`
   is the manual check list.
-- **Image build:** `deploy/image/` (mkosi) cannot build on the Mac. The USB
-  autoinstall work is on local branch `feat/usb-autoinstall` (also seen as
-  `remotes/origin/feat/usb-autoinstall` in this worktree's branch list), not
-  merged into `android/int`. Linux x86_64 root needed (`ASSEMBLAGE_FINAL_FR.md`,
-  step 6).
+- **Image build:** `deploy/image/` (mkosi) cannot build on the Mac; it builds
+  on GitHub-hosted x86_64 runners (`image.yml`: reproducible binary twice, both
+  profiles, boot smoke test of the admission image under QEMU with KVM and
+  swtpm; the boot check reads the login background from `ui/src/styles/tokens.css`
+  since `d647ebbc`). A local build needs Linux x86_64 root
+  (`ASSEMBLAGE_FINAL_FR.md`, step 6).
+- **Release path (PR #4, branch `feat/usb-autoinstall`, 2026-10-24):** added,
+  not yet exercised end to end.
+  - Plug-and-play site key `deploy/usb/make-key.sh` and first-boot site
+    bootstrap `pili-bootstrap.service` (Ansible `deploy/ansible`: network,
+    `pos.json` and secrets, declared binary, health check). On the production
+    image only; the admission image disables it (`05-pili-admission.preset`).
+    The image gains `ansible-core`, `minisign` and `efibootmgr`.
+  - `.github/workflows/release.yml` on a final `linux-vX.Y.Z` tag (never
+    `v*`, never `android-v*`, never an `-rcN` tag): calls `image.yml`, opens a
+    prerelease (tarball, production image, `build_info`, `SHA256SUMS`) and
+    pushes the tarball to `ghcr.io/nuagemagique-dev/pili-pos:linux-vX.Y.Z`.
+    `image.yml` now starts on its own only for `linux-v*-*` tags, so a final
+    tag is built once. CI watch reports the Release workflow.
+  - `scripts/release/declare.sh linux-vX.Y.Z --sha1 <SHA-1>` (owner, after the
+    SPF acceptance) signs `declared.json` (`format` 1, `platform` `linux`) and
+    pushes tag `declared` of the same package (the Android till reads
+    `declared-android`); `scripts/release/test_declare.sh` (11 cases, stubbed
+    `oras`/`gh`) and `deploy/ansible/tests/run.sh` (Docker, Debian 13, 36
+    checks) run in the Tests workflow.
+  - **Still missing before a Linux release:** `deploy/release/declared.pub` is
+    not committed, so a production image never fetches a declared binary (it
+    keeps its embedded one). The declaration key is shared with Android
+    (`~/.minisign/pili-pos-declared.key`): run `scripts/release/declare.sh
+    --init-key`, which only writes the public half (`minisign -R`) when the
+    secret exists, and commit it. Neither `release.yml` nor `declare.sh` has run
+    for real (no tag, no package push yet). The "latest" release flag of the
+    repository is shared with any Android release. The production image's
+    first boot (bootstrap on a real terminal, `efibootmgr` boot entry) was never
+    tested on the target hardware. `MANUEL_INSTALLATION_FR.md` gained section
+    2.3 and the installer steps; its PDF was not rebuilt (step 7).
 - **Linux evidence items still "A effectuer"** in
   `JOURNAL_TESTS_PRE_SOUMISSION_FR.md` (38 lines), the real-printer ticket and
   report photos (`50_` to `56_`), `DOSSIER_SOUMISSION_FR.md` (signed form,
@@ -232,7 +263,7 @@ rc3 fixes:
    set and needs the Android side to be considered first.
 2. Merge or rebase onto the Android release branch so the engine is the one
    Android certified (a different engine for Linux needs its own full evidence).
-   Decide what to do with `feat/usb-autoinstall`.
+   Commit `deploy/release/declared.pub` (section 5, "Release path").
 3. Full gate: `cargo fmt --all -- --check`, workspace and cert clippy,
    `cargo test --workspace`, `cargo test -p pili-pos --no-default-features
    --features cert`, `cargo test -p pos-engine --no-default-features --features cert`,

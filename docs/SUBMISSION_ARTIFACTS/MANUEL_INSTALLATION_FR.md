@@ -30,10 +30,10 @@ et activer avant de commencer (§3.1).
 ### 2.1 Télécharger l'image kiosque
 
 L'image est fournie par le distributeur sous forme d'un fichier
-`pili-pos-kiosk-vX.Y.Z.img.xz`. Sur la machine du distributeur :
+`pili-pos-kiosk-linux-vX.Y.Z.img.xz`. Sur la machine du distributeur :
 
 ```bash
-xz -d pili-pos-kiosk-vX.Y.Z.img.xz
+xz -d pili-pos-kiosk-linux-vX.Y.Z.img.xz
 ```
 
 ### 2.2 Écrire l'image sur la clé USB
@@ -48,10 +48,43 @@ lsblk        # Linux
 diskutil list # macOS
 
 # Écrire l'image (remplacer /dev/sdX par le bon device)
-sudo dd if=pili-pos-kiosk-vX.Y.Z.img of=/dev/sdX bs=4M status=progress conv=fsync
+sudo dd if=pili-pos-kiosk-linux-vX.Y.Z.img of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 Sur Windows : utiliser **Rufus** ou **Balena Etcher** avec l'image.
+
+### 2.3 Clé d'installation d'un site (installations de production)
+
+Pour une installation chez un client, le distributeur prépare plutôt une
+clé par site avec `deploy/usb/make-key.sh` (macOS ou Linux), qui écrit
+l'image de production et ajoute sur la partition ESP de la clé :
+
+- l'entrée de démarrage "Install" par défaut (menu de 5 secondes) ;
+- le dossier du site (`site.yml` : identité `pos.json`, adresse réseau,
+  URL du FDM ; `secrets/` : jeton et certificats du FDM).
+
+```bash
+deploy/usb/make-key.sh linux-vX.Y.Z --site deploy/usb/sites/<site> /dev/diskN
+```
+
+Au premier démarrage réel (après le §3.4), le service
+`pili-bootstrap.service` applique ce dossier en local (Ansible) : adresse
+réseau, `pos.json` et secrets (effacés ensuite de l'ESP), puis la version
+**déclarée** du binaire, lue sans jeton dans le paquet public
+`ghcr.io/nuagemagique-dev/pili-pos`. Ce binaire n'est installé que si la
+signature minisign du propriétaire, la plateforme `linux`, le SHA-256 de
+l'archive et le SHA-1 déclaré concordent, et s'il n'est pas plus ancien
+que celui de l'image ; sinon (hors ligne, doute) le binaire embarqué dans
+l'image est conservé. Un résumé reste affiché 60 secondes, puis le kiosque
+démarre. Ce n'est pas une mise à jour automatique : le service ne
+s'exécute qu'une fois (relance manuelle `pili-bootstrap --rerun` depuis la
+console de maintenance).
+
+L'image d'**admission** (machine de test du SPF) n'exécute jamais ce
+service : elle fonctionne avec le binaire embarqué et l'identité du
+dossier. Le contenu de la clé : `deploy/usb/README.md`. Une fois les
+terminaux du site installés, effacer les secrets de la clé
+(`deploy/usb/make-key.sh --wipe-secrets /dev/diskN`).
 
 ## 3. Installation sur le terminal POS
 

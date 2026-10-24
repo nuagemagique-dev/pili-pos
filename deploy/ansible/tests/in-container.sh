@@ -50,18 +50,19 @@ blob() { # blob <file> -> stores it, prints its OCI layer (title = basename)
     printf '{"mediaType":"application/octet-stream","digest":"sha256:%s","size":%s,"annotations":{"org.opencontainers.image.title":"%s"}}' \
         "$d" "$(stat -c %s "$1")" "$(basename "$1")"
 }
-publish() { # publish <version> [sha1 override] -> "declared" artifact; prints the binary SHA-1
-    local v="$1" dir="/srv/build/v$1" sha1 sha256 tarball
+publish() { # publish <version> [sha1 override] [platform] -> "declared" artifact; prints the binary SHA-1
+    local v="$1" dir="/srv/build/v$1" sha1 sha256 tarball platform="${3:-linux}"
     mkdir -p "$dir/pkg"
     fake_pos "$v" "$dir/pkg/pili-pos"
     printf 'x' > "$dir/pkg/install.sh"
-    tarball="$dir/pili-pos-v$v-x86_64.tar.gz"
+    tarball="$dir/pili-pos-linux-v$v-x86_64.tar.gz"
     tar -C "$dir/pkg" -czf "$tarball" pili-pos install.sh
-    sha1="${2:-$(sha1sum "$dir/pkg/pili-pos" | awk '{print $1}')}"
+    sha1="${2:-}"
+    [[ -n "$sha1" ]] || sha1="$(sha1sum "$dir/pkg/pili-pos" | awk '{print $1}')"
     sha256="$(sha256sum "$tarball" | awk '{print $1}')"
     cat > "$dir/declared.json" <<JSON
-{"version": "$v", "sha1": "$sha1", "sha256": "$sha256",
- "asset": "pili-pos-v$v-x86_64.tar.gz"}
+{"format": 1, "platform": "$platform", "version": "$v", "sha1": "$sha1",
+ "sha256": "$sha256", "asset": "pili-pos-linux-v$v-x86_64.tar.gz"}
 JSON
     rm -f "$dir/declared.json.minisig"
     minisign -S -s "$KEYS/sec" -m "$dir/declared.json" >/dev/null
@@ -71,7 +72,7 @@ JSON
 write_manifest() { # write_manifest <dir> (after an edit of its declared.json)
     local dir="$1"
     printf '{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","layers":[%s,%s,%s]}' \
-        "$(blob "$dir"/pili-pos-v*-x86_64.tar.gz)" "$(blob "$dir/declared.json")" "$(blob "$dir/declared.json.minisig")" \
+        "$(blob "$dir"/pili-pos-linux-v*-x86_64.tar.gz)" "$(blob "$dir/declared.json")" "$(blob "$dir/declared.json.minisig")" \
         > "$SRV/declared.json"
 }
 python3 /src/deploy/ansible/tests/registry.py "$SRV" &
@@ -156,6 +157,13 @@ publish 1.3.0 0000000000000000000000000000000000000000 >/dev/null
 if play; then ok "playbook ran"; else bad "playbook failed"; tail -40 /tmp/play.log; fi
 check "binary unchanged" test "$(installed_sha1)" = "$EMBEDDED_SHA1"
 check "report: SHA-1 refused" report_has "It must be the declared binary"
+
+echo "▸ 4b. signed descriptor of the Android till: refused"
+new_site
+publish 1.3.1 "" android >/dev/null
+if play; then ok "playbook ran"; else bad "playbook failed"; tail -40 /tmp/play.log; fi
+check "binary unchanged" test "$(installed_sha1)" = "$EMBEDDED_SHA1"
+check "report: descriptor refused" report_has "mal formé"
 
 echo "▸ 5. declared version older than the image: kept"
 new_site

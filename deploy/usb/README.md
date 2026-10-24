@@ -11,10 +11,11 @@ cp -R deploy/usb/site.example deploy/usb/sites/<site>   # git-ignored
 $EDITOR deploy/usb/sites/<site>/site.yml                 # identity, IPs, FDM URL
 cp fdm-token deploy/usb/sites/<site>/secrets/fdm/token   # see secrets/README.md
 deploy/usb/make-key.sh --list
-deploy/usb/make-key.sh v1.0.0 --site deploy/usb/sites/<site> /dev/disk4
+deploy/usb/make-key.sh linux-v1.0.0 --site deploy/usb/sites/<site> /dev/disk4
 ```
 
-You can pass a local `.img.xz` in place of `v1.0.0`. The image is built by
+You can pass a local `.img.xz` in place of `linux-v1.0.0` (`v1.0.0` is
+taken for `linux-v1.0.0`). The image is built by
 `deploy/image/build.sh production`.
 
 ## On the terminal
@@ -36,8 +37,8 @@ You can pass a local `.img.xz` in place of `v1.0.0`. The image is built by
    2. `pos.json` and secrets (the secrets are then deleted from the
       terminal's ESP);
    3. the declared binary, pulled anonymously from the public package
-      `ghcr.io/brunomoyse/moyun-pos`. It is installed only if the owner's
-      signature and the SHA-1 match. Offline or in any doubt, the binary
+      `ghcr.io/nuagemagique-dev/pili-pos`. It is installed only if the
+      owner's signature, the `linux` platform and the SHA-1 match. Offline or in any doubt, the binary
       embedded in the image is kept;
    4. a health check of the FDM and printer.
    - A summary stays on screen for 60 s, then the kiosk starts.
@@ -59,18 +60,19 @@ You can pass a local `.img.xz` in place of `v1.0.0`. The image is built by
 ## Releases
 
 - **Where things live.**
-  - The code and the GitHub Releases stay **private** in `moyun-pos`.
-  - Terminals only read the **public** package `ghcr.io/brunomoyse/moyun-pos`,
-    with no token.
-- **On a `vX.Y.Z` tag**, `.github/workflows/release.yml`:
+  - The code and the GitHub Releases are in `nuagemagique-dev/pili-pos`.
+  - Terminals only read the public package `ghcr.io/nuagemagique-dev/pili-pos`
+    (tag `declared`), with no token. The Android till reads the tag
+    `declared-android` of the same package.
+- **On a `linux-vX.Y.Z` tag**, `.github/workflows/release.yml`:
   - opens a **prerelease** with the tarball, the kiosk image and
     `build_info` (the SHA-1 to declare);
-  - pushes the tarball to the package as tag `vX.Y.Z`.
+  - pushes the tarball to the package as tag `linux-vX.Y.Z`.
 - **No terminal installs a pending version.**
 - **After SPF approval**, run on the Mac:
 
   ```bash
-  scripts/release/declare.sh vX.Y.Z --sha1 <SHA-1 accepted by SPF>
+  scripts/release/declare.sh linux-vX.Y.Z --sha1 <SHA-1 accepted by SPF>
   ```
 
   It signs `declared.json` with the offline minisign key, then:

@@ -14,20 +14,21 @@
 # and wipe them once the terminals are installed (--wipe-secrets).
 #
 # Usage:
-#   deploy/usb/make-key.sh <vX.Y.Z | image.img.xz | image.raw> --site <dir> <device>
+#   deploy/usb/make-key.sh <linux-vX.Y.Z | image.img.xz | image.raw> --site <dir> <device>
 #   deploy/usb/make-key.sh --wipe-secrets <device>
 #   deploy/usb/make-key.sh --list            (candidate USB devices)
 #
 #   <device>   macOS: /dev/disk4   Linux: /dev/sdb   (whole disk)
-#   vX.Y.Z     downloads pili-pos-kiosk-vX.Y.Z.img.xz from that GitHub
-#              release of the repository (PILI_REPO, default
-#              brunomoyse/moyun-pos) with gh
+#   linux-vX.Y.Z  downloads pili-pos-kiosk-linux-vX.Y.Z.img.xz from that
+#              GitHub release of the repository (PILI_REPO, default
+#              nuagemagique-dev/pili-pos) with gh; vX.Y.Z is taken for
+#              linux-vX.Y.Z
 #   --site     a directory shaped like deploy/usb/site.example/
 #   --yes      no confirmation prompt
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-REPO="${PILI_REPO:-brunomoyse/moyun-pos}"
+REPO="${PILI_REPO:-nuagemagique-dev/pili-pos}"
 OS="$(uname -s)"
 SOURCE=""
 SITE_DIR=""
@@ -136,7 +137,9 @@ if [[ "$WIPE_ONLY" -eq 1 ]]; then
     exit 0
 fi
 
-[[ -n "$SOURCE" ]] || die "no image given (vX.Y.Z, .img.xz or .raw)"
+[[ -n "$SOURCE" ]] || die "no image given (linux-vX.Y.Z, .img.xz or .raw)"
+# The Linux release tags are linux-vX.Y.Z (.github/workflows/release.yml).
+[[ "$SOURCE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] && SOURCE="linux-$SOURCE"
 [[ -n "$SITE_DIR" ]] || die "--site <dir> is required (copy deploy/usb/site.example/)"
 [[ -f "$SITE_DIR/site.yml" ]] || die "$SITE_DIR/site.yml not found"
 if grep -v '^[[:space:]]*#' "$SITE_DIR/site.yml" | grep -q 'CHANGE_ME'; then
@@ -145,7 +148,7 @@ fi
 
 # ── The image ──────────────────────────────────────────────────────
 WORK="$(mktemp -d)"
-if [[ "$SOURCE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+if [[ "$SOURCE" =~ ^linux-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     command -v gh >/dev/null || die "gh not found (needed to download $SOURCE)"
     log "Downloading pili-pos-kiosk-$SOURCE.img.xz from $REPO…"
     gh release download "$SOURCE" -R "$REPO" -D "$WORK" \
