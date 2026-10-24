@@ -1,10 +1,17 @@
 # Runbook: the Android till on a real Sunmi D3 Pro
 
-Card P7-T12 (phase P7, end-to-end parity). English. This is the procedure to follow with a real Sunmi D3 Pro (GMS
+Card P7-T12 (phase P7, end-to-end parity). This is the procedure to follow with a real Sunmi D3 Pro (GMS
 variant) and a real Epson TM-m30III. Nothing in it has been run on a real unit: no D3 Pro and no Epson is attached
 to the build host, and the chain never scans the LAN (P7D14). Each section therefore says three things: what to do
 (commands), what you must see and keep (expected result and evidence), and which emulator result it mirrors, so that
 a difference between the unit and the emulator is visible at once. The last section is a table to fill in.
+
+Status (2026-10-24): the v1 filing is `pili-pos-android` 1.0.0 only (DECISIONS INT-D41). The build to put on the
+unit is the one of the Android freeze (`ANDROID_FREEZE.md`: candidate tag `android-v1.0.0-rc3`, then the final
+`android-v1.0.0`). What this runbook produces feeds the evidence items of `DOSSIER_EVIDENCE.md`: EV-15 (facts of a
+real D3 Pro, the real Epson, Play Protect on the unit), EV-10, EV-11 and EV-12 when they are run on the unit
+(sections 1 to 7, 9 and 8), and EV-13 (GMS) on the real unit. The live run against the module2 simulator is EV-14
+(`LIVE_MODULE2.md`).
 
 Conventions: `$S` is the serial of the unit (`adb devices`), `adb` means `adb -s $S`, `PKG` is
 `dev.nuagemagique.pilipos` for the release APK and `dev.nuagemagique.pilipos.debug` for the debug APK. The
@@ -18,9 +25,10 @@ Documents this runbook leans on:
 | `UC_RESULTS.md` and `UC_MATRIX_ANDROID.md` | the 48 scenarios and the 47 use-case ids already proven on the emulator against the reference |
 | `PLATFORM.md` sections 3, 7, 8, 9, 12 | policies, SPF export, updater, storage and the SD card |
 | `APP.md` sections 3, 4, 9, 10 | provisioning, kiosk, the end-to-end run, the known limits (hardware residue) |
-| `SOAK.md` | the 24 h soak on the emulator, its figures and the pass rules |
-| `POWERCUT.md` | the power-cut cases (card P7-T6). **Not delivered at this head**: the card did not run (DECISIONS P7D21), so section 8 below states the checks itself |
-| `GMS.md` | the GMS emulator run and Play Protect findings (card P7-T11). **Not delivered at this head** (DECISIONS, wave 5 record), so section 10 lists what to look at without an emulator result to compare with |
+| `SOAK.md` | the soak on the emulator (run `rc1-soak-3`, 10 h, with the 7-backups retention), its figures and the pass rules; the earlier 3 h run `p7-24h` is in `uc/soak/p7-24h/README.md` |
+| `POWERCUT.md` | the power-cut cases (card P7-T6). **Not delivered**: the card did not run (DECISIONS P7D21) and EV-12 is still open, so section 8 below states the checks itself |
+| `dossier/evidence/gms/EV13_2026-10-23.md` | EV-13, the GMS run on `sunmi_d3_pro_gms_api33` (2026-10-23): hidden Google apps, restrictions, windowed system update policy, a declared update under `no_install_apps`, the Play Protect settings read back; Play Protect with an account on a real unit is left to EV-15 (section 10) |
+| `DOSSIER_EVIDENCE.md` | the evidence items EV-01 to EV-20 and where each result goes |
 | `LIVE_MODULE2.md` | the live run against the module2 simulator (separate, needs the user) |
 | `spikes/S4.md` | the device-owner, Lock Task and restriction evidence this runbook repeats on hardware |
 
@@ -138,7 +146,7 @@ The bundle is a folder: `pos.json`, the files it names, an optional `seed.sql`, 
 
 Evidence: the `PiliShell` lines, the About screen (`platform/about`) with the app SHA-1 and the `deviceId`, a photo
 of the login screen. Failure texts are `prov_err_<code>` (for example `prov_err_key_missing` for a release build
-without a key, `prov_err_signature` for a wrong key): keep the exact text.
+without a key, `prov_err_minisign_signature_invalid` for a bundle signed with another key): keep the exact text.
 
 ## 3. Lock Task and the restrictions
 
@@ -153,7 +161,9 @@ Check on the unit, in this order, with the app in front:
 | Status bar | swipe from the top edge | no shade (disabled), the system bars stay hidden |
 | Power key | long press the power key | the power menu only (`GLOBAL_ACTIONS`), no Assistant |
 | Settings | `adb shell am start -a android.settings.SETTINGS` | the Settings app does not come to the front (suspended) |
-| Restrictions | `adb shell dumpsys device_policy \| grep -i -A2 "Enabled restrictions"` | the 13 keys of `PLATFORM.md` section 3 |
+| Restrictions | `adb shell dumpsys device_policy \| grep -i -A2 "Enabled restrictions"` | the 14 keys of `PLATFORM.md` section 3, plus `no_debugging_features` on a provisioned release build |
+| Hidden apps | `adb shell pm list packages \| grep -c com.android.vending` | 0: the Play Store and the user-facing Google apps of `PolicySet.HIDDEN_PACKAGES` are hidden (PD231, EV-13 lists them); Google Play services stay visible |
+| System updates | the system update policy entry of `adb shell dumpsys device_policy` (the `policies` step of `plat_e2e.sh` reads it with `getSystemUpdatePolicy()`) | the windowed policy, 03:00 to 05:00 (start 180, end 300 minutes) |
 | Time | Settings is out of reach; `adb shell settings get global auto_time` and `adb shell getprop persist.sys.timezone` | `1` and `Europe/Brussels` |
 | Stay awake | `adb shell settings get global stay_on_while_plugged_in` | `7` |
 | Uninstall | `adb shell pm uninstall dev.nuagemagique.pilipos` | refused |
@@ -268,10 +278,13 @@ lines. The export never deletes anything on the card or on the till: the manager
 
 Mirrors: `PLATFORM.md` sections 8 and 9, `plat_e2e.sh` (the updater and the crash restart on the emulator).
 
-Updates are a manager action from a stick (and from the registry when the release exists). Only a **declared**
-release installs: the descriptor is signed with the update key (`plat_update_keys.xml`, PD212) and carries the
-APK's SHA-256 and the version. `scripts/release/declare_android.sh` makes the declaration; **the chain never runs
-it for real** (it needs the release key, which is the user's).
+Updates are a manager action from a stick, or from the registry: the tag `declared-android` of the public package
+`ghcr.io/nuagemagique-dev/pili-pos`, pulled anonymously (`PLATFORM.md` section 8.2). Only a **declared** release
+installs: the descriptor is signed with the update key (`plat_update_keys.xml`, PD212; a debug build trusts the
+development key `5F208F7636516D6B`, `android/app/provisioning/dev-minisign.pub`; a release build trusts the user's
+release key, empty until it exists, so every update is refused with `key_missing`) and carries the APK's SHA-256
+and the version. `scripts/release/declare_android.sh` makes the declaration; **the chain never runs it for real**
+(it needs the release key, which is the user's).
 
 1. Prepare a stick with the declared layout of `PLATFORM.md` section 8.3 (OCI layout: descriptor, signature, the
    APK blob) for a version one higher than the installed one.
@@ -364,8 +377,9 @@ Evidence: the sampler files, the driver file, `dumpsys thermalservice` at the st
 
 ## 10. Play Protect and the developer verification items
 
-Mirrors: `GMS.md` (card P7-T11, **not delivered**): there is no emulator result to compare with. The emulator for
-this section is the GMS AVD `sunmi_d3_pro_gms_api33`.
+Mirrors: EV-13 (`dossier/evidence/gms/EV13_2026-10-23.md`), the run on the GMS AVD `sunmi_d3_pro_gms_api33`:
+`package_verifier_enable` unset, `verifier_verify_adb_installs` 0, no Play Protect prompt during the unattended
+install and update path. The AVD has no Google account and no Play Protect scan, so the unit is the real test.
 
 The D3 Pro GMS variant ships Google Play services and Play Protect. A till with a self-signed or privately signed
 APK meets them at three points.
@@ -373,9 +387,10 @@ APK meets them at three points.
 1. **No Google account before device owner** (section 1): Settings of the unit show no account.
 2. **Play Protect on install.** After `adb install`, the unit may show "App blocked to protect your device" or
    "Scan app" for an app not from Play. Note whether it appears for `adb install`, for an install from a stick
-   (updater path), and for the PackageInstaller session of the updater. Look at: Play Store, Play Protect, the
-   gear: "Scan apps with Play Protect" and "Improve harmful app detection". The Play Store is hidden by the user
-   (it is not a policy of the app: a platform card of PD230 would hide it and set `DISALLOW_INSTALL_APPS`).
+   (updater path), and for the PackageInstaller session of the updater. The Play Store is hidden by the app's
+   policy (PD231, `no_install_apps` is set), so its Play Protect settings ("Scan apps with Play Protect", "Improve
+   harmful app detection") are out of reach in Lock Task: read them before provisioning, or after a debug
+   teardown.
    `adb shell settings get global package_verifier_enable` and `verifier_verify_adb_installs` show whether adb
    installs are verified.
 3. **Developer verification.** Google announced that apps on certified Android devices will have to come from a
@@ -413,8 +428,8 @@ columns on the unit; keep the evidence next to this file.
 | 13 | Plug pull at cut points C, A1, A2 and B; boot time to `LOCKED`; `BOOT_COMPLETED` | `adb emu kill` only (S4 section 10) | | |
 | 14 | Safe boot with the volume key and the recovery menu under the restriction set | power-menu route only | | |
 | 15 | Sunmi vendor layer and launcher: crash and ANR dialogs, auto-start allowlist | Google launcher on the AVD | | |
-| 16 | System OTA under the postpone policy; can it reboot while the till is open | postpone policy set and read back | | |
-| 17 | Play Protect warnings on install and on the updater path (GMS variant) | `GMS.md` not delivered | | |
+| 16 | System OTA under the windowed policy (03:00 to 05:00); can it reboot while the till is open | windowed policy set and read back (EV-13), no OTA on the AVD | | |
+| 17 | Play Protect warnings on install and on the updater path (GMS variant) | no prompt on the GMS AVD, no account (EV-13) | | |
 | 18 | Developer verification status of the APK on the unit | none | | |
 | 19 | Display: `wm size`, `wm density`, usable height in Lock Task, fonts, 8.6 mm touch targets | profile declared, 996 of 1080 px usable | | |
 | 20 | bcrypt cost 12 PIN check on the Qualcomm CPU (`cmd bcrypt`) | 295 ms on the AVD, 232 ms on the host | | |
@@ -423,5 +438,5 @@ columns on the unit; keep the evidence next to this file.
 | 23 | Update on the unit: Sunmi `PackageInstaller` under device owner, silent install | emulator install works silently | | |
 | 24 | adb off after provisioning: nothing can install or downgrade, developer options cannot re-enable adb (`user` build) | AVD is userdebug | | |
 
-When the table is full, copy its figures into the P7 exit report (or the dossier note on the test environment).
-Until then the dossier states that the tests ran on an emulated profile of the D3 Pro.
+When the table is full, copy its figures into the evidence items of `DOSSIER_EVIDENCE.md` (EV-15 first) and the
+dossier documents they list. Until then the dossier states that the tests ran on an emulated profile of the D3 Pro.

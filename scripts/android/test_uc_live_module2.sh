@@ -189,7 +189,7 @@ export PILI_P7_LOCK_HELD=1 # the lock itself is proven by test_p7_emulator_lock.
 
 reset_case() {
     : >"$STUB_MARK"; : >"$STUB_CODES"; : >"$STUB_REQS"; : >"$STUB_MOCK_OUT"; : >"$UCC_ARGS"; : >"$UP_LOG"
-    rm -rf "$TMP/evid" "$TMPDIR"/* "$TMP/lock"/* 2>/dev/null
+    rm -rf "$TMP/evid" "${TMPDIR:?}"/* "$TMP/lock"/* 2>/dev/null
     unset STUB_CALLS STUB_BAD STUB_Q110 PILI_LIVE_GO_AHEAD PILI_LIVE_MAX_REQUESTS
     write_env "$CANARY"
     printf '#!/bin/sh\necho REAL-FDM-MOCK\n' >"$MOCKS/pos-fdm-mock"

@@ -14,7 +14,7 @@
 #
 # Usage: scripts/android/p7_gate.sh [--fast] [--exit] [--root] [--uc-e2e] [--powercut]
 #                                   [--soak-report] [--base REF] [--allow ERE]...
-#   --fast         skip gradle-plan, selftest-p7-gate and selftest-lock
+#   --fast         skip gradle-plan, selftest-p7-gate, selftest-lock and selftest-live
 #   --exit         phase-exit mode: a tool check that would SKIP because its tool is absent
 #                  is a FAIL, and uc-matrix runs without --allow-pending
 #   --root         add root-inventory
@@ -69,6 +69,8 @@
 #                     (SKIP while android/gradlew is absent)
 #   selftest-p7-gate  scripts/android/test_p7_gate.sh        (SKIP when PILI_P7_NESTED=1)
 #   selftest-lock     scripts/android/test_p7_emulator_lock.sh (SKIP when PILI_P7_NESTED=1)
+#   selftest-live     scripts/android/test_uc_live_module2.sh (offline: stubs and a fake simulator on the
+#                     loopback, no device, no network; SKIP when PILI_P7_NESTED=1)
 #   --root:
 #   root-inventory    scripts/android/test_inventory.sh --diff exits 0 and its 'ok ... (ws N
 #                     >= M)' line has N at least 1355
@@ -461,10 +463,12 @@ if [[ "$fast" -eq 0 ]]; then
     if [[ -n "${PILI_P7_NESTED:-}" ]]; then
         skip selftest-p7-gate "nested in a self-test"
         skip selftest-lock "nested in a self-test"
+        skip selftest-live "nested in a self-test"
     else
         export PILI_P7_NESTED=1
         tool_gate selftest-p7-gate scripts/android/test_p7_gate.sh bash scripts/android/test_p7_gate.sh
         tool_gate selftest-lock scripts/android/test_p7_emulator_lock.sh bash scripts/android/test_p7_emulator_lock.sh
+        tool_gate selftest-live scripts/android/test_uc_live_module2.sh bash scripts/android/test_uc_live_module2.sh
         unset PILI_P7_NESTED
     fi
 fi

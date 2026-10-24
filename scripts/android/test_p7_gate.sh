@@ -81,6 +81,7 @@ build_pristine() {
     done
     cp "$FIX/selftest_stub.sh" "$r/scripts/android/test_p7_gate.sh"
     cp "$FIX/selftest_stub.sh" "$r/scripts/android/test_p7_emulator_lock.sh"
+    cp "$FIX/selftest_stub.sh" "$r/scripts/android/test_uc_live_module2.sh"
     cp "$FIX/gradlew" "$r/android/gradlew"
     chmod +x "$r"/scripts/android/* "$r/android/gradlew"
     printf '[workspace]\nmembers = []\n' >"$r/Cargo.toml"
@@ -423,12 +424,12 @@ expect uc-scenarios-failure-fails uc-scenarios FAIL
 # ── 15. --fast, gradle-plan and the self-tests ──
 new_repo full
 run_gate "${BASE[@]}"
-check full-runs-gradle-and-selftests $([[ "$(status gradle-plan)" == PASS && "$(status selftest-p7-gate)" == SKIP && "$(status selftest-lock)" == SKIP ]] && echo 0 || echo 1) "gradle=$(status gradle-plan) st=$(status selftest-p7-gate) lock=$(status selftest-lock)"
+check full-runs-gradle-and-selftests $([[ "$(status gradle-plan)" == PASS && "$(status selftest-p7-gate)" == SKIP && "$(status selftest-lock)" == SKIP && "$(status selftest-live)" == SKIP ]] && echo 0 || echo 1) "gradle=$(status gradle-plan) st=$(status selftest-p7-gate) lock=$(status selftest-lock) live=$(status selftest-live)"
 run_gate --fast "${BASE[@]}"
-check fast-skips-gradle-and-selftests $([[ "$(status gradle-plan)" == none && "$(status selftest-p7-gate)" == none && "$(status selftest-lock)" == none ]] && echo 0 || echo 1) "gradle=$(status gradle-plan)"
+check fast-skips-gradle-and-selftests $([[ "$(status gradle-plan)" == none && "$(status selftest-p7-gate)" == none && "$(status selftest-lock)" == none && "$(status selftest-live)" == none ]] && echo 0 || echo 1) "gradle=$(status gradle-plan) live=$(status selftest-live)"
 : >"$STUB_LOG"
 NESTED=0 run_gate "${BASE[@]}"
-check selftests-run-when-not-nested $([[ "$(status selftest-p7-gate)" == PASS && "$(status selftest-lock)" == PASS ]] && grep -q '^selftest test_p7_gate.sh$' "$STUB_LOG" && grep -q '^selftest test_p7_emulator_lock.sh$' "$STUB_LOG" && echo 0 || echo 1) "st=$(status selftest-p7-gate) lock=$(status selftest-lock) log: $(cat "$STUB_LOG")"
+check selftests-run-when-not-nested $([[ "$(status selftest-p7-gate)" == PASS && "$(status selftest-lock)" == PASS && "$(status selftest-live)" == PASS ]] && grep -q '^selftest test_p7_gate.sh$' "$STUB_LOG" && grep -q '^selftest test_p7_emulator_lock.sh$' "$STUB_LOG" && grep -q '^selftest test_uc_live_module2.sh$' "$STUB_LOG" && echo 0 || echo 1) "st=$(status selftest-p7-gate) lock=$(status selftest-lock) live=$(status selftest-live) log: $(cat "$STUB_LOG")"
 check gradle-plan-arguments $(grep -q '^gradlew .*--offline lint ktlintCheck detekt test koverVerifyDebug assembleRelease :app:assembleDebugAndroidTest$' "$STUB_LOG" && echo 0 || echo 1) "log: $(cat "$STUB_LOG")"
 export STUB_GRADLE_FAIL=1
 run_gate "${BASE[@]}"

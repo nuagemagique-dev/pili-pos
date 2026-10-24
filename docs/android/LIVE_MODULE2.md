@@ -1,14 +1,20 @@
 # Live run against the module2 simulator (Android)
 
-Card P7-T12, decision P7D13. English. **Prepared, never executed by the chain.** The user was away: no call to
-module2 was made, the script below was only tested with a stub and a fake simulator on the loopback
-(`scripts/android/test_uc_live_module2.sh`).
+Card P7-T12, decision P7D13. **Prepared, never executed by the chain.** No call to module2 has been made from
+this script: it is tested only with a stub and a fake simulator on the loopback
+(`scripts/android/test_uc_live_module2.sh`, also run by the full `p7_gate.sh` as `selftest-live`).
+
+This run is the evidence item EV-14 of the Android dossier (`DOSSIER_EVIDENCE.md`): the v1 filing is
+`pili-pos-android` 1.0.0 only (DECISIONS INT-D41), and the dossier pages that wait for it
+(`dossier/JOURNAL_TESTS_PRE_SOUMISSION_FR.md`, `CADRE_DEMANDE_FR.md`, `RAPPORT_TESTS_BASELINE_FR.md`, ...) say
+"À effectuer (EV-14)" until it is done. Run it on the build of the Android freeze (`ANDROID_FREEZE.md`).
 
 ## What the live run proves
 
 The Android till (the real app on the Sunmi D3 Pro profile, the Rust engine through UniFFI) signs the use-case
 scenarios against an FDM implementation that we did not write: the module2 online simulator `FDM02000425`, the same
-one the Linux till was tried against on 2026-09-27 (`docs/internal/LIVE_FDM_MODULE2.md`). The offline parity proof
+one the Linux till was tried against on 2026-09-27 (`docs/internal/LIVE_FDM_MODULE2.md`; the Linux product is not
+part of the v1 filing, so that run is background, not evidence of this dossier). The offline parity proof
 (`UC_RESULTS.md`) shows that the Android till and the engine on the host send the same requests to our own mock;
 this run shows that a third-party FDM accepts what the Android till sends and that its answers, once the till has
 stored them, give the same business content as the reference.
@@ -75,9 +81,9 @@ assigns one. These are the same names as `scripts/live_fdm.sh`. The URL must be 
 is not supported by this script (the proxy speaks ordinary TLS only); use port 80.
 
 Machine state: the emulator `sunmi_d3_pro_api33` (the script, through `uc_e2e.sh`, uses it), the host mocks'
-binaries (built on demand), and **no soak running**: the 24 h soak holds the P7 emulator lock; the script waits for
+binaries (built on demand), and **no soak running**: a soak holds the P7 emulator lock; the script waits for
 the lock (up to 90 minutes, then exits 75). Stop the soak first (`bash scripts/android/p7_soak.sh stop --run
-p7-24h`) when its 4 h result is enough, or run after it ended.
+<run-id>`, `p7_soak.sh status` names it) when its result so far is enough, or run after it ended.
 
 ## The exact command
 
@@ -149,11 +155,13 @@ Evidence is in `target/android-uc-live/<date>-<time>/` (or `--out`):
    success and error).
 3. Check the simulator for refused or odd answers (`"Not a valid Token"` means the token is wrong or expired;
    `UNKNOWN_POS` means the posId is not on the allowed list).
-4. If the dossier should carry the evidence (it is not committed by the script), copy the journals and
-   `forwarded.log` to `docs/SUBMISSION_ARTIFACTS/Report_Testing/module2/` by hand after reading them for secrets
-   (`grep -r` for the token before copying; the proxy never writes it, the check is a habit).
+4. The dossier carries the evidence as EV-14 (the script commits nothing): copy the journals, `compare.txt` and
+   `forwarded.log` to `docs/android/dossier/evidence/module2/` by hand after reading them for secrets (`grep -r`
+   for the token before copying; the proxy never writes it, the check is a habit; the repository is public), add
+   that folder to the `Report_Testing` folders listed in `DOSSIER_EVIDENCE.md` (ZIP builder), record the run under
+   EV-14 there and fill the "À effectuer (EV-14)" places of the dossier.
 5. The FDM counters of the simulator moved: write down in the run notes that the simulator's counters now include
-   this run, so the next Linux run is not surprised.
+   this run, so the next live run (Android or Linux) is not surprised.
 6. The ticket numbers: the till's numbering continues in its own database, the database is fresh for each group
    (`uc_e2e.sh` reinstalls), so the numbers restart at 1 for each group. A live FDM may refuse a reused number or
    sign it as a new event (`LIVE_FDM_MODULE2.md`: "A reused `posFiscalTicketNo` is signed again as a new
@@ -173,8 +181,8 @@ Evidence is in `target/android-uc-live/<date>-<time>/` (or `--out`):
 - Never replace `pos-fdm-mock` by hand while the script runs. If a run was killed, the next run restores the
   binary left aside (`target/android-mocks/debug/pos-fdm-mock.live-real`); to do it by hand, `mv` that file back
   over `pos-fdm-mock`.
-- Never send the evidence to the SPF without the user: it is not part of the official test (the Linux evidence of
-  2026-09-27 is).
+- Never send the evidence to the SPF without the user: it goes into the dossier only through EV-14, once the user
+  has read it.
 
 ## Tests of the script
 
