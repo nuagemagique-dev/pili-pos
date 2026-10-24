@@ -224,8 +224,9 @@ rc3 fixes:
     SPF acceptance) signs `declared.json` (`format` 1, `platform` `linux`) and
     pushes tag `declared` of the same package (the Android till reads
     `declared-android`); `scripts/release/test_declare.sh` (11 cases, stubbed
-    `oras`/`gh`) and `deploy/ansible/tests/run.sh` (Docker, Debian 13, 36
-    checks) run in the Tests workflow.
+    `oras`/`gh`), `deploy/ansible/tests/run.sh` (Docker, Debian 13, 37
+    checks) and the registry mock's unit tests (`test_registry.py`) run in
+    the Tests workflow.
   - **Still missing before a Linux release:** `deploy/release/declared.pub` is
     not committed, so a production image never fetches a declared binary (it
     keeps its embedded one). The declaration key is shared with Android

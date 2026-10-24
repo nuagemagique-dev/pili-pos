@@ -75,6 +75,8 @@ write_manifest() { # write_manifest <dir> (after an edit of its declared.json)
         "$(blob "$dir"/pili-pos-linux-v*-x86_64.tar.gz)" "$(blob "$dir/declared.json")" "$(blob "$dir/declared.json.minisig")" \
         > "$SRV/declared.json"
 }
+echo "▸ 0. registry mock: refusals (traversal, CR LF, long paths)"
+check "test_registry.py" python3 /src/deploy/ansible/tests/test_registry.py
 python3 /src/deploy/ansible/tests/registry.py "$SRV" &
 sleep 1
 
