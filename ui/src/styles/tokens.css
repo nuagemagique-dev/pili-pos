@@ -8,14 +8,14 @@
  * violet = training mode only. */
 :root {
   /* Surfaces */
-  --bg-primary: #0b0d0e;   /* Encre: screen background */
+  --bg-primary: #0b0d0e; /* Encre: screen background */
   --bg-secondary: #15181a; /* Graphite: header, cart, cards */
-  --bg-surface: #1f2327;   /* Ardoise: secondary buttons */
+  --bg-surface: #1f2327; /* Ardoise: secondary buttons */
   --bg-pressed: #2b3035;
   --border: #2b3035;
 
   /* Text */
-  --text-primary: #f2f4f2;   /* Brume */
+  --text-primary: #f2f4f2; /* Brume */
   --text-secondary: #9aa3a8;
   --text-on-accent: #0b0d0e; /* on Volt, amber, green, red, cyan */
 
@@ -28,7 +28,7 @@
   --accent-success: #22c55e;
   --accent-warning: #ffb020;
   --accent-danger: #ff4d3d;
-  --accent-info: #00d4ff;    /* Nuage Magique cyan */
+  --accent-info: #00d4ff; /* Nuage Magique cyan */
   --accent-training: #9b59b6;
 
   /* Spacing */
@@ -45,7 +45,8 @@
 
   /* Typography (UX guide §10: Noto Sans on screen, Chinese in Noto
    * Sans CJK from the image; JetBrains Mono for every figure). */
-  --font-family: 'Noto Sans', 'Noto Sans CJK SC', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-family:
+    'Noto Sans', 'Noto Sans CJK SC', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --font-zh: 'Noto Sans CJK SC', 'Noto Sans SC', 'Noto Sans', sans-serif;
   --font-mono: 'JetBrains Mono', 'Noto Sans Mono', monospace;
   --font-brand: 'Archivo', 'Noto Sans', sans-serif;

@@ -63,22 +63,17 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
         const fiscal = o.webshop?.fiscal_state ?? 'pending'
         if (fiscal === 'refund_pending' || fiscal === 'cancel_pending') return true
         return (
-          fiscal === 'pending' &&
-          (o.hubrise_status === 'new' || o.hubrise_status === 'received')
+          fiscal === 'pending' && (o.hubrise_status === 'new' || o.hubrise_status === 'received')
         )
       }).length
     },
     inProgressCount(state): number {
       return state.orders.filter(
-        (o) =>
-          o.hubrise_status === 'accepted' ||
-          o.hubrise_status === 'in_preparation',
+        (o) => o.hubrise_status === 'accepted' || o.hubrise_status === 'in_preparation',
       ).length
     },
     readyCount(state): number {
-      return state.orders.filter(
-        (o) => o.hubrise_status === 'awaiting_collection',
-      ).length
+      return state.orders.filter((o) => o.hubrise_status === 'awaiting_collection').length
     },
   },
 
@@ -99,9 +94,7 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
       try {
         await hubrisePatchOrderStatus(hubriseOrderId, newStatus)
         // Optimistic update; the poller will eventually reconcile.
-        const target = this.orders.find(
-          (o) => o.hubrise_order_id === hubriseOrderId,
-        )
+        const target = this.orders.find((o) => o.hubrise_order_id === hubriseOrderId)
         if (target) {
           target.hubrise_status = newStatus
         }
@@ -159,7 +152,8 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
           if (!(await eft.verify(waiting))) return
         }
         const paid = eft.approved.reduce((sum, p) => sum + p.amount_cents, 0)
-        if (paid < order.total_cents && !(await eft.charge(order.id, order.total_cents - paid))) return
+        if (paid < order.total_cents && !(await eft.charge(order.id, order.total_cents - paid)))
+          return
         const payments = eft.approved.map((p) => ({
           method: 'card' as const,
           amount_cents: p.amount_cents,
@@ -244,16 +238,10 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
     async delayByMinutes(hubriseOrderId: string, minutes: number) {
       const toast = useToastStore()
       const { t } = useI18n()
-      const target = this.orders.find(
-        (o) => o.hubrise_order_id === hubriseOrderId,
-      )
+      const target = this.orders.find((o) => o.hubrise_order_id === hubriseOrderId)
       const now = Date.now()
-      const currentMs = target?.confirmed_time
-        ? new Date(target.confirmed_time).getTime()
-        : now
-      const baseMs = Number.isFinite(currentMs)
-        ? Math.max(currentMs, now)
-        : now
+      const currentMs = target?.confirmed_time ? new Date(target.confirmed_time).getTime() : now
+      const baseMs = Number.isFinite(currentMs) ? Math.max(currentMs, now) : now
       const iso = new Date(baseMs + minutes * 60_000).toISOString()
       try {
         await hubriseSetConfirmedTime(hubriseOrderId, iso)

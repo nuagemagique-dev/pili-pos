@@ -1,35 +1,35 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import type { MenuItem } from "../types";
-import { formatPrice } from "../utils/format";
-import { useI18n } from "../i18n";
-import { useBilingualName } from "../utils/names";
-import AllergenBadges from "./AllergenBadges.vue";
+import { computed, ref } from 'vue'
+import type { MenuItem } from '../types'
+import { formatPrice } from '../utils/format'
+import { useI18n } from '../i18n'
+import { useBilingualName } from '../utils/names'
+import AllergenBadges from './AllergenBadges.vue'
 
 const props = defineProps<{
-  item: MenuItem;
-  categoryColor?: string;
+  item: MenuItem
+  categoryColor?: string
   /** Quantity of this product already in the cart (badge when > 0). */
-  inCart?: number;
-}>();
+  inCart?: number
+}>()
 
 const emit = defineEmits<{
-  add: [item: MenuItem];
-}>();
+  add: [item: MenuItem]
+}>()
 
-const { t } = useI18n();
-const bilingual = useBilingualName();
-const names = computed(() => bilingual(props.item));
-const btnRef = ref<HTMLElement | null>(null);
+const { t } = useI18n()
+const bilingual = useBilingualName()
+const names = computed(() => bilingual(props.item))
+const btnRef = ref<HTMLElement | null>(null)
 
 function handleTap() {
-  emit("add", props.item);
+  emit('add', props.item)
   // UX guide §4.2: 200 ms confirmation flash
-  const el = btnRef.value;
+  const el = btnRef.value
   if (el) {
-    el.classList.remove("flash-added");
-    void el.offsetWidth;
-    el.classList.add("flash-added");
+    el.classList.remove('flash-added')
+    void el.offsetWidth
+    el.classList.add('flash-added')
   }
 }
 </script>
@@ -87,7 +87,10 @@ function handleTap() {
 }
 
 /* Sold out: greyed, with a badge. A tap says why it cannot be added. */
-.item-btn.sold-out { opacity: 0.55; background: var(--bg-surface); }
+.item-btn.sold-out {
+  opacity: 0.55;
+  background: var(--bg-surface);
+}
 .item-sold-out {
   position: absolute;
   top: 8px;

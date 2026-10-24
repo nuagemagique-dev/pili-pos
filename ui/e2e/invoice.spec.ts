@@ -1,29 +1,82 @@
-import { test, expect, type Page } from '@playwright/test';
-import { mockTauriIPC, loginAndGoto, ipcCalls, overrideIPC, live, tapUserTile, DEFAULT_USER } from './fixtures/mock-ipc';
+import { test, expect, type Page } from '@playwright/test'
+import {
+  mockTauriIPC,
+  loginAndGoto,
+  ipcCalls,
+  overrideIPC,
+  live,
+  tapUserTile,
+  DEFAULT_USER,
+} from './fixtures/mock-ipc'
 
 // B2B invoices (event I, M150): multi-select on the tickets tab, the
 // dialog (customer, preview, signing, result) and the list of invoices.
 
 const SALES = [
-  { fiscalEventId: 12, ticketNumber: 102, posDateTime: '2026-10-17T12:30:00+02:00', totalCents: 1500, fdmId: 'FDM0000001', eventCounter: 6, totalCounter: 22, isRefund: false, invoicedBy: null },
-  { fiscalEventId: 11, ticketNumber: 101, posDateTime: '2026-10-17T12:10:00+02:00', totalCents: 2400, fdmId: 'FDM0000001', eventCounter: 5, totalCounter: 21, isRefund: false, invoicedBy: null },
-  { fiscalEventId: 10, ticketNumber: 100, posDateTime: '2026-10-17T11:50:00+02:00', totalCents: 900, fdmId: 'FDM0000001', eventCounter: 4, totalCounter: 20, isRefund: false, invoicedBy: '20260001' },
-];
+  {
+    fiscalEventId: 12,
+    ticketNumber: 102,
+    posDateTime: '2026-10-17T12:30:00+02:00',
+    totalCents: 1500,
+    fdmId: 'FDM0000001',
+    eventCounter: 6,
+    totalCounter: 22,
+    isRefund: false,
+    invoicedBy: null,
+  },
+  {
+    fiscalEventId: 11,
+    ticketNumber: 101,
+    posDateTime: '2026-10-17T12:10:00+02:00',
+    totalCents: 2400,
+    fdmId: 'FDM0000001',
+    eventCounter: 5,
+    totalCounter: 21,
+    isRefund: false,
+    invoicedBy: null,
+  },
+  {
+    fiscalEventId: 10,
+    ticketNumber: 100,
+    posDateTime: '2026-10-17T11:50:00+02:00',
+    totalCents: 900,
+    fdmId: 'FDM0000001',
+    eventCounter: 4,
+    totalCounter: 20,
+    isRefund: false,
+    invoicedBy: '20260001',
+  },
+]
 
 const COPYABLE = SALES.map((s) => ({
-  fiscalEventId: s.fiscalEventId, eventLabel: 'N', ticketNumber: s.ticketNumber, tableNumber: 3,
-  totalCents: s.totalCents, createdAt: '2026-10-17T10:00:00Z',
-}));
+  fiscalEventId: s.fiscalEventId,
+  eventLabel: 'N',
+  ticketNumber: s.ticketNumber,
+  tableNumber: 3,
+  totalCents: s.totalCents,
+  createdAt: '2026-10-17T10:00:00Z',
+}))
 
 const CUSTOMER = {
-  id: 7, vatNumber: 'BE0308357159', name: 'ACME SPRL', street: 'RUE DU PONT 1', postalCode: '4000',
-  city: 'LIEGE', countryCode: 'BE', peppolStatus: 'registered', peppolCheckedAt: '2026-10-17 10:00:00',
-};
+  id: 7,
+  vatNumber: 'BE0308357159',
+  name: 'ACME SPRL',
+  street: 'RUE DU PONT 1',
+  postalCode: '4000',
+  city: 'LIEGE',
+  countryCode: 'BE',
+  peppolStatus: 'registered',
+  peppolCheckedAt: '2026-10-17 10:00:00',
+}
 
 const LOOKUP_REGISTERED = {
-  vatNumber: 'BE0308357159', countryCode: 'BE', customer: null,
-  peppolStatus: 'registered', peppolChecked: true, deliverable: true,
-};
+  vatNumber: 'BE0308357159',
+  countryCode: 'BE',
+  customer: null,
+  peppolStatus: 'registered',
+  peppolChecked: true,
+  deliverable: true,
+}
 
 const PREVIEW = {
   sales: [SALES[1], SALES[0]],
@@ -37,11 +90,16 @@ const PREVIEW = {
   ],
   totalCents: 3900,
   problems: [],
-};
+}
 
 const RESULT_OK = {
-  success: true, fiscalEventId: 40, invoiceNo: '20260002', printed: true, deliveryStatus: 'queued', error: null,
-};
+  success: true,
+  fiscalEventId: 40,
+  invoiceNo: '20260002',
+  printed: true,
+  deliveryStatus: 'queued',
+  error: null,
+}
 
 function base(over: Record<string, unknown> = {}) {
   return {
@@ -52,655 +110,890 @@ function base(over: Record<string, unknown> = {}) {
     invoice_preview: () => PREVIEW,
     sign_invoice_fiscal: () => RESULT_OK,
     ...over,
-  };
+  }
 }
 
 /** Types on the on-screen keyboard, key by key. */
 async function typeKeys(page: Page, text: string) {
-  const kbd = page.getByTestId('text-keyboard');
+  const kbd = page.getByTestId('text-keyboard')
   for (const ch of text) {
-    if (ch === ' ') await kbd.getByRole('button', { name: 'Espace' }).click();
-    else await kbd.getByRole('button', { name: ch, exact: true }).click();
+    if (ch === ' ') await kbd.getByRole('button', { name: 'Espace' }).click()
+    else await kbd.getByRole('button', { name: ch, exact: true }).click()
   }
 }
 
 async function field(page: Page, id: string, text: string) {
-  await page.getByTestId(`invoice-field-${id}`).click();
-  await typeKeys(page, text);
+  await page.getByTestId(`invoice-field-${id}`).click()
+  await typeKeys(page, text)
 }
 
 async function fillAddress(page: Page) {
-  await field(page, 'name', 'ACME SPRL');
-  await field(page, 'street', 'RUE DU PONT 1');
-  await field(page, 'postalCode', '4000');
-  await field(page, 'city', 'LIEGE');
+  await field(page, 'name', 'ACME SPRL')
+  await field(page, 'street', 'RUE DU PONT 1')
+  await field(page, 'postalCode', '4000')
+  await field(page, 'city', 'LIEGE')
 }
 
 async function openDialog(page: Page) {
-  await loginAndGoto(page, '/reports');
-  await page.getByRole('tab', { name: 'Tickets' }).click();
-  await page.getByTestId('ticket-check-11').click();
-  await page.getByTestId('ticket-check-12').click();
-  await page.getByTestId('invoice-action').click();
-  await expect(page.getByTestId('invoice-dialog')).toBeVisible();
+  await loginAndGoto(page, '/reports')
+  await page.getByRole('tab', { name: 'Tickets' }).click()
+  await page.getByTestId('ticket-check-11').click()
+  await page.getByTestId('ticket-check-12').click()
+  await page.getByTestId('invoice-action').click()
+  await expect(page.getByTestId('invoice-dialog')).toBeVisible()
 }
 
 test.describe('Invoices: selection on the tickets tab', () => {
-  test('the Facture action needs a ticked sale, an invoiced sale cannot be ticked', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await loginAndGoto(page, '/reports');
-    await page.getByRole('tab', { name: 'Tickets' }).click();
-    const action = page.getByTestId('invoice-action');
-    await expect(action).toBeDisabled();
-    await expect(action).toHaveText('Facture');
-    await page.getByTestId('ticket-check-11').click();
-    await expect(action).toHaveText('Facture (1)');
-    await page.getByTestId('ticket-check-12').click();
-    await expect(action).toHaveText('Facture (2)');
-    await page.getByTestId('ticket-check-11').click();
-    await expect(action).toHaveText('Facture (1)');
+  test('the Facture action needs a ticked sale, an invoiced sale cannot be ticked', async ({
+    page,
+  }) => {
+    await mockTauriIPC(page, base())
+    await loginAndGoto(page, '/reports')
+    await page.getByRole('tab', { name: 'Tickets' }).click()
+    const action = page.getByTestId('invoice-action')
+    await expect(action).toBeDisabled()
+    await expect(action).toHaveText('Facture')
+    await page.getByTestId('ticket-check-11').click()
+    await expect(action).toHaveText('Facture (1)')
+    await page.getByTestId('ticket-check-12').click()
+    await expect(action).toHaveText('Facture (2)')
+    await page.getByTestId('ticket-check-11').click()
+    await expect(action).toHaveText('Facture (1)')
     // Ticket 100 is on invoice 20260001: no box, the number instead.
-    await expect(page.getByTestId('ticket-check-10')).toHaveCount(0);
-    await expect(page.getByTestId('ticket-invoiced-10')).toHaveText('Facture 20260001');
-  });
+    await expect(page.getByTestId('ticket-check-10')).toHaveCount(0)
+    await expect(page.getByTestId('ticket-invoiced-10')).toHaveText('Facture 20260001')
+  })
 
   test('the tabs stay three', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await loginAndGoto(page, '/reports');
-    await expect(page.getByRole('tab')).toHaveText(['Journée', 'Caisse', 'Tickets', 'Ventes']);
+    await mockTauriIPC(page, base())
+    await loginAndGoto(page, '/reports')
+    await expect(page.getByRole('tab')).toHaveText(['Journée', 'Caisse', 'Tickets', 'Ventes'])
     // The invoice adds no tab of its own: the three it already had plus the sales report.
-  });
-});
+  })
+})
 
 test.describe('Invoices: the dialog', () => {
   test('a new customer, a Peppol lookup, the preview and the signed invoice', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await openDialog(page);
-    await expect(page.getByTestId('invoice-continue')).toBeDisabled();
+    await mockTauriIPC(page, base())
+    await openDialog(page)
+    await expect(page.getByTestId('invoice-continue')).toBeDisabled()
 
     // VAT number on the keyboard, checked by the engine.
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE0308357159');
-    await page.getByTestId('invoice-vat-check').click();
-    await expect(page.getByTestId('invoice-chip')).toHaveText('Inscrit sur Peppol');
-    expect(await ipcCalls(page, 'lookup_b2b_customer')).toEqual([{ vatNumber: 'BE0308357159' }]);
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE0308357159')
+    await page.getByTestId('invoice-vat-check').click()
+    await expect(page.getByTestId('invoice-chip')).toHaveText('Inscrit sur Peppol')
+    expect(await ipcCalls(page, 'lookup_b2b_customer')).toEqual([{ vatNumber: 'BE0308357159' }])
 
-    await fillAddress(page);
-    await expect(page.getByTestId('invoice-field-name')).toHaveText('ACME SPRL');
-    await page.getByTestId('invoice-continue').click();
+    await fillAddress(page)
+    await expect(page.getByTestId('invoice-field-name')).toHaveText('ACME SPRL')
+    await page.getByTestId('invoice-continue').click()
 
     // The customer is saved, then the engine previews the invoice of the ticked sales.
-    await expect(page.getByTestId('invoice-preview')).toBeVisible();
-    const saved = await ipcCalls(page, 'save_b2b_customer');
-    expect(saved).toHaveLength(1);
+    await expect(page.getByTestId('invoice-preview')).toBeVisible()
+    const saved = await ipcCalls(page, 'save_b2b_customer')
+    expect(saved).toHaveLength(1)
     expect(saved[0].customer).toMatchObject({
-      id: null, vatNumber: 'BE0308357159', name: 'ACME SPRL', street: 'RUE DU PONT 1', postalCode: '4000', city: 'LIEGE',
-    });
-    const previewCalls = await ipcCalls(page, 'invoice_preview');
-    expect([...previewCalls[0].saleEventIds].sort()).toEqual([11, 12]);
-    await expect(page.getByTestId('invoice-lines').locator('li')).toHaveCount(2);
-    await expect(page.getByTestId('invoice-vat').locator('tbody tr')).toHaveCount(2);
-    await expect(page.getByTestId('invoice-total')).toContainText('39,00');
-    await expect(page.getByTestId('invoice-already-paid')).toContainText('Déjà payé : 39,00 €');
+      id: null,
+      vatNumber: 'BE0308357159',
+      name: 'ACME SPRL',
+      street: 'RUE DU PONT 1',
+      postalCode: '4000',
+      city: 'LIEGE',
+    })
+    const previewCalls = await ipcCalls(page, 'invoice_preview')
+    expect([...previewCalls[0].saleEventIds].sort()).toEqual([11, 12])
+    await expect(page.getByTestId('invoice-lines').locator('li')).toHaveCount(2)
+    await expect(page.getByTestId('invoice-vat').locator('tbody tr')).toHaveCount(2)
+    await expect(page.getByTestId('invoice-total')).toContainText('39,00')
+    await expect(page.getByTestId('invoice-already-paid')).toContainText('Déjà payé : 39,00 €')
 
-    await page.getByTestId('invoice-confirm').click();
-    await expect(page.getByTestId('invoice-result')).toContainText('Facture 20260002 établie');
-    await expect(page.getByTestId('invoice-result')).toContainText('Facture imprimée.');
-    await expect(page.getByTestId('invoice-result')).toContainText("Envoi Peppol en file d'attente.");
-    const signed = await ipcCalls(page, 'sign_invoice_fiscal');
-    expect(signed).toHaveLength(1);
-    expect([...signed[0].saleEventIds].sort()).toEqual([11, 12]);
-    expect(signed[0].customerId).toBe(7);
-    expect(signed[0].employeeInsz).toBe(DEFAULT_USER.insz);
+    await page.getByTestId('invoice-confirm').click()
+    await expect(page.getByTestId('invoice-result')).toContainText('Facture 20260002 établie')
+    await expect(page.getByTestId('invoice-result')).toContainText('Facture imprimée.')
+    await expect(page.getByTestId('invoice-result')).toContainText(
+      "Envoi Peppol en file d'attente.",
+    )
+    const signed = await ipcCalls(page, 'sign_invoice_fiscal')
+    expect(signed).toHaveLength(1)
+    expect([...signed[0].saleEventIds].sort()).toEqual([11, 12])
+    expect(signed[0].customerId).toBe(7)
+    expect(signed[0].employeeInsz).toBe(DEFAULT_USER.insz)
 
-    await page.getByTestId('invoice-finish').click();
-    await expect(page.getByTestId('invoice-dialog')).toHaveCount(0);
+    await page.getByTestId('invoice-finish').click()
+    await expect(page.getByTestId('invoice-dialog')).toHaveCount(0)
     // The ticks are cleared once the invoice is signed.
-    await expect(page.getByTestId('invoice-action')).toBeDisabled();
-  });
+    await expect(page.getByTestId('invoice-action')).toBeDisabled()
+  })
 
   test('offline: the lookup is unknown and the invoice is still possible', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      lookup_b2b_customer: () => ({ ...LOOKUP_REGISTERED, peppolStatus: 'unknown', peppolChecked: false }),
-    }));
-    await openDialog(page);
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE0308357159');
-    await page.getByTestId('invoice-vat-check').click();
-    await expect(page.getByTestId('invoice-chip')).toHaveText('Peppol inconnu (hors ligne)');
-    await expect(page.getByTestId('invoice-chip-note')).toContainText("l'envoi sera retenté");
-    await fillAddress(page);
-    await expect(page.getByTestId('invoice-continue')).toBeEnabled();
-    await page.getByTestId('invoice-continue').click();
-    await expect(page.getByTestId('invoice-preview')).toBeVisible();
-    await expect(page.getByTestId('invoice-chip')).toHaveText('Peppol inconnu (hors ligne)');
-  });
+    await mockTauriIPC(
+      page,
+      base({
+        lookup_b2b_customer: () => ({
+          ...LOOKUP_REGISTERED,
+          peppolStatus: 'unknown',
+          peppolChecked: false,
+        }),
+      }),
+    )
+    await openDialog(page)
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE0308357159')
+    await page.getByTestId('invoice-vat-check').click()
+    await expect(page.getByTestId('invoice-chip')).toHaveText('Peppol inconnu (hors ligne)')
+    await expect(page.getByTestId('invoice-chip-note')).toContainText("l'envoi sera retenté")
+    await fillAddress(page)
+    await expect(page.getByTestId('invoice-continue')).toBeEnabled()
+    await page.getByTestId('invoice-continue').click()
+    await expect(page.getByTestId('invoice-preview')).toBeVisible()
+    await expect(page.getByTestId('invoice-chip')).toHaveText('Peppol inconnu (hors ligne)')
+  })
 
   test('a customer not on Peppol is told before signing', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      lookup_b2b_customer: () => ({ ...LOOKUP_REGISTERED, peppolStatus: 'not_registered' }),
-    }));
-    await openDialog(page);
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE0308357159');
-    await page.getByTestId('invoice-vat-check').click();
-    await expect(page.getByTestId('invoice-chip')).toHaveText('Non inscrit sur Peppol');
-    await expect(page.getByTestId('invoice-chip-note')).toContainText('Ce client ne peut pas recevoir la facture par Peppol');
-  });
+    await mockTauriIPC(
+      page,
+      base({
+        lookup_b2b_customer: () => ({ ...LOOKUP_REGISTERED, peppolStatus: 'not_registered' }),
+      }),
+    )
+    await openDialog(page)
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE0308357159')
+    await page.getByTestId('invoice-vat-check').click()
+    await expect(page.getByTestId('invoice-chip')).toHaveText('Non inscrit sur Peppol')
+    await expect(page.getByTestId('invoice-chip-note')).toContainText(
+      'Ce client ne peut pas recevoir la facture par Peppol',
+    )
+  })
 
   test('a foreign customer gets a printed invoice only', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      lookup_b2b_customer: () => ({
-        vatNumber: 'FR12345678901', countryCode: 'FR', customer: null,
-        peppolStatus: 'unknown', peppolChecked: false, deliverable: false,
+    await mockTauriIPC(
+      page,
+      base({
+        lookup_b2b_customer: () => ({
+          vatNumber: 'FR12345678901',
+          countryCode: 'FR',
+          customer: null,
+          peppolStatus: 'unknown',
+          peppolChecked: false,
+          deliverable: false,
+        }),
       }),
-    }));
-    await openDialog(page);
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'FR12345678901');
-    await page.getByTestId('invoice-vat-check').click();
-    await expect(page.getByTestId('invoice-chip-note')).toContainText('Client hors Belgique');
-  });
+    )
+    await openDialog(page)
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'FR12345678901')
+    await page.getByTestId('invoice-vat-check').click()
+    await expect(page.getByTestId('invoice-chip-note')).toContainText('Client hors Belgique')
+  })
 
-  test('a wrong VAT number is refused by the engine check and the dialog stays on the customer', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await openDialog(page);
-    await overrideIPC(page, 'lookup_b2b_customer', { __reject: 'customer_vat_invalid' });
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE0123456789');
-    await page.getByTestId('invoice-vat-check').click();
-    await expect(page.getByTestId('invoice-error')).toContainText('Numéro de TVA invalide');
-    await expect(page.getByTestId('invoice-chip')).toHaveCount(0);
-    await fillAddress(page);
-    await page.getByTestId('invoice-continue').click();
-    await expect(page.getByTestId('invoice-error')).toContainText('Numéro de TVA invalide');
-    await expect(page.getByTestId('invoice-preview')).toHaveCount(0);
-    expect(await ipcCalls(page, 'save_b2b_customer')).toHaveLength(0);
-  });
+  test('a wrong VAT number is refused by the engine check and the dialog stays on the customer', async ({
+    page,
+  }) => {
+    await mockTauriIPC(page, base())
+    await openDialog(page)
+    await overrideIPC(page, 'lookup_b2b_customer', { __reject: 'customer_vat_invalid' })
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE0123456789')
+    await page.getByTestId('invoice-vat-check').click()
+    await expect(page.getByTestId('invoice-error')).toContainText('Numéro de TVA invalide')
+    await expect(page.getByTestId('invoice-chip')).toHaveCount(0)
+    await fillAddress(page)
+    await page.getByTestId('invoice-continue').click()
+    await expect(page.getByTestId('invoice-error')).toContainText('Numéro de TVA invalide')
+    await expect(page.getByTestId('invoice-preview')).toHaveCount(0)
+    expect(await ipcCalls(page, 'save_b2b_customer')).toHaveLength(0)
+  })
 
   test('a known customer is found by name and fills the form', async ({ page }) => {
-    await mockTauriIPC(page, base({ search_b2b_customers: () => [CUSTOMER] }));
-    await openDialog(page);
-    await page.getByTestId('invoice-search-field').click();
-    await typeKeys(page, 'AC');
-    await expect(page.getByTestId('invoice-search-results')).toContainText('ACME SPRL');
-    expect((await ipcCalls(page, 'search_b2b_customers')).at(-1)).toEqual({ query: 'AC' });
-    await page.getByTestId('invoice-search-results').getByRole('button').first().click();
-    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE0308357159');
-    await expect(page.getByTestId('invoice-field-name')).toHaveText('ACME SPRL');
-    await expect(page.getByTestId('invoice-field-city')).toHaveText('LIEGE');
-    await expect(page.getByTestId('invoice-continue')).toBeEnabled();
-    await page.getByTestId('invoice-continue').click();
-    await expect(page.getByTestId('invoice-preview')).toBeVisible();
-    const saved = await ipcCalls(page, 'save_b2b_customer');
-    expect(saved[0].customer.id).toBe(7);
-  });
+    await mockTauriIPC(page, base({ search_b2b_customers: () => [CUSTOMER] }))
+    await openDialog(page)
+    await page.getByTestId('invoice-search-field').click()
+    await typeKeys(page, 'AC')
+    await expect(page.getByTestId('invoice-search-results')).toContainText('ACME SPRL')
+    expect((await ipcCalls(page, 'search_b2b_customers')).at(-1)).toEqual({ query: 'AC' })
+    await page.getByTestId('invoice-search-results').getByRole('button').first().click()
+    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE0308357159')
+    await expect(page.getByTestId('invoice-field-name')).toHaveText('ACME SPRL')
+    await expect(page.getByTestId('invoice-field-city')).toHaveText('LIEGE')
+    await expect(page.getByTestId('invoice-continue')).toBeEnabled()
+    await page.getByTestId('invoice-continue').click()
+    await expect(page.getByTestId('invoice-preview')).toBeVisible()
+    const saved = await ipcCalls(page, 'save_b2b_customer')
+    expect(saved[0].customer.id).toBe(7)
+  })
 
   test('no known customer says so', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await openDialog(page);
-    await page.getByTestId('invoice-search-field').click();
-    await typeKeys(page, 'ZZ');
-    await expect(page.getByTestId('invoice-no-match')).toHaveText('Aucun client connu.');
-  });
+    await mockTauriIPC(page, base())
+    await openDialog(page)
+    await page.getByTestId('invoice-search-field').click()
+    await typeKeys(page, 'ZZ')
+    await expect(page.getByTestId('invoice-no-match')).toHaveText('Aucun client connu.')
+  })
 
   test('a problem of the preview blocks the confirmation', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      invoice_preview: () => ({ ...PREVIEW, problems: ['invoice_sale_already_invoiced|event=11|invoice=20260001'] }),
-    }));
-    await openDialog(page);
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE0308357159');
-    await fillAddress(page);
-    await page.getByTestId('invoice-continue').click();
-    await expect(page.getByTestId('invoice-problem')).toContainText('La vente 11 figure déjà sur la facture 20260001.');
-    await expect(page.getByTestId('invoice-confirm')).toBeDisabled();
-    await page.getByTestId('invoice-back').click();
-    await expect(page.getByTestId('invoice-continue')).toBeVisible();
-  });
+    await mockTauriIPC(
+      page,
+      base({
+        invoice_preview: () => ({
+          ...PREVIEW,
+          problems: ['invoice_sale_already_invoiced|event=11|invoice=20260001'],
+        }),
+      }),
+    )
+    await openDialog(page)
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE0308357159')
+    await fillAddress(page)
+    await page.getByTestId('invoice-continue').click()
+    await expect(page.getByTestId('invoice-problem')).toContainText(
+      'La vente 11 figure déjà sur la facture 20260001.',
+    )
+    await expect(page.getByTestId('invoice-confirm')).toBeDisabled()
+    await page.getByTestId('invoice-back').click()
+    await expect(page.getByTestId('invoice-continue')).toBeVisible()
+  })
 
   test('a refused signature shows the engine error', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      sign_invoice_fiscal: () => ({
-        success: false, fiscalEventId: null, invoiceNo: null, printed: false, deliveryStatus: null,
-        error: 'invoice_training_mode',
+    await mockTauriIPC(
+      page,
+      base({
+        sign_invoice_fiscal: () => ({
+          success: false,
+          fiscalEventId: null,
+          invoiceNo: null,
+          printed: false,
+          deliveryStatus: null,
+          error: 'invoice_training_mode',
+        }),
       }),
-    }));
-    await openDialog(page);
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE0308357159');
-    await fillAddress(page);
-    await page.getByTestId('invoice-continue').click();
-    await page.getByTestId('invoice-confirm').click();
-    await expect(page.getByTestId('invoice-result')).toContainText("La facture n'a pas été établie.");
-    await expect(page.getByTestId('invoice-error')).toContainText('Pas de facture en mode formation.');
-  });
+    )
+    await openDialog(page)
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE0308357159')
+    await fillAddress(page)
+    await page.getByTestId('invoice-continue').click()
+    await page.getByTestId('invoice-confirm').click()
+    await expect(page.getByTestId('invoice-result')).toContainText(
+      "La facture n'a pas été établie.",
+    )
+    await expect(page.getByTestId('invoice-error')).toContainText(
+      'Pas de facture en mode formation.',
+    )
+  })
 
-  test('a Belgian customer without Peppol on the installation shows the Peppol refusal', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      sign_invoice_fiscal: () => ({
-        success: false, fiscalEventId: null, invoiceNo: null, printed: false, deliveryStatus: null,
-        error: 'invoice_peppol_required',
+  test('a Belgian customer without Peppol on the installation shows the Peppol refusal', async ({
+    page,
+  }) => {
+    await mockTauriIPC(
+      page,
+      base({
+        sign_invoice_fiscal: () => ({
+          success: false,
+          fiscalEventId: null,
+          invoiceNo: null,
+          printed: false,
+          deliveryStatus: null,
+          error: 'invoice_peppol_required',
+        }),
       }),
-    }));
-    await openDialog(page);
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE0308357159');
-    await fillAddress(page);
-    await page.getByTestId('invoice-continue').click();
-    await page.getByTestId('invoice-confirm').click();
-    await expect(page.getByTestId('invoice-result')).toContainText("La facture n'a pas été établie.");
-    await expect(page.getByTestId('invoice-error')).toContainText('doit passer par Peppol');
-    await expect(page.getByTestId('invoice-error')).not.toContainText('invoice_peppol_required');
-  });
+    )
+    await openDialog(page)
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE0308357159')
+    await fillAddress(page)
+    await page.getByTestId('invoice-continue').click()
+    await page.getByTestId('invoice-confirm').click()
+    await expect(page.getByTestId('invoice-result')).toContainText(
+      "La facture n'a pas été établie.",
+    )
+    await expect(page.getByTestId('invoice-error')).toContainText('doit passer par Peppol')
+    await expect(page.getByTestId('invoice-error')).not.toContainText('invoice_peppol_required')
+  })
 
   test('an invoice printed on paper says so when it was not printed', async ({ page }) => {
-    await mockTauriIPC(page, base({ sign_invoice_fiscal: () => ({ ...RESULT_OK, printed: false, deliveryStatus: null }) }));
-    await openDialog(page);
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE0308357159');
-    await fillAddress(page);
-    await page.getByTestId('invoice-continue').click();
-    await page.getByTestId('invoice-confirm').click();
-    await expect(page.getByTestId('invoice-result')).toContainText('pas imprimée');
-    await expect(page.getByTestId('invoice-result')).toContainText('Pas d\'envoi Peppol pour cette facture.');
-  });
+    await mockTauriIPC(
+      page,
+      base({ sign_invoice_fiscal: () => ({ ...RESULT_OK, printed: false, deliveryStatus: null }) }),
+    )
+    await openDialog(page)
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE0308357159')
+    await fillAddress(page)
+    await page.getByTestId('invoice-continue').click()
+    await page.getByTestId('invoice-confirm').click()
+    await expect(page.getByTestId('invoice-result')).toContainText('pas imprimée')
+    await expect(page.getByTestId('invoice-result')).toContainText(
+      "Pas d'envoi Peppol pour cette facture.",
+    )
+  })
 
   test('the keyboard types accents and punctuation and deletes', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await openDialog(page);
-    await page.getByTestId('invoice-field-street').click();
-    await typeKeys(page, "RUE DE L'ÉGLISE");
-    await expect(page.getByTestId('invoice-field-street')).toHaveText("RUE DE L'ÉGLISE");
-    await page.getByTestId('text-keyboard').getByRole('button', { name: 'Effacer une lettre' }).click();
-    await expect(page.getByTestId('invoice-field-street')).toHaveText("RUE DE L'ÉGLIS");
-    await page.getByTestId('text-keyboard').getByRole('button', { name: 'Effacer', exact: true }).click();
-    await expect(page.getByTestId('invoice-field-street')).toHaveText('');
-  });
+    await mockTauriIPC(page, base())
+    await openDialog(page)
+    await page.getByTestId('invoice-field-street').click()
+    await typeKeys(page, "RUE DE L'ÉGLISE")
+    await expect(page.getByTestId('invoice-field-street')).toHaveText("RUE DE L'ÉGLISE")
+    await page
+      .getByTestId('text-keyboard')
+      .getByRole('button', { name: 'Effacer une lettre' })
+      .click()
+    await expect(page.getByTestId('invoice-field-street')).toHaveText("RUE DE L'ÉGLIS")
+    await page
+      .getByTestId('text-keyboard')
+      .getByRole('button', { name: 'Effacer', exact: true })
+      .click()
+    await expect(page.getByTestId('invoice-field-street')).toHaveText('')
+  })
 
   test('the next key walks the form', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await openDialog(page);
-    await page.getByTestId('invoice-vat-field').click();
-    await page.getByTestId('text-keyboard').getByRole('button', { name: 'Suivant' }).click();
-    await typeKeys(page, 'X');
-    await expect(page.getByTestId('invoice-field-name')).toHaveText('X');
-  });
-});
+    await mockTauriIPC(page, base())
+    await openDialog(page)
+    await page.getByTestId('invoice-vat-field').click()
+    await page.getByTestId('text-keyboard').getByRole('button', { name: 'Suivant' }).click()
+    await typeKeys(page, 'X')
+    await expect(page.getByTestId('invoice-field-name')).toHaveText('X')
+  })
+})
 
 test.describe('Invoices: the list', () => {
   const INVOICES = [
-    { id: 3, invoiceNo: '20260003', fiscalEventId: 43, issueDate: '2026-10-17', customerName: 'ACME SPRL', customerVatNumber: 'BE0308357159', totalCents: 3900, saleEventIds: [11, 12], deliveryStatus: 'queued', deliveryId: 5 },
-    { id: 2, invoiceNo: '20260002', fiscalEventId: 41, issueDate: '2026-10-16', customerName: 'BETA SA', customerVatNumber: 'BE0403019261', totalCents: 1200, saleEventIds: [8], deliveryStatus: 'accepted', deliveryId: 4 },
-    { id: 1, invoiceNo: '20260001', fiscalEventId: 38, issueDate: '2026-10-15', customerName: 'GAMMA GMBH', customerVatNumber: 'DE123456789', totalCents: 900, saleEventIds: [10], deliveryStatus: 'failed', deliveryId: 3 },
-    { id: 0, invoiceNo: '20250999', fiscalEventId: 30, issueDate: '2026-10-10', customerName: 'DELTA', customerVatNumber: 'FR12345678901', totalCents: 500, saleEventIds: [2], deliveryStatus: null, deliveryId: null },
-  ];
+    {
+      id: 3,
+      invoiceNo: '20260003',
+      fiscalEventId: 43,
+      issueDate: '2026-10-17',
+      customerName: 'ACME SPRL',
+      customerVatNumber: 'BE0308357159',
+      totalCents: 3900,
+      saleEventIds: [11, 12],
+      deliveryStatus: 'queued',
+      deliveryId: 5,
+    },
+    {
+      id: 2,
+      invoiceNo: '20260002',
+      fiscalEventId: 41,
+      issueDate: '2026-10-16',
+      customerName: 'BETA SA',
+      customerVatNumber: 'BE0403019261',
+      totalCents: 1200,
+      saleEventIds: [8],
+      deliveryStatus: 'accepted',
+      deliveryId: 4,
+    },
+    {
+      id: 1,
+      invoiceNo: '20260001',
+      fiscalEventId: 38,
+      issueDate: '2026-10-15',
+      customerName: 'GAMMA GMBH',
+      customerVatNumber: 'DE123456789',
+      totalCents: 900,
+      saleEventIds: [10],
+      deliveryStatus: 'failed',
+      deliveryId: 3,
+    },
+    {
+      id: 0,
+      invoiceNo: '20250999',
+      fiscalEventId: 30,
+      issueDate: '2026-10-10',
+      customerName: 'DELTA',
+      customerVatNumber: 'FR12345678901',
+      totalCents: 500,
+      saleEventIds: [2],
+      deliveryStatus: null,
+      deliveryId: null,
+    },
+  ]
 
   test('lists the invoices with the Peppol state of each', async ({ page }) => {
-    await mockTauriIPC(page, base({ list_invoices: () => INVOICES }));
-    await loginAndGoto(page, '/reports');
-    await page.getByRole('tab', { name: 'Tickets' }).click();
-    const rows = page.getByTestId('invoice-list').locator('li');
-    await expect(rows).toHaveCount(4);
-    await expect(rows.nth(0)).toContainText('20260003');
-    await expect(rows.nth(0)).toContainText('ACME SPRL');
-    await expect(rows.nth(0)).toContainText('17/10/2026');
-    await expect(rows.nth(0)).toContainText('39,00 €');
-    await expect(rows.nth(0).getByTestId('invoice-status')).toHaveText('Peppol : en attente');
-    await expect(rows.nth(1).getByTestId('invoice-status')).toHaveText('Peppol : remise');
-    await expect(rows.nth(2).getByTestId('invoice-status')).toHaveText('Peppol : bloquée');
-    await expect(rows.nth(3).getByTestId('invoice-status')).toHaveText('Papier seulement');
-  });
+    await mockTauriIPC(page, base({ list_invoices: () => INVOICES }))
+    await loginAndGoto(page, '/reports')
+    await page.getByRole('tab', { name: 'Tickets' }).click()
+    const rows = page.getByTestId('invoice-list').locator('li')
+    await expect(rows).toHaveCount(4)
+    await expect(rows.nth(0)).toContainText('20260003')
+    await expect(rows.nth(0)).toContainText('ACME SPRL')
+    await expect(rows.nth(0)).toContainText('17/10/2026')
+    await expect(rows.nth(0)).toContainText('39,00 €')
+    await expect(rows.nth(0).getByTestId('invoice-status')).toHaveText('Peppol : en attente')
+    await expect(rows.nth(1).getByTestId('invoice-status')).toHaveText('Peppol : remise')
+    await expect(rows.nth(2).getByTestId('invoice-status')).toHaveText('Peppol : bloquée')
+    await expect(rows.nth(3).getByTestId('invoice-status')).toHaveText('Papier seulement')
+  })
 
   test('no list while there is no invoice', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await loginAndGoto(page, '/reports');
-    await page.getByRole('tab', { name: 'Tickets' }).click();
-    await expect(page.getByTestId('invoice-list')).toHaveCount(0);
-  });
+    await mockTauriIPC(page, base())
+    await loginAndGoto(page, '/reports')
+    await page.getByRole('tab', { name: 'Tickets' }).click()
+    await expect(page.getByTestId('invoice-list')).toHaveCount(0)
+  })
 
   test('Copie signs a copy of the invoice event', async ({ page }) => {
-    await mockTauriIPC(page, base({ list_invoices: () => INVOICES }));
-    await loginAndGoto(page, '/reports');
-    await page.getByRole('tab', { name: 'Tickets' }).click();
-    await page.getByTestId('invoice-copy-3').click();
-    await expect.poll(() => ipcCalls(page, 'copy_ticket')).toHaveLength(1);
-    const call = (await ipcCalls(page, 'copy_ticket'))[0];
-    expect(call.fiscalEventId).toBe(43);
-    expect(call.employeeInsz).toBe(DEFAULT_USER.insz);
-    await expect(page.locator('.toast', { hasText: 'Copie' })).toBeVisible();
-  });
+    await mockTauriIPC(page, base({ list_invoices: () => INVOICES }))
+    await loginAndGoto(page, '/reports')
+    await page.getByRole('tab', { name: 'Tickets' }).click()
+    await page.getByTestId('invoice-copy-3').click()
+    await expect.poll(() => ipcCalls(page, 'copy_ticket')).toHaveLength(1)
+    const call = (await ipcCalls(page, 'copy_ticket'))[0]
+    expect(call.fiscalEventId).toBe(43)
+    expect(call.employeeInsz).toBe(DEFAULT_USER.insz)
+    await expect(page.locator('.toast', { hasText: 'Copie' })).toBeVisible()
+  })
 
   test('a cashier gets no Copie button', async ({ page }) => {
-    const cashier = { ...DEFAULT_USER, role: 'cashier' };
-    await mockTauriIPC(page, base({ list_invoices: () => INVOICES, login: () => cashier, list_users: () => [cashier] }));
-    await loginAndGoto(page, '/reports');
-    await page.getByRole('tab', { name: 'Tickets' }).click();
-    await expect(page.getByTestId('invoice-list').locator('li')).toHaveCount(4);
-    await expect(page.getByTestId('invoice-copy-3')).toHaveCount(0);
-  });
-});
+    const cashier = { ...DEFAULT_USER, role: 'cashier' }
+    await mockTauriIPC(
+      page,
+      base({ list_invoices: () => INVOICES, login: () => cashier, list_users: () => [cashier] }),
+    )
+    await loginAndGoto(page, '/reports')
+    await page.getByRole('tab', { name: 'Tickets' }).click()
+    await expect(page.getByTestId('invoice-list').locator('li')).toHaveCount(4)
+    await expect(page.getByTestId('invoice-copy-3')).toHaveCount(0)
+  })
+})
 
 const REFUND_SALE = {
-  fiscalEventId: 13, ticketNumber: 103, posDateTime: '2026-10-17T12:45:00+02:00', totalCents: -900,
-  fdmId: 'FDM0000001', eventCounter: 7, totalCounter: 23, isRefund: true, invoicedBy: null,
-};
+  fiscalEventId: 13,
+  ticketNumber: 103,
+  posDateTime: '2026-10-17T12:45:00+02:00',
+  totalCents: -900,
+  fdmId: 'FDM0000001',
+  eventCounter: 7,
+  totalCounter: 23,
+  isRefund: true,
+  invoicedBy: null,
+}
 
 /** Customer step done: VAT typed, address filled, Continuer pressed. */
 async function toPreview(page: Page) {
-  await page.getByTestId('invoice-vat-field').click();
-  await typeKeys(page, 'BE0308357159');
-  await fillAddress(page);
-  await page.getByTestId('invoice-continue').click();
-  await expect(page.getByTestId('invoice-preview')).toBeVisible();
+  await page.getByTestId('invoice-vat-field').click()
+  await typeKeys(page, 'BE0308357159')
+  await fillAddress(page)
+  await page.getByTestId('invoice-continue').click()
+  await expect(page.getByTestId('invoice-preview')).toBeVisible()
 }
 
 test.describe('Invoices: the tickets list merges the invoiceable sales', () => {
-  test('a sale missing from the copy and refund lists gets a row; a refund is labelled, negative and tickable', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      list_copyable_tickets: () => [],
-      list_refundable_events: () => [],
-      list_invoiceable_sales: () => [REFUND_SALE, SALES[1]],
-    }));
-    await loginAndGoto(page, '/reports');
-    await page.getByRole('tab', { name: 'Tickets' }).click();
+  test('a sale missing from the copy and refund lists gets a row; a refund is labelled, negative and tickable', async ({
+    page,
+  }) => {
+    await mockTauriIPC(
+      page,
+      base({
+        list_copyable_tickets: () => [],
+        list_refundable_events: () => [],
+        list_invoiceable_sales: () => [REFUND_SALE, SALES[1]],
+      }),
+    )
+    await loginAndGoto(page, '/reports')
+    await page.getByRole('tab', { name: 'Tickets' }).click()
 
-    const sale = page.getByTestId('ticket-row-11');
-    const refund = page.getByTestId('ticket-row-13');
-    await expect(sale).toBeVisible();
-    await expect(refund).toBeVisible();
-    await expect(sale.locator('.rt-kind')).toContainText('Vente');
-    await expect(refund.locator('.rt-kind')).toContainText('Remboursement');
-    await expect(refund.locator('.rt-total')).toHaveText('-9,00 €');
-    await expect(refund.locator('.rt-total')).toHaveClass(/negative/);
-    await expect(sale.locator('.rt-total')).not.toHaveClass(/negative/);
+    const sale = page.getByTestId('ticket-row-11')
+    const refund = page.getByTestId('ticket-row-13')
+    await expect(sale).toBeVisible()
+    await expect(refund).toBeVisible()
+    await expect(sale.locator('.rt-kind')).toContainText('Vente')
+    await expect(refund.locator('.rt-kind')).toContainText('Remboursement')
+    await expect(refund.locator('.rt-total')).toHaveText('-9,00 €')
+    await expect(refund.locator('.rt-total')).toHaveClass(/negative/)
+    await expect(sale.locator('.rt-total')).not.toHaveClass(/negative/)
     // Newest first.
-    await expect(page.locator('[data-testid^="ticket-row-"]')).toHaveText([/#103/, /#101/]);
+    await expect(page.locator('[data-testid^="ticket-row-"]')).toHaveText([/#103/, /#101/])
 
-    await expect(page.getByTestId('ticket-check-13')).toBeVisible();
-    await page.getByTestId('ticket-check-13').click();
-    await page.getByTestId('ticket-check-11').click();
-    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)');
-    await page.getByTestId('invoice-action').click();
-    await toPreview(page);
-    const previewCalls = await ipcCalls(page, 'invoice_preview');
-    expect([...previewCalls[0].saleEventIds].sort()).toEqual([11, 13]);
-  });
+    await expect(page.getByTestId('ticket-check-13')).toBeVisible()
+    await page.getByTestId('ticket-check-13').click()
+    await page.getByTestId('ticket-check-11').click()
+    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)')
+    await page.getByTestId('invoice-action').click()
+    await toPreview(page)
+    const previewCalls = await ipcCalls(page, 'invoice_preview')
+    expect([...previewCalls[0].saleEventIds].sort()).toEqual([11, 13])
+  })
 
-  test('a sale invoiced meanwhile is dropped from the ticks when the list reloads', async ({ page }) => {
+  test('a sale invoiced meanwhile is dropped from the ticks when the list reloads', async ({
+    page,
+  }) => {
     await page.addInitScript((sales) => {
-      (globalThis as any).__invSales = sales;
-    }, SALES);
-    await mockTauriIPC(page, base({ list_invoiceable_sales: live(() => (globalThis as any).__invSales) }));
-    await loginAndGoto(page, '/reports');
-    await page.getByRole('tab', { name: 'Tickets' }).click();
-    await page.getByTestId('ticket-check-11').click();
-    await page.getByTestId('ticket-check-12').click();
-    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)');
+      ;(globalThis as any).__invSales = sales
+    }, SALES)
+    await mockTauriIPC(
+      page,
+      base({ list_invoiceable_sales: live(() => (globalThis as any).__invSales) }),
+    )
+    await loginAndGoto(page, '/reports')
+    await page.getByRole('tab', { name: 'Tickets' }).click()
+    await page.getByTestId('ticket-check-11').click()
+    await page.getByTestId('ticket-check-12').click()
+    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)')
 
     // Another till (or a retry) put sale 11 on an invoice meanwhile.
     await page.evaluate(() => {
-      const w = globalThis as any;
-      w.__invSales = w.__invSales.map((s: any) => (s.fiscalEventId === 11 ? { ...s, invoicedBy: '20260003' } : s));
-    });
-    await page.getByRole('tab', { name: 'Journée' }).click();
-    await page.getByRole('tab', { name: 'Tickets' }).click();
+      const w = globalThis as any
+      w.__invSales = w.__invSales.map((s: any) =>
+        s.fiscalEventId === 11 ? { ...s, invoicedBy: '20260003' } : s,
+      )
+    })
+    await page.getByRole('tab', { name: 'Journée' }).click()
+    await page.getByRole('tab', { name: 'Tickets' }).click()
 
-    await expect(page.getByTestId('ticket-check-11')).toHaveCount(0);
-    await expect(page.getByTestId('ticket-invoiced-11')).toHaveText('Facture 20260003');
-    await expect(page.getByTestId('ticket-check-12')).toBeVisible();
-    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (1)');
-  });
-});
+    await expect(page.getByTestId('ticket-check-11')).toHaveCount(0)
+    await expect(page.getByTestId('ticket-invoiced-11')).toHaveText('Facture 20260003')
+    await expect(page.getByTestId('ticket-check-12')).toBeVisible()
+    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (1)')
+  })
+})
 
 test.describe('Invoices: the customer form', () => {
-  test('a known customer returned by the lookup fills the form and keeps its id', async ({ page }) => {
-    await mockTauriIPC(page, base({ lookup_b2b_customer: () => ({ ...LOOKUP_REGISTERED, customer: CUSTOMER }) }));
-    await openDialog(page);
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE0308357159');
-    await page.getByTestId('invoice-vat-check').click();
-    await expect(page.getByTestId('invoice-field-name')).toHaveText('ACME SPRL');
-    await expect(page.getByTestId('invoice-field-street')).toHaveText('RUE DU PONT 1');
-    await expect(page.getByTestId('invoice-field-city')).toHaveText('LIEGE');
-    await page.getByTestId('invoice-continue').click();
-    await expect(page.getByTestId('invoice-preview')).toBeVisible();
-    const saved = await ipcCalls(page, 'save_b2b_customer');
-    expect(saved).toHaveLength(1);
-    expect(saved[0].customer.id).toBe(7);
+  test('a known customer returned by the lookup fills the form and keeps its id', async ({
+    page,
+  }) => {
+    await mockTauriIPC(
+      page,
+      base({ lookup_b2b_customer: () => ({ ...LOOKUP_REGISTERED, customer: CUSTOMER }) }),
+    )
+    await openDialog(page)
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE0308357159')
+    await page.getByTestId('invoice-vat-check').click()
+    await expect(page.getByTestId('invoice-field-name')).toHaveText('ACME SPRL')
+    await expect(page.getByTestId('invoice-field-street')).toHaveText('RUE DU PONT 1')
+    await expect(page.getByTestId('invoice-field-city')).toHaveText('LIEGE')
+    await page.getByTestId('invoice-continue').click()
+    await expect(page.getByTestId('invoice-preview')).toBeVisible()
+    const saved = await ipcCalls(page, 'save_b2b_customer')
+    expect(saved).toHaveLength(1)
+    expect(saved[0].customer.id).toBe(7)
     // The lookup was done once: Continuer does not ask again.
-    expect(await ipcCalls(page, 'lookup_b2b_customer')).toHaveLength(1);
-  });
+    expect(await ipcCalls(page, 'lookup_b2b_customer')).toHaveLength(1)
+  })
 
-  test('the number normalised by the engine replaces the typed one and the country defaults from it', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      lookup_b2b_customer: () => ({ ...LOOKUP_REGISTERED, vatNumber: 'BE0308357159', countryCode: 'BE' }),
-    }));
-    await openDialog(page);
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE308357159');
-    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE308357159');
-    await page.getByTestId('invoice-vat-check').click();
-    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE0308357159');
-    await expect(page.getByTestId('invoice-field-countryCode')).toHaveText('BE');
-    await fillAddress(page);
-    await page.getByTestId('invoice-continue').click();
-    await expect(page.getByTestId('invoice-preview')).toBeVisible();
-    const saved = await ipcCalls(page, 'save_b2b_customer');
-    expect(saved[0].customer).toMatchObject({ id: null, vatNumber: 'BE0308357159', countryCode: 'BE' });
-  });
+  test('the number normalised by the engine replaces the typed one and the country defaults from it', async ({
+    page,
+  }) => {
+    await mockTauriIPC(
+      page,
+      base({
+        lookup_b2b_customer: () => ({
+          ...LOOKUP_REGISTERED,
+          vatNumber: 'BE0308357159',
+          countryCode: 'BE',
+        }),
+      }),
+    )
+    await openDialog(page)
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE308357159')
+    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE308357159')
+    await page.getByTestId('invoice-vat-check').click()
+    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE0308357159')
+    await expect(page.getByTestId('invoice-field-countryCode')).toHaveText('BE')
+    await fillAddress(page)
+    await page.getByTestId('invoice-continue').click()
+    await expect(page.getByTestId('invoice-preview')).toBeVisible()
+    const saved = await ipcCalls(page, 'save_b2b_customer')
+    expect(saved[0].customer).toMatchObject({
+      id: null,
+      vatNumber: 'BE0308357159',
+      countryCode: 'BE',
+    })
+  })
 
   test('a country typed by the operator is not replaced by the lookup', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      lookup_b2b_customer: () => ({ ...LOOKUP_REGISTERED, countryCode: 'BE' }),
-    }));
-    await openDialog(page);
-    await field(page, 'countryCode', 'FR');
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE0308357159');
-    await page.getByTestId('invoice-vat-check').click();
-    await expect(page.getByTestId('invoice-field-countryCode')).toHaveText('FR');
-  });
-
-  test('editing the VAT number after picking a known customer makes a new customer', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      search_b2b_customers: () => [CUSTOMER],
-      // The first answer finds the known customer, the next ones do not.
-      lookup_b2b_customer: live(() => {
-        const w = globalThis as any;
-        w.__lookups = (w.__lookups ?? 0) + 1;
-        return {
-          vatNumber: 'BE0308357159', countryCode: 'BE', peppolStatus: 'registered', peppolChecked: true, deliverable: true,
-          customer: w.__lookups === 1
-            ? { id: 7, vatNumber: 'BE0308357159', name: 'ACME SPRL', street: 'RUE DU PONT 1', postalCode: '4000', city: 'LIEGE', countryCode: 'BE', peppolStatus: 'registered', peppolCheckedAt: null }
-            : null,
-        };
+    await mockTauriIPC(
+      page,
+      base({
+        lookup_b2b_customer: () => ({ ...LOOKUP_REGISTERED, countryCode: 'BE' }),
       }),
-    }));
-    await openDialog(page);
-    await page.getByTestId('invoice-search-field').click();
-    await typeKeys(page, 'AC');
-    await page.getByTestId('invoice-search-results').getByRole('button').first().click();
-    await page.getByTestId('invoice-vat-check').click();
-    await expect(page.getByTestId('invoice-chip')).toHaveText('Inscrit sur Peppol');
+    )
+    await openDialog(page)
+    await field(page, 'countryCode', 'FR')
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE0308357159')
+    await page.getByTestId('invoice-vat-check').click()
+    await expect(page.getByTestId('invoice-field-countryCode')).toHaveText('FR')
+  })
 
-    await page.getByTestId('invoice-vat-field').click();
-    await page.getByTestId('text-keyboard').getByRole('button', { name: 'Effacer une lettre' }).click();
-    await typeKeys(page, '8');
-    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE030835715' + '8');
-    await expect(page.getByTestId('invoice-chip')).toHaveCount(0);
+  test('editing the VAT number after picking a known customer makes a new customer', async ({
+    page,
+  }) => {
+    await mockTauriIPC(
+      page,
+      base({
+        search_b2b_customers: () => [CUSTOMER],
+        // The first answer finds the known customer, the next ones do not.
+        lookup_b2b_customer: live(() => {
+          const w = globalThis as any
+          w.__lookups = (w.__lookups ?? 0) + 1
+          return {
+            vatNumber: 'BE0308357159',
+            countryCode: 'BE',
+            peppolStatus: 'registered',
+            peppolChecked: true,
+            deliverable: true,
+            customer:
+              w.__lookups === 1
+                ? {
+                    id: 7,
+                    vatNumber: 'BE0308357159',
+                    name: 'ACME SPRL',
+                    street: 'RUE DU PONT 1',
+                    postalCode: '4000',
+                    city: 'LIEGE',
+                    countryCode: 'BE',
+                    peppolStatus: 'registered',
+                    peppolCheckedAt: null,
+                  }
+                : null,
+          }
+        }),
+      }),
+    )
+    await openDialog(page)
+    await page.getByTestId('invoice-search-field').click()
+    await typeKeys(page, 'AC')
+    await page.getByTestId('invoice-search-results').getByRole('button').first().click()
+    await page.getByTestId('invoice-vat-check').click()
+    await expect(page.getByTestId('invoice-chip')).toHaveText('Inscrit sur Peppol')
 
-    await page.getByTestId('invoice-continue').click();
-    await expect(page.getByTestId('invoice-preview')).toBeVisible();
+    await page.getByTestId('invoice-vat-field').click()
+    await page
+      .getByTestId('text-keyboard')
+      .getByRole('button', { name: 'Effacer une lettre' })
+      .click()
+    await typeKeys(page, '8')
+    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE030835715' + '8')
+    await expect(page.getByTestId('invoice-chip')).toHaveCount(0)
+
+    await page.getByTestId('invoice-continue').click()
+    await expect(page.getByTestId('invoice-preview')).toBeVisible()
     // The edited number was asked again and saved as a new customer.
-    expect(await ipcCalls(page, 'lookup_b2b_customer')).toHaveLength(2);
-    const saved = await ipcCalls(page, 'save_b2b_customer');
-    expect(saved[0].customer.id).toBeNull();
-    expect(saved[0].customer.id).not.toBe(7);
-  });
+    expect(await ipcCalls(page, 'lookup_b2b_customer')).toHaveLength(2)
+    const saved = await ipcCalls(page, 'save_b2b_customer')
+    expect(saved[0].customer.id).toBeNull()
+    expect(saved[0].customer.id).not.toBe(7)
+  })
 
-  test('the keyboard keeps a country code to 2 letters, a postal code to 10 and a VAT number to 16', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await openDialog(page);
-    await field(page, 'countryCode', 'BEL');
-    await expect(page.getByTestId('invoice-field-countryCode')).toHaveText('BE');
-    await field(page, 'postalCode', '12345678901');
-    await expect(page.getByTestId('invoice-field-postalCode')).toHaveText('1234567890');
-    await page.getByTestId('invoice-vat-field').click();
-    await typeKeys(page, 'BE1234567890123456');
-    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE12345678901234');
+  test('the keyboard keeps a country code to 2 letters, a postal code to 10 and a VAT number to 16', async ({
+    page,
+  }) => {
+    await mockTauriIPC(page, base())
+    await openDialog(page)
+    await field(page, 'countryCode', 'BEL')
+    await expect(page.getByTestId('invoice-field-countryCode')).toHaveText('BE')
+    await field(page, 'postalCode', '12345678901')
+    await expect(page.getByTestId('invoice-field-postalCode')).toHaveText('1234567890')
+    await page.getByTestId('invoice-vat-field').click()
+    await typeKeys(page, 'BE1234567890123456')
+    await expect(page.getByTestId('invoice-vat-field')).toHaveText('BE12345678901234')
     // Other fields take up to 80.
-    await page.getByTestId('invoice-field-name').click();
-    await typeKeys(page, 'A'.repeat(85));
-    await expect(page.getByTestId('invoice-field-name')).toHaveText('A'.repeat(80));
-  });
+    await page.getByTestId('invoice-field-name').click()
+    await typeKeys(page, 'A'.repeat(85))
+    await expect(page.getByTestId('invoice-field-name')).toHaveText('A'.repeat(80))
+  })
 
-  test('Retour on the customer step closes the dialog without calling the engine and keeps the ticks', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await openDialog(page);
-    await page.getByTestId('invoice-cancel').click();
-    await expect(page.getByTestId('invoice-dialog')).toHaveCount(0);
-    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)');
+  test('Retour on the customer step closes the dialog without calling the engine and keeps the ticks', async ({
+    page,
+  }) => {
+    await mockTauriIPC(page, base())
+    await openDialog(page)
+    await page.getByTestId('invoice-cancel').click()
+    await expect(page.getByTestId('invoice-dialog')).toHaveCount(0)
+    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)')
     for (const cmd of ['save_b2b_customer', 'invoice_preview', 'sign_invoice_fiscal']) {
-      expect(await ipcCalls(page, cmd)).toHaveLength(0);
+      expect(await ipcCalls(page, cmd)).toHaveLength(0)
     }
-  });
+  })
 
   test('a tap outside closes the customer step but never the preview', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await openDialog(page);
-    await page.getByTestId('invoice-dialog').click({ position: { x: 4, y: 4 } });
-    await expect(page.getByTestId('invoice-dialog')).toHaveCount(0);
-    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)');
-    expect(await ipcCalls(page, 'save_b2b_customer')).toHaveLength(0);
+    await mockTauriIPC(page, base())
+    await openDialog(page)
+    await page.getByTestId('invoice-dialog').click({ position: { x: 4, y: 4 } })
+    await expect(page.getByTestId('invoice-dialog')).toHaveCount(0)
+    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)')
+    expect(await ipcCalls(page, 'save_b2b_customer')).toHaveLength(0)
 
-    await page.getByTestId('invoice-action').click();
-    await toPreview(page);
-    await page.getByTestId('invoice-dialog').click({ position: { x: 4, y: 4 } });
-    await expect(page.getByTestId('invoice-preview')).toBeVisible();
-    expect(await ipcCalls(page, 'sign_invoice_fiscal')).toHaveLength(0);
-  });
-});
+    await page.getByTestId('invoice-action').click()
+    await toPreview(page)
+    await page.getByTestId('invoice-dialog').click({ position: { x: 4, y: 4 } })
+    await expect(page.getByTestId('invoice-preview')).toBeVisible()
+    expect(await ipcCalls(page, 'sign_invoice_fiscal')).toHaveLength(0)
+  })
+})
 
 test.describe('Invoices: preview and signing', () => {
-  test('a refund sale and line show negative, and the total is the engine total', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      invoice_preview: () => ({
-        ...PREVIEW,
-        sales: [SALES[1], REFUND_SALE],
-        lines: [
-          { description: 'Maki saumon x8', quantityMilli: 1000, totalCents: 2400, vatLabel: 'B' },
-          { description: 'Maki saumon x8', quantityMilli: 1000, totalCents: -900, vatLabel: 'B' },
-        ],
-        // Not the sum of the lines: the screen shows what the engine says.
-        totalCents: 1777,
+  test('a refund sale and line show negative, and the total is the engine total', async ({
+    page,
+  }) => {
+    await mockTauriIPC(
+      page,
+      base({
+        invoice_preview: () => ({
+          ...PREVIEW,
+          sales: [SALES[1], REFUND_SALE],
+          lines: [
+            { description: 'Maki saumon x8', quantityMilli: 1000, totalCents: 2400, vatLabel: 'B' },
+            { description: 'Maki saumon x8', quantityMilli: 1000, totalCents: -900, vatLabel: 'B' },
+          ],
+          // Not the sum of the lines: the screen shows what the engine says.
+          totalCents: 1777,
+        }),
       }),
-    }));
-    await openDialog(page);
-    await toPreview(page);
-    const sales = page.locator('.pv-sales li');
-    await expect(sales.nth(1)).toContainText('-9,00 €');
-    await expect(sales.nth(1).locator('.neg')).toHaveText('-9,00 €');
-    await expect(sales.nth(0).locator('.neg')).toHaveCount(0);
-    const lines = page.getByTestId('invoice-lines').locator('li');
-    await expect(lines.nth(1).locator('.amt')).toHaveText('-9,00');
-    await expect(lines.nth(1).locator('.amt')).toHaveClass(/neg/);
-    await expect(lines.nth(0).locator('.amt')).not.toHaveClass(/neg/);
-    await expect(page.getByTestId('invoice-total')).toContainText('17,77 €');
-  });
+    )
+    await openDialog(page)
+    await toPreview(page)
+    const sales = page.locator('.pv-sales li')
+    await expect(sales.nth(1)).toContainText('-9,00 €')
+    await expect(sales.nth(1).locator('.neg')).toHaveText('-9,00 €')
+    await expect(sales.nth(0).locator('.neg')).toHaveCount(0)
+    const lines = page.getByTestId('invoice-lines').locator('li')
+    await expect(lines.nth(1).locator('.amt')).toHaveText('-9,00')
+    await expect(lines.nth(1).locator('.amt')).toHaveClass(/neg/)
+    await expect(lines.nth(0).locator('.amt')).not.toHaveClass(/neg/)
+    await expect(page.getByTestId('invoice-total')).toContainText('17,77 €')
+  })
 
-  test('a rejected signing call ends on the failed result with the translated error and keeps the ticks', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await openDialog(page);
-    await toPreview(page);
-    await overrideIPC(page, 'sign_invoice_fiscal', { __reject: 'invoice_sale_not_found|event=11' });
-    await page.getByTestId('invoice-confirm').click();
-    await expect(page.getByTestId('invoice-result')).toContainText("La facture n'a pas été établie.");
-    await expect(page.getByTestId('invoice-error')).toHaveText('La vente 11 est introuvable.');
-    await page.getByTestId('invoice-finish').click();
-    await expect(page.getByTestId('invoice-dialog')).toHaveCount(0);
-    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)');
-  });
+  test('a rejected signing call ends on the failed result with the translated error and keeps the ticks', async ({
+    page,
+  }) => {
+    await mockTauriIPC(page, base())
+    await openDialog(page)
+    await toPreview(page)
+    await overrideIPC(page, 'sign_invoice_fiscal', { __reject: 'invoice_sale_not_found|event=11' })
+    await page.getByTestId('invoice-confirm').click()
+    await expect(page.getByTestId('invoice-result')).toContainText(
+      "La facture n'a pas été établie.",
+    )
+    await expect(page.getByTestId('invoice-error')).toHaveText('La vente 11 est introuvable.')
+    await page.getByTestId('invoice-finish').click()
+    await expect(page.getByTestId('invoice-dialog')).toHaveCount(0)
+    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)')
+  })
 
   test('an FDM error thrown by the signing call is told in French', async ({ page }) => {
-    await mockTauriIPC(page, base());
-    await openDialog(page);
-    await toPreview(page);
-    await overrideIPC(page, 'sign_invoice_fiscal', { __reject: 'FDM error: GraphQL error: FDM_LOCKED: FDM is locked.' });
-    await page.getByTestId('invoice-confirm').click();
-    await expect(page.getByTestId('invoice-result')).toContainText("La facture n'a pas été établie.");
-    await expect(page.getByTestId('invoice-error')).toContainText('La boîte noire est verrouillée');
-    await page.getByTestId('invoice-finish').click();
-    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)');
-  });
+    await mockTauriIPC(page, base())
+    await openDialog(page)
+    await toPreview(page)
+    await overrideIPC(page, 'sign_invoice_fiscal', {
+      __reject: 'FDM error: GraphQL error: FDM_LOCKED: FDM is locked.',
+    })
+    await page.getByTestId('invoice-confirm').click()
+    await expect(page.getByTestId('invoice-result')).toContainText(
+      "La facture n'a pas été établie.",
+    )
+    await expect(page.getByTestId('invoice-error')).toContainText('La boîte noire est verrouillée')
+    await page.getByTestId('invoice-finish').click()
+    await expect(page.getByTestId('invoice-action')).toHaveText('Facture (2)')
+  })
 
-  test('while the FDM signs, a spinner shows, the step stays on the preview and the call is made once', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      sign_invoice_fiscal: live(() => new Promise((resolve) => {
-        setTimeout(() => resolve({
-          success: true, fiscalEventId: 40, invoiceNo: '20260002', printed: true, deliveryStatus: 'queued', error: null,
-        }), 1000);
-      })),
-    }));
-    await openDialog(page);
-    await toPreview(page);
-    await page.getByTestId('invoice-confirm').dblclick();
-    await expect(page.getByTestId('invoice-processing')).toBeVisible();
-    await expect(page.getByTestId('invoice-confirm')).toHaveCount(0);
-    await expect(page.locator('.inv-steps li.on')).toHaveText(/Aperçu/);
-    await expect(page.getByTestId('invoice-result')).toContainText('Facture 20260002 établie');
-    await expect(page.getByTestId('invoice-processing')).toHaveCount(0);
-    expect(await ipcCalls(page, 'sign_invoice_fiscal')).toHaveLength(1);
-  });
-});
+  test('while the FDM signs, a spinner shows, the step stays on the preview and the call is made once', async ({
+    page,
+  }) => {
+    await mockTauriIPC(
+      page,
+      base({
+        sign_invoice_fiscal: live(
+          () =>
+            new Promise((resolve) => {
+              setTimeout(
+                () =>
+                  resolve({
+                    success: true,
+                    fiscalEventId: 40,
+                    invoiceNo: '20260002',
+                    printed: true,
+                    deliveryStatus: 'queued',
+                    error: null,
+                  }),
+                1000,
+              )
+            }),
+        ),
+      }),
+    )
+    await openDialog(page)
+    await toPreview(page)
+    await page.getByTestId('invoice-confirm').dblclick()
+    await expect(page.getByTestId('invoice-processing')).toBeVisible()
+    await expect(page.getByTestId('invoice-confirm')).toHaveCount(0)
+    await expect(page.locator('.inv-steps li.on')).toHaveText(/Aperçu/)
+    await expect(page.getByTestId('invoice-result')).toContainText('Facture 20260002 établie')
+    await expect(page.getByTestId('invoice-processing')).toHaveCount(0)
+    expect(await ipcCalls(page, 'sign_invoice_fiscal')).toHaveLength(1)
+  })
+})
 
 test.describe('Invoices: the copy of an invoice is refused', () => {
-  const INVOICE = { id: 3, invoiceNo: '20260003', fiscalEventId: 43, issueDate: '2026-10-17', customerName: 'ACME SPRL', customerVatNumber: 'BE0308357159', totalCents: 3900, saleEventIds: [11, 12], deliveryStatus: 'queued', deliveryId: 5 };
+  const INVOICE = {
+    id: 3,
+    invoiceNo: '20260003',
+    fiscalEventId: 43,
+    issueDate: '2026-10-17',
+    customerName: 'ACME SPRL',
+    customerVatNumber: 'BE0308357159',
+    totalCents: 3900,
+    saleEventIds: [11, 12],
+    deliveryStatus: 'queued',
+    deliveryId: 5,
+  }
 
-  test('a result without success shows the translated error and the buttons come back', async ({ page }) => {
-    await mockTauriIPC(page, base({
-      list_invoices: () => [INVOICE],
-      copy_ticket: () => ({ success: false, error: 'invoice_sale_not_found|event=43' }),
-    }));
-    await loginAndGoto(page, '/reports');
-    await page.getByRole('tab', { name: 'Tickets' }).click();
-    await page.getByTestId('invoice-copy-3').click();
-    await expect(page.locator('.toast-error')).toHaveText('La vente 43 est introuvable.');
-    await expect(page.locator('.toast-success')).toHaveCount(0);
-    await expect(page.getByTestId('invoice-copy-3')).toBeEnabled();
-  });
+  test('a result without success shows the translated error and the buttons come back', async ({
+    page,
+  }) => {
+    await mockTauriIPC(
+      page,
+      base({
+        list_invoices: () => [INVOICE],
+        copy_ticket: () => ({ success: false, error: 'invoice_sale_not_found|event=43' }),
+      }),
+    )
+    await loginAndGoto(page, '/reports')
+    await page.getByRole('tab', { name: 'Tickets' }).click()
+    await page.getByTestId('invoice-copy-3').click()
+    await expect(page.locator('.toast-error')).toHaveText('La vente 43 est introuvable.')
+    await expect(page.locator('.toast-success')).toHaveCount(0)
+    await expect(page.getByTestId('invoice-copy-3')).toBeEnabled()
+  })
 
   test('a rejected call shows an error toast too', async ({ page }) => {
-    await mockTauriIPC(page, base({ list_invoices: () => [INVOICE] }));
-    await loginAndGoto(page, '/reports');
-    await page.getByRole('tab', { name: 'Tickets' }).click();
-    await overrideIPC(page, 'copy_ticket', { __reject: 'FDM error: GraphQL error: FDM_LOCKED: FDM is locked.' });
-    await page.getByTestId('invoice-copy-3').click();
-    await expect(page.locator('.toast-error')).toContainText('La boîte noire est verrouillée');
-    await expect(page.getByTestId('invoice-copy-3')).toBeEnabled();
-  });
-});
+    await mockTauriIPC(page, base({ list_invoices: () => [INVOICE] }))
+    await loginAndGoto(page, '/reports')
+    await page.getByRole('tab', { name: 'Tickets' }).click()
+    await overrideIPC(page, 'copy_ticket', {
+      __reject: 'FDM error: GraphQL error: FDM_LOCKED: FDM is locked.',
+    })
+    await page.getByTestId('invoice-copy-3').click()
+    await expect(page.locator('.toast-error')).toContainText('La boîte noire est verrouillée')
+    await expect(page.getByTestId('invoice-copy-3')).toBeEnabled()
+  })
+})
 
 test.describe('Invoices: a cashier (V11-D8, Access::Cashier)', () => {
-  const cashier = { ...DEFAULT_USER, insz: '12345678958', name: 'Caissier Test', role: 'cashier' };
+  const cashier = { ...DEFAULT_USER, insz: '12345678958', name: 'Caissier Test', role: 'cashier' }
 
-  test('has no Rapports entry in the navigation: the invoice screen is reached by the manager nav only', async ({ page }) => {
-    await mockTauriIPC(page, base({ login: () => cashier, list_users: () => [cashier] }));
-    await page.goto('/');
-    await tapUserTile(page);
-    await page.waitForURL(/tables|order/);
-    await expect(page.locator('.nav-btn', { hasText: 'Rapports' })).toHaveCount(0);
-  });
+  test('has no Rapports entry in the navigation: the invoice screen is reached by the manager nav only', async ({
+    page,
+  }) => {
+    await mockTauriIPC(page, base({ login: () => cashier, list_users: () => [cashier] }))
+    await page.goto('/')
+    await tapUserTile(page)
+    await page.waitForURL(/tables|order/)
+    await expect(page.locator('.nav-btn', { hasText: 'Rapports' })).toHaveCount(0)
+  })
 
   test('ticks sales and issues an invoice signed under their own INSZ', async ({ page }) => {
-    await mockTauriIPC(page, base({ login: () => cashier, list_users: () => [cashier] }));
-    await openDialog(page);
-    await toPreview(page);
-    await page.getByTestId('invoice-confirm').click();
-    await expect(page.getByTestId('invoice-result')).toContainText('Facture 20260002 établie');
-    const signed = await ipcCalls(page, 'sign_invoice_fiscal');
-    expect(signed).toHaveLength(1);
-    expect(signed[0].employeeInsz).toBe(cashier.insz);
-    expect([...signed[0].saleEventIds].sort()).toEqual([11, 12]);
-  });
-});
+    await mockTauriIPC(page, base({ login: () => cashier, list_users: () => [cashier] }))
+    await openDialog(page)
+    await toPreview(page)
+    await page.getByTestId('invoice-confirm').click()
+    await expect(page.getByTestId('invoice-result')).toContainText('Facture 20260002 établie')
+    const signed = await ipcCalls(page, 'sign_invoice_fiscal')
+    expect(signed).toHaveLength(1)
+    expect(signed[0].employeeInsz).toBe(cashier.insz)
+    expect([...signed[0].saleEventIds].sort()).toEqual([11, 12])
+  })
+})

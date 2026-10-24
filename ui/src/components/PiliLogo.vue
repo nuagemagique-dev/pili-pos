@@ -7,27 +7,29 @@
  *   (flat, then falling), drawn in `markColor` (Volt on dark).
  * - `mark`: the struck p alone, used as the icon and below 24 px.
  */
-import { computed, useId } from "vue";
+import { computed, useId } from 'vue'
 
 const props = withDefaults(
   defineProps<{
-    kind?: "wordmark" | "mark";
-    color?: string;
+    kind?: 'wordmark' | 'mark'
+    color?: string
     /** Colour of the tone marks; defaults to `color` (ink on light). */
-    markColor?: string;
-    height?: number;
+    markColor?: string
+    height?: number
   }>(),
-  { kind: "wordmark", color: "var(--text-primary)", markColor: undefined, height: 24 },
-);
+  { kind: 'wordmark', color: 'var(--text-primary)', markColor: undefined, height: 24 },
+)
 
 // Masks are referenced by id: each instance needs its own.
-const maskId = `pili-logo-${useId()}`;
+const maskId = `pili-logo-${useId()}`
 
-const viewBox = computed(() => (props.kind === "mark" ? [0, 0, 100, 140] : [0, -62, 244, 204]));
-const width = computed(() => Math.round(((props.height * viewBox.value[2]) / viewBox.value[3]) * 10) / 10);
-const toneColor = computed(() => props.markColor ?? props.color);
+const viewBox = computed(() => (props.kind === 'mark' ? [0, 0, 100, 140] : [0, -62, 244, 204]))
+const width = computed(
+  () => Math.round(((props.height * viewBox.value[2]) / viewBox.value[3]) * 10) / 10,
+)
+const toneColor = computed(() => props.markColor ?? props.color)
 // The bolt is a gap in the p, slightly wider on the small icon.
-const gap = computed(() => (props.kind === "mark" ? 11 : 10));
+const gap = computed(() => (props.kind === 'mark' ? 11 : 10))
 </script>
 
 <template>

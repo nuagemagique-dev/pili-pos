@@ -8,75 +8,75 @@
  * The FDM light follows the engine's monitor (store fdm, event
  * "fdm-status"), which also keeps FdmAlerts current.
  */
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { useIntegrationsStore } from "../stores/integrations";
-import * as ipc from "../api/ipc";
-import { useEftStore } from "../stores/eft";
-import { useFdmStore } from "../stores/fdm";
-import { useI18n } from "../i18n";
-import type { PaymentTerminalStatus } from "../types";
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useIntegrationsStore } from '../stores/integrations'
+import * as ipc from '../api/ipc'
+import { useEftStore } from '../stores/eft'
+import { useFdmStore } from '../stores/fdm'
+import { useI18n } from '../i18n'
+import type { PaymentTerminalStatus } from '../types'
 
-type Light = "ok" | "warn" | "err" | "none";
+type Light = 'ok' | 'warn' | 'err' | 'none'
 
-const fdm = useFdmStore();
-const { t } = useI18n();
+const fdm = useFdmStore()
+const { t } = useI18n()
 
 const fdmLight = computed<Light>(() => {
-  if (fdm.severity === "blocking") return "err";
-  if (fdm.severity === "warning" || !fdm.connected) return "warn";
-  return "ok";
-});
-const ticket = ref<Light>("none");
-const kitchen = ref<Light>("none");
-const hubrise = ref<Light>("none");
-const eft = useEftStore();
-const terminalStatus = ref<PaymentTerminalStatus | null>(null);
+  if (fdm.severity === 'blocking') return 'err'
+  if (fdm.severity === 'warning' || !fdm.connected) return 'warn'
+  return 'ok'
+})
+const ticket = ref<Light>('none')
+const kitchen = ref<Light>('none')
+const hubrise = ref<Light>('none')
+const eft = useEftStore()
+const terminalStatus = ref<PaymentTerminalStatus | null>(null)
 // Hidden until the engine says a terminal is configured.
 const terminalLight = computed(() => {
-  const status = terminalStatus.value;
-  if (!status?.configured) return null;
-  const state: Light = status.busy ? "warn" : status.connected ? "ok" : "err";
+  const status = terminalStatus.value
+  if (!status?.configured) return null
+  const state: Light = status.busy ? 'warn' : status.connected ? 'ok' : 'err'
   const why = status.busy
-    ? t("check_payment_busy")
+    ? t('check_payment_busy')
     : status.connected
-      ? t("check_connected")
-      : [t("check_unreachable"), status.detail].filter(Boolean).join(": ");
-  return { state, title: why };
-});
+      ? t('check_connected')
+      : [t('check_unreachable'), status.detail].filter(Boolean).join(': ')
+  return { state, title: why }
+})
 // Only while the integration runs.
-const integrations = useIntegrationsStore();
+const integrations = useIntegrationsStore()
 const hubriseLights = computed(() =>
-  integrations.hubriseEnabled ? [{ label: "HubRise", state: hubrise.value }] : [],
-);
+  integrations.hubriseEnabled ? [{ label: 'HubRise', state: hubrise.value }] : [],
+)
 
 // §4.2: no continuous loops. Pulse once when the FDM degrades.
-const fdmPulse = ref(false);
+const fdmPulse = ref(false)
 watch(fdmLight, (next, prev) => {
-  if (next !== prev && (next === "warn" || next === "err")) {
-    fdmPulse.value = true;
-    setTimeout(() => (fdmPulse.value = false), 180);
+  if (next !== prev && (next === 'warn' || next === 'err')) {
+    fdmPulse.value = true
+    setTimeout(() => (fdmPulse.value = false), 180)
   }
-});
+})
 
 async function checkPrinters() {
   try {
-    ticket.value = (await ipc.checkPrinter()) ? "ok" : "err";
+    ticket.value = (await ipc.checkPrinter()) ? 'ok' : 'err'
   } catch {
-    ticket.value = "none";
+    ticket.value = 'none'
   }
   try {
-    const reachable = await ipc.checkKitchenPrinter();
-    kitchen.value = reachable == null ? "none" : reachable ? "ok" : "err";
+    const reachable = await ipc.checkKitchenPrinter()
+    kitchen.value = reachable == null ? 'none' : reachable ? 'ok' : 'err'
   } catch {
-    kitchen.value = "none";
+    kitchen.value = 'none'
   }
 }
 
 async function checkTerminal() {
   try {
-    terminalStatus.value = await ipc.checkPaymentTerminal();
+    terminalStatus.value = await ipc.checkPaymentTerminal()
   } catch {
-    terminalStatus.value = null;
+    terminalStatus.value = null
   }
 }
 
@@ -84,14 +84,14 @@ async function checkTerminal() {
 watch(
   () => eft.phase,
   () => void checkTerminal(),
-);
+)
 
 async function checkHubrise() {
-  if (!integrations.hubriseEnabled) return;
+  if (!integrations.hubriseEnabled) return
   try {
-    hubrise.value = hubriseLight(await ipc.hubriseStatus());
+    hubrise.value = hubriseLight(await ipc.hubriseStatus())
   } catch {
-    hubrise.value = "none";
+    hubrise.value = 'none'
   }
 }
 
@@ -104,9 +104,9 @@ async function checkHubrise() {
 function hubriseLight(h: ipc.HubriseHealth): Light {
   const catalogRefused =
     !!h.catalog?.rejected_at &&
-    (!h.catalog.applied_at || h.catalog.rejected_at >= h.catalog.applied_at);
+    (!h.catalog.applied_at || h.catalog.rejected_at >= h.catalog.applied_at)
   if (h.auth_error_at || catalogRefused || h.parked_events > 0 || h.outbox.parked > 0) {
-    return "err";
+    return 'err'
   }
   if (
     !h.connected ||
@@ -114,28 +114,28 @@ function hubriseLight(h: ipc.HubriseHealth): Light {
     h.catalog_awaiting_adoption ||
     (h.outbox.pending > 0 && h.outbox_error)
   ) {
-    return "warn";
+    return 'warn'
   }
-  return "ok";
+  return 'ok'
 }
 
-let printerTimer: ReturnType<typeof setInterval> | undefined;
-let hubriseTimer: ReturnType<typeof setInterval> | undefined;
+let printerTimer: ReturnType<typeof setInterval> | undefined
+let hubriseTimer: ReturnType<typeof setInterval> | undefined
 
 onMounted(() => {
-  void checkPrinters();
-  void checkTerminal();
-  void checkHubrise();
+  void checkPrinters()
+  void checkTerminal()
+  void checkHubrise()
   printerTimer = setInterval(() => {
-    void checkPrinters();
-    void checkTerminal();
-  }, 30_000);
-  hubriseTimer = setInterval(() => void checkHubrise(), 60_000);
-});
+    void checkPrinters()
+    void checkTerminal()
+  }, 30_000)
+  hubriseTimer = setInterval(() => void checkHubrise(), 60_000)
+})
 onUnmounted(() => {
-  clearInterval(printerTimer);
-  clearInterval(hubriseTimer);
-});
+  clearInterval(printerTimer)
+  clearInterval(hubriseTimer)
+})
 </script>
 
 <template>
@@ -152,7 +152,13 @@ onUnmounted(() => {
       <span class="dot" />
       <span>{{ t('status_kitchen') }}</span>
     </div>
-    <div v-if="terminalLight" class="light" :class="terminalLight.state" :title="terminalLight.title" data-testid="light-terminal">
+    <div
+      v-if="terminalLight"
+      class="light"
+      :class="terminalLight.state"
+      :title="terminalLight.title"
+      data-testid="light-terminal"
+    >
       <span class="dot" />
       <span>{{ t('status_terminal') }}</span>
     </div>
@@ -183,7 +189,9 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 /* The FDM label turns red with its light: sales are blocked. */
-.light.fdm.err { color: var(--accent-danger); }
+.light.fdm.err {
+  color: var(--accent-danger);
+}
 
 .dot {
   width: 10px;
@@ -191,16 +199,33 @@ onUnmounted(() => {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.ok .dot { background: var(--accent-success); }
-.warn .dot { background: var(--accent-warning); }
-.err .dot { background: var(--accent-danger); }
-.none .dot { background: var(--text-secondary); opacity: 0.4; }
+.ok .dot {
+  background: var(--accent-success);
+}
+.warn .dot {
+  background: var(--accent-warning);
+}
+.err .dot {
+  background: var(--accent-danger);
+}
+.none .dot {
+  background: var(--text-secondary);
+  opacity: 0.4;
+}
 
 /* One-shot scale pulse on transition into warn / err (§4.2, ≤ 200 ms). */
-.dot.pulse { animation: light-pulse 150ms ease-out; }
+.dot.pulse {
+  animation: light-pulse 150ms ease-out;
+}
 @keyframes light-pulse {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.6); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.6);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 </style>

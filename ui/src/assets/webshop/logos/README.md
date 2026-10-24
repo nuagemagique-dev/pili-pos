@@ -6,12 +6,12 @@ own webshop, …).
 
 ## Files
 
-| File | Source | Notes |
-|------|--------|-------|
-| `deliveroo.svg` | Wikimedia Commons (`Deliveroo_logo.svg`) | Brand teal `#00CCBC`, reads directly on `--bg-primary`. |
+| File            | Source                                        | Notes                                                                                                                                                                        |
+| --------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deliveroo.svg` | Wikimedia Commons (`Deliveroo_logo.svg`)      | Brand teal `#00CCBC`, reads directly on `--bg-primary`.                                                                                                                      |
 | `uber-eats.svg` | Wikimedia Commons (`Uber_Eats_2020_logo.svg`) | The "Uber" glyph was near-black (`#142328`) and invisible on the dark theme - recolored to `#ffffff` so it reads on `--bg-primary`. The "Eats" green `#06c167` is unchanged. |
-| `takeaway.svg` | Wikimedia Commons (`Takeaway_logo.svg`) | Brand orange `#ff8000`, reads directly on `--bg-primary`. |
-| _(no file)_ | - | The restaurant's own webshop has no brand SVG - `WebshopOrdersView` shows a mono "WEBSHOP" label and a Volt stripe instead. |
+| `takeaway.svg`  | Wikimedia Commons (`Takeaway_logo.svg`)       | Brand orange `#ff8000`, reads directly on `--bg-primary`.                                                                                                                    |
+| _(no file)_     | -                                             | The restaurant's own webshop has no brand SVG - `WebshopOrdersView` shows a mono "WEBSHOP" label and a Volt stripe instead.                                                  |
 
 ## Production checklist
 
@@ -25,6 +25,7 @@ guidelines are respected:
 - **Just Eat / Takeaway.com** - press kit at `careers.justeattakeaway.com`
 
 Key rules common to all three:
+
 - do not distort, rotate, or recolor the wordmarks
 - respect the clear-space rules (padding around the mark)
 - use the logos only for factual identification of orders coming

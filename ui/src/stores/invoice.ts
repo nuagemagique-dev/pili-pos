@@ -1,46 +1,46 @@
-import { defineStore } from "pinia";
-import { computed, ref } from "vue";
-import * as ipc from "../api/ipc";
-import { describeError } from "../utils/errorMessages";
-import { useAuthStore } from "./auth";
+import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
+import * as ipc from '../api/ipc'
+import { describeError } from '../utils/errorMessages'
+import { useAuthStore } from './auth'
 
 /** The steps of the invoice dialog (customer, preview, signing, result). */
-export type InvoiceStep = "customer" | "preview" | "processing" | "result";
+export type InvoiceStep = 'customer' | 'preview' | 'processing' | 'result'
 
 /** The fields the on-screen keyboard types into. */
 export type CustomerField =
-  | "search"
-  | "vatNumber"
-  | "name"
-  | "street"
-  | "postalCode"
-  | "city"
-  | "countryCode";
+  | 'search'
+  | 'vatNumber'
+  | 'name'
+  | 'street'
+  | 'postalCode'
+  | 'city'
+  | 'countryCode'
 
 /** The customer form of the dialog. */
 export interface CustomerForm {
-  id: number | null;
-  vatNumber: string;
-  name: string;
-  street: string;
-  postalCode: string;
-  city: string;
-  countryCode: string;
+  id: number | null
+  vatNumber: string
+  name: string
+  street: string
+  postalCode: string
+  city: string
+  countryCode: string
 }
 
 const EMPTY_FORM: CustomerForm = {
   id: null,
-  vatNumber: "",
-  name: "",
-  street: "",
-  postalCode: "",
-  city: "",
-  countryCode: "",
-};
+  vatNumber: '',
+  name: '',
+  street: '',
+  postalCode: '',
+  city: '',
+  countryCode: '',
+}
 
 /** How many recent sales and invoices the Reports screen asks for. */
-const SALES_LIMIT = 50;
-const INVOICES_LIMIT = 30;
+const SALES_LIMIT = 50
+const INVOICES_LIMIT = 30
 
 /**
  * B2B invoices (event I, M150): the sales a cashier can invoice, the
@@ -51,128 +51,130 @@ const INVOICES_LIMIT = 30;
  * a Peppol lookup that fails or is offline gives `unknown` and never
  * blocks the invoice.
  */
-export const useInvoiceStore = defineStore("invoice", () => {
-  const auth = useAuthStore();
+export const useInvoiceStore = defineStore('invoice', () => {
+  const auth = useAuthStore()
 
   // ── Sales and invoices lists ──────────────────────────────────
-  const sales = ref<ipc.InvoiceableSale[]>([]);
-  const invoices = ref<ipc.InvoiceSummary[]>([]);
+  const sales = ref<ipc.InvoiceableSale[]>([])
+  const invoices = ref<ipc.InvoiceSummary[]>([])
   /** Fiscal event ids ticked in the tickets list. */
-  const selected = ref<number[]>([]);
+  const selected = ref<number[]>([])
 
   async function loadSales() {
     try {
-      sales.value = (await ipc.listInvoiceableSales(SALES_LIMIT)) ?? [];
+      sales.value = (await ipc.listInvoiceableSales(SALES_LIMIT)) ?? []
     } catch {
-      sales.value = [];
+      sales.value = []
     }
     // A sale invoiced meanwhile cannot stay ticked.
-    const open = new Set(sales.value.filter((s) => !s.invoicedBy).map((s) => s.fiscalEventId));
-    selected.value = selected.value.filter((id) => open.has(id));
+    const open = new Set(sales.value.filter((s) => !s.invoicedBy).map((s) => s.fiscalEventId))
+    selected.value = selected.value.filter((id) => open.has(id))
   }
 
   async function loadInvoices() {
     try {
-      invoices.value = (await ipc.listInvoices(INVOICES_LIMIT)) ?? [];
+      invoices.value = (await ipc.listInvoices(INVOICES_LIMIT)) ?? []
     } catch {
-      invoices.value = [];
+      invoices.value = []
     }
   }
 
   function toggleSale(fiscalEventId: number) {
     selected.value = selected.value.includes(fiscalEventId)
       ? selected.value.filter((id) => id !== fiscalEventId)
-      : [...selected.value, fiscalEventId];
+      : [...selected.value, fiscalEventId]
   }
 
   function clearSelection() {
-    selected.value = [];
+    selected.value = []
   }
 
   // ── The dialog ────────────────────────────────────────────────
-  const open = ref(false);
-  const step = ref<InvoiceStep>("customer");
-  const form = ref<CustomerForm>({ ...EMPTY_FORM });
-  const activeField = ref<CustomerField>("vatNumber");
-  const search = ref("");
-  const searchResults = ref<ipc.B2bCustomer[]>([]);
-  const lookup = ref<ipc.CustomerLookup | null>(null);
-  const lookupBusy = ref(false);
-  const customerError = ref<string | null>(null);
-  const customer = ref<ipc.B2bCustomer | null>(null);
-  const preview = ref<ipc.InvoicePreview | null>(null);
-  const result = ref<ipc.InvoiceResult | null>(null);
-  const busy = ref(false);
+  const open = ref(false)
+  const step = ref<InvoiceStep>('customer')
+  const form = ref<CustomerForm>({ ...EMPTY_FORM })
+  const activeField = ref<CustomerField>('vatNumber')
+  const search = ref('')
+  const searchResults = ref<ipc.B2bCustomer[]>([])
+  const lookup = ref<ipc.CustomerLookup | null>(null)
+  const lookupBusy = ref(false)
+  const customerError = ref<string | null>(null)
+  const customer = ref<ipc.B2bCustomer | null>(null)
+  const preview = ref<ipc.InvoicePreview | null>(null)
+  const result = ref<ipc.InvoiceResult | null>(null)
+  const busy = ref(false)
 
   /** The Peppol status shown on the chip: the lookup's, else the saved customer's. */
   const peppolStatus = computed<ipc.PeppolStatus>(
-    () => lookup.value?.peppolStatus ?? customer.value?.peppolStatus ?? "unknown",
-  );
+    () => lookup.value?.peppolStatus ?? customer.value?.peppolStatus ?? 'unknown',
+  )
 
   const formComplete = computed(() => {
-    const f = form.value;
-    return [f.vatNumber, f.name, f.street, f.postalCode, f.city].every((v) => v.trim() !== "");
-  });
+    const f = form.value
+    return [f.vatNumber, f.name, f.street, f.postalCode, f.city].every((v) => v.trim() !== '')
+  })
 
-  const previewProblems = computed(() => (preview.value?.problems ?? []).map((p) => describeError(p)));
+  const previewProblems = computed(() =>
+    (preview.value?.problems ?? []).map((p) => describeError(p)),
+  )
 
   function openDialog() {
-    if (selected.value.length === 0) return;
-    form.value = { ...EMPTY_FORM };
-    activeField.value = "vatNumber";
-    search.value = "";
-    searchResults.value = [];
-    lookup.value = null;
-    customer.value = null;
-    preview.value = null;
-    result.value = null;
-    customerError.value = null;
-    step.value = "customer";
-    open.value = true;
+    if (selected.value.length === 0) return
+    form.value = { ...EMPTY_FORM }
+    activeField.value = 'vatNumber'
+    search.value = ''
+    searchResults.value = []
+    lookup.value = null
+    customer.value = null
+    preview.value = null
+    result.value = null
+    customerError.value = null
+    step.value = 'customer'
+    open.value = true
   }
 
   /** Closes the dialog; a signed invoice refreshes both lists and clears the ticks. */
   function closeDialog() {
-    const signed = step.value === "result" && result.value?.success === true;
-    open.value = false;
-    if (signed) clearSelection();
-    if (step.value === "result") {
-      void loadSales();
-      void loadInvoices();
+    const signed = step.value === 'result' && result.value?.success === true
+    open.value = false
+    if (signed) clearSelection()
+    if (step.value === 'result') {
+      void loadSales()
+      void loadInvoices()
     }
   }
 
   function setField(field: CustomerField, value: string) {
-    if (field === "search") {
-      search.value = value;
-      void runSearch();
-      return;
+    if (field === 'search') {
+      search.value = value
+      void runSearch()
+      return
     }
-    form.value = { ...form.value, [field]: value };
-    customerError.value = null;
+    form.value = { ...form.value, [field]: value }
+    customerError.value = null
     // A changed VAT number is a different question for Peppol.
-    if (field === "vatNumber") {
-      lookup.value = null;
+    if (field === 'vatNumber') {
+      lookup.value = null
       // Another number is another customer (a new one, or one found by the check).
-      form.value = { ...form.value, id: null };
-      customer.value = null;
+      form.value = { ...form.value, id: null }
+      customer.value = null
     }
   }
 
   function fieldValue(field: CustomerField): string {
-    return field === "search" ? search.value : form.value[field];
+    return field === 'search' ? search.value : form.value[field]
   }
 
   async function runSearch() {
-    const q = search.value.trim();
-    if (q === "") {
-      searchResults.value = [];
-      return;
+    const q = search.value.trim()
+    if (q === '') {
+      searchResults.value = []
+      return
     }
     try {
-      searchResults.value = (await ipc.searchB2bCustomers(q)) ?? [];
+      searchResults.value = (await ipc.searchB2bCustomers(q)) ?? []
     } catch {
-      searchResults.value = [];
+      searchResults.value = []
     }
   }
 
@@ -185,17 +187,17 @@ export const useInvoiceStore = defineStore("invoice", () => {
       postalCode: c.postalCode,
       city: c.city,
       countryCode: c.countryCode,
-    };
-    customer.value = c;
+    }
+    customer.value = c
   }
 
   /** A known customer picked from the search results. */
   function pickCustomer(c: ipc.B2bCustomer) {
-    fillFrom(c);
-    lookup.value = null;
-    search.value = "";
-    searchResults.value = [];
-    customerError.value = null;
+    fillFrom(c)
+    lookup.value = null
+    search.value = ''
+    searchResults.value = []
+    customerError.value = null
   }
 
   /**
@@ -204,39 +206,39 @@ export const useInvoiceStore = defineStore("invoice", () => {
    * cannot answer). Returns false when the number is refused.
    */
   async function checkVat(): Promise<boolean> {
-    if (form.value.vatNumber.trim() === "") return false;
-    lookupBusy.value = true;
-    customerError.value = null;
+    if (form.value.vatNumber.trim() === '') return false
+    lookupBusy.value = true
+    customerError.value = null
     try {
-      const answer = await ipc.lookupB2bCustomer(form.value.vatNumber);
-      lookup.value = answer;
+      const answer = await ipc.lookupB2bCustomer(form.value.vatNumber)
+      lookup.value = answer
       if (answer?.customer) {
-        fillFrom(answer.customer);
+        fillFrom(answer.customer)
       } else if (answer) {
         form.value = {
           ...form.value,
           vatNumber: answer.vatNumber,
           countryCode: form.value.countryCode || answer.countryCode,
-        };
+        }
       }
-      return answer != null;
+      return answer != null
     } catch (e) {
-      lookup.value = null;
-      customerError.value = describeError(e);
-      return false;
+      lookup.value = null
+      customerError.value = describeError(e)
+      return false
     } finally {
-      lookupBusy.value = false;
+      lookupBusy.value = false
     }
   }
 
   /** Saves the customer, then shows what the invoice would contain. */
   async function continueToPreview() {
-    if (!formComplete.value || busy.value) return;
-    busy.value = true;
-    customerError.value = null;
+    if (!formComplete.value || busy.value) return
+    busy.value = true
+    customerError.value = null
     try {
-      if (!lookup.value && !(await checkVat())) return;
-      const f = form.value;
+      if (!lookup.value && !(await checkVat())) return
+      const f = form.value
       customer.value = await ipc.saveB2bCustomer({
         id: f.id,
         vatNumber: f.vatNumber,
@@ -245,29 +247,29 @@ export const useInvoiceStore = defineStore("invoice", () => {
         postalCode: f.postalCode,
         city: f.city,
         countryCode: f.countryCode,
-      });
-      preview.value = await ipc.invoicePreview(selected.value);
-      step.value = "preview";
+      })
+      preview.value = await ipc.invoicePreview(selected.value)
+      step.value = 'preview'
     } catch (e) {
-      customerError.value = describeError(e);
+      customerError.value = describeError(e)
     } finally {
-      busy.value = false;
+      busy.value = false
     }
   }
 
   function backToCustomer() {
-    step.value = "customer";
+    step.value = 'customer'
   }
 
   /** M150: signs the invoice, prints it and queues its Peppol delivery. */
   async function confirm() {
-    const c = customer.value;
-    const insz = auth.currentUser?.insz;
-    if (!c || !insz || busy.value || (preview.value?.problems.length ?? 0) > 0) return;
-    busy.value = true;
-    step.value = "processing";
+    const c = customer.value
+    const insz = auth.currentUser?.insz
+    if (!c || !insz || busy.value || (preview.value?.problems.length ?? 0) > 0) return
+    busy.value = true
+    step.value = 'processing'
     try {
-      result.value = await ipc.signInvoiceFiscal(selected.value, c.id, insz);
+      result.value = await ipc.signInvoiceFiscal(selected.value, c.id, insz)
     } catch (e) {
       result.value = {
         success: false,
@@ -276,17 +278,17 @@ export const useInvoiceStore = defineStore("invoice", () => {
         printed: false,
         deliveryStatus: null,
         error: String(e),
-      };
+      }
     } finally {
-      busy.value = false;
-      step.value = "result";
+      busy.value = false
+      step.value = 'result'
     }
   }
 
   /** A copy (event C) of a signed invoice; printed with the invoice layout. */
   async function copyInvoice(fiscalEventId: number): Promise<ipc.CopyResult> {
-    const insz = auth.currentUser?.insz ?? "";
-    return ipc.copyTicket(fiscalEventId, insz);
+    const insz = auth.currentUser?.insz ?? ''
+    return ipc.copyTicket(fiscalEventId, insz)
   }
 
   return {
@@ -323,5 +325,5 @@ export const useInvoiceStore = defineStore("invoice", () => {
     backToCustomer,
     confirm,
     copyInvoice,
-  };
-});
+  }
+})

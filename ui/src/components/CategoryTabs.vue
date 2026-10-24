@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import type { Category } from "../types";
-import { useBilingualName } from "../utils/names";
+import type { Category } from '../types'
+import { useBilingualName } from '../utils/names'
 
 defineProps<{
-  categories: Category[];
-  selectedId: number | null;
-}>();
+  categories: Category[]
+  selectedId: number | null
+}>()
 
 const emit = defineEmits<{
-  select: [id: number];
-}>();
+  select: [id: number]
+}>()
 
-const bilingual = useBilingualName();
+const bilingual = useBilingualName()
 </script>
 
 <template>
@@ -60,7 +60,9 @@ const bilingual = useBilingualName();
 }
 
 /* UX guide §4.2: scale(0.95) for 100 ms, no hover */
-.tab:active { transform: scale(var(--tap-scale)); }
+.tab:active {
+  transform: scale(var(--tap-scale));
+}
 
 .tab.active {
   background: var(--selected-bg);
@@ -93,5 +95,7 @@ const bilingual = useBilingualName();
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tab.active .tab-sub { color: var(--selected-fg); }
+.tab.active .tab-sub {
+  color: var(--selected-fg);
+}
 </style>

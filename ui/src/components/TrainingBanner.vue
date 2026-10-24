@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { usePosStore } from "../stores/pos";
-import { useI18n } from "../i18n";
+import { usePosStore } from '../stores/pos'
+import { useI18n } from '../i18n'
 
-const pos = usePosStore();
-const { t } = useI18n();
+const pos = usePosStore()
+const { t } = useI18n()
 </script>
 
 <template>

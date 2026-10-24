@@ -1,9 +1,9 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test'
 
 // PW_PORT lets two checkouts (e.g. git worktrees) run their suites at
 // once: with reuseExistingServer, a shared port would silently test
 // the other checkout's UI.
-const port = Number(process.env.PW_PORT ?? 1420);
+const port = Number(process.env.PW_PORT ?? 1420)
 
 export default defineConfig({
   testDir: './e2e',
@@ -60,4 +60,4 @@ export default defineConfig({
     reuseExistingServer: true,
     timeout: 30_000,
   },
-});
+})

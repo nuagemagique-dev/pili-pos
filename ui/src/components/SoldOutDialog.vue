@@ -1,39 +1,39 @@
 <script setup lang="ts">
 // Availability of one product ("Épuisé", V11-D16): sold out until the end of the business
 // day, sold out until re-enabled, or available. Opened from the order screen's "Épuisé" mode.
-import { computed, ref } from "vue";
-import type { MenuItem } from "../types";
-import { useMenuStore } from "../stores/menu";
-import { useI18n } from "../i18n";
-import { useBilingualName } from "../utils/names";
-import { availabilityOf, endOfDayLabel, type Availability } from "../utils/soldOut";
+import { computed, ref } from 'vue'
+import type { MenuItem } from '../types'
+import { useMenuStore } from '../stores/menu'
+import { useI18n } from '../i18n'
+import { useBilingualName } from '../utils/names'
+import { availabilityOf, endOfDayLabel, type Availability } from '../utils/soldOut'
 
-const props = defineProps<{ item: MenuItem }>();
-const emit = defineEmits<{ done: [] }>();
+const props = defineProps<{ item: MenuItem }>()
+const emit = defineEmits<{ done: [] }>()
 
-const { t } = useI18n();
-const menu = useMenuStore();
-const bilingual = useBilingualName();
-const names = computed(() => bilingual(props.item));
-const current = computed(() => availabilityOf(props.item));
-const busy = ref(false);
+const { t } = useI18n()
+const menu = useMenuStore()
+const bilingual = useBilingualName()
+const names = computed(() => bilingual(props.item))
+const current = computed(() => availabilityOf(props.item))
+const busy = ref(false)
 
 const choices: { value: Availability; label: string }[] = [
-  { value: "day", label: "soldout_until_day" },
-  { value: "until", label: "soldout_until_reenabled" },
-  { value: "available", label: "soldout_available" },
-];
+  { value: 'day', label: 'soldout_until_day' },
+  { value: 'until', label: 'soldout_until_reenabled' },
+  { value: 'available', label: 'soldout_available' },
+]
 
 async function choose(choice: Availability) {
-  if (busy.value) return;
+  if (busy.value) return
   if (choice === current.value) {
-    emit("done");
-    return;
+    emit('done')
+    return
   }
-  busy.value = true;
-  const ok = await menu.setAvailability(props.item.id, choice);
-  busy.value = false;
-  if (ok) emit("done");
+  busy.value = true
+  const ok = await menu.setAvailability(props.item.id, choice)
+  busy.value = false
+  if (ok) emit('done')
 }
 </script>
 
@@ -86,8 +86,16 @@ async function choose(choice: Availability) {
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
 }
-.title { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); text-align: center; }
-.status { text-align: center; color: var(--text-secondary); font-size: var(--font-size-md); }
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+}
+.status {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+}
 .choice {
   min-height: 64px;
   padding: 0 var(--space-md);
@@ -99,10 +107,18 @@ async function choose(choice: Availability) {
   border: 2px solid transparent;
   transition: transform var(--tap-duration) ease;
 }
-.choice:active { transform: scale(var(--tap-scale)); }
-.choice.current { border-color: var(--accent-primary); }
-.choice.danger.current { border-color: var(--accent-warning); }
-.choice:disabled { opacity: 0.5; }
+.choice:active {
+  transform: scale(var(--tap-scale));
+}
+.choice.current {
+  border-color: var(--accent-primary);
+}
+.choice.danger.current {
+  border-color: var(--accent-warning);
+}
+.choice:disabled {
+  opacity: 0.5;
+}
 .btn-cancel {
   min-height: 56px;
   margin-top: var(--space-sm);
@@ -112,5 +128,7 @@ async function choose(choice: Availability) {
   background: var(--bg-surface);
   color: var(--text-secondary);
 }
-.btn-cancel:active { transform: scale(var(--tap-scale)); }
+.btn-cancel:active {
+  transform: scale(var(--tap-scale));
+}
 </style>

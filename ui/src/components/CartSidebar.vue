@@ -1,157 +1,159 @@
 <script setup lang="ts">
-import { describeError } from "../utils/errorMessages";
-import { computed, onMounted, onUnmounted, ref } from "vue";
-import { useRouter } from "vue-router";
-import { useOrderStore } from "../stores/order";
-import { useAuthStore } from "../stores/auth";
-import { useToastStore } from "../stores/toast";
-import { useI18n } from "../i18n";
-import { formatPrice } from "../utils/format";
-import { lineNetCents } from "../utils/cartAmounts";
-import { formatTimestamp, formatTime, minutesSince } from "../utils/datetime";
-import OrderLineItem from "./OrderLineItem.vue";
-import VatSummary from "./VatSummary.vue";
-import PinDialog from "./PinDialog.vue";
-import TablePickerDialog from "./TablePickerDialog.vue";
-import DiscountDialog from "./DiscountDialog.vue";
-import NoteDialog from "./NoteDialog.vue";
-import type { DiscountInput } from "../types";
-import * as ipc from "../api/ipc";
-import CoursePickerDialog from "./CoursePickerDialog.vue";
-import { GIFT_VOUCHER_DEPARTMENT } from "../stores/giftVouchers";
-import type { CartLine } from "../types";
+import { describeError } from '../utils/errorMessages'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useOrderStore } from '../stores/order'
+import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
+import { useI18n } from '../i18n'
+import { formatPrice } from '../utils/format'
+import { lineNetCents } from '../utils/cartAmounts'
+import { formatTimestamp, formatTime, minutesSince } from '../utils/datetime'
+import OrderLineItem from './OrderLineItem.vue'
+import VatSummary from './VatSummary.vue'
+import PinDialog from './PinDialog.vue'
+import TablePickerDialog from './TablePickerDialog.vue'
+import DiscountDialog from './DiscountDialog.vue'
+import NoteDialog from './NoteDialog.vue'
+import type { DiscountInput } from '../types'
+import * as ipc from '../api/ipc'
+import CoursePickerDialog from './CoursePickerDialog.vue'
+import { GIFT_VOUCHER_DEPARTMENT } from '../stores/giftVouchers'
+import type { CartLine } from '../types'
 
-const router = useRouter();
-const order = useOrderStore();
-const auth = useAuthStore();
-const toast = useToastStore();
-const { t } = useI18n();
+const router = useRouter()
+const order = useOrderStore()
+const auth = useAuthStore()
+const toast = useToastStore()
+const { t } = useI18n()
 
-const isDineIn = computed(() => order.currentOrder?.order_type === "dine_in");
+const isDineIn = computed(() => order.currentOrder?.order_type === 'dine_in')
 
 // Dine-in lines not yet sent to the bar / kitchen go last, under an
 // amber label; a takeaway's lines all go out with the sale.
 const sentLines = computed(() =>
   isDineIn.value ? order.lines.filter((l) => (l.unsent_quantity ?? 0) <= 0) : order.lines,
-);
+)
 const pendingLines = computed(() =>
   isDineIn.value ? order.lines.filter((l) => (l.unsent_quantity ?? 0) > 0) : [],
-);
+)
 
 // Courses on: the lines are grouped by course, lowest first, under a
 // header. A takeaway groups too (its slip is printed with the same headers).
 const courseGroups = computed(() => {
-  const groups = new Map<number, CartLine[]>();
+  const groups = new Map<number, CartLine[]>()
   for (const line of order.lines) {
-    const list = groups.get(line.course) ?? [];
-    list.push(line);
-    groups.set(line.course, list);
+    const list = groups.get(line.course) ?? []
+    list.push(line)
+    groups.set(line.course, list)
   }
   return [...groups.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([course, lines]) => ({ course, lines }));
-});
+    .map(([course, lines]) => ({ course, lines }))
+})
 
-const pickingLine = ref<CartLine | null>(null);
+const pickingLine = ref<CartLine | null>(null)
 
 async function pickCourse(course: number) {
-  const line = pickingLine.value;
-  pickingLine.value = null;
-  if (line && course !== line.course) await order.setLineCourse(line.id, course);
+  const line = pickingLine.value
+  pickingLine.value = null
+  if (line && course !== line.course) await order.setLineCourse(line.id, course)
 }
 
 // "Envoyer la suite": signs what is unsent, releases the next held
 // course and prints it.
-const sendingNext = ref(false);
+const sendingNext = ref(false)
 
 async function sendNextCourse() {
-  if (sendingNext.value || order.nextHeldCourse === null) return;
-  sendingNext.value = true;
+  if (sendingNext.value || order.nextHeldCourse === null) return
+  sendingNext.value = true
   try {
-    const next = await order.sendNextCourse();
+    const next = await order.sendNextCourse()
     if (next) {
       toast.show(
-        next.course === null ? t("course_resent") : t("course_sent", { course: t(`course_${next.course}`) }),
-        "success",
-      );
+        next.course === null
+          ? t('course_resent')
+          : t('course_sent', { course: t(`course_${next.course}`) }),
+        'success',
+      )
     }
   } catch (e) {
-    toast.show(describeError(e), "error", 6000);
+    toast.show(describeError(e), 'error', 6000)
   } finally {
-    sendingNext.value = false;
+    sendingNext.value = false
   }
 }
 
 // "19:05 · 37 min": when the order was opened, and for how long.
-const now = ref(new Date());
-let nowTimer: ReturnType<typeof setInterval> | undefined;
+const now = ref(new Date())
+let nowTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
-  nowTimer = setInterval(() => (now.value = new Date()), 30_000);
-});
-onUnmounted(() => clearInterval(nowTimer));
+  nowTimer = setInterval(() => (now.value = new Date()), 30_000)
+})
+onUnmounted(() => clearInterval(nowTimer))
 const openedAt = computed(() => {
-  const created = order.currentOrder?.created_at;
-  if (!created) return "";
-  return `${formatTimestamp(created, formatTime)} · ${minutesSince(created, now.value)} min`;
-});
+  const created = order.currentOrder?.created_at
+  if (!created) return ''
+  return `${formatTimestamp(created, formatTime)} · ${minutesSince(created, now.value)} min`
+})
 
 const cartTitle = computed(() => {
-  const current = order.currentOrder;
-  if (current?.table_number) return `${t("order")} · ${t("table")} ${current.table_number}`;
-  if (current?.order_type === "takeaway") return `${t("order")} · ${t("takeaway_badge")}`;
-  return t("order");
-});
+  const current = order.currentOrder
+  if (current?.table_number) return `${t('order')} · ${t('table')} ${current.table_number}`
+  if (current?.order_type === 'takeaway') return `${t('order')} · ${t('takeaway_badge')}`
+  return t('order')
+})
 
 function increment(lineId: number) {
-  const line = order.lines.find((l) => l.id === lineId);
-  if (line) void order.updateQuantity(lineId, line.quantity + 1);
+  const line = order.lines.find((l) => l.id === lineId)
+  if (line) void order.updateQuantity(lineId, line.quantity + 1)
 }
 
 function decrement(lineId: number) {
-  const line = order.lines.find((l) => l.id === lineId);
-  if (line && line.quantity > 1) void order.updateQuantity(lineId, line.quantity - 1);
+  const line = order.lines.find((l) => l.id === lineId)
+  if (line && line.quantity > 1) void order.updateQuantity(lineId, line.quantity - 1)
 }
 
 // Send what was ordered to the bar / kitchen without leaving the table
 // (event P, the same registration as when leaving the order).
-const sending = ref(false);
+const sending = ref(false)
 
 async function sendToKitchen() {
-  if (sending.value || order.unsentCount === 0) return;
-  sending.value = true;
-  const count = order.unsentCount;
+  if (sending.value || order.unsentCount === 0) return
+  sending.value = true
+  const count = order.unsentCount
   try {
-    await order.leave("send_to_kitchen");
-    toast.show(t("sent_to_kitchen", { n: count }), "success");
+    await order.leave('send_to_kitchen')
+    toast.show(t('sent_to_kitchen', { n: count }), 'success')
   } catch (e) {
-    toast.show(`${t("order_register_failed")} : ${describeError(e)}`, "error", 6000);
+    toast.show(`${t('order_register_failed')} : ${describeError(e)}`, 'error', 6000)
   } finally {
-    sending.value = false;
+    sending.value = false
   }
 }
 
 function goToCheckout() {
   if (order.lines.length > 0) {
-    router.push({ name: "checkout" });
+    router.push({ name: 'checkout' })
   }
 }
 
 // Provisional bill for a table (§1.4). Takeaway sales are paid at once.
 const canPreBill = computed(
-  () => order.currentOrder?.order_type === "dine_in" && order.lines.length > 0,
-);
-const preBilling = ref(false);
+  () => order.currentOrder?.order_type === 'dine_in' && order.lines.length > 0,
+)
+const preBilling = ref(false)
 
 async function printPreBill() {
-  if (!canPreBill.value || preBilling.value) return;
-  preBilling.value = true;
+  if (!canPreBill.value || preBilling.value) return
+  preBilling.value = true
   try {
-    await order.preBill();
-    toast.show(t("pre_bill_printed"), "success");
+    await order.preBill()
+    toast.show(t('pre_bill_printed'), 'success')
   } catch (e) {
-    toast.show(`${t("pre_bill_failed")} : ${describeError(e)}`, "error", 6000);
+    toast.show(`${t('pre_bill_failed')} : ${describeError(e)}`, 'error', 6000)
   } finally {
-    preBilling.value = false;
+    preBilling.value = false
   }
 }
 
@@ -160,54 +162,54 @@ async function printPreBill() {
 const canTransfer = computed(
   () =>
     isDineIn.value &&
-    order.currentOrder?.status === "open" &&
+    order.currentOrder?.status === 'open' &&
     order.currentOrder.table_number != null &&
     order.lines.length > 0,
-);
-const picking = ref(false);
-const freeTables = ref<ipc.TableInfo[]>([]);
-const transferring = ref(false);
+)
+const picking = ref(false)
+const freeTables = ref<ipc.TableInfo[]>([])
+const transferring = ref(false)
 
 async function openTablePicker() {
-  if (!canTransfer.value || transferring.value) return;
+  if (!canTransfer.value || transferring.value) return
   try {
-    const current = order.currentOrder?.table_number;
+    const current = order.currentOrder?.table_number
     freeTables.value = (await ipc.listTables()).filter(
-      (tbl) => tbl.status === "free" && tbl.tableNumber !== current,
-    );
+      (tbl) => tbl.status === 'free' && tbl.tableNumber !== current,
+    )
   } catch (e) {
-    toast.show(describeError(e), "error", 5000);
-    return;
+    toast.show(describeError(e), 'error', 5000)
+    return
   }
-  picking.value = true;
+  picking.value = true
 }
 
 async function transferTo(toTable: number) {
-  if (transferring.value) return;
-  transferring.value = true;
+  if (transferring.value) return
+  transferring.value = true
   try {
-    await order.transferTable(toTable);
-    picking.value = false;
-    toast.show(t("transfer_done", { to: toTable }), "success");
+    await order.transferTable(toTable)
+    picking.value = false
+    toast.show(t('transfer_done', { to: toTable }), 'success')
   } catch (e) {
-    picking.value = false;
-    toast.show(describeError(e), "error", 6000);
+    picking.value = false
+    toast.show(describeError(e), 'error', 6000)
   } finally {
-    transferring.value = false;
+    transferring.value = false
   }
 }
 
 // Kitchen note of a line: any staff member, on an open order. The dialog
 // says whether the note prints now (the line already went to the kitchen)
 // or with the order.
-const canNote = computed(() => order.currentOrder?.status === "open");
-const noteLineId = ref<number | null>(null);
-const noteLine = computed(() => order.lines.find((l) => l.id === noteLineId.value) ?? null);
+const canNote = computed(() => order.currentOrder?.status === 'open')
+const noteLineId = ref<number | null>(null)
+const noteLine = computed(() => order.lines.find((l) => l.id === noteLineId.value) ?? null)
 
 async function saveNote(text: string) {
-  const id = noteLineId.value;
-  noteLineId.value = null;
-  if (id !== null) await order.setLineNote(id, text);
+  const id = noteLineId.value
+  noteLineId.value = null
+  if (id !== null) await order.setLineNote(id, text)
 }
 
 // Discount at the till (manager, PIN): an order discount, a line for
@@ -218,68 +220,68 @@ async function saveNote(text: string) {
 const canDiscount = computed(
   () =>
     auth.isManager &&
-    order.currentOrder?.status === "open" &&
+    order.currentOrder?.status === 'open' &&
     order.lines.length > 0 &&
     !order.lines.some((l) => l.online === true),
-);
+)
 type DiscountStep =
-  | { kind: "ask"; lineId: number | null }
-  | { kind: "pin-apply"; input: DiscountInput }
-  | { kind: "pin-remove"; lineId: number | null };
-const discountStep = ref<DiscountStep | null>(null);
+  | { kind: 'ask'; lineId: number | null }
+  | { kind: 'pin-apply'; input: DiscountInput }
+  | { kind: 'pin-remove'; lineId: number | null }
+const discountStep = ref<DiscountStep | null>(null)
 
 function lineHasOwnChange(lineId: number): boolean {
-  const line = order.lines.find((l) => l.id === lineId);
-  return !!line?.price_changes?.some((c) => c.scope === "LINE");
+  const line = order.lines.find((l) => l.id === lineId)
+  return !!line?.price_changes?.some((c) => c.scope === 'LINE')
 }
 function canOfferLine(lineId: number): boolean {
-  const line = order.lines.find((l) => l.id === lineId);
-  if (line?.department_id === GIFT_VOUCHER_DEPARTMENT) return false;
-  return canDiscount.value && !order.orderDiscounted && (line?.price_changes?.length ?? 0) === 0;
+  const line = order.lines.find((l) => l.id === lineId)
+  if (line?.department_id === GIFT_VOUCHER_DEPARTMENT) return false
+  return canDiscount.value && !order.orderDiscounted && (line?.price_changes?.length ?? 0) === 0
 }
 function canRemoveLineDiscount(lineId: number): boolean {
-  return canDiscount.value && lineHasOwnChange(lineId);
+  return canDiscount.value && lineHasOwnChange(lineId)
 }
 
 /** What the open dialog applies to: the line's amount, or the order total. */
 const discountBase = computed(() => {
-  const step = discountStep.value;
-  if (step?.kind === "ask" && step.lineId !== null) {
-    const line = order.lines.find((l) => l.id === step.lineId);
-    return line ? lineNetCents(line) : 0;
+  const step = discountStep.value
+  if (step?.kind === 'ask' && step.lineId !== null) {
+    const line = order.lines.find((l) => l.id === step.lineId)
+    return line ? lineNetCents(line) : 0
   }
   // The order total, as on Android (no money arithmetic in the Compose UI): a gift voucher
   // line never shares an order discount, the engine leaves it out (V12 merge decision).
-  return order.totalCents;
-});
+  return order.totalCents
+})
 
 async function verifyDiscount(pin: string) {
-  const step = discountStep.value;
-  if (step?.kind === "pin-apply") await order.applyDiscount(step.input, pin);
-  else if (step?.kind === "pin-remove") await order.removeDiscount(step.lineId, pin);
+  const step = discountStep.value
+  if (step?.kind === 'pin-apply') await order.applyDiscount(step.input, pin)
+  else if (step?.kind === 'pin-remove') await order.removeDiscount(step.lineId, pin)
 }
 
 function onDiscountDone() {
-  const removed = discountStep.value?.kind === "pin-remove";
-  discountStep.value = null;
-  toast.show(t(removed ? "discount_removed" : "discount_applied"), "success");
+  const removed = discountStep.value?.kind === 'pin-remove'
+  discountStep.value = null
+  toast.show(t(removed ? 'discount_removed' : 'discount_applied'), 'success')
 }
 
 // The customer left without paying (UC4109): a manager closes the
 // order, confirmed by their PIN; the sale is signed with no payment.
 const canCloseUnpaid = computed(
-  () => auth.isManager && order.currentOrder?.status === "open" && order.lines.length > 0,
-);
-const confirmUnpaid = ref(false);
+  () => auth.isManager && order.currentOrder?.status === 'open' && order.lines.length > 0,
+)
+const confirmUnpaid = ref(false)
 
 async function closeUnpaid(pin: string) {
-  await order.closeUnpaid(pin);
+  await order.closeUnpaid(pin)
 }
 
 async function onUnpaidClosed() {
-  confirmUnpaid.value = false;
-  toast.show(t("unpaid_closed"), "success");
-  await router.push({ name: "tables" });
+  confirmUnpaid.value = false
+  toast.show(t('unpaid_closed'), 'success')
+  await router.push({ name: 'tables' })
 }
 </script>
 
@@ -303,7 +305,9 @@ async function onUnpaidClosed() {
     <div class="cart-lines scroll-touch">
       <template v-if="order.coursesEnabled">
         <template v-for="group in courseGroups" :key="group.course">
-          <div class="course-label" :data-testid="`course-group-${group.course}`">{{ t(`course_${group.course}`) }}</div>
+          <div class="course-label" :data-testid="`course-group-${group.course}`">
+            {{ t(`course_${group.course}`) }}
+          </div>
           <OrderLineItem
             v-for="line in group.lines"
             :key="line.id"
@@ -324,29 +328,10 @@ async function onUnpaidClosed() {
         </template>
       </template>
       <template v-else>
-      <OrderLineItem
-        v-for="line in sentLines"
-        :key="line.id"
-        :line="line"
-        :can-offer="canOfferLine(line.id)"
-        :can-remove-discount="canRemoveLineDiscount(line.id)"
-        :can-note="canNote"
-        @note="noteLineId = $event"
-        @increment="increment"
-        @decrement="decrement"
-        @remove="order.removeLine($event)"
-        @offer="discountStep = { kind: 'ask', lineId: $event }"
-        @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
-      />
-      <template v-if="pendingLines.length">
-        <div class="pending-label">
-          <span class="pending-dot" />{{ t('not_sent_to_kitchen') }}
-        </div>
         <OrderLineItem
-          v-for="line in pendingLines"
+          v-for="line in sentLines"
           :key="line.id"
           :line="line"
-          pending
           :can-offer="canOfferLine(line.id)"
           :can-remove-discount="canRemoveLineDiscount(line.id)"
           :can-note="canNote"
@@ -357,7 +342,26 @@ async function onUnpaidClosed() {
           @offer="discountStep = { kind: 'ask', lineId: $event }"
           @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
         />
-      </template>
+        <template v-if="pendingLines.length">
+          <div class="pending-label">
+            <span class="pending-dot" />{{ t('not_sent_to_kitchen') }}
+          </div>
+          <OrderLineItem
+            v-for="line in pendingLines"
+            :key="line.id"
+            :line="line"
+            pending
+            :can-offer="canOfferLine(line.id)"
+            :can-remove-discount="canRemoveLineDiscount(line.id)"
+            :can-note="canNote"
+            @note="noteLineId = $event"
+            @increment="increment"
+            @decrement="decrement"
+            @remove="order.removeLine($event)"
+            @offer="discountStep = { kind: 'ask', lineId: $event }"
+            @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
+          />
+        </template>
       </template>
       <div v-if="order.lines.length === 0" class="cart-empty">
         {{ t('no_items') }}
@@ -459,7 +463,10 @@ async function onUnpaidClosed() {
     />
 
     <PinDialog
-      v-if="(discountStep?.kind === 'pin-apply' || discountStep?.kind === 'pin-remove') && auth.currentUser"
+      v-if="
+        (discountStep?.kind === 'pin-apply' || discountStep?.kind === 'pin-remove') &&
+        auth.currentUser
+      "
       :insz="auth.currentUser.insz"
       :user-name="auth.currentUser.name"
       :hint="discountStep.kind === 'pin-apply' ? t('discount_hint') : t('discount_remove_hint')"
@@ -522,8 +529,13 @@ async function onUnpaidClosed() {
   white-space: nowrap;
   transition: transform var(--tap-duration) ease;
 }
-.transfer-btn:active { transform: scale(var(--tap-scale)); }
-.transfer-btn:disabled { opacity: 0.35; pointer-events: none; }
+.transfer-btn:active {
+  transform: scale(var(--tap-scale));
+}
+.transfer-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
 .cart-opened {
   font-family: var(--font-mono);
   font-size: 15px;
@@ -606,7 +618,12 @@ async function onUnpaidClosed() {
   font-variant-numeric: tabular-nums;
 }
 
-.manager-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.manager-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
 .discount-btn {
   height: 48px;
   padding: 0 16px;
@@ -618,7 +635,9 @@ async function onUnpaidClosed() {
   white-space: nowrap;
   transition: transform var(--tap-duration) ease;
 }
-.discount-btn:active { transform: scale(var(--tap-scale)); }
+.discount-btn:active {
+  transform: scale(var(--tap-scale));
+}
 
 /* Rare manager action: small, outlined, apart from the payment buttons. */
 .unpaid-btn {
@@ -631,7 +650,9 @@ async function onUnpaidClosed() {
   font-weight: var(--font-weight-bold);
   transition: transform var(--tap-duration) ease;
 }
-.unpaid-btn:active { transform: scale(var(--tap-scale)); }
+.unpaid-btn:active {
+  transform: scale(var(--tap-scale));
+}
 
 .cart-actions {
   display: grid;
@@ -653,7 +674,9 @@ async function onUnpaidClosed() {
   transition: transform var(--tap-duration) ease;
 }
 .kitchen-btn:active,
-.pre-bill-btn:active { transform: scale(var(--tap-scale)); }
+.pre-bill-btn:active {
+  transform: scale(var(--tap-scale));
+}
 .kitchen-btn:disabled,
 .pre-bill-btn:disabled {
   opacity: 0.35;
@@ -683,8 +706,13 @@ async function onUnpaidClosed() {
   font-weight: var(--font-weight-bold);
   transition: transform var(--tap-duration) ease;
 }
-.next-course-btn:active { transform: scale(var(--tap-scale)); }
-.next-course-btn:disabled { opacity: 0.35; pointer-events: none; }
+.next-course-btn:active {
+  transform: scale(var(--tap-scale));
+}
+.next-course-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
 
 /* Volt: the screen's one main action. Full width × 80 px (§4.1 ≥ 72). */
 .checkout-btn {
