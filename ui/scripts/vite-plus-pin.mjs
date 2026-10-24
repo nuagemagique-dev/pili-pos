@@ -36,3 +36,30 @@ export function pinProblems(pkg, installed) {
   }
   return problems
 }
+
+/**
+ * ui/package.json text with `overrides.vite` moved to the declared vite-plus release, the rest of the file untouched.
+ * Returns the text unchanged when the pin already holds.
+ * @param {string} text ui/package.json
+ * @returns {string}
+ */
+export function syncedPin(text) {
+  /** @type {unknown} */
+  const value = JSON.parse(text)
+  /** @type {Manifest} */
+  const pkg = typeof value === 'object' && value !== null ? value : {}
+  const declared = pkg.devDependencies?.['vite-plus']
+  const override = pkg.overrides?.vite
+  if (declared === undefined || override === undefined) {
+    throw new Error('ui/package.json needs devDependencies.vite-plus and overrides.vite')
+  }
+  const expected = `npm:@voidzero-dev/vite-plus-core@${declared}`
+  if (override === expected) {
+    return text
+  }
+  const from = `"vite": ${JSON.stringify(override)}`
+  if (text.split(from).length !== 2) {
+    throw new Error(`expected one ${from} in ui/package.json`)
+  }
+  return text.replace(from, `"vite": ${JSON.stringify(expected)}`)
+}

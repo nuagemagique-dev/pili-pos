@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { pinProblems } from './vite-plus-pin.mjs'
+import { pinProblems, syncedPin } from './vite-plus-pin.mjs'
 
 const pkg = (vitePlus: string, override: string) => ({
   devDependencies: { 'vite-plus': vitePlus },
@@ -30,5 +30,25 @@ describe('pinProblems', () => {
     expect(
       pinProblems({ devDependencies: { 'vite-plus': '1.4.0' } }, installed('1.4.0', core('1.4.0'))),
     ).toEqual([`overrides.vite is missing, expected ${core('1.4.0')}`])
+  })
+})
+
+describe('syncedPin', () => {
+  const text = (vitePlus: string, override: string) =>
+    `${JSON.stringify(pkg(vitePlus, override), null, 2)}\n`
+
+  it('moves the override to the vite-plus release a Dependabot bump declared', () => {
+    expect(syncedPin(text('1.5.0', core('1.4.0')))).toBe(text('1.5.0', core('1.5.0')))
+  })
+
+  it('leaves a pin that holds untouched', () => {
+    const holding = text('1.4.0', core('1.4.0'))
+    expect(syncedPin(holding)).toBe(holding)
+  })
+
+  it('refuses a package.json without the override', () => {
+    expect(() => syncedPin(JSON.stringify({ devDependencies: { 'vite-plus': '1.4.0' } }))).toThrow(
+      'needs devDependencies.vite-plus and overrides.vite',
+    )
   })
 })

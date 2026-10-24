@@ -26,8 +26,9 @@ updates:
         patterns:
           - '*'
       # Vite+ ships its own oxc, Rolldown and vitest builds: the CLI and its
-      # packages move together. A bump also needs the `overrides.vite` pin
-      # (vite-plus-core) moved by hand: `npm run check` fails until it is.
+      # packages move together. Dependabot cannot move the `overrides.vite`
+      # alias (vite-plus-core): .github/workflows/dependabot-vite-plus.yml
+      # pushes that commit on the PR, then CI watch merges it when green.
       vite-plus:
         patterns:
           - 'vite-plus'
