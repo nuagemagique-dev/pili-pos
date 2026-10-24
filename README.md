@@ -102,6 +102,21 @@ Development mocks: `cargo run -p pos-fdm-mock` (FDM and email API on :8081) and 
 
 Live calls to the FDM simulator, HubRise or the card terminals are run by hand only, never in CI.
 
+## Pili repositories
+
+Every Pili repository lives in the GitHub org `nuagemagique-dev`. Local folders kept their earlier names.
+
+| Repository | Local folder | What it is |
+|---|---|---|
+| pili-api | `tsb-service` | GraphQL API (Go) and the `pili-mcp` tool server |
+| pili-shop | `tsb-core` | Customer web shop, one Nuxt app per brand |
+| pili-dashboard | `tsb-dashboard` | Admin dashboard (Nuxt) |
+| pili-mobile | `tsb-mobile` | Customer iOS and Android app (Expo) |
+| pili-handheld | `moyun-handheld` | Staff handheld app for the Sunmi V3H (Kotlin) |
+| **pili-pos** (this repository) | `moyun-pos` | SCE 2.0 cash register (Rust engine, Android and Linux) |
+| pili-agent | `tsb-agent` | Owner and staff Telegram agent |
+| pili-infra | `tsb-infra` | Helm charts, Terraform, SOPS secrets, runbooks |
+
 ## License
 
 Proprietary (nuagemagique.dev).
