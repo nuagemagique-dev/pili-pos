@@ -21,10 +21,5 @@
     "security": {
       "csp": null
     }
-  },
-  "plugins": {
-    "shell": {
-      "open": false
-    }
   }
 }

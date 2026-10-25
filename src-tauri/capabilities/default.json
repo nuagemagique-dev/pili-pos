@@ -4,6 +4,9 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "shell:allow-open"
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://manager.hubrise.com/*" }]
+    }
   ]
 }
