@@ -43,3 +43,8 @@ scripts/qemu/.run/
 
 # Written by pos-fdm-mock (TEM mock) when run from the repo root
 /mock-tem-outbox/
+
+# Local tooling: git worktrees, Claude Code, editors, macOS
+.worktrees/
+.claude/
+.vscode/
