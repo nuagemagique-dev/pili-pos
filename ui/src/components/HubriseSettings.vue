@@ -2,7 +2,6 @@
 // HubRise (webshop) connection panel for Settings, shown while the
 // integration is switched on (stores/integrations.ts).
 import { computed, onMounted, ref } from 'vue'
-import { open as openUrl } from '@tauri-apps/plugin-shell'
 import * as ipc from '../api/ipc'
 import type {
   CatalogAdoption,
@@ -17,6 +16,7 @@ import { formatPrice } from '../utils/format'
 import { useI18n } from '../i18n'
 import { useWebshopOrdersStore } from '../stores/webshopOrders'
 import { describeError } from '../utils/errorMessages'
+import { openExternal } from '../utils/openExternal'
 import HubriseConnectDialog from './HubriseConnectDialog.vue'
 const { t } = useI18n()
 // Pending count kept live by the header's "En ligne" button.
@@ -46,7 +46,7 @@ async function connectHubrise() {
     authorizeLink.value = await ipc.hubriseStartOauthFlow()
     // A desktop opens it too; the kiosk has no browser, the QR code
     // is the way there.
-    openUrl(authorizeLink.value.url).catch(() => undefined)
+    await openExternal(authorizeLink.value.url)
   } catch (e) {
     hubriseError.value = describeError(e)
   } finally {

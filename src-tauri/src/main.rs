@@ -107,7 +107,7 @@ fn main() {
     let health_cancel = engine.shutdown_token.clone();
 
     let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(engine)
         .setup(move |app| {
             use tauri::Manager;
