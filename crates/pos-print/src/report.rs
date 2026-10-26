@@ -534,18 +534,24 @@ fn fmt_price(cents: i64) -> String {
 
 fn fmt_datetime(s: &str) -> String {
     // Extract "YYYY-MM-DD HH:MM" from various datetime formats
-    if s.len() >= 16 {
-        let date = &s[..10];
-        let time = &s[11..16];
-        format!("{date} {time}")
-    } else {
-        s.to_string()
+    match (s.get(..10), s.get(11..16)) {
+        (Some(date), Some(time)) => format!("{date} {time}"),
+        _ => s.to_string(),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn datetimes_with_non_ascii_text_do_not_panic() {
+        assert_eq!(fmt_datetime("2026-04-12 11:30:00"), "2026-04-12 11:30");
+        // 16+ bytes with a multi-byte char straddling offset 10.
+        let odd = "2026-04-1é 11:30:00";
+        assert_eq!(fmt_datetime(odd), odd);
+        assert_eq!(fmt_datetime("short"), "short");
+    }
 
     fn sample_report_data(report_type: &str) -> ReportPrintData {
         ReportPrintData {

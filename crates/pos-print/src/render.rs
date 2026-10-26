@@ -113,7 +113,8 @@ pub fn render_plain_text(bytes: &[u8]) -> String {
                             // Function 180: store QR data - payload after cn/fn/m
                             let start = i + 8;
                             let end = (i + 5 + len).min(bytes.len());
-                            let data = String::from_utf8_lossy(&bytes[start..end]);
+                            let data =
+                                String::from_utf8_lossy(bytes.get(start..end).unwrap_or_default());
                             out.push_str(&format!("{:^WIDTH$}\n", format!("[QR: {data}]")));
                         }
                         i += 5 + len;
