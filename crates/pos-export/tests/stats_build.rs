@@ -637,6 +637,84 @@ fn a_missing_amount_is_an_error_naming_the_event_not_a_zero() {
     assert!(err.contains(&format!("event {id}")), "{err}");
 }
 
+/// Parity with `pos-accounting`: the same archived events (a fixture file owned by
+/// that crate) must give the same VAT rows, payments and refund flag here. Each
+/// case replaces the archived request and answer of one ticket on a copy of the
+/// fixture database.
+#[test]
+fn the_parity_cases_match_the_accounting_parser() {
+    let cases: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+        "../../pos-accounting/tests/golden/parity_cases.json"
+    ))
+    .unwrap();
+    assert!(cases.len() >= 4);
+    for case in &cases {
+        let name = case["name"].as_str().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let fx = fixture_db(&dir.path().join("pos.db"));
+        let id = fx.tickets[0].ticket_id;
+        {
+            let conn = Connection::open(&fx.db_path).unwrap();
+            let triggers: Vec<String> = conn
+                .prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'fiscal_events'")
+                .unwrap()
+                .query_map([], |r| r.get(0))
+                .unwrap()
+                .map(Result::unwrap)
+                .collect();
+            for t in triggers {
+                conn.execute_batch(&format!("DROP TRIGGER \"{t}\";")).unwrap();
+            }
+            conn.execute(
+                "UPDATE fiscal_events SET
+                    event_data_json = json_set(?2, '$.bookingPeriodId', json_extract(event_data_json, '$.bookingPeriodId')),
+                    fdm_response_json = ?3 WHERE id = ?1",
+                rusqlite::params![id, case["request"].to_string(), case["response"].to_string()],
+            )
+            .unwrap();
+        }
+        let out = dir.path().join("stats.sqlite");
+        let conn = open_ro(&fx.db_path);
+        build_stats(&conn, &fixture_z(&fx), &test_meta(), &test_key(), &out)
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        let stats = open_ro(&out);
+        let expected = &case["expected"];
+
+        let kind: String = stats
+            .query_row("SELECT kind FROM tickets WHERE ticket_id = ?1", [id], |r| r.get(0))
+            .unwrap();
+        let refund = expected["refund"].as_bool().unwrap();
+        assert_eq!(kind == "refund", refund, "{name}");
+
+        let paid: i64 = stats
+            .query_row(
+                "SELECT COALESCE(SUM(amount_cents), 0) FROM ticket_payments WHERE ticket_id = ?1 AND kind = 'payment'",
+                [id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(paid, expected["paid_cents"].as_i64().unwrap(), "{name}");
+
+        let mut stmt = stats
+            .prepare("SELECT vat_label, vat_rate_bp, base_cents, vat_cents, total_cents FROM ticket_vat WHERE ticket_id = ?1 ORDER BY vat_label")
+            .unwrap();
+        let rows: Vec<(String, i64, i64, i64, i64)> = stmt
+            .query_map([id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        let want = expected["vats"].as_array().unwrap();
+        assert_eq!(rows.len(), want.len(), "{name}");
+        for (row, w) in rows.iter().zip(want) {
+            assert_eq!(row.0, w["label"].as_str().unwrap(), "{name}");
+            assert_eq!(row.1, w["rate_bp"].as_i64().unwrap(), "{name}");
+            assert_eq!(row.2, w["base"].as_i64().unwrap(), "{name}");
+            assert_eq!(row.3, w["vat"].as_i64().unwrap(), "{name}");
+            assert_eq!(row.4, w["total"].as_i64().unwrap(), "{name}");
+        }
+    }
+}
+
 #[test]
 fn the_source_is_left_untouched() {
     let dir = tempfile::tempdir().unwrap();
