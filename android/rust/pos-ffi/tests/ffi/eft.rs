@@ -98,6 +98,32 @@ fn a_payment_with_every_option_none_converts() {
     assert_eq!(to_value(&engine).unwrap(), to_value(&record).unwrap());
 }
 
+/// Every status and card type the engine stores survives the conversion, so `eft_pay` cannot
+/// fail after the terminal answered for any value it can produce.
+#[test]
+fn every_status_and_card_type_converts() {
+    for status in [
+        "sent",
+        "approved",
+        "declined",
+        "cancelled",
+        "unknown",
+        "not_sent",
+    ] {
+        for card_type in [Some("debit"), Some("credit"), Some("unknown"), None] {
+            let engine = EngineEftPayment {
+                status: status.to_string(),
+                card_type: card_type.map(str::to_string),
+                ..engine_payment(true)
+            };
+            let record: EftPayment = contract_out(&engine).expect("convert::out");
+            assert_eq!(record.status, status);
+            assert_eq!(record.card_type.as_deref(), card_type);
+            assert_eq!(to_value(&engine).unwrap(), to_value(&record).unwrap());
+        }
+    }
+}
+
 #[test]
 fn a_payment_with_an_unknown_key_is_a_contract_error() {
     let mut value = to_value(engine_payment(true)).unwrap();
@@ -447,7 +473,7 @@ async fn an_abort_in_flight_ends_the_payment_cancelled() {
     let order_id = order(e).await;
 
     rig.mock.next(next(Behaviour::Approve, 20_000));
-    let caller = e.clone();
+    let caller = Arc::clone(e);
     let pay = tokio::spawn(async move { caller.eft_pay(order_id, 250).await });
     // The payment is stored before the terminal is called: wait for it to be in flight.
     tokio::time::sleep(Duration::from_millis(1500)).await;
@@ -468,7 +494,7 @@ async fn a_dropped_caller_does_not_abort_the_payment() {
     let order_id = order(e).await;
 
     rig.mock.next(next(Behaviour::Approve, 1_500));
-    let caller = e.clone();
+    let caller = Arc::clone(e);
     let pay = tokio::spawn(async move { caller.eft_pay(order_id, 250).await });
     tokio::time::sleep(Duration::from_millis(500)).await;
     // The Kotlin coroutine is cancelled: its future is dropped.

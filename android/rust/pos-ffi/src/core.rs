@@ -409,7 +409,7 @@ mod tests {
     async fn a_panic_in_a_blocking_closure_surfaces_as_a_panic_of_the_awaited_future() {
         let dir = tempfile::tempdir().unwrap();
         let engine = open(dir.path());
-        let caller = engine.clone();
+        let caller = Arc::clone(&engine);
         let join = tokio::spawn(async move {
             caller
                 .blocking(|_| -> Result<(), String> { panic!("deliberate blocking panic") })
@@ -424,13 +424,11 @@ mod tests {
     async fn a_panic_in_a_spawned_future_surfaces_as_a_panic_of_the_awaited_future() {
         let dir = tempfile::tempdir().unwrap();
         let engine = open(dir.path());
-        let caller = engine.clone();
+        let caller = Arc::clone(&engine);
         let join = tokio::spawn(async move {
             caller
                 .spawn(|_| async {
-                    if true {
-                        panic!("deliberate spawned panic");
-                    }
+                    assert!(!std::hint::black_box(true), "deliberate spawned panic");
                     Ok::<(), String>(())
                 })
                 .await
@@ -461,7 +459,7 @@ mod tests {
     async fn shutdown_waits_for_a_call_in_flight() {
         let dir = tempfile::tempdir().unwrap();
         let engine = open(dir.path());
-        let caller = engine.clone();
+        let caller = Arc::clone(&engine);
         let started = Instant::now();
         let call = tokio::spawn(async move {
             caller

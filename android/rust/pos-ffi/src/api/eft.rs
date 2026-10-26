@@ -21,8 +21,11 @@ use crate::records::eft::{EftPayment, PaymentTerminalStatus, UnsettledCardPaymen
 #[uniffi::export]
 impl PosEngine {
     /// Ask the linked card terminal to charge `amount_cents` for an order. The answer is the
-    /// stored payment whatever the terminal said (approved, declined, cancelled, unknown); an
-    /// error means nothing was charged.
+    /// stored payment whatever the terminal said (approved, declined, cancelled, unknown). An
+    /// error is a refusal before the terminal was asked (nothing was charged) or, in the unlikely
+    /// case the stored payment cannot be converted to the record, a contract error after the
+    /// terminal answered: a caller that gets `Internal` must read `list_eft_payments` before it
+    /// charges again.
     pub async fn eft_pay(&self, order_id: i64, amount_cents: i64) -> Result<EftPayment, PosError> {
         let payment: EngineEftPayment = self
             .spawn(move |engine| async move {

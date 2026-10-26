@@ -44,8 +44,8 @@ use pos_fiscal::ticket::{
     TicketPayment as EngineTicketPayment,
 };
 use pos_fiscal::types::{
-    ShowPos as EngineShowPos, EventLabel as EngineEventLabel,
-    FdmWarningCode as EngineFdmWarningCode, MessageCategory as EngineMessageCategory,
+    EventLabel as EngineEventLabel, FdmWarningCode as EngineFdmWarningCode,
+    MessageCategory as EngineMessageCategory, ShowPos as EngineShowPos,
     TicketMedium as EngineTicketMedium, VatLabel as EngineVatLabel,
 };
 use serde::Serialize;
@@ -524,6 +524,10 @@ fn a_delivery_outcome_converts_with_and_without_options() {
 }
 
 #[test]
+#[expect(
+    clippy::many_single_char_names,
+    reason = "short names for the components of one ticket keep the assertions readable"
+)]
 fn the_component_records_of_a_ticket_convert_alone() {
     let r: ffi::FdmReference = both_ways(&fdm_ref(EngineEventLabel::C));
     assert_eq!(r.event_label, ffi::EventLabel::C);

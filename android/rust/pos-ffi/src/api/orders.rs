@@ -585,6 +585,10 @@ mod flow {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one end-to-end dine-in scenario, step by step"
+    )]
     async fn a_dine_in_flow_reaches_the_engine_at_every_step() {
         let (e, _dir) = open_logged_in().await;
         let input = CreateOrderInput {

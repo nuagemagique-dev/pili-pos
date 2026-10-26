@@ -512,7 +512,7 @@ async fn a_parked_delivery_is_retried_by_a_manager_and_only_a_parked_one() {
     assert!(result.success, "{:?}", result.error);
 
     let wait_for = |want_failed: i64, want_queued: i64| {
-        let e = rig.engine.clone();
+        let e = std::sync::Arc::clone(&rig.engine);
         async move {
             let started = Instant::now();
             loop {

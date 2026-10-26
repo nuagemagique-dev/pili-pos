@@ -147,8 +147,7 @@ async fn init_logging_writes_a_daily_log_file() {
             let name = path.file_name().unwrap().to_string_lossy().into_owned();
             if name.starts_with("pili-pos.log.")
                 && std::fs::read_to_string(&path)
-                    .map(|text| text.contains("opening database"))
-                    .unwrap_or(false)
+                    .is_ok_and(|text| text.contains("opening database"))
             {
                 found = Some(name);
             }
@@ -174,7 +173,7 @@ async fn an_event_stream_ends_when_the_engine_shuts_down() {
 }
 
 /// How long the first `shutdown` is given before its caller gives up (a cancelled Kotlin
-/// coroutine drops the UniFFI future the same way).
+/// coroutine drops the `UniFFI` future the same way).
 const CANCEL_AFTER: Duration = Duration::from_millis(300);
 
 /// The first `shutdown` of an engine with a call in flight is dropped by its caller after the
@@ -206,7 +205,7 @@ async fn cancelled_shutdown_then_shutdown_releases_the_engine() {
 
     // The second shutdown waits for the drain the first one started: while the call is held it
     // is not done.
-    let engine = t.engine.clone();
+    let engine = std::sync::Arc::clone(&t.engine);
     let second = tokio::spawn(async move { engine.shutdown().await });
     tokio::time::sleep(CANCEL_AFTER).await;
     assert!(

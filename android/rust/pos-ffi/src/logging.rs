@@ -14,6 +14,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::error::PosError;
+use crate::helpers::on_thread;
 
 /// Keeps the file writer's worker thread alive (and flushes on exit) once logging is set up.
 static GUARD: OnceLock<WorkerGuard> = OnceLock::new();
@@ -114,13 +115,22 @@ mod logcat {
 /// nothing: the subscriber is process-wide.
 #[uniffi::export]
 pub async fn init_logging(log_dir: String, filter: String) -> Result<(), PosError> {
+    // The lock, the directory creation and the rolling appender (which scans the directory) are
+    // blocking work: keep them off the thread that polls the caller's future.
+    on_thread("pos-ffi-logging", move || {
+        init_logging_blocking(&log_dir, &filter)
+    })
+    .await
+}
+
+fn init_logging_blocking(log_dir: &str, filter: &str) -> Result<(), PosError> {
     let _gate = INIT
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if GUARD.get().is_some() {
         return Ok(());
     }
-    let dir = Path::new(&log_dir);
+    let dir = Path::new(log_dir);
     if !dir.is_absolute() {
         return Err(PosError::internal(format!(
             "init_logging: log_dir must be an absolute path: {log_dir}"

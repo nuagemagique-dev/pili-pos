@@ -66,6 +66,10 @@ fn out_equal<E: Serialize, F: Serialize + DeserializeOwned>(engine: &E) -> F {
 }
 
 /// A hand-built engine-shaped JSON value converts to the record and back to the same JSON.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "callers hand over json! literals"
+)]
 fn json_round_trip<F: Serialize + DeserializeOwned>(value: Value) -> F {
     let record: F = contract_out(&value).unwrap_or_else(|e| panic!("convert::out: {e}"));
     assert_eq!(value, json_of(&record), "JSON vs FFI serde form");
@@ -740,7 +744,7 @@ fn a_settlement_preview_serializes_with_its_fields() {
 fn assert_ok_or_coded<T: std::fmt::Debug>(name: &str, r: Result<T, PosError>) -> Option<T> {
     match r {
         Ok(v) => Some(v),
-        Err(PosError::Coded { .. }) | Err(PosError::Fdm { .. }) => None,
+        Err(PosError::Coded { .. } | PosError::Fdm { .. }) => None,
         Err(other) => panic!("{name}: {other:?}"),
     }
 }
