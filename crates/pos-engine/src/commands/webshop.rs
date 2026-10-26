@@ -215,6 +215,7 @@ fn record_signed_or_reconcile(
     operator: &str,
     patch: serde_json::Value,
 ) -> Result<(), String> {
+    let confirmed_time_dropped = patch.get("confirmed_time").is_some();
     let Err(e) = record_signed(state, ws, to, event_id, operator, patch) else {
         return Ok(());
     };
@@ -226,6 +227,13 @@ fn record_signed_or_reconcile(
         .and_then(|db| reconcile_order(&db, ws.order_id).map_err(|r| r.to_string()));
     match repaired {
         Ok(n) if n > 0 => {
+            if confirmed_time_dropped {
+                // The repair queues the plain status only.
+                tracing::warn!(
+                    order_id = ws.order_id,
+                    "online order: repaired without the confirmed time the cashier chose"
+                );
+            }
             state.hubrise_outbox_wake.notify_one();
             Ok(())
         }

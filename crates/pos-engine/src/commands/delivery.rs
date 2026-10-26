@@ -404,6 +404,11 @@ pub async fn print_original_once(
     // Claim the print first: two concurrent calls would otherwise both
     // see "not printed" and print two originals. A call that loses the
     // claim is refused as already printed (the winner is printing it).
+    // The winner's result is the authoritative one: if its print fails the
+    // claim is released and the screen offers the paper again, so the
+    // loser's AlreadyPrinted (and `needs_paper == false`) never hides a
+    // missing original. No separate in-progress outcome: the UIs only know
+    // the `already_printed` code.
     let Some(_claim) = PrintClaim::take(state, fiscal_event_id) else {
         return PrintOutcome::AlreadyPrinted;
     };

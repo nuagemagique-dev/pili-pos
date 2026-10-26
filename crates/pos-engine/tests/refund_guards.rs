@@ -383,6 +383,7 @@ async fn an_unreadable_sale_record_stops_the_refund() {
         .unwrap();
     }
     let orders = order_count(&app);
-    assert!(refund(&app, original, &[(1, 1)]).await.is_err());
+    let err = refund(&app, original, &[(1, 1)]).await.unwrap_err();
+    assert!(err.starts_with("internal_error"), "{err}");
     assert_eq!(order_count(&app), orders, "no refund order left behind");
 }

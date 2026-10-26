@@ -31,6 +31,12 @@ pub fn require_hubrise(state: &AppState) -> Result<(), String> {
 /// awaiting payment, or cancelled with a refund or a closing to make.
 pub(crate) fn unsettled(state: &AppState) -> Result<i64, String> {
     let db = state.db.lock().map_err(errors::internal)?;
+    unsettled_on(&db)
+}
+
+/// [`unsettled`] on a connection the caller already holds, so the check
+/// and the change it guards happen under one lock.
+pub(crate) fn unsettled_on(db: &rusqlite::Connection) -> Result<i64, String> {
     db.query_row(
         "SELECT COUNT(*) FROM webshop_orders
          WHERE fiscal_state IN ('pending', 'signing', 'signed_p', 'refund_pending', 'cancel_pending')",
@@ -68,17 +74,18 @@ pub fn do_get_integrations(state: &AppState) -> Result<Integrations, String> {
 )]
 pub fn do_set_hubrise_enabled(state: &AppState, enabled: bool) -> Result<Integrations, String> {
     let admin = access::operator(state, Access::Admin)?;
-    if !enabled {
-        let open = unsettled(state)?;
-        if open > 0 {
-            return Err(errors::coded(
-                errors::hubrise::ONLINE_ORDERS_OPEN,
-                &[("count", &open)],
-            ));
-        }
-    }
     {
+        // Count and switch under one lock: no order can open in between.
         let db = state.db.lock().map_err(errors::internal)?;
+        if !enabled {
+            let open = unsettled_on(&db)?;
+            if open > 0 {
+                return Err(errors::coded(
+                    errors::hubrise::ONLINE_ORDERS_OPEN,
+                    &[("count", &open)],
+                ));
+            }
+        }
         integrations::set_hubrise(
             &db,
             pos_db::queries::integrations::State::from(enabled),

@@ -853,17 +853,31 @@ mod tests {
         assert!(already_refunded_quantities(&conn, &original()).is_err());
     }
 
+    /// The buckets come back in key order, so the refund that exceeds the
+    /// sold quantity names the lowest product id (a stable message).
     #[test]
-    fn the_exceeds_sold_bucket_is_the_first_in_key_order() {
-        let bucket = |product| Bucket {
-            product,
-            unit_price_cents: 100,
-            vat: "A".into(),
+    fn prior_refund_buckets_come_back_in_product_order() {
+        let line = |product: &str| {
+            serde_json::json!({"mainProduct": {
+                "productId": product, "quantity": -1.0, "unitPrice": 1.0,
+                "vats": [{"label": "A"}],
+            }})
         };
-        let mut map = std::collections::BTreeMap::new();
-        map.insert(bucket(9), 1_i64);
-        map.insert(bucket(3), 1_i64);
-        map.insert(bucket(5), 1_i64);
-        assert_eq!(map.keys().next().unwrap().product, 3);
+        let conn = conn_with_refund_line(&line("9"));
+        let json = serde_json::json!({
+            "fdmRef": {
+                "fdmId": "FDM1", "fdmDateTime": "20260101120000",
+                "eventLabel": "N", "eventCounter": 1, "totalCounter": 2,
+            },
+            "transaction": {"transactionLines": [line("9"), line("3"), line("5")]},
+        });
+        conn.execute(
+            "UPDATE fiscal_events SET event_data_json = ?1",
+            [json.to_string()],
+        )
+        .unwrap();
+        let totals = already_refunded_quantities(&conn, &original()).unwrap();
+        let products: Vec<i64> = totals.keys().map(|b| b.product).collect();
+        assert_eq!(products, vec![3, 5, 9]);
     }
 }

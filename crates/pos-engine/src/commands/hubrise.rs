@@ -248,15 +248,16 @@ pub async fn do_hubrise_complete_oauth(
 /// integration off, refused while online orders are still to settle.
 pub fn do_hubrise_disconnect(state: &AppState) -> Result<(), String> {
     access::operator(state, Access::Admin)?;
-    let open = crate::commands::integrations::unsettled(state)?;
-    if open > 0 {
-        return Err(errors::coded(
-            errors::hubrise::ONLINE_ORDERS_OPEN,
-            &[("count", &open)],
-        ));
-    }
     {
+        // Count and clear under one lock: no order can open in between.
         let db = state.db.lock().map_err(|e| e.to_string())?;
+        let open = crate::commands::integrations::unsettled_on(&db)?;
+        if open > 0 {
+            return Err(errors::coded(
+                errors::hubrise::ONLINE_ORDERS_OPEN,
+                &[("count", &open)],
+            ));
+        }
         token_store::clear(&db).map_err(|e| e.to_string())?;
         // The menu stays as last synced, and can be edited again.
         pos_catalog::release(&db, pos_hubrise::CATALOG_SOURCE).map_err(errors::internal)?;

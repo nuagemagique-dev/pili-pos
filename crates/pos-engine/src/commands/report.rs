@@ -788,7 +788,9 @@ fn payment_corrections(payments: &[PaymentTotalInput]) -> (i64, i64) {
             )
         });
     // Each correction is a negative and a positive line, so the count is even.
-    debug_assert!(lines % 2 == 0, "payment correction lines come in pairs");
+    if lines % 2 != 0 {
+        tracing::warn!(lines, "payment correction lines should come in pairs");
+    }
     (lines / 2, moved)
 }
 

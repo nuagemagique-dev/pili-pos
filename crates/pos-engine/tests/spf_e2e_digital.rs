@@ -532,6 +532,14 @@ async fn a_failed_print_releases_the_claim_so_a_retry_prints() {
             .is_err()
     );
     assert!(app.state.originals_printing.lock().unwrap().is_empty());
+
+    // The claim is free again: with a live printer the retry prints one slip.
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    delivery::do_print_missing_original(&app.state, event_id)
+        .await
+        .unwrap();
+    assert_eq!(printer.settle(1).await.len(), 1, "one slip printed");
 }
 
 #[tokio::test]

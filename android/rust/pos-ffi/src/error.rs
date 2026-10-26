@@ -38,7 +38,8 @@ impl PosError {
 
 /// The text of a [`PosError::Coded`] for logs: the engine's own `code|k=v|k=v` form, the values
 /// sorted by key so the same error always prints the same text. The screens never parse it: they
-/// read the `code` and `params` fields.
+/// read the `code` and `params` fields. The text is logged, so `params` must never carry a
+/// secret (a PIN, a token, a card number).
 fn coded_text(code: &str, params: &HashMap<String, String>) -> String {
     let mut pairs: Vec<_> = params.iter().collect();
     pairs.sort();

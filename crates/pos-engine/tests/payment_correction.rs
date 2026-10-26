@@ -734,7 +734,7 @@ async fn a_sale_and_its_correction_must_be_of_the_same_mode() {
 // ── FDM failures ───────────────────────────────────────────────────
 
 #[tokio::test]
-async fn with_thefdm_down_nothing_is_signed() {
+async fn with_the_fdm_down_nothing_is_signed() {
     let (app, fdm) = app().await;
     let n = cash_sale(&app, 5200).await;
     app.state.config.lock().unwrap().fdm_url = "http://127.0.0.1:1/graphql".into();
