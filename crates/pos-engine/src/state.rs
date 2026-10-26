@@ -341,7 +341,7 @@ mod tests {
         assert!(c.printer_address.is_none());
         assert_eq!(
             c.problems(),
-            Vec::<String>::new(),
+            Vec::<pos_core::config::Problem>::new(),
             "the dev identity is one the FDM accepts"
         );
     }
@@ -351,6 +351,6 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let prod = write(dir.path(), "pos.json", VALID);
         let c = load_config_from(None, &prod).unwrap();
-        assert_eq!(c.problems(), Vec::<String>::new());
+        assert_eq!(c.problems(), Vec::<pos_core::config::Problem>::new());
     }
 }

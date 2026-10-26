@@ -62,7 +62,7 @@ async fn the_pos_signs_over_mtls_with_v1_certificates() {
     assert!(
         FdmClient::config_problems(&config)
             .iter()
-            .all(|p| !p.starts_with("FDM HTTPS"))
+            .all(|p| !p.text().starts_with("FDM HTTPS"))
     );
     let fdm = FdmClient::from_config(&config);
     let status = fdm.status().await.expect("status over mTLS");

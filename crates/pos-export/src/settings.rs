@@ -26,7 +26,11 @@ impl ExportSettings {
     pub fn from_config(cfg: &ExportConfig) -> Result<ExportSettings, String> {
         let problems = cfg.problems();
         if !problems.is_empty() {
-            return Err(problems.join("; "));
+            return Err(problems
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("; "));
         }
         let owner = age::x25519::Recipient::from_str(&cfg.owner_recipient)
             .map_err(|e| format!("export.owner_recipient: {e}"))?;

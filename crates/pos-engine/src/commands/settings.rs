@@ -43,7 +43,7 @@ pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
         language: config.language.clone(),
         config_problems: pos_fiscal::fdm_client::FdmClient::config_problems(&config)
             .iter()
-            .map(|p| crate::commands::errors::config_problem(p))
+            .map(crate::commands::errors::config_problem)
             .collect(),
         pos_sw_version: state.identity.as_str().to_string(),
         payment_terminal: config

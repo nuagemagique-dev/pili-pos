@@ -282,7 +282,7 @@ pub const INTERNAL_ERROR: &str = "internal_error";
 
 // Configuration problems (`pos.json`), shown in the screen's language
 // with the English text of the problem as `detail` for the installer.
-// One code per setting, see `pos_core::config::problem_code`.
+// One code per setting, see `pos_core::config::Problem`.
 pub const CONFIG_TABLES: &str = "config_tables";
 pub const CONFIG_POS_ID: &str = "config_pos_id";
 pub const CONFIG_RESTAURANT_VAT: &str = "config_restaurant_vat";
@@ -401,10 +401,10 @@ pub const GIFT_VOUCHER_USED: &str = "gift_voucher_used";
 /// A problem of `pos.json` (an English text of
 /// `PosConfig::problems`) as a coded error: its `config_<setting>` code
 /// and the text as `detail`.
-pub fn config_problem(problem: &str) -> String {
+pub fn config_problem(problem: &pos_core::config::Problem) -> String {
     coded(
-        &format!("config_{}", pos_core::config::problem_code(problem)),
-        &[("detail", &problem)],
+        &format!("config_{}", problem.code()),
+        &[("detail", &problem.text())],
     )
 }
 

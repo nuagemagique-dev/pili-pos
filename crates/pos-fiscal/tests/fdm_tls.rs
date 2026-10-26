@@ -103,7 +103,8 @@ fn an_unusable_https_setup_is_a_config_problem() {
     assert!(
         problems
             .iter()
-            .any(|p| p.starts_with("FDM HTTPS:") && p.contains("/nonexistent/client.crt")),
+            .any(|p| p.text().starts_with("FDM HTTPS:")
+                && p.text().contains("/nonexistent/client.crt")),
         "{problems:?}"
     );
 }

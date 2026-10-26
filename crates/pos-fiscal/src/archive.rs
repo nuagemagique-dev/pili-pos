@@ -36,6 +36,20 @@ pub struct ArchiveParams<'a> {
 
 /// Archive a fiscal event and FDM response into the `fiscal_events` table.
 /// MUST be called within a database transaction for crash safety.
+///
+/// `fdm_response_json` holds the FDM's answer as the parsed
+/// [`SignResult`] serialized again, not the bytes the FDM sent. This is
+/// deliberate (decision of the Rust review, item 3): the bytes are not
+/// available here (the HTTP body is parsed into a JSON value, which
+/// already normalises number formatting and key order), every field the
+/// POS spec v2.2 defines is a field of `SignResult` and is checked
+/// against the request by `response_check` before archiving, and the
+/// stored form is deterministic, which the SPF dossier, the goldens, the
+/// accounting export and the SQL readers (`json_extract` on `$.fdmRef`)
+/// depend on. Keeping a raw copy would add a second form to every reader
+/// and change archived bytes for no field the till or the report uses;
+/// an FDM field outside the specification is dropped and logged by
+/// nothing, which is acceptable because the FDM itself keeps its journal.
 pub fn archive_event(
     conn: &rusqlite::Connection,
     params: ArchiveParams<'_>,

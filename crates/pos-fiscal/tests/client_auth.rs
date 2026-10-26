@@ -112,12 +112,17 @@ fn check_config_reports_a_missing_or_empty_token_file() {
         missing
             .problems()
             .iter()
-            .any(|p| p.starts_with("fdm_token_file: cannot read"))
+            .any(|p| p.text().starts_with("fdm_token_file: cannot read"))
     );
     let file = token_file("empty", " \n");
     let empty = PosConfig {
         fdm_token_file: Some(file.display().to_string()),
         ..Default::default()
     };
-    assert!(empty.problems().iter().any(|p| p.ends_with("is empty")));
+    assert!(
+        empty
+            .problems()
+            .iter()
+            .any(|p| p.text().ends_with("is empty"))
+    );
 }

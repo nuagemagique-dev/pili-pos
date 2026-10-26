@@ -169,7 +169,7 @@ impl Terminal {
     ) -> Result<Self, EftError> {
         let problems = config.problems();
         if let Some(p) = problems.first() {
-            return Err(EftError::Config(p.clone()));
+            return Err(EftError::Config(p.to_string()));
         }
         let driver = match config.kind {
             PaymentTerminalKind::WorldlineTerminalApi => Driver::Worldline(

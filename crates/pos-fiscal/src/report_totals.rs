@@ -53,6 +53,35 @@ use crate::types::{
     EventLabel, InOut, NegQuantityReason, PaymentLineType, PaymentType, PriceChangeType, VatLabel,
 };
 
+/// The keys whose values the report totals read as euro amounts.
+const AMOUNT_KEYS: [&str; 6] = [
+    "price",
+    "amount",
+    "taxableAmount",
+    "vatAmount",
+    "totalAmount",
+    "transactionTotal",
+];
+
+/// The first amount key of `v` (at any depth) holding something that is
+/// neither absent (`null`) nor a number.
+fn malformed_amount(v: &Value) -> Option<&'static str> {
+    match v {
+        Value::Object(map) => {
+            map.iter().find_map(
+                |(k, child)| match AMOUNT_KEYS.iter().find(|a| **a == k.as_str()) {
+                    Some(key) if !child.is_null() && pos_core::money::cents_of(child).is_none() => {
+                        Some(*key)
+                    }
+                    _ => malformed_amount(child),
+                },
+            )
+        }
+        Value::Array(items) => items.iter().find_map(malformed_amount),
+        _ => None,
+    }
+}
+
 /// One archived event, as signed by the FDM.
 #[derive(Debug, Clone)]
 pub struct ReportEvent {
@@ -70,15 +99,34 @@ pub struct ReportEvent {
 }
 
 impl ReportEvent {
-    /// `None` for an archive row whose JSON can't be read; callers
-    /// decide whether that is fatal (it never happens for rows written
-    /// by `commit` in `commands/signing.rs`).
+    /// `None` for an archive row whose JSON can't be read, or whose
+    /// amounts are not numbers (read as 0 they would silently understate
+    /// a signed report); callers decide whether that is fatal (it never
+    /// happens for rows written by `commit` in `commands/signing.rs`).
     pub fn from_archive(event: &ArchivedEvent) -> Option<Self> {
-        let request = serde_json::from_str(&event.event_data_json).ok()?;
-        let response = match event.fdm_response_json.as_deref() {
+        let request: Value = serde_json::from_str(&event.event_data_json).ok()?;
+        let response: Value = match event.fdm_response_json.as_deref() {
             Some(json) => serde_json::from_str(json).ok()?,
             None => Value::Null,
         };
+        // A report (R) is a result of these totals, never an input: its
+        // `amount` keys hold arrays and are not read back.
+        let checked: &[(&str, &Value)] = if event.event_type == EventLabel::R {
+            &[]
+        } else {
+            &[("request", &request), ("response", &response)]
+        };
+        for &(what, doc) in checked {
+            if let Some(key) = malformed_amount(doc) {
+                tracing::error!(
+                    event_id = event.id,
+                    what,
+                    key,
+                    "report: archived amount is not a number, the row is refused"
+                );
+                return None;
+            }
+        }
         Some(Self {
             label: event.event_type,
             request,
@@ -1660,6 +1708,40 @@ mod tests {
         };
         let parsed = ReportEvent::from_archive(&ok).unwrap();
         assert!(parsed.response.is_null());
+    }
+
+    /// A malformed archived amount refuses the row instead of reading as
+    /// 0 and understating a signed Z; a missing amount is still 0.
+    #[test]
+    fn a_non_numeric_archived_amount_refuses_the_row() {
+        let row = |request: &str, response: Option<&str>| ArchivedEvent {
+            id: 1,
+            event_type: EventLabel::N,
+            sequence_number: 1,
+            order_id: None,
+            pos_id: "P".into(),
+            terminal_id: "T".into(),
+            user_insz: U1.into(),
+            event_data_json: request.into(),
+            fdm_response_json: response.map(Into::into),
+            fdm_id: None,
+            fdm_datetime: None,
+            event_label: None,
+            short_signature: None,
+            qr_data: None,
+        };
+        let line = |price: &str| {
+            format!(
+                r#"{{"transaction":{{"transactionTotal":1.5,"transactionLines":[{{"mainProduct":{{"vats":[{{"price":{price},"priceChanges":[{{"amount":-0.5}}]}}]}}}}]}}}}"#
+            )
+        };
+        assert!(ReportEvent::from_archive(&row(&line("1.5"), None)).is_some());
+        assert!(ReportEvent::from_archive(&row(&line("null"), None)).is_some());
+        assert!(ReportEvent::from_archive(&row(&line(r#""1.5""#), None)).is_none());
+        let bad_change = r#"{"transaction":{"transactionLines":[{"mainProduct":{"vats":[{"priceChanges":[{"amount":"x"}]}]}}]}}"#;
+        assert!(ReportEvent::from_archive(&row(bad_change, None)).is_none());
+        let bad_calc = r#"{"vatCalc":[{"label":"A","taxableAmount":"1"}]}"#;
+        assert!(ReportEvent::from_archive(&row("{}", Some(bad_calc))).is_none());
     }
 
     /// The UC223 sale (50 % ticket discount over a B and an A line),

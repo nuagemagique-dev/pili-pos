@@ -531,7 +531,7 @@ impl FdmClient {
     /// keeps the HTTPS setup from being built from its files.
     ///
     /// [`PosConfig::problems`]: pos_core::config::PosConfig::problems
-    pub fn config_problems(config: &pos_core::config::PosConfig) -> Vec<String> {
+    pub fn config_problems(config: &pos_core::config::PosConfig) -> Vec<pos_core::config::Problem> {
         let mut problems = config.problems();
         if config.fdm_url.starts_with("https://")
             && let Some(ca) = config.fdm_ca_file.as_deref()
@@ -541,7 +541,10 @@ impl FdmClient {
                 .as_deref()
                 .zip(config.fdm_client_key_file.as_deref());
             if let Err(e) = crate::fdm_tls::client_config(ca, client) {
-                problems.push(format!("FDM HTTPS: {e}"));
+                problems.push(pos_core::config::Problem::new(
+                    "fdm_files",
+                    format!("FDM HTTPS: {e}"),
+                ));
             }
         }
         problems

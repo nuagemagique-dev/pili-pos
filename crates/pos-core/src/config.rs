@@ -255,13 +255,14 @@ impl PosConfig {
         clippy::too_many_lines,
         reason = "one flat list of independent checks; splitting it would only scatter them"
     )]
-    pub fn problems(&self) -> Vec<String> {
+    pub fn problems(&self) -> Vec<Problem> {
         let mut out = Vec::new();
         if let Some(text) = &self.tables
             && let Err(e) = crate::table_plan::parse(text)
         {
-            out.push(format!(
-                "tables: ranges such as \"1-12, 20-25\" expected: {e}"
+            out.push(Problem::new(
+                "tables",
+                format!("tables: ranges such as \"1-12, 20-25\" expected: {e}"),
             ));
         }
         let pos_id_ok = self.pos_id.len() == 14
@@ -270,23 +271,29 @@ impl PosConfig {
                 .chars()
                 .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit());
         if !pos_id_ok {
-            out.push(format!(
-                "pos_id: 14 upper-case letters or digits expected, got {:?}",
-                self.pos_id
+            out.push(Problem::new(
+                "pos_id",
+                format!(
+                    "pos_id: 14 upper-case letters or digits expected, got {:?}",
+                    self.pos_id
+                ),
             ));
         }
         if !valid_vat_no(&self.restaurant_vat) {
-            out.push(format!(
+            out.push(Problem::new("restaurant_vat", format!(
                 "restaurant_vat: BE followed by 10 digits starting with 0 or 1, valid modulo 97 \
                  (e.g. BE0499999960), got {:?}",
                 self.restaurant_vat
-            ));
+            )));
         }
         if !valid_est_no(&self.restaurant_est_no) {
-            out.push(format!(
-                "restaurant_est_no: 10 digits starting with 2 to 8, valid modulo 97 \
+            out.push(Problem::new(
+                "restaurant_est_no",
+                format!(
+                    "restaurant_est_no: 10 digits starting with 2 to 8, valid modulo 97 \
                  (e.g. 8789456149), got {:?}",
-                self.restaurant_est_no
+                    self.restaurant_est_no
+                ),
             ));
         }
         for (key, value) in [
@@ -294,7 +301,10 @@ impl PosConfig {
             ("device_id", &self.device_id),
         ] {
             if value.trim().is_empty() || value.chars().count() > 600 {
-                out.push(format!("{key}: 1 to 600 characters expected"));
+                out.push(Problem::new(
+                    "identity",
+                    format!("{key}: 1 to 600 characters expected"),
+                ));
             }
         }
         for (key, value) in [
@@ -302,25 +312,31 @@ impl PosConfig {
             ("restaurant_address", &self.restaurant_address),
         ] {
             if value.trim().is_empty() {
-                out.push(format!("{key}: printed on every ticket, must not be empty"));
+                out.push(Problem::new(
+                    "ticket_header",
+                    format!("{key}: printed on every ticket, must not be empty"),
+                ));
             }
         }
         if !(self.fdm_url.starts_with("http://") || self.fdm_url.starts_with("https://")) {
-            out.push(format!(
-                "fdm_url: http(s) URL expected, got {:?}",
-                self.fdm_url
+            out.push(Problem::new(
+                "fdm_url",
+                format!("fdm_url: http(s) URL expected, got {:?}", self.fdm_url),
             ));
         }
         if !["fr", "nl", "de", "en", "zh"].contains(&self.language.as_str()) {
-            out.push(format!(
-                "language: one of fr, nl, de, en, zh expected, got {:?}",
-                self.language
+            out.push(Problem::new(
+                "language",
+                format!(
+                    "language: one of fr, nl, de, en, zh expected, got {:?}",
+                    self.language
+                ),
             ));
         }
         if let Some(path) = &self.fdm_token_file
             && let Err(e) = read_secret("fdm_token_file", path)
         {
-            out.push(e);
+            out.push(Problem::new("fdm_files", e));
         }
         for (key, path) in [
             ("fdm_ca_file", &self.fdm_ca_file),
@@ -330,19 +346,28 @@ impl PosConfig {
             if let Some(path) = path
                 && let Err(e) = std::fs::metadata(path)
             {
-                out.push(format!("{key}: cannot read {path:?}: {e}"));
+                out.push(Problem::new(
+                    "fdm_files",
+                    format!("{key}: cannot read {path:?}: {e}"),
+                ));
             }
         }
         if self.fdm_client_cert_file.is_some() != self.fdm_client_key_file.is_some() {
-            out.push("fdm_client_cert_file and fdm_client_key_file go together".into());
+            out.push(Problem::new(
+                "fdm_files",
+                "fdm_client_cert_file and fdm_client_key_file go together",
+            ));
         }
         if self.fdm_url.starts_with("https://") && self.fdm_ca_file.is_none() {
-            out.push("fdm_url is https: set fdm_ca_file to the FDM's CA".into());
+            out.push(Problem::new(
+                "fdm_files",
+                "fdm_url is https: set fdm_ca_file to the FDM's CA",
+            ));
         }
         if self.day_end_hour > 12 {
-            out.push(format!(
-                "day_end_hour: 0 to 12 expected, got {}",
-                self.day_end_hour
+            out.push(Problem::new(
+                "day_end_hour",
+                format!("day_end_hour: 0 to 12 expected, got {}", self.day_end_hour),
             ));
         }
         if let Some(h) = &self.hubrise {
@@ -350,12 +375,18 @@ impl PosConfig {
         }
         if let Some(d) = &self.digital_ticket {
             if d.project_id.trim().is_empty() {
-                out.push("digital_ticket.project_id: must not be empty".to_string());
+                out.push(Problem::new(
+                    "digital_ticket",
+                    "digital_ticket.project_id: must not be empty",
+                ));
             }
             if !d.from_email.contains('@') {
-                out.push(format!(
-                    "digital_ticket.from_email: an e-mail address expected, got {:?}",
-                    d.from_email
+                out.push(Problem::new(
+                    "digital_ticket",
+                    format!(
+                        "digital_ticket.from_email: an e-mail address expected, got {:?}",
+                        d.from_email
+                    ),
                 ));
             }
         }
@@ -375,42 +406,49 @@ impl PosConfig {
     }
 }
 
-/// The stable code of one text of [`PosConfig::problems`] (without the
-/// `config_` prefix the screens' texts carry): the setting it is about.
-/// The texts are English, for the installer; screens show a translated
-/// headline chosen by this code and keep the text as a detail. Every
-/// problem names its setting first (`key: ...`); an unknown one is
-/// `other`.
-pub fn problem_code(problem: &str) -> &'static str {
-    let key = problem.split([':', ' ']).next().unwrap_or_default();
-    match key {
-        "tables" => "tables",
-        "pos_id" => "pos_id",
-        "restaurant_vat" => "restaurant_vat",
-        "restaurant_est_no" => "restaurant_est_no",
-        "terminal_id" | "device_id" => "identity",
-        "restaurant_name" | "restaurant_address" => "ticket_header",
-        "fdm_url" if problem.starts_with("fdm_url is https") => "fdm_files",
-        "fdm_url" => "fdm_url",
-        "language" => "language",
-        "fdm_token_file"
-        | "fdm_ca_file"
-        | "fdm_client_cert_file"
-        | "fdm_client_key_file"
-        | "FDM" => "fdm_files",
-        "day_end_hour" => "day_end_hour",
-        "no" if problem.starts_with("no configuration") => "missing",
-        k if k.starts_with("hubrise.") => "hubrise",
-        k if k.starts_with("digital_ticket.") => "digital_ticket",
-        k if k.starts_with("export.") => "export",
-        k if k.starts_with("payment_terminal.") => "payment_terminal",
-        k if k.starts_with("peppol.") => "peppol",
-        k if k.starts_with("alerts.") => "alerts",
-        _ => "other",
+/// One thing wrong in `pos.json`: the setting it is about as a stable
+/// `code` (without the `config_` prefix the screens' texts carry) and an
+/// English `text` for the installer. Screens show a translated headline
+/// chosen by the code and keep the text as a detail.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Problem {
+    code: &'static str,
+    text: String,
+}
+
+impl Problem {
+    /// A problem with its code, one of [`PROBLEM_CODES`].
+    pub fn new(code: &'static str, text: impl Into<String>) -> Self {
+        debug_assert!(PROBLEM_CODES.contains(&code), "unknown problem code {code}");
+        Self {
+            code,
+            text: text.into(),
+        }
+    }
+
+    /// The setting this is about, one of [`PROBLEM_CODES`].
+    pub fn code(&self) -> &'static str {
+        self.code
+    }
+
+    /// The English text, for the installer.
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// Every text of `texts` as a problem of the setting group `code`.
+    fn all(code: &'static str, texts: Vec<String>) -> Vec<Problem> {
+        texts.into_iter().map(|t| Problem::new(code, t)).collect()
     }
 }
 
-/// Every code [`problem_code`] can return, for the translation check.
+impl std::fmt::Display for Problem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.text)
+    }
+}
+
+/// Every code a [`Problem`] can carry, for the translation check.
 pub const PROBLEM_CODES: &[&str] = &[
     "tables",
     "pos_id",
@@ -548,7 +586,11 @@ impl HubriseConfig {
         read_secret("hubrise.client_secret_file", path)
     }
 
-    fn problems(&self) -> Vec<String> {
+    fn problems(&self) -> Vec<Problem> {
+        Problem::all("hubrise", self.texts())
+    }
+
+    fn texts(&self) -> Vec<String> {
         let mut out = Vec::new();
         if self.client_id.trim().is_empty() {
             out.push("hubrise.client_id: must not be empty".to_string());
@@ -720,7 +762,11 @@ impl PaymentTerminalConfig {
 
     /// What would make the terminal unusable. Each message starts with
     /// `payment_terminal.<field>: `.
-    pub fn problems(&self) -> Vec<String> {
+    pub fn problems(&self) -> Vec<Problem> {
+        Problem::all("payment_terminal", self.texts())
+    }
+
+    fn texts(&self) -> Vec<String> {
         let mut out = Vec::new();
         let missing = |out: &mut Vec<String>, key: &str, v: &Option<String>| {
             if v.as_deref().is_none_or(|s| s.trim().is_empty()) {
@@ -840,7 +886,11 @@ impl PeppolConfig {
     ///
     /// The `logging` provider sends nothing, so a release build refuses it:
     /// it would show every B2B invoice as delivered (V11-D12).
-    pub fn problems(&self) -> Vec<String> {
+    pub fn problems(&self) -> Vec<Problem> {
+        Problem::all("peppol", self.texts())
+    }
+
+    fn texts(&self) -> Vec<String> {
         self.problems_with(if cfg!(debug_assertions) {
             LoggingProvider::Allowed
         } else {
@@ -955,7 +1005,11 @@ impl AlertsConfig {
 
     /// What would make the alert transport unusable. Each message starts
     /// with `alerts.<field>: `.
-    pub fn problems(&self) -> Vec<String> {
+    pub fn problems(&self) -> Vec<Problem> {
+        Problem::all("alerts", self.texts())
+    }
+
+    fn texts(&self) -> Vec<String> {
         let mut out = Vec::new();
         if let Err(e) = self.bot_token() {
             out.push(e);
@@ -1026,7 +1080,11 @@ fn endpoint_problem(field: &str, url: &str) -> Option<String> {
 impl ExportConfig {
     /// What would make the export unusable. Each message starts with
     /// `export.<field>: `.
-    pub fn problems(&self) -> Vec<String> {
+    pub fn problems(&self) -> Vec<Problem> {
+        Problem::all("export", self.texts())
+    }
+
+    fn texts(&self) -> Vec<String> {
         let mut out = Vec::new();
         if let Some(p) = endpoint_problem("export.url", &self.url) {
             out.push(p);
@@ -1177,7 +1235,7 @@ mod tests {
 
     #[test]
     fn a_complete_identity_has_no_problem() {
-        assert_eq!(valid().problems(), Vec::<String>::new());
+        assert_eq!(valid().problems(), Vec::<Problem>::new());
         // The SPF test setup's identity is valid too.
         let spf = PosConfig {
             restaurant_vat: "BE0000000097".into(),
@@ -1188,70 +1246,46 @@ mod tests {
     }
 
     #[test]
-    fn every_problem_text_has_a_known_code() {
-        for (text, code) in [
-            ("tables: ranges such as \"1-12\" expected: x", "tables"),
-            ("pos_id: 14 upper-case letters", "pos_id"),
-            ("restaurant_vat: BE followed by 10 digits", "restaurant_vat"),
-            ("restaurant_est_no: 10 digits", "restaurant_est_no"),
-            ("terminal_id: 1 to 600 characters expected", "identity"),
-            ("device_id: 1 to 600 characters expected", "identity"),
-            ("restaurant_name: printed on every ticket", "ticket_header"),
-            (
-                "restaurant_address: printed on every ticket",
-                "ticket_header",
-            ),
-            ("fdm_url: http(s) URL expected", "fdm_url"),
-            (
-                "fdm_url is https: set fdm_ca_file to the FDM's CA",
-                "fdm_files",
-            ),
-            ("language: one of fr", "language"),
-            ("fdm_token_file: \"x\" is empty", "fdm_files"),
-            ("fdm_ca_file: cannot read", "fdm_files"),
-            (
-                "fdm_client_cert_file and fdm_client_key_file go together",
-                "fdm_files",
-            ),
-            ("FDM HTTPS: bad CA", "fdm_files"),
-            ("day_end_hour: 0 to 12 expected", "day_end_hour"),
-            ("hubrise.client_id: must not be empty", "hubrise"),
-            (
-                "digital_ticket.project_id: must not be empty",
-                "digital_ticket",
-            ),
-            ("export.keep_days: 1 to 365", "export"),
-            ("alerts.telegram_bot_token_file: cannot read", "alerts"),
-            (
-                "payment_terminal.address: host:port expected",
-                "payment_terminal",
-            ),
-            ("no configuration: the development identity", "missing"),
-            ("expected value at line 1", "other"),
-        ] {
-            assert_eq!(problem_code(text), code, "{text}");
-            assert!(PROBLEM_CODES.contains(&code), "{code}");
-        }
-    }
-
-    #[test]
-    fn the_problems_of_a_very_bad_config_all_have_a_code() {
+    fn every_problem_carries_the_code_of_its_setting() {
         let bad = PosConfig {
             pos_id: "x".into(),
             restaurant_vat: "x".into(),
             restaurant_est_no: "x".into(),
             terminal_id: String::new(),
             restaurant_name: String::new(),
-            fdm_url: "ftp://x".into(),
+            fdm_url: "https://x".into(),
             language: "xx".into(),
             day_end_hour: 20,
+            tables: Some("nope".into()),
             ..valid()
         };
         let problems = bad.problems();
-        assert!(problems.len() >= 8, "{problems:?}");
-        for p in &problems {
-            assert_ne!(problem_code(p), "other", "{p}");
+        let codes: Vec<&str> = problems.iter().map(Problem::code).collect();
+        for expected in [
+            "tables",
+            "pos_id",
+            "restaurant_vat",
+            "restaurant_est_no",
+            "identity",
+            "ticket_header",
+            "fdm_files",
+            "language",
+            "day_end_hour",
+        ] {
+            assert!(codes.contains(&expected), "{expected} in {codes:?}");
         }
+        for p in &problems {
+            assert!(PROBLEM_CODES.contains(&p.code()), "{p}");
+            assert_ne!(p.code(), "other", "{p}");
+            assert_eq!(p.to_string(), p.text());
+        }
+        // The text still names its setting first.
+        let vat = problems.iter().find(|p| p.code() == "restaurant_vat");
+        assert!(
+            vat.unwrap()
+                .text()
+                .starts_with("restaurant_vat: BE followed by")
+        );
     }
 
     /// The key a problem must name, and the typo that causes it.
@@ -1311,7 +1345,7 @@ mod tests {
             broken(&mut c);
             let problems = c.problems();
             assert_eq!(problems.len(), 1, "{key}: {problems:?}");
-            assert!(problems[0].starts_with(key), "{key}: {problems:?}");
+            assert!(problems[0].text().starts_with(key), "{key}: {problems:?}");
         }
     }
 
@@ -1519,11 +1553,11 @@ mod tests {
 
         let missing = config(&secret).problems();
         assert_eq!(missing.len(), 1, "{missing:?}");
-        assert!(missing[0].starts_with("hubrise.client_secret_file"));
+        assert!(missing[0].text().starts_with("hubrise.client_secret_file"));
 
         std::fs::write(&secret, "  \n").unwrap();
         let empty = config(&secret).problems();
-        assert!(empty[0].contains("is empty"), "{empty:?}");
+        assert!(empty[0].text().contains("is empty"), "{empty:?}");
 
         std::fs::write(&secret, "s3cret\n").unwrap();
         let ok = config(&secret);
@@ -1537,7 +1571,7 @@ mod tests {
         let problems = bad.problems();
         assert_eq!(problems.len(), 2, "{problems:?}");
         // A problem never shows the secret.
-        assert!(problems.iter().all(|p| !p.contains("s3cret")));
+        assert!(problems.iter().all(|p| !p.text().contains("s3cret")));
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -1565,7 +1599,7 @@ mod tests {
         }
     }
 
-    fn export_problems(e: ExportConfig) -> Vec<String> {
+    fn export_problems(e: ExportConfig) -> Vec<Problem> {
         PosConfig {
             export: Some(e),
             ..valid()
@@ -1575,18 +1609,18 @@ mod tests {
 
     #[test]
     fn a_valid_export_section_has_no_problem() {
-        assert_eq!(export_problems(export_cfg()), Vec::<String>::new());
+        assert_eq!(export_problems(export_cfg()), Vec::<Problem>::new());
         let mut e = export_cfg();
         e.producer_recipient = Some(RECIPIENT.into());
         e.keep_days = 365;
-        assert_eq!(export_problems(e), Vec::<String>::new());
+        assert_eq!(export_problems(e), Vec::<Problem>::new());
     }
 
     #[test]
     fn an_absent_export_section_is_off_and_no_problem() {
         let c = valid();
         assert!(c.export.is_none());
-        assert_eq!(c.problems(), Vec::<String>::new());
+        assert_eq!(c.problems(), Vec::<Problem>::new());
         let json = r#"{"pos_id":"CFOD0061234567","terminal_id":"POS1","device_id":"d",
             "restaurant_name":"R","restaurant_address":"A","restaurant_vat":"BE0499999960",
             "restaurant_est_no":"8789456149","fdm_url":"http://h/graphql"}"#;
@@ -1631,7 +1665,7 @@ mod tests {
             e.url = bad.into();
             let p = export_problems(e);
             assert_eq!(p.len(), 1, "{bad} must be rejected: {p:?}");
-            assert!(p[0].starts_with("export.url: "), "{p:?}");
+            assert!(p[0].text().starts_with("export.url: "), "{p:?}");
         }
     }
 
@@ -1641,7 +1675,7 @@ mod tests {
         e.token_file = "  ".into();
         let p = export_problems(e);
         assert_eq!(p.len(), 1);
-        assert!(p[0].starts_with("export.token_file: "));
+        assert!(p[0].text().starts_with("export.token_file: "));
     }
 
     #[test]
@@ -1665,13 +1699,13 @@ mod tests {
             e.owner_recipient = bad.into();
             let p = export_problems(e);
             assert_eq!(p.len(), 1, "owner {bad:?}: {p:?}");
-            assert!(p[0].starts_with("export.owner_recipient: "));
+            assert!(p[0].text().starts_with("export.owner_recipient: "));
 
             let mut e = export_cfg();
             e.producer_recipient = Some(bad.into());
             let p = export_problems(e);
             assert_eq!(p.len(), 1, "producer {bad:?}: {p:?}");
-            assert!(p[0].starts_with("export.producer_recipient: "));
+            assert!(p[0].text().starts_with("export.producer_recipient: "));
         }
     }
 
@@ -1683,7 +1717,7 @@ mod tests {
             let p = export_problems(e);
             assert_eq!(p.is_empty(), ok, "keep_days {days}: {p:?}");
             if !ok {
-                assert!(p[0].starts_with("export.keep_days: "));
+                assert!(p[0].text().starts_with("export.keep_days: "));
             }
         }
     }
@@ -1802,7 +1836,7 @@ mod tests {
             "peppol.provider",
         ] {
             assert!(
-                problems.iter().any(|t| t.starts_with(key)),
+                problems.iter().any(|t| t.text().starts_with(key)),
                 "{key}: {problems:?}"
             );
         }
@@ -1812,7 +1846,7 @@ mod tests {
         assert!(
             p.problems()
                 .iter()
-                .any(|t| t.starts_with("peppol.sender_id"))
+                .any(|t| t.text().starts_with("peppol.sender_id"))
         );
     }
 
@@ -1827,7 +1861,7 @@ mod tests {
             "peppol.legal_entity_id",
         ] {
             assert!(
-                problems.iter().any(|t| t.starts_with(key)),
+                problems.iter().any(|t| t.text().starts_with(key)),
                 "{key}: {problems:?}"
             );
         }
@@ -1841,9 +1875,13 @@ mod tests {
         assert!(p.problems().is_empty(), "{:?}", p.problems());
         assert_eq!(p.api_key().unwrap().as_deref(), Some("secret"));
         std::fs::write(&key_file, "\n").unwrap();
-        assert!(p.problems().iter().any(|t| t.contains("is empty")));
+        assert!(p.problems().iter().any(|t| t.text().contains("is empty")));
         p.api_key_file = Some(dir.join("missing").to_string_lossy().into_owned());
-        assert!(p.problems().iter().any(|t| t.contains("cannot read")));
+        assert!(
+            p.problems()
+                .iter()
+                .any(|t| t.text().contains("cannot read"))
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -1858,8 +1896,6 @@ mod tests {
             c.peppol.as_ref().unwrap().api_key_file.as_deref(),
             Some("/bundle/peppol.key")
         );
-        assert_eq!(problem_code("peppol.sender_id: x"), "peppol");
-        assert!(PROBLEM_CODES.contains(&"peppol"));
     }
 
     #[test]
@@ -1893,21 +1929,29 @@ mod tests {
             telegram_bot_token_file: Some(good.to_string_lossy().into_owned()),
             telegram_api_base: None,
         };
-        assert_eq!(a.problems(), Vec::<String>::new());
+        assert_eq!(a.problems(), Vec::<Problem>::new());
         assert_eq!(a.bot_token().unwrap().as_deref(), Some("123:SECRET"));
         assert_eq!(a.api_base(), "https://api.telegram.org");
 
         a.telegram_bot_token_file = Some(empty.to_string_lossy().into_owned());
-        assert!(a.problems()[0].starts_with("alerts.telegram_bot_token_file: "));
+        assert!(
+            a.problems()[0]
+                .text()
+                .starts_with("alerts.telegram_bot_token_file: ")
+        );
         a.telegram_bot_token_file = Some(dir.join("absent").to_string_lossy().into_owned());
-        assert!(a.problems()[0].contains("cannot read"));
+        assert!(a.problems()[0].text().contains("cannot read"));
         a.telegram_bot_token_file = None;
         assert_eq!(a.bot_token().unwrap(), None);
 
         a.telegram_api_base = Some("http://example.com/".into());
-        assert!(a.problems()[0].starts_with("alerts.telegram_api_base: plain http"));
+        assert!(
+            a.problems()[0]
+                .text()
+                .starts_with("alerts.telegram_api_base: plain http")
+        );
         a.telegram_api_base = Some("http://127.0.0.1:8080/".into());
-        assert_eq!(a.problems(), Vec::<String>::new());
+        assert_eq!(a.problems(), Vec::<Problem>::new());
         assert_eq!(a.api_base(), "http://127.0.0.1:8080");
 
         let mut c = valid();
@@ -1917,7 +1961,7 @@ mod tests {
         });
         let problems = c.problems();
         assert_eq!(problems.len(), 1);
-        assert_eq!(problem_code(&problems[0]), "alerts");
+        assert_eq!(problems[0].code(), "alerts");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }
