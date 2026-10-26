@@ -80,7 +80,9 @@ fn verify_manifest(dir: &Path, manifest: &Path) -> Result<()> {
                 "unreadable line: {line}"
             )));
         };
+        // `sha256sum ./pos.db` prints the name with its `./`.
         let name = name.trim_start_matches('*');
+        let name = name.strip_prefix("./").unwrap_or(name);
         if name == "pos.db" {
             covers_db = true;
         }

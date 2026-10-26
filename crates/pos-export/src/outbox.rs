@@ -341,14 +341,20 @@ fn prepare_all(env: &ExportEnv<'_>, now: DateTime<Utc>) -> Result<Vec<String>, S
         Cursor::Corrupt => {
             // Jumping to the latest Z would silently skip every Z in between. Resume
             // after the newest export already prepared instead, and tell the operator.
-            let message =
-                format!("{CURSOR_FILE} is unreadable: resuming after the newest prepared export");
-            tracing::warn!("export: {message}");
-            record_error(env.exports_dir, &message, now);
             let newest = list_exports(env.exports_dir)?
                 .iter()
                 .filter_map(|id| z_number_of(id))
                 .max();
+            let message = if newest.is_some() {
+                format!("{CURSOR_FILE} is unreadable: resuming after the newest prepared export")
+            } else {
+                format!(
+                    "{CURSOR_FILE} is unreadable and no export is prepared: \
+                     starting at the latest Z, older Z reports are not exported"
+                )
+            };
+            tracing::warn!("export: {message}");
+            record_error(env.exports_dir, &message, now);
             match newest {
                 Some(no) => {
                     write_cursor(env.exports_dir, no)?;

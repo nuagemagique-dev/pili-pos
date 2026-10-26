@@ -581,6 +581,20 @@ fn a_manifest_must_cover_pos_db_and_may_use_the_binary_form() {
     std::fs::write(spf.join("MANIFEST.sha256"), binary).unwrap();
     let summary = run(&spf, &root.path().join("o3"), month("2026-10")).unwrap();
     assert!(read(&summary.folder, "LISEZMOI.txt").contains("MANIFEST.sha256 : oui"));
+
+    // `sha256sum ./pos.db` prints the name with its `./`.
+    let dotted = format!("{}  ./pos.db\n", sha256_of(&spf.join("pos.db")));
+    std::fs::write(spf.join("MANIFEST.sha256"), dotted).unwrap();
+    let summary = run(&spf, &root.path().join("o4"), month("2026-10")).unwrap();
+    assert!(read(&summary.folder, "LISEZMOI.txt").contains("MANIFEST.sha256 : oui"));
+
+    // A different file that merely ends in pos.db does not cover it.
+    let other = format!("{}  sub/pos.db\n", sha256_of(&spf.join("pos.db")));
+    std::fs::create_dir(spf.join("sub")).unwrap();
+    std::fs::copy(spf.join("pos.db"), spf.join("sub/pos.db")).unwrap();
+    std::fs::write(spf.join("MANIFEST.sha256"), other).unwrap();
+    let err = run(&spf, &root.path().join("o5"), month("2026-10")).unwrap_err();
+    assert_eq!(err.code(), "manifest_mismatch");
 }
 
 #[test]

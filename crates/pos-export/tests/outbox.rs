@@ -248,6 +248,23 @@ fn a_corrupt_cursor_resumes_after_the_newest_export_and_is_reported() {
 }
 
 #[test]
+fn a_corrupt_cursor_with_nothing_prepared_says_older_zs_are_skipped() {
+    let rig = Rig::new(30);
+    std::fs::create_dir_all(&rig.exports).unwrap();
+    std::fs::write(rig.exports.join("cursor.json"), "{ not json").unwrap();
+    rig.prepare(now()).unwrap();
+    let status = rig.status();
+    assert!(
+        status
+            .last_error
+            .as_deref()
+            .is_some_and(|e| e.contains("older Z reports are not exported")),
+        "{:?}",
+        status.last_error
+    );
+}
+
+#[test]
 fn a_z_older_than_keep_days_is_skipped_and_the_cursor_moves_past_it() {
     // One day kept: at 2026-10-05 01:00 UTC the oldest booking date is 2026-10-04.
     let rig = Rig::new(1);
