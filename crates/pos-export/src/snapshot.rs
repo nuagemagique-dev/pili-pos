@@ -32,7 +32,12 @@ pub fn snapshot(db_path: &Path, dest: &Path) -> Result<i64, String> {
         match std::fs::remove_file(&name) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(format!("snapshot: cannot clear {name:?}: {e}")),
+            Err(e) => {
+                return Err(format!(
+                    "snapshot: cannot clear {}: {e}",
+                    Path::new(&name).display()
+                ));
+            }
         }
     }
     let result = copy_and_check(&src, dest);
@@ -48,26 +53,26 @@ pub fn snapshot(db_path: &Path, dest: &Path) -> Result<i64, String> {
 }
 
 fn copy_and_check(src: &Connection, dest: &Path) -> Result<(), String> {
-    let mut dst = Connection::open(dest)
+    let mut copy = Connection::open(dest)
         .map_err(|e| format!("snapshot: cannot create {}: {e}", dest.display()))?;
     {
-        let backup = Backup::new(src, &mut dst).map_err(|e| format!("snapshot: backup: {e}"))?;
+        let backup = Backup::new(src, &mut copy).map_err(|e| format!("snapshot: backup: {e}"))?;
         backup
             .run_to_completion(PAGES_PER_STEP, PAUSE, None)
             .map_err(|e| format!("snapshot: copy: {e}"))?;
     }
     // The copy carries the WAL flag of the source: make it a plain file.
-    dst.query_row("PRAGMA journal_mode = DELETE", [], |r| {
+    copy.query_row("PRAGMA journal_mode = DELETE", [], |r| {
         r.get::<_, String>(0)
     })
     .map_err(|e| format!("snapshot: journal mode: {e}"))?;
-    let verdict: String = dst
+    let verdict: String = copy
         .query_row("PRAGMA integrity_check", [], |r| r.get(0))
         .map_err(|e| format!("snapshot: integrity check: {e}"))?;
     if verdict != "ok" {
         return Err(format!("snapshot: integrity check failed: {verdict}"));
     }
-    dst.close()
+    copy.close()
         .map_err(|(_, e)| format!("snapshot: close: {e}"))?;
     Ok(())
 }
@@ -135,7 +140,10 @@ mod tests {
         writer.join().unwrap();
 
         assert!(size > 0);
-        assert_eq!(size, std::fs::metadata(&copy).unwrap().len() as i64);
+        assert_eq!(
+            size,
+            i64::try_from(std::fs::metadata(&copy).unwrap().len()).unwrap()
+        );
         let c = Connection::open_with_flags(&copy, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
         let n = count(&c);
         assert!(

@@ -313,7 +313,7 @@ pub fn clean_tmp(exports_dir: &Path) -> Result<(), String> {
 /// date is older than `now - keep_days` is skipped and the cursor moves past
 /// it. A failure leaves nothing partial, records `prepare failed: <reason>` in
 /// `status.json`, keeps the cursor and returns the error.
-pub fn prepare_due(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, String> {
+pub fn prepare_due(env: &ExportEnv<'_>, now: DateTime<Utc>) -> Result<Vec<String>, String> {
     match prepare_all(env, now) {
         Ok(ids) => Ok(ids),
         Err(e) => {
@@ -325,7 +325,7 @@ pub fn prepare_due(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, S
     }
 }
 
-fn prepare_all(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, String> {
+fn prepare_all(env: &ExportEnv<'_>, now: DateTime<Utc>) -> Result<Vec<String>, String> {
     std::fs::create_dir_all(env.exports_dir)
         .map_err(|e| format!("cannot create {}: {e}", env.exports_dir.display()))?;
     clean_tmp(env.exports_dir)?;
@@ -388,14 +388,14 @@ fn prepare_all(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, Strin
 }
 
 /// First start: the cursor goes just before the latest Z, so only that Z is exported.
-fn start_cursor(env: &ExportEnv, conn: &Connection) -> Result<i64, String> {
+fn start_cursor(env: &ExportEnv<'_>, conn: &Connection) -> Result<i64, String> {
     let first = zref::latest_real_z(conn)?.map_or(0, |z| (z.z_report_no - 1).max(0));
     write_cursor(env.exports_dir, first)?;
     Ok(first)
 }
 
 /// Build `.tmp/<id>` and move it to `<id>`; remove `.tmp/<id>` on any failure.
-fn build_export(env: &ExportEnv, z: &ZRef, id: &str, now: DateTime<Utc>) -> Result<(), String> {
+fn build_export(env: &ExportEnv<'_>, z: &ZRef, id: &str, now: DateTime<Utc>) -> Result<(), String> {
     let work = env.exports_dir.join(TMP_DIR).join(id);
     let result = build_in(env, z, id, now, &work).and_then(|()| {
         let dest = env.exports_dir.join(id);
@@ -411,7 +411,7 @@ fn build_export(env: &ExportEnv, z: &ZRef, id: &str, now: DateTime<Utc>) -> Resu
 }
 
 fn build_in(
-    env: &ExportEnv,
+    env: &ExportEnv<'_>,
     z: &ZRef,
     id: &str,
     now: DateTime<Utc>,
@@ -503,7 +503,7 @@ fn remove_plaintext(plain: &Path) -> Result<(), String> {
         match std::fs::remove_file(&name) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(format!("cannot remove {name:?}: {e}")),
+            Err(e) => return Err(format!("cannot remove {}: {e}", Path::new(&name).display())),
         }
     }
     Ok(())
@@ -693,7 +693,7 @@ async fn upload_export(
 // ── Retry, retention, status ───────────────────────────────────────
 
 /// Make every incomplete export due now; return their number.
-pub fn retry_now(env: &ExportEnv, now: DateTime<Utc>) -> Result<i64, String> {
+pub fn retry_now(env: &ExportEnv<'_>, now: DateTime<Utc>) -> Result<i64, String> {
     let mut count = 0;
     for id in list_exports(env.exports_dir)? {
         let Some(mut state) = load_state(env.exports_dir, &id) else {
@@ -712,7 +712,7 @@ pub fn retry_now(env: &ExportEnv, now: DateTime<Utc>) -> Result<i64, String> {
 /// Delete every export created before `now - keep_days`, sent or not; return
 /// the number deleted. Each unsent one is counted in `dropped` and logged.
 /// Only export directories of `exports_dir` are touched.
-pub fn retention(env: &ExportEnv, now: DateTime<Utc>) -> Result<i64, String> {
+pub fn retention(env: &ExportEnv<'_>, now: DateTime<Utc>) -> Result<i64, String> {
     let limit = now - Duration::days(env.settings.keep_days);
     let mut deleted = 0;
     let mut dropped = 0;

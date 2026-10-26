@@ -21,6 +21,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use pos_core::money::{round_to_i64, to_f64};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::Value;
 
@@ -221,7 +222,12 @@ fn clear(path: &Path) -> Result<(), String> {
         match std::fs::remove_file(&name) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(format!("stats: cannot clear {name:?}: {e}")),
+            Err(e) => {
+                return Err(format!(
+                    "stats: cannot clear {}: {e}",
+                    Path::new(&name).display()
+                ));
+            }
         }
     }
     Ok(())
@@ -294,6 +300,9 @@ fn standard_rate(label: &str) -> f64 {
     }
 }
 
+/// A row of `orders`: type, source, `HubRise` order id, service type, table.
+type OrderRow = (String, String, Option<String>, Option<String>, Option<i64>);
+
 struct Line {
     code: Option<String>,
     name: String,
@@ -315,7 +324,7 @@ struct Vat {
     label: String,
     rate_bp: i64,
     base: i64,
-    vat: i64,
+    tax: i64,
     total: i64,
 }
 
@@ -328,7 +337,7 @@ struct Payment {
 struct Ticket {
     id: i64,
     event_label: String,
-    ticket_no: i64,
+    fiscal_no: i64,
     refund: bool,
     channel: &'static str,
     table: Option<i64>,
@@ -420,7 +429,6 @@ impl Reader<'_> {
                 })
                 .flatten()
         };
-        type OrderRow = (String, String, Option<String>, Option<String>, Option<i64>);
         let order: Option<OrderRow> = match order_id {
             Some(id) => sql(
                 self.src
@@ -483,6 +491,10 @@ impl Reader<'_> {
             .transpose()
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one pass over the lines, price changes, VAT and payments of a ticket; split helpers would share a dozen locals"
+    )]
     fn ticket(&mut self, event: &pos_fiscal::archive::ArchivedEvent) -> Result<Ticket, String> {
         let id = event.id;
         let request = parse_json(id, &event.event_data_json)?;
@@ -499,16 +511,13 @@ impl Reader<'_> {
         let mut discounts = Vec::new();
         // Ticket-wide price changes, one row per change: (grouping id, change id) to (kind, cents).
         let mut ticket_wide: BTreeMap<(i64, String), (&'static str, i64)> = BTreeMap::new();
-        for (index, line) in transaction["transactionLines"]
-            .as_array()
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-            .iter()
-            .enumerate()
-        {
-            let line_no = index as i64 + 1;
+        for (line_no, line) in (1_i64..).zip(
+            transaction["transactionLines"]
+                .as_array()
+                .map_or(&[][..], Vec::as_slice),
+        ) {
             let product = &line["mainProduct"];
-            let vats = product["vats"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+            let vats = product["vats"].as_array().map_or(&[][..], Vec::as_slice);
             let mut price = 0;
             let mut discount = 0;
             for vat in vats {
@@ -582,7 +591,7 @@ impl Reader<'_> {
         Ok(Ticket {
             id: event.id,
             event_label: event.event_label.clone().unwrap_or_else(|| "N".into()),
-            ticket_no: integer(id, &request["posFiscalTicketNo"], "posFiscalTicketNo")?,
+            fiscal_no: integer(id, &request["posFiscalTicketNo"], "posFiscalTicketNo")?,
             refund,
             channel,
             table: if channel == "table" { table } else { None },
@@ -614,11 +623,11 @@ fn vat_rows(event_id: i64, response: &Value, lines: &[Line]) -> Result<Vec<Vat>,
                 label,
                 rate_bp: rate_bp(event_id, &item["rate"], "a vatCalc rate")?,
                 base: 0,
-                vat: 0,
+                tax: 0,
                 total: 0,
             });
             row.base += cents(event_id, &item["taxableAmount"], "a vatCalc taxableAmount")?;
-            row.vat += cents(event_id, &item["vatAmount"], "a vatCalc vatAmount")?;
+            row.tax += cents(event_id, &item["vatAmount"], "a vatCalc vatAmount")?;
             row.total += cents(event_id, &item["totalAmount"], "a vatCalc totalAmount")?;
         }
     } else {
@@ -626,17 +635,17 @@ fn vat_rows(event_id: i64, response: &Value, lines: &[Line]) -> Result<Vec<Vat>,
             let rate = standard_rate(&line.label);
             let row = rows.entry(line.label.clone()).or_insert(Vat {
                 label: line.label.clone(),
-                rate_bp: (rate * 100.0).round() as i64,
+                rate_bp: round_to_i64(rate * 100.0),
                 base: 0,
-                vat: 0,
+                tax: 0,
                 total: 0,
             });
             row.total += line.amount;
         }
         for row in rows.values_mut() {
-            let rate = row.rate_bp as f64 / 100.0;
-            row.base = (row.total as f64 / (1.0 + rate / 100.0)).round() as i64;
-            row.vat = row.total - row.base;
+            let rate = to_f64(row.rate_bp) / 100.0;
+            row.base = round_to_i64(to_f64(row.total) / (1.0 + rate / 100.0));
+            row.tax = row.total - row.base;
         }
     }
     Ok(rows.into_values().collect())
@@ -644,6 +653,10 @@ fn vat_rows(event_id: i64, response: &Value, lines: &[Line]) -> Result<Vec<Vat>,
 
 // ── Writing the file ───────────────────────────────────────────────
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "writes every table of the statistics file in order inside one transaction; a split would only pass the transaction around"
+)]
 fn write_file(
     source: &Connection,
     z: &ZRef,
@@ -777,7 +790,7 @@ fn write_file(
                 params![
                     t.id,
                     t.event_label,
-                    t.ticket_no,
+                    t.fiscal_no,
                     if t.refund { "refund" } else { "sale" },
                     t.channel,
                     t.table,
@@ -790,7 +803,7 @@ fn write_file(
             "write a ticket",
         )?;
         // The rate of a line comes from the ticket's VAT calculation.
-        for (index, l) in t.lines.iter().enumerate() {
+        for (line_no, l) in (1_i64..).zip(&t.lines) {
             let rate = t
                 .vats
                 .iter()
@@ -804,7 +817,7 @@ fn write_file(
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                     params![
                         t.id,
-                        index as i64 + 1,
+                        line_no,
                         l.code,
                         l.name,
                         l.department,
@@ -825,17 +838,17 @@ fn write_file(
                 tx.execute(
                     "INSERT INTO ticket_vat (ticket_id, vat_label, vat_rate_bp, base_cents, vat_cents, total_cents)
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                    params![t.id, v.label, v.rate_bp, v.base, v.vat, v.total],
+                    params![t.id, v.label, v.rate_bp, v.base, v.tax, v.total],
                 ),
                 "write the VAT of a ticket",
             )?;
         }
-        for (index, p) in t.payments.iter().enumerate() {
+        for (line_no, p) in (1_i64..).zip(&t.payments) {
             sql(
                 tx.execute(
                     "INSERT INTO ticket_payments (ticket_id, line_no, method, kind, amount_cents)
                      VALUES (?1, ?2, ?3, ?4, ?5)",
-                    params![t.id, index as i64 + 1, p.method, p.kind, p.amount],
+                    params![t.id, line_no, p.method, p.kind, p.amount],
                 ),
                 "write a payment",
             )?;
@@ -956,5 +969,5 @@ fn write_file(
     sql(tx.commit(), "commit")?;
     conn.close()
         .map_err(|(_, e)| format!("stats: close: {e}"))?;
-    Ok((tickets.len() as i64, line_count))
+    Ok((i64::try_from(tickets.len()).unwrap_or(i64::MAX), line_count))
 }

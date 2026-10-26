@@ -1,5 +1,11 @@
 //! `pili-accounting`: accountant export from a copy of the till's `pos.db`.
 
+#![expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a command line tool: its output on stdout and stderr is its user interface"
+)]
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 

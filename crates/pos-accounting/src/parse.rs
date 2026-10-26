@@ -538,6 +538,10 @@ mod tests {
             {"label": label, "price": price, "priceChanges": []}]}})
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "test helper called with inline json! literals"
+    )]
     fn sale_request(lines: Vec<Value>, financials: Value) -> Value {
         json!({
             "posFiscalTicketNo": 12, "posDateTime": "2026-10-01T12:00:00+02:00",

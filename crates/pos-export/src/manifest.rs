@@ -80,7 +80,7 @@ fn hash_and_size(path: &Path) -> Result<(String, i64), String> {
             break;
         }
         hasher.update(&buf[..n]);
-        total += n as i64;
+        total += i64::try_from(n).unwrap_or(i64::MAX);
     }
     Ok((hex::encode(hasher.finalize()), total))
 }
@@ -221,7 +221,7 @@ mod tests {
         let back = Manifest::read(&path).unwrap();
         assert_eq!(back.files[0].name, "a.db.age");
         assert_eq!(back.files[1].name, "b.sqlite");
-        let mut sorted = m.clone();
+        let mut sorted = m;
         sorted.files.sort_by(|a, b| a.name.cmp(&b.name));
         assert_eq!(back, sorted);
     }

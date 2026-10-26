@@ -148,13 +148,14 @@ fn read_checked(path: &Path) -> Result<Vec<u8>, UploadError> {
     let size = std::fs::metadata(path)
         .map_err(|e| UploadError::Io(e.to_string()))?
         .len();
-    if size > MAX_UPLOAD_BYTES as u64 {
+    if clamp_i64(size) > MAX_UPLOAD_BYTES {
         return Err(UploadError::TooLarge(clamp_i64(size)));
     }
     let body = std::fs::read(path).map_err(|e| UploadError::Io(e.to_string()))?;
     // The file may have grown between the size check and the read.
-    if body.len() as u64 > MAX_UPLOAD_BYTES as u64 {
-        return Err(UploadError::TooLarge(clamp_i64(body.len() as u64)));
+    let grown = i64::try_from(body.len()).unwrap_or(i64::MAX);
+    if grown > MAX_UPLOAD_BYTES {
+        return Err(UploadError::TooLarge(grown));
     }
     Ok(body)
 }

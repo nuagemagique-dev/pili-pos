@@ -78,7 +78,7 @@ mod tests {
             .as_object()
             .unwrap()
             .keys()
-            .map(|k| k.as_str())
+            .map(String::as_str)
             .collect();
         keys.sort_unstable();
         let mut expected = vec![
