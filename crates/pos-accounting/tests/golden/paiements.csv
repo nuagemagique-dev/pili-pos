@@ -1,7 +1,7 @@
 ﻿date;rapport_z;moyen;paiements;paiements_centimes;arrondis;arrondis_centimes;pourboires;pourboires_centimes;total;total_centimes
 2026-10-01;1;especes;18,03;1803;0,02;2;0,00;0;18,05;1805
 2026-10-01;1;carte;61,20;6120;0,00;0;0,00;0;61,20;6120
-2026-10-01;1;titres_repas;10,60;1060;0,00;0;0,00;0;10,60;1060
+2026-10-01;1;cheques_repas;10,60;1060;0,00;0;0,00;0;10,60;1060
 2026-10-01;1;bon_cadeau;20,00;2000;0,00;0;0,00;0;20,00;2000
 2026-10-01;1;en_ligne;20,00;2000;0,00;0;0,00;0;20,00;2000
 2026-10-02;2;especes;24,20;2420;0,00;0;0,00;0;24,20;2420

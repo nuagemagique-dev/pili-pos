@@ -416,7 +416,7 @@ async fn a_mixed_day_reconciles_and_leaves_out_what_is_not_a_signed_sale() {
     let pay = rows(f, "paiements.csv");
     let line = |m: &str| pay.iter().find(|r| r[2] == m).cloned();
     assert_eq!(line("carte").unwrap()[3], "52,00");
-    assert_eq!(line("titres_repas").unwrap()[3], "5,00");
+    assert_eq!(line("cheques_repas").unwrap()[3], "5,00");
     // Cash: 52.00 + 10.34 - 12.00, rounded to 5 cents on the rest of the split sale.
     let cash = line("especes").unwrap();
     assert_eq!(cash[3], "50,34");

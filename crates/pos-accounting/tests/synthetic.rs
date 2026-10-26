@@ -552,6 +552,33 @@ fn an_export_folder_is_checked_against_its_manifest() {
 }
 
 #[test]
+fn a_manifest_must_cover_pos_db_and_may_use_the_binary_form() {
+    let m = month_archive();
+    let root = tempfile::tempdir().unwrap();
+    let spf = root.path().join("export");
+    std::fs::create_dir(&spf).unwrap();
+    std::fs::copy(&m.synth.path, spf.join("pos.db")).unwrap();
+    std::fs::write(spf.join("notes.txt"), "side file").unwrap();
+
+    // A manifest that lists nothing proves nothing about pos.db.
+    std::fs::write(spf.join("MANIFEST.sha256"), "").unwrap();
+    let err = run(&spf, &root.path().join("o1"), month("2026-10")).unwrap_err();
+    assert_eq!(err.code(), "manifest_mismatch");
+
+    // Neither does a manifest that lists other files only.
+    let other = format!("{}  notes.txt\n", sha256_of(&spf.join("notes.txt")));
+    std::fs::write(spf.join("MANIFEST.sha256"), other).unwrap();
+    let err = run(&spf, &root.path().join("o2"), month("2026-10")).unwrap_err();
+    assert_eq!(err.code(), "manifest_mismatch");
+
+    // `sha256sum --binary` writes `hash *name`.
+    let binary = format!("{} *pos.db\n", sha256_of(&spf.join("pos.db")));
+    std::fs::write(spf.join("MANIFEST.sha256"), binary).unwrap();
+    let summary = run(&spf, &root.path().join("o3"), month("2026-10")).unwrap();
+    assert!(read(&summary.folder, "LISEZMOI.txt").contains("MANIFEST.sha256 : oui"));
+}
+
+#[test]
 fn a_tampered_amount_fails_the_reconciliation_and_writes_nothing() {
     let m = month_archive();
     let out = tempfile::tempdir().unwrap();

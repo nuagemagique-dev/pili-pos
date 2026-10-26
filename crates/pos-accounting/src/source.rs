@@ -58,16 +58,31 @@ pub fn sha256_file(path: &Path) -> Result<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-/// Check every file listed in `MANIFEST.sha256` (`sha256sum` format) of `dir`.
+/// Split a `sha256sum` line into hash and name: text mode is `hash  name`, binary
+/// mode (`--binary`) is `hash *name`.
+fn split_manifest_line(line: &str) -> Option<(&str, &str)> {
+    if let Some((hash, name)) = line.split_once("  ") {
+        return Some((hash, name));
+    }
+    line.split_once(" *")
+}
+
+/// Check every file listed in `MANIFEST.sha256` (`sha256sum` format) of `dir`. The
+/// manifest must cover `pos.db`: a manifest that lists nothing, or other files only,
+/// proves nothing about the database that is read.
 fn verify_manifest(dir: &Path, manifest: &Path) -> Result<()> {
     let text = std::fs::read_to_string(manifest).map_err(|e| io_err(manifest, &e))?;
+    let mut covers_db = false;
     for line in text.lines().filter(|l| !l.trim().is_empty()) {
-        let Some((hash, name)) = line.split_once("  ") else {
+        let Some((hash, name)) = split_manifest_line(line) else {
             return Err(AccountingError::ManifestMismatch(format!(
                 "unreadable line: {line}"
             )));
         };
         let name = name.trim_start_matches('*');
+        if name == "pos.db" {
+            covers_db = true;
+        }
         let relative = Path::new(name);
         if relative.is_absolute()
             || relative
@@ -89,6 +104,11 @@ fn verify_manifest(dir: &Path, manifest: &Path) -> Result<()> {
                 "{name} has changed"
             )));
         }
+    }
+    if !covers_db {
+        return Err(AccountingError::ManifestMismatch(
+            "the manifest does not list pos.db".to_string(),
+        ));
     }
     Ok(())
 }
@@ -163,16 +183,18 @@ impl Source {
     /// The file must be a POS archive that has migration 4 (append-only archive).
     fn check_archive(&self) -> Result<()> {
         let not_pili = |what: &str| AccountingError::NotAPiliDb(what.to_string());
+        let unreadable =
+            |e: rusqlite::Error| not_pili(&format!("the file cannot be read as a SQLite database: {e}"));
         let tables: Vec<String> = {
             let mut stmt = self
                 .conn
                 .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
-                .map_err(|_| not_pili("the file is not a SQLite database"))?;
+                .map_err(unreadable)?;
             let rows = stmt
                 .query_map([], |r| r.get::<_, String>(0))
-                .map_err(|_| not_pili("the file is not a SQLite database"))?;
+                .map_err(unreadable)?;
             rows.collect::<std::result::Result<_, _>>()
-                .map_err(|_| not_pili("the file is not a SQLite database"))?
+                .map_err(unreadable)?
         };
         for needed in [
             "_migrations_applied",

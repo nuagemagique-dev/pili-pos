@@ -47,11 +47,16 @@ impl Profile {
 const METHOD_CODES: [&str; 6] = [
     "especes",
     "carte",
-    "titres_repas",
+    "cheques_repas",
     "application",
     "en_ligne",
     "autre",
 ];
+
+/// Former spelling of the meal voucher method code. An accounts file written for an
+/// older release may still use it as a key of `payments`; it is read as
+/// `cheques_repas` (the project says "cheque-repas", never "titre-repas").
+const LEGACY_MEAL_VOUCHER_KEY: &str = "titres_repas";
 
 /// Account numbers of the journal.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,7 +100,7 @@ impl Default for Accounts {
             payments: map(&[
                 ("especes", "570000"),
                 ("carte", "580000"),
-                ("titres_repas", "580100"),
+                ("cheques_repas", "580100"),
                 ("application", "580200"),
                 ("en_ligne", "580300"),
                 ("autre", "580900"),
@@ -160,6 +165,24 @@ fn overlay(
     Ok(())
 }
 
+/// Reads the former `titres_repas` key as `cheques_repas`; both at once is ambiguous.
+fn rename_legacy_payment_keys(
+    given: Option<BTreeMap<String, String>>,
+) -> Result<Option<BTreeMap<String, String>>> {
+    let Some(mut given) = given else {
+        return Ok(None);
+    };
+    if let Some(value) = given.remove(LEGACY_MEAL_VOUCHER_KEY) {
+        if given.contains_key("cheques_repas") {
+            return Err(AccountingError::Accounts(format!(
+                "payments: {LEGACY_MEAL_VOUCHER_KEY:?} is the old name of \"cheques_repas\": give only one of them"
+            )));
+        }
+        given.insert("cheques_repas".to_string(), value);
+    }
+    Ok(Some(given))
+}
+
 impl Accounts {
     /// The defaults with the entries of a JSON file applied on top.
     pub fn load(path: &Path) -> Result<Self> {
@@ -174,12 +197,8 @@ impl Accounts {
         let mut accounts = Self::default();
         overlay(&mut accounts.sales, file.sales, &LABELS, "sales")?;
         overlay(&mut accounts.vat, file.vat, &LABELS, "vat")?;
-        overlay(
-            &mut accounts.payments,
-            file.payments,
-            &METHOD_CODES,
-            "payments",
-        )?;
+        let payments = rename_legacy_payment_keys(file.payments)?;
+        overlay(&mut accounts.payments, payments, &METHOD_CODES, "payments")?;
         for (what, value, target) in [
             ("journal", file.journal, &mut accounts.journal),
             (
@@ -503,6 +522,20 @@ mod tests {
         assert_eq!(a.sales["B"], "700100");
         assert_eq!(a.payments["carte"], "550000");
         assert_eq!(a.unpaid, "411000");
+    }
+
+    #[test]
+    fn the_old_meal_voucher_key_is_read_as_cheques_repas() {
+        let a = Accounts::from_json(r#"{"payments":{"titres_repas":"580777"}}"#).unwrap();
+        assert_eq!(a.payments["cheques_repas"], "580777");
+        assert!(!a.payments.contains_key("titres_repas"));
+        let a = Accounts::from_json(r#"{"payments":{"cheques_repas":"580888"}}"#).unwrap();
+        assert_eq!(a.payments["cheques_repas"], "580888");
+        let err = Accounts::from_json(
+            r#"{"payments":{"titres_repas":"1","cheques_repas":"2"}}"#,
+        )
+        .unwrap_err();
+        assert_eq!(err.code(), "accounts_invalid");
     }
 
     #[test]
