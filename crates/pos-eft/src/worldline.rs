@@ -1,7 +1,7 @@
 //! Worldline Terminal API v2 (nexo Retailer 5.1 as JSON over HTTPS).
 //!
 //! The till talks to the Worldline cloud, which holds a WebSocket to the
-//! terminal (an Android SmartPOS terminal running the "Terminal API"
+//! terminal (an Android `SmartPOS` terminal running the "Terminal API"
 //! app). A payment is one synchronous call:
 //!
 //! ```text
@@ -18,7 +18,7 @@
 //! `ExchangeIdentification`. `/payments/abort` stops a payment in
 //! progress.
 //!
-//! Verified against the public OpenAPI v2 (`5.1-WL2.1.1`) and its
+//! Verified against the public `OpenAPI` v2 (`5.1-WL2.1.1`) and its
 //! examples (docs.terminal.worldline-solutions.com): paths, envelope
 //! (`{data, requestId}`), header and `SalesSystemInfo` rules, the
 //! payment, abort and status messages, the response examples. Inferred:
@@ -61,6 +61,19 @@ pub struct WorldlineTerminalApi {
     timeout: Duration,
     software_name: String,
     software_version: String,
+}
+
+impl std::fmt::Debug for WorldlineTerminalApi {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WorldlineTerminalApi")
+            .field("base", &self.base)
+            .field("merchant_id", &self.merchant_id)
+            .field("terminal_id", &self.terminal_id)
+            .field("integrator_id", &self.integrator_id)
+            .field("api_key", &self.api_key.as_ref().map(|_| "<redacted>"))
+            .field("timeout", &self.timeout)
+            .finish_non_exhaustive()
+    }
 }
 
 impl WorldlineTerminalApi {
@@ -191,11 +204,10 @@ impl WorldlineTerminalApi {
                 });
             }
         };
-        self.read_payment_reply(&reply, &request.reference, Some(request.amount_cents))
+        Self::read_payment_reply(&reply, &request.reference, Some(request.amount_cents))
     }
 
     fn read_payment_reply(
-        &self,
         reply: &Reply,
         reference: &str,
         expected: Option<i64>,
@@ -277,7 +289,7 @@ impl WorldlineTerminalApi {
     /// Nothing is charged. The v1 API documents this call ("verify that a
     /// terminal is connected before sending requests"); the v2 notes
     /// describe the same answer (`{data: {umid, connectedTerminals}}`)
-    /// but its path is not in the v2 OpenAPI, so it is not verified live.
+    /// but its path is not in the v2 `OpenAPI`, so it is not verified live.
     pub async fn check(&self) -> Result<(), EftError> {
         let mut reply = self.merchant(2).await?;
         // The v1 API documents this terminal list; v2 is not confirmed to
@@ -473,6 +485,10 @@ fn failure_text(response: &Value) -> String {
 }
 
 /// The shared reading of a result block, a payment and the environment.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one flat decision table over the Terminal API result fields; splitting it would scatter the cases"
+)]
 fn answer(
     response: Option<&Value>,
     payment: Option<&Value>,

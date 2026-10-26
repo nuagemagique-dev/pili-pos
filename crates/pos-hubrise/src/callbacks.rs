@@ -1,6 +1,6 @@
 //! The passive callback the POS polls (`docs/hubrise/06-callbacks.md`).
 //!
-//! HubRise records events for a connection only once it has a
+//! `HubRise` records events for a connection only once it has a
 //! callback asking for them; with `url: null` it keeps them for
 //! polling instead of calling a URL. Without this registration the
 //! POS would never hear of an order.

@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn a_poisoned_lock_is_recovered() {
         let db = Arc::new(Mutex::new(Connection::open_in_memory().unwrap()));
-        let other = db.clone();
+        let other = Arc::clone(&db);
         let _ = std::thread::spawn(move || {
             let _guard = other.lock().unwrap();
             panic!("poison the mutex");

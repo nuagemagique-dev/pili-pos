@@ -31,6 +31,7 @@ use crate::tem::TemClient;
 /// retries over about ninety minutes, then give up and let the
 /// integrator fall back to paper - never retry forever, and never
 /// silently drop a ticket without a `failed` row to show for it.
+#[derive(Debug)]
 pub struct DeliveryPolicy;
 
 impl DeliveryPolicy {
@@ -38,9 +39,9 @@ impl DeliveryPolicy {
     /// attempts, in order: 1 min, 5 min, 15 min, 60 min.
     pub const BACKOFF: [Duration; 4] = [
         Duration::from_secs(60),
-        Duration::from_secs(5 * 60),
-        Duration::from_secs(15 * 60),
-        Duration::from_secs(60 * 60),
+        Duration::from_mins(5),
+        Duration::from_mins(15),
+        Duration::from_hours(1),
     ];
     /// Total attempts allowed (the initial one plus up to 4 retries)
     /// before a delivery is given up as `failed`.
@@ -53,7 +54,7 @@ impl DeliveryPolicy {
     /// realistic background HTTP timeout.
     pub const STALE_SENDING_TIMEOUT: Duration = Duration::from_secs(90);
     /// Maximum time a plaintext recipient address is retained (GDPR).
-    pub const GDPR_RETENTION: Duration = Duration::from_secs(72 * 60 * 60);
+    pub const GDPR_RETENTION: Duration = Duration::from_hours(72);
 
     /// Delay before retry number `attempt_number` (1-based: the count
     /// *after* the failure just recorded), or `None` once the attempt
@@ -63,7 +64,8 @@ impl DeliveryPolicy {
         if attempt_number >= Self::MAX_ATTEMPTS {
             return None;
         }
-        let idx = (attempt_number - 1).clamp(0, Self::BACKOFF.len() as i64 - 1) as usize;
+        let last = Self::BACKOFF.len() - 1;
+        let idx = usize::try_from(attempt_number - 1).unwrap_or(0).min(last);
         Some(Self::BACKOFF[idx])
     }
 }
@@ -323,15 +325,15 @@ mod tests {
         );
         assert_eq!(
             DeliveryPolicy::backoff_after(2),
-            Some(Duration::from_secs(5 * 60))
+            Some(Duration::from_mins(5))
         );
         assert_eq!(
             DeliveryPolicy::backoff_after(3),
-            Some(Duration::from_secs(15 * 60))
+            Some(Duration::from_mins(15))
         );
         assert_eq!(
             DeliveryPolicy::backoff_after(4),
-            Some(Duration::from_secs(60 * 60))
+            Some(Duration::from_hours(1))
         );
     }
 
@@ -345,7 +347,7 @@ mod tests {
     fn max_attempts_matches_the_backoff_table_plus_one() {
         assert_eq!(
             DeliveryPolicy::MAX_ATTEMPTS,
-            DeliveryPolicy::BACKOFF.len() as i64 + 1
+            i64::try_from(DeliveryPolicy::BACKOFF.len()).unwrap() + 1
         );
     }
 
@@ -430,7 +432,7 @@ mod tests {
     #[test]
     fn a_poisoned_database_lock_is_recovered() {
         let db = std::sync::Arc::new(test_db());
-        let other = db.clone();
+        let other = std::sync::Arc::clone(&db);
         let _ = std::thread::spawn(move || {
             let _guard = other.lock().unwrap();
             panic!("poison the mutex");
@@ -447,7 +449,7 @@ mod tests {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let client = TemClient::new(
             reqwest::Client::new(),
-            &format!("http://{}", listener.local_addr().unwrap()),
+            format!("http://{}", listener.local_addr().unwrap()),
             "fr-par",
             "project",
             "secret",

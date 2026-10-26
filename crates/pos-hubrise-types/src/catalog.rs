@@ -1,4 +1,4 @@
-//! HubRise Catalog resource.
+//! `HubRise` Catalog resource.
 //!
 //! Reference: `docs/hubrise/04-catalogs.md`.
 
@@ -59,14 +59,14 @@ pub struct Category {
     pub id: Option<String>,
     #[serde(rename = "ref")]
     pub ref_field: String,
-    /// Upload bodies name the parent by ref; HubRise answers with the
+    /// Upload bodies name the parent by ref; `HubRise` answers with the
     /// parent's id (`parent_id`) and no ref.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_ref: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<String>,
     pub name: String,
-    /// HubRise doesn't have `custom_fields` on categories, so we repurpose
+    /// `HubRise` doesn't have `custom_fields` on categories, so we repurpose
     /// `description` as a JSON blob carrying translations. See
     /// `CategoryDescriptionPayload` in `custom_fields` module.
     #[serde(default)]
@@ -84,7 +84,7 @@ pub struct Product {
     #[serde(default, rename = "ref")]
     pub ref_field: Option<String>,
     /// Upload bodies name the category by ref; retrieval responses by
-    /// HubRise id (`category_id`), so both are optional here.
+    /// `HubRise` id (`category_id`), so both are optional here.
     #[serde(
         default,
         deserialize_with = "null_default",
@@ -129,7 +129,7 @@ pub struct Sku {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub option_list_refs: Vec<String>,
-    /// Retrieval responses name option lists by HubRise id instead of
+    /// Retrieval responses name option lists by `HubRise` id instead of
     /// ref (`docs/hubrise/04-catalogs.md` §4 Retrieve Product).
     #[serde(
         default,
@@ -141,7 +141,7 @@ pub struct Sku {
     pub tags: Vec<String>,
     #[serde(default, deserialize_with = "null_default")]
     pub barcodes: Vec<String>,
-    /// HubRise-documented custom_fields slot. We store `vat_category`
+    /// HubRise-documented `custom_fields` slot. We store `vat_category`
     /// and multi-language translations here. See `SkuCustomFields`.
     #[serde(default)]
     pub custom_fields: Option<serde_json::Value>,

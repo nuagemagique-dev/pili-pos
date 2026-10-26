@@ -15,7 +15,7 @@ pub(crate) struct Elem {
 }
 
 impl Elem {
-    pub fn attr(&self, name: &str) -> Option<&str> {
+    pub(crate) fn attr(&self, name: &str) -> Option<&str> {
         self.attrs
             .iter()
             .find(|(k, _)| k == name)
@@ -25,7 +25,7 @@ impl Elem {
     /// The first direct child called `name`, ignoring case (the public
     /// samples write both `POSData` and `POSdata`).
     #[cfg(test)]
-    pub fn child(&self, name: &str) -> Option<&Elem> {
+    pub(crate) fn child(&self, name: &str) -> Option<&Elem> {
         self.children
             .iter()
             .find(|c| c.name.eq_ignore_ascii_case(name))
@@ -33,7 +33,7 @@ impl Elem {
 
     /// The first element called `name` in this subtree, this element
     /// included, depth first.
-    pub fn find(&self, name: &str) -> Option<&Elem> {
+    pub(crate) fn find(&self, name: &str) -> Option<&Elem> {
         if self.name.eq_ignore_ascii_case(name) {
             return Some(self);
         }
@@ -41,7 +41,7 @@ impl Elem {
     }
 
     /// Every element called `name` in this subtree, document order.
-    pub fn find_all<'a>(&'a self, name: &str, out: &mut Vec<&'a Elem>) {
+    pub(crate) fn find_all<'a>(&'a self, name: &str, out: &mut Vec<&'a Elem>) {
         if self.name.eq_ignore_ascii_case(name) {
             out.push(self);
         }
@@ -51,7 +51,7 @@ impl Elem {
     }
 
     /// The trimmed text of this element.
-    pub fn text(&self) -> &str {
+    pub(crate) fn text(&self) -> &str {
         self.text.trim()
     }
 }
@@ -65,7 +65,7 @@ fn start_elem(e: &BytesStart<'_>) -> Elem {
         let key = a.key.local_name().as_ref().to_string();
         let value = a
             .normalized_value(quick_xml::XmlVersion::Implicit1_0)
-            .map_or_else(|_| a.value.to_string(), |v| v.into_owned());
+            .map_or_else(|_| a.value.to_string(), std::borrow::Cow::into_owned);
         // Namespace declarations are not data.
         if key != "xmlns" && !a.key.as_ref().starts_with("xmlns:") {
             elem.attrs.push((key, value));
@@ -160,7 +160,7 @@ pub(crate) fn escape(text: &str) -> String {
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
             '\'' => out.push_str("&apos;"),
-            c if (c as u32) < 0x20 && !matches!(c, '\n' | '\t' | '\r') => {}
+            c if u32::from(c) < 0x20 && !matches!(c, '\n' | '\t' | '\r') => {}
             c => out.push(c),
         }
     }

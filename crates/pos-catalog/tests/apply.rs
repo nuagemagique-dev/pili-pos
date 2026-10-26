@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 //! Applying a catalog to a real POS database.
 
 use pos_catalog::testing::{catalog, category, choice, group, item, names};
@@ -354,7 +359,7 @@ fn a_rejected_outcome_serializes_the_issues_it_stored() {
     assert_eq!(json["outcome"], "rejected");
     let state = pos_catalog::state(&conn, SOURCE).unwrap().unwrap();
     assert_eq!(json["issues"], serde_json::to_value(&state.issues).unwrap());
-    assert!(!state.issues.is_empty());
+    assert_ne!(state.issues.len(), 0);
 }
 
 #[test]
@@ -460,7 +465,7 @@ fn an_ambiguous_match_is_not_offered() {
     let conn = db();
     local_item(&conn, "MAKI-6", 650);
     local_item(&conn, "MAKI-6", 650);
-    assert!(adoption_preview(&conn, &catalog()).unwrap().is_empty());
+    assert_eq!(adoption_preview(&conn, &catalog()).unwrap().len(), 0);
 }
 
 #[test]

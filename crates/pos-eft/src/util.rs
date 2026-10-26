@@ -1,6 +1,8 @@
 //! Small helpers the three drivers share: amounts read from the
 //! provider's answer, language codes, URL path segments.
 
+use std::fmt::Write as _;
+
 use serde_json::Value;
 
 /// A decimal amount as text ("12.50", "12,5", "104.11", "7") in euro
@@ -114,7 +116,7 @@ pub(crate) fn path_segment(value: &str) -> String {
         if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~') {
             out.push(char::from(b));
         } else {
-            out.push_str(&format!("%{b:02X}"));
+            let _ = write!(out, "%{b:02X}");
         }
     }
     out

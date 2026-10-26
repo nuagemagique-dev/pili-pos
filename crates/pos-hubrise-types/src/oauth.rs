@@ -1,8 +1,8 @@
-//! OAuth 2.0 flow types for HubRise manager.
+//! OAuth 2.0 flow types for `HubRise` manager.
 
 use serde::{Deserialize, Serialize};
 
-/// Parameters appended to the HubRise authorize URL.
+/// Parameters appended to the `HubRise` authorize URL.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizeParams {
     pub redirect_uri: String,

@@ -223,6 +223,10 @@ fn vat_row(rate: &str, code: &str, base: &str, vat: &str, gross: &str) -> String
 }
 
 /// Format an invoice (or its copy) into ESC/POS commands.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one top-to-bottom slip layout; splitting it would only scatter the print order"
+)]
 pub fn format_invoice(inv: &InvoicePrint) -> Vec<u8> {
     let mut p = EscPosBuilder::new();
     let l = labels(inv.lang);
@@ -294,7 +298,7 @@ pub fn format_invoice(inv: &InvoicePrint) -> Vec<u8> {
     for line in &inv.lines {
         let left = format!("{}  {}", quantity(line.quantity_milli), line.description);
         let right = format!("{}  {}", price(line.total_cents), line.vat_label);
-        let width = p.chars_per_line() as usize;
+        let width = usize::from(p.chars_per_line());
         let room = width.saturating_sub(right.chars().count() + 1);
         let mut rows = wrap(&left, width);
         let last = rows.pop().unwrap_or_default();

@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn the_sample_catalog_is_valid() {
-        assert!(validate(&catalog()).is_empty());
+        assert_eq!(validate(&catalog()).len(), 0);
     }
 
     #[test]
@@ -197,7 +197,7 @@ mod tests {
         c.items[0]
             .names
             .insert("fr".into(), "é".repeat(NAME_MAX_CHARS));
-        assert!(validate(&c).is_empty());
+        assert_eq!(validate(&c).len(), 0);
     }
 
     #[test]
@@ -252,7 +252,7 @@ mod tests {
             may_contain: vec!["molluscs".into()],
         });
         c.items[0].groups[0].options[0].allergens = Some(AllergenSet::default());
-        assert!(validate(&c).is_empty());
+        assert_eq!(validate(&c).len(), 0);
     }
 
     #[test]

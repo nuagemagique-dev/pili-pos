@@ -1,8 +1,8 @@
-//! HubRise API types shared between the HubRise client (`pos-hubrise`)
+//! `HubRise` API types shared between the `HubRise` client (`pos-hubrise`)
 //! and the mock server (`pos-hubrise-mock`).
 //!
-//! Reference: the HubRise documentation snapshots under `docs/hubrise/` at
-//! the repository root. Any schema change on the HubRise side must be
+//! Reference: the `HubRise` documentation snapshots under `docs/hubrise/` at
+//! the repository root. Any schema change on the `HubRise` side must be
 //! reflected here AND in `HUBRISE_DOCS_REVISION` of `pos-hubrise-mock`.
 
 pub mod callback;

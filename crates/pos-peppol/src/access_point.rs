@@ -84,6 +84,7 @@ pub trait AccessPoint: Send + Sync {
 /// No-op AP that just logs the submission. The development provider (`peppol.provider` is
 /// `logging`): operators can issue B2B invoices and inspect the UBL output without live
 /// Peppol traffic. Every participant is "registered".
+#[derive(Debug)]
 pub struct LoggingAccessPoint;
 
 #[async_trait]
@@ -123,6 +124,16 @@ pub struct StorecoveAccessPoint {
     base_url: String,
     api_key: String,
     legal_entity_id: i64,
+}
+
+impl std::fmt::Debug for StorecoveAccessPoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StorecoveAccessPoint")
+            .field("base_url", &self.base_url)
+            .field("api_key", &"<redacted>")
+            .field("legal_entity_id", &self.legal_entity_id)
+            .finish_non_exhaustive()
+    }
 }
 
 impl StorecoveAccessPoint {

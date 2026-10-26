@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 //! Online orders resolved against a POS menu that mirrors the mock's
 //! seed catalog: every template, and every reason an order is held.
 
@@ -33,7 +38,7 @@ fn seeded() -> Connection {
     menu(seed_catalog())
 }
 
-/// A HubRise order as the API returns it: ids, status, total.
+/// A `HubRise` order as the API returns it: ids, status, total.
 fn as_order(mut body: Value) -> Order {
     let total = order_total_cents(&body);
     body["id"] = json!("hr-1");
@@ -74,7 +79,7 @@ fn a_deliveroo_order_is_prepaid_by_app_with_takeaway_vat() {
     assert_eq!((maki.quantity, maki.unit_price_cents), (2, 1050));
     assert_eq!(maki.vat_code, VatCode::C, "delivered food");
     assert_eq!(r.lines[1].vat_code, VatCode::C, "soft drink taken away");
-    assert!(r.warnings.is_empty());
+    assert_eq!(r.warnings.len(), 0);
 }
 
 #[test]
@@ -358,7 +363,11 @@ fn a_discount_is_spread_over_the_products() {
         (second.id.as_str(), second.name.as_str()),
         ("discount:2", "Fidélité")
     );
-    let gross: i64 = r.lines.iter().map(|l| l.total_cents()).sum();
+    let gross: i64 = r
+        .lines
+        .iter()
+        .map(pos_hubrise::webshop::ResolvedLine::total_cents)
+        .sum();
     assert_eq!(net_total_cents(&r.lines), gross - 150);
     // Charges are not discounted.
     assert!(
@@ -473,7 +482,7 @@ fn a_signed_order_is_not_resolved_again() {
     )
     .unwrap();
     let before = load(&conn, first.order_id).unwrap().unwrap();
-    let mut changed = order.clone();
+    let mut changed = order;
     changed.items.clear();
     let again = ingest(&conn, &changed).unwrap();
     assert!(!again.pending);
@@ -497,5 +506,8 @@ fn every_template_ingests_once() {
     let rows: i64 = conn
         .query_row("SELECT COUNT(*) FROM webshop_orders", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(rows as usize, pos_hubrise_mock::builders::TEMPLATES.len());
+    assert_eq!(
+        usize::try_from(rows).unwrap(),
+        pos_hubrise_mock::builders::TEMPLATES.len()
+    );
 }

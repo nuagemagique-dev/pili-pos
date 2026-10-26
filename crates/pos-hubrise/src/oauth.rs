@@ -1,11 +1,11 @@
-//! OAuth 2.0 helper for the HubRise authorization code flow.
+//! OAuth 2.0 helper for the `HubRise` authorization code flow.
 
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::errors::{HubriseError, Result};
 
-/// Configuration for the HubRise OAuth flow on the POS side.
+/// Configuration for the `HubRise` OAuth flow on the POS side.
 ///
 /// Unlike the webshop backend, the POS cannot host a server-side
 /// redirect. We use the "installed app" flow where the mock returns
@@ -16,7 +16,7 @@ pub struct OAuthConfig {
     pub oauth_base_url: String,
     pub base_url: String,
     pub client_id: String,
-    /// Required by the real HubRise token exchange. Optional for the
+    /// Required by the real `HubRise` token exchange. Optional for the
     /// mock (which doesn't verify secrets).
     pub client_secret: String,
     pub redirect_uri: String,
@@ -90,7 +90,7 @@ impl std::fmt::Debug for TokenExchangeResponse {
     }
 }
 
-/// Exchange an auth code for a HubRise access token.
+/// Exchange an auth code for a `HubRise` access token.
 ///
 /// As `docs/hubrise/02-authentication.md` describes it: a form body
 /// `code=...`, the client in HTTP Basic auth (`client_id:client_secret`).

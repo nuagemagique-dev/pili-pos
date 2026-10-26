@@ -1,4 +1,4 @@
-//! HubRise money strings (`"9.80 EUR"`, `"-0.05 EUR"`) to and from
+//! `HubRise` money strings (`"9.80 EUR"`, `"-0.05 EUR"`) to and from
 //! integer cents, without floating point.
 //!
 //! Reference: `docs/hubrise/01-general-concepts.md` (Monetary Values).
@@ -16,7 +16,7 @@ pub enum MoneyError {
     OutOfRange(String),
 }
 
-/// Largest amount accepted from HubRise, in cents (10 million euros). A
+/// Largest amount accepted from `HubRise`, in cents (10 million euros). A
 /// remote value is bounded here so that the arithmetic on it cannot
 /// overflow.
 pub const MAX_AMOUNT_CENTS: i64 = 1_000_000_000;
@@ -92,7 +92,7 @@ pub fn format_cents(cents: i64) -> String {
     format!("{sign}{}.{:02} EUR", abs / 100, abs % 100)
 }
 
-/// A HubRise quantity (`"2"`, `"2.0"`) as a whole number of units.
+/// A `HubRise` quantity (`"2"`, `"2.0"`) as a whole number of units.
 /// Fractional quantities (weighed products) are refused: the POS
 /// sells whole units only. So is a quantity beyond [`MAX_QUANTITY`].
 pub fn parse_quantity(quantity: &str) -> Option<i64> {
@@ -193,7 +193,7 @@ mod tests {
         assert_eq!(format_cents(5), "0.05 EUR");
         assert_eq!(format_cents(-5), "-0.05 EUR");
         assert_eq!(format_cents(0), "0.00 EUR");
-        for c in [-12345, -1, 0, 1, 99, 100, 101, 987654] {
+        for c in [-12345, -1, 0, 1, 99, 100, 101, 987_654] {
             assert_eq!(parse_cents(&format_cents(c)), Ok(c));
         }
     }

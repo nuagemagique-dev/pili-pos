@@ -1,5 +1,5 @@
 //! The neutral catalog: what the POS menu is made of, whatever the
-//! source (HubRise, the owner's catalog service). A source maps its
+//! source (`HubRise`, the owner's catalog service). A source maps its
 //! own format into this model; validation and apply work on it only.
 
 use std::collections::BTreeMap;
@@ -41,6 +41,10 @@ pub enum ItemKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the catalog model mirrors the source's independent flags, and it is part of the hashed JSON"
+)]
 pub struct Item {
     /// The source's stable key (`menu_items.external_id`): the same
     /// key keeps the same POS product id, the `productId` sent to the

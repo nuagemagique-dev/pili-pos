@@ -1,4 +1,4 @@
-//! SQLite-backed singleton store for the HubRise connection row.
+//! SQLite-backed singleton store for the `HubRise` connection row.
 
 use rusqlite::{Connection, OptionalExtension, params};
 
@@ -42,7 +42,7 @@ impl std::fmt::Debug for StoredConnection {
     }
 }
 
-/// Load the currently persisted HubRise connection, if any.
+/// Load the currently persisted `HubRise` connection, if any.
 pub fn load(conn: &Connection) -> Result<Option<StoredConnection>> {
     let row = conn
         .query_row(
@@ -126,7 +126,7 @@ pub fn update_cursor(conn: &Connection, cursor: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-/// HubRise refused the token (401): the connection was revoked or
+/// `HubRise` refused the token (401): the connection was revoked or
 /// blocked. Shown until a request succeeds again.
 pub fn set_auth_error(conn: &Connection, message: &str) -> Result<()> {
     conn.execute(

@@ -12,7 +12,7 @@
 //! reference, which the create call sends). `abort` is
 //! `POST /api/v1/cancel?reference=<psp reference>`.
 //!
-//! Verified against CCV's public documentation and OpenAPI
+//! Verified against CCV's public documentation and `OpenAPI`
 //! (developer.myccv.eu, api.psp.ccv.eu/api/v1/openapi): paths, Basic
 //! authentication (API key as user, empty password), the request and
 //! response examples of the terminal method, statuses, failure codes,
@@ -60,6 +60,19 @@ pub struct CcvPaymentApi {
     aborted: Mutex<HashSet<String>>,
 }
 
+impl std::fmt::Debug for CcvPaymentApi {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CcvPaymentApi")
+            .field("base", &self.base)
+            .field("api_key", &self.api_key.as_ref().map(|_| "<redacted>"))
+            .field("terminal_id", &self.terminal_id)
+            .field("management_system_id", &self.management_system_id)
+            .field("access_protocol", &self.access_protocol)
+            .field("timeout", &self.timeout)
+            .finish_non_exhaustive()
+    }
+}
+
 /// What one reading of a transaction says.
 enum Reading {
     Final(Outcome),
@@ -67,7 +80,7 @@ enum Reading {
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|e| e.into_inner())
+    m.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 impl CcvPaymentApi {
@@ -390,34 +403,33 @@ impl CcvPaymentApi {
     pub async fn abort(&self, reference: &str) -> Result<(), EftError> {
         lock(&self.aborted).insert(reference.to_string());
         let known = lock(&self.in_flight).get(reference).cloned();
-        let psp = match known {
-            Some(p) => p,
-            None => {
-                // Started by another instance, or before a restart.
-                let query = format!(
-                    "/api/v1/transaction?merchantOrderReference={}",
-                    crate::util::path_segment(reference)
-                );
-                let found = match send(self.request(reqwest::Method::GET, &query)).await {
-                    Ok(r) if r.status == 200 => pick_transaction(&r.body, Some(reference))
-                        .and_then(|tx| str_at(&tx, &["reference"]).map(str::to_string)),
-                    Ok(r) if matches!(r.status, 401 | 403) => {
-                        return Err(EftError::Rejected(format!(
-                            "CCV refused the API key (HTTP {})",
-                            r.status
-                        )));
-                    }
-                    Ok(_) => None,
-                    Err(SendError::NotSent(e) | SendError::Lost(e)) => {
-                        return Err(EftError::Unreachable(e));
-                    }
-                };
-                match found {
-                    Some(p) => p,
-                    // Nothing to stop yet; a create still in flight sees
-                    // the flag and cancels itself.
-                    None => return Ok(()),
+        let psp = if let Some(p) = known {
+            p
+        } else {
+            // Started by another instance, or before a restart.
+            let query = format!(
+                "/api/v1/transaction?merchantOrderReference={}",
+                crate::util::path_segment(reference)
+            );
+            let found = match send(self.request(reqwest::Method::GET, &query)).await {
+                Ok(r) if r.status == 200 => pick_transaction(&r.body, Some(reference))
+                    .and_then(|tx| str_at(&tx, &["reference"]).map(str::to_string)),
+                Ok(r) if matches!(r.status, 401 | 403) => {
+                    return Err(EftError::Rejected(format!(
+                        "CCV refused the API key (HTTP {})",
+                        r.status
+                    )));
                 }
+                Ok(_) => None,
+                Err(SendError::NotSent(e) | SendError::Lost(e)) => {
+                    return Err(EftError::Unreachable(e));
+                }
+            };
+            match found {
+                Some(p) => p,
+                // Nothing to stop yet; a create still in flight sees
+                // the flag and cancels itself.
+                None => return Ok(()),
             }
         };
         self.cancel(&psp).await

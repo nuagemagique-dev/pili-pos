@@ -1,7 +1,7 @@
-//! Push of the sold-out products to the HubRise inventory (V11-D15).
+//! Push of the sold-out products to the `HubRise` inventory (V11-D15).
 //!
 //! The engine queues a row of `hubrise_inventory_sync` (one per product, marked dirty again at
-//! every change) when a cashier sets or clears "Épuisé", only while HubRise is on and the
+//! every change) when a cashier sets or clears "Épuisé", only while `HubRise` is on and the
 //! product has a SKU ref. This pass, called by the outbox loop, sends the CURRENT state of each
 //! dirty product at send time, so several changes made while offline end as one request:
 //!

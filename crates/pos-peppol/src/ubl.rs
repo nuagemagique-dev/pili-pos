@@ -424,12 +424,19 @@ fn write_party(x: &mut Xml, wrapper: &str, p: &Party) {
     x.close(wrapper);
 }
 
+/// Whether a `TaxCategory` block carries the exemption reason.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Exemption {
+    WithReason,
+    Plain,
+}
+
 /// The `TaxCategory` block (document level: with exemption reason when `E`).
-fn write_tax_category(x: &mut Xml, name: &str, t: &TaxCategory, with_reason: bool) {
+fn write_tax_category(x: &mut Xml, name: &str, t: &TaxCategory, reason: Exemption) {
     x.open(name);
     x.text("cbc:ID", t.id);
     x.text("cbc:Percent", &format!("{}.00", t.percent));
-    if with_reason && t.id == "E" {
+    if reason == Exemption::WithReason && t.id == "E" {
         x.text("cbc:TaxExemptionReasonCode", "vatex-eu-o");
         x.text("cbc:TaxExemptionReason", "Not subject to VAT");
     }
@@ -475,7 +482,7 @@ pub fn to_ubl_xml(invoice: &InvoiceUbl) -> Result<String, PeppolError> {
         );
         x.text("cbc:AllowanceChargeReason", &a.reason);
         x.amount("cbc:Amount", a.net_cents);
-        write_tax_category(&mut x, "cac:TaxCategory", &a.tax, false);
+        write_tax_category(&mut x, "cac:TaxCategory", &a.tax, Exemption::Plain);
         x.close("cac:AllowanceCharge");
     }
     x.open("cac:TaxTotal");
@@ -484,7 +491,7 @@ pub fn to_ubl_xml(invoice: &InvoiceUbl) -> Result<String, PeppolError> {
         x.open("cac:TaxSubtotal");
         x.amount("cbc:TaxableAmount", s.taxable_cents);
         x.amount("cbc:TaxAmount", s.tax_cents);
-        write_tax_category(&mut x, "cac:TaxCategory", &s.tax, true);
+        write_tax_category(&mut x, "cac:TaxCategory", &s.tax, Exemption::WithReason);
         x.close("cac:TaxSubtotal");
     }
     x.close("cac:TaxTotal");
@@ -517,7 +524,12 @@ pub fn to_ubl_xml(invoice: &InvoiceUbl) -> Result<String, PeppolError> {
         x.amount("cbc:LineExtensionAmount", l.net_cents);
         x.open("cac:Item");
         x.text("cbc:Name", &l.name);
-        write_tax_category(&mut x, "cac:ClassifiedTaxCategory", &l.tax, false);
+        write_tax_category(
+            &mut x,
+            "cac:ClassifiedTaxCategory",
+            &l.tax,
+            Exemption::Plain,
+        );
         x.close("cac:Item");
         x.open("cac:Price");
         x.attr_text(
@@ -912,7 +924,7 @@ mod tests {
     fn money_and_date_helpers() {
         assert_eq!(money(5), "0.05");
         assert_eq!(money(-5), "-0.05");
-        assert_eq!(money(123456), "1234.56");
+        assert_eq!(money(123_456), "1234.56");
         assert_eq!(quantity(350), "0.350");
         assert_eq!(price(12_345), "1.2345");
         assert_eq!(

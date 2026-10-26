@@ -1,9 +1,9 @@
-//! The HubRise event poller: reads the passive callback's events
+//! The `HubRise` event poller: reads the passive callback's events
 //! (`docs/hubrise/06-callbacks.md`), handles each, acknowledges it.
 //!
 //! Every pass reads all pages of `GET /callback/events`, oldest first.
 //! An event is stored before it is handled (idempotence: the same
-//! event twice is handled once), then deleted on HubRise. One that
+//! event twice is handled once), then deleted on `HubRise`. One that
 //! keeps failing is parked after [`MAX_EVENT_ATTEMPTS`] tries so it
 //! never blocks the others.
 //!
@@ -13,7 +13,7 @@
 //! synchronised from the connected catalog.
 //!
 //! At start-up (and on connect) [`start`] registers the passive
-//! callback and fetches the orders HubRise holds as `new` or
+//! callback and fetches the orders `HubRise` holds as `new` or
 //! `received`: an order placed while the POS was off is not lost.
 //!
 //! Critical constraint: the `std::sync::MutexGuard` protecting the
@@ -37,12 +37,12 @@ use crate::util::path_segment;
 use crate::{callbacks, outbox};
 use pos_catalog::ApplyOutcome;
 
-/// Default polling interval (HubRise asks for at least 30 s).
+/// Default polling interval (`HubRise` asks for at least 30 s).
 pub const POLL_INTERVAL: Duration = Duration::from_secs(30);
 /// Shortest gap between two passes, even when woken on purpose.
 pub const MIN_POLL_GAP: Duration = Duration::from_secs(5);
 /// How often the catalog is compared with the applied one.
-pub const CATALOG_DRIFT_INTERVAL: Duration = Duration::from_secs(15 * 60);
+pub const CATALOG_DRIFT_INTERVAL: Duration = Duration::from_mins(15);
 /// Tries before an event is parked.
 pub const MAX_EVENT_ATTEMPTS: i64 = 5;
 
@@ -54,7 +54,7 @@ pub type OutcomeHook = Arc<dyn Fn(DispatchOutcome, CallbackEvent) + Send + Sync>
 /// The Tauri layer plugs the webshop and menu logic in here; the
 /// defaults only mirror the order and apply the catalog as is.
 pub trait Handlers: Send + Sync {
-    /// Store or refresh an order fetched from HubRise. Returns true
+    /// Store or refresh an order fetched from `HubRise`. Returns true
     /// when the POS should acknowledge it (`received`).
     fn on_order(&self, conn: &Connection, order: &Order) -> Result<bool>;
     /// Apply the connected catalog.
@@ -62,6 +62,7 @@ pub trait Handlers: Send + Sync {
 }
 
 /// The default handlers: mirror the order row, apply the catalog.
+#[derive(Debug)]
 pub struct DefaultHandlers;
 
 impl Handlers for DefaultHandlers {
@@ -87,8 +88,16 @@ pub struct PollerCtx {
     pub poll_now: Arc<tokio::sync::Notify>,
     /// Wakes the outbox after queuing an acknowledgement.
     pub outbox_wake: Option<Arc<tokio::sync::Notify>>,
-    /// Off: no connection is loaded, so nothing reaches HubRise.
+    /// Off: no connection is loaded, so nothing reaches `HubRise`.
     pub enabled: crate::switch::Switch,
+}
+
+impl std::fmt::Debug for PollerCtx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PollerCtx")
+            .field("enabled", &self.enabled)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Run the polling loop until `cancel` is triggered.
@@ -103,9 +112,9 @@ pub async fn run_loop(ctx: PollerCtx, cancel: CancellationToken) {
 
     loop {
         tokio::select! {
-            _ = cancel.cancelled() => return,
+            () = cancel.cancelled() => return,
             _ = ticker.tick() => {}
-            _ = ctx.poll_now.notified() => {
+            () = ctx.poll_now.notified() => {
                 if last_pass.is_some_and(|t| t.elapsed() < MIN_POLL_GAP) {
                     continue;
                 }
@@ -150,7 +159,7 @@ fn load_client(ctx: &PollerCtx) -> Result<Option<(StoredConnection, Client)>> {
     }))
 }
 
-/// Register the passive callback, then fetch the orders HubRise holds
+/// Register the passive callback, then fetch the orders `HubRise` holds
 /// as `new` or `received` and refresh the local open ones. Called at
 /// start-up and right after connecting. Does nothing when not
 /// connected.
@@ -239,7 +248,7 @@ async fn fetch_all<T: serde::de::DeserializeOwned>(client: &Client, path: &str) 
 const MAX_PAGES: usize = 1000;
 
 /// The cursor to fetch next, or `None` at the end of the list. A cursor
-/// seen before means HubRise is going round in a cycle (A, B, A): the end
+/// seen before means `HubRise` is going round in a cycle (A, B, A): the end
 /// for the pages read so far. Too many pages is an error.
 fn next_cursor(
     seen: &mut std::collections::HashSet<String>,
@@ -500,7 +509,7 @@ pub async fn check_catalog(ctx: &PollerCtx) -> Result<Option<ApplyOutcome>> {
     }
 }
 
-/// The drift check has no HubRise event; the hook gets one that names
+/// The drift check has no `HubRise` event; the hook gets one that names
 /// the catalog.
 fn synthetic_catalog_event(stored: &StoredConnection) -> CallbackEvent {
     let mut extra = serde_json::Map::new();

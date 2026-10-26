@@ -26,7 +26,7 @@ pub struct DecodedCategoryTranslations {
     pub raw_description: Option<String>,
 }
 
-/// Decode a SKU's custom_fields into the VAT category + per-language
+/// Decode a SKU's `custom_fields` into the VAT category + per-language
 /// product translations. Falls back to empty strings if missing.
 pub fn decode_sku_translations(custom_fields: &Option<Value>) -> DecodedSkuTranslations {
     let mut out = DecodedSkuTranslations {
@@ -58,7 +58,7 @@ fn pick_product_translation(translations: &Value, lang: &str) -> ProductTranslat
     let description = node
         .get("description")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+        .map(std::string::ToString::to_string);
     ProductTranslation { name, description }
 }
 

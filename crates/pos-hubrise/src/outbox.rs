@@ -1,20 +1,20 @@
-//! Durable outbox for POS → HubRise writes.
+//! Durable outbox for POS → `HubRise` writes.
 //!
 //! Two kinds of rows, written in the same SQLite transaction as the
 //! change they report (pure SQLite, zero network), drained by a
-//! background worker whenever HubRise is reachable:
+//! background worker whenever `HubRise` is reachable:
 //!
-//! - `create_order`: a POS sale pushed to HubRise for central
+//! - `create_order`: a POS sale pushed to `HubRise` for central
 //!   reporting. Each carries a `private_ref` (`pili-order-<id>`): a
 //!   retry after a lost answer finds the order already created
 //!   (`GET orders?private_ref=`) instead of creating it twice. Rows
 //!   older than 7 days expire.
 //! - `patch_order`: a status or time change of an online order
 //!   (`received`, `accepted`, `completed`, ...). They never expire,
-//!   and the PATCHes of one order are sent in the order they were
+//!   and the `PATCHes` of one order are sent in the order they were
 //!   queued: a later one waits for the earlier to go through.
 //!
-//! Errors: HubRise refusing a change (400, 404, 422) parks the row
+//! Errors: `HubRise` refusing a change (400, 404, 422) parks the row
 //! with its reason; a timeout, 429 or 5xx is retried with backoff
 //! (30 s doubling, capped at 30 min); a 401 stops the pass and marks
 //! the connection's authentication error, without counting attempts.
@@ -33,7 +33,7 @@ use crate::errors::{HubriseError, Result};
 use crate::token_store;
 use crate::util::{lock_db, path_segment};
 
-/// Attempts before an order creation is parked. PATCHes retry forever.
+/// Attempts before an order creation is parked. `PATCHes` retry forever.
 const MAX_CREATE_ATTEMPTS: i64 = 10;
 /// Base delay between retries (doubles each attempt).
 const BASE_BACKOFF_SECS: i64 = 30;
@@ -44,12 +44,12 @@ const TICK_INTERVAL: Duration = Duration::from_secs(30);
 /// Max rows processed per pass.
 const BATCH_SIZE: i64 = 50;
 
-/// The `private_ref` of the HubRise order a POS sale creates.
+/// The `private_ref` of the `HubRise` order a POS sale creates.
 pub fn sale_private_ref(order_id: i64) -> String {
     format!("pili-order-{order_id}")
 }
 
-/// Enqueue a completed POS order for async push to HubRise.
+/// Enqueue a completed POS order for async push to `HubRise`.
 /// Called from the checkout path - pure SQLite write, no network.
 /// Queuing the same order twice keeps one row.
 pub fn enqueue(conn: &Connection, order_id: i64, body_json: &str) -> Result<()> {
@@ -69,7 +69,7 @@ pub fn enqueue(conn: &Connection, order_id: i64, body_json: &str) -> Result<()> 
     Ok(())
 }
 
-/// Queue a PATCH of HubRise order `hubrise_order_id` (local order
+/// Queue a PATCH of `HubRise` order `hubrise_order_id` (local order
 /// `order_id`), sent after any PATCH already queued for it.
 pub fn enqueue_patch(
     conn: &Connection,
@@ -109,6 +109,7 @@ pub fn backlog(conn: &Connection) -> Result<Backlog> {
 }
 
 /// Context needed by the outbox worker loop.
+#[derive(Debug)]
 pub struct OutboxCtx {
     pub http: reqwest::Client,
     /// Dedicated SQLite connection (same WAL file, separate from UI).
@@ -127,9 +128,9 @@ pub async fn run_loop(ctx: OutboxCtx, cancel: CancellationToken) {
 
     loop {
         tokio::select! {
-            _ = cancel.cancelled() => return,
+            () = cancel.cancelled() => return,
             _ = ticker.tick() => {}
-            _ = ctx.wake.notified() => {}
+            () = ctx.wake.notified() => {}
         }
         if !ctx.enabled.is_on() {
             continue;
@@ -150,7 +151,7 @@ pub struct PassReport {
     pub sent: usize,
     pub retried: usize,
     pub parked: usize,
-    /// HubRise refused the token: the pass stopped.
+    /// `HubRise` refused the token: the pass stopped.
     pub unauthorized: bool,
 }
 

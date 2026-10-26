@@ -62,7 +62,7 @@ pub enum Attention {
     FractionalQuantity {
         sku_ref: String,
     },
-    /// A price HubRise sent that is not euro cents.
+    /// A price `HubRise` sent that is not euro cents.
     BadPrice {
         at: String,
     },
@@ -86,7 +86,7 @@ pub enum Attention {
         paid_cents: i64,
         total_cents: i64,
     },
-    /// HubRise changed what was sold after the POS signed it: the
+    /// `HubRise` changed what was sold after the POS signed it: the
     /// signed sale stands, staff settle the difference.
     ChangedAfterSigning,
 }
@@ -328,6 +328,10 @@ fn cents(money: &str, at: &str, attention: &mut Vec<Attention>) -> i64 {
 }
 
 /// Resolve `order` against the POS menu and classify its payment.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one pass over items, options, discounts and charges that shares its running totals and attention list; split into helpers it would pass them all around"
+)]
 pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
     let mut attention = Vec::new();
     let mut warnings = Vec::new();
@@ -650,7 +654,6 @@ fn classify_payment(
         }
     }
     Ok(match (cash, other) {
-        (0, 0) => Some(PaymentMode::Unpaid),
         (_, 0) => Some(PaymentMode::Unpaid),
         (0, _) if paid == total_cents => Some(PaymentMode::Prepaid),
         _ => {
@@ -781,12 +784,12 @@ pub fn ingest(conn: &Connection, order: &Order) -> Result<Ingested> {
     })
 }
 
-/// What HubRise last said of an order ends it without the food being
+/// What `HubRise` last said of an order ends it without the food being
 /// handed over.
 const CANCELLED_UPSTREAM: &str = "json_extract(o.raw_hubrise_json, '$.status')
     IN ('cancelled', 'rejected', 'delivery_failed')";
 
-/// A signed order HubRise cancelled waits for staff: a prepaid sale
+/// A signed order `HubRise` cancelled waits for staff: a prepaid sale
 /// (N) for its refund, an unpaid order (P) for its closing. Nothing is
 /// signed here. Returns the new state, if it changed.
 pub fn follow_cancellation(conn: &Connection, order_id: i64) -> Result<Option<String>> {
@@ -806,7 +809,7 @@ pub fn follow_cancellation(conn: &Connection, order_id: i64) -> Result<Option<St
     Ok(state)
 }
 
-/// Whether HubRise cancelled the order.
+/// Whether `HubRise` cancelled the order.
 pub fn cancelled_upstream(conn: &Connection, order_id: i64) -> Result<bool> {
     Ok(conn.query_row(
         &format!("SELECT EXISTS (SELECT 1 FROM orders o WHERE o.id = ?1 AND {CANCELLED_UPSTREAM})"),
@@ -905,7 +908,7 @@ fn store_resolution(conn: &Connection, order_id: i64, order: &Order, r: &Resolut
 }
 
 /// Resolve again every pending order that needs review, from its
-/// stored HubRise payload: after a catalog change or a channel
+/// stored `HubRise` payload: after a catalog change or a channel
 /// setting. Returns how many now resolve cleanly.
 pub fn re_resolve_pending(conn: &Connection) -> Result<usize> {
     let pending: Vec<(i64, String)> = {

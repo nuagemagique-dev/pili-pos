@@ -1,4 +1,4 @@
-//! Thin HTTP wrapper around `reqwest` for HubRise API calls.
+//! Thin HTTP wrapper around `reqwest` for `HubRise` API calls.
 
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Serialize;
@@ -6,7 +6,7 @@ use serde::de::DeserializeOwned;
 
 use crate::errors::{HubriseError, Result};
 
-/// HubRise HTTP client. Cheap to clone - `reqwest::Client` is internally `Arc`.
+/// `HubRise` HTTP client. Cheap to clone - `reqwest::Client` is internally `Arc`.
 #[derive(Clone)]
 pub struct Client {
     http: reqwest::Client,
@@ -14,8 +14,18 @@ pub struct Client {
     access_token: String,
 }
 
+impl std::fmt::Debug for Client {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Client")
+            .field("base_url", &self.base_url)
+            .field("access_token", &"<redacted>")
+            .finish_non_exhaustive()
+    }
+}
+
 /// One page of a paginated list and the cursor of the next, if any
 /// (`X-Cursor-Next`, `docs/hubrise/01-general-concepts.md`).
+#[derive(Debug)]
 pub struct PageOf<T> {
     pub items: Vec<T>,
     pub next_cursor: Option<String>,

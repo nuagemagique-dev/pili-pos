@@ -170,7 +170,7 @@ fn write_menu(conn: &mut Connection, source: &str, catalog: &Catalog) -> Result<
              ON CONFLICT(external_id) DO UPDATE SET
                 sort_order = excluded.sort_order, active = 1, hidden = excluded.hidden
              RETURNING id",
-            params![cat.key, sort as i64, !cat.visible],
+            params![cat.key, sort_key(sort), !cat.visible],
             |r| r.get(0),
         )?;
         write_names(&tx, "category", id, &cat.names)?;
@@ -218,7 +218,7 @@ fn active_item_ids(tx: &Transaction<'_>) -> Result<HashSet<i64>> {
     Ok(ids)
 }
 
-/// `vat_category` is the legacy column the old HubRise push reads;
+/// `vat_category` is the legacy column the old `HubRise` push reads;
 /// derived from the eat-in label.
 fn vat_category(item: &Item) -> &'static str {
     use pos_core::vat::VatCode;
@@ -228,6 +228,11 @@ fn vat_category(item: &Item) -> &'static str {
         VatCode::X => "out_of_scope",
         VatCode::B | VatCode::C => "food",
     }
+}
+
+/// A list position as the `sort_order` column value.
+fn sort_key(sort: usize) -> i64 {
+    i64::try_from(sort).unwrap_or(i64::MAX)
 }
 
 fn upsert_item(tx: &Transaction<'_>, item: &Item, sort: usize) -> Result<i64> {
@@ -261,7 +266,7 @@ fn upsert_item(tx: &Transaction<'_>, item: &Item, sort: usize) -> Result<i64> {
             item.vat_takeaway.as_str(),
             vat_category(item),
             item.kitchen,
-            sort as i64,
+            sort_key(sort),
             item.available,
             item.open_price,
             kind,
@@ -284,7 +289,7 @@ fn upsert_group(tx: &Transaction<'_>, item_id: i64, group: &Group, sort: usize) 
             min_select = excluded.min_select, max_select = excluded.max_select,
             menu_item_id = excluded.menu_item_id, active = 1, sort_order = excluded.sort_order
          RETURNING id",
-        params![group.key, group.min, max, item_id, sort as i64],
+        params![group.key, group.min, max, item_id, sort_key(sort)],
         |r| r.get(0),
     )?;
     Ok(id)
@@ -302,7 +307,7 @@ fn upsert_choice(tx: &Transaction<'_>, group_id: i64, choice: &Choice, sort: usi
             choice.key,
             group_id,
             choice.price_cents,
-            sort as i64,
+            sort_key(sort),
             choice.available
         ],
         |r| r.get(0),

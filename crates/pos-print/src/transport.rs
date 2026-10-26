@@ -39,6 +39,10 @@ pub enum TransportError {
 /// fields default to `true` / empty (optimistic) and `status_known`
 /// is `false`.
 #[derive(Debug, Clone, Serialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent health flags of one printer, serialized as-is for the UI"
+)]
 pub struct PrinterStatus {
     /// `true` only when the printer answered both DLE EOT queries.
     /// `false` means the other fields are the optimistic default, not
@@ -142,6 +146,7 @@ fn normalize_address(address: &str) -> String {
 ///
 /// The Epson TM-m30III exposes a raw TCP socket on port 9100.
 /// Data sent to this port is printed directly with no protocol overhead.
+#[derive(Debug)]
 pub struct TcpPrinter {
     address: String,
     status_timeout: Duration,
@@ -159,6 +164,7 @@ impl TcpPrinter {
 
     /// Wait `timeout` for each DLE EOT answer instead of
     /// [`DEFAULT_STATUS_READ_TIMEOUT`].
+    #[must_use]
     pub fn with_status_timeout(mut self, timeout: Duration) -> Self {
         self.status_timeout = timeout;
         self
@@ -201,8 +207,7 @@ impl TcpPrinter {
     pub async fn ping(&self) -> bool {
         tokio::time::timeout(Duration::from_secs(2), TcpStream::connect(&self.address))
             .await
-            .map(|r| r.is_ok())
-            .unwrap_or(false)
+            .is_ok_and(|r| r.is_ok())
     }
 
     pub fn address(&self) -> &str {
@@ -294,7 +299,7 @@ mod tests {
         let status = PrinterStatus::default();
         assert!(status.paper_ok);
         assert!(status.cover_closed);
-        assert!(status.warnings.is_empty());
+        assert_eq!(status.warnings.len(), 0);
         assert!(status.ready());
         assert!(!status.status_known);
     }
@@ -305,7 +310,7 @@ mod tests {
         status.read_offline_cause(STATUS_FIXED);
         status.read_paper_sensor(STATUS_FIXED);
         assert!(status.ready());
-        assert!(status.warnings.is_empty());
+        assert_eq!(status.warnings.len(), 0);
     }
 
     #[test]
@@ -471,7 +476,7 @@ mod tests {
         let status = send_to_printer(&addr, b"\x1B@x").await.unwrap();
         assert!(status.status_known);
         assert!(status.ready());
-        assert!(status.warnings.is_empty());
+        assert_eq!(status.warnings.len(), 0);
     }
 
     #[tokio::test]
