@@ -31,7 +31,7 @@ use crate::state::AppState;
 /// Delay before the first retry.
 const BACKOFF_FIRST: Duration = Duration::from_secs(30);
 /// Longest delay between two attempts.
-const BACKOFF_MAX: Duration = Duration::from_secs(30 * 60);
+const BACKOFF_MAX: Duration = Duration::from_mins(30);
 
 /// Delay before the next attempt, after `attempts` failed attempts (1 = first failure).
 pub fn backoff(attempts: i64) -> Duration {
@@ -143,6 +143,10 @@ pub async fn run_pass_until(
 ///
 /// # Errors
 /// The due deliveries could not be read.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one delivery pass: claim, submit, classify and record, in order"
+)]
 pub async fn try_pass(
     state: &AppState,
     now: DateTime<Utc>,
@@ -234,22 +238,19 @@ pub async fn try_pass(
         }
 
         // 2. Submit.
-        let ubl = match state.db.lock().map(|db| q::delivery_ubl(&db, delivery.id)) {
-            Ok(Ok(Some(ubl))) => ubl,
-            _ => {
-                if let Ok(db) = state.db.lock() {
-                    park_with_log(
-                        &db,
-                        delivery.id,
-                        attempt,
-                        "rejected",
-                        None,
-                        "invoice UBL could not be read",
-                        &stamp_now,
-                    );
-                }
-                continue;
+        let Ok(Ok(Some(ubl))) = state.db.lock().map(|db| q::delivery_ubl(&db, delivery.id)) else {
+            if let Ok(db) = state.db.lock() {
+                park_with_log(
+                    &db,
+                    delivery.id,
+                    attempt,
+                    "rejected",
+                    None,
+                    "invoice UBL could not be read",
+                    &stamp_now,
+                );
             }
+            continue;
         };
         let sent = tokio::time::timeout(
             SUBMIT_TIMEOUT,
@@ -361,8 +362,8 @@ mod tests {
         assert_eq!(backoff(1), Duration::from_secs(30));
         assert_eq!(backoff(2), Duration::from_secs(60));
         assert_eq!(backoff(3), Duration::from_secs(120));
-        assert_eq!(backoff(7), Duration::from_secs(1800));
-        assert_eq!(backoff(50), Duration::from_secs(1800));
+        assert_eq!(backoff(7), Duration::from_mins(30));
+        assert_eq!(backoff(50), Duration::from_mins(30));
         assert_eq!(backoff(0), Duration::from_secs(30));
     }
 }

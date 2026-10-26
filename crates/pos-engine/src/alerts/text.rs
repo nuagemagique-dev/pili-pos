@@ -54,9 +54,8 @@ fn local_date(iso: &str, lang: Lang) -> String {
 
 fn printer_name(printer: Printer, lang: Lang) -> &'static str {
     match (printer, lang) {
-        (Printer::Ticket, Lang::Fr) => "tickets",
+        (Printer::Ticket, Lang::Fr | Lang::En) => "tickets",
         (Printer::Kitchen, Lang::Fr) => "cuisine",
-        (Printer::Ticket, Lang::En) => "tickets",
         (Printer::Kitchen, Lang::En) => "kitchen",
         (Printer::Ticket, Lang::Zh) => "小票",
         (Printer::Kitchen, Lang::Zh) => "厨房",
@@ -283,7 +282,7 @@ mod tests {
                     {
                         assert!(text.contains("12:30"), "{text}");
                     }
-                    assert!(!text.contains("{"), "{text}");
+                    assert!(!text.contains('{'), "{text}");
                 }
             }
         }

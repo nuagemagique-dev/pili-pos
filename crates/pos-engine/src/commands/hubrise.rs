@@ -1,4 +1,4 @@
-//! Engine functions behind the HubRise integration commands.
+//! Engine functions behind the `HubRise` integration commands.
 //!
 //! The IPC wrappers in `crate::ipc::hubrise` call these on behalf of
 //! the Vue frontend. All methods return `Result<_, String>` for
@@ -25,16 +25,16 @@ use crate::state::AppState;
 pub fn poller_ctx(state: &AppState) -> PollerCtx {
     PollerCtx {
         http: state.shared_http.clone(),
-        db: state.poller_db.clone(),
+        db: Arc::clone(&state.poller_db),
         on_outcome: None,
         handlers: Arc::new(poller::DefaultHandlers),
-        poll_now: state.hubrise_poll_now.clone(),
-        outbox_wake: Some(state.hubrise_outbox_wake.clone()),
+        poll_now: Arc::clone(&state.hubrise_poll_now),
+        outbox_wake: Some(Arc::clone(&state.hubrise_outbox_wake)),
         enabled: state.hubrise_switch.clone(),
     }
 }
 
-/// What the frontend sees about the current HubRise connection.
+/// What the frontend sees about the current `HubRise` connection.
 #[derive(Debug, Clone, Serialize)]
 pub struct HubriseConnectionInfo {
     pub connected: bool,
@@ -64,14 +64,23 @@ impl HubriseConnectionInfo {
     }
 }
 
-/// The installation's HubRise OAuth client: the `hubrise` section of
+/// The installation's `HubRise` OAuth client: the `hubrise` section of
 /// `pos.json`, its secret read from `client_secret_file`. Without the
-/// section, a development build (`dev_fallback`) takes the
+/// section, a development build ([`Build::Development`]) takes the
 /// `HUBRISE_*` variables (from `.env`), else the local mock; a release
 /// build refuses (`hubrise_not_configured`).
+/// Which kind of build asks for the OAuth client.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Build {
+    /// A release build: no development fallback.
+    Release,
+    /// A development build: `HUBRISE_*` variables, else the local mock.
+    Development,
+}
+
 pub fn oauth_config(
     config: &pos_core::config::PosConfig,
-    dev_fallback: bool,
+    build: Build,
 ) -> Result<OAuthConfig, String> {
     if let Some(h) = &config.hubrise {
         let client_secret = h.client_secret().map_err(|problem| {
@@ -87,7 +96,7 @@ pub fn oauth_config(
             scope: h.scope.clone(),
         });
     }
-    if !dev_fallback {
+    if build == Build::Release {
         return Err(errors::hubrise::NOT_CONFIGURED.to_string());
     }
     let env = |key: &str, default: &str| std::env::var(key).unwrap_or_else(|_| default.to_string());
@@ -109,10 +118,17 @@ pub fn oauth_config(
 fn installation_oauth_config(state: &AppState) -> Result<OAuthConfig, String> {
     // Clone and release the lock: reading the secret file blocks.
     let config = state.config.lock().map_err(errors::internal)?.clone();
-    oauth_config(&config, cfg!(debug_assertions))
+    oauth_config(
+        &config,
+        if cfg!(debug_assertions) {
+            Build::Development
+        } else {
+            Build::Release
+        },
+    )
 }
 
-/// HubRise refused the connection code or did not answer: said in the
+/// `HubRise` refused the connection code or did not answer: said in the
 /// screen's language, its own words kept as the detail.
 fn oauth_failed(e: impl std::fmt::Display) -> String {
     tracing::warn!(error = %e, "hubrise: connection refused");
@@ -139,9 +155,9 @@ pub fn do_hubrise_get_connection_status(state: &AppState) -> Result<HubriseConne
     }
 }
 
-/// The HubRise page where the installer logs in and grants access,
+/// The `HubRise` page where the installer logs in and grants access,
 /// and the same link as a QR code: the kiosk has no browser, so the
-/// installer opens it on a phone and types back the code HubRise shows.
+/// installer opens it on a phone and types back the code `HubRise` shows.
 #[derive(Debug, Clone, Serialize)]
 pub struct AuthorizeLink {
     pub url: String,
@@ -166,7 +182,7 @@ fn qr_svg(text: &str) -> Result<String, String> {
     let code = qrcode::QrCode::with_error_correction_level(text, qrcode::EcLevel::M)
         .map_err(errors::internal)?;
     let svg = code
-        .render::<svg::Color>()
+        .render::<svg::Color<'_>>()
         .min_dimensions(240, 240)
         .dark_color(svg::Color("#000000"))
         .light_color(svg::Color("#ffffff"))
@@ -177,7 +193,7 @@ fn qr_svg(text: &str) -> Result<String, String> {
     })
 }
 
-/// Exchange the code HubRise showed for this location's token, store
+/// Exchange the code `HubRise` showed for this location's token, store
 /// the connection, and start the integration. Admins only.
 pub async fn do_hubrise_complete_oauth(
     state: &AppState,
@@ -269,7 +285,7 @@ pub struct WebshopOrderItem {
     pub product_name_zh: Option<String>,
 }
 
-/// Summary of a webshop order kept locally (is_fiscal = 0).
+/// Summary of a webshop order kept locally (`is_fiscal` = 0).
 ///
 /// Items + customer metadata are extracted from `raw_hubrise_json`
 /// at query time so the Vue view can render the full order without
@@ -287,7 +303,7 @@ pub struct WebshopOrderSummary {
     pub items: Vec<WebshopOrderItem>,
     pub customer_notes: Option<String>,
     pub customer_name: Option<String>,
-    /// HubRise `confirmed_time` (RFC3339). Populated by the
+    /// `HubRise` `confirmed_time` (RFC3339). Populated by the
     /// "+15/+30/+45/+60 min" delay chips so the staff sees the
     /// agreed-upon ready-at time on the card.
     pub confirmed_time: Option<String>,
@@ -305,13 +321,13 @@ pub struct WebshopOrderSummary {
     pub webshop: Option<pos_hubrise::webshop::WebshopState>,
 }
 
-/// Parse a HubRise money string such as "12.50 EUR" into cents.
+/// Parse a `HubRise` money string such as "12.50 EUR" into cents.
 fn money_to_cents(raw: &str) -> i64 {
     pos_hubrise_types::money::parse_cents(raw).unwrap_or(0)
 }
 
-/// Address fields teased out of a HubRise `customer` object - only
-/// populated for `delivery` service_type orders where the Vue card
+/// Address fields teased out of a `HubRise` `customer` object - only
+/// populated for `delivery` `service_type` orders where the Vue card
 /// needs to render a per-order delivery block.
 #[derive(Debug, Default, Clone)]
 struct CustomerAddress {
@@ -322,7 +338,7 @@ struct CustomerAddress {
 }
 
 /// Best-effort extraction of items + customer fields + ready-at
-/// time from a stored HubRise Order JSON blob. Any parse error
+/// time from a stored `HubRise` Order JSON blob. Any parse error
 /// degrades to empty/None defaults so the card still renders.
 fn summary_from_raw(
     raw: Option<String>,
@@ -358,8 +374,7 @@ fn summary_from_raw(
             let unit_price_cents = raw_item
                 .get("price")
                 .and_then(|v| v.as_str())
-                .map(money_to_cents)
-                .unwrap_or(0);
+                .map_or(0, money_to_cents);
             let line_total_cents = unit_price_cents.saturating_mul(quantity);
             let mut options: Vec<String> = Vec::new();
             if let Some(opts) = raw_item.get("options").and_then(|v| v.as_array()) {
@@ -372,7 +387,7 @@ fn summary_from_raw(
             let customer_notes = raw_item
                 .get("customer_notes")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
+                .map(std::string::ToString::to_string);
             items.push(WebshopOrderItem {
                 product_name,
                 quantity,
@@ -388,7 +403,7 @@ fn summary_from_raw(
     let customer_notes = value
         .get("customer_notes")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+        .map(std::string::ToString::to_string);
     let customer_name = value.get("customer").and_then(|c| {
         let first = c.get("first_name").and_then(|v| v.as_str()).unwrap_or("");
         let last = c.get("last_name").and_then(|v| v.as_str()).unwrap_or("");
@@ -402,7 +417,7 @@ fn summary_from_raw(
     let confirmed_time = value
         .get("confirmed_time")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+        .map(std::string::ToString::to_string);
 
     let address = value
         .get("customer")
@@ -477,7 +492,7 @@ pub fn do_list_webshop_orders(state: &AppState) -> Result<Vec<WebshopOrderSummar
     for r in rows {
         out.push(r.map_err(|e| e.to_string())?);
     }
-    for order in out.iter_mut() {
+    for order in &mut out {
         order.webshop = pos_hubrise::webshop::load(&db, order.id).map_err(errors::internal)?;
     }
     let chinese = chinese_names_by_french_name(&db).map_err(|e| e.to_string())?;
@@ -524,7 +539,7 @@ pub const STAFF_STATUSES: &[&str] = &[
     "in_delivery",
 ];
 
-/// Queue a status change for HubRise and show it at once on the POS.
+/// Queue a status change for `HubRise` and show it at once on the POS.
 pub fn do_patch_order_status(
     state: &AppState,
     hubrise_order_id: &str,
@@ -550,7 +565,7 @@ pub fn do_patch_order_status(
     Ok(())
 }
 
-/// Queue `patch` for HubRise order `hubrise_order_id` and apply
+/// Queue `patch` for `HubRise` order `hubrise_order_id` and apply
 /// `mirror` to the stored order, in one transaction; wake the outbox.
 pub fn queue_patch(
     state: &AppState,
@@ -595,7 +610,7 @@ pub struct SetConfirmedTimeRequest {
     pub confirmed_time: String,
 }
 
-/// Queue a new `confirmed_time` for HubRise and show it at once.
+/// Queue a new `confirmed_time` for `HubRise` and show it at once.
 pub fn do_set_confirmed_time(
     state: &AppState,
     hubrise_order_id: &str,
@@ -621,7 +636,7 @@ pub struct HubriseStatus {
     pub health: token_store::ConnectionHealth,
     pub outbox: outbox::Backlog,
     pub outbox_error: Option<String>,
-    /// Events HubRise sent that could not be handled.
+    /// Events `HubRise` sent that could not be handled.
     pub parked_events: i64,
     /// Online orders still waiting for staff after 5 minutes.
     pub stale_orders: i64,
@@ -670,7 +685,7 @@ pub fn do_hubrise_status(state: &AppState) -> Result<HubriseStatus, String> {
     })
 }
 
-/// Fetch and apply the HubRise catalog now (Settings, "Resynchroniser").
+/// Fetch and apply the `HubRise` catalog now (Settings, "Resynchroniser").
 pub async fn do_sync_catalog(
     state: &AppState,
 ) -> Result<Option<pos_catalog::ApplyOutcome>, String> {
@@ -686,7 +701,7 @@ pub async fn do_sync_catalog(
     Ok(outcome)
 }
 
-/// The local products that can keep their id when HubRise takes over
+/// The local products that can keep their id when `HubRise` takes over
 /// the menu (same French name and price as a catalog product).
 pub fn do_adoption_preview(state: &AppState) -> Result<Vec<pos_catalog::Adoption>, String> {
     access::operator(state, Access::Admin)?;
@@ -701,7 +716,7 @@ pub fn do_adoption_preview(state: &AppState) -> Result<Vec<pos_catalog::Adoption
 
 /// The manager confirms the take-over: the chosen products keep their
 /// id, every other hand-entered product is deactivated, and the menu
-/// mirrors HubRise. Refused while a POS order is open, since its
+/// mirrors `HubRise`. Refused while a POS order is open, since its
 /// products could vanish from the menu.
 pub fn do_adopt_catalog(
     state: &AppState,
@@ -725,7 +740,7 @@ pub fn do_adopt_catalog(
         .ok_or_else(|| errors::hubrise::NOTHING_PENDING.to_string())
 }
 
-/// How each HubRise channel is signed (Settings).
+/// How each `HubRise` channel is signed (Settings).
 pub fn do_list_channels(state: &AppState) -> Result<Vec<pos_hubrise::webshop::Channel>, String> {
     access::operator(state, Access::Admin)?;
     let db = state.db.lock().map_err(errors::internal)?;

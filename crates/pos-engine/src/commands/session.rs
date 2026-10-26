@@ -100,6 +100,7 @@ pub enum PresenceJob {
 
 /// The engine's session rules: the order on screen, the presence queue
 /// and the idle clock. Later rules add their own fields here.
+#[derive(Debug)]
 pub struct SessionRules {
     active_order: Mutex<Option<i64>>,
     /// The last user activity (or login): the idle lock counts from it.
@@ -149,8 +150,7 @@ impl SessionRules {
     pub fn last_activity(&self) -> Instant {
         self.last_activity
             .lock()
-            .map(|g| *g)
-            .unwrap_or_else(|e| *e.into_inner())
+            .map_or_else(|e| *e.into_inner(), |g| *g)
     }
 
     /// Completes at the next [`SessionRules::touch`]. The idle loop

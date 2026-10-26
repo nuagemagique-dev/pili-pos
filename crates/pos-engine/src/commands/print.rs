@@ -64,7 +64,7 @@ pub async fn do_check_kitchen_printer(state: &AppState) -> Result<Option<bool>, 
 /// without parsing transport errors.
 const ERR_PRINTER_NOT_CONFIGURED: &str = crate::commands::errors::PRINTER_NOT_CONFIGURED;
 
-/// Load and deserialize the stored HubRise Order JSON for a local
+/// Load and deserialize the stored `HubRise` Order JSON for a local
 /// `orders.id`. Returns the printer-ready payload or a user-facing
 /// error message on failure.
 #[cfg(feature = "hubrise")]
@@ -94,7 +94,7 @@ fn printer_address(state: &AppState) -> Result<String, String> {
         .ok_or_else(|| ERR_PRINTER_NOT_CONFIGURED.to_string())
 }
 
-/// Map the stored HubRise service_type to a French label for
+/// Map the stored `HubRise` `service_type` to a French label for
 /// printing. Matches the labels used on the POS cards.
 #[cfg(feature = "hubrise")]
 fn service_type_label(svc: Option<ServiceType>) -> String {
@@ -107,19 +107,19 @@ fn service_type_label(svc: Option<ServiceType>) -> String {
     .to_string()
 }
 
-/// First 8 chars of a HubRise order id, or `"--------"` if absent.
+/// First 8 chars of a `HubRise` order id, or `"--------"` if absent.
 #[cfg(feature = "hubrise")]
 fn short_ref(order: &Order) -> String {
     order.id.chars().take(8).collect::<String>()
 }
 
-/// Parse a HubRise money string like `"12.50 EUR"` into eurocents.
+/// Parse a `HubRise` money string like `"12.50 EUR"` into eurocents.
 #[cfg(feature = "hubrise")]
 fn money_cents(money: &str) -> i64 {
     pos_hubrise_types::money::parse_cents(money).unwrap_or(0)
 }
 
-/// "HH:MM" in Brussels time of an RFC3339 timestamp (HubRise sends UTC),
+/// "HH:MM" in Brussels time of an RFC3339 timestamp (`HubRise` sends UTC),
 /// or None on failure.
 #[cfg(feature = "hubrise")]
 fn hhmm_from_rfc3339(rfc3339: &str) -> Option<String> {
@@ -210,18 +210,21 @@ pub async fn do_print_webshop_customer(state: &AppState, order_id: i64) -> Resul
         })
         .collect();
 
-    let total_cents = order.total.as_deref().map(money_cents).unwrap_or_else(|| {
-        lines
-            .iter()
-            .fold(0_i64, |sum, l| sum.saturating_add(l.line_total_cents))
-    });
+    let total_cents = order.total.as_deref().map_or_else(
+        || {
+            lines
+                .iter()
+                .fold(0_i64, |sum, l| sum.saturating_add(l.line_total_cents))
+        },
+        money_cents,
+    );
 
     let customer = order
         .customer
         .as_ref()
         .map(|c| {
             let name = match (&c.first_name, &c.last_name) {
-                (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+                (Some(f), Some(l)) => Some(format!("{f} {l}")),
                 (Some(f), None) => Some(f.clone()),
                 (None, Some(l)) => Some(l.clone()),
                 (None, None) => None,

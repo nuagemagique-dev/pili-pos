@@ -205,7 +205,7 @@ pub struct EngineConfig {
     /// passes the identifier of the handset; Linux passes `None` and
     /// keeps the value of `pos.json`.
     pub device_id_override: Option<String>,
-    /// The remote support program (RustDesk) when this terminal has one;
+    /// The remote support program (`RustDesk`) when this terminal has one;
     /// the shell decides, the engine never looks for it. `None`: the
     /// support commands answer as on a terminal without it (not
     /// available, and a start is refused).
@@ -241,6 +241,7 @@ impl std::fmt::Debug for HttpTlsKind<'_> {
 
 /// The opened engine: the shared [`AppState`] behind a cheap handle.
 /// It derefs to the state, so command bodies take `&AppState` as before.
+#[derive(Debug)]
 pub struct Engine {
     state: Arc<AppState>,
     /// The background tasks [`Engine::start_background`] spawned.
@@ -274,6 +275,10 @@ pub struct BackgroundTicks {
 impl Engine {
     /// Open the database, migrate it, repair what a crash left behind
     /// and load the configuration.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the one place the engine is assembled from its configuration"
+    )]
     pub fn open(cfg: EngineConfig) -> anyhow::Result<Engine> {
         let EngineConfig {
             paths,
@@ -367,8 +372,10 @@ impl Engine {
         let table_plan = pos_db::queries::table_plan::at_start(&conn, &config.table_plan())?;
         tracing::info!(%table_plan, "table plan");
         #[cfg(feature = "hubrise")]
-        let hubrise_on =
-            pos_db::queries::integrations::hubrise_at_start(&conn, config.hubrise_enabled)?;
+        let hubrise_on = pos_db::queries::integrations::hubrise_at_start(
+            &conn,
+            pos_db::queries::integrations::State::from(config.hubrise_enabled),
+        )?;
         #[cfg(feature = "hubrise")]
         tracing::info!(enabled = hubrise_on, "hubrise integration switch");
 
@@ -401,19 +408,19 @@ impl Engine {
                 mail,
                 session: Mutex::new(None),
                 support: crate::commands::support::SupportState::with_program(support_program),
-                pin_throttle: Default::default(),
-                gift_voucher_lookups: Default::default(),
-                signing: Default::default(),
+                pin_throttle: crate::commands::access::PinThrottle::default(),
+                gift_voucher_lookups: crate::commands::gift_vouchers::LookupThrottle::default(),
+                signing: crate::commands::signing::SigningLock::default(),
                 fdm_status_cache: Mutex::new(None),
-                session_rules: Default::default(),
-                fdm_monitor: Default::default(),
+                session_rules: crate::commands::session::SessionRules::default(),
+                fdm_monitor: crate::commands::fdm_monitor::FdmMonitorState::default(),
                 export,
                 peppol_wake: tokio::sync::Notify::new(),
                 eft_in_flight: Mutex::new(None),
                 eft_line: tokio::sync::Mutex::new(()),
-                badge_repeats: Default::default(),
-                originals_printing: Default::default(),
-                owner_alerts: Default::default(),
+                badge_repeats: Mutex::default(),
+                originals_printing: Mutex::default(),
+                owner_alerts: crate::alerts::AlertRuntime::default(),
                 #[cfg(feature = "eft-scripted")]
                 eft_terminal_override: None,
             }),
@@ -554,9 +561,7 @@ mod tests {
     fn a_second_open_on_one_data_dir_fails() {
         let dir = tempfile::tempdir().unwrap();
         let _first = Engine::open(test_config(dir.path())).unwrap();
-        let err = Engine::open(test_config(dir.path()))
-            .err()
-            .expect("the data directory is locked");
+        let err = Engine::open(test_config(dir.path())).expect_err("the data directory is locked");
         let msg = err.to_string();
         assert!(msg.contains("engine already open"), "{msg}");
         assert!(msg.contains("engine.lock"), "{msg}");
@@ -653,14 +658,14 @@ mod tests {
             let dir = tempfile::tempdir().unwrap();
             let mut cfg = test_config(dir.path());
             cfg.device_id_override = Some(bad.into());
-            let err = Engine::open(cfg).err().expect("empty override");
+            let err = Engine::open(cfg).expect_err("empty override");
             assert!(err.to_string().contains("device_id_override"), "{err}");
         }
         let dir = tempfile::tempdir().unwrap();
         let data = dir.path().join("fresh");
         let mut cfg = test_config(&data);
         cfg.device_id_override = Some("x".repeat(601));
-        let err = Engine::open(cfg).err().expect("601 characters");
+        let err = Engine::open(cfg).expect_err("601 characters");
         assert!(err.to_string().contains("600"), "{err}");
         assert!(!data.exists(), "nothing was created");
     }
@@ -741,7 +746,7 @@ mod tests {
         let data = dir.path().join("fresh");
         let mut cfg = test_config(&data);
         cfg.http_tls = HttpTls::RootsOnly(vec![]);
-        let err = Engine::open(cfg).err().expect("no roots, no engine");
+        let err = Engine::open(cfg).expect_err("no roots, no engine");
         let msg = err.to_string();
         assert!(msg.contains("no trusted root certificate"), "{msg}");
         assert!(!data.exists(), "nothing was created");
@@ -752,7 +757,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut cfg = test_config(dir.path());
         cfg.http_tls = HttpTls::RootsOnly(vec![b"not a certificate".to_vec()]);
-        let err = Engine::open(cfg).err().expect("invalid root");
+        let err = Engine::open(cfg).expect_err("invalid root");
         assert!(
             err.to_string().contains("invalid root certificate"),
             "{err}"

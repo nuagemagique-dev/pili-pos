@@ -38,6 +38,15 @@ pub struct TelegramChannel {
     backoff: Duration,
 }
 
+impl std::fmt::Debug for TelegramChannel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // The bot token never reaches a log.
+        f.debug_struct("TelegramChannel")
+            .field("api_base", &self.api_base)
+            .finish_non_exhaustive()
+    }
+}
+
 impl TelegramChannel {
     pub fn new(
         http_tls: &HttpTls,
@@ -57,6 +66,7 @@ impl TelegramChannel {
     }
 
     /// The wait between attempts (tests make it short).
+    #[must_use]
     pub fn with_backoff(mut self, backoff: Duration) -> Self {
         self.backoff = backoff;
         self
@@ -160,8 +170,7 @@ fn redact_bot_path(text: &str) -> String {
 /// A failure repeating can cure: no answer, 429 and the 5xx.
 fn retryable(outcome: &SendOutcome) -> bool {
     match outcome.http_status {
-        None => true,
-        Some(429) => true,
+        None | Some(429) => true,
         Some(s) => s >= 500,
     }
 }

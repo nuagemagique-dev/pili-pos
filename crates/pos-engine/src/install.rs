@@ -120,7 +120,7 @@ fn export_problems(config: &pos_core::config::PosConfig, reported: &[String]) ->
 /// Load `sql` into an open database as a seed.
 ///
 /// Refused (an error naming the reason) when the database already holds
-/// fiscal events, or, with the HubRise feature, when a catalogue manages
+/// fiscal events, or, with the `HubRise` feature, when a catalogue manages
 /// the menu. The seed runs in one transaction: all of it or nothing.
 pub fn apply_seed(conn: &Connection, sql: &str) -> anyhow::Result<()> {
     let fiscal_events: i64 =
@@ -243,7 +243,10 @@ mod tests {
         );
         // As a plain file the same relative path is read from the working
         // directory, where it is not either.
-        assert!(!check_config_source(&ConfigSource::File(file.clone())).is_empty());
+        assert_ne!(
+            check_config_source(&ConfigSource::File(file.clone())).len(),
+            0
+        );
 
         std::fs::create_dir_all(dir.path().join("secrets")).unwrap();
         std::fs::write(dir.path().join("secrets/fdm.token"), "token\n").unwrap();

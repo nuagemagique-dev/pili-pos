@@ -16,13 +16,14 @@
 //! Acceptance claims the order (`pending` to `signing`) before calling
 //! the FDM, so a double tap or a second terminal never signs twice;
 //! if the FDM is unreachable or refuses, the order goes back to
-//! `pending` and HubRise is told nothing. `accepted` is queued for
-//! HubRise in the transaction that records the signature.
+//! `pending` and `HubRise` is told nothing. `accepted` is queued for
+//! `HubRise` in the transaction that records the signature.
 
 use pos_fiscal::event::build_order_input;
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::inputs::CostCenterInput;
 use pos_fiscal::payment::{PaymentMethod, PaymentPart};
+use pos_fiscal::types::Mode;
 use pos_fiscal::types::{CostCenterType, EventLabel, PaymentType};
 use pos_hubrise::webshop::{self, WebshopState};
 use rusqlite::{OptionalExtension, params};
@@ -52,7 +53,7 @@ pub struct AcceptResult {
 #[derive(Debug, Deserialize)]
 pub struct AcceptRequest {
     pub order_id: i64,
-    /// The time the customer is told (RFC 3339), sent to HubRise with
+    /// The time the customer is told (RFC 3339), sent to `HubRise` with
     /// `accepted`.
     #[serde(default)]
     pub confirmed_time: Option<String>,
@@ -60,7 +61,7 @@ pub struct AcceptRequest {
 
 /// The order's cost center: PLATFORM for a platform's order, WEBSHOP
 /// for the restaurant's own webshop; the id names the channel, the
-/// reference is the HubRise order, shared by its P and its N.
+/// reference is the `HubRise` order, shared by its P and its N.
 fn cost_center(state: &WebshopState) -> CostCenterInput {
     let platform = state.channel_kind.as_deref() == Some("platform");
     CostCenterInput {
@@ -147,7 +148,7 @@ fn write_lines(state: &AppState, ws: &WebshopState) -> Result<(), String> {
     Ok(())
 }
 
-/// Record the signature and queue the HubRise status in one
+/// Record the signature and queue the `HubRise` status in one
 /// transaction.
 fn record_signed(
     state: &AppState,
@@ -247,7 +248,7 @@ fn accepted_patch(confirmed_time: Option<&str>) -> serde_json::Value {
 }
 
 /// Accept an online order: sign it (N if prepaid, P if unpaid), print
-/// the kitchen ticket, tell HubRise.
+/// the kitchen ticket, tell `HubRise`.
 pub async fn do_accept_webshop_order(
     state: &AppState,
     order_id: i64,
@@ -391,7 +392,7 @@ async fn sign_order_p(
         let db = state.db.lock().map_err(errors::internal)?;
         let order =
             pos_db::queries::orders::get_order(&db, ws.order_id).map_err(errors::internal)?;
-        let entries = pos_db::queries::orders::get_order_entries(&db, ws.order_id, true)
+        let entries = pos_db::queries::orders::get_unsent_order_entries(&db, ws.order_id)
             .map_err(errors::internal)?;
         let booking = super::booking(&db, &guard, config)?;
         let (changes, _) = super::price_changes::load(&db, ws.order_id)?;
@@ -414,7 +415,8 @@ async fn sign_order_p(
     );
     input.cost_center = cost_center(ws);
     pos_fiscal::price_change::apply(&mut input.transaction, &entries, &changes);
-    let request = SignRequest::new(SignMutation::Order, &input, false).map_err(errors::internal)?;
+    let request =
+        SignRequest::new(SignMutation::Order, &input, Mode::Normal).map_err(errors::internal)?;
     let prepared = Prepared {
         op,
         request,
@@ -462,7 +464,7 @@ pub struct HandoverRequest {
 }
 
 /// Collect an unpaid online order ("Encaisser"): the sale N, with the
-/// order's cost center, closes its P; HubRise hears `completed`.
+/// order's cost center, closes its P; `HubRise` hears `completed`.
 pub async fn do_handover_webshop_order(
     state: &AppState,
     order_id: i64,
@@ -524,7 +526,7 @@ pub async fn do_handover_webshop_order(
 }
 
 /// Refuse an order not yet accepted: voided here, `rejected` for
-/// HubRise, nothing signed.
+/// `HubRise`, nothing signed.
 pub fn do_reject_webshop_order(state: &AppState, order_id: i64) -> Result<(), String> {
     crate::commands::integrations::require_hubrise(state)?;
     access::operator(state, Access::Cashier)?;
@@ -561,7 +563,7 @@ pub fn do_reject_webshop_order(state: &AppState, order_id: i64) -> Result<(), St
     Ok(())
 }
 
-/// Hand over a prepaid order whose sale is signed: HubRise hears
+/// Hand over a prepaid order whose sale is signed: `HubRise` hears
 /// `completed`. An unpaid order is completed by its handover sale.
 pub fn do_complete_webshop_order(state: &AppState, order_id: i64) -> Result<(), String> {
     access::operator(state, Access::Cashier)?;
@@ -615,7 +617,7 @@ fn signed_events(state: &AppState, order_id: i64) -> Result<(Option<i64>, Option
     .map_err(errors::internal)
 }
 
-/// Refund an order HubRise cancelled after its sale was signed: every
+/// Refund an order `HubRise` cancelled after its sale was signed: every
 /// line at its price, charges included, citing the sale. A manager
 /// confirms it; nothing refunds on its own. The platform or the payment
 /// provider pays a prepaid order back (APP / ONLINE, the drawer stays
@@ -675,7 +677,7 @@ pub async fn do_refund_webshop_order(
     }
 }
 
-/// Close an unpaid order HubRise cancelled after its P: every line is
+/// Close an unpaid order `HubRise` cancelled after its P: every line is
 /// corrected, and the sale N at 0,00 EUR (payment 0, FAQ Q206 / Q209)
 /// closes the P with the same cost center. Its ticket is printed.
 pub async fn do_close_cancelled_webshop_order(
@@ -753,7 +755,7 @@ pub async fn do_close_cancelled_webshop_order(
 }
 
 /// Boot recovery for orders a crash left in `signing`: signed if the
-/// archive holds its event (and the missing HubRise status is queued),
+/// archive holds its event (and the missing `HubRise` status is queued),
 /// otherwise back to where it was. A refund or a closing interrupted
 /// the same way is finished or offered again. Returns how many were
 /// repaired.
@@ -769,6 +771,10 @@ pub fn reconcile_order(conn: &rusqlite::Connection, order_id: i64) -> rusqlite::
     recover(conn, Some(order_id))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one recovery pass over the interrupted webshop orders"
+)]
 fn recover(conn: &rusqlite::Connection, only: Option<i64>) -> rusqlite::Result<usize> {
     type Stuck = (i64, String, Option<i64>, Option<i64>);
     let stuck: Vec<Stuck> = {

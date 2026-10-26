@@ -21,6 +21,7 @@
 //!   line is ever corrected to a gift voucher: the voucher movement
 //!   written with the sale cannot follow a correction (INT-D19).
 
+use pos_fiscal::types::Mode;
 use rusqlite::Connection;
 use serde::Serialize;
 use serde_json::Value;
@@ -215,8 +216,7 @@ fn existing_correction(db: &Connection, sale: &Sale) -> Result<Option<Correction
 fn financials(sale: &Sale) -> &[Value] {
     sale.request["financials"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[], Vec::as_slice)
 }
 
 /// Whether the sale's booking period is the open one: no Z covers it.
@@ -245,9 +245,7 @@ fn sale_refusal(
     // A sale: signed SALE, not a refund (a refund names its sale in
     // `fdmRef`, and sells a negative total).
     let is_sale = sale.event.fdm_response_json.as_deref().is_some_and(|j| {
-        serde_json::from_str::<Value>(j)
-            .ok()
-            .is_some_and(|v| v["eventOperation"] == "SALE")
+        serde_json::from_str::<Value>(j).is_ok_and(|v| v["eventOperation"] == "SALE")
     });
     let total = cents(
         &sale.request["transaction"]["transactionTotal"],
@@ -478,7 +476,7 @@ async fn sign_correction(
         return Err(errors::PAYMENT_CORRECTION_ROUNDING.into());
     }
 
-    let label = EventLabel::F.in_mode(config.training_mode);
+    let label = EventLabel::F.in_mode(Mode::from(config.training_mode));
     let ticket_number = super::peek_ticket_number(state, guard, label)?;
     let input = build_payment_correction_input(
         &config,
@@ -494,7 +492,7 @@ async fn sign_correction(
     let request = SignRequest::new(
         SignMutation::PaymentCorrection,
         &input,
-        config.training_mode,
+        Mode::from(config.training_mode),
     )
     .map_err(errors::internal)?;
     let prepared = Prepared {

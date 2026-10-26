@@ -20,7 +20,7 @@ use chrono::{NaiveDate, Timelike};
 use chrono_tz::Europe::Brussels;
 use pos_db::queries::reports::{self as report_queries, PeriodZ};
 use pos_fiscal::archive;
-use pos_fiscal::report_totals::{self, ReportEvent, cents};
+use pos_fiscal::report_totals::{self, ReportEvent};
 use pos_fiscal::ticket::ReceiptLanguage;
 use pos_fiscal::types::EventLabel;
 use pos_print::sales_report::{
@@ -38,7 +38,11 @@ fn bar_percent(amount: i64, biggest: i64) -> u32 {
     if biggest == 0 || amount == 0 {
         return 0;
     }
-    let percent = (amount.abs() as f64 * 100.0 / biggest as f64).round() as u32;
+    // Rounded half up in integers: exact where a float quotient could land
+    // a hair below a tie.
+    let biggest = i128::from(biggest).abs();
+    let percent = (i128::from(amount).abs() * 200 + biggest) / (2 * biggest);
+    let percent = u32::try_from(percent).unwrap_or(u32::MAX);
     percent.clamp(1, 100)
 }
 
@@ -171,16 +175,18 @@ fn rounding_of(event: &ReportEvent) -> Result<i64, String> {
 /// The turnover of label N in a stored turnover Z request.
 fn z_turnover_n(z_json: &str) -> Option<i64> {
     let z: Value = serde_json::from_str(z_json).ok()?;
-    Some(
-        z["turnover"]["transactions"]
-            .as_array()?
-            .iter()
-            .find(|t| t["eventLabel"].as_str() == Some("N"))
-            .map_or(Some(0), |t| pos_core::money::cents_of(&t["amount"]))?,
-    )
+    z["turnover"]["transactions"]
+        .as_array()?
+        .iter()
+        .find(|t| t["eventLabel"].as_str() == Some("N"))
+        .map_or(Some(0), |t| pos_core::money::cents_of(&t["amount"]))
 }
 
 /// Compute the report from the database.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear aggregation of the sales report"
+)]
 fn compute(state: &AppState, from: &str, to: &str) -> Result<SalesReport, String> {
     let (from_date, to_date) = parse_range(from, to)?;
     let day_end_hour = state.config.lock().map_err(errors::internal)?.day_end_hour;

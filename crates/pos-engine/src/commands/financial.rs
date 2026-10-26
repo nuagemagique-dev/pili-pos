@@ -1,8 +1,9 @@
+use pos_fiscal::types::Mode;
 use serde::{Deserialize, Serialize};
 
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
-use pos_fiscal::inputs::*;
-use pos_fiscal::types::*;
+use pos_fiscal::inputs::{DrawerInput, DrawerOpenInput, MoneyInOutInput, MoneyInOutLineInput};
+use pos_fiscal::types::{EventLabel, InputMethod, MoneyInOutLineType, PaymentType};
 
 use crate::commands::access::{self, Access};
 use crate::commands::errors;
@@ -48,7 +49,7 @@ pub async fn do_money_in_out(
     };
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let bp_id = super::current_booking(state, &guard)?;
-    let label = EventLabel::F.in_mode(config.training_mode);
+    let label = EventLabel::F.in_mode(Mode::from(config.training_mode));
     let ticket_number = super::peek_ticket_number(state, &guard, label)?;
 
     let common = pos_fiscal::event::build_common_fields(
@@ -67,13 +68,16 @@ pub async fn do_money_in_out(
         return Err(errors::AMOUNT_NEGATIVE.into());
     }
     let (amount, amount_type) = match direction {
-        MoneyDirection::In => (amount_cents as f64 / 100.0, MoneyInOutLineType::MoneyInOut),
+        MoneyDirection::In => (
+            pos_core::money::eur(amount_cents),
+            MoneyInOutLineType::MoneyInOut,
+        ),
         MoneyDirection::Out => (
-            -(amount_cents as f64 / 100.0),
+            -pos_core::money::eur(amount_cents),
             MoneyInOutLineType::MoneyInOut,
         ),
         MoneyDirection::Declaration => (
-            amount_cents as f64 / 100.0,
+            pos_core::money::eur(amount_cents),
             MoneyInOutLineType::DrawerDeclaration,
         ),
     };
@@ -95,8 +99,12 @@ pub async fn do_money_in_out(
         }],
     };
 
-    let request = SignRequest::new(SignMutation::MoneyInOut, &input, config.training_mode)
-        .map_err(errors::internal)?;
+    let request = SignRequest::new(
+        SignMutation::MoneyInOut,
+        &input,
+        Mode::from(config.training_mode),
+    )
+    .map_err(errors::internal)?;
     let prepared = prepared(op, request, label, ticket_number, &employee_insz, &input)?;
     Ok(
         match signing::sign(state, &guard, &config, prepared).await {
@@ -167,7 +175,7 @@ pub async fn do_open_drawer_fiscal(
     };
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let bp_id = super::current_booking(state, &guard)?;
-    let label = EventLabel::F.in_mode(config.training_mode);
+    let label = EventLabel::F.in_mode(Mode::from(config.training_mode));
     let ticket_number = super::peek_ticket_number(state, &guard, label)?;
 
     let common = pos_fiscal::event::build_common_fields(
@@ -188,8 +196,12 @@ pub async fn do_open_drawer_fiscal(
         }),
     };
 
-    let request = SignRequest::new(SignMutation::DrawerOpen, &input, config.training_mode)
-        .map_err(errors::internal)?;
+    let request = SignRequest::new(
+        SignMutation::DrawerOpen,
+        &input,
+        Mode::from(config.training_mode),
+    )
+    .map_err(errors::internal)?;
     let prepared = prepared(op, request, label, ticket_number, &employee_insz, &input)?;
     let context = prepared.context.clone();
     let committed = match signing::sign(state, &guard, &config, prepared).await {
@@ -198,6 +210,6 @@ pub async fn do_open_drawer_fiscal(
     };
     drop(guard);
     // Kick the physical drawer open.
-    signing::follow_up(state, &config, &context, &committed, true).await;
+    signing::follow_up(state, &config, &context, &committed, signing::Drawer::Kick).await;
     Ok(FinancialResult::done())
 }

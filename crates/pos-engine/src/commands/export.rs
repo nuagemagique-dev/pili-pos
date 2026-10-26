@@ -24,6 +24,7 @@
 //! in the log; nothing here panics.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::Utc;
@@ -42,6 +43,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// The export settings, the HTTPS client and the wake-up of the background
 /// loop.
+#[derive(Debug)]
 pub struct ExportState {
     /// `Ok(None)`: no `export` section. `Err`: the section is unusable, the
     /// text says why.
@@ -223,17 +225,24 @@ pub(crate) fn wake_after_z(state: &AppState) {
 /// A no-op without a usable export. Every error is logged, and recorded in
 /// `status.json` by `pos-export`.
 pub async fn run_pass(state: &AppState) {
-    pass(state, false).await;
+    pass(state, Pass::Regular).await;
 }
 
 /// The first pass after the engine started: like [`run_pass`], and the
 /// exports that were waiting for a retry when the previous run ended are due
 /// at once (a restart is a reason to try again, not to wait out a backoff).
 pub(crate) async fn run_startup_pass(state: &AppState) {
-    pass(state, true).await;
+    pass(state, Pass::Startup).await;
 }
 
-async fn pass(state: &AppState, startup: bool) {
+/// Which pass runs: the usual one, or the first after start-up.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Pass {
+    Regular,
+    Startup,
+}
+
+async fn pass(state: &AppState, kind: Pass) {
     let Some((settings, client)) = state.export.active() else {
         return;
     };
@@ -245,11 +254,13 @@ async fn pass(state: &AppState, startup: bool) {
         }
     };
 
-    let blocking = owned.clone();
+    let blocking = Arc::clone(&owned);
     let prepared = tokio::task::spawn_blocking(move || {
         let env = blocking.env();
         let now = Utc::now();
-        if startup && let Err(e) = outbox::retry_now(&env, now) {
+        if kind == Pass::Startup
+            && let Err(e) = outbox::retry_now(&env, now)
+        {
             tracing::warn!(%e, "export: cannot make the pending exports due");
         }
         // prepare_due logs and records its own failure.

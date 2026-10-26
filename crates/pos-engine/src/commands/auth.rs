@@ -5,7 +5,7 @@ use crate::commands::access::{self, Access};
 use crate::commands::errors;
 use crate::state::AppState;
 
-/// Login with INSZ + optional PIN. If the user has a PIN set (pin_hash
+/// Login with INSZ + optional PIN. If the user has a PIN set (`pin_hash`
 /// is not NULL), the caller MUST provide the correct PIN or login is
 /// rejected. A manager without a PIN is refused: on first boot (no
 /// manager has a PIN yet) with [`ERR_PIN_SETUP_REQUIRED`], and they
@@ -177,6 +177,18 @@ pub struct CreateUserInput {
     pub presence_only: bool,
 }
 
+impl std::fmt::Debug for CreateUserInput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // The PINs never reach a log.
+        f.debug_struct("CreateUserInput")
+            .field("insz", &self.insz)
+            .field("name", &self.name)
+            .field("role", &self.role)
+            .field("presence_only", &self.presence_only)
+            .finish_non_exhaustive()
+    }
+}
+
 /// Create a user. Managers only; a new manager gets their first PIN
 /// here, confirmed by the creating manager's own PIN.
 pub fn do_create_user(state: &AppState, input: CreateUserInput) -> Result<User, String> {
@@ -219,7 +231,7 @@ pub fn do_create_user(state: &AppState, input: CreateUserInput) -> Result<User, 
         &input.insz,
         &input.name,
         role,
-        input.presence_only,
+        pos_db::queries::users::UserKind::from(input.presence_only),
     )
     .map_err(|e| e.to_string())?;
     if let Some(hash) = first_pin_hash {

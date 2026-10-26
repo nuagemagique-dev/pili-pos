@@ -41,14 +41,22 @@ const TEM_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 /// A probe result younger than this is reused by `check_mail_status`.
 const PROBE_CACHE: Duration = Duration::from_secs(60);
 /// A DIGITAL-only ticket needs a successful probe younger than this;
-/// otherwise the POS prints as well (PAPER_DIGITAL).
+/// otherwise the POS prints as well (`PAPER_DIGITAL`).
 const PROBE_MAX_AGE_FOR_DIGITAL: Duration = Duration::from_secs(120);
 /// Interval of the background outbox worker.
 pub const OUTBOX_INTERVAL: Duration = Duration::from_secs(30);
 
 // ── Mail state ─────────────────────────────────────────────────
 
+/// What a reachability probe of the email service found.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Probe {
+    Reachable,
+    Unreachable,
+}
+
 /// The email client and the last reachability probe.
+#[derive(Debug)]
 pub struct MailState {
     client: Option<TemClient>,
     probe: Mutex<Option<(Instant, bool)>>,
@@ -99,7 +107,8 @@ impl MailState {
     }
 
     /// Store a probe result (used by `probe`, and by tests).
-    pub fn record_probe(&self, reachable: bool) {
+    pub fn record_probe(&self, probe: Probe) {
+        let reachable = probe == Probe::Reachable;
         if let Ok(mut p) = self.probe.lock() {
             *p = Some((Instant::now(), reachable));
         }
@@ -131,7 +140,11 @@ impl MailState {
                 false
             }
         };
-        self.record_probe(ok);
+        self.record_probe(if ok {
+            Probe::Reachable
+        } else {
+            Probe::Unreachable
+        });
         ok
     }
 }
@@ -198,6 +211,17 @@ impl ResolvedDelivery {
 pub const ERR_DIGITAL_UNAVAILABLE: &str = errors::DIGITAL_UNAVAILABLE;
 pub const ERR_INVALID_EMAIL: &str = errors::EMAIL_INVALID;
 
+/// What the terminal can do about email right now.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MailLine {
+    /// No usable email client on this terminal.
+    NoClient,
+    /// A client, but the service did not answer a probe recently.
+    Down,
+    /// A client and the service answered a probe recently.
+    Reachable,
+}
+
 /// Check the operator's choice. Pure, so every rule is unit-tested:
 ///
 /// - no request, or paper: PAPER;
@@ -205,13 +229,12 @@ pub const ERR_INVALID_EMAIL: &str = errors::EMAIL_INVALID;
 ///   refused;
 /// - a missing or invalid address: refused;
 /// - DIGITAL only when the configuration allows it and the service
-///   answered recently; otherwise PAPER_DIGITAL, so the customer gets
+///   answered recently; otherwise `PAPER_DIGITAL`, so the customer gets
 ///   paper at once and the email when the service is back.
 pub fn resolve_with(
     request: Option<&TicketDeliveryRequest>,
     digital: Option<&DigitalTicketConfig>,
-    client_ready: bool,
-    recently_reachable: bool,
+    line: MailLine,
 ) -> Result<ResolvedDelivery, String> {
     let Some(request) = request else {
         return Ok(ResolvedDelivery::paper());
@@ -219,7 +242,7 @@ pub fn resolve_with(
     if request.medium == RequestedMedium::Paper {
         return Ok(ResolvedDelivery::paper());
     }
-    let Some(digital) = digital.filter(|_| client_ready) else {
+    let Some(digital) = digital.filter(|_| line != MailLine::NoClient) else {
         return Err(ERR_DIGITAL_UNAVAILABLE.to_string());
     };
     let email = request
@@ -232,7 +255,7 @@ pub fn resolve_with(
         .map_err(|e| errors::coded(ERR_INVALID_EMAIL, &[("detail", &e)]))?;
 
     let medium = match request.medium {
-        RequestedMedium::Digital if digital.allow_digital_only && recently_reachable => {
+        RequestedMedium::Digital if digital.allow_digital_only && line == MailLine::Reachable => {
             TicketMedium::Digital
         }
         _ => TicketMedium::PaperDigital,
@@ -252,8 +275,13 @@ pub fn resolve(
     resolve_with(
         request,
         config.digital_ticket.as_ref(),
-        mail.client().is_some(),
-        mail.recently_reachable(),
+        if mail.client().is_none() {
+            MailLine::NoClient
+        } else if mail.recently_reachable() {
+            MailLine::Reachable
+        } else {
+            MailLine::Down
+        },
     )
 }
 
@@ -651,6 +679,10 @@ pub async fn run_outbox_once(state: &AppState) {
 mod tests {
     use super::*;
 
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "test helper: the flag names what the call switches"
+    )]
     fn digital(allow_digital_only: bool) -> DigitalTicketConfig {
         DigitalTicketConfig {
             region: "fr-par".into(),
@@ -672,7 +704,7 @@ mod tests {
 
     #[test]
     fn no_request_is_paper() {
-        let r = resolve_with(None, Some(&digital(true)), true, true).unwrap();
+        let r = resolve_with(None, Some(&digital(true)), MailLine::Reachable).unwrap();
         assert_eq!(r, ResolvedDelivery::paper());
         assert!(r.prints_paper());
         assert!(!r.sends_email());
@@ -683,8 +715,7 @@ mod tests {
         let r = resolve_with(
             Some(&req(RequestedMedium::Paper, Some("a@b.be"))),
             None,
-            false,
-            false,
+            MailLine::NoClient,
         )
         .unwrap();
         assert_eq!(r, ResolvedDelivery::paper());
@@ -693,8 +724,8 @@ mod tests {
     #[test]
     fn email_is_refused_without_configuration() {
         for medium in [RequestedMedium::Digital, RequestedMedium::PaperDigital] {
-            let err =
-                resolve_with(Some(&req(medium, Some("a@b.be"))), None, false, false).unwrap_err();
+            let err = resolve_with(Some(&req(medium, Some("a@b.be"))), None, MailLine::NoClient)
+                .unwrap_err();
             assert_eq!(err, ERR_DIGITAL_UNAVAILABLE);
         }
     }
@@ -704,8 +735,7 @@ mod tests {
         let err = resolve_with(
             Some(&req(RequestedMedium::PaperDigital, Some("a@b.be"))),
             Some(&digital(true)),
-            false,
-            true,
+            MailLine::NoClient,
         )
         .unwrap_err();
         assert_eq!(err, ERR_DIGITAL_UNAVAILABLE);
@@ -717,8 +747,7 @@ mod tests {
             let err = resolve_with(
                 Some(&req(RequestedMedium::PaperDigital, email)),
                 Some(&digital(true)),
-                true,
-                true,
+                MailLine::Reachable,
             )
             .unwrap_err();
             assert!(err.starts_with(ERR_INVALID_EMAIL), "{err}");
@@ -731,8 +760,7 @@ mod tests {
             let err = resolve_with(
                 Some(&req(RequestedMedium::PaperDigital, Some(email))),
                 Some(&digital(true)),
-                true,
-                true,
+                MailLine::Reachable,
             )
             .unwrap_err();
             assert!(err.starts_with(ERR_INVALID_EMAIL), "{email}: {err}");
@@ -744,8 +772,7 @@ mod tests {
         let r = resolve_with(
             Some(&req(RequestedMedium::PaperDigital, Some("  a@b.be "))),
             Some(&digital(false)),
-            true,
-            true,
+            MailLine::Reachable,
         )
         .unwrap();
         assert_eq!(r.email.as_deref(), Some("a@b.be"));
@@ -756,8 +783,7 @@ mod tests {
         let r = resolve_with(
             Some(&req(RequestedMedium::Digital, Some("a@b.be"))),
             Some(&digital(true)),
-            true,
-            true,
+            MailLine::Reachable,
         )
         .unwrap();
         assert_eq!(r.medium, TicketMedium::Digital);
@@ -770,8 +796,7 @@ mod tests {
         let r = resolve_with(
             Some(&req(RequestedMedium::Digital, Some("a@b.be"))),
             Some(&digital(false)),
-            true,
-            true,
+            MailLine::Reachable,
         )
         .unwrap();
         assert_eq!(r.medium, TicketMedium::PaperDigital);
@@ -783,8 +808,7 @@ mod tests {
         let r = resolve_with(
             Some(&req(RequestedMedium::Digital, Some("a@b.be"))),
             Some(&digital(true)),
-            true,
-            false,
+            MailLine::Down,
         )
         .unwrap();
         assert_eq!(r.medium, TicketMedium::PaperDigital);
@@ -795,8 +819,7 @@ mod tests {
         let r = resolve_with(
             Some(&req(RequestedMedium::PaperDigital, Some("a@b.be"))),
             Some(&digital(true)),
-            true,
-            false,
+            MailLine::Down,
         )
         .unwrap();
         assert_eq!(r.medium, TicketMedium::PaperDigital);
@@ -824,9 +847,9 @@ mod tests {
     #[test]
     fn a_recorded_probe_is_remembered() {
         let m = MailState::disabled();
-        m.record_probe(true);
+        m.record_probe(Probe::Reachable);
         assert!(m.recently_reachable());
-        m.record_probe(false);
+        m.record_probe(Probe::Unreachable);
         assert!(!m.recently_reachable());
     }
 

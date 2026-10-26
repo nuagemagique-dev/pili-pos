@@ -1,11 +1,16 @@
 //! Tauri-free engine of pili-pos.
 //!
 //! Everything the kiosk does that is not a window: opening the database,
-//! signing events with the FDM, tickets, reports, HubRise, settings. The
+//! signing events with the FDM, tickets, reports, `HubRise`, settings. The
 //! Linux shell `src-tauri` wraps these functions as Tauri commands and,
 //! from phase P2, the Android FFI `android/rust/pos-ffi` calls the same
 //! functions. There is no platform conditional compilation here: platform differences
 //! are [`EngineConfig`] inputs (paths, configuration source).
+
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "the do_* commands take what the Tauri and uniffi wrappers deserialise; borrowing would churn every wrapper and test for no gain"
+)]
 
 pub mod alerts;
 pub mod background;

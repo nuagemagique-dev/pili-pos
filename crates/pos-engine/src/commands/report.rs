@@ -1,6 +1,7 @@
 use chrono::Timelike;
 use pos_core::money::cents_from_eur;
 use pos_db::queries::reports::{self as report_queries, ZReportSummary};
+use pos_fiscal::types::Mode;
 use pos_print::report::{
     ReportDetails, ReportEventTotal, ReportPaymentTotal, ReportPrintData, ReportVatTotal,
     UserReportPrintData, UserReportUser,
@@ -14,9 +15,9 @@ use pos_fiscal::event::{
     build_report_user_x, build_report_user_z,
 };
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
-use pos_fiscal::inputs::*;
+use pos_fiscal::inputs::{PaymentTotalInput, PosDeviceInput};
 use pos_fiscal::report_totals::{self, ReportEvent};
-use pos_fiscal::types::*;
+use pos_fiscal::types::{EventLabel, InOut, NegQuantityReason, PaymentLineType};
 
 use crate::commands::access::{self, Access};
 use crate::commands::errors;
@@ -25,7 +26,7 @@ use crate::commands::signing::{
 };
 use crate::state::AppState;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportResult {
     pub success: bool,
@@ -54,7 +55,7 @@ pub async fn do_generate_x_report(
         let period = super::booking_period(&db, &guard, &config)?;
         let events = period_events(&db, &period.id)?;
         let data = turnover_data(&config, &events);
-        let tn = signing::peek(&db, &guard, label.in_mode(config.training_mode))?;
+        let tn = signing::peek(&db, &guard, label.in_mode(Mode::from(config.training_mode)))?;
         let pd = build_print_data(
             &config,
             &period,
@@ -76,15 +77,19 @@ pub async fn do_generate_x_report(
         &as_booking(&period),
         turnover_data,
     );
-    let request = SignRequest::new(SignMutation::ReportTurnoverX, &report, config.training_mode)
-        .map_err(errors::internal)?;
+    let request = SignRequest::new(
+        SignMutation::ReportTurnoverX,
+        &report,
+        Mode::from(config.training_mode),
+    )
+    .map_err(errors::internal)?;
     let context = PendingContext::ReportX {
         print: Box::new(print_data),
     };
     let prepared = report_prepared(
         op,
         request,
-        label.in_mode(config.training_mode),
+        label.in_mode(Mode::from(config.training_mode)),
         ticket_number,
         &employee_insz,
         vec![serde_json::to_string(&report).map_err(|e| e.to_string())?],
@@ -97,7 +102,7 @@ pub async fn do_generate_x_report(
     drop(guard);
 
     // Auto-print report on thermal printer
-    signing::follow_up(state, &config, &context, &committed, false).await;
+    signing::follow_up(state, &config, &context, &committed, signing::Drawer::Leave).await;
     Ok(ReportResult::done("X", None))
 }
 
@@ -273,7 +278,7 @@ async fn after_z(
 ) -> ReportResult {
     match signed {
         Ok((context, committed, report_no)) => {
-            signing::follow_up(state, config, &context, &committed, false).await;
+            signing::follow_up(state, config, &context, &committed, signing::Drawer::Leave).await;
             ReportResult::done("Z", report_no)
         }
         Err(refused) => refused,
@@ -291,7 +296,7 @@ async fn z_report_locked(
     employee_insz: String,
     op: Op,
 ) -> Result<ZSigned, String> {
-    let label = EventLabel::R.in_mode(config.training_mode);
+    let label = EventLabel::R.in_mode(Mode::from(config.training_mode));
     let (
         period,
         turnover_data,
@@ -356,9 +361,12 @@ async fn z_report_locked(
         user_data,
     );
     // M184 - one GraphQL operation signs both reports.
-    let request =
-        SignRequest::turnover_z_user_z(&turnover_report, &user_report, config.training_mode)
-            .map_err(errors::internal)?;
+    let request = SignRequest::turnover_z_user_z(
+        &turnover_report,
+        &user_report,
+        Mode::from(config.training_mode),
+    )
+    .map_err(errors::internal)?;
     let context = PendingContext::ReportZ {
         period_id: period.id.clone(),
         booking_date: period.booking_date.clone(),
@@ -409,7 +417,11 @@ pub async fn do_generate_user_x_report(
         let period = super::booking_period(&db, &guard, &config)?;
         let events = period_events(&db, &period.id)?;
         let users = user_data(&config, &events);
-        let tn = signing::peek(&db, &guard, EventLabel::R.in_mode(config.training_mode))?;
+        let tn = signing::peek(
+            &db,
+            &guard,
+            EventLabel::R.in_mode(Mode::from(config.training_mode)),
+        )?;
         let pd = build_user_print_data(
             &config,
             &period,
@@ -431,15 +443,19 @@ pub async fn do_generate_user_x_report(
         &as_booking(&period),
         user_data,
     );
-    let request = SignRequest::new(SignMutation::ReportUserX, &report, config.training_mode)
-        .map_err(errors::internal)?;
+    let request = SignRequest::new(
+        SignMutation::ReportUserX,
+        &report,
+        Mode::from(config.training_mode),
+    )
+    .map_err(errors::internal)?;
     let context = PendingContext::ReportUserX {
         print: Box::new(print_data),
     };
     let prepared = report_prepared(
         op,
         request,
-        EventLabel::R.in_mode(config.training_mode),
+        EventLabel::R.in_mode(Mode::from(config.training_mode)),
         ticket_number,
         &employee_insz,
         vec![serde_json::to_string(&report).map_err(|e| e.to_string())?],
@@ -451,7 +467,7 @@ pub async fn do_generate_user_x_report(
     };
     drop(guard);
 
-    signing::follow_up(state, &config, &context, &committed, false).await;
+    signing::follow_up(state, &config, &context, &committed, signing::Drawer::Leave).await;
     Ok(ReportResult::done("X-USER", None))
 }
 
@@ -592,7 +608,10 @@ fn prune_backups(dir: &std::path::Path, fresh: &std::path::Path, keep: usize) {
 
 /// Build the printed turnover report from the totals sent to the FDM,
 /// so the paper always shows what was signed.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input of one fiscal step; a parameter struct would only rename them"
+)]
 fn build_print_data(
     config: &pos_core::config::PosConfig,
     period: &BookingPeriod,
@@ -961,7 +980,10 @@ fn user_data(config: &pos_core::config::PosConfig, events: &[ReportEvent]) -> Us
 }
 
 /// Build the printed user report from the totals sent to the FDM.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input of one fiscal step; a parameter struct would only rename them"
+)]
 fn build_user_print_data(
     config: &pos_core::config::PosConfig,
     period: &BookingPeriod,
@@ -1209,7 +1231,7 @@ mod tests {
             })
             .collect();
         let mut expected: Vec<String> = made[made.len() - BACKUPS_KEPT..].to_vec();
-        expected.extend(foreign.iter().map(|s| s.to_string()));
+        expected.extend(foreign.iter().map(ToString::to_string));
         expected.push("pos-20000101-000000.db".into());
         expected.sort();
         assert_eq!(backup_names(&dir), expected);

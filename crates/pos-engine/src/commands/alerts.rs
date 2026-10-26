@@ -20,6 +20,10 @@ use crate::state::AppState;
 /// One switch per kind of alert.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "one switch per alert kind, stored and shown as such in the settings"
+)]
 pub struct AlertKinds {
     pub fdm: bool,
     pub printer: bool,

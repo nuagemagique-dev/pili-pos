@@ -3,7 +3,7 @@ use serde::Serialize;
 use crate::commands::access::{self, Access};
 use crate::state::AppState;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PosSettings {
     pub training_mode: bool,
@@ -58,6 +58,10 @@ pub const ERR_OPEN_ORDERS: &str = crate::commands::errors::OPEN_ORDERS_TRAINING;
 /// Switch training mode. Managers only, and never while an order with
 /// lines is open: a real table would otherwise be paid as a training
 /// sale (T, never counted), or a training order paid as a real one.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "IPC/FFI contract: mirrors the bool argument of the Tauri command and the uniffi export"
+)]
 pub fn do_set_training_mode(state: &AppState, enabled: bool) -> Result<bool, String> {
     access::operator(state, Access::Admin)?;
     {

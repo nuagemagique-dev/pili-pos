@@ -1,8 +1,8 @@
-//! The installation's switch for the HubRise integration. The code
+//! The installation's switch for the `HubRise` integration. The code
 //! ships in the certified binary; the switch says whether it runs.
 //!
 //! Off: the poller and the outbox idle, no till sale is sent, and the
-//! commands that talk to HubRise or take a new online order refuse
+//! commands that talk to `HubRise` or take a new online order refuse
 //! ([`require_hubrise`]). What settles an online order already signed
 //! (collecting it, refunding it, closing it) never needs the switch: a
 //! fiscal obligation is never stranded.
@@ -62,6 +62,10 @@ pub fn do_get_integrations(state: &AppState) -> Result<Integrations, String> {
 
 /// Switch the integration on or off. Admins only; off waits until every
 /// online order is settled.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "IPC/FFI contract: mirrors the bool argument of the Tauri command and the uniffi export"
+)]
 pub fn do_set_hubrise_enabled(state: &AppState, enabled: bool) -> Result<Integrations, String> {
     let admin = access::operator(state, Access::Admin)?;
     if !enabled {
@@ -75,7 +79,12 @@ pub fn do_set_hubrise_enabled(state: &AppState, enabled: bool) -> Result<Integra
     }
     {
         let db = state.db.lock().map_err(errors::internal)?;
-        integrations::set_hubrise(&db, enabled, &admin.insz).map_err(errors::internal)?;
+        integrations::set_hubrise(
+            &db,
+            pos_db::queries::integrations::State::from(enabled),
+            &admin.insz,
+        )
+        .map_err(errors::internal)?;
     }
     state.hubrise_switch.set(enabled);
     if enabled {

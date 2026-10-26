@@ -1,3 +1,4 @@
+use pos_fiscal::types::Mode;
 use serde::Deserialize;
 
 use pos_db::queries::fiscal::{self, RefundableEvent};
@@ -114,7 +115,7 @@ pub(crate) struct RefundSpec<'a> {
 }
 
 impl<'a> RefundSpec<'a> {
-    pub fn cash(lines: RefundLines<'a>) -> Self {
+    pub(crate) fn cash(lines: RefundLines<'a>) -> Self {
         Self {
             lines,
             payment_type: PaymentType::Cash,
@@ -125,6 +126,10 @@ impl<'a> RefundSpec<'a> {
 
 /// Sign the refund of the sale `original_fiscal_event_id` in
 /// `employee_insz`'s name (already checked by the caller).
+#[expect(
+    clippy::too_many_lines,
+    reason = "one refund from the original sale to the signed negative ticket, kept as a single audited sequence"
+)]
 pub(crate) async fn refund_sale(
     state: &AppState,
     original_fiscal_event_id: i64,
@@ -156,7 +161,13 @@ pub(crate) async fn refund_sale(
 
     // 1. Load original fiscal event → extract FdmReference
     // Without HubRise no sale has discounts to check.
-    #[cfg_attr(not(feature = "hubrise"), allow(unused_variables))]
+    #[cfg_attr(
+        not(feature = "hubrise"),
+        expect(
+            unused_variables,
+            reason = "only the HubRise price-change record reads the changes"
+        )
+    )]
     let (
         original_ref,
         original_signature,
@@ -347,7 +358,7 @@ pub(crate) async fn refund_sale(
         )
         .map_err(|e| e.to_string())?;
         for (quantity, original) in refunded {
-            let _written = pos_db::queries::orders::add_order_line(
+            let written = pos_db::queries::orders::add_order_line(
                 &db,
                 pos_db::queries::orders::NewOrderLine {
                     order_id: order.id,
@@ -365,9 +376,15 @@ pub(crate) async fn refund_sale(
             // The whole line goes back: its discounts too, negated.
             #[cfg(feature = "hubrise")]
             if let Some(changes) = original_changes.get(&original.id) {
-                let negated: Vec<_> = changes.iter().map(|c| c.negated()).collect();
-                super::price_changes::record(&db, _written.id, &negated)?;
+                let negated: Vec<_> = changes
+                    .iter()
+                    .map(pos_fiscal::price_change::LineChange::negated)
+                    .collect();
+                super::price_changes::record(&db, written.id, &negated)?;
             }
+            // Only the HubRise price-change record needs the new line.
+            #[cfg(not(feature = "hubrise"))]
+            drop(written);
         }
 
         let updated_order =
@@ -426,8 +443,12 @@ pub(crate) async fn refund_sale(
             &refund_changes,
         );
         sale_input.common.ticket_medium = resolved.medium;
-        let request = SignRequest::new(SignMutation::Sale, &sale_input, config.training_mode)
-            .map_err(errors::internal)?;
+        let request = SignRequest::new(
+            SignMutation::Sale,
+            &sale_input,
+            Mode::from(config.training_mode),
+        )
+        .map_err(errors::internal)?;
         let request_json = serde_json::to_string(&sale_input).map_err(|e| e.to_string())?;
 
         let operator = super::operator_name(state, &refund_order.user_insz);
@@ -438,13 +459,13 @@ pub(crate) async fn refund_sale(
                 method: pos_fiscal::payment::payment_line_identity(spec.payment_type)
                     .1
                     .to_string(),
-                amount: refund_order.total_cents as f64 / 100.0,
+                amount: pos_core::money::eur(refund_order.total_cents),
                 brand: None,
             }],
-            refund_order.total_cents as f64 / 100.0,
+            pos_core::money::eur(refund_order.total_cents),
             &operator,
         );
-        ticket.rounding = (rounding_cents != 0).then(|| rounding_cents as f64 / 100.0);
+        ticket.rounding = (rounding_cents != 0).then(|| pos_core::money::eur(rounding_cents));
         ticket.original = Some(OriginalControlData {
             fdm_ref: original_ref.clone(),
             short_signature: original_signature.clone(),
@@ -526,7 +547,8 @@ pub(crate) async fn refund_sale(
     };
 
     // Print and/or email the REFUND ticket, then open the drawer.
-    let done = signing::follow_up(state, &config, &context, &committed, true).await;
+    let done =
+        signing::follow_up(state, &config, &context, &committed, signing::Drawer::Kick).await;
     Ok(CheckoutResult {
         success: true,
         ticket: committed.ticket,

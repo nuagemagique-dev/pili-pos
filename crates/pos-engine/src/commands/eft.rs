@@ -135,7 +135,7 @@ fn eft_error(e: &EftError) -> String {
 fn build_terminal(state: &AppState, config: &PaymentTerminalConfig) -> Result<Terminal, EftError> {
     #[cfg(feature = "eft-scripted")]
     if let Some(script) = &state.eft_terminal_override {
-        return Ok(Terminal::scripted(script.clone()));
+        return Ok(Terminal::scripted(Arc::clone(script)));
     }
     // Trusts what the rest of the engine trusts (`HttpTls`).
     let http = state
@@ -304,7 +304,7 @@ pub async fn do_eft_pay(
             let _line = state.eft_line.lock().await;
             // An abort reaches this very instance while it waits.
             let terminal = Arc::new(terminal);
-            let _in_flight = InFlight::set(state, &reference, terminal.clone());
+            let _in_flight = InFlight::set(state, &reference, Arc::clone(&terminal));
             terminal.pay(&request).await
         }
         Err(e) => Err(e),
@@ -395,7 +395,7 @@ pub async fn do_eft_abort(state: &AppState) -> Result<(), String> {
         .map_err(errors::internal)?
         .as_ref()
         .filter(|(reference, _)| *reference == row.reference)
-        .map(|(_, terminal)| terminal.clone());
+        .map(|(_, terminal)| Arc::clone(terminal));
     let terminal = match running {
         Some(terminal) => terminal,
         None => Arc::new(build_terminal(state, &terminal_config).map_err(|e| eft_error(&e))?),

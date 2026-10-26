@@ -61,6 +61,7 @@ const _: () = assert!(
     TERMINAL_PROBE_TIMEOUT.as_millis() >= 2 * pos_eft::worldline::CHECK_TIMEOUT.as_millis() + 1_000
 );
 
+#[derive(Debug)]
 struct Inner {
     book: AlertBook,
     /// The book was filled from the log since the alerts were last
@@ -81,6 +82,7 @@ impl Default for Inner {
 
 /// What the worker remembers between two passes. Held by `AppState`;
 /// the lock is never kept across an await.
+#[derive(Debug)]
 pub struct AlertRuntime {
     inner: Mutex<Inner>,
     /// The wait between the attempts of one message (tests shorten it).
@@ -148,11 +150,11 @@ pub async fn run_owner_alerts(state: Arc<AppState>) {
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     loop {
         tokio::select! {
-            _ = state.shutdown_token.cancelled() => return,
+            () = state.shutdown_token.cancelled() => return,
             _ = tick.tick() => {}
         }
         tokio::select! {
-            _ = state.shutdown_token.cancelled() => return,
+            () = state.shutdown_token.cancelled() => return,
             _ = run_pass(&state, Utc::now()) => {}
         }
     }
@@ -183,13 +185,12 @@ pub async fn run_pass(state: &AppState, now: DateTime<Utc>) -> Vec<Sent> {
         state.owner_alerts.reset();
         return Vec::new();
     }
-    let channel = match alerts::channel_of(state) {
-        Ok(c) => c.with_backoff(state.owner_alerts.backoff()),
-        Err(_) => {
-            // No token: nothing can be sent, and nothing is probed for it.
-            state.owner_alerts.reset();
-            return Vec::new();
-        }
+    let channel = if let Ok(c) = alerts::channel_of(state) {
+        c.with_backoff(state.owner_alerts.backoff())
+    } else {
+        // No token: nothing can be sent, and nothing is probed for it.
+        state.owner_alerts.reset();
+        return Vec::new();
     };
 
     restore_once(state, &settings, now);
@@ -228,8 +229,7 @@ pub async fn run_pass(state: &AppState, now: DateTime<Utc>) -> Vec<Sent> {
             .owner_alerts
             .inner
             .lock()
-            .map(|mut inner| inner.book.permit(now))
-            .unwrap_or(false);
+            .is_ok_and(|mut inner| inner.book.permit(now));
         let (outcome, http_status) = if permitted {
             let body = text::message(&decision, &label, lang, now);
             // No lock is held while the endpoint answers.
@@ -333,15 +333,17 @@ async fn observe_all(
     settings: &AlertsSettings,
     now: DateTime<Utc>,
 ) -> Vec<(Kind, Seen)> {
-    let session_open = state.session.lock().map(|s| s.is_some()).unwrap_or(false);
+    let session_open = state.session.lock().is_ok_and(|s| s.is_some());
     let mut seen = Vec::new();
 
     seen.push((
         Kind::Fdm,
         if !settings.kinds.fdm {
             Seen::NotApplicable
+        } else if session_open {
+            observe_fdm(state)
         } else {
-            observe_fdm(state, session_open)
+            Seen::Unknown
         },
     ));
 
@@ -350,8 +352,7 @@ async fn observe_all(
             .owner_alerts
             .inner
             .lock()
-            .map(|inner| inner.last_probe.is_none_or(|p| now - p >= PROBE_INTERVAL))
-            .unwrap_or(false);
+            .is_ok_and(|inner| inner.last_probe.is_none_or(|p| now - p >= PROBE_INTERVAL));
     let wants_probe = settings.kinds.printer || settings.kinds.terminal;
     let mut probed = false;
     let (printer_seen, terminal_seen) = if probe_due && wants_probe {
@@ -414,10 +415,8 @@ async fn observe_all(
     seen
 }
 
-fn observe_fdm(state: &AppState, session_open: bool) -> Seen {
-    if !session_open {
-        return Seen::Unknown;
-    }
+/// What the FDM monitor last saw; the caller checked a session is open.
+fn observe_fdm(state: &AppState) -> Seen {
     match fdm_monitor::do_fdm_health(state) {
         Ok(Some(health)) if health.connected => Seen::Fine,
         Ok(Some(_)) => Seen::Trouble(Detail::default()),
@@ -577,9 +576,7 @@ fn observe_online(_state: &AppState, _settings: &AlertsSettings, _now: DateTime<
 
 /// Whether the worker would do anything: the alerts are switched on.
 pub fn is_enabled(state: &AppState) -> bool {
-    alerts::load_settings(state)
-        .map(|s| s.enabled)
-        .unwrap_or(false)
+    alerts::load_settings(state).is_ok_and(|s| s.enabled)
 }
 
 #[cfg(test)]

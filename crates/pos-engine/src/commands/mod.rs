@@ -62,8 +62,7 @@ pub(crate) fn operator_name(state: &AppState, insz: &str) -> String {
         .lock()
         .ok()
         .and_then(|db| pos_db::queries::users::get_user(&db, insz).ok().flatten())
-        .map(|u| u.name)
-        .unwrap_or_else(|| insz.to_string())
+        .map_or_else(|| insz.to_string(), |u| u.name)
 }
 
 /// The business day `now` belongs to: a service that runs past

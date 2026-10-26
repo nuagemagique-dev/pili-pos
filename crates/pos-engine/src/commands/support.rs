@@ -1,15 +1,15 @@
-//! Remote support session (RustDesk), started from the POS by a manager.
+//! Remote support session (`RustDesk`), started from the POS by a manager.
 //!
 //! The kiosk runs no remote-access service. When the manager needs the
 //! technician, they start a session from Settings: their PIN is asked
-//! again, RustDesk is started (the program the shell hands to the engine as
+//! again, `RustDesk` is started (the program the shell hands to the engine as
 //! `EngineConfig::support_program`; on Linux
 //! `/opt/pili-pos/rustdesk/AppRun`, installed by
 //! `deploy/provision/provision.sh`), and its window shows
 //! the ID and one-time password the manager reads to the technician by
 //! phone. The session outlives a logout, so the technician can keep
 //! working at the login screen. It ends when anyone stops it (no login
-//! needed), when RustDesk exits, or after [`MAX_SESSION`]. Every screen,
+//! needed), when `RustDesk` exits, or after [`MAX_SESSION`]. Every screen,
 //! the login screen included, shows a banner while it runs, so the
 //! staff know someone is connected. The log records the role of who
 //! stopped it, never a name or an INSZ.
@@ -39,6 +39,7 @@ pub const MAX_SESSION: TimeDelta = TimeDelta::hours(2);
 /// when nobody asks for the status.
 pub const REAP_EVERY: std::time::Duration = std::time::Duration::from_secs(60);
 
+#[derive(Debug)]
 struct Session {
     child: Child,
     started_by: String,
@@ -54,6 +55,7 @@ impl Session {
 }
 
 /// The remote support program and its running session, if any.
+#[derive(Debug)]
 pub struct SupportState {
     program: Mutex<Option<PathBuf>>,
     session: Mutex<Option<Session>>,
@@ -117,7 +119,7 @@ impl Drop for SupportState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SupportStatus {
-    /// RustDesk is installed on this terminal.
+    /// `RustDesk` is installed on this terminal.
     pub available: bool,
     pub running: bool,
     /// Name of the manager who started the running session.
@@ -126,13 +128,12 @@ pub struct SupportStatus {
     pub started_at: Option<String>,
 }
 
-/// Directory given to RustDesk as `HOME`: under the service's runtime
+/// Directory given to `RustDesk` as `HOME`: under the service's runtime
 /// directory (`RuntimeDirectory=pili-pos`, wiped at stop), else the
 /// system temporary directory.
 fn support_home() -> PathBuf {
     std::env::var_os("RUNTIME_DIRECTORY")
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir)
+        .map_or_else(std::env::temp_dir, PathBuf::from)
         .join("pili-pos-support")
 }
 
@@ -165,13 +166,13 @@ pub fn reap_expired(state: &AppState) {
     reap(&mut session);
 }
 
-fn status_of(support: &SupportState, session: &Option<Session>) -> SupportStatus {
-    let available = support.program.lock().map(|p| p.is_some()).unwrap_or(false);
+fn status_of(support: &SupportState, session: Option<&Session>) -> SupportStatus {
+    let available = support.program.lock().is_ok_and(|p| p.is_some());
     SupportStatus {
         available,
         running: session.is_some(),
-        started_by: session.as_ref().map(|s| s.started_by.clone()),
-        started_at: session.as_ref().map(|s| s.started_at.to_rfc3339()),
+        started_by: session.map(|s| s.started_by.clone()),
+        started_at: session.map(|s| s.started_at.to_rfc3339()),
     }
 }
 
@@ -180,7 +181,7 @@ pub fn do_remote_support_status(state: &AppState) -> Result<SupportStatus, Strin
     access::operator(state, Access::Staff)?;
     let mut session = state.support.session.lock().map_err(errors::internal)?;
     reap(&mut session);
-    Ok(status_of(&state.support, &session))
+    Ok(status_of(&state.support, session.as_ref()))
 }
 
 /// Whether a session runs, without who started it: for the login
@@ -242,10 +243,10 @@ pub fn do_start_remote_support(
     );
     *session = Some(Session {
         child,
-        started_by: operator.name.clone(),
+        started_by: operator.name,
         started_at: Utc::now(),
     });
-    Ok(status_of(&state.support, &session))
+    Ok(status_of(&state.support, session.as_ref()))
 }
 
 /// End the session. Anyone may, logged in or not: stopping is always
@@ -256,5 +257,5 @@ pub fn do_stop_remote_support(state: &AppState) -> Result<SupportStatus, String>
     if let Some(s) = session.take() {
         s.end("stopped", operator.as_ref().map(|o| o.role));
     }
-    Ok(status_of(&state.support, &session))
+    Ok(status_of(&state.support, session.as_ref()))
 }

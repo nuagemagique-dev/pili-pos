@@ -11,6 +11,7 @@
 //! with the effects stored with it, so nothing signed is ever lost and
 //! no number is used twice. Until the answer comes, nothing is signed.
 
+use pos_fiscal::types::Mode;
 use std::time::Duration;
 
 use pos_core::config::PosConfig;
@@ -34,11 +35,18 @@ use crate::state::AppState;
 pub const LOCK_WAIT: Duration = Duration::from_secs(30);
 
 /// The one lock every signature holds.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct SigningLock(tokio::sync::Mutex<()>);
 
 /// Proof the signing lock is held: needed to number or sign an event.
-pub struct SignGuard<'a>(#[allow(dead_code)] tokio::sync::MutexGuard<'a, ()>);
+#[derive(Debug)]
+pub struct SignGuard<'a>(
+    #[expect(
+        dead_code,
+        reason = "held for its Drop: the lock is released with the proof"
+    )]
+    tokio::sync::MutexGuard<'a, ()>,
+);
 
 /// Wait for the signing lock, at most [`LOCK_WAIT`].
 pub async fn acquire(state: &AppState) -> Result<SignGuard<'_>, String> {
@@ -107,7 +115,7 @@ impl Kind {
         Kind::Invoice,
     ];
 
-    pub fn name(self) -> &'static str {
+    pub(crate) fn name(self) -> &'static str {
         match self {
             Kind::Sale => "sale",
             Kind::Refund => "refund",
@@ -143,7 +151,7 @@ pub(crate) struct Op {
 }
 
 impl Op {
-    pub fn new(kind: Kind, subject: impl ToString) -> Self {
+    pub(crate) fn new(kind: Kind, subject: impl ToString) -> Self {
         Self {
             kind,
             subject: subject.to_string(),
@@ -172,14 +180,14 @@ pub(crate) struct StoredDelivery {
 }
 
 impl StoredDelivery {
-    pub fn of(resolved: &ResolvedDelivery) -> Self {
+    pub(crate) fn of(resolved: &ResolvedDelivery) -> Self {
         Self {
             medium: resolved.medium,
             email: resolved.email.clone(),
         }
     }
 
-    pub fn resolved(&self) -> ResolvedDelivery {
+    pub(crate) fn resolved(&self) -> ResolvedDelivery {
         ResolvedDelivery {
             medium: self.medium,
             email: self.email.clone(),
@@ -227,7 +235,7 @@ pub(crate) enum PendingContext {
         ticket: TicketDraft,
         bar_slip: Option<BarSlip>,
         webshop_order_id: Option<i64>,
-        /// The till sale echoed to HubRise.
+        /// The till sale echoed to `HubRise`.
         hubrise_echo: Option<String>,
         /// The card payments the linked terminal took that this sale
         /// settles (`eft_payments.id`): marked used with the sale, in
@@ -345,11 +353,11 @@ pub(crate) struct Committed {
 }
 
 impl Committed {
-    pub fn event_id(&self) -> i64 {
+    pub(crate) fn event_id(&self) -> i64 {
         self.event_ids[0]
     }
 
-    pub fn result(&self) -> &SignResult {
+    pub(crate) fn result(&self) -> &SignResult {
         &self.results[0]
     }
 }
@@ -425,7 +433,7 @@ pub(crate) async fn sign(
             &NewPendingSign {
                 event_label: &label,
                 first_ticket_no: prepared.first_ticket_no,
-                ticket_count: prepared.events.len() as i64,
+                ticket_count: i64::try_from(prepared.events.len()).map_err(errors::internal)?,
                 mutation: prepared.request.mutation().name(),
                 is_training: prepared.request.is_training(),
                 request_body: prepared.request.body(),
@@ -502,7 +510,10 @@ fn failed(
 
 /// Advance the counter, archive each signed event, apply its effects
 /// and close the request, in one transaction.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input of one fiscal step; a parameter struct would only rename them"
+)]
 fn commit(
     state: &AppState,
     _guard: &SignGuard<'_>,
@@ -525,7 +536,7 @@ fn commit(
     let tx = db.unchecked_transaction().map_err(errors::internal)?;
     let mut event_ids = Vec::with_capacity(events.len());
     for (i, (spec, result)) in events.iter().zip(&results).enumerate() {
-        let ticket_no = first_ticket_no + i as i64;
+        let ticket_no = first_ticket_no + i64::try_from(i).map_err(errors::internal)?;
         let committed = FiscalCounter::next(&tx, label).map_err(errors::internal)?;
         if committed != ticket_no {
             return Err(errors::concurrent(format_args!(
@@ -583,6 +594,10 @@ fn archive_error(e: rusqlite::Error) -> String {
 
 /// The effects of the event, in its archive transaction: the ticket
 /// built and its email queued, the order closed, the payments recorded.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one transaction applying a signed answer to every table it touches"
+)]
 fn apply(
     tx: &rusqlite::Connection,
     identity: &pos_fiscal::identity::SoftwareIdentity,
@@ -625,7 +640,7 @@ fn apply(
                 tx,
                 *order_id,
                 event_ids[0],
-                *training,
+                Mode::from(*training),
                 gift_vouchers_issued,
                 gift_voucher_redemptions,
             )?;
@@ -788,16 +803,28 @@ pub(crate) struct FollowUp {
     pub vouchers: Vec<GiftVoucherPrint>,
 }
 
+/// Whether the cash drawer opens when an event is followed up.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Drawer {
+    Kick,
+    Leave,
+}
+
 /// Print and send what an archived event gives: its ticket, its bar
 /// slip, its report. The drawer opens only for `with_drawer`: the
 /// operator is there to take or give the money.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the recovery of an unfinished signature, one decision tree clearer unsplit"
+)]
 pub(crate) async fn follow_up(
     state: &AppState,
     config: &PosConfig,
     context: &PendingContext,
     committed: &Committed,
-    with_drawer: bool,
+    drawer: Drawer,
 ) -> FollowUp {
+    let with_drawer = drawer == Drawer::Kick;
     let mut done = FollowUp::default();
     let kick = |open: bool| async move {
         if open && let Some(addr) = config.printer_address.as_deref() {
@@ -1090,9 +1117,12 @@ pub(crate) async fn resolve_open(
     };
     let config = state.config.lock().map_err(errors::internal)?.clone();
     let stored = Stored::read(&row)?;
-    let request =
-        SignRequest::from_stored(&row.mutation, row.is_training, row.request_body.clone())
-            .map_err(errors::internal)?;
+    let request = SignRequest::from_stored(
+        &row.mutation,
+        Mode::from(row.is_training),
+        row.request_body.clone(),
+    )
+    .map_err(errors::internal)?;
 
     let results = match state.fdm_client(&config).send(&request).await {
         Ok(results) => results,
@@ -1146,7 +1176,14 @@ pub(crate) async fn resolve_open(
         subject: row.subject.clone(),
     };
     let same = current == Some(&op);
-    let follow_up = follow_up(state, &config, &stored.context, &committed, same).await;
+    let follow_up = follow_up(
+        state,
+        &config,
+        &stored.context,
+        &committed,
+        if same { Drawer::Kick } else { Drawer::Leave },
+    )
+    .await;
     Ok(Some(Recovered {
         op,
         context: stored.context,

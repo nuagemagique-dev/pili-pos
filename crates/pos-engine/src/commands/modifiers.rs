@@ -74,7 +74,7 @@ pub fn do_add_order_line_with_modifiers(
     let product = pos_db::queries::menu::resolve_catalogue_line(
         &db,
         input.menu_item_id,
-        order.order_type == OrderType::Takeaway,
+        pos_db::queries::menu::Service::from(order.order_type == OrderType::Takeaway),
         lang,
     )
     .map_err(|e| match e {
@@ -141,7 +141,7 @@ fn pick<'a>(groups: &'a [ModifierGroup], ids: &[i64]) -> Result<Vec<Picked<'a>>,
             .iter()
             .filter(|o| seen.contains(&o.id))
             .collect();
-        let count = chosen.len() as i64;
+        let count = i64::try_from(chosen.len()).unwrap_or(i64::MAX);
         if count < group.min || group.max.is_some_and(|max| count > max) {
             let max = group.max.map_or_else(|| "-".to_string(), |m| m.to_string());
             return Err(errors::coded(

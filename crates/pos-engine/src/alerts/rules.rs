@@ -366,6 +366,10 @@ mod tests {
         t(minute) + Duration::seconds(second)
     }
 
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "observe takes an Option: on() reads better than Some(Detail::default()) in every test"
+    )]
     fn on() -> Option<Detail> {
         Some(Detail::default())
     }
@@ -504,7 +508,7 @@ mod tests {
     #[test]
     fn the_global_cap_is_twenty_per_rolling_hour() {
         let mut book = AlertBook::new();
-        for i in 0..GLOBAL_CAP as i64 {
+        for i in 0..i64::try_from(GLOBAL_CAP).unwrap() {
             assert!(book.permit(at(0, i)), "message {i}");
         }
         assert!(!book.permit(at(0, 30)), "the 21st is dropped");
@@ -529,7 +533,7 @@ mod tests {
     #[test]
     fn the_window_is_seeded_after_a_restart() {
         let mut book = AlertBook::new();
-        book.seed_sent((0..GLOBAL_CAP as i64).map(|i| at(0, i)));
+        book.seed_sent((0..i64::try_from(GLOBAL_CAP).unwrap()).map(|i| at(0, i)));
         assert!(!book.permit(t(10)));
         assert!(book.permit(t(61)));
     }

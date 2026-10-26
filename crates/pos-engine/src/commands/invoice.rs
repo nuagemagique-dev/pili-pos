@@ -19,6 +19,7 @@
 //!   `unknown`;
 //! - invoices are issued by a cashier or an admin, the Peppol panel is for admins (V11-D8).
 
+use pos_fiscal::types::Mode;
 use std::collections::BTreeMap;
 
 use chrono::{SecondsFormat, Utc};
@@ -277,6 +278,10 @@ fn label_rate_hundredths(label: &str) -> i64 {
 
 /// Read a signed sale from the archive: its product lines, its price changes, the VAT the
 /// FDM computed. Refuses what is not an invoiceable sale.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear read of an archived sale into the invoice document"
+)]
 pub(crate) fn read_sale(event: &FiscalEventRef) -> Result<SaleDoc, String> {
     let not_a_sale = || coded(errors::INVOICE_NOT_A_SALE, &[("event", &event.id)]);
     if event.event_type != "N" || event.event_label.as_deref() != Some("N") {
@@ -400,8 +405,8 @@ pub(crate) fn read_sale(event: &FiscalEventRef) -> Result<SaleDoc, String> {
             .into_iter()
             .map(|(label, total)| {
                 let rate = label_rate_hundredths(&label);
-                let base =
-                    (total * 10_000 + (10_000 + rate) / 2 * total.signum()) / (10_000 + rate);
+                let base = (total * 10_000 + i64::midpoint(10_000, rate) * total.signum())
+                    / (10_000 + rate);
                 DocVat {
                     label,
                     rate_hundredths: rate,
@@ -435,7 +440,7 @@ pub(crate) struct InvoiceDoc {
 }
 
 impl InvoiceDoc {
-    pub fn total_cents(&self) -> i64 {
+    pub(crate) fn total_cents(&self) -> i64 {
         self.sales.iter().map(|s| s.total_cents).sum()
     }
 
@@ -457,7 +462,7 @@ impl InvoiceDoc {
     }
 
     /// The FDM's VAT, summed per label.
-    pub fn vat(&self) -> Vec<DocVat> {
+    pub(crate) fn vat(&self) -> Vec<DocVat> {
         let mut sum: BTreeMap<String, DocVat> = BTreeMap::new();
         for v in self.sales.iter().flat_map(|s| &s.vat) {
             let e = sum.entry(v.label.clone()).or_insert_with(|| DocVat {
@@ -475,7 +480,7 @@ impl InvoiceDoc {
     }
 
     /// `{"A": {"base": n, "vat": n, "total": n}, ...}` as stored with the invoice.
-    pub fn vat_json(&self) -> String {
+    pub(crate) fn vat_json(&self) -> String {
         let mut map = serde_json::Map::new();
         for v in self.vat() {
             map.insert(
@@ -673,8 +678,7 @@ pub async fn do_lookup_b2b_customer(
     };
     let cached = customer
         .as_ref()
-        .map(|c| c.peppol_status.clone())
-        .unwrap_or_else(|| "unknown".to_string());
+        .map_or_else(|| "unknown".to_string(), |c| c.peppol_status.clone());
     let mut out = CustomerLookup {
         vat_number: vat.canonical.clone(),
         country_code: vat.country.clone(),
@@ -1003,6 +1007,10 @@ fn vendor_of(provider: &str) -> String {
 /// M150: sign the invoice (event I) of `sale_event_ids` for `customer_id`, record it, print
 /// it and queue its Peppol delivery. Refusals before anything is signed are errors; an FDM
 /// that does not sign is `success: false`, nothing recorded and no number used.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one fiscal event from validation to signed invoice, kept as a single audited sequence"
+)]
 pub async fn do_sign_invoice_fiscal(
     state: &AppState,
     sale_event_ids: Vec<i64>,
@@ -1094,15 +1102,15 @@ pub async fn do_sign_invoice_fiscal(
             issue_date.get(..4).unwrap_or("0000"),
             invoice_seq
         );
-        input.invoice_no = invoice_no.clone();
+        input.invoice_no.clone_from(&invoice_no);
         input.cost_center = Some(CostCenterInput {
             id: format!("C{}", customer.id),
             cost_center_type: CostCenterType::Customer,
             reference: customer.name.chars().take(NAME_MAX_CHARS).collect(),
             cost_center: None,
         });
-        let request =
-            SignRequest::new(SignMutation::Invoice, &input, false).map_err(errors::internal)?;
+        let request = SignRequest::new(SignMutation::Invoice, &input, Mode::Normal)
+            .map_err(errors::internal)?;
         let request_json = serde_json::to_string(&input).map_err(errors::internal)?;
 
         let party = party_of(&customer);
@@ -1159,7 +1167,8 @@ pub async fn do_sign_invoice_fiscal(
     drop(guard);
 
     // Print (and wake the Peppol queue) with no lock held.
-    let done = signing::follow_up(state, &config, &context, &committed, false).await;
+    let done =
+        signing::follow_up(state, &config, &context, &committed, signing::Drawer::Leave).await;
     let invoice_no = match &context {
         PendingContext::Invoice { invoice_no, .. } => Some(invoice_no.clone()),
         _ => None,

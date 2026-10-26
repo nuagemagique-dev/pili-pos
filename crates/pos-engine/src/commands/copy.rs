@@ -1,3 +1,4 @@
+use pos_fiscal::types::Mode;
 use serde::Serialize;
 
 use pos_core::config::PosConfig;
@@ -19,7 +20,7 @@ use crate::commands::signing::{
 };
 use crate::state::AppState;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CopyResult {
     pub success: bool,
@@ -56,6 +57,10 @@ pub async fn do_copy_ticket(
 /// Per SCE 2.0 spec: references the original via fdmId + eventLabel + counters.
 ///
 /// [`do_copy_ticket`] with the operator's ticket choice.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one copy event from archive read to signed, printed copy, kept as a single audited sequence"
+)]
 pub async fn do_copy_ticket_with(
     state: &AppState,
     fiscal_event_id: i64,
@@ -141,7 +146,7 @@ pub async fn do_copy_ticket_with(
 
     // 2. The copy's number: the C counter advances only when the signed
     // copy is archived, so a refused copy leaves no gap.
-    let label = EventLabel::C.in_mode(config.training_mode);
+    let label = EventLabel::C.in_mode(Mode::from(config.training_mode));
     let ticket_number = super::peek_ticket_number(state, &guard, label)?;
 
     // 3. Build the copy event
@@ -154,8 +159,12 @@ pub async fn do_copy_ticket_with(
         &original_ref,
     );
     copy_input.common.ticket_medium = resolved.medium;
-    let request = SignRequest::new(SignMutation::Copy, &copy_input, config.training_mode)
-        .map_err(errors::internal)?;
+    let request = SignRequest::new(
+        SignMutation::Copy,
+        &copy_input,
+        Mode::from(config.training_mode),
+    )
+    .map_err(errors::internal)?;
     let request_json = serde_json::to_string(&copy_input).map_err(|e| e.to_string())?;
 
     // The copy reproduces the original ticket and adds the copy's own
@@ -188,7 +197,8 @@ pub async fn do_copy_ticket_with(
     drop(guard);
 
     // Print and/or send with no lock held.
-    let done = signing::follow_up(state, &config, &context, &committed, false).await;
+    let done =
+        signing::follow_up(state, &config, &context, &committed, signing::Drawer::Leave).await;
     Ok(CopyResult {
         success: true,
         error: None,
@@ -261,53 +271,50 @@ pub(crate) fn original_ticket(
         (order, lines, changes, refunded)
     };
     let ticket_lines = pos_fiscal::price_change::ticket_lines(&lines, &changes);
-    let total = order.total_cents as f64 / 100.0;
+    let total = pos_core::money::eur(order.total_cents);
     let operator = super::operator_name(state, &event.user_insz);
     let result: Option<SignResult> = event
         .fdm_response_json
         .as_deref()
         .and_then(|json| serde_json::from_str(json).ok());
-    Ok(Some(match result {
-        Some(result) => {
-            let (payments, rounding) = printed_payments(&request);
-            let mut ticket = FiscalTicket::from_sign_result(TicketParams {
-                identity: &state.identity,
-                result: &result,
-                restaurant_name: &config.restaurant_name,
-                restaurant_address: &config.restaurant_address,
-                restaurant_vat: &config.restaurant_vat,
-                restaurant_est_no: &config.restaurant_est_no,
-                restaurant_legal_name: config.legal_name(),
-                lines: ticket_lines,
-                payments,
-                total,
-                is_training: result.fdm_ref.event_label == EventLabel::T,
-                rounding,
-                lang: ReceiptLanguage::from_code(&config.language),
-                operator: &operator,
-            });
-            // A sale closed unpaid reprints as unpaid.
-            ticket.unpaid = is_unpaid_sale(&request);
-            if let Some(refunded) = refunded {
-                ticket = ticket.with_original(refunded);
-            }
-            CopyTicket::Original(Box::new(ticket))
+    Ok(Some(if let Some(result) = result {
+        let (payments, rounding) = printed_payments(&request);
+        let mut ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &state.identity,
+            result: &result,
+            restaurant_name: &config.restaurant_name,
+            restaurant_address: &config.restaurant_address,
+            restaurant_vat: &config.restaurant_vat,
+            restaurant_est_no: &config.restaurant_est_no,
+            restaurant_legal_name: config.legal_name(),
+            lines: ticket_lines,
+            payments,
+            total,
+            is_training: result.fdm_ref.event_label == EventLabel::T,
+            rounding,
+            lang: ReceiptLanguage::from_code(&config.language),
+            operator: &operator,
+        });
+        // A sale closed unpaid reprints as unpaid.
+        ticket.unpaid = is_unpaid_sale(&request);
+        if let Some(refunded) = refunded {
+            ticket = ticket.with_original(refunded);
         }
-        None => {
-            let mut draft = TicketDraft::new(
-                config,
-                ticket_lines,
-                vec![TicketPayment {
-                    method: "-".to_string(),
-                    amount: total,
-                    brand: None,
-                }],
-                total,
-                &operator,
-            );
-            draft.original = refunded;
-            CopyTicket::Draft(Box::new(draft))
-        }
+        CopyTicket::Original(Box::new(ticket))
+    } else {
+        let mut draft = TicketDraft::new(
+            config,
+            ticket_lines,
+            vec![TicketPayment {
+                method: "-".to_string(),
+                amount: total,
+                brand: None,
+            }],
+            total,
+            &operator,
+        );
+        draft.original = refunded;
+        CopyTicket::Draft(Box::new(draft))
     }))
 }
 

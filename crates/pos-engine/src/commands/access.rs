@@ -89,10 +89,10 @@ pub fn confirmed_operator(
 /// Wrong PINs before the first lockout.
 const FREE_FAILURES: u32 = 5;
 const FIRST_LOCKOUT: Duration = Duration::from_secs(30);
-const MAX_LOCKOUT: Duration = Duration::from_secs(15 * 60);
+const MAX_LOCKOUT: Duration = Duration::from_mins(15);
 
 /// Wrong PIN attempts per user, in memory (a restart clears them).
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct PinThrottle(Mutex<HashMap<String, Attempts>>);
 
 #[derive(Debug, Clone, Copy, Default)]

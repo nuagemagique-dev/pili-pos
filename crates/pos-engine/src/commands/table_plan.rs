@@ -35,16 +35,24 @@ pub fn plan_numbers(state: &AppState) -> Result<Vec<i32>, String> {
         tracing::error!(%e, "table plan unreadable, no tables listed");
         Vec::new()
     });
-    Ok(numbers.into_iter().map(|n| n as i32).collect())
+    Ok(numbers
+        .into_iter()
+        .filter_map(|n| i32::try_from(n).ok())
+        .collect())
 }
 
 pub fn do_get_table_plan(state: &AppState) -> Result<TablePlan, String> {
     let numbers = plan_numbers(state)?;
-    let plan = pos_core::table_plan::format(&numbers.iter().map(|&n| n as u32).collect::<Vec<_>>());
+    let plan = pos_core::table_plan::format(
+        &numbers
+            .iter()
+            .filter_map(|&n| u32::try_from(n).ok())
+            .collect::<Vec<_>>(),
+    );
     let db = state.db.lock().map_err(errors::internal)?;
     Ok(TablePlan {
         plan,
-        table_count: numbers.len() as i64,
+        table_count: i64::try_from(numbers.len()).map_err(errors::internal)?,
         log: table_plan::history(&db, 20).map_err(errors::internal)?,
     })
 }

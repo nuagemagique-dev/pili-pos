@@ -5,7 +5,7 @@
 //!
 //! Every set, clear and expiry is appended to `sold_out_log`. Expiry is by time (the end of the
 //! business day in Europe/Brussels, from `day_end_hour`), not by Z; its log row is written
-//! lazily, on the next read. With HubRise on and a product that has a SKU ref, the change is
+//! lazily, on the next read. With `HubRise` on and a product that has a SKU ref, the change is
 //! queued for the inventory push (`pos_hubrise::inventory`).
 
 use chrono::{Duration, NaiveDate, NaiveTime, TimeZone};
@@ -65,7 +65,7 @@ pub(crate) fn refuse_if_sold_out(
     Ok(())
 }
 
-/// Queue the push of the product's state to the HubRise inventory: only when HubRise is on and
+/// Queue the push of the product's state to the `HubRise` inventory: only when `HubRise` is on and
 /// the product has a SKU ref. Pure SQLite, no network.
 #[cfg(feature = "hubrise")]
 fn queue_inventory(
@@ -119,6 +119,10 @@ pub fn do_list_sold_out(
 
 /// Mark a product sold out: until the end of the business day, or until re-enabled. Cashier and
 /// manager. Returns the list of sold-out products.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "IPC/FFI contract: mirrors the bool argument of the Tauri command and the uniffi export"
+)]
 pub fn do_set_sold_out(
     state: &AppState,
     menu_item_id: i64,
