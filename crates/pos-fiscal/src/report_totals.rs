@@ -88,6 +88,15 @@ impl ReportEvent {
         })
     }
 
+    /// How to name this event in a log line: its FDM label and id.
+    fn describe(&self) -> String {
+        format!(
+            "{:?} {}",
+            self.label,
+            self.response["eventLabel"].as_str().unwrap_or("(no label)")
+        )
+    }
+
     /// The transaction lines of the event's request.
     pub fn lines(&self) -> &[Value] {
         self.request["transaction"]["transactionLines"]
@@ -150,14 +159,20 @@ impl ReportEvent {
     }
 }
 
-/// A JSON amount (multiple of 0.01) in eurocents.
+/// A JSON amount (multiple of 0.01) in eurocents. A missing (`null`)
+/// amount reads as 0; any other non-number is logged as a malformed
+/// archive row (it would understate a signed report) and also reads
+/// as 0.
 pub fn cents(v: &Value) -> i64 {
-    (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64
+    pos_core::money::cents_of(v).unwrap_or_else(|| {
+        if !v.is_null() {
+            tracing::warn!(value = %v, "report: amount in an archived event is not a number, counted as 0");
+        }
+        0
+    })
 }
 
-fn eur(cents: i64) -> f64 {
-    cents as f64 / 100.0
-}
+use pos_core::money::eur;
 
 /// Σ(VatInput.price) + Σ(VatInput.priceChanges.amount) of one
 /// transaction line: its amount after price changes.
@@ -393,11 +408,16 @@ fn vats(events: &[ReportEvent]) -> Vec<VatTotalInput> {
                 for item in calc {
                     let Ok(label) = serde_json::from_value::<VatLabel>(item["label"].clone())
                     else {
+                        tracing::warn!(event = %event.describe(), item = %item, "report: vatCalc entry with an unreadable label skipped");
                         continue;
                     };
+                    let rate = item["rate"].as_f64().unwrap_or_else(|| {
+                        tracing::warn!(event = %event.describe(), item = %item, "report: vatCalc entry without a rate, counted as 0");
+                        0.0
+                    });
                     add(
                         label,
-                        item["rate"].as_f64().unwrap_or(0.0),
+                        rate,
                         cents(&item["taxableAmount"]),
                         cents(&item["vatAmount"]),
                         cents(&item["totalAmount"]),
@@ -413,6 +433,7 @@ fn vats(events: &[ReportEvent]) -> Vec<VatTotalInput> {
                     .flatten()
                 {
                     let Ok(label) = serde_json::from_value::<VatLabel>(vat["label"].clone()) else {
+                        tracing::warn!(event = %event.describe(), vat = %vat, "report: line vat with an unreadable label skipped");
                         continue;
                     };
                     per_label
@@ -422,7 +443,9 @@ fn vats(events: &[ReportEvent]) -> Vec<VatTotalInput> {
                 }
                 for (label, total) in per_label.into_values() {
                     let rate = standard_rate(label);
-                    let taxable = (total as f64 / (1.0 + rate / 100.0)).round() as i64;
+                    let taxable = pos_core::money::round_to_i64(
+                        pos_core::money::to_f64(total) / (1.0 + rate / 100.0),
+                    );
                     add(label, rate, taxable, total - taxable, total);
                 }
             }
@@ -465,6 +488,7 @@ fn payments<'a>(events: impl Iterator<Item = &'a ReportEvent>) -> Vec<PaymentTot
         for financial in financials {
             let Ok(payment_type) = serde_json::from_value::<PaymentType>(financial["type"].clone())
             else {
+                tracing::warn!(event = %event.describe(), financial = %financial, "report: payment line with an unreadable type skipped");
                 continue;
             };
             let amount_type =

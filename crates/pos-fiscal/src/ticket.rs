@@ -354,7 +354,7 @@ impl FiscalTicket {
 /// the way the checkout prints them: one row per payment line, and the
 /// rounding total (its own line, FAQ Q403).
 pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Option<f64>) {
-    let cents = |v: &serde_json::Value| (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64;
+    let cents = crate::report_totals::cents;
     let financials = request["financials"]
         .as_array()
         .cloned()
@@ -364,7 +364,7 @@ pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Opt
         .filter(|f| f["amountType"] == "PAYMENT")
         .map(|f| TicketPayment {
             method: printed_method(f),
-            amount: cents(&f["amount"]) as f64 / 100.0,
+            amount: pos_core::money::eur(cents(&f["amount"])),
             // The provider of a card line, or of any line a terminal
             // took (`AUTOMATIC`, such as a meal-voucher card), is the
             // brand it gave.
@@ -383,7 +383,10 @@ pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Opt
         .filter(|f| f["amountType"] == "ROUNDING")
         .map(|f| cents(&f["amount"]))
         .sum();
-    (payments, (rounding != 0).then(|| rounding as f64 / 100.0))
+    (
+        payments,
+        (rounding != 0).then(|| pos_core::money::eur(rounding)),
+    )
 }
 
 /// True for a sale closed without payment: an archived sale request

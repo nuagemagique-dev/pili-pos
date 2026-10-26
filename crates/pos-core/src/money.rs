@@ -2,30 +2,43 @@
 
 use serde_json::Value;
 
-/// Cents as the euro amount the FDM wire format carries (`1250` is `12.5`).
+/// An amount in cents as an `f64` (exact below 2^53, far above any real
+/// amount), for the few float formulas the FDM wire format imposes.
 #[must_use]
-pub fn eur(cents: i64) -> f64 {
-    // Cent amounts stay far below 2^53, so the conversion is exact.
+pub fn to_f64(cents: i64) -> f64 {
     #[expect(
         clippy::cast_precision_loss,
         clippy::as_conversions,
         reason = "cent amounts stay far below 2^53, so the i64 to f64 conversion is exact"
     )]
-    let euros = cents as f64 / 100.0;
-    euros
+    let v = cents as f64;
+    v
+}
+
+/// Rounds a float to the nearest whole number (ties away from zero) as
+/// an `i64`. Saturates on out-of-range input; NaN is `0`.
+#[must_use]
+pub fn round_to_i64(v: f64) -> i64 {
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::as_conversions,
+        reason = "f64 to i64 `as` saturates and maps NaN to 0, which is the documented behaviour"
+    )]
+    let r = v.round() as i64;
+    r
+}
+
+/// Cents as the euro amount the FDM wire format carries (`1250` is `12.5`).
+#[must_use]
+pub fn eur(cents: i64) -> f64 {
+    to_f64(cents) / 100.0
 }
 
 /// A euro amount rounded to whole cents (`12.5` is `1250`). Saturates on
 /// out-of-range or non-finite input (NaN is `0`).
 #[must_use]
 pub fn cents_from_eur(euros: f64) -> i64 {
-    #[expect(
-        clippy::cast_possible_truncation,
-        clippy::as_conversions,
-        reason = "f64 to i64 `as` saturates and maps NaN to 0, which is the documented behaviour"
-    )]
-    let cents = (euros * 100.0).round() as i64;
-    cents
+    round_to_i64(euros * 100.0)
 }
 
 /// Reads an archived JSON euro amount as cents. `None` when the value is

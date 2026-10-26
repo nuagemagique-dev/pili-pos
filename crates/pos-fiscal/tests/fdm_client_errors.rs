@@ -147,7 +147,7 @@ async fn the_code_of_a_spec_shaped_error_is_kept() {
         .unwrap_err();
     assert_eq!(
         err.to_string(),
-        "GraphQL error: BUFFER_FULL: FDM buffer is full."
+        "FDM refused: BUFFER_FULL: FDM buffer is full."
     );
 }
 
@@ -167,7 +167,7 @@ async fn a_message_that_is_the_code_is_not_doubled() {
     let err = sign_work_in_call(&FdmClient::new(&cfg.fdm_url), &cfg)
         .await
         .unwrap_err();
-    assert_eq!(err.to_string(), "GraphQL error: FDM_LOCKED");
+    assert_eq!(err.to_string(), "FDM refused: FDM_LOCKED");
 }
 
 #[tokio::test]
@@ -207,10 +207,13 @@ async fn http_500_with_non_json_body_yields_err_not_panic() {
     let err = sign_work_in_call(&client, &cfg).await.unwrap_err();
     // The body isn't JSON at all, so this must fail at the
     // `.json()` decode step, not silently succeed or panic.
-    assert!(
-        matches!(err, FdmError::Http(_)),
-        "expected Http decode error, got {err:?}"
-    );
+    match err {
+        FdmError::BadResponse(msg) => {
+            assert!(msg.contains("500"), "{msg}");
+            assert!(msg.contains("Internal Server Error"), "{msg}");
+        }
+        other => panic!("expected an unusable response, got {other:?}"),
+    }
 }
 
 #[tokio::test]
@@ -250,10 +253,10 @@ async fn malformed_json_response_yields_err_not_panic() {
     let cfg = config(&format!("{}/graphql", server.uri()));
     let client = FdmClient::new(&cfg.fdm_url);
     let err = sign_work_in_call(&client, &cfg).await.unwrap_err();
-    assert!(
-        matches!(err, FdmError::Http(_)),
-        "expected Http decode error, got {err:?}"
-    );
+    match err {
+        FdmError::BadResponse(msg) => assert!(msg.contains("{not valid json"), "{msg}"),
+        other => panic!("expected an unusable response, got {other:?}"),
+    }
 }
 
 #[tokio::test]
@@ -271,7 +274,45 @@ async fn status_query_malformed_json_yields_err_not_panic() {
     let cfg = config(&format!("{}/graphql", server.uri()));
     let client = FdmClient::new(&cfg.fdm_url);
     let err = client.status().await.unwrap_err();
-    assert!(matches!(err, FdmError::Http(_)), "got {err:?}");
+    assert!(matches!(err, FdmError::BadResponse(_)), "got {err:?}");
+}
+
+#[tokio::test]
+async fn errors_next_to_a_signed_result_leave_the_outcome_unknown() {
+    // M184 sends two mutations in one document: one may be signed while
+    // the other fails. Nothing may then be reported as "not signed".
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": { "signReportTurnoverZ": sample_sign_result_json(), "signReportUserZ": null },
+            "errors": [{ "message": "locked", "extensions": { "code": "FDM_LOCKED" } }]
+        })))
+        .mount(&server)
+        .await;
+
+    let cfg = config(&format!("{}/graphql", server.uri()));
+    let err = sign_work_in_call(&FdmClient::new(&cfg.fdm_url), &cfg)
+        .await
+        .unwrap_err();
+    assert_eq!(err.outcome(), pos_fiscal::fdm_client::SignOutcome::Unknown);
+    assert!(err.to_string().contains("FDM_LOCKED"), "{err}");
+
+    // The same code with no data is a plain refusal.
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": null,
+            "errors": [{ "message": "locked", "extensions": { "code": "FDM_LOCKED" } }]
+        })))
+        .mount(&server)
+        .await;
+    let cfg = config(&format!("{}/graphql", server.uri()));
+    let err = sign_work_in_call(&FdmClient::new(&cfg.fdm_url), &cfg)
+        .await
+        .unwrap_err();
+    assert_eq!(err.outcome(), pos_fiscal::fdm_client::SignOutcome::Refused);
 }
 
 // ── Missing / incomplete fields ─────────────────────────────────

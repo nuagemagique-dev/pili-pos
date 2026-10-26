@@ -39,25 +39,24 @@ pub fn archive_event(
     conn: &rusqlite::Connection,
     params: ArchiveParams<'_>,
 ) -> Result<i64, rusqlite::Error> {
+    // A failed serialisation must stop the archive: storing "" would
+    // lose the signed response (the transaction rolls back and the
+    // caller keeps the pending signature for a retry).
     let response_json = params
         .sign_result
-        .map(|r| serde_json::to_string(r).unwrap_or_default());
+        .map(|r| serde_json::to_string(r).map_err(to_sql_error))
+        .transpose()?;
 
     let fdm_id = params.sign_result.map(|r| r.fdm_ref.fdm_id.clone());
     let fdm_datetime = params.sign_result.map(|r| r.fdm_ref.fdm_date_time.clone());
-    let event_label_str = params.sign_result.map(|r| {
-        serde_json::to_string(&r.fdm_ref.event_label)
-            .unwrap_or_default()
-            .trim_matches('"')
-            .to_string()
-    });
+    let event_label_str = params
+        .sign_result
+        .map(|r| enum_text(&r.fdm_ref.event_label))
+        .transpose()?;
     let short_sig = params.sign_result.and_then(|r| r.short_signature.clone());
     let qr_data = params.sign_result.and_then(|r| r.verification_url.clone());
 
-    let event_type_str = serde_json::to_string(&params.event_type)
-        .unwrap_or_default()
-        .trim_matches('"')
-        .to_string();
+    let event_type_str = enum_text(&params.event_type)?;
 
     if let Some(result) = params.sign_result {
         warn_on_counter_regression(conn, result);
@@ -87,6 +86,16 @@ pub fn archive_event(
     )?;
 
     Ok(conn.last_insert_rowid())
+}
+
+fn to_sql_error(e: serde_json::Error) -> rusqlite::Error {
+    rusqlite::Error::ToSqlConversionFailure(Box::new(e))
+}
+
+/// The wire text of a unit enum (`"N"` becomes `N`).
+fn enum_text<T: serde::Serialize>(value: &T) -> Result<String, rusqlite::Error> {
+    let text = serde_json::to_string(value).map_err(to_sql_error)?;
+    Ok(text.trim_matches('"').to_string())
 }
 
 /// The FDM's counters only go up. A signed event whose `totalCounter`
@@ -316,6 +325,21 @@ pub fn get_archived_event(
 mod tests {
     use super::*;
     use crate::response::FdmReference;
+
+    #[test]
+    fn enum_text_is_the_bare_wire_text() {
+        assert_eq!(enum_text(&EventLabel::N).unwrap(), "N");
+        assert_eq!(enum_text(&EventLabel::T).unwrap(), "T");
+    }
+
+    /// A value `serde_json` cannot write (a map with non-string keys)
+    /// is an error, never an empty string in the archive.
+    #[test]
+    fn an_unserialisable_value_is_an_error_not_an_empty_string() {
+        let mut bad = std::collections::BTreeMap::new();
+        bad.insert((1, 2), 3);
+        assert!(enum_text(&bad).is_err());
+    }
 
     fn setup() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();

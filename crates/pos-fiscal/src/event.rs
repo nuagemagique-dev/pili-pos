@@ -91,11 +91,7 @@ pub fn vat_code_to_label(code: VatCode) -> VatLabel {
     }
 }
 
-/// Cents to euros, exactly: the nearest `f64` to a two-decimal amount,
-/// which serialises with at most two decimals.
-fn eur(cents: i64) -> f64 {
-    cents as f64 / 100.0
-}
+use pos_core::money::eur;
 
 /// Build transaction lines (shared by Sale, Order, PreBill). Negative
 /// lines carry `neg_reason`: REFUND on refunds, CORRECTION when an
@@ -108,7 +104,7 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
             // product of floats (1.10 x 3 = 3.3000000000000003) is not
             // the multiple of 0.01 the FDM requires (POS spec v2.2).
             let unit_price = eur(line.unit_price_cents);
-            let line_total = eur(line.unit_price_cents * i64::from(line.quantity));
+            let line_total = eur(line.line_total());
             let vat_label = vat_code_to_label(line.vat_code);
 
             TransactionLineInput {
@@ -119,7 +115,7 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
                     product_name: line.name.clone(),
                     department_id: line.department_id.clone(),
                     department_name: line.department_name.clone(),
-                    quantity: line.quantity as f64,
+                    quantity: f64::from(line.quantity),
                     quantity_type: QuantityType::Piece,
                     neg_quantity_reason: (line.quantity < 0).then_some(neg_reason),
                     unit_price,
@@ -138,8 +134,7 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
 
     let transaction_total = eur(lines
         .iter()
-        .map(|l| l.unit_price_cents * i64::from(l.quantity))
-        .sum());
+        .fold(0_i64, |sum, l| sum.saturating_add(l.line_total())));
 
     TransactionInput {
         transaction_lines,
@@ -438,7 +433,9 @@ pub fn build_cost_center_change_input(
     let negated_lines: Vec<OrderLine> = lines
         .iter()
         .map(|l| OrderLine {
-            quantity: -l.quantity,
+            // `i32::MIN` has no positive twin; it saturates instead of
+            // overflowing (a quantity that large is never real).
+            quantity: l.quantity.saturating_neg(),
             ..l.clone()
         })
         .collect();
@@ -1889,6 +1886,30 @@ mod tests {
             bad.len(),
             &bad[..bad.len().min(5)]
         );
+    }
+
+    #[test]
+    fn impossible_quantities_saturate_instead_of_overflowing() {
+        let line = |quantity: i32| OrderLine {
+            id: 1,
+            order_id: 1,
+            menu_item_id: 1,
+            quantity,
+            unit_price_cents: i64::MAX / 2,
+            vat_code: VatCode::A,
+            name: "x".to_string(),
+            modifiers_json: None,
+            created_at: chrono::Utc::now(),
+            department_id: "1".to_string(),
+            department_name: "d".to_string(),
+        };
+        // Neither the product nor the sum nor the negation may panic.
+        let t = build_transaction(
+            &[line(i32::MAX), line(i32::MAX), line(i32::MIN)],
+            NegQuantityReason::Correction,
+        );
+        assert_eq!(t.transaction_lines.len(), 3);
+        assert_eq!(line(i32::MIN).quantity.saturating_neg(), i32::MAX);
     }
 
     #[test]

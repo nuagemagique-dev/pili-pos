@@ -219,16 +219,14 @@ pub struct Settlement {
 }
 
 impl Settlement {
-    /// One method paying the whole total (cash is rounded).
-    pub fn single(method: PaymentMethod, total_cents: i64) -> Self {
+    /// One method paying the whole total (cash is rounded). Test helper.
+    #[cfg(test)]
+    fn single(method: PaymentMethod, total_cents: i64) -> Self {
         let part = match method {
             PaymentMethod::Cash => PaymentPart::cash(),
             other => PaymentPart::of(other, total_cents),
         };
-        settle(total_cents, &[part]).unwrap_or_else(|_| Settlement {
-            payments: vec![SettledPayment::plain(method, total_cents)],
-            rounding_cents: 0,
-        })
+        settle(total_cents, &[part]).expect("one method settles the whole total")
     }
 
     /// True when part of the sale is paid in cash (the drawer opens).

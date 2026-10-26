@@ -6,12 +6,13 @@ use serde::Serialize;
 use crate::http_tls::HttpTls;
 use crate::inputs::*;
 use crate::response::*;
-use crate::response_check::{ExpectedEvent, check_sign_result};
+use crate::response_check::{ExpectedEvent, PlaceholderSignatures, check_sign_result};
 
 /// Parse one sign result out of the GraphQL `data` object and check it
 /// against the request it answers before anyone can archive it.
 fn parse_checked<D: Serialize>(
     sink: Option<&SignMessageSink>,
+    placeholders: PlaceholderSignatures,
     data: &serde_json::Value,
     mutation_name: &str,
     request: &D,
@@ -26,7 +27,7 @@ fn parse_checked<D: Serialize>(
         .ok_or_else(|| FdmError::Serialization(format!("Unknown sign mutation {mutation_name}")))?;
     let request = serde_json::to_value(request)
         .map_err(|e| FdmError::Serialization(format!("{mutation_name}: {e}")))?;
-    check_sign_result(&request, expected, &result).map_err(|mismatch| {
+    check_sign_result(&request, expected, &result, placeholders).map_err(|mismatch| {
         tracing::error!(
             mutation = mutation_name,
             %mismatch,
@@ -67,7 +68,7 @@ fn report_sign_messages(
         items
             .iter()
             .flatten()
-            .filter(|m| m.extensions.show_pos != crate::types::Display::Never)
+            .filter(|m| m.extensions.show_pos != crate::types::ShowPos::Never)
             .cloned()
             .collect()
     };
@@ -90,16 +91,16 @@ pub enum FdmError {
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
     /// A status query the FDM did not answer.
-    #[error("GraphQL error: {0}")]
+    #[error("FDM status query failed: {0}")]
     GraphQl(String),
     /// The FDM answered a sign request with `errors[]` ("CODE: message").
-    #[error("GraphQL error: {message}")]
+    #[error("FDM refused: {message}")]
     Refused { codes: Vec<String>, message: String },
     /// The FDM answered, but not with a usable result.
-    #[error("GraphQL error: {0}")]
+    #[error("FDM unusable response: {0}")]
     BadResponse(String),
     /// The request could not be built; nothing was sent.
-    #[error("GraphQL error: {0}")]
+    #[error("request not sent: {0}")]
     Serialization(String),
     #[error("FDM not connected")]
     NotConnected,
@@ -412,6 +413,9 @@ pub struct FdmClient {
     bearer_token: Option<String>,
     /// Where the messages of signed events go ([`FdmClient::with_sign_messages`]).
     sign_messages: Option<SignMessageSink>,
+    /// Whether this endpoint may answer with the simulator's placeholder
+    /// signature (decided from the URL).
+    placeholders: PlaceholderSignatures,
 }
 
 #[derive(Serialize)]
@@ -461,6 +465,7 @@ impl FdmClient {
             url: fdm_url.to_string(),
             bearer_token: None,
             sign_messages: None,
+            placeholders: PlaceholderSignatures::for_url(fdm_url),
         }
     }
 
@@ -833,11 +838,24 @@ impl FdmClient {
         let resp: GraphQlResponse<serde_json::Value> =
             self.post(request.body().to_string()).await?;
         if let Some(errors) = resp.errors.as_ref().filter(|e| !e.is_empty()) {
+            // M184 sends two mutations in one document: when one field
+            // carries a result next to `errors`, that event may have been
+            // signed. No codes makes the outcome Unknown (resend the
+            // same request), never "nothing was signed".
+            let partly_signed = resp
+                .data
+                .as_ref()
+                .and_then(serde_json::Value::as_object)
+                .is_some_and(|fields| fields.values().any(|v| !v.is_null()));
             return Err(FdmError::Refused {
-                codes: errors
-                    .iter()
-                    .filter_map(|e| e.code().map(str::to_string))
-                    .collect(),
+                codes: if partly_signed {
+                    Vec::new()
+                } else {
+                    errors
+                        .iter()
+                        .filter_map(|e| e.code().map(str::to_string))
+                        .collect()
+                },
                 message: format_gql_errors(resp.errors.clone()),
             });
         }
@@ -853,6 +871,7 @@ impl FdmClient {
             .map(|((field, _, _), input)| {
                 parse_checked(
                     self.sign_messages.as_ref(),
+                    self.placeholders,
                     &data,
                     field,
                     input,
@@ -898,8 +917,15 @@ impl FdmClient {
             }
         })?;
 
-        let gql_resp: GraphQlResponse<R> = resp.json().await?;
-        Ok(gql_resp)
+        let status = resp.status();
+        let bytes = resp.bytes().await?;
+        serde_json::from_slice(&bytes).map_err(|e| {
+            let head = &bytes[..bytes.len().min(200)];
+            FdmError::BadResponse(format!(
+                "HTTP {status}, body is not a GraphQL answer ({e}): {}",
+                String::from_utf8_lossy(head)
+            ))
+        })
     }
 }
 

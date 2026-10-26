@@ -156,7 +156,7 @@ async fn staging_status_returns_operational() {
         // `Mandatory`-display errors are intake-blocking.
         let blocking: Vec<_> = errs
             .iter()
-            .filter(|e| matches!(e.extensions.show_pos, pos_fiscal::types::Display::Mandatory))
+            .filter(|e| matches!(e.extensions.show_pos, pos_fiscal::types::ShowPos::Mandatory))
             .collect();
         assert!(
             blocking.is_empty(),

@@ -73,7 +73,7 @@ pub struct ExtensionItem {
     pub category: MessageCategory,
     pub code: FdmWarningCode,
     pub data: Option<Vec<DataItem>>,
-    pub show_pos: Display,
+    pub show_pos: ShowPos,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

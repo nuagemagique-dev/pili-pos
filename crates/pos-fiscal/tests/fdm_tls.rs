@@ -103,3 +103,43 @@ fn an_unusable_https_setup_is_a_config_problem() {
         "{problems:?}"
     );
 }
+
+#[test]
+fn an_expired_ca_does_not_vouch_for_a_valid_certificate() {
+    // ca.crt ends 3000-01-03 23:33:23 GMT, server.crt 31 seconds later:
+    // in between, the server certificate is within its dates but its CA
+    // is not.
+    let between = UnixTime::since_unix_epoch(Duration::from_secs(
+        chrono::NaiveDate::from_ymd_opt(3000, 1, 3)
+            .unwrap()
+            .and_hms_opt(23, 33, 40)
+            .unwrap()
+            .and_utc()
+            .timestamp()
+            .try_into()
+            .unwrap(),
+    ));
+    assert_eq!(
+        module2().check(&der("server.crt"), between),
+        Err(Error::InvalidCertificate(CertificateError::Expired))
+    );
+}
+
+#[test]
+fn every_ca_of_a_bundle_counts() {
+    // The right CA second, an unrelated certificate first.
+    let bundle = SignedByCa::from_cas(vec![der("server.crt"), der("ca.crt")]).unwrap();
+    bundle.check(&der("server.crt"), UnixTime::now()).unwrap();
+    assert!(SignedByCa::from_cas(Vec::new()).is_none());
+
+    // And from a PEM file holding two certificates.
+    let dir = std::env::temp_dir().join(format!("fdm-tls-bundle-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let fixtures = format!("{}/tests/fixtures/module2_tls", env!("CARGO_MANIFEST_DIR"));
+    let mut pem = std::fs::read_to_string(format!("{fixtures}/server.crt")).unwrap();
+    pem.push_str(&std::fs::read_to_string(format!("{fixtures}/ca.crt")).unwrap());
+    let path = dir.join("bundle.pem");
+    std::fs::write(&path, pem).unwrap();
+    client_config(path.to_str().unwrap(), None).expect("a bundle of two certificates");
+    std::fs::remove_dir_all(&dir).ok();
+}

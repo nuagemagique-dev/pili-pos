@@ -47,9 +47,7 @@ impl LineChange {
 /// The changes of each line, by the line's id.
 pub type LineChanges = BTreeMap<i64, Vec<LineChange>>;
 
-fn eur(cents: i64) -> f64 {
-    cents as f64 / 100.0
-}
+use pos_core::money::eur;
 
 /// Σ of a line's changes, in cents.
 pub fn line_change_cents(changes: &LineChanges, line_id: i64) -> i64 {

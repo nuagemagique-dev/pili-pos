@@ -108,6 +108,13 @@ impl OrderLine {
 mod tests {
     use super::*;
 
+    #[test]
+    fn line_total_saturates_instead_of_overflowing() {
+        assert_eq!(line(i64::MAX, 2).line_total(), i64::MAX);
+        assert_eq!(line(i64::MAX, -2).line_total(), i64::MIN);
+        assert_eq!(line(250, 3).line_total(), 750);
+    }
+
     fn line(unit_price_cents: i64, quantity: i32) -> OrderLine {
         OrderLine {
             id: 1,

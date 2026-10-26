@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 use pos_fiscal::response::{FdmStatus, SignResult};
-use pos_fiscal::response_check::{ExpectedEvent, check_sign_result};
+use pos_fiscal::response_check::{ExpectedEvent, PlaceholderSignatures, check_sign_result};
 use serde_json::Value;
 
 fn fixtures() -> PathBuf {
@@ -58,7 +58,7 @@ fn every_event_module2_signed_passes_the_response_check() {
                 _ => &variables["data"],
             };
             let expected = ExpectedEvent::for_mutation(mutation, is_training).unwrap();
-            check_sign_result(input, expected, &result)
+            check_sign_result(input, expected, &result, PlaceholderSignatures::Accepted)
                 .unwrap_or_else(|e| panic!("{label} {mutation}: {e}"));
             signed += 1;
         }

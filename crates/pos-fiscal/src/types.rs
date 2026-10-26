@@ -216,7 +216,9 @@ pub enum FdmWarningCode {
     UpdatePosVatno,
     UpdatePosEstno,
     /// A code outside the spec's list (an FDM of another version, or a
-    /// vendor code). Kept parseable so one unknown message never makes
+    /// vendor code). The code itself is not kept: serde's `other` only
+    /// allows a unit variant, and the message text stays in the archived
+    /// response. Kept parseable so one unknown message never makes
     /// the whole Status unreadable, which would show the FDM as down.
     #[serde(other)]
     Unrecognized,
@@ -234,7 +236,7 @@ pub enum MessageCategory {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Display {
+pub enum ShowPos {
     Mandatory,
     Optional,
     Never,
