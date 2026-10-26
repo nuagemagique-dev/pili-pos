@@ -163,7 +163,16 @@ pub fn mask_pan(text: &str) -> String {
         }
         let run = &chars[i..end];
         let digits = run.iter().filter(|c| c.is_ascii_digit()).count();
-        if (13..=19).contains(&digits) {
+        // A dash-joined run is a card number only when it stands alone: a
+        // run touching letters is a piece of an identifier (a UUID whose
+        // hex groups happen to be digits), never a PAN.
+        let alone = !run.contains(&'-')
+            || (i
+                .checked_sub(1)
+                .and_then(|b| chars.get(b))
+                .is_none_or(|c| !c.is_ascii_alphanumeric())
+                && chars.get(end).is_none_or(|c| !c.is_ascii_alphanumeric()));
+        if alone && (13..=19).contains(&digits) {
             mask_run(run, &mut out);
         } else {
             // Not a card number as a whole: still mask a single long group.
@@ -282,6 +291,14 @@ mod tests {
             "PAN ****-****-****-1111 end"
         );
         assert_eq!(mask_pan("order 2024-10-26"), "order 2024-10-26");
+        // UUIDs whose hex groups happen to be digits stay as they are.
+        for uuid in [
+            "a1b2c3d4-e5f6-4123-8123-1234a6789012",
+            "6f1f0a52-0000-4000-8000-00000000000b",
+            "ref c0ffee12-3456-4789-8123-45678901",
+        ] {
+            assert_eq!(mask_pan(uuid), uuid);
+        }
         assert_eq!(
             mask_pan("<P>6703 0000 0000 0119 0</P>"),
             "<P>**** **** **** *119 0</P>"
