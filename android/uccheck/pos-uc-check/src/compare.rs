@@ -365,9 +365,9 @@ fn check_full(linux: &Journal, android: &Journal) -> Outcome {
     Outcome::from_problems(problems)
 }
 
-fn check_sw_version(linux: &Journal, android: &Journal, same_side: bool) -> Outcome {
+fn check_sw_version(linux: &Journal, android: &Journal, opts: &Options) -> Outcome {
     let mut problems = Vec::new();
-    if same_side {
+    if opts.same_side {
         if linux.pos_sw_version != android.pos_sw_version {
             problems.push(format!(
                 "posSwVersion {} against {}",
@@ -694,10 +694,7 @@ pub fn compare_pair(
         },
     );
     checks.insert("fdm-full", check_full(linux, android));
-    checks.insert(
-        "sw-version",
-        check_sw_version(linux, android, opts.same_side),
-    );
+    checks.insert("sw-version", check_sw_version(linux, android, opts));
     checks.insert("tickets", check_tickets(linux, android));
     checks.insert(
         "fixture",
@@ -1074,6 +1071,10 @@ mod tests {
         assert_eq!(status(&run(&linux, &second), "sw-version"), Status::Fail);
     }
 
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "test helper: a plain switch on one fixture detail"
+    )]
     fn status_call(extra_key: bool) -> FdmCall {
         let mut response =
             json!({ "data": { "status": { "fdmId": "X", "messages": [{ "code": "A" }] } } });
@@ -1169,6 +1170,10 @@ mod tests {
     }
 
     /// A fixture directory with one variables file for signSale.
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "test helper: a plain switch on one fixture detail"
+    )]
     fn fixture_dir(unit_price: f64, with_center: bool) -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
         let call = sale_call(unit_price, 1, "x");

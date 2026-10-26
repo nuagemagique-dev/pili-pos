@@ -71,6 +71,16 @@ pub struct Host {
     _dir: tempfile::TempDir,
 }
 
+impl std::fmt::Debug for Host {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Host")
+            .field("fdm_base", &self.fdm_base)
+            .field("printer_http", &self.printer_http)
+            .field("sw_version", &self.sw_version)
+            .finish_non_exhaustive()
+    }
+}
+
 /// The `version` of `[workspace.package]` in the root `Cargo.toml` of `repo`.
 pub fn workspace_version(repo: &Path) -> anyhow::Result<String> {
     let path = repo.join("Cargo.toml");
@@ -120,7 +130,8 @@ impl Host {
         }));
 
         let printer = Printer::new(pos_printer_mock::Control::default(), None);
-        let printer_addr = pos_printer_mock::bind("127.0.0.1:0".parse()?, printer.clone()).await?;
+        let printer_addr =
+            pos_printer_mock::bind("127.0.0.1:0".parse()?, Arc::clone(&printer)).await?;
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         let printer_http_port = listener.local_addr()?.port();
         let printer_app = pos_printer_mock::http_app(printer);
@@ -202,14 +213,7 @@ impl Host {
     }
 
     async fn post_json(&self, url: &str, body: &Value) -> anyhow::Result<Value> {
-        let response = self
-            .http
-            .post(url)
-            .json(body)
-            .send()
-            .await?
-            .error_for_status()?;
-        Ok(response.json().await.unwrap_or(Value::Null))
+        post_json(&self.http, url, body).await
     }
 
     /// `GET /mock/requests`: every call the FDM mock logged.
@@ -222,7 +226,7 @@ impl Host {
             .error_for_status()?
             .json()
             .await?;
-        Ok(calls.as_array().cloned().unwrap_or_default())
+        into_array(calls, "GET /mock/requests")
     }
 
     /// `GET /jobs`: the printer jobs, in print order.
@@ -235,7 +239,7 @@ impl Host {
             .error_for_status()?
             .json()
             .await?;
-        Ok(jobs.as_array().cloned().unwrap_or_default())
+        into_array(jobs, "GET /jobs")
     }
 
     /// Wait until the FDM log and the printer jobs stop growing: a
@@ -265,10 +269,9 @@ impl Host {
     }
 
     async fn count_operation(&self, operation: &str) -> usize {
-        self.fdm_requests()
-            .await
-            .map(|calls| calls.iter().filter(|c| c["operation"] == operation).count())
-            .unwrap_or(0)
+        self.fdm_requests().await.map_or(0, |calls| {
+            calls.iter().filter(|c| c["operation"] == operation).count()
+        })
     }
 
     // ── Commands ──────────────────────────────────────────────────
@@ -285,11 +288,11 @@ impl Host {
             "fdm_control_reset" => self.mock_post("fdm", "/mock/control", &json!({})).await,
             "printer_control" => self.mock_post("printer", "/control", args).await,
             "sleep_ms" => {
-                let ms = req_i64(args, "ms")?;
-                if !(0..=MAX_SLEEP_MS as i64).contains(&ms) {
-                    return Err(bad_args(format!("ms must be 0 to {MAX_SLEEP_MS}")));
-                }
-                tokio::time::sleep(Duration::from_millis(ms as u64)).await;
+                let ms = u64::try_from(req_i64(args, "ms")?)
+                    .ok()
+                    .filter(|ms| *ms <= MAX_SLEEP_MS)
+                    .ok_or_else(|| bad_args(&format!("ms must be 0 to {MAX_SLEEP_MS}")))?;
+                tokio::time::sleep(Duration::from_millis(ms)).await;
                 Ok(Value::Null)
             }
             _ => self.engine_call(cmd, args).await,
@@ -320,8 +323,7 @@ impl Host {
         let deadline = tokio::time::Instant::now() + CLOCK_IN_WAIT;
         while tokio::time::Instant::now() < deadline {
             let on_shift = social::do_list_open_shifts(&self.engine)
-                .map(|shifts| shifts.iter().any(|s| s.user_insz == insz))
-                .unwrap_or(false);
+                .is_ok_and(|shifts| shifts.iter().any(|s| s.user_insz == insz));
             if on_shift || self.count_operation("signWorkIn").await > before {
                 tokio::time::sleep(Duration::from_millis(50)).await;
                 break;
@@ -349,7 +351,7 @@ impl Host {
             }
             "update_order_line_quantity" => {
                 let quantity = i32::try_from(req_i64(a, "quantity")?)
-                    .map_err(|_| bad_args("quantity out of range".to_string()))?;
+                    .map_err(|_| bad_args("quantity out of range"))?;
                 ser(order::do_update_order_line_quantity(
                     e,
                     req_i64(a, "lineId")?,
@@ -426,14 +428,32 @@ impl Host {
             "check_fdm_status" => ser(checkout::do_check_fdm_status(e).await),
             "list_fiscal_events" => ser(copy::do_list_fiscal_events(e, opt_i64(a, "limit")?)),
             "get_order" => ser(order::do_get_order(e, req_i64(a, "orderId")?)),
-            other => Err(bad_args(format!("unknown command {other}"))),
+            other => Err(bad_args(&format!("unknown command {other}"))),
         }
+    }
+}
+
+/// `POST` a JSON body and parse the JSON reply. A reply that is not JSON is an error naming the
+/// URL: a mock that answers garbage must not read as an empty success.
+async fn post_json(http: &reqwest::Client, url: &str, body: &Value) -> anyhow::Result<Value> {
+    let response = http.post(url).json(body).send().await?.error_for_status()?;
+    response
+        .json()
+        .await
+        .with_context(|| format!("the reply of {url} is not JSON"))
+}
+
+/// The items of a JSON array reply; anything else is an error naming the request.
+fn into_array(value: Value, request: &str) -> anyhow::Result<Vec<Value>> {
+    match value {
+        Value::Array(items) => Ok(items),
+        other => bail!("{request} did not answer a JSON array: {other}"),
     }
 }
 
 // ── Argument helpers ───────────────────────────────────────────────
 
-fn bad_args(detail: String) -> String {
+fn bad_args(detail: &str) -> String {
     format!("uc_bad_args|detail={}", detail.replace('|', "/"))
 }
 
@@ -451,7 +471,7 @@ fn field<'a>(args: &'a Value, key: &str) -> Option<&'a Value> {
 fn req_i64(args: &Value, key: &str) -> Result<i64, String> {
     field(args, key)
         .and_then(Value::as_i64)
-        .ok_or_else(|| bad_args(format!("{key} must be an integer")))
+        .ok_or_else(|| bad_args(&format!("{key} must be an integer")))
 }
 
 fn opt_i64(args: &Value, key: &str) -> Result<Option<i64>, String> {
@@ -460,21 +480,21 @@ fn opt_i64(args: &Value, key: &str) -> Result<Option<i64>, String> {
         Some(v) => v
             .as_i64()
             .map(Some)
-            .ok_or_else(|| bad_args(format!("{key} must be an integer or null"))),
+            .ok_or_else(|| bad_args(&format!("{key} must be an integer or null"))),
     }
 }
 
 fn req_bool(args: &Value, key: &str) -> Result<bool, String> {
     field(args, key)
         .and_then(Value::as_bool)
-        .ok_or_else(|| bad_args(format!("{key} must be a boolean")))
+        .ok_or_else(|| bad_args(&format!("{key} must be a boolean")))
 }
 
 fn req_str(args: &Value, key: &str) -> Result<String, String> {
     field(args, key)
         .and_then(Value::as_str)
         .map(str::to_string)
-        .ok_or_else(|| bad_args(format!("{key} must be a string")))
+        .ok_or_else(|| bad_args(&format!("{key} must be a string")))
 }
 
 fn opt_str(args: &Value, key: &str) -> Result<Option<String>, String> {
@@ -483,13 +503,13 @@ fn opt_str(args: &Value, key: &str) -> Result<Option<String>, String> {
         Some(v) => v
             .as_str()
             .map(|s| Some(s.to_string()))
-            .ok_or_else(|| bad_args(format!("{key} must be a string or null"))),
+            .ok_or_else(|| bad_args(&format!("{key} must be a string or null"))),
     }
 }
 
 fn typed<T: DeserializeOwned>(args: &Value, key: &str) -> Result<T, String> {
-    let value = field(args, key).ok_or_else(|| bad_args(format!("{key} is required")))?;
-    serde_json::from_value(value.clone()).map_err(|e| bad_args(format!("{key}: {e}")))
+    let value = field(args, key).ok_or_else(|| bad_args(&format!("{key} is required")))?;
+    serde_json::from_value(value.clone()).map_err(|e| bad_args(&format!("{key}: {e}")))
 }
 
 fn opt_typed<T: DeserializeOwned>(args: &Value, key: &str) -> Result<Option<T>, String> {
@@ -497,13 +517,62 @@ fn opt_typed<T: DeserializeOwned>(args: &Value, key: &str) -> Result<Option<T>, 
         None => Ok(None),
         Some(value) => serde_json::from_value(value.clone())
             .map(Some)
-            .map_err(|e| bad_args(format!("{key}: {e}"))),
+            .map_err(|e| bad_args(&format!("{key}: {e}"))),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_reply_that_is_not_an_array_is_an_error() {
+        assert_eq!(
+            into_array(json!([{ "a": 1 }, 2]), "GET /jobs")
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            into_array(json!([]), "GET /jobs").unwrap(),
+            Vec::<Value>::new()
+        );
+        let err = into_array(json!({ "error": "boom" }), "GET /jobs").unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("GET /jobs did not answer a JSON array")
+        );
+        assert!(into_array(Value::Null, "GET /jobs").is_err());
+    }
+
+    #[tokio::test]
+    async fn a_reply_that_is_not_json_is_an_error_naming_the_url() {
+        let app = axum::Router::new()
+            .route(
+                "/json",
+                axum::routing::post(|| async { axum::Json(json!({ "ok": true })) }),
+            )
+            .route("/garbage", axum::routing::post(|| async { "not json" }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move { axum::serve(listener, app).await });
+        let http = reqwest::Client::new();
+        let ok = post_json(&http, &format!("http://127.0.0.1:{port}/json"), &json!({}))
+            .await
+            .unwrap();
+        assert_eq!(ok, json!({ "ok": true }));
+        let err = post_json(
+            &http,
+            &format!("http://127.0.0.1:{port}/garbage"),
+            &json!({}),
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            format!("{err:#}").contains("/garbage is not JSON"),
+            "{err:#}"
+        );
+    }
 
     #[test]
     fn the_workspace_version_is_read_from_its_section() {
