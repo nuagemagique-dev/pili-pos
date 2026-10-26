@@ -324,6 +324,8 @@ fn esc(s: &str) -> String {
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
             '\'' => out.push_str("&apos;"),
+            // XML 1.0 forbids these control characters, even escaped.
+            c if u32::from(c) < 0x20 && !matches!(c, '\n' | '\t' | '\r') => {}
             c => out.push(c),
         }
     }
@@ -547,6 +549,13 @@ pub fn date_plus_days(issue_date: &str, days: i64) -> Result<String, PeppolError
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn xml_illegal_control_characters_are_dropped() {
+        assert_eq!(super::esc("a\u{0}b\u{1b}c\u{8}d"), "abcd");
+        assert_eq!(super::esc("tab\there\r\nok"), "tab\there\r\nok");
+        assert_eq!(super::esc("x<&>"), "x&lt;&amp;&gt;");
+    }
+
     use super::*;
 
     fn party(name: &str, vat: &str, value: &str) -> Party {

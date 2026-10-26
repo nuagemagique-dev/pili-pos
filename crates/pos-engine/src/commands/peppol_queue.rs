@@ -193,7 +193,11 @@ pub async fn run_pass_at(state: &AppState, now: DateTime<Utc>) -> usize {
         };
         let sent = tokio::time::timeout(
             SUBMIT_TIMEOUT,
-            ap.submit_to(&delivery.customer_endpoint_id, &ubl),
+            ap.submit_to(
+                &delivery.customer_endpoint_id,
+                &ubl,
+                &format!("pili-pos-peppol-delivery-{}", delivery.id),
+            ),
         )
         .await;
         let outcome = sent.unwrap_or_else(|_| {
