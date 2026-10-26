@@ -158,9 +158,12 @@ mod tests {
             missing[0].text().contains("no configuration"),
             "{missing:?}"
         );
+        assert_eq!(missing[0].code(), "missing");
 
         std::fs::write(&prod, "{ not json").unwrap();
-        assert_eq!(check_config(None, &prod).len(), 1);
+        let broken = check_config(None, &prod);
+        assert_eq!(broken.len(), 1);
+        assert_eq!(broken[0].code(), "other");
 
         let good = r#"{
             "pos_id": "CFOD0061234567", "terminal_id": "POS1", "device_id": "aa:bb:cc:dd:ee:ff",

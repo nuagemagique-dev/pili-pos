@@ -1781,6 +1781,9 @@ mod tests {
         let bad =
             r#"{"transaction":{"transactionLines":[{"mainProduct":{"vats":[{"price":"x"}]}}]}}"#;
         assert!(ReportEvent::from_archive(&row(EventLabel::T, bad, "{}")).is_none());
+        // Also when the FDM answered it as a SALE.
+        let sale = r#"{"eventOperation":"SALE"}"#;
+        assert!(ReportEvent::from_archive(&row(EventLabel::T, bad, sale)).is_none());
     }
 
     /// The UC223 sale (50 % ticket discount over a B and an A line),

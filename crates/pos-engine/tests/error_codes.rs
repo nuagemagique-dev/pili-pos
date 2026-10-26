@@ -57,6 +57,28 @@ fn entries_are_found_with_bare_or_quoted_keys() {
     assert_eq!(entry_in(source, "err_c"), None);
 }
 
+/// `config_problem` builds `config_<code>` from the code of a config
+/// `Problem`: each such code is a `CONFIG_*` constant listed in `ALL`
+/// (hence translated, see the test below), and no `CONFIG_*` constant
+/// is left without a problem code.
+#[test]
+fn problem_codes_and_config_error_constants_match() {
+    use pos_core::config::PROBLEM_CODES;
+
+    let mut built: Vec<String> = PROBLEM_CODES
+        .iter()
+        .map(|c| format!("config_{c}"))
+        .collect();
+    let mut listed: Vec<String> = errors::ALL
+        .iter()
+        .filter(|c| c.starts_with("config_"))
+        .map(|c| (*c).to_string())
+        .collect();
+    built.sort();
+    listed.sort();
+    assert_eq!(built, listed);
+}
+
 #[test]
 fn every_error_code_has_a_text_in_every_screen_language() {
     let mut missing = vec![];

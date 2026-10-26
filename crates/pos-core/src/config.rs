@@ -1363,6 +1363,38 @@ mod tests {
         });
         let problems = c.problems();
         assert_eq!(problems.len(), 2, "{problems:?}");
+        assert!(problems.iter().all(|p| p.code() == "digital_ticket"));
+    }
+
+    #[test]
+    fn a_bad_fdm_url_is_filed_under_fdm_url() {
+        let mut c = valid();
+        c.fdm_url = "192.168.1.20:8081".into();
+        let problems = c.problems();
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert_eq!(problems[0].code(), "fdm_url");
+    }
+
+    #[test]
+    fn a_bad_payment_terminal_is_filed_under_payment_terminal() {
+        let mut c = valid();
+        c.payment_terminal = Some(PaymentTerminalConfig {
+            kind: PaymentTerminalKind::CcvOpi,
+            base_url: None,
+            api_key_file: None,
+            merchant_id: None,
+            terminal_id: None,
+            integrator_id: None,
+            management_system_id: None,
+            access_protocol: None,
+            address: Some("no-port".into()),
+            device_port: None,
+            timeout_seconds: 180,
+        });
+        let problems = c.problems();
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert_eq!(problems[0].code(), "payment_terminal");
+        assert!(problems[0].text().starts_with("payment_terminal.address"));
     }
 
     #[test]
@@ -1570,6 +1602,7 @@ mod tests {
         h.api_base_url = "api.hubrise.com".into();
         let problems = bad.problems();
         assert_eq!(problems.len(), 2, "{problems:?}");
+        assert!(problems.iter().all(|p| p.code() == "hubrise"));
         // A problem never shows the secret.
         assert!(problems.iter().all(|p| !p.text().contains("s3cret")));
         std::fs::remove_dir_all(&dir).ok();
@@ -1666,6 +1699,7 @@ mod tests {
             let p = export_problems(e);
             assert_eq!(p.len(), 1, "{bad} must be rejected: {p:?}");
             assert!(p[0].text().starts_with("export.url: "), "{p:?}");
+            assert_eq!(p[0].code(), "export", "{p:?}");
         }
     }
 
