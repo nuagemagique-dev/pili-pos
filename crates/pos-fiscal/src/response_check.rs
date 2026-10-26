@@ -55,7 +55,9 @@ impl PlaceholderSignatures {
             return Self::Refused;
         };
         let host = host.trim_end_matches('.').to_ascii_lowercase();
-        let simulator = host == "module2.be" || host.ends_with(".module2.be");
+        // Exactly the simulator's host: module2 may serve real FDMs under
+        // other names of its domain.
+        let simulator = host == "fdm.module2.be";
         let local = matches!(
             host.as_str(),
             "localhost" | "127.0.0.1" | "[::1]" | "10.0.2.2"
@@ -557,6 +559,7 @@ mod tests {
             ("http://192.168.1.100:8080/graphql", Refused),
             ("https://fdm.module2.be.evil.example/graphql", Refused),
             ("https://evilmodule2.be/graphql", Refused),
+            ("https://pos.module2.be/graphql", Refused),
             ("not a url", Refused),
         ] {
             assert_eq!(PlaceholderSignatures::for_url(url), want, "{url}");
