@@ -238,10 +238,15 @@ impl Engine {
                         _ = tick.tick() => {}
                         _ = state.peppol_wake.notified() => {}
                     }
-                    tokio::select! {
-                        _ = state.shutdown_token.cancelled() => return,
-                        _ = commands::peppol_queue::run_pass(&state) => {}
-                    }
+                    // Never dropped mid-delivery: the pass checks the
+                    // token between deliveries and finishes the one in
+                    // flight (bounded by the submit timeout).
+                    commands::peppol_queue::run_pass_until(
+                        &state,
+                        chrono::Utc::now(),
+                        &state.shutdown_token,
+                    )
+                    .await;
                     ticks.peppol_outbox.fetch_add(1, Ordering::SeqCst);
                 }
             }));
@@ -263,6 +268,22 @@ impl Engine {
                             }
                             None => return,
                         },
+                    }
+                }
+            }));
+        }
+
+        // Remote support time limit: ends a session past its 2 h even
+        // when nobody opens a screen that asks for its status.
+        {
+            let state = state.clone();
+            spawned.push(rt.spawn(async move {
+                let period = commands::support::REAP_EVERY;
+                let mut tick = tokio::time::interval_at(Instant::now() + period, period);
+                loop {
+                    tokio::select! {
+                        _ = state.shutdown_token.cancelled() => return,
+                        _ = tick.tick() => commands::support::reap_expired(&state),
                     }
                 }
             }));
@@ -317,7 +338,10 @@ impl Engine {
             }));
         }
 
-        self.tasks.lock().expect("background tasks").extend(spawned);
+        self.tasks
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .extend(spawned);
     }
 
     /// Stop the background loops: cancel the shutdown token. They finish
@@ -330,7 +354,12 @@ impl Engine {
     /// The handles of the spawned loops, removed from the engine, so a
     /// test (or a shell that wants a clean exit) can await them.
     pub fn take_background_tasks(&self) -> Vec<JoinHandle<()>> {
-        std::mem::take(&mut *self.tasks.lock().expect("background tasks"))
+        std::mem::take(
+            &mut *self
+                .tasks
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
     }
 
     /// How many automatic Z passes have completed (for tests).

@@ -95,6 +95,11 @@ pub struct AppState {
     /// Badge scans being handled or just handled, by badge hash
     /// (`commands::badges`, L5-D10). In memory: a restart clears it.
     pub badge_repeats: Mutex<std::collections::HashMap<String, Repeat>>,
+    /// Fiscal events whose original is being printed right now
+    /// (`commands::delivery::print_original_once`): the claim that keeps
+    /// two concurrent calls from printing two originals. In memory on
+    /// purpose, `original_prints` is append-only.
+    pub originals_printing: Mutex<std::collections::HashSet<i64>>,
     /// What the owner alert worker remembers between passes
     /// (`crate::alerts`).
     pub owner_alerts: crate::alerts::AlertRuntime,

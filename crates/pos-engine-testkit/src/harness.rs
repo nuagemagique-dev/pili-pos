@@ -169,6 +169,7 @@ impl TestApp {
             eft_in_flight: Mutex::new(None),
             eft_line: tokio::sync::Mutex::new(()),
             badge_repeats: Default::default(),
+            originals_printing: Default::default(),
             owner_alerts: Default::default(),
             eft_terminal_override: None,
         };

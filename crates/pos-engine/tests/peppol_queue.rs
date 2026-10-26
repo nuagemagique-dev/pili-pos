@@ -558,3 +558,38 @@ async fn issuing_an_invoice_to_the_network_has_its_guards() {
         "the refusals queued nothing"
     );
 }
+
+#[tokio::test]
+async fn an_unreadable_queue_is_an_error_not_an_empty_pass() {
+    let r = rig().await;
+    r.invoice().await;
+    r.app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch("ALTER TABLE peppol_deliveries RENAME TO peppol_deliveries_gone")
+        .unwrap();
+    let err = pos_engine::commands::peppol_queue::try_pass(
+        &r.app.state,
+        soon(),
+        &tokio_util::sync::CancellationToken::new(),
+    )
+    .await
+    .unwrap_err();
+    assert!(err.contains("peppol_deliveries"), "{err}");
+    assert_eq!(run_pass_at(&r.app.state, soon()).await, 0);
+}
+
+#[tokio::test]
+async fn a_cancelled_pass_sends_nothing_more() {
+    let r = rig().await;
+    let id = r.invoice().await;
+    let stop = tokio_util::sync::CancellationToken::new();
+    stop.cancel();
+    let handled =
+        pos_engine::commands::peppol_queue::run_pass_until(&r.app.state, soon(), &stop).await;
+    assert_eq!(handled, 0);
+    assert_eq!(r.delivery(id).status, "queued");
+    assert!(r.mock.submissions().is_empty());
+}

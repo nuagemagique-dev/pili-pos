@@ -256,3 +256,16 @@ async fn a_session_ends_after_the_time_limit() {
     assert!(!do_remote_support_running(&app.state).unwrap().running);
     assert!(!do_remote_support_status(&app.state).unwrap().running);
 }
+
+#[tokio::test]
+async fn the_reaper_ends_an_expired_session_without_anyone_asking() {
+    let (app, _dir) = app_with("sleep 30").await;
+    do_start_remote_support(&app.state, MANAGER.into(), PIN.into()).unwrap();
+    pos_engine::commands::support::reap_expired(&app.state);
+    assert!(app.state.support.holds_session(), "not expired yet");
+
+    app.state.support.age_session(MAX_SESSION);
+    assert!(app.state.support.holds_session(), "nobody asked");
+    pos_engine::commands::support::reap_expired(&app.state);
+    assert!(!app.state.support.holds_session());
+}

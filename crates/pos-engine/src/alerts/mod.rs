@@ -287,28 +287,44 @@ fn restore_once(state: &AppState, settings: &AlertsSettings, now: DateTime<Utc>)
         return;
     }
     let Ok(db) = state.db.lock() else { return };
+    // Read everything first: a failed read leaves the book untouched and
+    // the next pass tries again, instead of starting from a blank book
+    // (which would raise every open alert a second time).
+    let mut lasts = Vec::new();
     for kind in Kind::ALL {
-        let last = store::last_alert_row(&db, kind.code())
-            .ok()
-            .flatten()
-            .and_then(|row| {
-                Some(LastRow {
-                    transition: Transition::from_code(&row.transition)?,
-                    sent: row.outcome == "sent",
-                    at: parse_sqlite_time(&row.created_at)?,
-                })
-            });
+        let row = match store::last_alert_row(&db, kind.code()) {
+            Ok(row) => row,
+            Err(e) => {
+                tracing::error!(%e, "owner alerts: cannot restore the book, will retry");
+                return;
+            }
+        };
+        let last = row.and_then(|row| {
+            Some(LastRow {
+                transition: Transition::from_code(&row.transition)?,
+                sent: row.outcome == "sent",
+                at: parse_sqlite_time(&row.created_at)?,
+            })
+        });
+        lasts.push((kind, last));
+    }
+    let since = sqlite_time(now - chrono::Duration::minutes(rules::CAP_WINDOW_MINUTES));
+    let times = match store::sent_times_since(&db, &since) {
+        Ok(times) => times,
+        Err(e) => {
+            tracing::error!(%e, "owner alerts: cannot read the recent messages, will retry");
+            return;
+        }
+    };
+    drop(db);
+    for (kind, last) in lasts {
         inner
             .book
             .restore(kind, last, settings.reminder_minutes, now);
     }
-    let since = sqlite_time(now - chrono::Duration::minutes(rules::CAP_WINDOW_MINUTES));
-    if let Ok(times) = store::sent_times_since(&db, &since) {
-        inner
-            .book
-            .seed_sent(times.iter().filter_map(|t| parse_sqlite_time(t)));
-    }
-    drop(db);
+    inner
+        .book
+        .seed_sent(times.iter().filter_map(|t| parse_sqlite_time(t)));
     inner.restored = true;
 }
 

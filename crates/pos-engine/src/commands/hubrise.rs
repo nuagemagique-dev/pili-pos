@@ -12,6 +12,7 @@ use pos_hubrise::{
     poller::{self, PollerCtx},
     token_store::{self, StoredConnection},
 };
+use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -106,7 +107,8 @@ pub fn oauth_config(
 /// [`oauth_config`] for this build: the development fallback only in
 /// debug builds.
 fn installation_oauth_config(state: &AppState) -> Result<OAuthConfig, String> {
-    let config = state.config.lock().map_err(errors::internal)?;
+    // Clone and release the lock: reading the secret file blocks.
+    let config = state.config.lock().map_err(errors::internal)?.clone();
     oauth_config(&config, cfg!(debug_assertions))
 }
 
@@ -358,7 +360,7 @@ fn summary_from_raw(
                 .and_then(|v| v.as_str())
                 .map(money_to_cents)
                 .unwrap_or(0);
-            let line_total_cents = unit_price_cents * quantity;
+            let line_total_cents = unit_price_cents.saturating_mul(quantity);
             let mut options: Vec<String> = Vec::new();
             if let Some(opts) = raw_item.get("options").and_then(|v| v.as_array()) {
                 for opt in opts {
@@ -567,7 +569,8 @@ pub fn queue_patch(
             rusqlite::params![hubrise_order_id],
             |r| Ok((r.get(0)?, r.get(1)?)),
         )
-        .ok();
+        .optional()
+        .map_err(errors::internal)?;
     let Some((order_id, raw)) = row else {
         return Err(errors::hubrise::ORDER_UNKNOWN.to_string());
     };

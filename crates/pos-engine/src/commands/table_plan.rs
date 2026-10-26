@@ -31,7 +31,10 @@ pub fn plan_numbers(state: &AppState) -> Result<Vec<i32>, String> {
         Some(text) => text,
         None => state.config.lock().map_err(errors::internal)?.table_plan(),
     };
-    let numbers = pos_core::table_plan::parse(&text).unwrap_or_default();
+    let numbers = pos_core::table_plan::parse(&text).unwrap_or_else(|e| {
+        tracing::error!(%e, "table plan unreadable, no tables listed");
+        Vec::new()
+    });
     Ok(numbers.into_iter().map(|n| n as i32).collect())
 }
 

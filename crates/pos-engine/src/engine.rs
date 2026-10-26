@@ -252,6 +252,16 @@ pub struct Engine {
     _lock: std::fs::File,
 }
 
+impl Drop for Engine {
+    /// Defence in depth: an engine dropped without [`Engine::shutdown`]
+    /// still tells its background loops to stop. Cancelling a token is
+    /// instant and idempotent, so this never blocks and a prior
+    /// `shutdown()` makes it a no-op.
+    fn drop(&mut self) {
+        self.state.shutdown_token.cancel();
+    }
+}
+
 /// Passes the background loops have completed since the engine started.
 #[derive(Debug, Default)]
 pub struct BackgroundTicks {
@@ -301,7 +311,10 @@ impl Engine {
             Err(e) => tracing::warn!(%e, "boot: badge key not checked"),
         }
 
-        let recovered = recover_orphaned_checkouts(&conn).unwrap_or(0);
+        let recovered = recover_orphaned_checkouts(&conn).unwrap_or_else(|e| {
+            tracing::warn!(%e, "boot: orphaned checkouts not recovered");
+            0
+        });
         if recovered > 0 {
             tracing::warn!(recovered, "boot: recovered orphaned checkout(s)");
         }
@@ -399,6 +412,7 @@ impl Engine {
                 eft_in_flight: Mutex::new(None),
                 eft_line: tokio::sync::Mutex::new(()),
                 badge_repeats: Default::default(),
+                originals_printing: Default::default(),
                 owner_alerts: Default::default(),
                 #[cfg(feature = "eft-scripted")]
                 eft_terminal_override: None,

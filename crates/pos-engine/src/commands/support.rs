@@ -34,6 +34,11 @@ use crate::state::AppState;
 /// A session is ended this long after it started.
 pub const MAX_SESSION: TimeDelta = TimeDelta::hours(2);
 
+/// How often the background loop looks for a session past
+/// [`MAX_SESSION`] (or whose program exited), so the limit holds even
+/// when nobody asks for the status.
+pub const REAP_EVERY: std::time::Duration = std::time::Duration::from_secs(60);
+
 struct Session {
     child: Child,
     started_by: String,
@@ -79,6 +84,14 @@ impl SupportState {
         if let Ok(mut current) = self.program.lock() {
             *current = program;
         }
+    }
+
+    /// Whether a session is held, without reaping an expired one (tests).
+    pub fn holds_session(&self) -> bool {
+        self.session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_some()
     }
 
     /// Move the running session's start back by `by` (tests).
@@ -139,6 +152,17 @@ fn reap(session: &mut Option<Session>) {
             s.end("time limit", None);
         }
     }
+}
+
+/// End the session if it is past [`MAX_SESSION`] or its program exited.
+/// Called by the background loop every [`REAP_EVERY`].
+pub fn reap_expired(state: &AppState) {
+    let mut session = state
+        .support
+        .session
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    reap(&mut session);
 }
 
 fn status_of(support: &SupportState, session: &Option<Session>) -> SupportStatus {

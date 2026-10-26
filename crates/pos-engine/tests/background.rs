@@ -56,8 +56,9 @@ async fn the_loops_tick_and_stop_on_shutdown() {
     engine.shutdown();
     let tasks = engine.take_background_tasks();
     // Automatic Z, mail outbox, presence worker, idle lock, FDM
-    // monitor, owner alerts, HubRise poller, HubRise outbox.
-    assert_eq!(tasks.len(), 8);
+    // monitor, owner alerts, remote support reaper, HubRise poller,
+    // HubRise outbox.
+    assert_eq!(tasks.len(), 9);
     let finished = tokio::time::timeout(Duration::from_secs(2), async {
         for task in tasks {
             task.await.expect("a loop panicked");
@@ -86,4 +87,22 @@ async fn shutdown_before_start_stops_every_loop_at_once() {
     })
     .await;
     assert!(finished.is_ok(), "a background task outlived shutdown");
+}
+
+#[tokio::test]
+async fn dropping_the_engine_stops_the_loops_without_shutdown() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = open(dir.path(), Arc::new(Recorder::default()));
+    engine.start_background(&tokio::runtime::Handle::current());
+    let token = engine.shutdown_token.clone();
+    let tasks = engine.take_background_tasks();
+    assert!(!token.is_cancelled());
+    drop(engine);
+    assert!(token.is_cancelled(), "Drop cancels the shutdown token");
+    for task in tasks {
+        tokio::time::timeout(std::time::Duration::from_secs(5), task)
+            .await
+            .expect("loop stops")
+            .unwrap();
+    }
 }

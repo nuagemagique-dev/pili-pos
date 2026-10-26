@@ -201,6 +201,44 @@ fn record_signed(
     Ok(())
 }
 
+/// [`record_signed`], repaired on failure. The FDM already signed and the
+/// event is archived: a failed write must not leave the order `signing`
+/// until the next boot. The boot recovery runs at once for this order;
+/// when it repairs it, the sale stands (the repair queues the plain
+/// status, without a confirmed time).
+fn record_signed_or_reconcile(
+    state: &AppState,
+    ws: &WebshopState,
+    to: &str,
+    event_id: i64,
+    operator: &str,
+    patch: serde_json::Value,
+) -> Result<(), String> {
+    let Err(e) = record_signed(state, ws, to, event_id, operator, patch) else {
+        return Ok(());
+    };
+    tracing::error!(%e, order_id = ws.order_id, event_id, "online order: signature not recorded, repairing");
+    let repaired = state
+        .db
+        .lock()
+        .map_err(|_| e.clone())
+        .and_then(|db| reconcile_order(&db, ws.order_id).map_err(|r| r.to_string()));
+    match repaired {
+        Ok(n) if n > 0 => {
+            state.hubrise_outbox_wake.notify_one();
+            Ok(())
+        }
+        other => {
+            tracing::error!(
+                ?other,
+                order_id = ws.order_id,
+                "online order: repair failed, left for the boot recovery"
+            );
+            Err(e)
+        }
+    }
+}
+
 fn accepted_patch(confirmed_time: Option<&str>) -> serde_json::Value {
     match confirmed_time {
         Some(t) => json!({ "status": "accepted", "confirmed_time": t }),
@@ -255,7 +293,7 @@ pub async fn do_accept_webshop_order(
             return Err(e);
         }
     };
-    record_signed(
+    record_signed_or_reconcile(
         state,
         &ws,
         to,
@@ -466,7 +504,7 @@ pub async fn do_handover_webshop_order(
     match result {
         Ok(r) if r.success => {
             let event_id = r.fiscal_event_id.ok_or_else(|| errors::internal("sale"))?;
-            record_signed(
+            record_signed_or_reconcile(
                 state,
                 &ws,
                 "signed_n",

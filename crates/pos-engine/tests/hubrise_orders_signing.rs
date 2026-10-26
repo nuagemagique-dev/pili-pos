@@ -542,3 +542,28 @@ async fn a_prepaid_order_is_completed_once_without_signing_again() {
     assert_eq!(w.mock.order(&prepaid_hr)["status"], "completed");
     assert_eq!(w.events().len(), 2, "the N and the P, nothing more");
 }
+
+#[tokio::test]
+async fn a_failed_record_after_the_signature_is_repaired_at_once() {
+    let w = world().await;
+    let (id, _) = w.order("deliveroo_prepaid").await;
+    // Only the acceptance patch with a confirmed time fails to queue; the
+    // repair queues the plain status.
+    w.app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch(
+            "CREATE TRIGGER fault BEFORE INSERT ON hubrise_outbox
+             WHEN NEW.body_json LIKE '%confirmed_time%'
+             BEGIN SELECT RAISE(ABORT, 'injected fault'); END;",
+        )
+        .unwrap();
+    let result = do_accept_webshop_order(&w.app.state, id, Some("2026-09-30T12:30:00+02:00"))
+        .await
+        .unwrap();
+    assert_eq!(result.fiscal_state, "signed_n");
+    assert_eq!(w.state_of(id).fiscal_state, "signed_n", "not left signing");
+    assert_eq!(w.events().len(), 1, "signed once");
+}

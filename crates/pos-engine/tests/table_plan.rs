@@ -115,3 +115,18 @@ async fn a_table_left_out_of_the_plan_stays_while_its_order_is_open() {
     assert_eq!(listed, vec![1, 2, 3, 9]);
     assert_eq!(tables[3].order_id, Some(order.id));
 }
+
+#[tokio::test]
+async fn an_unreadable_orders_table_is_an_error_never_a_free_table() {
+    let app = app().await;
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch("ALTER TABLE order_lines RENAME TO order_lines_gone")
+        .unwrap();
+    let err = pos_engine::commands::tables::do_list_tables(&app.state, 3)
+        .err()
+        .expect("a database error");
+    assert!(err.starts_with("internal_error"), "{err}");
+}

@@ -19,7 +19,7 @@
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
 use pos_core::config::{DigitalTicketConfig, PosConfig};
@@ -332,6 +332,39 @@ pub enum PrintOutcome {
     Failed(String),
 }
 
+/// The in-memory claim on printing one original; released on drop, so a
+/// failed print leaves the original printable again.
+struct PrintClaim<'a> {
+    state: &'a AppState,
+    fiscal_event_id: i64,
+}
+
+impl<'a> PrintClaim<'a> {
+    /// `None` when another call holds the claim.
+    fn take(state: &'a AppState, fiscal_event_id: i64) -> Option<Self> {
+        let mut set = state
+            .originals_printing
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // Lazy: a value built for a lost claim would release the winner's
+        // claim when dropped.
+        set.insert(fiscal_event_id).then(|| Self {
+            state,
+            fiscal_event_id,
+        })
+    }
+}
+
+impl Drop for PrintClaim<'_> {
+    fn drop(&mut self) {
+        self.state
+            .originals_printing
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&self.fiscal_event_id);
+    }
+}
+
 /// Print the original of `fiscal_event_id` unless it was printed
 /// already, and record the print.
 pub async fn print_original_once(
@@ -340,6 +373,12 @@ pub async fn print_original_once(
     fiscal_event_id: i64,
     ticket: &FiscalTicket,
 ) -> PrintOutcome {
+    // Claim the print first: two concurrent calls would otherwise both
+    // see "not printed" and print two originals. A call that loses the
+    // claim is refused as already printed (the winner is printing it).
+    let Some(_claim) = PrintClaim::take(state, fiscal_event_id) else {
+        return PrintOutcome::AlreadyPrinted;
+    };
     let already = {
         let Ok(db) = state.db.lock() else {
             return PrintOutcome::Failed("database lock poisoned".into());
@@ -558,7 +597,8 @@ pub async fn do_print_missing_original(
                 rusqlite::params![fiscal_event_id],
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )
-            .ok();
+            .optional()
+            .map_err(errors::internal)?;
         let printer = state
             .config
             .lock()

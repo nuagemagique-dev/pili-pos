@@ -1,3 +1,4 @@
+use rusqlite::OptionalExtension;
 use serde::Serialize;
 
 use pos_core::order::{OrderStatus, OrderType};
@@ -98,7 +99,8 @@ fn list_tables_numbered(state: &AppState, numbers: &[i32]) -> Result<Vec<TableIn
                     ))
                 },
             )
-            .ok();
+            .optional()
+            .map_err(errors::internal)?;
 
         tables.push(match row {
             Some((order_id, total, count, opened_at, pre_bill_printed)) => TableInfo {

@@ -489,6 +489,63 @@ async fn an_unprinted_original_prints_once() {
 }
 
 #[tokio::test]
+async fn two_concurrent_prints_of_a_missing_original_print_one() {
+    let app = TestApp::new().await;
+    app.set_printer(DEAD_PRINTER);
+    let result = sell(&app, None).await;
+    let event_id = result.fiscal_event_id.unwrap();
+
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    let (a, b) = tokio::join!(
+        delivery::do_print_missing_original(&app.state, event_id),
+        delivery::do_print_missing_original(&app.state, event_id),
+    );
+    assert_eq!(
+        [a.is_ok(), b.is_ok()].iter().filter(|ok| **ok).count(),
+        1,
+        "exactly one call prints: {a:?} / {b:?}"
+    );
+    assert_eq!(printer.settle(1).await.len(), 1, "one original on paper");
+    assert!(app.original_printed(event_id));
+}
+
+#[tokio::test]
+async fn a_failed_print_releases_the_claim_so_a_retry_prints() {
+    let app = TestApp::new().await;
+    app.set_printer(DEAD_PRINTER);
+    let result = sell(&app, None).await;
+    let event_id = result.fiscal_event_id.unwrap();
+    assert!(
+        delivery::do_print_missing_original(&app.state, event_id)
+            .await
+            .is_err()
+    );
+    assert!(app.state.originals_printing.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_database_error_never_skips_the_email_sent_refusal() {
+    let app = TestApp::new().await;
+    app.set_printer(DEAD_PRINTER);
+    let result = sell(&app, None).await;
+    let event_id = result.fiscal_event_id.unwrap();
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch("ALTER TABLE ticket_deliveries RENAME TO ticket_deliveries_gone")
+        .unwrap();
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    let err = delivery::do_print_missing_original(&app.state, event_id)
+        .await
+        .unwrap_err();
+    assert!(err.starts_with("internal_error"), "{err}");
+    assert!(printer.settle(0).await.is_empty(), "nothing printed");
+}
+
+#[tokio::test]
 async fn printing_the_missing_original_of_a_digital_ticket_stops_its_email() {
     let tem = MockServer::start().await;
     tem_fails(&tem, 503, 1).await;

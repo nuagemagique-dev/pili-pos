@@ -23,6 +23,7 @@ use pos_peppol::{
     AccessPoint, LOOKUP_TIMEOUT, LoggingAccessPoint, LookupResult, PeppolError, SUBMIT_TIMEOUT,
     StorecoveAccessPoint,
 };
+use tokio_util::sync::CancellationToken;
 
 use crate::commands::errors;
 use crate::state::AppState;
@@ -78,6 +79,37 @@ fn stamp(t: DateTime<Utc>) -> String {
     t.to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 
+/// Log a failed queue write with the delivery it was for. A write that
+/// fails after the access point accepted a document must never vanish:
+/// the delivery would be submitted again at the next pass.
+fn written<T>(delivery_id: i64, what: &str, result: rusqlite::Result<T>) {
+    if let Err(e) = result {
+        tracing::error!(%e, delivery_id, what, "peppol queue: could not record the outcome");
+    }
+}
+
+/// Park a delivery for good (log the attempt, then park), recording both.
+fn park_with_log(
+    db: &rusqlite::Connection,
+    delivery_id: i64,
+    attempt: i64,
+    outcome: &str,
+    http_status: Option<u16>,
+    reason: &str,
+    stamp_now: &str,
+) {
+    written(
+        delivery_id,
+        "log attempt",
+        q::log_attempt(db, delivery_id, attempt, outcome, http_status, Some(reason)),
+    );
+    written(
+        delivery_id,
+        "park",
+        q::park(db, delivery_id, attempt, reason, stamp_now),
+    );
+}
+
 /// One pass at the current time. Returns how many deliveries it handled.
 pub async fn run_pass(state: &AppState) -> usize {
     run_pass_at(state, Utc::now()).await
@@ -85,22 +117,60 @@ pub async fn run_pass(state: &AppState) -> usize {
 
 /// One pass as if it were `now`.
 pub async fn run_pass_at(state: &AppState, now: DateTime<Utc>) -> usize {
+    run_pass_until(state, now, &CancellationToken::new()).await
+}
+
+/// One pass that stops between two deliveries once `stop` is cancelled.
+/// A delivery in flight is always finished (its submit is bounded by
+/// `SUBMIT_TIMEOUT`): dropping it after the access point accepted the
+/// document, before `mark_accepted`, would send the invoice twice at the
+/// next start.
+pub async fn run_pass_until(
+    state: &AppState,
+    now: DateTime<Utc>,
+    stop: &CancellationToken,
+) -> usize {
+    match try_pass(state, now, stop).await {
+        Ok(handled) => handled,
+        Err(e) => {
+            tracing::error!(%e, "peppol queue: pass failed");
+            0
+        }
+    }
+}
+
+/// One pass, with a database failure reported as such.
+///
+/// # Errors
+/// The due deliveries could not be read.
+pub async fn try_pass(
+    state: &AppState,
+    now: DateTime<Utc>,
+    stop: &CancellationToken,
+) -> Result<usize, String> {
     let Some(peppol) = state.config.lock().ok().and_then(|c| c.peppol.clone()) else {
-        return 0;
+        return Ok(0);
     };
+    let due = {
+        let db = state.db.lock().map_err(errors::internal)?;
+        q::due_deliveries(&db, &stamp(now)).map_err(errors::internal)?
+    };
+    if due.is_empty() {
+        // No HTTP client is built for an empty queue.
+        return Ok(0);
+    }
     let ap = match access_point(state, &peppol) {
         Ok(ap) => ap,
         Err(e) => {
             tracing::warn!(%e, "peppol queue: access point not usable");
-            return 0;
+            return Ok(0);
         }
-    };
-    let due = match state.db.lock() {
-        Ok(db) => q::due_deliveries(&db, &stamp(now)).unwrap_or_default(),
-        Err(_) => return 0,
     };
     let mut handled = 0;
     for delivery in due {
+        if stop.is_cancelled() {
+            break;
+        }
         handled += 1;
         let attempt = delivery.attempts + 1;
         let stamp_now = stamp(now);
@@ -117,19 +187,17 @@ pub async fn run_pass_at(state: &AppState, now: DateTime<Utc>) -> usize {
             match answer {
                 Ok(Ok(LookupResult::NotRegistered)) => {
                     if let Ok(db) = state.db.lock() {
-                        let _ = q::set_delivery_lookup(&db, delivery.id, "not_registered");
-                        let _ = q::log_attempt(
+                        written(
+                            delivery.id,
+                            "lookup status",
+                            q::set_delivery_lookup(&db, delivery.id, "not_registered"),
+                        );
+                        park_with_log(
                             &db,
                             delivery.id,
                             attempt,
                             "not_registered",
                             None,
-                            Some("recipient is not registered on Peppol"),
-                        );
-                        let _ = q::park(
-                            &db,
-                            delivery.id,
-                            attempt,
                             "recipient is not registered on Peppol",
                             &stamp_now,
                         );
@@ -138,25 +206,23 @@ pub async fn run_pass_at(state: &AppState, now: DateTime<Utc>) -> usize {
                 }
                 Ok(Ok(LookupResult::Registered)) => {
                     if let Ok(db) = state.db.lock() {
-                        let _ = q::set_delivery_lookup(&db, delivery.id, "registered");
+                        written(
+                            delivery.id,
+                            "lookup status",
+                            q::set_delivery_lookup(&db, delivery.id, "registered"),
+                        );
                     }
                 }
                 // A lookup that fails or is slow never blocks the delivery,
                 // except for a recipient already known as not registered.
                 _ if cached_not_registered => {
                     if let Ok(db) = state.db.lock() {
-                        let _ = q::log_attempt(
+                        park_with_log(
                             &db,
                             delivery.id,
                             attempt,
                             "not_registered",
                             None,
-                            Some("recipient is not registered on Peppol"),
-                        );
-                        let _ = q::park(
-                            &db,
-                            delivery.id,
-                            attempt,
                             "recipient is not registered on Peppol",
                             &stamp_now,
                         );
@@ -172,18 +238,12 @@ pub async fn run_pass_at(state: &AppState, now: DateTime<Utc>) -> usize {
             Ok(Ok(Some(ubl))) => ubl,
             _ => {
                 if let Ok(db) = state.db.lock() {
-                    let _ = q::log_attempt(
+                    park_with_log(
                         &db,
                         delivery.id,
                         attempt,
                         "rejected",
                         None,
-                        Some("invoice UBL could not be read"),
-                    );
-                    let _ = q::park(
-                        &db,
-                        delivery.id,
-                        attempt,
                         "invoice UBL could not be read",
                         &stamp_now,
                     );
@@ -208,66 +268,88 @@ pub async fn run_pass_at(state: &AppState, now: DateTime<Utc>) -> usize {
         });
 
         // 3. Record.
-        let Ok(db) = state.db.lock() else { continue };
+        let Ok(db) = state.db.lock() else {
+            tracing::error!(
+                delivery_id = delivery.id,
+                "peppol queue: database lock poisoned, outcome not recorded"
+            );
+            continue;
+        };
         match outcome {
             Ok(receipt) => {
-                let _ = q::log_attempt(
-                    &db,
+                written(
                     delivery.id,
-                    attempt,
-                    "accepted",
-                    Some(200),
-                    Some(&receipt.message_id),
+                    "log attempt",
+                    q::log_attempt(
+                        &db,
+                        delivery.id,
+                        attempt,
+                        "accepted",
+                        Some(200),
+                        Some(&receipt.message_id),
+                    ),
                 );
-                let _ = q::mark_accepted(
-                    &db,
+                written(
                     delivery.id,
-                    attempt,
-                    &receipt.message_id,
-                    &receipt.raw_response,
-                    &receipt.accepted_at,
+                    "mark accepted",
+                    q::mark_accepted(
+                        &db,
+                        delivery.id,
+                        attempt,
+                        &receipt.message_id,
+                        &receipt.raw_response,
+                        &receipt.accepted_at,
+                    ),
                 );
             }
-            Err(e @ PeppolError::Transient { .. }) | Err(e @ PeppolError::Http(_)) => {
+            Err(e @ (PeppolError::Transient { .. } | PeppolError::Http(_))) => {
                 let next =
                     stamp(now + chrono::Duration::from_std(backoff(attempt)).unwrap_or_default());
-                let _ = q::log_attempt(
-                    &db,
+                written(
                     delivery.id,
-                    attempt,
-                    "transient",
-                    e.http_status(),
-                    Some(&e.to_string()),
+                    "log attempt",
+                    q::log_attempt(
+                        &db,
+                        delivery.id,
+                        attempt,
+                        "transient",
+                        e.http_status(),
+                        Some(&e.to_string()),
+                    ),
                 );
-                let _ = q::mark_retry(&db, delivery.id, attempt, &next, &e.to_string(), &stamp_now);
+                written(
+                    delivery.id,
+                    "mark retry",
+                    q::mark_retry(&db, delivery.id, attempt, &next, &e.to_string(), &stamp_now),
+                );
             }
             Err(e @ PeppolError::Unauthorized { .. }) => {
-                let _ = q::log_attempt(
+                park_with_log(
                     &db,
                     delivery.id,
                     attempt,
                     "unauthorized",
                     e.http_status(),
-                    Some(&e.to_string()),
+                    &e.to_string(),
+                    &stamp_now,
                 );
-                let _ = q::park(&db, delivery.id, attempt, &e.to_string(), &stamp_now);
                 // Every later call would fail the same way.
                 break;
             }
             Err(e) => {
-                let _ = q::log_attempt(
+                park_with_log(
                     &db,
                     delivery.id,
                     attempt,
                     "rejected",
                     e.http_status(),
-                    Some(&e.to_string()),
+                    &e.to_string(),
+                    &stamp_now,
                 );
-                let _ = q::park(&db, delivery.id, attempt, &e.to_string(), &stamp_now);
             }
         }
     }
-    handled
+    Ok(handled)
 }
 
 #[cfg(test)]
