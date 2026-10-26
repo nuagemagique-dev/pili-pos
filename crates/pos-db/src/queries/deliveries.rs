@@ -30,6 +30,7 @@ pub struct TicketDelivery {
 
 /// Fields needed to enqueue a new delivery. Built by the caller
 /// (`pos-mail::render`) right after a fiscal ticket is signed.
+#[derive(Debug)]
 pub struct NewTicketDelivery<'a> {
     pub fiscal_event_id: i64,
     /// `DIGITAL` or `PAPER_DIGITAL`.
@@ -47,7 +48,7 @@ const SELECT_COLUMNS: &str = "id, fiscal_event_id, medium, recipient, recipient_
      ticket_text, verification_url, status, attempts, next_attempt_at, \
      provider_message_id, last_error, fallback_printed, created_at, updated_at";
 
-fn map_row(row: &rusqlite::Row) -> rusqlite::Result<TicketDelivery> {
+fn map_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TicketDelivery> {
     Ok(TicketDelivery {
         id: row.get(0)?,
         fiscal_event_id: row.get(1)?,
@@ -69,6 +70,10 @@ fn map_row(row: &rusqlite::Row) -> rusqlite::Result<TicketDelivery> {
 
 /// Enqueue a new delivery (status `pending`). Call inside the same
 /// transaction as the fiscal event / order write it belongs to.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the parameter struct is built inline at each call site, like the other New* inputs"
+)]
 pub fn enqueue(conn: &Connection, new: NewTicketDelivery<'_>) -> Result<i64, rusqlite::Error> {
     conn.execute(
         "INSERT INTO ticket_deliveries
@@ -344,7 +349,7 @@ mod tests {
         mark_failed(&conn, id, "boom", Some("2026-09-25T13:00:00.000Z")).unwrap();
 
         let too_early = due(&conn, "2026-09-25T12:30:00.000Z", 10).unwrap();
-        assert!(too_early.is_empty());
+        assert_eq!(too_early.len(), 0);
 
         let after_backoff = due(&conn, "2026-09-25T13:00:00.000Z", 10).unwrap();
         assert_eq!(after_backoff.len(), 1);
@@ -356,11 +361,7 @@ mod tests {
         let fe = fiscal_event(&conn, 1);
         let id = enqueue(&conn, new_delivery(fe)).unwrap();
         assert!(claim(&conn, id).unwrap());
-        assert!(
-            due(&conn, "2099-01-01T00:00:00.000Z", 10)
-                .unwrap()
-                .is_empty()
-        );
+        assert_eq!(due(&conn, "2099-01-01T00:00:00.000Z", 10).unwrap().len(), 0);
     }
 
     #[test]
@@ -533,11 +534,7 @@ mod tests {
         let row = get(&conn, id).unwrap().unwrap();
         assert!(row.recipient.is_none());
         assert!(!row.recipient_hint.is_empty(), "the masked hint is kept");
-        assert!(
-            due(&conn, "9999-12-31T00:00:00.000Z", 10)
-                .unwrap()
-                .is_empty()
-        );
+        assert_eq!(due(&conn, "9999-12-31T00:00:00.000Z", 10).unwrap().len(), 0);
     }
 
     // ── purge_recipients_older_than (GDPR) ─────────────────────

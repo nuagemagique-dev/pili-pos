@@ -419,7 +419,7 @@ mod tests {
         };
         assert!(set_settings(&conn, &bad, MGR).is_err());
         assert_eq!(settings(&conn).unwrap(), BadgeSettings::default());
-        assert!(history(&conn, 10).unwrap().is_empty());
+        assert_eq!(history(&conn, 10).unwrap().len(), 0);
     }
 
     #[test]
@@ -504,7 +504,7 @@ mod tests {
             revoke_all_active(&conn, RevokeReason::KeyChanged, None).unwrap(),
             2
         );
-        assert!(list_active(&conn).unwrap().is_empty());
+        assert_eq!(list_active(&conn).unwrap().len(), 0);
         let log = history(&conn, 10).unwrap();
         let revokes: Vec<_> = log.iter().filter(|l| l.action == "revoke").collect();
         assert_eq!(revokes.len(), 2);

@@ -1,4 +1,4 @@
-//! The HubRise switch (migration 25): its state and the log of its
+//! The `HubRise` switch (migration 25): its state and the log of its
 //! changes. See `schema_hubrise::MIGRATION_025_INTEGRATION_SWITCH`.
 
 use rusqlite::{Connection, OptionalExtension, params};
@@ -31,16 +31,29 @@ pub struct SwitchChange {
     pub changed_at: String,
 }
 
+/// The state a log row records.
+#[derive(Clone, Copy)]
+enum State {
+    On,
+    Off,
+}
+
+impl From<bool> for State {
+    fn from(enabled: bool) -> Self {
+        if enabled { Self::On } else { Self::Off }
+    }
+}
+
 fn log(
     conn: &Connection,
-    enabled: bool,
+    state: State,
     source: Source,
     by: Option<&str>,
 ) -> Result<(), rusqlite::Error> {
     conn.execute(
         "INSERT INTO integration_switch_log (name, enabled, source, changed_by)
          VALUES (?1, ?2, ?3, ?4)",
-        params![HUBRISE, enabled, source.as_str(), by],
+        params![HUBRISE, matches!(state, State::On), source.as_str(), by],
     )?;
     Ok(())
 }
@@ -48,6 +61,10 @@ fn log(
 /// At start-up: the switch, given what `pos.json` says now. The first
 /// start, or a new value in `pos.json`, sets it (and logs it); else it
 /// keeps its last value, an admin's change included.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "one self-describing on/off value; the engine and the FFI tests call it as is"
+)]
 pub fn hubrise_at_start(conn: &Connection, config_value: bool) -> Result<bool, rusqlite::Error> {
     super::with_savepoint(conn, |tx| {
         let row: Option<(bool, bool)> = tx
@@ -67,7 +84,7 @@ pub fn hubrise_at_start(conn: &Connection, config_value: bool) -> Result<bool, r
                      WHERE name = ?1",
                     params![HUBRISE, config_value],
                 )?;
-                log(&tx, config_value, Source::Config, None)?;
+                log(tx, State::from(config_value), Source::Config, None)?;
                 config_value
             }
             None => {
@@ -76,7 +93,7 @@ pub fn hubrise_at_start(conn: &Connection, config_value: bool) -> Result<bool, r
                      VALUES (?1, ?2, ?2, datetime('now'))",
                     params![HUBRISE, config_value],
                 )?;
-                log(&tx, config_value, Source::Config, None)?;
+                log(tx, State::from(config_value), Source::Config, None)?;
                 config_value
             }
         };
@@ -85,6 +102,10 @@ pub fn hubrise_at_start(conn: &Connection, config_value: bool) -> Result<bool, r
 }
 
 /// An admin's change. Returns whether it changed anything.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "one self-describing on/off value; the engine calls it as is"
+)]
 pub fn set_hubrise(
     conn: &Connection,
     enabled: bool,
@@ -98,7 +119,7 @@ pub fn set_hubrise(
             params![HUBRISE, enabled, admin_insz],
         )? == 1;
         if changed {
-            log(&tx, enabled, Source::Admin, Some(admin_insz))?;
+            log(tx, State::from(enabled), Source::Admin, Some(admin_insz))?;
         }
         Ok(changed)
     })

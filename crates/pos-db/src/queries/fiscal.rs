@@ -62,8 +62,12 @@ pub fn get_fiscal_event(
                 .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
                 .and_then(|val| val.get("fdmRef").cloned())
             {
-                event.event_counter = fdm_ref.get("eventCounter").and_then(|v| v.as_i64());
-                event.total_counter = fdm_ref.get("totalCounter").and_then(|v| v.as_i64());
+                event.event_counter = fdm_ref
+                    .get("eventCounter")
+                    .and_then(serde_json::Value::as_i64);
+                event.total_counter = fdm_ref
+                    .get("totalCounter")
+                    .and_then(serde_json::Value::as_i64);
             }
             Ok(Some(event))
         }
@@ -375,12 +379,15 @@ mod tests {
     fn refundable_events_respects_limit() {
         let conn = setup();
         for i in 1..=5 {
-            seed_order(&conn, i, Some(i as i32), 1000 * i);
+            seed_order(&conn, i, Some(i32::try_from(i).unwrap()), 1000 * i);
             insert_event(&conn, i, "N", Some(i), None);
         }
         assert_eq!(list_refundable_events(&conn, 3).unwrap().len(), 3);
         assert_eq!(list_refundable_events(&conn, 100).unwrap().len(), 5);
     }
+
+    /// The FDM id of a ticket the FDM signed.
+    const SIGNED: Option<&str> = Some("CFOD0000000001");
 
     fn insert_ticket(
         conn: &Connection,
@@ -388,7 +395,7 @@ mod tests {
         label: &str,
         medium: &str,
         total: f64,
-        signed: bool,
+        fdm_id: Option<&str>,
     ) -> i64 {
         let data = format!(
             r#"{{"posFiscalTicketNo":{seq},"ticketMedium":"{medium}","transaction":{{"transactionTotal":{total}}}}}"#
@@ -398,7 +405,7 @@ mod tests {
                 event_type, sequence_number, pos_id, terminal_id, user_insz,
                 event_data_json, fdm_id, event_label
              ) VALUES (?1, ?2, 'CFOD0061234567', 'POS1', '00000000029', ?3, ?4, ?1)",
-            params![label, seq, data, signed.then_some("CFOD0000000001")],
+            params![label, seq, data, fdm_id],
         )
         .unwrap();
         conn.last_insert_rowid()
@@ -407,15 +414,15 @@ mod tests {
     #[test]
     fn only_tickets_a_customer_received_can_be_copied() {
         let conn = setup();
-        let sale = insert_ticket(&conn, 1, "N", "PAPER", 12.3, true);
-        insert_ticket(&conn, 2, "P", "NONE", 5.0, true); // order registration
-        let pre_bill = insert_ticket(&conn, 3, "P", "PAPER", 5.0, true);
-        let refund = insert_ticket(&conn, 4, "N", "DIGITAL", -1.1, true);
-        let training = insert_ticket(&conn, 5, "T", "PAPER_DIGITAL", 3.0, true);
-        insert_ticket(&conn, 6, "N", "PAPER", 9.0, false); // never signed
-        insert_ticket(&conn, 7, "S", "NONE", 0.0, true);
-        insert_ticket(&conn, 8, "F", "PAPER", 20.0, true);
-        insert_ticket(&conn, 9, "R", "PAPER", 0.0, true);
+        let sale = insert_ticket(&conn, 1, "N", "PAPER", 12.3, SIGNED);
+        insert_ticket(&conn, 2, "P", "NONE", 5.0, SIGNED); // order registration
+        let pre_bill = insert_ticket(&conn, 3, "P", "PAPER", 5.0, SIGNED);
+        let refund = insert_ticket(&conn, 4, "N", "DIGITAL", -1.1, SIGNED);
+        let training = insert_ticket(&conn, 5, "T", "PAPER_DIGITAL", 3.0, SIGNED);
+        insert_ticket(&conn, 6, "N", "PAPER", 9.0, None); // never signed
+        insert_ticket(&conn, 7, "S", "NONE", 0.0, SIGNED);
+        insert_ticket(&conn, 8, "F", "PAPER", 20.0, SIGNED);
+        insert_ticket(&conn, 9, "R", "PAPER", 0.0, SIGNED);
 
         let listed = list_copyable_tickets(&conn, 50).unwrap();
         let ids: Vec<_> = listed.iter().map(|t| t.fiscal_event_id).collect();

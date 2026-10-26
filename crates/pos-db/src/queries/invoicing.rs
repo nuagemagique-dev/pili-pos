@@ -229,10 +229,10 @@ fn insert_invoice_rows(conn: &Connection, inv: &NewInvoice<'_>) -> rusqlite::Res
         ],
     )?;
     let id = conn.last_insert_rowid();
-    for (position, sale) in inv.sale_event_ids.iter().enumerate() {
+    for (position, sale) in (1_i64..).zip(inv.sale_event_ids.iter()) {
         conn.execute(
             "INSERT INTO invoice_sales (invoice_id, sale_fiscal_event_id, position) VALUES (?1, ?2, ?3)",
-            params![id, sale, position as i64 + 1],
+            params![id, sale, position],
         )?;
     }
     Ok(id)
@@ -611,8 +611,8 @@ mod tests {
         assert_eq!(search_customers(&conn, "", 20).unwrap().len(), 3);
         assert_eq!(search_customers(&conn, "", 2).unwrap().len(), 2);
         // LIKE wildcards in the query are not wildcards.
-        assert!(search_customers(&conn, "%", 20).unwrap().len() == 3);
-        assert!(search_customers(&conn, "a_me", 20).unwrap().is_empty());
+        assert_eq!(search_customers(&conn, "%", 20).unwrap().len(), 3);
+        assert_eq!(search_customers(&conn, "a_me", 20).unwrap().len(), 0);
     }
 
     #[test]
@@ -713,10 +713,9 @@ mod tests {
             due_deliveries(&conn, "2026-10-17T10:00:00Z").unwrap().len(),
             1
         );
-        assert!(
-            due_deliveries(&conn, "2026-10-17T09:59:59Z")
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            due_deliveries(&conn, "2026-10-17T09:59:59Z").unwrap().len(),
+            0
         );
 
         mark_retry(
@@ -729,10 +728,9 @@ mod tests {
         )
         .unwrap();
         log_attempt(&conn, d, 1, "retry", Some(503), Some("503")).unwrap();
-        assert!(
-            due_deliveries(&conn, "2026-10-17T10:00:29Z")
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            due_deliveries(&conn, "2026-10-17T10:00:29Z").unwrap().len(),
+            0
         );
         assert_eq!(
             due_deliveries(&conn, "2026-10-17T10:00:30Z").unwrap()[0].attempts,
@@ -748,10 +746,9 @@ mod tests {
             ("failed", Some("422 refused"))
         );
         assert!(row.parked_at.is_some() && row.next_attempt_at.is_none());
-        assert!(
-            due_deliveries(&conn, "2030-01-01T00:00:00Z")
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            due_deliveries(&conn, "2030-01-01T00:00:00Z").unwrap().len(),
+            0
         );
         assert_eq!(queue_counts(&conn).unwrap(), (0, 0, 1));
 

@@ -75,7 +75,10 @@ fn the_real_z_reports_are_listed_in_order() {
     assert_eq!(z.closing_event_id, fx.closing_event_id);
     assert!(z.closed_at.starts_with("20"), "{}", z.closed_at);
     assert_eq!(real_zs_after(&conn, Some(41)).unwrap(), vec![z.clone()]);
-    assert!(real_zs_after(&conn, Some(42)).unwrap().is_empty());
+    assert_eq!(
+        real_zs_after(&conn, Some(42)).unwrap(),
+        [] as [pos_export::zref::ZRef; 0]
+    );
     assert_eq!(latest_real_z(&conn).unwrap().as_ref(), Some(z));
 }
 
@@ -100,7 +103,10 @@ fn a_training_z_is_never_a_real_z() {
         .collect();
     assert_eq!(numbers, vec![41, 42]);
     assert_eq!(latest_real_z(&conn).unwrap().unwrap().z_report_no, 42);
-    assert!(real_zs_after(&conn, Some(42)).unwrap().is_empty());
+    assert_eq!(
+        real_zs_after(&conn, Some(42)).unwrap(),
+        [] as [pos_export::zref::ZRef; 0]
+    );
 }
 
 #[test]

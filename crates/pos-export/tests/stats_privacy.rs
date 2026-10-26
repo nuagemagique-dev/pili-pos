@@ -217,7 +217,10 @@ fn leaky(sql: &str) -> (tempfile::TempDir, std::path::PathBuf) {
 
 fn check(sql: &str, secrets: &[&str]) -> bool {
     let (_dir, path) = leaky(sql);
-    let secrets: Vec<String> = secrets.iter().map(|s| s.to_string()).collect();
+    let secrets: Vec<String> = secrets
+        .iter()
+        .map(std::string::ToString::to_string)
+        .collect();
     std::panic::catch_unwind(|| assert_no_personal_data(Path::new(&path), &secrets)).is_ok()
 }
 

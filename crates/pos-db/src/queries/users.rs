@@ -72,6 +72,10 @@ pub fn create_user(
 /// [`create_user`] with the presence-only flag: an employee who never
 /// uses the till (kitchen), clocked in and out by a manager. The
 /// caller keeps the role at `waiter` and stores no PIN for them.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "the presence-only flag names the function; its single caller is the engine's user creation"
+)]
 pub fn create_user_flagged(
     conn: &Connection,
     insz: &str,

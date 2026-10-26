@@ -58,7 +58,10 @@ impl ExportSettings {
 
     /// The recipients as `age1...` strings, in order, for the manifest.
     pub fn recipient_strings(&self) -> Vec<String> {
-        self.recipients.iter().map(|r| r.to_string()).collect()
+        self.recipients
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect()
     }
 
     /// The bearer token, read from its file at each call and trimmed.

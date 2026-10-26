@@ -3,7 +3,7 @@
 //! After a real Z, [`build_stats`] reads the plaintext snapshot of `pos.db`
 //! and writes a NEW SQLite file with the sales of the booking period that Z
 //! closed, the Z report itself and nothing else. The file is made for a
-//! receiver and a dashboard: snake_case tables, integer cents, signed
+//! receiver and a dashboard: `snake_case` tables, integer cents, signed
 //! amounts, closed value sets guarded by CHECK constraints, a SQL comment on
 //! every column. Its contract is `crates/pos-export/STATS_SCHEMA.md`.
 //!
@@ -12,7 +12,7 @@
 //! event, never recomputed from the menu. What it never holds: training,
 //! presence (S), copy (C), order and pro forma (P), money, drawer and invoice
 //! events, and no INSZ or NISS, user name, PIN hash, token, e-mail, phone,
-//! address, customer name, HubRise payload, ticket text, FDM signature or QR
+//! address, customer name, `HubRise` payload, ticket text, FDM signature or QR
 //! data. Users are pseudonyms ([`crate::pseudonym`]).
 //!
 //! The source is only read. The result is written to `<out>.partial` and
@@ -71,7 +71,7 @@ pub const STATS_TABLES: [&str; 10] = [
     "z_payments",
 ];
 
-const SCHEMA: &str = r#"
+const SCHEMA: &str = r"
 CREATE TABLE meta (
     key TEXT PRIMARY KEY,   -- name of the value: format, schema_version, export_id, pos_id, terminal_id, pos_sw_version, z_report_no, booking_date, period_opened_at, period_closed_at, currency, generated_at
     value TEXT NOT NULL     -- the value, always text (numbers in decimal)
@@ -177,7 +177,7 @@ CREATE TABLE z_payments (
     amount_cents INTEGER NOT NULL,  -- total in euro cents, as signed in the Z
     PRIMARY KEY (z_report_no, method, kind)
 );
-"#;
+";
 
 /// Build the statistics file of `z` from `source`, the plaintext snapshot of
 /// `pos.db` (opened read-only by the caller), into `out`. `key` is the
@@ -607,39 +607,36 @@ impl Reader<'_> {
 /// the sum of the lines per label at the standard rate.
 fn vat_rows(event_id: i64, response: &Value, lines: &[Line]) -> Result<Vec<Vat>, String> {
     let mut rows: BTreeMap<String, Vat> = BTreeMap::new();
-    match response["vatCalc"].as_array() {
-        Some(calc) => {
-            for item in calc {
-                let label = item["label"].as_str().unwrap_or("X").to_string();
-                let row = rows.entry(label.clone()).or_insert(Vat {
-                    label,
-                    rate_bp: rate_bp(event_id, &item["rate"], "a vatCalc rate")?,
-                    base: 0,
-                    vat: 0,
-                    total: 0,
-                });
-                row.base += cents(event_id, &item["taxableAmount"], "a vatCalc taxableAmount")?;
-                row.vat += cents(event_id, &item["vatAmount"], "a vatCalc vatAmount")?;
-                row.total += cents(event_id, &item["totalAmount"], "a vatCalc totalAmount")?;
-            }
+    if let Some(calc) = response["vatCalc"].as_array() {
+        for item in calc {
+            let label = item["label"].as_str().unwrap_or("X").to_string();
+            let row = rows.entry(label.clone()).or_insert(Vat {
+                label,
+                rate_bp: rate_bp(event_id, &item["rate"], "a vatCalc rate")?,
+                base: 0,
+                vat: 0,
+                total: 0,
+            });
+            row.base += cents(event_id, &item["taxableAmount"], "a vatCalc taxableAmount")?;
+            row.vat += cents(event_id, &item["vatAmount"], "a vatCalc vatAmount")?;
+            row.total += cents(event_id, &item["totalAmount"], "a vatCalc totalAmount")?;
         }
-        None => {
-            for line in lines {
-                let rate = standard_rate(&line.label);
-                let row = rows.entry(line.label.clone()).or_insert(Vat {
-                    label: line.label.clone(),
-                    rate_bp: (rate * 100.0).round() as i64,
-                    base: 0,
-                    vat: 0,
-                    total: 0,
-                });
-                row.total += line.amount;
-            }
-            for row in rows.values_mut() {
-                let rate = row.rate_bp as f64 / 100.0;
-                row.base = (row.total as f64 / (1.0 + rate / 100.0)).round() as i64;
-                row.vat = row.total - row.base;
-            }
+    } else {
+        for line in lines {
+            let rate = standard_rate(&line.label);
+            let row = rows.entry(line.label.clone()).or_insert(Vat {
+                label: line.label.clone(),
+                rate_bp: (rate * 100.0).round() as i64,
+                base: 0,
+                vat: 0,
+                total: 0,
+            });
+            row.total += line.amount;
+        }
+        for row in rows.values_mut() {
+            let rate = row.rate_bp as f64 / 100.0;
+            row.base = (row.total as f64 / (1.0 + rate / 100.0)).round() as i64;
+            row.vat = row.total - row.base;
         }
     }
     Ok(rows.into_values().collect())
@@ -689,22 +686,21 @@ fn write_file(
             sales.push(event);
         }
     }
-    let (z_request, z_label, z_fdm_datetime, z_user) = match z_row {
-        Some(row) => row,
-        None => {
-            // The Z event is not tagged with the period (should not happen): read it by id.
-            let (json, label, fdm, user): (String, Option<String>, Option<String>, String) = sql(
-                source.query_row(
-                    "SELECT event_data_json, event_label, fdm_datetime, user_insz
-                     FROM fiscal_events WHERE id = ?1 AND event_type = 'R'",
-                    [z.closing_event_id],
-                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-                ),
-                "read the Z event",
-            )?;
-            let request = parse_json(z.closing_event_id, &json)?;
-            (request, label, fdm, user)
-        }
+    let (z_request, z_label, z_fdm_datetime, z_user) = if let Some(row) = z_row {
+        row
+    } else {
+        // The Z event is not tagged with the period (should not happen): read it by id.
+        let (json, label, fdm, user): (String, Option<String>, Option<String>, String) = sql(
+            source.query_row(
+                "SELECT event_data_json, event_label, fdm_datetime, user_insz
+                 FROM fiscal_events WHERE id = ?1 AND event_type = 'R'",
+                [z.closing_event_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            ),
+            "read the Z event",
+        )?;
+        let request = parse_json(z.closing_event_id, &json)?;
+        (request, label, fdm, user)
     };
 
     let has_code = {

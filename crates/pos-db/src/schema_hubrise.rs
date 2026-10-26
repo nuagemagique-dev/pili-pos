@@ -1,12 +1,12 @@
-//! Schema of the HubRise integration (feature `hubrise`, in the
+//! Schema of the `HubRise` integration (feature `hubrise`, in the
 //! certified binary), from migration 20. The tables exist on every
 //! installation; they are written only once the installation switches
-//! HubRise on (migration 25), except the switch's own log.
+//! `HubRise` on (migration 25), except the switch's own log.
 
-/// v20 - HubRise transport: event retries, error reporting, a general
-/// outbox (order creations and order PATCHes, sent in order per
+/// v20 - `HubRise` transport: event retries, error reporting, a general
+/// outbox (order creations and order `PATCHes`, sent in order per
 /// order, creations deduplicated by `private_ref`).
-pub(crate) const MIGRATION_020_HUBRISE_TRANSPORT: &str = r#"
+pub(crate) const MIGRATION_020_HUBRISE_TRANSPORT: &str = r"
 ALTER TABLE hubrise_connection ADD COLUMN auth_error_at TEXT;
 ALTER TABLE hubrise_connection ADD COLUMN last_error TEXT;
 ALTER TABLE hubrise_connection ADD COLUMN callback_registered_at TEXT;
@@ -24,14 +24,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_hubrise_outbox_private_ref
     ON hubrise_outbox(private_ref) WHERE private_ref IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_hubrise_outbox_order
     ON hubrise_outbox(hubrise_order_id, id) WHERE sent_at IS NULL;
-"#;
+";
 
-/// v22 - online orders on their way to the FDM. One row per HubRise
+/// v22 - online orders on their way to the FDM. One row per `HubRise`
 /// order next to its `orders` row: how it resolved against the POS
 /// menu, how it is paid, and where it stands fiscally. Channels map a
-/// HubRise channel to a platform or the own webshop; cash payments
+/// `HubRise` channel to a platform or the own webshop; cash payments
 /// are told apart by their `ref`.
-pub(crate) const MIGRATION_022_WEBSHOP_ORDERS: &str = r#"
+pub(crate) const MIGRATION_022_WEBSHOP_ORDERS: &str = r"
 CREATE TABLE IF NOT EXISTS hubrise_channels (
     -- Lower-cased HubRise `channel`; 'webshop' stands for orders
     -- without one.
@@ -88,13 +88,13 @@ CREATE TABLE IF NOT EXISTS webshop_orders (
 
 CREATE INDEX IF NOT EXISTS idx_webshop_orders_state
     ON webshop_orders(fiscal_state, resolution);
-"#;
+";
 
 /// v23 - price changes on order lines (POS spec v2.2 `priceChange`):
 /// the discounts of an online order, spread over its lines. One row per
 /// change on one journal entry; a correction of the line carries the
 /// change negated. Append-only, like the journal.
-pub(crate) const MIGRATION_023_PRICE_CHANGES: &str = r#"
+pub(crate) const MIGRATION_023_PRICE_CHANGES: &str = r"
 CREATE TABLE IF NOT EXISTS order_price_changes (
     id INTEGER PRIMARY KEY,
     order_id INTEGER NOT NULL REFERENCES orders(id),
@@ -120,24 +120,24 @@ BEFORE UPDATE ON order_price_changes
 BEGIN
     SELECT RAISE(ABORT, 'order price changes are append-only');
 END;
-"#;
+";
 
 /// Migration 24: a platform's charges (its delivery or service fee)
 /// are its own turnover, not the restaurant's, so the known platforms
 /// leave them out of the sale; a manager can still include them per
 /// channel. The webshop keeps its charges, which follow its food.
-pub(crate) const MIGRATION_024_PLATFORM_CHARGES: &str = r#"
+pub(crate) const MIGRATION_024_PLATFORM_CHARGES: &str = r"
 UPDATE hubrise_channels SET charge_policy = 'exclude'
 WHERE kind = 'platform' AND charge_policy = 'include';
-"#;
+";
 
-/// Migration 25: the installation's switch for the HubRise
+/// Migration 25: the installation's switch for the `HubRise`
 /// integration, and the log of every change to it. The switch starts
 /// from `hubrise_enabled` in `pos.json`; an admin can change it in
 /// Settings. The latest change wins, whichever side made it: a new
 /// value in `pos.json` (seen at start-up, `config_value` keeps the
 /// last one seen) counts as a change too.
-pub(crate) const MIGRATION_025_INTEGRATION_SWITCH: &str = r#"
+pub(crate) const MIGRATION_025_INTEGRATION_SWITCH: &str = r"
 CREATE TABLE IF NOT EXISTS integration_switches (
     name TEXT PRIMARY KEY CHECK(name IN ('hubrise')),
     enabled INTEGER NOT NULL CHECK(enabled IN (0, 1)),
@@ -169,4 +169,4 @@ BEFORE DELETE ON integration_switch_log
 BEGIN
     SELECT RAISE(ABORT, 'integration_switch_log is append-only');
 END;
-"#;
+";

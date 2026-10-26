@@ -109,7 +109,7 @@ impl Rig {
     fn assert_token_is_nowhere(&self) {
         let mut files = Vec::new();
         all_files(&self.exports, &mut files);
-        assert!(!files.is_empty());
+        assert_ne!(files, [] as [std::path::PathBuf; 0]);
         for path in files {
             let bytes = std::fs::read(&path).unwrap();
             let hay = String::from_utf8_lossy(&bytes);
@@ -541,7 +541,7 @@ async fn retention_counts_only_the_unsent_exports_in_dropped() {
     // A third export, created a day later, is never sent.
     let id_43 = add_empty_z(&rig.fx, 43, "2026-10-05");
     let day_later = t0() + Duration::days(1);
-    assert_eq!(rig.prepare(day_later), vec![id_43.clone()]);
+    assert_eq!(rig.prepare(day_later), vec![id_43]);
     assert_eq!(rig.status().kept, 3);
     assert_eq!(rig.status().pending, 1);
 

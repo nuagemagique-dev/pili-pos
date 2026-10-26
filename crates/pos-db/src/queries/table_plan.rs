@@ -50,7 +50,7 @@ pub fn at_start(conn: &Connection, config_plan: &str) -> Result<String, rusqlite
                      WHERE id = 1",
                     params![config_plan],
                 )?;
-                log(&tx, config_plan, "config", None)?;
+                log(tx, config_plan, "config", None)?;
                 config_plan.to_string()
             }
             None => {
@@ -59,7 +59,7 @@ pub fn at_start(conn: &Connection, config_plan: &str) -> Result<String, rusqlite
                      VALUES (1, ?1, ?1, datetime('now'))",
                     params![config_plan],
                 )?;
-                log(&tx, config_plan, "config", None)?;
+                log(tx, config_plan, "config", None)?;
                 config_plan.to_string()
             }
         };
@@ -76,7 +76,7 @@ pub fn current(conn: &Connection) -> Result<Option<String>, rusqlite::Error> {
 /// A manager's change. Returns whether it changed anything.
 pub fn set(conn: &Connection, plan: &str, admin_insz: &str) -> Result<bool, rusqlite::Error> {
     super::with_savepoint(conn, |tx| {
-        let changed = match current(&tx)? {
+        let changed = match current(tx)? {
             Some(old) if old == plan => false,
             Some(_) => {
                 tx.execute(
@@ -98,7 +98,7 @@ pub fn set(conn: &Connection, plan: &str, admin_insz: &str) -> Result<bool, rusq
             }
         };
         if changed {
-            log(&tx, plan, "admin", Some(admin_insz))?;
+            log(tx, plan, "admin", Some(admin_insz))?;
         }
         Ok(changed)
     })

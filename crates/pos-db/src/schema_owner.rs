@@ -16,7 +16,7 @@
 /// `owner_alert_log` records every message the alert worker tried to
 /// send (or dropped): one row per transition, never updated or deleted.
 /// It is also how a restart knows an alert is already open.
-pub(crate) const MIGRATION_060_OWNER_SETTINGS_ALERTS: &str = r#"
+pub(crate) const MIGRATION_060_OWNER_SETTINGS_ALERTS: &str = r"
 CREATE TABLE IF NOT EXISTS owner_settings (
     key TEXT PRIMARY KEY,
     value_json TEXT NOT NULL,
@@ -69,7 +69,7 @@ BEFORE DELETE ON owner_alert_log
 BEGIN
     SELECT RAISE(ABORT, 'owner_alert_log is append-only');
 END;
-"#;
+";
 
 /// v61 - the 14 EU allergens (Regulation 1169/2011, Annex II).
 ///
@@ -81,7 +81,7 @@ END;
 ///
 /// `allergen_change_log` is append-only (AFSCA traceability): one row per
 /// real change, with the list before and after as JSON.
-pub(crate) const MIGRATION_061_ALLERGENS: &str = r#"
+pub(crate) const MIGRATION_061_ALLERGENS: &str = r"
 CREATE TABLE IF NOT EXISTS menu_item_allergens (
     menu_item_id INTEGER NOT NULL REFERENCES menu_items(id),
     allergen TEXT NOT NULL CHECK(allergen IN (
@@ -135,7 +135,7 @@ BEFORE DELETE ON allergen_change_log
 BEGIN
     SELECT RAISE(ABORT, 'allergen_change_log is append-only');
 END;
-"#;
+";
 
 /// v62 - courses and "Envoyer la suite" (kitchen printing only).
 ///
@@ -155,7 +155,7 @@ END;
 /// really printed (only when the printer reported `Printed`), with the
 /// course they had then. Entries signed before this migration are
 /// recorded as printed (their slip was printed or abandoned long ago).
-pub(crate) const MIGRATION_062_COURSES: &str = r#"
+pub(crate) const MIGRATION_062_COURSES: &str = r"
 CREATE TABLE IF NOT EXISTS order_line_courses (
     line_id INTEGER PRIMARY KEY,
     order_id INTEGER NOT NULL REFERENCES orders(id),
@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS kitchen_slip_entries (
 
 INSERT OR IGNORE INTO kitchen_slip_entries (entry_id, course, slip)
     SELECT id, 0, 'immediate' FROM order_entries WHERE sent_event_id IS NOT NULL;
-"#;
+";
 
 /// v63 - multi-purpose gift vouchers (MPV, spec v2.2 §5 VAT X and
 /// `VOUCHER_STORE`).
@@ -205,7 +205,7 @@ INSERT OR IGNORE INTO kitchen_slip_entries (entry_id, course, slip)
 /// columns of the base schema are written (the catalog columns have
 /// defaults). Their ids (990000, 990001) are fixed and far above any
 /// catalog id so existing rows and fixtures never collide with them.
-pub(crate) const MIGRATION_063_GIFT_VOUCHERS: &str = r#"
+pub(crate) const MIGRATION_063_GIFT_VOUCHERS: &str = r"
 INSERT OR IGNORE INTO categories (id, external_id, sort_order, active)
     VALUES (990000, 'pili:system', 9999, 0);
 
@@ -300,4 +300,4 @@ BEFORE DELETE ON gift_voucher_prints
 BEGIN
     SELECT RAISE(ABORT, 'gift_voucher_prints is append-only');
 END;
-"#;
+";

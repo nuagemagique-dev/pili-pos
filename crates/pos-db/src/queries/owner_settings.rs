@@ -29,7 +29,7 @@ pub fn set(
     changed_by: Option<&str>,
 ) -> Result<bool, rusqlite::Error> {
     super::with_savepoint(conn, |tx| {
-        if get(&tx, key)?.as_deref() == Some(value_json) {
+        if get(tx, key)?.as_deref() == Some(value_json) {
             return Ok(false);
         }
         tx.execute(
@@ -198,7 +198,7 @@ mod tests {
         assert_eq!(h.len(), 2);
         assert_eq!(h[0].value_json, r#"{"a":2}"#);
         assert_eq!(h[1].changed_by.as_deref(), Some("00000000029"));
-        assert!(history(&conn, "courses", 10).unwrap().is_empty());
+        assert_eq!(history(&conn, "courses", 10).unwrap().len(), 0);
     }
 
     #[test]
@@ -221,10 +221,11 @@ mod tests {
             sent_times_since(&conn, "2000-01-01 00:00:00").unwrap(),
             vec![t, t]
         );
-        assert!(
+        assert_eq!(
             sent_times_since(&conn, "2999-01-01 00:00:00")
                 .unwrap()
-                .is_empty()
+                .len(),
+            0
         );
     }
 }

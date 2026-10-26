@@ -4,6 +4,7 @@ use pos_core::order::{Order, OrderLine, OrderStatus, OrderType};
 use pos_core::vat::VatCode;
 use rusqlite::{Connection, OptionalExtension, params};
 
+#[derive(Debug)]
 pub struct NewOrderLine<'a> {
     pub order_id: i64,
     pub menu_item_id: i64,
@@ -73,19 +74,23 @@ pub fn create_order(
 }
 
 /// Add a line to an open order and journal it (`order_entries`).
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the parameter struct is built inline at over a hundred call sites in the engine and its tests"
+)]
 pub fn add_order_line(
     conn: &Connection,
     input: NewOrderLine<'_>,
 ) -> Result<OrderLine, rusqlite::Error> {
     with_savepoint(conn, |_| {
         ensure_open(conn, input.order_id)?;
-        add_order_line_inner(conn, input)
+        add_order_line_inner(conn, &input)
     })
 }
 
 fn add_order_line_inner(
     conn: &Connection,
-    input: NewOrderLine<'_>,
+    input: &NewOrderLine<'_>,
 ) -> Result<OrderLine, rusqlite::Error> {
     let now = Utc::now();
     let now_str = now.format("%Y-%m-%dT%H:%M:%SZ").to_string();
@@ -126,7 +131,7 @@ fn add_order_line_inner(
         unit_price_cents: input.unit_price_cents,
         vat_code: input.vat_code,
         name: input.name.to_string(),
-        modifiers_json: input.modifiers_json.map(|s| s.to_string()),
+        modifiers_json: input.modifiers_json.map(std::string::ToString::to_string),
         created_at: now,
         department_id: input.department_id.to_string(),
         department_name: input.department_name.to_string(),
@@ -193,6 +198,10 @@ pub fn update_order_line_quantity(
 /// message: additions are positive, corrections and refunds negative.
 /// `unsent_only` keeps the entries not yet transmitted in an event.
 /// Orders recorded before the journal existed fall back to their lines.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "the unsent-only flag is passed by many callers in the engine and its tests"
+)]
 pub fn get_order_entries(
     conn: &Connection,
     order_id: i64,
@@ -263,7 +272,7 @@ fn insert_entry(
 }
 
 /// [`insert_entry`] returning the entry's id, with the `till_op` mark of
-/// a PRICE_CHANGE pair (`Some("price_change")`) when it is one.
+/// a `PRICE_CHANGE` pair (`Some("price_change")`) when it is one.
 fn insert_entry_op(
     conn: &Connection,
     line_id: i64,
@@ -296,7 +305,7 @@ fn insert_entry_op(
     Ok(entry_id)
 }
 
-/// The two journal entries of a PRICE_CHANGE pair on a line: a
+/// The two journal entries of a `PRICE_CHANGE` pair on a line: a
 /// correction of its whole quantity, then the same quantity again, both
 /// marked `till_op` = `price_change`. The caller records the changes on
 /// them (the first carries the line's existing changes negated, the
@@ -422,7 +431,13 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
             kitchen_state: kitchen_state.to_string(),
         })
     })?;
-    #[allow(unused_mut)]
+    #[cfg_attr(
+        not(feature = "hubrise"),
+        expect(
+            unused_mut,
+            reason = "only the HubRise price changes below mutate the lines"
+        )
+    )]
     let mut lines: Vec<CartLine> = rows.collect::<Result<_, _>>()?;
     #[cfg(feature = "hubrise")]
     {
@@ -1189,11 +1204,7 @@ mod tests {
         assert!(result.is_err(), "adding a line to a closed order must fail");
         // No half-written line or journal entry from the rejected attempt.
         assert!(get_order_lines(&conn, order.id).unwrap().is_empty());
-        assert!(
-            get_order_entries(&conn, order.id, false)
-                .unwrap()
-                .is_empty()
-        );
+        assert_eq!(get_order_entries(&conn, order.id, false).unwrap().len(), 0);
         assert_eq!(get_order(&conn, order.id).unwrap().total_cents, 0);
     }
 

@@ -76,6 +76,7 @@ impl CardKind {
 }
 
 /// A payment to store before asking the terminal.
+#[derive(Debug)]
 pub struct NewPayment<'a> {
     pub reference: &'a str,
     pub order_id: i64,
@@ -506,7 +507,7 @@ mod tests {
         assert!(row.is_usable());
         assert_eq!(usable_for_order(&conn, o).unwrap().len(), 1);
         assert_eq!(pending_for_order(&conn, o).unwrap().len(), 1);
-        assert!(open(&conn).unwrap().is_empty());
+        assert_eq!(open(&conn).unwrap().len(), 0);
     }
 
     #[test]
@@ -671,8 +672,8 @@ mod tests {
         let row = get(&conn, id).unwrap().unwrap();
         assert_eq!(row.used_event_id, Some(e1));
         assert!(!row.is_usable());
-        assert!(usable_for_order(&conn, o).unwrap().is_empty());
-        assert!(pending_for_order(&conn, o).unwrap().is_empty());
+        assert_eq!(usable_for_order(&conn, o).unwrap().len(), 0);
+        assert_eq!(pending_for_order(&conn, o).unwrap().len(), 0);
         // Once only: through the query nothing happens, by hand it is refused.
         assert!(!mark_used(&conn, id, e2).unwrap());
         for set in ["used_event_id = NULL", &format!("used_event_id = {e2}")] {
@@ -717,7 +718,7 @@ mod tests {
         let o = order(&conn);
         let id = sent(&conn, o, "ref-1", 100);
         resolve(&conn, id, &approval()).unwrap();
-        assert!(mark_used(&conn, id, 424242).is_err());
+        assert!(mark_used(&conn, id, 424_242).is_err());
     }
 
     #[test]
@@ -750,22 +751,26 @@ mod tests {
         let conn = db();
         let o = order(&conn);
         let other = order(&conn);
-        let a = sent(&conn, o, "ref-a", 100);
-        let b = sent(&conn, o, "ref-b", 200);
-        let c = sent(&conn, o, "ref-c", 300);
-        let d = sent(&conn, o, "ref-d", 400);
+        let first = sent(&conn, o, "ref-a", 100);
+        let cancelled = sent(&conn, o, "ref-b", 200);
+        let used = sent(&conn, o, "ref-c", 300);
+        let pending = sent(&conn, o, "ref-d", 400);
         sent(&conn, other, "ref-e", 500);
-        resolve(&conn, a, &approval()).unwrap();
-        resolve(&conn, b, &Resolution::Cancelled).unwrap();
-        resolve(&conn, c, &approval()).unwrap();
-        let e1 = event(&conn, 1);
-        mark_used(&conn, c, e1).unwrap();
+        resolve(&conn, first, &approval()).unwrap();
+        resolve(&conn, cancelled, &Resolution::Cancelled).unwrap();
+        resolve(&conn, used, &approval()).unwrap();
+        let event_id = event(&conn, 1);
+        mark_used(&conn, used, event_id).unwrap();
         let ids: Vec<i64> = pending_for_order(&conn, o)
             .unwrap()
             .iter()
             .map(|r| r.id)
             .collect();
-        assert_eq!(ids, vec![a, d]);
-        assert_eq!(open(&conn).unwrap().len(), 2, "d and the other order's");
+        assert_eq!(ids, vec![first, pending]);
+        assert_eq!(
+            open(&conn).unwrap().len(),
+            2,
+            "the pending one and the other order's"
+        );
     }
 }

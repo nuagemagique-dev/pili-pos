@@ -184,6 +184,10 @@ pub struct CatalogueLine {
 ///
 /// Returns `QueryReturnedNoRows` if the product or its category is
 /// inactive or unknown: such products cannot be sold.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "the takeaway flag is passed by about twenty callers in the engine, catalog and HubRise crates"
+)]
 pub fn resolve_catalogue_line(
     conn: &Connection,
     menu_item_id: i64,

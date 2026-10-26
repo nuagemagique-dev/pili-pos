@@ -194,7 +194,7 @@ async fn the_reports_scenario_day_equals_its_signed_z_to_the_cent() {
     let date = booking_dates(&app).remove(0);
     let out = dir.path().join("out");
     let summary = run(&db, &out, one_day(&date)).unwrap();
-    assert_eq!(summary.days, vec![(date.clone(), 1)]);
+    assert_eq!(summary.days, vec![(date, 1)]);
     let f = &summary.folder;
 
     // The published M184: 4 sale tickets (one is the refund), 102.04 EUR.

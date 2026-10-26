@@ -198,7 +198,7 @@ const OWNER_MIGRATIONS: &[Migration] = &[
     },
 ];
 
-/// Migrations of the HubRise integration (feature `hubrise`), from
+/// Migrations of the `HubRise` integration (feature `hubrise`), from
 /// version 20 (in the certified binary too).
 #[cfg(feature = "hubrise")]
 const HUBRISE_MIGRATIONS: &[Migration] = &[
@@ -247,7 +247,6 @@ const CATALOG_MIGRATIONS: &[Migration] = &[
 
 /// Every migration this build knows, in ascending version order.
 fn registry() -> Vec<Migration> {
-    #[allow(unused_mut)]
     let mut all = MIGRATIONS.to_vec();
     all.extend_from_slice(EFT_MIGRATIONS);
     all.extend_from_slice(TILL_MIGRATIONS);
@@ -327,7 +326,7 @@ fn apply_one(
 }
 
 /// For databases created by the pre-versioning runner (one-shot
-/// SCHEMA_SQL): if `fiscal_events` exists and `_migrations_applied` is
+/// `SCHEMA_SQL)`: if `fiscal_events` exists and `_migrations_applied` is
 /// empty, mark v1 as already-applied so we don't re-run it.
 fn backfill_legacy_db(conn: &Connection) -> Result<(), rusqlite::Error> {
     let already_tracked: i64 =
@@ -355,7 +354,7 @@ fn backfill_legacy_db(conn: &Connection) -> Result<(), rusqlite::Error> {
 
 /// Refuse a database where a version this build knows was applied
 /// under another name: the same number reused for two different
-/// schema changes (a certified hotfix and a HubRise table, say) would
+/// schema changes (a certified hotfix and a `HubRise` table, say) would
 /// otherwise be skipped as "already applied" and the schema would
 /// silently lack it. Versions this build does not know are left alone.
 fn check_applied_names(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -393,7 +392,7 @@ fn applied_versions(conn: &Connection) -> Result<Vec<i64>, rusqlite::Error> {
 mod tests {
     use super::*;
 
-    /// The certified versions, then HubRise's when the feature is on.
+    /// The certified versions, then those of `HubRise` when the feature is on.
     fn all_versions() -> Vec<i64> {
         registry().iter().map(|m| m.version).collect()
     }
@@ -440,7 +439,7 @@ mod tests {
         assert_eq!(certified, (1..=10).collect::<Vec<_>>());
     }
 
-    /// Migration 11 (the table plan) follows them, still below HubRise's 20;
+    /// Migration 11 (the table plan) follows them, still below the 20 of `HubRise`;
     /// then 28 (presence registration), then 70 (staff badges), in every
     /// build.
     #[test]

@@ -16,7 +16,7 @@ pub fn next_z_report_number(conn: &Connection) -> Result<i64, rusqlite::Error> {
     Ok(current + 1)
 }
 
-/// Lightweight Z-report row for the history list (no data_json blob).
+/// Lightweight Z-report row for the history list (no `data_json` blob).
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZReportSummary {

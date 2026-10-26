@@ -213,7 +213,7 @@ mod tests {
         encrypt_file(&plain, &out, &[recipient(&pk)]).unwrap();
         let back = dir.path().join("back");
         decrypt_file(&sk, &out, &back).unwrap();
-        assert!(std::fs::read(&back).unwrap().is_empty());
+        assert_eq!(std::fs::read(&back).unwrap().len(), 0);
     }
 
     #[test]

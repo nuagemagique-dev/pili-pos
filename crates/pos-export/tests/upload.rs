@@ -120,7 +120,7 @@ async fn a_wrong_token_is_unauthorized_and_nothing_is_stored() {
         .unwrap_err();
     assert_eq!(err, UploadError::Unauthorized(401));
     assert_eq!(err.to_string(), "unauthorized (HTTP 401)");
-    assert!(receiver.received().is_empty());
+    assert_eq!(receiver.received(), [] as [pos_export_mock::Received; 0]);
 }
 
 #[tokio::test]
@@ -172,7 +172,7 @@ async fn a_server_error_is_http_then_the_next_try_succeeds() {
         .unwrap_err();
     assert_eq!(err, UploadError::Http(503));
     assert_eq!(err.to_string(), "HTTP 503");
-    assert!(receiver.received().is_empty());
+    assert_eq!(receiver.received(), [] as [pos_export_mock::Received; 0]);
 
     put(&uploader, &file, "a", &sha(b"data"), &token)
         .await
@@ -193,7 +193,7 @@ async fn a_wrong_hash_is_refused_by_the_receiver_with_400() {
         put(&uploader, &file, "a", &sha(b"other data"), &token).await,
         Err(UploadError::Http(400))
     );
-    assert!(receiver.received().is_empty());
+    assert_eq!(receiver.received(), [] as [pos_export_mock::Received; 0]);
 }
 
 #[tokio::test]

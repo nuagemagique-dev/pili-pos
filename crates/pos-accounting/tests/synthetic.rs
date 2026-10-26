@@ -366,7 +366,7 @@ fn a_date_range_picks_the_days_inside_it() {
     )
     .unwrap();
     assert_eq!(summary.days, vec![("2026-10-02".to_string(), 2)]);
-    assert!(summary.left_out.is_empty());
+    assert_eq!(summary.left_out, [] as [std::string::String; 0]);
     assert!(
         summary
             .folder

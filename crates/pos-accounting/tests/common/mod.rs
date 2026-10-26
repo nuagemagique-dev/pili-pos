@@ -9,16 +9,16 @@ use pos_accounting::{Decimal, ExportRequest, ExportSummary, PeriodSpec, Profile}
 use rusqlite::Connection;
 use serde_json::{Value, json};
 
-pub const FDM_ID: &str = "SYN00000001";
+pub(crate) const FDM_ID: &str = "SYN00000001";
 
 /// A line of a synthetic sale: department id, VAT label, price with VAT.
-pub struct L(pub &'static str, pub &'static str, pub f64);
+pub(crate) struct L(pub &'static str, pub &'static str, pub f64);
 
-/// A payment line: PaymentType, amountType, amount.
-pub struct P(pub &'static str, pub &'static str, pub f64);
+/// A payment line: `PaymentType`, amountType, amount.
+pub(crate) struct P(pub &'static str, pub &'static str, pub f64);
 
 #[derive(Default)]
-pub struct SaleSpec {
+pub(crate) struct SaleSpec {
     pub lines: Vec<(String, String, f64)>,
     pub payments: Vec<(String, String, f64)>,
     pub cost_center: Option<&'static str>,
@@ -26,7 +26,7 @@ pub struct SaleSpec {
 }
 
 impl SaleSpec {
-    pub fn new(lines: &[L], payments: &[P]) -> Self {
+    pub(crate) fn new(lines: &[L], payments: &[P]) -> Self {
         Self {
             lines: lines
                 .iter()
@@ -40,17 +40,17 @@ impl SaleSpec {
         }
     }
 
-    pub fn table(mut self) -> Self {
+    pub(crate) fn table(mut self) -> Self {
         self.cost_center = Some("TABLE");
         self
     }
 
-    pub fn online(mut self) -> Self {
+    pub(crate) fn online(mut self) -> Self {
         self.cost_center = Some("WEBSHOP");
         self
     }
 
-    pub fn refund_of(mut self, fdm_ref: Value) -> Self {
+    pub(crate) fn refund_of(mut self, fdm_ref: Value) -> Self {
         self.refers_to = Some(fdm_ref);
         self
     }
@@ -74,7 +74,7 @@ fn eur(c: i64) -> f64 {
 }
 
 /// The FDM's VAT calculation of lines: per label, base and VAT from the total.
-pub fn vat_calc(lines: &[(String, String, f64)]) -> Value {
+pub(crate) fn vat_calc(lines: &[(String, String, f64)]) -> Value {
     let mut totals: std::collections::BTreeMap<String, i64> = Default::default();
     for (_, label, price) in lines {
         *totals.entry(label.clone()).or_insert(0) += cents(*price);
@@ -93,7 +93,7 @@ pub fn vat_calc(lines: &[(String, String, f64)]) -> Value {
 }
 
 /// A synthetic archive in a real migrated database file.
-pub struct Synth {
+pub(crate) struct Synth {
     pub dir: tempfile::TempDir,
     pub path: PathBuf,
     conn: Connection,
@@ -104,7 +104,7 @@ pub struct Synth {
 }
 
 impl Synth {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pos.db");
         let conn = Connection::open(&path).unwrap();
@@ -120,7 +120,7 @@ impl Synth {
         }
     }
 
-    pub fn open_period(&self, id: &str, date: &str) {
+    pub(crate) fn open_period(&self, id: &str, date: &str) {
         self.conn
             .execute(
                 "INSERT INTO booking_periods (id, booking_date, opened_at) VALUES (?1, ?2, ?3)",
@@ -177,7 +177,7 @@ impl Synth {
     }
 
     /// Sign a sale; returns its FDM reference (for a refund or an invoice).
-    pub fn sale(&mut self, period: &str, spec: SaleSpec) -> Value {
+    pub(crate) fn sale(&mut self, period: &str, spec: SaleSpec) -> Value {
         let lines: Vec<Value> = spec
             .lines
             .iter()
@@ -199,10 +199,10 @@ impl Synth {
         });
         match spec.cost_center {
             Some("TABLE") => {
-                request["costCenter"] = json!({"id": "T4", "type": "TABLE", "reference": "T4"})
+                request["costCenter"] = json!({"id": "T4", "type": "TABLE", "reference": "T4"});
             }
             Some(other) => {
-                request["costCenter"] = json!({"id": "9", "type": other, "reference": "W"})
+                request["costCenter"] = json!({"id": "9", "type": other, "reference": "W"});
             }
             None => {}
         }
@@ -219,14 +219,14 @@ impl Synth {
         fdm_ref
     }
 
-    pub fn money(&mut self, period: &str, amount: f64, label: &str) {
+    pub(crate) fn money(&mut self, period: &str, amount: f64, label: &str) {
         let request = json!({"financials": [{"id": "1", "name": label, "type": "CASH",
             "amount": amount, "amountType": "MONEY_IN_OUT"}]});
         let fdm_ref = self.next_ref("F");
         self.insert("F", period, request, json!({"fdmRef": fdm_ref}));
     }
 
-    pub fn invoice(&mut self, period: &str, refs: &[Value], number: &str, vat_no: &str) {
+    pub(crate) fn invoice(&mut self, period: &str, refs: &[Value], number: &str, vat_no: &str) {
         let request = json!({"customerVatNo": vat_no, "invoiceNo": number,
             "costCenter": {"id": "100", "type": "CUSTOMER", "reference": "FIN"}, "fdmRefs": refs});
         let fdm_ref = self.next_ref("I");
@@ -234,13 +234,13 @@ impl Synth {
     }
 
     /// An invoice with a request taken as is (a published fixture).
-    pub fn invoice_raw(&mut self, period: &str, request: Value) {
+    pub(crate) fn invoice_raw(&mut self, period: &str, request: Value) {
         let fdm_ref = self.next_ref("I");
         self.insert("I", period, request, json!({"fdmRef": fdm_ref}));
     }
 
     /// An event the export must ignore: a pro forma (P), a training sale (T) or a copy (C).
-    pub fn ignored(&mut self, label: &str, period: &str) {
+    pub(crate) fn ignored(&mut self, label: &str, period: &str) {
         let request = json!({"transaction": {"transactionLines": [{"mainProduct": {"productId": "1",
             "departmentId": "10", "vats": [{"label": "A", "price": 99.0, "priceChanges": []}]}}],
             "transactionTotal": 99.0},
@@ -255,7 +255,7 @@ impl Synth {
     }
 
     /// A sale whose FDM answer is missing (never signed).
-    pub fn unsigned_sale(&mut self, period: &str) {
+    pub(crate) fn unsigned_sale(&mut self, period: &str) {
         self.ticket_no += 1;
         let request = json!({"bookingPeriodId": period, "transaction": {"transactionLines": [],
             "transactionTotal": 0}});
@@ -269,7 +269,7 @@ impl Synth {
     }
 
     /// Close the period with a Z report computed from its sales.
-    pub fn close(&mut self, period: &str, z_no: i64) {
+    pub(crate) fn close(&mut self, period: &str, z_no: i64) {
         let sales = self.sales.get(period).cloned().unwrap_or_default();
         let z = z_json(&sales);
         let request = json!({"turnover": z});
@@ -293,7 +293,7 @@ impl Synth {
 }
 
 /// The Z `turnover` object of a set of signed sales (independent of the library).
-pub fn z_json(sales: &[(Value, Value)]) -> Value {
+pub(crate) fn z_json(sales: &[(Value, Value)]) -> Value {
     let mut amount = 0i64;
     let mut vats: std::collections::BTreeMap<String, [i64; 4]> = Default::default();
     let mut payments: std::collections::BTreeMap<(String, String), i64> = Default::default();
@@ -339,12 +339,12 @@ pub fn z_json(sales: &[(Value, Value)]) -> Value {
 }
 
 /// Copy a live database to a file with `VACUUM INTO` (a consistent snapshot).
-pub fn snapshot(conn: &Connection, dest: &Path) {
+pub(crate) fn snapshot(conn: &Connection, dest: &Path) {
     conn.execute("VACUUM INTO ?1", [dest.to_string_lossy().as_ref()])
         .unwrap();
 }
 
-pub fn request(db: &Path, out: &Path, period: PeriodSpec) -> ExportRequest {
+pub(crate) fn request(db: &Path, out: &Path, period: PeriodSpec) -> ExportRequest {
     ExportRequest {
         db: db.to_path_buf(),
         period,
@@ -356,23 +356,27 @@ pub fn request(db: &Path, out: &Path, period: PeriodSpec) -> ExportRequest {
     }
 }
 
-pub fn month(m: &str) -> PeriodSpec {
+pub(crate) fn month(m: &str) -> PeriodSpec {
     PeriodSpec::Month(m.to_string())
 }
 
-pub fn run(db: &Path, out: &Path, period: PeriodSpec) -> pos_accounting::Result<ExportSummary> {
+pub(crate) fn run(
+    db: &Path,
+    out: &Path,
+    period: PeriodSpec,
+) -> pos_accounting::Result<ExportSummary> {
     pos_accounting::export(&request(db, out, period))
 }
 
 /// Read a file of the export folder as text, without the BOM.
-pub fn read(folder: &Path, name: &str) -> String {
+pub(crate) fn read(folder: &Path, name: &str) -> String {
     let bytes = std::fs::read(folder.join(name)).unwrap_or_else(|e| panic!("{name}: {e}"));
     let text = String::from_utf8(bytes).unwrap();
     text.strip_prefix('\u{feff}').unwrap_or(&text).to_string()
 }
 
 /// Rows of a CSV file (header first), `;` separated, no quoting support needed here.
-pub fn rows(folder: &Path, name: &str) -> Vec<Vec<String>> {
+pub(crate) fn rows(folder: &Path, name: &str) -> Vec<Vec<String>> {
     read(folder, name)
         .split("\r\n")
         .filter(|l| !l.is_empty())
@@ -381,7 +385,7 @@ pub fn rows(folder: &Path, name: &str) -> Vec<Vec<String>> {
 }
 
 /// `(Σ debit, Σ credit)` in cents of a generic `journal.csv`, per document.
-pub fn journal_balances(folder: &Path) -> Vec<(String, i64, i64)> {
+pub(crate) fn journal_balances(folder: &Path) -> Vec<(String, i64, i64)> {
     let parse = |s: &str| (s.parse::<f64>().unwrap() * 100.0).round() as i64;
     let mut out: Vec<(String, i64, i64)> = Vec::new();
     for row in rows(folder, "journal.csv").iter().skip(1) {
@@ -397,6 +401,6 @@ pub fn journal_balances(folder: &Path) -> Vec<(String, i64, i64)> {
     out
 }
 
-pub fn sha256_of(path: &Path) -> String {
+pub(crate) fn sha256_of(path: &Path) -> String {
     pos_accounting::source::sha256_file(path).unwrap()
 }

@@ -254,7 +254,7 @@ fn list_exports(exports_dir: &Path) -> Result<Vec<String>, String> {
     for entry in entries {
         let entry = entry.map_err(|e| format!("cannot read {}: {e}", exports_dir.display()))?;
         // `file_type` does not follow symbolic links.
-        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let is_dir = entry.file_type().is_ok_and(|t| t.is_dir());
         if let Some(name) = entry.file_name().to_str()
             && is_dir
             && is_export_id(name)
@@ -292,7 +292,7 @@ pub fn clean_tmp(exports_dir: &Path) -> Result<(), String> {
     for entry in entries {
         let entry = entry.map_err(|e| format!("cannot read {}: {e}", tmp.display()))?;
         let path = entry.path();
-        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let is_dir = entry.file_type().is_ok_and(|t| t.is_dir());
         let removed = if is_dir {
             std::fs::remove_dir_all(&path)
         } else {
@@ -389,9 +389,7 @@ fn prepare_all(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, Strin
 
 /// First start: the cursor goes just before the latest Z, so only that Z is exported.
 fn start_cursor(env: &ExportEnv, conn: &Connection) -> Result<i64, String> {
-    let first = zref::latest_real_z(conn)?
-        .map(|z| (z.z_report_no - 1).max(0))
-        .unwrap_or(0);
+    let first = zref::latest_real_z(conn)?.map_or(0, |z| (z.z_report_no - 1).max(0));
     write_cursor(env.exports_dir, first)?;
     Ok(first)
 }

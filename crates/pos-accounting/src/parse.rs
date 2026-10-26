@@ -218,39 +218,36 @@ fn standard_rate(label: &str) -> f64 {
 /// The VAT of a ticket: the FDM's calculation, else the lines at the standard rates.
 fn vat_rows(event_id: i64, response: &Value, lines: &[SaleLine]) -> Result<Vec<VatRow>> {
     let mut rows: BTreeMap<String, VatRow> = BTreeMap::new();
-    match response["vatCalc"].as_array() {
-        Some(calc) => {
-            for item in calc {
-                let label = string(&item["label"]);
-                let row = rows.entry(label.clone()).or_insert(VatRow {
-                    label,
-                    rate_bp: rate(event_id, &item["rate"], "a vatCalc rate")?,
-                    base: 0,
-                    vat: 0,
-                    total: 0,
-                });
-                row.base += amount(event_id, &item["taxableAmount"], "a vatCalc taxableAmount")?;
-                row.vat += amount(event_id, &item["vatAmount"], "a vatCalc vatAmount")?;
-                row.total += amount(event_id, &item["totalAmount"], "a vatCalc totalAmount")?;
-            }
+    if let Some(calc) = response["vatCalc"].as_array() {
+        for item in calc {
+            let label = string(&item["label"]);
+            let row = rows.entry(label.clone()).or_insert(VatRow {
+                label,
+                rate_bp: rate(event_id, &item["rate"], "a vatCalc rate")?,
+                base: 0,
+                vat: 0,
+                total: 0,
+            });
+            row.base += amount(event_id, &item["taxableAmount"], "a vatCalc taxableAmount")?;
+            row.vat += amount(event_id, &item["vatAmount"], "a vatCalc vatAmount")?;
+            row.total += amount(event_id, &item["totalAmount"], "a vatCalc totalAmount")?;
         }
-        None => {
-            for (label, amount) in lines.iter().flat_map(|l| l.vats.iter()) {
-                let std_rate = standard_rate(label);
-                let row = rows.entry(label.clone()).or_insert(VatRow {
-                    label: label.clone(),
-                    rate_bp: round_i64(std_rate * 100.0),
-                    base: 0,
-                    vat: 0,
-                    total: 0,
-                });
-                row.total += amount;
-            }
-            for row in rows.values_mut() {
-                let pct = to_f64(row.rate_bp) / 100.0;
-                row.base = round_i64(to_f64(row.total) / (1.0 + pct / 100.0));
-                row.vat = row.total - row.base;
-            }
+    } else {
+        for (label, amount) in lines.iter().flat_map(|l| l.vats.iter()) {
+            let std_rate = standard_rate(label);
+            let row = rows.entry(label.clone()).or_insert(VatRow {
+                label: label.clone(),
+                rate_bp: round_i64(std_rate * 100.0),
+                base: 0,
+                vat: 0,
+                total: 0,
+            });
+            row.total += amount;
+        }
+        for row in rows.values_mut() {
+            let pct = to_f64(row.rate_bp) / 100.0;
+            row.base = round_i64(to_f64(row.total) / (1.0 + pct / 100.0));
+            row.vat = row.total - row.base;
         }
     }
     Ok(rows.into_values().collect())

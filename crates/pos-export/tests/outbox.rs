@@ -165,9 +165,12 @@ fn a_database_without_a_z_starts_the_cursor_at_zero() {
         db_path: &empty,
         ..rig.env()
     };
-    assert!(outbox::prepare_due(&env, now()).unwrap().is_empty());
+    assert_eq!(
+        outbox::prepare_due(&env, now()).unwrap(),
+        [] as [std::string::String; 0]
+    );
     assert_eq!(rig.cursor(), 0);
-    assert!(export_dirs(&rig.exports).is_empty());
+    assert_eq!(export_dirs(&rig.exports), [] as [std::string::String; 0]);
 }
 
 #[test]
@@ -175,7 +178,10 @@ fn a_second_prepare_does_nothing() {
     let rig = Rig::new(30);
     rig.prepare(now()).unwrap();
     let before = std::fs::read(rig.exports.join(ID_42).join(naming::manifest_name(ID_42))).unwrap();
-    assert!(rig.prepare(now() + Duration::hours(1)).unwrap().is_empty());
+    assert_eq!(
+        rig.prepare(now() + Duration::hours(1)).unwrap(),
+        [] as [std::string::String; 0]
+    );
     assert_eq!(export_dirs(&rig.exports), vec![ID_42.to_string()]);
     assert_eq!(rig.cursor(), 42);
     let after = std::fs::read(rig.exports.join(ID_42).join(naming::manifest_name(ID_42))).unwrap();
@@ -255,8 +261,11 @@ fn a_z_older_than_keep_days_is_skipped_and_the_cursor_moves_past_it() {
     // Everything is old: nothing is built, the cursor still moves.
     let rig = Rig::new(1);
     rig.set_cursor(40);
-    assert!(rig.prepare(now() + Duration::days(10)).unwrap().is_empty());
-    assert!(export_dirs(&rig.exports).is_empty());
+    assert_eq!(
+        rig.prepare(now() + Duration::days(10)).unwrap(),
+        [] as [std::string::String; 0]
+    );
+    assert_eq!(export_dirs(&rig.exports), [] as [std::string::String; 0]);
     assert_eq!(rig.cursor(), 42);
 }
 
@@ -292,7 +301,10 @@ fn no_plaintext_database_is_left_except_the_stats_files() {
         }
     }
     assert_eq!(stats_files, 2);
-    assert!(file_names(&rig.exports.join(".tmp")).is_empty());
+    assert_eq!(
+        file_names(&rig.exports.join(".tmp")),
+        [] as [std::string::String; 0]
+    );
 }
 
 #[test]
@@ -307,8 +319,11 @@ fn a_failure_leaves_no_partial_export_and_no_plaintext() {
     };
     let err = outbox::prepare_due(&env, now()).unwrap_err();
     assert!(err.starts_with("prepare failed: "), "{err}");
-    assert!(export_dirs(&rig.exports).is_empty());
-    assert!(file_names(&rig.exports.join(".tmp")).is_empty());
+    assert_eq!(export_dirs(&rig.exports), [] as [std::string::String; 0]);
+    assert_eq!(
+        file_names(&rig.exports.join(".tmp")),
+        [] as [std::string::String; 0]
+    );
     assert!(!rig.exports.join("cursor.json").exists());
     let status = json(&rig.exports.join("status.json"));
     assert_eq!(status["lastError"], err.as_str());
@@ -320,8 +335,11 @@ fn a_failure_leaves_no_partial_export_and_no_plaintext() {
     std::fs::create_dir_all(rig.exports.join("pseudonym.key")).unwrap();
     let err = rig.prepare(now() + Duration::minutes(5)).unwrap_err();
     assert!(err.starts_with("prepare failed: "), "{err}");
-    assert!(export_dirs(&rig.exports).is_empty());
-    assert!(file_names(&rig.exports.join(".tmp")).is_empty());
+    assert_eq!(export_dirs(&rig.exports), [] as [std::string::String; 0]);
+    assert_eq!(
+        file_names(&rig.exports.join(".tmp")),
+        [] as [std::string::String; 0]
+    );
     assert_eq!(rig.cursor(), 41, "the cursor stays before Z 42");
     let mut files = Vec::new();
     all_files(&rig.exports, &mut files);
@@ -385,8 +403,11 @@ fn a_stats_build_error_leaves_nothing_either() {
     rig.set_cursor(42);
     let err = rig.prepare(now() + Duration::days(1)).unwrap_err();
     assert!(err.starts_with("prepare failed: stats: "), "{err}");
-    assert!(export_dirs(&rig.exports).is_empty());
-    assert!(file_names(&rig.exports.join(".tmp")).is_empty());
+    assert_eq!(export_dirs(&rig.exports), [] as [std::string::String; 0]);
+    assert_eq!(
+        file_names(&rig.exports.join(".tmp")),
+        [] as [std::string::String; 0]
+    );
     assert_eq!(rig.cursor(), 42);
     let mut files = Vec::new();
     all_files(&rig.exports, &mut files);
@@ -510,7 +531,10 @@ fn clean_tmp_empties_the_work_area_and_nothing_else() {
     std::fs::create_dir_all(exports.join(ID_42)).unwrap();
     outbox::clean_tmp(&exports).unwrap();
     assert!(exports.join(".tmp").is_dir());
-    assert!(file_names(&exports.join(".tmp")).is_empty());
+    assert_eq!(
+        file_names(&exports.join(".tmp")),
+        [] as [std::string::String; 0]
+    );
     assert!(exports.join("cursor.json").exists());
     assert!(exports.join("pseudonym.key").exists());
     assert!(exports.join(ID_42).is_dir());

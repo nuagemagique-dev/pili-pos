@@ -1,5 +1,5 @@
 //! Sold-out products (migration 41, V11-D14): the current state per product, the append-only
-//! log of every set, clear and expiry, and the queue row of the HubRise inventory push.
+//! log of every set, clear and expiry, and the queue row of the `HubRise` inventory push.
 //!
 //! `until` is the end of the business day as RFC 3339 text with the Brussels offset, or `None`
 //! for "until re-enabled". Expiry is by time: a row whose `until` is past no longer counts as
@@ -173,7 +173,7 @@ pub fn sku_ref(conn: &Connection, menu_item_id: i64) -> Result<Option<String>, r
     .map(Option::flatten)
 }
 
-/// Queue the product for the HubRise inventory push: one row per product, marked dirty again
+/// Queue the product for the `HubRise` inventory push: one row per product, marked dirty again
 /// (a new version, retries cleared) at every change.
 pub fn queue_inventory_sync(
     conn: &Connection,
