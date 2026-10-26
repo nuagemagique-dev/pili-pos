@@ -66,7 +66,7 @@ Implémentation : `crates/pos-core/src/vat.rs::VatCode`.
   signatures - `crates/pos-fiscal/src/canonical.rs`.
 - **Clé de doublon FDM**
   `{posId, posDateTime, terminalId, eventLabel, posFiscalTicketNo}`
-  - `crates/pos-fiscal/src/inputs.rs::IdempotencyKey`.
+  - `crates/pos-db/src/queries/pending_signs.rs` (requête conservée et renvoyée à l'identique).
 - **Verrou de signature unique** : toute opération qui signe un
   événement FDM s'exécute sous un seul verrou, le numéro de ticket est
   lu à l'intérieur - `crates/pos-engine/src/commands/signing.rs`.

@@ -161,14 +161,10 @@ sous son premier numéro, avec ses effets (commande clôturée,
 paiements, livraison du ticket numérique, rapport enregistré et période
 fermée pour un Z, etc.).
 
-Nous fournissons une méthode sur chaque input spécifique d'événement
-(`SaleInput::idempotency_key()`, `OrderInput::idempotency_key()`,
-...) pour que les appelants n'aient pas à se souvenir du mapping label
-correspond à input. Six tests unitaires (`inputs.rs::idempotency_tests`)
-couvrent le contrat d'égalité et le mapping de label par type.
-
-La clé expose aussi `render()` pour des lignes de log grep-friendly :
-`posId=CPOS01,posDt=2026-10-03T10:00:00+02:00,terminalId=T1,label=N,ticketNo=42`.
+Le POS ne recalcule pas ce quintuplet : la requête conservée dans
+`pending_signs` est renvoyée telle quelle, donc le quintuplet est par
+construction celui de la première tentative (une seule requête ouverte
+par installation, index unique `idx_pending_signs_one_open`).
 
 ---
 
