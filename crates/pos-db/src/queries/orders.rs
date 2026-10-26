@@ -196,18 +196,34 @@ pub fn update_order_line_quantity(
 
 /// The order's journal, oldest first, as lines ready for an FDM
 /// message: additions are positive, corrections and refunds negative.
-/// `unsent_only` keeps the entries not yet transmitted in an event.
 /// Orders recorded before the journal existed fall back to their lines.
-#[expect(
-    clippy::fn_params_excessive_bools,
-    reason = "the unsent-only flag is passed by many callers in the engine and its tests"
-)]
 pub fn get_order_entries(
     conn: &Connection,
     order_id: i64,
-    unsent_only: bool,
 ) -> Result<Vec<OrderLine>, rusqlite::Error> {
-    let sql = if unsent_only {
+    order_entries(conn, order_id, Unsent::Any)
+}
+
+/// [`get_order_entries`] limited to the entries no fiscal event carries yet.
+pub fn get_unsent_order_entries(
+    conn: &Connection,
+    order_id: i64,
+) -> Result<Vec<OrderLine>, rusqlite::Error> {
+    order_entries(conn, order_id, Unsent::Only)
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Unsent {
+    Any,
+    Only,
+}
+
+fn order_entries(
+    conn: &Connection,
+    order_id: i64,
+    unsent: Unsent,
+) -> Result<Vec<OrderLine>, rusqlite::Error> {
+    let sql = if unsent == Unsent::Only {
         "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name,
                 NULL, created_at, department_id, department_name
          FROM order_entries WHERE order_id = ?1 AND sent_event_id IS NULL ORDER BY id"
@@ -220,7 +236,7 @@ pub fn get_order_entries(
     let entries: Vec<OrderLine> = stmt
         .query_map(params![order_id], map_order_line)?
         .collect::<Result<_, _>>()?;
-    if entries.is_empty() && !unsent_only {
+    if entries.is_empty() && unsent == Unsent::Any {
         let journalled: i64 = conn.query_row(
             "SELECT COUNT(*) FROM order_entries WHERE order_id = ?1",
             params![order_id],
@@ -1204,7 +1220,7 @@ mod tests {
         assert!(result.is_err(), "adding a line to a closed order must fail");
         // No half-written line or journal entry from the rejected attempt.
         assert!(get_order_lines(&conn, order.id).unwrap().is_empty());
-        assert_eq!(get_order_entries(&conn, order.id, false).unwrap().len(), 0);
+        assert_eq!(get_order_entries(&conn, order.id).unwrap().len(), 0);
         assert_eq!(get_order(&conn, order.id).unwrap().total_cents, 0);
     }
 
@@ -1280,7 +1296,7 @@ mod tests {
         update_order_line_quantity(&conn, line.id, 2).unwrap();
         remove_order_line(&conn, line.id).unwrap();
 
-        let entries = get_order_entries(&conn, order.id, false).unwrap();
+        let entries = get_order_entries(&conn, order.id).unwrap();
         assert_eq!(quantities(&entries), [1, 2, -1, -2]);
         assert!(entries.iter().all(|e| e.department_id == "12"));
         assert!(get_order_lines(&conn, order.id).unwrap().is_empty());
@@ -1292,17 +1308,17 @@ mod tests {
         let conn = setup();
         let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
         let line = cola(&conn, order.id, 2);
-        let first = get_order_entries(&conn, order.id, true).unwrap();
+        let first = get_unsent_order_entries(&conn, order.id).unwrap();
         conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
         mark_order_entries_sent(&conn, order.id, first.last().unwrap().id, 1).unwrap();
         update_order_line_quantity(&conn, line.id, 3).unwrap();
 
         assert_eq!(
-            quantities(&get_order_entries(&conn, order.id, true).unwrap()),
+            quantities(&get_unsent_order_entries(&conn, order.id).unwrap()),
             [1]
         );
         assert_eq!(
-            quantities(&get_order_entries(&conn, order.id, false).unwrap()),
+            quantities(&get_order_entries(&conn, order.id).unwrap()),
             [2, 1]
         );
     }
@@ -1319,7 +1335,7 @@ mod tests {
         .unwrap();
         assert!(update_order_line_quantity(&conn, line.id, 2).is_err());
         assert!(remove_order_line(&conn, line.id).is_err());
-        assert_eq!(get_order_entries(&conn, order.id, false).unwrap().len(), 1);
+        assert_eq!(get_order_entries(&conn, order.id).unwrap().len(), 1);
     }
 
     #[test]

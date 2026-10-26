@@ -60,29 +60,46 @@ pub fn list_users(conn: &Connection) -> Result<Vec<User>, rusqlite::Error> {
     rows.collect()
 }
 
+/// Whether an employee works at the till or only clocks in and out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UserKind {
+    /// Uses the till: has a PIN (except a waiter without one yet).
+    Till,
+    /// Never uses the till (kitchen): a manager clocks them in and out.
+    PresenceOnly,
+}
+
+impl From<bool> for UserKind {
+    /// From the user's `presence_only` flag.
+    fn from(presence_only: bool) -> Self {
+        if presence_only {
+            Self::PresenceOnly
+        } else {
+            Self::Till
+        }
+    }
+}
+
 pub fn create_user(
     conn: &Connection,
     insz: &str,
     name: &str,
     role: UserRole,
 ) -> Result<User, rusqlite::Error> {
-    create_user_flagged(conn, insz, name, role, false)
+    create_user_flagged(conn, insz, name, role, UserKind::Till)
 }
 
 /// [`create_user`] with the presence-only flag: an employee who never
 /// uses the till (kitchen), clocked in and out by a manager. The
 /// caller keeps the role at `waiter` and stores no PIN for them.
-#[expect(
-    clippy::fn_params_excessive_bools,
-    reason = "the presence-only flag names the function; its single caller is the engine's user creation"
-)]
 pub fn create_user_flagged(
     conn: &Connection,
     insz: &str,
     name: &str,
     role: UserRole,
-    presence_only: bool,
+    kind: UserKind,
 ) -> Result<User, rusqlite::Error> {
+    let presence_only = kind == UserKind::PresenceOnly;
     // A deactivated user (never deleted: their INSZ is on archived
     // events) comes back with the new name, role and flag, and no PIN.
     // An active one is a duplicate: the UNIQUE constraint refuses it.
@@ -219,8 +236,14 @@ mod tests {
     #[test]
     fn the_presence_only_flag_is_stored_listed_and_reset_on_rehire() {
         let conn = db();
-        let user =
-            create_user_flagged(&conn, "12345678958", "Kim", UserRole::Waiter, true).unwrap();
+        let user = create_user_flagged(
+            &conn,
+            "12345678958",
+            "Kim",
+            UserRole::Waiter,
+            UserKind::PresenceOnly,
+        )
+        .unwrap();
         assert!(user.presence_only);
         assert!(
             get_user(&conn, "12345678958")
@@ -245,7 +268,14 @@ mod tests {
         );
         // And the other way round.
         deactivate_user(&conn, "12345678958").unwrap();
-        create_user_flagged(&conn, "12345678958", "Kim", UserRole::Waiter, true).unwrap();
+        create_user_flagged(
+            &conn,
+            "12345678958",
+            "Kim",
+            UserRole::Waiter,
+            UserKind::PresenceOnly,
+        )
+        .unwrap();
         assert!(
             get_user(&conn, "12345678958")
                 .unwrap()

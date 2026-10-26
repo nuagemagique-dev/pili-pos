@@ -178,20 +178,34 @@ pub struct CatalogueLine {
     pub department_name: String,
 }
 
-/// Resolve an active product for an order line. `takeaway` selects the
+/// How an order is served: eat-in or takeaway, which selects the VAT label.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Service {
+    DineIn,
+    Takeaway,
+}
+
+impl From<bool> for Service {
+    /// From the order's `takeaway` flag.
+    fn from(takeaway: bool) -> Self {
+        if takeaway {
+            Self::Takeaway
+        } else {
+            Self::DineIn
+        }
+    }
+}
+
+/// Resolve an active product for an order line. `service` selects the
 /// "À emporter" VAT label when the product has one. Names fall back to
 /// French, then English, when the fiscal language has no translation.
 ///
 /// Returns `QueryReturnedNoRows` if the product or its category is
 /// inactive or unknown: such products cannot be sold.
-#[expect(
-    clippy::fn_params_excessive_bools,
-    reason = "the takeaway flag is passed by about twenty callers in the engine, catalog and HubRise crates"
-)]
 pub fn resolve_catalogue_line(
     conn: &Connection,
     menu_item_id: i64,
-    takeaway: bool,
+    service: Service,
     lang: &str,
 ) -> Result<CatalogueLine, rusqlite::Error> {
     conn.query_row(
@@ -218,8 +232,8 @@ pub fn resolve_catalogue_line(
         params![menu_item_id, lang],
         |row| {
             let dine_in: String = row.get(1)?;
-            let vat_str = match (takeaway, row.get::<_, Option<String>>(2)?) {
-                (true, Some(takeaway_code)) => takeaway_code,
+            let vat_str = match (service, row.get::<_, Option<String>>(2)?) {
+                (Service::Takeaway, Some(takeaway_code)) => takeaway_code,
                 _ => dine_in,
             };
             let vat_code = vat_str.parse().map_err(|e: String| {
@@ -334,7 +348,7 @@ mod tests {
     fn catalogue_line_uses_the_dine_in_or_takeaway_vat_label() {
         let conn = setup();
         seed_burger(&conn);
-        let dine_in = resolve_catalogue_line(&conn, 22001, false, "fr").unwrap();
+        let dine_in = resolve_catalogue_line(&conn, 22001, Service::DineIn, "fr").unwrap();
         assert_eq!(
             dine_in,
             CatalogueLine {
@@ -346,7 +360,7 @@ mod tests {
                 department_name: "Plats".into(),
             }
         );
-        let takeaway = resolve_catalogue_line(&conn, 22001, true, "fr").unwrap();
+        let takeaway = resolve_catalogue_line(&conn, 22001, Service::Takeaway, "fr").unwrap();
         assert_eq!(takeaway.vat_code, VatCode::C);
     }
 
@@ -354,7 +368,7 @@ mod tests {
     fn catalogue_line_falls_back_to_french_names() {
         let conn = setup();
         seed_burger(&conn);
-        let nl = resolve_catalogue_line(&conn, 22001, false, "nl").unwrap();
+        let nl = resolve_catalogue_line(&conn, 22001, Service::DineIn, "nl").unwrap();
         assert_eq!(nl.name, "Burger du chef");
         assert_eq!(nl.department_name, "Plats");
     }
@@ -365,7 +379,7 @@ mod tests {
         seed_burger(&conn);
         conn.execute("UPDATE menu_items SET vat_code_takeaway = NULL", [])
             .unwrap();
-        let takeaway = resolve_catalogue_line(&conn, 22001, true, "fr").unwrap();
+        let takeaway = resolve_catalogue_line(&conn, 22001, Service::Takeaway, "fr").unwrap();
         assert_eq!(takeaway.vat_code, VatCode::B);
     }
 
@@ -376,7 +390,7 @@ mod tests {
         conn.execute("UPDATE categories SET active = 0 WHERE id = 22", [])
             .unwrap();
         assert!(matches!(
-            resolve_catalogue_line(&conn, 22001, false, "fr"),
+            resolve_catalogue_line(&conn, 22001, Service::DineIn, "fr"),
             Err(rusqlite::Error::QueryReturnedNoRows)
         ));
     }
@@ -388,7 +402,7 @@ mod tests {
         conn.execute("UPDATE menu_items SET active = 0 WHERE id = 22001", [])
             .unwrap();
         assert!(matches!(
-            resolve_catalogue_line(&conn, 22001, false, "fr"),
+            resolve_catalogue_line(&conn, 22001, Service::DineIn, "fr"),
             Err(rusqlite::Error::QueryReturnedNoRows)
         ));
     }
@@ -398,7 +412,7 @@ mod tests {
         let conn = setup();
         seed_burger(&conn);
         assert!(matches!(
-            resolve_catalogue_line(&conn, 999_999, false, "fr"),
+            resolve_catalogue_line(&conn, 999_999, Service::DineIn, "fr"),
             Err(rusqlite::Error::QueryReturnedNoRows)
         ));
     }
@@ -414,7 +428,7 @@ mod tests {
         .unwrap();
         // No translations at all (fr/en/requested) - falls back to the
         // numeric id as text, never panics or errors.
-        let line = resolve_catalogue_line(&conn, 30001, false, "zh").unwrap();
+        let line = resolve_catalogue_line(&conn, 30001, Service::DineIn, "zh").unwrap();
         assert_eq!(line.name, "30001");
         assert_eq!(line.department_name, "30");
     }
@@ -428,7 +442,7 @@ mod tests {
                  VALUES (40001, 40, 0, 'C', 1, 0);",
         )
         .unwrap();
-        let line = resolve_catalogue_line(&conn, 40001, true, "fr").unwrap();
+        let line = resolve_catalogue_line(&conn, 40001, Service::Takeaway, "fr").unwrap();
         assert!(line.open_price);
         assert_eq!(line.price_cents, 0);
 

@@ -11,7 +11,7 @@ use pos_catalog::{
 };
 use pos_core::order::OrderType;
 use pos_core::vat::VatCode;
-use pos_db::queries::menu::{get_categories, get_menu_items, resolve_catalogue_line};
+use pos_db::queries::menu::{Service, get_categories, get_menu_items, resolve_catalogue_line};
 use pos_db::queries::orders::{NewOrderLine, add_order_line, create_order, get_cart_lines};
 use rusqlite::{Connection, params};
 
@@ -62,8 +62,8 @@ fn a_catalog_becomes_the_menu() {
     assert_eq!(managed_by(&conn).unwrap().as_deref(), Some(SOURCE));
 
     let maki = id_of(&conn, "MAKI-6");
-    let eat_in = resolve_catalogue_line(&conn, maki, false, "fr").unwrap();
-    let takeaway = resolve_catalogue_line(&conn, maki, true, "fr").unwrap();
+    let eat_in = resolve_catalogue_line(&conn, maki, Service::DineIn, "fr").unwrap();
+    let takeaway = resolve_catalogue_line(&conn, maki, Service::Takeaway, "fr").unwrap();
     assert_eq!(
         (eat_in.vat_code, takeaway.vat_code),
         (VatCode::B, VatCode::C)
@@ -73,7 +73,7 @@ fn a_catalog_becomes_the_menu() {
 
     let coca = id_of(&conn, "COCA");
     assert_eq!(
-        resolve_catalogue_line(&conn, coca, true, "fr")
+        resolve_catalogue_line(&conn, coca, Service::Takeaway, "fr")
             .unwrap()
             .vat_code,
         VatCode::A
@@ -99,7 +99,7 @@ fn charges_stay_off_the_grid_but_resolve_on_an_order_line() {
 
     let fee = id_of(&conn, "charge:DELIVERY");
     assert_eq!(
-        resolve_catalogue_line(&conn, fee, true, "fr")
+        resolve_catalogue_line(&conn, fee, Service::Takeaway, "fr")
             .unwrap()
             .price_cents,
         250
@@ -114,7 +114,15 @@ fn an_item_sold_online_only_stays_off_the_grid() {
     apply(&mut conn, SOURCE, &c).unwrap();
     let grid = get_menu_items(&conn, None, "fr").unwrap();
     assert_eq!(grid.len(), 1);
-    assert!(resolve_catalogue_line(&conn, id_of(&conn, "COCA"), false, "fr").is_ok());
+    assert!(
+        resolve_catalogue_line(
+            &conn,
+            id_of(&conn, "COCA"),
+            pos_db::queries::menu::Service::DineIn,
+            "fr"
+        )
+        .is_ok()
+    );
 }
 
 #[test]
@@ -189,7 +197,7 @@ fn a_rename_or_price_change_keeps_the_id() {
     c.items[0].price_cents = 700;
     applied(apply(&mut conn, SOURCE, &c).unwrap());
     assert_eq!(id_of(&conn, "MAKI-6"), before);
-    let line = resolve_catalogue_line(&conn, before, false, "fr").unwrap();
+    let line = resolve_catalogue_line(&conn, before, Service::DineIn, "fr").unwrap();
     assert_eq!((line.name.as_str(), line.price_cents), ("Maki saumon", 700));
 }
 
@@ -203,7 +211,7 @@ fn a_removed_item_is_deactivated_and_comes_back_with_its_id() {
     without.items.retain(|i| i.key != "COCA");
     assert_eq!(applied(apply(&mut conn, SOURCE, &without).unwrap()), (2, 1));
     assert!(!active(&conn, "COCA"));
-    assert!(resolve_catalogue_line(&conn, coca, false, "fr").is_err());
+    assert!(resolve_catalogue_line(&conn, coca, Service::DineIn, "fr").is_err());
 
     applied(apply(&mut conn, SOURCE, &catalog()).unwrap());
     assert_eq!(id_of(&conn, "COCA"), coca);
@@ -292,7 +300,7 @@ fn an_invalid_catalog_leaves_the_menu_untouched() {
     assert_eq!(issues[0].code, IssueCode::UnknownCategory);
     let maki = id_of(&conn, "MAKI-6");
     assert_eq!(
-        resolve_catalogue_line(&conn, maki, false, "fr")
+        resolve_catalogue_line(&conn, maki, Service::DineIn, "fr")
             .unwrap()
             .price_cents,
         650

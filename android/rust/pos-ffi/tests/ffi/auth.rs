@@ -246,7 +246,7 @@ async fn integrations_of_the_engine_convert() {
     // setting is logged by the configuration, without an author.
     {
         let conn = app.state.db.lock().unwrap();
-        assert!(!pos_db::queries::integrations::hubrise_at_start(&conn, false).unwrap());
+        assert!(!pos_db::queries::integrations::hubrise_at_start(&conn, pos_db::queries::integrations::State::Off).unwrap());
     }
     let start = do_get_integrations(&app.state).unwrap();
     assert_eq!(start.hubrise_log.len(), 1);

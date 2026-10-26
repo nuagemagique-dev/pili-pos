@@ -433,7 +433,12 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
             });
         }
 
-        let menu = pos_db::queries::menu::resolve_catalogue_line(conn, id, takeaway, FISCAL_LANG)?;
+        let menu = pos_db::queries::menu::resolve_catalogue_line(
+            conn,
+            id,
+            pos_db::queries::menu::Service::from(takeaway),
+            FISCAL_LANG,
+        )?;
         check_vat(
             item.tax_rate.as_deref(),
             menu.vat_code,
@@ -483,7 +488,12 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
             attention.push(Attention::UnknownCharge { charge_ref: at });
             continue;
         };
-        let menu = pos_db::queries::menu::resolve_catalogue_line(conn, id, takeaway, FISCAL_LANG)?;
+        let menu = pos_db::queries::menu::resolve_catalogue_line(
+            conn,
+            id,
+            pos_db::queries::menu::Service::from(takeaway),
+            FISCAL_LANG,
+        )?;
         for (vat_code, share) in charge_shares(&lines, price, menu.vat_code) {
             lines.push(ResolvedLine {
                 kind: LineKind::Charge,
