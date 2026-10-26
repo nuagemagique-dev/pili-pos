@@ -402,6 +402,41 @@ async fn a_restart_does_not_raise_an_open_alert_a_second_time() {
     assert_eq!(resolved[0].transition, Transition::Resolved);
 }
 
+/// A restart whose log cannot be read for one pass: that pass sends
+/// nothing (a blank book would raise the open alert a second time), and
+/// the next one restores the book and carries on as if nothing happened.
+#[tokio::test]
+async fn an_unreadable_log_after_a_restart_skips_the_pass() {
+    let tg = Telegram::start().await;
+    let (mut app, _dir) = app(&tg).await;
+    switch_on(&app, |i| i.kinds = kinds_only(|k| k.z_missing = true));
+    open_period(&app, "2026-10-10");
+    assert_eq!(run_pass(&app.state, t0()).await.len(), 1);
+
+    app.state.owner_alerts = pos_engine::alerts::AlertRuntime::default();
+    app.state.owner_alerts.set_backoff(Duration::from_millis(5));
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch("ALTER TABLE owner_alert_log RENAME TO owner_alert_log_away")
+        .unwrap();
+    assert_eq!(run_pass(&app.state, minutes(10)).await.len(), 0);
+    assert_eq!(tg.hits().len(), 1, "nothing sent with a blank book");
+
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch("ALTER TABLE owner_alert_log_away RENAME TO owner_alert_log")
+        .unwrap();
+    assert_eq!(run_pass(&app.state, minutes(11)).await.len(), 0);
+    assert_eq!(tg.hits().len(), 1, "no second raise once restored");
+    let reminder = run_pass(&app.state, minutes(61)).await;
+    assert_eq!(reminder.len(), 1);
+    assert_eq!(reminder[0].transition, Transition::Reminder);
+}
+
 #[tokio::test]
 async fn an_old_open_alert_is_raised_again_after_a_restart() {
     let tg = Telegram::start().await;

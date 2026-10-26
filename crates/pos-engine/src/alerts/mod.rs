@@ -193,7 +193,11 @@ pub async fn run_pass(state: &AppState, now: DateTime<Utc>) -> Vec<Sent> {
         return Vec::new();
     };
 
-    restore_once(state, &settings, now);
+    // A failed restore means a blank book: observing now would raise
+    // every open alert a second time and leave the rate window unseeded.
+    if !restore_once(state, &settings, now) {
+        return Vec::new();
+    }
 
     let seen = observe_all(state, &settings, now).await;
 
@@ -278,15 +282,19 @@ pub async fn run_pass(state: &AppState, now: DateTime<Utc>) -> Vec<Sent> {
 }
 
 /// Fill the book from the log once since the alerts were switched on:
-/// the alerts that were open, the messages of the last hour.
-fn restore_once(state: &AppState, settings: &AlertsSettings, now: DateTime<Utc>) {
+/// the alerts that were open, the messages of the last hour. Returns
+/// whether the book is restored (now or before); `false` means the pass
+/// must not observe or send.
+fn restore_once(state: &AppState, settings: &AlertsSettings, now: DateTime<Utc>) -> bool {
     let Ok(mut inner) = state.owner_alerts.inner.lock() else {
-        return;
+        return false;
     };
     if inner.restored {
-        return;
+        return true;
     }
-    let Ok(db) = state.db.lock() else { return };
+    let Ok(db) = state.db.lock() else {
+        return false;
+    };
     // Read everything first: a failed read leaves the book untouched and
     // the next pass tries again, instead of starting from a blank book
     // (which would raise every open alert a second time).
@@ -296,7 +304,7 @@ fn restore_once(state: &AppState, settings: &AlertsSettings, now: DateTime<Utc>)
             Ok(row) => row,
             Err(e) => {
                 tracing::error!(%e, "owner alerts: cannot restore the book, will retry");
-                return;
+                return false;
             }
         };
         let last = row.and_then(|row| {
@@ -313,7 +321,7 @@ fn restore_once(state: &AppState, settings: &AlertsSettings, now: DateTime<Utc>)
         Ok(times) => times,
         Err(e) => {
             tracing::error!(%e, "owner alerts: cannot read the recent messages, will retry");
-            return;
+            return false;
         }
     };
     drop(db);
@@ -326,6 +334,7 @@ fn restore_once(state: &AppState, settings: &AlertsSettings, now: DateTime<Utc>)
         .book
         .seed_sent(times.iter().filter_map(|t| parse_sqlite_time(t)));
     inner.restored = true;
+    true
 }
 
 async fn observe_all(
