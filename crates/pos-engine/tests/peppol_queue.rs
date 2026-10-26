@@ -4,6 +4,11 @@
 //! queued without a `peppol` section or for a foreign customer, and an immutable attempt log.
 //! No real vendor is called.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::time::Duration;
 
 use chrono::Utc;
@@ -128,7 +133,9 @@ async fn a_transient_failure_is_retried_after_the_backoff() {
     // The stored time is cut to the second.
     let wait = (next.with_timezone(&Utc) - t0).num_seconds();
     assert!(
-        (backoff(1).as_secs() as i64 - 1..=backoff(1).as_secs() as i64).contains(&wait),
+        (i64::try_from(backoff(1).as_secs()).unwrap() - 1
+            ..=i64::try_from(backoff(1).as_secs()).unwrap())
+            .contains(&wait),
         "{wait}"
     );
 
@@ -302,7 +309,7 @@ async fn nothing_is_queued_without_a_peppol_section() {
     assert_eq!(result.delivery_status, None);
     let panel = do_list_peppol_deliveries(&app.state, None).unwrap();
     assert!(!panel.configured);
-    assert!(panel.deliveries.is_empty());
+    assert_eq!(panel.deliveries.len(), 0);
     assert_eq!(run_pass_at(&app.state, soon()).await, 0);
     assert_eq!(
         do_retry_peppol_delivery(&app.state, 1).unwrap_err(),
@@ -320,11 +327,12 @@ async fn a_foreign_customer_is_not_queued() {
         .unwrap();
     assert!(result.success, "{:?}", result.error);
     assert_eq!(result.delivery_status, None);
-    assert!(
+    assert_eq!(
         do_list_peppol_deliveries(&r.app.state, None)
             .unwrap()
             .deliveries
-            .is_empty()
+            .len(),
+        0
     );
     let lookup = do_lookup_b2b_customer(&r.app.state, "FR12345678901")
         .await
@@ -463,11 +471,12 @@ async fn an_invoice_signed_without_a_delivery_is_queued_later() {
             |row| row.get(0),
         )
         .unwrap();
-    assert!(
+    assert_eq!(
         do_list_peppol_deliveries(&r.app.state, None)
             .unwrap()
             .deliveries
-            .is_empty()
+            .len(),
+        0
     );
 
     let id = do_issue_b2b_invoice(&r.app.state, event)
@@ -518,11 +527,12 @@ async fn issuing_an_invoice_to_the_network_has_its_guards() {
         do_issue_b2b_invoice(&r.app.state, foreign_event).unwrap(),
         None
     );
-    assert!(
+    assert_eq!(
         do_list_peppol_deliveries(&r.app.state, None)
             .unwrap()
             .deliveries
-            .is_empty()
+            .len(),
+        0
     );
 
     // An event that is not an invoice.

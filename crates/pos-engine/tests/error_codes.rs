@@ -5,7 +5,7 @@
 use pos_engine::commands::errors;
 
 const I18N: &str = include_str!("../../../ui/src/i18n.ts");
-/// The webshop texts, merged into the dictionary only with HubRise.
+/// The webshop texts, merged into the dictionary only with `HubRise`.
 #[cfg(feature = "hubrise")]
 const I18N_WEBSHOP: &str = include_str!("../../../ui/src/i18n-webshop.ts");
 

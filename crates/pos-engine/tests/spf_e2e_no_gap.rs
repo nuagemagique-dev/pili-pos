@@ -12,6 +12,11 @@
 //! lets the FDM's idempotency cover transient network failures
 //! without breaking the sequential-numbering rule.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;

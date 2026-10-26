@@ -12,6 +12,11 @@
 //!
 //! Events are signed by the admission image's mock FDM.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -288,7 +293,7 @@ async fn a_payment_that_does_not_settle_the_sale_is_refused_before_the_fdm() {
     assert!(app.fiscal_events().is_empty());
     assert_eq!(app.counter_for(EventLabel::N), 0);
     assert_eq!(app.order_status(order).as_deref(), Some("open"));
-    assert!(printer.settle(0).await.is_empty());
+    assert_eq!(printer.settle(0).await.len(), 0);
 }
 
 /// The X report totals each method apart, the rounding apart from the

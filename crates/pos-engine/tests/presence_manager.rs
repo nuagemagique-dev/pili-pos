@@ -12,6 +12,11 @@
 //!   or have a PIN set; an employee on shift cannot be deactivated;
 //! - the user X report lists the presence-only employee's presence.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -123,6 +128,10 @@ fn s_events(app: &TestApp) -> Vec<FiscalEventRow> {
 }
 
 /// The manager command in the given direction.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 async fn clock(app: &TestApp, is_in: bool, insz: &str) -> Result<SocialResult, String> {
     if is_in {
         do_clock_in_employee(&app.state, insz.into()).await
@@ -171,7 +180,7 @@ async fn a_manager_clocks_a_presence_only_employee_in_and_out() {
     assert!(sent[1]["query"].as_str().unwrap().contains("signWorkOut"));
     assert_eq!(sent[1]["variables"]["data"]["employeeId"], KITCHEN);
     assert_eq!(s_events(&app).len(), 2);
-    assert!(do_list_open_shifts(&app.state).unwrap().is_empty());
+    assert_eq!(do_list_open_shifts(&app.state).unwrap().len(), 0);
     assert_eq!(
         shifts(&app),
         vec![(
@@ -324,7 +333,7 @@ async fn the_refusals_come_in_the_documented_order() {
         errors::PRESENCE_SELF,
         "self is reported before already-in"
     );
-    assert!(work_requests(&app).await.is_empty());
+    assert_eq!(work_requests(&app).await.len(), 0);
 }
 
 // ── FDM failure ────────────────────────────────────────────────
@@ -342,8 +351,8 @@ async fn an_fdm_failure_archives_nothing_and_leaves_the_index() {
     let error = r.error.expect("the FDM error");
     assert!(error.starts_with("FDM"), "{error}");
     assert!(s_events(&app).is_empty(), "nothing archived");
-    assert!(do_list_open_shifts(&app.state).unwrap().is_empty());
-    assert!(shifts(&app).is_empty());
+    assert_eq!(do_list_open_shifts(&app.state).unwrap().len(), 0);
+    assert_eq!(shifts(&app).len(), 0);
     assert_eq!(app.counter_for(EventLabel::S), counter);
 
     // The same for a clock-out of someone really on shift.
@@ -384,7 +393,7 @@ async fn a_training_work_in_does_not_open_a_shift_and_the_next_real_one_does() {
         do_list_open_shifts(&app.state).unwrap().is_empty(),
         "a training event registers no presence"
     );
-    assert!(shifts(&app).is_empty());
+    assert_eq!(shifts(&app).len(), 0);
 
     // A training clock-out leaves a real shift open.
     pos_db::queries::shifts::open_shift(&app.state.db.lock().unwrap(), MANAGER, None).unwrap();
@@ -486,7 +495,7 @@ async fn a_presence_only_employee_cannot_log_in_choose_a_pin_or_end_a_shift() {
             "no PIN was stored"
         );
     }
-    assert!(work_requests(&app).await.is_empty());
+    assert_eq!(work_requests(&app).await.len(), 0);
 
     // A manager cannot give them a PIN either.
     app.login_as(MANAGER, UserRole::Admin);
@@ -732,7 +741,7 @@ async fn a_training_work_in_answered_late_opens_no_shift() {
     assert_eq!(events.iter().filter(|e| e.event_type == "T").count(), 1);
     assert!(events.iter().all(|e| e.event_type != "S"));
     assert!(shifts(&app).is_empty(), "a T event registers no presence");
-    assert!(do_list_open_shifts(&app.state).unwrap().is_empty());
+    assert_eq!(do_list_open_shifts(&app.state).unwrap().len(), 0);
 }
 
 #[tokio::test]

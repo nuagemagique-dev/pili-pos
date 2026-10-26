@@ -1,6 +1,11 @@
 //! The engine's background loops: they run on the runtime the shell
 //! hands over, tick at the configured intervals, and stop on shutdown.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 

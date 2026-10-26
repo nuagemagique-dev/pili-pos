@@ -1,6 +1,6 @@
 //! SPF Reports v1.3, replayed end to end through the real commands.
 //!
-//! The scenario's service day (InputReport T1–T8) is played on the
+//! The scenario's service day (`InputReport` T1–T8) is played on the
 //! manual's catalogue exactly as an operator would: a table order, its
 //! sale and refund, a takeaway paid by card, a second table ordered in
 //! two rounds (one with the free-price dish of the day), its pre-bill
@@ -17,14 +17,19 @@
 //!   report counts 3 (198 €); the spec counts every event of the label
 //!   (§2.2.2 `ticketCount`). See `pos-fiscal/tests/report_totals_fixtures.rs`.
 //! - Payment id and name are pili-pos's own; card payments are
-//!   CARD_DEBIT (the operator does not tell debit from credit cards),
-//!   CARD_CREDIT in the scenario.
+//!   `CARD_DEBIT` (the operator does not tell debit from credit cards),
+//!   `CARD_CREDIT` in the scenario.
 //! - Department names are the catalogue's French names.
 //! - T4: the takeaway Coca Cola carries VAT label C, as the
 //!   certification manual's product table says; the scenario (2024)
 //!   uses A. The mock FDM replays the scenario's VAT, so the reports
 //!   still compare with the published ones.
 //! - posDevices / fdmDevices are this single terminal and the mock FDM.
+
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -274,7 +279,7 @@ fn assert_turnover(ours: &Value, fixture: &Value) {
     assert_eq!(o.len(), f.len(), "departments");
     for (x, y) in o.iter().zip(f) {
         assert_eq!(x["departmentId"], y["departmentId"]);
-        assert!(!x["departmentName"].as_str().unwrap().is_empty());
+        assert_ne!(x["departmentName"].as_str().unwrap().len(), 0);
         assert_amount(
             &format!("departments.{}", y["departmentId"]),
             &x["amount"],

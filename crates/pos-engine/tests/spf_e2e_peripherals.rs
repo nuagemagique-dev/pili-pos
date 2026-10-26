@@ -11,6 +11,11 @@
 //! - tables, Z history, the Z reminder, the event list and the
 //!   database backup behave as the screens expect.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -132,7 +137,7 @@ async fn a_refused_sale_neither_prints_nor_opens_the_drawer() {
         .await
         .unwrap();
     assert!(!result.success);
-    assert!(printer.settle(0).await.is_empty());
+    assert_eq!(printer.settle(0).await.len(), 0);
     assert_eq!(printer.drawer_kicks(), 0);
 }
 

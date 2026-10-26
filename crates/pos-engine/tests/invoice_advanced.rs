@@ -7,6 +7,11 @@
 //! (`costCenter.type`, `customerVatNo`, the labels of `fdmRefs`) and the identification fields
 //! by format; the invoice number is checked for its year and sequence format, not its value.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;

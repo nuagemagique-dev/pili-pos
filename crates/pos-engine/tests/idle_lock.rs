@@ -7,6 +7,11 @@
 //! at least three times the timeout; a positive one polls with a
 //! generous deadline, so a slow machine cannot make a test flaky.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -185,13 +190,14 @@ fn start(app: TestApp, recorder: Arc<Recorder>) -> Idle {
         fdm,
         ..
     } = app;
-    state.events = recorder.clone();
+    let events: Arc<dyn pos_engine::EventSink> = Arc::<Recorder>::clone(&recorder);
+    state.events = events;
     state.timers.idle_lock = TIMEOUT;
     let state = Arc::new(state);
     // The session of the TestApp was opened by the harness, which does
     // not touch the clock: a login would.
     state.session_rules.touch();
-    let task = tokio::spawn(run_idle_lock(state.clone()));
+    let task = tokio::spawn(run_idle_lock(Arc::clone(&state)));
     Idle {
         state,
         fdm,
@@ -302,7 +308,7 @@ async fn idle_lock_still_locks_when_the_fdm_fails_and_reports_the_order_error() 
     // The entry stays pending for the next registration.
     let unsent = {
         let conn = idle.state.db.lock().unwrap();
-        pos_db::queries::orders::get_order_entries(&conn, order_id, true).unwrap()
+        pos_db::queries::orders::get_unsent_order_entries(&conn, order_id).unwrap()
     };
     assert_eq!(unsent.len(), 1);
 }

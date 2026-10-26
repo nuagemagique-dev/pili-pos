@@ -10,6 +10,11 @@
 //! over all events, only N events carry a short signature and a QR
 //! URL, and the archive holds each request with its response.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use std::collections::HashMap;
@@ -94,11 +99,19 @@ async fn sale(app: &TestApp, table: Option<i32>, method: CheckoutPaymentMethod) 
     result.fiscal_event_id.unwrap()
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 fn set_training(app: &TestApp, on: bool) {
     app.state.config.lock().unwrap().training_mode = on;
 }
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario read top to bottom, clearer unsplit"
+)]
 async fn a_whole_service_day_against_the_admission_mock() {
     let app = app_on_mock().await;
 

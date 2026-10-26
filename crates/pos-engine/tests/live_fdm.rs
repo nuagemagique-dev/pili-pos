@@ -24,7 +24,17 @@
 //! verification URL, and a refund or a copy cites the event it refers
 //! to. No counter or amount from the official fixtures.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+#![expect(
+    clippy::print_stderr,
+    reason = "a live run reports a skipped run on stderr"
+)]
+
 use pos_engine_testkit as common;
+use pos_fiscal::types::Mode;
 
 use std::collections::HashMap;
 
@@ -45,7 +55,7 @@ use pos_engine::commands::report::{
 use pos_engine::commands::social::{do_work_in, do_work_out};
 use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 
-/// The test setup's operator (UC_TestSetup_20240806).
+/// The test setup's operator (`UC_TestSetup_20240806`).
 const INSZ: &str = "75061189702";
 
 async fn live_app() -> Option<TestApp> {
@@ -75,6 +85,11 @@ async fn live_app() -> Option<TestApp> {
 
 /// A step that signed (or failed to sign) an event: keep the ticket
 /// numbers at once, so a failure later in the run never reuses them.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    clippy::needless_pass_by_value,
+    reason = "test helper: the flag names what the call switches and the error comes straight from the result"
+)]
 fn signed(app: &TestApp, what: &str, success: bool, error: Option<String>) {
     app.save_ticket_numbers();
     assert!(
@@ -128,7 +143,7 @@ fn request(event: &FiscalEventRow) -> Value {
 
 /// The two requests the gate's first check costs: a status and a sale.
 #[tokio::test]
-#[ignore]
+#[ignore = "live run against the real FDM: needs PILI_LIVE_FDM_URL and an explicit go-ahead"]
 async fn live_fdm_status_and_one_sale() {
     let Some(app) = live_app().await else { return };
     status_is_operational(&app).await;
@@ -148,7 +163,11 @@ async fn live_fdm_status_and_one_sale() {
 
 /// One operator day, every event signed by the live FDM.
 #[tokio::test]
-#[ignore]
+#[ignore = "live run against the real FDM: needs PILI_LIVE_FDM_URL and an explicit go-ahead"]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario read top to bottom, clearer unsplit"
+)]
 async fn live_fdm_operator_day() {
     let Some(app) = live_app().await else { return };
     record_as("status");
@@ -329,7 +348,7 @@ async fn live_fdm_operator_day() {
 /// code that must reach the POS (in the status, or in the refusal of
 /// the sale). 2 calls.
 #[tokio::test]
-#[ignore]
+#[ignore = "live run against the real FDM: needs PILI_LIVE_FDM_URL and an explicit go-ahead"]
 async fn live_fdm_simulated_condition() {
     let Some(app) = live_app().await else { return };
     let condition = std::env::var("PILI_LIVE_CONDITION").unwrap_or_else(|_| "condition".into());
@@ -377,7 +396,7 @@ async fn live_fdm_simulated_condition() {
 /// multi-language status, an unknown posId and a posDateTime with
 /// microseconds. 7 calls.
 #[tokio::test]
-#[ignore]
+#[ignore = "live run against the real FDM: needs PILI_LIVE_FDM_URL and an explicit go-ahead"]
 async fn live_fdm_protocol_edges() {
     let Some(app) = live_app().await else { return };
     let config = app.state.config.lock().unwrap().clone();
@@ -433,7 +452,7 @@ async fn live_fdm_protocol_edges() {
     let refused = pos_fiscal::fdm_client::FdmClient::from_config(&unknown)
         .sign_work_in(
             pos_fiscal::event::build_work_in_out(&unknown, &ident(), 1, INSZ, &booking),
-            false,
+            Mode::Normal,
         )
         .await;
     assert!(refused.is_err(), "an unknown posId is refused");
@@ -442,7 +461,7 @@ async fn live_fdm_protocol_edges() {
     input.common.pos_date_time = format!("{}.123456+02:00", &input.common.pos_date_time[..19]);
     record_as("signWorkIn_microseconds");
     let refused = pos_fiscal::fdm_client::FdmClient::from_config(&config)
-        .sign_work_in(input, false)
+        .sign_work_in(input, Mode::Normal)
         .await;
     assert!(refused.is_err(), "microseconds are refused");
     eprintln!("{} live calls", live_requests());
@@ -453,7 +472,11 @@ async fn live_fdm_protocol_edges() {
 /// order (M161), a work-in in training (M170) and a copy made in
 /// training (M172). 9 calls.
 #[tokio::test]
-#[ignore]
+#[ignore = "live run against the real FDM: needs PILI_LIVE_FDM_URL and an explicit go-ahead"]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario read top to bottom, clearer unsplit"
+)]
 async fn live_fdm_basic_set_rest() {
     let Some(app) = live_app().await else { return };
     record_as("status");
@@ -577,7 +600,7 @@ async fn live_fdm_basic_set_rest() {
 /// `PILI_LIVE_TLS_DIR` (default `target/live-fdm/mtls`: `ca.crt`,
 /// `client.crt`, `client.key`). About 5 calls.
 #[tokio::test]
-#[ignore]
+#[ignore = "live run against the real FDM: needs PILI_LIVE_FDM_URL and an explicit go-ahead"]
 async fn live_fdm_https_mtls() {
     let Some(url) = live_url() else { return };
     let https = url.replacen("http://", "https://", 1);

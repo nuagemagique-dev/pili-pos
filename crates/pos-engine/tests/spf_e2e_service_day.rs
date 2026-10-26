@@ -16,6 +16,11 @@
 //! - report totals (VAT, department, payment) equal the sum of the
 //!   day's real sales minus refunds - training excluded.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -233,6 +238,10 @@ fn set_quantity(app: &TestApp, line_id: i64, quantity: i32) {
     update_order_line_quantity(&conn, line_id, quantity).unwrap();
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 fn set_training_mode(app: &TestApp, on: bool) {
     app.state.config.lock().unwrap().training_mode = on;
 }
@@ -240,6 +249,10 @@ fn set_training_mode(app: &TestApp, on: bool) {
 // ── The scenario ─────────────────────────────────────────────────────
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario read top to bottom, clearer unsplit"
+)]
 async fn a_full_service_day_reconciles_sequentially_and_excludes_training() {
     let app = TestApp::new().await;
     seed_catalogue(&app);
@@ -355,7 +368,7 @@ async fn a_full_service_day_reconciles_sequentially_and_excludes_training() {
             .map(|e| e.sequence_number)
             .collect();
         seqs.sort_unstable();
-        let expected: Vec<i64> = (1..=seqs.len() as i64).collect();
+        let expected: Vec<i64> = (1..=i64::try_from(seqs.len()).unwrap()).collect();
         assert_eq!(
             seqs, expected,
             "label {label}: sequence numbers must be 1..N, no gaps"
@@ -396,8 +409,9 @@ async fn a_full_service_day_reconciles_sequentially_and_excludes_training() {
         "X report must not touch P"
     );
 
-    let real_total_cents = table1_total_cents as i64 + table2_total_cents as i64 - refund_cents
-        + table3_total_cents as i64;
+    let real_total_cents = i64::from(table1_total_cents) + i64::from(table2_total_cents)
+        - refund_cents
+        + i64::from(table3_total_cents);
     assert_eq!(real_total_cents, 7700); // sanity on the arithmetic above
 
     let x_events = app.fiscal_events();
@@ -484,17 +498,19 @@ fn assert_report_totals(request: &Value, expected_total_cents: i64) {
         "card payments total"
     );
 
-    let cash_cents = (cash["amount"][0]["totalAmount"].as_f64().unwrap() * 100.0).round() as i64;
-    let card_cents = (card["amount"][0]["totalAmount"].as_f64().unwrap() * 100.0).round() as i64;
+    let cash_cents =
+        pos_core::money::cents_from_eur(cash["amount"][0]["totalAmount"].as_f64().unwrap());
+    let card_cents =
+        pos_core::money::cents_from_eur(card["amount"][0]["totalAmount"].as_f64().unwrap());
     assert_eq!(
         cash_cents + card_cents,
         expected_total_cents,
         "cash + card payments must equal the day's net real sales"
     );
 
-    let vat_total_cents =
-        ((vat_b["totalAmount"].as_f64().unwrap() + vat_a["totalAmount"].as_f64().unwrap()) * 100.0)
-            .round() as i64;
+    let vat_total_cents = pos_core::money::cents_from_eur(
+        vat_b["totalAmount"].as_f64().unwrap() + vat_a["totalAmount"].as_f64().unwrap(),
+    );
     assert_eq!(
         vat_total_cents, expected_total_cents,
         "VAT totals must reconcile with the day's net real sales"

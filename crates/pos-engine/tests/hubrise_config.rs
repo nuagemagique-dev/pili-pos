@@ -1,9 +1,13 @@
-//! The installation's HubRise client comes from the `hubrise` section
+//! The installation's `HubRise` client comes from the `hubrise` section
 //! of `pos.json`, its secret from a file. Without the section, a
 //! release build cannot connect; a development build falls back to
 //! the `HUBRISE_*` variables or the local mock.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -12,7 +16,7 @@ use common::hubrise::HubriseMock;
 use pos_core::config::{HubriseConfig, PosConfig};
 use pos_engine::commands::errors;
 use pos_engine::commands::hubrise::{
-    do_hubrise_complete_oauth, do_hubrise_start_oauth_flow, oauth_config,
+    Build, do_hubrise_complete_oauth, do_hubrise_start_oauth_flow, oauth_config,
 };
 use serde_json::Value;
 
@@ -28,10 +32,10 @@ fn section(mock: &HubriseMock, secret_file: &std::path::Path) -> HubriseConfig {
 
 #[test]
 fn a_release_build_without_the_section_cannot_connect() {
-    let refused = oauth_config(&PosConfig::default(), false).unwrap_err();
+    let refused = oauth_config(&PosConfig::default(), Build::Release).unwrap_err();
     assert_eq!(refused, errors::hubrise::NOT_CONFIGURED);
     // A development build goes on with the mock or `.env`.
-    assert!(oauth_config(&PosConfig::default(), true).is_ok());
+    assert!(oauth_config(&PosConfig::default(), Build::Development).is_ok());
 }
 
 #[tokio::test]
@@ -45,7 +49,7 @@ async fn the_section_sets_the_client_and_its_secret_comes_from_its_file() {
         ..PosConfig::default()
     };
     // The section wins over the development fallback.
-    let oauth = oauth_config(&config, true).unwrap();
+    let oauth = oauth_config(&config, Build::Development).unwrap();
     assert_eq!(oauth.client_id, "pili-pos");
     assert_eq!(oauth.client_secret, "s3cret");
     assert_eq!(oauth.base_url, mock.api());
@@ -60,7 +64,7 @@ async fn an_unreadable_secret_is_refused_never_replaced() {
         hubrise: Some(section(&mock, &dir.path().join("missing.secret"))),
         ..PosConfig::default()
     };
-    for dev in [false, true] {
+    for dev in [Build::Release, Build::Development] {
         let refused = oauth_config(&config, dev).unwrap_err();
         assert_eq!(refused, errors::hubrise::SECRET_UNREADABLE);
     }
@@ -130,8 +134,8 @@ async fn an_installation_connects_with_its_pos_json_client() {
     assert_eq!(stored_base, mock.api(), "the API of the pos.json section");
 }
 
-/// A code HubRise does not accept is a coded refusal (said in the
-/// screen's language, HubRise's own words as the detail), never a bare
+/// A code `HubRise` does not accept is a coded refusal (said in the
+/// screen's language, `HubRise`'s own words as the detail), never a bare
 /// English sentence.
 #[tokio::test]
 async fn a_refused_connection_code_is_a_coded_error() {

@@ -3,6 +3,11 @@
 //! and the commit, the Z report's `invoices[]` and the copy of an invoice. The FDM is the
 //! admission mock (`pos-fdm-mock`), which signs like the real one.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -467,7 +472,7 @@ async fn the_list_of_sales_is_newest_first_and_searchable() {
     assert!(t1.starts_with('1'), "{t1}");
     assert_eq!(list(None, Some(&t1)), [s1]);
     assert_eq!(list(None, Some(&ticket(s3).to_string())), [s3]);
-    assert!(list(None, Some("999999")).is_empty());
+    assert_eq!(list(None, Some("999999")).len(), 0);
 
     // By date: make the first sale an earlier day, then ask for each day.
     let date_of = |id: i64| request_of(&app, id)["posDateTime"].as_str().unwrap()[..10].to_string();
@@ -489,7 +494,7 @@ async fn the_list_of_sales_is_newest_first_and_searchable() {
     assert_eq!(list(None, Some(&today)), [s3, s2]);
     assert_eq!(list(None, Some("2020-01-15")), [s1]);
     assert_eq!(list(None, Some("2020-01")), [s1]);
-    assert!(list(None, Some("1999")).is_empty());
+    assert_eq!(list(None, Some("1999")).len(), 0);
 
     // LIKE wildcards are stripped: "%" and "_" alone mean "no filter", and "%-" followed by
     // the month would match every sale if it were a pattern.
@@ -498,12 +503,16 @@ async fn the_list_of_sales_is_newest_first_and_searchable() {
     assert_eq!(list(None, Some("  ")), [s3, s2, s1]);
     let month = format!("%{}", &today[4..7]);
     assert!(list(None, Some(&month)).is_empty(), "{month}");
-    assert_eq!(list(None, Some("2020%01")), [] as [i64; 0]);
+    assert_eq!(list(None, Some("2020%01")).len(), 0);
 }
 
 #[tokio::test]
 async fn a_customer_is_updated_by_id() {
     let (app, a) = app().await;
+    #[expect(
+        clippy::items_after_statements,
+        reason = "a local helper beside the one test that uses it"
+    )]
     const OTHER_VAT: &str = "BE0123456749";
     let b = app.save_customer(OTHER_VAT, "Autre Client SA");
     let form = |id: Option<i64>, vat: &str, name: &str, street: &str| B2bCustomerInput {
@@ -565,8 +574,11 @@ async fn a_customer_is_updated_by_id() {
         )
         .unwrap();
     }
-    let same = save(form(Some(a), VAT, "Nouveau Nom", "Rue Neuve 9")).unwrap();
-    assert_eq!(same.peppol_status, "registered", "same number: cache kept");
+    let unchanged = save(form(Some(a), VAT, "Nouveau Nom", "Rue Neuve 9")).unwrap();
+    assert_eq!(
+        unchanged.peppol_status, "registered",
+        "unchanged number: cache kept"
+    );
     let moved = save(form(Some(a), "BE0203201340", "Nouveau Nom", "Rue Neuve 9")).unwrap();
     assert_eq!(moved.id, a);
     assert_eq!(moved.vat_number, "BE0203201340");

@@ -1,6 +1,11 @@
 //! The table plan: the numbers the Tables screen shows, set by a
 //! manager, every change logged, and no open order ever hidden.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -46,11 +51,18 @@ fn numbers(app: &TestApp) -> Vec<i32> {
 #[tokio::test]
 async fn without_a_plan_the_tables_are_1_to_table_count() {
     let app = app().await;
-    let count = app.state.config.lock().unwrap().table_count as i32;
+    let count: i32 = app
+        .state
+        .config
+        .lock()
+        .unwrap()
+        .table_count
+        .try_into()
+        .unwrap();
     assert_eq!(numbers(&app), (1..=count).collect::<Vec<_>>());
     let plan = do_get_table_plan(&app.state).unwrap();
     assert_eq!(plan.plan, format!("1-{count}"));
-    assert_eq!(plan.table_count, count as i64);
+    assert_eq!(plan.table_count, i64::from(count));
 }
 
 #[tokio::test]
@@ -125,8 +137,7 @@ async fn an_unreadable_orders_table_is_an_error_never_a_free_table() {
         .unwrap()
         .execute_batch("ALTER TABLE order_lines RENAME TO order_lines_gone")
         .unwrap();
-    let err = pos_engine::commands::tables::do_list_tables(&app.state, 3)
-        .err()
-        .expect("a database error");
+    let err =
+        pos_engine::commands::tables::do_list_tables(&app.state, 3).expect_err("a database error");
     assert!(err.starts_with("internal_error"), "{err}");
 }

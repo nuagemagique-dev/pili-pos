@@ -27,6 +27,11 @@
 //! HTTP-level one, and a real timeout would make this already-large
 //! suite slow for no extra coverage.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -246,8 +251,8 @@ async fn checkout_refused_with_a_spec_shaped_error_hands_its_code_to_the_ui() {
     }
 }
 
-/// An FDM that answers a sale with INTERNAL_ERROR, UNDEFINED_ERROR or
-/// UNDEFINED_OTHER may have signed it: the outcome stays unknown (the
+/// An FDM that answers a sale with `INTERNAL_ERROR`, `UNDEFINED_ERROR` or
+/// `UNDEFINED_OTHER` may have signed it: the outcome stays unknown (the
 /// same request is sent again), but the error carries the FDM's code so
 /// that the screens show what it said (certification manual §V).
 #[tokio::test]
@@ -528,7 +533,7 @@ async fn table_order_retries_after_fdm_failure_and_resends_the_same_unsent_entri
     // The entry must still be unsent - nothing was lost.
     let unsent = {
         let conn = app.state.db.lock().unwrap();
-        pos_db::queries::orders::get_order_entries(&conn, order_id, true).unwrap()
+        pos_db::queries::orders::get_unsent_order_entries(&conn, order_id).unwrap()
     };
     assert_eq!(
         unsent.len(),

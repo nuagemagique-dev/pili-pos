@@ -15,6 +15,11 @@
 //!
 //! Events are signed by the admission image's mock FDM.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -51,6 +56,10 @@ async fn app() -> TestApp {
     app
 }
 
+#[expect(
+    clippy::unused_async,
+    reason = "async like its siblings, so every test awaits the helpers the same way"
+)]
 async fn order(app: &TestApp, table: Option<i32>, quantity: i32) -> i64 {
     let id = do_create_order(
         &app.state,
@@ -261,10 +270,10 @@ async fn vi_n_uc201_the_ticket_shows_the_sale_total_and_the_rounding_apart() {
     let sale = cash_sale(&app).await;
     let text = printed(sale.ticket.as_ref().unwrap());
     let row = |label: &str| {
-        text.lines()
-            .find(|l| l.starts_with(label))
-            .map(|l| l.split_whitespace().collect::<Vec<_>>().join(" "))
-            .unwrap_or_else(|| panic!("no {label:?} row in:\n{text}"))
+        text.lines().find(|l| l.starts_with(label)).map_or_else(
+            || panic!("no {label:?} row in:\n{text}"),
+            |l| l.split_whitespace().collect::<Vec<_>>().join(" "),
+        )
     };
     assert_eq!(row("TOTAL :"), "TOTAL : €6,08");
     assert!(text.contains("Mode de paiement :"), "{text}");

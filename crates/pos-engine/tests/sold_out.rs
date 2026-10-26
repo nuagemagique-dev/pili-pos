@@ -1,6 +1,11 @@
 //! Sold-out products ("Épuisé", V11-D14): the till refuses a sold-out product, the state
 //! expires by time, every change is logged, and nothing fiscal is touched.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -148,7 +153,7 @@ async fn a_past_end_of_day_expires_by_time_and_is_logged_once() {
     let o = order(&app);
     add(&app, o, 1, 1).unwrap();
     assert_eq!(menu_flags(&app, 1), (false, None));
-    assert!(do_list_sold_out(&app.state, None).unwrap().is_empty());
+    assert_eq!(do_list_sold_out(&app.state, None).unwrap().len(), 0);
     assert_eq!(do_list_sold_out(&app.state, None).unwrap().len(), 0);
     assert_eq!(
         log_actions(&app),

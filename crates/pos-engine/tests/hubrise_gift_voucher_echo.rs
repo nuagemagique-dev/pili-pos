@@ -1,8 +1,12 @@
-//! What the HubRise echo of a till sale does with gift vouchers
+//! What the `HubRise` echo of a till sale does with gift vouchers
 //! (V12-D31): a sale that sells a voucher is not echoed, a voucher
-//! payment goes out as HubRise's generic "Other" payment.
+//! payment goes out as `HubRise`'s generic "Other" payment.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 

@@ -5,6 +5,11 @@
 //! Events are signed by the admission image's mock FDM; the fixture
 //! replays of UC260 to UC262 are in `spf_e2e_gift_vouchers.rs`.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -41,7 +46,7 @@ const CASHIER: &str = "98765432109";
 const DISH: i64 = 1;
 const PRICEY: i64 = 2;
 /// The system product's id (migration 63).
-const VOUCHER_ITEM: i64 = 990001;
+const VOUCHER_ITEM: i64 = 990_001;
 
 fn on() -> GiftVoucherSettings {
     GiftVoucherSettings {
@@ -491,7 +496,7 @@ async fn an_unpaid_close_cannot_issue_a_voucher() {
         r.error.as_deref(),
         Some(errors::GIFT_VOUCHER_PAYMENT_INVALID)
     );
-    assert!(vouchers(&app).is_empty());
+    assert_eq!(vouchers(&app).len(), 0);
     assert!(app.fiscal_events().is_empty());
 }
 
@@ -505,10 +510,10 @@ async fn an_fdm_that_cannot_be_reached_issues_nothing() {
     do_add_gift_voucher_line(&app.state, order, 5000).unwrap();
     let r = pay(&app, order, &[PaymentPart::cash()]).await;
     assert!(!r.success);
-    assert!(vouchers(&app).is_empty());
-    assert!(r.gift_voucher_prints.is_empty());
+    assert_eq!(vouchers(&app).len(), 0);
+    assert_eq!(r.gift_voucher_prints.len(), 0);
     assert_eq!(app.order_status(order).as_deref(), Some("open"));
-    assert!(printer.settle(0).await.is_empty());
+    assert_eq!(printer.settle(0).await.len(), 0);
 }
 
 #[tokio::test]
@@ -523,7 +528,7 @@ async fn a_lost_answer_recovered_later_issues_the_same_code_once() {
     assert!(!first.success);
     // Nothing is issued while the answer is awaited, but the code is
     // already fixed in the stored request.
-    assert!(vouchers(&app).is_empty());
+    assert_eq!(vouchers(&app).len(), 0);
     let pending = app.open_pending().expect("the request stays open");
     let stored: Value = serde_json::from_str(&pending.context_json).unwrap();
     let code = stored["gift_vouchers_issued"][0]["code"]
@@ -622,7 +627,7 @@ async fn a_voucher_used_to_the_last_cent_is_used_and_prints_no_balance_slip() {
     let r = pay(&app, order, &[PaymentPart::gift_voucher(1850, id)]).await;
     assert!(r.success, "{:?}", r.error);
     assert_eq!(voucher(&app, id).balance_cents, 0);
-    assert!(r.gift_voucher_prints.is_empty());
+    assert_eq!(r.gift_voucher_prints.len(), 0);
     let view = do_lookup_gift_voucher(&app.state, &voucher(&app, id).code).unwrap();
     assert_eq!(view.status, "used");
     // A used voucher can pay nothing more.
@@ -1110,7 +1115,7 @@ async fn lookup_reads_spaced_codes_and_shows_a_masked_code_with_its_movements() 
         .success
     );
     let code = voucher(&app, id).code;
-    for typed in [code.clone(), spaced(&code), format!(" {} ", code)] {
+    for typed in [code.clone(), spaced(&code), format!(" {code} ")] {
         let view = do_lookup_gift_voucher(&app.state, &typed).unwrap();
         assert_eq!(view.id, id);
         assert_eq!(view.code_masked, format!("**** **** {}", &code[8..]));
@@ -1215,10 +1220,11 @@ async fn the_admin_list_puts_outstanding_vouchers_first_and_filters() {
         let list = do_list_gift_vouchers(&app.state, Some(filter.into())).unwrap();
         assert_eq!(list.iter().map(|v| v.id).collect::<Vec<_>>(), [expected]);
     }
-    assert!(
+    assert_eq!(
         do_list_gift_vouchers(&app.state, Some("expired".into()))
             .unwrap()
-            .is_empty()
+            .len(),
+        0
     );
     assert_eq!(
         do_list_gift_vouchers(&app.state, Some("all".into()))

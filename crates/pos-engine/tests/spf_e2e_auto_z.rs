@@ -10,6 +10,11 @@
 //!
 //! Events are signed by the admission image's mock FDM.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -155,7 +160,7 @@ async fn faq_q501_nothing_to_close_makes_no_z() {
     // Today's period is not over.
     assert!(sell(&app).await.unwrap());
     assert!(!close_overdue_day(&app.state).await.unwrap());
-    assert!(z_reports(&app).is_empty());
+    assert_eq!(z_reports(&app).len(), 0);
 }
 
 #[tokio::test]
@@ -166,7 +171,7 @@ async fn faq_q501_training_mode_makes_no_automatic_z() {
     app.state.config.lock().unwrap().training_mode = true;
 
     assert!(!close_overdue_day(&app.state).await.unwrap());
-    assert!(z_reports(&app).is_empty());
+    assert_eq!(z_reports(&app).len(), 0);
 }
 
 #[tokio::test]
@@ -177,6 +182,6 @@ async fn faq_q501_an_fdm_failure_leaves_the_day_open() {
     app.state.config.lock().unwrap().fdm_url = "http://127.0.0.1:1/graphql".into();
 
     assert!(close_overdue_day(&app.state).await.is_err());
-    assert!(z_reports(&app).is_empty());
+    assert_eq!(z_reports(&app).len(), 0);
     assert_eq!(open_period_date(&app), Some(day));
 }

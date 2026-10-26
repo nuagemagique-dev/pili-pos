@@ -2,6 +2,11 @@
 //! line added meanwhile would never be covered by a signed event. Every
 //! path that adds a line refuses with `ORDER_SIGN_PENDING`.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;

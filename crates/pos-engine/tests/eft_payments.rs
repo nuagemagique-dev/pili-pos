@@ -13,6 +13,11 @@
 //! - an approved payment is never forgotten: the sale uses it, for its
 //!   exact amount, or is refused.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::sync::Arc;
 
 use pos_engine_testkit as common;
@@ -236,7 +241,7 @@ async fn a_card_typed_by_hand_is_unchanged_with_a_terminal_linked() {
     );
     assert_eq!(card["inputMethod"], "MANUAL");
     assert!(card.get("provider").is_none() && card.get("reference").is_none());
-    assert!(script.calls().is_empty());
+    assert_eq!(script.calls().len(), 0);
 }
 
 #[tokio::test]
@@ -263,7 +268,7 @@ async fn a_declined_payment_charges_nothing_and_cannot_be_used() {
     assert_eq!(sale.error.as_deref(), Some(errors::EFT_PAYMENT_NOT_USABLE));
     assert!(app.fiscal_events().is_empty());
     // Nothing is waiting: the operator can ask again, or take cash.
-    assert!(do_list_eft_payments(&app.state, order).unwrap().is_empty());
+    assert_eq!(do_list_eft_payments(&app.state, order).unwrap().len(), 0);
     script.on_pay(Ok(approval(1200, "Maestro", CardType::Debit)));
     assert_eq!(
         do_eft_pay(&app.state, order, 1200).await.unwrap().status,
@@ -323,7 +328,7 @@ async fn nothing_is_charged_while_a_sign_request_waits_for_the_fdm() {
     let second = app.order_of(1200);
     let error = do_eft_pay(&app.state, second, 1200).await.unwrap_err();
     assert!(error.contains(errors::FDM_ANSWER_PENDING), "{error}");
-    assert!(script.calls().is_empty());
+    assert_eq!(script.calls().len(), 0);
 }
 
 #[tokio::test]
@@ -348,7 +353,7 @@ async fn a_blocking_fdm_condition_is_not_operational_either() {
     let order = app.order_of(1200);
     let error = do_eft_pay(&app.state, order, 1200).await.unwrap_err();
     assert!(error.starts_with("FDM"), "{error}");
-    assert!(script.calls().is_empty());
+    assert_eq!(script.calls().len(), 0);
 }
 
 #[tokio::test]
@@ -399,7 +404,7 @@ async fn the_amount_is_positive_and_within_what_is_still_due() {
             "{cents}"
         );
     }
-    assert!(script.calls().is_empty());
+    assert_eq!(script.calls().len(), 0);
     // A part payment is fine, then only the rest is due.
     approved(&app, &script, order, 600, "Bancontact", CardType::Debit).await;
     assert_eq!(
@@ -630,9 +635,7 @@ async fn a_lost_answer_blocks_everything_until_the_terminal_is_asked_again() {
     .unwrap();
     assert!(sale.success, "{:?}", sale.error);
     let reference = app.eft_rows()[0].reference.clone();
-    assert!(script.calls().contains(&Call::Status {
-        reference: reference.clone()
-    }));
+    assert!(script.calls().contains(&Call::Status { reference }));
 }
 
 #[tokio::test]
@@ -793,10 +796,10 @@ async fn the_order_must_be_open() {
         errors::ORDER_NOT_OPEN
     );
     assert_eq!(
-        do_eft_pay(&app.state, 987654, 500).await.unwrap_err(),
+        do_eft_pay(&app.state, 987_654, 500).await.unwrap_err(),
         errors::ORDER_NOT_OPEN
     );
-    assert!(script.calls().is_empty());
+    assert_eq!(script.calls().len(), 0);
 }
 
 #[tokio::test]
@@ -813,7 +816,7 @@ async fn who_may_ask_for_a_payment_and_who_may_look() {
         errors::FORBIDDEN
     );
     // A waiter can look at what waits.
-    assert!(do_list_eft_payments(&app.state, order).unwrap().is_empty());
+    assert_eq!(do_list_eft_payments(&app.state, order).unwrap().len(), 0);
 
     app.login_as("12345678960", pos_core::user::UserRole::Cashier);
     approved(&app, &script, order, 500, "Bancontact", CardType::Debit).await;
@@ -853,11 +856,9 @@ async fn an_unknown_payment_id_is_not_usable() {
 #[tokio::test]
 async fn a_bad_payment_terminal_section_is_reported_by_the_config_check() {
     let (app, _script) = app().await;
-    assert!(
-        do_get_settings(&app.state)
-            .unwrap()
-            .config_problems
-            .is_empty()
+    assert_eq!(
+        do_get_settings(&app.state).unwrap().config_problems.len(),
+        0
     );
     {
         let mut config = app.state.config.lock().unwrap();
@@ -920,7 +921,7 @@ async fn the_terminal_check_of_an_unlinked_till_probes_nothing() {
             .unwrap()
             .configured
     );
-    assert!(script.calls().is_empty());
+    assert_eq!(script.calls().len(), 0);
 }
 
 #[tokio::test]
@@ -939,7 +940,7 @@ async fn a_reachable_terminal_is_connected() {
     );
     assert_eq!(script.calls(), vec![Call::Check]);
     // Nothing was stored, nothing charged.
-    assert!(app.eft_rows().is_empty());
+    assert_eq!(app.eft_rows().len(), 0);
 }
 
 #[tokio::test]
@@ -1192,10 +1193,9 @@ async fn an_order_without_a_card_payment_is_edited_freely() {
 #[tokio::test]
 async fn a_charged_card_is_listed_until_a_sale_settles_it() {
     let (app, script) = app().await;
-    assert!(
-        do_list_unsettled_card_payments(&app.state)
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        do_list_unsettled_card_payments(&app.state).unwrap().len(),
+        0
     );
     let order = app.order_of(1000);
     // Nothing charged yet: a declined card is not money taken.
@@ -1203,10 +1203,9 @@ async fn a_charged_card_is_listed_until_a_sale_settles_it() {
         reason: "refused".into(),
     }));
     do_eft_pay(&app.state, order, 1000).await.unwrap();
-    assert!(
-        do_list_unsettled_card_payments(&app.state)
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        do_list_unsettled_card_payments(&app.state).unwrap().len(),
+        0
     );
 
     let payment = approved(&app, &script, order, 600, "Bancontact", CardType::Debit).await;
@@ -1220,7 +1219,7 @@ async fn a_charged_card_is_listed_until_a_sale_settles_it() {
     assert_eq!(one.table_number, None);
     assert_eq!(one.amount_cents, 600);
     assert_eq!(one.brand.as_deref(), Some("Bancontact"));
-    assert!(!one.created_at.is_empty());
+    assert_ne!(one.created_at.len(), 0);
 
     // Another order's sale does not settle it; its own sale does.
     assert!(
@@ -1242,9 +1241,8 @@ async fn a_charged_card_is_listed_until_a_sale_settles_it() {
     .await
     .unwrap();
     assert!(sale.success, "{:?}", sale.error);
-    assert!(
-        do_list_unsettled_card_payments(&app.state)
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        do_list_unsettled_card_payments(&app.state).unwrap().len(),
+        0
     );
 }

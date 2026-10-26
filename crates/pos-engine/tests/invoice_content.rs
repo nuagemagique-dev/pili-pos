@@ -5,6 +5,10 @@
 //! the `vatCalc` the FDM answered.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -85,7 +89,7 @@ fn fdm_vat(app: &TestApp, event_id: i64) -> Vec<(String, i64, i64, i64)> {
         .find(|e| e.id == event_id)
         .unwrap();
     let response: Value = serde_json::from_str(&event.fdm_response_json.unwrap()).unwrap();
-    let cents = |v: &Value| (v.as_f64().unwrap() * 100.0).round() as i64;
+    let cents = |v: &Value| pos_core::money::cents_from_eur(v.as_f64().unwrap());
     response["vatCalc"]
         .as_array()
         .expect("the FDM answers vatCalc")
@@ -102,6 +106,10 @@ fn fdm_vat(app: &TestApp, event_id: i64) -> Vec<(String, i64, i64, i64)> {
 }
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario read top to bottom, clearer unsplit"
+)]
 async fn an_invoice_is_built_from_the_archive_of_its_sales() {
     let app = TestApp::new().await;
     app.use_admission_mock().await;
@@ -196,7 +204,8 @@ async fn an_invoice_is_built_from_the_archive_of_its_sales() {
     );
 
     // The VAT per label is the sum of what the FDM computed for each sale.
-    let mut expected: std::collections::BTreeMap<String, (i64, i64, i64)> = Default::default();
+    let mut expected: std::collections::BTreeMap<String, (i64, i64, i64)> =
+        std::collections::BTreeMap::default();
     for event in [first, second] {
         for (label, base, vat, total) in fdm_vat(&app, event) {
             let e = expected.entry(label).or_default();

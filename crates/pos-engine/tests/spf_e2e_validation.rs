@@ -10,6 +10,11 @@
 //! added them, following the same pattern used everywhere else in the
 //! command layer.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;

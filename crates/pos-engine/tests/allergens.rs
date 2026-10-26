@@ -5,6 +5,11 @@
 //!
 //! Events are signed by the admission image's mock FDM.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -59,6 +64,10 @@ async fn app() -> TestApp {
     app
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 fn edit(
     entity: &str,
     id: i64,
@@ -222,10 +231,11 @@ async fn bad_edits_are_refused_with_their_codes() {
     let err = do_get_allergen_sheet(&app.state, None, Some("xx".into())).unwrap_err();
     assert!(err.starts_with(errors::ALLERGEN_UNKNOWN), "{err}");
     // Nothing was written.
-    assert!(
+    assert_eq!(
         store::history(&app.state.db.lock().unwrap(), Entity::MenuItem, 1)
             .unwrap()
-            .is_empty()
+            .len(),
+        0
     );
 }
 
@@ -498,7 +508,7 @@ mod catalog {
         assert_eq!(apply(&app, &c), ApplyOutcome::Unchanged);
         assert_eq!(logs(&app), 3);
         // A price change re-applies the menu but not the allergens.
-        let mut priced = c.clone();
+        let mut priced = c;
         priced.items[0].price_cents += 10;
         assert!(matches!(apply(&app, &priced), ApplyOutcome::Applied { .. }));
         assert_eq!(logs(&app), 3, "same allergens: no log row");

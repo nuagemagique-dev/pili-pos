@@ -8,6 +8,11 @@
 //! - the Tables screen: when the order was opened, and whether its
 //!   provisional bill is still the current one.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -67,7 +72,7 @@ async fn clocking_in_and_out_opens_and_closes_the_shift() {
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M140")).await;
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M141")).await;
 
-    assert!(do_list_open_shifts(&app.state).unwrap().is_empty());
+    assert_eq!(do_list_open_shifts(&app.state).unwrap().len(), 0);
 
     do_work_in(&app.state, INSZ.to_string()).await.unwrap();
     let open = do_list_open_shifts(&app.state).unwrap();
@@ -75,7 +80,7 @@ async fn clocking_in_and_out_opens_and_closes_the_shift() {
     assert_eq!(open[0].user_insz, INSZ);
 
     do_work_out(&app.state, INSZ.to_string()).await.unwrap();
-    assert!(do_list_open_shifts(&app.state).unwrap().is_empty());
+    assert_eq!(do_list_open_shifts(&app.state).unwrap().len(), 0);
 }
 
 #[tokio::test]

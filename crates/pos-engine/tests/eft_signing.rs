@@ -4,6 +4,11 @@
 //! terminal call and its answer is found again at start-up; an online
 //! order collected at the till takes a terminal payment like any sale.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::sync::Arc;
 
 use pos_engine_testkit as common;
@@ -70,7 +75,7 @@ async fn a_lost_fdm_answer_leaves_the_payment_unused_until_the_sale_is_archived(
     assert_eq!(events[0].event_type, "N");
     assert_eq!(app.eft_rows()[0].used_event_id, Some(events[0].id));
     assert_eq!(app.order_status(order).as_deref(), Some("closed"));
-    assert!(do_list_eft_payments(&app.state, order).unwrap().is_empty());
+    assert_eq!(do_list_eft_payments(&app.state, order).unwrap().len(), 0);
     let request: serde_json::Value =
         serde_json::from_str(events[0].event_data_json.as_deref().unwrap()).unwrap();
     assert_eq!(request["financials"][0]["inputMethod"], "AUTOMATIC");
@@ -393,10 +398,9 @@ mod meal_voucher {
         .await
         .unwrap();
         assert!(sale.success, "{:?}", sale.error);
-        assert!(
-            do_list_unsettled_card_payments(&app.state)
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            do_list_unsettled_card_payments(&app.state).unwrap().len(),
+            0
         );
     }
 
@@ -428,6 +432,10 @@ mod meal_voucher {
     }
 
     #[tokio::test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one scenario read top to bottom, clearer unsplit"
+    )]
     async fn manual_and_terminal_meal_vouchers_share_one_row_on_every_report_and_ticket() {
         let (app, script, printer) = app().await;
         let order = app.order_of(3000);

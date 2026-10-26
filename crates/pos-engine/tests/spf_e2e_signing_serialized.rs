@@ -11,6 +11,11 @@
 //! Signed by `pos_fdm_mock` behind [`LossyFdm`], which records every
 //! request and loses answers on demand.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use std::time::Duration;
@@ -211,7 +216,7 @@ async fn the_automatic_z_and_a_manual_x_never_share_a_number() {
         .iter()
         .filter(|s| s.op.starts_with("signReport"))
         .filter_map(|s| s.answer.as_ref())
-        .filter_map(|a| a["data"].as_object().map(|d| d.len()))
+        .filter_map(|a| a["data"].as_object().map(serde_json::Map::len))
         .sum();
     assert_eq!(archived, 3, "turnover Z, user Z, X");
     assert_eq!(signed, archived, "every signed R event is archived");

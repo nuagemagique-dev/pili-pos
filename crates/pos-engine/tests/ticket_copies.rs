@@ -5,6 +5,11 @@
 //!
 //! Events are signed by the admission image's mock FDM.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -42,6 +47,10 @@ async fn app() -> TestApp {
     app
 }
 
+#[expect(
+    clippy::unused_async,
+    reason = "async like its siblings, so every test awaits the helpers the same way"
+)]
 async fn order(app: &TestApp, table: Option<i32>, lines: &[(i64, i32)]) -> i64 {
     let id = do_create_order(
         &app.state,

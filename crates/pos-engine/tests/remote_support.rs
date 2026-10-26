@@ -1,8 +1,13 @@
-//! Remote support (RustDesk) is started from the POS by the logged-in
+//! Remote support (`RustDesk`) is started from the POS by the logged-in
 //! manager, confirmed by their PIN, one session at a time. It survives
 //! a logout, shows at the login screen, may be stopped by anyone and
 //! ends after two hours (`commands/support.rs`). A shell script stands
-//! in for RustDesk.
+//! in for `RustDesk`.
+
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -25,7 +30,7 @@ const MANAGER: &str = "94060242576";
 const SERVER: &str = "84022899837";
 const PIN: &str = "4321";
 
-/// A stand-in for RustDesk: `script` runs as the program.
+/// A stand-in for `RustDesk`: `script` runs as the program.
 fn fake_program(dir: &tempfile::TempDir, script: &str) -> PathBuf {
     let path = dir.path().join("AppRun");
     std::fs::write(&path, format!("#!/bin/sh\n{script}\n")).unwrap();

@@ -1,9 +1,13 @@
-//! The installation's HubRise switch. Off: nothing reaches HubRise and
+//! The installation's `HubRise` switch. Off: nothing reaches `HubRise` and
 //! no new online order is taken, but an order already signed is always
 //! settled. Admins switch it; every change is logged; off waits until
 //! the online orders are settled.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -167,7 +171,11 @@ async fn admins_switch_it_and_every_change_is_logged() {
     {
         // The installation's starting value, as at start-up.
         let db = app.state.db.lock().unwrap();
-        pos_db::queries::integrations::hubrise_at_start(&db, true).unwrap();
+        pos_db::queries::integrations::hubrise_at_start(
+            &db,
+            pos_db::queries::integrations::State::On,
+        )
+        .unwrap();
     }
     let off = do_set_hubrise_enabled(&app.state, false).unwrap();
     assert!(!off.hubrise_enabled);
@@ -198,7 +206,11 @@ async fn off_waits_until_the_online_orders_are_settled() {
     app.login_as(MANAGER, UserRole::Admin);
     {
         let db = app.state.db.lock().unwrap();
-        pos_db::queries::integrations::hubrise_at_start(&db, true).unwrap();
+        pos_db::queries::integrations::hubrise_at_start(
+            &db,
+            pos_db::queries::integrations::State::On,
+        )
+        .unwrap();
     }
     let refused = do_set_hubrise_enabled(&app.state, false).unwrap_err();
     assert!(

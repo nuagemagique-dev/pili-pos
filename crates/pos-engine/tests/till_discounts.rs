@@ -5,16 +5,20 @@
 //!
 //! - the amounts, the spread to the cent, the rounding;
 //! - where a change goes: on the line's only unsent entry, or on a
-//!   PRICE_CHANGE pair of journal entries; the immediate P of a table
+//!   `PRICE_CHANGE` pair of journal entries; the immediate P of a table
 //!   the FDM already knows;
 //! - every refusal, signing nothing and writing nothing;
 //! - the bar slip, the cart, the pre-bill, the refund, the transfer, the
-//!   card terminal's floor, training, the audit rows, the HubRise echo,
+//!   card terminal's floor, training, the audit rows, the `HubRise` echo,
 //!   the report's reductions and negQuantities.
 //!
 //! Events are signed by the admission image's mock FDM.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -224,7 +228,7 @@ fn labels(app: &TestApp) -> Vec<String> {
 }
 
 fn cents(v: &Value) -> i64 {
-    (v.as_f64().expect("an amount") * 100.0).round() as i64
+    pos_core::money::cents_from_eur(v.as_f64().expect("an amount"))
 }
 
 /// The amount of each transaction line of `request`, after its changes.
@@ -344,17 +348,17 @@ async fn offert_is_signed_at_zero_and_printed() {
     assert!(changes(&app, o).iter().all(|c| c.3 == "TILL-FREE"));
 
     let event = sell(&app, o).await;
-    let sale = requests(&app).pop().unwrap();
-    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 0);
-    assert_eq!(line_totals(&sale), vec![0, 0]);
+    let last_sale = requests(&app).pop().unwrap();
+    assert_eq!(cents(&last_sale["transaction"]["transactionTotal"]), 0);
+    assert_eq!(line_totals(&last_sale), vec![0, 0]);
     // FAQ Q206 b: no money moved, so `financials` is the empty array
     // (the other form it allows is a `PAY 0` cash line). The N event
     // and its VAT ticket exist all the same.
-    assert_eq!(sale["financials"], serde_json::json!([]));
-    assert_ne!(sale["ticketMedium"], "NONE");
+    assert_eq!(last_sale["financials"], serde_json::json!([]));
+    assert_ne!(last_sale["ticketMedium"], "NONE");
     assert!(event > 0);
     let tickets = printer.settle(1).await;
-    assert!(!tickets.is_empty());
+    assert_ne!(tickets.len(), 0);
     let text = printer.rendered().join("\n");
     assert!(text.contains("Offert"), "{text}");
 }
@@ -376,9 +380,9 @@ async fn a_free_line_comes_to_zero_on_its_own_line_only() {
     assert_eq!(rows[0].5, -300);
 
     sell(&app, o).await;
-    let sale = requests(&app).pop().unwrap();
-    assert_eq!(line_totals(&sale), vec![2400, 0]);
-    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 2400);
+    let last_sale = requests(&app).pop().unwrap();
+    assert_eq!(line_totals(&last_sale), vec![2400, 0]);
+    assert_eq!(cents(&last_sale["transaction"]["transactionTotal"]), 2400);
 }
 
 #[tokio::test]
@@ -403,9 +407,9 @@ async fn names_follow_the_receipt_language() {
     add(&app, o, 1, 1);
     apply(&app, o, pct(10)).await.unwrap();
     sell(&app, o).await;
-    let sale = requests(&app).pop().unwrap();
-    let change =
-        &sale["transaction"]["transactionLines"][0]["mainProduct"]["vats"][0]["priceChanges"][0];
+    let last_sale = requests(&app).pop().unwrap();
+    let change = &last_sale["transaction"]["transactionLines"][0]["mainProduct"]["vats"][0]["priceChanges"]
+        [0];
     assert_eq!(change["name"], "Korting 10 %");
     assert_eq!(change["id"], "TILL-DISCOUNT");
     assert_eq!(change["type"], "PUBLIC");
@@ -425,6 +429,10 @@ async fn every_refusal_signs_nothing_and_writes_nothing() {
         app.fiscal_events().len(),
     );
 
+    #[expect(
+        clippy::items_after_statements,
+        reason = "a local helper beside the one test that uses it"
+    )]
     async fn refused(app: &TestApp, o: i64, input: DiscountInput) -> String {
         apply(app, o, input).await.expect_err("refused")
     }
@@ -472,19 +480,19 @@ async fn every_refusal_signs_nothing_and_writes_nothing() {
     let empty = takeaway(&app);
     assert_eq!(refused(&app, empty, pct(10)).await, errors::ORDER_NO_LINES);
     // An online order has its own discounts.
-    let online = takeaway(&app);
-    add(&app, online, 1, 1);
+    let web = takeaway(&app);
+    add(&app, web, 1, 1);
     app.state
         .db
         .lock()
         .unwrap()
         .execute(
             "UPDATE orders SET hubrise_order_id = 'ONLINE-1' WHERE id = ?1",
-            [online],
+            [web],
         )
         .unwrap();
     assert_eq!(
-        refused(&app, online, pct(10)).await,
+        refused(&app, web, pct(10)).await,
         errors::DISCOUNT_ONLINE_ORDER
     );
     // A closed order.
@@ -779,9 +787,9 @@ async fn a_removal_is_the_same_pair_the_other_way_and_the_grouping_moves_on() {
 
     // And the sale carries the whole journal.
     sell(&app, o).await;
-    let sale = requests(&app).pop().unwrap();
-    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 1040);
-    let reasons: Vec<_> = sale["transaction"]["transactionLines"]
+    let last_sale = requests(&app).pop().unwrap();
+    assert_eq!(cents(&last_sale["transaction"]["transactionTotal"]), 1040);
+    let reasons: Vec<_> = last_sale["transaction"]["transactionLines"]
         .as_array()
         .unwrap()
         .iter()
@@ -800,14 +808,16 @@ async fn a_direct_sale_with_a_removed_discount_marks_its_corrections() {
     remove(&app, o, None).await.unwrap();
     assert_eq!(total(&app, o), 650);
     sell(&app, o).await;
-    let sale = requests(&app).pop().unwrap();
-    let lines = sale["transaction"]["transactionLines"].as_array().unwrap();
+    let last_sale = requests(&app).pop().unwrap();
+    let lines = last_sale["transaction"]["transactionLines"]
+        .as_array()
+        .unwrap();
     // +1 with the change, -1 PRICE_CHANGE carrying it back, +1 clean.
     assert_eq!(lines.len(), 3);
     assert_eq!(lines[1]["mainProduct"]["negQuantityReason"], "PRICE_CHANGE");
     // The correction carries the change back (+0,65): -6,50 + 0,65.
-    assert_eq!(line_totals(&sale), vec![585, -585, 650]);
-    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 650);
+    assert_eq!(line_totals(&last_sale), vec![585, -585, 650]);
+    assert_eq!(cents(&last_sale["transaction"]["transactionTotal"]), 650);
 }
 
 // ── Around the sale ────────────────────────────────────────────────
@@ -857,9 +867,9 @@ async fn a_discounted_order_moves_with_its_changes() {
     assert_eq!(side("to"), (-650, serde_json::json!(1), 650));
 
     sell(&app, o).await;
-    let sale = requests(&app).pop().unwrap();
-    assert_eq!(sale["costCenter"]["id"], "T08");
-    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 650);
+    let last_sale = requests(&app).pop().unwrap();
+    assert_eq!(last_sale["costCenter"]["id"], "T08");
+    assert_eq!(cents(&last_sale["transaction"]["transactionTotal"]), 650);
 }
 
 #[tokio::test]
@@ -951,8 +961,8 @@ async fn training_signs_t_events() {
     apply(&app, o, pct(50)).await.unwrap();
     sell(&app, o).await;
     assert_eq!(labels(&app), vec!["T", "T", "T"]);
-    let sale = requests(&app).pop().unwrap();
-    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 650);
+    let last_sale = requests(&app).pop().unwrap();
+    assert_eq!(cents(&last_sale["transaction"]["transactionTotal"]), 650);
 }
 
 #[tokio::test]
@@ -994,8 +1004,8 @@ async fn the_audit_keeps_who_why_and_how_much() {
     assert_eq!(line_row.grouping_id, 2);
     // The reason is local: it is nowhere in a signed request.
     sell(&app, o).await;
-    let sale = serde_json::to_string(&requests(&app).pop().unwrap()).unwrap();
-    assert!(!sale.contains("staff_meal") && !sale.contains("repas"));
+    let last_sale = serde_json::to_string(&requests(&app).pop().unwrap()).unwrap();
+    assert!(!last_sale.contains("staff_meal") && !last_sale.contains("repas"));
 }
 
 #[tokio::test]
@@ -1177,12 +1187,14 @@ async fn removing_an_offered_line_gives_it_back_its_full_price() {
     // The sale: Maki, then Eau with its change, the PRICE_CHANGE
     // correction carrying it back, and Eau at its full price.
     sell(&app, o).await;
-    let sale = requests(&app).pop().unwrap();
-    assert_eq!(line_totals(&sale), vec![1200, 0, 0, 300]);
-    let lines = sale["transaction"]["transactionLines"].as_array().unwrap();
+    let last_sale = requests(&app).pop().unwrap();
+    assert_eq!(line_totals(&last_sale), vec![1200, 0, 0, 300]);
+    let lines = last_sale["transaction"]["transactionLines"]
+        .as_array()
+        .unwrap();
     assert_eq!(lines[2]["mainProduct"]["quantity"], -1.0);
     assert_eq!(lines[2]["mainProduct"]["negQuantityReason"], "PRICE_CHANGE");
-    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 1500);
+    assert_eq!(cents(&last_sale["transaction"]["transactionTotal"]), 1500);
 }
 
 #[tokio::test]
@@ -1244,8 +1256,8 @@ async fn a_free_line_on_a_registered_line_goes_through_a_price_change_pair() {
 
     // The sale carries the journal: 2 Sake, the Eau, its pair.
     sell(&app, o).await;
-    let sale = requests(&app).pop().unwrap();
-    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 1300);
+    let last_sale = requests(&app).pop().unwrap();
+    assert_eq!(cents(&last_sale["transaction"]["transactionTotal"]), 1300);
 }
 
 // ── A discounted line removed from the cart ────────────────────────
@@ -1284,9 +1296,11 @@ async fn a_discounted_line_removed_from_the_cart_carries_its_change_negated() {
     );
 
     sell(&app, o).await;
-    let sale = requests(&app).pop().unwrap();
-    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 600);
-    let lines = sale["transaction"]["transactionLines"].as_array().unwrap();
+    let last_sale = requests(&app).pop().unwrap();
+    assert_eq!(cents(&last_sale["transaction"]["transactionTotal"]), 600);
+    let lines = last_sale["transaction"]["transactionLines"]
+        .as_array()
+        .unwrap();
     let removed: Vec<_> = lines
         .iter()
         .filter(|l| l["mainProduct"]["productName"] == "Sake")

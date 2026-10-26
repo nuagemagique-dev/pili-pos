@@ -1,4 +1,4 @@
-//! The HubRise integration against the real HubRise API, on a test
+//! The `HubRise` integration against the real `HubRise` API, on a test
 //! location, with the FDM mock signing.
 //!
 //! Ignored by default and never run in CI. Run it by hand, one test at
@@ -8,18 +8,18 @@
 //! scripts/live_hubrise.sh live_catalog_is_mirrored
 //! ```
 //!
-//! The test location is on HubRise's free plan: 5 orders a month.
+//! The test location is on `HubRise`'s free plan: 5 orders a month.
 //! Each order test places one order.
 //!
 //! | Variable | Default | Purpose |
 //! |---|---|---|
-//! | `PILI_LIVE_HUBRISE_API` | `https://api.hubrise.com` | HubRise API |
+//! | `PILI_LIVE_HUBRISE_API` | `https://api.hubrise.com` | `HubRise` API |
 //! | `PILI_LIVE_PAUSE_MS` | `1000` | least gap between two calls |
 //! | `PILI_LIVE_HUBRISE_MAX_REQUESTS` | `40` | calls per run |
 //! | `PILI_LIVE_RECORD_DIR` | unset | where each call is recorded, scrubbed |
 //!
 //! The suite's own calls (loading the test menu, placing and cancelling
-//! orders) use the same token as the POS: HubRise sends no event to the
+//! orders) use the same token as the POS: `HubRise` sends no event to the
 //! client that caused it, so the POS finds the orders the way it does
 //! after a restart (`poller::start`: backfill, then a re-read of the
 //! orders it knows).
