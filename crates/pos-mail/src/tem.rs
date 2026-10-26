@@ -145,6 +145,7 @@ struct SentEmail {
 }
 
 /// Client for the Scaleway Transactional Email HTTP API.
+#[derive(Clone)]
 pub struct TemClient {
     http: reqwest::Client,
     api_base: String,
@@ -169,21 +170,6 @@ impl std::fmt::Debug for TemClient {
             .field("secret", &"<redacted>")
             .field("timeout", &self.timeout)
             .finish()
-    }
-}
-
-impl Clone for TemClient {
-    fn clone(&self) -> Self {
-        Self {
-            http: self.http.clone(),
-            api_base: self.api_base.clone(),
-            region: self.region.clone(),
-            project_id: self.project_id.clone(),
-            secret: self.secret.clone(),
-            from_email: self.from_email.clone(),
-            from_name: self.from_name.clone(),
-            timeout: self.timeout,
-        }
     }
 }
 

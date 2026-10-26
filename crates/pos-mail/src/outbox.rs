@@ -106,7 +106,7 @@ pub async fn send_now(
     timeout: Duration,
 ) -> SendNowOutcome {
     let claimed = {
-        let conn = db.lock().expect("pos-mail db mutex poisoned");
+        let conn = lock_db(db);
         deliveries::claim(&conn, delivery_id)
     };
     match claimed {
@@ -119,7 +119,7 @@ pub async fn send_now(
     }
 
     let row = {
-        let conn = db.lock().expect("pos-mail db mutex poisoned");
+        let conn = lock_db(db);
         deliveries::get(&conn, delivery_id)
     };
     let row = match row {
@@ -140,7 +140,12 @@ pub async fn send_now(
             // is still `sending` - no lock was held across that await,
             // so this is safe to do right away rather than waiting for
             // `run_once`'s stale-`sending` recovery.
-            finalize_failure(db, delivery_id, "inline send timed out", Some(&now_iso()));
+            finalize_failure(
+                db,
+                delivery_id,
+                "inline send timed out",
+                Some(&iso_after(INLINE_TIMEOUT_RETRY_DELAY)),
+            );
             SendNowOutcome::Queued
         }
     }
@@ -160,24 +165,24 @@ pub async fn run_once(
 
     let stale_cutoff = iso_before(DeliveryPolicy::STALE_SENDING_TIMEOUT);
     {
-        let conn = db.lock().expect("pos-mail db mutex poisoned");
+        let conn = lock_db(db);
         report.recovered_stale = deliveries::recover_stale_sending(&conn, &stale_cutoff)?;
     }
 
     let purge_cutoff = iso_before(DeliveryPolicy::GDPR_RETENTION);
     {
-        let conn = db.lock().expect("pos-mail db mutex poisoned");
+        let conn = lock_db(db);
         report.purged_recipients = deliveries::purge_recipients_older_than(&conn, &purge_cutoff)?;
     }
 
     let due_rows = {
-        let conn = db.lock().expect("pos-mail db mutex poisoned");
+        let conn = lock_db(db);
         deliveries::due(&conn, &now, DeliveryPolicy::BATCH_SIZE)?
     };
 
     for row in due_rows {
         let claimed = {
-            let conn = db.lock().expect("pos-mail db mutex poisoned");
+            let conn = lock_db(db);
             deliveries::claim(&conn, row.id)
         };
         match claimed {
@@ -239,7 +244,7 @@ async fn attempt_send(
 
     match client.send(&email).await {
         Ok(message_id) => {
-            let conn = db.lock().expect("pos-mail db mutex poisoned");
+            let conn = lock_db(db);
             if let Err(e) = deliveries::mark_sent(&conn, row.id, &message_id) {
                 tracing::warn!(delivery_id = row.id, error = %e, "pos-mail: mark_sent failed");
             }
@@ -267,11 +272,21 @@ async fn attempt_send(
 }
 
 fn finalize_failure(db: &Mutex<Connection>, id: i64, error: &str, next_attempt_at: Option<&str>) {
-    let conn = db.lock().expect("pos-mail db mutex poisoned");
+    let conn = lock_db(db);
     if let Err(e) = deliveries::mark_failed(&conn, id, error, next_attempt_at) {
         tracing::warn!(delivery_id = id, error = %e, "pos-mail: mark_failed failed");
     }
 }
+
+/// Lock the database, recovering from a poisoned mutex: a panic elsewhere rolled its open
+/// transaction back, so the connection stays usable and the background worker must not die.
+fn lock_db(db: &Mutex<Connection>) -> std::sync::MutexGuard<'_, Connection> {
+    db.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// How long a row waits after an inline send timed out. The mail may have been accepted by
+/// TEM without the answer coming back; retrying at once would risk a duplicate.
+const INLINE_TIMEOUT_RETRY_DELAY: Duration = Duration::from_secs(60);
 
 const ISO_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.3fZ";
 
@@ -410,5 +425,57 @@ mod tests {
             after.last_error.as_deref(),
             Some("recipient missing at send time")
         );
+    }
+
+    #[test]
+    fn a_poisoned_database_lock_is_recovered() {
+        let db = std::sync::Arc::new(test_db());
+        let other = db.clone();
+        let _ = std::thread::spawn(move || {
+            let _guard = other.lock().unwrap();
+            panic!("poison the mutex");
+        })
+        .join();
+        assert!(db.is_poisoned());
+        finalize_failure(&db, 1, "x", None);
+        assert!(lock_db(&db).execute_batch("SELECT 1").is_ok());
+    }
+
+    #[tokio::test]
+    async fn an_inline_timeout_delays_the_retry() {
+        // A listener that never answers: the connection opens, the request hangs.
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let client = TemClient::new(
+            reqwest::Client::new(),
+            &format!("http://{}", listener.local_addr().unwrap()),
+            "fr-par",
+            "project",
+            "secret",
+            "from@example.com",
+            "From",
+            Duration::from_secs(30),
+        );
+        let db = test_db();
+        let id = {
+            let conn = db.lock().unwrap();
+            let fe = fiscal_event(&conn);
+            deliveries::enqueue(
+                &conn,
+                deliveries::NewTicketDelivery {
+                    fiscal_event_id: fe,
+                    medium: "DIGITAL",
+                    recipient: "customer@example.be",
+                    recipient_hint: "c***@e***.be",
+                    ticket_text: "ticket",
+                    verification_url: Some("https://www.gs2.be/abc"),
+                },
+            )
+            .unwrap()
+        };
+        let outcome = send_now(&db, &client, "R", id, Duration::from_millis(100)).await;
+        assert!(matches!(outcome, SendNowOutcome::Queued));
+        let after = deliveries::get(&lock_db(&db), id).unwrap().unwrap();
+        let due = after.next_attempt_at.expect("a retry time");
+        assert!(due > iso_after(Duration::from_secs(30)), "due {due}");
     }
 }
