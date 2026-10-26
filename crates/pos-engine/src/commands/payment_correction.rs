@@ -22,7 +22,7 @@
 //!   written with the sale cannot follow a correction (INT-D19).
 
 use pos_fiscal::types::Mode;
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -247,11 +247,16 @@ fn sale_refusal(
     let is_sale = sale.event.fdm_response_json.as_deref().is_some_and(|j| {
         serde_json::from_str::<Value>(j).is_ok_and(|v| v["eventOperation"] == "SALE")
     });
+    // Decide "not a sale" before reading the total: a training copy, P, F
+    // or drawer event has no `transactionTotal` to read.
+    if !is_sale || sale.request.get("fdmRef").is_some() {
+        return Ok(Some(errors::PAYMENT_CORRECTION_NOT_A_SALE));
+    }
     let total = cents(
         &sale.request["transaction"]["transactionTotal"],
         "transactionTotal",
     )?;
-    if !is_sale || sale.request.get("fdmRef").is_some() || total < 0 {
+    if total < 0 {
         return Ok(Some(errors::PAYMENT_CORRECTION_NOT_A_SALE));
     }
     if (sale.fdm_ref.event_label == EventLabel::T) != config.training_mode {
@@ -273,6 +278,8 @@ fn sale_refusal(
                 [order_id],
                 |r| r.get::<_, bool>(0),
             )
+            .optional()
+            .map_err(errors::internal)?
             .unwrap_or(false),
         None => false,
     };
@@ -350,13 +357,20 @@ pub fn do_list_sale_payments(
     }
     // The correction a sale already has is shown whatever else holds.
     let corrected = existing_correction(&db, &sale)?;
+    // An event that is no sale may have no total at all (a drawer event
+    // archived as T in training): it is listed as refused, with 0.
+    let total_cents = match cents(
+        &sale.request["transaction"]["transactionTotal"],
+        "transactionTotal",
+    ) {
+        Ok(total) => total,
+        Err(_) if refusal.as_deref() == Some(errors::PAYMENT_CORRECTION_NOT_A_SALE) => 0,
+        Err(e) => return Err(e),
+    };
     Ok(SalePayments {
         fiscal_event_id,
         ticket_number: sale.request["posFiscalTicketNo"].as_i64().unwrap_or(0),
-        total_cents: cents(
-            &sale.request["transaction"]["transactionTotal"],
-            "transactionTotal",
-        )?,
+        total_cents,
         lines,
         correctable: refusal.is_none(),
         refusal,

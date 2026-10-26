@@ -575,6 +575,31 @@ async fn an_event_that_is_not_a_sale_is_refused() {
     );
 }
 
+/// In training mode a drawer event is archived as T like any other, and
+/// has no `transactionTotal`: it is refused as "not a sale", not as an
+/// incomplete original.
+#[tokio::test]
+async fn a_training_drawer_event_is_refused_as_not_a_sale() {
+    let (app, _fdm) = app().await;
+    app.state.config.lock().unwrap().training_mode = true;
+    let drawer = pos_engine::commands::financial::do_open_drawer_fiscal(&app.state, MANAGER.into())
+        .await
+        .unwrap();
+    assert!(drawer.success, "{:?}", drawer.error);
+    let id = app.fiscal_events().last().unwrap().id;
+
+    let listed = list(&app, id);
+    assert!(!listed.correctable);
+    assert_eq!(
+        listed.refusal.as_deref(),
+        Some(errors::PAYMENT_CORRECTION_NOT_A_SALE)
+    );
+    assert_eq!(
+        refused(&app, id, 0, PaymentMethod::Card).await,
+        errors::PAYMENT_CORRECTION_NOT_A_SALE
+    );
+}
+
 #[tokio::test]
 async fn an_online_order_is_refused() {
     let (app, _fdm) = app().await;
