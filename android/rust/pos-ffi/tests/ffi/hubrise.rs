@@ -257,6 +257,7 @@ async fn the_authorize_link_converts_with_its_qr_code() {
         .unwrap(),
     );
     app.state.hubrise_switch.set(true);
+    app.login_as(MANAGER, pos_core::user::UserRole::Admin);
 
     let link = engine_hubrise::do_hubrise_start_oauth_flow(&app.state).unwrap();
     let record: rec::AuthorizeLink = out_equal(&link);
@@ -1034,7 +1035,7 @@ async fn all_nineteen_methods_answer_on_a_seeded_engine() {
         e.hubrise_complete_oauth("a-code".into()).await,
         "hubrise_disabled",
     );
-    e.hubrise_disconnect().await.unwrap();
+    assert_coded(e.hubrise_disconnect().await, "not_logged_in");
     assert!(e.hubrise_list_webshop_orders().await.unwrap().is_empty());
     assert_coded(
         e.hubrise_patch_order_status(rec::PatchStatusRequest {
@@ -1175,8 +1176,15 @@ async fn the_oauth_round_trip_runs_against_the_mock() {
     let e = &t.engine;
     assert_eq!(t.options().device_id.as_deref(), Some(DEVICE_ID));
 
-    // Switched on and not connected yet.
+    // Switched on and not connected yet. Connecting is an admin's setting.
     assert!(!e.hubrise_get_connection_status().await.unwrap().connected);
+    assert_coded(e.hubrise_start_oauth_flow().await, "not_logged_in");
+    e.login(
+        support::MANAGER_INSZ.into(),
+        Some(support::MANAGER_PIN.into()),
+    )
+    .await
+    .unwrap();
     let link = e.hubrise_start_oauth_flow().await.unwrap();
     assert!(
         link.url
@@ -1208,6 +1216,7 @@ async fn the_oauth_round_trip_runs_against_the_mock() {
     assert!(status.health.connected);
 
     // Connected, with nobody signed in: the commands that need an operator say so.
+    e.logout().await.unwrap();
     assert_coded(e.hubrise_sync_catalog().await, "not_logged_in");
     assert_coded(
         e.hubrise_patch_order_status(rec::PatchStatusRequest {
@@ -1246,7 +1255,14 @@ async fn the_oauth_round_trip_runs_against_the_mock() {
     );
     assert_coded(e.webshop_reject_order(1).await, "not_logged_in");
 
-    // Disconnecting forgets the connection.
+    // Disconnecting forgets the connection (an admin's setting too).
+    assert_coded(e.hubrise_disconnect().await, "not_logged_in");
+    e.login(
+        support::MANAGER_INSZ.into(),
+        Some(support::MANAGER_PIN.into()),
+    )
+    .await
+    .unwrap();
     e.hubrise_disconnect().await.unwrap();
     assert!(!e.hubrise_get_connection_status().await.unwrap().connected);
     assert!(!e.hubrise_status().await.unwrap().health.connected);

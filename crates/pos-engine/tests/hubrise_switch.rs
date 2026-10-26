@@ -12,6 +12,7 @@ use common::hubrise::{connected_app, drain_outbox, poller};
 use pos_core::user::UserRole;
 use pos_engine::commands::checkout::PaymentPart;
 use pos_engine::commands::errors;
+use pos_engine::commands::hubrise::{do_hubrise_disconnect, do_hubrise_get_connection_status};
 use pos_engine::commands::integrations::{do_get_integrations, do_set_hubrise_enabled};
 use pos_engine::commands::webshop::{do_accept_webshop_order, do_handover_webshop_order};
 use pos_hubrise::poller::{poll_once, start};
@@ -217,5 +218,47 @@ async fn off_waits_until_the_online_orders_are_settled() {
         !do_set_hubrise_enabled(&app.state, false)
             .unwrap()
             .hubrise_enabled
+    );
+}
+
+#[tokio::test]
+async fn disconnecting_needs_an_admin_and_settled_online_orders() {
+    let (app, _db, mock) = app().await;
+    let hr = mock.inject("deliveroo_prepaid");
+    start(&poller(&app)).await.unwrap();
+    let id = order_id(&app, hr["id"].as_str().unwrap());
+
+    // A cashier cannot forget the connection, nor can a locked till.
+    assert_eq!(
+        do_hubrise_disconnect(&app.state).unwrap_err(),
+        errors::FORBIDDEN
+    );
+    *app.state.session.lock().unwrap() = None;
+    assert_eq!(
+        do_hubrise_disconnect(&app.state).unwrap_err(),
+        errors::NOT_LOGGED_IN
+    );
+
+    // An admin waits until the online order is settled.
+    app.login_as(MANAGER, UserRole::Admin);
+    let refused = do_hubrise_disconnect(&app.state).unwrap_err();
+    assert!(
+        refused.starts_with(errors::hubrise::ONLINE_ORDERS_OPEN),
+        "{refused}"
+    );
+    assert!(
+        do_hubrise_get_connection_status(&app.state)
+            .unwrap()
+            .connected
+    );
+
+    app.login_as(CASHIER, UserRole::Cashier);
+    do_accept_webshop_order(&app.state, id, None).await.unwrap();
+    app.login_as(MANAGER, UserRole::Admin);
+    do_hubrise_disconnect(&app.state).unwrap();
+    assert!(
+        !do_hubrise_get_connection_status(&app.state)
+            .unwrap()
+            .connected
     );
 }

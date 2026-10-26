@@ -83,6 +83,25 @@ async fn an_installation_connects_with_its_pos_json_client() {
     );
     app.state.hubrise_switch.set(true);
 
+    // Connecting is an admin's setting.
+    *app.state.session.lock().unwrap() = None;
+    assert_eq!(
+        do_hubrise_start_oauth_flow(&app.state).unwrap_err(),
+        errors::NOT_LOGGED_IN
+    );
+    app.login_as("12345678958", pos_core::user::UserRole::Cashier);
+    assert_eq!(
+        do_hubrise_start_oauth_flow(&app.state).unwrap_err(),
+        errors::FORBIDDEN
+    );
+    assert_eq!(
+        do_hubrise_complete_oauth(&app.state, "any-code")
+            .await
+            .unwrap_err(),
+        errors::FORBIDDEN
+    );
+    app.login_as("85073003328", pos_core::user::UserRole::Admin);
+
     let link = do_hubrise_start_oauth_flow(&app.state).unwrap();
     // The kiosk has no browser: the link comes as a QR code too.
     assert!(link.qr_svg.starts_with("<svg"), "{}", &link.qr_svg[..40]);
@@ -123,6 +142,7 @@ async fn a_refused_connection_code_is_a_coded_error() {
     std::fs::write(&secret, "s3cret").unwrap();
     app.state.config.lock().unwrap().hubrise = Some(section(&mock, &secret));
     app.state.hubrise_switch.set(true);
+    app.login_as("85073003328", pos_core::user::UserRole::Admin);
 
     let refused = do_hubrise_complete_oauth(&app.state, "not-a-code")
         .await

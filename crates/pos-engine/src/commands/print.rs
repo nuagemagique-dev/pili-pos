@@ -119,14 +119,16 @@ fn money_cents(money: &str) -> i64 {
     pos_hubrise_types::money::parse_cents(money).unwrap_or(0)
 }
 
-/// Extract "HH:MM" from an RFC3339 timestamp, or None on failure.
+/// "HH:MM" in Brussels time of an RFC3339 timestamp (HubRise sends UTC),
+/// or None on failure.
 #[cfg(feature = "hubrise")]
 fn hhmm_from_rfc3339(rfc3339: &str) -> Option<String> {
-    // Expected shape: YYYY-MM-DDTHH:MM:SS(Z|+HH:MM). Parsed, not
-    // byte-sliced: a multibyte HubRise value must not panic.
-    chrono::DateTime::parse_from_rfc3339(rfc3339)
-        .ok()
-        .map(|t| t.format("%H:%M").to_string())
+    // Parsed, not byte-sliced: a multibyte HubRise value must not panic.
+    chrono::DateTime::parse_from_rfc3339(rfc3339).ok().map(|t| {
+        t.with_timezone(&chrono_tz::Europe::Brussels)
+            .format("%H:%M")
+            .to_string()
+    })
 }
 
 /// Print a kitchen ticket (items + options + notes, non-fiscal).
@@ -234,7 +236,9 @@ pub async fn do_print_webshop_customer(state: &AppState, order_id: i64) -> Resul
         })
         .unwrap_or_default();
 
-    let printed_at = chrono::Utc::now().format("%Y-%m-%d %H:%M").to_string();
+    let printed_at = pos_fiscal::event::now_in_belgium()
+        .format("%Y-%m-%d %H:%M")
+        .to_string();
 
     let slip = CustomerSlip {
         restaurant_name,
@@ -253,4 +257,27 @@ pub async fn do_print_webshop_customer(state: &AppState, order_id: i64) -> Resul
         .await
         .map(|_| ())
         .map_err(|e| e.to_string())
+}
+
+#[cfg(all(test, feature = "hubrise"))]
+mod tests {
+    use super::hhmm_from_rfc3339;
+
+    #[test]
+    fn a_ready_time_prints_in_brussels_time() {
+        // Summer (UTC+2) and winter (UTC+1), whatever offset was sent.
+        assert_eq!(
+            hhmm_from_rfc3339("2026-04-11T09:30:00Z").as_deref(),
+            Some("11:30")
+        );
+        assert_eq!(
+            hhmm_from_rfc3339("2026-01-11T09:30:00Z").as_deref(),
+            Some("10:30")
+        );
+        assert_eq!(
+            hhmm_from_rfc3339("2026-04-11T13:30:00+04:00").as_deref(),
+            Some("11:30")
+        );
+        assert_eq!(hhmm_from_rfc3339("11:30"), None);
+    }
 }

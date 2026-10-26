@@ -29,7 +29,7 @@ pub fn require_hubrise(state: &AppState) -> Result<(), String> {
 
 /// Online orders not settled yet: waiting for an answer, being signed,
 /// awaiting payment, or cancelled with a refund or a closing to make.
-fn unsettled(state: &AppState) -> Result<i64, String> {
+pub(crate) fn unsettled(state: &AppState) -> Result<i64, String> {
     let db = state.db.lock().map_err(errors::internal)?;
     db.query_row(
         "SELECT COUNT(*) FROM webshop_orders

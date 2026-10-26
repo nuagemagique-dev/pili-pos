@@ -117,6 +117,8 @@ fn oauth_failed(e: impl std::fmt::Display) -> String {
     errors::coded(errors::hubrise::OAUTH_FAILED, &[("detail", &e)])
 }
 
+/// No operator check on purpose: both login screens read it before
+/// anyone signs in (start-up checks). It holds no customer data.
 pub fn do_hubrise_get_connection_status(state: &AppState) -> Result<HubriseConnectionInfo, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     match token_store::load(&db).map_err(|e| e.to_string())? {
@@ -145,8 +147,10 @@ pub struct AuthorizeLink {
     pub qr_svg: String,
 }
 
+/// Admins only, like every other connection setting.
 pub fn do_hubrise_start_oauth_flow(state: &AppState) -> Result<AuthorizeLink, String> {
     crate::commands::integrations::require_hubrise(state)?;
+    access::operator(state, Access::Admin)?;
     let cfg = installation_oauth_config(state)?;
     let url = build_authorize_url(&cfg, None).map_err(oauth_failed)?;
     let qr_svg = qr_svg(&url)?;
@@ -172,12 +176,13 @@ fn qr_svg(text: &str) -> Result<String, String> {
 }
 
 /// Exchange the code HubRise showed for this location's token, store
-/// the connection, and start the integration.
+/// the connection, and start the integration. Admins only.
 pub async fn do_hubrise_complete_oauth(
     state: &AppState,
     code: &str,
 ) -> Result<HubriseConnectionInfo, String> {
     crate::commands::integrations::require_hubrise(state)?;
+    access::operator(state, Access::Admin)?;
     let cfg = installation_oauth_config(state)?;
     let tok = exchange_code(&state.shared_http, &cfg, code)
         .await
@@ -221,7 +226,17 @@ pub async fn do_hubrise_complete_oauth(
     Ok(HubriseConnectionInfo::from_stored(&stored))
 }
 
+/// Forget the connection. Admins only, and like switching the
+/// integration off, refused while online orders are still to settle.
 pub fn do_hubrise_disconnect(state: &AppState) -> Result<(), String> {
+    access::operator(state, Access::Admin)?;
+    let open = crate::commands::integrations::unsettled(state)?;
+    if open > 0 {
+        return Err(errors::coded(
+            errors::hubrise::ONLINE_ORDERS_OPEN,
+            &[("count", &open)],
+        ));
+    }
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         token_store::clear(&db).map_err(|e| e.to_string())?;
@@ -415,6 +430,10 @@ fn summary_from_raw(
     )
 }
 
+/// No operator check on purpose: the Android order board loads the
+/// orders as soon as the engine is ready, before anyone signs in, so a
+/// new online order is seen (and its chime heard) on a locked till.
+/// Read only.
 pub fn do_list_webshop_orders(state: &AppState) -> Result<Vec<WebshopOrderSummary>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = db
@@ -609,6 +628,8 @@ pub struct HubriseStatus {
     pub catalog_awaiting_adoption: bool,
 }
 
+/// No operator check on purpose: the status lights read it on every
+/// screen, the login screen included. Counts only, no customer data.
 pub fn do_hubrise_status(state: &AppState) -> Result<HubriseStatus, String> {
     let db = state.db.lock().map_err(errors::internal)?;
     let health = token_store::health(&db).map_err(errors::internal)?;
