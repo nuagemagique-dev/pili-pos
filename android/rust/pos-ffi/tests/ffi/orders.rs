@@ -1163,27 +1163,31 @@ async fn vat_split_handles_negative_totals() {
 }
 
 #[tokio::test]
-async fn vat_split_can_differ_from_vat_from_inclusive_by_a_cent() {
-    // The facade rounds like the screen; `vat_from_inclusive` truncates. Display only (PD62).
+async fn vat_split_can_differ_from_truncated_inclusive_vat_by_a_cent() {
+    // The facade rounds like the screen; the engine's inclusive VAT truncates. Display only (PD62).
+    // `total - trunc(total * 10000 / (10000 + rate * 100))`, computed here as the expectation.
+    fn truncated_inclusive_vat(total: i64, rate_percent: i64) -> i64 {
+        total - total * 10_000 / (10_000 + rate_percent * 100)
+    }
     let cases = [
-        // (code, total, split VAT from node, vat_from_inclusive)
-        (VatCode::A, EngineVatCode::A, 100, 17, 18),
-        (VatCode::B, EngineVatCode::B, 14, 1, 2),
-        (VatCode::A, EngineVatCode::A, -100, -17, -18),
+        // (code, rate, total, split VAT from node, truncated VAT)
+        (VatCode::A, 21, 100, 17, 18),
+        (VatCode::B, 12, 14, 1, 2),
+        (VatCode::A, 21, -100, -17, -18),
     ];
-    for (code, engine_code, total, vat, truncated) in cases {
+    for (code, rate, total, vat, truncated) in cases {
         let rows = vat_split(vec![line(code, total, 1)]).await;
         assert_eq!(rows[0].vat_cents, vat, "split of {total}");
         assert_eq!(
-            engine_code.vat_from_inclusive(total),
+            truncated_inclusive_vat(total, rate),
             truncated,
-            "vat_from_inclusive of {total}"
+            "truncated inclusive VAT of {total}"
         );
         assert_ne!(rows[0].vat_cents, truncated);
     }
     // Where both agree (exact amounts) there is no difference.
     let rows = vat_split(vec![line(VatCode::A, 1210, 1)]).await;
-    assert_eq!(rows[0].vat_cents, EngineVatCode::A.vat_from_inclusive(1210));
+    assert_eq!(rows[0].vat_cents, truncated_inclusive_vat(1210, 21));
 }
 
 #[tokio::test]

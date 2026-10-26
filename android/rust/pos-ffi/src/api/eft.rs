@@ -70,7 +70,10 @@ impl PosEngine {
 
     /// The approved card payments no sale has settled yet, of every order, oldest first: the Z
     /// warns about them and the order lists mark their orders.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn list_unsettled_card_payments(
         &self,
     ) -> Result<Vec<UnsettledCardPayment>, PosError> {

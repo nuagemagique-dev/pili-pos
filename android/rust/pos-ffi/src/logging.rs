@@ -114,7 +114,9 @@ mod logcat {
 /// nothing: the subscriber is process-wide.
 #[uniffi::export]
 pub async fn init_logging(log_dir: String, filter: String) -> Result<(), PosError> {
-    let _gate = INIT.lock().unwrap_or_else(|e| e.into_inner());
+    let _gate = INIT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if GUARD.get().is_some() {
         return Ok(());
     }
@@ -161,7 +163,7 @@ pub async fn init_logging(log_dir: String, filter: String) -> Result<(), PosErro
 }
 
 /// Log panics (message and location) before the previous hook runs. Idempotent. The panic itself
-/// still unwinds: UniFFI turns it into an `InternalException` on the Kotlin side.
+/// still unwinds: `UniFFI` turns it into an `InternalException` on the Kotlin side.
 pub(crate) fn install_panic_hook() {
     PANIC_HOOK.call_once(|| {
         let previous = std::panic::take_hook();
@@ -173,10 +175,10 @@ pub(crate) fn install_panic_hook() {
             } else {
                 "non-string panic payload".to_string()
             };
-            let location = info
-                .location()
-                .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
-                .unwrap_or_else(|| "unknown location".to_string());
+            let location = info.location().map_or_else(
+                || "unknown location".to_string(),
+                |l| format!("{}:{}:{}", l.file(), l.line(), l.column()),
+            );
             tracing::error!(%message, %location, "panic");
             #[cfg(target_os = "android")]
             logcat::write(

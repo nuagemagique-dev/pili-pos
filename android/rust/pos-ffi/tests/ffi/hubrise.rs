@@ -140,7 +140,7 @@ impl World {
             .await
             .unwrap();
         drain_outbox(&self.app).await;
-        self.mock.update(&hr_id, json!({ "status": "cancelled" }));
+        self.mock.update(&hr_id, &json!({ "status": "cancelled" }));
         self.poll().await;
         id
     }

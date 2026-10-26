@@ -33,7 +33,7 @@ use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
 use pos_engine::commands::refund::{RefundItem as EngineRefundItem, do_list_refundable_events};
-use pos_engine_testkit::{TestApp, tem_accepts, tem_probe};
+use pos_engine_testkit::{DigitalOnly, TestApp, tem_accepts, tem_probe};
 use pos_ffi::PosError;
 use pos_ffi::records::checkout as rec;
 use pos_ffi::records::common::{
@@ -539,7 +539,7 @@ async fn the_mail_status_converts_for_every_state() {
     let tem = TestApp::new().await.fdm;
     tem_probe(&tem, 200).await;
     let mut app = app_on_mock(false).await;
-    app.enable_mail(&tem, true);
+    app.enable_mail(&tem, DigitalOnly::Allowed);
     let status = do_check_mail_status(&app.state).await.unwrap();
     let record: rec::MailStatus = out_equal(&status);
     assert_eq!(
@@ -555,7 +555,7 @@ async fn the_mail_status_converts_for_every_state() {
     let down = TestApp::new().await.fdm;
     tem_probe(&down, 503).await;
     let mut app = app_on_mock(false).await;
-    app.enable_mail(&down, false);
+    app.enable_mail(&down, DigitalOnly::Refused);
     let status = do_check_mail_status(&app.state).await.unwrap();
     let record: rec::MailStatus = out_equal(&status);
     assert_eq!(
@@ -574,7 +574,7 @@ async fn deliveries_of_real_digital_tickets_convert() {
     tem_probe(&tem, 200).await;
     tem_accepts(&tem).await;
     let mut app = app_on_mock(false).await;
-    app.enable_mail(&tem, true);
+    app.enable_mail(&tem, DigitalOnly::Allowed);
     let request = EngineDeliveryRequest::email(RequestedMedium::Digital, "client@example.be");
     let sale = cash_sale(&app, Some(&request)).await;
 

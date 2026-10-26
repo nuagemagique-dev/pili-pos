@@ -10,8 +10,8 @@
 //!   never redefines one: it imports it with `use super::common::...`.
 //! - **orders** = order, modifiers, menu, tables, session; **checkout** = checkout, unpaid,
 //!   refund, copy, delivery, print; **reports** = report, social, financial, settings,
-//!   fdm_monitor; **auth** = auth, integrations, support; **hubrise** = hubrise, webshop;
-//!   **badges** = badges (staff badge reader, lane 5); **invoice** = invoice; **menu_admin** = the
+//!   `fdm_monitor`; **auth** = auth, integrations, support; **hubrise** = hubrise, webshop;
+//!   **badges** = badges (staff badge reader, lane 5); **invoice** = invoice; **`menu_admin`** = the
 //!   menu editor (`records/menu_admin.rs`).
 //! - The FFI name is the engine name, except `Display` (`pos_fiscal::types`), which is
 //!   `FdmMessageDisplay`. No two reachable engine types share a name (`Order`, `Category` and

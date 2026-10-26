@@ -1,4 +1,4 @@
-//! pili-pos Android FFI: the UniFFI facade over `pos-engine`.
+//! pili-pos Android FFI: the `UniFFI` facade over `pos-engine`.
 //!
 //! One [`PosEngine`] object owns the engine and its own Tokio runtime. Every method is async and
 //! awaits a join handle from that runtime (never `async_runtime = "tokio"`), errors are the

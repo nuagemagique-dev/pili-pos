@@ -5,6 +5,10 @@
 /// `pos_engine::commands::alerts::AlertKinds`: one switch per kind of alert.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(deny_unknown_fields)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "one switch per kind of alert: the record mirrors the engine type and the Kotlin screen"
+)]
 pub struct AlertKinds {
     pub fdm: bool,
     pub printer: bool,

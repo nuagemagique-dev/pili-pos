@@ -8,7 +8,7 @@
 //!
 //! Tests use `#[tokio::test(flavor = "multi_thread")]` and end with `engine.shutdown().await`.
 
-#![allow(dead_code)] // helpers for the domain cards
+#![expect(dead_code, reason = "helpers for the domain cards")]
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

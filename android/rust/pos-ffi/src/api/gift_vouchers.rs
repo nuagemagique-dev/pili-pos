@@ -1,4 +1,4 @@
-//! The gift vouchers facade (engine module gift_vouchers): six commands as async methods of
+//! The gift vouchers facade (engine module `gift_vouchers)`: six commands as async methods of
 //! [`PosEngine`].
 //!
 //! Each method mirrors its Tauri wrapper (`src-tauri/src/ipc/gift_vouchers.rs`): the same
@@ -18,7 +18,10 @@ use crate::records::orders::OrderLine;
 #[uniffi::export]
 impl PosEngine {
     /// The gift voucher setting (switch, validity, maximum amount).
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn get_gift_voucher_settings(&self) -> Result<GiftVoucherSettings, PosError> {
         let settings = self
             .blocking(|st| gift_vouchers::do_get_gift_voucher_settings(st))

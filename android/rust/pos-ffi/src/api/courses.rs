@@ -17,7 +17,10 @@ use crate::records::courses::{CourseSettings, HeldCourse, NextCourse};
 #[uniffi::export]
 impl PosEngine {
     /// The courses setting (switch and category courses).
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn get_course_settings(&self) -> Result<CourseSettings, PosError> {
         let settings = self
             .blocking(|st| courses::do_get_course_settings(st))

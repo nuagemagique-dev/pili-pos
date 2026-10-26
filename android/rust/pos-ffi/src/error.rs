@@ -1,6 +1,6 @@
 //! The error every FFI call returns. Kotlin sees `PosException` (sealed, one subclass per variant).
 //!
-//! Field names are `detail` and `params`, never `message`: UniFFI's Kotlin bindings would clash
+//! Field names are `detail` and `params`, never `message`: `UniFFI`'s Kotlin bindings would clash
 //! with `Throwable.message`.
 
 use std::collections::HashMap;
@@ -52,6 +52,10 @@ fn is_known_code(code: &str) -> bool {
 /// - text starting with `FDM` (after trimming): [`PosError::Fdm`];
 /// - `code|k=v|k=v` where `code` is a known code of either list: [`PosError::Coded`];
 /// - anything else (including the empty text): [`PosError::Internal`].
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "used as `map_err(from_engine)` over the engine commands' String errors"
+)]
 pub fn from_engine(s: String) -> PosError {
     let text = s.trim();
     if text.starts_with("FDM") {

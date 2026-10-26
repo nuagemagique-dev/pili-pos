@@ -44,7 +44,7 @@ use pos_fiscal::ticket::{
     TicketPayment as EngineTicketPayment,
 };
 use pos_fiscal::types::{
-    Display as EngineDisplay, EventLabel as EngineEventLabel,
+    ShowPos as EngineShowPos, EventLabel as EngineEventLabel,
     FdmWarningCode as EngineFdmWarningCode, MessageCategory as EngineMessageCategory,
     TicketMedium as EngineTicketMedium, VatLabel as EngineVatLabel,
 };
@@ -559,7 +559,7 @@ fn message(full: bool) -> EngineMessageItem {
                     value: "93".into(),
                 }]
             }),
-            show_pos: EngineDisplay::Mandatory,
+            show_pos: EngineShowPos::Mandatory,
         },
     }
 }
@@ -752,7 +752,7 @@ fn lock_reason_variants() {
 
 #[test]
 fn message_display_variants() {
-    use EngineDisplay::*;
+    use EngineShowPos::*;
     enum_both::<_, ffi::FdmMessageDisplay>(&[Mandatory, Optional, Never]);
 }
 
