@@ -318,7 +318,28 @@ pub async fn do_eft_pay(
             Some(eft_error(&e)),
         ),
     };
-    let row = store(state, id, &resolution)?;
+    let row = store(state, id, &resolution).inspect_err(|error| {
+        // The terminal's answer is lost with this error: leave a trace to
+        // reconcile it by hand (an approved card was charged). The PAN is
+        // already masked; the receipt text is left out of the log.
+        match &resolution {
+            Resolution::Approved {
+                brand,
+                terminal_reference,
+                authorisation_code,
+                masked_pan,
+                ..
+            } => tracing::error!(
+                id, order_id, amount_cents, %reference, ?brand, ?terminal_reference,
+                ?authorisation_code, ?masked_pan, %error,
+                "approved card payment could not be stored"
+            ),
+            other => tracing::error!(
+                id, order_id, amount_cents, %reference, ?other, %error,
+                "terminal answer could not be stored"
+            ),
+        }
+    })?;
     tracing::info!(id, status = row.status.as_str(), "card payment answered");
     match failure {
         Some(error) => Err(error),

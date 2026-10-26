@@ -1,4 +1,5 @@
 use chrono::Timelike;
+use pos_core::money::cents_from_eur;
 use pos_db::queries::reports::{self as report_queries, ZReportSummary};
 use pos_print::report::{
     ReportDetails, ReportEventTotal, ReportPaymentTotal, ReportPrintData, ReportVatTotal,
@@ -624,7 +625,7 @@ fn build_print_data(
             .map(|t| ReportEventTotal {
                 label: enum_name(&t.event_label),
                 count: t.ticket_count,
-                amount_cents: cents(t.amount),
+                amount_cents: cents_from_eur(t.amount),
             })
             .collect(),
         vat_totals: turnover
@@ -633,8 +634,8 @@ fn build_print_data(
             .map(|v| ReportVatTotal {
                 code: enum_name(&v.label),
                 rate: v.rate,
-                total_incl_cents: cents(v.total_amount),
-                vat_cents: cents(v.vat_amount),
+                total_incl_cents: cents_from_eur(v.total_amount),
+                vat_cents: cents_from_eur(v.vat_amount),
             })
             .collect(),
         grand_total_cents: payment_totals.iter().map(|p| p.amount_cents).sum(),
@@ -663,7 +664,7 @@ fn report_details(
             .iter()
             .filter(|n| (n.neg_quantity_reason == NegQuantityReason::Refund) == refund)
             .fold((0, 0), |(count, amount), n| {
-                (count + n.ticket_count, amount + cents(n.amount))
+                (count + n.ticket_count, amount + cents_from_eur(n.amount))
             })
     };
     let transactions_of = |label: EventLabel| {
@@ -672,7 +673,7 @@ fn report_details(
             .iter()
             .filter(|t| t.event_label == label)
             .fold((0, 0), |(count, amount), t| {
-                (count + t.ticket_count, amount + cents(t.amount))
+                (count + t.ticket_count, amount + cents_from_eur(t.amount))
             })
     };
     // The public price changes of the sales, split by scope as the
@@ -697,7 +698,7 @@ fn report_details(
         departments: turnover
             .departments
             .iter()
-            .map(|d| (d.department_name.clone(), cents(d.amount)))
+            .map(|d| (d.department_name.clone(), cents_from_eur(d.amount)))
             .collect(),
         corrections_cents: neg(false).1,
         refunds: neg(true),
@@ -708,14 +709,14 @@ fn report_details(
             .invoices
             .iter()
             .flatten()
-            .map(|i| (i.invoice_no.clone(), cents(i.amount)))
+            .map(|i| (i.invoice_no.clone(), cents_from_eur(i.amount)))
             .collect(),
         rounding_cents: turnover
             .payments
             .iter()
             .flat_map(|p| &p.amount)
             .filter(|a| a.amount_type == PaymentLineType::Rounding)
-            .map(|a| cents(a.total_amount))
+            .map(|a| cents_from_eur(a.total_amount))
             .sum(),
         payment_corrections: payment_corrections(&turnover.payments),
     }
@@ -736,7 +737,7 @@ fn reductions_by_scope(events: &[ReportEvent]) -> ((i64, i64), (i64, i64)) {
                     if change["type"].as_str() != Some("PUBLIC") {
                         continue;
                     }
-                    let amount = cents(change["amount"].as_f64().unwrap_or(0.0));
+                    let amount = pos_fiscal::report_totals::cents(&change["amount"]);
                     if change["scope"].as_str() == Some("LINE") {
                         line.1 += amount;
                         line_hit = true;
@@ -764,9 +765,11 @@ fn payment_corrections(payments: &[PaymentTotalInput]) -> (i64, i64) {
         .fold((0, 0), |(lines, moved), a| {
             (
                 lines + a.corrections_count,
-                moved + cents(a.positive_corrections),
+                moved + cents_from_eur(a.positive_corrections),
             )
         });
+    // Each correction is a negative and a positive line, so the count is even.
+    debug_assert!(lines % 2 == 0, "payment correction lines come in pairs");
     (lines / 2, moved)
 }
 
@@ -776,25 +779,34 @@ fn print_payments<'a>(
     payments: &[PaymentTotalInput],
     events: impl Iterator<Item = &'a ReportEvent> + Clone,
 ) -> Vec<ReportPaymentTotal> {
+    // One pass over the sales: the number of PAYMENT lines per (id, name).
+    // A cash sale's rounding line is not a second payment.
+    let mut counts: std::collections::BTreeMap<(&str, &str), i64> =
+        std::collections::BTreeMap::new();
+    for line in events
+        .filter(|e| e.label == EventLabel::N)
+        .filter_map(|e| e.request["financials"].as_array())
+        .flatten()
+        .filter(|f| f["amountType"] == "PAYMENT")
+    {
+        if let (Some(id), Some(name)) = (line["id"].as_str(), line["name"].as_str()) {
+            *counts.entry((id, name)).or_insert(0) += 1;
+        }
+    }
     payments
         .iter()
         .map(|p| ReportPaymentTotal {
             method: p.name.clone(),
-            count: events
-                .clone()
-                .filter(|e| e.label == EventLabel::N)
-                .filter_map(|e| e.request["financials"].as_array())
-                .flatten()
-                .filter(|f| f["id"].as_str() == Some(&p.id) && f["name"].as_str() == Some(&p.name))
-                // A cash sale's rounding line is not a second payment.
-                .filter(|f| f["amountType"] == "PAYMENT")
-                .count() as i64,
+            count: counts
+                .get(&(p.id.as_str(), p.name.as_str()))
+                .copied()
+                .unwrap_or(0),
             // The payment lines; the rounding is totalled apart.
             amount_cents: p
                 .amount
                 .iter()
                 .filter(|a| a.amount_type == PaymentLineType::Payment)
-                .map(|a| cents(a.total_amount))
+                .map(|a| cents_from_eur(a.total_amount))
                 .sum(),
         })
         .collect()
@@ -803,22 +815,22 @@ fn print_payments<'a>(
 /// First and last POS time of the report's events.
 fn period_range(devices: &[PosDeviceInput]) -> (String, String) {
     let parse = |s: &str| chrono::DateTime::parse_from_rfc3339(s).ok();
+    // Only parseable timestamps compete: an unparseable one sorts first
+    // as `None` and would be printed as the "first POS time".
     let first = devices
         .iter()
         .map(|d| &d.first_pos_date_time)
+        .filter(|s| parse(s).is_some())
         .min_by_key(|s| parse(s));
     let last = devices
         .iter()
         .map(|d| &d.last_pos_date_time)
+        .filter(|s| parse(s).is_some())
         .max_by_key(|s| parse(s));
     (
         first.cloned().unwrap_or_default(),
         last.cloned().unwrap_or_default(),
     )
-}
-
-fn cents(amount: f64) -> i64 {
-    (amount * 100.0).round() as i64
 }
 
 /// The wire name of a fiscal enum (`EventLabel::N` → "N").
@@ -967,7 +979,7 @@ fn build_user_print_data(
             insz: u.employee_id.clone(),
             first_datetime: u.first_pos_date_time.clone(),
             last_datetime: u.last_pos_date_time.clone(),
-            total_cents: cents(u.total_amount),
+            total_cents: cents_from_eur(u.total_amount),
             payments: print_payments(
                 &u.payments,
                 events
@@ -1050,6 +1062,27 @@ mod tests {
 
     fn at(y: i32, m: u32, d: u32, h: u32, min: u32) -> chrono::DateTime<chrono_tz::Tz> {
         Brussels.with_ymd_and_hms(y, m, d, h, min, 0).unwrap()
+    }
+
+    #[test]
+    fn the_period_range_ignores_unparseable_timestamps() {
+        let device = |first: &str, last: &str| PosDeviceInput {
+            pos_id: "pos".into(),
+            terminal_id: None,
+            first_pos_date_time: first.into(),
+            last_pos_date_time: last.into(),
+        };
+        let devices = [
+            device("garbage", "2026-07-03T10:00:00+02:00"),
+            device("2026-07-03T09:00:00+02:00", "garbage"),
+        ];
+        assert_eq!(
+            period_range(&devices),
+            (
+                "2026-07-03T09:00:00+02:00".to_string(),
+                "2026-07-03T10:00:00+02:00".to_string()
+            )
+        );
     }
 
     #[test]

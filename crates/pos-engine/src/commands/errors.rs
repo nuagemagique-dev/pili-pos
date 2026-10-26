@@ -690,6 +690,21 @@ pub fn internal(detail: impl Display) -> String {
     coded(INTERNAL_ERROR, &[("detail", &detail)])
 }
 
+/// An archived JSON euro amount as cents. A missing or non-numeric
+/// amount is an error naming `field`, never a silent 0: a signed
+/// document built from it would be wrong.
+pub fn archived_cents(v: &serde_json::Value, field: &str) -> Result<i64, String> {
+    pos_core::money::cents_of(v).ok_or_else(|| incomplete(field))
+}
+
+/// An archived JSON quantity in thousandths (`1.5` is `1500`); an error
+/// naming `field` when missing or not a number.
+pub fn archived_milli(v: &serde_json::Value, field: &str) -> Result<i64, String> {
+    v.as_f64()
+        .map(|q| pos_core::money::round_to_i64(q * 1000.0))
+        .ok_or_else(|| incomplete(field))
+}
+
 /// The archived original of a copy or refund lacks `field`.
 pub fn incomplete(field: &str) -> String {
     coded(ORIGINAL_INCOMPLETE, &[("field", &field)])

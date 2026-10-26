@@ -84,8 +84,8 @@ pub async fn do_checkout_with(
             let total = {
                 let db = state.db.lock().map_err(|e| e.to_string())?;
                 pos_db::queries::orders::get_order(&db, order_id)
-                    .map(|o| o.total_cents)
-                    .unwrap_or(0)
+                    .map_err(errors::internal)?
+                    .total_cents
             };
             PaymentPart::of(method, total)
         }

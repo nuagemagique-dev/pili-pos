@@ -1012,8 +1012,14 @@ async fn print_slip_of(
     event_id: i64,
 ) -> SlipOutcome {
     let entries = match state.db.lock() {
-        Ok(db) => pos_db::queries::orders::get_entries_sent_in(&db, event_id).unwrap_or_default(),
-        Err(_) => Vec::new(),
+        Ok(db) => pos_db::queries::orders::get_entries_sent_in(&db, event_id).unwrap_or_else(|e| {
+            tracing::warn!(event_id, %e, "slip not printed: sent entries unreadable");
+            Vec::new()
+        }),
+        Err(e) => {
+            tracing::warn!(event_id, %e, "slip not printed: db lock poisoned");
+            Vec::new()
+        }
     };
     // Courses on: the slip is grouped by course and holds the
     // courses above the released one. Off: the slip of v1.0.0.

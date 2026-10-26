@@ -161,6 +161,8 @@ fn normalize(code: &str) -> String {
 
 /// `**** **** 9012`: what the screens and logs show of a code.
 pub fn mask(code: &str) -> String {
+    // Codes are 12 ASCII digits (`valid_code`), so a byte slice is on a
+    // char boundary.
     let tail = &code[code.len().saturating_sub(4)..];
     format!("**** **** {tail}")
 }
@@ -608,12 +610,18 @@ pub(crate) fn vouchers_to_cancel(
         if menu_item_id != item {
             continue;
         }
-        let candidates: Vec<db::VoucherRow> = db::voucher_lines(conn, original_order_id)
-            .map_err(errors::internal)?
-            .into_iter()
-            .filter(|(_, price)| *price == unit_price_cents)
-            .filter_map(|(line_id, _)| db::find_by_line(conn, line_id).ok().flatten())
-            .collect();
+        let mut candidates: Vec<db::VoucherRow> = Vec::new();
+        for (line_id, price) in
+            db::voucher_lines(conn, original_order_id).map_err(errors::internal)?
+        {
+            if price != unit_price_cents {
+                continue;
+            }
+            // A database error is not "no voucher": it would read as a used one.
+            if let Some(row) = db::find_by_line(conn, line_id).map_err(errors::internal)? {
+                candidates.push(row);
+            }
+        }
         let mut remaining = quantity;
         for row in candidates {
             if remaining == 0 {
@@ -785,6 +793,7 @@ pub(crate) async fn print_after_sale(
         };
         let slip = BalanceSlip {
             establishment: config.restaurant_name.clone(),
+            // Stored codes are 12 ASCII digits: the byte slice is safe.
             code_last4: row.code[row.code.len().saturating_sub(4)..].to_string(),
             balance_cents: row.balance_cents,
             expires_on: display_date(&row.expires_on),

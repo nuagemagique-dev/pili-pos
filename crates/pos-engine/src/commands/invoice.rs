@@ -211,11 +211,6 @@ pub struct PeppolDeliveries {
 
 // ── Reading the archive ───────────────────────────────────────────
 
-/// A JSON amount (multiple of 0.01) in eurocents.
-fn cents(v: &serde_json::Value) -> i64 {
-    (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct DocLine {
     pub name: String,
@@ -324,15 +319,15 @@ pub(crate) fn read_sale(event: &FiscalEventRef) -> Result<SaleDoc, String> {
             ));
         }
         let name = product["productName"].as_str().unwrap_or_default();
-        let quantity_milli = (product["quantity"].as_f64().unwrap_or(1.0) * 1000.0).round() as i64;
+        let quantity_milli = errors::archived_milli(&product["quantity"], "quantity")?;
         let unit = unit_code(product["quantityType"].as_str().unwrap_or("PIECE"));
         let vats = product["vats"].as_array().cloned().unwrap_or_default();
         let split = vats.len() > 1;
         for vat in &vats {
             let label = vat["label"].as_str().unwrap_or_default().to_string();
-            let mut incl = cents(&vat["price"]);
+            let mut incl = errors::archived_cents(&vat["price"], "price")?;
             for change in vat["priceChanges"].as_array().into_iter().flatten() {
-                let amount = cents(&change["amount"]);
+                let amount = errors::archived_cents(&change["amount"], "priceChanges")?;
                 if change["scope"].as_str() == Some("EVENT") {
                     let key = (
                         change["id"].as_str().unwrap_or_default().to_string(),
@@ -380,14 +375,18 @@ pub(crate) fn read_sale(event: &FiscalEventRef) -> Result<SaleDoc, String> {
         .as_array()
         .into_iter()
         .flatten()
-        .map(|v| DocVat {
-            label: v["label"].as_str().unwrap_or_default().to_string(),
-            rate_hundredths: (v["rate"].as_f64().unwrap_or(0.0) * 100.0).round() as i64,
-            base_cents: cents(&v["taxableAmount"]),
-            vat_cents: cents(&v["vatAmount"]),
-            total_cents: cents(&v["totalAmount"]),
+        .map(|v| {
+            Ok(DocVat {
+                label: v["label"].as_str().unwrap_or_default().to_string(),
+                rate_hundredths: pos_core::money::round_to_i64(
+                    v["rate"].as_f64().unwrap_or(0.0) * 100.0,
+                ),
+                base_cents: errors::archived_cents(&v["taxableAmount"], "taxableAmount")?,
+                vat_cents: errors::archived_cents(&v["vatAmount"], "vatAmount")?,
+                total_cents: errors::archived_cents(&v["totalAmount"], "totalAmount")?,
+            })
         })
-        .collect();
+        .collect::<Result<_, String>>()?;
     if vat.is_empty() {
         // The FDM always returns it for an N; derived from the lines should it ever be missing.
         let mut by_label: BTreeMap<String, i64> = BTreeMap::new();

@@ -180,8 +180,10 @@ pub(crate) async fn refund_sale(
         let original_changes = pos_fiscal::price_change::LineChanges::new();
 
         // A sale closed unpaid took no money: none goes back.
-        let request: serde_json::Value =
-            serde_json::from_str(&event.event_data_json).unwrap_or_default();
+        // An unreadable record must stop the refund: read as `Null` it
+        // would look paid.
+        let request: serde_json::Value = serde_json::from_str(&event.event_data_json)
+            .map_err(|e| errors::internal(format!("fiscal event {}: {e}", event.id)))?;
         if pos_fiscal::ticket::is_unpaid_sale(&request) {
             return Ok(CheckoutResult::refused(errors::REFUND_UNPAID_SALE));
         }
@@ -260,15 +262,14 @@ pub(crate) async fn refund_sale(
         // this sale has already been refunded", across any number of
         // prior partial refunds, so a second or third partial refund
         // can't push the aggregate past what was actually sold.
-        let already_refunded =
-            already_refunded_quantities(&db, &original_ref).map_err(|e| e.to_string())?;
+        let already_refunded = already_refunded_quantities(&db, &original_ref)?;
 
         // (quantity refunded, the original line it comes from)
         let mut refunded: Vec<(i32, &pos_core::order::OrderLine)> = Vec::new();
         match spec.lines {
             RefundLines::Products(items) => {
-                let mut requested: std::collections::HashMap<Bucket, i64> =
-                    std::collections::HashMap::new();
+                let mut requested: std::collections::BTreeMap<Bucket, i64> =
+                    std::collections::BTreeMap::new();
                 let mut picked = Vec::with_capacity(items.len());
                 for item in items {
                     if item.quantity <= 0 {
@@ -316,6 +317,7 @@ pub(crate) async fn refund_sale(
             }
             #[cfg(feature = "hubrise")]
             RefundLines::Everything => {
+                // The first bucket in key order, so the message is deterministic.
                 if let Some((bucket, &prior)) = already_refunded.iter().next() {
                     return Err(exceeds_sold(bucket.product, 0, 0, prior));
                 }
@@ -559,11 +561,18 @@ fn original_order_id_if_online(state: &AppState, sale_event_id: i64) -> Option<i
 
 /// Void a refund order that was not signed.
 fn void_order(state: &AppState, order_id: i64) {
-    if let Ok(db) = state.db.lock() {
-        let _ = db.execute(
-            "UPDATE orders SET status = 'voided' WHERE id = ?1 AND status = 'open'",
-            rusqlite::params![order_id],
-        );
+    match state.db.lock() {
+        Ok(db) => {
+            if let Err(e) = db.execute(
+                "UPDATE orders SET status = 'voided' WHERE id = ?1 AND status = 'open'",
+                rusqlite::params![order_id],
+            ) {
+                tracing::error!(order_id, %e, "could not void the unsigned refund order");
+            }
+        }
+        Err(e) => {
+            tracing::error!(order_id, %e, "could not void the unsigned refund order: db lock poisoned");
+        }
     }
 }
 
@@ -572,7 +581,7 @@ pub const ERR_REFUND_OF_REFUND: &str = errors::REFUND_OF_REFUND;
 
 /// Lines of one product sold at one price and VAT label: what a
 /// refund is counted against.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 struct Bucket {
     product: i64,
     unit_price_cents: i64,
@@ -666,42 +675,56 @@ fn check_sold(
 fn already_refunded_quantities(
     conn: &rusqlite::Connection,
     original: &pos_fiscal::response::FdmReference,
-) -> Result<std::collections::HashMap<Bucket, i64>, rusqlite::Error> {
+) -> Result<std::collections::BTreeMap<Bucket, i64>, String> {
+    already_refunded_quantities_inner(conn, original).map_err(errors::internal)
+}
+
+fn already_refunded_quantities_inner(
+    conn: &rusqlite::Connection,
+    original: &pos_fiscal::response::FdmReference,
+) -> Result<std::collections::BTreeMap<Bucket, i64>, String> {
     let event_label = serde_json::to_string(&original.event_label)
         .unwrap_or_default()
         .trim_matches('"')
         .to_string();
-    let mut stmt = conn.prepare(
-        "SELECT event_data_json FROM fiscal_events
+    let mut stmt = conn
+        .prepare(
+            "SELECT event_data_json FROM fiscal_events
          WHERE json_extract(event_data_json, '$.fdmRef.fdmId') = ?1
            AND json_extract(event_data_json, '$.fdmRef.fdmDateTime') = ?2
            AND json_extract(event_data_json, '$.fdmRef.eventLabel') = ?3
            AND json_extract(event_data_json, '$.fdmRef.eventCounter') = ?4
            AND json_extract(event_data_json, '$.fdmRef.totalCounter') = ?5",
-    )?;
-    let rows = stmt.query_map(
-        rusqlite::params![
-            original.fdm_id,
-            original.fdm_date_time,
-            event_label,
-            original.event_counter,
-            original.total_counter,
-        ],
-        |row| row.get::<_, String>(0),
-    )?;
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(
+            rusqlite::params![
+                original.fdm_id,
+                original.fdm_date_time,
+                event_label,
+                original.event_counter,
+                original.total_counter,
+            ],
+            |row| row.get::<_, String>(0),
+        )
+        .map_err(|e| e.to_string())?;
 
-    let mut totals: std::collections::HashMap<Bucket, i64> = std::collections::HashMap::new();
+    let mut totals: std::collections::BTreeMap<Bucket, i64> = std::collections::BTreeMap::new();
     for row in rows {
-        let json = row?;
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
-            continue;
-        };
+        let json = row.map_err(|e| e.to_string())?;
+        let value = serde_json::from_str::<serde_json::Value>(&json)
+            .map_err(|e| format!("unreadable prior refund record: {e}"))?;
         let Some(lines) = value["transaction"]["transactionLines"].as_array() else {
             continue;
         };
         for line in lines {
             let product = &line["mainProduct"];
-            let quantity = product["quantity"].as_f64().unwrap_or(0.0);
+            // A line without a quantity cannot be counted: refuse rather
+            // than let the refund cap be exceeded.
+            let quantity = product["quantity"]
+                .as_f64()
+                .ok_or_else(|| "a prior refund line has no quantity".to_string())?;
             if quantity >= 0.0 {
                 continue; // only negative (refund) lines count
             }
@@ -711,18 +734,114 @@ fn already_refunded_quantities(
             else {
                 continue;
             };
+            let unit_price_cents = pos_core::money::cents_of(&product["unitPrice"])
+                .ok_or_else(|| "a prior refund line has no unit price".to_string())?;
             let bucket = Bucket {
                 product: product_id,
-                unit_price_cents: (product["unitPrice"].as_f64().unwrap_or(0.0) * 100.0).round()
-                    as i64,
+                unit_price_cents,
                 vat: product["vats"][0]["label"]
                     .as_str()
                     .unwrap_or_default()
                     .to_string(),
             };
             let total = totals.entry(bucket).or_insert(0);
-            *total = total.saturating_add((-quantity).round() as i64);
+            *total = total.saturating_add(pos_core::money::round_to_i64(-quantity));
         }
     }
     Ok(totals)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn original() -> FdmReference {
+        FdmReference {
+            fdm_id: "FDM1".into(),
+            fdm_date_time: "20260101120000".into(),
+            event_label: EventLabel::N,
+            event_counter: 1,
+            total_counter: 2,
+        }
+    }
+
+    /// A connection whose only fiscal event is a refund with `line`.
+    fn conn_with_refund_line(line: &serde_json::Value) -> rusqlite::Connection {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE fiscal_events (id INTEGER PRIMARY KEY, event_data_json TEXT);",
+        )
+        .unwrap();
+        let json = serde_json::json!({
+            "fdmRef": {
+                "fdmId": "FDM1",
+                "fdmDateTime": "20260101120000",
+                "eventLabel": "N",
+                "eventCounter": 1,
+                "totalCounter": 2,
+            },
+            "transaction": {"transactionLines": [line]},
+        });
+        conn.execute(
+            "INSERT INTO fiscal_events (event_data_json) VALUES (?1)",
+            [json.to_string()],
+        )
+        .unwrap();
+        conn
+    }
+
+    #[test]
+    fn prior_refund_lines_are_counted_per_bucket() {
+        let conn = conn_with_refund_line(&serde_json::json!({"mainProduct": {
+            "productId": "7", "quantity": -2.0, "unitPrice": 12.5,
+            "vats": [{"label": "A"}],
+        }}));
+        let totals = already_refunded_quantities(&conn, &original()).unwrap();
+        assert_eq!(totals.len(), 1);
+        let (bucket, qty) = totals.iter().next().unwrap();
+        assert_eq!(
+            (bucket.product, bucket.unit_price_cents, *qty),
+            (7, 1250, 2)
+        );
+    }
+
+    #[test]
+    fn a_prior_refund_line_without_quantity_is_an_error() {
+        let conn = conn_with_refund_line(&serde_json::json!({"mainProduct": {
+            "productId": "7", "unitPrice": 12.5, "vats": [{"label": "A"}],
+        }}));
+        let err = already_refunded_quantities(&conn, &original()).unwrap_err();
+        assert!(err.contains("no quantity"), "{err}");
+    }
+
+    #[test]
+    fn a_prior_refund_line_without_unit_price_is_an_error() {
+        let conn = conn_with_refund_line(&serde_json::json!({"mainProduct": {
+            "productId": "7", "quantity": -1.0, "vats": [{"label": "A"}],
+        }}));
+        let err = already_refunded_quantities(&conn, &original()).unwrap_err();
+        assert!(err.contains("no unit price"), "{err}");
+    }
+
+    #[test]
+    fn an_unreadable_prior_refund_record_is_an_error() {
+        let conn = conn_with_refund_line(&serde_json::json!({}));
+        conn.execute("UPDATE fiscal_events SET event_data_json = '{broken'", [])
+            .unwrap();
+        assert!(already_refunded_quantities(&conn, &original()).is_err());
+    }
+
+    #[test]
+    fn the_exceeds_sold_bucket_is_the_first_in_key_order() {
+        let bucket = |product| Bucket {
+            product,
+            unit_price_cents: 100,
+            vat: "A".into(),
+        };
+        let mut map = std::collections::BTreeMap::new();
+        map.insert(bucket(9), 1_i64);
+        map.insert(bucket(3), 1_i64);
+        map.insert(bucket(5), 1_i64);
+        assert_eq!(map.keys().next().unwrap().product, 3);
+    }
 }
