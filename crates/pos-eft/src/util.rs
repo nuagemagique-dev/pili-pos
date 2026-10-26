@@ -134,6 +134,18 @@ pub(crate) fn wire_enabled() -> bool {
     tracing::enabled!(target: "pos_eft::wire", tracing::Level::TRACE)
 }
 
+/// Whether `run` is digit groups in card grouping: every group but the
+/// last has exactly 4 digits, the last 1 to 4 ("4111-1111-1111-1111"):
+/// only the shape counts, not the digits. A UUID fragment has a first group of another length or a 12 digit
+/// last group.
+fn card_grouped(run: &[char]) -> bool {
+    let groups: Vec<&[char]> = run.split(|c| *c == ' ' || *c == '-').collect();
+    let Some((last, head)) = groups.split_last() else {
+        return false;
+    };
+    !head.is_empty() && head.iter().all(|g| g.len() == 4) && (1..=4).contains(&last.len())
+}
+
 /// `text` with every run of 13 to 19 digits (single spaces between
 /// digits allowed, or dashes: "4111 1111 1111 1111", "4111-1111-1111-1111") replaced by asterisks except
 /// its last 4 digits. A run of other lengths is left alone, unless it is
@@ -165,8 +177,10 @@ pub fn mask_pan(text: &str) -> String {
         let digits = run.iter().filter(|c| c.is_ascii_digit()).count();
         // A dash-joined run is a card number only when it stands alone: a
         // run touching letters is a piece of an identifier (a UUID whose
-        // hex groups happen to be digits), never a PAN.
+        // hex groups happen to be digits), never a PAN. Card grouping
+        // (4-4-4-1..4) is a card number whatever touches it.
         let alone = !run.contains(&'-')
+            || card_grouped(run)
             || (i
                 .checked_sub(1)
                 .and_then(|b| chars.get(b))
@@ -291,6 +305,9 @@ mod tests {
             "PAN ****-****-****-1111 end"
         );
         assert_eq!(mask_pan("order 2024-10-26"), "order 2024-10-26");
+        // A card grouping glued to a letter or digit is still one number.
+        assert_eq!(mask_pan("PAN4111-1111-1111-1111"), "PAN****-****-****-1111");
+        assert_eq!(mask_pan("4111-1111-1111-1111x"), "****-****-****-1111x");
         // UUIDs whose hex groups happen to be digits stay as they are.
         for uuid in [
             "a1b2c3d4-e5f6-4123-8123-1234a6789012",

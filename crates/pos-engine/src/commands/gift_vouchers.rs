@@ -162,9 +162,10 @@ fn normalize(code: &str) -> String {
 
 /// `**** **** 9012`: what the screens and logs show of a code.
 pub fn mask(code: &str) -> String {
-    // Codes are 12 ASCII digits (`valid_code`), so a byte slice is on a
-    // char boundary.
-    let tail = &code[code.len().saturating_sub(4)..];
+    // Counted in chars: a code that is not 12 ASCII digits cannot panic
+    // on a byte boundary.
+    let skip = code.chars().count().saturating_sub(4);
+    let tail: String = code.chars().skip(skip).collect();
     format!("**** **** {tail}")
 }
 
@@ -921,6 +922,9 @@ mod tests {
         assert_eq!(normalize("1234 5678 9095"), "123456789095");
         assert_eq!(normalize(" 1234-5678-9095 "), "123456789095");
         assert_eq!(mask("123456789095"), "**** **** 9095");
+        // Never a panic on a code that is not ASCII, or too short.
+        assert_eq!(mask("12é4567"), "**** **** 4567");
+        assert_eq!(mask("é"), "**** **** é");
     }
 
     #[test]
