@@ -165,6 +165,10 @@ pub struct EngineTimers {
     /// dropped (the line freed) when the terminal does not answer in
     /// time.
     pub terminal_probe: Duration,
+    /// Remote support: how often the reaper looks for a session past its
+    /// time limit (or whose program exited), so the limit holds even
+    /// when nobody asks for the status.
+    pub support_reap: Duration,
 }
 
 impl Default for EngineTimers {
@@ -179,6 +183,7 @@ impl Default for EngineTimers {
             badge_repeat: Duration::from_secs(10),
             peppol_outbox: Duration::from_secs(60),
             terminal_probe: crate::alerts::TERMINAL_PROBE_TIMEOUT,
+            support_reap: Duration::from_secs(60),
         }
     }
 }
@@ -783,6 +788,7 @@ mod tests {
         assert_eq!(t.export_outbox, Duration::from_secs(60));
         assert_eq!(t.badge_repeat, Duration::from_secs(10));
         assert_eq!(t.peppol_outbox, Duration::from_secs(60));
+        assert_eq!(t.support_reap, Duration::from_secs(60));
     }
 
     #[test]

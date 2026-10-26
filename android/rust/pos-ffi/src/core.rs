@@ -151,6 +151,7 @@ fn timers_from(options: Option<&EngineTimersMs>) -> Result<EngineTimers, PosErro
         badge_repeat: EngineTimers::default().badge_repeat,
         peppol_outbox: EngineTimers::default().peppol_outbox,
         terminal_probe: EngineTimers::default().terminal_probe,
+        support_reap: EngineTimers::default().support_reap,
     })
 }
 

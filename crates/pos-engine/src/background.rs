@@ -277,7 +277,7 @@ impl Engine {
         {
             let state = Arc::clone(&state);
             spawned.push(rt.spawn(async move {
-                let period = commands::support::REAP_EVERY;
+                let period = state.timers.support_reap;
                 let mut tick = tokio::time::interval_at(Instant::now() + period, period);
                 loop {
                     tokio::select! {

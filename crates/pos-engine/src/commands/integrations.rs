@@ -46,6 +46,31 @@ pub(crate) fn unsettled_on(db: &rusqlite::Connection) -> Result<i64, String> {
     .map_err(errors::internal)
 }
 
+/// Run `f` inside `BEGIN IMMEDIATE`: the SQLite write lock is taken
+/// first, so the HubRise poller (its own connection, `poller_db`) cannot
+/// insert an order between the count `f` makes and the change it guards.
+/// Rolled back when `f` fails.
+pub(crate) fn with_write_lock<T>(
+    db: &rusqlite::Connection,
+    f: impl FnOnce(&rusqlite::Connection) -> Result<T, String>,
+) -> Result<T, String> {
+    db.execute_batch("BEGIN IMMEDIATE")
+        .map_err(errors::internal)?;
+    match f(db) {
+        Ok(v) => match db.execute_batch("COMMIT") {
+            Ok(()) => Ok(v),
+            Err(e) => {
+                let _ = db.execute_batch("ROLLBACK");
+                Err(errors::internal(e))
+            }
+        },
+        Err(e) => {
+            let _ = db.execute_batch("ROLLBACK");
+            Err(e)
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct Integrations {
     pub hubrise_enabled: bool,
@@ -75,23 +100,26 @@ pub fn do_get_integrations(state: &AppState) -> Result<Integrations, String> {
 pub fn do_set_hubrise_enabled(state: &AppState, enabled: bool) -> Result<Integrations, String> {
     let admin = access::operator(state, Access::Admin)?;
     {
-        // Count and switch under one lock: no order can open in between.
+        // Count and switch under the SQLite write lock: no order can
+        // open in between, not even one the poller inserts.
         let db = state.db.lock().map_err(errors::internal)?;
-        if !enabled {
-            let open = unsettled_on(&db)?;
-            if open > 0 {
-                return Err(errors::coded(
-                    errors::hubrise::ONLINE_ORDERS_OPEN,
-                    &[("count", &open)],
-                ));
+        with_write_lock(&db, |db| {
+            if !enabled {
+                let open = unsettled_on(db)?;
+                if open > 0 {
+                    return Err(errors::coded(
+                        errors::hubrise::ONLINE_ORDERS_OPEN,
+                        &[("count", &open)],
+                    ));
+                }
             }
-        }
-        integrations::set_hubrise(
-            &db,
-            pos_db::queries::integrations::State::from(enabled),
-            &admin.insz,
-        )
-        .map_err(errors::internal)?;
+            integrations::set_hubrise(
+                db,
+                pos_db::queries::integrations::State::from(enabled),
+                &admin.insz,
+            )
+            .map_err(errors::internal)
+        })?;
     }
     state.hubrise_switch.set(enabled);
     if enabled {
