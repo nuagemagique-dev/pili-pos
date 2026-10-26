@@ -47,7 +47,7 @@ pub(crate) fn unsettled_on(db: &rusqlite::Connection) -> Result<i64, String> {
 }
 
 /// Run `f` inside `BEGIN IMMEDIATE`: the SQLite write lock is taken
-/// first, so the HubRise poller (its own connection, `poller_db`) cannot
+/// first, so the `HubRise` poller (its own connection, `poller_db`) cannot
 /// insert an order between the count `f` makes and the change it guards.
 /// Rolled back when `f` fails.
 pub(crate) fn with_write_lock<T>(

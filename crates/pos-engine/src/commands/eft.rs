@@ -319,45 +319,56 @@ pub async fn do_eft_pay(
         ),
     };
     let row = store(state, id, &resolution).inspect_err(|error| {
-        // The terminal's answer is lost with this error: leave a trace to
-        // reconcile it by hand (an approved card was charged). The PAN is
-        // already masked; the receipt text is left out of the log.
-        match &resolution {
-            Resolution::Approved {
-                brand,
-                terminal_reference,
-                authorisation_code,
-                masked_pan,
-                ..
-            } => tracing::error!(
-                id, order_id, amount_cents, %reference, ?brand, ?terminal_reference,
-                ?authorisation_code, ?masked_pan, %error,
-                "approved card payment could not be stored"
-            ),
-            // The fields are listed one by one: a receipt field added to
-            // `Resolution` later must not reach the logs by a `Debug`.
-            Resolution::Declined { reason } => tracing::error!(
-                id, order_id, amount_cents, %reference, outcome = "declined", ?reason, %error,
-                "terminal answer could not be stored"
-            ),
-            Resolution::Cancelled => tracing::error!(
-                id, order_id, amount_cents, %reference, outcome = "cancelled", %error,
-                "terminal answer could not be stored"
-            ),
-            Resolution::Unknown { detail } => tracing::error!(
-                id, order_id, amount_cents, %reference, outcome = "unknown", ?detail, %error,
-                "terminal answer could not be stored"
-            ),
-            Resolution::NotSent { detail } => tracing::error!(
-                id, order_id, amount_cents, %reference, outcome = "not_sent", ?detail, %error,
-                "terminal answer could not be stored"
-            ),
-        }
+        log_unstored(id, order_id, amount_cents, &reference, &resolution, error);
     })?;
     tracing::info!(id, status = row.status.as_str(), "card payment answered");
     match failure {
         Some(error) => Err(error),
         None => Ok(EftPayment::of(row)),
+    }
+}
+
+/// The terminal's answer is lost with `error`: leave a trace to
+/// reconcile it by hand (an approved card was charged). The PAN is
+/// already masked; the receipt text is left out of the log. The fields
+/// are listed one by one: a receipt field added to `Resolution` later
+/// must not reach the logs by a `Debug`.
+fn log_unstored(
+    id: i64,
+    order_id: i64,
+    amount_cents: i64,
+    reference: &str,
+    resolution: &Resolution,
+    error: &str,
+) {
+    match resolution {
+        Resolution::Approved {
+            brand,
+            terminal_reference,
+            authorisation_code,
+            masked_pan,
+            ..
+        } => tracing::error!(
+            id, order_id, amount_cents, %reference, ?brand, ?terminal_reference,
+            ?authorisation_code, ?masked_pan, %error,
+            "approved card payment could not be stored"
+        ),
+        Resolution::Declined { reason } => tracing::error!(
+            id, order_id, amount_cents, %reference, outcome = "declined", ?reason, %error,
+            "terminal answer could not be stored"
+        ),
+        Resolution::Cancelled => tracing::error!(
+            id, order_id, amount_cents, %reference, outcome = "cancelled", %error,
+            "terminal answer could not be stored"
+        ),
+        Resolution::Unknown { detail } => tracing::error!(
+            id, order_id, amount_cents, %reference, outcome = "unknown", ?detail, %error,
+            "terminal answer could not be stored"
+        ),
+        Resolution::NotSent { detail } => tracing::error!(
+            id, order_id, amount_cents, %reference, outcome = "not_sent", ?detail, %error,
+            "terminal answer could not be stored"
+        ),
     }
 }
 
