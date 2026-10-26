@@ -203,7 +203,10 @@ What it taught (2026-09-27):
   when rustls pairs key and certificate, the client's. `pos-fiscal`
   therefore checks the server certificate itself (`fdm_tls.rs`: signed
   by the configured CA, within its dates, handshake signed with its
-  key) and presents the client certificate without webpki.
+  key) and presents the client certificate without webpki. The CA's own
+  dates are checked too: a CA file whose certificate has lapsed refuses
+  every connection (`FDM_CERTIFICATE_REFUSED`) and must be renewed
+  before its `notAfter` date.
 - TLS 1.3, RSA-PSS SHA-256 handshake signature.
 - The simulator's port 443 also answers without a client certificate.
   A physical FDM may not; the POS always presents it when configured.

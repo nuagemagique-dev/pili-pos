@@ -148,3 +148,39 @@ fn every_ca_of_a_bundle_counts() {
     client_config(path.to_str().unwrap(), None).expect("a bundle of two certificates");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn a_ca_that_is_not_valid_yet_does_not_vouch_for_a_valid_certificate() {
+    // late_ca.crt is valid from 2030, server_late_ca.crt from 2025 and
+    // signed by it: in 2027 the server certificate is within its dates
+    // but its CA is not.
+    let late = SignedByCa::new(der("late_ca.crt")).unwrap();
+    assert_eq!(
+        late.check(&der("server_late_ca.crt"), at_year(2027)),
+        Err(Error::InvalidCertificate(CertificateError::NotValidYet))
+    );
+    late.check(&der("server_late_ca.crt"), at_year(2035))
+        .unwrap();
+}
+
+#[test]
+fn a_later_ca_of_a_bundle_succeeds_after_an_earlier_name_match_fails() {
+    // impostor_ca.crt has the same subject as ca.crt but another key:
+    // it matches the issuer name first and fails on the signature.
+    let impostor = || der("impostor_ca.crt");
+    let bundle = SignedByCa::from_cas(vec![impostor(), der("ca.crt")]).unwrap();
+    bundle.check(&der("server.crt"), UnixTime::now()).unwrap();
+    // Alone, it is the first failure that is reported.
+    assert_eq!(
+        SignedByCa::new(impostor())
+            .unwrap()
+            .check(&der("server.crt"), UnixTime::now()),
+        Err(Error::InvalidCertificate(CertificateError::BadSignature))
+    );
+    // Two CAs failing differently report the first name match.
+    let late = SignedByCa::from_cas(vec![der("late_ca.crt"), impostor()]).unwrap();
+    assert_eq!(
+        late.check(&der("server.crt"), UnixTime::now()),
+        Err(Error::InvalidCertificate(CertificateError::BadSignature))
+    );
+}

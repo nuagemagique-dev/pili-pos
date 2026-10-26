@@ -131,7 +131,9 @@ impl SignedByCa {
     }
 
     /// The end-entity certificate is signed by one of the CAs, and both
-    /// are valid at `now`.
+    /// are valid at `now`. A CA file whose certificate has lapsed (or is
+    /// not valid yet) refuses every FDM connection: it must be renewed
+    /// before its `notAfter` date.
     ///
     /// # Errors
     ///

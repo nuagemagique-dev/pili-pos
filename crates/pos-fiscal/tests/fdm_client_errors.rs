@@ -259,7 +259,11 @@ async fn malformed_json_response_yields_err_not_panic() {
     let client = FdmClient::new(&cfg.fdm_url);
     let err = sign_work_in_call(&client, &cfg).await.unwrap_err();
     match err {
-        FdmError::BadResponse(msg) => assert!(msg.contains("{not valid json"), "{msg}"),
+        FdmError::BadResponse(msg) => {
+            assert!(msg.contains("not a GraphQL answer"), "{msg}");
+            // The body is for the log, not for the error text the UI shows.
+            assert!(!msg.contains("{not valid json"), "{msg}");
+        }
         other => panic!("expected an unusable response, got {other:?}"),
     }
 }

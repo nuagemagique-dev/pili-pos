@@ -926,11 +926,14 @@ impl FdmClient {
         let status = resp.status();
         let bytes = resp.bytes().await?;
         serde_json::from_slice(&bytes).map_err(|e| {
+            // The body excerpt is for the log only: the error text reaches the UI.
             let head = &bytes[..bytes.len().min(200)];
-            FdmError::BadResponse(format!(
-                "HTTP {status}, body is not a GraphQL answer ({e}): {}",
-                String::from_utf8_lossy(head)
-            ))
+            tracing::warn!(
+                %status,
+                body = %String::from_utf8_lossy(head),
+                "FDM answered with something that is not GraphQL"
+            );
+            FdmError::BadResponse(format!("HTTP {status}, body is not a GraphQL answer ({e})"))
         })
     }
 }

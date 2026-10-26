@@ -109,9 +109,16 @@ impl ReportEvent {
             Some(json) => serde_json::from_str(json).ok()?,
             None => Value::Null,
         };
-        // A report (R) is a result of these totals, never an input: its
-        // `amount` keys hold arrays and are not read back.
-        let checked: &[(&str, &Value)] = if event.event_type == EventLabel::R {
+        // A report is a result of these totals, never an input: its
+        // `amount` keys hold arrays and are not read back. Decided by
+        // shape, not by label: in training mode a report is archived
+        // under T, like every other training event.
+        let is_report = event.event_type == EventLabel::R
+            || request.get("posDevices").is_some()
+            || response["eventOperation"]
+                .as_str()
+                .is_some_and(|op| op.starts_with("REPORT"));
+        let checked: &[(&str, &Value)] = if is_report {
             &[]
         } else {
             &[("request", &request), ("response", &response)]
@@ -1742,6 +1749,38 @@ mod tests {
         assert!(ReportEvent::from_archive(&row(bad_change, None)).is_none());
         let bad_calc = r#"{"vatCalc":[{"label":"A","taxableAmount":"1"}]}"#;
         assert!(ReportEvent::from_archive(&row("{}", Some(bad_calc))).is_none());
+    }
+
+    /// A training report is archived under T but is still a report: its
+    /// array-valued `amount` keys must not refuse the row (they would
+    /// make every later X or Z of the period fail).
+    #[test]
+    fn a_training_report_row_is_not_refused() {
+        let report = r#"{"posDevices":[],"turnover":{"payments":[{"amount":[{"normalAmount":1.5}]}],"priceChanges":[{"amount":[{"normalAmount":-0.5}]}]}}"#;
+        let row = |label, request: &str, response: &str| ArchivedEvent {
+            id: 1,
+            event_type: label,
+            sequence_number: 1,
+            order_id: None,
+            pos_id: "P".into(),
+            terminal_id: "T".into(),
+            user_insz: U1.into(),
+            event_data_json: request.into(),
+            fdm_response_json: Some(response.into()),
+            fdm_id: None,
+            fdm_datetime: None,
+            event_label: None,
+            short_signature: None,
+            qr_data: None,
+        };
+        let op = r#"{"eventOperation":"REPORT_TURNOVER_X"}"#;
+        assert!(ReportEvent::from_archive(&row(EventLabel::T, report, op)).is_some());
+        // Recognised by the request shape alone as well.
+        assert!(ReportEvent::from_archive(&row(EventLabel::T, report, "{}")).is_some());
+        // A training SALE with a bad amount is still refused.
+        let bad =
+            r#"{"transaction":{"transactionLines":[{"mainProduct":{"vats":[{"price":"x"}]}}]}}"#;
+        assert!(ReportEvent::from_archive(&row(EventLabel::T, bad, "{}")).is_none());
     }
 
     /// The UC223 sale (50 % ticket discount over a B and an A line),
