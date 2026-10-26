@@ -37,7 +37,7 @@
 
 use std::collections::HashSet;
 use std::io;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -71,6 +71,11 @@ pub struct CcvOpi {
     timeout: Duration,
     /// Till references the till asked to stop.
     aborted: Mutex<HashSet<String>>,
+}
+
+/// Whether `peer` is one of the terminal's resolved addresses.
+fn peer_allowed(allowed: &[IpAddr], peer: IpAddr) -> bool {
+    allowed.contains(&peer.to_canonical())
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -327,12 +332,27 @@ impl CcvOpi {
                 }
             }
         };
+        // Only the terminal may open channel 1: resolve its address once.
+        let allowed: Vec<IpAddr> = tokio::net::lookup_host(&self.address)
+            .await
+            .map_err(|e| {
+                EftError::Unreachable(format!(
+                    "cannot resolve the terminal address {}: {e}",
+                    self.address
+                ))
+            })?
+            .map(|a| a.ip().to_canonical())
+            .collect();
         let printed = Arc::new(Mutex::new(Printed::default()));
         let shared = printed.clone();
         let software = self.software.clone();
         let task = tokio::spawn(async move {
             let mut connections = JoinSet::new();
-            while let Ok((stream, _)) = listener.accept().await {
+            while let Ok((stream, peer)) = listener.accept().await {
+                if !peer_allowed(&allowed, peer.ip()) {
+                    warn!(%peer, "opi: device channel connection from a foreign host dropped");
+                    continue;
+                }
                 connections.spawn(serve_device(stream, shared.clone(), software.clone()));
             }
         });
@@ -842,6 +862,19 @@ mod tests {
             interpret_response(&wrapped, "1", None, false, true),
             Ok(Outcome::Approved(_))
         ));
+    }
+
+    #[test]
+    fn only_the_terminal_address_may_open_the_device_channel() {
+        let terminal: IpAddr = "192.168.1.50".parse().unwrap();
+        let allowed = [terminal];
+        assert!(peer_allowed(&allowed, terminal));
+        assert!(peer_allowed(
+            &allowed,
+            "::ffff:192.168.1.50".parse().unwrap()
+        ));
+        assert!(!peer_allowed(&allowed, "192.168.1.51".parse().unwrap()));
+        assert!(!peer_allowed(&[], terminal));
     }
 
     #[tokio::test]

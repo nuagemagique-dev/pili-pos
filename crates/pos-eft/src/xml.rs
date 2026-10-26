@@ -85,6 +85,11 @@ fn entity(name: &str) -> Option<char> {
     }
 }
 
+/// Deepest element nesting `parse` accepts. Real OPI messages are a few
+/// levels deep; the cap keeps the recursive drop of the tree (and a frame of
+/// nested tags from any LAN host) from overflowing the stack.
+const MAX_DEPTH: usize = 64;
+
 /// Parse one XML document into its root element.
 pub(crate) fn parse(xml: &str) -> Result<Elem, String> {
     let mut reader = Reader::from_str(xml);
@@ -92,8 +97,16 @@ pub(crate) fn parse(xml: &str) -> Result<Elem, String> {
     let mut root: Option<Elem> = None;
     loop {
         match reader.read_event().map_err(|e| e.to_string())? {
-            Event::Start(e) => stack.push(start_elem(&e)),
+            Event::Start(e) => {
+                if stack.len() >= MAX_DEPTH {
+                    return Err("xml too deep".into());
+                }
+                stack.push(start_elem(&e));
+            }
             Event::Empty(e) => {
+                if stack.len() >= MAX_DEPTH {
+                    return Err("xml too deep".into());
+                }
                 let elem = start_elem(&e);
                 match stack.last_mut() {
                     Some(parent) => parent.children.push(elem),
@@ -174,6 +187,15 @@ mod tests {
         e.find_all("C", &mut all);
         assert_eq!(all.len(), 2);
         assert_eq!(e.find("C").unwrap().text(), "t < u A");
+    }
+
+    #[test]
+    fn deeply_nested_xml_is_an_error_not_a_crash() {
+        let depth = 300_000;
+        let xml = format!("{}{}", "<a>".repeat(depth), "</a>".repeat(depth));
+        assert_eq!(parse(&xml).unwrap_err(), "xml too deep");
+        let ok = format!("{}{}", "<a>".repeat(60), "</a>".repeat(60));
+        assert!(parse(&ok).is_ok());
     }
 
     #[test]

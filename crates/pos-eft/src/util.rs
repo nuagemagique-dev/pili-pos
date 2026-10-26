@@ -52,9 +52,19 @@ pub(crate) fn cents_from_json(v: &Value) -> Option<i64> {
                 if !f.is_finite() || f.abs() > 1.0e12 {
                     return None;
                 }
-                // Rounding to the nearest cent is the only sane reading.
-                #[allow(clippy::cast_possible_truncation)]
-                return Some((f * 100.0).round() as i64);
+                let scaled = f * 100.0;
+                let rounded = scaled.round();
+                // A fraction of a cent is not an amount.
+                if (scaled - rounded).abs() > 1.0e-6 {
+                    return None;
+                }
+                // |rounded| <= 1e14, far inside the i64 range.
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    clippy::as_conversions,
+                    reason = "bounded above by the 1e12 check, an exact whole number"
+                )]
+                return Some(rounded as i64);
             }
             cents_from_text(&text)
         }
@@ -123,7 +133,7 @@ pub(crate) fn wire_enabled() -> bool {
 }
 
 /// `text` with every run of 13 to 19 digits (single spaces between
-/// digits allowed: "4111 1111 1111 1111") replaced by asterisks except
+/// digits allowed, or dashes: "4111 1111 1111 1111", "4111-1111-1111-1111") replaced by asterisks except
 /// its last 4 digits. A run of other lengths is left alone, unless it is
 /// made of digit groups of which one has 13 to 19 digits on its own.
 pub fn mask_pan(text: &str) -> String {
@@ -140,8 +150,9 @@ pub fn mask_pan(text: &str) -> String {
         let mut end = i;
         while end < chars.len() {
             let c = chars[end];
-            let joined_by_space =
-                c == ' ' && end > i && chars.get(end + 1).is_some_and(char::is_ascii_digit);
+            let joined_by_space = (c == ' ' || c == '-')
+                && end > i
+                && chars.get(end + 1).is_some_and(char::is_ascii_digit);
             if c.is_ascii_digit() || joined_by_space {
                 end += 1;
             } else {
@@ -154,9 +165,11 @@ pub fn mask_pan(text: &str) -> String {
             mask_run(run, &mut out);
         } else {
             // Not a card number as a whole: still mask a single long group.
-            for (n, group) in run.split(|c| *c == ' ').enumerate() {
+            for (n, group) in run.split(|c| *c == ' ' || *c == '-').enumerate() {
                 if n > 0 {
-                    out.push(' ');
+                    // Keep the separator that was there.
+                    let at = i + group_start(run, n);
+                    out.push(chars[at]);
                 }
                 if (13..=19).contains(&group.len()) {
                     mask_run(group, &mut out);
@@ -168,6 +181,15 @@ pub fn mask_pan(text: &str) -> String {
         i = end;
     }
     out
+}
+
+/// Index in `run` of the separator before its `n`th group.
+fn group_start(run: &[char], n: usize) -> usize {
+    run.iter()
+        .enumerate()
+        .filter(|(_, c)| **c == ' ' || **c == '-')
+        .nth(n - 1)
+        .map_or(0, |(idx, _)| idx)
 }
 
 fn mask_run(run: &[char], out: &mut String) {
@@ -231,6 +253,7 @@ mod tests {
         // A fraction of a cent is not an amount.
         assert_eq!(cents_from_json(&json!(1e-5)), None);
         assert_eq!(cents_from_json(&json!(1.5e2)), Some(15_000));
+        assert_eq!(cents_from_json(&json!(1.2345e1)), None);
         assert_eq!(cents_from_json(&json!(null)), None);
     }
 
@@ -252,6 +275,11 @@ mod tests {
         );
         assert_eq!(mask_pan("a5555555555554444b"), "a************4444b");
         assert_eq!(mask_pan("1234567890123"), "*********0123");
+        assert_eq!(
+            mask_pan("PAN 4111-1111-1111-1111 end"),
+            "PAN ****-****-****-1111 end"
+        );
+        assert_eq!(mask_pan("order 2024-10-26"), "order 2024-10-26");
         assert_eq!(
             mask_pan("<P>6703 0000 0000 0119 0</P>"),
             "<P>**** **** **** *119 0</P>"
