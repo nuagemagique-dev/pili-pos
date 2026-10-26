@@ -1,5 +1,10 @@
 //! Content of the statistics file built from the shared fixture (card X1-T3).
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 mod common;
 
 use std::collections::BTreeMap;
@@ -75,10 +80,7 @@ fn the_real_z_reports_are_listed_in_order() {
     assert_eq!(z.closing_event_id, fx.closing_event_id);
     assert!(z.closed_at.starts_with("20"), "{}", z.closed_at);
     assert_eq!(real_zs_after(&conn, Some(41)).unwrap(), vec![z.clone()]);
-    assert_eq!(
-        real_zs_after(&conn, Some(42)).unwrap(),
-        [] as [pos_export::zref::ZRef; 0]
-    );
+    assert_eq!(real_zs_after(&conn, Some(42)).unwrap().len(), 0);
     assert_eq!(latest_real_z(&conn).unwrap().as_ref(), Some(z));
 }
 
@@ -103,20 +105,20 @@ fn a_training_z_is_never_a_real_z() {
         .collect();
     assert_eq!(numbers, vec![41, 42]);
     assert_eq!(latest_real_z(&conn).unwrap().unwrap().z_report_no, 42);
-    assert_eq!(
-        real_zs_after(&conn, Some(42)).unwrap(),
-        [] as [pos_export::zref::ZRef; 0]
-    );
+    assert_eq!(real_zs_after(&conn, Some(42)).unwrap().len(), 0);
 }
 
 #[test]
 fn counts_and_totals_match_the_fixture_and_the_z() {
     let (_dir, fx, out, summary) = built();
     assert_eq!(summary.tickets, 6);
-    assert_eq!(summary.tickets, fx.tickets.len() as i64);
+    assert_eq!(summary.tickets, i64::try_from(fx.tickets.len()).unwrap());
     assert_eq!(summary.lines, 9);
     assert_eq!(summary.lines, fx.lines);
-    assert_eq!(summary.bytes, std::fs::metadata(&out).unwrap().len() as i64);
+    assert_eq!(
+        summary.bytes,
+        i64::try_from(std::fs::metadata(&out).unwrap().len()).unwrap()
+    );
 
     let conn = open_ro(&out);
     assert_eq!(scalar(&conn, "SELECT COUNT(*) FROM tickets"), 6);
@@ -296,12 +298,14 @@ fn payments_match_the_tickets_and_the_z() {
     assert_eq!(z_rows, expected);
 }
 
+/// A row of `tickets`: id, channel, kind, table, total, unpaid, user.
+type Row = (i64, String, String, Option<i64>, i64, i64, String);
+
 #[test]
 fn channels_tables_kinds_and_users_follow_the_orders() {
     let (_dir, fx, out, _) = built();
     let conn = open_ro(&out);
     let key = test_key();
-    type Row = (i64, String, String, Option<i64>, i64, i64, String);
     let rows: Vec<Row> = conn
         .prepare(
             "SELECT ticket_id, channel, kind, table_number, total_cents, unpaid, user_ref

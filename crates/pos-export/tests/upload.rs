@@ -60,7 +60,9 @@ async fn uploads_a_file_and_the_receiver_stores_the_exact_bytes() {
     let receiver = Receiver::start(&token);
     let uploader = Uploader::new(client(Duration::from_secs(20)), &receiver.url());
     let dir = tempfile::tempdir().unwrap();
-    let body: Vec<u8> = (0..300_000u32).map(|i| (i % 251) as u8).collect();
+    let body: Vec<u8> = (0..300_000u32)
+        .map(|i| u8::try_from(i % 251).expect("below 251"))
+        .collect();
     let file = write_file(dir.path(), "pos.db.age", &body);
     let name = format!("pos-{EXPORT_ID}.db.age");
 
@@ -120,7 +122,7 @@ async fn a_wrong_token_is_unauthorized_and_nothing_is_stored() {
         .unwrap_err();
     assert_eq!(err, UploadError::Unauthorized(401));
     assert_eq!(err.to_string(), "unauthorized (HTTP 401)");
-    assert_eq!(receiver.received(), [] as [pos_export_mock::Received; 0]);
+    assert_eq!(receiver.received().len(), 0);
 }
 
 #[tokio::test]
@@ -172,7 +174,7 @@ async fn a_server_error_is_http_then_the_next_try_succeeds() {
         .unwrap_err();
     assert_eq!(err, UploadError::Http(503));
     assert_eq!(err.to_string(), "HTTP 503");
-    assert_eq!(receiver.received(), [] as [pos_export_mock::Received; 0]);
+    assert_eq!(receiver.received().len(), 0);
 
     put(&uploader, &file, "a", &sha(b"data"), &token)
         .await
@@ -193,7 +195,7 @@ async fn a_wrong_hash_is_refused_by_the_receiver_with_400() {
         put(&uploader, &file, "a", &sha(b"other data"), &token).await,
         Err(UploadError::Http(400))
     );
-    assert_eq!(receiver.received(), [] as [pos_export_mock::Received; 0]);
+    assert_eq!(receiver.received().len(), 0);
 }
 
 #[tokio::test]
@@ -266,7 +268,7 @@ async fn a_file_above_the_limit_is_too_large_and_never_read_or_sent() {
     let size = MAX_UPLOAD_BYTES + 1;
     std::fs::File::create(&path)
         .unwrap()
-        .set_len(size as u64)
+        .set_len(u64::try_from(size).expect("a positive size"))
         .unwrap();
 
     let err = put(&uploader, &path, "huge", &"0".repeat(64), &token)

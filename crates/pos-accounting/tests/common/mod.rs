@@ -1,6 +1,13 @@
 //! Helpers shared by the integration tests: a synthetic archive builder, copies of a
 //! database, a small CSV reader and the export runner.
-#![allow(dead_code)]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+#![expect(
+    dead_code,
+    reason = "each test binary uses a different part of these shared helpers"
+)]
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -65,17 +72,43 @@ fn rate(label: &str) -> f64 {
     }
 }
 
-fn cents(v: f64) -> i64 {
-    (v * 100.0).round() as i64
+/// Euro amount to whole cents (test amounts are a few hundred euros).
+pub(crate) fn cents(v: f64) -> i64 {
+    #[expect(
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        reason = "test amounts are a few hundred euros, far inside the i64 range"
+    )]
+    let c = (v * 100.0).round() as i64;
+    c
 }
 
-fn eur(c: i64) -> f64 {
-    c as f64 / 100.0
+/// Cents to a euro amount.
+pub(crate) fn eur(c: i64) -> f64 {
+    #[expect(
+        clippy::as_conversions,
+        clippy::cast_precision_loss,
+        reason = "test amounts are a few hundred euros, exact in an f64"
+    )]
+    let e = c as f64 / 100.0;
+    e
+}
+
+/// The base of a VAT-inclusive total at `rate` percent, rounded to the cent.
+fn base_of(total: i64, rate: f64) -> i64 {
+    #[expect(
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        clippy::cast_precision_loss,
+        reason = "test amounts are a few hundred euros, exact in an f64"
+    )]
+    let base = (total as f64 / (1.0 + rate / 100.0)).round() as i64;
+    base
 }
 
 /// The FDM's VAT calculation of lines: per label, base and VAT from the total.
 pub(crate) fn vat_calc(lines: &[(String, String, f64)]) -> Value {
-    let mut totals: std::collections::BTreeMap<String, i64> = Default::default();
+    let mut totals: std::collections::BTreeMap<String, i64> = std::collections::BTreeMap::new();
     for (_, label, price) in lines {
         *totals.entry(label.clone()).or_insert(0) += cents(*price);
     }
@@ -84,7 +117,7 @@ pub(crate) fn vat_calc(lines: &[(String, String, f64)]) -> Value {
             .into_iter()
             .map(|(label, total)| {
                 let r = rate(&label);
-                let base = (total as f64 / (1.0 + r / 100.0)).round() as i64;
+                let base = base_of(total, r);
                 json!({"label": label, "rate": r, "taxableAmount": eur(base),
                        "vatAmount": eur(total - base), "totalAmount": eur(total)})
             })
@@ -130,7 +163,7 @@ impl Synth {
         self.flush();
     }
 
-    fn insert(&mut self, label: &str, period: &str, mut request: Value, response: Value) -> i64 {
+    fn insert(&mut self, label: &str, period: &str, mut request: Value, response: &Value) -> i64 {
         self.ticket_no += 1;
         let object = request.as_object_mut().unwrap();
         object.insert("bookingPeriodId".into(), json!(period));
@@ -177,6 +210,10 @@ impl Synth {
     }
 
     /// Sign a sale; returns its FDM reference (for a refund or an invoice).
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "the spec is built inline at every call site"
+    )]
     pub(crate) fn sale(&mut self, period: &str, spec: SaleSpec) -> Value {
         let lines: Vec<Value> = spec
             .lines
@@ -211,7 +248,7 @@ impl Synth {
         }
         let fdm_ref = self.next_ref("N");
         let response = json!({"fdmRef": fdm_ref, "vatCalc": vat_calc(&spec.lines)});
-        self.insert("N", period, request.clone(), response.clone());
+        self.insert("N", period, request.clone(), &response);
         self.sales
             .entry(period.to_string())
             .or_default()
@@ -223,20 +260,20 @@ impl Synth {
         let request = json!({"financials": [{"id": "1", "name": label, "type": "CASH",
             "amount": amount, "amountType": "MONEY_IN_OUT"}]});
         let fdm_ref = self.next_ref("F");
-        self.insert("F", period, request, json!({"fdmRef": fdm_ref}));
+        self.insert("F", period, request, &json!({"fdmRef": fdm_ref}));
     }
 
     pub(crate) fn invoice(&mut self, period: &str, refs: &[Value], number: &str, vat_no: &str) {
         let request = json!({"customerVatNo": vat_no, "invoiceNo": number,
             "costCenter": {"id": "100", "type": "CUSTOMER", "reference": "FIN"}, "fdmRefs": refs});
         let fdm_ref = self.next_ref("I");
-        self.insert("I", period, request, json!({"fdmRef": fdm_ref}));
+        self.insert("I", period, request, &json!({"fdmRef": fdm_ref}));
     }
 
     /// An invoice with a request taken as is (a published fixture).
     pub(crate) fn invoice_raw(&mut self, period: &str, request: Value) {
         let fdm_ref = self.next_ref("I");
-        self.insert("I", period, request, json!({"fdmRef": fdm_ref}));
+        self.insert("I", period, request, &json!({"fdmRef": fdm_ref}));
     }
 
     /// An event the export must ignore: a pro forma (P), a training sale (T) or a copy (C).
@@ -250,7 +287,7 @@ impl Synth {
             label,
             period,
             request,
-            json!({"fdmRef": fdm_ref, "vatCalc": []}),
+            &json!({"fdmRef": fdm_ref, "vatCalc": []}),
         );
     }
 
@@ -274,7 +311,7 @@ impl Synth {
         let z = z_json(&sales);
         let request = json!({"turnover": z});
         let fdm_ref = self.next_ref("R");
-        let id = self.insert("R", period, request, json!({"fdmRef": fdm_ref}));
+        let id = self.insert("R", period, request, &json!({"fdmRef": fdm_ref}));
         self.conn
             .execute(
                 "INSERT INTO z_reports (report_date, sequence_number, data_json, fiscal_event_id)
@@ -295,8 +332,9 @@ impl Synth {
 /// The Z `turnover` object of a set of signed sales (independent of the library).
 pub(crate) fn z_json(sales: &[(Value, Value)]) -> Value {
     let mut amount = 0i64;
-    let mut vats: std::collections::BTreeMap<String, [i64; 4]> = Default::default();
-    let mut payments: std::collections::BTreeMap<(String, String), i64> = Default::default();
+    let mut vats: std::collections::BTreeMap<String, [i64; 4]> = std::collections::BTreeMap::new();
+    let mut payments: std::collections::BTreeMap<(String, String), i64> =
+        std::collections::BTreeMap::new();
     for (request, response) in sales {
         for line in request["transaction"]["transactionLines"]
             .as_array()
@@ -310,7 +348,7 @@ pub(crate) fn z_json(sales: &[(Value, Value)]) -> Value {
             let e = vats
                 .entry(v["label"].as_str().unwrap().to_string())
                 .or_default();
-            e[0] = (v["rate"].as_f64().unwrap() * 100.0) as i64;
+            e[0] = cents(v["rate"].as_f64().unwrap());
             e[1] += cents(v["taxableAmount"].as_f64().unwrap());
             e[2] += cents(v["vatAmount"].as_f64().unwrap());
             e[3] += cents(v["totalAmount"].as_f64().unwrap());
@@ -330,7 +368,7 @@ pub(crate) fn z_json(sales: &[(Value, Value)]) -> Value {
         .count();
     json!({
         "transactions": [{"eventLabel": "N", "ticketCount": sales.len(), "amount": eur(amount)}],
-        "vats": vats.iter().map(|(l, v)| json!({"label": l, "rate": v[0] as f64 / 100.0,
+        "vats": vats.iter().map(|(l, v)| json!({"label": l, "rate": eur(v[0]),
             "taxableAmount": eur(v[1]), "vatAmount": eur(v[2]), "totalAmount": eur(v[3])})).collect::<Vec<_>>(),
         "payments": payments.iter().map(|((t, a), v)| json!({"id": "1", "name": t, "type": t,
             "amount": [{"type": a, "totalAmount": eur(*v)}]})).collect::<Vec<_>>(),
@@ -386,7 +424,7 @@ pub(crate) fn rows(folder: &Path, name: &str) -> Vec<Vec<String>> {
 
 /// `(Σ debit, Σ credit)` in cents of a generic `journal.csv`, per document.
 pub(crate) fn journal_balances(folder: &Path) -> Vec<(String, i64, i64)> {
-    let parse = |s: &str| (s.parse::<f64>().unwrap() * 100.0).round() as i64;
+    let parse = |s: &str| cents(s.parse::<f64>().unwrap());
     let mut out: Vec<(String, i64, i64)> = Vec::new();
     for row in rows(folder, "journal.csv").iter().skip(1) {
         let (d, c) = (parse(&row[5]), parse(&row[6]));

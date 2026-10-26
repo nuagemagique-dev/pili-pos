@@ -2,6 +2,11 @@
 //! X1-T5, decisions X1D6, X1D7, X1D8 and X1D10). The upload passes are in
 //! `outbox_upload.rs`.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 mod common;
 
 use std::path::{Path, PathBuf};
@@ -28,7 +33,7 @@ fn now() -> DateTime<Utc> {
 }
 
 struct Rig {
-    _dir: tempfile::TempDir,
+    dir: tempfile::TempDir,
     fx: Fixture,
     kit: ExportKit,
     exports: PathBuf,
@@ -41,7 +46,7 @@ impl Rig {
         let kit = export_kit(dir.path(), "http://127.0.0.1:1", keep_days);
         let exports = dir.path().join("exports");
         Rig {
-            _dir: dir,
+            dir,
             fx,
             kit,
             exports,
@@ -156,7 +161,7 @@ fn a_first_enable_exports_only_the_latest_z() {
 #[test]
 fn a_database_without_a_z_starts_the_cursor_at_zero() {
     let rig = Rig::new(30);
-    let empty = rig._dir.path().join("empty.db");
+    let empty = rig.dir.path().join("empty.db");
     {
         let conn = Connection::open(&empty).unwrap();
         pos_db::schema::run_migrations(&conn).unwrap();
@@ -165,12 +170,9 @@ fn a_database_without_a_z_starts_the_cursor_at_zero() {
         db_path: &empty,
         ..rig.env()
     };
-    assert_eq!(
-        outbox::prepare_due(&env, now()).unwrap(),
-        [] as [std::string::String; 0]
-    );
+    assert_eq!(outbox::prepare_due(&env, now()).unwrap().len(), 0);
     assert_eq!(rig.cursor(), 0);
-    assert_eq!(export_dirs(&rig.exports), [] as [std::string::String; 0]);
+    assert_eq!(export_dirs(&rig.exports).len(), 0);
 }
 
 #[test]
@@ -178,10 +180,7 @@ fn a_second_prepare_does_nothing() {
     let rig = Rig::new(30);
     rig.prepare(now()).unwrap();
     let before = std::fs::read(rig.exports.join(ID_42).join(naming::manifest_name(ID_42))).unwrap();
-    assert_eq!(
-        rig.prepare(now() + Duration::hours(1)).unwrap(),
-        [] as [std::string::String; 0]
-    );
+    assert_eq!(rig.prepare(now() + Duration::hours(1)).unwrap().len(), 0);
     assert_eq!(export_dirs(&rig.exports), vec![ID_42.to_string()]);
     assert_eq!(rig.cursor(), 42);
     let after = std::fs::read(rig.exports.join(ID_42).join(naming::manifest_name(ID_42))).unwrap();
@@ -261,11 +260,8 @@ fn a_z_older_than_keep_days_is_skipped_and_the_cursor_moves_past_it() {
     // Everything is old: nothing is built, the cursor still moves.
     let rig = Rig::new(1);
     rig.set_cursor(40);
-    assert_eq!(
-        rig.prepare(now() + Duration::days(10)).unwrap(),
-        [] as [std::string::String; 0]
-    );
-    assert_eq!(export_dirs(&rig.exports), [] as [std::string::String; 0]);
+    assert_eq!(rig.prepare(now() + Duration::days(10)).unwrap().len(), 0);
+    assert_eq!(export_dirs(&rig.exports).len(), 0);
     assert_eq!(rig.cursor(), 42);
 }
 
@@ -301,10 +297,7 @@ fn no_plaintext_database_is_left_except_the_stats_files() {
         }
     }
     assert_eq!(stats_files, 2);
-    assert_eq!(
-        file_names(&rig.exports.join(".tmp")),
-        [] as [std::string::String; 0]
-    );
+    assert_eq!(file_names(&rig.exports.join(".tmp")).len(), 0);
 }
 
 #[test]
@@ -312,18 +305,15 @@ fn a_failure_leaves_no_partial_export_and_no_plaintext() {
     let rig = Rig::new(30);
 
     // 1. The database cannot be opened: nothing is created, the cursor is not set.
-    let missing = rig._dir.path().join("absent.db");
+    let missing = rig.dir.path().join("absent.db");
     let env = ExportEnv {
         db_path: &missing,
         ..rig.env()
     };
     let err = outbox::prepare_due(&env, now()).unwrap_err();
     assert!(err.starts_with("prepare failed: "), "{err}");
-    assert_eq!(export_dirs(&rig.exports), [] as [std::string::String; 0]);
-    assert_eq!(
-        file_names(&rig.exports.join(".tmp")),
-        [] as [std::string::String; 0]
-    );
+    assert_eq!(export_dirs(&rig.exports).len(), 0);
+    assert_eq!(file_names(&rig.exports.join(".tmp")).len(), 0);
     assert!(!rig.exports.join("cursor.json").exists());
     let status = json(&rig.exports.join("status.json"));
     assert_eq!(status["lastError"], err.as_str());
@@ -335,11 +325,8 @@ fn a_failure_leaves_no_partial_export_and_no_plaintext() {
     std::fs::create_dir_all(rig.exports.join("pseudonym.key")).unwrap();
     let err = rig.prepare(now() + Duration::minutes(5)).unwrap_err();
     assert!(err.starts_with("prepare failed: "), "{err}");
-    assert_eq!(export_dirs(&rig.exports), [] as [std::string::String; 0]);
-    assert_eq!(
-        file_names(&rig.exports.join(".tmp")),
-        [] as [std::string::String; 0]
-    );
+    assert_eq!(export_dirs(&rig.exports).len(), 0);
+    assert_eq!(file_names(&rig.exports.join(".tmp")).len(), 0);
     assert_eq!(rig.cursor(), 41, "the cursor stays before Z 42");
     let mut files = Vec::new();
     all_files(&rig.exports, &mut files);
@@ -403,11 +390,8 @@ fn a_stats_build_error_leaves_nothing_either() {
     rig.set_cursor(42);
     let err = rig.prepare(now() + Duration::days(1)).unwrap_err();
     assert!(err.starts_with("prepare failed: stats: "), "{err}");
-    assert_eq!(export_dirs(&rig.exports), [] as [std::string::String; 0]);
-    assert_eq!(
-        file_names(&rig.exports.join(".tmp")),
-        [] as [std::string::String; 0]
-    );
+    assert_eq!(export_dirs(&rig.exports).len(), 0);
+    assert_eq!(file_names(&rig.exports.join(".tmp")).len(), 0);
     assert_eq!(rig.cursor(), 42);
     let mut files = Vec::new();
     all_files(&rig.exports, &mut files);
@@ -443,7 +427,7 @@ fn the_backup_decrypts_to_the_database_and_the_manifest_verifies() {
         vec![naming::backup_name(ID_42), naming::stats_name(ID_42)]
     );
 
-    let plain = rig._dir.path().join("restored.db");
+    let plain = rig.dir.path().join("restored.db");
     crypt::decrypt_file(
         &rig.kit.owner_secret,
         &dir.join(naming::backup_name(ID_42)),
@@ -469,7 +453,7 @@ fn the_backup_decrypts_to_the_database_and_the_manifest_verifies() {
     let tickets: i64 = conn
         .query_row("SELECT COUNT(*) FROM tickets", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(tickets, rig.fx.tickets.len() as i64);
+    assert_eq!(tickets, i64::try_from(rig.fx.tickets.len()).unwrap());
     let generated: String = conn
         .query_row("SELECT value FROM meta WHERE key = 'export_id'", [], |r| {
             r.get(0)
@@ -531,10 +515,7 @@ fn clean_tmp_empties_the_work_area_and_nothing_else() {
     std::fs::create_dir_all(exports.join(ID_42)).unwrap();
     outbox::clean_tmp(&exports).unwrap();
     assert!(exports.join(".tmp").is_dir());
-    assert_eq!(
-        file_names(&exports.join(".tmp")),
-        [] as [std::string::String; 0]
-    );
+    assert_eq!(file_names(&exports.join(".tmp")).len(), 0);
     assert!(exports.join("cursor.json").exists());
     assert!(exports.join("pseudonym.key").exists());
     assert!(exports.join(ID_42).is_dir());
@@ -549,7 +530,7 @@ fn retention_deletes_old_exports_and_counts_the_unsent_ones() {
     std::fs::write(rig.exports.join("notes.txt"), b"keep").unwrap();
     std::fs::create_dir_all(rig.exports.join("other")).unwrap();
     let key = std::fs::read(rig.exports.join("pseudonym.key")).unwrap();
-    let outside = rig._dir.path().join("outside.txt");
+    let outside = rig.dir.path().join("outside.txt");
     std::fs::write(&outside, b"keep").unwrap();
 
     // Not yet old.
@@ -647,7 +628,7 @@ fn the_status_files_hold_no_secret() {
     let rig = Rig::new(30);
     rig.set_cursor(40);
     rig.prepare(now()).unwrap();
-    let missing = rig._dir.path().join("absent.db");
+    let missing = rig.dir.path().join("absent.db");
     let env = ExportEnv {
         db_path: &missing,
         ..rig.env()

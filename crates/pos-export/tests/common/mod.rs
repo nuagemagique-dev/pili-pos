@@ -40,7 +40,14 @@
 //! (backup, snapshot, whole export), [`build_fixture_stats`] for a statistics
 //! file, and [`assert_no_personal_data`] to prove a produced file is clean.
 
-#![allow(dead_code)]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+#![expect(
+    dead_code,
+    reason = "each test binary uses a different part of these shared helpers"
+)]
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -105,7 +112,25 @@ pub(crate) struct Fixture {
 }
 
 pub(crate) fn eur(cents: i64) -> f64 {
-    cents as f64 / 100.0
+    #[expect(
+        clippy::as_conversions,
+        clippy::cast_precision_loss,
+        reason = "fixture amounts are a few hundred euros, exact in an f64"
+    )]
+    let e = cents as f64 / 100.0;
+    e
+}
+
+/// The base of a VAT-inclusive total at `rate` percent, rounded to the cent.
+fn base_of(total: i64, rate: f64) -> i64 {
+    #[expect(
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        clippy::cast_precision_loss,
+        reason = "fixture amounts are a few hundred euros, exact in an f64"
+    )]
+    let base = (total as f64 / (1.0 + rate / 100.0)).round() as i64;
+    base
 }
 
 // ── Building blocks of the events ──────────────────────────────────
@@ -182,7 +207,7 @@ fn transaction(lines: &[Ln]) -> Value {
                 "departmentName": l.dept.1,
                 "productId": l.product.to_string(),
                 "productName": l.name,
-                "quantity": l.qty as f64,
+                "quantity": eur(l.qty * 100),
                 "quantityType": "PIECE",
                 "unitPrice": eur(l.unit),
                 "vats": [vat],
@@ -215,7 +240,7 @@ fn vat_calc(lines: &[Ln]) -> Value {
                 "C" => 6.0,
                 _ => 0.0,
             };
-            let base = (total as f64 / (1.0 + rate / 100.0)).round() as i64;
+            let base = base_of(total, rate);
             json!({
                 "label": label,
                 "outOfScope": false,
@@ -289,7 +314,10 @@ impl Builder {
 
     /// Archive one event the way the engine does: the request as sent, the
     /// FDM answer, the columns of the answer.
-    #[expect(clippy::too_many_arguments)]
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "event bodies are built inline with json! at every call site"
+    )]
     fn event(
         &mut self,
         event_type: &str,
@@ -334,7 +362,7 @@ impl Builder {
         );
         let short_signature = format!(
             "{:040x}",
-            0xe2c4_3d6b_be9b_e265_u64 + self.total_counter as u64
+            0xe2c4_3d6b_be9b_e265_u64 + u64::try_from(self.total_counter).unwrap()
         );
         let url = format!("https://gs2.be/?v={}-{}", FDM_ID, self.total_counter);
         self.secrets.push(signature.clone());
@@ -398,7 +426,11 @@ impl Builder {
         (self.conn.last_insert_rowid(), fdm_ref)
     }
 
-    #[expect(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        clippy::needless_pass_by_value,
+        reason = "a fixture row with one argument per column, built inline"
+    )]
     fn order(
         &self,
         id: i64,
@@ -530,6 +562,10 @@ impl Builder {
 }
 
 /// Write the fixture database at `path`.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear story of the fixture day; every step builds on the previous ones"
+)]
 pub(crate) fn fixture_db(path: &Path) -> Fixture {
     let conn = Connection::open(path).expect("create the fixture database");
     conn.query_row("PRAGMA journal_mode = WAL", [], |r| r.get::<_, String>(0))

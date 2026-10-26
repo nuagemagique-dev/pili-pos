@@ -1,6 +1,11 @@
 //! The privacy proof of the statistics file (card X1-T3): a database full of
 //! personal data goes in, nothing of it comes out.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 mod common;
 
 use std::collections::BTreeSet;

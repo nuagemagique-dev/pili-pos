@@ -1,6 +1,11 @@
 //! The export on a synthetic archive: golden files, the files' semantics (what is read
 //! and what is ignored), the journal, the profiles and the guards on the source.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 mod common;
 
 use common::*;
@@ -366,7 +371,7 @@ fn a_date_range_picks_the_days_inside_it() {
     )
     .unwrap();
     assert_eq!(summary.days, vec![("2026-10-02".to_string(), 2)]);
-    assert_eq!(summary.left_out, [] as [std::string::String; 0]);
+    assert_eq!(summary.left_out.len(), 0);
     assert!(
         summary
             .folder
