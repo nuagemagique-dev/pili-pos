@@ -2,7 +2,7 @@
 //! [`EngineEvent`] to the webview under the topic the engine names.
 
 use std::collections::HashSet;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock, PoisonError};
 
 use pos_engine::{EngineEvent, EventSink};
 use tauri::{AppHandle, Emitter};
@@ -41,6 +41,9 @@ impl EventSink for TauriEventSink {
             return;
         };
         let topic = event.topic();
+        // Held across the emit: a failure and a success of the same topic
+        // on two threads cannot then leave the topic marked as failing.
+        let mut failing = self.failing.lock().unwrap_or_else(PoisonError::into_inner);
         // The payload types are the ones the UI has always received.
         let emitted = match event {
             EngineEvent::FdmSignMessages(messages) => handle.emit(topic, messages),
@@ -52,9 +55,6 @@ impl EventSink for TauriEventSink {
             | EngineEvent::CatalogUpdated(e)
             | EngineEvent::CatalogRejected(e)
             | EngineEvent::CatalogAwaitingAdoption(e) => handle.emit(topic, e),
-        };
-        let Ok(mut failing) = self.failing.lock() else {
-            return;
         };
         match emitted {
             // The webview may be reloading; the UI re-reads on its next

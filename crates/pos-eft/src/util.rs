@@ -135,9 +135,11 @@ pub(crate) fn wire_enabled() -> bool {
 }
 
 /// Whether `run` is digit groups in card grouping: every group but the
-/// last has exactly 4 digits, the last 1 to 4 ("4111-1111-1111-1111"):
-/// only the shape counts, not the digits. A UUID fragment has a first group of another length or a 12 digit
-/// last group.
+/// last has exactly 4 digits, the last 1 to 4 ("4111-1111-1111-1111").
+/// Only the shape counts, not the digits. A UUID fragment usually has a
+/// first group of another length or a 12 digit last group; the rare one
+/// that matches (about 1 in 10,000) is over-masked, which only costs a
+/// log line, never leaks a card number.
 fn card_grouped(run: &[char]) -> bool {
     let groups: Vec<&[char]> = run.split(|c| *c == ' ' || *c == '-').collect();
     let Some((last, head)) = groups.split_last() else {
@@ -316,6 +318,11 @@ mod tests {
         ] {
             assert_eq!(mask_pan(uuid), uuid);
         }
+        // The rare UUID in card grouping is over-masked, never the reverse.
+        assert_eq!(
+            mask_pan("abcd1234-5678-4012-8456-abcdef012345"),
+            "abcd****-****-****-8456-abcdef012345"
+        );
         assert_eq!(
             mask_pan("<P>6703 0000 0000 0119 0</P>"),
             "<P>**** **** **** *119 0</P>"

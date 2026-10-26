@@ -330,9 +330,10 @@ pub async fn do_eft_pay(
 
 /// The terminal's answer is lost with `error`: leave a trace to
 /// reconcile it by hand (an approved card was charged). The PAN is
-/// already masked; the receipt text is left out of the log. The fields
-/// are listed one by one: a receipt field added to `Resolution` later
-/// must not reach the logs by a `Debug`.
+/// already masked; the receipt text is left out of the log. `detail` is
+/// logged on purpose: it is the driver's error text, never receipt data.
+/// The fields are listed one by one: a receipt field added to
+/// `Resolution` later must not reach the logs by a `Debug`.
 fn log_unstored(
     id: i64,
     order_id: i64,
