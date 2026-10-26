@@ -46,31 +46,32 @@ pub fn is_sold_out(conn: &Connection, menu_item_id: i64) -> Result<bool, rusqlit
 /// Write the `expired` log row of every sold-out row whose end of day is past, and remove the
 /// row. Returns the ids that expired.
 pub fn expire_due(conn: &Connection) -> Result<Vec<i64>, rusqlite::Error> {
-    let tx = conn.unchecked_transaction()?;
-    let due: Vec<(i64, String)> = {
-        let mut stmt = tx.prepare(
-            "SELECT menu_item_id, until FROM menu_item_sold_out
-             WHERE until IS NOT NULL AND julianday(until) <= julianday('now')",
-        )?;
-        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
-            .collect::<Result<_, _>>()?
-    };
-    for (id, until) in &due {
-        tx.execute(
-            "INSERT INTO sold_out_log (menu_item_id, action, until, by) VALUES (?1, 'expired', ?2, NULL)",
-            params![id, until],
-        )?;
-        tx.execute(
-            "DELETE FROM menu_item_sold_out WHERE menu_item_id = ?1",
-            params![id],
-        )?;
-    }
-    tx.commit()?;
-    Ok(due.into_iter().map(|(id, _)| id).collect())
+    super::with_savepoint(conn, |tx| {
+        let due: Vec<(i64, String)> = {
+            let mut stmt = tx.prepare(
+                "SELECT menu_item_id, until FROM menu_item_sold_out
+                 WHERE until IS NOT NULL AND julianday(until) <= julianday('now')",
+            )?;
+            stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                .collect::<Result<_, _>>()?
+        };
+        for (id, until) in &due {
+            tx.execute(
+                "INSERT INTO sold_out_log (menu_item_id, action, until, by) VALUES (?1, 'expired', ?2, NULL)",
+                params![id, until],
+            )?;
+            tx.execute(
+                "DELETE FROM menu_item_sold_out WHERE menu_item_id = ?1",
+                params![id],
+            )?;
+        }
+        Ok(due.into_iter().map(|(id, _)| id).collect())
+    })
 }
 
-/// Mark the product sold out (replacing an earlier state) and log it. Two statements: the
-/// caller wraps them (with the inventory queue row) in one transaction.
+/// Mark the product sold out (replacing an earlier state) and log it. Two statements that
+/// rely on the caller's transaction: the caller wraps them (with the inventory queue row) in
+/// one, for instance with [`super::with_savepoint`].
 pub fn set(
     conn: &Connection,
     menu_item_id: i64,
@@ -92,6 +93,7 @@ pub fn set(
 }
 
 /// Make the product available again and log it. False (and no log row) when it was not sold out.
+/// Like [`set`], it relies on the caller's transaction to make its two statements atomic.
 pub fn clear(conn: &Connection, menu_item_id: i64, by: &str) -> Result<bool, rusqlite::Error> {
     let until: Option<Option<String>> = conn
         .query_row(

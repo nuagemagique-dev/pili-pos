@@ -341,9 +341,8 @@ fn prepare_all(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, Strin
         Cursor::Corrupt => {
             // Jumping to the latest Z would silently skip every Z in between. Resume
             // after the newest export already prepared instead, and tell the operator.
-            let message = format!(
-                "{CURSOR_FILE} is unreadable: resuming after the newest prepared export"
-            );
+            let message =
+                format!("{CURSOR_FILE} is unreadable: resuming after the newest prepared export");
             tracing::warn!("export: {message}");
             record_error(env.exports_dir, &message, now);
             let newest = list_exports(env.exports_dir)?

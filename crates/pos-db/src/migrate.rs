@@ -288,24 +288,40 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         if applied.contains(&m.version) {
             continue;
         }
-        // IMMEDIATE forces SQLite to acquire a write lock up-front so
-        // we don't discover mid-migration that another connection is
-        // holding the DB.
-        conn.execute_batch("BEGIN IMMEDIATE;")?;
-        let result = conn.execute_batch(m.sql).and_then(|_| {
+        apply_one(conn, m.version, m.name, m.sql)?;
+    }
+    Ok(())
+}
+
+/// Apply one migration and record it, in one transaction. On any failure,
+/// including a COMMIT that SQLite refuses (a deferred foreign key violation, a
+/// full disk), the transaction is rolled back so the connection never stays
+/// inside `BEGIN IMMEDIATE`.
+fn apply_one(
+    conn: &Connection,
+    version: i64,
+    name: &str,
+    sql: &str,
+) -> Result<(), rusqlite::Error> {
+    // IMMEDIATE forces SQLite to acquire a write lock up-front so
+    // we don't discover mid-migration that another connection is
+    // holding the DB.
+    conn.execute_batch("BEGIN IMMEDIATE;")?;
+    let result = conn
+        .execute_batch(sql)
+        .and_then(|()| {
             conn.execute(
                 "INSERT INTO _migrations_applied (version, name) VALUES (?, ?)",
-                rusqlite::params![m.version, m.name],
+                rusqlite::params![version, name],
             )
             .map(|_| ())
-        });
-        match result {
-            Ok(()) => conn.execute_batch("COMMIT;")?,
-            Err(e) => {
-                let _ = conn.execute_batch("ROLLBACK;");
-                return Err(e);
-            }
-        }
+        })
+        .and_then(|()| conn.execute_batch("COMMIT;"));
+    if let Err(e) = result {
+        // After a failed COMMIT the transaction is still open; a failed
+        // statement may already have ended it, in which case this is a no-op error.
+        let _ = conn.execute_batch("ROLLBACK;");
+        return Err(e);
     }
     Ok(())
 }
@@ -380,6 +396,42 @@ mod tests {
     /// The certified versions, then HubRise's when the feature is on.
     fn all_versions() -> Vec<i64> {
         registry().iter().map(|m| m.version).collect()
+    }
+
+    #[test]
+    fn a_refused_commit_is_rolled_back_and_leaves_no_open_transaction() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "PRAGMA foreign_keys=ON;
+             CREATE TABLE _migrations_applied (
+                 version INTEGER PRIMARY KEY, name TEXT NOT NULL,
+                 applied_at TEXT NOT NULL DEFAULT (datetime('now')));
+             CREATE TABLE parent (id INTEGER PRIMARY KEY);",
+        )
+        .unwrap();
+        // A deferred foreign key violation only fails at COMMIT.
+        let err = apply_one(
+            &conn,
+            999,
+            "broken",
+            "CREATE TABLE child (p INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED);
+             INSERT INTO child VALUES (42);",
+        );
+        assert!(err.is_err());
+        assert!(
+            conn.is_autocommit(),
+            "the connection must not stay inside BEGIN IMMEDIATE"
+        );
+        // The failed migration left nothing behind and the next one can run.
+        let tables: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name = 'child'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(tables, 0);
+        apply_one(&conn, 1000, "fine", "CREATE TABLE ok (a INTEGER);").unwrap();
     }
 
     #[test]

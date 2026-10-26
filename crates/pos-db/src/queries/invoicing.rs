@@ -208,17 +208,7 @@ pub struct NewInvoice<'a> {
 /// Insert the invoice and its sales, all or nothing (a savepoint, so it also works inside the
 /// signing transaction).
 pub fn insert_invoice(conn: &Connection, inv: &NewInvoice<'_>) -> rusqlite::Result<i64> {
-    conn.execute_batch("SAVEPOINT insert_invoice")?;
-    match insert_invoice_rows(conn, inv) {
-        Ok(id) => {
-            conn.execute_batch("RELEASE insert_invoice")?;
-            Ok(id)
-        }
-        Err(e) => {
-            let _ = conn.execute_batch("ROLLBACK TO insert_invoice; RELEASE insert_invoice");
-            Err(e)
-        }
-    }
+    super::with_savepoint(conn, |conn| insert_invoice_rows(conn, inv))
 }
 
 fn insert_invoice_rows(conn: &Connection, inv: &NewInvoice<'_>) -> rusqlite::Result<i64> {

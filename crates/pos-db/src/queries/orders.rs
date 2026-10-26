@@ -1,3 +1,4 @@
+use super::with_savepoint;
 use chrono::{DateTime, Utc};
 use pos_core::order::{Order, OrderLine, OrderStatus, OrderType};
 use pos_core::vat::VatCode;
@@ -41,7 +42,7 @@ pub fn create_order(
                 params![t],
                 |row| row.get(0),
             )
-            .ok();
+            .optional()?;
         if let Some(existing_id) = existing {
             return get_order(conn, existing_id);
         }
@@ -76,7 +77,7 @@ pub fn add_order_line(
     conn: &Connection,
     input: NewOrderLine<'_>,
 ) -> Result<OrderLine, rusqlite::Error> {
-    with_savepoint(conn, || {
+    with_savepoint(conn, |_| {
         ensure_open(conn, input.order_id)?;
         add_order_line_inner(conn, input)
     })
@@ -135,7 +136,7 @@ fn add_order_line_inner(
 /// Remove a line from an open order. The removal is journalled as a
 /// correction (negative entry) so the FDM message keeps the history.
 pub fn remove_order_line(conn: &Connection, line_id: i64) -> Result<(), rusqlite::Error> {
-    with_savepoint(conn, || {
+    with_savepoint(conn, |_| {
         let (order_id, quantity): (i64, i32) = conn.query_row(
             "SELECT order_id, quantity FROM order_lines WHERE id = ?1",
             params![line_id],
@@ -160,7 +161,7 @@ pub fn update_order_line_quantity(
     line_id: i64,
     quantity: i32,
 ) -> Result<(), rusqlite::Error> {
-    with_savepoint(conn, || {
+    with_savepoint(conn, |_| {
         let (order_id, previous): (i64, i32) = conn.query_row(
             "SELECT order_id, quantity FROM order_lines WHERE id = ?1",
             params![line_id],
@@ -300,6 +301,9 @@ fn insert_entry_op(
 /// marked `till_op` = `price_change`. The caller records the changes on
 /// them (the first carries the line's existing changes negated, the
 /// second the new ones). Returns `(correction_entry_id, reentry_entry_id)`.
+///
+/// Atomicity: several statements that rely on the caller's transaction (the
+/// engine runs the pair and the recording of the changes in one).
 #[cfg(feature = "hubrise")]
 pub fn add_price_change_pair(
     conn: &Connection,
@@ -550,25 +554,6 @@ fn ensure_open(conn: &Connection, order_id: i64) -> Result<(), rusqlite::Error> 
     Ok(())
 }
 
-/// Run `f` inside a SAVEPOINT so a line change and its journal entry
-/// are written together, whether or not the caller holds a transaction.
-fn with_savepoint<T>(
-    conn: &Connection,
-    f: impl FnOnce() -> Result<T, rusqlite::Error>,
-) -> Result<T, rusqlite::Error> {
-    conn.execute_batch("SAVEPOINT order_change")?;
-    match f() {
-        Ok(v) => {
-            conn.execute_batch("RELEASE order_change")?;
-            Ok(v)
-        }
-        Err(e) => {
-            let _ = conn.execute_batch("ROLLBACK TO order_change; RELEASE order_change");
-            Err(e)
-        }
-    }
-}
-
 pub fn get_order(conn: &Connection, order_id: i64) -> Result<Order, rusqlite::Error> {
     conn.query_row(
         "SELECT id, table_number, order_type, status, user_insz, created_at, closed_at, subtotal_cents, total_cents
@@ -719,8 +704,11 @@ fn map_order(row: &rusqlite::Row<'_>) -> Result<Order, rusqlite::Error> {
             rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::from(e))
         })?,
         user_insz: row.get(4)?,
-        created_at: parse_datetime(&created_str),
-        closed_at: closed_str.as_deref().map(parse_datetime),
+        created_at: parse_datetime(5, &created_str)?,
+        closed_at: closed_str
+            .as_deref()
+            .map(|c| parse_datetime(6, c))
+            .transpose()?,
         subtotal_cents: row.get(7)?,
         total_cents: row.get(8)?,
     })
@@ -741,17 +729,26 @@ fn map_order_line(row: &rusqlite::Row<'_>) -> Result<OrderLine, rusqlite::Error>
         })?,
         name: row.get(6)?,
         modifiers_json: row.get(7)?,
-        created_at: parse_datetime(&created_str),
+        created_at: parse_datetime(8, &created_str)?,
         department_id: row.get(9)?,
         department_name: row.get(10)?,
     })
 }
 
-fn parse_datetime(s: &str) -> DateTime<Utc> {
+/// A stored timestamp (`2026-10-04T12:00:00Z` or SQLite's `2026-10-04 12:00:00`).
+/// An unknown format is an error naming the column, not the epoch: a silent
+/// 1970 date would corrupt reports and the order history without a trace.
+fn parse_datetime(column: usize, s: &str) -> Result<DateTime<Utc>, rusqlite::Error> {
     chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%SZ")
         .or_else(|_| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S"))
         .map(|dt| dt.and_utc())
-        .unwrap_or_default()
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(
+                column,
+                rusqlite::types::Type::Text,
+                Box::from(format!("unknown timestamp format {s:?}: {e}")),
+            )
+        })
 }
 
 #[cfg(test)]
@@ -763,6 +760,56 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
         conn
+    }
+
+    #[test]
+    fn a_database_error_is_not_read_as_no_existing_empty_order() {
+        let conn = setup();
+        // A broken `order_lines` makes the lookup fail: the error must surface
+        // instead of silently inserting a second order for the table.
+        conn.execute_batch("ALTER TABLE order_lines RENAME TO order_lines_gone;")
+            .unwrap();
+        let before: i64 = conn
+            .query_row("SELECT COUNT(*) FROM orders", [], |r| r.get(0))
+            .unwrap();
+        let err = create_order(&conn, OrderType::DineIn, Some(5), "00000000029");
+        assert!(err.is_err());
+        let after: i64 = conn
+            .query_row("SELECT COUNT(*) FROM orders", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn an_empty_open_table_order_is_reused() {
+        let conn = setup();
+        let first = create_order(&conn, OrderType::DineIn, Some(5), "00000000029").unwrap();
+        let again = create_order(&conn, OrderType::DineIn, Some(5), "00000000029").unwrap();
+        assert_eq!(first.id, again.id);
+    }
+
+    #[test]
+    fn timestamps_parse_in_both_stored_formats_and_an_unknown_one_is_an_error() {
+        let a = parse_datetime(5, "2026-10-04T12:00:00Z").unwrap();
+        let b = parse_datetime(5, "2026-10-04 12:00:00").unwrap();
+        assert_eq!(a, b);
+        let err = parse_datetime(5, "04/10/2026").unwrap_err();
+        assert!(
+            err.to_string().contains("unknown timestamp format"),
+            "{err}"
+        );
+
+        // Through a real row: the error reaches the reader.
+        let conn = setup();
+        let order = create_order(&conn, OrderType::Takeaway, None, "00000000029").unwrap();
+        conn.execute_batch("DROP TRIGGER IF EXISTS orders_no_update;")
+            .ok();
+        conn.execute(
+            "UPDATE orders SET created_at = 'not a date' WHERE id = ?1",
+            params![order.id],
+        )
+        .unwrap();
+        assert!(get_order(&conn, order.id).is_err());
     }
 
     #[test]

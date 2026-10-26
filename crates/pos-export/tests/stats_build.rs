@@ -608,7 +608,8 @@ fn build_error_after(sql: &str) -> (String, i64) {
             .map(Result::unwrap)
             .collect();
         for t in triggers {
-            conn.execute_batch(&format!("DROP TRIGGER \"{t}\";")).unwrap();
+            conn.execute_batch(&format!("DROP TRIGGER \"{t}\";"))
+                .unwrap();
         }
         conn.execute(sql, [id]).unwrap();
     }
@@ -663,7 +664,8 @@ fn the_parity_cases_match_the_accounting_parser() {
                 .map(Result::unwrap)
                 .collect();
             for t in triggers {
-                conn.execute_batch(&format!("DROP TRIGGER \"{t}\";")).unwrap();
+                conn.execute_batch(&format!("DROP TRIGGER \"{t}\";"))
+                    .unwrap();
             }
             conn.execute(
                 "UPDATE fiscal_events SET
@@ -681,7 +683,9 @@ fn the_parity_cases_match_the_accounting_parser() {
         let expected = &case["expected"];
 
         let kind: String = stats
-            .query_row("SELECT kind FROM tickets WHERE ticket_id = ?1", [id], |r| r.get(0))
+            .query_row("SELECT kind FROM tickets WHERE ticket_id = ?1", [id], |r| {
+                r.get(0)
+            })
             .unwrap();
         let refund = expected["refund"].as_bool().unwrap();
         assert_eq!(kind == "refund", refund, "{name}");
@@ -699,7 +703,9 @@ fn the_parity_cases_match_the_accounting_parser() {
             .prepare("SELECT vat_label, vat_rate_bp, base_cents, vat_cents, total_cents FROM ticket_vat WHERE ticket_id = ?1 ORDER BY vat_label")
             .unwrap();
         let rows: Vec<(String, i64, i64, i64, i64)> = stmt
-            .query_map([id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))
+            .query_map([id], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+            })
             .unwrap()
             .map(Result::unwrap)
             .collect();

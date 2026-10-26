@@ -930,7 +930,8 @@ fn write_file(
         let method = method_of(p["type"].as_str().unwrap_or_default());
         for amount in p["amount"].as_array().into_iter().flatten() {
             let kind = payment_kind(amount["type"].as_str().unwrap_or_default());
-            *z_payments.entry((method, kind)).or_insert(0) += cents(zid, &amount["totalAmount"], "a Z payment totalAmount")?;
+            *z_payments.entry((method, kind)).or_insert(0) +=
+                cents(zid, &amount["totalAmount"], "a Z payment totalAmount")?;
         }
     }
     for ((method, kind), amount) in z_payments {

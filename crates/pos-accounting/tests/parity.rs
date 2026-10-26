@@ -25,7 +25,11 @@ fn the_parity_cases_give_the_expected_totals() {
         let sale = parse_sale(&event, None).unwrap_or_else(|e| panic!("{name}: {e}"));
         let expected = &case["expected"];
         assert_eq!(sale.refund, expected["refund"].as_bool().unwrap(), "{name}");
-        assert_eq!(sale.paid(), expected["paid_cents"].as_i64().unwrap(), "{name}");
+        assert_eq!(
+            sale.paid(),
+            expected["paid_cents"].as_i64().unwrap(),
+            "{name}"
+        );
         let want = expected["vats"].as_array().unwrap();
         assert_eq!(sale.vats.len(), want.len(), "{name}");
         for (row, w) in sale.vats.iter().zip(want) {

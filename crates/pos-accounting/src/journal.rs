@@ -531,10 +531,8 @@ mod tests {
         assert!(!a.payments.contains_key("titres_repas"));
         let a = Accounts::from_json(r#"{"payments":{"cheques_repas":"580888"}}"#).unwrap();
         assert_eq!(a.payments["cheques_repas"], "580888");
-        let err = Accounts::from_json(
-            r#"{"payments":{"titres_repas":"1","cheques_repas":"2"}}"#,
-        )
-        .unwrap_err();
+        let err = Accounts::from_json(r#"{"payments":{"titres_repas":"1","cheques_repas":"2"}}"#)
+            .unwrap_err();
         assert_eq!(err.code(), "accounts_invalid");
     }
 

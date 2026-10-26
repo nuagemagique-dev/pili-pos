@@ -49,39 +49,39 @@ fn log(
 /// start, or a new value in `pos.json`, sets it (and logs it); else it
 /// keeps its last value, an admin's change included.
 pub fn hubrise_at_start(conn: &Connection, config_value: bool) -> Result<bool, rusqlite::Error> {
-    let tx = conn.unchecked_transaction()?;
-    let row: Option<(bool, bool)> = tx
-        .query_row(
-            "SELECT enabled, config_value FROM integration_switches WHERE name = ?1",
-            params![HUBRISE],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .optional()?;
-    let enabled = match row {
-        Some((enabled, seen)) if seen == config_value => enabled,
-        Some(_) => {
-            tx.execute(
-                "UPDATE integration_switches
-                 SET enabled = ?2, config_value = ?2, changed_at = datetime('now'),
-                     changed_by = NULL
-                 WHERE name = ?1",
-                params![HUBRISE, config_value],
-            )?;
-            log(&tx, config_value, Source::Config, None)?;
-            config_value
-        }
-        None => {
-            tx.execute(
-                "INSERT INTO integration_switches (name, enabled, config_value, changed_at)
-                 VALUES (?1, ?2, ?2, datetime('now'))",
-                params![HUBRISE, config_value],
-            )?;
-            log(&tx, config_value, Source::Config, None)?;
-            config_value
-        }
-    };
-    tx.commit()?;
-    Ok(enabled)
+    super::with_savepoint(conn, |tx| {
+        let row: Option<(bool, bool)> = tx
+            .query_row(
+                "SELECT enabled, config_value FROM integration_switches WHERE name = ?1",
+                params![HUBRISE],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        let enabled = match row {
+            Some((enabled, seen)) if seen == config_value => enabled,
+            Some(_) => {
+                tx.execute(
+                    "UPDATE integration_switches
+                     SET enabled = ?2, config_value = ?2, changed_at = datetime('now'),
+                         changed_by = NULL
+                     WHERE name = ?1",
+                    params![HUBRISE, config_value],
+                )?;
+                log(&tx, config_value, Source::Config, None)?;
+                config_value
+            }
+            None => {
+                tx.execute(
+                    "INSERT INTO integration_switches (name, enabled, config_value, changed_at)
+                     VALUES (?1, ?2, ?2, datetime('now'))",
+                    params![HUBRISE, config_value],
+                )?;
+                log(&tx, config_value, Source::Config, None)?;
+                config_value
+            }
+        };
+        Ok(enabled)
+    })
 }
 
 /// An admin's change. Returns whether it changed anything.
@@ -90,18 +90,18 @@ pub fn set_hubrise(
     enabled: bool,
     admin_insz: &str,
 ) -> Result<bool, rusqlite::Error> {
-    let tx = conn.unchecked_transaction()?;
-    let changed = tx.execute(
-        "UPDATE integration_switches
-         SET enabled = ?2, changed_at = datetime('now'), changed_by = ?3
-         WHERE name = ?1 AND enabled != ?2",
-        params![HUBRISE, enabled, admin_insz],
-    )? == 1;
-    if changed {
-        log(&tx, enabled, Source::Admin, Some(admin_insz))?;
-    }
-    tx.commit()?;
-    Ok(changed)
+    super::with_savepoint(conn, |tx| {
+        let changed = tx.execute(
+            "UPDATE integration_switches
+             SET enabled = ?2, changed_at = datetime('now'), changed_by = ?3
+             WHERE name = ?1 AND enabled != ?2",
+            params![HUBRISE, enabled, admin_insz],
+        )? == 1;
+        if changed {
+            log(&tx, enabled, Source::Admin, Some(admin_insz))?;
+        }
+        Ok(changed)
+    })
 }
 
 /// Every change, the latest first.

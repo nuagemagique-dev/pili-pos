@@ -143,8 +143,8 @@ fn state_json(set: Option<&AllergenSet>) -> String {
 
 /// Replace the declaration of `id` by `set` (`None`: back to "no
 /// information"). Writes the rows, the declaration and one log row,
-/// and only when the list really changes; runs inside the caller's
-/// transaction. Returns whether anything changed. The codes must be
+/// and only when the list really changes; it relies on the caller's
+/// transaction for atomicity (it opens none). Returns whether anything changed. The codes must be
 /// valid (callers check them with `AllergenSet::first_unknown`).
 pub fn write(
     conn: &Connection,

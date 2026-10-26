@@ -33,38 +33,38 @@ fn log(
 /// start, or a new plan in `pos.json`, sets it (and logs it); else it
 /// keeps its last value, a manager's change included.
 pub fn at_start(conn: &Connection, config_plan: &str) -> Result<String, rusqlite::Error> {
-    let tx = conn.unchecked_transaction()?;
-    let row: Option<(String, String)> = tx
-        .query_row(
-            "SELECT plan, config_plan FROM table_plan WHERE id = 1",
-            [],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .optional()?;
-    let plan = match row {
-        Some((plan, seen)) if seen == config_plan => plan,
-        Some(_) => {
-            tx.execute(
-                "UPDATE table_plan
-                 SET plan = ?1, config_plan = ?1, changed_at = datetime('now'), changed_by = NULL
-                 WHERE id = 1",
-                params![config_plan],
-            )?;
-            log(&tx, config_plan, "config", None)?;
-            config_plan.to_string()
-        }
-        None => {
-            tx.execute(
-                "INSERT INTO table_plan (id, plan, config_plan, changed_at)
-                 VALUES (1, ?1, ?1, datetime('now'))",
-                params![config_plan],
-            )?;
-            log(&tx, config_plan, "config", None)?;
-            config_plan.to_string()
-        }
-    };
-    tx.commit()?;
-    Ok(plan)
+    super::with_savepoint(conn, |tx| {
+        let row: Option<(String, String)> = tx
+            .query_row(
+                "SELECT plan, config_plan FROM table_plan WHERE id = 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        let plan = match row {
+            Some((plan, seen)) if seen == config_plan => plan,
+            Some(_) => {
+                tx.execute(
+                    "UPDATE table_plan
+                     SET plan = ?1, config_plan = ?1, changed_at = datetime('now'), changed_by = NULL
+                     WHERE id = 1",
+                    params![config_plan],
+                )?;
+                log(&tx, config_plan, "config", None)?;
+                config_plan.to_string()
+            }
+            None => {
+                tx.execute(
+                    "INSERT INTO table_plan (id, plan, config_plan, changed_at)
+                     VALUES (1, ?1, ?1, datetime('now'))",
+                    params![config_plan],
+                )?;
+                log(&tx, config_plan, "config", None)?;
+                config_plan.to_string()
+            }
+        };
+        Ok(plan)
+    })
 }
 
 /// The plan in use; None before the first start-up recorded one.
@@ -75,33 +75,33 @@ pub fn current(conn: &Connection) -> Result<Option<String>, rusqlite::Error> {
 
 /// A manager's change. Returns whether it changed anything.
 pub fn set(conn: &Connection, plan: &str, admin_insz: &str) -> Result<bool, rusqlite::Error> {
-    let tx = conn.unchecked_transaction()?;
-    let changed = match current(&tx)? {
-        Some(old) if old == plan => false,
-        Some(_) => {
-            tx.execute(
-                "UPDATE table_plan SET plan = ?1, changed_at = datetime('now'), changed_by = ?2
-                 WHERE id = 1",
-                params![plan, admin_insz],
-            )?;
-            true
+    super::with_savepoint(conn, |tx| {
+        let changed = match current(&tx)? {
+            Some(old) if old == plan => false,
+            Some(_) => {
+                tx.execute(
+                    "UPDATE table_plan SET plan = ?1, changed_at = datetime('now'), changed_by = ?2
+                     WHERE id = 1",
+                    params![plan, admin_insz],
+                )?;
+                true
+            }
+            // No start-up recorded the pos.json plan (a bare database): the
+            // manager's plan stands for both until pos.json says otherwise.
+            None => {
+                tx.execute(
+                    "INSERT INTO table_plan (id, plan, config_plan, changed_at, changed_by)
+                     VALUES (1, ?1, ?1, datetime('now'), ?2)",
+                    params![plan, admin_insz],
+                )?;
+                true
+            }
+        };
+        if changed {
+            log(&tx, plan, "admin", Some(admin_insz))?;
         }
-        // No start-up recorded the pos.json plan (a bare database): the
-        // manager's plan stands for both until pos.json says otherwise.
-        None => {
-            tx.execute(
-                "INSERT INTO table_plan (id, plan, config_plan, changed_at, changed_by)
-                 VALUES (1, ?1, ?1, datetime('now'), ?2)",
-                params![plan, admin_insz],
-            )?;
-            true
-        }
-    };
-    if changed {
-        log(&tx, plan, "admin", Some(admin_insz))?;
-    }
-    tx.commit()?;
-    Ok(changed)
+        Ok(changed)
+    })
 }
 
 /// The changes, the latest first.

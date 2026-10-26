@@ -40,17 +40,7 @@ pub fn atomic<T>(
     conn: &Connection,
     f: impl FnOnce(&Connection) -> Result<T, rusqlite::Error>,
 ) -> Result<T, rusqlite::Error> {
-    conn.execute_batch("SAVEPOINT badges_atomic")?;
-    match f(conn) {
-        Ok(v) => {
-            conn.execute_batch("RELEASE badges_atomic")?;
-            Ok(v)
-        }
-        Err(e) => {
-            let _ = conn.execute_batch("ROLLBACK TO badges_atomic; RELEASE badges_atomic");
-            Err(e)
-        }
-    }
+    super::with_savepoint(conn, f)
 }
 
 fn conversion(e: String) -> rusqlite::Error {

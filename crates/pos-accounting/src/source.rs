@@ -183,8 +183,11 @@ impl Source {
     /// The file must be a POS archive that has migration 4 (append-only archive).
     fn check_archive(&self) -> Result<()> {
         let not_pili = |what: &str| AccountingError::NotAPiliDb(what.to_string());
-        let unreadable =
-            |e: rusqlite::Error| not_pili(&format!("the file cannot be read as a SQLite database: {e}"));
+        let unreadable = |e: rusqlite::Error| {
+            not_pili(&format!(
+                "the file cannot be read as a SQLite database: {e}"
+            ))
+        };
         let tables: Vec<String> = {
             let mut stmt = self
                 .conn
