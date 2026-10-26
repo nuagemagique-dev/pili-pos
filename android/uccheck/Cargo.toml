@@ -16,3 +16,54 @@ edition = "2024"
 
 [profile.dev]
 debug = "line-tables-only"
+
+# Lints (BeautifulRust, https://github.com/morganlinton/BeautifulRust, adapted to
+# application crates: the library-only lints missing_docs, missing_errors_doc and
+# missing_panics_doc are left out). CI runs clippy with -D warnings, so every
+# warning here fails the build. Silence one locally with a reason:
+#     #[expect(clippy::cast_possible_truncation, reason = "...")]
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Panics: return errors, and give every intentional panic a reason.
+unwrap_used = "warn"
+panic_in_result_fn = "warn"
+# Suppressions explain themselves and expire when no longer needed.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+# Unsafe must be justified.
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"
+# API shape.
+fn_params_excessive_bools = "warn"
+struct_excessive_bools = "warn"
+clone_on_ref_ptr = "warn"
+redundant_clone = "warn"
+rc_buffer = "warn"
+# Idioms.
+string_add = "warn"
+wildcard_imports = "warn"
+# Leftovers and output.
+dbg_macro = "warn"
+todo = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+# Casts that silently lose information.
+as_conversions = "warn"
+cast_possible_truncation = "warn"
+cast_sign_loss = "warn"
+# Library-only rules (no crate here is published): errors and panics are
+# documented where they matter, not on every function.
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+# Pedantic lints that are noise here.
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+module_inception = "allow"
+enum_glob_use = "allow"

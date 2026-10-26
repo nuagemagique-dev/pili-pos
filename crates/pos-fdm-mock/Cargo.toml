@@ -19,3 +19,6 @@ rustls = { version = "0.23", default-features = false, features = ["std", "tls12
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
+
+[lints]
+workspace = true

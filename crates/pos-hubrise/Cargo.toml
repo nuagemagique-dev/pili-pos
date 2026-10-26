@@ -27,3 +27,6 @@ base64 = "0.23"
 [dev-dependencies]
 pos-hubrise-mock = { path = "../pos-hubrise-mock" }
 axum = { workspace = true }
+
+[lints]
+workspace = true

@@ -34,3 +34,6 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["f
 pos-eft-mock = { path = "../pos-eft-mock" }
 tempfile = "3"
 tokio = { workspace = true, features = ["rt", "macros"] }
+
+[lints]
+workspace = true
