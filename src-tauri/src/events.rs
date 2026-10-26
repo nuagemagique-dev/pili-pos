@@ -1,7 +1,8 @@
 //! The shell's half of the engine events: [`TauriEventSink`] hands each
 //! [`EngineEvent`] to the webview under the topic the engine names.
 
-use std::sync::OnceLock;
+use std::collections::HashSet;
+use std::sync::{Mutex, OnceLock};
 
 use pos_engine::{EngineEvent, EventSink};
 use tauri::{AppHandle, Emitter};
@@ -12,6 +13,10 @@ use tauri::{AppHandle, Emitter};
 #[derive(Default)]
 pub struct TauriEventSink {
     handle: OnceLock<AppHandle>,
+    /// The topics whose last emit failed and was reported: a webview
+    /// that reloads while the FDM status poller runs fails every tick,
+    /// and one warning per outage is enough.
+    failing: Mutex<HashSet<&'static str>>,
 }
 
 impl TauriEventSink {
@@ -48,9 +53,19 @@ impl EventSink for TauriEventSink {
             | EngineEvent::CatalogRejected(e)
             | EngineEvent::CatalogAwaitingAdoption(e) => handle.emit(topic, e),
         };
-        if let Err(e) = emitted {
-            // The webview may be reloading; the UI re-reads on its next load.
-            tracing::warn!(topic, %e, "event not delivered to the webview");
+        let Ok(mut failing) = self.failing.lock() else {
+            return;
+        };
+        match emitted {
+            // The webview may be reloading; the UI re-reads on its next
+            // load. Warn on the first failure of a topic only.
+            Err(e) if failing.insert(topic) => {
+                tracing::warn!(topic, %e, "event not delivered to the webview");
+            }
+            Err(e) => tracing::debug!(topic, %e, "event not delivered to the webview"),
+            Ok(()) => {
+                failing.remove(topic);
+            }
         }
     }
 }
