@@ -87,10 +87,24 @@ pub const SHEET_LANGUAGES: [&str; 4] = ["fr", "nl", "en", "de"];
 
 impl Allergen {
     /// The Annex II number, 1 to 14.
+    #[must_use]
     pub fn number(self) -> u8 {
-        ALL.iter()
-            .position(|a| *a == self)
-            .map_or(0, |i| i as u8 + 1)
+        match self {
+            Allergen::Gluten => 1,
+            Allergen::Crustaceans => 2,
+            Allergen::Eggs => 3,
+            Allergen::Fish => 4,
+            Allergen::Peanuts => 5,
+            Allergen::Soybeans => 6,
+            Allergen::Milk => 7,
+            Allergen::Nuts => 8,
+            Allergen::Celery => 9,
+            Allergen::Mustard => 10,
+            Allergen::Sesame => 11,
+            Allergen::Sulphites => 12,
+            Allergen::Lupin => 13,
+            Allergen::Molluscs => 14,
+        }
     }
 
     /// The stable code used in tags, the database and the IPC.
@@ -135,7 +149,7 @@ impl Allergen {
             "de" => 4,
             _ => 2,
         };
-        NAMES[usize::from(self.number()) - 1][col]
+        NAMES[usize::from(self.number() - 1)][col]
     }
 }
 
@@ -154,6 +168,7 @@ pub struct AllergenSet {
 impl AllergenSet {
     /// Sorted, deduplicated codes; a code listed in both levels stays
     /// in `contains` only (the stricter statement wins).
+    #[must_use]
     pub fn normalized(&self) -> AllergenSet {
         let key = |c: &String| {
             Allergen::from_code(c)
@@ -259,7 +274,7 @@ mod tests {
     #[test]
     fn a_set_rejects_unknown_fields_and_defaults_missing_ones() {
         let s: AllergenSet = serde_json::from_str(r#"{"contains":["fish"]}"#).unwrap();
-        assert!(s.may_contain.is_empty());
+        assert_eq!(s.may_contain, Vec::<String>::new());
         assert!(serde_json::from_str::<AllergenSet>(r#"{"x":1}"#).is_err());
     }
 }

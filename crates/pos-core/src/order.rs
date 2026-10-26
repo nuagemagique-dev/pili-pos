@@ -95,8 +95,12 @@ pub struct OrderLine {
 }
 
 impl OrderLine {
+    /// Unit price times quantity; saturates instead of overflowing on an
+    /// impossible quantity.
+    #[must_use]
     pub fn line_total(&self) -> i64 {
-        self.unit_price_cents * self.quantity as i64
+        self.unit_price_cents
+            .saturating_mul(i64::from(self.quantity))
     }
 }
 

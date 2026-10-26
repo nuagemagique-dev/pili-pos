@@ -38,7 +38,7 @@ pub struct PosConfig {
     pub restaurant_vat: String,
     /// Establishment number (10 digits, starts 2-8)
     pub restaurant_est_no: String,
-    /// FDM endpoint URL (e.g. http://192.168.1.100:8080/graphql)
+    /// FDM endpoint URL (e.g. <http://192.168.1.100:8080/graphql>)
     pub fdm_url: String,
     /// File holding the bearer token of an FDM that requires one (a
     /// cloud FDM simulator used for tests). Absent for a LAN FDM. The
@@ -82,13 +82,13 @@ pub struct PosConfig {
     /// Training mode flag
     #[serde(default)]
     pub training_mode: bool,
-    /// Whether the HubRise integration runs on this installation (its
+    /// Whether the `HubRise` integration runs on this installation (its
     /// starting value: an admin can change it in Settings, every change
     /// logged). Off by default.
     #[serde(default)]
     pub hubrise_enabled: bool,
-    /// How this installation connects to HubRise (its OAuth client).
-    /// Absent: HubRise cannot be connected (release builds).
+    /// How this installation connects to `HubRise` (its `OAuth` client).
+    /// Absent: `HubRise` cannot be connected (release builds).
     #[serde(default)]
     pub hubrise: Option<HubriseConfig>,
     /// Display language (fr, nl, de, en, zh). Printed fiscal mentions
@@ -139,6 +139,16 @@ fn default_table_count() -> u32 {
     20
 }
 
+/// Reads a secret file (an API key, a token) and trims it. The error
+/// names the setting (`key`) and the path, never the content.
+fn read_secret(key: &str, path: &str) -> Result<String, String> {
+    match std::fs::read_to_string(path) {
+        Ok(s) if !s.trim().is_empty() => Ok(s.trim().to_string()),
+        Ok(_) => Err(format!("{key}: {path:?} is empty")),
+        Err(e) => Err(format!("{key}: cannot read {path:?}: {e}")),
+    }
+}
+
 impl PosConfig {
     /// The starting table plan in its canonical form: `tables` when it
     /// reads, else 1 to `table_count` (within the plan's limits).
@@ -148,7 +158,9 @@ impl PosConfig {
         {
             return plan;
         }
-        let count = self.table_count.min(crate::table_plan::MAX_TABLES as u32);
+        let count = self
+            .table_count
+            .min(u32::try_from(crate::table_plan::MAX_TABLES).unwrap_or(u32::MAX));
         let numbers: Vec<u32> = (1..=count).collect();
         crate::table_plan::format(&numbers)
     }
@@ -167,12 +179,12 @@ impl PosConfig {
     /// Load the configuration from the JSON file documented in the
     /// installation manual (`/etc/pili-pos/pos.json` in production).
     ///
-    /// Identity fields (pos_id, restaurant_vat, fdm_url, …) are
+    /// Identity fields (`pos_id`, `restaurant_vat`, `fdm_url`, …) are
     /// required - a fiscal terminal must not boot with a partial
-    /// identity. Only printer_address, kitchen_printer_address,
-    /// training_mode, language, day_end_hour, backup_dir,
-    /// digital_ticket, export, hubrise_enabled, hubrise and
-    /// payment_terminal may be omitted.
+    /// identity. Only `printer_address`, `kitchen_printer_address`,
+    /// `training_mode`, `language`, `day_end_hour`, `backup_dir`,
+    /// `digital_ticket`, `export`, `hubrise_enabled`, `hubrise` and
+    /// `payment_terminal` may be omitted.
     pub fn load_from_file(path: &Path) -> Result<Self, ConfigError> {
         let raw = std::fs::read_to_string(path).map_err(|source| ConfigError::Io {
             path: path.display().to_string(),
@@ -239,6 +251,10 @@ impl PosConfig {
     /// configuration is usable. Checked at start-up and by
     /// `pili-pos --check-config`, so a typo in `pos.json` shows at
     /// installation, not as refused sales on opening day.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one flat list of independent checks; splitting it would only scatter them"
+    )]
     pub fn problems(&self) -> Vec<String> {
         let mut out = Vec::new();
         if let Some(text) = &self.tables
@@ -301,12 +317,10 @@ impl PosConfig {
                 self.language
             ));
         }
-        if let Some(path) = &self.fdm_token_file {
-            match std::fs::read_to_string(path) {
-                Ok(token) if !token.trim().is_empty() => {}
-                Ok(_) => out.push(format!("fdm_token_file: {path:?} is empty")),
-                Err(e) => out.push(format!("fdm_token_file: cannot read {path:?}: {e}")),
-            }
+        if let Some(path) = &self.fdm_token_file
+            && let Err(e) = read_secret("fdm_token_file", path)
+        {
+            out.push(e);
         }
         for (key, path) in [
             ("fdm_ca_file", &self.fdm_ca_file),
@@ -506,9 +520,9 @@ fn default_hubrise_scope() -> String {
     "location[orders.write,customer_list.read,catalog.read]".to_string()
 }
 
-/// The installation's HubRise OAuth client, from `pos.json` as
+/// The installation's `HubRise` `OAuth` client, from `pos.json` as
 /// `hubrise`. Only the client id and the secret's file are required;
-/// the rest defaults to the real HubRise.
+/// the rest defaults to the real `HubRise`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HubriseConfig {
     /// OAuth client id (`<id>.clients.hubrise.com`).
@@ -531,13 +545,7 @@ impl HubriseConfig {
     /// The client secret, read from `client_secret_file`.
     pub fn client_secret(&self) -> Result<String, String> {
         let path = &self.client_secret_file;
-        match std::fs::read_to_string(path) {
-            Ok(s) if !s.trim().is_empty() => Ok(s.trim().to_string()),
-            Ok(_) => Err(format!("hubrise.client_secret_file: {path:?} is empty")),
-            Err(e) => Err(format!(
-                "hubrise.client_secret_file: cannot read {path:?}: {e}"
-            )),
-        }
+        read_secret("hubrise.client_secret_file", path)
     }
 
     fn problems(&self) -> Vec<String> {
@@ -607,7 +615,7 @@ fn default_keep_days() -> u32 {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExportConfig {
     /// Per-installation endpoint. `https://`; plain `http://` only to
-    /// 127.0.0.1, localhost, [::1] or 10.0.2.2 (tests, emulator).
+    /// 127.0.0.1, localhost, `[::1]` or 10.0.2.2 (tests, emulator).
     pub url: String,
     /// File holding the bearer token and nothing else (whitespace is
     /// trimmed). The token stays out of `pos.json`.
@@ -707,13 +715,7 @@ impl PaymentTerminalConfig {
         let Some(path) = &self.api_key_file else {
             return Ok(None);
         };
-        match std::fs::read_to_string(path) {
-            Ok(s) if !s.trim().is_empty() => Ok(Some(s.trim().to_string())),
-            Ok(_) => Err(format!("payment_terminal.api_key_file: {path:?} is empty")),
-            Err(e) => Err(format!(
-                "payment_terminal.api_key_file: cannot read {path:?}: {e}"
-            )),
-        }
+        read_secret("payment_terminal.api_key_file", path).map(Some)
     }
 
     /// What would make the terminal unusable. Each message starts with
@@ -817,17 +819,20 @@ pub struct PeppolConfig {
     pub supplier_country: String,
 }
 
+/// Whether the `logging` Peppol provider (which sends nothing) is accepted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LoggingProvider {
+    Allowed,
+    Refused,
+}
+
 impl PeppolConfig {
     /// The API key, read from `api_key_file`; `Ok(None)` without one.
     pub fn api_key(&self) -> Result<Option<String>, String> {
         let Some(path) = &self.api_key_file else {
             return Ok(None);
         };
-        match std::fs::read_to_string(path) {
-            Ok(s) if !s.trim().is_empty() => Ok(Some(s.trim().to_string())),
-            Ok(_) => Err(format!("peppol.api_key_file: {path:?} is empty")),
-            Err(e) => Err(format!("peppol.api_key_file: cannot read {path:?}: {e}")),
-        }
+        read_secret("peppol.api_key_file", path).map(Some)
     }
 
     /// What would make the delivery unusable. Each message starts with
@@ -836,13 +841,17 @@ impl PeppolConfig {
     /// The `logging` provider sends nothing, so a release build refuses it:
     /// it would show every B2B invoice as delivered (V11-D12).
     pub fn problems(&self) -> Vec<String> {
-        self.problems_with(cfg!(debug_assertions))
+        self.problems_with(if cfg!(debug_assertions) {
+            LoggingProvider::Allowed
+        } else {
+            LoggingProvider::Refused
+        })
     }
 
-    fn problems_with(&self, allow_logging: bool) -> Vec<String> {
+    fn problems_with(&self, logging: LoggingProvider) -> Vec<String> {
         let mut out = Vec::new();
         match self.provider.as_str() {
-            "logging" if allow_logging => {}
+            "logging" if logging == LoggingProvider::Allowed => {}
             "logging" => out.push(
                 "peppol.provider: logging sends nothing and is refused in a release build, \
                  use storecove"
@@ -931,13 +940,7 @@ impl AlertsConfig {
         let Some(path) = &self.telegram_bot_token_file else {
             return Ok(None);
         };
-        match std::fs::read_to_string(path) {
-            Ok(s) if !s.trim().is_empty() => Ok(Some(s.trim().to_string())),
-            Ok(_) => Err(format!("alerts.telegram_bot_token_file: {path:?} is empty")),
-            Err(e) => Err(format!(
-                "alerts.telegram_bot_token_file: cannot read {path:?}: {e}"
-            )),
-        }
+        read_secret("alerts.telegram_bot_token_file", path).map(Some)
     }
 
     /// The Bot API base URL without a trailing slash.
@@ -1341,7 +1344,7 @@ mod tests {
         assert!(!valid_est_no("9789456149"), "starts with 2 to 8");
     }
 
-    /// The example from MANUEL_INSTALLATION_FR.md §4.2 must parse.
+    /// The example from `MANUEL_INSTALLATION_FR.md` §4.2 must parse.
     #[test]
     fn parses_installation_manual_example() {
         let json = r#"{
@@ -1423,8 +1426,8 @@ mod tests {
         // it is obviously not a real POS identity (empty pos_id) so a
         // future refactor can't accidentally make it "boot-ready".
         let cfg = PosConfig::default();
-        assert!(cfg.pos_id.is_empty());
-        assert!(cfg.restaurant_vat.is_empty());
+        assert_eq!(cfg.pos_id, "");
+        assert_eq!(cfg.restaurant_vat, "");
         assert_eq!(cfg.language, "fr");
     }
 
@@ -1572,18 +1575,18 @@ mod tests {
 
     #[test]
     fn a_valid_export_section_has_no_problem() {
-        assert!(export_problems(export_cfg()).is_empty());
+        assert_eq!(export_problems(export_cfg()), Vec::<String>::new());
         let mut e = export_cfg();
         e.producer_recipient = Some(RECIPIENT.into());
         e.keep_days = 365;
-        assert!(export_problems(e).is_empty());
+        assert_eq!(export_problems(e), Vec::<String>::new());
     }
 
     #[test]
     fn an_absent_export_section_is_off_and_no_problem() {
         let c = valid();
         assert!(c.export.is_none());
-        assert!(c.problems().is_empty());
+        assert_eq!(c.problems(), Vec::<String>::new());
         let json = r#"{"pos_id":"CFOD0061234567","terminal_id":"POS1","device_id":"d",
             "restaurant_name":"R","restaurant_address":"A","restaurant_vat":"BE0499999960",
             "restaurant_est_no":"8789456149","fdm_url":"http://h/graphql"}"#;
@@ -1756,18 +1759,21 @@ mod tests {
             supplier_city: "Liege".into(),
             supplier_country: "BE".into(),
         };
-        let release = p.problems_with(false);
+        let release = p.problems_with(LoggingProvider::Refused);
         assert!(
             release.iter().any(|m| m.starts_with("peppol.provider:")),
             "{release:?}"
         );
         assert!(
-            p.problems_with(true)
+            p.problems_with(LoggingProvider::Allowed)
                 .iter()
                 .all(|m| !m.starts_with("peppol.provider:"))
         );
         p.provider = "nope".into();
-        assert!(!p.problems_with(true).is_empty());
+        assert_ne!(
+            p.problems_with(LoggingProvider::Allowed),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
@@ -1887,7 +1893,7 @@ mod tests {
             telegram_bot_token_file: Some(good.to_string_lossy().into_owned()),
             telegram_api_base: None,
         };
-        assert!(a.problems().is_empty());
+        assert_eq!(a.problems(), Vec::<String>::new());
         assert_eq!(a.bot_token().unwrap().as_deref(), Some("123:SECRET"));
         assert_eq!(a.api_base(), "https://api.telegram.org");
 
@@ -1901,7 +1907,7 @@ mod tests {
         a.telegram_api_base = Some("http://example.com/".into());
         assert!(a.problems()[0].starts_with("alerts.telegram_api_base: plain http"));
         a.telegram_api_base = Some("http://127.0.0.1:8080/".into());
-        assert!(a.problems().is_empty());
+        assert_eq!(a.problems(), Vec::<String>::new());
         assert_eq!(a.api_base(), "http://127.0.0.1:8080");
 
         let mut c = valid();
