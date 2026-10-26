@@ -11,6 +11,7 @@
 use pos_core::config::PosConfig;
 use pos_fiscal::event::{Booking, build_work_in_out};
 use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::types::Mode;
 
 fn mock_tls(name: &str) -> String {
     format!(
@@ -73,7 +74,7 @@ async fn the_pos_signs_over_mtls_with_v1_certificates() {
     let signed = fdm
         .sign_work_in(
             build_work_in_out(&config, &ident(), 1, "75061189702", &booking),
-            false,
+            Mode::Normal,
         )
         .await
         .expect("work-in over mTLS");

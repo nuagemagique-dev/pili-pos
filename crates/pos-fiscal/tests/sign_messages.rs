@@ -10,6 +10,7 @@
 
 mod common;
 
+use pos_fiscal::types::Mode;
 use std::sync::{Arc, Mutex};
 
 use pos_core::config::PosConfig;
@@ -85,7 +86,7 @@ async fn sign_response_warnings_reach_the_sink_once_per_response() {
         .await;
     fdm.sign_work_in(
         build_work_in_out(&config, &ident(), 1, "75061189702", &booking),
-        false,
+        Mode::Normal,
     )
     .await
     .unwrap();
@@ -96,7 +97,7 @@ async fn sign_response_warnings_reach_the_sink_once_per_response() {
         .await;
     fdm.sign_work_in(
         build_work_in_out(&config, &ident(), 2, "75061189702", &booking),
-        false,
+        Mode::Normal,
     )
     .await
     .unwrap();

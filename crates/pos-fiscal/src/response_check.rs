@@ -22,7 +22,7 @@ use serde_json::Value;
 
 use crate::response::SignResult;
 use crate::signature::compute_short_signature;
-use crate::types::{EventLabel, EventOperation};
+use crate::types::{EventLabel, EventOperation, Mode};
 
 /// The simulator's placeholder signature: `dummy_` followed by base64
 /// (seen on module2's simulator FDM02000425, FDM software 2.2.0.5). A
@@ -94,12 +94,8 @@ impl ExpectedEvent {
     /// `tb_eventOperation` table (POS detailed description v2.2
     /// §2.2.4). In training mode every operation is labelled T.
     /// `None` for a mutation name this POS does not know.
-    #[expect(
-        clippy::fn_params_excessive_bools,
-        reason = "is_training mirrors the FDM's isTraining flag, passed the same way by every caller"
-    )]
     #[must_use]
-    pub fn for_mutation(mutation: &str, is_training: bool) -> Option<Self> {
+    pub fn for_mutation(mutation: &str, mode: Mode) -> Option<Self> {
         use EventLabel as L;
         use EventOperation as O;
         let (operation, label) = match mutation {
@@ -122,7 +118,7 @@ impl ExpectedEvent {
         };
         Some(Self {
             operation,
-            label: label.in_mode(is_training),
+            label: label.in_mode(mode),
         })
     }
 }
@@ -333,7 +329,7 @@ mod tests {
     }
 
     fn sale() -> ExpectedEvent {
-        ExpectedEvent::for_mutation("signSale", false).unwrap()
+        ExpectedEvent::for_mutation("signSale", Mode::Normal).unwrap()
     }
 
     fn field_of(res: &SignResult, expected: ExpectedEvent) -> &'static str {
@@ -378,12 +374,12 @@ mod tests {
         ];
         for (mutation, operation, label) in table {
             assert_eq!(
-                ExpectedEvent::for_mutation(mutation, false),
+                ExpectedEvent::for_mutation(mutation, Mode::Normal),
                 Some(ExpectedEvent { operation, label }),
                 "{mutation}"
             );
             assert_eq!(
-                ExpectedEvent::for_mutation(mutation, true),
+                ExpectedEvent::for_mutation(mutation, Mode::Training),
                 Some(ExpectedEvent {
                     operation,
                     label: L::T
@@ -392,7 +388,7 @@ mod tests {
             );
         }
         assert_eq!(
-            ExpectedEvent::for_mutation("signSomethingElse", false),
+            ExpectedEvent::for_mutation("signSomethingElse", Mode::Normal),
             None
         );
     }
@@ -477,14 +473,14 @@ mod tests {
 
     #[test]
     fn a_real_label_for_a_training_sale_is_refused() {
-        let training = ExpectedEvent::for_mutation("signSale", true).unwrap();
+        let training = ExpectedEvent::for_mutation("signSale", Mode::Training).unwrap();
         let res = sale_response();
         assert_eq!(field_of(&res, training), "eventLabel");
     }
 
     #[test]
     fn a_training_sale_needs_no_short_signature() {
-        let training = ExpectedEvent::for_mutation("signSale", true).unwrap();
+        let training = ExpectedEvent::for_mutation("signSale", Mode::Training).unwrap();
         let mut res = sale_response();
         res.fdm_ref.event_label = EventLabel::T;
         res.short_signature = None;
@@ -653,7 +649,7 @@ mod tests {
             res.fdm_ref.event_label = label;
             res.short_signature = None;
             res.verification_url = None;
-            let expected = ExpectedEvent::for_mutation(mutation, false).unwrap();
+            let expected = ExpectedEvent::for_mutation(mutation, Mode::Normal).unwrap();
             assert_eq!(
                 check_sign_result(&request(), expected, &res, PlaceholderSignatures::Refused),
                 Ok(()),

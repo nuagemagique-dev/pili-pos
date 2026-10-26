@@ -29,6 +29,7 @@
 
 mod common;
 
+use pos_fiscal::types::Mode;
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use pos_core::config::PosConfig;
@@ -266,7 +267,7 @@ async fn test_full_service_day_e2e() {
     assert_eq!(s1_ticket, 1, "First S event should be #1");
 
     let work_in = build_work_in_out(&cfg, &ident(), s1_ticket, &user.insz, &bk(&bp_id));
-    let wi_result = fdm.sign_work_in(work_in, false).await.unwrap();
+    let wi_result = fdm.sign_work_in(work_in, Mode::Normal).await.unwrap();
     assert_eq!(wi_result.event_operation, EventOperation::WorkIn);
     assert_eq!(wi_result.fdm_ref.event_label, EventLabel::S);
 
@@ -383,7 +384,7 @@ async fn test_full_service_day_e2e() {
         CostCenterType::Table
     );
 
-    let p1_result = fdm.sign_order(order_input, false).await.unwrap();
+    let p1_result = fdm.sign_order(order_input, Mode::Normal).await.unwrap();
     assert_eq!(p1_result.fdm_ref.event_label, EventLabel::P);
 
     archive::archive_event(
@@ -443,7 +444,7 @@ async fn test_full_service_day_e2e() {
 
     let order_input2 =
         build_order_input(&cfg, &ident(), &order_r2, &lines_r2, p2_ticket, &bk(&bp_id));
-    let p2_fdm = fdm.sign_order(order_input2, false).await.unwrap();
+    let p2_fdm = fdm.sign_order(order_input2, Mode::Normal).await.unwrap();
 
     archive::archive_event(
         &db,
@@ -516,7 +517,7 @@ async fn test_full_service_day_e2e() {
         pre_bill.transaction.transaction_total
     );
 
-    let pb_fdm = fdm.sign_pre_bill(pre_bill, false).await.unwrap();
+    let pb_fdm = fdm.sign_pre_bill(pre_bill, Mode::Normal).await.unwrap();
     assert_eq!(pb_fdm.event_operation, EventOperation::PreBill);
     assert!(
         pb_fdm.short_signature.is_none(),
@@ -684,7 +685,7 @@ async fn test_full_service_day_e2e() {
     assert!(sale_json.contains("\"posId\":\"CFOD0061234567\""));
     assert!(sale_json.contains("\"employeeId\":\"93051800189\""));
 
-    let n1_result = fdm.sign_sale(sale, false).await.unwrap();
+    let n1_result = fdm.sign_sale(sale, Mode::Normal).await.unwrap();
     assert_eq!(n1_result.event_operation, EventOperation::Sale);
     assert_eq!(n1_result.fdm_ref.event_label, EventLabel::N);
     assert!(n1_result.short_signature.is_some());
@@ -904,7 +905,7 @@ async fn test_full_service_day_e2e() {
     );
     assert_eq!(sale2.financials[0].payment_type, PaymentType::CardDebit);
 
-    let n2_result = fdm.sign_sale(sale2, false).await.unwrap();
+    let n2_result = fdm.sign_sale(sale2, Mode::Normal).await.unwrap();
 
     archive::archive_event(
         &db,
@@ -1075,7 +1076,10 @@ async fn test_full_service_day_e2e() {
     assert!(z_json.contains("\"reportNo\":1"));
     assert!(z_json.contains("\"drawersOpenCount\":1"));
 
-    let z_result = fdm.sign_report_turnover_z(z_report, false).await.unwrap();
+    let z_result = fdm
+        .sign_report_turnover_z(z_report, Mode::Normal)
+        .await
+        .unwrap();
     assert_eq!(z_result.event_operation, EventOperation::ReportTurnoverZ);
 
     let z_event_id = archive::archive_event(
@@ -1117,7 +1121,7 @@ async fn test_full_service_day_e2e() {
     assert_eq!(s2_ticket, 2, "Second S event (work-out)");
 
     let work_out = build_work_in_out(&cfg, &ident(), s2_ticket, &user.insz, &bk(&bp_id));
-    let wo_result = fdm.sign_work_out(work_out, false).await.unwrap();
+    let wo_result = fdm.sign_work_out(work_out, Mode::Normal).await.unwrap();
     assert_eq!(wo_result.event_operation, EventOperation::WorkOut);
 
     archive::archive_event(

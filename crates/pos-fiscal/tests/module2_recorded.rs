@@ -8,6 +8,7 @@
     reason = "test code: a failed setup is the test's failure"
 )]
 
+use pos_fiscal::types::Mode;
 use std::path::PathBuf;
 
 use pos_fiscal::response::{FdmStatus, SignResult};
@@ -61,7 +62,7 @@ fn every_event_module2_signed_passes_the_response_check() {
                 "signReportUserZ" if variables.get("user").is_some() => &variables["user"],
                 _ => &variables["data"],
             };
-            let expected = ExpectedEvent::for_mutation(mutation, is_training).unwrap();
+            let expected = ExpectedEvent::for_mutation(mutation, Mode::from(is_training)).unwrap();
             check_sign_result(input, expected, &result, PlaceholderSignatures::Accepted)
                 .unwrap_or_else(|e| panic!("{label} {mutation}: {e}"));
             signed += 1;

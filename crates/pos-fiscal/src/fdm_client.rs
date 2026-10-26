@@ -1,8 +1,3 @@
-#![expect(
-    clippy::fn_params_excessive_bools,
-    reason = "is_training mirrors the FDM's isTraining flag and every caller in pos-engine passes it the same way; an enum would change all of them"
-)]
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -18,6 +13,7 @@ use crate::response::{
     FdmStatus, GraphQlError, GraphQlResponse, MessageItem, MultiLangStatus, SignResult,
 };
 use crate::response_check::{ExpectedEvent, PlaceholderSignatures, check_sign_result};
+use crate::types::Mode;
 
 /// Parse one sign result out of the GraphQL `data` object and check it
 /// against the request it answers before anyone can archive it.
@@ -27,14 +23,14 @@ fn parse_checked<D: Serialize>(
     data: &serde_json::Value,
     mutation_name: &str,
     request: &D,
-    is_training: bool,
+    mode: Mode,
 ) -> Result<SignResult, FdmError> {
     let value = data
         .get(mutation_name)
         .ok_or_else(|| FdmError::BadResponse(format!("Missing {mutation_name} in response")))?;
     let result: SignResult = serde_json::from_value(value.clone())
         .map_err(|e| FdmError::BadResponse(format!("Failed to parse {mutation_name}: {e}")))?;
-    let expected = ExpectedEvent::for_mutation(mutation_name, is_training)
+    let expected = ExpectedEvent::for_mutation(mutation_name, mode)
         .ok_or_else(|| FdmError::Serialization(format!("Unknown sign mutation {mutation_name}")))?;
     let request = serde_json::to_value(request)
         .map_err(|e| FdmError::Serialization(format!("{mutation_name}: {e}")))?;
@@ -293,7 +289,7 @@ impl SignMutation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignRequest {
     mutation: SignMutation,
-    is_training: bool,
+    mode: Mode,
     body: String,
 }
 
@@ -302,31 +298,27 @@ impl SignRequest {
     pub fn new<D: Serialize>(
         mutation: SignMutation,
         data: &D,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<Self, FdmError> {
         let input: &dyn erased::Input = data;
-        Self::build(mutation, &[input], is_training)
+        Self::build(mutation, &[input], mode)
     }
 
     /// The end-of-day Z pair (M184).
     pub fn turnover_z_user_z<T: Serialize, U: Serialize>(
         turnover: &T,
         user: &U,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<Self, FdmError> {
         let turnover: &dyn erased::Input = turnover;
         let user: &dyn erased::Input = user;
-        Self::build(
-            SignMutation::ReportTurnoverZUserZ,
-            &[turnover, user],
-            is_training,
-        )
+        Self::build(SignMutation::ReportTurnoverZUserZ, &[turnover, user], mode)
     }
 
     fn build(
         mutation: SignMutation,
         inputs: &[&dyn erased::Input],
-        is_training: bool,
+        mode: Mode,
     ) -> Result<Self, FdmError> {
         let fields = mutation.fields();
         if fields.len() != inputs.len() {
@@ -340,7 +332,7 @@ impl SignRequest {
         for ((_, _, var), input) in fields.iter().zip(inputs) {
             variables.insert((*var).to_string(), input.to_json()?);
         }
-        variables.insert("isTraining".into(), is_training.into());
+        variables.insert("isTraining".into(), mode.is_training().into());
         let body = crate::canonical::to_canonical(&GqlRequest {
             query: mutation.query(),
             variables: serde_json::Value::Object(variables),
@@ -348,24 +340,24 @@ impl SignRequest {
         .map_err(|e| FdmError::Serialization(format!("canonical serialization: {e}")))?;
         Ok(Self {
             mutation,
-            is_training,
+            mode,
             body,
         })
     }
 
     /// A request stored before it was sent, checked to be one.
-    pub fn from_stored(mutation: &str, is_training: bool, body: String) -> Result<Self, FdmError> {
+    pub fn from_stored(mutation: &str, mode: Mode, body: String) -> Result<Self, FdmError> {
         let mutation = SignMutation::from_name(mutation)
             .ok_or_else(|| FdmError::Serialization(format!("unknown mutation {mutation}")))?;
         let request = Self {
             mutation,
-            is_training,
+            mode,
             body,
         };
         let parsed: serde_json::Value = serde_json::from_str(&request.body)
             .map_err(|e| FdmError::Serialization(format!("stored request: {e}")))?;
         if parsed["query"].as_str() != Some(mutation.query().as_str())
-            || parsed["variables"]["isTraining"].as_bool() != Some(is_training)
+            || parsed["variables"]["isTraining"].as_bool() != Some(mode.is_training())
         {
             return Err(FdmError::Serialization(
                 "stored request does not match its mutation".into(),
@@ -380,7 +372,11 @@ impl SignRequest {
     }
 
     pub fn is_training(&self) -> bool {
-        self.is_training
+        self.mode.is_training()
+    }
+
+    pub fn mode(&self) -> Mode {
+        self.mode
     }
 
     /// The exact bytes sent.
@@ -691,127 +687,107 @@ impl FdmClient {
 
     // ── Sign Mutations ─────────────────────────────────────────
 
-    pub async fn sign_sale(
-        &self,
-        data: SaleInput,
-        is_training: bool,
-    ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::Sale, &data, is_training).await
+    pub async fn sign_sale(&self, data: SaleInput, mode: Mode) -> Result<SignResult, FdmError> {
+        self.sign_one(SignMutation::Sale, &data, mode).await
     }
 
-    pub async fn sign_order(
-        &self,
-        data: OrderInput,
-        is_training: bool,
-    ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::Order, &data, is_training).await
+    pub async fn sign_order(&self, data: OrderInput, mode: Mode) -> Result<SignResult, FdmError> {
+        self.sign_one(SignMutation::Order, &data, mode).await
     }
 
     pub async fn sign_pre_bill(
         &self,
         data: PreBillInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::PreBill, &data, is_training)
-            .await
+        self.sign_one(SignMutation::PreBill, &data, mode).await
     }
 
     pub async fn sign_work_in(
         &self,
         data: WorkInOutInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::WorkIn, &data, is_training)
-            .await
+        self.sign_one(SignMutation::WorkIn, &data, mode).await
     }
 
     pub async fn sign_work_out(
         &self,
         data: WorkInOutInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::WorkOut, &data, is_training)
-            .await
+        self.sign_one(SignMutation::WorkOut, &data, mode).await
     }
 
-    pub async fn sign_copy(
-        &self,
-        data: CopyInput,
-        is_training: bool,
-    ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::Copy, &data, is_training).await
+    pub async fn sign_copy(&self, data: CopyInput, mode: Mode) -> Result<SignResult, FdmError> {
+        self.sign_one(SignMutation::Copy, &data, mode).await
     }
 
     pub async fn sign_money_in_out(
         &self,
         data: MoneyInOutInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::MoneyInOut, &data, is_training)
-            .await
+        self.sign_one(SignMutation::MoneyInOut, &data, mode).await
     }
 
     pub async fn sign_drawer_open(
         &self,
         data: DrawerOpenInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::DrawerOpen, &data, is_training)
-            .await
+        self.sign_one(SignMutation::DrawerOpen, &data, mode).await
     }
 
     pub async fn sign_payment_correction(
         &self,
         data: PaymentCorrectionInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::PaymentCorrection, &data, is_training)
+        self.sign_one(SignMutation::PaymentCorrection, &data, mode)
             .await
     }
 
     pub async fn sign_invoice(
         &self,
         data: InvoiceInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::Invoice, &data, is_training)
-            .await
+        self.sign_one(SignMutation::Invoice, &data, mode).await
     }
 
     pub async fn sign_report_turnover_x(
         &self,
         data: ReportTurnoverXInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::ReportTurnoverX, &data, is_training)
+        self.sign_one(SignMutation::ReportTurnoverX, &data, mode)
             .await
     }
 
     pub async fn sign_report_turnover_z(
         &self,
         data: ReportTurnoverZInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::ReportTurnoverZ, &data, is_training)
+        self.sign_one(SignMutation::ReportTurnoverZ, &data, mode)
             .await
     }
 
     pub async fn sign_report_user_x(
         &self,
         data: ReportUserXInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::ReportUserX, &data, is_training)
-            .await
+        self.sign_one(SignMutation::ReportUserX, &data, mode).await
     }
 
     pub async fn sign_report_user_z(
         &self,
         data: ReportUserZInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::ReportUserZ, &data, is_training)
-            .await
+        self.sign_one(SignMutation::ReportUserZ, &data, mode).await
     }
 
     /// M184 - end-of-day Z: the financial Z and the user Z are signed
@@ -822,9 +798,9 @@ impl FdmClient {
         &self,
         turnover: ReportTurnoverZInput,
         user: ReportUserZInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<(SignResult, SignResult), FdmError> {
-        let request = SignRequest::turnover_z_user_z(&turnover, &user, is_training)?;
+        let request = SignRequest::turnover_z_user_z(&turnover, &user, mode)?;
         let mut results = self.send(&request).await?.into_iter();
         match (results.next(), results.next()) {
             (Some(turnover), Some(user)) => Ok((turnover, user)),
@@ -835,9 +811,9 @@ impl FdmClient {
     pub async fn sign_cost_center_change(
         &self,
         data: CostCenterChangeInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::CostCenterChange, &data, is_training)
+        self.sign_one(SignMutation::CostCenterChange, &data, mode)
             .await
     }
 
@@ -851,9 +827,9 @@ impl FdmClient {
         &self,
         mutation: SignMutation,
         data: &D,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        let request = SignRequest::new(mutation, data, is_training)?;
+        let request = SignRequest::new(mutation, data, mode)?;
         self.send(&request)
             .await?
             .pop()
@@ -902,7 +878,7 @@ impl FdmClient {
                     &data,
                     field,
                     input,
-                    request.is_training(),
+                    request.mode(),
                 )
             })
             .collect()

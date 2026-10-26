@@ -14,6 +14,7 @@
 
 mod common;
 
+use pos_fiscal::types::Mode;
 use std::time::Duration;
 
 use pos_core::config::PosConfig;
@@ -97,7 +98,7 @@ async fn sign_work_in_call(
     cfg: &PosConfig,
 ) -> Result<pos_fiscal::response::SignResult, FdmError> {
     let input = build_work_in_out(cfg, &ident(), 1, "93051800189", &bk("bp-1"));
-    client.sign_work_in(input, false).await
+    client.sign_work_in(input, Mode::Normal).await
 }
 
 // ── GraphQL-level errors ────────────────────────────────────────

@@ -51,6 +51,7 @@
     reason = "test code: a failed setup is the test's failure"
 )]
 
+use pos_fiscal::types::Mode;
 use std::collections::HashMap;
 use std::env;
 use std::fmt::Write as _;
@@ -382,7 +383,7 @@ async fn staging_basic_set_smoke() {
     let n = next_ticket();
     let input = build_work_in_out(&config, &ident(), n, &insz, &bk(&booking_period_id));
     let result = client
-        .sign_work_in(input.clone(), false)
+        .sign_work_in(input.clone(), Mode::Normal)
         .await
         .expect("signWorkIn");
     r.check("1. signWorkIn (S) - M140", EventLabel::S, n, &input, result);
@@ -400,7 +401,7 @@ async fn staging_basic_set_smoke() {
         &bk(&booking_period_id),
     );
     let result = client
-        .sign_order(input.clone(), false)
+        .sign_order(input.clone(), Mode::Normal)
         .await
         .expect("signOrder");
     r.check("2. signOrder (P) - M121", EventLabel::P, n, &input, result);
@@ -416,7 +417,7 @@ async fn staging_basic_set_smoke() {
         &bk(&booking_period_id),
     );
     let result = client
-        .sign_pre_bill(input.clone(), false)
+        .sign_pre_bill(input.clone(), Mode::Normal)
         .await
         .expect("signPreBill");
     r.check(
@@ -442,7 +443,7 @@ async fn staging_basic_set_smoke() {
         None,
     );
     let result = client
-        .sign_sale(input.clone(), false)
+        .sign_sale(input.clone(), Mode::Normal)
         .await
         .expect("signSale");
     assert!(
@@ -468,7 +469,7 @@ async fn staging_basic_set_smoke() {
         Some(&sale_ref),
     );
     let result = client
-        .sign_sale(input.clone(), false)
+        .sign_sale(input.clone(), Mode::Normal)
         .await
         .expect("signSale (refund)");
     r.check(
@@ -490,7 +491,7 @@ async fn staging_basic_set_smoke() {
         &sale_ref,
     );
     let result = client
-        .sign_copy(input.clone(), false)
+        .sign_copy(input.clone(), Mode::Normal)
         .await
         .expect("signCopy");
     r.check("6. signCopy (C) - M160", EventLabel::C, n, &input, result);
@@ -509,7 +510,7 @@ async fn staging_basic_set_smoke() {
         drawer: None,
     };
     let result = client
-        .sign_drawer_open(input.clone(), false)
+        .sign_drawer_open(input.clone(), Mode::Normal)
         .await
         .expect("signDrawerOpen");
     r.check(
@@ -546,7 +547,7 @@ async fn staging_basic_set_smoke() {
         }],
     };
     let result = client
-        .sign_money_in_out(input.clone(), false)
+        .sign_money_in_out(input.clone(), Mode::Normal)
         .await
         .expect("signMoneyInOut");
     r.check(
@@ -635,7 +636,7 @@ async fn staging_basic_set_smoke() {
         report_data,
     );
     let result = client
-        .sign_report_turnover_x(input.clone(), false)
+        .sign_report_turnover_x(input.clone(), Mode::Normal)
         .await
         .expect("signReportTurnoverX");
     r.check(
@@ -686,7 +687,7 @@ async fn staging_basic_set_smoke() {
         user_data,
     );
     let result = client
-        .sign_report_user_x(input.clone(), false)
+        .sign_report_user_x(input.clone(), Mode::Normal)
         .await
         .expect("signReportUserX");
     r.check(
@@ -701,7 +702,7 @@ async fn staging_basic_set_smoke() {
     let n = next_ticket();
     let input = build_work_in_out(&config, &ident(), n, &insz, &bk(&booking_period_id));
     let result = client
-        .sign_work_out(input.clone(), false)
+        .sign_work_out(input.clone(), Mode::Normal)
         .await
         .expect("signWorkOut");
     r.check(

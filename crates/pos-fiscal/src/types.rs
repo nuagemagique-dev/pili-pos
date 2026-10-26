@@ -54,13 +54,39 @@ impl EventLabel {
     /// Label under which an event is signed, archived and counted.
     /// Every event recorded in training mode is a training event and
     /// always carries label T (POS detailed description v2.2 §1.5).
-    #[expect(
-        clippy::fn_params_excessive_bools,
-        reason = "training is the POS-wide training-mode flag every caller already holds"
-    )]
     #[must_use]
-    pub fn in_mode(self, training: bool) -> Self {
-        if training { Self::T } else { self }
+    pub fn in_mode(self, mode: Mode) -> Self {
+        if mode.is_training() { Self::T } else { self }
+    }
+}
+
+/// Whether the POS signs real events or training ones (the FDM's
+/// `isTraining` flag, the POS-wide training mode).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Mode {
+    /// Real events, labelled by their kind.
+    #[default]
+    Normal,
+    /// Training events: every one carries label T.
+    Training,
+}
+
+impl Mode {
+    /// Whether this is the training mode.
+    #[must_use]
+    pub fn is_training(self) -> bool {
+        self == Self::Training
+    }
+}
+
+impl From<bool> for Mode {
+    /// From the `isTraining` flag of the configuration or the wire.
+    fn from(training: bool) -> Self {
+        if training {
+            Self::Training
+        } else {
+            Self::Normal
+        }
     }
 }
 
@@ -261,8 +287,8 @@ mod tests {
             EventLabel::C,
             EventLabel::R,
         ] {
-            assert_eq!(label.in_mode(true), EventLabel::T);
-            assert_eq!(label.in_mode(false), label);
+            assert_eq!(label.in_mode(Mode::Training), EventLabel::T);
+            assert_eq!(label.in_mode(Mode::Normal), label);
         }
     }
 }
