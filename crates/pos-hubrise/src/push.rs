@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 
 use crate::client::Client;
 use crate::errors::Result;
+use crate::util::path_segment;
 
 /// Update the status of an order on HubRise. Returns the refreshed
 /// order body returned by the API.
@@ -15,7 +16,11 @@ pub async fn patch_order_status(
     order_id: &str,
     new_status: &str,
 ) -> Result<Order> {
-    let path = format!("/locations/{}/orders/{}", location_id, order_id);
+    let path = format!(
+        "/locations/{}/orders/{}",
+        path_segment(location_id),
+        path_segment(order_id)
+    );
     let body = json!({ "status": new_status });
     client.patch_json(&path, &body).await
 }
@@ -27,7 +32,7 @@ pub async fn patch_order_status(
 /// shape lives in the Tauri command layer (avoids a circular dep
 /// between pos-hubrise and pos-core).
 pub async fn create_order(client: &Client, location_id: &str, body: &Value) -> Result<Value> {
-    let path = format!("/locations/{}/orders", location_id);
+    let path = format!("/locations/{}/orders", path_segment(location_id));
     client.post_json(&path, body).await
 }
 
@@ -41,7 +46,11 @@ pub async fn patch_order_confirmed_time(
     order_id: &str,
     confirmed_time_rfc3339: &str,
 ) -> Result<Order> {
-    let path = format!("/locations/{}/orders/{}", location_id, order_id);
+    let path = format!(
+        "/locations/{}/orders/{}",
+        path_segment(location_id),
+        path_segment(order_id)
+    );
     let body = json!({ "confirmed_time": confirmed_time_rfc3339 });
     client.patch_json(&path, &body).await
 }

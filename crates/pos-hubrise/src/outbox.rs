@@ -31,6 +31,7 @@ use tokio_util::sync::CancellationToken;
 use crate::client::Client;
 use crate::errors::{HubriseError, Result};
 use crate::token_store;
+use crate::util::{lock_db, path_segment};
 
 /// Attempts before an order creation is parked. PATCHes retry forever.
 const MAX_CREATE_ATTEMPTS: i64 = 10;
@@ -194,7 +195,7 @@ pub async fn process_pending(
 async fn process_round(http: &reqwest::Client, db: &Arc<Mutex<Connection>>) -> Result<PassReport> {
     let mut report = PassReport::default();
     let (stored, rows) = {
-        let db = db.lock().expect("outbox db poisoned");
+        let db = lock_db(db);
         // Order creations older than 7 days expire: a push for central
         // reporting is not worth a spike after weeks offline.
         let expired = db.execute(
@@ -244,7 +245,7 @@ async fn process_round(http: &reqwest::Client, db: &Arc<Mutex<Connection>>) -> R
             Err(e) => Outcome::Park(format!("bad json: {e}")),
             Ok(body) => send(&client, &location, &row, &body).await,
         };
-        let db = db.lock().expect("outbox db poisoned");
+        let db = lock_db(db);
         match outcome {
             Outcome::Sent => {
                 db.execute(
@@ -298,7 +299,14 @@ async fn process_round(http: &reqwest::Client, db: &Arc<Mutex<Connection>>) -> R
 async fn send(client: &Client, location: &str, row: &Row, body: &Value) -> Outcome {
     let result = match (row.kind.as_str(), &row.hubrise_order_id) {
         ("patch_order", Some(order_id)) => client
-            .patch_json::<_, Value>(&format!("/locations/{location}/orders/{order_id}"), body)
+            .patch_json::<_, Value>(
+                &format!(
+                    "/locations/{}/orders/{}",
+                    path_segment(location),
+                    path_segment(order_id)
+                ),
+                body,
+            )
             .await
             .map(|_| ()),
         ("patch_order", None) => return Outcome::Park("patch without order id".into()),
@@ -314,7 +322,10 @@ async fn send(client: &Client, location: &str, row: &Row, body: &Value) -> Outco
                 }
             }
             client
-                .post_json::<_, Value>(&format!("/locations/{location}/orders"), body)
+                .post_json::<_, Value>(
+                    &format!("/locations/{}/orders", path_segment(location)),
+                    body,
+                )
                 .await
                 .map(|_| ())
         }

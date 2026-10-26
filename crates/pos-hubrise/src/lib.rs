@@ -20,6 +20,7 @@ pub mod poller;
 pub mod push;
 pub mod switch;
 pub mod token_store;
+mod util;
 pub mod webshop;
 
 pub use catalog_map::SOURCE as CATALOG_SOURCE;
