@@ -22,14 +22,13 @@ static EMAIL_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 pub const ROUTE: &str = "/transactional-email/v1alpha1/regions/{region}/emails";
 
-pub fn router() -> Router {
+pub(crate) fn router() -> Router {
     Router::new().route(ROUTE, get(probe).post(send))
 }
 
 fn outbox_dir() -> PathBuf {
     std::env::var("MOCK_TEM_OUTBOX")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("mock-tem-outbox"))
+        .map_or_else(|_| PathBuf::from("mock-tem-outbox"), PathBuf::from)
 }
 
 fn failing() -> bool {
@@ -44,18 +43,35 @@ fn authorized(headers: &HeaderMap) -> bool {
 }
 
 async fn probe(headers: HeaderMap) -> (StatusCode, Json<Value>) {
-    answer_probe(authorized(&headers), failing())
+    answer_probe(Gate {
+        authorized: authorized(&headers),
+        failing: failing(),
+    })
 }
 
 async fn send(headers: HeaderMap, Json(body): Json<Value>) -> (StatusCode, Json<Value>) {
-    accept_email(authorized(&headers), failing(), &outbox_dir(), &body)
+    accept_email(
+        Gate {
+            authorized: authorized(&headers),
+            failing: failing(),
+        },
+        &outbox_dir(),
+        &body,
+    )
 }
 
-pub fn answer_probe(authorized: bool, failing: bool) -> (StatusCode, Json<Value>) {
-    if !authorized {
+/// What the request and the mock's switches allow.
+#[derive(Clone, Copy)]
+pub(crate) struct Gate {
+    authorized: bool,
+    failing: bool,
+}
+
+pub(crate) fn answer_probe(gate: Gate) -> (StatusCode, Json<Value>) {
+    if !gate.authorized {
         return unauthorized();
     }
-    if failing {
+    if gate.failing {
         return unavailable();
     }
     (
@@ -65,16 +81,11 @@ pub fn answer_probe(authorized: bool, failing: bool) -> (StatusCode, Json<Value>
 }
 
 /// Validate and store one email; the pure part of the POST handler.
-pub fn accept_email(
-    authorized: bool,
-    failing: bool,
-    dir: &Path,
-    body: &Value,
-) -> (StatusCode, Json<Value>) {
-    if !authorized {
+pub(crate) fn accept_email(gate: Gate, dir: &Path, body: &Value) -> (StatusCode, Json<Value>) {
+    if !gate.authorized {
         return unauthorized();
     }
-    if failing {
+    if gate.failing {
         return unavailable();
     }
     let to = body["to"][0]["email"].as_str().unwrap_or_default();
@@ -153,7 +164,14 @@ mod tests {
     #[test]
     fn an_email_is_stored_and_answered_like_tem() {
         let dir = tmp();
-        let (status, Json(body)) = accept_email(true, false, &dir, &email());
+        let (status, Json(body)) = accept_email(
+            Gate {
+                authorized: true,
+                failing: false,
+            },
+            &dir,
+            &email(),
+        );
         assert_eq!(status, StatusCode::OK);
         let id = body["emails"][0]["id"].as_str().unwrap();
         assert!(
@@ -174,8 +192,22 @@ mod tests {
     #[test]
     fn each_email_gets_its_own_id() {
         let dir = tmp();
-        let (_, Json(a)) = accept_email(true, false, &dir, &email());
-        let (_, Json(b)) = accept_email(true, false, &dir, &email());
+        let (_, Json(a)) = accept_email(
+            Gate {
+                authorized: true,
+                failing: false,
+            },
+            &dir,
+            &email(),
+        );
+        let (_, Json(b)) = accept_email(
+            Gate {
+                authorized: true,
+                failing: false,
+            },
+            &dir,
+            &email(),
+        );
         assert_ne!(a["emails"][0]["id"], b["emails"][0]["id"]);
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -184,10 +216,25 @@ mod tests {
     fn no_token_is_refused() {
         let dir = tmp();
         assert_eq!(
-            accept_email(false, false, &dir, &email()).0,
+            accept_email(
+                Gate {
+                    authorized: false,
+                    failing: false
+                },
+                &dir,
+                &email()
+            )
+            .0,
             StatusCode::UNAUTHORIZED
         );
-        assert_eq!(answer_probe(false, false).0, StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            answer_probe(Gate {
+                authorized: false,
+                failing: false
+            })
+            .0,
+            StatusCode::UNAUTHORIZED
+        );
         assert!(!dir.exists(), "nothing written");
     }
 
@@ -195,10 +242,25 @@ mod tests {
     fn the_failure_switch_answers_503() {
         let dir = tmp();
         assert_eq!(
-            accept_email(true, true, &dir, &email()).0,
+            accept_email(
+                Gate {
+                    authorized: true,
+                    failing: true
+                },
+                &dir,
+                &email()
+            )
+            .0,
             StatusCode::SERVICE_UNAVAILABLE
         );
-        assert_eq!(answer_probe(true, true).0, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            answer_probe(Gate {
+                authorized: true,
+                failing: true
+            })
+            .0,
+            StatusCode::SERVICE_UNAVAILABLE
+        );
         assert!(!dir.exists());
     }
 
@@ -209,7 +271,15 @@ mod tests {
             let mut e = email();
             e.as_object_mut().unwrap().remove(field);
             assert_eq!(
-                accept_email(true, false, &dir, &e).0,
+                accept_email(
+                    Gate {
+                        authorized: true,
+                        failing: false
+                    },
+                    &dir,
+                    &e
+                )
+                .0,
                 StatusCode::BAD_REQUEST,
                 "{field}"
             );
@@ -218,9 +288,12 @@ mod tests {
 
     #[test]
     fn the_probe_answers_ok() {
-        let (status, Json(body)) = answer_probe(true, false);
+        let (status, Json(body)) = answer_probe(Gate {
+            authorized: true,
+            failing: false,
+        });
         assert_eq!(status, StatusCode::OK);
-        assert!(body["emails"].as_array().unwrap().is_empty());
+        assert_eq!(body["emails"].as_array().unwrap().len(), 0);
     }
 
     #[test]

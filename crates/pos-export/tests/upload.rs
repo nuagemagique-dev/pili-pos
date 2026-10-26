@@ -129,7 +129,7 @@ async fn a_wrong_token_is_unauthorized_and_nothing_is_stored() {
 async fn a_receiver_that_refuses_everything_is_unauthorized() {
     let token = token();
     let receiver = Receiver::start(&token);
-    receiver.set_unauthorized(true);
+    receiver.reject_all();
     let uploader = Uploader::new(client(Duration::from_secs(20)), &receiver.url());
     let dir = tempfile::tempdir().unwrap();
     let file = write_file(dir.path(), "a", b"data");
@@ -138,7 +138,7 @@ async fn a_receiver_that_refuses_everything_is_unauthorized() {
         put(&uploader, &file, "a", &sha(b"data"), &token).await,
         Err(UploadError::Unauthorized(401))
     );
-    receiver.set_unauthorized(false);
+    receiver.accept_tokens();
     assert_eq!(
         put(&uploader, &file, "a", &sha(b"data"), &token).await,
         Ok(())

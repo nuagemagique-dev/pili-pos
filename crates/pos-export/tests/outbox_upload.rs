@@ -376,7 +376,7 @@ async fn a_refused_token_shows_as_unauthorized() {
     let _guard = tracing::subscriber::set_default(logs.clone());
     let rig = Rig::new(30);
     rig.prepare(t0());
-    rig.receiver.set_unauthorized(true);
+    rig.receiver.reject_all();
 
     let report = rig.upload(t0()).await;
     assert_eq!(
@@ -396,7 +396,7 @@ async fn a_refused_token_shows_as_unauthorized() {
     assert_eq!(status.pending, 1);
 
     // Fixed on the receiver: the next due pass sends everything.
-    rig.receiver.set_unauthorized(false);
+    rig.receiver.accept_tokens();
     let report = rig.upload(at(t0(), 60)).await;
     assert_eq!(
         report,

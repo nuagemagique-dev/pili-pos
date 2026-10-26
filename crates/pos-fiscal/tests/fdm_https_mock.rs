@@ -29,7 +29,7 @@ fn https_fdm() -> String {
             listener,
             pos_fdm_mock::app_with(pos_fdm_mock::Control::default()),
             &dir,
-            true,
+            pos_fdm_mock::tls::ClientCert::Required,
         )
         .await
         .unwrap();

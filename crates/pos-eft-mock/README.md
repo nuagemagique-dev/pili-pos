@@ -5,7 +5,7 @@ stands in for the three terminal protocols the till can drive:
 
 - the **Worldline Terminal API v2** (nexo Retailer 5.1 JSON): synchronous
   payment, status and abort, and `GET /merchants/{umid}` listing the connected
-  terminals (`Mock::set_terminals_online(false)` empties it), on the HTTP port;
+  terminals (`Mock::take_terminals_offline()` empties it), on the HTTP port;
 - the **CCV Payment API**, method `terminal`: `POST /api/v1/payment`,
   `GET /api/v1/transaction`, `POST /api/v1/cancel`, on the same HTTP port;
 - a **CCV terminal speaking OPI** (XML, 4-byte length prefix) on a TCP port,

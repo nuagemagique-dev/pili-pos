@@ -3,7 +3,9 @@
 //! connection back to the till's channel 1 to print the customer receipt
 //! before the answer.
 
+use std::fmt::Write as _;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use quick_xml::Reader;
@@ -75,7 +77,8 @@ fn read_doc(xml: &str) -> Option<Doc> {
 async fn read_frame(stream: &mut TcpStream) -> std::io::Result<String> {
     let mut len = [0u8; 4];
     stream.read_exact(&mut len).await?;
-    let len = u32::from_be_bytes(len) as usize;
+    let len = usize::try_from(u32::from_be_bytes(len))
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "frame too long"))?;
     if len > 1 << 20 {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -88,7 +91,9 @@ async fn read_frame(stream: &mut TcpStream) -> std::io::Result<String> {
 }
 
 async fn write_frame(stream: &mut TcpStream, xml: &str) -> std::io::Result<()> {
-    let mut frame = (xml.len() as u32).to_be_bytes().to_vec();
+    let len = u32::try_from(xml.len())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "frame too long"))?;
+    let mut frame = len.to_be_bytes().to_vec();
     frame.extend_from_slice(xml.as_bytes());
     stream.write_all(&frame).await?;
     stream.flush().await
@@ -158,8 +163,10 @@ async fn print_receipt(peer: SocketAddr, device_port: u16, p: &Payment) {
     };
     let lines: String = customer_receipt(p)
         .iter()
-        .map(|l| format!("<TextLine>{}</TextLine>", esc(l)))
-        .collect();
+        .fold(String::new(), |mut acc, l| {
+            let _ = write!(acc, "<TextLine>{}</TextLine>", esc(l));
+            acc
+        });
     let request = format!(
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><DeviceRequest RequestType=\"Output\" \
          ApplicationSender=\"{}\" WorkstationID=\"{}\" TerminalID=\"00000001\" RequestID=\"{}\" SequenceID=\"1\">\
@@ -175,9 +182,9 @@ async fn print_receipt(peer: SocketAddr, device_port: u16, p: &Payment) {
 }
 
 /// Accept connections on `listener` until the task is dropped.
-pub async fn serve(listener: TcpListener, shared: Shared) {
+pub(crate) async fn serve(listener: TcpListener, shared: Shared) {
     while let Ok((stream, peer)) = listener.accept().await {
-        tokio::spawn(connection(stream, peer, shared.clone()));
+        tokio::spawn(connection(stream, peer, Arc::clone(&shared)));
     }
 }
 

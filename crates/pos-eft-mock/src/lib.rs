@@ -22,7 +22,9 @@ mod opi;
 mod state;
 mod worldline;
 
+use std::fmt::Write as _;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::State;
@@ -93,6 +95,15 @@ pub struct Mock {
     thread: Option<std::thread::JoinHandle<()>>,
 }
 
+impl std::fmt::Debug for Mock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Mock")
+            .field("http", &self.http)
+            .field("opi", &self.opi)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Mock {
     /// Serve on free local ports.
     ///
@@ -111,8 +122,8 @@ impl Mock {
         let http = http_listener.local_addr()?;
         let opi = opi_listener.local_addr()?;
         let state = new_shared(config.api_key, config.opi_device_port);
-        let app = router(state.clone());
-        let served = state.clone();
+        let app = router(Arc::clone(&state));
+        let served = Arc::clone(&state);
         let (shutdown, stop) = tokio::sync::oneshot::channel::<()>();
         let thread = std::thread::Builder::new()
             .name("pos-eft-mock".to_string())
@@ -181,16 +192,21 @@ impl Mock {
         lock(&self.state).device_port = port;
     }
 
-    /// Whether the Worldline terminals appear in the merchant's
-    /// connected terminals (default true); false makes them look offline.
-    pub fn set_terminals_online(&self, online: bool) {
-        lock(&self.state).terminals_online = online;
+    /// Make the Worldline terminals appear in the merchant's connected
+    /// terminals (the default).
+    pub fn bring_terminals_online(&self) {
+        lock(&self.state).terminals_online = true;
     }
 
-    /// Whether the merchant's terminal list is served only on v1, v2
-    /// answering 404 (default false).
-    pub fn set_merchant_v1_only(&self, v1_only: bool) {
-        lock(&self.state).merchant_v1_only = v1_only;
+    /// Make the Worldline terminals look offline: the merchant's connected
+    /// terminals list is empty.
+    pub fn take_terminals_offline(&self) {
+        lock(&self.state).terminals_online = false;
+    }
+
+    /// Serve the merchant's terminal list only on v1, v2 answering 404.
+    pub fn serve_merchant_v1_only(&self) {
+        lock(&self.state).merchant_v1_only = true;
     }
 
     /// Every request received, oldest first.
@@ -322,7 +338,8 @@ async fn page(State(shared): State<Shared>) -> Html<String> {
          <table><tr><th>#</th><th>Time</th><th>Protocol</th><th>Reference</th><th>Amount</th><th>Brand</th><th>Outcome</th></tr>",
     );
     for v in views.iter().rev().take(50) {
-        html.push_str(&format!(
+        let _ = write!(
+            html,
             "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>EUR {}</td><td>{}</td><td class=\"{}\">{}</td></tr>",
             v.id,
             escape(&v.at),
@@ -335,7 +352,7 @@ async fn page(State(shared): State<Shared>) -> Html<String> {
             escape(&v.brand),
             v.outcome,
             v.outcome.replace('_', " "),
-        ));
+        );
     }
     if views.is_empty() {
         html.push_str("<tr><td colspan=\"7\">No payment yet.</td></tr>");
