@@ -54,6 +54,11 @@ impl EventLabel {
     /// Label under which an event is signed, archived and counted.
     /// Every event recorded in training mode is a training event and
     /// always carries label T (POS detailed description v2.2 §1.5).
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "training is the POS-wide training-mode flag every caller already holds"
+    )]
+    #[must_use]
     pub fn in_mode(self, training: bool) -> Self {
         if training { Self::T } else { self }
     }

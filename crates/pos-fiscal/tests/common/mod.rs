@@ -7,12 +7,15 @@
 //! sent, as a real FDM does. The app harness has the same responder
 //! (`src-tauri/tests/common/harness.rs`).
 
-#![allow(dead_code)]
+#![expect(
+    dead_code,
+    reason = "each test crate includes this module and uses only part of it"
+)]
 
 use serde_json::Value;
 use wiremock::{Request, Respond, ResponseTemplate};
 
-pub struct EchoRequest(pub Value);
+pub(crate) struct EchoRequest(pub Value);
 
 impl Respond for EchoRequest {
     fn respond(&self, request: &Request) -> ResponseTemplate {
@@ -21,7 +24,7 @@ impl Respond for EchoRequest {
 }
 
 /// The envelope with each sign result's identity taken from the request.
-pub fn answer(envelope: &Value, request_body: &[u8]) -> Value {
+pub(crate) fn answer(envelope: &Value, request_body: &[u8]) -> Value {
     let mut envelope = envelope.clone();
     let Ok(request) = serde_json::from_slice::<Value>(request_body) else {
         return envelope;
@@ -41,7 +44,7 @@ pub fn answer(envelope: &Value, request_body: &[u8]) -> Value {
     envelope
 }
 
-pub fn echo_identity(result: &mut Value, input: &Value) {
+pub(crate) fn echo_identity(result: &mut Value, input: &Value) {
     let (Some(result), Some(input)) = (result.as_object_mut(), input.as_object()) else {
         return;
     };

@@ -1,5 +1,9 @@
 //! Sign requests are kept byte for byte, so one whose answer was lost
 //! is sent again identically (POS description v2.2, duplicate requests).
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use std::time::Duration;
 
@@ -194,7 +198,7 @@ async fn axum_serve(listener: tokio::net::TcpListener) {
 #[tokio::test]
 async fn failures_say_whether_the_event_may_be_signed() {
     let refused = |codes: &[&str]| FdmError::Refused {
-        codes: codes.iter().map(|c| c.to_string()).collect(),
+        codes: codes.iter().map(std::string::ToString::to_string).collect(),
         message: String::new(),
     };
     assert_eq!(FdmError::NotConnected.outcome(), SignOutcome::NotSent);

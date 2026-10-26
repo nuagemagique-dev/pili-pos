@@ -42,7 +42,7 @@ impl ReceiptLanguage {
 }
 
 /// All data needed to print a fiscal ticket / VAT receipt.
-/// Built from order data + FDM SignResult response.
+/// Built from order data + FDM `SignResult` response.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FiscalTicket {
     // ── Restaurant identification ──
@@ -147,7 +147,8 @@ pub struct TicketPayment {
     pub brand: Option<String>,
 }
 
-/// Parameters for building a FiscalTicket.
+/// Parameters for building a `FiscalTicket`.
+#[derive(Debug)]
 pub struct TicketParams<'a> {
     /// The `posSwVersion` printed on the ticket.
     pub identity: &'a crate::identity::SoftwareIdentity,
@@ -245,11 +246,11 @@ impl FiscalTicket {
             operator: &draft.operator,
         });
         ticket.unpaid = draft.unpaid;
-        ticket.original = draft.original.clone();
+        ticket.original.clone_from(&draft.original);
         ticket
     }
 
-    /// Create a fiscal ticket from a SignResult and order data.
+    /// Create a fiscal ticket from a `SignResult` and order data.
     pub fn from_sign_result(params: TicketParams<'_>) -> Self {
         let result = params.result;
         let lines = params.lines;
@@ -306,6 +307,7 @@ impl FiscalTicket {
     /// data; the original's move under "Informations FDM d'origine"
     /// (POS description v2.2 §1.8, SPF example copy ticket of
     /// 2026-09-24).
+    #[must_use]
     pub fn into_copy(mut self, copy: &SignResult) -> Self {
         let original_ref = self.fdm_ref.take();
         self.original = original_ref.map(|fdm_ref| OriginalControlData {
@@ -313,12 +315,12 @@ impl FiscalTicket {
             short_signature: self.short_signature.take(),
         });
         self.fdm_ref = Some(copy.fdm_ref.clone());
-        self.short_signature = copy.short_signature.clone();
+        self.short_signature.clone_from(&copy.short_signature);
         if let Some(url) = copy.verification_url.clone() {
             self.verification_url = Some(url);
         }
         if !copy.footer.is_empty() {
-            self.footer = copy.footer.clone();
+            self.footer.clone_from(&copy.footer);
         }
         self.copy_made_at = Some(copy.pos_date_time.clone());
         self
@@ -326,6 +328,7 @@ impl FiscalTicket {
 
     /// This ticket with the control data of the event it refers to
     /// (the sale a refund reverses).
+    #[must_use]
     pub fn with_original(mut self, original: OriginalControlData) -> Self {
         self.original = Some(original);
         self
@@ -394,7 +397,7 @@ pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Opt
 pub fn is_unpaid_sale(request: &serde_json::Value) -> bool {
     request["financials"]
         .as_array()
-        .is_some_and(|f| f.is_empty())
+        .is_some_and(std::vec::Vec::is_empty)
         && request["transaction"]["transactionTotal"]
             .as_f64()
             .is_some_and(|t| t != 0.0)

@@ -1,11 +1,22 @@
+#![expect(
+    clippy::fn_params_excessive_bools,
+    reason = "is_training mirrors the FDM's isTraining flag and every caller in pos-engine passes it the same way; an enum would change all of them"
+)]
+
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Serialize;
 
 use crate::http_tls::HttpTls;
-use crate::inputs::*;
-use crate::response::*;
+use crate::inputs::{
+    CopyInput, CostCenterChangeInput, DrawerOpenInput, InvoiceInput, MoneyInOutInput, OrderInput,
+    PaymentCorrectionInput, PreBillInput, ReportTurnoverXInput, ReportTurnoverZInput,
+    ReportUserXInput, ReportUserZInput, SaleInput, WorkInOutInput,
+};
+use crate::response::{
+    FdmStatus, GraphQlError, GraphQlResponse, MessageItem, MultiLangStatus, SignResult,
+};
 use crate::response_check::{ExpectedEvent, PlaceholderSignatures, check_sign_result};
 
 /// Parse one sign result out of the GraphQL `data` object and check it
@@ -293,7 +304,8 @@ impl SignRequest {
         data: &D,
         is_training: bool,
     ) -> Result<Self, FdmError> {
-        Self::build(mutation, &[data as &dyn erased::Input], is_training)
+        let input: &dyn erased::Input = data;
+        Self::build(mutation, &[input], is_training)
     }
 
     /// The end-of-day Z pair (M184).
@@ -302,9 +314,11 @@ impl SignRequest {
         user: &U,
         is_training: bool,
     ) -> Result<Self, FdmError> {
+        let turnover: &dyn erased::Input = turnover;
+        let user: &dyn erased::Input = user;
         Self::build(
             SignMutation::ReportTurnoverZUserZ,
-            &[turnover as &dyn erased::Input, user],
+            &[turnover, user],
             is_training,
         )
     }
@@ -393,7 +407,7 @@ impl SignRequest {
 
 mod erased {
     /// A sign input, whatever its type.
-    pub trait Input {
+    pub(super) trait Input {
         fn to_json(&self) -> Result<serde_json::Value, super::FdmError>;
     }
 
@@ -416,6 +430,17 @@ pub struct FdmClient {
     /// Whether this endpoint may answer with the simulator's placeholder
     /// signature (decided from the URL).
     placeholders: PlaceholderSignatures,
+}
+
+impl std::fmt::Debug for FdmClient {
+    /// The URL and whether a token is set; never the token.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FdmClient")
+            .field("url", &self.url)
+            .field("bearer_token", &self.bearer_token.as_ref().map(|_| "(set)"))
+            .field("placeholders", &self.placeholders)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Serialize)]
@@ -545,6 +570,7 @@ impl FdmClient {
     }
 
     /// Send `token` as a bearer token with every request.
+    #[must_use]
     pub fn with_bearer_token(mut self, token: Option<String>) -> Self {
         self.bearer_token = token;
         self
@@ -555,6 +581,7 @@ impl FdmClient {
     /// at least once per bookingDate, so every sign response's warnings
     /// and informations (minus `showPos: NEVER`) reach `sink`, whichever
     /// command signed.
+    #[must_use]
     pub fn with_sign_messages(mut self, sink: SignMessageSink) -> Self {
         self.sign_messages = Some(sink);
         self
@@ -954,7 +981,7 @@ fn format_gql_errors(errors: Option<Vec<GraphQlError>>) -> String {
     match errors {
         Some(errs) => errs
             .iter()
-            .map(|e| e.to_string())
+            .map(std::string::ToString::to_string)
             .collect::<Vec<_>>()
             .join("; "),
         None => "Unknown GraphQL error".to_string(),

@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::types::*;
+use crate::types::{
+    EventLabel, EventOperation, FdmWarningCode, MessageCategory, ShowPos, VatLabel,
+};
 
 // ── FDM Response Types ─────────────────────────────────────────
 

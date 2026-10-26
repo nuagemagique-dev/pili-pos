@@ -1,5 +1,9 @@
-//! FdmClient bearer token: a cloud FDM (the module2 simulator) needs
+//! `FdmClient` bearer token: a cloud FDM (the module2 simulator) needs
 //! `Authorization: Bearer <token>`; a LAN FDM gets no such header.
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_core::config::PosConfig;
 use pos_fiscal::fdm_client::FdmClient;

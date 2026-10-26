@@ -1,4 +1,4 @@
-//! fdm_client error-handling contract tests.
+//! `fdm_client` error-handling contract tests.
 //!
 //! FDM communication is the fiscal-compliance-critical path: per
 //! CLAUDE.md rule 1, "POS MUST block if FDM is disconnected - no
@@ -7,6 +7,10 @@
 //! fake `Ok` built from a partial/malformed response. This file
 //! exercises each failure mode with wiremock (and, for the network
 //! failures, raw TCP listeners) and asserts `Err` every time.
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 mod common;
 
@@ -472,6 +476,10 @@ async fn hung_connection_times_out_quickly_and_yields_err() {
 // ── Responses that do not answer the request ────────────────────
 
 /// Mount `result` (echoed or not) as the answer to `signWorkIn`.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "private two-way switch of a test helper"
+)]
 async fn answer_work_in(result: serde_json::Value, echo: bool) -> Result<(), FdmError> {
     let server = MockServer::start().await;
     let body = serde_json::json!({ "data": { "signWorkIn": result } });

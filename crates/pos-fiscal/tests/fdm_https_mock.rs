@@ -3,6 +3,10 @@
 //! CA) and here requires the client certificate, so the handshake only
 //! succeeds when the POS presents it. Certificates:
 //! `crates/pos-fdm-mock/fixtures/tls` (test-only, v1 like module2's).
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_core::config::PosConfig;
 use pos_fiscal::event::{Booking, build_work_in_out};
@@ -23,7 +27,7 @@ fn https_fdm() -> String {
     tokio::spawn(async move {
         pos_fdm_mock::tls::serve(
             listener,
-            pos_fdm_mock::app_with(Default::default()),
+            pos_fdm_mock::app_with(pos_fdm_mock::Control::default()),
             &dir,
             true,
         )
@@ -33,6 +37,10 @@ fn https_fdm() -> String {
     format!("https://127.0.0.1:{port}/graphql")
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "private test helper with one on/off switch"
+)]
 fn config(url: &str, ca: String, client: bool) -> PosConfig {
     PosConfig {
         pos_id: "CPOS0031234567".into(),

@@ -7,7 +7,7 @@
 //! restaurant-realistic" flows in the cert manual.
 //!
 //! Approach mirrors `uc_fixtures.rs` (Basic Set):
-//! - Walk top-level UCnnn folders.
+//! - Walk top-level `UCnnn` folders.
 //! - Single-step UCs have fixture files directly inside.
 //! - Multi-step UCs have sub-folders like `UC240_1_Order/` that each carry
 //!   a fixture triple; the loader recurses one level deeper.
@@ -44,7 +44,10 @@ fn find_response(dir: &Path) -> Option<PathBuf> {
     for entry in entries.flatten() {
         let fname = entry.file_name();
         let name = fname.to_string_lossy().to_lowercase();
-        if name.ends_with(".json") && name.contains("response") {
+        let is_json = Path::new(&name)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("json"));
+        if is_json && name.contains("response") {
             return Some(entry.path());
         }
     }
@@ -125,7 +128,7 @@ fn parse_response_flexible(path: &Path) -> (Vec<SignResult>, bool) {
 
     let mut results = Vec::new();
     let dual = obj.len() > 1;
-    for (key, val) in obj.iter() {
+    for (key, val) in obj {
         let parsed: SignResult = serde_json::from_value(val.clone()).unwrap_or_else(|e| {
             panic!(
                 "{}: payload `{key}` did not parse into SignResult: {e}\nvalue: {val}",
@@ -178,7 +181,10 @@ fn advanced_set_v1_6_fixtures_deserialize() {
                 let msg = e
                     .downcast_ref::<String>()
                     .cloned()
-                    .or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string()))
+                    .or_else(|| {
+                        e.downcast_ref::<&str>()
+                            .map(std::string::ToString::to_string)
+                    })
                     .unwrap_or_else(|| "<non-string panic>".to_string());
                 failed.push((fx.uc_id.clone(), msg));
             }

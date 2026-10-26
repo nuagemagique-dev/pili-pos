@@ -1,6 +1,6 @@
 //! Pre-submission rehearsal against a real virtual FDM.
 //!
-//! This file is `#[ignore]`d by default - `cargo test --workspace`
+//! This file is `#[ignore = "needs a live staging FDM (PILI_STAGING_FDM_URL)"]`d by default - `cargo test --workspace`
 //! does NOT run it. Activate explicitly:
 //!
 //! ```bash
@@ -42,9 +42,18 @@
 //!
 //! Why ignored by default: a CI run with no virtual-FDM credentials
 //! would hammer a stranger's URL. The opt-in keeps this honest.
+#![expect(
+    clippy::print_stderr,
+    reason = "a manual staging probe: stderr is its progress output"
+)]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use std::collections::HashMap;
 use std::env;
+use std::fmt::Write as _;
 
 use pos_core::config::PosConfig;
 use pos_core::order::{Order, OrderLine, OrderStatus, OrderType};
@@ -112,17 +121,14 @@ fn staging_config(url: &str) -> PosConfig {
 /// Sanity check - talk to the real virtual FDM, get a Status response,
 /// confirm it claims to be operational.
 #[tokio::test]
-#[ignore]
+#[ignore = "needs a live staging FDM (PILI_STAGING_FDM_URL)"]
 async fn staging_status_returns_operational() {
-    let url = match staging_url() {
-        Some(u) => u,
-        None => {
-            eprintln!(
-                "PILI_STAGING_FDM_URL not set - skipping. \
-                 Provision a virtual FDM and re-run with the URL in env."
-            );
-            return;
-        }
+    let Some(url) = staging_url() else {
+        eprintln!(
+            "PILI_STAGING_FDM_URL not set - skipping. \
+             Provision a virtual FDM and re-run with the URL in env."
+        );
+        return;
     };
 
     let client = staging_client(&url);
@@ -160,8 +166,7 @@ async fn staging_status_returns_operational() {
             .collect();
         assert!(
             blocking.is_empty(),
-            "no mandatory-display error should be active at intake start; got: {:#?}",
-            blocking
+            "no mandatory-display error should be active at intake start; got: {blocking:#?}"
         );
     }
 }
@@ -226,7 +231,7 @@ impl Rehearsal {
         );
         self.last_total_counter = result.fdm_ref.total_counter;
 
-        let label_key = format!("{:?}", expected_label);
+        let label_key = format!("{expected_label:?}");
         if let Some(prev) = self.per_label_counter.get(&label_key) {
             assert!(
                 result.fdm_ref.event_counter > *prev,
@@ -256,10 +261,11 @@ impl Rehearsal {
                 serde_json::to_string_pretty(request).unwrap_or_else(|_| "<unserializable>".into());
             let resp_json =
                 serde_json::to_string_pretty(&result).unwrap_or_else(|_| "<unserializable>".into());
-            self.log.push_str(&format!(
+            let _ = write!(
+                self.log,
                 "\n## {step}\n\n### Requête\n\n```json\n{req_json}\n```\n\
                  \n### Réponse\n\n```json\n{resp_json}\n```\n"
-            ));
+            );
         }
         eprintln!(
             "✓ {step}: label={:?} eventCounter={} totalCounter={} short={}",
@@ -344,14 +350,15 @@ fn rehearsal_lines(sign: i32) -> Vec<OrderLine> {
 /// Full Basic Set rehearsal against the real FDM. See module docs for
 /// the sequence and the per-event assertions.
 #[tokio::test]
-#[ignore]
+#[ignore = "needs a live staging FDM (PILI_STAGING_FDM_URL)"]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear rehearsal of the whole Basic Set; splitting it would hide the sequence"
+)]
 async fn staging_basic_set_smoke() {
-    let url = match staging_url() {
-        Some(u) => u,
-        None => {
-            eprintln!("PILI_STAGING_FDM_URL not set - skipping.");
-            return;
-        }
+    let Some(url) = staging_url() else {
+        eprintln!("PILI_STAGING_FDM_URL not set - skipping.");
+        return;
     };
 
     let config = staging_config(&url);

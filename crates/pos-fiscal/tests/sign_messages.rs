@@ -3,6 +3,10 @@
 //! checked sign response hands its messages (minus showPos NEVER) to
 //! the sink attached to the client with `with_sign_messages`, which the
 //! engine forwards to the screen.
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 mod common;
 
@@ -24,6 +28,10 @@ fn message(code: &str, show_pos: &str) -> Value {
     })
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "test fixture builder, called with json! literals"
+)]
 fn work_in_answer(warnings: Value) -> Value {
     json!({ "data": { "signWorkIn": {
         "posId": "", "posFiscalTicketNo": 0, "posDateTime": "", "deviceId": "",
@@ -62,7 +70,7 @@ async fn sign_response_warnings_reach_the_sink_once_per_response() {
         period_id: "8f1c2c1e-0000-4000-8000-000000000001".into(),
         date: "2026-09-27".into(),
     };
-    let sink = received.clone();
+    let sink = Arc::clone(&received);
     let fdm = FdmClient::from_config(&config)
         .with_sign_messages(Arc::new(move |m| sink.lock().unwrap().push(m.clone())));
 

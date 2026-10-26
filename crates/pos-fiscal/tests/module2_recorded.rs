@@ -3,6 +3,10 @@
 //! parsing and response check: every signed event is accepted against
 //! the request it answers, every status parses, and every refusal keeps
 //! its code where the POS reads it.
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use std::path::PathBuf;
 

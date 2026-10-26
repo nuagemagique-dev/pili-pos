@@ -76,7 +76,7 @@ fn parse_sign_result(path: &Path) -> SignResult {
 }
 
 /// Parse the dual-key envelope used by M184 (combined Z). Returns
-/// (turnover_z_result, user_z_result).
+/// `(turnover_z_result, user_z_result)`.
 fn parse_combined_z(path: &Path) -> (SignResult, SignResult) {
     let envelope = read_json(path);
     let data = envelope
@@ -101,7 +101,10 @@ fn find_response(dir: &Path) -> Option<PathBuf> {
     for entry in entries.flatten() {
         let fname = entry.file_name();
         let name = fname.to_string_lossy().to_lowercase();
-        if name.ends_with(".json") && name.contains("response") {
+        let is_json = Path::new(&name)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("json"));
+        if is_json && name.contains("response") {
             return Some(entry.path());
         }
     }

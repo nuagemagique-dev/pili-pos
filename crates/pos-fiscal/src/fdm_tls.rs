@@ -63,7 +63,7 @@ pub fn client_config(
     let verifier =
         SignedByCa::from_cas(cas).ok_or_else(|| TlsSetupError::Certificate(ca_file.to_string()))?;
     let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
-    let builder = rustls::ClientConfig::builder_with_provider(provider.clone())
+    let builder = rustls::ClientConfig::builder_with_provider(Arc::clone(&provider))
         .with_safe_default_protocol_versions()?
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(verifier));
@@ -95,7 +95,7 @@ impl rustls::client::ResolvesClientCert for OneClientCert {
         _root_hint_subjects: &[&[u8]],
         _sigschemes: &[SignatureScheme],
     ) -> Option<Arc<rustls::sign::CertifiedKey>> {
-        Some(self.0.clone())
+        Some(Arc::clone(&self.0))
     }
 
     fn has_certs(&self) -> bool {

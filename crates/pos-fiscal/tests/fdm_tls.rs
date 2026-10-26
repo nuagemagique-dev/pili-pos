@@ -3,6 +3,10 @@
 //! `fixtures/module2_tls/ca.crt` (manual.module2.be, "Download losse
 //! certificaten") and `server.crt`, the X.509 v1 certificate without
 //! any name that fdm.module2.be:443 served on 2026-09-27.
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_fiscal::fdm_tls::{SignedByCa, client_config};
 use rustls::pki_types::pem::PemObject;
@@ -25,7 +29,7 @@ fn at_year(year: i32) -> UnixTime {
         .unwrap()
         .and_utc()
         .timestamp();
-    UnixTime::since_unix_epoch(Duration::from_secs(secs as u64))
+    UnixTime::since_unix_epoch(Duration::from_secs(u64::try_from(secs).unwrap()))
 }
 
 fn module2() -> SignedByCa {

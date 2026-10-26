@@ -1,6 +1,10 @@
 //! Price changes against the SPF's own examples: the transaction the
 //! POS builds for Advanced Set UC223 (a 50 % ticket discount spread
 //! over two lines at B and A) is the published one.
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use std::path::PathBuf;
 

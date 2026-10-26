@@ -92,6 +92,11 @@ impl ExpectedEvent {
     /// `tb_eventOperation` table (POS detailed description v2.2
     /// §2.2.4). In training mode every operation is labelled T.
     /// `None` for a mutation name this POS does not know.
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "is_training mirrors the FDM's isTraining flag, passed the same way by every caller"
+    )]
+    #[must_use]
     pub fn for_mutation(mutation: &str, is_training: bool) -> Option<Self> {
         use EventLabel as L;
         use EventOperation as O;
@@ -130,6 +135,10 @@ pub struct Mismatch {
 }
 
 impl Mismatch {
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "callers pass &str, String and numbers alike; by-value Display takes them all without borrow noise"
+    )]
     fn new(field: &'static str, expected: impl ToString, received: impl ToString) -> Self {
         Self {
             field,
@@ -227,7 +236,7 @@ pub fn check_sign_result(
     let placeholder =
         placeholders == PlaceholderSignatures::Accepted && is_simulator_placeholder(signature);
     let decoded = base64::engine::general_purpose::STANDARD.decode(signature);
-    if signature.is_empty() || decoded.as_ref().is_ok_and(|raw| raw.is_empty()) {
+    if signature.is_empty() || decoded.as_ref().is_ok_and(std::vec::Vec::is_empty) {
         return Err(Mismatch::new("digitalSignature", "non vide", "vide"));
     }
     if decoded.is_err() && !placeholder {

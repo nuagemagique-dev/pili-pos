@@ -36,6 +36,7 @@ pub struct LineChange {
 impl LineChange {
     /// The same change, the other way: what a correction or a refund
     /// of its line carries.
+    #[must_use]
     pub fn negated(&self) -> Self {
         Self {
             amount_cents: -self.amount_cents,
@@ -53,8 +54,7 @@ use pos_core::money::eur;
 pub fn line_change_cents(changes: &LineChanges, line_id: i64) -> i64 {
     changes
         .get(&line_id)
-        .map(|c| c.iter().map(|c| c.amount_cents).sum())
-        .unwrap_or(0)
+        .map_or(0, |c| c.iter().map(|c| c.amount_cents).sum())
 }
 
 /// A line's total after its changes, in cents.
@@ -175,7 +175,7 @@ pub fn till_change_name(lang: &str, change_id: &str, percent: Option<i64>) -> St
     }
 }
 
-/// Mark the negative lines of a PRICE_CHANGE pair: the correction that
+/// Mark the negative lines of a `PRICE_CHANGE` pair: the correction that
 /// takes a line already transmitted back before its re-entry carries
 /// the new price (POS spec v2.2 `negQuantityReason`, FAQ Q303).
 /// `entry_ids` are the journal entries marked `till_op` = `price_change`;

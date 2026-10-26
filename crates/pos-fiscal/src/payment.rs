@@ -282,7 +282,7 @@ pub fn settle(total_cents: i64, parts: &[PaymentPart]) -> Result<Settlement, Pay
             (PaymentMethod::Cash, None)
                 if !cash && part.eft_payment_id.is_none() && part.gift_voucher_id.is_none() =>
             {
-                cash = true
+                cash = true;
             }
             (PaymentMethod::Cash, _) => return Err(PaymentError::Invalid),
             // A gift voucher part names its voucher; no other part does.

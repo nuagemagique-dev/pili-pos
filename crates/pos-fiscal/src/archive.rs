@@ -22,6 +22,7 @@ pub struct ArchivedEvent {
 }
 
 /// Parameters for archiving a fiscal event.
+#[derive(Debug, Clone, Copy)]
 pub struct ArchiveParams<'a> {
     pub event_type: EventLabel,
     pub sequence_number: i64,
@@ -33,7 +34,7 @@ pub struct ArchiveParams<'a> {
     pub sign_result: Option<&'a SignResult>,
 }
 
-/// Archive a fiscal event and FDM response into the fiscal_events table.
+/// Archive a fiscal event and FDM response into the `fiscal_events` table.
 /// MUST be called within a database transaction for crash safety.
 pub fn archive_event(
     conn: &rusqlite::Connection,
@@ -431,7 +432,7 @@ mod tests {
             transaction_total_by_fdm_ref(&conn, &fdm_ref).unwrap(),
             Some(27.5)
         );
-        let mut other = fdm_ref.clone();
+        let mut other = fdm_ref;
         other["eventCounter"] = serde_json::json!(2);
         assert_eq!(transaction_total_by_fdm_ref(&conn, &other).unwrap(), None);
     }
@@ -679,7 +680,10 @@ mod tests {
         let conn = setup();
         archive_signed(&conn, 1, &with_counters(EventLabel::N, 1, 1));
         archive_signed(&conn, 1, &with_counters(EventLabel::P, 1, 2));
-        assert!(counter_regressions(&conn, &with_counters(EventLabel::N, 2, 3)).is_empty());
+        assert_eq!(
+            counter_regressions(&conn, &with_counters(EventLabel::N, 2, 3)),
+            Vec::new()
+        );
     }
 
     #[test]
@@ -703,7 +707,10 @@ mod tests {
         let conn = setup();
         archive_signed(&conn, 1, &with_counters(EventLabel::N, 4, 4));
         // P has its own counter: 1 after N's 4 is fine.
-        assert!(counter_regressions(&conn, &with_counters(EventLabel::P, 1, 5)).is_empty());
+        assert_eq!(
+            counter_regressions(&conn, &with_counters(EventLabel::P, 1, 5)),
+            Vec::new()
+        );
         let found = counter_regressions(&conn, &with_counters(EventLabel::N, 3, 5));
         assert_eq!(found[0].counter, "eventCounter");
         assert_eq!((found[0].received, found[0].last_archived), (3, 4));
@@ -715,7 +722,7 @@ mod tests {
         archive_signed(&conn, 1, &with_counters(EventLabel::N, 9, 9));
         let mut replacement = with_counters(EventLabel::N, 1, 1);
         replacement.fdm_ref.fdm_id = "CBX01000099".to_string();
-        assert!(counter_regressions(&conn, &replacement).is_empty());
+        assert_eq!(counter_regressions(&conn, &replacement), Vec::new());
     }
 
     #[test]

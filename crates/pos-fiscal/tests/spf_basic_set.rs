@@ -1,4 +1,4 @@
-//! SPF BasicSet Integration Tests
+//! SPF `BasicSet` Integration Tests
 //!
 //! These tests replay the core use cases from the SCE 2.0 POS specification:
 //! - Direct sale (Event N)
@@ -11,7 +11,11 @@
 //! - Employee presence (Event S → signWorkIn / signWorkOut)
 //!
 //! Each test spins up a mock FDM (wiremock) that validates the incoming
-//! GraphQL mutation and returns a realistic SignResult.
+//! GraphQL mutation and returns a realistic `SignResult`.
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 mod common;
 
@@ -134,11 +138,15 @@ fn drink_line(id: i64, name: &str, price_cents: i64, qty: i32) -> OrderLine {
 fn total_cents(lines: &[OrderLine]) -> i64 {
     lines
         .iter()
-        .map(|l| l.unit_price_cents * l.quantity as i64)
+        .map(|l| l.unit_price_cents * i64::from(l.quantity))
         .sum()
 }
 
-/// Build a mock SignResult for a given mutation.
+/// Build a mock `SignResult` for a given mutation.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "private test helper with one on/off switch"
+)]
 fn mock_sign_result(
     event_op: EventOperation,
     event_label: EventLabel,
@@ -198,7 +206,11 @@ fn mock_sign_result(
     }
 }
 
-/// Register a mock FDM endpoint that accepts any mutation and returns a SignResult.
+/// Register a mock FDM endpoint that accepts any mutation and returns a `SignResult`.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "private test helper with one on/off switch"
+)]
 async fn mock_fdm_mutation(
     server: &MockServer,
     mutation_name: &str,
@@ -706,6 +718,7 @@ async fn test_copy_ticket() {
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
+#[expect(clippy::too_many_lines, reason = "one linear scenario, step by step")]
 async fn test_z_report() {
     let server = MockServer::start().await;
     let config = test_config(&format!("{}/graphql", server.uri()));
@@ -924,6 +937,7 @@ fn test_counter_independence() {
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
+#[expect(clippy::too_many_lines, reason = "one linear scenario, step by step")]
 async fn test_full_service_day() {
     let server = MockServer::start().await;
     let config = test_config(&format!("{}/graphql", server.uri()));

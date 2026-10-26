@@ -1,4 +1,4 @@
-//! FdmClient status-query contract tests (Q100 / Q110).
+//! `FdmClient` status-query contract tests (Q100 / Q110).
 //!
 //! Uses wiremock to stand in for the FDM and verifies:
 //!

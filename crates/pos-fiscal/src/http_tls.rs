@@ -3,7 +3,7 @@
 //! The host picks the mode when it opens the engine; the engine never
 //! infers it from the operating system. This is the one place that
 //! touches reqwest's TLS builder options for the clients built from an
-//! [`HttpTls`] (the HubRise client, the digital-ticket client and the
+//! [`HttpTls`] (the `HubRise` client, the digital-ticket client and the
 //! FDM client without mTLS files). The FDM's own CA and client
 //! certificate path ([`crate::fdm_tls`]) is separate and unchanged.
 

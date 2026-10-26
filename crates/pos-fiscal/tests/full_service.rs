@@ -16,18 +16,23 @@
 //!  12. Work-out (Event S → signWorkOut)
 //!
 //! Verifies at every step:
-//! - SQLite state (orders, order_lines, fiscal_events, users, z_reports)
+//! - `SQLite` state (`orders`, `order_lines`, `fiscal_events`, `users`, `z_reports`)
 //! - Sequential counters per event type
 //! - JSON archival (request + response stored)
 //! - VAT calculation correctness (B=12% food, A=21% drinks)
 //! - FDM communication (mock validates GraphQL structure)
 //! - Receipt binary (ESC/POS contains required labels + FDM control data)
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 mod common;
 
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use pos_core::config::PosConfig;
+use pos_core::money::eur as cents_to_eur;
 use pos_core::order::OrderType;
 use pos_core::user::UserRole;
 use pos_core::vat::VatCode;
@@ -201,6 +206,11 @@ fn setup_db() -> rusqlite::Connection {
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    clippy::similar_names,
+    reason = "one linear service day, with the per-step results named after the step, step by step as the certification scenario reads"
+)]
 async fn test_full_service_day_e2e() {
     let server = MockServer::start().await;
     let cfg = config(&format!("{}/graphql", server.uri()));
@@ -544,15 +554,15 @@ async fn test_full_service_day_e2e() {
         lines: lines_mod
             .iter()
             .map(|l| TicketLine {
-                quantity: l.quantity as f64,
+                quantity: f64::from(l.quantity),
                 description: l.name.clone(),
-                unit_price: l.unit_price_cents as f64 / 100.0,
-                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
+                unit_price: cents_to_eur(l.unit_price_cents),
+                total: cents_to_eur(l.unit_price_cents * i64::from(l.quantity)),
                 vat_code: l.vat_code.as_str().to_string(),
             })
             .collect(),
         payments: vec![],
-        total: order_mod.total_cents as f64 / 100.0,
+        total: cents_to_eur(order_mod.total_cents),
         is_training: false,
         rounding: None,
         lang: pos_fiscal::ticket::ReceiptLanguage::default(),
@@ -584,16 +594,16 @@ async fn test_full_service_day_e2e() {
     let food_total_cents: i64 = lines_mod
         .iter()
         .filter(|l| l.vat_code == VatCode::B)
-        .map(|l| l.unit_price_cents * l.quantity as i64)
+        .map(|l| l.unit_price_cents * i64::from(l.quantity))
         .sum(); // 2480 + 1200 + 940 = 4620
     let drink_total_cents: i64 = lines_mod
         .iter()
         .filter(|l| l.vat_code == VatCode::A)
-        .map(|l| l.unit_price_cents * l.quantity as i64)
+        .map(|l| l.unit_price_cents * i64::from(l.quantity))
         .sum(); // 390
 
-    let food_total = food_total_cents as f64 / 100.0; // 46.20
-    let drink_total = drink_total_cents as f64 / 100.0; // 3.90
+    let food_total = cents_to_eur(food_total_cents); // 46.20
+    let drink_total = cents_to_eur(drink_total_cents); // 3.90
 
     // VAT B: 12% → taxable = 46.20 / 1.12 = 41.25, vat = 4.95
     let food_taxable = (food_total / 1.12 * 100.0).round() / 100.0;
@@ -757,10 +767,10 @@ async fn test_full_service_day_e2e() {
         lines: lines_mod
             .iter()
             .map(|l| TicketLine {
-                quantity: l.quantity as f64,
+                quantity: f64::from(l.quantity),
                 description: l.name.clone(),
-                unit_price: l.unit_price_cents as f64 / 100.0,
-                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
+                unit_price: cents_to_eur(l.unit_price_cents),
+                total: cents_to_eur(l.unit_price_cents * i64::from(l.quantity)),
                 vat_code: l.vat_code.as_str().to_string(),
             })
             .collect(),
@@ -784,7 +794,7 @@ async fn test_full_service_day_e2e() {
     let escpos = receipt::format_receipt(&ticket);
 
     // Verify ESC/POS content
-    assert!(!escpos.is_empty());
+    assert_ne!(escpos, Vec::<u8>::new());
     assert!(
         escpos.windows(23).any(|w| w == b"TICKET DE CAISSE T.V.A."),
         "Must contain 'TICKET DE CAISSE T.V.A.'"
@@ -971,7 +981,7 @@ async fn test_full_service_day_e2e() {
                 EventTotalInput {
                     event_label: EventLabel::N,
                     ticket_count: 2,
-                    amount: grand_total as f64 / 100.0,
+                    amount: cents_to_eur(grand_total),
                 },
                 EventTotalInput {
                     event_label: EventLabel::P,
@@ -987,22 +997,22 @@ async fn test_full_service_day_e2e() {
             departments: vec![DepartmentTotalInput {
                 department_id: "FOOD".to_string(),
                 department_name: "Restaurant".to_string(),
-                amount: grand_total as f64 / 100.0,
+                amount: cents_to_eur(grand_total),
             }],
             vats: vec![
                 VatTotalInput {
                     label: VatLabel::B,
                     rate: 12.0,
-                    taxable_amount: total_food as f64 / 100.0 / 1.12,
-                    vat_amount: total_food as f64 / 100.0 - total_food as f64 / 100.0 / 1.12,
-                    total_amount: total_food as f64 / 100.0,
+                    taxable_amount: cents_to_eur(total_food) / 1.12,
+                    vat_amount: cents_to_eur(total_food) - cents_to_eur(total_food) / 1.12,
+                    total_amount: cents_to_eur(total_food),
                 },
                 VatTotalInput {
                     label: VatLabel::A,
                     rate: 21.0,
-                    taxable_amount: total_drink as f64 / 100.0 / 1.21,
-                    vat_amount: total_drink as f64 / 100.0 - total_drink as f64 / 100.0 / 1.21,
-                    total_amount: total_drink as f64 / 100.0,
+                    taxable_amount: cents_to_eur(total_drink) / 1.21,
+                    vat_amount: cents_to_eur(total_drink) - cents_to_eur(total_drink) / 1.21,
+                    total_amount: cents_to_eur(total_drink),
                 },
             ],
             payments: vec![

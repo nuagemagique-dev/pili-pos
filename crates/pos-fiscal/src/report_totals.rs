@@ -16,7 +16,7 @@
 //! - `vats`: Σ of the FDM's `vatCalc` of label N events, per VAT label.
 //! - `payments`: the financials of label N events, per payment method,
 //!   plus the lines of the payment corrections (label F, operation
-//!   PAYMENT_CORRECTION): a negative line goes to `negativeCorrections`,
+//!   `PAYMENT_CORRECTION)`: a negative line goes to `negativeCorrections`,
 //!   a positive one to `positiveCorrections`, each line counts once in
 //!   `correctionsCount`, and `totalAmount` is normal + both corrections.
 //! - `negQuantities`: negative lines, per reason, counted once, on the
@@ -25,7 +25,7 @@
 //!   table service, on the sale (N) for a direct sale or a refund, and
 //!   never on a pre-bill. A table sale resends its registered entries:
 //!   those are left out ([`ReportEvent::registered_negatives`]).
-//! - `drawersOpenCount`: F events whose operation is DRAWER_OPEN.
+//! - `drawersOpenCount`: F events whose operation is `DRAWER_OPEN`.
 //! - `users[].totalAmount`: Σ transactionTotal of the user's N events;
 //!   the activity range covers every event but the reports themselves.
 //!
@@ -101,8 +101,7 @@ impl ReportEvent {
     pub fn lines(&self) -> &[Value] {
         self.request["transaction"]["transactionLines"]
             .as_array()
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
+            .map_or(&[], Vec::as_slice)
     }
 
     pub fn has_transaction(&self) -> bool {
@@ -177,20 +176,16 @@ use pos_core::money::eur;
 /// Σ(VatInput.price) + Σ(VatInput.priceChanges.amount) of one
 /// transaction line: its amount after price changes.
 pub fn line_amount(line: &Value) -> i64 {
-    line["mainProduct"]["vats"]
-        .as_array()
-        .map(|vats| {
-            vats.iter()
-                .map(|v| {
-                    let changes: i64 = v["priceChanges"]
-                        .as_array()
-                        .map(|c| c.iter().map(|c| cents(&c["amount"])).sum())
-                        .unwrap_or(0);
-                    cents(&v["price"]) + changes
-                })
-                .sum()
-        })
-        .unwrap_or(0)
+    line["mainProduct"]["vats"].as_array().map_or(0, |vats| {
+        vats.iter()
+            .map(|v| {
+                let changes: i64 = v["priceChanges"]
+                    .as_array()
+                    .map_or(0, |c| c.iter().map(|c| cents(&c["amount"])).sum());
+                cents(&v["price"]) + changes
+            })
+            .sum()
+    })
 }
 
 pub fn transaction_amount(event: &ReportEvent) -> i64 {
@@ -253,7 +248,9 @@ pub fn turnover(events: &[ReportEvent]) -> TurnoverInput {
         drawers_open_count: events
             .iter()
             .filter(|e| e.label == EventLabel::F && e.operation() == Some("DRAWER_OPEN"))
-            .count() as i64,
+            .count()
+            .try_into()
+            .unwrap_or(i64::MAX),
         neg_quantities: neg_quantities(events),
         price_changes: price_changes(events.iter().filter(|e| is_sale(e))),
         invoices: Some(invoices(events)),
@@ -279,7 +276,7 @@ fn invoices(events: &[ReportEvent]) -> Vec<InvoiceTotalInput> {
 fn price_changes<'a>(sales: impl Iterator<Item = &'a ReportEvent>) -> Vec<PriceChangeTotalInput> {
     // (id, name) -> label -> (negative, positive)
     let mut totals: BTreeMap<(String, String), BTreeMap<String, (i64, i64)>> = BTreeMap::new();
-    for line in sales.flat_map(|e| e.lines()) {
+    for line in sales.flat_map(ReportEvent::lines) {
         for vat in line["mainProduct"]["vats"].as_array().into_iter().flatten() {
             let label = vat["label"].as_str().unwrap_or_default().to_string();
             for change in vat["priceChanges"].as_array().into_iter().flatten() {
@@ -346,7 +343,11 @@ fn transactions(events: &[ReportEvent]) -> Vec<EventTotalInput> {
 
 fn departments(events: &[ReportEvent]) -> Vec<DepartmentTotalInput> {
     let mut totals: BTreeMap<(String, String), i64> = BTreeMap::new();
-    for line in events.iter().filter(|e| is_sale(e)).flat_map(|e| e.lines()) {
+    for line in events
+        .iter()
+        .filter(|e| is_sale(e))
+        .flat_map(ReportEvent::lines)
+    {
         let product = &line["mainProduct"];
         let key = (
             product["departmentId"]
@@ -403,51 +404,47 @@ fn vats(events: &[ReportEvent]) -> Vec<VatTotalInput> {
         entry.1.total += total;
     };
     for event in events.iter().filter(|e| is_sale(e)) {
-        match event.response["vatCalc"].as_array() {
-            Some(calc) => {
-                for item in calc {
-                    let Ok(label) = serde_json::from_value::<VatLabel>(item["label"].clone())
-                    else {
-                        tracing::warn!(event = %event.describe(), item = %item, "report: vatCalc entry with an unreadable label skipped");
-                        continue;
-                    };
-                    let rate = item["rate"].as_f64().unwrap_or_else(|| {
-                        tracing::warn!(event = %event.describe(), item = %item, "report: vatCalc entry without a rate, counted as 0");
-                        0.0
-                    });
-                    add(
-                        label,
-                        rate,
-                        cents(&item["taxableAmount"]),
-                        cents(&item["vatAmount"]),
-                        cents(&item["totalAmount"]),
-                    );
-                }
+        if let Some(calc) = event.response["vatCalc"].as_array() {
+            for item in calc {
+                let Ok(label) = serde_json::from_value::<VatLabel>(item["label"].clone()) else {
+                    tracing::warn!(event = %event.describe(), item = %item, "report: vatCalc entry with an unreadable label skipped");
+                    continue;
+                };
+                let rate = item["rate"].as_f64().unwrap_or_else(|| {
+                    tracing::warn!(event = %event.describe(), item = %item, "report: vatCalc entry without a rate, counted as 0");
+                    0.0
+                });
+                add(
+                    label,
+                    rate,
+                    cents(&item["taxableAmount"]),
+                    cents(&item["vatAmount"]),
+                    cents(&item["totalAmount"]),
+                );
             }
-            None => {
-                let mut per_label: BTreeMap<String, (VatLabel, i64)> = BTreeMap::new();
-                for vat in event
-                    .lines()
-                    .iter()
-                    .filter_map(|l| l["mainProduct"]["vats"].as_array())
-                    .flatten()
-                {
-                    let Ok(label) = serde_json::from_value::<VatLabel>(vat["label"].clone()) else {
-                        tracing::warn!(event = %event.describe(), vat = %vat, "report: line vat with an unreadable label skipped");
-                        continue;
-                    };
-                    per_label
-                        .entry(format!("{label:?}"))
-                        .or_insert((label, 0))
-                        .1 += cents(&vat["price"]);
-                }
-                for (label, total) in per_label.into_values() {
-                    let rate = standard_rate(label);
-                    let taxable = pos_core::money::round_to_i64(
-                        pos_core::money::to_f64(total) / (1.0 + rate / 100.0),
-                    );
-                    add(label, rate, taxable, total - taxable, total);
-                }
+        } else {
+            let mut per_label: BTreeMap<String, (VatLabel, i64)> = BTreeMap::new();
+            for vat in event
+                .lines()
+                .iter()
+                .filter_map(|l| l["mainProduct"]["vats"].as_array())
+                .flatten()
+            {
+                let Ok(label) = serde_json::from_value::<VatLabel>(vat["label"].clone()) else {
+                    tracing::warn!(event = %event.describe(), vat = %vat, "report: line vat with an unreadable label skipped");
+                    continue;
+                };
+                per_label
+                    .entry(format!("{label:?}"))
+                    .or_insert((label, 0))
+                    .1 += cents(&vat["price"]);
+            }
+            for (label, total) in per_label.into_values() {
+                let rate = standard_rate(label);
+                let taxable = pos_core::money::round_to_i64(
+                    pos_core::money::to_f64(total) / (1.0 + rate / 100.0),
+                );
+                add(label, rate, taxable, total - taxable, total);
             }
         }
     }
@@ -646,7 +643,9 @@ pub fn users(events: &[ReportEvent]) -> Vec<UserItemInput> {
         .into_iter()
         .map(|(employee_id, events)| {
             let mut range = Range::default();
-            events.iter().for_each(|e| range.add(e));
+            for e in &events {
+                range.add(e);
+            }
             let sales = || events.iter().copied().filter(|e| is_sale(e));
             UserItemInput {
                 employee_id,
@@ -780,6 +779,10 @@ mod tests {
         })
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "test fixture builder, called with owned literals"
+    )]
     fn sale(user: &str, at: &str, lines: Vec<Value>, total: f64, financials: Value) -> Value {
         json!({
             "posId": "CPOS0031234567",
@@ -795,6 +798,10 @@ mod tests {
         json!([{ "id": "1", "name": "Espèces", "type": "CASH", "amount": amount, "amountType": "PAYMENT" }])
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "test fixture builder, called with owned literals"
+    )]
     fn signed(op: &str, counter: i64, vat_calc: Value) -> Value {
         json!({
             "eventOperation": op,

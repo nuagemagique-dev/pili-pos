@@ -11,6 +11,7 @@ const MAX_COUNTER: i64 = 999_999_999;
 /// "Continuous numbering per event type, per terminal, or general across all"
 ///
 /// We use per-event-type counters for maximum traceability.
+#[derive(Debug)]
 pub struct FiscalCounter;
 
 impl FiscalCounter {
