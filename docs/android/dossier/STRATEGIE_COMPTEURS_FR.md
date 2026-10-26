@@ -134,7 +134,7 @@ qu'il retourne. Nous canonicalisons néanmoins parce que :
 
 ## 3. Clé de doublon FDM et renvoi à l'identique
 
-**Type :** `crates/pos-fiscal/src/inputs.rs::IdempotencyKey<'a>`.
+**Règle :** le POS ne porte pas de type dédié à cette clé ; il ne la recalcule jamais (voir plus bas).
 
 Selon la spec FDM (règle des requêtes en double), le FDM compare le
 quintuplet :
