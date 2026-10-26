@@ -1,14 +1,19 @@
-//! The mock answers in the shape of the real HubRise API.
+//! The mock answers in the shape of the real `HubRise` API.
 //!
 //! `fixtures/hubrise/` holds what api.hubrise.com answered on
 //! 2026-10-03 for a test location (`scripts/live_hubrise.sh` with
 //! `PILI_LIVE_RECORD_DIR`, customer details and names scrubbed). Two
 //! checks:
 //!
-//! - every recorded answer parses into the POS's HubRise types;
+//! - every recorded answer parses into the POS's `HubRise` types;
 //! - each call replayed on the mock answers with no field the real API
 //!   lacks, of the same JSON type where both have a value. The real API
 //!   has more fields than the mock; the mock never invents one.
+
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
@@ -100,24 +105,24 @@ fn shape(value: &Value) -> BTreeMap<String, BTreeSet<&'static str>> {
             Value::Object(_) => "object",
         }
     }
-    fn walk(v: &Value, at: String, out: &mut BTreeMap<String, BTreeSet<&'static str>>) {
-        out.entry(at.clone()).or_default().insert(kind(v));
+    fn walk(v: &Value, at: &str, out: &mut BTreeMap<String, BTreeSet<&'static str>>) {
+        out.entry(at.to_string()).or_default().insert(kind(v));
         match v {
             Value::Object(map) => {
                 for (k, v) in map {
-                    walk(v, format!("{at}.{k}"), out);
+                    walk(v, &format!("{at}.{k}"), out);
                 }
             }
             Value::Array(items) => {
                 for v in items {
-                    walk(v, format!("{at}[]"), out);
+                    walk(v, &format!("{at}[]"), out);
                 }
             }
             _ => {}
         }
     }
     let mut out = BTreeMap::new();
-    walk(value, String::new(), &mut out);
+    walk(value, "", &mut out);
     out
 }
 
@@ -251,7 +256,7 @@ async fn the_mock_invents_no_field() {
         );
 
         let real = find(scenario, "GET", "/orders/", |_| true);
-        let read = mock
+        let fetched = mock
             .send(
                 "GET",
                 &format!("/v1/locations/{LOCATION}/orders/{id}"),
@@ -261,7 +266,7 @@ async fn the_mock_invents_no_field() {
             .await;
         check(
             &format!("{scenario} GET /orders/:id"),
-            &read,
+            &fetched,
             &real["response"],
         );
 

@@ -1,5 +1,10 @@
 //! The mock's HTTP API, driven in-process with `tower::oneshot`.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::sync::Arc;
 
 use axum::Router;
@@ -26,7 +31,7 @@ impl Mock {
     fn new() -> Self {
         let state = Arc::new(MockState::new_seeded());
         Self {
-            router: app(state.clone()),
+            router: app(Arc::clone(&state)),
             state,
         }
     }
