@@ -100,7 +100,15 @@ fn scrub(value: &mut serde_json::Value) {
 }
 
 /// Write one call to `PILI_LIVE_RECORD_DIR`, when set.
-fn record(request: &[u8], with_token: bool, status: u16, response: &str) {
+/// Whether a recorded call carried the FDM token.
+#[derive(Clone, Copy)]
+enum Token {
+    Sent,
+    Absent,
+}
+
+fn record(request: &[u8], token: Token, status: u16, response: &str) {
+    use std::io::Write;
     let Ok(dir) = std::env::var("PILI_LIVE_RECORD_DIR") else {
         return;
     };
@@ -128,7 +136,7 @@ fn record(request: &[u8], with_token: bool, status: u16, response: &str) {
     };
     let mut answer = as_json(response.as_bytes());
     scrub(&mut answer);
-    let pretty = |v: &serde_json::Value| serde_json::to_string_pretty(v).unwrap() + "\n";
+    let pretty = |v: &serde_json::Value| format!("{}\n", serde_json::to_string_pretty(v).unwrap());
     std::fs::write(
         dir.join(format!("{label}_request.json")),
         pretty(&as_json(request)),
@@ -139,9 +147,8 @@ fn record(request: &[u8], with_token: bool, status: u16, response: &str) {
         "label": label,
         "operation": operation,
         "httpStatus": status,
-        "token": with_token,
+        "token": matches!(token, Token::Sent),
     });
-    use std::io::Write;
     let mut calls = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -150,7 +157,7 @@ fn record(request: &[u8], with_token: bool, status: u16, response: &str) {
     writeln!(calls, "{line}").unwrap();
 }
 
-/// The test setup identity module2 allows (UC_TestSetup_20240806).
+/// The test setup identity module2 allows (`UC_TestSetup_20240806`).
 pub const LIVE_POS_ID: &str = "CPOS0031234567";
 
 /// The live FDM from the environment, or `None` to skip.
@@ -201,7 +208,7 @@ async fn forward(
     if let Some(at) = *last {
         let since = at.elapsed();
         if since < proxy.pause {
-            tokio::time::sleep(proxy.pause - since).await;
+            tokio::time::sleep(proxy.pause.checked_sub(since).unwrap()).await;
         }
     }
     let n = FORWARDED.fetch_add(1, Ordering::SeqCst) + 1;
@@ -224,7 +231,16 @@ async fn forward(
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
             eprintln!("live FDM call {n}: HTTP {status}");
-            record(&body, with_token, status.as_u16(), &text);
+            record(
+                &body,
+                if with_token {
+                    Token::Sent
+                } else {
+                    Token::Absent
+                },
+                status.as_u16(),
+                &text,
+            );
             let status = StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
             (status, text).into_response()
         }
@@ -244,7 +260,7 @@ async fn start_proxy(target: String) -> String {
             .build()
             .unwrap(),
         pause: Duration::from_millis(env_number("PILI_LIVE_PAUSE_MS", 1000)),
-        cap: env_number("PILI_LIVE_MAX_REQUESTS", 60) as usize,
+        cap: usize::try_from(env_number("PILI_LIVE_MAX_REQUESTS", 60)).unwrap_or(usize::MAX),
         simulator_version: std::env::var("PILI_LIVE_SIMULATOR_VERSION")
             .ok()
             .filter(|v| !v.trim().is_empty()),

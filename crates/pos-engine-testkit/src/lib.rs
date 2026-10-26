@@ -2,7 +2,7 @@
 //!
 //! Two responsibilities:
 //!
-//! 1. **TestApp** - an in-memory `AppState` paired with a wiremock
+//! 1. **`TestApp`** - an in-memory `AppState` paired with a wiremock
 //!    server that pretends to be the FDM. Test code calls `TestApp::new()`
 //!    then drives the Tauri command inner functions
 //!    (`commands::checkout::do_checkout`, etc.) against the resulting
@@ -14,9 +14,11 @@
 //!    on `crates/pos-fiscal/tests/uc_fixtures.rs::discover_fixtures` but
 //!    parameterised on the root directory so it serves both UC sets.
 
-// Each integration-test binary links this library but uses a
-// different subset of it, so dead-code analysis misfires.
-#![allow(dead_code)]
+#![expect(
+    clippy::unwrap_used,
+    clippy::print_stderr,
+    reason = "test-support crate: a failed setup is the test's failure and live runs report on stderr"
+)]
 
 pub mod compare;
 pub mod devices;
@@ -28,21 +30,12 @@ pub mod hubrise;
 pub mod live;
 pub mod live_hubrise;
 
-#[allow(unused_imports)]
 pub use compare::*;
-#[allow(unused_imports)]
 pub use devices::*;
-#[allow(unused_imports)]
 pub use eft::*;
-#[allow(unused_imports)]
 pub use fdm_drop::*;
-#[allow(unused_imports)]
 pub use fixtures::*;
-#[allow(unused_imports)]
 pub use harness::*;
-#[allow(unused_imports)]
 pub use live::*;
-#[allow(unused_imports)]
 pub use pos_eft;
-#[allow(unused_imports)]
 pub use pos_print::render::one_line;
