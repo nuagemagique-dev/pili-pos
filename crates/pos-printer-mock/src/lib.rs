@@ -15,6 +15,12 @@
 //! `GET /` (the jobs as printed), `GET /jobs`, `GET /jobs/{id}`,
 //! `DELETE /jobs`, `GET` / `POST /control`.
 
+#![expect(
+    clippy::print_stderr,
+    reason = "the mock reports a failed outbox write or re-bind on the console"
+)]
+
+use std::fmt::Write as _;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -143,6 +149,12 @@ pub struct Printer {
     outbox: Option<PathBuf>,
 }
 
+impl std::fmt::Debug for Printer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Printer").finish_non_exhaustive()
+    }
+}
+
 impl Printer {
     /// A printer in the given states. With an `outbox`, each job is also
     /// written there as `<id>.txt` (rendered) and `<id>.bin` (raw).
@@ -166,22 +178,34 @@ impl Printer {
     }
 
     pub fn control(&self) -> Control {
-        self.control.lock().unwrap().clone()
+        self.control
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 
     /// Switch the states, all of them at once.
     pub fn set_control(&self, control: Control) {
         let unplugged = control.unplugged;
-        *self.control.lock().unwrap() = control;
+        *self
+            .control
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = control;
         self.unplugged.send_replace(unplugged);
     }
 
     pub fn jobs(&self) -> Vec<Job> {
-        self.jobs.lock().unwrap().clone()
+        self.jobs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 
     pub fn clear(&self) {
-        self.jobs.lock().unwrap().clear();
+        self.jobs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
     }
 
     /// Keep what a connection sent, status queries left out. A
@@ -205,10 +229,17 @@ impl Printer {
                 .and_then(|()| std::fs::write(dir.join(format!("{:04}.txt", job.id)), &job.text))
                 .and_then(|()| std::fs::write(dir.join(format!("{:04}.bin", job.id)), &bytes));
             if let Err(e) = written {
-                eprintln!("printer mock: cannot write job {} to {dir:?}: {e}", job.id);
+                eprintln!(
+                    "printer mock: cannot write job {} to {}: {e}",
+                    job.id,
+                    dir.display()
+                );
             }
         }
-        self.jobs.lock().unwrap().push(job);
+        self.jobs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(job);
     }
 }
 
@@ -233,7 +264,7 @@ async fn handle(printer: Arc<Printer>, mut stream: TcpStream) {
     let mut scanned = 0;
     loop {
         match tokio::time::timeout(IDLE, stream.read(&mut chunk)).await {
-            Ok(Ok(0)) | Ok(Err(_)) | Err(_) => break,
+            Ok(Ok(0) | Err(_)) | Err(_) => break,
             Ok(Ok(n)) => {
                 data.extend_from_slice(&chunk[..n]);
                 // Answer each complete DLE EOT n, in order.
@@ -286,7 +317,7 @@ async fn serve(first: TcpListener, addr: SocketAddr, printer: Arc<Printer>) {
             tokio::select! {
                 accepted = current.accept() => {
                     if let Ok((stream, _)) = accepted {
-                        tokio::spawn(handle(printer.clone(), stream));
+                        tokio::spawn(handle(Arc::clone(&printer), stream));
                     }
                 }
                 changed = unplugged.changed() => {
@@ -364,7 +395,8 @@ async fn page(State(printer): State<Arc<Printer>>) -> Html<String> {
         escape(&serde_json::to_string(&control).unwrap_or_default())
     );
     for job in printer.jobs().iter().rev() {
-        html.push_str(&format!(
+        let _ = write!(
+            html,
             "<h2>Job {} <small>{}{}{}</small></h2><pre class=\"{}\">{}</pre>",
             job.id,
             escape(&job.at),
@@ -380,7 +412,7 @@ async fn page(State(printer): State<Arc<Printer>>) -> Html<String> {
             },
             if job.printed { "" } else { "held" },
             escape(&job.text),
-        ));
+        );
     }
     html.push_str("</body></html>");
     Html(html)
@@ -396,7 +428,7 @@ mod tests {
 
     async fn printer(control: Control) -> (Arc<Printer>, String) {
         let printer = Printer::new(control, None);
-        let addr = bind("127.0.0.1:0".parse().unwrap(), printer.clone())
+        let addr = bind("127.0.0.1:0".parse().unwrap(), Arc::clone(&printer))
             .await
             .unwrap();
         (printer, addr.to_string())
@@ -420,7 +452,7 @@ mod tests {
         let (printer, addr) = printer(Control::default()).await;
         let status = send_to_printer(&addr, RECEIPT).await.unwrap();
         assert!(status.ready(), "{status:?}");
-        assert!(status.warnings.is_empty());
+        assert_eq!(status.warnings.len(), 0);
         let jobs = settled(&printer, 1).await;
         assert_eq!(jobs.len(), 1);
         assert!(jobs[0].printed);
@@ -519,7 +551,7 @@ mod tests {
     #[tokio::test]
     async fn the_http_side_switches_states_and_lists_jobs() {
         let (printer, addr) = printer(Control::default()).await;
-        let app = http_app(printer.clone());
+        let app = http_app(Arc::clone(&printer));
 
         let response = app
             .clone()

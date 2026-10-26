@@ -1,6 +1,12 @@
 //! `pos-eft-probe`: one manual test of the card terminal link, see the
 //! README. Never sends a payment without the operator typing YES.
 
+#![expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a standalone tool whose output is the console"
+)]
+
 use std::io::{self, BufRead};
 use std::process::ExitCode;
 
