@@ -9,7 +9,7 @@ pub async fn check_mail_status(state: State<'_, Managed>) -> Result<MailStatus, 
     pos_engine::commands::delivery::do_check_mail_status(state.inner()).await
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_ticket_deliveries(
     state: State<'_, Managed>,
     limit: Option<i64>,

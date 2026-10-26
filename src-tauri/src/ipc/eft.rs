@@ -27,7 +27,7 @@ pub async fn eft_check(state: State<'_, Managed>, id: i64) -> Result<EftPayment,
 }
 
 /// An order's card payments to settle or to check, oldest first.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_eft_payments(
     state: State<'_, Managed>,
     order_id: i64,
@@ -46,7 +46,7 @@ pub async fn check_payment_terminal(
 
 /// The approved card payments no sale has settled yet, of every order:
 /// the Z warns about them and the order lists mark them.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_unsettled_card_payments(
     state: State<'_, Managed>,
 ) -> Result<Vec<UnsettledCardPayment>, String> {

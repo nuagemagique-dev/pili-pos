@@ -3,12 +3,12 @@
 // The Tauri-bound modules live in `lib.rs`; the fiscal core is the
 // `pos-engine` crate.
 use pili_pos::events::TauriEventSink;
-use pili_pos::{cli, ipc, paths};
+use pili_pos::{cli, health, ipc, paths};
 use pos_engine::engine::{Engine, EngineConfig, EnginePaths, EngineTimers, config_source_from};
 use pos_engine::install;
 use pos_engine::{HttpTls, SoftwareIdentity};
 
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError};
 
 // Every shipped build has the HubRise integration (switched on or off
 // per installation); the handler lists below assume it.
@@ -58,8 +58,11 @@ fn main() {
         }
     }
 
-    // Load .env file (if present) BEFORE anything reads env vars.
-    // In production there's no .env - env vars are set by systemd.
+    // Development only: load a .env file (if present) BEFORE anything
+    // reads env vars. A release build never reads one: the installation's
+    // settings come from pos.json and the unit's environment (systemd),
+    // and a stray .env must not change what the fiscal shell runs with.
+    #[cfg(debug_assertions)]
     dotenvy::dotenv().ok();
 
     // Structured logging - daily-rotated log file + stderr for dev.
@@ -93,13 +96,13 @@ fn main() {
         timers: EngineTimers::default(),
         // The version string the FDM and the tickets carry.
         identity: SoftwareIdentity::new(concat!("pili-pos/", env!("CARGO_PKG_VERSION")))
-            .expect("software identity"),
+            .unwrap_or_else(|e| fatal("software identity", &e)),
         http_tls: HttpTls::Platform,
         // The pos.json value: the Linux kiosk has no override.
         device_id_override: None,
         support_program: paths::support_program(),
     })
-    .expect("Failed to initialize app state");
+    .unwrap_or_else(|e| fatal("Failed to initialize app state", &e));
 
     // Handles the health listener and the window need, taken BEFORE the
     // engine is moved into Tauri's managed state.
@@ -157,20 +160,24 @@ fn main() {
                         accept = listener.accept() => {
                             if let Ok((mut stream, _)) = accept {
                                 let uptime_secs = start_time.elapsed().as_secs();
-                                let outbox_pending: i64 = {
-                                    let db = health_db.lock().expect("health db");
+                                // The query takes the connection's mutex and
+                                // touches the disk: not on an async worker.
+                                let db = Arc::clone(&health_db);
+                                let outbox_pending = tauri::async_runtime::spawn_blocking(move || {
+                                    // A poisoned lock still holds a usable
+                                    // connection; the count below decides.
+                                    let db = db.lock().unwrap_or_else(PoisonError::into_inner);
                                     db.query_row(
                                         "SELECT COUNT(*) FROM hubrise_outbox WHERE sent_at IS NULL AND parked_at IS NULL",
-                                        [], |r| r.get(0),
-                                    ).unwrap_or(0)
-                                };
-                                let body = format!(
-                                    r#"{{"status":"ok","uptime_secs":{uptime_secs},"outbox_pending":{outbox_pending}}}"#
-                                );
-                                let resp = format!(
-                                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                                    body.len(), body
-                                );
+                                        [], |r| r.get::<_, i64>(0),
+                                    ).map_err(|e| e.to_string())
+                                })
+                                .await
+                                .unwrap_or_else(|e| Err(e.to_string()));
+                                if let Err(e) = &outbox_pending {
+                                    tracing::warn!(%e, "healthcheck: database not answering");
+                                }
+                                let resp = health::http_response(uptime_secs, outbox_pending.ok());
                                 let _ = stream.write_all(resp.as_bytes()).await;
                                 let _ = stream.shutdown().await;
                             }
@@ -361,7 +368,16 @@ fn main() {
         ipc::invoice::retry_peppol_delivery,
     ]);
 
-    builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+    if let Err(e) = builder.run(tauri::generate_context!()) {
+        fatal("error while running tauri application", &e);
+    }
+}
+
+/// A start-up failure the shell cannot continue from: log the whole cause
+/// chain to `pos.log` (the kiosk has no terminal to read a panic message
+/// from), then stop. The panic unwinds `main`, so the log writer's guard
+/// flushes the line first.
+fn fatal(what: &str, error: &dyn std::fmt::Display) -> ! {
+    tracing::error!("{what}: {error:#}");
+    panic!("{what}: {error:#}");
 }

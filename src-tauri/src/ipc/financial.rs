@@ -38,7 +38,7 @@ pub async fn open_drawer_fiscal(
 
 /// The payment lines of a signed sale and whether (and why not) one
 /// can be corrected. Managers only.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_sale_payments(
     state: State<'_, Managed>,
     fiscal_event_id: i64,

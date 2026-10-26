@@ -37,7 +37,7 @@ impl EventSink for TauriEventSink {
         };
         let topic = event.topic();
         // The payload types are the ones the UI has always received.
-        let _ = match event {
+        let emitted = match event {
             EngineEvent::FdmSignMessages(messages) => handle.emit(topic, messages),
             EngineEvent::FdmStatus(health) => handle.emit(topic, health),
             EngineEvent::SessionLocked(e) => handle.emit(topic, e),
@@ -48,5 +48,9 @@ impl EventSink for TauriEventSink {
             | EngineEvent::CatalogRejected(e)
             | EngineEvent::CatalogAwaitingAdoption(e) => handle.emit(topic, e),
         };
+        if let Err(e) = emitted {
+            // The webview may be reloading; the UI re-reads on its next load.
+            tracing::warn!(topic, %e, "event not delivered to the webview");
+        }
     }
 }

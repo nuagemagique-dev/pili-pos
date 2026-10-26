@@ -5,13 +5,13 @@ use tauri::State;
 use super::Managed;
 
 /// The courses setting (switch and category courses).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_course_settings(state: State<'_, Managed>) -> Result<CourseSettings, String> {
     pos_engine::commands::courses::do_get_course_settings(state.inner())
 }
 
 /// Store the courses setting; managers only.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_course_settings(
     state: State<'_, Managed>,
     input: CourseSettings,
@@ -20,13 +20,13 @@ pub fn set_course_settings(
 }
 
 /// Change a line's course while no kitchen slip carried it.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_line_course(state: State<'_, Managed>, line_id: i64, course: i32) -> Result<(), String> {
     pos_engine::commands::courses::do_set_line_course(state.inner(), line_id, course)
 }
 
 /// The courses of an order that wait for "Envoyer la suite".
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_held_courses(
     state: State<'_, Managed>,
     order_id: i64,

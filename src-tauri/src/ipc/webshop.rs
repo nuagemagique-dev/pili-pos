@@ -32,12 +32,12 @@ pub async fn webshop_handover_order(
     .await
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn webshop_reject_order(state: State<'_, Managed>, order_id: i64) -> Result<(), String> {
     pos_engine::commands::webshop::do_reject_webshop_order(state.inner(), order_id)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn webshop_complete_order(state: State<'_, Managed>, order_id: i64) -> Result<(), String> {
     pos_engine::commands::webshop::do_complete_webshop_order(state.inner(), order_id)
 }

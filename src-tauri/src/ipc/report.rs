@@ -18,13 +18,13 @@ pub async fn generate_x_report(
 /// Returns true if no Z-report exists for today AND the local time
 /// is past 22:00 - used by the Vue header to show a warning banner
 /// reminding the manager to run the end-of-day Z before leaving.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn needs_z_report(state: State<'_, Managed>) -> Result<bool, String> {
     pos_engine::commands::report::do_needs_z_report(state.inner())
 }
 
 /// List past Z-reports for the history view (newest first).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_z_reports(state: State<'_, Managed>) -> Result<Vec<ZReportSummary>, String> {
     pos_engine::commands::report::do_list_z_reports(state.inner())
 }
@@ -51,13 +51,13 @@ pub async fn generate_user_x_report(
 }
 
 /// Create a timestamped backup of the live database.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn backup_database(state: State<'_, Managed>) -> Result<String, String> {
     pos_engine::commands::report::do_backup_database(state.inner())
 }
 
 /// The non-fiscal sales report of the booking dates `from..=to` (`YYYY-MM-DD`, at most 92 days).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sales_report(
     state: State<'_, Managed>,
     from_date: String,

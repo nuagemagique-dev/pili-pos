@@ -11,7 +11,7 @@ use pos_engine::commands::invoice::{
 use super::Managed;
 
 /// Recent signed sales a cashier can put on an invoice.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_invoiceable_sales(
     state: State<'_, Managed>,
     limit: Option<i64>,
@@ -21,7 +21,7 @@ pub fn list_invoiceable_sales(
 }
 
 /// What an invoice of these sales would contain, without signing.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn invoice_preview(
     state: State<'_, Managed>,
     sale_event_ids: Vec<i64>,
@@ -39,7 +39,7 @@ pub async fn lookup_b2b_customer(
 }
 
 /// Known customers whose VAT number or name starts with `query`.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn search_b2b_customers(
     state: State<'_, Managed>,
     query: String,
@@ -48,7 +48,7 @@ pub fn search_b2b_customers(
 }
 
 /// Create or update a customer.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_b2b_customer(
     state: State<'_, Managed>,
     customer: B2bCustomerInput,
@@ -75,7 +75,7 @@ pub async fn sign_invoice_fiscal(
 }
 
 /// The newest invoices, with the state of their Peppol delivery.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_invoices(
     state: State<'_, Managed>,
     limit: Option<i64>,
@@ -84,7 +84,7 @@ pub fn list_invoices(
 }
 
 /// The Peppol panel (admins): setup, queue counts and deliveries.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_peppol_deliveries(
     state: State<'_, Managed>,
     limit: Option<i64>,
@@ -93,7 +93,7 @@ pub fn list_peppol_deliveries(
 }
 
 /// Put a parked delivery back in the queue (admins).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn retry_peppol_delivery(state: State<'_, Managed>, delivery_id: i64) -> Result<(), String> {
     pos_engine::commands::invoice::do_retry_peppol_delivery(state.inner(), delivery_id)
 }

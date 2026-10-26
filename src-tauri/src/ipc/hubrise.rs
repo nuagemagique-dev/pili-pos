@@ -7,14 +7,14 @@ use pos_engine::commands::hubrise::{
 
 use super::Managed;
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn hubrise_get_connection_status(
     state: State<'_, Managed>,
 ) -> Result<HubriseConnectionInfo, String> {
     pos_engine::commands::hubrise::do_hubrise_get_connection_status(state.inner())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn hubrise_start_oauth_flow(state: State<'_, Managed>) -> Result<AuthorizeLink, String> {
     pos_engine::commands::hubrise::do_hubrise_start_oauth_flow(state.inner())
 }
@@ -27,12 +27,12 @@ pub async fn hubrise_complete_oauth(
     pos_engine::commands::hubrise::do_hubrise_complete_oauth(state.inner(), &code).await
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn hubrise_disconnect(state: State<'_, Managed>) -> Result<(), String> {
     pos_engine::commands::hubrise::do_hubrise_disconnect(state.inner())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn hubrise_list_webshop_orders(
     state: State<'_, Managed>,
 ) -> Result<Vec<WebshopOrderSummary>, String> {
@@ -64,7 +64,7 @@ pub async fn hubrise_set_confirmed_time(
     )
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn hubrise_status(state: State<'_, Managed>) -> Result<HubriseStatus, String> {
     pos_engine::commands::hubrise::do_hubrise_status(state.inner())
 }
@@ -79,7 +79,7 @@ pub async fn hubrise_sync_catalog(
 
 /// The local products that can keep their id when HubRise takes over
 /// the menu (same French name and price as a catalog product).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn hubrise_adoption_preview(
     state: State<'_, Managed>,
 ) -> Result<Vec<pos_catalog::Adoption>, String> {
@@ -90,7 +90,7 @@ pub fn hubrise_adoption_preview(
 /// id, every other hand-entered product is deactivated, and the menu
 /// mirrors HubRise. Refused while a POS order is open, since its
 /// products could vanish from the menu.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn hubrise_adopt_catalog(
     state: State<'_, Managed>,
     adoptions: Vec<pos_catalog::Adoption>,
@@ -99,7 +99,7 @@ pub fn hubrise_adopt_catalog(
 }
 
 /// How each HubRise channel is signed (Settings).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn hubrise_list_channels(
     state: State<'_, Managed>,
 ) -> Result<Vec<pos_hubrise::webshop::Channel>, String> {
@@ -108,7 +108,7 @@ pub fn hubrise_list_channels(
 
 /// Add or change a channel; pending orders resolve again. Returns how
 /// many of them now resolve cleanly.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn hubrise_set_channel(
     state: State<'_, Managed>,
     channel: pos_hubrise::webshop::Channel,
