@@ -72,6 +72,7 @@ fn encrypt_to(
 /// instructions; the POS itself never holds a secret key. The error never
 /// holds the key.
 pub fn decrypt_file(identity: &str, input: &Path, out: &Path) -> Result<(), String> {
+    // Deliberately drops the parser error: it can echo part of the secret key.
     let identity = age::x25519::Identity::from_str(identity.trim())
         .map_err(|_| "decrypt: not an age secret key".to_string())?;
     let file =

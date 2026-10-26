@@ -217,6 +217,32 @@ fn two_missed_zs_are_both_prepared_in_order() {
 }
 
 #[test]
+fn a_corrupt_cursor_resumes_after_the_newest_export_and_is_reported() {
+    let rig = Rig::new(30);
+    rig.set_cursor(40);
+    rig.prepare(now()).unwrap();
+    assert_eq!(rig.cursor(), 42);
+
+    let id_43 = add_empty_z(&rig.fx, 43, "2026-10-05");
+    let id_44 = add_empty_z(&rig.fx, 44, "2026-10-06");
+    std::fs::write(rig.exports.join("cursor.json"), "{ not json").unwrap();
+
+    // The Zs in between are not skipped, and the operator sees the problem.
+    let ids = rig.prepare(now() + Duration::days(2)).unwrap();
+    assert_eq!(ids, vec![id_43, id_44]);
+    assert_eq!(rig.cursor(), 44);
+    let status = rig.status();
+    assert!(
+        status
+            .last_error
+            .as_deref()
+            .is_some_and(|e| e.contains("cursor.json")),
+        "{:?}",
+        status.last_error
+    );
+}
+
+#[test]
 fn a_z_older_than_keep_days_is_skipped_and_the_cursor_moves_past_it() {
     // One day kept: at 2026-10-05 01:00 UTC the oldest booking date is 2026-10-04.
     let rig = Rig::new(1);

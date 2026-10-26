@@ -171,18 +171,30 @@ fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Option<T> {
     serde_json::from_slice(&raw).ok()
 }
 
-fn read_cursor(exports_dir: &Path) -> Option<i64> {
+/// What `cursor.json` says.
+enum Cursor {
+    /// No file: the export was just enabled.
+    Missing,
+    /// The last Z report number prepared.
+    At(i64),
+    /// The file exists but cannot be read.
+    Corrupt,
+}
+
+fn read_cursor(exports_dir: &Path) -> Cursor {
     let path = exports_dir.join(CURSOR_FILE);
     if !path.exists() {
-        return None;
+        return Cursor::Missing;
     }
     match read_json::<CursorFile>(&path) {
-        Some(c) => Some(c.last_z_report_no),
-        None => {
-            tracing::warn!("export: {CURSOR_FILE} is unreadable, starting from the latest Z");
-            None
-        }
+        Some(c) => Cursor::At(c.last_z_report_no),
+        None => Cursor::Corrupt,
     }
+}
+
+/// Z report number of an export id (`YYYYMMDD-z000042` is `42`).
+fn z_number_of(id: &str) -> Option<i64> {
+    id.get(10..)?.parse().ok()
 }
 
 fn write_cursor(exports_dir: &Path, last_z_report_no: i64) -> Result<(), String> {
@@ -324,13 +336,27 @@ fn prepare_all(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, Strin
     .map_err(|e| format!("cannot open {}: {e}", env.db_path.display()))?;
 
     let cursor = match read_cursor(env.exports_dir) {
-        Some(cursor) => cursor,
-        None => {
-            let first = zref::latest_real_z(&conn)?
-                .map(|z| (z.z_report_no - 1).max(0))
-                .unwrap_or(0);
-            write_cursor(env.exports_dir, first)?;
-            first
+        Cursor::At(cursor) => cursor,
+        Cursor::Missing => start_cursor(env, &conn)?,
+        Cursor::Corrupt => {
+            // Jumping to the latest Z would silently skip every Z in between. Resume
+            // after the newest export already prepared instead, and tell the operator.
+            let message = format!(
+                "{CURSOR_FILE} is unreadable: resuming after the newest prepared export"
+            );
+            tracing::warn!("export: {message}");
+            record_error(env.exports_dir, &message, now);
+            let newest = list_exports(env.exports_dir)?
+                .iter()
+                .filter_map(|id| z_number_of(id))
+                .max();
+            match newest {
+                Some(no) => {
+                    write_cursor(env.exports_dir, no)?;
+                    no
+                }
+                None => start_cursor(env, &conn)?,
+            }
         }
     };
     let oldest_kept = (now - Duration::days(env.settings.keep_days)).date_naive();
@@ -360,6 +386,15 @@ fn prepare_all(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, Strin
         prepared.push(id);
     }
     Ok(prepared)
+}
+
+/// First start: the cursor goes just before the latest Z, so only that Z is exported.
+fn start_cursor(env: &ExportEnv, conn: &Connection) -> Result<i64, String> {
+    let first = zref::latest_real_z(conn)?
+        .map(|z| (z.z_report_no - 1).max(0))
+        .unwrap_or(0);
+    write_cursor(env.exports_dir, first)?;
+    Ok(first)
 }
 
 /// Build `.tmp/<id>` and move it to `<id>`; remove `.tmp/<id>` on any failure.

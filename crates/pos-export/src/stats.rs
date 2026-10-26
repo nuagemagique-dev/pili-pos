@@ -233,14 +233,29 @@ fn sql<T>(r: rusqlite::Result<T>, what: &str) -> Result<T, String> {
 
 // ── Reading the archive ────────────────────────────────────────────
 
-/// Euro amount of the archived JSON (a multiple of 0.01) in cents.
-fn cents(v: &Value) -> i64 {
-    (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64
+/// Euro amount of the archived JSON (a multiple of 0.01) in cents. An error naming
+/// the event when the value is not a number: a malformed archive row is never read
+/// as zero.
+fn cents(event_id: i64, v: &Value, what: &str) -> Result<i64, String> {
+    pos_core::money::cents_of(v)
+        .ok_or_else(|| format!("stats: archived event {event_id}: {what} is not a number"))
 }
 
-/// VAT rate of the archived JSON (percent) in basis points.
-fn rate_bp(v: &Value) -> i64 {
-    (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64
+/// VAT rate of the archived JSON (percent) in basis points, same rule as [`cents`].
+fn rate_bp(event_id: i64, v: &Value, what: &str) -> Result<i64, String> {
+    cents(event_id, v, what)
+}
+
+/// An integer of the archived JSON, an error naming the event when it is not one.
+fn integer(event_id: i64, v: &Value, what: &str) -> Result<i64, String> {
+    v.as_i64()
+        .ok_or_else(|| format!("stats: archived event {event_id}: {what} is not an integer"))
+}
+
+/// Parse the archived JSON of an event, keeping the serde error.
+fn parse_json(event_id: i64, json: &str) -> Result<Value, String> {
+    serde_json::from_str(json)
+        .map_err(|e| format!("stats: archived event {event_id} is unreadable: {e}"))
 }
 
 fn text(v: &Value) -> Option<&str> {
@@ -443,10 +458,10 @@ impl Reader<'_> {
 
     /// The archived event an `fdmRef` names: its order and its request.
     fn original(&self, fdm_ref: &Value) -> Result<Option<(Option<i64>, Value)>, String> {
-        let found: Option<(Option<i64>, String)> = sql(
+        let found: Option<(i64, Option<i64>, String)> = sql(
             self.src
                 .query_row(
-                    "SELECT order_id, event_data_json FROM fiscal_events
+                    "SELECT id, order_id, event_data_json FROM fiscal_events
                      WHERE fdm_id = ?1 AND fdm_datetime = ?2 AND event_label = ?3
                        AND json_extract(fdm_response_json, '$.fdmRef.eventCounter') = ?4
                        AND json_extract(fdm_response_json, '$.fdmRef.totalCounter') = ?5
@@ -458,28 +473,25 @@ impl Reader<'_> {
                         fdm_ref["eventCounter"].as_i64(),
                         fdm_ref["totalCounter"].as_i64(),
                     ],
-                    |r| Ok((r.get(0)?, r.get(1)?)),
+                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
                 )
                 .optional(),
             "read the ticket a refund refers to",
         )?;
-        Ok(found.and_then(|(order_id, json)| {
-            serde_json::from_str(&json)
-                .ok()
-                .map(|request| (order_id, request))
-        }))
+        found
+            .map(|(id, order_id, json)| Ok((order_id, parse_json(id, &json)?)))
+            .transpose()
     }
 
     fn ticket(&mut self, event: &pos_fiscal::archive::ArchivedEvent) -> Result<Ticket, String> {
-        let request: Value = serde_json::from_str(&event.event_data_json)
-            .map_err(|_| format!("stats: archived event {} is unreadable", event.id))?;
+        let id = event.id;
+        let request = parse_json(id, &event.event_data_json)?;
         let response: Value = match event.fdm_response_json.as_deref() {
-            Some(json) => serde_json::from_str(json)
-                .map_err(|_| format!("stats: archived event {} is unreadable", event.id))?,
+            Some(json) => parse_json(id, json)?,
             None => Value::Null,
         };
         let transaction = &request["transaction"];
-        let total = cents(&transaction["transactionTotal"]);
+        let total = cents(id, &transaction["transactionTotal"], "transactionTotal")?;
         let refers_to = request.get("fdmRef").filter(|v| v.is_object());
         let refund = refers_to.is_some() || total < 0;
 
@@ -500,9 +512,9 @@ impl Reader<'_> {
             let mut price = 0;
             let mut discount = 0;
             for vat in vats {
-                price += cents(&vat["price"]);
+                price += cents(id, &vat["price"], "a line price")?;
                 for change in vat["priceChanges"].as_array().into_iter().flatten() {
-                    let amount = cents(&change["amount"]);
+                    let amount = cents(id, &change["amount"], "a price change amount")?;
                     discount += amount;
                     let kind = if change["type"].as_str() == Some("INTERNAL") {
                         "internal"
@@ -531,8 +543,10 @@ impl Reader<'_> {
                     .unwrap_or_default()
                     .to_string(),
                 department: text(&product["departmentName"]).map(str::to_string),
-                quantity: product["quantity"].as_f64().unwrap_or(0.0),
-                unit_price: cents(&product["unitPrice"]),
+                quantity: product["quantity"].as_f64().ok_or_else(|| {
+                    format!("stats: archived event {id}: a line quantity is not a number")
+                })?,
+                unit_price: cents(id, &product["unitPrice"], "a unit price")?,
                 amount: price + discount,
                 discount,
                 label: vats
@@ -550,17 +564,15 @@ impl Reader<'_> {
             });
         }
 
-        let vats = vat_rows(&response, &lines);
-        let payments = request["financials"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .map(|f| Payment {
+        let vats = vat_rows(id, &response, &lines)?;
+        let mut payments = Vec::new();
+        for f in request["financials"].as_array().into_iter().flatten() {
+            payments.push(Payment {
                 method: method_of(f["type"].as_str().unwrap_or_default()),
                 kind: payment_kind(f["amountType"].as_str().unwrap_or_default()),
-                amount: cents(&f["amount"]),
-            })
-            .collect();
+                amount: cents(id, &f["amount"], "a payment amount")?,
+            });
+        }
 
         let (channel, table) = self.channel(event.order_id, &request, refers_to)?;
         let employee = request["employeeId"]
@@ -570,7 +582,7 @@ impl Reader<'_> {
         Ok(Ticket {
             id: event.id,
             event_label: event.event_label.clone().unwrap_or_else(|| "N".into()),
-            ticket_no: request["posFiscalTicketNo"].as_i64().unwrap_or(0),
+            ticket_no: integer(id, &request["posFiscalTicketNo"], "posFiscalTicketNo")?,
             refund,
             channel,
             table: if channel == "table" { table } else { None },
@@ -593,7 +605,7 @@ impl Reader<'_> {
 
 /// The VAT of a ticket: the FDM's calculation when the response has one, else
 /// the sum of the lines per label at the standard rate.
-fn vat_rows(response: &Value, lines: &[Line]) -> Vec<Vat> {
+fn vat_rows(event_id: i64, response: &Value, lines: &[Line]) -> Result<Vec<Vat>, String> {
     let mut rows: BTreeMap<String, Vat> = BTreeMap::new();
     match response["vatCalc"].as_array() {
         Some(calc) => {
@@ -601,14 +613,14 @@ fn vat_rows(response: &Value, lines: &[Line]) -> Vec<Vat> {
                 let label = item["label"].as_str().unwrap_or("X").to_string();
                 let row = rows.entry(label.clone()).or_insert(Vat {
                     label,
-                    rate_bp: rate_bp(&item["rate"]),
+                    rate_bp: rate_bp(event_id, &item["rate"], "a vatCalc rate")?,
                     base: 0,
                     vat: 0,
                     total: 0,
                 });
-                row.base += cents(&item["taxableAmount"]);
-                row.vat += cents(&item["vatAmount"]);
-                row.total += cents(&item["totalAmount"]);
+                row.base += cents(event_id, &item["taxableAmount"], "a vatCalc taxableAmount")?;
+                row.vat += cents(event_id, &item["vatAmount"], "a vatCalc vatAmount")?;
+                row.total += cents(event_id, &item["totalAmount"], "a vatCalc totalAmount")?;
             }
         }
         None => {
@@ -630,7 +642,7 @@ fn vat_rows(response: &Value, lines: &[Line]) -> Vec<Vat> {
             }
         }
     }
-    rows.into_values().collect()
+    Ok(rows.into_values().collect())
 }
 
 // ── Writing the file ───────────────────────────────────────────────
@@ -664,8 +676,7 @@ fn write_file(
             if event.event_type != pos_fiscal::types::EventLabel::R {
                 return Err(format!("stats: event {} is not a Z report", event.id));
             }
-            let request: Value = serde_json::from_str(&event.event_data_json)
-                .map_err(|_| format!("stats: archived event {} is unreadable", event.id))?;
+            let request = parse_json(event.id, &event.event_data_json)?;
             z_row = Some((
                 request,
                 event.event_label.clone(),
@@ -691,9 +702,7 @@ fn write_file(
                 ),
                 "read the Z event",
             )?;
-            let request = serde_json::from_str(&json).map_err(|_| {
-                format!("stats: archived event {} is unreadable", z.closing_event_id)
-            })?;
+            let request = parse_json(z.closing_event_id, &json)?;
             (request, label, fdm, user)
         }
     };
@@ -854,13 +863,24 @@ fn write_file(
         .into_iter()
         .flatten()
         .find(|t| t["eventLabel"].as_str() == Some("N"));
-    let refunds_count: i64 = turnover["negQuantities"]
+    let zid = z.closing_event_id;
+    let mut refunds_count = 0;
+    for n in turnover["negQuantities"]
         .as_array()
         .into_iter()
         .flatten()
         .filter(|n| n["negQuantityReason"].as_str() == Some("REFUND"))
-        .map(|n| n["ticketCount"].as_i64().unwrap_or(0))
-        .sum();
+    {
+        refunds_count += integer(zid, &n["ticketCount"], "a refund ticketCount")?;
+    }
+    let (sales_count, sales_cents) = match sales_total {
+        Some(t) => (
+            integer(zid, &t["ticketCount"], "the N ticketCount")?,
+            cents(zid, &t["amount"], "the N amount")?,
+        ),
+        None => (0, 0),
+    };
+    let z_ticket_no = integer(zid, &z_request["posFiscalTicketNo"], "posFiscalTicketNo")?;
     sql(
         tx.execute(
             "INSERT INTO z_report (z_report_no, booking_date, event_label, ticket_no, user_ref,
@@ -870,19 +890,25 @@ fn write_file(
                 z.z_report_no,
                 z.booking_date,
                 z_label.unwrap_or_else(|| "R".into()),
-                z_request["posFiscalTicketNo"].as_i64().unwrap_or(0),
+                z_ticket_no,
                 z_user_ref,
                 z_fdm_datetime
                     .or_else(|| text(&z_request["posDateTime"]).map(str::to_string))
                     .unwrap_or_default(),
-                sales_total.map_or(0, |t| t["ticketCount"].as_i64().unwrap_or(0)),
+                sales_count,
                 refunds_count,
-                sales_total.map_or(0, |t| cents(&t["amount"])),
+                sales_cents,
             ],
         ),
         "write the Z report",
     )?;
     for v in turnover["vats"].as_array().into_iter().flatten() {
+        let (rate, base, vat, total) = (
+            rate_bp(zid, &v["rate"], "a Z VAT rate")?,
+            cents(zid, &v["taxableAmount"], "a Z VAT taxableAmount")?,
+            cents(zid, &v["vatAmount"], "a Z VAT vatAmount")?,
+            cents(zid, &v["totalAmount"], "a Z VAT totalAmount")?,
+        );
         sql(
             tx.execute(
                 "INSERT INTO z_vat (z_report_no, vat_label, vat_rate_bp, base_cents, vat_cents, total_cents)
@@ -890,10 +916,10 @@ fn write_file(
                 params![
                     z.z_report_no,
                     v["label"].as_str().unwrap_or("X"),
-                    rate_bp(&v["rate"]),
-                    cents(&v["taxableAmount"]),
-                    cents(&v["vatAmount"]),
-                    cents(&v["totalAmount"]),
+                    rate,
+                    base,
+                    vat,
+                    total,
                 ],
             ),
             "write the VAT of the Z",
@@ -904,7 +930,7 @@ fn write_file(
         let method = method_of(p["type"].as_str().unwrap_or_default());
         for amount in p["amount"].as_array().into_iter().flatten() {
             let kind = payment_kind(amount["type"].as_str().unwrap_or_default());
-            *z_payments.entry((method, kind)).or_insert(0) += cents(&amount["totalAmount"]);
+            *z_payments.entry((method, kind)).or_insert(0) += cents(zid, &amount["totalAmount"], "a Z payment totalAmount")?;
         }
     }
     for ((method, kind), amount) in z_payments {

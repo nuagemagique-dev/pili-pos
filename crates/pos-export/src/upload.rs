@@ -98,6 +98,9 @@ impl Uploader {
             .await
             .map_err(|e| UploadError::Io(e.to_string()))??;
 
+        // The `|_|` error mappers below are deliberate: the invalid-header error of
+        // `http` can echo the offending value, and these values include the bearer
+        // token, which must never reach a message, a log or the outbox.
         let mut authorization = HeaderValue::from_str(&format!("Bearer {token}"))
             .map_err(|_| UploadError::Transport("the token is not a valid header value".into()))?;
         authorization.set_sensitive(true);
@@ -135,6 +138,12 @@ impl Uploader {
 /// Size check, then read the whole file. Runs on a blocking thread: the
 /// `tokio` `fs` feature is not enabled in this crate (and `std::fs` would
 /// block the executor). Returns the bytes.
+///
+/// Memory note: the body is held in memory, so an upload can take up to
+/// [`MAX_UPLOAD_BYTES`] (512 MiB) of RAM. That is deliberate: the `stream`
+/// feature of `reqwest` is off in the certified build, and a file that is
+/// re-sent whole on retry keeps the `X-Content-SHA256` check simple. The
+/// size check bounds it.
 fn read_checked(path: &Path) -> Result<Vec<u8>, UploadError> {
     let size = std::fs::metadata(path)
         .map_err(|e| UploadError::Io(e.to_string()))?

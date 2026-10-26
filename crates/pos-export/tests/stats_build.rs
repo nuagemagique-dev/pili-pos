@@ -592,6 +592,51 @@ fn a_failed_build_leaves_nothing_behind() {
     assert!(!dir.path().join("stats.sqlite.partial").exists());
 }
 
+/// Rewrites one archived field of a ticket on a copy of the fixture (the append-only
+/// trigger is dropped on the copy only) and returns the build error.
+fn build_error_after(sql: &str) -> (String, i64) {
+    let dir = tempfile::tempdir().unwrap();
+    let fx = fixture_db(&dir.path().join("pos.db"));
+    let id = fx.tickets[0].ticket_id;
+    {
+        let conn = Connection::open(&fx.db_path).unwrap();
+        let triggers: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'fiscal_events'")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        for t in triggers {
+            conn.execute_batch(&format!("DROP TRIGGER \"{t}\";")).unwrap();
+        }
+        conn.execute(sql, [id]).unwrap();
+    }
+    let conn = open_ro(&fx.db_path);
+    let out = dir.path().join("stats.sqlite");
+    let err = build_stats(&conn, &fixture_z(&fx), &test_meta(), &test_key(), &out).unwrap_err();
+    assert!(!out.exists());
+    (err, id)
+}
+
+#[test]
+fn a_missing_ticket_number_is_an_error_naming_the_event_not_a_zero() {
+    let (err, id) = build_error_after(
+        "UPDATE fiscal_events SET event_data_json = json_remove(event_data_json, '$.posFiscalTicketNo') WHERE id = ?1",
+    );
+    assert!(err.contains("posFiscalTicketNo"), "{err}");
+    assert!(err.contains(&format!("event {id}")), "{err}");
+}
+
+#[test]
+fn a_missing_amount_is_an_error_naming_the_event_not_a_zero() {
+    let (err, id) = build_error_after(
+        "UPDATE fiscal_events SET event_data_json = json_remove(event_data_json, '$.financials[0].amount') WHERE id = ?1",
+    );
+    assert!(err.contains("amount"), "{err}");
+    assert!(err.contains(&format!("event {id}")), "{err}");
+}
+
 #[test]
 fn the_source_is_left_untouched() {
     let dir = tempfile::tempdir().unwrap();
