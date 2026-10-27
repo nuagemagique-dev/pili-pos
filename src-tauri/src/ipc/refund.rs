@@ -8,7 +8,7 @@ use pos_engine::commands::refund::RefundItem;
 use super::Managed;
 
 /// List recent closed N-events that can be refunded.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_refundable_events(
     state: State<'_, Managed>,
     limit: Option<i64>,

@@ -1,3 +1,9 @@
+#![expect(
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "a standalone tool: the console is its output and a bind failure ends it"
+)]
+
 #[tokio::main]
 async fn main() {
     let port = std::env::var("PORT").unwrap_or_else(|_| "9100".to_string());
@@ -5,7 +11,9 @@ async fn main() {
     let printer = pos_printer_mock::Printer::from_env();
 
     let addr = format!("0.0.0.0:{port}").parse().unwrap();
-    pos_printer_mock::bind(addr, printer.clone()).await.unwrap();
+    pos_printer_mock::bind(addr, std::sync::Arc::clone(&printer))
+        .await
+        .unwrap();
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{http_port}"))
         .await
         .unwrap();

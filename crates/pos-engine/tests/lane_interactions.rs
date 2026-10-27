@@ -7,8 +7,13 @@
 //! - a gift voucher payment line is never corrected (M132), and no line becomes one;
 //! - the sales report counts the VAT X voucher line and still equals the Z;
 //! - kitchen notes print on course slips; a note on a held line prints no MODIFICATION;
-//! - PRICE_CHANGE entries are never held and never printed on a course slip;
+//! - `PRICE_CHANGE` entries are never held and never printed on a course slip;
 //! - a table transfer carries no course in its signed request and keeps the held courses.
+
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -295,7 +300,7 @@ mod menu_editor {
     #[tokio::test]
     async fn the_editor_reads_the_declared_lists_of_its_products_hidden_ones_included() {
         let (app, _printer) = app().await;
-        assert!(do_menu_admin_get(&app.state).unwrap().allergens.is_empty());
+        assert_eq!(do_menu_admin_get(&app.state).unwrap().allergens.len(), 0);
         // A hidden product keeps its list in the editor.
         app.state
             .db
@@ -400,7 +405,7 @@ async fn an_order_discount_leaves_the_voucher_line_whole_and_the_voucher_keeps_i
     let of = |id: i64| lines.iter().find(|l| l.line.id == id).unwrap();
     assert_eq!(of(dish).discount_cents, -185);
     assert_eq!(of(voucher).discount_cents, 0);
-    assert!(of(voucher).price_changes.is_empty());
+    assert_eq!(of(voucher).price_changes.len(), 0);
 
     let sale = pay(&app, o, &[PaymentPart::cash()]).await;
     let balance: i64 = app
@@ -428,7 +433,7 @@ async fn an_order_discount_leaves_the_voucher_line_whole_and_the_voucher_keeps_i
     assert!(
         vats[0]["priceChanges"]
             .as_array()
-            .is_none_or(|c| c.is_empty()),
+            .is_none_or(std::vec::Vec::is_empty),
         "{x_line}"
     );
 }

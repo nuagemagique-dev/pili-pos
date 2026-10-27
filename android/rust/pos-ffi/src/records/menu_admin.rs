@@ -1,6 +1,6 @@
 //! The menu editor records (V11-D17): the FFI mirror of `pos_engine::commands::menu_admin`
 //! and of the rows of `pos_db::queries::menu_admin`. Names per language are a map of language
-//! code to name (the engine's ordered map is a `HashMap` here: UniFFI has no ordered map; the
+//! code to name (the engine's ordered map is a `HashMap` here: `UniFFI` has no ordered map; the
 //! serde form is the same JSON object).
 
 use std::collections::HashMap;

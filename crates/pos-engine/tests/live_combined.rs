@@ -1,5 +1,5 @@
 //! Online orders end to end, live on both sides: the orders come from
-//! the real HubRise API (test location), and their events are signed
+//! the real `HubRise` API (test location), and their events are signed
 //! by a live FDM (the module2 cloud simulator).
 //!
 //! Ignored by default and never run in CI. Run it by hand, one test at
@@ -9,16 +9,24 @@
 //! scripts/live_combined.sh live_prepaid_order_signed_by_the_fdm_then_refunded
 //! ```
 //!
-//! Each test places one order on HubRise's free plan (5 a month), and
+//! Each test places one order on `HubRise`'s free plan (5 a month), and
 //! signs two events on the FDM. The variables of `live_fdm.rs` and
 //! `live_hubrise.rs` apply.
 //!
 //! Only what holds on any FDM is asserted: each event is signed (its
 //! response passed the POS's own response check), an N carries a short
 //! signature, the cost center is the platform's or the webshop's with
-//! the HubRise order as its reference, the refund cites the sale.
+//! the `HubRise` order as its reference, the refund cites the sale.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+#![expect(
+    clippy::print_stderr,
+    reason = "a live run reports a skipped run on stderr"
+)]
 
 use pos_engine_testkit as common;
 
@@ -145,7 +153,7 @@ async fn live_prepaid_order_signed_by_the_fdm_then_refunded() {
         ("PLATFORM".to_string(), hr_id.clone()),
         "the platform's order, by its HubRise id"
     );
-    assert!(!payment_types(sale).is_empty());
+    assert_ne!(payment_types(sale).len(), 0);
     assert!(
         payment_types(sale).iter().all(|t| t == "APP"),
         "{:?}",
@@ -161,7 +169,7 @@ async fn live_prepaid_order_signed_by_the_fdm_then_refunded() {
     assert_eq!(cited["eventLabel"], "N", "{cited}");
     assert_eq!(cited["eventCounter"].as_i64(), sale.event_counter);
     assert_eq!(cited["totalCounter"].as_i64(), sale.total_counter);
-    assert!(!payment_types(refunded).is_empty());
+    assert_ne!(payment_types(refunded).len(), 0);
     assert!(payment_types(refunded).iter().all(|t| t == "APP"));
     finish();
 }
@@ -207,7 +215,7 @@ async fn live_unpaid_order_registered_then_sold_by_the_fdm() {
     let registered = cost_center(order);
     assert_eq!(registered, ("WEBSHOP".to_string(), hr_id.clone()));
     assert_eq!(cost_center(sold), registered);
-    assert!(!payment_types(sold).is_empty());
+    assert_ne!(payment_types(sold).len(), 0);
     assert!(
         payment_types(sold).iter().all(|t| t == "CASH"),
         "{:?}",

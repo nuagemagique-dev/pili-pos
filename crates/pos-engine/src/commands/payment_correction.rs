@@ -21,7 +21,8 @@
 //!   line is ever corrected to a gift voucher: the voucher movement
 //!   written with the sale cannot follow a correction (INT-D19).
 
-use rusqlite::Connection;
+use pos_fiscal::types::Mode;
+use rusqlite::{Connection, OptionalExtension};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -88,8 +89,9 @@ struct Sale {
     fdm_ref: FdmReference,
 }
 
-fn cents(v: &Value) -> i64 {
-    (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64
+/// An archived amount in cents; a missing one is an error, not 0.
+fn cents(v: &Value, field: &str) -> Result<i64, String> {
+    errors::archived_cents(v, field)
 }
 
 /// The archived event `fiscal_event_id` and the FDM reference a
@@ -187,29 +189,34 @@ fn referencing(
 
 /// The correction already made to the sale, if any.
 fn existing_correction(db: &Connection, sale: &Sale) -> Result<Option<CorrectionDone>, String> {
-    let found = referencing(db, &sale.fdm_ref, &["PAYMENT_CORRECTION"])?
-        .into_iter()
-        .find_map(|(json, at)| {
-            let v: Value = serde_json::from_str(&json).ok()?;
-            let f = v["financials"].as_array()?;
-            if f.len() != 2 {
-                return None;
-            }
-            Some(CorrectionDone {
-                from_type: f[0]["type"].as_str()?.to_string(),
-                to_type: f[1]["type"].as_str()?.to_string(),
-                amount_cents: cents(&f[1]["amount"]),
-                at,
-            })
-        });
-    Ok(found)
+    for (json, at) in referencing(db, &sale.fdm_ref, &["PAYMENT_CORRECTION"])? {
+        let Ok(v) = serde_json::from_str::<Value>(&json) else {
+            continue;
+        };
+        let Some(f) = v["financials"].as_array() else {
+            continue;
+        };
+        if f.len() != 2 {
+            continue;
+        }
+        let (Some(from_type), Some(to_type)) = (f[0]["type"].as_str(), f[1]["type"].as_str())
+        else {
+            continue;
+        };
+        return Ok(Some(CorrectionDone {
+            from_type: from_type.to_string(),
+            to_type: to_type.to_string(),
+            amount_cents: cents(&f[1]["amount"], "amount")?,
+            at,
+        }));
+    }
+    Ok(None)
 }
 
 fn financials(sale: &Sale) -> &[Value] {
     sale.request["financials"]
         .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[], Vec::as_slice)
 }
 
 /// Whether the sale's booking period is the open one: no Z covers it.
@@ -238,12 +245,18 @@ fn sale_refusal(
     // A sale: signed SALE, not a refund (a refund names its sale in
     // `fdmRef`, and sells a negative total).
     let is_sale = sale.event.fdm_response_json.as_deref().is_some_and(|j| {
-        serde_json::from_str::<Value>(j)
-            .ok()
-            .is_some_and(|v| v["eventOperation"] == "SALE")
+        serde_json::from_str::<Value>(j).is_ok_and(|v| v["eventOperation"] == "SALE")
     });
-    let total = cents(&sale.request["transaction"]["transactionTotal"]);
-    if !is_sale || sale.request.get("fdmRef").is_some() || total < 0 {
+    // Decide "not a sale" before reading the total: a training copy, P, F
+    // or drawer event has no `transactionTotal` to read.
+    if !is_sale || sale.request.get("fdmRef").is_some() {
+        return Ok(Some(errors::PAYMENT_CORRECTION_NOT_A_SALE));
+    }
+    let total = cents(
+        &sale.request["transaction"]["transactionTotal"],
+        "transactionTotal",
+    )?;
+    if total < 0 {
         return Ok(Some(errors::PAYMENT_CORRECTION_NOT_A_SALE));
     }
     if (sale.fdm_ref.event_label == EventLabel::T) != config.training_mode {
@@ -265,6 +278,8 @@ fn sale_refusal(
                 [order_id],
                 |r| r.get::<_, bool>(0),
             )
+            .optional()
+            .map_err(errors::internal)?
             .unwrap_or(false),
         None => false,
     };
@@ -315,16 +330,18 @@ pub fn do_list_sale_payments(
     let lines: Vec<SalePaymentLine> = financials(&sale)
         .iter()
         .enumerate()
-        .map(|(i, l)| SalePaymentLine {
-            index: i as i32,
-            payment_type: l["type"].as_str().unwrap_or_default().to_string(),
-            name: l["name"].as_str().unwrap_or_default().to_string(),
-            amount_cents: cents(&l["amount"]),
-            input_method: l["inputMethod"].as_str().unwrap_or_default().to_string(),
-            amount_type: l["amountType"].as_str().unwrap_or_default().to_string(),
-            brand: l["provider"].as_str().map(str::to_string),
+        .map(|(i, l)| {
+            Ok(SalePaymentLine {
+                index: i32::try_from(i).map_err(errors::internal)?,
+                payment_type: l["type"].as_str().unwrap_or_default().to_string(),
+                name: l["name"].as_str().unwrap_or_default().to_string(),
+                amount_cents: cents(&l["amount"], "amount")?,
+                input_method: l["inputMethod"].as_str().unwrap_or_default().to_string(),
+                amount_type: l["amountType"].as_str().unwrap_or_default().to_string(),
+                brand: l["provider"].as_str().map(str::to_string),
+            })
         })
-        .collect();
+        .collect::<Result<_, String>>()?;
     let mut refusal = sale_refusal(&db, &config, &sale)?.map(str::to_string);
     // Every payment is a terminal card or a gift voucher: nothing to pick.
     if refusal.is_none() && !financials(&sale).iter().any(is_correctable_line) {
@@ -340,10 +357,20 @@ pub fn do_list_sale_payments(
     }
     // The correction a sale already has is shown whatever else holds.
     let corrected = existing_correction(&db, &sale)?;
+    // An event that is no sale may have no total at all (a drawer event
+    // archived as T in training): it is listed as refused, with 0.
+    let total_cents = match cents(
+        &sale.request["transaction"]["transactionTotal"],
+        "transactionTotal",
+    ) {
+        Ok(total) => total,
+        Err(_) if refusal.as_deref() == Some(errors::PAYMENT_CORRECTION_NOT_A_SALE) => 0,
+        Err(e) => return Err(e),
+    };
     Ok(SalePayments {
         fiscal_event_id,
         ticket_number: sale.request["posFiscalTicketNo"].as_i64().unwrap_or(0),
-        total_cents: cents(&sale.request["transaction"]["transactionTotal"]),
+        total_cents,
         lines,
         correctable: refusal.is_none(),
         refusal,
@@ -441,7 +468,7 @@ async fn sign_correction(
     }
     let from: PaymentType = serde_json::from_value(line["type"].clone())
         .map_err(|_| errors::PAYMENT_CORRECTION_BAD_LINE.to_string())?;
-    let amount_cents = cents(&line["amount"]);
+    let amount_cents = cents(&line["amount"], "amount")?;
     if amount_cents <= 0 {
         return Err(errors::PAYMENT_CORRECTION_BAD_LINE.into());
     }
@@ -463,7 +490,7 @@ async fn sign_correction(
         return Err(errors::PAYMENT_CORRECTION_ROUNDING.into());
     }
 
-    let label = EventLabel::F.in_mode(config.training_mode);
+    let label = EventLabel::F.in_mode(Mode::from(config.training_mode));
     let ticket_number = super::peek_ticket_number(state, guard, label)?;
     let input = build_payment_correction_input(
         &config,
@@ -479,7 +506,7 @@ async fn sign_correction(
     let request = SignRequest::new(
         SignMutation::PaymentCorrection,
         &input,
-        config.training_mode,
+        Mode::from(config.training_mode),
     )
     .map_err(errors::internal)?;
     let prepared = Prepared {

@@ -25,3 +25,118 @@ pub mod table_plan;
 #[cfg(feature = "hubrise")]
 pub mod till_discounts;
 pub mod users;
+
+/// Run `f` atomically: all its writes or none. A SAVEPOINT, so it nests: it works
+/// the same inside a transaction or another savepoint the caller started (the
+/// engine groups several queries in one transaction), where `unchecked_transaction`
+/// would fail. On an error everything `f` wrote is rolled back and the error is
+/// returned.
+pub fn with_savepoint<T>(
+    conn: &rusqlite::Connection,
+    f: impl FnOnce(&rusqlite::Connection) -> Result<T, rusqlite::Error>,
+) -> Result<T, rusqlite::Error> {
+    conn.execute_batch("SAVEPOINT pili_atomic")?;
+    match f(conn) {
+        Ok(v) => match conn.execute_batch("RELEASE pili_atomic") {
+            Ok(()) => Ok(v),
+            Err(e) => {
+                // RELEASE of the outermost savepoint commits, and a deferred
+                // constraint can refuse it: the savepoint (and the transaction
+                // it opened) would stay open and break every later BEGIN.
+                let _ = conn.execute_batch("ROLLBACK TO pili_atomic; RELEASE pili_atomic");
+                Err(e)
+            }
+        },
+        Err(e) => {
+            let _ = conn.execute_batch("ROLLBACK TO pili_atomic; RELEASE pili_atomic");
+            Err(e)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::with_savepoint;
+    use rusqlite::Connection;
+
+    fn conn() -> Connection {
+        let c = Connection::open_in_memory().unwrap();
+        c.execute_batch("CREATE TABLE t (a INTEGER)").unwrap();
+        c
+    }
+
+    fn count(c: &Connection) -> i64 {
+        c.query_row("SELECT COUNT(*) FROM t", [], |r| r.get(0))
+            .unwrap()
+    }
+
+    /// A deferred foreign key only fails when the outermost RELEASE commits:
+    /// the error comes back, nothing is kept and no transaction stays open.
+    #[test]
+    fn a_refused_release_is_rolled_back_and_leaves_no_open_transaction() {
+        let c = conn();
+        c.execute_batch(
+            "PRAGMA foreign_keys=ON;
+             CREATE TABLE parent (id INTEGER PRIMARY KEY);
+             CREATE TABLE child (p INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED);",
+        )
+        .unwrap();
+        let result = with_savepoint(&c, |c| {
+            c.execute("INSERT INTO child VALUES (42)", []).map(|_| ())
+        });
+        assert!(result.is_err());
+        assert!(c.is_autocommit(), "no savepoint or transaction left open");
+        assert_eq!(
+            c.query_row("SELECT COUNT(*) FROM child", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        c.execute_batch("BEGIN; COMMIT;").unwrap();
+    }
+
+    fn fail() -> Result<(), rusqlite::Error> {
+        Err(rusqlite::Error::QueryReturnedNoRows)
+    }
+
+    #[test]
+    fn it_commits_on_success_and_rolls_back_on_error() {
+        let c = conn();
+        with_savepoint(&c, |c| {
+            c.execute("INSERT INTO t VALUES (1)", []).map(|_| ())
+        })
+        .unwrap();
+        assert_eq!(count(&c), 1);
+        let err = with_savepoint(&c, |c| {
+            c.execute("INSERT INTO t VALUES (2)", [])?;
+            fail()
+        });
+        assert!(err.is_err());
+        assert_eq!(count(&c), 1);
+    }
+
+    #[test]
+    fn it_nests_inside_itself_and_inside_a_transaction() {
+        let c = conn();
+        c.execute_batch("BEGIN").unwrap();
+        c.execute("INSERT INTO t VALUES (1)", []).unwrap();
+        // An inner failure rolls back only the inner work.
+        let inner = with_savepoint(&c, |c| {
+            c.execute("INSERT INTO t VALUES (2)", [])?;
+            with_savepoint(c, |c| {
+                c.execute("INSERT INTO t VALUES (3)", [])?;
+                Ok(())
+            })?;
+            fail()
+        });
+        assert!(inner.is_err());
+        assert_eq!(count(&c), 1);
+        // A success inside the caller's transaction is undone with it.
+        with_savepoint(&c, |c| {
+            c.execute("INSERT INTO t VALUES (4)", []).map(|_| ())
+        })
+        .unwrap();
+        assert_eq!(count(&c), 2);
+        c.execute_batch("ROLLBACK").unwrap();
+        assert_eq!(count(&c), 0);
+    }
+}

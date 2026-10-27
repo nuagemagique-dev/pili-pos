@@ -8,6 +8,11 @@
 //! nothing is ever double-archived, the counter always matches the
 //! archive, and the app stays alive afterwards.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -181,7 +186,7 @@ async fn concurrent_table_order_signs_do_not_double_archive_or_create_a_gap() {
     // left dangling, not double-consumed.
     let unsent = {
         let conn = app.state.db.lock().unwrap();
-        pos_db::queries::orders::get_order_entries(&conn, order_id, true).unwrap()
+        pos_db::queries::orders::get_unsent_order_entries(&conn, order_id).unwrap()
     };
     assert!(
         unsent.is_empty(),

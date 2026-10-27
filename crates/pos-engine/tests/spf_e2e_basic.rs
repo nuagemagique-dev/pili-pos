@@ -11,7 +11,7 @@
 //! |---|---|---|
 //! | M110 | Sale → N archive, order closed | `checkout::do_checkout` |
 //! | M111 | Full refund of N | `refund::do_refund_checkout` |
-//! | M112B| Original sale + partial refund as SEPARATE event (declared pattern, cf. FLUX_REMBOURSEMENT_FR.md) | both, in sequence |
+//! | M112B| Original sale + partial refund as SEPARATE event (declared pattern, cf. `FLUX_REMBOURSEMENT_FR.md`) | both, in sequence |
 //! | M121 | Order (P) → P archive, order stays open | `tables::do_sign_table_order` |
 //! | M123 | Pre-bill → P archive, order stays open | `tables::do_sign_pre_bill` |
 //! | M130 | Money in/out (F) | `financial::do_money_in_out` |
@@ -20,15 +20,20 @@
 //! | M141 | Work-out (S) | `social::do_work_out` |
 //! | M150 | Invoice (I) referencing prior sales | `invoice::do_sign_invoice_fiscal` |
 //! | M160 | Copy of a sale (C) → C archive carrying fdmRef | `copy::do_copy_ticket` |
-//! | M170 | Work-in in training (T) | `social::do_work_in` w/ training_mode=true |
+//! | M170 | Work-in in training (T) | `social::do_work_in` w/ `training_mode=true` |
 //! | M171 | Sale in training (T) → T archive, N counter untouched | `checkout::do_checkout` |
 //! | M161 | Copy of an order (C referencing a P event) | `copy::do_copy_ticket` |
-//! | M172 | Copy in training mode | `copy::do_copy_ticket` w/ training_mode=true |
+//! | M172 | Copy in training mode | `copy::do_copy_ticket` w/ `training_mode=true` |
 //!
 //! Status queries Q100/Q110 are exercised at the client level in
 //! `pos-fiscal/tests/client_status.rs` (dual `Status`/`status`
 //! spelling fallback + Q110 multi-language aliases) and against the
 //! published fixtures in `uc_fixtures.rs`.
+
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -52,8 +57,8 @@ use pos_fiscal::types::EventLabel;
 
 const TEST_INSZ: &str = "12345678901";
 
-/// Seed a test user, a single category + menu_item, and return the
-/// created order id. The menu_item id is always 1 so callers can
+/// Seed a test user, a single category + `menu_item`, and return the
+/// created order id. The `menu_item` id is always 1 so callers can
 /// reference it from line inserts.
 fn seed_minimal_open_order(app: &TestApp) -> i64 {
     let conn = app.state.db.lock().unwrap();
@@ -95,6 +100,10 @@ fn seed_minimal_open_order(app: &TestApp) -> i64 {
     order.id
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 fn set_training_mode(app: &TestApp, on: bool) {
     let mut config = app.state.config.lock().unwrap();
     config.training_mode = on;

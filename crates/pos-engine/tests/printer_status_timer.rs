@@ -2,6 +2,11 @@
 //! `EngineTimers::printer_status_read` (PD37): a printer that answers
 //! late is read with a longer wait and not with the default one.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;

@@ -3,6 +3,10 @@
 //! Nothing is signed at this stage.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -115,7 +119,7 @@ async fn a_platform_cancelling_before_acceptance_voids_it() {
     let id = order["id"].as_str().unwrap().to_owned();
     let ctx = poller(&app);
     poll_once(&ctx).await.unwrap();
-    mock.update(&id, serde_json::json!({ "status": "cancelled" }));
+    mock.update(&id, &serde_json::json!({ "status": "cancelled" }));
     poll_once(&ctx).await.unwrap();
 
     let entry = board(&app)

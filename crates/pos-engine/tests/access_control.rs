@@ -12,6 +12,11 @@
 //!
 //! Events are signed by the admission image's mock FDM.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -131,6 +136,10 @@ async fn paid_sale(app: &TestApp) -> i64 {
 
 /// Every manager-only fiscal command, run as `insz`; each result is
 /// `Err(message)` when refused.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario read top to bottom, clearer unsplit"
+)]
 async fn manager_commands(
     app: &TestApp,
     insz: &str,
@@ -700,7 +709,7 @@ async fn training_mode_never_switches_under_an_open_order() {
 
 // ── The examiners' credentials ─────────────────────────────────
 
-/// The logins REPONSES_MANUEL_CERT_FR.md gives the SPF agents, as
+/// The logins `REPONSES_MANUEL_CERT_FR.md` gives the SPF agents, as
 /// seeded on the admission image: each one logs in with its PIN and
 /// gets its role.
 #[tokio::test]
@@ -1171,6 +1180,10 @@ async fn wrong_pins_lock_the_user_out_even_for_the_right_pin() {
 // ── Invoices and Peppol ───────────────────────────────────
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario read top to bottom, clearer unsplit"
+)]
 async fn invoice_commands_follow_the_roles() {
     use pos_engine::commands::invoice::{
         B2bCustomerInput, do_invoice_preview, do_list_invoiceable_sales, do_list_invoices,
@@ -1343,7 +1356,7 @@ async fn sold_out_commands_follow_the_roles() {
     as_(&app, CASHIER, UserRole::Cashier);
     assert_eq!(do_set_sold_out(&app.state, 1, true, None).unwrap().len(), 1);
     assert_eq!(do_list_sold_out(&app.state, None).unwrap().len(), 1);
-    assert!(do_clear_sold_out(&app.state, 1, None).unwrap().is_empty());
+    assert_eq!(do_clear_sold_out(&app.state, 1, None).unwrap().len(), 0);
 
     as_(&app, MANAGER, UserRole::Admin);
     assert!(do_set_sold_out(&app.state, 1, false, None).is_ok());
@@ -1529,7 +1542,7 @@ async fn only_a_manager_touches_the_owner_alerts() {
     as_(&app, MANAGER, UserRole::Admin);
     assert!(!do_get_owner_alerts(&app.state).unwrap().enabled);
     assert!(do_set_owner_alerts(&app.state, input()).is_ok());
-    assert!(do_list_owner_alert_log(&app.state, 5).unwrap().is_empty());
+    assert_eq!(do_list_owner_alert_log(&app.state, 5).unwrap().len(), 0);
 }
 
 #[tokio::test]
@@ -1626,7 +1639,7 @@ async fn any_operator_works_the_courses_and_only_a_manager_sets_them() {
             do_set_line_course(&app.state, 1, 1).unwrap_err(),
             errors::COURSES_DISABLED
         );
-        assert!(do_list_held_courses(&app.state, order).unwrap().is_empty());
+        assert_eq!(do_list_held_courses(&app.state, order).unwrap().len(), 0);
         assert_eq!(
             do_send_next_course(&app.state, order).await.unwrap_err(),
             errors::COURSES_DISABLED
@@ -1719,7 +1732,7 @@ async fn the_gift_voucher_commands_follow_their_roles() {
     as_(&app, MANAGER, UserRole::Admin);
     assert!(do_set_gift_voucher_settings(&app.state, on).is_ok());
     assert!(do_add_gift_voucher_line(&app.state, order, 2000).is_ok());
-    assert!(do_list_gift_vouchers(&app.state, None).unwrap().is_empty());
+    assert_eq!(do_list_gift_vouchers(&app.state, None).unwrap().len(), 0);
     assert_eq!(
         do_print_gift_voucher(&app.state, 1).await.unwrap_err(),
         errors::GIFT_VOUCHER_NOT_FOUND

@@ -12,6 +12,11 @@
 //! assertions wait several times the interval, so a slow machine cannot
 //! make a test flaky.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -117,7 +122,8 @@ async fn app_without_session(
         fdm,
         ..
     } = app;
-    state.events = recorder.clone();
+    let events: Arc<dyn pos_engine::EventSink> = Arc::<Recorder>::clone(&recorder);
+    state.events = events;
     state.timers.fdm_poll = fdm_poll;
     (state, fdm, recorder, data_dir)
 }
@@ -130,9 +136,9 @@ fn start(
     data_dir: tempfile::TempDir,
 ) -> Monitor {
     let state = Arc::new(state);
-    let loop_task = tokio::spawn(run_fdm_monitor(state.clone()));
+    let loop_task = tokio::spawn(run_fdm_monitor(Arc::clone(&state)));
     let clearer = {
-        let state = state.clone();
+        let state = Arc::clone(&state);
         tokio::spawn(async move {
             loop {
                 *state.fdm_status_cache.lock().unwrap() = None;
@@ -206,7 +212,7 @@ async fn without_a_session_no_status_request_is_sent() {
         0,
         "a status request without a session"
     );
-    assert!(monitor.recorder.health().is_empty());
+    assert_eq!(monitor.recorder.health().len(), 0);
     assert!(do_fdm_health(&monitor.state).unwrap().is_none());
     monitor.stop().await;
 }

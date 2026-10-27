@@ -6,7 +6,7 @@
 //! - `<UC>_GQL-Variables.json` - the GraphQL `variables` payload, i.e.
 //!   the SCE-2.0 input struct serialised to JSON.
 //! - `<UC>_GQL-Query.graphql`   - the mutation/query string (not used
-//!   by the e2e harness; the FdmClient generates its own).
+//!   by the e2e harness; the `FdmClient` generates its own).
 //! - `<UC>_Response.json` (or `signSale_Response.json`, etc.) - the
 //!   canonical FDM response we replay through wiremock.
 //!
@@ -138,7 +138,7 @@ pub fn discover_fixtures(root: &Path) -> Vec<UcFixture> {
 }
 
 /// Find the canonical UC by exact ID or prefix-match (the latter is
-/// useful for "M110" matching "M110_signSale"). Panics if no match.
+/// useful for "M110" matching "`M110_signSale`"). Panics if no match.
 pub fn load_uc(root: &Path, uc_id_or_prefix: &str) -> UcFixture {
     let all = discover_fixtures(root);
     if let Some(exact) = all.iter().find(|f| f.uc_id == uc_id_or_prefix) {
@@ -158,7 +158,7 @@ fn find_response_file(dir: &Path) -> Option<(PathBuf, ResponseKind)> {
     let entries = fs::read_dir(dir).ok()?;
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().to_lowercase();
-        if !name.ends_with(".json") {
+        if Path::new(&name).extension().is_none_or(|e| e != "json") {
             continue;
         }
         if name.contains("response") {

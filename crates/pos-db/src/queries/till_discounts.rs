@@ -94,9 +94,9 @@ pub fn list(conn: &Connection, order_id: i64) -> Result<Vec<TillDiscountRow>, ru
     .collect()
 }
 
-/// The ids of the order's journal entries that belong to a PRICE_CHANGE
+/// The ids of the order's journal entries that belong to a `PRICE_CHANGE`
 /// pair: the builders send the negative ones with `negQuantityReason`
-/// PRICE_CHANGE, the bar slip skips them all.
+/// `PRICE_CHANGE`, the bar slip skips them all.
 pub fn price_change_entry_ids(
     conn: &Connection,
     order_id: i64,

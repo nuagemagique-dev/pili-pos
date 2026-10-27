@@ -15,6 +15,11 @@
 //! request stays open: the next operation sends it again unchanged,
 //! and a consistent answer archives it under the same ticket number.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -116,7 +121,7 @@ const WRONG_SHORT_SIGNATURE: Breakage = |r| {
         r,
         "shortSignature",
         "ca39a3ee5e6b4b0d3255bfef95601890afd80709".into(),
-    )
+    );
 };
 const NO_SHORT_SIGNATURE: Breakage = |r| set(r, "shortSignature", Value::Null);
 const NO_VERIFICATION_URL: Breakage = |r| set(r, "verificationUrl", Value::Null);

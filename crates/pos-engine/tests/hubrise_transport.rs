@@ -1,7 +1,11 @@
-//! HubRise transport against the in-process mock: callback
+//! `HubRise` transport against the in-process mock: callback
 //! registration, event polling, acknowledgements, the outbox, errors.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -60,7 +64,7 @@ async fn without_the_callback_no_event_arrives_but_start_backfills() {
     let order = mock.inject("deliveroo_prepaid");
     let report = poll_once(&poller(&app)).await.unwrap();
     assert_eq!(report.events, 0, "not registered: HubRise recorded nothing");
-    assert!(local_orders(&app).is_empty());
+    assert_eq!(local_orders(&app).len(), 0);
 
     // Start fetches the orders HubRise holds as new.
     start(&poller(&app)).await.unwrap();
@@ -125,7 +129,7 @@ async fn an_update_refreshes_the_stored_order() {
     poll_once(&poller(&app)).await.unwrap();
     mock.update(
         order["id"].as_str().unwrap(),
-        json!({ "status": "cancelled" }),
+        &json!({ "status": "cancelled" }),
     );
     let report = poll_once(&poller(&app)).await.unwrap();
     assert_eq!(report.handled, 1);
@@ -263,7 +267,7 @@ async fn a_patch_hubrise_refuses_is_parked_not_retried() {
     let id = order["id"].as_str().unwrap().to_string();
     poll_once(&poller(&app)).await.unwrap();
     // The platform cancels before the acknowledgement goes out.
-    mock.update(&id, json!({ "status": "cancelled" }));
+    mock.update(&id, &json!({ "status": "cancelled" }));
     let pass = drain_outbox(&app).await;
     assert_eq!(pass.parked, 1);
     let status = cmd::do_hubrise_status(&app.state).unwrap();

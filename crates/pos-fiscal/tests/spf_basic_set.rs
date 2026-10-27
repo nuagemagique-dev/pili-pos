@@ -1,4 +1,4 @@
-//! SPF BasicSet Integration Tests
+//! SPF `BasicSet` Integration Tests
 //!
 //! These tests replay the core use cases from the SCE 2.0 POS specification:
 //! - Direct sale (Event N)
@@ -11,10 +11,15 @@
 //! - Employee presence (Event S → signWorkIn / signWorkOut)
 //!
 //! Each test spins up a mock FDM (wiremock) that validates the incoming
-//! GraphQL mutation and returns a realistic SignResult.
+//! GraphQL mutation and returns a realistic `SignResult`.
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 mod common;
 
+use pos_fiscal::types::Mode;
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use pos_core::config::PosConfig;
@@ -134,11 +139,15 @@ fn drink_line(id: i64, name: &str, price_cents: i64, qty: i32) -> OrderLine {
 fn total_cents(lines: &[OrderLine]) -> i64 {
     lines
         .iter()
-        .map(|l| l.unit_price_cents * l.quantity as i64)
+        .map(|l| l.unit_price_cents * i64::from(l.quantity))
         .sum()
 }
 
-/// Build a mock SignResult for a given mutation.
+/// Build a mock `SignResult` for a given mutation.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "private test helper with one on/off switch"
+)]
 fn mock_sign_result(
     event_op: EventOperation,
     event_label: EventLabel,
@@ -198,7 +207,11 @@ fn mock_sign_result(
     }
 }
 
-/// Register a mock FDM endpoint that accepts any mutation and returns a SignResult.
+/// Register a mock FDM endpoint that accepts any mutation and returns a `SignResult`.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "private test helper with one on/off switch"
+)]
 async fn mock_fdm_mutation(
     server: &MockServer,
     mutation_name: &str,
@@ -305,7 +318,7 @@ async fn test_direct_sale() {
 
     // Send to FDM
     let fdm = FdmClient::new(config.fdm_url.as_str());
-    let result = fdm.sign_sale(sale, false).await.unwrap();
+    let result = fdm.sign_sale(sale, Mode::Normal).await.unwrap();
 
     // Verify response
     assert_eq!(result.event_operation, EventOperation::Sale);
@@ -407,7 +420,7 @@ async fn test_complete_refund() {
     assert!(sale.fdm_ref.is_some());
 
     let fdm = FdmClient::new(config.fdm_url.as_str());
-    let result = fdm.sign_sale(sale, false).await.unwrap();
+    let result = fdm.sign_sale(sale, Mode::Normal).await.unwrap();
     assert_eq!(result.fdm_ref.event_label, EventLabel::N);
 }
 
@@ -455,7 +468,7 @@ async fn test_interrupted_sale_table_flow() {
     );
 
     let fdm = FdmClient::new(config.fdm_url.as_str());
-    let p_result = fdm.sign_order(order_input, false).await.unwrap();
+    let p_result = fdm.sign_order(order_input, Mode::Normal).await.unwrap();
     assert_eq!(p_result.fdm_ref.event_label, EventLabel::P);
     assert_eq!(p_result.event_operation, EventOperation::Order);
 
@@ -510,7 +523,7 @@ async fn test_interrupted_sale_table_flow() {
         None,
     );
 
-    let n_result = fdm.sign_sale(sale, false).await.unwrap();
+    let n_result = fdm.sign_sale(sale, Mode::Normal).await.unwrap();
     assert_eq!(n_result.fdm_ref.event_label, EventLabel::N);
     assert_eq!(n_result.event_operation, EventOperation::Sale);
 
@@ -561,7 +574,7 @@ async fn test_pre_bill() {
     assert_eq!(pre_bill.cost_center.as_ref().unwrap().id, "T03");
 
     let fdm = FdmClient::new(config.fdm_url.as_str());
-    let result = fdm.sign_pre_bill(pre_bill, false).await.unwrap();
+    let result = fdm.sign_pre_bill(pre_bill, Mode::Normal).await.unwrap();
     assert_eq!(result.fdm_ref.event_label, EventLabel::P);
     assert_eq!(result.event_operation, EventOperation::PreBill);
 
@@ -616,7 +629,7 @@ async fn test_training_mode() {
 
     // isTraining = true is passed to FDM
     let fdm = FdmClient::new(config.fdm_url.as_str());
-    let result = fdm.sign_sale(sale, true).await.unwrap();
+    let result = fdm.sign_sale(sale, Mode::Training).await.unwrap();
     assert_eq!(result.fdm_ref.event_label, EventLabel::T);
 
     // Training events use their own counter, don't affect N counter
@@ -692,7 +705,7 @@ async fn test_copy_ticket() {
     assert_eq!(copy.fdm_ref.total_counter, 100);
 
     let fdm = FdmClient::new(config.fdm_url.as_str());
-    let result = fdm.sign_copy(copy, false).await.unwrap();
+    let result = fdm.sign_copy(copy, Mode::Normal).await.unwrap();
     assert_eq!(result.event_operation, EventOperation::Copy);
     assert_eq!(result.fdm_ref.event_label, EventLabel::C);
 
@@ -706,6 +719,7 @@ async fn test_copy_ticket() {
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
+#[expect(clippy::too_many_lines, reason = "one linear scenario, step by step")]
 async fn test_z_report() {
     let server = MockServer::start().await;
     let config = test_config(&format!("{}/graphql", server.uri()));
@@ -825,7 +839,10 @@ async fn test_z_report() {
     assert!(json.contains("ticketCount"));
 
     let fdm = FdmClient::new(config.fdm_url.as_str());
-    let result = fdm.sign_report_turnover_z(report, false).await.unwrap();
+    let result = fdm
+        .sign_report_turnover_z(report, Mode::Normal)
+        .await
+        .unwrap();
     assert_eq!(result.event_operation, EventOperation::ReportTurnoverZ);
     assert_eq!(result.fdm_ref.event_label, EventLabel::R);
 
@@ -863,7 +880,7 @@ async fn test_employee_work_in_out() {
     assert_eq!(work_in.common.employee_id, "85073000148");
 
     let fdm = FdmClient::new(config.fdm_url.as_str());
-    let result = fdm.sign_work_in(work_in, false).await.unwrap();
+    let result = fdm.sign_work_in(work_in, Mode::Normal).await.unwrap();
     assert_eq!(result.event_operation, EventOperation::WorkIn);
     assert_eq!(result.fdm_ref.event_label, EventLabel::S);
 
@@ -882,7 +899,7 @@ async fn test_employee_work_in_out() {
     assert_eq!(s_ticket2, 2);
     let work_out = build_work_in_out(&config, &ident(), s_ticket2, "85073000148", &bk(&bp_id));
 
-    let result2 = fdm.sign_work_out(work_out, false).await.unwrap();
+    let result2 = fdm.sign_work_out(work_out, Mode::Normal).await.unwrap();
     assert_eq!(result2.event_operation, EventOperation::WorkOut);
 
     // S counter incremented twice
@@ -924,6 +941,7 @@ fn test_counter_independence() {
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
+#[expect(clippy::too_many_lines, reason = "one linear scenario, step by step")]
 async fn test_full_service_day() {
     let server = MockServer::start().await;
     let config = test_config(&format!("{}/graphql", server.uri()));
@@ -943,7 +961,7 @@ async fn test_full_service_day() {
     let fdm = FdmClient::new(config.fdm_url.as_str());
     let s1 = FiscalCounter::next(&conn, EventLabel::S).unwrap();
     let wi = build_work_in_out(&config, &ident(), s1, "85073000148", &bk(&bp_id));
-    fdm.sign_work_in(wi, false).await.unwrap();
+    fdm.sign_work_in(wi, Mode::Normal).await.unwrap();
 
     // 2. Table 1 orders (P event)
     mock_fdm_mutation(
@@ -959,7 +977,7 @@ async fn test_full_service_day() {
     let order1 = test_order(Some(1));
     let lines1 = vec![food_line(3, "M1", 1790, 1)];
     let oi = build_order_input(&config, &ident(), &order1, &lines1, p1, &bk(&bp_id));
-    fdm.sign_order(oi, false).await.unwrap();
+    fdm.sign_order(oi, Mode::Normal).await.unwrap();
 
     // 3. Table 1 pays (N event)
     mock_fdm_mutation(
@@ -984,7 +1002,7 @@ async fn test_full_service_day() {
         0,
         None,
     );
-    let sale1_result = fdm.sign_sale(sale1, false).await.unwrap();
+    let sale1_result = fdm.sign_sale(sale1, Mode::Normal).await.unwrap();
 
     // 4. Copy of table 1 receipt
     mock_fdm_mutation(
@@ -1005,7 +1023,7 @@ async fn test_full_service_day() {
         &bk(&bp_id),
         &sale1_result.fdm_ref,
     );
-    fdm.sign_copy(copy, false).await.unwrap();
+    fdm.sign_copy(copy, Mode::Normal).await.unwrap();
 
     // 5. Z-report
     mock_fdm_mutation(
@@ -1082,7 +1100,7 @@ async fn test_full_service_day() {
         &today,
         report_data,
     );
-    fdm.sign_report_turnover_z(z, false).await.unwrap();
+    fdm.sign_report_turnover_z(z, Mode::Normal).await.unwrap();
 
     // 6. Employee clocks out
     mock_fdm_mutation(
@@ -1096,7 +1114,7 @@ async fn test_full_service_day() {
     .await;
     let s2 = FiscalCounter::next(&conn, EventLabel::S).unwrap();
     let wo = build_work_in_out(&config, &ident(), s2, "85073000148", &bk(&bp_id));
-    fdm.sign_work_out(wo, false).await.unwrap();
+    fdm.sign_work_out(wo, Mode::Normal).await.unwrap();
 
     // Verify all counters
     assert_eq!(FiscalCounter::current(&conn, EventLabel::S).unwrap(), 2);

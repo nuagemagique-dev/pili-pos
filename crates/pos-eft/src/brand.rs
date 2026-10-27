@@ -13,7 +13,7 @@ pub fn normalize(raw: &str) -> Option<String> {
     }
     let key: String = t
         .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
+        .filter(char::is_ascii_alphanumeric)
         .collect::<String>()
         .to_ascii_lowercase();
     let known = match key.as_str() {

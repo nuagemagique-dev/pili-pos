@@ -13,7 +13,10 @@ use crate::records::badges::{
 };
 
 // The closures name the engine function at the call, which `check_command_parity.py` looks for.
-#[allow(clippy::redundant_closure)]
+#[expect(
+    clippy::redundant_closure,
+    reason = "check_command_parity.py wants the engine call spelled out"
+)]
 #[uniffi::export]
 impl PosEngine {
     /// The badge reader setting. No session needed: the login screen arms its reader from it.
@@ -76,6 +79,10 @@ impl PosEngine {
 
     /// A badge scan: the engine decides (presence, login or a PIN request). `end_shift` is true
     /// while the login screen is in its end-of-shift mode.
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "UniFFI export: the argument is part of the Kotlin API"
+    )]
     pub async fn badge_tap(
         &self,
         token: String,

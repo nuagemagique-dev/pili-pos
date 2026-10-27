@@ -243,7 +243,7 @@ async fn a_good_bundle_is_valid_with_its_three_files() {
         .iter()
         .map(|(path, body)| BundleFile {
             path: path.to_string(),
-            size: body.len() as i64,
+            size: i64::try_from(body.len()).unwrap(),
             sha256: sha256_hex(body.as_bytes()),
         })
         .collect();

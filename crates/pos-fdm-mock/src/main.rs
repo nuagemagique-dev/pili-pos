@@ -1,3 +1,9 @@
+#![expect(
+    clippy::print_stdout,
+    clippy::unwrap_used,
+    reason = "a standalone tool: the console is its output and a bind failure ends it"
+)]
+
 #[tokio::main]
 async fn main() {
     let port = std::env::var("PORT").unwrap_or_else(|_| "8081".to_string());
@@ -6,7 +12,11 @@ async fn main() {
     // MOCK_FDM_TLS_REQUIRE_CLIENT=1 makes the client certificate
     // mandatory.
     if let Ok(dir) = std::env::var("MOCK_FDM_TLS_DIR") {
-        let require_client = std::env::var("MOCK_FDM_TLS_REQUIRE_CLIENT").is_ok_and(|v| v == "1");
+        let client_cert = if std::env::var("MOCK_FDM_TLS_REQUIRE_CLIENT").is_ok_and(|v| v == "1") {
+            pos_fdm_mock::tls::ClientCert::Required
+        } else {
+            pos_fdm_mock::tls::ClientCert::Optional
+        };
         let listener = std::net::TcpListener::bind(&addr).unwrap();
         println!("Mock FDM listening on https://localhost:{port}/graphql (certificates: {dir})");
         println!("Press Ctrl+C to stop");
@@ -14,7 +24,7 @@ async fn main() {
             listener,
             pos_fdm_mock::app(),
             std::path::Path::new(&dir),
-            require_client,
+            client_cert,
         )
         .await
         .unwrap();

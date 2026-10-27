@@ -3,6 +3,12 @@
 //! for the emulator (`http://10.0.2.2:9330`). Prints one line per PUT on
 //! stdout: path, size, status. Never prints the token.
 
+#![expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a standalone tool whose output is the console"
+)]
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -52,7 +58,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Parsed, String> {
     }))
 }
 
-fn run(options: Options) -> Result<(), String> {
+fn run(options: &Options) -> Result<(), String> {
     let token = std::fs::read_to_string(&options.token_file)
         .map_err(|e| format!("cannot read {}: {e}", options.token_file.display()))?;
     let token = token.trim();
@@ -79,7 +85,7 @@ fn main() -> ExitCode {
             println!("{USAGE}");
             ExitCode::SUCCESS
         }
-        Ok(Parsed::Run(options)) => match run(options) {
+        Ok(Parsed::Run(options)) => match run(&options) {
             Ok(()) => ExitCode::SUCCESS,
             Err(message) => {
                 eprintln!("pos-export-mock: {message}");
@@ -98,7 +104,7 @@ mod tests {
     use super::*;
 
     fn args(list: &[&str]) -> Vec<String> {
-        list.iter().map(|s| s.to_string()).collect()
+        list.iter().map(std::string::ToString::to_string).collect()
     }
 
     #[test]

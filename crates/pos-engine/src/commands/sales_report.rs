@@ -20,7 +20,7 @@ use chrono::{NaiveDate, Timelike};
 use chrono_tz::Europe::Brussels;
 use pos_db::queries::reports::{self as report_queries, PeriodZ};
 use pos_fiscal::archive;
-use pos_fiscal::report_totals::{self, ReportEvent, cents};
+use pos_fiscal::report_totals::{self, ReportEvent};
 use pos_fiscal::ticket::ReceiptLanguage;
 use pos_fiscal::types::EventLabel;
 use pos_print::sales_report::{
@@ -38,7 +38,11 @@ fn bar_percent(amount: i64, biggest: i64) -> u32 {
     if biggest == 0 || amount == 0 {
         return 0;
     }
-    let percent = (amount.abs() as f64 * 100.0 / biggest as f64).round() as u32;
+    // Rounded half up in integers: exact where a float quotient could land
+    // a hair below a tie.
+    let biggest = i128::from(biggest).abs();
+    let percent = (i128::from(amount).abs() * 200 + biggest) / (2 * biggest);
+    let percent = u32::try_from(percent).unwrap_or(u32::MAX);
     percent.clamp(1, 100)
 }
 
@@ -140,50 +144,49 @@ struct Sale {
 }
 
 /// Amount of a line after its LINE-scope price changes, and the EVENT-scope changes apart.
-fn split_line(line: &Value) -> (i64, i64) {
+fn split_line(line: &Value) -> Result<(i64, i64), String> {
     let mut own = 0;
     let mut event = 0;
     for vat in line["mainProduct"]["vats"].as_array().into_iter().flatten() {
-        own += cents(&vat["price"]);
+        own += errors::archived_cents(&vat["price"], "price")?;
         for change in vat["priceChanges"].as_array().into_iter().flatten() {
+            let amount = errors::archived_cents(&change["amount"], "priceChanges")?;
             if change["scope"].as_str() == Some("EVENT") {
-                event += cents(&change["amount"]);
+                event += amount;
             } else {
-                own += cents(&change["amount"]);
+                own += amount;
             }
         }
     }
-    (own, event)
-}
-
-fn milli(v: &Value) -> i64 {
-    (v.as_f64().unwrap_or(0.0) * 1000.0).round() as i64
+    Ok((own, event))
 }
 
 /// Σ of the ROUNDING payment lines of a sale.
-fn rounding_of(event: &ReportEvent) -> i64 {
+fn rounding_of(event: &ReportEvent) -> Result<i64, String> {
     event.request["financials"]
         .as_array()
         .into_iter()
         .flatten()
         .filter(|f| f["amountType"].as_str() == Some("ROUNDING"))
-        .map(|f| cents(&f["amount"]))
+        .map(|f| errors::archived_cents(&f["amount"], "amount"))
         .sum()
 }
 
 /// The turnover of label N in a stored turnover Z request.
 fn z_turnover_n(z_json: &str) -> Option<i64> {
     let z: Value = serde_json::from_str(z_json).ok()?;
-    Some(
-        z["turnover"]["transactions"]
-            .as_array()?
-            .iter()
-            .find(|t| t["eventLabel"].as_str() == Some("N"))
-            .map_or(0, |t| cents(&t["amount"])),
-    )
+    z["turnover"]["transactions"]
+        .as_array()?
+        .iter()
+        .find(|t| t["eventLabel"].as_str() == Some("N"))
+        .map_or(Some(0), |t| pos_core::money::cents_of(&t["amount"]))
 }
 
 /// Compute the report from the database.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear aggregation of the sales report"
+)]
 fn compute(state: &AppState, from: &str, to: &str) -> Result<SalesReport, String> {
     let (from_date, to_date) = parse_range(from, to)?;
     let day_end_hour = state.config.lock().map_err(errors::internal)?.day_end_hour;
@@ -219,10 +222,10 @@ fn compute(state: &AppState, from: &str, to: &str) -> Result<SalesReport, String
                 hour: event
                     .pos_date_time()
                     .map(|t| t.with_timezone(&Brussels).hour()),
-                rounding: rounding_of(&event),
+                rounding: rounding_of(&event)?,
             };
             for line in event.lines() {
-                let (own, event_level) = split_line(line);
+                let (own, event_level) = split_line(line)?;
                 let product = &line["mainProduct"];
                 let key = (
                     product["productId"]
@@ -239,7 +242,7 @@ fn compute(state: &AppState, from: &str, to: &str) -> Result<SalesReport, String
                         .to_string(),
                 );
                 let entry = products.entry(key).or_default();
-                entry.0 += milli(&product["quantity"]);
+                entry.0 += errors::archived_milli(&product["quantity"], "quantity")?;
                 entry.1 += own;
                 sale.amount += own;
                 sale.event_changes += event_level;
@@ -454,6 +457,14 @@ mod tests {
         let z = r#"{"turnover":{"transactions":[{"eventLabel":"N","ticketCount":2,"amount":41.5},{"eventLabel":"P","ticketCount":1,"amount":9.0}]}}"#;
         assert_eq!(z_turnover_n(z), Some(4150));
         assert_eq!(z_turnover_n("{}"), None);
+        let no_amount = r#"{"turnover":{"transactions":[{"eventLabel":"N"}]}}"#;
+        assert_eq!(z_turnover_n(no_amount), None, "a missing amount is not 0");
+    }
+
+    #[test]
+    fn a_line_without_a_price_is_an_error() {
+        let line = serde_json::json!({"mainProduct": {"vats": [{"priceChanges": []}]}});
+        assert!(split_line(&line).is_err());
     }
 
     #[test]
@@ -462,6 +473,6 @@ mod tests {
             {"price": 10.0, "priceChanges": [
                 {"scope": "LINE", "amount": -1.0}, {"scope": "EVENT", "amount": -0.5}]}
         ]}});
-        assert_eq!(split_line(&line), (900, -50));
+        assert_eq!(split_line(&line).unwrap(), (900, -50));
     }
 }

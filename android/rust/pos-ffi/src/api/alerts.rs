@@ -15,7 +15,10 @@ use crate::records::alerts::{AlertLogRow, AlertTestResult, OwnerAlerts, OwnerAle
 #[uniffi::export]
 impl PosEngine {
     /// The owner alert settings (Telegram messages to the owner's phone); managers only.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn get_owner_alerts(&self) -> Result<OwnerAlerts, PosError> {
         let current = self.blocking(|st| alerts::do_get_owner_alerts(st)).await?;
         convert::out(&current)

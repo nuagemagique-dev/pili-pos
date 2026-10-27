@@ -1,5 +1,10 @@
-//! `cargo run -p pos-hubrise-mock`: the HubRise mock on port 3001
+//! `cargo run -p pos-hubrise-mock`: the `HubRise` mock on port 3001
 //! (`HUBRISE_MOCK_PORT` overrides it).
+
+#![expect(
+    clippy::print_stdout,
+    reason = "a standalone tool whose output is the console"
+)]
 
 use std::sync::Arc;
 

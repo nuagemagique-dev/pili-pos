@@ -92,7 +92,7 @@ pub enum BadgeOutcomeKind {
     PinRequired,
 }
 
-/// The result of a scan, flat for TypeScript and UniFFI. Refusals are
+/// The result of a scan, flat for TypeScript and `UniFFI`. Refusals are
 /// `Err(code)`, not an outcome.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -389,6 +389,10 @@ impl Journal<'_> {
 ///
 /// A presence toggle is refused with `presence_training` in training
 /// mode. Every scan but a repeat is written to `badge_scans`.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "IPC/FFI contract: mirrors the bool argument of the Tauri command and the uniffi export"
+)]
 pub async fn do_badge_tap(
     state: &AppState,
     token: String,
@@ -487,7 +491,7 @@ async fn toggle_presence(
     if !is_in && !on_shift {
         return Err(journal.refuse(errors::PRESENCE_NOT_IN, Some(&user.insz)));
     }
-    let result = match social::sign_work_event(state, user.insz.clone(), is_in, None).await {
+    let result = match social::sign_work_event(state, user.insz.clone(), is_in.into(), None).await {
         Ok(result) => result,
         Err(code) => return Err(journal.refuse(&code, Some(&user.insz))),
     };

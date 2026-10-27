@@ -61,13 +61,21 @@ pub struct StorecoveMock {
     inner: Arc<Mutex<Inner>>,
 }
 
+impl std::fmt::Debug for StorecoveMock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StorecoveMock").finish_non_exhaustive()
+    }
+}
+
 impl StorecoveMock {
     pub fn new() -> Self {
         Self::default()
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
-        self.inner.lock().unwrap_or_else(|e| e.into_inner())
+        self.inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// Require `Authorization: Bearer <key>` on every call (401 otherwise).
@@ -174,19 +182,18 @@ async fn discovery(
     Json(body): Json<Value>,
 ) -> (StatusCode, Json<Value>) {
     let identifier = body["identifier"].as_str().unwrap_or_default().to_string();
-    let status = match preamble(&mock, &headers).await {
-        Some(s) => s,
-        None => {
-            let mut g = mock.lock();
-            if let Some(s) = g.lookup_script.pop_front() {
-                s
-            } else if identifier.is_empty() {
-                422
-            } else if g.not_registered.contains(&identifier) {
-                404
-            } else {
-                200
-            }
+    let status = if let Some(s) = preamble(&mock, &headers).await {
+        s
+    } else {
+        let mut g = mock.lock();
+        if let Some(s) = g.lookup_script.pop_front() {
+            s
+        } else if identifier.is_empty() {
+            422
+        } else if g.not_registered.contains(&identifier) {
+            404
+        } else {
+            200
         }
     };
     log(&mock, "discovery/receives", &headers, &body, status);
@@ -195,7 +202,10 @@ async fn discovery(
         404 => json!({ "code": "NOT_FOUND" }),
         s => error_body(s),
     };
-    (StatusCode::from_u16(status).unwrap(), Json(payload))
+    (
+        StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+        Json(payload),
+    )
 }
 
 async fn submission(
@@ -203,20 +213,19 @@ async fn submission(
     headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> (StatusCode, Json<Value>) {
-    let status = match preamble(&mock, &headers).await {
-        Some(s) => s,
-        None => {
-            let scripted = mock.lock().submit_script.pop_front();
-            let valid = body["legalEntityId"].is_i64()
-                && body["routing"]["eIdentifiers"][0]["id"].is_string()
-                && body["document"]["rawDocumentData"]["document"]
-                    .as_str()
-                    .is_some_and(|d| base64::engine::general_purpose::STANDARD.decode(d).is_ok());
-            match scripted {
-                Some(s) => s,
-                None if !valid => 422,
-                None => 200,
-            }
+    let status = if let Some(s) = preamble(&mock, &headers).await {
+        s
+    } else {
+        let scripted = mock.lock().submit_script.pop_front();
+        let valid = body["legalEntityId"].is_i64()
+            && body["routing"]["eIdentifiers"][0]["id"].is_string()
+            && body["document"]["rawDocumentData"]["document"]
+                .as_str()
+                .is_some_and(|d| base64::engine::general_purpose::STANDARD.decode(d).is_ok());
+        match scripted {
+            Some(s) => s,
+            None if !valid => 422,
+            None => 200,
         }
     };
     log(&mock, "document_submissions", &headers, &body, status);
@@ -227,7 +236,10 @@ async fn submission(
     } else {
         error_body(status)
     };
-    (StatusCode::from_u16(status).unwrap(), Json(payload))
+    (
+        StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+        Json(payload),
+    )
 }
 
 async fn requests(State(mock): State<StorecoveMock>) -> Json<Vec<StorecoveCall>> {

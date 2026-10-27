@@ -14,7 +14,7 @@
 /// `used_event_id` once: the fiscal event (the sale N) that settled it.
 /// `unknown` (no final answer) is the only state that moves on, to
 /// whatever the terminal says when asked again.
-pub(crate) const MIGRATION_027_EFT_PAYMENTS: &str = r#"
+pub(crate) const MIGRATION_027_EFT_PAYMENTS: &str = r"
 CREATE TABLE IF NOT EXISTS eft_payments (
     id INTEGER PRIMARY KEY,
     -- UUID v4 sent to the terminal (idempotency key, status key).
@@ -111,4 +111,4 @@ WHEN NEW.used_event_id IS NOT OLD.used_event_id
 BEGIN
     SELECT RAISE(ABORT, 'eft_payments: only an approved payment is used, once');
 END;
-"#;
+";

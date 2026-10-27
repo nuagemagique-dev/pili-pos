@@ -1,7 +1,7 @@
 //! HTTPS like module2's FDMs and simulator (manual.module2.be, "HTTPS
 //! en mTLS"): an X.509 v1 server certificate without any name, signed
 //! by the FDM vendor's CA, and a client certificate asked for. module2's
-//! simulator answers without one too; `require_client` makes it
+//! simulator answers without one too; `ClientCert::Required` makes it
 //! mandatory, to prove the POS sends it. The client certificate is not
 //! checked: this is a mock.
 
@@ -21,7 +21,7 @@ struct OneServerCert(Arc<CertifiedKey>);
 
 impl rustls::server::ResolvesServerCert for OneServerCert {
     fn resolve(&self, _hello: rustls::server::ClientHello<'_>) -> Option<Arc<CertifiedKey>> {
-        Some(self.0.clone())
+        Some(Arc::clone(&self.0))
     }
 }
 
@@ -82,9 +82,18 @@ impl ClientCertVerifier for AnyClientCert {
     }
 }
 
+/// Whether the mock insists on a client certificate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClientCert {
+    /// A client certificate is accepted but not needed.
+    Optional,
+    /// A handshake without a client certificate fails.
+    Required,
+}
+
 /// The TLS settings of a mock serving `dir/server.crt` and
 /// `dir/server.key` (PEM).
-pub fn server_config(dir: &Path, require_client: bool) -> std::io::Result<rustls::ServerConfig> {
+pub fn server_config(dir: &Path, client_cert: ClientCert) -> std::io::Result<rustls::ServerConfig> {
     let invalid = |e: String| std::io::Error::new(std::io::ErrorKind::InvalidData, e);
     let cert = CertificateDer::from_pem_file(dir.join("server.crt"))
         .map_err(|e| invalid(format!("server.crt: {e}")))?;
@@ -99,7 +108,7 @@ pub fn server_config(dir: &Path, require_client: bool) -> std::io::Result<rustls
         .with_safe_default_protocol_versions()
         .map_err(|e| invalid(e.to_string()))?
         .with_client_cert_verifier(Arc::new(AnyClientCert {
-            mandatory: require_client,
+            mandatory: client_cert == ClientCert::Required,
         }))
         .with_cert_resolver(Arc::new(OneServerCert(Arc::new(CertifiedKey::new(
             vec![cert],
@@ -113,12 +122,12 @@ pub async fn serve(
     listener: std::net::TcpListener,
     router: axum::Router,
     dir: &Path,
-    require_client: bool,
+    client_cert: ClientCert,
 ) -> std::io::Result<()> {
     listener.set_nonblocking(true)?;
     let config = axum_server::tls_rustls::RustlsConfig::from_config(Arc::new(server_config(
         dir,
-        require_client,
+        client_cert,
     )?));
     axum_server::from_tcp_rustls(listener, config)
         .serve(router.into_make_service())

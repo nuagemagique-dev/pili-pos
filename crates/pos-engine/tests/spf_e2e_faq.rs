@@ -14,6 +14,11 @@
 //! Events are signed by the admission image's mock FDM, except Q506
 //! which needs to see every request the FDM receives.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;

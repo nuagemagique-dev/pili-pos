@@ -15,7 +15,7 @@ pub(crate) struct Elem {
 }
 
 impl Elem {
-    pub fn attr(&self, name: &str) -> Option<&str> {
+    pub(crate) fn attr(&self, name: &str) -> Option<&str> {
         self.attrs
             .iter()
             .find(|(k, _)| k == name)
@@ -25,7 +25,7 @@ impl Elem {
     /// The first direct child called `name`, ignoring case (the public
     /// samples write both `POSData` and `POSdata`).
     #[cfg(test)]
-    pub fn child(&self, name: &str) -> Option<&Elem> {
+    pub(crate) fn child(&self, name: &str) -> Option<&Elem> {
         self.children
             .iter()
             .find(|c| c.name.eq_ignore_ascii_case(name))
@@ -33,7 +33,7 @@ impl Elem {
 
     /// The first element called `name` in this subtree, this element
     /// included, depth first.
-    pub fn find(&self, name: &str) -> Option<&Elem> {
+    pub(crate) fn find(&self, name: &str) -> Option<&Elem> {
         if self.name.eq_ignore_ascii_case(name) {
             return Some(self);
         }
@@ -41,7 +41,7 @@ impl Elem {
     }
 
     /// Every element called `name` in this subtree, document order.
-    pub fn find_all<'a>(&'a self, name: &str, out: &mut Vec<&'a Elem>) {
+    pub(crate) fn find_all<'a>(&'a self, name: &str, out: &mut Vec<&'a Elem>) {
         if self.name.eq_ignore_ascii_case(name) {
             out.push(self);
         }
@@ -51,7 +51,7 @@ impl Elem {
     }
 
     /// The trimmed text of this element.
-    pub fn text(&self) -> &str {
+    pub(crate) fn text(&self) -> &str {
         self.text.trim()
     }
 }
@@ -65,7 +65,7 @@ fn start_elem(e: &BytesStart<'_>) -> Elem {
         let key = a.key.local_name().as_ref().to_string();
         let value = a
             .normalized_value(quick_xml::XmlVersion::Implicit1_0)
-            .map_or_else(|_| a.value.to_string(), |v| v.into_owned());
+            .map_or_else(|_| a.value.to_string(), std::borrow::Cow::into_owned);
         // Namespace declarations are not data.
         if key != "xmlns" && !a.key.as_ref().starts_with("xmlns:") {
             elem.attrs.push((key, value));
@@ -85,6 +85,11 @@ fn entity(name: &str) -> Option<char> {
     }
 }
 
+/// Deepest element nesting `parse` accepts. Real OPI messages are a few
+/// levels deep; the cap keeps the recursive drop of the tree (and a frame of
+/// nested tags from any LAN host) from overflowing the stack.
+const MAX_DEPTH: usize = 64;
+
 /// Parse one XML document into its root element.
 pub(crate) fn parse(xml: &str) -> Result<Elem, String> {
     let mut reader = Reader::from_str(xml);
@@ -92,8 +97,16 @@ pub(crate) fn parse(xml: &str) -> Result<Elem, String> {
     let mut root: Option<Elem> = None;
     loop {
         match reader.read_event().map_err(|e| e.to_string())? {
-            Event::Start(e) => stack.push(start_elem(&e)),
+            Event::Start(e) => {
+                if stack.len() >= MAX_DEPTH {
+                    return Err("xml too deep".into());
+                }
+                stack.push(start_elem(&e));
+            }
             Event::Empty(e) => {
+                if stack.len() >= MAX_DEPTH {
+                    return Err("xml too deep".into());
+                }
                 let elem = start_elem(&e);
                 match stack.last_mut() {
                     Some(parent) => parent.children.push(elem),
@@ -147,7 +160,7 @@ pub(crate) fn escape(text: &str) -> String {
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
             '\'' => out.push_str("&apos;"),
-            c if (c as u32) < 0x20 && !matches!(c, '\n' | '\t' | '\r') => {}
+            c if u32::from(c) < 0x20 && !matches!(c, '\n' | '\t' | '\r') => {}
             c => out.push(c),
         }
     }
@@ -174,6 +187,15 @@ mod tests {
         e.find_all("C", &mut all);
         assert_eq!(all.len(), 2);
         assert_eq!(e.find("C").unwrap().text(), "t < u A");
+    }
+
+    #[test]
+    fn deeply_nested_xml_is_an_error_not_a_crash() {
+        let depth = 300_000;
+        let xml = format!("{}{}", "<a>".repeat(depth), "</a>".repeat(depth));
+        assert_eq!(parse(&xml).unwrap_err(), "xml too deep");
+        let ok = format!("{}{}", "<a>".repeat(60), "</a>".repeat(60));
+        assert!(parse(&ok).is_ok());
     }
 
     #[test]

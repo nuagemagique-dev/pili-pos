@@ -1,6 +1,6 @@
 //! Translation encoding extension types.
 //!
-//! HubRise has no native i18n. We encode translations via two
+//! `HubRise` has no native i18n. We encode translations via two
 //! documented extension slots:
 //!
 //! 1. **SKU `custom_fields`** - carries `vat_category` + product
@@ -8,7 +8,7 @@
 //! 2. **Category `description`** - repurposed as a JSON blob with
 //!    the shape `{"translations":{"fr":"..","en":"..","nl":"..","zh":".."}}`.
 //!
-//! Options and option_lists don't have custom_fields - their labels
+//! Options and `option_lists` don't have `custom_fields` - their labels
 //! stay French-only (MVP limitation, see `plans/witty-sleeping-nygaard.md`).
 
 use serde::{Deserialize, Serialize};

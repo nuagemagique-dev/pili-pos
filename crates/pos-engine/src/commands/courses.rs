@@ -76,11 +76,7 @@ fn settings(db: &rusqlite::Connection) -> CourseSettings {
 
 /// Whether courses are switched on.
 pub(crate) fn enabled(state: &AppState) -> bool {
-    state
-        .db
-        .lock()
-        .map(|db| settings(&db).enabled)
-        .unwrap_or(false)
+    state.db.lock().is_ok_and(|db| settings(&db).enabled)
 }
 
 fn valid_course(course: i32) -> Result<(), String> {
@@ -364,7 +360,7 @@ fn note_of(e: &KitchenEntry, quantity: i32) -> (Option<String>, Option<i64>) {
     }
 }
 
-/// One item per entry; the entries of a PRICE_CHANGE pair print nothing
+/// One item per entry; the entries of a `PRICE_CHANGE` pair print nothing
 /// and are returned apart, to be recorded as done.
 fn per_entry(entries: &[KitchenEntry]) -> (Vec<SlipItem>, Vec<i64>) {
     let (price_changes, ordered): (Vec<&KitchenEntry>, Vec<&KitchenEntry>) =
@@ -390,7 +386,7 @@ fn per_entry(entries: &[KitchenEntry]) -> (Vec<SlipItem>, Vec<i64>) {
 
 /// One item per line with the net quantity of its entries (a line
 /// corrected back to 0 prints nothing); the entries of those lines and
-/// of PRICE_CHANGE pairs are returned apart, to be recorded as done.
+/// of `PRICE_CHANGE` pairs are returned apart, to be recorded as done.
 fn net_per_line(entries: &[KitchenEntry]) -> (Vec<SlipItem>, Vec<i64>) {
     let mut by_line: BTreeMap<i64, (SlipItem, &KitchenEntry)> = BTreeMap::new();
     let mut consumed = Vec::new();
@@ -463,7 +459,7 @@ pub async fn do_send_next_course(state: &AppState, order_id: i64) -> Result<Next
             return Err(errors::ORDER_NOT_OPEN.into());
         }
         let target = held(&db, order_id)?.first().map(|h| h.course);
-        let unsent = pos_db::queries::orders::get_order_entries(&db, order_id, true)
+        let unsent = pos_db::queries::orders::get_unsent_order_entries(&db, order_id)
             .map_err(errors::internal)?;
         (order.table_number, target, !unsent.is_empty())
     };

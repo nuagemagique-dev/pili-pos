@@ -32,3 +32,6 @@ tracing = "0.1"
 [dev-dependencies]
 reqwest = { workspace = true }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }
+
+[lints]
+workspace = true

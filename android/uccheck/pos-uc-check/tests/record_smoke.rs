@@ -2,6 +2,11 @@
 //! (`android/app/src/androidTest/assets/uc/00_smoke`) recorded with the
 //! engine on the host, recorded twice, and compared with itself.
 
+#![expect(
+    clippy::assert_is_empty,
+    reason = "assert!(!x.is_empty()) states the check directly"
+)]
+
 use std::path::{Path, PathBuf};
 
 use pos_uc_check::compare::{self, Options};
@@ -106,7 +111,7 @@ async fn two_recordings_of_the_smoke_group_compare_equal_on_the_same_side() {
         "{lines:?} {:?}",
         results
             .iter()
-            .flat_map(|r| r.detail_lines())
+            .flat_map(compare::ScenarioResult::detail_lines)
             .collect::<Vec<_>>()
     );
     assert_eq!(

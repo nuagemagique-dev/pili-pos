@@ -1,6 +1,6 @@
 //! The error every FFI call returns. Kotlin sees `PosException` (sealed, one subclass per variant).
 //!
-//! Field names are `detail` and `params`, never `message`: UniFFI's Kotlin bindings would clash
+//! Field names are `detail` and `params`, never `message`: `UniFFI`'s Kotlin bindings would clash
 //! with `Throwable.message`.
 
 use std::collections::HashMap;
@@ -12,7 +12,7 @@ use pos_engine::commands::errors;
 pub enum PosError {
     /// A refusal the screen translates: a code of `pos_engine::commands::errors` and its values
     /// (`pin_locked|seconds=30` is `code = "pin_locked"`, `params = {"seconds": "30"}`).
-    #[error("{code}")]
+    #[error("{}", coded_text(.code, .params))]
     Coded {
         code: String,
         params: HashMap<String, String>,
@@ -36,6 +36,23 @@ impl PosError {
     }
 }
 
+/// The text of a [`PosError::Coded`] for logs: the engine's own `code|k=v|k=v` form, the values
+/// sorted by key so the same error always prints the same text. The screens never parse it: they
+/// read the `code` and `params` fields. The text is logged, so `params` must never carry a
+/// secret (a PIN, a token, a card number).
+fn coded_text(code: &str, params: &HashMap<String, String>) -> String {
+    let mut pairs: Vec<_> = params.iter().collect();
+    pairs.sort();
+    let mut text = code.to_string();
+    for (key, value) in pairs {
+        text.push('|');
+        text.push_str(key);
+        text.push('=');
+        text.push_str(value);
+    }
+    text
+}
+
 /// Whether `code` has the shape of an engine error code: `^[a-z][a-z_]*$`.
 fn is_code_shape(code: &str) -> bool {
     let mut chars = code.chars();
@@ -52,6 +69,10 @@ fn is_known_code(code: &str) -> bool {
 /// - text starting with `FDM` (after trimming): [`PosError::Fdm`];
 /// - `code|k=v|k=v` where `code` is a known code of either list: [`PosError::Coded`];
 /// - anything else (including the empty text): [`PosError::Internal`].
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "used as `map_err(from_engine)` over the engine commands' String errors"
+)]
 pub fn from_engine(s: String) -> PosError {
     let text = s.trim();
     if text.starts_with("FDM") {
@@ -98,6 +119,17 @@ mod tests {
                 other => panic!("{code} mapped to {other:?}"),
             }
         }
+    }
+
+    #[test]
+    fn a_coded_error_displays_its_code_and_sorted_values() {
+        let err = from_engine("refund_exceeds_sold|sold=2|product=12|detail=a=b".into());
+        assert_eq!(
+            err.to_string(),
+            "refund_exceeds_sold|detail=a=b|product=12|sold=2"
+        );
+        let bare = from_engine("pin_locked".into());
+        assert_eq!(bare.to_string(), "pin_locked");
     }
 
     #[test]

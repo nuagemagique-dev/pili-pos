@@ -9,15 +9,15 @@
 /// v30 - discounts at the till.
 ///
 /// - `order_entries.till_op`: marks the two journal entries of a
-///   PRICE_CHANGE pair (the correction `-q` and the re-entry `+q` of a
+///   `PRICE_CHANGE` pair (the correction `-q` and the re-entry `+q` of a
 ///   line that already went to the FDM). The builders send the negative
-///   one with `negQuantityReason` PRICE_CHANGE. Set when the entry is
+///   one with `negQuantityReason` `PRICE_CHANGE`. Set when the entry is
 ///   inserted, never rewritten (the `order_entries_no_rewrite` trigger
 ///   of migration 2 lists its columns, so a new column needs its own).
 /// - `till_discounts`: the audit trail, one row per application or
 ///   removal: who, why, how much. The reason is local, never part of a
 ///   signed payload. Append-only.
-pub(crate) const MIGRATION_030_TILL_DISCOUNTS: &str = r#"
+pub(crate) const MIGRATION_030_TILL_DISCOUNTS: &str = r"
 ALTER TABLE order_entries ADD COLUMN till_op TEXT
     CHECK (till_op IS NULL OR till_op = 'price_change');
 
@@ -61,7 +61,7 @@ BEFORE UPDATE ON till_discounts
 BEGIN
     SELECT RAISE(ABORT, 'till discounts are append-only');
 END;
-"#;
+";
 
 /// v31 - kitchen notes per order line.
 ///
@@ -75,7 +75,7 @@ END;
 ///
 /// `order_lines` is the consolidated, editable view of an order; the
 /// append-only journal (`order_entries`) does not carry the note.
-pub(crate) const MIGRATION_031_KITCHEN_NOTES: &str = r#"
+pub(crate) const MIGRATION_031_KITCHEN_NOTES: &str = r"
 ALTER TABLE order_lines ADD COLUMN kitchen_note TEXT;
 ALTER TABLE order_lines ADD COLUMN kitchen_note_printed TEXT;
-"#;
+";

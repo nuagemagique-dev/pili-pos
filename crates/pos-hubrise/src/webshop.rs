@@ -22,7 +22,7 @@
 //! needs review.
 
 use pos_core::vat::VatCode;
-use pos_hubrise_types::money::{parse_cents, parse_quantity};
+use pos_hubrise_types::money::{MAX_AMOUNT_CENTS, parse_cents, parse_quantity};
 use pos_hubrise_types::{Order, OrderStatus, ServiceType};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -62,7 +62,7 @@ pub enum Attention {
     FractionalQuantity {
         sku_ref: String,
     },
-    /// A price HubRise sent that is not euro cents.
+    /// A price `HubRise` sent that is not euro cents.
     BadPrice {
         at: String,
     },
@@ -86,7 +86,7 @@ pub enum Attention {
         paid_cents: i64,
         total_cents: i64,
     },
-    /// HubRise changed what was sold after the POS signed it: the
+    /// `HubRise` changed what was sold after the POS signed it: the
     /// signed sale stands, staff settle the difference.
     ChangedAfterSigning,
 }
@@ -154,20 +154,26 @@ pub struct LineDiscount {
 }
 
 impl ResolvedLine {
-    /// Before discounts.
+    /// Before discounts. Saturates instead of wrapping: `resolve` bounds
+    /// every line it builds, so a saturated value never equals an order
+    /// total.
     pub fn total_cents(&self) -> i64 {
-        self.unit_price_cents * self.quantity
+        self.unit_price_cents.saturating_mul(self.quantity)
     }
 
     /// After discounts: what the customer pays for the line.
     pub fn net_cents(&self) -> i64 {
-        self.total_cents() + self.discounts.iter().map(|d| d.amount_cents).sum::<i64>()
+        self.discounts.iter().fold(self.total_cents(), |sum, d| {
+            sum.saturating_add(d.amount_cents)
+        })
     }
 }
 
 /// What the customer pays for `lines`.
 pub fn net_total_cents(lines: &[ResolvedLine]) -> i64 {
-    lines.iter().map(ResolvedLine::net_cents).sum()
+    lines
+        .iter()
+        .fold(0, |sum, l| sum.saturating_add(l.net_cents()))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -322,6 +328,10 @@ fn cents(money: &str, at: &str, attention: &mut Vec<Attention>) -> i64 {
 }
 
 /// Resolve `order` against the POS menu and classify its payment.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one pass over items, options, discounts and charges that shares its running totals and attention list; split into helpers it would pass them all around"
+)]
 pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
     let mut attention = Vec::new();
     let mut warnings = Vec::new();
@@ -368,16 +378,24 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
         let mut charged = cents(&item.price, sku_ref, &mut attention);
         let mut catalog = catalog_price;
         let mut option_names = Vec::new();
+        // Remote numbers: any overflow holds the line for staff.
+        let mut overflow = false;
         for opt in &item.options {
             let qty = i64::from(opt.quantity.max(1));
             let price = opt
                 .price
                 .as_deref()
                 .map_or(0, |p| cents(p, sku_ref, &mut attention));
-            charged += price * qty;
+            match price.checked_mul(qty).and_then(|x| charged.checked_add(x)) {
+                Some(v) => charged = v,
+                None => overflow = true,
+            }
             match opt.ref_.as_deref() {
                 Some(option_ref) => match option_price(conn, id, option_ref)? {
-                    Some(p) => catalog += p * qty,
+                    Some(p) => match p.checked_mul(qty).and_then(|x| catalog.checked_add(x)) {
+                        Some(v) => catalog = v,
+                        None => overflow = true,
+                    },
                     None => attention.push(Attention::UnknownOption {
                         sku_ref: sku_ref.to_owned(),
                         option_ref: option_ref.to_owned(),
@@ -397,6 +415,16 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
             };
             option_names.push(name);
         }
+        if overflow
+            || charged
+                .checked_mul(quantity)
+                .is_none_or(|t| t.abs() > MAX_AMOUNT_CENTS)
+        {
+            attention.push(Attention::BadPrice {
+                at: sku_ref.to_owned(),
+            });
+            continue;
+        }
         if charged != catalog {
             warnings.push(Warning::PriceDiffers {
                 at: sku_ref.to_owned(),
@@ -405,7 +433,12 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
             });
         }
 
-        let menu = pos_db::queries::menu::resolve_catalogue_line(conn, id, takeaway, FISCAL_LANG)?;
+        let menu = pos_db::queries::menu::resolve_catalogue_line(
+            conn,
+            id,
+            pos_db::queries::menu::Service::from(takeaway),
+            FISCAL_LANG,
+        )?;
         check_vat(
             item.tax_rate.as_deref(),
             menu.vat_code,
@@ -432,22 +465,22 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
 
     // Discounts first: only products get them, and the charges are
     // split by what the products come to after them.
-    let mut discount_cents = 0;
+    let mut discount_cents = 0_i64;
     for (rank, discount) in order.discounts.iter().filter(|d| !d.deleted).enumerate() {
         let off = cents(&discount.price_off, &discount.name, &mut attention);
-        discount_cents += off;
+        discount_cents = discount_cents.saturating_add(off);
         spread_discount(&mut lines, rank + 1, discount, off, &mut attention);
     }
 
     let include_charges = channel
         .as_ref()
         .is_none_or(|c| c.charge_policy == "include");
-    let mut excluded_cents = 0;
+    let mut excluded_cents = 0_i64;
     for charge in order.charges.iter().filter(|c| !c.deleted) {
         let at = charge.ref_.clone().unwrap_or_else(|| charge.name.clone());
         let price = cents(&charge.price, &at, &mut attention);
         if !include_charges {
-            excluded_cents += price;
+            excluded_cents = excluded_cents.saturating_add(price);
             continue;
         }
         let key = format!("charge:{}", charge.ref_.as_deref().unwrap_or_default());
@@ -455,7 +488,12 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
             attention.push(Attention::UnknownCharge { charge_ref: at });
             continue;
         };
-        let menu = pos_db::queries::menu::resolve_catalogue_line(conn, id, takeaway, FISCAL_LANG)?;
+        let menu = pos_db::queries::menu::resolve_catalogue_line(
+            conn,
+            id,
+            pos_db::queries::menu::Service::from(takeaway),
+            FISCAL_LANG,
+        )?;
         for (vat_code, share) in charge_shares(&lines, price, menu.vat_code) {
             lines.push(ResolvedLine {
                 kind: LineKind::Charge,
@@ -475,7 +513,9 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
         .total
         .as_deref()
         .map_or(0, |t| cents(t, "total", &mut attention));
-    let lines_cents: i64 = lines.iter().map(ResolvedLine::total_cents).sum();
+    let lines_cents = lines
+        .iter()
+        .try_fold(0_i64, |sum, l| sum.checked_add(l.total_cents()));
     let blocked_lines = attention.iter().any(|a| {
         a.is_catalog_miss()
             || matches!(
@@ -484,10 +524,13 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
             )
     });
     // Missing lines already explain a gap; only a full set is checked.
-    if !blocked_lines && lines_cents - discount_cents + excluded_cents != total_cents {
+    let expected = lines_cents
+        .and_then(|l| l.checked_sub(discount_cents))
+        .and_then(|l| l.checked_add(excluded_cents));
+    if !blocked_lines && expected != Some(total_cents) {
         attention.push(Attention::TotalMismatch {
             total_cents,
-            lines_cents,
+            lines_cents: lines_cents.unwrap_or(i64::MAX),
         });
     }
 
@@ -533,25 +576,28 @@ fn charge_shares(lines: &[ResolvedLine], price: i64, fallback: VatCode) -> Vec<(
     by_vat.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.as_str().cmp(b.0.as_str())));
     let weights: Vec<i64> = by_vat.iter().map(|(_, t)| *t).collect();
     let total: i64 = weights.iter().sum();
-    // `distribute` never gives a label more than its weight: a charge
-    // larger than the products goes round in chunks.
-    let mut shares = vec![0; weights.len()];
-    let mut left = price;
-    while left > 0 {
-        let chunk = left.min(total);
-        for (s, d) in shares
-            .iter_mut()
-            .zip(pos_core::money::distribute(&weights, chunk))
-        {
-            *s += d;
-        }
-        left -= chunk;
-    }
+    let shares = charge_round_shares(&weights, total, price);
     by_vat
         .into_iter()
         .zip(shares)
         .filter(|(_, share)| *share != 0)
         .map(|((code, _), share)| (code, share))
+        .collect()
+}
+
+/// `price` cents over `weights` (summing to `total`, all positive): a
+/// charge larger than the products goes round whole times (each label
+/// takes its weight per round), then the rest is distributed. Computed
+/// in one step, so a huge remote price costs nothing.
+fn charge_round_shares(weights: &[i64], total: i64, price: i64) -> Vec<i64> {
+    // `distribute` never gives a label more than its weight.
+    let rounds = price / total;
+    let rest = price % total;
+    weights
+        .iter()
+        .zip(pos_core::money::distribute(weights, rest))
+        // `w * rounds <= total * rounds <= price`: no overflow.
+        .map(|(w, d)| w * rounds + d)
         .collect()
 }
 
@@ -605,12 +651,12 @@ fn classify_payment(
     total_cents: i64,
     attention: &mut Vec<Attention>,
 ) -> Result<Option<PaymentMode>> {
-    let mut paid = 0;
+    let mut paid = 0_i64;
     let mut cash = 0;
     let mut other = 0;
     for p in order.payments.iter().filter(|p| !p.deleted) {
         let amount = cents(&p.amount, "payment", attention);
-        paid += amount;
+        paid = paid.saturating_add(amount);
         if is_cash_ref(conn, p.ref_.as_deref())? {
             cash += 1;
         } else {
@@ -618,7 +664,6 @@ fn classify_payment(
         }
     }
     Ok(match (cash, other) {
-        (0, 0) => Some(PaymentMode::Unpaid),
         (_, 0) => Some(PaymentMode::Unpaid),
         (0, _) if paid == total_cents => Some(PaymentMode::Prepaid),
         _ => {
@@ -749,12 +794,12 @@ pub fn ingest(conn: &Connection, order: &Order) -> Result<Ingested> {
     })
 }
 
-/// What HubRise last said of an order ends it without the food being
+/// What `HubRise` last said of an order ends it without the food being
 /// handed over.
 const CANCELLED_UPSTREAM: &str = "json_extract(o.raw_hubrise_json, '$.status')
     IN ('cancelled', 'rejected', 'delivery_failed')";
 
-/// A signed order HubRise cancelled waits for staff: a prepaid sale
+/// A signed order `HubRise` cancelled waits for staff: a prepaid sale
 /// (N) for its refund, an unpaid order (P) for its closing. Nothing is
 /// signed here. Returns the new state, if it changed.
 pub fn follow_cancellation(conn: &Connection, order_id: i64) -> Result<Option<String>> {
@@ -774,7 +819,7 @@ pub fn follow_cancellation(conn: &Connection, order_id: i64) -> Result<Option<St
     Ok(state)
 }
 
-/// Whether HubRise cancelled the order.
+/// Whether `HubRise` cancelled the order.
 pub fn cancelled_upstream(conn: &Connection, order_id: i64) -> Result<bool> {
     Ok(conn.query_row(
         &format!("SELECT EXISTS (SELECT 1 FROM orders o WHERE o.id = ?1 AND {CANCELLED_UPSTREAM})"),
@@ -873,7 +918,7 @@ fn store_resolution(conn: &Connection, order_id: i64, order: &Order, r: &Resolut
 }
 
 /// Resolve again every pending order that needs review, from its
-/// stored HubRise payload: after a catalog change or a channel
+/// stored `HubRise` payload: after a catalog change or a channel
 /// setting. Returns how many now resolve cleanly.
 pub fn re_resolve_pending(conn: &Connection) -> Result<usize> {
     let pending: Vec<(i64, String)> = {
@@ -954,4 +999,71 @@ pub fn load(conn: &Connection, order_id: i64) -> Result<Option<WebshopState>> {
     state.warnings = serde_json::from_str(&warnings)?;
     state.lines = serde_json::from_str(&lines)?;
     Ok(Some(state))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The loop `charge_round_shares` replaced.
+    fn looped(weights: &[i64], total: i64, price: i64) -> Vec<i64> {
+        let mut shares = vec![0; weights.len()];
+        let mut left = price;
+        while left > 0 {
+            let chunk = left.min(total);
+            for (s, d) in shares
+                .iter_mut()
+                .zip(pos_core::money::distribute(weights, chunk))
+            {
+                *s += d;
+            }
+            left -= chunk;
+        }
+        shares
+    }
+
+    #[test]
+    fn round_shares_match_the_old_loop() {
+        for weights in [
+            vec![1000],
+            vec![700, 300],
+            vec![333, 333, 334],
+            vec![5, 1, 1],
+        ] {
+            let total: i64 = weights.iter().sum();
+            for price in (1..=3 * total).chain([10 * total + 7]) {
+                assert_eq!(
+                    charge_round_shares(&weights, total, price),
+                    looped(&weights, total, price),
+                    "{weights:?} {price}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_huge_charge_is_computed_at_once() {
+        let weights = [600, 400];
+        // The old loop ran ~1e6 times here; at the parse cap it ran 1e9.
+        let shares = charge_round_shares(&weights, 1000, MAX_AMOUNT_CENTS);
+        assert_eq!(shares.iter().sum::<i64>(), MAX_AMOUNT_CENTS);
+        assert_eq!(shares, vec![600_000_000, 400_000_000]);
+    }
+
+    #[test]
+    fn line_totals_saturate_instead_of_wrapping() {
+        let line = ResolvedLine {
+            kind: LineKind::Product,
+            menu_item_id: 1,
+            name: "x".into(),
+            quantity: i64::MAX / 2,
+            unit_price_cents: 10,
+            vat_code: VatCode::B,
+            department_id: String::new(),
+            department_name: String::new(),
+            discounts: Vec::new(),
+        };
+        assert_eq!(line.total_cents(), i64::MAX);
+        assert_eq!(net_total_cents(&[line.clone(), line]), i64::MAX);
+    }
 }

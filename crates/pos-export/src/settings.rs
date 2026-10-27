@@ -26,7 +26,11 @@ impl ExportSettings {
     pub fn from_config(cfg: &ExportConfig) -> Result<ExportSettings, String> {
         let problems = cfg.problems();
         if !problems.is_empty() {
-            return Err(problems.join("; "));
+            return Err(problems
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("; "));
         }
         let owner = age::x25519::Recipient::from_str(&cfg.owner_recipient)
             .map_err(|e| format!("export.owner_recipient: {e}"))?;
@@ -58,7 +62,10 @@ impl ExportSettings {
 
     /// The recipients as `age1...` strings, in order, for the manifest.
     pub fn recipient_strings(&self) -> Vec<String> {
-        self.recipients.iter().map(|r| r.to_string()).collect()
+        self.recipients
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect()
     }
 
     /// The bearer token, read from its file at each call and trimmed.

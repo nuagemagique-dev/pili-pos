@@ -265,8 +265,8 @@ pub const ORDER_SIGN_PENDING: &str = "order_sign_pending";
 pub const PERIOD_CLOSED: &str = "period_closed";
 /// A sign request waits for the FDM's answer (`label`, `ticket`): no
 /// other event is signed until it comes. `fdm`, when the FDM did answer
-/// but not with a signature (INTERNAL_ERROR, UNDEFINED_ERROR,
-/// UNDEFINED_OTHER, or `FDM_RESPONSE_MISMATCH` for an answer that does
+/// but not with a signature (`INTERNAL_ERROR`, `UNDEFINED_ERROR`,
+/// `UNDEFINED_OTHER`, or `FDM_RESPONSE_MISMATCH` for an answer that does
 /// not echo the request): the screens show that code's message first,
 /// then say the same request is sent again. Starts with "FDM", so the
 /// screen shows it as an FDM message.
@@ -282,7 +282,7 @@ pub const INTERNAL_ERROR: &str = "internal_error";
 
 // Configuration problems (`pos.json`), shown in the screen's language
 // with the English text of the problem as `detail` for the installer.
-// One code per setting, see `pos_core::config::problem_code`.
+// One code per setting, see `pos_core::config::Problem`.
 pub const CONFIG_TABLES: &str = "config_tables";
 pub const CONFIG_POS_ID: &str = "config_pos_id";
 pub const CONFIG_RESTAURANT_VAT: &str = "config_restaurant_vat";
@@ -401,10 +401,10 @@ pub const GIFT_VOUCHER_USED: &str = "gift_voucher_used";
 /// A problem of `pos.json` (an English text of
 /// `PosConfig::problems`) as a coded error: its `config_<setting>` code
 /// and the text as `detail`.
-pub fn config_problem(problem: &str) -> String {
+pub fn config_problem(problem: &pos_core::config::Problem) -> String {
     coded(
-        &format!("config_{}", pos_core::config::problem_code(problem)),
-        &[("detail", &problem)],
+        &format!("config_{}", problem.code()),
+        &[("detail", &problem.text())],
     )
 }
 
@@ -586,16 +586,16 @@ pub const ALL: &[&str] = &[
     INTERNAL_ERROR,
 ];
 
-/// Codes of the HubRise integration (feature `hubrise`), translated
+/// Codes of the `HubRise` integration (feature `hubrise`), translated
 /// in `ui/src/i18n-webshop.ts`.
 #[cfg(feature = "hubrise")]
 pub mod hubrise {
-    /// No HubRise connection is set up.
+    /// No `HubRise` connection is set up.
     pub const NOT_CONNECTED: &str = "hubrise_not_connected";
-    /// The order is not one HubRise sent to this POS.
+    /// The order is not one `HubRise` sent to this POS.
     pub const ORDER_UNKNOWN: &str = "hubrise_order_unknown";
     /// That status is set by the fiscal commands (accept, reject,
-    /// hand over), or is not a HubRise status.
+    /// hand over), or is not a `HubRise` status.
     pub const STATUS_NOT_ALLOWED: &str = "hubrise_status_not_allowed";
     /// Not an RFC 3339 time.
     pub const TIME_INVALID: &str = "hubrise_time_invalid";
@@ -618,7 +618,7 @@ pub mod hubrise {
     pub const NOT_AWAITING_PAYMENT: &str = "webshop_not_awaiting_payment";
     /// App and online payments are not taken at the till.
     pub const PAYMENT_NOT_AT_TILL: &str = "webshop_payment_not_at_till";
-    /// Only a signed order HubRise cancelled is refunded or closed.
+    /// Only a signed order `HubRise` cancelled is refunded or closed.
     pub const NOT_CANCELLED: &str = "webshop_not_cancelled";
     /// An option that is not one of the product's (or is inactive).
     pub const MODIFIER_UNKNOWN: &str = "modifier_unknown";
@@ -631,7 +631,7 @@ pub mod hubrise {
     /// The integration is switched off on this installation.
     pub const DISABLED: &str = "hubrise_disabled";
     /// `pos.json` has no `hubrise` section: this installation has no
-    /// HubRise client to connect with.
+    /// `HubRise` client to connect with.
     pub const NOT_CONFIGURED: &str = "hubrise_not_configured";
     /// The `hubrise.client_secret_file` of `pos.json` is missing or
     /// empty.
@@ -639,7 +639,7 @@ pub mod hubrise {
     /// Switching off waits until every online order is settled
     /// ({count}).
     pub const ONLINE_ORDERS_OPEN: &str = "hubrise_online_orders_open";
-    /// HubRise refused the code of the connection, or did not answer
+    /// `HubRise` refused the code of the connection, or did not answer
     /// (`detail`: what it said, for the installer).
     pub const OAUTH_FAILED: &str = "hubrise_oauth_failed";
 
@@ -688,6 +688,21 @@ pub fn coded(code: &str, values: &[(&str, &dyn Display)]) -> String {
 pub fn internal(detail: impl Display) -> String {
     tracing::error!(%detail, "internal error returned to the screen");
     coded(INTERNAL_ERROR, &[("detail", &detail)])
+}
+
+/// An archived JSON euro amount as cents. A missing or non-numeric
+/// amount is an error naming `field`, never a silent 0: a signed
+/// document built from it would be wrong.
+pub fn archived_cents(v: &serde_json::Value, field: &str) -> Result<i64, String> {
+    pos_core::money::cents_of(v).ok_or_else(|| incomplete(field))
+}
+
+/// An archived JSON quantity in thousandths (`1.5` is `1500`); an error
+/// naming `field` when missing or not a number.
+pub fn archived_milli(v: &serde_json::Value, field: &str) -> Result<i64, String> {
+    v.as_f64()
+        .map(|q| pos_core::money::round_to_i64(q * 1000.0))
+        .ok_or_else(|| incomplete(field))
 }
 
 /// The archived original of a copy or refund lacks `field`.

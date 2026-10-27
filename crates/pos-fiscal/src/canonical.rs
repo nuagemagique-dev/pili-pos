@@ -213,9 +213,9 @@ mod tests {
         for (i, _k) in keys.iter().enumerate() {
             // Mix of types to exercise the number / string / null / array
             // / nested-object branches.
-            let v = match (seed.wrapping_add(i as u32)) % 5 {
+            let v = match seed.wrapping_add(u32::try_from(i).unwrap()) % 5 {
                 0 => serde_json::Value::Null,
-                1 => serde_json::json!(((seed as i64) * (i as i64 + 1))),
+                1 => serde_json::json!(i64::from(seed) * (i64::try_from(i).unwrap() + 1)),
                 2 => serde_json::json!(format!("v{seed}-{i}")),
                 3 => serde_json::json!([seed, i]),
                 _ => serde_json::json!({"nested_z": seed, "nested_a": i}),

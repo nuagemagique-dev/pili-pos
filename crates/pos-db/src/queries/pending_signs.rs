@@ -4,6 +4,7 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
 /// A request to store before sending it.
+#[derive(Debug)]
 pub struct NewPendingSign<'a> {
     pub event_label: &'a str,
     pub first_ticket_no: i64,

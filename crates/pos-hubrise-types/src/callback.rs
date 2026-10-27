@@ -1,10 +1,10 @@
-//! HubRise callback (webhook) events - polling mode.
+//! `HubRise` callback (webhook) events - polling mode.
 //!
 //! Reference: `docs/hubrise/06-callbacks.md`.
 
 use serde::{Deserialize, Serialize};
 
-/// Type of HubRise resource emitting the event.
+/// Type of `HubRise` resource emitting the event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EventResource {
@@ -31,7 +31,7 @@ impl EventResource {
     }
 }
 
-/// Generic callback event envelope - HubRise uses the same shape for
+/// Generic callback event envelope - `HubRise` uses the same shape for
 /// all resource types, with the state fields carried as JSON.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CallbackEvent {

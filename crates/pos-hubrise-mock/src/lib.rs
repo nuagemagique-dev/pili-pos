@@ -1,11 +1,11 @@
-//! HubRise mock HTTP server.
+//! `HubRise` mock HTTP server.
 //!
-//! In-memory implementation of the HubRise REST API used by the POS
-//! (and the webshop side of tests) - no real HubRise account needed.
+//! In-memory implementation of the `HubRise` REST API used by the POS
+//! (and the webshop side of tests) - no real `HubRise` account needed.
 //! It follows the rules the POS depends on: events only for a
 //! registered callback and never for the client's own changes,
 //! paginated event lists without state fields, order status rules,
-//! the catalog read limit, HubRise error bodies with per-field
+//! the catalog read limit, `HubRise` error bodies with per-field
 //! `errors[]`, the connection-wide rate limits.
 //!
 //! Besides the API (`/v1`, `/oauth2/v1`) it serves a control API
@@ -22,7 +22,10 @@
 //! Default port: 3001 (override with `HUBRISE_MOCK_PORT`). Tests mount
 //! [`app`] directly.
 
-#![allow(clippy::result_large_err)]
+#![expect(
+    clippy::result_large_err,
+    reason = "ApiError carries the whole HubRise error body; this is a test mock"
+)]
 
 pub mod builders;
 pub mod state;
@@ -47,13 +50,13 @@ use serde_json::{Value, json};
 use state::{ApiError, Fault, LoggedRequest, MockState, WEBSHOP_TOKEN, validate_catalog};
 use uuid::Uuid;
 
-/// Version of the HubRise docs this mock targets. Bump whenever
+/// Version of the `HubRise` docs this mock targets. Bump whenever
 /// `docs/*.md` is refreshed to surface drift during review.
 pub const HUBRISE_DOCS_REVISION: &str = "2026-09-30";
 /// URL of the official docs consulted to build this mock.
 pub const HUBRISE_DOCS_URL: &str = "https://www.hubrise.com/developers/api/";
 
-/// Page size of paginated lists (HubRise's default and maximum).
+/// Page size of paginated lists (`HubRise`'s default and maximum).
 const PAGE_SIZE: usize = 100;
 
 /// Shared mock state behind every handler.
@@ -61,6 +64,10 @@ pub type AppState = Arc<MockState>;
 
 /// The mock's router over `state`: what `main.rs` serves, and what
 /// tests mount on an ephemeral port.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the route table, one line per endpoint"
+)]
 pub fn app(state: AppState) -> Router {
     let api = Router::new()
         // OAuth 2.0
@@ -139,7 +146,7 @@ pub fn app(state: AppState) -> Router {
         // Location
         .route("/v1/location", get(get_location))
         .layer(middleware::from_fn_with_state(
-            state.clone(),
+            Arc::clone(&state),
             log_and_faults,
         ));
 
@@ -181,7 +188,7 @@ async fn health() -> &'static str {
     "ok"
 }
 
-/// Any request matching no route: HubRise's `routing_error` envelope
+/// Any request matching no route: `HubRise`'s `routing_error` envelope
 /// (distinct from `not_found`, which is a known resource missing).
 async fn routing_error(method: Method, uri: Uri) -> Response {
     let message = format!("no route matches {method} {}", uri.path());
@@ -198,7 +205,7 @@ fn extract_token(headers: &HeaderMap) -> Option<String> {
     headers
         .get("X-Access-Token")
         .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
 }
 
 fn error_response(status: u16, message: &str) -> Response {
@@ -424,7 +431,7 @@ async fn oauth_authorize(
     .into_response()
 }
 
-/// `POST /oauth2/v1/token`: HubRise takes a form body `code=...` with
+/// `POST /oauth2/v1/token`: `HubRise` takes a form body `code=...` with
 /// the client in HTTP Basic auth; a JSON body `{client_id,
 /// client_secret, code}` is accepted too.
 async fn oauth_token(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
@@ -826,6 +833,10 @@ async fn delete_catalog(
 
 // ── Inventory ────────────────────────────────────────────────────────
 
+#[expect(
+    clippy::unused_async,
+    reason = "shared body of the async inventory handlers, awaited by each of them"
+)]
 async fn get_inventory(
     state: &AppState,
     headers: &HeaderMap,
@@ -838,6 +849,10 @@ async fn get_inventory(
     Json(inner.inventory_of(catalog_id)).into_response()
 }
 
+#[expect(
+    clippy::unused_async,
+    reason = "shared body of the async inventory handlers, awaited by each of them"
+)]
 async fn replace_inventory(
     state: &AppState,
     headers: &HeaderMap,
@@ -855,6 +870,10 @@ async fn replace_inventory(
     }
 }
 
+#[expect(
+    clippy::unused_async,
+    reason = "shared body of the async inventory handlers, awaited by each of them"
+)]
 async fn patch_inventory(
     state: &AppState,
     headers: &HeaderMap,
@@ -1216,7 +1235,7 @@ struct ControlInventory {
 }
 
 /// `PUT /mock/inventory`: set stock as "the other side" (a platform
-/// or the HubRise back office would) - replaces the whole inventory
+/// or the `HubRise` back office would) - replaces the whole inventory
 /// of `catalog_id` (or the default catalog) and announces it.
 async fn control_replace_inventory(
     State(state): State<AppState>,
@@ -1233,7 +1252,7 @@ async fn control_replace_inventory(
 }
 
 /// `POST /mock/inventory/expire`: announce every entry with an
-/// `expires_at` in the default catalog as HubRise's documented
+/// `expires_at` in the default catalog as `HubRise`'s documented
 /// `inventory.patch` expiry notice.
 async fn control_expire_inventory(State(state): State<AppState>) -> Response {
     state.inner.lock().expect("poisoned").expire_inventory();

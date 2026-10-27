@@ -2,6 +2,11 @@
 //! decision X1D8): order, hashes, backoff, unauthorized, retry now, retention
 //! of sent and unsent exports, and the token kept out of files and logs.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 mod common;
 
 use std::fmt::Write as _;
@@ -109,7 +114,7 @@ impl Rig {
     fn assert_token_is_nowhere(&self) {
         let mut files = Vec::new();
         all_files(&self.exports, &mut files);
-        assert!(!files.is_empty());
+        assert_ne!(files.len(), 0);
         for path in files {
             let bytes = std::fs::read(&path).unwrap();
             let hay = String::from_utf8_lossy(&bytes);
@@ -203,7 +208,11 @@ async fn a_complete_export_arrives_in_order_with_matching_hashes() {
         assert_eq!(got.sha256, sha256_file(&local).unwrap(), "{name}");
         if let Some(entry) = manifest.files.iter().find(|f| f.name == name) {
             assert_eq!(got.sha256, entry.sha256, "{name}");
-            assert_eq!(got.bytes.len() as i64, entry.bytes, "{name}");
+            assert_eq!(
+                i64::try_from(got.bytes.len()).unwrap(),
+                entry.bytes,
+                "{name}"
+            );
         } else {
             assert_eq!(name, naming::manifest_name(ID_42));
             assert_eq!(got.content_type, "application/json");
@@ -367,7 +376,7 @@ async fn a_refused_token_shows_as_unauthorized() {
     let _guard = tracing::subscriber::set_default(logs.clone());
     let rig = Rig::new(30);
     rig.prepare(t0());
-    rig.receiver.set_unauthorized(true);
+    rig.receiver.reject_all();
 
     let report = rig.upload(t0()).await;
     assert_eq!(
@@ -387,7 +396,7 @@ async fn a_refused_token_shows_as_unauthorized() {
     assert_eq!(status.pending, 1);
 
     // Fixed on the receiver: the next due pass sends everything.
-    rig.receiver.set_unauthorized(false);
+    rig.receiver.accept_tokens();
     let report = rig.upload(at(t0(), 60)).await;
     assert_eq!(
         report,
@@ -406,9 +415,9 @@ async fn an_interrupted_export_resumes_with_the_missing_files_only() {
     let rig = Rig::new(30);
     rig.prepare(t0());
     // The statistics file disappears: the backup goes out, the pass stops there.
-    let stats = rig.path(ID_42, naming::stats_name(ID_42));
-    let bytes = std::fs::read(&stats).unwrap();
-    std::fs::remove_file(&stats).unwrap();
+    let stats_path = rig.path(ID_42, naming::stats_name(ID_42));
+    let bytes = std::fs::read(&stats_path).unwrap();
+    std::fs::remove_file(&stats_path).unwrap();
 
     let report = rig.upload(t0()).await;
     assert_eq!(
@@ -435,7 +444,7 @@ async fn an_interrupted_export_resumes_with_the_missing_files_only() {
     );
     assert_eq!(state["attempts"], 1);
 
-    std::fs::write(&stats, bytes).unwrap();
+    std::fs::write(&stats_path, bytes).unwrap();
     let report = rig.upload(at(t0(), 60)).await;
     assert_eq!(
         report,
@@ -541,7 +550,7 @@ async fn retention_counts_only_the_unsent_exports_in_dropped() {
     // A third export, created a day later, is never sent.
     let id_43 = add_empty_z(&rig.fx, 43, "2026-10-05");
     let day_later = t0() + Duration::days(1);
-    assert_eq!(rig.prepare(day_later), vec![id_43.clone()]);
+    assert_eq!(rig.prepare(day_later), vec![id_43]);
     assert_eq!(rig.status().kept, 3);
     assert_eq!(rig.status().pending, 1);
 

@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn an_empty_database_has_no_z() {
         let conn = db();
-        assert!(real_zs_after(&conn, None).unwrap().is_empty());
+        assert_eq!(real_zs_after(&conn, None).unwrap().len(), 0);
         assert_eq!(latest_real_z(&conn).unwrap(), None);
     }
 
@@ -98,6 +98,6 @@ mod tests {
                  VALUES ('2026-10-04', 1, '{}', 1);",
         )
         .unwrap();
-        assert!(real_zs_after(&conn, None).unwrap().is_empty());
+        assert_eq!(real_zs_after(&conn, None).unwrap().len(), 0);
     }
 }

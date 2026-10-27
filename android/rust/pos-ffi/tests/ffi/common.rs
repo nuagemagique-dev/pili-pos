@@ -44,8 +44,8 @@ use pos_fiscal::ticket::{
     TicketPayment as EngineTicketPayment,
 };
 use pos_fiscal::types::{
-    Display as EngineDisplay, EventLabel as EngineEventLabel,
-    FdmWarningCode as EngineFdmWarningCode, MessageCategory as EngineMessageCategory,
+    EventLabel as EngineEventLabel, FdmWarningCode as EngineFdmWarningCode,
+    MessageCategory as EngineMessageCategory, ShowPos as EngineShowPos,
     TicketMedium as EngineTicketMedium, VatLabel as EngineVatLabel,
 };
 use serde::Serialize;
@@ -524,6 +524,10 @@ fn a_delivery_outcome_converts_with_and_without_options() {
 }
 
 #[test]
+#[expect(
+    clippy::many_single_char_names,
+    reason = "short names for the components of one ticket keep the assertions readable"
+)]
 fn the_component_records_of_a_ticket_convert_alone() {
     let r: ffi::FdmReference = both_ways(&fdm_ref(EngineEventLabel::C));
     assert_eq!(r.event_label, ffi::EventLabel::C);
@@ -559,7 +563,7 @@ fn message(full: bool) -> EngineMessageItem {
                     value: "93".into(),
                 }]
             }),
-            show_pos: EngineDisplay::Mandatory,
+            show_pos: EngineShowPos::Mandatory,
         },
     }
 }
@@ -752,7 +756,7 @@ fn lock_reason_variants() {
 
 #[test]
 fn message_display_variants() {
-    use EngineDisplay::*;
+    use EngineShowPos::*;
     enum_both::<_, ffi::FdmMessageDisplay>(&[Mandatory, Optional, Never]);
 }
 

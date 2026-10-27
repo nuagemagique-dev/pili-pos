@@ -32,7 +32,7 @@ pub enum EngineEvent {
     /// An online order changed.
     #[cfg(feature = "hubrise")]
     WebshopOrderUpdated(CallbackEvent),
-    /// The menu was updated from the HubRise catalog.
+    /// The menu was updated from the `HubRise` catalog.
     #[cfg(feature = "hubrise")]
     CatalogUpdated(CallbackEvent),
     /// The catalog has issues; the menu stayed as it was.
@@ -65,7 +65,7 @@ impl EngineEvent {
     }
 }
 
-/// The event the HubRise poller's outcome stands for; `None` for an
+/// The event the `HubRise` poller's outcome stands for; `None` for an
 /// outcome the UI is not told about (`Ignored`).
 #[cfg(feature = "hubrise")]
 pub fn event_for_outcome(outcome: DispatchOutcome, event: CallbackEvent) -> Option<EngineEvent> {
@@ -117,7 +117,7 @@ mod tests {
             created_at: "2026-01-01T00:00:00+01:00".to_string(),
             previous_state: None,
             new_state: None,
-            extra: Default::default(),
+            extra: serde_json::Map::default(),
         }
     }
 

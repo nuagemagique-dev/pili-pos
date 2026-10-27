@@ -12,7 +12,6 @@ use crate::records::invoice::{
 };
 
 // The closures name the engine function at the call, which `check_command_parity.py` looks for.
-#[allow(clippy::redundant_closure)]
 #[uniffi::export]
 impl PosEngine {
     /// Recent signed sales a cashier can put on an invoice.

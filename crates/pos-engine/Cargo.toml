@@ -81,3 +81,6 @@ cert = ["hubrise"]
 # for the engine's tests. Only the test harness turns it on; no shipped
 # build has the field or the scripted terminal.
 eft-scripted = ["pos-eft/scripted"]
+
+[lints]
+workspace = true

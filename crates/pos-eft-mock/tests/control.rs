@@ -1,5 +1,10 @@
 //! The control API and the page, over real HTTP.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_eft_mock::{Behaviour, Config, Mock, Next};
 use serde_json::{Value, json};
 

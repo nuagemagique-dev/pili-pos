@@ -3,7 +3,7 @@
 //! After a real Z, [`build_stats`] reads the plaintext snapshot of `pos.db`
 //! and writes a NEW SQLite file with the sales of the booking period that Z
 //! closed, the Z report itself and nothing else. The file is made for a
-//! receiver and a dashboard: snake_case tables, integer cents, signed
+//! receiver and a dashboard: `snake_case` tables, integer cents, signed
 //! amounts, closed value sets guarded by CHECK constraints, a SQL comment on
 //! every column. Its contract is `crates/pos-export/STATS_SCHEMA.md`.
 //!
@@ -12,7 +12,7 @@
 //! event, never recomputed from the menu. What it never holds: training,
 //! presence (S), copy (C), order and pro forma (P), money, drawer and invoice
 //! events, and no INSZ or NISS, user name, PIN hash, token, e-mail, phone,
-//! address, customer name, HubRise payload, ticket text, FDM signature or QR
+//! address, customer name, `HubRise` payload, ticket text, FDM signature or QR
 //! data. Users are pseudonyms ([`crate::pseudonym`]).
 //!
 //! The source is only read. The result is written to `<out>.partial` and
@@ -21,6 +21,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use pos_core::money::{round_to_i64, to_f64};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::Value;
 
@@ -71,7 +72,7 @@ pub const STATS_TABLES: [&str; 10] = [
     "z_payments",
 ];
 
-const SCHEMA: &str = r#"
+const SCHEMA: &str = r"
 CREATE TABLE meta (
     key TEXT PRIMARY KEY,   -- name of the value: format, schema_version, export_id, pos_id, terminal_id, pos_sw_version, z_report_no, booking_date, period_opened_at, period_closed_at, currency, generated_at
     value TEXT NOT NULL     -- the value, always text (numbers in decimal)
@@ -177,7 +178,7 @@ CREATE TABLE z_payments (
     amount_cents INTEGER NOT NULL,  -- total in euro cents, as signed in the Z
     PRIMARY KEY (z_report_no, method, kind)
 );
-"#;
+";
 
 /// Build the statistics file of `z` from `source`, the plaintext snapshot of
 /// `pos.db` (opened read-only by the caller), into `out`. `key` is the
@@ -221,7 +222,12 @@ fn clear(path: &Path) -> Result<(), String> {
         match std::fs::remove_file(&name) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(format!("stats: cannot clear {name:?}: {e}")),
+            Err(e) => {
+                return Err(format!(
+                    "stats: cannot clear {}: {e}",
+                    Path::new(&name).display()
+                ));
+            }
         }
     }
     Ok(())
@@ -233,14 +239,29 @@ fn sql<T>(r: rusqlite::Result<T>, what: &str) -> Result<T, String> {
 
 // ── Reading the archive ────────────────────────────────────────────
 
-/// Euro amount of the archived JSON (a multiple of 0.01) in cents.
-fn cents(v: &Value) -> i64 {
-    (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64
+/// Euro amount of the archived JSON (a multiple of 0.01) in cents. An error naming
+/// the event when the value is not a number: a malformed archive row is never read
+/// as zero.
+fn cents(event_id: i64, v: &Value, what: &str) -> Result<i64, String> {
+    pos_core::money::cents_of(v)
+        .ok_or_else(|| format!("stats: archived event {event_id}: {what} is not a number"))
 }
 
-/// VAT rate of the archived JSON (percent) in basis points.
-fn rate_bp(v: &Value) -> i64 {
-    (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64
+/// VAT rate of the archived JSON (percent) in basis points, same rule as [`cents`].
+fn rate_bp(event_id: i64, v: &Value, what: &str) -> Result<i64, String> {
+    cents(event_id, v, what)
+}
+
+/// An integer of the archived JSON, an error naming the event when it is not one.
+fn integer(event_id: i64, v: &Value, what: &str) -> Result<i64, String> {
+    v.as_i64()
+        .ok_or_else(|| format!("stats: archived event {event_id}: {what} is not an integer"))
+}
+
+/// Parse the archived JSON of an event, keeping the serde error.
+fn parse_json(event_id: i64, json: &str) -> Result<Value, String> {
+    serde_json::from_str(json)
+        .map_err(|e| format!("stats: archived event {event_id} is unreadable: {e}"))
 }
 
 fn text(v: &Value) -> Option<&str> {
@@ -279,6 +300,9 @@ fn standard_rate(label: &str) -> f64 {
     }
 }
 
+/// A row of `orders`: type, source, `HubRise` order id, service type, table.
+type OrderRow = (String, String, Option<String>, Option<String>, Option<i64>);
+
 struct Line {
     code: Option<String>,
     name: String,
@@ -300,7 +324,7 @@ struct Vat {
     label: String,
     rate_bp: i64,
     base: i64,
-    vat: i64,
+    tax: i64,
     total: i64,
 }
 
@@ -313,7 +337,7 @@ struct Payment {
 struct Ticket {
     id: i64,
     event_label: String,
-    ticket_no: i64,
+    fiscal_no: i64,
     refund: bool,
     channel: &'static str,
     table: Option<i64>,
@@ -405,7 +429,6 @@ impl Reader<'_> {
                 })
                 .flatten()
         };
-        type OrderRow = (String, String, Option<String>, Option<String>, Option<i64>);
         let order: Option<OrderRow> = match order_id {
             Some(id) => sql(
                 self.src
@@ -443,10 +466,10 @@ impl Reader<'_> {
 
     /// The archived event an `fdmRef` names: its order and its request.
     fn original(&self, fdm_ref: &Value) -> Result<Option<(Option<i64>, Value)>, String> {
-        let found: Option<(Option<i64>, String)> = sql(
+        let found: Option<(i64, Option<i64>, String)> = sql(
             self.src
                 .query_row(
-                    "SELECT order_id, event_data_json FROM fiscal_events
+                    "SELECT id, order_id, event_data_json FROM fiscal_events
                      WHERE fdm_id = ?1 AND fdm_datetime = ?2 AND event_label = ?3
                        AND json_extract(fdm_response_json, '$.fdmRef.eventCounter') = ?4
                        AND json_extract(fdm_response_json, '$.fdmRef.totalCounter') = ?5
@@ -458,28 +481,29 @@ impl Reader<'_> {
                         fdm_ref["eventCounter"].as_i64(),
                         fdm_ref["totalCounter"].as_i64(),
                     ],
-                    |r| Ok((r.get(0)?, r.get(1)?)),
+                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
                 )
                 .optional(),
             "read the ticket a refund refers to",
         )?;
-        Ok(found.and_then(|(order_id, json)| {
-            serde_json::from_str(&json)
-                .ok()
-                .map(|request| (order_id, request))
-        }))
+        found
+            .map(|(id, order_id, json)| Ok((order_id, parse_json(id, &json)?)))
+            .transpose()
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one pass over the lines, price changes, VAT and payments of a ticket; split helpers would share a dozen locals"
+    )]
     fn ticket(&mut self, event: &pos_fiscal::archive::ArchivedEvent) -> Result<Ticket, String> {
-        let request: Value = serde_json::from_str(&event.event_data_json)
-            .map_err(|_| format!("stats: archived event {} is unreadable", event.id))?;
+        let id = event.id;
+        let request = parse_json(id, &event.event_data_json)?;
         let response: Value = match event.fdm_response_json.as_deref() {
-            Some(json) => serde_json::from_str(json)
-                .map_err(|_| format!("stats: archived event {} is unreadable", event.id))?,
+            Some(json) => parse_json(id, json)?,
             None => Value::Null,
         };
         let transaction = &request["transaction"];
-        let total = cents(&transaction["transactionTotal"]);
+        let total = cents(id, &transaction["transactionTotal"], "transactionTotal")?;
         let refers_to = request.get("fdmRef").filter(|v| v.is_object());
         let refund = refers_to.is_some() || total < 0;
 
@@ -487,22 +511,19 @@ impl Reader<'_> {
         let mut discounts = Vec::new();
         // Ticket-wide price changes, one row per change: (grouping id, change id) to (kind, cents).
         let mut ticket_wide: BTreeMap<(i64, String), (&'static str, i64)> = BTreeMap::new();
-        for (index, line) in transaction["transactionLines"]
-            .as_array()
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-            .iter()
-            .enumerate()
-        {
-            let line_no = index as i64 + 1;
+        for (line_no, line) in (1_i64..).zip(
+            transaction["transactionLines"]
+                .as_array()
+                .map_or(&[][..], Vec::as_slice),
+        ) {
             let product = &line["mainProduct"];
-            let vats = product["vats"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+            let vats = product["vats"].as_array().map_or(&[][..], Vec::as_slice);
             let mut price = 0;
             let mut discount = 0;
             for vat in vats {
-                price += cents(&vat["price"]);
+                price += cents(id, &vat["price"], "a line price")?;
                 for change in vat["priceChanges"].as_array().into_iter().flatten() {
-                    let amount = cents(&change["amount"]);
+                    let amount = cents(id, &change["amount"], "a price change amount")?;
                     discount += amount;
                     let kind = if change["type"].as_str() == Some("INTERNAL") {
                         "internal"
@@ -531,8 +552,10 @@ impl Reader<'_> {
                     .unwrap_or_default()
                     .to_string(),
                 department: text(&product["departmentName"]).map(str::to_string),
-                quantity: product["quantity"].as_f64().unwrap_or(0.0),
-                unit_price: cents(&product["unitPrice"]),
+                quantity: product["quantity"].as_f64().ok_or_else(|| {
+                    format!("stats: archived event {id}: a line quantity is not a number")
+                })?,
+                unit_price: cents(id, &product["unitPrice"], "a unit price")?,
                 amount: price + discount,
                 discount,
                 label: vats
@@ -550,17 +573,15 @@ impl Reader<'_> {
             });
         }
 
-        let vats = vat_rows(&response, &lines);
-        let payments = request["financials"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .map(|f| Payment {
+        let vats = vat_rows(id, &response, &lines)?;
+        let mut payments = Vec::new();
+        for f in request["financials"].as_array().into_iter().flatten() {
+            payments.push(Payment {
                 method: method_of(f["type"].as_str().unwrap_or_default()),
                 kind: payment_kind(f["amountType"].as_str().unwrap_or_default()),
-                amount: cents(&f["amount"]),
-            })
-            .collect();
+                amount: cents(id, &f["amount"], "a payment amount")?,
+            });
+        }
 
         let (channel, table) = self.channel(event.order_id, &request, refers_to)?;
         let employee = request["employeeId"]
@@ -570,7 +591,7 @@ impl Reader<'_> {
         Ok(Ticket {
             id: event.id,
             event_label: event.event_label.clone().unwrap_or_else(|| "N".into()),
-            ticket_no: request["posFiscalTicketNo"].as_i64().unwrap_or(0),
+            fiscal_no: integer(id, &request["posFiscalTicketNo"], "posFiscalTicketNo")?,
             refund,
             channel,
             table: if channel == "table" { table } else { None },
@@ -593,48 +614,49 @@ impl Reader<'_> {
 
 /// The VAT of a ticket: the FDM's calculation when the response has one, else
 /// the sum of the lines per label at the standard rate.
-fn vat_rows(response: &Value, lines: &[Line]) -> Vec<Vat> {
+fn vat_rows(event_id: i64, response: &Value, lines: &[Line]) -> Result<Vec<Vat>, String> {
     let mut rows: BTreeMap<String, Vat> = BTreeMap::new();
-    match response["vatCalc"].as_array() {
-        Some(calc) => {
-            for item in calc {
-                let label = item["label"].as_str().unwrap_or("X").to_string();
-                let row = rows.entry(label.clone()).or_insert(Vat {
-                    label,
-                    rate_bp: rate_bp(&item["rate"]),
-                    base: 0,
-                    vat: 0,
-                    total: 0,
-                });
-                row.base += cents(&item["taxableAmount"]);
-                row.vat += cents(&item["vatAmount"]);
-                row.total += cents(&item["totalAmount"]);
-            }
+    if let Some(calc) = response["vatCalc"].as_array() {
+        for item in calc {
+            let label = item["label"].as_str().unwrap_or("X").to_string();
+            let row = rows.entry(label.clone()).or_insert(Vat {
+                label,
+                rate_bp: rate_bp(event_id, &item["rate"], "a vatCalc rate")?,
+                base: 0,
+                tax: 0,
+                total: 0,
+            });
+            row.base += cents(event_id, &item["taxableAmount"], "a vatCalc taxableAmount")?;
+            row.tax += cents(event_id, &item["vatAmount"], "a vatCalc vatAmount")?;
+            row.total += cents(event_id, &item["totalAmount"], "a vatCalc totalAmount")?;
         }
-        None => {
-            for line in lines {
-                let rate = standard_rate(&line.label);
-                let row = rows.entry(line.label.clone()).or_insert(Vat {
-                    label: line.label.clone(),
-                    rate_bp: (rate * 100.0).round() as i64,
-                    base: 0,
-                    vat: 0,
-                    total: 0,
-                });
-                row.total += line.amount;
-            }
-            for row in rows.values_mut() {
-                let rate = row.rate_bp as f64 / 100.0;
-                row.base = (row.total as f64 / (1.0 + rate / 100.0)).round() as i64;
-                row.vat = row.total - row.base;
-            }
+    } else {
+        for line in lines {
+            let rate = standard_rate(&line.label);
+            let row = rows.entry(line.label.clone()).or_insert(Vat {
+                label: line.label.clone(),
+                rate_bp: round_to_i64(rate * 100.0),
+                base: 0,
+                tax: 0,
+                total: 0,
+            });
+            row.total += line.amount;
+        }
+        for row in rows.values_mut() {
+            let rate = to_f64(row.rate_bp) / 100.0;
+            row.base = round_to_i64(to_f64(row.total) / (1.0 + rate / 100.0));
+            row.tax = row.total - row.base;
         }
     }
-    rows.into_values().collect()
+    Ok(rows.into_values().collect())
 }
 
 // ── Writing the file ───────────────────────────────────────────────
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "writes every table of the statistics file in order inside one transaction; a split would only pass the transaction around"
+)]
 fn write_file(
     source: &Connection,
     z: &ZRef,
@@ -664,8 +686,7 @@ fn write_file(
             if event.event_type != pos_fiscal::types::EventLabel::R {
                 return Err(format!("stats: event {} is not a Z report", event.id));
             }
-            let request: Value = serde_json::from_str(&event.event_data_json)
-                .map_err(|_| format!("stats: archived event {} is unreadable", event.id))?;
+            let request = parse_json(event.id, &event.event_data_json)?;
             z_row = Some((
                 request,
                 event.event_label.clone(),
@@ -678,24 +699,21 @@ fn write_file(
             sales.push(event);
         }
     }
-    let (z_request, z_label, z_fdm_datetime, z_user) = match z_row {
-        Some(row) => row,
-        None => {
-            // The Z event is not tagged with the period (should not happen): read it by id.
-            let (json, label, fdm, user): (String, Option<String>, Option<String>, String) = sql(
-                source.query_row(
-                    "SELECT event_data_json, event_label, fdm_datetime, user_insz
-                     FROM fiscal_events WHERE id = ?1 AND event_type = 'R'",
-                    [z.closing_event_id],
-                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-                ),
-                "read the Z event",
-            )?;
-            let request = serde_json::from_str(&json).map_err(|_| {
-                format!("stats: archived event {} is unreadable", z.closing_event_id)
-            })?;
-            (request, label, fdm, user)
-        }
+    let (z_request, z_label, z_fdm_datetime, z_user) = if let Some(row) = z_row {
+        row
+    } else {
+        // The Z event is not tagged with the period (should not happen): read it by id.
+        let (json, label, fdm, user): (String, Option<String>, Option<String>, String) = sql(
+            source.query_row(
+                "SELECT event_data_json, event_label, fdm_datetime, user_insz
+                 FROM fiscal_events WHERE id = ?1 AND event_type = 'R'",
+                [z.closing_event_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            ),
+            "read the Z event",
+        )?;
+        let request = parse_json(z.closing_event_id, &json)?;
+        (request, label, fdm, user)
     };
 
     let has_code = {
@@ -772,7 +790,7 @@ fn write_file(
                 params![
                     t.id,
                     t.event_label,
-                    t.ticket_no,
+                    t.fiscal_no,
                     if t.refund { "refund" } else { "sale" },
                     t.channel,
                     t.table,
@@ -785,7 +803,7 @@ fn write_file(
             "write a ticket",
         )?;
         // The rate of a line comes from the ticket's VAT calculation.
-        for (index, l) in t.lines.iter().enumerate() {
+        for (line_no, l) in (1_i64..).zip(&t.lines) {
             let rate = t
                 .vats
                 .iter()
@@ -799,7 +817,7 @@ fn write_file(
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                     params![
                         t.id,
-                        index as i64 + 1,
+                        line_no,
                         l.code,
                         l.name,
                         l.department,
@@ -820,17 +838,17 @@ fn write_file(
                 tx.execute(
                     "INSERT INTO ticket_vat (ticket_id, vat_label, vat_rate_bp, base_cents, vat_cents, total_cents)
                      VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                    params![t.id, v.label, v.rate_bp, v.base, v.vat, v.total],
+                    params![t.id, v.label, v.rate_bp, v.base, v.tax, v.total],
                 ),
                 "write the VAT of a ticket",
             )?;
         }
-        for (index, p) in t.payments.iter().enumerate() {
+        for (line_no, p) in (1_i64..).zip(&t.payments) {
             sql(
                 tx.execute(
                     "INSERT INTO ticket_payments (ticket_id, line_no, method, kind, amount_cents)
                      VALUES (?1, ?2, ?3, ?4, ?5)",
-                    params![t.id, index as i64 + 1, p.method, p.kind, p.amount],
+                    params![t.id, line_no, p.method, p.kind, p.amount],
                 ),
                 "write a payment",
             )?;
@@ -854,13 +872,24 @@ fn write_file(
         .into_iter()
         .flatten()
         .find(|t| t["eventLabel"].as_str() == Some("N"));
-    let refunds_count: i64 = turnover["negQuantities"]
+    let zid = z.closing_event_id;
+    let mut refunds_count = 0;
+    for n in turnover["negQuantities"]
         .as_array()
         .into_iter()
         .flatten()
         .filter(|n| n["negQuantityReason"].as_str() == Some("REFUND"))
-        .map(|n| n["ticketCount"].as_i64().unwrap_or(0))
-        .sum();
+    {
+        refunds_count += integer(zid, &n["ticketCount"], "a refund ticketCount")?;
+    }
+    let (sales_count, sales_cents) = match sales_total {
+        Some(t) => (
+            integer(zid, &t["ticketCount"], "the N ticketCount")?,
+            cents(zid, &t["amount"], "the N amount")?,
+        ),
+        None => (0, 0),
+    };
+    let z_ticket_no = integer(zid, &z_request["posFiscalTicketNo"], "posFiscalTicketNo")?;
     sql(
         tx.execute(
             "INSERT INTO z_report (z_report_no, booking_date, event_label, ticket_no, user_ref,
@@ -870,19 +899,25 @@ fn write_file(
                 z.z_report_no,
                 z.booking_date,
                 z_label.unwrap_or_else(|| "R".into()),
-                z_request["posFiscalTicketNo"].as_i64().unwrap_or(0),
+                z_ticket_no,
                 z_user_ref,
                 z_fdm_datetime
                     .or_else(|| text(&z_request["posDateTime"]).map(str::to_string))
                     .unwrap_or_default(),
-                sales_total.map_or(0, |t| t["ticketCount"].as_i64().unwrap_or(0)),
+                sales_count,
                 refunds_count,
-                sales_total.map_or(0, |t| cents(&t["amount"])),
+                sales_cents,
             ],
         ),
         "write the Z report",
     )?;
     for v in turnover["vats"].as_array().into_iter().flatten() {
+        let (rate, base, vat, total) = (
+            rate_bp(zid, &v["rate"], "a Z VAT rate")?,
+            cents(zid, &v["taxableAmount"], "a Z VAT taxableAmount")?,
+            cents(zid, &v["vatAmount"], "a Z VAT vatAmount")?,
+            cents(zid, &v["totalAmount"], "a Z VAT totalAmount")?,
+        );
         sql(
             tx.execute(
                 "INSERT INTO z_vat (z_report_no, vat_label, vat_rate_bp, base_cents, vat_cents, total_cents)
@@ -890,10 +925,10 @@ fn write_file(
                 params![
                     z.z_report_no,
                     v["label"].as_str().unwrap_or("X"),
-                    rate_bp(&v["rate"]),
-                    cents(&v["taxableAmount"]),
-                    cents(&v["vatAmount"]),
-                    cents(&v["totalAmount"]),
+                    rate,
+                    base,
+                    vat,
+                    total,
                 ],
             ),
             "write the VAT of the Z",
@@ -904,7 +939,8 @@ fn write_file(
         let method = method_of(p["type"].as_str().unwrap_or_default());
         for amount in p["amount"].as_array().into_iter().flatten() {
             let kind = payment_kind(amount["type"].as_str().unwrap_or_default());
-            *z_payments.entry((method, kind)).or_insert(0) += cents(&amount["totalAmount"]);
+            *z_payments.entry((method, kind)).or_insert(0) +=
+                cents(zid, &amount["totalAmount"], "a Z payment totalAmount")?;
         }
     }
     for ((method, kind), amount) in z_payments {
@@ -933,5 +969,5 @@ fn write_file(
     sql(tx.commit(), "commit")?;
     conn.close()
         .map_err(|(_, e)| format!("stats: close: {e}"))?;
-    Ok((tickets.len() as i64, line_count))
+    Ok((i64::try_from(tickets.len()).unwrap_or(i64::MAX), line_count))
 }

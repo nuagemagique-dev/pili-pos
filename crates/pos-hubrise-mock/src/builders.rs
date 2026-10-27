@@ -1,8 +1,8 @@
 //! Test data: a seed catalog shaped like a sushi restaurant's, an
 //! order builder, and the order templates the control API injects.
 //!
-//! Everything here is plain HubRise wire JSON, so Rust tests, the
-//! control API and a live run against the real HubRise share it.
+//! Everything here is plain `HubRise` wire JSON, so Rust tests, the
+//! control API and a live run against the real `HubRise` share it.
 
 use pos_hubrise_types::CatalogData;
 use pos_hubrise_types::money::{format_cents, parse_cents, parse_quantity};
@@ -17,6 +17,7 @@ pub const ALCOHOL: (&str, &str, &str) = ("21.0", "21.0", "21.0");
 
 /// A catalog built category by category and product by product.
 #[derive(Debug, Clone, Default)]
+#[must_use]
 pub struct CatalogBuilder {
     categories: Vec<Value>,
     products: Vec<Value>,
@@ -204,10 +205,11 @@ pub fn seed_catalog_builder() -> CatalogBuilder {
         .charge("DELIVERY", "Livraison", "delivery", Some(250))
 }
 
-/// A HubRise order body built line by line. Totals follow HubRise:
+/// A `HubRise` order body built line by line. Totals follow `HubRise`:
 /// an item costs `(price + options) x quantity`, charges add,
 /// discounts subtract.
 #[derive(Debug, Clone)]
+#[must_use]
 pub struct OrderBuilder {
     order: Value,
 }
@@ -256,30 +258,36 @@ impl OrderBuilder {
     /// An option on the last item.
     pub fn option(mut self, list_name: &str, name: &str, ref_: &str, cents: i64) -> Self {
         if let Some(item) = self.items_mut().last_mut() {
-            item["options"].as_array_mut().unwrap().push(json!({
-                "option_list_name": list_name,
-                "name": name,
-                "ref": ref_,
-                "price": format_cents(cents),
-                "quantity": 1,
-            }));
+            item["options"]
+                .as_array_mut()
+                .expect("an order item always has an options array")
+                .push(json!({
+                    "option_list_name": list_name,
+                    "name": name,
+                    "ref": ref_,
+                    "price": format_cents(cents),
+                    "quantity": 1,
+                }));
         }
         self
     }
 
     pub fn charge(mut self, ref_: &str, name: &str, cents: i64) -> Self {
-        self.order["charges"].as_array_mut().unwrap().push(json!({
-            "ref": ref_,
-            "name": name,
-            "price": format_cents(cents),
-        }));
+        self.order["charges"]
+            .as_array_mut()
+            .expect("an order always has a charges array")
+            .push(json!({
+                "ref": ref_,
+                "name": name,
+                "price": format_cents(cents),
+            }));
         self
     }
 
     pub fn discount(mut self, ref_: &str, name: &str, cents: i64) -> Self {
         self.order["discounts"]
             .as_array_mut()
-            .unwrap()
+            .expect("an order always has a discounts array")
             .push(json!({ "ref": ref_, "name": name, "price_off": format_cents(cents) }));
         self
     }
@@ -287,7 +295,7 @@ impl OrderBuilder {
     pub fn payment(mut self, ref_: &str, name: &str, cents: i64) -> Self {
         self.order["payments"]
             .as_array_mut()
-            .unwrap()
+            .expect("an order always has a payments array")
             .push(json!({ "ref": ref_, "name": name, "amount": format_cents(cents) }));
         self
     }
@@ -308,7 +316,9 @@ impl OrderBuilder {
     }
 
     fn items_mut(&mut self) -> &mut Vec<Value> {
-        self.order["items"].as_array_mut().unwrap()
+        self.order["items"]
+            .as_array_mut()
+            .expect("an order always has an items array")
     }
 }
 
@@ -316,11 +326,11 @@ fn cents_of(v: &Value) -> i64 {
     v.as_str().and_then(|s| parse_cents(s).ok()).unwrap_or(0)
 }
 
-fn not_deleted(v: &&Value) -> bool {
+fn not_deleted(v: &Value) -> bool {
     !v.get("deleted").and_then(Value::as_bool).unwrap_or(false)
 }
 
-/// The total HubRise computes for an order body.
+/// The total `HubRise` computes for an order body.
 pub fn order_total_cents(order: &Value) -> i64 {
     let list = |key: &str| {
         order
@@ -331,37 +341,36 @@ pub fn order_total_cents(order: &Value) -> i64 {
     };
     let items: i64 = list("items")
         .iter()
-        .filter(not_deleted)
+        .filter(|v| not_deleted(v))
         .map(|item| {
             let options: i64 = item
                 .get("options")
                 .and_then(Value::as_array)
-                .map(|opts| {
+                .map_or(0, |opts| {
                     opts.iter()
                         .map(|o| {
                             let q = o.get("quantity").and_then(Value::as_i64).unwrap_or(1);
-                            o.get("price").map(cents_of).unwrap_or(0) * q
+                            o.get("price").map_or(0, cents_of) * q
                         })
                         .sum()
-                })
-                .unwrap_or(0);
+                });
             let quantity = item
                 .get("quantity")
                 .and_then(Value::as_str)
                 .and_then(parse_quantity)
                 .unwrap_or(1);
-            (item.get("price").map(cents_of).unwrap_or(0) + options) * quantity
+            (item.get("price").map_or(0, cents_of) + options) * quantity
         })
         .sum();
     let charges: i64 = list("charges")
         .iter()
-        .filter(not_deleted)
-        .map(|c| c.get("price").map(cents_of).unwrap_or(0))
+        .filter(|v| not_deleted(v))
+        .map(|c| c.get("price").map_or(0, cents_of))
         .sum();
     let discounts: i64 = list("discounts")
         .iter()
-        .filter(not_deleted)
-        .map(|d| d.get("price_off").map(cents_of).unwrap_or(0))
+        .filter(|v| not_deleted(v))
+        .map(|d| d.get("price_off").map_or(0, cents_of))
         .sum();
     items + charges - discounts
 }
@@ -371,13 +380,12 @@ pub fn payments_total_cents(order: &Value) -> i64 {
     order
         .get("payments")
         .and_then(Value::as_array)
-        .map(|p| {
+        .map_or(0, |p| {
             p.iter()
-                .filter(not_deleted)
-                .map(|p| p.get("amount").map(cents_of).unwrap_or(0))
+                .filter(|v| not_deleted(v))
+                .map(|p| p.get("amount").map_or(0, cents_of))
                 .sum()
         })
-        .unwrap_or(0)
 }
 
 /// The names the control API accepts for [`template`].

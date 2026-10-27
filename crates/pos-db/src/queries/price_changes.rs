@@ -70,7 +70,7 @@ pub fn add_to_line(
 
 /// Record `changes` on journal entry `entry_id` of `line_id`, and bring
 /// the order total to the net amount (a till discount on the entries of
-/// a PRICE_CHANGE pair).
+/// a `PRICE_CHANGE` pair).
 pub fn add_to_entry(
     conn: &Connection,
     entry_id: i64,
@@ -115,7 +115,7 @@ pub(crate) fn negate_on_correction(conn: &Connection, line_id: i64) -> Result<()
 }
 
 /// The line's changes so far, negated, on journal entry `entry_id` (the
-/// correction of a PRICE_CHANGE pair or of the whole line).
+/// correction of a `PRICE_CHANGE` pair or of the whole line).
 pub fn negate_line_on_entry(
     conn: &Connection,
     line_id: i64,

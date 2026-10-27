@@ -4,6 +4,11 @@
 //! line at a time, an FDM that is down or answers late, the X / Z and
 //! user report totals, the printed report line, training and access.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::sync::Arc;
 
 use pos_engine_testkit as common;
@@ -248,13 +253,13 @@ async fn nothing_is_ever_printed_or_opened_by_a_correction() {
     printer.settle(1).await;
     let kicks = printer.drawer_kicks();
     assert_eq!(kicks, 1);
-    let printed = printer.rendered().len();
+    let printed_jobs = printer.rendered().len();
 
     assert_eq!(correct(&app, n, 0, PaymentMethod::Card).await, None);
 
     printer.settle(2).await;
     assert_eq!(printer.drawer_kicks(), kicks);
-    assert_eq!(printer.rendered().len(), printed);
+    assert_eq!(printer.rendered().len(), printed_jobs);
 }
 
 // ── Refusals ───────────────────────────────────────────────────────
@@ -570,6 +575,31 @@ async fn an_event_that_is_not_a_sale_is_refused() {
     );
 }
 
+/// In training mode a drawer event is archived as T like any other, and
+/// has no `transactionTotal`: it is refused as "not a sale", not as an
+/// incomplete original.
+#[tokio::test]
+async fn a_training_drawer_event_is_refused_as_not_a_sale() {
+    let (app, _fdm) = app().await;
+    app.state.config.lock().unwrap().training_mode = true;
+    let drawer = pos_engine::commands::financial::do_open_drawer_fiscal(&app.state, MANAGER.into())
+        .await
+        .unwrap();
+    assert!(drawer.success, "{:?}", drawer.error);
+    let id = app.fiscal_events().last().unwrap().id;
+
+    let listed = list(&app, id);
+    assert!(!listed.correctable);
+    assert_eq!(
+        listed.refusal.as_deref(),
+        Some(errors::PAYMENT_CORRECTION_NOT_A_SALE)
+    );
+    assert_eq!(
+        refused(&app, id, 0, PaymentMethod::Card).await,
+        errors::PAYMENT_CORRECTION_NOT_A_SALE
+    );
+}
+
 #[tokio::test]
 async fn an_online_order_is_refused() {
     let (app, _fdm) = app().await;
@@ -730,7 +760,7 @@ async fn a_sale_and_its_correction_must_be_of_the_same_mode() {
 
 #[tokio::test]
 async fn with_the_fdm_down_nothing_is_signed() {
-    let (app, _fdm) = app().await;
+    let (app, fdm) = app().await;
     let n = cash_sale(&app, 5200).await;
     app.state.config.lock().unwrap().fdm_url = "http://127.0.0.1:1/graphql".into();
 
@@ -740,7 +770,7 @@ async fn with_the_fdm_down_nothing_is_signed() {
     assert_eq!(event_count(&app), 1);
     assert_eq!(app.counter_for(EventLabel::F), 0);
     // Back up: the same correction goes through.
-    app.use_lossy_fdm(&_fdm);
+    app.use_lossy_fdm(&fdm);
     assert_eq!(correct(&app, n, 0, PaymentMethod::Card).await, None);
 }
 
@@ -848,7 +878,7 @@ async fn the_x_and_z_totals_show_the_correction_per_method() {
         .lines()
         .find(|l| l.contains("Corrections de paiement"))
         .unwrap();
-    assert!(line.contains("1") && line.contains("52,00"), "{line}");
+    assert!(line.contains('1') && line.contains("52,00"), "{line}");
 
     let z = do_generate_z_report(&app.state, MANAGER.into())
         .await
@@ -880,6 +910,10 @@ async fn the_x_and_z_totals_show_the_correction_per_method() {
 async fn the_user_report_credits_the_manager_who_signed_the_correction() {
     let (app, fdm) = app().await;
     // A cashier sells; the manager corrects.
+    #[expect(
+        clippy::items_after_statements,
+        reason = "a local helper beside the one test that uses it"
+    )]
     const CASHIER: &str = "94060242576";
     app.login_as(CASHIER, UserRole::Cashier);
     let n = cash_sale(&app, 5200).await;

@@ -1,4 +1,5 @@
 use pos_core::user::SYSTEM_INSZ;
+use pos_fiscal::types::Mode;
 use serde::{Deserialize, Serialize};
 
 use pos_fiscal::event::build_work_in_out;
@@ -23,14 +24,14 @@ pub struct SocialResult {
 /// Sends event S (signWorkIn) to the FDM.
 pub async fn do_work_in(state: &AppState, employee_insz: String) -> Result<SocialResult, String> {
     access::operator_named(state, &employee_insz, Access::Staff)?;
-    sign_work_event(state, employee_insz, true, None).await
+    sign_work_event(state, employee_insz, WorkEvent::In, None).await
 }
 
 /// Register employee clock-out (ONSS presence end).
 /// Sends event S (signWorkOut) to the FDM.
 pub async fn do_work_out(state: &AppState, employee_insz: String) -> Result<SocialResult, String> {
     access::operator_named(state, &employee_insz, Access::Staff)?;
-    sign_work_event(state, employee_insz, false, None).await
+    sign_work_event(state, employee_insz, WorkEvent::Out, None).await
 }
 
 /// A manager registers the arrival of another employee (kitchen staff
@@ -47,8 +48,8 @@ pub async fn do_clock_in_employee(
     state: &AppState,
     employee_insz: String,
 ) -> Result<SocialResult, String> {
-    let manager = check_manager_presence(state, &employee_insz, true)?;
-    sign_work_event(state, employee_insz, true, Some(manager)).await
+    let manager = check_manager_presence(state, &employee_insz, WorkEvent::In)?;
+    sign_work_event(state, employee_insz, WorkEvent::In, Some(manager)).await
 }
 
 /// A manager registers the departure of another employee: the mirror of
@@ -58,8 +59,22 @@ pub async fn do_clock_out_employee(
     state: &AppState,
     employee_insz: String,
 ) -> Result<SocialResult, String> {
-    let manager = check_manager_presence(state, &employee_insz, false)?;
-    sign_work_event(state, employee_insz, false, Some(manager)).await
+    let manager = check_manager_presence(state, &employee_insz, WorkEvent::Out)?;
+    sign_work_event(state, employee_insz, WorkEvent::Out, Some(manager)).await
+}
+
+/// Which way an employee's presence goes.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WorkEvent {
+    In,
+    Out,
+}
+
+impl From<bool> for WorkEvent {
+    /// From the `is_in` flag of a stored request.
+    fn from(is_in: bool) -> Self {
+        if is_in { Self::In } else { Self::Out }
+    }
 }
 
 /// The checks of a manager-registered presence; returns the manager's
@@ -67,7 +82,7 @@ pub async fn do_clock_out_employee(
 fn check_manager_presence(
     state: &AppState,
     employee_insz: &str,
-    is_in: bool,
+    event: WorkEvent,
 ) -> Result<String, String> {
     let manager = access::operator(state, Access::Admin)?;
     let training = state
@@ -91,9 +106,9 @@ fn check_manager_presence(
     }
     let on_shift =
         pos_db::queries::shifts::has_open_shift(&db, employee_insz).map_err(|e| e.to_string())?;
-    match (is_in, on_shift) {
-        (true, true) => Err(errors::PRESENCE_ALREADY_IN.to_string()),
-        (false, false) => Err(errors::PRESENCE_NOT_IN.to_string()),
+    match (event, on_shift) {
+        (WorkEvent::In, true) => Err(errors::PRESENCE_ALREADY_IN.to_string()),
+        (WorkEvent::Out, false) => Err(errors::PRESENCE_NOT_IN.to_string()),
         _ => Ok(manager.insz),
     }
 }
@@ -103,9 +118,10 @@ fn check_manager_presence(
 pub(crate) async fn sign_work_event(
     state: &AppState,
     employee_insz: String,
-    is_in: bool,
+    event: WorkEvent,
     by: Option<String>,
 ) -> Result<SocialResult, String> {
+    let is_in = event == WorkEvent::In;
     let kind = if is_in { Kind::WorkIn } else { Kind::WorkOut };
     let op = Op::new(kind, &employee_insz);
     let guard = match signing::begin(state, &op).await {
@@ -116,7 +132,7 @@ pub(crate) async fn sign_work_event(
     };
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let bp_id = super::current_booking(state, &guard)?;
-    let label = EventLabel::S.in_mode(config.training_mode);
+    let label = EventLabel::S.in_mode(Mode::from(config.training_mode));
     let ticket_number = super::peek_ticket_number(state, &guard, label)?;
 
     let input = build_work_in_out(
@@ -132,8 +148,8 @@ pub(crate) async fn sign_work_event(
     } else {
         SignMutation::WorkOut
     };
-    let request =
-        SignRequest::new(mutation, &input, config.training_mode).map_err(errors::internal)?;
+    let request = SignRequest::new(mutation, &input, Mode::from(config.training_mode))
+        .map_err(errors::internal)?;
 
     let prepared = Prepared {
         op,
@@ -226,7 +242,7 @@ pub struct PresenceFailed {
 /// UI's `clockInIfOffShift`, run by the presence worker after a login.
 ///
 /// - when the lookup of open shifts fails, clock in anyway (a second
-///   WorkIn is harmless);
+///   `WorkIn` is harmless);
 /// - when the employee is already on shift (the screen was only
 ///   locked), do nothing;
 /// - a failure (an error, or a result that is not a success) emits

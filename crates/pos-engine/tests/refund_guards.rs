@@ -10,6 +10,11 @@
 //!
 //! Events are signed by the admission image's mock FDM.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -358,4 +363,27 @@ async fn a_line_of_another_sale_is_refused() {
         .await
         .unwrap_err();
     assert!(err.starts_with("refund_product_not_sold"), "{err}");
+}
+
+/// A sale record that cannot be read must stop the refund: read as an
+/// empty record it would look paid.
+#[tokio::test]
+async fn an_unreadable_sale_record_stops_the_refund() {
+    let app = app().await;
+    let original = sale(&app).await;
+    {
+        let conn = app.state.db.lock().unwrap();
+        // Simulates on-disk corruption; the trigger is the only guard.
+        conn.execute_batch("DROP TRIGGER fiscal_events_no_rewrite;")
+            .unwrap();
+        conn.execute(
+            "UPDATE fiscal_events SET event_data_json = '{broken' WHERE id = ?1",
+            [original],
+        )
+        .unwrap();
+    }
+    let orders = order_count(&app);
+    let err = refund(&app, original, &[(1, 1)]).await.unwrap_err();
+    assert!(err.starts_with("internal_error"), "{err}");
+    assert_eq!(order_count(&app), orders, "no refund order left behind");
 }

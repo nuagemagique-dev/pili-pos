@@ -22,12 +22,53 @@ use serde_json::Value;
 
 use crate::response::SignResult;
 use crate::signature::compute_short_signature;
-use crate::types::{EventLabel, EventOperation};
+use crate::types::{EventLabel, EventOperation, Mode};
 
 /// The simulator's placeholder signature: `dummy_` followed by base64
 /// (seen on module2's simulator FDM02000425, FDM software 2.2.0.5). A
 /// real FDM returns base64 only, which never contains `_`.
 pub const SIMULATOR_SIGNATURE_PREFIX: &str = "dummy_";
+
+/// Whether a response may carry the simulator's placeholder signature.
+/// A real FDM never does; accepting the placeholder from any endpoint
+/// would let a bogus answer skip the short-signature derivation check.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaceholderSignatures {
+    /// The endpoint is the module2 simulator, or a local mock.
+    Accepted,
+    /// A real FDM: the signature must be base64 and the short signature
+    /// must derive from it.
+    Refused,
+}
+
+impl PlaceholderSignatures {
+    /// Decided from the FDM's URL, the only thing the client knows: the
+    /// module2 online simulator (`fdm.module2.be`, the certification test
+    /// machine) and loopback or emulator-host addresses (the mock FDM)
+    /// may use placeholders; any other host is treated as a real FDM.
+    #[must_use]
+    pub fn for_url(fdm_url: &str) -> Self {
+        let Ok(url) = reqwest::Url::parse(fdm_url) else {
+            return Self::Refused;
+        };
+        let Some(host) = url.host_str() else {
+            return Self::Refused;
+        };
+        let host = host.trim_end_matches('.').to_ascii_lowercase();
+        // Exactly the simulator's host: module2 may serve real FDMs under
+        // other names of its domain.
+        let simulator = host == "fdm.module2.be";
+        let local = matches!(
+            host.as_str(),
+            "localhost" | "127.0.0.1" | "[::1]" | "10.0.2.2"
+        );
+        if simulator || local {
+            Self::Accepted
+        } else {
+            Self::Refused
+        }
+    }
+}
 
 /// A simulator placeholder rather than a real signature.
 fn is_simulator_placeholder(signature: &str) -> bool {
@@ -53,7 +94,8 @@ impl ExpectedEvent {
     /// `tb_eventOperation` table (POS detailed description v2.2
     /// §2.2.4). In training mode every operation is labelled T.
     /// `None` for a mutation name this POS does not know.
-    pub fn for_mutation(mutation: &str, is_training: bool) -> Option<Self> {
+    #[must_use]
+    pub fn for_mutation(mutation: &str, mode: Mode) -> Option<Self> {
         use EventLabel as L;
         use EventOperation as O;
         let (operation, label) = match mutation {
@@ -76,7 +118,7 @@ impl ExpectedEvent {
         };
         Some(Self {
             operation,
-            label: label.in_mode(is_training),
+            label: label.in_mode(mode),
         })
     }
 }
@@ -91,6 +133,10 @@ pub struct Mismatch {
 }
 
 impl Mismatch {
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "callers pass &str, String and numbers alike; by-value Display takes them all without borrow noise"
+    )]
     fn new(field: &'static str, expected: impl ToString, received: impl ToString) -> Self {
         Self {
             field,
@@ -123,11 +169,17 @@ fn same_instant(expected: &str, received: &str) -> bool {
 /// Check a sign response against the request it answers.
 ///
 /// `request` is the serialized `data` input (the common fields are
-/// flattened at its top level).
+/// flattened at its top level). `placeholders` says whether the
+/// simulator's `dummy_` signature is acceptable from this FDM.
+///
+/// # Errors
+///
+/// A [`Mismatch`] naming the first field that differs from the request.
 pub fn check_sign_result(
     request: &Value,
     expected: ExpectedEvent,
     res: &SignResult,
+    placeholders: PlaceholderSignatures,
 ) -> Result<(), Mismatch> {
     if let Some(pos_id) = request_str(request, "posId")
         && !same_text(pos_id, &res.pos_id)
@@ -179,9 +231,10 @@ pub fn check_sign_result(
     }
 
     let signature = res.digital_signature.trim();
-    let placeholder = is_simulator_placeholder(signature);
+    let placeholder =
+        placeholders == PlaceholderSignatures::Accepted && is_simulator_placeholder(signature);
     let decoded = base64::engine::general_purpose::STANDARD.decode(signature);
-    if signature.is_empty() || decoded.as_ref().is_ok_and(|raw| raw.is_empty()) {
+    if signature.is_empty() || decoded.as_ref().is_ok_and(std::vec::Vec::is_empty) {
         return Err(Mismatch::new("digitalSignature", "non vide", "vide"));
     }
     if decoded.is_err() && !placeholder {
@@ -276,11 +329,11 @@ mod tests {
     }
 
     fn sale() -> ExpectedEvent {
-        ExpectedEvent::for_mutation("signSale", false).unwrap()
+        ExpectedEvent::for_mutation("signSale", Mode::Normal).unwrap()
     }
 
     fn field_of(res: &SignResult, expected: ExpectedEvent) -> &'static str {
-        check_sign_result(&request(), expected, res)
+        check_sign_result(&request(), expected, res, PlaceholderSignatures::Accepted)
             .unwrap_err()
             .field
     }
@@ -288,7 +341,12 @@ mod tests {
     #[test]
     fn a_consistent_sale_passes() {
         assert_eq!(
-            check_sign_result(&request(), sale(), &sale_response()),
+            check_sign_result(
+                &request(),
+                sale(),
+                &sale_response(),
+                PlaceholderSignatures::Refused
+            ),
             Ok(())
         );
     }
@@ -316,12 +374,12 @@ mod tests {
         ];
         for (mutation, operation, label) in table {
             assert_eq!(
-                ExpectedEvent::for_mutation(mutation, false),
+                ExpectedEvent::for_mutation(mutation, Mode::Normal),
                 Some(ExpectedEvent { operation, label }),
                 "{mutation}"
             );
             assert_eq!(
-                ExpectedEvent::for_mutation(mutation, true),
+                ExpectedEvent::for_mutation(mutation, Mode::Training),
                 Some(ExpectedEvent {
                     operation,
                     label: L::T
@@ -330,7 +388,7 @@ mod tests {
             );
         }
         assert_eq!(
-            ExpectedEvent::for_mutation("signSomethingElse", false),
+            ExpectedEvent::for_mutation("signSomethingElse", Mode::Normal),
             None
         );
     }
@@ -360,14 +418,20 @@ mod tests {
     fn the_same_instant_in_another_offset_notation_passes() {
         let mut res = sale_response();
         res.pos_date_time = "2026-09-26T10:00:00Z".into();
-        assert_eq!(check_sign_result(&request(), sale(), &res), Ok(()));
+        assert_eq!(
+            check_sign_result(&request(), sale(), &res, PlaceholderSignatures::Refused),
+            Ok(())
+        );
     }
 
     #[test]
     fn another_device_is_refused_but_letter_case_is_not_a_mismatch() {
         let mut res = sale_response();
         res.device_id = "00:1B:44:11:3A:B7".into();
-        assert_eq!(check_sign_result(&request(), sale(), &res), Ok(()));
+        assert_eq!(
+            check_sign_result(&request(), sale(), &res, PlaceholderSignatures::Refused),
+            Ok(())
+        );
         res.device_id = "00:1b:44:11:3a:b8".into();
         assert_eq!(field_of(&res, sale()), "deviceId");
     }
@@ -387,7 +451,10 @@ mod tests {
         req.as_object_mut().unwrap().remove("terminalId");
         let mut res = sale_response();
         res.terminal_id = None;
-        assert_eq!(check_sign_result(&req, sale(), &res), Ok(()));
+        assert_eq!(
+            check_sign_result(&req, sale(), &res, PlaceholderSignatures::Refused),
+            Ok(())
+        );
     }
 
     #[test]
@@ -406,19 +473,22 @@ mod tests {
 
     #[test]
     fn a_real_label_for_a_training_sale_is_refused() {
-        let training = ExpectedEvent::for_mutation("signSale", true).unwrap();
+        let training = ExpectedEvent::for_mutation("signSale", Mode::Training).unwrap();
         let res = sale_response();
         assert_eq!(field_of(&res, training), "eventLabel");
     }
 
     #[test]
     fn a_training_sale_needs_no_short_signature() {
-        let training = ExpectedEvent::for_mutation("signSale", true).unwrap();
+        let training = ExpectedEvent::for_mutation("signSale", Mode::Training).unwrap();
         let mut res = sale_response();
         res.fdm_ref.event_label = EventLabel::T;
         res.short_signature = None;
         res.verification_url = None;
-        assert_eq!(check_sign_result(&request(), training, &res), Ok(()));
+        assert_eq!(
+            check_sign_result(&request(), training, &res, PlaceholderSignatures::Refused),
+            Ok(())
+        );
     }
 
     #[test]
@@ -451,9 +521,45 @@ mod tests {
     #[test]
     fn the_simulator_placeholder_signature_passes() {
         assert_eq!(
-            check_sign_result(&request(), sale(), &simulator_sale()),
+            check_sign_result(
+                &request(),
+                sale(),
+                &simulator_sale(),
+                PlaceholderSignatures::Accepted
+            ),
             Ok(())
         );
+    }
+
+    #[test]
+    fn a_real_fdm_endpoint_may_not_use_the_placeholder() {
+        let err = check_sign_result(
+            &request(),
+            sale(),
+            &simulator_sale(),
+            PlaceholderSignatures::Refused,
+        )
+        .unwrap_err();
+        assert_eq!(err.field, "digitalSignature");
+    }
+
+    #[test]
+    fn placeholders_are_accepted_only_from_the_simulator_and_local_mocks() {
+        use PlaceholderSignatures::{Accepted, Refused};
+        for (url, want) in [
+            ("http://fdm.module2.be/graphql/", Accepted),
+            ("https://FDM.MODULE2.BE/graphql", Accepted),
+            ("http://127.0.0.1:8081/graphql", Accepted),
+            ("http://localhost:8081/graphql", Accepted),
+            ("http://10.0.2.2:8081/graphql", Accepted),
+            ("http://192.168.1.100:8080/graphql", Refused),
+            ("https://fdm.module2.be.evil.example/graphql", Refused),
+            ("https://evilmodule2.be/graphql", Refused),
+            ("https://pos.module2.be/graphql", Refused),
+            ("not a url", Refused),
+        ] {
+            assert_eq!(PlaceholderSignatures::for_url(url), want, "{url}");
+        }
     }
 
     #[test]
@@ -499,7 +605,8 @@ mod tests {
         let mut res = sale_response();
         // The placeholder value of the official v1.7 fixtures.
         res.short_signature = Some("ca39a3ee5e6b4b0d3255bfef95601890afd80709".into());
-        let err = check_sign_result(&request(), sale(), &res).unwrap_err();
+        let err = check_sign_result(&request(), sale(), &res, PlaceholderSignatures::Refused)
+            .unwrap_err();
         assert_eq!(err.field, "shortSignature");
         assert_eq!(err.expected, compute_short_signature(&sig_b64()).unwrap());
     }
@@ -508,7 +615,10 @@ mod tests {
     fn a_short_signature_in_upper_case_passes() {
         let mut res = sale_response();
         res.short_signature = res.short_signature.map(|s| s.to_uppercase());
-        assert_eq!(check_sign_result(&request(), sale(), &res), Ok(()));
+        assert_eq!(
+            check_sign_result(&request(), sale(), &res, PlaceholderSignatures::Refused),
+            Ok(())
+        );
     }
 
     #[test]
@@ -539,9 +649,9 @@ mod tests {
             res.fdm_ref.event_label = label;
             res.short_signature = None;
             res.verification_url = None;
-            let expected = ExpectedEvent::for_mutation(mutation, false).unwrap();
+            let expected = ExpectedEvent::for_mutation(mutation, Mode::Normal).unwrap();
             assert_eq!(
-                check_sign_result(&request(), expected, &res),
+                check_sign_result(&request(), expected, &res, PlaceholderSignatures::Refused),
                 Ok(()),
                 "{mutation}"
             );
@@ -552,7 +662,7 @@ mod tests {
     fn the_message_names_field_expected_and_received() {
         let mut res = sale_response();
         res.pos_fiscal_ticket_no = 41;
-        let msg = check_sign_result(&request(), sale(), &res)
+        let msg = check_sign_result(&request(), sale(), &res, PlaceholderSignatures::Refused)
             .unwrap_err()
             .to_string();
         assert_eq!(msg, "posFiscalTicketNo attendu 42, reçu 41");

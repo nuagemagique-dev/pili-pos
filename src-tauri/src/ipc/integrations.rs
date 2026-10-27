@@ -4,12 +4,12 @@ use pos_engine::commands::integrations::Integrations;
 
 use super::Managed;
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_integrations(state: State<'_, Managed>) -> Result<Integrations, String> {
     pos_engine::commands::integrations::do_get_integrations(state.inner())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_hubrise_enabled(
     state: State<'_, Managed>,
     enabled: bool,

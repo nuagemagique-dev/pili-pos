@@ -90,7 +90,10 @@ impl PosEngine {
     }
 
     /// Every open order.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn list_open_orders(&self) -> Result<Vec<Order>, PosError> {
         let orders = self.blocking(|st| order::do_list_open_orders(st)).await?;
         convert::out(&orders)
@@ -151,6 +154,10 @@ impl PosEngine {
     }
 
     /// Mark a product sold out until the end of the business day, or until re-enabled.
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "UniFFI export: the argument is part of the Kotlin API"
+    )]
     pub async fn set_sold_out(
         &self,
         menu_item_id: i64,
@@ -176,7 +183,10 @@ impl PosEngine {
     }
 
     /// The configured tables with their current order status.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn list_tables(&self) -> Result<Vec<TableInfo>, PosError> {
         let infos = self
             .blocking(|st| tables::do_list_configured_tables(st))
@@ -185,7 +195,10 @@ impl PosEngine {
     }
 
     /// The table plan (the table numbers in use) and its changes.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn get_table_plan(&self) -> Result<TablePlan, PosError> {
         let plan = self
             .blocking(|st| table_plan::do_get_table_plan(st))
@@ -202,7 +215,10 @@ impl PosEngine {
     }
 
     /// The takeaways left open.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn list_open_takeaways(&self) -> Result<Vec<TakeawayInfo>, PosError> {
         let infos = self
             .blocking(|st| tables::do_list_open_takeaways(st))
@@ -304,7 +320,10 @@ impl PosEngine {
     }
 
     /// The operator touched the screen: restart the idle lock time.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn user_activity(&self) -> Result<(), PosError> {
         self.blocking(|st| session::do_user_activity(st)).await
     }
@@ -321,8 +340,12 @@ fn js_round_div(n: i128, d: i128) -> i128 {
 /// C, D, only for codes present in `lines` (X is never shown); the rates are 21, 12, 6 and 0; the
 /// VAT of a code with a rate is `total - round(total * 10000 / (10000 + rate * 100))` with the
 /// rounding of JavaScript (half up, also for negative totals). Display only: it can differ by one
-/// cent from `VatCode::vat_from_inclusive`, which truncates; the ticket VAT comes from the FDM.
+/// cent from the truncating inclusive VAT of the engine; the ticket VAT comes from the FDM.
 #[uniffi::export]
+#[expect(
+    clippy::unused_async,
+    reason = "UniFFI exports it as a Kotlin suspend fun: the signature is the contract"
+)]
 pub async fn vat_split(lines: Vec<VatLine>) -> Vec<VatSplitRow> {
     // Totals of A, B, C and D; `None` when no line has the code. X is never shown.
     let mut totals: [Option<i128>; 4] = [None; 4];
@@ -562,6 +585,10 @@ mod flow {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one end-to-end dine-in scenario, step by step"
+    )]
     async fn a_dine_in_flow_reaches_the_engine_at_every_step() {
         let (e, _dir) = open_logged_in().await;
         let input = CreateOrderInput {

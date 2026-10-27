@@ -1,4 +1,4 @@
-//! HubRise Inventory resource.
+//! `HubRise` Inventory resource.
 //!
 //! Reference: `docs/hubrise/04-catalogs.md` (Inventory section) and
 //! `pos-hubrise-mock/docs/04-catalogs.md` for the mock's own copy.

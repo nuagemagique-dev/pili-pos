@@ -1,4 +1,4 @@
-//! In-memory state for the HubRise mock, and the rules the real API
+//! In-memory state for the `HubRise` mock, and the rules the real API
 //! applies: who is told about an event, which status changes are
 //! allowed, how fast a catalog may be read.
 
@@ -22,16 +22,18 @@ pub const POS_TOKEN: &str = "dev-token-pos";
 pub const WEBSHOP_TOKEN: &str = "dev-token-webshop";
 
 /// Global mock state. Wrapped in `Arc` for sharing across axum handlers.
+#[derive(Debug)]
 pub struct MockState {
     pub inner: Mutex<Inner>,
 }
 
+#[derive(Debug)]
 pub struct Inner {
     /// Clients indexed by access token.
     pub clients: HashMap<String, ClientState>,
     /// OAuth client ids and the token their code exchanges for.
     pub oauth_clients: HashMap<String, String>,
-    /// All orders, as JSON, keyed by HubRise order id.
+    /// All orders, as JSON, keyed by `HubRise` order id.
     pub orders: HashMap<String, Value>,
     /// Order ids in creation order (listing is newest first).
     pub order_ids: Vec<String>,
@@ -67,7 +69,7 @@ pub struct Inner {
     /// Every request in the last minute/hour/day, per token (the
     /// connection-wide rate limit).
     pub requests_by_token: HashMap<String, VecDeque<Instant>>,
-    /// HubRise allows 10 catalog reads a minute per connection. Kept
+    /// `HubRise` allows 10 catalog reads a minute per connection. Kept
     /// as a top-level field (not in [`MockSettings`]): other crates'
     /// tests poke it directly (`mock.state.inner.lock()...`).
     pub catalog_reads_per_minute: usize,
@@ -78,7 +80,7 @@ pub struct Inner {
 }
 
 /// Behaviour toggles for tests that need the documented, more
-/// permissive HubRise behaviour instead of the mock's long-standing
+/// permissive `HubRise` behaviour instead of the mock's long-standing
 /// default (see `README.md` "Toggles"). `strict_transitions` and
 /// `strict_private_ref` default to `true`: the mock's original,
 /// stricter policy, which every existing POS integration test
@@ -124,6 +126,7 @@ impl Default for MockSettings {
     }
 }
 
+#[derive(Debug)]
 pub struct ClientState {
     pub access_token: String,
     pub client_name: String,
@@ -199,12 +202,12 @@ pub struct LoggedRequest {
     pub status: u16,
 }
 
-/// An error the HubRise API answers with.
+/// An error the `HubRise` API answers with.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApiError {
     pub status: u16,
     pub message: String,
-    /// Per-field details, HubRise's `errors: [{field, message}]`.
+    /// Per-field details, `HubRise`'s `errors: [{field, message}]`.
     pub fields: Vec<(String, String)>,
 }
 
@@ -231,8 +234,7 @@ impl ApiError {
     pub fn fields(fields: Vec<(String, String)>) -> Self {
         let message = fields
             .first()
-            .map(|(f, m)| format!("{f}: {m}"))
-            .unwrap_or_else(|| "invalid".to_string());
+            .map_or_else(|| "invalid".to_string(), |(f, m)| format!("{f}: {m}"));
         Self {
             status: 422,
             message,
@@ -259,6 +261,16 @@ const STATUSES: &[&str] = &[
     "delivery_failed",
 ];
 
+/// Which status changes [`transition_allowed`] lets through.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Transitions {
+    /// The mock's own policy: nothing leaves a final status, nothing goes
+    /// back to `new`.
+    Strict,
+    /// Any documented status may follow any other.
+    Any,
+}
+
 /// Whether an order may go from `from` to `to`. The docs define no
 /// transition graph and explicitly say orders don't have to go
 /// through every step, so `strict = false` allows any documented
@@ -267,11 +279,11 @@ const STATUSES: &[&str] = &[
 /// invented policy that every existing POS integration test is
 /// written against; a test that wants the more permissive,
 /// docs-only behaviour can flip it off (see `README.md` "Toggles").
-pub fn transition_allowed(strict: bool, from: &str, to: &str) -> bool {
+pub fn transition_allowed(policy: Transitions, from: &str, to: &str) -> bool {
     if !STATUSES.contains(&to) {
         return false;
     }
-    if !strict {
+    if policy == Transitions::Any {
         return true;
     }
     if from == to {
@@ -378,11 +390,11 @@ impl Inner {
     }
 
     /// Queue `event` for every client whose callback asks for it,
-    /// except `source`: HubRise never tells a client about its own
+    /// except `source`: `HubRise` never tells a client about its own
     /// changes.
     pub fn emit(&mut self, source: &str, mut event: CallbackEvent) {
         event.id = self.new_id("ev");
-        for (token, client) in self.clients.iter_mut() {
+        for (token, client) in &mut self.clients {
             if token != source && client.wants(&event.resource_type, &event.event_type) {
                 client.events.push_back(event.clone());
             }
@@ -432,7 +444,7 @@ impl Inner {
         body["location_id"] = json!(location_id);
         body["status"] = json!(status);
         body["created_at"] = json!(Utc::now().to_rfc3339());
-        body["created_by"] = json!(created_by.clone());
+        body["created_by"] = json!(created_by);
         if body.get("channel").and_then(Value::as_str).is_none() {
             body["channel"] = json!(created_by);
         }
@@ -449,7 +461,7 @@ impl Inner {
         refresh_totals(&mut body);
         self.orders.insert(id.clone(), body.clone());
         self.order_ids.push(id.clone());
-        self.order_owner.insert(id.clone(), source.to_string());
+        self.order_owner.insert(id, source.to_string());
         let event = order_event(&body, "create", None);
         self.emit(source, event);
         Ok(body)
@@ -488,7 +500,15 @@ impl Inner {
         let mut order = order.clone();
         if let Some(to) = patch.get("status").and_then(Value::as_str) {
             let from = order["status"].as_str().unwrap_or("new");
-            if !transition_allowed(self.settings.strict_transitions, from, to) {
+            if !transition_allowed(
+                if self.settings.strict_transitions {
+                    Transitions::Strict
+                } else {
+                    Transitions::Any
+                },
+                from,
+                to,
+            ) {
                 return Err(ApiError::field(
                     "status",
                     format!("status cannot change from {from} to {to}"),
@@ -520,27 +540,24 @@ impl Inner {
                     order[key] = json!([]);
                     continue;
                 };
-                match op.get("id").and_then(Value::as_str) {
-                    Some(element_id) => {
-                        let Some(element) = list.iter_mut().find(|e| e["id"] == element_id) else {
-                            return Err(ApiError::field(
-                                key,
-                                format!("{key} {element_id} not found"),
-                            ));
-                        };
-                        if op.get("deleted").and_then(Value::as_bool) == Some(true) {
-                            element["deleted"] = json!(true);
-                        }
-                        if let Some(r) = op.get("private_ref") {
-                            element["private_ref"] = r.clone();
-                        }
+                if let Some(element_id) = op.get("id").and_then(Value::as_str) {
+                    let Some(element) = list.iter_mut().find(|e| e["id"] == element_id) else {
+                        return Err(ApiError::field(
+                            key,
+                            format!("{key} {element_id} not found"),
+                        ));
+                    };
+                    if op.get("deleted").and_then(Value::as_bool) == Some(true) {
+                        element["deleted"] = json!(true);
                     }
-                    None => {
-                        let mut added = op.clone();
-                        added["id"] = json!(format!("{order_id}-{key}-{}", list.len()));
-                        added["deleted"] = json!(false);
-                        list.push(added);
+                    if let Some(r) = op.get("private_ref") {
+                        element["private_ref"] = r.clone();
                     }
+                } else {
+                    let mut added = op.clone();
+                    added["id"] = json!(format!("{order_id}-{key}-{}", list.len()));
+                    added["deleted"] = json!(false);
+                    list.push(added);
                 }
             }
         }
@@ -618,7 +635,7 @@ impl Inner {
         let history = self.requests_by_token.entry(token.to_string()).or_default();
         while history
             .front()
-            .is_some_and(|t| now.duration_since(*t) > Duration::from_secs(24 * 3600))
+            .is_some_and(|t| now.duration_since(*t) > Duration::from_hours(24))
         {
             history.pop_front();
         }
@@ -706,7 +723,7 @@ impl Inner {
     }
 
     /// `POST /mock/inventory/expire`: announce every entry with an
-    /// `expires_at` in the default catalog as HubRise's documented
+    /// `expires_at` in the default catalog as `HubRise`'s documented
     /// `inventory.patch` expiry notice (one event, every expiring
     /// entry together).
     pub fn expire_inventory(&mut self) {
@@ -765,7 +782,7 @@ fn rate_check(
     Ok(())
 }
 
-/// Recompute `total` and `payment_discrepancy` as HubRise does.
+/// Recompute `total` and `payment_discrepancy` as `HubRise` does.
 fn refresh_totals(order: &mut Value) {
     let total = order_total_cents(order);
     let paid = payments_total_cents(order);
@@ -773,7 +790,7 @@ fn refresh_totals(order: &mut Value) {
     order["payment_discrepancy"] = json!(pos_hubrise_types::money::format_cents(paid - total));
 }
 
-/// Refuse amounts that are not `<amount> EUR` (HubRise answers 422).
+/// Refuse amounts that are not `<amount> EUR` (`HubRise` answers 422).
 fn validate_order_money(order: &Value) -> Result<(), ApiError> {
     let check = |v: Option<&Value>, what: &str| -> Result<(), ApiError> {
         match v {
@@ -821,6 +838,10 @@ fn validate_order_money(order: &Value) -> Result<(), ApiError> {
 /// ref, an empty option list, an unenforced `min/max_selections`,
 /// etc. refuses the whole body with 422 and per-field errors
 /// (`docs/hubrise/04-catalogs.md`).
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear pass of the catalog rules, clearer unsplit"
+)]
 pub fn validate_catalog(data: &CatalogData) -> Result<(), ApiError> {
     let mut errors: Vec<(String, String)> = Vec::new();
     let seen = |errors: &mut Vec<(String, String)>,
@@ -911,24 +932,21 @@ pub fn validate_catalog(data: &CatalogData) -> Result<(), ApiError> {
                         ));
                     }
                 }
-                match &sku.name {
-                    Some(name) => {
-                        if !sku_names.insert(name.clone()) {
-                            errors.push((
-                                format!("products[{i}].skus[{j}].name"),
-                                format!("sku name {name:?} repeated in this product"),
-                            ));
-                        }
+                if let Some(name) = &sku.name {
+                    if !sku_names.insert(name.clone()) {
+                        errors.push((
+                            format!("products[{i}].skus[{j}].name"),
+                            format!("sku name {name:?} repeated in this product"),
+                        ));
                     }
-                    None => {
-                        if sku_names_seen {
-                            errors.push((
-                                format!("products[{i}].skus[{j}].name"),
-                                "only one sku without a name is allowed per product".to_string(),
-                            ));
-                        }
-                        sku_names_seen = true;
+                } else {
+                    if sku_names_seen {
+                        errors.push((
+                            format!("products[{i}].skus[{j}].name"),
+                            "only one sku without a name is allowed per product".to_string(),
+                        ));
                     }
+                    sku_names_seen = true;
                 }
             }
         }
@@ -963,7 +981,7 @@ pub fn validate_catalog(data: &CatalogData) -> Result<(), ApiError> {
             .filter(|opt| opt.default == Some(true))
             .count();
         if let Some(max) = max
-            && defaults > max as usize
+            && defaults > usize::try_from(max).unwrap_or(usize::MAX)
         {
             errors.push((
                 format!("option_lists[{i}].options"),
@@ -1065,7 +1083,7 @@ fn validate_inventory_entries(
                 "exactly one of sku_ref / option_ref is required".to_string(),
             )),
             (Some(r), None) if !sku_refs.contains(r) => {
-                errors.push((format!("[{i}].sku_ref"), format!("unknown sku ref {r:?}")))
+                errors.push((format!("[{i}].sku_ref"), format!("unknown sku ref {r:?}")));
             }
             (None, Some(r)) if !option_refs.contains(r) => errors.push((
                 format!("[{i}].option_ref"),
@@ -1075,16 +1093,17 @@ fn validate_inventory_entries(
         }
         let stock_thousandths = match &entry.stock {
             None => None,
-            Some(s) => match parse_stock_thousandths(s) {
-                Some(v) => Some(v),
-                None => {
+            Some(s) => {
+                if let Some(v) = parse_stock_thousandths(s) {
+                    Some(v)
+                } else {
                     errors.push((
                         format!("[{i}].stock"),
                         format!("{s:?} must be a non-negative decimal with at most 3 decimals"),
                     ));
                     None
                 }
-            },
+            }
         };
         if entry.expires_at.is_some() && stock_thousandths != Some(0) {
             errors.push((
@@ -1131,10 +1150,10 @@ fn catalog_event(catalog: &Catalog, kind: &str) -> CallbackEvent {
     }
 }
 
-/// A catalog as HubRise stores it: every element gets an id, and the
+/// A catalog as `HubRise` stores it: every element gets an id, and the
 /// refs an upload links elements with (`category_ref`, `parent_ref`,
 /// `option_list_refs`) become those ids (`category_id`, `parent_id`,
-/// `option_list_ids`); HubRise does not answer with the link refs
+/// `option_list_ids`); `HubRise` does not answer with the link refs
 /// (recorded in `fixtures/hubrise`). Ids here are derived from refs.
 fn stored(mut data: CatalogData) -> CatalogData {
     let id_of = |prefix: &str, r: &str| format!("{prefix}-{}", r.to_lowercase());
@@ -1189,23 +1208,55 @@ mod tests {
 
     #[test]
     fn transitions_are_permissive_with_strict_mode_off() {
-        assert!(transition_allowed(false, "completed", "accepted"));
-        assert!(transition_allowed(false, "cancelled", "accepted"));
-        assert!(transition_allowed(false, "accepted", "new"));
-        assert!(!transition_allowed(false, "accepted", "bogus"));
+        assert!(transition_allowed(
+            Transitions::Any,
+            "completed",
+            "accepted"
+        ));
+        assert!(transition_allowed(
+            Transitions::Any,
+            "cancelled",
+            "accepted"
+        ));
+        assert!(transition_allowed(Transitions::Any, "accepted", "new"));
+        assert!(!transition_allowed(Transitions::Any, "accepted", "bogus"));
     }
 
     #[test]
     fn strict_transitions_follow_the_mocks_old_policy() {
-        assert!(transition_allowed(true, "new", "received"));
-        assert!(transition_allowed(true, "received", "accepted"));
-        assert!(transition_allowed(true, "accepted", "cancelled"));
-        assert!(transition_allowed(true, "new", "rejected"));
-        assert!(!transition_allowed(true, "completed", "accepted"));
-        assert!(!transition_allowed(true, "cancelled", "accepted"));
-        assert!(!transition_allowed(true, "accepted", "new"));
-        assert!(!transition_allowed(true, "accepted", "bogus"));
-        assert!(transition_allowed(true, "completed", "completed"));
+        assert!(transition_allowed(Transitions::Strict, "new", "received"));
+        assert!(transition_allowed(
+            Transitions::Strict,
+            "received",
+            "accepted"
+        ));
+        assert!(transition_allowed(
+            Transitions::Strict,
+            "accepted",
+            "cancelled"
+        ));
+        assert!(transition_allowed(Transitions::Strict, "new", "rejected"));
+        assert!(!transition_allowed(
+            Transitions::Strict,
+            "completed",
+            "accepted"
+        ));
+        assert!(!transition_allowed(
+            Transitions::Strict,
+            "cancelled",
+            "accepted"
+        ));
+        assert!(!transition_allowed(Transitions::Strict, "accepted", "new"));
+        assert!(!transition_allowed(
+            Transitions::Strict,
+            "accepted",
+            "bogus"
+        ));
+        assert!(transition_allowed(
+            Transitions::Strict,
+            "completed",
+            "completed"
+        ));
     }
 
     fn register(inner: &mut Inner, token: &str, events: Value) {

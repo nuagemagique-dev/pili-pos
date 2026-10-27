@@ -33,7 +33,7 @@ use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
 use pos_engine::commands::refund::{RefundItem as EngineRefundItem, do_list_refundable_events};
-use pos_engine_testkit::{TestApp, tem_accepts, tem_probe};
+use pos_engine_testkit::{DigitalOnly, TestApp, tem_accepts, tem_probe};
 use pos_ffi::PosError;
 use pos_ffi::records::checkout as rec;
 use pos_ffi::records::common::{
@@ -66,6 +66,10 @@ fn out_equal<E: Serialize, F: Serialize + DeserializeOwned>(engine: &E) -> F {
 }
 
 /// A hand-built engine-shaped JSON value converts to the record and back to the same JSON.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "callers hand over json! literals"
+)]
 fn json_round_trip<F: Serialize + DeserializeOwned>(value: Value) -> F {
     let record: F = contract_out(&value).unwrap_or_else(|e| panic!("convert::out: {e}"));
     assert_eq!(value, json_of(&record), "JSON vs FFI serde form");
@@ -539,7 +543,7 @@ async fn the_mail_status_converts_for_every_state() {
     let tem = TestApp::new().await.fdm;
     tem_probe(&tem, 200).await;
     let mut app = app_on_mock(false).await;
-    app.enable_mail(&tem, true);
+    app.enable_mail(&tem, DigitalOnly::Allowed);
     let status = do_check_mail_status(&app.state).await.unwrap();
     let record: rec::MailStatus = out_equal(&status);
     assert_eq!(
@@ -555,7 +559,7 @@ async fn the_mail_status_converts_for_every_state() {
     let down = TestApp::new().await.fdm;
     tem_probe(&down, 503).await;
     let mut app = app_on_mock(false).await;
-    app.enable_mail(&down, false);
+    app.enable_mail(&down, DigitalOnly::Refused);
     let status = do_check_mail_status(&app.state).await.unwrap();
     let record: rec::MailStatus = out_equal(&status);
     assert_eq!(
@@ -574,7 +578,7 @@ async fn deliveries_of_real_digital_tickets_convert() {
     tem_probe(&tem, 200).await;
     tem_accepts(&tem).await;
     let mut app = app_on_mock(false).await;
-    app.enable_mail(&tem, true);
+    app.enable_mail(&tem, DigitalOnly::Allowed);
     let request = EngineDeliveryRequest::email(RequestedMedium::Digital, "client@example.be");
     let sale = cash_sale(&app, Some(&request)).await;
 
@@ -740,7 +744,7 @@ fn a_settlement_preview_serializes_with_its_fields() {
 fn assert_ok_or_coded<T: std::fmt::Debug>(name: &str, r: Result<T, PosError>) -> Option<T> {
     match r {
         Ok(v) => Some(v),
-        Err(PosError::Coded { .. }) | Err(PosError::Fdm { .. }) => None,
+        Err(PosError::Coded { .. } | PosError::Fdm { .. }) => None,
         Err(other) => panic!("{name}: {other:?}"),
     }
 }

@@ -190,7 +190,10 @@ pub fn lookup<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Value> {
 /// Replace every reference string of `value` by the saved value it names.
 /// A reference to a name no earlier step saved, or to a path the saved
 /// result does not have, is an error.
-pub fn substitute(value: &Value, saved: &HashMap<String, Value>) -> anyhow::Result<Value> {
+pub fn substitute<S: std::hash::BuildHasher>(
+    value: &Value,
+    saved: &HashMap<String, Value, S>,
+) -> anyhow::Result<Value> {
     match value {
         Value::String(s) => match parse_reference(s) {
             None => Ok(value.clone()),

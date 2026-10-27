@@ -10,6 +10,11 @@
 //! over all events, only N events carry a short signature and a QR
 //! URL, and the archive holds each request with its response.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use std::collections::HashMap;
@@ -94,11 +99,19 @@ async fn sale(app: &TestApp, table: Option<i32>, method: CheckoutPaymentMethod) 
     result.fiscal_event_id.unwrap()
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 fn set_training(app: &TestApp, on: bool) {
     app.state.config.lock().unwrap().training_mode = on;
 }
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario read top to bottom, clearer unsplit"
+)]
 async fn a_whole_service_day_against_the_admission_mock() {
     let app = app_on_mock().await;
 
@@ -340,4 +353,23 @@ async fn a_sale_signed_like_the_module2_simulator_is_accepted() {
         "{response}"
     );
     assert_eq!(event.short_signature.as_deref(), Some(short.as_str()));
+}
+
+/// A training X report is archived under T but is a report all the same:
+/// its array-valued amounts must not make the later X and Z of the
+/// booking period unreadable.
+#[tokio::test]
+async fn a_training_x_report_does_not_block_the_later_x_and_z() {
+    let app = app_on_mock().await;
+    sale(&app, None, CheckoutPaymentMethod::Cash).await;
+
+    set_training(&app, true);
+    let training_x = do_generate_x_report(&app.state, INSZ.into()).await.unwrap();
+    assert!(training_x.success, "{:?}", training_x.error);
+    set_training(&app, false);
+
+    let x = do_generate_x_report(&app.state, INSZ.into()).await.unwrap();
+    assert!(x.success, "{:?}", x.error);
+    let z = do_generate_z_report(&app.state, INSZ.into()).await.unwrap();
+    assert!(z.success, "{:?}", z.error);
 }

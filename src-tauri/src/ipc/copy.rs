@@ -25,7 +25,7 @@ pub async fn copy_ticket(
 
 /// Recent tickets a customer received, for the copy picker: managers
 /// only, like the copy itself.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_copyable_tickets(
     state: State<'_, Managed>,
     limit: Option<i64>,
@@ -34,7 +34,7 @@ pub fn list_copyable_tickets(
 }
 
 /// List recent fiscal events.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_fiscal_events(
     state: State<'_, Managed>,
     limit: Option<i64>,

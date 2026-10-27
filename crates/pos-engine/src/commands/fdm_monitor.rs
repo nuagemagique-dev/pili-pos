@@ -212,7 +212,7 @@ pub fn poll_delay(base: Duration, failures: u32) -> Duration {
     base.saturating_mul(factor)
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct Last {
     health: Option<FdmHealth>,
     failures: u32,
@@ -220,7 +220,7 @@ struct Last {
 
 /// What the monitor remembers: the last health, how many checks in a
 /// row the FDM did not answer, and the wake-up of the loop.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct FdmMonitorState {
     last: Mutex<Last>,
     /// Notified by an explicit check, so the loop schedules the next one
@@ -231,7 +231,7 @@ pub struct FdmMonitorState {
 impl FdmMonitorState {
     /// Consecutive checks the FDM did not answer (0 after an answer).
     pub(crate) fn failures(&self) -> u32 {
-        self.last.lock().map(|l| l.failures).unwrap_or(0)
+        self.last.lock().map_or(0, |l| l.failures)
     }
 
     /// A session opens: the backoff starts again (the store did the
@@ -267,12 +267,19 @@ pub fn do_fdm_health(state: &AppState) -> Result<Option<FdmHealth>, String> {
 /// `fdm-status`, and the monitor loop schedules its next check from now.
 /// Needs no session (the login screen uses it).
 pub async fn do_fdm_check_now(state: &AppState) -> Result<FdmHealth, String> {
-    check(state, true).await
+    check(state, Wake::Loop).await
+}
+
+/// Whether a check wakes the monitor loop to reschedule from now.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Wake {
+    Loop,
+    No,
 }
 
 /// One check, shared by [`do_fdm_check_now`] and the loop (which passes
-/// `wake: false`: it reschedules by itself).
-pub(crate) async fn check(state: &AppState, wake: bool) -> Result<FdmHealth, String> {
+/// `Wake::No`: it reschedules by itself).
+pub(crate) async fn check(state: &AppState, wake: Wake) -> Result<FdmHealth, String> {
     let mut health = match checkout::do_check_fdm_status(state).await {
         Ok(status) => classify(&status),
         Err(e) => {
@@ -280,7 +287,7 @@ pub(crate) async fn check(state: &AppState, wake: bool) -> Result<FdmHealth, Str
             unanswered(NOT_OPERATIONAL.to_string())
         }
     };
-    let session_open = state.session.lock().map(|s| s.is_some()).unwrap_or(false);
+    let session_open = state.session.lock().is_ok_and(|s| s.is_some());
     {
         let mut last = state.fdm_monitor.last.lock().map_err(|e| e.to_string())?;
         last.failures = if health.answered {
@@ -293,7 +300,7 @@ pub(crate) async fn check(state: &AppState, wake: bool) -> Result<FdmHealth, Str
         last.health = Some(health.clone());
     }
     state.events.emit(EngineEvent::FdmStatus(health.clone()));
-    if wake {
+    if wake == Wake::Loop {
         state.fdm_monitor.wake.notify_one();
     }
     Ok(health)

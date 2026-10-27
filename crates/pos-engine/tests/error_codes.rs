@@ -5,7 +5,7 @@
 use pos_engine::commands::errors;
 
 const I18N: &str = include_str!("../../../ui/src/i18n.ts");
-/// The webshop texts, merged into the dictionary only with HubRise.
+/// The webshop texts, merged into the dictionary only with `HubRise`.
 #[cfg(feature = "hubrise")]
 const I18N_WEBSHOP: &str = include_str!("../../../ui/src/i18n-webshop.ts");
 
@@ -55,6 +55,28 @@ fn entries_are_found_with_bare_or_quoted_keys() {
     assert_eq!(entry_in(source, "err_a"), Some("err_a: { fr: 'a' }"));
     assert_eq!(entry_in(source, "err_b"), Some("\"err_b\": { fr: 'b' }"));
     assert_eq!(entry_in(source, "err_c"), None);
+}
+
+/// `config_problem` builds `config_<code>` from the code of a config
+/// `Problem`: each such code is a `CONFIG_*` constant listed in `ALL`
+/// (hence translated, see the test below), and no `CONFIG_*` constant
+/// is left without a problem code.
+#[test]
+fn problem_codes_and_config_error_constants_match() {
+    use pos_core::config::PROBLEM_CODES;
+
+    let mut built: Vec<String> = PROBLEM_CODES
+        .iter()
+        .map(|c| format!("config_{c}"))
+        .collect();
+    let mut listed: Vec<String> = errors::ALL
+        .iter()
+        .filter(|c| c.starts_with("config_"))
+        .map(|c| (*c).to_string())
+        .collect();
+    built.sort();
+    listed.sort();
+    assert_eq!(built, listed);
 }
 
 #[test]

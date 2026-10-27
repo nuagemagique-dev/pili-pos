@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::types::*;
+use crate::types::{
+    EventLabel, EventOperation, FdmWarningCode, MessageCategory, ShowPos, VatLabel,
+};
 
 // ── FDM Response Types ─────────────────────────────────────────
 
@@ -73,7 +75,7 @@ pub struct ExtensionItem {
     pub category: MessageCategory,
     pub code: FdmWarningCode,
     pub data: Option<Vec<DataItem>>,
-    pub show_pos: Display,
+    pub show_pos: ShowPos,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

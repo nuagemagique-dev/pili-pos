@@ -13,6 +13,11 @@
 //! Events are signed by the admission image's mock FDM, except the
 //! inconsistent-answer case (a wiremock replay).
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -40,6 +45,10 @@ const PIN: &str = "4321";
 const BURGER: i64 = 1;
 const FREE_WATER: i64 = 2;
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 async fn setup(admission: bool) -> (TestApp, PrinterSink) {
     let app = TestApp::new().await;
     if admission {
@@ -266,7 +275,7 @@ async fn an_unreachable_fdm_leaves_the_order_open() {
     assert!(r.error.unwrap().contains("FDM"));
     assert!(app.fiscal_events().is_empty());
     assert_eq!(app.order_status(table).as_deref(), Some("open"));
-    assert!(printer.settle(0).await.is_empty());
+    assert_eq!(printer.settle(0).await.len(), 0);
 
     // Once the FDM is back, the same order closes, with ticket 1.
     app.state.config.lock().unwrap().fdm_url = fdm;

@@ -12,6 +12,11 @@
 //! Deferred (V12-D24): UC270 and UC271 (single-purpose vouchers) and
 //! UC4105 (voucher to cash); `scripts/uc_scope.toml` says why.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -27,7 +32,7 @@ use pos_engine::commands::tables::do_sign_table_order;
 
 // ── Setup ──────────────────────────────────────────────────────────
 
-/// A TestApp with the manual's catalogue, the fixture's operator, and
+/// A `TestApp` with the manual's catalogue, the fixture's operator, and
 /// gift vouchers switched on.
 async fn spf_app(operator_insz: &str) -> TestApp {
     let app = TestApp::new().await;
@@ -81,7 +86,10 @@ fn order_from(app: &TestApp, vars: &Value, order_type: OrderType, table: Option<
             AddOrderLineInput {
                 order_id: order.id,
                 menu_item_id,
-                quantity: product["quantity"].as_f64().unwrap() as i32,
+                quantity: i32::try_from(pos_core::money::round_to_i64(
+                    product["quantity"].as_f64().unwrap(),
+                ))
+                .unwrap(),
                 modifiers_json: None,
                 unit_price_cents: None,
             },

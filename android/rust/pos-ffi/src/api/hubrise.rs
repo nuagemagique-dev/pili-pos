@@ -1,4 +1,4 @@
-//! The HubRise and webshop facade (engine modules hubrise, webshop): 19 cert commands as async
+//! The `HubRise` and webshop facade (engine modules hubrise, webshop): 19 cert commands as async
 //! methods of [`PosEngine`].
 //!
 //! Each method mirrors its Tauri wrapper (`src-tauri/src/ipc/{hubrise,webshop}.rs`): the same
@@ -10,7 +10,7 @@
 //! a command by its wrapper. Inputs go through `convert::inp`, outputs
 //! through `convert::out`; `hubrise_set_channel` answers an `i64` (the engine's `usize`).
 //!
-//! The HubRise commands refuse with the `hubrise_*` and `webshop_*` codes: `hubrise_disabled`
+//! The `HubRise` commands refuse with the `hubrise_*` and `webshop_*` codes: `hubrise_disabled`
 //! while the integration is switched off, `hubrise_not_connected` without a connection,
 //! `hubrise_not_configured` for a release build without the `hubrise` section of `pos.json`.
 
@@ -28,10 +28,13 @@ use crate::records::hubrise::{
 };
 
 // The closures name the engine function at the call, which `check_command_parity.py` looks for.
-#[allow(clippy::redundant_closure)]
+#[expect(
+    clippy::redundant_closure,
+    reason = "check_command_parity.py wants the engine call spelled out"
+)]
 #[uniffi::export]
 impl PosEngine {
-    /// The current HubRise connection, if any.
+    /// The current `HubRise` connection, if any.
     pub async fn hubrise_get_connection_status(&self) -> Result<HubriseConnectionInfo, PosError> {
         let info = self
             .blocking(|state| {
@@ -41,7 +44,7 @@ impl PosEngine {
         convert::out(&info)
     }
 
-    /// The HubRise page where the installer grants access, as a link and a QR code.
+    /// The `HubRise` page where the installer grants access, as a link and a QR code.
     pub async fn hubrise_start_oauth_flow(&self) -> Result<AuthorizeLink, PosError> {
         let link = self
             .blocking(|state| pos_engine::commands::hubrise::do_hubrise_start_oauth_flow(state))
@@ -49,7 +52,7 @@ impl PosEngine {
         convert::out(&link)
     }
 
-    /// Exchange the code HubRise showed for this location's token and start the integration.
+    /// Exchange the code `HubRise` showed for this location's token and start the integration.
     pub async fn hubrise_complete_oauth(
         &self,
         code: String,
@@ -62,7 +65,7 @@ impl PosEngine {
         convert::out(&info)
     }
 
-    /// Forget the HubRise connection (the menu stays as last synced).
+    /// Forget the `HubRise` connection (the menu stays as last synced).
     pub async fn hubrise_disconnect(&self) -> Result<(), PosError> {
         self.blocking(|state| pos_engine::commands::hubrise::do_hubrise_disconnect(state))
             .await
@@ -76,7 +79,7 @@ impl PosEngine {
         convert::out(&orders)
     }
 
-    /// Queue a status change for HubRise and show it at once on the POS.
+    /// Queue a status change for `HubRise` and show it at once on the POS.
     pub async fn hubrise_patch_order_status(
         &self,
         req: PatchStatusRequest,
@@ -92,7 +95,7 @@ impl PosEngine {
         .await
     }
 
-    /// Queue a new `confirmed_time` for HubRise and show it at once.
+    /// Queue a new `confirmed_time` for `HubRise` and show it at once.
     pub async fn hubrise_set_confirmed_time(
         &self,
         req: SetConfirmedTimeRequest,
@@ -116,7 +119,7 @@ impl PosEngine {
         convert::out(&status)
     }
 
-    /// Fetch and apply the HubRise catalog now; `None` when nothing was applied.
+    /// Fetch and apply the `HubRise` catalog now; `None` when nothing was applied.
     pub async fn hubrise_sync_catalog(&self) -> Result<Option<ApplyOutcome>, PosError> {
         let outcome =
             self.spawn(|engine| async move {
@@ -126,7 +129,7 @@ impl PosEngine {
         convert::out(&outcome)
     }
 
-    /// The local products that can keep their id when HubRise takes over the menu.
+    /// The local products that can keep their id when `HubRise` takes over the menu.
     pub async fn hubrise_adoption_preview(&self) -> Result<Vec<Adoption>, PosError> {
         let preview = self
             .blocking(|state| pos_engine::commands::hubrise::do_adoption_preview(state))
@@ -135,7 +138,7 @@ impl PosEngine {
     }
 
     /// The manager confirms the take-over: the chosen products keep their id and the menu mirrors
-    /// HubRise.
+    /// `HubRise`.
     pub async fn hubrise_adopt_catalog(
         &self,
         adoptions: Vec<Adoption>,
@@ -149,7 +152,7 @@ impl PosEngine {
         convert::out(&outcome)
     }
 
-    /// How each HubRise channel is signed.
+    /// How each `HubRise` channel is signed.
     pub async fn hubrise_list_channels(&self) -> Result<Vec<Channel>, PosError> {
         let channels = self
             .blocking(|state| pos_engine::commands::hubrise::do_list_channels(state))
@@ -167,7 +170,7 @@ impl PosEngine {
         count(resolved)
     }
 
-    /// Accept an online order: sign it (prepaid) or register it (unpaid) and tell HubRise.
+    /// Accept an online order: sign it (prepaid) or register it (unpaid) and tell `HubRise`.
     pub async fn webshop_accept_order(&self, req: AcceptRequest) -> Result<AcceptResult, PosError> {
         let req: pos_engine::commands::webshop::AcceptRequest = convert::inp(&req)?;
         let result = self
@@ -221,7 +224,7 @@ impl PosEngine {
         .await
     }
 
-    /// Refund a signed online order HubRise cancelled (a manager confirms).
+    /// Refund a signed online order `HubRise` cancelled (a manager confirms).
     pub async fn webshop_refund_order(
         &self,
         req: RefundRequest,

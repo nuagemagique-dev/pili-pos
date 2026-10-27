@@ -1,4 +1,4 @@
-//! The JSON samples of the HubRise API documentation (copied to `tests/fixtures/`)
+//! The JSON samples of the `HubRise` API documentation (copied to `tests/fixtures/`)
 //! parse into the wire types, keep their `ref` fields, and survive a
 //! round trip.
 
@@ -75,7 +75,7 @@ fn nulls_count_as_empty() {
         "discounts": null, "charges": null, "payments": null, "deals": null
     }))
     .unwrap();
-    assert!(order.coupon_codes.is_empty());
+    assert_eq!(order.coupon_codes.len(), 0);
     assert!(!order.items[0].deleted);
     assert!(order.items[0].options.is_empty());
 }

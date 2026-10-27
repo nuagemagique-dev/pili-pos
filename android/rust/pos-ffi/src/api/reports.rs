@@ -12,7 +12,10 @@ use crate::records::reports::{
 };
 
 // The closures name the engine function at the call, which `check_command_parity.py` looks for.
-#[allow(clippy::redundant_closure)]
+#[expect(
+    clippy::redundant_closure,
+    reason = "check_command_parity.py wants the engine call spelled out"
+)]
 #[uniffi::export]
 impl PosEngine {
     /// Generate an X-report (mid-day, non-resetting).
@@ -249,6 +252,10 @@ impl PosEngine {
     }
 
     /// Switch the training mode; returns the new value.
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "UniFFI export: the argument is part of the Kotlin API"
+    )]
     pub async fn set_training_mode(&self, enabled: bool) -> Result<bool, PosError> {
         self.blocking(move |state| {
             pos_engine::commands::settings::do_set_training_mode(state, enabled)

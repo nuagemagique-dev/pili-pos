@@ -50,6 +50,10 @@ where
 
 /// The ticket verification QR code as a square matrix of modules (`true` is dark).
 #[uniffi::export]
+#[expect(
+    clippy::unused_async,
+    reason = "UniFFI exports it as a Kotlin suspend fun: the signature is the contract"
+)]
 pub async fn qr_matrix(text: String) -> Result<Vec<Vec<bool>>, PosError> {
     pos_fiscal::qr::generate_qr_matrix(&text)
         .map_err(|e| PosError::internal(format!("qr_matrix: {e}")))
@@ -123,6 +127,10 @@ fn check_minisign(public_key: &str, message: &[u8], signature: &str) -> Minisign
 /// `minisign_key_invalid`; a bad, mismatching or foreign-key signature is
 /// `minisign_signature_invalid`. Never an exception.
 #[uniffi::export]
+#[expect(
+    clippy::unused_async,
+    reason = "UniFFI exports it as a Kotlin suspend fun: the signature is the contract"
+)]
 pub async fn verify_minisign(
     public_key: String,
     message: Vec<u8>,
@@ -222,7 +230,7 @@ fn hash_file(path: &Path) -> std::io::Result<(u64, String)> {
             break;
         }
         hasher.update(&buf[..n]);
-        total += n as u64;
+        total += u64::try_from(n).unwrap_or(u64::MAX);
     }
     Ok((total, hex::encode(hasher.finalize())))
 }
@@ -247,6 +255,10 @@ fn walk(root: &Path, rel: &mut Vec<String>, out: &mut Vec<String>) -> std::io::R
 }
 
 /// The first problem of the bundle in `dir`, or the verified result. I/O failures are `Err`.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear sequence of checks that each return the first problem; splitting it would scatter the order the spec fixes"
+)]
 fn check_bundle(dir: &Path, public_key: &str) -> Result<BundleCheck, PosError> {
     let io =
         |what: &str, e: std::io::Error| PosError::internal(format!("verify_bundle: {what}: {e}"));

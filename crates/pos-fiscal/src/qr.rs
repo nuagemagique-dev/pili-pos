@@ -24,18 +24,21 @@ pub fn generate_qr_png(verification_url: &str, module_size: u32) -> Result<Vec<u
         .map_err(|e| QrError::Generate(e.to_string()))?;
 
     let modules = code.to_colors();
-    let width = code.width() as u32;
+    let modules_per_row = code.width();
+    // A QR symbol is at most 177 modules wide.
+    let width = u32::try_from(modules_per_row).map_err(|e| QrError::Generate(e.to_string()))?;
 
     let quiet_zone: u32 = 4;
     let img_size = (width + quiet_zone * 2) * module_size;
 
     let mut img = GrayImage::from_pixel(img_size, img_size, Luma([255u8]));
 
-    for (y, row) in modules.chunks(width as usize).enumerate() {
+    for (y, row) in modules.chunks(modules_per_row).enumerate() {
         for (x, &module) in row.iter().enumerate() {
             if module == qrcode::Color::Dark {
-                let px = (x as u32 + quiet_zone) * module_size;
-                let py = (y as u32 + quiet_zone) * module_size;
+                // Both indices are below `width`, which fits a u32.
+                let px = (u32::try_from(x).unwrap_or(0) + quiet_zone) * module_size;
+                let py = (u32::try_from(y).unwrap_or(0) + quiet_zone) * module_size;
                 for dy in 0..module_size {
                     for dx in 0..module_size {
                         img.put_pixel(px + dx, py + dy, Luma([0u8]));
@@ -85,7 +88,7 @@ mod tests {
         // Sample 38-char verification URL
         let url = "https://www.gs2.be/1234567890abcdefghi";
         let png = generate_qr_png(url, 4).unwrap();
-        assert!(!png.is_empty());
+        assert_ne!(png, Vec::<u8>::new());
         // PNG magic bytes
         assert_eq!(&png[..4], &[0x89, 0x50, 0x4E, 0x47]);
     }
@@ -94,7 +97,7 @@ mod tests {
     fn generate_matrix() {
         let url = "https://www.gs2.be/1234567890abcdefghi";
         let matrix = generate_qr_matrix(url).unwrap();
-        assert!(!matrix.is_empty());
+        assert_ne!(matrix, Vec::<Vec<bool>>::new());
         // All rows same length
         let width = matrix[0].len();
         assert!(matrix.iter().all(|row| row.len() == width));
@@ -155,7 +158,7 @@ mod tests {
     /// charset (uppercase + digits only, no lowercase) does encode to
     /// the spec's 25x25-module symbol. This isolates "is the module
     /// count purely a function of character-set/mode, as documented
-    /// above" from "is generate_qr_matrix itself somehow broken" -
+    /// above" from "is `generate_qr_matrix` itself somehow broken" -
     /// it demonstrates the latter is fine.
     #[test]
     fn all_uppercase_38_chars_does_fit_25x25() {
@@ -168,7 +171,7 @@ mod tests {
     #[test]
     fn empty_url_does_not_panic_and_still_produces_a_square_code() {
         let matrix = generate_qr_matrix("").unwrap();
-        assert!(!matrix.is_empty());
+        assert_ne!(matrix, Vec::<Vec<bool>>::new());
         let width = matrix[0].len();
         assert!(matrix.iter().all(|row| row.len() == width));
     }
@@ -211,7 +214,8 @@ mod tests {
         // Defensive: the FDM's URL is always ~38 chars per spec, but the
         // generator must degrade gracefully (bump QR version, not panic
         // or silently truncate) if it is ever handed something longer.
-        let long = "https://www.gs2.be/".to_string() + &"a".repeat(200);
+        let mut long = "https://www.gs2.be/".to_string();
+        long.push_str(&"a".repeat(200));
         let matrix = generate_qr_matrix(&long).unwrap();
         assert!(matrix.len() > 25, "a longer payload needs a bigger code");
     }

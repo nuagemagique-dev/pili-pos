@@ -17,6 +17,12 @@
 //! The FDM is a wiremock server that answers S events with the M140 and
 //! M141 envelopes, echoed back.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
+use std::fmt::Write as _;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -55,6 +61,10 @@ const T_MANAGER: &str = "04A1B2C6";
 /// Short enough to wait out in a test, long enough for two quick taps.
 const REPEAT: Duration = Duration::from_millis(300);
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 fn user(state: &AppState, insz: &str, name: &str, role: &str, presence_only: bool) {
     do_create_user(
         state,
@@ -92,6 +102,10 @@ fn real_manager(app: &TestApp) {
     pos_db::queries::users::set_pin_hash(&db, REAL_MANAGER, &hash).unwrap();
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 fn set_reader(state: &AppState, reader: &str, login_enabled: bool) {
     do_set_badge_settings(
         state,
@@ -231,7 +245,8 @@ fn active_badges(state: &AppState) -> usize {
         [],
         |r| r.get::<_, i64>(0),
     )
-    .unwrap() as usize
+    .map(|n| usize::try_from(n).unwrap())
+    .unwrap()
 }
 
 type ShiftRow = (String, Option<String>, Option<String>, bool);
@@ -300,7 +315,7 @@ async fn a_fresh_install_has_the_reader_off_and_refuses_every_scan() {
     );
     assert!(scans(&app.state).is_empty(), "nothing logged");
     assert!(!key_path(&app).exists(), "no key is created for nothing");
-    assert!(work_requests(&app.fdm).await.is_empty());
+    assert_eq!(work_requests(&app.fdm).await.len(), 0);
 }
 
 #[tokio::test]
@@ -320,7 +335,7 @@ async fn invalid_settings_are_refused_and_not_logged() {
     };
     for bad in [
         input(&|i| i.reader = "bluetooth".into()),
-        input(&|i| i.reader = "".into()),
+        input(&|i| i.reader = String::new()),
         input(&|i| i.wedge_max_gap_ms = 9),
         input(&|i| i.wedge_max_gap_ms = 201),
         input(&|i| i.wedge_min_len = 3),
@@ -423,8 +438,10 @@ async fn the_raw_badge_number_is_nowhere_in_the_database_file() {
         number
             .to_be_bytes()
             .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect(),
+            .fold(String::new(), |mut acc, b| {
+                let _ = write!(acc, "{b:02x}");
+                acc
+            }),
         "DEADBEEF".to_string(),
     ] {
         assert!(
@@ -552,7 +569,7 @@ async fn an_unreadable_key_refuses_and_revokes_nothing() {
         "the file is left alone"
     );
     assert!(scans(&app.state).is_empty(), "nothing logged");
-    assert!(work_requests(&app.fdm).await.is_empty());
+    assert_eq!(work_requests(&app.fdm).await.len(), 0);
 
     // The key readable again: the badge works.
     std::fs::write(key_path(&app), good).unwrap();
@@ -604,11 +621,7 @@ async fn opening_the_engine_without_the_key_revokes_the_badges() {
     std::fs::remove_file(dir.path().join(pos_engine::badge_key::KEY_FILE)).unwrap();
     let engine = open();
     let db = engine.db.lock().unwrap();
-    assert!(
-        pos_db::queries::badges::list_active(&db)
-            .unwrap()
-            .is_empty()
-    );
+    assert_eq!(pos_db::queries::badges::list_active(&db).unwrap().len(), 0);
     assert!(pos_db::queries::badges::relink_needed(&db).unwrap());
     assert!(dir.path().join(pos_engine::badge_key::KEY_FILE).exists());
 }
@@ -627,7 +640,7 @@ async fn a_manager_links_a_badge_to_a_presence_only_employee() {
     .unwrap();
     assert_eq!(linked.insz, KITCHEN);
     assert_eq!(linked.name, "Cuisine");
-    assert!(!linked.linked_at.is_empty());
+    assert_ne!(linked.linked_at.len(), 0);
 
     let overview = do_list_badges(&app.state).unwrap();
     assert_eq!(overview.badges.len(), 1);
@@ -831,7 +844,7 @@ async fn revoke_without_badge_is_badge_none() {
     link(&app.state, ANNA, T_ANNA);
     set_reader(&app.state, "off", false);
     do_revoke_badge(&app.state, ANNA.into()).unwrap();
-    assert!(do_list_badges(&app.state).unwrap().badges.is_empty());
+    assert_eq!(do_list_badges(&app.state).unwrap().badges.len(), 0);
 }
 
 #[tokio::test]
@@ -956,7 +969,7 @@ async fn the_operators_own_badge_is_refused_as_presence_self() {
         tap(&app, T_MANAGER).await.unwrap_err(),
         errors::PRESENCE_SELF
     );
-    assert!(work_requests(&app.fdm).await.is_empty());
+    assert_eq!(work_requests(&app.fdm).await.len(), 0);
     assert!(s_events(&app).is_empty());
     let scan = scans(&app.state);
     assert_eq!(scan.len(), 1);
@@ -1004,9 +1017,9 @@ async fn in_training_a_badge_scan_is_refused_and_signs_nothing() {
         tap_end_shift(&app, T_ANNA).await.unwrap_err(),
         errors::PRESENCE_TRAINING
     );
-    assert!(work_requests(&app.fdm).await.is_empty());
+    assert_eq!(work_requests(&app.fdm).await.len(), 0);
     assert!(app.fiscal_events().is_empty());
-    assert!(shifts(&app.state).is_empty());
+    assert_eq!(shifts(&app.state).len(), 0);
     assert!(scans(&app.state).iter().all(|s| s.0 == "refused"));
 }
 
@@ -1108,7 +1121,7 @@ async fn unknown_and_revoked_badges_are_refused_and_logged() {
         .collect();
     assert_eq!(outcomes, [("unknown", None), ("revoked", Some(ANNA))]);
     assert_ne!(scan[0].2, scan[1].2, "a reference per badge");
-    assert!(work_requests(&app.fdm).await.is_empty());
+    assert_eq!(work_requests(&app.fdm).await.len(), 0);
     assert!(app.fiscal_events().is_empty());
 }
 
@@ -1263,6 +1276,10 @@ struct Rig {
 }
 
 impl Rig {
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "test helper: the flag names what the call switches"
+    )]
     async fn start(training: bool) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let hour = Duration::from_secs(3600);
@@ -1394,11 +1411,12 @@ async fn in_training_a_badge_login_opens_no_shift() {
     // The worker sends a T WorkIn, which registers no presence.
     let sent = rig.wait_for("signWorkIn", 1).await;
     assert_eq!(sent.len(), 1);
-    assert!(shifts(&rig.engine).is_empty());
-    assert!(
+    assert_eq!(shifts(&rig.engine).len(), 0);
+    assert_eq!(
         pos_engine::commands::social::do_list_open_shifts(&rig.engine)
             .unwrap()
-            .is_empty()
+            .len(),
+        0
     );
     rig.stop().await;
 }
@@ -1486,7 +1504,7 @@ async fn a_badge_whose_employee_is_no_longer_active_is_refused() {
     assert_eq!(scan[0].0, "refused");
     assert_eq!(scan[0].1.as_deref(), Some(ANNA));
     assert_eq!(scan[0].3.as_deref(), Some(errors::USER_UNKNOWN));
-    assert!(work_requests(&app.fdm).await.is_empty());
+    assert_eq!(work_requests(&app.fdm).await.len(), 0);
 }
 
 #[tokio::test]

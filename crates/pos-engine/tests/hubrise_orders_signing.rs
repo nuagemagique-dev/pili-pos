@@ -1,10 +1,14 @@
 //! Online orders signed by the FDM: prepaid ones end in an N at
 //! acceptance (APP or ONLINE), unpaid ones in a P at acceptance then an
 //! N at handover with the same cost center; rejected ones are never
-//! signed. Against the mock FDM, the HubRise mock and a recording
+//! signed. Against the mock FDM, the `HubRise` mock and a recording
 //! printer.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -45,7 +49,7 @@ async fn world() -> World {
 
 impl World {
     /// Inject a template and let the POS fetch it: the local order id
-    /// and the HubRise id.
+    /// and the `HubRise` id.
     async fn order(&self, template: &str) -> (i64, String) {
         let hr = self.mock.inject(template);
         let hr_id = hr["id"].as_str().unwrap().to_owned();
@@ -102,7 +106,7 @@ impl World {
         format!("/v1/locations/{loc}/orders")
     }
 
-    /// Statuses the POS has sent HubRise for `hr_id`, in order.
+    /// Statuses the POS has sent `HubRise` for `hr_id`, in order.
     fn patches(&self, hr_id: &str) -> Vec<Value> {
         self.mock
             .requests("PATCH", &format!("{}/{hr_id}", self.orders_path()))
@@ -171,7 +175,7 @@ async fn a_prepaid_deliveroo_order_is_one_n_paid_by_app() {
     // The VAT ticket and the kitchen ticket printed; no bar slip.
     assert!(result.sale.as_ref().unwrap().ticket.is_some());
     assert!(result.kitchen_printed);
-    assert!(w.printer.bar_slips().is_empty());
+    assert_eq!(w.printer.bar_slips().len(), 0);
 
     drain_outbox(&w.app).await;
     let order = w.mock.order(&hr_id);
@@ -264,7 +268,7 @@ async fn a_duplicate_event_or_a_restart_does_not_sign_again() {
     // The platform updates the order; the POS fetches it again.
     w.mock.update(
         &hr_id,
-        serde_json::json!({ "customer_notes": "Sonnez deux fois" }),
+        &serde_json::json!({ "customer_notes": "Sonnez deux fois" }),
     );
     poll_once(&poller(&w.app)).await.unwrap();
     start(&poller(&w.app)).await.unwrap();
@@ -286,7 +290,7 @@ async fn an_order_to_check_cannot_be_accepted() {
             .unwrap_err(),
         errors::hubrise::NEEDS_REVIEW
     );
-    assert!(w.events().is_empty());
+    assert_eq!(w.events().len(), 0);
     assert_eq!(w.state_of(id).fiscal_state, "pending");
 }
 
@@ -302,7 +306,7 @@ async fn without_fdm_nothing_is_signed_nor_sent_and_a_retry_works() {
             .await
             .is_err()
     );
-    assert!(w.events().is_empty());
+    assert_eq!(w.events().len(), 0);
     assert_eq!(w.state_of(id).fiscal_state, "pending");
     drain_outbox(&w.app).await;
     assert!(!w.patches(&hr_id).iter().any(|p| p["status"] == "accepted"));
@@ -424,7 +428,7 @@ async fn a_rejected_order_is_never_signed() {
     let w = world().await;
     let (id, hr_id) = w.order("deliveroo_prepaid").await;
     do_reject_webshop_order(&w.app.state, id).unwrap();
-    assert!(w.events().is_empty());
+    assert_eq!(w.events().len(), 0);
     assert_eq!(w.state_of(id).fiscal_state, "rejected");
     assert_eq!(w.app.order_status(id).as_deref(), Some("voided"));
     assert_eq!(
@@ -464,7 +468,7 @@ async fn not_in_training_mode_and_not_by_a_waiter() {
             .is_err()
     );
     assert!(do_reject_webshop_order(&w.app.state, id).is_err());
-    assert!(w.events().is_empty());
+    assert_eq!(w.events().len(), 0);
 }
 
 #[tokio::test]
@@ -541,4 +545,29 @@ async fn a_prepaid_order_is_completed_once_without_signing_again() {
     drain_outbox(&w.app).await;
     assert_eq!(w.mock.order(&prepaid_hr)["status"], "completed");
     assert_eq!(w.events().len(), 2, "the N and the P, nothing more");
+}
+
+#[tokio::test]
+async fn a_failed_record_after_the_signature_is_repaired_at_once() {
+    let w = world().await;
+    let (id, _) = w.order("deliveroo_prepaid").await;
+    // Only the acceptance patch with a confirmed time fails to queue; the
+    // repair queues the plain status.
+    w.app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch(
+            "CREATE TRIGGER fault BEFORE INSERT ON hubrise_outbox
+             WHEN NEW.body_json LIKE '%confirmed_time%'
+             BEGIN SELECT RAISE(ABORT, 'injected fault'); END;",
+        )
+        .unwrap();
+    let result = do_accept_webshop_order(&w.app.state, id, Some("2026-09-30T12:30:00+02:00"))
+        .await
+        .unwrap();
+    assert_eq!(result.fiscal_state, "signed_n");
+    assert_eq!(w.state_of(id).fiscal_state, "signed_n", "not left signing");
+    assert_eq!(w.events().len(), 1, "signed once");
 }

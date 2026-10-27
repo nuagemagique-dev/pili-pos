@@ -5,6 +5,11 @@
 //! travel with their line, the notice for the kitchen, training and
 //! access.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -719,8 +724,8 @@ async fn an_order_left_on_a_table_out_of_the_plan_can_still_be_moved() {
     let moved = do_transfer_table(&app.state, o, 5).await.unwrap();
     assert_eq!((moved.from_table, moved.to_table), (30, 5));
     assert_eq!(table_of(&app, o), Some(5));
-    let moves = fdm.sent_op("signCostCenterChange");
-    assert_eq!(moves.len(), 1);
+    let cc_changes = fdm.sent_op("signCostCenterChange");
+    assert_eq!(cc_changes.len(), 1);
     let requests = requests(&app);
     let transfer = &requests.last().unwrap()["transfer"];
     assert_eq!(transfer["from"][0]["costCenter"]["id"], "T30");
@@ -792,10 +797,9 @@ async fn an_approved_card_payment_travels_with_the_order_and_settles_the_sale() 
     assert!(sale.success, "{:?}", sale.error);
     let request = requests(&app).pop().unwrap();
     assert_eq!(request["costCenter"]["id"], "T08");
-    assert!(
-        do_list_unsettled_card_payments(&app.state)
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        do_list_unsettled_card_payments(&app.state).unwrap().len(),
+        0
     );
     let used: bool = app
         .state

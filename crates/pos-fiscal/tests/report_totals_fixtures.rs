@@ -17,6 +17,10 @@
 //! `fdmDevices` times are compared within a few seconds: the fixture
 //! rounds them (and its first one is the POS time of T1, 7 s before the
 //! FDM signed it), while pili-pos copies the FDM's own `fdmDateTime`.
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use std::path::PathBuf;
 

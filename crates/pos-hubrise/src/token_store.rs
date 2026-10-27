@@ -1,10 +1,10 @@
-//! SQLite-backed singleton store for the HubRise connection row.
+//! SQLite-backed singleton store for the `HubRise` connection row.
 
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::errors::Result;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct StoredConnection {
     pub access_token: String,
     pub account_id: String,
@@ -20,7 +20,29 @@ pub struct StoredConnection {
     pub last_event_cursor: Option<String>,
 }
 
-/// Load the currently persisted HubRise connection, if any.
+/// What a secret prints as in a `Debug` output.
+const REDACTED: &str = "<redacted>";
+
+impl std::fmt::Debug for StoredConnection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StoredConnection")
+            .field("access_token", &REDACTED)
+            .field("account_id", &self.account_id)
+            .field("account_name", &self.account_name)
+            .field("location_id", &self.location_id)
+            .field("location_name", &self.location_name)
+            .field("catalog_id", &self.catalog_id)
+            .field("catalog_name", &self.catalog_name)
+            .field("customer_list_id", &self.customer_list_id)
+            .field("customer_list_name", &self.customer_list_name)
+            .field("scope", &self.scope)
+            .field("base_url", &self.base_url)
+            .field("last_event_cursor", &self.last_event_cursor)
+            .finish()
+    }
+}
+
+/// Load the currently persisted `HubRise` connection, if any.
 pub fn load(conn: &Connection) -> Result<Option<StoredConnection>> {
     let row = conn
         .query_row(
@@ -104,7 +126,7 @@ pub fn update_cursor(conn: &Connection, cursor: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-/// HubRise refused the token (401): the connection was revoked or
+/// `HubRise` refused the token (401): the connection was revoked or
 /// blocked. Shown until a request succeeds again.
 pub fn set_auth_error(conn: &Connection, message: &str) -> Result<()> {
     conn.execute(
@@ -263,5 +285,14 @@ mod tests {
         update_cursor(&conn, Some("cur-abc")).unwrap();
         let loaded = load(&conn).unwrap().unwrap();
         assert_eq!(loaded.last_event_cursor, Some("cur-abc".to_string()));
+    }
+
+    #[test]
+    fn debug_output_hides_the_access_token() {
+        let mut c = sample();
+        c.access_token = "tok-very-secret".into();
+        let out = format!("{c:?}");
+        assert!(!out.contains("tok-very-secret"));
+        assert!(out.contains("<redacted>"));
     }
 }

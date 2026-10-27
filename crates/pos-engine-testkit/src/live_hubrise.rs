@@ -1,4 +1,4 @@
-//! A `TestApp` connected to the real HubRise API, gently.
+//! A `TestApp` connected to the real `HubRise` API, gently.
 //!
 //! The stored connection's `base_url` points at a local pacing proxy,
 //! which forwards each call to `PILI_LIVE_HUBRISE_API` (default
@@ -39,7 +39,7 @@ use pos_hubrise::poller::start;
 use pos_hubrise_mock::builders::seed_catalog_builder;
 use serde_json::json;
 
-/// Calls forwarded to HubRise by this test binary.
+/// Calls forwarded to `HubRise` by this test binary.
 static FORWARDED: AtomicUsize = AtomicUsize::new(0);
 
 pub fn live_hubrise_requests() -> usize {
@@ -151,7 +151,7 @@ fn record(n: usize, method: &str, path: &str, status: u16, request: &[u8], respo
     });
     std::fs::write(
         dir.join(format!("{n:03}_{method}_{slug}.json")),
-        serde_json::to_string_pretty(&entry).unwrap() + "\n",
+        format!("{}\n", serde_json::to_string_pretty(&entry).unwrap()),
     )
     .unwrap();
 }
@@ -172,7 +172,7 @@ async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -> impl Into
     if let Some(at) = *last {
         let since = at.elapsed();
         if since < proxy.pause {
-            tokio::time::sleep(proxy.pause - since).await;
+            tokio::time::sleep(proxy.pause.checked_sub(since).unwrap()).await;
         }
     }
     let n = FORWARDED.fetch_add(1, Ordering::SeqCst) + 1;
@@ -239,7 +239,8 @@ pub async fn start_proxy() -> String {
             .build()
             .unwrap(),
         pause: Duration::from_millis(env_number("PILI_LIVE_PAUSE_MS", 1000)),
-        cap: env_number("PILI_LIVE_HUBRISE_MAX_REQUESTS", 40) as usize,
+        cap: usize::try_from(env_number("PILI_LIVE_HUBRISE_MAX_REQUESTS", 40))
+            .unwrap_or(usize::MAX),
         last: tokio::sync::Mutex::new(None),
     });
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -251,7 +252,7 @@ pub async fn start_proxy() -> String {
     url
 }
 
-/// A TestApp on one database file, connected to the live location
+/// A `TestApp` on one database file, connected to the live location
 /// through the proxy; `None` without a stored token.
 pub async fn live_hubrise_app() -> Option<(TestApp, tempfile::TempDir, LiveToken, String)> {
     let Some(token) = live_token() else {
@@ -282,7 +283,7 @@ pub async fn live_hubrise_app() -> Option<(TestApp, tempfile::TempDir, LiveToken
     Some((app, dir, token, proxy))
 }
 
-/// A HubRise client through the proxy, acting as the ordering side.
+/// A `HubRise` client through the proxy, acting as the ordering side.
 pub fn live_client(app: &TestApp, token: &LiveToken, proxy: &str) -> pos_hubrise::client::Client {
     pos_hubrise::client::Client::new(
         app.state.shared_http.clone(),
@@ -291,8 +292,9 @@ pub fn live_client(app: &TestApp, token: &LiveToken, proxy: &str) -> pos_hubrise
     )
 }
 
-/// A TestApp on the live HubRise test location, with the HubRise
+/// A `TestApp` on the live `HubRise` test location, with the `HubRise`
 /// client the suite places orders through.
+#[derive(Debug)]
 pub struct Live {
     pub app: TestApp,
     _db: tempfile::TempDir,
@@ -301,6 +303,7 @@ pub struct Live {
 }
 
 /// Who signs the live suite's events.
+#[derive(Debug)]
 pub enum LiveFdm {
     /// The in-process FDM mock.
     Mock,

@@ -22,6 +22,7 @@ pub struct ArchivedEvent {
 }
 
 /// Parameters for archiving a fiscal event.
+#[derive(Debug, Clone, Copy)]
 pub struct ArchiveParams<'a> {
     pub event_type: EventLabel,
     pub sequence_number: i64,
@@ -33,31 +34,44 @@ pub struct ArchiveParams<'a> {
     pub sign_result: Option<&'a SignResult>,
 }
 
-/// Archive a fiscal event and FDM response into the fiscal_events table.
+/// Archive a fiscal event and FDM response into the `fiscal_events` table.
 /// MUST be called within a database transaction for crash safety.
+///
+/// `fdm_response_json` holds the FDM's answer as the parsed
+/// [`SignResult`] serialized again, not the bytes the FDM sent. This is
+/// deliberate (decision of the Rust review, item 3): the bytes are not
+/// available here (the HTTP body is parsed into a JSON value, which
+/// already normalises number formatting and key order), every field the
+/// POS spec v2.2 defines is a field of `SignResult` and is checked
+/// against the request by `response_check` before archiving, and the
+/// stored form is deterministic, which the SPF dossier, the goldens, the
+/// accounting export and the SQL readers (`json_extract` on `$.fdmRef`)
+/// depend on. Keeping a raw copy would add a second form to every reader
+/// and change archived bytes for no field the till or the report uses;
+/// an FDM field outside the specification is dropped and logged by
+/// nothing, which is acceptable because the FDM itself keeps its journal.
 pub fn archive_event(
     conn: &rusqlite::Connection,
     params: ArchiveParams<'_>,
 ) -> Result<i64, rusqlite::Error> {
+    // A failed serialisation must stop the archive: storing "" would
+    // lose the signed response (the transaction rolls back and the
+    // caller keeps the pending signature for a retry).
     let response_json = params
         .sign_result
-        .map(|r| serde_json::to_string(r).unwrap_or_default());
+        .map(|r| serde_json::to_string(r).map_err(to_sql_error))
+        .transpose()?;
 
     let fdm_id = params.sign_result.map(|r| r.fdm_ref.fdm_id.clone());
     let fdm_datetime = params.sign_result.map(|r| r.fdm_ref.fdm_date_time.clone());
-    let event_label_str = params.sign_result.map(|r| {
-        serde_json::to_string(&r.fdm_ref.event_label)
-            .unwrap_or_default()
-            .trim_matches('"')
-            .to_string()
-    });
+    let event_label_str = params
+        .sign_result
+        .map(|r| enum_text(&r.fdm_ref.event_label))
+        .transpose()?;
     let short_sig = params.sign_result.and_then(|r| r.short_signature.clone());
     let qr_data = params.sign_result.and_then(|r| r.verification_url.clone());
 
-    let event_type_str = serde_json::to_string(&params.event_type)
-        .unwrap_or_default()
-        .trim_matches('"')
-        .to_string();
+    let event_type_str = enum_text(&params.event_type)?;
 
     if let Some(result) = params.sign_result {
         warn_on_counter_regression(conn, result);
@@ -87,6 +101,16 @@ pub fn archive_event(
     )?;
 
     Ok(conn.last_insert_rowid())
+}
+
+fn to_sql_error(e: serde_json::Error) -> rusqlite::Error {
+    rusqlite::Error::ToSqlConversionFailure(Box::new(e))
+}
+
+/// The wire text of a unit enum (`"N"` becomes `N`).
+fn enum_text<T: serde::Serialize>(value: &T) -> Result<String, rusqlite::Error> {
+    let text = serde_json::to_string(value).map_err(to_sql_error)?;
+    Ok(text.trim_matches('"').to_string())
 }
 
 /// The FDM's counters only go up. A signed event whose `totalCounter`
@@ -317,6 +341,21 @@ mod tests {
     use super::*;
     use crate::response::FdmReference;
 
+    #[test]
+    fn enum_text_is_the_bare_wire_text() {
+        assert_eq!(enum_text(&EventLabel::N).unwrap(), "N");
+        assert_eq!(enum_text(&EventLabel::T).unwrap(), "T");
+    }
+
+    /// A value `serde_json` cannot write (a map with non-string keys)
+    /// is an error, never an empty string in the archive.
+    #[test]
+    fn an_unserialisable_value_is_an_error_not_an_empty_string() {
+        let mut bad = std::collections::BTreeMap::new();
+        bad.insert((1, 2), 3);
+        assert!(enum_text(&bad).is_err());
+    }
+
     fn setup() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         pos_db::schema::run_migrations(&conn).unwrap();
@@ -407,7 +446,7 @@ mod tests {
             transaction_total_by_fdm_ref(&conn, &fdm_ref).unwrap(),
             Some(27.5)
         );
-        let mut other = fdm_ref.clone();
+        let mut other = fdm_ref;
         other["eventCounter"] = serde_json::json!(2);
         assert_eq!(transaction_total_by_fdm_ref(&conn, &other).unwrap(), None);
     }
@@ -655,7 +694,10 @@ mod tests {
         let conn = setup();
         archive_signed(&conn, 1, &with_counters(EventLabel::N, 1, 1));
         archive_signed(&conn, 1, &with_counters(EventLabel::P, 1, 2));
-        assert!(counter_regressions(&conn, &with_counters(EventLabel::N, 2, 3)).is_empty());
+        assert_eq!(
+            counter_regressions(&conn, &with_counters(EventLabel::N, 2, 3)),
+            Vec::new()
+        );
     }
 
     #[test]
@@ -679,7 +721,10 @@ mod tests {
         let conn = setup();
         archive_signed(&conn, 1, &with_counters(EventLabel::N, 4, 4));
         // P has its own counter: 1 after N's 4 is fine.
-        assert!(counter_regressions(&conn, &with_counters(EventLabel::P, 1, 5)).is_empty());
+        assert_eq!(
+            counter_regressions(&conn, &with_counters(EventLabel::P, 1, 5)),
+            Vec::new()
+        );
         let found = counter_regressions(&conn, &with_counters(EventLabel::N, 3, 5));
         assert_eq!(found[0].counter, "eventCounter");
         assert_eq!((found[0].received, found[0].last_archived), (3, 4));
@@ -691,7 +736,7 @@ mod tests {
         archive_signed(&conn, 1, &with_counters(EventLabel::N, 9, 9));
         let mut replacement = with_counters(EventLabel::N, 1, 1);
         replacement.fdm_ref.fdm_id = "CBX01000099".to_string();
-        assert!(counter_regressions(&conn, &replacement).is_empty());
+        assert_eq!(counter_regressions(&conn, &replacement), Vec::new());
     }
 
     #[test]

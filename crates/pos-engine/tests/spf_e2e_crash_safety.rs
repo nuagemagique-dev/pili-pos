@@ -19,6 +19,11 @@
 //! signed request stays open, and the next operation sends it again
 //! and archives it under the same number.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;

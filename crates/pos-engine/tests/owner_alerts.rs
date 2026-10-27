@@ -7,6 +7,11 @@
 //! (`alerts::run_pass`), so the debounce, the reminder and the hourly
 //! cap are tested without waiting.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -69,7 +74,7 @@ impl Telegram {
         let mode = Arc::new(Mutex::new(Mode::Ok));
         let app = Router::new()
             .route("/{bot}/sendMessage", post(handle))
-            .with_state((hits.clone(), mode.clone()));
+            .with_state((Arc::clone(&hits), Arc::clone(&mode)));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
@@ -131,6 +136,10 @@ fn minutes(n: i64) -> DateTime<Utc> {
     t0() + chrono::Duration::minutes(n)
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 fn input(enabled: bool) -> OwnerAlertsInput {
     OwnerAlertsInput {
         enabled,
@@ -230,14 +239,14 @@ async fn nothing_is_sent_while_the_alerts_are_off() {
     fdm_down(&app).await;
     open_period(&app, "2026-10-10");
     for i in 0..5 {
-        assert!(run_pass(&app.state, minutes(i * 10)).await.is_empty());
+        assert_eq!(run_pass(&app.state, minutes(i * 10)).await.len(), 0);
     }
     // Configured but switched off again: still nothing.
     switch_on(&app, |_| {});
     do_set_owner_alerts(&app.state, input(false)).unwrap();
-    assert!(run_pass(&app.state, minutes(100)).await.is_empty());
+    assert_eq!(run_pass(&app.state, minutes(100)).await.len(), 0);
     assert!(tg.hits().is_empty());
-    assert!(do_list_owner_alert_log(&app.state, 10).unwrap().is_empty());
+    assert_eq!(do_list_owner_alert_log(&app.state, 10).unwrap().len(), 0);
 }
 
 #[tokio::test]
@@ -247,14 +256,14 @@ async fn nothing_is_sent_without_a_token() {
     app.state.config.lock().unwrap().alerts = None;
     switch_on(&app, |i| i.kinds = kinds_only(|k| k.z_missing = true));
     open_period(&app, "2026-10-10");
-    assert!(run_pass(&app.state, t0()).await.is_empty());
+    assert_eq!(run_pass(&app.state, t0()).await.len(), 0);
     // A file that is not there is no token either.
     app.state.config.lock().unwrap().alerts = Some(AlertsConfig {
         telegram_bot_token_file: Some("/nonexistent/token".into()),
         telegram_api_base: Some(tg.base.clone()),
     });
     assert!(!do_get_owner_alerts(&app.state).unwrap().token_configured);
-    assert!(run_pass(&app.state, t0()).await.is_empty());
+    assert_eq!(run_pass(&app.state, t0()).await.len(), 0);
     assert!(tg.hits().is_empty());
 }
 
@@ -265,7 +274,7 @@ async fn a_switched_off_kind_is_never_watched() {
     switch_on(&app, |i| i.kinds = kinds_only(|k| k.fdm = true));
     open_period(&app, "2026-10-10");
     // The Z is a month late, but only the FDM is watched.
-    assert!(run_pass(&app.state, t0()).await.is_empty());
+    assert_eq!(run_pass(&app.state, t0()).await.len(), 0);
     assert!(tg.hits().is_empty());
 }
 
@@ -280,7 +289,7 @@ async fn the_fdm_is_raised_after_two_minutes_reminded_and_resolved() {
 
     assert!(run_pass(&app.state, t0()).await.is_empty(), "first sight");
     let at = |s: i64| t0() + chrono::Duration::seconds(s);
-    assert!(run_pass(&app.state, at(119)).await.is_empty());
+    assert_eq!(run_pass(&app.state, at(119)).await.len(), 0);
     let sent = run_pass(&app.state, at(121)).await;
     assert_eq!(sent.len(), 1);
     assert_eq!(sent[0].kind, Kind::Fdm);
@@ -298,8 +307,8 @@ async fn the_fdm_is_raised_after_two_minutes_reminded_and_resolved() {
     assert!(text.contains("module fiscal"), "{text}");
 
     // Raised once only.
-    assert!(run_pass(&app.state, at(300)).await.is_empty());
-    assert!(run_pass(&app.state, minutes(59)).await.is_empty());
+    assert_eq!(run_pass(&app.state, at(300)).await.len(), 0);
+    assert_eq!(run_pass(&app.state, minutes(59)).await.len(), 0);
     // A reminder an hour after the raise.
     let again = run_pass(&app.state, at(121 + 3600)).await;
     assert_eq!(again.len(), 1);
@@ -312,7 +321,7 @@ async fn the_fdm_is_raised_after_two_minutes_reminded_and_resolved() {
     assert_eq!(resolved.len(), 1);
     assert_eq!(resolved[0].transition, Transition::Resolved);
     assert!(tg.texts()[2].starts_with("RÉSOLU [Salle]"));
-    assert!(run_pass(&app.state, at(121 + 3800)).await.is_empty());
+    assert_eq!(run_pass(&app.state, at(121 + 3800)).await.len(), 0);
     assert_eq!(tg.hits().len(), 3);
 
     assert_eq!(
@@ -331,12 +340,12 @@ async fn a_short_blip_of_the_fdm_sends_nothing() {
     let (app, _dir) = app(&tg).await;
     switch_on(&app, |i| i.kinds = kinds_only(|k| k.fdm = true));
     fdm_down(&app).await;
-    assert!(run_pass(&app.state, t0()).await.is_empty());
+    assert_eq!(run_pass(&app.state, t0()).await.len(), 0);
     fdm_up(&app).await;
-    assert!(run_pass(&app.state, minutes(1)).await.is_empty());
+    assert_eq!(run_pass(&app.state, minutes(1)).await.len(), 0);
     fdm_down(&app).await;
-    assert!(run_pass(&app.state, minutes(2)).await.is_empty());
-    assert!(run_pass(&app.state, minutes(3)).await.is_empty());
+    assert_eq!(run_pass(&app.state, minutes(2)).await.len(), 0);
+    assert_eq!(run_pass(&app.state, minutes(3)).await.len(), 0);
     assert!(tg.hits().is_empty());
 }
 
@@ -348,11 +357,11 @@ async fn the_fdm_is_only_judged_while_a_session_is_open() {
     fdm_down(&app).await;
     app.logout();
     for i in 0..5 {
-        assert!(run_pass(&app.state, minutes(i * 5)).await.is_empty());
+        assert_eq!(run_pass(&app.state, minutes(i * 5)).await.len(), 0);
     }
     assert!(tg.hits().is_empty());
     app.login_as(MANAGER, UserRole::Admin);
-    assert!(run_pass(&app.state, minutes(30)).await.is_empty());
+    assert_eq!(run_pass(&app.state, minutes(30)).await.len(), 0);
     assert_eq!(run_pass(&app.state, minutes(33)).await.len(), 1);
 }
 
@@ -367,9 +376,9 @@ async fn a_restart_does_not_raise_an_open_alert_a_second_time() {
     assert_eq!(run_pass(&app.state, t0()).await.len(), 1);
 
     // The till restarts: the worker's memory is gone, the log is not.
-    app.state.owner_alerts = Default::default();
+    app.state.owner_alerts = pos_engine::alerts::AlertRuntime::default();
     app.state.owner_alerts.set_backoff(Duration::from_millis(5));
-    assert!(run_pass(&app.state, minutes(10)).await.is_empty());
+    assert_eq!(run_pass(&app.state, minutes(10)).await.len(), 0);
     assert_eq!(tg.hits().len(), 1, "no second raise");
 
     // The reminder keeps its schedule across the restart.
@@ -386,11 +395,46 @@ async fn a_restart_does_not_raise_an_open_alert_a_second_time() {
         )
         .unwrap();
     }
-    app.state.owner_alerts = Default::default();
+    app.state.owner_alerts = pos_engine::alerts::AlertRuntime::default();
     app.state.owner_alerts.set_backoff(Duration::from_millis(5));
     let resolved = run_pass(&app.state, minutes(62)).await;
     assert_eq!(resolved.len(), 1);
     assert_eq!(resolved[0].transition, Transition::Resolved);
+}
+
+/// A restart whose log cannot be read for one pass: that pass sends
+/// nothing (a blank book would raise the open alert a second time), and
+/// the next one restores the book and carries on as if nothing happened.
+#[tokio::test]
+async fn an_unreadable_log_after_a_restart_skips_the_pass() {
+    let tg = Telegram::start().await;
+    let (mut app, _dir) = app(&tg).await;
+    switch_on(&app, |i| i.kinds = kinds_only(|k| k.z_missing = true));
+    open_period(&app, "2026-10-10");
+    assert_eq!(run_pass(&app.state, t0()).await.len(), 1);
+
+    app.state.owner_alerts = pos_engine::alerts::AlertRuntime::default();
+    app.state.owner_alerts.set_backoff(Duration::from_millis(5));
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch("ALTER TABLE owner_alert_log RENAME TO owner_alert_log_away")
+        .unwrap();
+    assert_eq!(run_pass(&app.state, minutes(10)).await.len(), 0);
+    assert_eq!(tg.hits().len(), 1, "nothing sent with a blank book");
+
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch("ALTER TABLE owner_alert_log_away RENAME TO owner_alert_log")
+        .unwrap();
+    assert_eq!(run_pass(&app.state, minutes(11)).await.len(), 0);
+    assert_eq!(tg.hits().len(), 1, "no second raise once restored");
+    let reminder = run_pass(&app.state, minutes(61)).await;
+    assert_eq!(reminder.len(), 1);
+    assert_eq!(reminder[0].transition, Transition::Reminder);
 }
 
 #[tokio::test]
@@ -400,7 +444,7 @@ async fn an_old_open_alert_is_raised_again_after_a_restart() {
     switch_on(&app, |i| i.kinds = kinds_only(|k| k.z_missing = true));
     open_period(&app, "2026-10-10");
     assert_eq!(run_pass(&app.state, t0()).await.len(), 1);
-    app.state.owner_alerts = Default::default();
+    app.state.owner_alerts = pos_engine::alerts::AlertRuntime::default();
     app.state.owner_alerts.set_backoff(Duration::from_millis(5));
     // A day later (older than the reminder period): a fresh raise.
     let sent = run_pass(&app.state, minutes(24 * 60)).await;
@@ -433,7 +477,7 @@ async fn the_hourly_cap_drops_the_twenty_first_message_and_logs_it() {
 
     // After a restart the window is not forgotten.
     let mut app = app;
-    app.state.owner_alerts = Default::default();
+    app.state.owner_alerts = pos_engine::alerts::AlertRuntime::default();
     app.state.owner_alerts.set_backoff(Duration::from_millis(5));
     let sent = run_pass(&app.state, minutes(23)).await;
     assert_eq!(sent.len(), 1);
@@ -457,7 +501,7 @@ async fn a_failing_endpoint_is_retried_three_times_then_dropped() {
     assert_eq!(rows[0].outcome, "failed");
     assert_eq!(rows[0].http_status, Some(502));
     // The next pass does not hammer it; the reminder tries again.
-    assert!(run_pass(&app.state, minutes(5)).await.is_empty());
+    assert_eq!(run_pass(&app.state, minutes(5)).await.len(), 0);
     tg.set(Mode::Ok);
     let reminder = run_pass(&app.state, minutes(60)).await;
     assert_eq!(reminder[0].transition, Transition::Reminder);
@@ -487,7 +531,7 @@ async fn the_z_is_missing_after_the_deadline_hour() {
     // 06:00 in Brussels on the 17th is 04:00 UTC.
     let before = Utc.with_ymd_and_hms(2026, 10, 17, 3, 59, 0).unwrap();
     let after = Utc.with_ymd_and_hms(2026, 10, 17, 4, 0, 0).unwrap();
-    assert!(run_pass(&app.state, before).await.is_empty());
+    assert_eq!(run_pass(&app.state, before).await.len(), 0);
     assert_eq!(run_pass(&app.state, after).await.len(), 1);
     let text = &tg.texts()[0];
     assert!(text.contains("Le Z du 16.10.2026 n'est pas fait"), "{text}");
@@ -512,14 +556,14 @@ async fn a_training_till_has_no_z_to_miss() {
     switch_on(&app, |i| i.kinds = kinds_only(|k| k.z_missing = true));
     app.state.config.lock().unwrap().training_mode = true;
     open_period(&app, "2026-10-10");
-    assert!(run_pass(&app.state, t0()).await.is_empty());
+    assert_eq!(run_pass(&app.state, t0()).await.len(), 0);
 }
 
 async fn printer_mock(
     control: pos_printer_mock::Control,
 ) -> (String, Arc<pos_printer_mock::Printer>) {
     let printer = pos_printer_mock::Printer::new(control, None);
-    let addr = pos_printer_mock::bind("127.0.0.1:0".parse().unwrap(), printer.clone())
+    let addr = pos_printer_mock::bind("127.0.0.1:0".parse().unwrap(), Arc::clone(&printer))
         .await
         .unwrap();
     (addr.to_string(), printer)
@@ -544,7 +588,7 @@ async fn a_printer_out_of_paper_is_raised_on_the_second_probe() {
         run_pass(&app.state, minutes(5)).await.is_empty(),
         "first sight"
     );
-    assert!(run_pass(&app.state, minutes(6)).await.is_empty());
+    assert_eq!(run_pass(&app.state, minutes(6)).await.len(), 0);
     let sent = run_pass(&app.state, minutes(10)).await;
     assert_eq!(sent.len(), 1, "second probe");
     assert_eq!(sent[0].kind, Kind::Printer);
@@ -592,7 +636,7 @@ async fn a_printer_is_not_probed_while_a_sale_is_signing() {
     // A listener that counts the connections it gets.
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let connections = Arc::new(Mutex::new(0usize));
-    let counted = connections.clone();
+    let counted = Arc::clone(&connections);
     let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(async move {
         while let Ok((_stream, _)) = listener.accept().await {
@@ -623,7 +667,7 @@ async fn the_terminal_is_raised_on_the_second_failed_probe_and_never_probed_whil
     switch_on(&app, |i| i.kinds = kinds_only(|k| k.terminal = true));
     script.on_check(Err(EftError::Unreachable("down".into())));
     script.on_check(Err(EftError::Unreachable("down".into())));
-    assert!(run_pass(&app.state, t0()).await.is_empty());
+    assert_eq!(run_pass(&app.state, t0()).await.len(), 0);
     let sent = run_pass(&app.state, minutes(5)).await;
     assert_eq!(sent.len(), 1);
     assert_eq!(sent[0].kind, Kind::Terminal);
@@ -632,7 +676,7 @@ async fn the_terminal_is_raised_on_the_second_failed_probe_and_never_probed_whil
     // A payment holds the line: the probe asks nothing and judges nothing.
     let calls_before = script.calls().len();
     let line = app.state.eft_line.lock().await;
-    assert!(run_pass(&app.state, minutes(10)).await.is_empty());
+    assert_eq!(run_pass(&app.state, minutes(10)).await.len(), 0);
     assert_eq!(
         script.calls().len(),
         calls_before,
@@ -657,7 +701,7 @@ async fn a_probe_on_a_held_line_is_skipped_at_once_and_sends_nothing() {
     let line = app.state.eft_line.lock().await;
     let started = Instant::now();
     for n in 0..3 {
-        assert!(run_pass(&app.state, minutes(5 * n)).await.is_empty());
+        assert_eq!(run_pass(&app.state, minutes(5 * n)).await.len(), 0);
     }
     assert!(
         started.elapsed() < Duration::from_secs(2),
@@ -685,7 +729,7 @@ async fn a_hanging_terminal_is_dropped_after_the_short_probe_timeout() {
     let started = Instant::now();
     // A probe that times out judges nothing, even repeated.
     for n in 0..3 {
-        assert!(run_pass(&app.state, minutes(5 * n)).await.is_empty());
+        assert_eq!(run_pass(&app.state, minutes(5 * n)).await.len(), 0);
     }
     assert!(started.elapsed() < Duration::from_secs(5));
     assert!(tg.texts().is_empty(), "a timeout is not a failed probe");
@@ -733,7 +777,7 @@ async fn a_payment_started_during_a_probe_waits_at_most_the_probe_timeout() {
         "{calls:?}"
     );
     assert!(
-        waited >= timeout - Duration::from_millis(200),
+        waited >= timeout.saturating_sub(Duration::from_millis(200)),
         "the payment did not wait for the probe: {waited:?}"
     );
 }
@@ -788,7 +832,7 @@ async fn an_online_order_waiting_too_long_is_raised_with_counts_and_channels_onl
 
     // The switch is off: HubRise is not in use, nothing to wait for.
     app.state.hubrise_switch.set(false);
-    assert!(run_pass(&app.state, t0()).await.is_empty());
+    assert_eq!(run_pass(&app.state, t0()).await.len(), 0);
     app.state.hubrise_switch.set(true);
 
     // At 12:00 two orders have waited 5 minutes or more.
@@ -1067,14 +1111,14 @@ async fn a_message_names_no_person_no_amount_and_no_order() {
             .as_mut()
             .unwrap()
             .telegram_api_base = Some(tg2.base.clone());
-        app.state.owner_alerts = Default::default();
+        app.state.owner_alerts = pos_engine::alerts::AlertRuntime::default();
         app.state.owner_alerts.set_backoff(Duration::from_millis(5));
         switch_on(&app, |i| {
             i.language = language.into();
             i.kinds = kinds_only(|k| k.z_missing = true);
         });
         // Days apart, so each language raises afresh (the log remembers).
-        let far = Utc::now() + chrono::Duration::days(30 + 2 * n as i64);
+        let far = Utc::now() + chrono::Duration::days(30 + 2 * i64::try_from(n).unwrap());
         assert_eq!(run_pass(&app.state, far).await.len(), 1, "{language}");
         let text = tg2.texts().remove(0);
         for private in [
@@ -1112,6 +1156,10 @@ async fn a_hung_endpoint_delays_neither_a_sale_nor_a_z() {
                 VALUES ('menu_item', 1, 'name', 'fr', 'Burger');",
         )
         .unwrap();
+    #[expect(
+        clippy::items_after_statements,
+        reason = "a local helper beside the one test that uses it"
+    )]
     async fn sale(app: &TestApp) {
         let order = do_create_order(
             &app.state,
@@ -1182,7 +1230,7 @@ async fn the_worker_loop_is_idle_while_off_and_stops_at_shutdown() {
         ..
     } = app;
     let state = Arc::new(state);
-    let task = tokio::spawn(pos_engine::alerts::run_owner_alerts(state.clone()));
+    let task = tokio::spawn(pos_engine::alerts::run_owner_alerts(Arc::clone(&state)));
     state.shutdown_token.cancel();
     tokio::time::timeout(Duration::from_secs(5), task)
         .await

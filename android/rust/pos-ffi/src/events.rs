@@ -29,7 +29,7 @@ pub enum PosEvent {
     WebshopOrderReceived { event: CallbackEvent },
     /// Topic `webshop-order-updated`: an online order changed.
     WebshopOrderUpdated { event: CallbackEvent },
-    /// Topic `catalog-updated`: the menu was updated from the HubRise catalog.
+    /// Topic `catalog-updated`: the menu was updated from the `HubRise` catalog.
     CatalogUpdated { event: CallbackEvent },
     /// Topic `catalog-rejected`: the catalog has issues, the menu stayed as it was.
     CatalogRejected { event: CallbackEvent },
@@ -125,6 +125,14 @@ impl FfiSink {
     }
 }
 
+impl std::fmt::Debug for FfiSink {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FfiSink")
+            .field("subscribers", &self.tx.receiver_count())
+            .finish()
+    }
+}
+
 impl EventSink for FfiSink {
     fn emit(&self, event: EngineEvent) {
         // No receiver is not an error: nobody is listening yet.
@@ -137,6 +145,12 @@ impl EventSink for FfiSink {
 #[derive(uniffi::Object)]
 pub struct EventStream {
     rx: tokio::sync::Mutex<broadcast::Receiver<PosEvent>>,
+}
+
+impl std::fmt::Debug for EventStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EventStream").finish_non_exhaustive()
+    }
 }
 
 impl EventStream {

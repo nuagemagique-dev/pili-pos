@@ -121,9 +121,16 @@ fn refs(codes: &[String], lang: &str) -> Vec<AllergenRef> {
 /// The language of a sheet: the one asked for, else the establishment's.
 /// A sheet can be shown in fr, nl, en, zh and de; printing leaves out
 /// zh (the printer's code page has no Chinese).
-fn sheet_lang(state: &AppState, requested: Option<&str>, printing: bool) -> Result<String, String> {
+/// Where a sheet is shown.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Sheet {
+    Screen,
+    Printed,
+}
+
+fn sheet_lang(state: &AppState, requested: Option<&str>, sheet: Sheet) -> Result<String, String> {
     let allowed = |l: &str| {
-        if printing {
+        if sheet == Sheet::Printed {
             SHEET_LANGUAGES.contains(&l)
         } else {
             SHEET_LANGUAGES.contains(&l) || l == "zh"
@@ -238,7 +245,7 @@ pub fn do_get_allergen_sheet(
     lang: Option<String>,
 ) -> Result<AllergenSheetView, String> {
     access::operator(state, Access::Staff)?;
-    let lang = sheet_lang(state, lang.as_deref(), false)?;
+    let lang = sheet_lang(state, lang.as_deref(), Sheet::Screen)?;
     let db = state.db.lock().map_err(errors::internal)?;
     build_sheet(&db, menu_item_id, &lang)
 }
@@ -284,7 +291,7 @@ pub async fn do_print_allergen_sheet(
     lang: Option<String>,
 ) -> Result<SlipOutcome, String> {
     access::operator(state, Access::Staff)?;
-    let lang = sheet_lang(state, lang.as_deref(), true)?;
+    let lang = sheet_lang(state, lang.as_deref(), Sheet::Printed)?;
     let view = {
         let db = state.db.lock().map_err(errors::internal)?;
         build_sheet(&db, menu_item_id, &lang)?

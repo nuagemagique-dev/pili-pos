@@ -19,6 +19,7 @@
 use std::path::Path;
 
 use anyhow::{Context, ensure};
+use pos_core::config::Problem;
 use pos_db::schema;
 use rusqlite::Connection;
 
@@ -50,11 +51,14 @@ pub fn init_db(db_path: &Path, seed: Option<&Path>) -> anyhow::Result<()> {
 /// named by `env_path` (`PILI_POS_CONFIG`), else `production_path`.
 /// Unlike the kiosk, a missing file is a problem here: the development
 /// identity is never acceptable on an installed terminal.
-pub fn check_config(env_path: Option<&str>, production_path: &Path) -> Vec<String> {
+pub fn check_config(env_path: Option<&str>, production_path: &Path) -> Vec<Problem> {
     if env_path.is_none() && !production_path.exists() {
-        return vec![format!(
-            "no configuration: {} is missing and PILI_POS_CONFIG is not set",
-            production_path.display()
+        return vec![Problem::new(
+            "missing",
+            format!(
+                "no configuration: {} is missing and PILI_POS_CONFIG is not set",
+                production_path.display()
+            ),
         )];
     }
     check_config_source(&config_source_from(env_path, production_path))
@@ -66,7 +70,7 @@ pub fn check_config(env_path: Option<&str>, production_path: &Path) -> Vec<Strin
 pub fn check_config_source_coded(source: &ConfigSource) -> Vec<String> {
     check_config_source(source)
         .iter()
-        .map(|p| crate::commands::errors::config_problem(p))
+        .map(crate::commands::errors::config_problem)
         .collect()
 }
 
@@ -77,13 +81,13 @@ pub fn check_config_source_coded(source: &ConfigSource) -> Vec<String> {
 /// bundle first. [`ConfigSource::DevelopmentDefaults`] is itself a
 /// problem: the development identity is never acceptable on an installed
 /// terminal.
-pub fn check_config_source(source: &ConfigSource) -> Vec<String> {
+pub fn check_config_source(source: &ConfigSource) -> Vec<Problem> {
     if matches!(source, ConfigSource::DevelopmentDefaults) {
-        return vec![
+        return vec![Problem::new(
+            "missing",
             "no configuration: the development identity (TEST) is not acceptable on an \
-             installed terminal"
-                .to_string(),
-        ];
+             installed terminal",
+        )];
     }
     match source.load() {
         Ok(config) => {
@@ -91,7 +95,7 @@ pub fn check_config_source(source: &ConfigSource) -> Vec<String> {
             problems.extend(export_problems(&config, &problems));
             problems
         }
-        Err(e) => vec![format!("{e:#}")],
+        Err(e) => vec![Problem::new("other", format!("{e:#}"))],
     }
 }
 
@@ -99,19 +103,19 @@ pub fn check_config_source(source: &ConfigSource) -> Vec<String> {
 /// `PosConfig::problems` (already in `reported`) checks: a recipient that is
 /// not a valid age key, and a token file that cannot be read. Empty without
 /// an `export` section.
-fn export_problems(config: &pos_core::config::PosConfig, reported: &[String]) -> Vec<String> {
+fn export_problems(config: &pos_core::config::PosConfig, reported: &[Problem]) -> Vec<Problem> {
     let Some(section) = config.export.as_ref() else {
         return Vec::new();
     };
-    if reported.iter().any(|p| p.starts_with("export.")) {
+    if reported.iter().any(|p| p.code() == "export") {
         return Vec::new();
     }
     match pos_export::settings::ExportSettings::from_config(section) {
-        Err(e) => vec![format!("export: {e}")],
+        Err(e) => vec![Problem::new("export", format!("export: {e}"))],
         Ok(settings) => settings
             .read_token()
             .err()
-            .map(|e| format!("export: {e}"))
+            .map(|e| Problem::new("export", format!("export: {e}")))
             .into_iter()
             .collect(),
     }
@@ -120,7 +124,7 @@ fn export_problems(config: &pos_core::config::PosConfig, reported: &[String]) ->
 /// Load `sql` into an open database as a seed.
 ///
 /// Refused (an error naming the reason) when the database already holds
-/// fiscal events, or, with the HubRise feature, when a catalogue manages
+/// fiscal events, or, with the `HubRise` feature, when a catalogue manages
 /// the menu. The seed runs in one transaction: all of it or nothing.
 pub fn apply_seed(conn: &Connection, sql: &str) -> anyhow::Result<()> {
     let fiscal_events: i64 =
@@ -150,10 +154,16 @@ mod tests {
 
         let missing = check_config(None, &prod);
         assert_eq!(missing.len(), 1);
-        assert!(missing[0].contains("no configuration"), "{missing:?}");
+        assert!(
+            missing[0].text().contains("no configuration"),
+            "{missing:?}"
+        );
+        assert_eq!(missing[0].code(), "missing");
 
         std::fs::write(&prod, "{ not json").unwrap();
-        assert_eq!(check_config(None, &prod).len(), 1);
+        let broken = check_config(None, &prod);
+        assert_eq!(broken.len(), 1);
+        assert_eq!(broken[0].code(), "other");
 
         let good = r#"{
             "pos_id": "CFOD0061234567", "terminal_id": "POS1", "device_id": "aa:bb:cc:dd:ee:ff",
@@ -161,13 +171,13 @@ mod tests {
             "restaurant_est_no": "2123456791", "fdm_url": "http://192.168.1.20/graphql"
         }"#;
         std::fs::write(&prod, good).unwrap();
-        assert_eq!(check_config(None, &prod), Vec::<String>::new());
+        assert_eq!(check_config(None, &prod), Vec::<Problem>::new());
 
         // A typo in the VAT number: one problem, naming the key.
         std::fs::write(&prod, good.replace("BE0499999960", "BE0499999961")).unwrap();
         let typo = check_config(None, &prod);
         assert_eq!(typo.len(), 1);
-        assert!(typo[0].starts_with("restaurant_vat"), "{typo:?}");
+        assert!(typo[0].text().starts_with("restaurant_vat"), "{typo:?}");
 
         // PILI_POS_CONFIG wins, and a missing file there is reported.
         let env = dir.path().join("elsewhere.json");
@@ -188,7 +198,7 @@ mod tests {
         let missing = check_config_source(&ConfigSource::File(file.clone()));
         assert_eq!(missing.len(), 1, "{missing:?}");
         assert!(
-            missing[0].contains("cannot read config file"),
+            missing[0].text().contains("cannot read config file"),
             "{missing:?}"
         );
 
@@ -207,20 +217,23 @@ mod tests {
             ConfigSource::File(file.clone()),
             ConfigSource::Bundle(file.clone()),
         ] {
-            assert_eq!(check_config_source(&source), Vec::<String>::new());
+            assert_eq!(check_config_source(&source), Vec::<Problem>::new());
         }
 
         std::fs::write(&file, GOOD.replace("BE0499999960", "BE0499999961")).unwrap();
         let typo = check_config_source(&ConfigSource::File(file));
         assert_eq!(typo.len(), 1);
-        assert!(typo[0].starts_with("restaurant_vat"), "{typo:?}");
+        assert!(typo[0].text().starts_with("restaurant_vat"), "{typo:?}");
     }
 
     #[test]
     fn the_development_identity_is_a_problem() {
         let problems = check_config_source(&ConfigSource::DevelopmentDefaults);
         assert_eq!(problems.len(), 1, "{problems:?}");
-        assert!(problems[0].contains("development identity"), "{problems:?}");
+        assert!(
+            problems[0].text().contains("development identity"),
+            "{problems:?}"
+        );
     }
 
     #[test]
@@ -236,20 +249,28 @@ mod tests {
         // The token is not in the bundle yet: reported, by its resolved path.
         let missing = check_config_source(&ConfigSource::Bundle(file.clone()));
         assert!(!missing.is_empty(), "{missing:?}");
-        assert!(missing[0].starts_with("fdm_token_file"), "{missing:?}");
         assert!(
-            missing[0].contains(dir.path().join("secrets").to_str().unwrap()),
+            missing[0].text().starts_with("fdm_token_file"),
+            "{missing:?}"
+        );
+        assert!(
+            missing[0]
+                .text()
+                .contains(dir.path().join("secrets").to_str().unwrap()),
             "{missing:?}"
         );
         // As a plain file the same relative path is read from the working
         // directory, where it is not either.
-        assert!(!check_config_source(&ConfigSource::File(file.clone())).is_empty());
+        assert_ne!(
+            check_config_source(&ConfigSource::File(file.clone())).len(),
+            0
+        );
 
         std::fs::create_dir_all(dir.path().join("secrets")).unwrap();
         std::fs::write(dir.path().join("secrets/fdm.token"), "token\n").unwrap();
         assert_eq!(
             check_config_source(&ConfigSource::Bundle(file)),
-            Vec::<String>::new()
+            Vec::<Problem>::new()
         );
     }
 
@@ -280,16 +301,18 @@ mod tests {
 
         // No section: nothing to report about the export.
         std::fs::write(&file, GOOD).unwrap();
-        assert_eq!(check_config_source(&bundle), Vec::<String>::new());
+        assert_eq!(check_config_source(&bundle), Vec::<Problem>::new());
 
         // A section whose token is not in the bundle yet.
         std::fs::write(&file, with_export(&owner, Some(&producer), 14)).unwrap();
         let missing = check_config_source(&bundle);
         assert_eq!(missing.len(), 1, "{missing:?}");
-        assert!(missing[0].starts_with("export: "), "{missing:?}");
-        assert!(missing[0].contains("unreadable"), "{missing:?}");
+        assert!(missing[0].text().starts_with("export: "), "{missing:?}");
+        assert!(missing[0].text().contains("unreadable"), "{missing:?}");
         assert!(
-            missing[0].contains(dir.path().join("secrets").to_str().unwrap()),
+            missing[0]
+                .text()
+                .contains(dir.path().join("secrets").to_str().unwrap()),
             "the relative token path is resolved: {missing:?}"
         );
 
@@ -299,13 +322,13 @@ mod tests {
         let empty = check_config_source(&bundle);
         assert_eq!(empty.len(), 1, "{empty:?}");
         assert!(
-            empty[0].starts_with("export: ") && empty[0].contains("empty"),
+            empty[0].text().starts_with("export: ") && empty[0].text().contains("empty"),
             "{empty:?}"
         );
 
         // A usable section.
         std::fs::write(dir.path().join("secrets/export.token"), "tok\n").unwrap();
-        assert_eq!(check_config_source(&bundle), Vec::<String>::new());
+        assert_eq!(check_config_source(&bundle), Vec::<Problem>::new());
     }
 
     #[test]
@@ -320,7 +343,10 @@ mod tests {
         std::fs::write(&file, with_export(&owner, None, 0)).unwrap();
         let syntax = check_config_source(&ConfigSource::Bundle(file.clone()));
         assert_eq!(syntax.len(), 1, "{syntax:?}");
-        assert!(syntax[0].starts_with("export.keep_days: "), "{syntax:?}");
+        assert!(
+            syntax[0].text().starts_with("export.keep_days: "),
+            "{syntax:?}"
+        );
 
         // Well-formed but not a valid age key (bad checksum).
         let mut wrong = owner.clone();
@@ -332,7 +358,9 @@ mod tests {
         let key = check_config_source(&ConfigSource::Bundle(file));
         assert_eq!(key.len(), 1, "{key:?}");
         assert!(
-            key[0].starts_with("export: export.owner_recipient: "),
+            key[0]
+                .text()
+                .starts_with("export: export.owner_recipient: "),
             "{key:?}"
         );
     }

@@ -8,8 +8,6 @@
 //!
 //! Tests use `#[tokio::test(flavor = "multi_thread")]` and end with `engine.shutdown().await`.
 
-#![allow(dead_code)] // helpers for the domain cards
-
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -25,10 +23,10 @@ use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
 /// Manager INSZ and PIN of the seed.
-pub const MANAGER_INSZ: &str = "94060242576";
-pub const MANAGER_PIN: &str = "1111";
+pub(crate) const MANAGER_INSZ: &str = "94060242576";
+pub(crate) const MANAGER_PIN: &str = "1111";
 /// The handset id the tests give the engine.
-pub const DEVICE_ID: &str = "EMULATOR-TEST-0001";
+pub(crate) const DEVICE_ID: &str = "EMULATOR-TEST-0001";
 
 const POS_JSON: &str = r#"{
     "pos_id": "CPOS0031234567",
@@ -43,7 +41,7 @@ const POS_JSON: &str = r#"{
     "table_count": 25
 }"#;
 
-pub struct TestEngine {
+pub(crate) struct TestEngine {
     pub engine: Arc<PosEngine>,
     pub dir: tempfile::TempDir,
     /// `http://127.0.0.1:<port>/graphql`, the FDM mock.
@@ -53,21 +51,21 @@ pub struct TestEngine {
 }
 
 impl TestEngine {
-    pub fn data_dir(&self) -> PathBuf {
+    pub(crate) fn data_dir(&self) -> PathBuf {
         self.dir.path().join("data")
     }
 
-    pub fn bundle_json(&self) -> PathBuf {
+    pub(crate) fn bundle_json(&self) -> PathBuf {
         self.dir.path().join("bundle").join("pos.json")
     }
 
     /// The options this engine was opened with (for a second open on the same directory).
-    pub fn options(&self) -> EngineOptions {
+    pub(crate) fn options(&self) -> EngineOptions {
         options_for(self.dir.path())
     }
 }
 
-pub fn options_for(dir: &Path) -> EngineOptions {
+pub(crate) fn options_for(dir: &Path) -> EngineOptions {
     EngineOptions {
         data_dir: dir.join("data").to_string_lossy().into_owned(),
         config_bundle: dir
@@ -81,14 +79,14 @@ pub fn options_for(dir: &Path) -> EngineOptions {
 }
 
 /// Open an engine on a fresh seeded database, pointed at its own mocks.
-pub async fn open_seeded() -> TestEngine {
+pub(crate) async fn open_seeded() -> TestEngine {
     open_seeded_on(pos_fdm_mock::app()).await
 }
 
 /// Holds the first clock-out the FDM mock receives until the test releases it, so a call stays in
 /// flight on the engine for as long as the test wants.
 #[derive(Clone)]
-pub struct Hold {
+pub(crate) struct Hold {
     armed: Arc<AtomicBool>,
     arrived: Arc<Notify>,
     release: Arc<Notify>,
@@ -96,7 +94,7 @@ pub struct Hold {
 
 impl Hold {
     /// Let the held clock-out go on.
-    pub fn release(&self) {
+    pub(crate) fn release(&self) {
         self.release.notify_one();
     }
 }
@@ -115,7 +113,7 @@ async fn hold_clock_out(State(hold): State<Hold>, req: Request, next: Next) -> R
 }
 
 /// Like [`open_seeded`], with the FDM mock behind a [`Hold`].
-pub async fn open_seeded_with_hold() -> (TestEngine, Hold) {
+pub(crate) async fn open_seeded_with_hold() -> (TestEngine, Hold) {
     let hold = Hold {
         armed: Arc::new(AtomicBool::new(true)),
         arrived: Arc::new(Notify::new()),
@@ -130,11 +128,11 @@ pub async fn open_seeded_with_hold() -> (TestEngine, Hold) {
 
 /// Start `end_shift` for the manager and wait until its clock-out is held at the FDM: from then
 /// on one call is in flight on the engine and `shutdown` has to wait for it.
-pub async fn start_held_call(
+pub(crate) async fn start_held_call(
     t: &TestEngine,
     hold: &Hold,
 ) -> JoinHandle<Result<SocialResult, PosError>> {
-    let engine = t.engine.clone();
+    let engine = Arc::clone(&t.engine);
     let task = tokio::spawn(async move {
         engine
             .end_shift(MANAGER_INSZ.into(), Some(MANAGER_PIN.into()))

@@ -169,17 +169,17 @@ constructeurs des messages FDM ne la lisent pas.
   (vérification de déterminisme sur 50 itérations).
 
 ### 3.4 Clé de doublon FDM
-- `pos-fiscal::inputs::IdempotencyKey { pos_id, pos_date_time,
-  terminal_id, event_label, pos_fiscal_ticket_no }`.
-- Chaque type d'input implémente `.idempotency_key()`.
+- La clé est le quintuplet `{ pos_id, pos_date_time, terminal_id,
+  event_label, pos_fiscal_ticket_no }` ; le POS ne la calcule pas
+  lui-même, il renvoie la requête stockée dans `pending_signs`.
 - Règle de doublon du FDM : même clé et contenu identique, le FDM
   renvoie sa réponse déjà signée avec l'avertissement
   `DUPLICATE_REQUEST` ; même clé et contenu différent, il répond
   `INVALID_REQUEST`. Le POS ne reconstruit donc jamais une requête
   pour un numéro déjà envoyé : il renvoie la requête stockée, octet
   pour octet (§4).
-- Les tests unitaires dans `crates/pos-fiscal/src/inputs.rs`
-  couvrent l'égalité de la clé et le mapping de label par type.
+- Le renvoi à l'identique est couvert par les tests d'intégration de
+  `pos-engine` (requêtes en attente, `pending_signs`).
 
 ## 4. Stratégie de compteurs
 

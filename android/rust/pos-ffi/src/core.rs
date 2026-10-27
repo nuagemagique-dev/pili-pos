@@ -2,7 +2,7 @@
 //! to run an engine command off the caller's thread.
 //!
 //! Every method is async and awaits a `JoinHandle` from the engine's own runtime (not
-//! `async_runtime = "tokio"`): when the Kotlin coroutine is cancelled the UniFFI future is dropped,
+//! `async_runtime = "tokio"`): when the Kotlin coroutine is cancelled the `UniFFI` future is dropped,
 //! the handle is detached and the task, a sign in flight for instance, still finishes.
 
 use std::future::Future;
@@ -105,6 +105,9 @@ async fn drain(engine: Arc<Engine>) -> Drained {
         for task in tasks {
             let _ = task.await;
         }
+        // Polling is deliberate: the calls in flight each hold a clone of the Arc and there is no
+        // event to await when the last one drops. The loop is bounded by SHUTDOWN_BOUND, runs only
+        // at shutdown and costs one counter read every 20 ms.
         while Arc::strong_count(&engine) > 1 {
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
@@ -120,7 +123,7 @@ async fn drain(engine: Arc<Engine>) -> Drained {
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|e| e.into_inner())
+    m.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 fn positive_ms(name: &str, value: i64) -> Result<Duration, PosError> {
@@ -148,6 +151,7 @@ fn timers_from(options: Option<&EngineTimersMs>) -> Result<EngineTimers, PosErro
         badge_repeat: EngineTimers::default().badge_repeat,
         peppol_outbox: EngineTimers::default().peppol_outbox,
         terminal_probe: EngineTimers::default().terminal_probe,
+        support_reap: EngineTimers::default().support_reap,
     })
 }
 
@@ -162,7 +166,7 @@ fn absolute(name: &str, value: &str) -> Result<std::path::PathBuf, PosError> {
     }
 }
 
-/// A join error: a panic is re-raised (UniFFI reports it as `InternalException`), a cancelled
+/// A join error: a panic is re-raised (`UniFFI` reports it as `InternalException`), a cancelled
 /// task means the runtime is going away.
 fn joined<T>(result: Result<T, tokio::task::JoinError>) -> Result<T, PosError> {
     match result {
@@ -270,13 +274,18 @@ impl PosEngine {
     }
 
     /// A new subscription to the engine's events; `EngineClosed` once shut down.
+    #[expect(
+        clippy::unused_async,
+        clippy::unused_async_trait_impl,
+        reason = "UniFFI exports it as a Kotlin suspend fun: the signature is the contract"
+    )]
     pub async fn events(&self) -> Result<Arc<EventStream>, PosError> {
         if self.closing.load(Ordering::SeqCst) {
             return Err(PosError::EngineClosed);
         }
         let tx = lock(&self.events_tx)
             .as_ref()
-            .map(|tx| tx.subscribe())
+            .map(tokio::sync::broadcast::Sender::subscribe)
             .ok_or(PosError::EngineClosed)?;
         Ok(EventStream::new(tx))
     }
@@ -297,7 +306,6 @@ impl PosEngine {
 
     /// Run a synchronous engine command (rusqlite, bcrypt) on the blocking pool. The engine
     /// command's `String` error is mapped by [`error::from_engine`].
-    #[allow(dead_code)] // used by the domain facades
     pub(crate) async fn blocking<T, F>(&self, f: F) -> Result<T, PosError>
     where
         F: FnOnce(&pos_engine::state::AppState) -> Result<T, String> + Send + 'static,
@@ -309,7 +317,6 @@ impl PosEngine {
     }
 
     /// Run an async engine command on the engine's runtime.
-    #[allow(dead_code)] // used by the domain facades
     pub(crate) async fn spawn<T, F, Fut>(&self, f: F) -> Result<T, PosError>
     where
         F: FnOnce(Arc<Engine>) -> Fut,
@@ -324,6 +331,15 @@ impl PosEngine {
     #[cfg(test)]
     pub(crate) fn events_tx_for_tests(&self) -> Option<broadcast::Sender<PosEvent>> {
         lock(&self.events_tx).clone()
+    }
+}
+
+impl std::fmt::Debug for PosEngine {
+    /// The engine, its runtime and the channels hold no state worth printing.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PosEngine")
+            .field("closing", &self.closing.load(Ordering::SeqCst))
+            .finish_non_exhaustive()
     }
 }
 
@@ -394,7 +410,7 @@ mod tests {
     async fn a_panic_in_a_blocking_closure_surfaces_as_a_panic_of_the_awaited_future() {
         let dir = tempfile::tempdir().unwrap();
         let engine = open(dir.path());
-        let caller = engine.clone();
+        let caller = Arc::clone(&engine);
         let join = tokio::spawn(async move {
             caller
                 .blocking(|_| -> Result<(), String> { panic!("deliberate blocking panic") })
@@ -409,13 +425,11 @@ mod tests {
     async fn a_panic_in_a_spawned_future_surfaces_as_a_panic_of_the_awaited_future() {
         let dir = tempfile::tempdir().unwrap();
         let engine = open(dir.path());
-        let caller = engine.clone();
+        let caller = Arc::clone(&engine);
         let join = tokio::spawn(async move {
             caller
                 .spawn(|_| async {
-                    if true {
-                        panic!("deliberate spawned panic");
-                    }
+                    assert!(!std::hint::black_box(true), "deliberate spawned panic");
                     Ok::<(), String>(())
                 })
                 .await
@@ -446,7 +460,7 @@ mod tests {
     async fn shutdown_waits_for_a_call_in_flight() {
         let dir = tempfile::tempdir().unwrap();
         let engine = open(dir.path());
-        let caller = engine.clone();
+        let caller = Arc::clone(&engine);
         let started = Instant::now();
         let call = tokio::spawn(async move {
             caller

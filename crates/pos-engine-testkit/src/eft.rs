@@ -51,7 +51,7 @@ impl TestApp {
     pub fn link_terminal(&mut self) -> Arc<Script> {
         let script = Script::new();
         self.state.config.lock().unwrap().payment_terminal = Some(terminal_config());
-        self.state.eft_terminal_override = Some(script.clone());
+        self.state.eft_terminal_override = Some(Arc::clone(&script));
         script
     }
 

@@ -150,13 +150,13 @@ ORDER BY i.invoice_seq;
 ///   A row whose `until` is past is expired (by time, not by Z); it is kept until the next
 ///   read writes the `expired` log row and removes it.
 /// - `sold_out_log`: every set, clear and expiry, append-only.
-/// - `hubrise_inventory_sync`: one row per product pushed to the HubRise inventory (only
-///   written when HubRise is on and the product has an `external_id`). `dirty` rows are drained
-///   by the HubRise outbox loop, which sends the CURRENT state at send time. `version` counts
+/// - `hubrise_inventory_sync`: one row per product pushed to the `HubRise` inventory (only
+///   written when `HubRise` is on and the product has an `external_id`). `dirty` rows are drained
+///   by the `HubRise` outbox loop, which sends the CURRENT state at send time. `version` counts
 ///   the changes, so a change made during a send is not lost.
 ///
 /// No fiscal effect: sold-out is a till rule, not an event.
-pub(crate) const MIGRATION_041_SOLD_OUT: &str = r#"
+pub(crate) const MIGRATION_041_SOLD_OUT: &str = r"
 CREATE TABLE IF NOT EXISTS menu_item_sold_out (
     menu_item_id INTEGER PRIMARY KEY REFERENCES menu_items(id),
     until TEXT,
@@ -200,7 +200,7 @@ CREATE TABLE IF NOT EXISTS hubrise_inventory_sync (
 );
 CREATE INDEX IF NOT EXISTS idx_hubrise_inventory_sync_dirty
     ON hubrise_inventory_sync(dirty) WHERE dirty = 1;
-"#;
+";
 
 /// v42 - the on-screen menu editor (V11-D17).
 ///
@@ -211,7 +211,7 @@ CREATE INDEX IF NOT EXISTS idx_hubrise_inventory_sync_dirty
 /// The editor itself writes the existing menu tables; nothing is deleted from them either (an
 /// `active` flag hides an entry). Order lines keep their own snapshot of name, price and VAT
 /// label, so a change here never alters an open order or a signed event (AM art. 44).
-pub(crate) const MIGRATION_042_MENU_EDITOR: &str = r#"
+pub(crate) const MIGRATION_042_MENU_EDITOR: &str = r"
 CREATE TABLE IF NOT EXISTS menu_change_log (
     id INTEGER PRIMARY KEY,
     entity_type TEXT NOT NULL
@@ -237,4 +237,4 @@ BEFORE DELETE ON menu_change_log
 BEGIN
     SELECT RAISE(ABORT, 'menu_change_log is append-only');
 END;
-"#;
+";

@@ -51,10 +51,19 @@ fn epoch_ms() -> i64 {
 
 fn cents_of(v: &Value) -> Option<i64> {
     let f = v.as_f64()?;
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        reason = "a mock amount in euros, far below the i64 range"
+    )]
     Some((f * 100.0).round() as i64)
 }
 
+#[expect(
+    clippy::as_conversions,
+    clippy::cast_precision_loss,
+    reason = "a mock amount in cents, far below 2^52"
+)]
 fn number(cents: i64) -> Value {
     serde_json::Number::from_f64(cents as f64 / 100.0).map_or(Value::Null, Value::Number)
 }
@@ -105,7 +114,7 @@ fn transaction(p: &Payment, phase: Phase) -> Value {
     tx
 }
 
-pub async fn create_payment(
+pub(crate) async fn create_payment(
     State(shared): State<Shared>,
     headers: HeaderMap,
     body: Bytes,
@@ -122,6 +131,10 @@ pub async fn create_payment(
     response
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear validation of the CCV create request, clearer unsplit"
+)]
 async fn create_inner(
     shared: &Shared,
     headers: &HeaderMap,
@@ -230,7 +243,7 @@ async fn create_inner(
     json_response(200, &transaction(&payment, phase))
 }
 
-pub async fn get_transaction(
+pub(crate) async fn get_transaction(
     State(shared): State<Shared>,
     headers: HeaderMap,
     Query(query): Query<HashMap<String, String>>,
@@ -274,7 +287,7 @@ fn get_inner(shared: &Shared, headers: &HeaderMap, query: &HashMap<String, Strin
     input_error(400, "reference or merchantOrderReference is required", None)
 }
 
-pub async fn cancel(
+pub(crate) async fn cancel(
     State(shared): State<Shared>,
     headers: HeaderMap,
     Query(query): Query<HashMap<String, String>>,

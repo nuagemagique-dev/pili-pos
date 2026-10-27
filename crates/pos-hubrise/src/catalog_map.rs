@@ -1,4 +1,4 @@
-//! A HubRise catalog as the neutral catalog of `pos-catalog`.
+//! A `HubRise` catalog as the neutral catalog of `pos-catalog`.
 //!
 //! - Each SKU is an item, keyed by its `ref` (the POS product id stays
 //!   tied to it). A product with several SKUs names each one
@@ -7,7 +7,7 @@
 //!   `collection` for takeaway, and `delivery` must equal `collection`.
 //!   21, 12, 6 and 0 % are A, B, C and D. Without a rate, the SKU's
 //!   `custom_fields.vat_category` decides (food B/C, beverage A/A,
-//!   zero_rated D/D, out_of_scope X/X).
+//!   `zero_rated` D/D, `out_of_scope` X/X).
 //! - An option list attached to a SKU is one group of that item
 //!   (`{sku}|{list}`), its options `{sku}|{list}|{option}`.
 //! - Catalog charges are items of a hidden category (`charge:{ref}`),
@@ -190,7 +190,7 @@ pub fn to_neutral(data: &CatalogData) -> (Catalog, Vec<Issue>) {
     (out, issues)
 }
 
-/// Map and apply a HubRise catalog. A catalog without data is refused
+/// Map and apply a `HubRise` catalog. A catalog without data is refused
 /// like an empty one. `last_catalog_sync_at` is bumped when the menu
 /// mirrors the catalog.
 pub fn apply(
@@ -247,7 +247,7 @@ fn map_sku(
 
     let (vat_eat_in, vat_takeaway) = vat(
         product.tax_rate.as_ref(),
-        vat_category(&sku.custom_fields),
+        vat_category(sku.custom_fields.as_ref()),
         &key,
         issues,
     );
@@ -273,7 +273,7 @@ fn map_sku(
         category_key: category_key.to_owned(),
         kind: ItemKind::Product,
         names,
-        code: menu_code(&sku.custom_fields),
+        code: menu_code(sku.custom_fields.as_ref()),
         vat_eat_in,
         vat_takeaway,
         open_price: tagged(TAG_OPEN_PRICE),
@@ -331,14 +331,14 @@ fn price(money: &str, key: &str, issues: &mut Vec<Issue>) -> i64 {
 }
 
 /// `custom_fields.code`, trimmed, when the SKU sets one.
-fn menu_code(custom_fields: &Option<serde_json::Value>) -> Option<String> {
-    let code = custom_fields.as_ref()?.get("code")?.as_str()?.trim();
+fn menu_code(custom_fields: Option<&serde_json::Value>) -> Option<String> {
+    let code = custom_fields?.get("code")?.as_str()?.trim();
     (!code.is_empty()).then(|| code.to_owned())
 }
 
 /// `custom_fields.vat_category` when the SKU sets it.
-fn vat_category(custom_fields: &Option<serde_json::Value>) -> Option<&str> {
-    custom_fields.as_ref()?.get("vat_category")?.as_str()
+fn vat_category(custom_fields: Option<&serde_json::Value>) -> Option<&str> {
+    custom_fields?.get("vat_category")?.as_str()
 }
 
 pub(crate) fn code_of_rate(rate: &str) -> Option<VatCode> {
@@ -467,7 +467,7 @@ mod tests {
         v["option_lists"][0]["options"][1]["tags"] = json!(["allergen:none"]);
         let (c, issues) = to_neutral(&data(v));
         assert!(issues.is_empty(), "{issues:?}");
-        assert!(pos_catalog::validate(&c).is_empty());
+        assert_eq!(pos_catalog::validate(&c).len(), 0);
         let a6 = c.items[0].allergens.as_ref().unwrap();
         assert_eq!(a6.contains, vec!["fish", "sesame"]);
         assert_eq!(a6.may_contain, vec!["molluscs"]);
@@ -502,7 +502,7 @@ mod tests {
         v["products"][1]["tags"] = json!(["traces:nuts"]);
         let (c, _) = to_neutral(&data(v));
         let a = c.items[2].allergens.as_ref().unwrap();
-        assert!(a.contains.is_empty());
+        assert_eq!(a.contains.len(), 0);
         assert_eq!(a.may_contain, vec!["nuts"]);
     }
 
@@ -524,7 +524,7 @@ mod tests {
     fn a_sample_catalog_maps_without_issues() {
         let (c, issues) = to_neutral(&data(sample()));
         assert!(issues.is_empty(), "{issues:?}");
-        assert!(pos_catalog::validate(&c).is_empty());
+        assert_eq!(pos_catalog::validate(&c).len(), 0);
         let keys: Vec<&str> = c.items.iter().map(|i| i.key.as_str()).collect();
         assert_eq!(keys, vec!["MAKI-6", "MAKI-12", "COCA", "charge:DELIVERY"]);
     }
@@ -585,7 +585,7 @@ mod tests {
         let mut v = sample();
         v["products"][0]["tax_rate"] = json!({"eat_in": "12.0", "delivery": "6.0"});
         let (c, issues) = to_neutral(&data(v));
-        assert!(issues.is_empty());
+        assert_eq!(issues.len(), 0);
         assert_eq!(c.items[0].vat_takeaway, VatCode::C);
     }
 
@@ -596,7 +596,7 @@ mod tests {
         v["products"][0]["skus"][0]["custom_fields"] = json!({"vat_category": "food"});
         v["products"][0]["skus"][1]["custom_fields"] = json!({"vat_category": "zero_rated"});
         let (c, issues) = to_neutral(&data(v));
-        assert!(issues.is_empty());
+        assert_eq!(issues.len(), 0);
         assert_eq!(
             (c.items[0].vat_eat_in, c.items[0].vat_takeaway),
             (VatCode::B, VatCode::C)
@@ -649,7 +649,7 @@ mod tests {
         v["products"][0]["skus"][0]["option_list_refs"] = json!([]);
         v["products"][0]["skus"][0]["option_list_ids"] = json!(["ol1"]);
         let (c, issues) = to_neutral(&data(v));
-        assert!(issues.is_empty());
+        assert_eq!(issues.len(), 0);
         assert_eq!(c.items[0].groups[0].key, "MAKI-6|SAUCE");
     }
 
@@ -753,7 +753,7 @@ mod tests {
             json!({"code": " A2 ", "vat_category": "food"});
         v["products"][0]["skus"][1]["custom_fields"] = json!({"code": ""});
         let (c, issues) = to_neutral(&data(v));
-        assert!(issues.is_empty());
+        assert_eq!(issues.len(), 0);
         assert_eq!(c.items[0].code.as_deref(), Some("A2"));
         assert_eq!(c.items[1].code, None, "an empty code is no code");
         assert_eq!(c.items[2].code, None);

@@ -1,4 +1,4 @@
-//! Bar / kitchen order slip (traceability ID VI_BAR, SPF example bar
+//! Bar / kitchen order slip (traceability ID `VI_BAR`, SPF example bar
 //! ticket of 2026-09-24).
 //!
 //! - a table order prints its newly sent lines once, corrections
@@ -11,6 +11,11 @@
 //! - a bar ticket shows no price and is not a VAT ticket.
 //!
 //! Events are signed by the admission image's mock FDM.
+
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -238,7 +243,7 @@ async fn vi_bar_the_kitchen_printer_takes_the_slip() {
     add(&app, o, 2, 1);
     do_sign_table_order(&app.state, o).await.unwrap();
     assert_eq!(kitchen.settle_slips(1).await.len(), 1);
-    assert!(tickets.settle_slips(1).await.is_empty());
+    assert_eq!(tickets.settle_slips(1).await.len(), 0);
 }
 
 #[tokio::test]

@@ -10,6 +10,13 @@
 //! its dates, and the handshake is signed with that certificate's key.
 //! The CA stands for the name check: a certificate from another CA, or
 //! a stolen certificate without its key, is refused.
+//!
+//! Why no key-usage (EKU), SAN or name checks: module2's certificates are
+//! X.509 version 1, which has no extensions at all, so there is no EKU,
+//! no subjectAltName and no basicConstraints to read, and the subject
+//! carries no host name (the FDM is reached by IP). The checks that CAN
+//! be made are made: issuer, signature, the dates of the end-entity
+//! certificate and of the CA itself, and the handshake signature.
 
 use std::sync::Arc;
 
@@ -44,12 +51,19 @@ pub fn client_config(
     ca_file: &str,
     client: Option<(&str, &str)>,
 ) -> Result<rustls::ClientConfig, TlsSetupError> {
-    let ca = CertificateDer::from_pem_slice(&read(ca_file)?)
+    // Every certificate of the file counts (a CA bundle, or a root and
+    // its renewal side by side), not only the first.
+    let cas = CertificateDer::pem_slice_iter(&read(ca_file)?)
+        .map(|c| c.map(|c| c.to_vec()))
+        .collect::<Result<Vec<_>, _>>()
         .map_err(|_| TlsSetupError::Pem(ca_file.to_string(), "certificate"))?;
-    let verifier = SignedByCa::new(ca.to_vec())
-        .ok_or_else(|| TlsSetupError::Certificate(ca_file.to_string()))?;
+    if cas.is_empty() {
+        return Err(TlsSetupError::Pem(ca_file.to_string(), "certificate"));
+    }
+    let verifier =
+        SignedByCa::from_cas(cas).ok_or_else(|| TlsSetupError::Certificate(ca_file.to_string()))?;
     let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
-    let builder = rustls::ClientConfig::builder_with_provider(provider.clone())
+    let builder = rustls::ClientConfig::builder_with_provider(Arc::clone(&provider))
         .with_safe_default_protocol_versions()?
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(verifier));
@@ -81,7 +95,7 @@ impl rustls::client::ResolvesClientCert for OneClientCert {
         _root_hint_subjects: &[&[u8]],
         _sigschemes: &[SignatureScheme],
     ) -> Option<Arc<rustls::sign::CertifiedKey>> {
-        Some(self.0.clone())
+        Some(Arc::clone(&self.0))
     }
 
     fn has_certs(&self) -> bool {
@@ -89,30 +103,72 @@ impl rustls::client::ResolvesClientCert for OneClientCert {
     }
 }
 
-/// Trusts a server certificate signed by one CA, whatever its version
-/// and names.
+/// Trusts a server certificate signed by one of the configured CAs,
+/// whatever its version and names.
 #[derive(Debug)]
 pub struct SignedByCa {
-    ca_der: Vec<u8>,
+    cas_der: Vec<Vec<u8>>,
 }
 
 impl SignedByCa {
     /// `None` when `ca_der` is not a certificate.
+    #[must_use]
     pub fn new(ca_der: Vec<u8>) -> Option<Self> {
-        X509Certificate::from_der(&ca_der).ok()?;
-        Some(Self { ca_der })
+        Self::from_cas(vec![ca_der])
     }
 
-    /// The end-entity certificate is signed by the CA and valid at `now`.
+    /// Trusts every CA of `cas_der`. `None` when the list is empty or one
+    /// entry is not a certificate.
+    #[must_use]
+    pub fn from_cas(cas_der: Vec<Vec<u8>>) -> Option<Self> {
+        if cas_der.is_empty() {
+            return None;
+        }
+        for ca in &cas_der {
+            X509Certificate::from_der(ca).ok()?;
+        }
+        Some(Self { cas_der })
+    }
+
+    /// The end-entity certificate is signed by one of the CAs, and both
+    /// are valid at `now`. A CA file whose certificate has lapsed (or is
+    /// not valid yet) refuses every FDM connection: it must be renewed
+    /// before its `notAfter` date.
+    ///
+    /// # Errors
+    ///
+    /// The reason for the first CA whose name matches the issuer, or
+    /// `UnknownIssuer` when none does.
     pub fn check(&self, end_entity: &[u8], now: UnixTime) -> Result<(), Error> {
         let bad = |e: CertificateError| Error::InvalidCertificate(e);
         let (_, cert) = X509Certificate::from_der(end_entity)
             .map_err(|_| bad(CertificateError::BadEncoding))?;
-        let (_, ca) = X509Certificate::from_der(&self.ca_der)
-            .map_err(|_| bad(CertificateError::BadEncoding))?;
-        if cert.issuer().as_raw() != ca.subject().as_raw() {
-            return Err(bad(CertificateError::UnknownIssuer));
+        let mut failure = bad(CertificateError::UnknownIssuer);
+        let mut matched = false;
+        for ca_der in &self.cas_der {
+            let (_, ca) = X509Certificate::from_der(ca_der)
+                .map_err(|_| bad(CertificateError::BadEncoding))?;
+            if cert.issuer().as_raw() != ca.subject().as_raw() {
+                continue;
+            }
+            match Self::check_against(&cert, &ca, now) {
+                Ok(()) => return Ok(()),
+                Err(e) if !matched => {
+                    matched = true;
+                    failure = e;
+                }
+                Err(_) => {}
+            }
         }
+        Err(failure)
+    }
+
+    fn check_against(
+        cert: &X509Certificate<'_>,
+        ca: &X509Certificate<'_>,
+        now: UnixTime,
+    ) -> Result<(), Error> {
+        let bad = |e: CertificateError| Error::InvalidCertificate(e);
         let algorithm = certificate_signature_algorithm(&cert.signature_algorithm.algorithm)
             .ok_or_else(|| bad(CertificateError::BadSignature))?;
         UnparsedPublicKey::new(algorithm, ca.public_key().subject_public_key.data.as_ref())
@@ -121,12 +177,21 @@ impl SignedByCa {
                 cert.signature_value.data.as_ref(),
             )
             .map_err(|_| bad(CertificateError::BadSignature))?;
-        let now = now.as_secs() as i64;
+        let now = i64::try_from(now.as_secs()).unwrap_or(i64::MAX);
         let validity = cert.validity();
         if now < validity.not_before.timestamp() {
             return Err(bad(CertificateError::NotValidYet));
         }
         if now > validity.not_after.timestamp() {
+            return Err(bad(CertificateError::Expired));
+        }
+        // The CA's own dates: a certificate signed by an expired (or not
+        // yet valid) CA is not trusted.
+        let ca_validity = ca.validity();
+        if now < ca_validity.not_before.timestamp() {
+            return Err(bad(CertificateError::NotValidYet));
+        }
+        if now > ca_validity.not_after.timestamp() {
             return Err(bad(CertificateError::Expired));
         }
         Ok(())

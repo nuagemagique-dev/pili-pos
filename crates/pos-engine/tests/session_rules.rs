@@ -7,6 +7,11 @@
 //!   is still logged in, then closes the session and emits
 //!   `session-locked` once; a failing FDM never blocks the lock.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::sync::{Arc, Mutex};
 
 use pos_engine_testkit as common;
@@ -65,7 +70,8 @@ impl Recorder {
 async fn app_with_recorder() -> (TestApp, Arc<Recorder>) {
     let mut app = TestApp::new().await;
     let recorder = Arc::new(Recorder::default());
-    app.state.events = recorder.clone();
+    let events: Arc<dyn pos_engine::EventSink> = Arc::<Recorder>::clone(&recorder);
+    app.state.events = events;
     (app, recorder)
 }
 
@@ -237,7 +243,7 @@ async fn a_failed_registration_keeps_the_active_order_and_the_entries_pending() 
     assert_eq!(app.state.session_rules.active_order(), Some(order_id));
     let unsent = {
         let conn = app.state.db.lock().unwrap();
-        pos_db::queries::orders::get_order_entries(&conn, order_id, true).unwrap()
+        pos_db::queries::orders::get_unsent_order_entries(&conn, order_id).unwrap()
     };
     assert_eq!(unsent.len(), 1, "the entry stays pending");
 }
@@ -313,11 +319,8 @@ async fn an_fdm_failure_does_not_block_the_lock() {
     do_set_active_order(&app.state, Some(order_id)).unwrap();
 
     let outcome = do_lock_session(&app.state).await.expect("lock");
-    let error = outcome
-        .order_error
-        .clone()
-        .expect("the failure is reported");
-    assert!(!error.is_empty());
+    let error = outcome.order_error.expect("the failure is reported");
+    assert_ne!(error.len(), 0);
     assert!(app.state.session.lock().unwrap().is_none());
     assert_eq!(app.state.session_rules.active_order(), None);
     assert_eq!(
@@ -330,7 +333,7 @@ async fn an_fdm_failure_does_not_block_the_lock() {
     // The entry is still pending for the next registration.
     let unsent = {
         let conn = app.state.db.lock().unwrap();
-        pos_db::queries::orders::get_order_entries(&conn, order_id, true).unwrap()
+        pos_db::queries::orders::get_unsent_order_entries(&conn, order_id).unwrap()
     };
     assert_eq!(unsent.len(), 1);
 }

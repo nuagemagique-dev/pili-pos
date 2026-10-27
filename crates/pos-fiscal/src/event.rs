@@ -1,10 +1,19 @@
 use chrono::Utc;
 
 use crate::identity::SoftwareIdentity;
-use crate::inputs::*;
+use crate::inputs::{
+    CommonFields, CopyInput, CostCenterChangeInput, CostCenterInput, FdmDeviceInput,
+    FdmReferenceInput, InvoiceInput, OrderInput, PaymentCorrectionInput, PaymentLineInput,
+    PosDeviceInput, PreBillInput, ProductInput, ReportTurnoverXInput, ReportTurnoverZInput,
+    ReportUserXInput, ReportUserZInput, SaleInput, TransactionInput, TransactionLineInput,
+    TransferInput, TransferItemInput, TurnoverInput, UserItemInput, VatInput, WorkInOutInput,
+};
 use crate::payment::{Settlement, TerminalCard, payment_line_identity};
 use crate::response::FdmReference;
-use crate::types::*;
+use crate::types::{
+    CostCenterType, InputMethod, Language, NegQuantityReason, PaymentLineType, PaymentType,
+    QuantityType, TicketMedium, TransactionLineType, VatLabel,
+};
 use pos_core::config::PosConfig;
 use pos_core::order::{Order, OrderLine};
 use pos_core::vat::VatCode;
@@ -80,7 +89,7 @@ fn fiscal_language(code: &str) -> Language {
     }
 }
 
-/// Convert pos-core VatCode to fiscal VatLabel.
+/// Convert pos-core `VatCode` to fiscal `VatLabel`.
 pub fn vat_code_to_label(code: VatCode) -> VatLabel {
     match code {
         VatCode::A => VatLabel::A,
@@ -91,13 +100,9 @@ pub fn vat_code_to_label(code: VatCode) -> VatLabel {
     }
 }
 
-/// Cents to euros, exactly: the nearest `f64` to a two-decimal amount,
-/// which serialises with at most two decimals.
-fn eur(cents: i64) -> f64 {
-    cents as f64 / 100.0
-}
+use pos_core::money::eur;
 
-/// Build transaction lines (shared by Sale, Order, PreBill). Negative
+/// Build transaction lines (shared by Sale, Order, `PreBill`). Negative
 /// lines carry `neg_reason`: REFUND on refunds, CORRECTION when an
 /// entry is corrected before the sale is closed.
 fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> TransactionInput {
@@ -108,7 +113,7 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
             // product of floats (1.10 x 3 = 3.3000000000000003) is not
             // the multiple of 0.01 the FDM requires (POS spec v2.2).
             let unit_price = eur(line.unit_price_cents);
-            let line_total = eur(line.unit_price_cents * i64::from(line.quantity));
+            let line_total = eur(line.line_total());
             let vat_label = vat_code_to_label(line.vat_code);
 
             TransactionLineInput {
@@ -119,7 +124,7 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
                     product_name: line.name.clone(),
                     department_id: line.department_id.clone(),
                     department_name: line.department_name.clone(),
-                    quantity: line.quantity as f64,
+                    quantity: f64::from(line.quantity),
                     quantity_type: QuantityType::Piece,
                     neg_quantity_reason: (line.quantity < 0).then_some(neg_reason),
                     unit_price,
@@ -138,8 +143,7 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
 
     let transaction_total = eur(lines
         .iter()
-        .map(|l| l.unit_price_cents * i64::from(l.quantity))
-        .sum());
+        .fold(0_i64, |sum, l| sum.saturating_add(l.line_total())));
 
     TransactionInput {
         transaction_lines,
@@ -160,7 +164,7 @@ pub fn order_reference(order: &Order) -> String {
     format!("O{}", order.id)
 }
 
-/// Build a CostCenterInput for a table.
+/// Build a `CostCenterInput` for a table.
 fn build_table_cost_center(table_number: i32, reference: &str) -> CostCenterInput {
     CostCenterInput {
         id: format!("T{table_number:02}"),
@@ -172,7 +176,7 @@ fn build_table_cost_center(table_number: i32, reference: &str) -> CostCenterInpu
 
 // ── Event N - Sale ─────────────────────────────────────────────
 
-/// Build a SaleInput from an order + its entries + payment info.
+/// Build a `SaleInput` from an order + its entries + payment info.
 /// `lines` is the order's journal (additions and corrections in
 /// chronological order, POS description v2.2 §2). For refunds, pass
 /// `original_fdm_ref` referencing the original ticket.
@@ -183,7 +187,10 @@ fn build_table_cost_center(table_number: i32, reference: &str) -> CostCenterInpu
 /// (producers FAQ Q403, Advanced Set UC201).
 // The argument list mirrors the spec-mandated SaleInput composition;
 // grouping them into an ad-hoc struct would just move the same fields.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the builder takes the spec's inputs (config, identity, order, lines, booking date, ...) as distinct arguments; a bag struct would only move them"
+)]
 pub fn build_sale_input(
     config: &PosConfig,
     identity: &SoftwareIdentity,
@@ -341,7 +348,7 @@ fn financial_lines(payments: &[PaymentSpec<'_>], rounding_cents: i64) -> Vec<Pay
 
 // ── Event P - Order (pro forma) ────────────────────────────────
 
-/// Build an OrderInput (event P) for an open table / interrupted sale.
+/// Build an `OrderInput` (event P) for an open table / interrupted sale.
 /// `lines` are the order's entries not yet transmitted, corrections
 /// included. Orders are not printed in v1.0.0 (no kitchen ticket).
 pub fn build_order_input(
@@ -371,7 +378,7 @@ pub fn build_order_input(
     }
 }
 
-/// Build a PreBillInput (event P) for a provisional bill / account overview.
+/// Build a `PreBillInput` (event P) for a provisional bill / account overview.
 pub fn build_pre_bill_input(
     config: &PosConfig,
     identity: &SoftwareIdentity,
@@ -402,15 +409,18 @@ pub fn build_pre_bill_input(
 
 // ── Event P - Cost center change (table transfer) ─────────────
 
-/// Build a CostCenterChangeInput (event P, `signCostCenterChange`,
+/// Build a `CostCenterChangeInput` (event P, `signCostCenterChange`,
 /// Basic Set M122): the consolidated `lines` of the order leave table
-/// `from_table` (quantity -q, `negQuantityReason` COST_CENTER_CHANGE)
+/// `from_table` (quantity -q, `negQuantityReason` `COST_CENTER_CHANGE`)
 /// and arrive on `to_table` (quantity +q), one-to-one, under the same
 /// `reference` (the order's). Price changes already on a line travel
 /// with it: same id, name, scope, type and groupingId on both sides
 /// (producers FAQ Q304 d), negated on the from side. Nothing is
 /// printed (`ticketMedium` NONE, as the fixture).
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the builder takes the spec's inputs (config, identity, order, lines, booking date, ...) as distinct arguments; a bag struct would only move them"
+)]
 pub fn build_cost_center_change_input(
     config: &PosConfig,
     identity: &SoftwareIdentity,
@@ -438,13 +448,23 @@ pub fn build_cost_center_change_input(
     let negated_lines: Vec<OrderLine> = lines
         .iter()
         .map(|l| OrderLine {
-            quantity: -l.quantity,
+            // `i32::MIN` has no positive twin; it saturates instead of
+            // overflowing (a quantity that large is never real).
+            quantity: l.quantity.saturating_neg(),
             ..l.clone()
         })
         .collect();
     let negated_changes: crate::price_change::LineChanges = line_changes
         .iter()
-        .map(|(id, changes)| (*id, changes.iter().map(|c| c.negated()).collect()))
+        .map(|(id, changes)| {
+            (
+                *id,
+                changes
+                    .iter()
+                    .map(super::price_change::LineChange::negated)
+                    .collect(),
+            )
+        })
         .collect();
     let mut from_transaction =
         build_transaction(&negated_lines, NegQuantityReason::CostCenterChange);
@@ -467,7 +487,7 @@ pub fn build_cost_center_change_input(
 
 // ── Event C - Copy ─────────────────────────────────────────────
 
-/// Build a CopyInput for reprinting a previous event.
+/// Build a `CopyInput` for reprinting a previous event.
 /// `fdm_ref` references the original event (fdmId + eventLabel + counters).
 pub fn build_copy_input(
     config: &PosConfig,
@@ -500,14 +520,17 @@ pub fn build_copy_input(
 
 // ── Event F - Payment correction ───────────────────────────────
 
-/// Build a PaymentCorrectionInput (event F, `signPaymentCorrection`,
+/// Build a `PaymentCorrectionInput` (event F, `signPaymentCorrection`,
 /// Basic Set M132): a sale's payment line of `amount_cents` typed
 /// `from` is taken off (negative PAYMENT line) and the same amount is
 /// put on `to` (positive PAYMENT line). `original_ref` is the FDM
 /// reference of the corrected sale. Both lines are typed by hand
 /// (`MANUAL`), the cash drawer is not named (nothing is put in or out of
 /// it) and nothing is printed (`ticketMedium: NONE`, as the fixture).
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the builder takes the spec's inputs (config, identity, order, lines, booking date, ...) as distinct arguments; a bag struct would only move them"
+)]
 pub fn build_payment_correction_input(
     config: &PosConfig,
     identity: &SoftwareIdentity,
@@ -557,10 +580,13 @@ pub fn build_payment_correction_input(
 
 // ── Event I - Invoice ──────────────────────────────────────────
 
-/// Build an InvoiceInput (event I) for a B2B invoice covering one or
+/// Build an `InvoiceInput` (event I) for a B2B invoice covering one or
 /// more prior sales. `fdm_refs` reference the underlying N events
 /// (the M150 fixture shows an invoice consolidating two sales).
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the builder takes the spec's inputs (config, identity, order, lines, booking date, ...) as distinct arguments; a bag struct would only move them"
+)]
 pub fn build_invoice_input(
     config: &PosConfig,
     identity: &SoftwareIdentity,
@@ -600,7 +626,7 @@ pub fn build_invoice_input(
 
 // ── Event S - Social (Work In/Out) ─────────────────────────────
 
-/// Build a WorkInOutInput for employee clock in/out.
+/// Build a `WorkInOutInput` for employee clock in/out.
 pub fn build_work_in_out(
     config: &PosConfig,
     identity: &SoftwareIdentity,
@@ -623,13 +649,14 @@ pub fn build_work_in_out(
 // ── Event R - Reports ──────────────────────────────────────────
 
 /// Data needed to build turnover report inputs.
+#[derive(Debug)]
 pub struct TurnoverReportData {
     pub pos_devices: Vec<PosDeviceInput>,
     pub fdm_devices: Vec<FdmDeviceInput>,
     pub turnover: TurnoverInput,
 }
 
-/// Build a ReportTurnoverXInput (non-resetting mid-day report).
+/// Build a `ReportTurnoverXInput` (non-resetting mid-day report).
 pub fn build_report_turnover_x(
     config: &PosConfig,
     identity: &SoftwareIdentity,
@@ -655,8 +682,11 @@ pub fn build_report_turnover_x(
     }
 }
 
-/// Build a ReportTurnoverZInput (end-of-day report, resets counters).
-#[allow(clippy::too_many_arguments)]
+/// Build a `ReportTurnoverZInput` (end-of-day report, resets counters).
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the builder takes the spec's inputs (config, identity, order, lines, booking date, ...) as distinct arguments; a bag struct would only move them"
+)]
 pub fn build_report_turnover_z(
     config: &PosConfig,
     identity: &SoftwareIdentity,
@@ -687,13 +717,14 @@ pub fn build_report_turnover_z(
 }
 
 /// Data needed to build user report inputs.
+#[derive(Debug)]
 pub struct UserReportData {
     pub pos_devices: Vec<PosDeviceInput>,
     pub fdm_devices: Vec<FdmDeviceInput>,
     pub users: Vec<UserItemInput>,
 }
 
-/// Build a ReportUserXInput (non-resetting user report).
+/// Build a `ReportUserXInput` (non-resetting user report).
 pub fn build_report_user_x(
     config: &PosConfig,
     identity: &SoftwareIdentity,
@@ -719,8 +750,11 @@ pub fn build_report_user_x(
     }
 }
 
-/// Build a ReportUserZInput (end-of-day user report).
-#[allow(clippy::too_many_arguments)]
+/// Build a `ReportUserZInput` (end-of-day user report).
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the builder takes the spec's inputs (config, identity, order, lines, booking date, ...) as distinct arguments; a bag struct would only move them"
+)]
 pub fn build_report_user_z(
     config: &PosConfig,
     identity: &SoftwareIdentity,
@@ -855,6 +889,8 @@ mod tests {
         );
     }
     use super::*;
+    use crate::inputs::{DepartmentTotalInput, VatTotalInput};
+    use crate::types::{EventLabel, PriceChangeScope, PriceChangeType};
     use pos_core::order::{OrderStatus, OrderType};
     use uuid::Uuid;
 
@@ -986,6 +1022,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one linear scenario: build the sale, check every payment line"
+    )]
     fn a_terminal_card_is_an_automatic_line_with_its_brand_and_reference() {
         use crate::payment::{PaymentMethod, PaymentPart, settle};
         let (config, order, lines) = (test_config(), test_order(), test_lines());
@@ -1769,7 +1809,7 @@ mod tests {
                 id: i,
                 order_id: 1,
                 menu_item_id: i,
-                quantity: (i % 3) as i32 + 1,
+                quantity: i32::try_from(i % 3).unwrap() + 1,
                 unit_price_cents: 100 * (i + 1),
                 vat_code: VatCode::B,
                 name: format!("Item {i}"),
@@ -1781,7 +1821,7 @@ mod tests {
             .collect();
         let expected_cents: i64 = lines
             .iter()
-            .map(|l| l.unit_price_cents * l.quantity as i64)
+            .map(|l| l.unit_price_cents * i64::from(l.quantity))
             .sum();
 
         let sale = build_sale_input(
@@ -1839,11 +1879,11 @@ mod tests {
                 .flat_map(|q| [q, -q])
                 .enumerate()
                 .map(|(i, quantity)| OrderLine {
-                    id: i as i64,
+                    id: i64::try_from(i).unwrap(),
                     order_id: 1,
-                    menu_item_id: i as i64,
+                    menu_item_id: i64::try_from(i).unwrap(),
                     quantity,
-                    unit_price_cents: price + i as i64,
+                    unit_price_cents: price + i64::try_from(i).unwrap(),
                     vat_code: VatCode::B,
                     name: "Item".to_string(),
                     modifiers_json: None,
@@ -1889,6 +1929,30 @@ mod tests {
             bad.len(),
             &bad[..bad.len().min(5)]
         );
+    }
+
+    #[test]
+    fn impossible_quantities_saturate_instead_of_overflowing() {
+        let line = |quantity: i32| OrderLine {
+            id: 1,
+            order_id: 1,
+            menu_item_id: 1,
+            quantity,
+            unit_price_cents: i64::MAX / 2,
+            vat_code: VatCode::A,
+            name: "x".to_string(),
+            modifiers_json: None,
+            created_at: chrono::Utc::now(),
+            department_id: "1".to_string(),
+            department_name: "d".to_string(),
+        };
+        // Neither the product nor the sum nor the negation may panic.
+        let t = build_transaction(
+            &[line(i32::MAX), line(i32::MAX), line(i32::MIN)],
+            NegQuantityReason::Correction,
+        );
+        assert_eq!(t.transaction_lines.len(), 3);
+        assert_eq!(line(i32::MIN).quantity.saturating_neg(), i32::MAX);
     }
 
     #[test]
@@ -1963,7 +2027,7 @@ mod tests {
 
     #[test]
     fn a_transfer_takes_the_lines_off_one_table_and_puts_them_on_the_other() {
-        let v = transfer_json(&Default::default());
+        let v = transfer_json(&std::collections::BTreeMap::default());
         assert_eq!(v["ticketMedium"], "NONE");
         assert_eq!(v["employeeId"], "00000000029");
         let (from, to) = (&v["transfer"]["from"], &v["transfer"]["to"]);
@@ -1994,7 +2058,7 @@ mod tests {
 
     #[test]
     fn a_transfer_never_writes_a_negative_zero() {
-        let v = transfer_json(&Default::default());
+        let v = transfer_json(&std::collections::BTreeMap::default());
         let json = v.to_string();
         assert!(!json.contains("-0.0"), "{json}");
     }

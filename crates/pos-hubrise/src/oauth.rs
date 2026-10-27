@@ -1,26 +1,42 @@
-//! OAuth 2.0 helper for the HubRise authorization code flow.
+//! OAuth 2.0 helper for the `HubRise` authorization code flow.
 
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::errors::{HubriseError, Result};
 
-/// Configuration for the HubRise OAuth flow on the POS side.
+/// Configuration for the `HubRise` OAuth flow on the POS side.
 ///
 /// Unlike the webshop backend, the POS cannot host a server-side
 /// redirect. We use the "installed app" flow where the mock returns
 /// an auth code in a response body and the user copy-pastes it back
 /// into Settings.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct OAuthConfig {
     pub oauth_base_url: String,
     pub base_url: String,
     pub client_id: String,
-    /// Required by the real HubRise token exchange. Optional for the
+    /// Required by the real `HubRise` token exchange. Optional for the
     /// mock (which doesn't verify secrets).
     pub client_secret: String,
     pub redirect_uri: String,
     pub scope: String,
+}
+
+/// What a secret prints as in a `Debug` output.
+const REDACTED: &str = "<redacted>";
+
+impl std::fmt::Debug for OAuthConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OAuthConfig")
+            .field("oauth_base_url", &self.oauth_base_url)
+            .field("base_url", &self.base_url)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .field("redirect_uri", &self.redirect_uri)
+            .field("scope", &self.scope)
+            .finish()
+    }
 }
 
 /// Build the authorize URL to open in an external browser.
@@ -38,7 +54,7 @@ pub fn build_authorize_url(cfg: &OAuthConfig, state: Option<&str>) -> Result<Str
     Ok(url.to_string())
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TokenExchangeResponse {
     pub access_token: String,
     #[serde(default)]
@@ -57,7 +73,24 @@ pub struct TokenExchangeResponse {
     pub customer_list_name: Option<String>,
 }
 
-/// Exchange an auth code for a HubRise access token.
+impl std::fmt::Debug for TokenExchangeResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenExchangeResponse")
+            .field("access_token", &REDACTED)
+            .field("token_type", &self.token_type)
+            .field("account_id", &self.account_id)
+            .field("location_id", &self.location_id)
+            .field("catalog_id", &self.catalog_id)
+            .field("customer_list_id", &self.customer_list_id)
+            .field("account_name", &self.account_name)
+            .field("location_name", &self.location_name)
+            .field("catalog_name", &self.catalog_name)
+            .field("customer_list_name", &self.customer_list_name)
+            .finish()
+    }
+}
+
+/// Exchange an auth code for a `HubRise` access token.
 ///
 /// As `docs/hubrise/02-authentication.md` describes it: a form body
 /// `code=...`, the client in HTTP Basic auth (`client_id:client_secret`).
@@ -146,5 +179,27 @@ mod tests {
         assert_eq!(resp.location_name, "Liège");
         assert_eq!(resp.catalog_id, Some("cat-1".to_string()));
         assert!(resp.customer_list_id.is_none());
+    }
+
+    #[test]
+    fn debug_output_hides_the_secrets() {
+        let cfg = OAuthConfig {
+            oauth_base_url: "https://x".into(),
+            base_url: "https://y".into(),
+            client_id: "id".into(),
+            client_secret: "client-very-secret".into(),
+            redirect_uri: "r".into(),
+            scope: "s".into(),
+        };
+        let out = format!("{cfg:?}");
+        assert!(!out.contains("client-very-secret"));
+        assert!(out.contains("<redacted>"));
+        let tok: TokenExchangeResponse = serde_json::from_str(
+            r#"{"access_token":"tok-very-secret","account_id":"a","location_id":"l","account_name":"n","location_name":"m"}"#,
+        )
+        .unwrap();
+        let out = format!("{tok:?}");
+        assert!(!out.contains("tok-very-secret"));
+        assert!(out.contains("<redacted>"));
     }
 }

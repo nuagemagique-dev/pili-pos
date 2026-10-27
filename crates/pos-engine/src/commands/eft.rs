@@ -135,7 +135,7 @@ fn eft_error(e: &EftError) -> String {
 fn build_terminal(state: &AppState, config: &PaymentTerminalConfig) -> Result<Terminal, EftError> {
     #[cfg(feature = "eft-scripted")]
     if let Some(script) = &state.eft_terminal_override {
-        return Ok(Terminal::scripted(script.clone()));
+        return Ok(Terminal::scripted(Arc::clone(script)));
     }
     // Trusts what the rest of the engine trusts (`HttpTls`).
     let http = state
@@ -304,7 +304,7 @@ pub async fn do_eft_pay(
             let _line = state.eft_line.lock().await;
             // An abort reaches this very instance while it waits.
             let terminal = Arc::new(terminal);
-            let _in_flight = InFlight::set(state, &reference, terminal.clone());
+            let _in_flight = InFlight::set(state, &reference, Arc::clone(&terminal));
             terminal.pay(&request).await
         }
         Err(e) => Err(e),
@@ -318,11 +318,58 @@ pub async fn do_eft_pay(
             Some(eft_error(&e)),
         ),
     };
-    let row = store(state, id, &resolution)?;
+    let row = store(state, id, &resolution).inspect_err(|error| {
+        log_unstored(id, order_id, amount_cents, &reference, &resolution, error);
+    })?;
     tracing::info!(id, status = row.status.as_str(), "card payment answered");
     match failure {
         Some(error) => Err(error),
         None => Ok(EftPayment::of(row)),
+    }
+}
+
+/// The terminal's answer is lost with `error`: leave a trace to
+/// reconcile it by hand (an approved card was charged). The PAN is
+/// already masked; the receipt text is left out of the log. `detail` is
+/// logged on purpose: it is the driver's error text, never receipt data.
+/// The fields are listed one by one: a receipt field added to
+/// `Resolution` later must not reach the logs by a `Debug`.
+fn log_unstored(
+    id: i64,
+    order_id: i64,
+    amount_cents: i64,
+    reference: &str,
+    resolution: &Resolution,
+    error: &str,
+) {
+    match resolution {
+        Resolution::Approved {
+            brand,
+            terminal_reference,
+            authorisation_code,
+            masked_pan,
+            ..
+        } => tracing::error!(
+            id, order_id, amount_cents, %reference, ?brand, ?terminal_reference,
+            ?authorisation_code, ?masked_pan, %error,
+            "approved card payment could not be stored"
+        ),
+        Resolution::Declined { reason } => tracing::error!(
+            id, order_id, amount_cents, %reference, outcome = "declined", ?reason, %error,
+            "terminal answer could not be stored"
+        ),
+        Resolution::Cancelled => tracing::error!(
+            id, order_id, amount_cents, %reference, outcome = "cancelled", %error,
+            "terminal answer could not be stored"
+        ),
+        Resolution::Unknown { detail } => tracing::error!(
+            id, order_id, amount_cents, %reference, outcome = "unknown", ?detail, %error,
+            "terminal answer could not be stored"
+        ),
+        Resolution::NotSent { detail } => tracing::error!(
+            id, order_id, amount_cents, %reference, outcome = "not_sent", ?detail, %error,
+            "terminal answer could not be stored"
+        ),
     }
 }
 
@@ -374,7 +421,7 @@ pub async fn do_eft_abort(state: &AppState) -> Result<(), String> {
         .map_err(errors::internal)?
         .as_ref()
         .filter(|(reference, _)| *reference == row.reference)
-        .map(|(_, terminal)| terminal.clone());
+        .map(|(_, terminal)| Arc::clone(terminal));
     let terminal = match running {
         Some(terminal) => terminal,
         None => Arc::new(build_terminal(state, &terminal_config).map_err(|e| eft_error(&e))?),

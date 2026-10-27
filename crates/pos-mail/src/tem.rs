@@ -2,7 +2,7 @@
 //!
 //! The request and response shapes were checked on 2026-09-25 against
 //! Scaleway's API reference
-//! (https://www.scaleway.com/en/developers/api/transactional-email/)
+//! (<https://www.scaleway.com/en/developers/api/transactional-email>/)
 //! and the types of its official Go SDK (`scaleway-sdk-go`,
 //! `api/tem/v1alpha1`):
 //!
@@ -12,7 +12,7 @@
 //!   `attachments[{name,type,content}]` with `content` base64;
 //!   response `{"emails":[{"id","message_id","status",...}]}`;
 //! - probe: `GET` on the same path with `project_id` and `page_size`
-//!   (ListEmails), which needs the same key and project.
+//!   (`ListEmails`), which needs the same key and project.
 //!
 //! The tests mock the HTTP layer (`wiremock`) with this shape; the first
 //! send against a real project is part of the pre-submission rehearsal.
@@ -69,7 +69,7 @@ impl TemError {
         )
     }
 
-    fn from_reqwest(e: reqwest::Error) -> Self {
+    fn from_reqwest(e: &reqwest::Error) -> Self {
         if e.is_timeout() {
             TemError::Timeout
         } else {
@@ -145,6 +145,7 @@ struct SentEmail {
 }
 
 /// Client for the Scaleway Transactional Email HTTP API.
+#[derive(Clone)]
 pub struct TemClient {
     http: reqwest::Client,
     api_base: String,
@@ -168,29 +169,17 @@ impl std::fmt::Debug for TemClient {
             .field("from_name", &self.from_name)
             .field("secret", &"<redacted>")
             .field("timeout", &self.timeout)
-            .finish()
-    }
-}
-
-impl Clone for TemClient {
-    fn clone(&self) -> Self {
-        Self {
-            http: self.http.clone(),
-            api_base: self.api_base.clone(),
-            region: self.region.clone(),
-            project_id: self.project_id.clone(),
-            secret: self.secret.clone(),
-            from_email: self.from_email.clone(),
-            from_name: self.from_name.clone(),
-            timeout: self.timeout,
-        }
+            .finish_non_exhaustive()
     }
 }
 
 impl TemClient {
     /// Build a client directly from its parts (mainly for tests - see
     /// [`TemClient::from_config`] for the normal construction path).
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "a flat constructor for tests; a builder would only add noise"
+    )]
     pub fn new(
         http: reqwest::Client,
         api_base: impl Into<String>,
@@ -272,10 +261,10 @@ impl TemClient {
             .json(&body)
             .send()
             .await
-            .map_err(TemError::from_reqwest)?;
+            .map_err(|e| TemError::from_reqwest(&e))?;
 
         let status = resp.status();
-        let bytes = resp.bytes().await.map_err(TemError::from_reqwest)?;
+        let bytes = resp.bytes().await.map_err(|e| TemError::from_reqwest(&e))?;
         if !status.is_success() {
             return Err(TemError::from_status(status, &bytes));
         }
@@ -308,7 +297,7 @@ impl TemClient {
             .timeout(self.timeout)
             .send()
             .await
-            .map_err(TemError::from_reqwest)?;
+            .map_err(|e| TemError::from_reqwest(&e))?;
         let status = resp.status();
         if !status.is_success() {
             let bytes = resp.bytes().await.unwrap_or_default();

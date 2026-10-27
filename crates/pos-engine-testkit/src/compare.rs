@@ -18,8 +18,7 @@ pub fn business_view(d: &Value) -> Value {
             Value::Array(
                 transfer[name]
                     .as_array()
-                    .map(Vec::as_slice)
-                    .unwrap_or(&[])
+                    .map_or(&[][..], Vec::as_slice)
                     .iter()
                     .map(|item| {
                         json!({

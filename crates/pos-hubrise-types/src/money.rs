@@ -1,4 +1,4 @@
-//! HubRise money strings (`"9.80 EUR"`, `"-0.05 EUR"`) to and from
+//! `HubRise` money strings (`"9.80 EUR"`, `"-0.05 EUR"`) to and from
 //! integer cents, without floating point.
 //!
 //! Reference: `docs/hubrise/01-general-concepts.md` (Monetary Values).
@@ -12,13 +12,24 @@ pub enum MoneyError {
     Malformed(String),
     /// A currency other than EUR.
     Currency(String),
+    /// Beyond [`MAX_AMOUNT_CENTS`] in either direction.
+    OutOfRange(String),
 }
+
+/// Largest amount accepted from `HubRise`, in cents (10 million euros). A
+/// remote value is bounded here so that the arithmetic on it cannot
+/// overflow.
+pub const MAX_AMOUNT_CENTS: i64 = 1_000_000_000;
+
+/// Largest quantity accepted for a line, in whole units.
+pub const MAX_QUANTITY: i64 = 10_000;
 
 impl fmt::Display for MoneyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Malformed(s) => write!(f, "malformed amount {s:?}"),
             Self::Currency(s) => write!(f, "currency is not EUR in {s:?}"),
+            Self::OutOfRange(s) => write!(f, "amount out of range in {s:?}"),
         }
     }
 }
@@ -26,7 +37,8 @@ impl fmt::Display for MoneyError {
 impl std::error::Error for MoneyError {}
 
 /// Parse `"12.50 EUR"` into 1250. EUR only; at most two decimals
-/// (`"12.5 EUR"` is 1250, `"12 EUR"` is 1200).
+/// (`"12.5 EUR"` is 1250, `"12 EUR"` is 1200). An amount beyond
+/// [`MAX_AMOUNT_CENTS`] is refused.
 pub fn parse_cents(money: &str) -> Result<i64, MoneyError> {
     let malformed = || MoneyError::Malformed(money.to_string());
     let mut parts = money.split_whitespace();
@@ -38,7 +50,11 @@ pub fn parse_cents(money: &str) -> Result<i64, MoneyError> {
     if currency != "EUR" {
         return Err(MoneyError::Currency(money.to_string()));
     }
-    parse_decimal_cents(amount).ok_or_else(malformed)
+    let cents = parse_decimal_cents(amount).ok_or_else(malformed)?;
+    if cents.abs() > MAX_AMOUNT_CENTS {
+        return Err(MoneyError::OutOfRange(money.to_string()));
+    }
+    Ok(cents)
 }
 
 /// Parse a decimal string with at most two decimals (`"-2.5"`) into
@@ -76,12 +92,13 @@ pub fn format_cents(cents: i64) -> String {
     format!("{sign}{}.{:02} EUR", abs / 100, abs % 100)
 }
 
-/// A HubRise quantity (`"2"`, `"2.0"`) as a whole number of units.
+/// A `HubRise` quantity (`"2"`, `"2.0"`) as a whole number of units.
 /// Fractional quantities (weighed products) are refused: the POS
-/// sells whole units only.
+/// sells whole units only. So is a quantity beyond [`MAX_QUANTITY`].
 pub fn parse_quantity(quantity: &str) -> Option<i64> {
     let hundredths = parse_decimal_cents(quantity.trim())?;
-    (hundredths % 100 == 0).then_some(hundredths / 100)
+    let units = hundredths / 100;
+    (hundredths % 100 == 0 && units.abs() <= MAX_QUANTITY).then_some(units)
 }
 
 /// An inventory `stock` decimal string (0 to 3 decimals,
@@ -176,7 +193,7 @@ mod tests {
         assert_eq!(format_cents(5), "0.05 EUR");
         assert_eq!(format_cents(-5), "-0.05 EUR");
         assert_eq!(format_cents(0), "0.00 EUR");
-        for c in [-12345, -1, 0, 1, 99, 100, 101, 987654] {
+        for c in [-12345, -1, 0, 1, 99, 100, 101, 987_654] {
             assert_eq!(parse_cents(&format_cents(c)), Ok(c));
         }
     }
@@ -188,6 +205,26 @@ mod tests {
         assert_eq!(parse_quantity("1.00"), Some(1));
         assert_eq!(parse_quantity("1.5"), None);
         assert_eq!(parse_quantity("x"), None);
+    }
+
+    #[test]
+    fn remote_values_are_bounded() {
+        assert_eq!(parse_cents("10000000.00 EUR"), Ok(MAX_AMOUNT_CENTS));
+        assert_eq!(
+            parse_cents("10000000.01 EUR"),
+            Err(MoneyError::OutOfRange("10000000.01 EUR".into()))
+        );
+        assert!(matches!(
+            parse_cents("90000000000000.00 EUR"),
+            Err(MoneyError::OutOfRange(_))
+        ));
+        assert!(matches!(
+            parse_cents("-90000000000000.00 EUR"),
+            Err(MoneyError::OutOfRange(_))
+        ));
+        assert_eq!(parse_quantity("10000"), Some(MAX_QUANTITY));
+        assert_eq!(parse_quantity("10001"), None);
+        assert_eq!(parse_quantity("99999999999"), None);
     }
 
     #[test]

@@ -20,6 +20,11 @@
 //! service day is seeded directly in SQLite so the reports carry
 //! real per-user and FDM-device data.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;

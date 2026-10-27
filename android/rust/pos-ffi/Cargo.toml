@@ -50,3 +50,6 @@ axum = "0.8"
 # Tests only: sign a test artefact with a key generated in the test, so no secret key is committed.
 minisign = "=0.10.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

@@ -65,7 +65,9 @@ struct State_ {
 type Shared = Arc<Mutex<State_>>;
 
 fn lock(state: &Shared) -> MutexGuard<'_, State_> {
-    state.lock().unwrap_or_else(|e| e.into_inner())
+    state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 /// A running mock receiver. Stops when dropped or on [`Receiver::stop`].
@@ -74,6 +76,14 @@ pub struct Receiver {
     state: Shared,
     shutdown: Option<tokio::sync::oneshot::Sender<()>>,
     thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl std::fmt::Debug for Receiver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Receiver")
+            .field("addr", &self.addr)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Receiver {
@@ -108,7 +118,7 @@ impl Receiver {
             observer: None,
         }));
         let (shutdown, stop) = tokio::sync::oneshot::channel::<()>();
-        let app = router(state.clone());
+        let app = router(Arc::clone(&state));
         let thread = std::thread::Builder::new()
             .name("pos-export-mock".to_string())
             .spawn(move || {
@@ -172,9 +182,15 @@ impl Receiver {
         lock(&self.state).delay = delay;
     }
 
-    /// When true, answer 401 to every request, whatever its token.
-    pub fn set_unauthorized(&self, unauthorized: bool) {
-        lock(&self.state).unauthorized = unauthorized;
+    /// Answer 401 to every request, whatever its token, until
+    /// [`Receiver::accept_tokens`].
+    pub fn reject_all(&self) {
+        lock(&self.state).unauthorized = true;
+    }
+
+    /// Go back to checking the token (undo [`Receiver::reject_all`]).
+    pub fn accept_tokens(&self) {
+        lock(&self.state).unauthorized = false;
     }
 
     /// Stored uploads, in arrival order.
@@ -332,6 +348,7 @@ fn decide(state: &mut State_, uri: &Uri, headers: &HeaderMap, body: &Bytes) -> S
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fmt::Write as _;
     use std::io::{Read, Write};
     use std::net::TcpStream;
     use std::time::Instant;
@@ -357,9 +374,9 @@ mod tests {
         let mut head =
             format!("{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n");
         for (name, value) in headers {
-            head.push_str(&format!("{name}: {value}\r\n"));
+            let _ = write!(head, "{name}: {value}\r\n");
         }
-        head.push_str(&format!("Content-Length: {}\r\n\r\n", body.len()));
+        let _ = write!(head, "Content-Length: {}\r\n\r\n", body.len());
         stream.write_all(head.as_bytes()).unwrap();
         stream.write_all(body).unwrap();
         let mut response = String::new();
@@ -424,7 +441,7 @@ mod tests {
             b"x",
         );
         assert_eq!(code, 401, "scheme Bearer is required");
-        assert!(receiver.received().is_empty());
+        assert_eq!(receiver.received().len(), 0);
         assert_eq!(receiver.put_count(), 3);
     }
 
@@ -443,7 +460,7 @@ mod tests {
             400
         );
         assert_eq!(request(&receiver, "PUT", "/e1/a", &[auth], b"x").0, 400);
-        assert!(receiver.received().is_empty());
+        assert_eq!(receiver.received().len(), 0);
     }
 
     #[test]
@@ -461,7 +478,7 @@ mod tests {
         ] {
             assert_eq!(put(&receiver, path, b"x", Some(TOKEN)), 400, "{path}");
         }
-        assert!(receiver.received().is_empty());
+        assert_eq!(receiver.received().len(), 0);
     }
 
     #[test]
@@ -484,7 +501,7 @@ mod tests {
         receiver.fail_next(2, 503);
         assert_eq!(put(&receiver, "/e1/a", b"x", Some(TOKEN)), 503);
         assert_eq!(put(&receiver, "/e1/a", b"x", Some(TOKEN)), 503);
-        assert!(receiver.received().is_empty());
+        assert_eq!(receiver.received().len(), 0);
         assert_eq!(put(&receiver, "/e1/a", b"x", Some(TOKEN)), 201);
         assert_eq!(receiver.received().len(), 1);
         assert_eq!(receiver.put_count(), 3);
@@ -510,12 +527,12 @@ mod tests {
     #[test]
     fn set_unauthorized_answers_401_to_everything_until_cleared() {
         let receiver = Receiver::start(TOKEN);
-        receiver.set_unauthorized(true);
+        receiver.reject_all();
         assert_eq!(put(&receiver, "/e1/a", b"x", Some(TOKEN)), 401);
         let auth = vec![("Authorization", format!("Bearer {TOKEN}"))];
         assert_eq!(request(&receiver, "GET", "/e1/a", &auth, b"").0, 401);
-        assert!(receiver.received().is_empty());
-        receiver.set_unauthorized(false);
+        assert_eq!(receiver.received().len(), 0);
+        receiver.accept_tokens();
         assert_eq!(put(&receiver, "/e1/a", b"x", Some(TOKEN)), 201);
     }
 
@@ -542,7 +559,7 @@ mod tests {
     fn observer_sees_every_put_with_its_status() {
         let receiver = Receiver::start(TOKEN);
         let seen = Arc::new(Mutex::new(Vec::new()));
-        let sink = seen.clone();
+        let sink = Arc::clone(&seen);
         receiver.set_observer(move |path, size, code| {
             sink.lock().unwrap().push((path.to_string(), size, code));
         });

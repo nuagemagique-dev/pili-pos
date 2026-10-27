@@ -7,13 +7,13 @@ use super::Managed;
 /// The owner alert settings (Telegram messages to the owner's phone);
 /// managers only. The bot token is never returned, only whether it is
 /// configured.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_owner_alerts(state: State<'_, Managed>) -> Result<OwnerAlerts, String> {
     pos_engine::commands::alerts::do_get_owner_alerts(state.inner())
 }
 
 /// Store the owner alert settings; managers only, logged.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_owner_alerts(
     state: State<'_, Managed>,
     input: OwnerAlertsInput,
@@ -29,7 +29,7 @@ pub async fn send_test_alert(state: State<'_, Managed>) -> Result<AlertTestResul
 
 /// The latest alert messages sent or dropped, newest first; managers
 /// only.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_owner_alert_log(
     state: State<'_, Managed>,
     limit: i64,

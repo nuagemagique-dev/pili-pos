@@ -1,4 +1,4 @@
-//! Stored HubRise events: persisted in SQLite before they are handled
+//! Stored `HubRise` events: persisted in SQLite before they are handled
 //! (idempotence), marked once handled. The routing is in `poller`.
 
 use pos_hubrise_types::CallbackEvent;

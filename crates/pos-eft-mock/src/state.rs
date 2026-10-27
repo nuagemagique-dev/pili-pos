@@ -73,7 +73,7 @@ pub enum Protocol {
 
 /// Where a payment stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Phase {
+pub(crate) enum Phase {
     InProgress,
     Approved,
     Declined,
@@ -83,7 +83,7 @@ pub enum Phase {
 }
 
 impl Phase {
-    pub fn name(self) -> &'static str {
+    pub(crate) fn name(self) -> &'static str {
         match self {
             Self::InProgress => "in_progress",
             Self::Approved => "approved",
@@ -96,7 +96,7 @@ impl Phase {
 
 /// One payment.
 #[derive(Debug, Clone)]
-pub struct Payment {
+pub(crate) struct Payment {
     pub id: u64,
     pub protocol: Protocol,
     /// The till's reference: the Worldline `ExchangeIdentification`, the
@@ -120,7 +120,7 @@ pub struct Payment {
 }
 
 impl Payment {
-    pub fn phase(&self, now: Instant) -> Phase {
+    pub(crate) fn phase(&self, now: Instant) -> Phase {
         if let Some(at) = self.aborted_at
             && at < self.done_at
         {
@@ -163,7 +163,7 @@ pub struct RequestLog {
     pub status: u16,
 }
 
-pub struct Inner {
+pub(crate) struct Inner {
     pub next: VecDeque<Next>,
     pub default: Next,
     pub payments: Vec<Payment>,
@@ -180,9 +180,9 @@ pub struct Inner {
     seq: u64,
 }
 
-pub type Shared = Arc<Mutex<Inner>>;
+pub(crate) type Shared = Arc<Mutex<Inner>>;
 
-pub fn new_shared(api_key: Option<String>, device_port: u16) -> Shared {
+pub(crate) fn new_shared(api_key: Option<String>, device_port: u16) -> Shared {
     Arc::new(Mutex::new(Inner {
         next: VecDeque::new(),
         default: Next::default(),
@@ -197,16 +197,18 @@ pub fn new_shared(api_key: Option<String>, device_port: u16) -> Shared {
     }))
 }
 
-pub fn lock(shared: &Shared) -> MutexGuard<'_, Inner> {
-    shared.lock().unwrap_or_else(|e| e.into_inner())
+pub(crate) fn lock(shared: &Shared) -> MutexGuard<'_, Inner> {
+    shared
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-pub fn clock() -> String {
+pub(crate) fn clock() -> String {
     chrono::Local::now().format("%H:%M:%S").to_string()
 }
 
 /// What starting a payment came to.
-pub enum Begin {
+pub(crate) enum Begin {
     /// The reference was seen before: no second charge.
     Existing(usize),
     Created(usize),
@@ -215,7 +217,13 @@ pub enum Begin {
 }
 
 impl Inner {
-    pub fn log(&mut self, protocol: Protocol, method: &str, path: &str, body: Value) -> usize {
+    pub(crate) fn log(
+        &mut self,
+        protocol: Protocol,
+        method: &str,
+        path: &str,
+        body: Value,
+    ) -> usize {
         self.seq += 1;
         self.requests.push(RequestLog {
             seq: self.seq,
@@ -229,19 +237,19 @@ impl Inner {
         self.requests.len() - 1
     }
 
-    pub fn set_status(&mut self, index: usize, status: u16) {
+    pub(crate) fn set_status(&mut self, index: usize, status: u16) {
         if let Some(r) = self.requests.get_mut(index) {
             r.status = status;
         }
     }
 
-    pub fn find(&self, protocol: Protocol, reference: &str) -> Option<usize> {
+    pub(crate) fn find(&self, protocol: Protocol, reference: &str) -> Option<usize> {
         self.payments
             .iter()
             .position(|p| p.protocol == protocol && p.reference == reference)
     }
 
-    pub fn find_psp(&self, psp: &str) -> Option<usize> {
+    pub(crate) fn find_psp(&self, psp: &str) -> Option<usize> {
         self.payments
             .iter()
             .position(|p| p.protocol == Protocol::Ccv && p.psp_reference == psp)
@@ -254,7 +262,7 @@ impl Inner {
     }
 
     /// Start the payment `reference` on `terminal`, or find it again.
-    pub fn begin(
+    pub(crate) fn begin(
         &mut self,
         protocol: Protocol,
         reference: &str,
@@ -274,7 +282,7 @@ impl Inner {
         if next.result == Behaviour::Busy || running {
             return Begin::Busy;
         }
-        let id = self.payments.len() as u64 + 1;
+        let id = u64::try_from(self.payments.len()).map_or(u64::MAX, |n| n.saturating_add(1));
         let psp_reference = if protocol == Protocol::Ccv {
             format!(
                 "TL{:015}{:08X}.1",
@@ -305,7 +313,7 @@ impl Inner {
 
     /// Stop a payment that is still waiting for the cardholder. A
     /// terminal that never answers ignores the stop.
-    pub fn abort(&mut self, index: usize) -> bool {
+    pub(crate) fn abort(&mut self, index: usize) -> bool {
         let now = Instant::now();
         let Some(p) = self.payments.get_mut(index) else {
             return false;
@@ -320,7 +328,7 @@ impl Inner {
         false
     }
 
-    pub fn views(&self) -> Vec<PaymentView> {
+    pub(crate) fn views(&self) -> Vec<PaymentView> {
         let now = Instant::now();
         self.payments
             .iter()
@@ -339,7 +347,7 @@ impl Inner {
 
 /// Wait until payment `index` is past its delay or stopped; the payment
 /// as it stands then.
-pub async fn wait_done(shared: &Shared, index: usize) -> (Payment, Phase) {
+pub(crate) async fn wait_done(shared: &Shared, index: usize) -> (Payment, Phase) {
     loop {
         {
             let inner = lock(shared);
@@ -354,17 +362,17 @@ pub async fn wait_done(shared: &Shared, index: usize) -> (Payment, Phase) {
 }
 
 /// `cents` as "12.50".
-pub fn amount_text(cents: i64) -> String {
+pub(crate) fn amount_text(cents: i64) -> String {
     format!("{}.{:02}", cents / 100, cents % 100)
 }
 
 /// The brand as a terminal prints it.
-pub fn brand_upper(brand: &str) -> String {
+pub(crate) fn brand_upper(brand: &str) -> String {
     brand.to_ascii_uppercase()
 }
 
 /// Debit or credit, as a Belgian terminal receipt says.
-pub fn account_type(brand: &str) -> &'static str {
+pub(crate) fn account_type(brand: &str) -> &'static str {
     match brand.to_ascii_lowercase().as_str() {
         "visa" | "mastercard" | "american express" | "amex" => "Credit",
         _ => "Debit",
@@ -373,7 +381,7 @@ pub fn account_type(brand: &str) -> &'static str {
 
 /// The OPI `CardCircuit` for a brand (Bancontact is `BCMC`: the real
 /// label of a Belgian terminal is not public).
-pub fn circuit(brand: &str) -> String {
+pub(crate) fn circuit(brand: &str) -> String {
     match brand.to_ascii_lowercase().as_str() {
         "bancontact" => "BCMC".to_string(),
         "mastercard" => "MASTERCARD".to_string(),
@@ -382,7 +390,7 @@ pub fn circuit(brand: &str) -> String {
 }
 
 /// The cardholder receipt of an approved payment.
-pub fn customer_receipt(p: &Payment) -> Vec<String> {
+pub(crate) fn customer_receipt(p: &Payment) -> Vec<String> {
     vec![
         "--------------------------------".into(),
         "         PILI EFT MOCK".into(),
@@ -407,6 +415,6 @@ pub fn customer_receipt(p: &Payment) -> Vec<String> {
     ]
 }
 
-pub fn auth_code(p: &Payment) -> u64 {
+pub(crate) fn auth_code(p: &Payment) -> u64 {
     57_000 + p.id
 }
