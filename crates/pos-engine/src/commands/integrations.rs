@@ -60,14 +60,22 @@ pub(crate) fn with_write_lock<T>(
         Ok(v) => match db.execute_batch("COMMIT") {
             Ok(()) => Ok(v),
             Err(e) => {
-                let _ = db.execute_batch("ROLLBACK");
+                rollback(db);
                 Err(errors::internal(e))
             }
         },
         Err(e) => {
-            let _ = db.execute_batch("ROLLBACK");
+            rollback(db);
             Err(e)
         }
+    }
+}
+
+/// Roll back after a failure; the failure is what the caller returns, so
+/// a rollback that fails too is only logged.
+fn rollback(db: &rusqlite::Connection) {
+    if let Err(e) = db.execute_batch("ROLLBACK") {
+        tracing::warn!(%e, "rollback after a failed write failed");
     }
 }
 
