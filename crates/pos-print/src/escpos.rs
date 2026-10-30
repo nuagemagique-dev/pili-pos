@@ -1,8 +1,25 @@
-/// ESC/POS binary command builder for thermal printers.
-/// Reference: Epson ESC/POS Application Programming Guide.
-/// Target: Epson TM-m30III (80mm, 576 dots/line at 203 DPI).
-const DOTS_PER_LINE: u16 = 576; // 80mm at 203 DPI
-const CHARS_PER_LINE: u8 = 48; // Font A, 12x24 dots
+//! ESC/POS binary command builder for thermal printers.
+//! Reference: Epson ESC/POS Application Programming Guide.
+//! Target: Epson TM-m30III at 203 DPI, on 80 mm paper (576 dots, 48
+//! Font A columns) or 58 mm paper (420 dots, 35 columns).
+
+pub use pos_core::config::PaperWidth;
+
+/// Printable dots of a line on `paper`.
+fn dots_per_line(paper: PaperWidth) -> u16 {
+    match paper {
+        PaperWidth::Mm80 => 576,
+        PaperWidth::Mm58 => 420,
+    }
+}
+
+/// Font A (12x24 dots) columns of a line on `paper`.
+pub(crate) fn chars_per_line(paper: PaperWidth) -> u8 {
+    match paper {
+        PaperWidth::Mm80 => 48,
+        PaperWidth::Mm58 => 35,
+    }
+}
 
 // ── ESC/POS Command Constants ──────────────────────────────────
 
@@ -14,6 +31,7 @@ const LF: u8 = 0x0A;
 #[derive(Debug, Clone)]
 pub struct EscPosBuilder {
     buf: Vec<u8>,
+    paper: PaperWidth,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,9 +51,16 @@ pub struct TextStyle {
 }
 
 impl EscPosBuilder {
+    /// A builder for 80 mm paper.
     pub fn new() -> Self {
+        Self::for_paper(PaperWidth::Mm80)
+    }
+
+    /// A builder whose lines fit `paper`.
+    pub fn for_paper(paper: PaperWidth) -> Self {
         let mut builder = Self {
             buf: Vec::with_capacity(4096),
+            paper,
         };
         builder.init();
         builder
@@ -107,8 +132,8 @@ impl EscPosBuilder {
         self.lf()
     }
 
-    /// Write text as whole lines of at most [`CHARS_PER_LINE`]
-    /// columns, breaking between words (see [`wrap`]), so a long name
+    /// Write text as whole lines of at most
+    /// [`chars_per_line`](Self::chars_per_line) columns, breaking between words (see [`wrap`]), so a long name
     /// or address is never cut by the printer mid-word.
     pub fn textln_wrapped(&mut self, s: &str) -> &mut Self {
         for line in wrap(s, self.chars_per_line() as usize) {
@@ -258,14 +283,14 @@ impl EscPosBuilder {
 
     // ── Build ──────────────────────────────────────────────────
 
-    /// Returns the number of characters per line for current font.
+    /// Returns the number of Font A characters per line on the paper.
     pub fn chars_per_line(&self) -> u8 {
-        CHARS_PER_LINE
+        chars_per_line(self.paper)
     }
 
     /// Returns the dot width of the printable area.
     pub fn dots_per_line(&self) -> u16 {
-        DOTS_PER_LINE
+        dots_per_line(self.paper)
     }
 
     /// Consume the builder and return the raw byte buffer.
@@ -658,6 +683,26 @@ mod tests {
         b.text_columns("Left", &long_right);
         let bytes = b.build();
         assert_eq!(printed_line(&bytes).len(), 48);
+    }
+
+    #[test]
+    fn a_58_mm_builder_lays_out_35_columns_on_420_dots() {
+        let mut b = EscPosBuilder::for_paper(PaperWidth::Mm58);
+        assert_eq!((b.chars_per_line(), b.dots_per_line()), (35, 420));
+        b.text_columns(&"Y".repeat(80), "9.99");
+        let bytes = b.clone().build();
+        assert_eq!(printed_line(&bytes).len(), 35);
+        assert!(printed_line(&bytes).ends_with(b"9.99"));
+
+        let mut b = EscPosBuilder::for_paper(PaperWidth::Mm58);
+        b.separator('-');
+        assert_eq!(printed_line(&b.build()), "-".repeat(35).as_bytes());
+
+        let mut b = EscPosBuilder::for_paper(PaperWidth::Mm58);
+        b.textln_wrapped(&"mot ".repeat(20));
+        let bytes = b.build();
+        let lines: Vec<&[u8]> = bytes[5..].split(|&c| c == LF).collect();
+        assert!(lines.iter().all(|l| l.len() <= 35), "{lines:?}");
     }
 
     #[test]

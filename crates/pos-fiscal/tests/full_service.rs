@@ -86,6 +86,8 @@ fn config(fdm_url: &str) -> PosConfig {
         language: "fr".to_string(),
         backup_dir: None,
         kitchen_printer_address: None,
+        printer_paper_mm: Default::default(),
+        kitchen_printer_paper_mm: Default::default(),
         fdm_token_file: None,
         fdm_ca_file: None,
         fdm_client_cert_file: None,
@@ -565,7 +567,7 @@ async fn test_full_service_day_e2e() {
         "Pre-bill must include the invalid-ticket mention"
     );
 
-    let pb_escpos = receipt::format_receipt(&pb_ticket_data);
+    let pb_escpos = receipt::format_receipt(&pb_ticket_data, pos_print::escpos::PaperWidth::Mm80);
     assert!(
         pb_escpos.windows(9).any(|w| w == b"PRO FORMA"),
         "Pre-bill ESC/POS must contain 'PRO FORMA'"
@@ -781,7 +783,7 @@ async fn test_full_service_day_e2e() {
     assert!(!ticket.is_refund);
     assert!(ticket.fdm_ref.is_some());
 
-    let escpos = receipt::format_receipt(&ticket);
+    let escpos = receipt::format_receipt(&ticket, pos_print::escpos::PaperWidth::Mm80);
 
     // Verify ESC/POS content
     assert!(!escpos.is_empty());

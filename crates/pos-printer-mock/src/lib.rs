@@ -27,6 +27,7 @@ use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::{Html, IntoResponse};
 use axum::routing::get;
+use pos_print::escpos::PaperWidth;
 use pos_print::transport::{
     DLE_EOT, OFFLINE_COVER_OPEN, OFFLINE_ERROR, OFFLINE_PAPER_END, PAPER_END, PAPER_NEAR_END,
     STATUS_FIXED,
@@ -141,12 +142,19 @@ pub struct Printer {
     jobs: Mutex<Vec<Job>>,
     next_id: AtomicUsize,
     outbox: Option<PathBuf>,
+    /// The paper roll the jobs are rendered on.
+    roll: PaperWidth,
 }
 
 impl Printer {
     /// A printer in the given states. With an `outbox`, each job is also
     /// written there as `<id>.txt` (rendered) and `<id>.bin` (raw).
     pub fn new(control: Control, outbox: Option<PathBuf>) -> Arc<Self> {
+        Self::with_roll(control, outbox, PaperWidth::Mm80)
+    }
+
+    /// [`Self::new`] with the jobs rendered on a `roll` of paper.
+    pub fn with_roll(control: Control, outbox: Option<PathBuf>, roll: PaperWidth) -> Arc<Self> {
         let (unplugged, _) = watch::channel(control.unplugged);
         Arc::new(Self {
             control: Mutex::new(control),
@@ -154,14 +162,21 @@ impl Printer {
             jobs: Mutex::new(Vec::new()),
             next_id: AtomicUsize::new(1),
             outbox,
+            roll,
         })
     }
 
-    /// States from the environment, outbox from `MOCK_PRINTER_OUTBOX`.
+    /// States from the environment, outbox from `MOCK_PRINTER_OUTBOX`,
+    /// paper roll from `MOCK_PRINTER_ROLL_MM` (80 or 58, default 80).
     pub fn from_env() -> Arc<Self> {
-        Self::new(
+        let roll = match std::env::var("MOCK_PRINTER_ROLL_MM").as_deref() {
+            Ok("58") => PaperWidth::Mm58,
+            _ => PaperWidth::Mm80,
+        };
+        Self::with_roll(
             Control::from_env(),
             std::env::var("MOCK_PRINTER_OUTBOX").ok().map(PathBuf::from),
+            roll,
         )
     }
 
@@ -198,7 +213,7 @@ impl Printer {
             bytes: bytes.len(),
             printed: !self.control().offline(),
             drawer_kick: bytes.windows(2).any(|w| w == DRAWER_KICK),
-            text: pos_print::render::render_plain_text(&bytes),
+            text: pos_print::render::render_plain_text_for(&bytes, self.roll),
         };
         if let Some(dir) = &self.outbox {
             let written = std::fs::create_dir_all(dir)

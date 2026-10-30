@@ -14,7 +14,7 @@
 use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer};
 use serde::{Deserialize, Serialize};
 
-use crate::escpos::{Alignment, EscPosBuilder, TextStyle, wrap};
+use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle, wrap};
 use crate::labels::labels;
 
 /// The customer as printed.
@@ -191,13 +191,13 @@ fn date_only(iso: &str) -> String {
 }
 
 fn control_data(p: &mut EscPosBuilder, c: &InvoiceControl) {
-    p.textln(&format!("fdmId: {};", c.fdm_id));
-    p.textln(&format!("fdmDateTime: {};", c.fdm_date_time));
-    p.textln(&format!(
+    p.textln_wrapped(&format!("fdmId: {};", c.fdm_id));
+    p.textln_wrapped(&format!("fdmDateTime: {};", c.fdm_date_time));
+    p.textln_wrapped(&format!(
         "Event: {}; eventCounter: {};",
         c.event_label, c.event_counter
     ));
-    p.textln(&format!("totalCounter: {};", c.total_counter));
+    p.textln_wrapped(&format!("totalCounter: {};", c.total_counter));
 }
 
 fn section_title(p: &mut EscPosBuilder, title: &str) {
@@ -212,13 +212,23 @@ fn section_title(p: &mut EscPosBuilder, title: &str) {
     p.separator('-');
 }
 
-fn vat_row(rate: &str, code: &str, base: &str, vat: &str, gross: &str) -> String {
-    format!("{rate:<8}{code:<6}{base:>10}{vat:>10}{gross:>10}")
+fn vat_row(
+    paper: PaperWidth,
+    rate: &str,
+    code: &str,
+    base: &str,
+    vat: &str,
+    gross: &str,
+) -> String {
+    match paper {
+        PaperWidth::Mm80 => format!("{rate:<8}{code:<6}{base:>10}{vat:>10}{gross:>10}"),
+        PaperWidth::Mm58 => format!("{rate:<7}{code:<5}{base:>7}{vat:>8}{gross:>8}"),
+    }
 }
 
 /// Format an invoice (or its copy) into ESC/POS commands.
-pub fn format_invoice(inv: &InvoicePrint) -> Vec<u8> {
-    let mut p = EscPosBuilder::new();
+pub fn format_invoice(inv: &InvoicePrint, paper: PaperWidth) -> Vec<u8> {
+    let mut p = EscPosBuilder::for_paper(paper);
     let l = labels(inv.lang);
     let il = invoice_labels(inv.lang);
 
@@ -244,17 +254,17 @@ pub fn format_invoice(inv: &InvoicePrint) -> Vec<u8> {
     p.align(Alignment::Left);
     p.textln_wrapped(&inv.seller_name);
     if !inv.seller_est_no.is_empty() {
-        p.textln(&format!("{} {}", l.est_unit, inv.seller_est_no));
+        p.textln_wrapped(&format!("{} {}", l.est_unit, inv.seller_est_no));
     }
-    p.textln(&format!("{} {}", il.invoice_no, inv.invoice_no));
-    p.textln(&format!("{} {}", il.issued, date_only(&inv.issue_date)));
+    p.textln_wrapped(&format!("{} {}", il.invoice_no, inv.invoice_no));
+    p.textln_wrapped(&format!("{} {}", il.issued, date_only(&inv.issue_date)));
     if !inv.operator.is_empty() {
-        p.textln(&format!("{} {}", l.user, inv.operator));
+        p.textln_wrapped(&format!("{} {}", l.user, inv.operator));
     }
-    p.textln(&format!("{} {}", l.terminal, inv.terminal_id));
-    p.textln(&format!("{} {}", l.pos_serial, inv.pos_id));
+    p.textln_wrapped(&format!("{} {}", l.terminal, inv.terminal_id));
+    p.textln_wrapped(&format!("{} {}", l.pos_serial, inv.pos_id));
     if !inv.pos_sw_version.is_empty() {
-        p.textln(&format!("{} {}", l.software, inv.pos_sw_version));
+        p.textln_wrapped(&format!("{} {}", l.software, inv.pos_sw_version));
     }
 
     // The customer: name, address, VAT number (AR no. 1 art. 5).
@@ -266,21 +276,27 @@ pub fn format_invoice(inv: &InvoicePrint) -> Vec<u8> {
         "{} {} {}",
         inv.customer.postal_code, inv.customer.city, inv.customer.country_code
     ));
-    p.textln(&format!("{}: {}", l.vat_no, inv.customer.vat_number));
+    p.textln_wrapped(&format!("{}: {}", l.vat_no, inv.customer.vat_number));
 
     // References of the original tickets.
     p.separator('.');
     p.textln(il.originals);
     for s in &inv.sales {
         let (date, time) = date_and_time(&s.pos_date_time);
-        p.textln(&format!(
+        p.textln_wrapped(&format!(
             "{}-{}{}/{}",
             s.fdm_id, s.event_label, s.event_counter, s.total_counter
         ));
-        p.text_columns(
-            &format!("  {} {:06}  {date} {time}", il.ticket, s.ticket_number),
-            &price(s.total_cents),
-        );
+        let left = format!("  {} {:06}  {date} {time}", il.ticket, s.ticket_number);
+        let right = price(s.total_cents);
+        // On narrow paper the amount goes under the reference rather
+        // than cutting its time.
+        if left.chars().count() + 1 + right.chars().count() <= p.chars_per_line() as usize {
+            p.text_columns(&left, &right);
+        } else {
+            p.textln(&left);
+            p.text_columns("", &right);
+        }
     }
 
     // Product lines of those tickets (payment lines are not copied).
@@ -317,9 +333,10 @@ pub fn format_invoice(inv: &InvoicePrint) -> Vec<u8> {
     // VAT per rate, as the FDM computed it for the tickets.
     if !inv.vat.is_empty() {
         let [rate_h, code_h, base_h, vat_h, gross_h] = l.vat_columns;
-        p.textln(&vat_row(rate_h, code_h, base_h, vat_h, gross_h));
+        p.textln(&vat_row(paper, rate_h, code_h, base_h, vat_h, gross_h));
         for v in &inv.vat {
             p.textln(&vat_row(
+                paper,
                 &rate(v.rate_hundredths),
                 &v.label,
                 &price(v.base_cents),
@@ -351,14 +368,14 @@ pub fn format_invoice(inv: &InvoicePrint) -> Vec<u8> {
         control_data(&mut p, &copy.control);
         p.style_reset();
         let (date, time) = date_and_time(&copy.made_at);
-        p.textln(&format!("{} {date} {time}", l.copy_made_at));
+        p.textln_wrapped(&format!("{} {date} {time}", l.copy_made_at));
     }
 
     // Seller legal identity.
     p.blank_line();
     p.textln_wrapped(&format!("{} {}", l.legal_name, inv.seller_legal_name));
     p.textln_wrapped(&inv.seller_address);
-    p.textln(&format!("{}: {}", l.vat_no, inv.seller_vat));
+    p.textln_wrapped(&format!("{}: {}", l.vat_no, inv.seller_vat));
 
     // Not a valid VAT ticket.
     p.blank_line();
@@ -471,7 +488,10 @@ mod tests {
 
     #[test]
     fn the_invoice_says_facture_and_carries_every_mention_of_art_32() {
-        let text = one_line(&render_plain_text(&format_invoice(&sample())));
+        let text = one_line(&render_plain_text(&format_invoice(
+            &sample(),
+            PaperWidth::Mm80,
+        )));
         for needle in [
             "FACTURE",
             "Facture nr. 20260001",
@@ -500,8 +520,15 @@ mod tests {
     }
 
     #[test]
+    fn the_invoice_fits_58_mm_paper() {
+        crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+            format_invoice(&sample(), paper)
+        });
+    }
+
+    #[test]
     fn the_invoice_has_no_signature_and_no_qr_code() {
-        let bytes = format_invoice(&sample());
+        let bytes = format_invoice(&sample(), PaperWidth::Mm80);
         let text = render_plain_text(&bytes);
         assert!(!text.to_lowercase().contains("signature"), "{text}");
         // GS ( k is the QR command family of ESC/POS.
@@ -510,13 +537,13 @@ mod tests {
 
     #[test]
     fn a_copy_prints_the_same_layout_under_copie_with_its_own_control_data() {
-        let original = render_plain_text(&format_invoice(&sample()));
+        let original = render_plain_text(&format_invoice(&sample(), PaperWidth::Mm80));
         let mut inv = sample();
         inv.copy = Some(InvoiceCopy {
             made_at: "2026-10-18T09:05:00+02:00".into(),
             control: control("C", 2),
         });
-        let text = render_plain_text(&format_invoice(&inv));
+        let text = render_plain_text(&format_invoice(&inv, PaperWidth::Mm80));
         assert!(text.contains("COPIE"));
         assert!(text.contains("Copie etablie le 18.10.2026 09:05"));
         assert!(text.contains("Event: C; eventCounter: 2;"));
@@ -548,7 +575,7 @@ mod tests {
         ] {
             let mut inv = sample();
             inv.lang = lang;
-            let text = one_line(&render_plain_text(&format_invoice(&inv)));
+            let text = one_line(&render_plain_text(&format_invoice(&inv, PaperWidth::Mm80)));
             assert!(text.contains(title), "{lang:?}");
             assert!(text.contains(invalid_disclaimer(lang)), "{lang:?}");
         }
@@ -564,7 +591,7 @@ mod tests {
             total_cents: -1120,
             vat_label: "B".into(),
         });
-        let text = render_plain_text(&format_invoice(&inv));
+        let text = render_plain_text(&format_invoice(&inv, PaperWidth::Mm80));
         assert!(text.contains("-11,20"), "{text}");
         assert!(text.contains("sans etre coupe"), "{text}");
     }

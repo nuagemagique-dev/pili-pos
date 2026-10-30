@@ -401,15 +401,17 @@ pub async fn do_print_sales_report(
     access::operator(state, Access::Admin)?;
     let report = compute(state, &from, &to)?;
     let data = print_data(state, &report)?;
-    let addr = state
-        .config
-        .lock()
-        .map_err(errors::internal)?
-        .printer_address
-        .clone()
-        .filter(|a| !a.is_empty())
-        .ok_or_else(|| errors::PRINTER_NOT_CONFIGURED.to_string())?;
-    let bytes = format_sales_report(&data);
+    let (addr, paper) = {
+        let config = state.config.lock().map_err(errors::internal)?;
+        let addr = config
+            .printer_address
+            .clone()
+            .filter(|a| !a.is_empty())
+            .ok_or_else(|| errors::PRINTER_NOT_CONFIGURED.to_string())?;
+        let paper = config.paper_for(&addr);
+        (addr, paper)
+    };
+    let bytes = format_sales_report(&data, paper);
     match pos_print::transport::send_to_printer_with(
         &addr,
         &bytes,

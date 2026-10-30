@@ -141,7 +141,10 @@ const LEGAL: [(&str, &str); 4] = [
 
 #[test]
 fn vi_n_the_official_vat_ticket_example() {
-    let text = normalized(&format_receipt(&vat_ticket()));
+    let text = normalized(&format_receipt(
+        &vat_ticket(),
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     let mut mentions = vec![("a", "TICKET DE CAISSE T.V.A.")];
     mentions.extend(identification("Ticketnr.: 000433"));
     mentions.extend([
@@ -177,7 +180,10 @@ fn vi_copy_the_official_copy_example() {
     ticket.fdm_ref = Some(fdm_ref(EventLabel::C, 216, 1590, "2026-06-23T11:35:19.472"));
     ticket.short_signature = Some(SIGNATURE.to_string());
     ticket.copy_made_at = Some("2026-06-23T11:36:02+02:00".to_string());
-    let text = normalized(&format_receipt(&ticket));
+    let text = normalized(&format_receipt(
+        &ticket,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
 
     let mut mentions = vec![("A", "TICKET DE CAISSE T.V.A."), ("A", "COPIE")];
     mentions.extend(identification("Ticketnr.: 000434"));
@@ -224,7 +230,10 @@ fn vi_refund_the_official_refund_example() {
         short_signature: None,
     });
     ticket.fdm_ref = Some(fdm_ref(EventLabel::N, 215, 1588, "2026-06-23T11:35:19.472"));
-    let text = normalized(&format_receipt(&ticket));
+    let text = normalized(&format_receipt(
+        &ticket,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
 
     let mut mentions = vec![("A", "TICKET DE CAISSE T.V.A."), ("B", "REMBOURSEMENT")];
     mentions.extend(identification("Ticketnr.: 000435"));
@@ -264,7 +273,10 @@ fn vi_proforma_the_official_pre_bill_example() {
     ticket.short_signature = None;
     ticket.verification_url = None;
     ticket.fdm_ref = Some(fdm_ref(EventLabel::P, 230, 1601, "2026-06-23T11:35:19.472"));
-    let text = normalized(&format_receipt(&ticket));
+    let text = normalized(&format_receipt(
+        &ticket,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
 
     let mut mentions = vec![("A", "PRO FORMA"), ("A", "ADDITION PROVISOIRE")];
     mentions.extend(identification("Ticketnr.: 000437"));
@@ -288,29 +300,32 @@ fn vi_proforma_the_official_pre_bill_example() {
 
 #[test]
 fn vi_bar_the_official_bar_ticket_example() {
-    let text = normalized(&format_bar_ticket(&BarTicket {
-        date_time: "15/06/2026 12:09:35".to_string(),
-        operator: "Beheerder".to_string(),
-        table: Some(3),
-        items: vec![
-            BarItem {
-                quantity: 1,
-                name: "Dry Martini".to_string(),
-                note: None,
-                course: None,
-            },
-            BarItem {
-                quantity: 1,
-                name: "Plat du jour".to_string(),
-                note: None,
-                course: None,
-            },
-        ],
-        lang: ReceiptLanguage::Fr,
-        is_training: false,
-        release: None,
-        duplicate: false,
-    }));
+    let text = normalized(&format_bar_ticket(
+        &BarTicket {
+            date_time: "15/06/2026 12:09:35".to_string(),
+            operator: "Beheerder".to_string(),
+            table: Some(3),
+            items: vec![
+                BarItem {
+                    quantity: 1,
+                    name: "Dry Martini".to_string(),
+                    note: None,
+                    course: None,
+                },
+                BarItem {
+                    quantity: 1,
+                    name: "Plat du jour".to_string(),
+                    note: None,
+                    course: None,
+                },
+            ],
+            lang: ReceiptLanguage::Fr,
+            is_training: false,
+            release: None,
+            duplicate: false,
+        },
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     assert_in_order(
         &text,
         &[
@@ -415,7 +430,7 @@ fn vi_z_the_official_z_report_example() {
             payment_corrections: (0, 0),
         },
     };
-    let text = normalized(&format_report(&data));
+    let text = normalized(&format_report(&data, pos_print::escpos::PaperWidth::Mm80));
     assert_in_order(
         &text,
         &[

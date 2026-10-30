@@ -293,20 +293,23 @@ async fn off_the_slip_is_byte_identical_to_the_one_before_courses() {
     );
     let slips = printer.settle_slips(1).await;
     assert_eq!(slips.len(), 1);
-    let expected = pos_print::bar_ticket::format_bar_ticket(&pos_print::bar_ticket::BarTicket {
-        date_time: slip_date(&slips[0]),
-        operator: format!("Test {OPERATOR}"),
-        table: Some(4),
-        items: vec![
-            legacy_item(2, "Sake"),
-            legacy_item(1, "Maki saumon"),
-            legacy_item(1, "Mochi"),
-        ],
-        lang: pos_fiscal::ticket::ReceiptLanguage::Fr,
-        is_training: false,
-        release: None,
-        duplicate: false,
-    });
+    let expected = pos_print::bar_ticket::format_bar_ticket(
+        &pos_print::bar_ticket::BarTicket {
+            date_time: slip_date(&slips[0]),
+            operator: format!("Test {OPERATOR}"),
+            table: Some(4),
+            items: vec![
+                legacy_item(2, "Sake"),
+                legacy_item(1, "Maki saumon"),
+                legacy_item(1, "Mochi"),
+            ],
+            lang: pos_fiscal::ticket::ReceiptLanguage::Fr,
+            is_training: false,
+            release: None,
+            duplicate: false,
+        },
+        pos_print::escpos::PaperWidth::Mm80,
+    );
     assert!(
         slips[0].starts_with(&*String::from_utf8_lossy(&expected)),
         "{}",
@@ -350,16 +353,19 @@ async fn on_with_only_direct_lines_the_slip_is_the_plain_one() {
     do_sign_table_order(&app.state, o2).await.unwrap();
     let slips = printer.settle_slips(1).await;
     let last = &slips[0];
-    let expected = pos_print::bar_ticket::format_bar_ticket(&pos_print::bar_ticket::BarTicket {
-        date_time: slip_date(last),
-        operator: format!("Test {OPERATOR}"),
-        table: Some(6),
-        items: vec![legacy_item(1, "Sake")],
-        lang: pos_fiscal::ticket::ReceiptLanguage::Fr,
-        is_training: false,
-        release: None,
-        duplicate: false,
-    });
+    let expected = pos_print::bar_ticket::format_bar_ticket(
+        &pos_print::bar_ticket::BarTicket {
+            date_time: slip_date(last),
+            operator: format!("Test {OPERATOR}"),
+            table: Some(6),
+            items: vec![legacy_item(1, "Sake")],
+            lang: pos_fiscal::ticket::ReceiptLanguage::Fr,
+            is_training: false,
+            release: None,
+            duplicate: false,
+        },
+        pos_print::escpos::PaperWidth::Mm80,
+    );
     assert!(
         last.starts_with(&*String::from_utf8_lossy(&expected)),
         "{last}"

@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
-use pos_core::config::{DigitalTicketConfig, PosConfig};
+use pos_core::config::{DigitalTicketConfig, PaperWidth, PosConfig};
 use pos_db::queries::deliveries::{self, NewTicketDelivery};
 use pos_fiscal::http_tls::HttpTls;
 use pos_fiscal::ticket::FiscalTicket;
@@ -337,6 +337,7 @@ pub enum PrintOutcome {
 pub async fn print_original_once(
     state: &AppState,
     printer_address: Option<&str>,
+    paper: PaperWidth,
     fiscal_event_id: i64,
     ticket: &FiscalTicket,
 ) -> PrintOutcome {
@@ -354,7 +355,7 @@ pub async fn print_original_once(
     let Some(addr) = printer_address else {
         return PrintOutcome::NoPrinter;
     };
-    let data = pos_print::receipt::format_receipt(ticket);
+    let data = pos_print::receipt::format_receipt(ticket, paper);
     match pos_print::transport::send_to_printer_with(addr, &data, state.timers.printer_status_read)
         .await
     {
@@ -422,7 +423,14 @@ pub async fn deliver(
     // an unsent DIGITAL ticket.
     let print = match ticket {
         Some(t) => {
-            print_original_once(state, config.printer_address.as_deref(), fiscal_event_id, t).await
+            print_original_once(
+                state,
+                config.printer_address.as_deref(),
+                config.printer_paper_mm,
+                fiscal_event_id,
+                t,
+            )
+            .await
         }
         None => PrintOutcome::NoPrinter,
     };
@@ -559,12 +567,8 @@ pub async fn do_print_missing_original(
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .ok();
-        let printer = state
-            .config
-            .lock()
-            .map_err(|e| e.to_string())?
-            .printer_address
-            .clone();
+        let config = state.config.lock().map_err(|e| e.to_string())?;
+        let printer = (config.printer_address.clone(), config.printer_paper_mm);
         (printer, delivery)
     };
     if let Some((_, status)) = &digital_delivery
@@ -572,7 +576,15 @@ pub async fn do_print_missing_original(
     {
         return Err(ERR_EMAIL_SENT.to_string());
     }
-    match print_original_once(state, printer.as_deref(), fiscal_event_id, ticket).await {
+    match print_original_once(
+        state,
+        printer.0.as_deref(),
+        printer.1,
+        fiscal_event_id,
+        ticket,
+    )
+    .await
+    {
         PrintOutcome::Printed => {
             if let Some((id, _)) = digital_delivery
                 && let Ok(db) = state.db.lock()

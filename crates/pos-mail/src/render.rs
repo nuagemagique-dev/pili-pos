@@ -58,7 +58,10 @@ pub enum RenderError {
 /// keep their TRAINING markings either way - both come straight from
 /// `format_receipt`).
 pub fn render_ticket_text(ticket: &FiscalTicket) -> String {
-    pos_print::render::render_plain_text(&pos_print::receipt::format_receipt(ticket))
+    pos_print::render::render_plain_text(&pos_print::receipt::format_receipt(
+        ticket,
+        pos_print::escpos::PaperWidth::Mm80,
+    ))
 }
 
 /// QR PNG module size used for the email attachment (a full-size

@@ -109,7 +109,9 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       §7.1 et `LIGNES_PRODUITS_FR.md`).
 - [ ] `pos.json` : `fdm_url` en `https://`, jeton et certificats module2
       dans le lot, `printer_address` (et `kitchen_printer_address` si le
-      bar ou la cuisine a sa propre imprimante), `training_mode` à
+      bar ou la cuisine a sa propre imprimante), `printer_paper_mm` (et
+      `kitchen_printer_paper_mm`) à `58` pour un rouleau de 58 mm, la
+      même largeur réglée dans l'imprimante, `training_mode` à
       `false` (hors machine de formation), `backup_dir` absent,
       `language` selon la région linguistique de l'établissement.
 - [ ] Contrôle du FDM « connecté » à l'écran de connexion ; première

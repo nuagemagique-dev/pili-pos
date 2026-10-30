@@ -4,7 +4,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use pos_core::config::DigitalTicketConfig;
+use pos_core::config::{DigitalTicketConfig, PaperWidth};
 use serde_json::json;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use wiremock::matchers::{method, path_regex};
@@ -83,12 +83,17 @@ impl PrinterSink {
     /// Every printed document as the paper shows it (ESC/POS commands
     /// rendered, see `pos_print::render`).
     pub fn rendered(&self) -> Vec<String> {
+        self.rendered_for(PaperWidth::Mm80)
+    }
+
+    /// [`Self::rendered`] for a printer loaded with `paper`.
+    pub fn rendered_for(&self, paper: PaperWidth) -> Vec<String> {
         self.jobs
             .lock()
             .unwrap()
             .iter()
             .filter(|j| j.len() > 64)
-            .map(|j| pos_print::render::render_plain_text(j))
+            .map(|j| pos_print::render::render_plain_text_for(j, paper))
             .collect()
     }
 

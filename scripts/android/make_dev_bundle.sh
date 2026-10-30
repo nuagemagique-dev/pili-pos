@@ -18,6 +18,8 @@
 #   export_token file), PILI_BUNDLE_PAYMENT_TERMINAL_OPI (host:port; adds a payment_terminal
 #   section of kind ccv_opi whose address is that value, a CCV terminal on the LAN; the pos-eft-mock OPI side) with
 #   PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT (the till's channel 1 port, optional: 4102 when absent). Defaults keep the test identity.
+#   PILI_BUNDLE_PRINTER_PAPER_MM (58 or 80; adds printer_paper_mm, the ticket printer's roll: 58 lays every document out
+#   on 35 columns),
 #   PILI_BUNDLE_VAT (restaurant_vat, default BE0000000097; a malformed value makes the import refuse the bundle: capture bench),
 #   PILI_BUNDLE_DIGITAL_TICKET_API (base URL of the Scaleway TEM API, e.g. the pos-fdm-mock on http://127.0.0.1:19380; adds a
 #   digital_ticket section with allow_digital_only and a tem_key file), PILI_BUNDLE_HUBRISE_MOCK (base URL of pos-hubrise-mock,
@@ -195,6 +197,11 @@ if [[ -n "${PILI_BUNDLE_PEPPOL_API:-}" ]]; then
     PEPPOL_LINE=$'\n  "peppol": {"provider": "storecove", "base_url": "'"$PILI_BUNDLE_PEPPOL_API"'/storecove", "api_key_file": "peppol_key", "legal_entity_id": 1, "sender_id": "0208:0000000097", "supplier_street": "1 Rue du Test", "supplier_postal_code": "4000", "supplier_city": "Liege"},'
 fi
 [[ -n "${PILI_BUNDLE_KITCHEN_PRINTER:-}" ]] && KITCHEN_LINE=$'\n  "kitchen_printer_address": "'"$PILI_BUNDLE_KITCHEN_PRINTER"'",'
+PAPER_LINE=""
+if [[ -n "${PILI_BUNDLE_PRINTER_PAPER_MM:-}" ]]; then
+    [[ "$PILI_BUNDLE_PRINTER_PAPER_MM" =~ ^(58|80)$ ]] || die "PILI_BUNDLE_PRINTER_PAPER_MM must be 58 or 80"
+    PAPER_LINE=$'\n  "printer_paper_mm": '"$PILI_BUNDLE_PRINTER_PAPER_MM"','
+fi
 cat >"$OUT/pos.json" <<JSON
 {
   "pos_id": "CPOS0031234567",
@@ -205,7 +212,7 @@ cat >"$OUT/pos.json" <<JSON
   "restaurant_vat": "${PILI_BUNDLE_VAT:-BE0000000097}",
   "restaurant_est_no": "2000000042",
   "fdm_url": "$FDM_URL",
-  "printer_address": "$PRINTER",$KITCHEN_LINE$HUBRISE_LINE$EXPORT_LINE$TERMINAL_LINE$DIGITAL_LINE$HUBRISE_MOCK_LINE$PEPPOL_LINE
+  "printer_address": "$PRINTER",$KITCHEN_LINE$PAPER_LINE$HUBRISE_LINE$EXPORT_LINE$TERMINAL_LINE$DIGITAL_LINE$HUBRISE_MOCK_LINE$PEPPOL_LINE
   "table_count": 25
 }
 JSON

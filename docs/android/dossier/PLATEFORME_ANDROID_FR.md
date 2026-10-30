@@ -23,7 +23,7 @@ Convention de lecture. Une section « tel que construit » décrit ce que le cod
 | Écran | 1920 x 1080 en paysage (orientation capteur paysage imposée par l'application) |
 | NFC | Absent de l'unité principale du D3 Pro ; fonction facultative de l'application (§3.10) |
 | Ports et réseau | 1 USB-A 3.0, 2 USB-A 2.0, 1 USB-C 2.0, 1 RJ45 (LAN 1 Gbit/s), 1 RJ12 de tiroir-caisse, 1 RJ11 série, 1 prise audio, 1 micro-USB de débogage, 1 emplacement microSD (TF) ; Wi-Fi 2,4 et 5 GHz (802.11 a/b/g/n/ac), Bluetooth 5.0 (fiche du fabricant, sunmi.com, page D3 PRO, consultée le 29.10.2026) ; constat sur un vrai terminal : EV-15 ci-dessous |
-| Imprimante | Epson TM-m30III (80 mm) sur le réseau local, TCP 9100 (ESC/POS) |
+| Imprimante | Epson TM-m30III (rouleau de 80 mm, ou de 58 mm : `printer_paper_mm`) sur le réseau local, TCP 9100 (ESC/POS) |
 | FDM | module2 : boîtier sur le réseau local en production, simulateur en ligne pour la machine de test (voir `SCHEMA_ASSEMBLAGE_FR.md` §7) |
 | Application | un seul APK, identifiant `dev.nuagemagique.pilipos`, version 1.0.0, versionCode 10000 |
 

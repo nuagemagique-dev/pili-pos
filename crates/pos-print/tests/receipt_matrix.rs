@@ -1,6 +1,6 @@
 //! Every ticket type (N sale, N refund, P, C, T) in every ticket
 //! language (FR/NL/DE), rendered through the real `format_receipt`
-//! pipeline: each must fit the 80 mm paper, carry the labels of its
+//! pipeline: each must fit the 80 mm and the 58 mm paper, carry the labels of its
 //! language, and print the §VI mentions of its type - no more, no less.
 
 use pos_fiscal::response::{FdmReference, VatCalcItem};
@@ -8,8 +8,9 @@ use pos_fiscal::ticket::{
     FiscalTicket, ReceiptLanguage, TicketLine, TicketPayment, invalid_disclaimer, ticket_type_label,
 };
 use pos_fiscal::types::{EventLabel, VatLabel};
+use pos_print::escpos::PaperWidth;
 use pos_print::receipt::format_receipt;
-use pos_print::render::render_plain_text;
+use pos_print::render::{render_plain_text, render_plain_text_for};
 
 const WIDTH: usize = 48;
 const LANGS: [ReceiptLanguage; 3] = [
@@ -190,7 +191,43 @@ fn foreign_labels(lang: ReceiptLanguage) -> Vec<&'static str> {
 }
 
 fn render(kind: Kind, lang: ReceiptLanguage) -> String {
-    render_plain_text(&format_receipt(&ticket(kind, lang)))
+    render_on(kind, lang, PaperWidth::Mm80)
+}
+
+fn render_on(kind: Kind, lang: ReceiptLanguage, paper: PaperWidth) -> String {
+    render_plain_text_for(&format_receipt(&ticket(kind, lang), paper), paper)
+}
+
+/// The printed characters of `text` in order: no spaces, rules or the
+/// width of the renderer's QR placeholder.
+fn ink(text: &str) -> String {
+    text.split_whitespace()
+        .filter(|w| !w.chars().all(|c| matches!(c, '-' | '=' | '.' | '✂')))
+        .collect()
+}
+
+#[test]
+fn every_ticket_fits_58_mm_paper_and_prints_the_same_text() {
+    for kind in KINDS {
+        for lang in LANGS {
+            let narrow = render_on(kind, lang, PaperWidth::Mm58);
+            for l in narrow
+                .lines()
+                .filter(|l| !l.trim_start().starts_with("[QR: "))
+            {
+                assert!(
+                    l.chars().count() <= 35,
+                    "{kind:?}/{lang:?}: {} columns: {l:?}",
+                    l.chars().count()
+                );
+            }
+            assert_eq!(
+                ink(&narrow),
+                ink(&render(kind, lang)),
+                "{kind:?}/{lang:?}: the 58 mm ticket lost or reordered text"
+            );
+        }
+    }
 }
 
 #[test]
@@ -390,7 +427,7 @@ fn a_restaurant_name_longer_than_the_paper_wraps() {
         t.restaurant_name = "Le Grand Restaurant Gastronomique de la Place Saint-Lambert".into();
         t.restaurant_address =
             "Boulevard de la Sauvenière 123 boîte 4, 4000 Liège, Belgique".into();
-        let text = render_plain_text(&format_receipt(&t));
+        let text = render_plain_text(&format_receipt(&t, PaperWidth::Mm80));
         assert!(text.lines().all(|l| l.chars().count() <= WIDTH), "{text}");
         let flat: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
         assert!(flat.contains("Le Grand Restaurant Gastronomique de la Place Saint-Lambert"));
