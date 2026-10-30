@@ -48,7 +48,9 @@ Le flux reflète l'encaissement standard de
      sur le montant net, ligne par ligne, avec les remises en négatif ;
    - `gift_voucher_used` : la vente a vendu un bon cadeau et la ligne
      remboursée est celle d'un bon déjà utilisé (ou déjà annulé) ; un
-     bon qui a servi ne se rembourse pas (`BONS_CADEAUX_FR.md` §5).
+     bon qui a servi ne se rembourse pas (`BONS_CADEAUX_FR.md` §5) ;
+   - `refund_weighed_line_whole` : une ligne pesée se rembourse entière,
+     une seule fois, avec le poids signé en négatif (`BALANCE_FR.md` §2).
 2. **Contrôles, puis construction de la commande de remboursement.**
    Chaque article est d'abord contrôlé (présent sur le ticket
    original, quantité positive, total remboursé sur l'ensemble des

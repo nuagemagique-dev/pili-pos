@@ -26,8 +26,9 @@ Ce qui s'écarte du texte ci-dessous, et prévaut sur lui :
 - **Somme de contrôle.** L'algorithme est inconnu. Le pilote envoie les valeurs fixes de `scale.check_values` et ignore
   `Z`. Le simulateur accepte une chaîne fixe : réussir contre lui prouve le dialogue, pas l'acceptation par une balance.
 - **`scale_weighings`** garde poids, prix, montant et tare, sans la trame brute ni le transport.
-- **Pas encore fait :** la ligne de la balance dans les alertes au propriétaire (le voyant rouge existe), la bibliothèque
-  légale séparée (6.3), le gel rc4, le dossier et les preuves (phase 5, après la décision de métrologie).
+- **Pas encore fait :** la bibliothèque légale séparée (6.3), le gel rc4 et les preuves à refaire (phase 5, après la décision
+  de métrologie). Le texte du dossier est écrit (annexe `BALANCE_FR.md`), à relire après cette décision. Questions prêtes à
+  envoyer : `docs/internal/design/BALANCE_QUESTIONS_FR.md`.
 
 ## 1. Objet
 

@@ -28,8 +28,8 @@ rejoués tels que définis (les fixtures référencent ces `productId`).
 
 ## Liste chargée
 
-9 des 25 produits du manuel exercent des fonctionnalités **déclarées
-non proposées à la vente en v1.0.0** (prix au poids, produits composés,
+8 des 25 produits du manuel exercent des fonctionnalités **déclarées
+non proposées à la vente en v1.0.0** (produits composés,
 vouchers mono-usage ; les quatre « Gift Voucher General » sont remplacés par
 le produit système « Bon cadeau » à montant libre - cf.
 REPONSES_MANUEL_CERT_FR.md §III.F "Fonctionnalités avancées" et
@@ -56,7 +56,7 @@ v1.0.0 - le prix libre est implémenté (cf. REPONSES_MANUEL_CERT_FR.md
 | ☑ | 15023 | Matching Wines | 15 Wines | 24,00 | PIECE | A | A | |
 | ☑ | 20001 | Carpaccio Beef | 20 Starters | 20,00 | PIECE | B | C | |
 | ☑ | 22001 | Burger of the CHEF | 22 Main Dishes | 28,00 | PIECE | B | C | |
-| ☐ | 22005 | Catch of the day | 22 Main Dishes | 45,00 | KG | B | C | Prix au poids : non supporté en v1.0.0 (pas de balance intégrée, cf. §III.F "Prix au poids") |
+| ☑ | 22005 | Catch of the day | 22 Main Dishes | 45,00 | KG | B | C | Vendu au poids : la ligne vient de la balance (*BALANCE_FR.md*) |
 | ☑ | 22010 | Dish of the day | 22 Main Dishes | prix libre (`open_price`) | PIECE | B | C | |
 | ☑ | 25003 | Dame Blanche | 25 Desserts | 11,52 | PIECE | B | C | |
 | ☑ | 25008 | crème brûlée | 25 Desserts | 10,00 | PIECE | B | C | |

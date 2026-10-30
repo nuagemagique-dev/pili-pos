@@ -266,6 +266,7 @@ Le terminal n'ouvre **aucun port en écoute**. Il n'initie que des connexions so
 |---|---|---|
 | FDM module2 (boîtier du réseau local, ou simulateur en ligne pour la machine de test) | GraphQL en HTTPS avec certificat client (mTLS) et jeton ; le moteur accepte aussi le HTTP clair | toujours |
 | Imprimante Epson TM-m30III | TCP 9100 (ESC/POS) sur le réseau local | toujours |
+| Balance de caisse (option) | TCP sur le réseau local, protocole Dialog 06 (`BALANCE_FR.md`) | seulement si la section `scale` est configurée |
 | HubRise (`manager.hubrise.com`, `api.hubrise.com`) | HTTPS, port 443 | seulement si HubRise est activé (`COMMANDES_EN_LIGNE_FR.md`) |
 | Point d'accès Peppol (`api.storecove.com`, adresse `peppol.base_url`) | HTTPS, port 443 | seulement si la section `peppol` est configurée (`FACTURATION_PEPPOL_FR.md`) |
 | Service d'envoi du ticket numérique (`api.scaleway.com`) | HTTPS, port 443 | seulement si le ticket numérique est configuré (`TICKET_NUMERIQUE_FR.md`) |

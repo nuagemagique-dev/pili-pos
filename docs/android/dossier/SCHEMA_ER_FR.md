@@ -23,7 +23,7 @@ retiré. Le lien est applicatif.
 
 ## 1. Vue d'ensemble par domaines
 
-La base est organisée en 19 domaines logiques :
+La base est organisée en 19 domaines logiques, plus la vente au poids (§6 bis) :
 
 ```
 +-----------------+   +---------------+   +----------------+
@@ -747,6 +747,8 @@ Les tables ci-dessous sont protégées **au niveau de la base** par des triggers
 | `fiscal_events` | `fiscal_events_no_delete`, `fiscal_events_no_rewrite` | Ni DELETE, ni UPDATE |
 | `fiscal_events` | `fiscal_events_period_open` (BEFORE INSERT) | Refuse un événement dont le `bookingPeriodId` désigne une période close |
 | `z_reports` | `z_reports_no_delete`, `z_reports_no_rewrite` | Ni DELETE, ni UPDATE |
+| `scale_weighings` | `scale_weighings_no_delete`, `scale_weighings_no_update` | Ni DELETE, ni UPDATE |
+| `scale_check_log` | `scale_check_log_no_delete`, `scale_check_log_no_update` | Ni DELETE, ni UPDATE |
 | `order_entries` | `order_entries_no_delete`, `order_entries_no_rewrite`, `order_entries_till_op_fixed` | Pas de DELETE ; UPDATE interdit sauf `sent_event_id` ; la marque `till_op` (migration 30) ne change jamais |
 | `booking_periods` | `booking_periods_no_reopen`, `booking_periods_no_delete` | Une période close ne change plus ; pas de DELETE |
 | `ticket_deliveries` | `ticket_deliveries_no_delete`, `ticket_deliveries_no_rewrite` | Pas de DELETE ; `fiscal_event_id`, `ticket_text`, `medium` immuables (les autres colonnes suivent le cycle de vie de l'envoi : append-only **partiel**) |
@@ -831,12 +833,17 @@ l'interrupteur, qui reçoit au moins la valeur de départ.
 
 ---
 
+## 6 bis. Vente au poids
+
+`orders` 1 --- N `scale_weighings` (`order_id`). `scale_weighings.line_id` désigne une ligne de `order_lines` sans clé
+étrangère : la pesée d'une ligne retirée reste. `scale_check_log` n'a pas de relation. Détail : `SCHEMA_BD_FR.md` §5 ter.
+
 ## 7. Versionnement du schéma
 
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
-Version actuelle du schéma : migrations `1` à `11`, `20` à `28`, `30` et `31`, `40` à `42`, `60` à `63`, puis `70`
-(trente migrations ; 12 à 19 sont réservées aux correctifs du moteur
+Version actuelle du schéma : migrations `1` à `11`, `20` à `28`, `30` et `31`, `40` à `42`, `60` à `63`, `70`, puis `80`
+(trente et une migrations ; 12 à 19 sont réservées aux correctifs du moteur
 certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `booking-periods`, `fiscal-archive-append-only`, `ticket-deliveries`,
 `original-prints`, `german-language`, `meal-voucher-payments`,
@@ -845,7 +852,7 @@ certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `platform-charges`, `integration-switch`, `product-codes`,
 `eft-payments`, `presence-registration`, `till-discounts`, `kitchen-notes`,
 `invoicing`, `sold-out`, `menu-editor`, `owner-settings-alerts`,
-`allergens`, `courses`, `gift-vouchers`, `staff-badges` - liste exacte dans
+`allergens`, `courses`, `gift-vouchers`, `staff-badges`, `sale-by-weight` - liste exacte dans
 `SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs`
 (`MIGRATIONS`, `HUBRISE_MIGRATIONS`, `CATALOG_MIGRATIONS`,
 `OWNER_MIGRATIONS`). Les migrations 20 à 28, 30, 31, 40 à 42, 60 à 63 et

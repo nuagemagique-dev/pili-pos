@@ -1084,5 +1084,11 @@ Qte   Article
 ✂-----------------------------------------------
 ```
 
+## 11 quater. Ligne pesée
+
+Le ticket imprime la ligne pesée avec son poids à trois décimales, son prix au kilo et son montant (*BALANCE_FR.md* §2), à
+80 et à 58 mm, y compris sur l'addition, la copie et le remboursement. Exemples imprimés : À effectuer (EV-08 : vente pesée,
+addition, copie, remboursement et facture, à 80 et à 58 mm).
+
 ## 12. Note sur la reproduction
 Les rendus sont imprimés par le pipeline d'impression réel de l'application et ne peuvent pas diverger de la sortie papier. Les exemples ci-dessus portent « Especes » et « Chèques-repas », tels qu'imprimés le 18.10.2026 sur le profil émulé ; les sections 8 (notes et transfert) et 11 ter ont été imprimées par l'application ce jour-là sur `pos-printer-mock`, aucune de leurs transcriptions ne vient d'un test exécuté sur la machine de développement. Au rendez-vous d'admission, le distributeur apporte la machine test connectée à l'imprimante réelle (`À effectuer (EV-15 : imprimante réelle, ou mention du profil émulé)`) ; les exemplaires physiques sont archivés avec le dossier final.

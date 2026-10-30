@@ -5,7 +5,7 @@ Fonction non fiscale de la caisse, comprise dans le binaire certifié et désact
 ## 1. Objet et statut
 
 Quand la caisse tombe en panne en dehors des heures de présence du propriétaire (module
-fiscal muet, imprimante en défaut, terminal de carte hors ligne, Z oublié, commande en
+fiscal muet, imprimante en défaut, terminal de carte hors ligne, balance muette, Z oublié, commande en
 ligne qui attend), le propriétaire veut le savoir sur son téléphone. La caisse envoie
 alors un court message Telegram à la conversation que le propriétaire a choisie.
 
@@ -33,6 +33,7 @@ Cinq situations, chacune activable séparément par le propriétaire.
 | Module fiscal (FDM) | le FDM ne répond plus depuis 2 minutes | jugé seulement pendant une session ouverte (le contrôle n'a lieu qu'alors) |
 | Imprimante | l'imprimante des tickets ou celle de la cuisine ne répond pas, ou signale plus de papier ou couvercle ouvert, à deux contrôles de suite (espacés de 5 minutes) | le contrôle est ignoré pendant une vente ou une impression en cours |
 | Terminal de carte | le terminal lié ne répond pas à deux contrôles de suite | seulement si un terminal est configuré, jamais pendant un paiement |
+| Balance | la balance ne répond pas, ou refuse le contrôle du logiciel, à deux contrôles de suite | seulement si une balance est configurée, jamais pendant une pesée ; un texte distinct pour le refus (*BALANCE_FR.md*) |
 | Z oublié | la période comptable ouverte n'est pas clôturée à l'heure limite (le lendemain à l'heure choisie, par défaut une heure après la fin de journée, heure de Bruxelles) | ignoré en mode formation |
 | Commande en ligne en attente | une commande en ligne attend depuis plus de N minutes (5 par défaut) | seulement si l'intégration des commandes en ligne est activée |
 
@@ -94,7 +95,7 @@ Les noms de canaux sont ramenés à des lettres, chiffres, espaces et quelques s
 - Une boucle propre au moteur, indépendante des commandes de la caisse, relit les
   réglages toutes les 30 secondes. Elle n'attend jamais le verrou de signature ni
   celui de la base pendant qu'une requête réseau est en cours.
-- Les contrôles d'imprimante et de terminal n'ont lieu que pendant une session ouverte, que
+- Les contrôles d'imprimante, de terminal et de balance n'ont lieu que pendant une session ouverte, que
   la signature est libre, et que le terminal de carte n'est pas occupé par un paiement.
 - Le contrôle du terminal de carte tient la ligne du terminal au plus 12 secondes (plus que le pire cas du
   contrôle du terminal Worldline, deux requêtes de 5 secondes) : un terminal qui ne répond pas est
@@ -130,7 +131,7 @@ Il ne contient aucune donnée personnelle ni le jeton.
 - Moteur contre un faux service Telegram : fonction éteinte ou sans jeton, délais de
   confirmation du FDM, rappel, résolution, absence de session, reprise après redémarrage,
   limite de 20 par heure, trois essais et pas de nouvel essai sur un refus, Z oublié,
-  imprimante (contrôle ignoré pendant une vente), terminal (ignoré pendant un paiement),
+  imprimante (contrôle ignoré pendant une vente), terminal (ignoré pendant un paiement), balance muette ou qui refuse le contrôle,
   commandes en ligne sans donnée personnelle, message test, accès réservé aux gérants,
   jeton absent des journaux, des erreurs et des lignes, un service qui ne répond pas
   qui ne retarde ni une vente ni un Z, arrêt propre de la boucle

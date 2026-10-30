@@ -374,6 +374,7 @@ en SQL. Le tableau dit où lire leur état.
 |---|---|---|---|
 | Alertes sur téléphone | panneau « Alertes sur téléphone » ; jeton dans le fichier `alerts.telegram_bot_token_file` de `pos.json` | `owner_settings` (clé `alerts`), `owner_alert_log` | *ALERTES_PROPRIETAIRE_FR.md* |
 | Service en plusieurs temps | panneau « Service en plusieurs temps » | `owner_settings` (clé `courses`), `order_line_courses`, `order_course_releases`, `kitchen_slip_entries` | *SERVICES_CUISINE_FR.md* |
+| Vente au poids | section `scale` de `pos.json`, produit et tare dans l'éditeur de carte | `menu_items.sold_by_weight`, `menu_items.scale_tare_grams`, `scale_weighings`, `scale_check_log` | *BALANCE_FR.md* |
 | Bons cadeaux | panneau « Bons cadeaux » | `owner_settings` (clé `gift_vouchers`), `gift_vouchers`, `gift_voucher_movements`, `gift_voucher_prints` | *BONS_CADEAUX_FR.md* |
 | Allergènes | éditeur de carte, ou catalogue HubRise | `menu_item_allergens`, `modifier_allergens`, `allergen_declarations`, `allergen_change_log` | *ALLERGENES_FR.md* |
 

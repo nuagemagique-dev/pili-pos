@@ -231,11 +231,11 @@ Cette absence de solution d'accès à distance permanente est délibérée : pou
 | Scanner de produits (client) | ☐ | ☐ | Non supporté |
 | Lecteur de carte | ☐ | ☐ | Paiement carte via terminal TPE externe (non intégré) |
 | Clés Dallas | ☐ | ☐ | Auth via INSZ + PIN, pas de support clés Dallas ; un badge facultatif (NFC ou lecteur USB), qui n'est pas une clé Dallas, peut remplacer le PIN des Serveurs et des Apprentis, jamais celui d'un Gérant (§III.E « Pointage par badge ») |
-| Périphérique supplémentaire | ☐ | ☐ | Aucun périphérique permanent. Clé USB ou carte SD seulement ponctuellement (lot de provisionnement, mise à jour, export SPF) |
+| Périphérique supplémentaire | ☑ | ☑ | Balance de caisse en option (simulée sur la machine de test, *Voir : BALANCE_FR.md*). Aucun autre périphérique permanent. Clé USB ou carte SD seulement ponctuellement (lot de provisionnement, mise à jour, export SPF) |
 | **Périphériques de sortie** | | | |
 | Écran utilisateur (client-facing) | ☐ | ☐ | Pas en MVP |
 | Écran pour la cuisine/le bar | ☐ | ☐ | Sortie cuisine via imprimante dédiée (kitchen printer), pas KDS |
-| Balance | ☐ | ☐ | Pas de prix au poids |
+| Balance | ☑ | ☑ | Dibal DPOS-400 en option, absente par défaut (section `scale` de `pos.json`) ; simulateur du dépôt sur la machine de test, jamais essayée sur une vraie balance à ce jour, liaison réseau seulement. *Voir : BALANCE_FR.md* |
 | **Livraison** | ☐ | ☑ | Commandes de livraison reçues des plateformes et du webshop, signées par le FDM (N, ou P puis N à la remise). *Voir : COMMANDES_EN_LIGNE_FR.md* |
 | Distributeur de nourriture | ☐ | ☐ | |
 | Robot | ☐ | ☐ | |
@@ -545,7 +545,7 @@ Aucune nouvelle catégorie d'event n'est créée : le badge n'est qu'un déclenc
 | Réduction membre | ☐ | - | Idem |
 | Mensualités | ☐ | - | Idem |
 | Prix libre / "prix du jour" | ☑ | - | Implémenté : colonne `menu_items.open_price` ; le produit `22010` (« Dish of the day » dans le manuel et le seed, affiché « Plat du jour » en français) du seed de certification est marqué `open_price = 1`, le prix est saisi par l'opérateur à l'ajout au lieu du prix catalogue. |
-| Prix au poids | ☐ | - | Pas de balance |
+| Prix au poids | ☑ | UC4112 | Le poids et le montant viennent de la balance, jamais d'une saisie ; ligne signée en `KILOGRAM`, remboursée entière. *Voir : BALANCE_FR.md* |
 | Ticket de service (bar / cuisine) | ☑ | - | Imprimante cuisine dédiée, ticket non-fiscal sans prix. La note de cuisine d'une ligne (60 caractères) s'imprime sous l'article et, si elle change après l'envoi, sur un bon « MODIFICATION » sans quantité ni prix ; elle reste locale (`order_lines.kitchen_note`) et n'entre dans aucun message FDM ni ticket TVA (FAQ producteurs Q210 b). Test `crates/pos-engine/tests/kitchen_notes.rs`. Service en plusieurs temps (facultatif, éteint par défaut) : entrées, plats et desserts envoyés à la demande, sans aucune donnée de temps dans un message signé ni sur un ticket de T.V.A. (*SERVICES_CUISINE_FR.md*), test `crates/pos-engine/tests/courses.rs` |
 | Autres | ☐ | - | - |
 
@@ -929,7 +929,7 @@ Recap des réponses clés DAS (extrait, le détail est dans l'annexe) :
 | Connexion avec des logiciels externes (commande en ligne) | ☑ Oui : HubRise, coupé par défaut (`hubrise_enabled`, activé par installation par un Gérant) ; *COMMANDES_EN_LIGNE_FR.md* |
 | Connexion avec un logiciel interne (statistiques et sauvegarde) | ☑ Oui, facultative et absente par défaut : l'export nocturne (section `export` de `pos.json`) envoie après chaque rapport Z réel une sauvegarde chiffrée de bout en bout et une copie statistique au point de réception propre à l'installation. Les données légales restent locales ; *EXPORT_NOCTURNE_FR.md* |
 | Connexion POS-FDM | ☑ Réseau local (câble sur le port RJ45 du terminal, fiche du fabricant, ou Wi-Fi ; constat de la liaison filaire : À effectuer (EV-15 : liaison filaire d'un vrai D3 Pro)) |
-| Périphériques supplémentaires | ☐ Non |
+| Périphériques supplémentaires | ☑ Oui, en option : balance de caisse (*BALANCE_FR.md*) |
 | Logs disponibles, lisibles, copiables | ☑ Oui (fichiers `files/logs/pili-pos.log.AAAA-MM-JJ` + table `fiscal_events`, repris par l'export SPF) |
 | Méthode de lecture des logs | Export SPF par le Gérant (dossier `logs/` et copie de `pos.db`), puis lecture de la copie sur l'ordinateur de l'agent, par exemple avec `sqlite3` et `.dump fiscal_events` ; *FEUILLE_ACQUISITION_DONNEES_FR.md* §1.3, §2.2 et §2.3 |
 | Logiciel DBMS | SQLite 3.45+ (embarqué) |
@@ -1025,6 +1025,7 @@ Dans le texte des annexes, un renvoi à un fichier `.md` (par exemple *SECURITE_
 | 42 | ALLERGENES_FR.pdf | §III (allergènes, non fiscaux) |
 | 43 | SERVICES_CUISINE_FR.pdf | §III (service en plusieurs temps, cuisine) |
 | 44 | BONS_CADEAUX_FR.pdf | §III.F (bons à usage multiple, UC260 à UC262) |
+| 45 | BALANCE_FR.pdf | §III.F (prix au poids et balance, UC4112) |
 
 
 Plus :

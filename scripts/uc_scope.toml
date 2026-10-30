@@ -163,10 +163,6 @@ kind = "hors_perimetre"
 
 # -- Produit vendu au poids --
 
-[UC4112]
-reason = "Le produit vendu au poids (quantityType KILOGRAM) n'est pas implémenté dans pili-pos v1.0.0 (menu fixe, uniquement des produits à la pièce)."
-kind = "hors_perimetre"
-
 # -- Facture combinée à une modification de prix --
 # (UC4121 et UC4122, la facture de plusieurs ventes et la facture d'un remboursement, sont
 # implémentés et testés : crates/pos-engine/tests/invoice_advanced.rs.)

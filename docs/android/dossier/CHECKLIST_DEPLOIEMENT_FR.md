@@ -116,6 +116,8 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       `language` selon la région linguistique de l'établissement.
 - [ ] Contrôle du FDM « connecté » à l'écran de connexion ; première
       connexion d'un Gérant : événement S signé.
+- [ ] Balance : section `scale` absente de `pos.json`, sauf réponse écrite du service Métrologie du SPF Économie
+      (`BALANCE_FR.md` §1) ; avec une balance, voyant vert et une pesée de contrôle.
 - [ ] Lecteur de badges : « Désactivé » dans « Config » tant qu'aucun
       lecteur n'est branché ; avec un lecteur, « Lecteur USB » choisi et un
       badge de test lié puis retiré (arrivée signée par le FDM,
@@ -176,6 +178,9 @@ scripts/release/declare_android.sh --apk <APK non signé> --version 1.0.0 \
       SHA-1 de EV-01.
 
 ## Vérifications sur la machine de test
+
+- [ ] Simulateur de balance démarré, section `scale` renseignée, voyant « Balance » vert, UC4112 déroulé à l'écran
+      (`BALANCE_FR.md` §9).
 
 Sans adb : tout se lit à l'écran de la caisse.
 
