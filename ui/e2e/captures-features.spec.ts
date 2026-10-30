@@ -800,6 +800,7 @@ test.describe('Lot 4 - alertes, allergènes, service en plusieurs temps, bons ca
             fdm: true,
             printer: true,
             terminal: true,
+            scale: true,
             z_missing: true,
             online_waiting: false,
           },

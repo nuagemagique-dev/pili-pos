@@ -383,6 +383,11 @@ export const settingsMessages: Messages = {
     en: "The day's Z is not done",
     zh: '当日 Z 报表未完成',
   },
+  alerts_kind_scale: {
+    fr: 'La balance ne répond plus ou refuse le contrôle',
+    en: 'The scale does not answer or refuses the check',
+    zh: '电子秤无响应或拒绝校验',
+  },
   alerts_kind_online_waiting: {
     fr: 'Une commande en ligne attend',
     en: 'An online order is waiting',

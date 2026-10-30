@@ -4267,6 +4267,7 @@ name = "pos-scale"
 version = "1.0.0"
 dependencies = [
  "pos-core",
+ "proptest",
  "tokio",
 ]
 

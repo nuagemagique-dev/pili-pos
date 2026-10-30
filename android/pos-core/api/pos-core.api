@@ -321,24 +321,28 @@ public final class uniffi/pos_ffi/Adoption$Companion {
 
 public final class uniffi/pos_ffi/AlertKinds {
 	public static final field Companion Luniffi/pos_ffi/AlertKinds$Companion;
-	public fun <init> (ZZZZZ)V
+	public fun <init> (ZZZZZZ)V
+	public synthetic fun <init> (ZZZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Z
 	public final fun component2 ()Z
 	public final fun component3 ()Z
 	public final fun component4 ()Z
 	public final fun component5 ()Z
-	public final fun copy (ZZZZZ)Luniffi/pos_ffi/AlertKinds;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/AlertKinds;ZZZZZILjava/lang/Object;)Luniffi/pos_ffi/AlertKinds;
+	public final fun component6 ()Z
+	public final fun copy (ZZZZZZ)Luniffi/pos_ffi/AlertKinds;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/AlertKinds;ZZZZZZILjava/lang/Object;)Luniffi/pos_ffi/AlertKinds;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getFdm ()Z
 	public final fun getOnlineWaiting ()Z
 	public final fun getPrinter ()Z
+	public final fun getScale ()Z
 	public final fun getTerminal ()Z
 	public final fun getZMissing ()Z
 	public fun hashCode ()I
 	public final fun setFdm (Z)V
 	public final fun setOnlineWaiting (Z)V
 	public final fun setPrinter (Z)V
+	public final fun setScale (Z)V
 	public final fun setTerminal (Z)V
 	public final fun setZMissing (Z)V
 	public fun toString ()Ljava/lang/String;

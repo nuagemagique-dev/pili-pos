@@ -272,3 +272,27 @@ async fn the_link_comes_back_after_the_scale_went_away() {
     scale.load(300);
     assert!(driver.weigh(request(4500), |_| {}).await.result.is_ok());
 }
+
+#[tokio::test]
+async fn a_link_cut_in_the_middle_of_a_weight_gives_no_reading() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        // The listener goes with this task: no reconnection either.
+        let mut buffer = [0u8; 256];
+        let _ = stream.read(&mut buffer).await;
+        stream.write_all(&[0x06]).await.unwrap(); // the price is taken
+        let _ = stream.read(&mut buffer).await;
+        stream
+            .write_all(b"\x0202\x1b3\x1b00278\x1b045")
+            .await
+            .unwrap();
+    });
+
+    let driver = ScaleDriver::new(config(values()), address.to_string());
+    let outcome = driver.weigh(request(4500), |_| {}).await;
+    assert_eq!(outcome.result, Err(Failure::Unreachable));
+}

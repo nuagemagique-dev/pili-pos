@@ -1305,6 +1305,59 @@ mod tests {
             conn.execute("INSERT INTO scale_check_log (event) VALUES ('other')", [])
                 .is_err()
         );
+
+        // The alert log takes the scale and stays append-only.
+        conn.execute(
+            "INSERT INTO owner_alert_log (kind, transition, outcome)
+             VALUES ('scale', 'raised', 'sent')",
+            [],
+        )
+        .unwrap();
+        for statement in [
+            "UPDATE owner_alert_log SET detail = 'x'",
+            "DELETE FROM owner_alert_log",
+        ] {
+            let err = conn.execute(statement, []).unwrap_err().to_string();
+            assert!(err.contains("append-only"), "{statement}: {err}");
+        }
+    }
+
+    #[test]
+    fn migration_80_keeps_the_rows_of_the_alert_log() {
+        let conn = Connection::open_in_memory().unwrap();
+        let (before, from_80): (Vec<_>, Vec<_>) =
+            registry().into_iter().partition(|m| m.version < 80);
+        for m in &before {
+            conn.execute_batch(m.sql).unwrap();
+        }
+        conn.execute(
+            "INSERT INTO owner_alert_log (id, kind, transition, detail, outcome, http_status)
+             VALUES (41, 'terminal', 'raised', 'x=1', 'failed', 502)",
+            [],
+        )
+        .unwrap();
+        for m in &from_80 {
+            conn.execute_batch(m.sql).unwrap();
+        }
+        let kept: (i64, String, String, String, i64) = conn
+            .query_row(
+                "SELECT id, kind, detail, outcome, http_status FROM owner_alert_log",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            kept,
+            (41, "terminal".into(), "x=1".into(), "failed".into(), 502)
+        );
+        let leftovers: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE name = 'owner_alert_log_before_scale'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(leftovers, 0);
     }
 
     #[cfg(feature = "hubrise")]

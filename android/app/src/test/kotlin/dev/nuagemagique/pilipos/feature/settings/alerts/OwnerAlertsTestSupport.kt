@@ -9,7 +9,15 @@ import uniffi.pos_ffi.AlertLogRow
 import uniffi.pos_ffi.AlertTestResult
 import uniffi.pos_ffi.OwnerAlerts
 
-internal fun allKinds(on: Boolean = true): AlertKinds = AlertKinds(fdm = on, printer = on, terminal = on, zMissing = on, onlineWaiting = on)
+internal fun allKinds(on: Boolean = true): AlertKinds =
+    AlertKinds(
+        fdm = on,
+        printer = on,
+        terminal = on,
+        scale = on,
+        zMissing = on,
+        onlineWaiting = on,
+    )
 
 @Suppress("LongParameterList")
 internal fun ownerAlerts(

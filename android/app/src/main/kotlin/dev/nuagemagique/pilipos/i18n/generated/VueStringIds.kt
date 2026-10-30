@@ -948,6 +948,7 @@ internal object VueStringIds {
         this["alerts_kind_printer"] = R.string.alerts_kind_printer
         this["alerts_kind_terminal"] = R.string.alerts_kind_terminal
         this["alerts_kind_z_missing"] = R.string.alerts_kind_z_missing
+        this["alerts_kind_scale"] = R.string.alerts_kind_scale
         this["alerts_kind_online_waiting"] = R.string.alerts_kind_online_waiting
         this["alerts_z_deadline"] = R.string.alerts_z_deadline
         this["alerts_online_wait"] = R.string.alerts_online_wait
@@ -1024,10 +1025,10 @@ internal object VueStringIds {
         this["status_orders"] = R.string.status_orders
         this["hubrise_section_help"] = R.string.hubrise_section_help
         this["hubrise_status_label"] = R.string.hubrise_status_label
-        this["hubrise_connected"] = R.string.hubrise_connected
     }
 
     private fun MutableMap<String, Int>.part4() {
+        this["hubrise_connected"] = R.string.hubrise_connected
         this["hubrise_disconnected"] = R.string.hubrise_disconnected
         this["hubrise_account_label"] = R.string.hubrise_account_label
         this["hubrise_location_label"] = R.string.hubrise_location_label

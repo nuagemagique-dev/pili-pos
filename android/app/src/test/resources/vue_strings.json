@@ -42,6 +42,12 @@
       "zh": "打印机无法连接",
       "area": "settings"
     },
+    "alerts_kind_scale": {
+      "fr": "La balance ne répond plus ou refuse le contrôle",
+      "en": "The scale does not answer or refuses the check",
+      "zh": "电子秤无响应或拒绝校验",
+      "area": "settings"
+    },
     "alerts_kind_terminal": {
       "fr": "Le terminal de paiement est injoignable",
       "en": "The payment terminal is unreachable",

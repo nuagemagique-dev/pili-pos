@@ -15,8 +15,8 @@ internal const val ALERT_LABEL_MAX: Int = 40
 /** The languages of a message, in the order of the Vue panel. */
 internal val ALERT_LANGUAGES: List<String> = listOf("fr", "zh", "en")
 
-/** The five kinds of alert, in the order of the Vue panel (`KINDS`). */
-internal val ALERT_KINDS: List<String> = listOf("fdm", "printer", "terminal", "z_missing", "online_waiting")
+/** The six kinds of alert, in the order of the Vue panel (`KINDS`). */
+internal val ALERT_KINDS: List<String> = listOf("fdm", "printer", "terminal", "scale", "z_missing", "online_waiting")
 
 /** The limits the engine checks again (`validate` of `commands/alerts.rs`). */
 private const val CHAT_ID_DIGITS = 20
@@ -106,6 +106,7 @@ internal fun AlertKinds.toggled(kind: String): AlertKinds =
         "fdm" -> copy(fdm = !fdm)
         "printer" -> copy(printer = !printer)
         "terminal" -> copy(terminal = !terminal)
+        "scale" -> copy(scale = !scale)
         "z_missing" -> copy(zMissing = !zMissing)
         "online_waiting" -> copy(onlineWaiting = !onlineWaiting)
         else -> this
@@ -117,6 +118,7 @@ internal fun AlertKinds.isOn(kind: String): Boolean =
         "fdm" -> fdm
         "printer" -> printer
         "terminal" -> terminal
+        "scale" -> scale
         "z_missing" -> zMissing
         "online_waiting" -> onlineWaiting
         else -> false

@@ -1,6 +1,6 @@
 //! The owner alerts (V12-D11 to D16): a Telegram message to the
 //! owner's phone when the FDM is unreachable or blocked, a printer is
-//! out of paper or offline, the linked card terminal does not answer,
+//! out of paper or offline, the linked card terminal or the scale does not answer,
 //! the day has no Z by a set hour or an online order waits unaccepted.
 //!
 //! Not fiscal, off by default, and never in the path of a command: the
@@ -336,9 +336,9 @@ async fn observe_all(
             .lock()
             .map(|inner| inner.last_probe.is_none_or(|p| now - p >= PROBE_INTERVAL))
             .unwrap_or(false);
-    let wants_probe = settings.kinds.printer || settings.kinds.terminal;
+    let wants_probe = settings.kinds.printer || settings.kinds.terminal || settings.kinds.scale;
     let mut probed = false;
-    let (printer_seen, terminal_seen) = if probe_due && wants_probe {
+    let (printer_seen, terminal_seen, scale_seen) = if probe_due && wants_probe {
         // A sale being signed is not disturbed: no probe while the
         // signing lock is taken (the guard is dropped at once, the lock
         // is never held across the probe).
@@ -355,9 +355,14 @@ async fn observe_all(
             } else {
                 Seen::NotApplicable
             };
-            (printer, terminal)
+            let scale = if settings.kinds.scale {
+                observe_scale(state).await
+            } else {
+                Seen::NotApplicable
+            };
+            (printer, terminal, scale)
         } else {
-            (Seen::Unknown, Seen::Unknown)
+            (Seen::Unknown, Seen::Unknown, Seen::Unknown)
         }
     } else {
         (
@@ -371,6 +376,11 @@ async fn observe_all(
             } else {
                 Seen::NotApplicable
             },
+            if settings.kinds.scale {
+                Seen::Unknown
+            } else {
+                Seen::NotApplicable
+            },
         )
     };
     if probed && let Ok(mut inner) = state.owner_alerts.inner.lock() {
@@ -378,6 +388,7 @@ async fn observe_all(
     }
     seen.push((Kind::Printer, printer_seen));
     seen.push((Kind::Terminal, terminal_seen));
+    seen.push((Kind::Scale, scale_seen));
 
     seen.push((
         Kind::ZMissing,
@@ -467,6 +478,28 @@ async fn observe_terminal(state: &AppState) -> Seen {
         Ok(status) if status.busy => Seen::Unknown,
         Ok(status) if status.connected => Seen::Fine,
         Ok(_) => Seen::Trouble(Detail::default()),
+        Err(_) => Seen::Unknown,
+    }
+}
+
+async fn observe_scale(state: &AppState) -> Seen {
+    // A weighing holds the line: the status does not probe it, and the
+    // scale is busy, not gone.
+    let probe = crate::commands::scale::do_get_scale_status(state);
+    let Ok(answer) = tokio::time::timeout(state.timers.terminal_probe, probe).await else {
+        return Seen::Unknown;
+    };
+    match answer {
+        Ok(status) if !status.configured => Seen::NotApplicable,
+        Ok(status) if status.busy => Seen::Unknown,
+        Ok(status) if !status.connected => Seen::Trouble(Detail::default()),
+        Ok(status) if status.check == "refused" || status.check == "no_values" => {
+            Seen::Trouble(Detail {
+                scale_check_refused: true,
+                ..Detail::default()
+            })
+        }
+        Ok(_) => Seen::Fine,
         Err(_) => Seen::Unknown,
     }
 }
