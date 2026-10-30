@@ -99,6 +99,9 @@ export const checkoutMessages: Messages = {
     en: 'Payment terminal',
     zh: '支付终端',
   },
+  settings_scale_label: { fr: 'Balance', en: 'Scale', zh: '电子秤' },
+  settings_scale_on: { fr: 'Configurée', en: 'Configured', zh: '已配置' },
+  settings_scale_none: { fr: 'Aucune', en: 'None', zh: '无' },
   settings_payment_terminal_none: {
     fr: 'Aucun (saisie manuelle)',
     en: 'None (manual entry)',

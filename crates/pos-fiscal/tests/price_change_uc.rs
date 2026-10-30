@@ -51,6 +51,8 @@ fn line(
         created_at: Utc::now(),
         department_id: dept.0.into(),
         department_name: dept.1.into(),
+        weight_grams: None,
+        weighed_amount_cents: None,
     }
 }
 

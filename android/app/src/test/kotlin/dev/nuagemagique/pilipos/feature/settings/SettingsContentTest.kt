@@ -20,6 +20,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.i18n.AppLanguage
@@ -494,7 +495,7 @@ class SettingsContentTest {
     @Test
     fun theRefreshButtonCallsBackAndIsOffWhileLoading() {
         show(managerState())
-        compose.onNodeWithTag("deliveries_refresh").assertIsEnabled().performClick()
+        compose.onNodeWithTag("deliveries_refresh").performScrollTo().assertIsEnabled().performClick()
         assertEquals(listOf("reload"), taps)
     }
 

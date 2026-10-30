@@ -31,6 +31,7 @@ import dev.nuagemagique.pilipos.ui.components.defaultTicketMediumPickerTexts
 import dev.nuagemagique.pilipos.ui.components.rememberTicketMediumPickerState
 import dev.nuagemagique.pilipos.ui.format.PosDateTime
 import dev.nuagemagique.pilipos.ui.format.formatEuro
+import dev.nuagemagique.pilipos.ui.format.formatWeight
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -161,7 +162,8 @@ private fun LinesStep(
         ) {
             flow.lines.forEach { line ->
                 RefundLineRow(
-                    name = line.name,
+                    // A weighing is refunded whole: its weight tells it from another line of the same product.
+                    name = line.weightGrams?.let { "${line.name} (${formatWeight(it)})" } ?: line.name,
                     lineId = line.id,
                     quantity = line.quantity,
                     ticked = flow.checked[line.id],

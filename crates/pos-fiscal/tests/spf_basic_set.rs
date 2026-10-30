@@ -71,6 +71,7 @@ fn test_config(fdm_url: &str) -> PosConfig {
         backup_dir: None,
         kitchen_printer_address: None,
         printer_paper_mm: Default::default(),
+        scale: None,
         kitchen_printer_paper_mm: Default::default(),
         fdm_token_file: None,
         fdm_ca_file: None,
@@ -114,6 +115,8 @@ fn food_line(id: i64, name: &str, price_cents: i64, qty: i32) -> OrderLine {
         created_at: chrono::Utc::now(),
         department_id: "1".to_string(),
         department_name: "Test".to_string(),
+        weight_grams: None,
+        weighed_amount_cents: None,
     }
 }
 
@@ -130,6 +133,8 @@ fn drink_line(id: i64, name: &str, price_cents: i64, qty: i32) -> OrderLine {
         created_at: chrono::Utc::now(),
         department_id: "1".to_string(),
         department_name: "Test".to_string(),
+        weight_grams: None,
+        weighed_amount_cents: None,
     }
 }
 
@@ -378,6 +383,8 @@ async fn test_complete_refund() {
         created_at: chrono::Utc::now(),
         department_id: "1".to_string(),
         department_name: "Test".to_string(),
+        weight_grams: None,
+        weighed_amount_cents: None,
     }];
 
     let mut sale = build_sale_input(

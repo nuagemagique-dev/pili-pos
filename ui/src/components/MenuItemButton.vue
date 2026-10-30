@@ -55,6 +55,9 @@ function handleTap() {
     <span class="item-name" :class="{ code: names.isCode }">{{ names.primary }}</span>
     <span v-if="names.secondary" class="item-sub">{{ names.secondary }}</span>
     <span v-if="item.open_price" class="item-open-price">{{ t('open_price_badge') }}</span>
+    <span v-else-if="item.sold_by_weight" class="item-price" data-testid="item-price-per-kilo"
+      >{{ formatPrice(item.price_cents) }} €/kg</span
+    >
     <span v-else class="item-price">{{ formatPrice(item.price_cents) }}</span>
     <AllergenBadges v-if="item.allergens?.length" class="item-allergens" :codes="item.allergens" />
     <span v-if="inCart" class="item-qty">{{ inCart }}</span>

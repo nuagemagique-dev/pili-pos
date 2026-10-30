@@ -123,6 +123,10 @@ pub struct PosConfig {
     /// terminal and confirmed by the operator (`MANUAL`).
     #[serde(default)]
     pub payment_terminal: Option<PaymentTerminalConfig>,
+    /// The checkout scale (Dialog 06). Absent: no scale, and a product sold
+    /// by weight cannot be sold.
+    #[serde(default)]
+    pub scale: Option<ScaleConfig>,
     /// Peppol delivery of B2B invoices (event I). Absent: invoices are
     /// still made and printed, but nothing is queued for delivery.
     #[serde(default)]
@@ -371,6 +375,9 @@ impl PosConfig {
         if let Some(t) = &self.payment_terminal {
             out.extend(t.problems());
         }
+        if let Some(s) = &self.scale {
+            out.extend(s.problems());
+        }
         if let Some(p) = &self.peppol {
             out.extend(p.problems());
         }
@@ -410,6 +417,7 @@ pub fn problem_code(problem: &str) -> &'static str {
         k if k.starts_with("digital_ticket.") => "digital_ticket",
         k if k.starts_with("export.") => "export",
         k if k.starts_with("payment_terminal.") => "payment_terminal",
+        k if k.starts_with("scale.") => "scale",
         k if k.starts_with("peppol.") => "peppol",
         k if k.starts_with("alerts.") => "alerts",
         _ => "other",
@@ -433,6 +441,7 @@ pub const PROBLEM_CODES: &[&str] = &[
     "digital_ticket",
     "export",
     "payment_terminal",
+    "scale",
     "peppol",
     "alerts",
     "other",
@@ -480,6 +489,7 @@ impl Default for PosConfig {
             table_count: default_table_count(),
             tables: None,
             payment_terminal: None,
+            scale: None,
             peppol: None,
             alerts: None,
             pos_id: String::new(),
@@ -710,6 +720,85 @@ fn default_terminal_timeout_seconds() -> u64 {
 }
 
 /// The card payment terminal linked to the till, from `pos.json` as
+/// One checksum and correction value the scale wants in its software
+/// check, four hex digits each.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScaleCheckValue {
+    pub checksum: String,
+    pub correction: String,
+}
+
+fn default_scale_price_digits() -> u8 {
+    6
+}
+
+fn default_scale_weigh_timeout_ms() -> u64 {
+    15_000
+}
+
+/// `scale`: the checkout scale, a Dibal DPOS-400 in its Dialog 06 protocol,
+/// reached over TCP (a serial device server in front of its RS-232 port).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScaleConfig {
+    /// `host:port`.
+    pub tcp_address: String,
+    /// Digits of the unit price field the scale is set up for, 5 or 6.
+    #[serde(default = "default_scale_price_digits")]
+    pub price_digits: u8,
+    /// The answer to the scale's software check, at most 5 pairs. Empty:
+    /// a scale that asks for the check stays unusable, there is no way
+    /// around it.
+    #[serde(default)]
+    pub check_values: Vec<ScaleCheckValue>,
+    /// Longest weighing, 3 to 120 seconds (15 s when absent).
+    #[serde(default = "default_scale_weigh_timeout_ms")]
+    pub weigh_timeout_ms: u64,
+}
+
+impl ScaleConfig {
+    /// What is wrong with this section, each text starting with its key.
+    pub fn problems(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        let address_ok = self
+            .tcp_address
+            .rsplit_once(':')
+            .is_some_and(|(host, port)| !host.is_empty() && port.parse::<u16>().is_ok());
+        if !address_ok {
+            out.push(format!(
+                "scale.tcp_address: host:port expected, got {:?}",
+                self.tcp_address
+            ));
+        }
+        if !matches!(self.price_digits, 5 | 6) {
+            out.push(format!(
+                "scale.price_digits: 5 or 6 expected, got {}",
+                self.price_digits
+            ));
+        }
+        if self.check_values.len() > 5 {
+            out.push(format!(
+                "scale.check_values: at most 5 expected, got {}",
+                self.check_values.len()
+            ));
+        }
+        let hex = |v: &str| v.len() == 4 && v.bytes().all(|b| b.is_ascii_hexdigit());
+        if self
+            .check_values
+            .iter()
+            .any(|v| !hex(&v.checksum) || !hex(&v.correction))
+        {
+            out.push("scale.check_values: four hex digits expected in each".to_string());
+        }
+        if !(3_000..=120_000).contains(&self.weigh_timeout_ms) {
+            out.push(format!(
+                "scale.weigh_timeout_ms: 3000 to 120000 expected, got {}",
+                self.weigh_timeout_ms
+            ));
+        }
+        out
+    }
+}
+
 /// `payment_terminal`. Which fields a terminal needs depends on `kind`
 /// (see [`PaymentTerminalConfig::problems`]); secrets live in files.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1889,6 +1978,40 @@ mod tests {
             ("logging", "BE")
         );
         assert!(p.problems().is_empty(), "{:?}", p.problems());
+    }
+
+    #[test]
+    fn scale_problems_name_their_setting() {
+        let scale = ScaleConfig {
+            tcp_address: "192.168.1.60:4001".into(),
+            price_digits: 6,
+            check_values: vec![ScaleCheckValue {
+                checksum: "4711".into(),
+                correction: "F336".into(),
+            }],
+            weigh_timeout_ms: 15_000,
+        };
+        assert_eq!(scale.problems(), Vec::<String>::new());
+
+        let bad = ScaleConfig {
+            tcp_address: "nowhere".into(),
+            price_digits: 4,
+            check_values: vec![ScaleCheckValue {
+                checksum: "47".into(),
+                correction: "XYZW".into(),
+            }],
+            weigh_timeout_ms: 0,
+        };
+        let problems = bad.problems();
+        assert!(problems.len() >= 3, "{problems:?}");
+        for problem in &problems {
+            assert!(problem.starts_with("scale."), "{problem}");
+            assert_eq!(problem_code(problem), "scale", "{problem}");
+        }
+
+        let mut config = valid();
+        config.scale = Some(bad);
+        assert!(config.problems().iter().any(|p| p.starts_with("scale.")));
     }
 
     #[test]

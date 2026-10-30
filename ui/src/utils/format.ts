@@ -11,6 +11,15 @@ export function formatPrice(cents: number): string {
   })
 }
 
+/** A net weight in grams, the way the ticket prints it: 278 → "0,278 kg". */
+export function formatWeight(grams: number): string {
+  const kilos = (grams / 1000).toLocaleString('fr-BE', {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  })
+  return `${kilos} kg`
+}
+
 /** UX Guide §7.5: Belgian 5-cent rounding, on cash only. */
 export function round5(cents: number): number {
   return Math.round(cents / 5) * 5

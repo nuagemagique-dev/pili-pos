@@ -19,6 +19,7 @@ pub mod pending_signs;
 pub mod price_changes;
 pub mod prints;
 pub mod reports;
+pub mod scale;
 pub mod shifts;
 pub mod sold_out;
 pub mod table_plan;

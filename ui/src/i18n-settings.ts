@@ -220,6 +220,13 @@ export const settingsMessages: Messages = {
   menu_ed_case: { fr: 'Majuscules / minuscules', en: 'Upper / lower case', zh: '大小写切换' },
   menu_ed_category: { fr: 'Catégorie', en: 'Category', zh: '分类' },
   menu_ed_price: { fr: 'Prix (€)', en: 'Price (€)', zh: '价格（€）' },
+  menu_ed_price_per_kilo: {
+    fr: 'Prix au kilo (€)',
+    en: 'Price per kilo (€)',
+    zh: '每公斤价格（€）',
+  },
+  menu_ed_sold_by_weight: { fr: 'Vendu au poids', en: 'Sold by weight', zh: '按重量销售' },
+  menu_ed_tare: { fr: 'Tare du contenant', en: 'Container tare', zh: '容器皮重' },
   menu_ed_vat: { fr: 'TVA sur place', en: 'VAT dine-in', zh: '堂食税率' },
   menu_ed_vat_takeaway: { fr: 'TVA à emporter', en: 'VAT takeaway', zh: '外带税率' },
   menu_ed_vat_same: { fr: 'Idem sur place', en: 'Same as dine-in', zh: '同堂食' },

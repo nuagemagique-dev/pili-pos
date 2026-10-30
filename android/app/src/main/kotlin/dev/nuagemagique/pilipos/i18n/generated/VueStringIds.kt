@@ -240,6 +240,7 @@ internal object VueStringIds {
         this["err_config_hubrise"] = R.string.err_config_hubrise
         this["err_config_digital_ticket"] = R.string.err_config_digital_ticket
         this["err_config_export"] = R.string.err_config_export
+        this["err_config_scale"] = R.string.err_config_scale
         this["err_config_payment_terminal"] = R.string.err_config_payment_terminal
         this["err_config_peppol"] = R.string.err_config_peppol
         this["err_invoice_no_sales"] = R.string.err_invoice_no_sales
@@ -265,10 +266,10 @@ internal object VueStringIds {
         this["pin_mismatch"] = R.string.pin_mismatch
         this["other_insz"] = R.string.other_insz
         this["digits_required"] = R.string.digits_required
-        this["free"] = R.string.free
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["free"] = R.string.free
         this["items_short"] = R.string.items_short
         this["takeaway_new"] = R.string.takeaway_new
         this["takeaway_badge"] = R.string.takeaway_badge
@@ -381,6 +382,13 @@ internal object VueStringIds {
         this["sw_version"] = R.string.sw_version
         this["lock"] = R.string.lock
         this["status_terminal"] = R.string.status_terminal
+        this["status_scale"] = R.string.status_scale
+        this["scale_busy"] = R.string.scale_busy
+        this["scale_check_refused"] = R.string.scale_check_refused
+        this["scale_title"] = R.string.scale_title
+        this["scale_stage_waiting"] = R.string.scale_stage_waiting
+        this["scale_stage_stabilizing"] = R.string.scale_stage_stabilizing
+        this["scale_stage_checking"] = R.string.scale_stage_checking
         this["status_kitchen"] = R.string.status_kitchen
         this["fdm_closes_in"] = R.string.fdm_closes_in
         this["fdm_retry_in"] = R.string.fdm_retry_in
@@ -511,6 +519,9 @@ internal object VueStringIds {
         this["err_no_course_held"] = R.string.err_no_course_held
         this["err_nothing_printed"] = R.string.err_nothing_printed
         this["err_gift_vouchers_disabled"] = R.string.err_gift_vouchers_disabled
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["err_gift_voucher_settings_invalid"] = R.string.err_gift_voucher_settings_invalid
         this["err_gift_voucher_amount_invalid"] = R.string.err_gift_voucher_amount_invalid
         this["err_gift_voucher_line_fixed"] = R.string.err_gift_voucher_line_fixed
@@ -519,9 +530,25 @@ internal object VueStringIds {
         this["err_gift_voucher_code_invalid"] = R.string.err_gift_voucher_code_invalid
         this["err_gift_voucher_lookup_throttled"] = R.string.err_gift_voucher_lookup_throttled
         this["err_gift_voucher_not_usable"] = R.string.err_gift_voucher_not_usable
-    }
-
-    private fun MutableMap<String, Int>.part2() {
+        this["err_line_needs_scale"] = R.string.err_line_needs_scale
+        this["err_line_weighed_fixed"] = R.string.err_line_weighed_fixed
+        this["err_refund_weighed_line_whole"] = R.string.err_refund_weighed_line_whole
+        this["err_scale_not_configured"] = R.string.err_scale_not_configured
+        this["err_scale_not_sold_by_weight"] = R.string.err_scale_not_sold_by_weight
+        this["err_scale_busy"] = R.string.err_scale_busy
+        this["err_scale_unreachable"] = R.string.err_scale_unreachable
+        this["err_scale_below_min"] = R.string.err_scale_below_min
+        this["err_scale_underload"] = R.string.err_scale_underload
+        this["err_scale_overload"] = R.string.err_scale_overload
+        this["err_scale_no_motion"] = R.string.err_scale_no_motion
+        this["err_scale_price_refused"] = R.string.err_scale_price_refused
+        this["err_scale_error"] = R.string.err_scale_error
+        this["err_scale_check_failed"] = R.string.err_scale_check_failed
+        this["err_scale_price_mismatch"] = R.string.err_scale_price_mismatch
+        this["err_scale_unit_unsupported"] = R.string.err_scale_unit_unsupported
+        this["err_scale_cancelled"] = R.string.err_scale_cancelled
+        this["err_scale_timed_out"] = R.string.err_scale_timed_out
+        this["err_scale_tare_invalid"] = R.string.err_scale_tare_invalid
         this["err_gift_voucher_expired"] = R.string.err_gift_voucher_expired
         this["err_gift_voucher_insufficient"] = R.string.err_gift_voucher_insufficient
         this["err_gift_voucher_payment_invalid"] = R.string.err_gift_voucher_payment_invalid
@@ -565,6 +592,9 @@ internal object VueStringIds {
         this["eft_mode_manual"] = R.string.eft_mode_manual
         this["eft_hint_terminal"] = R.string.eft_hint_terminal
         this["settings_payment_terminal_label"] = R.string.settings_payment_terminal_label
+        this["settings_scale_label"] = R.string.settings_scale_label
+        this["settings_scale_on"] = R.string.settings_scale_on
+        this["settings_scale_none"] = R.string.settings_scale_none
         this["settings_payment_terminal_none"] = R.string.settings_payment_terminal_none
         this["eft_kind_worldline_terminal_api"] = R.string.eft_kind_worldline_terminal_api
         this["eft_kind_ccv_payment_api"] = R.string.eft_kind_ccv_payment_api
@@ -742,6 +772,9 @@ internal object VueStringIds {
         this["gv_disabled_note"] = R.string.gv_disabled_note
         this["settings_training_on"] = R.string.settings_training_on
         this["settings_training_off"] = R.string.settings_training_off
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["settings_training_effect"] = R.string.settings_training_effect
         this["settings_lang_name_fr"] = R.string.settings_lang_name_fr
         this["settings_lang_name_zh"] = R.string.settings_lang_name_zh
@@ -772,9 +805,6 @@ internal object VueStringIds {
         this["settings_off_shift"] = R.string.settings_off_shift
         this["settings_presence_done_in"] = R.string.settings_presence_done_in
         this["settings_presence_done_out"] = R.string.settings_presence_done_out
-    }
-
-    private fun MutableMap<String, Int>.part3() {
         this["settings_presence_fdm_down"] = R.string.settings_presence_fdm_down
         this["settings_presence_note"] = R.string.settings_presence_note
         this["settings_badges"] = R.string.settings_badges
@@ -830,6 +860,9 @@ internal object VueStringIds {
         this["menu_ed_case"] = R.string.menu_ed_case
         this["menu_ed_category"] = R.string.menu_ed_category
         this["menu_ed_price"] = R.string.menu_ed_price
+        this["menu_ed_price_per_kilo"] = R.string.menu_ed_price_per_kilo
+        this["menu_ed_sold_by_weight"] = R.string.menu_ed_sold_by_weight
+        this["menu_ed_tare"] = R.string.menu_ed_tare
         this["menu_ed_vat"] = R.string.menu_ed_vat
         this["menu_ed_vat_takeaway"] = R.string.menu_ed_vat_takeaway
         this["menu_ed_vat_same"] = R.string.menu_ed_vat_same
@@ -992,6 +1025,9 @@ internal object VueStringIds {
         this["hubrise_section_help"] = R.string.hubrise_section_help
         this["hubrise_status_label"] = R.string.hubrise_status_label
         this["hubrise_connected"] = R.string.hubrise_connected
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["hubrise_disconnected"] = R.string.hubrise_disconnected
         this["hubrise_account_label"] = R.string.hubrise_account_label
         this["hubrise_location_label"] = R.string.hubrise_location_label
@@ -1025,9 +1061,6 @@ internal object VueStringIds {
         this["webshop_action_close_cancelled"] = R.string.webshop_action_close_cancelled
         this["webshop_cancelled_refund"] = R.string.webshop_cancelled_refund
         this["webshop_cancelled_close"] = R.string.webshop_cancelled_close
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["webshop_manager_needed"] = R.string.webshop_manager_needed
         this["webshop_status_refunded"] = R.string.webshop_status_refunded
         this["webshop_changed_after_signing"] = R.string.webshop_changed_after_signing
@@ -1038,6 +1071,7 @@ internal object VueStringIds {
         this["webshop_attention_unknown_product"] = R.string.webshop_attention_unknown_product
         this["webshop_attention_unknown_option"] = R.string.webshop_attention_unknown_option
         this["webshop_attention_unknown_charge"] = R.string.webshop_attention_unknown_charge
+        this["webshop_attention_sold_by_weight"] = R.string.webshop_attention_sold_by_weight
         this["webshop_attention_fractional_quantity"] = R.string.webshop_attention_fractional_quantity
         this["webshop_attention_bad_price"] = R.string.webshop_attention_bad_price
         this["webshop_attention_vat_mismatch"] = R.string.webshop_attention_vat_mismatch

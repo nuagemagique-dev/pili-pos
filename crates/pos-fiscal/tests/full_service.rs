@@ -87,6 +87,7 @@ fn config(fdm_url: &str) -> PosConfig {
         backup_dir: None,
         kitchen_printer_address: None,
         printer_paper_mm: Default::default(),
+        scale: None,
         kitchen_printer_paper_mm: Default::default(),
         fdm_token_file: None,
         fdm_ca_file: None,
@@ -551,6 +552,7 @@ async fn test_full_service_day_e2e() {
                 unit_price: l.unit_price_cents as f64 / 100.0,
                 total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
                 vat_code: l.vat_code.as_str().to_string(),
+                weighed: false,
             })
             .collect(),
         payments: vec![],
@@ -764,6 +766,7 @@ async fn test_full_service_day_e2e() {
                 unit_price: l.unit_price_cents as f64 / 100.0,
                 total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
                 vat_code: l.vat_code.as_str().to_string(),
+                weighed: false,
             })
             .collect(),
         payments: vec![TicketPayment {

@@ -211,7 +211,7 @@ private fun ItemLabel(
             )
         } else {
             Text(
-                text = formatCents(item.priceCents),
+                text = if (item.soldByWeight) formatCents(item.priceCents) + " €/kg" else formatCents(item.priceCents),
                 style = t.figure.copy(fontSize = t.sizeMd, fontWeight = t.weightBold),
                 color = c.textSecondary,
             )

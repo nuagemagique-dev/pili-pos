@@ -245,6 +245,13 @@ const CATALOG_MIGRATIONS: &[Migration] = &[
     },
 ];
 
+/// The sale by weight (every build).
+const WEIGHT_MIGRATIONS: &[Migration] = &[Migration {
+    version: 80,
+    name: "sale-by-weight",
+    sql: crate::schema_weight::MIGRATION_080_SALE_BY_WEIGHT,
+}];
+
 /// Every migration this build knows, in ascending version order.
 fn registry() -> Vec<Migration> {
     #[allow(unused_mut)]
@@ -253,6 +260,7 @@ fn registry() -> Vec<Migration> {
     all.extend_from_slice(TILL_MIGRATIONS);
     all.extend_from_slice(INVOICING_MIGRATIONS);
     all.extend_from_slice(OWNER_MIGRATIONS);
+    all.extend_from_slice(WEIGHT_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -486,7 +494,10 @@ mod tests {
         let versions = all_versions();
         assert!(!versions.contains(&29));
         let from_28: Vec<i64> = versions.into_iter().filter(|v| *v >= 28).collect();
-        assert_eq!(from_28, vec![28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70]);
+        assert_eq!(
+            from_28,
+            vec![28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70, 80]
+        );
     }
 
     #[test]
@@ -1224,6 +1235,76 @@ mod tests {
             let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
         }
         assert_eq!(mode, 2, "FULL");
+    }
+
+    #[test]
+    fn migration_80_fixes_the_weight_and_keeps_the_proof_append_only() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        run_migrations(&conn).unwrap();
+        let applied: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM _migrations_applied WHERE version = 80",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(applied, 1);
+
+        // A tare out of the scale's range is refused by the table too.
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order) VALUES (1, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code)
+                VALUES (1, 1, 4500, 'B');",
+        )
+        .unwrap();
+        let sold_by_weight: i64 = conn
+            .query_row("SELECT sold_by_weight FROM menu_items", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(sold_by_weight, 0);
+        assert!(
+            conn.execute("UPDATE menu_items SET scale_tare_grams = 10000", [])
+                .is_err()
+        );
+
+        conn.execute_batch(
+            "INSERT INTO orders (id, table_number, order_type, status, user_insz, created_at)
+                VALUES (1, 1, 'dine_in', 'open', '12345678958', '2026-10-17T10:00:00Z');",
+        )
+        .unwrap();
+        crate::queries::scale::record_weighing(
+            &conn,
+            &crate::queries::scale::NewWeighing {
+                line_id: 1,
+                order_id: 1,
+                weight_grams: 278,
+                unit_price_cents: 4500,
+                amount_cents: 1251,
+                tare_grams: None,
+                operator_insz: "75061189702",
+            },
+        )
+        .unwrap();
+        crate::queries::scale::record_check(&conn, "passed", None).unwrap();
+        assert_eq!(
+            crate::queries::scale::last_check_verdict(&conn)
+                .unwrap()
+                .as_deref(),
+            Some("passed"),
+        );
+        for statement in [
+            "UPDATE scale_weighings SET weight_grams = 1",
+            "DELETE FROM scale_weighings",
+            "UPDATE scale_check_log SET detail = 'x'",
+            "DELETE FROM scale_check_log",
+        ] {
+            let err = conn.execute(statement, []).unwrap_err().to_string();
+            assert!(err.contains("append-only"), "{statement}: {err}");
+        }
+        assert!(
+            conn.execute("INSERT INTO scale_check_log (event) VALUES ('other')", [])
+                .is_err()
+        );
     }
 
     #[cfg(feature = "hubrise")]

@@ -88,6 +88,9 @@
     <string name="menu_ed_case">Majuscules / minuscules</string>
     <string name="menu_ed_category">Catégorie</string>
     <string name="menu_ed_price">Prix (€)</string>
+    <string name="menu_ed_price_per_kilo">Prix au kilo (€)</string>
+    <string name="menu_ed_sold_by_weight">Vendu au poids</string>
+    <string name="menu_ed_tare">Tare du contenant</string>
     <string name="menu_ed_vat">TVA sur place</string>
     <string name="menu_ed_vat_takeaway">TVA à emporter</string>
     <string name="menu_ed_vat_same">Idem sur place</string>

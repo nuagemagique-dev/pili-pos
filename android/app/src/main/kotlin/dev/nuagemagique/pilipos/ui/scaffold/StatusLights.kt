@@ -44,6 +44,7 @@ import timber.log.Timber
 import uniffi.pos_ffi.FdmSeverity
 import uniffi.pos_ffi.HubriseStatus
 import uniffi.pos_ffi.PaymentTerminalStatus
+import uniffi.pos_ffi.ScaleStatus
 
 /** How often the two printers and the linked card terminal are checked, in milliseconds (30 s in `StatusLights.vue`). */
 internal const val PRINTER_POLL_MS: Long = 30_000L
@@ -114,6 +115,24 @@ internal fun terminalLight(status: PaymentTerminalStatus): TerminalLight? =
         else -> TerminalLight(LightState.ERR, status.detail)
     }
 
+/**
+ * The light of the scale (`scaleLight` of `StatusLights.vue`), or null when none is configured: red when its software
+ * check was refused (no weighing can pass) or when it does not answer, amber during a weighing, green otherwise.
+ */
+internal data class ScaleLight(
+    val state: LightState,
+    val descriptionKey: String,
+)
+
+internal fun scaleLight(status: ScaleStatus): ScaleLight? =
+    when {
+        !status.configured -> null
+        status.check == "refused" || status.check == "no_values" -> ScaleLight(LightState.ERR, "scale_check_refused")
+        status.busy -> ScaleLight(LightState.WARN, "scale_busy")
+        status.connected -> ScaleLight(LightState.OK, "check_connected")
+        else -> ScaleLight(LightState.ERR, "check_unreachable")
+    }
+
 /** What the lights ask of the engine; the seam of the tests. A failure of any call turns its light grey. */
 internal interface LightProbe {
     /** True while the engine is ready: the only time the lights are polled. */
@@ -130,6 +149,9 @@ internal interface LightProbe {
 
     /** Whether the linked card terminal answers; it charges nothing (`check_payment_terminal`). */
     suspend fun paymentTerminal(): PaymentTerminalStatus
+
+    /** How the scale is doing (`get_scale_status`). */
+    suspend fun scale(): ScaleStatus
 }
 
 /** The [LightProbe] of the running app: every question is one engine command through the gateway. */
@@ -145,6 +167,8 @@ internal class GatewayLightProbe(
     override suspend fun hubrise(): HubriseStatus = gateway.call { engine -> engine.hubriseStatus() }
 
     override suspend fun paymentTerminal(): PaymentTerminalStatus = gateway.call { engine -> engine.checkPaymentTerminal() }
+
+    override suspend fun scale(): ScaleStatus = gateway.call { engine -> engine.getScaleStatus() }
 }
 
 /**
@@ -154,6 +178,7 @@ internal class GatewayLightProbe(
  * only while it is on screen and the engine is ready, so there is no polling with the engine closed or on a
  * screen without a header. Every failure turns the light grey, never an exception.
  */
+@Suppress("TooManyFunctions") // Poll, check and clear for each of the lights.
 internal class DeviceLights(
     private val probe: LightProbe,
 ) {
@@ -161,6 +186,7 @@ internal class DeviceLights(
     private val mutableKitchen = MutableStateFlow(LightState.NONE)
     private val mutableHubrise = MutableStateFlow(LightState.NONE)
     private val mutableTerminal = MutableStateFlow<TerminalLight?>(null)
+    private val mutableScale = MutableStateFlow<ScaleLight?>(null)
 
     /** True while the engine is ready: the only time the lights are polled. */
     val ready: StateFlow<Boolean> get() = probe.ready
@@ -177,6 +203,9 @@ internal class DeviceLights(
     /** The linked card terminal; null (no light) when none is configured or the engine did not answer. */
     val terminal: StateFlow<TerminalLight?> = mutableTerminal.asStateFlow()
 
+    /** The scale; null (no light) when none is configured or the engine did not answer. */
+    val scale: StateFlow<ScaleLight?> = mutableScale.asStateFlow()
+
     /** Checks the two printers every [PRINTER_POLL_MS] until cancelled. */
     suspend fun pollPrinters() {
         while (true) {
@@ -189,6 +218,14 @@ internal class DeviceLights(
     suspend fun pollTerminal() {
         while (true) {
             checkTerminal()
+            delay(PRINTER_POLL_MS)
+        }
+    }
+
+    /** Checks the scale every [PRINTER_POLL_MS] until cancelled (the first check is at once). */
+    suspend fun pollScale() {
+        while (true) {
+            checkScale()
             delay(PRINTER_POLL_MS)
         }
     }
@@ -230,6 +267,15 @@ internal class DeviceLights(
             )
     }
 
+    /** One check of the scale (`checkScale`). */
+    suspend fun checkScale() {
+        mutableScale.value =
+            attempt { probe.scale() }.fold(
+                onSuccess = ::scaleLight,
+                onFailure = { null },
+            )
+    }
+
     /** One check of HubRise (`checkHubrise`). */
     suspend fun checkHubrise() {
         mutableHubrise.value =
@@ -248,6 +294,11 @@ internal class DeviceLights(
     /** The terminal is not known any more (the engine went away). */
     fun clearTerminal() {
         mutableTerminal.value = null
+    }
+
+    /** The scale is not known any more (the engine went away). */
+    fun clearScale() {
+        mutableScale.value = null
     }
 
     /** HubRise is not known any more (the engine went away or HubRise is hidden). */
@@ -272,7 +323,7 @@ internal class DeviceLights(
  * the linked card terminal (only when one is configured) and, while HubRise is visible, HubRise. The printers and the
  * terminal are checked every 30 s and HubRise every 60 s, only while this is composed and the engine is ready. The
  * terminal is also checked when [eftPhase] changes (a payment starts or ends). The FDM dot pulses once (180 ms) when
- * the FDM degrades. Test tags: `status_light_<fdm|ticket|kitchen|terminal|hubrise>` on a light and
+ * the FDM degrades. Test tags: `status_light_<fdm|ticket|kitchen|terminal|scale|hubrise>` on a light and
  * `status_dot_<name>_<ok|warn|err|none>` on its dot.
  */
 @Composable
@@ -290,6 +341,9 @@ internal fun StatusLights(
     LaunchedEffect(lights, ready, eftPhase) {
         if (ready) lights.pollTerminal() else lights.clearTerminal()
     }
+    LaunchedEffect(lights, ready) {
+        if (ready) lights.pollScale() else lights.clearScale()
+    }
     LaunchedEffect(lights, ready, hubriseVisible) {
         if (ready && hubriseVisible) lights.pollHubrise() else lights.clearHubrise()
     }
@@ -297,6 +351,7 @@ internal fun StatusLights(
     val kitchen by lights.kitchen.collectAsState()
     val hubrise by lights.hubrise.collectAsState()
     val terminal by lights.terminal.collectAsState()
+    val scale by lights.scale.collectAsState()
     val fdmState = fdmLight(fdm)
     Row(
         modifier = modifier.testTag("status_lights"),
@@ -307,6 +362,7 @@ internal fun StatusLights(
         StatusLight("ticket", vueText("status_printer"), ticket)
         StatusLight("kitchen", vueText("status_kitchen"), kitchen)
         terminal?.let { StatusLight("terminal", vueText("status_terminal"), it.state, description = terminalDescription(it)) }
+        scale?.let { StatusLight("scale", vueText("status_scale"), it.state, description = vueText(it.descriptionKey)) }
         if (hubriseVisible) StatusLight("hubrise", uiText(R.string.ui_common_light_hubrise), hubrise)
     }
 }

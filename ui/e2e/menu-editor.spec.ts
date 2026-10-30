@@ -221,6 +221,29 @@ test.describe('Menu editor', () => {
     expect(calls[0].input.names).toEqual({ fr: 'Maki saumon', zh: '三文鱼卷' })
   })
 
+  test('sold by weight: price per kilo, a tare in steps, never with an open price', async ({
+    page,
+  }) => {
+    await editor(page)
+    await page.getByTestId('menu-ed-product-row').first().click()
+    await page.getByTestId('menu-ed-open-price').click()
+    await page.getByTestId('menu-ed-sold-by-weight').click()
+    await expect(page.getByTestId('menu-ed-open-price')).not.toHaveClass(/on/u)
+    await expect(page.getByText('Prix au kilo (€)')).toBeVisible()
+    await page.getByTestId('menu-ed-tare-plus').click()
+    await page.getByTestId('menu-ed-tare-plus').click()
+    await expect(page.getByTestId('menu-ed-tare')).toHaveText('10 g')
+    await page.getByTestId('menu-ed-tare-minus').click()
+    await page.getByTestId('menu-ed-save').click()
+    await expect(page.locator('.toast', { hasText: 'Carte enregistrée' })).toBeVisible()
+    const calls = await ipcCalls(page, 'menu_save_product')
+    expect(calls[0].input).toMatchObject({
+      open_price: false,
+      sold_by_weight: true,
+      scale_tare_grams: 5,
+    })
+  })
+
   test('a new product: name on the on-screen keyboard (lower case key), then saved with no id', async ({
     page,
   }) => {

@@ -8,7 +8,7 @@ import type { SalesReport } from '../types'
 import { useI18n } from '../i18n'
 import { useToastStore } from '../stores/toast'
 import { describeError } from '../utils/errorMessages'
-import { formatPrice } from '../utils/format'
+import { formatPrice, formatWeight } from '../utils/format'
 import {
   calendarToday,
   parseTyped,
@@ -301,7 +301,7 @@ async function print(): Promise<void> {
           >
             <span class="pname">{{ p.name }}</span>
             <span class="mono" :class="{ negative: p.quantityMilli < 0 }">{{
-              quantity(p.quantityMilli)
+              p.weighed ? formatWeight(p.quantityMilli) : quantity(p.quantityMilli)
             }}</span>
             <span class="mono" :class="{ negative: p.amountCents < 0 }">{{
               euros(p.amountCents)

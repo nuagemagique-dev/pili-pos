@@ -124,9 +124,12 @@ pub fn format_receipt(ticket: &FiscalTicket, paper: PaperWidth) -> Vec<u8> {
 
     // ── Product lines: quantity, description, line total, VAT code
     for line in &ticket.lines {
-        let qty_desc = format!("{}  {}", format_qty(line.quantity), line.description);
+        let qty_desc = format!("{}  {}", line_quantity(line), line.description);
         let price = format!("{}  {}", format_price(line.total), line.vat_code);
         item_line(&mut p, &qty_desc, &price);
+        if line.weighed {
+            p.textln(&format!("    {} €/kg", format_price(line.unit_price)));
+        }
     }
 
     // ── Total due (the sale; the rounding is a payment line) ───
@@ -314,6 +317,16 @@ fn format_price(amount: f64) -> String {
     format!("{:.2}", amount).replace('.', ",")
 }
 
+/// The quantity column: a weight always shows its three decimals and its
+/// unit, the pieces stay as they were.
+fn line_quantity(line: &pos_fiscal::ticket::TicketLine) -> String {
+    if line.weighed {
+        format!("{:.3} kg", line.quantity).replace('.', ",")
+    } else {
+        format_qty(line.quantity)
+    }
+}
+
 fn format_qty(qty: f64) -> String {
     if (qty - qty.round()).abs() < f64::EPSILON {
         format!("{}", qty as i64)
@@ -363,6 +376,7 @@ mod tests {
                     unit_price: 12.50,
                     total: 25.00,
                     vat_code: "B".to_string(),
+                    weighed: false,
                 },
                 TicketLine {
                     quantity: 1.0,
@@ -370,6 +384,7 @@ mod tests {
                     unit_price: 4.50,
                     total: 4.50,
                     vat_code: "A".to_string(),
+                    weighed: false,
                 },
             ],
             subtotal: 29.50,
@@ -519,6 +534,40 @@ mod tests {
         crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
             format_receipt(&sample_ticket(), paper)
         });
+    }
+
+    fn weighed(quantity: f64, total: f64) -> TicketLine {
+        TicketLine {
+            quantity,
+            description: "Bol malatang sur place".to_string(),
+            unit_price: 19.9,
+            total,
+            vat_code: "B".to_string(),
+            weighed: true,
+        }
+    }
+
+    #[test]
+    fn a_weighing_prints_its_weight_and_its_price_per_kilo_on_both_papers() {
+        let mut ticket = sample_ticket();
+        ticket.lines.push(weighed(0.612, 12.18));
+        crate::render::assert_58_mm_prints_the_80_mm_words(|paper| format_receipt(&ticket, paper));
+        for paper in [PaperWidth::Mm80, PaperWidth::Mm58] {
+            let text = crate::render::render_plain_text_for(&format_receipt(&ticket, paper), paper);
+            assert!(text.contains("0,612 kg"), "{paper:?}:\n{text}");
+            assert!(text.contains("19,90 €/kg"), "{paper:?}:\n{text}");
+            assert!(text.contains("12,18"), "{paper:?}:\n{text}");
+        }
+    }
+
+    #[test]
+    fn a_refunded_weighing_is_negative_with_a_positive_price_per_kilo() {
+        let mut ticket = sample_ticket();
+        ticket.lines.push(weighed(-0.612, -12.18));
+        let text = crate::render::render_plain_text(&format_receipt(&ticket, PaperWidth::Mm80));
+        assert!(text.contains("-0,612 kg"), "{text}");
+        assert!(text.contains("    19,90 €/kg"), "{text}");
+        assert!(text.contains("-12,18"), "{text}");
     }
 
     #[test]
@@ -677,6 +726,7 @@ mod tests {
             unit_price: 5.0,
             total: 5.0,
             vat_code: "B".to_string(),
+            weighed: false,
         });
         let text = crate::render::render_plain_text(&format_receipt(&ticket, PaperWidth::Mm80));
         assert!(
@@ -694,6 +744,7 @@ mod tests {
             unit_price: 6.5,
             total: 6.5,
             vat_code: "B".to_string(),
+            weighed: false,
         });
         // Accents actually present in CP858_HIGH (escpos.rs).
         let accented = "Fondant au chocolat, crème brûlée, café";
@@ -703,6 +754,7 @@ mod tests {
             unit_price: 7.0,
             total: 7.0,
             vat_code: "B".to_string(),
+            weighed: false,
         });
         let text = crate::render::render_plain_text(&format_receipt(&ticket, PaperWidth::Mm80));
         assert!(
@@ -726,6 +778,7 @@ mod tests {
             unit_price: 999999.99,
             total: 2999999.97,
             vat_code: "B".to_string(),
+            weighed: false,
         });
         let text = crate::render::render_plain_text(&format_receipt(&ticket, PaperWidth::Mm80));
         for line in text.lines() {

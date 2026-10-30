@@ -398,6 +398,7 @@ impl Engine {
                 peppol_wake: tokio::sync::Notify::new(),
                 eft_in_flight: Mutex::new(None),
                 eft_line: tokio::sync::Mutex::new(()),
+                scale: Default::default(),
                 badge_repeats: Default::default(),
                 owner_alerts: Default::default(),
                 #[cfg(feature = "eft-scripted")]

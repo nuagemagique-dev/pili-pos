@@ -49,6 +49,7 @@ fn config(fdm_url: &str) -> PosConfig {
         backup_dir: None,
         kitchen_printer_address: None,
         printer_paper_mm: Default::default(),
+        scale: None,
         kitchen_printer_paper_mm: Default::default(),
         fdm_token_file: None,
         fdm_ca_file: None,

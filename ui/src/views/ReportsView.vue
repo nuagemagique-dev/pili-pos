@@ -7,7 +7,7 @@ import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useDeliveryStore } from '../stores/delivery'
 import { useInvoiceStore } from '../stores/invoice'
-import { formatPrice, round5 } from '../utils/format'
+import { formatPrice, formatWeight, round5 } from '../utils/format'
 import type { CheckoutResult, OrderLine, UnsettledCardPayment } from '../types'
 import type { CopyResult, RefundableEvent, RefundItem } from '../api/ipc'
 import * as ipc from '../api/ipc'
@@ -548,7 +548,7 @@ function refundTotalCents(): number {
   let total = 0
   for (const [lineId, qty] of refundChecked.value) {
     const line = refundLines.value.find((l) => l.id === lineId)
-    if (line) total += line.unit_price_cents * qty
+    if (line) total += (line.weighed_amount_cents ?? line.unit_price_cents) * qty
   }
   // Paid back in cash: rounded to 5 cents, like the signed refund.
   return round5(total)
@@ -905,8 +905,16 @@ function formatRefundTime(iso: string): string {
               >
                 <div class="rl-info">
                   <span class="rl-name">{{ line.name }}</span>
+                  <span
+                    v-if="line.weight_grams"
+                    class="rl-weight"
+                    data-testid="refund-line-weight"
+                    >{{ formatWeight(line.weight_grams) }}</span
+                  >
                   <span class="rl-price">{{
-                    formatPrice(line.unit_price_cents * line.quantity)
+                    formatPrice(
+                      (line.weighed_amount_cents ?? line.unit_price_cents) * line.quantity,
+                    )
                   }}</span>
                 </div>
                 <div v-if="refundChecked.has(line.id)" class="rl-qty">
@@ -1620,6 +1628,12 @@ function formatRefundTime(iso: string): string {
 .rl-name {
   font-size: 17px;
   font-weight: var(--font-weight-bold);
+  display: block;
+}
+.rl-weight {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-secondary);
   display: block;
 }
 .rl-price {

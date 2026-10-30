@@ -594,6 +594,12 @@ onMounted(() => {
               <span>{{ t('settings_payment_terminal_label') }}</span>
               <span class="info-value">{{ paymentTerminalLabel }}</span>
             </div>
+            <div class="info-row" data-testid="scale-setting">
+              <span>{{ t('settings_scale_label') }}</span>
+              <span class="info-value">{{
+                t(pos.settings.scaleConfigured ? 'settings_scale_on' : 'settings_scale_none')
+              }}</span>
+            </div>
           </div>
         </section>
 

@@ -41,6 +41,7 @@ use pos_engine::commands::invoice::{
 use pos_engine::commands::order::{AddOrderLineInput, do_add_order_line};
 use pos_engine::commands::payment_correction::do_correct_payment;
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
+use pos_engine::commands::scale::{ScaleWeighInput, do_scale_start_weighing};
 use pos_engine::commands::social::{do_work_in, do_work_out};
 use pos_engine::commands::table_transfer::do_transfer_table;
 use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
@@ -301,6 +302,46 @@ const TABLE_SALE: Deviation = Deviation {
     path: "costCenter.type",
     reason: "dine-in sales are settled from a table and carry costCenter TABLE",
 };
+
+/// Advanced Set UC4112: a Perrier and 0.278 kg of the catch of the day at
+/// 45 EUR/kg, the weight coming from the scale simulator, paid in cash.
+#[tokio::test]
+// covers: FAQ_Q201
+async fn uc4112_weighed_product() {
+    let fixture = load_uc(&advanced_set_root(), "UC4112");
+    let vars = read_variables(&fixture)["data"].clone();
+    let app = spf_app(&operator(&vars)).await;
+    // order_from skips what is not a whole quantity: the weighing is the scale's.
+    let order_id = order_from(&app, &vars, OrderType::DineIn, Some(1));
+    let scale = pos_scale_mock::MockScale::new("4711F336");
+    let address = scale.spawn().await;
+    app.state.config.lock().unwrap().scale = Some(pos_core::config::ScaleConfig {
+        tcp_address: address.to_string(),
+        price_digits: 5,
+        check_values: Vec::new(),
+        weigh_timeout_ms: 5000,
+    });
+    scale.load(278);
+    let line = do_scale_start_weighing(
+        &app.state,
+        ScaleWeighInput {
+            order_id,
+            menu_item_id: 22005,
+        },
+    )
+    .await
+    .expect("weigh");
+    assert_eq!(line.weighed_amount_cents, Some(1251));
+    mock_response(&app, read_response_envelope(&fixture)).await;
+
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+
+    assert_matches_fixture("UC4112", &requests(&app)[0], &vars, &[TABLE_SALE]);
+    app.dump_evidence("UC4112");
+}
 
 #[tokio::test]
 // covers: FAQ_Q505
@@ -1206,8 +1247,11 @@ async fn catalogue_prices_cannot_be_overridden() {
     assert!(add(&app, order_id, 22010, None).is_err());
     assert!(add(&app, order_id, 22010, Some(0)).is_err());
     assert!(add(&app, order_id, 22010, Some(2000)).is_ok());
-    // Products of unsupported features are inactive and cannot be sold.
-    assert!(add(&app, order_id, 22005, None).is_err());
+    // A product sold by weight only ever gets its line from the scale.
+    assert_eq!(
+        add(&app, order_id, 22005, None).unwrap_err(),
+        pos_engine::commands::errors::LINE_NEEDS_SCALE
+    );
 }
 
 #[tokio::test]

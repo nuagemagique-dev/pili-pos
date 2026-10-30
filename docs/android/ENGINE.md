@@ -87,6 +87,7 @@ The engine tells its shell about things that happen outside a command call throu
 |---|---|---|---|---|
 | `fdm-sign-messages` | `FdmSignMessages` | `pos_fiscal::fdm_client::SignMessages` (`mutation`, `booking_date`, `warnings`, `informations`) | after any signed event, when the FDM attached warnings or informations (`state.rs`) | always |
 | `session-locked` | `SessionLocked` | `commands::session::SessionLocked` (`reason` `manual` or `idle`, `orderError`) | `lock_session`, or the idle loop after `timers.idle_lock` without activity (reason `idle`): the active order is registered, then the session closes | always |
+| `scale-progress` | `ScaleProgress` | `commands::scale::ScaleProgress` (`stage` `waiting`, `stabilizing` or `checking`) | a weighing in progress | - |
 | `fdm-status` | `FdmStatus` | `commands::fdm_monitor::FdmHealth` (`connected`, `answered`, `severity` `blocking`, `warning` or `info`, `code`, `mandatory`, `checkedAt`, `nextCheckAt`, the times RFC 3339 UTC) | the FDM monitor after each check, and `fdm_check_now` (PD36); `nextCheckAt` is `null` without a session | always |
 | `presence-failed` | `PresenceFailed` | `commands::social::PresenceFailed` (`insz`, `clockIn`, `error`) | the presence worker, when the clock-in queued by a login was not registered (FDM error or refusal); the login itself is unaffected | always |
 | `webshop-order-received` | `WebshopOrderReceived` | `pos_hubrise_types::CallbackEvent` | HubRise poller, order created | `hubrise` |
@@ -174,6 +175,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `get_menu_items` | `menu` | `commands::menu::do_get_menu_items` | sync |
 | `get_order` | `order` | `commands::order::do_get_order` | sync |
 | `get_owner_alerts` | `alerts` | `commands::alerts::do_get_owner_alerts` | sync |
+| `get_scale_status` | `scale` | `commands::scale::do_get_scale_status` | async |
 | `get_settings` | `settings` | `commands::settings::do_get_settings` | sync |
 | `get_table_plan` | `table_plan` | `commands::table_plan::do_get_table_plan` | sync |
 | `hubrise_adopt_catalog` | `hubrise` | `commands::hubrise::do_adopt_catalog` | sync |
@@ -247,6 +249,8 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `revoke_badge` | `badges` | `commands::badges::do_revoke_badge` | sync |
 | `sales_report` | `sales_report` | `commands::sales_report::do_sales_report` | sync |
 | `save_b2b_customer` | `invoice` | `commands::invoice::do_save_b2b_customer` | sync |
+| `scale_cancel_weighing` | `scale` | `commands::scale::do_scale_cancel_weighing` | sync |
+| `scale_start_weighing` | `scale` | `commands::scale::do_scale_start_weighing` | async |
 | `search_b2b_customers` | `invoice` | `commands::invoice::do_search_b2b_customers` | sync |
 | `send_next_course` | `courses` | `commands::courses::do_send_next_course` | async |
 | `send_test_alert` | `alerts` | `commands::alerts::do_send_test_alert` | async |

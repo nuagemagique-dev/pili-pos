@@ -108,7 +108,7 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
             // product of floats (1.10 x 3 = 3.3000000000000003) is not
             // the multiple of 0.01 the FDM requires (POS spec v2.2).
             let unit_price = eur(line.unit_price_cents);
-            let line_total = eur(line.unit_price_cents * i64::from(line.quantity));
+            let line_total = eur(line.line_total());
             let vat_label = vat_code_to_label(line.vat_code);
 
             TransactionLineInput {
@@ -119,8 +119,12 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
                     product_name: line.name.clone(),
                     department_id: line.department_id.clone(),
                     department_name: line.department_name.clone(),
-                    quantity: line.quantity as f64,
-                    quantity_type: QuantityType::Piece,
+                    quantity: line.fiscal_quantity(),
+                    quantity_type: if line.is_weighed() {
+                        QuantityType::Kilogram
+                    } else {
+                        QuantityType::Piece
+                    },
                     neg_quantity_reason: (line.quantity < 0).then_some(neg_reason),
                     unit_price,
                     vats: vec![VatInput {
@@ -136,10 +140,7 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
         })
         .collect();
 
-    let transaction_total = eur(lines
-        .iter()
-        .map(|l| l.unit_price_cents * i64::from(l.quantity))
-        .sum());
+    let transaction_total = eur(lines.iter().map(OrderLine::line_total).sum());
 
     TransactionInput {
         transaction_lines,
@@ -898,6 +899,8 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "Test".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         }]
     }
 
@@ -1273,6 +1276,8 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "Test".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         }];
         let bp_id = Uuid::new_v4().to_string();
         let original = FdmReference {
@@ -1346,6 +1351,8 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "Test".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         }];
         let bp_id = Uuid::new_v4().to_string();
         let original_ref = FdmReference {
@@ -1717,6 +1724,8 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "12".to_string(),
             department_name: "Sushi".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         }];
         let sale = build_sale_input(
             &config,
@@ -1777,6 +1786,8 @@ mod tests {
                 created_at: chrono::Utc::now(),
                 department_id: "1".to_string(),
                 department_name: "Food".to_string(),
+                weight_grams: None,
+                weighed_amount_cents: None,
             })
             .collect();
         let expected_cents: i64 = lines
@@ -1850,6 +1861,8 @@ mod tests {
                     created_at: chrono::Utc::now(),
                     department_id: "1".to_string(),
                     department_name: "Food".to_string(),
+                    weight_grams: None,
+                    weighed_amount_cents: None,
                 })
                 .collect();
             let total: i64 = lines
@@ -1906,6 +1919,8 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "Boissons".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         }];
         let sale = build_sale_input(
             &config,

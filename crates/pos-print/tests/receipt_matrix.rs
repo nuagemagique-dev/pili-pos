@@ -54,6 +54,7 @@ fn line(qty: f64, desc: &str, unit: f64, vat: &str) -> TicketLine {
         unit_price: unit,
         total: qty * unit,
         vat_code: vat.to_string(),
+        weighed: false,
     }
 }
 

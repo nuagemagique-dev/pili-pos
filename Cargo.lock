@@ -4017,6 +4017,8 @@ dependencies = [
  "pos-peppol",
  "pos-print",
  "pos-printer-mock",
+ "pos-scale",
+ "pos-scale-mock",
  "qrcode",
  "reqwest",
  "rusqlite",
@@ -4258,6 +4260,26 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower",
+]
+
+[[package]]
+name = "pos-scale"
+version = "1.0.0"
+dependencies = [
+ "pos-core",
+ "tokio",
+]
+
+[[package]]
+name = "pos-scale-mock"
+version = "1.0.0"
+dependencies = [
+ "axum",
+ "pos-core",
+ "pos-scale",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

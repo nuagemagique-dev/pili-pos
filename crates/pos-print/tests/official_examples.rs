@@ -85,6 +85,7 @@ fn vat_ticket() -> FiscalTicket {
             unit_price: 3.04,
             total: 3.04,
             vat_code: "A".to_string(),
+            weighed: false,
         }],
         subtotal: 3.04,
         total: 3.05,

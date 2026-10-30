@@ -140,7 +140,7 @@ INSERT INTO menu_items (id, category_id, price_cents, vat_code, vat_category, ki
     (15023,  15,  2400,  'A', 'beverage',     0, 4, 1),  -- Matching Wines, 24,00 EUR
     (20001,  20,  2000,  'B', 'food',         1, 1, 1),  -- Carpaccio Beef, 20,00 EUR
     (22001,  22,  2800,  'B', 'food',         1, 1, 1),  -- Burger of the Chef, 28,00 EUR
-    (22005,  22,  4500,  'B', 'food',         1, 2, 1),  -- Catch of the day, 45,00 EUR par KG (vente au poids non supportee)
+    (22005,  22,  4500,  'B', 'food',         1, 2, 1),  -- Catch of the day, 45,00 EUR par KG (vente au poids, voir sold_by_weight)
     (22010,  22,     0,  'B', 'food',         1, 3, 1),  -- Dish of the day (prix libre)
     (25003,  25,  1152,  'B', 'food',         0, 1, 1),  -- Dame Blanche, 11,52 EUR
     (25008,  25,  1000,  'B', 'food',         0, 2, 1),  -- Creme brulee, 10,00 EUR
@@ -263,17 +263,20 @@ INSERT INTO translations (entity_type, entity_id, field, lang, value) VALUES
 
 -- ── Produits presents dans la liste du manuel mais non disponibles ─
 -- Ils necessitent des fonctionnalites declarees non supportees en
--- v1.0.0 (REPONSES_MANUEL_CERT_FR.md §III.F) : prix au poids (22005),
+-- v1.0.0 (REPONSES_MANUEL_CERT_FR.md §III.F) :
 -- produits composes (30001, 30010, 30020) et
 -- vouchers (40001-40004, 40020). Ils restent en base avec leur
 -- productId pour la tracabilite mais ne sont pas proposes a la vente.
 UPDATE menu_items SET active = 0
-WHERE id IN (22005, 30001, 30010, 30020, 40001, 40002, 40003, 40004, 40020);
+WHERE id IN (30001, 30010, 30020, 40001, 40002, 40003, 40004, 40020);
 -- Departements sans aucun produit disponible : masques dans la grille.
 UPDATE categories SET active = 0 WHERE id IN (30, 400);
 
 -- Plat du jour (22010) : prix libre, saisi par l'operateur a l'ajout.
 UPDATE menu_items SET open_price = 1 WHERE id = 22010;
+
+-- Catch of the day (22005) : vendu au poids, la ligne vient de la balance.
+UPDATE menu_items SET sold_by_weight = 1 WHERE id = 22005;
 
 -- Label TVA "A emporter" (manuel, lignes de produit) quand il differe
 -- du label "Sur place". NULL = meme label qu'en salle (A->A, X->X).

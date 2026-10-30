@@ -59,6 +59,8 @@ fn product(id: Option<i64>, category_id: i64, fr: &str, price: i64) -> SaveProdu
         kitchen_printer: true,
         code: Some("A1".into()),
         open_price: false,
+        sold_by_weight: false,
+        scale_tare_grams: None,
         sort_order: 1,
         active: true,
     }
@@ -734,4 +736,48 @@ async fn art_44_an_edit_never_changes_an_open_order_or_a_signed_event() {
     );
     assert_eq!(fresh.vat_code.to_string(), "A");
     assert_eq!(fresh.department_name, "Sushis et makis");
+}
+
+#[tokio::test]
+async fn a_product_sold_by_weight_keeps_its_tare_and_refuses_a_typed_price() {
+    let app = app().await;
+    let cat = do_menu_save_category(&app.state, category(None, "Sushi")).unwrap();
+
+    let mut weighed = product(None, cat.id, "Bol", 1990);
+    weighed.sold_by_weight = true;
+    weighed.scale_tare_grams = Some(30);
+    let saved = do_menu_save_product(&app.state, weighed.clone()).unwrap();
+    let p = &saved.menu.products[0];
+    assert!(p.sold_by_weight);
+    assert_eq!(p.scale_tare_grams, Some(30));
+
+    // No container: no tare on the row.
+    let mut none = weighed.clone();
+    none.id = Some(saved.id);
+    none.scale_tare_grams = Some(0);
+    let saved = do_menu_save_product(&app.state, none).unwrap();
+    assert_eq!(saved.menu.products[0].scale_tare_grams, None);
+
+    // A tare off the scale's range.
+    let mut far = weighed.clone();
+    far.scale_tare_grams = Some(10_000);
+    assert_eq!(
+        do_menu_save_product(&app.state, far).unwrap_err(),
+        errors::SCALE_TARE_INVALID
+    );
+
+    // Typed or weighed, not both.
+    let mut both = weighed.clone();
+    both.open_price = true;
+    assert!(
+        do_menu_save_product(&app.state, both)
+            .unwrap_err()
+            .contains("sold_by_weight")
+    );
+
+    // A tare means nothing on a product sold by the piece.
+    let mut piece = product(Some(saved.id), cat.id, "Bol", 500);
+    piece.scale_tare_grams = Some(30);
+    let saved = do_menu_save_product(&app.state, piece).unwrap();
+    assert_eq!(saved.menu.products[0].scale_tare_grams, None);
 }

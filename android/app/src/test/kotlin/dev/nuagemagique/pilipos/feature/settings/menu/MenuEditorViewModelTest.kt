@@ -252,6 +252,31 @@ class MenuEditorViewModelTest {
         }
 
     @Test
+    fun aProductHasOneWayToGetItsPriceAndATareOnlyOnTheScale() =
+        runTest {
+            val r = start().opened()
+            r.model.newProduct()
+
+            r.model.toggleSoldByWeight()
+            r.model.stepTare(5)
+            assertTrue(r.state.form!!.soldByWeight)
+            assertEquals(5L, r.state.form!!.scaleTareGrams)
+
+            r.model.stepTare(-5)
+            assertNull(r.state.form!!.scaleTareGrams)
+            r.model.stepTare(20_000)
+            assertEquals(9995L, r.state.form!!.scaleTareGrams)
+
+            r.model.toggleOpenPrice()
+            assertTrue(r.state.form!!.openPrice)
+            assertFalse(r.state.form!!.soldByWeight)
+            assertNull(r.state.form!!.scaleTareGrams)
+
+            r.model.toggleSoldByWeight()
+            assertFalse(r.state.form!!.openPrice)
+        }
+
+    @Test
     fun namesAndCodesAreCutAtTheEnginesLimits() =
         runTest {
             val r = start().opened()
