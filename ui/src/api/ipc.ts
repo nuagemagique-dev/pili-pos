@@ -1417,6 +1417,7 @@ export interface AlertKinds {
   fdm: boolean
   printer: boolean
   terminal: boolean
+  scale: boolean
   z_missing: boolean
   online_waiting: boolean
 }

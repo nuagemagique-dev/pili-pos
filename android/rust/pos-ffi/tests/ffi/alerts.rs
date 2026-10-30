@@ -42,6 +42,7 @@ fn input() -> OwnerAlertsInput {
             fdm: true,
             printer: true,
             terminal: false,
+            scale: true,
             z_missing: true,
             online_waiting: true,
         },

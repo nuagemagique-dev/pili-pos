@@ -176,6 +176,7 @@
     <string name="alerts_kind_printer">打印机无法连接</string>
     <string name="alerts_kind_terminal">支付终端无法连接</string>
     <string name="alerts_kind_z_missing">当日 Z 报表未完成</string>
+    <string name="alerts_kind_scale">电子秤无响应或拒绝校验</string>
     <string name="alerts_kind_online_waiting">有网上订单在等待</string>
     <string name="alerts_z_deadline">Z 报表截止时间</string>
     <string name="alerts_online_wait">网上订单等待时间</string>

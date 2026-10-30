@@ -14,7 +14,7 @@ import { formatDayTime, formatTimestamp } from '../utils/datetime'
 type KindKey = keyof ipc.AlertKinds
 type Field = 'chat_id' | 'z_deadline_hour' | 'online_wait_minutes' | 'reminder_minutes'
 
-const KINDS: KindKey[] = ['fdm', 'printer', 'terminal', 'z_missing', 'online_waiting']
+const KINDS: KindKey[] = ['fdm', 'printer', 'terminal', 'scale', 'z_missing', 'online_waiting']
 const LANGUAGES = ['fr', 'zh', 'en'] as const
 
 const { t } = useI18n()

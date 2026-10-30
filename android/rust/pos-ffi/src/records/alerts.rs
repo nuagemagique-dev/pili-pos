@@ -9,6 +9,8 @@ pub struct AlertKinds {
     pub fdm: bool,
     pub printer: bool,
     pub terminal: bool,
+    #[uniffi(default = true)]
+    pub scale: bool,
     pub z_missing: bool,
     pub online_waiting: bool,
 }
@@ -57,7 +59,7 @@ pub struct AlertTestResult {
 #[serde(deny_unknown_fields)]
 pub struct AlertLogRow {
     pub id: i64,
-    /// `fdm`, `printer`, `terminal`, `z_missing`, `online_waiting` or `test`.
+    /// `fdm`, `printer`, `terminal`, `scale`, `z_missing`, `online_waiting` or `test`.
     pub kind: String,
     /// `raised`, `reminder`, `resolved` or `test`.
     pub transition: String,

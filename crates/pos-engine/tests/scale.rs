@@ -10,7 +10,12 @@ use pos_core::config::{ScaleCheckValue, ScaleConfig};
 use pos_core::order::OrderType;
 use pos_core::user::UserRole;
 use pos_engine::commands::auth::do_set_pin;
+use pos_engine::commands::bar_slip::SlipOutcome;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pos_engine::commands::copy::do_copy_ticket;
+use pos_engine::commands::courses::{
+    CategoryCourse, CourseSettings, do_send_next_course, do_set_course_settings, do_set_line_course,
+};
 use pos_engine::commands::discount::{
     DiscountInput, DiscountKind, DiscountReason, DiscountTarget, do_apply_discount,
 };
@@ -22,13 +27,16 @@ use pos_engine::commands::order::{
     do_update_order_line_quantity,
 };
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
-use pos_engine::commands::report::do_generate_z_report;
+use pos_engine::commands::report::{
+    do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
+};
 use pos_engine::commands::sales_report::do_sales_report;
 use pos_engine::commands::scale::{
     ScaleWeighInput, do_get_scale_status, do_scale_cancel_weighing, do_scale_start_weighing,
 };
 use pos_engine::commands::settings::do_set_training_mode;
-use pos_engine::commands::tables::do_sign_pre_bill;
+use pos_engine::commands::table_transfer::do_transfer_table;
+use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_scale_mock::MockScale;
 
 const OPERATOR: &str = "12345678958";
@@ -636,4 +644,302 @@ async fn the_hubrise_echo_sends_the_kilos_and_the_price_per_kilo() {
     let body = build_hubrise_order_body(&order, &[line], &[("card", 553)], &[]);
     assert_eq!(body["items"][0]["quantity"], "0.278");
     assert_eq!(body["items"][0]["price"], "19.90 EUR");
+}
+
+// ── The rest of the order flow ─────────────────────────────────────
+
+fn table_order(app: &TestApp, table: i32) -> i64 {
+    do_create_order(
+        &app.state,
+        CreateOrderInput {
+            order_type: OrderType::DineIn,
+            table_number: Some(table),
+            user_insz: OPERATOR.into(),
+        },
+    )
+    .unwrap()
+    .id
+}
+
+fn add_soups(app: &TestApp, order_id: i64, quantity: i32) -> i64 {
+    do_add_order_line(
+        &app.state,
+        AddOrderLineInput {
+            order_id,
+            menu_item_id: SOUP,
+            quantity,
+            modifiers_json: None,
+            unit_price_cents: None,
+        },
+    )
+    .unwrap()
+    .id
+}
+
+/// The product lines of every signed event that has any.
+fn signed_products(app: &TestApp) -> Vec<(String, serde_json::Value)> {
+    app.fiscal_events()
+        .into_iter()
+        .flat_map(|event| {
+            let data: serde_json::Value =
+                serde_json::from_str(event.event_data_json.as_deref().unwrap_or("{}")).unwrap();
+            let lines = data["transaction"]["transactionLines"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default();
+            lines
+                .into_iter()
+                .map(move |l| (event.event_type.clone(), l["mainProduct"].clone()))
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn a_weighing_goes_to_the_kitchen_as_one_bowl() {
+    let (app, scale) = app_with_scale().await;
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    let order_id = order(&app);
+    scale.load(612);
+    weigh(&app, order_id).await.unwrap();
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    assert_eq!(result.kitchen_slip, Some(SlipOutcome::Printed));
+    let slips = printer.settle_slips(1).await;
+    assert!(slips[0].contains("1 x Bol malatang"), "{}", slips[0]);
+}
+
+#[tokio::test]
+async fn a_weighing_waits_for_its_course_and_keeps_its_kilos() {
+    let (app, scale) = app_with_scale().await;
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    do_set_course_settings(
+        &app.state,
+        CourseSettings {
+            enabled: true,
+            category_courses: vec![CategoryCourse {
+                category_id: 1,
+                course: 1,
+            }],
+        },
+    )
+    .unwrap();
+    let order_id = table_order(&app, 1);
+    add_soups(&app, order_id, 1);
+    scale.load(278);
+    let bowl = weigh(&app, order_id).await.unwrap();
+    do_set_line_course(&app.state, bowl.id, 2).unwrap();
+
+    assert_eq!(
+        do_sign_table_order(&app.state, order_id).await.unwrap(),
+        SlipOutcome::Printed
+    );
+    let slips = printer.settle_slips(1).await;
+    assert!(slips[0].contains("1 x Soupe"), "{}", slips[0]);
+    assert!(!slips[0].contains("1 x Bol"), "{}", slips[0]);
+
+    do_send_next_course(&app.state, order_id).await.unwrap();
+    let slips = printer.settle_slips(2).await;
+    assert!(slips[1].contains("1 x Bol malatang"), "{}", slips[1]);
+
+    let bowl_lines: Vec<_> = signed_products(&app)
+        .into_iter()
+        .filter(|(_, p)| p["quantityType"] == "KILOGRAM")
+        .collect();
+    assert_eq!(bowl_lines.len(), 1);
+    assert_eq!(bowl_lines[0].0, "P");
+    assert_eq!(bowl_lines[0].1["quantity"], serde_json::json!(0.278));
+}
+
+#[tokio::test]
+async fn a_table_transfer_keeps_the_weighing() {
+    let (app, scale) = app_with_scale().await;
+    let order_id = table_order(&app, 1);
+    scale.load(278);
+    let before = weigh(&app, order_id).await.unwrap();
+
+    let moved = do_transfer_table(&app.state, order_id, 2).await.unwrap();
+    assert_eq!((moved.from_table, moved.to_table), (1, 2));
+    let after = {
+        let db = app.state.db.lock().unwrap();
+        pos_db::queries::orders::get_order_lines(&db, order_id).unwrap()
+    };
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].id, before.id);
+    assert_eq!(after[0].weight_grams, Some(278));
+    assert_eq!(weighings(&app).len(), 1);
+
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let products = signed_products(&app);
+    assert!(!products.is_empty());
+    for (event, product) in &products {
+        assert_eq!(product["quantityType"], "KILOGRAM", "{event}: {product}");
+        assert_eq!(
+            product["quantity"].as_f64().unwrap().abs(),
+            0.278,
+            "{event}: {product}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_weighing_and_soups_on_one_ticket_go_back_each_by_its_own_rule() {
+    let (app, scale) = app_with_scale().await;
+    let order_id = order(&app);
+    scale.load(612);
+    let bowl = weigh(&app, order_id).await.unwrap();
+    let soups = add_soups(&app, order_id, 3);
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let sale = sale_event(&app);
+    let sold = signed_products(&app);
+    assert_eq!(sold[0].1["quantityType"], "KILOGRAM");
+    assert_eq!(sold[1].1["quantityType"], "PIECE");
+    assert_eq!(sold[1].1["quantity"], serde_json::json!(3.0));
+
+    // A part of the soups may go back, with the whole weighing.
+    let done = do_refund_checkout(
+        &app.state,
+        sale,
+        vec![
+            RefundItem {
+                menu_item_id: BOWL,
+                line_id: Some(bowl.id),
+                quantity: 1,
+            },
+            RefundItem {
+                menu_item_id: SOUP,
+                line_id: Some(soups),
+                quantity: 2,
+            },
+        ],
+        OPERATOR.into(),
+    )
+    .await
+    .unwrap();
+    assert!(done.success, "{:?}", done.error);
+    let products = signed_products(&app);
+    let refund = &products[products.len() - 2..];
+    assert_eq!(refund[0].1["quantity"], serde_json::json!(-0.612));
+    assert_eq!(refund[0].1["quantityType"], "KILOGRAM");
+    assert_eq!(refund[1].1["quantity"], serde_json::json!(-2.0));
+    assert_eq!(refund[1].1["quantityType"], "PIECE");
+
+    // The third soup still can; the weighing no more.
+    let again = do_refund_checkout(
+        &app.state,
+        sale,
+        vec![RefundItem {
+            menu_item_id: SOUP,
+            line_id: Some(soups),
+            quantity: 1,
+        }],
+        OPERATOR.into(),
+    )
+    .await
+    .unwrap();
+    assert!(again.success, "{:?}", again.error);
+}
+
+#[tokio::test]
+async fn the_x_and_user_reports_count_a_weighing_in_money() {
+    let (app, scale) = app_with_scale().await;
+    let order_id = order(&app);
+    scale.load(612);
+    weigh(&app, order_id).await.unwrap();
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+
+    let x = do_generate_x_report(&app.state, OPERATOR.into())
+        .await
+        .unwrap();
+    assert!(x.success, "{:?}", x.error);
+    let data: serde_json::Value = serde_json::from_str(
+        app.fiscal_events()
+            .pop()
+            .unwrap()
+            .event_data_json
+            .as_deref()
+            .unwrap(),
+    )
+    .unwrap();
+    let net: f64 = data["turnover"]["transactions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|t| t["eventLabel"] == "N")
+        .map(|t| t["amount"].as_f64().unwrap())
+        .sum();
+    assert_eq!(net, 12.18, "{data}");
+
+    let user = do_generate_user_x_report(&app.state, OPERATOR.into())
+        .await
+        .unwrap();
+    assert!(user.success, "{:?}", user.error);
+}
+
+#[tokio::test]
+async fn a_copy_and_a_pre_bill_print_the_weight_on_both_papers() {
+    let (app, scale) = app_with_scale().await;
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    let order_id = table_order(&app, 1);
+    scale.load(612);
+    weigh(&app, order_id).await.unwrap();
+
+    do_sign_pre_bill(&app.state, order_id).await.unwrap();
+    let pre_bill = printer.settle(1).await.len();
+    assert!(pre_bill >= 1);
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let sale = sale_event(&app);
+    let copy = do_copy_ticket(&app.state, sale, OPERATOR.into())
+        .await
+        .unwrap();
+    assert!(copy.success, "{:?}", copy.error);
+    printer.settle(pre_bill + 2).await;
+
+    for paper in [
+        pos_core::config::PaperWidth::Mm80,
+        pos_core::config::PaperWidth::Mm58,
+    ] {
+        let tickets: Vec<_> = printer
+            .rendered_for(paper)
+            .into_iter()
+            .filter(|t| t.contains("Bol malatang") && !t.contains("1 x Bol"))
+            .collect();
+        assert!(tickets.len() >= 3, "{paper:?}: {tickets:#?}");
+        for ticket in &tickets {
+            assert!(ticket.contains("0,612 kg"), "{paper:?}: {ticket}");
+            assert!(ticket.contains("19,90 €/kg"), "{paper:?}: {ticket}");
+        }
+    }
+}
+
+#[tokio::test]
+async fn an_installation_without_a_scale_signs_pieces_only() {
+    let (app, _scale) = app_with_scale().await;
+    app.state.config.lock().unwrap().scale = None;
+    let order_id = order(&app);
+    add_soups(&app, order_id, 2);
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let product = &last_sale_line(&app)["mainProduct"];
+    assert_eq!(product["quantityType"], "PIECE");
+    assert_eq!(product["quantity"], serde_json::json!(2.0));
+    assert!(weighings(&app).is_empty());
 }

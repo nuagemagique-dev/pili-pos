@@ -20,6 +20,8 @@
 ///   never in an FDM message. Append-only.
 /// - `scale_check_log`: the steps of the scale's software check.
 ///   Append-only.
+/// - `owner_alert_log`: rebuilt, because its `kind` CHECK now also accepts
+///   `scale`. Its rows, ids and append-only triggers are kept.
 pub(crate) const MIGRATION_080_SALE_BY_WEIGHT: &str = r#"
 ALTER TABLE menu_items ADD COLUMN sold_by_weight INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE menu_items ADD COLUMN scale_tare_grams INTEGER
@@ -82,5 +84,35 @@ CREATE TRIGGER IF NOT EXISTS scale_check_log_no_update
 BEFORE UPDATE ON scale_check_log
 BEGIN
     SELECT RAISE(ABORT, 'scale check log is append-only');
+END;
+
+DROP TRIGGER owner_alert_log_no_update;
+DROP TRIGGER owner_alert_log_no_delete;
+DROP INDEX idx_owner_alert_log_kind;
+ALTER TABLE owner_alert_log RENAME TO owner_alert_log_before_scale;
+CREATE TABLE owner_alert_log (
+    id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL CHECK(kind IN ('fdm','printer','terminal','scale','z_missing','online_waiting','test')),
+    transition TEXT NOT NULL CHECK(transition IN ('raised','reminder','resolved','test')),
+    -- Counts, a booking date or a channel name; never personal data.
+    detail TEXT,
+    outcome TEXT NOT NULL CHECK(outcome IN ('sent','failed','suppressed')),
+    http_status INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+INSERT INTO owner_alert_log (id, kind, transition, detail, outcome, http_status, created_at)
+    SELECT id, kind, transition, detail, outcome, http_status, created_at
+    FROM owner_alert_log_before_scale;
+DROP TABLE owner_alert_log_before_scale;
+CREATE INDEX idx_owner_alert_log_kind ON owner_alert_log(kind, id);
+CREATE TRIGGER owner_alert_log_no_update
+BEFORE UPDATE ON owner_alert_log
+BEGIN
+    SELECT RAISE(ABORT, 'owner_alert_log is append-only');
+END;
+CREATE TRIGGER owner_alert_log_no_delete
+BEFORE DELETE ON owner_alert_log
+BEGIN
+    SELECT RAISE(ABORT, 'owner_alert_log is append-only');
 END;
 "#;
