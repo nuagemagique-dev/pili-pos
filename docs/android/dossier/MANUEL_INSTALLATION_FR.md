@@ -23,11 +23,11 @@ dans `PLATEFORME_ANDROID_FR.md` §3, le stockage dans §5.
 | Boîtier FDM | FDM module2 (PRACSYS, certifié SCE 2.0) ou autre FDM certifié SCE 2.0 | 1 |
 | Imprimante thermique | Epson TM-m30III, raccordée au LAN (le POS imprime en TCP brut, port 9100) | 1 |
 | Tiroir-caisse | Standard, connexion RJ11 vers l'imprimante | 1 |
-| Câbles Ethernet | RJ45 Cat-5e ou supérieur : FDM et imprimante (et terminal si son modèle offre une liaison filaire, sinon Wi-Fi) | 2 ou 3 |
+| Câbles Ethernet | RJ45 Cat-5e ou supérieur : FDM, imprimante et terminal (port RJ45 du D3 Pro ; sans câble, Wi-Fi) | 2 ou 3 |
 | Switch / box internet | 4 ports minimum | 1 |
 | Clé USB de mise en service | Toute taille, FAT32 ou exFAT : elle porte le lot signé (§2) | 1 |
-| Carte microSD (recommandée) | microSDXC de qualité, exFAT, 64 ou 128 Go : exports vers le SPF et mises à jour, jamais la base (§8) | 1 |
-| Lecteur de badges (option) | Lecteur de cartes NFC avec câble USB qui se comporte comme un clavier (il tape le numéro de la carte puis Entrée) ; à brancher à l'adaptateur USB du Sunmi D3 Pro. **L'unité principale du D3 Pro n'a pas de NFC** ; son écran client optionnel est annoncé avec NFC, à confirmer sur place (§4.4 bis) | 0 ou 1 |
+| Carte microSD (recommandée) | microSDXC de qualité, exFAT, 64 ou 128 Go, dans l'emplacement microSD du D3 Pro (fiche du fabricant) : exports vers le SPF et mises à jour, jamais la base (§8). Une clé USB en exFAT de même taille convient aussi | 1 |
+| Lecteur de badges (option) | Lecteur de cartes NFC avec câble USB qui se comporte comme un clavier (il tape le numéro de la carte puis Entrée) ; à brancher sur un port USB-A du Sunmi D3 Pro. **L'unité principale du D3 Pro n'a pas de NFC** ; son écran client optionnel est annoncé avec NFC, à confirmer sur place (§4.4 bis) | 0 ou 1 |
 | Poste du technicien | Ordinateur avec `adb`, `shasum` et `minisign` (§3.2) ; onduleur de 600 VA recommandé pour la caisse | 1 |
 
 Ni puce TPM ni réglage BIOS (`SECURITE_BD_FR.md` §3.6). **Le terminal ne
@@ -408,8 +408,8 @@ Le terminal, le FDM et l'imprimante sont sur le **même LAN privé**. Plan
 type, subnet `192.168.1.0/24`, réservations DHCP sur le routeur : terminal
 `192.168.1.10`, FDM `192.168.1.20` (HTTPS 443, §7.3), imprimante
 `192.168.1.30` (TCP 9100), box `192.168.1.1` (`SCHEMA_ASSEMBLAGE_FR.md`
-§4). Le terminal n'ouvre aucun port en écoute. Il se relie en Wi-Fi ou
-par câble si son modèle en offre un.
+§4). Le terminal n'ouvre aucun port en écoute. Il se relie par câble
+(port RJ45 du D3 Pro) ou en Wi-Fi.
 
 **Comme construit en 1.0.0, l'application n'a aucun écran de réseau** :
 le mode kiosque suspend les Réglages d'Android
@@ -418,7 +418,7 @@ un réseau sur place. Le Wi-Fi du site (SSID et mot de passe) se prépare
 **au banc, avant l'import du lot** (§3.2 point 5), pendant que le
 débogage USB est encore actif : il est coupé dès qu'un enregistrement de
 provisionnement existe (`PLATEFORME_ANDROID_FR.md` §3.3). Sur un site
-sans Wi-Fi, utiliser le câble si le modèle en offre un. Changer de
+sans Wi-Fi, utiliser le câble (port RJ45 du terminal). Changer de
 réseau ou de mot de passe après la livraison n'est pas possible sur
 place en 1.0.0, et ne se règle jamais par une réinitialisation ni une
 désinstallation chez le client (§9) : il faut une version déclarée plus
