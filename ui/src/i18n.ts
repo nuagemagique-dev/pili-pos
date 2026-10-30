@@ -889,6 +889,11 @@ const coreMessages: Messages = {
     en: 'Invalid nightly export setting. Detail: {detail}',
     zh: '夜间导出设置无效。 详情：{detail}',
   },
+  err_config_scale: {
+    fr: 'Réglage de la balance invalide. Détail : {detail}',
+    en: 'Invalid scale setting. Detail: {detail}',
+    zh: '电子秤设置无效。 详情：{detail}',
+  },
   err_config_payment_terminal: {
     fr: 'Réglage du terminal de paiement invalide. Détail : {detail}',
     en: 'Invalid payment terminal setting. Detail: {detail}',
@@ -1213,6 +1218,29 @@ const coreMessages: Messages = {
   sw_version: { fr: 'Version', en: 'Version', zh: '版本' },
   lock: { fr: 'Verrouiller', en: 'Lock', zh: '锁屏' },
   status_terminal: { fr: 'Terminal', en: 'Terminal', zh: '刷卡机' },
+  status_scale: { fr: 'Balance', en: 'Scale', zh: '电子秤' },
+  scale_busy: { fr: 'pesée en cours', en: 'weighing in progress', zh: '正在称重' },
+  scale_check_refused: {
+    fr: 'contrôle du logiciel refusé',
+    en: 'software check refused',
+    zh: '软件校验被拒绝',
+  },
+  scale_title: { fr: 'Pesée', en: 'Weighing', zh: '称重' },
+  scale_stage_waiting: {
+    fr: 'Posez le produit sur la balance',
+    en: 'Put the product on the scale',
+    zh: '请将商品放到秤上',
+  },
+  scale_stage_stabilizing: {
+    fr: 'Stabilisation du poids…',
+    en: 'Weight settling…',
+    zh: '重量稳定中…',
+  },
+  scale_stage_checking: {
+    fr: 'Contrôle par la balance…',
+    en: 'The scale is checking…',
+    zh: '秤正在校验…',
+  },
   status_kitchen: { fr: 'Cuisine', en: 'Kitchen', zh: '厨房' },
   fdm_closes_in: { fr: 'se ferme dans {s} s', en: 'closes in {s} s', zh: '{s} 秒后关闭' },
   fdm_retry_in: {
@@ -1563,6 +1591,101 @@ const coreMessages: Messages = {
     fr: 'Ce bon cadeau ne peut pas être utilisé ici (annulé, ou émis en mode formation / normal).',
     en: 'This gift voucher cannot be used here (cancelled, or issued in training / normal mode).',
     zh: '此礼品券无法在此使用（已作废，或在培训/正常模式下发行）。',
+  },
+  err_line_needs_scale: {
+    fr: 'Ce produit est vendu au poids : il passe par la balance.',
+    en: 'This product is sold by weight: it goes through the scale.',
+    zh: '此商品按重量销售：必须通过电子秤称重。',
+  },
+  err_line_weighed_fixed: {
+    fr: "Le poids d'une pesée ne change pas : supprimez la ligne et pesez à nouveau.",
+    en: 'A weighing cannot change: remove the line and weigh again.',
+    zh: '称重结果不能修改：请删除该行并重新称重。',
+  },
+  err_refund_weighed_line_whole: {
+    fr: 'Une pesée se rembourse en entier.',
+    en: 'A weighing is refunded whole.',
+    zh: '称重商品须整笔退款。',
+  },
+  err_scale_not_configured: {
+    fr: "Aucune balance n'est configurée sur cette caisse.",
+    en: 'No scale is configured on this till.',
+    zh: '此收银机未配置电子秤。',
+  },
+  err_scale_not_sold_by_weight: {
+    fr: "Ce produit n'est pas vendu au poids.",
+    en: 'This product is not sold by weight.',
+    zh: '此商品不按重量销售。',
+  },
+  err_scale_busy: {
+    fr: 'Une pesée est déjà en cours.',
+    en: 'A weighing is already in progress.',
+    zh: '正在进行另一次称重。',
+  },
+  err_scale_unreachable: {
+    fr: "La balance ne répond pas. Vérifiez qu'elle est allumée et branchée.",
+    en: 'The scale does not answer. Check that it is on and connected.',
+    zh: '电子秤无响应。请检查是否已开机并连接。',
+  },
+  err_scale_below_min: {
+    fr: "Poids sous le minimum de la balance : rien n'a été ajouté.",
+    en: "Weight below the scale's minimum: nothing was added.",
+    zh: '重量低于秤的最小称量：未添加任何商品。',
+  },
+  err_scale_underload: {
+    fr: 'La balance indique une sous-charge. Videz le plateau et remettez-la à zéro.',
+    en: 'The scale reports an underload. Empty the tray and zero it.',
+    zh: '电子秤显示欠载。请清空秤盘并归零。',
+  },
+  err_scale_overload: {
+    fr: 'La balance indique une surcharge : retirez du poids.',
+    en: 'The scale reports an overload: take some weight off.',
+    zh: '电子秤显示超载：请减少重量。',
+  },
+  err_scale_no_motion: {
+    fr: "La balance n'a pas vu de mouvement depuis la dernière pesée. Retirez le produit et reposez-le.",
+    en: 'The scale saw no movement since the last weighing. Lift the product and put it back.',
+    zh: '自上次称重后秤未检测到变化。请拿起商品后重新放上。',
+  },
+  err_scale_price_refused: {
+    fr: 'La balance refuse ce prix au kilo.',
+    en: 'The scale refuses this price per kilo.',
+    zh: '电子秤拒绝此每公斤价格。',
+  },
+  err_scale_error: {
+    fr: "La balance signale une erreur : rien n'a été ajouté.",
+    en: 'The scale reports an error: nothing was added.',
+    zh: '电子秤报告错误：未添加任何商品。',
+  },
+  err_scale_check_failed: {
+    fr: "La balance a refusé le contrôle du logiciel : aucune pesée n'est possible.",
+    en: 'The scale refused the software check: no weighing is possible.',
+    zh: '电子秤拒绝了软件校验：无法称重。',
+  },
+  err_scale_price_mismatch: {
+    fr: "Le montant de la balance ne correspond pas au poids et au prix : rien n'a été ajouté.",
+    en: "The scale's amount does not match the weight and the price: nothing was added.",
+    zh: '电子秤的金额与重量和价格不符：未添加任何商品。',
+  },
+  err_scale_unit_unsupported: {
+    fr: "La balance n'est pas réglée en kilogrammes.",
+    en: 'The scale is not set to kilograms.',
+    zh: '电子秤未设置为公斤。',
+  },
+  err_scale_cancelled: {
+    fr: 'Pesée annulée.',
+    en: 'Weighing cancelled.',
+    zh: '称重已取消。',
+  },
+  err_scale_timed_out: {
+    fr: "Aucun poids stable à temps : rien n'a été ajouté.",
+    en: 'No stable weight in time: nothing was added.',
+    zh: '未能及时获得稳定重量：未添加任何商品。',
+  },
+  err_scale_tare_invalid: {
+    fr: 'La tare va de 0 à 9 999 g.',
+    en: 'The tare goes from 0 to 9,999 g.',
+    zh: '皮重范围为 0 至 9999 克。',
   },
   err_gift_voucher_expired: {
     fr: 'Ce bon cadeau a expiré.',

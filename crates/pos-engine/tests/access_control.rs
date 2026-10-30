@@ -1379,6 +1379,8 @@ async fn menu_editor_commands_follow_the_roles() {
         kitchen_printer: true,
         code: None,
         open_price: false,
+        sold_by_weight: false,
+        scale_tare_grams: None,
         sort_order: 1,
         active: true,
     };

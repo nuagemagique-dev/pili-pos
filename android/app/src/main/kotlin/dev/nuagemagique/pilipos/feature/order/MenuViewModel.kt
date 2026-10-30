@@ -146,6 +146,7 @@ internal class MenuViewModel(
     private val gateway = entry.gateway()
     private val settings = entry.settings()
     private val data = MutableStateFlow(Data())
+    private val weighing = WeighFlow(entry, viewModelScope) { change -> data.update { it.copy(dialog = change(it.dialog)) } }
     private val reload = MutableStateFlow(0)
     private val menuLock = Mutex()
     private var itemsJob: Job? = null
@@ -210,6 +211,7 @@ internal class MenuViewModel(
         viewModelScope.launch {
             entry.events().events.collect { event ->
                 if (event is PosEvent.CatalogUpdated || event is PosEvent.Resync) reload.update { it + 1 }
+                if (event is PosEvent.ScaleProgress) weighing.progress(event.progress.stage)
             }
         }
         viewModelScope.launch { active.collect { on -> if (on) loadGiftVoucherSetting() } }
@@ -424,6 +426,7 @@ internal class MenuViewModel(
             data.value.allergenMode && !(data.value.soldOutMode && look.value.canPay) -> openAllergenSheet(item)
             // Only the order of the route takes products: while another one is current the menu does nothing.
             soldOutTap(item) || !isRouteOrderCurrent() -> Unit
+            item.soldByWeight -> weighing.start(item)
             item.openPrice -> data.update { it.copy(dialog = OrderDialog.Price(item)) }
             // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
             else ->
@@ -432,6 +435,9 @@ internal class MenuViewModel(
                 }
         }
     }
+
+    /** "Back" in the weighing dialog (`WeighDialog.vue`). */
+    fun cancelWeighing() = weighing.cancel()
 
     /**
      * The sold-out side of a tap (true when it was handled). In the "Épuisé" mode (cashier and manager) a tap opens the

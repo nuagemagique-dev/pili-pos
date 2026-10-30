@@ -32,6 +32,7 @@ import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.ui.components.NumPad
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.format.formatEuro
+import dev.nuagemagique.pilipos.ui.format.formatWeight
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -334,7 +335,7 @@ private fun SalesTables(
                             color = PiliTheme.colors.textPrimary,
                         )
                         Text(
-                            SalesRange.showQuantity(p.quantityMilli),
+                            if (p.weighed) formatWeight(p.quantityMilli) else SalesRange.showQuantity(p.quantityMilli),
                             fontFamily = FontFamily.Monospace,
                             textAlign = TextAlign.End,
                             color = if (p.quantityMilli < 0L) PiliTheme.colors.accentDanger else PiliTheme.colors.textPrimary,

@@ -20,4 +20,5 @@ mod lifecycle;
 mod menu_admin;
 mod orders;
 mod reports;
+mod scale;
 mod support;

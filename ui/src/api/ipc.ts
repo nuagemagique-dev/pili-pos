@@ -350,6 +350,8 @@ export interface PosSettings {
   configProblems: string[]
   /** Kind of the linked card payment terminal (as in pos.json); absent when cards are typed by hand. */
   paymentTerminal?: string
+  /** pos.json has a `scale` section: products sold by weight can be sold. */
+  scaleConfigured?: boolean
 }
 
 export function getSettings(): Promise<PosSettings> {
@@ -1310,6 +1312,10 @@ export interface AdminProduct {
   kitchen_printer: boolean
   code: string | null
   open_price: boolean
+  /** `price_cents` is then the price per kilo; the line comes from the scale. */
+  sold_by_weight: boolean
+  /** Weight of the empty container, sent to the scale with the price. */
+  scale_tare_grams: number | null
   sort_order: number
   active: boolean
 }
@@ -1652,4 +1658,26 @@ export function listGiftVouchers(status?: string): Promise<GiftVoucherView[]> {
 /** Prints a voucher again, marked DUPLICATA (managers only). */
 export function printGiftVoucher(voucherId: number): Promise<SlipOutcome> {
   return invoke('print_gift_voucher', { voucherId })
+}
+
+// The checkout scale (crates/pos-engine/src/commands/scale.rs)
+export interface ScaleStatus {
+  configured: boolean
+  connected: boolean
+  busy: boolean
+  /** Last verdict of its software check: ok, refused, no_values, unknown. */
+  check: string
+}
+
+export function getScaleStatus(): Promise<ScaleStatus> {
+  return invoke('get_scale_status')
+}
+
+/** Weighs the product and adds the line; resolves once the load is stable. */
+export function scaleStartWeighing(orderId: number, menuItemId: number): Promise<OrderLine> {
+  return invoke('scale_start_weighing', { input: { order_id: orderId, menu_item_id: menuItemId } })
+}
+
+export function scaleCancelWeighing(): Promise<void> {
+  return invoke('scale_cancel_weighing')
 }

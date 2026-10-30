@@ -43,11 +43,13 @@ class CartAmounts
             return if (row != null) {
                 LineAmount.Total(row.totalInclCents)
             } else {
-                LineAmount.PerUnit(line.quantity, line.unitPriceCents)
+                LineAmount.PerUnit(line.quantity, line.weighedAmountCents ?: line.unitPriceCents)
             }
         }
 
-        private fun vatLine(line: CartLine): VatLine = VatLine(line.vatCode, line.unitPriceCents, line.quantity.toLong())
+        /** A weighing counts for the scale's amount: its unit price is per kilo. */
+        private fun vatLine(line: CartLine): VatLine =
+            VatLine(line.vatCode, line.weighedAmountCents ?: line.unitPriceCents, line.quantity.toLong())
 
         /**
          * The line, and its price changes as one more line of quantity 1 and a negative unit price (a till discount

@@ -92,6 +92,8 @@ export interface MenuItem {
   vat_code_takeaway: VatCode | null
   /** Free-price product: the operator enters the price when adding it. */
   open_price: boolean
+  /** Sold by weight: `price_cents` is the price per kilo and the scale gives the line. */
+  sold_by_weight?: boolean
   kitchen_printer: boolean
   sort_order: number
   active: boolean
@@ -143,6 +145,10 @@ export interface OrderLine {
   created_at: string
   department_id: string
   department_name: string
+  /** A weighing: the net weight read from the scale; `unit_price_cents` is then per kilo. */
+  weight_grams?: number | null
+  /** A weighing: the amount the scale computed, for one `quantity`. */
+  weighed_amount_cents?: number | null
 }
 
 /** A price change on a cart line (a till discount, an online order's). */
@@ -412,6 +418,8 @@ export interface SalesProduct {
   /** Thousandths of a unit; negative for refunds. */
   quantityMilli: number
   amountCents: number
+  /** Sold by weight: `quantityMilli` is then in grams. */
+  weighed?: boolean
 }
 
 export interface SalesHour {

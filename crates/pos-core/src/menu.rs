@@ -40,6 +40,10 @@ pub struct MenuItem {
     /// Free-price product: the operator enters the unit price.
     #[serde(default)]
     pub open_price: bool,
+    /// Sold by weight: `price_cents` is the price per kilo and the line
+    /// comes from the scale.
+    #[serde(default)]
+    pub sold_by_weight: bool,
     pub kitchen_printer: bool,
     pub sort_order: i32,
     pub active: bool,

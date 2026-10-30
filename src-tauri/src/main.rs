@@ -312,6 +312,9 @@ fn main() {
         ipc::badges::link_badge,
         ipc::badges::revoke_badge,
         ipc::badges::badge_tap,
+        ipc::scale::get_scale_status,
+        ipc::scale::scale_start_weighing,
+        ipc::scale::scale_cancel_weighing,
         // Financial (Event F - cash in/out, drawer)
         ipc::financial::money_in_out,
         ipc::financial::open_drawer_fiscal,

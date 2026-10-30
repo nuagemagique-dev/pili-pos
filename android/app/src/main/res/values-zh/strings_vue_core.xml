@@ -208,6 +208,13 @@
     <string name="sw_version">版本</string>
     <string name="lock">锁屏</string>
     <string name="status_terminal">刷卡机</string>
+    <string name="status_scale">电子秤</string>
+    <string name="scale_busy">正在称重</string>
+    <string name="scale_check_refused">软件校验被拒绝</string>
+    <string name="scale_title">称重</string>
+    <string name="scale_stage_waiting">请将商品放到秤上</string>
+    <string name="scale_stage_stabilizing">重量稳定中…</string>
+    <string name="scale_stage_checking">秤正在校验…</string>
     <string name="status_kitchen">厨房</string>
     <string name="fdm_closes_in">{s} 秒后关闭</string>
     <string name="fdm_retry_in">{s} 秒后自动重试</string>

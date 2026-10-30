@@ -43,6 +43,19 @@ const terminalLight = computed(() => {
       : [t('check_unreachable'), status.detail].filter(Boolean).join(': ')
   return { state, title: why }
 })
+const scaleStatus = ref<ipc.ScaleStatus | null>(null)
+// Hidden until pos.json has a scale. A refused software check is red: no weighing can pass.
+const scaleLight = computed(() => {
+  const status = scaleStatus.value
+  if (!status?.configured) return null
+  if (status.check === 'refused' || status.check === 'no_values') {
+    return { state: 'err' as Light, title: t('scale_check_refused') }
+  }
+  if (status.busy) return { state: 'warn' as Light, title: t('scale_busy') }
+  return status.connected
+    ? { state: 'ok' as Light, title: t('check_connected') }
+    : { state: 'err' as Light, title: t('check_unreachable') }
+})
 // Only while the integration runs.
 const integrations = useIntegrationsStore()
 const hubriseLights = computed(() =>
@@ -77,6 +90,14 @@ async function checkTerminal() {
     terminalStatus.value = await ipc.checkPaymentTerminal()
   } catch {
     terminalStatus.value = null
+  }
+}
+
+async function checkScale() {
+  try {
+    scaleStatus.value = await ipc.getScaleStatus()
+  } catch {
+    scaleStatus.value = null
   }
 }
 
@@ -126,10 +147,12 @@ let hubriseTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   void checkPrinters()
   void checkTerminal()
+  void checkScale()
   void checkHubrise()
   printerTimer = setInterval(() => {
     void checkPrinters()
     void checkTerminal()
+    void checkScale()
   }, 30_000)
   hubriseTimer = setInterval(() => void checkHubrise(), 60_000)
 })
@@ -162,6 +185,16 @@ onUnmounted(() => {
     >
       <span class="dot" />
       <span>{{ t('status_terminal') }}</span>
+    </div>
+    <div
+      v-if="scaleLight"
+      class="light"
+      :class="scaleLight.state"
+      :title="scaleLight.title"
+      data-testid="light-scale"
+    >
+      <span class="dot" />
+      <span>{{ t('status_scale') }}</span>
     </div>
     <div v-for="light in hubriseLights" :key="light.label" class="light" :class="light.state">
       <span class="dot" />

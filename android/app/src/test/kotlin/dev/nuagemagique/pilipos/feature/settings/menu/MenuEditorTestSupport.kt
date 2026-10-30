@@ -27,7 +27,7 @@ internal val makiProduct =
     )
 
 internal val edamameProduct =
-    AdminProduct(11L, 1L, mapOf("fr" to "Edamame"), 450L, "B", null, false, null, false, 2, false)
+    AdminProduct(11L, 1L, mapOf("fr" to "Edamame"), 450L, "B", null, false, null, false, false, null, 2, false)
 
 internal val sauceGroup = AdminGroup(20L, 10L, mapOf("fr" to "Sauce"), 0, 2, 1, true)
 internal val sojaOption = AdminOption(30L, 20L, mapOf("fr" to "Soja"), 50L, 1, true)

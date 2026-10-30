@@ -11,9 +11,11 @@ import CategoryTabs from '../components/CategoryTabs.vue'
 import MenuGrid from '../components/MenuGrid.vue'
 import CartSidebar from '../components/CartSidebar.vue'
 import PriceDialog from '../components/PriceDialog.vue'
+import WeighDialog from '../components/WeighDialog.vue'
 import SoldOutDialog from '../components/SoldOutDialog.vue'
 import SoldOutList from '../components/SoldOutList.vue'
 import { useToastStore } from '../stores/toast'
+import { usePosStore } from '../stores/pos'
 import AllergenSheetDialog from '../components/AllergenSheetDialog.vue'
 import { useAllergensStore } from '../stores/allergens'
 import { useGiftVouchersStore } from '../stores/giftVouchers'
@@ -132,6 +134,10 @@ async function handleAddItem(item: MenuItem) {
     if (menu.selectedCategoryId) await menu.loadItems(menu.selectedCategoryId)
     return
   }
+  if (item.sold_by_weight) {
+    await weigh(item)
+    return
+  }
   if (item.open_price) {
     pricing.value = item
     return
@@ -143,6 +149,21 @@ async function handleAddItem(item: MenuItem) {
     return
   }
   await order.addItem(item)
+}
+
+// Product on the scale: the dialog stays up until the engine has the line or a refusal.
+const pos = usePosStore()
+const weighing = ref<MenuItem | null>(null)
+
+async function weigh(item: MenuItem) {
+  if (!pos.settings?.scaleConfigured) {
+    useToastStore().show(t('err_scale_not_configured'), 'error', 4000)
+    return
+  }
+  if (weighing.value) return
+  weighing.value = item
+  await order.addLineWith(item, 1, (orderId) => ipc.scaleStartWeighing(orderId, item.id))
+  weighing.value = null
 }
 
 async function handlePriceConfirmed(priceCents: number) {
@@ -255,6 +276,7 @@ async function handlePriceConfirmed(priceCents: number) {
     <SoldOutList v-if="showSoldOutList" @done="showSoldOutList = false" />
     <AllergenSheetDialog />
 
+    <WeighDialog v-if="weighing" :item-name="weighing.name" />
     <PriceDialog
       v-if="sellingVoucher"
       :title="t('gv_sell_title')"

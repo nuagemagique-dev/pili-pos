@@ -365,6 +365,7 @@ fn ticket(full: bool) -> EngineFiscalTicket {
             unit_price: 28.0,
             total: 42.0,
             vat_code: "B".into(),
+            weighed: false,
         }],
         subtotal: 37.5,
         total: 42.0,

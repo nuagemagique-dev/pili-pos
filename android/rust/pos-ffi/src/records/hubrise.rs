@@ -149,6 +149,9 @@ pub enum Attention {
     FractionalQuantity {
         sku_ref: String,
     },
+    SoldByWeight {
+        sku_ref: String,
+    },
     /// A price HubRise sent that is not euro cents.
     BadPrice {
         at: String,

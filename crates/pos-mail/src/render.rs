@@ -233,6 +233,7 @@ mod tests {
                 unit_price: 10.0,
                 total: 10.0,
                 vat_code: "B".into(),
+                weighed: false,
             }],
             Some("https://www.gs2.be/1234567890abcdefghi012345678901234"),
         )
@@ -320,6 +321,7 @@ mod tests {
                 unit_price: 1.0,
                 total: 1.0,
                 vat_code: "B".into(),
+                weighed: false,
             }],
             Some("https://www.gs2.be/1234567890abcdefghi012345678901234"),
         );

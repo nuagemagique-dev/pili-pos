@@ -57,6 +57,7 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
                 unit_price: 12.00,
                 total: 24.00,
                 vat_code: "A".to_string(),
+                weighed: false,
             },
             TicketLine {
                 quantity: 1.0,
@@ -64,6 +65,7 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
                 unit_price: 28.00,
                 total: 28.00,
                 vat_code: "B".to_string(),
+                weighed: false,
             },
         ],
         subtotal: 52.00,
@@ -147,6 +149,7 @@ fn example_n_split_payment() {
             unit_price: 11.52,
             total: 11.52,
             vat_code: "B".to_string(),
+            weighed: false,
         },
         TicketLine {
             quantity: 1.0,
@@ -154,6 +157,7 @@ fn example_n_split_payment() {
             unit_price: 3.34,
             total: 3.34,
             vat_code: "B".to_string(),
+            weighed: false,
         },
     ];
     ticket.subtotal = 14.86;
@@ -362,6 +366,7 @@ fn example_n_gift_voucher_payment() {
         unit_price: 58.0,
         total: 116.0,
         vat_code: "B".to_string(),
+        weighed: false,
     }];
     ticket.subtotal = 116.0;
     ticket.total = 116.0;

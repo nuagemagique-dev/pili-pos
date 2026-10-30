@@ -756,6 +756,7 @@ private fun InfoPanel(info: PosSettings?) {
                 InfoRow(vueText("settings_fdm_label"), info.fdmUrl)
                 InfoRow(vueText("settings_printer_label"), info.printerAddress ?: vueText("printer_none"))
                 InfoRow(uiText(R.string.ui_eft_terminal_label), paymentTerminalLabel(info.paymentTerminal))
+                InfoRow(vueText("settings_scale_label"), vueText(if (info.scaleConfigured) "settings_scale_on" else "settings_scale_none"))
             }
         }
     }

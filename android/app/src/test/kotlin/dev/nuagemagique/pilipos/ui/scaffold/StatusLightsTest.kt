@@ -27,6 +27,7 @@ import org.robolectric.annotation.Config
 import uniffi.pos_ffi.Backlog
 import uniffi.pos_ffi.FdmSeverity
 import uniffi.pos_ffi.PaymentTerminalStatus
+import uniffi.pos_ffi.ScaleStatus
 import uniffi.pos_ffi.SyncState
 
 /** A probe the test drives by hand and whose calls it counts. */
@@ -39,6 +40,7 @@ internal class FakeProbe(
     var kitchenAnswer: () -> Boolean? = { null }
     var hubriseAnswer: () -> uniffi.pos_ffi.HubriseStatus = { quietHubrise() }
     var terminalAnswer: () -> PaymentTerminalStatus = { noTerminal() }
+    var scaleAnswer: () -> ScaleStatus = { ScaleStatus(false, false, false, "unknown") }
     var terminalCalls = 0
     var ticketCalls = 0
     var kitchenCalls = 0
@@ -62,6 +64,8 @@ internal class FakeProbe(
         terminalCalls += 1
         return terminalAnswer()
     }
+
+    override suspend fun scale(): ScaleStatus = scaleAnswer()
 
     override suspend fun hubrise(): uniffi.pos_ffi.HubriseStatus {
         hubriseCalls += 1
@@ -291,6 +295,24 @@ class StatusLightsTest {
         )
         // A payment running is not an error, whatever the detail says.
         assertEquals(LightState.WARN, terminalLight(terminal(connected = true, busy = true, detail = "x"))?.state)
+    }
+
+    @Test
+    fun theScaleLightMapsTheEnginesAnswer() {
+        fun status(
+            configured: Boolean = true,
+            connected: Boolean = true,
+            busy: Boolean = false,
+            check: String = "ok",
+        ) = ScaleStatus(configured, connected, busy, check)
+
+        assertEquals(null, scaleLight(status(configured = false)))
+        assertEquals(LightState.OK, scaleLight(status())?.state)
+        assertEquals(LightState.WARN, scaleLight(status(busy = true))?.state)
+        assertEquals(LightState.ERR, scaleLight(status(connected = false))?.state)
+        // A refused software check blocks every weighing, whatever the rest says.
+        assertEquals(ScaleLight(LightState.ERR, "scale_check_refused"), scaleLight(status(check = "refused")))
+        assertEquals(LightState.ERR, scaleLight(status(busy = true, check = "no_values"))?.state)
     }
 
     @Test

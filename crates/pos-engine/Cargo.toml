@@ -13,6 +13,8 @@ pos-mail = { path = "../pos-mail" }
 pos-export = { path = "../pos-export" }
 # The card payment terminal linked to the till (commands/eft.rs).
 pos-eft = { path = "../pos-eft" }
+# The checkout scale (commands/scale.rs).
+pos-scale = { path = "../pos-scale" }
 pos-hubrise = { path = "../pos-hubrise", optional = true }
 pos-catalog = { path = "../pos-catalog", optional = true }
 pos-hubrise-types = { path = "../pos-hubrise-types", optional = true }
@@ -48,6 +50,7 @@ tempfile = "3"
 # owner alert bot token (tests/owner_alerts.rs) in the logs.
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
 wiremock = "0.6"
+pos-scale-mock = { path = "../pos-scale-mock" }
 # The admission image's mock FDM, served in-process by tests/admission_mock.rs.
 pos-fdm-mock = { path = "../pos-fdm-mock" }
 # A printer with switchable paper, cover and error states.

@@ -61,6 +61,10 @@ pub struct Item {
     pub vat_takeaway: VatCode,
     /// The operator enters the price.
     pub open_price: bool,
+    /// Weighed at the till: `price_cents` is the price per kilo. Left out
+    /// of the hash when false, so a catalog without it keeps its hash.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub sold_by_weight: bool,
     /// Printed on the bar / kitchen slip.
     pub kitchen: bool,
     /// On the POS grid (a product can be sold online only).

@@ -625,7 +625,7 @@ internal class CheckoutViewModel(
                 Timber.d(it, "Checkout recap amounts not read")
                 CheckoutSummary(
                     lines,
-                    lines.map { line -> LineAmount.PerUnit(line.quantity, line.unitPriceCents) },
+                    lines.map { line -> LineAmount.PerUnit(line.quantity, line.weighedAmountCents ?: line.unitPriceCents) },
                     emptyList(),
                     CashDisplay.sumCents(lines.map { line -> line.discountCents }),
                 )

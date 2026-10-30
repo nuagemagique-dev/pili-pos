@@ -1,9 +1,33 @@
 # Balance de caisse Dibal DPOS-400 (note de conception)
 
-Statut : conception uniquement, aucun code. Cible : `pili-pos-android` 1.0.0, pas encore soumise. La vente au
-poids et la DPOS-400 font partie de la v1 (décision du propriétaire, 2026-10-30).
+Statut : phases 1 et 2 écrites sur la branche `feat/scale-dialog06` (voir « État de l'implémentation » ci-dessous),
+essayées contre le simulateur uniquement, jamais sur une balance. Cible : `pili-pos-android` 1.0.0, pas encore soumise.
+La vente au poids et la DPOS-400 font partie de la v1 (décision du propriétaire, 2026-10-30).
 Public : le responsable du prochain lot et le propriétaire. Langue : français (interne).
 Décisions à venir : préfixe `WGT-D` dans `docs/android/DECISIONS.md`.
+
+## État de l'implémentation (2026-10-30)
+
+Écrit et testé : `crates/pos-scale` (protocole sans E/S et pilote TCP), `crates/pos-scale-mock`, la section `scale` de
+`pos.json`, la migration 80, la ligne pesée (moteur, ticket, rapports, remboursement, écho HubRise, refus en ligne), le
+rejeu de UC4112, les trois commandes, et les écrans Vue et Compose. Hypothèse de départ du propriétaire : la balance
+parle bien Dialog 06 (code 24 du menu).
+
+Ce qui s'écarte du texte ci-dessous, et prévaut sur lui :
+
+- **TCP seulement.** Le `transport` à plusieurs valeurs, `android_usb`, `ScaleLink` et le pont Kotlin (7.3) ne sont pas
+  écrits : sans balance sur la table, on ne connaît ni la puce ni la classe USB. La section est
+  `{ "tcp_address", "price_digits", "check_values", "weigh_timeout_ms" }`. Le raccordement réel reste la phase 3.
+  Un serveur série vers TCP devrait marcher, sans avoir été essayé.
+- **Enregistrement 20.** Dans la spécification Bizerba, 20 va de la caisse vers la balance (version logique active ou
+  non). Le verdict du contrôle est l'enregistrement 11 : `D0` 30h refusé, 31h accepté, 32h demande avec `Z`.
+- **Enregistrement 01.** Le schéma de la spécification met `ESC` avant `ETX`, l'exemple de sa page 6 non. Le pilote suit
+  le schéma. À vérifier sur une vraie balance.
+- **Somme de contrôle.** L'algorithme est inconnu. Le pilote envoie les valeurs fixes de `scale.check_values` et ignore
+  `Z`. Le simulateur accepte une chaîne fixe : réussir contre lui prouve le dialogue, pas l'acceptation par une balance.
+- **`scale_weighings`** garde poids, prix, montant et tare, sans la trame brute ni le transport.
+- **Pas encore fait :** la ligne de la balance dans les alertes au propriétaire (le voyant rouge existe), la bibliothèque
+  légale séparée (6.3), le gel rc4, le dossier et les preuves (phase 5, après la décision de métrologie).
 
 ## 1. Objet
 
@@ -332,7 +356,8 @@ Caractères de contrôle : `EOT` 04h, `ENQ` 05h, `STX` 02h, `ETX` 03h, `ESC` 1Bh
 | Balance vers caisse | 09 | `S1 S0` | Code du statut (5.4) |
 | Balance vers caisse | 11 | `32h` + nombre aléatoire `Z` | Demande de contrôle du logiciel |
 | Caisse vers balance | 10 | Somme(s) de contrôle + valeur de correction, ASCII hexadécimal | Réponse au contrôle |
-| Balance vers caisse | 20 | | Résultat du contrôle |
+| Balance vers caisse | 11 | `30h` ou `31h` | Résultat du contrôle (refusé, accepté) |
+| Caisse vers balance | 20 | | Version logique active ou non |
 
 Exemple avec UC4112, sous réserve du cadrage réel (nombre de chiffres, décimales selon le réglage) :
 

@@ -187,6 +187,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | get_menu_items | menu::do_get_menu_items | blocking | posEngine.getMenuItems() |
 | get_order | order::do_get_order | blocking | posEngine.getOrder() |
 | get_owner_alerts | alerts::do_get_owner_alerts | blocking | posEngine.getOwnerAlerts() |
+| get_scale_status | scale::do_get_scale_status | spawn | posEngine.getScaleStatus() |
 | get_settings | settings::do_get_settings | blocking | posEngine.getSettings() |
 | get_table_plan | table_plan::do_get_table_plan | blocking | posEngine.getTablePlan() |
 | hubrise_adopt_catalog | hubrise::do_adopt_catalog | blocking | posEngine.hubriseAdoptCatalog() |
@@ -260,6 +261,8 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | revoke_badge | badges::do_revoke_badge | blocking | posEngine.revokeBadge() |
 | sales_report | sales_report::do_sales_report | blocking | posEngine.salesReport() |
 | save_b2b_customer | invoice::do_save_b2b_customer | blocking | posEngine.saveB2bCustomer() |
+| scale_cancel_weighing | scale::do_scale_cancel_weighing | blocking | posEngine.scaleCancelWeighing() |
+| scale_start_weighing | scale::do_scale_start_weighing | spawn | posEngine.scaleStartWeighing() |
 | search_b2b_customers | invoice::do_search_b2b_customers | blocking | posEngine.searchB2bCustomers() |
 | send_next_course | courses::do_send_next_course | spawn | posEngine.sendNextCourse() |
 | send_test_alert | alerts::do_send_test_alert | spawn | posEngine.sendTestAlert() |
@@ -293,7 +296,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | work_in | social::do_work_in | spawn | posEngine.workIn() |
 | work_out | social::do_work_out | spawn | posEngine.workOut() |
 
-Parity: 148/148.
+Parity: 151/151.
 <!-- parity:end -->
 
 ## 12. JVM tests, mocks and gates

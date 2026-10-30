@@ -14,3 +14,4 @@ pub mod invoice;
 pub mod menu_admin;
 pub mod orders;
 pub mod reports;
+pub mod scale;

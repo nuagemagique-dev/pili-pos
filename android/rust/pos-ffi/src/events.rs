@@ -12,6 +12,7 @@ use crate::error::PosError;
 use crate::records::common::{
     CallbackEvent, FdmHealth, PresenceFailed, SessionLocked, SignMessages,
 };
+use crate::records::scale::ScaleProgress;
 
 /// What the UI is told outside a command call: one variant per engine topic, plus the stream's own
 /// `Resync` marker (PD57). The payloads are the records of `records::common`.
@@ -25,6 +26,8 @@ pub enum PosEvent {
     SessionLocked { locked: SessionLocked },
     /// Topic `presence-failed`: the clock-in queued by a login was not registered.
     PresenceFailed { failure: PresenceFailed },
+    /// Topic `scale-progress`: where the weighing in progress stands.
+    ScaleProgress { progress: ScaleProgress },
     /// Topic `webshop-order-received`: an online order arrived.
     WebshopOrderReceived { event: CallbackEvent },
     /// Topic `webshop-order-updated`: an online order changed.
@@ -49,6 +52,7 @@ impl PosEvent {
             PosEvent::FdmStatus { .. } => "fdm-status",
             PosEvent::SessionLocked { .. } => "session-locked",
             PosEvent::PresenceFailed { .. } => "presence-failed",
+            PosEvent::ScaleProgress { .. } => "scale-progress",
             PosEvent::WebshopOrderReceived { .. } => "webshop-order-received",
             PosEvent::WebshopOrderUpdated { .. } => "webshop-order-updated",
             PosEvent::CatalogUpdated { .. } => "catalog-updated",
@@ -73,6 +77,9 @@ fn convert_event(event: EngineEvent) -> Result<PosEvent, PosError> {
         },
         EngineEvent::PresenceFailed(f) => PosEvent::PresenceFailed {
             failure: convert::out(&f)?,
+        },
+        EngineEvent::ScaleProgress(p) => PosEvent::ScaleProgress {
+            progress: convert::out(&p)?,
         },
         EngineEvent::WebshopOrderReceived(e) => PosEvent::WebshopOrderReceived {
             event: CallbackEvent::from_engine(&e)?,

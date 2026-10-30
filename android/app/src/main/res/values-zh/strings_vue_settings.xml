@@ -88,6 +88,9 @@
     <string name="menu_ed_case">大小写切换</string>
     <string name="menu_ed_category">分类</string>
     <string name="menu_ed_price">价格（€）</string>
+    <string name="menu_ed_price_per_kilo">每公斤价格（€）</string>
+    <string name="menu_ed_sold_by_weight">按重量销售</string>
+    <string name="menu_ed_tare">容器皮重</string>
     <string name="menu_ed_vat">堂食税率</string>
     <string name="menu_ed_vat_takeaway">外带税率</string>
     <string name="menu_ed_vat_same">同堂食</string>

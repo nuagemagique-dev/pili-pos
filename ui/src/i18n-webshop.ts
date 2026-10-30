@@ -259,6 +259,11 @@ export const webshopMessages: Messages = {
     en: 'Charge not on the menu.',
     zh: '菜单中没有该费用。',
   },
+  webshop_attention_sold_by_weight: {
+    fr: 'Produit vendu au poids : personne ne le pèse à distance.',
+    en: 'Product sold by weight: nobody weighs it from a distance.',
+    zh: '按重量销售的商品：无法远程称重。',
+  },
   webshop_attention_fractional_quantity: {
     fr: 'Quantité non entière.',
     en: 'Quantity not a whole number.',

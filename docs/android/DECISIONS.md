@@ -2306,3 +2306,28 @@ android/int after lanes 1, 2, 3 and 5 (merge commit `612c9ba1`). Numbering conti
 - **INT-D51 EV-13 log is a real unedited rerun (rc3).** The 2026-10-15 plat_e2e log (one development-host path masked by hand) is replaced by an unedited rerun of `plat_e2e.sh` on `sunmi_d3_pro_gms_api33` on 2026-10-23 from e91b5e06 (19 checks, 0 failed, freeze inputs unchanged, check_android_frozen clean); evidence/gms/EV13_2026-10-23.md and plat_e2e_gms_2026-10-23.txt, the old pair removed from the dossier (history keeps them). The adb readings of EV-13 sections 1 to 5, 7 and 8 stay those of 2026-10-15 and are reconfirmed by the rerun policies check.
 - **INT-D52 FFI integration tests are not freeze inputs (rc3).** `android/rust/pos-ffi/tests` is excluded from the Android frozen paths, like `android/app/src/test`: integration tests are separate binaries, never compiled into `libpos_ffi.so` or the APK. Reason: the first CI run on the ARM64 homelab runner (2026-10-23) showed that `lifecycle::cancelled_shutdown_then_shutdown_ends_the_streams` raced with the clock-out event (a broadcast stream delivers the events sent before the shutdown, then ends); the test now drains the stream until it ends. Fixing a test must not force a new freeze. `test_check_android_frozen.sh` covers the case.
 - **INT-D53 Native x86_64 reproducibility run done (rc3).** With the user's go-ahead (2026-10-23) the `repro` job of `android.yml` ran on a GitHub-hosted `ubuntu-latest` x86_64 runner (run 40002227571) at `e9fa578a` on main, where `check_android_frozen.sh --tag android-v1.0.0-rc3` is clean (the commits after the tag touch only CI files, scripts, docs and `android/rust/pos-ffi/tests`, INT-D52). Both offline builds gave the unsigned APK SHA-1 `34566c79c177c894c9f0616b1a00043516650f9c` and SHA-256 `2417930a...`, the same bytes as the M1 run of INT-D50 (same stripped and unstripped `libpos_ffi.so`, same entry manifest), so the rc3 APK does not depend on the host architecture or on emulation. The total was FAIL only because `apk-check` could not start: the job had deleted the hosted Android SDK to free disk and `check_apk.sh` found no zipalign; the APK is byte-identical to the one that passed `check_apk.sh` at INT-D50. Fixes: the job now frees disk like the gate (NDKs, hosted tool cache, browsers) and installs build-tools 35.0.0 and NDK 27.1.12297006; `check_repro.sh` and the other Android scripts call GNU `date -d @` and `stat -c` first (BSD `stat -f` succeeds on GNU in file system mode and printed file system data in the INFO lines, PD95). Values in ANDROID_FREEZE.md, "Native x86_64 run". Still a candidate: the values of record are those of the final `android-v1.0.0` (INT-D47).
+
+## Lane scale (2026-10-30)
+
+The owner put the sale by weight and the Dibal DPOS-400 in v1 (2026-10-30), assuming the scale speaks Bizerba
+Checkout-Dialog 06. Design note: `docs/internal/design/BALANCE_DIBAL_FR.md`. Nothing here has met a real scale.
+
+- **WGT-D1 A weighing is a line of quantity 1.** `OrderLine.quantity` stays an integer. A weighing carries
+  `weight_grams` and `weighed_amount_cents`, `unit_price_cents` is the price per kilo, and `line_total()` takes the
+  scale's amount. The FDM gets `quantityType: KILOGRAM` and the quantity in kilograms (`fiscal_quantity()`).
+- **WGT-D2 The weight never comes from the screen.** `do_add_order_line` and the options path refuse a product sold
+  by weight (`line_needs_scale`). Only `scale_start_weighing` writes such a line, from what the scale returned.
+- **WGT-D3 The amount is the scale's, cross-checked.** The engine recomputes `(g*p+500)/1000` in integers and refuses a
+  gap over 1 cent (`scale_price_mismatch`). No float touches money.
+- **WGT-D4 A weighing does not change.** No plus or minus, no merge (`line_weighed_fixed`). It is removed and weighed
+  again, and refunded whole (`refund_weighed_line_whole`). Its proof stays in `scale_weighings`, which has no foreign
+  key on the line for that reason.
+- **WGT-D5 TCP only for now.** The driver talks TCP (the simulator, a serial device server). The USB and RJ11 sides need
+  a scale on the bench: chip and USB class are unknown, so writing them now would be guessing. Phase 3 of the note.
+- **WGT-D6 The software check answers with fixed values.** The Dialog 06 check algorithm is not public. `scale.check_values`
+  in `pos.json` holds what Dibal or the SPF Economie gives; `Z` is ignored. A refusal leaves the scale unusable (red light,
+  sales by the piece unchanged) and nothing can bypass it. Passing the mock proves the dialogue only.
+- **WGT-D7 No weighing from a distance.** An online order on a product sold by weight is held for review
+  (`Attention::SoldByWeight`); the webshop sells a separate product at a fixed price.
+- **WGT-D8 Migration 80 stays in every build.** Like invoicing and the owner block: one binary, the section in `pos.json`
+  decides. Without it a product sold by weight stays off sale.

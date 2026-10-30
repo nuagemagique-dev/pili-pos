@@ -212,6 +212,25 @@ test.describe('Sales report', () => {
     await expect(page.getByTestId('sales-rounding')).toHaveText('0,02 €')
   })
 
+  test('a weighed product shows its kilos, the others their count', async ({ page }) => {
+    await salesTab(page, {
+      ...REPORT,
+      byProduct: [
+        {
+          productId: '7',
+          name: 'Bol au poids',
+          department: 'Plats',
+          quantityMilli: 1234,
+          amountCents: 2456,
+          weighed: true,
+        },
+        ...REPORT.byProduct,
+      ],
+    })
+    await expect(page.getByTestId('sales-product').first()).toContainText('1,234 kg')
+    await expect(page.getByTestId('sales-product').nth(1)).not.toContainText('kg')
+  })
+
   test('an empty period says so and prints nothing wrong', async ({ page }) => {
     await salesTab(page, {
       ...REPORT,

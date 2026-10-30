@@ -25,6 +25,12 @@ internal sealed interface OrderDialog {
         val item: MenuItem,
     ) : OrderDialog
 
+    /** A product sold by weight is on the scale; [stage] is where the weighing stands. */
+    data class Weighing(
+        val item: MenuItem,
+        val stage: String = "waiting",
+    ) : OrderDialog
+
     /** A product with option [groups] waits for the picks. */
     data class Modifiers(
         val item: MenuItem,

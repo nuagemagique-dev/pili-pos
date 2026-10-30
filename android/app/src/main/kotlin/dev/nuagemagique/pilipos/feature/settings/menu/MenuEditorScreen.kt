@@ -98,6 +98,8 @@ internal data class MenuEditorCallbacks(
     val onColor: (String?) -> Unit = {},
     val onKitchen: () -> Unit = {},
     val onOpenPrice: () -> Unit = {},
+    val onSoldByWeight: () -> Unit = {},
+    val onTare: (Int) -> Unit = {},
     val onActive: () -> Unit = {},
     val onPosition: (Int) -> Unit = {},
     val onMin: (Int) -> Unit = {},
@@ -145,6 +147,8 @@ internal fun MenuEditorRoute(
             onColor = model::setColor,
             onKitchen = model::toggleKitchen,
             onOpenPrice = model::toggleOpenPrice,
+            onSoldByWeight = model::toggleSoldByWeight,
+            onTare = model::stepTare,
             onActive = model::toggleActive,
             onPosition = model::stepPosition,
             onMin = model::stepMin,
@@ -407,7 +411,13 @@ private fun ProductRow(
     EntryRow(selected, !p.active, "menu_ed_product_${p.id}", { callbacks.onEditProduct(p.id) }) {
         EntryText(labelOf(p.names, state.languages), Modifier.weight(1f))
         if (!p.active) HiddenTag()
-        EntryText(if (p.openPrice) vueText("menu_ed_open_price") else formatCents(p.priceCents) + " €")
+        EntryText(
+            when {
+                p.openPrice -> vueText("menu_ed_open_price")
+                p.soldByWeight -> formatCents(p.priceCents) + " €/kg"
+                else -> formatCents(p.priceCents) + " €"
+            },
+        )
     }
 }
 
@@ -587,7 +597,20 @@ private fun ProductFields(
     )
     ToggleRow(vueText("menu_ed_kitchen"), form.kitchenPrinter, "menu_ed_kitchen", callbacks.onKitchen)
     ToggleRow(vueText("menu_ed_open_price"), form.openPrice, "menu_ed_open_price", callbacks.onOpenPrice)
+    ToggleRow(vueText("menu_ed_sold_by_weight"), form.soldByWeight, "menu_ed_sold_by_weight", callbacks.onSoldByWeight)
+    if (form.soldByWeight) {
+        Stepper(
+            vueText("menu_ed_tare") + " (g)",
+            (form.scaleTareGrams ?: 0L).toInt(),
+            "menu_ed_tare",
+            { callbacks.onTare(-TARE_STEP_GRAMS) },
+            { callbacks.onTare(TARE_STEP_GRAMS) },
+        )
+    }
 }
+
+/** A tare moves by 5 g, as in the Vue editor. */
+private const val TARE_STEP_GRAMS = 5
 
 @Composable
 private fun GroupFields(

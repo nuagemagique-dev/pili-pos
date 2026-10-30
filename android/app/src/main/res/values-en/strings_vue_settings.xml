@@ -88,6 +88,9 @@
     <string name="menu_ed_case">Upper / lower case</string>
     <string name="menu_ed_category">Category</string>
     <string name="menu_ed_price">Price (€)</string>
+    <string name="menu_ed_price_per_kilo">Price per kilo (€)</string>
+    <string name="menu_ed_sold_by_weight">Sold by weight</string>
+    <string name="menu_ed_tare">Container tare</string>
     <string name="menu_ed_vat">VAT dine-in</string>
     <string name="menu_ed_vat_takeaway">VAT takeaway</string>
     <string name="menu_ed_vat_same">Same as dine-in</string>

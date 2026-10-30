@@ -29,6 +29,10 @@ pub struct PosSettings {
     /// checkout asks the terminal for the amount when it is there.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_terminal: Option<String>,
+    /// A scale is configured: products sold by weight can be sold. Left
+    /// out when false.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub scale_configured: bool,
 }
 
 pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
@@ -50,6 +54,7 @@ pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
             .payment_terminal
             .as_ref()
             .map(|t| t.kind.as_str().to_string()),
+        scale_configured: config.scale.is_some(),
     })
 }
 

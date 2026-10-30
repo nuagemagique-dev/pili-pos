@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.order
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.state.EventFeed
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.slot
@@ -23,7 +24,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.AddOrderLineInput
 import uniffi.pos_ffi.AddWithModifiersInput
+import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.ScaleProgress
+import uniffi.pos_ffi.ScaleWeighInput
 
 /** The taps on a product: plain, free price, with options, and the refusals. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -87,6 +91,85 @@ class OrderItemFlowTest {
 
             coVerify { r.f.engine.updateOrderLineQuantity(1L, 3) }
             coVerify(exactly = 0) { r.f.engine.addOrderLine(any()) }
+        }
+
+    // ── A product sold by weight ─────────────────────────────────
+
+    private val bowl = menuItem(70, 1, "Bol malatang", 1990).copy(soldByWeight = true)
+
+    @Test
+    fun aProductSoldByWeightGoesThroughTheScaleAndTheDialogClosesWithTheLine() =
+        runTest {
+            val world = OrderWorld()
+            val f = orderFixture(tmp.root, world)
+            val feed = EventFeed(f)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            r.settings.publish(posSettings().copy(scaleConfigured = true))
+            val gate = CompletableDeferred<Unit>()
+            val input = slot<ScaleWeighInput>()
+            coEvery { f.engine.scaleStartWeighing(capture(input)) } coAnswers
+                {
+                    gate.await()
+                    orderLine(70)
+                }
+
+            r.model.addItem(bowl)
+            runCurrent()
+
+            assertEquals(OrderDialog.Weighing(bowl), r.state.dialog)
+            feed.send(PosEvent.ScaleProgress(ScaleProgress("stabilizing")))
+            runCurrent()
+            assertEquals("stabilizing", (r.state.dialog as OrderDialog.Weighing).stage)
+
+            gate.complete(Unit)
+            runCurrent()
+
+            assertEquals(ORDER_ID, input.captured.orderId)
+            assertEquals(70L, input.captured.menuItemId)
+            assertEquals(OrderDialog.None, r.state.dialog)
+            coVerify(exactly = 0) { f.engine.addOrderLine(any()) }
+        }
+
+    @Test
+    fun aRefusalOfTheScaleClosesTheDialogAndAddsNothing() =
+        runTest {
+            val r = ready()
+            r.settings.publish(posSettings().copy(scaleConfigured = true))
+            coEvery { r.f.engine.scaleStartWeighing(any()) } throws PosException.Coded("scale_overload", emptyMap())
+
+            r.model.addItem(bowl)
+            runCurrent()
+
+            assertEquals(OrderDialog.None, r.state.dialog)
+            assertEquals(1, r.toasts.toasts.value.size)
+            coVerify(exactly = 0) { r.f.engine.addOrderLine(any()) }
+        }
+
+    @Test
+    fun withoutAScaleTheProductStaysOffSale() =
+        runTest {
+            val r = ready()
+
+            r.model.addItem(bowl)
+            runCurrent()
+
+            assertEquals(OrderDialog.None, r.state.dialog)
+            assertEquals(1, r.toasts.toasts.value.size)
+            coVerify(exactly = 0) { r.f.engine.scaleStartWeighing(any()) }
+        }
+
+    @Test
+    fun backInTheDialogAsksTheEngineToStop() =
+        runTest {
+            val r = ready()
+            coEvery { r.f.engine.scaleCancelWeighing() } returns Unit
+
+            r.model.cancelWeighing()
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.scaleCancelWeighing() }
         }
 
     @Test

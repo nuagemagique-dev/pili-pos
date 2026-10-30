@@ -77,6 +77,7 @@
     <string name="webshop_attention_unknown_product">Produit absent du menu.</string>
     <string name="webshop_attention_unknown_option">Option absente du menu.</string>
     <string name="webshop_attention_unknown_charge">Frais absents du menu.</string>
+    <string name="webshop_attention_sold_by_weight">Produit vendu au poids : personne ne le pèse à distance.</string>
     <string name="webshop_attention_fractional_quantity">Quantité non entière.</string>
     <string name="webshop_attention_bad_price">Prix illisible.</string>
     <string name="webshop_attention_vat_mismatch">TVA différente du menu.</string>
