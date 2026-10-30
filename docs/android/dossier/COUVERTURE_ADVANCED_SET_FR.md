@@ -149,6 +149,7 @@ Le manuel de certification exerce le flux fiscal via des scénarios variables.js
 | Options d'un produit | fenêtre « Options » de l'écran de commande (portage de `ModifierDialog.vue`) : options HubRise ; le prix des options s'ajoute au prix unitaire de la ligne, calculé par le moteur ; aucune modification de prix (priceChanges) | proposé, hors UC composite |
 | Facture de plusieurs ventes, et d'un remboursement repris sur une facture (UC4121, UC4122) | onglet « Tickets » des rapports : cases à cocher des ventes, bouton « Facture », client, aperçu (`docs/android/parity/reports.md`) | proposé ; rejoués par le moteur : `invoice_advanced.rs` (voir « Factures : UC4121 et UC4122 » ci-dessous) |
 | Bons à usage multiple (UC260, UC261, UC262) | écran de commande, bouton « Bon cadeau » ; écran d'encaissement, méthode « Bon cadeau » (`docs/android/parity/order.md`, `docs/android/parity/checkout.md`) | proposé ; rejoués par le moteur : `spf_e2e_gift_vouchers.rs` (voir « Bons à usage multiple » ci-dessous) |
+| Produit vendu au poids (UC4112) | écran de commande : le toucher du produit ouvre la fenêtre « Pesée », la ligne vient de la balance (`docs/android/parity/order.md`) | proposé (balance simulée, *BALANCE_FR.md*) |
 | Produit composite, split et fusion de tables (UC240 à UC252), déplacement vers une chambre ou un client (UC4101), correction de paiement différée avec crédit client (UC4118), vouchers SPV (UC270, UC271) et conversion d'un bon en espèces (UC4105), devise et pourboires, acomptes, note de crédit autonome | aucun écran Android | non offert en v1.0.0 |
 
 | Élément | Phase plan | Statut actuel | Décision |
@@ -173,6 +174,14 @@ simple ; taux de la commande entière). Pièces : *RESULTATS_TESTS_UC_FR.md* (se
 Détail : *BONS_CADEAUX_FR.md*. Les bons à usage unique (UC270, UC271) et la conversion d'un bon en espèces (UC4105) ne
 sont pas offerts en v1.0.0 : leurs fixtures se chargent (tableau ci-dessus) mais aucun parcours de la caisse ne les
 déclenche.
+
+---
+
+## Produit au poids : UC4112 (rejoué)
+
+UC4112 est rejoué par `crates/pos-engine/tests/spf_e2e_fixtures.rs`, par la commande de pesée de l'écran, contre le module
+de contrôle et la balance simulés. La requête archivée est comparée à la fixture champ par champ (`quantity` 0.278,
+`quantityType` `KILOGRAM`, `unitPrice` 45). Pièces : *RESULTATS_TESTS_UC_FR.md* et `evidence/uc/`. Détail : *BALANCE_FR.md*.
 
 ---
 

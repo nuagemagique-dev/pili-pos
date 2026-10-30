@@ -175,6 +175,9 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
   d'augmenter sa quantité (`product_sold_out`). Journal en ajout seul
   (`sold_out_log`), transmission à l'inventaire HubRise si l'intégration
   est activée. Aucun effet fiscal (*PRODUIT_EPUISE_FR.md*).
+- **Vente au poids** (option, balance de caisse) : la ligne vient de ce que
+  renvoie la balance, signée en `KILOGRAM` ; aucune saisie de poids. Sans
+  section `scale`, le produit reste hors vente (*BALANCE_FR.md*).
 
 ### 2.2 Encaissement
 
@@ -339,6 +342,8 @@ changement journalisé). Détail : `COMMANDES_EN_LIGNE_FR.md`.
   le terminal de paiement relié ne se corrige pas ; la correction de
   paiement (M132) porte sur une ligne saisie à la main.
 - **Assistance à distance** : aucun outil d'assistance sur Android ; le support se fait sur place (§7.3).
+- **Balance : limites de la v1.0.0** : liaison réseau seulement (ni USB ni série), contrôle du logiciel par valeurs fixes,
+  jamais essayée sur une vraie balance à ce jour ; pas de remboursement d'une partie d'une pesée (*BALANCE_FR.md* §1).
 
 ## 4. Intégration Peppol (B2B)
 
@@ -384,6 +389,9 @@ la certification SCE 2.0.
 - **FDM** : module2 (PRACSYS, certifié SCE 2.0). Connexion LAN
   (GraphQL en HTTP, ou HTTPS avec mTLS), jeton Bearer propre au FDM.
   Machine de test : simulateur en ligne module2.
+- **Balance de caisse (option)** : Dibal DPOS-400, protocole Bizerba
+  Checkout-Dialog 06, par le réseau. Machine de test : simulateur du dépôt
+  (*BALANCE_FR.md*).
 
 ## 7. Interface Android
 

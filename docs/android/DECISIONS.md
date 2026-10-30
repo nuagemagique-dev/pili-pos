@@ -2331,3 +2331,8 @@ Checkout-Dialog 06. Design note: `docs/internal/design/BALANCE_DIBAL_FR.md`. Not
   (`Attention::SoldByWeight`); the webshop sells a separate product at a fixed price.
 - **WGT-D8 Migration 80 stays in every build.** Like invoicing and the owner block: one binary, the section in `pos.json`
   decides. Without it a product sold by weight stays off sale.
+- **WGT-D9 The scale is a sixth owner alert.** `Kind::Scale`, on by default like the others, debounce of the printer and the
+  terminal (two probes 5 minutes apart), probed through `do_get_scale_status` under the same conditions. Busy is not judged;
+  no answer comes before a refused check, so a stale verdict never hides a dead link; a refused check has its own sentence
+  (`check=refused` in the log). `owner_alert_log.kind` takes `scale` inside the still unreleased migration 80, by rebuilding
+  the table with its rows and triggers. Nothing is sent without a `scale` section.

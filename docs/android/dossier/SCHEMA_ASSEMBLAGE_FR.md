@@ -121,6 +121,7 @@ Ports du D3 Pro selon la fiche du fabricant, sunmi.com, page D3 PRO, consultée 
 | Réseau (Wi-Fi, ou port RJ45) | Connexion LAN vers routeur (1), par câble sur le port RJ45 ou en Wi-Fi ; le Wi-Fi se prépare au banc avant l'import du lot ; l'application 1.0.0 n'a pas d'écran de réseau (`MANUEL_INSTALLATION_FR.md` §4.3) |
 | USB-A (clé) | Un des trois ports USB-A, disponible pour la clé du lot de provisionnement signé à l'installation et pour la clé de mise à jour déclarée (retirées en service normal) |
 | Emplacement microSD ou clé USB | Cible de l'export vers le SPF (Art. 16 et 102), seulement par une action du Gérant (`PLATEFORME_ANDROID_FR.md` §5) ; jamais support de la base de données |
+| Balance de caisse (option) | Par le réseau local en version 1.0.0 (adresse `scale.tcp_address`) ; USB et port série : À effectuer (EV-22 : classe USB de la balance et port série du D3 Pro) |
 | Transfert de fichiers USB vers un ordinateur | Interdit (`DISALLOW_USB_FILE_TRANSFER`, cf. `PLATEFORME_ANDROID_FR.md` §3.3) |
 | Port micro-USB de débogage (adb) | Coupé sur un terminal provisionné en version de production |
 | Port RJ12 de tiroir-caisse | Inutilisé : le tiroir est relié à l'imprimante et s'ouvre par la séquence ESC/POS (§2, composant 5) |
@@ -206,6 +207,7 @@ Pour la machine de test livrée au rendez-vous d'admission SPF Finances :
 
 - Terminal : profil émulé du D3 Pro avec services Google, sauf si un vrai D3 Pro est disponible au dépôt (À effectuer (EV-15 : terminal réel, ou déclaration du profil émulé)). Numéro de série de la machine de test : `EMULATOR37X2X12X0`.
 - Routeur fourni par le distributeur (mini-routeur de prêt).
+- Balance : simulateur du dépôt `pos-scale-mock`, par le réseau (*BALANCE_FR.md* §9).
 - **Pas de FDM physique : le simulateur en ligne module2 est fourni avec la machine de test.** Le manuel de certification (§IV « Procédure de communication GraphQL », procédure de test, étape 1) demande d'appliquer les scénarios « à l'aide d'un simulateur FDM » et de fournir « un simulateur avec la machine test » ; le guide d'introduction (section « Intake », « Machine de test ») précise : « Si un simulateur de FDM est utilisé, sa méthode de connexion et ses ports doivent être clairement documentés. » Connexion du simulateur :
 
   | Élément | Valeur |

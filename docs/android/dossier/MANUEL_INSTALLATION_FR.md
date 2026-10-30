@@ -27,6 +27,7 @@ dans `PLATEFORME_ANDROID_FR.md` §3, le stockage dans §5.
 | Switch / box internet | 4 ports minimum | 1 |
 | Clé USB de mise en service | Toute taille, FAT32 ou exFAT : elle porte le lot signé (§2) | 1 |
 | Carte microSD (recommandée) | microSDXC de qualité, exFAT, 64 ou 128 Go, dans l'emplacement microSD du D3 Pro (fiche du fabricant) : exports vers le SPF et mises à jour, jamais la base (§8). Une clé USB en exFAT de même taille convient aussi | 1 |
+| Balance de caisse (option) | Dibal DPOS-400 sur le réseau local, protocole 24 ; jamais essayée sur une vraie balance à ce jour, ne pas installer avant la réponse écrite du SPF Économie (`BALANCE_FR.md` §1) | 0 ou 1 |
 | Lecteur de badges (option) | Lecteur de cartes NFC avec câble USB qui se comporte comme un clavier (il tape le numéro de la carte puis Entrée) ; à brancher sur un port USB-A du Sunmi D3 Pro. **L'unité principale du D3 Pro n'a pas de NFC** ; son écran client optionnel est annoncé avec NFC, à confirmer sur place (§4.4 bis) | 0 ou 1 |
 | Poste du technicien | Ordinateur avec `adb`, `shasum` et `minisign` (§3.2) ; onduleur de 600 VA recommandé pour la caisse | 1 |
 
@@ -506,6 +507,23 @@ pointer et se connecter avec un badge (`MANUEL_UTILISATEUR_FR.md`
   (ou « Départ »), l'événement S est signé par le FDM. Retirer ensuite le
   badge de test et remettre le réglage voulu par l'établissement.
 
+
+### 4.4 ter Balance de caisse (option)
+
+Absente par défaut : sans section `scale`, rien à faire et les produits vendus au poids restent hors vente. Section de
+`pos.json` :
+
+```json
+"scale": {
+  "tcp_address": "192.168.1.40:4001",
+  "price_digits": 5,
+  "check_values": [{ "checksum": "4711", "correction": "F336" }],
+  "weigh_timeout_ms": 15000
+}
+```
+
+Les valeurs ci-dessus sont des exemples. `check_values` répond au contrôle du logiciel de la balance : sans valeur acceptée,
+aucune pesée n'est possible et il n'existe pas de réglage pour s'en passer (`BALANCE_FR.md` §4).
 
 ### 4.5 Synchronisation horaire
 
