@@ -9,7 +9,7 @@ ensuite, avec la réponse de métrologie si elle est arrivée. Avant l'envoi, tr
 
 ## 1. SPF Économie, service Métrologie
 
-**À :** metrology.regulation@economie.fgov.be
+**À :** metrology.regulation@economie.fgov.be, adresse non confirmée le 2026-10-30. En cas d'échec : info.eco@economie.fgov.be, en demandant de transmettre au service Métrologie.
 **Objet :** Caisse raccordée à une balance pour la vente directe au public : questions de métrologie
 
 Madame, Monsieur,
@@ -43,34 +43,41 @@ Je peux vous transmettre la description technique du raccordement et rencontrer 
 
 Veuillez agréer, Madame, Monsieur, mes salutations distinguées.
 
-## 2. Dibal ou son revendeur belge
+## 2. Dibal
 
-**À :** adresse à trouver par le propriétaire (Dibal, ou son revendeur en Belgique)
-**Objet :** DPOS-400 et logiciel de caisse tiers : protocole 24 (Checkout-Dialog 06)
+**À :** dibal@dibal.com (siège, page de contact de dibal.com, lue le 2026-10-30)
+**Objet :** DPOS-400 integration with third-party POS software: protocol and software check
 
-Madame, Monsieur,
+Dear Sir or Madam,
 
-Je développe un système de caisse pour la restauration en Belgique, sur terminal Android, et je souhaite le raccorder à une
-DPOS-400 pour la vente au poids directement au client. Avant de commander une balance, j'aurais besoin des informations
-suivantes, ainsi que du manuel technique complet de la DPOS-400.
+I develop a cash register system for restaurants in Belgium (pili-pos, Android, in certification with the Belgian tax
+authority, SPF Finances). I would like to connect it to a DPOS-400 to sell by weight directly to the customer, with the price
+per kilo sent by the POS. Before ordering a scale, could you please send me the DPOS-400 technical manual and answer the
+following questions?
 
-1. Quel est l'algorithme exact de l'enregistrement 10 ? Que signifie `Z`, combien de sommes sont attendues, et quel est le
-   format de la valeur de correction ?
-2. Comment un éditeur tiers reçoit-il sa valeur : quelle procédure, quels documents, quel coût ? Une somme portant sur une
-   bibliothèque séparée est-elle acceptée ? Que se passe-t-il à une mise à jour du logiciel, et le réglage de la balance
-   change-t-il ?
-3. La DPOS-400 proposée en Belgique est-elle livrée vérifiée avec le protocole 24, et qui le règle (menu de test, scellé) ?
-4. Existe-t-il, parmi les 40 protocoles de la balance, un protocole sans contrôle autorisé en Belgique, et comment renvoie-t-il
-   le poids et le prix ?
-5. Quelle est la règle d'arrondi du prix de vente ? Quels sont la plage, la précision et le cadrage du poids et du prix,
-   5 ou 6 chiffres, et le poids minimal ?
-6. Le port USB transporte-t-il le protocole 24 ? Quelle classe USB et quelle puce ? Quel courant demande le câble unique ?
-7. Y a-t-il des cadences, délais et accusés de réception imposés ? Existe-t-il un simulateur officiel ou un outil de validation
-   pour les éditeurs ?
-8. La balance a-t-elle des exigences sur le terminal (certificat de compatibilité, liste d'éditeurs) ?
-9. Peut-on obtenir une balance de prêt pour un essai sur banc ?
+1. Who is your dealer or technical contact for Belgium?
+2. Which protocols of the DPOS-400 may be used in Belgium for direct sale to the public? I have seen protocol 24 (Bizerba
+   Checkout-Dialog 06, with a software check) and, in a POS vendor's setup guide, protocol 16. What does protocol 16 do, does it
+   return weight, unit price and selling price, and does it require a software check?
+3. For protocol 24: what is the exact algorithm of record 10, the meaning of `Z`, the number of checksums and the format of the
+   correction value?
+4. How does a third-party POS publisher obtain its value: which procedure, documents and cost? Is a checksum over a separate
+   library accepted? What happens when the POS software is updated, and does the scale's setting change?
+5. Is the DPOS-400 sold in Belgium delivered verified with that protocol, and who sets it (test menu, seal)?
+6. What is the rounding rule of the selling price? What are the range, precision and scaling of weight and price, 5 or 6
+   digits, and the minimum weight?
+7. Does the USB port carry these protocols? Which USB class and chip? How much current does the single cable need?
+8. Are timings, delays or acknowledgements imposed? Is there an official simulator or a validation tool for publishers?
+9. Does the scale have requirements on the terminal (compatibility certificate, list of publishers)?
+10. Could I borrow a scale for a bench test?
 
-Veuillez agréer, Madame, Monsieur, mes salutations distinguées.
+Kind regards,
+
+## 2 bis. Revendeur belge (facultatif)
+
+Onlinefact (info@onlinefact.be, +32 78 70 02 02, Heusden-Zolder) vend la D-POS 400 « + calibration » à 499 € TTC d'après sa
+boutique. Rien n'indique que ce soit un revendeur officiel, et sa page parle de licence : il semble éditer sa propre caisse. Ne
+lui poser que les questions d'achat : la balance est-elle livrée vérifiée, avec quel protocole, et à quel délai ?
 
 ## 3. SPF Finances (boîte des producteurs)
 
