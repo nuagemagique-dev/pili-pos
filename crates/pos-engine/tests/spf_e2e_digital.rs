@@ -547,7 +547,10 @@ async fn printing_an_unknown_event_is_refused() {
 /// The paper `ticket` gives (what was signed and meant for the
 /// customer).
 fn paper_of(ticket: &pos_fiscal::ticket::FiscalTicket) -> String {
-    pos_print::render::render_plain_text(&pos_print::receipt::format_receipt(ticket))
+    pos_print::render::render_plain_text(&pos_print::receipt::format_receipt(
+        ticket,
+        pos_print::escpos::PaperWidth::Mm80,
+    ))
 }
 
 /// What the printer received, without the status query the transport

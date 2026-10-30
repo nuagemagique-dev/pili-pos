@@ -9,7 +9,7 @@
 
 use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer};
 
-use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
+use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle};
 
 /// A voucher to print.
 #[derive(Debug, Clone)]
@@ -134,9 +134,9 @@ fn training_mark(p: &mut EscPosBuilder, training: bool) {
 }
 
 /// ESC/POS bytes of the voucher.
-pub fn format_gift_voucher(slip: &VoucherSlip) -> Vec<u8> {
+pub fn format_gift_voucher(slip: &VoucherSlip, paper: PaperWidth) -> Vec<u8> {
     let w = words(&slip.lang);
-    let mut p = EscPosBuilder::new();
+    let mut p = EscPosBuilder::for_paper(paper);
     p.align(Alignment::Center);
     training_mark(&mut p, slip.training);
     p.style(TextStyle {
@@ -166,7 +166,7 @@ pub fn format_gift_voucher(slip: &VoucherSlip) -> Vec<u8> {
         double_height: true,
         ..Default::default()
     });
-    p.textln(&format!("{}: {}", w.value, euros(slip.face_value_cents)));
+    p.textln_wrapped(&format!("{}: {}", w.value, euros(slip.face_value_cents)));
     p.style_reset();
     p.blank_line();
     p.textln(w.code);
@@ -179,17 +179,17 @@ pub fn format_gift_voucher(slip: &VoucherSlip) -> Vec<u8> {
     p.style_reset();
     p.qr_code(&slip.code, 6);
     p.blank_line();
-    p.textln(&format!("{}: {}", w.issued, slip.issued_on));
+    p.textln_wrapped(&format!("{}: {}", w.issued, slip.issued_on));
     p.style(TextStyle {
         bold: true,
         ..Default::default()
     });
-    p.textln(&format!("{} {}", w.valid_until, slip.expires_on));
+    p.textln_wrapped(&format!("{} {}", w.valid_until, slip.expires_on));
     p.style_reset();
     p.separator('-');
     p.textln_wrapped(w.rules);
     if let Some(reference) = slip.reference.as_deref().filter(|r| !r.is_empty()) {
-        p.textln(&format!("{}: {}", w.reference, reference));
+        p.textln_wrapped(&format!("{}: {}", w.reference, reference));
     }
     p.separator('-');
     disclaimer(&mut p, &slip.lang);
@@ -199,9 +199,9 @@ pub fn format_gift_voucher(slip: &VoucherSlip) -> Vec<u8> {
 }
 
 /// ESC/POS bytes of the balance slip.
-pub fn format_balance_slip(slip: &BalanceSlip) -> Vec<u8> {
+pub fn format_balance_slip(slip: &BalanceSlip, paper: PaperWidth) -> Vec<u8> {
     let w = words(&slip.lang);
-    let mut p = EscPosBuilder::new();
+    let mut p = EscPosBuilder::for_paper(paper);
     p.align(Alignment::Center);
     training_mark(&mut p, slip.training);
     p.style(TextStyle {
@@ -214,15 +214,15 @@ pub fn format_balance_slip(slip: &BalanceSlip) -> Vec<u8> {
         p.textln_wrapped(&slip.establishment);
     }
     p.separator('-');
-    p.textln(&format!("{}: **** **** {}", w.code, slip.code_last4));
+    p.textln_wrapped(&format!("{}: **** **** {}", w.code, slip.code_last4));
     p.style(TextStyle {
         bold: true,
         double_height: true,
         ..Default::default()
     });
-    p.textln(&format!("{}: {}", w.balance, euros(slip.balance_cents)));
+    p.textln_wrapped(&format!("{}: {}", w.balance, euros(slip.balance_cents)));
     p.style_reset();
-    p.textln(&format!("{} {}", w.valid_until, slip.expires_on));
+    p.textln_wrapped(&format!("{} {}", w.valid_until, slip.expires_on));
     p.separator('-');
     disclaimer(&mut p, &slip.lang);
     p.feed(4);
@@ -251,7 +251,27 @@ mod tests {
     }
 
     fn text(slip: &VoucherSlip) -> String {
-        render_plain_text(&format_gift_voucher(slip))
+        render_plain_text(&format_gift_voucher(slip, PaperWidth::Mm80))
+    }
+
+    #[test]
+    fn the_voucher_and_the_balance_slip_fit_58_mm_paper() {
+        for lang in ["fr", "nl", "de", "en"] {
+            crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+                format_gift_voucher(&voucher(lang), paper)
+            });
+            let slip = BalanceSlip {
+                establishment: "Restaurant Demo".into(),
+                code_last4: "9012".into(),
+                balance_cents: 3150,
+                expires_on: "17.10.2027".into(),
+                lang: lang.into(),
+                training: true,
+            };
+            crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+                format_balance_slip(&slip, paper)
+            });
+        }
     }
 
     #[test]
@@ -321,7 +341,10 @@ mod tests {
             lang: "fr".into(),
             training: false,
         };
-        let out = one_line(&render_plain_text(&format_balance_slip(&slip)));
+        let out = one_line(&render_plain_text(&format_balance_slip(
+            &slip,
+            PaperWidth::Mm80,
+        )));
         assert!(out.contains("SOLDE DU BON"), "{out}");
         assert!(out.contains("**** **** 9012"), "{out}");
         assert!(out.contains("Solde: 31,50 EUR"), "{out}");

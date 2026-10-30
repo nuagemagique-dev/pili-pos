@@ -5,7 +5,7 @@
 //! Built on top of the same `EscPosBuilder` used by `receipt.rs` so
 //! the binary command pipeline stays uniform.
 
-use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
+use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle};
 
 /// Owned, formatter-friendly view of a HubRise order line. The
 /// caller (the Tauri command layer) parses the raw HubRise JSON and
@@ -40,8 +40,8 @@ pub struct KitchenTicket {
 
 /// Build the ESC/POS byte stream for a kitchen ticket. The output
 /// is ready to send to a `TcpPrinter`.
-pub fn format_kitchen_ticket(ticket: &KitchenTicket) -> Vec<u8> {
-    let mut p = EscPosBuilder::new();
+pub fn format_kitchen_ticket(ticket: &KitchenTicket, paper: PaperWidth) -> Vec<u8> {
+    let mut p = EscPosBuilder::for_paper(paper);
 
     // ── Header ────────────────────────────────────────────────────
     p.align(Alignment::Center);
@@ -62,13 +62,13 @@ pub fn format_kitchen_ticket(ticket: &KitchenTicket) -> Vec<u8> {
     });
     p.textln(&format!("{}  |  {}", ticket.source, ticket.service_type));
     p.style_reset();
-    p.textln(&format!("Ref: {}", ticket.short_ref));
+    p.textln_wrapped(&format!("Ref: {}", ticket.short_ref));
     if let Some(ready) = &ticket.ready_at {
         p.style(TextStyle {
             bold: true,
             ..Default::default()
         });
-        p.textln(&format!("Pret a: {}", ready));
+        p.textln_wrapped(&format!("Pret a: {}", ready));
         p.style_reset();
     }
 
@@ -105,7 +105,7 @@ pub fn format_kitchen_ticket(ticket: &KitchenTicket) -> Vec<u8> {
             bold: true,
             ..Default::default()
         });
-        p.textln(&format!("\"{}\"", note));
+        p.textln_wrapped(&format!("\"{}\"", note));
         p.style_reset();
     }
 
@@ -144,42 +144,49 @@ mod tests {
     }
 
     #[test]
+    fn fits_58_mm_paper() {
+        crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+            format_kitchen_ticket(&sample(), paper)
+        });
+    }
+
+    #[test]
     fn contains_cuisine_header() {
-        let bytes = format_kitchen_ticket(&sample());
+        let bytes = format_kitchen_ticket(&sample(), PaperWidth::Mm80);
         assert!(bytes.windows(7).any(|w| w == b"CUISINE"));
     }
 
     #[test]
     fn contains_channel_and_service_type() {
-        let bytes = format_kitchen_ticket(&sample());
+        let bytes = format_kitchen_ticket(&sample(), PaperWidth::Mm80);
         assert!(bytes.windows(9).any(|w| w == b"Deliveroo"));
         assert!(bytes.windows(9).any(|w| w == b"Livraison"));
     }
 
     #[test]
     fn contains_items_with_quantity() {
-        let bytes = format_kitchen_ticket(&sample());
+        let bytes = format_kitchen_ticket(&sample(), PaperWidth::Mm80);
         assert!(bytes.windows(14).any(|w| w == b"Maki saumon x8"));
         assert!(bytes.windows(2).any(|w| w == b"2x"));
     }
 
     #[test]
     fn contains_options_and_notes() {
-        let bytes = format_kitchen_ticket(&sample());
+        let bytes = format_kitchen_ticket(&sample(), PaperWidth::Mm80);
         assert!(bytes.windows(17).any(|w| w == b"Sauce soja sucree"));
         assert!(bytes.windows(14).any(|w| w == b"sans gingembre"));
     }
 
     #[test]
     fn ends_with_cut() {
-        let bytes = format_kitchen_ticket(&sample());
+        let bytes = format_kitchen_ticket(&sample(), PaperWidth::Mm80);
         // GS V 66 3 - partial cut
         assert!(bytes.windows(4).any(|w| w == [0x1D, b'V', 66, 3]));
     }
 
     #[test]
     fn contains_order_level_notes() {
-        let bytes = format_kitchen_ticket(&sample());
+        let bytes = format_kitchen_ticket(&sample(), PaperWidth::Mm80);
         assert!(bytes.windows(15).any(|w| w == b"Sonner a l'etag"));
     }
 
@@ -188,7 +195,8 @@ mod tests {
         let mut ticket = sample();
         ticket.ready_at = None;
         ticket.order_notes = None;
-        let text = crate::render::render_plain_text(&format_kitchen_ticket(&ticket));
+        let text =
+            crate::render::render_plain_text(&format_kitchen_ticket(&ticket, PaperWidth::Mm80));
         assert!(!text.contains("Pret a:"));
     }
 
@@ -201,7 +209,8 @@ mod tests {
             options: vec!["わさび抜き".to_string()],
             notes: None,
         });
-        let text = crate::render::render_plain_text(&format_kitchen_ticket(&ticket));
+        let text =
+            crate::render::render_plain_text(&format_kitchen_ticket(&ticket, PaperWidth::Mm80));
         assert!(text.contains('?'), "CJK chars must degrade to '?':\n{text}");
     }
 }

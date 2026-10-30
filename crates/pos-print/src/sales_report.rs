@@ -9,7 +9,7 @@
 use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer};
 use serde::{Deserialize, Serialize};
 
-use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
+use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle};
 
 /// One booking period of the range with its concordance with the Z.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -186,9 +186,9 @@ fn section(p: &mut EscPosBuilder, title: &str) {
 }
 
 /// Format the sales report for the thermal printer.
-pub fn format_sales_report(data: &SalesReportPrint) -> Vec<u8> {
+pub fn format_sales_report(data: &SalesReportPrint, paper: PaperWidth) -> Vec<u8> {
     let w = words(data.lang);
-    let mut p = EscPosBuilder::new();
+    let mut p = EscPosBuilder::for_paper(paper);
 
     p.align(Alignment::Center);
     p.style(TextStyle {
@@ -211,13 +211,13 @@ pub fn format_sales_report(data: &SalesReportPrint) -> Vec<u8> {
     p.textln(&data.restaurant_vat);
     p.align(Alignment::Left);
     p.separator('=');
-    p.textln(&format!(
+    p.textln_wrapped(&format!(
         "{}: {} - {}",
         w.period,
         fmt_date(&data.from),
         fmt_date(&data.to)
     ));
-    p.textln(&format!("{}: {}", w.generated, data.generated_at));
+    p.textln_wrapped(&format!("{}: {}", w.generated, data.generated_at));
 
     section(&mut p, w.concordance);
     for day in &data.days {
@@ -349,7 +349,20 @@ mod tests {
     }
 
     fn text(lang: ReceiptLanguage) -> String {
-        render_plain_text(&format_sales_report(&sample(lang)))
+        render_plain_text(&format_sales_report(&sample(lang), PaperWidth::Mm80))
+    }
+
+    #[test]
+    fn every_language_fits_58_mm_paper() {
+        for lang in [
+            ReceiptLanguage::Fr,
+            ReceiptLanguage::Nl,
+            ReceiptLanguage::De,
+        ] {
+            crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+                format_sales_report(&sample(lang), paper)
+            });
+        }
     }
 
     #[test]
@@ -391,7 +404,7 @@ mod tests {
         let mut data = sample(ReceiptLanguage::Fr);
         data.days[0].matches_z = false;
         data.days[0].z_total_cents = Some(12_000);
-        let out = render_plain_text(&format_sales_report(&data));
+        let out = render_plain_text(&format_sales_report(&data, PaperWidth::Mm80));
         assert!(out.contains("ECART 5,50"), "{out}");
     }
 

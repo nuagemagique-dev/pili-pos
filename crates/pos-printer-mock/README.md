@@ -10,7 +10,9 @@ PORT=9101 HTTP_PORT=9181 cargo run --package pos-printer-mock
 
 Point `pos.json` at it: `"printer_address": "127.0.0.1:9100"` (and
 `kitchen_printer_address` at a second one for the bar slip). Then open
-http://localhost:9180/ to see every job as the paper shows it.
+http://localhost:9180/ to see every job as the paper shows it. For a
+58 mm till (`"printer_paper_mm": 58`), start the mock with
+`MOCK_PRINTER_ROLL_MM=58` so the page lays the jobs out on 35 columns.
 
 ## What it does
 

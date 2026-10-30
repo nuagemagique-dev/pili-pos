@@ -8,7 +8,7 @@
 
 use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer};
 
-use crate::escpos::{Alignment, EscPosBuilder, TextStyle, wrap};
+use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle, wrap};
 use crate::labels::bar_labels;
 
 /// One line sent to the bar or kitchen: what was just ordered, or a
@@ -52,9 +52,9 @@ fn course_name(lang: ReceiptLanguage, course: i32) -> &'static str {
 }
 
 /// ESC/POS bytes of the slip, ready for a `TcpPrinter`.
-pub fn format_bar_ticket(ticket: &BarTicket) -> Vec<u8> {
+pub fn format_bar_ticket(ticket: &BarTicket, paper: PaperWidth) -> Vec<u8> {
     let l = bar_labels(ticket.lang);
-    let mut p = EscPosBuilder::new();
+    let mut p = EscPosBuilder::for_paper(paper);
 
     p.align(Alignment::Center);
     if ticket.is_training {
@@ -165,9 +165,9 @@ pub struct TransferSlip {
 }
 
 /// ESC/POS bytes of the transfer notice.
-pub fn format_transfer_slip(slip: &TransferSlip) -> Vec<u8> {
+pub fn format_transfer_slip(slip: &TransferSlip, paper: PaperWidth) -> Vec<u8> {
     let l = bar_labels(slip.lang);
-    let mut p = EscPosBuilder::new();
+    let mut p = EscPosBuilder::for_paper(paper);
 
     p.align(Alignment::Center);
     if slip.is_training {
@@ -227,9 +227,9 @@ pub struct NoteSlip {
 }
 
 /// ESC/POS bytes of the note change slip.
-pub fn format_note_slip(slip: &NoteSlip) -> Vec<u8> {
+pub fn format_note_slip(slip: &NoteSlip, paper: PaperWidth) -> Vec<u8> {
     let l = bar_labels(slip.lang);
-    let mut p = EscPosBuilder::new();
+    let mut p = EscPosBuilder::for_paper(paper);
 
     p.align(Alignment::Center);
     if slip.is_training {
@@ -318,7 +318,7 @@ mod tests {
     }
 
     fn text(t: &BarTicket) -> String {
-        render_plain_text(&format_bar_ticket(t))
+        render_plain_text(&format_bar_ticket(t, PaperWidth::Mm80))
     }
 
     #[test]
@@ -390,6 +390,25 @@ mod tests {
     }
 
     #[test]
+    fn every_slip_fits_58_mm_paper() {
+        for lang in [
+            ReceiptLanguage::Fr,
+            ReceiptLanguage::Nl,
+            ReceiptLanguage::De,
+        ] {
+            crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+                format_bar_ticket(&ticket(lang), paper)
+            });
+            crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+                format_transfer_slip(&transfer(lang), paper)
+            });
+            crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+                format_note_slip(&note_slip(lang, Some("Sans wasabi, sauce à part")), paper)
+            });
+        }
+    }
+
+    #[test]
     fn vi_bar_lines_fit_the_paper() {
         let mut t = ticket(ReceiptLanguage::Fr);
         t.items[0].name = "Un article au nom vraiment tres long qui depasse la largeur".into();
@@ -411,9 +430,10 @@ mod tests {
 
     #[test]
     fn vi_bar_the_transfer_notice_names_both_tables_and_no_item() {
-        let out = crate::render::one_line(&render_plain_text(&format_transfer_slip(&transfer(
-            ReceiptLanguage::Fr,
-        ))));
+        let out = crate::render::one_line(&render_plain_text(&format_transfer_slip(
+            &transfer(ReceiptLanguage::Fr),
+            PaperWidth::Mm80,
+        )));
         for expected in [
             "TRANSFERT DE TABLE",
             "15/06/2026 12:09:35",
@@ -432,14 +452,17 @@ mod tests {
 
     #[test]
     fn vi_bar_the_transfer_notice_follows_the_ticket_language_and_training() {
-        let nl = render_plain_text(&format_transfer_slip(&transfer(ReceiptLanguage::Nl)));
+        let nl = render_plain_text(&format_transfer_slip(
+            &transfer(ReceiptLanguage::Nl),
+            PaperWidth::Mm80,
+        ));
         assert!(
             nl.contains("TAFELVERPLAATSING") && nl.contains("Tafel 3 -> Tafel 12"),
             "{nl}"
         );
         let mut t = transfer(ReceiptLanguage::De);
         t.is_training = true;
-        let de = render_plain_text(&format_transfer_slip(&t));
+        let de = render_plain_text(&format_transfer_slip(&t, PaperWidth::Mm80));
         assert!(
             de.contains("TISCHWECHSEL") && de.contains("Tisch 3 -> Tisch 12"),
             "{de}"
@@ -521,7 +544,10 @@ mod tests {
     }
 
     fn text_of(slip: &NoteSlip) -> String {
-        crate::render::one_line(&render_plain_text(&format_note_slip(slip)))
+        crate::render::one_line(&render_plain_text(&format_note_slip(
+            slip,
+            PaperWidth::Mm80,
+        )))
     }
 
     #[test]
@@ -551,17 +577,17 @@ mod tests {
             de.contains("Direktverkauf") && de.contains("TRAINING"),
             "{de}"
         );
-        for line in render_plain_text(&format_note_slip(&s)).lines() {
+        for line in render_plain_text(&format_note_slip(&s, PaperWidth::Mm80)).lines() {
             assert!(line.chars().count() <= 48, "too wide: {line:?}");
         }
     }
 
     #[test]
     fn vi_bar_a_note_prints_in_cp858_not_as_question_marks() {
-        let bytes = format_note_slip(&note_slip(
-            ReceiptLanguage::Fr,
-            Some("allergie: crème, œuf, café"),
-        ));
+        let bytes = format_note_slip(
+            &note_slip(ReceiptLanguage::Fr, Some("allergie: crème, œuf, café")),
+            PaperWidth::Mm80,
+        );
         let out = render_plain_text(&bytes);
         assert!(
             out.contains("oeuf") && out.contains("crème") && out.contains("café"),
@@ -637,7 +663,7 @@ mod tests {
                     let mut t = ticket(lang);
                     t.table = table;
                     t.is_training = is_training;
-                    assert_eq!(format_bar_ticket(&t), legacy_bytes(&t));
+                    assert_eq!(format_bar_ticket(&t, PaperWidth::Mm80), legacy_bytes(&t));
                 }
             }
         }

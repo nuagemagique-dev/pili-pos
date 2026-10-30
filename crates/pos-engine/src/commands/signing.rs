@@ -923,7 +923,7 @@ pub(crate) async fn follow_up(
         PendingContext::PreBill { ticket, .. } => {
             if let Some(addr) = config.printer_address.as_deref() {
                 let ticket = FiscalTicket::from_draft(ticket, committed.result(), &state.identity);
-                let data = pos_print::receipt::format_receipt(&ticket);
+                let data = pos_print::receipt::format_receipt(&ticket, config.paper_for(addr));
                 let _ = pos_print::transport::send_to_printer_with(
                     addr,
                     &data,

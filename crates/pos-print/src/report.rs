@@ -3,7 +3,7 @@ use pos_fiscal::types::EventLabel;
 
 use serde::{Deserialize, Serialize};
 
-use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
+use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle};
 use crate::labels::{event_label_name, labels, payment_label, report_labels};
 
 /// Data needed to print an X or Z report on the thermal printer.
@@ -129,8 +129,8 @@ const VAT_RATES: [(&str, f64); 4] = [("A", 21.0), ("B", 12.0), ("C", 6.0), ("D",
 /// Format an X or Z turnover report for the thermal printer, in the
 /// order of the SPF example Z report of 2026-09-24 (AM of 29 April
 /// 2024 art. 29).
-pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
-    let mut p = EscPosBuilder::new();
+pub fn format_report(data: &ReportPrintData, paper: PaperWidth) -> Vec<u8> {
+    let mut p = EscPosBuilder::for_paper(paper);
     let l = labels(data.lang);
     let rl = report_labels(data.lang);
     let d = &data.details;
@@ -156,7 +156,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
         double_height: true,
         ..Default::default()
     });
-    p.textln(&format!("{} {}", data.report_type, rl.turnover));
+    p.textln_wrapped(&format!("{} {}", data.report_type, rl.turnover));
     p.style_reset();
 
     // ── Issuer (art. 29 a, b, c) ───────────────────────────────
@@ -167,9 +167,9 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     p.textln_wrapped(&data.restaurant_name);
     p.style_reset();
     p.textln_wrapped(&data.restaurant_address);
-    p.textln(&format!("{}: {}", l.vat_no, data.restaurant_vat));
+    p.textln_wrapped(&format!("{}: {}", l.vat_no, data.restaurant_vat));
     if !d.restaurant_est_no.is_empty() {
-        p.textln(&format!("{} {}", l.est_unit, d.restaurant_est_no));
+        p.textln_wrapped(&format!("{} {}", l.est_unit, d.restaurant_est_no));
     }
     p.separator('-');
 
@@ -181,7 +181,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
         &d.created_at,
     );
     if let Some(no) = data.report_no {
-        p.textln(&format!("{} {no}", rl.report_no));
+        p.textln_wrapped(&format!("{} {no}", rl.report_no));
     }
     p.text_columns(l.ticket, &format!("{:06}", data.ticket_number));
     p.text_columns(rl.employee, &data.employee_insz);
@@ -221,7 +221,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     // ── VAT overview, every rate (art. 29 k, l, m) ─────────────
     section(&mut p, rl.vat_overview);
     let [rate, base, vat, total] = rl.vat_columns;
-    p.textln(&vat_row(rate, base, vat, total));
+    p.textln(&vat_row(paper, rate, base, vat, total));
     let (mut sum_base, mut sum_vat, mut sum_total) = (0, 0, 0);
     for (code, default_rate) in VAT_RATES {
         match data.vat_totals.iter().find(|v| v.code == code) {
@@ -231,6 +231,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
                 sum_vat += v.vat_cents;
                 sum_total += v.total_incl_cents;
                 p.textln(&vat_row(
+                    paper,
                     &format!("{}%", fmt_rate(v.rate)),
                     &fmt_price(base_cents),
                     &fmt_price(v.vat_cents),
@@ -239,6 +240,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
             }
             None => {
                 p.textln(&vat_row(
+                    paper,
                     &format!("{}%", fmt_rate(default_rate)),
                     "-",
                     "-",
@@ -248,6 +250,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
         }
     }
     p.textln(&vat_row(
+        paper,
         rl.total_word,
         &fmt_price(sum_base),
         &fmt_price(sum_vat),
@@ -270,7 +273,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
 
     // ── Drawer opened without a sale (art. 29 q) ───────────────
     section(&mut p, rl.drawer);
-    p.textln(&format!("{} {}", rl.drawer, data.drawer_opens));
+    p.textln_wrapped(&format!("{} {}", rl.drawer, data.drawer_opens));
 
     // ── Training tickets (art. 29 r) ───────────────────────────
     section(&mut p, rl.training);
@@ -294,7 +297,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     // ── Invoices (art. 29 w) ───────────────────────────────────
     section(&mut p, rl.invoices_title);
     if d.invoices.is_empty() {
-        p.textln(&format!("{} 0", rl.invoices));
+        p.textln_wrapped(&format!("{} 0", rl.invoices));
     }
     for (no, amount) in &d.invoices {
         p.text_columns(&format!("{} {no}", rl.invoice_no), &fmt_price(*amount));
@@ -331,10 +334,10 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
             ..Default::default()
         });
         if let Some(ref dt) = data.fdm_datetime {
-            p.textln(&format!("fdmDateTime: {dt};"));
+            p.textln_wrapped(&format!("fdmDateTime: {dt};"));
         }
         if let Some(ref sig) = data.short_signature {
-            p.textln(&format!("shortSignature: {sig};"));
+            p.textln_wrapped(&format!("shortSignature: {sig};"));
         }
         p.style_reset();
     }
@@ -356,9 +359,13 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     p.build()
 }
 
-/// One row of the VAT overview: rate, base, VAT, total.
-fn vat_row(rate: &str, base: &str, vat: &str, total: &str) -> String {
-    format!("{rate:<9}{base:>13}{vat:>13}{total:>13}")
+/// One row of the VAT overview: rate, base, VAT, total, across the
+/// whole width of `paper`.
+fn vat_row(paper: PaperWidth, rate: &str, base: &str, vat: &str, total: &str) -> String {
+    match paper {
+        PaperWidth::Mm80 => format!("{rate:<9}{base:>13}{vat:>13}{total:>13}"),
+        PaperWidth::Mm58 => format!("{rate:<7}{base:>9}{vat:>9}{total:>10}"),
+    }
 }
 
 /// A VAT rate without needless decimals ("21", "5,5").
@@ -410,8 +417,8 @@ pub struct UserReportUser {
 /// Format a user report (per-operator turnover + presence) for the
 /// thermal printer. Printed as a second sequential ticket after the
 /// financial Z (M184) or on demand for the user X (M182).
-pub fn format_user_report(data: &UserReportPrintData) -> Vec<u8> {
-    let mut p = EscPosBuilder::new();
+pub fn format_user_report(data: &UserReportPrintData, paper: PaperWidth) -> Vec<u8> {
+    let mut p = EscPosBuilder::for_paper(paper);
     let l = labels(data.lang);
     let rl = report_labels(data.lang);
 
@@ -451,7 +458,7 @@ pub fn format_user_report(data: &UserReportPrintData) -> Vec<u8> {
     p.textln_wrapped(&data.restaurant_name);
     p.style_reset();
     p.textln_wrapped(&data.restaurant_address);
-    p.textln(&format!("{}: {}", l.vat_no, data.restaurant_vat));
+    p.textln_wrapped(&format!("{}: {}", l.vat_no, data.restaurant_vat));
     p.blank_line();
 
     p.align(Alignment::Left);
@@ -510,12 +517,12 @@ pub fn format_user_report(data: &UserReportPrintData) -> Vec<u8> {
             font_b: true,
             ..Default::default()
         });
-        p.textln(&format!("FDM: {fdm_id}"));
+        p.textln_wrapped(&format!("FDM: {fdm_id}"));
         if let Some(ref dt) = data.fdm_datetime {
             p.textln(dt);
         }
         if let Some(ref sig) = data.short_signature {
-            p.textln(&format!("Sig: {sig}"));
+            p.textln_wrapped(&format!("Sig: {sig}"));
         }
         p.style_reset();
     }
@@ -613,14 +620,14 @@ mod tests {
     #[test]
     fn x_report_contains_header() {
         let data = sample_report_data("X");
-        let bytes = format_report(&data);
+        let bytes = format_report(&data, PaperWidth::Mm80);
         assert!(bytes.windows(9).any(|w| w == b"RAPPORT X"));
     }
 
     #[test]
     fn z_report_contains_sequence_number() {
         let data = sample_report_data("Z");
-        let bytes = format_report(&data);
+        let bytes = format_report(&data, PaperWidth::Mm80);
         // Title is printed with double-width/height so look for
         // "RAPPORT" substring which appears in the byte stream.
         assert!(bytes.windows(7).any(|w| w == b"RAPPORT"));
@@ -629,7 +636,10 @@ mod tests {
     #[test]
     fn a_report_says_it_is_not_a_vat_ticket() {
         for kind in ["X", "Z"] {
-            let text = crate::render::render_plain_text(&format_report(&sample_report_data(kind)));
+            let text = crate::render::render_plain_text(&format_report(
+                &sample_report_data(kind),
+                PaperWidth::Mm80,
+            ));
             assert!(
                 crate::render::one_line(&text)
                     .contains("CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"),
@@ -641,28 +651,28 @@ mod tests {
     #[test]
     fn report_contains_restaurant_name() {
         let data = sample_report_data("X");
-        let bytes = format_report(&data);
+        let bytes = format_report(&data, PaperWidth::Mm80);
         assert!(bytes.windows(15).any(|w| w == b"Tokyo Sushi Bar"));
     }
 
     #[test]
     fn report_contains_vat_section() {
         let data = sample_report_data("X");
-        let bytes = format_report(&data);
+        let bytes = format_report(&data, PaperWidth::Mm80);
         assert!(bytes.windows(3).any(|w| w == b"TVA"));
     }
 
     #[test]
     fn report_contains_payment_section() {
         let data = sample_report_data("X");
-        let bytes = format_report(&data);
+        let bytes = format_report(&data, PaperWidth::Mm80);
         assert!(bytes.windows(9).any(|w| w == b"PAIEMENTS"));
     }
 
     #[test]
     fn report_ends_with_cut() {
         let data = sample_report_data("X");
-        let bytes = format_report(&data);
+        let bytes = format_report(&data, PaperWidth::Mm80);
         assert!(bytes.windows(4).any(|w| w == [0x1D, b'V', 66, 3]));
     }
 
@@ -670,7 +680,7 @@ mod tests {
     fn training_report_has_banner() {
         let mut data = sample_report_data("X");
         data.is_training = true;
-        let bytes = format_report(&data);
+        let bytes = format_report(&data, PaperWidth::Mm80);
         assert!(bytes.windows(8).any(|w| w == b"TRAINING"));
     }
 
@@ -710,7 +720,7 @@ mod tests {
 
     #[test]
     fn user_report_contains_insz_and_pointages() {
-        let bytes = format_user_report(&sample_user_report("Z"));
+        let bytes = format_user_report(&sample_user_report("Z"), PaperWidth::Mm80);
         assert!(bytes.windows(16).any(|w| w == b"INSZ 12345678901"));
         assert!(bytes.windows(12).any(|w| w == b"Pointage IN:"));
         assert!(bytes.windows(13).any(|w| w == b"Pointage OUT:"));
@@ -718,7 +728,7 @@ mod tests {
 
     #[test]
     fn user_report_has_fdm_block_and_cut() {
-        let bytes = format_user_report(&sample_user_report("X"));
+        let bytes = format_user_report(&sample_user_report("X"), PaperWidth::Mm80);
         assert!(bytes.windows(16).any(|w| w == b"FDM: CBX01000042"));
         assert!(bytes.windows(4).any(|w| w == [0x1D, b'V', 66, 3]));
     }
@@ -733,7 +743,7 @@ mod tests {
             count: 999999,
             amount_cents: i64::MAX / 2,
         });
-        let text = crate::render::render_plain_text(&format_report(&data));
+        let text = crate::render::render_plain_text(&format_report(&data, PaperWidth::Mm80));
         for line in text.lines() {
             assert!(
                 line.chars().count() <= 48,
@@ -751,7 +761,7 @@ mod tests {
             count: 1,
             amount_cents: 999999999,
         });
-        let text = crate::render::render_plain_text(&format_user_report(&data));
+        let text = crate::render::render_plain_text(&format_user_report(&data, PaperWidth::Mm80));
         for line in text.lines() {
             assert!(
                 line.chars().count() <= 48,
@@ -765,18 +775,18 @@ mod tests {
     fn training_user_report_has_banner() {
         let mut data = sample_user_report("X");
         data.is_training = true;
-        let bytes = format_user_report(&data);
+        let bytes = format_user_report(&data, PaperWidth::Mm80);
         assert!(bytes.windows(8).any(|w| w == b"TRAINING"));
     }
 
     #[test]
     fn x_report_has_no_report_no_but_z_does() {
-        let x = format_report(&sample_report_data("X"));
+        let x = format_report(&sample_report_data("X"), PaperWidth::Mm80);
         let x_text = crate::render::render_plain_text(&x);
         assert!(x_text.contains("X CHIFFRE D'AFFAIRES"));
         assert!(!x_text.contains("Rapport nr."));
 
-        let z = format_report(&sample_report_data("Z"));
+        let z = format_report(&sample_report_data("Z"), PaperWidth::Mm80);
         let z_text = crate::render::render_plain_text(&z);
         assert!(z_text.contains("Z CHIFFRE D'AFFAIRES"));
         assert!(z_text.contains("Rapport nr. 1"));

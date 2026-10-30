@@ -64,6 +64,13 @@ pub struct PosConfig {
     /// print on `printer_address`.
     #[serde(default)]
     pub kitchen_printer_address: Option<String>,
+    /// Paper roll of `printer_address`, in mm: 80 (default) or 58.
+    #[serde(default)]
+    pub printer_paper_mm: PaperWidth,
+    /// Paper roll of `kitchen_printer_address`, in mm: 80 (default) or
+    /// 58. Unused without a kitchen printer.
+    #[serde(default)]
+    pub kitchen_printer_paper_mm: PaperWidth,
     /// Hour (Belgian time, 0 to 12) at which a business day ends: a
     /// service running past midnight stays on its day until then. Once
     /// it has passed, a day left without a Z report is closed by an
@@ -155,6 +162,18 @@ impl PosConfig {
 }
 
 impl PosConfig {
+    /// The paper roll of the printer at `address`: the kitchen printer's
+    /// when `address` is `kitchen_printer_address` (and not also
+    /// `printer_address`), else the ticket printer's.
+    pub fn paper_for(&self, address: &str) -> PaperWidth {
+        let is = |a: &Option<String>| a.as_deref() == Some(address);
+        if !is(&self.printer_address) && is(&self.kitchen_printer_address) {
+            self.kitchen_printer_paper_mm
+        } else {
+            self.printer_paper_mm
+        }
+    }
+
     /// The legal name printed on tickets: the commercial name unless
     /// a distinct legal name is set.
     pub fn legal_name(&self) -> &str {
@@ -170,6 +189,7 @@ impl PosConfig {
     /// Identity fields (pos_id, restaurant_vat, fdm_url, …) are
     /// required - a fiscal terminal must not boot with a partial
     /// identity. Only printer_address, kitchen_printer_address,
+    /// printer_paper_mm, kitchen_printer_paper_mm,
     /// training_mode, language, day_end_hour, backup_dir,
     /// digital_ticket, export, hubrise_enabled, hubrise and
     /// payment_terminal may be omitted.
@@ -472,6 +492,8 @@ impl Default for PosConfig {
             fdm_url: "http://localhost:8080/graphql".to_string(),
             printer_address: None,
             kitchen_printer_address: None,
+            printer_paper_mm: PaperWidth::default(),
+            kitchen_printer_paper_mm: PaperWidth::default(),
             fdm_token_file: None,
             fdm_ca_file: None,
             fdm_client_cert_file: None,
@@ -485,6 +507,39 @@ impl Default for PosConfig {
             backup_dir: None,
             digital_ticket: None,
             export: None,
+        }
+    }
+}
+
+/// Width of a thermal printer's paper roll. Written in `pos.json` as
+/// the number of millimetres, 80 or 58; any other number refuses the
+/// configuration. An Epson TM-m30III takes either, 58 mm with the roll
+/// guides shipped with it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "u16", into = "u16")]
+pub enum PaperWidth {
+    #[default]
+    Mm80,
+    Mm58,
+}
+
+impl TryFrom<u16> for PaperWidth {
+    type Error = String;
+
+    fn try_from(mm: u16) -> Result<Self, Self::Error> {
+        match mm {
+            80 => Ok(Self::Mm80),
+            58 => Ok(Self::Mm58),
+            _ => Err(format!("paper width must be 80 or 58 (mm), got {mm}")),
+        }
+    }
+}
+
+impl From<PaperWidth> for u16 {
+    fn from(paper: PaperWidth) -> Self {
+        match paper {
+            PaperWidth::Mm80 => 80,
+            PaperWidth::Mm58 => 58,
         }
     }
 }
@@ -1380,6 +1435,61 @@ mod tests {
         assert_eq!(cfg.language, "fr");
         assert!(cfg.printer_address.is_none());
         assert!(!cfg.training_mode);
+        assert_eq!(cfg.printer_paper_mm, PaperWidth::Mm80);
+        assert_eq!(cfg.kitchen_printer_paper_mm, PaperWidth::Mm80);
+    }
+
+    fn with_printers(extra: &str) -> Result<PosConfig, serde_json::Error> {
+        serde_json::from_str(&format!(
+            r#"{{
+                "pos_id": "CFOD0061234567",
+                "terminal_id": "POS1",
+                "device_id": "DEV001",
+                "restaurant_name": "Restaurant",
+                "restaurant_address": "Rue Test 1, 1000 Bruxelles",
+                "restaurant_vat": "BE0499999960",
+                "restaurant_est_no": "2123456791",
+                "fdm_url": "http://192.168.1.20:8080/graphql",
+                "printer_address": "192.168.1.30:9100",
+                "kitchen_printer_address": "192.168.1.31:9100"
+                {extra}
+            }}"#
+        ))
+    }
+
+    #[test]
+    fn paper_widths_parse_as_millimetres() {
+        let cfg =
+            with_printers(r#", "printer_paper_mm": 58, "kitchen_printer_paper_mm": 80"#).unwrap();
+        assert_eq!(cfg.printer_paper_mm, PaperWidth::Mm58);
+        assert_eq!(cfg.kitchen_printer_paper_mm, PaperWidth::Mm80);
+        let back = serde_json::to_value(&cfg).unwrap();
+        assert_eq!(back["printer_paper_mm"], 58);
+        assert_eq!(back["kitchen_printer_paper_mm"], 80);
+    }
+
+    #[test]
+    fn any_other_paper_width_refuses_the_configuration() {
+        for bad in [
+            r#", "printer_paper_mm": 57"#,
+            r#", "kitchen_printer_paper_mm": "58""#,
+        ] {
+            assert!(with_printers(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn paper_for_follows_the_printer_address() {
+        let cfg = with_printers(r#", "printer_paper_mm": 58"#).unwrap();
+        assert_eq!(cfg.paper_for("192.168.1.30:9100"), PaperWidth::Mm58);
+        assert_eq!(cfg.paper_for("192.168.1.31:9100"), PaperWidth::Mm80);
+        assert_eq!(cfg.paper_for("10.0.0.1:9100"), PaperWidth::Mm58);
+
+        // One printer named twice: the ticket printer's roll.
+        let mut same = cfg.clone();
+        same.kitchen_printer_address = same.printer_address.clone();
+        same.kitchen_printer_paper_mm = PaperWidth::Mm80;
+        assert_eq!(same.paper_for("192.168.1.30:9100"), PaperWidth::Mm58);
     }
 
     #[test]

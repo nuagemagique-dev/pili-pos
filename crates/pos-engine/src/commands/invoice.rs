@@ -1249,7 +1249,7 @@ pub(crate) async fn print_invoice(
     let Some(addr) = config.printer_address.as_deref() else {
         return false;
     };
-    let bytes = pos_print::invoice::format_invoice(print);
+    let bytes = pos_print::invoice::format_invoice(print, config.paper_for(addr));
     match pos_print::transport::send_to_printer_with(addr, &bytes, state.timers.printer_status_read)
         .await
     {

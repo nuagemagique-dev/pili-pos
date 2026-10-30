@@ -21,7 +21,7 @@ dans `PLATEFORME_ANDROID_FR.md` §3, le stockage dans §5.
 |---|---|---|
 | Terminal POS | Sunmi D3 Pro avec services Google, Android 13, écran 1920 x 1080 en paysage (`PLATEFORME_ANDROID_FR.md` §1). Faits du vrai terminal : À effectuer (EV-15 : fiche mesurée d'un vrai D3 Pro) | 1 |
 | Boîtier FDM | FDM module2 (PRACSYS, certifié SCE 2.0) ou autre FDM certifié SCE 2.0 | 1 |
-| Imprimante thermique | Epson TM-m30III, raccordée au LAN (le POS imprime en TCP brut, port 9100) | 1 |
+| Imprimante thermique | Epson TM-m30III, raccordée au LAN (le POS imprime en TCP brut, port 9100), rouleau de 80 mm, ou de 58 mm avec les guides de rouleau livrés avec l'imprimante (`printer_paper_mm`, §4.2) | 1 |
 | Tiroir-caisse | Standard, connexion RJ11 vers l'imprimante | 1 |
 | Câbles Ethernet | RJ45 Cat-5e ou supérieur : FDM, imprimante et terminal (port RJ45 du D3 Pro ; sans câble, Wi-Fi) | 2 ou 3 |
 | Switch / box internet | 4 ports minimum | 1 |
@@ -254,6 +254,8 @@ on refait un lot signé et on le réimporte.
   "fdm_client_key_file": "fdm/client.key",
   "printer_address": "192.168.1.30:9100",
   "kitchen_printer_address": "192.168.1.31:9100",
+  "printer_paper_mm": 80,
+  "kitchen_printer_paper_mm": 80,
   "training_mode": false,
   "day_end_hour": 5,
   "table_count": 20,
@@ -276,6 +278,8 @@ on refait un lot signé et on le réimporte.
 | `fdm_client_cert_file`, `fdm_client_key_file` | Ensemble ou pas du tout : `client.crt` et `client.key` de module2 pour un FDM en mTLS. | Configuration FDM |
 | `printer_address` | IP:port de l'imprimante du LAN (9100 par défaut) | Configuration imprimante |
 | `kitchen_printer_address` | Facultatif. Imprimante du bar ou de la cuisine (« BON DE COMMANDE » sans prix) ; absent : le bon sort sur `printer_address`. | Configuration imprimante |
+| `printer_paper_mm` | Facultatif. Largeur du rouleau de `printer_address`, en mm : `80` (défaut, 48 colonnes) ou `58` (35 colonnes) ; toute autre valeur refuse la configuration. Tous les documents de cette imprimante (ticket, rapports X et Z, facture, bon cadeau, fiche allergènes) sont mis en page pour cette largeur, sans rien couper : une ligne trop longue passe à la ligne suivante. L'imprimante doit être réglée sur la même largeur : guides de 58 mm posés et largeur du papier réglée à 58 mm dans l'utilitaire Epson ou la page web de l'imprimante. Epson déconseille de revenir au 80 mm après un long usage en 58 mm (usure de la tête). | Configuration imprimante |
+| `kitchen_printer_paper_mm` | Facultatif. Largeur du rouleau de `kitchen_printer_address` : `80` (défaut) ou `58`. Sans imprimante de cuisine, le bon de commande suit `printer_paper_mm`. | Configuration imprimante |
 | `training_mode` | `false` en production, **à ne jamais laisser `true`**. Valeur de départ : un Gérant peut changer le mode dans « Config » (§4.7). | Distributeur |
 | `hubrise_enabled`, `hubrise` | Facultatifs. Commandes en ligne (`COMMANDES_EN_LIGNE_FR.md`) : `hubrise_enabled` à `true` et bloc `hubrise` (`client_id`, `client_secret_file` relatif au lot). Connexion ensuite par un Gérant : « Config », panneau « HubRise », code QR puis code d'autorisation. | Client |
 | `peppol` | Facultatif. Envoi des factures B2B sur le réseau Peppol (`FACTURATION_PEPPOL_FR.md`, `DECISION_PEPPOL_AP_FR.md`) : `provider` (`storecove` obligatoire en production), `base_url`, `api_key_file` (fichier du lot contenant la seule clé de l'API, chemin relatif au lot), `legal_entity_id`, `sender_id` (`0208:` et le numéro d'entreprise à 10 chiffres), `supplier_street`, `supplier_postal_code`, `supplier_city`, `supplier_country` (`BE` par défaut). Sans cette section, une facture à un client étranger est établie et imprimée, et une facture à un client dont le numéro de TVA commence par `BE` est refusée (`invoice_peppol_required`). | Client |
