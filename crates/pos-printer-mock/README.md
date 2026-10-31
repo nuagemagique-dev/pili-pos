@@ -27,6 +27,10 @@ http://localhost:9180/ to see every job as the paper shows it. For a
 - Unplugged closes the port: connections are refused, as when the
   printer is off.
 - A reachability check (connect and close) is not a job.
+- Jobs are listed by `id`, the number of their connection in the order
+  it was accepted: the print order, even when a long job finishes after
+  a shorter one sent behind it. A connection that printed nothing leaves
+  a gap in the ids.
 
 ## States
 
