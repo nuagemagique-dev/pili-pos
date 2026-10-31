@@ -2,22 +2,28 @@ name: Android Rust
 
 # The Rust half of the Android app on every push that touches it: the UniFFI
 # facade (android/rust, its own workspace and lock file) over the shared
-# engine, plus the command and lock parity checks. It runs on a GitHub-hosted
+# engine, plus the command check and the lock parity checks of android/rust and
+# android/uccheck. It runs on a GitHub-hosted
 # Linux ARM64 runner in a fresh Ubuntu container (see test.yml). The Gradle build, the Kotlin tests and
 # the APK checks need the x86_64 Android SDK: they stay in android.yml
 # (GitHub-hosted, by hand or on an android-v* tag) and in the local gates.
+# No pull_request trigger: ci-watch.yml squash-merges a green Dependabot PR, and a run here
+# would let it merge a bump of android/rust/Cargo.lock, an input of the frozen APK.
 on:
   push:
     branches: [main, feat/*]
     paths:
       - 'android/rust/**'
+      - 'android/uccheck/**'
       - 'crates/**'
       - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'rust-toolchain.toml'
       - 'src-tauri/src/ipc/**'
       - 'scripts/android/check_command_parity.py'
       - 'scripts/android/check_lock_parity.sh'
       - 'scripts/android/lock_parity*'
+      - 'scripts/android/uc_lock_parity*'
       - 'scripts/ci/**'
       - '.github/workflows/android-rust.yml'
   workflow_dispatch: {}
@@ -69,9 +75,14 @@ jobs:
           python3 scripts/android/check_command_parity.py --strict
           python3 scripts/android/check_command_parity.py --hygiene
 
-      # The lock parity check reads both dependency graphs offline.
-      - name: Fetch the root workspace crates
-        run: cargo fetch --locked
+      # The lock parity checks read the dependency graphs offline.
+      - name: Fetch the root and android/uccheck crates
+        run: |
+          cargo fetch --locked
+          cargo fetch --locked --manifest-path android/uccheck/Cargo.toml
 
       - name: Lock parity
         run: bash scripts/android/check_lock_parity.sh
+
+      - name: Lock parity of android/uccheck
+        run: bash scripts/android/uc_lock_parity.sh
