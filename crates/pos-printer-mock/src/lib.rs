@@ -130,6 +130,9 @@ impl Control {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Job {
+    /// The connection's number, taken when it was accepted: the POS sends
+    /// its jobs one after the other, so this is the print order. A connection
+    /// that printed nothing leaves a gap.
     pub id: usize,
     pub at: String,
     /// ESC/POS bytes received, status queries left out.
@@ -223,16 +226,17 @@ impl Printer {
             .clear();
     }
 
-    /// Keep what a connection sent, status queries left out. A
+    /// Keep what connection `id` sent, status queries left out. A
     /// connection that printed nothing (a reachability check, a status
-    /// query alone) is not a job.
-    fn record(&self, raw: &[u8]) {
+    /// query alone) is not a job. A long job can finish after a shorter one
+    /// sent behind it, so the place in the list comes from `id`.
+    fn record(&self, id: usize, raw: &[u8]) {
         let bytes = without_status_queries(raw);
         if bytes.is_empty() {
             return;
         }
         let job = Job {
-            id: self.next_id.fetch_add(1, Ordering::SeqCst),
+            id,
             at: chrono::Local::now().to_rfc3339(),
             bytes: bytes.len(),
             printed: !self.control().offline(),
@@ -251,10 +255,12 @@ impl Printer {
                 );
             }
         }
-        self.jobs
+        let mut jobs = self
+            .jobs
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(job);
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let place = jobs.partition_point(|earlier| earlier.id < id);
+        jobs.insert(place, job);
     }
 }
 
@@ -273,7 +279,7 @@ fn without_status_queries(raw: &[u8]) -> Vec<u8> {
     out
 }
 
-async fn handle(printer: Arc<Printer>, mut stream: TcpStream) {
+async fn handle(printer: Arc<Printer>, id: usize, mut stream: TcpStream) {
     let mut data = Vec::new();
     let mut chunk = [0u8; 4096];
     let mut scanned = 0;
@@ -293,7 +299,7 @@ async fn handle(printer: Arc<Printer>, mut stream: TcpStream) {
             }
         }
     }
-    printer.record(&data);
+    printer.record(id, &data);
 }
 
 /// Listen for print jobs on `addr` (port 0 picks one) and return the
@@ -332,7 +338,8 @@ async fn serve(first: TcpListener, addr: SocketAddr, printer: Arc<Printer>) {
             tokio::select! {
                 accepted = current.accept() => {
                     if let Ok((stream, _)) = accepted {
-                        tokio::spawn(handle(Arc::clone(&printer), stream));
+                        let id = printer.next_id.fetch_add(1, Ordering::SeqCst);
+                        tokio::spawn(handle(Arc::clone(&printer), id, stream));
                     }
                 }
                 changed = unplugged.changed() => {
@@ -529,6 +536,29 @@ mod tests {
             .await
             .unwrap();
         assert!(settled(&printer, 1).await[0].drawer_kick);
+    }
+
+    /// The receipt and the drawer kick of a cash sale: the kick is sent after
+    /// the receipt, but its short job can be done first.
+    #[tokio::test]
+    async fn jobs_keep_the_order_of_their_connections() {
+        let (printer, addr) = printer(Control::default()).await;
+        let mut receipt = TcpStream::connect(&addr).await.unwrap();
+        let mut kick = TcpStream::connect(&addr).await.unwrap();
+
+        kick.write_all(&pos_print::drawer::kick_drawer_bytes())
+            .await
+            .unwrap();
+        kick.shutdown().await.unwrap();
+        assert!(settled(&printer, 1).await[0].drawer_kick);
+
+        receipt.write_all(RECEIPT).await.unwrap();
+        receipt.shutdown().await.unwrap();
+        let jobs = settled(&printer, 2).await;
+        assert_eq!(jobs.len(), 2);
+        assert!(jobs[0].text.contains("Total 12,00"), "{}", jobs[0].text);
+        assert!(jobs[1].drawer_kick);
+        assert!(jobs[0].id < jobs[1].id);
     }
 
     #[tokio::test]
