@@ -291,15 +291,9 @@ def _is_ignored(repo: Path, rt, ucm) -> bool:
         m = ucm.FN_RE.match(line)
         if not m or m.group(1) != rt.fn_name:
             continue
-        j = i - 1
-        while j >= 0 and j > i - 1 - ucm.BACKWARD_SCAN_LIMIT:
-            stripped = lines[j].strip()
-            if IGNORE_ATTR_RE.search(stripped):
-                return True
-            if stripped == "" or stripped.startswith("#[") or stripped.startswith("//"):
-                j -= 1
-                continue
-            break
+        attributes, _ = ucm.items_above_fn(lines, i)
+        if any(IGNORE_ATTR_RE.match(attr) for attr in attributes):
+            return True
     return False
 
 

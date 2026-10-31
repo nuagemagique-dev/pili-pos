@@ -386,13 +386,15 @@ ADVANCED_SET_LABELS = {
 # Rust test scanning.
 # ---------------------------------------------------------------------------
 
-TEST_ATTR_RE = re.compile(r"#\[\s*(?:test|tokio::test)\s*\]")
+TEST_ATTR_RE = re.compile(r"#\[\s*(?:test|tokio::test)\s*[\](]")
 ATTR_LINE_RE = re.compile(r"^#\[")
 FN_RE = re.compile(
     r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)"
 )
 COVERS_RE = re.compile(r"//\s*covers:\s*(.+)", re.IGNORECASE)
+STRING_RE = re.compile(r'"(?:[^"\\]|\\.)*"')
 BACKWARD_SCAN_LIMIT = 8
+ATTR_SPAN_LIMIT = 12
 
 
 def _rust_test_dirs(root: Path) -> list:
@@ -419,10 +421,56 @@ class RustTest:
     covers: list = field(default_factory=list)
 
 
+def _attribute_start(lines: list, end: int):
+    """Index of the line that opens the multi-line attribute closing on line
+    `end`, or None when line `end` closes no attribute. The opening bracket
+    must close at the very end of the span, so code between an earlier
+    attribute and this line is never taken for an attribute."""
+    if not lines[end].rstrip().endswith("]"):
+        return None
+    for start in range(end - 1, max(-1, end - 1 - ATTR_SPAN_LIMIT), -1):
+        if not ATTR_LINE_RE.match(lines[start].strip()):
+            continue
+        text = STRING_RE.sub('""', "\n".join(lines[start : end + 1])).strip()
+        depth = 0
+        for pos, char in enumerate(text):
+            depth += (char == "[") - (char == "]")
+            if pos > 0 and depth == 0:
+                return start if pos == len(text) - 1 else None
+        return None
+    return None
+
+
+def items_above_fn(lines: list, fn_index: int) -> tuple:
+    """The attributes and comment lines directly above the fn on line
+    `fn_index`, nearest first, as (attributes, comments). A multi-line
+    attribute is one joined string and one step of BACKWARD_SCAN_LIMIT."""
+    attributes: list = []
+    comments: list = []
+    j = fn_index - 1
+    steps = 0
+    while j >= 0 and steps < BACKWARD_SCAN_LIMIT:
+        stripped = lines[j].strip()
+        if stripped.startswith("//"):
+            comments.append(stripped)
+        elif ATTR_LINE_RE.match(stripped):
+            attributes.append(stripped)
+        elif stripped != "":
+            start = _attribute_start(lines, j)
+            if start is None:
+                break
+            attributes.append(" ".join(line.strip() for line in lines[start : j + 1]))
+            j = start
+        j -= 1
+        steps += 1
+    return attributes, comments
+
+
 def scan_rust_tests(root: Path) -> list:
     """Return every `#[test]`/`#[tokio::test]` fn found under the crates and
     src-tauri test/src trees, together with any `// covers: ID, ID` marker
-    found directly above it."""
+    found directly above it. Only a real attribute makes a fn a test: a
+    commented-out `// #[test]` or the text of a `reason` does not."""
     tests = []
     for d in _rust_test_dirs(root):
         for rs_file in sorted(d.rglob("*.rs")):
@@ -435,24 +483,15 @@ def scan_rust_tests(root: Path) -> list:
                 m = FN_RE.match(line)
                 if not m:
                     continue
-                fn_name = m.group(1)
-                is_test = False
+                attributes, comments = items_above_fn(lines, i)
+                if not any(TEST_ATTR_RE.match(attr) for attr in attributes):
+                    continue
                 covers: list = []
-                j = i - 1
-                floor = max(-1, i - 1 - BACKWARD_SCAN_LIMIT)
-                while j > floor:
-                    stripped = lines[j].strip()
-                    if TEST_ATTR_RE.search(stripped):
-                        is_test = True
-                    cm = COVERS_RE.search(stripped)
+                for item in attributes + comments:
+                    cm = COVERS_RE.search(item)
                     if cm:
                         covers.extend(x.strip() for x in cm.group(1).split(",") if x.strip())
-                    if stripped == "" or ATTR_LINE_RE.match(stripped) or stripped.startswith("//"):
-                        j -= 1
-                        continue
-                    break
-                if is_test:
-                    tests.append(RustTest(fn_name, rel, covers))
+                tests.append(RustTest(m.group(1), rel, covers))
     return tests
 
 

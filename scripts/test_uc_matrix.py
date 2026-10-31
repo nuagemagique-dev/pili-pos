@@ -39,6 +39,163 @@ class TokenBoundaryTests(unittest.TestCase):
         self.assertTrue(m.token_present("v_buffer_full_error", "v_buffer_full"))
 
 
+class RustScanTests(unittest.TestCase):
+    """scan_rust_tests() must see a test whatever the attributes around it,
+    and only a fn that a real test attribute marks."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp(prefix="uc_matrix_scan_")
+        self.root = Path(self.tmpdir)
+        self.addCleanup(shutil.rmtree, self.tmpdir, ignore_errors=True)
+
+    def _scan(self, source: str) -> dict:
+        path = self.root / "crates/fakecrate/tests/sample.rs"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(textwrap.dedent(source), encoding="utf-8")
+        return {t.fn_name: t for t in m.scan_rust_tests(self.root)}
+
+    def test_multi_line_attribute_between_test_and_fn(self):
+        tests = self._scan(
+            """\
+            #[test]
+            #[expect(
+                clippy::too_many_lines,
+                reason = "a test that replays the whole official example"
+            )]
+            fn vi_z_example() {}
+            """
+        )
+        self.assertIn("vi_z_example", tests)
+
+    def test_multi_line_attribute_above_test(self):
+        tests = self._scan(
+            """\
+            // covers: M110
+            #[expect(
+                clippy::too_many_lines,
+                reason = "long"
+            )]
+            #[tokio::test]
+            async fn generic_name() {}
+            """
+        )
+        self.assertEqual(tests["generic_name"].covers, ["M110"])
+
+    def test_covers_marker_above_a_multi_line_attribute(self):
+        tests = self._scan(
+            """\
+            // covers: M110, M120
+            #[test]
+            #[expect(
+                clippy::too_many_lines,
+                reason = "long"
+            )]
+            fn generic_name() {}
+            """
+        )
+        self.assertEqual(tests["generic_name"].covers, ["M110", "M120"])
+
+    def test_several_multi_line_attributes_with_brackets_in_a_reason(self):
+        tests = self._scan(
+            """\
+            #[test]
+            #[ignore = "live run"]
+            #[expect(
+                clippy::too_many_lines,
+                reason = "a ] and a [ in the text"
+            )]
+            #[expect(
+                clippy::similar_names,
+                reason = "same"
+            )]
+            fn long_test() {}
+            """
+        )
+        self.assertIn("long_test", tests)
+
+    def test_tokio_test_with_arguments(self):
+        tests = self._scan(
+            """\
+            #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+            async fn one_line() {}
+
+            #[tokio::test(
+                flavor = "multi_thread",
+                worker_threads = 2
+            )]
+            async fn two_lines() {}
+            """
+        )
+        self.assertEqual(set(tests), {"one_line", "two_lines"})
+
+    def test_fn_after_another_test_is_not_a_test(self):
+        tests = self._scan(
+            """\
+            #[test]
+            fn real() {}
+            fn helper() {}
+
+            #[test]
+            fn body_ends_in_a_bracket() { let _ = [
+                1,
+            ]
+            ; }
+            fn other_helper() {}
+
+            #[test]
+            fn tail() -> [u8; 1] {
+                [0
+                ]
+            }
+            fn last_helper() {}
+            """
+        )
+        self.assertEqual(set(tests), {"real", "body_ends_in_a_bracket", "tail"})
+
+    def test_code_ending_in_a_bracket_is_not_a_multi_line_attribute(self):
+        # The line above the helper closes an array, not the attribute further up.
+        tests = self._scan(
+            """\
+            #[test]
+            fn real() -> [u8; 1] { [
+                0
+            ]
+            fn helper() {}
+            """
+        )
+        self.assertEqual(set(tests), {"real"})
+
+    def test_commented_out_or_quoted_test_attribute_is_not_a_test(self):
+        tests = self._scan(
+            """\
+            // #[test]
+            fn commented_out() {}
+
+            #[expect(
+                clippy::too_many_lines,
+                reason = "#[test] in the text"
+            )]
+            fn quoted() {}
+
+            #[expect(dead_code, reason = "#[test]")]
+            fn quoted_one_line() {}
+            """
+        )
+        self.assertEqual(tests, {})
+
+    def test_other_test_like_attributes_are_not_tests(self):
+        tests = self._scan(
+            """\
+            #[test_case(1)]
+            fn with_test_case() {}
+
+            #[testing::something]
+            fn with_testing() {}
+            """
+        )
+        self.assertEqual(tests, {})
+
+
 class FakeRepo:
     """Builds a minimal fake repo tree exercising every code path of
     build_report(): a Basic-Set-shaped docs folder plus matching / non
