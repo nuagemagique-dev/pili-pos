@@ -255,6 +255,8 @@ function editProduct(p?: ipc.AdminProduct) {
           kitchen_printer: true,
           code: null,
           open_price: false,
+          sold_by_weight: false,
+          scale_tare_grams: null,
           sort_order: products.value.length + 1,
           active: true,
         },
@@ -373,6 +375,33 @@ function step(delta: number) {
   const f = form.value
   if (!f) return
   f.data.sort_order = Math.max(0, f.data.sort_order + delta)
+}
+
+// A product has one way to get its price: typed, or from the scale.
+function toggleOpenPrice() {
+  const f = form.value
+  if (!f || f.kind !== 'product') return
+  f.data.open_price = !f.data.open_price
+  if (f.data.open_price) {
+    f.data.sold_by_weight = false
+    f.data.scale_tare_grams = null
+  }
+}
+
+function toggleSoldByWeight() {
+  const f = form.value
+  if (!f || f.kind !== 'product') return
+  f.data.sold_by_weight = !f.data.sold_by_weight
+  if (f.data.sold_by_weight) f.data.open_price = false
+  else f.data.scale_tare_grams = null
+}
+
+/** The engine keeps a tare between 0 and 9 999 g; none at zero. */
+function stepTare(delta: number) {
+  const f = form.value
+  if (!f || f.kind !== 'product') return
+  const next = Math.min(9995, Math.max(0, (f.data.scale_tare_grams ?? 0) + delta))
+  f.data.scale_tare_grams = next === 0 ? null : next
 }
 
 function stepSelect(field: 'min_select' | 'max_select', delta: number) {
@@ -569,7 +598,9 @@ const ui = reactive({ colors: PALETTE })
               <span class="row-name">{{ labelOf(p.names) }}</span>
               <span v-if="!p.active" class="tag">{{ t('menu_ed_hidden') }}</span>
               <span class="row-price">{{
-                p.open_price ? t('menu_ed_open_price') : `${formatPrice(p.price_cents)} €`
+                p.open_price
+                  ? t('menu_ed_open_price')
+                  : `${formatPrice(p.price_cents)} ${p.sold_by_weight ? '€/kg' : '€'}`
               }}</span>
             </button>
           </li>
@@ -714,7 +745,9 @@ const ui = reactive({ colors: PALETTE })
                 </div>
               </div>
               <div class="field">
-                <label>{{ t('menu_ed_price') }}</label>
+                <label>{{
+                  t(form.data.sold_by_weight ? 'menu_ed_price_per_kilo' : 'menu_ed_price')
+                }}</label>
                 <input
                   class="input mono"
                   :class="{ focused: focus === 'price' }"
@@ -785,10 +818,32 @@ const ui = reactive({ colors: PALETTE })
                 class="toggle"
                 :class="{ on: form.data.open_price }"
                 data-testid="menu-ed-open-price"
-                @click="form.data.open_price = !form.data.open_price"
+                @click="toggleOpenPrice"
               >
                 {{ t('menu_ed_open_price') }}
               </button>
+              <button
+                class="toggle"
+                :class="{ on: form.data.sold_by_weight }"
+                data-testid="menu-ed-sold-by-weight"
+                @click="toggleSoldByWeight"
+              >
+                {{ t('menu_ed_sold_by_weight') }}
+              </button>
+              <div v-if="form.data.sold_by_weight" class="field">
+                <label>{{ t('menu_ed_tare') }}</label>
+                <div class="stepper">
+                  <button class="step-btn" data-testid="menu-ed-tare-minus" @click="stepTare(-5)">
+                    &minus;
+                  </button>
+                  <span class="step-value" data-testid="menu-ed-tare"
+                    >{{ form.data.scale_tare_grams ?? 0 }} g</span
+                  >
+                  <button class="step-btn" data-testid="menu-ed-tare-plus" @click="stepTare(5)">
+                    +
+                  </button>
+                </div>
+              </div>
             </template>
 
             <!-- Option group -->

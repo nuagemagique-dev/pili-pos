@@ -77,6 +77,7 @@
     <string name="webshop_attention_unknown_product">菜单中没有该产品。</string>
     <string name="webshop_attention_unknown_option">菜单中没有该选项。</string>
     <string name="webshop_attention_unknown_charge">菜单中没有该费用。</string>
+    <string name="webshop_attention_sold_by_weight">按重量销售的商品：无法远程称重。</string>
     <string name="webshop_attention_fractional_quantity">数量不是整数。</string>
     <string name="webshop_attention_bad_price">价格无法识别。</string>
     <string name="webshop_attention_vat_mismatch">增值税与菜单不符。</string>

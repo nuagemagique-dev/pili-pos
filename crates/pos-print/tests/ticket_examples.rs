@@ -57,6 +57,7 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
                 unit_price: 12.00,
                 total: 24.00,
                 vat_code: "A".to_string(),
+                weighed: false,
             },
             TicketLine {
                 quantity: 1.0,
@@ -64,6 +65,7 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
                 unit_price: 28.00,
                 total: 28.00,
                 vat_code: "B".to_string(),
+                weighed: false,
             },
         ],
         subtotal: 52.00,
@@ -111,7 +113,7 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
 }
 
 fn write_example(name: &str, ticket: &FiscalTicket) {
-    let text = render_plain_text(&format_receipt(ticket));
+    let text = render_plain_text(&format_receipt(ticket, pos_print::escpos::PaperWidth::Mm80));
     // Only a VAT ticket (N) carries the FDM's QR code; its copy
     // reprints the original's (§2.4, §6.5).
     let vat_ticket = ticket.event_label == EventLabel::N;
@@ -147,6 +149,7 @@ fn example_n_split_payment() {
             unit_price: 11.52,
             total: 11.52,
             vat_code: "B".to_string(),
+            weighed: false,
         },
         TicketLine {
             quantity: 1.0,
@@ -154,6 +157,7 @@ fn example_n_split_payment() {
             unit_price: 3.34,
             total: 3.34,
             vat_code: "B".to_string(),
+            weighed: false,
         },
     ];
     ticket.subtotal = 14.86;
@@ -281,7 +285,10 @@ fn example_bar_slip() {
         release: None,
         duplicate: false,
     };
-    let text = render_plain_text(&format_bar_ticket(&slip));
+    let text = render_plain_text(&format_bar_ticket(
+        &slip,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     assert!(!text.contains(','), "a bar ticket never shows a price");
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
@@ -314,7 +321,10 @@ fn example_bar_slip_with_notes() {
         release: None,
         duplicate: false,
     };
-    let text = render_plain_text(&format_bar_ticket(&slip));
+    let text = render_plain_text(&format_bar_ticket(
+        &slip,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     assert!(text.contains("> allergie arachide - sans oignons"));
     assert!(!text.contains(','), "a bar ticket never shows a price");
     let Some(dir) = out_dir() else { return };
@@ -334,7 +344,10 @@ fn example_note_slip() {
         lang: ReceiptLanguage::Fr,
         is_training: false,
     };
-    let text = render_plain_text(&format_note_slip(&slip));
+    let text = render_plain_text(&format_note_slip(
+        &slip,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     assert!(text.contains("Note : bien cuit") && !text.contains(" x "));
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
@@ -353,6 +366,7 @@ fn example_n_gift_voucher_payment() {
         unit_price: 58.0,
         total: 116.0,
         vat_code: "B".to_string(),
+        weighed: false,
     }];
     ticket.subtotal = 116.0;
     ticket.total = 116.0;
@@ -372,7 +386,13 @@ fn example_n_gift_voucher_payment() {
             brand: None,
         })
         .collect();
-    assert!(render_plain_text(&format_receipt(&ticket)).contains("Bon cadeau"));
+    assert!(
+        render_plain_text(&format_receipt(
+            &ticket,
+            pos_print::escpos::PaperWidth::Mm80
+        ))
+        .contains("Bon cadeau")
+    );
     write_example("ticket_N_paiement_bon", &ticket);
 }
 
@@ -395,7 +415,10 @@ fn example_gift_voucher() {
         duplicate: false,
         training: false,
     };
-    let text = render_plain_text(&format_gift_voucher(&slip));
+    let text = render_plain_text(&format_gift_voucher(
+        &slip,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     assert!(text.contains("1234 5678 9095"), "the code is spelled out");
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
@@ -414,7 +437,10 @@ fn example_gift_voucher_balance() {
         lang: "fr".to_string(),
         training: false,
     };
-    let text = render_plain_text(&format_balance_slip(&slip));
+    let text = render_plain_text(&format_balance_slip(
+        &slip,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     assert!(text.contains("9095") && !text.contains("123456789095"));
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
@@ -465,7 +491,10 @@ fn example_allergen_sheet() {
             },
         ],
     };
-    let text = render_plain_text(&format_allergen_sheet(&sheet));
+    let text = render_plain_text(&format_allergen_sheet(
+        &sheet,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     assert!(
         !text.contains(" EUR") && !text.contains('€'),
         "no price: {text}"
@@ -502,8 +531,14 @@ fn example_course_slips() {
         release: Some(2),
         ..first.clone()
     };
-    let first_text = render_plain_text(&format_bar_ticket(&first));
-    let release_text = render_plain_text(&format_bar_ticket(&release));
+    let first_text = render_plain_text(&format_bar_ticket(
+        &first,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
+    let release_text = render_plain_text(&format_bar_ticket(
+        &release,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     assert!(
         release_text.contains("SUITE") && !release_text.contains(','),
         "{release_text}"
@@ -612,7 +647,10 @@ fn example_x_report() {
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
     let data = base_report("X", None, ReceiptLanguage::Fr);
-    let text = render_plain_text(&pos_print::report::format_report(&data));
+    let text = render_plain_text(&pos_print::report::format_report(
+        &data,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     std::fs::write(dir.join("rapport_X.txt"), text).expect("write example");
 }
 
@@ -621,7 +659,10 @@ fn example_z_report() {
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
     let data = base_report("Z", Some(1), ReceiptLanguage::Fr);
-    let text = render_plain_text(&pos_print::report::format_report(&data));
+    let text = render_plain_text(&pos_print::report::format_report(
+        &data,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     std::fs::write(dir.join("rapport_Z.txt"), text).expect("write example");
 }
 
@@ -630,7 +671,10 @@ fn example_z_report_nl() {
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
     let data = base_report("Z", Some(1), ReceiptLanguage::Nl);
-    let text = render_plain_text(&pos_print::report::format_report(&data));
+    let text = render_plain_text(&pos_print::report::format_report(
+        &data,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     std::fs::write(dir.join("rapport_Z_nl.txt"), text).expect("write example");
 }
 
@@ -639,7 +683,10 @@ fn example_z_report_de() {
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
     let data = base_report("Z", Some(1), ReceiptLanguage::De);
-    let text = render_plain_text(&pos_print::report::format_report(&data));
+    let text = render_plain_text(&pos_print::report::format_report(
+        &data,
+        pos_print::escpos::PaperWidth::Mm80,
+    ));
     std::fs::write(dir.join("rapport_Z_de.txt"), text).expect("write example");
 }
 
@@ -652,10 +699,16 @@ fn a_z_report_lists_the_payment_corrections_in_every_language() {
     ] {
         let mut data = base_report("Z", Some(1), lang);
         // Nothing moved: the line is not printed.
-        let none = render_plain_text(&pos_print::report::format_report(&data));
+        let none = render_plain_text(&pos_print::report::format_report(
+            &data,
+            pos_print::escpos::PaperWidth::Mm80,
+        ));
         assert!(!none.contains(&label[..label.len() - 2]), "{lang:?}");
         data.details.payment_corrections = (2, 7800);
-        let text = render_plain_text(&pos_print::report::format_report(&data));
+        let text = render_plain_text(&pos_print::report::format_report(
+            &data,
+            pos_print::escpos::PaperWidth::Mm80,
+        ));
         let line = text
             .lines()
             .find(|l| l.contains(label))

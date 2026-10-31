@@ -208,6 +208,13 @@
     <string name="sw_version">Version</string>
     <string name="lock">Verrouiller</string>
     <string name="status_terminal">Terminal</string>
+    <string name="status_scale">Balance</string>
+    <string name="scale_busy">pesée en cours</string>
+    <string name="scale_check_refused">contrôle du logiciel refusé</string>
+    <string name="scale_title">Pesée</string>
+    <string name="scale_stage_waiting">Posez le produit sur la balance</string>
+    <string name="scale_stage_stabilizing">Stabilisation du poids…</string>
+    <string name="scale_stage_checking">Contrôle par la balance…</string>
     <string name="status_kitchen">Cuisine</string>
     <string name="fdm_closes_in">se ferme dans {s} s</string>
     <string name="fdm_retry_in">nouvel essai automatique dans {s} s</string>

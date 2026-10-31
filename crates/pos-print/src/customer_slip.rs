@@ -6,7 +6,7 @@
 //! ticket, which is the receipt printed by `receipt.rs` when the
 //! order is signed by the FDM.
 
-use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
+use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle};
 
 #[derive(Debug, Clone)]
 pub struct CustomerLine {
@@ -40,8 +40,8 @@ pub struct CustomerSlip {
 }
 
 /// Build the ESC/POS byte stream for a customer slip.
-pub fn format_customer_slip(slip: &CustomerSlip) -> Vec<u8> {
-    let mut p = EscPosBuilder::new();
+pub fn format_customer_slip(slip: &CustomerSlip, paper: PaperWidth) -> Vec<u8> {
+    let mut p = EscPosBuilder::for_paper(paper);
 
     // ── Restaurant header ────────────────────────────────────────
     p.align(Alignment::Center);
@@ -175,33 +175,40 @@ mod tests {
     }
 
     #[test]
+    fn fits_58_mm_paper() {
+        crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+            format_customer_slip(&sample(), paper)
+        });
+    }
+
+    #[test]
     fn contains_restaurant_header() {
-        let bytes = format_customer_slip(&sample());
+        let bytes = format_customer_slip(&sample(), PaperWidth::Mm80);
         assert!(bytes.windows(15).any(|w| w == b"Tokyo Sushi Bar"));
     }
 
     #[test]
     fn contains_total_value() {
-        let bytes = format_customer_slip(&sample());
+        let bytes = format_customer_slip(&sample(), PaperWidth::Mm80);
         // 2700 cents → "27.00"
         assert!(bytes.windows(5).any(|w| w == b"27.00"));
     }
 
     #[test]
     fn contains_disclaimer() {
-        let bytes = format_customer_slip(&sample());
+        let bytes = format_customer_slip(&sample(), PaperWidth::Mm80);
         assert!(bytes.windows(18).any(|w| w == b"un recu TVA valide"));
     }
 
     #[test]
     fn contains_customer_name() {
-        let bytes = format_customer_slip(&sample());
+        let bytes = format_customer_slip(&sample(), PaperWidth::Mm80);
         assert!(bytes.windows(12).any(|w| w == b"Alice Martin"));
     }
 
     #[test]
     fn ends_with_cut() {
-        let bytes = format_customer_slip(&sample());
+        let bytes = format_customer_slip(&sample(), PaperWidth::Mm80);
         assert!(bytes.windows(4).any(|w| w == [0x1D, b'V', 66, 3]));
     }
 
@@ -223,7 +230,7 @@ mod tests {
     fn slip_omits_the_customer_block_when_no_customer_data_is_present() {
         let mut slip = sample();
         slip.customer = CustomerInfo::default();
-        let text = crate::render::render_plain_text(&format_customer_slip(&slip));
+        let text = crate::render::render_plain_text(&format_customer_slip(&slip, PaperWidth::Mm80));
         assert!(!text.contains("Alice Martin"));
     }
 
@@ -235,7 +242,7 @@ mod tests {
             product_name: "X".repeat(120),
             line_total_cents: 999_999_999,
         });
-        let text = crate::render::render_plain_text(&format_customer_slip(&slip));
+        let text = crate::render::render_plain_text(&format_customer_slip(&slip, PaperWidth::Mm80));
         for line in text.lines() {
             assert!(
                 line.chars().count() <= 48,
@@ -255,7 +262,7 @@ mod tests {
             product_name: "寿司".to_string(),
             line_total_cents: 500,
         });
-        let text = crate::render::render_plain_text(&format_customer_slip(&slip));
+        let text = crate::render::render_plain_text(&format_customer_slip(&slip, PaperWidth::Mm80));
         assert!(
             text.contains("??"),
             "CJK chars must degrade to '?':\n{text}"

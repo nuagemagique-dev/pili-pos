@@ -28,6 +28,7 @@ pub struct AlertKinds {
     pub fdm: bool,
     pub printer: bool,
     pub terminal: bool,
+    pub scale: bool,
     pub z_missing: bool,
     pub online_waiting: bool,
 }
@@ -39,6 +40,7 @@ impl Default for AlertKinds {
             fdm: true,
             printer: true,
             terminal: true,
+            scale: true,
             z_missing: true,
             online_waiting: true,
         }

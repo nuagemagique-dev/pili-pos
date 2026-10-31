@@ -43,3 +43,13 @@ fun formatCents(cents: Long): String {
 
 /** [formatCents] followed by a space and the euro sign, as the Vue templates write a price (`{{ formatPrice(c) }} €`). */
 fun formatEuro(cents: Long): String = formatCents(cents) + " €"
+
+/** A net weight in grams, the way the ticket prints it: 278 gives "0,278 kg" (`formatWeight` of `format.ts`). */
+fun formatWeight(grams: Long): String {
+    val kilos = grams / GRAMS_PER_KILO
+    val rest = (grams % GRAMS_PER_KILO).toString().padStart(WEIGHT_DECIMALS, '0')
+    return "$kilos,$rest kg"
+}
+
+private const val GRAMS_PER_KILO = 1000L
+private const val WEIGHT_DECIMALS = 3

@@ -3,21 +3,22 @@
 // the cart lines report.
 import type { CartLine } from '../types'
 
-/** Quantity times unit price, before any discount. */
-export function lineGrossCents(line: Pick<CartLine, 'unit_price_cents' | 'quantity'>): number {
-  return line.unit_price_cents * line.quantity
+type AmountLine = Pick<CartLine, 'unit_price_cents' | 'quantity' | 'weighed_amount_cents'>
+
+/** Quantity times unit price, before any discount. A weighing carries the
+ * scale's amount: its unit price is per kilo. */
+export function lineGrossCents(line: AmountLine): number {
+  return (line.weighed_amount_cents ?? line.unit_price_cents) * line.quantity
 }
 
 /** A line's amount after its price changes (`discount_cents` is negative). */
-export function lineNetCents(
-  line: Pick<CartLine, 'unit_price_cents' | 'quantity'> & { discount_cents?: number },
-): number {
+export function lineNetCents(line: AmountLine & { discount_cents?: number }): number {
   return lineGrossCents(line) + (line.discount_cents ?? 0)
 }
 
 /** Σ of the lines' net amounts: the amount due. */
 export function netTotalCents(
-  lines: readonly (Pick<CartLine, 'unit_price_cents' | 'quantity'> & { discount_cents?: number })[],
+  lines: readonly (AmountLine & { discount_cents?: number })[],
 ): number {
   return lines.reduce((sum, line) => sum + lineNetCents(line), 0)
 }

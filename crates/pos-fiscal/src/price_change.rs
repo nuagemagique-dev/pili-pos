@@ -117,6 +117,7 @@ pub fn ticket_rows(line: &OrderLine, changes: &LineChanges) -> Vec<TicketLine> {
             unit_price: eur(c.amount_cents),
             total: eur(c.amount_cents),
             vat_code: line.vat_code.as_str().to_string(),
+            weighed: false,
         })
         .collect()
 }
@@ -126,11 +127,12 @@ pub fn ticket_lines(lines: &[OrderLine], changes: &LineChanges) -> Vec<TicketLin
     let mut rows = Vec::with_capacity(lines.len());
     for l in lines {
         rows.push(TicketLine {
-            quantity: f64::from(l.quantity),
+            quantity: l.fiscal_quantity(),
             description: l.name.clone(),
             unit_price: eur(l.unit_price_cents),
             total: eur(l.line_total()),
             vat_code: l.vat_code.as_str().to_string(),
+            weighed: l.is_weighed(),
         });
         rows.extend(ticket_rows(l, changes));
     }
@@ -216,6 +218,8 @@ mod tests {
             created_at: Utc::now(),
             department_id: "1".into(),
             department_name: "D".into(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         }
     }
 

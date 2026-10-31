@@ -9,7 +9,7 @@
 use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer};
 use serde::{Deserialize, Serialize};
 
-use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
+use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle};
 
 /// One booking period of the range with its concordance with the Z.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -30,6 +30,9 @@ pub struct SalesProductPrint {
     /// Thousandths of a unit (2 pieces = 2000), negative for refunds.
     pub quantity_milli: i64,
     pub amount_cents: i64,
+    /// Sold by weight: the quantity prints with three decimals and its unit.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub weighed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -173,6 +176,13 @@ fn fmt_quantity(milli: i64) -> String {
     }
 }
 
+/// 1234 thousandths of a kilo: "1,234 kg".
+fn fmt_kilos(milli: i64) -> String {
+    let sign = if milli < 0 { "-" } else { "" };
+    let abs = milli.abs();
+    format!("{sign}{},{:03} kg", abs / 1000, abs % 1000)
+}
+
 fn section(p: &mut EscPosBuilder, title: &str) {
     p.separator('-');
     p.align(Alignment::Center);
@@ -186,9 +196,9 @@ fn section(p: &mut EscPosBuilder, title: &str) {
 }
 
 /// Format the sales report for the thermal printer.
-pub fn format_sales_report(data: &SalesReportPrint) -> Vec<u8> {
+pub fn format_sales_report(data: &SalesReportPrint, paper: PaperWidth) -> Vec<u8> {
     let w = words(data.lang);
-    let mut p = EscPosBuilder::new();
+    let mut p = EscPosBuilder::for_paper(paper);
 
     p.align(Alignment::Center);
     p.style(TextStyle {
@@ -211,13 +221,13 @@ pub fn format_sales_report(data: &SalesReportPrint) -> Vec<u8> {
     p.textln(&data.restaurant_vat);
     p.align(Alignment::Left);
     p.separator('=');
-    p.textln(&format!(
+    p.textln_wrapped(&format!(
         "{}: {} - {}",
         w.period,
         fmt_date(&data.from),
         fmt_date(&data.to)
     ));
-    p.textln(&format!("{}: {}", w.generated, data.generated_at));
+    p.textln_wrapped(&format!("{}: {}", w.generated, data.generated_at));
 
     section(&mut p, w.concordance);
     for day in &data.days {
@@ -244,7 +254,11 @@ pub fn format_sales_report(data: &SalesReportPrint) -> Vec<u8> {
         p.text_columns(
             &format!(
                 "{} x {}",
-                fmt_quantity(product.quantity_milli),
+                if product.weighed {
+                    fmt_kilos(product.quantity_milli)
+                } else {
+                    fmt_quantity(product.quantity_milli)
+                },
                 product.name
             ),
             &fmt_price(product.amount_cents),
@@ -327,11 +341,13 @@ mod tests {
                 SalesProductPrint {
                     name: "Maki saumon".into(),
                     quantity_milli: 3_000,
+                    weighed: false,
                     amount_cents: 1_950,
                 },
                 SalesProductPrint {
                     name: "Sashimi".into(),
                     quantity_milli: -1_000,
+                    weighed: false,
                     amount_cents: -1_200,
                 },
             ],
@@ -349,7 +365,27 @@ mod tests {
     }
 
     fn text(lang: ReceiptLanguage) -> String {
-        render_plain_text(&format_sales_report(&sample(lang)))
+        render_plain_text(&format_sales_report(&sample(lang), PaperWidth::Mm80))
+    }
+
+    #[test]
+    fn a_weighed_product_prints_its_kilos() {
+        assert_eq!(fmt_kilos(1234), "1,234 kg");
+        assert_eq!(fmt_kilos(-278), "-0,278 kg");
+        assert_eq!(fmt_kilos(2000), "2,000 kg");
+    }
+
+    #[test]
+    fn every_language_fits_58_mm_paper() {
+        for lang in [
+            ReceiptLanguage::Fr,
+            ReceiptLanguage::Nl,
+            ReceiptLanguage::De,
+        ] {
+            crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+                format_sales_report(&sample(lang), paper)
+            });
+        }
     }
 
     #[test]
@@ -391,7 +427,7 @@ mod tests {
         let mut data = sample(ReceiptLanguage::Fr);
         data.days[0].matches_z = false;
         data.days[0].z_total_cents = Some(12_000);
-        let out = render_plain_text(&format_sales_report(&data));
+        let out = render_plain_text(&format_sales_report(&data, PaperWidth::Mm80));
         assert!(out.contains("ECART 5,50"), "{out}");
     }
 

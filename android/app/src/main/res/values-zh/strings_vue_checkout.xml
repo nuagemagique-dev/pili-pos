@@ -35,6 +35,9 @@
     <string name="eft_mode_manual">手动录入</string>
     <string name="eft_hint_terminal">确认后金额将发送到终端</string>
     <string name="settings_payment_terminal_label">支付终端</string>
+    <string name="settings_scale_label">电子秤</string>
+    <string name="settings_scale_on">已配置</string>
+    <string name="settings_scale_none">无</string>
     <string name="settings_payment_terminal_none">无（手动录入）</string>
     <string name="eft_kind_worldline_terminal_api">Worldline</string>
     <string name="eft_kind_ccv_payment_api">CCV 云端</string>

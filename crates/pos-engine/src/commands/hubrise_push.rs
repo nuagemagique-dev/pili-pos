@@ -58,7 +58,10 @@ pub fn build_hubrise_order_body(
             json!({
                 "product_name": l.name,
                 "price": cents_to_hubrise(l.unit_price_cents),
-                "quantity": l.quantity.to_string(),
+                "quantity": match l.weight_grams {
+                    Some(_) => format!("{:.3}", l.fiscal_quantity()),
+                    None => l.quantity.to_string(),
+                },
                 "tax_rate": match l.vat_code.as_str() {
                     "A" => "21",
                     "B" => "12",

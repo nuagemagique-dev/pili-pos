@@ -153,6 +153,9 @@
 //! | `SwitchChange` | `pos_db::queries::integrations::SwitchChange` | auth | get_integrations, set_hubrise_enabled |
 //! | `User` | `pos_core::user::User` | auth | create_user, get_current_user, list_users (+2 commands) |
 //! | `UserRole` | `pos_core::user::UserRole` | auth | create_user, get_current_user, list_users (+2 commands) |
+//! | `ScaleProgress` | `pos_engine::commands::scale::ScaleProgress` | common | event scale-progress |
+//! | `ScaleStatus` | `pos_engine::commands::scale::ScaleStatus` | scale | get_scale_status |
+//! | `ScaleWeighInput` | `pos_engine::commands::scale::ScaleWeighInput` | scale | scale_start_weighing |
 //! | `ActiveBadge` | `pos_db::queries::badges::ActiveBadge` | badges | list_badges |
 //! | `BadgeLink` | `pos_engine::commands::badges::BadgeLink` | badges | link_badge |
 //! | `BadgeLogEntry` | `pos_db::queries::badges::LogEntry` | badges | list_badges |
@@ -228,3 +231,4 @@ pub mod invoice;
 pub mod menu_admin;
 pub mod orders;
 pub mod reports;
+pub mod scale;

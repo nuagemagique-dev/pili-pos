@@ -129,6 +129,10 @@ pub struct PosSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[uniffi(default = None)]
     pub payment_terminal: Option<String>,
+    /// `pos.json` has a `scale` section: products sold by weight can be sold.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[uniffi(default = false)]
+    pub scale_configured: bool,
 }
 
 /// `pos_engine::commands::sales_report::SalesDay`: one booking period of a sales report with its
@@ -156,6 +160,10 @@ pub struct SalesProduct {
     /// Thousandths of a unit, negative for refunds.
     pub quantity_milli: i64,
     pub amount_cents: i64,
+    /// Sold by weight: `quantity_milli` is then in grams.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[uniffi(default = false)]
+    pub weighed: bool,
 }
 
 /// `pos_engine::commands::sales_report::SalesHour`: one row of the by-hour table.

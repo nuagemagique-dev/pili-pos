@@ -246,6 +246,7 @@ internal object WebshopRules {
             is Attention.UnknownOption -> "unknown_option"
             is Attention.UnknownCharge -> "unknown_charge"
             is Attention.FractionalQuantity -> "fractional_quantity"
+            is Attention.SoldByWeight -> "sold_by_weight"
             is Attention.BadPrice -> "bad_price"
             is Attention.VatMismatch -> "vat_mismatch"
             is Attention.Discount -> "discount"

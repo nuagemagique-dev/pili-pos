@@ -144,6 +144,15 @@ le même effet.
    (`kitchen_slip_entries`) que si le ticket est sorti.
 4. Aucun message au FDM, aucun ticket de T.V.A. ni export ne contient un temps.
 
+## 2 sexies. Vente au poids (pesée locale, puis événement habituel)
+
+1. L'opérateur touche un produit vendu au poids. `commands::scale::do_scale_start_weighing` envoie le prix au kilo à la
+   balance et attend une pesée stable ; l'écran affiche la fenêtre « Pesée ».
+2. La balance renvoie le poids, le prix unitaire et le montant. Le moteur les contrôle, puis écrit `scale_weighings` et
+   la ligne dans la même transaction. Refus ou annulation : rien n'est écrit, sauf les étapes du contrôle (`scale_check_log`).
+3. Aucun message au FDM à cette étape. La ligne suit ensuite le chemin habituel (P, N ou T), signée en `KILOGRAM`.
+   Voir *BALANCE_FR.md*.
+
 ## 3. Le client paie - Vente (Événement N)
 
 **Action utilisateur.** Le client demande l'addition. L'opérateur tape
@@ -616,6 +625,7 @@ n'est mis en file.
 | Paiement avec un bon | `fiscal_events` (append N), `payments` (insert, méthode `other`), `gift_voucher_movements` (append `redeem`) |
 | Réglage d'une fonction du propriétaire | `owner_settings` (mise à jour), `owner_settings_log` (append) |
 | Alerte du propriétaire | `owner_alert_log` (append) |
+| Pesée | `scale_weighings` (append), `order_lines` et `order_entries` (insert) ; `scale_check_log` (append) à chaque étape du contrôle |
 | Temps d'une ligne, « Envoyer la suite » | `order_line_courses`, `order_course_releases` (insert), `kitchen_slip_entries` (append après impression) ; aucun `fiscal_events` propre au temps |
 | Saisie des allergènes d'un produit | `menu_item_allergens` ou `modifier_allergens`, `allergen_declarations`, `allergen_change_log` (append) |
 | Ouverture tiroir (F-WAR) | `fiscal_events` (append F) |

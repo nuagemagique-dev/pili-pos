@@ -1,0 +1,15 @@
+[package]
+name = "pos-scale"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+
+[dev-dependencies]
+proptest = "1"
+
+[lints]
+workspace = true

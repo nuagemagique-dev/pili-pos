@@ -84,20 +84,45 @@ pub fn add_order_line(
 ) -> Result<OrderLine, rusqlite::Error> {
     with_savepoint(conn, |_| {
         ensure_open(conn, input.order_id)?;
-        add_order_line_inner(conn, &input)
+        add_order_line_inner(conn, &input, None)
+    })
+}
+
+/// The weight of a weighed line and the price the scale gave it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Weighed {
+    pub weight_grams: i64,
+    pub amount_cents: i64,
+}
+
+/// [`add_order_line`] for a weighed line: `quantity` is 1, or -1 for its
+/// refund, and `unit_price_cents` the price per kilo.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the same inline parameter struct as add_order_line"
+)]
+pub fn add_weighed_order_line(
+    conn: &Connection,
+    input: NewOrderLine<'_>,
+    weighed: Weighed,
+) -> Result<OrderLine, rusqlite::Error> {
+    with_savepoint(conn, |_| {
+        ensure_open(conn, input.order_id)?;
+        add_order_line_inner(conn, &input, Some(weighed))
     })
 }
 
 fn add_order_line_inner(
     conn: &Connection,
     input: &NewOrderLine<'_>,
+    weighed: Option<Weighed>,
 ) -> Result<OrderLine, rusqlite::Error> {
     let now = Utc::now();
     let now_str = now.format("%Y-%m-%dT%H:%M:%SZ").to_string();
 
     conn.execute(
-        "INSERT INTO order_lines (order_id, menu_item_id, quantity, unit_price_cents, vat_code, name, modifiers_json, created_at, department_id, department_name)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        "INSERT INTO order_lines (order_id, menu_item_id, quantity, unit_price_cents, vat_code, name, modifiers_json, created_at, department_id, department_name, weight_grams, weighed_amount_cents)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             input.order_id,
             input.menu_item_id,
@@ -109,6 +134,8 @@ fn add_order_line_inner(
             now_str,
             input.department_id,
             input.department_name,
+            weighed.map(|w| w.weight_grams),
+            weighed.map(|w| w.amount_cents),
         ],
     )?;
 
@@ -135,6 +162,8 @@ fn add_order_line_inner(
         created_at: now,
         department_id: input.department_id.to_string(),
         department_name: input.department_name.to_string(),
+        weight_grams: weighed.map(|w| w.weight_grams),
+        weighed_amount_cents: weighed.map(|w| w.amount_cents),
     })
 }
 
@@ -225,11 +254,13 @@ fn order_entries(
 ) -> Result<Vec<OrderLine>, rusqlite::Error> {
     let sql = if unsent == Unsent::Only {
         "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name,
-                NULL, created_at, department_id, department_name
+                NULL, created_at, department_id, department_name,
+                weight_grams, weighed_amount_cents
          FROM order_entries WHERE order_id = ?1 AND sent_event_id IS NULL ORDER BY id"
     } else {
         "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name,
-                NULL, created_at, department_id, department_name
+                NULL, created_at, department_id, department_name,
+                weight_grams, weighed_amount_cents
          FROM order_entries WHERE order_id = ?1 ORDER BY id"
     };
     let mut stmt = conn.prepare(sql)?;
@@ -256,7 +287,8 @@ pub fn get_entries_sent_in(
 ) -> Result<Vec<OrderLine>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name,
-                NULL, created_at, department_id, department_name
+                NULL, created_at, department_id, department_name,
+                weight_grams, weighed_amount_cents
          FROM order_entries WHERE sent_event_id = ?1 ORDER BY id",
     )?;
     stmt.query_map(params![event_id], map_order_line)?.collect()
@@ -297,10 +329,10 @@ fn insert_entry_op(
     till_op: Option<&str>,
 ) -> Result<i64, rusqlite::Error> {
     conn.execute(
-        "INSERT INTO order_entries (order_id, line_id, menu_item_id, quantity, unit_price_cents,
+        "INSERT INTO order_entries (order_id, line_id, menu_item_id, quantity, unit_price_cents, weight_grams, weighed_amount_cents,
                                     vat_code, name, department_id, department_name, kind, created_at,
                                     till_op)
-         SELECT order_id, id, menu_item_id, ?2, unit_price_cents, vat_code, name,
+         SELECT order_id, id, menu_item_id, ?2, unit_price_cents, weight_grams, weighed_amount_cents, vat_code, name,
                 COALESCE(department_id, ''), COALESCE(department_name, ''), ?3, ?4, ?5
          FROM order_lines WHERE id = ?1",
         params![
@@ -419,7 +451,8 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
                 EXISTS (SELECT 1 FROM orders o WHERE o.id = ol.order_id AND o.hubrise_order_id IS NOT NULL),
                 COALESCE((SELECT course FROM order_line_courses WHERE line_id = ol.id), 0),
                 EXISTS (SELECT 1 FROM kitchen_slip_entries k
-                        JOIN order_entries e ON e.id = k.entry_id WHERE e.line_id = ol.id)
+                        JOIN order_entries e ON e.id = k.entry_id WHERE e.line_id = ol.id),
+                ol.weight_grams, ol.weighed_amount_cents
          FROM order_lines ol WHERE ol.order_id = ?1 ORDER BY ol.id",
     ))?;
     let released = super::courses::released_course(conn, order_id)?;
@@ -600,7 +633,8 @@ pub fn get_order_lines(
 ) -> Result<Vec<OrderLine>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name, modifiers_json, created_at,
-                COALESCE(department_id, ''), COALESCE(department_name, '')
+                COALESCE(department_id, ''), COALESCE(department_name, ''),
+                weight_grams, weighed_amount_cents
          FROM order_lines WHERE order_id = ?1 ORDER BY id",
     )?;
 
@@ -703,7 +737,8 @@ pub(crate) fn recalculate_totals(conn: &Connection, order_id: i64) -> Result<(),
 
 fn recalculate_order_totals(conn: &Connection, order_id: i64) -> Result<(), rusqlite::Error> {
     let total: i64 = conn.query_row(
-        "SELECT COALESCE(SUM(unit_price_cents * quantity), 0) FROM order_lines WHERE order_id = ?1",
+        "SELECT COALESCE(SUM(COALESCE(weighed_amount_cents, unit_price_cents) * quantity), 0)
+         FROM order_lines WHERE order_id = ?1",
         params![order_id],
         |row| row.get(0),
     )?;
@@ -763,6 +798,8 @@ fn map_order_line(row: &rusqlite::Row<'_>) -> Result<OrderLine, rusqlite::Error>
         created_at: parse_datetime(8, &created_str)?,
         department_id: row.get(9)?,
         department_name: row.get(10)?,
+        weight_grams: row.get("weight_grams")?,
+        weighed_amount_cents: row.get("weighed_amount_cents")?,
     })
 }
 

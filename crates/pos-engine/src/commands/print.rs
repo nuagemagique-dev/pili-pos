@@ -3,6 +3,8 @@ use pos_hubrise_types::{Order, ServiceType};
 #[cfg(feature = "hubrise")]
 use pos_print::customer_slip::{CustomerInfo, CustomerLine, CustomerSlip, format_customer_slip};
 #[cfg(feature = "hubrise")]
+use pos_print::escpos::PaperWidth;
+#[cfg(feature = "hubrise")]
 use pos_print::kitchen_ticket::{KitchenItem, KitchenTicket, format_kitchen_ticket};
 use pos_print::transport;
 #[cfg(feature = "hubrise")]
@@ -84,14 +86,14 @@ fn load_webshop_order(state: &AppState, order_id: i64) -> Result<Order, String> 
 /// Pull the configured printer address from `AppState.config` or
 /// return the canonical not-configured error.
 #[cfg(feature = "hubrise")]
-fn printer_address(state: &AppState) -> Result<String, String> {
-    state
-        .config
-        .lock()
-        .map_err(|e| e.to_string())?
+fn printer_address(state: &AppState) -> Result<(String, PaperWidth), String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let address = config
         .printer_address
         .clone()
-        .ok_or_else(|| ERR_PRINTER_NOT_CONFIGURED.to_string())
+        .ok_or_else(|| ERR_PRINTER_NOT_CONFIGURED.to_string())?;
+    let paper = config.paper_for(&address);
+    Ok((address, paper))
 }
 
 /// Map the stored `HubRise` `service_type` to a French label for
@@ -149,7 +151,7 @@ pub(crate) async fn print_webshop_kitchen_ticket(
     order_id: i64,
 ) -> Result<(), String> {
     let order = load_webshop_order(state, order_id)?;
-    let address = printer_address(state)?;
+    let (address, paper) = printer_address(state)?;
 
     let items: Vec<KitchenItem> = order
         .items
@@ -171,7 +173,7 @@ pub(crate) async fn print_webshop_kitchen_ticket(
         order_notes: order.customer_notes.clone(),
     };
 
-    let bytes = format_kitchen_ticket(&ticket);
+    let bytes = format_kitchen_ticket(&ticket, paper);
     transport::send_to_printer_with(&address, &bytes, state.timers.printer_status_read)
         .await
         .map(|_| ())
@@ -186,7 +188,7 @@ pub async fn do_print_webshop_customer(state: &AppState, order_id: i64) -> Resul
     crate::commands::integrations::require_hubrise(state)?;
     crate::commands::access::operator(state, crate::commands::access::Access::Staff)?;
     let order = load_webshop_order(state, order_id)?;
-    let address = printer_address(state)?;
+    let (address, paper) = printer_address(state)?;
 
     // Restaurant header pulled from AppState.config (configured in
     // `state.rs` at POS boot).
@@ -255,7 +257,7 @@ pub async fn do_print_webshop_customer(state: &AppState, order_id: i64) -> Resul
         customer,
     };
 
-    let bytes = format_customer_slip(&slip);
+    let bytes = format_customer_slip(&slip, paper);
     transport::send_to_printer_with(&address, &bytes, state.timers.printer_status_read)
         .await
         .map(|_| ())

@@ -48,6 +48,7 @@ internal data class OrderCallbacks(
     val onCategory: (Long) -> Unit = {},
     val onItem: (MenuItem) -> Unit = {},
     val onPrice: (Long) -> Unit = {},
+    val onCancelWeighing: () -> Unit = {},
     val onPicks: (List<Long>) -> Unit = {},
     /** The "Allergènes" button: allergen mode on or off. */
     val onAllergenMode: () -> Unit = {},
@@ -109,6 +110,7 @@ internal fun OrderRoute(
             onCategory = model::selectCategory,
             onItem = model::addItem,
             onPrice = model::confirmPrice,
+            onCancelWeighing = model::cancelWeighing,
             onPicks = model::confirmModifiers,
             onAllergenMode = model::toggleAllergenMode,
             onAllergenPrint = model::printAllergenSheet,
@@ -221,6 +223,7 @@ internal fun OrderContent(
  * product or the list of the sold-out ones (`OrderView.vue`), or the free table to move the order to or the manager PIN
  * of an unpaid close (`CartSidebar.vue`).
  */
+@Suppress("CyclomaticComplexMethod") // One branch per dialog of the order screen, nothing else.
 @Composable
 internal fun BoxScope.OrderDialogs(
     dialog: OrderDialog,
@@ -238,6 +241,7 @@ internal fun BoxScope.OrderDialogs(
                 onConfirm = callbacks.onPrice,
                 onCancel = callbacks.onDismiss,
             )
+        is OrderDialog.Weighing -> WeighDialog(dialog, callbacks.onCancelWeighing)
         OrderDialog.SellVoucher ->
             AmountDialog(
                 title = vueText("gv_sell_title"),

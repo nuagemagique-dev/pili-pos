@@ -786,12 +786,10 @@ pub(crate) async fn print_after_sale(
             let reference = db::event_ticket(&conn, event_id).ok();
             (row, reference)
         };
-        let bytes = pos_print::gift_voucher::format_gift_voucher(&voucher_slip(
-            config,
-            &row,
-            reference,
-            SlipKind::Original,
-        ));
+        let bytes = pos_print::gift_voucher::format_gift_voucher(
+            &voucher_slip(config, &row, reference, SlipKind::Original),
+            config.printer_paper_mm,
+        );
         let outcome = send(state, config, &bytes).await;
         if outcome == SlipOutcome::Printed
             && let Ok(conn) = state.db.lock()
@@ -824,7 +822,7 @@ pub(crate) async fn print_after_sale(
         let outcome = send(
             state,
             config,
-            &pos_print::gift_voucher::format_balance_slip(&slip),
+            &pos_print::gift_voucher::format_balance_slip(&slip, config.printer_paper_mm),
         )
         .await;
         if outcome == SlipOutcome::Printed
@@ -860,12 +858,10 @@ pub async fn do_print_gift_voucher(
         let reference = db::event_ticket(&conn, row.issue_event_id).ok();
         (row, reference)
     };
-    let bytes = pos_print::gift_voucher::format_gift_voucher(&voucher_slip(
-        &config,
-        &row,
-        reference,
-        SlipKind::Duplicate,
-    ));
+    let bytes = pos_print::gift_voucher::format_gift_voucher(
+        &voucher_slip(&config, &row, reference, SlipKind::Duplicate),
+        config.printer_paper_mm,
+    );
     let outcome = send(state, &config, &bytes).await;
     if outcome == SlipOutcome::Printed {
         let conn = state.db.lock().map_err(errors::internal)?;

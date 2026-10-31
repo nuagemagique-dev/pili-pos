@@ -100,7 +100,10 @@ async fn cash_sale(app: &TestApp) -> CheckoutResult {
 }
 
 fn printed(ticket: &FiscalTicket) -> String {
-    pos_print::render::render_plain_text(&pos_print::receipt::format_receipt(ticket))
+    pos_print::render::render_plain_text(&pos_print::receipt::format_receipt(
+        ticket,
+        pos_print::escpos::PaperWidth::Mm80,
+    ))
 }
 
 /// How the ticket prints an event's counters (SPF example tickets).

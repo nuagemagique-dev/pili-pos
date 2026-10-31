@@ -88,6 +88,9 @@
     <string name="menu_ed_case">Majuscules / minuscules</string>
     <string name="menu_ed_category">Catégorie</string>
     <string name="menu_ed_price">Prix (€)</string>
+    <string name="menu_ed_price_per_kilo">Prix au kilo (€)</string>
+    <string name="menu_ed_sold_by_weight">Vendu au poids</string>
+    <string name="menu_ed_tare">Tare du contenant</string>
     <string name="menu_ed_vat">TVA sur place</string>
     <string name="menu_ed_vat_takeaway">TVA à emporter</string>
     <string name="menu_ed_vat_same">Idem sur place</string>
@@ -173,6 +176,7 @@
     <string name="alerts_kind_printer">Une imprimante est injoignable</string>
     <string name="alerts_kind_terminal">Le terminal de paiement est injoignable</string>
     <string name="alerts_kind_z_missing">Le Z du jour n\'est pas fait</string>
+    <string name="alerts_kind_scale">La balance ne répond plus ou refuse le contrôle</string>
     <string name="alerts_kind_online_waiting">Une commande en ligne attend</string>
     <string name="alerts_z_deadline">Z attendu avant</string>
     <string name="alerts_online_wait">Commande en ligne en attente depuis</string>

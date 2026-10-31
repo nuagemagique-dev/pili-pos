@@ -95,6 +95,14 @@ Correction de paiement. Rejeu applicatif côté moteur : `m132_payment_correctio
 ## UC4122_Invoice_refund
 À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 
+# Produit au poids de l'Advanced Set v1.6 (UC rejoué)
+
+UC4112 est rejoué côté moteur par `crates/pos-engine/tests/spf_e2e_fixtures.rs`, avec la balance simulée (*BALANCE_FR.md*).
+
+## UC4112_WeightedProduct
+
+À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
+
 # Bons à usage multiple de l'Advanced Set v1.6 (3 UC rejoués)
 
 Les trois UC de bon cadeau à usage multiple sont rejoués côté moteur par `crates/pos-engine/tests/spf_e2e_gift_vouchers.rs` (écarts expliqués dans *BONS_CADEAUX_FR.md* §9). Les bons à usage unique (UC270, UC271) et la conversion d'un bon en espèces (UC4105) ne sont pas offerts en v1.0.0.

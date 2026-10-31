@@ -184,6 +184,20 @@ class OrderScreenshotTest {
     }
 
     @Test
+    fun weighing() {
+        val bowl = menuItem(70, 1, "Bol malatang", 1990).copy(soldByWeight = true)
+        val dialog = OrderDialog.Weighing(bowl, "stabilizing")
+        capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart, dialog = dialog), "order_weighing")
+    }
+
+    @Test
+    fun cartWithAWeighing() {
+        val line = cartLine(9, 70, "Bol malatang", unitPriceCents = 1990).copy(weightGrams = 612)
+        val rows = fullCart.rows + CartRow(line, LineAmount.Total(1218))
+        capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(rows = rows)), "order_cart_weighed")
+    }
+
+    @Test
     fun cartDialogs() {
         val dialog = OrderDialog.CloseUnpaid("Alice Dupont")
         capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart, dialog = dialog), "order_cart_dialogs")

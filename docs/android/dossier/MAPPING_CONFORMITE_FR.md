@@ -88,11 +88,11 @@ dans `crates/pos-fiscal/tests/reports_fixtures.rs` et
 Les 141 fixtures se chargent et se désérialisent proprement
 (`crates/pos-fiscal/tests/advanced_set_fixtures.rs`) ; voir
 `COUVERTURE_ADVANCED_SET_FR.md` pour le détail par UC. Sur les 58
-identifiants de test, 13 ont un test dédié : UC223, UC225A et UC225B
-(un même rejeu), UC229B, UC230, UC260, UC261, UC262, UC4109, UC4119,
+identifiants de test, 14 ont un test dédié : UC223, UC225A et UC225B
+(un même rejeu), UC229B, UC230, UC260, UC261, UC262, UC4109, UC4112, UC4119,
 UC4121 et UC4122 comparent la requête construite par pili-pos à la
 fixture, UC201 contrôle les lignes de paiement et d'arrondi du
-scénario. Les 45 autres sont déclarés hors périmètre v1.0.0 (fonctions
+scénario. Les 44 autres sont déclarés hors périmètre v1.0.0 (fonctions
 non offertes) (`scripts/uc_scope.toml`). UC223
 couvre la remise de portée EVENT des commandes en ligne
 (`crates/pos-fiscal/tests/price_change_uc.rs`) et celle de la caisse
@@ -117,6 +117,14 @@ l'émulateur Android).
 | G5 | Les alertes du propriétaire ne signent rien, ne lisent aucun ticket ni rapport et ne bloquent jamais une vente ou un Z | POS v2.2 §III.6 (le blocage ne vient que du module fiscal) | `crates/pos-engine/src/alerts/` | `crates/pos-engine/tests/owner_alerts.rs` |
 | G6 | Le temps d'une ligne (service en plusieurs temps) n'entre dans aucune demande signée ni ticket de T.V.A. ; les tickets de cuisine et de bar ne portent aucun montant | POS v2.2 §8.1 et §8.2 (consolidation des imprimés), FAQ Q210 b | `crates/pos-engine/src/commands/courses.rs`, `crates/pos-print/` | `crates/pos-engine/tests/courses.rs` |
 | G7 | Les allergènes sont une information d'affichage et d'impression : aucun allergène dans une demande signée | Règlement (UE) n° 1169/2011, annexe II (information) | `crates/pos-engine/src/commands/allergens.rs` | `crates/pos-engine/tests/allergens.rs` |
+
+## Vente au poids
+
+| # | Exigence | Spec | Code | Test |
+|---|---|---|---|---|
+| W1 | Un produit au poids est signé en kilogrammes, à trois décimales au plus, avec son prix au kilo | POS v2.2, `quantityType` ; UC4112 | `crates/pos-engine/src/commands/scale.rs` | `uc4112_weighed_product` |
+| W2 | Le poids et le montant viennent de la balance : aucune saisie, aucune ligne sans enregistrement 02 complet et contrôlé | *BALANCE_FR.md* §2 | `crates/pos-scale/src/session.rs` | `crates/pos-scale/tests/no_line_without_a_weight.rs` |
+| W3 | Une pesée se rembourse entière et une seule fois | FLUX_REMBOURSEMENT | `crates/pos-engine/src/commands/refund.rs` | `crates/pos-engine/tests/scale.rs` |
 
 ## Remboursements & corrections
 

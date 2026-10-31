@@ -13,11 +13,8 @@
 //! Only the commands the builder emits are interpreted; anything
 //! unknown is skipped defensively.
 
+use crate::escpos::PaperWidth;
 use std::fmt::Write as _;
-
-/// Paper width in characters (Font A on 80 mm - keep in sync with
-/// `escpos::CHARS_PER_LINE`).
-const WIDTH: usize = 48;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Align {
@@ -34,8 +31,16 @@ pub fn one_line(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// Render an ESC/POS byte stream to plain text.
+/// Render an ESC/POS byte stream laid out for 80 mm paper to plain
+/// text.
 pub fn render_plain_text(bytes: &[u8]) -> String {
+    render_plain_text_for(bytes, PaperWidth::Mm80)
+}
+
+/// Render an ESC/POS byte stream laid out for `paper` to plain text,
+/// centring and right-aligning within that paper's columns.
+pub fn render_plain_text_for(bytes: &[u8], paper: PaperWidth) -> String {
+    let width = usize::from(crate::escpos::chars_per_line(paper));
     let mut out = String::new();
     let mut line = String::new();
     let mut align = Align::Left;
@@ -43,7 +48,7 @@ pub fn render_plain_text(bytes: &[u8]) -> String {
 
     let flush = |line: &mut String, out: &mut String, align: Align, double_width: bool| {
         // A double-width glyph occupies two columns.
-        let effective_width = if double_width { WIDTH / 2 } else { WIDTH };
+        let effective_width = if double_width { width / 2 } else { width };
         let content = line.trim_end();
         let padded = match align {
             Align::Left => content.to_string(),
@@ -102,7 +107,7 @@ pub fn render_plain_text(bytes: &[u8]) -> String {
                         i += 3;
                     }
                     Some(b'V') => {
-                        let _ = writeln!(out, "✂{}", "-".repeat(WIDTH - 1));
+                        let _ = writeln!(out, "✂{}", "-".repeat(width - 1));
                         i += 4;
                     }
                     Some(b'(') if bytes.get(i + 2) == Some(&b'k') => {
@@ -117,7 +122,7 @@ pub fn render_plain_text(bytes: &[u8]) -> String {
                             let end = (i + 5 + len).min(bytes.len());
                             let data =
                                 String::from_utf8_lossy(bytes.get(start..end).unwrap_or_default());
-                            let _ = writeln!(out, "{:^WIDTH$}", format!("[QR: {data}]"));
+                            let _ = writeln!(out, "{:^width$}", format!("[QR: {data}]"));
                         }
                         i += 5 + len;
                     }
@@ -126,7 +131,7 @@ pub fn render_plain_text(bytes: &[u8]) -> String {
                         let at = |n: usize| usize::from(bytes.get(i + n).copied().unwrap_or(0));
                         let bpr = at(4) | (at(5) << 8);
                         let h = at(6) | (at(7) << 8);
-                        let _ = writeln!(out, "{:^WIDTH$}", "[IMAGE]");
+                        let _ = writeln!(out, "{:^width$}", "[IMAGE]");
                         i += 8 + bpr * h;
                     }
                     _ => i += 2,
@@ -142,6 +147,32 @@ pub fn render_plain_text(bytes: &[u8]) -> String {
         flush(&mut line, &mut out, align, double_width);
     }
     out
+}
+
+/// Test helper: `print` laid out for 58 mm fits 35 columns and prints
+/// every character of its 80 mm layout in the same order (nothing
+/// truncated, only rewrapped). Spaces, rules and the QR placeholder's
+/// width are not compared: the renderer writes the placeholder, the
+/// printer draws the code.
+#[cfg(test)]
+pub(crate) fn assert_58_mm_prints_the_80_mm_words(print: impl Fn(PaperWidth) -> Vec<u8>) {
+    let words = |paper| {
+        let text = render_plain_text_for(&print(paper), paper);
+        for line in text
+            .lines()
+            .filter(|l| !l.trim_start().starts_with("[QR: "))
+        {
+            assert!(
+                line.chars().count() <= usize::from(crate::escpos::chars_per_line(paper)),
+                "{paper:?}: {} columns: {line:?}",
+                line.chars().count()
+            );
+        }
+        text.split_whitespace()
+            .filter(|w| !w.chars().all(|c| matches!(c, '-' | '=' | '.' | '✂')))
+            .collect::<String>()
+    };
+    assert_eq!(words(PaperWidth::Mm58), words(PaperWidth::Mm80));
 }
 
 #[cfg(test)]
@@ -163,6 +194,19 @@ mod tests {
         assert!(lines[1].starts_with("TOTAL"));
         assert!(lines[1].ends_with("12.00"));
         assert_eq!(lines[1].len(), 48);
+    }
+
+    #[test]
+    fn renders_within_the_58_mm_columns() {
+        let mut p = EscPosBuilder::for_paper(PaperWidth::Mm58);
+        p.align(Alignment::Right);
+        p.textln("END");
+        p.align(Alignment::Left);
+        p.cut();
+        let text = render_plain_text_for(&p.build(), PaperWidth::Mm58);
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines[0], format!("{}END", " ".repeat(32)));
+        assert_eq!(lines[1].chars().count(), 35);
     }
 
     #[test]

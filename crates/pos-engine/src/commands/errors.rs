@@ -298,6 +298,7 @@ pub const CONFIG_HUBRISE: &str = "config_hubrise";
 pub const CONFIG_DIGITAL_TICKET: &str = "config_digital_ticket";
 pub const CONFIG_EXPORT: &str = "config_export";
 pub const CONFIG_PAYMENT_TERMINAL: &str = "config_payment_terminal";
+pub const CONFIG_SCALE: &str = "config_scale";
 pub const CONFIG_PEPPOL: &str = "config_peppol";
 pub const CONFIG_ALERTS: &str = "config_alerts";
 pub const CONFIG_OTHER: &str = "config_other";
@@ -374,6 +375,31 @@ pub const GIFT_VOUCHER_SETTINGS_INVALID: &str = "gift_voucher_settings_invalid";
 pub const GIFT_VOUCHER_AMOUNT_INVALID: &str = "gift_voucher_amount_invalid";
 /// The quantity of a voucher line cannot change: one line, one voucher.
 pub const GIFT_VOUCHER_LINE_FIXED: &str = "gift_voucher_line_fixed";
+
+// Sale by weight and the scale.
+/// A product sold by weight is added through the scale only.
+pub const LINE_NEEDS_SCALE: &str = "line_needs_scale";
+/// A weighed line has no + and -: remove it and weigh again.
+pub const LINE_WEIGHED_FIXED: &str = "line_weighed_fixed";
+/// A weighed line is refunded whole.
+pub const REFUND_WEIGHED_LINE_WHOLE: &str = "refund_weighed_line_whole";
+pub const SCALE_NOT_CONFIGURED: &str = "scale_not_configured";
+pub const SCALE_NOT_SOLD_BY_WEIGHT: &str = "scale_not_sold_by_weight";
+pub const SCALE_BUSY: &str = "scale_busy";
+pub const SCALE_UNREACHABLE: &str = "scale_unreachable";
+pub const SCALE_BELOW_MIN: &str = "scale_below_min";
+pub const SCALE_UNDERLOAD: &str = "scale_underload";
+pub const SCALE_OVERLOAD: &str = "scale_overload";
+/// The last load was never taken off: take it off and put it back.
+pub const SCALE_NO_MOTION: &str = "scale_no_motion";
+pub const SCALE_PRICE_REFUSED: &str = "scale_price_refused";
+pub const SCALE_ERROR: &str = "scale_error";
+pub const SCALE_CHECK_FAILED: &str = "scale_check_failed";
+pub const SCALE_PRICE_MISMATCH: &str = "scale_price_mismatch";
+pub const SCALE_UNIT_UNSUPPORTED: &str = "scale_unit_unsupported";
+pub const SCALE_CANCELLED: &str = "scale_cancelled";
+pub const SCALE_TIMED_OUT: &str = "scale_timed_out";
+pub const SCALE_TARE_INVALID: &str = "scale_tare_invalid";
 /// A voucher line has no kitchen course and no kitchen note: it never goes to the kitchen.
 pub const GIFT_VOUCHER_LINE_NO_KITCHEN: &str = "gift_voucher_line_no_kitchen";
 /// No voucher has this code.
@@ -451,6 +477,7 @@ pub const ALL: &[&str] = &[
     CONFIG_DIGITAL_TICKET,
     CONFIG_EXPORT,
     CONFIG_PAYMENT_TERMINAL,
+    CONFIG_SCALE,
     CONFIG_PEPPOL,
     CONFIG_ALERTS,
     CONFIG_OTHER,
@@ -481,6 +508,25 @@ pub const ALL: &[&str] = &[
     GIFT_VOUCHER_SETTINGS_INVALID,
     GIFT_VOUCHER_AMOUNT_INVALID,
     GIFT_VOUCHER_LINE_FIXED,
+    LINE_NEEDS_SCALE,
+    LINE_WEIGHED_FIXED,
+    REFUND_WEIGHED_LINE_WHOLE,
+    SCALE_NOT_CONFIGURED,
+    SCALE_NOT_SOLD_BY_WEIGHT,
+    SCALE_BUSY,
+    SCALE_UNREACHABLE,
+    SCALE_BELOW_MIN,
+    SCALE_UNDERLOAD,
+    SCALE_OVERLOAD,
+    SCALE_NO_MOTION,
+    SCALE_PRICE_REFUSED,
+    SCALE_ERROR,
+    SCALE_CHECK_FAILED,
+    SCALE_PRICE_MISMATCH,
+    SCALE_UNIT_UNSUPPORTED,
+    SCALE_CANCELLED,
+    SCALE_TIMED_OUT,
+    SCALE_TARE_INVALID,
     GIFT_VOUCHER_LINE_NO_KITCHEN,
     GIFT_VOUCHER_NOT_FOUND,
     GIFT_VOUCHER_CODE_INVALID,

@@ -98,6 +98,14 @@ bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/d1" --seed >/dev/null 2>&1
 bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/d2" --seed >/dev/null 2>&1
 if cmp -s "$TMP/d1/MANIFEST.json" "$TMP/d2/MANIFEST.json" && [[ -s "$TMP/d1/MANIFEST.json" ]]; then ok "manifest-deterministic"; else bad "manifest-deterministic" "two runs differ"; fi
 
+# Case 6b: PILI_BUNDLE_PRINTER_PAPER_MM adds the ticket printer's roll; any other width is refused.
+out6b="$(PILI_BUNDLE_PRINTER_PAPER_MM=58 bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/p1" 2>&1)"
+rc=$?
+if [[ $rc -eq 0 ]] && python3 -I -c 'import json,sys; sys.exit(json.load(open(sys.argv[1]))["printer_paper_mm"] != 58)' "$TMP/p1/pos.json"; then ok "printer-paper-mm"; else bad "printer-paper-mm" "rc=$rc: $out6b"; fi
+out6c="$(PILI_BUNDLE_PRINTER_PAPER_MM=57 bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/p2" 2>&1)"
+rc=$?
+if [[ $rc -ne 0 && "$out6c" == *"PILI_BUNDLE_PRINTER_PAPER_MM"* && ! -e "$TMP/p2/MANIFEST.json" ]]; then ok "printer-paper-mm-checked"; else bad "printer-paper-mm-checked" "rc=$rc: $out6c"; fi
+
 # Case 7: a rerun on the same --out replaces the previous bundle.
 out7="$(bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/d1" 2>&1)"
 rc=$?

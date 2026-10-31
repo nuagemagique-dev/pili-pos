@@ -63,6 +63,7 @@ Natures : **document** (description, manuel ou réponse du producteur) et **preu
 | 42 | ALLERGENES_FR.pdf | §III (allergènes, non fiscaux) | document |
 | 43 | SERVICES_CUISINE_FR.pdf | §III (service en plusieurs temps, cuisine) | document |
 | 44 | BONS_CADEAUX_FR.pdf | §III.F (bons à usage multiple, UC260 à UC262) | document |
+| 45 | BALANCE_FR.pdf | §III.F (prix au poids et balance, UC4112) | document |
 
 Plus :
 

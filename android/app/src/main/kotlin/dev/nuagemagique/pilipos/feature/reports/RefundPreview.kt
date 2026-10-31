@@ -42,7 +42,10 @@ internal data class RefundPreview(
 
 /** The VAT lines of [selected]: the unit price of the line and the quantity that is ticked. */
 private fun vatLinesOf(selected: List<RefundSelection>): List<VatLine> =
-    selected.map { VatLine(it.line.vatCode, it.line.unitPriceCents, it.quantity.toLong()) }
+    selected.map { VatLine(it.line.vatCode, unitAmountOf(it.line), it.quantity.toLong()) }
+
+/** What one unit of [line] is worth: a weighing counts for the scale's amount, its unit price is per kilo. */
+private fun unitAmountOf(line: OrderLine): Long = line.weighedAmountCents ?: line.unitPriceCents
 
 /**
  * The amount of one line for [quantity] units: the single `vatSplit` row of that line, as
@@ -68,7 +71,7 @@ internal suspend fun lineAmounts(
 ): Map<Long, LineAmount> {
     val amounts = LinkedHashMap<Long, LineAmount>()
     for (line in lines) {
-        val amount = attemptOrNull { amountOf(helpers, line.vatCode, line.unitPriceCents, line.quantity) }
+        val amount = attemptOrNull { amountOf(helpers, line.vatCode, unitAmountOf(line), line.quantity) }
         if (amount != null) amounts[line.id] = amount
     }
     return amounts
@@ -94,7 +97,7 @@ private suspend fun buildPreview(
     helpers: EngineHelpers,
     selected: List<RefundSelection>,
 ): RefundPreview {
-    val lines = selected.map { PreviewLine(it, amountOf(helpers, it.line.vatCode, it.line.unitPriceCents, it.quantity)) }
+    val lines = selected.map { PreviewLine(it, amountOf(helpers, it.line.vatCode, unitAmountOf(it.line), it.quantity)) }
     val vatRows = helpers.vatSplit(vatLinesOf(selected))
     val totals = lines.mapNotNull { (it.amount as? LineAmount.Total)?.cents }
     // A line with VAT code X has no row: no total is shown, the engine's refund result gives the amount.

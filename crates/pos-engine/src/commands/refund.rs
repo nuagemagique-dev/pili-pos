@@ -290,6 +290,13 @@ pub(crate) async fn refund_sale(
                         ));
                     }
                     let original = original_line(&original_lines, item)?;
+                    // A weighing goes back whole: no refund of a part of it.
+                    if original.is_weighed() && item.quantity != 1 {
+                        return Err(errors::coded(
+                            errors::REFUND_WEIGHED_LINE_WHOLE,
+                            &[("product", &item.menu_item_id)],
+                        ));
+                    }
                     let total = requested.entry(Bucket::of(original)).or_default();
                     // i64 sums of i32 quantities: past i64, past any sale.
                     *total = total
@@ -358,20 +365,31 @@ pub(crate) async fn refund_sale(
         )
         .map_err(|e| e.to_string())?;
         for (quantity, original) in refunded {
-            let written = pos_db::queries::orders::add_order_line(
-                &db,
-                pos_db::queries::orders::NewOrderLine {
-                    order_id: order.id,
-                    menu_item_id: original.menu_item_id,
-                    quantity: -quantity, // NEGATE for refund
-                    unit_price_cents: original.unit_price_cents,
-                    vat_code: original.vat_code,
-                    name: &original.name,
-                    modifiers_json: None,
-                    department_id: &original.department_id,
-                    department_name: &original.department_name,
-                },
-            )
+            let new_line = pos_db::queries::orders::NewOrderLine {
+                order_id: order.id,
+                menu_item_id: original.menu_item_id,
+                quantity: -quantity, // NEGATE for refund
+                unit_price_cents: original.unit_price_cents,
+                vat_code: original.vat_code,
+                name: &original.name,
+                modifiers_json: None,
+                department_id: &original.department_id,
+                department_name: &original.department_name,
+            };
+            // A weighing goes back with the weight and price signed.
+            let written = match (original.weight_grams, original.weighed_amount_cents) {
+                (Some(weight_grams), Some(amount_cents)) => {
+                    pos_db::queries::orders::add_weighed_order_line(
+                        &db,
+                        new_line,
+                        pos_db::queries::orders::Weighed {
+                            weight_grams,
+                            amount_cents,
+                        },
+                    )
+                }
+                _ => pos_db::queries::orders::add_order_line(&db, new_line),
+            }
             .map_err(|e| e.to_string())?;
             // The whole line goes back: its discounts too, negated.
             #[cfg(feature = "hubrise")]
@@ -608,6 +626,9 @@ struct Bucket {
     product: i64,
     unit_price_cents: i64,
     vat: String,
+    /// A weighed line counts by its weight: two weighings of one product
+    /// at one price are two different things sold.
+    weight_grams: Option<i64>,
 }
 
 impl Bucket {
@@ -616,6 +637,7 @@ impl Bucket {
             product: line.menu_item_id,
             unit_price_cents: line.unit_price_cents,
             vat: format!("{:?}", line.vat_code),
+            weight_grams: line.weight_grams,
         }
     }
 }
@@ -758,6 +780,10 @@ fn already_refunded_quantities_inner(
             };
             let unit_price_cents = pos_core::money::cents_of(&product["unitPrice"])
                 .ok_or_else(|| "a prior refund line has no unit price".to_string())?;
+            // A signed weight is one weighing of that weight, whatever its
+            // size: rounded as a count, -0.278 would be nothing.
+            let weight_grams = (product["quantityType"].as_str() == Some("KILOGRAM"))
+                .then(|| pos_core::money::round_to_i64(-quantity * 1000.0));
             let bucket = Bucket {
                 product: product_id,
                 unit_price_cents,
@@ -765,9 +791,15 @@ fn already_refunded_quantities_inner(
                     .as_str()
                     .unwrap_or_default()
                     .to_string(),
+                weight_grams,
+            };
+            let count = if weight_grams.is_some() {
+                1
+            } else {
+                pos_core::money::round_to_i64(-quantity)
             };
             let total = totals.entry(bucket).or_insert(0);
-            *total = total.saturating_add(pos_core::money::round_to_i64(-quantity));
+            *total = total.saturating_add(count);
         }
     }
     Ok(totals)

@@ -21,13 +21,14 @@ dans `PLATEFORME_ANDROID_FR.md` §3, le stockage dans §5.
 |---|---|---|
 | Terminal POS | Sunmi D3 Pro avec services Google, Android 13, écran 1920 x 1080 en paysage (`PLATEFORME_ANDROID_FR.md` §1). Faits du vrai terminal : À effectuer (EV-15 : fiche mesurée d'un vrai D3 Pro) | 1 |
 | Boîtier FDM | FDM module2 (PRACSYS, certifié SCE 2.0) ou autre FDM certifié SCE 2.0 | 1 |
-| Imprimante thermique | Epson TM-m30III, raccordée au LAN (le POS imprime en TCP brut, port 9100) | 1 |
+| Imprimante thermique | Epson TM-m30III, raccordée au LAN (le POS imprime en TCP brut, port 9100), rouleau de 80 mm, ou de 58 mm avec les guides de rouleau livrés avec l'imprimante (`printer_paper_mm`, §4.2) | 1 |
 | Tiroir-caisse | Standard, connexion RJ11 vers l'imprimante | 1 |
-| Câbles Ethernet | RJ45 Cat-5e ou supérieur : FDM et imprimante (et terminal si son modèle offre une liaison filaire, sinon Wi-Fi) | 2 ou 3 |
+| Câbles Ethernet | RJ45 Cat-5e ou supérieur : FDM, imprimante et terminal (port RJ45 du D3 Pro ; sans câble, Wi-Fi) | 2 ou 3 |
 | Switch / box internet | 4 ports minimum | 1 |
 | Clé USB de mise en service | Toute taille, FAT32 ou exFAT : elle porte le lot signé (§2) | 1 |
-| Carte microSD (recommandée) | microSDXC de qualité, exFAT, 64 ou 128 Go : exports vers le SPF et mises à jour, jamais la base (§8) | 1 |
-| Lecteur de badges (option) | Lecteur de cartes NFC avec câble USB qui se comporte comme un clavier (il tape le numéro de la carte puis Entrée) ; à brancher à l'adaptateur USB du Sunmi D3 Pro. **L'unité principale du D3 Pro n'a pas de NFC** ; son écran client optionnel est annoncé avec NFC, à confirmer sur place (§4.4 bis) | 0 ou 1 |
+| Carte microSD (recommandée) | microSDXC de qualité, exFAT, 64 ou 128 Go, dans l'emplacement microSD du D3 Pro (fiche du fabricant) : exports vers le SPF et mises à jour, jamais la base (§8). Une clé USB en exFAT de même taille convient aussi | 1 |
+| Balance de caisse (option) | Dibal DPOS-400 sur le réseau local, protocole 24 ; jamais essayée sur une vraie balance à ce jour, ne pas installer avant la réponse écrite du SPF Économie (`BALANCE_FR.md` §1) | 0 ou 1 |
+| Lecteur de badges (option) | Lecteur de cartes NFC avec câble USB qui se comporte comme un clavier (il tape le numéro de la carte puis Entrée) ; à brancher sur un port USB-A du Sunmi D3 Pro. **L'unité principale du D3 Pro n'a pas de NFC** ; son écran client optionnel est annoncé avec NFC, à confirmer sur place (§4.4 bis) | 0 ou 1 |
 | Poste du technicien | Ordinateur avec `adb`, `shasum` et `minisign` (§3.2) ; onduleur de 600 VA recommandé pour la caisse | 1 |
 
 Ni puce TPM ni réglage BIOS (`SECURITE_BD_FR.md` §3.6). **Le terminal ne
@@ -254,6 +255,8 @@ on refait un lot signé et on le réimporte.
   "fdm_client_key_file": "fdm/client.key",
   "printer_address": "192.168.1.30:9100",
   "kitchen_printer_address": "192.168.1.31:9100",
+  "printer_paper_mm": 80,
+  "kitchen_printer_paper_mm": 80,
   "training_mode": false,
   "day_end_hour": 5,
   "table_count": 20,
@@ -276,6 +279,8 @@ on refait un lot signé et on le réimporte.
 | `fdm_client_cert_file`, `fdm_client_key_file` | Ensemble ou pas du tout : `client.crt` et `client.key` de module2 pour un FDM en mTLS. | Configuration FDM |
 | `printer_address` | IP:port de l'imprimante du LAN (9100 par défaut) | Configuration imprimante |
 | `kitchen_printer_address` | Facultatif. Imprimante du bar ou de la cuisine (« BON DE COMMANDE » sans prix) ; absent : le bon sort sur `printer_address`. | Configuration imprimante |
+| `printer_paper_mm` | Facultatif. Largeur du rouleau de `printer_address`, en mm : `80` (défaut, 48 colonnes) ou `58` (35 colonnes) ; toute autre valeur refuse la configuration. Tous les documents de cette imprimante (ticket, rapports X et Z, facture, bon cadeau, fiche allergènes) sont mis en page pour cette largeur, sans rien couper : une ligne trop longue passe à la ligne suivante. L'imprimante doit être réglée sur la même largeur : guides de 58 mm posés et largeur du papier réglée à 58 mm dans l'utilitaire Epson ou la page web de l'imprimante. Epson déconseille de revenir au 80 mm après un long usage en 58 mm (usure de la tête). | Configuration imprimante |
+| `kitchen_printer_paper_mm` | Facultatif. Largeur du rouleau de `kitchen_printer_address` : `80` (défaut) ou `58`. Sans imprimante de cuisine, le bon de commande suit `printer_paper_mm`. | Configuration imprimante |
 | `training_mode` | `false` en production, **à ne jamais laisser `true`**. Valeur de départ : un Gérant peut changer le mode dans « Config » (§4.7). | Distributeur |
 | `hubrise_enabled`, `hubrise` | Facultatifs. Commandes en ligne (`COMMANDES_EN_LIGNE_FR.md`) : `hubrise_enabled` à `true` et bloc `hubrise` (`client_id`, `client_secret_file` relatif au lot). Connexion ensuite par un Gérant : « Config », panneau « HubRise », code QR puis code d'autorisation. | Client |
 | `peppol` | Facultatif. Envoi des factures B2B sur le réseau Peppol (`FACTURATION_PEPPOL_FR.md`, `DECISION_PEPPOL_AP_FR.md`) : `provider` (`storecove` obligatoire en production), `base_url`, `api_key_file` (fichier du lot contenant la seule clé de l'API, chemin relatif au lot), `legal_entity_id`, `sender_id` (`0208:` et le numéro d'entreprise à 10 chiffres), `supplier_street`, `supplier_postal_code`, `supplier_city`, `supplier_country` (`BE` par défaut). Sans cette section, une facture à un client étranger est établie et imprimée, et une facture à un client dont le numéro de TVA commence par `BE` est refusée (`invoice_peppol_required`). | Client |
@@ -408,8 +413,8 @@ Le terminal, le FDM et l'imprimante sont sur le **même LAN privé**. Plan
 type, subnet `192.168.1.0/24`, réservations DHCP sur le routeur : terminal
 `192.168.1.10`, FDM `192.168.1.20` (HTTPS 443, §7.3), imprimante
 `192.168.1.30` (TCP 9100), box `192.168.1.1` (`SCHEMA_ASSEMBLAGE_FR.md`
-§4). Le terminal n'ouvre aucun port en écoute. Il se relie en Wi-Fi ou
-par câble si son modèle en offre un.
+§4). Le terminal n'ouvre aucun port en écoute. Il se relie par câble
+(port RJ45 du D3 Pro) ou en Wi-Fi.
 
 **Comme construit en 1.0.0, l'application n'a aucun écran de réseau** :
 le mode kiosque suspend les Réglages d'Android
@@ -418,7 +423,7 @@ un réseau sur place. Le Wi-Fi du site (SSID et mot de passe) se prépare
 **au banc, avant l'import du lot** (§3.2 point 5), pendant que le
 débogage USB est encore actif : il est coupé dès qu'un enregistrement de
 provisionnement existe (`PLATEFORME_ANDROID_FR.md` §3.3). Sur un site
-sans Wi-Fi, utiliser le câble si le modèle en offre un. Changer de
+sans Wi-Fi, utiliser le câble (port RJ45 du terminal). Changer de
 réseau ou de mot de passe après la livraison n'est pas possible sur
 place en 1.0.0, et ne se règle jamais par une réinitialisation ni une
 désinstallation chez le client (§9) : il faut une version déclarée plus
@@ -502,6 +507,23 @@ pointer et se connecter avec un badge (`MANUEL_UTILISATEUR_FR.md`
   (ou « Départ »), l'événement S est signé par le FDM. Retirer ensuite le
   badge de test et remettre le réglage voulu par l'établissement.
 
+
+### 4.4 ter Balance de caisse (option)
+
+Absente par défaut : sans section `scale`, rien à faire et les produits vendus au poids restent hors vente. Section de
+`pos.json` :
+
+```json
+"scale": {
+  "tcp_address": "192.168.1.40:4001",
+  "price_digits": 5,
+  "check_values": [{ "checksum": "4711", "correction": "F336" }],
+  "weigh_timeout_ms": 15000
+}
+```
+
+Les valeurs ci-dessus sont des exemples. `check_values` répond au contrôle du logiciel de la balance : sans valeur acceptée,
+aucune pesée n'est possible et il n'existe pas de réglage pour s'en passer (`BALANCE_FR.md` §4).
 
 ### 4.5 Synchronisation horaire
 

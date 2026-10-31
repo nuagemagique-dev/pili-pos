@@ -35,6 +35,9 @@
     <string name="eft_mode_manual">Saisie manuelle</string>
     <string name="eft_hint_terminal">Le montant est envoyé au terminal à la validation</string>
     <string name="settings_payment_terminal_label">Terminal de paiement</string>
+    <string name="settings_scale_label">Balance</string>
+    <string name="settings_scale_on">Configurée</string>
+    <string name="settings_scale_none">Aucune</string>
     <string name="settings_payment_terminal_none">Aucun (saisie manuelle)</string>
     <string name="eft_kind_worldline_terminal_api">Worldline</string>
     <string name="eft_kind_ccv_payment_api">CCV cloud</string>

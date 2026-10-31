@@ -208,6 +208,13 @@
     <string name="sw_version">Version</string>
     <string name="lock">Lock</string>
     <string name="status_terminal">Terminal</string>
+    <string name="status_scale">Scale</string>
+    <string name="scale_busy">weighing in progress</string>
+    <string name="scale_check_refused">software check refused</string>
+    <string name="scale_title">Weighing</string>
+    <string name="scale_stage_waiting">Put the product on the scale</string>
+    <string name="scale_stage_stabilizing">Weight settling…</string>
+    <string name="scale_stage_checking">The scale is checking…</string>
     <string name="status_kitchen">Kitchen</string>
     <string name="fdm_closes_in">closes in {s} s</string>
     <string name="fdm_retry_in">automatic retry in {s} s</string>

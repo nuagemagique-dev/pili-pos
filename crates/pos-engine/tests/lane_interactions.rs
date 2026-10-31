@@ -260,6 +260,8 @@ mod menu_editor {
             kitchen_printer: false,
             code: None,
             open_price: false,
+            sold_by_weight: false,
+            scale_tare_grams: None,
             sort_order: 0,
             active: true,
         };

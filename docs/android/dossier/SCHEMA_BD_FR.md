@@ -394,7 +394,7 @@ Une ligne par message d'alerte au propriétaire, envoyé ou non.
 | Champ | Type | Description |
 |---|---|---|
 | `id` | INTEGER | Clé primaire |
-| `kind` | TEXT | `fdm`, `printer`, `terminal`, `z_missing`, `online_waiting`, `test` (contraint) |
+| `kind` | TEXT | `fdm`, `printer`, `terminal`, `scale`, `z_missing`, `online_waiting`, `test` (contraint ; `scale` ajouté par la migration `080`, qui reconstruit la table en gardant ses lignes et ses déclencheurs) |
 | `transition` | TEXT | `raised`, `reminder`, `resolved`, `test` (contraint) |
 | `detail` | TEXT (nullable) | Compteurs, date comptable, noms de canaux ; jamais de donnée personnelle |
 | `outcome` | TEXT | `sent`, `failed`, `suppressed` (contraint) |
@@ -1005,11 +1005,40 @@ HubRise est activé et si le produit a une référence de SKU ; voir
 
 Index : `idx_hubrise_inventory_sync_dirty(dirty)` (partiel, `WHERE dirty = 1`).
 
+## 5 ter. Vente au poids (migration `080`)
+
+Colonnes : `menu_items.sold_by_weight` (1 = `price_cents` est le prix au kilo) et `menu_items.scale_tare_grams` (tare fixe,
+0 à 9999 g, facultative) ; `order_lines.weight_grams` et `order_lines.weighed_amount_cents`, copiées dans `order_entries`
+et jamais réécrites (`order_entries_weight_fixed`). Vides sur une ligne vendue à la pièce. `fiscal_events` ne change pas.
+
+### 5 ter.1 `scale_weighings` Attention : APPEND-ONLY
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `line_id` | INTEGER | Ligne de commande, sans clé étrangère : une ligne retirée s'efface, sa pesée reste |
+| `order_id` | INTEGER FK | Commande |
+| `weight_grams` | INTEGER | Poids renvoyé par la balance, positif |
+| `unit_price_cents` | INTEGER | Prix au kilo renvoyé |
+| `amount_cents` | INTEGER | Montant renvoyé |
+| `tare_grams` | INTEGER (nullable) | Tare envoyée |
+| `operator_insz` | TEXT | Opérateur |
+| `created_at` | TEXT | Horodatage |
+
+### 5 ter.2 `scale_check_log` Attention : APPEND-ONLY
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `event` | TEXT | `requested`, `answered`, `passed`, `refused`, `no_values` (contraint) |
+| `detail` | TEXT (nullable) | Précision de l'étape |
+| `created_at` | TEXT | Horodatage |
+
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **trente
-migrations** existent (1 à 11, 20 à 28, 30 et 31, 40 à 42, 60 à 63, puis 70 ; 12 à 19 sont réservées aux
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **trente et une
+migrations** existent (1 à 11, 20 à 28, 30 et 31, 40 à 42, 60 à 63, 70, puis 80 ; 12 à 19 sont réservées aux
 correctifs du moteur certifié), appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
@@ -1045,6 +1074,7 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 62 | `courses` | `order_line_courses`, `order_course_releases`, `kitchen_slip_entries` (§2.9.4), données de cuisine sans effet fiscal. |
 | 63 | `gift-vouchers` | Catégorie et produit système, `gift_vouchers`, `gift_voucher_movements`, `gift_voucher_prints` et leurs déclencheurs (§2.9.5). |
 | 70 | `staff-badges` | Les quatre tables des badges du personnel : `badge_settings`, `staff_badges`, `badge_log`, `badge_scans`, leurs index uniques partiels et leurs six déclencheurs (§2.6). Pas de colonne ajoutée aux tables existantes. Non conditionnée par une fonctionnalité de compilation : les tables existent sur toute installation et ne sont écrites que si le Gérant active le lecteur de badges. |
+| 80 | `sale-by-weight` | Colonnes de la vente au poids, `scale_weighings`, `scale_check_log` et leurs déclencheurs, `owner_alert_log` reconstruite pour accepter `scale` (§5 ter). |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette

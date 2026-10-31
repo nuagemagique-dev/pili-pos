@@ -92,6 +92,8 @@ pub struct AppState {
     /// (`commands::eft`). An abort never takes it: it reaches the
     /// payment's own instance, or opens its own connection.
     pub eft_line: tokio::sync::Mutex<()>,
+    /// The checkout scale's driver (`commands::scale`).
+    pub scale: crate::commands::scale::ScaleSlot,
     /// Badge scans being handled or just handled, by badge hash
     /// (`commands::badges`, L5-D10). In memory: a restart clears it.
     pub badge_repeats: Mutex<std::collections::HashMap<String, Repeat>>,

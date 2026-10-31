@@ -48,6 +48,16 @@ pub fn cents_of(v: &Value) -> Option<i64> {
     v.as_f64().map(cents_from_eur)
 }
 
+/// Price of a weighed product in cents, from its weight in grams and its
+/// price per kilo in cents: integers only, half a cent rounds up.
+#[must_use]
+pub fn weighed_amount_cents(weight_grams: i64, price_per_kilo_cents: i64) -> i64 {
+    weight_grams
+        .saturating_mul(price_per_kilo_cents)
+        .saturating_add(500)
+        / 1000
+}
+
 /// Spread `amount_cents` (a whole-order change) over lines in
 /// proportion to their `weights` (their totals), to the cent: the
 /// shares add up exactly, the remainder going to the largest
@@ -92,6 +102,15 @@ pub fn distribute(weights: &[i64], amount_cents: i64) -> Vec<i64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_weighed_price_rounds_half_a_cent_up() {
+        assert_eq!(weighed_amount_cents(278, 4500), 1251);
+        assert_eq!(weighed_amount_cents(612, 1990), 1218);
+        assert_eq!(weighed_amount_cents(250, 1230), 308);
+        assert_eq!(weighed_amount_cents(1, 1), 0);
+        assert_eq!(weighed_amount_cents(99_999, 999_999), 99_998_900);
+    }
 
     #[test]
     fn distribute_adds_up_to_the_cent() {

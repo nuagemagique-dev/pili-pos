@@ -134,6 +134,10 @@ pub struct TicketLine {
     pub unit_price: f64,
     pub total: f64,
     pub vat_code: String,
+    /// A weighed line: `quantity` is in kilograms and `unit_price` is per
+    /// kilo. Absent on every other line and in older stored tickets.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub weighed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -661,6 +665,7 @@ mod tests {
                 unit_price: 10.0,
                 total: 10.0,
                 vat_code: "B".into(),
+                weighed: false,
             }],
             payments: vec![TicketPayment {
                 method: "Cash".into(),
@@ -695,6 +700,7 @@ mod tests {
                 unit_price: 5.0,
                 total: -10.0,
                 vat_code: "B".into(),
+                weighed: false,
             }],
             payments: vec![],
             total: -10.0,
@@ -822,6 +828,7 @@ mod tests {
                 unit_price: 12.53,
                 total: 12.53,
                 vat_code: "B".into(),
+                weighed: false,
             }],
             payments: vec![TicketPayment {
                 method: "Cash".into(),

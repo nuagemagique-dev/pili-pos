@@ -88,6 +88,9 @@
     <string name="menu_ed_case">Upper / lower case</string>
     <string name="menu_ed_category">Category</string>
     <string name="menu_ed_price">Price (€)</string>
+    <string name="menu_ed_price_per_kilo">Price per kilo (€)</string>
+    <string name="menu_ed_sold_by_weight">Sold by weight</string>
+    <string name="menu_ed_tare">Container tare</string>
     <string name="menu_ed_vat">VAT dine-in</string>
     <string name="menu_ed_vat_takeaway">VAT takeaway</string>
     <string name="menu_ed_vat_same">Same as dine-in</string>
@@ -173,6 +176,7 @@
     <string name="alerts_kind_printer">A printer is unreachable</string>
     <string name="alerts_kind_terminal">The payment terminal is unreachable</string>
     <string name="alerts_kind_z_missing">The day\'s Z is not done</string>
+    <string name="alerts_kind_scale">The scale does not answer or refuses the check</string>
     <string name="alerts_kind_online_waiting">An online order is waiting</string>
     <string name="alerts_z_deadline">Z expected before</string>
     <string name="alerts_online_wait">Online order waiting for</string>

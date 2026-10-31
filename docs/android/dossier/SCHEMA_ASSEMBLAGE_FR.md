@@ -61,7 +61,7 @@ HoReCa). La machine de test livrée à l'Intake SPF Finances est identique, à l
               +--------+--------+
                        |
                        | Wi-Fi ou RJ45
-                       | (liaison filaire : EV-15)
+                       | (RJ45 du terminal : EV-15)
                        |
               +--------+--------+
               |                 |
@@ -102,10 +102,10 @@ HoReCa). La machine de test livrée à l'Intake SPF Finances est identique, à l
 
 | # | Composant | Marque/Modèle | Adressage | Connectivité |
 |---|---|---|---|---|
-| 1 | Terminal POS | Sunmi D3 Pro, variante avec services Google (Android 13, arm64, écran tactile intégré en 1920×1080 paysage). Autres caractéristiques matérielles : À effectuer (EV-15 : fiche mesurée d'un vrai D3 Pro) | IP LAN `192.168.1.10` (réservation DHCP) | Wi-Fi, ou liaison filaire si le modèle en offre une (EV-15), USB et emplacement de carte SD (EV-15) |
+| 1 | Terminal POS | Sunmi D3 Pro, variante avec services Google (Android 13, arm64, écran tactile intégré en 1920×1080 paysage). Autres caractéristiques matérielles : À effectuer (EV-15 : fiche mesurée d'un vrai D3 Pro) | IP LAN `192.168.1.10` (réservation DHCP) | Wi-Fi ou RJ45 (LAN 1 Gbit/s), 3 ports USB-A, emplacement microSD, selon la fiche du fabricant (§3) ; constat sur un vrai D3 Pro : EV-15 |
 | 2 | Routeur LAN | TP-Link Archer C6 (ou équivalent) - fourni avec la machine-test à l'Intake | IP gateway `192.168.1.1`, DHCP `192.168.1.100-200`, baux réservés pour FDM et imprimante | WAN RJ45 (Internet), LAN RJ45 (4×) |
 | 3 | FDM | FDM module2 (PRACSYS, certifié SCE 2.0, identifiant `MOD01...`) chez le client. **Machine de test : simulateur en ligne module2, sans boîtier physique** (cf. §7). | IP statique LAN `192.168.1.20` (réservation DHCP). GraphQL en HTTPS sur le port TCP 443 avec le certificat client module2 (mTLS, recommandé par module2 ; HTTP sur le port 80 reste possible), jeton Bearer propre au FDM (`fdm_token_file`, cf. MANUEL_INSTALLATION_FR.md). | RJ45 vers routeur |
-| 4 | Imprimante thermique | Epson TM-m30III (80 mm thermique) | IP statique LAN `192.168.1.30` (réservation DHCP). TCP port 9100 ouvert (ESC/POS raw). RJ11 sortant vers tiroir. | RJ45 vers routeur. USB et Wifi disponibles mais non utilisés. RJ11 vers tiroir-caisse. |
+| 4 | Imprimante thermique | Epson TM-m30III (thermique, rouleau de 80 mm, ou de 58 mm avec les guides de rouleau livrés avec l'imprimante : `printer_paper_mm`) | IP statique LAN `192.168.1.30` (réservation DHCP). TCP port 9100 ouvert (ESC/POS raw). RJ11 sortant vers tiroir. | RJ45 vers routeur. USB et Wifi disponibles mais non utilisés. RJ11 vers tiroir-caisse. |
 | 5 | Tiroir-caisse | Tiroir RJ11 standard (modèle générique compatible Epson) | N/A (passif) | RJ11 depuis l'imprimante. Ouverture par séquence ESC/POS `0x1B 0x70 0x00 0x19 0xFA` envoyée par le POS. |
 
 ---
@@ -114,15 +114,18 @@ HoReCa). La machine de test livrée à l'Intake SPF Finances est identique, à l
 
 ### Sur le terminal POS
 
-Les ports physiques du D3 Pro ne sont pas établis par le dépôt : À effectuer (EV-15 : liste des ports et de l'emplacement de carte d'un vrai D3 Pro). Usage prévu de ce que le terminal offre :
+Ports du D3 Pro selon la fiche du fabricant, sunmi.com, page D3 PRO, consultée le 29.10.2026 : 1 USB-A 3.0, 2 USB-A 2.0, 1 USB-C 2.0, 1 RJ45 (LAN 1 Gbit/s), 1 RJ12 de tiroir-caisse, 1 RJ11 série, 1 prise audio, 1 micro-USB de débogage, 1 emplacement microSD (TF) ; Wi-Fi 2,4 et 5 GHz (802.11 a/b/g/n/ac), Bluetooth 5.0. Ce sont les données du fabricant ; leur constat sur un vrai terminal : À effectuer (EV-15 : liste des ports et de l'emplacement de carte d'un vrai D3 Pro). Usage prévu :
 
 | Port ou interface | Utilisation |
 |---|---|
-| Réseau (Wi-Fi, ou RJ45 si le modèle en offre un) | Connexion LAN vers routeur (1) ; le Wi-Fi se prépare au banc avant l'import du lot ; l'application 1.0.0 n'a pas d'écran de réseau (`MANUEL_INSTALLATION_FR.md` §4.3) |
-| USB (clé) | Disponible pour la clé du lot de provisionnement signé à l'installation et pour la clé de mise à jour déclarée (retirées en service normal) |
-| Emplacement de carte SD ou clé USB | Cible de l'export vers le SPF (Art. 16 et 102), seulement par une action du Gérant (`PLATEFORME_ANDROID_FR.md` §5) ; jamais support de la base de données |
+| Réseau (Wi-Fi, ou port RJ45) | Connexion LAN vers routeur (1), par câble sur le port RJ45 ou en Wi-Fi ; le Wi-Fi se prépare au banc avant l'import du lot ; l'application 1.0.0 n'a pas d'écran de réseau (`MANUEL_INSTALLATION_FR.md` §4.3) |
+| USB-A (clé) | Un des trois ports USB-A, disponible pour la clé du lot de provisionnement signé à l'installation et pour la clé de mise à jour déclarée (retirées en service normal) |
+| Emplacement microSD ou clé USB | Cible de l'export vers le SPF (Art. 16 et 102), seulement par une action du Gérant (`PLATEFORME_ANDROID_FR.md` §5) ; jamais support de la base de données |
+| Balance de caisse (option) | Par le réseau local en version 1.0.0 (adresse `scale.tcp_address`) ; USB et port série : À effectuer (EV-22 : classe USB de la balance et port série du D3 Pro) |
 | Transfert de fichiers USB vers un ordinateur | Interdit (`DISALLOW_USB_FILE_TRANSFER`, cf. `PLATEFORME_ANDROID_FR.md` §3.3) |
-| Débogage USB (adb) | Coupé sur un terminal provisionné en version de production |
+| Port micro-USB de débogage (adb) | Coupé sur un terminal provisionné en version de production |
+| Port RJ12 de tiroir-caisse | Inutilisé : le tiroir est relié à l'imprimante et s'ouvre par la séquence ESC/POS (§2, composant 5) |
+| Port RJ11 série, USB-C, prise audio | Inutilisés |
 
 ### Sur le routeur
 
@@ -180,7 +183,7 @@ Aucun port n'est ouvert depuis Internet vers le LAN (zone DMZ vide). Aucun port 
 2. Configurer le routeur (login admin du routeur, IP statique gateway 192.168.1.1, DHCP 100-200, réservations DHCP pour les 3 appareils SCE).
 3. Brancher le FDM au routeur via RJ45 (port LAN 2). Mettre sous tension. Vérifier que le FDM obtient son IP réservée 192.168.1.20.
 4. Brancher l'imprimante au routeur via RJ45 (port LAN 3). Brancher l'alimentation. Vérifier IP 192.168.1.30. Brancher le RJ11 du tiroir-caisse au DK port de l'imprimante.
-5. Poser le terminal D3 Pro, brancher son alimentation et le relier au routeur (Wi-Fi, ou liaison filaire si le modèle en offre une). Le terminal est provisionné au banc du producteur avant livraison : propriétaire de l'appareil attribué sans compte Google, application installée et verrouillée (`PLATEFORME_ANDROID_FR.md` §3.1). Sur le terrain, un terminal réinitialisé se provisionne par code QR.
+5. Poser le terminal D3 Pro, brancher son alimentation et le relier au routeur (câble RJ45 vers le port LAN #1 du routeur, ou Wi-Fi). Le terminal est provisionné au banc du producteur avant livraison : propriétaire de l'appareil attribué sans compte Google, application installée et verrouillée (`PLATEFORME_ANDROID_FR.md` §3.1). Sur le terrain, un terminal réinitialisé se provisionne par code QR.
 6. Au démarrage, l'application, écran d'accueil du terminal, se lance en plein écran en mode kiosque après quelques secondes.
 7. Configuration du POS : elle ne se fait pas à l'écran de la caisse. Le technicien prépare le lot de provisionnement signé sur clé USB (`pos.json`, fichiers du FDM, jeton, certificats), le branche sur le terminal et l'importe depuis l'écran de provisionnement, comme décrit dans `MANUEL_INSTALLATION_FR.md` (import du lot, premiers comptes). L'application vérifie la signature du lot avant tout usage ; sans lot valide, le moteur ne démarre pas. Pour le FDM module2 : `fdm_url` `https://192.168.1.20/graphql/`, `fdm_token_file`, et `fdm_ca_file`, `fdm_client_cert_file`, `fdm_client_key_file` (`ca.crt`, `client.crt`, `client.key`, publiés sur manual.module2.be) fournis dans le lot. `printer_address` vaut `192.168.1.30:9100`.
 8. Première connexion d'un Gérant sur l'écran de la caisse (`MANUEL_UTILISATEUR_FR.md` §2.1) : le POS signe un `signWorkIn` (événement S), ce qui valide la chaîne complète (FDM, identité, horloge). Si le FDM l'accepte, le POS est opérationnel.
@@ -204,6 +207,7 @@ Pour la machine de test livrée au rendez-vous d'admission SPF Finances :
 
 - Terminal : profil émulé du D3 Pro avec services Google, sauf si un vrai D3 Pro est disponible au dépôt (À effectuer (EV-15 : terminal réel, ou déclaration du profil émulé)). Numéro de série de la machine de test : `EMULATOR37X2X12X0`.
 - Routeur fourni par le distributeur (mini-routeur de prêt).
+- Balance : simulateur du dépôt `pos-scale-mock`, par le réseau (*BALANCE_FR.md* §9).
 - **Pas de FDM physique : le simulateur en ligne module2 est fourni avec la machine de test.** Le manuel de certification (§IV « Procédure de communication GraphQL », procédure de test, étape 1) demande d'appliquer les scénarios « à l'aide d'un simulateur FDM » et de fournir « un simulateur avec la machine test » ; le guide d'introduction (section « Intake », « Machine de test ») précise : « Si un simulateur de FDM est utilisé, sa méthode de connexion et ses ports doivent être clairement documentés. » Connexion du simulateur :
 
   | Élément | Valeur |

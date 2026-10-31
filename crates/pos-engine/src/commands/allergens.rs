@@ -301,19 +301,21 @@ pub async fn do_print_allergen_sheet(
     }
     let (address, establishment) = {
         let config = state.config.lock().map_err(errors::internal)?;
-        (
-            config
-                .printer_address
-                .clone()
-                .or_else(|| config.kitchen_printer_address.clone())
-                .filter(|a| !a.is_empty()),
-            config.restaurant_name.clone(),
-        )
+        let address = config
+            .printer_address
+            .clone()
+            .or_else(|| config.kitchen_printer_address.clone())
+            .filter(|a| !a.is_empty())
+            .map(|a| {
+                let paper = config.paper_for(&a);
+                (a, paper)
+            });
+        (address, config.restaurant_name.clone())
     };
-    let Some(address) = address else {
+    let Some((address, paper)) = address else {
         return Ok(SlipOutcome::NoPrinter);
     };
-    let bytes = format_allergen_sheet(&print_sheet_of(view, establishment));
+    let bytes = format_allergen_sheet(&print_sheet_of(view, establishment), paper);
     match pos_print::transport::send_to_printer_with(
         &address,
         &bytes,

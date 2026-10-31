@@ -1,5 +1,5 @@
-//! The owner alerts: a Telegram message when the FDM, a printer
-//! or the card terminal is down, the day has no Z, or an online order
+//! The owner alerts: a Telegram message when the FDM, a printer,
+//! the card terminal or the scale is down, the day has no Z, or an online order
 //! waits. Everything runs against a local mock of the Bot API, never
 //! the real Telegram.
 //!
@@ -25,7 +25,7 @@ use pos_engine_testkit as common;
 use serde_json::{Value, json};
 
 use common::*;
-use pos_core::config::AlertsConfig;
+use pos_core::config::{AlertsConfig, ScaleCheckValue, ScaleConfig};
 use pos_core::user::UserRole;
 use pos_engine::alerts::rules::{Kind, Transition};
 use pos_engine::alerts::run_pass;
@@ -40,6 +40,7 @@ use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
 use pos_engine::commands::report::do_generate_z_report;
+use pos_scale_mock::MockScale;
 
 const TOKEN: &str = "123456:SECRET-bot-token_xyz";
 const CHAT: &str = "-1001234567890";
@@ -219,6 +220,7 @@ fn kinds_only(f: impl Fn(&mut AlertKinds)) -> AlertKinds {
         fdm: false,
         printer: false,
         terminal: false,
+        scale: false,
         z_missing: false,
         online_waiting: false,
     };
@@ -686,6 +688,108 @@ async fn the_terminal_is_raised_on_the_second_failed_probe_and_never_probed_whil
     // The terminal is back (the script answers Ok by default).
     let resolved = run_pass(&app.state, minutes(15)).await;
     assert_eq!(resolved[0].transition, Transition::Resolved);
+}
+
+// ── The scale ──────────────────────────────────────────────────────
+
+fn link_scale(app: &TestApp, address: String, checksum: &str) {
+    app.state.config.lock().unwrap().scale = Some(ScaleConfig {
+        tcp_address: address,
+        price_digits: 5,
+        check_values: vec![ScaleCheckValue {
+            checksum: checksum.into(),
+            correction: "F336".into(),
+        }],
+        weigh_timeout_ms: 2000,
+    });
+}
+
+#[tokio::test]
+async fn the_scale_is_raised_on_the_second_failed_probe_and_resolved_when_it_answers() {
+    let tg = Telegram::start().await;
+    let (app, _dir) = app(&tg).await;
+    let scale = MockScale::new("4711F336");
+    let address = scale.spawn().await;
+    // Nobody listens on a port that was just freed.
+    let free = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let closed = free.local_addr().unwrap().to_string();
+    drop(free);
+    link_scale(&app, closed, "4711");
+    switch_on(&app, |i| i.kinds = kinds_only(|k| k.scale = true));
+
+    assert_eq!(
+        run_pass(&app.state, t0()).await,
+        Vec::<pos_engine::alerts::Sent>::new()
+    );
+    let sent = run_pass(&app.state, minutes(5)).await;
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].kind, Kind::Scale);
+    assert!(tg.texts()[0].contains("La balance ne répond plus"));
+
+    link_scale(&app, address.to_string(), "4711");
+    let resolved = run_pass(&app.state, minutes(10)).await;
+    assert_eq!(resolved[0].transition, Transition::Resolved);
+    assert!(tg.texts()[1].contains("Tout est rentré dans l'ordre"));
+}
+
+#[tokio::test]
+async fn a_scale_that_refuses_the_check_is_raised_with_its_own_sentence() {
+    let tg = Telegram::start().await;
+    let (app, _dir) = app(&tg).await;
+    let scale = MockScale::new("4711F336");
+    let address = scale.spawn().await;
+    link_scale(&app, address.to_string(), "9999");
+    scale.require_check();
+    switch_on(&app, |i| i.kinds = kinds_only(|k| k.scale = true));
+
+    assert_eq!(
+        run_pass(&app.state, t0()).await,
+        Vec::<pos_engine::alerts::Sent>::new()
+    );
+    let sent = run_pass(&app.state, minutes(5)).await;
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].kind, Kind::Scale);
+    assert!(tg.texts()[0].contains("refuse le contrôle du logiciel"));
+    let logged = do_list_owner_alert_log(&app.state, 1).unwrap();
+    assert_eq!(logged[0].detail.as_deref(), Some("check=refused"));
+
+    // The right values are installed: the next probe checks again.
+    link_scale(&app, address.to_string(), "4711");
+    scale.require_check();
+    let resolved = run_pass(&app.state, minutes(10)).await;
+    assert_eq!(resolved[0].transition, Transition::Resolved);
+}
+
+#[tokio::test]
+async fn no_scale_means_no_scale_alert() {
+    let tg = Telegram::start().await;
+    let (app, _dir) = app(&tg).await;
+    switch_on(&app, |i| i.kinds = kinds_only(|k| k.scale = true));
+    for n in [0, 5, 10] {
+        assert_eq!(
+            run_pass(&app.state, minutes(n)).await,
+            Vec::<pos_engine::alerts::Sent>::new()
+        );
+    }
+    assert_eq!(tg.texts(), Vec::<String>::new());
+}
+
+#[tokio::test]
+async fn a_scale_alert_switched_off_sends_nothing() {
+    let tg = Telegram::start().await;
+    let (app, _dir) = app(&tg).await;
+    let free = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let closed = free.local_addr().unwrap().to_string();
+    drop(free);
+    link_scale(&app, closed, "4711");
+    switch_on(&app, |i| i.kinds = kinds_only(|_| {}));
+    for n in [0, 5, 10] {
+        assert_eq!(
+            run_pass(&app.state, minutes(n)).await,
+            Vec::<pos_engine::alerts::Sent>::new()
+        );
+    }
+    assert_eq!(tg.texts(), Vec::<String>::new());
 }
 
 #[tokio::test]

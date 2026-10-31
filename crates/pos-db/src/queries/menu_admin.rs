@@ -30,6 +30,10 @@ pub struct AdminCategory {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent product flags of the menu editor's wire format"
+)]
 pub struct AdminProduct {
     pub id: i64,
     pub category_id: i64,
@@ -40,6 +44,12 @@ pub struct AdminProduct {
     pub kitchen_printer: bool,
     pub code: Option<String>,
     pub open_price: bool,
+    /// `price_cents` is then the price per kilo.
+    #[serde(default)]
+    pub sold_by_weight: bool,
+    /// The container's fixed tare sent to the scale.
+    #[serde(default)]
+    pub scale_tare_grams: Option<i64>,
     pub sort_order: i32,
     pub active: bool,
 }
@@ -150,7 +160,8 @@ pub fn list_categories(conn: &Connection) -> rusqlite::Result<Vec<AdminCategory>
 }
 
 const PRODUCT_COLUMNS: &str = "m.id, m.category_id, m.price_cents, m.vat_code, m.vat_code_takeaway,
-    m.kitchen_printer, m.code, m.open_price, m.sort_order, m.active";
+    m.kitchen_printer, m.code, m.open_price, m.sort_order, m.active,
+    m.sold_by_weight, m.scale_tare_grams";
 
 fn map_product(r: &rusqlite::Row<'_>) -> rusqlite::Result<AdminProduct> {
     Ok(AdminProduct {
@@ -163,6 +174,8 @@ fn map_product(r: &rusqlite::Row<'_>) -> rusqlite::Result<AdminProduct> {
         kitchen_printer: r.get::<_, i32>(5)? != 0,
         code: r.get(6)?,
         open_price: r.get::<_, i32>(7)? != 0,
+        sold_by_weight: r.get::<_, i32>(10)? != 0,
+        scale_tare_grams: r.get(11)?,
         sort_order: r.get(8)?,
         active: r.get::<_, i32>(9)? != 0,
     })
@@ -360,8 +373,9 @@ pub fn write_product(conn: &Connection, p: &AdminProduct) -> rusqlite::Result<i6
     let id = if p.id == 0 {
         conn.execute(
             "INSERT INTO menu_items (category_id, price_cents, vat_code, vat_code_takeaway,
-                                     kitchen_printer, code, open_price, sort_order, active)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                                     kitchen_printer, code, open_price, sort_order, active,
+                                     sold_by_weight, scale_tare_grams)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 p.category_id,
                 p.price_cents,
@@ -371,7 +385,9 @@ pub fn write_product(conn: &Connection, p: &AdminProduct) -> rusqlite::Result<i6
                 p.code,
                 p.open_price,
                 p.sort_order,
-                p.active
+                p.active,
+                p.sold_by_weight,
+                p.scale_tare_grams
             ],
         )?;
         conn.last_insert_rowid()
@@ -379,7 +395,7 @@ pub fn write_product(conn: &Connection, p: &AdminProduct) -> rusqlite::Result<i6
         conn.execute(
             "UPDATE menu_items SET category_id = ?2, price_cents = ?3, vat_code = ?4,
                     vat_code_takeaway = ?5, kitchen_printer = ?6, code = ?7, open_price = ?8,
-                    sort_order = ?9, active = ?10
+                    sort_order = ?9, active = ?10, sold_by_weight = ?11, scale_tare_grams = ?12
              WHERE id = ?1",
             params![
                 p.id,
@@ -391,7 +407,9 @@ pub fn write_product(conn: &Connection, p: &AdminProduct) -> rusqlite::Result<i6
                 p.code,
                 p.open_price,
                 p.sort_order,
-                p.active
+                p.active,
+                p.sold_by_weight,
+                p.scale_tare_grams
             ],
         )?;
         p.id

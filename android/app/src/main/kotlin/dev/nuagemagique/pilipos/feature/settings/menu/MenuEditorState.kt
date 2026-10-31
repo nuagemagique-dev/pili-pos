@@ -91,6 +91,8 @@ internal data class MenuForm(
     val kitchenPrinter: Boolean = true,
     val code: String? = null,
     val openPrice: Boolean = false,
+    val soldByWeight: Boolean = false,
+    val scaleTareGrams: Long? = null,
     val sortOrder: Int = 0,
     val active: Boolean = true,
     val color: String? = null,
@@ -192,6 +194,8 @@ internal fun formOf(p: AdminProduct): MenuForm =
         kitchenPrinter = p.kitchenPrinter,
         code = p.code,
         openPrice = p.openPrice,
+        soldByWeight = p.soldByWeight,
+        scaleTareGrams = p.scaleTareGrams,
         sortOrder = p.sortOrder,
         active = p.active,
     )

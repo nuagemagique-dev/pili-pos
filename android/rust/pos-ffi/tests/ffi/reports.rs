@@ -184,6 +184,7 @@ fn a_sales_report_with_every_field_set_converts() {
             name: "Maki".into(),
             department: "Plats".into(),
             quantity_milli: -2000,
+            weighed: true,
             amount_cents: -1300,
         }],
         by_hour: vec![EngineSalesHour {
@@ -440,6 +441,7 @@ fn settings_with_every_option_set_or_empty_convert() {
             },
             pos_sw_version: "pili-pos-android/1.0.0".into(),
             payment_terminal: full.then(|| "worldline_terminal_api".to_string()),
+            scale_configured: full,
         };
         let record: ffi::PosSettings = out_equal(&engine);
         assert_eq!(record.config_problems.len(), if full { 2 } else { 0 });

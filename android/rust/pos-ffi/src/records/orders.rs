@@ -74,6 +74,14 @@ pub struct OrderLine {
     pub department_id: String,
     #[serde(default)]
     pub department_name: String,
+    /// A weighing: the net weight read from the scale; `unit_price_cents` is then per kilo.
+    #[serde(default)]
+    #[uniffi(default = None)]
+    pub weight_grams: Option<i64>,
+    /// A weighing: the amount the scale computed, for one `quantity`.
+    #[serde(default)]
+    #[uniffi(default = None)]
+    pub weighed_amount_cents: Option<i64>,
 }
 
 /// `pos_engine::commands::order::CreateOrderInput`.
@@ -116,6 +124,14 @@ pub struct CartLine {
     pub department_id: String,
     #[serde(default)]
     pub department_name: String,
+    /// A weighing: the net weight read from the scale; `unit_price_cents` is then per kilo.
+    #[serde(default)]
+    #[uniffi(default = None)]
+    pub weight_grams: Option<i64>,
+    /// A weighing: the amount the scale computed, for one `quantity`.
+    #[serde(default)]
+    #[uniffi(default = None)]
+    pub weighed_amount_cents: Option<i64>,
     pub name_fr: Option<String>,
     pub name_zh: Option<String>,
     /// The product's menu code ("A2"), when the catalog gives one.
@@ -255,6 +271,10 @@ pub struct MenuItem {
     /// Free-price product: the operator enters the unit price.
     #[serde(default)]
     pub open_price: bool,
+    /// Sold by weight: `price_cents` is per kilo and the scale gives the line.
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub sold_by_weight: bool,
     pub kitchen_printer: bool,
     pub sort_order: i32,
     pub active: bool,

@@ -62,6 +62,11 @@ pub enum Attention {
     FractionalQuantity {
         sku_ref: String,
     },
+    /// A product sold by weight: nobody weighs from a distance, so the
+    /// webshop sells a separate product at a fixed price.
+    SoldByWeight {
+        sku_ref: String,
+    },
     /// A price `HubRise` sent that is not euro cents.
     BadPrice {
         at: String,
@@ -303,6 +308,15 @@ fn menu_item(conn: &Connection, key: &str, kind: &str) -> Result<Option<(i64, i6
         .optional()?)
 }
 
+/// Whether the product takes its line from the scale.
+fn sold_by_weight(conn: &Connection, menu_item_id: i64) -> Result<bool> {
+    Ok(conn.query_row(
+        "SELECT sold_by_weight FROM menu_items WHERE id = ?1",
+        params![menu_item_id],
+        |r| r.get(0),
+    )?)
+}
+
 /// An active option of `menu_item_id` whose key ends in `|{option_ref}`:
 /// its catalog price.
 fn option_price(conn: &Connection, menu_item_id: i64, option_ref: &str) -> Result<Option<i64>> {
@@ -368,6 +382,12 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
             });
             continue;
         };
+        if sold_by_weight(conn, id)? {
+            attention.push(Attention::SoldByWeight {
+                sku_ref: sku_ref.to_owned(),
+            });
+            continue;
+        }
         let Some(quantity) = parse_quantity(&item.quantity) else {
             attention.push(Attention::FractionalQuantity {
                 sku_ref: sku_ref.to_owned(),
@@ -520,7 +540,9 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
         a.is_catalog_miss()
             || matches!(
                 a,
-                Attention::ItemWithoutRef { .. } | Attention::FractionalQuantity { .. }
+                Attention::ItemWithoutRef { .. }
+                    | Attention::FractionalQuantity { .. }
+                    | Attention::SoldByWeight { .. }
             )
     });
     // Missing lines already explain a gap; only a full set is checked.

@@ -2,28 +2,28 @@ use pos_fiscal::response::FdmReference;
 use pos_fiscal::ticket::FiscalTicket;
 use pos_fiscal::types::EventLabel;
 
-use crate::escpos::{Alignment, EscPosBuilder, TextStyle, wrap};
+use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle, wrap};
 use crate::labels::{Labels, labels, payment_label};
 
 /// The FDM control data of one event (POS description v2.2 §6.6), in
 /// the wording of the SPF example tickets of 2026-09-24.
 fn control_data(p: &mut EscPosBuilder, fdm_ref: &FdmReference, short_signature: Option<&str>) {
-    p.textln(&format!("fdmId: {};", fdm_ref.fdm_id));
-    p.textln(&format!("fdmDateTime: {};", fdm_ref.fdm_date_time));
-    p.textln(&format!(
+    p.textln_wrapped(&format!("fdmId: {};", fdm_ref.fdm_id));
+    p.textln_wrapped(&format!("fdmDateTime: {};", fdm_ref.fdm_date_time));
+    p.textln_wrapped(&format!(
         "Event: {:?}; eventCounter: {};",
         fdm_ref.event_label, fdm_ref.event_counter
     ));
     match short_signature {
         Some(sig) => {
-            p.textln(&format!(
+            p.textln_wrapped(&format!(
                 "totalCounter: {}; shortSignature:",
                 fdm_ref.total_counter
             ));
-            p.textln(&format!("{sig};"));
+            p.textln_wrapped(&format!("{sig};"));
         }
         None => {
-            p.textln(&format!("totalCounter: {};", fdm_ref.total_counter));
+            p.textln_wrapped(&format!("totalCounter: {};", fdm_ref.total_counter));
         }
     }
 }
@@ -67,8 +67,8 @@ fn subtitles(ticket: &FiscalTicket, l: &Labels) -> Vec<&'static str> {
     clippy::too_many_lines,
     reason = "one top-to-bottom ticket layout following the SPF example; splitting it would scatter the print order"
 )]
-pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
-    let mut p = EscPosBuilder::new();
+pub fn format_receipt(ticket: &FiscalTicket, paper: PaperWidth) -> Vec<u8> {
+    let mut p = EscPosBuilder::for_paper(paper);
     let l = labels(ticket.lang);
 
     // ── Training mode banner ───────────────────────────────────
@@ -107,30 +107,33 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     p.align(Alignment::Left);
     p.textln_wrapped(&ticket.restaurant_name);
     if !ticket.restaurant_est_no.is_empty() {
-        p.textln(&format!("{} {}", l.est_unit, ticket.restaurant_est_no));
+        p.textln_wrapped(&format!("{} {}", l.est_unit, ticket.restaurant_est_no));
     }
     let (date, time) = date_and_time(&ticket.pos_datetime);
     p.text_columns(&date, &time);
     if !ticket.operator.is_empty() {
-        p.textln(&format!("{} {}", l.user, ticket.operator));
+        p.textln_wrapped(&format!("{} {}", l.user, ticket.operator));
     }
-    p.textln(&format!("{} {}", l.terminal, ticket.terminal_id));
-    p.textln(&format!("{} {:06}", l.ticket_no, ticket.ticket_number));
-    p.textln(&format!("{} {}", l.pos_serial, ticket.pos_id));
+    p.textln_wrapped(&format!("{} {}", l.terminal, ticket.terminal_id));
+    p.textln_wrapped(&format!("{} {:06}", l.ticket_no, ticket.ticket_number));
+    p.textln_wrapped(&format!("{} {}", l.pos_serial, ticket.pos_id));
     // Tickets archived before these fields existed print without them.
     if !ticket.device_id.is_empty() {
-        p.textln(&format!("{} {}", l.device, ticket.device_id));
+        p.textln_wrapped(&format!("{} {}", l.device, ticket.device_id));
     }
     if !ticket.pos_sw_version.is_empty() {
-        p.textln(&format!("{} {}", l.software, ticket.pos_sw_version));
+        p.textln_wrapped(&format!("{} {}", l.software, ticket.pos_sw_version));
     }
     p.separator('.');
 
     // ── Product lines: quantity, description, line total, VAT code
     for line in &ticket.lines {
-        let qty_desc = format!("{}  {}", format_qty(line.quantity), line.description);
+        let qty_desc = format!("{}  {}", line_quantity(line), line.description);
         let price = format!("{}  {}", format_price(line.total), line.vat_code);
         item_line(&mut p, &qty_desc, &price);
+        if line.weighed {
+            p.textln(&format!("    {} €/kg", format_price(line.unit_price)));
+        }
     }
 
     // ── Total due (the sale; the rounding is a payment line) ───
@@ -173,9 +176,10 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         .collect();
     if ticket.event_label != EventLabel::P && !vat_rows.is_empty() {
         let [rate, code, base, vat, gross] = l.vat_columns;
-        p.textln(&vat_row(rate, code, base, vat, gross));
+        p.textln(&vat_row(paper, rate, code, base, vat, gross));
         for v in vat_rows {
             p.textln(&vat_row(
+                paper,
                 &format!("{}%", format_price(v.rate)),
                 &format!("{:?}", v.label),
                 &format_price(v.taxable_amount),
@@ -223,7 +227,7 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     }
     if let Some(ref made_at) = ticket.copy_made_at {
         let (date, time) = date_and_time(made_at);
-        p.textln(&format!("{} {date} {time}", l.copy_made_at));
+        p.textln_wrapped(&format!("{} {date} {time}", l.copy_made_at));
     }
 
     // ── Legal identity of the issuer ───────────────────────────
@@ -233,7 +237,7 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         l.legal_name, ticket.restaurant_legal_name
     ));
     p.textln_wrapped(&ticket.restaurant_address);
-    p.textln(&format!("{}: {}", l.vat_no, ticket.restaurant_vat));
+    p.textln_wrapped(&format!("{}: {}", l.vat_no, ticket.restaurant_vat));
 
     // ── Footer (from FDM / SPF Finances) ───────────────────────
     if !ticket.footer.is_empty() {
@@ -267,9 +271,20 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     p.build()
 }
 
-/// One row of the VAT table: rate, code, base, VAT, gross.
-fn vat_row(rate: &str, code: &str, base: &str, vat: &str, gross: &str) -> String {
-    format!("{rate:<8}{code:<6}{base:>10}{vat:>10}{gross:>10}")
+/// One row of the VAT table: rate, code, base, VAT, gross, in the
+/// columns of `paper` (44 of the 48 on 80 mm, all 35 on 58 mm).
+fn vat_row(
+    paper: PaperWidth,
+    rate: &str,
+    code: &str,
+    base: &str,
+    vat: &str,
+    gross: &str,
+) -> String {
+    match paper {
+        PaperWidth::Mm80 => format!("{rate:<8}{code:<6}{base:>10}{vat:>10}{gross:>10}"),
+        PaperWidth::Mm58 => format!("{rate:<7}{code:<5}{base:>7}{vat:>8}{gross:>8}"),
+    }
 }
 
 /// One article: description left, amount and VAT code right. A
@@ -304,6 +319,16 @@ pub fn format_drawer_open() -> Vec<u8> {
 fn format_price(amount: f64) -> String {
     // Belgian notation: decimal comma.
     format!("{amount:.2}").replace('.', ",")
+}
+
+/// The quantity column: a weight always shows its three decimals and its
+/// unit, the pieces stay as they were.
+fn line_quantity(line: &pos_fiscal::ticket::TicketLine) -> String {
+    if line.weighed {
+        format!("{:.3} kg", line.quantity).replace('.', ",")
+    } else {
+        format_qty(line.quantity)
+    }
 }
 
 fn format_qty(qty: f64) -> String {
@@ -367,6 +392,7 @@ mod tests {
                     unit_price: 12.50,
                     total: 25.00,
                     vat_code: "B".to_string(),
+                    weighed: false,
                 },
                 TicketLine {
                     quantity: 1.0,
@@ -374,6 +400,7 @@ mod tests {
                     unit_price: 4.50,
                     total: 4.50,
                     vat_code: "A".to_string(),
+                    weighed: false,
                 },
             ],
             subtotal: 29.50,
@@ -419,13 +446,13 @@ mod tests {
                     brand: None,
                 },
             ];
-            let text = crate::render::render_plain_text(&format_receipt(&t));
+            let text = crate::render::render_plain_text(&format_receipt(&t, PaperWidth::Mm80));
             assert!(text.contains(card), "{lang:?}: {text}");
         }
         // A card typed by hand prints as before: the method alone.
         let mut t = sample_ticket();
         t.payments[0].method = "Card".to_string();
-        let text = crate::render::render_plain_text(&format_receipt(&t));
+        let text = crate::render::render_plain_text(&format_receipt(&t, PaperWidth::Mm80));
         assert!(
             text.contains("Carte") && !text.contains("Carte Bancontact"),
             "{text}"
@@ -443,11 +470,12 @@ mod tests {
             t.lang = lang;
             t.payments.clear();
             t.unpaid = true;
-            let text = crate::render::render_plain_text(&format_receipt(&t));
+            let text = crate::render::render_plain_text(&format_receipt(&t, PaperWidth::Mm80));
             assert!(text.contains(word), "{lang:?}: {text}");
             assert!(!text.contains("Cash"), "{text}");
         }
-        let text = crate::render::render_plain_text(&format_receipt(&sample_ticket()));
+        let text =
+            crate::render::render_plain_text(&format_receipt(&sample_ticket(), PaperWidth::Mm80));
         assert!(!text.contains("Non paye"));
     }
 
@@ -474,7 +502,7 @@ mod tests {
             short_signature: Some("a3f9c2b1e8d4750616fb92c3a4e5d6f701234567".into()),
         });
         t.copy_made_at = Some("2026-04-09T19:45:00+02:00".into());
-        crate::render::render_plain_text(&format_receipt(&t))
+        crate::render::render_plain_text(&format_receipt(&t, PaperWidth::Mm80))
     }
 
     #[test]
@@ -518,9 +546,50 @@ mod tests {
     }
 
     #[test]
+    fn the_sample_ticket_fits_58_mm_paper() {
+        crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+            format_receipt(&sample_ticket(), paper)
+        });
+    }
+
+    fn weighed(quantity: f64, total: f64) -> TicketLine {
+        TicketLine {
+            quantity,
+            description: "Bol malatang sur place".to_string(),
+            unit_price: 19.9,
+            total,
+            vat_code: "B".to_string(),
+            weighed: true,
+        }
+    }
+
+    #[test]
+    fn a_weighing_prints_its_weight_and_its_price_per_kilo_on_both_papers() {
+        let mut ticket = sample_ticket();
+        ticket.lines.push(weighed(0.612, 12.18));
+        crate::render::assert_58_mm_prints_the_80_mm_words(|paper| format_receipt(&ticket, paper));
+        for paper in [PaperWidth::Mm80, PaperWidth::Mm58] {
+            let text = crate::render::render_plain_text_for(&format_receipt(&ticket, paper), paper);
+            assert!(text.contains("0,612 kg"), "{paper:?}:\n{text}");
+            assert!(text.contains("19,90 €/kg"), "{paper:?}:\n{text}");
+            assert!(text.contains("12,18"), "{paper:?}:\n{text}");
+        }
+    }
+
+    #[test]
+    fn a_refunded_weighing_is_negative_with_a_positive_price_per_kilo() {
+        let mut ticket = sample_ticket();
+        ticket.lines.push(weighed(-0.612, -12.18));
+        let text = crate::render::render_plain_text(&format_receipt(&ticket, PaperWidth::Mm80));
+        assert!(text.contains("-0,612 kg"), "{text}");
+        assert!(text.contains("    19,90 €/kg"), "{text}");
+        assert!(text.contains("-12,18"), "{text}");
+    }
+
+    #[test]
     fn receipt_contains_restaurant_name() {
         let ticket = sample_ticket();
-        let bytes = format_receipt(&ticket);
+        let bytes = format_receipt(&ticket, PaperWidth::Mm80);
         assert!(bytes.windows(15).any(|w| w == b"Tokyo Sushi Bar"));
     }
 
@@ -528,7 +597,8 @@ mod tests {
     fn receipt_prints_the_identification_rows() {
         // Manual §VI rows V-VIII: POS number + software version,
         // terminal, input device, user.
-        let text = crate::render::render_plain_text(&format_receipt(&sample_ticket()));
+        let text =
+            crate::render::render_plain_text(&format_receipt(&sample_ticket(), PaperWidth::Mm80));
         for expected in [
             "CFOD0061234567",
             "pili-pos/1.0.0",
@@ -547,14 +617,14 @@ mod tests {
     #[test]
     fn receipt_contains_vat_receipt_label() {
         let ticket = sample_ticket();
-        let bytes = format_receipt(&ticket);
+        let bytes = format_receipt(&ticket, PaperWidth::Mm80);
         assert!(bytes.windows(23).any(|w| w == b"TICKET DE CAISSE T.V.A."));
     }
 
     #[test]
     fn receipt_contains_line_items() {
         let ticket = sample_ticket();
-        let bytes = format_receipt(&ticket);
+        let bytes = format_receipt(&ticket, PaperWidth::Mm80);
         assert!(bytes.windows(14).any(|w| w == b"Saumon roll x8"));
         assert!(bytes.windows(11).any(|w| w == b"Biere Asahi"));
     }
@@ -562,7 +632,7 @@ mod tests {
     #[test]
     fn receipt_ends_with_cut() {
         let ticket = sample_ticket();
-        let bytes = format_receipt(&ticket);
+        let bytes = format_receipt(&ticket, PaperWidth::Mm80);
         // GS V 66 3 (partial cut) should be near the end
         assert!(bytes.windows(4).any(|w| w == [0x1D, b'V', 66, 3]));
     }
@@ -573,7 +643,7 @@ mod tests {
         ticket.is_training = true;
         ticket.event_label = EventLabel::T;
         ticket.ticket_type_label = "TRAINING".to_string();
-        let bytes = format_receipt(&ticket);
+        let bytes = format_receipt(&ticket, PaperWidth::Mm80);
         assert!(bytes.windows(8).any(|w| w == b"TRAINING"));
         let text = crate::render::one_line(&crate::render::render_plain_text(&bytes));
         assert!(text.contains("CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"));
@@ -583,7 +653,7 @@ mod tests {
     fn receipt_with_qr_code() {
         let mut ticket = sample_ticket();
         ticket.verification_url = Some("https://www.gs2.be/1234567890abcdefghi".to_string());
-        let bytes = format_receipt(&ticket);
+        let bytes = format_receipt(&ticket, PaperWidth::Mm80);
         // Should contain the QR code store command
         assert!(bytes.windows(5).any(|w| w == b"https"));
     }
@@ -624,7 +694,7 @@ mod tests {
                 out_of_scope: false,
             },
         ];
-        let text = crate::render::render_plain_text(&format_receipt(&ticket));
+        let text = crate::render::render_plain_text(&format_receipt(&ticket, PaperWidth::Mm80));
         // The SPF example: rate with 2 decimals, code, base, VAT, gross.
         assert!(text.contains("% TVA"), "VAT header row missing:\n{text}");
         assert!(text.contains("Brut"), "gross column missing:\n{text}");
@@ -650,7 +720,7 @@ mod tests {
             total_amount: 0.0,
             out_of_scope: true,
         }];
-        let text = crate::render::render_plain_text(&format_receipt(&ticket));
+        let text = crate::render::render_plain_text(&format_receipt(&ticket, PaperWidth::Mm80));
         // Nothing but out-of-scope lines: no VAT table at all.
         assert!(!text.contains("% TVA"), "{text}");
         assert!(!text.lines().any(|l| l.starts_with("0,00%")), "{text}");
@@ -672,8 +742,9 @@ mod tests {
             unit_price: 5.0,
             total: 5.0,
             vat_code: "B".to_string(),
+            weighed: false,
         });
-        let text = crate::render::render_plain_text(&format_receipt(&ticket));
+        let text = crate::render::render_plain_text(&format_receipt(&ticket, PaperWidth::Mm80));
         assert!(
             text.contains("??"),
             "unsupported CJK chars must degrade to '?', not vanish or panic:\n{text}"
@@ -689,6 +760,7 @@ mod tests {
             unit_price: 6.5,
             total: 6.5,
             vat_code: "B".to_string(),
+            weighed: false,
         });
         // Accents actually present in CP858_HIGH (escpos.rs).
         let accented = "Fondant au chocolat, crème brûlée, café";
@@ -698,8 +770,9 @@ mod tests {
             unit_price: 7.0,
             total: 7.0,
             vat_code: "B".to_string(),
+            weighed: false,
         });
-        let text = crate::render::render_plain_text(&format_receipt(&ticket));
+        let text = crate::render::render_plain_text(&format_receipt(&ticket, PaperWidth::Mm80));
         assert!(
             text.contains(accented),
             "accented chars must round-trip through CP858:\n{text}"
@@ -721,8 +794,9 @@ mod tests {
             unit_price: 999_999.99,
             total: 2_999_999.97,
             vat_code: "B".to_string(),
+            weighed: false,
         });
-        let text = crate::render::render_plain_text(&format_receipt(&ticket));
+        let text = crate::render::render_plain_text(&format_receipt(&ticket, PaperWidth::Mm80));
         for line in text.lines() {
             assert!(
                 line.chars().count() <= 48,

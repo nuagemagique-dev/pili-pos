@@ -1,12 +1,13 @@
 //! Every report type (X, Z, user X, user Z) in every ticket language
 //! (FR/NL/DE), rendered through the real `format_report` /
-//! `format_user_report` pipeline: each must fit the 80 mm paper,
+//! `format_user_report` pipeline: each must fit the 80 mm and the 58 mm paper,
 //! carry the labels, event names and payment names of its language -
 //! no more, no less. Modeled on `receipt_matrix.rs`.
 
 use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer, ticket_type_label};
 use pos_fiscal::types::EventLabel;
-use pos_print::render::render_plain_text;
+use pos_print::escpos::PaperWidth;
+use pos_print::render::render_plain_text_for;
 use pos_print::report::{
     ReportEventTotal, ReportPaymentTotal, ReportPrintData, ReportVatTotal, UserReportPrintData,
     UserReportUser, format_report, format_user_report,
@@ -165,10 +166,47 @@ fn user_report_data(kind: Kind, lang: ReceiptLanguage) -> UserReportPrintData {
 }
 
 fn render(kind: Kind, lang: ReceiptLanguage) -> String {
-    if kind.is_user() {
-        render_plain_text(&format_user_report(&user_report_data(kind, lang)))
+    render_on(kind, lang, PaperWidth::Mm80)
+}
+
+fn render_on(kind: Kind, lang: ReceiptLanguage, paper: PaperWidth) -> String {
+    let bytes = if kind.is_user() {
+        format_user_report(&user_report_data(kind, lang), paper)
     } else {
-        render_plain_text(&format_report(&report_data(kind, lang)))
+        format_report(&report_data(kind, lang), paper)
+    };
+    render_plain_text_for(&bytes, paper)
+}
+
+/// The printed characters of `text` in order: no spaces, rules or the
+/// width of the renderer's QR placeholder.
+fn ink(text: &str) -> String {
+    text.split_whitespace()
+        .filter(|w| !w.chars().all(|c| matches!(c, '-' | '=' | '.' | '✂')))
+        .collect()
+}
+
+#[test]
+fn every_report_fits_58_mm_paper_and_prints_the_same_text() {
+    for kind in KINDS {
+        for lang in LANGS {
+            let narrow = render_on(kind, lang, PaperWidth::Mm58);
+            for l in narrow
+                .lines()
+                .filter(|l| !l.trim_start().starts_with("[QR: "))
+            {
+                assert!(
+                    l.chars().count() <= 35,
+                    "{kind:?}/{lang:?}: {} columns: {l:?}",
+                    l.chars().count()
+                );
+            }
+            assert_eq!(
+                ink(&narrow),
+                ink(&render(kind, lang)),
+                "{kind:?}/{lang:?}: the 58 mm report lost or reordered text"
+            );
+        }
     }
 }
 

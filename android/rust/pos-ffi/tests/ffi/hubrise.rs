@@ -371,6 +371,9 @@ fn every_attention_and_warning_variant_converts() {
         Attention::FractionalQuantity {
             sku_ref: "S".into(),
         },
+        Attention::SoldByWeight {
+            sku_ref: "S".into(),
+        },
         Attention::BadPrice {
             at: "items[0]".into(),
         },
@@ -390,7 +393,7 @@ fn every_attention_and_warning_variant_converts() {
         },
         Attention::ChangedAfterSigning,
     ];
-    assert_eq!(all.len(), 14);
+    assert_eq!(all.len(), 15);
     let records: Vec<rec::Attention> = out_equal(&all);
     // And back: the engine reads its own variants from the record's serde form.
     let back: Vec<Attention> = inp(&records);

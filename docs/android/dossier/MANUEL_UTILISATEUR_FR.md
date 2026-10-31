@@ -387,6 +387,11 @@ vente sans paiement (§7.5). (capture A12 : ventes à emporter en cours).
 
 - Choisir une catégorie dans la barre du haut, puis toucher un article :
   il s'ajoute au panier (à droite).
+- Produit vendu au poids (si le restaurant a une balance) : le toucher
+  ouvre la fenêtre « Pesée ». Poser le produit sur la balance ; la ligne
+  s'ajoute seule avec le poids et le prix au kilo. « Retour » annule. La
+  ligne ne se modifie pas : en cas d'erreur, la retirer et peser à nouveau. Sans balance, ou balance en panne, le produit ne se vend pas ;
+  les autres ventes continuent (*BALANCE_FR.md*).
 - Dans le panier, "+" ajoute une unité et "−" en retire une, sans
   descendre sous 1. Pour retirer une ligne, toucher la croix à sa
   droite.
@@ -855,7 +860,8 @@ Peppol de "Config" (§12 bis). Détails : `FACTURATION_PEPPOL_FR.md`.
 ## 9. Remboursement
 
 Réservé au Gérant. Un remboursement annule tout ou partie d'une vente
-déjà signée ; c'est la seule façon d'annuler une vente après coup.
+déjà signée ; c'est la seule façon d'annuler une vente après coup. Une
+ligne pesée se rembourse entière et une seule fois.
 
 1. "Rapports", onglet "Tickets". Toucher "Rembourser" sur la ligne de la
    vente à rembourser (seules les ventes ont ce bouton).
@@ -1518,8 +1524,8 @@ quand, valeur). Aucune de ces fonctions n'ajoute d'écran de rapport fiscal ni n
 **12 ter.1 Alertes sur téléphone** (*ALERTES_PROPRIETAIRE_FR.md*). Le panneau « Alertes sur téléphone » montre
 « Robot Telegram configuré » ou « Robot Telegram absent » (le jeton est un fichier de la configuration, jamais
 affiché), la « Conversation Telegram » (identifiant numérique, négatif pour un groupe), le « Nom dans les
-messages », la « Langue des messages », les cinq situations de « Prévenir quand » (« La boîte noire ne répond plus »,
-« Une imprimante est injoignable », « Le terminal de paiement est injoignable », « Le Z du jour n'est pas fait »,
+messages », la « Langue des messages », les six situations de « Prévenir quand » (« La boîte noire ne répond plus »,
+« Une imprimante est injoignable », « Le terminal de paiement est injoignable », « La balance ne répond plus ou refuse le contrôle », « Le Z du jour n'est pas fait »,
 « Une commande en ligne attend »), « Z attendu avant », « Commande en ligne en attente depuis » et « Rappel toutes
 les ». « Enregistrer » enregistre ; « Envoyer un message test » envoie un seul message et dit pourquoi Telegram
 refuse s'il refuse ; « Derniers messages » liste les envois (« Alerte », « Rappel », « Résolu », « Test », « Envoyé »,

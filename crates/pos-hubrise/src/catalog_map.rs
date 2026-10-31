@@ -14,7 +14,8 @@
 //!   never on the POS grid.
 //! - The SKU's `custom_fields.code` is the product's menu code ("A2"),
 //!   shown on the till in place of the name when it is set to.
-//! - Tags on the product or the SKU: `pos:open_price` (price entered on
+//! - Tags on the product or the SKU: `pos:sold_by_weight` (weighed at the
+//!   till, the price is per kilo), `pos:open_price` (price entered on
 //!   the POS), `pos:no_kitchen` (no bar/kitchen slip), `pos:hidden`
 //!   (sold online only).
 //! - Allergen tags (V12-D18) on the product, the SKU or an option:
@@ -41,6 +42,8 @@ pub const SOURCE: &str = "hubrise";
 /// Key of the hidden category holding the charges.
 pub const CHARGES_CATEGORY: &str = "pos:charges";
 pub const TAG_OPEN_PRICE: &str = "pos:open_price";
+/// Weighed at the till: the SKU's price is the price per kilo.
+pub const TAG_SOLD_BY_WEIGHT: &str = "pos:sold_by_weight";
 pub const TAG_NO_KITCHEN: &str = "pos:no_kitchen";
 pub const TAG_HIDDEN: &str = "pos:hidden";
 /// `allergen:<code>`: the item contains the allergen.
@@ -75,6 +78,10 @@ pub(crate) fn allergens_of<'a>(tags: impl Iterator<Item = &'a String>) -> Option
 
 /// The neutral catalog, and the issues found while mapping (they
 /// refuse the catalog like validation issues do).
+#[expect(
+    clippy::too_many_lines,
+    reason = "one pass over the catalog in its own order; splitting it would scatter the mapping"
+)]
 pub fn to_neutral(data: &CatalogData) -> (Catalog, Vec<Issue>) {
     let mut issues = Vec::new();
     let mut out = Catalog::default();
@@ -179,6 +186,7 @@ pub fn to_neutral(data: &CatalogData) -> (Catalog, Vec<Issue>) {
             vat_eat_in: VatCode::C,
             vat_takeaway: VatCode::C,
             open_price,
+            sold_by_weight: false,
             kitchen: false,
             on_pos: false,
             available: Restrictions::is_enabled(&charge.restrictions),
@@ -277,6 +285,7 @@ fn map_sku(
         vat_eat_in,
         vat_takeaway,
         open_price: tagged(TAG_OPEN_PRICE),
+        sold_by_weight: tagged(TAG_SOLD_BY_WEIGHT),
         kitchen: !tagged(TAG_NO_KITCHEN),
         on_pos: !tagged(TAG_HIDDEN),
         available: Restrictions::is_enabled(&sku.restrictions),
@@ -716,6 +725,15 @@ mod tests {
         assert!(c.items[0].open_price && !c.items[0].on_pos && c.items[0].kitchen);
         assert!(!c.items[1].open_price && c.items[1].on_pos);
         assert!(!c.items[2].kitchen, "pos:no_kitchen on the product");
+    }
+
+    #[test]
+    fn the_weight_tag_marks_the_product_sold_by_weight() {
+        let mut v = sample();
+        v["products"][0]["skus"][0]["tags"] = json!(["pos:sold_by_weight"]);
+        let (c, _) = to_neutral(&data(v));
+        assert!(c.items[0].sold_by_weight);
+        assert!(!c.items[1].sold_by_weight);
     }
 
     #[test]

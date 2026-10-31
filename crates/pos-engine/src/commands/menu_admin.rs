@@ -105,6 +105,10 @@ pub struct SaveCategoryInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent product flags of the menu editor's wire format"
+)]
 pub struct SaveProductInput {
     pub id: Option<i64>,
     pub category_id: i64,
@@ -117,6 +121,12 @@ pub struct SaveProductInput {
     pub kitchen_printer: bool,
     pub code: Option<String>,
     pub open_price: bool,
+    /// `price_cents` is then the price per kilo.
+    #[serde(default)]
+    pub sold_by_weight: bool,
+    /// The container's fixed tare sent to the scale, 0 to 9999 g.
+    #[serde(default)]
+    pub scale_tare_grams: Option<i64>,
     pub sort_order: i32,
     pub active: bool,
 }
@@ -214,6 +224,15 @@ fn clean_sort(sort_order: i32) -> Result<i32, String> {
         Ok(sort_order)
     } else {
         Err(invalid("sort_order"))
+    }
+}
+
+/// The tare of a product sold by weight.
+fn clean_tare(tare_grams: Option<i64>) -> Result<Option<i64>, String> {
+    match tare_grams {
+        Some(t) if !(0..=9999).contains(&t) => Err(errors::SCALE_TARE_INVALID.into()),
+        Some(t) if t > 0 => Ok(Some(t)),
+        _ => Ok(None),
     }
 }
 
@@ -404,6 +423,10 @@ pub fn do_menu_save_product(
     let user = access::operator(state, Access::Admin)?;
     let fiscal = fiscal_language(state)?;
     let names = clean_names(&input.names, &fiscal)?;
+    // A weighed price comes from the scale, a free price from the operator.
+    if input.open_price && input.sold_by_weight {
+        return Err(invalid("sold_by_weight"));
+    }
     let after = AdminProduct {
         id: input.id.unwrap_or(0),
         category_id: input.category_id,
@@ -418,6 +441,13 @@ pub fn do_menu_save_product(
         kitchen_printer: input.kitchen_printer,
         code: clean_code(input.code.as_deref())?,
         open_price: input.open_price,
+        sold_by_weight: input.sold_by_weight,
+        // Only a product sold by weight has a tare.
+        scale_tare_grams: if input.sold_by_weight {
+            clean_tare(input.scale_tare_grams)?
+        } else {
+            None
+        },
         sort_order: clean_sort(input.sort_order)?,
         active: input.active,
     };

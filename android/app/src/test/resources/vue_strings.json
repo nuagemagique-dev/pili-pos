@@ -42,6 +42,12 @@
       "zh": "打印机无法连接",
       "area": "settings"
     },
+    "alerts_kind_scale": {
+      "fr": "La balance ne répond plus ou refuse le contrôle",
+      "en": "The scale does not answer or refuses the check",
+      "zh": "电子秤无响应或拒绝校验",
+      "area": "settings"
+    },
     "alerts_kind_terminal": {
       "fr": "Le terminal de paiement est injoignable",
       "en": "The payment terminal is unreachable",
@@ -1776,6 +1782,12 @@
       "zh": "餐厅增值税号无效：BE 后跟10位数字（例如 BE0499999960）。 详情：{detail}",
       "area": "errors"
     },
+    "err_config_scale": {
+      "fr": "Réglage de la balance invalide. Détail : {detail}",
+      "en": "Invalid scale setting. Detail: {detail}",
+      "zh": "电子秤设置无效。 详情：{detail}",
+      "area": "errors"
+    },
     "err_config_tables": {
       "fr": "Plan de salle invalide : indiquez des numéros et des plages, par exemple « 1-12, 20-25 ». Détail : {detail}",
       "en": "Invalid table plan: numbers and ranges such as \"1-12, 20-25\" expected. Detail: {detail}",
@@ -2208,10 +2220,22 @@
       "zh": "此行有折扣：请先取消再修改数量。",
       "area": "errors"
     },
+    "err_line_needs_scale": {
+      "fr": "Ce produit est vendu au poids : il passe par la balance.",
+      "en": "This product is sold by weight: it goes through the scale.",
+      "zh": "此商品按重量销售：必须通过电子秤称重。",
+      "area": "errors"
+    },
     "err_line_not_found": {
       "fr": "Cette ligne n'existe plus.",
       "en": "This line no longer exists.",
       "zh": "该行已不存在。",
+      "area": "errors"
+    },
+    "err_line_weighed_fixed": {
+      "fr": "Le poids d'une pesée ne change pas : supprimez la ligne et pesez à nouveau.",
+      "en": "A weighing cannot change: remove the line and weigh again.",
+      "zh": "称重结果不能修改：请删除该行并重新称重。",
       "area": "errors"
     },
     "err_menu_invalid": {
@@ -2628,6 +2652,12 @@
       "zh": "此笔销售未付款：无可退款。",
       "area": "errors"
     },
+    "err_refund_weighed_line_whole": {
+      "fr": "Une pesée se rembourse en entier.",
+      "en": "A weighing is refunded whole.",
+      "zh": "称重商品须整笔退款。",
+      "area": "errors"
+    },
     "err_role_invalid": {
       "fr": "Profil inconnu",
       "en": "Unknown role",
@@ -2638,6 +2668,102 @@
       "fr": "Choisissez des dates valables : la fin ne précède pas le début, et la période ne dépasse pas 92 jours.",
       "en": "Choose valid dates: the end is not before the start, and the range is at most 92 days.",
       "zh": "请选择有效日期：结束日期不早于开始日期，且不超过92天。",
+      "area": "errors"
+    },
+    "err_scale_below_min": {
+      "fr": "Poids sous le minimum de la balance : rien n'a été ajouté.",
+      "en": "Weight below the scale's minimum: nothing was added.",
+      "zh": "重量低于秤的最小称量：未添加任何商品。",
+      "area": "errors"
+    },
+    "err_scale_busy": {
+      "fr": "Une pesée est déjà en cours.",
+      "en": "A weighing is already in progress.",
+      "zh": "正在进行另一次称重。",
+      "area": "errors"
+    },
+    "err_scale_cancelled": {
+      "fr": "Pesée annulée.",
+      "en": "Weighing cancelled.",
+      "zh": "称重已取消。",
+      "area": "errors"
+    },
+    "err_scale_check_failed": {
+      "fr": "La balance a refusé le contrôle du logiciel : aucune pesée n'est possible.",
+      "en": "The scale refused the software check: no weighing is possible.",
+      "zh": "电子秤拒绝了软件校验：无法称重。",
+      "area": "errors"
+    },
+    "err_scale_error": {
+      "fr": "La balance signale une erreur : rien n'a été ajouté.",
+      "en": "The scale reports an error: nothing was added.",
+      "zh": "电子秤报告错误：未添加任何商品。",
+      "area": "errors"
+    },
+    "err_scale_no_motion": {
+      "fr": "La balance n'a pas vu de mouvement depuis la dernière pesée. Retirez le produit et reposez-le.",
+      "en": "The scale saw no movement since the last weighing. Lift the product and put it back.",
+      "zh": "自上次称重后秤未检测到变化。请拿起商品后重新放上。",
+      "area": "errors"
+    },
+    "err_scale_not_configured": {
+      "fr": "Aucune balance n'est configurée sur cette caisse.",
+      "en": "No scale is configured on this till.",
+      "zh": "此收银机未配置电子秤。",
+      "area": "errors"
+    },
+    "err_scale_not_sold_by_weight": {
+      "fr": "Ce produit n'est pas vendu au poids.",
+      "en": "This product is not sold by weight.",
+      "zh": "此商品不按重量销售。",
+      "area": "errors"
+    },
+    "err_scale_overload": {
+      "fr": "La balance indique une surcharge : retirez du poids.",
+      "en": "The scale reports an overload: take some weight off.",
+      "zh": "电子秤显示超载：请减少重量。",
+      "area": "errors"
+    },
+    "err_scale_price_mismatch": {
+      "fr": "Le montant de la balance ne correspond pas au poids et au prix : rien n'a été ajouté.",
+      "en": "The scale's amount does not match the weight and the price: nothing was added.",
+      "zh": "电子秤的金额与重量和价格不符：未添加任何商品。",
+      "area": "errors"
+    },
+    "err_scale_price_refused": {
+      "fr": "La balance refuse ce prix au kilo.",
+      "en": "The scale refuses this price per kilo.",
+      "zh": "电子秤拒绝此每公斤价格。",
+      "area": "errors"
+    },
+    "err_scale_tare_invalid": {
+      "fr": "La tare va de 0 à 9 999 g.",
+      "en": "The tare goes from 0 to 9,999 g.",
+      "zh": "皮重范围为 0 至 9999 克。",
+      "area": "errors"
+    },
+    "err_scale_timed_out": {
+      "fr": "Aucun poids stable à temps : rien n'a été ajouté.",
+      "en": "No stable weight in time: nothing was added.",
+      "zh": "未能及时获得稳定重量：未添加任何商品。",
+      "area": "errors"
+    },
+    "err_scale_underload": {
+      "fr": "La balance indique une sous-charge. Videz le plateau et remettez-la à zéro.",
+      "en": "The scale reports an underload. Empty the tray and zero it.",
+      "zh": "电子秤显示欠载。请清空秤盘并归零。",
+      "area": "errors"
+    },
+    "err_scale_unit_unsupported": {
+      "fr": "La balance n'est pas réglée en kilogrammes.",
+      "en": "The scale is not set to kilograms.",
+      "zh": "电子秤未设置为公斤。",
+      "area": "errors"
+    },
+    "err_scale_unreachable": {
+      "fr": "La balance ne répond pas. Vérifiez qu'elle est allumée et branchée.",
+      "en": "The scale does not answer. Check that it is on and connected.",
+      "zh": "电子秤无响应。请检查是否已开机并连接。",
       "area": "errors"
     },
     "err_signing_busy": {
@@ -4164,6 +4290,12 @@
       "zh": "价格（€）",
       "area": "settings"
     },
+    "menu_ed_price_per_kilo": {
+      "fr": "Prix au kilo (€)",
+      "en": "Price per kilo (€)",
+      "zh": "每公斤价格（€）",
+      "area": "settings"
+    },
     "menu_ed_products": {
       "fr": "Produits",
       "en": "Products",
@@ -4198,6 +4330,18 @@
       "fr": "Choisissez un élément à modifier ou créez-en un.",
       "en": "Pick an entry to edit or create one.",
       "zh": "请选择要编辑的项目或新建一个。",
+      "area": "settings"
+    },
+    "menu_ed_sold_by_weight": {
+      "fr": "Vendu au poids",
+      "en": "Sold by weight",
+      "zh": "按重量销售",
+      "area": "settings"
+    },
+    "menu_ed_tare": {
+      "fr": "Tare du contenant",
+      "en": "Container tare",
+      "zh": "容器皮重",
       "area": "settings"
     },
     "menu_ed_title": {
@@ -5322,6 +5466,42 @@
       "zh": "该期间没有找到Z",
       "area": "reports"
     },
+    "scale_busy": {
+      "fr": "pesée en cours",
+      "en": "weighing in progress",
+      "zh": "正在称重",
+      "area": "core"
+    },
+    "scale_check_refused": {
+      "fr": "contrôle du logiciel refusé",
+      "en": "software check refused",
+      "zh": "软件校验被拒绝",
+      "area": "core"
+    },
+    "scale_stage_checking": {
+      "fr": "Contrôle par la balance…",
+      "en": "The scale is checking…",
+      "zh": "秤正在校验…",
+      "area": "core"
+    },
+    "scale_stage_stabilizing": {
+      "fr": "Stabilisation du poids…",
+      "en": "Weight settling…",
+      "zh": "重量稳定中…",
+      "area": "core"
+    },
+    "scale_stage_waiting": {
+      "fr": "Posez le produit sur la balance",
+      "en": "Put the product on the scale",
+      "zh": "请将商品放到秤上",
+      "area": "core"
+    },
+    "scale_title": {
+      "fr": "Pesée",
+      "en": "Weighing",
+      "zh": "称重",
+      "area": "core"
+    },
     "send_next_course": {
       "fr": "Envoyer la suite ({course})",
       "en": "Send next course ({course})",
@@ -5616,6 +5796,24 @@
       "zh": "餐厅",
       "area": "core"
     },
+    "settings_scale_label": {
+      "fr": "Balance",
+      "en": "Scale",
+      "zh": "电子秤",
+      "area": "checkout"
+    },
+    "settings_scale_none": {
+      "fr": "Aucune",
+      "en": "None",
+      "zh": "无",
+      "area": "checkout"
+    },
+    "settings_scale_on": {
+      "fr": "Configurée",
+      "en": "Configured",
+      "zh": "已配置",
+      "area": "checkout"
+    },
     "settings_support_banner_note": {
       "fr": "Pendant une session, un bandeau rouge reste visible en bas de tous les écrans.",
       "en": "During a session, a red banner stays visible at the bottom of every screen.",
@@ -5806,6 +6004,12 @@
       "fr": "Caisse",
       "en": "Register",
       "zh": "收银",
+      "area": "core"
+    },
+    "status_scale": {
+      "fr": "Balance",
+      "en": "Scale",
+      "zh": "电子秤",
       "area": "core"
     },
     "status_terminal": {
@@ -6174,6 +6378,12 @@
       "zh": "付款情况不明。",
       "area": "webshop"
     },
+    "webshop_attention_sold_by_weight": {
+      "fr": "Produit vendu au poids : personne ne le pèse à distance.",
+      "en": "Product sold by weight: nobody weighs it from a distance.",
+      "zh": "按重量销售的商品：无法远程称重。",
+      "area": "webshop"
+    },
     "webshop_attention_total_mismatch": {
       "fr": "Les lignes ne font pas le total.",
       "en": "Lines do not add up to the total.",
@@ -6532,6 +6742,25 @@
     "gift_voucher_settings_invalid",
     "gift_voucher_amount_invalid",
     "gift_voucher_line_fixed",
+    "line_needs_scale",
+    "line_weighed_fixed",
+    "refund_weighed_line_whole",
+    "scale_not_configured",
+    "scale_not_sold_by_weight",
+    "scale_busy",
+    "scale_unreachable",
+    "scale_below_min",
+    "scale_underload",
+    "scale_overload",
+    "scale_no_motion",
+    "scale_price_refused",
+    "scale_error",
+    "scale_check_failed",
+    "scale_price_mismatch",
+    "scale_unit_unsupported",
+    "scale_cancelled",
+    "scale_timed_out",
+    "scale_tare_invalid",
     "gift_voucher_line_no_kitchen",
     "gift_voucher_not_found",
     "gift_voucher_code_invalid",

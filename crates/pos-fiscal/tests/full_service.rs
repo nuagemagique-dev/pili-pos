@@ -92,6 +92,9 @@ fn config(fdm_url: &str) -> PosConfig {
         language: "fr".to_string(),
         backup_dir: None,
         kitchen_printer_address: None,
+        printer_paper_mm: pos_core::config::PaperWidth::default(),
+        scale: None,
+        kitchen_printer_paper_mm: pos_core::config::PaperWidth::default(),
         fdm_token_file: None,
         fdm_ca_file: None,
         fdm_client_cert_file: None,
@@ -560,6 +563,7 @@ async fn test_full_service_day_e2e() {
                 unit_price: cents_to_eur(l.unit_price_cents),
                 total: cents_to_eur(l.unit_price_cents * i64::from(l.quantity)),
                 vat_code: l.vat_code.as_str().to_string(),
+                weighed: false,
             })
             .collect(),
         payments: vec![],
@@ -576,7 +580,7 @@ async fn test_full_service_day_e2e() {
         "Pre-bill must include the invalid-ticket mention"
     );
 
-    let pb_escpos = receipt::format_receipt(&pb_ticket_data);
+    let pb_escpos = receipt::format_receipt(&pb_ticket_data, pos_print::escpos::PaperWidth::Mm80);
     assert!(
         pb_escpos.windows(9).any(|w| w == b"PRO FORMA"),
         "Pre-bill ESC/POS must contain 'PRO FORMA'"
@@ -773,6 +777,7 @@ async fn test_full_service_day_e2e() {
                 unit_price: cents_to_eur(l.unit_price_cents),
                 total: cents_to_eur(l.unit_price_cents * i64::from(l.quantity)),
                 vat_code: l.vat_code.as_str().to_string(),
+                weighed: false,
             })
             .collect(),
         payments: vec![TicketPayment {
@@ -792,7 +797,7 @@ async fn test_full_service_day_e2e() {
     assert!(!ticket.is_refund);
     assert!(ticket.fdm_ref.is_some());
 
-    let escpos = receipt::format_receipt(&ticket);
+    let escpos = receipt::format_receipt(&ticket, pos_print::escpos::PaperWidth::Mm80);
 
     // Verify ESC/POS content
     assert_ne!(escpos, Vec::<u8>::new());

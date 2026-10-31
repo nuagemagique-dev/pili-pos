@@ -87,6 +87,9 @@ pub fn do_add_order_line_with_modifiers(
     if product.open_price {
         return Err(errors::hubrise::MODIFIER_OPEN_PRICE.into());
     }
+    if product.sold_by_weight {
+        return Err(errors::LINE_NEEDS_SCALE.into());
+    }
     let groups = get_modifier_groups(&db, input.menu_item_id, lang).map_err(errors::internal)?;
     let picked = pick(&groups, &input.modifier_ids)?;
 

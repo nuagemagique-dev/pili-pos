@@ -62,6 +62,16 @@ class CartAmountsTest {
         )
 
     @Test
+    fun aWeighingCountsForTheAmountOfTheScaleNotThePricePerKilo() =
+        runTest {
+            val weighed = line(1, 1, 4500, VatCode.B).copy(weightGrams = 278, weighedAmountCents = 1251)
+
+            amounts(this, listOf(VatSplitRow(VatCode.B, 12, 1251, 134))).vatRows(listOf(weighed))
+
+            assertEquals(listOf(VatLine(VatCode.B, 1251, 1)), received.single())
+        }
+
+    @Test
     fun vatRowsPassesEveryLineUnchangedAndReturnsTheEngineRows() =
         runTest {
             val rows = listOf(VatSplitRow(VatCode.B, 12, 1250, 134), VatSplitRow(VatCode.C, 6, 500, 28))

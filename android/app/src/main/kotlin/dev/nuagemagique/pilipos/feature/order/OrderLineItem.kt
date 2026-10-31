@@ -68,8 +68,10 @@ private val Hairline = 1.dp
  * `_remove_discount` buttons. The "Note" button (`_note`, filled when the line has one) opens the kitchen note
  * dialog; the note shows under the name in italics (`_kitchen_note`). A gift voucher line shows a badge instead of
  * the stepper (`_voucher`) and has no note, no offer and no course; with courses on, the course chip (`_course`) sits
- * under the name. Test tags: `cart_line_<id>`, `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`, `_notes`,
- * `_kitchen_note`, `_course`, `_voucher`, `_amount`, `_note`, `_remove`.
+ * under the name. A weighing shows its weight instead of the stepper (`_weight`) and its price per kilo under the name
+ * (`_per_kilo`): to change it the line is removed and the product weighed again. Test tags: `cart_line_<id>`,
+ * `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`, `_notes`, `_kitchen_note`, `_course`, `_voucher`, `_amount`,
+ * `_note`, `_remove`.
  */
 @Suppress("LongMethod") // One row of the cart: stepper or voucher badge, names, notes, course chip and actions.
 @Composable
@@ -103,9 +105,22 @@ internal fun OrderLineItem(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val voucher = row.line.departmentId == GIFT_VOUCHER_DEPARTMENT
-            if (voucher) VoucherBadge(id) else QuantityStepper(id, row.line.quantity, actions)
+            val weight = row.line.weightGrams
+            when {
+                voucher -> VoucherBadge(id)
+                weight != null -> WeightBadge(id, weight)
+                else -> QuantityStepper(id, row.line.quantity, actions)
+            }
             Column(Modifier.weight(1f)) {
                 LineNames(id, names, lineNotes(row.line.modifiersJson), row.line.kitchenNote)
+                if (weight != null) {
+                    Text(
+                        text = formatCents(row.line.unitPriceCents) + " €/kg",
+                        style = t.figure.copy(fontSize = t.sizeSm),
+                        color = c.textSecondary,
+                        modifier = Modifier.testTag("cart_line_${id}_per_kilo"),
+                    )
+                }
                 if (state.coursesEnabled && !voucher) CourseChip(row.line, actions)
             }
             Text(

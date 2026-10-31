@@ -75,7 +75,7 @@ pub fn get_menu_items(
                 (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'fr'),
                 (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh'),
                 {ITEM_CODE},
-                {SOLD_OUT_FLAG}, {SOLD_OUT_UNTIL}, {HAS_MODIFIERS}
+                {SOLD_OUT_FLAG}, {SOLD_OUT_UNTIL}, {HAS_MODIFIERS}, m.sold_by_weight
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -89,7 +89,7 @@ pub fn get_menu_items(
                 (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'fr'),
                 (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh'),
                 {ITEM_CODE},
-                {SOLD_OUT_FLAG}, {SOLD_OUT_UNTIL}, {HAS_MODIFIERS}
+                {SOLD_OUT_FLAG}, {SOLD_OUT_UNTIL}, {HAS_MODIFIERS}, m.sold_by_weight
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -135,6 +135,7 @@ fn map_menu_item(row: &rusqlite::Row<'_>) -> Result<MenuItem, rusqlite::Error> {
         name: row.get(7)?,
         vat_code_takeaway: parse_optional_vat(row, 8)?,
         open_price: row.get::<_, i32>(9)? != 0,
+        sold_by_weight: row.get::<_, i32>(16)? != 0,
         name_fr: row.get(10)?,
         name_zh: row.get(11)?,
         code: row.get(12)?,
@@ -172,6 +173,10 @@ pub struct CatalogueLine {
     /// Catalogue price; meaningless when `open_price` is set.
     pub price_cents: i64,
     pub open_price: bool,
+    /// `price_cents` is the price per kilo and the line comes from the scale.
+    pub sold_by_weight: bool,
+    /// The container's fixed tare sent to the scale.
+    pub scale_tare_grams: Option<i64>,
     pub vat_code: VatCode,
     pub name: String,
     pub department_id: String,
@@ -210,6 +215,7 @@ pub fn resolve_catalogue_line(
 ) -> Result<CatalogueLine, rusqlite::Error> {
     conn.query_row(
         "SELECT m.price_cents, m.vat_code, m.vat_code_takeaway, m.category_id, m.open_price,
+                m.sold_by_weight, m.scale_tare_grams,
                 COALESCE(
                     (SELECT value FROM translations WHERE entity_type = 'menu_item'
                         AND entity_id = m.id AND field = 'name' AND lang = ?2),
@@ -246,10 +252,12 @@ pub fn resolve_catalogue_line(
             Ok(CatalogueLine {
                 price_cents: row.get(0)?,
                 open_price: row.get::<_, i32>(4)? != 0,
+                sold_by_weight: row.get::<_, i32>(5)? != 0,
+                scale_tare_grams: row.get(6)?,
                 vat_code,
                 department_id: row.get::<_, i64>(3)?.to_string(),
-                name: row.get(5)?,
-                department_name: row.get(6)?,
+                name: row.get(7)?,
+                department_name: row.get(8)?,
             })
         },
     )
@@ -354,6 +362,8 @@ mod tests {
             CatalogueLine {
                 price_cents: 2800,
                 open_price: false,
+                sold_by_weight: false,
+                scale_tare_grams: None,
                 vat_code: VatCode::B,
                 name: "Burger du chef".into(),
                 department_id: "22".into(),

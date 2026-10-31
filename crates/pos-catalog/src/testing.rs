@@ -31,6 +31,7 @@ pub fn item(key: &str, category_key: &str, kind: ItemKind, price_cents: i64) -> 
         vat_eat_in: VatCode::B,
         vat_takeaway: VatCode::C,
         open_price: false,
+        sold_by_weight: false,
         kitchen: true,
         on_pos: kind == ItemKind::Product,
         available: true,

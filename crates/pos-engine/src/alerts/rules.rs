@@ -34,6 +34,8 @@ pub enum Kind {
     Printer,
     /// The linked card terminal does not answer.
     Terminal,
+    /// The checkout scale does not answer or refused the software check.
+    Scale,
     /// The booking period that should have closed is still open.
     ZMissing,
     /// An online order waits for acceptance.
@@ -41,10 +43,11 @@ pub enum Kind {
 }
 
 impl Kind {
-    pub const ALL: [Kind; 5] = [
+    pub const ALL: [Kind; 6] = [
         Kind::Fdm,
         Kind::Printer,
         Kind::Terminal,
+        Kind::Scale,
         Kind::ZMissing,
         Kind::OnlineWaiting,
     ];
@@ -55,6 +58,7 @@ impl Kind {
             Kind::Fdm => "fdm",
             Kind::Printer => "printer",
             Kind::Terminal => "terminal",
+            Kind::Scale => "scale",
             Kind::ZMissing => "z_missing",
             Kind::OnlineWaiting => "online_waiting",
         }
@@ -80,7 +84,7 @@ impl Kind {
     pub fn debounce(self) -> (Duration, u32) {
         match self {
             Kind::Fdm => (Duration::minutes(2), 1),
-            Kind::Printer | Kind::Terminal => (Duration::zero(), 2),
+            Kind::Printer | Kind::Terminal | Kind::Scale => (Duration::zero(), 2),
             Kind::ZMissing | Kind::OnlineWaiting => (Duration::zero(), 1),
         }
     }
@@ -148,6 +152,8 @@ pub struct Detail {
     pub deadline_hour: Option<i64>,
     /// `printer`: which printer has which problem.
     pub printers: Vec<(Printer, PrinterProblem)>,
+    /// `scale`: it answers but refused the software check.
+    pub scale_check_refused: bool,
 }
 
 impl Detail {
@@ -156,6 +162,9 @@ impl Detail {
         let mut parts = Vec::new();
         if let Some(n) = self.count {
             parts.push(format!("count={n}"));
+        }
+        if self.scale_check_refused {
+            parts.push("check=refused".to_string());
         }
         if !self.channels.is_empty() {
             parts.push(format!("channels={}", self.channels.join(",")));
@@ -219,7 +228,7 @@ struct KindState {
 /// The state of every kind and the hourly window.
 #[derive(Debug, Default)]
 pub struct AlertBook {
-    kinds: [KindState; 5],
+    kinds: [KindState; 6],
     sent: VecDeque<DateTime<Utc>>,
 }
 
@@ -401,7 +410,7 @@ mod tests {
 
     #[test]
     fn a_probe_kind_needs_two_consecutive_observations() {
-        for kind in [Kind::Printer, Kind::Terminal] {
+        for kind in [Kind::Printer, Kind::Terminal, Kind::Scale] {
             let mut book = AlertBook::new();
             assert_eq!(book.observe(kind, on(), 60, t(0)), None, "{kind:?}");
             // One good probe in between starts the count again.

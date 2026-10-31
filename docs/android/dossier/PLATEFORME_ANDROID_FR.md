@@ -22,7 +22,8 @@ Convention de lecture. Une section « tel que construit » décrit ce que le cod
 | Processeur | arm64-v8a uniquement : le seul fichier natif de l'APK est `libpos_ffi.so` pour cette architecture |
 | Écran | 1920 x 1080 en paysage (orientation capteur paysage imposée par l'application) |
 | NFC | Absent de l'unité principale du D3 Pro ; fonction facultative de l'application (§3.10) |
-| Imprimante | Epson TM-m30III (80 mm) sur le réseau local, TCP 9100 (ESC/POS) |
+| Ports et réseau | 1 USB-A 3.0, 2 USB-A 2.0, 1 USB-C 2.0, 1 RJ45 (LAN 1 Gbit/s), 1 RJ12 de tiroir-caisse, 1 RJ11 série, 1 prise audio, 1 micro-USB de débogage, 1 emplacement microSD (TF) ; Wi-Fi 2,4 et 5 GHz (802.11 a/b/g/n/ac), Bluetooth 5.0 (fiche du fabricant, sunmi.com, page D3 PRO, consultée le 29.10.2026) ; constat sur un vrai terminal : EV-15 ci-dessous |
+| Imprimante | Epson TM-m30III (rouleau de 80 mm, ou de 58 mm : `printer_paper_mm`) sur le réseau local, TCP 9100 (ESC/POS) |
 | FDM | module2 : boîtier sur le réseau local en production, simulateur en ligne pour la machine de test (voir `SCHEMA_ASSEMBLAGE_FR.md` §7) |
 | Application | un seul APK, identifiant `dev.nuagemagique.pilipos`, version 1.0.0, versionCode 10000 |
 
@@ -30,7 +31,7 @@ Le versionCode se calcule ainsi : MAJEUR x 10000 + MINEUR x 100 + CORRECTIF (1.0
 
 **Machine de test.** Sauf si un vrai terminal est disponible au moment du dépôt, la machine de test est le profil émulé `sunmi_d3_pro_gms_api33`, configuré avec : 1920 x 1080 à 160 dpi, 4 Go de mémoire, Android 13 arm64, orientation paysage. Ce sont les réglages du profil émulé, pas des faits établis sur le vrai terminal. Les mesures déjà faites (essais de verrouillage, de stockage, d'export, de mise à jour, de redémarrage) l'ont été sur le profil jumeau `sunmi_d3_pro_api33`, sans la boutique Play ; la répétition sur le profil avec services Google fait partie des preuves restant à établir (`EV-10`, `EV-13`).
 
-**Faits matériels du vrai terminal.** Les caractéristiques réelles du D3 Pro (processeur, mémoire, stockage interne, emplacement de carte, ports physiques, démarrage vérifié, chiffrement du stockage, comportement de l'imprimante Epson réelle) ne sont pas établies par le dépôt : À effectuer (EV-15 : fiche mesurée d'un vrai D3 Pro, ou déclaration que la machine de test est le profil émulé).
+**Faits matériels du vrai terminal.** Les ports, le réseau et l'emplacement microSD du tableau ci-dessus viennent de la fiche publiée par le fabricant, pas d'une mesure. Les caractéristiques réelles du D3 Pro (processeur, mémoire, stockage interne, emplacement de carte et ports constatés, démarrage vérifié, chiffrement du stockage, comportement de l'imprimante Epson réelle) ne sont pas établies par le dépôt : À effectuer (EV-15 : fiche mesurée d'un vrai D3 Pro, ou déclaration que la machine de test est le profil émulé).
 
 ---
 
@@ -265,6 +266,7 @@ Le terminal n'ouvre **aucun port en écoute**. Il n'initie que des connexions so
 |---|---|---|
 | FDM module2 (boîtier du réseau local, ou simulateur en ligne pour la machine de test) | GraphQL en HTTPS avec certificat client (mTLS) et jeton ; le moteur accepte aussi le HTTP clair | toujours |
 | Imprimante Epson TM-m30III | TCP 9100 (ESC/POS) sur le réseau local | toujours |
+| Balance de caisse (option) | TCP sur le réseau local, protocole Dialog 06 (`BALANCE_FR.md`) | seulement si la section `scale` est configurée |
 | HubRise (`manager.hubrise.com`, `api.hubrise.com`) | HTTPS, port 443 | seulement si HubRise est activé (`COMMANDES_EN_LIGNE_FR.md`) |
 | Point d'accès Peppol (`api.storecove.com`, adresse `peppol.base_url`) | HTTPS, port 443 | seulement si la section `peppol` est configurée (`FACTURATION_PEPPOL_FR.md`) |
 | Service d'envoi du ticket numérique (`api.scaleway.com`) | HTTPS, port 443 | seulement si le ticket numérique est configuré (`TICKET_NUMERIQUE_FR.md`) |
@@ -277,7 +279,7 @@ Règles :
 - **FDM en mTLS.** Le client mTLS du FDM (certificat serveur à X.509 v1 de module2) est celui du moteur ; il a été vérifié sur Android lors des essais préparatoires.
 - **Texte clair.** La configuration de sécurité réseau de l'application interdit le trafic en clair côté Kotlin, sauf vers `127.0.0.1` et `localhost` (simulateurs de l'environnement de test, joints par redirection de port adb).
 - **Aucun trafic permanent.** Il n'existe aucune session d'assistance, aucun canal permanent et aucun serveur : la mise à jour est lancée par le gérant, l'export nocturne est celui de `EXPORT_NOCTURNE_FR.md`.
-- **Réseau local.** Le terminal rejoint le réseau par Wi-Fi (préparé au banc avant l'import du lot ; `DISALLOW_CONFIG_WIFI` n'est jamais appliquée, mais l'application 1.0.0 n'a pas d'écran de réseau, `MANUEL_INSTALLATION_FR.md` §4.3) ou par liaison filaire si le modèle en offre une. Ports physiques du vrai D3 Pro : À effectuer (EV-15 : connectivité filaire et Wi-Fi mesurées sur un vrai D3 Pro).
+- **Réseau local.** Le terminal rejoint le réseau par Wi-Fi (préparé au banc avant l'import du lot ; `DISALLOW_CONFIG_WIFI` n'est jamais appliquée, mais l'application 1.0.0 n'a pas d'écran de réseau, `MANUEL_INSTALLATION_FR.md` §4.3) ou par câble sur le port RJ45 du terminal (fiche du fabricant, §1). Liaison filaire et Wi-Fi d'un vrai D3 Pro : À effectuer (EV-15 : connectivité filaire et Wi-Fi mesurées sur un vrai D3 Pro).
 
 ---
 

@@ -877,7 +877,7 @@ pub(crate) async fn print_report(
     }
 
     if let Some(ref addr) = config.printer_address {
-        let report_bytes = pos_print::report::format_report(&data);
+        let report_bytes = pos_print::report::format_report(&data, config.paper_for(addr));
         match pos_print::transport::send_to_printer_with(addr, &report_bytes, status_timeout).await
         {
             Ok(status) => {
@@ -1057,7 +1057,7 @@ pub(crate) async fn print_user_report(
     }
 
     if let Some(ref addr) = config.printer_address {
-        let bytes = pos_print::report::format_user_report(&data);
+        let bytes = pos_print::report::format_user_report(&data, config.paper_for(addr));
         match pos_print::transport::send_to_printer_with(addr, &bytes, status_timeout).await {
             Ok(status) => {
                 if !status.paper_ok {

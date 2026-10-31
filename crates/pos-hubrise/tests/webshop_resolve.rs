@@ -243,6 +243,24 @@ fn an_unknown_product_is_held_until_the_catalog_has_it() {
 }
 
 #[test]
+fn a_product_sold_by_weight_is_held_nobody_weighs_from_a_distance() {
+    let conn = seeded();
+    conn.execute(
+        "UPDATE menu_items SET sold_by_weight = 1 WHERE external_id = ?1",
+        ["MAKI-SAUMON-12"],
+    )
+    .unwrap();
+    let body = OrderBuilder::new("Deliveroo", "delivery")
+        .item("MAKI-SAUMON-12", "Maki saumon", 1000, 1)
+        .paid_by("DELIVEROO", "Deliveroo")
+        .build();
+    let ingested = ingest(&conn, &as_order(body)).unwrap();
+    let state = load(&conn, ingested.order_id).unwrap().unwrap();
+    assert_eq!(state.resolution, "needs_review");
+    assert_eq!(codes(&state.attention), vec!["sold_by_weight"]);
+}
+
+#[test]
 fn an_unknown_option_or_charge_is_held() {
     let conn = seeded();
     let body = OrderBuilder::new("Website", "delivery")

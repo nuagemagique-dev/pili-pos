@@ -88,6 +88,9 @@
     <string name="menu_ed_case">大小写切换</string>
     <string name="menu_ed_category">分类</string>
     <string name="menu_ed_price">价格（€）</string>
+    <string name="menu_ed_price_per_kilo">每公斤价格（€）</string>
+    <string name="menu_ed_sold_by_weight">按重量销售</string>
+    <string name="menu_ed_tare">容器皮重</string>
     <string name="menu_ed_vat">堂食税率</string>
     <string name="menu_ed_vat_takeaway">外带税率</string>
     <string name="menu_ed_vat_same">同堂食</string>
@@ -173,6 +176,7 @@
     <string name="alerts_kind_printer">打印机无法连接</string>
     <string name="alerts_kind_terminal">支付终端无法连接</string>
     <string name="alerts_kind_z_missing">当日 Z 报表未完成</string>
+    <string name="alerts_kind_scale">电子秤无响应或拒绝校验</string>
     <string name="alerts_kind_online_waiting">有网上订单在等待</string>
     <string name="alerts_z_deadline">Z 报表截止时间</string>
     <string name="alerts_online_wait">网上订单等待时间</string>

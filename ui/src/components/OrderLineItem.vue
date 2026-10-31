@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { CartLine } from '../types'
-import { formatPrice } from '../utils/format'
+import { formatPrice, formatWeight } from '../utils/format'
 import { useBilingualName } from '../utils/names'
 import { useI18n } from '../i18n'
 import { lineNetCents } from '../utils/cartAmounts'
@@ -36,6 +36,9 @@ const bilingual = useBilingualName()
 const names = computed(() => bilingual(line))
 /** A gift voucher sold: the quantity is fixed (one line per voucher). */
 const isVoucher = computed(() => line.department_id === GIFT_VOUCHER_DEPARTMENT)
+/** A weighing: the scale gave the quantity, so it cannot be edited. To change
+ * it the line is removed and the product weighed again. */
+const weight = computed(() => line.weight_grams ?? null)
 
 /** Notes on the line ("Sans sésame"), when the line carries any:
  * `modifiers_json` holds a string or a list of strings. */
@@ -78,6 +81,9 @@ defineExpose({
     <div v-if="isVoucher" class="voucher-badge" data-testid="voucher-badge">
       {{ t('gv_line_badge') }}
     </div>
+    <div v-else-if="weight !== null" class="weight-badge" data-testid="line-weight">
+      {{ formatWeight(weight) }}
+    </div>
     <div v-else class="qty-controls">
       <!-- §4.3: "−" stops at 1; removing a line is its own button. -->
       <button
@@ -96,6 +102,9 @@ defineExpose({
     <div class="line-info">
       <span class="line-name" :class="{ code: names.isCode }">{{ names.primary }}</span>
       <span v-if="names.secondary" class="line-sub">{{ names.secondary }}</span>
+      <span v-if="weight !== null" class="line-per-kilo" data-testid="line-per-kilo"
+        >{{ formatPrice(line.unit_price_cents) }} €/kg</span
+      >
       <span v-if="notes" class="line-notes">{{ notes }}</span>
       <span v-if="line.kitchen_note" class="line-kitchen-note" data-testid="line-kitchen-note">{{
         line.kitchen_note
@@ -197,6 +206,18 @@ defineExpose({
   text-align: center;
 }
 
+.weight-badge {
+  min-width: 96px;
+  padding: 12px 8px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+  white-space: nowrap;
+}
+
 .qty-controls {
   display: flex;
   align-items: center;
@@ -260,6 +281,12 @@ defineExpose({
   font-size: 13px;
   color: var(--text-secondary);
 }
+.line-per-kilo {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 .line-notes {
   font-size: 13px;
   color: var(--accent-warning);

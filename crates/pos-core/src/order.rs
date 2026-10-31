@@ -92,6 +92,14 @@ pub struct OrderLine {
     pub department_id: String,
     #[serde(default)]
     pub department_name: String,
+    /// A weighed line: the weight the scale returned. Its `quantity` is
+    /// then 1 (or -1 for its correction or refund) and its unit price the
+    /// price per kilo. `None` on a line sold by the piece.
+    #[serde(default)]
+    pub weight_grams: Option<i64>,
+    /// A weighed line: the price the scale returned, always positive.
+    #[serde(default)]
+    pub weighed_amount_cents: Option<i64>,
 }
 
 impl OrderLine {
@@ -99,8 +107,27 @@ impl OrderLine {
     /// impossible quantity.
     #[must_use]
     pub fn line_total(&self) -> i64 {
-        self.unit_price_cents
+        self.weighed_amount_cents
+            .unwrap_or(self.unit_price_cents)
             .saturating_mul(i64::from(self.quantity))
+    }
+
+    /// The quantity the FDM signs: kilograms for a weighed line (0.278,
+    /// or -0.278 for its correction), else the number of pieces. Integers
+    /// and one division, so it is the double nearest to the three decimals.
+    #[must_use]
+    pub fn fiscal_quantity(&self) -> f64 {
+        match self.weight_grams {
+            Some(grams) => {
+                crate::money::to_f64(grams.saturating_mul(i64::from(self.quantity))) / 1000.0
+            }
+            None => f64::from(self.quantity),
+        }
+    }
+
+    #[must_use]
+    pub fn is_weighed(&self) -> bool {
+        self.weight_grams.is_some()
     }
 }
 
@@ -128,6 +155,39 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "Test".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
+        }
+    }
+
+    fn weighed(quantity: i32) -> OrderLine {
+        OrderLine {
+            weight_grams: Some(278),
+            weighed_amount_cents: Some(1251),
+            ..line(4500, quantity)
+        }
+    }
+
+    #[test]
+    fn a_weighed_line_totals_the_scales_price() {
+        assert_eq!(weighed(1).line_total(), 1251);
+        assert_eq!(weighed(-1).line_total(), -1251);
+    }
+
+    #[test]
+    fn a_weighed_quantity_is_kilograms_with_three_decimals() {
+        assert_eq!(weighed(1).fiscal_quantity(), 0.278);
+        assert_eq!(weighed(-1).fiscal_quantity(), -0.278);
+        assert_eq!(line(1000, 3).fiscal_quantity(), 3.0);
+        for grams in 1..100_000 {
+            let quantity = OrderLine {
+                weight_grams: Some(grams),
+                ..line(1, 1)
+            }
+            .fiscal_quantity();
+            let text = serde_json::to_string(&quantity).unwrap();
+            let decimals = text.split('.').nth(1).map_or(0, str::len);
+            assert!(decimals <= 3, "{grams} g serialises as {text}");
         }
     }
 

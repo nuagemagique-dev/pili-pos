@@ -1,12 +1,14 @@
 package dev.nuagemagique.pilipos.feature.order
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import dev.nuagemagique.pilipos.i18n.AppLanguage
@@ -62,6 +64,17 @@ class OrderLineItemTest {
         nameZh: String? = "三文鱼卷",
         code: String? = null,
     ) = CartRow(cartLine(1, 10, "Maki saumon", quantity = quantity, nameZh = nameZh, modifiersJson = notes, code = code), amount)
+
+    @Test
+    fun aWeighedLineShowsItsWeightAndPricePerKiloAndCannotBeStepped() {
+        val line = cartLine(1, 10, "Bol malatang", unitPriceCents = 1_990).copy(weightGrams = 612)
+        show(CartRow(line, LineAmount.Total(1_218)))
+
+        compose.onNodeWithTag("cart_line_1_weight").assertTextEquals("0,612 kg")
+        compose.onNodeWithTag("cart_line_1_per_kilo").assertTextEquals("19,90 €/kg")
+        compose.onAllNodesWithTag("cart_line_1_plus").assertCountEquals(0)
+        compose.onAllNodesWithTag("cart_line_1_minus").assertCountEquals(0)
+    }
 
     @Test
     fun thePlusAddsOneThroughTheCallbackWithTheLineId() {

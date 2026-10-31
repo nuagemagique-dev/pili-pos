@@ -147,6 +147,7 @@ class WebshopRulesTest {
                 Attention.UnknownProduct("p") to "unknown_product",
                 Attention.UnknownOption("o", "r") to "unknown_option",
                 Attention.UnknownCharge("c") to "unknown_charge",
+                Attention.SoldByWeight("q") to "sold_by_weight",
                 Attention.FractionalQuantity("q") to "fractional_quantity",
                 Attention.BadPrice("b") to "bad_price",
                 Attention.VatMismatch("v", "6", uniffi.pos_ffi.VatCode.A) to "vat_mismatch",

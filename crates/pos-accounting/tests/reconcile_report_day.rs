@@ -193,7 +193,7 @@ fn copy_of(app: &TestApp, dir: &std::path::Path) -> std::path::PathBuf {
 
 #[tokio::test]
 async fn the_reports_scenario_day_equals_its_signed_z_to_the_cent() {
-    let app = play_reports_day().await;
+    let app = Box::pin(play_reports_day()).await;
     let dir = tempfile::tempdir().unwrap();
     let db = copy_of(&app, dir.path());
     let date = booking_dates(&app).remove(0);

@@ -98,6 +98,7 @@ Une fois son certificat reçu, le producteur suit l'article 113 : il communique 
 | Produit épuisé | Oui. Aucun effet fiscal. | `PRODUIT_EPUISE_FR.md` |
 | Éditeur de carte | Oui. Aucun effet fiscal. | `EDITEUR_CARTE_FR.md` |
 | Rapport de ventes non fiscal | Oui. Ne signe rien. | `RAPPORTS_VENTES_FR.md` |
+| Vente au poids et balance de caisse | Oui, en option, absente par défaut. UC4112 rejoué ; balance simulée seulement à ce jour, réponse de métrologie attendue. | `BALANCE_FR.md` |
 
 Le terminal de test porte l'état de l'export nocturne (activé ou non, détenteurs des clés de déchiffrement, exploitant du récepteur). Valeur : À effectuer (EV-20 : état de l'export nocturne sur la machine de test).
 
@@ -109,5 +110,6 @@ Deux fonctions n'interviennent pas dans le calcul fiscal : l'export des données
 - **Identifiant de l'appareil.** Valeur imprimée sur les tickets de la machine de test : `EMULATOR37X2X12X0` (profil émulé ; écran « À propos », capture A82, et tickets de `TICKETS_EXEMPLES_FR.md`).
 - **FDM.** Le simulateur en ligne de module2. Passage en conditions réelles contre ce simulateur : À effectuer (EV-14 : passage réel contre le simulateur module2, avec le terminal POS-2-ANDROID).
 - **Imprimante.** Une Epson TM-m30III sur le réseau local (port 9100) ; faute de matériel, l'imprimante simulée du dépôt reçoit les tickets (`SCHEMA_ASSEMBLAGE_FR.md`). Exemples de tickets : imprimés sur l'imprimante simulée, dans `TICKETS_EXEMPLES_FR.md` (impression sur l'Epson réelle : À effectuer (EV-15 : imprimante réelle)).
+- **Balance.** Le simulateur du dépôt `pos-scale-mock`, par le réseau (`BALANCE_FR.md` §9).
 - **Résultats.** Cas d'utilisation Basic Set 1.8, Advanced Set 1.6 et Reports 1.3 sur l'émulateur : À effectuer (EV-06 : résultats UC sur l'émulateur Android). Déroulement complet sur l'appareil (provisionnement, vente, remboursement, Z, export SPF, mise à jour, verrouillage) : À effectuer (EV-10 : déroulement sur le profil D3 Pro).
 - **Totaux de tests à la version déposée.** À effectuer (EV-17 : comptes finaux des tests à la version déposée).

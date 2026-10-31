@@ -106,6 +106,10 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
         ),
         other => errors::internal(other),
     })?;
+    // Its weight and price only ever come from the scale.
+    if product.sold_by_weight {
+        return Err(errors::LINE_NEEDS_SCALE.into());
+    }
     let unit_price_cents = match (product.open_price, input.unit_price_cents) {
         (true, Some(price)) if price > 0 => price,
         (true, _) => return Err(errors::PRICE_POSITIVE.into()),
@@ -171,6 +175,10 @@ pub fn do_update_order_line_quantity(
     // (add another voucher, or remove the line).
     if super::gift_vouchers::is_voucher_line(&db, line_id) {
         return Err(errors::GIFT_VOUCHER_LINE_FIXED.into());
+    }
+    // A weighing is one load: take it off and weigh again.
+    if is_weighed_line(&db, line_id).map_err(line_error)? {
+        return Err(errors::LINE_WEIGHED_FIXED.into());
     }
     unchanged_while_pending(&db, order_id)?;
     // An increase of a sold-out product is refused; a decrease or the same quantity is not.
@@ -291,6 +299,14 @@ pub(crate) fn unchanged_while_pending(
         return Err(errors::ORDER_SIGN_PENDING.into());
     }
     Ok(())
+}
+
+fn is_weighed_line(db: &rusqlite::Connection, line_id: i64) -> Result<bool, rusqlite::Error> {
+    db.query_row(
+        "SELECT weight_grams IS NOT NULL FROM order_lines WHERE id = ?1",
+        [line_id],
+        |r| r.get(0),
+    )
 }
 
 fn order_of_line(db: &rusqlite::Connection, line_id: i64) -> Result<i64, String> {

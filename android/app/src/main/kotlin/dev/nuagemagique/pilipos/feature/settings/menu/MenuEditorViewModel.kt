@@ -157,7 +157,25 @@ internal class MenuEditorViewModel(
 
     fun toggleKitchen() = edit { it.copy(kitchenPrinter = !it.kitchenPrinter) }
 
-    fun toggleOpenPrice() = edit { it.copy(openPrice = !it.openPrice) }
+    // A product has one way to get its price: typed, or from the scale.
+    fun toggleOpenPrice() =
+        edit {
+            val open = !it.openPrice
+            if (open) it.copy(openPrice = true, soldByWeight = false, scaleTareGrams = null) else it.copy(openPrice = false)
+        }
+
+    fun toggleSoldByWeight() =
+        edit {
+            val weight = !it.soldByWeight
+            if (weight) it.copy(soldByWeight = true, openPrice = false) else it.copy(soldByWeight = false, scaleTareGrams = null)
+        }
+
+    /** The engine keeps a tare between 0 and 9 999 g; none at zero (`stepTare`). */
+    fun stepTare(delta: Int) =
+        edit {
+            val next = ((it.scaleTareGrams ?: 0L) + delta).coerceIn(0L, MAX_TARE_GRAMS)
+            it.copy(scaleTareGrams = next.takeIf { grams -> grams > 0L })
+        }
 
     fun toggleActive() = edit { it.copy(active = !it.active) }
 
@@ -228,6 +246,8 @@ internal class MenuEditorViewModel(
                             form.kitchenPrinter,
                             form.code?.trim()?.takeIf { it.isNotEmpty() },
                             form.openPrice,
+                            form.soldByWeight,
+                            form.scaleTareGrams,
                             form.sortOrder,
                             form.active,
                         ),
@@ -335,3 +355,6 @@ internal class MenuEditorViewModel(
 
     fun closeHistory() = own.update { it.copy(showHistory = false) }
 }
+
+/** The highest tare the steps reach, a multiple of [TARE_STEP_GRAMS] under the engine's 9 999 g. */
+private const val MAX_TARE_GRAMS = 9995L

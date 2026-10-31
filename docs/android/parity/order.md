@@ -23,6 +23,7 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 | components/MenuGrid.vue | feature/order/MenuGrid.kt (MenuGrid) | - |
 | components/MenuItemButton.vue | feature/order/MenuGrid.kt (MenuItemButton, ItemLabel) over ui/format/ProductNames.kt | - |
 | components/ModifierDialog.vue, api/ipc-modifiers.ts | feature/order/ModifierDialog.kt (ModifierDialog, ModifierPicks), MenuViewModel.kt (confirmModifiers over OrderStore.addLineWith) | `get_item_modifiers` `add_order_line_with_modifiers` |
+| components/WeighDialog.vue | feature/order/WeighDialog.kt, MenuViewModel.kt (weigh, cancelWeighing) | `scale_start_weighing`, `scale_cancel_weighing` |
 | components/PriceDialog.vue | ui/components/AmountDialog.kt, opened by feature/order/OrderScreen.kt (OrderDialogs) | - |
 | components/CartSidebar.vue | feature/order/OrderCartColumn.kt (OrderCartColumn), MenuViewModel.kt (sendToKitchen, printPreBill, askCloseUnpaid, closeUnpaid, unpaidClosed), OrderScreen.kt (CloseUnpaidDialog over ui/components/PinDialog.kt) over ui/state/OrderStore.kt | `leave_order` `sign_pre_bill` `close_unpaid` |
 | components/TablePickerDialog.vue and CartSidebar.vue (Changer de table) | feature/order/TablePickerDialog.kt, MenuViewModel.kt (askTransfer, confirmTransfer), OrderCartColumn.kt (cart_transfer) over ui/state/OrderStore.kt (transferTable) | `transfer_table` `list_tables` |

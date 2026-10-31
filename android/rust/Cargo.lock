@@ -2394,6 +2394,7 @@ dependencies = [
  "pos-mail",
  "pos-peppol",
  "pos-print",
+ "pos-scale",
  "qrcode",
  "reqwest",
  "rusqlite",
@@ -2651,6 +2652,14 @@ dependencies = [
  "pos-print",
  "serde",
  "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "pos-scale"
+version = "1.0.0"
+dependencies = [
+ "pos-core",
  "tokio",
 ]
 

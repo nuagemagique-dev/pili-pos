@@ -19,6 +19,10 @@ pub struct AdminCategory {
 /// `pos_db::queries::menu_admin::AdminProduct`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(deny_unknown_fields)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "mirrors the engine's plain product flags over the FFI"
+)]
 pub struct AdminProduct {
     pub id: i64,
     pub category_id: i64,
@@ -29,6 +33,12 @@ pub struct AdminProduct {
     pub kitchen_printer: bool,
     pub code: Option<String>,
     pub open_price: bool,
+    /// `price_cents` is then the price per kilo; the line comes from the scale.
+    #[uniffi(default = false)]
+    pub sold_by_weight: bool,
+    /// Weight of the empty container, sent to the scale with the price.
+    #[uniffi(default = None)]
+    pub scale_tare_grams: Option<i64>,
     pub sort_order: i32,
     pub active: bool,
 }
@@ -120,6 +130,10 @@ pub struct SaveCategoryInput {
 /// `pos_engine::commands::menu_admin::SaveProductInput`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(deny_unknown_fields)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "mirrors the engine's plain product flags over the FFI"
+)]
 pub struct SaveProductInput {
     pub id: Option<i64>,
     pub category_id: i64,
@@ -130,6 +144,12 @@ pub struct SaveProductInput {
     pub kitchen_printer: bool,
     pub code: Option<String>,
     pub open_price: bool,
+    /// `price_cents` is then the price per kilo; the line comes from the scale.
+    #[uniffi(default = false)]
+    pub sold_by_weight: bool,
+    /// Weight of the empty container, sent to the scale with the price.
+    #[uniffi(default = None)]
+    pub scale_tare_grams: Option<i64>,
     pub sort_order: i32,
     pub active: bool,
 }

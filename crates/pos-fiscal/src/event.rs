@@ -124,8 +124,12 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
                     product_name: line.name.clone(),
                     department_id: line.department_id.clone(),
                     department_name: line.department_name.clone(),
-                    quantity: f64::from(line.quantity),
-                    quantity_type: QuantityType::Piece,
+                    quantity: line.fiscal_quantity(),
+                    quantity_type: if line.is_weighed() {
+                        QuantityType::Kilogram
+                    } else {
+                        QuantityType::Piece
+                    },
                     neg_quantity_reason: (line.quantity < 0).then_some(neg_reason),
                     unit_price,
                     vats: vec![VatInput {
@@ -934,6 +938,8 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "Test".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         }]
     }
 
@@ -1313,6 +1319,8 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "Test".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         }];
         let bp_id = Uuid::new_v4().to_string();
         let original = FdmReference {
@@ -1386,6 +1394,8 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "Test".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         }];
         let bp_id = Uuid::new_v4().to_string();
         let original_ref = FdmReference {
@@ -1757,6 +1767,8 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "12".to_string(),
             department_name: "Sushi".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         }];
         let sale = build_sale_input(
             &config,
@@ -1817,6 +1829,8 @@ mod tests {
                 created_at: chrono::Utc::now(),
                 department_id: "1".to_string(),
                 department_name: "Food".to_string(),
+                weight_grams: None,
+                weighed_amount_cents: None,
             })
             .collect();
         let expected_cents: i64 = lines
@@ -1890,6 +1904,8 @@ mod tests {
                     created_at: chrono::Utc::now(),
                     department_id: "1".to_string(),
                     department_name: "Food".to_string(),
+                    weight_grams: None,
+                    weighed_amount_cents: None,
                 })
                 .collect();
             let total: i64 = lines
@@ -1945,6 +1961,8 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "d".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         };
         // Neither the product nor the sum nor the negation may panic.
         let t = build_transaction(
@@ -1970,6 +1988,8 @@ mod tests {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "Boissons".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         }];
         let sale = build_sale_input(
             &config,

@@ -331,6 +331,8 @@ fn rehearsal_lines(sign: i32) -> Vec<OrderLine> {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "Test".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         },
         OrderLine {
             id: 2,
@@ -344,6 +346,8 @@ fn rehearsal_lines(sign: i32) -> Vec<OrderLine> {
             created_at: chrono::Utc::now(),
             department_id: "1".to_string(),
             department_name: "Test".to_string(),
+            weight_grams: None,
+            weighed_amount_cents: None,
         },
     ]
 }

@@ -222,7 +222,7 @@ Cette absence de solution d'accès à distance permanente est délibérée : pou
 | **Connectivité** | | | |
 | Router/Hub | ☑ | ☐ | Mini-routeur fourni à l'Intake. En production, le restaurant fournit son propre réseau. |
 | Câbles | ☑ | ☐ | Câbles RJ45 (routeur, FDM, imprimante), alimentation du terminal, clé USB du lot de provisionnement. En production, fournis avec l'install. |
-| Clé Wifi | ☐ | ☐ | Pas de clé : le Wi-Fi est intégré au terminal et réglable sur place par le Gérant. Liaison filaire seulement si le modèle en offre une : À effectuer (EV-15 : liaison filaire d'un vrai D3 Pro) |
+| Clé Wifi | ☐ | ☐ | Pas de clé : le Wi-Fi est intégré au terminal. En 1.0.0, le réseau du site se prépare au banc avant l'import du lot ; l'application n'a pas d'écran de réseau (`MANUEL_INSTALLATION_FR.md` §4.3). Liaison filaire possible par le port RJ45 du terminal (fiche du fabricant) : constat À effectuer (EV-15 : liaison filaire d'un vrai D3 Pro) |
 | Moxa | ☐ | ☐ | Non utilisé |
 | Raspberry Pi | ☐ | ☐ | Non utilisé |
 | **Périphériques d'entrée** | | | |
@@ -231,11 +231,11 @@ Cette absence de solution d'accès à distance permanente est délibérée : pou
 | Scanner de produits (client) | ☐ | ☐ | Non supporté |
 | Lecteur de carte | ☐ | ☐ | Paiement carte via terminal TPE externe (non intégré) |
 | Clés Dallas | ☐ | ☐ | Auth via INSZ + PIN, pas de support clés Dallas ; un badge facultatif (NFC ou lecteur USB), qui n'est pas une clé Dallas, peut remplacer le PIN des Serveurs et des Apprentis, jamais celui d'un Gérant (§III.E « Pointage par badge ») |
-| Périphérique supplémentaire | ☐ | ☐ | Aucun périphérique permanent. Clé USB ou carte SD seulement ponctuellement (lot de provisionnement, mise à jour, export SPF) |
+| Périphérique supplémentaire | ☑ | ☑ | Balance de caisse en option (simulée sur la machine de test, *Voir : BALANCE_FR.md*). Aucun autre périphérique permanent. Clé USB ou carte SD seulement ponctuellement (lot de provisionnement, mise à jour, export SPF) |
 | **Périphériques de sortie** | | | |
 | Écran utilisateur (client-facing) | ☐ | ☐ | Pas en MVP |
 | Écran pour la cuisine/le bar | ☐ | ☐ | Sortie cuisine via imprimante dédiée (kitchen printer), pas KDS |
-| Balance | ☐ | ☐ | Pas de prix au poids |
+| Balance | ☑ | ☑ | Dibal DPOS-400 en option, absente par défaut (section `scale` de `pos.json`) ; simulateur du dépôt sur la machine de test, jamais essayée sur une vraie balance à ce jour, liaison réseau seulement. *Voir : BALANCE_FR.md* |
 | **Livraison** | ☐ | ☑ | Commandes de livraison reçues des plateformes et du webshop, signées par le FDM (N, ou P puis N à la remise). *Voir : COMMANDES_EN_LIGNE_FR.md* |
 | Distributeur de nourriture | ☐ | ☐ | |
 | Robot | ☐ | ☐ | |
@@ -253,7 +253,7 @@ Cette absence de solution d'accès à distance permanente est délibérée : pou
 
 | Item | Réponse |
 |---|---|
-| ☑ Schéma d'assemblage fourni en annexe | *Voir : SCHEMA_ASSEMBLAGE_FR.pdf* (annexe). Représente : POS (1) -- Wi-Fi ou RJ45 --> Routeur (2) ; Routeur (2) -- Ethernet --> FDM (3) ; Routeur (2) -- Ethernet --> Imprimante (4) -- RJ11 --> Tiroir-caisse (5), le POS parlant à l'imprimante et au FDM par le routeur. Liaison filaire du terminal : À effectuer (EV-15 : liaison filaire d'un vrai D3 Pro). |
+| ☑ Schéma d'assemblage fourni en annexe | *Voir : SCHEMA_ASSEMBLAGE_FR.pdf* (annexe). Représente : POS (1) -- RJ45 ou Wi-Fi --> Routeur (2) ; Routeur (2) -- Ethernet --> FDM (3) ; Routeur (2) -- Ethernet --> Imprimante (4) -- RJ11 --> Tiroir-caisse (5), le POS parlant à l'imprimante et au FDM par le routeur. Le terminal a un port RJ45 (fiche du fabricant) ; constat de la liaison filaire : À effectuer (EV-15 : liaison filaire d'un vrai D3 Pro). |
 
 Remarques point I (matériel) : aucune option exotique. Configuration mono-terminal, mono-FDM, mono-imprimante, mono-tiroir.
 
@@ -278,7 +278,7 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 | Item | Réponse |
 |---|---|
 | Le POS nécessite une connexion Internet | ☐ Non par défaut (le POS communique uniquement avec le FDM sur le LAN local). Toutefois, le FDM lui-même nécessite Internet pour communiquer avec SPF Finances. Six connexions sortantes HTTPS (443) sont possibles, chacune seulement quand elle est activée ou lancée : (a) si le ticket numérique par e-mail est configuré (`pos.json::digital_ticket`, §III.H), vers `api.scaleway.com` pour l'envoi des e-mails ; (b) si les commandes en ligne sont activées (`pos.json::hubrise_enabled`, coupé par défaut donc coupé sur la machine de test, §III.M), vers `api.hubrise.com` (commandes reçues, statuts, catalogue, ventes de la caisse sans données de client) et, le temps de l'autorisation du compte HubRise par le Gérant (OAuth), vers `manager.hubrise.com` ; (c) si l'export nocturne est configuré (section `export` de `pos.json`, absente par défaut donc absente sur la machine de test), vers le point de réception propre à l'installation (`export.url`), uniquement pour y envoyer une sauvegarde chiffrée de bout en bout et une copie statistique sans donnée directement identifiante, après chaque rapport Z réel (*EXPORT_NOCTURNE_FR.md*) ; (d) si l'envoi des factures sur Peppol est configuré (section `peppol` de `pos.json`, absente par défaut donc absente sur la machine de test), vers le point d'accès Peppol (`peppol.base_url`, `api.storecove.com`), pour un client belge seulement, sans que l'établissement de la facture dépende de la réussite de l'envoi (*FACTURATION_PEPPOL_FR.md*) ; (e) quand un Gérant lance la mise à jour de l'application, vers le registre public des artefacts déclarés, par un tirage anonyme (*GARANTIE_MAJ_LANGUES_FR.md* §2.1) ; (f) si les alertes du propriétaire sont activées et qu'un jeton de robot est configuré (section `alerts` de `pos.json`, absente par défaut donc absente sur la machine de test), vers `api.telegram.org` pour un court message sans donnée personnelle ni montant, sans que la vente, le ticket ou le Z en dépendent (*ALERTES_PROPRIETAIRE_FR.md*). Les connexions (c), (d) et (f) ne sont jamais nécessaires à une vente ni à un Z. La connexion (c) n'est jamais nécessaire à une vente, à un Z ni à l'accès aux données par le SPF Finances : coupée ou en panne, la caisse fonctionne à l'identique. Sans ces configurations ni mise à jour lancée, aucun trafic sortant n'est initié par le POS lui-même au-delà du FDM. Les racines de confiance TLS sont embarquées dans l'APK (*PLATEFORME_ANDROID_FR.md* §6). |
-| La connexion Internet peut se faire par | ☑ Wi-Fi (réglable sur place par le Gérant) - ☐ Ethernet : seulement si le modèle du terminal offre une liaison filaire, À effectuer (EV-15 : liaison filaire d'un vrai D3 Pro) |
+| La connexion Internet peut se faire par | ☑ Wi-Fi (préparé au banc avant l'import du lot, pas d'écran de réseau en 1.0.0 : `MANUEL_INSTALLATION_FR.md` §4.3) - ☑ Ethernet (port RJ45 du terminal, fiche du fabricant ; constat : À effectuer (EV-15 : liaison filaire d'un vrai D3 Pro)) |
 | Besoins spécifiques pour la mise en place du réseau | IP statique pour le FDM (réservation DHCP recommandée). Aucun port entrant à ouvrir sur le POS. Le POS ouvre une connexion sortante TCP vers l'IP/port GraphQL du FDM, et, seulement si elles sont activées, des connexions sortantes HTTPS (443) vers `api.scaleway.com` (ticket numérique configuré) et vers `api.hubrise.com` (`hubrise_enabled`, plus `manager.hubrise.com` pour l'autorisation OAuth) vers `api.telegram.org` (alertes du propriétaire activées, jeton configuré) et vers le point de réception de l'export nocturne (section `export` configurée ; l'hôte est propre à l'installation, port 443 ou le port indiqué dans `export.url`). Le registre des artefacts déclarés (mise à jour, §II.E) n'est joint que quand un Gérant lance la mise à jour, jamais en arrière-plan ; aucun outil d'accès distant n'est installé. |
 
 ## Configuration du POS - C. Utilisateurs & Mots de Passe
@@ -545,7 +545,7 @@ Aucune nouvelle catégorie d'event n'est créée : le badge n'est qu'un déclenc
 | Réduction membre | ☐ | - | Idem |
 | Mensualités | ☐ | - | Idem |
 | Prix libre / "prix du jour" | ☑ | - | Implémenté : colonne `menu_items.open_price` ; le produit `22010` (« Dish of the day » dans le manuel et le seed, affiché « Plat du jour » en français) du seed de certification est marqué `open_price = 1`, le prix est saisi par l'opérateur à l'ajout au lieu du prix catalogue. |
-| Prix au poids | ☐ | - | Pas de balance |
+| Prix au poids | ☑ | UC4112 | Le poids et le montant viennent de la balance, jamais d'une saisie ; ligne signée en `KILOGRAM`, remboursée entière. *Voir : BALANCE_FR.md* |
 | Ticket de service (bar / cuisine) | ☑ | - | Imprimante cuisine dédiée, ticket non-fiscal sans prix. La note de cuisine d'une ligne (60 caractères) s'imprime sous l'article et, si elle change après l'envoi, sur un bon « MODIFICATION » sans quantité ni prix ; elle reste locale (`order_lines.kitchen_note`) et n'entre dans aucun message FDM ni ticket TVA (FAQ producteurs Q210 b). Test `crates/pos-engine/tests/kitchen_notes.rs`. Service en plusieurs temps (facultatif, éteint par défaut) : entrées, plats et desserts envoyés à la demande, sans aucune donnée de temps dans un message signé ni sur un ticket de T.V.A. (*SERVICES_CUISINE_FR.md*), test `crates/pos-engine/tests/courses.rs` |
 | Autres | ☐ | - | - |
 
@@ -928,8 +928,8 @@ Recap des réponses clés DAS (extrait, le détail est dans l'annexe) :
 | Connexion internet requise | ☐ Non par défaut (le POS parle au FDM sur le LAN ; seul le FDM nécessite Internet). Sorties HTTPS (443) optionnelles, seulement si activées : `api.scaleway.com` (ticket numérique), `api.hubrise.com` et `manager.hubrise.com` (commandes en ligne, `hubrise_enabled`), point d'accès Peppol `api.storecove.com` (envoi des factures, section `peppol`), point de réception propre à l'installation (export nocturne, section `export` de `pos.json`), registre public des artefacts déclarés (mise à jour lancée par un Gérant) - §III.B |
 | Connexion avec des logiciels externes (commande en ligne) | ☑ Oui : HubRise, coupé par défaut (`hubrise_enabled`, activé par installation par un Gérant) ; *COMMANDES_EN_LIGNE_FR.md* |
 | Connexion avec un logiciel interne (statistiques et sauvegarde) | ☑ Oui, facultative et absente par défaut : l'export nocturne (section `export` de `pos.json`) envoie après chaque rapport Z réel une sauvegarde chiffrée de bout en bout et une copie statistique au point de réception propre à l'installation. Les données légales restent locales ; *EXPORT_NOCTURNE_FR.md* |
-| Connexion POS-FDM | ☑ Réseau local (Wi-Fi, ou liaison filaire si le modèle du terminal en offre une : À effectuer (EV-15 : liaison filaire d'un vrai D3 Pro)) |
-| Périphériques supplémentaires | ☐ Non |
+| Connexion POS-FDM | ☑ Réseau local (câble sur le port RJ45 du terminal, fiche du fabricant, ou Wi-Fi ; constat de la liaison filaire : À effectuer (EV-15 : liaison filaire d'un vrai D3 Pro)) |
+| Périphériques supplémentaires | ☑ Oui, en option : balance de caisse (*BALANCE_FR.md*) |
 | Logs disponibles, lisibles, copiables | ☑ Oui (fichiers `files/logs/pili-pos.log.AAAA-MM-JJ` + table `fiscal_events`, repris par l'export SPF) |
 | Méthode de lecture des logs | Export SPF par le Gérant (dossier `logs/` et copie de `pos.db`), puis lecture de la copie sur l'ordinateur de l'agent, par exemple avec `sqlite3` et `.dump fiscal_events` ; *FEUILLE_ACQUISITION_DONNEES_FR.md* §1.3, §2.2 et §2.3 |
 | Logiciel DBMS | SQLite 3.45+ (embarqué) |
@@ -1025,6 +1025,7 @@ Dans le texte des annexes, un renvoi à un fichier `.md` (par exemple *SECURITE_
 | 42 | ALLERGENES_FR.pdf | §III (allergènes, non fiscaux) |
 | 43 | SERVICES_CUISINE_FR.pdf | §III (service en plusieurs temps, cuisine) |
 | 44 | BONS_CADEAUX_FR.pdf | §III.F (bons à usage multiple, UC260 à UC262) |
+| 45 | BALANCE_FR.pdf | §III.F (prix au poids et balance, UC4112) |
 
 
 Plus :

@@ -778,6 +778,15 @@ function defaultHandlers(): Record<string, Handler> {
     export_status: () => EXPORT_STATUS_DISABLED,
     export_run_now: () => EXPORT_STATUS_DISABLED,
 
+    // No scale unless a spec answers `get_scale_status` and get_settings.scaleConfigured.
+    get_scale_status: () => ({
+      configured: false,
+      connected: false,
+      busy: false,
+      check: 'unknown',
+    }),
+    scale_cancel_weighing: () => null,
+
     // Not linked unless a spec answers `check_payment_terminal` (overrides / overrideIPC).
     check_payment_terminal: () => ({
       configured: false,
@@ -901,7 +910,14 @@ function defaultHandlers(): Record<string, Handler> {
       chat_id: '',
       label: '',
       language: 'fr',
-      kinds: { fdm: true, printer: true, terminal: true, z_missing: true, online_waiting: true },
+      kinds: {
+        fdm: true,
+        printer: true,
+        terminal: true,
+        scale: true,
+        z_missing: true,
+        online_waiting: true,
+      },
       z_deadline_hour: 5,
       online_wait_minutes: 5,
       reminder_minutes: 60,

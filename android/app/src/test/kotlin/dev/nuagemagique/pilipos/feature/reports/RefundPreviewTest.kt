@@ -84,6 +84,21 @@ class RefundPreviewTest {
         }
 
     @Test
+    fun aWeighingIsRefundedForTheAmountOfTheScale() =
+        runTest {
+            val weighed =
+                line(1L, 1, 4500L).also {
+                    it.weightGrams = 278L
+                    it.weighedAmountCents = 1251L
+                }
+
+            val preview = refundPreview(helpers(), listOf(selection(weighed, 1)))
+
+            assertEquals(listOf<LineAmount>(LineAmount.Total(1_251L)), preview.lines.map { it.amount })
+            assertEquals(listOf(VatLine(VatCode.B, 1251L, 1L)), natives.splits.first())
+        }
+
+    @Test
     fun theTotalIsTheSumOfTheEngineLineTotalsAndTheCashAmountIsTheEnginesRounding() =
         runTest {
             val selected = listOf(selection(line(1L, 3, 500L), 2), selection(line(2L, 1, 450L), 1))

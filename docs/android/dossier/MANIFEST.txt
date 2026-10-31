@@ -63,6 +63,7 @@ pdf_out/ALERTES_PROPRIETAIRE_FR.pdf
 pdf_out/ALLERGENES_FR.pdf
 pdf_out/SERVICES_CUISINE_FR.pdf
 pdf_out/BONS_CADEAUX_FR.pdf
+pdf_out/BALANCE_FR.pdf
 
 evidence/tickets
 evidence/gms

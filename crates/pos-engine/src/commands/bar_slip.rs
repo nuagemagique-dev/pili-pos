@@ -187,7 +187,12 @@ pub(crate) async fn print_items(
         release: mode.release,
         duplicate: mode.duplicate,
     };
-    let outcome = send(state, addr, &format_bar_ticket(&ticket)).await;
+    let outcome = send(
+        state,
+        addr,
+        &format_bar_ticket(&ticket, config.paper_for(addr)),
+    )
+    .await;
     if outcome == SlipOutcome::Printed {
         if let Some(kind) = mode.record {
             let ids: Vec<i64> = items.iter().flat_map(|i| i.entry_ids.clone()).collect();
@@ -236,7 +241,12 @@ pub(crate) async fn print_note_slip(
         lang: ReceiptLanguage::from_code(&config.language),
         is_training: config.training_mode,
     };
-    let outcome = send(state, addr, &format_note_slip(&slip)).await;
+    let outcome = send(
+        state,
+        addr,
+        &format_note_slip(&slip, config.paper_for(addr)),
+    )
+    .await;
     if outcome == SlipOutcome::Printed {
         mark_notes_printed(state, &[line_id]);
     }
@@ -264,7 +274,12 @@ pub(crate) async fn print_transfer_slip(
         lang: ReceiptLanguage::from_code(&config.language),
         is_training: config.training_mode,
     };
-    send(state, addr, &format_transfer_slip(&slip)).await
+    send(
+        state,
+        addr,
+        &format_transfer_slip(&slip, config.paper_for(addr)),
+    )
+    .await
 }
 
 async fn send(state: &AppState, addr: &str, bytes: &[u8]) -> SlipOutcome {

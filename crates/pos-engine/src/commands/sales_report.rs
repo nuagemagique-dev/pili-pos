@@ -79,6 +79,9 @@ pub struct SalesProduct {
     /// Thousandths of a unit (2 pieces = 2000), negative for refunds.
     pub quantity_milli: i64,
     pub amount_cents: i64,
+    /// Sold by weight: `quantity_milli` is then in grams.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub weighed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -196,7 +199,7 @@ fn compute(state: &AppState, from: &str, to: &str) -> Result<SalesReport, String
             .map_err(errors::internal)?;
 
     let mut days = Vec::new();
-    let mut products: BTreeMap<(String, String, String), (i64, i64)> = BTreeMap::new();
+    let mut products: BTreeMap<(String, String, String, bool), (i64, i64)> = BTreeMap::new();
     let mut hours: BTreeMap<u32, (i64, i64)> = BTreeMap::new();
     let (mut price_changes, mut rounding, mut refunds, mut tickets, mut total) = (0, 0, 0, 0, 0);
 
@@ -240,6 +243,7 @@ fn compute(state: &AppState, from: &str, to: &str) -> Result<SalesReport, String
                         .as_str()
                         .unwrap_or_default()
                         .to_string(),
+                    product["quantityType"] == "KILOGRAM",
                 );
                 let entry = products.entry(key).or_default();
                 entry.0 += errors::archived_milli(&product["quantity"], "quantity")?;
@@ -284,12 +288,15 @@ fn compute(state: &AppState, from: &str, to: &str) -> Result<SalesReport, String
     let mut by_product: Vec<SalesProduct> = products
         .into_iter()
         .map(
-            |((product_id, name, department), (quantity_milli, amount_cents))| SalesProduct {
-                product_id,
-                name,
-                department,
-                quantity_milli,
-                amount_cents,
+            |((product_id, name, department, weighed), (quantity_milli, amount_cents))| {
+                SalesProduct {
+                    product_id,
+                    name,
+                    department,
+                    quantity_milli,
+                    amount_cents,
+                    weighed,
+                }
             },
         )
         .collect();
@@ -375,6 +382,7 @@ fn print_data(state: &AppState, report: &SalesReport) -> Result<SalesReportPrint
                 name: p.name.clone(),
                 quantity_milli: p.quantity_milli,
                 amount_cents: p.amount_cents,
+                weighed: p.weighed,
             })
             .collect(),
         hours: report
@@ -404,15 +412,17 @@ pub async fn do_print_sales_report(
     access::operator(state, Access::Admin)?;
     let report = compute(state, &from, &to)?;
     let data = print_data(state, &report)?;
-    let addr = state
-        .config
-        .lock()
-        .map_err(errors::internal)?
-        .printer_address
-        .clone()
-        .filter(|a| !a.is_empty())
-        .ok_or_else(|| errors::PRINTER_NOT_CONFIGURED.to_string())?;
-    let bytes = format_sales_report(&data);
+    let (addr, paper) = {
+        let config = state.config.lock().map_err(errors::internal)?;
+        let addr = config
+            .printer_address
+            .clone()
+            .filter(|a| !a.is_empty())
+            .ok_or_else(|| errors::PRINTER_NOT_CONFIGURED.to_string())?;
+        let paper = config.paper_for(&addr);
+        (addr, paper)
+    };
+    let bytes = format_sales_report(&data, paper);
     match pos_print::transport::send_to_printer_with(
         &addr,
         &bytes,

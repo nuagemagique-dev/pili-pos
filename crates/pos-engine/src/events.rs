@@ -26,6 +26,8 @@ pub enum EngineEvent {
     /// The clock-in queued by a login was not registered
     /// (`commands::social`): the UI shows the presence toast.
     PresenceFailed(crate::commands::social::PresenceFailed),
+    /// Where the weighing in progress stands (`commands::scale`).
+    ScaleProgress(crate::commands::scale::ScaleProgress),
     /// An online order arrived.
     #[cfg(feature = "hubrise")]
     WebshopOrderReceived(CallbackEvent),
@@ -51,6 +53,7 @@ impl EngineEvent {
             EngineEvent::FdmStatus(_) => "fdm-status",
             EngineEvent::SessionLocked(_) => "session-locked",
             EngineEvent::PresenceFailed(_) => "presence-failed",
+            EngineEvent::ScaleProgress(_) => "scale-progress",
             #[cfg(feature = "hubrise")]
             EngineEvent::WebshopOrderReceived(_) => "webshop-order-received",
             #[cfg(feature = "hubrise")]

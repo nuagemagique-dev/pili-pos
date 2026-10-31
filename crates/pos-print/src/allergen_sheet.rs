@@ -9,7 +9,7 @@
 
 use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer};
 
-use crate::escpos::{Alignment, EscPosBuilder, TextStyle, wrap};
+use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle, wrap};
 
 /// An option of a product with its own allergen statement.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -153,9 +153,9 @@ fn statement(
 }
 
 /// ESC/POS bytes of the sheet, ready for a `TcpPrinter`.
-pub fn format_allergen_sheet(sheet: &AllergenSheet) -> Vec<u8> {
+pub fn format_allergen_sheet(sheet: &AllergenSheet, paper: PaperWidth) -> Vec<u8> {
     let w = words(&sheet.lang);
-    let mut p = EscPosBuilder::new();
+    let mut p = EscPosBuilder::for_paper(paper);
 
     p.align(Alignment::Center);
     p.style(TextStyle {
@@ -263,7 +263,7 @@ mod tests {
     }
 
     fn text(s: &AllergenSheet) -> String {
-        render_plain_text(&format_allergen_sheet(s))
+        render_plain_text(&format_allergen_sheet(s, PaperWidth::Mm80))
     }
 
     #[test]
@@ -361,6 +361,15 @@ Selon le règlement (UE) n° 1169/2011, annexe II.
     }
 
     #[test]
+    fn every_language_fits_58_mm_paper() {
+        for lang in ["fr", "nl", "en", "de"] {
+            crate::render::assert_58_mm_prints_the_80_mm_words(|paper| {
+                format_allergen_sheet(&sheet(lang), paper)
+            });
+        }
+    }
+
+    #[test]
     fn lines_fit_the_paper() {
         let mut s = sheet("fr");
         s.products[0].name =
@@ -372,7 +381,7 @@ Selon le règlement (UE) n° 1169/2011, annexe II.
 
     #[test]
     fn the_sheet_ends_with_a_cut() {
-        let bytes = format_allergen_sheet(&sheet("fr"));
+        let bytes = format_allergen_sheet(&sheet("fr"), PaperWidth::Mm80);
         assert!(bytes.windows(3).any(|w| w == [0x1D, 0x56, 0x42]
             || w == [0x1D, 0x56, 0x41]
             || w[0] == 0x1D && w[1] == 0x56));

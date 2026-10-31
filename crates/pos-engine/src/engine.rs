@@ -423,6 +423,7 @@ impl Engine {
                 peppol_wake: tokio::sync::Notify::new(),
                 eft_in_flight: Mutex::new(None),
                 eft_line: tokio::sync::Mutex::new(()),
+                scale: crate::commands::scale::ScaleSlot::default(),
                 badge_repeats: Mutex::default(),
                 originals_printing: Mutex::default(),
                 owner_alerts: crate::alerts::AlertRuntime::default(),

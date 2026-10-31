@@ -143,6 +143,23 @@ fn body(kind: Kind, detail: &Detail, since: &str, lang: Lang) -> String {
         }
         (Kind::Terminal, Lang::Zh) => format!("刷卡终端自 {since} 起无响应。"),
 
+        (Kind::Scale, Lang::Fr) if detail.scale_check_refused => format!(
+            "La balance refuse le contrôle du logiciel depuis {since}. Aucune pesée n'est possible."
+        ),
+        (Kind::Scale, Lang::En) if detail.scale_check_refused => format!(
+            "The scale has refused the software check since {since}. No weighing is possible."
+        ),
+        (Kind::Scale, Lang::Zh) if detail.scale_check_refused => {
+            format!("电子秤自 {since} 起拒绝软件校验，无法称重。")
+        }
+        (Kind::Scale, Lang::Fr) => {
+            format!("La balance ne répond plus depuis {since}. Aucune pesée n'est possible.")
+        }
+        (Kind::Scale, Lang::En) => {
+            format!("The scale has not answered since {since}. No weighing is possible.")
+        }
+        (Kind::Scale, Lang::Zh) => format!("电子秤自 {since} 起无响应，无法称重。"),
+
         (Kind::ZMissing, _) => {
             let date = detail
                 .booking_date
@@ -262,8 +279,17 @@ mod tests {
             booking_date: Some("2026-10-16".into()),
             deadline_hour: Some(6),
             printers: vec![(Printer::Kitchen, PrinterProblem::PaperOut)],
+            scale_check_refused: false,
         };
         for lang in [Lang::Fr, Lang::En, Lang::Zh] {
+            let refused = Detail {
+                scale_check_refused: true,
+                ..Detail::default()
+            };
+            assert_ne!(
+                body(Kind::Scale, &refused, "11:00", lang),
+                body(Kind::Scale, &Detail::default(), "11:00", lang),
+            );
             for kind in Kind::ALL {
                 for tr in [
                     Transition::Raised,
@@ -277,8 +303,10 @@ mod tests {
                         at(11, 0),
                     );
                     assert!(text.contains("[Salle]"), "{text}");
-                    if matches!(kind, Kind::Fdm | Kind::Printer | Kind::Terminal)
-                        || tr == Transition::Resolved
+                    if matches!(
+                        kind,
+                        Kind::Fdm | Kind::Printer | Kind::Terminal | Kind::Scale
+                    ) || tr == Transition::Resolved
                     {
                         assert!(text.contains("12:30"), "{text}");
                     }

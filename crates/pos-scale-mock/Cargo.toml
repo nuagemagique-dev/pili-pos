@@ -1,0 +1,18 @@
+[package]
+name = "pos-scale-mock"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+axum = "0.8"
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+pos-scale = { path = "../pos-scale" }
+
+[lints]
+workspace = true

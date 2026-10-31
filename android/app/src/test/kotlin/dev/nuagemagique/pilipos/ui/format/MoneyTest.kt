@@ -27,6 +27,13 @@ class MoneyTest {
     }
 
     @Test
+    fun aWeightPrintsThreeDecimalsAndItsUnit() {
+        assertEquals("0,278 kg", formatWeight(278L))
+        assertEquals("1,005 kg", formatWeight(1005L))
+        assertEquals("2,000 kg", formatWeight(2000L))
+    }
+
+    @Test
     fun negativeAmountsKeepTheGroupingAndTheAsciiMinus() {
         assertEquals("-1\u202F234\u202F567,89", formatCents(-123456789L))
         assertEquals("-0,05", formatCents(-5L))
