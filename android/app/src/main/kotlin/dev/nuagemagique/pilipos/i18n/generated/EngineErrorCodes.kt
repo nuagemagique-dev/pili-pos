@@ -47,6 +47,7 @@ object EngineErrorCodes {
             "config_digital_ticket",
             "config_export",
             "config_payment_terminal",
+            "config_scale",
             "config_peppol",
             "config_alerts",
             "config_other",

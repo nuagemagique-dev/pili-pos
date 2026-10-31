@@ -109,7 +109,7 @@ mod tests {
             .chain(errors::hubrise::ALL.iter())
             .copied()
             .collect();
-        assert_eq!(all.len(), 216, "the engine's code lists changed size");
+        assert_eq!(all.len(), 217, "the engine's code lists changed size");
         for code in all {
             match from_engine(code.to_string()) {
                 PosError::Coded { code: c, params } => {
