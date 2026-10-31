@@ -131,9 +131,17 @@ async fn pay_with_yes_is_approved_and_the_trace_is_masked() {
     assert!(log.contains("CardServiceRequest"), "{log}");
     assert!(log.contains("CardServiceResponse"), "{log}");
     assert!(log.contains("pay confirmed by the operator"), "{log}");
-    // No run of 13 to 19 digits survives in the file.
+    // No run of 13 to 19 digits survives in the file. The reference is shown
+    // on purpose and is left out: `mask_pan` over-masks a random UUID whose
+    // digits fall in card grouping.
+    let reference = out
+        .lines()
+        .find_map(|line| line.strip_prefix("Reference: "))
+        .unwrap();
+    let log = log.replace(reference, "<reference>");
+    let out = out.replace(reference, "<reference>");
     assert_eq!(mask_pan(&log), log);
-    assert!(!out.is_empty() && mask_pan(&out) == out);
+    assert_eq!(mask_pan(&out), out);
 }
 
 #[tokio::test(flavor = "current_thread")]
