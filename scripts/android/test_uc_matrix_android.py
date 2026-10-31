@@ -346,6 +346,29 @@ class DeviceTests(unittest.TestCase):
         fake.write("crates/pos-engine/tests/live.rs", "#[test]\n#[ignore = \"live\"]\nfn uc201_live() {}\n")
         self.assertEqual(fake.row("UC201").status, uca.ST_MISSING)
 
+    def test_ignored_test_with_a_multi_line_attribute_does_not_count_as_a_device_test(self):
+        for source in (
+            "#[test]\n#[ignore = \"live\"]\n#[expect(\n    clippy::too_many_lines,\n    reason = \"long\"\n)]\nfn uc201_live() {}\n",
+            "#[test]\n#[expect(\n    clippy::too_many_lines,\n    reason = \"long\"\n)]\n#[ignore = \"live\"]\nfn uc201_live() {}\n",
+            "#[test]\n#[ignore = \"a live run\n    by hand\"]\nfn uc201_live() {}\n",
+        ):
+            with self.subTest(source=source):
+                fake = Fake(self)
+                self._tauri_only_uc201(fake)
+                fake.write("crates/pos-engine/tests/live.rs", source)
+                self.assertEqual(fake.row("UC201").status, uca.ST_MISSING)
+
+    def test_test_with_a_multi_line_attribute_counts_as_a_device_test(self):
+        fake = Fake(self)
+        self._tauri_only_uc201(fake)
+        fake.write(
+            "crates/pos-engine/tests/long.rs",
+            "#[test]\n#[expect(\n    clippy::too_many_lines,\n    reason = \"long\"\n)]\nfn uc201_long() {}\n",
+        )
+        row = fake.row("UC201")
+        self.assertNotEqual(row.status, uca.ST_MISSING)
+        self.assertIn("uc201_long", row.rust_tests)
+
     def test_test_in_another_cert_graph_crate_counts(self):
         fake = Fake(self)
         self._tauri_only_uc201(fake)
