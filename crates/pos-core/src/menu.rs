@@ -18,6 +18,10 @@ pub struct Category {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "serialized to the UIs as plain flags; the shape is the IPC contract"
+)]
 pub struct MenuItem {
     pub id: i64,
     pub category_id: i64,

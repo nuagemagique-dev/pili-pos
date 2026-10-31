@@ -125,6 +125,7 @@ enum Phase {
     Finished,
 }
 
+#[derive(Debug)]
 pub struct Session {
     request: Option<WeighRequest>,
     digits: PriceDigits,
@@ -284,6 +285,10 @@ impl Session {
         }
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "takes the message by value like the other phase handlers"
+    )]
     fn on_poll_answer(&mut self, message: Message) -> Vec<Output> {
         match message {
             Message::Weight(record) if self.request.is_some() => self.on_weight(record),
@@ -552,8 +557,8 @@ mod tests {
         s.on_message(Message::Ack);
         let out = s.on_message(Message::CheckFailed);
         assert_eq!(failed(&out), Some(Failure::CheckFailed));
-        assert!(sent(&out).is_empty());
-        assert!(s.on_message(Message::Ack).is_empty());
+        assert_eq!(sent(&out), Vec::<Vec<u8>>::new());
+        assert_eq!(s.on_message(Message::Ack), Vec::<Output>::new());
     }
 
     #[test]
@@ -570,7 +575,7 @@ mod tests {
         s.start();
         let out = s.on_message(Message::CheckRequest("EF".into()));
         assert_eq!(failed(&out), Some(Failure::CheckValuesMissing));
-        assert!(sent(&out).is_empty());
+        assert_eq!(sent(&out), Vec::<Vec<u8>>::new());
     }
 
     #[test]
@@ -641,7 +646,7 @@ mod tests {
         );
         let out = s.start();
         assert_eq!(failed(&out), Some(Failure::PriceTooLarge));
-        assert!(sent(&out).is_empty());
+        assert_eq!(sent(&out), Vec::<Vec<u8>>::new());
     }
 
     #[test]

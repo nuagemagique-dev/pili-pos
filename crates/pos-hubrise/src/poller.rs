@@ -1,9 +1,9 @@
-//! The HubRise event poller: reads the passive callback's events
+//! The `HubRise` event poller: reads the passive callback's events
 //! (`docs/hubrise/06-callbacks.md`), handles each, acknowledges it.
 //!
 //! Every pass reads all pages of `GET /callback/events`, oldest first.
 //! An event is stored before it is handled (idempotence: the same
-//! event twice is handled once), then deleted on HubRise. One that
+//! event twice is handled once), then deleted on `HubRise`. One that
 //! keeps failing is parked after [`MAX_EVENT_ATTEMPTS`] tries so it
 //! never blocks the others.
 //!
@@ -13,7 +13,7 @@
 //! synchronised from the connected catalog.
 //!
 //! At start-up (and on connect) [`start`] registers the passive
-//! callback and fetches the orders HubRise holds as `new` or
+//! callback and fetches the orders `HubRise` holds as `new` or
 //! `received`: an order placed while the POS was off is not lost.
 //!
 //! Critical constraint: the `std::sync::MutexGuard` protecting the
@@ -33,15 +33,16 @@ use crate::client::Client;
 use crate::dispatcher::{DispatchOutcome, mark_processed, persist_event};
 use crate::errors::{HubriseError, Result};
 use crate::token_store::{self, StoredConnection};
+use crate::util::path_segment;
 use crate::{callbacks, outbox};
 use pos_catalog::ApplyOutcome;
 
-/// Default polling interval (HubRise asks for at least 30 s).
+/// Default polling interval (`HubRise` asks for at least 30 s).
 pub const POLL_INTERVAL: Duration = Duration::from_secs(30);
 /// Shortest gap between two passes, even when woken on purpose.
 pub const MIN_POLL_GAP: Duration = Duration::from_secs(5);
 /// How often the catalog is compared with the applied one.
-pub const CATALOG_DRIFT_INTERVAL: Duration = Duration::from_secs(15 * 60);
+pub const CATALOG_DRIFT_INTERVAL: Duration = Duration::from_mins(15);
 /// Tries before an event is parked.
 pub const MAX_EVENT_ATTEMPTS: i64 = 5;
 
@@ -53,7 +54,7 @@ pub type OutcomeHook = Arc<dyn Fn(DispatchOutcome, CallbackEvent) + Send + Sync>
 /// The Tauri layer plugs the webshop and menu logic in here; the
 /// defaults only mirror the order and apply the catalog as is.
 pub trait Handlers: Send + Sync {
-    /// Store or refresh an order fetched from HubRise. Returns true
+    /// Store or refresh an order fetched from `HubRise`. Returns true
     /// when the POS should acknowledge it (`received`).
     fn on_order(&self, conn: &Connection, order: &Order) -> Result<bool>;
     /// Apply the connected catalog.
@@ -61,6 +62,7 @@ pub trait Handlers: Send + Sync {
 }
 
 /// The default handlers: mirror the order row, apply the catalog.
+#[derive(Debug)]
 pub struct DefaultHandlers;
 
 impl Handlers for DefaultHandlers {
@@ -86,8 +88,16 @@ pub struct PollerCtx {
     pub poll_now: Arc<tokio::sync::Notify>,
     /// Wakes the outbox after queuing an acknowledgement.
     pub outbox_wake: Option<Arc<tokio::sync::Notify>>,
-    /// Off: no connection is loaded, so nothing reaches HubRise.
+    /// Off: no connection is loaded, so nothing reaches `HubRise`.
     pub enabled: crate::switch::Switch,
+}
+
+impl std::fmt::Debug for PollerCtx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PollerCtx")
+            .field("enabled", &self.enabled)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Run the polling loop until `cancel` is triggered.
@@ -102,9 +112,9 @@ pub async fn run_loop(ctx: PollerCtx, cancel: CancellationToken) {
 
     loop {
         tokio::select! {
-            _ = cancel.cancelled() => return,
+            () = cancel.cancelled() => return,
             _ = ticker.tick() => {}
-            _ = ctx.poll_now.notified() => {
+            () = ctx.poll_now.notified() => {
                 if last_pass.is_some_and(|t| t.elapsed() < MIN_POLL_GAP) {
                     continue;
                 }
@@ -142,14 +152,14 @@ fn load_client(ctx: &PollerCtx) -> Result<Option<(StoredConnection, Client)>> {
     if !ctx.enabled.is_on() {
         return Ok(None);
     }
-    let db = ctx.db.lock().expect("poller db poisoned");
+    let db = crate::util::lock_db(&ctx.db);
     Ok(token_store::load(&db)?.map(|stored| {
         let client = Client::new(ctx.http.clone(), &stored.base_url, &stored.access_token);
         (stored, client)
     }))
 }
 
-/// Register the passive callback, then fetch the orders HubRise holds
+/// Register the passive callback, then fetch the orders `HubRise` holds
 /// as `new` or `received` and refresh the local open ones. Called at
 /// start-up and right after connecting. Does nothing when not
 /// connected.
@@ -159,7 +169,7 @@ pub async fn start(ctx: &PollerCtx) -> Result<()> {
     };
     match callbacks::ensure_passive(&client).await {
         Ok(_) => {
-            let db = ctx.db.lock().expect("poller db poisoned");
+            let db = crate::util::lock_db(&ctx.db);
             token_store::mark_callback_registered(&db)?;
         }
         Err(e) => return Err(note_error(ctx, e)),
@@ -174,7 +184,10 @@ pub async fn start(ctx: &PollerCtx) -> Result<()> {
         }
     }
     for status in ["new", "received"] {
-        let path = format!("/locations/{}/orders?status={status}", stored.location_id);
+        let path = format!(
+            "/locations/{}/orders?status={status}",
+            path_segment(&stored.location_id)
+        );
         let orders: Vec<Order> = match fetch_all(&client, &path).await {
             Ok(o) => o,
             Err(e) => return Err(note_error(ctx, e)),
@@ -187,7 +200,7 @@ pub async fn start(ctx: &PollerCtx) -> Result<()> {
     // platform cancellation): the open ones, and the ones signed in the
     // last two days, which a cancellation turns into a refund to make.
     let open: Vec<String> = {
-        let db = ctx.db.lock().expect("poller db poisoned");
+        let db = crate::util::lock_db(&ctx.db);
         let mut stmt = db.prepare(
             "SELECT hubrise_order_id FROM orders
              WHERE hubrise_order_id IS NOT NULL
@@ -200,7 +213,11 @@ pub async fn start(ctx: &PollerCtx) -> Result<()> {
             .collect::<std::result::Result<_, _>>()?
     };
     for id in open {
-        let path = format!("/locations/{}/orders/{id}", stored.location_id);
+        let path = format!(
+            "/locations/{}/orders/{}",
+            path_segment(&stored.location_id),
+            path_segment(&id)
+        );
         match client.get_json::<Order>(&path).await {
             Ok(order) => {
                 handle_order(ctx, &order)?;
@@ -216,26 +233,48 @@ pub async fn start(ctx: &PollerCtx) -> Result<()> {
 async fn fetch_all<T: serde::de::DeserializeOwned>(client: &Client, path: &str) -> Result<Vec<T>> {
     let mut all = Vec::new();
     let mut cursor: Option<String> = None;
+    let mut seen = std::collections::HashSet::new();
     loop {
         let page = client.get_page::<T>(path, cursor.as_deref()).await?;
         all.extend(page.items);
-        match page.next_cursor {
-            Some(next) if Some(&next) != cursor.as_ref() => cursor = Some(next),
-            _ => return Ok(all),
+        match next_cursor(&mut seen, page.next_cursor)? {
+            Some(next) => cursor = Some(next),
+            None => return Ok(all),
         }
     }
 }
 
+/// Most pages one list is followed for.
+const MAX_PAGES: usize = 1000;
+
+/// The cursor to fetch next, or `None` at the end of the list. A cursor
+/// seen before means `HubRise` is going round in a cycle (A, B, A): the end
+/// for the pages read so far. Too many pages is an error.
+fn next_cursor(
+    seen: &mut std::collections::HashSet<String>,
+    next: Option<String>,
+) -> Result<Option<String>> {
+    let Some(next) = next else { return Ok(None) };
+    if !seen.insert(next.clone()) {
+        return Ok(None);
+    }
+    if seen.len() >= MAX_PAGES {
+        return Err(HubriseError::Other(format!(
+            "pagination exceeds {MAX_PAGES} pages"
+        )));
+    }
+    Ok(Some(next))
+}
+
 /// Record `e` for the status screen (401: the authentication error).
 fn note_error(ctx: &PollerCtx, e: HubriseError) -> HubriseError {
-    if let Ok(db) = ctx.db.lock() {
-        let _ = match &e {
-            HubriseError::Unauthorized => {
-                token_store::set_auth_error(&db, "HubRise refused the access token")
-            }
-            other => token_store::set_last_error(&db, Some(&other.to_string())),
-        };
-    }
+    let db = crate::util::lock_db(&ctx.db);
+    let _ = match &e {
+        HubriseError::Unauthorized => {
+            token_store::set_auth_error(&db, "HubRise refused the access token")
+        }
+        other => token_store::set_last_error(&db, Some(&other.to_string())),
+    };
     e
 }
 
@@ -266,7 +305,7 @@ pub async fn poll_once(ctx: &PollerCtx) -> Result<PollReport> {
         Err(e) => return Err(note_error(ctx, e)),
     };
     {
-        let db = ctx.db.lock().expect("poller db poisoned");
+        let db = crate::util::lock_db(&ctx.db);
         token_store::clear_auth_error(&db)?;
         token_store::update_cursor(&db, None)?;
     }
@@ -275,7 +314,7 @@ pub async fn poll_once(ctx: &PollerCtx) -> Result<PollReport> {
     for event in events {
         let raw = serde_json::to_string(&event)?;
         let (done, parked) = {
-            let db = ctx.db.lock().expect("poller db poisoned");
+            let db = crate::util::lock_db(&ctx.db);
             persist_event(&db, &event, &raw)?;
             event_state(&db, &event.id)?
         };
@@ -283,7 +322,7 @@ pub async fn poll_once(ctx: &PollerCtx) -> Result<PollReport> {
             // Handled (or given up) on an earlier pass whose delete was
             // lost: acknowledge it again.
             let _ = client
-                .delete(&format!("/callback/events/{}", event.id))
+                .delete(&format!("/callback/events/{}", path_segment(&event.id)))
                 .await;
             continue;
         }
@@ -291,7 +330,7 @@ pub async fn poll_once(ctx: &PollerCtx) -> Result<PollReport> {
         match process_event(ctx, &client, &stored, &event).await {
             Ok(outcome) => {
                 {
-                    let db = ctx.db.lock().expect("poller db poisoned");
+                    let db = crate::util::lock_db(&ctx.db);
                     mark_processed(&db, &event.id)?;
                 }
                 report.handled += 1;
@@ -299,7 +338,7 @@ pub async fn poll_once(ctx: &PollerCtx) -> Result<PollReport> {
                     hook(outcome, event.clone());
                 }
                 let _ = client
-                    .delete(&format!("/callback/events/{}", event.id))
+                    .delete(&format!("/callback/events/{}", path_segment(&event.id)))
                     .await;
             }
             Err(HubriseError::Unauthorized) => {
@@ -309,14 +348,14 @@ pub async fn poll_once(ctx: &PollerCtx) -> Result<PollReport> {
             }
             Err(e) => {
                 let parked = {
-                    let db = ctx.db.lock().expect("poller db poisoned");
+                    let db = crate::util::lock_db(&ctx.db);
                     record_failure(&db, &event.id, &e.to_string())?
                 };
                 if parked {
                     report.parked += 1;
                     tracing::error!(event = %event.id, %e, "hubrise event parked");
                     let _ = client
-                        .delete(&format!("/callback/events/{}", event.id))
+                        .delete(&format!("/callback/events/{}", path_segment(&event.id)))
                         .await;
                 } else {
                     report.failed += 1;
@@ -397,7 +436,11 @@ async fn process_event(
                 return Ok(DispatchOutcome::Ignored);
             }
             let order: Order = client
-                .get_json(&format!("/locations/{location}/orders/{order_id}"))
+                .get_json(&format!(
+                    "/locations/{}/orders/{}",
+                    path_segment(&location),
+                    path_segment(&order_id)
+                ))
                 .await?;
             handle_order(ctx, &order)?;
             Ok(if kind == "create" {
@@ -413,7 +456,7 @@ async fn process_event(
 /// Store an order through the handlers and queue its acknowledgement.
 fn handle_order(ctx: &PollerCtx, order: &Order) -> Result<()> {
     let acknowledge = {
-        let mut db = ctx.db.lock().expect("poller db poisoned");
+        let mut db = crate::util::lock_db(&ctx.db);
         let conn = db.transaction()?;
         let ack = ctx.handlers.on_order(&conn, order)?;
         if ack {
@@ -466,7 +509,7 @@ pub async fn check_catalog(ctx: &PollerCtx) -> Result<Option<ApplyOutcome>> {
     }
 }
 
-/// The drift check has no HubRise event; the hook gets one that names
+/// The drift check has no `HubRise` event; the hook gets one that names
 /// the catalog.
 fn synthetic_catalog_event(stored: &StoredConnection) -> CallbackEvent {
     let mut extra = serde_json::Map::new();
@@ -497,9 +540,9 @@ pub async fn sync_catalog(
     stored: &StoredConnection,
 ) -> Result<ApplyOutcome> {
     let catalog: Catalog = client
-        .get_json(&format!("/catalogs/{}", stored.catalog_id))
+        .get_json(&format!("/catalogs/{}", path_segment(&stored.catalog_id)))
         .await?;
-    let mut db = ctx.db.lock().expect("poller db poisoned");
+    let mut db = crate::util::lock_db(&ctx.db);
     let outcome = ctx.handlers.on_catalog(&mut db, &catalog)?;
     if matches!(outcome, ApplyOutcome::Applied { .. }) {
         let fixed = crate::webshop::re_resolve_pending(&db)?;
@@ -519,7 +562,7 @@ pub async fn refresh_on_catalog_miss(
     stored: &StoredConnection,
 ) -> Result<Option<ApplyOutcome>> {
     let due: bool = {
-        let db = ctx.db.lock().expect("poller db poisoned");
+        let db = crate::util::lock_db(&ctx.db);
         db.query_row(
             "SELECT EXISTS(
                 SELECT 1 FROM webshop_orders
@@ -544,6 +587,36 @@ pub async fn refresh_on_catalog_miss(
 mod tests {
     use super::*;
     use pos_db::schema::run_migrations;
+
+    #[test]
+    fn a_cursor_cycle_ends_the_list() {
+        let mut seen = std::collections::HashSet::new();
+        // A -> B -> A: the third answer repeats a cursor.
+        assert_eq!(
+            next_cursor(&mut seen, Some("A".into())).unwrap(),
+            Some("A".into())
+        );
+        assert_eq!(
+            next_cursor(&mut seen, Some("B".into())).unwrap(),
+            Some("B".into())
+        );
+        assert_eq!(next_cursor(&mut seen, Some("A".into())).unwrap(), None);
+        assert_eq!(next_cursor(&mut seen, None).unwrap(), None);
+    }
+
+    #[test]
+    fn endless_fresh_cursors_stop_at_the_page_cap() {
+        let mut seen = std::collections::HashSet::new();
+        let mut pages = 0;
+        let outcome = loop {
+            match next_cursor(&mut seen, Some(format!("c{pages}"))) {
+                Ok(Some(_)) => pages += 1,
+                other => break other,
+            }
+        };
+        assert!(outcome.is_err());
+        assert_eq!(pages, MAX_PAGES - 1);
+    }
 
     fn conn() -> Connection {
         let c = Connection::open_in_memory().unwrap();

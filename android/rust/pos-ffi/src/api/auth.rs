@@ -35,13 +35,19 @@ impl PosEngine {
     }
 
     /// End the operator's session.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn logout(&self) -> Result<(), PosError> {
         self.blocking(|st| auth::do_logout(st)).await
     }
 
     /// The login tiles: the active users.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn list_users(&self) -> Result<Vec<User>, PosError> {
         let users = self.blocking(|st| auth::do_list_users(st)).await?;
         convert::out(&users)
@@ -74,14 +80,20 @@ impl PosEngine {
     }
 
     /// The logged-in operator, if any.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn get_current_user(&self) -> Result<Option<User>, PosError> {
         let user = self.blocking(|st| auth::do_get_current_user(st)).await?;
         convert::out(&user)
     }
 
     /// The integrations switches and their log.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn get_integrations(&self) -> Result<Integrations, PosError> {
         let value = self
             .blocking(|st| integrations::do_get_integrations(st))
@@ -89,7 +101,11 @@ impl PosEngine {
         convert::out(&value)
     }
 
-    /// Switch the HubRise integration on or off (managers only).
+    /// Switch the `HubRise` integration on or off (managers only).
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "UniFFI export: the argument is part of the Kotlin API"
+    )]
     pub async fn set_hubrise_enabled(&self, enabled: bool) -> Result<Integrations, PosError> {
         let value = self
             .blocking(move |st| integrations::do_set_hubrise_enabled(st, enabled))
@@ -98,7 +114,10 @@ impl PosEngine {
     }
 
     /// Whether remote support is installed and whether a session runs.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn remote_support_status(&self) -> Result<SupportStatus, PosError> {
         let status = self
             .blocking(|st| support::do_remote_support_status(st))
@@ -107,7 +126,10 @@ impl PosEngine {
     }
 
     /// Whether a session runs, for the login screen.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn remote_support_running(&self) -> Result<SupportRunning, PosError> {
         let running = self
             .blocking(|st| support::do_remote_support_running(st))
@@ -128,7 +150,10 @@ impl PosEngine {
     }
 
     /// End the remote support session.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn stop_remote_support(&self) -> Result<SupportStatus, PosError> {
         let status = self
             .blocking(|st| support::do_stop_remote_support(st))

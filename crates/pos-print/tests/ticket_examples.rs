@@ -453,7 +453,11 @@ fn example_allergen_sheet() {
     use pos_print::allergen_sheet::{
         AllergenSheet, SheetOption, SheetProduct, format_allergen_sheet,
     };
-    let names = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    let names = |v: &[&str]| {
+        v.iter()
+            .map(std::string::ToString::to_string)
+            .collect::<Vec<_>>()
+    };
     let sheet = AllergenSheet {
         establishment: "The FPS Finances Experience".to_string(),
         date: "03/07/2026".to_string(),
@@ -624,7 +628,7 @@ fn base_report(
             fdm_last_event: Some((63, "2026-07-03T22:48:09+02:00".to_string())),
             departments: vec![
                 ("Boissons".to_string(), 38450),
-                ("Plats".to_string(), 113900),
+                ("Plats".to_string(), 113_900),
             ],
             corrections_cents: -1200,
             refunds: (1, -5200),

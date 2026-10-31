@@ -52,7 +52,7 @@ fn encrypt_to(
     let file = File::create(partial)
         .map_err(|e| format!("encrypt: cannot create {}: {e}", partial.display()))?;
     let encryptor =
-        age::Encryptor::with_recipients(recipients.iter().map(|r| r as &dyn age::Recipient))
+        age::Encryptor::with_recipients(recipients.iter().map(|r| -> &dyn age::Recipient { r }))
             .map_err(|e| format!("encrypt: {e}"))?;
     let mut writer = encryptor
         .wrap_output(BufWriter::new(file))
@@ -72,14 +72,16 @@ fn encrypt_to(
 /// instructions; the POS itself never holds a secret key. The error never
 /// holds the key.
 pub fn decrypt_file(identity: &str, input: &Path, out: &Path) -> Result<(), String> {
+    // Deliberately drops the parser error: it can echo part of the secret key.
     let identity = age::x25519::Identity::from_str(identity.trim())
         .map_err(|_| "decrypt: not an age secret key".to_string())?;
     let file =
         File::open(input).map_err(|e| format!("decrypt: cannot open {}: {e}", input.display()))?;
     let decryptor =
         age::Decryptor::new(BufReader::new(file)).map_err(|e| format!("decrypt: {e}"))?;
+    let identity_ref: &dyn age::Identity = &identity;
     let mut reader = decryptor
-        .decrypt(std::iter::once(&identity as &dyn age::Identity))
+        .decrypt(std::iter::once(identity_ref))
         .map_err(|e| format!("decrypt: {e}"))?;
     let partial = partial_path(out);
     let result = (|| {
@@ -121,7 +123,7 @@ mod tests {
         // Larger than one age chunk (64 KiB), with a recognisable marker.
         let mut v = b"SQLite format 3\0-MARKER-pizza-margherita-".to_vec();
         for i in 0..200_000u32 {
-            v.push((i % 251) as u8);
+            v.push(u8::try_from(i % 251).unwrap());
         }
         v
     }
@@ -129,20 +131,27 @@ mod tests {
     #[test]
     fn owner_and_producer_both_decrypt_to_the_same_bytes() {
         let dir = tempfile::tempdir().unwrap();
-        let (owner_sk, owner_pk) = generate_identity();
-        let (prod_sk, prod_pk) = generate_identity();
+        let (owner_secret, owner_public) = generate_identity();
+        let (producer_secret, producer_public) = generate_identity();
         let plain = dir.path().join("pos.db");
         let data = payload();
         std::fs::write(&plain, &data).unwrap();
         let out = dir.path().join("pos.db.age");
 
-        let size =
-            encrypt_file(&plain, &out, &[recipient(&owner_pk), recipient(&prod_pk)]).unwrap();
-        assert_eq!(size, std::fs::metadata(&out).unwrap().len() as i64);
-        assert!(size > data.len() as i64);
+        let size = encrypt_file(
+            &plain,
+            &out,
+            &[recipient(&owner_public), recipient(&producer_public)],
+        )
+        .unwrap();
+        assert_eq!(
+            size,
+            i64::try_from(std::fs::metadata(&out).unwrap().len()).unwrap()
+        );
+        assert!(size > i64::try_from(data.len()).unwrap());
         assert!(!dir.path().join("pos.db.age.partial").exists());
 
-        for (name, sk) in [("owner", &owner_sk), ("producer", &prod_sk)] {
+        for (name, sk) in [("owner", &owner_secret), ("producer", &producer_secret)] {
             let back = dir.path().join(format!("{name}.db"));
             decrypt_file(sk, &out, &back).unwrap();
             assert_eq!(std::fs::read(&back).unwrap(), data, "{name}");
@@ -152,12 +161,12 @@ mod tests {
     #[test]
     fn a_third_identity_cannot_decrypt() {
         let dir = tempfile::tempdir().unwrap();
-        let (_, owner_pk) = generate_identity();
+        let (_, owner_public) = generate_identity();
         let (third_sk, _) = generate_identity();
         let plain = dir.path().join("p");
         std::fs::write(&plain, payload()).unwrap();
         let out = dir.path().join("p.age");
-        encrypt_file(&plain, &out, &[recipient(&owner_pk)]).unwrap();
+        encrypt_file(&plain, &out, &[recipient(&owner_public)]).unwrap();
         let back = dir.path().join("back");
         let err = decrypt_file(&third_sk, &out, &back).unwrap_err();
         assert!(err.starts_with("decrypt: "), "{err}");
@@ -212,7 +221,7 @@ mod tests {
         encrypt_file(&plain, &out, &[recipient(&pk)]).unwrap();
         let back = dir.path().join("back");
         decrypt_file(&sk, &out, &back).unwrap();
-        assert!(std::fs::read(&back).unwrap().is_empty());
+        assert_eq!(std::fs::read(&back).unwrap().len(), 0);
     }
 
     #[test]

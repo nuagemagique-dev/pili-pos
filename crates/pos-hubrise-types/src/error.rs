@@ -1,4 +1,4 @@
-//! HubRise error response shape.
+//! `HubRise` error response shape.
 //!
 //! Reference: `docs/hubrise/01-general-concepts.md` (Error Responses).
 

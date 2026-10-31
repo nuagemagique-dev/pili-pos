@@ -74,6 +74,10 @@ pub struct NewVoucher<'a> {
 }
 
 /// Create a voucher and its `issue` movement (+ face value).
+///
+/// Atomicity: two statements that rely on the caller's transaction (the sale's
+/// archive transaction); called alone, a failure of the second leaves a voucher
+/// without its movement.
 pub fn insert_voucher(conn: &Connection, v: &NewVoucher<'_>) -> Result<i64, rusqlite::Error> {
     conn.execute(
         "INSERT INTO gift_vouchers

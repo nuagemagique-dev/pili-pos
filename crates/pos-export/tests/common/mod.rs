@@ -30,7 +30,7 @@
 //!
 //! Personal and secret data planted in the database, all listed in
 //! [`Fixture::secrets`]: the INSZ of three users, their names and PIN hashes,
-//! the HubRise access token, a customer name, phone, e-mail and address in
+//! the `HubRise` access token, a customer name, phone, e-mail and address in
 //! `raw_hubrise_json` and in a `hubrise_events` payload, the e-mail of a
 //! `ticket_deliveries` row and the ticket text sent to it, the VAT number of
 //! the invoiced customer, and the FDM signatures and verification URLs of the
@@ -40,7 +40,14 @@
 //! (backup, snapshot, whole export), [`build_fixture_stats`] for a statistics
 //! file, and [`assert_no_personal_data`] to prove a produced file is clean.
 
-#![allow(dead_code)]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+#![expect(
+    dead_code,
+    reason = "each test binary uses a different part of these shared helpers"
+)]
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -50,17 +57,17 @@ use pos_export::zref::{ZRef, real_zs_after};
 use rusqlite::{Connection, OpenFlags, params};
 use serde_json::{Map, Value, json};
 
-pub const ADMIN_INSZ: &str = "75061189702";
-pub const CASHIER_INSZ: &str = "84022899837";
-pub const WAITER_INSZ: &str = "91051234567";
-pub const POS_ID: &str = "CPOS0031234567";
-pub const TERMINAL_ID: &str = "POS-1-BAR";
-pub const SW_VERSION: &str = "pili-pos/1.0.0";
-pub const FDM_ID: &str = "FOD01000001";
+pub(crate) const ADMIN_INSZ: &str = "75061189702";
+pub(crate) const CASHIER_INSZ: &str = "84022899837";
+pub(crate) const WAITER_INSZ: &str = "91051234567";
+pub(crate) const POS_ID: &str = "CPOS0031234567";
+pub(crate) const TERMINAL_ID: &str = "POS-1-BAR";
+pub(crate) const SW_VERSION: &str = "pili-pos/1.0.0";
+pub(crate) const FDM_ID: &str = "FOD01000001";
 
 /// What the statistics of one sale must say.
 #[derive(Debug, Clone)]
-pub struct ExpectedTicket {
+pub(crate) struct ExpectedTicket {
     /// Local id of the sale event (`fiscal_events.id`).
     pub ticket_id: i64,
     pub channel: &'static str,
@@ -75,7 +82,7 @@ pub struct ExpectedTicket {
 
 /// What the fixture database contains.
 #[derive(Debug, Clone)]
-pub struct Fixture {
+pub(crate) struct Fixture {
     pub db_path: PathBuf,
     /// The Z the tests export: number 42.
     pub z_no: i64,
@@ -104,8 +111,26 @@ pub struct Fixture {
     pub secrets: Vec<String>,
 }
 
-pub fn eur(cents: i64) -> f64 {
-    cents as f64 / 100.0
+pub(crate) fn eur(cents: i64) -> f64 {
+    #[expect(
+        clippy::as_conversions,
+        clippy::cast_precision_loss,
+        reason = "fixture amounts are a few hundred euros, exact in an f64"
+    )]
+    let e = cents as f64 / 100.0;
+    e
+}
+
+/// The base of a VAT-inclusive total at `rate` percent, rounded to the cent.
+fn base_of(total: i64, rate: f64) -> i64 {
+    #[expect(
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        clippy::cast_precision_loss,
+        reason = "fixture amounts are a few hundred euros, exact in an f64"
+    )]
+    let base = (total as f64 / (1.0 + rate / 100.0)).round() as i64;
+    base
 }
 
 // ── Building blocks of the events ──────────────────────────────────
@@ -182,7 +207,7 @@ fn transaction(lines: &[Ln]) -> Value {
                 "departmentName": l.dept.1,
                 "productId": l.product.to_string(),
                 "productName": l.name,
-                "quantity": l.qty as f64,
+                "quantity": eur(l.qty * 100),
                 "quantityType": "PIECE",
                 "unitPrice": eur(l.unit),
                 "vats": [vat],
@@ -215,7 +240,7 @@ fn vat_calc(lines: &[Ln]) -> Value {
                 "C" => 6.0,
                 _ => 0.0,
             };
-            let base = (total as f64 / (1.0 + rate / 100.0)).round() as i64;
+            let base = base_of(total, rate);
             json!({
                 "label": label,
                 "outOfScope": false,
@@ -289,7 +314,10 @@ impl Builder {
 
     /// Archive one event the way the engine does: the request as sent, the
     /// FDM answer, the columns of the answer.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "event bodies are built inline with json! at every call site"
+    )]
     fn event(
         &mut self,
         event_type: &str,
@@ -334,7 +362,7 @@ impl Builder {
         );
         let short_signature = format!(
             "{:040x}",
-            0xe2c4_3d6b_be9b_e265_u64 + self.total_counter as u64
+            0xe2c4_3d6b_be9b_e265_u64 + u64::try_from(self.total_counter).unwrap()
         );
         let url = format!("https://gs2.be/?v={}-{}", FDM_ID, self.total_counter);
         self.secrets.push(signature.clone());
@@ -398,7 +426,11 @@ impl Builder {
         (self.conn.last_insert_rowid(), fdm_ref)
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        clippy::needless_pass_by_value,
+        reason = "a fixture row with one argument per column, built inline"
+    )]
     fn order(
         &self,
         id: i64,
@@ -495,7 +527,7 @@ impl Builder {
             "fdmDevices": [],
             "turnover": serde_json::to_value(&turnover).expect("serialize the turnover"),
         });
-        let (z_event, _) = self.event("R", "REPORT_TURNOVER_Z", None, employee, body.clone(), None);
+        let (z_event, _) = self.event("R", "REPORT_TURNOVER_Z", None, employee, body, None);
         let user_body = json!({
             "reportNo": z_no,
             "reportBookingDate": self.date,
@@ -530,7 +562,11 @@ impl Builder {
 }
 
 /// Write the fixture database at `path`.
-pub fn fixture_db(path: &Path) -> Fixture {
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear story of the fixture day; every step builds on the previous ones"
+)]
+pub(crate) fn fixture_db(path: &Path) -> Fixture {
     let conn = Connection::open(path).expect("create the fixture database");
     conn.query_row("PRAGMA journal_mode = WAL", [], |r| r.get::<_, String>(0))
         .expect("WAL");
@@ -1090,7 +1126,7 @@ fn open_period(conn: &Connection, id: &str, date: &str) {
 // ── Opening and building ───────────────────────────────────────────
 
 /// Open a database read-only, as the export does with its snapshot.
-pub fn open_ro(path: &Path) -> Connection {
+pub(crate) fn open_ro(path: &Path) -> Connection {
     Connection::open_with_flags(
         path,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
@@ -1099,11 +1135,11 @@ pub fn open_ro(path: &Path) -> Connection {
 }
 
 /// The pseudonym key of the tests.
-pub fn test_key() -> [u8; 32] {
+pub(crate) fn test_key() -> [u8; 32] {
     [0x42; 32]
 }
 
-pub fn test_meta() -> StatsMeta {
+pub(crate) fn test_meta() -> StatsMeta {
     StatsMeta {
         export_id: "20261004-z000042".into(),
         pos_id: POS_ID.into(),
@@ -1114,7 +1150,7 @@ pub fn test_meta() -> StatsMeta {
 }
 
 /// The Z reference of the fixture's Z 42, read through the export's own lookup.
-pub fn fixture_z(fx: &Fixture) -> ZRef {
+pub(crate) fn fixture_z(fx: &Fixture) -> ZRef {
     let conn = open_ro(&fx.db_path);
     real_zs_after(&conn, Some(fx.earlier_z_no))
         .expect("list the Z reports")
@@ -1124,7 +1160,7 @@ pub fn fixture_z(fx: &Fixture) -> ZRef {
 }
 
 /// Build the statistics file of Z 42 of the fixture at `out`.
-pub fn build_fixture_stats(fx: &Fixture, out: &Path) -> StatsSummary {
+pub(crate) fn build_fixture_stats(fx: &Fixture, out: &Path) -> StatsSummary {
     let conn = open_ro(&fx.db_path);
     build_stats(&conn, &fixture_z(fx), &test_meta(), &test_key(), out)
         .expect("build the statistics")
@@ -1133,7 +1169,7 @@ pub fn build_fixture_stats(fx: &Fixture, out: &Path) -> StatsSummary {
 // ── The privacy proof ──────────────────────────────────────────────
 
 /// Substrings that must not appear in any column name of a statistics file.
-pub const FORBIDDEN_COLUMN_PARTS: [&str; 13] = [
+pub(crate) const FORBIDDEN_COLUMN_PARTS: [&str; 13] = [
     "insz",
     "niss",
     "pin",
@@ -1150,7 +1186,7 @@ pub const FORBIDDEN_COLUMN_PARTS: [&str; 13] = [
 ];
 
 /// Names of the tables of an SQLite file (without internal tables), sorted.
-pub fn table_names(conn: &Connection) -> Vec<String> {
+pub(crate) fn table_names(conn: &Connection) -> Vec<String> {
     let mut stmt = conn
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
         .unwrap();
@@ -1161,7 +1197,7 @@ pub fn table_names(conn: &Connection) -> Vec<String> {
 }
 
 /// Column names of a table, in order.
-pub fn column_names(conn: &Connection, table: &str) -> Vec<String> {
+pub(crate) fn column_names(conn: &Connection, table: &str) -> Vec<String> {
     let mut stmt = conn
         .prepare(&format!("SELECT name FROM pragma_table_info('{table}')"))
         .unwrap();
@@ -1172,7 +1208,7 @@ pub fn column_names(conn: &Connection, table: &str) -> Vec<String> {
 }
 
 /// True when `s` holds a run of at least `n` ASCII digits.
-pub fn has_digit_run(s: &str, n: usize) -> bool {
+pub(crate) fn has_digit_run(s: &str, n: usize) -> bool {
     let mut run = 0;
     for c in s.chars() {
         if c.is_ascii_digit() {
@@ -1191,7 +1227,7 @@ pub fn has_digit_run(s: &str, n: usize) -> bool {
 /// lowercase hex characters (`pos_export::pseudonym::user_ref`). Its hex
 /// part comes from a hash under a random key, so it can hold a long digit
 /// run by chance (an 11-digit run in about 2 % of pseudonyms).
-pub fn is_pseudonym(s: &str) -> bool {
+pub(crate) fn is_pseudonym(s: &str) -> bool {
     s.strip_prefix("u-").is_some_and(|hex| {
         hex.len() == 16 && hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
     })
@@ -1208,7 +1244,7 @@ pub fn is_pseudonym(s: &str) -> bool {
 ///    checked against `secrets`, which hold the fixture's INSZ.
 /// 3. The raw bytes of the file contain none of the `secrets` either, so
 ///    nothing survives in free pages or in the schema text.
-pub fn assert_no_personal_data(path: &Path, secrets: &[String]) {
+pub(crate) fn assert_no_personal_data(path: &Path, secrets: &[String]) {
     let conn = open_ro(path);
     for table in table_names(&conn) {
         for column in column_names(&conn, &table) {
@@ -1271,7 +1307,7 @@ pub fn assert_no_personal_data(path: &Path, secrets: &[String]) {
 
 /// What the outbox tests need to export: settings, the owner's secret key
 /// and the bearer token (random per run, nothing secret is committed).
-pub struct ExportKit {
+pub(crate) struct ExportKit {
     pub settings: pos_export::settings::ExportSettings,
     /// `AGE-SECRET-KEY-1...` of the owner, to decrypt the backups.
     pub owner_secret: String,
@@ -1280,7 +1316,7 @@ pub struct ExportKit {
 
 /// Settings for the endpoint `url` with a fresh owner identity and a token
 /// file in `dir`, keeping the exports `keep_days` days.
-pub fn export_kit(dir: &Path, url: &str, keep_days: i64) -> ExportKit {
+pub(crate) fn export_kit(dir: &Path, url: &str, keep_days: i64) -> ExportKit {
     use std::str::FromStr;
     let (owner_secret, owner_public) = pos_export::crypt::generate_identity();
     let mut bytes = [0u8; 16];
@@ -1303,7 +1339,7 @@ pub fn export_kit(dir: &Path, url: &str, keep_days: i64) -> ExportKit {
 /// Append a real Z report `z_no` for the booking date `date` to the fixture
 /// database: an empty period closed by a copy of the closing event of Z 42.
 /// Returns the new export id.
-pub fn add_empty_z(fx: &Fixture, z_no: i64, date: &str) -> String {
+pub(crate) fn add_empty_z(fx: &Fixture, z_no: i64, date: &str) -> String {
     let conn = Connection::open(&fx.db_path).expect("open the fixture database");
     let mut body: Value = conn
         .query_row(

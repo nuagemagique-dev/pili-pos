@@ -1,3 +1,5 @@
+use pos_fiscal::types::Mode;
+use rusqlite::OptionalExtension;
 use serde::Serialize;
 
 use pos_core::order::{OrderStatus, OrderType};
@@ -14,7 +16,7 @@ use crate::commands::signing::{
 };
 use crate::state::AppState;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableInfo {
     pub table_number: i32,
@@ -35,7 +37,7 @@ pub struct TableInfo {
 ///
 /// A table is only reported as **occupied** when its open order
 /// contains at least one line. Empty open orders (typical after a
-/// tap-and-walk-away) are treated as free so the TablesView doesn't
+/// tap-and-walk-away) are treated as free so the `TablesView` doesn't
 /// surface ghost "0.00 €" cards that add cognitive load for zero
 /// informational value (UX Guide §2.1).
 ///
@@ -98,7 +100,8 @@ fn list_tables_numbered(state: &AppState, numbers: &[i32]) -> Result<Vec<TableIn
                     ))
                 },
             )
-            .ok();
+            .optional()
+            .map_err(errors::internal)?;
 
         tables.push(match row {
             Some((order_id, total, count, opened_at, pre_bill_printed)) => TableInfo {
@@ -128,7 +131,7 @@ fn list_tables_numbered(state: &AppState, numbers: &[i32]) -> Result<Vec<TableIn
 }
 
 /// An open takeaway with at least one line: a direct sale not paid yet.
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TakeawayInfo {
     pub order_id: i64,
@@ -226,7 +229,7 @@ pub(crate) async fn sign_table_order_locked(
     let (mut order, entries, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
-        let entries = pos_db::queries::orders::get_order_entries(&db, order_id, true)
+        let entries = pos_db::queries::orders::get_unsent_order_entries(&db, order_id)
             .map_err(|e| e.to_string())?;
         let bp = super::booking(&db, guard, config)?;
         (order, entries, bp)
@@ -245,9 +248,12 @@ pub(crate) async fn sign_table_order_locked(
         return Err(errors::ORDER_NOT_OPEN.into());
     }
 
-    let label = EventLabel::P.in_mode(config.training_mode);
+    let label = EventLabel::P.in_mode(Mode::from(config.training_mode));
     let ticket_number = super::peek_ticket_number(state, guard, label)?;
-    #[allow(unused_mut)]
+    #[cfg_attr(
+        not(feature = "hubrise"),
+        expect(unused_mut, reason = "only the HubRise price changes mutate it")
+    )]
     let mut order_input = build_order_input(
         config,
         &state.identity,
@@ -275,8 +281,12 @@ pub(crate) async fn sign_table_order_locked(
             &pair_entries,
         );
     }
-    let request = SignRequest::new(SignMutation::Order, &order_input, config.training_mode)
-        .map_err(errors::internal)?;
+    let request = SignRequest::new(
+        SignMutation::Order,
+        &order_input,
+        Mode::from(config.training_mode),
+    )
+    .map_err(errors::internal)?;
     let context = PendingContext::TableOrder {
         bar_slip: BarSlip {
             operator_insz: order.user_insz.clone(),
@@ -312,7 +322,7 @@ pub(crate) async fn print_registered(
 ) -> SlipOutcome {
     match registered {
         Some((context, committed)) => {
-            signing::follow_up(state, config, &context, &committed, false)
+            signing::follow_up(state, config, &context, &committed, signing::Drawer::Leave)
                 .await
                 .slip
                 .unwrap_or(SlipOutcome::NothingToPrint)
@@ -343,7 +353,7 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<SlipOut
 
     let slip = print_registered(state, &config, registered).await;
     let (context, committed) = pre_bill?;
-    signing::follow_up(state, &config, &context, &committed, false).await;
+    signing::follow_up(state, &config, &context, &committed, signing::Drawer::Leave).await;
     Ok(slip)
 }
 
@@ -377,9 +387,12 @@ async fn sign_pre_bill_locked(
         return Err(errors::ORDER_NO_LINES.into());
     }
 
-    let label = EventLabel::P.in_mode(config.training_mode);
+    let label = EventLabel::P.in_mode(Mode::from(config.training_mode));
     let ticket_number = super::peek_ticket_number(state, guard, label)?;
-    #[allow(unused_mut)]
+    #[cfg_attr(
+        not(feature = "hubrise"),
+        expect(unused_mut, reason = "only the HubRise price changes mutate it")
+    )]
     let mut pre_bill = build_pre_bill_input(
         config,
         &state.identity,
@@ -389,8 +402,12 @@ async fn sign_pre_bill_locked(
         &bp_id,
     );
     pos_fiscal::price_change::apply(&mut pre_bill.transaction, &lines, &line_changes);
-    let request = SignRequest::new(SignMutation::PreBill, &pre_bill, config.training_mode)
-        .map_err(errors::internal)?;
+    let request = SignRequest::new(
+        SignMutation::PreBill,
+        &pre_bill,
+        Mode::from(config.training_mode),
+    )
+    .map_err(errors::internal)?;
 
     let operator_name = super::operator_name(state, &order.user_insz);
     // Each line, then its discounts.
@@ -401,7 +418,7 @@ async fn sign_pre_bill_locked(
             config,
             ticket_lines,
             vec![],
-            order.total_cents as f64 / 100.0,
+            pos_core::money::eur(order.total_cents),
             &operator_name,
         ),
     };

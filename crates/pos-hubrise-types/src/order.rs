@@ -1,4 +1,4 @@
-//! HubRise Order resource.
+//! `HubRise` Order resource.
 //!
 //! Reference: `docs/hubrise/03-orders.md`.
 
@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use crate::common::{Money, ServiceType, null_default};
 
-/// HubRise order status (see `docs/hubrise/03-orders.md` - Status Enum).
+/// `HubRise` order status (see `docs/hubrise/03-orders.md` - Status Enum).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OrderStatus {
@@ -43,7 +43,7 @@ impl OrderStatus {
     }
 }
 
-/// Full HubRise order response.
+/// Full `HubRise` order response.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Order {
     pub id: String,

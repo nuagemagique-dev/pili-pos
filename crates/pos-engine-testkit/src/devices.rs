@@ -17,6 +17,7 @@ use super::harness::TestApp;
 
 /// A TCP "printer" on 127.0.0.1. It answers the DLE EOT status queries
 /// with "all fine" and keeps the bytes of every connection.
+#[derive(Debug)]
 pub struct PrinterSink {
     pub addr: String,
     jobs: Arc<Mutex<Vec<Vec<u8>>>>,
@@ -29,10 +30,10 @@ impl PrinterSink {
             .expect("bind printer sink");
         let addr = listener.local_addr().unwrap().to_string();
         let jobs = Arc::new(Mutex::new(Vec::new()));
-        let recorded = jobs.clone();
+        let recorded = Arc::clone(&jobs);
         tokio::spawn(async move {
             while let Ok((mut stream, _)) = listener.accept().await {
-                let recorded = recorded.clone();
+                let recorded = Arc::clone(&recorded);
                 tokio::spawn(async move {
                     let mut data = Vec::new();
                     let mut chunk = [0u8; 4096];
@@ -41,7 +42,7 @@ impl PrinterSink {
                         match tokio::time::timeout(Duration::from_secs(2), stream.read(&mut chunk))
                             .await
                         {
-                            Ok(Ok(0)) | Ok(Err(_)) | Err(_) => break,
+                            Ok(Ok(0) | Err(_)) | Err(_) => break,
                             Ok(Ok(n)) => {
                                 data.extend_from_slice(&chunk[..n]);
                                 let asked = data.windows(2).filter(|w| w == &[0x10, 0x04]).count();
@@ -207,9 +208,26 @@ pub async fn tem_sent(tem: &MockServer) -> Vec<serde_json::Value> {
         .collect()
 }
 
+/// Whether the digital ticket may go without paper.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DigitalOnly {
+    Allowed,
+    Refused,
+}
+
+impl From<bool> for DigitalOnly {
+    fn from(allowed: bool) -> Self {
+        if allowed {
+            Self::Allowed
+        } else {
+            Self::Refused
+        }
+    }
+}
+
 impl TestApp {
     /// Turn on the digital ticket, sending through `tem`.
-    pub fn enable_mail(&mut self, tem: &MockServer, allow_digital_only: bool) {
+    pub fn enable_mail(&mut self, tem: &MockServer, digital_only: DigitalOnly) {
         let client = TemClient::new(
             reqwest::Client::new(),
             tem.uri(),
@@ -228,7 +246,7 @@ impl TestApp {
             from_name: "The FPS Finances Experience".into(),
             api_base: Some(tem.uri()),
             api_key_file: "/unused/in/tests".into(),
-            allow_digital_only,
+            allow_digital_only: digital_only == DigitalOnly::Allowed,
         });
     }
 

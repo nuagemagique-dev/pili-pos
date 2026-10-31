@@ -1,4 +1,5 @@
 use crate::types::EventLabel;
+use rusqlite::OptionalExtension;
 
 /// Maximum value before wrapping back to 1 (SCE 2.0 spec: 999999999).
 const MAX_COUNTER: i64 = 999_999_999;
@@ -10,6 +11,7 @@ const MAX_COUNTER: i64 = 999_999_999;
 /// "Continuous numbering per event type, per terminal, or general across all"
 ///
 /// We use per-event-type counters for maximum traceability.
+#[derive(Debug)]
 pub struct FiscalCounter;
 
 impl FiscalCounter {
@@ -85,15 +87,17 @@ impl FiscalCounter {
             )",
         )?;
 
-        let value: i64 = conn
+        // Only "no row yet" means 0: any other error (busy, I/O, a bad
+        // value) must stop the caller, never number a ticket 1.
+        let value: Option<i64> = conn
             .query_row(
                 "SELECT COALESCE(current_value, 0) FROM fiscal_counters WHERE event_label = ?1",
                 rusqlite::params![label],
                 |row| row.get(0),
             )
-            .unwrap_or(0);
+            .optional()?;
 
-        Ok(value)
+        Ok(value.unwrap_or(0))
     }
 }
 
@@ -136,6 +140,20 @@ mod tests {
     fn current_returns_zero_for_new() {
         let conn = setup();
         assert_eq!(FiscalCounter::current(&conn, EventLabel::N).unwrap(), 0);
+    }
+
+    #[test]
+    fn current_propagates_a_database_error() {
+        // A value the column cannot hold as a number is an error, not
+        // "counter 0": peek_next would otherwise number the ticket 1.
+        let conn = setup();
+        conn.execute_batch(
+            "CREATE TABLE fiscal_counters (event_label TEXT PRIMARY KEY, current_value);
+             INSERT INTO fiscal_counters VALUES ('N', 'not a number');",
+        )
+        .unwrap();
+        assert!(FiscalCounter::current(&conn, EventLabel::N).is_err());
+        assert!(FiscalCounter::peek_next(&conn, EventLabel::N).is_err());
     }
 
     #[test]

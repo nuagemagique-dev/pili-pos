@@ -77,7 +77,7 @@ mod tests {
         conn
     }
 
-    /// A fiscal event to close periods with (closing_event_id is a FK).
+    /// A fiscal event to close periods with (`closing_event_id` is a FK).
     fn z_event(conn: &Connection, seq: i64) -> i64 {
         conn.execute(
             "INSERT INTO fiscal_events (event_type, sequence_number, pos_id, terminal_id, user_insz, event_data_json)

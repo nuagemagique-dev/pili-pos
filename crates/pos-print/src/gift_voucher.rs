@@ -126,11 +126,9 @@ fn disclaimer(p: &mut EscPosBuilder, lang: &str) {
     p.textln_wrapped(invalid_disclaimer(receipt_lang(lang)));
 }
 
-fn training_mark(p: &mut EscPosBuilder, training: bool) {
-    if training {
-        p.align(Alignment::Center);
-        p.textln("TRAINING");
-    }
+fn training_mark(p: &mut EscPosBuilder) {
+    p.align(Alignment::Center);
+    p.textln("TRAINING");
 }
 
 /// ESC/POS bytes of the voucher.
@@ -138,7 +136,9 @@ pub fn format_gift_voucher(slip: &VoucherSlip, paper: PaperWidth) -> Vec<u8> {
     let w = words(&slip.lang);
     let mut p = EscPosBuilder::for_paper(paper);
     p.align(Alignment::Center);
-    training_mark(&mut p, slip.training);
+    if slip.training {
+        training_mark(&mut p);
+    }
     p.style(TextStyle {
         bold: true,
         double_height: true,
@@ -203,7 +203,9 @@ pub fn format_balance_slip(slip: &BalanceSlip, paper: PaperWidth) -> Vec<u8> {
     let w = words(&slip.lang);
     let mut p = EscPosBuilder::for_paper(paper);
     p.align(Alignment::Center);
-    training_mark(&mut p, slip.training);
+    if slip.training {
+        training_mark(&mut p);
+    }
     p.style(TextStyle {
         bold: true,
         ..Default::default()

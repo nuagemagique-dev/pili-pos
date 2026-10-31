@@ -66,7 +66,7 @@ pub async fn do_check_kitchen_printer(state: &AppState) -> Result<Option<bool>, 
 /// without parsing transport errors.
 const ERR_PRINTER_NOT_CONFIGURED: &str = crate::commands::errors::PRINTER_NOT_CONFIGURED;
 
-/// Load and deserialize the stored HubRise Order JSON for a local
+/// Load and deserialize the stored `HubRise` Order JSON for a local
 /// `orders.id`. Returns the printer-ready payload or a user-facing
 /// error message on failure.
 #[cfg(feature = "hubrise")]
@@ -96,7 +96,7 @@ fn printer_address(state: &AppState) -> Result<(String, PaperWidth), String> {
     Ok((address, paper))
 }
 
-/// Map the stored HubRise service_type to a French label for
+/// Map the stored `HubRise` `service_type` to a French label for
 /// printing. Matches the labels used on the POS cards.
 #[cfg(feature = "hubrise")]
 fn service_type_label(svc: Option<ServiceType>) -> String {
@@ -109,26 +109,28 @@ fn service_type_label(svc: Option<ServiceType>) -> String {
     .to_string()
 }
 
-/// First 8 chars of a HubRise order id, or `"--------"` if absent.
+/// First 8 chars of a `HubRise` order id, or `"--------"` if absent.
 #[cfg(feature = "hubrise")]
 fn short_ref(order: &Order) -> String {
     order.id.chars().take(8).collect::<String>()
 }
 
-/// Parse a HubRise money string like `"12.50 EUR"` into eurocents.
+/// Parse a `HubRise` money string like `"12.50 EUR"` into eurocents.
 #[cfg(feature = "hubrise")]
 fn money_cents(money: &str) -> i64 {
     pos_hubrise_types::money::parse_cents(money).unwrap_or(0)
 }
 
-/// Extract "HH:MM" from an RFC3339 timestamp, or None on failure.
+/// "HH:MM" in Brussels time of an RFC3339 timestamp (`HubRise` sends UTC),
+/// or None on failure.
 #[cfg(feature = "hubrise")]
 fn hhmm_from_rfc3339(rfc3339: &str) -> Option<String> {
-    // Expected shape: YYYY-MM-DDTHH:MM:SS(Z|+HH:MM). Parsed, not
-    // byte-sliced: a multibyte HubRise value must not panic.
-    chrono::DateTime::parse_from_rfc3339(rfc3339)
-        .ok()
-        .map(|t| t.format("%H:%M").to_string())
+    // Parsed, not byte-sliced: a multibyte HubRise value must not panic.
+    chrono::DateTime::parse_from_rfc3339(rfc3339).ok().map(|t| {
+        t.with_timezone(&chrono_tz::Europe::Brussels)
+            .format("%H:%M")
+            .to_string()
+    })
 }
 
 /// Print a kitchen ticket (items + options + notes, non-fiscal).
@@ -210,18 +212,21 @@ pub async fn do_print_webshop_customer(state: &AppState, order_id: i64) -> Resul
         })
         .collect();
 
-    let total_cents = order.total.as_deref().map(money_cents).unwrap_or_else(|| {
-        lines
-            .iter()
-            .fold(0_i64, |sum, l| sum.saturating_add(l.line_total_cents))
-    });
+    let total_cents = order.total.as_deref().map_or_else(
+        || {
+            lines
+                .iter()
+                .fold(0_i64, |sum, l| sum.saturating_add(l.line_total_cents))
+        },
+        money_cents,
+    );
 
     let customer = order
         .customer
         .as_ref()
         .map(|c| {
             let name = match (&c.first_name, &c.last_name) {
-                (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+                (Some(f), Some(l)) => Some(format!("{f} {l}")),
                 (Some(f), None) => Some(f.clone()),
                 (None, Some(l)) => Some(l.clone()),
                 (None, None) => None,
@@ -236,7 +241,9 @@ pub async fn do_print_webshop_customer(state: &AppState, order_id: i64) -> Resul
         })
         .unwrap_or_default();
 
-    let printed_at = chrono::Utc::now().format("%Y-%m-%d %H:%M").to_string();
+    let printed_at = pos_fiscal::event::now_in_belgium()
+        .format("%Y-%m-%d %H:%M")
+        .to_string();
 
     let slip = CustomerSlip {
         restaurant_name,
@@ -255,4 +262,27 @@ pub async fn do_print_webshop_customer(state: &AppState, order_id: i64) -> Resul
         .await
         .map(|_| ())
         .map_err(|e| e.to_string())
+}
+
+#[cfg(all(test, feature = "hubrise"))]
+mod tests {
+    use super::hhmm_from_rfc3339;
+
+    #[test]
+    fn a_ready_time_prints_in_brussels_time() {
+        // Summer (UTC+2) and winter (UTC+1), whatever offset was sent.
+        assert_eq!(
+            hhmm_from_rfc3339("2026-04-11T09:30:00Z").as_deref(),
+            Some("11:30")
+        );
+        assert_eq!(
+            hhmm_from_rfc3339("2026-01-11T09:30:00Z").as_deref(),
+            Some("10:30")
+        );
+        assert_eq!(
+            hhmm_from_rfc3339("2026-04-11T13:30:00+04:00").as_deref(),
+            Some("11:30")
+        );
+        assert_eq!(hhmm_from_rfc3339("11:30"), None);
+    }
 }

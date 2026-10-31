@@ -30,6 +30,12 @@ use crate::state::AppState;
 #[derive(Default)]
 pub struct ScaleSlot(std::sync::Mutex<Option<(ScaleConfig, Arc<ScaleDriver>)>>);
 
+impl std::fmt::Debug for ScaleSlot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ScaleSlot").finish_non_exhaustive()
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ScaleWeighInput {
     pub order_id: i64,
@@ -91,13 +97,13 @@ fn driver(state: &AppState, config: &ScaleConfig) -> Result<Arc<ScaleDriver>, St
     if let Some((known, driver)) = slot.as_ref()
         && known == config
     {
-        return Ok(driver.clone());
+        return Ok(Arc::clone(driver));
     }
     let driver = Arc::new(ScaleDriver::new(
         driver_config(config),
         config.tcp_address.clone(),
     ));
-    *slot = Some((config.clone(), driver.clone()));
+    *slot = Some((config.clone(), Arc::clone(&driver)));
     Ok(driver)
 }
 
@@ -174,7 +180,7 @@ pub async fn do_scale_start_weighing(
         pos_db::queries::menu::resolve_catalogue_line(
             &db,
             input.menu_item_id,
-            order_type == OrderType::Takeaway,
+            pos_db::queries::menu::Service::from(order_type == OrderType::Takeaway),
             lang,
         )
         .map_err(|e| match e {
@@ -193,16 +199,16 @@ pub async fn do_scale_start_weighing(
         tare_grams: product.scale_tare_grams,
         text: scale_text(&product.name),
     };
-    let events = state.events.clone();
+    let events = Arc::clone(&state.events);
     let outcome = driver
         .weigh(request, move |progress| {
-            let stage = match progress {
+            let step = match progress {
                 Progress::Waiting => "waiting",
                 Progress::Stabilizing => "stabilizing",
                 Progress::Checking => "checking",
             };
             events.emit(EngineEvent::ScaleProgress(ScaleProgress {
-                stage: stage.to_string(),
+                stage: step.to_string(),
             }));
         })
         .await;

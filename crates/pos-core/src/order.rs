@@ -103,20 +103,29 @@ pub struct OrderLine {
 }
 
 impl OrderLine {
+    /// Unit price times quantity; saturates instead of overflowing on an
+    /// impossible quantity.
+    #[must_use]
     pub fn line_total(&self) -> i64 {
-        self.weighed_amount_cents.unwrap_or(self.unit_price_cents) * self.quantity as i64
+        self.weighed_amount_cents
+            .unwrap_or(self.unit_price_cents)
+            .saturating_mul(i64::from(self.quantity))
     }
 
     /// The quantity the FDM signs: kilograms for a weighed line (0.278,
     /// or -0.278 for its correction), else the number of pieces. Integers
     /// and one division, so it is the double nearest to the three decimals.
+    #[must_use]
     pub fn fiscal_quantity(&self) -> f64 {
         match self.weight_grams {
-            Some(grams) => (grams * i64::from(self.quantity)) as f64 / 1000.0,
+            Some(grams) => {
+                crate::money::to_f64(grams.saturating_mul(i64::from(self.quantity))) / 1000.0
+            }
             None => f64::from(self.quantity),
         }
     }
 
+    #[must_use]
     pub fn is_weighed(&self) -> bool {
         self.weight_grams.is_some()
     }
@@ -125,6 +134,13 @@ impl OrderLine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn line_total_saturates_instead_of_overflowing() {
+        assert_eq!(line(i64::MAX, 2).line_total(), i64::MAX);
+        assert_eq!(line(i64::MAX, -2).line_total(), i64::MIN);
+        assert_eq!(line(250, 3).line_total(), 750);
+    }
 
     fn line(unit_price_cents: i64, quantity: i32) -> OrderLine {
         OrderLine {

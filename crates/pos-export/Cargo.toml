@@ -32,3 +32,6 @@ rust-embed = { version = "8", default-features = false, features = ["determinist
 tempfile = "3"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 pos-export-mock = { path = "../pos-export-mock" }
+
+[lints]
+workspace = true

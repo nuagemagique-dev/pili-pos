@@ -99,7 +99,7 @@ mod tests {
         assert_eq!(open[0].user_insz, "85073003328");
 
         close_shift(&conn, "85073003328", None).unwrap();
-        assert!(list_open_shifts(&conn).unwrap().is_empty());
+        assert_eq!(list_open_shifts(&conn).unwrap().len(), 0);
 
         // A new clock-in starts a new shift.
         open_shift(&conn, "85073003328", None).unwrap();
@@ -110,7 +110,7 @@ mod tests {
     fn closing_without_a_shift_is_a_no_op() {
         let conn = db();
         close_shift(&conn, "85073003328", None).unwrap();
-        assert!(list_open_shifts(&conn).unwrap().is_empty());
+        assert_eq!(list_open_shifts(&conn).unwrap().len(), 0);
     }
 
     #[test]

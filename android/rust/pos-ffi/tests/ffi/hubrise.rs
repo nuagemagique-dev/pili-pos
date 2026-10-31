@@ -1,8 +1,8 @@
-//! Tests of the HubRise and webshop facade (engine modules hubrise, webshop):
+//! Tests of the `HubRise` and webshop facade (engine modules hubrise, webshop):
 //!
 //! - contract tests: every output type of the domain is built from a real engine value (an
 //!   ingested webshop order, a status, a catalog outcome, an adoption preview, a signed online
-//!   order, all against the in-process HubRise mock of the testkit and the admission FDM mock)
+//!   order, all against the in-process `HubRise` mock of the testkit and the admission FDM mock)
 //!   and converted with `convert::out`; the engine's serde form and the record's must be equal.
 //!   Hand-built values cover what a real run leaves empty (every `Attention` variant, discounts,
 //!   a rejected catalog). Input types are checked field by field.
@@ -11,7 +11,7 @@
 //!   answers its coded refusal, never `Internal`), then an engine whose `pos.json` has a `hubrise`
 //!   section pointing at the mock, for the OAuth round trip.
 //!
-//! No test reaches a real HubRise host: only the testkit mock, refusals, and the development
+//! No test reaches a real `HubRise` host: only the testkit mock, refusals, and the development
 //! fallback URL (built, never called). No `HUBRISE_*` variable is set.
 
 use pos_engine::commands::hubrise as engine_hubrise;
@@ -84,7 +84,7 @@ fn assert_coded<T: std::fmt::Debug>(r: Result<T, PosError>, expected: &str) {
     assert_eq!(got, expected);
 }
 
-/// A connected app (HubRise mock) whose poller has started, signing on the admission FDM mock
+/// A connected app (`HubRise` mock) whose poller has started, signing on the admission FDM mock
 /// with a recording printer, the cashier logged in.
 struct World {
     app: TestApp,
@@ -109,7 +109,7 @@ async fn world() -> World {
 }
 
 impl World {
-    /// Inject a template and let the POS fetch it: the local order id and the HubRise id.
+    /// Inject a template and let the POS fetch it: the local order id and the `HubRise` id.
     async fn order(&self, template: &str) -> (i64, String) {
         let hr = self.mock.inject(template);
         let hr_id = hr["id"].as_str().unwrap().to_owned();
@@ -140,7 +140,7 @@ impl World {
             .await
             .unwrap();
         drain_outbox(&self.app).await;
-        self.mock.update(&hr_id, json!({ "status": "cancelled" }));
+        self.mock.update(&hr_id, &json!({ "status": "cancelled" }));
         self.poll().await;
         id
     }
@@ -174,7 +174,7 @@ fn push_allergen_typo_catalog(mock: &HubriseMock) {
     inner.replace_catalog(WEBSHOP_TOKEN, &id, None, bad);
 }
 
-/// A product entered by hand before HubRise, named and priced like the catalog's (`name` has no
+/// A product entered by hand before `HubRise`, named and priced like the catalog's (`name` has no
 /// quote).
 fn hand_entered(app: &TestApp, name: &str, price: i64) -> i64 {
     let db = app.state.db.lock().unwrap();
@@ -257,6 +257,7 @@ async fn the_authorize_link_converts_with_its_qr_code() {
         .unwrap(),
     );
     app.state.hubrise_switch.set(true);
+    app.login_as(MANAGER, pos_core::user::UserRole::Admin);
 
     let link = engine_hubrise::do_hubrise_start_oauth_flow(&app.state).unwrap();
     let record: rec::AuthorizeLink = out_equal(&link);
@@ -1037,7 +1038,7 @@ async fn all_nineteen_methods_answer_on_a_seeded_engine() {
         e.hubrise_complete_oauth("a-code".into()).await,
         "hubrise_disabled",
     );
-    e.hubrise_disconnect().await.unwrap();
+    assert_coded(e.hubrise_disconnect().await, "not_logged_in");
     assert!(e.hubrise_list_webshop_orders().await.unwrap().is_empty());
     assert_coded(
         e.hubrise_patch_order_status(rec::PatchStatusRequest {
@@ -1118,7 +1119,7 @@ async fn all_nineteen_methods_answer_on_a_seeded_engine() {
 // ───────────────────────────── wiring: the OAuth round trip on the mock ─────────────────────────────
 
 /// An engine like `support::open_seeded`, with the integration switched on and a `hubrise` section
-/// in its `pos.json` that points at the in-process HubRise mock (the secret in a file of the
+/// in its `pos.json` that points at the in-process `HubRise` mock (the secret in a file of the
 /// bundle). No `HUBRISE_*` variable is involved.
 async fn open_on_mock(mock: &HubriseMock) -> support::TestEngine {
     let fdm = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -1178,8 +1179,15 @@ async fn the_oauth_round_trip_runs_against_the_mock() {
     let e = &t.engine;
     assert_eq!(t.options().device_id.as_deref(), Some(DEVICE_ID));
 
-    // Switched on and not connected yet.
+    // Switched on and not connected yet. Connecting is an admin's setting.
     assert!(!e.hubrise_get_connection_status().await.unwrap().connected);
+    assert_coded(e.hubrise_start_oauth_flow().await, "not_logged_in");
+    e.login(
+        support::MANAGER_INSZ.into(),
+        Some(support::MANAGER_PIN.into()),
+    )
+    .await
+    .unwrap();
     let link = e.hubrise_start_oauth_flow().await.unwrap();
     assert!(
         link.url
@@ -1211,6 +1219,7 @@ async fn the_oauth_round_trip_runs_against_the_mock() {
     assert!(status.health.connected);
 
     // Connected, with nobody signed in: the commands that need an operator say so.
+    e.logout().await.unwrap();
     assert_coded(e.hubrise_sync_catalog().await, "not_logged_in");
     assert_coded(
         e.hubrise_patch_order_status(rec::PatchStatusRequest {
@@ -1249,7 +1258,14 @@ async fn the_oauth_round_trip_runs_against_the_mock() {
     );
     assert_coded(e.webshop_reject_order(1).await, "not_logged_in");
 
-    // Disconnecting forgets the connection.
+    // Disconnecting forgets the connection (an admin's setting too).
+    assert_coded(e.hubrise_disconnect().await, "not_logged_in");
+    e.login(
+        support::MANAGER_INSZ.into(),
+        Some(support::MANAGER_PIN.into()),
+    )
+    .await
+    .unwrap();
     e.hubrise_disconnect().await.unwrap();
     assert!(!e.hubrise_get_connection_status().await.unwrap().connected);
     assert!(!e.hubrise_status().await.unwrap().health.connected);

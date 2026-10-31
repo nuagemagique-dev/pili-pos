@@ -16,7 +16,10 @@ use crate::records::common::SlipOutcome;
 #[uniffi::export]
 impl PosEngine {
     /// The 14 EU allergens in Annex II order, for the legend.
-    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    #[expect(
+        clippy::redundant_closure,
+        reason = "check_command_parity.py wants the engine call spelled out"
+    )]
     pub async fn list_allergens(&self) -> Result<Vec<AllergenEntry>, PosError> {
         let entries = self.blocking(|st| allergens::do_list_allergens(st)).await?;
         convert::out(&entries)

@@ -1,6 +1,6 @@
-//! HubRise client for pili-pos.
+//! `HubRise` client for pili-pos.
 //!
-//! Single "cloud" crate encapsulating all HubRise traffic for the
+//! Single "cloud" crate encapsulating all `HubRise` traffic for the
 //! Rust/Tauri POS: OAuth connection, 30-second event polling,
 //! dispatcher for order/catalog events, and PATCH status updates.
 //!
@@ -20,6 +20,7 @@ pub mod poller;
 pub mod push;
 pub mod switch;
 pub mod token_store;
+mod util;
 pub mod webshop;
 
 pub use catalog_map::SOURCE as CATALOG_SOURCE;

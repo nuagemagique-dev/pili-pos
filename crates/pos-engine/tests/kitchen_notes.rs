@@ -4,6 +4,11 @@
 //! the note printed under its item on the bar / kitchen slip, and the
 //! note slip for a note changed after the line went to the kitchen.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -343,10 +348,10 @@ async fn a_note_is_in_no_fiscal_message_no_ticket_and_no_other_table() {
     do_sign_table_order(&app.state, o).await.unwrap();
     do_sign_pre_bill(&app.state, o).await.unwrap();
     do_transfer_table(&app.state, o, 9).await.unwrap();
-    let sale = do_checkout(&app.state, o, CheckoutPaymentMethod::Cash)
+    let paid = do_checkout(&app.state, o, CheckoutPaymentMethod::Cash)
         .await
         .unwrap();
-    assert!(sale.success, "{:?}", sale.error);
+    assert!(paid.success, "{:?}", paid.error);
 
     // A takeaway: the N is the only event.
     let t = order(&app, None);
@@ -403,7 +408,7 @@ async fn a_note_is_in_no_fiscal_message_no_ticket_and_no_other_table() {
         "{slips:?}"
     );
     let receipts = printer.settle(1).await;
-    assert!(!receipts.is_empty());
+    assert_ne!(receipts.len(), 0);
     for receipt in rendered(&receipts) {
         assert!(
             !receipt.contains(secret) && !receipt.contains("arachide"),
@@ -620,7 +625,7 @@ async fn a_product_off_the_kitchen_has_no_note_slip() {
         note(&app, line, NOTE).await,
         Ok(SlipOutcome::NothingToPrint)
     );
-    assert!(printer.settle_slips(1).await.is_empty());
+    assert_eq!(printer.settle_slips(1).await.len(), 0);
 }
 
 #[tokio::test]

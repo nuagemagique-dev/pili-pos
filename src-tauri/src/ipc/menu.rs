@@ -4,7 +4,7 @@ use tauri::State;
 
 use super::Managed;
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_categories(
     state: State<'_, Managed>,
     lang: Option<String>,
@@ -12,7 +12,7 @@ pub fn get_categories(
     pos_engine::commands::menu::do_get_categories(state.inner(), lang)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_menu_items(
     state: State<'_, Managed>,
     category_id: Option<i64>,
@@ -22,7 +22,7 @@ pub fn get_menu_items(
 }
 
 /// The products sold out now ("Épuisé"). Cashier and manager.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_sold_out(
     state: State<'_, Managed>,
     lang: Option<String>,
@@ -31,7 +31,7 @@ pub fn list_sold_out(
 }
 
 /// Mark a product sold out until the end of the business day, or until re-enabled.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_sold_out(
     state: State<'_, Managed>,
     menu_item_id: i64,
@@ -47,7 +47,7 @@ pub fn set_sold_out(
 }
 
 /// Make a sold-out product available again.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn clear_sold_out(
     state: State<'_, Managed>,
     menu_item_id: i64,

@@ -60,6 +60,10 @@ commands:
 
 /// Read the command line (without the program name). `Err` carries the
 /// message to print, with the usage for `--help`.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one flat match over the flags, clearer unsplit"
+)]
 pub fn parse_args(args: &[String]) -> Result<Options, String> {
     let mut flags: Vec<(String, String)> = Vec::new();
     let mut positional: Vec<String> = Vec::new();
@@ -388,7 +392,7 @@ mod arg_tests {
         assert_eq!(o.terminal.kind, PaymentTerminalKind::CcvOpi);
         assert_eq!(o.terminal.address.as_deref(), Some("192.168.1.50:4100"));
         assert_eq!(o.terminal.device_port, Some(4102));
-        assert!(o.terminal.problems().is_empty());
+        assert_eq!(o.terminal.problems().len(), 0);
         assert!(describe(&o.terminal).contains("192.168.1.50:4100"));
     }
 

@@ -1,3 +1,4 @@
+use pos_fiscal::types::Mode;
 use serde::Deserialize;
 
 use pos_db::queries::fiscal::{self, RefundableEvent};
@@ -114,7 +115,7 @@ pub(crate) struct RefundSpec<'a> {
 }
 
 impl<'a> RefundSpec<'a> {
-    pub fn cash(lines: RefundLines<'a>) -> Self {
+    pub(crate) fn cash(lines: RefundLines<'a>) -> Self {
         Self {
             lines,
             payment_type: PaymentType::Cash,
@@ -125,6 +126,10 @@ impl<'a> RefundSpec<'a> {
 
 /// Sign the refund of the sale `original_fiscal_event_id` in
 /// `employee_insz`'s name (already checked by the caller).
+#[expect(
+    clippy::too_many_lines,
+    reason = "one refund from the original sale to the signed negative ticket, kept as a single audited sequence"
+)]
 pub(crate) async fn refund_sale(
     state: &AppState,
     original_fiscal_event_id: i64,
@@ -156,7 +161,13 @@ pub(crate) async fn refund_sale(
 
     // 1. Load original fiscal event → extract FdmReference
     // Without HubRise no sale has discounts to check.
-    #[cfg_attr(not(feature = "hubrise"), allow(unused_variables))]
+    #[cfg_attr(
+        not(feature = "hubrise"),
+        expect(
+            unused_variables,
+            reason = "only the HubRise price-change record reads the changes"
+        )
+    )]
     let (
         original_ref,
         original_signature,
@@ -180,8 +191,10 @@ pub(crate) async fn refund_sale(
         let original_changes = pos_fiscal::price_change::LineChanges::new();
 
         // A sale closed unpaid took no money: none goes back.
-        let request: serde_json::Value =
-            serde_json::from_str(&event.event_data_json).unwrap_or_default();
+        // An unreadable record must stop the refund: read as `Null` it
+        // would look paid.
+        let request: serde_json::Value = serde_json::from_str(&event.event_data_json)
+            .map_err(|e| errors::internal(format!("fiscal event {}: {e}", event.id)))?;
         if pos_fiscal::ticket::is_unpaid_sale(&request) {
             return Ok(CheckoutResult::refused(errors::REFUND_UNPAID_SALE));
         }
@@ -260,15 +273,14 @@ pub(crate) async fn refund_sale(
         // this sale has already been refunded", across any number of
         // prior partial refunds, so a second or third partial refund
         // can't push the aggregate past what was actually sold.
-        let already_refunded =
-            already_refunded_quantities(&db, &original_ref).map_err(|e| e.to_string())?;
+        let already_refunded = already_refunded_quantities(&db, &original_ref)?;
 
         // (quantity refunded, the original line it comes from)
         let mut refunded: Vec<(i32, &pos_core::order::OrderLine)> = Vec::new();
         match spec.lines {
             RefundLines::Products(items) => {
-                let mut requested: std::collections::HashMap<Bucket, i64> =
-                    std::collections::HashMap::new();
+                let mut requested: std::collections::BTreeMap<Bucket, i64> =
+                    std::collections::BTreeMap::new();
                 let mut picked = Vec::with_capacity(items.len());
                 for item in items {
                     if item.quantity <= 0 {
@@ -323,6 +335,7 @@ pub(crate) async fn refund_sale(
             }
             #[cfg(feature = "hubrise")]
             RefundLines::Everything => {
+                // The first bucket in key order, so the message is deterministic.
                 if let Some((bucket, &prior)) = already_refunded.iter().next() {
                     return Err(exceeds_sold(bucket.product, 0, 0, prior));
                 }
@@ -364,7 +377,7 @@ pub(crate) async fn refund_sale(
                 department_name: &original.department_name,
             };
             // A weighing goes back with the weight and price signed.
-            let _written = match (original.weight_grams, original.weighed_amount_cents) {
+            let written = match (original.weight_grams, original.weighed_amount_cents) {
                 (Some(weight_grams), Some(amount_cents)) => {
                     pos_db::queries::orders::add_weighed_order_line(
                         &db,
@@ -381,9 +394,15 @@ pub(crate) async fn refund_sale(
             // The whole line goes back: its discounts too, negated.
             #[cfg(feature = "hubrise")]
             if let Some(changes) = original_changes.get(&original.id) {
-                let negated: Vec<_> = changes.iter().map(|c| c.negated()).collect();
-                super::price_changes::record(&db, _written.id, &negated)?;
+                let negated: Vec<_> = changes
+                    .iter()
+                    .map(pos_fiscal::price_change::LineChange::negated)
+                    .collect();
+                super::price_changes::record(&db, written.id, &negated)?;
             }
+            // Only the HubRise price-change record needs the new line.
+            #[cfg(not(feature = "hubrise"))]
+            drop(written);
         }
 
         let updated_order =
@@ -442,8 +461,12 @@ pub(crate) async fn refund_sale(
             &refund_changes,
         );
         sale_input.common.ticket_medium = resolved.medium;
-        let request = SignRequest::new(SignMutation::Sale, &sale_input, config.training_mode)
-            .map_err(errors::internal)?;
+        let request = SignRequest::new(
+            SignMutation::Sale,
+            &sale_input,
+            Mode::from(config.training_mode),
+        )
+        .map_err(errors::internal)?;
         let request_json = serde_json::to_string(&sale_input).map_err(|e| e.to_string())?;
 
         let operator = super::operator_name(state, &refund_order.user_insz);
@@ -454,13 +477,13 @@ pub(crate) async fn refund_sale(
                 method: pos_fiscal::payment::payment_line_identity(spec.payment_type)
                     .1
                     .to_string(),
-                amount: refund_order.total_cents as f64 / 100.0,
+                amount: pos_core::money::eur(refund_order.total_cents),
                 brand: None,
             }],
-            refund_order.total_cents as f64 / 100.0,
+            pos_core::money::eur(refund_order.total_cents),
             &operator,
         );
-        ticket.rounding = (rounding_cents != 0).then(|| rounding_cents as f64 / 100.0);
+        ticket.rounding = (rounding_cents != 0).then(|| pos_core::money::eur(rounding_cents));
         ticket.original = Some(OriginalControlData {
             fdm_ref: original_ref.clone(),
             short_signature: original_signature.clone(),
@@ -542,7 +565,8 @@ pub(crate) async fn refund_sale(
     };
 
     // Print and/or email the REFUND ticket, then open the drawer.
-    let done = signing::follow_up(state, &config, &context, &committed, true).await;
+    let done =
+        signing::follow_up(state, &config, &context, &committed, signing::Drawer::Kick).await;
     Ok(CheckoutResult {
         success: true,
         ticket: committed.ticket,
@@ -577,11 +601,18 @@ fn original_order_id_if_online(state: &AppState, sale_event_id: i64) -> Option<i
 
 /// Void a refund order that was not signed.
 fn void_order(state: &AppState, order_id: i64) {
-    if let Ok(db) = state.db.lock() {
-        let _ = db.execute(
-            "UPDATE orders SET status = 'voided' WHERE id = ?1 AND status = 'open'",
-            rusqlite::params![order_id],
-        );
+    match state.db.lock() {
+        Ok(db) => {
+            if let Err(e) = db.execute(
+                "UPDATE orders SET status = 'voided' WHERE id = ?1 AND status = 'open'",
+                rusqlite::params![order_id],
+            ) {
+                tracing::error!(order_id, %e, "could not void the unsigned refund order");
+            }
+        }
+        Err(e) => {
+            tracing::error!(order_id, %e, "could not void the unsigned refund order: db lock poisoned");
+        }
     }
 }
 
@@ -590,7 +621,7 @@ pub const ERR_REFUND_OF_REFUND: &str = errors::REFUND_OF_REFUND;
 
 /// Lines of one product sold at one price and VAT label: what a
 /// refund is counted against.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 struct Bucket {
     product: i64,
     unit_price_cents: i64,
@@ -688,42 +719,56 @@ fn check_sold(
 fn already_refunded_quantities(
     conn: &rusqlite::Connection,
     original: &pos_fiscal::response::FdmReference,
-) -> Result<std::collections::HashMap<Bucket, i64>, rusqlite::Error> {
+) -> Result<std::collections::BTreeMap<Bucket, i64>, String> {
+    already_refunded_quantities_inner(conn, original).map_err(errors::internal)
+}
+
+fn already_refunded_quantities_inner(
+    conn: &rusqlite::Connection,
+    original: &pos_fiscal::response::FdmReference,
+) -> Result<std::collections::BTreeMap<Bucket, i64>, String> {
     let event_label = serde_json::to_string(&original.event_label)
         .unwrap_or_default()
         .trim_matches('"')
         .to_string();
-    let mut stmt = conn.prepare(
-        "SELECT event_data_json FROM fiscal_events
+    let mut stmt = conn
+        .prepare(
+            "SELECT event_data_json FROM fiscal_events
          WHERE json_extract(event_data_json, '$.fdmRef.fdmId') = ?1
            AND json_extract(event_data_json, '$.fdmRef.fdmDateTime') = ?2
            AND json_extract(event_data_json, '$.fdmRef.eventLabel') = ?3
            AND json_extract(event_data_json, '$.fdmRef.eventCounter') = ?4
            AND json_extract(event_data_json, '$.fdmRef.totalCounter') = ?5",
-    )?;
-    let rows = stmt.query_map(
-        rusqlite::params![
-            original.fdm_id,
-            original.fdm_date_time,
-            event_label,
-            original.event_counter,
-            original.total_counter,
-        ],
-        |row| row.get::<_, String>(0),
-    )?;
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(
+            rusqlite::params![
+                original.fdm_id,
+                original.fdm_date_time,
+                event_label,
+                original.event_counter,
+                original.total_counter,
+            ],
+            |row| row.get::<_, String>(0),
+        )
+        .map_err(|e| e.to_string())?;
 
-    let mut totals: std::collections::HashMap<Bucket, i64> = std::collections::HashMap::new();
+    let mut totals: std::collections::BTreeMap<Bucket, i64> = std::collections::BTreeMap::new();
     for row in rows {
-        let json = row?;
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
-            continue;
-        };
+        let json = row.map_err(|e| e.to_string())?;
+        let value = serde_json::from_str::<serde_json::Value>(&json)
+            .map_err(|e| format!("unreadable prior refund record: {e}"))?;
         let Some(lines) = value["transaction"]["transactionLines"].as_array() else {
             continue;
         };
         for line in lines {
             let product = &line["mainProduct"];
-            let quantity = product["quantity"].as_f64().unwrap_or(0.0);
+            // A line without a quantity cannot be counted: refuse rather
+            // than let the refund cap be exceeded.
+            let quantity = product["quantity"]
+                .as_f64()
+                .ok_or_else(|| "a prior refund line has no quantity".to_string())?;
             if quantity >= 0.0 {
                 continue; // only negative (refund) lines count
             }
@@ -733,14 +778,15 @@ fn already_refunded_quantities(
             else {
                 continue;
             };
+            let unit_price_cents = pos_core::money::cents_of(&product["unitPrice"])
+                .ok_or_else(|| "a prior refund line has no unit price".to_string())?;
             // A signed weight is one weighing of that weight, whatever its
             // size: rounded as a count, -0.278 would be nothing.
             let weight_grams = (product["quantityType"].as_str() == Some("KILOGRAM"))
-                .then(|| (-quantity * 1000.0).round() as i64);
+                .then(|| pos_core::money::round_to_i64(-quantity * 1000.0));
             let bucket = Bucket {
                 product: product_id,
-                unit_price_cents: (product["unitPrice"].as_f64().unwrap_or(0.0) * 100.0).round()
-                    as i64,
+                unit_price_cents,
                 vat: product["vats"][0]["label"]
                     .as_str()
                     .unwrap_or_default()
@@ -750,11 +796,120 @@ fn already_refunded_quantities(
             let count = if weight_grams.is_some() {
                 1
             } else {
-                (-quantity).round() as i64
+                pos_core::money::round_to_i64(-quantity)
             };
             let total = totals.entry(bucket).or_insert(0);
             *total = total.saturating_add(count);
         }
     }
     Ok(totals)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn original() -> FdmReference {
+        FdmReference {
+            fdm_id: "FDM1".into(),
+            fdm_date_time: "20260101120000".into(),
+            event_label: EventLabel::N,
+            event_counter: 1,
+            total_counter: 2,
+        }
+    }
+
+    /// A connection whose only fiscal event is a refund with `line`.
+    fn conn_with_refund_line(line: &serde_json::Value) -> rusqlite::Connection {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE fiscal_events (id INTEGER PRIMARY KEY, event_data_json TEXT);",
+        )
+        .unwrap();
+        let json = serde_json::json!({
+            "fdmRef": {
+                "fdmId": "FDM1",
+                "fdmDateTime": "20260101120000",
+                "eventLabel": "N",
+                "eventCounter": 1,
+                "totalCounter": 2,
+            },
+            "transaction": {"transactionLines": [line]},
+        });
+        conn.execute(
+            "INSERT INTO fiscal_events (event_data_json) VALUES (?1)",
+            [json.to_string()],
+        )
+        .unwrap();
+        conn
+    }
+
+    #[test]
+    fn prior_refund_lines_are_counted_per_bucket() {
+        let conn = conn_with_refund_line(&serde_json::json!({"mainProduct": {
+            "productId": "7", "quantity": -2.0, "unitPrice": 12.5,
+            "vats": [{"label": "A"}],
+        }}));
+        let totals = already_refunded_quantities(&conn, &original()).unwrap();
+        assert_eq!(totals.len(), 1);
+        let (bucket, qty) = totals.iter().next().unwrap();
+        assert_eq!(
+            (bucket.product, bucket.unit_price_cents, *qty),
+            (7, 1250, 2)
+        );
+    }
+
+    #[test]
+    fn a_prior_refund_line_without_quantity_is_an_error() {
+        let conn = conn_with_refund_line(&serde_json::json!({"mainProduct": {
+            "productId": "7", "unitPrice": 12.5, "vats": [{"label": "A"}],
+        }}));
+        let err = already_refunded_quantities(&conn, &original()).unwrap_err();
+        assert!(err.contains("no quantity"), "{err}");
+    }
+
+    #[test]
+    fn a_prior_refund_line_without_unit_price_is_an_error() {
+        let conn = conn_with_refund_line(&serde_json::json!({"mainProduct": {
+            "productId": "7", "quantity": -1.0, "vats": [{"label": "A"}],
+        }}));
+        let err = already_refunded_quantities(&conn, &original()).unwrap_err();
+        assert!(err.contains("no unit price"), "{err}");
+    }
+
+    #[test]
+    fn an_unreadable_prior_refund_record_is_an_error() {
+        let conn = conn_with_refund_line(&serde_json::json!({}));
+        conn.execute("UPDATE fiscal_events SET event_data_json = '{broken'", [])
+            .unwrap();
+        assert!(already_refunded_quantities(&conn, &original()).is_err());
+    }
+
+    /// The buckets come back in key order, so the refund that exceeds the
+    /// sold quantity names the lowest product id (a stable message).
+    #[test]
+    fn prior_refund_buckets_come_back_in_product_order() {
+        let line = |product: &str| {
+            serde_json::json!({"mainProduct": {
+                "productId": product, "quantity": -1.0, "unitPrice": 1.0,
+                "vats": [{"label": "A"}],
+            }})
+        };
+        let conn = conn_with_refund_line(&line("9"));
+        let json = serde_json::json!({
+            "fdmRef": {
+                "fdmId": "FDM1", "fdmDateTime": "20260101120000",
+                "eventLabel": "N", "eventCounter": 1, "totalCounter": 2,
+            },
+            "transaction": {"transactionLines": [line("9"), line("3"), line("5")]},
+        });
+        conn.execute(
+            "UPDATE fiscal_events SET event_data_json = ?1",
+            [json.to_string()],
+        )
+        .unwrap();
+        let totals = already_refunded_quantities(&conn, &original()).unwrap();
+        let products: Vec<i64> = totals.keys().map(|b| b.product).collect();
+        assert_eq!(products, vec![3, 5, 9]);
+    }
 }

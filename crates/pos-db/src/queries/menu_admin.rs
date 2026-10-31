@@ -30,6 +30,10 @@ pub struct AdminCategory {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent product flags of the menu editor's wire format"
+)]
 pub struct AdminProduct {
     pub id: i64,
     pub category_id: i64,

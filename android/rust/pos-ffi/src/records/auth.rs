@@ -1,4 +1,4 @@
-//! Records of the auth facade (PD56): the operator and the users, the HubRise switch and the remote
+//! Records of the auth facade (PD56): the operator and the users, the `HubRise` switch and the remote
 //! support status.
 //!
 //! Owner: the auth domain (engine modules auth, integrations and support). Each type mirrors an
@@ -57,7 +57,7 @@ pub struct CreateUserInput {
     pub presence_only: bool,
 }
 
-/// `pos_db::queries::integrations::SwitchChange`: one change of the HubRise switch.
+/// `pos_db::queries::integrations::SwitchChange`: one change of the `HubRise` switch.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(deny_unknown_fields)]
 pub struct SwitchChange {

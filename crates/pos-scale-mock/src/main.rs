@@ -1,3 +1,8 @@
+#![expect(
+    clippy::print_stdout,
+    reason = "a developer tool: its ports are its interface"
+)]
+
 use std::net::SocketAddr;
 
 use pos_scale_mock::MockScale;

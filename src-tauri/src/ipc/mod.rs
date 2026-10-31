@@ -1,4 +1,9 @@
 //! The Tauri command wrappers: one call each into `pos_engine::commands`.
+//!
+//! A wrapper that calls a synchronous `do_*` is `#[tauri::command(async)]`, so it runs
+//! off the main thread. It still blocks a tokio worker while it waits for the database
+//! mutex: an accepted trade-off, since a command holds the lock for a few milliseconds
+//! and the pool is sized for the UI's handful of concurrent calls.
 
 /// The state object the wrappers manage: the engine (it derefs to the state).
 pub type Managed = pos_engine::engine::Engine;

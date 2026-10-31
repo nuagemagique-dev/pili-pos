@@ -22,7 +22,7 @@
 ///   Append-only.
 /// - `owner_alert_log`: rebuilt, because its `kind` CHECK now also accepts
 ///   `scale`. Its rows, ids and append-only triggers are kept.
-pub(crate) const MIGRATION_080_SALE_BY_WEIGHT: &str = r#"
+pub(crate) const MIGRATION_080_SALE_BY_WEIGHT: &str = r"
 ALTER TABLE menu_items ADD COLUMN sold_by_weight INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE menu_items ADD COLUMN scale_tare_grams INTEGER
     CHECK (scale_tare_grams IS NULL OR scale_tare_grams BETWEEN 0 AND 9999);
@@ -115,4 +115,4 @@ BEFORE DELETE ON owner_alert_log
 BEGIN
     SELECT RAISE(ABORT, 'owner_alert_log is append-only');
 END;
-"#;
+";

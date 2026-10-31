@@ -1,3 +1,4 @@
+use pos_fiscal::types::Mode;
 use serde::Serialize;
 
 use pos_fiscal::event::build_sale_input_split;
@@ -84,8 +85,8 @@ pub async fn do_checkout_with(
             let total = {
                 let db = state.db.lock().map_err(|e| e.to_string())?;
                 pos_db::queries::orders::get_order(&db, order_id)
-                    .map(|o| o.total_cents)
-                    .unwrap_or(0)
+                    .map_err(errors::internal)?
+                    .total_cents
             };
             PaymentPart::of(method, total)
         }
@@ -132,7 +133,7 @@ pub(crate) struct SaleOptions {
     /// The online order's cost center (platform or webshop), in place
     /// of the table's.
     pub cost_center: Option<pos_fiscal::inputs::CostCenterInput>,
-    /// An online order: no echo to HubRise (it came from there), no
+    /// An online order: no echo to `HubRise` (it came from there), no
     /// bar slip (the caller prints the online kitchen ticket).
     pub online: bool,
     /// The closing of an online order cancelled after its P: every line
@@ -189,7 +190,8 @@ pub(crate) async fn sell(
 
     // Print and/or email the ticket, open the drawer for cash, print
     // the bar / kitchen slip of the lines not yet sent.
-    let done = signing::follow_up(state, &config, &context, &committed, true).await;
+    let done =
+        signing::follow_up(state, &config, &context, &committed, signing::Drawer::Kick).await;
     Ok(CheckoutResult {
         success: true,
         ticket: committed.ticket,
@@ -220,7 +222,14 @@ type SaleSigned = Result<(PendingContext, signing::Committed), CheckoutResult>;
 
 /// Read, check and sign the sale, under the signing lock. `Err` inside
 /// `Ok`: refused, nothing signed.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input of one fiscal step; a parameter struct would only rename them"
+)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one fiscal sale under the signing lock: read, number, sign, commit and print in order, split only by moving the steps out of sight"
+)]
 async fn sell_locked(
     state: &AppState,
     guard: &SignGuard<'_>,
@@ -239,8 +248,8 @@ async fn sell_locked(
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
         let lines =
             pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
-        let entries = pos_db::queries::orders::get_order_entries(&db, order_id, false)
-            .map_err(|e| e.to_string())?;
+        let entries =
+            pos_db::queries::orders::get_order_entries(&db, order_id).map_err(|e| e.to_string())?;
         let bp = super::booking(&db, guard, config)?;
         (order, lines, entries, bp)
     };
@@ -397,8 +406,12 @@ async fn sell_locked(
     if let Some(cost_center) = options.cost_center.clone() {
         sale_input.cost_center = Some(cost_center);
     }
-    let request = SignRequest::new(SignMutation::Sale, &sale_input, config.training_mode)
-        .map_err(errors::internal)?;
+    let request = SignRequest::new(
+        SignMutation::Sale,
+        &sale_input,
+        Mode::from(config.training_mode),
+    )
+    .map_err(errors::internal)?;
     let request_json = serde_json::to_string(&sale_input).map_err(|e| e.to_string())?;
 
     // The ticket: each line, then its discounts (none at the till); one
@@ -408,11 +421,11 @@ async fn sell_locked(
         config,
         pos_fiscal::price_change::ticket_lines(&lines, &line_changes),
         ticket_payments(&settlement),
-        order.total_cents as f64 / 100.0,
+        pos_core::money::eur(order.total_cents),
         &operator,
     );
     ticket.rounding =
-        (settlement.rounding_cents != 0).then(|| settlement.rounding_cents as f64 / 100.0);
+        (settlement.rounding_cents != 0).then(|| pos_core::money::eur(settlement.rounding_cents));
     ticket.unpaid = unpaid;
 
     // The order's payment history (the reports total the signed events'
@@ -543,7 +556,7 @@ fn ticket_payments(settlement: &Settlement) -> Vec<TicketPayment> {
         .iter()
         .map(|p| TicketPayment {
             method: payment_line_identity(p.payment_type()).1.to_string(),
-            amount: p.amount_cents as f64 / 100.0,
+            amount: pos_core::money::eur(p.amount_cents),
             brand: p
                 .terminal_card()
                 .and_then(|t| t.brand.clone())

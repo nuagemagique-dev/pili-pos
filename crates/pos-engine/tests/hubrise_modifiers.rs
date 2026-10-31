@@ -3,6 +3,10 @@
 //! maximum, prices the options and names the line.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -89,10 +93,11 @@ async fn the_groups_come_from_the_catalog() {
     assert_eq!((groups[0].min, groups[0].max), (0, Some(1)));
     assert_eq!(groups[1].max, None);
     assert_eq!(groups[1].options.len(), 2);
-    assert!(
+    assert_eq!(
         do_get_item_modifiers(&app.state, item(&app, "COCA-33"), "fr")
             .unwrap()
-            .is_empty()
+            .len(),
+        0
     );
 }
 

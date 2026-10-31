@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 
-pub(crate) const SCHEMA_SQL: &str = r#"
+pub(crate) const SCHEMA_SQL: &str = r"
 CREATE TABLE IF NOT EXISTS languages (
     code TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -235,7 +235,7 @@ CREATE TABLE IF NOT EXISTS peppol_deliveries (
 );
 CREATE INDEX IF NOT EXISTS idx_peppol_deliveries_invoice
     ON peppol_deliveries(invoice_no);
-"#;
+";
 
 /// Migration 2 - fiscal catalogue fields (manual §III product lines).
 ///
@@ -253,7 +253,7 @@ CREATE INDEX IF NOT EXISTS idx_peppol_deliveries_invoice
 ///   données d'entrée, par ordre chronologique, y compris les
 ///   corrections"). `sent_event_id` is set once an entry has been
 ///   transmitted in a P (order) or the final N event.
-pub(crate) const MIGRATION_002_CATALOGUE_FISCAL_FIELDS: &str = r#"
+pub(crate) const MIGRATION_002_CATALOGUE_FISCAL_FIELDS: &str = r"
 ALTER TABLE menu_items ADD COLUMN vat_code_takeaway TEXT
     CHECK(vat_code_takeaway IS NULL OR vat_code_takeaway IN ('A','B','C','D','X'));
 ALTER TABLE menu_items ADD COLUMN open_price INTEGER NOT NULL DEFAULT 0;
@@ -288,7 +288,7 @@ ON order_entries
 BEGIN
     SELECT RAISE(ABORT, 'order entries are append-only');
 END;
-"#;
+";
 
 /// Migration 3 - append-only enforcement for the fiscal archive.
 ///
@@ -304,7 +304,7 @@ END;
 /// in either table (archival is INSERT-only; nothing ever revises a
 /// `fiscal_events` or `z_reports` row afterwards), so blocking every
 /// column, unlike `order_entries`' `sent_event_id` exception, is safe.
-pub(crate) const MIGRATION_004_FISCAL_ARCHIVE_APPEND_ONLY: &str = r#"
+pub(crate) const MIGRATION_004_FISCAL_ARCHIVE_APPEND_ONLY: &str = r"
 CREATE TRIGGER IF NOT EXISTS fiscal_events_no_delete
 BEFORE DELETE ON fiscal_events
 BEGIN
@@ -325,7 +325,7 @@ BEFORE UPDATE ON z_reports
 BEGIN
     SELECT RAISE(ABORT, 'z-reports are append-only');
 END;
-"#;
+";
 
 /// Apply all schema migrations. Delegates to the versioned runner in
 /// `crate::migrate` so every entry point goes through the same
@@ -342,7 +342,7 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
 /// next Z report, and carries the booking date of its opening. It is
 /// persisted so that restarting the POS never splits a day, and at most
 /// one period is open at a time.
-pub(crate) const MIGRATION_003_BOOKING_PERIODS: &str = r#"
+pub(crate) const MIGRATION_003_BOOKING_PERIODS: &str = r"
 CREATE TABLE IF NOT EXISTS booking_periods (
     id TEXT PRIMARY KEY,
     booking_date TEXT NOT NULL,
@@ -365,7 +365,7 @@ BEFORE DELETE ON booking_periods
 BEGIN
     SELECT RAISE(ABORT, 'booking periods cannot be deleted');
 END;
-"#;
+";
 
 /// v5 - Digital ticket deliveries (cert manual §III.H, "ticket
 /// digital" option; POS spec v2.2 §6.5 verification URL requirement).
@@ -393,7 +393,7 @@ END;
 ///   the 72 h sweep and its status flips to `purged`.
 /// - `attempts` / `next_attempt_at` / `last_error` drive the
 ///   exponential-backoff retry loop in `pos-mail::outbox`.
-pub(crate) const MIGRATION_005_TICKET_DELIVERIES: &str = r#"
+pub(crate) const MIGRATION_005_TICKET_DELIVERIES: &str = r"
 CREATE TABLE IF NOT EXISTS ticket_deliveries (
     id INTEGER PRIMARY KEY,
     fiscal_event_id INTEGER NOT NULL REFERENCES fiscal_events(id),
@@ -426,7 +426,7 @@ ON ticket_deliveries
 BEGIN
     SELECT RAISE(ABORT, 'ticket deliveries: fiscal_event_id/ticket_text/medium are immutable');
 END;
-"#;
+";
 
 /// v6 - Original ticket prints (POS spec v2.2 §8.1: an original ticket
 /// is printed once; any later print is a copy, event C).
@@ -434,7 +434,7 @@ END;
 /// One row per fiscal event whose original was printed. The checkout,
 /// refund and copy commands record the print after the printer accepted
 /// it, and refuse to print that original again.
-pub(crate) const MIGRATION_006_ORIGINAL_PRINTS: &str = r#"
+pub(crate) const MIGRATION_006_ORIGINAL_PRINTS: &str = r"
 CREATE TABLE IF NOT EXISTS original_prints (
     fiscal_event_id INTEGER PRIMARY KEY REFERENCES fiscal_events(id),
     printed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
@@ -449,18 +449,18 @@ BEFORE UPDATE ON original_prints
 BEGIN
     SELECT RAISE(ABORT, 'original prints are append-only, never update');
 END;
-"#;
+";
 
 /// v7 - German, the third national language (tickets are printed in
 /// FR, NL or DE): a German-region catalogue can carry German names.
-pub(crate) const MIGRATION_007_GERMAN_LANGUAGE: &str = r#"
+pub(crate) const MIGRATION_007_GERMAN_LANGUAGE: &str = r"
 INSERT OR IGNORE INTO languages (code, name) VALUES ('de', 'Deutsch');
-"#;
+";
 
 /// v8 - Meal vouchers (split payment): the order's payment history
 /// accepts a `meal_voucher` row. SQLite cannot alter a CHECK, so the
 /// table is rebuilt with its rows.
-pub(crate) const MIGRATION_008_MEAL_VOUCHER_PAYMENTS: &str = r#"
+pub(crate) const MIGRATION_008_MEAL_VOUCHER_PAYMENTS: &str = r"
 CREATE TABLE payments_v8 (
     id INTEGER PRIMARY KEY,
     order_id INTEGER NOT NULL REFERENCES orders(id),
@@ -472,16 +472,16 @@ INSERT INTO payments_v8 (id, order_id, method, amount_cents, created_at)
     SELECT id, order_id, method, amount_cents, created_at FROM payments;
 DROP TABLE payments;
 ALTER TABLE payments_v8 RENAME TO payments;
-"#;
+";
 
 /// v9 - Screen state shown by the UI.
-/// - `staff_shifts`: one row per shift, opened by a signed WorkIn and
-///   closed by a signed WorkOut. Locking the screen keeps the shift
+/// - `staff_shifts`: one row per shift, opened by a signed `WorkIn` and
+///   closed by a signed `WorkOut`. Locking the screen keeps the shift
 ///   open, so the login screen can show who is on shift and since when.
 ///   The fiscal record stays the S event; this table is a local index.
 /// - `orders.pre_bill_at`: when the last provisional bill was printed,
 ///   so the Tables screen can flag a table whose bill is on the table.
-pub(crate) const MIGRATION_009_SHIFTS_AND_PRE_BILL: &str = r#"
+pub(crate) const MIGRATION_009_SHIFTS_AND_PRE_BILL: &str = r"
 CREATE TABLE IF NOT EXISTS staff_shifts (
     id INTEGER PRIMARY KEY,
     user_insz TEXT NOT NULL,
@@ -490,7 +490,7 @@ CREATE TABLE IF NOT EXISTS staff_shifts (
 );
 CREATE INDEX IF NOT EXISTS idx_staff_shifts_open ON staff_shifts(user_insz, ended_at);
 ALTER TABLE orders ADD COLUMN pre_bill_at TEXT;
-"#;
+";
 
 /// v10 - Sign requests sent and not yet resolved. A request is stored,
 /// byte for byte, before it is sent; when its answer is lost it is sent
@@ -500,7 +500,7 @@ ALTER TABLE orders ADD COLUMN pre_bill_at TEXT;
 /// outcome changes.
 ///
 /// Also: no event joins a booking period once its Z closed it.
-pub(crate) const MIGRATION_010_PENDING_SIGNS: &str = r#"
+pub(crate) const MIGRATION_010_PENDING_SIGNS: &str = r"
 CREATE TABLE IF NOT EXISTS pending_signs (
     id INTEGER PRIMARY KEY,
     event_label TEXT NOT NULL,
@@ -563,7 +563,7 @@ WHEN EXISTS (
 BEGIN
     SELECT RAISE(ABORT, 'booking period is closed');
 END;
-"#;
+";
 
 /// Migration 11: the table plan (the table numbers a manager set, the
 /// starting value coming from `pos.json`) and the log of its changes.
@@ -604,14 +604,14 @@ END;
 /// Migration 28: presence registration. A user can be "presence only"
 /// (kitchen staff clocked in and out by a manager, never logging in),
 /// and the local shift index records who registered each end.
-pub(crate) const MIGRATION_028_PRESENCE_REGISTRATION: &str = r#"
+pub(crate) const MIGRATION_028_PRESENCE_REGISTRATION: &str = r"
 ALTER TABLE users ADD COLUMN presence_only INTEGER NOT NULL DEFAULT 0
     CHECK (presence_only IN (0, 1));
 -- INSZ of who registered the clock-in / clock-out (NULL: the employee
 -- themself, or a row from before this migration).
 ALTER TABLE staff_shifts ADD COLUMN started_by TEXT;
 ALTER TABLE staff_shifts ADD COLUMN ended_by TEXT;
-"#;
+";
 
 #[cfg(test)]
 mod tests {

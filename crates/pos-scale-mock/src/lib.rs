@@ -24,6 +24,10 @@ const NAK: u8 = 0x15;
 const CHECK_EVERY: u32 = 50;
 
 #[derive(Debug, Clone, Serialize, Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent switches of the simulator, set one by one by the tests"
+)]
 pub struct ScaleState {
     /// `None`: nothing to answer with, as if switched off (no answers).
     pub off: bool,
@@ -60,7 +64,7 @@ pub struct ScaleState {
     random: u16,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MockScale {
     state: Arc<Mutex<ScaleState>>,
     expected_check: Arc<Mutex<String>>,
@@ -285,7 +289,7 @@ fn enq(state: &mut ScaleState) -> Vec<u8> {
 fn record(state: &mut ScaleState, body: &[u8], expected: &str) -> Vec<u8> {
     let fields: Vec<&[u8]> = body.split(|&b| b == ESC).collect();
     match fields.first().copied() {
-        Some(b"01") | Some(b"03") | Some(b"04") | Some(b"05") => price(state, &fields),
+        Some(b"01" | b"03" | b"04" | b"05") => price(state, &fields),
         Some(b"08") => {
             let code = state.last_status;
             let mut out = vec![STX, b'0', b'9', ESC];

@@ -8,7 +8,7 @@ use pos_core::order::{Order, OrderLine, OrderType};
 use serde_json::{Value, json};
 
 /// Format an integer cents amount as `"12.50 EUR"` - the wire format
-/// HubRise expects for monetary values.
+/// `HubRise` expects for monetary values.
 fn cents_to_hubrise(cents: i64) -> String {
     pos_hubrise_types::money::format_cents(cents)
 }
@@ -19,7 +19,8 @@ fn cents_to_hubrise(cents: i64) -> String {
 pub(crate) fn order_discounts(
     changes: &pos_fiscal::price_change::LineChanges,
 ) -> Vec<(String, i64)> {
-    let mut by_group: std::collections::BTreeMap<(i32, String), i64> = Default::default();
+    let mut by_group: std::collections::BTreeMap<(i32, String), i64> =
+        std::collections::BTreeMap::default();
     for change in changes.values().flatten() {
         if change.change_type == pos_fiscal::types::PriceChangeType::Public {
             *by_group
@@ -38,7 +39,7 @@ pub(crate) fn order_discounts(
 ///
 /// The order is pushed as `status: "completed"` because POS orders
 /// are only pushed AFTER successful checkout (FDM signed + paid).
-/// HubRise doesn't need to advance them through a state machine.
+/// `HubRise` doesn't need to advance them through a state machine.
 /// `payments` are the sale's payments, `(name, cents)`, one per method.
 pub fn build_hubrise_order_body(
     order: &Order,
@@ -65,7 +66,7 @@ pub fn build_hubrise_order_body(
                     "A" => "21",
                     "B" => "12",
                     "C" => "6",
-                    "D" => "0",
+                    // "D" (exempt) and anything unknown.
                     _ => "0",
                 },
             })

@@ -55,6 +55,7 @@ pub struct ProbeOutcome {
     pub checks: Vec<CheckEvent>,
 }
 
+#[derive(Debug)]
 pub struct ScaleDriver {
     config: DriverConfig,
     /// `host:port`.
@@ -79,7 +80,7 @@ impl ScaleDriver {
 
     /// True while a weighing holds the link.
     pub fn is_busy(&self) -> bool {
-        self.busy.lock().map(|b| *b).unwrap_or(false)
+        self.busy.lock().is_ok_and(|b| *b)
     }
 
     /// Ends the running weighing, if any, with [`Failure::Cancelled`].
@@ -220,7 +221,7 @@ impl ScaleDriver {
                 read = tokio::time::timeout(self.config.answer_timeout, link.read(&mut buffer)) => {
                     match read {
                         Err(_) => outputs = session.on_silence(),
-                        Ok(Ok(0)) | Ok(Err(_)) => {
+                        Ok(Ok(0) | Err(_)) => {
                             *slot = None;
                             return Err(Failure::Unreachable);
                         }

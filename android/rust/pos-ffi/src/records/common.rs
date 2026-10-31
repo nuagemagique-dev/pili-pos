@@ -1,7 +1,7 @@
 //! Records shared by several facades, by the event payloads or by the money helpers (the `common`
 //! rows of the table in [`super`]). Each type mirrors an engine type (PD56): same field names, same
 //! serde attributes, `deny_unknown_fields` on records. Differences from the engine type, all
-//! forced by UniFFI: derives (`Deserialize` on output types, `Serialize` on input types, so
+//! forced by `UniFFI`: derives (`Deserialize` on output types, `Serialize` on input types, so
 //! `convert::out` and `convert::inp` work both ways), no unsigned integers, JSON values as text.
 //!
 //! The engine's `Display` enum (message display rule) is `FdmMessageDisplay` here, so the Kotlin
@@ -524,7 +524,7 @@ pub struct PresenceFailed {
 
 // ───────────────────────────── HubRise callback event ─────────────────────────────
 
-/// `pos_hubrise_types::CallbackEvent`: the envelope of every HubRise callback. The engine type
+/// `pos_hubrise_types::CallbackEvent`: the envelope of every `HubRise` callback. The engine type
 /// flattens the fields it does not know (`#[serde(flatten)]` map), which a serde mirror cannot
 /// reproduce, so the conversion is explicit: [`CallbackEvent::from_engine`] and
 /// [`CallbackEvent::to_engine`]. `previous_state` and `new_state` are JSON text (`None` for null),

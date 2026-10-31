@@ -5,7 +5,7 @@
 //! (the one a Belgian CCV terminal speaks) is not public. The shapes
 //! below follow the public OPI samples: the OPI-DE minimal request that
 //! works on a real terminal, the IFSF / Diebold Nixdorf Italian profile
-//! (response, DeviceRequest, abort), and the attributes CCV's Android
+//! (response, `DeviceRequest`, abort), and the attributes CCV's Android
 //! SDK documents (`ElmeErrorCode`, `CaptureReference`, result states).
 //! What a real Belgian terminal sends (the Bancontact `CardCircuit`
 //! value, extra attributes, whether a `Login` is needed first) must be
@@ -36,8 +36,9 @@
 //! collection.
 
 use std::collections::HashSet;
+use std::fmt::Write as _;
 use std::io;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -63,6 +64,7 @@ const CHECK_TIMEOUT: Duration = Duration::from_secs(3);
 const CHECK_HOLD: Duration = Duration::from_millis(500);
 
 /// A CCV terminal on the LAN, spoken to in OPI.
+#[derive(Debug)]
 pub struct CcvOpi {
     address: String,
     workstation_id: String,
@@ -73,8 +75,13 @@ pub struct CcvOpi {
     aborted: Mutex<HashSet<String>>,
 }
 
+/// Whether `peer` is one of the terminal's resolved addresses.
+fn peer_allowed(allowed: &[IpAddr], peer: IpAddr) -> bool {
+    allowed.contains(&peer.to_canonical())
+}
+
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|e| e.into_inner())
+    m.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 /// FNV-1a, 64 bits: stable across builds, unlike the std hasher.
@@ -102,7 +109,7 @@ fn decode(bytes: Vec<u8>) -> String {
 async fn read_frame<R: AsyncReadExt + Unpin>(stream: &mut R) -> io::Result<String> {
     let mut len = [0u8; 4];
     stream.read_exact(&mut len).await?;
-    let len = u32::from_be_bytes(len) as usize;
+    let len = usize::try_from(u32::from_be_bytes(len)).unwrap_or(usize::MAX);
     if len > MAX_FRAME {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -192,10 +199,11 @@ async fn serve_device(mut stream: TcpStream, printed: Arc<Mutex<Printed>>, softw
                 }
                 _ => debug!(target, "opi: display text from the terminal"),
             }
-            results.push_str(&format!(
+            let _ = write!(
+                results,
                 "<Output OutDeviceTarget=\"{}\" OutResult=\"Success\"/>",
                 escape(target)
-            ));
+            );
         }
         let overall = if request_type.eq_ignore_ascii_case("Output") {
             "Success"
@@ -219,7 +227,7 @@ async fn serve_device(mut stream: TcpStream, printed: Arc<Mutex<Printed>>, softw
 
 /// What reading one terminal message concluded.
 enum Reading {
-    /// Not the answer to this payment (another RequestID, a display
+    /// Not the answer to this payment (another `RequestID`, a display
     /// message).
     NotOurs,
     Done(Result<Outcome, EftError>),
@@ -327,13 +335,28 @@ impl CcvOpi {
                 }
             }
         };
+        // Only the terminal may open channel 1: resolve its address once.
+        let allowed: Vec<IpAddr> = tokio::net::lookup_host(&self.address)
+            .await
+            .map_err(|e| {
+                EftError::Unreachable(format!(
+                    "cannot resolve the terminal address {}: {e}",
+                    self.address
+                ))
+            })?
+            .map(|a| a.ip().to_canonical())
+            .collect();
         let printed = Arc::new(Mutex::new(Printed::default()));
-        let shared = printed.clone();
+        let shared = Arc::clone(&printed);
         let software = self.software.clone();
         let task = tokio::spawn(async move {
             let mut connections = JoinSet::new();
-            while let Ok((stream, _)) = listener.accept().await {
-                connections.spawn(serve_device(stream, shared.clone(), software.clone()));
+            while let Ok((stream, peer)) = listener.accept().await {
+                if !peer_allowed(&allowed, peer.ip()) {
+                    warn!(%peer, "opi: device channel connection from a foreign host dropped");
+                    continue;
+                }
+                connections.spawn(serve_device(stream, Arc::clone(&shared), software.clone()));
             }
         });
         Ok(DeviceChannel { task, printed })
@@ -381,8 +404,14 @@ impl CcvOpi {
                     });
                 }
             };
-            let by_till = lock(&self.aborted).contains(&request.reference);
-            match interpret(&root, &id, Some(request.amount_cents), by_till, false) {
+            let by_till = Stopped::from(lock(&self.aborted).contains(&request.reference));
+            match interpret(
+                &root,
+                &id,
+                Some(request.amount_cents),
+                by_till,
+                RequestIdRule::Optional,
+            ) {
                 Reading::NotOurs => debug!("opi: message that is not the payment's answer"),
                 Reading::Done(Ok(Outcome::Approved(mut approval))) => {
                     approval.customer_receipt = device.customer_receipt();
@@ -431,8 +460,8 @@ impl CcvOpi {
                 detail: "unreadable answer to RepeatLastMessage".into(),
             });
         };
-        let by_till = lock(&self.aborted).contains(reference);
-        match interpret(&root, &id, None, by_till, true) {
+        let by_till = Stopped::from(lock(&self.aborted).contains(reference));
+        match interpret(&root, &id, None, by_till, RequestIdRule::Required) {
             Reading::NotOurs => Ok(Outcome::Unknown {
                 detail: describe_other(&root),
             }),
@@ -498,15 +527,16 @@ impl CcvOpi {
             .map_err(|e| EftError::Unreachable(format!("abort not delivered: {e}")))?;
         // The answer only says whether the abort took; the payment's own
         // connection carries the final result either way.
-        match timeout(Duration::from_secs(5), read_frame(&mut stream)).await {
-            Ok(Ok(xml)) => debug!(
+        if let Ok(Ok(xml)) = timeout(Duration::from_secs(5), read_frame(&mut stream)).await {
+            debug!(
                 "opi: abort answered {}",
                 parse(&xml)
                     .ok()
                     .and_then(|r| r.attr("OverallResult").map(str::to_string))
                     .unwrap_or_default()
-            ),
-            Ok(Err(_)) | Err(_) => debug!("opi: no answer to the abort"),
+            );
+        } else {
+            debug!("opi: no answer to the abort");
         }
         Ok(())
     }
@@ -529,18 +559,40 @@ fn first_attr<'a>(elem: &'a Elem, names: &[&str]) -> Option<&'a str> {
         .find_map(|n| elem.attr(n).map(str::trim).filter(|v| !v.is_empty()))
 }
 
+/// Whether the till asked to stop the payment.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Stopped {
+    ByTill,
+    No,
+}
+
+impl From<bool> for Stopped {
+    fn from(by_till: bool) -> Self {
+        if by_till { Self::ByTill } else { Self::No }
+    }
+}
+
+/// Whether an answer must carry the payment's `RequestID`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RequestIdRule {
+    /// A repeated message: a missing `RequestID` is not ours.
+    Required,
+    /// The first answer: a missing `RequestID` is accepted.
+    Optional,
+}
+
 /// One message from channel 0 read as the answer to payment `id`.
-/// `strict` demands the `RequestID` to match (a repeated message);
+/// [`RequestIdRule::Required`] demands the `RequestID` to match (a repeated message);
 /// otherwise a missing one is accepted.
 #[cfg(test)]
 pub(crate) fn interpret_response(
     root: &Elem,
     id: &str,
     expected: Option<i64>,
-    aborted_by_till: bool,
-    strict: bool,
+    stopped: Stopped,
+    request_id: RequestIdRule,
 ) -> Result<Outcome, EftError> {
-    match interpret(root, id, expected, aborted_by_till, strict) {
+    match interpret(root, id, expected, stopped, request_id) {
         Reading::Done(r) => r,
         Reading::NotOurs => Ok(Outcome::Unknown {
             detail: describe_other(root),
@@ -552,8 +604,8 @@ fn interpret(
     root: &Elem,
     id: &str,
     expected: Option<i64>,
-    aborted_by_till: bool,
-    strict: bool,
+    stopped: Stopped,
+    request_id: RequestIdRule,
 ) -> Reading {
     let mut candidates = Vec::new();
     root.find_all("CardServiceResponse", &mut candidates);
@@ -565,7 +617,7 @@ fn interpret(
     };
     match response.attr("RequestID") {
         Some(got) if got != id => return Reading::NotOurs,
-        None if strict => return Reading::NotOurs,
+        None if request_id == RequestIdRule::Required => return Reading::NotOurs,
         _ => {}
     }
     let result = response.attr("OverallResult").unwrap_or("");
@@ -581,7 +633,7 @@ fn interpret(
     Reading::Done(match result {
         "Success" => Ok(approval(response, authorisation, expected)),
         "Failure" => Ok(Outcome::Declined { reason: reason() }),
-        "Aborted" => Ok(if aborted_by_till {
+        "Aborted" => Ok(if stopped == Stopped::ByTill {
             Outcome::Cancelled
         } else {
             Outcome::Declined {
@@ -753,7 +805,14 @@ mod tests {
     #[test]
     fn the_public_response_example_is_an_approval() {
         let root = parse(RESPONSE).unwrap();
-        let out = interpret_response(&root, "1", Some(100_000), false, true).unwrap();
+        let out = interpret_response(
+            &root,
+            "1",
+            Some(100_000),
+            Stopped::No,
+            RequestIdRule::Required,
+        )
+        .unwrap();
         let Outcome::Approved(a) = out else {
             panic!("{out:?}")
         };
@@ -763,10 +822,18 @@ mod tests {
         assert_eq!(a.masked_pan.as_deref(), Some("361709*****900"));
         assert_eq!(a.terminal_reference.as_deref(), Some("832632/000178"));
         // Another request id is not this payment's answer.
-        let other = interpret_response(&root, "2", Some(100_000), false, true).unwrap();
+        let other = interpret_response(
+            &root,
+            "2",
+            Some(100_000),
+            Stopped::No,
+            RequestIdRule::Required,
+        )
+        .unwrap();
         assert!(matches!(other, Outcome::Unknown { .. }));
         // Another amount is never an approval.
-        let wrong = interpret_response(&root, "1", Some(500), false, true).unwrap();
+        let wrong = interpret_response(&root, "1", Some(500), Stopped::No, RequestIdRule::Required)
+            .unwrap();
         assert!(matches!(wrong, Outcome::Unknown { .. }), "{wrong:?}");
     }
 
@@ -784,7 +851,14 @@ mod tests {
             );
             assert_ne!(text, RESPONSE);
             let root = parse(&text).unwrap();
-            let out = interpret_response(&root, "1", Some(100_000), false, true).unwrap();
+            let out = interpret_response(
+                &root,
+                "1",
+                Some(100_000),
+                Stopped::No,
+                RequestIdRule::Required,
+            )
+            .unwrap();
             let Outcome::Approved(a) = out else {
                 panic!("{out:?}")
             };
@@ -803,8 +877,15 @@ mod tests {
 
     #[test]
     fn overall_results_map_to_outcomes() {
-        let run =
-            |r: &str, by_till: bool| interpret_response(&answer(r), "1", Some(1), by_till, false);
+        let run = |r: &str, by_till: bool| {
+            interpret_response(
+                &answer(r),
+                "1",
+                Some(1),
+                Stopped::from(by_till),
+                RequestIdRule::Optional,
+            )
+        };
         assert!(
             matches!(run("Failure", false), Ok(Outcome::Declined { reason }) if reason == "why")
         );
@@ -839,9 +920,22 @@ mod tests {
         ))
         .unwrap();
         assert!(matches!(
-            interpret_response(&wrapped, "1", None, false, true),
+            interpret_response(&wrapped, "1", None, Stopped::No, RequestIdRule::Required),
             Ok(Outcome::Approved(_))
         ));
+    }
+
+    #[test]
+    fn only_the_terminal_address_may_open_the_device_channel() {
+        let terminal: IpAddr = "192.168.1.50".parse().unwrap();
+        let allowed = [terminal];
+        assert!(peer_allowed(&allowed, terminal));
+        assert!(peer_allowed(
+            &allowed,
+            "::ffff:192.168.1.50".parse().unwrap()
+        ));
+        assert!(!peer_allowed(&allowed, "192.168.1.51".parse().unwrap()));
+        assert!(!peer_allowed(&[], terminal));
     }
 
     #[tokio::test]
@@ -850,7 +944,7 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         let server = {
-            let printed = printed.clone();
+            let printed = Arc::clone(&printed);
             tokio::spawn(async move {
                 let (stream, _) = listener.accept().await.unwrap();
                 serve_device(stream, printed, "pili-pos/1.0.0".into()).await;
@@ -870,6 +964,6 @@ mod tests {
             Some("CUSTOMER RECEIPT")
         );
         assert_eq!(p.customer.len(), 4);
-        assert!(p.merchant.is_empty());
+        assert_eq!(p.merchant.len(), 0);
     }
 }

@@ -3,6 +3,10 @@
 //! role, and AM art. 44 (an edit never changes an open order or a signed event).
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -155,6 +159,10 @@ async fn the_four_entities_are_created_and_updated() {
 }
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario read top to bottom, clearer unsplit"
+)]
 async fn validation_codes_name_the_field() {
     let app = app().await;
     let cat = do_menu_save_category(&app.state, category(None, "Sushi"))
@@ -418,8 +426,8 @@ async fn every_save_is_logged_with_before_and_after_and_the_log_is_immutable() {
         (Some("B"), Some("A"))
     );
     assert_eq!(last.changed_by, MANAGER);
-    assert!(!last.changed_by_name.is_empty());
-    assert!(!last.changed_at.is_empty());
+    assert_ne!(last.changed_by_name.len(), 0);
+    assert_ne!(last.changed_at.len(), 0);
     let first = &log[2];
     assert_eq!(
         (first.entity_type.as_str(), first.action.as_str()),
@@ -767,7 +775,7 @@ async fn a_product_sold_by_weight_keeps_its_tare_and_refuses_a_typed_price() {
     );
 
     // Typed or weighed, not both.
-    let mut both = weighed.clone();
+    let mut both = weighed;
     both.open_price = true;
     assert!(
         do_menu_save_product(&app.state, both)

@@ -176,6 +176,10 @@ pub(crate) struct ReportLabels {
     pub(crate) punch_out: &'static str,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "a flat table of translated labels per language"
+)]
 pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
     match lang {
         ReceiptLanguage::Fr => &ReportLabels {
@@ -413,8 +417,8 @@ enum PaymentKind {
 
 /// Recognize a payment kind from a raw method/name string: the FDM
 /// `financials.name` sent on the wire ("Cash"/"Card"/"Meal voucher"/
-/// "Payment"), or its `type` enum wire value ("CASH"/"CARD_DEBIT"/
-/// "CHEQUE_MEAL"/...) if that ever
+/// "Payment"), or its `type` enum wire value ("`CASH"/"CARD_DEBIT`"/
+/// "`CHEQUE_MEAL`"/...) if that ever
 /// ends up in the string instead. Matching is case-insensitive and by
 /// substring, so any casing or card sub-type variant is recognized.
 fn payment_kind_from_name(name: &str) -> Option<PaymentKind> {
@@ -455,8 +459,7 @@ fn payment_kind_label(kind: PaymentKind, lang: ReceiptLanguage) -> &'static str 
         (GiftVoucher, Nl) => "Cadeaubon",
         (GiftVoucher, De) => "Geschenkgutschein",
         (App, Fr) => "Application",
-        (App, Nl) => "App",
-        (App, De) => "App",
+        (App, Nl | De) => "App",
         (Online, Fr) => "Paiement en ligne",
         (Online, Nl) => "Online betaling",
         (Online, De) => "Online-Zahlung",

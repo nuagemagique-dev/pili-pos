@@ -1,9 +1,9 @@
 //! The POS menu as a mirror of an external catalog.
 //!
-//! A source (HubRise today, the owner's catalog service later) maps
+//! A source (`HubRise` today, the owner's catalog service later) maps
 //! its own format into the neutral [`Catalog`]; this crate validates
 //! it, and applies it with stable product ids. Nothing here knows
-//! HubRise.
+//! `HubRise`.
 
 pub mod apply;
 pub mod hash;

@@ -52,6 +52,7 @@ pub struct User {
 }
 
 /// Validates an INSZ (Belgian national number) format: 11 digits with mod-97 check.
+#[must_use]
 pub fn validate_insz(insz: &str) -> bool {
     if insz.len() != 11 || !insz.chars().all(|c| c.is_ascii_digit()) {
         return false;
@@ -59,11 +60,11 @@ pub fn validate_insz(insz: &str) -> bool {
 
     let number: u64 = insz.parse().unwrap_or(0);
     let base = number / 100;
-    let check = (number % 100) as u32;
+    let check = number % 100;
 
     // Try both pre-2000 and post-2000 calculation
-    let remainder_pre = (base % 97) as u32;
-    let remainder_post = ((2_000_000_000 + base) % 97) as u32;
+    let remainder_pre = base % 97;
+    let remainder_post = (2_000_000_000 + base) % 97;
 
     (97 - remainder_pre == check) || (97 - remainder_post == check)
 }

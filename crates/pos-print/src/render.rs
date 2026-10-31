@@ -14,6 +14,7 @@
 //! unknown is skipped defensively.
 
 use crate::escpos::PaperWidth;
+use std::fmt::Write as _;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Align {
@@ -75,7 +76,6 @@ pub fn render_plain_text_for(bytes: &[u8], paper: PaperWidth) -> String {
             0x1B => {
                 // ESC commands
                 match bytes.get(i + 1) {
-                    Some(b'@') => i += 2, // init
                     Some(b'a') => {
                         align = match bytes.get(i + 2) {
                             Some(1) => Align::Center,
@@ -84,7 +84,7 @@ pub fn render_plain_text_for(bytes: &[u8], paper: PaperWidth) -> String {
                         };
                         i += 3;
                     }
-                    Some(b'E') | Some(b'-') | Some(b'M') | Some(b't') => i += 3, // style/code page
+                    Some(b'E' | b'-' | b'M' | b't') => i += 3, // style/code page
                     Some(b'd') => {
                         // feed n lines
                         let n = bytes.get(i + 2).copied().unwrap_or(0);
@@ -94,6 +94,7 @@ pub fn render_plain_text_for(bytes: &[u8], paper: PaperWidth) -> String {
                         i += 3;
                     }
                     Some(b'p') => i += 5, // drawer kick
+                    // ESC @ (init) and every command this renderer does not draw.
                     _ => i += 2,
                 }
             }
@@ -106,31 +107,31 @@ pub fn render_plain_text_for(bytes: &[u8], paper: PaperWidth) -> String {
                         i += 3;
                     }
                     Some(b'V') => {
-                        out.push_str(&format!("✂{}\n", "-".repeat(width - 1)));
+                        let _ = writeln!(out, "✂{}", "-".repeat(width - 1));
                         i += 4;
                     }
                     Some(b'(') if bytes.get(i + 2) == Some(&b'k') => {
                         // QR functions: GS ( k pL pH cn fn ...
-                        let pl = bytes.get(i + 3).copied().unwrap_or(0) as usize;
-                        let ph = bytes.get(i + 4).copied().unwrap_or(0) as usize;
+                        let pl = usize::from(bytes.get(i + 3).copied().unwrap_or(0));
+                        let ph = usize::from(bytes.get(i + 4).copied().unwrap_or(0));
                         let len = pl | (ph << 8);
                         let func = bytes.get(i + 6).copied().unwrap_or(0);
                         if func == 80 {
                             // Function 180: store QR data - payload after cn/fn/m
                             let start = i + 8;
                             let end = (i + 5 + len).min(bytes.len());
-                            let data = String::from_utf8_lossy(&bytes[start..end]);
-                            out.push_str(&format!("{:^width$}\n", format!("[QR: {data}]")));
+                            let data =
+                                String::from_utf8_lossy(bytes.get(start..end).unwrap_or_default());
+                            let _ = writeln!(out, "{:^width$}", format!("[QR: {data}]"));
                         }
                         i += 5 + len;
                     }
                     Some(b'v') => {
                         // raster image - skip header + data
-                        let bpr = bytes.get(i + 4).copied().unwrap_or(0) as usize
-                            | ((bytes.get(i + 5).copied().unwrap_or(0) as usize) << 8);
-                        let h = bytes.get(i + 6).copied().unwrap_or(0) as usize
-                            | ((bytes.get(i + 7).copied().unwrap_or(0) as usize) << 8);
-                        out.push_str(&format!("{:^width$}\n", "[IMAGE]"));
+                        let at = |n: usize| usize::from(bytes.get(i + n).copied().unwrap_or(0));
+                        let bpr = at(4) | (at(5) << 8);
+                        let h = at(6) | (at(7) << 8);
+                        let _ = writeln!(out, "{:^width$}", "[IMAGE]");
                         i += 8 + bpr * h;
                     }
                     _ => i += 2,

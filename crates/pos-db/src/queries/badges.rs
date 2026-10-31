@@ -40,17 +40,7 @@ pub fn atomic<T>(
     conn: &Connection,
     f: impl FnOnce(&Connection) -> Result<T, rusqlite::Error>,
 ) -> Result<T, rusqlite::Error> {
-    conn.execute_batch("SAVEPOINT badges_atomic")?;
-    match f(conn) {
-        Ok(v) => {
-            conn.execute_batch("RELEASE badges_atomic")?;
-            Ok(v)
-        }
-        Err(e) => {
-            let _ = conn.execute_batch("ROLLBACK TO badges_atomic; RELEASE badges_atomic");
-            Err(e)
-        }
-    }
+    super::with_savepoint(conn, f)
 }
 
 fn conversion(e: String) -> rusqlite::Error {
@@ -429,7 +419,7 @@ mod tests {
         };
         assert!(set_settings(&conn, &bad, MGR).is_err());
         assert_eq!(settings(&conn).unwrap(), BadgeSettings::default());
-        assert!(history(&conn, 10).unwrap().is_empty());
+        assert_eq!(history(&conn, 10).unwrap().len(), 0);
     }
 
     #[test]
@@ -514,7 +504,7 @@ mod tests {
             revoke_all_active(&conn, RevokeReason::KeyChanged, None).unwrap(),
             2
         );
-        assert!(list_active(&conn).unwrap().is_empty());
+        assert_eq!(list_active(&conn).unwrap().len(), 0);
         let log = history(&conn, 10).unwrap();
         let revokes: Vec<_> = log.iter().filter(|l| l.action == "revoke").collect();
         assert_eq!(revokes.len(), 2);

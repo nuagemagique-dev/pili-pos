@@ -1,8 +1,10 @@
+use super::with_savepoint;
 use chrono::{DateTime, Utc};
 use pos_core::order::{Order, OrderLine, OrderStatus, OrderType};
 use pos_core::vat::VatCode;
 use rusqlite::{Connection, OptionalExtension, params};
 
+#[derive(Debug)]
 pub struct NewOrderLine<'a> {
     pub order_id: i64,
     pub menu_item_id: i64,
@@ -41,7 +43,7 @@ pub fn create_order(
                 params![t],
                 |row| row.get(0),
             )
-            .ok();
+            .optional()?;
         if let Some(existing_id) = existing {
             return get_order(conn, existing_id);
         }
@@ -72,13 +74,17 @@ pub fn create_order(
 }
 
 /// Add a line to an open order and journal it (`order_entries`).
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the parameter struct is built inline at over a hundred call sites in the engine and its tests"
+)]
 pub fn add_order_line(
     conn: &Connection,
     input: NewOrderLine<'_>,
 ) -> Result<OrderLine, rusqlite::Error> {
-    with_savepoint(conn, || {
+    with_savepoint(conn, |_| {
         ensure_open(conn, input.order_id)?;
-        add_order_line_inner(conn, input, None)
+        add_order_line_inner(conn, &input, None)
     })
 }
 
@@ -91,20 +97,24 @@ pub struct Weighed {
 
 /// [`add_order_line`] for a weighed line: `quantity` is 1, or -1 for its
 /// refund, and `unit_price_cents` the price per kilo.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the same inline parameter struct as add_order_line"
+)]
 pub fn add_weighed_order_line(
     conn: &Connection,
     input: NewOrderLine<'_>,
     weighed: Weighed,
 ) -> Result<OrderLine, rusqlite::Error> {
-    with_savepoint(conn, || {
+    with_savepoint(conn, |_| {
         ensure_open(conn, input.order_id)?;
-        add_order_line_inner(conn, input, Some(weighed))
+        add_order_line_inner(conn, &input, Some(weighed))
     })
 }
 
 fn add_order_line_inner(
     conn: &Connection,
-    input: NewOrderLine<'_>,
+    input: &NewOrderLine<'_>,
     weighed: Option<Weighed>,
 ) -> Result<OrderLine, rusqlite::Error> {
     let now = Utc::now();
@@ -148,7 +158,7 @@ fn add_order_line_inner(
         unit_price_cents: input.unit_price_cents,
         vat_code: input.vat_code,
         name: input.name.to_string(),
-        modifiers_json: input.modifiers_json.map(|s| s.to_string()),
+        modifiers_json: input.modifiers_json.map(std::string::ToString::to_string),
         created_at: now,
         department_id: input.department_id.to_string(),
         department_name: input.department_name.to_string(),
@@ -160,7 +170,7 @@ fn add_order_line_inner(
 /// Remove a line from an open order. The removal is journalled as a
 /// correction (negative entry) so the FDM message keeps the history.
 pub fn remove_order_line(conn: &Connection, line_id: i64) -> Result<(), rusqlite::Error> {
-    with_savepoint(conn, || {
+    with_savepoint(conn, |_| {
         let (order_id, quantity): (i64, i32) = conn.query_row(
             "SELECT order_id, quantity FROM order_lines WHERE id = ?1",
             params![line_id],
@@ -185,7 +195,7 @@ pub fn update_order_line_quantity(
     line_id: i64,
     quantity: i32,
 ) -> Result<(), rusqlite::Error> {
-    with_savepoint(conn, || {
+    with_savepoint(conn, |_| {
         let (order_id, previous): (i64, i32) = conn.query_row(
             "SELECT order_id, quantity FROM order_lines WHERE id = ?1",
             params![line_id],
@@ -215,14 +225,34 @@ pub fn update_order_line_quantity(
 
 /// The order's journal, oldest first, as lines ready for an FDM
 /// message: additions are positive, corrections and refunds negative.
-/// `unsent_only` keeps the entries not yet transmitted in an event.
 /// Orders recorded before the journal existed fall back to their lines.
 pub fn get_order_entries(
     conn: &Connection,
     order_id: i64,
-    unsent_only: bool,
 ) -> Result<Vec<OrderLine>, rusqlite::Error> {
-    let sql = if unsent_only {
+    order_entries(conn, order_id, Unsent::Any)
+}
+
+/// [`get_order_entries`] limited to the entries no fiscal event carries yet.
+pub fn get_unsent_order_entries(
+    conn: &Connection,
+    order_id: i64,
+) -> Result<Vec<OrderLine>, rusqlite::Error> {
+    order_entries(conn, order_id, Unsent::Only)
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Unsent {
+    Any,
+    Only,
+}
+
+fn order_entries(
+    conn: &Connection,
+    order_id: i64,
+    unsent: Unsent,
+) -> Result<Vec<OrderLine>, rusqlite::Error> {
+    let sql = if unsent == Unsent::Only {
         "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name,
                 NULL, created_at, department_id, department_name,
                 weight_grams, weighed_amount_cents
@@ -237,7 +267,7 @@ pub fn get_order_entries(
     let entries: Vec<OrderLine> = stmt
         .query_map(params![order_id], map_order_line)?
         .collect::<Result<_, _>>()?;
-    if entries.is_empty() && !unsent_only {
+    if entries.is_empty() && unsent == Unsent::Any {
         let journalled: i64 = conn.query_row(
             "SELECT COUNT(*) FROM order_entries WHERE order_id = ?1",
             params![order_id],
@@ -290,7 +320,7 @@ fn insert_entry(
 }
 
 /// [`insert_entry`] returning the entry's id, with the `till_op` mark of
-/// a PRICE_CHANGE pair (`Some("price_change")`) when it is one.
+/// a `PRICE_CHANGE` pair (`Some("price_change")`) when it is one.
 fn insert_entry_op(
     conn: &Connection,
     line_id: i64,
@@ -323,11 +353,14 @@ fn insert_entry_op(
     Ok(entry_id)
 }
 
-/// The two journal entries of a PRICE_CHANGE pair on a line: a
+/// The two journal entries of a `PRICE_CHANGE` pair on a line: a
 /// correction of its whole quantity, then the same quantity again, both
 /// marked `till_op` = `price_change`. The caller records the changes on
 /// them (the first carries the line's existing changes negated, the
 /// second the new ones). Returns `(correction_entry_id, reentry_entry_id)`.
+///
+/// Atomicity: several statements that rely on the caller's transaction (the
+/// engine runs the pair and the recording of the changes in one).
 #[cfg(feature = "hubrise")]
 pub fn add_price_change_pair(
     conn: &Connection,
@@ -447,7 +480,13 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
             kitchen_state: kitchen_state.to_string(),
         })
     })?;
-    #[allow(unused_mut)]
+    #[cfg_attr(
+        not(feature = "hubrise"),
+        expect(
+            unused_mut,
+            reason = "only the HubRise price changes below mutate the lines"
+        )
+    )]
     let mut lines: Vec<CartLine> = rows.collect::<Result<_, _>>()?;
     #[cfg(feature = "hubrise")]
     {
@@ -577,25 +616,6 @@ fn ensure_open(conn: &Connection, order_id: i64) -> Result<(), rusqlite::Error> 
         ));
     }
     Ok(())
-}
-
-/// Run `f` inside a SAVEPOINT so a line change and its journal entry
-/// are written together, whether or not the caller holds a transaction.
-fn with_savepoint<T>(
-    conn: &Connection,
-    f: impl FnOnce() -> Result<T, rusqlite::Error>,
-) -> Result<T, rusqlite::Error> {
-    conn.execute_batch("SAVEPOINT order_change")?;
-    match f() {
-        Ok(v) => {
-            conn.execute_batch("RELEASE order_change")?;
-            Ok(v)
-        }
-        Err(e) => {
-            let _ = conn.execute_batch("ROLLBACK TO order_change; RELEASE order_change");
-            Err(e)
-        }
-    }
 }
 
 pub fn get_order(conn: &Connection, order_id: i64) -> Result<Order, rusqlite::Error> {
@@ -750,8 +770,11 @@ fn map_order(row: &rusqlite::Row<'_>) -> Result<Order, rusqlite::Error> {
             rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::from(e))
         })?,
         user_insz: row.get(4)?,
-        created_at: parse_datetime(&created_str),
-        closed_at: closed_str.as_deref().map(parse_datetime),
+        created_at: parse_datetime(5, &created_str)?,
+        closed_at: closed_str
+            .as_deref()
+            .map(|c| parse_datetime(6, c))
+            .transpose()?,
         subtotal_cents: row.get(7)?,
         total_cents: row.get(8)?,
     })
@@ -772,7 +795,7 @@ fn map_order_line(row: &rusqlite::Row<'_>) -> Result<OrderLine, rusqlite::Error>
         })?,
         name: row.get(6)?,
         modifiers_json: row.get(7)?,
-        created_at: parse_datetime(&created_str),
+        created_at: parse_datetime(8, &created_str)?,
         department_id: row.get(9)?,
         department_name: row.get(10)?,
         weight_grams: row.get("weight_grams")?,
@@ -780,11 +803,20 @@ fn map_order_line(row: &rusqlite::Row<'_>) -> Result<OrderLine, rusqlite::Error>
     })
 }
 
-fn parse_datetime(s: &str) -> DateTime<Utc> {
+/// A stored timestamp (`2026-10-04T12:00:00Z` or SQLite's `2026-10-04 12:00:00`).
+/// An unknown format is an error naming the column, not the epoch: a silent
+/// 1970 date would corrupt reports and the order history without a trace.
+fn parse_datetime(column: usize, s: &str) -> Result<DateTime<Utc>, rusqlite::Error> {
     chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%SZ")
         .or_else(|_| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S"))
         .map(|dt| dt.and_utc())
-        .unwrap_or_default()
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(
+                column,
+                rusqlite::types::Type::Text,
+                Box::from(format!("unknown timestamp format {s:?}: {e}")),
+            )
+        })
 }
 
 #[cfg(test)]
@@ -796,6 +828,56 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
         conn
+    }
+
+    #[test]
+    fn a_database_error_is_not_read_as_no_existing_empty_order() {
+        let conn = setup();
+        // A broken `order_lines` makes the lookup fail: the error must surface
+        // instead of silently inserting a second order for the table.
+        conn.execute_batch("ALTER TABLE order_lines RENAME TO order_lines_gone;")
+            .unwrap();
+        let before: i64 = conn
+            .query_row("SELECT COUNT(*) FROM orders", [], |r| r.get(0))
+            .unwrap();
+        let err = create_order(&conn, OrderType::DineIn, Some(5), "00000000029");
+        assert!(err.is_err());
+        let after: i64 = conn
+            .query_row("SELECT COUNT(*) FROM orders", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn an_empty_open_table_order_is_reused() {
+        let conn = setup();
+        let first = create_order(&conn, OrderType::DineIn, Some(5), "00000000029").unwrap();
+        let again = create_order(&conn, OrderType::DineIn, Some(5), "00000000029").unwrap();
+        assert_eq!(first.id, again.id);
+    }
+
+    #[test]
+    fn timestamps_parse_in_both_stored_formats_and_an_unknown_one_is_an_error() {
+        let a = parse_datetime(5, "2026-10-04T12:00:00Z").unwrap();
+        let b = parse_datetime(5, "2026-10-04 12:00:00").unwrap();
+        assert_eq!(a, b);
+        let err = parse_datetime(5, "04/10/2026").unwrap_err();
+        assert!(
+            err.to_string().contains("unknown timestamp format"),
+            "{err}"
+        );
+
+        // Through a real row: the error reaches the reader.
+        let conn = setup();
+        let order = create_order(&conn, OrderType::Takeaway, None, "00000000029").unwrap();
+        conn.execute_batch("DROP TRIGGER IF EXISTS orders_no_update;")
+            .ok();
+        conn.execute(
+            "UPDATE orders SET created_at = 'not a date' WHERE id = ?1",
+            params![order.id],
+        )
+        .unwrap();
+        assert!(get_order(&conn, order.id).is_err());
     }
 
     #[test]
@@ -1175,11 +1257,7 @@ mod tests {
         assert!(result.is_err(), "adding a line to a closed order must fail");
         // No half-written line or journal entry from the rejected attempt.
         assert!(get_order_lines(&conn, order.id).unwrap().is_empty());
-        assert!(
-            get_order_entries(&conn, order.id, false)
-                .unwrap()
-                .is_empty()
-        );
+        assert_eq!(get_order_entries(&conn, order.id).unwrap().len(), 0);
         assert_eq!(get_order(&conn, order.id).unwrap().total_cents, 0);
     }
 
@@ -1255,7 +1333,7 @@ mod tests {
         update_order_line_quantity(&conn, line.id, 2).unwrap();
         remove_order_line(&conn, line.id).unwrap();
 
-        let entries = get_order_entries(&conn, order.id, false).unwrap();
+        let entries = get_order_entries(&conn, order.id).unwrap();
         assert_eq!(quantities(&entries), [1, 2, -1, -2]);
         assert!(entries.iter().all(|e| e.department_id == "12"));
         assert!(get_order_lines(&conn, order.id).unwrap().is_empty());
@@ -1267,17 +1345,17 @@ mod tests {
         let conn = setup();
         let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
         let line = cola(&conn, order.id, 2);
-        let first = get_order_entries(&conn, order.id, true).unwrap();
+        let first = get_unsent_order_entries(&conn, order.id).unwrap();
         conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
         mark_order_entries_sent(&conn, order.id, first.last().unwrap().id, 1).unwrap();
         update_order_line_quantity(&conn, line.id, 3).unwrap();
 
         assert_eq!(
-            quantities(&get_order_entries(&conn, order.id, true).unwrap()),
+            quantities(&get_unsent_order_entries(&conn, order.id).unwrap()),
             [1]
         );
         assert_eq!(
-            quantities(&get_order_entries(&conn, order.id, false).unwrap()),
+            quantities(&get_order_entries(&conn, order.id).unwrap()),
             [2, 1]
         );
     }
@@ -1294,7 +1372,7 @@ mod tests {
         .unwrap();
         assert!(update_order_line_quantity(&conn, line.id, 2).is_err());
         assert!(remove_order_line(&conn, line.id).is_err());
-        assert_eq!(get_order_entries(&conn, order.id, false).unwrap().len(), 1);
+        assert_eq!(get_order_entries(&conn, order.id).unwrap().len(), 1);
     }
 
     #[test]

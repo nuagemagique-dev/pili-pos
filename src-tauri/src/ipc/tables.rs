@@ -14,7 +14,7 @@ use super::Managed;
 /// tap-and-walk-away) are treated as free so the TablesView doesn't
 /// surface ghost "0.00 €" cards that add cognitive load for zero
 /// informational value (UX Guide §2.1).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_tables(state: State<'_, Managed>) -> Result<Vec<TableInfo>, String> {
     pos_engine::commands::tables::do_list_configured_tables(state.inner())
 }
@@ -22,7 +22,7 @@ pub fn list_tables(state: State<'_, Managed>) -> Result<Vec<TableInfo>, String> 
 /// The takeaways left open (nothing is registered for them until they
 /// are paid): the Tables screen lists them so each one ends in a sale
 /// or is closed unpaid (FAQ Q205). Empty drafts are left out.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_open_takeaways(state: State<'_, Managed>) -> Result<Vec<TakeawayInfo>, String> {
     pos_engine::commands::tables::do_list_open_takeaways(state.inner())
 }
@@ -63,13 +63,13 @@ pub async fn transfer_table(
 }
 
 /// The table plan (the table numbers in use) and its changes.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_table_plan(state: State<'_, Managed>) -> Result<TablePlan, String> {
     pos_engine::commands::table_plan::do_get_table_plan(state.inner())
 }
 
 /// Set the table plan ("1-12, 20-25"); managers only.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_table_plan(state: State<'_, Managed>, plan: String) -> Result<TablePlan, String> {
     pos_engine::commands::table_plan::do_set_table_plan(state.inner(), &plan)
 }

@@ -6,7 +6,7 @@ use super::Managed;
 
 /// The last FDM health the engine's monitor knows (`null` before the
 /// first check). The same value the `fdm-status` event carries.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn fdm_health(state: State<'_, Managed>) -> Result<Option<FdmHealth>, String> {
     pos_engine::commands::fdm_monitor::do_fdm_health(state.inner())
 }

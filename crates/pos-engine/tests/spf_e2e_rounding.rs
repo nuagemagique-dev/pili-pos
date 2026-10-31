@@ -28,6 +28,11 @@
 //! is written as `ROUND<n>_ticket.txt` (see
 //! `scripts/capture_uc_evidence.sh`). Nothing is written otherwise.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;

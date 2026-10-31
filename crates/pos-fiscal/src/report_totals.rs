@@ -16,7 +16,7 @@
 //! - `vats`: Σ of the FDM's `vatCalc` of label N events, per VAT label.
 //! - `payments`: the financials of label N events, per payment method,
 //!   plus the lines of the payment corrections (label F, operation
-//!   PAYMENT_CORRECTION): a negative line goes to `negativeCorrections`,
+//!   `PAYMENT_CORRECTION)`: a negative line goes to `negativeCorrections`,
 //!   a positive one to `positiveCorrections`, each line counts once in
 //!   `correctionsCount`, and `totalAmount` is normal + both corrections.
 //! - `negQuantities`: negative lines, per reason, counted once, on the
@@ -25,7 +25,7 @@
 //!   table service, on the sale (N) for a direct sale or a refund, and
 //!   never on a pre-bill. A table sale resends its registered entries:
 //!   those are left out ([`ReportEvent::registered_negatives`]).
-//! - `drawersOpenCount`: F events whose operation is DRAWER_OPEN.
+//! - `drawersOpenCount`: F events whose operation is `DRAWER_OPEN`.
 //! - `users[].totalAmount`: Σ transactionTotal of the user's N events;
 //!   the activity range covers every event but the reports themselves.
 //!
@@ -53,6 +53,35 @@ use crate::types::{
     EventLabel, InOut, NegQuantityReason, PaymentLineType, PaymentType, PriceChangeType, VatLabel,
 };
 
+/// The keys whose values the report totals read as euro amounts.
+const AMOUNT_KEYS: [&str; 6] = [
+    "price",
+    "amount",
+    "taxableAmount",
+    "vatAmount",
+    "totalAmount",
+    "transactionTotal",
+];
+
+/// The first amount key of `v` (at any depth) holding something that is
+/// neither absent (`null`) nor a number.
+fn malformed_amount(v: &Value) -> Option<&'static str> {
+    match v {
+        Value::Object(map) => {
+            map.iter().find_map(
+                |(k, child)| match AMOUNT_KEYS.iter().find(|a| **a == k.as_str()) {
+                    Some(key) if !child.is_null() && pos_core::money::cents_of(child).is_none() => {
+                        Some(*key)
+                    }
+                    _ => malformed_amount(child),
+                },
+            )
+        }
+        Value::Array(items) => items.iter().find_map(malformed_amount),
+        _ => None,
+    }
+}
+
 /// One archived event, as signed by the FDM.
 #[derive(Debug, Clone)]
 pub struct ReportEvent {
@@ -70,15 +99,41 @@ pub struct ReportEvent {
 }
 
 impl ReportEvent {
-    /// `None` for an archive row whose JSON can't be read; callers
-    /// decide whether that is fatal (it never happens for rows written
-    /// by `commit` in `commands/signing.rs`).
+    /// `None` for an archive row whose JSON can't be read, or whose
+    /// amounts are not numbers (read as 0 they would silently understate
+    /// a signed report); callers decide whether that is fatal (it never
+    /// happens for rows written by `commit` in `commands/signing.rs`).
     pub fn from_archive(event: &ArchivedEvent) -> Option<Self> {
-        let request = serde_json::from_str(&event.event_data_json).ok()?;
-        let response = match event.fdm_response_json.as_deref() {
+        let request: Value = serde_json::from_str(&event.event_data_json).ok()?;
+        let response: Value = match event.fdm_response_json.as_deref() {
             Some(json) => serde_json::from_str(json).ok()?,
             None => Value::Null,
         };
+        // A report is a result of these totals, never an input: its
+        // `amount` keys hold arrays and are not read back. Decided by
+        // shape, not by label: in training mode a report is archived
+        // under T, like every other training event.
+        let is_report = event.event_type == EventLabel::R
+            || request.get("posDevices").is_some()
+            || response["eventOperation"]
+                .as_str()
+                .is_some_and(|op| op.starts_with("REPORT"));
+        let checked: &[(&str, &Value)] = if is_report {
+            &[]
+        } else {
+            &[("request", &request), ("response", &response)]
+        };
+        for &(what, doc) in checked {
+            if let Some(key) = malformed_amount(doc) {
+                tracing::error!(
+                    event_id = event.id,
+                    what,
+                    key,
+                    "report: archived amount is not a number, the row is refused"
+                );
+                return None;
+            }
+        }
         Some(Self {
             label: event.event_type,
             request,
@@ -88,12 +143,20 @@ impl ReportEvent {
         })
     }
 
+    /// How to name this event in a log line: its FDM label and id.
+    fn describe(&self) -> String {
+        format!(
+            "{:?} {}",
+            self.label,
+            self.response["eventLabel"].as_str().unwrap_or("(no label)")
+        )
+    }
+
     /// The transaction lines of the event's request.
     pub fn lines(&self) -> &[Value] {
         self.request["transaction"]["transactionLines"]
             .as_array()
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
+            .map_or(&[], Vec::as_slice)
     }
 
     pub fn has_transaction(&self) -> bool {
@@ -150,32 +213,34 @@ impl ReportEvent {
     }
 }
 
-/// A JSON amount (multiple of 0.01) in eurocents.
+/// A JSON amount (multiple of 0.01) in eurocents. A missing (`null`)
+/// amount reads as 0; any other non-number is logged as a malformed
+/// archive row (it would understate a signed report) and also reads
+/// as 0.
 pub fn cents(v: &Value) -> i64 {
-    (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64
+    pos_core::money::cents_of(v).unwrap_or_else(|| {
+        if !v.is_null() {
+            tracing::warn!(value = %v, "report: amount in an archived event is not a number, counted as 0");
+        }
+        0
+    })
 }
 
-fn eur(cents: i64) -> f64 {
-    cents as f64 / 100.0
-}
+use pos_core::money::eur;
 
 /// Σ(VatInput.price) + Σ(VatInput.priceChanges.amount) of one
 /// transaction line: its amount after price changes.
 pub fn line_amount(line: &Value) -> i64 {
-    line["mainProduct"]["vats"]
-        .as_array()
-        .map(|vats| {
-            vats.iter()
-                .map(|v| {
-                    let changes: i64 = v["priceChanges"]
-                        .as_array()
-                        .map(|c| c.iter().map(|c| cents(&c["amount"])).sum())
-                        .unwrap_or(0);
-                    cents(&v["price"]) + changes
-                })
-                .sum()
-        })
-        .unwrap_or(0)
+    line["mainProduct"]["vats"].as_array().map_or(0, |vats| {
+        vats.iter()
+            .map(|v| {
+                let changes: i64 = v["priceChanges"]
+                    .as_array()
+                    .map_or(0, |c| c.iter().map(|c| cents(&c["amount"])).sum());
+                cents(&v["price"]) + changes
+            })
+            .sum()
+    })
 }
 
 pub fn transaction_amount(event: &ReportEvent) -> i64 {
@@ -238,7 +303,9 @@ pub fn turnover(events: &[ReportEvent]) -> TurnoverInput {
         drawers_open_count: events
             .iter()
             .filter(|e| e.label == EventLabel::F && e.operation() == Some("DRAWER_OPEN"))
-            .count() as i64,
+            .count()
+            .try_into()
+            .unwrap_or(i64::MAX),
         neg_quantities: neg_quantities(events),
         price_changes: price_changes(events.iter().filter(|e| is_sale(e))),
         invoices: Some(invoices(events)),
@@ -264,7 +331,7 @@ fn invoices(events: &[ReportEvent]) -> Vec<InvoiceTotalInput> {
 fn price_changes<'a>(sales: impl Iterator<Item = &'a ReportEvent>) -> Vec<PriceChangeTotalInput> {
     // (id, name) -> label -> (negative, positive)
     let mut totals: BTreeMap<(String, String), BTreeMap<String, (i64, i64)>> = BTreeMap::new();
-    for line in sales.flat_map(|e| e.lines()) {
+    for line in sales.flat_map(ReportEvent::lines) {
         for vat in line["mainProduct"]["vats"].as_array().into_iter().flatten() {
             let label = vat["label"].as_str().unwrap_or_default().to_string();
             for change in vat["priceChanges"].as_array().into_iter().flatten() {
@@ -331,7 +398,11 @@ fn transactions(events: &[ReportEvent]) -> Vec<EventTotalInput> {
 
 fn departments(events: &[ReportEvent]) -> Vec<DepartmentTotalInput> {
     let mut totals: BTreeMap<(String, String), i64> = BTreeMap::new();
-    for line in events.iter().filter(|e| is_sale(e)).flat_map(|e| e.lines()) {
+    for line in events
+        .iter()
+        .filter(|e| is_sale(e))
+        .flat_map(ReportEvent::lines)
+    {
         let product = &line["mainProduct"];
         let key = (
             product["departmentId"]
@@ -388,43 +459,47 @@ fn vats(events: &[ReportEvent]) -> Vec<VatTotalInput> {
         entry.1.total += total;
     };
     for event in events.iter().filter(|e| is_sale(e)) {
-        match event.response["vatCalc"].as_array() {
-            Some(calc) => {
-                for item in calc {
-                    let Ok(label) = serde_json::from_value::<VatLabel>(item["label"].clone())
-                    else {
-                        continue;
-                    };
-                    add(
-                        label,
-                        item["rate"].as_f64().unwrap_or(0.0),
-                        cents(&item["taxableAmount"]),
-                        cents(&item["vatAmount"]),
-                        cents(&item["totalAmount"]),
-                    );
-                }
+        if let Some(calc) = event.response["vatCalc"].as_array() {
+            for item in calc {
+                let Ok(label) = serde_json::from_value::<VatLabel>(item["label"].clone()) else {
+                    tracing::warn!(event = %event.describe(), item = %item, "report: vatCalc entry with an unreadable label skipped");
+                    continue;
+                };
+                let rate = item["rate"].as_f64().unwrap_or_else(|| {
+                    tracing::warn!(event = %event.describe(), item = %item, "report: vatCalc entry without a rate, counted as 0");
+                    0.0
+                });
+                add(
+                    label,
+                    rate,
+                    cents(&item["taxableAmount"]),
+                    cents(&item["vatAmount"]),
+                    cents(&item["totalAmount"]),
+                );
             }
-            None => {
-                let mut per_label: BTreeMap<String, (VatLabel, i64)> = BTreeMap::new();
-                for vat in event
-                    .lines()
-                    .iter()
-                    .filter_map(|l| l["mainProduct"]["vats"].as_array())
-                    .flatten()
-                {
-                    let Ok(label) = serde_json::from_value::<VatLabel>(vat["label"].clone()) else {
-                        continue;
-                    };
-                    per_label
-                        .entry(format!("{label:?}"))
-                        .or_insert((label, 0))
-                        .1 += cents(&vat["price"]);
-                }
-                for (label, total) in per_label.into_values() {
-                    let rate = standard_rate(label);
-                    let taxable = (total as f64 / (1.0 + rate / 100.0)).round() as i64;
-                    add(label, rate, taxable, total - taxable, total);
-                }
+        } else {
+            let mut per_label: BTreeMap<String, (VatLabel, i64)> = BTreeMap::new();
+            for vat in event
+                .lines()
+                .iter()
+                .filter_map(|l| l["mainProduct"]["vats"].as_array())
+                .flatten()
+            {
+                let Ok(label) = serde_json::from_value::<VatLabel>(vat["label"].clone()) else {
+                    tracing::warn!(event = %event.describe(), vat = %vat, "report: line vat with an unreadable label skipped");
+                    continue;
+                };
+                per_label
+                    .entry(format!("{label:?}"))
+                    .or_insert((label, 0))
+                    .1 += cents(&vat["price"]);
+            }
+            for (label, total) in per_label.into_values() {
+                let rate = standard_rate(label);
+                let taxable = pos_core::money::round_to_i64(
+                    pos_core::money::to_f64(total) / (1.0 + rate / 100.0),
+                );
+                add(label, rate, taxable, total - taxable, total);
             }
         }
     }
@@ -465,6 +540,7 @@ fn payments<'a>(events: impl Iterator<Item = &'a ReportEvent>) -> Vec<PaymentTot
         for financial in financials {
             let Ok(payment_type) = serde_json::from_value::<PaymentType>(financial["type"].clone())
             else {
+                tracing::warn!(event = %event.describe(), financial = %financial, "report: payment line with an unreadable type skipped");
                 continue;
             };
             let amount_type =
@@ -622,7 +698,9 @@ pub fn users(events: &[ReportEvent]) -> Vec<UserItemInput> {
         .into_iter()
         .map(|(employee_id, events)| {
             let mut range = Range::default();
-            events.iter().for_each(|e| range.add(e));
+            for e in &events {
+                range.add(e);
+            }
             let sales = || events.iter().copied().filter(|e| is_sale(e));
             UserItemInput {
                 employee_id,
@@ -756,6 +834,10 @@ mod tests {
         })
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "test fixture builder, called with owned literals"
+    )]
     fn sale(user: &str, at: &str, lines: Vec<Value>, total: f64, financials: Value) -> Value {
         json!({
             "posId": "CPOS0031234567",
@@ -771,6 +853,10 @@ mod tests {
         json!([{ "id": "1", "name": "Espèces", "type": "CASH", "amount": amount, "amountType": "PAYMENT" }])
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "test fixture builder, called with owned literals"
+    )]
     fn signed(op: &str, counter: i64, vat_calc: Value) -> Value {
         json!({
             "eventOperation": op,
@@ -1629,6 +1715,75 @@ mod tests {
         };
         let parsed = ReportEvent::from_archive(&ok).unwrap();
         assert!(parsed.response.is_null());
+    }
+
+    /// A malformed archived amount refuses the row instead of reading as
+    /// 0 and understating a signed Z; a missing amount is still 0.
+    #[test]
+    fn a_non_numeric_archived_amount_refuses_the_row() {
+        let row = |request: &str, response: Option<&str>| ArchivedEvent {
+            id: 1,
+            event_type: EventLabel::N,
+            sequence_number: 1,
+            order_id: None,
+            pos_id: "P".into(),
+            terminal_id: "T".into(),
+            user_insz: U1.into(),
+            event_data_json: request.into(),
+            fdm_response_json: response.map(Into::into),
+            fdm_id: None,
+            fdm_datetime: None,
+            event_label: None,
+            short_signature: None,
+            qr_data: None,
+        };
+        let line = |price: &str| {
+            format!(
+                r#"{{"transaction":{{"transactionTotal":1.5,"transactionLines":[{{"mainProduct":{{"vats":[{{"price":{price},"priceChanges":[{{"amount":-0.5}}]}}]}}}}]}}}}"#
+            )
+        };
+        assert!(ReportEvent::from_archive(&row(&line("1.5"), None)).is_some());
+        assert!(ReportEvent::from_archive(&row(&line("null"), None)).is_some());
+        assert!(ReportEvent::from_archive(&row(&line(r#""1.5""#), None)).is_none());
+        let bad_change = r#"{"transaction":{"transactionLines":[{"mainProduct":{"vats":[{"priceChanges":[{"amount":"x"}]}]}}]}}"#;
+        assert!(ReportEvent::from_archive(&row(bad_change, None)).is_none());
+        let bad_calc = r#"{"vatCalc":[{"label":"A","taxableAmount":"1"}]}"#;
+        assert!(ReportEvent::from_archive(&row("{}", Some(bad_calc))).is_none());
+    }
+
+    /// A training report is archived under T but is still a report: its
+    /// array-valued `amount` keys must not refuse the row (they would
+    /// make every later X or Z of the period fail).
+    #[test]
+    fn a_training_report_row_is_not_refused() {
+        let report = r#"{"posDevices":[],"turnover":{"payments":[{"amount":[{"normalAmount":1.5}]}],"priceChanges":[{"amount":[{"normalAmount":-0.5}]}]}}"#;
+        let row = |label, request: &str, response: &str| ArchivedEvent {
+            id: 1,
+            event_type: label,
+            sequence_number: 1,
+            order_id: None,
+            pos_id: "P".into(),
+            terminal_id: "T".into(),
+            user_insz: U1.into(),
+            event_data_json: request.into(),
+            fdm_response_json: Some(response.into()),
+            fdm_id: None,
+            fdm_datetime: None,
+            event_label: None,
+            short_signature: None,
+            qr_data: None,
+        };
+        let op = r#"{"eventOperation":"REPORT_TURNOVER_X"}"#;
+        assert!(ReportEvent::from_archive(&row(EventLabel::T, report, op)).is_some());
+        // Recognised by the request shape alone as well.
+        assert!(ReportEvent::from_archive(&row(EventLabel::T, report, "{}")).is_some());
+        // A training SALE with a bad amount is still refused.
+        let bad =
+            r#"{"transaction":{"transactionLines":[{"mainProduct":{"vats":[{"price":"x"}]}}]}}"#;
+        assert!(ReportEvent::from_archive(&row(EventLabel::T, bad, "{}")).is_none());
+        // Also when the FDM answered it as a SALE.
+        let sale = r#"{"eventOperation":"SALE"}"#;
+        assert!(ReportEvent::from_archive(&row(EventLabel::T, bad, sale)).is_none());
     }
 
     /// The UC223 sale (50 % ticket discount over a B and an A line),

@@ -128,15 +128,14 @@ fn indented(p: &mut EscPosBuilder, indent: &str, text: &str) {
 fn statement(
     p: &mut EscPosBuilder,
     w: &Words,
-    declared: bool,
-    contains: &[String],
-    traces: &[String],
+    declared: Option<(&[String], &[String])>,
     indent: &str,
 ) {
-    if !declared {
+    // `None`: no declaration, which is not the same as "no allergen".
+    let Some((contains, traces)) = declared else {
         indented(p, indent, w.unknown);
         return;
-    }
+    };
     if contains.is_empty() && traces.is_empty() {
         indented(p, indent, w.none);
         return;
@@ -178,9 +177,9 @@ pub fn format_allergen_sheet(sheet: &AllergenSheet, paper: PaperWidth) -> Vec<u8
         statement(
             &mut p,
             w,
-            product.declared,
-            &product.contains,
-            &product.traces,
+            product
+                .declared
+                .then_some((&product.contains[..], &product.traces[..])),
             "  ",
         );
         if !product.options.is_empty() {
@@ -190,9 +189,9 @@ pub fn format_allergen_sheet(sheet: &AllergenSheet, paper: PaperWidth) -> Vec<u8
                 statement(
                     &mut p,
                     w,
-                    option.declared,
-                    &option.contains,
-                    &option.traces,
+                    option
+                        .declared
+                        .then_some((&option.contains[..], &option.traces[..])),
                     "      ",
                 );
             }

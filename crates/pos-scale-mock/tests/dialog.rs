@@ -48,7 +48,7 @@ async fn a_weighing_returns_what_the_scale_weighed() {
     scale.load(278);
     let outcome = driver(&scale).await.weigh(request(4500), |_| {}).await;
     assert_eq!(outcome.result, Ok(UC4112));
-    assert!(outcome.checks.is_empty());
+    assert_eq!(outcome.checks, Vec::<pos_scale::CheckEvent>::new());
 }
 
 #[tokio::test]
@@ -78,7 +78,7 @@ async fn motion_is_waited_out_and_reported() {
     scale.load(278);
     scale.with(|s| s.motion = 3);
     let seen = Arc::new(Mutex::new(Vec::new()));
-    let log = seen.clone();
+    let log = Arc::clone(&seen);
     let outcome = driver(&scale)
         .await
         .weigh(request(4500), move |p| log.lock().unwrap().push(p))
@@ -225,7 +225,7 @@ async fn cancelling_ends_the_weighing_with_nothing() {
     scale.with(|s| s.motion = 100_000);
     let driver = Arc::new(driver(&scale).await);
     let running = {
-        let driver = driver.clone();
+        let driver = Arc::clone(&driver);
         tokio::spawn(async move { driver.weigh(request(4500), |_| {}).await })
     };
     tokio::time::sleep(Duration::from_millis(40)).await;

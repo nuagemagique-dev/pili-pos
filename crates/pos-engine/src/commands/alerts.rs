@@ -20,6 +20,10 @@ use crate::state::AppState;
 /// One switch per kind of alert.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "one switch per alert kind, stored and shown as such in the settings"
+)]
 pub struct AlertKinds {
     pub fdm: bool,
     pub printer: bool,
@@ -185,9 +189,14 @@ pub fn validate(input: &OwnerAlertsInput) -> Result<AlertsSettings, String> {
 }
 
 fn token_configured(state: &AppState) -> Result<bool, String> {
-    let config = state.config.lock().map_err(errors::internal)?;
-    Ok(config
+    // Clone the section and release the lock: reading the token file blocks.
+    let alerts = state
+        .config
+        .lock()
+        .map_err(errors::internal)?
         .alerts
+        .clone();
+    Ok(alerts
         .as_ref()
         .is_some_and(|a| matches!(a.bot_token(), Ok(Some(_)))))
 }
@@ -232,16 +241,19 @@ pub fn do_set_owner_alerts(
 
 /// The bot of `pos.json`, ready to send.
 pub(crate) fn channel_of(state: &AppState) -> Result<TelegramChannel, String> {
-    let (token, base) = {
-        let config = state.config.lock().map_err(errors::internal)?;
-        let Some(alerts) = &config.alerts else {
-            return Err(errors::ALERTS_TOKEN_MISSING.to_string());
-        };
-        let Ok(Some(token)) = alerts.bot_token() else {
-            return Err(errors::ALERTS_TOKEN_MISSING.to_string());
-        };
-        (token, alerts.api_base())
+    let alerts = state
+        .config
+        .lock()
+        .map_err(errors::internal)?
+        .alerts
+        .clone();
+    let Some(alerts) = alerts else {
+        return Err(errors::ALERTS_TOKEN_MISSING.to_string());
     };
+    let Ok(Some(token)) = alerts.bot_token() else {
+        return Err(errors::ALERTS_TOKEN_MISSING.to_string());
+    };
+    let base = alerts.api_base();
     TelegramChannel::new(&state.http_tls, &base, token).map_err(errors::internal)
 }
 

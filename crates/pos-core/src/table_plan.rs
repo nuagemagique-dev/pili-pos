@@ -19,17 +19,16 @@ pub fn parse(text: &str) -> Result<Vec<u32>, String> {
         if part.is_empty() {
             return Err(format!("empty entry in {text:?}"));
         }
-        let (from, to) = match part.split_once('-') {
-            Some((a, b)) => (number(a)?, number(b)?),
-            None => {
-                let n = number(part)?;
-                (n, n)
-            }
+        let (from, to) = if let Some((a, b)) = part.split_once('-') {
+            (number(a)?, number(b)?)
+        } else {
+            let n = number(part)?;
+            (n, n)
         };
         if from > to {
             return Err(format!("range {part:?} goes down"));
         }
-        if (to - from) as usize >= MAX_TABLES {
+        if usize::try_from(to - from).map_or(true, |span| span >= MAX_TABLES) {
             return Err(format!("more than {MAX_TABLES} tables"));
         }
         numbers.extend(from..=to);

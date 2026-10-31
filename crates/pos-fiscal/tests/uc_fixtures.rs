@@ -37,7 +37,7 @@ fn basic_set_root() -> PathBuf {
 
 /// One discovered fixture set within a single UC folder.
 struct UcFixture {
-    /// e.g. "M110_signSale" - the folder name, used as test ID.
+    /// e.g. "`M110_signSale`" - the folder name, used as test ID.
     uc_id: String,
     /// Absolute path to the `*_GQL-Variables.json` file. None for status
     /// queries (Q*), which carry a `*_Request.json` instead.
@@ -92,9 +92,8 @@ fn discover_fixtures() -> Vec<UcFixture> {
         // like `M112A_1_OriginalSale/`, `M112A_2_PartialRefund/`. Each
         // sub-step is registered as its own fixture so the test matrix
         // covers the whole flow (the cert manual tests them step-by-step).
-        let sub_entries = match fs::read_dir(&path) {
-            Ok(it) => it,
-            Err(_) => continue,
+        let Ok(sub_entries) = fs::read_dir(&path) else {
+            continue;
         };
         for sub in sub_entries.flatten() {
             let sub_path = sub.path();
@@ -124,7 +123,10 @@ fn find_response_file(dir: &Path) -> Option<(PathBuf, ResponseKind)> {
     let entries = fs::read_dir(dir).ok()?;
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().to_lowercase();
-        if !name.ends_with(".json") {
+        if !Path::new(&name)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("json"))
+        {
             continue;
         }
         if name.contains("response") {
@@ -263,6 +265,10 @@ fn assert_common_fields_present(uc_id: &str, vars: &serde_json::Value) {
 /// Reporting as one test (vs one #[test] per UC) keeps the output compact
 /// while still failing loudly with a precise per-UC diff.
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one pass over every fixture with a precise per-UC diff"
+)]
 fn basic_set_v1_8_fixtures_deserialize_and_match_schema() {
     let fixtures = discover_fixtures();
     assert!(
@@ -376,7 +382,10 @@ fn basic_set_v1_8_fixtures_deserialize_and_match_schema() {
                 let msg = e
                     .downcast_ref::<String>()
                     .cloned()
-                    .or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string()))
+                    .or_else(|| {
+                        e.downcast_ref::<&str>()
+                            .map(std::string::ToString::to_string)
+                    })
                     .unwrap_or_else(|| "<non-string panic>".to_string());
                 failed.push((fx.uc_id.clone(), msg));
             }
@@ -386,7 +395,7 @@ fn basic_set_v1_8_fixtures_deserialize_and_match_schema() {
     // Always print the matrix so the dossier capture is easy.
     eprintln!("\n── Basic Set v1.8 fixture coverage ──");
     eprintln!("Total UCs discovered: {}", fixtures.len());
-    eprintln!("Event labels exercised: {:?}", event_labels_seen);
+    eprintln!("Event labels exercised: {event_labels_seen:?}");
     eprintln!("Passed ({}):", passed.len());
     for uc in &passed {
         eprintln!("  ✓ {uc}");
@@ -476,8 +485,8 @@ fn q100_status_response_shape() {
         .join("Q100_Status")
         .join("status_response.json");
     let s = parse_fdm_status(&p);
-    assert!(!s.device.fdm_id.is_empty());
-    assert!(!s.device.fdm_sw_version.is_empty());
+    assert_ne!(s.device.fdm_id, "");
+    assert_ne!(s.device.fdm_sw_version, "");
 }
 
 /// Q110: multi-language status. The published envelope carries the
@@ -495,7 +504,7 @@ fn q110_multi_lang_status_response_shape() {
     let multi: MultiLangStatus =
         serde_json::from_value(data).expect("Q110 envelope deserializes into MultiLangStatus");
 
-    assert!(!multi.status.device.fdm_id.is_empty());
+    assert_ne!(multi.status.device.fdm_id, "");
     assert!(multi.status.initialized);
     // The fixture reports a healthy FDM: empty (not absent) arrays in
     // every language block.

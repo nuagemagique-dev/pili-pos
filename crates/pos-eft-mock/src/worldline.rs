@@ -52,22 +52,34 @@ const DEMO_TERMINALS: [&str; 2] = ["26197214", "26197215"];
 
 /// `GET /merchants/{umid}`: the merchant and its connected terminals,
 /// which is empty while the terminals are switched offline.
-pub async fn merchant(
+pub(crate) async fn merchant(
     State(shared): State<Shared>,
     headers: HeaderMap,
     Path(umid): Path<String>,
 ) -> Response {
     let v1_only = lock(&shared).merchant_v1_only;
-    merchant_list(&shared, &headers, &umid, 2, v1_only)
+    let listing = if v1_only {
+        Listing::NotFound
+    } else {
+        Listing::Served
+    };
+    merchant_list(&shared, &headers, &umid, 2, listing)
 }
 
 /// `GET /api/v1/merchants/{umid}`: the same list on the v1 path.
-pub async fn merchant_v1(
+pub(crate) async fn merchant_v1(
     State(shared): State<Shared>,
     headers: HeaderMap,
     Path(umid): Path<String>,
 ) -> Response {
-    merchant_list(&shared, &headers, &umid, 1, false)
+    merchant_list(&shared, &headers, &umid, 1, Listing::Served)
+}
+
+/// Whether the merchant list is served on a given API version.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Listing {
+    Served,
+    NotFound,
 }
 
 fn merchant_list(
@@ -75,7 +87,7 @@ fn merchant_list(
     headers: &HeaderMap,
     umid: &str,
     version: u8,
-    missing: bool,
+    listing: Listing,
 ) -> Response {
     let log = lock(shared).log(
         Protocol::Worldline,
@@ -83,7 +95,7 @@ fn merchant_list(
         &format!("/api/v{version}/merchants/{umid}"),
         Value::Null,
     );
-    let response = if missing {
+    let response = if listing == Listing::NotFound {
         error(404, "Not Found")
     } else if !bearer_ok(shared, headers) {
         error(401, "Unauthorized")
@@ -142,10 +154,19 @@ fn check_header(h: &Value) -> Result<String, String> {
 
 fn cents_of(v: &Value) -> Option<i64> {
     let f = v.as_f64()?;
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        reason = "a mock amount in euros, far below the i64 range"
+    )]
     Some((f * 100.0).round() as i64)
 }
 
+#[expect(
+    clippy::as_conversions,
+    clippy::cast_precision_loss,
+    reason = "a mock amount in cents, far below 2^52"
+)]
 fn number(cents: i64) -> Value {
     serde_json::Number::from_f64(cents as f64 / 100.0).map_or(Value::Null, Value::Number)
 }
@@ -160,11 +181,11 @@ fn header_echo(function: &str, exchange: &str) -> Value {
     })
 }
 
-fn environment(p: &Payment, utid: &str) -> Value {
+fn environment(p: &Payment, terminal_id: &str) -> Value {
     json!({
         "Acquirer": {"Identification": {"Identification": "00999100022"}},
         "Merchant": {"Identification": {"Identification": "WL000D5T0000004"}},
-        "POI": {"Identification": {"Identification": utid}},
+        "POI": {"Identification": {"Identification": terminal_id}},
         "Card": {"CardBrand": brand_upper(&p.brand), "MaskedPAN": "XXXXXXXXXXXX0119"},
         "Cardholder": {"Language": "FR"},
     })
@@ -209,7 +230,7 @@ fn failure(reason: &str, info: &str) -> Value {
 }
 
 /// The payment answer for a payment that reached a final phase.
-fn payment_answer(p: &Payment, phase: Phase, utid: &str) -> Value {
+fn payment_answer(p: &Payment, phase: Phase, terminal_id: &str) -> Value {
     let (response, payment) = match phase {
         Phase::Approved => (json!({"Response": "Success"}), Some(payment_block(p))),
         Phase::Cancelled => (
@@ -219,7 +240,7 @@ fn payment_answer(p: &Payment, phase: Phase, utid: &str) -> Value {
         _ => (failure("Refusal", "Declined by the issuer"), None),
     };
     let mut service = json!({
-        "Environment": environment(p, utid),
+        "Environment": environment(p, terminal_id),
         "Context": {"SaleContext": {"SaleIdentification": "pili-pos"}},
         "ServiceContent": "FinancialPaymentResponse",
         "Response": response,
@@ -233,11 +254,11 @@ fn payment_answer(p: &Payment, phase: Phase, utid: &str) -> Value {
     }}, "requestId": uuid::Uuid::new_v4().to_string()})
 }
 
-fn busy_answer(exchange: &str, utid: &str) -> Value {
+fn busy_answer(exchange: &str, terminal_id: &str) -> Value {
     json!({"data": {"SaleToPOIServiceResponse": {
         "Header": header_echo("SaleFinancialServiceResponse", exchange),
         "ServiceResponse": {
-            "Environment": {"POI": {"Identification": {"Identification": utid}}},
+            "Environment": {"POI": {"Identification": {"Identification": terminal_id}}},
             "Context": {"SaleContext": {"SaleIdentification": "pili-pos"}},
             "ServiceContent": "FinancialPaymentResponse",
             "Response": failure("Busy", "Terminal is processing another transaction"),
@@ -249,13 +270,13 @@ fn parse(body: &Bytes) -> Option<Value> {
     serde_json::from_slice::<Value>(body).ok()
 }
 
-pub async fn payments_sync(
+pub(crate) async fn payments_sync(
     State(shared): State<Shared>,
-    Path((umid, utid)): Path<(String, String)>,
+    Path((umid, terminal_id)): Path<(String, String)>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    let path = format!("/api/v2/merchants/{umid}/terminals/{utid}/payments/sync");
+    let path = format!("/api/v2/merchants/{umid}/terminals/{terminal_id}/payments/sync");
     let parsed = serde_json::from_slice::<Value>(&body);
     let log = lock(&shared).log(
         Protocol::Worldline,
@@ -263,7 +284,7 @@ pub async fn payments_sync(
         &path,
         parsed.as_ref().cloned().unwrap_or(Value::Null),
     );
-    let response = payments_sync_inner(&shared, &umid, &utid, &headers, parsed).await;
+    let response = payments_sync_inner(&shared, &umid, &terminal_id, &headers, parsed).await;
     lock(&shared).set_status(log, response.status().as_u16());
     response
 }
@@ -271,7 +292,7 @@ pub async fn payments_sync(
 async fn payments_sync_inner(
     shared: &Shared,
     umid: &str,
-    utid: &str,
+    terminal_id: &str,
     headers: &HeaderMap,
     parsed: Result<Value, serde_json::Error>,
 ) -> Response {
@@ -324,10 +345,10 @@ async fn payments_sync_inner(
         return error(400, "Currency must be EUR");
     }
 
-    let terminal = format!("wl:{umid}:{utid}");
+    let terminal = format!("wl:{umid}:{terminal_id}");
     let begun = lock(shared).begin(Protocol::Worldline, &exchange, &terminal, cents, "", "");
     let index = match begun {
-        Begin::Busy => return json_response(200, &busy_answer(&exchange, utid)),
+        Begin::Busy => return json_response(200, &busy_answer(&exchange, terminal_id)),
         Begin::Existing(i) | Begin::Created(i) => i,
     };
     let (payment, phase) = wait_done(shared, index).await;
@@ -337,16 +358,16 @@ async fn payments_sync_inner(
         // The cloud gave up waiting: only a requestId.
         return json_response(202, &json!({"requestId": uuid::Uuid::new_v4().to_string()}));
     }
-    json_response(200, &payment_answer(&payment, phase, utid))
+    json_response(200, &payment_answer(&payment, phase, terminal_id))
 }
 
-pub async fn status_sync(
+pub(crate) async fn status_sync(
     State(shared): State<Shared>,
-    Path((umid, utid)): Path<(String, String)>,
+    Path((umid, terminal_id)): Path<(String, String)>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    let path = format!("/api/v2/merchants/{umid}/terminals/{utid}/status/sync");
+    let path = format!("/api/v2/merchants/{umid}/terminals/{terminal_id}/status/sync");
     let parsed = parse(&body);
     let log = lock(&shared).log(
         Protocol::Worldline,
@@ -354,14 +375,14 @@ pub async fn status_sync(
         &path,
         parsed.clone().unwrap_or(Value::Null),
     );
-    let response = status_inner(&shared, &utid, &headers, parsed);
+    let response = status_inner(&shared, &terminal_id, &headers, parsed);
     lock(&shared).set_status(log, response.status().as_u16());
     response
 }
 
 fn status_inner(
     shared: &Shared,
-    utid: &str,
+    terminal_id: &str,
     headers: &HeaderMap,
     parsed: Option<Value>,
 ) -> Response {
@@ -414,10 +435,10 @@ fn status_inner(
         "InitiatingParty": {"Identification": "WL000D5T0000004", "Type": "Merchant"},
         "TransactionResponse": lookup,
     });
-    let mut environment_block = json!({"POI": {"Identification": {"Identification": utid}}});
+    let mut environment_block = json!({"POI": {"Identification": {"Identification": terminal_id}}});
     if let Some((p, Phase::Approved)) = &found {
         data["RepeatedPaymentResponse"] = payment_block(p);
-        environment_block = environment(p, utid);
+        environment_block = environment(p, terminal_id);
     }
     json_response(
         200,
@@ -431,13 +452,13 @@ fn status_inner(
     )
 }
 
-pub async fn abort(
+pub(crate) async fn abort(
     State(shared): State<Shared>,
-    Path((umid, utid)): Path<(String, String)>,
+    Path((umid, terminal_id)): Path<(String, String)>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    let path = format!("/api/v2/merchants/{umid}/terminals/{utid}/payments/abort");
+    let path = format!("/api/v2/merchants/{umid}/terminals/{terminal_id}/payments/abort");
     let parsed = parse(&body);
     let log = lock(&shared).log(
         Protocol::Worldline,

@@ -171,18 +171,30 @@ fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Option<T> {
     serde_json::from_slice(&raw).ok()
 }
 
-fn read_cursor(exports_dir: &Path) -> Option<i64> {
+/// What `cursor.json` says.
+enum Cursor {
+    /// No file: the export was just enabled.
+    Missing,
+    /// The last Z report number prepared.
+    At(i64),
+    /// The file exists but cannot be read.
+    Corrupt,
+}
+
+fn read_cursor(exports_dir: &Path) -> Cursor {
     let path = exports_dir.join(CURSOR_FILE);
     if !path.exists() {
-        return None;
+        return Cursor::Missing;
     }
     match read_json::<CursorFile>(&path) {
-        Some(c) => Some(c.last_z_report_no),
-        None => {
-            tracing::warn!("export: {CURSOR_FILE} is unreadable, starting from the latest Z");
-            None
-        }
+        Some(c) => Cursor::At(c.last_z_report_no),
+        None => Cursor::Corrupt,
     }
+}
+
+/// Z report number of an export id (`YYYYMMDD-z000042` is `42`).
+fn z_number_of(id: &str) -> Option<i64> {
+    id.get(10..)?.parse().ok()
 }
 
 fn write_cursor(exports_dir: &Path, last_z_report_no: i64) -> Result<(), String> {
@@ -242,7 +254,7 @@ fn list_exports(exports_dir: &Path) -> Result<Vec<String>, String> {
     for entry in entries {
         let entry = entry.map_err(|e| format!("cannot read {}: {e}", exports_dir.display()))?;
         // `file_type` does not follow symbolic links.
-        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let is_dir = entry.file_type().is_ok_and(|t| t.is_dir());
         if let Some(name) = entry.file_name().to_str()
             && is_dir
             && is_export_id(name)
@@ -280,7 +292,7 @@ pub fn clean_tmp(exports_dir: &Path) -> Result<(), String> {
     for entry in entries {
         let entry = entry.map_err(|e| format!("cannot read {}: {e}", tmp.display()))?;
         let path = entry.path();
-        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let is_dir = entry.file_type().is_ok_and(|t| t.is_dir());
         let removed = if is_dir {
             std::fs::remove_dir_all(&path)
         } else {
@@ -301,7 +313,7 @@ pub fn clean_tmp(exports_dir: &Path) -> Result<(), String> {
 /// date is older than `now - keep_days` is skipped and the cursor moves past
 /// it. A failure leaves nothing partial, records `prepare failed: <reason>` in
 /// `status.json`, keeps the cursor and returns the error.
-pub fn prepare_due(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, String> {
+pub fn prepare_due(env: &ExportEnv<'_>, now: DateTime<Utc>) -> Result<Vec<String>, String> {
     match prepare_all(env, now) {
         Ok(ids) => Ok(ids),
         Err(e) => {
@@ -313,7 +325,7 @@ pub fn prepare_due(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, S
     }
 }
 
-fn prepare_all(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, String> {
+fn prepare_all(env: &ExportEnv<'_>, now: DateTime<Utc>) -> Result<Vec<String>, String> {
     std::fs::create_dir_all(env.exports_dir)
         .map_err(|e| format!("cannot create {}: {e}", env.exports_dir.display()))?;
     clean_tmp(env.exports_dir)?;
@@ -324,13 +336,32 @@ fn prepare_all(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, Strin
     .map_err(|e| format!("cannot open {}: {e}", env.db_path.display()))?;
 
     let cursor = match read_cursor(env.exports_dir) {
-        Some(cursor) => cursor,
-        None => {
-            let first = zref::latest_real_z(&conn)?
-                .map(|z| (z.z_report_no - 1).max(0))
-                .unwrap_or(0);
-            write_cursor(env.exports_dir, first)?;
-            first
+        Cursor::At(cursor) => cursor,
+        Cursor::Missing => start_cursor(env, &conn)?,
+        Cursor::Corrupt => {
+            // Jumping to the latest Z would silently skip every Z in between. Resume
+            // after the newest export already prepared instead, and tell the operator.
+            let newest = list_exports(env.exports_dir)?
+                .iter()
+                .filter_map(|id| z_number_of(id))
+                .max();
+            let message = if newest.is_some() {
+                format!("{CURSOR_FILE} is unreadable: resuming after the newest prepared export")
+            } else {
+                format!(
+                    "{CURSOR_FILE} is unreadable and no export is prepared: \
+                     starting at the latest Z, older Z reports are not exported"
+                )
+            };
+            tracing::warn!("export: {message}");
+            record_error(env.exports_dir, &message, now);
+            match newest {
+                Some(no) => {
+                    write_cursor(env.exports_dir, no)?;
+                    no
+                }
+                None => start_cursor(env, &conn)?,
+            }
         }
     };
     let oldest_kept = (now - Duration::days(env.settings.keep_days)).date_naive();
@@ -362,8 +393,15 @@ fn prepare_all(env: &ExportEnv, now: DateTime<Utc>) -> Result<Vec<String>, Strin
     Ok(prepared)
 }
 
+/// First start: the cursor goes just before the latest Z, so only that Z is exported.
+fn start_cursor(env: &ExportEnv<'_>, conn: &Connection) -> Result<i64, String> {
+    let first = zref::latest_real_z(conn)?.map_or(0, |z| (z.z_report_no - 1).max(0));
+    write_cursor(env.exports_dir, first)?;
+    Ok(first)
+}
+
 /// Build `.tmp/<id>` and move it to `<id>`; remove `.tmp/<id>` on any failure.
-fn build_export(env: &ExportEnv, z: &ZRef, id: &str, now: DateTime<Utc>) -> Result<(), String> {
+fn build_export(env: &ExportEnv<'_>, z: &ZRef, id: &str, now: DateTime<Utc>) -> Result<(), String> {
     let work = env.exports_dir.join(TMP_DIR).join(id);
     let result = build_in(env, z, id, now, &work).and_then(|()| {
         let dest = env.exports_dir.join(id);
@@ -379,7 +417,7 @@ fn build_export(env: &ExportEnv, z: &ZRef, id: &str, now: DateTime<Utc>) -> Resu
 }
 
 fn build_in(
-    env: &ExportEnv,
+    env: &ExportEnv<'_>,
     z: &ZRef,
     id: &str,
     now: DateTime<Utc>,
@@ -471,7 +509,7 @@ fn remove_plaintext(plain: &Path) -> Result<(), String> {
         match std::fs::remove_file(&name) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(format!("cannot remove {name:?}: {e}")),
+            Err(e) => return Err(format!("cannot remove {}: {e}", Path::new(&name).display())),
         }
     }
     Ok(())
@@ -661,7 +699,7 @@ async fn upload_export(
 // ── Retry, retention, status ───────────────────────────────────────
 
 /// Make every incomplete export due now; return their number.
-pub fn retry_now(env: &ExportEnv, now: DateTime<Utc>) -> Result<i64, String> {
+pub fn retry_now(env: &ExportEnv<'_>, now: DateTime<Utc>) -> Result<i64, String> {
     let mut count = 0;
     for id in list_exports(env.exports_dir)? {
         let Some(mut state) = load_state(env.exports_dir, &id) else {
@@ -680,7 +718,7 @@ pub fn retry_now(env: &ExportEnv, now: DateTime<Utc>) -> Result<i64, String> {
 /// Delete every export created before `now - keep_days`, sent or not; return
 /// the number deleted. Each unsent one is counted in `dropped` and logged.
 /// Only export directories of `exports_dir` are touched.
-pub fn retention(env: &ExportEnv, now: DateTime<Utc>) -> Result<i64, String> {
+pub fn retention(env: &ExportEnv<'_>, now: DateTime<Utc>) -> Result<i64, String> {
     let limit = now - Duration::days(env.settings.keep_days);
     let mut deleted = 0;
     let mut dropped = 0;

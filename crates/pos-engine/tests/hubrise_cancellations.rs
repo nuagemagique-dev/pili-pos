@@ -1,10 +1,14 @@
-//! Online orders HubRise cancels or changes after the POS got them.
+//! Online orders `HubRise` cancels or changes after the POS got them.
 //! Before acceptance nothing was signed and nothing is. After an N, the
 //! order waits for a manager's refund (an N citing the sale, paid back
 //! APP or ONLINE); after a P, its closing corrects every line and signs
-//! an N at 0,00 EUR. Nothing is ever signed on HubRise's word alone.
+//! an N at 0,00 EUR. Nothing is ever signed on `HubRise`'s word alone.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -78,7 +82,7 @@ impl World {
             .await
             .unwrap();
         drain_outbox(&self.app).await;
-        self.mock.update(&hr_id, json!({ "status": "cancelled" }));
+        self.mock.update(&hr_id, &json!({ "status": "cancelled" }));
         self.poll().await;
         (id, hr_id)
     }
@@ -157,10 +161,10 @@ fn payment_types(request: &Value) -> Vec<String> {
 async fn cancelled_before_acceptance_signs_nothing() {
     let w = world().await;
     let (id, hr_id) = w.order("deliveroo_prepaid").await;
-    w.mock.update(&hr_id, json!({ "status": "cancelled" }));
+    w.mock.update(&hr_id, &json!({ "status": "cancelled" }));
     w.poll().await;
     assert_eq!(w.state_of(id).fiscal_state, "voided");
-    assert!(w.labels().is_empty());
+    assert_eq!(w.labels().len(), 0);
     assert_eq!(
         do_accept_webshop_order(&w.app.state, id, None)
             .await
@@ -385,7 +389,7 @@ async fn a_change_after_signing_is_flagged_not_signed() {
     let drink = w.mock.order(&hr_id)["items"][1]["id"].clone();
     w.mock.update(
         &hr_id,
-        json!({ "items": [{ "id": drink, "deleted": true }] }),
+        &json!({ "items": [{ "id": drink, "deleted": true }] }),
     );
     w.poll().await;
 
@@ -404,7 +408,7 @@ async fn a_cancellation_while_signing_skips_the_accepted_status() {
     let w = world().await;
     let (id, hr_id) = w.order("deliveroo_prepaid").await;
     // HubRise cancels between the claim and the FDM's answer.
-    w.mock.update(&hr_id, json!({ "status": "cancelled" }));
+    w.mock.update(&hr_id, &json!({ "status": "cancelled" }));
     {
         let db = w.app.state.db.lock().unwrap();
         db.execute(
@@ -484,7 +488,7 @@ async fn a_cancellation_while_the_pos_was_off_is_found_at_start() {
     drain_outbox(&w.app).await;
     assert_eq!(w.app.order_status(id).as_deref(), Some("closed"));
     // Cancelled while the POS was off: its event is lost.
-    w.mock.update(&hr_id, json!({ "status": "cancelled" }));
+    w.mock.update(&hr_id, &json!({ "status": "cancelled" }));
     w.mock
         .state
         .inner

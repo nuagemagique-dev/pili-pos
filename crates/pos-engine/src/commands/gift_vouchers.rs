@@ -26,6 +26,7 @@ use pos_core::config::PosConfig;
 use pos_core::order::{OrderLine, OrderStatus};
 use pos_db::queries::gift_vouchers as db;
 use pos_fiscal::payment::{PaymentMethod, Settlement};
+use pos_fiscal::types::Mode;
 use pos_print::gift_voucher::{BalanceSlip, VoucherSlip};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -161,7 +162,10 @@ fn normalize(code: &str) -> String {
 
 /// `**** **** 9012`: what the screens and logs show of a code.
 pub fn mask(code: &str) -> String {
-    let tail = &code[code.len().saturating_sub(4)..];
+    // Counted in chars: a code that is not 12 ASCII digits cannot panic
+    // on a byte boundary.
+    let skip = code.chars().count().saturating_sub(4);
+    let tail: String = code.chars().skip(skip).collect();
     format!("**** **** {tail}")
 }
 
@@ -169,7 +173,7 @@ pub fn mask(code: &str) -> String {
 fn draw_code(conn: &Connection, taken: &[String]) -> Result<String, String> {
     for _ in 0..32 {
         let random = uuid::Uuid::new_v4().as_u128();
-        let code = make_code((random % 10_000_000_000) as u64);
+        let code = make_code(u64::try_from(random % 10_000_000_000).unwrap_or_default());
         if taken.contains(&code) {
             continue;
         }
@@ -188,7 +192,7 @@ fn draw_code(conn: &Connection, taken: &[String]) -> Result<String, String> {
 /// The failed lookups of the last minute, in memory (a restart clears
 /// them): at most five a minute per terminal, so a code cannot be
 /// guessed at the till.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct LookupThrottle(Mutex<VecDeque<Instant>>);
 
 impl LookupThrottle {
@@ -272,12 +276,19 @@ fn status_of(row: &db::VoucherRow, today: &str) -> &'static str {
     }
 }
 
+/// Whether a voucher view carries its movements.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Movements {
+    With,
+    Without,
+}
+
 fn view_of(
     conn: &Connection,
     row: &db::VoucherRow,
-    with_movements: bool,
+    movements: Movements,
 ) -> Result<GiftVoucherView, String> {
-    let movements = if with_movements {
+    let movements = if movements == Movements::With {
         db::movements(conn, row.id)
             .map_err(errors::internal)?
             .into_iter()
@@ -322,7 +333,7 @@ pub fn do_lookup_gift_voucher(state: &AppState, code: &str) -> Result<GiftVouche
         return Err(errors::GIFT_VOUCHER_NOT_FOUND.to_string());
     };
     let training_mode = state.config.lock().map_err(errors::internal)?.training_mode;
-    let mut view = view_of(&conn, &row, true)?;
+    let mut view = view_of(&conn, &row, Movements::With)?;
     if row.training != training_mode {
         // The sale refuses it (`GIFT_VOUCHER_NOT_USABLE`): the dialog
         // says so before the cashier tries.
@@ -363,7 +374,7 @@ pub fn do_list_gift_vouchers(
     kept.sort_by_key(|(rank, _)| *rank);
     kept.truncate(LIST_LIMIT);
     kept.iter()
-        .map(|(_, row)| view_of(&conn, row, false))
+        .map(|(_, row)| view_of(&conn, row, Movements::Without))
         .collect()
 }
 
@@ -465,8 +476,10 @@ pub(crate) struct SalePlan {
 
 /// Local date + `months`, clamped to the end of a shorter month.
 fn add_months(date: chrono::NaiveDate, months: i32) -> chrono::NaiveDate {
-    date.checked_add_months(chrono::Months::new(months.max(0) as u32))
-        .unwrap_or(date)
+    date.checked_add_months(chrono::Months::new(
+        u32::try_from(months.max(0)).unwrap_or_default(),
+    ))
+    .unwrap_or(date)
 }
 
 /// Check the vouchers a sale sells and redeems, under the signing lock,
@@ -556,7 +569,7 @@ pub(crate) fn apply_sale(
     tx: &Connection,
     order_id: i64,
     event_id: i64,
-    training: bool,
+    mode: Mode,
     issued: &[IssuedVoucher],
     redemptions: &[Redemption],
 ) -> Result<(), String> {
@@ -568,7 +581,7 @@ pub(crate) fn apply_sale(
                 face_value_cents: voucher.face_value_cents,
                 issued_on: &voucher.issued_on,
                 expires_on: &voucher.expires_on,
-                training,
+                training: mode.is_training(),
                 issue_event_id: event_id,
                 issue_order_id: order_id,
                 issue_line_id: voucher.line_id,
@@ -608,12 +621,18 @@ pub(crate) fn vouchers_to_cancel(
         if menu_item_id != item {
             continue;
         }
-        let candidates: Vec<db::VoucherRow> = db::voucher_lines(conn, original_order_id)
-            .map_err(errors::internal)?
-            .into_iter()
-            .filter(|(_, price)| *price == unit_price_cents)
-            .filter_map(|(line_id, _)| db::find_by_line(conn, line_id).ok().flatten())
-            .collect();
+        let mut candidates: Vec<db::VoucherRow> = Vec::new();
+        for (line_id, price) in
+            db::voucher_lines(conn, original_order_id).map_err(errors::internal)?
+        {
+            if price != unit_price_cents {
+                continue;
+            }
+            // A database error is not "no voucher": it would read as a used one.
+            if let Some(row) = db::find_by_line(conn, line_id).map_err(errors::internal)? {
+                candidates.push(row);
+            }
+        }
         let mut remaining = quantity;
         for row in candidates {
             if remaining == 0 {
@@ -720,11 +739,18 @@ fn address_lines(config: &PosConfig) -> Vec<String> {
         .collect()
 }
 
+/// A voucher slip is the original or a reprint.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SlipKind {
+    Original,
+    Duplicate,
+}
+
 fn voucher_slip(
     config: &PosConfig,
     row: &db::VoucherRow,
     reference: Option<String>,
-    duplicate: bool,
+    kind: SlipKind,
 ) -> VoucherSlip {
     VoucherSlip {
         establishment: config.restaurant_name.clone(),
@@ -735,7 +761,7 @@ fn voucher_slip(
         expires_on: display_date(&row.expires_on),
         reference,
         lang: printer_language(config),
-        duplicate,
+        duplicate: kind == SlipKind::Duplicate,
         training: row.training,
     }
 }
@@ -761,7 +787,7 @@ pub(crate) async fn print_after_sale(
             (row, reference)
         };
         let bytes = pos_print::gift_voucher::format_gift_voucher(
-            &voucher_slip(config, &row, reference, false),
+            &voucher_slip(config, &row, reference, SlipKind::Original),
             config.printer_paper_mm,
         );
         let outcome = send(state, config, &bytes).await;
@@ -786,6 +812,7 @@ pub(crate) async fn print_after_sale(
         };
         let slip = BalanceSlip {
             establishment: config.restaurant_name.clone(),
+            // Stored codes are 12 ASCII digits: the byte slice is safe.
             code_last4: row.code[row.code.len().saturating_sub(4)..].to_string(),
             balance_cents: row.balance_cents,
             expires_on: display_date(&row.expires_on),
@@ -832,7 +859,7 @@ pub async fn do_print_gift_voucher(
         (row, reference)
     };
     let bytes = pos_print::gift_voucher::format_gift_voucher(
-        &voucher_slip(&config, &row, reference, true),
+        &voucher_slip(&config, &row, reference, SlipKind::Duplicate),
         config.printer_paper_mm,
     );
     let outcome = send(state, &config, &bytes).await;
@@ -880,7 +907,7 @@ mod tests {
         ] {
             assert!(!valid_code(bad), "{bad}");
         }
-        let mut wrong = good.clone();
+        let mut wrong = good;
         let last = wrong.pop().unwrap();
         wrong.push(if last == '0' { '1' } else { '0' });
         assert!(!valid_code(&wrong));
@@ -891,6 +918,9 @@ mod tests {
         assert_eq!(normalize("1234 5678 9095"), "123456789095");
         assert_eq!(normalize(" 1234-5678-9095 "), "123456789095");
         assert_eq!(mask("123456789095"), "**** **** 9095");
+        // Never a panic on a code that is not ASCII, or too short.
+        assert_eq!(mask("12é4567"), "**** **** 4567");
+        assert_eq!(mask("é"), "**** **** é");
     }
 
     #[test]

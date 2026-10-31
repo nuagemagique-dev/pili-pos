@@ -7,6 +7,11 @@
 //!    out (a pro forma, a training sale, a copy, an open order, the sale of a period no
 //!    Z closed yet).
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 mod common;
 
 use pos_engine_testkit as kit;
@@ -188,13 +193,13 @@ fn copy_of(app: &TestApp, dir: &std::path::Path) -> std::path::PathBuf {
 
 #[tokio::test]
 async fn the_reports_scenario_day_equals_its_signed_z_to_the_cent() {
-    let app = play_reports_day().await;
+    let app = Box::pin(play_reports_day()).await;
     let dir = tempfile::tempdir().unwrap();
     let db = copy_of(&app, dir.path());
     let date = booking_dates(&app).remove(0);
     let out = dir.path().join("out");
     let summary = run(&db, &out, one_day(&date)).unwrap();
-    assert_eq!(summary.days, vec![(date.clone(), 1)]);
+    assert_eq!(summary.days, vec![(date, 1)]);
     let f = &summary.folder;
 
     // The published M184: 4 sale tickets (one is the refund), 102.04 EUR.
@@ -219,12 +224,12 @@ async fn the_reports_scenario_day_equals_its_signed_z_to_the_cent() {
         let label = v["label"].as_str().unwrap();
         assert_eq!(
             sum(label, 6),
-            (v["taxableAmount"].as_f64().unwrap() * 100.0).round() as i64,
+            cents(v["taxableAmount"].as_f64().unwrap()),
             "base {label}"
         );
         assert_eq!(
             sum(label, 8),
-            (v["vatAmount"].as_f64().unwrap() * 100.0).round() as i64,
+            cents(v["vatAmount"].as_f64().unwrap()),
             "VAT {label}"
         );
     }
@@ -302,6 +307,10 @@ fn labels(app: &TestApp) -> Vec<String> {
 }
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario replayed step by step; the steps share the signed state"
+)]
 async fn a_mixed_day_reconciles_and_leaves_out_what_is_not_a_signed_sale() {
     let app = mock_app().await;
 
@@ -416,7 +425,7 @@ async fn a_mixed_day_reconciles_and_leaves_out_what_is_not_a_signed_sale() {
     let pay = rows(f, "paiements.csv");
     let line = |m: &str| pay.iter().find(|r| r[2] == m).cloned();
     assert_eq!(line("carte").unwrap()[3], "52,00");
-    assert_eq!(line("titres_repas").unwrap()[3], "5,00");
+    assert_eq!(line("cheques_repas").unwrap()[3], "5,00");
     // Cash: 52.00 + 10.34 - 12.00, rounded to 5 cents on the rest of the split sale.
     let cash = line("especes").unwrap();
     assert_eq!(cash[3], "50,34");

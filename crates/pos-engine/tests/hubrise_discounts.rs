@@ -6,6 +6,10 @@
 //! a refund or a closing carries the same changes negated.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -130,7 +134,7 @@ fn deliveroo_discounted() -> Value {
 }
 
 fn cents(v: &Value) -> i64 {
-    (v.as_f64().expect("amount") * 100.0).round() as i64
+    pos_core::money::cents_from_eur(v.as_f64().expect("amount"))
 }
 
 /// (price before, Σ changes, lineTotal) of each transaction line.
@@ -143,8 +147,7 @@ fn lines(request: &Value) -> Vec<(i64, i64, i64)> {
             let vat = &l["mainProduct"]["vats"][0];
             let changes: i64 = vat["priceChanges"]
                 .as_array()
-                .map(|c| c.iter().map(|c| cents(&c["amount"])).sum())
-                .unwrap_or(0);
+                .map_or(0, |c| c.iter().map(|c| cents(&c["amount"])).sum());
             (cents(&vat["price"]), changes, cents(&l["lineTotal"]))
         })
         .collect()
@@ -176,7 +179,7 @@ async fn a_discounted_sale_sends_the_discount_as_price_changes() {
 
     // 20,00 and 3,00 before, 2,00 and 0,30 off.
     let mut got = lines(&n);
-    got.sort();
+    got.sort_unstable();
     assert_eq!(got, vec![(300, -30, 270), (2000, -200, 1800)]);
     assert_eq!(cents(&n["transaction"]["transactionTotal"]), 2070);
     assert_eq!(paid(&n), 2070, "the payment is what the customer paid");
@@ -255,7 +258,7 @@ async fn a_cancelled_discounted_p_closes_at_zero() {
             .is_ok()
     );
     drain_outbox(&w.app).await;
-    w.mock.update(&hr_id, json!({ "status": "cancelled" }));
+    w.mock.update(&hr_id, &json!({ "status": "cancelled" }));
     poll_once(&poller(&w.app)).await.unwrap();
 
     let closed = do_close_cancelled_webshop_order(&w.app.state, id)
@@ -283,7 +286,7 @@ async fn a_refund_gives_back_the_net_amount() {
     );
     let sale = w.n_event(id);
     drain_outbox(&w.app).await;
-    w.mock.update(&hr_id, json!({ "status": "cancelled" }));
+    w.mock.update(&hr_id, &json!({ "status": "cancelled" }));
     poll_once(&poller(&w.app)).await.unwrap();
 
     w.app.login_as(MANAGER, UserRole::Admin);
@@ -327,7 +330,7 @@ async fn a_refund_gives_back_the_net_amount() {
     assert!(refund.success, "{:?}", refund.error);
     let back = w.request(refund.fiscal_event_id.unwrap());
     let mut got = lines(&back);
-    got.sort();
+    got.sort_unstable();
     assert_eq!(got, vec![(-2000, 200, -1800), (-300, 30, -270)]);
     assert_eq!(cents(&back["transaction"]["transactionTotal"]), -2070);
     assert_eq!(paid(&back), -2070);

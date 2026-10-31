@@ -52,8 +52,9 @@ l'export écrit sur la clé ou sur le stockage choisi) :
 
 - le fichier est ouvert en lecture seule et immuable (aucun journal, aucun fichier WAL
   n'est créé à côté) ;
-- si le dossier contient `MANIFEST.sha256`, chaque fichier listé est vérifié ; un écart
-  arrête l'outil (`manifest_mismatch`) ;
+- si le dossier contient `MANIFEST.sha256`, chaque fichier listé est vérifié (formes texte et
+  `--binary` de sha256sum) et `pos.db` doit y figurer ; un écart ou une liste qui ne couvre
+  pas `pos.db` arrête l'outil (`manifest_mismatch`) ;
 - un fichier `pos.db-wal` non vide à côté signale une copie de la base en service :
   l'outil refuse (`db_unreadable`), car il ignorerait ce que le WAL contient encore ;
 - une base sans la migration 4 (archive en ajout seul) est refusée (`not_a_pili_db`) ;
@@ -146,7 +147,9 @@ Comptes par défaut (plan comptable minimum normalisé), modifiables avec `--acc
 
 Le fichier de comptes est un JSON (clés `journal`, `sales`, `vat`, `payments`,
 `gift_vouchers`, `rounding_cost`, `rounding_income`, `tips`, `unpaid`) ; une clé inconnue
-ou un numéro de compte invalide est refusé (`accounts_invalid`).
+ou un numéro de compte invalide est refusé (`accounts_invalid`). Le code du moyen de
+paiement « chèques-repas » est `cheques_repas` ; l'ancienne clé `titres_repas` d'un fichier
+de comptes est lue comme `cheques_repas`.
 
 ## 8. Profils
 

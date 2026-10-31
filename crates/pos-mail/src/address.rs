@@ -52,10 +52,10 @@ const MAX_LABEL_LEN: usize = 63;
 /// Does not attempt DNS/MX resolution - that's the outbox's job when
 /// it actually tries to send.
 pub fn validate(email: &str) -> Result<(), AddressError> {
-    if email.chars().any(|c| c.is_control()) {
+    if email.chars().any(char::is_control) {
         return Err(AddressError::ContainsControlChar);
     }
-    if email.chars().any(|c| c.is_whitespace()) {
+    if email.chars().any(char::is_whitespace) {
         return Err(AddressError::ContainsWhitespace);
     }
     if email.chars().count() > MAX_ADDRESS_LEN {

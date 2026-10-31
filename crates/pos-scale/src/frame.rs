@@ -103,7 +103,10 @@ pub fn price_record(
     text: Option<&str>,
 ) -> Option<Vec<u8>> {
     let price = digits(unit_price_cents, digit_count.width())?;
-    let tare = tare_grams.map(|t| digits(t, 4)).transpose_some()?;
+    let tare = match tare_grams {
+        Some(t) => Some(digits(t, 4)?),
+        None => None,
+    };
     if let Some(t) = text
         && (t.len() != TEXT_LEN || !t.bytes().all(|b| (0x20..0x7F).contains(&b)))
     {
@@ -131,22 +134,6 @@ pub fn price_record(
     }
     out.push(ETX);
     Some(out)
-}
-
-trait TransposeSome<T> {
-    /// `None` means nothing was given, `Some(None)` a value that did not
-    /// fit: the outer `Option` is `None` only for the second.
-    fn transpose_some(self) -> Option<Option<T>>;
-}
-
-impl<T> TransposeSome<T> for Option<Option<T>> {
-    fn transpose_some(self) -> Option<Option<T>> {
-        match self {
-            None => Some(None),
-            Some(Some(v)) => Some(Some(v)),
-            Some(None) => None,
-        }
-    }
 }
 
 /// Record 10: the checksums and correction values, four hex digits each.

@@ -65,11 +65,14 @@ pub trait AccessPoint: Send + Sync {
     async fn lookup(&self, participant: &str) -> Result<LookupResult, PeppolError>;
 
     /// Submit `ubl_xml` to `participant`. APIs that route on an explicit recipient (Storecove)
-    /// override this; the default is [`AccessPoint::submit`].
+    /// override this; the default is [`AccessPoint::submit`]. `idempotency_key` is stable for
+    /// one delivery across retries: an AP that supports it uses it so a lost answer followed
+    /// by a retry cannot create a second document.
     async fn submit_to(
         &self,
         _participant: &str,
         ubl_xml: &str,
+        _idempotency_key: &str,
     ) -> Result<DeliveryReceipt, PeppolError> {
         self.submit(ubl_xml).await
     }
@@ -81,6 +84,7 @@ pub trait AccessPoint: Send + Sync {
 /// No-op AP that just logs the submission. The development provider (`peppol.provider` is
 /// `logging`): operators can issue B2B invoices and inspect the UBL output without live
 /// Peppol traffic. Every participant is "registered".
+#[derive(Debug)]
 pub struct LoggingAccessPoint;
 
 #[async_trait]
@@ -120,6 +124,16 @@ pub struct StorecoveAccessPoint {
     base_url: String,
     api_key: String,
     legal_entity_id: i64,
+}
+
+impl std::fmt::Debug for StorecoveAccessPoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StorecoveAccessPoint")
+            .field("base_url", &self.base_url)
+            .field("api_key", &"<redacted>")
+            .field("legal_entity_id", &self.legal_entity_id)
+            .finish_non_exhaustive()
+    }
 }
 
 impl StorecoveAccessPoint {
@@ -168,6 +182,29 @@ impl StorecoveAccessPoint {
     }
 }
 
+/// The `idempotencyGuid` of a submission: a UUID derived from the legal entity, the caller's
+/// stable key and the document itself, so the same delivery always sends the same GUID while
+/// another document never reuses it (the key is a local row id that repeats after a database
+/// reset or on a second till). Storecove answers a repeated GUID with the first submission's
+/// result instead of creating a second document.
+/// (The field name is from Storecove's `document_submissions` API; the mock ignores it.)
+pub(crate) fn idempotency_guid(legal_entity_id: i64, key: &str, document: &str) -> String {
+    fn fnv1a(seed: u64, text: &str) -> u64 {
+        text.bytes().fold(seed, |hash, b| {
+            (hash ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3)
+        })
+    }
+    let text = format!("{legal_entity_id}\u{1f}{key}\u{1f}{document}");
+    let high = fnv1a(0xcbf2_9ce4_8422_2325, &text);
+    let low = fnv1a(0x8422_2325_cbf2_9ce4, &text);
+    let mut bytes = [0_u8; 16];
+    bytes[..8].copy_from_slice(&high.to_be_bytes());
+    bytes[8..].copy_from_slice(&low.to_be_bytes());
+    uuid::Builder::from_random_bytes(bytes)
+        .into_uuid()
+        .to_string()
+}
+
 /// Split a Peppol participant id `scheme:value`.
 fn split_participant(participant: &str) -> Result<(&str, &str), PeppolError> {
     participant
@@ -201,10 +238,12 @@ impl AccessPoint for StorecoveAccessPoint {
         &self,
         participant: &str,
         ubl_xml: &str,
+        idempotency_key: &str,
     ) -> Result<DeliveryReceipt, PeppolError> {
         let (scheme, value) = split_participant(participant)?;
         let body = json!({
             "legalEntityId": self.legal_entity_id,
+            "idempotencyGuid": idempotency_guid(self.legal_entity_id, idempotency_key, ubl_xml),
             "routing": {
                 "eIdentifiers": [{ "scheme": "iso6523-actorid-upis", "id": format!("{scheme}:{value}") }]
             },
@@ -329,6 +368,33 @@ mod tests {
         assert_eq!(LookupResult::Registered.as_str(), "registered");
     }
 
+    #[test]
+    fn the_same_delivery_always_sends_the_same_guid() {
+        let a = idempotency_guid(7, "delivery-12", "<Invoice>1</Invoice>");
+        assert_eq!(
+            a,
+            idempotency_guid(7, "delivery-12", "<Invoice>1</Invoice>")
+        );
+        assert_ne!(
+            a,
+            idempotency_guid(7, "delivery-13", "<Invoice>1</Invoice>")
+        );
+        assert_ne!(
+            a,
+            idempotency_guid(8, "delivery-12", "<Invoice>1</Invoice>")
+        );
+        assert!(uuid::Uuid::parse_str(&a).is_ok());
+    }
+
+    /// After a database reset the same delivery id comes back for another invoice.
+    #[test]
+    fn another_document_under_the_same_key_gets_another_guid() {
+        assert_ne!(
+            idempotency_guid(7, "delivery-7", "<Invoice>old</Invoice>"),
+            idempotency_guid(7, "delivery-7", "<Invoice>new</Invoice>")
+        );
+    }
+
     #[tokio::test]
     async fn storecove_without_a_reachable_host_is_transient() {
         let ap = StorecoveAccessPoint::new(reqwest::Client::new(), "http://127.0.0.1:9", "k", 1);
@@ -337,7 +403,10 @@ mod tests {
             matches!(err, PeppolError::Transient { status: None, .. }),
             "{err:?}"
         );
-        let err = ap.submit_to("0208:0308357159", "<x/>").await.unwrap_err();
+        let err = ap
+            .submit_to("0208:0308357159", "<x/>", "k")
+            .await
+            .unwrap_err();
         assert!(
             matches!(err, PeppolError::Transient { status: None, .. }),
             "{err:?}"

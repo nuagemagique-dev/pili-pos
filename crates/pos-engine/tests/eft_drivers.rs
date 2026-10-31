@@ -8,6 +8,11 @@
 //! `eft_signing`); this one checks that what the drivers read from the
 //! wire reaches the signed payment line.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;

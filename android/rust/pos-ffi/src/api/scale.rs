@@ -8,8 +8,10 @@ use crate::error::PosError;
 use crate::records::orders::OrderLine;
 use crate::records::scale::{ScaleStatus, ScaleWeighInput};
 
-// The closures name the engine function at the call, which `check_command_parity.py` looks for.
-#[allow(clippy::redundant_closure)]
+#[expect(
+    clippy::redundant_closure,
+    reason = "the closures name the engine function at the call, which check_command_parity.py looks for"
+)]
 #[uniffi::export]
 impl PosEngine {
     /// How the scale is doing, for the header light.

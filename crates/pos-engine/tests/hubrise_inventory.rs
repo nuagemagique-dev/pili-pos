@@ -1,6 +1,10 @@
-//! Sold-out products pushed to the HubRise inventory (V11-D15), against the in-process mock.
+//! Sold-out products pushed to the `HubRise` inventory (V11-D15), against the in-process mock.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -431,7 +435,7 @@ async fn the_outbox_loop_pushes_the_inventory_by_itself() {
     let cancel = tokio_util::sync::CancellationToken::new();
     let ctx = pos_hubrise::outbox::OutboxCtx {
         http: app.state.shared_http.clone(),
-        db: app.state.poller_db.clone(),
+        db: Arc::clone(&app.state.poller_db),
         wake: Arc::clone(&app.state.hubrise_outbox_wake),
         enabled: app.state.hubrise_switch.clone(),
     };

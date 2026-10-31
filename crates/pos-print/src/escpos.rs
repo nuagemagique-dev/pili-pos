@@ -42,6 +42,10 @@ pub enum Alignment {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the five independent ESC/POS print-mode flags, set together by callers"
+)]
 pub struct TextStyle {
     pub bold: bool,
     pub underline: bool,
@@ -136,7 +140,7 @@ impl EscPosBuilder {
     /// [`chars_per_line`](Self::chars_per_line) columns, breaking between words (see [`wrap`]), so a long name
     /// or address is never cut by the printer mid-word.
     pub fn textln_wrapped(&mut self, s: &str) -> &mut Self {
-        for line in wrap(s, self.chars_per_line() as usize) {
+        for line in wrap(s, usize::from(self.chars_per_line())) {
             self.textln(&line);
         }
         self
@@ -152,7 +156,7 @@ impl EscPosBuilder {
     pub fn text_columns(&mut self, left: &str, right: &str) -> &mut Self {
         // Widths count printed characters (CP858 is single-byte, so
         // one char == one column), not UTF-8 bytes.
-        let width = self.chars_per_line() as usize;
+        let width = usize::from(self.chars_per_line());
         let (left, right) = (printable(left), printable(right));
         let right_len = right.chars().count().min(width);
         let right_truncated: String = right.chars().take(right_len).collect();
@@ -183,7 +187,7 @@ impl EscPosBuilder {
 
     /// Print a horizontal separator line.
     pub fn separator(&mut self, ch: char) -> &mut Self {
-        let line: String = std::iter::repeat_n(ch, self.chars_per_line() as usize).collect();
+        let line: String = std::iter::repeat_n(ch, usize::from(self.chars_per_line())).collect();
         self.textln(&line)
     }
 
@@ -218,8 +222,8 @@ impl EscPosBuilder {
         // Function 180: Store QR data
         let data_bytes = data.as_bytes();
         let store_len = data_bytes.len() + 3; // +3 for cn, fn, m
-        let pl = (store_len & 0xFF) as u8;
-        let ph = ((store_len >> 8) & 0xFF) as u8;
+        // The caller bounds the data to `QR_MAX_BYTES`, so this fits.
+        let [pl, ph] = u16::try_from(store_len).unwrap_or(u16::MAX).to_le_bytes();
         self.buf
             .extend_from_slice(&[GS, b'(', b'k', pl, ph, 49, 80, 48]);
         self.buf.extend_from_slice(data_bytes);
@@ -240,19 +244,12 @@ impl EscPosBuilder {
         height_pixels: u16,
         data: &[u8],
     ) -> &mut Self {
-        let bytes_per_row = width_pixels.div_ceil(8);
+        let [row_lo, row_hi] = width_pixels.div_ceil(8).to_le_bytes();
+        let [height_lo, height_hi] = height_pixels.to_le_bytes();
         // GS v 0 m xL xH yL yH d1...dk
         // m=0: normal mode
-        self.buf.extend_from_slice(&[
-            GS,
-            b'v',
-            b'0',
-            0,
-            (bytes_per_row & 0xFF) as u8,
-            ((bytes_per_row >> 8) & 0xFF) as u8,
-            (height_pixels & 0xFF) as u8,
-            ((height_pixels >> 8) & 0xFF) as u8,
-        ]);
+        self.buf
+            .extend_from_slice(&[GS, b'v', b'0', 0, row_lo, row_hi, height_lo, height_hi]);
         self.buf.extend_from_slice(data);
         self
     }
@@ -483,11 +480,14 @@ pub fn printable(s: &str) -> String {
             '\u{2026}' => out.push_str("..."),
             '\u{2022}' => out.push('·'),
             '\u{2122}' => out.push_str("TM"),
-            '\u{00A0}' | '\u{2000}'..='\u{200A}' | '\u{202F}' | '\u{205F}' => out.push(' '),
-            '\u{200B}'..='\u{200D}' | '\u{FEFF}' | '\u{00AD}' => {}
-            '\u{0300}'..='\u{036F}' => {}
-            '\t' => out.push(' '),
-            '\u{0000}'..='\u{001F}' | '\u{007F}' => {}
+            '\u{00A0}' | '\u{2000}'..='\u{200A}' | '\u{202F}' | '\u{205F}' | '\t' => out.push(' '),
+            // Zero-width, combining marks and control characters print as nothing.
+            '\u{200B}'..='\u{200D}'
+            | '\u{FEFF}'
+            | '\u{00AD}'
+            | '\u{0300}'..='\u{036F}'
+            | '\u{0000}'..='\u{001F}'
+            | '\u{007F}' => {}
             _ => out.push(ch),
         }
     }
@@ -510,25 +510,23 @@ pub fn is_cp858_printable(s: &str) -> bool {
 /// Encode one char to CP858; unknown characters become `?`.
 pub fn encode_cp858(ch: char) -> u8 {
     if ch.is_ascii() {
-        return ch as u8;
+        return u8::try_from(ch).unwrap_or(b'?');
     }
     CP858_HIGH
         .iter()
         .find(|(c, _)| *c == ch)
-        .map(|(_, b)| *b)
-        .unwrap_or(b'?')
+        .map_or(b'?', |(_, b)| *b)
 }
 
 /// Decode one CP858 byte back to a char (renderer side).
 pub fn decode_cp858(byte: u8) -> char {
     if byte < 0x80 {
-        return byte as char;
+        return char::from(byte);
     }
     CP858_HIGH
         .iter()
         .find(|(_, b)| *b == byte)
-        .map(|(c, _)| *c)
-        .unwrap_or('?')
+        .map_or('?', |(c, _)| *c)
 }
 
 #[cfg(test)]
@@ -651,17 +649,8 @@ mod tests {
         let mut b = EscPosBuilder::new();
         b.qr_code(&"A".repeat(QR_MAX_BYTES), 6);
         let bytes = b.build();
-        let store_len = QR_MAX_BYTES + 3;
-        let store = [
-            GS,
-            b'(',
-            b'k',
-            (store_len & 0xFF) as u8,
-            (store_len >> 8) as u8,
-            49,
-            80,
-            48,
-        ];
+        let [store_lo, store_hi] = u16::try_from(QR_MAX_BYTES + 3).unwrap().to_le_bytes();
+        let store = [GS, b'(', b'k', store_lo, store_hi, 49, 80, 48];
         assert!(bytes.windows(8).any(|w| w == store));
     }
 
@@ -765,7 +754,7 @@ mod tests {
     #[test]
     fn ascii_round_trips_through_cp858() {
         for byte in 0u8..0x80 {
-            let ch = byte as char;
+            let ch = char::from(byte);
             assert_eq!(encode_cp858(ch), byte, "ascii {byte:#x}");
             assert_eq!(decode_cp858(byte), ch, "ascii {byte:#x}");
         }

@@ -1,5 +1,10 @@
 //! Content of the statistics file built from the shared fixture (card X1-T3).
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 mod common;
 
 use std::collections::BTreeMap;
@@ -75,7 +80,7 @@ fn the_real_z_reports_are_listed_in_order() {
     assert_eq!(z.closing_event_id, fx.closing_event_id);
     assert!(z.closed_at.starts_with("20"), "{}", z.closed_at);
     assert_eq!(real_zs_after(&conn, Some(41)).unwrap(), vec![z.clone()]);
-    assert!(real_zs_after(&conn, Some(42)).unwrap().is_empty());
+    assert_eq!(real_zs_after(&conn, Some(42)).unwrap().len(), 0);
     assert_eq!(latest_real_z(&conn).unwrap().as_ref(), Some(z));
 }
 
@@ -100,17 +105,20 @@ fn a_training_z_is_never_a_real_z() {
         .collect();
     assert_eq!(numbers, vec![41, 42]);
     assert_eq!(latest_real_z(&conn).unwrap().unwrap().z_report_no, 42);
-    assert!(real_zs_after(&conn, Some(42)).unwrap().is_empty());
+    assert_eq!(real_zs_after(&conn, Some(42)).unwrap().len(), 0);
 }
 
 #[test]
 fn counts_and_totals_match_the_fixture_and_the_z() {
     let (_dir, fx, out, summary) = built();
     assert_eq!(summary.tickets, 6);
-    assert_eq!(summary.tickets, fx.tickets.len() as i64);
+    assert_eq!(summary.tickets, i64::try_from(fx.tickets.len()).unwrap());
     assert_eq!(summary.lines, 9);
     assert_eq!(summary.lines, fx.lines);
-    assert_eq!(summary.bytes, std::fs::metadata(&out).unwrap().len() as i64);
+    assert_eq!(
+        summary.bytes,
+        i64::try_from(std::fs::metadata(&out).unwrap().len()).unwrap()
+    );
 
     let conn = open_ro(&out);
     assert_eq!(scalar(&conn, "SELECT COUNT(*) FROM tickets"), 6);
@@ -290,12 +298,14 @@ fn payments_match_the_tickets_and_the_z() {
     assert_eq!(z_rows, expected);
 }
 
+/// A row of `tickets`: id, channel, kind, table, total, unpaid, user.
+type Row = (i64, String, String, Option<i64>, i64, i64, String);
+
 #[test]
 fn channels_tables_kinds_and_users_follow_the_orders() {
     let (_dir, fx, out, _) = built();
     let conn = open_ro(&out);
     let key = test_key();
-    type Row = (i64, String, String, Option<i64>, i64, i64, String);
     let rows: Vec<Row> = conn
         .prepare(
             "SELECT ticket_id, channel, kind, table_number, total_cents, unpaid, user_ref
@@ -590,6 +600,135 @@ fn a_failed_build_leaves_nothing_behind() {
     assert!(build_stats(&conn, &z, &test_meta(), &test_key(), &out).is_err());
     assert!(!out.exists());
     assert!(!dir.path().join("stats.sqlite.partial").exists());
+}
+
+/// Rewrites one archived field of a ticket on a copy of the fixture (the append-only
+/// trigger is dropped on the copy only) and returns the build error.
+fn build_error_after(sql: &str) -> (String, i64) {
+    let dir = tempfile::tempdir().unwrap();
+    let fx = fixture_db(&dir.path().join("pos.db"));
+    let id = fx.tickets[0].ticket_id;
+    {
+        let conn = Connection::open(&fx.db_path).unwrap();
+        let triggers: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'fiscal_events'")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        for t in triggers {
+            conn.execute_batch(&format!("DROP TRIGGER \"{t}\";"))
+                .unwrap();
+        }
+        conn.execute(sql, [id]).unwrap();
+    }
+    let conn = open_ro(&fx.db_path);
+    let out = dir.path().join("stats.sqlite");
+    let err = build_stats(&conn, &fixture_z(&fx), &test_meta(), &test_key(), &out).unwrap_err();
+    assert!(!out.exists());
+    (err, id)
+}
+
+#[test]
+fn a_missing_ticket_number_is_an_error_naming_the_event_not_a_zero() {
+    let (err, id) = build_error_after(
+        "UPDATE fiscal_events SET event_data_json = json_remove(event_data_json, '$.posFiscalTicketNo') WHERE id = ?1",
+    );
+    assert!(err.contains("posFiscalTicketNo"), "{err}");
+    assert!(err.contains(&format!("event {id}")), "{err}");
+}
+
+#[test]
+fn a_missing_amount_is_an_error_naming_the_event_not_a_zero() {
+    let (err, id) = build_error_after(
+        "UPDATE fiscal_events SET event_data_json = json_remove(event_data_json, '$.financials[0].amount') WHERE id = ?1",
+    );
+    assert!(err.contains("amount"), "{err}");
+    assert!(err.contains(&format!("event {id}")), "{err}");
+}
+
+/// Parity with `pos-accounting`: the same archived events (a fixture file owned by
+/// that crate) must give the same VAT rows, payments and refund flag here. Each
+/// case replaces the archived request and answer of one ticket on a copy of the
+/// fixture database.
+#[test]
+fn the_parity_cases_match_the_accounting_parser() {
+    let cases: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+        "../../pos-accounting/tests/golden/parity_cases.json"
+    ))
+    .unwrap();
+    assert!(cases.len() >= 4);
+    for case in &cases {
+        let name = case["name"].as_str().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let fx = fixture_db(&dir.path().join("pos.db"));
+        let id = fx.tickets[0].ticket_id;
+        {
+            let conn = Connection::open(&fx.db_path).unwrap();
+            let triggers: Vec<String> = conn
+                .prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'fiscal_events'")
+                .unwrap()
+                .query_map([], |r| r.get(0))
+                .unwrap()
+                .map(Result::unwrap)
+                .collect();
+            for t in triggers {
+                conn.execute_batch(&format!("DROP TRIGGER \"{t}\";"))
+                    .unwrap();
+            }
+            conn.execute(
+                "UPDATE fiscal_events SET
+                    event_data_json = json_set(?2, '$.bookingPeriodId', json_extract(event_data_json, '$.bookingPeriodId')),
+                    fdm_response_json = ?3 WHERE id = ?1",
+                rusqlite::params![id, case["request"].to_string(), case["response"].to_string()],
+            )
+            .unwrap();
+        }
+        let out = dir.path().join("stats.sqlite");
+        let conn = open_ro(&fx.db_path);
+        build_stats(&conn, &fixture_z(&fx), &test_meta(), &test_key(), &out)
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        let stats = open_ro(&out);
+        let expected = &case["expected"];
+
+        let kind: String = stats
+            .query_row("SELECT kind FROM tickets WHERE ticket_id = ?1", [id], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        let refund = expected["refund"].as_bool().unwrap();
+        assert_eq!(kind == "refund", refund, "{name}");
+
+        let paid: i64 = stats
+            .query_row(
+                "SELECT COALESCE(SUM(amount_cents), 0) FROM ticket_payments WHERE ticket_id = ?1 AND kind = 'payment'",
+                [id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(paid, expected["paid_cents"].as_i64().unwrap(), "{name}");
+
+        let mut stmt = stats
+            .prepare("SELECT vat_label, vat_rate_bp, base_cents, vat_cents, total_cents FROM ticket_vat WHERE ticket_id = ?1 ORDER BY vat_label")
+            .unwrap();
+        let rows: Vec<(String, i64, i64, i64, i64)> = stmt
+            .query_map([id], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+            })
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        let want = expected["vats"].as_array().unwrap();
+        assert_eq!(rows.len(), want.len(), "{name}");
+        for (row, w) in rows.iter().zip(want) {
+            assert_eq!(row.0, w["label"].as_str().unwrap(), "{name}");
+            assert_eq!(row.1, w["rate_bp"].as_i64().unwrap(), "{name}");
+            assert_eq!(row.2, w["base"].as_i64().unwrap(), "{name}");
+            assert_eq!(row.3, w["vat"].as_i64().unwrap(), "{name}");
+            assert_eq!(row.4, w["total"].as_i64().unwrap(), "{name}");
+        }
+    }
 }
 
 #[test]

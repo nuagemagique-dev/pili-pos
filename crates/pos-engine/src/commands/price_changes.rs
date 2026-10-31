@@ -1,6 +1,6 @@
 //! Price changes of an order's lines (feature `hubrise`): read from
 //! the database as the event builders and the ticket want them. A
-//! build without HubRise records none.
+//! build without `HubRise` records none.
 
 use pos_db::queries::price_changes::{self, PriceChangeRow};
 use pos_fiscal::price_change::{LineChange, LineChanges};

@@ -12,6 +12,11 @@
 //! The worker runs through `Engine::start_background`, the FDM is a
 //! wiremock server that counts what reaches it.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -69,14 +74,19 @@ struct Rig {
 impl Rig {
     /// `fdm_signs`: the FDM signs every event (the M140 and M141 envelopes,
     /// echoed back); otherwise it answers every request with an error.
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "test helper: the flag names what the call switches"
+    )]
     async fn start(fdm_signs: bool) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let events = Arc::new(Recorder::default());
         let hour = Duration::from_secs(3600);
+        let sink: Arc<dyn pos_engine::EventSink> = Arc::<Recorder>::clone(&events);
         let engine = Engine::open(EngineConfig {
             paths: EnginePaths::under(dir.path().to_path_buf()),
             config: ConfigSource::DevelopmentDefaults,
-            events: events.clone(),
+            events: sink,
             timers: EngineTimers {
                 auto_z: hour,
                 mail_outbox: hour,
@@ -203,7 +213,7 @@ async fn a_login_and_a_login_with_a_new_pin_each_queue_one_clock_in() {
     let sent = rig.wait_for("signWorkIn", 2).await;
     assert_eq!(sent.len(), 2, "one more for the first-PIN login");
     assert!(sent[1].contains(SECOND));
-    assert!(rig.events.presence_failed().is_empty());
+    assert_eq!(rig.events.presence_failed().len(), 0);
     assert_eq!(rig.sent("signWorkOut").await.len(), 0);
     rig.stop().await;
 }
@@ -238,7 +248,7 @@ async fn a_refused_login_queues_nothing() {
     assert!(sent[0].contains(SECOND));
     rig.settle().await;
     assert_eq!(rig.requests().await, 1);
-    assert!(rig.events.presence_failed().is_empty());
+    assert_eq!(rig.events.presence_failed().len(), 0);
     rig.stop().await;
 }
 
@@ -275,7 +285,7 @@ async fn a_training_login_opens_no_shift_and_the_next_real_login_signs_a_real_cl
 
     do_login(&rig.engine, FIRST.into(), None).expect("login");
     assert_eq!(rig.wait_for("signWorkIn", 1).await.len(), 1);
-    assert!(rig.events.presence_failed().is_empty());
+    assert_eq!(rig.events.presence_failed().len(), 0);
     assert!(
         pos_engine::commands::social::do_list_open_shifts(&rig.engine)
             .unwrap()
@@ -295,7 +305,7 @@ async fn a_training_login_opens_no_shift_and_the_next_real_login_signs_a_real_cl
     rig.engine.config.lock().unwrap().training_mode = false;
     do_login(&rig.engine, FIRST.into(), None).expect("login");
     assert_eq!(rig.wait_for("signWorkIn", 1).await.len(), 1);
-    assert!(rig.events.presence_failed().is_empty());
+    assert_eq!(rig.events.presence_failed().len(), 0);
     let open = pos_engine::commands::social::do_list_open_shifts(&rig.engine).unwrap();
     assert_eq!(open.len(), 1, "now on shift");
     assert_eq!(open[0].user_insz, FIRST);
@@ -343,7 +353,7 @@ async fn a_refused_clock_in_raises_presence_failed_and_the_login_stays() {
     assert_eq!(failed.len(), 1);
     assert_eq!(failed[0].insz, FIRST);
     assert!(failed[0].clock_in);
-    assert!(!failed[0].error.is_empty());
+    assert_ne!(failed[0].error.len(), 0);
     assert!(rig.session_is_open(), "the session stays open");
     rig.stop().await;
 }
@@ -388,7 +398,7 @@ async fn end_shift_signs_one_clock_out_and_no_clock_in_then_closes_the_session()
     assert_eq!(rig.sent("signWorkIn").await.len(), 0, "no clock-in");
     assert_eq!(rig.requests().await, 1);
     assert!(!rig.session_is_open());
-    assert!(rig.events.presence_failed().is_empty());
+    assert_eq!(rig.events.presence_failed().len(), 0);
     rig.stop().await;
 }
 

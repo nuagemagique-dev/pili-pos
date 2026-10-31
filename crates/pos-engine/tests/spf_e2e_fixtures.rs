@@ -26,6 +26,11 @@
 //! response plus a `<UC>_check.json` comparison report for the dossier
 //! (`scripts/capture_uc_evidence.sh`).
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -49,7 +54,7 @@ use pos_fiscal::payment::PaymentMethod;
 
 // ── Setup ──────────────────────────────────────────────────────────
 
-/// A TestApp with the manual's catalogue and the fixture's operator.
+/// A `TestApp` with the manual's catalogue and the fixture's operator.
 async fn spf_app(operator_insz: &str) -> TestApp {
     let app = TestApp::new().await;
     {
@@ -66,6 +71,10 @@ async fn spf_app(operator_insz: &str) -> TestApp {
     app
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 fn set_training_mode(app: &TestApp, on: bool) {
     app.state.config.lock().unwrap().training_mode = on;
 }
@@ -90,7 +99,10 @@ fn order_from(app: &TestApp, vars: &Value, order_type: OrderType, table: Option<
     };
     for line in vars["transaction"]["transactionLines"].as_array().unwrap() {
         let product = &line["mainProduct"];
-        let quantity = product["quantity"].as_f64().unwrap() as i32;
+        let quantity = i32::try_from(pos_core::money::round_to_i64(
+            product["quantity"].as_f64().unwrap(),
+        ))
+        .unwrap();
         if quantity <= 0 {
             continue;
         }
@@ -107,8 +119,8 @@ fn order_from(app: &TestApp, vars: &Value, order_type: OrderType, table: Option<
                 |r| r.get(0),
             )
             .unwrap();
-        let unit_price_cents =
-            open_price.then(|| (product["unitPrice"].as_f64().unwrap() * 100.0).round() as i64);
+        let unit_price_cents = open_price
+            .then(|| pos_core::money::cents_from_eur(product["unitPrice"].as_f64().unwrap()));
         do_add_order_line(
             &app.state,
             AddOrderLineInput {
@@ -593,7 +605,7 @@ async fn m130_money_in() {
     do_money_in_out(
         &app.state,
         operator(&vars),
-        (amount * 100.0).round() as i64,
+        pos_core::money::cents_from_eur(amount),
         MoneyDirection::In,
         "Fond de caisse".to_string(),
     )
@@ -615,7 +627,7 @@ async fn m133_drawer_declaration() {
     do_money_in_out(
         &app.state,
         operator(&vars),
-        (amount * 100.0).round() as i64,
+        pos_core::money::cents_from_eur(amount),
         MoneyDirection::Declaration,
         "Declaration tiroir".to_string(),
     )
@@ -1070,7 +1082,7 @@ async fn uc223_event_discount_at_the_till() {
     assert_eq!(changes(1)["amount"], -6.0);
     assert_eq!(changes(0)["groupingId"], 1);
     assert_eq!(changes(0)["type"], "PUBLIC");
-    assert!(!changes(0)["name"].as_str().unwrap().is_empty());
+    assert_ne!(changes(0)["name"].as_str().unwrap().len(), 0);
     assert_matches_fixture("UC223", ours, &vars, &[TABLE_SALE]);
     app.dump_evidence("UC223");
 }
@@ -1078,9 +1090,9 @@ async fn uc223_event_discount_at_the_till() {
 /// UC225A step 2 and UC225B step 2 through the till: 2 Carpaccio
 /// registered by a P, then a 20 % discount. The table was already
 /// registered, so the discount signs a P right away: -2 with
-/// negQuantityReason PRICE_CHANGE, then +2 with the change (UC225A
-/// 2_ORDER). The cash sale then carries the journal: +2, -2
-/// PRICE_CHANGE, +2 with the change (UC225B 2_SALE, "version B").
+/// negQuantityReason `PRICE_CHANGE`, then +2 with the change (UC225A
+/// `2_ORDER`). The cash sale then carries the journal: +2, -2
+/// `PRICE_CHANGE`, +2 with the change (UC225B `2_SALE`, "version B").
 // covers: UC225A, UC225B
 #[tokio::test]
 async fn uc225a_discount_after_registration() {

@@ -6,7 +6,7 @@ use pos_engine::commands::modifiers::AddWithModifiersInput;
 
 use super::Managed;
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_item_modifiers(
     state: State<'_, Managed>,
     menu_item_id: i64,
@@ -19,7 +19,7 @@ pub fn get_item_modifiers(
     )
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn add_order_line_with_modifiers(
     state: State<'_, Managed>,
     input: AddWithModifiersInput,

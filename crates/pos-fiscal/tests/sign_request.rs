@@ -1,6 +1,11 @@
 //! Sign requests are kept byte for byte, so one whose answer was lost
 //! is sent again identically (POS description v2.2, duplicate requests).
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
+use pos_fiscal::types::Mode;
 use std::time::Duration;
 
 use pos_core::config::PosConfig;
@@ -31,9 +36,9 @@ fn config(fdm_url: &str) -> PosConfig {
         language: "fr".to_string(),
         backup_dir: None,
         kitchen_printer_address: None,
-        printer_paper_mm: Default::default(),
+        printer_paper_mm: pos_core::config::PaperWidth::default(),
         scale: None,
-        kitchen_printer_paper_mm: Default::default(),
+        kitchen_printer_paper_mm: pos_core::config::PaperWidth::default(),
         fdm_token_file: None,
         fdm_ca_file: None,
         fdm_client_cert_file: None,
@@ -88,21 +93,22 @@ fn body_as_before(input: &pos_fiscal::inputs::WorkInOutInput) -> String {
 #[test]
 fn the_request_bytes_are_unchanged() {
     let input = work_in();
-    let request = SignRequest::new(SignMutation::WorkIn, &input, false).unwrap();
+    let request = SignRequest::new(SignMutation::WorkIn, &input, Mode::Normal).unwrap();
     assert_eq!(request.body(), body_as_before(&input));
 }
 
 #[test]
 fn a_stored_request_comes_back_identical() {
-    let request = SignRequest::new(SignMutation::WorkIn, &work_in(), true).unwrap();
-    let stored = SignRequest::from_stored("signWorkIn", true, request.body().to_string()).unwrap();
+    let request = SignRequest::new(SignMutation::WorkIn, &work_in(), Mode::Training).unwrap();
+    let stored =
+        SignRequest::from_stored("signWorkIn", Mode::Training, request.body().to_string()).unwrap();
     assert_eq!(stored, request);
 
     let body = request.body().to_string();
-    assert!(SignRequest::from_stored("signWorkOut", true, body.clone()).is_err());
-    assert!(SignRequest::from_stored("signWorkIn", false, body.clone()).is_err());
-    assert!(SignRequest::from_stored("signNothing", true, body).is_err());
-    assert!(SignRequest::from_stored("signWorkIn", true, "{}".into()).is_err());
+    assert!(SignRequest::from_stored("signWorkOut", Mode::Training, body.clone()).is_err());
+    assert!(SignRequest::from_stored("signWorkIn", Mode::Normal, body.clone()).is_err());
+    assert!(SignRequest::from_stored("signNothing", Mode::Training, body).is_err());
+    assert!(SignRequest::from_stored("signWorkIn", Mode::Training, "{}".into()).is_err());
 }
 
 #[test]
@@ -116,7 +122,7 @@ fn mutation_names_round_trip() {
 async fn a_stored_request_is_sent_as_is() {
     let server = MockServer::start().await;
     let input = work_in();
-    let request = SignRequest::new(SignMutation::WorkIn, &input, false).unwrap();
+    let request = SignRequest::new(SignMutation::WorkIn, &input, Mode::Normal).unwrap();
     Mock::given(method("POST"))
         .and(path("/graphql"))
         .and(body_string(request.body()))
@@ -152,7 +158,8 @@ async fn a_stored_request_is_sent_as_is() {
         .mount(&server)
         .await;
     let client = FdmClient::new(&format!("{}/graphql", server.uri()));
-    let stored = SignRequest::from_stored("signWorkIn", false, request.body().to_string()).unwrap();
+    let stored =
+        SignRequest::from_stored("signWorkIn", Mode::Normal, request.body().to_string()).unwrap();
     let results = client.send(&stored).await.unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].fdm_ref.event_counter, 1);
@@ -180,7 +187,7 @@ async fn the_z_pair_is_answered_twice_identically() {
     for input in [&mut turnover, &mut user] {
         input["posDateTime"] = serde_json::json!("2026-07-03T23:00:00+02:00");
     }
-    let request = SignRequest::turnover_z_user_z(&turnover, &user, false).unwrap();
+    let request = SignRequest::turnover_z_user_z(&turnover, &user, Mode::Normal).unwrap();
     let first = client.send(&request).await.unwrap();
     let again = client.send(&request).await.unwrap();
     assert_eq!(first.len(), 2);
@@ -197,7 +204,7 @@ async fn axum_serve(listener: tokio::net::TcpListener) {
 #[tokio::test]
 async fn failures_say_whether_the_event_may_be_signed() {
     let refused = |codes: &[&str]| FdmError::Refused {
-        codes: codes.iter().map(|c| c.to_string()).collect(),
+        codes: codes.iter().map(std::string::ToString::to_string).collect(),
         message: String::new(),
     };
     assert_eq!(FdmError::NotConnected.outcome(), SignOutcome::NotSent);
@@ -260,7 +267,10 @@ async fn failures_say_whether_the_event_may_be_signed() {
         Duration::from_millis(500),
         Duration::from_millis(300),
     );
-    let err = client.sign_work_in(work_in(), false).await.unwrap_err();
+    let err = client
+        .sign_work_in(work_in(), Mode::Normal)
+        .await
+        .unwrap_err();
     assert_eq!(err.outcome(), SignOutcome::Unknown, "{err:?}");
 }
 

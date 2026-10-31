@@ -16,7 +16,6 @@ fn contract_error(target: &str, err: impl std::fmt::Display) -> PosError {
 }
 
 /// Engine value to FFI record.
-#[allow(dead_code)] // used by the domain facades (P2-T3 and later)
 pub(crate) fn out<E: Serialize, F: DeserializeOwned>(v: &E) -> Result<F, PosError> {
     let target = std::any::type_name::<F>();
     let value = serde_json::to_value(v).map_err(|e| contract_error(target, e))?;
@@ -24,7 +23,6 @@ pub(crate) fn out<E: Serialize, F: DeserializeOwned>(v: &E) -> Result<F, PosErro
 }
 
 /// FFI record to engine value.
-#[allow(dead_code)] // used by the domain facades (P2-T3 and later)
 pub(crate) fn inp<F: Serialize, E: DeserializeOwned>(v: &F) -> Result<E, PosError> {
     let target = std::any::type_name::<E>();
     let value = serde_json::to_value(v).map_err(|e| contract_error(target, e))?;
@@ -32,7 +30,7 @@ pub(crate) fn inp<F: Serialize, E: DeserializeOwned>(v: &F) -> Result<E, PosErro
 }
 
 /// `#[serde(with = "json_text")]` on a `String` field of an FFI record: the engine side holds a
-/// `serde_json::Value`, the record holds its JSON text (UniFFI has no JSON value type).
+/// `serde_json::Value`, the record holds its JSON text (`UniFFI` has no JSON value type).
 pub mod json_text {
     use serde::de::Error as _;
     use serde::ser::Error as _;

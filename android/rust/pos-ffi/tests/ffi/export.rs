@@ -115,7 +115,7 @@ fn a_status_with_an_unknown_key_is_a_contract_error() {
 struct Rig {
     engine: std::sync::Arc<PosEngine>,
     receiver: Receiver,
-    _dir: tempfile::TempDir,
+    dir: tempfile::TempDir,
 }
 
 async fn open(with_export: bool) -> Rig {
@@ -182,7 +182,7 @@ async fn open(with_export: bool) -> Rig {
     Rig {
         engine,
         receiver,
-        _dir: dir,
+        dir,
     }
 }
 
@@ -304,7 +304,7 @@ async fn without_an_export_section_the_status_is_disabled_and_run_now_is_harmles
     let run = e.export_run_now().await.expect("export_run_now");
     assert_eq!(run, status);
     assert!(
-        !rig._dir.path().join("data").join("exports").exists(),
+        !rig.dir.path().join("data").join("exports").exists(),
         "nothing is created on disk without a section"
     );
     assert_eq!(rig.receiver.put_count(), 0);

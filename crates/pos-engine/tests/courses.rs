@@ -13,6 +13,11 @@
 //! - the course never reaches a signed request, a product name, a
 //!   department, the VAT ticket or any archived text.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -272,7 +277,7 @@ async fn a_line_takes_the_course_of_its_category_and_none_when_off() {
     // Switched off again: the screen shows no course and nothing held.
     do_set_course_settings(&app.state, CourseSettings::default()).unwrap();
     assert_eq!(course(mochi), (0, "unsent".to_string()));
-    assert!(do_list_held_courses(&app.state, o).unwrap().is_empty());
+    assert_eq!(do_list_held_courses(&app.state, o).unwrap().len(), 0);
 }
 
 // ── Off: the slip of v1.0.0 ────────────────────────────────────
@@ -375,6 +380,10 @@ async fn on_with_only_direct_lines_the_slip_is_the_plain_one() {
 // ── The first slip and the release ─────────────────────────────
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario read top to bottom, clearer unsplit"
+)]
 async fn a_p_prints_course_0_and_1_and_holds_2_and_3_until_the_release() {
     let app = app().await;
     enable(&app);
@@ -479,7 +488,7 @@ async fn a_p_prints_course_0_and_1_and_holds_2_and_3_until_the_release() {
         "{}",
         slips[2]
     );
-    assert!(do_list_held_courses(&app.state, o).unwrap().is_empty());
+    assert_eq!(do_list_held_courses(&app.state, o).unwrap().len(), 0);
     assert_eq!(do_list_tables(&app.state, 3).unwrap()[2].held_course, None);
     assert_eq!(
         do_send_next_course(&app.state, o).await.unwrap_err(),
@@ -652,7 +661,7 @@ async fn a_correction_of_a_held_line_is_netted_at_the_release() {
         "{release}"
     );
     // The cancelled lines are done with: nothing is held, nothing to retry.
-    assert!(do_list_held_courses(&app.state, o).unwrap().is_empty());
+    assert_eq!(do_list_held_courses(&app.state, o).unwrap().len(), 0);
     assert_eq!(
         do_send_next_course(&app.state, o).await.unwrap_err(),
         "no_course_held"
@@ -750,7 +759,7 @@ async fn a_direct_sale_prints_every_course_at_once_with_headers() {
     add(&app, o, MAKI, 1);
     add(&app, o, MOCHI, 1);
     // A takeaway holds nothing.
-    assert!(do_list_held_courses(&app.state, o).unwrap().is_empty());
+    assert_eq!(do_list_held_courses(&app.state, o).unwrap().len(), 0);
     assert!(
         do_list_cart_lines(&app.state, o)
             .unwrap()
@@ -847,7 +856,7 @@ async fn a_failed_printer_leaves_the_entries_unprinted_and_a_retry_prints_them()
     app.set_printer(DEAD_PRINTER);
     let next = do_send_next_course(&app.state, o).await.unwrap();
     assert_eq!((next.course, next.slip), (Some(2), SlipOutcome::Failed));
-    assert!(do_list_held_courses(&app.state, o).unwrap().is_empty());
+    assert_eq!(do_list_held_courses(&app.state, o).unwrap().len(), 0);
     app.set_printer(&printer.addr);
     let retry = do_send_next_course(&app.state, o).await.unwrap();
     assert_eq!(
@@ -1073,6 +1082,10 @@ async fn the_course_never_reaches_a_signed_request_a_name_or_the_vat_ticket() {
 
 #[tokio::test]
 async fn the_signed_requests_are_the_same_with_courses_on_or_off() {
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "test helper: the flag names what the call switches"
+    )]
     async fn run(on: bool) -> Vec<(String, String)> {
         let app = app().await;
         if on {
@@ -1109,6 +1122,10 @@ async fn the_signed_requests_are_the_same_with_courses_on_or_off() {
 /// The request without what changes from one run to the next.
 fn strip_volatile(json: &str) -> String {
     let mut value: serde_json::Value = serde_json::from_str(json).unwrap();
+    #[expect(
+        clippy::items_after_statements,
+        reason = "a local helper beside the one test that uses it"
+    )]
     fn walk(v: &mut serde_json::Value) {
         match v {
             serde_json::Value::Object(map) => {

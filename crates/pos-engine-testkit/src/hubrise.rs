@@ -1,5 +1,5 @@
-//! The HubRise mock (`pos-hubrise-mock`) served in-process on an
-//! ephemeral port, and a TestApp connected to it.
+//! The `HubRise` mock (`pos-hubrise-mock`) served in-process on an
+//! ephemeral port, and a `TestApp` connected to it.
 
 use std::sync::Arc;
 
@@ -11,6 +11,7 @@ use serde_json::Value;
 use super::harness::TestApp;
 
 /// A running mock. Its server stops when the test's runtime ends.
+#[derive(Debug)]
 pub struct HubriseMock {
     pub state: Arc<MockState>,
     /// `http://127.0.0.1:<port>`.
@@ -24,7 +25,7 @@ impl HubriseMock {
             .await
             .expect("bind mock");
         let url = format!("http://{}", listener.local_addr().unwrap());
-        let app = pos_hubrise_mock::app(state.clone());
+        let app = pos_hubrise_mock::app(Arc::clone(&state));
         tokio::spawn(async move {
             axum::serve(listener, app).await.expect("serve mock");
         });
@@ -54,16 +55,16 @@ impl HubriseMock {
     }
 
     /// Change an order as the ordering side (a platform cancelling).
-    pub fn update(&self, order_id: &str, patch: Value) -> Value {
+    pub fn update(&self, order_id: &str, patch: &Value) -> Value {
         self.state
             .inner
             .lock()
             .unwrap()
-            .update_order(WEBSHOP_TOKEN, order_id, &patch)
+            .update_order(WEBSHOP_TOKEN, order_id, patch)
             .expect("update")
     }
 
-    /// The order as HubRise holds it.
+    /// The order as `HubRise` holds it.
     pub fn order(&self, order_id: &str) -> Value {
         self.state.inner.lock().unwrap().orders[order_id].clone()
     }
@@ -104,7 +105,7 @@ impl HubriseMock {
     }
 }
 
-/// A TestApp on one database file, connected to a fresh mock.
+/// A `TestApp` on one database file, connected to a fresh mock.
 pub async fn connected_app() -> (TestApp, tempfile::TempDir, HubriseMock) {
     let (app, dir) = TestApp::with_shared_db().await;
     let mock = HubriseMock::start().await;
@@ -124,7 +125,7 @@ pub async fn drain_outbox(app: &TestApp) -> pos_hubrise::outbox::PassReport {
         .expect("outbox pass")
 }
 
-/// One inventory pass (the sold-out products pushed to HubRise).
+/// One inventory pass (the sold-out products pushed to `HubRise`).
 pub async fn drain_inventory(app: &TestApp) -> pos_hubrise::outbox::PassReport {
     pos_hubrise::inventory::process_pending(&app.state.shared_http, &app.state.poller_db)
         .await
@@ -154,7 +155,7 @@ pub fn outbox_due_now(app: &TestApp) {
         .unwrap();
 }
 
-/// Store a HubRise connection to `mock` in `app`, as the OAuth flow
+/// Store a `HubRise` connection to `mock` in `app`, as the OAuth flow
 /// does, on both connections.
 pub fn connect(app: &TestApp, mock: &HubriseMock) -> StoredConnection {
     let (location_id, catalog_id) = {

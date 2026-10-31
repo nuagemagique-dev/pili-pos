@@ -4,6 +4,7 @@
 use rusqlite::{Connection, params};
 
 /// What the scale returned for a line.
+#[derive(Debug)]
 pub struct NewWeighing<'a> {
     pub line_id: i64,
     pub order_id: i64,

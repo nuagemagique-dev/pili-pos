@@ -106,7 +106,7 @@ pub(crate) async fn print_bar_slip(
         )
         .unwrap_or_else(|err| {
             tracing::warn!(%err, "kitchen notes unreadable");
-            Default::default()
+            std::collections::BTreeMap::default()
         });
         entries
             .iter()

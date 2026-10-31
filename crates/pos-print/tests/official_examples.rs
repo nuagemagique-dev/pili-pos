@@ -344,6 +344,10 @@ fn vi_bar_the_official_bar_ticket_example() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "a test that replays the whole official example"
+)]
 fn vi_z_the_official_z_report_example() {
     let data = ReportPrintData {
         report_type: "Z".to_string(),

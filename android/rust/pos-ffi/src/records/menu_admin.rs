@@ -1,6 +1,6 @@
 //! The menu editor records (V11-D17): the FFI mirror of `pos_engine::commands::menu_admin`
 //! and of the rows of `pos_db::queries::menu_admin`. Names per language are a map of language
-//! code to name (the engine's ordered map is a `HashMap` here: UniFFI has no ordered map; the
+//! code to name (the engine's ordered map is a `HashMap` here: `UniFFI` has no ordered map; the
 //! serde form is the same JSON object).
 
 use std::collections::HashMap;
@@ -19,6 +19,10 @@ pub struct AdminCategory {
 /// `pos_db::queries::menu_admin::AdminProduct`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(deny_unknown_fields)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "mirrors the engine's plain product flags over the FFI"
+)]
 pub struct AdminProduct {
     pub id: i64,
     pub category_id: i64,
@@ -126,6 +130,10 @@ pub struct SaveCategoryInput {
 /// `pos_engine::commands::menu_admin::SaveProductInput`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(deny_unknown_fields)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "mirrors the engine's plain product flags over the FFI"
+)]
 pub struct SaveProductInput {
     pub id: Option<i64>,
     pub category_id: i64,

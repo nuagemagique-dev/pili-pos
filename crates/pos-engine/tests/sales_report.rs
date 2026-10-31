@@ -3,6 +3,11 @@
 //! refunds, training, price changes, the range and the "nothing is signed" guarantee are checked
 //! on that day and on events written straight into the archive.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -212,7 +217,7 @@ async fn the_service_day_total_is_the_turnover_n_of_the_z() {
         .iter()
         .find(|t| t["eventLabel"] == "N")
         .unwrap();
-    let published = (n["amount"].as_f64().unwrap() * 100.0).round() as i64;
+    let published = pos_core::money::cents_from_eur(n["amount"].as_f64().unwrap());
     assert_eq!(report.total_cents, published);
 
     // T2, T3 (refund), T4 and T8 are the sales.
@@ -334,6 +339,10 @@ fn insert_event(
 }
 
 /// Like `insert_event`; `refund` adds the `fdmRef` of the refunded ticket, which makes it a refund ticket.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 fn insert_event_citing(
     app: &TestApp,
     label: &str,

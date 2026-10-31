@@ -8,6 +8,11 @@
 //! same HTTP status. Values that must differ (signatures, times,
 //! counters, texts) are not compared.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
@@ -119,7 +124,7 @@ async fn the_mock_answers_like_the_module2_simulator() {
             .unwrap();
         let mock: Value = serde_json::from_slice(&bytes).unwrap();
 
-        let recorded_status = call["httpStatus"].as_u64().unwrap() as u16;
+        let recorded_status = u16::try_from(call["httpStatus"].as_u64().unwrap()).unwrap();
         if status != StatusCode::from_u16(recorded_status).unwrap() {
             differences.push(format!("{label}: HTTP {status}, module2 {recorded_status}"));
         }

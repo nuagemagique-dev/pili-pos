@@ -1,4 +1,4 @@
-//! Kitchen ticket formatter for HubRise webshop orders.
+//! Kitchen ticket formatter for `HubRise` webshop orders.
 //!
 //! Layout is **non-fiscal** - no VAT breakdown, no FDM signature,
 //! no QR code. The cook only needs items, options, and notes.
@@ -7,10 +7,10 @@
 
 use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle};
 
-/// Owned, formatter-friendly view of a HubRise order line. The
-/// caller (the Tauri command layer) parses the raw HubRise JSON and
+/// Owned, formatter-friendly view of a `HubRise` order line. The
+/// caller (the Tauri command layer) parses the raw `HubRise` JSON and
 /// hands us only what we need to print, so this crate stays free of
-/// any HubRise type dependency.
+/// any `HubRise` type dependency.
 #[derive(Debug, Clone)]
 pub struct KitchenItem {
     pub quantity: i64,
@@ -23,12 +23,12 @@ pub struct KitchenItem {
 
 #[derive(Debug, Clone)]
 pub struct KitchenTicket {
-    /// HubRise channel ("Deliveroo", "Uber Eats", "Web", …).
+    /// `HubRise` channel ("Deliveroo", "Uber Eats", "Web", …).
     pub source: String,
     /// Pre-formatted service-type label ("Livraison", "À emporter", …).
     pub service_type: String,
     /// Short id displayed on the slip - typically the first 8 chars
-    /// of the HubRise order id.
+    /// of the `HubRise` order id.
     pub short_ref: String,
     /// Optional ready-at clock string ("12:45") to print at the top.
     pub ready_at: Option<String>,
@@ -68,7 +68,7 @@ pub fn format_kitchen_ticket(ticket: &KitchenTicket, paper: PaperWidth) -> Vec<u
             bold: true,
             ..Default::default()
         });
-        p.textln_wrapped(&format!("Pret a: {}", ready));
+        p.textln_wrapped(&format!("Pret a: {ready}"));
         p.style_reset();
     }
 
@@ -88,12 +88,12 @@ pub fn format_kitchen_ticket(ticket: &KitchenTicket, paper: PaperWidth) -> Vec<u
 
         // Options indented with a chevron
         for opt in &item.options {
-            p.textln(&format!("    > {}", opt));
+            p.textln(&format!("    > {opt}"));
         }
 
         // Per-item customer note in quotes
         if let Some(note) = &item.notes {
-            p.textln(&format!("    \"{}\"", note));
+            p.textln(&format!("    \"{note}\""));
         }
     }
 
@@ -105,7 +105,7 @@ pub fn format_kitchen_ticket(ticket: &KitchenTicket, paper: PaperWidth) -> Vec<u
             bold: true,
             ..Default::default()
         });
-        p.textln_wrapped(&format!("\"{}\"", note));
+        p.textln_wrapped(&format!("\"{note}\""));
         p.style_reset();
     }
 

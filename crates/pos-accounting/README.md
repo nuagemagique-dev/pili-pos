@@ -22,7 +22,8 @@ center (`TABLE` dine-in, none takeaway, other online). Training (T), copies (C),
 
 The database is opened with `mode=ro&immutable=1`: nothing is written, no journal or WAL
 file is created. `--db` may be a folder written by the till's export (its
-`MANIFEST.sha256` is then checked). A non-empty `pos.db-wal` beside the file is refused: it
+`MANIFEST.sha256` is then checked; it must list `pos.db`, in the `sha256sum` text or
+`--binary` form). A non-empty `pos.db-wal` beside the file is refused: it
 means a copy of a live database that misses what the WAL still holds. A database without
 migration 4 (append-only archive) is refused.
 
@@ -63,3 +64,6 @@ best effort: confirm them with a test import at the accountant.
 `tests/synthetic.rs` covers golden files (`tests/golden/`, regenerate with
 `UPDATE_GOLDEN=1` and review the diff by hand), tampering, read-only proof, the source
 guards and the M150 invoice; `tests/cli.rs` the exit codes; `tests/isolation.rs` V12-D5.
+
+The meal voucher method code is `cheques_repas` (CSV and accounts file). An accounts file
+that still uses the former key `payments.titres_repas` is read as `cheques_repas`.

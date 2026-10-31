@@ -1,4 +1,4 @@
-//! fdm_client error-handling contract tests.
+//! `fdm_client` error-handling contract tests.
 //!
 //! FDM communication is the fiscal-compliance-critical path: per
 //! CLAUDE.md rule 1, "POS MUST block if FDM is disconnected - no
@@ -7,9 +7,14 @@
 //! fake `Ok` built from a partial/malformed response. This file
 //! exercises each failure mode with wiremock (and, for the network
 //! failures, raw TCP listeners) and asserts `Err` every time.
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 mod common;
 
+use pos_fiscal::types::Mode;
 use std::time::Duration;
 
 use pos_core::config::PosConfig;
@@ -48,9 +53,9 @@ fn config(fdm_url: &str) -> PosConfig {
         language: "fr".to_string(),
         backup_dir: None,
         kitchen_printer_address: None,
-        printer_paper_mm: Default::default(),
+        printer_paper_mm: pos_core::config::PaperWidth::default(),
         scale: None,
-        kitchen_printer_paper_mm: Default::default(),
+        kitchen_printer_paper_mm: pos_core::config::PaperWidth::default(),
         fdm_token_file: None,
         fdm_ca_file: None,
         fdm_client_cert_file: None,
@@ -96,7 +101,7 @@ async fn sign_work_in_call(
     cfg: &PosConfig,
 ) -> Result<pos_fiscal::response::SignResult, FdmError> {
     let input = build_work_in_out(cfg, &ident(), 1, "93051800189", &bk("bp-1"));
-    client.sign_work_in(input, false).await
+    client.sign_work_in(input, Mode::Normal).await
 }
 
 // ── GraphQL-level errors ────────────────────────────────────────
@@ -150,7 +155,7 @@ async fn the_code_of_a_spec_shaped_error_is_kept() {
         .unwrap_err();
     assert_eq!(
         err.to_string(),
-        "GraphQL error: BUFFER_FULL: FDM buffer is full."
+        "FDM refused: BUFFER_FULL: FDM buffer is full."
     );
 }
 
@@ -170,7 +175,7 @@ async fn a_message_that_is_the_code_is_not_doubled() {
     let err = sign_work_in_call(&FdmClient::new(&cfg.fdm_url), &cfg)
         .await
         .unwrap_err();
-    assert_eq!(err.to_string(), "GraphQL error: FDM_LOCKED");
+    assert_eq!(err.to_string(), "FDM refused: FDM_LOCKED");
 }
 
 #[tokio::test]
@@ -210,10 +215,13 @@ async fn http_500_with_non_json_body_yields_err_not_panic() {
     let err = sign_work_in_call(&client, &cfg).await.unwrap_err();
     // The body isn't JSON at all, so this must fail at the
     // `.json()` decode step, not silently succeed or panic.
-    assert!(
-        matches!(err, FdmError::Http(_)),
-        "expected Http decode error, got {err:?}"
-    );
+    match err {
+        FdmError::BadResponse(msg) => {
+            assert!(msg.contains("500"), "{msg}");
+            assert!(msg.contains("Internal Server Error"), "{msg}");
+        }
+        other => panic!("expected an unusable response, got {other:?}"),
+    }
 }
 
 #[tokio::test]
@@ -253,10 +261,14 @@ async fn malformed_json_response_yields_err_not_panic() {
     let cfg = config(&format!("{}/graphql", server.uri()));
     let client = FdmClient::new(&cfg.fdm_url);
     let err = sign_work_in_call(&client, &cfg).await.unwrap_err();
-    assert!(
-        matches!(err, FdmError::Http(_)),
-        "expected Http decode error, got {err:?}"
-    );
+    match err {
+        FdmError::BadResponse(msg) => {
+            assert!(msg.contains("not a GraphQL answer"), "{msg}");
+            // The body is for the log, not for the error text the UI shows.
+            assert!(!msg.contains("{not valid json"), "{msg}");
+        }
+        other => panic!("expected an unusable response, got {other:?}"),
+    }
 }
 
 #[tokio::test]
@@ -274,7 +286,45 @@ async fn status_query_malformed_json_yields_err_not_panic() {
     let cfg = config(&format!("{}/graphql", server.uri()));
     let client = FdmClient::new(&cfg.fdm_url);
     let err = client.status().await.unwrap_err();
-    assert!(matches!(err, FdmError::Http(_)), "got {err:?}");
+    assert!(matches!(err, FdmError::BadResponse(_)), "got {err:?}");
+}
+
+#[tokio::test]
+async fn errors_next_to_a_signed_result_leave_the_outcome_unknown() {
+    // M184 sends two mutations in one document: one may be signed while
+    // the other fails. Nothing may then be reported as "not signed".
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": { "signReportTurnoverZ": sample_sign_result_json(), "signReportUserZ": null },
+            "errors": [{ "message": "locked", "extensions": { "code": "FDM_LOCKED" } }]
+        })))
+        .mount(&server)
+        .await;
+
+    let cfg = config(&format!("{}/graphql", server.uri()));
+    let err = sign_work_in_call(&FdmClient::new(&cfg.fdm_url), &cfg)
+        .await
+        .unwrap_err();
+    assert_eq!(err.outcome(), pos_fiscal::fdm_client::SignOutcome::Unknown);
+    assert!(err.to_string().contains("FDM_LOCKED"), "{err}");
+
+    // The same code with no data is a plain refusal.
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": null,
+            "errors": [{ "message": "locked", "extensions": { "code": "FDM_LOCKED" } }]
+        })))
+        .mount(&server)
+        .await;
+    let cfg = config(&format!("{}/graphql", server.uri()));
+    let err = sign_work_in_call(&FdmClient::new(&cfg.fdm_url), &cfg)
+        .await
+        .unwrap_err();
+    assert_eq!(err.outcome(), pos_fiscal::fdm_client::SignOutcome::Refused);
 }
 
 // ── Missing / incomplete fields ─────────────────────────────────
@@ -434,6 +484,10 @@ async fn hung_connection_times_out_quickly_and_yields_err() {
 // ── Responses that do not answer the request ────────────────────
 
 /// Mount `result` (echoed or not) as the answer to `signWorkIn`.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "private two-way switch of a test helper"
+)]
 async fn answer_work_in(result: serde_json::Value, echo: bool) -> Result<(), FdmError> {
     let server = MockServer::start().await;
     let body = serde_json::json!({ "data": { "signWorkIn": result } });

@@ -129,6 +129,10 @@ const VAT_RATES: [(&str, f64); 4] = [("A", 21.0), ("B", 12.0), ("C", 6.0), ("D",
 /// Format an X or Z turnover report for the thermal printer, in the
 /// order of the SPF example Z report of 2026-09-24 (AM of 29 April
 /// 2024 art. 29).
+#[expect(
+    clippy::too_many_lines,
+    reason = "one top-to-bottom report layout following the SPF example Z report"
+)]
 pub fn format_report(data: &ReportPrintData, paper: PaperWidth) -> Vec<u8> {
     let mut p = EscPosBuilder::for_paper(paper);
     let l = labels(data.lang);
@@ -371,7 +375,7 @@ fn vat_row(paper: PaperWidth, rate: &str, base: &str, vat: &str, total: &str) ->
 /// A VAT rate without needless decimals ("21", "5,5").
 fn fmt_rate(rate: f64) -> String {
     if (rate - rate.round()).abs() < f64::EPSILON {
-        format!("{}", rate as i64)
+        format!("{:.0}", rate + 0.0)
     } else {
         format!("{rate}").replace('.', ",")
     }
@@ -410,13 +414,14 @@ pub struct UserReportUser {
     pub last_datetime: String,
     pub total_cents: i64,
     pub payments: Vec<ReportPaymentTotal>,
-    /// ("WORK_IN"/"WORK_OUT", posDateTime) registrations of the day.
+    /// ("`WORK_IN"/"WORK_OUT`", posDateTime) registrations of the day.
     pub social_events: Vec<(String, String)>,
 }
 
 /// Format a user report (per-operator turnover + presence) for the
 /// thermal printer. Printed as a second sequential ticket after the
 /// financial Z (M184) or on demand for the user X (M182).
+#[expect(clippy::too_many_lines, reason = "one top-to-bottom report layout")]
 pub fn format_user_report(data: &UserReportPrintData, paper: PaperWidth) -> Vec<u8> {
     let mut p = EscPosBuilder::for_paper(paper);
     let l = labels(data.lang);
@@ -536,23 +541,31 @@ pub fn format_user_report(data: &UserReportPrintData, paper: PaperWidth) -> Vec<
 
 fn fmt_price(cents: i64) -> String {
     // Belgian notation: decimal comma.
-    format!("{:.2}", cents as f64 / 100.0).replace('.', ",")
+    let sign = if cents < 0 { "-" } else { "" };
+    let abs = cents.unsigned_abs();
+    format!("{sign}{},{:02}", abs / 100, abs % 100)
 }
 
 fn fmt_datetime(s: &str) -> String {
     // Extract "YYYY-MM-DD HH:MM" from various datetime formats
-    if s.len() >= 16 {
-        let date = &s[..10];
-        let time = &s[11..16];
-        format!("{date} {time}")
-    } else {
-        s.to_string()
+    match (s.get(..10), s.get(11..16)) {
+        (Some(date), Some(time)) => format!("{date} {time}"),
+        _ => s.to_string(),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn datetimes_with_non_ascii_text_do_not_panic() {
+        assert_eq!(fmt_datetime("2026-04-12 11:30:00"), "2026-04-12 11:30");
+        // 16+ bytes with a multi-byte char straddling offset 10.
+        let odd = "2026-04-1é 11:30:00";
+        assert_eq!(fmt_datetime(odd), odd);
+        assert_eq!(fmt_datetime("short"), "short");
+    }
 
     fn sample_report_data(report_type: &str) -> ReportPrintData {
         ReportPrintData {
@@ -572,7 +585,7 @@ mod tests {
                 ReportEventTotal {
                     label: "N".to_string(),
                     count: 42,
-                    amount_cents: 382500,
+                    amount_cents: 382_500,
                 },
                 ReportEventTotal {
                     label: "P".to_string(),
@@ -590,7 +603,7 @@ mod tests {
                 ReportVatTotal {
                     code: "B".to_string(),
                     rate: 12.0,
-                    total_incl_cents: 337500,
+                    total_incl_cents: 337_500,
                     vat_cents: 36161,
                 },
             ],
@@ -598,22 +611,22 @@ mod tests {
                 ReportPaymentTotal {
                     method: "cash".to_string(),
                     count: 18,
-                    amount_cents: 156000,
+                    amount_cents: 156_000,
                 },
                 ReportPaymentTotal {
                     method: "card".to_string(),
                     count: 24,
-                    amount_cents: 226500,
+                    amount_cents: 226_500,
                 },
             ],
-            grand_total_cents: 382500,
+            grand_total_cents: 382_500,
             drawer_opens: 18,
             fdm_id: None,
             fdm_datetime: None,
             short_signature: None,
             ticket_number: 45,
             lang: ReceiptLanguage::Fr,
-            details: Default::default(),
+            details: ReportDetails::default(),
         }
     }
 
@@ -740,7 +753,7 @@ mod tests {
         let mut data = sample_report_data("X");
         data.payment_totals.push(ReportPaymentTotal {
             method: "Some Very Long Custom Payment Provider Name".to_string(),
-            count: 999999,
+            count: 999_999,
             amount_cents: i64::MAX / 2,
         });
         let text = crate::render::render_plain_text(&format_report(&data, PaperWidth::Mm80));
@@ -759,7 +772,7 @@ mod tests {
         data.users[0].payments.push(ReportPaymentTotal {
             method: "Another Extremely Long Payment Method Label".to_string(),
             count: 1,
-            amount_cents: 999999999,
+            amount_cents: 999_999_999,
         });
         let text = crate::render::render_plain_text(&format_user_report(&data, PaperWidth::Mm80));
         for line in text.lines() {

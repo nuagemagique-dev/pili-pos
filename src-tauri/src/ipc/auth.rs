@@ -13,7 +13,7 @@ use super::Managed;
 /// [`ERR_FIRST_PIN_NEEDS_MANAGER`], since another manager sets it.
 /// Other roles without a PIN log in, and the frontend warns them to set
 /// one. The system identity never logs in.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn login(state: State<'_, Managed>, insz: String, pin: Option<String>) -> Result<User, String> {
     pos_engine::commands::auth::do_login(state.inner(), insz, pin)
 }
@@ -23,7 +23,7 @@ pub fn login(state: State<'_, Managed>, insz: String, pin: Option<String>) -> Re
 /// once a PIN exists, and for a manager tile once any manager has a
 /// PIN: later managers get theirs from a manager ([`create_user`],
 /// [`set_pin`]).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn login_with_new_pin(
     state: State<'_, Managed>,
     insz: String,
@@ -34,24 +34,24 @@ pub fn login_with_new_pin(
 
 /// End the operator's session (after their clock-out): every command
 /// needing an operator is refused until the next login.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn logout(state: State<'_, Managed>) -> Result<(), String> {
     pos_engine::commands::auth::do_logout(state.inner())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_users(state: State<'_, Managed>) -> Result<Vec<User>, String> {
     pos_engine::commands::auth::do_list_users(state.inner())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn create_user(state: State<'_, Managed>, input: CreateUserInput) -> Result<User, String> {
     pos_engine::commands::auth::do_create_user(state.inner(), input)
 }
 
 /// Set or change a user's 4-digit PIN. The PIN is bcrypt-hashed
 /// before storage - the plaintext never hits the DB.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_pin(
     state: State<'_, Managed>,
     insz: String,
@@ -63,13 +63,13 @@ pub fn set_pin(
 
 /// Deactivate a user (an employee who left). Managers only, never
 /// themselves: the terminal always keeps the manager who did it.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn deactivate_user(state: State<'_, Managed>, insz: String) -> Result<(), String> {
     pos_engine::commands::auth::do_deactivate_user(state.inner(), insz)
 }
 
 /// The logged-in operator, if any.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_current_user(state: State<'_, Managed>) -> Result<Option<User>, String> {
     pos_engine::commands::auth::do_get_current_user(state.inner())
 }

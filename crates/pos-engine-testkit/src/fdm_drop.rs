@@ -48,6 +48,14 @@ pub struct LossyFdm {
     rule: Arc<Mutex<Rule>>,
 }
 
+impl std::fmt::Debug for LossyFdm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LossyFdm")
+            .field("url", &self.url)
+            .finish_non_exhaustive()
+    }
+}
+
 const OPS: [&str; 16] = [
     "signReportTurnoverZ",
     "signReportTurnoverX",
@@ -74,8 +82,7 @@ fn op_of(body: &str) -> String {
         .unwrap_or_default();
     OPS.iter()
         .find(|op| query.contains(&format!("{op}(")))
-        .map(|op| op.to_string())
-        .unwrap_or_else(|| "other".into())
+        .map_or_else(|| "other".into(), std::string::ToString::to_string)
 }
 
 impl LossyFdm {
@@ -92,8 +99,8 @@ impl LossyFdm {
         let rule: Arc<Mutex<Rule>> = Arc::new(Mutex::new(Box::new(|_, _| Fate::Answer)));
         let http = reqwest::Client::new();
         {
-            let sent = sent.clone();
-            let rule = rule.clone();
+            let sent = Arc::clone(&sent);
+            let rule = Arc::clone(&rule);
             tokio::spawn(async move {
                 loop {
                     let Ok((socket, _)) = front.accept().await else {
@@ -103,8 +110,8 @@ impl LossyFdm {
                         socket,
                         inner_url.clone(),
                         http.clone(),
-                        sent.clone(),
-                        rule.clone(),
+                        Arc::clone(&sent),
+                        Arc::clone(&rule),
                     ));
                 }
             });
@@ -230,6 +237,11 @@ async fn serve(
 impl super::harness::TestApp {
     /// Sign against `fdm` instead of the wiremock FDM.
     pub fn use_lossy_fdm(&self, fdm: &LossyFdm) {
-        self.state.config.lock().unwrap().fdm_url = fdm.url.clone();
+        self.state
+            .config
+            .lock()
+            .unwrap()
+            .fdm_url
+            .clone_from(&fdm.url);
     }
 }

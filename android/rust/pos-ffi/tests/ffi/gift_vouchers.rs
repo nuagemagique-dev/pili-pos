@@ -1,4 +1,4 @@
-//! Tests of the gift vouchers facade (engine module gift_vouchers): `get_gift_voucher_settings`,
+//! Tests of the gift vouchers facade (engine module `gift_vouchers)`: `get_gift_voucher_settings`,
 //! `set_gift_voucher_settings`, `add_gift_voucher_line`, `lookup_gift_voucher`,
 //! `list_gift_vouchers`, `print_gift_voucher`, and the new `PaymentPart` and `CheckoutResult` fields.
 //!

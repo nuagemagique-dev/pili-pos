@@ -15,6 +15,11 @@
 //!   verification URL (POS spec v2.2 §6.5);
 //! - an original is printed once (§8.1): a second print is refused.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -26,6 +31,7 @@ use pos_core::vat::VatCode;
 use pos_db::queries::orders::NewOrderLine;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, CheckoutResult, do_checkout_with};
 use pos_engine::commands::copy::do_copy_ticket_with;
+use pos_engine::commands::delivery::Probe;
 use pos_engine::commands::delivery::{
     self, ERR_ALREADY_PRINTED, ERR_DIGITAL_UNAVAILABLE, ERR_EMAIL_SENT, ERR_INVALID_EMAIL,
     EmailStatus, RequestedMedium, TicketDeliveryRequest,
@@ -88,9 +94,13 @@ async fn app_with_printer() -> (TestApp, PrinterSink) {
 }
 
 /// Same, with email enabled through `tem`.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 async fn app_with_mail(tem: &MockServer, allow_digital_only: bool) -> (TestApp, PrinterSink) {
     let (mut app, printer) = app_with_printer().await;
-    app.enable_mail(tem, allow_digital_only);
+    app.enable_mail(tem, allow_digital_only.into());
     (app, printer)
 }
 
@@ -120,7 +130,7 @@ async fn paper_is_the_default_and_the_print_is_recorded() {
 
     assert_eq!(app.signed_ticket_medium(event_id), "PAPER");
     assert!(app.original_printed(event_id));
-    assert!(app.deliveries().is_empty());
+    assert_eq!(app.deliveries().len(), 0);
     assert_eq!(printer.settle(1).await.len(), 1);
 }
 
@@ -133,7 +143,7 @@ async fn an_explicit_paper_choice_needs_no_email_setup() {
     };
     let result = sell(&app, Some(&req)).await;
     assert!(result.success, "{:?}", result.error);
-    assert!(app.deliveries().is_empty());
+    assert_eq!(app.deliveries().len(), 0);
     assert_eq!(printer.settle(1).await.len(), 1);
 }
 
@@ -174,7 +184,7 @@ async fn email_without_setup_is_refused_before_signing() {
     assert_eq!(app.fdm.received_requests().await.unwrap().len(), 0);
     assert_eq!(app.counter_for(EventLabel::N), 0);
     assert_eq!(app.order_status(order_id).as_deref(), Some("open"));
-    assert!(printer.settle(0).await.is_empty());
+    assert_eq!(printer.settle(0).await.len(), 0);
 }
 
 #[tokio::test]
@@ -206,7 +216,7 @@ async fn a_bad_address_is_refused_before_signing() {
     assert_eq!(app.fdm.received_requests().await.unwrap().len(), 0);
     assert_eq!(app.counter_for(EventLabel::N), 0);
     assert_eq!(app.order_status(order_id).as_deref(), Some("open"));
-    assert!(tem_sent(&tem).await.is_empty());
+    assert_eq!(tem_sent(&tem).await.len(), 0);
 }
 
 // ── Paper + email ──────────────────────────────────────────────
@@ -317,7 +327,7 @@ async fn digital_only_emails_without_printing() {
     let tem = MockServer::start().await;
     tem_accepts(&tem).await;
     let (app, printer) = app_with_mail(&tem, true).await;
-    app.state.mail.record_probe(true);
+    app.state.mail.record_probe(Probe::Reachable);
 
     let result = sell(&app, Some(&email(RequestedMedium::Digital))).await;
     assert!(result.success, "{:?}", result.error);
@@ -338,7 +348,7 @@ async fn digital_becomes_paper_digital_when_not_allowed() {
     let tem = MockServer::start().await;
     tem_accepts(&tem).await;
     let (app, printer) = app_with_mail(&tem, false).await;
-    app.state.mail.record_probe(true);
+    app.state.mail.record_probe(Probe::Reachable);
 
     let result = sell(&app, Some(&email(RequestedMedium::Digital))).await;
     assert!(result.success);
@@ -355,7 +365,7 @@ async fn digital_becomes_paper_digital_when_the_service_was_not_reachable() {
     let tem = MockServer::start().await;
     tem_accepts(&tem).await;
     let (app, printer) = app_with_mail(&tem, true).await;
-    app.state.mail.record_probe(false);
+    app.state.mail.record_probe(Probe::Unreachable);
 
     let result = sell(&app, Some(&email(RequestedMedium::Digital))).await;
     assert!(result.success);
@@ -371,7 +381,7 @@ async fn a_failed_digital_email_prints_the_original_once() {
     let tem = MockServer::start().await;
     tem_fails(&tem, 503, 10).await;
     let (app, printer) = app_with_mail(&tem, true).await;
-    app.state.mail.record_probe(true);
+    app.state.mail.record_probe(Probe::Reachable);
 
     let result = sell(&app, Some(&email(RequestedMedium::Digital))).await;
     assert!(result.success);
@@ -404,7 +414,7 @@ async fn a_rejected_digital_email_also_falls_back_to_paper() {
     let tem = MockServer::start().await;
     tem_fails(&tem, 400, 10).await;
     let (app, printer) = app_with_mail(&tem, true).await;
-    app.state.mail.record_probe(true);
+    app.state.mail.record_probe(Probe::Reachable);
 
     let result = sell(&app, Some(&email(RequestedMedium::Digital))).await;
     assert!(result.success);
@@ -419,7 +429,7 @@ async fn digital_with_email_and_printer_down_keeps_trying_the_email() {
     tem_accepts(&tem).await;
     let (app, _printer) = app_with_mail(&tem, true).await;
     app.set_printer(DEAD_PRINTER);
-    app.state.mail.record_probe(true);
+    app.state.mail.record_probe(Probe::Reachable);
 
     let result = sell(&app, Some(&email(RequestedMedium::Digital))).await;
     assert!(result.success);
@@ -489,13 +499,78 @@ async fn an_unprinted_original_prints_once() {
 }
 
 #[tokio::test]
+async fn two_concurrent_prints_of_a_missing_original_print_one() {
+    let app = TestApp::new().await;
+    app.set_printer(DEAD_PRINTER);
+    let result = sell(&app, None).await;
+    let event_id = result.fiscal_event_id.unwrap();
+
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    let (a, b) = tokio::join!(
+        delivery::do_print_missing_original(&app.state, event_id),
+        delivery::do_print_missing_original(&app.state, event_id),
+    );
+    assert_eq!(
+        [a.is_ok(), b.is_ok()].iter().filter(|ok| **ok).count(),
+        1,
+        "exactly one call prints: {a:?} / {b:?}"
+    );
+    assert_eq!(printer.settle(1).await.len(), 1, "one original on paper");
+    assert!(app.original_printed(event_id));
+}
+
+#[tokio::test]
+async fn a_failed_print_releases_the_claim_so_a_retry_prints() {
+    let app = TestApp::new().await;
+    app.set_printer(DEAD_PRINTER);
+    let result = sell(&app, None).await;
+    let event_id = result.fiscal_event_id.unwrap();
+    assert!(
+        delivery::do_print_missing_original(&app.state, event_id)
+            .await
+            .is_err()
+    );
+    assert!(app.state.originals_printing.lock().unwrap().is_empty());
+
+    // The claim is free again: with a live printer the retry prints one slip.
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    delivery::do_print_missing_original(&app.state, event_id)
+        .await
+        .unwrap();
+    assert_eq!(printer.settle(1).await.len(), 1, "one slip printed");
+}
+
+#[tokio::test]
+async fn a_database_error_never_skips_the_email_sent_refusal() {
+    let app = TestApp::new().await;
+    app.set_printer(DEAD_PRINTER);
+    let result = sell(&app, None).await;
+    let event_id = result.fiscal_event_id.unwrap();
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch("ALTER TABLE ticket_deliveries RENAME TO ticket_deliveries_gone")
+        .unwrap();
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    let err = delivery::do_print_missing_original(&app.state, event_id)
+        .await
+        .unwrap_err();
+    assert!(err.starts_with("internal_error"), "{err}");
+    assert!(printer.settle(0).await.is_empty(), "nothing printed");
+}
+
+#[tokio::test]
 async fn printing_the_missing_original_of_a_digital_ticket_stops_its_email() {
     let tem = MockServer::start().await;
     tem_fails(&tem, 503, 1).await;
     tem_accepts(&tem).await;
     let (app, _printer) = app_with_mail(&tem, true).await;
     app.set_printer(DEAD_PRINTER);
-    app.state.mail.record_probe(true);
+    app.state.mail.record_probe(Probe::Reachable);
     let result = sell(&app, Some(&email(RequestedMedium::Digital))).await;
     let event_id = result.fiscal_event_id.unwrap();
 
@@ -523,7 +598,7 @@ async fn an_emailed_digital_ticket_can_not_be_printed_as_an_original() {
     let tem = MockServer::start().await;
     tem_accepts(&tem).await;
     let (app, printer) = app_with_mail(&tem, true).await;
-    app.state.mail.record_probe(true);
+    app.state.mail.record_probe(Probe::Reachable);
     let result = sell(&app, Some(&email(RequestedMedium::Digital))).await;
     let event_id = result.fiscal_event_id.unwrap();
 
@@ -531,7 +606,7 @@ async fn an_emailed_digital_ticket_can_not_be_printed_as_an_original() {
         .await
         .unwrap_err();
     assert_eq!(err, ERR_EMAIL_SENT);
-    assert!(printer.settle(0).await.is_empty());
+    assert_eq!(printer.settle(0).await.len(), 0);
 }
 
 #[tokio::test]
@@ -737,7 +812,7 @@ async fn a_copy_can_be_emailed_only() {
     let tem = MockServer::start().await;
     tem_accepts(&tem).await;
     let (app, printer) = app_with_mail(&tem, true).await;
-    app.state.mail.record_probe(true);
+    app.state.mail.record_probe(Probe::Reachable);
     let sale = sell(&app, None).await;
 
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M160")).await;
@@ -848,8 +923,8 @@ async fn a_failed_outbox_write_rolls_the_whole_sale_back() {
     assert!(app.fiscal_events().is_empty(), "nothing archived");
     assert_eq!(app.counter_for(EventLabel::N), 0, "no gap");
     assert_eq!(app.order_status(order_id).as_deref(), Some("open"));
-    assert!(printer.settle(0).await.is_empty());
-    assert!(tem_sent(&tem).await.is_empty());
+    assert_eq!(printer.settle(0).await.len(), 0);
+    assert_eq!(tem_sent(&tem).await.len(), 0);
 
     // Once the fault is gone the retry archives the same request.
     app.state
@@ -938,5 +1013,5 @@ async fn the_outbox_does_nothing_without_an_email_client() {
     let (app, _printer) = app_with_printer().await;
     sell(&app, None).await;
     delivery::run_outbox_once(&app.state).await;
-    assert!(app.deliveries().is_empty());
+    assert_eq!(app.deliveries().len(), 0);
 }

@@ -4,7 +4,7 @@
 //! (see the module doc in `src/tem.rs`) - a green suite proves
 //! `TemClient` behaves correctly against that assumed shape, not that
 //! the assumption matches Scaleway's real API. Verify against
-//! https://www.scaleway.com/en/developers/api/transactional-email/
+//! <https://www.scaleway.com/en/developers/api/transactional-email>/
 //! before pointing this at production.
 
 use std::time::Duration;

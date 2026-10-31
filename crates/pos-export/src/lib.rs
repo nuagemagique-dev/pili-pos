@@ -24,8 +24,9 @@
 //! - [`outbox`], [`status`]: the retry queue and the export status (card X1-T5).
 //!
 //! Public structs use `i64`, never unsigned integers (the FFI forbids them).
-//! Errors are plain `String` messages that never contain a token or a secret
-//! key.
+//! Errors are plain `String` messages, not an error enum, on purpose: they cross
+//! the FFI boundary (Android) and the engine stores them as text in the export
+//! status. They never contain a token or a secret key.
 
 pub mod crypt;
 pub mod manifest;

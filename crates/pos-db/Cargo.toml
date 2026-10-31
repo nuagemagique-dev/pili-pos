@@ -17,3 +17,6 @@ thiserror = { workspace = true }
 hubrise = ["catalog-sync"]
 # Schema of a menu mirrored from an external catalog (migration 21).
 catalog-sync = []
+
+[lints]
+workspace = true

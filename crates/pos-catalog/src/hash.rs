@@ -3,6 +3,8 @@
 
 use sha2::{Digest, Sha256};
 
+use std::fmt::Write as _;
+
 use crate::model::Catalog;
 
 /// Hex SHA-256 of the catalog's JSON. Names are sorted maps, so the
@@ -11,8 +13,10 @@ pub fn hash(catalog: &Catalog) -> String {
     let json = serde_json::to_vec(catalog).expect("a catalog always serializes");
     Sha256::digest(&json)
         .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
+        .fold(String::with_capacity(64), |mut hex, b| {
+            let _ = write!(hex, "{b:02x}");
+            hex
+        })
 }
 
 #[cfg(test)]

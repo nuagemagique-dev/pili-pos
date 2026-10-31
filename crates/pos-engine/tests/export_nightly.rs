@@ -8,6 +8,11 @@
 //! (`pos-export-mock`) on a local port. Users are seeded and logged in
 //! directly, as the other engine suites do.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -449,7 +454,7 @@ async fn a_sale_and_a_z_reach_the_receiver_intact() {
         } else {
             &files.stats
         };
-        assert_eq!(f.bytes as usize, body.len(), "{}", f.name);
+        assert_eq!(usize::try_from(f.bytes).unwrap(), body.len(), "{}", f.name);
     }
 
     // The backup decrypts with the owner's and with the producer's key to a
@@ -486,17 +491,20 @@ async fn a_sale_and_a_z_reach_the_receiver_intact() {
     assert_eq!((tickets, total), (1, 1200), "the sale of the day");
 
     // The status says it is done.
-    let status = rig.status().await;
-    assert!(status.enabled && status.problem.is_none(), "{status:?}");
-    assert_eq!(status.pending, 0);
-    assert_eq!(status.last_uploaded_id.as_deref(), Some(id.as_str()));
-    assert_eq!(status.last_export_id.as_deref(), Some(id.as_str()));
-    assert_eq!(status.last_error, None);
+    let export_status = rig.status().await;
+    assert!(
+        export_status.enabled && export_status.problem.is_none(),
+        "{export_status:?}"
+    );
+    assert_eq!(export_status.pending, 0);
+    assert_eq!(export_status.last_uploaded_id.as_deref(), Some(id.as_str()));
+    assert_eq!(export_status.last_export_id.as_deref(), Some(id.as_str()));
+    assert_eq!(export_status.last_error, None);
     assert_eq!(
-        status.endpoint.as_deref(),
+        export_status.endpoint.as_deref(),
         Some(rig.receiver.url().as_str())
     );
-    assert_eq!(status.keep_days, 14);
+    assert_eq!(export_status.keep_days, 14);
     rig.close_engine().await;
 }
 
@@ -519,7 +527,7 @@ fn engine_backups(dir: &Path) -> Vec<String> {
     let mut names: Vec<String> = std::fs::read_dir(dir)
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-        .filter(|n| n.starts_with("pos-") && n.ends_with(".db"))
+        .filter(|n| n.starts_with("pos-") && Path::new(n).extension().is_some_and(|e| e == "db"))
         .collect();
     names.sort();
     names
@@ -659,10 +667,10 @@ async fn a_training_z_exports_nothing() {
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
     assert_eq!(rig.receiver.put_count(), 0, "nothing was uploaded");
-    let status = rig.status().await;
-    assert_eq!(status.last_export_id, None, "{status:?}");
-    assert_eq!(status.kept, 0);
-    assert_eq!(status.last_error, None);
+    let export_status = rig.status().await;
+    assert_eq!(export_status.last_export_id, None, "{export_status:?}");
+    assert_eq!(export_status.kept, 0);
+    assert_eq!(export_status.last_error, None);
 
     // The same engine exports the real day that follows.
     rig.engine().config.lock().unwrap().training_mode = false;
@@ -714,9 +722,9 @@ async fn failed_uploads_are_retried_and_run_now_makes_them_due_at_once() {
         );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    let status = rig.status().await;
-    assert_eq!(status.pending, 1, "{status:?}");
-    assert_eq!(status.last_error.as_deref(), Some("HTTP 503"));
+    let export_status = rig.status().await;
+    assert_eq!(export_status.pending, 1, "{export_status:?}");
+    assert_eq!(export_status.last_error.as_deref(), Some("HTTP 503"));
     assert_eq!(
         rig.receiver.put_count(),
         2,
@@ -725,15 +733,15 @@ async fn failed_uploads_are_retried_and_run_now_makes_them_due_at_once() {
 
     // Run now again: accepted this time.
     do_export_run_now(rig.engine()).await.unwrap();
-    let status = rig
+    let export_status = rig
         .wait_status("the export to be uploaded", |s| {
             s.pending == 0 && s.last_uploaded_id.is_some()
         })
         .await;
-    assert_eq!(status.last_error, None, "{status:?}");
-    assert_eq!(status.next_attempt_at, None);
-    let id = status.last_uploaded_id.expect("uploaded");
-    assert_eq!(status.last_export_id.as_deref(), Some(id.as_str()));
+    assert_eq!(export_status.last_error, None, "{export_status:?}");
+    assert_eq!(export_status.next_attempt_at, None);
+    let id = export_status.last_uploaded_id.expect("uploaded");
+    assert_eq!(export_status.last_export_id.as_deref(), Some(id.as_str()));
     rig.wait_files(&id).await;
     rig.close_engine().await;
 }
@@ -766,7 +774,7 @@ async fn a_wrong_token_is_reported_and_sales_go_on() {
     let started = Instant::now();
     assert!(rig.sell().await.unwrap());
     assert!(started.elapsed() < Duration::from_secs(3));
-    assert!(rig.receiver.received().is_empty());
+    assert_eq!(rig.receiver.received().len(), 0);
     rig.close_engine().await;
 }
 
@@ -779,15 +787,15 @@ async fn without_an_export_section_nothing_exists() {
     let z = rig.z().await;
     assert!(z.success, "Z: {:?}", z.error);
 
-    let status = rig.status().await;
-    assert!(!status.enabled);
-    assert_eq!(status.problem, None);
-    assert_eq!(status.endpoint, None);
-    assert_eq!((status.pending, status.kept), (0, 0));
+    let export_status = rig.status().await;
+    assert!(!export_status.enabled);
+    assert_eq!(export_status.problem, None);
+    assert_eq!(export_status.endpoint, None);
+    assert_eq!((export_status.pending, export_status.kept), (0, 0));
 
-    // Run now is only a status, and still creates nothing.
-    let status = do_export_run_now(rig.engine()).await.unwrap();
-    assert!(!status.enabled);
+    // Run now is only a export_status, and still creates nothing.
+    let export_status = do_export_run_now(rig.engine()).await.unwrap();
+    assert!(!export_status.enabled);
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert!(!rig.exports_dir().exists(), "no exports directory");
     assert_eq!(rig.receiver.put_count(), 0);
@@ -802,9 +810,9 @@ async fn an_unusable_section_turns_the_export_off_and_nothing_else() {
     let z = rig.z().await;
     assert!(z.success, "Z: {:?}", z.error);
 
-    let status = rig.status().await;
-    assert!(!status.enabled, "{status:?}");
-    let problem = status.problem.expect("the problem is shown");
+    let export_status = rig.status().await;
+    assert!(!export_status.enabled, "{export_status:?}");
+    let problem = export_status.problem.expect("the problem is shown");
     assert!(problem.contains("owner_recipient"), "{problem}");
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert!(!rig.exports_dir().exists(), "no exports directory");
@@ -957,7 +965,7 @@ async fn the_statistics_file_holds_no_personal_data() {
 
     let mut secrets: Vec<String> = [OPERATOR, CASHIER, OPERATOR_NAME, CASHIER_NAME]
         .iter()
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
     secrets.push(TOKEN.to_string());
     assert_no_personal_data(&stats_path, &secrets);

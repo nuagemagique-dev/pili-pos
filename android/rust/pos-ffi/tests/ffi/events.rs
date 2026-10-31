@@ -18,7 +18,7 @@ use pos_ffi::records::common::{self as ffi, CallbackEvent};
 use pos_ffi::{EventStream, PosEvent};
 use pos_fiscal::fdm_client::SignMessages as EngineSignMessages;
 use pos_fiscal::response::{ExtensionItem, LocationItem, MessageItem};
-use pos_fiscal::types::{Display, FdmWarningCode, MessageCategory};
+use pos_fiscal::types::{FdmWarningCode, MessageCategory, ShowPos};
 use serde::Serialize;
 use serde_json::{Value, json, to_value};
 
@@ -34,7 +34,7 @@ fn sign_messages() -> EngineSignMessages {
             category: MessageCategory::Fdm,
             code: FdmWarningCode::BufferNearFull,
             data: None,
-            show_pos: Display::Optional,
+            show_pos: ShowPos::Optional,
         },
     };
     EngineSignMessages {

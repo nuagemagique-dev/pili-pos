@@ -6,13 +6,13 @@ use tauri::State;
 use super::Managed;
 
 /// The gift voucher setting (switch, validity, maximum amount).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_gift_voucher_settings(state: State<'_, Managed>) -> Result<GiftVoucherSettings, String> {
     pos_engine::commands::gift_vouchers::do_get_gift_voucher_settings(state.inner())
 }
 
 /// Store the gift voucher setting; managers only.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_gift_voucher_settings(
     state: State<'_, Managed>,
     input: GiftVoucherSettings,
@@ -21,7 +21,7 @@ pub fn set_gift_voucher_settings(
 }
 
 /// Add a gift voucher of `amount_cents` to an open order.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn add_gift_voucher_line(
     state: State<'_, Managed>,
     order_id: i64,
@@ -35,7 +35,7 @@ pub fn add_gift_voucher_line(
 }
 
 /// Find a gift voucher by its 12-digit code.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn lookup_gift_voucher(
     state: State<'_, Managed>,
     code: String,
@@ -44,7 +44,7 @@ pub fn lookup_gift_voucher(
 }
 
 /// The gift vouchers, outstanding first; managers only.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_gift_vouchers(
     state: State<'_, Managed>,
     status: Option<String>,

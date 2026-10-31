@@ -1,4 +1,4 @@
-//! Customer slip formatter for HubRise webshop orders.
+//! Customer slip formatter for `HubRise` webshop orders.
 //!
 //! Non-fiscal counterpart to `receipt.rs`. Used by the POS to print
 //! the slip handed to the driver / pickup customer. Always carries
@@ -104,7 +104,7 @@ pub fn format_customer_slip(slip: &CustomerSlip, paper: PaperWidth) -> Vec<u8> {
             p.textln(addr);
         }
         let city_line = match (&c.postal_code, &c.city) {
-            (Some(pc), Some(city)) => Some(format!("{} {}", pc, city)),
+            (Some(pc), Some(city)) => Some(format!("{pc} {city}")),
             (Some(pc), None) => Some(pc.clone()),
             (None, Some(city)) => Some(city.clone()),
             (None, None) => None,
@@ -136,7 +136,7 @@ pub fn format_customer_slip(slip: &CustomerSlip, paper: PaperWidth) -> Vec<u8> {
 fn format_eur(cents: i64) -> String {
     let euros = cents / 100;
     let frac = (cents % 100).abs();
-    format!("{}.{:02}", euros, frac)
+    format!("{euros}.{frac:02}")
 }
 
 #[cfg(test)]
@@ -240,7 +240,7 @@ mod tests {
         slip.lines.push(CustomerLine {
             quantity: 99,
             product_name: "X".repeat(120),
-            line_total_cents: 999999999,
+            line_total_cents: 999_999_999,
         });
         let text = crate::render::render_plain_text(&format_customer_slip(&slip, PaperWidth::Mm80));
         for line in text.lines() {

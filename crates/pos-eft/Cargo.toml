@@ -33,3 +33,6 @@ pos-eft-mock = { path = "../pos-eft-mock" }
 tempfile = "3"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net", "io-util"] }
+
+[lints]
+workspace = true

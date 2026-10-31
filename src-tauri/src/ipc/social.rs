@@ -59,7 +59,7 @@ pub async fn end_shift(
 
 /// Employees currently on shift (clocked in, not yet clocked out),
 /// shown on the login screen.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_open_shifts(
     state: State<'_, Managed>,
 ) -> Result<Vec<pos_db::queries::shifts::OpenShift>, String> {

@@ -3,6 +3,10 @@
 //! `fixtures/module2_tls/ca.crt` (manual.module2.be, "Download losse
 //! certificaten") and `server.crt`, the X.509 v1 certificate without
 //! any name that fdm.module2.be:443 served on 2026-09-27.
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_fiscal::fdm_tls::{SignedByCa, client_config};
 use rustls::pki_types::pem::PemObject;
@@ -25,7 +29,7 @@ fn at_year(year: i32) -> UnixTime {
         .unwrap()
         .and_utc()
         .timestamp();
-    UnixTime::since_unix_epoch(Duration::from_secs(secs as u64))
+    UnixTime::since_unix_epoch(Duration::from_secs(u64::try_from(secs).unwrap()))
 }
 
 fn module2() -> SignedByCa {
@@ -99,7 +103,84 @@ fn an_unusable_https_setup_is_a_config_problem() {
     assert!(
         problems
             .iter()
-            .any(|p| p.starts_with("FDM HTTPS:") && p.contains("/nonexistent/client.crt")),
+            .any(|p| p.text().starts_with("FDM HTTPS:")
+                && p.text().contains("/nonexistent/client.crt")),
         "{problems:?}"
+    );
+}
+
+#[test]
+fn an_expired_ca_does_not_vouch_for_a_valid_certificate() {
+    // ca.crt ends 3000-01-03 23:33:23 GMT, server.crt 31 seconds later:
+    // in between, the server certificate is within its dates but its CA
+    // is not.
+    let between = UnixTime::since_unix_epoch(Duration::from_secs(
+        chrono::NaiveDate::from_ymd_opt(3000, 1, 3)
+            .unwrap()
+            .and_hms_opt(23, 33, 40)
+            .unwrap()
+            .and_utc()
+            .timestamp()
+            .try_into()
+            .unwrap(),
+    ));
+    assert_eq!(
+        module2().check(&der("server.crt"), between),
+        Err(Error::InvalidCertificate(CertificateError::Expired))
+    );
+}
+
+#[test]
+fn every_ca_of_a_bundle_counts() {
+    // The right CA second, an unrelated certificate first.
+    let bundle = SignedByCa::from_cas(vec![der("server.crt"), der("ca.crt")]).unwrap();
+    bundle.check(&der("server.crt"), UnixTime::now()).unwrap();
+    assert!(SignedByCa::from_cas(Vec::new()).is_none());
+
+    // And from a PEM file holding two certificates.
+    let dir = std::env::temp_dir().join(format!("fdm-tls-bundle-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let fixtures = format!("{}/tests/fixtures/module2_tls", env!("CARGO_MANIFEST_DIR"));
+    let mut pem = std::fs::read_to_string(format!("{fixtures}/server.crt")).unwrap();
+    pem.push_str(&std::fs::read_to_string(format!("{fixtures}/ca.crt")).unwrap());
+    let path = dir.join("bundle.pem");
+    std::fs::write(&path, pem).unwrap();
+    client_config(path.to_str().unwrap(), None).expect("a bundle of two certificates");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn a_ca_that_is_not_valid_yet_does_not_vouch_for_a_valid_certificate() {
+    // late_ca.crt is valid from 2030, server_late_ca.crt from 2025 and
+    // signed by it: in 2027 the server certificate is within its dates
+    // but its CA is not.
+    let late = SignedByCa::new(der("late_ca.crt")).unwrap();
+    assert_eq!(
+        late.check(&der("server_late_ca.crt"), at_year(2027)),
+        Err(Error::InvalidCertificate(CertificateError::NotValidYet))
+    );
+    late.check(&der("server_late_ca.crt"), at_year(2035))
+        .unwrap();
+}
+
+#[test]
+fn a_later_ca_of_a_bundle_succeeds_after_an_earlier_name_match_fails() {
+    // impostor_ca.crt has the same subject as ca.crt but another key:
+    // it matches the issuer name first and fails on the signature.
+    let impostor = || der("impostor_ca.crt");
+    let bundle = SignedByCa::from_cas(vec![impostor(), der("ca.crt")]).unwrap();
+    bundle.check(&der("server.crt"), UnixTime::now()).unwrap();
+    // Alone, it is the first failure that is reported.
+    assert_eq!(
+        SignedByCa::new(impostor())
+            .unwrap()
+            .check(&der("server.crt"), UnixTime::now()),
+        Err(Error::InvalidCertificate(CertificateError::BadSignature))
+    );
+    // Two CAs failing differently report the first name match.
+    let late = SignedByCa::from_cas(vec![der("late_ca.crt"), impostor()]).unwrap();
+    assert_eq!(
+        late.check(&der("server.crt"), UnixTime::now()),
+        Err(Error::InvalidCertificate(CertificateError::BadSignature))
     );
 }

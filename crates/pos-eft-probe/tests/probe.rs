@@ -1,6 +1,11 @@
 //! The probe's commands against `pos-eft-mock` (OPI), with a scripted
 //! stdin: nothing leaves 127.0.0.1.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use std::io::Cursor;
 use std::net::TcpListener;
 use std::path::Path;

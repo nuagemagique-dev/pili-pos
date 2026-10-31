@@ -115,6 +115,10 @@ fn io(path: &Path, e: &std::io::Error) -> AccountingError {
 }
 
 /// Run the export. Nothing is written unless every day reconciles with its Z.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear pipeline (read, reconcile, render, write); each step is a call already"
+)]
 pub fn export(req: &ExportRequest) -> Result<ExportSummary> {
     let (from, to) = req.period.bounds()?;
     let final_dir = req.out_parent.join(folder_name(&from, &to));
@@ -186,10 +190,13 @@ pub fn export(req: &ExportRequest) -> Result<ExportSummary> {
     });
     contents.push(("LISEZMOI.txt", note.into_bytes()));
     contents.sort_by(|a, b| a.0.cmp(b.0));
-    let manifest: String = contents
-        .iter()
-        .map(|(name, bytes)| format!("{}  {name}\n", hex::encode(Sha256::digest(bytes))))
-        .collect();
+    let mut manifest = String::new();
+    for (name, bytes) in &contents {
+        manifest.push_str(&hex::encode(Sha256::digest(bytes)));
+        manifest.push_str("  ");
+        manifest.push_str(name);
+        manifest.push('\n');
+    }
 
     std::fs::create_dir_all(&req.out_parent).map_err(|e| io(&req.out_parent, &e))?;
     let mut partial_name = final_dir.as_os_str().to_os_string();

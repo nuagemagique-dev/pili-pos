@@ -10,3 +10,6 @@ tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "sync", "
 
 [dev-dependencies]
 proptest = "1"
+
+[lints]
+workspace = true

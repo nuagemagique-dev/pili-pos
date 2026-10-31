@@ -9,13 +9,13 @@ use tauri::State;
 use super::Managed;
 
 /// The whole menu with its names per language, hidden entries included.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn menu_admin_get(state: State<'_, Managed>) -> Result<MenuAdmin, String> {
     pos_engine::commands::menu_admin::do_menu_admin_get(state.inner())
 }
 
 /// Create (no id) or update a category.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn menu_save_category(
     state: State<'_, Managed>,
     input: SaveCategoryInput,
@@ -24,7 +24,7 @@ pub fn menu_save_category(
 }
 
 /// Create (no id) or update a product.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn menu_save_product(
     state: State<'_, Managed>,
     input: SaveProductInput,
@@ -33,7 +33,7 @@ pub fn menu_save_product(
 }
 
 /// Create (no id) or update an option group of a product.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn menu_save_modifier_group(
     state: State<'_, Managed>,
     input: SaveModifierGroupInput,
@@ -42,7 +42,7 @@ pub fn menu_save_modifier_group(
 }
 
 /// Create (no id) or update an option of a group.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn menu_save_modifier(
     state: State<'_, Managed>,
     input: SaveModifierInput,
@@ -51,7 +51,7 @@ pub fn menu_save_modifier(
 }
 
 /// The change log of the menu, newest first.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_menu_changes(
     state: State<'_, Managed>,
     limit: Option<i64>,

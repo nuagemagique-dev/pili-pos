@@ -1,0 +1,278 @@
+[
+  {
+    "name": "mixed sale with a line discount",
+    "request": {
+      "posFiscalTicketNo": 77,
+      "posDateTime": "2026-10-04T12:00:00+02:00",
+      "transaction": {
+        "transactionLines": [
+          {
+            "mainProduct": {
+              "productId": "1",
+              "productName": "Item 1",
+              "departmentId": "10",
+              "departmentName": "Dept 10",
+              "quantity": 1,
+              "unitPrice": 12.1,
+              "vats": [
+                {
+                  "label": "A",
+                  "price": 12.1,
+                  "priceChanges": []
+                }
+              ]
+            }
+          },
+          {
+            "mainProduct": {
+              "productId": "2",
+              "productName": "Item 2",
+              "departmentId": "22",
+              "departmentName": "Dept 22",
+              "quantity": 1,
+              "unitPrice": 28.0,
+              "vats": [
+                {
+                  "label": "B",
+                  "price": 28.0,
+                  "priceChanges": [
+                    {
+                      "id": "d1",
+                      "groupingId": 1,
+                      "type": "PUBLIC",
+                      "scope": "LINE",
+                      "amount": -3.0
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "transactionTotal": 34.1
+      },
+      "financials": [
+        {
+          "type": "CASH",
+          "amountType": "PAYMENT",
+          "amount": 34.1
+        }
+      ]
+    },
+    "response": {
+      "vatCalc": [
+        {
+          "label": "A",
+          "rate": 21,
+          "taxableAmount": 10.0,
+          "vatAmount": 2.1,
+          "totalAmount": 12.1
+        },
+        {
+          "label": "B",
+          "rate": 12,
+          "taxableAmount": 22.32,
+          "vatAmount": 2.68,
+          "totalAmount": 25.0
+        }
+      ]
+    },
+    "expected": {
+      "refund": false,
+      "paid_cents": 3410,
+      "vats": [
+        {
+          "label": "A",
+          "rate_bp": 2100,
+          "base": 1000,
+          "vat": 210,
+          "total": 1210
+        },
+        {
+          "label": "B",
+          "rate_bp": 1200,
+          "base": 2232,
+          "vat": 268,
+          "total": 2500
+        }
+      ]
+    }
+  },
+  {
+    "name": "refund by fdmRef",
+    "request": {
+      "posFiscalTicketNo": 77,
+      "posDateTime": "2026-10-04T12:00:00+02:00",
+      "transaction": {
+        "transactionLines": [
+          {
+            "mainProduct": {
+              "productId": "1",
+              "productName": "Item 1",
+              "departmentId": "10",
+              "departmentName": "Dept 10",
+              "quantity": 1,
+              "unitPrice": 12.1,
+              "vats": [
+                {
+                  "label": "A",
+                  "price": -12.1,
+                  "priceChanges": []
+                }
+              ]
+            }
+          }
+        ],
+        "transactionTotal": -12.1
+      },
+      "financials": [
+        {
+          "type": "CASH",
+          "amountType": "PAYMENT",
+          "amount": -12.1
+        }
+      ],
+      "fdmRef": {
+        "fdmId": "FDM1",
+        "fdmDateTime": "2026-10-03T10:00:00.000Z",
+        "eventLabel": "N",
+        "eventCounter": 1,
+        "totalCounter": 1
+      }
+    },
+    "response": {
+      "vatCalc": [
+        {
+          "label": "A",
+          "rate": 21,
+          "taxableAmount": -10.0,
+          "vatAmount": -2.1,
+          "totalAmount": -12.1
+        }
+      ]
+    },
+    "expected": {
+      "refund": true,
+      "paid_cents": -1210,
+      "vats": [
+        {
+          "label": "A",
+          "rate_bp": 2100,
+          "base": -1000,
+          "vat": -210,
+          "total": -1210
+        }
+      ]
+    }
+  },
+  {
+    "name": "negative total without a reference",
+    "request": {
+      "posFiscalTicketNo": 77,
+      "posDateTime": "2026-10-04T12:00:00+02:00",
+      "transaction": {
+        "transactionLines": [
+          {
+            "mainProduct": {
+              "productId": "1",
+              "productName": "Item 1",
+              "departmentId": "10",
+              "departmentName": "Dept 10",
+              "quantity": 1,
+              "unitPrice": 5.0,
+              "vats": [
+                {
+                  "label": "B",
+                  "price": -5.0,
+                  "priceChanges": []
+                }
+              ]
+            }
+          }
+        ],
+        "transactionTotal": -5.0
+      },
+      "financials": [
+        {
+          "type": "CASH",
+          "amountType": "PAYMENT",
+          "amount": -5.0
+        }
+      ]
+    },
+    "response": {
+      "vatCalc": [
+        {
+          "label": "B",
+          "rate": 12,
+          "taxableAmount": -4.46,
+          "vatAmount": -0.54,
+          "totalAmount": -5.0
+        }
+      ]
+    },
+    "expected": {
+      "refund": true,
+      "paid_cents": -500,
+      "vats": [
+        {
+          "label": "B",
+          "rate_bp": 1200,
+          "base": -446,
+          "vat": -54,
+          "total": -500
+        }
+      ]
+    }
+  },
+  {
+    "name": "no vatCalc: standard rate fallback",
+    "request": {
+      "posFiscalTicketNo": 77,
+      "posDateTime": "2026-10-04T12:00:00+02:00",
+      "transaction": {
+        "transactionLines": [
+          {
+            "mainProduct": {
+              "productId": "1",
+              "productName": "Item 1",
+              "departmentId": "10",
+              "departmentName": "Dept 10",
+              "quantity": 1,
+              "unitPrice": 12.1,
+              "vats": [
+                {
+                  "label": "A",
+                  "price": 12.1,
+                  "priceChanges": []
+                }
+              ]
+            }
+          }
+        ],
+        "transactionTotal": 12.1
+      },
+      "financials": [
+        {
+          "type": "CASH",
+          "amountType": "PAYMENT",
+          "amount": 12.1
+        }
+      ]
+    },
+    "response": {},
+    "expected": {
+      "refund": false,
+      "paid_cents": 1210,
+      "vats": [
+        {
+          "label": "A",
+          "rate_bp": 2100,
+          "base": 1000,
+          "vat": 210,
+          "total": 1210
+        }
+      ]
+    }
+  }
+]

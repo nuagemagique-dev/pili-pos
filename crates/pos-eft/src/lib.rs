@@ -136,6 +136,19 @@ pub struct Terminal {
     driver: Driver,
 }
 
+impl std::fmt::Debug for Terminal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (kind, detail): (&str, &dyn std::fmt::Debug) = match &self.driver {
+            Driver::Worldline(d) => ("Worldline", d),
+            Driver::CcvCloud(d) => ("CcvCloud", d),
+            Driver::CcvOpi(d) => ("CcvOpi", d),
+            #[cfg(feature = "scripted")]
+            Driver::Scripted(_) => ("Scripted", &"<script>"),
+        };
+        f.debug_struct("Terminal").field(kind, detail).finish()
+    }
+}
+
 enum Driver {
     Worldline(worldline::WorldlineTerminalApi),
     CcvCloud(ccv_cloud::CcvPaymentApi),
@@ -156,7 +169,7 @@ impl Terminal {
     ) -> Result<Self, EftError> {
         let problems = config.problems();
         if let Some(p) = problems.first() {
-            return Err(EftError::Config(p.clone()));
+            return Err(EftError::Config(p.to_string()));
         }
         let driver = match config.kind {
             PaymentTerminalKind::WorldlineTerminalApi => Driver::Worldline(

@@ -4,6 +4,11 @@
 //!
 //! Events are signed by the admission image's mock FDM.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;

@@ -230,7 +230,7 @@ mod tests {
     fn fixed_key() -> [u8; 32] {
         let mut key = [0u8; 32];
         for (i, b) in key.iter_mut().enumerate() {
-            *b = i as u8;
+            *b = u8::try_from(i).unwrap();
         }
         key
     }
@@ -469,7 +469,7 @@ mod tests {
         // The database restored on new hardware: no key file there.
         let new_dir = tempfile::tempdir().unwrap();
         assert_eq!(open_check(&conn, new_dir.path()).unwrap(), 2);
-        assert!(badges::list_active(&conn).unwrap().is_empty());
+        assert_eq!(badges::list_active(&conn).unwrap().len(), 0);
         let key = fs::read(new_dir.path().join(KEY_FILE)).unwrap();
         assert_eq!(key.len(), 32);
         let new: [u8; 32] = key.try_into().unwrap();

@@ -9,9 +9,12 @@
 //! a counter is never masked: a difference there is a real difference
 //! (P7D8). The same rules are documented in `docs/android/UC.md`.
 
+use std::sync::LazyLock;
+
 use regex::{Captures, Regex};
 
 /// What a rule masks and why.
+#[derive(Debug)]
 pub struct Rule {
     pub name: &'static str,
     pub reason: &'static str,
@@ -66,6 +69,7 @@ pub const RULES: &[Rule] = &[
     },
 ];
 
+#[derive(Debug)]
 struct Compiled {
     iso_datetime: Regex,
     dmy_datetime: Regex,
@@ -81,7 +85,10 @@ struct Compiled {
     vat_row: Regex,
 }
 
-fn compiled() -> Compiled {
+/// The patterns, compiled once: a run normalises every ticket of both journals.
+static COMPILED: LazyLock<Compiled> = LazyLock::new(compile);
+
+fn compile() -> Compiled {
     let re = |p: &str| Regex::new(p).expect("ticket normalisation pattern");
     Compiled {
         iso_datetime: re(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?"),
@@ -103,7 +110,7 @@ fn compiled() -> Compiled {
 
 /// The match with every digit and hex digit replaced by `#` (separators
 /// and letters of a date, such as the `T` and `Z` of an ISO stamp, stay).
-fn mask(caps: &Captures) -> String {
+fn mask(caps: &Captures<'_>) -> String {
     caps[0]
         .chars()
         .map(|c| if c.is_ascii_hexdigit() { '#' } else { c })
@@ -111,7 +118,7 @@ fn mask(caps: &Captures) -> String {
 }
 
 /// A date or a time: only the digits are masked.
-fn mask_digits(caps: &Captures) -> String {
+fn mask_digits(caps: &Captures<'_>) -> String {
     caps[0]
         .chars()
         .map(|c| if c.is_ascii_digit() { '#' } else { c })
@@ -120,7 +127,7 @@ fn mask_digits(caps: &Captures) -> String {
 
 /// The ticket with the volatile values masked.
 pub fn normalise_ticket(ticket: &str) -> String {
-    let c = compiled();
+    let c = &*COMPILED;
     let text = ticket.replace("\r\n", "\n");
     let text = c.iso_datetime.replace_all(&text, mask_digits).into_owned();
     let text = c.dmy_datetime.replace_all(&text, mask_digits).into_owned();

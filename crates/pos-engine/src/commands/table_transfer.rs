@@ -8,6 +8,7 @@
 //! payment. Only an order that never held anything (a tap and walk away)
 //! does not count; it is voided with the move.
 
+use pos_fiscal::types::Mode;
 use serde::Serialize;
 
 use pos_core::order::{OrderStatus, OrderType};
@@ -100,10 +101,11 @@ pub async fn do_transfer_table(
         // Signed, but the target was taken before the commit.
         return Err(errors::TABLE_TRANSFER_NOT_MOVED.into());
     }
-    let transfer_slip = signing::follow_up(state, &config, &context, &committed, false)
-        .await
-        .slip
-        .unwrap_or(SlipOutcome::NothingToPrint);
+    let transfer_slip =
+        signing::follow_up(state, &config, &context, &committed, signing::Drawer::Leave)
+            .await
+            .slip
+            .unwrap_or(SlipOutcome::NothingToPrint);
     Ok(TableTransferResult {
         order_id,
         from_table,
@@ -177,7 +179,10 @@ fn check(state: &AppState, order_id: i64, to_table: i32) -> Result<i32, String> 
     Ok(from_table)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each argument is a distinct input of one fiscal step; a parameter struct would only rename them"
+)]
 async fn sign_transfer_locked(
     state: &AppState,
     guard: &SignGuard<'_>,
@@ -209,7 +214,7 @@ async fn sign_transfer_locked(
         return Err(errors::ORDER_NO_LINES.into());
     }
 
-    let label = EventLabel::P.in_mode(config.training_mode);
+    let label = EventLabel::P.in_mode(Mode::from(config.training_mode));
     let ticket_number = super::peek_ticket_number(state, guard, label)?;
     let input = build_cost_center_change_input(
         config,
@@ -222,8 +227,12 @@ async fn sign_transfer_locked(
         ticket_number,
         &bp_id,
     );
-    let request = SignRequest::new(SignMutation::CostCenterChange, &input, config.training_mode)
-        .map_err(errors::internal)?;
+    let request = SignRequest::new(
+        SignMutation::CostCenterChange,
+        &input,
+        Mode::from(config.training_mode),
+    )
+    .map_err(errors::internal)?;
     let context = PendingContext::TableTransfer {
         order_id,
         from_table,

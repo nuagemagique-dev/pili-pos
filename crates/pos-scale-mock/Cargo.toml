@@ -13,3 +13,6 @@ tokio = { version = "1", features = ["full"] }
 
 [dev-dependencies]
 pos-scale = { path = "../pos-scale" }
+
+[lints]
+workspace = true

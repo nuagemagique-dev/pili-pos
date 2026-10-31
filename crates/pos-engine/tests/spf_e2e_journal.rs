@@ -14,6 +14,11 @@
 //! - a refund's quantity can't exceed what was sold, aggregated across
 //!   any number of prior partial refunds of the same sale.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -71,12 +76,12 @@ fn add(app: &TestApp, order_id: i64, quantity: i32) -> i64 {
 
 fn unsent_entries(app: &TestApp, order_id: i64) -> Vec<pos_core::order::OrderLine> {
     let conn = app.state.db.lock().unwrap();
-    pos_db::queries::orders::get_order_entries(&conn, order_id, true).unwrap()
+    pos_db::queries::orders::get_unsent_order_entries(&conn, order_id).unwrap()
 }
 
 fn all_entries(app: &TestApp, order_id: i64) -> Vec<pos_core::order::OrderLine> {
     let conn = app.state.db.lock().unwrap();
-    pos_db::queries::orders::get_order_entries(&conn, order_id, false).unwrap()
+    pos_db::queries::orders::get_order_entries(&conn, order_id).unwrap()
 }
 
 // ── Sent exactly once, across P / pre-bill / N ──────────────────────

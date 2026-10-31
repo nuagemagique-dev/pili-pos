@@ -1,3 +1,9 @@
+#![expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a command-line tool: stdout is the report, stderr the diagnostics"
+)]
+
 use std::process::ExitCode;
 
 use pos_uc_check::cli::{self, Command};
@@ -63,7 +69,7 @@ async fn main() -> ExitCode {
                             {
                                 std::fs::create_dir_all(parent)?;
                             }
-                            std::fs::write(&path, text + "\n").map_err(anyhow::Error::from)
+                            std::fs::write(&path, format!("{text}\n")).map_err(anyhow::Error::from)
                         });
                     if let Err(e) = written {
                         eprintln!("pos-uc-check compare: cannot write the report: {e:#}");
@@ -84,6 +90,10 @@ async fn main() -> ExitCode {
     }
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "private helper with one call-site pair: the verdict of a run"
+)]
 fn exit(pass: bool) -> ExitCode {
     if pass {
         ExitCode::SUCCESS

@@ -4,29 +4,37 @@ use std::time::Duration;
 use serde::Serialize;
 
 use crate::http_tls::HttpTls;
-use crate::inputs::*;
-use crate::response::*;
-use crate::response_check::{ExpectedEvent, check_sign_result};
+use crate::inputs::{
+    CopyInput, CostCenterChangeInput, DrawerOpenInput, InvoiceInput, MoneyInOutInput, OrderInput,
+    PaymentCorrectionInput, PreBillInput, ReportTurnoverXInput, ReportTurnoverZInput,
+    ReportUserXInput, ReportUserZInput, SaleInput, WorkInOutInput,
+};
+use crate::response::{
+    FdmStatus, GraphQlError, GraphQlResponse, MessageItem, MultiLangStatus, SignResult,
+};
+use crate::response_check::{ExpectedEvent, PlaceholderSignatures, check_sign_result};
+use crate::types::Mode;
 
 /// Parse one sign result out of the GraphQL `data` object and check it
 /// against the request it answers before anyone can archive it.
 fn parse_checked<D: Serialize>(
     sink: Option<&SignMessageSink>,
+    placeholders: PlaceholderSignatures,
     data: &serde_json::Value,
     mutation_name: &str,
     request: &D,
-    is_training: bool,
+    mode: Mode,
 ) -> Result<SignResult, FdmError> {
     let value = data
         .get(mutation_name)
         .ok_or_else(|| FdmError::BadResponse(format!("Missing {mutation_name} in response")))?;
     let result: SignResult = serde_json::from_value(value.clone())
         .map_err(|e| FdmError::BadResponse(format!("Failed to parse {mutation_name}: {e}")))?;
-    let expected = ExpectedEvent::for_mutation(mutation_name, is_training)
+    let expected = ExpectedEvent::for_mutation(mutation_name, mode)
         .ok_or_else(|| FdmError::Serialization(format!("Unknown sign mutation {mutation_name}")))?;
     let request = serde_json::to_value(request)
         .map_err(|e| FdmError::Serialization(format!("{mutation_name}: {e}")))?;
-    check_sign_result(&request, expected, &result).map_err(|mismatch| {
+    check_sign_result(&request, expected, &result, placeholders).map_err(|mismatch| {
         tracing::error!(
             mutation = mutation_name,
             %mismatch,
@@ -67,7 +75,7 @@ fn report_sign_messages(
         items
             .iter()
             .flatten()
-            .filter(|m| m.extensions.show_pos != crate::types::Display::Never)
+            .filter(|m| m.extensions.show_pos != crate::types::ShowPos::Never)
             .cloned()
             .collect()
     };
@@ -90,16 +98,16 @@ pub enum FdmError {
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
     /// A status query the FDM did not answer.
-    #[error("GraphQL error: {0}")]
+    #[error("FDM status query failed: {0}")]
     GraphQl(String),
     /// The FDM answered a sign request with `errors[]` ("CODE: message").
-    #[error("GraphQL error: {message}")]
+    #[error("FDM refused: {message}")]
     Refused { codes: Vec<String>, message: String },
     /// The FDM answered, but not with a usable result.
-    #[error("GraphQL error: {0}")]
+    #[error("FDM unusable response: {0}")]
     BadResponse(String),
     /// The request could not be built; nothing was sent.
-    #[error("GraphQL error: {0}")]
+    #[error("request not sent: {0}")]
     Serialization(String),
     #[error("FDM not connected")]
     NotConnected,
@@ -281,7 +289,7 @@ impl SignMutation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignRequest {
     mutation: SignMutation,
-    is_training: bool,
+    mode: Mode,
     body: String,
 }
 
@@ -290,28 +298,27 @@ impl SignRequest {
     pub fn new<D: Serialize>(
         mutation: SignMutation,
         data: &D,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<Self, FdmError> {
-        Self::build(mutation, &[data as &dyn erased::Input], is_training)
+        let input: &dyn erased::Input = data;
+        Self::build(mutation, &[input], mode)
     }
 
     /// The end-of-day Z pair (M184).
     pub fn turnover_z_user_z<T: Serialize, U: Serialize>(
         turnover: &T,
         user: &U,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<Self, FdmError> {
-        Self::build(
-            SignMutation::ReportTurnoverZUserZ,
-            &[turnover as &dyn erased::Input, user],
-            is_training,
-        )
+        let turnover: &dyn erased::Input = turnover;
+        let user: &dyn erased::Input = user;
+        Self::build(SignMutation::ReportTurnoverZUserZ, &[turnover, user], mode)
     }
 
     fn build(
         mutation: SignMutation,
         inputs: &[&dyn erased::Input],
-        is_training: bool,
+        mode: Mode,
     ) -> Result<Self, FdmError> {
         let fields = mutation.fields();
         if fields.len() != inputs.len() {
@@ -325,7 +332,7 @@ impl SignRequest {
         for ((_, _, var), input) in fields.iter().zip(inputs) {
             variables.insert((*var).to_string(), input.to_json()?);
         }
-        variables.insert("isTraining".into(), is_training.into());
+        variables.insert("isTraining".into(), mode.is_training().into());
         let body = crate::canonical::to_canonical(&GqlRequest {
             query: mutation.query(),
             variables: serde_json::Value::Object(variables),
@@ -333,24 +340,24 @@ impl SignRequest {
         .map_err(|e| FdmError::Serialization(format!("canonical serialization: {e}")))?;
         Ok(Self {
             mutation,
-            is_training,
+            mode,
             body,
         })
     }
 
     /// A request stored before it was sent, checked to be one.
-    pub fn from_stored(mutation: &str, is_training: bool, body: String) -> Result<Self, FdmError> {
+    pub fn from_stored(mutation: &str, mode: Mode, body: String) -> Result<Self, FdmError> {
         let mutation = SignMutation::from_name(mutation)
             .ok_or_else(|| FdmError::Serialization(format!("unknown mutation {mutation}")))?;
         let request = Self {
             mutation,
-            is_training,
+            mode,
             body,
         };
         let parsed: serde_json::Value = serde_json::from_str(&request.body)
             .map_err(|e| FdmError::Serialization(format!("stored request: {e}")))?;
         if parsed["query"].as_str() != Some(mutation.query().as_str())
-            || parsed["variables"]["isTraining"].as_bool() != Some(is_training)
+            || parsed["variables"]["isTraining"].as_bool() != Some(mode.is_training())
         {
             return Err(FdmError::Serialization(
                 "stored request does not match its mutation".into(),
@@ -365,7 +372,11 @@ impl SignRequest {
     }
 
     pub fn is_training(&self) -> bool {
-        self.is_training
+        self.mode.is_training()
+    }
+
+    pub fn mode(&self) -> Mode {
+        self.mode
     }
 
     /// The exact bytes sent.
@@ -392,7 +403,7 @@ impl SignRequest {
 
 mod erased {
     /// A sign input, whatever its type.
-    pub trait Input {
+    pub(super) trait Input {
         fn to_json(&self) -> Result<serde_json::Value, super::FdmError>;
     }
 
@@ -412,6 +423,20 @@ pub struct FdmClient {
     bearer_token: Option<String>,
     /// Where the messages of signed events go ([`FdmClient::with_sign_messages`]).
     sign_messages: Option<SignMessageSink>,
+    /// Whether this endpoint may answer with the simulator's placeholder
+    /// signature (decided from the URL).
+    placeholders: PlaceholderSignatures,
+}
+
+impl std::fmt::Debug for FdmClient {
+    /// The URL and whether a token is set; never the token.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FdmClient")
+            .field("url", &self.url)
+            .field("bearer_token", &self.bearer_token.as_ref().map(|_| "(set)"))
+            .field("placeholders", &self.placeholders)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Serialize)]
@@ -461,6 +486,7 @@ impl FdmClient {
             url: fdm_url.to_string(),
             bearer_token: None,
             sign_messages: None,
+            placeholders: PlaceholderSignatures::for_url(fdm_url),
         }
     }
 
@@ -505,7 +531,7 @@ impl FdmClient {
     /// keeps the HTTPS setup from being built from its files.
     ///
     /// [`PosConfig::problems`]: pos_core::config::PosConfig::problems
-    pub fn config_problems(config: &pos_core::config::PosConfig) -> Vec<String> {
+    pub fn config_problems(config: &pos_core::config::PosConfig) -> Vec<pos_core::config::Problem> {
         let mut problems = config.problems();
         if config.fdm_url.starts_with("https://")
             && let Some(ca) = config.fdm_ca_file.as_deref()
@@ -515,7 +541,10 @@ impl FdmClient {
                 .as_deref()
                 .zip(config.fdm_client_key_file.as_deref());
             if let Err(e) = crate::fdm_tls::client_config(ca, client) {
-                problems.push(format!("FDM HTTPS: {e}"));
+                problems.push(pos_core::config::Problem::new(
+                    "fdm_files",
+                    format!("FDM HTTPS: {e}"),
+                ));
             }
         }
         problems
@@ -540,6 +569,7 @@ impl FdmClient {
     }
 
     /// Send `token` as a bearer token with every request.
+    #[must_use]
     pub fn with_bearer_token(mut self, token: Option<String>) -> Self {
         self.bearer_token = token;
         self
@@ -550,6 +580,7 @@ impl FdmClient {
     /// at least once per bookingDate, so every sign response's warnings
     /// and informations (minus `showPos: NEVER`) reach `sink`, whichever
     /// command signed.
+    #[must_use]
     pub fn with_sign_messages(mut self, sink: SignMessageSink) -> Self {
         self.sign_messages = Some(sink);
         self
@@ -659,127 +690,107 @@ impl FdmClient {
 
     // ── Sign Mutations ─────────────────────────────────────────
 
-    pub async fn sign_sale(
-        &self,
-        data: SaleInput,
-        is_training: bool,
-    ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::Sale, &data, is_training).await
+    pub async fn sign_sale(&self, data: SaleInput, mode: Mode) -> Result<SignResult, FdmError> {
+        self.sign_one(SignMutation::Sale, &data, mode).await
     }
 
-    pub async fn sign_order(
-        &self,
-        data: OrderInput,
-        is_training: bool,
-    ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::Order, &data, is_training).await
+    pub async fn sign_order(&self, data: OrderInput, mode: Mode) -> Result<SignResult, FdmError> {
+        self.sign_one(SignMutation::Order, &data, mode).await
     }
 
     pub async fn sign_pre_bill(
         &self,
         data: PreBillInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::PreBill, &data, is_training)
-            .await
+        self.sign_one(SignMutation::PreBill, &data, mode).await
     }
 
     pub async fn sign_work_in(
         &self,
         data: WorkInOutInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::WorkIn, &data, is_training)
-            .await
+        self.sign_one(SignMutation::WorkIn, &data, mode).await
     }
 
     pub async fn sign_work_out(
         &self,
         data: WorkInOutInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::WorkOut, &data, is_training)
-            .await
+        self.sign_one(SignMutation::WorkOut, &data, mode).await
     }
 
-    pub async fn sign_copy(
-        &self,
-        data: CopyInput,
-        is_training: bool,
-    ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::Copy, &data, is_training).await
+    pub async fn sign_copy(&self, data: CopyInput, mode: Mode) -> Result<SignResult, FdmError> {
+        self.sign_one(SignMutation::Copy, &data, mode).await
     }
 
     pub async fn sign_money_in_out(
         &self,
         data: MoneyInOutInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::MoneyInOut, &data, is_training)
-            .await
+        self.sign_one(SignMutation::MoneyInOut, &data, mode).await
     }
 
     pub async fn sign_drawer_open(
         &self,
         data: DrawerOpenInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::DrawerOpen, &data, is_training)
-            .await
+        self.sign_one(SignMutation::DrawerOpen, &data, mode).await
     }
 
     pub async fn sign_payment_correction(
         &self,
         data: PaymentCorrectionInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::PaymentCorrection, &data, is_training)
+        self.sign_one(SignMutation::PaymentCorrection, &data, mode)
             .await
     }
 
     pub async fn sign_invoice(
         &self,
         data: InvoiceInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::Invoice, &data, is_training)
-            .await
+        self.sign_one(SignMutation::Invoice, &data, mode).await
     }
 
     pub async fn sign_report_turnover_x(
         &self,
         data: ReportTurnoverXInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::ReportTurnoverX, &data, is_training)
+        self.sign_one(SignMutation::ReportTurnoverX, &data, mode)
             .await
     }
 
     pub async fn sign_report_turnover_z(
         &self,
         data: ReportTurnoverZInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::ReportTurnoverZ, &data, is_training)
+        self.sign_one(SignMutation::ReportTurnoverZ, &data, mode)
             .await
     }
 
     pub async fn sign_report_user_x(
         &self,
         data: ReportUserXInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::ReportUserX, &data, is_training)
-            .await
+        self.sign_one(SignMutation::ReportUserX, &data, mode).await
     }
 
     pub async fn sign_report_user_z(
         &self,
         data: ReportUserZInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::ReportUserZ, &data, is_training)
-            .await
+        self.sign_one(SignMutation::ReportUserZ, &data, mode).await
     }
 
     /// M184 - end-of-day Z: the financial Z and the user Z are signed
@@ -790,9 +801,9 @@ impl FdmClient {
         &self,
         turnover: ReportTurnoverZInput,
         user: ReportUserZInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<(SignResult, SignResult), FdmError> {
-        let request = SignRequest::turnover_z_user_z(&turnover, &user, is_training)?;
+        let request = SignRequest::turnover_z_user_z(&turnover, &user, mode)?;
         let mut results = self.send(&request).await?.into_iter();
         match (results.next(), results.next()) {
             (Some(turnover), Some(user)) => Ok((turnover, user)),
@@ -803,9 +814,9 @@ impl FdmClient {
     pub async fn sign_cost_center_change(
         &self,
         data: CostCenterChangeInput,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        self.sign_one(SignMutation::CostCenterChange, &data, is_training)
+        self.sign_one(SignMutation::CostCenterChange, &data, mode)
             .await
     }
 
@@ -819,9 +830,9 @@ impl FdmClient {
         &self,
         mutation: SignMutation,
         data: &D,
-        is_training: bool,
+        mode: Mode,
     ) -> Result<SignResult, FdmError> {
-        let request = SignRequest::new(mutation, data, is_training)?;
+        let request = SignRequest::new(mutation, data, mode)?;
         self.send(&request)
             .await?
             .pop()
@@ -833,11 +844,24 @@ impl FdmClient {
         let resp: GraphQlResponse<serde_json::Value> =
             self.post(request.body().to_string()).await?;
         if let Some(errors) = resp.errors.as_ref().filter(|e| !e.is_empty()) {
+            // M184 sends two mutations in one document: when one field
+            // carries a result next to `errors`, that event may have been
+            // signed. No codes makes the outcome Unknown (resend the
+            // same request), never "nothing was signed".
+            let partly_signed = resp
+                .data
+                .as_ref()
+                .and_then(serde_json::Value::as_object)
+                .is_some_and(|fields| fields.values().any(|v| !v.is_null()));
             return Err(FdmError::Refused {
-                codes: errors
-                    .iter()
-                    .filter_map(|e| e.code().map(str::to_string))
-                    .collect(),
+                codes: if partly_signed {
+                    Vec::new()
+                } else {
+                    errors
+                        .iter()
+                        .filter_map(|e| e.code().map(str::to_string))
+                        .collect()
+                },
                 message: format_gql_errors(resp.errors.clone()),
             });
         }
@@ -853,10 +877,11 @@ impl FdmClient {
             .map(|((field, _, _), input)| {
                 parse_checked(
                     self.sign_messages.as_ref(),
+                    self.placeholders,
                     &data,
                     field,
                     input,
-                    request.is_training(),
+                    request.mode(),
                 )
             })
             .collect()
@@ -898,8 +923,18 @@ impl FdmClient {
             }
         })?;
 
-        let gql_resp: GraphQlResponse<R> = resp.json().await?;
-        Ok(gql_resp)
+        let status = resp.status();
+        let bytes = resp.bytes().await?;
+        serde_json::from_slice(&bytes).map_err(|e| {
+            // The body excerpt is for the log only: the error text reaches the UI.
+            let head = &bytes[..bytes.len().min(200)];
+            tracing::warn!(
+                %status,
+                body = %String::from_utf8_lossy(head),
+                "FDM answered with something that is not GraphQL"
+            );
+            FdmError::BadResponse(format!("HTTP {status}, body is not a GraphQL answer ({e})"))
+        })
     }
 }
 
@@ -928,7 +963,7 @@ fn format_gql_errors(errors: Option<Vec<GraphQlError>>) -> String {
     match errors {
         Some(errs) => errs
             .iter()
-            .map(|e| e.to_string())
+            .map(std::string::ToString::to_string)
             .collect::<Vec<_>>()
             .join("; "),
         None => "Unknown GraphQL error".to_string(),

@@ -3,10 +3,15 @@
 //! CA) and here requires the client certificate, so the handshake only
 //! succeeds when the POS presents it. Certificates:
 //! `crates/pos-fdm-mock/fixtures/tls` (test-only, v1 like module2's).
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_core::config::PosConfig;
 use pos_fiscal::event::{Booking, build_work_in_out};
 use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::types::Mode;
 
 fn mock_tls(name: &str) -> String {
     format!(
@@ -23,9 +28,9 @@ fn https_fdm() -> String {
     tokio::spawn(async move {
         pos_fdm_mock::tls::serve(
             listener,
-            pos_fdm_mock::app_with(Default::default()),
+            pos_fdm_mock::app_with(pos_fdm_mock::Control::default()),
             &dir,
-            true,
+            pos_fdm_mock::tls::ClientCert::Required,
         )
         .await
         .unwrap();
@@ -33,6 +38,10 @@ fn https_fdm() -> String {
     format!("https://127.0.0.1:{port}/graphql")
 }
 
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "private test helper with one on/off switch"
+)]
 fn config(url: &str, ca: String, client: bool) -> PosConfig {
     PosConfig {
         pos_id: "CPOS0031234567".into(),
@@ -53,7 +62,7 @@ async fn the_pos_signs_over_mtls_with_v1_certificates() {
     assert!(
         FdmClient::config_problems(&config)
             .iter()
-            .all(|p| !p.starts_with("FDM HTTPS"))
+            .all(|p| !p.text().starts_with("FDM HTTPS"))
     );
     let fdm = FdmClient::from_config(&config);
     let status = fdm.status().await.expect("status over mTLS");
@@ -65,7 +74,7 @@ async fn the_pos_signs_over_mtls_with_v1_certificates() {
     let signed = fdm
         .sign_work_in(
             build_work_in_out(&config, &ident(), 1, "75061189702", &booking),
-            false,
+            Mode::Normal,
         )
         .await
         .expect("work-in over mTLS");

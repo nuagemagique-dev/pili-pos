@@ -2,6 +2,15 @@
 //! reading, is signed in kilograms, printed with its weight and refunded
 //! whole. Events are signed by the admission image's mock FDM.
 
+#![expect(
+    clippy::similar_names,
+    reason = "sale and scale are the two words this test is about"
+)]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -215,7 +224,7 @@ async fn a_refused_reading_adds_no_line() {
         scale.load(grams);
         assert_eq!(weigh(&app, order_id).await.unwrap_err(), code);
         assert_eq!(order_total(&app, order_id), 0);
-        assert!(weighings(&app).is_empty());
+        assert_eq!(weighings(&app), Vec::<(i64, i64, i64, Option<i64>)>::new());
     }
 }
 
@@ -245,7 +254,7 @@ async fn a_scale_price_that_disagrees_is_refused() {
         weigh(&app, order_id).await.unwrap_err(),
         errors::SCALE_PRICE_MISMATCH
     );
-    assert!(weighings(&app).is_empty());
+    assert_eq!(weighings(&app), Vec::<(i64, i64, i64, Option<i64>)>::new());
 }
 
 #[tokio::test]
@@ -327,7 +336,7 @@ async fn a_weighed_line_has_no_plus_or_minus_and_is_corrected_whole() {
     assert_eq!(order_total(&app, order_id), 0);
     // The journal keeps the weighing and its correction, both with their weight.
     let db = app.state.db.lock().unwrap();
-    let entries = pos_db::queries::orders::get_order_entries(&db, order_id, false).unwrap();
+    let entries = pos_db::queries::orders::get_order_entries(&db, order_id).unwrap();
     assert_eq!(entries.len(), 2);
     assert_eq!(entries[1].quantity, -1);
     assert_eq!(entries[1].weight_grams, Some(612));
@@ -777,7 +786,7 @@ async fn a_table_transfer_keeps_the_weighing() {
         .unwrap();
     assert!(result.success, "{:?}", result.error);
     let products = signed_products(&app);
-    assert!(!products.is_empty());
+    assert_ne!(products, Vec::<(String, serde_json::Value)>::new());
     for (event, product) in &products {
         assert_eq!(product["quantityType"], "KILOGRAM", "{event}: {product}");
         assert_eq!(
@@ -941,5 +950,5 @@ async fn an_installation_without_a_scale_signs_pieces_only() {
     let product = &last_sale_line(&app)["mainProduct"];
     assert_eq!(product["quantityType"], "PIECE");
     assert_eq!(product["quantity"], serde_json::json!(2.0));
-    assert!(weighings(&app).is_empty());
+    assert_eq!(weighings(&app), Vec::<(i64, i64, i64, Option<i64>)>::new());
 }

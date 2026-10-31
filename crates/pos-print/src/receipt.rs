@@ -57,12 +57,16 @@ fn subtitles(ticket: &FiscalTicket, l: &Labels) -> Vec<&'static str> {
     out
 }
 
-/// Format a FiscalTicket into ESC/POS binary commands, following the
+/// Format a `FiscalTicket` into ESC/POS binary commands, following the
 /// SPF example tickets of 2026-09-24 (AM of 29 April 2024 art. 20):
 /// title, commercial name, identification rows, product lines, total,
 /// payment lines with the rounding, VAT per rate, FDM control data and
 /// QR code, legal identity; non-N events end with the spec-mandated
 /// invalid-ticket mention (FR/NL/DE).
+#[expect(
+    clippy::too_many_lines,
+    reason = "one top-to-bottom ticket layout following the SPF example; splitting it would scatter the print order"
+)]
 pub fn format_receipt(ticket: &FiscalTicket, paper: PaperWidth) -> Vec<u8> {
     let mut p = EscPosBuilder::for_paper(paper);
     let l = labels(ticket.lang);
@@ -288,7 +292,7 @@ fn vat_row(
 /// amount on its last line: the full product name is printed, never
 /// cut.
 fn item_line(p: &mut EscPosBuilder, desc: &str, price: &str) {
-    let width = p.chars_per_line() as usize;
+    let width = usize::from(p.chars_per_line());
     let room = width.saturating_sub(price.chars().count() + 1);
     let mut lines = wrap(desc, width);
     let last = lines.pop().unwrap_or_default();
@@ -314,7 +318,7 @@ pub fn format_drawer_open() -> Vec<u8> {
 
 fn format_price(amount: f64) -> String {
     // Belgian notation: decimal comma.
-    format!("{:.2}", amount).replace('.', ",")
+    format!("{amount:.2}").replace('.', ",")
 }
 
 /// The quantity column: a weight always shows its three decimals and its
@@ -329,7 +333,7 @@ fn line_quantity(line: &pos_fiscal::ticket::TicketLine) -> String {
 
 fn format_qty(qty: f64) -> String {
     if (qty - qty.round()).abs() < f64::EPSILON {
-        format!("{}", qty as i64)
+        format!("{:.0}", qty + 0.0)
     } else {
         format_price(qty)
     }
@@ -340,8 +344,11 @@ fn format_qty(qty: f64) -> String {
 fn date_and_time(rfc3339: &str) -> (String, String) {
     match (rfc3339.get(..10), rfc3339.get(11..16)) {
         (Some(date), Some(time)) if date.len() == 10 && date.as_bytes()[4] == b'-' => {
-            let (y, m, d) = (&date[..4], &date[5..7], &date[8..10]);
-            (format!("{d}.{m}.{y}"), time.to_string())
+            // `get` again: a non-ASCII date text has no char boundary at these offsets.
+            match (date.get(..4), date.get(5..7), date.get(8..10)) {
+                (Some(y), Some(m), Some(d)) => (format!("{d}.{m}.{y}"), time.to_string()),
+                _ => (rfc3339.to_string(), String::new()),
+            }
         }
         _ => (rfc3339.to_string(), String::new()),
     }
@@ -349,6 +356,15 @@ fn date_and_time(rfc3339: &str) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn dates_with_non_ascii_text_do_not_panic() {
+        let (d, t) = super::date_and_time("2026-10-17T11:35:00+02:00");
+        assert_eq!((d.as_str(), t.as_str()), ("17.10.2026", "11:35"));
+        // `-` at byte 4 and 10 bytes long, but a multi-byte char inside.
+        let odd = "2026-1é-17T11:35";
+        assert_eq!(super::date_and_time(odd), (odd.to_string(), String::new()));
+    }
+
     use super::*;
     use pos_fiscal::ticket::{ReceiptLanguage, TicketLine, TicketPayment};
     use pos_fiscal::types::EventLabel;
@@ -775,8 +791,8 @@ mod tests {
         ticket.lines.push(TicketLine {
             quantity: 3.0,
             description: "A".repeat(120),
-            unit_price: 999999.99,
-            total: 2999999.97,
+            unit_price: 999_999.99,
+            total: 2_999_999.97,
             vat_code: "B".to_string(),
             weighed: false,
         });

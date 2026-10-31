@@ -1,4 +1,4 @@
-//! Tests of the reports facade (report, social, financial, settings, fdm_monitor).
+//! Tests of the reports facade (report, social, financial, settings, `fdm_monitor`).
 //!
 //! (a) Contract tests: every output type from a real engine value (a command run on a `TestApp`
 //! against the admission FDM mock) and from hand-built values with every `Option` set and empty;
@@ -677,7 +677,7 @@ async fn seeded_on(fdm_url: &str) -> TestEngine {
 async fn open_operator_window(
     t: &Gated,
 ) -> tokio::task::JoinHandle<Result<ffi::SocialResult, PosError>> {
-    let engine = t.rig.engine.clone();
+    let engine = Arc::clone(&t.rig.engine);
     let task = tokio::spawn(async move {
         engine
             .end_shift(MANAGER_INSZ.into(), Some(MANAGER_PIN.into()))
@@ -692,7 +692,7 @@ async fn open_operator_window(
 #[tokio::test(flavor = "multi_thread")]
 async fn commands_that_do_not_sign_run_for_the_operator() {
     let t = open_with_gate(true).await;
-    let e = t.rig.engine.clone();
+    let e = Arc::clone(&t.rig.engine);
     let shift = open_operator_window(&t).await;
 
     // Settings: training mode on and off again.
@@ -740,9 +740,13 @@ async fn commands_that_do_not_sign_run_for_the_operator() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+#[expect(
+    clippy::many_single_char_names,
+    reason = "short names for the engine handles of one concurrency scenario"
+)]
 async fn signing_commands_run_for_the_operator() {
     let t = open_with_gate(true).await;
-    let e = t.rig.engine.clone();
+    let e = Arc::clone(&t.rig.engine);
     let shift = open_operator_window(&t).await;
 
     // Each command passes its operator check now and then waits for the signing lock, which the
@@ -861,12 +865,12 @@ async fn a_manager_registers_the_presence_of_a_presence_only_employee() {
 #[tokio::test(flavor = "multi_thread")]
 async fn work_out_is_refused_without_a_session_and_signs_with_one() {
     let t = open_with_gate(true).await;
-    let e = t.rig.engine.clone();
+    let e = Arc::clone(&t.rig.engine);
     let err = e.work_out(MANAGER_INSZ.into()).await.unwrap_err();
     assert!(coded(&err, "not_logged_in"), "{err:?}");
 
     let shift = open_operator_window(&t).await;
-    let other = e.clone();
+    let other = Arc::clone(&e);
     let work_out = tokio::spawn(async move { other.work_out(MANAGER_INSZ.into()).await });
     tokio::time::sleep(Duration::from_millis(150)).await;
     // Someone else's INSZ is refused while the session is open.

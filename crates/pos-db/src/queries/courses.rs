@@ -140,7 +140,7 @@ pub struct KitchenEntry {
     /// Registered by a signed event (a kitchen slip only follows a
     /// signed P or N).
     pub signed: bool,
-    /// One half of a PRICE_CHANGE pair (a till discount, migration 30):
+    /// One half of a `PRICE_CHANGE` pair (a till discount, migration 30):
     /// it orders nothing, so it is never held and never printed.
     pub price_change: bool,
     /// The kitchen note of the entry's line (migration 31): the current
@@ -318,6 +318,6 @@ mod tests {
         assert!(line_was_printed(&conn, 1).unwrap());
         assert!(!line_was_printed(&conn, 2).unwrap());
         assert_eq!(printed_entries(&conn, 1, 0).unwrap().len(), 1);
-        assert!(printed_entries(&conn, 1, 2).unwrap().is_empty());
+        assert_eq!(printed_entries(&conn, 1, 2).unwrap().len(), 0);
     }
 }

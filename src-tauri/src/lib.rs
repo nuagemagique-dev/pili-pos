@@ -6,5 +6,6 @@
 
 pub mod cli;
 pub mod events;
+pub mod health;
 pub mod ipc;
 pub mod paths;

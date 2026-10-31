@@ -173,8 +173,11 @@ fn rate(hundredths: i64) -> String {
 fn date_and_time(rfc3339: &str) -> (String, String) {
     match (rfc3339.get(..10), rfc3339.get(11..16)) {
         (Some(date), Some(time)) if date.len() == 10 && date.as_bytes()[4] == b'-' => {
-            let (y, m, d) = (&date[..4], &date[5..7], &date[8..10]);
-            (format!("{d}.{m}.{y}"), time.to_string())
+            // `get` again: a non-ASCII date text has no char boundary at these offsets.
+            match (date.get(..4), date.get(5..7), date.get(8..10)) {
+                (Some(y), Some(m), Some(d)) => (format!("{d}.{m}.{y}"), time.to_string()),
+                _ => (rfc3339.to_string(), String::new()),
+            }
         }
         _ => (rfc3339.to_string(), String::new()),
     }
@@ -184,7 +187,10 @@ fn date_and_time(rfc3339: &str) -> (String, String) {
 fn date_only(iso: &str) -> String {
     match iso.get(..10) {
         Some(date) if date.len() == 10 && date.as_bytes()[4] == b'-' => {
-            format!("{}.{}.{}", &date[8..10], &date[5..7], &date[..4])
+            match (date.get(8..10), date.get(5..7), date.get(..4)) {
+                (Some(d), Some(m), Some(y)) => format!("{d}.{m}.{y}"),
+                _ => iso.to_string(),
+            }
         }
         _ => iso.to_string(),
     }
@@ -227,6 +233,10 @@ fn vat_row(
 }
 
 /// Format an invoice (or its copy) into ESC/POS commands.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one top-to-bottom slip layout; splitting it would only scatter the print order"
+)]
 pub fn format_invoice(inv: &InvoicePrint, paper: PaperWidth) -> Vec<u8> {
     let mut p = EscPosBuilder::for_paper(paper);
     let l = labels(inv.lang);
@@ -291,7 +301,7 @@ pub fn format_invoice(inv: &InvoicePrint, paper: PaperWidth) -> Vec<u8> {
         let right = price(s.total_cents);
         // On narrow paper the amount goes under the reference rather
         // than cutting its time.
-        if left.chars().count() + 1 + right.chars().count() <= p.chars_per_line() as usize {
+        if left.chars().count() + 1 + right.chars().count() <= usize::from(p.chars_per_line()) {
             p.text_columns(&left, &right);
         } else {
             p.textln(&left);
@@ -304,7 +314,7 @@ pub fn format_invoice(inv: &InvoicePrint, paper: PaperWidth) -> Vec<u8> {
     for line in &inv.lines {
         let left = format!("{}  {}", quantity(line.quantity_milli), line.description);
         let right = format!("{}  {}", price(line.total_cents), line.vat_label);
-        let width = p.chars_per_line() as usize;
+        let width = usize::from(p.chars_per_line());
         let room = width.saturating_sub(right.chars().count() + 1);
         let mut rows = wrap(&left, width);
         let last = rows.pop().unwrap_or_default();
@@ -393,6 +403,15 @@ pub fn format_invoice(inv: &InvoicePrint, paper: PaperWidth) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn dates_with_non_ascii_text_do_not_panic() {
+        let (d, t) = super::date_and_time("2026-10-17T11:35:00+02:00");
+        assert_eq!((d.as_str(), t.as_str()), ("17.10.2026", "11:35"));
+        // `-` at byte 4 and 10 bytes long, but a multi-byte char inside.
+        let odd = "2026-1é-17T11:35";
+        assert_eq!(super::date_and_time(odd), (odd.to_string(), String::new()));
+    }
+
     use super::*;
     use crate::render::{one_line, render_plain_text};
 

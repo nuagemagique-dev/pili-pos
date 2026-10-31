@@ -248,6 +248,10 @@ fn payment_error(e: PaymentError) -> PosError {
 /// `payment_exceeds_total` or `payment_incomplete`. Like `checkout`, a part whose method is not
 /// offered at the till (app, online) is `payment_invalid`.
 #[uniffi::export]
+#[expect(
+    clippy::unused_async,
+    reason = "UniFFI exports it as a Kotlin suspend fun: the signature is the contract"
+)]
 pub async fn settle_preview(
     total_cents: i64,
     parts: Vec<PaymentPart>,

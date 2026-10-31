@@ -9,13 +9,13 @@
 //! on the line's journal:
 //! - one entry, not yet sent to the FDM: the change goes on that entry
 //!   (the direct sale shape of UC223 and UC229B);
-//! - otherwise a PRICE_CHANGE pair: a correction `-q` carrying the line's
+//! - otherwise a `PRICE_CHANGE` pair: a correction `-q` carrying the line's
 //!   existing changes negated, then a re-entry `+q` carrying the new ones
 //!   (UC225A step 2, UC225B step 2). The journal is append-only: a recorded
 //!   change is never deleted, a removal is the same pair in reverse.
 //!
 //! A table that was already registered gets its P order signed right
-//! away, under the same signing lock: a PRICE_CHANGE correction "n'apparait
+//! away, under the same signing lock: a `PRICE_CHANGE` correction "n'apparait
 //! que dans la commande et est donc compte sur le signOrder" (producers
 //! FAQ Q303 d). A takeaway or an unregistered table is registered by its
 //! N, as a direct sale. The reason of a discount is local (audit table
@@ -105,7 +105,7 @@ pub struct DiscountResult {
     /// The order after the change (its total is net).
     pub order: Order,
     /// The bar / kitchen slip of the entries the immediate P registered
-    /// (the PRICE_CHANGE entries print nothing; other unsent entries do).
+    /// (the `PRICE_CHANGE` entries print nothing; other unsent entries do).
     pub kitchen_slip: SlipOutcome,
     /// Set when the immediate P could not be signed (FDM down, say): the
     /// discount is recorded and goes with the next registration or the
@@ -149,9 +149,8 @@ pub async fn do_remove_discount(
 /// The shape of the input, before anything is read.
 fn validate(mut input: DiscountInput) -> Result<DiscountInput, String> {
     match (input.target, input.kind) {
-        (DiscountTarget::Line { .. }, DiscountKind::Free) => {}
+        (DiscountTarget::Line { .. }, DiscountKind::Free) | (DiscountTarget::Order, _) => {}
         (DiscountTarget::Line { .. }, _) => return Err(errors::DISCOUNT_INVALID.into()),
-        (DiscountTarget::Order, _) => {}
     }
     match input.kind {
         DiscountKind::Percent => match input.value {
@@ -327,7 +326,7 @@ impl<'a> Change<'a> {
 }
 
 /// Record `change` on the line, choosing between the direct shape and a
-/// PRICE_CHANGE pair (see the module comment).
+/// `PRICE_CHANGE` pair (see the module comment).
 fn place(db: &Connection, line: &LineState, change: &Change<'_>) -> Result<(), String> {
     let (entries, unsent) =
         till_discounts::line_entry_counts(db, line.line.id).map_err(errors::internal)?;
@@ -340,7 +339,7 @@ fn place(db: &Connection, line: &LineState, change: &Change<'_>) -> Result<(), S
     pair(db, line, &[change.new_price_change()])
 }
 
-/// A PRICE_CHANGE pair on the line: the correction carries every change
+/// A `PRICE_CHANGE` pair on the line: the correction carries every change
 /// the line has, negated; the re-entry carries `after`.
 fn pair(db: &Connection, line: &LineState, after: &[NewPriceChange<'_>]) -> Result<(), String> {
     let (correction, reentry) =
@@ -360,6 +359,10 @@ fn reset_pre_bill(db: &Connection, order_id: i64) -> Result<(), String> {
     .map_err(errors::internal)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one transaction applying every discount rule in order, clearer unsplit"
+)]
 fn apply(db: &Connection, ctx: &Ctx, input: &DiscountInput) -> Result<(), String> {
     let order_id = ctx.order.id;
     let lines = load_lines(db, order_id)?;

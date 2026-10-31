@@ -8,7 +8,7 @@ use crate::commands::eft;
 use crate::commands::errors;
 use crate::state::AppState;
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CreateOrderInput {
     pub order_type: OrderType,
     pub table_number: Option<i32>,
@@ -62,7 +62,7 @@ pub fn do_create_order(state: &AppState, input: CreateOrderInput) -> Result<Orde
 /// from the catalogue (`resolve_catalogue_line`), so the fiscal record
 /// never depends on what the UI displayed. The one exception is the
 /// unit price of a free-price product, entered by the operator.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct AddOrderLineInput {
     pub order_id: i64,
     pub menu_item_id: i64,
@@ -96,7 +96,7 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
     let product = pos_db::queries::menu::resolve_catalogue_line(
         &db,
         input.menu_item_id,
-        order.order_type == OrderType::Takeaway,
+        pos_db::queries::menu::Service::from(order.order_type == OrderType::Takeaway),
         lang,
     )
     .map_err(|e| match e {

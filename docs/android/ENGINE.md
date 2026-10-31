@@ -124,7 +124,7 @@ The engine reads the process environment in two places only (`docs/android/DECIS
 | `commands/hubrise.rs::oauth_config` | `HUBRISE_OAUTH_BASE_URL`, `HUBRISE_BASE_URL`, `HUBRISE_POS_CLIENT_ID`, `HUBRISE_POS_CLIENT_SECRET`, `HUBRISE_POS_REDIRECT_URI`, `HUBRISE_POS_SCOPE` | development fallback, used only in debug builds (`cfg!(debug_assertions)`) when the `hubrise` section of `pos.json` is absent; a release build without that section answers `hubrise_not_configured` | reached only by a debug build without the `hubrise` section |
 | `commands/support.rs::support_home` | `RUNTIME_DIRECTORY`, else `std::env::temp_dir()` | `HOME` given to the support program (the only production `temp_dir()` use) | reached only with a support program, which Android never passes (`support_program: None`) |
 
-The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`, the log filter) are in `src-tauri`, not in the engine.
+The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy` in debug builds only, the log filter) are in `src-tauri`, not in the engine.
 
 ## 6. Command map
 

@@ -219,16 +219,14 @@ pub struct Settlement {
 }
 
 impl Settlement {
-    /// One method paying the whole total (cash is rounded).
-    pub fn single(method: PaymentMethod, total_cents: i64) -> Self {
+    /// One method paying the whole total (cash is rounded). Test helper.
+    #[cfg(test)]
+    fn single(method: PaymentMethod, total_cents: i64) -> Self {
         let part = match method {
             PaymentMethod::Cash => PaymentPart::cash(),
             other => PaymentPart::of(other, total_cents),
         };
-        settle(total_cents, &[part]).unwrap_or_else(|_| Settlement {
-            payments: vec![SettledPayment::plain(method, total_cents)],
-            rounding_cents: 0,
-        })
+        settle(total_cents, &[part]).expect("one method settles the whole total")
     }
 
     /// True when part of the sale is paid in cash (the drawer opens).
@@ -284,7 +282,7 @@ pub fn settle(total_cents: i64, parts: &[PaymentPart]) -> Result<Settlement, Pay
             (PaymentMethod::Cash, None)
                 if !cash && part.eft_payment_id.is_none() && part.gift_voucher_id.is_none() =>
             {
-                cash = true
+                cash = true;
             }
             (PaymentMethod::Cash, _) => return Err(PaymentError::Invalid),
             // A gift voucher part names its voucher; no other part does.

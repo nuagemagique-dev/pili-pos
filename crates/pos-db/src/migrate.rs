@@ -198,7 +198,7 @@ const OWNER_MIGRATIONS: &[Migration] = &[
     },
 ];
 
-/// Migrations of the HubRise integration (feature `hubrise`), from
+/// Migrations of the `HubRise` integration (feature `hubrise`), from
 /// version 20 (in the certified binary too).
 #[cfg(feature = "hubrise")]
 const HUBRISE_MIGRATIONS: &[Migration] = &[
@@ -254,7 +254,6 @@ const WEIGHT_MIGRATIONS: &[Migration] = &[Migration {
 
 /// Every migration this build knows, in ascending version order.
 fn registry() -> Vec<Migration> {
-    #[allow(unused_mut)]
     let mut all = MIGRATIONS.to_vec();
     all.extend_from_slice(EFT_MIGRATIONS);
     all.extend_from_slice(TILL_MIGRATIONS);
@@ -296,30 +295,46 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         if applied.contains(&m.version) {
             continue;
         }
-        // IMMEDIATE forces SQLite to acquire a write lock up-front so
-        // we don't discover mid-migration that another connection is
-        // holding the DB.
-        conn.execute_batch("BEGIN IMMEDIATE;")?;
-        let result = conn.execute_batch(m.sql).and_then(|_| {
+        apply_one(conn, m.version, m.name, m.sql)?;
+    }
+    Ok(())
+}
+
+/// Apply one migration and record it, in one transaction. On any failure,
+/// including a COMMIT that SQLite refuses (a deferred foreign key violation, a
+/// full disk), the transaction is rolled back so the connection never stays
+/// inside `BEGIN IMMEDIATE`.
+fn apply_one(
+    conn: &Connection,
+    version: i64,
+    name: &str,
+    sql: &str,
+) -> Result<(), rusqlite::Error> {
+    // IMMEDIATE forces SQLite to acquire a write lock up-front so
+    // we don't discover mid-migration that another connection is
+    // holding the DB.
+    conn.execute_batch("BEGIN IMMEDIATE;")?;
+    let result = conn
+        .execute_batch(sql)
+        .and_then(|()| {
             conn.execute(
                 "INSERT INTO _migrations_applied (version, name) VALUES (?, ?)",
-                rusqlite::params![m.version, m.name],
+                rusqlite::params![version, name],
             )
             .map(|_| ())
-        });
-        match result {
-            Ok(()) => conn.execute_batch("COMMIT;")?,
-            Err(e) => {
-                let _ = conn.execute_batch("ROLLBACK;");
-                return Err(e);
-            }
-        }
+        })
+        .and_then(|()| conn.execute_batch("COMMIT;"));
+    if let Err(e) = result {
+        // After a failed COMMIT the transaction is still open; a failed
+        // statement may already have ended it, in which case this is a no-op error.
+        let _ = conn.execute_batch("ROLLBACK;");
+        return Err(e);
     }
     Ok(())
 }
 
 /// For databases created by the pre-versioning runner (one-shot
-/// SCHEMA_SQL): if `fiscal_events` exists and `_migrations_applied` is
+/// `SCHEMA_SQL)`: if `fiscal_events` exists and `_migrations_applied` is
 /// empty, mark v1 as already-applied so we don't re-run it.
 fn backfill_legacy_db(conn: &Connection) -> Result<(), rusqlite::Error> {
     let already_tracked: i64 =
@@ -347,7 +362,7 @@ fn backfill_legacy_db(conn: &Connection) -> Result<(), rusqlite::Error> {
 
 /// Refuse a database where a version this build knows was applied
 /// under another name: the same number reused for two different
-/// schema changes (a certified hotfix and a HubRise table, say) would
+/// schema changes (a certified hotfix and a `HubRise` table, say) would
 /// otherwise be skipped as "already applied" and the schema would
 /// silently lack it. Versions this build does not know are left alone.
 fn check_applied_names(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -385,9 +400,45 @@ fn applied_versions(conn: &Connection) -> Result<Vec<i64>, rusqlite::Error> {
 mod tests {
     use super::*;
 
-    /// The certified versions, then HubRise's when the feature is on.
+    /// The certified versions, then those of `HubRise` when the feature is on.
     fn all_versions() -> Vec<i64> {
         registry().iter().map(|m| m.version).collect()
+    }
+
+    #[test]
+    fn a_refused_commit_is_rolled_back_and_leaves_no_open_transaction() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "PRAGMA foreign_keys=ON;
+             CREATE TABLE _migrations_applied (
+                 version INTEGER PRIMARY KEY, name TEXT NOT NULL,
+                 applied_at TEXT NOT NULL DEFAULT (datetime('now')));
+             CREATE TABLE parent (id INTEGER PRIMARY KEY);",
+        )
+        .unwrap();
+        // A deferred foreign key violation only fails at COMMIT.
+        let err = apply_one(
+            &conn,
+            999,
+            "broken",
+            "CREATE TABLE child (p INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED);
+             INSERT INTO child VALUES (42);",
+        );
+        assert!(err.is_err());
+        assert!(
+            conn.is_autocommit(),
+            "the connection must not stay inside BEGIN IMMEDIATE"
+        );
+        // The failed migration left nothing behind and the next one can run.
+        let tables: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name = 'child'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(tables, 0);
+        apply_one(&conn, 1000, "fine", "CREATE TABLE ok (a INTEGER);").unwrap();
     }
 
     #[test]
@@ -396,7 +447,7 @@ mod tests {
         assert_eq!(certified, (1..=10).collect::<Vec<_>>());
     }
 
-    /// Migration 11 (the table plan) follows them, still below HubRise's 20;
+    /// Migration 11 (the table plan) follows them, still below the 20 of `HubRise`;
     /// then 28 (presence registration), then 70 (staff badges), in every
     /// build.
     #[test]

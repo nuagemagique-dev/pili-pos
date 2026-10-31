@@ -1,7 +1,7 @@
-//! Push of the sold-out products to the HubRise inventory (V11-D15).
+//! Push of the sold-out products to the `HubRise` inventory (V11-D15).
 //!
 //! The engine queues a row of `hubrise_inventory_sync` (one per product, marked dirty again at
-//! every change) when a cashier sets or clears "Épuisé", only while HubRise is on and the
+//! every change) when a cashier sets or clears "Épuisé", only while `HubRise` is on and the
 //! product has a SKU ref. This pass, called by the outbox loop, sends the CURRENT state of each
 //! dirty product at send time, so several changes made while offline end as one request:
 //!
@@ -138,7 +138,7 @@ pub async fn process_pending(
 ) -> Result<PassReport> {
     let mut report = PassReport::default();
     let (stored, rows) = {
-        let db = db.lock().expect("inventory db poisoned");
+        let db = crate::util::lock_db(db);
         let Some(stored) = token_store::load(&db)? else {
             return Ok(report);
         };
@@ -167,7 +167,7 @@ pub async fn process_pending(
     for row in rows {
         // The current state, at send time.
         let stock = {
-            let db = db.lock().expect("inventory db poisoned");
+            let db = crate::util::lock_db(db);
             current_stock(&db, row.menu_item_id)?
         };
         let body = vec![entry_for(&row.sku_ref, &stock)];
@@ -178,7 +178,7 @@ pub async fn process_pending(
             Ok(_) => Outcome::Sent,
             Err(e) => classify(e),
         };
-        let db = db.lock().expect("inventory db poisoned");
+        let db = crate::util::lock_db(db);
         match outcome {
             Outcome::Sent => {
                 // A change made during the send bumped `version`: the row stays dirty.

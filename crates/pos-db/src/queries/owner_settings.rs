@@ -28,25 +28,25 @@ pub fn set(
     value_json: &str,
     changed_by: Option<&str>,
 ) -> Result<bool, rusqlite::Error> {
-    let tx = conn.unchecked_transaction()?;
-    if get(&tx, key)?.as_deref() == Some(value_json) {
-        return Ok(false);
-    }
-    tx.execute(
-        "INSERT INTO owner_settings (key, value_json, changed_at, changed_by)
-         VALUES (?1, ?2, datetime('now'), ?3)
-         ON CONFLICT(key) DO UPDATE SET
-             value_json = excluded.value_json,
-             changed_at = excluded.changed_at,
-             changed_by = excluded.changed_by",
-        params![key, value_json, changed_by],
-    )?;
-    tx.execute(
-        "INSERT INTO owner_settings_log (key, value_json, changed_by) VALUES (?1, ?2, ?3)",
-        params![key, value_json, changed_by],
-    )?;
-    tx.commit()?;
-    Ok(true)
+    super::with_savepoint(conn, |tx| {
+        if get(tx, key)?.as_deref() == Some(value_json) {
+            return Ok(false);
+        }
+        tx.execute(
+            "INSERT INTO owner_settings (key, value_json, changed_at, changed_by)
+             VALUES (?1, ?2, datetime('now'), ?3)
+             ON CONFLICT(key) DO UPDATE SET
+                 value_json = excluded.value_json,
+                 changed_at = excluded.changed_at,
+                 changed_by = excluded.changed_by",
+            params![key, value_json, changed_by],
+        )?;
+        tx.execute(
+            "INSERT INTO owner_settings_log (key, value_json, changed_by) VALUES (?1, ?2, ?3)",
+            params![key, value_json, changed_by],
+        )?;
+        Ok(true)
+    })
 }
 
 /// One change of a setting, newest first in [`history`].
@@ -174,6 +174,15 @@ mod tests {
     }
 
     #[test]
+    fn set_works_inside_a_callers_transaction_and_follows_its_rollback() {
+        let conn = db();
+        conn.execute_batch("BEGIN").unwrap();
+        assert!(set(&conn, "alerts", "{\"a\":1}", None).unwrap());
+        conn.execute_batch("ROLLBACK").unwrap();
+        assert_eq!(get(&conn, "alerts").unwrap(), None);
+    }
+
+    #[test]
     fn an_absent_key_reads_none() {
         assert_eq!(get(&db(), "alerts").unwrap(), None);
     }
@@ -189,7 +198,7 @@ mod tests {
         assert_eq!(h.len(), 2);
         assert_eq!(h[0].value_json, r#"{"a":2}"#);
         assert_eq!(h[1].changed_by.as_deref(), Some("00000000029"));
-        assert!(history(&conn, "courses", 10).unwrap().is_empty());
+        assert_eq!(history(&conn, "courses", 10).unwrap().len(), 0);
     }
 
     #[test]
@@ -212,10 +221,11 @@ mod tests {
             sent_times_since(&conn, "2000-01-01 00:00:00").unwrap(),
             vec![t, t]
         );
-        assert!(
+        assert_eq!(
             sent_times_since(&conn, "2999-01-01 00:00:00")
                 .unwrap()
-                .is_empty()
+                .len(),
+            0
         );
     }
 }

@@ -4,6 +4,7 @@ use crate::aggregate::Day;
 use crate::csv::{Decimal, amount};
 
 /// What the note needs to know about the export.
+#[derive(Debug)]
 pub struct Note<'a> {
     pub generated_at: &'a str,
     pub from: &'a str,
@@ -18,6 +19,10 @@ pub struct Note<'a> {
 }
 
 /// Render the note (UTF-8, LF line ends).
+#[expect(
+    clippy::too_many_lines,
+    reason = "one French text template; splitting it would scatter the wording"
+)]
 pub fn render(n: &Note<'_>) -> String {
     let mut s = String::new();
     let mut line = |text: &str| {

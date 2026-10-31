@@ -4,17 +4,17 @@ use pos_engine::commands::support::{SupportRunning, SupportStatus};
 
 use super::Managed;
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn remote_support_status(state: State<'_, Managed>) -> Result<SupportStatus, String> {
     pos_engine::commands::support::do_remote_support_status(state.inner())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn remote_support_running(state: State<'_, Managed>) -> Result<SupportRunning, String> {
     pos_engine::commands::support::do_remote_support_running(state.inner())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn start_remote_support(
     state: State<'_, Managed>,
     insz: String,
@@ -23,7 +23,7 @@ pub fn start_remote_support(
     pos_engine::commands::support::do_start_remote_support(state.inner(), insz, pin)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn stop_remote_support(state: State<'_, Managed>) -> Result<SupportStatus, String> {
     pos_engine::commands::support::do_stop_remote_support(state.inner())
 }

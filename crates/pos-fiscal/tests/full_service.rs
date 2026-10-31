@@ -16,18 +16,24 @@
 //!  12. Work-out (Event S → signWorkOut)
 //!
 //! Verifies at every step:
-//! - SQLite state (orders, order_lines, fiscal_events, users, z_reports)
+//! - `SQLite` state (`orders`, `order_lines`, `fiscal_events`, `users`, `z_reports`)
 //! - Sequential counters per event type
 //! - JSON archival (request + response stored)
 //! - VAT calculation correctness (B=12% food, A=21% drinks)
 //! - FDM communication (mock validates GraphQL structure)
 //! - Receipt binary (ESC/POS contains required labels + FDM control data)
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 mod common;
 
+use pos_fiscal::types::Mode;
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use pos_core::config::PosConfig;
+use pos_core::money::eur as cents_to_eur;
 use pos_core::order::OrderType;
 use pos_core::user::UserRole;
 use pos_core::vat::VatCode;
@@ -86,9 +92,9 @@ fn config(fdm_url: &str) -> PosConfig {
         language: "fr".to_string(),
         backup_dir: None,
         kitchen_printer_address: None,
-        printer_paper_mm: Default::default(),
+        printer_paper_mm: pos_core::config::PaperWidth::default(),
         scale: None,
-        kitchen_printer_paper_mm: Default::default(),
+        kitchen_printer_paper_mm: pos_core::config::PaperWidth::default(),
         fdm_token_file: None,
         fdm_ca_file: None,
         fdm_client_cert_file: None,
@@ -204,6 +210,11 @@ fn setup_db() -> rusqlite::Connection {
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    clippy::similar_names,
+    reason = "one linear service day, with the per-step results named after the step, step by step as the certification scenario reads"
+)]
 async fn test_full_service_day_e2e() {
     let server = MockServer::start().await;
     let cfg = config(&format!("{}/graphql", server.uri()));
@@ -259,7 +270,7 @@ async fn test_full_service_day_e2e() {
     assert_eq!(s1_ticket, 1, "First S event should be #1");
 
     let work_in = build_work_in_out(&cfg, &ident(), s1_ticket, &user.insz, &bk(&bp_id));
-    let wi_result = fdm.sign_work_in(work_in, false).await.unwrap();
+    let wi_result = fdm.sign_work_in(work_in, Mode::Normal).await.unwrap();
     assert_eq!(wi_result.event_operation, EventOperation::WorkIn);
     assert_eq!(wi_result.fdm_ref.event_label, EventLabel::S);
 
@@ -376,7 +387,7 @@ async fn test_full_service_day_e2e() {
         CostCenterType::Table
     );
 
-    let p1_result = fdm.sign_order(order_input, false).await.unwrap();
+    let p1_result = fdm.sign_order(order_input, Mode::Normal).await.unwrap();
     assert_eq!(p1_result.fdm_ref.event_label, EventLabel::P);
 
     archive::archive_event(
@@ -436,7 +447,7 @@ async fn test_full_service_day_e2e() {
 
     let order_input2 =
         build_order_input(&cfg, &ident(), &order_r2, &lines_r2, p2_ticket, &bk(&bp_id));
-    let p2_fdm = fdm.sign_order(order_input2, false).await.unwrap();
+    let p2_fdm = fdm.sign_order(order_input2, Mode::Normal).await.unwrap();
 
     archive::archive_event(
         &db,
@@ -509,7 +520,7 @@ async fn test_full_service_day_e2e() {
         pre_bill.transaction.transaction_total
     );
 
-    let pb_fdm = fdm.sign_pre_bill(pre_bill, false).await.unwrap();
+    let pb_fdm = fdm.sign_pre_bill(pre_bill, Mode::Normal).await.unwrap();
     assert_eq!(pb_fdm.event_operation, EventOperation::PreBill);
     assert!(
         pb_fdm.short_signature.is_none(),
@@ -547,16 +558,16 @@ async fn test_full_service_day_e2e() {
         lines: lines_mod
             .iter()
             .map(|l| TicketLine {
-                quantity: l.quantity as f64,
+                quantity: f64::from(l.quantity),
                 description: l.name.clone(),
-                unit_price: l.unit_price_cents as f64 / 100.0,
-                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
+                unit_price: cents_to_eur(l.unit_price_cents),
+                total: cents_to_eur(l.unit_price_cents * i64::from(l.quantity)),
                 vat_code: l.vat_code.as_str().to_string(),
                 weighed: false,
             })
             .collect(),
         payments: vec![],
-        total: order_mod.total_cents as f64 / 100.0,
+        total: cents_to_eur(order_mod.total_cents),
         is_training: false,
         rounding: None,
         lang: pos_fiscal::ticket::ReceiptLanguage::default(),
@@ -588,16 +599,16 @@ async fn test_full_service_day_e2e() {
     let food_total_cents: i64 = lines_mod
         .iter()
         .filter(|l| l.vat_code == VatCode::B)
-        .map(|l| l.unit_price_cents * l.quantity as i64)
+        .map(|l| l.unit_price_cents * i64::from(l.quantity))
         .sum(); // 2480 + 1200 + 940 = 4620
     let drink_total_cents: i64 = lines_mod
         .iter()
         .filter(|l| l.vat_code == VatCode::A)
-        .map(|l| l.unit_price_cents * l.quantity as i64)
+        .map(|l| l.unit_price_cents * i64::from(l.quantity))
         .sum(); // 390
 
-    let food_total = food_total_cents as f64 / 100.0; // 46.20
-    let drink_total = drink_total_cents as f64 / 100.0; // 3.90
+    let food_total = cents_to_eur(food_total_cents); // 46.20
+    let drink_total = cents_to_eur(drink_total_cents); // 3.90
 
     // VAT B: 12% → taxable = 46.20 / 1.12 = 41.25, vat = 4.95
     let food_taxable = (food_total / 1.12 * 100.0).round() / 100.0;
@@ -678,7 +689,7 @@ async fn test_full_service_day_e2e() {
     assert!(sale_json.contains("\"posId\":\"CFOD0061234567\""));
     assert!(sale_json.contains("\"employeeId\":\"93051800189\""));
 
-    let n1_result = fdm.sign_sale(sale, false).await.unwrap();
+    let n1_result = fdm.sign_sale(sale, Mode::Normal).await.unwrap();
     assert_eq!(n1_result.event_operation, EventOperation::Sale);
     assert_eq!(n1_result.fdm_ref.event_label, EventLabel::N);
     assert!(n1_result.short_signature.is_some());
@@ -761,10 +772,10 @@ async fn test_full_service_day_e2e() {
         lines: lines_mod
             .iter()
             .map(|l| TicketLine {
-                quantity: l.quantity as f64,
+                quantity: f64::from(l.quantity),
                 description: l.name.clone(),
-                unit_price: l.unit_price_cents as f64 / 100.0,
-                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
+                unit_price: cents_to_eur(l.unit_price_cents),
+                total: cents_to_eur(l.unit_price_cents * i64::from(l.quantity)),
                 vat_code: l.vat_code.as_str().to_string(),
                 weighed: false,
             })
@@ -789,7 +800,7 @@ async fn test_full_service_day_e2e() {
     let escpos = receipt::format_receipt(&ticket, pos_print::escpos::PaperWidth::Mm80);
 
     // Verify ESC/POS content
-    assert!(!escpos.is_empty());
+    assert_ne!(escpos, Vec::<u8>::new());
     assert!(
         escpos.windows(23).any(|w| w == b"TICKET DE CAISSE T.V.A."),
         "Must contain 'TICKET DE CAISSE T.V.A.'"
@@ -899,7 +910,7 @@ async fn test_full_service_day_e2e() {
     );
     assert_eq!(sale2.financials[0].payment_type, PaymentType::CardDebit);
 
-    let n2_result = fdm.sign_sale(sale2, false).await.unwrap();
+    let n2_result = fdm.sign_sale(sale2, Mode::Normal).await.unwrap();
 
     archive::archive_event(
         &db,
@@ -976,7 +987,7 @@ async fn test_full_service_day_e2e() {
                 EventTotalInput {
                     event_label: EventLabel::N,
                     ticket_count: 2,
-                    amount: grand_total as f64 / 100.0,
+                    amount: cents_to_eur(grand_total),
                 },
                 EventTotalInput {
                     event_label: EventLabel::P,
@@ -992,22 +1003,22 @@ async fn test_full_service_day_e2e() {
             departments: vec![DepartmentTotalInput {
                 department_id: "FOOD".to_string(),
                 department_name: "Restaurant".to_string(),
-                amount: grand_total as f64 / 100.0,
+                amount: cents_to_eur(grand_total),
             }],
             vats: vec![
                 VatTotalInput {
                     label: VatLabel::B,
                     rate: 12.0,
-                    taxable_amount: total_food as f64 / 100.0 / 1.12,
-                    vat_amount: total_food as f64 / 100.0 - total_food as f64 / 100.0 / 1.12,
-                    total_amount: total_food as f64 / 100.0,
+                    taxable_amount: cents_to_eur(total_food) / 1.12,
+                    vat_amount: cents_to_eur(total_food) - cents_to_eur(total_food) / 1.12,
+                    total_amount: cents_to_eur(total_food),
                 },
                 VatTotalInput {
                     label: VatLabel::A,
                     rate: 21.0,
-                    taxable_amount: total_drink as f64 / 100.0 / 1.21,
-                    vat_amount: total_drink as f64 / 100.0 - total_drink as f64 / 100.0 / 1.21,
-                    total_amount: total_drink as f64 / 100.0,
+                    taxable_amount: cents_to_eur(total_drink) / 1.21,
+                    vat_amount: cents_to_eur(total_drink) - cents_to_eur(total_drink) / 1.21,
+                    total_amount: cents_to_eur(total_drink),
                 },
             ],
             payments: vec![
@@ -1070,7 +1081,10 @@ async fn test_full_service_day_e2e() {
     assert!(z_json.contains("\"reportNo\":1"));
     assert!(z_json.contains("\"drawersOpenCount\":1"));
 
-    let z_result = fdm.sign_report_turnover_z(z_report, false).await.unwrap();
+    let z_result = fdm
+        .sign_report_turnover_z(z_report, Mode::Normal)
+        .await
+        .unwrap();
     assert_eq!(z_result.event_operation, EventOperation::ReportTurnoverZ);
 
     let z_event_id = archive::archive_event(
@@ -1112,7 +1126,7 @@ async fn test_full_service_day_e2e() {
     assert_eq!(s2_ticket, 2, "Second S event (work-out)");
 
     let work_out = build_work_in_out(&cfg, &ident(), s2_ticket, &user.insz, &bk(&bp_id));
-    let wo_result = fdm.sign_work_out(work_out, false).await.unwrap();
+    let wo_result = fdm.sign_work_out(work_out, Mode::Normal).await.unwrap();
     assert_eq!(wo_result.event_operation, EventOperation::WorkOut);
 
     archive::archive_event(

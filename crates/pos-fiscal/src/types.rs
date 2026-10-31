@@ -54,8 +54,39 @@ impl EventLabel {
     /// Label under which an event is signed, archived and counted.
     /// Every event recorded in training mode is a training event and
     /// always carries label T (POS detailed description v2.2 §1.5).
-    pub fn in_mode(self, training: bool) -> Self {
-        if training { Self::T } else { self }
+    #[must_use]
+    pub fn in_mode(self, mode: Mode) -> Self {
+        if mode.is_training() { Self::T } else { self }
+    }
+}
+
+/// Whether the POS signs real events or training ones (the FDM's
+/// `isTraining` flag, the POS-wide training mode).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Mode {
+    /// Real events, labelled by their kind.
+    #[default]
+    Normal,
+    /// Training events: every one carries label T.
+    Training,
+}
+
+impl Mode {
+    /// Whether this is the training mode.
+    #[must_use]
+    pub fn is_training(self) -> bool {
+        self == Self::Training
+    }
+}
+
+impl From<bool> for Mode {
+    /// From the `isTraining` flag of the configuration or the wire.
+    fn from(training: bool) -> Self {
+        if training {
+            Self::Training
+        } else {
+            Self::Normal
+        }
     }
 }
 
@@ -216,7 +247,9 @@ pub enum FdmWarningCode {
     UpdatePosVatno,
     UpdatePosEstno,
     /// A code outside the spec's list (an FDM of another version, or a
-    /// vendor code). Kept parseable so one unknown message never makes
+    /// vendor code). The code itself is not kept: serde's `other` only
+    /// allows a unit variant, and the message text stays in the archived
+    /// response. Kept parseable so one unknown message never makes
     /// the whole Status unreadable, which would show the FDM as down.
     #[serde(other)]
     Unrecognized,
@@ -234,7 +267,7 @@ pub enum MessageCategory {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Display {
+pub enum ShowPos {
     Mandatory,
     Optional,
     Never,
@@ -254,8 +287,8 @@ mod tests {
             EventLabel::C,
             EventLabel::R,
         ] {
-            assert_eq!(label.in_mode(true), EventLabel::T);
-            assert_eq!(label.in_mode(false), label);
+            assert_eq!(label.in_mode(Mode::Training), EventLabel::T);
+            assert_eq!(label.in_mode(Mode::Normal), label);
         }
     }
 }

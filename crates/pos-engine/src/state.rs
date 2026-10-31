@@ -9,10 +9,10 @@ use tokio_util::sync::CancellationToken;
 /// Shared application state, owned by [`crate::engine::Engine`].
 ///
 /// `db` is the connection used by UI command handlers; `poller_db`
-/// is a separate connection dedicated to the background HubRise
+/// is a separate connection dedicated to the background `HubRise`
 /// poller so the two paths never contend on the same mutex.
 ///
-/// `shared_http` is the single `reqwest::Client` used for all HubRise
+/// `shared_http` is the single `reqwest::Client` used for all `HubRise`
 /// traffic - cloning it is cheap (internal Arc) and enables HTTP
 /// keep-alive across calls.
 ///
@@ -39,13 +39,13 @@ pub struct AppState {
     /// Current booking period ID (UUID, set on first sale of the day / shift).
     #[cfg(feature = "hubrise")]
     pub shared_http: reqwest::Client,
-    /// Wakes the HubRise poller for an early pass (HubRise only).
+    /// Wakes the `HubRise` poller for an early pass (`HubRise` only).
     #[cfg(feature = "hubrise")]
     pub hubrise_poll_now: Arc<tokio::sync::Notify>,
-    /// Wakes the HubRise outbox: a change to send now (HubRise only).
+    /// Wakes the `HubRise` outbox: a change to send now (`HubRise` only).
     #[cfg(feature = "hubrise")]
     pub hubrise_outbox_wake: Arc<tokio::sync::Notify>,
-    /// Whether the HubRise integration runs (`commands::integrations`).
+    /// Whether the `HubRise` integration runs (`commands::integrations`).
     #[cfg(feature = "hubrise")]
     pub hubrise_switch: pos_hubrise::switch::Switch,
     pub shutdown_token: CancellationToken,
@@ -97,6 +97,11 @@ pub struct AppState {
     /// Badge scans being handled or just handled, by badge hash
     /// (`commands::badges`, L5-D10). In memory: a restart clears it.
     pub badge_repeats: Mutex<std::collections::HashMap<String, Repeat>>,
+    /// Fiscal events whose original is being printed right now
+    /// (`commands::delivery::print_original_once`): the claim that keeps
+    /// two concurrent calls from printing two originals. In memory on
+    /// purpose, `original_prints` is append-only.
+    pub originals_printing: Mutex<std::collections::HashSet<i64>>,
     /// What the owner alert worker remembers between passes
     /// (`crate::alerts`).
     pub owner_alerts: crate::alerts::AlertRuntime,
@@ -122,13 +127,23 @@ pub enum Repeat {
 /// at once.
 pub type FdmStatusAnswer = (String, std::time::Instant, serde_json::Value);
 
+impl std::fmt::Debug for AppState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // The config, the session and the connections hold secrets and
+        // personal data: only where the engine keeps its files is shown.
+        f.debug_struct("AppState")
+            .field("paths", &self.paths)
+            .finish_non_exhaustive()
+    }
+}
+
 impl AppState {
     /// The client of the configured FDM. The warnings and informations
     /// of every event it signs reach the engine's sink as
     /// [`crate::events::EngineEvent::FdmSignMessages`] (POS description
     /// v2.2, Message), whichever command signed.
     pub fn fdm_client(&self, config: &PosConfig) -> pos_fiscal::fdm_client::FdmClient {
-        let events = self.events.clone();
+        let events = std::sync::Arc::clone(&self.events);
         pos_fiscal::fdm_client::FdmClient::from_config_with(config, &self.http_tls)
             .with_sign_messages(std::sync::Arc::new(move |messages| {
                 events.emit(crate::events::EngineEvent::FdmSignMessages(
@@ -328,7 +343,7 @@ mod tests {
         assert!(c.printer_address.is_none());
         assert_eq!(
             c.problems(),
-            Vec::<String>::new(),
+            Vec::<pos_core::config::Problem>::new(),
             "the dev identity is one the FDM accepts"
         );
     }
@@ -338,6 +353,6 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let prod = write(dir.path(), "pos.json", VALID);
         let c = load_config_from(None, &prod).unwrap();
-        assert_eq!(c.problems(), Vec::<String>::new());
+        assert_eq!(c.problems(), Vec::<pos_core::config::Problem>::new());
     }
 }

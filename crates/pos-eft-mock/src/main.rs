@@ -4,6 +4,12 @@
 //! terminal, 19410), `PILI_EFT_MOCK_OPI_DEVICE_PORT` (the till's channel 1
 //! port the terminal prints to, 4102), `PILI_EFT_MOCK_API_KEY` (optional).
 
+#![expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a standalone tool whose output is the console"
+)]
+
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

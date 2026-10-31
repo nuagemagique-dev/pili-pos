@@ -1,4 +1,4 @@
-//! Records of the HubRise and webshop facade (PD56): the connection, the online-order board, the
+//! Records of the `HubRise` and webshop facade (PD56): the connection, the online-order board, the
 //! catalog sync and the signing of online orders.
 //!
 //! Owner: the `hubrise` domain (engine modules hubrise, webshop). Each type mirrors an engine type:
@@ -32,7 +32,7 @@ use crate::error::PosError;
 // ───────────────────────────── Connection ─────────────────────────────
 
 /// `pos_engine::commands::hubrise::HubriseConnectionInfo`: what the screens know about the
-/// current HubRise connection.
+/// current `HubRise` connection.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(deny_unknown_fields)]
 pub struct HubriseConnectionInfo {
@@ -47,7 +47,7 @@ pub struct HubriseConnectionInfo {
     pub customer_list_name: Option<String>,
 }
 
-/// `pos_engine::commands::hubrise::AuthorizeLink`: the HubRise page where the installer grants
+/// `pos_engine::commands::hubrise::AuthorizeLink`: the `HubRise` page where the installer grants
 /// access, and the same link as a QR code.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(deny_unknown_fields)]
@@ -91,7 +91,7 @@ pub struct WebshopOrderSummary {
     pub items: Vec<WebshopOrderItem>,
     pub customer_notes: Option<String>,
     pub customer_name: Option<String>,
-    /// HubRise `confirmed_time` (RFC 3339).
+    /// `HubRise` `confirmed_time` (RFC 3339).
     pub confirmed_time: Option<String>,
     pub customer_address_1: Option<String>,
     pub customer_address_2: Option<String>,
@@ -152,7 +152,7 @@ pub enum Attention {
     SoldByWeight {
         sku_ref: String,
     },
-    /// A price HubRise sent that is not euro cents.
+    /// A price `HubRise` sent that is not euro cents.
     BadPrice {
         at: String,
     },
@@ -176,7 +176,7 @@ pub enum Attention {
         paid_cents: i64,
         total_cents: i64,
     },
-    /// HubRise changed what was sold after the POS signed it.
+    /// `HubRise` changed what was sold after the POS signed it.
     ChangedAfterSigning,
 }
 
@@ -281,7 +281,7 @@ pub struct HubriseStatus {
     pub health: ConnectionHealth,
     pub outbox: Backlog,
     pub outbox_error: Option<String>,
-    /// Events HubRise sent that could not be handled.
+    /// Events `HubRise` sent that could not be handled.
     pub parked_events: i64,
     /// Online orders still waiting for staff after 5 minutes.
     pub stale_orders: i64,
@@ -373,7 +373,7 @@ pub(crate) fn count(n: usize) -> Result<i64, PosError> {
     })
 }
 
-/// `pos_hubrise::webshop::Channel`: how a HubRise channel is signed (Settings).
+/// `pos_hubrise::webshop::Channel`: how a `HubRise` channel is signed (Settings).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(deny_unknown_fields)]
 pub struct Channel {
@@ -393,7 +393,7 @@ pub struct Channel {
 #[serde(deny_unknown_fields)]
 pub struct AcceptRequest {
     pub order_id: i64,
-    /// The time the customer is told (RFC 3339), sent to HubRise with `accepted`.
+    /// The time the customer is told (RFC 3339), sent to `HubRise` with `accepted`.
     #[serde(default)]
     pub confirmed_time: Option<String>,
 }

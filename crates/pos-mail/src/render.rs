@@ -256,7 +256,7 @@ mod tests {
     #[test]
     fn an_empty_url_counts_as_none() {
         let email = build_email("R", "customer@example.be", "TICKET", Some("")).unwrap();
-        assert!(email.attachments.is_empty());
+        assert_eq!(email.attachments.len(), 0);
         assert!(!email.html.contains("<a "));
     }
 

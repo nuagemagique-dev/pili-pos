@@ -248,6 +248,10 @@ pub struct Category {
 /// `pos_core::menu::MenuItem`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(deny_unknown_fields)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "mirrors pos_core::menu::MenuItem, a record of the Kotlin UI"
+)]
 pub struct MenuItem {
     pub id: i64,
     pub category_id: i64,

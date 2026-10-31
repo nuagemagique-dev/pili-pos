@@ -550,13 +550,13 @@ async fn a_bad_api_key_fails_the_check_as_rejected() {
 #[tokio::test]
 async fn a_worldline_terminal_not_connected_fails_the_check() {
     let rig = Rig::new(Kind::Worldline);
-    rig.mock.set_terminals_online(false);
+    rig.mock.take_terminals_offline();
     let out = rig.t().check().await;
     let Err(EftError::Unreachable(why)) = out else {
         panic!("{out:?}")
     };
     assert!(why.contains("not connected"), "{why}");
-    rig.mock.set_terminals_online(true);
+    rig.mock.bring_terminals_online();
     rig.t().check().await.unwrap();
     assert!(rig.mock.payments().is_empty());
 }
@@ -564,7 +564,7 @@ async fn a_worldline_terminal_not_connected_fails_the_check() {
 #[tokio::test]
 async fn the_worldline_check_falls_back_to_v1_when_v2_has_no_terminal_list() {
     let rig = Rig::new(Kind::Worldline);
-    rig.mock.set_merchant_v1_only(true);
+    rig.mock.serve_merchant_v1_only();
     rig.t().check().await.unwrap();
     let paths: Vec<String> = rig.mock.requests().iter().map(|r| r.path.clone()).collect();
     assert!(

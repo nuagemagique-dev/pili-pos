@@ -18,14 +18,50 @@ pub const LABELS: [&str; 5] = ["A", "B", "C", "D", "X"];
 /// Department id of the gift voucher system product (decision V12-D25).
 pub const GIFT_VOUCHER_DEPARTMENT: &str = "GV";
 
-/// Euro amount of the archived JSON (a multiple of 0.01) in cents.
-pub fn cents(v: &Value) -> i64 {
-    (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64
+/// A float already rounded to a whole number, as an `i64` (saturating).
+fn round_i64(v: f64) -> i64 {
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::as_conversions,
+        reason = "f64 to i64 `as` saturates and maps NaN to 0; archived amounts are far below the range"
+    )]
+    let r = v.round() as i64;
+    r
 }
 
-/// VAT rate of the archived JSON (percent) in basis points.
-pub fn rate_bp(v: &Value) -> i64 {
-    (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64
+/// Euro amount of the archived JSON (a multiple of 0.01) in cents. `None` when the
+/// value is not a number: a missing amount is never read as zero.
+pub fn cents(v: &Value) -> Option<i64> {
+    v.as_f64().map(|e| round_i64(e * 100.0))
+}
+
+/// VAT rate of the archived JSON (percent) in basis points, `None` when not a number.
+pub fn rate_bp(v: &Value) -> Option<i64> {
+    cents(v)
+}
+
+/// The amount at `v`, or an error naming the event and the field.
+fn amount(event_id: i64, v: &Value, what: &str) -> Result<i64> {
+    cents(v).ok_or_else(|| AccountingError::EventUnreadable {
+        event_id,
+        detail: format!("{what} is missing or not a number"),
+    })
+}
+
+/// The rate at `v` in basis points, or an error naming the event and the field.
+fn rate(event_id: i64, v: &Value, what: &str) -> Result<i64> {
+    rate_bp(v).ok_or_else(|| AccountingError::EventUnreadable {
+        event_id,
+        detail: format!("{what} is missing or not a number"),
+    })
+}
+
+/// The integer at `v`, or an error naming the event and the field.
+fn count(event_id: i64, v: &Value, what: &str) -> Result<i64> {
+    v.as_i64().ok_or_else(|| AccountingError::EventUnreadable {
+        event_id,
+        detail: format!("{what} is missing or not an integer"),
+    })
 }
 
 fn string(v: &Value) -> String {
@@ -180,87 +216,97 @@ fn standard_rate(label: &str) -> f64 {
 }
 
 /// The VAT of a ticket: the FDM's calculation, else the lines at the standard rates.
-fn vat_rows(response: &Value, lines: &[SaleLine]) -> Vec<VatRow> {
+fn vat_rows(event_id: i64, response: &Value, lines: &[SaleLine]) -> Result<Vec<VatRow>> {
     let mut rows: BTreeMap<String, VatRow> = BTreeMap::new();
-    match response["vatCalc"].as_array() {
-        Some(calc) => {
-            for item in calc {
-                let label = string(&item["label"]);
-                let row = rows.entry(label.clone()).or_insert(VatRow {
-                    label,
-                    rate_bp: rate_bp(&item["rate"]),
-                    base: 0,
-                    vat: 0,
-                    total: 0,
-                });
-                row.base += cents(&item["taxableAmount"]);
-                row.vat += cents(&item["vatAmount"]);
-                row.total += cents(&item["totalAmount"]);
-            }
+    if let Some(calc) = response["vatCalc"].as_array() {
+        for item in calc {
+            let label = string(&item["label"]);
+            let row = rows.entry(label.clone()).or_insert(VatRow {
+                label,
+                rate_bp: rate(event_id, &item["rate"], "a vatCalc rate")?,
+                base: 0,
+                vat: 0,
+                total: 0,
+            });
+            row.base += amount(event_id, &item["taxableAmount"], "a vatCalc taxableAmount")?;
+            row.vat += amount(event_id, &item["vatAmount"], "a vatCalc vatAmount")?;
+            row.total += amount(event_id, &item["totalAmount"], "a vatCalc totalAmount")?;
         }
-        None => {
-            for (label, amount) in lines.iter().flat_map(|l| l.vats.iter()) {
-                let rate = standard_rate(label);
-                let row = rows.entry(label.clone()).or_insert(VatRow {
-                    label: label.clone(),
-                    rate_bp: (rate * 100.0).round() as i64,
-                    base: 0,
-                    vat: 0,
-                    total: 0,
-                });
-                row.total += amount;
-            }
-            for row in rows.values_mut() {
-                let rate = row.rate_bp as f64 / 100.0;
-                row.base = (row.total as f64 / (1.0 + rate / 100.0)).round() as i64;
-                row.vat = row.total - row.base;
-            }
+    } else {
+        for (label, amount) in lines.iter().flat_map(|l| l.vats.iter()) {
+            let std_rate = standard_rate(label);
+            let row = rows.entry(label.clone()).or_insert(VatRow {
+                label: label.clone(),
+                rate_bp: round_i64(std_rate * 100.0),
+                base: 0,
+                vat: 0,
+                total: 0,
+            });
+            row.total += amount;
+        }
+        for row in rows.values_mut() {
+            let pct = to_f64(row.rate_bp) / 100.0;
+            row.base = round_i64(to_f64(row.total) / (1.0 + pct / 100.0));
+            row.vat = row.total - row.base;
         }
     }
-    rows.into_values().collect()
+    Ok(rows.into_values().collect())
 }
 
-fn sale_lines(request: &Value) -> Vec<SaleLine> {
-    request["transaction"]["transactionLines"]
+/// An `i64` as an `f64` (exact: cent amounts are far below 2^53).
+fn to_f64(v: i64) -> f64 {
+    #[expect(
+        clippy::cast_precision_loss,
+        clippy::as_conversions,
+        reason = "cent amounts stay far below 2^53, so the conversion is exact"
+    )]
+    let f = v as f64;
+    f
+}
+
+fn sale_lines(event_id: i64, request: &Value) -> Result<Vec<SaleLine>> {
+    let mut out = Vec::new();
+    for line in request["transaction"]["transactionLines"]
         .as_array()
         .into_iter()
         .flatten()
-        .map(|line| {
-            let product = &line["mainProduct"];
-            let vats = product["vats"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(|vat| {
-                    let changes: i64 = vat["priceChanges"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .map(|c| cents(&c["amount"]))
-                        .sum();
-                    (string(&vat["label"]), cents(&vat["price"]) + changes)
-                })
-                .collect();
-            SaleLine {
-                department_id: string(&product["departmentId"]),
-                product_id: string(&product["productId"]),
-                vats,
+    {
+        let product = &line["mainProduct"];
+        let mut vats = Vec::new();
+        for vat in product["vats"].as_array().into_iter().flatten() {
+            let mut changes = 0;
+            for c in vat["priceChanges"].as_array().into_iter().flatten() {
+                changes += amount(event_id, &c["amount"], "a price change amount")?;
             }
-        })
-        .collect()
+            vats.push((
+                string(&vat["label"]),
+                amount(event_id, &vat["price"], "a line price")? + changes,
+            ));
+        }
+        out.push(SaleLine {
+            department_id: string(&product["departmentId"]),
+            product_id: string(&product["productId"]),
+            vats,
+        });
+    }
+    Ok(out)
 }
 
-fn pay_lines(request: &Value) -> Vec<PayLine> {
-    request["financials"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .map(|f| PayLine {
+fn pay_lines(event_id: i64, request: &Value) -> Result<Vec<PayLine>> {
+    let mut out = Vec::new();
+    for f in request["financials"].as_array().into_iter().flatten() {
+        out.push(PayLine {
             payment_type: string(&f["type"]),
             amount_type: f["amountType"].as_str().unwrap_or("PAYMENT").to_string(),
-            cents: cents(&f["amount"]),
-        })
-        .collect()
+            cents: amount(event_id, &f["amount"], "a payment amount")?,
+        });
+    }
+    Ok(out)
+}
+
+/// The signed ticket number of a request.
+fn ticket_no(event_id: i64, request: &Value) -> Result<i64> {
+    count(event_id, &request["posFiscalTicketNo"], "posFiscalTicketNo")
 }
 
 fn pos_time(request: &Value) -> String {
@@ -277,7 +323,7 @@ pub fn parse_sale(event: &RawEvent, original: Option<&RawEvent>) -> Result<Sale>
     if !event.request["transaction"].is_object() {
         return Err(unreadable(event, "a sale without a transaction"));
     }
-    let lines = sale_lines(&event.request);
+    let lines = sale_lines(event.id, &event.request)?;
     let refers_to = event
         .request
         .get("fdmRef")
@@ -297,7 +343,7 @@ pub fn parse_sale(event: &RawEvent, original: Option<&RawEvent>) -> Result<Sale>
     };
     Ok(Sale {
         id: event.id,
-        ticket_no: event.request["posFiscalTicketNo"].as_i64().unwrap_or(0),
+        ticket_no: ticket_no(event.id, &event.request)?,
         pos_datetime: pos_time(&event.request),
         fdm_datetime: event
             .fdm_datetime
@@ -305,8 +351,8 @@ pub fn parse_sale(event: &RawEvent, original: Option<&RawEvent>) -> Result<Sale>
             .unwrap_or_else(|| string(&event.response["fdmRef"]["fdmDateTime"])),
         refund: refers_to.is_some() || lines_total < 0,
         channel,
-        vats: vat_rows(&event.response, &lines),
-        payments: pay_lines(&event.request),
+        vats: vat_rows(event.id, &event.response, &lines)?,
+        payments: pay_lines(event.id, &event.request)?,
         lines,
         refers_to,
         signed_ref: event.response["fdmRef"].clone(),
@@ -339,7 +385,7 @@ pub fn parse_invoice(event: &RawEvent) -> Result<Invoice> {
         .unwrap_or_default();
     Ok(Invoice {
         id: event.id,
-        ticket_no: request["posFiscalTicketNo"].as_i64().unwrap_or(0),
+        ticket_no: ticket_no(event.id, request)?,
         pos_datetime: pos_time(request),
         invoice_no: request["invoiceNo"]
             .as_str()
@@ -366,21 +412,24 @@ pub struct MoneyMove {
 
 /// The money in and out lines of a financial event (drawer openings and drawer
 /// declarations are not movements).
-pub fn parse_money(event: &RawEvent) -> Vec<MoneyMove> {
-    event.request["financials"]
+pub fn parse_money(event: &RawEvent) -> Result<Vec<MoneyMove>> {
+    let mut out = Vec::new();
+    for f in event.request["financials"]
         .as_array()
         .into_iter()
         .flatten()
         .filter(|f| f["amountType"].as_str() == Some("MONEY_IN_OUT"))
-        .map(|f| MoneyMove {
+    {
+        out.push(MoneyMove {
             id: event.id,
-            ticket_no: event.request["posFiscalTicketNo"].as_i64().unwrap_or(0),
+            ticket_no: ticket_no(event.id, &event.request)?,
             pos_datetime: pos_time(&event.request),
-            cents: cents(&f["amount"]),
+            cents: amount(event.id, &f["amount"], "a money movement amount")?,
             payment_type: string(&f["type"]),
             label: string(&f["name"]),
-        })
-        .collect()
+        });
+    }
+    Ok(out)
 }
 
 /// VAT row of a Z report.
@@ -421,39 +470,49 @@ pub fn parse_z(event: &RawEvent) -> Result<ZReport> {
     let mut vats = BTreeMap::new();
     for v in turnover["vats"].as_array().into_iter().flatten() {
         let entry = vats.entry(string(&v["label"])).or_insert(ZVat {
-            rate_bp: rate_bp(&v["rate"]),
+            rate_bp: rate(event.id, &v["rate"], "a Z VAT rate")?,
             base: 0,
             vat: 0,
             total: 0,
         });
-        entry.base += cents(&v["taxableAmount"]);
-        entry.vat += cents(&v["vatAmount"]);
-        entry.total += cents(&v["totalAmount"]);
+        entry.base += amount(event.id, &v["taxableAmount"], "a Z VAT taxableAmount")?;
+        entry.vat += amount(event.id, &v["vatAmount"], "a Z VAT vatAmount")?;
+        entry.total += amount(event.id, &v["totalAmount"], "a Z VAT totalAmount")?;
     }
     let mut payments = BTreeMap::new();
     for p in turnover["payments"].as_array().into_iter().flatten() {
         for a in p["amount"].as_array().into_iter().flatten() {
             *payments
                 .entry((string(&p["type"]), string(&a["type"])))
-                .or_insert(0) += cents(&a["totalAmount"]);
+                .or_insert(0) += amount(event.id, &a["totalAmount"], "a Z payment totalAmount")?;
         }
     }
+    let (n_count, n_amount) = match n {
+        Some(t) => (
+            count(event.id, &t["ticketCount"], "the N ticketCount")?,
+            amount(event.id, &t["amount"], "the N amount")?,
+        ),
+        None => (0, 0),
+    };
+    let mut refunds = 0;
+    for q in turnover["negQuantities"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|q| q["negQuantityReason"].as_str() == Some("REFUND"))
+    {
+        refunds += count(event.id, &q["ticketCount"], "a refund ticketCount")?;
+    }
     Ok(ZReport {
-        ticket_no: event.request["posFiscalTicketNo"].as_i64().unwrap_or(0),
+        ticket_no: ticket_no(event.id, &event.request)?,
         pos_datetime: pos_time(&event.request),
         fdm_datetime: event
             .fdm_datetime
             .clone()
             .unwrap_or_else(|| string(&event.response["fdmRef"]["fdmDateTime"])),
-        n_count: n.map_or(0, |t| t["ticketCount"].as_i64().unwrap_or(0)),
-        n_amount: n.map_or(0, |t| cents(&t["amount"])),
-        refunds: turnover["negQuantities"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter(|n| n["negQuantityReason"].as_str() == Some("REFUND"))
-            .map(|n| n["ticketCount"].as_i64().unwrap_or(0))
-            .sum(),
+        n_count,
+        n_amount,
+        refunds,
         vats,
         payments,
     })
@@ -479,6 +538,10 @@ mod tests {
             {"label": label, "price": price, "priceChanges": []}]}})
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "test helper called with inline json! literals"
+    )]
     fn sale_request(lines: Vec<Value>, financials: Value) -> Value {
         json!({
             "posFiscalTicketNo": 12, "posDateTime": "2026-10-01T12:00:00+02:00",
@@ -572,6 +635,47 @@ mod tests {
     }
 
     #[test]
+    fn a_missing_amount_is_an_error_naming_the_event_not_a_zero() {
+        // A payment without an amount.
+        let request = sale_request(
+            vec![line("10", "A", 12.0)],
+            json!([{"type": "CASH", "amountType": "PAYMENT"}]),
+        );
+        let err = parse_sale(&event("N", request, json!({})), None).unwrap_err();
+        assert_eq!(err.code(), "event_unreadable");
+        assert!(err.to_string().contains('7'), "{err}");
+        // A line without a price.
+        let mut request = sale_request(vec![line("10", "A", 12.0)], json!([]));
+        request["transaction"]["transactionLines"][0]["mainProduct"]["vats"][0]["price"] =
+            json!("12");
+        assert!(parse_sale(&event("N", request, json!({})), None).is_err());
+        // A sale without a ticket number.
+        let mut request = sale_request(vec![line("10", "A", 12.0)], json!([]));
+        request.as_object_mut().unwrap().remove("posFiscalTicketNo");
+        assert!(parse_sale(&event("N", request, json!({})), None).is_err());
+        // A VAT row of the FDM answer without an amount.
+        let request = sale_request(vec![line("10", "A", 12.0)], json!([]));
+        let response = json!({"vatCalc": [{"label": "A", "rate": 21, "taxableAmount": 9.92}]});
+        assert!(parse_sale(&event("N", request, response), None).is_err());
+        // A money movement without an amount.
+        let e = event(
+            "F",
+            json!({"posFiscalTicketNo": 5, "financials": [
+                {"type": "CASH", "amountType": "MONEY_IN_OUT"}]}),
+            json!({}),
+        );
+        assert!(parse_money(&e).is_err());
+        // A Z report whose N row has no count.
+        let e = event(
+            "R",
+            json!({"posFiscalTicketNo": 9, "turnover": {
+                "transactions": [{"eventLabel": "N", "amount": 1.0}]}}),
+            json!({}),
+        );
+        assert!(parse_z(&e).is_err());
+    }
+
+    #[test]
     fn a_sale_without_a_transaction_is_unreadable() {
         let e = event("N", json!({"posFiscalTicketNo": 1}), json!({}));
         let err = parse_sale(&e, None).unwrap_err();
@@ -589,7 +693,7 @@ mod tests {
                   {"type": "CASH", "name": "Banque", "amountType": "MONEY_IN_OUT", "amount": -40.5}]}),
             json!({}),
         );
-        let moves = parse_money(&e);
+        let moves = parse_money(&e).unwrap();
         assert_eq!(moves.len(), 2);
         assert_eq!(moves[0].cents, 10000);
         assert_eq!(moves[1].cents, -4050);

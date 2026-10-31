@@ -1,8 +1,12 @@
-//! The POS menu mirrors the HubRise catalog: applied at start, on a
+//! The POS menu mirrors the `HubRise` catalog: applied at start, on a
 //! catalog event and by the drift check, with stable product ids, the
 //! VAT labels of the catalog, and the menu kept when a catalog is bad.
 
 #![cfg(feature = "hubrise")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
 
 use pos_engine_testkit as common;
 
@@ -37,6 +41,10 @@ fn item_id(app: &TestApp, key: &str) -> i64 {
 
 /// Order `key` once, eaten in or taken away; the line as the POS
 /// priced it.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "test helper: the flag names what the call switches"
+)]
 fn line(app: &TestApp, key: &str, dine_in: bool) -> pos_core::order::OrderLine {
     app.login_as(INSZ, pos_core::user::UserRole::Admin);
     let order = do_create_order(
@@ -279,7 +287,7 @@ async fn a_rate_limited_catalog_read_does_not_stop_the_start() {
     assert!(matches!(outcome, ApplyOutcome::Applied { .. }));
 }
 
-/// A product entered by hand before HubRise, named and priced like the
+/// A product entered by hand before `HubRise`, named and priced like the
 /// catalog's.
 fn hand_entered(app: &TestApp, name: &str, price: i64) -> i64 {
     let db = app.state.db.lock().unwrap();

@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 //! End-to-end outbox tests: `send_now` / `run_once` driving real
 //! SQLite (`pos-db`) rows against a mocked TEM endpoint (`wiremock`).
 

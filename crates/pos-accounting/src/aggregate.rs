@@ -44,7 +44,7 @@ impl Method {
         match self {
             Self::Cash => "especes",
             Self::Card => "carte",
-            Self::MealVoucher => "titres_repas",
+            Self::MealVoucher => "cheques_repas",
             Self::GiftVoucher => "bon_cadeau",
             Self::App => "application",
             Self::Online => "en_ligne",
@@ -121,7 +121,7 @@ pub fn load_day(source: &Source, period: &ClosedPeriod) -> Result<Day> {
                 sales.push(parse_sale(&event, original.as_ref())?);
             }
             "I" => invoices.push(invoice_detail(source, &event)?),
-            "F" => moves.extend(parse_money(&event)),
+            "F" => moves.extend(parse_money(&event)?),
             _ => {}
         }
     }

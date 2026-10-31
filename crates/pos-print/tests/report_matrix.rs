@@ -114,7 +114,7 @@ fn report_data(kind: Kind, lang: ReceiptLanguage) -> ReportPrintData {
         short_signature: None,
         ticket_number: 3,
         lang,
-        details: Default::default(),
+        details: pos_print::report::ReportDetails::default(),
     }
 }
 

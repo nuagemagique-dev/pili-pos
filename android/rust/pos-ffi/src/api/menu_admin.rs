@@ -12,7 +12,10 @@ use crate::records::menu_admin::{
 };
 
 // The closures name the engine function at the call, which `check_command_parity.py` looks for.
-#[allow(clippy::redundant_closure)]
+#[expect(
+    clippy::redundant_closure,
+    reason = "check_command_parity.py wants the engine call spelled out"
+)]
 #[uniffi::export]
 impl PosEngine {
     /// The whole menu with its names per language, hidden entries included. Manager only.

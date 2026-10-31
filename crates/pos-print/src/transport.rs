@@ -1,3 +1,4 @@
+use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 
 use serde::Serialize;
@@ -26,7 +27,9 @@ pub enum TransportError {
     #[error("Write failed: {0}")]
     Write(String),
     #[error("Connection timeout")]
-    Timeout,
+    ConnectTimeout,
+    #[error("Write timeout")]
+    WriteTimeout,
     #[error("Printer not configured")]
     NotConfigured,
 }
@@ -36,6 +39,10 @@ pub enum TransportError {
 /// fields default to `true` / empty (optimistic) and `status_known`
 /// is `false`.
 #[derive(Debug, Clone, Serialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent health flags of one printer, serialized as-is for the UI"
+)]
 pub struct PrinterStatus {
     /// `true` only when the printer answered both DLE EOT queries.
     /// `false` means the other fields are the optimistic default, not
@@ -113,10 +120,33 @@ pub const PAPER_END: u8 = 0x60;
 /// The bits every status byte carries (bits 1 and 4 fixed to 1).
 pub const STATUS_FIXED: u8 = 0x12;
 
+/// `address` as `host:port`: a missing port is the default 9100, a bare IPv6 address gets its
+/// brackets (`::1` is `[::1]:9100`), `host:port`, `[v6]:port` and `v4:port` stay as written.
+fn normalize_address(address: &str) -> String {
+    let address = address.trim();
+    if address.parse::<SocketAddr>().is_ok() {
+        return address.to_string();
+    }
+    if let Ok(ip) = address.parse::<IpAddr>() {
+        return SocketAddr::new(ip, DEFAULT_PRINTER_PORT).to_string();
+    }
+    if address.starts_with('[') && address.ends_with(']') {
+        return format!("{address}:{DEFAULT_PRINTER_PORT}");
+    }
+    match address.matches(':').count() {
+        0 => format!("{address}:{DEFAULT_PRINTER_PORT}"),
+        // host:port
+        1 => address.to_string(),
+        // An IPv6 form that did not parse: leave it to the connect error.
+        _ => format!("[{address}]:{DEFAULT_PRINTER_PORT}"),
+    }
+}
+
 /// TCP transport for sending ESC/POS data to a network printer.
 ///
 /// The Epson TM-m30III exposes a raw TCP socket on port 9100.
 /// Data sent to this port is printed directly with no protocol overhead.
+#[derive(Debug)]
 pub struct TcpPrinter {
     address: String,
     status_timeout: Duration,
@@ -126,19 +156,15 @@ impl TcpPrinter {
     /// Create a new TCP printer transport.
     /// `address` format: "ip:port" or just "ip" (defaults to port 9100).
     pub fn new(address: &str) -> Self {
-        let address = if address.contains(':') {
-            address.to_string()
-        } else {
-            format!("{address}:{DEFAULT_PRINTER_PORT}")
-        };
         Self {
-            address,
+            address: normalize_address(address),
             status_timeout: DEFAULT_STATUS_READ_TIMEOUT,
         }
     }
 
     /// Wait `timeout` for each DLE EOT answer instead of
     /// [`DEFAULT_STATUS_READ_TIMEOUT`].
+    #[must_use]
     pub fn with_status_timeout(mut self, timeout: Duration) -> Self {
         self.status_timeout = timeout;
         self
@@ -151,19 +177,19 @@ impl TcpPrinter {
     pub async fn send(&self, data: &[u8]) -> Result<PrinterStatus, TransportError> {
         let stream = tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect(&self.address))
             .await
-            .map_err(|_| TransportError::Timeout)?
+            .map_err(|_| TransportError::ConnectTimeout)?
             .map_err(|e| TransportError::Connect(e.to_string()))?;
 
         let mut stream = stream;
 
         tokio::time::timeout(WRITE_TIMEOUT, stream.write_all(data))
             .await
-            .map_err(|_| TransportError::Timeout)?
+            .map_err(|_| TransportError::WriteTimeout)?
             .map_err(|e| TransportError::Write(e.to_string()))?;
 
         tokio::time::timeout(WRITE_TIMEOUT, stream.flush())
             .await
-            .map_err(|_| TransportError::Timeout)?
+            .map_err(|_| TransportError::WriteTimeout)?
             .map_err(|e| TransportError::Write(e.to_string()))?;
 
         // DLE EOT status query - best-effort. If the printer doesn't
@@ -181,8 +207,7 @@ impl TcpPrinter {
     pub async fn ping(&self) -> bool {
         tokio::time::timeout(Duration::from_secs(2), TcpStream::connect(&self.address))
             .await
-            .map(|r| r.is_ok())
-            .unwrap_or(false)
+            .is_ok_and(|r| r.is_ok())
     }
 
     pub fn address(&self) -> &str {
@@ -242,6 +267,19 @@ async fn query_printer_status(stream: &mut TcpStream, read_timeout: Duration) ->
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn printer_addresses_are_normalised() {
+        use super::normalize_address as n;
+        assert_eq!(n("192.168.1.5"), "192.168.1.5:9100");
+        assert_eq!(n("192.168.1.5:9101"), "192.168.1.5:9101");
+        assert_eq!(n("printer.lan"), "printer.lan:9100");
+        assert_eq!(n("printer.lan:9101"), "printer.lan:9101");
+        assert_eq!(n("::1"), "[::1]:9100");
+        assert_eq!(n("fe80::1"), "[fe80::1]:9100");
+        assert_eq!(n("[::1]"), "[::1]:9100");
+        assert_eq!(n("[::1]:9101"), "[::1]:9101");
+    }
+
     use super::*;
 
     #[test]
@@ -261,7 +299,7 @@ mod tests {
         let status = PrinterStatus::default();
         assert!(status.paper_ok);
         assert!(status.cover_closed);
-        assert!(status.warnings.is_empty());
+        assert_eq!(status.warnings.len(), 0);
         assert!(status.ready());
         assert!(!status.status_known);
     }
@@ -272,7 +310,7 @@ mod tests {
         status.read_offline_cause(STATUS_FIXED);
         status.read_paper_sensor(STATUS_FIXED);
         assert!(status.ready());
-        assert!(status.warnings.is_empty());
+        assert_eq!(status.warnings.len(), 0);
     }
 
     #[test]
@@ -438,7 +476,7 @@ mod tests {
         let status = send_to_printer(&addr, b"\x1B@x").await.unwrap();
         assert!(status.status_known);
         assert!(status.ready());
-        assert!(status.warnings.is_empty());
+        assert_eq!(status.warnings.len(), 0);
     }
 
     #[tokio::test]

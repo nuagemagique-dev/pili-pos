@@ -11,6 +11,11 @@
 //! software 2.2.0.5) gave on 2026-09-27, recorded in
 //! `fixtures/module2/` and checked by `tests/module2_shape.rs`.
 
+#![expect(
+    clippy::print_stdout,
+    reason = "the mock logs each signed event and control change on the console"
+)]
+
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
@@ -55,7 +60,7 @@ impl Counters {
 #[serde(rename_all = "camelCase", default)]
 pub struct Control {
     /// Error codes: shown by Status; the critical ones refuse every
-    /// sign request (BUFFER_FULL, FDM_LOCKED, ...).
+    /// sign request (`BUFFER_FULL`, `FDM_LOCKED`, ...).
     pub errors: Vec<String>,
     /// Warning codes: shown by Status and in every sign response.
     pub warnings: Vec<String>,
@@ -136,7 +141,14 @@ struct FdmState {
     log: VecDeque<LoggedCall>,
 }
 
-fn mutation_key(mutation: &str, is_training: bool, data: &serde_json::Value) -> MutationKey {
+/// Whether a request signs live events or training (`isTraining`) ones.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Session {
+    Live,
+    Training,
+}
+
+fn mutation_key(mutation: &str, session: Session, data: &serde_json::Value) -> MutationKey {
     let text = |field: &str| {
         data.get(field)
             .and_then(|v| v.as_str())
@@ -147,9 +159,9 @@ fn mutation_key(mutation: &str, is_training: bool, data: &serde_json::Value) -> 
         text("posId"),
         text("posDateTime"),
         text("terminalId"),
-        event_label(mutation, is_training),
+        event_label(mutation, session),
         data.get("posFiscalTicketNo")
-            .and_then(|v| v.as_i64())
+            .and_then(serde_json::Value::as_i64)
             .unwrap_or_default(),
     )
 }
@@ -186,7 +198,9 @@ pub fn app_with_storecove(control: Control, storecove: storecove::StorecoveMock)
 }
 
 fn lock(state: &Shared) -> std::sync::MutexGuard<'_, FdmState> {
-    state.lock().unwrap_or_else(|e| e.into_inner())
+    state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 /// The settings, the token shown only as set or not.
@@ -354,9 +368,13 @@ fn pos_date_time_is_valid(value: &str) -> bool {
 fn brussels_summer_time(at: chrono::DateTime<chrono::Utc>) -> bool {
     use chrono::Datelike;
     let last_sunday = |month: u32| {
-        let last = chrono::NaiveDate::from_ymd_opt(at.year(), month, 31).unwrap();
+        let last = chrono::NaiveDate::from_ymd_opt(at.year(), month, 31)
+            .expect("March and October have 31 days");
         let back = chrono::Days::new(u64::from(last.weekday().num_days_from_sunday()));
-        (last - back).and_hms_opt(1, 0, 0).unwrap().and_utc()
+        (last - back)
+            .and_hms_opt(1, 0, 0)
+            .expect("01:00:00 is a valid time")
+            .and_utc()
     };
     at >= last_sunday(3) && at < last_sunday(10)
 }
@@ -416,7 +434,11 @@ fn is_multiple_of(value: f64, steps_per_unit: f64) -> bool {
 /// with an 11-character `fdmId` and a UTC `fdmDateTime`. The first
 /// problem found, as the refusal's message.
 fn sign_input_problem(mutation: &str, data: &serde_json::Value) -> Option<String> {
-    if mutation == "signOrder" && data.get("costCenter").is_none_or(|c| c.is_null()) {
+    if mutation == "signOrder"
+        && data
+            .get("costCenter")
+            .is_none_or(serde_json::Value::is_null)
+    {
         return Some("costCenter is required for signOrder.".into());
     }
     let mut problem = None;
@@ -467,8 +489,8 @@ fn check_fields(value: &serde_json::Value, path: &str, problem: &mut Option<Stri
     }
 }
 
-/// A transaction line: `subProducts` null on SINGLE_PRODUCT, present
-/// on COMPOSITE_PRODUCT.
+/// A transaction line: `subProducts` null on `SINGLE_PRODUCT`, present
+/// on `COMPOSITE_PRODUCT`.
 fn check_line(
     line: &serde_json::Map<String, serde_json::Value>,
     path: &str,
@@ -491,7 +513,7 @@ fn check_product(
 ) {
     let negative = product
         .get("quantity")
-        .and_then(|q| q.as_f64())
+        .and_then(serde_json::Value::as_f64)
         .is_some_and(|q| q < 0.0);
     let reason = product
         .get("negQuantityReason")
@@ -525,6 +547,10 @@ fn check_fdm_ref(fdm_ref: &serde_json::Value, path: &str, problem: &mut Option<S
 }
 
 /// The FDM's answer to one GraphQL request.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear pass over the request, clearer unsplit"
+)]
 fn answer(
     fdm: &mut FdmState,
     headers: &HeaderMap,
@@ -562,11 +588,16 @@ fn answer(
         return error_response(&control.errors);
     }
 
-    let is_training = req
+    let session = if req
         .variables
         .get("isTraining")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
+    {
+        Session::Training
+    } else {
+        Session::Live
+    };
 
     // M184 - the end-of-day Z carries BOTH Z mutations in one GraphQL
     // document (`$turnover` + `$user` variables). Each gets its own
@@ -620,7 +651,7 @@ fn answer(
     // rules).
     let keys: Vec<MutationKey> = parts
         .iter()
-        .map(|(mutation, data)| mutation_key(mutation, is_training, data))
+        .map(|(mutation, data)| mutation_key(mutation, session, data))
         .collect();
     let conflict = parts.iter().zip(&keys).any(|((_, data), key)| {
         fdm.signed
@@ -648,7 +679,7 @@ fn answer(
             .unwrap_or("CFOD0061234567")
             .to_string();
         let counters = fdm.counters.entry(pos_id).or_default();
-        let mut result = build_sign_result(mutation, is_training, &data, counters);
+        let mut result = build_sign_result(mutation, session, &data, counters);
         result.buffer_capacity_used = control.buffer_pct();
         if control.placeholder_signatures {
             as_simulator_signs(&mut result);
@@ -687,10 +718,9 @@ fn as_simulator_signs(result: &mut SignResult) {
 /// The label of the event a mutation signs. Every event signed in
 /// training mode is a T event, whatever the mutation (UC M170 work-in,
 /// M171 sale and M172 copy all answer T).
-fn event_label(mutation_name: &str, is_training: bool) -> &'static str {
+fn event_label(mutation_name: &str, session: Session) -> &'static str {
     match mutation_name {
-        _ if is_training => "T",
-        "signSale" => "N",
+        _ if session == Session::Training => "T",
         "signOrder" | "signPreBill" | "signCostCenterChange" => "P",
         "signWorkIn" | "signWorkOut" => "S",
         "signCopy" => "C",
@@ -699,6 +729,7 @@ fn event_label(mutation_name: &str, is_training: bool) -> &'static str {
         "signReportTurnoverX" | "signReportTurnoverZ" | "signReportUserX" | "signReportUserZ" => {
             "R"
         }
+        // signSale and anything unknown.
         _ => "N",
     }
 }
@@ -706,14 +737,13 @@ fn event_label(mutation_name: &str, is_training: bool) -> &'static str {
 /// Build one signed result for a mutation, advancing the counters.
 fn build_sign_result(
     mutation_name: &str,
-    is_training: bool,
+    session: Session,
     data: &serde_json::Value,
     counters: &mut Counters,
 ) -> SignResult {
-    let event_label = event_label(mutation_name, is_training);
+    let event_label = event_label(mutation_name, session);
 
     let event_op = match mutation_name {
-        "signSale" => "SALE",
         "signOrder" => "ORDER",
         "signPreBill" => "PRE_BILL",
         "signWorkIn" => "WORK_IN",
@@ -728,6 +758,7 @@ fn build_sign_result(
         "signReportTurnoverZ" => "REPORT_TURNOVER_Z",
         "signReportUserX" => "REPORT_USER_X",
         "signReportUserZ" => "REPORT_USER_Z",
+        // signSale and anything unknown.
         _ => "SALE",
     };
 
@@ -739,7 +770,7 @@ fn build_sign_result(
         .unwrap_or("CFOD0061234567");
     let ticket_no = data
         .get("posFiscalTicketNo")
-        .and_then(|v| v.as_i64())
+        .and_then(serde_json::Value::as_i64)
         .unwrap_or(ec);
     let pos_dt = data
         .get("posDateTime")
@@ -778,7 +809,7 @@ fn build_sign_result(
         pos_id: pos_id.to_string(),
         pos_fiscal_ticket_no: ticket_no,
         pos_date_time: pos_dt.to_string(),
-        terminal_id: terminal_id.map(|s| s.to_string()),
+        terminal_id: terminal_id.map(std::string::ToString::to_string),
         device_id: device_id.to_string(),
         event_operation: event_op.to_string(),
         fdm_ref: FdmRef {
@@ -851,7 +882,10 @@ fn compute_vat_calc(txn: &serde_json::Value) -> Vec<VatCalcItem> {
             {
                 for vat in vats {
                     let label = vat.get("label").and_then(|v| v.as_str()).unwrap_or("B");
-                    let price = vat.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    let price = vat
+                        .get("price")
+                        .and_then(serde_json::Value::as_f64)
+                        .unwrap_or(0.0);
                     *totals.entry(label.to_string()).or_default() += price;
                 }
             }
@@ -899,7 +933,7 @@ fn status_occurrences(query: &str) -> Vec<(String, String)> {
                 && query[..pos]
                     .chars()
                     .last()
-                    .is_some_and(|c| c.is_alphanumeric())
+                    .is_some_and(char::is_alphanumeric)
             {
                 continue;
             }
@@ -916,8 +950,7 @@ fn status_occurrences(query: &str) -> Vec<(String, String)> {
             let lang = rest
                 .split_once("language:")
                 .and_then(|(_, r)| r.split(')').next())
-                .map(|s| s.trim().to_string())
-                .unwrap_or_else(|| "FR".to_string());
+                .map_or_else(|| "FR".to_string(), |s| s.trim().to_string());
             found.push((pos, key, lang));
         }
     }
@@ -998,7 +1031,7 @@ fn codes_to_messages(codes: Vec<String>, lang: &str) -> serde_json::Value {
 /// `extensions.category` per the POS spec v2.2 is the message ORIGIN
 /// (`SPF_FOD` | `FDM` | `OTHER`), not its severity - severity is
 /// implied by which array (warnings/errors/informations) carries the
-/// message. The category is the one of the tb_messages table (SPF_FOD
+/// message. The category is the one of the `tb_messages` table (`SPF_FOD`
 /// where it names two).
 fn code_category(code: &str) -> &'static str {
     match code {
@@ -1255,9 +1288,9 @@ mod tests {
             ("signReportTurnoverZ", "R"),
             ("signReportUserX", "R"),
         ] {
-            let r = build_sign_result(m, false, &json!({}), &mut Counters::default());
+            let r = build_sign_result(m, Session::Live, &json!({}), &mut Counters::default());
             assert_eq!(r.fdm_ref.event_label, label, "{m}");
-            let t = build_sign_result(m, true, &json!({}), &mut Counters::default());
+            let t = build_sign_result(m, Session::Training, &json!({}), &mut Counters::default());
             assert_eq!(t.fdm_ref.event_label, "T", "{m} in training");
             assert!(t.short_signature.is_none() && t.verification_url.is_none());
         }
@@ -1265,13 +1298,18 @@ mod tests {
 
     #[test]
     fn only_n_events_carry_a_short_signature_and_a_verification_url() {
-        let n = build_sign_result("signSale", false, &json!({}), &mut Counters::default());
+        let n = build_sign_result(
+            "signSale",
+            Session::Live,
+            &json!({}),
+            &mut Counters::default(),
+        );
         let sig = n.short_signature.expect("N has a short signature");
         assert_eq!(sig.len(), 40);
         assert!(sig.chars().all(|c| c.is_ascii_hexdigit()));
         assert!(n.verification_url.unwrap().starts_with("https://"));
         for m in ["signOrder", "signCopy", "signWorkIn", "signReportTurnoverX"] {
-            let r = build_sign_result(m, false, &json!({}), &mut Counters::default());
+            let r = build_sign_result(m, Session::Live, &json!({}), &mut Counters::default());
             assert!(r.short_signature.is_none(), "{m}");
             assert!(r.verification_url.is_none(), "{m}");
         }
@@ -1327,7 +1365,7 @@ mod tests {
     fn the_request_identification_is_echoed() {
         let r = build_sign_result(
             "signSale",
-            false,
+            Session::Live,
             &json!({
                 "posId": "CPOS0031234567",
                 "posFiscalTicketNo": 42,
@@ -1446,6 +1484,10 @@ mod tests {
     }
 
     /// A signSale with `data`, answered by a default mock.
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "test helper fed json! literals"
+    )]
     fn sign_sale(data: serde_json::Value) -> serde_json::Value {
         let req = GqlRequest {
             query: sale("x").query,
@@ -1459,6 +1501,10 @@ mod tests {
         )
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "test helper fed json! literals"
+    )]
     fn line(line_type: &str, quantity: f64, sub: Option<serde_json::Value>) -> serde_json::Value {
         json!({
             "lineType": line_type,
@@ -1468,6 +1514,10 @@ mod tests {
         })
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "test helper fed json! literals"
+    )]
     fn with_lines(lines: serde_json::Value) -> serde_json::Value {
         json!({ "posId": "CPOS0031234567", "transaction": { "transactionLines": lines, "transactionTotal": 12.5 } })
     }

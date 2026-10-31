@@ -51,12 +51,13 @@ pub struct FiscalEventRow {
     pub fdm_response_json: Option<String>,
 }
 
-/// The operator every TestApp is logged in as (an admin). Most suites
+/// The operator every `TestApp` is logged in as (an admin). Most suites
 /// sign their events in this name.
 pub const TEST_OPERATOR: &str = "12345678901";
 
 /// In-process test app: an `AppState` + a wiremock server pretending
 /// to be the FDM. Tests drop both at end-of-scope.
+#[derive(Debug)]
 pub struct TestApp {
     pub state: AppState,
     /// The data directory of `state.paths`: it lives as long as the app,
@@ -71,7 +72,7 @@ pub struct TestApp {
 
 impl TestApp {
     /// Build a fresh `TestApp`. The SQLite DB is in-memory and the
-    /// PosConfig points at the wiremock URL. The identity is the SPF
+    /// `PosConfig` points at the wiremock URL. The identity is the SPF
     /// test setup's (`UC_TestSetup_20240806.md`): POS xx567 on the
     /// BAR, the FPS Finances Experience, 25 tables.
     pub async fn new() -> Self {
@@ -79,17 +80,22 @@ impl TestApp {
         Self::with_fdm(fdm).await
     }
 
-    /// Construct a TestApp around a caller-supplied wiremock server.
+    /// Construct a `TestApp` around a caller-supplied wiremock server.
     /// Useful when a test needs to register expectations before the
     /// state is built.
+    #[expect(
+        clippy::unused_async,
+        clippy::unused_async_trait_impl,
+        reason = "async like TestApp::new, so every test awaits both the same way"
+    )]
     pub async fn with_fdm(fdm: MockServer) -> Self {
         let conn = Connection::open_in_memory().expect("in-memory sqlite");
         let poller = Connection::open_in_memory().expect("poller sqlite");
         Self::with_fdm_and_db(fdm, conn, poller)
     }
 
-    /// A TestApp whose UI and poller connections share one database
-    /// file, as in production: what the HubRise poller writes, the
+    /// A `TestApp` whose UI and poller connections share one database
+    /// file, as in production: what the `HubRise` poller writes, the
     /// commands read. The file lives until the returned guard drops.
     pub async fn with_shared_db() -> (Self, tempfile::TempDir) {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -130,9 +136,9 @@ impl TestApp {
             language: "fr".to_string(),
             backup_dir: None,
             kitchen_printer_address: None,
-            printer_paper_mm: Default::default(),
+            printer_paper_mm: pos_core::config::PaperWidth::default(),
             scale: None,
-            kitchen_printer_paper_mm: Default::default(),
+            kitchen_printer_paper_mm: pos_core::config::PaperWidth::default(),
             fdm_token_file: None,
             fdm_ca_file: None,
             fdm_client_cert_file: None,
@@ -161,19 +167,20 @@ impl TestApp {
             mail: pos_engine::commands::delivery::MailState::disabled(),
             session: Mutex::new(None),
             support: pos_engine::commands::support::SupportState::disabled(),
-            pin_throttle: Default::default(),
-            gift_voucher_lookups: Default::default(),
-            signing: Default::default(),
+            pin_throttle: pos_engine::commands::access::PinThrottle::default(),
+            gift_voucher_lookups: pos_engine::commands::gift_vouchers::LookupThrottle::default(),
+            signing: pos_engine::commands::signing::SigningLock::default(),
             fdm_status_cache: Mutex::new(None),
-            session_rules: Default::default(),
-            fdm_monitor: Default::default(),
+            session_rules: pos_engine::commands::session::SessionRules::default(),
+            fdm_monitor: pos_engine::commands::fdm_monitor::FdmMonitorState::default(),
             export: pos_engine::commands::export::ExportState::disabled(),
             peppol_wake: tokio::sync::Notify::new(),
             eft_in_flight: Mutex::new(None),
             eft_line: tokio::sync::Mutex::new(()),
-            scale: Default::default(),
-            badge_repeats: Default::default(),
-            owner_alerts: Default::default(),
+            scale: pos_engine::commands::scale::ScaleSlot::default(),
+            badge_repeats: Mutex::default(),
+            originals_printing: Mutex::default(),
+            owner_alerts: pos_engine::alerts::AlertRuntime::default(),
             eft_terminal_override: None,
         };
 
@@ -188,7 +195,7 @@ impl TestApp {
     }
 
     /// Register `insz` as an active user with `role` and make them the
-    /// logged-in operator, as `login` does. Every TestApp starts logged
+    /// logged-in operator, as `login` does. Every `TestApp` starts logged
     /// in as the admin [`TEST_OPERATOR`].
     pub fn login_as(&self, insz: &str, role: pos_core::user::UserRole) {
         {
@@ -240,8 +247,12 @@ impl TestApp {
                 .and_then(|v| v.get("fdmRef").cloned())
             {
                 Some(fdm_ref) => (
-                    fdm_ref.get("eventCounter").and_then(|v| v.as_i64()),
-                    fdm_ref.get("totalCounter").and_then(|v| v.as_i64()),
+                    fdm_ref
+                        .get("eventCounter")
+                        .and_then(serde_json::Value::as_i64),
+                    fdm_ref
+                        .get("totalCounter")
+                        .and_then(serde_json::Value::as_i64),
                 ),
                 None => (None, None),
             };
@@ -307,14 +318,12 @@ impl TestApp {
     }
 
     /// The request whose answer is still awaited, if any.
-    #[allow(dead_code)]
     pub fn open_pending(&self) -> Option<pos_db::queries::pending_signs::PendingSign> {
         let conn = self.state.db.lock().expect("db lock");
         pos_db::queries::pending_signs::open(&conn).expect("pending signs")
     }
 
     /// Every stored request, oldest first.
-    #[allow(dead_code)]
     pub fn pending_statuses(&self) -> Vec<(String, i64, String)> {
         let conn = self.state.db.lock().expect("db lock");
         let mut stmt = conn
@@ -413,7 +422,6 @@ pub async fn mock_response(app: &TestApp, response_envelope: Value) {
 /// A published non-training envelope as the FDM answers it in training
 /// mode: every event is labelled T (POS detailed description v2.2
 /// §2.2.4, last row of `tb_eventOperation`).
-#[allow(dead_code)]
 pub fn in_training(mut envelope: Value) -> Value {
     if let Some(fields) = envelope.get_mut("data").and_then(Value::as_object_mut) {
         for result in fields.values_mut() {
@@ -428,12 +436,10 @@ pub fn in_training(mut envelope: Value) -> Value {
 /// Short signature of the digital signature carried by the published
 /// M110 sale response. The fixture's own `shortSignature` is a
 /// placeholder (SHA-1 of nothing); the replay derives the real one.
-#[allow(dead_code)]
 pub const M110_SHORT_SIGNATURE: &str = "e2c43d6bbe9be265f2ecc1578368c224ff980c26";
 
 /// Same as [`mock_response`] but replays the envelope byte for byte,
 /// without echoing the request.
-#[allow(dead_code)]
 pub async fn mock_raw_response(app: &TestApp, response_envelope: Value) {
     assert!(!app.live, "canned FDM answers on a live app");
     Mock::given(method("POST"))
@@ -455,6 +461,7 @@ pub async fn mock_raw_response(app: &TestApp, response_envelope: Value) {
 /// derives `shortSignature` from `digitalSignature` when the fixture
 /// carries one. Lines, VAT, totals, labels and counters stay the
 /// fixture's. Status queries and error envelopes pass through untouched.
+#[derive(Debug)]
 pub struct EchoRequest(pub Value);
 
 impl EchoRequest {
@@ -528,7 +535,6 @@ pub async fn mock_from_fixture(app: &TestApp, fixture: &UcFixture) {
 /// For UC sets where the on-disk response file is the GraphQL inner
 /// payload only (no `{"data": …}` wrapper), wrap it. Most SPF
 /// fixtures already include the wrapper - this is a fallback.
-#[allow(dead_code)]
 pub async fn mock_inner_payload(app: &TestApp, mutation_name: &str, inner: Value) {
     let body = serde_json::json!({ "data": { mutation_name: inner } });
     mock_response(app, body).await;
@@ -545,7 +551,6 @@ pub async fn assert_fdm_was_called(app: &TestApp) {
 
 /// Re-export for downstream tests that want to know which kind of
 /// response a fixture carries (sign vs status).
-#[allow(dead_code)]
 pub fn response_kind(fixture: &UcFixture) -> ResponseKind {
     fixture.response_kind
 }

@@ -12,6 +12,11 @@
 //!   back to French), never from the screen;
 //! - every change keeps the order total and the journal in step.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test code: a failed setup is the test's failure"
+)]
+
 use pos_engine_testkit as common;
 
 use common::*;
@@ -453,13 +458,20 @@ async fn the_total_always_equals_the_sum_of_the_lines() {
     let order = start(&app, Some(1));
     let mut ids = Vec::new();
     for (step, item) in [1, 2, 4, 1, 2].into_iter().enumerate() {
-        ids.push(add(&app, order, item, (step as i32 % 3) + 1).unwrap().id);
+        ids.push(
+            add(&app, order, item, (i32::try_from(step).unwrap() % 3) + 1)
+                .unwrap()
+                .id,
+        );
     }
     do_update_order_line_quantity(&app.state, ids[1], 5).unwrap();
     do_remove_order_line(&app.state, ids[3]).unwrap();
     do_update_order_line_quantity(&app.state, ids[0], 1).unwrap();
     let lines = do_list_order_lines(&app.state, order).unwrap();
-    let sum: i64 = lines.iter().map(|l| l.line_total()).sum();
+    let sum: i64 = lines
+        .iter()
+        .map(pos_core::order::OrderLine::line_total)
+        .sum();
     assert_eq!(total(&app, order), sum);
     // The journal nets to the lines still on the order.
     let journal = journal(&app, order);
