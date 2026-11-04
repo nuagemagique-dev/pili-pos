@@ -201,8 +201,15 @@ pub fn do_set_line_course(state: &AppState, line_id: i64, course: i32) -> Result
     if db::line_was_printed(&db, line_id).map_err(errors::internal)? {
         return Err(errors::COURSE_ALREADY_SENT.into());
     }
-    db::set_line_course(&db, line_id, order_id, course, Some(&operator.insz))
-        .map_err(errors::internal)
+    // A bowl's paid options (its broth) go to the kitchen with it.
+    super::order::refuse_bowl_option(&db, line_id)?;
+    let options = pos_db::queries::bowls::options_of(&db, line_id).map_err(errors::internal)?;
+    let tx = db.unchecked_transaction().map_err(errors::internal)?;
+    for line in options.into_iter().chain(std::iter::once(line_id)) {
+        db::set_line_course(&tx, line, order_id, course, Some(&operator.insz))
+            .map_err(errors::internal)?;
+    }
+    tx.commit().map_err(errors::internal)
 }
 
 /// Courses in the open table order that wait for "Envoyer la suite",
@@ -309,9 +316,15 @@ pub(crate) async fn print_signed(
         return SlipOutcome::NothingToPrint;
     }
 
-    let (mut items, consumed) = match how {
+    let (items, consumed) = match how {
         Print::Immediate | Print::Sale => per_entry(&eligible),
         Print::Release(_) => net_per_line(&eligible),
+    };
+    let mut items = {
+        let Ok(db) = state.db.lock() else {
+            return SlipOutcome::Failed;
+        };
+        bar_slip::fold_bowls(&db, items)
     };
     // Headers only when a course above "Direct" is on the slip.
     if items.iter().all(|i| i.course == Some(0)) {
@@ -378,6 +391,8 @@ fn per_entry(entries: &[KitchenEntry]) -> (Vec<SlipItem>, Vec<i64>) {
                 course: Some(e.course),
                 note,
                 note_line,
+                line_id: Some(e.line_id),
+                options: Vec::new(),
             }
         })
         .collect();
@@ -404,6 +419,8 @@ fn net_per_line(entries: &[KitchenEntry]) -> (Vec<SlipItem>, Vec<i64>) {
                     course: Some(e.course),
                     note: None,
                     note_line: None,
+                    line_id: Some(e.line_id),
+                    options: Vec::new(),
                 },
                 e,
             )
@@ -531,16 +548,16 @@ pub async fn do_reprint_course_slip(
     let operator = access::operator(state, Access::Staff)?;
     valid_course(course)?;
     let config = state.config.lock().map_err(errors::internal)?.clone();
-    let (printed, table, was_released) = {
+    let (items, table, was_released) = {
         let db = state.db.lock().map_err(errors::internal)?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(errors::internal)?;
+        let printed = db::printed_entries(&db, order_id, course).map_err(errors::internal)?;
         (
-            db::printed_entries(&db, order_id, course).map_err(errors::internal)?,
+            bar_slip::fold_bowls(&db, net_per_line(&printed).0),
             order.table_number,
             db::was_released(&db, order_id, course).map_err(errors::internal)?,
         )
     };
-    let (items, _) = net_per_line(&printed);
     if items.is_empty() {
         return Err(errors::NOTHING_PRINTED.into());
     }

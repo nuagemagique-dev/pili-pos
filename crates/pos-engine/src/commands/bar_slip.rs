@@ -60,6 +60,55 @@ pub(crate) struct SlipItem {
     /// The line whose note this item carries: its note is marked printed
     /// once the slip is (never for a reprint).
     pub note_line: Option<i64>,
+    /// The order line the item stands for, when known: a weighed bowl's
+    /// options and option lines are found by it ([`fold_bowls`]).
+    pub line_id: Option<i64>,
+    /// Printed under the item: the options picked with a weighed bowl.
+    pub options: Vec<String>,
+}
+
+/// A weighed bowl prints as one block: the options picked with it under
+/// it, and the items of its paid option lines (its broth, signed as lines
+/// of their own) folded into it, their entries recorded with it. An option
+/// line whose bowl is not on the slip prints on its own.
+pub(crate) fn fold_bowls(db: &rusqlite::Connection, mut items: Vec<SlipItem>) -> Vec<SlipItem> {
+    let bowl_of = |line: i64| {
+        pos_db::queries::bowls::bowl_of(db, line).unwrap_or_else(|err| {
+            tracing::warn!(%err, line, "bowl link unreadable");
+            None
+        })
+    };
+    let bowls: Vec<Option<i64>> = items.iter().map(|i| i.line_id.and_then(bowl_of)).collect();
+    let mut folded = vec![false; items.len()];
+    for (k, bowl) in bowls.iter().enumerate() {
+        let Some(bowl) = bowl else { continue };
+        let ordering = items[k].quantity > 0;
+        if let Some(target) = items
+            .iter()
+            .position(|i| i.line_id == Some(*bowl) && (i.quantity > 0) == ordering)
+        {
+            let entries = items[k].entry_ids.clone();
+            items[target].entry_ids.extend(entries);
+            folded[k] = true;
+        }
+    }
+    items
+        .into_iter()
+        .zip(folded)
+        .filter(|(_, f)| !f)
+        .map(|(mut item, _)| {
+            if item.quantity > 0
+                && let Some(line) = item.line_id
+            {
+                item.options =
+                    pos_db::queries::bowls::bowl_option_names(db, line).unwrap_or_else(|err| {
+                        tracing::warn!(%err, line, "bowl options unreadable");
+                        Vec::new()
+                    });
+            }
+            item
+        })
+        .collect()
 }
 
 /// How a slip differs from the plain one.
@@ -108,7 +157,7 @@ pub(crate) async fn print_bar_slip(
             tracing::warn!(%err, "kitchen notes unreadable");
             std::collections::BTreeMap::default()
         });
-        entries
+        let items: Vec<SlipItem> = entries
             .iter()
             .filter(|e| e.quantity != 0)
             .filter(|e| !price_changes.contains(&e.id))
@@ -132,9 +181,12 @@ pub(crate) async fn print_bar_slip(
                     course: None,
                     note,
                     note_line,
+                    line_id: notes.get(&e.id).map(|(line_id, _)| *line_id),
+                    options: Vec::new(),
                 }
             })
-            .collect()
+            .collect();
+        fold_bowls(&db, items)
     };
     let record = if table.is_some() { "immediate" } else { "sale" };
     print_items(
@@ -180,6 +232,7 @@ pub(crate) async fn print_items(
                 name: i.name.clone(),
                 note: i.note.clone(),
                 course: i.course,
+                options: i.options.clone(),
             })
             .collect(),
         lang: ReceiptLanguage::from_code(&config.language),

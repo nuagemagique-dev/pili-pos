@@ -14,13 +14,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_DEPARTMENT
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.text.vueText
@@ -125,5 +130,48 @@ internal fun NextCourseButton(
             vueText("send_next_course", "course" to vueText("course_$course")),
             style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
         )
+    }
+}
+
+private val Hairline = 1.dp
+
+/**
+ * The left of a cart line: the voucher badge, the "+" of a bowl's option, the weight of a weighing, or the quantity
+ * stepper.
+ */
+@Composable
+internal fun LineLead(
+    row: CartRow,
+    actions: OrderCartActions,
+) {
+    val id = row.line.id
+    val weight = row.line.weightGrams
+    when {
+        row.line.departmentId == GIFT_VOUCHER_DEPARTMENT -> VoucherBadge(id)
+        row.line.bowlLineId != null -> BowlLink(id)
+        weight != null -> WeightBadge(id, weight)
+        else -> QuantityStepper(id, row.line.quantity, actions)
+    }
+}
+
+/** The delete control of a line, set apart by a rule (`cart_line_<id>_remove`). */
+@Composable
+internal fun RemoveControl(
+    id: Long,
+    actions: OrderCartActions,
+) {
+    val c = PiliTheme.colors
+    Box(
+        modifier =
+            Modifier
+                .padding(start = PiliTheme.dimens.spaceSm)
+                .drawBehind { drawRect(c.border, size = Size(Hairline.toPx(), size.height)) },
+    ) {
+        LineControl(
+            icon = Icons.Filled.Close,
+            description = vueText("line_remove"),
+            enabled = true,
+            modifier = Modifier.testTag("cart_line_${id}_remove"),
+        ) { actions.onRemove(id) }
     }
 }

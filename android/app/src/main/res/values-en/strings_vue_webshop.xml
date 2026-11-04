@@ -127,4 +127,6 @@
     <string name="modifier_up_to">Up to {max}</string>
     <string name="modifier_optional">Optional</string>
     <string name="modifier_add">Add</string>
+    <string name="modifier_weigh">Weigh</string>
+    <string name="modifier_per_kilo">{price} € / kg</string>
 </resources>

@@ -143,17 +143,32 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
 
 /// Remove a line from an open order (journalled as a correction).
 /// Refused when the total would fall under what the customer's card
-/// was charged (`eft::charged_floor`).
+/// was charged (`eft::charged_floor`). A weighed bowl goes with its paid
+/// options; an option alone is refused (`bowl_option_fixed`).
 pub fn do_remove_order_line(state: &AppState, line_id: i64) -> Result<(), String> {
     access::operator(state, Access::Staff)?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let order_id = order_of_line(&db, line_id)?;
+    refuse_bowl_option(&db, line_id)?;
     unchanged_while_pending(&db, order_id)?;
     let floor = eft::charged_floor(&db, order_id)?;
+    let options = pos_db::queries::bowls::options_of(&db, line_id).map_err(errors::internal)?;
     let tx = db.unchecked_transaction().map_err(errors::internal)?;
+    for option in options {
+        pos_db::queries::orders::remove_order_line(&tx, option).map_err(line_error)?;
+        pos_db::queries::bowls::unlink(&tx, option).map_err(errors::internal)?;
+    }
     pos_db::queries::orders::remove_order_line(&tx, line_id).map_err(line_error)?;
     eft::keep_charged(&tx, order_id, floor)?;
     tx.commit().map_err(errors::internal)
+}
+
+/// A paid option of a weighed bowl follows its bowl: refused on its own.
+pub(crate) fn refuse_bowl_option(db: &rusqlite::Connection, line_id: i64) -> Result<(), String> {
+    match pos_db::queries::bowls::bowl_of(db, line_id).map_err(errors::internal)? {
+        Some(_) => Err(errors::BOWL_OPTION_FIXED.into()),
+        None => Ok(()),
+    }
 }
 
 /// Set a line's quantity on an open order. Zero or less is refused:
@@ -180,6 +195,7 @@ pub fn do_update_order_line_quantity(
     if is_weighed_line(&db, line_id).map_err(line_error)? {
         return Err(errors::LINE_WEIGHED_FIXED.into());
     }
+    refuse_bowl_option(&db, line_id)?;
     unchanged_while_pending(&db, order_id)?;
     // An increase of a sold-out product is refused; a decrease or the same quantity is not.
     let (menu_item_id, current): (i64, i32) = db

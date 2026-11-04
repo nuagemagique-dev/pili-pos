@@ -136,4 +136,90 @@ test.describe('Sale by weight', () => {
     await expect(page.getByTestId('light-terminal')).toHaveCount(0)
     await expect(page.getByTestId('light-scale')).toHaveCount(0)
   })
+
+  // A malatang bowl: the options (its broth) are picked first, then the bowl
+  // is weighed with them; the paid broth is a line of its own under the bowl.
+  const BOWL = {
+    ...SALMON,
+    id: 8,
+    name: 'Bol malatang',
+    name_fr: 'Bol malatang',
+    price_cents: 1990,
+    has_modifiers: true,
+  }
+  const BROTHS = [
+    {
+      id: 70,
+      name: 'Bouillon',
+      min: 1,
+      max: 1,
+      options: [
+        { id: 701, name: 'Bouillon tomate', price_cents: 150 },
+        { id: 702, name: 'Bouillon clair', price_cents: 0 },
+      ],
+    },
+  ]
+
+  test('a bowl asks for its broth, then weighs with it', async ({ page }) => {
+    await openOrder(page, {
+      get_settings: settingsWith({ scaleConfigured: true }),
+      get_menu_items: () => [BOWL],
+      get_item_modifiers: () => BROTHS,
+      scale_start_weighing: () => ({ ...WEIGHED_LINE, id: 80, menu_item_id: 8 }),
+    })
+    await page.getByRole('button', { name: /Bol malatang/u }).click()
+
+    const confirm = page.getByTestId('modifier-confirm')
+    await expect(confirm).toBeDisabled()
+    expect(await ipcCalls(page, 'scale_start_weighing')).toEqual([])
+    await page.getByRole('button', { name: /Bouillon tomate/u }).click()
+    await expect(confirm).toHaveText('Peser · 19,90 € / kg + 1,50 €')
+    await confirm.click()
+
+    await expect(page.getByTestId('modifier-dialog')).toHaveCount(0)
+    const calls = await ipcCalls(page, 'scale_start_weighing')
+    expect(calls).toHaveLength(1)
+    expect(calls[0].input.menu_item_id).toBe(8)
+    expect(calls[0].input.modifier_ids).toEqual([701])
+    expect(await ipcCalls(page, 'add_order_line_with_modifiers')).toEqual([])
+  })
+
+  test('the broth sits under its bowl with no control of its own', async ({ page }) => {
+    const bowl = {
+      ...WEIGHED_LINE,
+      id: 80,
+      menu_item_id: 8,
+      name: 'Bol malatang',
+      unit_price_cents: 1990,
+      weight_grams: 612,
+      weighed_amount_cents: 1218,
+      modifiers_json: '[{"id":701,"name":"Bouillon tomate","price_cents":150}]',
+      bowl_options: ['Bouillon tomate', 'Piquant moyen'],
+    }
+    const broth = {
+      ...DEFAULT_ORDER_LINE,
+      id: 81,
+      menu_item_id: 8,
+      name: 'Bouillon tomate',
+      name_fr: null,
+      quantity: 1,
+      unit_price_cents: 150,
+      bowl_line_id: 80,
+    }
+    await openOrder(page, {
+      get_settings: settingsWith({ scaleConfigured: true }),
+      get_menu_items: () => [BOWL],
+      list_cart_lines: () => [bowl, broth],
+    })
+
+    await expect(page.getByTestId('line-bowl-options')).toHaveText(
+      'Bouillon tomate · Piquant moyen',
+    )
+    const brothRow = page.locator('.order-line.bowl-option')
+    await expect(brothRow).toHaveCount(1)
+    await expect(brothRow.locator('.line-price')).toHaveText('1,50')
+    await expect(brothRow.locator('.remove-btn')).toHaveCount(0)
+    await expect(brothRow.locator('.qty-btn')).toHaveCount(0)
+    await expect(page.locator('.order-line .remove-btn')).toHaveCount(1)
+  })
 })

@@ -246,11 +246,18 @@ const CATALOG_MIGRATIONS: &[Migration] = &[
 ];
 
 /// The sale by weight (every build).
-const WEIGHT_MIGRATIONS: &[Migration] = &[Migration {
-    version: 80,
-    name: "sale-by-weight",
-    sql: crate::schema_weight::MIGRATION_080_SALE_BY_WEIGHT,
-}];
+const WEIGHT_MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 80,
+        name: "sale-by-weight",
+        sql: crate::schema_weight::MIGRATION_080_SALE_BY_WEIGHT,
+    },
+    Migration {
+        version: 81,
+        name: "bowl-options",
+        sql: crate::schema_weight::MIGRATION_081_BOWL_OPTIONS,
+    },
+];
 
 /// Every migration this build knows, in ascending version order.
 fn registry() -> Vec<Migration> {
@@ -547,7 +554,7 @@ mod tests {
         let from_28: Vec<i64> = versions.into_iter().filter(|v| *v >= 28).collect();
         assert_eq!(
             from_28,
-            vec![28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70, 80]
+            vec![28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70, 80, 81]
         );
     }
 

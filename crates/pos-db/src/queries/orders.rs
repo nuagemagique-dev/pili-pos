@@ -418,6 +418,12 @@ pub struct CartLine {
     /// `unsent`, `held` (a course above the released one waits for
     /// "Envoyer la suite") or `printed` (a kitchen slip carried the line).
     pub kitchen_state: String,
+    /// The weighed bowl this line is a paid option of (its broth): the
+    /// line follows the bowl and has no control of its own (migration 81).
+    pub bowl_line_id: Option<i64>,
+    /// The options picked with a weighed bowl, shown under it; empty for
+    /// any other line.
+    pub bowl_options: Vec<String>,
 }
 
 /// A price change on a cart line (a till discount, an online order's).
@@ -452,7 +458,8 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
                 COALESCE((SELECT course FROM order_line_courses WHERE line_id = ol.id), 0),
                 EXISTS (SELECT 1 FROM kitchen_slip_entries k
                         JOIN order_entries e ON e.id = k.entry_id WHERE e.line_id = ol.id),
-                ol.weight_grams, ol.weighed_amount_cents
+                ol.weight_grams, ol.weighed_amount_cents,
+                (SELECT bowl_line_id FROM bowl_option_lines WHERE line_id = ol.id)
          FROM order_lines ol WHERE ol.order_id = ?1 ORDER BY ol.id",
     ))?;
     let released = super::courses::released_course(conn, order_id)?;
@@ -466,8 +473,13 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
         } else {
             "unsent"
         };
+        let line = map_order_line(row)?;
+        let bowl_options = match (&line.weight_grams, &line.modifiers_json) {
+            (Some(_), Some(json)) => super::bowls::option_names(json),
+            _ => Vec::new(),
+        };
         Ok(CartLine {
-            line: map_order_line(row)?,
+            line,
             name_fr: row.get(11)?,
             name_zh: row.get(12)?,
             unsent_quantity: row.get(13)?,
@@ -478,6 +490,8 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
             online: row.get(16)?,
             course,
             kitchen_state: kitchen_state.to_string(),
+            bowl_line_id: row.get(21)?,
+            bowl_options,
         })
     })?;
     #[cfg_attr(

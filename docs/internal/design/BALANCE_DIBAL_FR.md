@@ -26,6 +26,8 @@ Ce qui s'écarte du texte ci-dessous, et prévaut sur lui :
 - **Somme de contrôle.** L'algorithme est inconnu. Le pilote envoie les valeurs fixes de `scale.check_values` et ignore
   `Z`. Le simulateur accepte une chaîne fixe : réussir contre lui prouve le dialogue, pas l'acceptation par une balance.
 - **`scale_weighings`** garde poids, prix, montant et tare, sans la trame brute ni le transport.
+- **Bol avec options (2026-11-04).** Un produit au poids prend ses options (bouillon) avant la pesée ; les options
+  payantes deviennent des lignes à la pièce reliées au bol (migration 81, section 4.6 bis).
 - **Pas encore fait :** la bibliothèque légale séparée (6.3), le gel rc4 et les preuves à refaire (phase 5, après la décision
   de métrologie). Le texte du dossier est écrit (annexe `BALANCE_FR.md`), à relire après cette décision. Questions prêtes à
   envoyer : `docs/internal/design/BALANCE_QUESTIONS_FR.md`.
@@ -230,6 +232,33 @@ réponse du SPF Économie (E4) ; le formatage reste dans la partie isolée (6.3)
 
 Les écrans (`OrderLineItem`, `CartSidebar`, `cartAmounts.ts`, `CartAmounts.kt`, l'aperçu de remboursement)
 et la ventilation `vat_split` de la FFI utilisent le montant de la pesée au lieu du prix x quantité.
+
+### 4.6 bis Bol de malatang : la pesée avec ses options (migration 81)
+
+Un produit au poids peut avoir des groupes d'options (le bouillon, le niveau de piquant), comme le bol du site en ligne.
+Le parcours à la caisse, sur les deux interfaces :
+
+1. Toucher le bol ouvre d'abord la fenêtre des options (bouillon obligatoire si le groupe le demande). Le bouton dit
+   « Peser » et montre le prix au kilo plus les options payantes. Sans balance configurée, le bol reste hors vente.
+2. « Peser » ouvre la pesée avec les options choisies (`scale_start_weighing`, champ `modifier_ids`). Le moteur vérifie
+   les options avant d'interroger la balance : un bouillon manquant ne pèse rien (`modifier_count`).
+3. Le moteur écrit tout dans une seule transaction, donc jamais de bol sans son bouillon :
+   - le bol reste la ligne pesée seule, au nom du produit (FAQ Q201 a) ; toutes les options choisies sont gardées dans
+     son `modifiers_json` pour la cuisine et l'écran ;
+   - chaque option payante devient sa propre ligne à la pièce, au prix de l'option et au taux de TVA du bol (FAQ Q201 b),
+     reliée au bol dans `bowl_option_lines` (données locales, jamais envoyées au FDM) ;
+   - une option gratuite (bouillon clair, piquant moyen) reste seulement sur le bol. Un prix d'option négatif est traité
+     comme gratuit, comme le prix en ligne (`max(option, 0)`).
+
+Le bouillon suit son bol : il n'a ni +, ni -, ni suppression, ni service de cuisine à lui (`bowl_option_fixed`).
+Supprimer le bol supprime ses options ; changer le service du bol change aussi celui de ses options. Sur le bon cuisine,
+le bol est un bloc : « 1 x Bol malatang », puis « + Bouillon tomate », « + Piquant moyen », puis la note. La ligne du
+bouillon payant ne s'imprime pas comme un plat : ses entrées sont comptées avec le bol. Un remboursement rend le bol et
+ses options ensemble, ou rien (`refund_bowl_whole`). Le badge de quantité de la grille ne compte pas le bouillon comme un
+bol. L'écho HubRise envoie le bouillon comme un article à son nom.
+
+Tests : `crates/pos-engine/tests/scale.rs` (section bol), `crates/pos-db/src/queries/bowls.rs`,
+`crates/pos-print/src/bar_ticket.rs`, `ui/e2e/scale.spec.ts`, `OrderItemFlowTest.kt`.
 
 ### 4.7 Rapports
 

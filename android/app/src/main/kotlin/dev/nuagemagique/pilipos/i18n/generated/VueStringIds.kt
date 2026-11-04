@@ -533,6 +533,8 @@ internal object VueStringIds {
         this["err_line_needs_scale"] = R.string.err_line_needs_scale
         this["err_line_weighed_fixed"] = R.string.err_line_weighed_fixed
         this["err_refund_weighed_line_whole"] = R.string.err_refund_weighed_line_whole
+        this["err_bowl_option_fixed"] = R.string.err_bowl_option_fixed
+        this["err_refund_bowl_whole"] = R.string.err_refund_bowl_whole
         this["err_scale_not_configured"] = R.string.err_scale_not_configured
         this["err_scale_not_sold_by_weight"] = R.string.err_scale_not_sold_by_weight
         this["err_scale_busy"] = R.string.err_scale_busy
@@ -770,11 +772,11 @@ internal object VueStringIds {
         this["sales_refunds"] = R.string.sales_refunds
         this["sales_rounding"] = R.string.sales_rounding
         this["reports_tab_vouchers"] = R.string.reports_tab_vouchers
-        this["gv_lookup_title"] = R.string.gv_lookup_title
-        this["gv_list_title"] = R.string.gv_list_title
     }
 
     private fun MutableMap<String, Int>.part3() {
+        this["gv_lookup_title"] = R.string.gv_lookup_title
+        this["gv_list_title"] = R.string.gv_list_title
         this["gv_filter_all"] = R.string.gv_filter_all
         this["gv_empty"] = R.string.gv_empty
         this["gv_face"] = R.string.gv_face
@@ -1023,11 +1025,11 @@ internal object VueStringIds {
         this["webshop_service_eat_in"] = R.string.webshop_service_eat_in
         this["webshop_service_unknown"] = R.string.webshop_service_unknown
         this["webshop_action_accept"] = R.string.webshop_action_accept
-        this["webshop_action_prepare"] = R.string.webshop_action_prepare
-        this["webshop_action_ready"] = R.string.webshop_action_ready
     }
 
     private fun MutableMap<String, Int>.part4() {
+        this["webshop_action_prepare"] = R.string.webshop_action_prepare
+        this["webshop_action_ready"] = R.string.webshop_action_ready
         this["webshop_action_out_for_delivery"] = R.string.webshop_action_out_for_delivery
         this["webshop_action_complete"] = R.string.webshop_action_complete
         this["webshop_action_reject"] = R.string.webshop_action_reject
@@ -1135,6 +1137,8 @@ internal object VueStringIds {
         this["modifier_up_to"] = R.string.modifier_up_to
         this["modifier_optional"] = R.string.modifier_optional
         this["modifier_add"] = R.string.modifier_add
+        this["modifier_weigh"] = R.string.modifier_weigh
+        this["modifier_per_kilo"] = R.string.modifier_per_kilo
         this["err_modifier_unknown"] = R.string.err_modifier_unknown
         this["err_modifier_count"] = R.string.err_modifier_count
         this["err_hubrise_disabled"] = R.string.err_hubrise_disabled

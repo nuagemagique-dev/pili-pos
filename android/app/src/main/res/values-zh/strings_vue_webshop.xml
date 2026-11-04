@@ -127,4 +127,6 @@
     <string name="modifier_up_to">最多 {max} 项</string>
     <string name="modifier_optional">可选</string>
     <string name="modifier_add">添加</string>
+    <string name="modifier_weigh">称重</string>
+    <string name="modifier_per_kilo">{price} € / 公斤</string>
 </resources>

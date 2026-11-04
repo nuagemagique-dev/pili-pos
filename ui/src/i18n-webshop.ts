@@ -404,6 +404,8 @@ export const webshopMessages: Messages = {
   modifier_up_to: { fr: "Jusqu'à {max}", en: 'Up to {max}', zh: '最多 {max} 项' },
   modifier_optional: { fr: 'Facultatif', en: 'Optional', zh: '可选' },
   modifier_add: { fr: 'Ajouter', en: 'Add', zh: '添加' },
+  modifier_weigh: { fr: 'Peser', en: 'Weigh', zh: '称重' },
+  modifier_per_kilo: { fr: '{price} € / kg', en: '{price} € / kg', zh: '{price} € / 公斤' },
   err_modifier_unknown: {
     fr: 'Option inconnue pour ce produit.',
     en: 'Unknown option for this product.',

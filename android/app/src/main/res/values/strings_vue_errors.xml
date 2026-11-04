@@ -176,6 +176,8 @@
     <string name="err_line_needs_scale">Ce produit est vendu au poids : il passe par la balance.</string>
     <string name="err_line_weighed_fixed">Le poids d\'une pesée ne change pas : supprimez la ligne et pesez à nouveau.</string>
     <string name="err_refund_weighed_line_whole">Une pesée se rembourse en entier.</string>
+    <string name="err_bowl_option_fixed">Ce supplément suit son bol : supprimez le bol pour le changer.</string>
+    <string name="err_refund_bowl_whole">Un bol se rembourse avec ses suppléments : cochez aussi son bouillon.</string>
     <string name="err_scale_not_configured">Aucune balance n\'est configurée sur cette caisse.</string>
     <string name="err_scale_not_sold_by_weight">Ce produit n\'est pas vendu au poids.</string>
     <string name="err_scale_busy">Une pesée est déjà en cours.</string>

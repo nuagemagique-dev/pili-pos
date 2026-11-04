@@ -32,10 +32,14 @@ internal sealed interface OrderDialog {
         val stage: String = "waiting",
     ) : OrderDialog
 
-    /** A product with option [groups] waits for the picks. */
+    /**
+     * A product with option [groups] waits for the picks. [forWeight]: a product sold by weight (a malatang bowl and
+     * its broth), weighed with the picks once they are confirmed.
+     */
     data class Modifiers(
         val item: MenuItem,
         val groups: List<ModifierGroup>,
+        val forWeight: Boolean = false,
     ) : OrderDialog
 
     /** "Change table": the free tables [tables] the order of table [from] can move to. */

@@ -272,12 +272,14 @@ fn example_bar_slip() {
                 name: "Dry Martini".to_string(),
                 note: None,
                 course: None,
+                options: Vec::new(),
             },
             BarItem {
                 quantity: 1,
                 name: "Burger du chef".to_string(),
                 note: None,
                 course: None,
+                options: Vec::new(),
             },
         ],
         lang: ReceiptLanguage::Fr,
@@ -308,12 +310,14 @@ fn example_bar_slip_with_notes() {
                 name: "Dry Martini".to_string(),
                 note: None,
                 course: None,
+                options: Vec::new(),
             },
             BarItem {
                 quantity: 1,
                 name: "Burger du chef".to_string(),
                 note: Some("allergie arachide - sans oignons".to_string()),
                 course: None,
+                options: Vec::new(),
             },
         ],
         lang: ReceiptLanguage::Fr,
@@ -514,6 +518,7 @@ fn example_course_slips() {
         name: name.to_string(),
         note: None,
         course: Some(course),
+        options: Vec::new(),
     };
     let first = BarTicket {
         date_time: "03/07/2026 12:31:05".to_string(),

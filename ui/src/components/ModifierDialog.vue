@@ -3,6 +3,10 @@
 // the mirrored catalog. A group with a maximum of one is a single
 // choice; the others toggle. The price shown is a preview: the backend
 // prices the options and names the line.
+//
+// With `forWeight` (a product sold by weight, a malatang bowl and its
+// broth) nothing is added here: "Peser" hands the picks to the order
+// screen, which weighs the bowl with them.
 import { computed, onMounted, ref } from 'vue'
 import type { MenuItem } from '../types'
 import {
@@ -16,8 +20,8 @@ import { useI18n } from '../i18n'
 import { formatPrice } from '../utils/format'
 import AllergenBadges from './AllergenBadges.vue'
 
-const { item } = defineProps<{ item: MenuItem }>()
-const emit = defineEmits<{ done: [] }>()
+const { item, forWeight = false } = defineProps<{ item: MenuItem; forWeight?: boolean }>()
+const emit = defineEmits<{ done: []; weigh: [modifierIds: number[]] }>()
 
 const { t } = useI18n()
 const order = useOrderStore()
@@ -36,7 +40,8 @@ onMounted(async () => {
   }
   // Nothing to pick: the plain product, as without options.
   if (groups.value.length === 0) {
-    await order.addItem(item)
+    if (forWeight) emit('weigh', [])
+    else await order.addItem(item)
     emit('done')
   }
 })
@@ -74,17 +79,28 @@ const valid = computed(() =>
   }),
 )
 
-const total = computed(
-  () =>
-    item.price_cents +
-    groups.value
-      .flatMap((g) => g.options)
-      .filter((o) => picked.value.has(o.id))
-      .reduce((sum, o) => sum + o.price_cents, 0),
+const optionsCents = computed(() =>
+  groups.value
+    .flatMap((g) => g.options)
+    .filter((o) => picked.value.has(o.id))
+    .reduce((sum, o) => sum + Math.max(o.price_cents, 0), 0),
 )
+
+const total = computed(() => item.price_cents + optionsCents.value)
+
+// A weighed product: its price per kilo, plus what the paid options add.
+const weighLabel = computed(() => {
+  const perKilo = t('modifier_per_kilo', { price: formatPrice(item.price_cents) })
+  return optionsCents.value > 0 ? `${perKilo} + ${formatPrice(optionsCents.value)} €` : perKilo
+})
 
 async function confirm() {
   if (!valid.value || busy.value) return
+  if (forWeight) {
+    emit('weigh', [...picked.value])
+    emit('done')
+    return
+  }
   busy.value = true
   const ids = [...picked.value]
   await order.addLineWith(item, 1, (orderId) => addOrderLineWithModifiers(orderId, item.id, 1, ids))
@@ -124,8 +140,14 @@ async function confirm() {
       </section>
       <div class="actions">
         <button class="btn btn-cancel" @click="emit('done')">{{ t('back') }}</button>
-        <button class="btn btn-confirm" :disabled="!valid || busy" @click="confirm">
-          {{ t('modifier_add') }} · {{ formatPrice(total) }} €
+        <button
+          class="btn btn-confirm"
+          :disabled="!valid || busy"
+          data-testid="modifier-confirm"
+          @click="confirm"
+        >
+          <template v-if="forWeight">{{ t('modifier_weigh') }} · {{ weighLabel }}</template>
+          <template v-else>{{ t('modifier_add') }} · {{ formatPrice(total) }} €</template>
         </button>
       </div>
     </div>

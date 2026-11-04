@@ -1758,6 +1758,12 @@
       "zh": "未知工牌",
       "area": "errors"
     },
+    "err_bowl_option_fixed": {
+      "fr": "Ce supplément suit son bol : supprimez le bol pour le changer.",
+      "en": "This extra goes with its bowl: remove the bowl to change it.",
+      "zh": "此附加项随碗一起：如需修改，请删除该碗。",
+      "area": "errors"
+    },
     "err_concurrent_operation": {
       "fr": "Une autre opération était en cours : rien n'a été enregistré, réessayez.",
       "en": "Another operation was in progress: nothing was recorded, try again.",
@@ -2680,6 +2686,12 @@
       "fr": "La quantité doit être d'au moins 1.",
       "en": "The quantity must be at least 1.",
       "zh": "数量至少为1。",
+      "area": "errors"
+    },
+    "err_refund_bowl_whole": {
+      "fr": "Un bol se rembourse avec ses suppléments : cochez aussi son bouillon.",
+      "en": "A bowl is refunded with its extras: tick its broth too.",
+      "zh": "碗须连同附加项一起退款：请同时勾选汤底。",
       "area": "errors"
     },
     "err_refund_discounted_line": {
@@ -4542,6 +4554,12 @@
       "zh": "可选",
       "area": "webshop"
     },
+    "modifier_per_kilo": {
+      "fr": "{price} € / kg",
+      "en": "{price} € / kg",
+      "zh": "{price} € / 公斤",
+      "area": "webshop"
+    },
     "modifier_range": {
       "fr": "{min} à {max}",
       "en": "{min} to {max}",
@@ -4564,6 +4582,12 @@
       "fr": "Jusqu'à {max}",
       "en": "Up to {max}",
       "zh": "最多 {max} 项",
+      "area": "webshop"
+    },
+    "modifier_weigh": {
+      "fr": "Peser",
+      "en": "Weigh",
+      "zh": "称重",
       "area": "webshop"
     },
     "name": {

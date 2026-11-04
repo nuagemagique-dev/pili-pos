@@ -275,7 +275,13 @@ internal fun BoxScope.OrderDialogs(
                 onCancel = callbacks.onDismiss,
             )
         is OrderDialog.Modifiers ->
-            ModifierDialog(dialog.item, dialog.groups, onConfirm = callbacks.onPicks, onCancel = callbacks.onDismiss)
+            ModifierDialog(
+                dialog.item,
+                dialog.groups,
+                onConfirm = callbacks.onPicks,
+                onCancel = callbacks.onDismiss,
+                forWeight = dialog.forWeight,
+            )
         is OrderDialog.TablePicker ->
             TablePickerDialog(dialog.from, dialog.tables, onConfirm = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
         is OrderDialog.SoldOut -> SoldOutDialog(dialog.item, callbacks.onAvailability, callbacks.onDismiss)

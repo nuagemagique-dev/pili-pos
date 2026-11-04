@@ -339,6 +339,7 @@ async fn uc4112_weighed_product() {
         ScaleWeighInput {
             order_id,
             menu_item_id: 22005,
+            modifier_ids: Vec::new(),
         },
     )
     .await

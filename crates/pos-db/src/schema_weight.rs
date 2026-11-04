@@ -1,6 +1,7 @@
 //! Schema of the sale by weight (migration 80): which products a scale
 //! weighs, the weight and price on the order lines, and the local audit of
-//! what the scale said. Part of the certified binary on every installation.
+//! what the scale said; and the paid options of a weighed bowl (migration
+//! 81). Part of the certified binary on every installation.
 //!
 //! `fiscal_events` does not change: the archive already holds everything
 //! the FDM signs.
@@ -115,4 +116,21 @@ BEFORE DELETE ON owner_alert_log
 BEGIN
     SELECT RAISE(ABORT, 'owner_alert_log is append-only');
 END;
+";
+
+/// v81 - the options of a weighed bowl (a malatang bowl and its broth).
+///
+/// The bowl is a weighed line on its own; a paid option picked with it is a
+/// line of its own sold by the piece (FAQ Q201 b), linked to its bowl here so
+/// the screens, the kitchen slip and a refund keep them together. Local data,
+/// never in an FDM message. A row goes with its option line when the line is
+/// removed from an open order.
+pub(crate) const MIGRATION_081_BOWL_OPTIONS: &str = r"
+CREATE TABLE IF NOT EXISTS bowl_option_lines (
+    line_id INTEGER PRIMARY KEY,
+    bowl_line_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL REFERENCES orders(id),
+    CHECK (line_id <> bowl_line_id)
+);
+CREATE INDEX IF NOT EXISTS idx_bowl_option_lines_bowl ON bowl_option_lines(bowl_line_id);
 ";

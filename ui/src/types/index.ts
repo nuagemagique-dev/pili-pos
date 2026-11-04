@@ -177,6 +177,10 @@ export interface CartLine extends OrderLine {
   course: number
   /** `unsent`, `held` (waits for "Envoyer la suite") or `printed`. */
   kitchen_state: 'unsent' | 'held' | 'printed'
+  /** The weighed bowl this line is a paid option of (its broth): it follows the bowl. */
+  bowl_line_id?: number | null
+  /** The options picked with a weighed bowl, shown under it. */
+  bowl_options?: string[]
 }
 
 /** Why a manager gives a discount (audit only, never signed). */

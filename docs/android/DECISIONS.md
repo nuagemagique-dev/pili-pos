@@ -2336,3 +2336,10 @@ Checkout-Dialog 06. Design note: `docs/internal/design/BALANCE_DIBAL_FR.md`. Not
   no answer comes before a refused check, so a stale verdict never hides a dead link; a refused check has its own sentence
   (`check=refused` in the log). `owner_alert_log.kind` takes `scale` inside the still unreleased migration 80, by rebuilding
   the table with its rows and triggers. Nothing is sent without a `scale` section.
+- **WGT-D10 A bowl takes its options before the weighing.** A product sold by weight may have option groups (a malatang
+  bowl and its broth). The picks come first, then the weighing (`ScaleWeighInput.modifier_ids`), and the engine writes
+  the bowl and its options in one transaction: never a bowl without its broth. The bowl stays the weighed line on its
+  own (FAQ Q201 a); a paid option is a line of its own by the piece at the bowl's VAT (Q201 b), linked to the bowl in
+  `bowl_option_lines` (migration 81, local data); a free option stays in the bowl's `modifiers_json`. The option line
+  follows its bowl (no change, removal or course of its own, `bowl_option_fixed`), folds into the bowl's block on the
+  kitchen slip, and is refunded with the bowl only (`refund_bowl_whole`).

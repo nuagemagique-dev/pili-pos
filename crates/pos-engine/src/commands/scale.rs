@@ -8,6 +8,13 @@
 //! the usual path (P or N). Without a `scale` section in `pos.json` nothing
 //! here runs and a product sold by weight stays off sale.
 //!
+//! A product with options (a malatang bowl and its broth) takes them with
+//! the weighing, picked before the scale is asked: the bowl stays a weighed
+//! line on its own, each paid option becomes a line of its own sold by the
+//! piece and linked to its bowl (FAQ Q201 b, migration 81), and every option
+//! is kept on the bowl for the kitchen. All of it is written in the same
+//! transaction, so there is never a bowl without its broth.
+//!
 //! The protocol is `pos-scale`; decisions in
 //! `docs/internal/design/BALANCE_DIBAL_FR.md`.
 
@@ -40,6 +47,38 @@ impl std::fmt::Debug for ScaleSlot {
 pub struct ScaleWeighInput {
     pub order_id: i64,
     pub menu_item_id: i64,
+    /// The options picked for the product (its broth, its spice level),
+    /// checked against its option groups before the scale is asked.
+    #[serde(default)]
+    pub modifier_ids: Vec<i64>,
+}
+
+/// An option picked with a weighed product.
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct BowlOption {
+    pub id: i64,
+    pub name: String,
+    pub price_cents: i64,
+}
+
+/// The options `ids` names among the product's option groups, each group's
+/// count within its minimum and maximum (`modifiers::pick`).
+fn bowl_options(
+    db: &rusqlite::Connection,
+    menu_item_id: i64,
+    ids: &[i64],
+    lang: &str,
+) -> Result<Vec<BowlOption>, String> {
+    let groups = pos_db::queries::menu::get_modifier_groups(db, menu_item_id, lang)
+        .map_err(errors::internal)?;
+    Ok(super::modifiers::pick(&groups, ids)?
+        .into_iter()
+        .map(|p| BowlOption {
+            id: p.id,
+            name: p.name.to_string(),
+            price_cents: p.price_cents,
+        })
+        .collect())
 }
 
 /// How the scale is doing, for the header light and the order screen.
@@ -173,11 +212,11 @@ pub async fn do_scale_start_weighing(
     if driver.is_busy() {
         return Err(errors::SCALE_BUSY.into());
     }
-    let product = {
+    let (product, options) = {
         let db = state.db.lock().map_err(errors::internal)?;
         let order_type = check_order(&db, input.order_id)?;
         super::sold_out::refuse_if_sold_out(&db, input.menu_item_id)?;
-        pos_db::queries::menu::resolve_catalogue_line(
+        let product = pos_db::queries::menu::resolve_catalogue_line(
             &db,
             input.menu_item_id,
             pos_db::queries::menu::Service::from(order_type == OrderType::Takeaway),
@@ -189,7 +228,9 @@ pub async fn do_scale_start_weighing(
                 &[("product", &input.menu_item_id)],
             ),
             other => errors::internal(other),
-        })?
+        })?;
+        let options = bowl_options(&db, input.menu_item_id, &input.modifier_ids, lang)?;
+        (product, options)
     };
     if !product.sold_by_weight {
         return Err(errors::SCALE_NOT_SOLD_BY_WEIGHT.into());
@@ -219,6 +260,7 @@ pub async fn do_scale_start_weighing(
 
     let db = state.db.lock().map_err(errors::internal)?;
     check_order(&db, input.order_id)?;
+    let modifiers_json = options_json(&options)?;
     let tx = db.unchecked_transaction().map_err(errors::internal)?;
     let line = pos_db::queries::orders::add_weighed_order_line(
         &tx,
@@ -229,7 +271,7 @@ pub async fn do_scale_start_weighing(
             unit_price_cents: reading.unit_price_cents,
             vat_code: product.vat_code,
             name: &product.name,
-            modifiers_json: None,
+            modifiers_json: modifiers_json.as_deref(),
             department_id: &product.department_id,
             department_name: &product.department_name,
         },
@@ -253,8 +295,50 @@ pub async fn do_scale_start_weighing(
     )
     .map_err(errors::internal)?;
     super::courses::assign_new_line(&tx, line.id, line.order_id, line.menu_item_id)?;
+    add_bowl_options(&tx, &line, &product, &options)?;
     tx.commit().map_err(errors::internal)?;
     Ok(line)
+}
+
+/// The options picked with a weighed product as its line keeps them, or
+/// `None` without any.
+fn options_json(options: &[BowlOption]) -> Result<Option<String>, String> {
+    (!options.is_empty())
+        .then(|| serde_json::to_string(options))
+        .transpose()
+        .map_err(errors::internal)
+}
+
+/// The paid options of the weighed `bowl`: each a line of its own, by the
+/// piece, at the bowl's VAT (FAQ Q201 b), linked to the bowl and in its
+/// course. A free one (a spice level) stays on the bowl only.
+fn add_bowl_options(
+    tx: &rusqlite::Connection,
+    bowl: &OrderLine,
+    product: &pos_db::queries::menu::CatalogueLine,
+    options: &[BowlOption],
+) -> Result<(), String> {
+    for option in options.iter().filter(|o| o.price_cents > 0) {
+        let line = pos_db::queries::orders::add_order_line(
+            tx,
+            pos_db::queries::orders::NewOrderLine {
+                order_id: bowl.order_id,
+                menu_item_id: bowl.menu_item_id,
+                quantity: 1,
+                unit_price_cents: option.price_cents,
+                vat_code: product.vat_code,
+                name: &option.name,
+                modifiers_json: None,
+                department_id: &product.department_id,
+                department_name: &product.department_name,
+            },
+        )
+        .map_err(errors::internal)?;
+        pos_db::queries::bowls::link_option(tx, line.id, bowl.id, bowl.order_id)
+            .map_err(errors::internal)?;
+        super::courses::assign_new_line(tx, line.id, bowl.order_id, bowl.menu_item_id)?;
+    }
+    Ok(())
 }
 
 /// End the weighing in progress, if any: it answers `scale_cancelled` and

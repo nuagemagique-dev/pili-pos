@@ -8,6 +8,10 @@
 pub struct ScaleWeighInput {
     pub order_id: i64,
     pub menu_item_id: i64,
+    /// The options picked for the product (a bowl's broth), checked against its groups.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub modifier_ids: Vec<i64>,
 }
 
 /// `pos_engine::commands::scale::ScaleStatus`: how the scale is doing.

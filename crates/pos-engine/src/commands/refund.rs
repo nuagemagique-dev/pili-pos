@@ -308,6 +308,7 @@ pub(crate) async fn refund_sale(
                     let prior = already_refunded.get(bucket).copied().unwrap_or(0);
                     check_sold(&original_lines, bucket, quantity, prior)?;
                 }
+                bowls_go_back_whole(&db, &picked)?;
                 // A discount is spread over its lines: a part of one
                 // would refund a share nobody can tell. The whole sale
                 // can go back, each line with its own share negated.
@@ -656,6 +657,26 @@ fn exceeds_sold(product: i64, requested: i64, sold: i64, refunded: i64) -> Strin
 
 /// The original sale line `item` refunds: the line it names, else the
 /// product's line when it was sold at one price only.
+/// A weighed bowl goes back with its paid options (its broth), and an
+/// option with its bowl: neither is refunded alone (migration 81).
+fn bowls_go_back_whole(
+    db: &rusqlite::Connection,
+    picked: &[(i32, &pos_core::order::OrderLine)],
+) -> Result<(), String> {
+    let ids: std::collections::BTreeSet<i64> = picked.iter().map(|(_, l)| l.id).collect();
+    for (_, line) in picked {
+        let options = pos_db::queries::bowls::options_of(db, line.id).map_err(errors::internal)?;
+        let bowl = pos_db::queries::bowls::bowl_of(db, line.id).map_err(errors::internal)?;
+        if options.iter().any(|o| !ids.contains(o)) || bowl.is_some_and(|b| !ids.contains(&b)) {
+            return Err(errors::coded(
+                errors::REFUND_BOWL_WHOLE,
+                &[("product", &line.menu_item_id)],
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn original_line<'a>(
     original_lines: &'a [pos_core::order::OrderLine],
     item: &RefundItem,
