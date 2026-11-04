@@ -341,4 +341,17 @@
     <string name="gv_sell_title">出售礼品券</string>
     <string name="gv_sell_item">礼品券金额</string>
     <string name="gv_line_badge">券</string>
+    <string name="code_pad_toggle">编号点菜</string>
+    <string name="code_pad_placeholder">菜品编号</string>
+    <string name="code_pad_hint">输入编号，菜单随之筛选。× 设置份数。</string>
+    <string name="code_pad_multiplier">{n} 份：输入编号或点选菜品</string>
+    <string name="code_pad_results">{n} 个菜品：继续输入或点选</string>
+    <string name="code_pad_no_result">没有此编号的菜品</string>
+    <string name="code_pad_invalid">输入无效</string>
+    <string name="code_pad_unknown">未知编号：{code}</string>
+    <string name="code_pad_ambiguous">多个菜品使用编号 {code}</string>
+    <string name="code_pad_no_multiplier">此菜品只能逐份添加</string>
+    <string name="code_pad_quantity">份数</string>
+    <string name="code_pad_clear">清除</string>
+    <string name="code_pad_backspace">退格</string>
 </resources>

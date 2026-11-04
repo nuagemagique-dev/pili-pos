@@ -82,6 +82,10 @@ internal data class OrderCallbacks(
     val onSoldOutList: () -> Unit = {},
     /** A choice of the availability dialog, or the re-enable of the list. */
     val onAvailability: (menuItemId: Long, choice: SoldOutChoice) -> Unit = { _, _ -> },
+    /** The "Saisie code" button: the code pad is opened or closed. */
+    val onCodePadToggle: () -> Unit = {},
+    /** The keys of the code pad. */
+    val codePad: CodePadActions = CodePadActions(),
 )
 
 /**
@@ -108,7 +112,7 @@ internal fun OrderRoute(
     val callbacks =
         OrderCallbacks(
             onCategory = model::selectCategory,
-            onItem = model::addItem,
+            onItem = model::tapItem,
             onPrice = model::confirmPrice,
             onCancelWeighing = model::cancelWeighing,
             onPicks = model::confirmModifiers,
@@ -118,6 +122,14 @@ internal fun OrderRoute(
             onSoldOutMode = model::toggleSoldOutMode,
             onSoldOutList = model::openSoldOutList,
             onAvailability = model::setAvailability,
+            onCodePadToggle = model.codePad::toggle,
+            codePad =
+                CodePadActions(
+                    onKey = model.codePad::type,
+                    onBackspace = model.codePad::backspace,
+                    onClear = model.codePad::clear,
+                    onSubmit = model.codePad::submit,
+                ),
             onSellVoucher = model::askGiftVoucher,
             onVoucherAmount = model::confirmGiftVoucher,
             onCoursePick = model::pickCourse,
@@ -201,17 +213,29 @@ internal fun OrderContent(
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 CategoryTabs(menu.categories, menu.selectedCategoryId, menu.language, callbacks.onCategory)
                 if (menu.canSoldOut) SoldOutBar(menu.soldOutMode, menu.soldOut.size, callbacks.onSoldOutMode, callbacks.onSoldOutList)
-                AllergenBar(menu, callbacks.onAllergenMode, onSellVoucher = callbacks.onSellVoucher)
-                MenuGrid(
-                    items = menu.items,
-                    categoryColor = parseCategoryColor(color),
-                    cartQuantities = menu.cartQuantities,
-                    language = menu.language,
-                    labelMode = menu.labelMode,
-                    loaded = menu.loaded,
-                    onAdd = callbacks.onItem,
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                AllergenBar(
+                    menu,
+                    callbacks.onAllergenMode,
+                    onSellVoucher = callbacks.onSellVoucher,
+                    onCodePad = callbacks.onCodePadToggle,
                 )
+                Row(Modifier.weight(1f).fillMaxWidth()) {
+                    if (menu.codePad.open) CodePad(menu.codePad, callbacks.codePad)
+                    val results = menu.codePad.results
+                    MenuGrid(
+                        items = results ?: menu.items,
+                        categoryColor = if (results != null) null else parseCategoryColor(color),
+                        cartQuantities = menu.cartQuantities,
+                        language = menu.language,
+                        labelMode = menu.labelMode,
+                        loaded = menu.loaded,
+                        onAdd = callbacks.onItem,
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        columns = if (menu.codePad.open) GRID_COLUMNS_WITH_PAD else GRID_COLUMNS,
+                        highlightId = menu.codePad.pick?.id,
+                        emptyText = results?.let { vueText("code_pad_no_result") },
+                    )
+                }
             }
             OrderCartColumn(state.cart, cartActions, Modifier.width(PiliTheme.dimens.cartWidth).fillMaxHeight())
         }

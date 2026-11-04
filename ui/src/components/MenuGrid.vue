@@ -9,11 +9,20 @@ const {
   items,
   categoryColor = undefined,
   cartQuantities = undefined,
+  columns = 5,
+  highlightId = null,
+  emptyText = undefined,
 } = defineProps<{
   items: MenuItem[]
   categoryColor?: string | null
   /** Quantity already in the cart, per product id. */
   cartQuantities?: Map<number, number>
+  /** Buttons per row: 5, or 3 beside the code pad. */
+  columns?: number
+  /** The product OK of the code pad would add, ringed. */
+  highlightId?: number | null
+  /** Text of an empty grid (the code pad found nothing); "Aucun article" by default. */
+  emptyText?: string
 }>()
 
 const emit = defineEmits<{
@@ -25,17 +34,21 @@ const emit = defineEmits<{
   <!-- 5 columns (buttons ~230 × 120 px, above the §4.1 minimum of
        140 × 100; deliberate deviation from §3's 4 columns), vertical
        scroll with touch inertia. -->
-  <div class="menu-grid scroll-touch">
+  <div
+    class="menu-grid scroll-touch"
+    :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }"
+  >
     <MenuItemButton
       v-for="item in items"
       :key="item.id"
       :item="item"
       :category-color="categoryColor ?? undefined"
       :in-cart="cartQuantities?.get(item.id) ?? 0"
+      :highlighted="item.id === highlightId"
       @add="emit('addItem', $event)"
     />
     <div v-if="items.length === 0" class="empty">
-      {{ t('no_items') }}
+      {{ emptyText ?? t('no_items') }}
     </div>
   </div>
 </template>

@@ -341,4 +341,17 @@
     <string name="gv_sell_title">Vendre un bon cadeau</string>
     <string name="gv_sell_item">Montant du bon</string>
     <string name="gv_line_badge">Bon</string>
+    <string name="code_pad_toggle">Saisie code</string>
+    <string name="code_pad_placeholder">Code du plat</string>
+    <string name="code_pad_hint">Tapez le code, la grille se filtre. × pour une quantité.</string>
+    <string name="code_pad_multiplier">Quantité {n} : tapez un code ou touchez un plat</string>
+    <string name="code_pad_results">{n} plats : continuez ou touchez le bon</string>
+    <string name="code_pad_no_result">Aucun plat avec ce code</string>
+    <string name="code_pad_invalid">Saisie non comprise</string>
+    <string name="code_pad_unknown">Code inconnu : {code}</string>
+    <string name="code_pad_ambiguous">Plusieurs plats ont le code {code}</string>
+    <string name="code_pad_no_multiplier">Ce plat s\'ajoute un par un</string>
+    <string name="code_pad_quantity">Quantité</string>
+    <string name="code_pad_clear">Effacer</string>
+    <string name="code_pad_backspace">Retour arrière</string>
 </resources>

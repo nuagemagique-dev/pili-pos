@@ -341,4 +341,17 @@
     <string name="gv_sell_title">Sell a gift voucher</string>
     <string name="gv_sell_item">Voucher amount</string>
     <string name="gv_line_badge">Voucher</string>
+    <string name="code_pad_toggle">Code entry</string>
+    <string name="code_pad_placeholder">Dish code</string>
+    <string name="code_pad_hint">Type the code, the grid filters. × for a quantity.</string>
+    <string name="code_pad_multiplier">Quantity {n}: type a code or tap a dish</string>
+    <string name="code_pad_results">{n} dishes: keep typing or tap one</string>
+    <string name="code_pad_no_result">No dish with this code</string>
+    <string name="code_pad_invalid">Entry not understood</string>
+    <string name="code_pad_unknown">Unknown code: {code}</string>
+    <string name="code_pad_ambiguous">Several dishes have the code {code}</string>
+    <string name="code_pad_no_multiplier">This dish is added one at a time</string>
+    <string name="code_pad_quantity">Quantity</string>
+    <string name="code_pad_clear">Clear</string>
+    <string name="code_pad_backspace">Backspace</string>
 </resources>

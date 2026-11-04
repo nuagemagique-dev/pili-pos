@@ -20,9 +20,10 @@ internal sealed interface OrderDialog {
     /** Nothing is open. */
     data object None : OrderDialog
 
-    /** A free-price product waits for its price. */
+    /** A free-price product waits for its price; [quantity] comes from the code pad's multiplier. */
     data class Price(
         val item: MenuItem,
+        val quantity: Int = 1,
     ) : OrderDialog
 
     /** A product sold by weight is on the scale; [stage] is where the weighing stands. */
@@ -229,6 +230,8 @@ internal data class MenuState(
     val giftVouchersEnabled: Boolean = false,
     /** The legend could not be read (`allergens.error` of `OrderView.vue`), already turned into text. */
     val allergenLegendError: String? = null,
+    /** The code pad (order entry by menu code): open or not, the typed text, the menu read for the lookups. */
+    val codePad: CodePadState = CodePadState(),
 )
 
 /** What the order screen shows. */

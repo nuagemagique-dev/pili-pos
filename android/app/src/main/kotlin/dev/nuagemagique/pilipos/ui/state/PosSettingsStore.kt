@@ -56,6 +56,7 @@ class PosSettingsStore
         private val mutableTraining = MutableStateFlow(false)
         private val mutableLanguage = MutableStateFlow(AppLanguage.fromCode(prefs.getString(KEY_LANGUAGE, null)))
         private val mutableLabel = MutableStateFlow(ProductLabel.fromCode(prefs.getString(KEY_PRODUCT_LABEL, null)))
+        private val mutableCodePad = MutableStateFlow(prefs.getBoolean(KEY_CODE_PAD, false))
 
         /** The engine settings, null until the first fetch succeeded. */
         val settings: StateFlow<PosSettings?> = mutableSettings.asStateFlow()
@@ -68,6 +69,9 @@ class PosSettingsStore
 
         /** The title of the product tiles. */
         val productLabel: StateFlow<ProductLabel> = mutableLabel.asStateFlow()
+
+        /** The code pad of the order screen is open (`pili-pos-code-pad` of the Vue UI). */
+        val codePadOpen: StateFlow<Boolean> = mutableCodePad.asStateFlow()
 
         init {
             // Subscribed before any call (no replay): UNDISPATCHED registers the collector right here.
@@ -110,6 +114,12 @@ class PosSettingsStore
             prefs.edit().putString(KEY_PRODUCT_LABEL, label.code).apply()
         }
 
+        /** Opens or closes the code pad of the order screen and remembers it on this device. */
+        fun setCodePadOpen(open: Boolean) {
+            mutableCodePad.value = open
+            prefs.edit().putBoolean(KEY_CODE_PAD, open).apply()
+        }
+
         /** Takes [value] as the engine settings (also the seam of the tests that need a training till). */
         internal fun publish(value: PosSettings) {
             mutableSettings.value = value
@@ -120,5 +130,6 @@ class PosSettingsStore
             const val PREFS_FILE = "pili_ui"
             const val KEY_LANGUAGE = "language"
             const val KEY_PRODUCT_LABEL = "product_label"
+            const val KEY_CODE_PAD = "code_pad"
         }
     }

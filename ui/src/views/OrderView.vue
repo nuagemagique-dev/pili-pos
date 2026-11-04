@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMenuStore } from '../stores/menu'
 import { useOrderStore } from '../stores/order'
@@ -20,6 +20,17 @@ import AllergenSheetDialog from '../components/AllergenSheetDialog.vue'
 import { useAllergensStore } from '../stores/allergens'
 import { useGiftVouchersStore } from '../stores/giftVouchers'
 import type { MenuItem } from '../types'
+import CodePad from '../components/CodePad.vue'
+import {
+  codeLetters,
+  parseCodeEntry,
+  pickByCode,
+  searchByCode,
+  takesQuantity,
+  typedCode,
+  type CodePadTone,
+} from '../utils/codeEntry'
+import { formatPrice } from '../utils/format'
 
 const router = useRouter()
 const menu = useMenuStore()
@@ -28,6 +39,7 @@ const auth = useAuthStore()
 const { t } = useI18n()
 const allergens = useAllergensStore()
 const giftVouchers = useGiftVouchersStore()
+const pos = usePosStore()
 
 onMounted(async () => {
   if (!auth.currentUser) {
@@ -40,6 +52,7 @@ onMounted(async () => {
     await menu.loadItems(menu.selectedCategoryId)
   }
   if (auth.canTakePayment) await menu.loadSoldOut()
+  if (codePadOpen.value) await loadCodeItems()
   // Z-report reminder - check on mount + every 5 min.
   checkZReport()
   zCheckInterval = setInterval(checkZReport, 5 * 60 * 1000)
@@ -91,6 +104,7 @@ async function handleVoucherAmount(cents: number) {
 
 // Free-price product waiting for its price (PriceDialog open).
 const pricing = ref<MenuItem | null>(null)
+const pricingQuantity = ref(1)
 
 // Option picker for a product with option groups (from a mirrored catalog or made in the menu
 // editor); its own chunk.
@@ -118,7 +132,7 @@ async function toggleAllergenMode() {
   if (allergens.mode) soldOutMode.value = false
 }
 
-async function handleAddItem(item: MenuItem) {
+async function handleAddItem(item: MenuItem, quantity = 1) {
   if (soldOutMode.value) {
     soldOutItem.value = item
     return
@@ -140,6 +154,7 @@ async function handleAddItem(item: MenuItem) {
   }
   if (item.open_price) {
     pricing.value = item
+    pricingQuantity.value = quantity
     return
   }
   // The option picker opens for a product that has option groups (V11-D18), whoever manages the
@@ -148,11 +163,162 @@ async function handleAddItem(item: MenuItem) {
     choosing.value = item
     return
   }
-  await order.addItem(item)
+  await order.addItem(item, quantity)
+}
+
+// ── Order entry by menu code (the "KeyB" pad of Xudox) ──────────────
+// The pad stays open or closed per terminal, like the product label.
+const CODE_PAD_KEY = 'pili-pos-code-pad'
+
+function readCodePadFlag(): boolean {
+  try {
+    return localStorage.getItem(CODE_PAD_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const codePadOpen = ref(readCodePadFlag())
+const codeText = ref('')
+// What the last OK did or why it was refused, until the next key.
+const codeOutcome = ref<{ tone: CodePadTone; text: string } | null>(null)
+// Every product of the menu (all categories), for the lookups by code.
+const codeItems = ref<MenuItem[]>([])
+const codeKeys = computed(() => codeLetters(codeItems.value))
+
+async function loadCodeItems() {
+  try {
+    codeItems.value = await ipc.getMenuItems(undefined, pos.language)
+  } catch {
+    // The next OK reads them again.
+  }
+}
+
+async function toggleCodePad() {
+  codePadOpen.value = !codePadOpen.value
+  try {
+    localStorage.setItem(CODE_PAD_KEY, codePadOpen.value ? '1' : '0')
+  } catch {
+    // Remembering the pad is a convenience only.
+  }
+  codeText.value = ''
+  codeOutcome.value = null
+  if (codePadOpen.value) await loadCodeItems()
+}
+
+watch(codeText, () => {
+  codeOutcome.value = null
+})
+watch(
+  () => pos.language,
+  () => {
+    if (codePadOpen.value) void loadCodeItems()
+  },
+)
+
+function lineLabel(quantity: number, item: MenuItem): string {
+  return `${quantity} × ${item.name} · ${formatPrice(item.price_cents * quantity)} €`
+}
+
+const codeEntry = computed(() => parseCodeEntry(codeText.value))
+
+/** While a code is typed, the products whose code starts with it (all categories); null shows the category. */
+const codeResults = computed<MenuItem[] | null>(() => {
+  if (!codePadOpen.value) return null
+  const code = typedCode(codeEntry.value)
+  return code === null ? null : searchByCode(codeItems.value, code)
+})
+
+/** The product OK would add, highlighted in the results. */
+const codePick = computed<MenuItem | null>(() => {
+  const code = typedCode(codeEntry.value)
+  if (code === null) return null
+  const match = pickByCode(codeItems.value, code)
+  return match.kind === 'found' ? match.item : null
+})
+
+/** What OK would do with the typed text, shown under the field. */
+const codeMessage = computed<{ tone: CodePadTone; text: string }>(() => {
+  if (codeOutcome.value) return codeOutcome.value
+  const entry = codeEntry.value
+  if (entry.kind === 'empty') return { tone: 'hint', text: t('code_pad_hint') }
+  if (entry.kind === 'multiplier') {
+    return { tone: 'hint', text: t('code_pad_multiplier', { n: entry.quantity }) }
+  }
+  if (entry.kind === 'invalid') return { tone: 'error', text: t('code_pad_invalid') }
+  if (codePick.value) return { tone: 'match', text: lineLabel(entry.quantity, codePick.value) }
+  const n = codeResults.value?.length ?? 0
+  return n === 0
+    ? { tone: 'error', text: t('code_pad_no_result') }
+    : { tone: 'hint', text: t('code_pad_results', { n }) }
+})
+
+// No physical key reaches the pad while a dialog of the screen is open.
+const codePadListening = computed(
+  () =>
+    !pricing.value &&
+    !choosing.value &&
+    !soldOutItem.value &&
+    !showSoldOutList.value &&
+    !weighing.value &&
+    !sellingVoucher.value &&
+    !allergens.sheetItem,
+)
+
+function refuseCode(text: string) {
+  codeOutcome.value = { tone: 'error', text }
+}
+
+/** Adds [quantity] of [item] from the pad; the screen's rules (modes, sold out, dialogs) apply. */
+async function addFromPad(item: MenuItem, quantity: number) {
+  const modeTakesTap = soldOutMode.value || allergens.mode
+  if (!modeTakesTap && quantity > 1 && !takesQuantity(item)) {
+    refuseCode(t('code_pad_no_multiplier'))
+    return
+  }
+  if (!modeTakesTap && item.sold_out === true) {
+    refuseCode(t('err_product_sold_out'))
+    return
+  }
+  codeText.value = ''
+  await handleAddItem(item, modeTakesTap ? 1 : quantity)
+  const plain = !modeTakesTap && !item.open_price && takesQuantity(item)
+  if (plain) codeOutcome.value = { tone: 'done', text: `✓ ${lineLabel(quantity, item)}` }
+}
+
+/** OK on the pad: the exact code, else the only product starting with it. */
+async function submitCode() {
+  const entry = codeEntry.value
+  if (entry.kind === 'empty' || entry.kind === 'multiplier') return
+  if (entry.kind === 'invalid') {
+    refuseCode(t('code_pad_invalid'))
+    return
+  }
+  // Read again: the sold-out flags may have changed since the pad opened.
+  await loadCodeItems()
+  const match = pickByCode(codeItems.value, entry.code)
+  if (match.kind === 'unknown') refuseCode(t('code_pad_unknown', { code: entry.code }))
+  else if (match.kind === 'ambiguous') refuseCode(t('code_pad_ambiguous', { code: entry.code }))
+  else await addFromPad(match.item, entry.quantity)
+}
+
+/** A tap in the grid: the quantity on the pad ("3 ×", or "3 × A1" over the results) applies to it. */
+async function handleGridTap(item: MenuItem) {
+  const entry = codePadOpen.value ? codeEntry.value : null
+  if (entry?.kind === 'multiplier' || entry?.kind === 'add') {
+    await addFromPad(item, entry.quantity)
+    return
+  }
+  await handleAddItem(item)
+}
+
+/** A category tab leaves the results of a typed code. */
+async function selectCategory(id: number) {
+  if (typedCode(codeEntry.value) !== null) codeText.value = ''
+  await menu.selectCategory(id)
 }
 
 // Product on the scale: the dialog stays up until the engine has the line or a refusal.
-const pos = usePosStore()
 const weighing = ref<MenuItem | null>(null)
 
 async function weigh(item: MenuItem) {
@@ -169,7 +335,8 @@ async function weigh(item: MenuItem) {
 async function handlePriceConfirmed(priceCents: number) {
   const item = pricing.value
   pricing.value = null
-  if (item) await order.addItem(item, 1, priceCents)
+  if (item) await order.addItem(item, pricingQuantity.value, priceCents)
+  pricingQuantity.value = 1
 }
 </script>
 
@@ -191,7 +358,7 @@ async function handlePriceConfirmed(priceCents: number) {
         <CategoryTabs
           :categories="menu.categories"
           :selected-id="menu.selectedCategoryId"
-          @select="menu.selectCategory($event)"
+          @select="selectCategory($event)"
         />
         <div v-if="auth.canTakePayment" class="soldout-bar">
           <button
@@ -216,6 +383,15 @@ async function handlePriceConfirmed(priceCents: number) {
         </div>
         <!-- Allergen mode (EU Annex II): a tap on a product opens its sheet -->
         <div class="allergen-bar" data-testid="allergen-bar">
+          <button
+            class="allergen-toggle"
+            :class="{ on: codePadOpen }"
+            :aria-pressed="codePadOpen"
+            data-testid="code-pad-toggle"
+            @click="toggleCodePad"
+          >
+            {{ t('code_pad_toggle') }}
+          </button>
           <button
             class="allergen-toggle"
             :class="{ on: allergens.mode }"
@@ -254,12 +430,26 @@ async function handlePriceConfirmed(priceCents: number) {
             </ul>
           </template>
         </div>
-        <MenuGrid
-          :items="menu.items"
-          :category-color="selectedCategoryColor"
-          :cart-quantities="cartQuantities"
-          @add-item="handleAddItem"
-        />
+        <div class="menu-body">
+          <CodePad
+            v-if="codePadOpen"
+            v-model="codeText"
+            :letters="codeKeys"
+            :message="codeMessage.text"
+            :tone="codeMessage.tone"
+            :listening="codePadListening"
+            @submit="submitCode"
+          />
+          <MenuGrid
+            :items="codeResults ?? menu.items"
+            :category-color="codeResults ? null : selectedCategoryColor"
+            :cart-quantities="cartQuantities"
+            :columns="codePadOpen ? 3 : 5"
+            :highlight-id="codeResults ? (codePick?.id ?? null) : null"
+            :empty-text="codeResults ? t('code_pad_no_result') : undefined"
+            @add-item="handleGridTap"
+          />
+        </div>
       </div>
       <CartSidebar />
     </div>
@@ -415,6 +605,12 @@ async function handlePriceConfirmed(priceCents: number) {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: var(--font-weight-bold);
+}
+
+.menu-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
 
 .menu-section {
