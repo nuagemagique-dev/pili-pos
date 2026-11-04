@@ -181,6 +181,7 @@ fn legacy_item(quantity: i32, name: &str) -> pos_print::bar_ticket::BarItem {
         quantity,
         name: name.into(),
         note: None,
+        options: Vec::new(),
         course: None,
     }
 }

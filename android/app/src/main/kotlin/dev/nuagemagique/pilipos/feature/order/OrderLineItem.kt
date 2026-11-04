@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -69,7 +68,9 @@ private val Hairline = 1.dp
  * dialog; the note shows under the name in italics (`_kitchen_note`). A gift voucher line shows a badge instead of
  * the stepper (`_voucher`) and has no note, no offer and no course; with courses on, the course chip (`_course`) sits
  * under the name. A weighing shows its weight instead of the stepper (`_weight`) and its price per kilo under the name
- * (`_per_kilo`): to change it the line is removed and the product weighed again. Test tags: `cart_line_<id>`,
+ * (`_per_kilo`): to change it the line is removed and the product weighed again. A weighed bowl lists the options
+ * picked with it under its name; a paid option of a bowl (its broth) sits under the bowl with a "+" (`_bowl`) and no
+ * control of its own: it goes with the bowl. Test tags: `cart_line_<id>`,
  * `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`, `_notes`, `_kitchen_note`, `_course`, `_voucher`, `_amount`,
  * `_note`, `_remove`.
  */
@@ -106,13 +107,11 @@ internal fun OrderLineItem(
         ) {
             val voucher = row.line.departmentId == GIFT_VOUCHER_DEPARTMENT
             val weight = row.line.weightGrams
-            when {
-                voucher -> VoucherBadge(id)
-                weight != null -> WeightBadge(id, weight)
-                else -> QuantityStepper(id, row.line.quantity, actions)
-            }
+            val bowlOption = row.line.bowlLineId != null
+            LineLead(row, actions)
             Column(Modifier.weight(1f)) {
-                LineNames(id, names, lineNotes(row.line.modifiersJson), row.line.kitchenNote)
+                val notes = row.line.bowlOptions.joinToString(" · ").ifEmpty { lineNotes(row.line.modifiersJson) }
+                LineNames(id, names, notes, row.line.kitchenNote)
                 if (weight != null) {
                     Text(
                         text = formatCents(row.line.unitPriceCents) + " €/kg",
@@ -121,7 +120,7 @@ internal fun OrderLineItem(
                         modifier = Modifier.testTag("cart_line_${id}_per_kilo"),
                     )
                 }
-                if (state.coursesEnabled && !voucher) CourseChip(row.line, actions)
+                if (state.coursesEnabled && !voucher && !bowlOption) CourseChip(row.line, actions)
             }
             Text(
                 text = amountText(row.amount),
@@ -130,7 +129,7 @@ internal fun OrderLineItem(
                 maxLines = 1,
                 modifier = Modifier.testTag("cart_line_${id}_amount"),
             )
-            if (row.canNote && !voucher) {
+            if (row.canNote && !voucher && !bowlOption) {
                 PiliButton(
                     text = vueText("note_button"),
                     onClick = { actions.onNote(id) },
@@ -138,19 +137,9 @@ internal fun OrderLineItem(
                     modifier = Modifier.testTag("cart_line_${id}_note"),
                 )
             }
-            // Destructive: set apart by a rule, never where the minus is.
-            Box(
-                modifier =
-                    Modifier
-                        .padding(start = d.spaceSm)
-                        .drawBehind { drawRect(c.border, size = Size(Hairline.toPx(), size.height)) },
-            ) {
-                LineControl(
-                    icon = Icons.Filled.Close,
-                    description = vueText("line_remove"),
-                    enabled = true,
-                    modifier = Modifier.testTag("cart_line_${id}_remove"),
-                ) { actions.onRemove(id) }
+            // Destructive: set apart by a rule, never where the minus is. A bowl's option goes with its bowl.
+            if (!bowlOption) {
+                RemoveControl(id, actions)
             }
         }
         LineChanges(row, actions)
@@ -165,7 +154,7 @@ private fun LineChanges(
 ) {
     val changes = row.line.priceChanges
     // A gift voucher line is never discounted (`canOfferHere` of `OrderLineItem.vue`).
-    val canOffer = row.canOffer && row.line.departmentId != GIFT_VOUCHER_DEPARTMENT
+    val canOffer = row.canOffer && row.line.departmentId != GIFT_VOUCHER_DEPARTMENT && row.line.bowlLineId == null
     if (changes.isEmpty() && !canOffer && !row.canRemoveDiscount) return
     val c = PiliTheme.colors
     val t = PiliTheme.typography
@@ -204,7 +193,7 @@ private fun LineChanges(
 
 /** A gift voucher sold has a fixed quantity (one line per voucher): a badge replaces the stepper. Tag `cart_line_<id>_voucher`. */
 @Composable
-private fun VoucherBadge(id: Long) {
+internal fun VoucherBadge(id: Long) {
     val c = PiliTheme.colors
     val d = PiliTheme.dimens
     val t = PiliTheme.typography
@@ -226,7 +215,7 @@ private val VoucherBadgeWidth = 96.dp
 
 /** The minus, the quantity and the plus; the minus stops at 1. */
 @Composable
-private fun QuantityStepper(
+internal fun QuantityStepper(
     id: Long,
     quantity: Int,
     actions: OrderCartActions,
@@ -362,7 +351,7 @@ private const val CHIP_LOCKED_ALPHA = 0.55f
 
 /** A 48 dp touch target with an icon; [enabled] false draws it faded and not clickable. */
 @Composable
-private fun LineControl(
+internal fun LineControl(
     icon: ImageVector,
     description: String,
     enabled: Boolean,

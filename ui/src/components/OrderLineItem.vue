@@ -39,6 +39,10 @@ const isVoucher = computed(() => line.department_id === GIFT_VOUCHER_DEPARTMENT)
 /** A weighing: the scale gave the quantity, so it cannot be edited. To change
  * it the line is removed and the product weighed again. */
 const weight = computed(() => line.weight_grams ?? null)
+/** A paid option of a weighed bowl (its broth): it follows the bowl, no control of its own. */
+const isBowlOption = computed(() => line.bowl_line_id !== null && line.bowl_line_id !== undefined)
+/** The options picked with a weighed bowl ("Bouillon tomate · Piquant moyen"). */
+const bowlOptions = computed(() => (line.bowl_options ?? []).join(' · '))
 
 /** Notes on the line ("Sans sésame"), when the line carries any:
  * `modifiers_json` holds a string or a list of strings. */
@@ -56,8 +60,8 @@ const notes = computed(() => {
 
 const changes = computed(() => line.price_changes ?? [])
 /** A voucher line is never discounted and goes to no kitchen: no offer, no note. */
-const canOfferHere = computed(() => Boolean(canOffer) && !isVoucher.value)
-const canNoteHere = computed(() => Boolean(canNote) && !isVoucher.value)
+const canOfferHere = computed(() => Boolean(canOffer) && !isVoucher.value && !isBowlOption.value)
+const canNoteHere = computed(() => Boolean(canNote) && !isVoucher.value && !isBowlOption.value)
 const hasActions = computed(() => canOfferHere.value || canRemoveDiscount)
 
 const lineRef = ref<HTMLElement | null>(null)
@@ -77,9 +81,12 @@ defineExpose({
 
 <template>
   <!-- One 64 px row: quantity, names, price, delete (UX guide §4.1). -->
-  <div ref="lineRef" class="order-line" :class="{ pending }">
+  <div ref="lineRef" class="order-line" :class="{ pending, 'bowl-option': isBowlOption }">
     <div v-if="isVoucher" class="voucher-badge" data-testid="voucher-badge">
       {{ t('gv_line_badge') }}
+    </div>
+    <div v-else-if="isBowlOption" class="bowl-link" data-testid="bowl-option" aria-hidden="true">
+      +
     </div>
     <div v-else-if="weight !== null" class="weight-badge" data-testid="line-weight">
       {{ formatWeight(weight) }}
@@ -105,13 +112,16 @@ defineExpose({
       <span v-if="weight !== null" class="line-per-kilo" data-testid="line-per-kilo"
         >{{ formatPrice(line.unit_price_cents) }} €/kg</span
       >
+      <span v-if="bowlOptions" class="line-notes" data-testid="line-bowl-options">{{
+        bowlOptions
+      }}</span>
       <span v-if="notes" class="line-notes">{{ notes }}</span>
       <span v-if="line.kitchen_note" class="line-kitchen-note" data-testid="line-kitchen-note">{{
         line.kitchen_note
       }}</span>
       <!-- Course chip: tap opens the picker; locked once a slip carried the line. -->
       <button
-        v-if="showCourse && !isVoucher"
+        v-if="showCourse && !isVoucher && !isBowlOption"
         class="course-chip"
         :class="line.kitchen_state"
         :disabled="line.kitchen_state === 'printed'"
@@ -136,7 +146,12 @@ defineExpose({
     >
       {{ t('note_button') }}
     </button>
-    <button class="remove-btn" :aria-label="t('line_remove')" @click="emit('remove', line.id)">
+    <button
+      v-if="!isBowlOption"
+      class="remove-btn"
+      :aria-label="t('line_remove')"
+      @click="emit('remove', line.id)"
+    >
       <svg width="14" height="14" viewBox="0 0 14 14">
         <path
           d="M2 2l10 10M12 2L2 12"
@@ -204,6 +219,19 @@ defineExpose({
   font-size: 16px;
   font-weight: var(--font-weight-bold);
   text-align: center;
+}
+
+/* A bowl's paid option sits under its bowl, without controls. */
+.order-line.bowl-option {
+  min-height: 44px;
+  border-top: none;
+}
+.bowl-link {
+  min-width: 96px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
 }
 
 .weight-badge {

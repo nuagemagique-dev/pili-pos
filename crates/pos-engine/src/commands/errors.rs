@@ -383,6 +383,12 @@ pub const LINE_NEEDS_SCALE: &str = "line_needs_scale";
 pub const LINE_WEIGHED_FIXED: &str = "line_weighed_fixed";
 /// A weighed line is refunded whole.
 pub const REFUND_WEIGHED_LINE_WHOLE: &str = "refund_weighed_line_whole";
+/// A paid option of a weighed bowl (its broth) follows its bowl: no
+/// change, removal or course of its own (migration 81).
+pub const BOWL_OPTION_FIXED: &str = "bowl_option_fixed";
+/// A bowl and its paid options are refunded together:
+/// `refund_bowl_whole|product=<id>`.
+pub const REFUND_BOWL_WHOLE: &str = "refund_bowl_whole";
 pub const SCALE_NOT_CONFIGURED: &str = "scale_not_configured";
 pub const SCALE_NOT_SOLD_BY_WEIGHT: &str = "scale_not_sold_by_weight";
 pub const SCALE_BUSY: &str = "scale_busy";

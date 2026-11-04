@@ -1675,8 +1675,15 @@ export function getScaleStatus(): Promise<ScaleStatus> {
 }
 
 /** Weighs the product and adds the line; resolves once the load is stable. */
-export function scaleStartWeighing(orderId: number, menuItemId: number): Promise<OrderLine> {
-  return invoke('scale_start_weighing', { input: { order_id: orderId, menu_item_id: menuItemId } })
+/** Weigh a product sold by weight; `modifierIds` are the options picked first (a bowl's broth). */
+export function scaleStartWeighing(
+  orderId: number,
+  menuItemId: number,
+  modifierIds: number[] = [],
+): Promise<OrderLine> {
+  return invoke('scale_start_weighing', {
+    input: { order_id: orderId, menu_item_id: menuItemId, modifier_ids: modifierIds },
+  })
 }
 
 export function scaleCancelWeighing(): Promise<void> {

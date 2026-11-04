@@ -90,6 +90,19 @@ internal fun WeightBadge(
     )
 }
 
+/** Where a bowl's paid option (its broth) has its stepper: it follows the bowl (test tag `cart_line_<id>_bowl`). */
+@Composable
+internal fun BowlLink(id: Long) {
+    val t = PiliTheme.typography
+    Text(
+        text = "+",
+        style = t.figure.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
+        color = PiliTheme.colors.textSecondary,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.width(WeightBadgeWidth).testTag("cart_line_${id}_bowl"),
+    )
+}
+
 /**
  * A tap on a product sold by weight (`weigh` of `OrderView.vue`): the dialog stays up until the engine has the line or a
  * refusal. The store's lock is held during the weighing, so the taps behind it wait; the dialog covers the menu anyway.
@@ -102,18 +115,42 @@ internal class WeighFlow(
 ) {
     private var running = false
 
-    fun start(item: MenuItem) {
-        val language = entry.settings().language.value
-        if (entry.settings().settings.value?.scaleConfigured != true) {
+    /** A scale is configured; otherwise says so and the product stays off sale. */
+    fun ready(): Boolean {
+        val configured = entry.settings().settings.value?.scaleConfigured == true
+        if (!configured) {
+            val language = entry.settings().language.value
             entry.toasts().show(entry.catalog().text("err_scale_not_configured", language), ToastVariant.Error)
-            return
         }
-        if (running) return
+        return configured
+    }
+
+    /**
+     * A tap on [item]: without a scale it stays off sale; a bowl with options (its broth) asks for them first through
+     * [askOptions] and is weighed with them, so it never reaches the order without its broth.
+     */
+    fun tap(
+        item: MenuItem,
+        askOptions: () -> Unit,
+    ) {
+        when {
+            !ready() -> Unit
+            item.hasModifiers -> askOptions()
+            else -> start(item)
+        }
+    }
+
+    /** Weighs [item]; [modifierIds] are the options picked first (a bowl's broth), written with it by the engine. */
+    fun start(
+        item: MenuItem,
+        modifierIds: List<Long> = emptyList(),
+    ) {
+        if (!ready() || running) return
         running = true
         dialog { OrderDialog.Weighing(item) }
         scope.launch {
             entry.order().addLineWith(item, 1) { orderId ->
-                entry.gateway().call { engine -> engine.scaleStartWeighing(ScaleWeighInput(orderId, item.id)) }
+                entry.gateway().call { engine -> engine.scaleStartWeighing(ScaleWeighInput(orderId, item.id, modifierIds)) }
             }
             running = false
             dialog { if (it is OrderDialog.Weighing) OrderDialog.None else it }

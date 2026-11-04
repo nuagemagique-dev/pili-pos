@@ -1607,6 +1607,16 @@ const coreMessages: Messages = {
     en: 'A weighing is refunded whole.',
     zh: '称重商品须整笔退款。',
   },
+  err_bowl_option_fixed: {
+    fr: 'Ce supplément suit son bol : supprimez le bol pour le changer.',
+    en: 'This extra goes with its bowl: remove the bowl to change it.',
+    zh: '此附加项随碗一起：如需修改，请删除该碗。',
+  },
+  err_refund_bowl_whole: {
+    fr: 'Un bol se rembourse avec ses suppléments : cochez aussi son bouillon.',
+    en: 'A bowl is refunded with its extras: tick its broth too.',
+    zh: '碗须连同附加项一起退款：请同时勾选汤底。',
+  },
   err_scale_not_configured: {
     fr: "Aucune balance n'est configurée sur cette caisse.",
     en: 'No scale is configured on this till.',

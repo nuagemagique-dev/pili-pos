@@ -77,6 +77,8 @@ const selectedCategoryColor = computed(() => {
 const cartQuantities = computed(() => {
   const map = new Map<number, number>()
   for (const line of order.lines) {
+    // A bowl's paid option (its broth) is not one more bowl.
+    if (line.bowl_line_id !== null && line.bowl_line_id !== undefined) continue
     map.set(line.menu_item_id, (map.get(line.menu_item_id) ?? 0) + line.quantity)
   }
   return map
@@ -149,6 +151,13 @@ async function handleAddItem(item: MenuItem, quantity = 1) {
     return
   }
   if (item.sold_by_weight) {
+    if (!scaleReady()) return
+    // A bowl with options (its broth): picked first, then weighed with them,
+    // so the bowl never reaches the order without its broth.
+    if (item.has_modifiers) {
+      choosing.value = item
+      return
+    }
     await weigh(item)
     return
   }
@@ -321,14 +330,25 @@ async function selectCategory(id: number) {
 // Product on the scale: the dialog stays up until the engine has the line or a refusal.
 const weighing = ref<MenuItem | null>(null)
 
-async function weigh(item: MenuItem) {
-  if (!pos.settings?.scaleConfigured) {
-    useToastStore().show(t('err_scale_not_configured'), 'error', 4000)
-    return
-  }
+function scaleReady(): boolean {
+  if (pos.settings?.scaleConfigured === true) return true
+  useToastStore().show(t('err_scale_not_configured'), 'error', 4000)
+  return false
+}
+
+/** "Peser" in the option picker: the bowl being chosen, with its options. */
+async function weighChosen(modifierIds: number[]) {
+  const item = choosing.value
+  if (item) await weigh(item, modifierIds)
+}
+
+async function weigh(item: MenuItem, modifierIds: number[] = []) {
+  if (!scaleReady()) return
   if (weighing.value) return
   weighing.value = item
-  await order.addLineWith(item, 1, (orderId) => ipc.scaleStartWeighing(orderId, item.id))
+  await order.addLineWith(item, 1, (orderId) =>
+    ipc.scaleStartWeighing(orderId, item.id, modifierIds),
+  )
   weighing.value = null
 }
 
@@ -459,6 +479,8 @@ async function handlePriceConfirmed(priceCents: number) {
       v-if="choosing"
       :key="choosing.id"
       :item="choosing"
+      :for-weight="choosing.sold_by_weight === true"
+      @weigh="weighChosen"
       @done="choosing = null"
     />
 

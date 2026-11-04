@@ -176,6 +176,8 @@
     <string name="err_line_needs_scale">此商品按重量销售：必须通过电子秤称重。</string>
     <string name="err_line_weighed_fixed">称重结果不能修改：请删除该行并重新称重。</string>
     <string name="err_refund_weighed_line_whole">称重商品须整笔退款。</string>
+    <string name="err_bowl_option_fixed">此附加项随碗一起：如需修改，请删除该碗。</string>
+    <string name="err_refund_bowl_whole">碗须连同附加项一起退款：请同时勾选汤底。</string>
     <string name="err_scale_not_configured">此收银机未配置电子秤。</string>
     <string name="err_scale_not_sold_by_weight">此商品不按重量销售。</string>
     <string name="err_scale_busy">正在进行另一次称重。</string>

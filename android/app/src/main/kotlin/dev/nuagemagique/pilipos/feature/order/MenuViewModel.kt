@@ -79,6 +79,30 @@ private fun mayDiscount(
     lines: List<CartLine>,
 ): Boolean = manager && order?.status == OrderStatus.OPEN && lines.isNotEmpty() && lines.none { it.online }
 
+/** The menu half of the screen: the sold-out and voucher parts only for who may take a payment. */
+private fun menuState(
+    d: Data,
+    l: Look,
+    quantities: Map<Long, Int>,
+): MenuState =
+    MenuState(
+        categories = d.categories,
+        selectedCategoryId = d.selectedCategoryId,
+        items = d.items,
+        cartQuantities = quantities,
+        language = l.language,
+        labelMode = l.labelMode,
+        loaded = d.loaded,
+        canSoldOut = l.canPay,
+        soldOutMode = d.soldOutMode && l.canPay,
+        soldOut = if (l.canPay) d.soldOut else emptyList(),
+        allergenMode = d.allergenMode,
+        allergenLegend = d.allergenLegend,
+        giftVouchersEnabled = d.giftVouchersEnabled && l.canPay,
+        allergenLegendError = d.allergenLegendError,
+        codePad = d.codePad,
+    )
+
 /** Nothing read yet; the code pad keeps this device's choice (open or closed). */
 private fun freshData(settings: PosSettingsStore) = Data(codePad = CodePadState(open = settings.codePadOpen.value))
 
@@ -267,30 +291,6 @@ internal class MenuViewModel(
         return Courses(settings.enabled, if (settings.enabled) order.heldCourses.value.minOfOrNull { it.course } else null)
     }
 
-    /** The menu half of the screen: the sold-out and voucher parts only for who may take a payment. */
-    private fun menuState(
-        d: Data,
-        l: Look,
-        quantities: Map<Long, Int>,
-    ): MenuState =
-        MenuState(
-            categories = d.categories,
-            selectedCategoryId = d.selectedCategoryId,
-            items = d.items,
-            cartQuantities = quantities,
-            language = l.language,
-            labelMode = l.labelMode,
-            loaded = d.loaded,
-            canSoldOut = l.canPay,
-            soldOutMode = d.soldOutMode && l.canPay,
-            soldOut = if (l.canPay) d.soldOut else emptyList(),
-            allergenMode = d.allergenMode,
-            allergenLegend = d.allergenLegend,
-            giftVouchersEnabled = d.giftVouchersEnabled && l.canPay,
-            allergenLegendError = d.allergenLegendError,
-            codePad = d.codePad,
-        )
-
     @Suppress("LongParameterList")
     private fun build(
         d: Data,
@@ -305,7 +305,8 @@ internal class MenuViewModel(
         val lines = if (current != null) sharedLines else emptyList()
         val orderDiscounted = lines.any { line -> line.priceChanges.any { it.scope == SCOPE_EVENT } }
         val canDiscount = mayDiscount(l.isManager, current, lines)
-        val quantities = lines.groupingBy { it.menuItemId }.fold(0) { sum, line -> sum + line.quantity }
+        // A bowl's paid option (its broth) is not one more bowl.
+        val quantities = lines.filter { it.bowlLineId == null }.groupingBy { it.menuItemId }.fold(0) { sum, line -> sum + line.quantity }
         return OrderUiState(
             signedIn = l.signedIn,
             menu = menuState(d, l, quantities),
@@ -466,7 +467,8 @@ internal class MenuViewModel(
             data.value.allergenMode && !(data.value.soldOutMode && look.value.canPay) -> openAllergenSheet(item)
             // Only the order of the route takes products: while another one is current the menu does nothing.
             soldOutTap(item) || !isRouteOrderCurrent() -> Unit
-            item.soldByWeight -> weighing.start(item)
+            // A bowl with options (its broth): picked first, then weighed with them.
+            item.soldByWeight -> weighing.tap(item) { viewModelScope.launch { askModifiers(item) } }
             item.openPrice -> data.update { it.copy(dialog = OrderDialog.Price(item, quantity)) }
             // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
             else ->
@@ -503,10 +505,10 @@ internal class MenuViewModel(
         val language = settings.language.value
         attempt { gateway.call { engine -> engine.getItemModifiers(item.id, language.code) } }.fold(
             onSuccess = { groups ->
-                if (groups.isEmpty()) {
-                    order.addItem(item)
-                } else {
-                    data.update { it.copy(dialog = OrderDialog.Modifiers(item, groups)) }
+                when {
+                    groups.isNotEmpty() -> data.update { it.copy(dialog = OrderDialog.Modifiers(item, groups, item.soldByWeight)) }
+                    item.soldByWeight -> weighing.start(item)
+                    else -> order.addItem(item)
                 }
             },
             onFailure = { entry.errors().show(it, language) },
@@ -589,15 +591,19 @@ internal class MenuViewModel(
 
     /** The picks of the options dialog: the engine prices the options and names the line, only the ids go up. */
     fun confirmModifiers(modifierIds: List<Long>) {
-        val item = (data.value.dialog as? OrderDialog.Modifiers)?.item ?: return
+        val dialog = data.value.dialog as? OrderDialog.Modifiers ?: return
+        val item = dialog.item
         data.update { it.copy(dialog = OrderDialog.None) }
-        if (!isRouteOrderCurrent()) return
-        viewModelScope.launch {
-            order.addLineWith(item, 1) { orderId ->
-                gateway.call { engine ->
-                    engine.addOrderLineWithModifiers(AddWithModifiersInput(orderId, item.id, 1, modifierIds))
+        when {
+            !isRouteOrderCurrent() -> Unit
+            // A bowl: weighed with its picks, the engine writes its options with it.
+            dialog.forWeight -> weighing.start(item, modifierIds)
+            else ->
+                viewModelScope.launch {
+                    order.addLineWith(item, 1) { orderId ->
+                        gateway.call { engine -> engine.addOrderLineWithModifiers(AddWithModifiersInput(orderId, item.id, 1, modifierIds)) }
+                    }
                 }
-            }
         }
     }
 

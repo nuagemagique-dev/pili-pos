@@ -20,6 +20,9 @@ pub struct BarItem {
     /// The line's note for the kitchen ("sans wasabi"), printed under
     /// the item. Never an amount, never part of a fiscal record.
     pub note: Option<String>,
+    /// What goes with the item, printed under it: the options picked with a
+    /// weighed bowl ("Bouillon tomate", "Piquant moyen"). Never an amount.
+    pub options: Vec<String>,
     /// Course of the line (kitchen only): `Some` when the slip is
     /// grouped by course, a header is printed whenever it changes.
     /// `None` prints the slip as before courses existed.
@@ -126,6 +129,9 @@ pub fn format_bar_ticket(ticket: &BarTicket, paper: PaperWidth) -> Vec<u8> {
         });
         p.textln_wrapped(&format!("{} x {}", item.quantity, item.name));
         p.style_reset();
+        for option in &item.options {
+            indented_note(&mut p, "   + ", option);
+        }
         if let Some(note) = &item.note {
             indented_note(&mut p, "   > ", note);
         }
@@ -302,12 +308,14 @@ mod tests {
                     name: "Dry Martini".into(),
                     note: None,
                     course: None,
+                    options: Vec::new(),
                 },
                 BarItem {
                     quantity: 1,
                     name: "Plat du jour".into(),
                     note: None,
                     course: None,
+                    options: Vec::new(),
                 },
             ],
             lang,
@@ -355,6 +363,7 @@ mod tests {
             name: "Dry Martini".into(),
             note: None,
             course: None,
+            options: Vec::new(),
         }];
         assert!(text(&t).contains("-1 x Dry Martini"));
     }
@@ -471,6 +480,22 @@ mod tests {
         for line in de.lines() {
             assert!(line.chars().count() <= 48, "too wide: {line:?}");
         }
+    }
+
+    #[test]
+    fn a_bowl_prints_its_options_under_it_then_its_note() {
+        let mut t = ticket(ReceiptLanguage::Fr);
+        t.items[1].options = vec!["Bouillon tomate".into(), "Piquant moyen".into()];
+        t.items[1].note = Some("sans coriandre".into());
+        let out = text(&t);
+        let lines: Vec<&str> = out.lines().map(str::trim_end).collect();
+        let at = lines
+            .iter()
+            .position(|l| l.contains("1 x Plat du jour"))
+            .unwrap();
+        assert_eq!(lines[at + 1], "   + Bouillon tomate", "{out}");
+        assert_eq!(lines[at + 2], "   + Piquant moyen", "{out}");
+        assert_eq!(lines[at + 3], "   > sans coriandre", "{out}");
     }
 
     #[test]
@@ -677,24 +702,28 @@ mod tests {
                 name: "Sake".into(),
                 course: Some(0),
                 note: None,
+                options: Vec::new(),
             },
             BarItem {
                 quantity: 1,
                 name: "Salade".into(),
                 course: Some(1),
                 note: None,
+                options: Vec::new(),
             },
             BarItem {
                 quantity: 3,
                 name: "Maki".into(),
                 course: Some(1),
                 note: None,
+                options: Vec::new(),
             },
             BarItem {
                 quantity: 1,
                 name: "Mochi".into(),
                 course: Some(3),
                 note: None,
+                options: Vec::new(),
             },
         ];
         t

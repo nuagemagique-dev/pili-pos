@@ -107,6 +107,7 @@ async fn weigh(app: &TestApp, order_id: i64) -> Result<pos_core::order::OrderLin
         ScaleWeighInput {
             order_id,
             menu_item_id: BOWL,
+            modifier_ids: Vec::new(),
         },
     )
     .await
@@ -191,6 +192,7 @@ async fn a_product_sold_by_weight_never_comes_from_the_screen() {
         ScaleWeighInput {
             order_id,
             menu_item_id: SOUP,
+            modifier_ids: Vec::new(),
         },
     )
     .await
@@ -951,4 +953,227 @@ async fn an_installation_without_a_scale_signs_pieces_only() {
     assert_eq!(product["quantityType"], "PIECE");
     assert_eq!(product["quantity"], serde_json::json!(2.0));
     assert_eq!(weighings(&app), Vec::<(i64, i64, i64, Option<i64>)>::new());
+}
+
+// ── A malatang bowl and its broth (migration 81) ─────────────────
+
+const BROTH_GROUP: i64 = 70;
+const SPICE_GROUP: i64 = 71;
+const TOMATO: i64 = 701;
+const CLEAR: i64 = 702;
+const MEDIUM: i64 = 711;
+
+/// The bowl takes one broth (tomato 1,50, clear free) and maybe a spice level (free).
+fn give_broths(app: &TestApp) {
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch(&format!(
+            "INSERT INTO modifier_groups (id, menu_item_id, min_select, max_select, sort_order)
+                VALUES ({BROTH_GROUP}, {BOWL}, 1, 1, 0), ({SPICE_GROUP}, {BOWL}, 0, 1, 1);
+             INSERT INTO modifiers (id, group_id, price_cents, sort_order) VALUES
+                ({TOMATO}, {BROTH_GROUP}, 150, 0), ({CLEAR}, {BROTH_GROUP}, 0, 1),
+                ({MEDIUM}, {SPICE_GROUP}, 0, 0);
+             INSERT INTO translations (entity_type, entity_id, field, lang, value) VALUES
+                ('modifier_group', {BROTH_GROUP}, 'name', 'fr', 'Bouillon'),
+                ('modifier_group', {SPICE_GROUP}, 'name', 'fr', 'Piquant'),
+                ('modifier', {TOMATO}, 'name', 'fr', 'Bouillon tomate'),
+                ('modifier', {CLEAR}, 'name', 'fr', 'Bouillon clair'),
+                ('modifier', {MEDIUM}, 'name', 'fr', 'Piquant moyen');"
+        ))
+        .unwrap();
+}
+
+async fn weigh_bowl(
+    app: &TestApp,
+    order_id: i64,
+    modifier_ids: Vec<i64>,
+) -> Result<pos_core::order::OrderLine, String> {
+    do_scale_start_weighing(
+        &app.state,
+        ScaleWeighInput {
+            order_id,
+            menu_item_id: BOWL,
+            modifier_ids,
+        },
+    )
+    .await
+}
+
+#[tokio::test]
+async fn a_bowl_with_a_paid_broth_is_two_lines_linked_together() {
+    let (app, scale) = app_with_scale().await;
+    give_broths(&app);
+    let order_id = order(&app);
+    scale.load(612);
+    let bowl = weigh_bowl(&app, order_id, vec![MEDIUM, TOMATO])
+        .await
+        .unwrap();
+
+    // The bowl stays the weighed line, named after the product alone.
+    assert_eq!(bowl.name, "Bol malatang sur place");
+    assert_eq!(bowl.weighed_amount_cents, Some(1218));
+    assert_eq!(order_total(&app, order_id), 1218 + 150);
+
+    let cart = pos_engine::commands::order::do_list_cart_lines(&app.state, order_id).unwrap();
+    assert_eq!(cart.len(), 2);
+    assert_eq!(
+        cart[0].bowl_options,
+        vec!["Bouillon tomate".to_string(), "Piquant moyen".to_string()]
+    );
+    assert_eq!(cart[0].bowl_line_id, None);
+    assert_eq!(cart[1].line.name, "Bouillon tomate");
+    assert_eq!(cart[1].line.unit_price_cents, 150);
+    assert_eq!(cart[1].line.weight_grams, None);
+    assert_eq!(cart[1].bowl_line_id, Some(bowl.id));
+
+    // Signed: the bowl in kilograms, the broth by the piece (FAQ Q201 b).
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let event = app.fiscal_events().pop().unwrap();
+    let data: serde_json::Value = serde_json::from_str(&event.event_data_json.unwrap()).unwrap();
+    let lines = data["transaction"]["transactionLines"].as_array().unwrap();
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0]["mainProduct"]["quantityType"], "KILOGRAM");
+    assert_eq!(lines[1]["mainProduct"]["quantityType"], "PIECE");
+    assert_eq!(lines[1]["mainProduct"]["quantity"], serde_json::json!(1.0));
+    assert_eq!(
+        lines[1]["mainProduct"]["vats"][0]["price"],
+        serde_json::json!(1.5)
+    );
+}
+
+#[tokio::test]
+async fn a_free_broth_stays_on_the_bowl_and_a_missing_one_weighs_nothing() {
+    let (app, scale) = app_with_scale().await;
+    give_broths(&app);
+    let order_id = order(&app);
+    scale.load(612);
+
+    // The broth group asks for one: refused before the scale is asked.
+    let refused = weigh_bowl(&app, order_id, vec![MEDIUM]).await.unwrap_err();
+    assert!(
+        refused.starts_with(errors::hubrise::MODIFIER_COUNT),
+        "{refused}"
+    );
+    assert_eq!(scale.state().weighings, 0);
+
+    weigh_bowl(&app, order_id, vec![CLEAR]).await.unwrap();
+    let cart = pos_engine::commands::order::do_list_cart_lines(&app.state, order_id).unwrap();
+    assert_eq!(cart.len(), 1);
+    assert_eq!(cart[0].bowl_options, vec!["Bouillon clair".to_string()]);
+    assert_eq!(order_total(&app, order_id), 1218);
+}
+
+#[tokio::test]
+async fn the_broth_follows_its_bowl() {
+    let (app, scale) = app_with_scale().await;
+    give_broths(&app);
+    let order_id = order(&app);
+    scale.load(612);
+    let bowl = weigh_bowl(&app, order_id, vec![TOMATO]).await.unwrap();
+    let broth = pos_engine::commands::order::do_list_cart_lines(&app.state, order_id).unwrap()[1]
+        .line
+        .id;
+
+    assert_eq!(
+        do_remove_order_line(&app.state, broth).unwrap_err(),
+        errors::BOWL_OPTION_FIXED
+    );
+    assert_eq!(
+        do_update_order_line_quantity(&app.state, broth, 2).unwrap_err(),
+        errors::BOWL_OPTION_FIXED
+    );
+
+    do_remove_order_line(&app.state, bowl.id).unwrap();
+    assert!(
+        pos_engine::commands::order::do_list_cart_lines(&app.state, order_id)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(order_total(&app, order_id), 0);
+    let links: i64 = app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .query_row("SELECT COUNT(*) FROM bowl_option_lines", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(links, 0);
+}
+
+#[tokio::test]
+async fn the_kitchen_gets_one_block_per_bowl() {
+    let (app, scale) = app_with_scale().await;
+    give_broths(&app);
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    let order_id = order(&app);
+    scale.load(612);
+    weigh_bowl(&app, order_id, vec![TOMATO, MEDIUM])
+        .await
+        .unwrap();
+    scale.load(0);
+    scale.load(480);
+    weigh_bowl(&app, order_id, vec![CLEAR]).await.unwrap();
+
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    assert_eq!(result.kitchen_slip, Some(SlipOutcome::Printed));
+    let slip = &printer.settle_slips(1).await[0];
+    // In this order: each bowl, then what goes with it.
+    let mut from = 0;
+    for part in [
+        "1 x Bol malatang",
+        "+ Bouillon tomate",
+        "+ Piquant moyen",
+        "1 x Bol malatang",
+        "+ Bouillon clair",
+    ] {
+        from += slip[from..]
+            .find(part)
+            .unwrap_or_else(|| panic!("{part} after {from}: {slip}"))
+            + part.len();
+    }
+    // The paid broth is not a dish of its own.
+    assert!(!slip.contains("x Bouillon"), "{slip}");
+}
+
+#[tokio::test]
+async fn a_bowl_is_refunded_with_its_broth() {
+    let (app, scale) = app_with_scale().await;
+    give_broths(&app);
+    let order_id = order(&app);
+    scale.load(612);
+    weigh_bowl(&app, order_id, vec![TOMATO]).await.unwrap();
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let lines = {
+        let db = app.state.db.lock().unwrap();
+        pos_db::queries::orders::get_order_lines(&db, order_id).unwrap()
+    };
+    let item = |line_id| RefundItem {
+        menu_item_id: BOWL,
+        line_id: Some(line_id),
+        quantity: 1,
+    };
+    let sale = sale_event(&app);
+    let refund =
+        |items: Vec<RefundItem>| do_refund_checkout(&app.state, sale, items, OPERATOR.to_string());
+
+    for alone in [lines[0].id, lines[1].id] {
+        let refused = refund(vec![item(alone)]).await.unwrap_err();
+        assert!(refused.starts_with(errors::REFUND_BOWL_WHOLE), "{refused}");
+    }
+    let done = refund(vec![item(lines[0].id), item(lines[1].id)])
+        .await
+        .unwrap();
+    assert!(done.success, "{:?}", done.error);
 }

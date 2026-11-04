@@ -35,6 +35,7 @@ import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.PiliDialog
 import dev.nuagemagique.pilipos.ui.components.tapScale
+import dev.nuagemagique.pilipos.ui.format.formatCents
 import dev.nuagemagique.pilipos.ui.format.formatEuro
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -103,7 +104,8 @@ private fun ruleText(group: ModifierGroup): String {
  * The option picker of a product (`ModifierDialog.vue`): the groups of the mirrored catalog, a group with a maximum
  * of one being a single choice. The product price and the price of each option are shown as they are; no total is
  * computed (PD208, PD219), the engine prices the line. Confirm is enabled when every group is within its limits and
- * calls [onConfirm] with the picked option ids.
+ * calls [onConfirm] with the picked option ids. With [forWeight] (a product sold by weight, a malatang bowl and its
+ * broth) the price shown is per kilo and confirm reads "Peser": the bowl is weighed with the picks.
  *
  * Test tags: `modifier_dialog` (root), `modifier_group_<id>`, `modifier_option_<id>`, `modifier_confirm`,
  * `modifier_cancel`.
@@ -115,6 +117,7 @@ internal fun ModifierDialog(
     onConfirm: (List<Long>) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    forWeight: Boolean = false,
 ) {
     val c = PiliTheme.colors
     val d = PiliTheme.dimens
@@ -133,14 +136,18 @@ internal fun ModifierDialog(
                     modifier = Modifier.testTag("modifier_cancel"),
                 )
                 PiliButton(
-                    text = vueText("modifier_add"),
+                    text = vueText(if (forWeight) "modifier_weigh" else "modifier_add"),
                     onClick = { if (valid) onConfirm(picks.ids.toList()) },
                     enabled = valid,
                     modifier = Modifier.testTag("modifier_confirm"),
                 )
             },
         ) {
-            Text(formatEuro(item.priceCents), style = PiliTheme.typography.figure, color = c.textSecondary)
+            Text(
+                if (forWeight) vueText("modifier_per_kilo", "price" to formatCents(item.priceCents)) else formatEuro(item.priceCents),
+                style = PiliTheme.typography.figure,
+                color = c.textSecondary,
+            )
             Column(
                 modifier = Modifier.fillMaxWidth().heightIn(max = GroupsMaxHeight).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(d.spaceMd),

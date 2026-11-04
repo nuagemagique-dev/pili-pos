@@ -133,6 +133,43 @@ class OrderItemFlowTest {
         }
 
     @Test
+    fun aBowlWithOptionsAsksForItsBrothThenWeighsWithIt() =
+        runTest {
+            val r = ready(OrderWorld(hubrise = true))
+            r.settings.publish(posSettings().copy(scaleConfigured = true))
+            val malatang = bowl.copy(hasModifiers = true)
+            coEvery { r.f.engine.getItemModifiers(70L, any()) } returns sauces
+            val input = slot<ScaleWeighInput>()
+            coEvery { r.f.engine.scaleStartWeighing(capture(input)) } returns orderLine(70)
+
+            r.model.addItem(malatang)
+            runCurrent()
+            assertEquals(OrderDialog.Modifiers(malatang, sauces, forWeight = true), r.state.dialog)
+            coVerify(exactly = 0) { r.f.engine.scaleStartWeighing(any()) }
+
+            r.model.confirmModifiers(listOf(100L))
+            runCurrent()
+
+            assertEquals(listOf(100L), input.captured.modifierIds)
+            assertEquals(70L, input.captured.menuItemId)
+            assertEquals(OrderDialog.None, r.state.dialog)
+            coVerify(exactly = 0) { r.f.engine.addOrderLineWithModifiers(any()) }
+        }
+
+    @Test
+    fun aBowlWithOptionsIsNotOfferedWithoutAScale() =
+        runTest {
+            val r = ready(OrderWorld(hubrise = true))
+
+            r.model.addItem(bowl.copy(hasModifiers = true))
+            runCurrent()
+
+            assertEquals(OrderDialog.None, r.state.dialog)
+            assertEquals(1, r.toasts.toasts.value.size)
+            coVerify(exactly = 0) { r.f.engine.getItemModifiers(any(), any()) }
+        }
+
+    @Test
     fun aRefusalOfTheScaleClosesTheDialogAndAddsNothing() =
         runTest {
             val r = ready()

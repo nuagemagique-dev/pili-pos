@@ -155,6 +155,14 @@ pub struct CartLine {
     pub course: i32,
     /// `unsent`, `held` (waits for "Envoyer la suite") or `printed`.
     pub kitchen_state: String,
+    /// The weighed bowl this line is a paid option of (its broth): it follows the bowl.
+    #[serde(default)]
+    #[uniffi(default = None)]
+    pub bowl_line_id: Option<i64>,
+    /// The options picked with a weighed bowl, shown under it.
+    #[serde(default)]
+    #[uniffi(default = [])]
+    pub bowl_options: Vec<String>,
 }
 
 /// `pos_db::queries::orders::CartPriceChange`: a price change on a cart line.

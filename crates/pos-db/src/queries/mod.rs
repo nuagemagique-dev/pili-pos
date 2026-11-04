@@ -1,6 +1,7 @@
 pub mod allergens;
 pub mod badges;
 pub mod booking;
+pub mod bowls;
 pub mod courses;
 pub mod deliveries;
 pub mod eft;

@@ -127,4 +127,6 @@
     <string name="modifier_up_to">Jusqu\'à {max}</string>
     <string name="modifier_optional">Facultatif</string>
     <string name="modifier_add">Ajouter</string>
+    <string name="modifier_weigh">Peser</string>
+    <string name="modifier_per_kilo">{price} € / kg</string>
 </resources>

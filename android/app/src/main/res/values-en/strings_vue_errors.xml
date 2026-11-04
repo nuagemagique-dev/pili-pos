@@ -176,6 +176,8 @@
     <string name="err_line_needs_scale">This product is sold by weight: it goes through the scale.</string>
     <string name="err_line_weighed_fixed">A weighing cannot change: remove the line and weigh again.</string>
     <string name="err_refund_weighed_line_whole">A weighing is refunded whole.</string>
+    <string name="err_bowl_option_fixed">This extra goes with its bowl: remove the bowl to change it.</string>
+    <string name="err_refund_bowl_whole">A bowl is refunded with its extras: tick its broth too.</string>
     <string name="err_scale_not_configured">No scale is configured on this till.</string>
     <string name="err_scale_not_sold_by_weight">This product is not sold by weight.</string>
     <string name="err_scale_busy">A weighing is already in progress.</string>

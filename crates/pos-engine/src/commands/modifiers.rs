@@ -40,10 +40,10 @@ pub struct AddWithModifiersInput {
 
 /// An option as the line records it (`modifiers_json`).
 #[derive(Debug, Serialize)]
-struct Picked<'a> {
-    id: i64,
-    name: &'a str,
-    price_cents: i64,
+pub(crate) struct Picked<'a> {
+    pub id: i64,
+    pub name: &'a str,
+    pub price_cents: i64,
 }
 
 /// Add a product with its options: each group's choice count within
@@ -126,7 +126,10 @@ pub fn do_add_order_line_with_modifiers(
 
 /// The options `ids` names, in the menu's order, checked against the
 /// product's groups.
-fn pick<'a>(groups: &'a [ModifierGroup], ids: &[i64]) -> Result<Vec<Picked<'a>>, String> {
+pub(crate) fn pick<'a>(
+    groups: &'a [ModifierGroup],
+    ids: &[i64],
+) -> Result<Vec<Picked<'a>>, String> {
     let mut seen = std::collections::HashSet::new();
     for id in ids {
         let known = groups.iter().any(|g| g.options.iter().any(|o| o.id == *id));
