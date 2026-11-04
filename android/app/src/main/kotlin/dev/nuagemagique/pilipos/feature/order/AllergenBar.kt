@@ -34,8 +34,9 @@ private val LegendBadge = 20.dp
 
 /**
  * The allergen strip above the products (`allergen-bar` of `OrderView.vue`): the "Allergènes" toggle and, while the
- * mode is on, the hint and the legend of the 14 numbers, and, with gift vouchers on, the "Bon cadeau" button. Test
- * tags: `allergen_mode`, `gift_voucher_sell`, `allergen_legend`, `allergen_legend_<n>`, `allergen_legend_error`.
+ * mode is on, the hint and the legend of the 14 numbers, and, with gift vouchers on, the "Bon cadeau" button. The
+ * "Saisie code" toggle of the code pad comes first.
+ * Test tags: `code_pad_toggle`, `allergen_mode`, `gift_voucher_sell`, `allergen_legend`, `allergen_legend_<n>`, `allergen_legend_error`.
  */
 @Composable
 internal fun AllergenBar(
@@ -43,6 +44,7 @@ internal fun AllergenBar(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
     onSellVoucher: (() -> Unit)? = null,
+    onCodePad: (() -> Unit)? = null,
 ) {
     val c = PiliTheme.colors
     val d = PiliTheme.dimens
@@ -54,6 +56,7 @@ internal fun AllergenBar(
         verticalArrangement = Arrangement.spacedBy(d.spaceSm),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
+        if (onCodePad != null) CodePadToggle(menu.codePad.open, onCodePad)
         Text(
             text = vueText("allergens_mode"),
             style = t.body.copy(fontWeight = t.weightBold),
@@ -129,5 +132,31 @@ private fun SellVoucherButton(onClick: () -> Unit) {
                 .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
                 .padding(horizontal = 18.dp, vertical = 10.dp)
                 .testTag("gift_voucher_sell"),
+    )
+}
+
+/** The "Saisie code" toggle of the bar above the products (`code-pad-toggle` of `OrderView.vue`). Test tag `code_pad_toggle`. */
+@Composable
+internal fun CodePadToggle(
+    open: Boolean,
+    onToggle: () -> Unit,
+) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    val source = remember { MutableInteractionSource() }
+    Text(
+        text = vueText("code_pad_toggle"),
+        style = t.body.copy(fontWeight = t.weightBold),
+        color = if (open) c.selectedFg else c.textPrimary,
+        modifier =
+            Modifier
+                .heightIn(min = ToggleHeight)
+                .tapScale(source)
+                .background(if (open) c.selectedBg else c.bgSurface, RoundedCornerShape(d.radiusMd))
+                .clickable(interactionSource = source, indication = null, role = Role.Switch, onClick = onToggle)
+                .semantics { selected = open }
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .testTag("code_pad_toggle"),
     )
 }

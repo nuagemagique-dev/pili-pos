@@ -558,6 +558,19 @@ internal object VueStringIds {
         this["gv_sell_title"] = R.string.gv_sell_title
         this["gv_sell_item"] = R.string.gv_sell_item
         this["gv_line_badge"] = R.string.gv_line_badge
+        this["code_pad_toggle"] = R.string.code_pad_toggle
+        this["code_pad_placeholder"] = R.string.code_pad_placeholder
+        this["code_pad_hint"] = R.string.code_pad_hint
+        this["code_pad_multiplier"] = R.string.code_pad_multiplier
+        this["code_pad_results"] = R.string.code_pad_results
+        this["code_pad_no_result"] = R.string.code_pad_no_result
+        this["code_pad_invalid"] = R.string.code_pad_invalid
+        this["code_pad_unknown"] = R.string.code_pad_unknown
+        this["code_pad_ambiguous"] = R.string.code_pad_ambiguous
+        this["code_pad_no_multiplier"] = R.string.code_pad_no_multiplier
+        this["code_pad_quantity"] = R.string.code_pad_quantity
+        this["code_pad_clear"] = R.string.code_pad_clear
+        this["code_pad_backspace"] = R.string.code_pad_backspace
         this["method_cash"] = R.string.method_cash
         this["method_card"] = R.string.method_card
         this["method_meal_voucher"] = R.string.method_meal_voucher
@@ -759,6 +772,9 @@ internal object VueStringIds {
         this["reports_tab_vouchers"] = R.string.reports_tab_vouchers
         this["gv_lookup_title"] = R.string.gv_lookup_title
         this["gv_list_title"] = R.string.gv_list_title
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["gv_filter_all"] = R.string.gv_filter_all
         this["gv_empty"] = R.string.gv_empty
         this["gv_face"] = R.string.gv_face
@@ -772,9 +788,6 @@ internal object VueStringIds {
         this["gv_disabled_note"] = R.string.gv_disabled_note
         this["settings_training_on"] = R.string.settings_training_on
         this["settings_training_off"] = R.string.settings_training_off
-    }
-
-    private fun MutableMap<String, Int>.part3() {
         this["settings_training_effect"] = R.string.settings_training_effect
         this["settings_lang_name_fr"] = R.string.settings_lang_name_fr
         this["settings_lang_name_zh"] = R.string.settings_lang_name_zh
@@ -1012,6 +1025,9 @@ internal object VueStringIds {
         this["webshop_action_accept"] = R.string.webshop_action_accept
         this["webshop_action_prepare"] = R.string.webshop_action_prepare
         this["webshop_action_ready"] = R.string.webshop_action_ready
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["webshop_action_out_for_delivery"] = R.string.webshop_action_out_for_delivery
         this["webshop_action_complete"] = R.string.webshop_action_complete
         this["webshop_action_reject"] = R.string.webshop_action_reject
@@ -1025,9 +1041,6 @@ internal object VueStringIds {
         this["status_orders"] = R.string.status_orders
         this["hubrise_section_help"] = R.string.hubrise_section_help
         this["hubrise_status_label"] = R.string.hubrise_status_label
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["hubrise_connected"] = R.string.hubrise_connected
         this["hubrise_disconnected"] = R.string.hubrise_disconnected
         this["hubrise_account_label"] = R.string.hubrise_account_label

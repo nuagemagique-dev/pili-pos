@@ -10,11 +10,14 @@ const {
   item,
   categoryColor = undefined,
   inCart = undefined,
+  highlighted = false,
 } = defineProps<{
   item: MenuItem
   categoryColor?: string
   /** Quantity of this product already in the cart (badge when > 0). */
   inCart?: number
+  /** The product the code pad's OK would add: ringed. */
+  highlighted?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -48,7 +51,7 @@ function handleTap() {
   <button
     ref="btnRef"
     class="item-btn"
-    :class="{ 'sold-out': item.sold_out }"
+    :class="{ 'sold-out': item.sold_out, highlighted }"
     :style="categoryColor ? { borderLeftColor: categoryColor } : undefined"
     @click="handleTap"
   >
@@ -68,6 +71,10 @@ function handleTap() {
 </template>
 
 <style scoped>
+.item-btn.highlighted {
+  box-shadow: inset 0 0 0 3px var(--selected-bg);
+}
+
 .item-btn {
   position: relative;
   display: flex;

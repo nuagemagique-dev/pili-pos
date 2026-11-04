@@ -7,6 +7,7 @@ import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_DEPARTMENT
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -78,6 +79,30 @@ private fun mayDiscount(
     lines: List<CartLine>,
 ): Boolean = manager && order?.status == OrderStatus.OPEN && lines.isNotEmpty() && lines.none { it.online }
 
+/** Nothing read yet; the code pad keeps this device's choice (open or closed). */
+private fun freshData(settings: PosSettingsStore) = Data(codePad = CodePadState(open = settings.codePadOpen.value))
+
+/** The code pad's view of the order screen's model ([CodePadHost]): the pad lives in [Data.codePad]. */
+private class MenuCodePadHost(
+    private val data: MutableStateFlow<Data>,
+    private val canPay: () -> Boolean,
+    private val isCurrent: () -> Boolean,
+    private val addItem: (MenuItem, Int) -> Unit,
+) : CodePadHost {
+    override val pad: CodePadState get() = data.value.codePad
+
+    override fun updatePad(change: (CodePadState) -> CodePadState) = data.update { it.copy(codePad = change(it.codePad)) }
+
+    override fun orderIsCurrent() = isCurrent()
+
+    override fun modeTakesTap() = data.value.allergenMode || (data.value.soldOutMode && canPay())
+
+    override fun add(
+        item: MenuItem,
+        quantity: Int,
+    ) = addItem(item, quantity)
+}
+
 /** How often the Z-report reminder is checked again, in milliseconds (5 minutes in `OrderView.vue`). */
 internal const val Z_CHECK_MS: Long = 300_000L
 
@@ -101,6 +126,7 @@ private data class Data(
     val sendingNext: Boolean = false,
     val giftVouchersEnabled: Boolean = false,
     val allergenLegendError: String? = null,
+    val codePad: CodePadState = CodePadState(),
 )
 
 /** What the cart shows of the courses: the switch and the next held course. */
@@ -145,8 +171,11 @@ internal class MenuViewModel(
     private val session = entry.session()
     private val gateway = entry.gateway()
     private val settings = entry.settings()
-    private val data = MutableStateFlow(Data())
+    private val data = MutableStateFlow(freshData(settings))
     private val weighing = WeighFlow(entry, viewModelScope) { change -> data.update { it.copy(dialog = change(it.dialog)) } }
+
+    /** The code pad (order entry by menu code); the screen wires its keys straight to it. */
+    val codePad = CodePadFlow(entry, viewModelScope, MenuCodePadHost(data, { look.value.canPay }, ::isRouteOrderCurrent, ::addItem))
     private val reload = MutableStateFlow(0)
     private val menuLock = Mutex()
     private var itemsJob: Job? = null
@@ -195,7 +224,7 @@ internal class MenuViewModel(
         )
 
     init {
-        viewModelScope.launch { active.collect { on -> if (!on) data.value = Data() } }
+        viewModelScope.launch { active.collect { on -> if (!on) data.value = freshData(settings) } }
         viewModelScope.launch {
             combine(active, settings.language, reload) { on, language, _ -> if (on) language else null }
                 .collectLatest { language -> if (language != null) loadMenu(language) }
@@ -259,6 +288,7 @@ internal class MenuViewModel(
             allergenLegend = d.allergenLegend,
             giftVouchersEnabled = d.giftVouchersEnabled && l.canPay,
             allergenLegendError = d.allergenLegendError,
+            codePad = d.codePad,
         )
 
     @Suppress("LongParameterList")
@@ -397,6 +427,7 @@ internal class MenuViewModel(
                             it.copy(categories = categories, loaded = true)
                         }
                     }
+                    if (data.value.codePad.open) codePad.load(language)
                 },
                 // What was shown stays: the next language change, catalog event or resync reads it again.
                 onFailure = { Timber.d(it, "Menu not loaded") },
@@ -413,25 +444,34 @@ internal class MenuViewModel(
 
     /** A tap on a category tab: it becomes the selected one and its products are read (`selectCategory`). */
     fun selectCategory(categoryId: Long) {
+        codePad.leaveResults()
         data.update { it.copy(selectedCategoryId = categoryId) }
         refreshItems(categoryId)
     }
 
     // ── Products ──────────────────────────────────────────────────
 
-    /** A tap on a product button (`handleAddItem`). */
-    fun addItem(item: MenuItem) {
+    /** A tap on a product button: the quantity on the code pad ("3 ×") applies to it (`handleGridTap`). */
+    fun tapItem(item: MenuItem) {
+        if (!codePad.tap(item)) addItem(item)
+    }
+
+    /** [quantity] of a product (`handleAddItem`): a product tap, or an entry of the code pad. */
+    fun addItem(
+        item: MenuItem,
+        quantity: Int = 1,
+    ) {
         when {
             // Allergen mode (the "Épuisé" mode comes first, as in OrderView.vue): a tap shows the product's allergen sheet.
             data.value.allergenMode && !(data.value.soldOutMode && look.value.canPay) -> openAllergenSheet(item)
             // Only the order of the route takes products: while another one is current the menu does nothing.
             soldOutTap(item) || !isRouteOrderCurrent() -> Unit
             item.soldByWeight -> weighing.start(item)
-            item.openPrice -> data.update { it.copy(dialog = OrderDialog.Price(item)) }
+            item.openPrice -> data.update { it.copy(dialog = OrderDialog.Price(item, quantity)) }
             // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
             else ->
                 viewModelScope.launch {
-                    if (item.hasModifiers) askModifiers(item) else order.addItem(item)
+                    if (item.hasModifiers) askModifiers(item) else order.addItem(item, quantity)
                 }
         }
     }
@@ -541,10 +581,10 @@ internal class MenuViewModel(
 
     /** The price typed for the free-price product of the open price dialog (`handlePriceConfirmed`). */
     fun confirmPrice(priceCents: Long) {
-        val item = (data.value.dialog as? OrderDialog.Price)?.item ?: return
+        val dialog = data.value.dialog as? OrderDialog.Price ?: return
         data.update { it.copy(dialog = OrderDialog.None) }
         if (!isRouteOrderCurrent()) return
-        viewModelScope.launch { order.addItem(item, 1, priceCents) }
+        viewModelScope.launch { order.addItem(dialog.item, dialog.quantity, priceCents) }
     }
 
     /** The picks of the options dialog: the engine prices the options and names the line, only the ids go up. */
@@ -675,6 +715,7 @@ internal class MenuViewModel(
     }
 
     /** The delete control of a line. */
+
     fun removeLine(lineId: Long) {
         if (!isRouteOrderCurrent()) return
         viewModelScope.launch { order.removeLine(lineId) }

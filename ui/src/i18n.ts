@@ -1717,6 +1717,48 @@ const coreMessages: Messages = {
   gv_sell_title: { fr: 'Vendre un bon cadeau', en: 'Sell a gift voucher', zh: '出售礼品券' },
   gv_sell_item: { fr: 'Montant du bon', en: 'Voucher amount', zh: '礼品券金额' },
   gv_line_badge: { fr: 'Bon', en: 'Voucher', zh: '券' },
+  // Order entry by menu code (the code pad of the order screen)
+  code_pad_toggle: { fr: 'Saisie code', en: 'Code entry', zh: '编号点菜' },
+  code_pad_placeholder: { fr: 'Code du plat', en: 'Dish code', zh: '菜品编号' },
+  code_pad_hint: {
+    fr: 'Tapez le code, la grille se filtre. × pour une quantité.',
+    en: 'Type the code, the grid filters. × for a quantity.',
+    zh: '输入编号，菜单随之筛选。× 设置份数。',
+  },
+  code_pad_multiplier: {
+    fr: 'Quantité {n} : tapez un code ou touchez un plat',
+    en: 'Quantity {n}: type a code or tap a dish',
+    zh: '{n} 份：输入编号或点选菜品',
+  },
+  code_pad_results: {
+    fr: '{n} plats : continuez ou touchez le bon',
+    en: '{n} dishes: keep typing or tap one',
+    zh: '{n} 个菜品：继续输入或点选',
+  },
+  code_pad_no_result: {
+    fr: 'Aucun plat avec ce code',
+    en: 'No dish with this code',
+    zh: '没有此编号的菜品',
+  },
+  code_pad_invalid: { fr: 'Saisie non comprise', en: 'Entry not understood', zh: '输入无效' },
+  code_pad_unknown: {
+    fr: 'Code inconnu : {code}',
+    en: 'Unknown code: {code}',
+    zh: '未知编号：{code}',
+  },
+  code_pad_ambiguous: {
+    fr: 'Plusieurs plats ont le code {code}',
+    en: 'Several dishes have the code {code}',
+    zh: '多个菜品使用编号 {code}',
+  },
+  code_pad_no_multiplier: {
+    fr: "Ce plat s'ajoute un par un",
+    en: 'This dish is added one at a time',
+    zh: '此菜品只能逐份添加',
+  },
+  code_pad_quantity: { fr: 'Quantité', en: 'Quantity', zh: '份数' },
+  code_pad_clear: { fr: 'Effacer', en: 'Clear', zh: '清除' },
+  code_pad_backspace: { fr: 'Retour arrière', en: 'Backspace', zh: '退格' },
 }
 
 // Webshop strings are merged only when HubRise is built in, so the

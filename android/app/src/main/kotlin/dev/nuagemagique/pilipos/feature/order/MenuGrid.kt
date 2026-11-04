@@ -41,17 +41,27 @@ import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import uniffi.pos_ffi.MenuItem
 
-/** Buttons per row (`repeat(5, ...)` in `MenuGrid.vue`). */
-private const val GRID_COLUMNS = 5
+/** Buttons per row (`repeat(5, ...)` in `MenuGrid.vue`); [GRID_COLUMNS_WITH_PAD] beside the code pad. */
+internal const val GRID_COLUMNS = 5
 
 private val ButtonMinHeight = 120.dp
 private val ColorBand = 4.dp
+private val PickRing = 3.dp
+
+/** How a product button looks: its category colour, the quantity already in the cart, the code pad's ring. */
+private data class ButtonLook(
+    val categoryColor: Color?,
+    val inCart: Int,
+    val highlighted: Boolean,
+)
+
 private const val NAME_LINES = 2
 
 /**
  * The product buttons (`MenuGrid.vue`): five columns, vertical scroll. [categoryColor] is the colour of the left
  * band of every button; [cartQuantities] gives the badge on the products already in the cart. When the category has
- * no product (and the products were read) the empty text is shown. Test tags: `menu_grid`, `menu_empty`.
+ * no product (and the products were read) the empty text is shown, [emptyText] when given (no product for a typed
+ * code). [highlightId] rings the product OK of the code pad takes. Test tags: `menu_grid`, `menu_empty`.
  */
 @Composable
 @Suppress("LongParameterList")
@@ -64,23 +74,27 @@ internal fun MenuGrid(
     loaded: Boolean,
     onAdd: (MenuItem) -> Unit,
     modifier: Modifier = Modifier,
+    columns: Int = GRID_COLUMNS,
+    highlightId: Long? = null,
+    emptyText: String? = null,
 ) {
     val d = PiliTheme.dimens
     Box(modifier.testTag("menu_grid")) {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(GRID_COLUMNS),
+            columns = GridCells.Fixed(columns),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(d.spaceMd),
             horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
             verticalArrangement = Arrangement.spacedBy(d.spaceSm),
         ) {
             items(items, key = { it.id }) { item ->
-                MenuItemButton(item, categoryColor, cartQuantities[item.id] ?: 0, language, labelMode, { onAdd(item) })
+                val look = ButtonLook(categoryColor, cartQuantities[item.id] ?: 0, item.id == highlightId)
+                MenuItemButton(item, look, language, labelMode) { onAdd(item) }
             }
         }
         if (loaded && items.isEmpty()) {
             Text(
-                text = vueText("no_items"),
+                text = emptyText ?: vueText("no_items"),
                 style = PiliTheme.typography.title,
                 color = PiliTheme.colors.textSecondary,
                 modifier = Modifier.align(Alignment.Center).testTag("menu_empty"),
@@ -96,30 +110,30 @@ internal fun MenuGrid(
  * tags: `menu_item_<id>`, `menu_item_<id>_qty`, `menu_item_<id>_soldout`.
  */
 @Composable
-@Suppress("LongParameterList")
 private fun MenuItemButton(
     item: MenuItem,
-    categoryColor: Color?,
-    inCart: Int,
+    look: ButtonLook,
     language: AppLanguage,
     labelMode: ProductLabelMode,
     onClick: () -> Unit,
 ) {
     val c = PiliTheme.colors
     val source = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(PiliTheme.dimens.radiusMd)
     Box(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = ButtonMinHeight)
                 .tapScale(source)
-                .clip(RoundedCornerShape(PiliTheme.dimens.radiusMd))
+                .clip(shape)
                 .alpha(if (item.soldOut) SOLD_OUT_ALPHA else 1f)
                 .background(if (item.soldOut) c.bgSurface else c.bgSecondary)
+                .then(if (look.highlighted) Modifier.border(PickRing, c.selectedBg, shape) else Modifier)
                 .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
                 .testTag("menu_item_${item.id}"),
     ) {
-        Box(Modifier.width(ColorBand).fillMaxHeight().background(categoryColor ?: c.border))
+        Box(Modifier.width(ColorBand).fillMaxHeight().background(look.categoryColor ?: c.border))
         ItemLabel(item, language, labelMode)
         if (item.soldOut) {
             Text(
@@ -144,23 +158,31 @@ private fun MenuItemButton(
                         .padding(start = ColorBand + PiliTheme.dimens.spaceSm, bottom = PiliTheme.dimens.spaceSm, end = AllergenEndGap),
             )
         }
-        if (inCart > 0) {
-            Text(
-                text = inCart.toString(),
-                style = PiliTheme.typography.figure.copy(fontSize = PiliTheme.typography.sizeSm, fontWeight = FontWeight.Bold),
-                color = c.selectedFg,
-                textAlign = TextAlign.Center,
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(PiliTheme.dimens.spaceSm)
-                        .heightIn(min = QtyBadge)
-                        .background(c.selectedBg, RoundedCornerShape(QtyBadge))
-                        .padding(horizontal = PiliTheme.dimens.spaceSm, vertical = PiliTheme.dimens.spaceXs)
-                        .testTag("menu_item_${item.id}_qty"),
-            )
-        }
+        if (look.inCart > 0) CartBadge(item.id, look.inCart, Modifier.align(Alignment.BottomEnd))
     }
+}
+
+/** The quantity of a product already in the cart, bottom right of its button. */
+@Composable
+private fun CartBadge(
+    id: Long,
+    quantity: Int,
+    modifier: Modifier,
+) {
+    val c = PiliTheme.colors
+    Text(
+        text = quantity.toString(),
+        style = PiliTheme.typography.figure.copy(fontSize = PiliTheme.typography.sizeSm, fontWeight = FontWeight.Bold),
+        color = c.selectedFg,
+        textAlign = TextAlign.Center,
+        modifier =
+            modifier
+                .padding(PiliTheme.dimens.spaceSm)
+                .heightIn(min = QtyBadge)
+                .background(c.selectedBg, RoundedCornerShape(QtyBadge))
+                .padding(horizontal = PiliTheme.dimens.spaceSm, vertical = PiliTheme.dimens.spaceXs)
+                .testTag("menu_item_${id}_qty"),
+    )
 }
 
 /** The centred texts of a product button: name, other language, price or open-price badge. */
