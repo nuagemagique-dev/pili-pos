@@ -35,9 +35,12 @@ fn the_weighing_input_reaches_the_engine() {
     let record = ffi::ScaleWeighInput {
         order_id: 7,
         menu_item_id: 12,
+        modifier_ids: vec![701, 711],
     };
     let engine: EngineInput = contract_inp(&record).unwrap();
     assert_eq!((engine.order_id, engine.menu_item_id), (7, 12));
+    // A bowl's picks (its broth) reach the engine with it.
+    assert_eq!(engine.modifier_ids, vec![701, 711]);
 }
 
 #[test]
@@ -79,6 +82,7 @@ async fn without_a_section_nothing_is_weighed() {
         .scale_start_weighing(ffi::ScaleWeighInput {
             order_id: 1,
             menu_item_id: 1,
+            modifier_ids: Vec::new(),
         })
         .await
         .unwrap_err();
