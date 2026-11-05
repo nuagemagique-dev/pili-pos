@@ -41,6 +41,7 @@ import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.bilingualName
 import dev.nuagemagique.pilipos.ui.format.formatCents
 import dev.nuagemagique.pilipos.ui.format.formatEuro
+import dev.nuagemagique.pilipos.ui.format.lineCategory
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.json.JSONArray
@@ -72,7 +73,8 @@ private val Hairline = 1.dp
  * picked with it under its name; a paid option of a bowl (its broth) sits under the bowl with a "+" (`_bowl`) and no
  * control of its own: it goes with the bowl. Test tags: `cart_line_<id>`,
  * `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`, `_notes`, `_kitchen_note`, `_course`, `_voucher`, `_amount`,
- * `_note`, `_remove`.
+ * `_note`, `_remove`. The category of the product starts the line under the name (`_sub`): "California roll" in name
+ * mode, "California roll · Tartare saumon cheese" in code mode, as one name can sit in several categories.
  */
 @Suppress("LongMethod") // One row of the cart: stepper or voucher badge, names, notes, course chip and actions.
 @Composable
@@ -111,7 +113,14 @@ internal fun OrderLineItem(
             LineLead(row, actions)
             Column(Modifier.weight(1f)) {
                 val notes = row.line.bowlOptions.joinToString(" · ").ifEmpty { lineNotes(row.line.modifiersJson) }
-                LineNames(id, names, notes, row.line.kitchenNote)
+                val category = if (voucher) null else lineCategory(row.line, state.language)
+                LineNames(
+                    id,
+                    names,
+                    listOfNotNull(category, names.secondary).joinToString(" · ").ifEmpty { null },
+                    notes,
+                    row.line.kitchenNote,
+                )
                 if (weight != null) {
                     Text(
                         text = formatCents(row.line.unitPriceCents) + " €/kg",
@@ -254,6 +263,7 @@ internal fun QuantityStepper(
 private fun LineNames(
     id: Long,
     names: BilingualName,
+    sub: String?,
     notes: String,
     kitchenNote: String?,
     modifier: Modifier = Modifier,
@@ -269,7 +279,7 @@ private fun LineNames(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.testTag("cart_line_${id}_name"),
         )
-        names.secondary?.let {
+        sub?.let {
             Text(
                 text = it,
                 style = t.body.copy(fontSize = t.sizeSm),

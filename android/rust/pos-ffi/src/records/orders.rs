@@ -163,6 +163,13 @@ pub struct CartLine {
     #[serde(default)]
     #[uniffi(default = [])]
     pub bowl_options: Vec<String>,
+    /// The product's category in French and Chinese, shown on the line.
+    #[serde(default)]
+    #[uniffi(default = None)]
+    pub category_fr: Option<String>,
+    #[serde(default)]
+    #[uniffi(default = None)]
+    pub category_zh: Option<String>,
 }
 
 /// `pos_db::queries::orders::CartPriceChange`: a price change on a cart line.

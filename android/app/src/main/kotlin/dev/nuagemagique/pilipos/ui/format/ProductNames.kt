@@ -76,3 +76,12 @@ fun bilingualCategoryName(
     nameZh: String?,
     language: AppLanguage,
 ): BilingualName = bilingualName(name, nameFr, nameZh, null, language, ProductLabelMode.NAME)
+
+/** The category of the line's product in the UI language, the other one when the catalog lacks it. */
+fun lineCategory(
+    line: CartLine,
+    language: AppLanguage,
+): String? {
+    val (first, second) = if (language == AppLanguage.ZH) line.categoryZh to line.categoryFr else line.categoryFr to line.categoryZh
+    return (first ?: second)?.trim()?.ifEmpty { null }
+}

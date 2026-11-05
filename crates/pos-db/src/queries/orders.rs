@@ -424,6 +424,10 @@ pub struct CartLine {
     /// The options picked with a weighed bowl, shown under it; empty for
     /// any other line.
     pub bowl_options: Vec<String>,
+    /// The product's category in French and Chinese, shown on the line:
+    /// one name ("Saumon") can be in several categories. Display only.
+    pub category_fr: Option<String>,
+    pub category_zh: Option<String>,
 }
 
 /// A price change on a cart line (a till discount, an online order's).
@@ -459,7 +463,13 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
                 EXISTS (SELECT 1 FROM kitchen_slip_entries k
                         JOIN order_entries e ON e.id = k.entry_id WHERE e.line_id = ol.id),
                 ol.weight_grams, ol.weighed_amount_cents,
-                (SELECT bowl_line_id FROM bowl_option_lines WHERE line_id = ol.id)
+                (SELECT bowl_line_id FROM bowl_option_lines WHERE line_id = ol.id),
+                (SELECT t.value FROM menu_items m JOIN translations t ON t.entity_type = 'category'
+                    AND t.entity_id = m.category_id AND t.field = 'name' AND t.lang = 'fr'
+                 WHERE m.id = ol.menu_item_id),
+                (SELECT t.value FROM menu_items m JOIN translations t ON t.entity_type = 'category'
+                    AND t.entity_id = m.category_id AND t.field = 'name' AND t.lang = 'zh'
+                 WHERE m.id = ol.menu_item_id)
          FROM order_lines ol WHERE ol.order_id = ?1 ORDER BY ol.id",
     ))?;
     let released = super::courses::released_course(conn, order_id)?;
@@ -492,6 +502,8 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
             kitchen_state: kitchen_state.to_string(),
             bowl_line_id: row.get(21)?,
             bowl_options,
+            category_fr: row.get(22)?,
+            category_zh: row.get(23)?,
         })
     })?;
     #[cfg_attr(
@@ -989,6 +1001,45 @@ mod tests {
 
         assert!(!get_cart_lines(&conn, till.id).unwrap()[0].online);
         assert!(get_cart_lines(&conn, online.id).unwrap()[0].online);
+    }
+
+    #[test]
+    fn cart_lines_name_the_category_of_their_product() {
+        let conn = setup();
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order) VALUES (1, 0), (2, 1);
+             INSERT INTO translations (entity_type, entity_id, field, lang, value) VALUES
+                 ('category', 1, 'name', 'fr', 'California roll'),
+                 ('category', 1, 'name', 'zh', '加州卷');
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES
+                 (1, 1, 1000, 'B'), (2, 2, 500, 'B');",
+        )
+        .unwrap();
+        let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
+        for (menu_item_id, name) in [(1, "Tartare saumon cheese"), (2, "Sans nom")] {
+            add_order_line(
+                &conn,
+                NewOrderLine {
+                    order_id: order.id,
+                    menu_item_id,
+                    quantity: 1,
+                    unit_price_cents: 1000,
+                    vat_code: VatCode::B,
+                    name,
+                    modifiers_json: None,
+                    department_id: "1",
+                    department_name: "Test",
+                },
+            )
+            .unwrap();
+        }
+
+        let lines = get_cart_lines(&conn, order.id).unwrap();
+        assert_eq!(lines[0].category_fr.as_deref(), Some("California roll"));
+        assert_eq!(lines[0].category_zh.as_deref(), Some("加州卷"));
+        // A category without a name in the catalog leaves the line without one.
+        assert_eq!(lines[1].category_fr, None);
+        assert_eq!(lines[1].category_zh, None);
     }
 
     #[test]

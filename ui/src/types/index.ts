@@ -181,6 +181,9 @@ export interface CartLine extends OrderLine {
   bowl_line_id?: number | null
   /** The options picked with a weighed bowl, shown under it. */
   bowl_options?: string[]
+  /** The product's category in French and Chinese, shown on the line. */
+  category_fr?: string | null
+  category_zh?: string | null
 }
 
 /** Why a manager gives a discount (audit only, never signed). */
