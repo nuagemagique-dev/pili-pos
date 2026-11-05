@@ -69,6 +69,82 @@ class ReportsCallbacksTest {
         }
 
     @Test
+    fun withoutEmailTicketsACopyIsSignedOnPaperAtOnce() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.checkMailStatus() } returns MailStatus(configured = false, reachable = false, allowDigitalOnly = false)
+            val r = startReports(f, context)
+            val callbacks = reportsCallbacks(r.model, r.delivery, backgroundScope)
+
+            callbacks.tickets.onCopy(7L)
+            runCurrent()
+
+            // One tap: no medium step, the copy goes to the engine on paper (sent as no request).
+            coVerify(exactly = 1) { f.engine.copyTicket(7L, OPERATOR_INSZ, any()) }
+            assertEquals(CopyStep.RESULT, r.state.copyFlow?.step)
+        }
+
+    @Test
+    fun aFailedMailProbeIsTheSameAsNoEmailTickets() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.checkMailStatus() } throws IllegalStateException("probe down")
+            val r = startReports(f, context)
+            val callbacks = reportsCallbacks(r.model, r.delivery, backgroundScope)
+
+            callbacks.tickets.onCopy(7L)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.copyTicket(7L, OPERATOR_INSZ, any()) }
+        }
+
+    @Test
+    fun withEmailTicketsTheCopyWaitsForTheConfirmButton() =
+        runTest {
+            val f = fixture()
+            val r = startReports(f, context)
+            val callbacks = reportsCallbacks(r.model, r.delivery, backgroundScope)
+
+            callbacks.tickets.onCopy(7L)
+            runCurrent()
+
+            coVerify(exactly = 0) { f.engine.copyTicket(any(), any(), any()) }
+            assertEquals(CopyStep.PICKER, r.state.copyFlow?.step)
+        }
+
+    @Test
+    fun reprintingAZWithoutEmailTicketsSignsTheCopyAtOnce() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.checkMailStatus() } returns MailStatus(configured = false, reachable = false, allowDigitalOnly = false)
+            val r = startReports(f, context)
+            val callbacks = reportsCallbacks(r.model, r.delivery, backgroundScope)
+            callbacks.day.onOpenZList()
+
+            callbacks.day.onReprintZ(9L)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.copyTicket(9L, OPERATOR_INSZ, any()) }
+            assertFalse(r.state.day.zListOpen)
+            assertEquals(CopyTargetKind.Z, r.state.copyFlow?.kind)
+        }
+
+    @Test
+    fun aZWithoutAFiscalEventOpensNothingAndSignsNothing() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.checkMailStatus() } returns MailStatus(configured = false, reachable = false, allowDigitalOnly = false)
+            val r = startReports(f, context)
+            val callbacks = reportsCallbacks(r.model, r.delivery, backgroundScope)
+
+            callbacks.day.onReprintZ(null)
+            runCurrent()
+
+            coVerify(exactly = 0) { f.engine.copyTicket(any(), any(), any()) }
+            assertNull(r.state.copyFlow)
+        }
+
+    @Test
     fun theCopyIsSignedWithTheChoiceTheOperatorMade() =
         runTest {
             val f = fixture()

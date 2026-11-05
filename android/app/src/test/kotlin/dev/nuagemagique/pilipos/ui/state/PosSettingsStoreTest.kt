@@ -52,16 +52,32 @@ class PosSettingsStoreTest {
         runTest {
             val f = EngineFixture(this, tmp.root)
             coEvery { f.engine.getSettings() } returns posSettings(training = false)
-            coEvery { f.engine.setTrainingMode(true) } returns true
+            coEvery { f.engine.setTrainingMode(true, "1111") } returns true
             val store = store(f)
             f.holder.open()
             runCurrent()
 
-            store.setTrainingMode(true)
+            store.setTrainingMode(true, "1111")
 
-            coVerify(exactly = 1) { f.engine.setTrainingMode(true) }
+            coVerify(exactly = 1) { f.engine.setTrainingMode(true, "1111") }
             assertTrue(store.trainingMode.value)
             assertTrue(store.settings.value!!.trainingMode)
+        }
+
+    @Test
+    fun turningTrainingOffSendsNoPin() =
+        runTest {
+            val f = EngineFixture(this, tmp.root)
+            coEvery { f.engine.getSettings() } returns posSettings(training = true)
+            coEvery { f.engine.setTrainingMode(false, null) } returns false
+            val store = store(f)
+            f.holder.open()
+            runCurrent()
+
+            store.setTrainingMode(false)
+
+            coVerify(exactly = 1) { f.engine.setTrainingMode(false, null) }
+            assertEquals(false, store.trainingMode.value)
         }
 
     @Test
@@ -69,12 +85,12 @@ class PosSettingsStoreTest {
         runTest {
             val f = EngineFixture(this, tmp.root)
             coEvery { f.engine.getSettings() } returns posSettings(training = false)
-            coEvery { f.engine.setTrainingMode(true) } throws PosException.Coded("not_allowed", emptyMap())
+            coEvery { f.engine.setTrainingMode(true, "1111") } throws PosException.Coded("not_allowed", emptyMap())
             val store = store(f)
             f.holder.open()
             runCurrent()
 
-            val failure = runCatching { store.setTrainingMode(true) }.exceptionOrNull()
+            val failure = runCatching { store.setTrainingMode(true, "1111") }.exceptionOrNull()
 
             assertTrue(failure is PosException.Coded)
             assertEquals(false, store.trainingMode.value)

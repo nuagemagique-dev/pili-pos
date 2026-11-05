@@ -180,6 +180,18 @@ class SettingsContentTest {
     }
 
     @Test
+    fun anArmedTrainingToggleAsksTheQuestion() {
+        show(managerState().copy(trainingArmed = true))
+        compose.onNodeWithTag("settings_training_toggle").assertTextContains("Activer le mode formation ?")
+    }
+
+    @Test
+    fun anArmedTrainingToggleOfATrainingTillAsksToTurnItOff() {
+        show(managerState().copy(training = true, trainingArmed = true))
+        compose.onNodeWithTag("settings_training_toggle").assertTextContains("Désactiver le mode formation ?")
+    }
+
+    @Test
     fun theTrainingToggleShowsOnWhenTrainingIsOn() {
         show(managerState().copy(training = true))
 

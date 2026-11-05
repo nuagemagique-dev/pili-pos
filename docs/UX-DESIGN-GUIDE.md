@@ -61,6 +61,10 @@ Après 2-3 semaines d'utilisation intensive, le staff développe des automatisme
 
 Accepter, refuser, remettre et encaisser demandent les droits d'encaissement. Pour un Apprenti ces boutons sont grisés avec la ligne « Réservé au serveur ou au gérant » au lieu d'échouer avec « Action réservée à un autre profil ». À l'écran, « Serveur » est le rôle interne `cashier` et « Apprenti » le rôle `waiter` (les noms internes ne changent pas). Préparer, « Prête » et « En livraison » restent ouverts à tous.
 
+### 2.5 - Copie et remboursement : pas d'étape vide (audit R1)
+
+Sans tickets par e-mail, l'étape « Papier / E-mail » ne propose rien et ne ferait que répéter le bouton de confirmation : « Copie » (et la réimpression d'un Z) signe donc la copie en papier au premier toucher, sans étape intermédiaire. Avec les tickets par e-mail configurés, l'étape du moyen reste avant la signature. Le remboursement a une seule étape de confirmation, montrée une fois avant de signer : les lignes cochées avec leur quantité, la TVA incluse, le total à rembourser en espèces et le bouton « Confirmer le remboursement » (le bouton de la ligne du ticket reste « Rembourser » ; le choix du moyen s'y ajoute seulement si l'e-mail est configuré).
+
 ## 3. Layout principal - OrderView (écran le plus utilisé)
 
 C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
@@ -276,6 +280,7 @@ Le mode training doit être **visuellement impossible à confondre** avec le mod
 - Bannière permanente, juste sous l'en-tête : **"MODE FORMATION · Les transactions ne sont PAS enregistrées"**
 - Watermark diagonal semi-transparent "TRAINING" sur tout l'écran
 - Tous les tickets imprimés portent "TRAINING" en haut et "THIS IS NOT A VALID VAT RECEIPT" en bas
+- **Le commutateur est gardé** (audit R4). Dans Settings, un premier toucher arme seulement l'interrupteur (il devient rouge et pose la question « Activer le mode formation ? », ou « Désactiver le mode formation ? »), il se désarme seul après 5 s. Le second toucher dans les 5 s désactive le mode, ou ouvre le PIN du gérant pour l'activer (aide : « Les ventes suivantes ne seront pas comptées. »). Le moteur vérifie ce PIN (`set_training_mode` accepte `operatorPin`, obligatoire pour activer) : une session de gérant laissée ouverte ne suffit pas à lancer des ventes non comptées.
 
 ---
 

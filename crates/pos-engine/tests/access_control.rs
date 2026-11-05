@@ -352,7 +352,7 @@ async fn nothing_is_signed_without_a_logged_in_operator() {
         ERR_NOT_LOGGED_IN
     );
     assert_eq!(
-        do_set_training_mode(&app.state, true).unwrap_err(),
+        do_set_training_mode(&app.state, true, None).unwrap_err(),
         ERR_NOT_LOGGED_IN
     );
     assert_eq!(
@@ -392,7 +392,7 @@ async fn an_apprentice_takes_orders_but_never_payments() {
         assert_eq!(result.unwrap_err(), ERR_FORBIDDEN, "{what}");
     }
     assert_eq!(
-        do_set_training_mode(&app.state, true).unwrap_err(),
+        do_set_training_mode(&app.state, true, None).unwrap_err(),
         ERR_FORBIDDEN
     );
     assert_eq!(do_backup_database(&app.state).unwrap_err(), ERR_FORBIDDEN);
@@ -429,7 +429,7 @@ async fn a_server_bills_and_takes_payment_but_nothing_more() {
         assert_eq!(result.unwrap_err(), ERR_FORBIDDEN, "{what}");
     }
     assert_eq!(
-        do_set_training_mode(&app.state, true).unwrap_err(),
+        do_set_training_mode(&app.state, true, None).unwrap_err(),
         ERR_FORBIDDEN
     );
     assert_eq!(app.fiscal_events().len(), before);
@@ -655,17 +655,45 @@ async fn a_pin_is_changed_by_its_owner_or_a_manager() {
 // ── Training mode ──────────────────────────────────────────────
 
 #[tokio::test]
+async fn training_mode_on_needs_the_managers_pin_off_does_not() {
+    let app = app().await;
+    as_(&app, MANAGER, UserRole::Admin);
+    do_set_pin(&app.state, MANAGER.into(), MANAGER_PIN.into(), None).unwrap();
+
+    // No PIN, a wrong PIN: refused, still off.
+    assert_eq!(
+        do_set_training_mode(&app.state, true, None).unwrap_err(),
+        "pin_required"
+    );
+    assert_eq!(
+        do_set_training_mode(&app.state, true, Some("0000".into())).unwrap_err(),
+        "pin_wrong"
+    );
+    assert!(!do_get_settings(&app.state).unwrap().training_mode);
+
+    // The right PIN turns it on; off needs none; asking for the mode
+    // already set needs none either.
+    assert!(do_set_training_mode(&app.state, true, Some(MANAGER_PIN.into())).unwrap());
+    assert!(do_set_training_mode(&app.state, true, None).unwrap());
+    assert!(!do_set_training_mode(&app.state, false, None).unwrap());
+    assert!(!do_set_training_mode(&app.state, false, None).unwrap());
+
+    // Nothing was signed by any of it.
+    assert!(app.fiscal_events().is_empty());
+}
+
+#[tokio::test]
 async fn training_mode_never_switches_under_an_open_order() {
     let app = app().await;
     as_(&app, MANAGER, UserRole::Admin);
     let open = table(&app, MANAGER, 1);
     assert_eq!(
-        do_set_training_mode(&app.state, true).unwrap_err(),
+        do_set_training_mode(&app.state, true, None).unwrap_err(),
         ERR_OPEN_ORDERS
     );
     assert!(!do_get_settings(&app.state).unwrap().training_mode);
     // Asking for the current mode is not a switch.
-    assert!(!do_set_training_mode(&app.state, false).unwrap());
+    assert!(!do_set_training_mode(&app.state, false, None).unwrap());
 
     // Once paid, the switch is allowed - and back again only when the
     // training order is paid too.
@@ -683,17 +711,17 @@ async fn training_mode_never_switches_under_an_open_order() {
         },
     )
     .unwrap();
-    assert!(do_set_training_mode(&app.state, true).unwrap());
+    assert!(do_set_training_mode(&app.state, true, None).unwrap());
     let training = table(&app, MANAGER, 3);
     assert_eq!(
-        do_set_training_mode(&app.state, false).unwrap_err(),
+        do_set_training_mode(&app.state, false, None).unwrap_err(),
         ERR_OPEN_ORDERS
     );
     let r = do_checkout(&app.state, training, CheckoutPaymentMethod::Cash)
         .await
         .unwrap();
     assert!(r.success, "{:?}", r.error);
-    assert!(!do_set_training_mode(&app.state, false).unwrap());
+    assert!(!do_set_training_mode(&app.state, false, None).unwrap());
 
     let labels: Vec<_> = app
         .fiscal_events()

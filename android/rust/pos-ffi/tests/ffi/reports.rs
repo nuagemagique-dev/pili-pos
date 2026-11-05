@@ -523,7 +523,7 @@ async fn commands_that_need_an_operator_are_refused_without_a_session() {
         .unwrap_err(),
         e.open_drawer_fiscal(MANAGER_INSZ.into()).await.unwrap_err(),
         e.list_sale_payments(1).await.unwrap_err(),
-        e.set_training_mode(true).await.unwrap_err(),
+        e.set_training_mode(true, None).await.unwrap_err(),
     ];
     for err in &errors {
         assert!(coded(err, "not_logged_in"), "{err:?}");
@@ -696,9 +696,25 @@ async fn commands_that_do_not_sign_run_for_the_operator() {
     let shift = open_operator_window(&t).await;
 
     // Settings: training mode on and off again.
-    assert!(e.set_training_mode(true).await.unwrap());
+    // Turning it on needs the manager's PIN; turning it off does not.
+    assert!(coded(
+        &e.set_training_mode(true, None).await.unwrap_err(),
+        "pin_required"
+    ));
+    assert!(coded(
+        &e.set_training_mode(true, Some("0000".into()))
+            .await
+            .unwrap_err(),
+        "pin_wrong"
+    ));
+    assert!(!e.get_settings().await.unwrap().training_mode);
+    assert!(
+        e.set_training_mode(true, Some(MANAGER_PIN.into()))
+            .await
+            .unwrap()
+    );
     assert!(e.get_settings().await.unwrap().training_mode);
-    assert!(!e.set_training_mode(false).await.unwrap());
+    assert!(!e.set_training_mode(false, None).await.unwrap());
     assert!(!e.get_settings().await.unwrap().training_mode);
 
     // The backup is a file under the data directory's backups.

@@ -648,7 +648,7 @@ class ReportsContentTest {
         compose.onNodeWithTag("refund_recap_1").assertTextContains("10,00 €", substring = true)
         compose.onNodeWithTag("refund_vat").assertTextContains("12%", substring = true)
         compose.onNodeWithTag("refund_total").assertTextEquals("9,95 €")
-        compose.onNodeWithTag("refund_confirm").assertTextContains("Rembourser 9,95 €", substring = true)
+        compose.onNodeWithTag("refund_confirm").assertTextEquals("Confirmer le remboursement")
         compose.onNodeWithTag("ticket_medium_picker").assertIsDisplayed()
         compose.onNodeWithTag("refund_total_unavailable").assertDoesNotExist()
     }
@@ -661,7 +661,7 @@ class ReportsContentTest {
         compose.onNodeWithTag("refund_recap_1").assertTextContains("2 × 5,00 €", substring = true)
         compose.onNodeWithTag("refund_total").assertDoesNotExist()
         compose.onNodeWithTag("refund_total_unavailable").assertIsDisplayed()
-        compose.onNodeWithTag("refund_confirm").assertTextEquals("Rembourser")
+        compose.onNodeWithTag("refund_confirm").assertTextEquals("Confirmer le remboursement")
     }
 
     @Test
