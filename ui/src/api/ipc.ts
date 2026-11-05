@@ -127,6 +127,15 @@ export function lockSession(): Promise<LockOutcome> {
 export interface SessionLocked {
   reason: 'manual' | 'idle'
   orderError: string | null
+  /** The idle delay that ran out, in ms (idle locks only). */
+  idleAfterMs?: number | null
+}
+
+/** Payload of the `idle-lock-warning` event: the time left before the
+ * engine's idle lock when the warning starts, or `null` when the operator
+ * was active again and the warning is over. */
+export interface IdleLockWarning {
+  lockInMs: number | null
 }
 
 /** First login of a user without a PIN (required for a manager):

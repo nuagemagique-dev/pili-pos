@@ -3558,6 +3558,18 @@
       "zh": "状态",
       "area": "webshop"
     },
+    "idle_lock_warning": {
+      "fr": "Verrouillage dans {s} s · touchez l'écran pour rester connecté",
+      "en": "Locking in {s} s · touch the screen to stay signed in",
+      "zh": "{s} 秒后锁定 · 触摸屏幕保持登录",
+      "area": "core"
+    },
+    "idle_locked_notice": {
+      "fr": "Caisse verrouillée après {min} min d'inactivité",
+      "en": "Till locked after {min} min of inactivity",
+      "zh": "收银机因 {min} 分钟无操作已自动锁定",
+      "area": "core"
+    },
     "inactive": {
       "fr": "INACTIF",
       "en": "INACTIVE",
@@ -6376,12 +6388,6 @@
       "fr": "À emporter",
       "en": "Takeaway",
       "zh": "外带",
-      "area": "core"
-    },
-    "takeaway_start": {
-      "fr": "Nouvelle vente à emporter",
-      "en": "New takeaway sale",
-      "zh": "新外带订单",
       "area": "core"
     },
     "takeaway_started_at": {

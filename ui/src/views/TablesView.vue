@@ -207,8 +207,7 @@ async function selectTable(table: ipc.TableInfo) {
            the bottom right (§2.3). -->
       <aside class="takeaways">
         <div class="takeaways-header">
-          <h2>{{ t('takeaways_open') }}</h2>
-          <span class="takeaways-count">{{ takeaways.length }}</span>
+          <h2 data-testid="takeaways-title">{{ t('takeaways_open') }} ({{ takeaways.length }})</h2>
         </div>
         <div class="takeaway-list scroll-touch">
           <button
@@ -233,7 +232,7 @@ async function selectTable(table: ipc.TableInfo) {
           </button>
         </div>
         <div class="takeaways-footer">
-          <button class="new-takeaway-btn" @click="newTakeaway">{{ t('takeaway_start') }}</button>
+          <button class="new-takeaway-btn" @click="newTakeaway">{{ t('takeaway_new') }}</button>
         </div>
       </aside>
     </div>
@@ -476,11 +475,6 @@ async function selectTable(table: ipc.TableInfo) {
   font-size: 28px;
   font-weight: var(--font-weight-heavy);
   line-height: 1.2;
-}
-.takeaways-count {
-  font-family: var(--font-mono);
-  font-size: 16px;
-  color: var(--text-secondary);
 }
 .takeaway-list {
   flex: 1;

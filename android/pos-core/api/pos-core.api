@@ -1086,8 +1086,8 @@ public final class uniffi/pos_ffi/CallbackEvent$Companion {
 
 public final class uniffi/pos_ffi/CartLine {
 	public static final field Companion Luniffi/pos_ffi/CartLine$Companion;
-	public fun <init> (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;)V
-	public synthetic fun <init> (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;Ljava/lang/Long;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;Ljava/lang/Long;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()J
 	public final fun component10 ()Ljava/lang/String;
 	public final fun component11 ()Ljava/lang/String;
@@ -1104,6 +1104,10 @@ public final class uniffi/pos_ffi/CartLine {
 	public final fun component21 ()Z
 	public final fun component22 ()I
 	public final fun component23 ()Ljava/lang/String;
+	public final fun component24 ()Ljava/lang/Long;
+	public final fun component25 ()Ljava/util/List;
+	public final fun component26 ()Ljava/lang/String;
+	public final fun component27 ()Ljava/lang/String;
 	public final fun component3 ()J
 	public final fun component4 ()I
 	public final fun component5 ()J
@@ -1111,9 +1115,13 @@ public final class uniffi/pos_ffi/CartLine {
 	public final fun component7 ()Ljava/lang/String;
 	public final fun component8 ()Ljava/lang/String;
 	public final fun component9 ()Ljava/lang/String;
-	public final fun copy (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;)Luniffi/pos_ffi/CartLine;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/CartLine;JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/CartLine;
+	public final fun copy (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;Ljava/lang/Long;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;)Luniffi/pos_ffi/CartLine;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/CartLine;JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ZILjava/lang/String;Ljava/lang/Long;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/CartLine;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBowlLineId ()Ljava/lang/Long;
+	public final fun getBowlOptions ()Ljava/util/List;
+	public final fun getCategoryFr ()Ljava/lang/String;
+	public final fun getCategoryZh ()Ljava/lang/String;
 	public final fun getCode ()Ljava/lang/String;
 	public final fun getCourse ()I
 	public final fun getCreatedAt ()Ljava/lang/String;
@@ -1138,6 +1146,10 @@ public final class uniffi/pos_ffi/CartLine {
 	public final fun getWeighedAmountCents ()Ljava/lang/Long;
 	public final fun getWeightGrams ()Ljava/lang/Long;
 	public fun hashCode ()I
+	public final fun setBowlLineId (Ljava/lang/Long;)V
+	public final fun setBowlOptions (Ljava/util/List;)V
+	public final fun setCategoryFr (Ljava/lang/String;)V
+	public final fun setCategoryZh (Ljava/lang/String;)V
 	public final fun setCode (Ljava/lang/String;)V
 	public final fun setCourse (I)V
 	public final fun setCreatedAt (Ljava/lang/String;)V
@@ -6096,6 +6108,26 @@ public final class uniffi/pos_ffi/FfiConverterTypeHubriseStatus : uniffi/pos_ffi
 	public fun write (Luniffi/pos_ffi/HubriseStatus;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeIdleLockWarning : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeIdleLockWarning;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/IdleLockWarning;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/IdleLockWarning;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/IdleLockWarning;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/IdleLockWarning;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/IdleLockWarning;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/IdleLockWarning;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/IdleLockWarning;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeIntegrations : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeIntegrations;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -8520,6 +8552,22 @@ public final class uniffi/pos_ffi/HubriseStatus {
 public final class uniffi/pos_ffi/HubriseStatus$Companion {
 }
 
+public final class uniffi/pos_ffi/IdleLockWarning {
+	public static final field Companion Luniffi/pos_ffi/IdleLockWarning$Companion;
+	public fun <init> (Ljava/lang/Long;)V
+	public final fun component1 ()Ljava/lang/Long;
+	public final fun copy (Ljava/lang/Long;)Luniffi/pos_ffi/IdleLockWarning;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/IdleLockWarning;Ljava/lang/Long;ILjava/lang/Object;)Luniffi/pos_ffi/IdleLockWarning;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLockInMs ()Ljava/lang/Long;
+	public fun hashCode ()I
+	public final fun setLockInMs (Ljava/lang/Long;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/IdleLockWarning$Companion {
+}
+
 public final class uniffi/pos_ffi/Integrations {
 	public static final field Companion Luniffi/pos_ffi/Integrations$Companion;
 	public fun <init> (ZJLjava/util/List;)V
@@ -9949,6 +9997,21 @@ public final class uniffi/pos_ffi/PosEvent$FdmStatus : uniffi/pos_ffi/PosEvent {
 public final class uniffi/pos_ffi/PosEvent$FdmStatus$Companion {
 }
 
+public final class uniffi/pos_ffi/PosEvent$IdleLockWarning : uniffi/pos_ffi/PosEvent {
+	public static final field Companion Luniffi/pos_ffi/PosEvent$IdleLockWarning$Companion;
+	public fun <init> (Luniffi/pos_ffi/IdleLockWarning;)V
+	public final fun component1 ()Luniffi/pos_ffi/IdleLockWarning;
+	public final fun copy (Luniffi/pos_ffi/IdleLockWarning;)Luniffi/pos_ffi/PosEvent$IdleLockWarning;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/PosEvent$IdleLockWarning;Luniffi/pos_ffi/IdleLockWarning;ILjava/lang/Object;)Luniffi/pos_ffi/PosEvent$IdleLockWarning;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getWarning ()Luniffi/pos_ffi/IdleLockWarning;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/PosEvent$IdleLockWarning$Companion {
+}
+
 public final class uniffi/pos_ffi/PosEvent$PresenceFailed : uniffi/pos_ffi/PosEvent {
 	public static final field Companion Luniffi/pos_ffi/PosEvent$PresenceFailed$Companion;
 	public fun <init> (Luniffi/pos_ffi/PresenceFailed;)V
@@ -10795,16 +10858,20 @@ public final class uniffi/pos_ffi/ScaleStatus$Companion {
 
 public final class uniffi/pos_ffi/ScaleWeighInput {
 	public static final field Companion Luniffi/pos_ffi/ScaleWeighInput$Companion;
-	public fun <init> (JJ)V
+	public fun <init> (JJLjava/util/List;)V
+	public synthetic fun <init> (JJLjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()J
 	public final fun component2 ()J
-	public final fun copy (JJ)Luniffi/pos_ffi/ScaleWeighInput;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/ScaleWeighInput;JJILjava/lang/Object;)Luniffi/pos_ffi/ScaleWeighInput;
+	public final fun component3 ()Ljava/util/List;
+	public final fun copy (JJLjava/util/List;)Luniffi/pos_ffi/ScaleWeighInput;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/ScaleWeighInput;JJLjava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/ScaleWeighInput;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getMenuItemId ()J
+	public final fun getModifierIds ()Ljava/util/List;
 	public final fun getOrderId ()J
 	public fun hashCode ()I
 	public final fun setMenuItemId (J)V
+	public final fun setModifierIds (Ljava/util/List;)V
 	public final fun setOrderId (J)V
 	public fun toString ()Ljava/lang/String;
 }
@@ -10814,15 +10881,18 @@ public final class uniffi/pos_ffi/ScaleWeighInput$Companion {
 
 public final class uniffi/pos_ffi/SessionLocked {
 	public static final field Companion Luniffi/pos_ffi/SessionLocked$Companion;
-	public fun <init> (Luniffi/pos_ffi/LockReason;Ljava/lang/String;)V
+	public fun <init> (Luniffi/pos_ffi/LockReason;Ljava/lang/String;Ljava/lang/Long;)V
 	public final fun component1 ()Luniffi/pos_ffi/LockReason;
 	public final fun component2 ()Ljava/lang/String;
-	public final fun copy (Luniffi/pos_ffi/LockReason;Ljava/lang/String;)Luniffi/pos_ffi/SessionLocked;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/SessionLocked;Luniffi/pos_ffi/LockReason;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/SessionLocked;
+	public final fun component3 ()Ljava/lang/Long;
+	public final fun copy (Luniffi/pos_ffi/LockReason;Ljava/lang/String;Ljava/lang/Long;)Luniffi/pos_ffi/SessionLocked;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/SessionLocked;Luniffi/pos_ffi/LockReason;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Luniffi/pos_ffi/SessionLocked;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIdleAfterMs ()Ljava/lang/Long;
 	public final fun getOrderError ()Ljava/lang/String;
 	public final fun getReason ()Luniffi/pos_ffi/LockReason;
 	public fun hashCode ()I
+	public final fun setIdleAfterMs (Ljava/lang/Long;)V
 	public final fun setOrderError (Ljava/lang/String;)V
 	public final fun setReason (Luniffi/pos_ffi/LockReason;)V
 	public fun toString ()Ljava/lang/String;

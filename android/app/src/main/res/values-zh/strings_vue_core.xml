@@ -287,8 +287,9 @@
     <string name="note_hint_now">将立即在厨房打印</string>
     <string name="note_hint_with_order">将随订单在厨房打印</string>
     <string name="keypad_space">空格</string>
+    <string name="idle_lock_warning">{s} 秒后锁定 · 触摸屏幕保持登录</string>
+    <string name="idle_locked_notice">收银机因 {min} 分钟无操作已自动锁定</string>
     <string name="takeaway_started_at">{time} 开始</string>
-    <string name="takeaway_start">新外带订单</string>
     <string name="who_are_you">您是谁？</string>
     <string name="pin_code">PIN码</string>
     <string name="pin_auto_hint">输入第4位数字即登录</string>

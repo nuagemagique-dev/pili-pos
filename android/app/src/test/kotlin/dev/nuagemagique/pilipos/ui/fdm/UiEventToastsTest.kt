@@ -110,7 +110,7 @@ class UiEventToastsTest {
             coEvery { s.rig.f.engine.login("85010100123", null) } returns user()
             s.rig.session.login("85010100123", null)
 
-            s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, "FDM_LOCKED")))
+            s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, "FDM_LOCKED", null)))
             runCurrent()
 
             val toast = s.rig.toasts.toasts.value.single()
@@ -125,7 +125,7 @@ class UiEventToastsTest {
             coEvery { s.rig.f.engine.login("85010100123", null) } returns user()
             s.rig.session.login("85010100123", null)
 
-            s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null)))
+            s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null, null)))
             runCurrent()
 
             assertTrue(s.rig.toasts.toasts.value.isEmpty())

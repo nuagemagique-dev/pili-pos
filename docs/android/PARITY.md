@@ -67,6 +67,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | utils/format.ts | ui/format/Money.kt | - |
 | utils/datetime.ts | ui/format/PosDateTime.kt | - |
 | components/VatSummary.vue and the line amount of components/OrderLineItem.vue | ui/format/CartAmounts.kt, ui/components/VatSummary.kt | - |
+| components/IdleLockBanner.vue, stores/auth.ts (idle warning), App.vue (`idle-lock-warning` listener) | ui/components/IdleLockBanner.kt, ui/state/SessionStore.kt (`idleWarning`, `idleLockedAfterMin`) | - |
 | components/TrainingBanner.vue and the App.vue watermark | ui/components/TrainingBanner.kt, TrainingWatermarkOverlay | - |
 | components/ConfigProblemsBanner.vue | ui/components/ConfigProblemsBanner.kt | - |
 | components/AppHeader.vue, PiliLogo.vue, OnlineOrdersNavButton.vue | ui/scaffold/AppHeader.kt (AppHeader, PiliLogo), PosScaffold.kt, HeaderViewModel.kt | `set_pin` |

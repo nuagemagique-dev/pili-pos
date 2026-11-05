@@ -18,6 +18,7 @@ import StatusLights from './StatusLights.vue'
 import PinDialog from './PinDialog.vue'
 import FdmAlerts from './FdmAlerts.vue'
 import TrainingBanner from './TrainingBanner.vue'
+import IdleLockBanner from './IdleLockBanner.vue'
 
 // While HubRise runs, or online orders are still to settle.
 const OnlineOrdersNavButton = defineAsyncComponent(() => import('./OnlineOrdersNavButton.vue'))
@@ -145,6 +146,7 @@ async function lock() {
     </nav>
   </header>
   <TrainingBanner />
+  <IdleLockBanner />
   <FdmAlerts />
 
   <PinDialog

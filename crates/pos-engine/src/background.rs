@@ -8,13 +8,15 @@
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
 
 use crate::commands;
-use crate::commands::session::{LockReason, PresenceJob};
+use crate::commands::session::{IdleLockWarning, LockReason, PresenceJob};
 use crate::engine::Engine;
+use crate::events::EngineEvent;
 use crate::state::AppState;
 
 /// The idle lock (PD35): locks the session once `timers.idle_lock` has
@@ -23,8 +25,22 @@ use crate::state::AppState;
 /// lock button with reason idle. Without a session, and after a lock,
 /// it waits for the next touch instead of polling. Returns when the
 /// shutdown token is cancelled.
+///
+/// `idle_warning_lead` before the lock it emits `idle-lock-warning`
+/// with the time left (UX audit L4), and emits it again with no time
+/// left when a touch or the end of the session cancels the warning.
 pub async fn run_idle_lock(state: Arc<AppState>) {
     let rules = &state.session_rules;
+    let lead = commands::session::idle_warning_lead(state.timers.idle_lock);
+    // True while the UI has been told the lock is near.
+    let mut warned = false;
+    let announce = |lock_in: Option<Duration>| {
+        state
+            .events
+            .emit(EngineEvent::IdleLockWarning(IdleLockWarning {
+                lock_in_ms: lock_in.map(|d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX)),
+            }));
+    };
     loop {
         // Enable the wait before reading the clock: a touch between the
         // two would otherwise be lost.
@@ -33,6 +49,10 @@ pub async fn run_idle_lock(state: Arc<AppState>) {
 
         let session_open = state.session.lock().is_ok_and(|s| s.is_some());
         if !session_open {
+            if warned {
+                warned = false;
+                announce(None);
+            }
             tokio::select! {
                 () = state.shutdown_token.cancelled() => return,
                 () = &mut touched => continue,
@@ -40,17 +60,38 @@ pub async fn run_idle_lock(state: Arc<AppState>) {
         }
 
         let deadline = rules.last_activity() + state.timers.idle_lock;
-        if Instant::now() < deadline {
+        let warn_at = deadline.checked_sub(lead).unwrap_or(deadline);
+        let now = Instant::now();
+        if now < warn_at {
+            // A touch cancels a warning that was showing.
+            if warned {
+                warned = false;
+                announce(None);
+            }
+            tokio::select! {
+                () = state.shutdown_token.cancelled() => return,
+                () = &mut touched => {}
+                () = tokio::time::sleep_until(warn_at) => {}
+            }
+            // Re-read the clock: a touch moved the deadline, a sleep
+            // that ran out leaves the warning below.
+            continue;
+        }
+        if now < deadline {
+            if !warned {
+                warned = true;
+                announce(Some(deadline - now));
+            }
             tokio::select! {
                 () = state.shutdown_token.cancelled() => return,
                 () = &mut touched => {}
                 () = tokio::time::sleep_until(deadline) => {}
             }
-            // Re-read the clock: a touch moved the deadline, a sleep
-            // that ran out leaves the lock below.
             continue;
         }
 
+        // The lock event supersedes the warning: no "over" event.
+        warned = false;
         tracing::info!("idle lock: locking the session");
         let locking = commands::session::lock(&state, LockReason::Idle);
         tokio::select! {

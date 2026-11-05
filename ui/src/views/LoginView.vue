@@ -490,6 +490,14 @@ async function submitInsz() {
     <section class="people">
       <div class="people-main">
         <h1 class="title">{{ t('who_are_you') }}</h1>
+        <p
+          v-if="auth.idleLockedAfterMin !== null"
+          class="idle-notice"
+          role="status"
+          data-testid="idle-locked-notice"
+        >
+          {{ t('idle_locked_notice', { min: auth.idleLockedAfterMin }) }}
+        </p>
         <p v-if="error" class="error-msg shake">{{ error }}</p>
 
         <div v-if="!showNumpad && savedUsers.length > 0" class="user-grid">
@@ -775,6 +783,17 @@ async function submitInsz() {
 .title {
   font-size: 40px;
   font-weight: var(--font-weight-heavy);
+}
+
+/* Why the till is locked: amber, the colour of "waiting", not an error. */
+.idle-notice {
+  align-self: flex-start;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent-warning);
+  color: var(--accent-warning);
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
 }
 
 .error-msg {

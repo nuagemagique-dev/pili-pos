@@ -461,8 +461,9 @@ internal object VueStringIds {
         this["note_hint_now"] = R.string.note_hint_now
         this["note_hint_with_order"] = R.string.note_hint_with_order
         this["keypad_space"] = R.string.keypad_space
+        this["idle_lock_warning"] = R.string.idle_lock_warning
+        this["idle_locked_notice"] = R.string.idle_locked_notice
         this["takeaway_started_at"] = R.string.takeaway_started_at
-        this["takeaway_start"] = R.string.takeaway_start
         this["who_are_you"] = R.string.who_are_you
         this["pin_code"] = R.string.pin_code
         this["pin_auto_hint"] = R.string.pin_auto_hint
@@ -518,10 +519,10 @@ internal object VueStringIds {
         this["allergens_no_printer"] = R.string.allergens_no_printer
         this["allergens_nothing"] = R.string.allergens_nothing
         this["allergens_regulation"] = R.string.allergens_regulation
-        this["err_allergen_unknown"] = R.string.err_allergen_unknown
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["err_allergen_unknown"] = R.string.err_allergen_unknown
         this["err_allergen_target_not_found"] = R.string.err_allergen_target_not_found
         this["course_0"] = R.string.course_0
         this["course_1"] = R.string.course_1
@@ -771,10 +772,10 @@ internal object VueStringIds {
         this["sales_today"] = R.string.sales_today
         this["sales_yesterday"] = R.string.sales_yesterday
         this["sales_week"] = R.string.sales_week
-        this["sales_month"] = R.string.sales_month
     }
 
     private fun MutableMap<String, Int>.part3() {
+        this["sales_month"] = R.string.sales_month
         this["sales_custom"] = R.string.sales_custom
         this["sales_from"] = R.string.sales_from
         this["sales_to"] = R.string.sales_to
@@ -1024,10 +1025,10 @@ internal object VueStringIds {
         this["integrations_title"] = R.string.integrations_title
         this["integrations_hubrise_text"] = R.string.integrations_hubrise_text
         this["integrations_on"] = R.string.integrations_on
-        this["integrations_off"] = R.string.integrations_off
     }
 
     private fun MutableMap<String, Int>.part4() {
+        this["integrations_off"] = R.string.integrations_off
         this["integrations_turn_on"] = R.string.integrations_turn_on
         this["integrations_turn_off"] = R.string.integrations_turn_off
         this["integrations_log"] = R.string.integrations_log

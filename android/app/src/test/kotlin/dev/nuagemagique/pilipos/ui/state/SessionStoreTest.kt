@@ -15,6 +15,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import uniffi.pos_ffi.IdleLockWarning
 import uniffi.pos_ffi.LockOutcome
 import uniffi.pos_ffi.LockReason
 import uniffi.pos_ffi.PosEvent
@@ -43,7 +44,7 @@ class SessionStoreTest {
         return Setup(f, feed, store)
     }
 
-    private fun locked(): PosEvent = PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null))
+    private fun locked(): PosEvent = PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null, null))
 
     @Test
     fun loginSetsTheUserAndTheRoles() =
@@ -175,7 +176,7 @@ class SessionStoreTest {
             s.store.login("1", null)
 
             s.store.sessionLocked.test {
-                s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, "late")))
+                s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, "late", null)))
                 runCurrent()
                 val event = awaitItem()
                 assertEquals(LockReason.IDLE, event.reason)
@@ -292,4 +293,96 @@ class SessionStoreTest {
             assertEquals(UserRole.CASHIER, s.store.currentUser.value?.role)
             assertTrue(s.store.canTakePayment.value)
         }
+
+    // ── The idle lock warning and the line after an idle lock (UX audit L4) ──
+
+    private fun warning(leftMs: Long?): PosEvent = PosEvent.IdleLockWarning(IdleLockWarning(leftMs))
+
+    @Test
+    fun theEngineWarningShowsWhileAnOperatorIsLoggedInAndTheNextOneEndsIt() =
+        runTest {
+            val s = setup()
+            coEvery { s.f.engine.login("1", null) } returns user()
+            s.store.login("1", null)
+            assertNull(s.store.idleWarning.value)
+
+            s.feed.send(warning(30_000L))
+            runCurrent()
+            assertEquals(30_000L, s.store.idleWarning.value?.lockInMs)
+
+            // The operator touched the screen: the engine says the warning is over.
+            s.feed.send(warning(null))
+            runCurrent()
+            assertNull(s.store.idleWarning.value)
+        }
+
+    @Test
+    fun twoWarningsWithTheSameTimeLeftAreDistinctSoTheCountdownRestarts() =
+        runTest {
+            val s = setup()
+            coEvery { s.f.engine.login("1", null) } returns user()
+            s.store.login("1", null)
+
+            s.feed.send(warning(30_000L))
+            runCurrent()
+            val first = s.store.idleWarning.value
+            s.feed.send(warning(null))
+            s.feed.send(warning(30_000L))
+            runCurrent()
+
+            assertEquals(first?.lockInMs, s.store.idleWarning.value?.lockInMs)
+            assertTrue(s.store.idleWarning.value != first)
+        }
+
+    @Test
+    fun aWarningWithNobodyLoggedInShowsNothing() =
+        runTest {
+            val s = setup()
+
+            s.feed.send(warning(30_000L))
+            runCurrent()
+
+            assertNull(s.store.idleWarning.value)
+        }
+
+    @Test
+    fun anIdleLockEndsTheWarningAndTheLoginScreenNamesTheDelayUntilTheNextLogin() =
+        runTest {
+            val s = setup()
+            coEvery { s.f.engine.login("1", null) } returns user()
+            s.store.login("1", null)
+            s.feed.send(warning(30_000L))
+            runCurrent()
+
+            s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null, 300_000L)))
+            runCurrent()
+            assertNull(s.store.idleWarning.value)
+            assertEquals(5, s.store.idleLockedAfterMin.value)
+
+            s.store.login("1", null)
+            assertNull(s.store.idleLockedAfterMin.value)
+        }
+
+    @Test
+    fun aManualLockSaysNothingAboutInactivity() =
+        runTest {
+            val s = setup()
+            coEvery { s.f.engine.login("1", null) } returns user()
+            s.store.login("1", null)
+
+            s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.MANUAL, null, null)))
+            runCurrent()
+
+            assertNull(s.store.idleLockedAfterMin.value)
+        }
+
+    @Test
+    fun theMinutesAreRoundedAndNeverBelowOneAndOnlyForIdleLocks() {
+        assertEquals(5, idleLockedMinutes(LockReason.IDLE, 300_000L))
+        assertEquals(1, idleLockedMinutes(LockReason.IDLE, 30_000L))
+        assertEquals(3, idleLockedMinutes(LockReason.IDLE, 150_000L))
+        assertNull(idleLockedMinutes(LockReason.IDLE, null))
+        assertNull(idleLockedMinutes(LockReason.IDLE, 0L))
+        assertNull(idleLockedMinutes(LockReason.MANUAL, 300_000L))
+    }
 }

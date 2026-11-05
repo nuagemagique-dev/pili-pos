@@ -92,6 +92,9 @@ internal class LoginViewModel(
     val effects: Flow<LoginEffect> = effectChannel.receiveAsFlow()
 
     init {
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            entry.session().idleLockedAfterMin.collect { minutes -> own.update { it.copy(idleLockedAfterMin = minutes) } }
+        }
         viewModelScope.launch { runChecks() }
         viewModelScope.launch { loadShifts() }
         viewModelScope.launch { loadUsers() }

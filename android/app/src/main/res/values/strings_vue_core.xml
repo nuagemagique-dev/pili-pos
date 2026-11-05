@@ -287,8 +287,9 @@
     <string name="note_hint_now">Imprimée en cuisine maintenant</string>
     <string name="note_hint_with_order">Imprimée en cuisine avec la commande</string>
     <string name="keypad_space">Espace</string>
+    <string name="idle_lock_warning">Verrouillage dans {s} s · touchez l\'écran pour rester connecté</string>
+    <string name="idle_locked_notice">Caisse verrouillée après {min} min d\'inactivité</string>
     <string name="takeaway_started_at">Commencée à {time}</string>
-    <string name="takeaway_start">Nouvelle vente à emporter</string>
     <string name="who_are_you">Qui êtes-vous ?</string>
     <string name="pin_code">Code PIN</string>
     <string name="pin_auto_hint">connexion au 4ᵉ chiffre</string>

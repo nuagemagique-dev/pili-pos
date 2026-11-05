@@ -102,7 +102,25 @@ private fun PeopleHeader(state: LoginUiState) {
         style = typography.title.copy(fontSize = typography.sizeXl * TITLE_SCALE),
         color = PiliTheme.colors.textPrimary,
     )
+    state.idleLockedAfterMin?.let { IdleLockedNotice(vueText("idle_locked_notice", "min" to it)) }
     state.error?.let { ErrorLine(it, Modifier.testTag("login_error")) }
+}
+
+/** Why the till is locked (UX audit L4): amber, the colour of "waiting", not a red error. Test tag: `idle_locked_notice`. */
+@Composable
+private fun IdleLockedNotice(text: String) {
+    val colors = PiliTheme.colors
+    val typography = PiliTheme.typography
+    Text(
+        text = text,
+        style = typography.body.copy(fontSize = typography.sizePrice, fontWeight = typography.weightBold),
+        color = colors.accentWarning,
+        modifier =
+            Modifier
+                .border(BorderStroke(1.dp, colors.accentWarning), RoundedCornerShape(PiliTheme.dimens.radiusSm))
+                .padding(horizontal = PiliTheme.dimens.spaceMd, vertical = PiliTheme.dimens.spaceSm)
+                .testTag("idle_locked_notice"),
+    )
 }
 
 /** "Ou présentez votre badge" (`badge-hint`): the tiles are not the only way in. */

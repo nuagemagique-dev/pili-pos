@@ -116,7 +116,7 @@ class TablesContentTest {
     fun theTakeawayListShowsTheCountTheStartTimeInBrusselsAndTheAmount() {
         show(base)
 
-        compose.onNodeWithTag("takeaways_count").assertTextEquals("1")
+        compose.onNodeWithTag("takeaways_title").assertTextEquals("À emporter en cours (1)")
         // 10:05 UTC is 12:05 in Brussels.
         compose.onNodeWithTag("takeaway_50").assertIsDisplayed()
         compose.onNodeWithTag("takeaway_50").assertTextContains("12:05", substring = true)
@@ -137,11 +137,19 @@ class TablesContentTest {
     }
 
     @Test
+    fun theNewTakeawayButtonUsesTheLabelOfTheHeader() {
+        // One label for the action (UX audit T4): "À emporter" here and in the header's nav button.
+        show(base)
+
+        compose.onNodeWithTag("takeaway_new").assertTextEquals("À emporter")
+    }
+
+    @Test
     fun withoutAnyTableTheEmptyStateSaysSo() {
         show(base.copy(tables = emptyList(), takeaways = emptyList()))
 
         compose.onNodeWithTag("tables_none").assertIsDisplayed()
-        compose.onNodeWithTag("takeaways_count").assertTextEquals("0")
+        compose.onNodeWithTag("takeaways_title").assertTextEquals("À emporter en cours (0)")
         compose.onNodeWithTag("takeaway_new").assertIsDisplayed()
     }
 

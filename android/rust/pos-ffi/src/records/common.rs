@@ -510,6 +510,16 @@ pub enum LockReason {
 pub struct SessionLocked {
     pub reason: LockReason,
     pub order_error: Option<String>,
+    /// The idle delay that ran out, in milliseconds (idle locks only).
+    pub idle_after_ms: Option<i64>,
+}
+
+/// `pos_engine::commands::session::IdleLockWarning`: payload of the `idle-lock-warning` event.
+/// `lock_in_ms` is the time left before the idle lock; `None` says the warning is over.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct IdleLockWarning {
+    pub lock_in_ms: Option<i64>,
 }
 
 /// `pos_engine::commands::social::PresenceFailed`: payload of the `presence-failed` event.

@@ -287,8 +287,9 @@
     <string name="note_hint_now">Printed in the kitchen now</string>
     <string name="note_hint_with_order">Printed in the kitchen with the order</string>
     <string name="keypad_space">Space</string>
+    <string name="idle_lock_warning">Locking in {s} s · touch the screen to stay signed in</string>
+    <string name="idle_locked_notice">Till locked after {min} min of inactivity</string>
     <string name="takeaway_started_at">Started at {time}</string>
-    <string name="takeaway_start">New takeaway sale</string>
     <string name="who_are_you">Who are you?</string>
     <string name="pin_code">PIN code</string>
     <string name="pin_auto_hint">logs in at the 4th digit</string>

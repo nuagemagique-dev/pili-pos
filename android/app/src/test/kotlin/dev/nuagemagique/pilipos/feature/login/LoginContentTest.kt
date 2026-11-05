@@ -110,6 +110,24 @@ class LoginContentTest {
     }
 
     @Test
+    fun afterAnIdleLockTheScreenSaysWhyAboveTheTiles() {
+        show(base.copy(idleLockedAfterMin = 5))
+
+        compose.onNodeWithTag("idle_locked_notice").assertIsDisplayed()
+            .assertTextEquals("Caisse verrouillée après 5 min d'inactivité")
+        val notice = compose.onNodeWithTag("idle_locked_notice").getUnclippedBoundsInRoot()
+        val firstTile = compose.onNodeWithText("Alice").getUnclippedBoundsInRoot()
+        assertTrue("the line is above the tiles", notice.bottom <= firstTile.top)
+    }
+
+    @Test
+    fun withoutAnIdleLockThereIsNoLine() {
+        show(base)
+
+        compose.onNodeWithTag("idle_locked_notice").assertDoesNotExist()
+    }
+
+    @Test
     fun noVersionLineWhenTheSettingsAreNotLoaded() {
         show(base.copy(version = ""))
 

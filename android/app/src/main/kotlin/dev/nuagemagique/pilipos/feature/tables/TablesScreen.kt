@@ -148,7 +148,7 @@ internal fun TablesRoute(navigator: AppNavigator) {
  * dashed) and the open takeaways on the right with the new takeaway button, laid out for 1920 x 1080 dp. Without a
  * user it shows an empty state instead. The "Déplacer une table" bar sits over the grid. Test tags: `tables_grid`,
  * `move_toggle`, `move_hint`, `table_<number>`, `table_<number>_total`, `tables_none`, `takeaways_panel`,
- * `takeaway_<orderId>`, `takeaway_new`, `tables_empty`.
+ * `takeaway_<orderId>`, `takeaways_title`, `takeaway_new`, `tables_empty`.
  */
 @Composable
 internal fun TablesContent(
@@ -442,20 +442,18 @@ private fun TakeawayPanel(
                 .drawBehind { drawRect(c.border, size = Size(1.dp.toPx(), size.height)) }
                 .testTag("takeaways_panel"),
     ) {
-        Row(
+        Box(
             modifier =
                 Modifier.fillMaxWidth().drawBottomLine(
                     c.border,
                 ).padding(start = d.spaceMd, end = d.spaceMd, top = d.spaceMd, bottom = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom,
         ) {
-            Text(vueText("takeaways_open"), style = t.title, color = c.textPrimary)
+            // The count of sales in progress is part of the title (UX audit T4), as in TablesView.vue.
             Text(
-                text = state.takeaways.size.toString(),
-                style = t.figure,
-                color = c.textSecondary,
-                modifier = Modifier.testTag("takeaways_count"),
+                text = vueText("takeaways_open") + " (" + state.takeaways.size + ")",
+                style = t.title,
+                color = c.textPrimary,
+                modifier = Modifier.testTag("takeaways_title"),
             )
         }
         Column(
@@ -474,7 +472,7 @@ private fun TakeawayPanel(
                 variant = PiliButtonVariant.Primary,
             ) {
                 Text(
-                    text = vueText("takeaway_start"),
+                    text = vueText("takeaway_new"),
                     style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightHeavy),
                     color = c.textOnAccent,
                     textAlign = TextAlign.Center,

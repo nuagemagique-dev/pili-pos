@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.scaffold.PRINTER_POLL_MS
+import dev.nuagemagique.pilipos.ui.state.EventFeed
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +29,10 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.FdmSeverity
+import uniffi.pos_ffi.LockReason
+import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.SessionLocked
 import uniffi.pos_ffi.UserRole
 
 private const val SLOW_TERMINAL_MS = 45_000L
@@ -52,6 +56,27 @@ class LoginViewModelTest {
         f: EngineFixture,
         open: Boolean = true,
     ): LoginRig = startLogin(f, context, open)
+
+    // ── The line after an idle lock (UX audit L4) ─────────────────
+
+    @Test
+    fun anIdleLockOfTheEngineMakesTheScreenSayWhyUntilSomeoneLogsIn() =
+        runTest {
+            val f = fixture()
+            val feed = EventFeed(f)
+            val r = start(f)
+            assertNull(r.state.idleLockedAfterMin)
+            coEvery { f.engine.login(ADMIN_INSZ, "1234") } returns admin
+            r.session.login(ADMIN_INSZ, "1234")
+
+            feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null, 300_000L)))
+            runCurrent()
+            assertEquals(5, r.state.idleLockedAfterMin)
+
+            r.session.login(ADMIN_INSZ, "1234")
+            runCurrent()
+            assertNull(r.state.idleLockedAfterMin)
+        }
 
     // ── Loading ───────────────────────────────────────────────────
 

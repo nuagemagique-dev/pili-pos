@@ -295,7 +295,8 @@ async fn locking_registers_the_order_while_the_session_is_open_then_closes_it() 
         recorder.locked(),
         vec![SessionLocked {
             reason: LockReason::Manual,
-            order_error: None
+            order_error: None,
+            idle_after_ms: None,
         }]
     );
 }
@@ -327,7 +328,8 @@ async fn an_fdm_failure_does_not_block_the_lock() {
         recorder.locked(),
         vec![SessionLocked {
             reason: LockReason::Manual,
-            order_error: Some(error)
+            order_error: Some(error),
+            idle_after_ms: None,
         }]
     );
     // The entry is still pending for the next registration.
@@ -381,11 +383,12 @@ fn the_lock_payloads_are_camel_case() {
     let locked = SessionLocked {
         reason: LockReason::Manual,
         order_error: Some("fdm_unreachable".into()),
+        idle_after_ms: Some(300_000),
     };
     let value = serde_json::to_value(&locked).unwrap();
     assert_eq!(
         value,
-        json!({ "reason": "manual", "orderError": "fdm_unreachable" })
+        json!({ "reason": "manual", "orderError": "fdm_unreachable", "idleAfterMs": 300_000 })
     );
     assert_eq!(
         serde_json::from_value::<SessionLocked>(value).unwrap(),

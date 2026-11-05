@@ -25,8 +25,14 @@ checks, end of shift); the screen only calls it through the shared stores and th
   navigates when it starts, only after an action of the operator succeeded. A test proves that no effect is sent
   while the screen loads and while the operator only browses (tile, PIN panel, INSZ entry, language).
 - **Tables after a login (PD211).** A successful login, a PIN entered on the 4th digit, the INSZ path and the first
-  PIN all end with `navigator.replaceAll(TablesRoutes.TABLES)`. Vue pushes the `order` route, whose screen bounces to
-  Tables when there is no order. The login screen is removed from the back stack, so Back does not return to it.
+  PIN all end with `navigator.replaceAll(TablesRoutes.TABLES)`. Since the UX audit (L5) Vue goes to Tables
+  directly too (`utils/postLogin.ts`), without drawing the order screen only to bounce; the one exception is an order
+  the Vue order store still holds (a resumed order), which keeps the `order` route. The login screen is removed from
+  the Compose back stack, so Back does not return to it.
+- **Idle lock line (UX audit L4).** After the engine's idle lock the login screen shows "Caisse verrouillée après
+  N min d'inactivité" above the tiles (`idle-notice` / tag `idle_locked_notice`, amber) until someone logs in. N comes
+  from the `idleAfterMs` of the `session-locked` payload (`SessionStore.idleLockedAfterMin`, `idleLockedMinutes`:
+  rounded, at least 1); a manual lock or a payload without a delay shows nothing.
 - **Engine not ready.** Every engine failure is caught: with the engine closed the screen shows the INSZ entry and
   the checks as "not configured" instead of failing. The root carries the tag `placeholder_login` (PD204: the tag
   means "feature root") so the foundation tests keep finding the screen.

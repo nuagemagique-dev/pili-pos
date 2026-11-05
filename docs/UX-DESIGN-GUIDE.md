@@ -246,6 +246,7 @@ de connexion ouvrent la même fiche.
 - **Non-bloquantes** (warnings) : bandeau jaune en haut de l'écran, auto-dismiss après 10 secondes, ne bloque pas le flow.
 - **Bloquantes** (FDM déconnecté, buffer full) : voile semi-transparent sur les écrans de vente, **sous le header de 64 px** (Tables, Rapports, Config et Verrouiller restent accessibles), message clair, pas de moyen de contourner. Les ventes sont impossibles tant que le problème n'est pas résolu.
 - **Toasts** : en haut au centre, juste sous le header, 560 px au plus, empilés vers le bas, trois au maximum (les plus récents). Le conteneur ne prend jamais un tap : un tap traverse jusqu'à l'écran dessous. Info, succès et avertissement disparaissent seuls ; une **erreur reste jusqu'à ce qu'on la touche** (« Touchez pour fermer »), et c'est le seul élément qui prend le tap.
+- **Verrouillage pour inactivité** : le verrouillage automatique (5 minutes) appartient au moteur. 30 secondes avant, un bandeau ambre sous le header (et sous le bandeau de formation) annonce « Verrouillage dans 30 s · touchez l'écran pour rester connecté » avec un compte à rebours ; le moteur envoie l'événement `idle-lock-warning`, les deux interfaces ne font que compter ce qu'il annonce. Tout toucher compte comme activité et fait disparaître le bandeau. Après le verrouillage, l'écran de connexion garde la ligne « Caisse verrouillée après 5 min d'inactivité » au-dessus des tuiles jusqu'à la prochaine connexion. Une connexion mène directement à Tables.
 
 ### 8.3 - Messages d'erreur
 

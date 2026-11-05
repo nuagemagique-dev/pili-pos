@@ -1426,9 +1426,20 @@ const coreMessages: Messages = {
   },
   keypad_space: { fr: 'Espace', en: 'Space', zh: '空格' },
 
+  // Idle lock (UX audit L4)
+  idle_lock_warning: {
+    fr: "Verrouillage dans {s} s · touchez l'écran pour rester connecté",
+    en: 'Locking in {s} s · touch the screen to stay signed in',
+    zh: '{s} 秒后锁定 · 触摸屏幕保持登录',
+  },
+  idle_locked_notice: {
+    fr: "Caisse verrouillée après {min} min d'inactivité",
+    en: 'Till locked after {min} min of inactivity',
+    zh: '收银机因 {min} 分钟无操作已自动锁定',
+  },
+
   // Tables screen (Pili)
   takeaway_started_at: { fr: 'Commencée à {time}', en: 'Started at {time}', zh: '{time} 开始' },
-  takeaway_start: { fr: 'Nouvelle vente à emporter', en: 'New takeaway sale', zh: '新外带订单' },
 
   // Login screen (Pili)
   who_are_you: { fr: 'Qui êtes-vous ?', en: 'Who are you?', zh: '您是谁？' },

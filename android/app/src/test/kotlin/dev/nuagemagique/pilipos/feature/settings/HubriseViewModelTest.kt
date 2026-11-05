@@ -628,7 +628,7 @@ class HubriseViewModelTest {
         runTest {
             val r = start()
 
-            r.env.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null)))
+            r.env.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null, null)))
             runCurrent()
 
             coVerify(exactly = 1) { r.engine.hubriseStatus() }

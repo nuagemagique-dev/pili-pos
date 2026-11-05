@@ -22,6 +22,7 @@ through the shared stores and the gateway.
 | components/OnlineOrdersNavButton.vue | ui/scaffold/AppHeader.kt (online orders button, PendingBadge) over ui/state/WebshopOrdersStore.kt | - |
 | components/PiliLogo.vue | ui/scaffold/AppHeader.kt (PiliLogo) and res/drawable/ui_logo.xml, ui_logo_bolt.xml, ui_logo_tones.xml | - |
 | components/FdmAlerts.vue (blocking part, `SALES_ROUTES`; the veil starts under the 64 px header) | ui/scaffold/PosScaffold.kt (FdmBlockingVeil over the content of the sales areas, below the header) | - |
+| components/IdleLockBanner.vue, stores/auth.ts (`idleLockAt`, `listenIdleLockWarning`) | ui/components/IdleLockBanner.kt (IdleLockBanner, IdleLockBannerContent), drawn by ui/scaffold/PosScaffold.kt under the header; state in ui/state/SessionStore.kt (`idleWarning`) and ui/scaffold/HeaderViewModel.kt | event `idle-lock-warning` |
 | components/ToastStack.vue, stores/toast.ts | ui/feedback/ToastOverlay.kt (ToastStack, ToastOverlay), ToastStore.kt | - |
 
 ## Differences
@@ -55,6 +56,16 @@ through the shared stores and the gateway.
   open and the start time are time arithmetic in Europe/Brussels through `PosDateTime`. No amount is computed here.
 - **Fonts and sizes.** Text sizes use the theme tokens only; the 44 px table number is the largest token times 1.5.
   The dashed outline of a free table is drawn with a dash path effect.
+- **Idle lock warning (UX audit L4).** The engine says 30 s before the idle lock (`idle-lock-warning`, payload
+  `lockInMs`; `null` when the operator was active again) and both UIs only count down what they were told, in an amber
+  row under the header (and under the training banner): "Verrouillage dans 30 s · touchez l'écran pour rester
+  connecté". Any touch is forwarded to the engine as activity, which ends the warning. Vue also hides the row at once
+  when it forwards a touch; Compose waits for the engine's event (a few milliseconds). Compose counts down from the
+  frame clock, Vue from `Date.now()` every 250 ms. The row takes no tap and sits in the flow, so the header stays usable.
+- **One label for the takeaway (UX audit T4).** The header button and the button of the takeaways panel both read
+  "À emporter" (`takeaway_new`); `takeaway_start` is gone. The panel title carries the count of sales in progress,
+  "À emporter en cours (2)" (tag `takeaways_title`, test id `takeaways-title`), replacing the separate count badge
+  (`takeaways_count`). Neither UI has an icon on these buttons, so the label is what is shared.
 - **Status light sheet (UX audit L2).** A tap on a light (header or login start-up row) opens one sheet: device name,
   state in words (`status_state_*`), the reason, the time of the last check (`HH:mm:ss`, Belgian time) and "Réessayer
   maintenant", which re-runs that device's check only (`DeviceLights.retry`, `FdmStore.checkNow` for the FDM). Vue keeps

@@ -101,6 +101,8 @@ internal data class LoginUiState(
     val training: Boolean = false,
     /** True when a badge reader is chosen (the end-of-shift pad invites to present the badge). */
     val badgeReaderOn: Boolean = false,
+    /** Minutes of inactivity after which the engine locked the till (UX audit L4), until someone logs in; or null. */
+    val idleLockedAfterMin: Int? = null,
     /** True when the reader is on and a badge logs the cashiers and waiters in (the tiles invite to present it). */
     val badgeLoginOn: Boolean = false,
 ) {

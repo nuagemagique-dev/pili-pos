@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.nav.AppNavigator
+import dev.nuagemagique.pilipos.ui.components.IdleLockBanner
 import dev.nuagemagique.pilipos.ui.components.PinDialog
 import dev.nuagemagique.pilipos.ui.components.PinMode
 import dev.nuagemagique.pilipos.ui.components.PinPadTexts
@@ -38,7 +39,7 @@ import java.time.Instant
 private const val CLOCK_TICK_MS = 10_000L
 
 /**
- * The frame of every staff screen: the header, the training banner under it and the [content], with the FDM
+ * The frame of every staff screen: the header, the training banner and the idle lock countdown under it and the [content], with the FDM
  * blocking veil over the content of the sales screens (PD209: Reports, Settings and the online orders stay
  * reachable) and the [overlay] slot above everything for the dialogs of the screen (PD214).
  *
@@ -145,6 +146,7 @@ internal fun PosScaffoldContent(
         Column(Modifier.fillMaxSize()) {
             AppHeader(header, actions, clock, lights = lights)
             if (training) TrainingBanner()
+            header.idleWarning?.let { IdleLockBanner(it) }
             Box(Modifier.weight(1f).fillMaxSize().testTag("scaffold_content")) {
                 content()
                 if (header.area.isSales) FdmBlockingVeil(fdm, onCheckNow = onCheckFdm)
