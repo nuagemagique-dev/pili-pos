@@ -6162,6 +6162,24 @@
       "zh": "厨房",
       "area": "core"
     },
+    "status_last_check": {
+      "fr": "Dernière vérification : {time}",
+      "en": "Last check: {time}",
+      "zh": "上次检查：{time}",
+      "area": "core"
+    },
+    "status_light_aria": {
+      "fr": "{name} : {state}",
+      "en": "{name}: {state}",
+      "zh": "{name}：{state}",
+      "area": "core"
+    },
+    "status_never_checked": {
+      "fr": "Pas encore vérifié",
+      "en": "Not checked yet",
+      "zh": "尚未检查",
+      "area": "core"
+    },
     "status_orders": {
       "fr": "Commandes",
       "en": "Orders",
@@ -6174,6 +6192,48 @@
       "zh": "打印",
       "area": "core"
     },
+    "status_reason_fdm_offline": {
+      "fr": "La boîte noire ne répond pas. Vérifiez qu'elle est allumée et branchée.",
+      "en": "The black box does not answer. Check that it is on and plugged in.",
+      "zh": "黑匣子没有响应。请检查是否已开机并接好线。",
+      "area": "core"
+    },
+    "status_reason_hubrise_err": {
+      "fr": "HubRise refuse l'accès, ou des envois sont bloqués. Voyez la Config.",
+      "en": "HubRise refuses access, or some updates are stuck. See Config.",
+      "zh": "HubRise 拒绝访问，或有更新被卡住。请查看设置。",
+      "area": "core"
+    },
+    "status_reason_hubrise_warn": {
+      "fr": "HubRise n'est pas connecté, des commandes attendent ou des mises à jour n'ont pas pu partir.",
+      "en": "HubRise is not connected, orders are waiting, or updates could not be sent.",
+      "zh": "HubRise 未连接、有订单在等待，或更新未能发送。",
+      "area": "core"
+    },
+    "status_reason_mail_warn": {
+      "fr": "Le serveur d'e-mail ne répond pas. Les tickets numériques attendront.",
+      "en": "The e-mail server does not answer. Digital tickets will wait.",
+      "zh": "邮件服务器没有响应。电子小票将稍后发送。",
+      "area": "core"
+    },
+    "status_reason_none": {
+      "fr": "Pas configuré, ou le moteur n'a pas répondu.",
+      "en": "Not configured, or the engine did not answer.",
+      "zh": "未配置，或引擎没有响应。",
+      "area": "core"
+    },
+    "status_reason_ok": {
+      "fr": "Aucun problème signalé.",
+      "en": "No problem reported.",
+      "zh": "没有发现问题。",
+      "area": "core"
+    },
+    "status_reason_printer_err": {
+      "fr": "L'imprimante ne répond pas. Vérifiez qu'elle est allumée et sur le réseau.",
+      "en": "The printer does not answer. Check that it is on and on the network.",
+      "zh": "打印机没有响应。请检查是否已开机并连上网络。",
+      "area": "core"
+    },
     "status_register": {
       "fr": "Caisse",
       "en": "Register",
@@ -6184,6 +6244,36 @@
       "fr": "Balance",
       "en": "Scale",
       "zh": "电子秤",
+      "area": "core"
+    },
+    "status_sheet_close": {
+      "fr": "Fermer",
+      "en": "Close",
+      "zh": "关闭",
+      "area": "core"
+    },
+    "status_state_err": {
+      "fr": "Ne répond pas",
+      "en": "Not working",
+      "zh": "故障",
+      "area": "core"
+    },
+    "status_state_none": {
+      "fr": "Non configuré",
+      "en": "Not configured",
+      "zh": "未配置",
+      "area": "core"
+    },
+    "status_state_ok": {
+      "fr": "Fonctionne",
+      "en": "Working",
+      "zh": "正常",
+      "area": "core"
+    },
+    "status_state_warn": {
+      "fr": "À surveiller",
+      "en": "Needs attention",
+      "zh": "需留意",
       "area": "core"
     },
     "status_terminal": {
@@ -6316,6 +6406,12 @@
       "fr": "À payer",
       "en": "To pay",
       "zh": "应付",
+      "area": "core"
+    },
+    "toast_tap_to_close": {
+      "fr": "Touchez pour fermer",
+      "en": "Tap to close",
+      "zh": "点按关闭",
       "area": "core"
     },
     "total": {

@@ -5,6 +5,7 @@ import dev.nuagemagique.pilipos.ui.components.PinMode
 import dev.nuagemagique.pilipos.ui.components.PinPadState
 import uniffi.pos_ffi.OpenShift
 import uniffi.pos_ffi.User
+import java.time.Instant
 
 /** Result of one start-up check, the `state` of a `Check` in `LoginView.vue`. */
 internal enum class CheckState {
@@ -82,6 +83,14 @@ internal data class LoginUiState(
     val firstPin: FirstPinTarget? = null,
     /** The start-up checks; empty until they all ran. */
     val checks: List<StartupCheck> = emptyList(),
+    /** When each check last ran, for the status sheet. */
+    val checkedAt: Map<CheckId, Instant> = emptyMap(),
+    /** The FDM code of the last FDM reading, the reason shown by the FDM sheet. */
+    val fdmCode: String? = null,
+    /** The device whose status sheet is open (UX audit L2), or null. */
+    val deviceSheet: CheckId? = null,
+    /** True while "Réessayer maintenant" of the status sheet runs. */
+    val deviceBusy: Boolean = false,
     /** Restaurant name and terminal id. */
     val footer: String = "",
     /** The software version (art. 47), empty when the settings are not loaded. */

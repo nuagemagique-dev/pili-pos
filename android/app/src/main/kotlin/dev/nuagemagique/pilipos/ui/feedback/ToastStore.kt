@@ -30,11 +30,15 @@ data class Toast(
 /** Default lifetime of a toast, in milliseconds (`DEFAULT_TTL_MS` of the Vue toast store). */
 const val DEFAULT_TOAST_TTL_MS: Long = 3000L
 
+/** At most this many toasts are drawn at once, the newest ones (`MAX_VISIBLE_TOASTS` of the Vue toast store). */
+const val MAX_VISIBLE_TOASTS: Int = 3
+
 /**
  * `stores/toast.ts`: the queue of non-blocking operator feedback (UX guide 8.2, auto-dismiss).
  *
- * Each toast removes itself after its own time to live; [dismiss] removes one earlier (a tap). Safe to call from
- * any thread.
+ * Info, success and warning toasts remove themselves after their own time to live. An [ToastVariant.Error] toast
+ * never does, whatever time to live it was given: it stays until [dismiss] (a tap on it), so a failure cannot
+ * vanish while the operator looks elsewhere (UX audit C5). Safe to call from any thread.
  */
 @Singleton
 class ToastStore
@@ -48,7 +52,7 @@ class ToastStore
         /** The visible toasts, oldest first. */
         val toasts: StateFlow<List<Toast>> = state.asStateFlow()
 
-        /** Appends a toast, schedules its removal after [ttlMs] and returns its id. */
+        /** Appends a toast, schedules its removal after [ttlMs] (never for an error) and returns its id. */
         fun show(
             message: String,
             variant: ToastVariant = ToastVariant.Info,
@@ -56,9 +60,11 @@ class ToastStore
         ): Long {
             val id = nextId.getAndIncrement()
             state.update { it + Toast(id, message, variant) }
-            scope.launch {
-                delay(ttlMs)
-                dismiss(id)
+            if (variant != ToastVariant.Error) {
+                scope.launch {
+                    delay(ttlMs)
+                    dismiss(id)
+                }
             }
             return id
         }

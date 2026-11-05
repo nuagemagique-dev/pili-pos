@@ -952,7 +952,7 @@ test.describe('Invoices: the copy of an invoice is refused', () => {
     await loginAndGoto(page, '/reports')
     await page.getByRole('tab', { name: 'Tickets' }).click()
     await page.getByTestId('invoice-copy-3').click()
-    await expect(page.locator('.toast-error')).toHaveText('La vente 43 est introuvable.')
+    await expect(page.locator('.toast-error .toast-msg')).toHaveText('La vente 43 est introuvable.')
     await expect(page.locator('.toast-success')).toHaveCount(0)
     await expect(page.getByTestId('invoice-copy-3')).toBeEnabled()
   })

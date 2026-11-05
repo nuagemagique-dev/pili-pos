@@ -390,6 +390,22 @@ internal object VueStringIds {
         this["scale_stage_stabilizing"] = R.string.scale_stage_stabilizing
         this["scale_stage_checking"] = R.string.scale_stage_checking
         this["status_kitchen"] = R.string.status_kitchen
+        this["toast_tap_to_close"] = R.string.toast_tap_to_close
+        this["status_light_aria"] = R.string.status_light_aria
+        this["status_state_ok"] = R.string.status_state_ok
+        this["status_state_warn"] = R.string.status_state_warn
+        this["status_state_err"] = R.string.status_state_err
+        this["status_state_none"] = R.string.status_state_none
+        this["status_reason_ok"] = R.string.status_reason_ok
+        this["status_reason_none"] = R.string.status_reason_none
+        this["status_reason_fdm_offline"] = R.string.status_reason_fdm_offline
+        this["status_reason_printer_err"] = R.string.status_reason_printer_err
+        this["status_reason_hubrise_err"] = R.string.status_reason_hubrise_err
+        this["status_reason_hubrise_warn"] = R.string.status_reason_hubrise_warn
+        this["status_reason_mail_warn"] = R.string.status_reason_mail_warn
+        this["status_last_check"] = R.string.status_last_check
+        this["status_never_checked"] = R.string.status_never_checked
+        this["status_sheet_close"] = R.string.status_sheet_close
         this["fdm_closes_in"] = R.string.fdm_closes_in
         this["fdm_retry_in"] = R.string.fdm_retry_in
         this["fdm_retry_now"] = R.string.fdm_retry_now
@@ -503,6 +519,9 @@ internal object VueStringIds {
         this["allergens_nothing"] = R.string.allergens_nothing
         this["allergens_regulation"] = R.string.allergens_regulation
         this["err_allergen_unknown"] = R.string.err_allergen_unknown
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["err_allergen_target_not_found"] = R.string.err_allergen_target_not_found
         this["course_0"] = R.string.course_0
         this["course_1"] = R.string.course_1
@@ -519,9 +538,6 @@ internal object VueStringIds {
         this["checkout_held_warning"] = R.string.checkout_held_warning
         this["checkout_send_now"] = R.string.checkout_send_now
         this["err_course_already_sent"] = R.string.err_course_already_sent
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["err_course_invalid"] = R.string.err_course_invalid
         this["err_courses_disabled"] = R.string.err_courses_disabled
         this["err_no_course_held"] = R.string.err_no_course_held
@@ -756,6 +772,9 @@ internal object VueStringIds {
         this["sales_yesterday"] = R.string.sales_yesterday
         this["sales_week"] = R.string.sales_week
         this["sales_month"] = R.string.sales_month
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["sales_custom"] = R.string.sales_custom
         this["sales_from"] = R.string.sales_from
         this["sales_to"] = R.string.sales_to
@@ -772,9 +791,6 @@ internal object VueStringIds {
         this["sales_col_product"] = R.string.sales_col_product
         this["sales_col_qty"] = R.string.sales_col_qty
         this["sales_col_amount"] = R.string.sales_col_amount
-    }
-
-    private fun MutableMap<String, Int>.part3() {
         this["sales_hour_tickets"] = R.string.sales_hour_tickets
         this["sales_z_equal"] = R.string.sales_z_equal
         this["sales_z_gap"] = R.string.sales_z_gap
@@ -1009,6 +1025,9 @@ internal object VueStringIds {
         this["integrations_hubrise_text"] = R.string.integrations_hubrise_text
         this["integrations_on"] = R.string.integrations_on
         this["integrations_off"] = R.string.integrations_off
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["integrations_turn_on"] = R.string.integrations_turn_on
         this["integrations_turn_off"] = R.string.integrations_turn_off
         this["integrations_log"] = R.string.integrations_log
@@ -1025,9 +1044,6 @@ internal object VueStringIds {
         this["webshop_time_ready_at"] = R.string.webshop_time_ready_at
         this["webshop_time_ready"] = R.string.webshop_time_ready
         this["webshop_own_label"] = R.string.webshop_own_label
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["webshop_delay_label"] = R.string.webshop_delay_label
         this["webshop_action_reprint"] = R.string.webshop_action_reprint
         this["webshop_status_in_delivery"] = R.string.webshop_status_in_delivery

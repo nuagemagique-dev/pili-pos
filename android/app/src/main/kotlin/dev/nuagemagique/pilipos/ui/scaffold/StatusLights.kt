@@ -3,10 +3,14 @@ package dev.nuagemagique.pilipos.ui.scaffold
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +26,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,11 +45,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import timber.log.Timber
 import uniffi.pos_ffi.FdmSeverity
 import uniffi.pos_ffi.HubriseStatus
 import uniffi.pos_ffi.PaymentTerminalStatus
 import uniffi.pos_ffi.ScaleStatus
+import java.time.Clock
+import java.time.Instant
 
 /** How often the two printers and the linked card terminal are checked, in milliseconds (30 s in `StatusLights.vue`). */
 internal const val PRINTER_POLL_MS: Long = 30_000L
@@ -58,6 +66,9 @@ private const val PULSE_MS = 180L
 private const val PULSE_SCALE = 1.6f
 private const val NONE_ALPHA = 0.4f
 private val DotSize = 10.dp
+
+/** Hit area of a light: 48 dp even though the dot is 10 dp (UX audit L2). */
+private val LightHitSize = 48.dp
 
 /** The colour of a device light (UX guide section 8.1): green is OK, amber a warning, red an error, grey unknown. */
 internal enum class LightState {
@@ -181,7 +192,17 @@ internal class GatewayLightProbe(
 @Suppress("TooManyFunctions") // Poll, check and clear for each of the lights.
 internal class DeviceLights(
     private val probe: LightProbe,
+    private val clock: Clock = Clock.systemUTC(),
 ) {
+    private val mutableCheckedAt = MutableStateFlow<Map<String, Instant>>(emptyMap())
+
+    /** When each device (`ticket`, `kitchen`, `terminal`, `scale`, `hubrise`) was last checked, for the status sheet. */
+    val checkedAt: StateFlow<Map<String, Instant>> = mutableCheckedAt.asStateFlow()
+
+    private fun stamp(key: String) {
+        mutableCheckedAt.update { it + (key to clock.instant()) }
+    }
+
     private val mutableTicket = MutableStateFlow(LightState.NONE)
     private val mutableKitchen = MutableStateFlow(LightState.NONE)
     private val mutableHubrise = MutableStateFlow(LightState.NONE)
@@ -240,11 +261,22 @@ internal class DeviceLights(
 
     /** One check of the ticket and the kitchen printer (`checkPrinters`). */
     suspend fun checkPrinters() {
+        checkTicket()
+        checkKitchen()
+    }
+
+    /** One check of the ticket printer alone (`checkTicket`). */
+    suspend fun checkTicket() {
         mutableTicket.value =
             attempt { probe.ticketPrinter() }.fold(
                 onSuccess = { if (it) LightState.OK else LightState.ERR },
                 onFailure = { LightState.NONE },
             )
+        stamp("ticket")
+    }
+
+    /** One check of the kitchen printer alone (`checkKitchen`). */
+    suspend fun checkKitchen() {
         mutableKitchen.value =
             attempt { probe.kitchenPrinter() }.fold(
                 onSuccess = { reachable ->
@@ -256,6 +288,18 @@ internal class DeviceLights(
                 },
                 onFailure = { LightState.NONE },
             )
+        stamp("kitchen")
+    }
+
+    /** "Réessayer maintenant" of the status sheet: the check of the device [key] again, that one only. */
+    suspend fun retry(key: String) {
+        when (key) {
+            "ticket" -> checkTicket()
+            "kitchen" -> checkKitchen()
+            "terminal" -> checkTerminal()
+            "scale" -> checkScale()
+            "hubrise" -> checkHubrise()
+        }
     }
 
     /** One check of the linked card terminal (`checkTerminal`). */
@@ -265,6 +309,7 @@ internal class DeviceLights(
                 onSuccess = ::terminalLight,
                 onFailure = { null },
             )
+        stamp("terminal")
     }
 
     /** One check of the scale (`checkScale`). */
@@ -274,6 +319,7 @@ internal class DeviceLights(
                 onSuccess = ::scaleLight,
                 onFailure = { null },
             )
+        stamp("scale")
     }
 
     /** One check of HubRise (`checkHubrise`). */
@@ -283,6 +329,7 @@ internal class DeviceLights(
                 onSuccess = ::hubriseLight,
                 onFailure = { LightState.NONE },
             )
+        stamp("hubrise")
     }
 
     /** The printers are not known any more (the engine went away). */
@@ -325,6 +372,9 @@ internal class DeviceLights(
  * terminal is also checked when [eftPhase] changes (a payment starts or ends). The FDM dot pulses once (180 ms) when
  * the FDM degrades. Test tags: `status_light_<fdm|ticket|kitchen|terminal|scale|hubrise>` on a light and
  * `status_dot_<name>_<ok|warn|err|none>` on its dot.
+ *
+ * Each light is a button with a 48 dp hit area (UX audit L2): a tap calls [onOpenDevice] with the device name, and the
+ * scaffold opens the [DeviceStatusSheetHost] for it.
  */
 @Composable
 internal fun StatusLights(
@@ -333,6 +383,7 @@ internal fun StatusLights(
     hubriseVisible: Boolean,
     modifier: Modifier = Modifier,
     eftPhase: EftPhase = EftPhase.IDLE,
+    onOpenDevice: (String) -> Unit = {},
 ) {
     val ready by lights.ready.collectAsState()
     LaunchedEffect(lights, ready) {
@@ -355,33 +406,42 @@ internal fun StatusLights(
     val fdmState = fdmLight(fdm)
     Row(
         modifier = modifier.testTag("status_lights"),
-        horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd),
+        horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        StatusLight("fdm", uiText(R.string.ui_common_light_fdm), fdmState, pulseOnDegrade = true)
-        StatusLight("ticket", vueText("status_printer"), ticket)
-        StatusLight("kitchen", vueText("status_kitchen"), kitchen)
-        terminal?.let { StatusLight("terminal", vueText("status_terminal"), it.state, description = terminalDescription(it)) }
-        scale?.let { StatusLight("scale", vueText("status_scale"), it.state, description = vueText(it.descriptionKey)) }
-        if (hubriseVisible) StatusLight("hubrise", uiText(R.string.ui_common_light_hubrise), hubrise)
+        StatusLight("fdm", uiText(R.string.ui_common_light_fdm), fdmState, onOpenDevice, pulseOnDegrade = true)
+        StatusLight("ticket", vueText("status_printer"), ticket, onOpenDevice)
+        StatusLight("kitchen", vueText("status_kitchen"), kitchen, onOpenDevice)
+        terminal?.let {
+            StatusLight("terminal", vueText("status_terminal"), it.state, onOpenDevice, description = terminalDescription(it))
+        }
+        scale?.let {
+            StatusLight("scale", vueText("status_scale"), it.state, onOpenDevice, description = vueText(it.descriptionKey))
+        }
+        if (hubriseVisible) StatusLight("hubrise", uiText(R.string.ui_common_light_hubrise), hubrise, onOpenDevice)
     }
 }
 
 /** The tooltip of the Vue terminal light, as the accessibility description of this one. */
 @Composable
-private fun terminalDescription(light: TerminalLight): String =
+internal fun terminalDescription(light: TerminalLight): String =
     when (light.state) {
         LightState.WARN -> vueText("check_payment_busy")
         LightState.OK -> vueText("check_connected")
         else -> listOfNotNull(vueText("check_unreachable"), light.detail).joinToString(": ")
     }
 
-/** One light: a dot and its label in the figure font. The FDM label turns red with its light: sales are blocked. */
+/**
+ * One light: a dot and its label in the figure font, a real button of at least 48 dp (the dot stays small). The FDM
+ * label turns red with its light: sales are blocked. The accessibility description is [description] (the reason of a
+ * terminal or scale light), else "name : state" like the `aria-label` of the Vue light.
+ */
 @Composable
 private fun StatusLight(
     name: String,
     label: String,
     state: LightState,
+    onOpen: (String) -> Unit,
     pulseOnDegrade: Boolean = false,
     description: String? = null,
 ) {
@@ -393,29 +453,38 @@ private fun StatusLight(
         animationSpec = tween(durationMillis = (PULSE_MS / 2).toInt()),
         label = "lightPulse",
     )
-    Row(
-        modifier =
-            Modifier
-                .testTag("status_light_$name")
-                .then(if (description == null) Modifier else Modifier.semantics { contentDescription = description }),
-        horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    val spoken = description ?: vueText("status_light_aria", "name" to label, "state" to vueText(stateWordKey(state)))
+    // The visible dot and label sit in a box of at least 48 dp; a transparent button lies over it, so the dot and the
+    // label stay separate nodes (tests, TalkBack) while the whole box takes the tap.
+    Box(modifier = Modifier.heightIn(min = LightHitSize).widthIn(min = LightHitSize)) {
+        Row(
+            modifier = Modifier.align(Alignment.Center).padding(horizontal = PiliTheme.dimens.spaceXs),
+            horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(DotSize)
+                        .scale(dotScale)
+                        .alpha(if (state == LightState.NONE) NONE_ALPHA else 1f)
+                        .background(lightColor(c, state), CircleShape)
+                        .testTag("status_dot_${name}_${state.name.lowercase()}"),
+            )
+            Text(
+                text = label.uppercase(),
+                style = t.body.copy(fontSize = t.sizeSm, fontFamily = t.familyFigures, fontWeight = t.weightBold, letterSpacing = 0.04.em),
+                color = if (pulseOnDegrade && state == LightState.ERR) c.accentDanger else c.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+            )
+        }
         Box(
-            modifier =
-                Modifier
-                    .size(DotSize)
-                    .scale(dotScale)
-                    .alpha(if (state == LightState.NONE) NONE_ALPHA else 1f)
-                    .background(lightColor(c, state), CircleShape)
-                    .testTag("status_dot_${name}_${state.name.lowercase()}"),
-        )
-        Text(
-            text = label.uppercase(),
-            style = t.body.copy(fontSize = t.sizeSm, fontFamily = t.familyFigures, fontWeight = t.weightBold, letterSpacing = 0.04.em),
-            color = if (pulseOnDegrade && state == LightState.ERR) c.accentDanger else c.textSecondary,
-            maxLines = 1,
-            overflow = TextOverflow.Clip,
+            Modifier
+                .matchParentSize()
+                .testTag("status_light_$name")
+                .clickable(role = Role.Button, onClick = { onOpen(name) })
+                .semantics { contentDescription = spoken },
         )
     }
 }
@@ -436,7 +505,7 @@ private fun rememberDegradePulse(state: LightState): Boolean {
     return pulse
 }
 
-private fun lightColor(
+internal fun lightColor(
     colors: PiliColors,
     state: LightState,
 ): Color =

@@ -61,6 +61,8 @@ fun PosScaffold(
     val training by entry.settings().trainingMode.collectAsState()
     val eft by entry.eft().overlay.collectAsState()
     val lights = remember(entry) { DeviceLights(GatewayLightProbe(entry.gateway())) }
+    val sheet = remember { DeviceSheetState() }
+    val fdmCheckedAt by entry.fdm().checkedAt.collectAsState()
     val scope = rememberCoroutineScope()
     LaunchedEffect(model) {
         model.effects.collect {
@@ -70,23 +72,7 @@ fun PosScaffold(
             }
         }
     }
-    val actions =
-        HeaderActions(
-            onTables = model::goTables,
-            onNewTakeaway = model::newTakeaway,
-            onOnlineOrders = model::goOnlineOrders,
-            onReports = model::goReports,
-            onSettings = model::goSettings,
-            onLock = model::lock,
-            onOpenPin = model::openPin,
-            pin =
-                HeaderPinActions(
-                    onSubmit = model::submitPin,
-                    describeError = model::describeError,
-                    onDone = model::closePin,
-                    onCancel = model::closePin,
-                ),
-        )
+    val actions = headerActions(model)
     PosUiRoot {
         PosScaffoldContent(
             header = header,
@@ -96,16 +82,48 @@ fun PosScaffold(
             training = training,
             clock = rememberClockText(),
             modifier = modifier,
-            lights = { StatusLights(fdm, lights, header.hubriseVisible, eftPhase = eft.phase) },
+            lights = {
+                StatusLights(fdm, lights, header.hubriseVisible, eftPhase = eft.phase, onOpenDevice = { sheet.openKey = it })
+            },
+            deviceSheet = {
+                DeviceStatusSheetHost(
+                    sheet = sheet,
+                    fdm = fdm,
+                    fdmCheckedAt = fdmCheckedAt,
+                    lights = lights,
+                    hubriseVisible = header.hubriseVisible,
+                    onCheckFdm = { scope.launch { entry.fdm().checkNow() } },
+                )
+            },
             overlay = overlay,
             content = content,
         )
     }
 }
 
+/** What the header's buttons do, all through [model]. */
+private fun headerActions(model: HeaderViewModel): HeaderActions =
+    HeaderActions(
+        onTables = model::goTables,
+        onNewTakeaway = model::newTakeaway,
+        onOnlineOrders = model::goOnlineOrders,
+        onReports = model::goReports,
+        onSettings = model::goSettings,
+        onLock = model::lock,
+        onOpenPin = model::openPin,
+        pin =
+            HeaderPinActions(
+                onSubmit = model::submitPin,
+                describeError = model::describeError,
+                onDone = model::closePin,
+                onCancel = model::closePin,
+            ),
+    )
+
 /**
  * The stateless scaffold: [PosScaffold] with its state and actions given. The veil is drawn over [content] when
- * `header.area.isSales` is true and [fdm] is blocking; the own-PIN dialog and then [overlay] come above the header.
+ * `header.area.isSales` is true and [fdm] is blocking; the own-PIN dialog, the [deviceSheet] of a status light and then
+ * [overlay] come above the header.
  * Test tags: `scaffold_content` (the box over which the veil lies).
  */
 @Composable
@@ -119,6 +137,7 @@ internal fun PosScaffoldContent(
     clock: String,
     modifier: Modifier = Modifier,
     lights: @Composable () -> Unit = {},
+    deviceSheet: @Composable BoxScope.() -> Unit = {},
     overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable () -> Unit,
 ) {
@@ -132,6 +151,7 @@ internal fun PosScaffoldContent(
             }
         }
         if (header.pinOpen) OwnPinDialog(header.userName, actions.pin)
+        deviceSheet()
         overlay()
     }
 }

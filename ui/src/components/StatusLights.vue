@@ -7,6 +7,12 @@
  *
  * The FDM light follows the engine's monitor (store fdm, event
  * "fdm-status"), which also keeps FdmAlerts current.
+ *
+ * Each light is a real button with a 48 px hit area (UX audit L2): a tap
+ * opens a sheet with the device, its state in words, the reason, the time
+ * of the last check and "Réessayer maintenant", which runs that device's
+ * check again. The `title` tooltip stays on some lights but is no longer
+ * the only place for the reason.
  */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useIntegrationsStore } from '../stores/integrations'
@@ -14,9 +20,10 @@ import * as ipc from '../api/ipc'
 import { useEftStore } from '../stores/eft'
 import { useFdmStore } from '../stores/fdm'
 import { useI18n } from '../i18n'
+import { translateFdmError } from '../utils/fdmMessages'
+import { stateWordKey, type DeviceStatus, type Light } from '../utils/deviceStatus'
+import DeviceStatusSheet from './DeviceStatusSheet.vue'
 import type { PaymentTerminalStatus } from '../types'
-
-type Light = 'ok' | 'warn' | 'err' | 'none'
 
 const fdm = useFdmStore()
 const { t } = useI18n()
@@ -71,18 +78,34 @@ watch(fdmLight, (next, prev) => {
   }
 })
 
-async function checkPrinters() {
+/** When each device was last checked (ms since epoch), for the sheet. */
+const checkedAt = ref<Record<string, number>>({})
+function stamp(key: string) {
+  checkedAt.value = { ...checkedAt.value, [key]: Date.now() }
+}
+
+async function checkTicket() {
   try {
     ticket.value = (await ipc.checkPrinter()) ? 'ok' : 'err'
   } catch {
     ticket.value = 'none'
   }
+  stamp('ticket')
+}
+
+async function checkKitchen() {
   try {
     const reachable = await ipc.checkKitchenPrinter()
     kitchen.value = reachable === null ? 'none' : reachable ? 'ok' : 'err'
   } catch {
     kitchen.value = 'none'
   }
+  stamp('kitchen')
+}
+
+async function checkPrinters() {
+  await checkTicket()
+  await checkKitchen()
 }
 
 async function checkTerminal() {
@@ -91,6 +114,7 @@ async function checkTerminal() {
   } catch {
     terminalStatus.value = null
   }
+  stamp('terminal')
 }
 
 async function checkScale() {
@@ -99,6 +123,7 @@ async function checkScale() {
   } catch {
     scaleStatus.value = null
   }
+  stamp('scale')
 }
 
 // A payment starting or ending changes what the terminal answers.
@@ -114,6 +139,7 @@ async function checkHubrise() {
   } catch {
     hubrise.value = 'none'
   }
+  stamp('hubrise')
 }
 
 /**
@@ -141,6 +167,135 @@ function hubriseLight(h: ipc.HubriseHealth): Light {
   return 'ok'
 }
 
+// ── The status sheet (L2) ─────────────────────────────────────────
+
+/** One light of the row, with what the sheet shows about it. */
+interface LightRow {
+  key: string
+  /** Short label of the light. */
+  label: string
+  /** Full device name for the sheet. */
+  name: string
+  state: Light
+  /** The tooltip (the reason, kept for the lights that had one). */
+  title?: string
+  reason: string
+}
+
+/** The reason in words for a printer or an other device that only answers yes or no. */
+function plainReason(state: Light, errKey: string): string {
+  if (state === 'ok') return t('status_reason_ok')
+  if (state === 'none') return t('status_reason_none')
+  return t(errKey)
+}
+
+const fdmReason = computed(() => {
+  const said = translateFdmError(fdm.lastError)
+  if (said !== null) return said
+  if (!fdm.connected) return t('status_reason_fdm_offline')
+  return t('status_reason_ok')
+})
+
+const rows = computed<LightRow[]>(() => {
+  const list: LightRow[] = [
+    {
+      key: 'fdm',
+      label: 'FDM',
+      name: 'FDM',
+      state: fdmLight.value,
+      reason: fdmReason.value,
+    },
+    {
+      key: 'ticket',
+      label: t('status_printer'),
+      name: t('check_ticket_printer'),
+      state: ticket.value,
+      reason: plainReason(ticket.value, 'status_reason_printer_err'),
+    },
+    {
+      key: 'kitchen',
+      label: t('status_kitchen'),
+      name: t('check_kitchen_printer'),
+      state: kitchen.value,
+      reason: plainReason(kitchen.value, 'status_reason_printer_err'),
+    },
+  ]
+  if (terminalLight.value) {
+    list.push({
+      key: 'terminal',
+      label: t('status_terminal'),
+      name: t('check_payment_terminal'),
+      state: terminalLight.value.state,
+      title: terminalLight.value.title,
+      reason: terminalLight.value.title,
+    })
+  }
+  if (scaleLight.value) {
+    list.push({
+      key: 'scale',
+      label: t('status_scale'),
+      name: t('status_scale'),
+      state: scaleLight.value.state,
+      title: scaleLight.value.title,
+      reason: scaleLight.value.title,
+    })
+  }
+  for (const light of hubriseLights.value) {
+    list.push({
+      key: 'hubrise',
+      label: light.label,
+      name: light.label,
+      state: light.state,
+      reason:
+        light.state === 'warn'
+          ? t('status_reason_hubrise_warn')
+          : plainReason(light.state, 'status_reason_hubrise_err'),
+    })
+  }
+  return list
+})
+
+/** The check that "Réessayer maintenant" runs again, per device. */
+const retries: Record<string, () => Promise<unknown>> = {
+  fdm: () => fdm.checkNow(),
+  ticket: checkTicket,
+  kitchen: checkKitchen,
+  terminal: checkTerminal,
+  scale: checkScale,
+  hubrise: checkHubrise,
+}
+
+const openKey = ref<string | null>(null)
+const retrying = ref(false)
+
+// The sheet shows the live row: after a retry it shows the new answer.
+const sheetDevice = computed<DeviceStatus | null>(() => {
+  const row = rows.value.find((r) => r.key === openKey.value)
+  if (!row) return null
+  return {
+    key: row.key,
+    name: row.name,
+    state: row.state,
+    reason: row.reason,
+    checkedAt: row.key === 'fdm' ? fdm.checkedAt : (checkedAt.value[row.key] ?? null),
+  }
+})
+
+async function retryOpen() {
+  const key = openKey.value
+  if (key === null || retrying.value) return
+  retrying.value = true
+  try {
+    await retries[key]?.()
+  } finally {
+    retrying.value = false
+  }
+}
+
+function ariaLabel(row: LightRow): string {
+  return t('status_light_aria', { name: row.name, state: t(stateWordKey(row.state)) })
+}
+
 let printerTimer: ReturnType<typeof setInterval> | undefined
 let hubriseTimer: ReturnType<typeof setInterval> | undefined
 
@@ -164,42 +319,30 @@ onUnmounted(() => {
 
 <template>
   <div class="lights">
-    <div class="light fdm" :class="fdmLight">
-      <span class="dot" :class="{ pulse: fdmPulse }" />
-      <span>FDM</span>
-    </div>
-    <div class="light" :class="ticket">
-      <span class="dot" />
-      <span>{{ t('status_printer') }}</span>
-    </div>
-    <div class="light" :class="kitchen">
-      <span class="dot" />
-      <span>{{ t('status_kitchen') }}</span>
-    </div>
-    <div
-      v-if="terminalLight"
+    <button
+      v-for="row in rows"
+      :key="row.key"
+      type="button"
       class="light"
-      :class="terminalLight.state"
-      :title="terminalLight.title"
-      data-testid="light-terminal"
+      :class="[row.state, { fdm: row.key === 'fdm' }]"
+      :title="row.title"
+      :aria-label="ariaLabel(row)"
+      :data-testid="`light-${row.key}`"
+      @click="openKey = row.key"
     >
-      <span class="dot" />
-      <span>{{ t('status_terminal') }}</span>
-    </div>
-    <div
-      v-if="scaleLight"
-      class="light"
-      :class="scaleLight.state"
-      :title="scaleLight.title"
-      data-testid="light-scale"
-    >
-      <span class="dot" />
-      <span>{{ t('status_scale') }}</span>
-    </div>
-    <div v-for="light in hubriseLights" :key="light.label" class="light" :class="light.state">
-      <span class="dot" />
-      <span>{{ light.label }}</span>
-    </div>
+      <span class="dot" :class="{ pulse: row.key === 'fdm' && fdmPulse }" />
+      <span>{{ row.label }}</span>
+    </button>
+
+    <Teleport to="body">
+      <DeviceStatusSheet
+        v-if="sheetDevice"
+        :device="sheetDevice"
+        :busy="retrying"
+        @retry="retryOpen"
+        @close="openKey = null"
+      />
+    </Teleport>
   </div>
 </template>
 
@@ -207,12 +350,18 @@ onUnmounted(() => {
 .lights {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 4px;
 }
 
+/* A real button: the dot is small but the hit area is 48 px high. */
 .light {
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   font-family: var(--font-mono);
   font-size: 14px;
@@ -221,6 +370,9 @@ onUnmounted(() => {
   text-transform: uppercase;
   color: var(--text-secondary);
   white-space: nowrap;
+}
+.light:active {
+  background: var(--bg-surface);
 }
 /* The FDM label turns red with its light: sales are blocked. */
 .light.fdm.err {

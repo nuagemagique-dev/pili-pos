@@ -20,6 +20,11 @@ export function formatTime(d: Date): string {
   return format(d, { hour: '2-digit', minute: '2-digit' })
 }
 
+/** "14:05:09" */
+export function formatTimeSeconds(d: Date): string {
+  return format(d, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
 /** "25/09/2026" */
 export function formatDate(d: Date): string {
   return format(d, { day: '2-digit', month: '2-digit', year: 'numeric' })
