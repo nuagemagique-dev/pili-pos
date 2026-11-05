@@ -307,7 +307,7 @@ test.describe('Order discount', () => {
     await page.goto('/')
     await tapUserTile(page)
     await page.waitForURL(/tables/u)
-    await page.getByRole('button', { name: 'Nouvelle vente à emporter' }).click()
+    await page.locator('.new-takeaway-btn').click()
     await page.waitForURL(/order/u)
     await expect(page.getByTestId('transfer-table')).toHaveCount(0)
 
