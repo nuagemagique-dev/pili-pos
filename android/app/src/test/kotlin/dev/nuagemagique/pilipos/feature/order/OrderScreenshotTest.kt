@@ -306,6 +306,23 @@ class OrderScreenshotTest {
         capture(OrderUiState(signedIn = true), "order_empty")
     }
 
+    // Everything sent: PAYER is the Volt primary again and "Envoyer en cuisine" a plain secondary (UX audit C4).
+    @Test
+    fun cartAllSent() {
+        val rows = fullCart.rows.map { it.copy(line = it.line.copy(unsentQuantity = 0)) }
+        capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(rows = rows, unsentCount = 0)), "order_cart_all_sent")
+    }
+
+    // The "Plus" menu of the cart header, opened by a manager (UX audit C3).
+    @Test
+    fun cartMoreMenu() {
+        val dialog = OrderDialog.CartMore(canTransfer = true, canDiscount = true, orderDiscounted = false, canCloseUnpaid = true)
+        capture(
+            OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(canTransfer = true, canDiscount = true), dialog = dialog),
+            "order_cart_more",
+        )
+    }
+
     @Test
     fun tablePicker() {
         val dialog = OrderDialog.TablePicker(4, listOf(1, 2, 3, 6, 7, 9, 10, 12))

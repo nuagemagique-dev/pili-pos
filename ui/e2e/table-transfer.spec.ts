@@ -9,6 +9,7 @@ import {
   DEFAULT_CART_LINE,
   tapUserTile,
 } from './fixtures/mock-ipc'
+import { tapMore, expectMoreRow, expectNoMoreRow } from './fixtures/cart-more'
 
 // Moving an open order to another table (command transfer_table), from
 // the cart and from the Tables screen's "Déplacer une table" mode.
@@ -52,7 +53,7 @@ test.describe('From the cart', () => {
     page,
   }) => {
     await openTable1(page)
-    await page.getByTestId('transfer-table').click()
+    await tapMore(page, 'transfer-table')
 
     const picker = page.getByRole('dialog', { name: 'Changer de table' })
     await expect(picker).toBeVisible()
@@ -75,7 +76,7 @@ test.describe('From the cart', () => {
   test('shows the refusal in French', async ({ page }) => {
     await openTable1(page)
     await overrideIPC(page, 'transfer_table', { __reject: 'table_transfer_target_busy' })
-    await page.getByTestId('transfer-table').click()
+    await tapMore(page, 'transfer-table')
     await page.getByTestId('pick-table-6').click()
     await page.getByTestId('transfer-confirm').click()
     await expect(page.getByText('Cette table a déjà une commande en cours')).toBeVisible()
@@ -91,7 +92,7 @@ test.describe('From the cart', () => {
         transferSlip: 'failed',
       })),
     })
-    await page.getByTestId('transfer-table').click()
+    await tapMore(page, 'transfer-table')
     await page.getByTestId('pick-table-7').click()
     await page.getByTestId('transfer-confirm').click()
     await expect(page.getByText('Bon de commande non imprimé')).toBeVisible()
@@ -108,7 +109,7 @@ test.describe('From the cart', () => {
 
     // The engine registers what was unsent before it moves the table.
     await overrideIPC(page, 'get_order', { ...DEFAULT_ORDER, table_number: 5, total_cents: 2400 })
-    await page.getByTestId('transfer-table').click()
+    await tapMore(page, 'transfer-table')
     await page.getByTestId('pick-table-5').click()
     await page.getByTestId('transfer-confirm').click()
 
@@ -122,11 +123,11 @@ test.describe('From the cart', () => {
   test('is hidden while the order has no line, and shown once it has one', async ({ page }) => {
     await openTable1(page, { list_cart_lines: () => [] })
     await expect(page.locator('.cart-empty')).toBeVisible()
-    await expect(page.getByTestId('transfer-table')).toHaveCount(0)
+    await expectNoMoreRow(page, 'transfer-table')
 
     await page.locator('.item-btn').first().click()
     await expect(page.locator('.order-line')).toHaveCount(1)
-    await expect(page.getByTestId('transfer-table')).toBeVisible()
+    await expectMoreRow(page, 'transfer-table')
   })
 
   test('says so when no table is free, and moves nothing', async ({ page }) => {
@@ -134,7 +135,7 @@ test.describe('From the cart', () => {
     const busy: Record<number, number> = {}
     for (let n = 2; n <= 20; n++) busy[n] = 100 + n
     await openTable1(page, { list_tables: tables(busy) })
-    await page.getByTestId('transfer-table').click()
+    await tapMore(page, 'transfer-table')
 
     const picker = page.getByTestId('table-picker')
     await expect(picker).toBeVisible()
@@ -146,13 +147,13 @@ test.describe('From the cart', () => {
 
   test('Retour and the backdrop close the picker without a call', async ({ page }) => {
     await openTable1(page)
-    await page.getByTestId('transfer-table').click()
+    await tapMore(page, 'transfer-table')
     const picker = page.getByTestId('table-picker')
     await picker.getByTestId('pick-table-5').click()
     await picker.getByRole('button', { name: 'Retour' }).click()
     await expect(picker).toHaveCount(0)
 
-    await page.getByTestId('transfer-table').click()
+    await tapMore(page, 'transfer-table')
     await expect(picker).toBeVisible()
     await page.mouse.click(5, 5)
     await expect(picker).toHaveCount(0)
@@ -162,7 +163,7 @@ test.describe('From the cart', () => {
   test('a failed table list shows an error and no picker', async ({ page }) => {
     await openTable1(page)
     await overrideIPC(page, 'list_tables', { __reject: 'some_code' })
-    await page.getByTestId('transfer-table').click()
+    await tapMore(page, 'transfer-table')
     await expect(page.locator('.toast-error')).toBeVisible()
     await expect(page.getByTestId('table-picker')).toHaveCount(0)
     expect(await ipcCalls(page, 'transfer_table')).toHaveLength(0)
@@ -179,7 +180,7 @@ test.describe('From the cart', () => {
     await page.waitForURL(/tables/u)
     await page.getByRole('button', { name: 'Nouvelle vente à emporter' }).click()
     await page.waitForURL(/order/u)
-    await expect(page.getByTestId('transfer-table')).toHaveCount(0)
+    await expectNoMoreRow(page, 'transfer-table')
   })
 })
 

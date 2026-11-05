@@ -84,6 +84,8 @@ C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
          ~65% de la largeur                      ~35% de la largeur
 ```
 
+**Pied du panier (audit C4, C3) :** tant que la commande en salle a des lignes pas encore envoyées en cuisine (hors lignes retenues par un service), « Envoyer en cuisine » est le bouton principal Volt avec une pastille « 2 lignes », et PAYER devient un bouton secondaire à contour qui affiche toujours le total. Une fois tout envoyé, PAYER redevient le principal. Pour un Apprenti (sans droit d'encaisser), « Envoyer en cuisine » est toujours le principal. « Changer de table », « Remise » et « Client parti sans payer » ne sont plus dans le pied : ils sont dans le menu « Plus » de l'en-tête du panier.
+
 **Proportions :** menu grid = ~65% de l'écran, cart sidebar = ~35%. Sur 1920px, ça donne ~1250px pour le menu et ~670px pour le cart.
 
 **Grille menu :** 5 colonnes de boutons items (environ 230 × 120 px, au-dessus du minimum de 140 × 100 px). Scrollable verticalement avec inertie tactile.

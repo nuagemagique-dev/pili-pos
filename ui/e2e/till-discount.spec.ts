@@ -10,6 +10,7 @@ import {
   DEFAULT_CATEGORY,
   DEFAULT_MENU_ITEM,
 } from './fixtures/mock-ipc'
+import { tapMore, openMore, closeMore, expectMoreRow, expectNoMoreRow } from './fixtures/cart-more'
 
 // A manager's discount at the till (commands apply_discount and
 // remove_discount): an order discount (percent, amount, Offert) or one
@@ -63,26 +64,28 @@ async function afterDiscount(page: Page, lines: unknown[], total: number) {
 test.describe('Remise button', () => {
   test('a manager sees it on an order with lines', async ({ page }) => {
     await toOrder(page)
+    await openMore(page)
     await expect(page.getByTestId('discount-open')).toHaveText('Remise')
+    await closeMore(page)
   })
 
   test('a cashier does not', async ({ page }) => {
     await toOrder(page, [PLAIN], 2400, CASHIER)
     await expect(page.locator('.cart-lines')).toBeVisible()
-    await expect(page.getByTestId('discount-open')).toHaveCount(0)
+    await expectNoMoreRow(page, 'discount-open')
     await expect(page.getByTestId('line-offer')).toHaveCount(0)
   })
 
   test('is absent on an empty order', async ({ page }) => {
     await toOrder(page, [], 0)
-    await expect(page.getByTestId('discount-open')).toHaveCount(0)
+    await expectNoMoreRow(page, 'discount-open')
   })
 
   test('is absent on an online order, whatever the role', async ({ page }) => {
     await toOrder(page, [{ ...PLAIN, online: true }])
     await expect(page.locator('.cart-lines')).toBeVisible()
-    await expect(page.getByTestId('discount-open')).toHaveCount(0)
-    await expect(page.getByTestId('discount-remove')).toHaveCount(0)
+    await expectNoMoreRow(page, 'discount-open')
+    await expectNoMoreRow(page, 'discount-remove')
     await expect(page.getByTestId('line-offer')).toHaveCount(0)
   })
 
@@ -101,9 +104,9 @@ test.describe('Remise button', () => {
     await expect(page.locator('.cart-lines')).toBeVisible()
     // The changes are shown (so the rows are rendered) but nothing can be removed.
     await expect(page.getByTestId('price-change-row')).toHaveCount(2)
-    await expect(page.getByTestId('discount-remove')).toHaveCount(0)
+    await expectNoMoreRow(page, 'discount-remove')
     await expect(page.getByTestId('line-remove-discount')).toHaveCount(0)
-    await expect(page.getByTestId('discount-open')).toHaveCount(0)
+    await expectNoMoreRow(page, 'discount-open')
     await expect(page.getByTestId('line-offer')).toHaveCount(0)
   })
 })
@@ -111,7 +114,7 @@ test.describe('Remise button', () => {
 test.describe('Order discount', () => {
   test('a quick percent with a reason, previewed then confirmed by the PIN', async ({ page }) => {
     await toOrder(page)
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await expect(dialog).toBeVisible()
     await expect(dialog.getByTestId('discount-confirm')).toBeDisabled()
@@ -148,13 +151,13 @@ test.describe('Order discount', () => {
     await expect(page.locator('.total-amount')).toHaveText('12,00 €')
     await expect(page.locator('.checkout-amount')).toHaveText('12,00 €')
     // The order discount is removed, not stacked.
-    await expect(page.getByTestId('discount-open')).toHaveCount(0)
-    await expect(page.getByTestId('discount-remove')).toBeVisible()
+    await expectNoMoreRow(page, 'discount-open')
+    await expectMoreRow(page, 'discount-remove')
   })
 
   test('a custom percent on the keypad', async ({ page }) => {
     await toOrder(page)
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await dialog.getByRole('button', { name: '7', exact: true }).click()
     await dialog.getByRole('button', { name: '5', exact: true }).click()
@@ -170,7 +173,7 @@ test.describe('Order discount', () => {
 
   test('an amount typed in cents, capped at the total', async ({ page }) => {
     await toOrder(page)
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await dialog.getByTestId('discount-kind-amount').click()
     for (const d of '500') await dialog.getByRole('button', { name: d, exact: true }).click()
@@ -187,7 +190,7 @@ test.describe('Order discount', () => {
     })
 
     // More than the total is not accepted.
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     await dialog.getByTestId('discount-kind-amount').click()
     for (const d of '9999') await dialog.getByRole('button', { name: d, exact: true }).click()
     await dialog.getByTestId('discount-reason-other').click()
@@ -196,7 +199,7 @@ test.describe('Order discount', () => {
 
   test('Offert gives the whole order, with no value', async ({ page }) => {
     await toOrder(page)
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await dialog.getByTestId('discount-kind-free').click()
     await expect(dialog.getByTestId('discount-preview')).toHaveText('Total 24,00 € → 0,00 €')
@@ -214,7 +217,7 @@ test.describe('Order discount', () => {
 
   test('the reason text is typed on the on-screen keypad', async ({ page }) => {
     await toOrder(page)
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await dialog.getByTestId('discount-quick-10').click()
     await dialog.getByTestId('discount-reason-service_issue').click()
@@ -235,7 +238,7 @@ test.describe('Order discount', () => {
   test('the preview rounds a percent half up, like the engine', async ({ page }) => {
     // 10 % of 1,25 is 12,5 cents: 13, so 1,12.
     await toOrder(page, [{ ...PLAIN, quantity: 1, unit_price_cents: 125 }], 125)
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await dialog.getByTestId('discount-quick-10').click()
     await expect(dialog.getByTestId('discount-preview')).toHaveText('Total 1,25 € → 1,12 €')
@@ -244,7 +247,7 @@ test.describe('Order discount', () => {
   test('the preview rounds 15 % of 23,90 up to 3,59', async ({ page }) => {
     // 358,5 cents: 359, so 20,31.
     await toOrder(page, [{ ...PLAIN, quantity: 1, unit_price_cents: 2390 }], 2390)
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await dialog.getByTestId('discount-quick-15').click()
     await expect(dialog.getByTestId('discount-preview')).toHaveText('Total 23,90 € → 20,31 €')
@@ -252,7 +255,7 @@ test.describe('Order discount', () => {
 
   test('switching the kind resets the typed value', async ({ page }) => {
     await toOrder(page)
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await dialog.getByTestId('discount-quick-20').click()
     await expect(dialog.getByTestId('discount-typed')).toContainText('20 %')
@@ -274,7 +277,7 @@ test.describe('Order discount', () => {
       kitchenSlip: 'failed',
       registrationError: null,
     })
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await dialog.getByTestId('discount-quick-10').click()
     await dialog.getByTestId('discount-reason-other').click()
@@ -309,10 +312,10 @@ test.describe('Order discount', () => {
     await expect(page.getByTestId('transfer-table')).toHaveCount(0)
 
     // A takeaway starts empty: the first product makes the discount possible.
-    await expect(page.getByTestId('discount-open')).toHaveCount(0)
+    await expectNoMoreRow(page, 'discount-open')
     await page.locator('.item-btn').first().click()
-    await expect(page.getByTestId('discount-open')).toBeVisible()
-    await page.getByTestId('discount-open').click()
+    await expectMoreRow(page, 'discount-open')
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await dialog.getByTestId('discount-quick-10').click()
     await dialog.getByTestId('discount-reason-commercial_gesture').click()
@@ -333,7 +336,7 @@ test.describe('Order discount', () => {
   test('a wrong PIN or a refusal is shown on the pad and changes nothing', async ({ page }) => {
     await toOrder(page)
     await overrideIPC(page, 'apply_discount', { __reject: 'pin_wrong' })
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await dialog.getByTestId('discount-quick-20').click()
     await dialog.getByTestId('discount-reason-other').click()
@@ -354,7 +357,7 @@ test.describe('Order discount', () => {
       kitchenSlip: 'nothing_to_print',
       registrationError: 'fdm_unreachable',
     })
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await dialog.getByTestId('discount-quick-15').click()
     await dialog.getByTestId('discount-reason-other').click()
@@ -365,7 +368,7 @@ test.describe('Order discount', () => {
 
   test('back leaves the dialog without a call', async ({ page }) => {
     await toOrder(page)
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     await page.getByTestId('discount-dialog').getByRole('button', { name: 'Retour' }).click()
     await expect(page.getByTestId('discount-dialog')).toHaveCount(0)
     expect(await ipcCalls(page, 'apply_discount')).toHaveLength(0)
@@ -373,7 +376,7 @@ test.describe('Order discount', () => {
 
   test('removing it asks for the PIN', async ({ page }) => {
     await toOrder(page, [HALF_OFF], 1200)
-    await page.getByTestId('discount-remove').click()
+    await tapMore(page, 'discount-remove')
     await expect(page.locator('.pin-dialog .hint')).toContainText("prix d'origine")
     await afterDiscount(page, [PLAIN], 2400)
     await typePin(page, '4321')
@@ -382,7 +385,7 @@ test.describe('Order discount', () => {
       { orderId: expect.any(Number), lineId: null, insz: DEFAULT_USER.insz, pin: '4321' },
     ])
     await expect(page.locator('.total-amount')).toHaveText('24,00 €')
-    await expect(page.getByTestId('discount-open')).toBeVisible()
+    await expectMoreRow(page, 'discount-open')
   })
 })
 
@@ -561,6 +564,6 @@ test.describe('Gift voucher lines (lane 4 with the till discounts and kitchen no
 
   test('the order discount stays available and the engine spreads it', async ({ page }) => {
     await toOrder(page, [PLAIN, VOUCHER], 4900)
-    await expect(page.getByTestId('discount-open')).toBeVisible()
+    await expectMoreRow(page, 'discount-open')
   })
 })

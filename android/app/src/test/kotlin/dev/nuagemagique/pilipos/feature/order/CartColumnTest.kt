@@ -54,6 +54,16 @@ class CartColumnTest {
             unsentCount = 3,
         )
 
+    /** Everything sent: PAYER is the Volt primary again. */
+    private val allSent = dineIn.copy(rows = listOf(sentLine), unsentCount = 0)
+
+    /** Only a line a course holds back is unsent: it does not count for the primary (C4). */
+    private val heldOnly =
+        dineIn.copy(
+            rows = listOf(sentLine, CartRow(cartLine(3, 12, "Mochi", unsent = 2, kitchenState = "held"), LineAmount.Total(600))),
+            unsentCount = 2,
+        )
+
     private fun show(
         state: OrderCartState,
         language: AppLanguage = AppLanguage.FR,
@@ -69,23 +79,82 @@ class CartColumnTest {
     // ── Send to kitchen ───────────────────────────────────────────
 
     @Test
-    fun sendToKitchenShowsTheUnsentCountAndCallsBack() {
+    fun sendToKitchenIsTheVoltPrimaryWithAPillWhileLinesWait() {
         show(dineIn)
 
+        compose.onNodeWithTag("cart_send_primary").assertIsEnabled()
+        compose.onNodeWithTag("cart_send_pill", useUnmergedTree = true).assertTextEquals("1 ligne")
+        compose.onNodeWithTag("cart_send").assertDoesNotExist()
+        compose.onNodeWithTag("cart_send_primary").performClick()
+
+        assertEquals(listOf("send"), seen)
+    }
+
+    @Test
+    fun thePillCountsLinesNotUnits() {
+        val second = CartRow(cartLine(4, 13, "Edamame", quantity = 5, unsent = 5), LineAmount.Total(1_000))
+        show(dineIn.copy(rows = listOf(sentLine, newLine, second), unsentCount = 8))
+
+        compose.onNodeWithTag("cart_send_pill", useUnmergedTree = true).assertTextEquals("2 lignes")
+    }
+
+    @Test
+    fun payIsAnOutlinedSecondaryThatStillShowsTheTotalWhileLinesWait() {
+        show(dineIn)
+
+        compose.onNodeWithTag("cart_pay").assertDoesNotExist()
+        compose.onNodeWithTag("cart_pay_secondary").assertIsEnabled()
+        compose.onNodeWithTag("cart_pay_secondary_amount", useUnmergedTree = true).assertTextEquals("27,40 €")
+        compose.onNodeWithTag("cart_pay_secondary").performClick()
+
+        assertEquals(listOf("pay"), seen)
+    }
+
+    @Test
+    fun onceEverythingIsSentPayIsThePrimaryAgainAndSendIsASecondary() {
+        show(allSent)
+
+        compose.onNodeWithTag("cart_send_primary").assertDoesNotExist()
+        compose.onNodeWithTag("cart_pay_secondary").assertDoesNotExist()
+        compose.onNodeWithTag("cart_pay").assertIsDisplayed()
+        compose.onNodeWithTag("cart_send").assertIsNotEnabled()
+    }
+
+    @Test
+    fun linesHeldBackByACourseDoNotCountSoPayStaysThePrimary() {
+        show(heldOnly)
+
+        compose.onNodeWithTag("cart_send_primary").assertDoesNotExist()
+        compose.onNodeWithTag("cart_pay").assertIsDisplayed()
+    }
+
+    @Test
+    fun sendToKitchenShowsTheUnsentCountAndCallsBack() {
+        // Only a held line is unsent: the secondary button is still there and still counts units, as before.
+        show(heldOnly)
+
         compose.onNodeWithTag("cart_send").assertIsEnabled()
-        compose.onNodeWithTag("cart_send_count", useUnmergedTree = true).assertTextEquals("3")
+        compose.onNodeWithTag("cart_send_count", useUnmergedTree = true).assertTextEquals("2")
         compose.onNodeWithTag("cart_send").performClick()
 
         assertEquals(listOf("send"), seen)
     }
 
     @Test
-    fun sendToKitchenIsDisabledWhenNothingIsUnsent() {
-        show(dineIn.copy(unsentCount = 0, rows = listOf(sentLine)))
+    fun aBowlOptionIsNotALineOfItsOwn() {
+        val option = CartRow(cartLine(5, 14, "Bouillon", unsent = 1, bowlLineId = 2), LineAmount.Total(100))
+        show(dineIn.copy(rows = listOf(sentLine, newLine, option), unsentCount = 4))
 
-        compose.onNodeWithTag("cart_send").assertIsNotEnabled()
-        compose.onNodeWithTag("cart_send_count", useUnmergedTree = true).assertDoesNotExist()
-        compose.onNodeWithTag("cart_send").performClick()
+        compose.onNodeWithTag("cart_send_pill", useUnmergedTree = true).assertTextEquals("1 ligne")
+    }
+
+    @Test
+    fun sendToKitchenIsDisabledWhenNothingIsUnsentForARoleThatCannotPay() {
+        show(allSent.copy(canPay = false))
+
+        compose.onNodeWithTag("cart_send_primary").assertIsNotEnabled()
+        compose.onNodeWithTag("cart_send_pill", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("cart_send_primary").performClick()
 
         assertEquals(emptyList<String>(), seen)
     }
@@ -94,7 +163,18 @@ class CartColumnTest {
     fun sendToKitchenIsDisabledWhileItRuns() {
         show(dineIn.copy(sending = true))
 
+        compose.onNodeWithTag("cart_send_primary").assertIsNotEnabled()
+        compose.onNodeWithTag("cart_send_primary").performClick()
+
+        assertEquals(emptyList<String>(), seen)
+    }
+
+    @Test
+    fun sendToKitchenIsDisabledWhenNothingIsUnsent() {
+        show(allSent)
+
         compose.onNodeWithTag("cart_send").assertIsNotEnabled()
+        compose.onNodeWithTag("cart_send_count", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithTag("cart_send").performClick()
 
         assertEquals(emptyList<String>(), seen)
@@ -105,6 +185,7 @@ class CartColumnTest {
         show(dineIn.copy(order = order(table = null, totalCents = 2_740)))
 
         compose.onNodeWithTag("cart_send").assertDoesNotExist()
+        compose.onNodeWithTag("cart_send_primary").assertDoesNotExist()
         compose.onNodeWithTag("cart_prebill").assertDoesNotExist()
         compose.onNodeWithTag("cart_pending_label").assertDoesNotExist()
         compose.onNodeWithTag("cart_pay").assertIsDisplayed()
@@ -152,14 +233,15 @@ class CartColumnTest {
         show(dineIn.copy(canPay = false))
 
         compose.onNodeWithTag("cart_pay").assertDoesNotExist()
+        compose.onNodeWithTag("cart_pay_secondary").assertDoesNotExist()
         compose.onNodeWithTag("cart_prebill").assertDoesNotExist()
-        compose.onNodeWithTag("cart_send").assertIsDisplayed()
+        compose.onNodeWithTag("cart_send_primary").assertIsDisplayed()
         compose.onNodeWithTag("cart_total").assertTextEquals("27,40 €")
     }
 
     @Test
     fun thePayButtonShowsTheEngineTotalAndCallsBack() {
-        show(dineIn)
+        show(allSent)
 
         compose.onNodeWithTag("cart_pay_amount", useUnmergedTree = true).assertTextEquals("27,40 €")
         compose.onNodeWithTag("cart_pay").performClick()
@@ -167,22 +249,62 @@ class CartColumnTest {
         assertEquals(listOf("pay"), seen)
     }
 
-    // ── Close unpaid ──────────────────────────────────────────────
+    // ── Close unpaid: a row of the Plus menu ─────────────────────
 
     @Test
     fun theUnpaidButtonIsOnlyThereForAManagerOfAnOpenOrder() {
         show(dineIn)
         compose.onNodeWithTag("cart_unpaid").assertDoesNotExist()
+        compose.onNodeWithTag("cart_more").assertDoesNotExist()
     }
 
     @Test
     fun theUnpaidButtonAsksForTheManagerFlowThroughTheCallback() {
-        show(dineIn.copy(canCloseUnpaid = true))
+        val menu = OrderDialog.CartMore(canTransfer = false, canDiscount = false, orderDiscounted = false, canCloseUnpaid = true)
+        val callbacks = OrderCallbacks(onMoreUnpaid = { seen += "unpaid" })
+        compose.setContent {
+            PiliTheme { ProvideUiText(AppLanguage.FR, catalog) { Box { CartMoreDialog(menu, callbacks) } } }
+        }
+        compose.waitForIdle()
 
         compose.onNodeWithTag("cart_unpaid").assertTextEquals("Client parti sans payer")
         compose.onNodeWithTag("cart_unpaid").performClick()
 
         assertEquals(listOf("unpaid"), seen)
+    }
+
+    @Test
+    fun theFooterNoLongerCarriesTheRareActions() {
+        show(dineIn.copy(canCloseUnpaid = true, canDiscount = true, canTransfer = true))
+
+        compose.onNodeWithTag("cart_unpaid").assertDoesNotExist()
+        compose.onNodeWithTag("cart_discount").assertDoesNotExist()
+        compose.onNodeWithTag("cart_transfer").assertDoesNotExist()
+        compose.onNodeWithTag("cart_more").assertTextContains("Plus", substring = true)
+    }
+
+    @Test
+    fun thePlusButtonOpensTheMenuThroughTheCallback() {
+        val calls = mutableListOf<String>()
+        compose.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    Box { OrderCartColumn(dineIn.copy(canCloseUnpaid = true), OrderCartActions(onMore = { calls += "more" })) }
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        compose.onNodeWithTag("cart_more").performClick()
+
+        assertEquals(listOf("more"), calls)
+    }
+
+    @Test
+    fun thePlusButtonIsAbsentWhenNoActionApplies() {
+        show(dineIn)
+
+        compose.onNodeWithTag("cart_more").assertDoesNotExist()
     }
 
     // ── Footer and header ─────────────────────────────────────────

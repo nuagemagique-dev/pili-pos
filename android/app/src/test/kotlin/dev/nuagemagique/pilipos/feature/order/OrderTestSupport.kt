@@ -124,6 +124,7 @@ internal fun cartLine(
     online: Boolean = false,
     course: Int = 0,
     kitchenState: String = "unsent",
+    bowlLineId: Long? = null,
 ): CartLine =
     CartLine(
         id = id,
@@ -147,6 +148,7 @@ internal fun cartLine(
         online = online,
         course = course,
         kitchenState = kitchenState,
+        bowlLineId = bowlLineId,
     )
 
 internal fun orderLine(menuItemId: Long): OrderLine =

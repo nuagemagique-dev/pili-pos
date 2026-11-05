@@ -588,6 +588,24 @@
       "zh": "请在终端上刷卡",
       "area": "core"
     },
+    "cart_more": {
+      "fr": "Plus",
+      "en": "More",
+      "zh": "更多",
+      "area": "core"
+    },
+    "cart_more_close": {
+      "fr": "Fermer",
+      "en": "Close",
+      "zh": "关闭",
+      "area": "core"
+    },
+    "cart_more_title": {
+      "fr": "Autres actions",
+      "en": "More actions",
+      "zh": "更多操作",
+      "area": "core"
+    },
     "cash": {
       "fr": "CASH",
       "en": "CASH",
@@ -5644,6 +5662,18 @@
       "fr": "Pesée",
       "en": "Weighing",
       "zh": "称重",
+      "area": "core"
+    },
+    "send_lines_one": {
+      "fr": "1 ligne",
+      "en": "1 line",
+      "zh": "1 行",
+      "area": "core"
+    },
+    "send_lines_other": {
+      "fr": "{n} lignes",
+      "en": "{n} lines",
+      "zh": "{n} 行",
       "area": "core"
     },
     "send_next_course": {

@@ -74,10 +74,28 @@ class TablePickerDialogTest {
     @Test
     fun theCartHeaderOffersTheChangeOnlyWhenTheOrderCanMove() {
         val calls = mutableListOf<String>()
-        val actions = OrderCartActions(onTransfer = { calls += "transfer" })
+        val actions = OrderCartActions(onMore = { calls += "more" })
         val state = OrderCartState(order = order(table = 4, totalCents = 500), canTransfer = true)
         compose.setContent {
             PiliTheme { ProvideUiText(AppLanguage.FR, catalog) { Box { OrderCartColumn(state, actions) } } }
+        }
+        compose.waitForIdle()
+
+        compose.onNodeWithTag("cart_transfer").assertDoesNotExist()
+        compose.onNodeWithTag("cart_more").performClick()
+        assertEquals(listOf("more"), calls)
+    }
+
+    @Test
+    fun theMenuRowOpensTheTablePickerThroughItsCallback() {
+        val calls = mutableListOf<String>()
+        val menu = OrderDialog.CartMore(canTransfer = true, canDiscount = false, orderDiscounted = false, canCloseUnpaid = false)
+        compose.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    Box { CartMoreDialog(menu, OrderCallbacks(onMoreTransfer = { calls += "transfer" })) }
+                }
+            }
         }
         compose.waitForIdle()
 
@@ -94,6 +112,7 @@ class TablePickerDialogTest {
         }
         compose.waitForIdle()
 
+        compose.onNodeWithTag("cart_more").assertDoesNotExist()
         compose.onNodeWithTag("cart_transfer").assertDoesNotExist()
     }
 }

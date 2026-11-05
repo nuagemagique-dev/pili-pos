@@ -149,7 +149,9 @@ test.describe('Order View - kitchen and cart lines', () => {
     await expect(page.locator('.pending-label')).toContainText('Pas encore en cuisine')
     await expect(page.locator('.order-line.pending')).toHaveCount(1)
     await expect(page.locator('.order-line.pending')).toContainText('Edamame')
-    await expect(page.locator('.kitchen-count')).toHaveText('2')
+    // C4: the kitchen button is the Volt primary, its pill counts lines (one line of 2 units).
+    await expect(page.getByTestId('send-primary')).toBeVisible()
+    await expect(page.getByTestId('send-pill')).toHaveText('1 ligne')
   })
 
   test('names show in the UI language only, no second language underneath', async ({ page }) => {
@@ -159,7 +161,7 @@ test.describe('Order View - kitchen and cart lines', () => {
   })
 
   test('"Envoyer en cuisine" registers the order without leaving the table', async ({ page }) => {
-    await page.locator('.kitchen-btn').click()
+    await page.getByTestId('send-primary').click()
     await expect(page.locator('.toast-success')).toContainText('Envoyé en cuisine · 2 articles')
     const calls = await ipcCalls(page, 'leave_order')
     expect(calls).toHaveLength(1)

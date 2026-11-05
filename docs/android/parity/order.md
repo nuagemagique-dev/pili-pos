@@ -26,9 +26,10 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 | components/ModifierDialog.vue (`forWeight`: "Peser"), api/ipc-modifiers.ts | feature/order/ModifierDialog.kt (ModifierDialog, ModifierPicks, `forWeight`), MenuViewModel.kt (confirmModifiers over OrderStore.addLineWith, or WeighFlow.start for a bowl) | `get_item_modifiers` `add_order_line_with_modifiers` |
 | components/WeighDialog.vue, OrderView.vue (weigh, weighChosen), OrderLineItem.vue (bowl options, `bowl-option` row) | feature/order/WeighDialog.kt (WeighFlow.ready, start with modifier ids, BowlLink), MenuViewModel.kt (cancelWeighing), OrderLineItem.kt (bowl options, `_bowl`) | `scale_start_weighing`, `scale_cancel_weighing` |
 | components/PriceDialog.vue | ui/components/AmountDialog.kt, opened by feature/order/OrderScreen.kt (OrderDialogs) | - |
-| components/CartSidebar.vue | feature/order/OrderCartColumn.kt (OrderCartColumn), MenuViewModel.kt (sendToKitchen, printPreBill, askCloseUnpaid, closeUnpaid, unpaidClosed), OrderScreen.kt (CloseUnpaidDialog over ui/components/PinDialog.kt) over ui/state/OrderStore.kt | `leave_order` `sign_pre_bill` `close_unpaid` |
-| components/TablePickerDialog.vue and CartSidebar.vue (Changer de table) | feature/order/TablePickerDialog.kt, MenuViewModel.kt (askTransfer, confirmTransfer), OrderCartColumn.kt (cart_transfer) over ui/state/OrderStore.kt (transferTable) | `transfer_table` `list_tables` |
-| components/DiscountDialog.vue and CartSidebar.vue (Remise, Offrir, Retirer la remise) | feature/order/DiscountDialog.kt (DiscountDialog, DiscountEntry), MenuViewModel.kt (askDiscount, chooseDiscount, askRemoveDiscount, confirmDiscountPin, discountDone), OrderCartColumn.kt (cart_discount), OrderScreen.kt (DiscountPinDialog over ui/components/PinDialog.kt) over ui/state/OrderStore.kt (applyDiscount, removeDiscount) | `apply_discount` `remove_discount` |
+| components/CartSidebar.vue (contextual primary, `utils/cartPrimary.ts`) | feature/order/OrderCartColumn.kt (OrderCartColumn, KitchenPrimaryButton, PaySecondaryButton), OrderState.kt (OrderCartState.kitchenPrimary, sendableLineCount), MenuViewModel.kt (sendToKitchen, printPreBill, askCloseUnpaid, closeUnpaid, unpaidClosed), OrderScreen.kt (CloseUnpaidDialog over ui/components/PinDialog.kt) over ui/state/OrderStore.kt | `leave_order` `sign_pre_bill` `close_unpaid` |
+| components/CartMoreMenu.vue (the cart header's "Plus" menu: Changer de table, Remise, Client parti sans payer) | feature/order/CartMoreDialog.kt (CartMoreDialog), OrderCartColumn.kt (cart_more), OrderState.kt (OrderDialog.CartMore, hasMoreActions), MenuViewModel.kt (openCartMore), OrderScreen.kt (OrderDialogs) over ui/state/OrderStore.kt | - |
+| components/TablePickerDialog.vue and CartSidebar.vue (Changer de table, a row of the Plus menu) | feature/order/TablePickerDialog.kt, MenuViewModel.kt (askTransfer, confirmTransfer), CartMoreDialog.kt (cart_transfer) over ui/state/OrderStore.kt (transferTable) | `transfer_table` `list_tables` |
+| components/DiscountDialog.vue and CartSidebar.vue (Remise, Offrir, Retirer la remise) | feature/order/DiscountDialog.kt (DiscountDialog, DiscountEntry), MenuViewModel.kt (askDiscount, chooseDiscount, askRemoveDiscount, confirmDiscountPin, discountDone), CartMoreDialog.kt (cart_discount, cart_discount_remove: rows of the Plus menu), OrderScreen.kt (DiscountPinDialog over ui/components/PinDialog.kt) over ui/state/OrderStore.kt (applyDiscount, removeDiscount) | `apply_discount` `remove_discount` |
 | components/OrderLineItem.vue | feature/order/OrderLineItem.kt (OrderLineItem, lineNotes), MenuViewModel.kt (incrementLine, decrementLine, removeLine) over ui/state/OrderStore.kt | `update_order_line_quantity` `remove_order_line` |
 | components/NoteDialog.vue (over TextKeypad.vue), CartSidebar.vue and OrderLineItem.vue (Note button, note under the name) | feature/order/NoteDialog.kt (NoteDialog, noteText on the system keyboard), MenuViewModel.kt (askNote, saveNote), OrderLineItem.kt (cart_line_<id>_note, cart_line_<id>_kitchen_note), OrderScreen.kt (OrderDialogs) over ui/state/OrderStore.kt (setLineNote; addItem opens a new line when the line has a note) | `set_line_note` |
 | components/SoldOutDialog.vue, components/SoldOutList.vue, utils/soldOut.ts, the "Épuisé" bar of OrderView.vue, stores/menu.ts (loadSoldOut, setAvailability) | feature/order/SoldOutDialog.kt (SoldOutBar, SoldOutDialog, SoldOutList, endOfDayLabel), MenuViewModel.kt (toggleSoldOutMode, openSoldOutList, setAvailability, the sold-out branches of addItem), OrderState.kt (OrderDialog.SoldOut, SoldOutList, SoldOutChoice) | `list_sold_out` `set_sold_out` `clear_sold_out` |
@@ -89,7 +90,20 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
   `order_register_failed` (6 s), through `ErrorPresenter`. A slip that did not print is the store's `slipFailures`.
 - **Provisional bill.** `OrderStore.preBill()` for a dine-in order with lines, hidden without the payment right; the
   same two toasts as Vue (`pre_bill_printed`, `pre_bill_failed` prefix).
-- **Close unpaid.** The outlined button shows for a manager (administrator) on an open order with lines. It opens the
+- **Contextual primary (C4).** While a dine-in order has lines the kitchen has not received (unsent quantity, not
+  `kitchenState` "held", not a bowl option: `OrderCartState.sendableLineCount`, as `utils/cartPrimary.ts`), "Envoyer en
+  cuisine" is the Volt primary (80 dp, tag `cart_send_primary`) with a pill "2 lignes" (`cart_send_pill`, lines not
+  units) and PAYER is an outlined secondary (`cart_pay_secondary`, still showing the total) next to "Addition". Once
+  everything is sent PAYER is the Volt primary again (`cart_pay`) and "Envoyer en cuisine" the plain secondary
+  (`cart_send`, amber unit count). A role without the payment right (Apprenti) always has the kitchen button as the
+  primary and no secondary row. A takeaway keeps PAYER. PAYER with unsent lines goes to the checkout as before (the
+  order is registered on leave, no dialog).
+- **Plus menu (C3).** The cart header has a "Plus" button (icon "...", 48 dp, `cart_more`) shown only when the order
+  has at least one of: change table, order discount (or its removal), customer left without paying
+  (`OrderCartState.hasMoreActions`, the same role rules as before). It opens `OrderDialog.CartMore` (a dialog,
+  `CartMoreDialog`, rows of 64 dp); a row replaces the dialog by its own (table picker, discount dialog, manager PIN).
+  The footer no longer has the discount and unpaid buttons, the header no longer has "Changer de table".
+- **Close unpaid.** The outlined row of the Plus menu shows for a manager (administrator) on an open order with lines. It opens the
   shared `PinDialog` in the order window (the hint is the manager's name and `unpaid_hint`); the 4th digit calls
   `OrderStore.closeUnpaid(insz, pin)`, a refusal is shown on the pad by `ErrorPresenter` and the pad is cleared. On
   success the toast `unpaid_closed` is shown and the screen opens the tables, as Vue does.
