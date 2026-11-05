@@ -2,7 +2,8 @@
 import { computed, ref } from 'vue'
 import type { CartLine } from '../types'
 import { formatPrice, formatWeight } from '../utils/format'
-import { useBilingualName } from '../utils/names'
+import { lineCategory, useBilingualName } from '../utils/names'
+import { usePosStore } from '../stores/pos'
 import { useI18n } from '../i18n'
 import { lineNetCents } from '../utils/cartAmounts'
 import { GIFT_VOUCHER_DEPARTMENT } from '../stores/giftVouchers'
@@ -34,6 +35,14 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const bilingual = useBilingualName()
 const names = computed(() => bilingual(line))
+/** Under the name: the product's category (one name can be in several
+ * categories), then the product name when the code leads. */
+const pos = usePosStore()
+const sub = computed(() => {
+  const category =
+    line.department_id === GIFT_VOUCHER_DEPARTMENT ? null : lineCategory(line, pos.language)
+  return [category, names.value.secondary].filter((s): s is string => Boolean(s)).join(' · ')
+})
 /** A gift voucher sold: the quantity is fixed (one line per voucher). */
 const isVoucher = computed(() => line.department_id === GIFT_VOUCHER_DEPARTMENT)
 /** A weighing: the scale gave the quantity, so it cannot be edited. To change
@@ -108,7 +117,7 @@ defineExpose({
     </div>
     <div class="line-info">
       <span class="line-name" :class="{ code: names.isCode }">{{ names.primary }}</span>
-      <span v-if="names.secondary" class="line-sub">{{ names.secondary }}</span>
+      <span v-if="sub" class="line-sub" data-testid="line-sub">{{ sub }}</span>
       <span v-if="weight !== null" class="line-per-kilo" data-testid="line-per-kilo"
         >{{ formatPrice(line.unit_price_cents) }} €/kg</span
       >

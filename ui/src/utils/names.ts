@@ -38,3 +38,15 @@ export function useBilingualName() {
     return { primary, secondary: null, isCode: false }
   }
 }
+
+/** The category of a cart line's product in the UI language, the other
+ * one when the catalog lacks it; null when the catalog names neither. */
+export function lineCategory(
+  line: { category_fr?: string | null; category_zh?: string | null },
+  language: string,
+): string | null {
+  const [first, second] =
+    language === 'zh' ? [line.category_zh, line.category_fr] : [line.category_fr, line.category_zh]
+  const name = (first ?? second)?.trim()
+  return name === undefined || name === '' ? null : name
+}

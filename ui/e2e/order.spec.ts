@@ -191,6 +191,8 @@ test.describe('Order View - products shown by code', () => {
     name_fr: 'Edamame',
     name_zh: '毛豆',
     code: 'A2',
+    category_fr: 'Accompagnements',
+    category_zh: '小吃',
   }
 
   test.beforeEach(async ({ page }) => {
@@ -215,14 +217,14 @@ test.describe('Order View - products shown by code', () => {
     await page.waitForURL(/order/u)
   })
 
-  test('the code leads, the name goes underneath', async ({ page }) => {
+  test('the code leads, the category and the name go underneath', async ({ page }) => {
     const coded = page.locator('.item-btn').first()
     await expect(coded.locator('.item-name')).toHaveText('B14')
     await expect(coded.locator('.item-name')).toHaveClass(/code/u)
     await expect(coded.locator('.item-sub')).toHaveText(DEFAULT_MENU_ITEM.name)
     const line = page.locator('.order-line').first()
     await expect(line.locator('.line-name')).toHaveText('A2')
-    await expect(line.locator('.line-sub')).toHaveText('Edamame')
+    await expect(line.locator('.line-sub')).toHaveText('Accompagnements · Edamame')
   })
 
   test('a product without a code keeps its name', async ({ page }) => {

@@ -162,6 +162,31 @@ class OrderLineItemTest {
     }
 
     @Test
+    fun theCategoryOfTheProductLeadsTheLineUnderTheName() {
+        val line = cartLine(1, 10, "Tartare saumon cheese", code = "C5").copy(categoryFr = "California roll", categoryZh = "加州卷")
+        show(CartRow(line, LineAmount.Total(1_300)), mode = ProductLabelMode.CODE)
+
+        compose.onNodeWithTag("cart_line_1_name").assertTextEquals("C5")
+        compose.onNodeWithTag("cart_line_1_sub").assertTextEquals("California roll · Tartare saumon cheese")
+    }
+
+    @Test
+    fun byNameTheCategoryAloneGoesUnderTheNameInTheUiLanguage() {
+        val line = cartLine(1, 10, "Saumon", nameZh = "三文鱼").copy(categoryFr = "Sashimi", categoryZh = "刺身")
+        show(CartRow(line, LineAmount.Total(1_300)), language = AppLanguage.ZH)
+
+        compose.onNodeWithTag("cart_line_1_name").assertTextEquals("三文鱼")
+        compose.onNodeWithTag("cart_line_1_sub").assertTextEquals("刺身")
+    }
+
+    @Test
+    fun aLineWithoutCategoryOrCodeHasNoLineUnderTheName() {
+        show(row(1))
+
+        compose.onAllNodesWithTag("cart_line_1_sub").assertCountEquals(0)
+    }
+
+    @Test
     fun theNotesOfTheOptionsAreShownJoinedByADot() {
         show(row(1, notes = """["Sans sésame","Sauce soja"]"""))
 
