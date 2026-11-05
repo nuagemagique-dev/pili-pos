@@ -29,6 +29,23 @@ const DEFAULT_TTL_MS = 3000
  * burst of messages never grows into a wall under the header. */
 export const MAX_VISIBLE_TOASTS = 3
 
+/**
+ * The toasts to draw, oldest first: error toasts come first in the
+ * choice (an error waits for a tap, so it must not be pushed out of view
+ * by newer messages and come back unprompted later), then the newest of
+ * the others fill the remaining places. At most `max` in total.
+ */
+export function pickVisible(toasts: ToastEntry[], max: number = MAX_VISIBLE_TOASTS): ToastEntry[] {
+  const errors = toasts.filter((t) => t.variant === 'error').slice(-max)
+  const others = toasts.filter((t) => t.variant !== 'error')
+  const room = max - errors.length
+  const chosen = new Set<number>([
+    ...errors.map((t) => t.id),
+    ...(room > 0 ? others.slice(-room) : []).map((t) => t.id),
+  ])
+  return toasts.filter((t) => chosen.has(t.id))
+}
+
 /** An error toast never expires by itself. */
 export function expiryOf(variant: ToastVariant, now: number, ttl_ms: number): number {
   return variant === 'error' ? Number.POSITIVE_INFINITY : now + ttl_ms
@@ -42,8 +59,8 @@ export const useToastStore = defineStore('toast', {
   }),
 
   getters: {
-    /** The toasts that are drawn: the newest {@link MAX_VISIBLE_TOASTS}, oldest first. */
-    visible: (state): ToastEntry[] => state.toasts.slice(-MAX_VISIBLE_TOASTS),
+    /** The toasts that are drawn: errors first, then the newest others, {@link MAX_VISIBLE_TOASTS} at most, oldest first. */
+    visible: (state): ToastEntry[] => pickVisible(state.toasts),
   },
 
   actions: {

@@ -389,6 +389,32 @@ test.describe('Webshop Orders View - signing', () => {
     await board(page, [SAMPLE_ORDER], 'waiter')
     const card = page.locator('.column-new .card')
     await expect(card.getByTestId('cashier-only')).toHaveText('Réservé au serveur ou au gérant')
+    // A permission note is neutral help text, never amber (amber means "waiting").
+    const colours = await page.evaluate(() => {
+      const css = getComputedStyle(document.documentElement)
+      const note = document.querySelector('[data-testid="cashier-only"]')!
+      return {
+        note: getComputedStyle(note).color,
+        secondary: (() => {
+          const probe = document.createElement('span')
+          probe.style.color = css.getPropertyValue('--text-secondary')
+          document.body.append(probe)
+          const c = getComputedStyle(probe).color
+          probe.remove()
+          return c
+        })(),
+        warning: (() => {
+          const probe = document.createElement('span')
+          probe.style.color = css.getPropertyValue('--accent-warning')
+          document.body.append(probe)
+          const c = getComputedStyle(probe).color
+          probe.remove()
+          return c
+        })(),
+      }
+    })
+    expect(colours.note).toBe(colours.secondary)
+    expect(colours.note).not.toBe(colours.warning)
     await expect(card.locator('.btn-primary')).toBeDisabled()
     await expect(card.getByTestId('reject-button')).toBeDisabled()
     await card.locator('.btn-primary').click({ force: true })

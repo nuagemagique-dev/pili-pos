@@ -67,10 +67,11 @@ private fun accentOf(
 
 /**
  * ToastStack.vue (UX audit C5): the toasts stacked downwards at the top centre of the screen, just under the 64 dp
- * header, the newest at the bottom, at most [MAX_VISIBLE_TOASTS] of them (the newest). A toast is a dark card with a
- * coloured left edge by variant. The stack never takes a tap: a tap goes through to what is under it. Info, success
- * and warning toasts let taps through too and go away by themselves; an error toast stays until tapped, shows
- * [tapToCloseText] under its message, and is the only thing here that takes a tap (which closes it).
+ * header, the newest at the bottom, at most [MAX_VISIBLE_TOASTS] of them (errors first, then the newest others,
+ * see [pickVisibleToasts]). A toast is a dark card with a coloured left edge by variant. The stack never takes a
+ * tap: a tap goes through to what is under it. Info, success and warning toasts let taps through too and go away
+ * by themselves; an error toast stays until tapped, shows [tapToCloseText] under its message, and is the only
+ * thing here that takes a tap (which closes it).
  * Nothing is drawn when [toasts] is empty. Test tags: `toast_stack`, `toast_<id>`, `toast_hint_<id>`.
  */
 @Composable
@@ -95,7 +96,7 @@ fun ToastStack(
                     .testTag("toast_stack"),
             verticalArrangement = Arrangement.spacedBy(d.spaceSm),
         ) {
-            toasts.takeLast(MAX_VISIBLE_TOASTS).forEach { toast -> ToastCard(toast, onDismiss, tapToCloseText) }
+            pickVisibleToasts(toasts).forEach { toast -> ToastCard(toast, onDismiss, tapToCloseText) }
         }
     }
 }

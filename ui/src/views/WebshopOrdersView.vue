@@ -1081,7 +1081,7 @@ onUnmounted(() => clearInterval(nowTimer))
   opacity: 0.4;
 }
 .cashier-note {
-  color: var(--accent-warning);
+  color: var(--text-secondary);
   font-size: 15px;
   font-weight: 700;
 }

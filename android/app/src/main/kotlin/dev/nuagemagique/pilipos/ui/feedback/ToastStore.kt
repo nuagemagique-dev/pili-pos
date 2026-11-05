@@ -34,6 +34,22 @@ const val DEFAULT_TOAST_TTL_MS: Long = 3000L
 const val MAX_VISIBLE_TOASTS: Int = 3
 
 /**
+ * `pickVisible` of the Vue toast store: the toasts to draw, oldest first, at most [max]. Error toasts come first in
+ * the choice (an error waits for a tap, so newer messages must not push it out of view and let it come back
+ * unprompted later), then the newest of the others fill the remaining places.
+ */
+fun pickVisibleToasts(
+    toasts: List<Toast>,
+    max: Int = MAX_VISIBLE_TOASTS,
+): List<Toast> {
+    val errors = toasts.filter { it.variant == ToastVariant.Error }.takeLast(max)
+    val room = max - errors.size
+    val others = if (room > 0) toasts.filter { it.variant != ToastVariant.Error }.takeLast(room) else emptyList()
+    val chosen = (errors + others).map { it.id }.toSet()
+    return toasts.filter { it.id in chosen }
+}
+
+/**
  * `stores/toast.ts`: the queue of non-blocking operator feedback (UX guide 8.2, auto-dismiss).
  *
  * Info, success and warning toasts remove themselves after their own time to live. An [ToastVariant.Error] toast

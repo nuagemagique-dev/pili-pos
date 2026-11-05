@@ -78,11 +78,15 @@ const retryIn = computed(() =>
   fdm.nextCheckAt === null ? null : Math.max(0, Math.ceil((fdm.nextCheckAt - now.value) / 1000)),
 )
 
+// While the veil is up the root carries `fdm-blocking`: the in-flow banners
+// under the header (training, idle lock) lift above the veil with it, so
+// they stay readable, as on Android where the veil covers only the content.
 watch(
   blocking,
   (on) => {
     clearInterval(tick)
     if (on) tick = setInterval(() => (now.value = Date.now()), 1000)
+    document.documentElement.classList.toggle('fdm-blocking', on)
   },
   { immediate: true },
 )
@@ -93,6 +97,7 @@ async function retry() {
 }
 
 onUnmounted(() => {
+  document.documentElement.classList.remove('fdm-blocking')
   clearInterval(bannerTimer)
   clearInterval(tick)
 })

@@ -872,13 +872,7 @@ function finish() {
     </div>
 
     <!-- Done: leaves by itself after 2 s unless there is something to read -->
-    <div
-      v-else
-      class="status-screen done-screen"
-      :class="{ 'tap-to-leave': !holdDone }"
-      data-testid="done-screen"
-      @click="onDoneTap"
-    >
+    <div v-else class="status-screen done-screen" data-testid="done-screen" @click="onDoneTap">
       <div class="checkout-center">
         <div class="success-icon">OK</div>
         <div v-if="changeDueCents > 0" class="receipt-change" data-testid="done-change">

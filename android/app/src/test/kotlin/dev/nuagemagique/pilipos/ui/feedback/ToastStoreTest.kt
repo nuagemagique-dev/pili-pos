@@ -92,4 +92,24 @@ class ToastStoreTest {
             advanceTimeBy(2001L)
             assertTrue(store.toasts.value.isEmpty())
         }
+
+    @Test
+    fun pickVisibleKeepsTheNewestErrorsFirstThenTheNewestOthersInArrivalOrder() {
+        fun t(
+            id: Long,
+            variant: ToastVariant,
+        ) = Toast(id, "t$id", variant)
+        val all =
+            listOf(
+                t(1, ToastVariant.Error),
+                t(2, ToastVariant.Info),
+                t(3, ToastVariant.Error),
+                t(4, ToastVariant.Info),
+                t(5, ToastVariant.Error),
+                t(6, ToastVariant.Error),
+            )
+        assertEquals(listOf(3L, 5L, 6L), pickVisibleToasts(all).map { it.id })
+        assertEquals(listOf(1L, 3L, 4L), pickVisibleToasts(all.take(4)).map { it.id })
+        assertTrue(pickVisibleToasts(emptyList()).isEmpty())
+    }
 }

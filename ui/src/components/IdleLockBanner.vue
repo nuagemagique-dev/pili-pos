@@ -69,3 +69,11 @@ const secondsLeft = computed(() =>
   flex-shrink: 0;
 }
 </style>
+
+<style>
+/* Above the blocking FDM veil (900) so the countdown stays readable. */
+.fdm-blocking .idle-banner {
+  position: relative;
+  z-index: 901;
+}
+</style>

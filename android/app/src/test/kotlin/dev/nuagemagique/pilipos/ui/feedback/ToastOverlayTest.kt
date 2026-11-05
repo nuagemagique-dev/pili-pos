@@ -101,6 +101,22 @@ class ToastOverlayTest {
     }
 
     @Test
+    fun anErrorIsNeverPushedOutOfViewByNewerMessages() {
+        show(
+            listOf(
+                Toast(1L, "boom", ToastVariant.Error),
+                Toast(2L, "m1", ToastVariant.Info),
+                Toast(3L, "m2", ToastVariant.Info),
+                Toast(4L, "m3", ToastVariant.Info),
+            ),
+        )
+        compose.onNodeWithTag("toast_1").assertIsDisplayed()
+        compose.onNodeWithTag("toast_2").assertDoesNotExist()
+        compose.onNodeWithTag("toast_3").assertIsDisplayed()
+        compose.onNodeWithTag("toast_4").assertIsDisplayed()
+    }
+
+    @Test
     fun onlyAnErrorShowsTheHintAndTakesTheTap() {
         val dismissed = mutableListOf<Long>()
         show(three) { dismissed += it }

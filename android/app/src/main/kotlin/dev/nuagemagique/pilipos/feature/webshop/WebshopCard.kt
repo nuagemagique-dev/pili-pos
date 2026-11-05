@@ -89,7 +89,7 @@ internal fun WebshopCard(
             Text(
                 text = vueText("webshop_cashier_only"),
                 style = PiliTheme.typography.label.copy(fontWeight = PiliTheme.typography.weightBold),
-                color = c.accentWarning,
+                color = c.textSecondary,
                 modifier = Modifier.testTag("${tag}_cashier_only"),
             )
         }

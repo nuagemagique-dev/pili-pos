@@ -100,6 +100,17 @@ test.describe('C5 toasts', () => {
     await expect(page.locator('.toast')).toHaveCount(0)
   })
 
+  test('an error is never pushed out of view by newer messages', async ({ page }) => {
+    await toTables(page)
+    await showToast(page, 'Impression impossible', 'error')
+    for (const n of [1, 2, 3]) await showToast(page, `Info ${n}`, 'info', 60_000)
+    const toasts = page.locator('.toast')
+    await expect(toasts).toHaveCount(3)
+    await expect(toasts.nth(0)).toHaveText(/Impression impossible/u)
+    await expect(toasts.nth(1)).toHaveText('Info 2')
+    await expect(toasts.nth(2)).toHaveText('Info 3')
+  })
+
   test('an error stays until it is tapped, and says so', async ({ page }) => {
     await page.clock.install()
     await toTables(page)
@@ -154,6 +165,27 @@ test.describe('L3 FDM veil under the header', () => {
     await expect(page.locator('.fdm-veil')).toBeVisible()
     await page.locator('.nav-logout').click()
     await expect(page).toHaveURL(/login|\/$/u)
+  })
+
+  test('the idle lock countdown stays above the veil', async ({ page }) => {
+    await toTables(page)
+    await emitTauriEvent(page, 'idle-lock-warning', { lockInMs: 30_000 })
+    await emitTauriEvent(page, 'fdm-status', BLOCKING)
+    await expect(page.locator('.fdm-veil')).toBeVisible()
+    const banner = page.getByTestId('idle-banner')
+    await expect(banner).toBeVisible()
+    const onTop = await page.evaluate(() => {
+      const r = document.querySelector('[data-testid="idle-banner"]')!.getBoundingClientRect()
+      const el = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+      return Boolean(el?.closest('[data-testid="idle-banner"]'))
+    })
+    expect(onTop).toBe(true)
+    // The veil is gone: the lift goes with it.
+    await emitTauriEvent(page, 'fdm-status', fdmHealth({}))
+    await expect(page.locator('.fdm-veil')).toHaveCount(0)
+    expect(
+      await page.evaluate(() => document.documentElement.classList.contains('fdm-blocking')),
+    ).toBe(false)
   })
 
   test('still blocks the sales screen under the header', async ({ page }) => {
@@ -218,6 +250,35 @@ test.describe('L2 status light sheet', () => {
     await expect(page.getByTestId('device-sheet-reason')).toContainText(
       'injoignable: connection refused',
     )
+  })
+
+  test('the FDM light sheet is usable while the blocking veil is up', async ({ page }) => {
+    await toTables(page)
+    await emitTauriEvent(
+      page,
+      'fdm-status',
+      fdmHealth({
+        connected: false,
+        answered: false,
+        severity: 'blocking',
+        code: 'FDM_NOT_OPERATIONAL',
+        mandatory: true,
+      }),
+    )
+    await expect(page.locator('.fdm-veil')).toBeVisible()
+    await page.getByTestId('light-fdm').click()
+    await expect(page.getByTestId('device-sheet')).toBeVisible()
+    const retryOnTop = await page.evaluate(() => {
+      const r = document
+        .querySelector('[data-testid="device-sheet-retry"]')!
+        .getBoundingClientRect()
+      const el = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+      return Boolean(el?.closest('[data-testid="device-sheet"]'))
+    })
+    expect(retryOnTop).toBe(true)
+    const before = (await ipcCalls(page, 'fdm_check_now')).length
+    await page.getByTestId('device-sheet-retry').click()
+    expect((await ipcCalls(page, 'fdm_check_now')).length).toBe(before + 1)
   })
 
   test('"Réessayer maintenant" runs only that device check again', async ({ page }) => {

@@ -66,7 +66,8 @@ const checkedText = computed(() =>
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.6);
-  z-index: 60;
+  /* Above the blocking FDM veil (900), so the FDM light's sheet can be used while it is up. */
+  z-index: 950;
 }
 .sheet {
   display: flex;
