@@ -8,3 +8,11 @@
 # A rule that matches no id of the base ref is stale and fails the check: delete it
 # once the card that needed it is merged. Lines starting with # and blank lines are
 # ignored.
+
+# UX audit C5: an error toast stays until tapped, so the tests of its lifetime moved to the tap.
+app/test:dev.nuagemagique.pilipos.ui.fdm.UiEventToastsTest#theToastLastsSixSeconds	app/test:dev.nuagemagique.pilipos.ui.fdm.UiEventToastsTest#theErrorToastStaysUntilItIsTappedWhateverTheDuration
+app/test:dev.nuagemagique.pilipos.ui.feedback.ErrorPresenterTest#showAddsAnErrorToastWithTheTtl	app/test:dev.nuagemagique.pilipos.ui.feedback.ErrorPresenterTest#showAddsAnErrorToastThatStaysUntilTapped
+app/test:dev.nuagemagique.pilipos.ui.feedback.ErrorPresenterTest#showRawAddsAnErrorToastAndHonoursAGivenTtl	app/test:dev.nuagemagique.pilipos.ui.feedback.ErrorPresenterTest#showRawAddsAnErrorToastWhateverTheGivenTtl
+app/test:dev.nuagemagique.pilipos.ui.feedback.ToastOverlayTest#aTapDismissesThatToast	app/test:dev.nuagemagique.pilipos.ui.feedback.ToastOverlayTest#onlyAnErrorShowsTheHintAndTakesTheTap
+app/test:dev.nuagemagique.pilipos.ui.feedback.ToastOverlayTest#theOverlayFollowsTheStoreAndTapsDismiss	app/test:dev.nuagemagique.pilipos.ui.feedback.ToastOverlayTest#theOverlayFollowsTheStoreAndATapDismissesAnError
+app/test:dev.nuagemagique.pilipos.ui.scaffold.HeaderViewModelTest#theRefusalToastLastsSixSeconds	app/test:dev.nuagemagique.pilipos.ui.scaffold.HeaderViewModelTest#theRefusalToastStaysUntilItIsTapped

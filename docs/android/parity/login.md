@@ -12,6 +12,7 @@ checks, end of shift); the screen only calls it through the shared stores and th
 | stores/auth.ts (login, loginWithNewPin, endShift driven by the tiles, the PIN pad, the INSZ entry and the first PIN) | ui/state/SessionStore.kt | `login` `login_with_new_pin` `end_shift` |
 | stores/fdm.ts (checkNow, read by the start-up checks) | feature/login/LoginStartupChecks.kt (StoreFdmProbe over ui/fdm/FdmStore.kt, which makes the call) | `fdm_check_now` |
 | LoginView.vue (badge hints, a manager's badge opens the PIN pad, a badge login, the end-of-shift mode mirrored for the scans) | feature/login/LoginViewModel.kt (`observeBadges`), LoginPeople.kt (BadgeHint), LoginPinPanel.kt over ui/badge/BadgeStore.kt | `get_badge_settings` `badge_tap` |
+| LoginView.vue (start-up rows are buttons; a tap opens the status sheet, retry runs that check only; `probes` / `retryOpen`) | feature/login/LoginBrand.kt (CheckRow), LoginDeviceSheet.kt, LoginViewModel.kt (openDevice, closeDevice, retryDevice), LoginStartupChecks.kt (runOne) over ui/scaffold/DeviceStatusSheet.kt | `check_printer` `check_kitchen_printer` `check_payment_terminal` `check_mail_status` `hubrise_get_connection_status` `fdm_check_now` |
 | components/PinDialog.vue (first login) | ui/components/PinPad.kt (PinDialog in PinMode.Choose), drawn inside the screen layout | - |
 | components/PiliLogo.vue | feature/login/LoginBrand.kt (wordmark as text) | - |
 
@@ -78,3 +79,8 @@ checks, end of shift); the screen only calls it through the shared stores and th
   outcome `logged_in` has already opened the session in the engine: the store keeps the user (`SessionStore.remember`)
   and the screen sends `GoToTables`, the same way out as a PIN login. A registered arrival or departure reloads the
   shift state of the tiles. Toasts and the high or low tone (`AudioTrackBadgeCue`) are the ones of the whole app.
+- **Status sheet on a start-up row (UX audit L2).** Each row is a 48 dp button (a transparent button over the row,
+  so the answer text keeps its own test tag). A tap opens the shared `DeviceStatusSheet` with the device, the state
+  in words, the reason and the time of that row's last check; "Réessayer maintenant" calls
+  `LoginStartupChecks.runOne(id)` and replaces that row only, in place, keeping the order. The FDM row's reason is the
+  message of the code of the last FDM reading (`LoginUiState.fdmCode`).

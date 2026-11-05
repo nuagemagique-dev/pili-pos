@@ -48,7 +48,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | components/PinDialog.vue | ui/components/PinPad.kt (PinPadState, PinPad, PinDialog) | - |
 | dialog frames | ui/components/PiliDialog.kt (PiliDialog, ConfirmDialog) | - |
 | components/PriceDialog.vue | ui/components/AmountDialog.kt | - |
-| stores/toast.ts and components/ToastStack.vue | ui/feedback/ToastStore.kt, ToastOverlay.kt | - |
+| stores/toast.ts and components/ToastStack.vue (top centre under the header, error stays until tapped, three at most) | ui/feedback/ToastStore.kt, ToastOverlay.kt (ToastStack, ToastOverlay) | - |
 | utils/errorMessages.ts callers | ui/feedback/ErrorPresenter.kt | - |
 | QR images | ui/components/QrCode.kt (QrCanvas, QrMatrices, QrCode) | - |
 | stores/pos.ts | ui/state/PosSettingsStore.kt | `get_settings` `set_training_mode` |

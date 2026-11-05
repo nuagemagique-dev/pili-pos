@@ -181,7 +181,7 @@ class HeaderViewModelTest {
         }
 
     @Test
-    fun theRefusalToastLastsSixSeconds() =
+    fun theRefusalToastStaysUntilItIsTapped() =
         runTest {
             val f = fixture()
             val r = start(f, HeaderArea.CHECKOUT)
@@ -193,11 +193,10 @@ class HeaderViewModelTest {
             runCurrent()
             assertEquals(1, r.toasts.toasts.value.size)
 
-            testScheduler.advanceTimeBy(REGISTER_FAILED_TOAST_MS - 1)
+            testScheduler.advanceTimeBy(REGISTER_FAILED_TOAST_MS + 60_000L)
             runCurrent()
             assertEquals(1, r.toasts.toasts.value.size)
-            testScheduler.advanceTimeBy(2)
-            runCurrent()
+            r.toasts.dismiss(r.lastToast().id)
             assertEquals(0, r.toasts.toasts.value.size)
         }
 

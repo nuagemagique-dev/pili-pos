@@ -394,4 +394,59 @@ class LoginViewModelTest {
             val none = start(g).state.checks.single { it.id == CheckId.Hubrise }
             assertEquals(StartupCheck(CheckId.Hubrise, CheckState.None, "check_not_connected"), none)
         }
+
+    // ── Status sheet (L2) ─────────────────────────────────────────
+
+    @Test
+    fun aTapOnACheckOpensItsSheetAndTheFirstRunStampsTheTime() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+            assertNull(r.state.deviceSheet)
+            assertTrue(r.state.checks.all { r.state.checkedAt[it.id] != null })
+
+            r.model.openDevice(CheckId.Ticket)
+            assertEquals(CheckId.Ticket, r.state.deviceSheet)
+            r.model.closeDevice()
+            assertNull(r.state.deviceSheet)
+        }
+
+    @Test
+    fun retryRunsOnlyThatDevicesCheckAgain() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.checkPrinter() } returns false
+            val r = start(f)
+            assertEquals(CheckState.Err, r.state.checks.single { it.id == CheckId.Ticket }.state)
+            coVerify(exactly = 1) { f.engine.checkPrinter() }
+            coVerify(exactly = 1) { f.engine.checkKitchenPrinter() }
+            coVerify(exactly = 1) { f.engine.checkMailStatus() }
+
+            coEvery { f.engine.checkPrinter() } returns true
+            r.model.openDevice(CheckId.Ticket)
+            r.model.retryDevice()
+            advanceUntilIdle()
+
+            assertEquals(CheckState.Ok, r.state.checks.single { it.id == CheckId.Ticket }.state)
+            assertFalse(r.state.deviceBusy)
+            coVerify(exactly = 2) { f.engine.checkPrinter() }
+            coVerify(exactly = 1) { f.engine.checkKitchenPrinter() }
+            coVerify(exactly = 1) { f.engine.checkMailStatus() }
+            // The order of the rows is kept.
+            assertEquals(listOf(CheckId.Fdm, CheckId.Ticket, CheckId.Kitchen, CheckId.Mail), r.state.checks.map { it.id })
+        }
+
+    @Test
+    fun theFdmRetryKeepsTheCodeOfTheReading() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.fdmCheckNow() } returns fdmHealth(FdmSeverity.BLOCKING)
+            val r = start(f)
+            coEvery { f.engine.fdmCheckNow() } returns fdmHealth(FdmSeverity.INFO)
+            r.model.openDevice(CheckId.Fdm)
+            r.model.retryDevice()
+            advanceUntilIdle()
+            assertEquals(CheckState.Ok, r.state.checks.first().state)
+            coVerify(exactly = 2) { f.engine.fdmCheckNow() }
+        }
 }

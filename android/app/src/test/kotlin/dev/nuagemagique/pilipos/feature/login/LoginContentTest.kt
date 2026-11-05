@@ -3,23 +3,29 @@ package dev.nuagemagique.pilipos.feature.login
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onChild
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -66,6 +72,12 @@ class LoginContentTest {
                     describeError = { "Erreur" },
                     onDone = { calls += "first-pin-done" },
                     onCancel = { calls += "first-pin-cancel" },
+                ),
+            device =
+                DeviceCallbacks(
+                    onOpen = { calls += "open-${it.name.lowercase()}" },
+                    onClose = { calls += "close-device" },
+                    onRetry = { calls += "retry-device" },
                 ),
         )
 
@@ -358,5 +370,76 @@ class LoginContentTest {
         compose.onNodeWithTag("pin_cancel").performClick()
 
         assertEquals(listOf("first-pin-cancel"), calls)
+    }
+
+    // ── Status sheet (L2) ─────────────────────────────────────────
+
+    private val ticketDown =
+        base.copy(
+            checks =
+                listOf(
+                    StartupCheck(CheckId.Fdm, CheckState.Ok, "check_connected"),
+                    StartupCheck(CheckId.Ticket, CheckState.Err, "check_unreachable"),
+                ),
+            checkedAt = mapOf(CheckId.Ticket to java.time.Instant.parse("2026-10-09T10:05:09Z")),
+        )
+
+    @Test
+    fun aCheckRowIsAButtonOf48DpAndTapsOpenItsSheet() {
+        show(ticketDown)
+
+        val bounds = compose.onNodeWithTag("login_check_ticket").getUnclippedBoundsInRoot()
+        assertTrue(bounds.height >= 48.dp)
+        compose.onNodeWithTag("login_check_ticket").assertHasClickAction()
+        compose.onNodeWithTag("login_check_ticket").performClick()
+        assertEquals(listOf("open-ticket"), calls)
+    }
+
+    @Test
+    fun theRowIsDescribedLikeTheAriaLabelOfTheVueRow() {
+        show(ticketDown)
+
+        compose.onNodeWithTag("login_check_ticket").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf("Imprimante ticket : Ne répond pas")),
+        )
+    }
+
+    @Test
+    fun theSheetShowsTheDeviceTheStateTheReasonAndTheTimeOfTheLastCheck() {
+        show(ticketDown.copy(deviceSheet = CheckId.Ticket))
+
+        // The device name is on its row and again as the title of the sheet.
+        compose.onAllNodesWithText("Imprimante ticket").assertCountEquals(2)
+        compose.onNodeWithTag("device_sheet_state").assertTextEquals("Ne répond pas")
+        compose.onNodeWithTag("device_sheet_reason").assertTextContains("ne répond pas", substring = true)
+        // 10:05:09 UTC is 12:05:09 in Belgium (summer time).
+        compose.onNodeWithTag("device_sheet_checked").assertTextEquals("Dernière vérification : 12:05:09")
+    }
+
+    @Test
+    fun retryAndCloseCallTheirCallbacksAndRetryWaitsWhileBusy() {
+        show(ticketDown.copy(deviceSheet = CheckId.Ticket))
+        compose.onNodeWithTag("device_sheet_retry").assertIsEnabled().performClick()
+        compose.onNodeWithTag("device_sheet_close").performClick()
+        assertEquals(listOf("retry-device", "close-device"), calls)
+    }
+
+    @Test
+    fun theRetryButtonWaitsWhileTheCheckRuns() {
+        show(ticketDown.copy(deviceSheet = CheckId.Ticket, deviceBusy = true))
+        compose.onNodeWithTag("device_sheet_retry").assertIsNotEnabled()
+    }
+
+    @Test
+    fun theTerminalSheetGivesTheReasonOfTheEngine() {
+        val state =
+            base.copy(
+                checks = listOf(StartupCheck(CheckId.Terminal, CheckState.Err, "check_unreachable", "connection refused")),
+                deviceSheet = CheckId.Terminal,
+            )
+        show(state)
+
+        compose.onNodeWithTag("device_sheet_reason").assertTextEquals("injoignable: connection refused")
+        compose.onNodeWithTag("device_sheet_checked").assertTextEquals("Pas encore vérifié")
     }
 }

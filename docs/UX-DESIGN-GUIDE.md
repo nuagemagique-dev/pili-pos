@@ -234,10 +234,16 @@ Le statut de connexion FDM doit être visible en permanence dans le header, pas 
 - 🟡 Jaune = warning (buffer > 70%, certificat expire bientôt)
 - 🔴 Rouge = erreur (déconnecté, buffer full, locked) → **bloque les transactions**
 
+Chaque voyant est un vrai bouton (zone de tap de 48 px, le point reste petit) : un tap ouvre une fiche avec le nom de
+l'appareil, son état en toutes lettres, la raison (jamais seulement une infobulle), l'heure de la dernière vérification
+et « Réessayer maintenant », qui relance la vérification de cet appareil seulement. Les lignes de démarrage de l'écran
+de connexion ouvrent la même fiche.
+
 ### 8.2 - Erreurs non-bloquantes vs bloquantes
 
 - **Non-bloquantes** (warnings) : bandeau jaune en haut de l'écran, auto-dismiss après 10 secondes, ne bloque pas le flow.
-- **Bloquantes** (FDM déconnecté, buffer full) : overlay fullscreen, fond semi-transparent, message clair, pas de moyen de contourner. Le POS est inutilisable tant que le problème n'est pas résolu.
+- **Bloquantes** (FDM déconnecté, buffer full) : voile semi-transparent sur les écrans de vente, **sous le header de 64 px** (Tables, Rapports, Config et Verrouiller restent accessibles), message clair, pas de moyen de contourner. Les ventes sont impossibles tant que le problème n'est pas résolu.
+- **Toasts** : en haut au centre, juste sous le header, 560 px au plus, empilés vers le bas, trois au maximum (les plus récents). Le conteneur ne prend jamais un tap : un tap traverse jusqu'à l'écran dessous. Info, succès et avertissement disparaissent seuls ; une **erreur reste jusqu'à ce qu'on la touche** (« Touchez pour fermer »), et c'est le seul élément qui prend le tap.
 
 ### 8.3 - Messages d'erreur
 

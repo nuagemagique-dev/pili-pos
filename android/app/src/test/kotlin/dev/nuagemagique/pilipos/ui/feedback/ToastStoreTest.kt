@@ -70,4 +70,26 @@ class ToastStoreTest {
             advanceTimeBy(3001L)
             assertTrue(store.toasts.value.isEmpty())
         }
+
+    @Test
+    fun anErrorToastNeverExpiresWhateverItsTtl() =
+        runTest {
+            val store = store()
+            val error = store.show("boom", ToastVariant.Error, ttlMs = 1000L)
+            store.show("ok", ToastVariant.Info, ttlMs = 1000L)
+            advanceTimeBy(60_000L)
+            assertEquals(listOf("boom"), store.toasts.value.map { it.message })
+            store.dismiss(error)
+            assertTrue(store.toasts.value.isEmpty())
+        }
+
+    @Test
+    fun theWarningAndSuccessToastsStillExpire() =
+        runTest {
+            val store = store()
+            store.show("w", ToastVariant.Warning, ttlMs = 2000L)
+            store.show("s", ToastVariant.Success, ttlMs = 2000L)
+            advanceTimeBy(2001L)
+            assertTrue(store.toasts.value.isEmpty())
+        }
 }
