@@ -14,6 +14,8 @@ import { formatPrice } from '../utils/format'
 import { formatTime, parseTimestamp } from '../utils/datetime'
 import { useBilingualName } from '../utils/names'
 import AppHeader from '../components/AppHeader.vue'
+import WebshopRejectDialog from '../components/WebshopRejectDialog.vue'
+import { cashierNoteNeeded } from '../utils/webshopRights'
 import type { WebshopOrderItem, WebshopOrderSummary } from '../api/ipc'
 // Bundled through this view only, so builds without HubRise ship none
 // of the aggregator logos.
@@ -251,9 +253,14 @@ function itemName(item: WebshopOrderItem) {
 // button: an external driver or the customer takes the bag. Own-webshop
 // delivery is driven by the restaurant, so it gets an explicit
 // "En livraison" step between Prête and Terminer.
-function nextAction(
-  order: WebshopOrderSummary,
-): { label: string; run: () => Promise<void> } | null {
+interface CardAction {
+  label: string
+  run: () => Promise<void>
+  /** Needs the cashier rights (accept, collect, complete, close): an Apprenti sees it disabled. */
+  cashier: boolean
+}
+
+function nextAction(order: WebshopOrderSummary): CardAction | null {
   const id = order.hubrise_order_id
   if (!id) return null
   switch (fiscalOf(order)) {
@@ -262,12 +269,14 @@ function nextAction(
         ? {
             label: t('webshop_action_refund'),
             run: () => store.refundOrder(order, auth.currentUser!.insz),
+            cashier: true,
           }
         : null
     case 'cancel_pending':
       return {
         label: t('webshop_action_close_cancelled'),
         run: () => store.closeCancelledOrder(order),
+        cashier: true,
       }
   }
   switch (statusOf(order)) {
@@ -275,16 +284,25 @@ function nextAction(
     case 'received':
       // An order to check is never signed: only Refuser or Resynchroniser.
       if (needsReview(order)) return null
-      return { label: t('webshop_action_accept'), run: () => store.acceptOrder(order) }
+      return {
+        label: t('webshop_action_accept'),
+        run: () => store.acceptOrder(order),
+        cashier: true,
+      }
     case 'accepted':
-      return { label: t('webshop_action_prepare'), run: () => store.startPreparation(id) }
+      return {
+        label: t('webshop_action_prepare'),
+        run: () => store.startPreparation(id),
+        cashier: false,
+      }
     case 'in_preparation':
-      return { label: t('webshop_action_ready'), run: () => store.markReady(id) }
+      return { label: t('webshop_action_ready'), run: () => store.markReady(id), cashier: false }
     case 'awaiting_collection':
       if (isOwnWebshop(order) && order.service_type === 'delivery') {
         return {
           label: t('webshop_action_out_for_delivery'),
           run: () => store.markOutForDelivery(id),
+          cashier: false,
         }
       }
       return finishAction(order)
@@ -296,13 +314,32 @@ function nextAction(
 }
 
 /** Handing over: an unpaid order is collected (its sale N), a prepaid one completed. */
-function finishAction(
-  order: WebshopOrderSummary,
-): { label: string; run: () => Promise<void> } | null {
+function finishAction(order: WebshopOrderSummary): CardAction {
   if (isUnpaid(order)) {
-    return { label: t('webshop_action_collect_cash'), run: () => store.collectOrder(order, 'cash') }
+    return {
+      label: t('webshop_action_collect_cash'),
+      run: () => store.collectOrder(order, 'cash'),
+      cashier: true,
+    }
   }
-  return { label: t('webshop_action_complete'), run: () => store.completeOrder(order) }
+  return {
+    label: t('webshop_action_complete'),
+    run: () => store.completeOrder(order),
+    cashier: true,
+  }
+}
+
+/** An Apprenti (role `waiter`) cannot accept, reject, hand over or collect:
+ * those buttons are disabled and the card says who may (UX audit L6). */
+function cashierBlocked(order: WebshopOrderSummary): boolean {
+  return cashierNoteNeeded(
+    {
+      reject: canReject(order),
+      cashierPrimary: nextAction(order)?.cashier ?? false,
+      collectCard: canCollectByCard(order),
+    },
+    auth.canTakePayment,
+  )
 }
 
 /** Waiting for its money: registered (P), not sold yet. */
@@ -401,8 +438,18 @@ async function guarded(order: WebshopOrderSummary, action: () => Promise<void>) 
   }
 }
 
-async function handleReject(order: WebshopOrderSummary) {
-  await guarded(order, () => store.rejectOrder(order))
+// "Refuser" opens a confirmation with the reasons (UX audit O1); the
+// order is refused only when a reason is chosen and confirmed.
+const rejecting = ref<WebshopOrderSummary | null>(null)
+
+function handleReject(order: WebshopOrderSummary) {
+  rejecting.value = order
+}
+
+async function confirmReject() {
+  const order = rejecting.value
+  rejecting.value = null
+  if (order) await guarded(order, () => store.rejectOrder(order))
 }
 
 async function handleCollectCard(order: WebshopOrderSummary) {
@@ -571,16 +618,21 @@ onUnmounted(() => clearInterval(nowTimer))
               </button>
             </div>
 
+            <p v-if="cashierBlocked(order)" class="cashier-note" data-testid="cashier-only">
+              {{ t('webshop_cashier_only') }}
+            </p>
+
             <footer class="card-actions">
-              <span class="total-value">{{ formatEuros(order.total_cents) }}</span>
               <button
                 v-if="canReject(order)"
-                class="btn btn-secondary"
-                :disabled="busyId === order.id"
+                class="btn btn-reject"
+                :disabled="busyId === order.id || !auth.canTakePayment"
+                data-testid="reject-button"
                 @click="handleReject(order)"
               >
                 {{ t('webshop_action_reject') }}
               </button>
+              <span class="total-value">{{ formatEuros(order.total_cents) }}</span>
               <button
                 v-if="needsReview(order)"
                 class="btn btn-secondary"
@@ -592,7 +644,7 @@ onUnmounted(() => clearInterval(nowTimer))
               <button
                 v-if="canCollectByCard(order)"
                 class="btn btn-secondary"
-                :disabled="busyId === order.id"
+                :disabled="busyId === order.id || !auth.canTakePayment"
                 @click="handleCollectCard(order)"
               >
                 {{ t('webshop_action_collect_card') }}
@@ -608,7 +660,9 @@ onUnmounted(() => clearInterval(nowTimer))
               <button
                 v-if="nextAction(order)"
                 class="btn btn-primary"
-                :disabled="busyId === order.id"
+                :disabled="
+                  busyId === order.id || (nextAction(order)!.cashier && !auth.canTakePayment)
+                "
                 @click="handlePrimary(order)"
               >
                 {{ nextAction(order)!.label }}
@@ -627,6 +681,8 @@ onUnmounted(() => clearInterval(nowTimer))
         </ul>
       </section>
     </main>
+
+    <WebshopRejectDialog v-if="rejecting" @confirm="confirmReject" @cancel="rejecting = null" />
   </div>
 </template>
 
@@ -1013,6 +1069,21 @@ onUnmounted(() => clearInterval(nowTimer))
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border);
+}
+/* Refuser sits at the other end of the row from Accepter: outlined red,
+   never filled (UX audit O1). */
+.btn-reject {
+  background: transparent;
+  color: var(--accent-danger);
+  border: 2px solid var(--accent-danger);
+}
+.btn-reject:disabled {
+  opacity: 0.4;
+}
+.cashier-note {
+  color: var(--accent-warning);
+  font-size: 15px;
+  font-weight: 700;
 }
 .btn-reprint {
   padding: 0 16px;

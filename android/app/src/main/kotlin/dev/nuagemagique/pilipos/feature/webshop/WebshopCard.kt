@@ -40,6 +40,7 @@ import java.time.Instant
 private val ChipShape = 8.dp
 private val ChipBorder = 1.dp
 private val ChipMaxWidth = 280.dp
+private val RejectBorder = 2.dp
 
 /** What a card needs besides its order. */
 internal data class CardContext(
@@ -47,13 +48,15 @@ internal data class CardContext(
     val isManager: Boolean,
     val busy: Boolean,
     val reprintOpen: Boolean,
+    /** False for an Apprenti (role waiter): accept, refuse, collect and complete are shown disabled (UX audit L6). */
+    val canTakePayment: Boolean = true,
 )
 
 /**
  * One online order (`<li class="card">` of `WebshopOrdersView.vue`): the channel chip, the key time, the service and
  * the customer, the notices, the items, the total and the buttons. Test tags are prefixed `webshop_card_<id>`:
- * `_channel`, `_time`, `_meta`, `_pay`, `_banner`, `_changed`, `_review`, `_address`, `_total`, `_reject`, `_resync`,
- * `_collect_card`, `_delay`, `_reprint`, `_primary`, `_print_kitchen`, `_print_customer`.
+ * `_channel`, `_time`, `_meta`, `_pay`, `_banner`, `_changed`, `_review`, `_address`, `_cashier_only`, `_total`,
+ * `_reject`, `_resync`, `_collect_card`, `_delay`, `_reprint`, `_primary`, `_print_kitchen`, `_print_customer`.
  */
 @Composable
 internal fun WebshopCard(
@@ -81,6 +84,14 @@ internal fun WebshopCard(
         CardItems(order)
         order.customerNotes?.takeIf { it.isNotBlank() }?.let {
             Text("“$it”", style = PiliTheme.typography.body, color = c.textSecondary)
+        }
+        if (WebshopRules.cashierNoteNeeded(order, context.isManager, context.canTakePayment)) {
+            Text(
+                text = vueText("webshop_cashier_only"),
+                style = PiliTheme.typography.label.copy(fontWeight = PiliTheme.typography.weightBold),
+                color = c.accentWarning,
+                modifier = Modifier.testTag("${tag}_cashier_only"),
+            )
         }
         CardActions(order, context, callbacks, tag)
         if (context.reprintOpen && WebshopRules.canReprint(order)) PrintRow(order, callbacks, tag)
@@ -303,11 +314,16 @@ private fun CardActions(
     val c = PiliTheme.colors
     val t = PiliTheme.typography
     val enabled = !context.busy
+    val cashierEnabled = enabled && context.canTakePayment
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Refuser sits at the other end of the row from Accepter, outlined red and never filled (UX audit O1).
+        if (WebshopRules.canReject(order)) {
+            RejectButton(vueText("webshop_action_reject"), { callbacks.onReject(order) }, "${tag}_reject", cashierEnabled)
+        }
         Text(
             formatEuro(order.totalCents),
             style = t.price,
@@ -320,14 +336,16 @@ private fun CardActions(
             horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm, Alignment.End),
             verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
         ) {
-            if (WebshopRules.canReject(order)) {
-                CardButton(vueText("webshop_action_reject"), { callbacks.onReject(order) }, "${tag}_reject", enabled)
-            }
             if (WebshopRules.needsReview(order)) {
                 CardButton(vueText("webshop_action_resync"), { callbacks.onResync(order) }, "${tag}_resync", enabled)
             }
             if (WebshopRules.canCollectByCard(order)) {
-                CardButton(vueText("webshop_action_collect_card"), { callbacks.onCollectCard(order) }, "${tag}_collect_card", enabled)
+                CardButton(
+                    vueText("webshop_action_collect_card"),
+                    { callbacks.onCollectCard(order) },
+                    "${tag}_collect_card",
+                    cashierEnabled,
+                )
             }
             if (WebshopRules.canDelay(order)) {
                 CardButton(vueText("webshop_delay_label"), { callbacks.onDelay(order) }, "${tag}_delay", true)
@@ -337,7 +355,14 @@ private fun CardActions(
                 CardButton(vueText("webshop_action_reprint"), { callbacks.onToggleReprint(order) }, "${tag}_reprint", true, variant)
             }
             WebshopRules.nextAction(order, context.isManager)?.let {
-                CardButton(vueText(it.labelKey), { callbacks.onPrimary(order) }, "${tag}_primary", enabled, PiliButtonVariant.Primary)
+                val primaryEnabled = if (it.needsCashier) cashierEnabled else enabled
+                CardButton(
+                    vueText(it.labelKey),
+                    { callbacks.onPrimary(order) },
+                    "${tag}_primary",
+                    primaryEnabled,
+                    PiliButtonVariant.Primary,
+                )
             }
         }
     }
@@ -352,6 +377,26 @@ private fun CardButton(
     variant: PiliButtonVariant = PiliButtonVariant.Secondary,
 ) {
     PiliButton(text = text, onClick = onClick, variant = variant, enabled = enabled, modifier = Modifier.testTag(tag))
+}
+
+/** "Refuser": a ghost button with a red outline and red text, so it cannot be mistaken for the filled "Accepter". */
+@Composable
+private fun RejectButton(
+    text: String,
+    onClick: () -> Unit,
+    tag: String,
+    enabled: Boolean,
+) {
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    PiliButton(
+        onClick = onClick,
+        variant = PiliButtonVariant.Ghost,
+        enabled = enabled,
+        modifier = Modifier.border(RejectBorder, c.accentDanger, RoundedCornerShape(PiliTheme.dimens.radiusMd)).testTag(tag),
+    ) {
+        Text(text, style = t.body.copy(fontWeight = t.weightBold), color = c.accentDanger)
+    }
 }
 
 /** The two tickets a "Reimprimer" tap reveals (2 taps, a rare action). */

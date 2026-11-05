@@ -25,9 +25,11 @@ internal sealed interface WebshopDialog {
     /** The id of the order the dialog is about. */
     val orderId: Long
 
-    /** "Refuser" asks for a confirmation: the refusal is sent to the platform. */
+    /** "Refuser" asks for a reason, then a confirmation: the refusal is sent to the platform. */
     data class RejectConfirm(
         override val orderId: Long,
+        /** The chip picked so far; the red button waits for one. */
+        val reason: RejectReason? = null,
     ) : WebshopDialog
 
     /** The refund of a signed order HubRise cancelled, confirmed by the logged-in manager. */
@@ -51,6 +53,8 @@ internal data class WebshopUiState(
     val operator: String = "",
     /** True for an administrator: only a manager refunds. */
     val isManager: Boolean = false,
+    /** True for a manager or a Serveur (role cashier): an Apprenti may not accept, refuse, collect or complete. */
+    val canTakePayment: Boolean = true,
     /** True when HubRise is switched on or online orders are still to settle; false shows the off state. */
     val hubriseVisible: Boolean = false,
     /** True while the list is being read. */
@@ -118,12 +122,13 @@ internal class WebshopViewModel(
 
     /** What the screen draws. */
     val state: StateFlow<WebshopUiState> =
-        combine(remote, own, session.currentUser, session.isManager) { r, o, user, manager ->
+        combine(remote, own, session.currentUser, session.isManager, session.canTakePayment) { r, o, user, manager, payer ->
             WebshopUiState(
                 orders = r.orders,
                 signedIn = user != null,
                 operator = user?.name.orEmpty(),
                 isManager = manager,
+                canTakePayment = payer,
                 hubriseVisible = r.visible,
                 loading = r.loading,
                 error = r.error,
@@ -175,16 +180,18 @@ internal class WebshopViewModel(
      */
     fun primary(order: WebshopOrderSummary) {
         val action = WebshopRules.nextAction(order, session.isManager.value) ?: return
+        // An Apprenti's disabled buttons are not tapped; the engine would refuse them anyway.
+        if (action.needsCashier && !session.canTakePayment.value) return
         if (action == PrimaryAction.REFUND) {
             own.update { it.copy(dialog = WebshopDialog.RefundConfirm(order.id)) }
-            return
+        } else {
+            guarded(order.id) { perform(action, order) }
         }
-        guarded(order.id) { perform(action, order) }
     }
 
-    /** "Refuser": asks for a confirmation first (the refusal goes to the platform). */
+    /** "Refuser": asks for a reason and a confirmation first (the refusal goes to the platform). */
     fun askReject(order: WebshopOrderSummary) {
-        if (!WebshopRules.canReject(order)) return
+        if (!WebshopRules.canReject(order) || !session.canTakePayment.value) return
         own.update { it.copy(dialog = WebshopDialog.RejectConfirm(order.id)) }
     }
 
@@ -196,7 +203,7 @@ internal class WebshopViewModel(
 
     /** "Encaisser carte": the card is collected for the total the engine listed (`handleCollectCard`). */
     fun collectCard(order: WebshopOrderSummary) {
-        if (!WebshopRules.canCollectByCard(order)) return
+        if (!WebshopRules.canCollectByCard(order) || !session.canTakePayment.value) return
         guarded(order.id) { store.collectOrder(order, PaymentMethod.CARD) }
     }
 
@@ -225,10 +232,19 @@ internal class WebshopViewModel(
         own.update { it.copy(dialog = null) }
     }
 
-    /** The refusal is confirmed. */
+    /** A reason chip of the refusal dialog is picked (a second tap picks another one). */
+    fun pickRejectReason(reason: RejectReason) {
+        own.update { o -> (o.dialog as? WebshopDialog.RejectConfirm)?.let { o.copy(dialog = it.copy(reason = reason)) } ?: o }
+    }
+
+    /**
+     * The refusal is confirmed. Nothing is sent before a reason is picked. The reason itself stays on the till:
+     * HubRise has no reject reason field.
+     */
     fun confirmReject() {
-        val order = takeDialogOrder<WebshopDialog.RejectConfirm>() ?: return
-        guarded(order.id) { store.rejectOrder(order) }
+        val open = own.value.dialog as? WebshopDialog.RejectConfirm
+        val order = if (open?.reason != null) takeDialogOrder<WebshopDialog.RejectConfirm>() else null
+        if (order != null) guarded(order.id) { store.rejectOrder(order) }
     }
 
     /**

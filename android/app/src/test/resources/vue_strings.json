@@ -6714,6 +6714,12 @@
       "zh": "售出后被取消：需经理确认退款。",
       "area": "webshop"
     },
+    "webshop_cashier_only": {
+      "fr": "Réservé au serveur ou au gérant",
+      "en": "Reserved for a server or a manager",
+      "zh": "仅限服务员或经理",
+      "area": "webshop"
+    },
     "webshop_changed_after_signing": {
       "fr": "Modifiée après la vente : la vente signée reste valable.",
       "en": "Changed after the sale: the signed sale stands.",
@@ -6772,6 +6778,54 @@
       "fr": "Webshop",
       "en": "Webshop",
       "zh": "网店",
+      "area": "webshop"
+    },
+    "webshop_reject_confirm": {
+      "fr": "Refuser la commande",
+      "en": "Reject the order",
+      "zh": "拒绝订单",
+      "area": "webshop"
+    },
+    "webshop_reject_message": {
+      "fr": "La plateforme et le client seront prévenus du refus. Cette action est définitive.",
+      "en": "The platform and the customer will be told of the refusal. This cannot be undone.",
+      "zh": "平台和顾客将收到拒绝通知。此操作无法撤销。",
+      "area": "webshop"
+    },
+    "webshop_reject_reason_closed": {
+      "fr": "Restaurant fermé",
+      "en": "Restaurant closed",
+      "zh": "餐厅已关门",
+      "area": "webshop"
+    },
+    "webshop_reject_reason_label": {
+      "fr": "Motif du refus",
+      "en": "Reason",
+      "zh": "拒绝原因",
+      "area": "webshop"
+    },
+    "webshop_reject_reason_other": {
+      "fr": "Autre",
+      "en": "Other",
+      "zh": "其他",
+      "area": "webshop"
+    },
+    "webshop_reject_reason_out_of_stock": {
+      "fr": "Rupture de stock",
+      "en": "Out of stock",
+      "zh": "缺货",
+      "area": "webshop"
+    },
+    "webshop_reject_reason_too_busy": {
+      "fr": "Trop de commandes",
+      "en": "Too many orders",
+      "zh": "订单太多",
+      "area": "webshop"
+    },
+    "webshop_reject_title": {
+      "fr": "Refuser la commande ?",
+      "en": "Reject the order?",
+      "zh": "拒绝订单？",
       "area": "webshop"
     },
     "webshop_review_title": {

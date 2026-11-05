@@ -71,6 +71,41 @@ export const webshopMessages: Messages = {
   },
   webshop_action_complete: { fr: 'Terminer', en: 'Complete', zh: '结束' },
   webshop_action_reject: { fr: 'Refuser', en: 'Reject', zh: '拒绝' },
+  // Refusing an order: confirmation with a reason (UX audit O1).
+  webshop_reject_title: { fr: 'Refuser la commande ?', en: 'Reject the order?', zh: '拒绝订单？' },
+  webshop_reject_message: {
+    fr: 'La plateforme et le client seront prévenus du refus. Cette action est définitive.',
+    en: 'The platform and the customer will be told of the refusal. This cannot be undone.',
+    zh: '平台和顾客将收到拒绝通知。此操作无法撤销。',
+  },
+  webshop_reject_reason_label: { fr: 'Motif du refus', en: 'Reason', zh: '拒绝原因' },
+  webshop_reject_reason_out_of_stock: {
+    fr: 'Rupture de stock',
+    en: 'Out of stock',
+    zh: '缺货',
+  },
+  webshop_reject_reason_too_busy: {
+    fr: 'Trop de commandes',
+    en: 'Too many orders',
+    zh: '订单太多',
+  },
+  webshop_reject_reason_closed: {
+    fr: 'Restaurant fermé',
+    en: 'Restaurant closed',
+    zh: '餐厅已关门',
+  },
+  webshop_reject_reason_other: { fr: 'Autre', en: 'Other', zh: '其他' },
+  webshop_reject_confirm: {
+    fr: 'Refuser la commande',
+    en: 'Reject the order',
+    zh: '拒绝订单',
+  },
+  // An Apprenti (role waiter) cannot accept, reject, hand over or collect (UX audit L6).
+  webshop_cashier_only: {
+    fr: 'Réservé au serveur ou au gérant',
+    en: 'Reserved for a server or a manager',
+    zh: '仅限服务员或经理',
+  },
 
   // WebshopOrdersView - row labels
 

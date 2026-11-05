@@ -55,6 +55,12 @@ Après 2-3 semaines d'utilisation intensive, le staff développe des automatisme
 
 ---
 
+### 2.4 - Commandes en ligne : refuser avec un motif, droits par rôle (audit O1, L6)
+
+« Refuser » une commande en ligne est définitif (la plateforme et le client sont prévenus), donc il ouvre une confirmation avec les motifs en grosses touches (« Rupture de stock », « Trop de commandes », « Restaurant fermé », « Autre ») et un bouton rouge « Refuser la commande » grisé tant qu'aucun motif n'est choisi : trois touches, jamais par accident. Sur la carte, « Refuser » est à l'autre bout de la rangée d'actions que « Accepter », contour rouge sans remplissage. HubRise n'a pas de champ de motif de refus : le motif reste sur la caisse, il n'est ni envoyé ni signé.
+
+Accepter, refuser, remettre et encaisser demandent les droits d'encaissement. Pour un Apprenti ces boutons sont grisés avec la ligne « Réservé au serveur ou au gérant » au lieu d'échouer avec « Action réservée à un autre profil ». À l'écran, « Serveur » est le rôle interne `cashier` et « Apprenti » le rôle `waiter` (les noms internes ne changent pas). Préparer, « Prête » et « En livraison » restent ouverts à tous.
+
 ## 3. Layout principal - OrderView (écran le plus utilisé)
 
 C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.

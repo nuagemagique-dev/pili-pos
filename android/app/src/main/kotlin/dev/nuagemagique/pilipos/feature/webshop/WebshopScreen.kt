@@ -56,6 +56,7 @@ internal data class WebshopCallbacks(
     val onPrintKitchen: (WebshopOrderSummary) -> Unit = {},
     val onPrintCustomer: (WebshopOrderSummary) -> Unit = {},
     val onToggleDone: () -> Unit = {},
+    val onPickRejectReason: (RejectReason) -> Unit = {},
     val onConfirmReject: () -> Unit = {},
     val onConfirmRefund: () -> Unit = {},
     val onDelayMinutes: (Int) -> Unit = {},
@@ -86,6 +87,7 @@ internal fun WebshopRoute(navigator: AppNavigator) {
             onPrintKitchen = model::printKitchen,
             onPrintCustomer = model::printCustomer,
             onToggleDone = model::toggleDone,
+            onPickRejectReason = model::pickRejectReason,
             onConfirmReject = model::confirmReject,
             onConfirmRefund = model::confirmRefund,
             onDelayMinutes = model::delay,
@@ -233,7 +235,14 @@ private fun StageColumn(
                 }
             }
             items(orders, key = { it.id }) { order ->
-                val context = CardContext(state.now, state.isManager, order.id in state.busy, state.reprintOpenId == order.id)
+                val context =
+                    CardContext(
+                        now = state.now,
+                        isManager = state.isManager,
+                        busy = order.id in state.busy,
+                        reprintOpen = state.reprintOpenId == order.id,
+                        canTakePayment = state.canTakePayment,
+                    )
                 WebshopCard(order, context, callbacks)
             }
         }

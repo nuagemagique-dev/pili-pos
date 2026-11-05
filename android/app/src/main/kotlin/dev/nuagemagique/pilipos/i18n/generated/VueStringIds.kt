@@ -1061,6 +1061,15 @@ internal object VueStringIds {
         this["webshop_action_out_for_delivery"] = R.string.webshop_action_out_for_delivery
         this["webshop_action_complete"] = R.string.webshop_action_complete
         this["webshop_action_reject"] = R.string.webshop_action_reject
+        this["webshop_reject_title"] = R.string.webshop_reject_title
+        this["webshop_reject_message"] = R.string.webshop_reject_message
+        this["webshop_reject_reason_label"] = R.string.webshop_reject_reason_label
+        this["webshop_reject_reason_out_of_stock"] = R.string.webshop_reject_reason_out_of_stock
+        this["webshop_reject_reason_too_busy"] = R.string.webshop_reject_reason_too_busy
+        this["webshop_reject_reason_closed"] = R.string.webshop_reject_reason_closed
+        this["webshop_reject_reason_other"] = R.string.webshop_reject_reason_other
+        this["webshop_reject_confirm"] = R.string.webshop_reject_confirm
+        this["webshop_cashier_only"] = R.string.webshop_cashier_only
         this["webshop_loading"] = R.string.webshop_loading
         this["webshop_empty"] = R.string.webshop_empty
         this["webshop_action_print_kitchen"] = R.string.webshop_action_print_kitchen

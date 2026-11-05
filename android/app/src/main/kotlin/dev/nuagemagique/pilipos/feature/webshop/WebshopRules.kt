@@ -13,30 +13,49 @@ internal enum class Stage { NEW, KITCHEN, READY, DONE }
 internal enum class PrimaryAction(
     /** The Vue key of its caption. */
     val labelKey: String,
+    /**
+     * Needs the cashier rights (engine `Access::Cashier`): accept, collect, complete, close. On screen "Serveur" is the
+     * role `cashier` and "Apprenti" the role `waiter`; an Apprenti sees these buttons disabled (UX audit L6).
+     */
+    val needsCashier: Boolean,
 ) {
     /** A signed order HubRise cancelled: refund it (managers only). */
-    REFUND("webshop_action_refund"),
+    REFUND("webshop_action_refund", true),
 
     /** An unpaid order cancelled after its P: close it. */
-    CLOSE_CANCELLED("webshop_action_close_cancelled"),
+    CLOSE_CANCELLED("webshop_action_close_cancelled", true),
 
     /** A new order: accept it (the engine signs it). */
-    ACCEPT("webshop_action_accept"),
+    ACCEPT("webshop_action_accept", true),
 
     /** An accepted order: the kitchen starts. */
-    PREPARE("webshop_action_prepare"),
+    PREPARE("webshop_action_prepare", false),
 
     /** An order in preparation: it is ready. */
-    READY("webshop_action_ready"),
+    READY("webshop_action_ready", false),
 
     /** The restaurant's own delivery leaves. */
-    OUT_FOR_DELIVERY("webshop_action_out_for_delivery"),
+    OUT_FOR_DELIVERY("webshop_action_out_for_delivery", false),
 
     /** An unpaid order is handed over against cash. */
-    COLLECT_CASH("webshop_action_collect_cash"),
+    COLLECT_CASH("webshop_action_collect_cash", true),
 
     /** A prepaid order is handed over. */
-    COMPLETE("webshop_action_complete"),
+    COMPLETE("webshop_action_complete", true),
+}
+
+/**
+ * Why an online order is refused (UX audit O1), picked in the confirmation. HubRise has no reject reason field, so the
+ * reason stays on the till: it gates the red button and is never sent.
+ */
+internal enum class RejectReason(
+    /** The Vue key of its chip. */
+    val labelKey: String,
+) {
+    OUT_OF_STOCK("webshop_reject_reason_out_of_stock"),
+    TOO_BUSY("webshop_reject_reason_too_busy"),
+    CLOSED("webshop_reject_reason_closed"),
+    OTHER("webshop_reject_reason_other"),
 }
 
 /** How an order is paid, once known ("Payee" / "A encaisser"). */
@@ -160,6 +179,18 @@ internal object WebshopRules {
 
     /** Card payment, offered next to cash when collecting. */
     fun canCollectByCard(order: WebshopOrderSummary): Boolean = isUnpaid(order) && stageOf(order) == Stage.READY
+
+    /**
+     * True when [order] shows a button the operator may not use: accept, reject, collect, complete or close need the
+     * cashier rights ([canTakePayment]). The card then says "Réservé au serveur ou au gérant" and shows them disabled.
+     */
+    fun cashierNoteNeeded(
+        order: WebshopOrderSummary,
+        isManager: Boolean,
+        canTakePayment: Boolean,
+    ): Boolean =
+        !canTakePayment &&
+            (canReject(order) || canCollectByCard(order) || nextAction(order, isManager)?.needsCashier == true)
 
     /** Refusing is only possible before the order is signed. */
     fun canReject(order: WebshopOrderSummary): Boolean = fiscalOf(order) == FISCAL_PENDING && isNew(statusOf(order))
