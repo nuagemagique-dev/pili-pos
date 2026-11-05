@@ -184,9 +184,10 @@ internal fun OrderRoute(
 }
 
 /**
- * The order screen, stateless: the Z reminder, the category tabs over the product grid on the left and the cart
- * column on the right, laid out for 1920 x 1080 dp. Without a user or without an order it shows an empty state
- * instead. Test tags: `order_z_warning`, `order_empty` and those of [CategoryTabs], [MenuGrid] and [OrderCartColumn].
+ * The order screen, stateless: the Z reminder, the category tabs, the toolbar row and the product grid (with the code pad
+ * docked under it) on the left and the cart column on the right, laid out for 1920 x 1080 dp. Without a user or without
+ * an order it shows an empty state instead. Test tags: `order_z_warning`, `order_empty` and those of [CategoryTabs],
+ * [ModeToolbar], [MenuGrid], [CodePad] and [OrderCartColumn].
  */
 @Composable
 internal fun OrderContent(
@@ -222,30 +223,31 @@ internal fun OrderContent(
         Row(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 CategoryTabs(menu.categories, menu.selectedCategoryId, menu.language, callbacks.onCategory)
-                if (menu.canSoldOut) SoldOutBar(menu.soldOutMode, menu.soldOut.size, callbacks.onSoldOutMode, callbacks.onSoldOutList)
-                AllergenBar(
+                ModeToolbar(
                     menu,
-                    callbacks.onAllergenMode,
-                    onSellVoucher = callbacks.onSellVoucher,
-                    onCodePad = callbacks.onCodePadToggle,
+                    ModeToolbarActions(
+                        onSoldOutMode = callbacks.onSoldOutMode,
+                        onSoldOutList = callbacks.onSoldOutList,
+                        onCodePad = callbacks.onCodePadToggle,
+                        onAllergenMode = callbacks.onAllergenMode,
+                        onSellVoucher = callbacks.onSellVoucher,
+                    ),
                 )
-                Row(Modifier.weight(1f).fillMaxWidth()) {
-                    if (menu.codePad.open) CodePad(menu.codePad, callbacks.codePad)
-                    val results = menu.codePad.results
-                    MenuGrid(
-                        items = results ?: menu.items,
-                        categoryColor = if (results != null) null else parseCategoryColor(color),
-                        cartQuantities = menu.cartQuantities,
-                        language = menu.language,
-                        labelMode = menu.labelMode,
-                        loaded = menu.loaded,
-                        onAdd = callbacks.onItem,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        columns = if (menu.codePad.open) GRID_COLUMNS_WITH_PAD else GRID_COLUMNS,
-                        highlightId = menu.codePad.pick?.id,
-                        emptyText = results?.let { vueText("code_pad_no_result") },
-                    )
-                }
+                val results = menu.codePad.results
+                MenuGrid(
+                    items = results ?: menu.items,
+                    categoryColor = if (results != null) null else parseCategoryColor(color),
+                    cartQuantities = menu.cartQuantities,
+                    language = menu.language,
+                    labelMode = menu.labelMode,
+                    loaded = menu.loaded,
+                    onAdd = callbacks.onItem,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    highlightId = menu.codePad.pick?.id,
+                    emptyText = results?.let { vueText("code_pad_no_result") },
+                )
+                // UX audit C6: the pad is a dock under the grid, which keeps its 5 columns.
+                if (menu.codePad.open) CodePad(menu.codePad, callbacks.codePad)
             }
             OrderCartColumn(state.cart, cartActions, Modifier.width(PiliTheme.dimens.cartWidth).fillMaxHeight())
         }

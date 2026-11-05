@@ -211,7 +211,7 @@ class OrderGiftVoucherTest {
             PiliTheme {
                 ProvideUiText(AppLanguage.FR, catalog) {
                     Box {
-                        AllergenBar(MenuState(giftVouchersEnabled = enabled), onToggle = {}, onSellVoucher = { seen += "sell" })
+                        ModeToolbar(MenuState(giftVouchersEnabled = enabled), ModeToolbarActions(onSellVoucher = { seen += "sell" }))
                     }
                 }
             }

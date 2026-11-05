@@ -4,12 +4,13 @@ import { useI18n } from '../i18n'
 import { TIMES, typeKey, type CodePadTone } from '../utils/codeEntry'
 
 /**
- * The pad of the order entry by menu code: the field (a quantity pill and
- * the code, a clear button), one line telling what OK will do or what went
- * wrong, the digits with the quantity key and backspace, the letters the
- * menu codes use, and OK. While a code is typed the order view filters the
- * grid. A physical keyboard types into it too while `listening`. The
- * grammar and what OK does belong to the order view.
+ * The pad of the order entry by menu code, docked under the product grid
+ * (UX audit C6): on the left the field (a quantity pill and the code, a clear
+ * button), one line telling what OK will do or what went wrong and the
+ * letters the menu codes use; in the middle the digits with the quantity key
+ * and backspace; on the right OK. While a code is typed the order view
+ * filters the grid. A physical keyboard types into it too while `listening`.
+ * The grammar and what OK does belong to the order view.
  */
 const {
   modelValue,
@@ -91,33 +92,46 @@ const field = computed(() => {
 
 <template>
   <div class="code-pad" data-testid="code-pad">
-    <div class="field" :class="tone" data-testid="code-pad-display">
-      <span v-if="field.pill && !field.pillAfter" class="pill" data-testid="code-pad-qty">{{
-        field.pill
-      }}</span>
-      <span v-if="modelValue === ''" class="placeholder">{{ t('code_pad_placeholder') }}</span>
-      <span v-else class="code">{{ field.code }}</span>
-      <span v-if="field.pill && field.pillAfter" class="pill" data-testid="code-pad-qty">{{
-        field.pill
-      }}</span>
-      <button
-        v-if="modelValue !== ''"
-        class="field-clear"
-        :aria-label="t('code_pad_clear')"
-        data-testid="code-key-clear"
-        @click="clear"
+    <div class="side">
+      <div class="field" :class="tone" data-testid="code-pad-display">
+        <span v-if="field.pill && !field.pillAfter" class="pill" data-testid="code-pad-qty">{{
+          field.pill
+        }}</span>
+        <span v-if="modelValue === ''" class="placeholder">{{ t('code_pad_placeholder') }}</span>
+        <span v-else class="code">{{ field.code }}</span>
+        <span v-if="field.pill && field.pillAfter" class="pill" data-testid="code-pad-qty">{{
+          field.pill
+        }}</span>
+        <button
+          v-if="modelValue !== ''"
+          class="field-clear"
+          :aria-label="t('code_pad_clear')"
+          data-testid="code-key-clear"
+          @click="clear"
+        >
+          ✕
+        </button>
+      </div>
+      <div
+        class="message"
+        :class="tone"
+        role="status"
+        aria-live="polite"
+        data-testid="code-pad-message"
       >
-        ✕
-      </button>
-    </div>
-    <div
-      class="message"
-      :class="tone"
-      role="status"
-      aria-live="polite"
-      data-testid="code-pad-message"
-    >
-      {{ message }}
+        {{ message }}
+      </div>
+      <div v-if="letters.length > 0" class="letters">
+        <button
+          v-for="l in letters"
+          :key="l"
+          class="key letter"
+          :data-testid="`code-key-${l}`"
+          @click="press(l)"
+        >
+          {{ l }}
+        </button>
+      </div>
     </div>
     <div class="keys">
       <button
@@ -148,29 +162,30 @@ const field = computed(() => {
         &#9003;
       </button>
     </div>
-    <div v-if="letters.length > 0" class="letters">
-      <button
-        v-for="l in letters"
-        :key="l"
-        class="key letter"
-        :data-testid="`code-key-${l}`"
-        @click="press(l)"
-      >
-        {{ l }}
-      </button>
-    </div>
     <button class="ok" data-testid="code-key-ok" @click="submit">OK</button>
   </div>
 </template>
 
 <style scoped>
+/* The dock: about 300 px under the grid, three columns (field, message and
+   letters | digits | OK). */
 .code-pad {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 348px 132px;
+  gap: var(--space-sm);
+  height: 300px;
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+
+.side {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-  width: 400px;
-  flex-shrink: 0;
-  padding: 16px 0 16px 16px;
+  gap: var(--space-xs);
+  min-width: 0;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -179,7 +194,8 @@ const field = computed(() => {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  min-height: 72px;
+  flex-shrink: 0;
+  min-height: 64px;
   padding: 0 56px 0 var(--space-md);
   border-radius: var(--radius-lg);
   background: var(--bg-secondary);
@@ -227,7 +243,8 @@ const field = computed(() => {
 }
 
 .message {
-  min-height: 44px;
+  flex-shrink: 0;
+  min-height: 32px;
   font-size: var(--font-size-md);
   line-height: 1.3;
   color: var(--text-secondary);
@@ -248,16 +265,19 @@ const field = computed(() => {
 .keys {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
   gap: var(--space-xs);
+  min-height: 0;
 }
 .letters {
+  flex-shrink: 0;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
   gap: var(--space-xs);
 }
 
 .key {
-  height: 68px;
+  min-height: 56px;
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   border-radius: var(--radius-md);
@@ -297,8 +317,7 @@ const field = computed(() => {
 }
 
 .ok {
-  height: 72px;
-  margin-top: var(--space-xs);
+  height: 100%;
   border-radius: var(--radius-md);
   background: var(--accent-success);
   color: var(--text-on-accent);

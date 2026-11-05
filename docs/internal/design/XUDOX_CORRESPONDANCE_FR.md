@@ -12,7 +12,7 @@ autre forme, **Manque** pas d'équivalent aujourd'hui, **Non** volontairement ab
 
 | Xudox | Ce que ça fait | Pili | Statut |
 | --- | --- | --- | --- |
-| KeyB (clavier "Please input", touches 0-9, A-Z, OK) | taper le numéro du plat au lieu de chercher dans les catégories | pavé "Saisie code" à gauche de la grille ; la grille se filtre pendant la frappe, `A12` puis OK ou toucher le plat | Nouveau |
+| KeyB (clavier "Please input", touches 0-9, A-Z, OK) | taper le numéro du plat au lieu de chercher dans les catégories | pavé "Saisie code" ancré sous la grille (300 px, la grille garde ses 5 colonnes) ; la grille se filtre pendant la frappe, `A12` puis OK ou toucher le plat | Nouveau |
 | Touche `(*)乘` du clavier, boutons 1 à 8 en bas | multiplier le plat | touche "× Qté" : `3 × A12` ou `A12 × 3` ; `3 ×` puis toucher un plat dans la grille | Nouveau |
 | Touche `(-)减`, bouton `-1` | retirer une portion d'un plat déjà sur la note | bouton − sur la ligne de la note (pas de retrait par code : une seule façon de retirer) | OK |
 | Réglage "Keyboard" : le clavier s'ouvre seul à chaque nouvelle table | | le pavé reste ouvert ou fermé selon le dernier choix, par terminal | Nouveau |

@@ -29,6 +29,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import uniffi.pos_ffi.AllergenEntry
+import uniffi.pos_ffi.AllergenNames
 import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.VatCode
 import uniffi.pos_ffi.VatSplitRow
@@ -546,5 +548,32 @@ class OrderScreenshotTest {
         rule.onNodeWithTag("code_key_A").assertWidthIsAtLeast(60.dp).assertHeightIsAtLeast(64.dp)
         val ok = rule.onNodeWithTag("code_key_ok").getUnclippedBoundsInRoot()
         assertTrue("OK is below the screen: ${ok.bottom}", ok.bottom <= 1080.dp)
+    }
+
+    // UX audit C6: a typed code filters the grid to a row or two above the docked pad.
+    @Test
+    fun codePadTyped() {
+        val coded = "ABCDEGHJKMNPQRSTWZ".mapIndexed { i, l -> menuItem(100L + i, 1, "Produit $l", 500, code = "${l}1") }
+        val pad = CodePadState(open = true, text = "a", items = coded)
+        capture(OrderUiState(signedIn = true, menu = menu.copy(codePad = pad, canSoldOut = true), cart = cart), "order_code_pad_typed")
+    }
+
+    // UX audit C1: the allergen mode shows its hint on the toolbar row and its legend in a strip under it.
+    @Test
+    fun allergenMode() {
+        val codes =
+            listOf(
+                "gluten", "crustaceans", "eggs", "fish", "peanuts", "soybeans", "milk",
+                "nuts", "celery", "mustard", "sesame", "sulphites", "lupin", "molluscs",
+            )
+        val legend = codes.mapIndexed { i, code -> AllergenEntry(code, i + 1, AllergenNames(code, code, code, code)) }
+        capture(
+            OrderUiState(
+                signedIn = true,
+                menu = menu.copy(allergenMode = true, allergenLegend = legend, canSoldOut = true, giftVouchersEnabled = true),
+                cart = cart,
+            ),
+            "order_allergen_mode",
+        )
     }
 }
