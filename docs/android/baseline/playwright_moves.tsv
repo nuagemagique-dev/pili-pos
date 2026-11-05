@@ -26,3 +26,4 @@ order.spec.ts › Order View - kitchen and cart lines › names show in the UI l
 settings.spec.ts › Settings View › products can be shown by their menu code	settings.spec.ts › Settings View › products are shown by their menu code by default, names are a switch away
 fdm-errors.spec.ts › an FDM answer that does not match the sale is explained	fdm-errors.spec.ts › an FDM answer that does not match the sale is explained, then the retry
 order.spec.ts › Order View - products shown by code › the code leads, the name goes underneath	order.spec.ts › Order View - products shown by code › the code leads, the category and the name go underneath
+webshop-orders.spec.ts › Webshop Orders View - signing › Refuser rejects through the fiscal command	webshop-orders.spec.ts › Webshop Orders View - signing › Refuser asks for a reason, then rejects through the fiscal command

@@ -16,3 +16,4 @@ app/test:dev.nuagemagique.pilipos.ui.feedback.ErrorPresenterTest#showRawAddsAnEr
 app/test:dev.nuagemagique.pilipos.ui.feedback.ToastOverlayTest#aTapDismissesThatToast	app/test:dev.nuagemagique.pilipos.ui.feedback.ToastOverlayTest#onlyAnErrorShowsTheHintAndTakesTheTap
 app/test:dev.nuagemagique.pilipos.ui.feedback.ToastOverlayTest#theOverlayFollowsTheStoreAndTapsDismiss	app/test:dev.nuagemagique.pilipos.ui.feedback.ToastOverlayTest#theOverlayFollowsTheStoreAndATapDismissesAnError
 app/test:dev.nuagemagique.pilipos.ui.scaffold.HeaderViewModelTest#theRefusalToastLastsSixSeconds	app/test:dev.nuagemagique.pilipos.ui.scaffold.HeaderViewModelTest#theRefusalToastStaysUntilItIsTapped
+app/test:dev.nuagemagique.pilipos.feature.webshop.WebshopContentTest#theRejectDialogAsksBeforeRefusing	app/test:dev.nuagemagique.pilipos.feature.webshop.WebshopContentTest#theRejectDialogAsksForAReasonBeforeRefusing

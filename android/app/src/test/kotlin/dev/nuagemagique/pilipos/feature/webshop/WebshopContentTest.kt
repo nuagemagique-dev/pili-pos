@@ -4,21 +4,26 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,6 +52,7 @@ class WebshopContentTest {
             onPrintKitchen = { tapped += "kitchen:${it.id}" },
             onPrintCustomer = { tapped += "customer:${it.id}" },
             onToggleDone = { tapped += "done" },
+            onPickRejectReason = { tapped += "reason:${it.name}" },
             onConfirmReject = { tapped += "confirm-reject" },
             onConfirmRefund = { tapped += "confirm-refund" },
             onDelayMinutes = { tapped += "minutes:$it" },
@@ -345,14 +351,74 @@ class WebshopContentTest {
     // ── Dialogs ───────────────────────────────────────────────────
 
     @Test
-    fun theRejectDialogAsksBeforeRefusing() {
+    fun theRejectDialogAsksForAReasonBeforeRefusing() {
         show(base.copy(dialog = WebshopDialog.RejectConfirm(2L)))
 
         compose.onNodeWithTag("pili_dialog").assertIsDisplayed()
+        text("webshop_reject_reason_out_of_stock").assertTextEquals("Rupture de stock")
+        text("webshop_reject_reason_too_busy").assertTextEquals("Trop de commandes")
+        text("webshop_reject_reason_closed").assertTextEquals("Restaurant fermé")
+        text("webshop_reject_reason_other").assertTextEquals("Autre")
+        compose.onNodeWithTag("confirm_ok").assertTextEquals("Refuser la commande")
+        // Red and disabled until a reason is picked: a tap on it sends nothing.
+        compose.onNodeWithTag("confirm_ok").assertIsNotEnabled()
         compose.onNodeWithTag("confirm_ok").performClick()
+        compose.onNodeWithTag("webshop_reject_reason_closed").performClick()
         compose.onNodeWithTag("confirm_cancel").performClick()
 
-        assertEquals(listOf("confirm-reject", "dismiss"), tapped)
+        assertEquals(listOf("reason:CLOSED", "dismiss"), tapped)
+    }
+
+    @Test
+    fun withAReasonPickedTheRedButtonConfirms() {
+        show(base.copy(dialog = WebshopDialog.RejectConfirm(2L, RejectReason.TOO_BUSY)))
+
+        compose.onNodeWithTag("confirm_ok").assertIsEnabled()
+        compose.onNodeWithTag("confirm_ok").performClick()
+
+        assertEquals(listOf("confirm-reject"), tapped)
+    }
+
+    @Test
+    fun refuserSitsAtTheOtherEndOfTheRowFromAccepter() {
+        show(base)
+
+        val reject = compose.onNodeWithTag("webshop_card_2_reject").getUnclippedBoundsInRoot()
+        val total = compose.onNodeWithTag("webshop_card_2_total").getUnclippedBoundsInRoot()
+        val primary = compose.onNodeWithTag("webshop_card_2_primary").getUnclippedBoundsInRoot()
+        assertTrue("Refuser is left of the total", reject.right <= total.left)
+        assertTrue("Accepter is right of the total", total.right <= primary.left)
+        assertTrue("a wide gap, no mis-tap", primary.left - reject.right >= 96.dp)
+        assertTrue("a 48 dp touch target", reject.height >= 48.dp)
+    }
+
+    @Test
+    fun anApprenticeSeesAcceptAndRefuserDisabledWithTheNote() {
+        show(base.copy(canTakePayment = false))
+
+        text("webshop_card_2_cashier_only").assertTextEquals("Réservé au serveur ou au gérant")
+        compose.onNodeWithTag("webshop_card_2_primary").assertIsNotEnabled()
+        compose.onNodeWithTag("webshop_card_2_reject").assertIsNotEnabled()
+        // Collect by card and the cash handover are disabled too, with the note.
+        text("webshop_card_4_cashier_only").assertTextEquals("Réservé au serveur ou au gérant")
+        compose.onNodeWithTag("webshop_card_4_primary").assertIsNotEnabled()
+        compose.onNodeWithTag("webshop_card_4_collect_card").assertIsNotEnabled()
+        // Starting the kitchen needs no cashier rights: no note, the button works.
+        compose.onNodeWithTag("webshop_card_3_cashier_only").assertDoesNotExist()
+        compose.onNodeWithTag("webshop_card_3_primary").assertIsEnabled()
+        compose.onNodeWithTag("webshop_card_3_primary").performClick()
+
+        assertEquals(listOf("primary:3"), tapped)
+    }
+
+    @Test
+    fun aServerOrAManagerSeesNoNoteAndEveryButtonEnabled() {
+        show(base)
+
+        compose.onNodeWithTag("webshop_card_2_cashier_only").assertDoesNotExist()
+        compose.onNodeWithTag("webshop_card_2_primary").assertIsEnabled()
+        compose.onNodeWithTag("webshop_card_2_reject").assertIsEnabled()
+        compose.onNodeWithTag("webshop_card_4_collect_card").assertIsEnabled()
     }
 
     @Test
