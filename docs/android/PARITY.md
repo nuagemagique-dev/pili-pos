@@ -44,7 +44,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 
 | Vue | Compose | Commands |
 | --- | --- | --- |
-| components/NumPad.vue | ui/components/NumPad.kt (NumPad) | - |
+| components/NumPad.vue | ui/components/NumPad.kt (NumPad) | - (calculator layout 7 8 9 / 4 5 6 / 1 2 3 / C 0 backspace, same on both UIs, UX audit C10) |
 | components/PinDialog.vue | ui/components/PinPad.kt (PinPadState, PinPad, PinDialog) | - |
 | dialog frames | ui/components/PiliDialog.kt (PiliDialog, ConfirmDialog) | - |
 | components/PriceDialog.vue | ui/components/AmountDialog.kt | - |

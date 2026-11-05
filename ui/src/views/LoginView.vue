@@ -531,7 +531,7 @@ async function submitInsz() {
 
           <div class="numpad">
             <button
-              v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
+              v-for="d in ['7', '8', '9', '4', '5', '6', '1', '2', '3']"
               :key="d"
               class="nk"
               @click="handleKey(d)"
@@ -577,7 +577,7 @@ async function submitInsz() {
 
           <div class="numpad">
             <button
-              v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
+              v-for="d in ['7', '8', '9', '4', '5', '6', '1', '2', '3']"
               :key="d"
               class="nk"
               @click="handlePinKey(d)"

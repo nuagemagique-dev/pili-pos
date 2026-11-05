@@ -107,6 +107,8 @@ C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
 | Touche NumPad | 80×64px | 96×72px | 4px gap |
 | Ligne order dans cart | pleine largeur × 56px | pleine largeur × 64px | 0 (séparateur 1px) |
 
+**Disposition du pavé numérique :** tous les pavés numériques (PIN, INSZ, montants, prix, quantités, bons cadeaux, dates des rapports, code produit) suivent la disposition d'une calculatrice, 7 8 9 en haut, puis 4 5 6, 1 2 3, et la ligne du bas propre à chaque pavé (C, 0, effacer ; virgule sur la caisse Linux). Les mêmes touches dans le même ordre sur Linux et Android (`ui/e2e/pad-layout.spec.ts`, `PadLayoutAssert.kt`).
+
 **Pourquoi ces tailles :** le standard mobile est 48×48px minimum (Apple HIG / Material Design), mais en POS restaurant avec les mains mouillées/grasses et l'écran à 30-50cm de distance, il faut aller plus grand. Les tests utilisateurs montrent que 60-70px est le sweet spot pour éviter les misclicks sous stress.
 
 ### 4.2 - Feedback tactile visuel

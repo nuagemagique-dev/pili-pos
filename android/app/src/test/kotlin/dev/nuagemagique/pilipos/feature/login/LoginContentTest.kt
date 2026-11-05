@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.height
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
+import dev.nuagemagique.pilipos.ui.components.assertCalculatorLayout
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -138,6 +139,20 @@ class LoginContentTest {
         compose.onNodeWithTag("login_pin_panel").assertIsDisplayed()
         compose.onNodeWithTag("login_pin_user").assertTextEquals("Bob")
         compose.onNodeWithTag("login_pin_title").assertTextEquals("Code PIN")
+    }
+
+    @Test
+    fun thePinPadIsLaidOutLikeACalculator() {
+        show(base.copy(pin = PinPanel(cashier)))
+
+        compose.assertCalculatorLayout()
+    }
+
+    @Test
+    fun theInszPadIsLaidOutLikeACalculator() {
+        show(base.copy(numpadMode = true, insz = ""))
+
+        compose.assertCalculatorLayout()
     }
 
     @Test

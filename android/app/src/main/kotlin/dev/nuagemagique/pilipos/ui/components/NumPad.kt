@@ -56,10 +56,10 @@ private val KeyHeight = 72.dp
 
 private const val DISABLED_ALPHA = 0.4f
 
-private val DigitRows: List<List<Char>> = listOf(listOf('1', '2', '3'), listOf('4', '5', '6'), listOf('7', '8', '9'))
+private val DigitRows: List<List<Char>> = listOf(listOf('7', '8', '9'), listOf('4', '5', '6'), listOf('1', '2', '3'))
 
 /**
- * The numeric pad of `NumPad.vue`: three columns of 96 x 72 dp keys, rows 1 2 3 / 4 5 6 / 7 8 9 / C 0 backspace.
+ * The numeric pad of `NumPad.vue`: three columns of 96 x 72 dp keys, calculator layout, rows 7 8 9 / 4 5 6 / 1 2 3 / C 0 backspace.
  * [clearLabel] and [backspaceLabel] are the content descriptions of the two glyph keys (the caller resolves the
  * text). Test tags: `numpad_key_0` to `numpad_key_9`, `numpad_clear`, `numpad_back`.
  */

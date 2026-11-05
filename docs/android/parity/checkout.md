@@ -71,7 +71,7 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
 - **Cash part before the last one.** Vue subtracts the parts in the browser. Here a cash part taken earlier is held
   in the previews as an exact amount, so the engine does the subtraction; the sale itself still sends it last
   without amount.
-- **Entry keys.** The pad is the shared `NumPad` (digits, clear, backspace) read as cents like a payment terminal,
+- **Entry keys.** The pad is the shared `NumPad` (calculator layout 7 8 9 / 4 5 6 / 1 2 3, then clear, 0, backspace; digits, clear, backspace) read as cents like a payment terminal,
   not Vue's comma pad: `2 0 0 0` is 20,00. A shortcut or a prefill is replaced by the first key, as Vue's `fresh`.
   Cash is now prefilled too (P1), so the exact amount is already entered on arrival.
 - **Quick amounts.** They are shown with their cents (`20,00 €`), as they come from `CashDisplay` in cents.

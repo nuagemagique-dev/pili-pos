@@ -14,6 +14,7 @@ import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.components.AmountEntryState
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
+import dev.nuagemagique.pilipos.ui.components.assertCalculatorLayout
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -227,6 +228,13 @@ class CheckoutContentTest {
         show(base)
 
         compose.onNodeWithTag("checkout_chip_0").assertDoesNotExist()
+    }
+
+    @Test
+    fun thePadIsLaidOutLikeACalculator() {
+        show(base)
+
+        compose.assertCalculatorLayout()
     }
 
     @Test

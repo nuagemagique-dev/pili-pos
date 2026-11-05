@@ -20,10 +20,10 @@ function clear() {
 </script>
 
 <template>
-  <!-- UX Guide §4.1: NumPad keys 96×72px recommended -->
+  <!-- UX Guide §4.1: NumPad keys 96×72px recommended; calculator layout 7 8 9 / 4 5 6 / 1 2 3 / C 0 back -->
   <div class="numpad">
     <button
-      v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
+      v-for="d in ['7', '8', '9', '4', '5', '6', '1', '2', '3']"
       :key="d"
       class="key"
       @click="press(d)"
