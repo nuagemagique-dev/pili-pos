@@ -154,7 +154,7 @@ const field = computed(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  width: 360px;
+  width: 400px;
   flex-shrink: 0;
   padding: 16px 0 16px 16px;
   overflow-y: auto;
@@ -260,7 +260,7 @@ const field = computed(() => {
   background: var(--bg-pressed);
 }
 .key.letter {
-  height: 52px;
+  height: 64px;
   font-size: var(--font-size-lg);
 }
 .key.back {

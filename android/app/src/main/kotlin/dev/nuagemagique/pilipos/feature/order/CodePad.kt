@@ -52,7 +52,7 @@ import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 
 /** Width of the pad beside the product grid (`.code-pad` of `CodePad.vue`). */
-internal val CodePadWidth = 360.dp
+internal val CodePadWidth = 400.dp
 
 /** Product columns while the pad is open (`:columns` of `MenuGrid.vue`). */
 internal const val GRID_COLUMNS_WITH_PAD = 3
@@ -60,7 +60,7 @@ internal const val GRID_COLUMNS_WITH_PAD = 3
 internal val CodeFieldHeight = 72.dp
 private val MessageHeight = 44.dp
 private val KeyHeight = 68.dp
-private val LetterHeight = 52.dp
+private val LetterHeight = 64.dp
 private const val LETTERS_PER_ROW = 6
 private val DigitRows = listOf(listOf("7", "8", "9"), listOf("4", "5", "6"), listOf("1", "2", "3"))
 

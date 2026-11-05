@@ -1,10 +1,14 @@
 package dev.nuagemagique.pilipos.feature.order
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
@@ -19,6 +23,7 @@ import dev.nuagemagique.pilipos.ui.scaffold.PosScaffoldContent
 import dev.nuagemagique.pilipos.ui.scaffold.StatusLights
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -459,5 +464,20 @@ class OrderScreenshotTest {
     fun noteDialog() {
         val dialog = OrderDialog.Note(1L, "sans wasabi", true)
         capture(OrderUiState(signedIn = true, menu = menu, cart = notedCart, dialog = dialog), "order_note_dialog")
+    }
+
+    // The Tokyo Sushi Bar till at its tallest: 18 categories (two rows of tabs), the sold-out bar and the 18 letters
+    // of its menu codes. The letter keys stay big enough for a finger and OK stays on screen.
+    @Test
+    fun codePad() {
+        val tabs = (1L..18L).map { category(it, "Catégorie $it", color = "#E53935") }
+        val coded = "ABCDEGHJKMNPQRSTWZ".mapIndexed { i, l -> menuItem(100L + i, 1, "Produit $l", 500, code = "${l}1") }
+        val pad = CodePadState(open = true, items = coded)
+        val tall = menu.copy(categories = tabs, codePad = pad, canSoldOut = true)
+        capture(OrderUiState(signedIn = true, menu = tall, cart = cart), "order_code_pad")
+
+        rule.onNodeWithTag("code_key_A").assertWidthIsAtLeast(60.dp).assertHeightIsAtLeast(64.dp)
+        val ok = rule.onNodeWithTag("code_key_ok").getUnclippedBoundsInRoot()
+        assertTrue("OK is below the screen: ${ok.bottom}", ok.bottom <= 1080.dp)
     }
 }

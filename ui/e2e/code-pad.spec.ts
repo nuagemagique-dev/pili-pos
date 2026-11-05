@@ -42,6 +42,12 @@ test.describe('Code pad', () => {
     await expect(page.getByTestId('code-key-C')).toHaveCount(0)
   })
 
+  test('letter keys are big enough for a finger', async ({ page }) => {
+    const box = await page.getByTestId('code-key-A').boundingBox()
+    expect(box?.width).toBeGreaterThanOrEqual(60)
+    expect(box?.height).toBeGreaterThanOrEqual(64)
+  })
+
   test('a quantity and a code add that many', async ({ page }) => {
     for (const k of ['3', 'times', 'A', '1', '2']) await page.getByTestId(`code-key-${k}`).click()
     await expect(page.getByTestId('code-pad-qty')).toHaveText('3 ×')
