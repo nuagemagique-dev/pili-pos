@@ -1106,6 +1106,17 @@ const coreMessages: Messages = {
   refund_select_ticket: { fr: 'Sélectionner le ticket', en: 'Select ticket', zh: '选择票据' },
   refund_select_items: { fr: 'Articles à rembourser', en: 'Items to refund', zh: '退款商品' },
   refund_confirm: { fr: 'Rembourser', en: 'Refund', zh: '退款' },
+  // The one confirmation before the refund is signed (the row action stays "Rembourser").
+  refund_confirm_final: {
+    fr: 'Confirmer le remboursement',
+    en: 'Confirm the refund',
+    zh: '确认退款',
+  },
+  refund_cash_total: {
+    fr: 'À rembourser en espèces',
+    en: 'To pay back in cash',
+    zh: '现金退还金额',
+  },
   refund_success: { fr: 'Remboursement enregistré', en: 'Refund recorded', zh: '退款已记录' },
   refund_none: { fr: 'Aucun ticket récent', en: 'No recent tickets', zh: '无近期票据' },
 

@@ -158,6 +158,8 @@
     <string name="refund_select_ticket">选择票据</string>
     <string name="refund_select_items">退款商品</string>
     <string name="refund_confirm">退款</string>
+    <string name="refund_confirm_final">确认退款</string>
+    <string name="refund_cash_total">现金退还金额</string>
     <string name="refund_success">退款已记录</string>
     <string name="refund_none">无近期票据</string>
     <string name="cash_section">现金管理</string>

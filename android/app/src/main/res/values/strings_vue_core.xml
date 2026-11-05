@@ -158,6 +158,8 @@
     <string name="refund_select_ticket">Sélectionner le ticket</string>
     <string name="refund_select_items">Articles à rembourser</string>
     <string name="refund_confirm">Rembourser</string>
+    <string name="refund_confirm_final">Confirmer le remboursement</string>
+    <string name="refund_cash_total">À rembourser en espèces</string>
     <string name="refund_success">Remboursement enregistré</string>
     <string name="refund_none">Aucun ticket récent</string>
     <string name="cash_section">Gestion caisse</string>

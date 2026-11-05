@@ -5016,10 +5016,22 @@
       "zh": "退款",
       "area": "core"
     },
+    "refund_cash_total": {
+      "fr": "À rembourser en espèces",
+      "en": "To pay back in cash",
+      "zh": "现金退还金额",
+      "area": "core"
+    },
     "refund_confirm": {
       "fr": "Rembourser",
       "en": "Refund",
       "zh": "退款",
+      "area": "core"
+    },
+    "refund_confirm_final": {
+      "fr": "Confirmer le remboursement",
+      "en": "Confirm the refund",
+      "zh": "确认退款",
       "area": "core"
     },
     "refund_none": {
@@ -6066,6 +6078,18 @@
       "zh": "终端",
       "area": "core"
     },
+    "settings_training_confirm_off": {
+      "fr": "Désactiver le mode formation ?",
+      "en": "Turn training mode off?",
+      "zh": "关闭培训模式？",
+      "area": "settings"
+    },
+    "settings_training_confirm_on": {
+      "fr": "Activer le mode formation ?",
+      "en": "Turn training mode on?",
+      "zh": "开启培训模式？",
+      "area": "settings"
+    },
     "settings_training_effect": {
       "fr": "Fond violet, bandeau et filigrane sur tous les écrans. Les tickets sont marqués TRAINING.",
       "en": "Purple background, banner and watermark on every screen. Tickets are marked TRAINING.",
@@ -6082,6 +6106,12 @@
       "fr": "Actif",
       "en": "On",
       "zh": "已开启",
+      "area": "settings"
+    },
+    "settings_training_pin_hint": {
+      "fr": "Les ventes suivantes ne seront pas comptées.",
+      "en": "The following sales will not be counted.",
+      "zh": "之后的销售不会计入账目。",
       "area": "settings"
     },
     "shift_ended": {

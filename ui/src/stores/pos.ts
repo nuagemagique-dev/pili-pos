@@ -29,9 +29,10 @@ export const usePosStore = defineStore('pos', () => {
     trainingMode.value = settings.value.trainingMode
   }
 
-  async function toggleTrainingMode() {
+  /** Turning training mode on is confirmed by the manager's own PIN (checked by the engine). */
+  async function toggleTrainingMode(operatorPin?: string) {
     const newValue = !trainingMode.value
-    await ipc.setTrainingMode(newValue)
+    await ipc.setTrainingMode(newValue, operatorPin)
     trainingMode.value = newValue
   }
 

@@ -231,20 +231,24 @@ internal fun <T> SegmentedControl(
     }
 }
 
-/** The on/off switch of the training panel (`.toggle`): the state text and a track with a thumb. */
+/**
+ * The on/off switch of the training panel (`.toggle`): the state text and a track with a thumb. [armed] (the first
+ * tap of the guarded switch) fills it red and the text asks the question (`.toggle.armed`).
+ */
 @Composable
 internal fun TrainingToggle(
     on: Boolean,
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    armed: Boolean = false,
 ) {
     val colors = PiliTheme.colors
     Row(
         modifier =
             modifier
                 .height(SegmentHeight)
-                .background(colors.bgSurface, RoundedCornerShape(SegmentHeight / 2))
+                .background(if (armed) colors.accentDanger else colors.bgSurface, RoundedCornerShape(SegmentHeight / 2))
                 .clickable(role = Role.Switch, onClick = onClick)
                 .padding(start = PiliTheme.dimens.spaceMd, end = PiliTheme.dimens.spaceSm),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -253,7 +257,12 @@ internal fun TrainingToggle(
         Text(
             text,
             style = PiliTheme.typography.body.copy(fontWeight = PiliTheme.typography.weightBold),
-            color = if (on) colors.textPrimary else colors.textSecondary,
+            color =
+                when {
+                    armed -> colors.textOnAccent
+                    on -> colors.textPrimary
+                    else -> colors.textSecondary
+                },
         )
         Box(
             Modifier

@@ -5,6 +5,5 @@
     <string name="ui_reports_quantity_less">减少</string>
     <string name="ui_reports_quantity_more">增加</string>
     <string name="ui_reports_line_per_unit">{quantity} × {price}</string>
-    <string name="ui_reports_refund_cash_total">现金退还金额</string>
     <string name="ui_reports_total_unavailable">金额由系统在签名时计算。</string>
 </resources>

@@ -6,6 +6,22 @@ export const settingsMessages: Messages = {
   // Training mode panel (UX Guide §9)
   settings_training_on: { fr: 'Actif', en: 'On', zh: '已开启' },
   settings_training_off: { fr: 'Inactif', en: 'Off', zh: '未开启' },
+  // Guard: the first tap arms the switch (5 s), turning it on then asks for the manager's PIN.
+  settings_training_confirm_on: {
+    fr: 'Activer le mode formation ?',
+    en: 'Turn training mode on?',
+    zh: '开启培训模式？',
+  },
+  settings_training_confirm_off: {
+    fr: 'Désactiver le mode formation ?',
+    en: 'Turn training mode off?',
+    zh: '关闭培训模式？',
+  },
+  settings_training_pin_hint: {
+    fr: 'Les ventes suivantes ne seront pas comptées.',
+    en: 'The following sales will not be counted.',
+    zh: '之后的销售不会计入账目。',
+  },
   settings_training_effect: {
     fr: 'Fond violet, bandeau et filigrane sur tous les écrans. Les tickets sont marqués TRAINING.',
     en: 'Purple background, banner and watermark on every screen. Tickets are marked TRAINING.',

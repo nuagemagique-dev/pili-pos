@@ -14,6 +14,7 @@ import * as ipc from '../api/ipc'
 import { useI18n } from '../i18n'
 import AppHeader from '../components/AppHeader.vue'
 import TicketMediumPicker from '../components/TicketMediumPicker.vue'
+import VatSummary from '../components/VatSummary.vue'
 import DeliveryOutcomePanel from '../components/DeliveryOutcomePanel.vue'
 import PriceDialog from '../components/PriceDialog.vue'
 import PaymentCorrectionDialog from '../components/PaymentCorrectionDialog.vue'
@@ -206,16 +207,29 @@ const copyTarget = ref<{ fiscalEventId: number | null } | null>(null)
 const copyKindOf = ref<'z' | 'ticket'>('ticket')
 const copyResult = ref<CopyResult | null>(null)
 
-/** Copy of a Z report (from the history) or of a customer ticket. */
-function openCopy(report: { fiscalEventId: number | null }, kind: 'z' | 'ticket') {
-  if (!report.fiscalEventId) return
-  copyTarget.value = report
-  copyKindOf.value = kind
-  copyResult.value = null
-  delivery.reset()
-  delivery.refreshMailStatus()
-  copyStep.value = 'picker'
-  copyOpen.value = true
+// A tap while the mail status is being read must not open the flow twice.
+let copyOpening = false
+
+/**
+ * Copy of a Z report (from the history) or of a customer ticket. The medium
+ * step is only there when e-mail tickets are configured: otherwise it would
+ * just repeat the confirm button, so the copy is signed at once on paper.
+ */
+async function openCopy(report: { fiscalEventId: number | null }, kind: 'z' | 'ticket') {
+  if (!report.fiscalEventId || copyOpening || copyOpen.value) return
+  copyOpening = true
+  try {
+    copyTarget.value = report
+    copyKindOf.value = kind
+    copyResult.value = null
+    delivery.reset()
+    await delivery.refreshMailStatus()
+    copyStep.value = 'picker'
+    copyOpen.value = true
+  } finally {
+    copyOpening = false
+  }
+  if (!delivery.mailStatus?.configured) await confirmCopy()
 }
 
 function copyKind(ticket: ipc.CopyableTicket): string {
@@ -554,6 +568,17 @@ function refundTotalCents(): number {
   return round5(total)
 }
 
+/** The ticked lines with the ticked quantity, for the confirmation's VAT summary. */
+const refundSelectedLines = computed(() => {
+  const picked: OrderLine[] = []
+  for (const [lineId, qty] of refundChecked.value) {
+    const line = refundLines.value.find((l) => l.id === lineId)
+    if (line) picked.push({ ...line, quantity: qty })
+  }
+  return picked
+})
+
+/** To the confirmation step: the lines, the VAT and the total, then the one confirm button. */
 function goToRefundDelivery() {
   if (refundChecked.value.size === 0) return
   delivery.reset()
@@ -937,10 +962,35 @@ function formatRefundTime(iso: string): string {
           </template>
 
           <template v-else-if="refundStep === 'delivery'">
-            <h3>{{ t('refund_confirm') }}</h3>
+            <h3>
+              {{ t('refund_confirm')
+              }}<span v-if="refundSelected" class="modal-ticket">
+                · #{{ refundSelected.ticketNumber }}</span
+              >
+            </h3>
+            <!-- What will be signed, once, before signing: lines, VAT, cash to pay back. -->
+            <div class="refund-recap" data-testid="refund-recap">
+              <div v-for="line in refundSelectedLines" :key="line.id" class="recap-line">
+                <span class="recap-name">{{ line.quantity }} × {{ line.name }}</span>
+                <span class="recap-amount">{{
+                  formatPrice((line.weighed_amount_cents ?? line.unit_price_cents) * line.quantity)
+                }}</span>
+              </div>
+            </div>
+            <VatSummary :lines="refundSelectedLines" />
+            <div class="refund-recap-total">
+              <span>{{ t('refund_cash_total') }}</span>
+              <span class="recap-amount" data-testid="refund-total">{{
+                formatPrice(refundTotalCents())
+              }}</span>
+            </div>
             <TicketMediumPicker />
-            <button class="refund-confirm-btn" @click="confirmRefund">
-              {{ t('refund_confirm') }} {{ formatPrice(refundTotalCents()) }}
+            <button
+              class="refund-confirm-btn"
+              data-testid="refund-confirm-final"
+              @click="confirmRefund"
+            >
+              {{ t('refund_confirm_final') }}
             </button>
             <button class="refund-cancel" @click="refundStep = 'items'">{{ t('back') }}</button>
           </template>
@@ -1550,6 +1600,35 @@ function formatRefundTime(iso: string): string {
   font-weight: var(--font-weight-heavy);
   line-height: 1.2;
 }
+/* Refund confirmation: what will be signed, once, before signing. */
+.refund-recap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.recap-line,
+.refund-recap-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  font-size: 18px;
+}
+.recap-name {
+  flex: 1;
+  min-width: 0;
+}
+.recap-amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.refund-recap-total {
+  font-weight: var(--font-weight-bold);
+  font-size: 20px;
+}
+
 .modal-ticket {
   font-family: var(--font-mono);
   color: var(--text-secondary);

@@ -367,8 +367,8 @@ export function getSettings(): Promise<PosSettings> {
   return invoke('get_settings')
 }
 
-export function setTrainingMode(enabled: boolean): Promise<boolean> {
-  return invoke('set_training_mode', { enabled })
+export function setTrainingMode(enabled: boolean, operatorPin?: string): Promise<boolean> {
+  return invoke('set_training_mode', { enabled, operatorPin: operatorPin ?? null })
 }
 
 // Tables

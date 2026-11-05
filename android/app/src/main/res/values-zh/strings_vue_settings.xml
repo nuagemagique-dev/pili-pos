@@ -3,6 +3,9 @@
 <resources>
     <string name="settings_training_on">已开启</string>
     <string name="settings_training_off">未开启</string>
+    <string name="settings_training_confirm_on">开启培训模式？</string>
+    <string name="settings_training_confirm_off">关闭培训模式？</string>
+    <string name="settings_training_pin_hint">之后的销售不会计入账目。</string>
     <string name="settings_training_effect">所有界面显示紫色背景、横幅和水印。票据标记为 TRAINING。</string>
     <string name="settings_lang_name_fr">Français</string>
     <string name="settings_lang_name_zh">中文</string>

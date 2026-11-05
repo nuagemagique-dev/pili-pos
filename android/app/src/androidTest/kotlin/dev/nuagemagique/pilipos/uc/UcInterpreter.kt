@@ -65,7 +65,7 @@ internal class UcInterpreter(
         when (cmd) {
             "login" -> call { it.login(args.str("insz"), args.strOrNull("pin")) }
             "logout" -> call { it.logout() }
-            "set_training_mode" -> call { it.setTrainingMode(args.bool("enabled")) }
+            "set_training_mode" -> call { it.setTrainingMode(args.bool("enabled"), args.strOrNull("pin")) }
             "work_in" -> call { it.workIn(args.str("employeeInsz")) }
             "work_out" -> call { it.workOut(args.str("employeeInsz")) }
             "end_shift" -> call { it.endShift(args.str("insz"), args.strOrNull("pin")) }

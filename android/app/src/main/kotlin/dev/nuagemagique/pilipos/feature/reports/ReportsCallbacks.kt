@@ -172,7 +172,8 @@ internal data class ReportsDelivery(
  * The actions of the screen over [model] and [delivery]. Every copy and refund flow starts from paper and ends
  * back on paper, as `ReportsView.vue` does: [DeliveryStore.reset] when a flow opens and when it closes, and the
  * mail probe is read again when a picker is about to be shown ([DeliveryStore.refreshMailStatus], which the engine
- * caches for a minute).
+ * caches for a minute). A copy has no medium step without e-mail tickets (it would only repeat the confirm button):
+ * once the probe says they are not configured (or failed), the copy is signed on paper at once.
  */
 internal fun reportsCallbacks(
     model: ReportsViewModel,
@@ -184,11 +185,21 @@ internal fun reportsCallbacks(
         scope.launch { delivery.refreshMailStatus() }
         Unit
     }
+    val startCopy = { fiscalEventId: Long?, kind: CopyTargetKind ->
+        delivery.reset()
+        model.openCopy(fiscalEventId, kind)
+        scope.launch {
+            delivery.refreshMailStatus()
+            val noMediumStep = delivery.mailStatus.value?.configured != true
+            if (fiscalEventId != null && noMediumStep) model.confirmCopy(delivery.request.value)
+        }
+        Unit
+    }
     return ReportsCallbacks(
         onTab = model::selectTab,
-        day = dayCallbacks(model, openPicker),
+        day = dayCallbacks(model, startCopy),
         cash = cashCallbacks(model),
-        tickets = ticketsCallbacks(model, delivery, openPicker),
+        tickets = ticketsCallbacks(model, delivery, openPicker, startCopy),
         correction = correctionCallbacks(model),
         vouchers =
             VouchersCallbacks(
@@ -209,7 +220,7 @@ internal fun reportsCallbacks(
 
 private fun dayCallbacks(
     model: ReportsViewModel,
-    openPicker: () -> Unit,
+    startCopy: (Long?, CopyTargetKind) -> Unit,
 ): DayCallbacks =
     DayCallbacks(
         onX = model::generateX,
@@ -218,8 +229,8 @@ private fun dayCallbacks(
         onOpenZList = model::openZList,
         onCloseZList = model::closeZList,
         onReprintZ = { id ->
-            openPicker()
-            model.reprintZ(id)
+            model.closeZList()
+            startCopy(id, CopyTargetKind.Z)
         },
     )
 
@@ -242,12 +253,10 @@ private fun ticketsCallbacks(
     model: ReportsViewModel,
     delivery: DeliveryStore,
     openPicker: () -> Unit,
+    startCopy: (Long?, CopyTargetKind) -> Unit,
 ): TicketsCallbacks =
     TicketsCallbacks(
-        onCopy = { id ->
-            openPicker()
-            model.openCopy(id, CopyTargetKind.TICKET)
-        },
+        onCopy = { id -> startCopy(id, CopyTargetKind.TICKET) },
         onCopyConfirm = { model.confirmCopy(delivery.request.value) },
         onCopyClose = {
             model.closeCopy()

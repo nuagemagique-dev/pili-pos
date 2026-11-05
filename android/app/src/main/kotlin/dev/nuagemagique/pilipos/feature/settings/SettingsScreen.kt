@@ -114,6 +114,10 @@ internal data class SettingsPinActions(
     val describeError: (Throwable) -> String = { it.message.orEmpty() },
     val onDone: () -> Unit = {},
     val onCancel: () -> Unit = {},
+    /** The manager's PIN that turns training mode on (the engine checks it and may refuse). */
+    val onTrainingPin: suspend (String) -> Unit = {},
+    /** The training PIN dialog finished or was cancelled. */
+    val onTrainingPinClose: () -> Unit = {},
 )
 
 /** What the confirmation dialog of a deactivation calls. */
@@ -279,6 +283,8 @@ private fun pinActionsOf(model: SettingsViewModel): SettingsPinActions =
         describeError = model::describe,
         onDone = model::onPinDone,
         onCancel = model::closePin,
+        onTrainingPin = model::enableTraining,
+        onTrainingPinClose = model::closeTrainingPin,
     )
 
 /** What the owner alerts panel calls on [model]. */
@@ -354,7 +360,7 @@ private fun WideLayout(
     val gap = PiliTheme.dimens.spaceLg
     Row(Modifier.fillMaxSize().padding(gap), horizontalArrangement = Arrangement.spacedBy(gap)) {
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(gap)) {
-            TrainingPanel(state.training, callbacks.onToggleTraining)
+            TrainingPanel(state.training, state.trainingArmed, callbacks.onToggleTraining)
             LanguagePanel(state.language, callbacks.onLanguage)
             ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
             RowsPanel(state.rows, callbacks.onRow, Modifier.weight(1f), scroll = true)
@@ -396,7 +402,7 @@ private fun NarrowLayout(
         verticalArrangement = Arrangement.spacedBy(gap),
     ) {
         RowsPanel(state.rows, callbacks.onRow, Modifier, scroll = false)
-        TrainingPanel(state.training, callbacks.onToggleTraining)
+        TrainingPanel(state.training, state.trainingArmed, callbacks.onToggleTraining)
         LanguagePanel(state.language, callbacks.onLanguage)
         ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
         if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
@@ -425,6 +431,7 @@ private val CoursesMaxHeight = 480.dp
 @Composable
 private fun TrainingPanel(
     training: Boolean,
+    armed: Boolean,
     onToggle: () -> Unit,
 ) {
     Panel(
@@ -435,7 +442,14 @@ private fun TrainingPanel(
             PanelTitle(vueText("training_mode"), Modifier.weight(1f))
             TrainingToggle(
                 on = training,
-                text = vueText(if (training) "settings_training_on" else "settings_training_off"),
+                armed = armed,
+                text =
+                    when {
+                        armed && training -> vueText("settings_training_confirm_off")
+                        armed -> vueText("settings_training_confirm_on")
+                        training -> vueText("settings_training_on")
+                        else -> vueText("settings_training_off")
+                    },
                 onClick = onToggle,
                 modifier = Modifier.testTag("settings_training_toggle"),
             )
@@ -948,6 +962,7 @@ internal fun SettingsDialogs(
     }
     val flow = state.pin
     if (flow != null) key(flow.stage) { SettingsPinDialog(flow, pinActions) }
+    if (state.trainingPin) TrainingPinDialog(pinActions)
     val armed = state.confirmDeactivate
     if (armed != null) {
         val name = state.users.firstOrNull { it.insz == armed }?.name ?: armed
@@ -962,6 +977,31 @@ internal fun SettingsDialogs(
             modifier = Modifier.testTag("settings_deactivate_dialog"),
         )
     }
+}
+
+/** The manager's PIN that turns training mode on, with the hint "Les ventes suivantes ne seront pas comptées.". */
+@Composable
+private fun TrainingPinDialog(actions: SettingsPinActions) {
+    val texts =
+        PinPadTexts(
+            title = vueText("pin_enter"),
+            hint = vueText("settings_training_pin_hint"),
+            enterPrompt = vueText("pin_enter"),
+            confirmPrompt = vueText("pin_confirm"),
+            mismatch = vueText("pin_mismatch"),
+            cancel = vueText("back"),
+            clearLabel = uiText(R.string.ui_common_numpad_clear),
+            backspaceLabel = uiText(R.string.ui_common_numpad_backspace),
+        )
+    PinDialog(
+        mode = PinMode.Verify,
+        texts = texts,
+        onSubmit = actions.onTrainingPin,
+        describeError = actions.describeError,
+        onDone = actions.onTrainingPinClose,
+        onCancel = actions.onTrainingPinClose,
+        modifier = Modifier.testTag("settings_training_pin_dialog"),
+    )
 }
 
 @Composable

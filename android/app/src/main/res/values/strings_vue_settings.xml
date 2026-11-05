@@ -3,6 +3,9 @@
 <resources>
     <string name="settings_training_on">Actif</string>
     <string name="settings_training_off">Inactif</string>
+    <string name="settings_training_confirm_on">Activer le mode formation ?</string>
+    <string name="settings_training_confirm_off">Désactiver le mode formation ?</string>
+    <string name="settings_training_pin_hint">Les ventes suivantes ne seront pas comptées.</string>
     <string name="settings_training_effect">Fond violet, bandeau et filigrane sur tous les écrans. Les tickets sont marqués TRAINING.</string>
     <string name="settings_lang_name_fr">Français</string>
     <string name="settings_lang_name_zh">中文</string>

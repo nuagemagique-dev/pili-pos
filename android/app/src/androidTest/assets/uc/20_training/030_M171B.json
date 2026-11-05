@@ -7,7 +7,7 @@
   "fixtureDeviations": [{"path": "costCenter.type", "reason": "dine-in sales are settled from a table and carry costCenter TABLE"}],
   "steps": [
     {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
-    {"cmd": "set_training_mode", "args": {"enabled": true}},
+    {"cmd": "set_training_mode", "args": {"enabled": true, "pin": "1111"}},
     {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 2, "user_insz": "94060242576"}}, "save": "order"},
     {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 12007, "quantity": 2, "modifiers_json": null}}},
     {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 22001, "quantity": 1, "modifiers_json": null}}},

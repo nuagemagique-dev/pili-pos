@@ -158,6 +158,8 @@
     <string name="refund_select_ticket">Select ticket</string>
     <string name="refund_select_items">Items to refund</string>
     <string name="refund_confirm">Refund</string>
+    <string name="refund_confirm_final">Confirm the refund</string>
+    <string name="refund_cash_total">To pay back in cash</string>
     <string name="refund_success">Refund recorded</string>
     <string name="refund_none">No recent tickets</string>
     <string name="cash_section">Cash management</string>
