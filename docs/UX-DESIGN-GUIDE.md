@@ -182,10 +182,12 @@ Les noms textuels avec code couleur de catégorie sont plus rapides à scanner v
 ### 7.1 - Flow en minimum d'étapes
 
 ```
-[PAYER] → Choix méthode (Cash/Carte) → Montant reçu (si cash) → Appel FDM → Ticket imprimé
+[PAYER] → [Encaisser 47,30 € en espèces] → Appel FDM → Ticket imprimé → retour aux Tables (2 s)
 ```
 
-Maximum 3 taps pour un paiement simple (cash, montant exact) : Payer → Cash → Exact.
+Le montant exact est déjà saisi à l'arrivée (espèces présélectionnées, arrondi de 5 centimes compris) et le bouton principal dit ce qu'il encaisse et comment (« Encaisser 47,30 € en espèces », « … par carte », « … en chèques-repas », « Encaisser la part 2 · 15,77 € »). Un paiement simple (cash, montant exact) fait donc 2 taps : Payer → Encaisser. Une touche du pavé ou un billet rapide remplace le montant. Carte sur terminal : Payer → Carte → Encaisser, puis l'approbation du terminal.
+
+L'écran de fin affiche « OK » et le rendu monnaie en très grand, puis retourne seul aux Tables après 2 s (un tap, ou « Terminer », y retourne tout de suite). Il reste affiché seulement s'il y a quelque chose à lire ou à décider : ticket non imprimé (« Imprimer le ticket »), ticket numérique en attente, FDM non connecté, note d'un bon cadeau.
 
 ### 7.2 - Boutons de paiement
 
@@ -212,7 +214,7 @@ Rendu monnaie: €3.00
 
 ### 7.4 - Split payment
 
-Le système fait les calculs, le staff saisit seulement le nombre de parts. Afficher le solde restant après chaque paiement partiel.
+Le système fait les calculs, le staff saisit seulement le nombre de parts. Afficher le solde restant après chaque paiement partiel : une seule ligne « Reste 12,30 € : » suivie des méthodes encore permises (Espèces, Carte…). Toucher une méthode la sélectionne avec le reste déjà saisi (espèces : exact arrondi), chaque part suivante est donc ce tap puis le bouton principal. Espèces reste présélectionné ; une fois une part payée en espèces, ce bouton disparaît (une seule part en espèces).
 
 ### 7.5 - Arrondi cash
 

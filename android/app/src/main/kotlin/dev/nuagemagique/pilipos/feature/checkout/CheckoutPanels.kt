@@ -149,13 +149,25 @@ private fun MethodRow(
     state: CheckoutUiState,
     callbacks: CheckoutCallbacks,
 ) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
-        state.methods.forEach { method ->
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // After a part left a rest, one row names it ("Reste 12,30 € :") before the methods that can still pay it.
+        if (state.showRest) {
+            Text(
+                text = vueText("rest_methods", "amount" to formatCents(state.amounts.restShownCents)),
+                style = PiliTheme.typography.title,
+                color = PiliTheme.colors.accentWarning,
+                modifier = Modifier.testTag("checkout_rest_label"),
+            )
+        }
+        state.offeredMethods.forEach { method ->
             PiliButton(
                 text = methodLabel(method),
                 onClick = { callbacks.onMethod(method) },
                 variant = if (state.method == method) PiliButtonVariant.Primary else PiliButtonVariant.Secondary,
-                enabled = !(method == PaymentMethod.CASH && state.hasCashPart),
                 modifier = Modifier.weight(1f).height(MethodHeight).testTag(methodTag(method)),
             )
         }
@@ -750,13 +762,34 @@ private fun FootRow(
     }
 }
 
+/**
+ * What the primary button says it collects and how: "Encaisser 47,30 € en espèces", "Encaisser la part 2 · 15,77 €";
+ * "Valider" when every part is taken and the sale only waits to be signed (`validateLabel` of the Vue view).
+ */
+@Composable
+private fun validateLabel(state: CheckoutUiState): String {
+    val amount = formatCents(state.collectCents)
+    return when {
+        state.amounts.allPaid -> vueText("validate")
+        state.splitCount > 1 -> vueText("collect_part", "n" to (state.partIndex + 1), "amount" to amount)
+        else -> vueText(collectKey(state.method), "amount" to amount)
+    }
+}
+
+private fun collectKey(method: PaymentMethod): String =
+    when (method) {
+        PaymentMethod.CASH -> "collect_cash"
+        PaymentMethod.CARD -> "collect_card"
+        PaymentMethod.GIFT_VOUCHER -> "collect_gift_voucher"
+        else -> "collect_meal_voucher"
+    }
+
 @Composable
 private fun ValidateButton(
     state: CheckoutUiState,
     onValidate: () -> Unit,
     modifier: Modifier,
 ) {
-    val cash = state.method == PaymentMethod.CASH
     PiliButton(
         onClick = onValidate,
         enabled = state.canValidate,
@@ -764,23 +797,13 @@ private fun ValidateButton(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text =
-                    if (state.splitCount > 1) {
-                        vueText("validate_part", "n" to (state.partIndex + 1))
-                    } else {
-                        vueText("validate")
-                    },
+                text = validateLabel(state),
                 style = PiliTheme.typography.body.copy(fontWeight = PiliTheme.typography.weightBold),
+                modifier = Modifier.testTag("checkout_validate_label"),
             )
-            if (cash && state.entry.digits.isNotEmpty()) {
+            if (state.showReceived) {
                 Text(
                     text = vueText("received_amount", "amount" to formatCents(state.entryCents)),
-                    style = PiliTheme.typography.label,
-                    modifier = Modifier.testTag("checkout_validate_amount"),
-                )
-            } else if (!cash && state.entryCents > 0L) {
-                Text(
-                    text = formatEuro(state.entryCents),
                     style = PiliTheme.typography.label,
                     modifier = Modifier.testTag("checkout_validate_amount"),
                 )

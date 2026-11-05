@@ -584,7 +584,13 @@ internal object VueStringIds {
         this["exact_rounded"] = R.string.exact_rounded
         this["items_count"] = R.string.items_count
         this["ticket_medium"] = R.string.ticket_medium
-        this["validate_part"] = R.string.validate_part
+        this["collect_cash"] = R.string.collect_cash
+        this["collect_card"] = R.string.collect_card
+        this["collect_meal_voucher"] = R.string.collect_meal_voucher
+        this["collect_gift_voucher"] = R.string.collect_gift_voucher
+        this["collect_part"] = R.string.collect_part
+        this["rest_methods"] = R.string.rest_methods
+        this["done_auto_return"] = R.string.done_auto_return
         this["received_amount"] = R.string.received_amount
         this["eft_overlay_title"] = R.string.eft_overlay_title
         this["eft_present_card"] = R.string.eft_present_card
@@ -766,15 +772,15 @@ internal object VueStringIds {
         this["sales_z_gap"] = R.string.sales_z_gap
         this["sales_z_missing"] = R.string.sales_z_missing
         this["sales_open"] = R.string.sales_open
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["sales_total"] = R.string.sales_total
         this["sales_tickets"] = R.string.sales_tickets
         this["sales_price_changes"] = R.string.sales_price_changes
         this["sales_refunds"] = R.string.sales_refunds
         this["sales_rounding"] = R.string.sales_rounding
         this["reports_tab_vouchers"] = R.string.reports_tab_vouchers
-    }
-
-    private fun MutableMap<String, Int>.part3() {
         this["gv_lookup_title"] = R.string.gv_lookup_title
         this["gv_list_title"] = R.string.gv_list_title
         this["gv_filter_all"] = R.string.gv_filter_all
@@ -1019,15 +1025,15 @@ internal object VueStringIds {
         this["webshop_status_in_delivery"] = R.string.webshop_status_in_delivery
         this["webshop_status_completed"] = R.string.webshop_status_completed
         this["webshop_status_rejected"] = R.string.webshop_status_rejected
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["webshop_status_cancelled"] = R.string.webshop_status_cancelled
         this["webshop_service_delivery"] = R.string.webshop_service_delivery
         this["webshop_service_collection"] = R.string.webshop_service_collection
         this["webshop_service_eat_in"] = R.string.webshop_service_eat_in
         this["webshop_service_unknown"] = R.string.webshop_service_unknown
         this["webshop_action_accept"] = R.string.webshop_action_accept
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["webshop_action_prepare"] = R.string.webshop_action_prepare
         this["webshop_action_ready"] = R.string.webshop_action_ready
         this["webshop_action_out_for_delivery"] = R.string.webshop_action_out_for_delivery

@@ -972,6 +972,36 @@
       "zh": "未知编号：{code}",
       "area": "core"
     },
+    "collect_card": {
+      "fr": "Encaisser {amount} € par carte",
+      "en": "Collect {amount} € by card",
+      "zh": "刷卡收款 {amount} €",
+      "area": "checkout"
+    },
+    "collect_cash": {
+      "fr": "Encaisser {amount} € en espèces",
+      "en": "Collect {amount} € in cash",
+      "zh": "现金收款 {amount} €",
+      "area": "checkout"
+    },
+    "collect_gift_voucher": {
+      "fr": "Encaisser {amount} € par bon cadeau",
+      "en": "Collect {amount} € by gift voucher",
+      "zh": "礼品券收款 {amount} €",
+      "area": "checkout"
+    },
+    "collect_meal_voucher": {
+      "fr": "Encaisser {amount} € en chèques-repas",
+      "en": "Collect {amount} € in meal vouchers",
+      "zh": "餐券收款 {amount} €",
+      "area": "checkout"
+    },
+    "collect_part": {
+      "fr": "Encaisser la part {n} · {amount} €",
+      "en": "Collect part {n} · {amount} €",
+      "zh": "收取第{n}份 · {amount} €",
+      "area": "checkout"
+    },
     "config": {
       "fr": "Config",
       "en": "Config",
@@ -1493,6 +1523,12 @@
       "en": "Order discount",
       "zh": "订单折扣",
       "area": "core"
+    },
+    "done_auto_return": {
+      "fr": "Retour aux tables · touchez pour continuer",
+      "en": "Back to the tables · tap to continue",
+      "zh": "即将返回桌位 · 点击继续",
+      "area": "checkout"
     },
     "eft_approved": {
       "fr": "Accepté",
@@ -5340,6 +5376,12 @@
       "zh": "仍可日结：每笔付款将随其订单的销售一并登记。",
       "area": "reports"
     },
+    "rest_methods": {
+      "fr": "Reste {amount} € :",
+      "en": "{amount} € left:",
+      "zh": "剩余 {amount} €：",
+      "area": "checkout"
+    },
     "rest_to_pay": {
       "fr": "Reste à payer",
       "en": "Left to pay",
@@ -6341,12 +6383,6 @@
       "en": "Confirm",
       "zh": "确认",
       "area": "core"
-    },
-    "validate_part": {
-      "fr": "Valider part {n}",
-      "en": "Confirm part {n}",
-      "zh": "确认第{n}份",
-      "area": "checkout"
     },
     "vat": {
       "fr": "TVA",

@@ -2,6 +2,7 @@ package dev.nuagemagique.pilipos.feature.checkout
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.feature.order.OrderRoutes
@@ -56,6 +58,7 @@ private val DoneBadge = 96.dp
 private val DoneCardMaxWidth = 720.dp
 private val DoneButtonHeight = 72.dp
 private val SpinnerSize = 64.dp
+private val ChangeFontSize = 72.sp
 
 /** Everything the operator can do on the checkout screen. */
 internal data class CheckoutCallbacks(
@@ -209,7 +212,9 @@ private fun DoneStep(
     val c = PiliTheme.colors
     val d = PiliTheme.dimens
     val t = PiliTheme.typography
-    Box(modifier.fillMaxSize().background(c.bgPrimary).testTag("checkout_done"), contentAlignment = Alignment.Center) {
+    // A tap anywhere leaves at once, unless the step holds something to read or decide (then only "Terminer" leaves).
+    val tap = if (done.needsAttention) Modifier else Modifier.clickable(onClick = callbacks.onFinish)
+    Box(modifier.fillMaxSize().background(c.bgPrimary).then(tap).testTag("checkout_done"), contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier.widthIn(max = DoneCardMaxWidth).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -223,6 +228,7 @@ private fun DoneStep(
                     modifier = Modifier.testTag("checkout_done_ok"),
                 )
             }
+            if (done.changeCents > 0L) ChangeBanner(done)
             Receipt(done)
             if (!done.fdmConnected) {
                 Text(
@@ -246,7 +252,42 @@ private fun DoneStep(
                 onClick = callbacks.onFinish,
                 modifier = Modifier.fillMaxWidth().height(DoneButtonHeight).testTag("checkout_finish"),
             )
+            if (!done.needsAttention) {
+                Text(
+                    text = vueText("done_auto_return"),
+                    style = t.body,
+                    color = c.textSecondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("checkout_done_auto_return"),
+                )
+            }
         }
+    }
+}
+
+/** The change to hand back, very large (`receipt-change` of the Vue view): the one figure read from afar. */
+@Composable
+private fun ChangeBanner(done: CheckoutDone) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .border(2.dp, c.accentSuccess, RoundedCornerShape(d.radiusLg))
+                .padding(horizontal = d.spaceLg, vertical = d.spaceMd)
+                .testTag("checkout_done_change_banner"),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(vueText("change"), style = t.title, color = c.accentSuccess)
+        Text(
+            text = formatEuro(done.changeCents),
+            style = t.price.copy(fontSize = ChangeFontSize),
+            color = c.accentSuccess,
+            modifier = Modifier.testTag("checkout_done_change"),
+        )
     }
 }
 
@@ -303,17 +344,6 @@ private fun Receipt(done: CheckoutDone) {
             color = c.textPrimary,
             modifier = Modifier.testTag("checkout_done_total"),
         )
-        if (done.changeCents > 0L) {
-            Row(horizontalArrangement = Arrangement.spacedBy(d.spaceMd), verticalAlignment = Alignment.CenterVertically) {
-                Text(vueText("change"), style = t.body, color = c.textSecondary)
-                Text(
-                    text = formatEuro(done.changeCents),
-                    style = t.price.copy(fontSize = t.sizeLg),
-                    color = c.accentSuccess,
-                    modifier = Modifier.testTag("checkout_done_change"),
-                )
-            }
-        }
         done.fdmId?.let {
             Text(
                 text = uiText(R.string.ui_checkout_fdm_ref, "id" to it),

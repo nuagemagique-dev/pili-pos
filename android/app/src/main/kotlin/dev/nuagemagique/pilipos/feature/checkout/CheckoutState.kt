@@ -7,6 +7,7 @@ import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.DeliveryOutcome
 import uniffi.pos_ffi.EftPayment
+import uniffi.pos_ffi.EmailStatus
 import uniffi.pos_ffi.GiftVoucherPrint
 import uniffi.pos_ffi.GiftVoucherView
 import uniffi.pos_ffi.MailStatus
@@ -122,7 +123,19 @@ internal data class CheckoutDone(
     val fiscalEventId: Long?,
     /** What became of the gift voucher slips (vouchers sold, balances left); empty for a sale without vouchers. */
     val voucherPrints: List<GiftVoucherPrint> = emptyList(),
-)
+) {
+    /**
+     * Something must be read or decided, so the done step does not leave by itself (`doneNeedsAttention` of the Vue
+     * view): the paper ticket was not printed, the digital ticket waits in the outbox, the FDM was not connected
+     * (unsigned ticket), or a gift voucher slip has a note.
+     */
+    val needsAttention: Boolean
+        get() =
+            !fdmConnected ||
+                delivery?.needsPaper == true ||
+                delivery?.email == EmailStatus.QUEUED ||
+                voucherPrints.isNotEmpty()
+}
 
 /** What the checkout screen shows. */
 @Suppress("LongParameterList")
@@ -188,6 +201,23 @@ internal data class CheckoutUiState(
 
     /** The amount being typed, in cents (no arithmetic: the digits are the cents). */
     val entryCents: Long get() = entry.cents
+
+    /**
+     * The amount the primary button collects: the rounded due for cash (what is handed over only decides the change),
+     * the typed amount for the other methods (Vue `collectCents`).
+     */
+    val collectCents: Long get() = if (method == PaymentMethod.CASH) amounts.roundedDueCents else entryCents
+
+    /** The cash handed over differs from what is due: the button adds the received amount under its label. */
+    val showReceived: Boolean
+        get() = method == PaymentMethod.CASH && entryCents > 0L && entryCents != amounts.roundedDueCents
+
+    /** A part left a rest: the row "Reste 12,30 € :" is shown in front of the methods still allowed. */
+    val showRest: Boolean get() = taken.isNotEmpty() && amounts.restCents > 0L
+
+    /** The methods offered as buttons: one cash part at most, so cash is not offered again once taken. */
+    val offeredMethods: List<PaymentMethod>
+        get() = methods.filterNot { it == PaymentMethod.CASH && hasCashPart }
 
     /** True when a cash part has been taken already. */
     val hasCashPart: Boolean get() = taken.any { it.method == PaymentMethod.CASH }

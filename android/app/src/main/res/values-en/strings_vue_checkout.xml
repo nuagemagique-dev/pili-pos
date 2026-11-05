@@ -12,7 +12,13 @@
     <string name="exact_rounded">exact {exact} · rounded to 5 cts</string>
     <string name="items_count">{n} items</string>
     <string name="ticket_medium">Receipt</string>
-    <string name="validate_part">Confirm part {n}</string>
+    <string name="collect_cash">Collect {amount} € in cash</string>
+    <string name="collect_card">Collect {amount} € by card</string>
+    <string name="collect_meal_voucher">Collect {amount} € in meal vouchers</string>
+    <string name="collect_gift_voucher">Collect {amount} € by gift voucher</string>
+    <string name="collect_part">Collect part {n} · {amount} €</string>
+    <string name="rest_methods">{amount} € left:</string>
+    <string name="done_auto_return">Back to the tables · tap to continue</string>
     <string name="received_amount">received {amount} €</string>
     <string name="eft_overlay_title">Payment on the terminal</string>
     <string name="eft_present_card">The customer presents the card on the terminal</string>

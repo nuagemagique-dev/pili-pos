@@ -12,7 +12,13 @@
     <string name="exact_rounded">exact {exact} · arrondi 5 cts</string>
     <string name="items_count">{n} art.</string>
     <string name="ticket_medium">Ticket</string>
-    <string name="validate_part">Valider part {n}</string>
+    <string name="collect_cash">Encaisser {amount} € en espèces</string>
+    <string name="collect_card">Encaisser {amount} € par carte</string>
+    <string name="collect_meal_voucher">Encaisser {amount} € en chèques-repas</string>
+    <string name="collect_gift_voucher">Encaisser {amount} € par bon cadeau</string>
+    <string name="collect_part">Encaisser la part {n} · {amount} €</string>
+    <string name="rest_methods">Reste {amount} € :</string>
+    <string name="done_auto_return">Retour aux tables · touchez pour continuer</string>
     <string name="received_amount">reçu {amount} €</string>
     <string name="eft_overlay_title">Paiement sur le terminal</string>
     <string name="eft_present_card">Le client présente sa carte sur le terminal</string>
