@@ -159,7 +159,7 @@ class CheckoutContentTest {
     fun cashCannotBePickedAgainAfterACashPart() {
         show(base.copy(method = PaymentMethod.CARD, taken = listOf(TakenPart(PaymentMethod.CASH, 500L, 0L))))
 
-        compose.onNodeWithTag("checkout_method_cash").assertIsNotEnabled()
+        compose.onNodeWithTag("checkout_method_cash").assertDoesNotExist()
         compose.onNodeWithTag("checkout_method_card").assertIsEnabled()
         text("checkout_cash_taken").assertIsDisplayed()
     }
@@ -266,7 +266,8 @@ class CheckoutContentTest {
         text("checkout_exact_amount").assertTextEquals("11,52 €")
         text("checkout_change").assertDoesNotExist()
         text("checkout_entry").assertTextEquals("11,52")
-        text("checkout_validate_amount").assertTextEquals("11,52 €")
+        text("checkout_validate_label").assertTextEquals("Encaisser 11,52 € par carte")
+        text("checkout_validate_amount").assertDoesNotExist()
         text("checkout_too_high").assertDoesNotExist()
     }
 
@@ -343,7 +344,7 @@ class CheckoutContentTest {
     fun validateReportsTheTapAndNamesThePartInASplit() {
         show(base.copy(entry = AmountEntryState("2000"), splitCount = 2, taken = listOf(TakenPart(PaymentMethod.CARD, 500L, 0L))))
 
-        compose.onNodeWithTag("checkout_validate").assertTextContains("Valider part 2", substring = true)
+        text("checkout_validate_label").assertTextEquals("Encaisser la part 2 · 11,50 €")
         compose.onNodeWithTag("checkout_validate").performClick()
         assertEquals(listOf("validate"), calls)
     }
