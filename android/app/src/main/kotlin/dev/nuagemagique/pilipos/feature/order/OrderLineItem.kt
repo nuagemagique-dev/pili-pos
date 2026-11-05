@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -73,8 +74,9 @@ private val Hairline = 1.dp
  * picked with it under its name; a paid option of a bowl (its broth) sits under the bowl with a "+" (`_bowl`) and no
  * control of its own: it goes with the bowl. Test tags: `cart_line_<id>`,
  * `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`, `_notes`, `_kitchen_note`, `_course`, `_voucher`, `_amount`,
- * `_note`, `_remove`. The category of the product starts the line under the name (`_sub`): "California roll" in name
- * mode, "California roll · Tartare saumon cheese" in code mode, as one name can sit in several categories.
+ * `_note`, `_remove`, `_flash` (present for 200 ms after an add reached the line). The category of the product starts
+ * the line under the name (`_sub`): "California roll" in name mode, "California roll · Tartare saumon cheese" in code
+ * mode, as one name can sit in several categories.
  */
 @Suppress("LongMethod") // One row of the cart: stepper or voucher badge, names, notes, course chip and actions.
 @Composable
@@ -90,6 +92,10 @@ internal fun OrderLineItem(
     val t = PiliTheme.typography
     val id = row.line.id
     val names = bilingualName(row.line, state.language, state.labelMode)
+    // The 200 ms green flash of an add (C9) on the line it went to: one pulse for each add that reaches the line.
+    val flash = rememberLineFlash(state.lastAdd?.takeIf { it.lineId == id }?.seq ?: 0L)
+    val flashAlpha = flash.alpha
+    val flashing = flash.active
     Column(
         modifier =
             modifier
@@ -97,10 +103,12 @@ internal fun OrderLineItem(
                 .drawBehind {
                     drawRect(c.border, topLeft = Offset(0f, size.height - Hairline.toPx()), size = Size(size.width, Hairline.toPx()))
                     if (pending) drawRect(c.accentWarning, size = Size(PendingMark.toPx(), size.height))
+                    drawFlash(c.accentSuccess, flashAlpha.value)
                 }.padding(vertical = d.spaceXs)
                 .padding(start = if (pending) PendingInset else 0.dp)
                 .testTag("cart_line_$id"),
     ) {
+        FlashMarker(id, flashing)
         Row(
             // The line is 64 dp high with its vertical padding, as before the change rows existed.
             modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = LineMinHeight - d.spaceXs * 2),

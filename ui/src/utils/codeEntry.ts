@@ -155,3 +155,63 @@ export function codeLetters(items: readonly MenuItem[]): string[] {
 export function takesQuantity(item: MenuItem): boolean {
   return item.sold_by_weight !== true && item.has_modifiers !== true
 }
+
+// ── Digit after an add = quantity (the XudoX order: dish, then a digit) ──
+
+/** How long a digit typed on the pad still sets the quantity of the product just added. */
+export const DIGIT_WINDOW_MS = 3000
+
+/** Digits a quantity takes in the window (1 to 99). */
+const DIGIT_WINDOW_DIGITS = 2
+
+/**
+ * The window that follows an add of a plain product: for [DIGIT_WINDOW_MS], a
+ * digit typed while the code field is empty sets how many of that product
+ * this add gave ("3" makes the add count 3, "1" then "2" make it 12). The
+ * deadline moves with each digit. Pure: the caller passes the clock.
+ */
+export interface DigitWindow {
+  /** The cart line the add went to (a merged line keeps its earlier units). */
+  lineId: number
+  itemId: number
+  /** How many units this add gave so far. */
+  quantity: number
+  /** The digits typed in the window. */
+  digits: string
+  /** The clock value (ms) after which the window is closed. */
+  expiresAt: number
+}
+
+/** The window opened by an add of [quantity] units at [now]. */
+export function openDigitWindow(
+  add: { lineId: number; itemId: number; quantity: number },
+  now: number,
+): DigitWindow {
+  return { ...add, digits: '', expiresAt: now + DIGIT_WINDOW_MS }
+}
+
+/** What a key does to the window: it sets the add's quantity, or it is not for the window. */
+export type DigitStep = { kind: 'set'; window: DigitWindow } | { kind: 'pass' }
+
+/**
+ * A key typed on the empty code field. A digit inside the open window sets
+ * (or extends) the add's quantity; anything else closes the window and
+ * starts a code as usual: a letter, the multiply sign, a first "0", a
+ * third digit, a digit after the deadline.
+ */
+export function stepDigitWindow(window: DigitWindow | null, key: string, now: number): DigitStep {
+  if (window === null || now > window.expiresAt) return { kind: 'pass' }
+  if (!/^[0-9]$/u.test(key)) return { kind: 'pass' }
+  if (window.digits === '' && key === '0') return { kind: 'pass' }
+  if (window.digits.length >= DIGIT_WINDOW_DIGITS) return { kind: 'pass' }
+  const digits = window.digits + key
+  return {
+    kind: 'set',
+    window: { ...window, digits, quantity: Number(digits), expiresAt: now + DIGIT_WINDOW_MS },
+  }
+}
+
+/** The line under the field after a digit: "Maki saumon × 3". */
+export function windowLabel(name: string, units: number): string {
+  return `${name} × ${units}`
+}

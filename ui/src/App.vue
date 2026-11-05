@@ -5,6 +5,7 @@ import { usePosStore } from './stores/pos'
 import { useAuthStore } from './stores/auth'
 import * as ipc from './api/ipc'
 import { useOrderChime } from './composables/useOrderChime'
+import { useAddBeep } from './composables/useAddBeep'
 import { useBadgeReader } from './composables/useBadgeReader'
 import { useBadgeStore } from './stores/badge'
 import TrainingBanner from './components/TrainingBanner.vue'
@@ -32,6 +33,9 @@ watchEffect(() => {
 // Two-tone chime when a new webshop order arrives (C5 → E5); none
 // arrives with HubRise switched off.
 useOrderChime()
+
+// Short beep on every add to the cart (switch in Settings, default on).
+useAddBeep()
 
 // The 5 minute idle lock belongs to the engine (it registers the open
 // order and emits `session-locked`, handled below). The UI only tells it

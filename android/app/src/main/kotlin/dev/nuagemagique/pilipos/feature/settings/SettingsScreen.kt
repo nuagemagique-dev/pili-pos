@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -92,6 +93,7 @@ internal data class SettingsCallbacks(
     val onToggleTraining: () -> Unit = {},
     val onLanguage: (AppLanguage) -> Unit = {},
     val onProductLabel: (ProductLabel) -> Unit = {},
+    val onAddBeep: (Boolean) -> Unit = {},
     val onTablePlanInput: (String) -> Unit = {},
     val onSaveTablePlan: () -> Unit = {},
     val onRow: (SettingsEntry) -> Unit = {},
@@ -237,6 +239,7 @@ private fun settingsCallbacks(
         onToggleTraining = model::toggleTraining,
         onLanguage = model::setLanguage,
         onProductLabel = model::setProductLabel,
+        onAddBeep = model::setAddBeep,
         onTablePlanInput = model::setTablePlanInput,
         onSaveTablePlan = model::saveTablePlan,
         onRow = { navigator.navigate(it.route) },
@@ -363,6 +366,7 @@ private fun WideLayout(
             TrainingPanel(state.training, state.trainingArmed, callbacks.onToggleTraining)
             LanguagePanel(state.language, callbacks.onLanguage)
             ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
+            AddBeepPanel(state.addBeep, callbacks.onAddBeep)
             RowsPanel(state.rows, callbacks.onRow, Modifier.weight(1f), scroll = true)
         }
         if (state.isManager) {
@@ -405,6 +409,7 @@ private fun NarrowLayout(
         TrainingPanel(state.training, state.trainingArmed, callbacks.onToggleTraining)
         LanguagePanel(state.language, callbacks.onLanguage)
         ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
+        AddBeepPanel(state.addBeep, callbacks.onAddBeep)
         if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
         if (state.isManager) BadgePanel(state.badge, callbacks.badge)
         if (state.isManager) alertsSection()
@@ -489,6 +494,33 @@ private fun ProductLabelPanel(
             tag = "settings_label",
         )
         PanelText(vueText("settings_product_label_note"))
+    }
+}
+
+private val BeepSwitchWidth = 240.dp
+
+/** The beep on each add (`settings_add_beep`): this terminal only, on until switched off. */
+@Composable
+private fun AddBeepPanel(
+    on: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    Panel(modifier = Modifier.testTag("settings_beep")) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            PanelTitle(vueText("settings_add_beep"), Modifier.weight(1f))
+            SegmentedControl(
+                options =
+                    listOf(
+                        Triple(true, "on", vueText("settings_add_beep_on")),
+                        Triple(false, "off", vueText("settings_add_beep_off")),
+                    ),
+                selected = on,
+                onSelect = onChange,
+                tag = "settings_beep",
+                modifier = Modifier.width(BeepSwitchWidth),
+            )
+        }
+        PanelText(vueText("settings_add_beep_note"))
     }
 }
 

@@ -41,7 +41,7 @@ internal enum class CodeTone { Hint, Match, Error, Done }
 internal fun codeTone(message: CodeMessage): CodeTone =
     when (message) {
         is CodeMessage.Match -> CodeTone.Match
-        is CodeMessage.Added -> CodeTone.Done
+        is CodeMessage.Added, is CodeMessage.Counted -> CodeTone.Done
         CodeMessage.Invalid, CodeMessage.NoResult, CodeMessage.NoMultiplier, CodeMessage.SoldOut,
         is CodeMessage.Unknown, is CodeMessage.Ambiguous,
         -> CodeTone.Error

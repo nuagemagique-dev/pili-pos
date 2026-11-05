@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vite-plus/test'
 import type { MenuItem } from '../types'
 import {
   CODE_ENTRY_MAX,
+  DIGIT_WINDOW_MS,
   codeLetters,
   findByCode,
+  openDigitWindow,
   parseCodeEntry,
   pickByCode,
   searchByCode,
+  stepDigitWindow,
   takesQuantity,
   typeKey,
+  windowLabel,
 } from './codeEntry'
 
 function item(id: number, code: string | null, extra: Partial<MenuItem> = {}): MenuItem {
@@ -139,5 +143,76 @@ describe('searchByCode and pickByCode', () => {
     expect(pickByCode(items, 'B')).toEqual({ kind: 'found', item: items[3] })
     expect(pickByCode(items, 'A')).toEqual({ kind: 'unknown' })
     expect(pickByCode(items, 'Z')).toEqual({ kind: 'unknown' })
+  })
+})
+
+describe('digit after an add (C7)', () => {
+  const add = { lineId: 5, itemId: 1, quantity: 1 }
+
+  it('opens for 3 seconds on the units the add gave', () => {
+    const w = openDigitWindow(add, 1000)
+    expect(w).toEqual({ ...add, digits: '', expiresAt: 1000 + DIGIT_WINDOW_MS })
+    expect(DIGIT_WINDOW_MS).toBe(3000)
+  })
+
+  it('a digit sets how many this add gives', () => {
+    const step = stepDigitWindow(openDigitWindow(add, 0), '3', 500)
+    expect(step.kind).toBe('set')
+    if (step.kind === 'set') {
+      expect(step.window.quantity).toBe(3)
+      expect(step.window.digits).toBe('3')
+      expect(step.window.lineId).toBe(5)
+    }
+  })
+
+  it('a second digit within the window extends it (1, 2 = 12) and the deadline moves', () => {
+    const first = stepDigitWindow(openDigitWindow(add, 0), '1', 2500)
+    if (first.kind !== 'set') throw new Error('first digit not taken')
+    // 2500 + 400 is past the first deadline (3000) only if the deadline had not moved.
+    const second = stepDigitWindow(first.window, '2', 3400)
+    expect(second.kind).toBe('set')
+    if (second.kind === 'set') {
+      expect(second.window.quantity).toBe(12)
+      expect(second.window.expiresAt).toBe(3400 + DIGIT_WINDOW_MS)
+    }
+  })
+
+  it('takes at most two digits: a third starts a code (99 is the maximum)', () => {
+    let w = openDigitWindow(add, 0)
+    for (const k of ['9', '9']) {
+      const step = stepDigitWindow(w, k, 100)
+      if (step.kind !== 'set') throw new Error('digit not taken')
+      w = step.window
+    }
+    expect(w.quantity).toBe(99)
+    expect(stepDigitWindow(w, '1', 200)).toEqual({ kind: 'pass' })
+  })
+
+  it('a digit after the deadline starts a code as today (fake clock)', () => {
+    const w = openDigitWindow(add, 0)
+    expect(stepDigitWindow(w, '3', DIGIT_WINDOW_MS).kind).toBe('set')
+    expect(stepDigitWindow(w, '3', DIGIT_WINDOW_MS + 1)).toEqual({ kind: 'pass' })
+  })
+
+  it('a letter, the multiply sign or a first zero are not for the window', () => {
+    const w = openDigitWindow(add, 0)
+    for (const k of ['A', '*', '0', 'Backspace', 'Enter', 'OK']) {
+      expect(stepDigitWindow(w, k, 10)).toEqual({ kind: 'pass' })
+    }
+  })
+
+  it('a zero after a first digit is part of the quantity (1, 0 = 10)', () => {
+    const first = stepDigitWindow(openDigitWindow(add, 0), '1', 10)
+    if (first.kind !== 'set') throw new Error('first digit not taken')
+    const second = stepDigitWindow(first.window, '0', 20)
+    expect(second.kind === 'set' && second.window.quantity).toBe(10)
+  })
+
+  it('has no window to step when none is open', () => {
+    expect(stepDigitWindow(null, '3', 0)).toEqual({ kind: 'pass' })
+  })
+
+  it('reads "Maki saumon × 3" under the field', () => {
+    expect(windowLabel('Maki saumon', 3)).toBe('Maki saumon × 3')
   })
 })

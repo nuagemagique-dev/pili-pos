@@ -105,6 +105,11 @@ const cartTitle = computed(() => {
   return t('order')
 })
 
+/** The add that went to [lineId] (its sequence number), for the line's 200 ms flash; 0 for any other line. */
+function flashFor(lineId: number): number {
+  return order.lastAdd?.lineId === lineId ? order.lastAdd.seq : 0
+}
+
 function increment(lineId: number) {
   const line = order.lines.find((l) => l.id === lineId)
   if (line) void order.updateQuantity(lineId, line.quantity + 1)
@@ -355,6 +360,7 @@ async function onUnpaidClosed() {
             v-for="line in group.lines"
             :key="line.id"
             :line="line"
+            :flash="flashFor(line.id)"
             :pending="isDineIn && (line.unsent_quantity ?? 0) > 0"
             show-course
             :can-offer="canOfferLine(line.id)"
@@ -375,6 +381,7 @@ async function onUnpaidClosed() {
           v-for="line in sentLines"
           :key="line.id"
           :line="line"
+          :flash="flashFor(line.id)"
           :can-offer="canOfferLine(line.id)"
           :can-remove-discount="canRemoveLineDiscount(line.id)"
           :can-note="canNote"
@@ -393,6 +400,7 @@ async function onUnpaidClosed() {
             v-for="line in pendingLines"
             :key="line.id"
             :line="line"
+            :flash="flashFor(line.id)"
             pending
             :can-offer="canOfferLine(line.id)"
             :can-remove-discount="canRemoveLineDiscount(line.id)"

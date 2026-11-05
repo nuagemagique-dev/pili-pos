@@ -442,6 +442,34 @@ onMounted(() => {
           <p class="panel-note">{{ t('settings_product_label_note') }}</p>
         </section>
 
+        <!-- Beep on each add (per terminal, default on) -->
+        <section class="panel">
+          <div class="panel-head">
+            <h2>{{ t('settings_add_beep') }}</h2>
+            <div class="segmented label-btns beep-switch">
+              <button
+                class="beep-btn"
+                :class="{ active: pos.addBeep }"
+                :aria-pressed="pos.addBeep"
+                data-testid="add-beep-on"
+                @click="pos.setAddBeep(true)"
+              >
+                {{ t('settings_add_beep_on') }}
+              </button>
+              <button
+                class="beep-btn"
+                :class="{ active: !pos.addBeep }"
+                :aria-pressed="!pos.addBeep"
+                data-testid="add-beep-off"
+                @click="pos.setAddBeep(false)"
+              >
+                {{ t('settings_add_beep_off') }}
+              </button>
+            </div>
+          </div>
+          <p class="panel-note">{{ t('settings_add_beep_note') }}</p>
+        </section>
+
         <!-- Table plan (manager only; the engine refuses the change to the others) -->
         <section v-if="auth.isManager" class="panel table-plan">
           <h2>{{ t('settings_tables') }}</h2>
@@ -976,11 +1004,16 @@ onMounted(() => {
 .label-btns {
   grid-template-columns: repeat(2, 1fr);
 }
+.beep-switch {
+  width: 240px;
+  flex-shrink: 0;
+}
 .role-btns {
   grid-template-columns: repeat(4, 1fr);
 }
 .lang-btn,
 .label-btn,
+.beep-btn,
 .role-btn {
   border-radius: var(--radius-sm);
   font-weight: var(--font-weight-bold);
@@ -988,7 +1021,8 @@ onMounted(() => {
   transition: transform var(--tap-duration) ease;
 }
 .lang-btn,
-.label-btn {
+.label-btn,
+.beep-btn {
   height: 56px;
   font-size: 18px;
 }
@@ -999,12 +1033,14 @@ onMounted(() => {
 }
 .lang-btn.active,
 .label-btn.active,
+.beep-btn.active,
 .role-btn.active {
   background: var(--selected-bg);
   color: var(--selected-fg);
 }
 .lang-btn:active,
 .label-btn:active,
+.beep-btn:active,
 .role-btn:active {
   transform: scale(var(--tap-scale));
 }

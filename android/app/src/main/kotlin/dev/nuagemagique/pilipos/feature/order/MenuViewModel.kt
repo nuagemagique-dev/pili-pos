@@ -7,6 +7,7 @@ import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_DEPARTMENT
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import dev.nuagemagique.pilipos.ui.state.LineAdd
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import kotlinx.coroutines.CancellationException
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -112,6 +114,7 @@ private class MenuCodePadHost(
     private val canPay: () -> Boolean,
     private val isCurrent: () -> Boolean,
     private val addItem: (MenuItem, Int) -> Unit,
+    private val addUnits: suspend (Long, Int) -> Boolean,
 ) : CodePadHost {
     override val pad: CodePadState get() = data.value.codePad
 
@@ -125,6 +128,11 @@ private class MenuCodePadHost(
         item: MenuItem,
         quantity: Int,
     ) = addItem(item, quantity)
+
+    override suspend fun addUnits(
+        lineId: Long,
+        delta: Int,
+    ) = addUnits.invoke(lineId, delta)
 }
 
 /** How often the Z-report reminder is checked again, in milliseconds (5 minutes in `OrderView.vue`). */
@@ -151,6 +159,8 @@ private data class Data(
     val giftVouchersEnabled: Boolean = false,
     val allergenLegendError: String? = null,
     val codePad: CodePadState = CodePadState(),
+    /** The last add to the cart: its line flashes for 200 ms (null until this screen saw one). */
+    val lastAdd: LineAdd? = null,
 )
 
 /** What the cart shows of the courses: the switch and the next held course. */
@@ -186,10 +196,12 @@ private data class Look(
  * A refusal of any cart action is shown as an error toast here (the whole screen's, so the cart column does not
  * report its own).
  */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 internal class MenuViewModel(
     private val entry: OrderEntryPoint,
     private val routeOrderId: Long,
+    /** The clock of the digit window after an add, in milliseconds (a fake one in the tests). */
+    clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
     private val order = entry.order()
     private val session = entry.session()
@@ -199,7 +211,13 @@ internal class MenuViewModel(
     private val weighing = WeighFlow(entry, viewModelScope) { change -> data.update { it.copy(dialog = change(it.dialog)) } }
 
     /** The code pad (order entry by menu code); the screen wires its keys straight to it. */
-    val codePad = CodePadFlow(entry, viewModelScope, MenuCodePadHost(data, { look.value.canPay }, ::isRouteOrderCurrent, ::addItem))
+    val codePad =
+        CodePadFlow(
+            entry,
+            viewModelScope,
+            MenuCodePadHost(data, { look.value.canPay }, ::isRouteOrderCurrent, ::addItem, { id, delta -> order.addUnits(id, delta) }),
+            clock,
+        )
     private val reload = MutableStateFlow(0)
     private val menuLock = Mutex()
     private var itemsJob: Job? = null
@@ -268,6 +286,8 @@ internal class MenuViewModel(
             }
         }
         viewModelScope.launch { active.collect { on -> if (on) loadGiftVoucherSetting() } }
+        // The value held when this screen starts is an old add: only the adds seen from now on flash their line.
+        viewModelScope.launch { order.lastAdd.drop(1).collect { add -> data.update { it.copy(lastAdd = add) } } }
         viewModelScope.launch {
             order.lines.collectLatest { lines ->
                 val amounts = amountsOf(lines)
@@ -342,6 +362,7 @@ internal class MenuViewModel(
                     coursesEnabled = current != null && c.enabled,
                     nextHeldCourse = if (current != null) c.nextHeld else null,
                     sendingNext = d.sendingNext,
+                    lastAdd = d.lastAdd,
                 ),
             zWarning = d.zWarning,
             dialog = d.dialog,
@@ -462,6 +483,8 @@ internal class MenuViewModel(
         item: MenuItem,
         quantity: Int = 1,
     ) {
+        // Another product is being added: a digit starts a code again (C7).
+        codePad.closeWindow()
         when {
             // Allergen mode (the "Épuisé" mode comes first, as in OrderView.vue): a tap shows the product's allergen sheet.
             data.value.allergenMode && !(data.value.soldOutMode && look.value.canPay) -> openAllergenSheet(item)
@@ -473,9 +496,18 @@ internal class MenuViewModel(
             // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
             else ->
                 viewModelScope.launch {
-                    if (item.hasModifiers) askModifiers(item) else order.addItem(item, quantity)
+                    if (item.hasModifiers) askModifiers(item) else addPlain(item, quantity)
                 }
         }
+    }
+
+    /** Adds a plain product and opens the digit window on the line it went to (`addPlain` of `OrderView.vue`). */
+    private suspend fun addPlain(
+        item: MenuItem,
+        quantity: Int,
+    ) {
+        val add = order.addProduct(item, quantity) ?: return
+        codePad.openWindow(item, add.lineId, add.units)
     }
 
     /** "Back" in the weighing dialog (`WeighDialog.vue`). */

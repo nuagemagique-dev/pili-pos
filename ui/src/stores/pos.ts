@@ -14,6 +14,7 @@ function isAppLanguage(value: string | null): value is AppLanguage {
   return LANGUAGES.some((language) => language === value)
 }
 const PRODUCT_LABEL_KEY = 'pili-pos-product-label'
+const ADD_BEEP_KEY = 'pili-pos-add-beep'
 
 export const usePosStore = defineStore('pos', () => {
   const trainingMode = ref(false)
@@ -23,6 +24,8 @@ export const usePosStore = defineStore('pos', () => {
   const productLabel = ref<ProductLabel>(
     localStorage.getItem(PRODUCT_LABEL_KEY) === 'name' ? 'name' : 'code',
   )
+  // The short beep on each add (C9): on unless this terminal switched it off.
+  const addBeep = ref(localStorage.getItem(ADD_BEEP_KEY) !== '0')
 
   async function loadSettings() {
     settings.value = await ipc.getSettings()
@@ -46,14 +49,21 @@ export const usePosStore = defineStore('pos', () => {
     localStorage.setItem(PRODUCT_LABEL_KEY, label)
   }
 
+  function setAddBeep(on: boolean) {
+    addBeep.value = on
+    localStorage.setItem(ADD_BEEP_KEY, on ? '1' : '0')
+  }
+
   return {
     trainingMode,
     settings,
     language,
     productLabel,
+    addBeep,
     loadSettings,
     toggleTrainingMode,
     setLanguage,
     setProductLabel,
+    setAddBeep,
   }
 })

@@ -25,10 +25,14 @@ import {
   codeLetters,
   parseCodeEntry,
   pickByCode,
+  openDigitWindow,
   searchByCode,
+  stepDigitWindow,
   takesQuantity,
   typedCode,
+  windowLabel,
   type CodePadTone,
+  type DigitWindow,
 } from '../utils/codeEntry'
 import { formatPrice } from '../utils/format'
 
@@ -135,6 +139,8 @@ async function toggleAllergenMode() {
 }
 
 async function handleAddItem(item: MenuItem, quantity = 1) {
+  // Another product is added: a digit starts a code again.
+  digitWindow.value = null
   if (soldOutMode.value) {
     soldOutItem.value = item
     return
@@ -172,7 +178,49 @@ async function handleAddItem(item: MenuItem, quantity = 1) {
     choosing.value = item
     return
   }
-  await order.addItem(item, quantity)
+  await addPlain(item, quantity)
+}
+
+// ── Digit after an add = quantity (C7) ──────────────────────────────
+// Right after a plain product is added, for 3 s, a digit typed on the pad
+// (or a physical keyboard) while the code field is empty says how many of
+// that product the add gives: extra units of the same line. Products with
+// options, a free price or a weight never open the window.
+const digitWindow = ref<DigitWindow | null>(null)
+const digitItem = ref<MenuItem | null>(null)
+// The extra units go one after the other: each reads the line as the one before left it.
+let digitQueue: Promise<unknown> = Promise.resolve()
+
+/** Adds a plain product and opens the digit window on the line it went to. */
+async function addPlain(item: MenuItem, quantity: number) {
+  const add = await order.addItemTracked(item, quantity)
+  if (!add) return
+  digitItem.value = item
+  digitWindow.value = openDigitWindow(
+    { lineId: add.lineId, itemId: item.id, quantity: add.units },
+    Date.now(),
+  )
+}
+
+/** Every key of the pad first: true when a digit was taken as the quantity of the last add. */
+function takePadKey(key: string): boolean {
+  const open = digitWindow.value
+  const item = digitItem.value
+  const step = codeText.value === '' ? stepDigitWindow(open, key, Date.now()) : null
+  if (step?.kind !== 'set' || open === null || item === null) {
+    digitWindow.value = null
+    return false
+  }
+  digitWindow.value = step.window
+  const delta = step.window.quantity - open.quantity
+  digitQueue = digitQueue.then(async () => {
+    if (await order.addUnits(step.window.lineId, delta)) {
+      codeOutcome.value = { tone: 'done', text: windowLabel(item.name, step.window.quantity) }
+    } else if (digitWindow.value === step.window) {
+      digitWindow.value = open
+    }
+  })
+  return true
 }
 
 // ── Order entry by menu code (the "KeyB" pad of Xudox) ──────────────
@@ -458,6 +506,7 @@ async function handlePriceConfirmed(priceCents: number) {
             :message="codeMessage.text"
             :tone="codeMessage.tone"
             :listening="codePadListening"
+            :take-key="takePadKey"
             @submit="submitCode"
           />
           <MenuGrid

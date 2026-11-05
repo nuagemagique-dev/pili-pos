@@ -832,6 +832,10 @@ internal object VueStringIds {
         this["settings_product_label_name"] = R.string.settings_product_label_name
         this["settings_product_label_code"] = R.string.settings_product_label_code
         this["settings_product_label_note"] = R.string.settings_product_label_note
+        this["settings_add_beep"] = R.string.settings_add_beep
+        this["settings_add_beep_on"] = R.string.settings_add_beep_on
+        this["settings_add_beep_off"] = R.string.settings_add_beep_off
+        this["settings_add_beep_note"] = R.string.settings_add_beep_note
         this["settings_tables"] = R.string.settings_tables
         this["settings_tables_current"] = R.string.settings_tables_current
         this["settings_tables_placeholder"] = R.string.settings_tables_placeholder
@@ -1021,13 +1025,13 @@ internal object VueStringIds {
         this["alerts_minus"] = R.string.alerts_minus
         this["gv_settings_title"] = R.string.gv_settings_title
         this["gv_settings_on"] = R.string.gv_settings_on
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["gv_settings_off"] = R.string.gv_settings_off
         this["gv_settings_note"] = R.string.gv_settings_note
         this["gv_settings_validity"] = R.string.gv_settings_validity
         this["gv_settings_max"] = R.string.gv_settings_max
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["gv_settings_save"] = R.string.gv_settings_save
         this["gv_settings_saved"] = R.string.gv_settings_saved
         this["integrations_title"] = R.string.integrations_title

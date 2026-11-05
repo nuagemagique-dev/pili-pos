@@ -57,6 +57,7 @@ class PosSettingsStore
         private val mutableLanguage = MutableStateFlow(AppLanguage.fromCode(prefs.getString(KEY_LANGUAGE, null)))
         private val mutableLabel = MutableStateFlow(ProductLabel.fromCode(prefs.getString(KEY_PRODUCT_LABEL, null)))
         private val mutableCodePad = MutableStateFlow(prefs.getBoolean(KEY_CODE_PAD, false))
+        private val mutableAddBeep = MutableStateFlow(prefs.getBoolean(KEY_ADD_BEEP, true))
 
         /** The engine settings, null until the first fetch succeeded. */
         val settings: StateFlow<PosSettings?> = mutableSettings.asStateFlow()
@@ -72,6 +73,9 @@ class PosSettingsStore
 
         /** The code pad of the order screen is open (`pili-pos-code-pad` of the Vue UI). */
         val codePadOpen: StateFlow<Boolean> = mutableCodePad.asStateFlow()
+
+        /** The short beep on each add to the cart is on (`pili-pos-add-beep` of the Vue UI; on until switched off). */
+        val addBeep: StateFlow<Boolean> = mutableAddBeep.asStateFlow()
 
         init {
             // Subscribed before any call (no replay): UNDISPATCHED registers the collector right here.
@@ -126,6 +130,12 @@ class PosSettingsStore
             prefs.edit().putBoolean(KEY_CODE_PAD, open).apply()
         }
 
+        /** Switches the beep on each add on or off and remembers it on this device. */
+        fun setAddBeep(on: Boolean) {
+            mutableAddBeep.value = on
+            prefs.edit().putBoolean(KEY_ADD_BEEP, on).apply()
+        }
+
         /** Takes [value] as the engine settings (also the seam of the tests that need a training till). */
         internal fun publish(value: PosSettings) {
             mutableSettings.value = value
@@ -137,5 +147,6 @@ class PosSettingsStore
             const val KEY_LANGUAGE = "language"
             const val KEY_PRODUCT_LABEL = "product_label"
             const val KEY_CODE_PAD = "code_pad"
+            const val KEY_ADD_BEEP = "add_beep"
         }
     }

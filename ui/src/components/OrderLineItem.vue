@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { CartLine } from '../types'
 import { formatPrice, formatWeight } from '../utils/format'
 import { lineCategory, useBilingualName } from '../utils/names'
@@ -8,7 +8,15 @@ import { useI18n } from '../i18n'
 import { lineNetCents } from '../utils/cartAmounts'
 import { GIFT_VOUCHER_DEPARTMENT } from '../stores/giftVouchers'
 
-const { line, pending, canOffer, canRemoveDiscount, canNote, showCourse } = defineProps<{
+const {
+  line,
+  pending,
+  canOffer,
+  canRemoveDiscount,
+  canNote,
+  showCourse,
+  flash = 0,
+} = defineProps<{
   line: CartLine
   /** Not yet sent to the bar / kitchen: amber mark on the left. */
   pending?: boolean
@@ -20,6 +28,8 @@ const { line, pending, canOffer, canRemoveDiscount, canNote, showCourse } = defi
   canNote?: boolean
   /** Courses are on: show the course chip. */
   showCourse?: boolean
+  /** Grows with each add that went to this line (0 when none): the line flashes on every change. */
+  flash?: number
 }>()
 
 const emit = defineEmits<{
@@ -75,17 +85,25 @@ const hasActions = computed(() => canOfferHere.value || canRemoveDiscount)
 
 const lineRef = ref<HTMLElement | null>(null)
 
-// Called externally to trigger the green flash on a new line.
-defineExpose({
-  flashAdded() {
-    const el = lineRef.value
-    if (el) {
-      el.classList.remove('flash-added')
-      void el.offsetWidth
-      el.classList.add('flash-added')
-    }
+function flashAdded() {
+  const el = lineRef.value
+  if (el) {
+    el.classList.remove('flash-added')
+    void el.offsetWidth
+    el.classList.add('flash-added')
+  }
+}
+
+// The 200 ms green flash of an add (C9) on the line it went to.
+watch(
+  () => flash,
+  (seq) => {
+    if (seq) flashAdded()
   },
-})
+)
+
+// Called externally to trigger the green flash on a new line.
+defineExpose({ flashAdded })
 </script>
 
 <template>

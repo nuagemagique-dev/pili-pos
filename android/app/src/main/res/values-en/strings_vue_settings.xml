@@ -15,6 +15,10 @@
     <string name="settings_product_label_name">Name</string>
     <string name="settings_product_label_code">Code</string>
     <string name="settings_product_label_note">With “Code”, the menu code (A2, B14) replaces the name, shown underneath. A product without a code keeps its name. Tickets do not change.</string>
+    <string name="settings_add_beep">Beep on each add</string>
+    <string name="settings_add_beep_on">Yes</string>
+    <string name="settings_add_beep_off">No</string>
+    <string name="settings_add_beep_note">A short beep confirms each add. Setting of this terminal.</string>
     <string name="settings_tables">Table plan</string>
     <string name="settings_tables_current">{count} tables: {plan}</string>
     <string name="settings_tables_placeholder">1-12, 20-25</string>

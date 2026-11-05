@@ -61,6 +61,7 @@ private data class Pieces(
     val label: ProductLabel,
     val mail: MailStatus?,
     val fdmConnected: Boolean,
+    val addBeep: Boolean,
 )
 
 /**
@@ -104,7 +105,7 @@ internal class SettingsViewModel(
                 settings.language,
                 ::Shared,
             ),
-            combine(settings.productLabel, delivery.mailStatus, entry.fdm().state.map { it.connected }, ::Pieces),
+            combine(settings.productLabel, delivery.mailStatus, entry.fdm().state.map { it.connected }, settings.addBeep, ::Pieces),
             integrations.state,
             combine(badges.settings, badges.overview, ::BadgeStores),
             own,
@@ -250,6 +251,11 @@ internal class SettingsViewModel(
     /** Chooses what the product tiles show. */
     fun setProductLabel(label: ProductLabel) {
         settings.setProductLabel(label)
+    }
+
+    /** Switches the beep on each add on or off (this terminal only). */
+    fun setAddBeep(on: Boolean) {
+        settings.setAddBeep(on)
     }
 
     // ── New employee ──────────────────────────────────────────────
@@ -466,7 +472,8 @@ internal class SettingsViewModel(
         vars: Map<String, Any>,
     ): String = entry.catalog().text(key, language(), vars)
 
-    private fun currentPieces(): Pieces = Pieces(settings.productLabel.value, delivery.mailStatus.value, entry.fdm().state.value.connected)
+    private fun currentPieces(): Pieces =
+        Pieces(settings.productLabel.value, delivery.mailStatus.value, entry.fdm().state.value.connected, settings.addBeep.value)
 
     private fun currentShared(): Shared =
         Shared(session.currentUser.value, session.isManager.value, settings.settings.value, settings.trainingMode.value, language())
@@ -492,6 +499,7 @@ internal class SettingsViewModel(
             training = shared.training,
             language = shared.language,
             productLabel = pieces.label,
+            addBeep = pieces.addBeep,
             mailStatus = pieces.mail,
             fdmConnected = pieces.fdmConnected,
             info = shared.engine,

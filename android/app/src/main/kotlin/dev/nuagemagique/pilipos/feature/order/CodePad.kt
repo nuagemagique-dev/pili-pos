@@ -162,6 +162,7 @@ internal fun codeMessageText(message: CodeMessage): String {
             is CodeMessage.Results -> vueText("code_pad_results", "n" to message.count)
             is CodeMessage.Match -> line(message.quantity, message.item)
             is CodeMessage.Added -> "✓ " + line(message.quantity, message.item)
+            is CodeMessage.Counted -> "${message.item.name} × ${message.quantity}"
             else -> vueText("code_pad_hint")
         }
 }

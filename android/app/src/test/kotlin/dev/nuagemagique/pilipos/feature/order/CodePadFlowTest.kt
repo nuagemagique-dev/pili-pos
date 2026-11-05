@@ -8,6 +8,7 @@ import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -40,12 +41,15 @@ class CodePadFlowTest {
     private val cola = menuItem(20, 2, "Cola", 300, code = "B3")
     private val makiThon = menuItem(30, 1, "Maki thon", 600, code = "A1")
 
-    private suspend fun TestScope.ready(world: OrderWorld = OrderWorld()): OrderRig {
+    private suspend fun TestScope.ready(
+        world: OrderWorld = OrderWorld(),
+        clock: () -> Long = System::currentTimeMillis,
+    ): OrderRig {
         val f = orderFixture(tmp.root, world)
         // The pad reads every product at once (no category).
         coEvery { f.engine.getMenuItems(null, any()) } returns listOf(maki, cola, makiThon)
         coEvery { f.engine.addOrderLine(any()) } returns orderLine(10)
-        val r = startOrder(f, world, context)
+        val r = startOrder(f, world, context, clock = clock)
         r.login()
         runCurrent()
         r.model.codePad.toggle()
@@ -163,5 +167,206 @@ class CodePadFlowTest {
 
             assertFalse(r.state.menu.codePad.open)
             assertFalse(r.settings.codePadOpen.value)
+        }
+
+    // ── Digit after an add = quantity (C7) ────────────────────────
+
+    private val maki1 = cartLine(99, 10, "Maki saumon", quantity = 1, unsent = 1)
+
+    /** A pad with a fake clock on the test scheduler; the engine keeps the quantity of line 99 as it is set. */
+    private suspend fun TestScope.windowed(): OrderRig {
+        val world = OrderWorld()
+        val r = ready(world) { testScheduler.currentTime }
+        // The first add creates line 99 (the engine lists it from then on).
+        coEvery { r.f.engine.addOrderLine(any()) } answers
+            {
+                world.cart = listOf(maki1)
+                orderLine(10)
+            }
+        coEvery { r.f.engine.updateOrderLineQuantity(any(), any()) } answers
+            {
+                val quantity = secondArg<Int>()
+                world.cart = listOf(cartLine(99, 10, "Maki saumon", quantity = quantity, unsent = quantity.toLong()))
+            }
+        return r
+    }
+
+    @Test
+    fun aDigitAfterATapGivesThatManyOnTheSameLineAndSaysSo() =
+        runTest {
+            val r = windowed()
+            r.model.tapItem(maki)
+            runCurrent()
+
+            r.model.codePad.type("3")
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.addOrderLine(any()) }
+            coVerify(exactly = 1) { r.f.engine.updateOrderLineQuantity(99L, 3) }
+            assertEquals(3, r.order.lines.value.single().quantity)
+            assertEquals("", r.state.menu.codePad.text)
+            assertEquals(CodeMessage.Counted(maki, 3), r.state.menu.codePad.message)
+        }
+
+    @Test
+    fun twoDigitsMakeTwelveAndEachGoesAfterTheOneBefore() =
+        runTest {
+            val r = windowed()
+            r.model.tapItem(maki)
+            runCurrent()
+
+            r.model.codePad.type("2")
+            r.model.codePad.type("3")
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.updateOrderLineQuantity(99L, 2) }
+            coVerify(exactly = 1) { r.f.engine.updateOrderLineQuantity(99L, 23) }
+            assertEquals(23, r.order.lines.value.single().quantity)
+            assertEquals(CodeMessage.Counted(maki, 23), r.state.menu.codePad.message)
+        }
+
+    @Test
+    fun aDigitAfterTheThreeSecondsStartsACode() =
+        runTest {
+            val r = windowed()
+            r.model.tapItem(maki)
+            runCurrent()
+
+            advanceTimeBy(3_001)
+            r.model.codePad.type("3")
+            runCurrent()
+
+            assertEquals("3", r.state.menu.codePad.text)
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+        }
+
+    @Test
+    fun aLetterBackspaceOrOkClosesTheWindow() =
+        runTest {
+            val r = windowed()
+            for (close in listOf<(OrderRig) -> Unit>(
+                { it.model.codePad.type("A") },
+                { it.model.codePad.backspace() },
+                { it.model.codePad.submit() },
+                { it.model.codePad.clear() },
+            )) {
+                r.model.tapItem(maki)
+                runCurrent()
+                assertTrue(r.state.menu.codePad.window != null)
+
+                close(r)
+                runCurrent()
+                assertEquals(null, r.state.menu.codePad.window)
+                r.model.codePad.clear()
+            }
+        }
+
+    @Test
+    fun anotherProductAddedMovesTheWindowToIt() =
+        runTest {
+            val r = windowed()
+            r.model.tapItem(maki)
+            runCurrent()
+
+            r.model.tapItem(cola)
+            runCurrent()
+
+            assertEquals(cola, r.state.menu.codePad.windowItem)
+        }
+
+    @Test
+    fun aFreePriceProductNeverOpensAWindowAndTheDigitStartsACode() =
+        runTest {
+            val r = windowed()
+            val libre = menuItem(40, 1, "Libre", 0, openPrice = true, code = "C1")
+            r.model.tapItem(libre)
+            runCurrent()
+            r.model.confirmPrice(500)
+            runCurrent()
+
+            assertEquals(null, r.state.menu.codePad.window)
+            r.model.codePad.type("3")
+            runCurrent()
+            assertEquals("3", r.state.menu.codePad.text)
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+        }
+
+    @Test
+    fun aDigitIsNotTakenWhileACodeIsBeingTyped() =
+        runTest {
+            val r = windowed()
+            r.model.tapItem(maki)
+            runCurrent()
+
+            r.model.codePad.type("A")
+            r.model.codePad.type("3")
+            runCurrent()
+
+            assertEquals("A3", r.state.menu.codePad.text)
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+        }
+
+    @Test
+    fun aMultiplierThenAProductStillWorks() =
+        runTest {
+            val r = windowed()
+            val input = slot<AddOrderLineInput>()
+
+            r.type("3*")
+            r.model.tapItem(maki)
+            runCurrent()
+
+            coVerify { r.f.engine.addOrderLine(capture(input)) }
+            assertEquals(3, input.captured.quantity)
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+        }
+
+    @Test
+    fun theDigitWindowAlsoFollowsAnAddFromTheCodeField() =
+        runTest {
+            val r = windowed()
+            r.type("A12")
+            r.model.codePad.submit()
+            runCurrent()
+
+            r.model.codePad.type("4")
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.updateOrderLineQuantity(99L, 4) }
+            assertEquals(CodeMessage.Counted(maki, 4), r.state.menu.codePad.message)
+        }
+
+    @Test
+    fun aRefusedQuantityChangeGivesTheWindowBackItsUnits() =
+        runTest {
+            val r = windowed()
+            coEvery { r.f.engine.updateOrderLineQuantity(any(), any()) } throws
+                uniffi.pos_ffi.PosException.Coded("order_not_open", emptyMap())
+            r.model.tapItem(maki)
+            runCurrent()
+
+            r.model.codePad.type("3")
+            runCurrent()
+
+            assertEquals(1, r.state.menu.codePad.window?.quantity)
+            assertEquals(1, r.order.lines.value.single().quantity)
+        }
+
+    // ── Beep and flash (C9) ───────────────────────────────────────
+
+    @Test
+    fun everyAddFlashesItsLineThroughTheScreenState() =
+        runTest {
+            val r = windowed()
+            r.model.tapItem(maki)
+            runCurrent()
+            val first = r.state.cart.lastAdd
+
+            r.model.codePad.type("3")
+            runCurrent()
+
+            assertEquals(99L, first?.lineId)
+            assertEquals(99L, r.state.cart.lastAdd?.lineId)
+            assertTrue((r.state.cart.lastAdd?.seq ?: 0) > (first?.seq ?: 0))
         }
 }

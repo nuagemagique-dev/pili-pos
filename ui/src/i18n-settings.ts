@@ -48,6 +48,16 @@ export const settingsMessages: Messages = {
     zh: '选择“编号”后，菜单编号（A2、B14）代替名称显示，名称显示在下方。没有编号的商品仍显示名称。票据不变。',
   },
 
+  // Add beep panel: a short beep when a product is added (per terminal)
+  settings_add_beep: { fr: 'Bip à chaque ajout', en: 'Beep on each add', zh: '每次点菜提示音' },
+  settings_add_beep_on: { fr: 'Oui', en: 'Yes', zh: '开' },
+  settings_add_beep_off: { fr: 'Non', en: 'No', zh: '关' },
+  settings_add_beep_note: {
+    fr: 'Un bip court confirme chaque ajout. Réglage de ce terminal.',
+    en: 'A short beep confirms each add. Setting of this terminal.',
+    zh: '每次添加商品时短促提示音确认。仅本终端。',
+  },
+
   // Table plan panel (managers): the table numbers the Tables screen shows
   settings_tables: { fr: 'Plan de salle', en: 'Table plan', zh: '桌位' },
   settings_tables_current: {

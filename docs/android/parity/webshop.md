@@ -18,6 +18,7 @@ the store.
 | stores/webshopOrders.ts (printKitchen, printCustomer) | ui/state/WebshopOrdersStore.kt (printKitchen, printCustomer) | `print_webshop_kitchen` `print_webshop_customer` |
 | components/OnlineOrdersNavButton.vue | ui/scaffold/AppHeader.kt (online orders button, PendingBadge) over ui/state/WebshopOrdersStore.kt (pendingCount) | - |
 | composables/useOrderChime.ts | ui/feedback/OrderChime.kt (OrderChimeOverlay, OrderChimePlayer) | - |
+| composables/useAddBeep.ts (beep on every add, C9) | ui/feedback/AddBeep.kt (AddBeepOverlay, AddBeepPlayer, `beepSamples`), AddBeepModule.kt | - |
 
 ## Differences
 

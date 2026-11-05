@@ -387,6 +387,19 @@ class SettingsViewModelTest {
             assertEquals(ProductLabel.CODE, r.state.productLabel)
         }
 
+    @Test
+    fun theAddBeepSwitchIsKeptInTheStoreAndOnByDefault() =
+        runTest {
+            val r = start()
+            assertTrue(r.state.addBeep)
+
+            r.model.setAddBeep(false)
+            runCurrent()
+
+            assertFalse(r.env.settings.addBeep.value)
+            assertFalse(r.state.addBeep)
+        }
+
     // ── New employee ──────────────────────────────────────────────
 
     @Test

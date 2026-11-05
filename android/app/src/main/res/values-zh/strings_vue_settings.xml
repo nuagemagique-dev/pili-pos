@@ -15,6 +15,10 @@
     <string name="settings_product_label_name">名称</string>
     <string name="settings_product_label_code">编号</string>
     <string name="settings_product_label_note">选择“编号”后，菜单编号（A2、B14）代替名称显示，名称显示在下方。没有编号的商品仍显示名称。票据不变。</string>
+    <string name="settings_add_beep">每次点菜提示音</string>
+    <string name="settings_add_beep_on">开</string>
+    <string name="settings_add_beep_off">关</string>
+    <string name="settings_add_beep_note">每次添加商品时短促提示音确认。仅本终端。</string>
     <string name="settings_tables">桌位</string>
     <string name="settings_tables_current">{count}张桌：{plan}</string>
     <string name="settings_tables_placeholder">1-12, 20-25</string>

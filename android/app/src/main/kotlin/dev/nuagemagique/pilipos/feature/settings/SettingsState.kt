@@ -104,6 +104,8 @@ internal data class SettingsUiState(
     val training: Boolean = false,
     val language: AppLanguage = AppLanguage.FR,
     val productLabel: ProductLabel = ProductLabel.CODE,
+    /** The short beep on each add to the cart is on (this terminal). */
+    val addBeep: Boolean = true,
     /** The info panel; null until the engine settings are loaded. */
     val info: PosSettings? = null,
     /** The employees, as the engine listed them (active and inactive). */

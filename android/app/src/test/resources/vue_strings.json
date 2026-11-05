@@ -5724,6 +5724,30 @@
       "zh": "设置",
       "area": "core"
     },
+    "settings_add_beep": {
+      "fr": "Bip à chaque ajout",
+      "en": "Beep on each add",
+      "zh": "每次点菜提示音",
+      "area": "settings"
+    },
+    "settings_add_beep_note": {
+      "fr": "Un bip court confirme chaque ajout. Réglage de ce terminal.",
+      "en": "A short beep confirms each add. Setting of this terminal.",
+      "zh": "每次添加商品时短促提示音确认。仅本终端。",
+      "area": "settings"
+    },
+    "settings_add_beep_off": {
+      "fr": "Non",
+      "en": "No",
+      "zh": "关",
+      "area": "settings"
+    },
+    "settings_add_beep_on": {
+      "fr": "Oui",
+      "en": "Yes",
+      "zh": "开",
+      "area": "settings"
+    },
     "settings_add_employee": {
       "fr": "Ajouter l’employé",
       "en": "Add employee",

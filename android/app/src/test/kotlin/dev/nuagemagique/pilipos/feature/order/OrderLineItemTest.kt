@@ -15,6 +15,7 @@ import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import dev.nuagemagique.pilipos.ui.state.LineAdd
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -64,6 +65,30 @@ class OrderLineItemTest {
         nameZh: String? = "三文鱼卷",
         code: String? = null,
     ) = CartRow(cartLine(1, 10, "Maki saumon", quantity = quantity, nameZh = nameZh, modifiersJson = notes, code = code), amount)
+
+    @Test
+    fun anAddThatReachesTheLineFlashesItFor200MsAndNoOtherLine() {
+        val line = row(2)
+        compose.mainClock.autoAdvance = false
+        val state = OrderCartState(rows = listOf(line), lastAdd = LineAdd(seq = 4, lineId = 1, itemId = 10, units = 1))
+        val other = OrderCartState(rows = listOf(line), lastAdd = LineAdd(seq = 4, lineId = 77, itemId = 10, units = 1))
+        compose.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    Column {
+                        OrderLineItem(line, state, actions, pending = false)
+                        OrderLineItem(line.copy(line = line.line.copy(id = 2)), other, actions, pending = false)
+                    }
+                }
+            }
+        }
+        compose.mainClock.advanceTimeBy(50)
+        compose.onNodeWithTag("cart_line_1_flash").assertExists()
+        compose.onNodeWithTag("cart_line_2_flash").assertDoesNotExist()
+
+        compose.mainClock.advanceTimeBy(400)
+        compose.onNodeWithTag("cart_line_1_flash").assertDoesNotExist()
+    }
 
     @Test
     fun aWeighedLineShowsItsWeightAndPricePerKiloAndCannotBeStepped() {

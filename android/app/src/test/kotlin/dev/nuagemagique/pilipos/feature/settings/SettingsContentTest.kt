@@ -52,6 +52,7 @@ class SettingsContentTest {
             onToggleTraining = { taps += "training" },
             onLanguage = { taps += "language:${it.code}" },
             onProductLabel = { taps += "label:${it.code}" },
+            onAddBeep = { taps += "beep:$it" },
             onTablePlanInput = { taps += "tables:$it" },
             onSaveTablePlan = { taps += "tables:save" },
             onRow = { navigator.navigate(it.route) },
@@ -135,7 +136,10 @@ class SettingsContentTest {
     fun theRowsAreDrawnInTheOrderGivenWithATagEach() {
         show(managerState())
 
-        listOf(shownOpen, shownAbout, shownExport).forEach { compose.onNodeWithTag("settings_row_" + it.id).assertIsDisplayed() }
+        // The rows panel scrolls: with the beep switch above it the last rows start below the fold at 1080 p.
+        listOf(shownOpen, shownAbout, shownExport).forEach {
+            compose.onNodeWithTag("settings_row_" + it.id).performScrollTo().assertIsDisplayed()
+        }
         assertTrue(top("settings_row_a.open") < top("settings_row_platform.about"))
         assertTrue(top("settings_row_platform.about") < top("settings_row_platform.export"))
     }
@@ -154,8 +158,8 @@ class SettingsContentTest {
     fun aRowTapOpensItsRouteOnTheNavigatorAndNothingElse() {
         show(managerState())
 
-        compose.onNodeWithTag("settings_row_platform.about").performClick()
-        compose.onNodeWithTag("settings_row_platform.export").performClick()
+        compose.onNodeWithTag("settings_row_platform.about").performScrollTo().performClick()
+        compose.onNodeWithTag("settings_row_platform.export").performScrollTo().performClick()
 
         assertEquals(listOf("navigate:${shownAbout.route}", "navigate:${shownExport.route}"), navigator.calls)
     }
@@ -217,6 +221,16 @@ class SettingsContentTest {
         compose.onNodeWithTag("settings_label_code").performClick()
 
         assertEquals(listOf("label:code"), taps)
+    }
+
+    @Test
+    fun theAddBeepButtonsMarkTheCurrentOneAndCallBack() {
+        show(managerState().copy(addBeep = true))
+
+        compose.onNodeWithTag("settings_beep_on").assertIsSelected()
+        compose.onNodeWithTag("settings_beep_off").performClick()
+
+        assertEquals(listOf("beep:false"), taps)
     }
 
     // ── Table plan ────────────────────────────────────────────────

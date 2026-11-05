@@ -1235,6 +1235,133 @@ class OrderStoreTest {
             assertEquals(emptyList<HeldCourse>(), r.store.heldCourses.value)
         }
 
+    // ── Adds: the beep and the flash (C9), the digit after an add (C7) ──
+
+    @Test
+    fun aNewLineAddIsNotedWithItsLineAndUnits() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), emptyList())
+            coEvery { r.f.engine.addOrderLine(any()) } returns orderLine(10)
+            r.stubReads(order(), listOf(line(99, 10, quantity = 2, unsent = 2)))
+
+            val add = r.store.addProduct(item(10), quantity = 2)
+
+            assertEquals(99L, add?.lineId)
+            assertEquals(10L, add?.itemId)
+            assertEquals(2, add?.units)
+            assertEquals(add, r.store.lastAdd.value)
+        }
+
+    @Test
+    fun aMergedAddIsNotedOnTheMergedLineAndEachAddHasItsOwnSequence() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), listOf(line(1, 10, quantity = 2, unsent = 2)))
+            coEvery { r.f.engine.updateOrderLineQuantity(1L, 3) } returns Unit
+            r.stubReads(order(), listOf(line(1, 10, quantity = 3, unsent = 3)))
+
+            val first = r.store.addProduct(item(10))
+            coEvery { r.f.engine.updateOrderLineQuantity(1L, 4) } returns Unit
+            r.stubReads(order(), listOf(line(1, 10, quantity = 4, unsent = 4)))
+            val second = r.store.addProduct(item(10))
+
+            assertEquals(1L, first?.lineId)
+            assertTrue((second?.seq ?: 0) > (first?.seq ?: 0))
+        }
+
+    @Test
+    fun aRefusedAddNotesNothing() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), emptyList())
+            coEvery { r.f.engine.addOrderLine(any()) } throws PosException.Coded("order_not_open", emptyMap())
+
+            r.store.failures.test {
+                assertNull(r.store.addProduct(item(10)))
+                awaitItem()
+            }
+            assertNull(r.store.lastAdd.value)
+        }
+
+    @Test
+    fun aLineAddedByAnotherCommandIsNotedToo() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), emptyList())
+            r.stubReads(order(), listOf(line(99, 10, unsent = 1)))
+
+            assertTrue(r.store.addLineWith(item(10), 1) { orderLine(10) })
+
+            assertEquals(99L, r.store.lastAdd.value?.lineId)
+        }
+
+    @Test
+    fun addUnitsAddsTheExtraUnitsToTheSameLineAndKeepsEarlierOnes() =
+        runTest {
+            val r = rig()
+            // The line already had 4 units; the tap merged one more, the digit asks for 3 in all: 2 extra.
+            r.store.seed(r, order(), listOf(line(1, 10, quantity = 5, unsent = 5)))
+            coEvery { r.f.engine.updateOrderLineQuantity(1L, 7) } returns Unit
+            r.stubReads(order(), listOf(line(1, 10, quantity = 7, unsent = 7)))
+
+            assertTrue(r.store.addUnits(1, 2))
+
+            coVerify { r.f.engine.updateOrderLineQuantity(1L, 7) }
+            assertEquals(7, r.store.lines.value.single().quantity)
+            assertEquals(2, r.store.lastAdd.value?.units)
+        }
+
+    @Test
+    fun addUnitsNeverGoesUnderTheUnitsAlreadySentToTheKitchen() =
+        runTest {
+            val r = rig()
+            // 5 units, 2 sent: whatever the delta, the quantity stays at 3 or more.
+            r.store.seed(r, order(), listOf(line(1, 10, quantity = 5, unsent = 3)))
+            coEvery { r.f.engine.updateOrderLineQuantity(1L, 3) } returns Unit
+            r.stubReads(order(), listOf(line(1, 10, quantity = 3, unsent = 1)))
+
+            assertTrue(r.store.addUnits(1, -10))
+
+            coVerify { r.f.engine.updateOrderLineQuantity(1L, 3) }
+        }
+
+    @Test
+    fun addUnitsWithNothingToChangeCallsNoCommandButStillConfirms() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), listOf(line(1, 10, quantity = 1, unsent = 1)))
+
+            assertTrue(r.store.addUnits(1, 0))
+
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+            assertEquals(1L, r.store.lastAdd.value?.lineId)
+        }
+
+    @Test
+    fun addUnitsOnALineThatIsGoneDoesNothing() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), emptyList())
+
+            assertFalse(r.store.addUnits(42, 2))
+
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+            assertNull(r.store.lastAdd.value)
+        }
+
+    @Test
+    fun resetLocalForgetsTheLastAdd() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), listOf(line(1, 10, unsent = 1)))
+            r.store.addUnits(1, 0)
+
+            r.store.resetLocal()
+
+            assertNull(r.store.lastAdd.value)
+        }
+
     /** Puts [order] and [cart] in the store through the engine, as a screen would (loadOrder). */
     private suspend fun OrderStore.seed(
         r: Rig,

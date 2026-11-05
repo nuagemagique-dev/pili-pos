@@ -122,6 +122,20 @@ class PosSettingsStoreTest {
         }
 
     @Test
+    fun theAddBeepIsOnByDefaultAndTheChoiceSurvivesANewStore() =
+        runTest {
+            val first = store(EngineFixture(this, tmp.root))
+            assertEquals(true, first.addBeep.value)
+
+            first.setAddBeep(false)
+
+            assertEquals(false, first.addBeep.value)
+            assertEquals(false, store(EngineFixture(this, tmp.root)).addBeep.value)
+            val prefs = context.getSharedPreferences("pili_ui", Context.MODE_PRIVATE)
+            assertEquals(false, prefs.getBoolean("add_beep", true))
+        }
+
+    @Test
     fun anUnknownStoredCodeGivesFrenchAndTheCode() =
         runTest {
             context

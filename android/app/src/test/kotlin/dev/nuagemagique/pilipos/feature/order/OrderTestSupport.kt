@@ -354,6 +354,7 @@ internal suspend fun TestScope.startOrder(
     open: Boolean = true,
     routeOrderId: Long = ORDER_ID,
     shown: Boolean = true,
+    clock: () -> Long = System::currentTimeMillis,
 ): OrderRig {
     val gateway = f.gateway(this)
     val toasts = ToastStore(backgroundScope)
@@ -369,7 +370,7 @@ internal suspend fun TestScope.startOrder(
         runCurrent()
     }
     val entry = TestOrderEntry(session, order, gateway, f.events, errors, settings, integrations, amounts, toasts, catalog)
-    val model = MenuViewModel(entry, routeOrderId)
+    val model = MenuViewModel(entry, routeOrderId, clock)
     // The screen runs its model while it is composed; a model of a screen left on the back stack is not run.
     if (shown) backgroundScope.launch { model.run() }
     runCurrent()

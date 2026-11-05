@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.order
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import dev.nuagemagique.pilipos.ui.state.LineAdd
 import uniffi.pos_ffi.AllergenEntry
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.Category
@@ -198,6 +199,8 @@ internal data class OrderCartState(
     val nextHeldCourse: Int? = null,
     /** "Envoyer la suite" is running. */
     val sendingNext: Boolean = false,
+    /** The last add to the cart: its line flashes for 200 ms. */
+    val lastAdd: LineAdd? = null,
 ) {
     private val dineIn: Boolean get() = order?.orderType == OrderType.DINE_IN
 

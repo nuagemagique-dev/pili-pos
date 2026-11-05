@@ -17,6 +17,7 @@ const {
   message,
   tone,
   listening = true,
+  takeKey = () => false,
 } = defineProps<{
   modelValue: string
   /** Letter keys, from the codes of the menu. */
@@ -25,6 +26,12 @@ const {
   tone: CodePadTone
   /** A physical keyboard types into the pad (false while a dialog is open). */
   listening?: boolean
+  /**
+   * Offered every key before the pad uses it: a digit, a letter, `*`, or
+   * `Backspace` / `Enter` / `Escape` / `Clear` / `OK`. True when the key was
+   * taken (the digit after an add sets its quantity), then the pad ignores it.
+   */
+  takeKey?: (key: string) => boolean
 }>()
 
 const emit = defineEmits<{
@@ -35,13 +42,20 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 function press(key: string) {
+  if (takeKey(key)) return
   emit('update:modelValue', typeKey(modelValue, key))
 }
 function backspace() {
+  if (takeKey('Backspace')) return
   emit('update:modelValue', modelValue.slice(0, -1))
 }
 function clear() {
+  if (takeKey('Clear')) return
   emit('update:modelValue', '')
+}
+function submit() {
+  if (takeKey('OK')) return
+  emit('submit')
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -52,7 +66,7 @@ function onKeydown(e: KeyboardEvent) {
     (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
   )
     return
-  if (e.key === 'Enter') emit('submit')
+  if (e.key === 'Enter') submit()
   else if (e.key === 'Backspace') backspace()
   else if (e.key === 'Escape') clear()
   else if (e.key === '*' || /^[a-zA-Z0-9]$/u.test(e.key)) press(e.key)
@@ -145,7 +159,7 @@ const field = computed(() => {
         {{ l }}
       </button>
     </div>
-    <button class="ok" data-testid="code-key-ok" @click="emit('submit')">OK</button>
+    <button class="ok" data-testid="code-key-ok" @click="submit">OK</button>
   </div>
 </template>
 
