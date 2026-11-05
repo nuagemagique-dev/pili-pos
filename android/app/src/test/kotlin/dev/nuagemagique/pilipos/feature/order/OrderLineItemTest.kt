@@ -1,16 +1,23 @@
 package dev.nuagemagique.pilipos.feature.order
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.format.LineAmount
@@ -36,6 +43,8 @@ class OrderLineItemTest {
     private val catalog = I18nTestSupport.catalog()
     private val seen = mutableListOf<String>()
 
+    private fun text(key: String) = catalog.text(key, AppLanguage.FR)
+
     private val actions =
         OrderCartActions(
             onIncrement = { seen += "plus:$it" },
@@ -43,16 +52,37 @@ class OrderLineItemTest {
             onRemove = { seen += "remove:$it" },
         )
 
+    /** The line is shown open (selected) by default: its actions are then under it. */
+    @Suppress("LongParameterList")
     private fun show(
         row: CartRow,
         pending: Boolean = false,
         language: AppLanguage = AppLanguage.FR,
         mode: ProductLabelMode = ProductLabelMode.NAME,
+        selected: Boolean = true,
+        dineIn: Boolean = false,
     ) {
-        val state = OrderCartState(rows = listOf(row), language = language, labelMode = mode)
+        val state =
+            OrderCartState(
+                order = if (dineIn) order() else null,
+                rows = listOf(row),
+                language = language,
+                labelMode = mode,
+            )
         compose.setContent {
             PiliTheme {
-                ProvideUiText(language, catalog) { Column { OrderLineItem(row, state, actions, pending) } }
+                ProvideUiText(language, catalog) {
+                    Column {
+                        OrderLineItem(
+                            row,
+                            state,
+                            actions,
+                            pending,
+                            selected = selected,
+                            onSelect = { seen += "select:${row.line.id}" },
+                        )
+                    }
+                }
             }
         }
         compose.waitForIdle()
@@ -153,6 +183,7 @@ class OrderLineItemTest {
 
         compose.onNodeWithTag("cart_line_1_name").assertTextEquals("Maki saumon")
         compose.onNodeWithTag("cart_line_1_sub").assertDoesNotExist()
+        compose.onNodeWithTag("cart_line_1_lead").assertTextEquals("2×")
         compose.onNodeWithTag("cart_line_1_qty").assertTextEquals("2")
         compose.onNodeWithTag("cart_line_1_amount").assertTextEquals("13,00 €")
     }
@@ -182,8 +213,8 @@ class OrderLineItemTest {
     fun inCodeModeTheMenuCodeLeadsAndTheNameFollows() {
         show(row(1, code = "M10"), mode = ProductLabelMode.CODE)
 
-        compose.onNodeWithTag("cart_line_1_name").assertTextEquals("M10")
-        compose.onNodeWithTag("cart_line_1_sub").assertTextEquals("Maki saumon")
+        compose.onNodeWithTag("cart_line_1_code").assertTextEquals("M10")
+        compose.onNodeWithTag("cart_line_1_name").assertTextEquals("Maki saumon")
     }
 
     @Test
@@ -191,8 +222,9 @@ class OrderLineItemTest {
         val line = cartLine(1, 10, "Tartare saumon cheese", code = "C5").copy(categoryFr = "California roll", categoryZh = "加州卷")
         show(CartRow(line, LineAmount.Total(1_300)), mode = ProductLabelMode.CODE)
 
-        compose.onNodeWithTag("cart_line_1_name").assertTextEquals("C5")
-        compose.onNodeWithTag("cart_line_1_sub").assertTextEquals("California roll · Tartare saumon cheese")
+        compose.onNodeWithTag("cart_line_1_code").assertTextEquals("C5")
+        compose.onNodeWithTag("cart_line_1_name").assertTextEquals("Tartare saumon cheese")
+        compose.onNodeWithTag("cart_line_1_sub").assertTextEquals("California roll")
     }
 
     @Test
@@ -224,6 +256,66 @@ class OrderLineItemTest {
 
         compose.onNodeWithTag("cart_line_1").assertIsDisplayed()
         compose.onNodeWithTag("cart_line_1_notes").assertDoesNotExist()
+    }
+
+    @Test
+    fun theRowIsAtLeast56DpHighAndATapSelectsOrFoldsTheLine() {
+        show(row(2), selected = false)
+
+        compose.onNodeWithTag("cart_line_1_row").assertHeightIsAtLeast(56.dp)
+        compose.onNodeWithTag("cart_line_1_row").performClick()
+
+        assertEquals(listOf("select:1"), seen)
+    }
+
+    @Test
+    fun aFoldedLineShowsNoActionsAndNoDetail() {
+        show(row(2), selected = false)
+
+        for (tag in listOf("detail", "plus", "minus", "qty", "note", "offer", "remove")) {
+            compose.onAllNodesWithTag("cart_line_1_$tag").assertCountEquals(0)
+        }
+        compose.onNodeWithTag("cart_line_1_lead").assertTextEquals("2×")
+        compose.onNodeWithTag("cart_line_1_amount").assertTextEquals("13,00 €")
+    }
+
+    @Test
+    fun theSelectedLineOpensItsActionsUnderTheRowWithTargetsOf48Dp() {
+        show(row(2))
+
+        compose.onNodeWithTag("cart_line_1_detail").assertIsDisplayed()
+        for (tag in listOf("plus", "minus", "remove")) {
+            compose.onNodeWithTag("cart_line_1_$tag").assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
+        }
+    }
+
+    @Test
+    fun aDineInLineShowsACheckOnceSentAndAnAmberDotWhileNot() {
+        show(row(1), dineIn = true)
+        compose.onNodeWithTag("cart_line_1_state").assertContentDescriptionEquals(text("line_state_sent"))
+    }
+
+    @Test
+    fun aPendingDineInLineSaysItIsNotSentYet() {
+        show(row(1), pending = true, dineIn = true)
+        compose.onNodeWithTag("cart_line_1_state").assertContentDescriptionEquals(text("line_state_pending"))
+    }
+
+    @Test
+    fun aTakeawayLineHasNoKitchenMark() {
+        show(row(1))
+        compose
+            .onNodeWithTag("cart_line_1_state")
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
+    }
+
+    @Test
+    fun theChipsOfTheRowAreInlineAndTheDetailRepeatsTheWholeNote() {
+        val noted = cartLine(1, 10, "Maki saumon", kitchenNote = "sans wasabi, bien cuit, sauce à part")
+        show(CartRow(noted, LineAmount.Total(1_300)))
+
+        compose.onNodeWithTag("cart_line_1_kitchen_note").assertExists()
+        compose.onNodeWithTag("cart_line_1_kitchen_note_full").assertTextEquals("sans wasabi, bien cuit, sauce à part")
     }
 
     @Test

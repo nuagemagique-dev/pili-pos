@@ -241,6 +241,10 @@
     <string name="qty_less">减一</string>
     <string name="qty_more">加一</string>
     <string name="line_remove">删除此行</string>
+    <string name="line_delete">删除</string>
+    <string name="line_state_sent">已送厨房</string>
+    <string name="line_state_pending">尚未送出</string>
+    <string name="line_select">显示此行操作</string>
     <string name="not_sent_to_kitchen">未送厨房</string>
     <string name="send_to_kitchen">送厨房</string>
     <string name="send_lines_one">1 行</string>

@@ -301,7 +301,8 @@ internal fun BoxScope.OrderDialogs(
         is OrderDialog.Discount ->
             DiscountDialog(dialog.baseCents, dialog.lineId, onConfirm = callbacks.onDiscountChosen, onCancel = callbacks.onDismiss)
         is OrderDialog.DiscountPin -> DiscountPinDialog(dialog, callbacks)
-        is OrderDialog.Note -> NoteDialog(dialog.initial, dialog.sent, onConfirm = callbacks.onNoteSaved, onCancel = callbacks.onDismiss)
+        is OrderDialog.Note ->
+            NoteDialog(dialog.initial, dialog.sent, dialog.chips, onConfirm = callbacks.onNoteSaved, onCancel = callbacks.onDismiss)
         is OrderDialog.AllergenSheet ->
             AllergenSheetDialog(dialog, language, onPrint = callbacks.onAllergenPrint, onClose = callbacks.onDismiss)
         is OrderDialog.CoursePicker -> CoursePickerDialog(dialog.current, callbacks.onCoursePick, callbacks.onDismiss)

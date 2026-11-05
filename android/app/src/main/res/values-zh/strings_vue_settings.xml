@@ -159,6 +159,17 @@
     <string name="menu_ed_field_min_select">最少</string>
     <string name="menu_ed_field_max_select">最多</string>
     <string name="menu_ed_field_group_id">选项组</string>
+    <string name="quick_notes_title">快捷备注</string>
+    <string name="quick_notes_note">这些备注显示在厨房备注输入框下方，点一下即加入备注。它们不会发送给 FDM。</string>
+    <string name="quick_notes_empty">没有快捷备注。</string>
+    <string name="quick_notes_add">添加备注</string>
+    <string name="quick_notes_add_title">新建快捷备注</string>
+    <string name="quick_notes_full">最多{max}条。</string>
+    <string name="quick_notes_up">上移</string>
+    <string name="quick_notes_down">下移</string>
+    <string name="quick_notes_remove">移除</string>
+    <string name="quick_notes_save">保存</string>
+    <string name="quick_notes_saved">快捷备注已保存。</string>
     <string name="courses_title">分道出菜</string>
     <string name="courses_state_on">已开启</string>
     <string name="courses_state_off">未开启</string>

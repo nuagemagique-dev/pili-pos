@@ -127,6 +127,8 @@ fn fixture(name: &str) -> Fixture {
             ipc::discount::apply_discount,
             ipc::discount::remove_discount,
             ipc::order::set_line_note,
+            ipc::quick_notes::get_quick_notes,
+            ipc::quick_notes::set_quick_notes,
         ])
         .build(mock_context(noop_assets()))
         .expect("the mock app");
@@ -414,4 +416,32 @@ fn list_sale_payments_takes_fiscaleventid() {
         .call("list_sale_payments", json!({ "fiscal_event_id": 1 }))
         .unwrap_err();
     assert!(wrong.to_string().contains("fiscalEventId"), "{wrong}");
+}
+
+#[test]
+fn quick_notes_take_the_input_the_ui_builds() {
+    let f = fixture("quick-notes");
+    // A new installation reads the nine usual notes.
+    let defaults = f.call("get_quick_notes", json!({})).unwrap();
+    assert_eq!(defaults["notes"].as_array().unwrap().len(), 9);
+    assert_eq!(defaults["notes"][0], "Sans wasabi");
+
+    // The `input` argument reached the engine: the stored list is the one sent, trimmed.
+    let stored = f
+        .call(
+            "set_quick_notes",
+            json!({ "input": { "notes": ["  Bien cuit ", "Épicé"] } }),
+        )
+        .unwrap();
+    assert_eq!(stored, json!({ "notes": ["Bien cuit", "Épicé"] }));
+    assert_eq!(f.call("get_quick_notes", json!({})).unwrap(), stored);
+
+    // And the engine's rules answer through the wrapper.
+    assert_eq!(
+        refusal(f.call(
+            "set_quick_notes",
+            json!({ "input": { "notes": ["x".repeat(61)] } })
+        )),
+        "note_too_long"
+    );
 }

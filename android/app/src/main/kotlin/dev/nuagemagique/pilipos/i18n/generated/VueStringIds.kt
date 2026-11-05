@@ -164,6 +164,7 @@ internal object VueStringIds {
         this["err_discount_reason_invalid"] = R.string.err_discount_reason_invalid
         this["err_discount_online_order"] = R.string.err_discount_online_order
         this["err_note_too_long"] = R.string.err_note_too_long
+        this["err_quick_notes_too_many"] = R.string.err_quick_notes_too_many
         this["err_note_unprintable"] = R.string.err_note_unprintable
         this["err_line_has_price_changes"] = R.string.err_line_has_price_changes
         this["err_payment_correction_not_a_sale"] = R.string.err_payment_correction_not_a_sale
@@ -265,10 +266,10 @@ internal object VueStringIds {
         this["pin_confirm"] = R.string.pin_confirm
         this["pin_mismatch"] = R.string.pin_mismatch
         this["other_insz"] = R.string.other_insz
-        this["digits_required"] = R.string.digits_required
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["digits_required"] = R.string.digits_required
         this["free"] = R.string.free
         this["items_short"] = R.string.items_short
         this["takeaway_new"] = R.string.takeaway_new
@@ -415,6 +416,10 @@ internal object VueStringIds {
         this["qty_less"] = R.string.qty_less
         this["qty_more"] = R.string.qty_more
         this["line_remove"] = R.string.line_remove
+        this["line_delete"] = R.string.line_delete
+        this["line_state_sent"] = R.string.line_state_sent
+        this["line_state_pending"] = R.string.line_state_pending
+        this["line_select"] = R.string.line_select
         this["not_sent_to_kitchen"] = R.string.not_sent_to_kitchen
         this["send_to_kitchen"] = R.string.send_to_kitchen
         this["send_lines_one"] = R.string.send_lines_one
@@ -514,14 +519,14 @@ internal object VueStringIds {
         this["allergens_unknown"] = R.string.allergens_unknown
         this["allergens_options"] = R.string.allergens_options
         this["allergens_print_one"] = R.string.allergens_print_one
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["allergens_print_all"] = R.string.allergens_print_all
         this["allergens_close"] = R.string.allergens_close
         this["allergens_printed"] = R.string.allergens_printed
         this["allergens_print_failed"] = R.string.allergens_print_failed
         this["allergens_no_printer"] = R.string.allergens_no_printer
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["allergens_nothing"] = R.string.allergens_nothing
         this["allergens_regulation"] = R.string.allergens_regulation
         this["err_allergen_unknown"] = R.string.err_allergen_unknown
@@ -767,14 +772,14 @@ internal object VueStringIds {
         this["invoice_status_none"] = R.string.invoice_status_none
         this["invoice_copy"] = R.string.invoice_copy
         this["keyboard_backspace"] = R.string.keyboard_backspace
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["keyboard_space"] = R.string.keyboard_space
         this["keyboard_next"] = R.string.keyboard_next
         this["sales_title"] = R.string.sales_title
         this["sales_not_fiscal"] = R.string.sales_not_fiscal
         this["sales_today"] = R.string.sales_today
-    }
-
-    private fun MutableMap<String, Int>.part3() {
         this["sales_yesterday"] = R.string.sales_yesterday
         this["sales_week"] = R.string.sales_week
         this["sales_month"] = R.string.sales_month
@@ -976,6 +981,17 @@ internal object VueStringIds {
         this["menu_ed_field_min_select"] = R.string.menu_ed_field_min_select
         this["menu_ed_field_max_select"] = R.string.menu_ed_field_max_select
         this["menu_ed_field_group_id"] = R.string.menu_ed_field_group_id
+        this["quick_notes_title"] = R.string.quick_notes_title
+        this["quick_notes_note"] = R.string.quick_notes_note
+        this["quick_notes_empty"] = R.string.quick_notes_empty
+        this["quick_notes_add"] = R.string.quick_notes_add
+        this["quick_notes_add_title"] = R.string.quick_notes_add_title
+        this["quick_notes_full"] = R.string.quick_notes_full
+        this["quick_notes_up"] = R.string.quick_notes_up
+        this["quick_notes_down"] = R.string.quick_notes_down
+        this["quick_notes_remove"] = R.string.quick_notes_remove
+        this["quick_notes_save"] = R.string.quick_notes_save
+        this["quick_notes_saved"] = R.string.quick_notes_saved
         this["courses_title"] = R.string.courses_title
         this["courses_state_on"] = R.string.courses_state_on
         this["courses_state_off"] = R.string.courses_state_off
@@ -1009,6 +1025,9 @@ internal object VueStringIds {
         this["alerts_value_hour"] = R.string.alerts_value_hour
         this["alerts_value_never"] = R.string.alerts_value_never
         this["alerts_save"] = R.string.alerts_save
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["alerts_saved"] = R.string.alerts_saved
         this["alerts_test"] = R.string.alerts_test
         this["alerts_test_sent"] = R.string.alerts_test_sent
@@ -1025,9 +1044,6 @@ internal object VueStringIds {
         this["alerts_minus"] = R.string.alerts_minus
         this["gv_settings_title"] = R.string.gv_settings_title
         this["gv_settings_on"] = R.string.gv_settings_on
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["gv_settings_off"] = R.string.gv_settings_off
         this["gv_settings_note"] = R.string.gv_settings_note
         this["gv_settings_validity"] = R.string.gv_settings_validity

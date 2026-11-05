@@ -137,6 +137,7 @@
 //! | `GiftVoucherView` | `pos_engine::commands::gift_vouchers::GiftVoucherView` | gift_vouchers | list_gift_vouchers, lookup_gift_voucher |
 //! | `HeldCourse` | `pos_engine::commands::courses::HeldCourseView` | courses | list_held_courses |
 //! | `NextCourse` | `pos_engine::commands::courses::NextCourse` | courses | send_next_course |
+//! | `QuickNotes` | `pos_engine::commands::quick_notes::QuickNotes` | quick_notes | get_quick_notes, set_quick_notes |
 //! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | correct_payment, money_in_out, open_drawer_fiscal |
 //! | `MoneyDirection` | `pos_engine::commands::financial::MoneyDirection` | reports | money_in_out |
 //! | `OpenShift` | `pos_db::queries::shifts::OpenShift` | reports | list_open_shifts |
@@ -231,5 +232,6 @@ pub mod hubrise;
 pub mod invoice;
 pub mod menu_admin;
 pub mod orders;
+pub mod quick_notes;
 pub mod reports;
 pub mod scale;

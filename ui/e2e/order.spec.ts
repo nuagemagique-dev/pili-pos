@@ -173,6 +173,8 @@ test.describe('Order View - kitchen and cart lines', () => {
 
   test('"−" stops at 1; removing a line is its own button', async ({ page }) => {
     const single = page.locator('.order-line').filter({ hasText: DEFAULT_ORDER_LINE.name })
+    // The newest line is selected by default: open the other one.
+    await single.getByTestId('line-row-1').click()
     await expect(single.locator('.qty-btn').first()).toBeDisabled()
     await single.locator('.remove-btn').click()
     await expect(page.locator('.cart-lines')).not.toContainText(DEFAULT_ORDER_LINE.name)
@@ -225,8 +227,11 @@ test.describe('Order View - products shown by code', () => {
     await expect(coded.locator('.item-name')).toHaveClass(/code/u)
     await expect(coded.locator('.item-sub')).toHaveText(DEFAULT_MENU_ITEM.name)
     const line = page.locator('.order-line').first()
-    await expect(line.locator('.line-name')).toHaveText('A2')
-    await expect(line.locator('.line-sub')).toHaveText('Accompagnements · Edamame')
+    await expect(line.locator('.line-code')).toHaveText('A2')
+    await expect(line.locator('.line-code')).toHaveClass(/lead/u)
+    await expect(line.locator('.line-name')).toHaveText('Edamame')
+    // The category shows in the detail of the selected line (the only one here).
+    await expect(line.locator('.line-sub')).toHaveText('Accompagnements')
   })
 
   test('a product without a code keeps its name', async ({ page }) => {

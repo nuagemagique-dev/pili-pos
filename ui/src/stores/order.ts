@@ -321,6 +321,16 @@ export const useOrderStore = defineStore('order', () => {
     })
   }
 
+  /** The chips of the kitchen note dialog (UX audit C11), read each time the dialog opens. A till
+   * that does not answer simply shows none: typing a note still works. */
+  async function loadQuickNotes(): Promise<string[]> {
+    try {
+      return (await ipc.getQuickNotes()).notes
+    } catch {
+      return []
+    }
+  }
+
   function updateQuantity(lineId: number, quantity: number) {
     return reported(() => updateQuantityUnreported(lineId, quantity))
   }
@@ -485,6 +495,7 @@ export const useOrderStore = defineStore('order', () => {
     startOrder,
     loadOrder,
     lastAdd,
+    loadQuickNotes,
     addItem,
     addItemTracked,
     addUnits,

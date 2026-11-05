@@ -7026,6 +7026,26 @@ public final class uniffi/pos_ffi/FfiConverterTypePreviewVat : uniffi/pos_ffi/Ff
 	public fun write (Luniffi/pos_ffi/PreviewVat;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeQuickNotes : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeQuickNotes;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/QuickNotes;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/QuickNotes;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/QuickNotes;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/QuickNotes;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/QuickNotes;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/QuickNotes;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/QuickNotes;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeReceiptLanguage : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeReceiptLanguage;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -9638,6 +9658,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun getMenuItems (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getOwnerAlerts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getQuickNotes (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getScaleStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getTablePlan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9728,6 +9749,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun setLineNote (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setOwnerAlerts (Luniffi/pos_ffi/OwnerAlertsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setQuickNotes (Luniffi/pos_ffi/QuickNotes;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setSoldOut (JZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setTrainingMode (ZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9801,6 +9823,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun getMenuItems (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getOwnerAlerts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getQuickNotes (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getScaleStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getTablePlan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9890,6 +9913,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun setLineNote (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setOwnerAlerts (Luniffi/pos_ffi/OwnerAlertsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setQuickNotes (Luniffi/pos_ffi/QuickNotes;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setSoldOut (JZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setTrainingMode (ZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -10270,6 +10294,22 @@ public final class uniffi/pos_ffi/PreviewVat {
 }
 
 public final class uniffi/pos_ffi/PreviewVat$Companion {
+}
+
+public final class uniffi/pos_ffi/QuickNotes {
+	public static final field Companion Luniffi/pos_ffi/QuickNotes$Companion;
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Luniffi/pos_ffi/QuickNotes;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/QuickNotes;Ljava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/QuickNotes;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getNotes ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun setNotes (Ljava/util/List;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/QuickNotes$Companion {
 }
 
 public final class uniffi/pos_ffi/ReceiptLanguage : java/lang/Enum {

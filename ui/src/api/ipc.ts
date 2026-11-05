@@ -1553,6 +1553,23 @@ export function setAllergens(input: SetAllergensInput): Promise<boolean> {
   return invoke('set_allergens', { input })
 }
 
+// ── Quick notes (the chips of the kitchen note dialog, local data) ──
+
+/** The quick notes of this installation, in display order. */
+export interface QuickNotes {
+  notes: string[]
+}
+
+/** Any logged-in operator; a new installation reads the nine usual notes. */
+export function getQuickNotes(): Promise<QuickNotes> {
+  return invoke('get_quick_notes')
+}
+
+/** Managers only. Each chip is a valid kitchen note (60 printable characters), at most 24. */
+export function setQuickNotes(input: QuickNotes): Promise<QuickNotes> {
+  return invoke('set_quick_notes', { input })
+}
+
 // ── Courses and "Envoyer la suite" (kitchen printing only) ─────────
 
 /** A category and the course its products take (1 to 3; 0 is "Direct"). */

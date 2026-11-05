@@ -517,6 +517,11 @@ const coreMessages: Messages = {
     en: 'Note too long: 60 characters at most.',
     zh: '备注太长：最多60个字符。',
   },
+  err_quick_notes_too_many: {
+    fr: 'Trop de notes rapides : {max} au plus.',
+    en: 'Too many quick notes: {max} at most.',
+    zh: '快捷备注太多：最多{max}条。',
+  },
   err_note_unprintable: {
     fr: "La note a un caractère que l'imprimante de cuisine ne sait pas imprimer (lettres, chiffres et accents seulement).",
     en: 'The note has a character the kitchen printer cannot print (letters, digits and accents only).',
@@ -1315,6 +1320,15 @@ const coreMessages: Messages = {
   qty_less: { fr: 'Un de moins', en: 'One less', zh: '减一' },
   qty_more: { fr: 'Un de plus', en: 'One more', zh: '加一' },
   line_remove: { fr: 'Retirer la ligne', en: 'Remove the line', zh: '删除此行' },
+  // Dense cart (UX audit C2): the kitchen mark of a line and its short delete label.
+  line_delete: { fr: 'Supprimer', en: 'Delete', zh: '删除' },
+  line_state_sent: { fr: 'Envoyée en cuisine', en: 'Sent to the kitchen', zh: '已送厨房' },
+  line_state_pending: { fr: 'Pas encore envoyée', en: 'Not sent yet', zh: '尚未送出' },
+  line_select: {
+    fr: 'Afficher les actions de la ligne',
+    en: 'Show the line actions',
+    zh: '显示此行操作',
+  },
   not_sent_to_kitchen: {
     fr: 'Pas encore en cuisine',
     en: 'Not sent to the kitchen yet',

@@ -137,6 +137,10 @@ pub const NOTE_TOO_LONG: &str = "note_too_long";
 /// the slip printer cannot print (a Chinese note would print "?").
 pub const NOTE_UNPRINTABLE: &str = "note_unprintable";
 
+// Quick notes (the chips of the kitchen note dialog, local data).
+/// More quick notes than the list holds (`quick_notes_too_many|max=<n>`).
+pub const QUICK_NOTES_TOO_MANY: &str = "quick_notes_too_many";
+
 // Payment correction (an F event, signPaymentCorrection).
 /// Only a sale ticket (N, or T in training) is corrected: not a refund, a copy or any other event.
 pub const PAYMENT_CORRECTION_NOT_A_SALE: &str = "payment_correction_not_a_sale";
@@ -463,6 +467,7 @@ pub const ALL: &[&str] = &[
     LINE_HAS_PRICE_CHANGES,
     NOTE_TOO_LONG,
     NOTE_UNPRINTABLE,
+    QUICK_NOTES_TOO_MANY,
     CONFIG_TABLES,
     TABLE_TRANSFER_SAME_TABLE,
     TABLE_TRANSFER_TARGET_BUSY,

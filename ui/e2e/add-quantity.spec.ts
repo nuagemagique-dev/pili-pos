@@ -91,7 +91,7 @@ test.describe('Digit after an add = quantity (C7)', () => {
   }) => {
     await openOrder(page)
     await tapProduct(page, 'Maki saumon')
-    await expect(page.locator('.order-line .qty')).toHaveText('1')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('1×')
 
     await page.getByTestId('code-key-3').click()
 
@@ -101,7 +101,7 @@ test.describe('Digit after an add = quantity (C7)', () => {
     const [call] = await ipcCalls(page, 'update_order_line_quantity')
     expect(call.quantity).toBe(3)
     await expect(page.locator('.order-line')).toHaveCount(1)
-    await expect(page.locator('.order-line .qty')).toHaveText('3')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('3×')
     await expect(page.getByTestId('code-pad-message')).toHaveText('Maki saumon × 3')
     // The digit did not start a code.
     await expect(page.getByTestId('code-pad-display')).not.toContainText('3')
@@ -115,7 +115,7 @@ test.describe('Digit after an add = quantity (C7)', () => {
     await page.keyboard.press('1')
     await page.keyboard.press('2')
 
-    await expect(page.locator('.order-line .qty')).toHaveText('12')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('12×')
     await expect(page.getByTestId('code-pad-message')).toHaveText('Cola × 12')
     const calls = await ipcCalls(page, 'update_order_line_quantity')
     expect(calls.at(-1)?.quantity).toBe(12)
@@ -127,12 +127,12 @@ test.describe('Digit after an add = quantity (C7)', () => {
     await openOrder(page)
     await tapProduct(page, 'Maki saumon')
     await tapProduct(page, 'Maki saumon')
-    await expect(page.locator('.order-line .qty')).toHaveText('2')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('2×')
 
     await page.getByTestId('code-key-3').click()
 
     // 2 on the line + (3 - 1) extra units from this add.
-    await expect(page.locator('.order-line .qty')).toHaveText('4')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('4×')
     const calls = await ipcCalls(page, 'update_order_line_quantity')
     expect(calls.at(-1)?.quantity).toBe(4)
   })
@@ -141,11 +141,11 @@ test.describe('Digit after an add = quantity (C7)', () => {
     await openOrder(page)
     for (const k of ['B', '3']) await page.getByTestId(`code-key-${k}`).click()
     await page.getByTestId('code-key-ok').click()
-    await expect(page.locator('.order-line .qty')).toHaveText('1')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('1×')
 
     await page.getByTestId('code-key-5').click()
 
-    await expect(page.locator('.order-line .qty')).toHaveText('5')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('5×')
     await expect(page.getByTestId('code-pad-message')).toHaveText('Cola × 5')
   })
 
@@ -159,7 +159,7 @@ test.describe('Digit after an add = quantity (C7)', () => {
 
     await expect(page.getByTestId('code-pad-display')).toContainText('3')
     expect(await ipcCalls(page, 'update_order_line_quantity')).toHaveLength(0)
-    await expect(page.locator('.order-line .qty')).toHaveText('1')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('1×')
   })
 
   test('a letter closes the window: the next digit is part of a code', async ({ page }) => {
@@ -180,8 +180,8 @@ test.describe('Digit after an add = quantity (C7)', () => {
 
     await page.getByTestId('code-key-2').click()
 
-    await expect(page.locator('.order-line').nth(1).locator('.qty')).toHaveText('2')
-    await expect(page.locator('.order-line').nth(0).locator('.qty')).toHaveText('1')
+    await expect(page.locator('.order-line').nth(1).locator('.line-qty')).toHaveText('2×')
+    await expect(page.locator('.order-line').nth(0).locator('.line-qty')).toHaveText('1×')
     const [call] = await ipcCalls(page, 'update_order_line_quantity')
     expect(call.lineId).toBe(102)
   })
@@ -208,7 +208,7 @@ test.describe('Digit after an add = quantity (C7)', () => {
     for (const k of ['3', 'times']) await page.getByTestId(`code-key-${k}`).click()
     await tapProduct(page, 'Cola')
 
-    await expect(page.locator('.order-line .qty')).toHaveText('3')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('3×')
     const [call] = await ipcCalls(page, 'add_order_line')
     expect(call.input.quantity).toBe(3)
   })
@@ -219,7 +219,7 @@ test.describe('Digit after an add = quantity (C7)', () => {
     await openOrder(page)
     await tapProduct(page, 'Cola')
     await page.getByTestId('code-key-4').click()
-    await expect(page.locator('.order-line .qty')).toHaveText('4')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('4×')
 
     const cmds = (await page.evaluate(() => (window as any).__ipcCalls)).map(
       (c: { cmd: string }) => c.cmd,

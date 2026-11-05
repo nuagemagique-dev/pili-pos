@@ -43,6 +43,7 @@ import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.QuickNotes
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.TableTransferResult
 import uniffi.pos_ffi.VatCode
@@ -1025,6 +1026,35 @@ class OrderStoreTest {
                 assertSame(refusal, awaitItem())
             }
             assertNull(r.store.lines.value.single().kitchenNote)
+        }
+
+    @Test
+    fun theQuickNotesAreReadFromTheEngineEachTime() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getQuickNotes() } returnsMany
+                listOf(QuickNotes(listOf("Sans wasabi", "Bien cuit")), QuickNotes(listOf("Épicé")))
+
+            assertEquals(listOf("Sans wasabi", "Bien cuit"), r.store.quickNotes())
+            assertEquals(listOf("Épicé"), r.store.quickNotes())
+        }
+
+    @Test
+    fun aTillThatDoesNotAnswerHasNoQuickNotes() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getQuickNotes() } throws PosException.Coded("internal", emptyMap())
+
+            assertEquals(emptyList<String>(), r.store.quickNotes())
+        }
+
+    @Test
+    fun anEmptyListStaysEmpty() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getQuickNotes() } returns QuickNotes(emptyList())
+
+            assertEquals(emptyList<String>(), r.store.quickNotes())
         }
 
     @Test

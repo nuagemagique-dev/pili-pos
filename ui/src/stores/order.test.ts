@@ -11,6 +11,7 @@ const ipcMock = vi.hoisted(() => ({
   listHeldCourses: vi.fn(),
   getCourseSettings: vi.fn(),
   setActiveOrder: vi.fn(),
+  getQuickNotes: vi.fn(),
 }))
 vi.mock('../api/ipc', () => ipcMock)
 
@@ -175,5 +176,44 @@ describe('order store: adds and the digit window units (C7, C9)', () => {
     expect(await order.addUnits(99, 2)).toBe(false)
 
     expect(ipcMock.updateOrderLineQuantity).not.toHaveBeenCalled()
+  })
+})
+
+describe('order store: quick notes for the kitchen note dialog (C11)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined })
+    vi.useFakeTimers()
+    vi.stubGlobal('window', globalThis)
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it("reads the installation's list from the engine each time", async () => {
+    const order = useOrderStore()
+    ipcMock.getQuickNotes.mockResolvedValueOnce({ notes: ['Sans wasabi', 'Bien cuit'] })
+    ipcMock.getQuickNotes.mockResolvedValueOnce({ notes: ['Épicé'] })
+
+    expect(await order.loadQuickNotes()).toEqual(['Sans wasabi', 'Bien cuit'])
+    expect(await order.loadQuickNotes()).toEqual(['Épicé'])
+    expect(ipcMock.getQuickNotes).toHaveBeenCalledTimes(2)
+  })
+
+  it('answers no chip when the engine does not answer: the note can still be typed', async () => {
+    const order = useOrderStore()
+    ipcMock.getQuickNotes.mockRejectedValue('internal')
+
+    expect(await order.loadQuickNotes()).toEqual([])
+  })
+
+  it('keeps an empty list empty', async () => {
+    const order = useOrderStore()
+    ipcMock.getQuickNotes.mockResolvedValue({ notes: [] })
+
+    expect(await order.loadQuickNotes()).toEqual([])
   })
 })

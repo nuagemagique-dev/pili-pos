@@ -36,6 +36,7 @@ mod invoice;
 mod lifecycle;
 mod menu_admin;
 mod orders;
+mod quick_notes;
 mod reports;
 mod scale;
 mod support;

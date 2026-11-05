@@ -89,11 +89,17 @@ class CoursesCartTest {
     fun aPrintedLineIsLockedAndAHeldLineSaysItWaits() {
         show(on)
 
+        // The row says the course and that the line waits; the picker button opens under the selected line.
+        compose.onNodeWithTag("cart_line_3_course_tag").assertTextContains("En attente", substring = true, ignoreCase = true)
+        compose.onNodeWithTag("cart_line_2_course_tag").assertTextContains("Entrées", substring = true)
+        compose.onNodeWithTag("cart_line_1_row").performClick()
         compose.onNodeWithTag("cart_line_1_course").assertIsNotEnabled()
+        compose.onNodeWithTag("cart_line_2_row").performClick()
         compose.onNodeWithTag("cart_line_2_course").assertIsNotEnabled()
+        compose.onNodeWithTag("cart_line_2_course").assertTextContains("Entrées", substring = true)
+        compose.onNodeWithTag("cart_line_3_row").performClick()
         compose.onNodeWithTag("cart_line_3_course").assertIsEnabled()
         compose.onNodeWithTag("cart_line_3_course").assertTextContains("En attente", substring = true, ignoreCase = true)
-        compose.onNodeWithTag("cart_line_2_course").assertTextContains("Entrées", substring = true)
     }
 
     @Test

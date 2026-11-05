@@ -1,13 +1,16 @@
 package dev.nuagemagique.pilipos.feature.order
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.format.LineAmount
@@ -55,11 +58,12 @@ class NoteDialogTest {
     private fun show(
         initial: String = "",
         sent: Boolean = false,
+        chips: List<String> = emptyList(),
     ) {
         compose.setContent {
             PiliTheme {
                 ProvideUiText(AppLanguage.FR, catalog) {
-                    Box { NoteDialog(initial, sent, onConfirm = { saved += it }, onCancel = { cancelled++ }) }
+                    Box { NoteDialog(initial, sent, chips, onConfirm = { saved += it }, onCancel = { cancelled++ }) }
                 }
             }
         }
@@ -124,6 +128,63 @@ class NoteDialogTest {
     }
 
     @Test
+    fun aDialogWithoutQuickNotesShowsNoChip() {
+        show()
+
+        compose.onNodeWithTag("note_chip_0").assertDoesNotExist()
+    }
+
+    @Test
+    fun aTapOnAChipPutsItInTheFieldAndTheNextOneFollowsAfterAComma() {
+        show(chips = listOf("Sans wasabi", "Bien cuit"))
+
+        compose.onNodeWithTag("note_chip_0").performClick()
+        compose.onNodeWithTag("note_counter").assertTextEquals("11/60")
+        compose.onNodeWithTag("note_chip_1").performClick()
+        compose.onNodeWithTag("note_counter").assertTextEquals("22/60")
+        compose.onNodeWithTag("note_confirm").performClick()
+
+        assertEquals(listOf("Sans wasabi, Bien cuit"), saved)
+    }
+
+    @Test
+    fun aChipFollowsTheTypedText() {
+        show(chips = listOf("Épicé"))
+
+        compose.onNodeWithTag("note_text").performTextInput("ab")
+        compose.onNodeWithTag("note_chip_0").performClick()
+        compose.onNodeWithTag("note_confirm").performClick()
+
+        assertEquals(listOf("ab, Épicé"), saved)
+    }
+
+    @Test
+    fun aChipAlreadyInTheNoteIsFadedAndDoesNothing() {
+        show(initial = "bien cuit", chips = listOf("Bien cuit"))
+
+        compose.onNodeWithTag("note_chip_0").assertIsNotEnabled()
+        compose.onNodeWithTag("note_chip_0").performClick()
+        compose.onNodeWithTag("note_counter").assertTextEquals("9/60")
+    }
+
+    @Test
+    fun aChipThatWouldPassSixtyCharactersIsDisabled() {
+        show(chips = listOf("x".repeat(40), "y".repeat(30), "z".repeat(19)))
+
+        compose.onNodeWithTag("note_chip_0").performClick()
+        compose.onNodeWithTag("note_chip_1").assertIsNotEnabled()
+        compose.onNodeWithTag("note_chip_2").assertIsNotEnabled()
+        compose.onNodeWithTag("note_counter").assertTextEquals("40/60")
+    }
+
+    @Test
+    fun theChipsAreTouchTargetsOfAtLeast48Dp() {
+        show(chips = listOf("Sans wasabi"))
+
+        compose.onNodeWithTag("note_chip_0").assertHeightIsAtLeast(48.dp)
+    }
+
+    @Test
     fun backCancelsWithoutSavingAnything() {
         show()
 
@@ -170,6 +231,18 @@ class KitchenNoteCartTest {
 
         compose.onNodeWithTag("cart_line_2_kitchen_note").assertTextEquals("sans wasabi")
         compose.onNodeWithTag("cart_line_1_kitchen_note").assertDoesNotExist()
+    }
+
+    @Test
+    fun theNoteButtonOpensUnderTheSelectedLineOnly() {
+        show(OrderCartState(order = order(table = 4, totalCents = 1_300), rows = listOf(plain, noted)))
+
+        // The newest line is selected by default: its Note button is there, the other line's is not.
+        compose.onNodeWithTag("cart_line_2_note").assertTextEquals("Note")
+        compose.onNodeWithTag("cart_line_1_note").assertDoesNotExist()
+        compose.onNodeWithTag("cart_line_1_row").performClick()
+        compose.onNodeWithTag("cart_line_1_note").assertTextEquals("Note")
+        compose.onNodeWithTag("cart_line_2_note").assertDoesNotExist()
     }
 
     @Test

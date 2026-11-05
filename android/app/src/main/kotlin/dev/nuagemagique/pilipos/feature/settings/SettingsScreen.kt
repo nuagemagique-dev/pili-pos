@@ -44,6 +44,10 @@ import dev.nuagemagique.pilipos.feature.settings.courses.CoursesCallbacks
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesSection
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesUiState
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesViewModel
+import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesCallbacks
+import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesSection
+import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesUiState
+import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesViewModel
 import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherCallbacks
 import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherSection
 import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherUiState
@@ -148,12 +152,14 @@ internal fun SettingsRoute(
     val alertsModel = viewModel { OwnerAlertsViewModel(entry) }
     val coursesModel = viewModel { CoursesViewModel(entry) }
     val vouchersModel = viewModel { GiftVoucherViewModel(entry) }
+    val quickNotesModel = viewModel { QuickNotesViewModel(entry) }
     val loaded by model.state.collectAsState()
     val hubrise by hubriseModel.state.collectAsState()
     val peppol by peppolModel.state.collectAsState()
     val alerts by alertsModel.state.collectAsState()
     val courses by coursesModel.state.collectAsState()
     val vouchers by vouchersModel.state.collectAsState()
+    val quickNotes by quickNotesModel.state.collectAsState()
     val pending by entry.webshop().pendingCount.collectAsState()
     LaunchedEffect(hubriseModel) {
         hubriseModel.effects.collect {
@@ -171,6 +177,7 @@ internal fun SettingsRoute(
     val alertsCallbacks = alertsCallbacksOf(alertsModel)
     val coursesCallbacks = CoursesCallbacks(coursesModel::toggleEnabled, coursesModel::setCourse, coursesModel::save)
     val vouchersCallbacks = vouchersCallbacksOf(vouchersModel)
+    val quickNotesCallbacks = quickNotesCallbacksOf(quickNotesModel)
     val connectActions = HubriseConnectActions(onSubmit = hubriseModel::submitCode, onCancel = hubriseModel::cancelConnect)
     val qr = remember(entry) { entry.qrMatrices() }
     LaunchedEffect(model) { entry.delivery().refreshMailStatus() }
@@ -208,7 +215,7 @@ internal fun SettingsRoute(
             hubriseSection = { HubriseSection(hubrise, pending, hubriseCallbacks) },
             peppolSection = { PeppolSection(peppol, PeppolCallbacks(onRetry = peppolModel::retry)) },
             alertsSection = { OwnerAlertsSection(alerts, alertsCallbacks) },
-            coursesSection = { ManagerPanels(courses, coursesCallbacks, vouchers, vouchersCallbacks) },
+            coursesSection = { ManagerPanels(courses, coursesCallbacks, vouchers, vouchersCallbacks, quickNotes, quickNotesCallbacks) },
         )
     }
 }
@@ -216,17 +223,31 @@ internal fun SettingsRoute(
 private fun vouchersCallbacksOf(model: GiftVoucherViewModel) =
     GiftVoucherCallbacks(model::toggleEnabled, model::setValidity, model::setMax, model::save)
 
-/** The manager panels of the second column: the courses and the gift vouchers. */
+private fun quickNotesCallbacksOf(model: QuickNotesViewModel) =
+    QuickNotesCallbacks(
+        onUp = model::up,
+        onDown = model::down,
+        onRemove = model::remove,
+        onAdd = model::startAdd,
+        onAddConfirm = model::add,
+        onAddCancel = model::cancelAdd,
+        onSave = model::save,
+    )
+
+/** The manager panels of the second column: the courses, the gift vouchers and the quick notes. */
 @Composable
 internal fun ManagerPanels(
     courses: CoursesUiState,
     coursesCallbacks: CoursesCallbacks,
     vouchers: GiftVoucherUiState,
     vouchersCallbacks: GiftVoucherCallbacks,
+    quickNotes: QuickNotesUiState = QuickNotesUiState(),
+    quickNotesCallbacks: QuickNotesCallbacks = QuickNotesCallbacks(),
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
         CoursesSection(courses, coursesCallbacks)
         GiftVoucherSection(vouchers, vouchersCallbacks)
+        QuickNotesSection(quickNotes, quickNotesCallbacks)
     }
 }
 

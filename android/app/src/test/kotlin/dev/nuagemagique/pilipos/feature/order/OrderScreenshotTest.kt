@@ -479,8 +479,58 @@ class OrderScreenshotTest {
 
     @Test
     fun noteDialog() {
-        val dialog = OrderDialog.Note(1L, "sans wasabi", true)
+        val chips =
+            listOf(
+                "Sans wasabi",
+                "Sans sésame",
+                "Sans sauce",
+                "Sauce à part",
+                "Bien cuit",
+                "Épicé",
+                "Pas épicé",
+                "Sans oignon",
+                "À emporter",
+            )
+        val dialog = OrderDialog.Note(1L, "sans wasabi", true, chips)
         capture(OrderUiState(signedIn = true, menu = menu, cart = notedCart, dialog = dialog), "order_note_dialog")
+    }
+
+    // The dense cart (C2): twelve one-row lines, the newest one open under its row with its actions.
+    @Test
+    fun denseCart() {
+        val dishes =
+            listOf(
+                "Nigiri saumon",
+                "Nigiri thon",
+                "Maki concombre",
+                "California saumon",
+                "Edamame",
+                "Gyoza",
+                "Miso",
+                "Tempura crevettes",
+                "Yakitori",
+                "Mochi",
+                "Thé vert",
+                "Cola",
+            )
+        val rows =
+            dishes.mapIndexed { i, name ->
+                val id = i + 1L
+                CartRow(
+                    cartLine(
+                        id,
+                        10 + id,
+                        name,
+                        quantity = 1 + i % 3,
+                        code = "A${i + 1}",
+                        unsent = if (i >= 10) 1 else 0,
+                        kitchenNote = if (i == 2) "sans sésame, bien cuit, sauce à part" else null,
+                    ),
+                    LineAmount.Total(480L * (1 + i % 3)),
+                    canNote = true,
+                )
+            }
+        capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(rows = rows, unsentCount = 2)), "order_cart_dense")
     }
 
     // The Tokyo Sushi Bar till at its tallest: 18 categories (two rows of tabs), the sold-out bar and the 18 letters

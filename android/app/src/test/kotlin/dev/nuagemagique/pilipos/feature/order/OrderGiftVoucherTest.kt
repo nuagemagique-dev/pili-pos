@@ -191,7 +191,10 @@ class OrderGiftVoucherTest {
         val state = OrderCartState(rows = listOf(row), coursesEnabled = true)
         compose.setContent {
             PiliTheme {
-                ProvideUiText(AppLanguage.FR, catalog) { Column { OrderLineItem(row, state, OrderCartActions(), pending = false) } }
+                ProvideUiText(
+                    AppLanguage.FR,
+                    catalog,
+                ) { Column { OrderLineItem(row, state, OrderCartActions(), pending = false, selected = true) } }
             }
         }
         compose.waitForIdle()

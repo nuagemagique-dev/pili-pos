@@ -159,6 +159,17 @@
     <string name="menu_ed_field_min_select">minimum</string>
     <string name="menu_ed_field_max_select">maximum</string>
     <string name="menu_ed_field_group_id">group</string>
+    <string name="quick_notes_title">Quick notes</string>
+    <string name="quick_notes_note">These notes show under the kitchen note field: one tap adds one to the note. They are never sent to the FDM.</string>
+    <string name="quick_notes_empty">No quick note.</string>
+    <string name="quick_notes_add">Add a note</string>
+    <string name="quick_notes_add_title">New quick note</string>
+    <string name="quick_notes_full">{max} notes at most.</string>
+    <string name="quick_notes_up">Move up</string>
+    <string name="quick_notes_down">Move down</string>
+    <string name="quick_notes_remove">Remove</string>
+    <string name="quick_notes_save">Save</string>
+    <string name="quick_notes_saved">Quick notes saved.</string>
     <string name="courses_title">Courses</string>
     <string name="courses_state_on">On</string>
     <string name="courses_state_off">Off</string>

@@ -221,7 +221,7 @@ pub const KITCHEN_NOTE_MAX: usize = 60;
 
 /// The note as stored: trimmed, `None` when empty; refused when longer
 /// than [`KITCHEN_NOTE_MAX`] or not printable on the slip printer.
-fn clean_note(note: Option<String>) -> Result<Option<String>, String> {
+pub(crate) fn clean_note(note: Option<String>) -> Result<Option<String>, String> {
     let Some(note) = note.map(|n| n.trim().to_string()).filter(|n| !n.is_empty()) else {
         return Ok(None);
     };

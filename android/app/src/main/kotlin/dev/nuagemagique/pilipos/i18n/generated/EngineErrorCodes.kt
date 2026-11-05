@@ -27,6 +27,7 @@ object EngineErrorCodes {
             "line_has_price_changes",
             "note_too_long",
             "note_unprintable",
+            "quick_notes_too_many",
             "config_tables",
             "table_transfer_same_table",
             "table_transfer_target_busy",

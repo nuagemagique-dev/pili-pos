@@ -303,6 +303,20 @@ class OrderStore
             }
 
         /**
+         * The quick notes of this installation, the chips of the note dialog (`loadQuickNotes` of `order.ts`). A till
+         * that does not answer shows none: typing a note still works.
+         */
+        @Suppress("TooGenericExceptionCaught", "SwallowedException")
+        suspend fun quickNotes(): List<String> =
+            try {
+                gateway.call { engine -> engine.getQuickNotes() }.notes
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emptyList()
+            }
+
+        /**
          * Changes the course of a line (refused once a slip carried it). @return false when the engine refused
          * (the refusal is on [failures])
          */

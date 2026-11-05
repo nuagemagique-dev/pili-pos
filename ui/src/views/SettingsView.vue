@@ -21,6 +21,7 @@ import MenuEditorPanel from '../components/MenuEditorPanel.vue'
 import OwnerAlertsSettings from '../components/OwnerAlertsSettings.vue'
 import CoursesSettings from '../components/CoursesSettings.vue'
 import GiftVoucherSettings from '../components/GiftVoucherSettings.vue'
+import QuickNotesSettings from '../components/QuickNotesSettings.vue'
 import { hasMessage, useI18n } from '../i18n'
 import { describeError } from '../utils/errorMessages'
 import { useSupportStore } from '../stores/support'
@@ -630,6 +631,7 @@ onMounted(() => {
         <div v-if="auth.isManager" class="manager-panels">
           <CoursesSettings class="panel" />
           <GiftVoucherSettings class="panel" />
+          <QuickNotesSettings class="panel" />
         </div>
       </div>
 

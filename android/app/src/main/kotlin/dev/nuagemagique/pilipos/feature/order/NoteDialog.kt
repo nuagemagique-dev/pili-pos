@@ -1,9 +1,13 @@
 package dev.nuagemagique.pilipos.feature.order
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,10 +26,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,12 +61,17 @@ internal fun noteText(typed: String): String = typed.filterNot { it.isISOControl
  * kitchen ([sent]), else with the order. An empty text clears the note. The dialog only collects the text and calls
  * [onConfirm]; the engine validates and prints.
  *
- * Test tags: `note_dialog`, `note_text`, `note_counter`, `note_hint`, `note_confirm`, `note_cancel`.
+ * Under the field the quick notes of the installation are chips (C11, `keypad-chip` of `TextKeypad.vue`): a tap appends
+ * the chip to the note, comma separated; a chip already in the note, or one that would pass 60 characters, is faded and
+ * does nothing.
+ *
+ * Test tags: `note_dialog`, `note_text`, `note_counter`, `note_hint`, `note_chip_<index>`, `note_confirm`, `note_cancel`.
  */
 @Composable
 internal fun NoteDialog(
     initial: String,
     sent: Boolean,
+    chips: List<String>,
     onConfirm: (String) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
@@ -90,6 +101,7 @@ internal fun NoteDialog(
             },
         ) {
             NoteField(text, { text = noteText(it) }, { onConfirm(text.trim()) }, focus)
+            NoteChips(chips, text) { text = it }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     text = vueText(if (sent) "note_hint_now" else "note_hint_with_order"),
@@ -107,6 +119,47 @@ internal fun NoteDialog(
         }
     }
 }
+
+/** The quick notes as chips under the field: a tap puts [appendQuickNote] of the note in the field. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun NoteChips(
+    chips: List<String>,
+    note: String,
+    onNote: (String) -> Unit,
+) {
+    if (chips.isEmpty()) return
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
+        verticalArrangement = Arrangement.spacedBy(d.spaceSm),
+    ) {
+        chips.forEachIndexed { index, chip ->
+            val next = appendQuickNote(note, chip)
+            Box(
+                modifier =
+                    Modifier
+                        .defaultMinSize(minHeight = ChipHeight)
+                        .alpha(if (next == null) CHIP_DISABLED_ALPHA else 1f)
+                        .background(c.bgSecondary, RoundedCornerShape(ChipHeight / 2))
+                        .border(BorderStroke(ChipBorder, c.textSecondary), RoundedCornerShape(ChipHeight / 2))
+                        .clickable(enabled = next != null, role = Role.Button) { next?.let(onNote) }
+                        .padding(horizontal = d.spaceMd)
+                        .testTag("note_chip_$index"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(chip, style = t.body.copy(fontSize = t.sizeSm, fontWeight = t.weightBold), color = c.textPrimary)
+            }
+        }
+    }
+}
+
+private val ChipHeight = 48.dp
+private val ChipBorder = 2.dp
+private const val CHIP_DISABLED_ALPHA = 0.3f
 
 /** The one-line text field of the note, on the system keyboard; "Done" confirms. */
 @Composable

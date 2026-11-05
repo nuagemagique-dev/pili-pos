@@ -11,6 +11,8 @@ import dev.nuagemagique.pilipos.feature.settings.alerts.ownerAlerts
 import dev.nuagemagique.pilipos.feature.settings.alerts.toDraft
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesCallbacks
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesUiState
+import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesCallbacks
+import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesUiState
 import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherCallbacks
 import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherUiState
 import dev.nuagemagique.pilipos.i18n.AppLanguage
@@ -28,7 +30,7 @@ import uniffi.pos_ffi.CourseSettings
 import uniffi.pos_ffi.GiftVoucherSettings
 
 /**
- * The alerts, courses and gift voucher panels of the settings screen are drawn for a manager only, in the wide
+ * The alerts, courses, gift voucher and quick notes panels of the settings screen are drawn for a manager only, in the wide
  * and in the narrow layout (`SettingsView.vue`: `v-if="auth.isManager"`).
  */
 @RunWith(RobolectricTestRunner::class)
@@ -50,6 +52,9 @@ abstract class ManagerPanelsRules {
         GiftVoucherSettings(enabled = false, validityMonths = 12, maxAmountCents = 50_000L).let {
             GiftVoucherUiState(manager = true, stored = it, enabled = it.enabled, validity = "${it.validityMonths}")
         }
+
+    private val quickNotes =
+        QuickNotesUiState(manager = true, stored = listOf("Sans wasabi"), notes = listOf("Sans wasabi"))
 
     private val noop =
         SettingsCallbacks(
@@ -78,7 +83,14 @@ abstract class ManagerPanelsRules {
                         noop,
                         alertsSection = { OwnerAlertsSection(alerts, OwnerAlertsCallbacks()) },
                         coursesSection = {
-                            ManagerPanels(courses, CoursesCallbacks({}, { _, _ -> }, {}), vouchers, GiftVoucherCallbacks({}, {}, {}, {}))
+                            ManagerPanels(
+                                courses,
+                                CoursesCallbacks({}, { _, _ -> }, {}),
+                                vouchers,
+                                GiftVoucherCallbacks({}, {}, {}, {}),
+                                quickNotes,
+                                QuickNotesCallbacks(),
+                            )
                         },
                     )
                 }
@@ -87,10 +99,10 @@ abstract class ManagerPanelsRules {
         compose.waitForIdle()
     }
 
-    private val panels = listOf("alerts_section", "courses_section", "gv_settings")
+    private val panels = listOf("alerts_section", "courses_section", "gv_settings", "quick_notes_section")
 
     @Test
-    fun aNonManagerGetsNoneOfTheThreePanels() {
+    fun aNonManagerGetsNoneOfThePanels() {
         show(workerState())
 
         panels.forEach { compose.onNodeWithTag(it).assertDoesNotExist() }
@@ -98,7 +110,7 @@ abstract class ManagerPanelsRules {
     }
 
     @Test
-    fun aManagerGetsAllThree() {
+    fun aManagerGetsAllOfThem() {
         show(managerState())
 
         panels.forEach { compose.onNodeWithTag(it).performScrollTo().assertIsDisplayed() }
@@ -120,6 +132,7 @@ class SettingsManagerPanelsWideTest : ManagerPanelsRules() {
         // The employees come first, the courses and vouchers under them in the same column.
         assertTrue(top("settings_workers") < top("courses_section"))
         assertTrue(top("courses_section") < top("gv_settings"))
+        assertTrue(top("gv_settings") < top("quick_notes_section"))
     }
 }
 

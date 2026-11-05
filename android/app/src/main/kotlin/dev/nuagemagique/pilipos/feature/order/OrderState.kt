@@ -59,11 +59,15 @@ internal sealed interface OrderDialog {
         val baseCents: Long,
     ) : OrderDialog
 
-    /** "Note": the kitchen note of line [lineId]; [sent] when the line already went to the kitchen (it prints now). */
+    /**
+     * "Note": the kitchen note of line [lineId]; [sent] when the line already went to the kitchen (it prints now).
+     * [chips] are the quick notes of this installation (C11), a tap appends one to the note.
+     */
     data class Note(
         val lineId: Long,
         val initial: String,
         val sent: Boolean,
+        val chips: List<String> = emptyList(),
     ) : OrderDialog
 
     /** The manager PIN that confirms a discount or its removal; [userName] is shown as the hint. */

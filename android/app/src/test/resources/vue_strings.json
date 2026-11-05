@@ -2742,6 +2742,12 @@
       "zh": "数量至少为1。",
       "area": "errors"
     },
+    "err_quick_notes_too_many": {
+      "fr": "Trop de notes rapides : {max} au plus.",
+      "en": "Too many quick notes: {max} at most.",
+      "zh": "快捷备注太多：最多{max}条。",
+      "area": "errors"
+    },
     "err_refund_bowl_whole": {
       "fr": "Un bol se rembourse avec ses suppléments : cochez aussi son bouillon.",
       "en": "A bowl is refunded with its extras: tick its broth too.",
@@ -4008,10 +4014,34 @@
       "zh": "产品和分类名称",
       "area": "core"
     },
+    "line_delete": {
+      "fr": "Supprimer",
+      "en": "Delete",
+      "zh": "删除",
+      "area": "core"
+    },
     "line_remove": {
       "fr": "Retirer la ligne",
       "en": "Remove the line",
       "zh": "删除此行",
+      "area": "core"
+    },
+    "line_select": {
+      "fr": "Afficher les actions de la ligne",
+      "en": "Show the line actions",
+      "zh": "显示此行操作",
+      "area": "core"
+    },
+    "line_state_pending": {
+      "fr": "Pas encore envoyée",
+      "en": "Not sent yet",
+      "zh": "尚未送出",
+      "area": "core"
+    },
+    "line_state_sent": {
+      "fr": "Envoyée en cuisine",
+      "en": "Sent to the kitchen",
+      "zh": "已送厨房",
       "area": "core"
     },
     "lock": {
@@ -4997,6 +5027,72 @@
       "en": "One more",
       "zh": "加一",
       "area": "core"
+    },
+    "quick_notes_add": {
+      "fr": "Ajouter une note",
+      "en": "Add a note",
+      "zh": "添加备注",
+      "area": "settings"
+    },
+    "quick_notes_add_title": {
+      "fr": "Nouvelle note rapide",
+      "en": "New quick note",
+      "zh": "新建快捷备注",
+      "area": "settings"
+    },
+    "quick_notes_down": {
+      "fr": "Descendre",
+      "en": "Move down",
+      "zh": "下移",
+      "area": "settings"
+    },
+    "quick_notes_empty": {
+      "fr": "Aucune note rapide.",
+      "en": "No quick note.",
+      "zh": "没有快捷备注。",
+      "area": "settings"
+    },
+    "quick_notes_full": {
+      "fr": "{max} notes au plus.",
+      "en": "{max} notes at most.",
+      "zh": "最多{max}条。",
+      "area": "settings"
+    },
+    "quick_notes_note": {
+      "fr": "Ces notes s'affichent sous la saisie de la note de cuisine : un appui les ajoute à la note. Elles ne sont jamais envoyées au FDM.",
+      "en": "These notes show under the kitchen note field: one tap adds one to the note. They are never sent to the FDM.",
+      "zh": "这些备注显示在厨房备注输入框下方，点一下即加入备注。它们不会发送给 FDM。",
+      "area": "settings"
+    },
+    "quick_notes_remove": {
+      "fr": "Retirer",
+      "en": "Remove",
+      "zh": "移除",
+      "area": "settings"
+    },
+    "quick_notes_save": {
+      "fr": "Enregistrer",
+      "en": "Save",
+      "zh": "保存",
+      "area": "settings"
+    },
+    "quick_notes_saved": {
+      "fr": "Notes rapides enregistrées.",
+      "en": "Quick notes saved.",
+      "zh": "快捷备注已保存。",
+      "area": "settings"
+    },
+    "quick_notes_title": {
+      "fr": "Notes rapides",
+      "en": "Quick notes",
+      "zh": "快捷备注",
+      "area": "settings"
+    },
+    "quick_notes_up": {
+      "fr": "Monter",
+      "en": "Move up",
+      "zh": "上移",
+      "area": "settings"
     },
     "received": {
       "fr": "Reçu",
@@ -7070,6 +7166,7 @@
     "line_has_price_changes",
     "note_too_long",
     "note_unprintable",
+    "quick_notes_too_many",
     "config_tables",
     "table_transfer_same_table",
     "table_transfer_target_busy",

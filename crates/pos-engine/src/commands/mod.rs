@@ -35,6 +35,7 @@ pub mod peppol_queue;
 #[cfg(feature = "hubrise")]
 pub(crate) mod price_changes;
 pub mod print;
+pub mod quick_notes;
 pub mod refund;
 pub mod report;
 pub mod sales_report;

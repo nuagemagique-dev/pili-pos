@@ -241,6 +241,10 @@
     <string name="qty_less">One less</string>
     <string name="qty_more">One more</string>
     <string name="line_remove">Remove the line</string>
+    <string name="line_delete">Delete</string>
+    <string name="line_state_sent">Sent to the kitchen</string>
+    <string name="line_state_pending">Not sent yet</string>
+    <string name="line_select">Show the line actions</string>
     <string name="not_sent_to_kitchen">Not sent to the kitchen yet</string>
     <string name="send_to_kitchen">Send to kitchen</string>
     <string name="send_lines_one">1 line</string>

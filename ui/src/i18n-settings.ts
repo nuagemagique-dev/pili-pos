@@ -342,6 +342,30 @@ export const settingsMessages: Messages = {
   menu_ed_field_min_select: { fr: 'minimum', en: 'minimum', zh: '最少' },
   menu_ed_field_max_select: { fr: 'maximum', en: 'maximum', zh: '最多' },
   menu_ed_field_group_id: { fr: 'groupe', en: 'group', zh: '选项组' },
+  // Quick notes panel (UX audit C11): the chips of the kitchen note dialog
+  quick_notes_title: { fr: 'Notes rapides', en: 'Quick notes', zh: '快捷备注' },
+  quick_notes_note: {
+    fr: "Ces notes s'affichent sous la saisie de la note de cuisine : un appui les ajoute à la note. Elles ne sont jamais envoyées au FDM.",
+    en: 'These notes show under the kitchen note field: one tap adds one to the note. They are never sent to the FDM.',
+    zh: '这些备注显示在厨房备注输入框下方，点一下即加入备注。它们不会发送给 FDM。',
+  },
+  quick_notes_empty: { fr: 'Aucune note rapide.', en: 'No quick note.', zh: '没有快捷备注。' },
+  quick_notes_add: { fr: 'Ajouter une note', en: 'Add a note', zh: '添加备注' },
+  quick_notes_add_title: { fr: 'Nouvelle note rapide', en: 'New quick note', zh: '新建快捷备注' },
+  quick_notes_full: {
+    fr: '{max} notes au plus.',
+    en: '{max} notes at most.',
+    zh: '最多{max}条。',
+  },
+  quick_notes_up: { fr: 'Monter', en: 'Move up', zh: '上移' },
+  quick_notes_down: { fr: 'Descendre', en: 'Move down', zh: '下移' },
+  quick_notes_remove: { fr: 'Retirer', en: 'Remove', zh: '移除' },
+  quick_notes_save: { fr: 'Enregistrer', en: 'Save', zh: '保存' },
+  quick_notes_saved: {
+    fr: 'Notes rapides enregistrées.',
+    en: 'Quick notes saved.',
+    zh: '快捷备注已保存。',
+  },
   // Courses panel: "Service en plusieurs temps"
   courses_title: { fr: 'Service en plusieurs temps', en: 'Courses', zh: '分道出菜' },
   courses_state_on: { fr: 'Actif', en: 'On', zh: '已开启' },

@@ -37,6 +37,7 @@ import uniffi.pos_ffi.DiscountResult
 import uniffi.pos_ffi.DiscountTarget
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.QuickNotes
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.UserRole
 import uniffi.pos_ffi.VatCode
@@ -961,6 +962,39 @@ class MenuViewModelTest {
             r.model.askNote(1L)
 
             assertEquals(OrderDialog.Note(1L, "", true), r.state.dialog)
+        }
+
+    @Test
+    fun theNoteDialogCarriesTheQuickNotesOfTheInstallationReadWhenItOpens() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            coEvery { f.engine.getQuickNotes() } returns QuickNotes(listOf("Sans wasabi", "Bien cuit"))
+
+            r.model.askNote(1L)
+            runCurrent()
+
+            assertEquals(listOf("Sans wasabi", "Bien cuit"), (r.state.dialog as OrderDialog.Note).chips)
+            coVerify(exactly = 1) { f.engine.getQuickNotes() }
+        }
+
+    @Test
+    fun aTillThatDoesNotAnswerTheQuickNotesStillOpensThePlainDialog() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            coEvery { f.engine.getQuickNotes() } throws PosException.Coded("internal", emptyMap())
+
+            r.model.askNote(1L)
+            runCurrent()
+
+            assertEquals(emptyList<String>(), (r.state.dialog as OrderDialog.Note).chips)
         }
 
     @Test

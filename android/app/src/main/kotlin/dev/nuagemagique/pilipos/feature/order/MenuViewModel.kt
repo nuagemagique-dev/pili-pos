@@ -923,7 +923,11 @@ internal class MenuViewModel(
         if (!isRouteOrderCurrent() || line == null || order.current.value?.status != OrderStatus.OPEN) return
         // Sent: part of the line already went to the kitchen, so a changed note prints a note slip now.
         val sent = line.quantity - line.unsentQuantity > 0
-        data.update { it.copy(dialog = OrderDialog.Note(lineId, line.kitchenNote.orEmpty(), sent)) }
+        // C11: the chips are read each time the dialog opens, so a manager's change shows at once.
+        viewModelScope.launch {
+            val chips = order.quickNotes()
+            data.update { it.copy(dialog = OrderDialog.Note(lineId, line.kitchenNote.orEmpty(), sent, chips)) }
+        }
     }
 
     /** The note typed in the dialog (`saveNote`); an empty text clears it. A refusal is shown by [run]. */

@@ -14,22 +14,25 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_DEPARTMENT
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
+
+/** The selection of a cart line has not been chosen yet: the newest line is open. */
+private const val NO_CHOICE: Long = Long.MIN_VALUE
 
 private val PendingDot = 10.dp
 private val ActionHeight = 64.dp
@@ -53,19 +56,30 @@ internal fun CartLines(
     // Dine-in lines not yet sent go last under an amber label; a takeaway's lines all go out with the sale.
     val sent = if (dineIn) state.rows.filter { it.line.unsentQuantity <= 0 } else state.rows
     val pending = if (dineIn) state.rows.filter { it.line.unsentQuantity > 0 } else emptyList()
+    val selection = rememberCartSelection(state)
+    val item: @Composable (CartRow, Boolean) -> Unit = { row, isPending ->
+        OrderLineItem(
+            row,
+            state,
+            actions,
+            pending = isPending,
+            selected = selection.selectedId == row.line.id,
+            onSelect = { selection.toggle(row.line.id) },
+        )
+    }
     Column(
         modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = d.spaceMd),
     ) {
         if (state.coursesEnabled) {
             state.rows.groupBy { it.line.course }.toSortedMap().forEach { (course, rows) ->
                 CourseHeader(course)
-                rows.forEach { OrderLineItem(it, state, actions, pending = dineIn && it.line.unsentQuantity > 0) }
+                rows.forEach { item(it, dineIn && it.line.unsentQuantity > 0) }
             }
         } else {
-            sent.forEach { OrderLineItem(it, state, actions, pending = false) }
+            sent.forEach { item(it, false) }
             if (pending.isNotEmpty()) {
                 PendingLabel()
-                pending.forEach { OrderLineItem(it, state, actions, pending = true) }
+                pending.forEach { item(it, true) }
             }
         }
         if (state.rows.isEmpty()) {
@@ -74,6 +88,33 @@ internal fun CartLines(
             }
         }
     }
+}
+
+/** The selected line of the cart and what a tap on a line does to it. */
+private class CartSelection(
+    val selectedId: Long?,
+    val toggle: (Long) -> Unit,
+)
+
+/**
+ * C2: one line is selected, its actions show under it. By default it is the newest line of the cart; a tap on the
+ * selected line folds it, a tap on another one moves the selection, and an add selects the line it went to
+ * (`selectedLineId` of `CartSidebar.vue`). [NO_CHOICE] is "no choice yet": the newest line.
+ */
+@Composable
+private fun rememberCartSelection(state: OrderCartState): CartSelection {
+    var choice by rememberSaveable { mutableStateOf<Long?>(NO_CHOICE) }
+    val newest = state.rows.lastOrNull { it.line.bowlLineId == null }?.line?.id
+    val selectedId = if (choice == NO_CHOICE) newest else choice
+    val lastAdd = state.lastAdd
+    LaunchedEffect(lastAdd?.seq) { if (lastAdd != null) choice = lastAdd.lineId }
+    // Another order, or a line that left the cart (removed, paid): back to the newest line.
+    LaunchedEffect(state.order?.id) { choice = NO_CHOICE }
+    LaunchedEffect(state.rows) {
+        val picked = choice
+        if (picked != null && picked != NO_CHOICE && state.rows.none { it.line.id == picked }) choice = NO_CHOICE
+    }
+    return CartSelection(selectedId) { id -> choice = if (selectedId == id) null else id }
 }
 
 /** The amber label over the lines that were not sent to the bar or kitchen yet. */
@@ -130,48 +171,5 @@ internal fun NextCourseButton(
             vueText("send_next_course", "course" to vueText("course_$course")),
             style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
         )
-    }
-}
-
-private val Hairline = 1.dp
-
-/**
- * The left of a cart line: the voucher badge, the "+" of a bowl's option, the weight of a weighing, or the quantity
- * stepper.
- */
-@Composable
-internal fun LineLead(
-    row: CartRow,
-    actions: OrderCartActions,
-) {
-    val id = row.line.id
-    val weight = row.line.weightGrams
-    when {
-        row.line.departmentId == GIFT_VOUCHER_DEPARTMENT -> VoucherBadge(id)
-        row.line.bowlLineId != null -> BowlLink(id)
-        weight != null -> WeightBadge(id, weight)
-        else -> QuantityStepper(id, row.line.quantity, actions)
-    }
-}
-
-/** The delete control of a line, set apart by a rule (`cart_line_<id>_remove`). */
-@Composable
-internal fun RemoveControl(
-    id: Long,
-    actions: OrderCartActions,
-) {
-    val c = PiliTheme.colors
-    Box(
-        modifier =
-            Modifier
-                .padding(start = PiliTheme.dimens.spaceSm)
-                .drawBehind { drawRect(c.border, size = Size(Hairline.toPx(), size.height)) },
-    ) {
-        LineControl(
-            icon = Icons.Filled.Close,
-            description = vueText("line_remove"),
-            enabled = true,
-            modifier = Modifier.testTag("cart_line_${id}_remove"),
-        ) { actions.onRemove(id) }
     }
 }

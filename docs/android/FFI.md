@@ -188,6 +188,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | get_menu_items | menu::do_get_menu_items | blocking | posEngine.getMenuItems() |
 | get_order | order::do_get_order | blocking | posEngine.getOrder() |
 | get_owner_alerts | alerts::do_get_owner_alerts | blocking | posEngine.getOwnerAlerts() |
+| get_quick_notes | quick_notes::do_get_quick_notes | blocking | posEngine.getQuickNotes() |
 | get_scale_status | scale::do_get_scale_status | spawn | posEngine.getScaleStatus() |
 | get_settings | settings::do_get_settings | blocking | posEngine.getSettings() |
 | get_table_plan | table_plan::do_get_table_plan | blocking | posEngine.getTablePlan() |
@@ -277,6 +278,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | set_line_note | order::do_set_line_note | spawn | posEngine.setLineNote() |
 | set_owner_alerts | alerts::do_set_owner_alerts | blocking | posEngine.setOwnerAlerts() |
 | set_pin | auth::do_set_pin | blocking | posEngine.setPin() |
+| set_quick_notes | quick_notes::do_set_quick_notes | blocking | posEngine.setQuickNotes() |
 | set_sold_out | sold_out::do_set_sold_out | blocking | posEngine.setSoldOut() |
 | set_table_plan | table_plan::do_set_table_plan | blocking | posEngine.setTablePlan() |
 | set_training_mode | settings::do_set_training_mode | blocking | posEngine.setTrainingMode() |
@@ -297,7 +299,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | work_in | social::do_work_in | spawn | posEngine.workIn() |
 | work_out | social::do_work_out | spawn | posEngine.workOut() |
 
-Parity: 151/151.
+Parity: 153/153.
 <!-- parity:end -->
 
 ## 12. JVM tests, mocks and gates

@@ -466,7 +466,8 @@ test.describe('Offered line', () => {
     }
     // 2 x 12,00 + 1 x 5,00.
     await toOrder(page, [{ ...PLAIN, unit_price_cents: 1200 }, second], 2900)
-    await page.getByTestId('line-offer').nth(1).click()
+    // The newest line (the 5,00 one) is selected by default.
+    await page.getByTestId('line-offer').click()
     await expect(page.getByTestId('discount-preview')).toHaveText('Total 5,00 € → 0,00 €')
     await page.getByTestId('discount-dialog').getByTestId('discount-reason-other').click()
     await page.getByTestId('discount-dialog').getByTestId('discount-confirm').click()
@@ -555,11 +556,15 @@ test.describe('Gift voucher lines (lane 4 with the till discounts and kitchen no
   test('a voucher line has no Offrir and no Note, the dish keeps them', async ({ page }) => {
     await toOrder(page, [{ ...PLAIN, unsent_quantity: 2 }, VOUCHER], 4900)
     await expect(page.getByTestId('voucher-badge')).toHaveCount(1)
+    // The voucher is the newest line, so it is the selected one: no Offrir, no Note.
+    const voucherRow = page.locator('.order-line', { has: page.getByTestId('voucher-badge') })
+    await expect(voucherRow.locator('.line-detail')).toBeVisible()
+    await expect(page.getByTestId('line-offer')).toHaveCount(0)
+    await expect(page.getByTestId('line-note')).toHaveCount(0)
+    // The dish keeps both.
+    await page.getByTestId('line-row-1').click()
     await expect(page.getByTestId('line-offer')).toHaveCount(1)
     await expect(page.getByTestId('line-note')).toHaveCount(1)
-    const voucherRow = page.locator('.order-line', { has: page.getByTestId('voucher-badge') })
-    await expect(voucherRow.getByTestId('line-offer')).toHaveCount(0)
-    await expect(voucherRow.getByTestId('line-note')).toHaveCount(0)
   })
 
   test('the order discount stays available and the engine spreads it', async ({ page }) => {
