@@ -764,6 +764,18 @@ internal class MenuViewModel(
     }
 
     /**
+     * The "Plus" button of the cart header (`moreOpen`): opens the menu of the rare cart actions (change table,
+     * discount, customer left) this order and role have. Ignored when there is none.
+     */
+    fun openCartMore() {
+        val cart = state.value.cart
+        if (!isRouteOrderCurrent() || !cart.hasMoreActions) return
+        data.update {
+            it.copy(dialog = OrderDialog.CartMore(cart.canTransfer, cart.canDiscount, cart.orderDiscounted, cart.canCloseUnpaid))
+        }
+    }
+
+    /**
      * Opens the table picker of "change table" (`openTablePicker`): the free tables of the plan, the current one
      * left out. A refusal to list them is shown as an error toast.
      */
@@ -771,6 +783,8 @@ internal class MenuViewModel(
         val current = order.current.value
         val from = current?.tableNumber
         if (!isRouteOrderCurrent() || from == null || !state.value.cart.canTransfer) return
+        // Opened from the "Plus" menu: it closes now, so that a refusal to list the tables leaves nothing open.
+        data.update { if (it.dialog is OrderDialog.CartMore) it.copy(dialog = OrderDialog.None) else it }
         viewModelScope.launch {
             val language = settings.language.value
             attempt { gateway.call { engine -> engine.listTables() } }.fold(

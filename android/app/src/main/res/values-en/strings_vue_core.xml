@@ -225,6 +225,11 @@
     <string name="line_remove">Remove the line</string>
     <string name="not_sent_to_kitchen">Not sent to the kitchen yet</string>
     <string name="send_to_kitchen">Send to kitchen</string>
+    <string name="send_lines_one">1 line</string>
+    <string name="send_lines_other">{n} lines</string>
+    <string name="cart_more">More</string>
+    <string name="cart_more_title">More actions</string>
+    <string name="cart_more_close">Close</string>
     <string name="sent_to_kitchen">Sent to the kitchen · {n} items</string>
     <string name="transfer_table">Change table</string>
     <string name="transfer_pick_target">Pick the free table</string>

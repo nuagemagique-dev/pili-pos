@@ -225,6 +225,11 @@
     <string name="line_remove">删除此行</string>
     <string name="not_sent_to_kitchen">未送厨房</string>
     <string name="send_to_kitchen">送厨房</string>
+    <string name="send_lines_one">1 行</string>
+    <string name="send_lines_other">{n} 行</string>
+    <string name="cart_more">更多</string>
+    <string name="cart_more_title">更多操作</string>
+    <string name="cart_more_close">关闭</string>
     <string name="sent_to_kitchen">已送厨房 · {n} 件</string>
     <string name="transfer_table">换桌</string>
     <string name="transfer_pick_target">请选择空桌</string>

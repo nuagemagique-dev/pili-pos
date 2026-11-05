@@ -399,6 +399,11 @@ internal object VueStringIds {
         this["line_remove"] = R.string.line_remove
         this["not_sent_to_kitchen"] = R.string.not_sent_to_kitchen
         this["send_to_kitchen"] = R.string.send_to_kitchen
+        this["send_lines_one"] = R.string.send_lines_one
+        this["send_lines_other"] = R.string.send_lines_other
+        this["cart_more"] = R.string.cart_more
+        this["cart_more_title"] = R.string.cart_more_title
+        this["cart_more_close"] = R.string.cart_more_close
         this["sent_to_kitchen"] = R.string.sent_to_kitchen
         this["transfer_table"] = R.string.transfer_table
         this["transfer_pick_target"] = R.string.transfer_pick_target
@@ -514,14 +519,14 @@ internal object VueStringIds {
         this["checkout_held_warning"] = R.string.checkout_held_warning
         this["checkout_send_now"] = R.string.checkout_send_now
         this["err_course_already_sent"] = R.string.err_course_already_sent
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["err_course_invalid"] = R.string.err_course_invalid
         this["err_courses_disabled"] = R.string.err_courses_disabled
         this["err_no_course_held"] = R.string.err_no_course_held
         this["err_nothing_printed"] = R.string.err_nothing_printed
         this["err_gift_vouchers_disabled"] = R.string.err_gift_vouchers_disabled
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["err_gift_voucher_settings_invalid"] = R.string.err_gift_voucher_settings_invalid
         this["err_gift_voucher_amount_invalid"] = R.string.err_gift_voucher_amount_invalid
         this["err_gift_voucher_line_fixed"] = R.string.err_gift_voucher_line_fixed
@@ -767,14 +772,14 @@ internal object VueStringIds {
         this["sales_col_product"] = R.string.sales_col_product
         this["sales_col_qty"] = R.string.sales_col_qty
         this["sales_col_amount"] = R.string.sales_col_amount
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["sales_hour_tickets"] = R.string.sales_hour_tickets
         this["sales_z_equal"] = R.string.sales_z_equal
         this["sales_z_gap"] = R.string.sales_z_gap
         this["sales_z_missing"] = R.string.sales_z_missing
         this["sales_open"] = R.string.sales_open
-    }
-
-    private fun MutableMap<String, Int>.part3() {
         this["sales_total"] = R.string.sales_total
         this["sales_tickets"] = R.string.sales_tickets
         this["sales_price_changes"] = R.string.sales_price_changes
@@ -1020,14 +1025,14 @@ internal object VueStringIds {
         this["webshop_time_ready_at"] = R.string.webshop_time_ready_at
         this["webshop_time_ready"] = R.string.webshop_time_ready
         this["webshop_own_label"] = R.string.webshop_own_label
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["webshop_delay_label"] = R.string.webshop_delay_label
         this["webshop_action_reprint"] = R.string.webshop_action_reprint
         this["webshop_status_in_delivery"] = R.string.webshop_status_in_delivery
         this["webshop_status_completed"] = R.string.webshop_status_completed
         this["webshop_status_rejected"] = R.string.webshop_status_rejected
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["webshop_status_cancelled"] = R.string.webshop_status_cancelled
         this["webshop_service_delivery"] = R.string.webshop_service_delivery
         this["webshop_service_collection"] = R.string.webshop_service_collection

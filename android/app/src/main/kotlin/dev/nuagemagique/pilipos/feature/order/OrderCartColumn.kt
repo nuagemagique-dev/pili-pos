@@ -2,7 +2,6 @@ package dev.nuagemagique.pilipos.feature.order
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,9 +10,10 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,8 +29,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
@@ -46,7 +44,6 @@ import java.time.Instant
 
 private val PayHeight = 80.dp
 private val ActionHeight = 64.dp
-private val UnpaidHeight = 48.dp
 private val BadgeSize = 26.dp
 private val Hairline = 1.dp
 
@@ -54,16 +51,19 @@ private val Hairline = 1.dp
 private const val OPENED_TICK_MS = 30_000L
 
 /**
- * The cart column (`CartSidebar.vue`): the title and when the order was opened, the lines (a dine-in line not yet
- * sent goes last under an amber label), the engine total with the VAT included, "customer left without paying"
- * for a manager, send to kitchen with the unsent count, the provisional bill, and the pay button. The total is the
- * engine's `Order.totalCents` and a line's amount comes from `CartAmounts` (PD208); nothing is added here. The pay
+ * The cart column (`CartSidebar.vue`): the title, the "Plus" button (change table, discount, customer left, opened as
+ * [CartMoreDialog]) and when the order was opened, the lines (a dine-in line not yet sent goes last under an amber
+ * label), the engine total with the VAT included, and the footer actions. While a dine-in order has lines the
+ * kitchen has not received ([OrderCartState.kitchenPrimary]) "Send to kitchen" is the Volt primary with a pill
+ * ("2 lignes") and PAYER an outlined secondary showing the total; otherwise PAYER is the Volt primary. The total is
+ * the engine's `Order.totalCents` and a line's amount comes from `CartAmounts` (PD208); nothing is added here. The pay
  * and pre-bill buttons need the payment right; pay also needs at least one line; send to kitchen is disabled when
  * nothing is unsent or while it runs. Refusals are the screen's, shown by the view model through `ErrorPresenter`.
  *
- * Test tags: `cart_column`, `cart_title`, `cart_opened`, `cart_empty`, `cart_pending_label`, `cart_unpaid`,
- * `cart_transfer`, `cart_discount`, `cart_discount_remove`, `cart_total`, `vat_summary`, `cart_send`,
- * `cart_send_count`, `cart_prebill`, `cart_pay`, `cart_pay_amount`, and those of [OrderLineItem].
+ * Test tags: `cart_column`, `cart_title`, `cart_opened`, `cart_empty`, `cart_pending_label`, `cart_more`,
+ * `cart_total`, `vat_summary`, `cart_send`, `cart_send_count`, `cart_send_primary`, `cart_send_pill`,
+ * `cart_prebill`, `cart_pay`, `cart_pay_amount`, `cart_pay_secondary`, `cart_pay_secondary_amount`, and those of
+ * [OrderLineItem].
  */
 @Composable
 internal fun OrderCartColumn(
@@ -88,11 +88,15 @@ internal fun OrderCartColumn(
             modifier = Modifier.fillMaxWidth().drawTopLine(c.border).padding(d.spaceMd),
             verticalArrangement = Arrangement.spacedBy(d.spaceMd),
         ) {
-            TotalRow(state, actions)
-            if (dineIn) KitchenRow(state, actions)
+            TotalRow(state)
+            // C4: the secondary row is empty for a role that cannot pay while the kitchen button is the primary.
+            if (dineIn && !(state.kitchenPrimary && !state.canPay)) ActionRow(state, actions)
             val next = state.nextHeldCourse
             if (dineIn && next != null) NextCourseButton(next, state.sendingNext, actions)
-            if (state.canPay) PayButton(state, actions)
+            when {
+                state.kitchenPrimary -> KitchenPrimaryButton(state, actions)
+                state.canPay -> PayButton(state, actions)
+            }
         }
     }
 }
@@ -133,51 +137,13 @@ private fun OpenedAt(order: Order?) {
     )
 }
 
-/** The unpaid button on the left (a manager only), the engine total and the VAT included on the right. */
+/** The engine total and the VAT included, on the right. */
 @Composable
-private fun TotalRow(
-    state: OrderCartState,
-    actions: OrderCartActions,
-) {
+private fun TotalRow(state: OrderCartState) {
     val c = PiliTheme.colors
-    val d = PiliTheme.dimens
     val t = PiliTheme.typography
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-        if (state.canCloseUnpaid || state.canDiscount) {
-            Column(verticalArrangement = Arrangement.spacedBy(d.spaceSm)) {
-                if (state.canDiscount) {
-                    PiliButton(
-                        text = vueText(if (state.orderDiscounted) "discount_remove" else "discount_button"),
-                        onClick = if (state.orderDiscounted) actions.onRemoveOrderDiscount else actions.onDiscount,
-                        variant = PiliButtonVariant.Secondary,
-                        modifier =
-                            Modifier.defaultMinSize(
-                                minHeight = UnpaidHeight,
-                            ).testTag(if (state.orderDiscounted) "cart_discount_remove" else "cart_discount"),
-                    )
-                }
-                if (state.canCloseUnpaid) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .defaultMinSize(minHeight = UnpaidHeight)
-                                .border(Hairline, c.accentDanger, RoundedCornerShape(d.radiusMd))
-                                .clickable(role = Role.Button, onClick = actions.onCloseUnpaid)
-                                .padding(horizontal = d.spaceMd)
-                                .testTag("cart_unpaid"),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = vueText("unpaid_close"),
-                            style = t.body.copy(fontWeight = t.weightBold),
-                            color = c.accentDanger,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                }
-            }
-        }
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.Bottom) {
+        Column(horizontalAlignment = Alignment.End) {
             Text(
                 text = formatEuro(state.order?.totalCents ?: 0L),
                 style = t.figure.copy(fontSize = t.sizeXl, fontWeight = t.weightBold),
@@ -189,9 +155,12 @@ private fun TotalRow(
     }
 }
 
-/** Send to kitchen with the unsent count, and the provisional bill (dine-in only, `cart-actions`). */
+/**
+ * The secondary row of a dine-in cart (`cart-actions`): "Send to kitchen" with the unit count, or the outlined PAYER
+ * while lines wait for the kitchen (C4), and the provisional bill.
+ */
 @Composable
-private fun KitchenRow(
+private fun ActionRow(
     state: OrderCartState,
     actions: OrderCartActions,
 ) {
@@ -200,28 +169,32 @@ private fun KitchenRow(
     val t = PiliTheme.typography
     val canPreBill = state.rows.isNotEmpty() && !state.preBilling
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(d.spaceSm)) {
-        PiliButton(
-            onClick = actions.onSend,
-            variant = PiliButtonVariant.Secondary,
-            enabled = state.unsentCount > 0 && !state.sending,
-            modifier = Modifier.weight(1f).height(ActionHeight).testTag("cart_send"),
-        ) {
-            Text(vueText("send_to_kitchen"), style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightBold))
-            if (state.unsentCount > 0) {
-                Box(
-                    modifier =
-                        Modifier
-                            .defaultMinSize(minWidth = BadgeSize, minHeight = BadgeSize)
-                            .background(c.accentWarning, CircleShape)
-                            .padding(horizontal = d.spaceSm),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "${state.unsentCount}",
-                        style = t.figure.copy(fontSize = t.sizeSm),
-                        color = c.textOnAccent,
-                        modifier = Modifier.testTag("cart_send_count"),
-                    )
+        if (state.kitchenPrimary) {
+            PaySecondaryButton(state, actions, Modifier.weight(1f))
+        } else {
+            PiliButton(
+                onClick = actions.onSend,
+                variant = PiliButtonVariant.Secondary,
+                enabled = state.unsentCount > 0 && !state.sending,
+                modifier = Modifier.weight(1f).height(ActionHeight).testTag("cart_send"),
+            ) {
+                Text(vueText("send_to_kitchen"), style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightBold))
+                if (state.unsentCount > 0) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .defaultMinSize(minWidth = BadgeSize, minHeight = BadgeSize)
+                                .background(c.accentWarning, CircleShape)
+                                .padding(horizontal = d.spaceSm),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "${state.unsentCount}",
+                            style = t.figure.copy(fontSize = t.sizeSm),
+                            color = c.textOnAccent,
+                            modifier = Modifier.testTag("cart_send_count"),
+                        )
+                    }
                 }
             }
         }
@@ -289,13 +262,15 @@ private fun CartHeader(
             color = c.textPrimary,
             modifier = Modifier.weight(1f).testTag("cart_title"),
         )
-        if (state.canTransfer) {
+        if (state.hasMoreActions) {
             PiliButton(
-                text = vueText("transfer_table"),
-                onClick = actions.onTransfer,
+                onClick = actions.onMore,
                 variant = PiliButtonVariant.Secondary,
-                modifier = Modifier.padding(horizontal = d.spaceSm).testTag("cart_transfer"),
-            )
+                modifier = Modifier.padding(horizontal = d.spaceSm).testTag("cart_more"),
+            ) {
+                Icon(Icons.Filled.MoreHoriz, contentDescription = vueText("cart_more"), tint = c.textPrimary)
+                Text(vueText("cart_more"), style = PiliTheme.typography.body.copy(fontWeight = PiliTheme.typography.weightBold))
+            }
         }
         OpenedAt(state.order)
     }

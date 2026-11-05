@@ -15,6 +15,8 @@ import PinDialog from './PinDialog.vue'
 import TablePickerDialog from './TablePickerDialog.vue'
 import DiscountDialog from './DiscountDialog.vue'
 import NoteDialog from './NoteDialog.vue'
+import CartMoreMenu from './CartMoreMenu.vue'
+import { kitchenIsPrimary, sendableLineCount } from '../utils/cartPrimary'
 import type { CartLine, DiscountInput } from '../types'
 import * as ipc from '../api/ipc'
 import CoursePickerDialog from './CoursePickerDialog.vue'
@@ -130,6 +132,30 @@ async function sendToKitchen() {
     sending.value = false
   }
 }
+
+// UX audit C4: while lines wait for the kitchen, "Envoyer en cuisine" is
+// the Volt primary (with a pill counting them) and PAYER is a secondary
+// outlined button that still shows the total. Once everything is sent
+// PAYER is the primary again; a role that cannot pay always has the
+// kitchen button as its primary.
+const sendableLines = computed(() => sendableLineCount(order.lines, isDineIn.value))
+const kitchenPrimary = computed(() =>
+  kitchenIsPrimary({
+    dineIn: isDineIn.value,
+    canTakePayment: auth.canTakePayment,
+    sendableLines: sendableLines.value,
+  }),
+)
+// The secondary row (kitchen or PAYER, and "Addition") is empty for a role
+// that cannot pay while the kitchen button is the primary.
+const showActionRow = computed(
+  () => isDineIn.value && !(kitchenPrimary.value && !auth.canTakePayment),
+)
+const sendPill = computed(() =>
+  sendableLines.value === 1
+    ? t('send_lines_one')
+    : t('send_lines_other', { n: sendableLines.value }),
+)
 
 function goToCheckout() {
   if (order.lines.length > 0) {
@@ -273,6 +299,16 @@ const canCloseUnpaid = computed(
 )
 const confirmUnpaid = ref(false)
 
+// UX audit C3: transfer, order discount and "customer left" live in the
+// "Plus" menu of the header, with the same role rules as before.
+const hasMore = computed(() => canTransfer.value || canDiscount.value || canCloseUnpaid.value)
+const moreOpen = ref(false)
+
+function fromMore(action: () => void) {
+  moreOpen.value = false
+  action()
+}
+
 async function closeUnpaid(pin: string) {
   await order.closeUnpaid(pin)
 }
@@ -290,13 +326,21 @@ async function onUnpaidClosed() {
     <div class="cart-header">
       <h2>{{ cartTitle }}</h2>
       <button
-        v-if="canTransfer"
-        class="transfer-btn"
-        data-testid="transfer-table"
-        :disabled="transferring"
-        @click="openTablePicker"
+        v-if="hasMore"
+        class="more-btn"
+        data-testid="cart-more-open"
+        :aria-label="t('cart_more')"
+        aria-haspopup="dialog"
+        @click="moreOpen = true"
       >
-        {{ t('transfer_table') }}
+        <!-- Material "more_horiz" -->
+        <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+          />
+        </svg>
+        <span>{{ t('cart_more') }}</span>
       </button>
       <span class="cart-opened">{{ openedAt }}</span>
     </div>
@@ -369,35 +413,25 @@ async function onUnpaidClosed() {
 
     <div class="cart-footer">
       <div class="cart-total">
-        <div v-if="canCloseUnpaid || canDiscount" class="manager-actions">
-          <button
-            v-if="canDiscount && !order.orderDiscounted"
-            class="discount-btn"
-            data-testid="discount-open"
-            @click="discountStep = { kind: 'ask', lineId: null }"
-          >
-            {{ t('discount_button') }}
-          </button>
-          <button
-            v-if="canDiscount && order.orderDiscounted"
-            class="discount-btn"
-            data-testid="discount-remove"
-            @click="discountStep = { kind: 'pin-remove', lineId: null }"
-          >
-            {{ t('discount_remove') }}
-          </button>
-          <button v-if="canCloseUnpaid" class="unpaid-btn" @click="confirmUnpaid = true">
-            {{ t('unpaid_close') }}
-          </button>
-        </div>
         <div class="total-block">
           <span class="total-amount">{{ formatPrice(order.totalCents) }} €</span>
           <VatSummary :lines="order.lines" />
         </div>
       </div>
 
-      <div v-if="isDineIn" class="cart-actions">
+      <div v-if="showActionRow" class="cart-actions">
         <button
+          v-if="kitchenPrimary"
+          class="checkout-btn secondary"
+          data-testid="pay-secondary"
+          :disabled="order.lines.length === 0"
+          @click="goToCheckout"
+        >
+          <span>{{ t('pay') }}</span>
+          <span class="checkout-amount">{{ formatPrice(order.totalCents) }} €</span>
+        </button>
+        <button
+          v-else
           class="kitchen-btn"
           :disabled="order.unsentCount === 0 || sending"
           @click="sendToKitchen"
@@ -427,7 +461,19 @@ async function onUnpaidClosed() {
 
       <!-- UX guide §2.3: the main action, always bottom right. -->
       <button
-        v-if="auth.canTakePayment"
+        v-if="kitchenPrimary"
+        class="kitchen-btn primary"
+        data-testid="send-primary"
+        :disabled="order.unsentCount === 0 || sending"
+        @click="sendToKitchen"
+      >
+        <span>{{ t('send_to_kitchen') }}</span>
+        <span v-if="sendableLines > 0" class="kitchen-pill" data-testid="send-pill">{{
+          sendPill
+        }}</span>
+      </button>
+      <button
+        v-else-if="auth.canTakePayment"
         class="checkout-btn"
         :disabled="order.lines.length === 0"
         @click="goToCheckout"
@@ -436,6 +482,19 @@ async function onUnpaidClosed() {
         <span class="checkout-amount">{{ formatPrice(order.totalCents) }} €</span>
       </button>
     </div>
+
+    <CartMoreMenu
+      v-if="moreOpen"
+      :can-transfer="canTransfer"
+      :can-discount="canDiscount"
+      :order-discounted="order.orderDiscounted"
+      :can-close-unpaid="canCloseUnpaid"
+      @transfer="fromMore(openTablePicker)"
+      @discount="fromMore(() => (discountStep = { kind: 'ask', lineId: null }))"
+      @discount-remove="fromMore(() => (discountStep = { kind: 'pin-remove', lineId: null }))"
+      @unpaid="fromMore(() => (confirmUnpaid = true))"
+      @cancel="moreOpen = false"
+    />
 
     <TablePickerDialog
       v-if="picking && order.currentOrder?.table_number != null"
@@ -505,7 +564,7 @@ async function onUnpaidClosed() {
 
 .cart-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px 10px;
@@ -516,24 +575,24 @@ async function onUnpaidClosed() {
   font-weight: var(--font-weight-heavy);
   line-height: 1.2;
 }
-.transfer-btn {
+.more-btn {
   margin-left: auto;
   height: 48px;
-  padding: 0 16px;
+  min-width: 48px;
+  padding: 0 14px;
   border-radius: var(--radius-md);
   background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 15px;
   font-weight: var(--font-weight-bold);
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   transition: transform var(--tap-duration) ease;
 }
-.transfer-btn:active {
+.more-btn:active {
   transform: scale(var(--tap-scale));
-}
-.transfer-btn:disabled {
-  opacity: 0.35;
-  pointer-events: none;
 }
 .cart-opened {
   font-family: var(--font-mono);
@@ -617,42 +676,6 @@ async function onUnpaidClosed() {
   font-variant-numeric: tabular-nums;
 }
 
-.manager-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
-}
-.discount-btn {
-  height: 48px;
-  padding: 0 16px;
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font-size: 15px;
-  font-weight: var(--font-weight-bold);
-  white-space: nowrap;
-  transition: transform var(--tap-duration) ease;
-}
-.discount-btn:active {
-  transform: scale(var(--tap-scale));
-}
-
-/* Rare manager action: small, outlined, apart from the payment buttons. */
-.unpaid-btn {
-  height: 48px;
-  padding: 0 16px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--accent-danger);
-  color: var(--accent-danger);
-  font-size: 15px;
-  font-weight: var(--font-weight-bold);
-  transition: transform var(--tap-duration) ease;
-}
-.unpaid-btn:active {
-  transform: scale(var(--tap-scale));
-}
-
 .cart-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -695,6 +718,39 @@ async function onUnpaidClosed() {
   justify-content: center;
 }
 
+/* Volt primary while lines wait for the kitchen (UX audit C4). */
+.kitchen-btn.primary {
+  width: 100%;
+  height: 80px;
+  padding: 0 28px;
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  font-size: 24px;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: 0.04em;
+  justify-content: space-between;
+}
+.kitchen-btn.primary:active {
+  filter: brightness(0.9);
+}
+.kitchen-btn.primary:disabled {
+  opacity: 0.3;
+}
+.kitchen-pill {
+  min-width: 26px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-on-accent);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Releases the next held course: the kitchen's second action, above Pay. */
 .next-course-btn {
   height: 64px;
@@ -732,6 +788,20 @@ async function onUnpaidClosed() {
 .checkout-amount {
   font-family: var(--font-mono);
   font-weight: var(--font-weight-bold);
+}
+/* Secondary PAYER (lines wait for the kitchen): outlined, still shows the total. */
+.checkout-btn.secondary {
+  height: 64px;
+  padding: 0 20px;
+  background: transparent;
+  border: 2px solid var(--text-secondary);
+  color: var(--text-primary);
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+.checkout-btn.secondary:active {
+  filter: none;
+  background: var(--bg-pressed);
 }
 .checkout-btn:disabled {
   opacity: 0.3;

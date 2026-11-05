@@ -225,6 +225,11 @@
     <string name="line_remove">Retirer la ligne</string>
     <string name="not_sent_to_kitchen">Pas encore en cuisine</string>
     <string name="send_to_kitchen">Envoyer en cuisine</string>
+    <string name="send_lines_one">1 ligne</string>
+    <string name="send_lines_other">{n} lignes</string>
+    <string name="cart_more">Plus</string>
+    <string name="cart_more_title">Autres actions</string>
+    <string name="cart_more_close">Fermer</string>
     <string name="sent_to_kitchen">Envoyé en cuisine · {n} articles</string>
     <string name="transfer_table">Changer de table</string>
     <string name="transfer_pick_target">Choisissez la table libre</string>

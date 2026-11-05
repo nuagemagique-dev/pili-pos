@@ -1261,6 +1261,12 @@ const coreMessages: Messages = {
     zh: '未送厨房',
   },
   send_to_kitchen: { fr: 'Envoyer en cuisine', en: 'Send to kitchen', zh: '送厨房' },
+  send_lines_one: { fr: '1 ligne', en: '1 line', zh: '1 行' },
+  send_lines_other: { fr: '{n} lignes', en: '{n} lines', zh: '{n} 行' },
+  // "Plus" menu of the cart header: the rare cart-level actions.
+  cart_more: { fr: 'Plus', en: 'More', zh: '更多' },
+  cart_more_title: { fr: 'Autres actions', en: 'More actions', zh: '更多操作' },
+  cart_more_close: { fr: 'Fermer', en: 'Close', zh: '关闭' },
   sent_to_kitchen: {
     fr: 'Envoyé en cuisine · {n} articles',
     en: 'Sent to the kitchen · {n} items',
