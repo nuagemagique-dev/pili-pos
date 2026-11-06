@@ -19,6 +19,7 @@ import PinDialog from './PinDialog.vue'
 import FdmAlerts from './FdmAlerts.vue'
 import TrainingBanner from './TrainingBanner.vue'
 import IdleLockBanner from './IdleLockBanner.vue'
+import LateOnlineBanner from './LateOnlineBanner.vue'
 import TableMover from './TableMover.vue'
 import TakeawayCustomer from './TakeawayCustomer.vue'
 import UserMenu from './UserMenu.vue'
@@ -43,7 +44,11 @@ onMounted(() => {
 onUnmounted(() => clearInterval(clockTimer))
 
 const onOrderScreen = computed(() => route.name === 'order' || route.name === 'checkout')
-const orderType = computed(() => (onOrderScreen.value ? order.currentOrder?.order_type : undefined))
+// An unpaid online order at the checkout (UX audit O2) is neither a table nor a numbered takeaway.
+const collectingOnline = computed(() => onOrderScreen.value && order.onlineCollect !== null)
+const orderType = computed(() =>
+  onOrderScreen.value && !collectingOnline.value ? order.currentOrder?.order_type : undefined,
+)
 const tableNumber = computed(() =>
   orderType.value === 'dine_in' ? order.currentOrder?.table_number : null,
 )
@@ -178,6 +183,9 @@ function menuPin() {
     <span v-else-if="tableNumber" class="header-table" data-testid="header-table"
       >{{ t('table') }} {{ tableNumber }}</span
     >
+    <span v-else-if="collectingOnline" class="header-table" data-testid="header-online">{{
+      t('online_orders')
+    }}</span>
     <TakeawayCustomer v-else-if="takeawayActive" />
     <span class="header-clock">{{ clock }}</span>
 
@@ -222,6 +230,7 @@ function menuPin() {
   </header>
   <TrainingBanner />
   <IdleLockBanner />
+  <LateOnlineBanner />
   <FdmAlerts />
 
   <PinDialog

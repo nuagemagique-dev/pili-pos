@@ -326,3 +326,77 @@ describe('order store: moving a table in one tap (C8)', () => {
     expect(order.canTransfer).toBe(false)
   })
 })
+
+describe('order store: online collect and the parts kept (O2, P4)', () => {
+  const ONLINE = {
+    id: 9,
+    order_type: 'takeaway',
+    table_number: null,
+    status: 'open',
+    total_cents: 2850,
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined })
+    vi.useFakeTimers()
+    vi.stubGlobal('window', globalThis)
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+    ipcMock.getCourseSettings.mockResolvedValue({ enabled: false, category_courses: [] })
+    ipcMock.listCartLines.mockResolvedValue([cartLine(7, 1, [1, 0])])
+    ipcMock.setActiveOrder.mockResolvedValue(undefined)
+    ipcMock.getOrder.mockResolvedValue(ONLINE)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('shows an online order at the checkout without making it the engine active order', async () => {
+    const order = useOrderStore()
+    await order.beginOnlineCollect(9, 'card')
+
+    expect(order.currentOrder?.id).toBe(9)
+    expect(order.lines).toHaveLength(1)
+    expect(order.onlineCollect).toEqual({ method: 'card' })
+    expect(ipcMock.setActiveOrder).not.toHaveBeenCalled()
+  })
+
+  it('leaving it registers nothing with the engine and clears the order', async () => {
+    const order = useOrderStore()
+    await order.beginOnlineCollect(9, 'cash')
+    ipcMock.setActiveOrder.mockClear()
+
+    await order.leave('navigate')
+
+    expect(order.currentOrder).toBeNull()
+    expect(order.onlineCollect).toBeNull()
+    expect(ipcMock.setActiveOrder).toHaveBeenCalledWith(null)
+  })
+
+  it('keeps the manual parts of an order, for that order only', () => {
+    const order = useOrderStore()
+    const part = { method: 'card' as const, cents: 500, changeCents: 0 }
+    order.holdParts(1, [part])
+
+    expect(order.heldPartsFor(1)).toEqual([part])
+    expect(order.heldPartsFor(2)).toEqual([])
+  })
+
+  it('holding no part forgets the record', () => {
+    const order = useOrderStore()
+    order.holdParts(1, [{ method: 'cash', cents: 500, changeCents: 0 }])
+    order.holdParts(1, [])
+
+    expect(order.heldParts).toBeNull()
+  })
+
+  it('forgets the parts when the order is cleared or the till locks', () => {
+    const order = useOrderStore()
+    order.holdParts(1, [{ method: 'cash', cents: 500, changeCents: 0 }])
+    order.resetLocal()
+
+    expect(order.heldPartsFor(1)).toEqual([])
+  })
+})

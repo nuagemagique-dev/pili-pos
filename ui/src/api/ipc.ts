@@ -872,13 +872,15 @@ export function webshopRejectOrder(orderId: number): Promise<void> {
   return invoke('webshop_reject_order', { orderId })
 }
 
-/** Collect an unpaid order: the sale N closes its P. */
+/** Collect an unpaid order: the sale N closes its P. `delivery` is the ticket medium asked at
+ * the checkout (paper when none). */
 export function webshopHandoverOrder(
   orderId: number,
   payments: PaymentPart[],
+  delivery?: TicketDeliveryRequest,
 ): Promise<CheckoutResult> {
   return invoke('webshop_handover_order', {
-    req: { order_id: orderId, payments },
+    req: { order_id: orderId, payments, ...(delivery ? { delivery } : {}) },
   })
 }
 

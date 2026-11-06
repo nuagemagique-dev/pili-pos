@@ -15,6 +15,7 @@ import { useToastStore } from './toast'
 import { describeError } from '../utils/errorMessages'
 import { useI18n } from '../i18n'
 import { netTotalCents, hasOrderDiscount } from '../utils/cartAmounts'
+import type { HeldPart, HeldParts } from '../utils/heldParts'
 
 /** The order is signed either way; a slip that did not print must be
  * told to the bar / kitchen by hand. */
@@ -61,6 +62,12 @@ export const useOrderStore = defineStore('order', () => {
   const openOrders = ref<Order[]>([])
   // The number of the day and the customer of the current takeaway (UX audit T2); null for a table.
   const takeawayTag = ref<ipc.TakeawayTag | null>(null)
+  // An unpaid online order being collected through the checkout (UX audit O2): it is not the active
+  // order of the engine and leaving it registers nothing; the sale goes through the handover.
+  const onlineCollect = ref<{ method: 'cash' | 'card' } | null>(null)
+  // The payment parts taken by hand for the order, not signed yet (UX audit P4): they stay when the
+  // operator goes back to the order from the checkout.
+  const heldParts = ref<HeldParts | null>(null)
   // Client-side lookup: menu_item_id → category_id
   const itemCategoryMap = ref<Map<number, number>>(new Map())
 
@@ -138,6 +145,32 @@ export const useOrderStore = defineStore('order', () => {
       if (!current) throw new Error('No active order')
       takeawayTag.value = await ipc.setTakeawayCustomer(current.id, name, phone)
     })
+  }
+
+  /**
+   * Show an unpaid online order at the checkout (UX audit O2): its lines and total are read, but it
+   * does not become the engine's active order, so a lock or leaving the screen registers nothing.
+   * `method` is the one the checkout starts on.
+   */
+  async function beginOnlineCollect(orderId: number, method: 'cash' | 'card') {
+    const [order, orderLines] = await Promise.all([
+      ipc.getOrder(orderId),
+      ipc.listCartLines(orderId),
+    ])
+    resetLocal()
+    currentOrder.value = order
+    lines.value = orderLines
+    onlineCollect.value = { method }
+  }
+
+  /** The parts kept for order `orderId` (none for another order). */
+  function heldPartsFor(orderId: number): HeldPart[] {
+    return heldParts.value?.orderId === orderId ? heldParts.value.parts : []
+  }
+
+  /** Keep `parts` (taken by hand, unsigned) for order `orderId`; none forgets them. */
+  function holdParts(orderId: number, parts: HeldPart[]) {
+    heldParts.value = parts.length > 0 ? { orderId, parts: parts.map((p) => ({ ...p })) } : null
   }
 
   /**
@@ -413,6 +446,11 @@ export const useOrderStore = defineStore('order', () => {
   async function leave(reason: ipc.LeaveReason) {
     const current = currentOrder.value
     if (!current) return
+    if (onlineCollect.value) {
+      // An online order at the checkout was never the engine's active order: nothing to register.
+      clearOrder()
+      return
+    }
     warnIfSlipFailed(await ipc.leaveOrder(current.id, reason))
     // Only a dine-in order sent anything: the badge shows the unsent units.
     if (current.order_type === 'dine_in') markAllSent()
@@ -530,6 +568,8 @@ export const useOrderStore = defineStore('order', () => {
   function resetLocal() {
     currentOrder.value = null
     takeawayTag.value = null
+    onlineCollect.value = null
+    heldParts.value = null
     lines.value = []
     lastAdd.value = null
     heldCourses.value = []
@@ -559,6 +599,11 @@ export const useOrderStore = defineStore('order', () => {
     startOrder,
     loadOrder,
     takeawayTag,
+    onlineCollect,
+    beginOnlineCollect,
+    heldParts,
+    heldPartsFor,
+    holdParts,
     setTakeawayCustomer,
     lastAdd,
     loadQuickNotes,

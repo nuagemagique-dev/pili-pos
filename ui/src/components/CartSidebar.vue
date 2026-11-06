@@ -24,6 +24,11 @@ import { GIFT_VOUCHER_DEPARTMENT } from '../stores/giftVouchers'
 
 const router = useRouter()
 const order = useOrderStore()
+// Payment parts already taken by hand for this order and kept when the operator came back from the
+// checkout (UX audit P4).
+const keptParts = computed(() =>
+  order.currentOrder ? order.heldPartsFor(order.currentOrder.id).length : 0,
+)
 const auth = useAuthStore()
 const toast = useToastStore()
 const { t } = useI18n()
@@ -451,6 +456,10 @@ async function onUnpaidClosed() {
         </div>
       </div>
 
+      <p v-if="keptParts > 0" class="held-parts" data-testid="held-parts">
+        {{ t('parts_kept', { n: keptParts }) }}
+      </p>
+
       <div v-if="showActionRow" class="cart-actions">
         <button
           v-if="kitchenPrimary"
@@ -681,6 +690,13 @@ async function onUnpaidClosed() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.held-parts {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-warning);
 }
 
 .cart-total {

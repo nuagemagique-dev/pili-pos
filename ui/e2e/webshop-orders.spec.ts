@@ -461,7 +461,9 @@ test.describe('Webshop Orders View - signing', () => {
     await expect(card.getByTestId('reject-button')).toBeEnabled()
   })
 
-  test('an unpaid order ready for collection is cashed in at the till', async ({ page }) => {
+  test('an unpaid order ready for collection is cashed in at the checkout, not silently', async ({
+    page,
+  }) => {
     await board(page, [
       variant(
         4,
@@ -477,12 +479,9 @@ test.describe('Webshop Orders View - signing', () => {
     const card = page.locator('.column-ready .card')
     await expect(card.locator('.btn-primary')).toContainText('Encaisser espèces')
     await card.getByRole('button', { name: 'Encaisser carte' }).click()
-    const calls = await ipcCalls(page, 'webshop_handover_order')
-    expect(calls[0].req).toEqual({
-      order_id: 4,
-      payments: [{ method: 'card', amount_cents: 2850 }],
-    })
-    await expect(page.locator('.column-ready .card')).toHaveCount(0)
+    // The checkout opens for the order (UX audit O2); the sale is made there (online-pay.spec.ts).
+    await expect(page).toHaveURL(/checkout/u)
+    expect(await ipcCalls(page, 'webshop_handover_order')).toHaveLength(0)
   })
 
   test('a prepaid order ready for collection is completed without a sale', async ({ page }) => {

@@ -59,7 +59,7 @@ const coreMessages: Messages = {
   meal_voucher: { fr: 'CHÈQUES-REPAS', en: 'MEAL VOUCHERS', zh: '餐券' },
   takeaways_open: { fr: 'À emporter en cours', en: 'Takeaways in progress', zh: '进行中的外带' },
   rest_to_pay: { fr: 'Reste à payer', en: 'Left to pay', zh: '剩余应付' },
-  clear_payments: { fr: 'Annuler les paiements', en: 'Cancel the payments', zh: '取消付款' },
+  clear_payments: { fr: 'Annuler les parts', en: 'Cancel the parts', zh: '取消已录入的份额' },
   amount: { fr: 'Montant', en: 'Amount', zh: '金额' },
   amount_over_rest: {
     fr: 'Plus que le reste à payer',

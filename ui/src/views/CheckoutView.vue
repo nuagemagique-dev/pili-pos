@@ -6,6 +6,7 @@ import { useOrderStore, warnIfSlipFailed } from '../stores/order'
 import { useDeliveryStore } from '../stores/delivery'
 import { usePosStore } from '../stores/pos'
 import { useEftStore } from '../stores/eft'
+import { useToastStore } from '../stores/toast'
 import type { CartLine, CheckoutResult, EftPayment, PaymentPart } from '../types'
 import * as ipc from '../api/ipc'
 import { useI18n } from '../i18n'
@@ -13,6 +14,7 @@ import { formatPrice, round5 } from '../utils/format'
 import { useBilingualName } from '../utils/names'
 import { lineNetCents, discountTotalCents } from '../utils/cartAmounts'
 import { DONE_AUTO_RETURN_MS, doneNeedsAttention } from '../utils/checkoutDone'
+import { reconcileHeld, type HeldPart } from '../utils/heldParts'
 import AppHeader from '../components/AppHeader.vue'
 import TicketMediumPicker from '../components/TicketMediumPicker.vue'
 import DeliveryOutcomePanel from '../components/DeliveryOutcomePanel.vue'
@@ -25,6 +27,7 @@ const delivery = useDeliveryStore()
 const pos = usePosStore()
 const eft = useEftStore()
 const giftVouchers = useGiftVouchersStore()
+const toast = useToastStore()
 const bilingual = useBilingualName()
 const { t } = useI18n()
 
@@ -72,7 +75,12 @@ const changeDueCents = ref(0)
 
 // §7.1: cash selected by default, the exact amount already entered
 // (PAYER → Encaisser).
-const method = ref<Method>('cash')
+// An unpaid online order collected from the board (UX audit O2) starts on the button that was
+// tapped there; its sale goes through the handover command instead of a plain checkout.
+const online = computed(() => order.onlineCollect !== null)
+// The sale clears the order, and with it the online mode: remember it for the way out.
+const wasOnline = order.onlineCollect !== null
+const method = ref<Method>(order.onlineCollect?.method ?? 'cash')
 const splitCount = ref(1)
 const parts = ref<TakenPart[]>([])
 // The amount being typed ("12,50"): received for cash, charged for
@@ -221,8 +229,9 @@ const partChips = computed(() => {
 const itemCount = computed(() => order.lines.reduce((sum, l) => sum + l.quantity, 0))
 const orderTitle = computed(() => {
   const o = order.currentOrder
-  const where =
-    o?.order_type === 'dine_in' && o.table_number
+  const where = online.value
+    ? t('online_orders')
+    : o?.order_type === 'dine_in' && o.table_number
       ? `${t('table')} ${o.table_number}`
       : t('takeaway_badge')
   return `${t('order')} · ${where}`
@@ -374,6 +383,48 @@ function clearParts() {
   method.value = 'cash'
 }
 
+// ── Parts kept when going back to the order (UX audit P4) ──
+
+/** The parts taken by hand: the ones "Annuler les parts" removes. */
+const manualParts = computed(() => parts.value.filter((p) => p.eftPaymentId === undefined))
+
+/** Keep the manual parts with the order: going back to it and returning shows them again. */
+let restored = false
+watch(
+  parts,
+  () => {
+    const id = order.currentOrder?.id
+    if (!restored || id === undefined) return
+    order.holdParts(
+      id,
+      manualParts.value.map((p): HeldPart => ({
+        method: p.method,
+        cents: p.cents,
+        changeCents: p.changeCents,
+        giftVoucherId: p.giftVoucherId,
+        codeMasked: p.codeMasked,
+      })),
+    )
+  },
+  { deep: true },
+)
+
+/** Bring the kept parts back, once the card payments the terminal approved are known. If the
+ * order changed so that a part no longer fits in what is left, they are all dropped. */
+function restoreParts() {
+  const id = order.currentOrder?.id
+  if (id !== undefined) {
+    const locked = parts.value.reduce((sum, p) => sum + p.cents, 0)
+    const kept = reconcileHeld(order.heldPartsFor(id), Math.max(0, totalCents.value - locked))
+    if (kept.dropped) toast.show(t('parts_dropped'), 'warning', 6000)
+    parts.value = [...parts.value, ...kept.parts]
+    // One cash part at most: cash is not offered again once a part took it.
+    if (hasCashPart.value && method.value === 'cash') method.value = 'card'
+  }
+  restored = true
+  if (id !== undefined && parts.value.length === 0) order.holdParts(id, [])
+}
+
 // ── Payment ──
 
 function payload(all: TakenPart[]): PaymentPart[] {
@@ -474,6 +525,8 @@ onMounted(async () => {
     }
   }
   await refreshEft()
+  eft.approved.forEach(adopt)
+  restoreParts()
 })
 onUnmounted(() => eft.clear())
 
@@ -499,7 +552,10 @@ async function doCheckout(all: TakenPart[]) {
   step.value = 'processing'
   try {
     const req = delivery.request.medium === 'paper' ? undefined : delivery.request
-    result.value = await ipc.checkout(order.currentOrder.id, payload(all), req)
+    // An online order is sold by its handover (its P is closed by the sale N); the parts are the same.
+    result.value = online.value
+      ? await ipc.webshopHandoverOrder(order.currentOrder.id, payload(all), req)
+      : await ipc.checkout(order.currentOrder.id, payload(all), req)
     if (result.value.success) {
       warnIfSlipFailed(result.value.kitchen_slip)
       void giftVouchers.load()
@@ -566,8 +622,14 @@ function finish() {
   clearReturnTimer()
   result.value = null
   // The order is gone: straight to the tables, no detour through the
-  // order screen.
-  void router.push({ name: 'tables' })
+  // order screen. An online order goes back to the board it came from.
+  void router.push({ name: wasOnline ? 'webshop-orders' : 'tables' })
+}
+
+/** "Retour à la commande": the order screen, or the board for an online order. The parts taken
+ * by hand stay with the order. */
+function goBack() {
+  void router.push({ name: online.value ? 'webshop-orders' : 'order' })
 }
 </script>
 
@@ -836,16 +898,17 @@ function finish() {
           </p>
           <p v-if="error" class="error-msg shake">{{ error }}</p>
 
-          <div class="foot-actions">
+          <div class="foot-actions" :class="{ 'with-clear': manualParts.length > 0 }">
             <button
-              v-if="parts.some((p) => p.eftPaymentId === undefined)"
+              v-if="manualParts.length > 0"
               class="back-btn parts-clear"
+              data-testid="parts-clear"
               @click="clearParts"
             >
               {{ t('clear_payments') }}
             </button>
-            <button v-else class="back-btn" @click="router.push({ name: 'order' })">
-              {{ t('back') }}
+            <button class="back-btn" data-testid="back-to-order" @click="goBack">
+              {{ t('back_to_order') }}
             </button>
             <button
               class="validate-btn"
@@ -1480,6 +1543,15 @@ button:active:not(:disabled) {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
   margin-top: 4px;
+}
+.foot-actions.with-clear {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.foot-actions.with-clear .validate-btn {
+  grid-column: 1 / -1;
+}
+.foot-actions.with-clear .back-btn {
+  height: 56px;
 }
 .back-btn {
   height: 80px;
