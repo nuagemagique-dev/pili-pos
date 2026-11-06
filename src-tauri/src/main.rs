@@ -286,6 +286,8 @@ fn main() {
         ipc::tables::list_tables,
         ipc::tables::get_table_plan,
         ipc::tables::set_table_plan,
+        ipc::tables::get_order_covers,
+        ipc::tables::set_order_covers,
         ipc::order::list_cart_lines,
         ipc::social::list_open_shifts,
         ipc::tables::list_open_takeaways,

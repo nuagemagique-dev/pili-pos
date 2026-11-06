@@ -49,6 +49,9 @@ pub struct BarTicket {
     pub operator: String,
     /// Table number; `None` for a direct sale.
     pub table: Option<i32>,
+    /// The zone letters of the table ("A"): the slip then writes "Table A-19".
+    /// Display only, the table is its number.
+    pub table_zone: Option<String>,
     /// The number and the customer of a numbered takeaway (a direct sale).
     pub takeaway: Option<TakeawayMark>,
     pub items: Vec<BarItem>,
@@ -102,7 +105,7 @@ pub fn format_bar_ticket(ticket: &BarTicket, paper: PaperWidth) -> Vec<u8> {
     p.text_columns(l.date, &ticket.date_time);
     p.text_columns(l.operator, &ticket.operator);
     let table = match ticket.table {
-        Some(t) => format!("{} {t}", l.table),
+        Some(t) => table_text(l.table, ticket.table_zone.as_deref(), t),
         None => l.direct_sale.to_string(),
     };
     p.style(TextStyle {
@@ -195,6 +198,14 @@ fn indented_note(p: &mut EscPosBuilder, prefix: &str, note: &str) {
     }
 }
 
+/// "Table 19", or "Table A-19" for a table in a zone.
+fn table_text(word: &str, zone: Option<&str>, number: i32) -> String {
+    match zone {
+        Some(z) => format!("{word} {z}-{number}"),
+        None => format!("{word} {number}"),
+    }
+}
+
 /// The notice that an order moved to another table: kitchen and bar
 /// know where the dishes go. Not an order (no item, nothing to
 /// prepare), not a VAT ticket (no amount, the usual mention).
@@ -205,6 +216,9 @@ pub struct TransferSlip {
     pub operator: String,
     pub from_table: i32,
     pub to_table: i32,
+    /// The zone letters of each table ("A"), display only.
+    pub from_zone: Option<String>,
+    pub to_zone: Option<String>,
     pub lang: ReceiptLanguage,
     pub is_training: bool,
 }
@@ -241,8 +255,9 @@ pub fn format_transfer_slip(slip: &TransferSlip, paper: PaperWidth) -> Vec<u8> {
         ..Default::default()
     });
     p.textln_wrapped(&format!(
-        "{} {} -> {} {}",
-        l.table, slip.from_table, l.table, slip.to_table
+        "{} -> {}",
+        table_text(l.table, slip.from_zone.as_deref(), slip.from_table),
+        table_text(l.table, slip.to_zone.as_deref(), slip.to_table)
     ));
     p.style_reset();
     p.separator('-');
@@ -264,6 +279,9 @@ pub struct NoteSlip {
     pub operator: String,
     /// Table number; `None` for a direct sale.
     pub table: Option<i32>,
+    /// The zone letters of the table ("A"): the slip then writes "Table A-19".
+    /// Display only, the table is its number.
+    pub table_zone: Option<String>,
     /// The number and the customer of a numbered takeaway (a direct sale).
     pub takeaway: Option<TakeawayMark>,
     pub product_name: String,
@@ -300,7 +318,7 @@ pub fn format_note_slip(slip: &NoteSlip, paper: PaperWidth) -> Vec<u8> {
     p.text_columns(l.date, &slip.date_time);
     p.text_columns(l.operator, &slip.operator);
     let table = match slip.table {
-        Some(t) => format!("{} {t}", l.table),
+        Some(t) => table_text(l.table, slip.table_zone.as_deref(), t),
         None => l.direct_sale.to_string(),
     };
     p.style(TextStyle {
@@ -346,6 +364,7 @@ mod tests {
             date_time: "15/06/2026 12:09:35".into(),
             operator: "Beheerder".into(),
             table: Some(3),
+            table_zone: None,
             takeaway: None,
             items: vec![
                 BarItem {
@@ -550,6 +569,8 @@ mod tests {
             operator: "Beheerder".into(),
             from_table: 3,
             to_table: 12,
+            from_zone: None,
+            to_zone: None,
             lang,
             is_training: false,
         }
@@ -658,6 +679,7 @@ mod tests {
             date_time: "15/06/2026 12:09:35".into(),
             operator: "Beheerder".into(),
             table: Some(3),
+            table_zone: None,
             takeaway: None,
             product_name: "Plat du jour".into(),
             note: note.map(str::to_string),
@@ -916,6 +938,52 @@ mod tests {
         t.lang = ReceiptLanguage::Nl;
         for line in text(&t).lines() {
             assert!(line.chars().count() <= 48, "too wide: {line:?}");
+        }
+    }
+
+    #[test]
+    fn a_table_in_a_zone_is_written_with_its_letters_on_every_slip() {
+        let mut t = ticket(ReceiptLanguage::Fr);
+        t.table = Some(19);
+        t.table_zone = Some("A".into());
+        let out = text(&t);
+        assert!(out.contains("Table A-19"), "{out}");
+        assert!(!out.contains("Table 19"), "{out}");
+
+        let mut n = note_slip(ReceiptLanguage::Fr, Some("sans wasabi"));
+        n.table = Some(30);
+        n.table_zone = Some("B".into());
+        assert!(text_of(&n).contains("Table B-30"));
+
+        let mut tr = transfer(ReceiptLanguage::Fr);
+        tr.from_table = 19;
+        tr.from_zone = Some("A".into());
+        tr.to_table = 30;
+        tr.to_zone = Some("B".into());
+        let out = crate::render::one_line(&render_plain_text(&format_transfer_slip(
+            &tr,
+            PaperWidth::Mm80,
+        )));
+        assert!(out.contains("Table A-19 -> Table B-30"), "{out}");
+        // Moving from a zone to a table without one keeps each table as it is written.
+        tr.to_zone = None;
+        let out = crate::render::one_line(&render_plain_text(&format_transfer_slip(
+            &tr,
+            PaperWidth::Mm80,
+        )));
+        assert!(out.contains("Table A-19 -> Table 30"), "{out}");
+    }
+
+    #[test]
+    fn a_table_without_a_zone_keeps_the_plain_number_in_every_language() {
+        for lang in [
+            ReceiptLanguage::Fr,
+            ReceiptLanguage::Nl,
+            ReceiptLanguage::De,
+        ] {
+            let l = bar_labels(lang);
+            let out = text(&ticket(lang));
+            assert!(out.contains(&format!("{} 3", l.table)), "{out}");
         }
     }
 }

@@ -646,7 +646,7 @@ async fn the_table_plan_round_trips() {
     let start = e.get_table_plan().await.unwrap();
     assert_eq!(start.plan, format!("1-{}", start.table_count));
     assert_eq!(
-        code_of(e.set_table_plan("1-4".into()).await),
+        code_of(e.set_table_plan("1-4".into(), String::new()).await),
         "not_logged_in"
     );
 
@@ -654,10 +654,13 @@ async fn the_table_plan_round_trips() {
         .await
         .unwrap();
     assert_eq!(
-        code_of(e.set_table_plan("0-3".into()).await),
+        code_of(e.set_table_plan("0-3".into(), String::new()).await),
         "table_plan_invalid"
     );
-    let plan = e.set_table_plan("20-22,1-3".into()).await.unwrap();
+    let plan = e
+        .set_table_plan("20-22,1-3".into(), String::new())
+        .await
+        .unwrap();
     assert_eq!(plan.plan, "1-3, 20-22");
     assert_eq!(plan.table_count, 6);
     assert_eq!(plan.log[0].source, "admin");
@@ -671,6 +674,80 @@ async fn the_table_plan_round_trips() {
         .map(|t| t.table_number)
         .collect();
     assert_eq!(numbers, vec![1, 2, 3, 20, 21, 22]);
+    e.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_table_zones_and_their_names_round_trip() {
+    let te = open_seeded().await;
+    let e = &te.engine;
+    e.login(MANAGER_INSZ.into(), Some(MANAGER_PIN.into()))
+        .await
+        .unwrap();
+    // A name for a zone the plan does not have is refused.
+    assert_eq!(
+        code_of(
+            e.set_table_plan("A 1-20".into(), "B \u{b7} Terrasse".into())
+                .await
+        ),
+        "table_plan_invalid"
+    );
+    let plan = e
+        .set_table_plan(
+            "b 21-30, A 1-20".into(),
+            "A \u{b7} Salle, B \u{b7} Terrasse".into(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(plan.plan, "A 1-20, B 21-30");
+    assert_eq!(plan.zone_names, "A \u{b7} Salle, B \u{b7} Terrasse");
+    assert_eq!(plan.table_count, 30);
+    assert_eq!(plan.zones.len(), 2);
+    assert_eq!(plan.zones[1].letter, "B");
+    assert_eq!(plan.zones[1].name.as_deref(), Some("Terrasse"));
+    assert_eq!(plan.zones[1].numbers.first(), Some(&21));
+    assert_eq!(plan.log[0].zone_names, "A \u{b7} Salle, B \u{b7} Terrasse");
+    assert_eq!(e.get_table_plan().await.unwrap(), plan);
+
+    let tables = e.list_tables().await.unwrap();
+    let t = tables.iter().find(|t| t.table_number == 25).unwrap();
+    assert_eq!(t.label, "B-25");
+    assert_eq!(t.zone.as_deref(), Some("B"));
+    assert_eq!(t.zone_name.as_deref(), Some("Terrasse"));
+    e.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_covers_of_a_table_order_round_trip() {
+    let te = open_seeded().await;
+    let e = &te.engine;
+    assert_eq!(
+        code_of(e.set_order_covers(1, Some(2)).await),
+        "not_logged_in"
+    );
+    e.login(MANAGER_INSZ.into(), Some(MANAGER_PIN.into()))
+        .await
+        .unwrap();
+    let order = e
+        .create_order(pos_ffi::records::orders::CreateOrderInput {
+            order_type: pos_ffi::records::orders::OrderType::DineIn,
+            table_number: Some(4),
+            user_insz: MANAGER_INSZ.into(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(e.get_order_covers(order.id).await.unwrap(), None);
+    assert_eq!(
+        code_of(e.set_order_covers(order.id, Some(31)).await),
+        "covers_invalid"
+    );
+    assert_eq!(
+        e.set_order_covers(order.id, Some(6)).await.unwrap(),
+        Some(6)
+    );
+    assert_eq!(e.get_order_covers(order.id).await.unwrap(), Some(6));
+    assert_eq!(e.set_order_covers(order.id, None).await.unwrap(), None);
+    assert_eq!(e.get_order_covers(order.id).await.unwrap(), None);
     e.shutdown().await.unwrap();
 }
 

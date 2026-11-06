@@ -73,7 +73,8 @@ pub const BADGE_SETTINGS_INVALID: &str = "badge_settings_invalid";
 pub const OPERATOR_INVALID: &str = "operator_invalid";
 pub const DINE_IN_NEEDS_TABLE: &str = "dine_in_needs_table";
 pub const TAKEAWAY_HAS_NO_TABLE: &str = "takeaway_has_no_table";
-/// The table plan is not a list of table numbers and ranges ("1-12, 20-25").
+/// The table plan is not a list of table numbers and ranges ("1-12, 20-25",
+/// "A 1-20, B 21-40") or its zone names are not ("A · Salle, B · Terrasse").
 pub const TABLE_PLAN_INVALID: &str = "table_plan_invalid";
 /// A takeaway is a direct sale: it ends in a sale, never in an order
 /// registration (FAQ Q205).
@@ -152,6 +153,10 @@ pub const TAKEAWAY_NAME_INVALID: &str = "takeaway_name_invalid";
 pub const TAKEAWAY_PHONE_INVALID: &str = "takeaway_phone_invalid";
 /// A name and a phone belong to the takeaway of the till: not a table, not an online order.
 pub const TAKEAWAY_CUSTOMER_NOT_TAKEAWAY: &str = "takeaway_customer_not_takeaway";
+
+// Covers of an order (guests at a table, local data).
+/// The covers are not a number between 1 and the highest allowed (`covers_invalid|max=<n>`).
+pub const COVERS_INVALID: &str = "covers_invalid";
 
 // Payment correction (an F event, signPaymentCorrection).
 /// Only a sale ticket (N, or T in training) is corrected: not a refund, a copy or any other event.
@@ -484,6 +489,7 @@ pub const ALL: &[&str] = &[
     TAKEAWAY_NAME_INVALID,
     TAKEAWAY_PHONE_INVALID,
     TAKEAWAY_CUSTOMER_NOT_TAKEAWAY,
+    COVERS_INVALID,
     CONFIG_TABLES,
     TABLE_TRANSFER_SAME_TABLE,
     TABLE_TRANSFER_TARGET_BUSY,

@@ -267,6 +267,14 @@ const TAKEAWAY_MIGRATIONS: &[Migration] = &[Migration {
     sql: crate::schema_takeaway::MIGRATION_090_TAKEAWAY_TAGS,
 }];
 
+/// The table zones and the covers (every build): the names of the zone
+/// letters of the table plan and the number of guests of an order.
+const ZONES_MIGRATIONS: &[Migration] = &[Migration {
+    version: 91,
+    name: "table-zones-covers",
+    sql: crate::schema_zones::MIGRATION_091_TABLE_ZONES_COVERS,
+}];
+
 /// Every migration this build knows, in ascending version order.
 fn registry() -> Vec<Migration> {
     let mut all = MIGRATIONS.to_vec();
@@ -276,6 +284,7 @@ fn registry() -> Vec<Migration> {
     all.extend_from_slice(OWNER_MIGRATIONS);
     all.extend_from_slice(WEIGHT_MIGRATIONS);
     all.extend_from_slice(TAKEAWAY_MIGRATIONS);
+    all.extend_from_slice(ZONES_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -550,7 +559,7 @@ mod tests {
     /// The till discounts are migration 30 and the kitchen notes 31, in
     /// every build, after 28 (presence registration) and before the
     /// invoicing block (40 to 42), the owner block (60 to 63) and 70 (staff
-    /// badges), 80 and 81 (scale), then 90 (takeaway tags); 29 stays free.
+    /// badges), 80 and 81 (scale), then 90 (takeaway tags) and 91 (table zones and covers); 29 stays free.
     #[test]
     fn the_till_migrations_are_30_and_31_in_every_build() {
         let till: Vec<(i64, &str)> = TILL_MIGRATIONS
@@ -563,8 +572,50 @@ mod tests {
         let from_28: Vec<i64> = versions.into_iter().filter(|v| *v >= 28).collect();
         assert_eq!(
             from_28,
-            vec![28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70, 80, 81, 90]
+            vec![28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70, 80, 81, 90, 91]
         );
+    }
+
+    /// The table zones and the covers are migration 91, in every build: the
+    /// plan and its log gain the zone names (the log stays append-only) and an
+    /// order can hold its covers.
+    #[test]
+    fn v91_adds_the_zone_names_and_the_order_covers_and_keeps_the_log_append_only() {
+        let zones: Vec<(i64, &str)> = ZONES_MIGRATIONS
+            .iter()
+            .map(|m| (m.version, m.name))
+            .collect();
+        assert_eq!(zones, vec![(91, "table-zones-covers")]);
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        for table in ["table_plan", "table_plan_log"] {
+            let columns: Vec<String> = conn
+                .prepare(&format!("SELECT name FROM pragma_table_info('{table}')"))
+                .unwrap()
+                .query_map([], |r| r.get(0))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap();
+            assert!(columns.contains(&"zone_names".to_string()), "{table}");
+        }
+        conn.execute(
+            "INSERT INTO table_plan_log (plan, zone_names, source) VALUES ('A 1-4', 'A \u{b7} Salle', 'config')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.execute("UPDATE table_plan_log SET zone_names = ''", [])
+                .is_err()
+        );
+        assert!(conn.execute("DELETE FROM table_plan_log", []).is_err());
+        let covers: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('order_covers')",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(covers, 3);
     }
 
     #[test]

@@ -3,7 +3,7 @@
 //! wrapper's single engine call and converting the answer. Plus the `vat_split` helper (PD62).
 
 use pos_engine::commands::{
-    discount, menu, modifiers, order, session, sold_out, table_plan, table_transfer, tables,
+    covers, discount, menu, modifiers, order, session, sold_out, table_plan, table_transfer, tables,
 };
 
 use crate::convert;
@@ -206,12 +206,33 @@ impl PosEngine {
         convert::out(&plan)
     }
 
-    /// Set the table plan ("1-12, 20-25"); managers only.
-    pub async fn set_table_plan(&self, plan: String) -> Result<TablePlan, PosError> {
+    /// Set the table plan ("1-12, 20-25", "A 1-20, B 21-40") and the names of its zones
+    /// ("A · Salle, B · Terrasse", empty for none); managers only.
+    pub async fn set_table_plan(
+        &self,
+        plan: String,
+        zone_names: String,
+    ) -> Result<TablePlan, PosError> {
         let value = self
-            .blocking(move |st| table_plan::do_set_table_plan(st, &plan))
+            .blocking(move |st| table_plan::do_set_table_plan(st, &plan, &zone_names))
             .await?;
         convert::out(&value)
+    }
+
+    /// The covers (guests) set on an order; `None` when none were set.
+    pub async fn get_order_covers(&self, order_id: i64) -> Result<Option<i32>, PosError> {
+        self.blocking(move |st| covers::do_get_order_covers(st, order_id))
+            .await
+    }
+
+    /// Set (1 to 30) or clear the covers of an open table order.
+    pub async fn set_order_covers(
+        &self,
+        order_id: i64,
+        covers: Option<i32>,
+    ) -> Result<Option<i32>, PosError> {
+        self.blocking(move |st| covers::do_set_order_covers(st, order_id, covers))
+            .await
     }
 
     /// The takeaways left open.

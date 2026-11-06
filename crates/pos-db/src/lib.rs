@@ -14,3 +14,4 @@ mod schema_owner;
 mod schema_takeaway;
 mod schema_till;
 mod schema_weight;
+mod schema_zones;
