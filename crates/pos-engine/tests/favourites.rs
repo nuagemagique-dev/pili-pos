@@ -249,6 +249,51 @@ async fn the_selection_is_checked_and_kept_while_the_mode_is_most_sold() {
 }
 
 #[tokio::test]
+async fn a_product_of_a_switched_off_category_is_on_no_tab_in_either_mode() {
+    let (app, _fdm) = app().await;
+    // A seasonal category with two products, both on sale themselves.
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch(
+            "INSERT INTO categories (id, sort_order, active) VALUES (2, 1, 1);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code, kitchen_printer, sort_order, active) VALUES (31, 2, 700, 'B', 1, 31, 1);
+             INSERT INTO translations (entity_type, entity_id, field, lang, value) VALUES ('menu_item', 31, 'name', 'fr', 'Saisonnier');",
+        )
+        .unwrap();
+
+    // Selection: the seasonal product is listed while its category is shown...
+    do_set_favourites_settings(
+        &app.state,
+        selection(FavouritesMode::Selection, &[2, 31, 1]),
+    )
+    .unwrap();
+    assert_eq!(list(&app), [2, 31, 1]);
+    // ...most sold: it is ranked first by far while its category is shown...
+    do_set_favourites_settings(&app.state, selection(FavouritesMode::TopSold, &[2, 31, 1]))
+        .unwrap();
+    sell(&app, 31, 5).await;
+    sell(&app, 3, 1).await;
+    assert_eq!(list(&app), [31, 3]);
+
+    // The category is switched off in the menu editor: it leaves every tab, in both modes.
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute("UPDATE categories SET active = 0 WHERE id = 2", [])
+        .unwrap();
+    assert_eq!(list(&app), [3]);
+    do_set_favourites_settings(
+        &app.state,
+        selection(FavouritesMode::Selection, &[2, 31, 1]),
+    )
+    .unwrap();
+    assert_eq!(list(&app), [2, 1]);
+}
+
+#[tokio::test]
 async fn the_selection_holds_thirty_products_at_most() {
     let (app, _fdm) = app().await;
     assert_eq!(MAX_SELECTION, 30);

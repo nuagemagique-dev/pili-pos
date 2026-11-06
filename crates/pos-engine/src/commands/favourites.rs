@@ -10,11 +10,13 @@
 //!   sales report reads, refunds counted negative, training left out). The
 //!   ranking is cached (migration 92) and computed again at most once an
 //!   hour, or as soon as a Z report was made since. Products that are not on
-//!   sale (inactive, off the grid) or sold out right now are skipped, so the
-//!   18 places go to products that can be added.
+//!   sale (inactive, off the grid, in a category that is switched off) or sold
+//!   out right now are skipped, so the 18 places go to products that can be
+//!   added.
 //! - `selection`: the products a manager starred in the menu editor, in the
 //!   order they were added. A sold-out product stays in the list, marked
-//!   "Épuisé" like in its category.
+//!   "Épuisé" like in its category; one whose category is switched off is not
+//!   shown, as on the category tabs.
 //!
 //! The tab is empty (and the UIs hide it) when there is nothing to show.
 //! Any logged-in operator reads, only a manager changes the setting.
@@ -24,7 +26,7 @@
 //! commands as from a category, so no signed request, ticket or export
 //! changes (`tests/favourites.rs` proves it).
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use chrono::NaiveDate;
 use pos_core::menu::MenuItem;
@@ -263,8 +265,19 @@ pub fn do_list_favourites(state: &AppState, lang: Option<String>) -> Result<Vec<
     let settings = owner_settings::get::<FavouritesSettings>(&db, KEY_FAVOURITES)?;
     // The sold-out products whose end of day is past get their `expired` log row now.
     super::sold_out::expire_due(&db);
+    // A product of a category that is switched off (or off the grid) is not on any tab, so it is
+    // not on this one either: the product query alone does not look at its category.
+    let shown: HashSet<i64> = menu_queries::get_categories(&db, lang)
+        .map_err(errors::internal)?
+        .into_iter()
+        .map(|c| c.id)
+        .collect();
     let menu = menu_queries::get_menu_items(&db, None, lang).map_err(errors::internal)?;
-    let mut by_id: HashMap<i64, MenuItem> = menu.into_iter().map(|m| (m.id, m)).collect();
+    let mut by_id: HashMap<i64, MenuItem> = menu
+        .into_iter()
+        .filter(|m| shown.contains(&m.category_id))
+        .map(|m| (m.id, m))
+        .collect();
     let items = match settings.mode {
         FavouritesMode::Selection => settings
             .selection
