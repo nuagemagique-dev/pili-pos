@@ -23,6 +23,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -38,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,6 +78,8 @@ private val CategoriesWidth = 340.dp
 private val ProductsWidth = 460.dp
 private val SwatchSize = 52.dp
 private val StepperButton = 64.dp
+private val StarWidth = 56.dp
+private val StarIcon = 28.dp
 
 /** What the editor calls on its view model; a test passes its own. */
 internal data class MenuEditorCallbacks(
@@ -108,6 +115,7 @@ internal data class MenuEditorCallbacks(
     val onCourse: (Int) -> Unit = {},
     val onAllergen: (String) -> Unit = {},
     val onAllergensDeclared: () -> Unit = {},
+    val onToggleFavourite: (Long) -> Unit = {},
 )
 
 /**
@@ -157,6 +165,7 @@ internal fun MenuEditorRoute(
             onCourse = model::setCourse,
             onAllergen = model::cycleAllergen,
             onAllergensDeclared = model::toggleAllergensDeclared,
+            onToggleFavourite = model::toggleFavourite,
         )
     PosScaffold(HeaderArea.SETTINGS, navigator, modifier = Modifier.testTag("menu_editor_root")) {
         MenuEditorContent(state, callbacks)
@@ -173,7 +182,8 @@ internal fun MenuEditorRoute(
  * `menu_ed_add_group`, `menu_ed_add_option`, `menu_ed_parent`, `menu_ed_save`, `menu_ed_cancel`, `menu_ed_error`,
  * `menu_ed_history_row_<id>`, `menu_ed_history_empty`, `menu_ed_hint`, and for lane 4 `menu_ed_course_<n>`,
  * `menu_ed_course_off`, `menu_ed_allergens`, `menu_ed_allergens_declared`, `menu_ed_allergens_unknown`,
- * `menu_ed_allergens_none`, `menu_ed_allergens_save_first`, `menu_ed_allergen_<code>`.
+ * `menu_ed_allergens_none`, `menu_ed_allergens_save_first`, `menu_ed_allergen_<code>`, and for the favourites
+ * (UX audit C12) `menu_ed_star_<productId>` on each product row.
  */
 @Composable
 internal fun MenuEditorContent(
@@ -283,11 +293,12 @@ private fun EntryRow(
     hidden: Boolean,
     tag: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
 ) {
     val colors = PiliTheme.colors
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .heightIn(min = RowMinHeight)
             .background(if (selected) colors.selectedBg else colors.bgSurface, RoundedCornerShape(PiliTheme.dimens.radiusMd))
@@ -409,15 +420,49 @@ private fun ProductRow(
     callbacks: MenuEditorCallbacks,
 ) {
     val selected = state.form?.kind == FormKind.Product && state.form.id == p.id
-    EntryRow(selected, !p.active, "menu_ed_product_${p.id}", { callbacks.onEditProduct(p.id) }) {
-        EntryText(labelOf(p.names, state.languages), Modifier.weight(1f))
-        if (!p.active) HiddenTag()
-        EntryText(
-            when {
-                p.openPrice -> vueText("menu_ed_open_price")
-                p.soldByWeight -> formatCents(p.priceCents) + " €/kg"
-                else -> formatCents(p.priceCents) + " €"
-            },
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm)) {
+        StarButton(p.id in state.favourites, p.id, callbacks)
+        EntryRow(selected, !p.active, "menu_ed_product_${p.id}", { callbacks.onEditProduct(p.id) }, Modifier.weight(1f)) {
+            EntryText(labelOf(p.names, state.languages), Modifier.weight(1f))
+            if (!p.active) HiddenTag()
+            EntryText(
+                when {
+                    p.openPrice -> vueText("menu_ed_open_price")
+                    p.soldByWeight -> formatCents(p.priceCents) + " €/kg"
+                    else -> formatCents(p.priceCents) + " €"
+                },
+            )
+        }
+    }
+}
+
+/** The star of a product row: filled when the product is a favourite, an outline when it is not (56 dp wide). */
+@Composable
+private fun StarButton(
+    starred: Boolean,
+    productId: Long,
+    callbacks: MenuEditorCallbacks,
+) {
+    val colors = PiliTheme.colors
+    val description = vueText(if (starred) "menu_ed_unstar" else "menu_ed_star")
+    Box(
+        modifier =
+            Modifier
+                .width(StarWidth)
+                .heightIn(min = RowMinHeight)
+                .background(if (starred) colors.selectedBg else colors.bgSurface, RoundedCornerShape(PiliTheme.dimens.radiusMd))
+                .clickable(role = Role.Checkbox) { callbacks.onToggleFavourite(productId) }
+                .semantics {
+                    this.selected = starred
+                    contentDescription = description
+                }.testTag("menu_ed_star_$productId"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            if (starred) Icons.Filled.Star else Icons.Filled.StarBorder,
+            contentDescription = null,
+            tint = if (starred) colors.selectedFg else colors.textSecondary,
+            modifier = Modifier.size(StarIcon),
         )
     }
 }

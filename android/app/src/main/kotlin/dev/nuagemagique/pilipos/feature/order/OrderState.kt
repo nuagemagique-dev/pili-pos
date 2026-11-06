@@ -276,6 +276,8 @@ internal data class MenuState(
     val categories: List<Category> = emptyList(),
     val selectedCategoryId: Long? = null,
     val items: List<MenuItem> = emptyList(),
+    /** The products of the "Favoris" tab (UX audit C12); the tab shows only while there are some. */
+    val favourites: List<MenuItem> = emptyList(),
     /** Units of each product in the cart, for the badges on the product buttons. */
     val cartQuantities: Map<Long, Int> = emptyMap(),
     val language: AppLanguage = AppLanguage.FR,

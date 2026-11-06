@@ -2196,6 +2196,18 @@
       "zh": "操作失败。",
       "area": "errors"
     },
+    "err_favourites_invalid": {
+      "fr": "Ce produit n'existe pas dans la carte.",
+      "en": "This product is not in the menu.",
+      "zh": "菜单中没有这个商品。",
+      "area": "errors"
+    },
+    "err_favourites_too_many": {
+      "fr": "Trop de favoris : {max} au plus.",
+      "en": "Too many favourites: {max} at most.",
+      "zh": "常用菜品太多：最多{max}个。",
+      "area": "errors"
+    },
     "err_first_pin_needs_manager": {
       "fr": "Un gérant doit choisir le PIN de ce compte dans Paramètres.",
       "en": "A manager must set this account's PIN in Settings.",
@@ -3161,6 +3173,66 @@
       "en": "exact {exact} · rounded to 5 cts",
       "zh": "精确 {exact} · 5分进位",
       "area": "checkout"
+    },
+    "fav_count": {
+      "fr": "{n} sur {max}",
+      "en": "{n} of {max}",
+      "zh": "{n} / {max}",
+      "area": "settings"
+    },
+    "fav_empty": {
+      "fr": "Aucun favori.",
+      "en": "No favourite.",
+      "zh": "没有常用菜品。",
+      "area": "settings"
+    },
+    "fav_mode_selection": {
+      "fr": "Ma sélection",
+      "en": "My selection",
+      "zh": "我的选择",
+      "area": "settings"
+    },
+    "fav_mode_top_sold": {
+      "fr": "Plus vendus sur 30 jours",
+      "en": "Best sellers, 30 days",
+      "zh": "30天最畅销",
+      "area": "settings"
+    },
+    "fav_note": {
+      "fr": "Le premier onglet de la prise de commande. Il reste caché tant qu'il est vide. Rien de cela n'entre dans les données fiscales.",
+      "en": "The first tab of the order screen. It stays hidden while it is empty. None of this enters the fiscal data.",
+      "zh": "点菜界面的第一个标签页，为空时自动隐藏。这些都不会进入税务数据。",
+      "area": "settings"
+    },
+    "fav_remove": {
+      "fr": "Retirer",
+      "en": "Remove",
+      "zh": "移除",
+      "area": "settings"
+    },
+    "fav_selection_note": {
+      "fr": "Touchez l'étoile d'un produit dans l'éditeur de carte pour l'ajouter. Les produits s'affichent dans l'ordre d'ajout.",
+      "en": "Tap the star of a product in the menu editor to add it. Products show in the order they were added.",
+      "zh": "在菜单编辑器中点击商品的星标即可加入。商品按加入顺序显示。",
+      "area": "settings"
+    },
+    "fav_title": {
+      "fr": "Favoris",
+      "en": "Favourites",
+      "zh": "常用菜品",
+      "area": "settings"
+    },
+    "fav_top_sold_note": {
+      "fr": "Les 18 produits les plus vendus des 30 derniers jours, mis à jour toutes les heures et à chaque Z. Un produit épuisé laisse sa place au suivant.",
+      "en": "The 18 best-selling products of the last 30 days, updated every hour and at each Z. A sold-out product gives its place to the next one.",
+      "zh": "最近30天最畅销的18个商品，每小时及每次Z报表后更新。售罄的商品由下一个顶替。",
+      "area": "settings"
+    },
+    "favourites_tab": {
+      "fr": "Favoris",
+      "en": "Favourites",
+      "zh": "常用",
+      "area": "core"
     },
     "fdm_closes_in": {
       "fr": "se ferme dans {s} s",
@@ -4650,6 +4722,12 @@
       "zh": "按重量销售",
       "area": "settings"
     },
+    "menu_ed_star": {
+      "fr": "Ajouter aux favoris",
+      "en": "Add to favourites",
+      "zh": "加入常用",
+      "area": "settings"
+    },
     "menu_ed_tare": {
       "fr": "Tare du contenant",
       "en": "Container tare",
@@ -4660,6 +4738,12 @@
       "fr": "Édition de la carte",
       "en": "Menu editor",
       "zh": "菜单编辑",
+      "area": "settings"
+    },
+    "menu_ed_unstar": {
+      "fr": "Retirer des favoris",
+      "en": "Remove from favourites",
+      "zh": "移出常用",
       "area": "settings"
     },
     "menu_ed_vat": {
@@ -7479,6 +7563,8 @@
     "note_too_long",
     "note_unprintable",
     "quick_notes_too_many",
+    "favourites_invalid",
+    "favourites_too_many",
     "takeaway_number_invalid",
     "takeaway_name_invalid",
     "takeaway_phone_invalid",

@@ -86,6 +86,8 @@
     <string name="menu_ed_add_product">New product</string>
     <string name="menu_ed_history">History</string>
     <string name="menu_ed_select_hint">Pick an entry to edit or create one.</string>
+    <string name="menu_ed_star">Add to favourites</string>
+    <string name="menu_ed_unstar">Remove from favourites</string>
     <string name="menu_ed_hidden">Hidden</string>
     <string name="menu_ed_empty_products">No product in this category.</string>
     <string name="menu_ed_new_category">New category</string>
@@ -165,6 +167,15 @@
     <string name="menu_ed_field_min_select">minimum</string>
     <string name="menu_ed_field_max_select">maximum</string>
     <string name="menu_ed_field_group_id">group</string>
+    <string name="fav_title">Favourites</string>
+    <string name="fav_note">The first tab of the order screen. It stays hidden while it is empty. None of this enters the fiscal data.</string>
+    <string name="fav_mode_top_sold">Best sellers, 30 days</string>
+    <string name="fav_mode_selection">My selection</string>
+    <string name="fav_top_sold_note">The 18 best-selling products of the last 30 days, updated every hour and at each Z. A sold-out product gives its place to the next one.</string>
+    <string name="fav_selection_note">Tap the star of a product in the menu editor to add it. Products show in the order they were added.</string>
+    <string name="fav_empty">No favourite.</string>
+    <string name="fav_remove">Remove</string>
+    <string name="fav_count">{n} of {max}</string>
     <string name="quick_notes_title">Quick notes</string>
     <string name="quick_notes_note">These notes show under the kitchen note field: one tap adds one to the note. They are never sent to the FDM.</string>
     <string name="quick_notes_empty">No quick note.</string>

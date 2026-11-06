@@ -33,6 +33,7 @@
     <string name="card_wait">请在终端上刷卡</string>
     <string name="back">返回</string>
     <string name="open_price_title">自定价格</string>
+    <string name="favourites_tab">常用</string>
     <string name="soldout_mode">售罄</string>
     <string name="soldout_mode_hint">点击商品以更改其供应状态。</string>
     <string name="soldout_badge">售罄</string>

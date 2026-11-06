@@ -28,6 +28,8 @@ object EngineErrorCodes {
             "note_too_long",
             "note_unprintable",
             "quick_notes_too_many",
+            "favourites_invalid",
+            "favourites_too_many",
             "takeaway_number_invalid",
             "takeaway_name_invalid",
             "takeaway_phone_invalid",

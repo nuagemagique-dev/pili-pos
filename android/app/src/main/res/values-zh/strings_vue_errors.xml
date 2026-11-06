@@ -62,6 +62,8 @@
     <string name="err_discount_reason_invalid">请选择折扣原因。</string>
     <string name="err_discount_online_order">在线订单有自己的折扣：不能在收银台打折。</string>
     <string name="err_note_too_long">备注太长：最多60个字符。</string>
+    <string name="err_favourites_invalid">菜单中没有这个商品。</string>
+    <string name="err_favourites_too_many">常用菜品太多：最多{max}个。</string>
     <string name="err_quick_notes_too_many">快捷备注太多：最多{max}条。</string>
     <string name="err_note_unprintable">备注含有厨房打印机无法打印的字符（仅限字母、数字和重音符号）。</string>
     <string name="err_line_has_price_changes">此行有折扣：请先取消再修改数量。</string>

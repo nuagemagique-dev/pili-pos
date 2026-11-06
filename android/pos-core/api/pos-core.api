@@ -2082,6 +2082,37 @@ public final class uniffi/pos_ffi/ExtensionItem {
 public final class uniffi/pos_ffi/ExtensionItem$Companion {
 }
 
+public final class uniffi/pos_ffi/FavouritesMode : java/lang/Enum {
+	public static final field Companion Luniffi/pos_ffi/FavouritesMode$Companion;
+	public static final field SELECTION Luniffi/pos_ffi/FavouritesMode;
+	public static final field TOP_SOLD Luniffi/pos_ffi/FavouritesMode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Luniffi/pos_ffi/FavouritesMode;
+	public static fun values ()[Luniffi/pos_ffi/FavouritesMode;
+}
+
+public final class uniffi/pos_ffi/FavouritesMode$Companion {
+}
+
+public final class uniffi/pos_ffi/FavouritesSettings {
+	public static final field Companion Luniffi/pos_ffi/FavouritesSettings$Companion;
+	public fun <init> (Luniffi/pos_ffi/FavouritesMode;Ljava/util/List;)V
+	public final fun component1 ()Luniffi/pos_ffi/FavouritesMode;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Luniffi/pos_ffi/FavouritesMode;Ljava/util/List;)Luniffi/pos_ffi/FavouritesSettings;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/FavouritesSettings;Luniffi/pos_ffi/FavouritesMode;Ljava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/FavouritesSettings;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMode ()Luniffi/pos_ffi/FavouritesMode;
+	public final fun getSelection ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun setMode (Luniffi/pos_ffi/FavouritesMode;)V
+	public final fun setSelection (Ljava/util/List;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/FavouritesSettings$Companion {
+}
+
 public final class uniffi/pos_ffi/FdmDevice {
 	public static final field Companion Luniffi/pos_ffi/FdmDevice$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;D)V
@@ -5806,6 +5837,46 @@ public final class uniffi/pos_ffi/FfiConverterTypeExtensionItem : uniffi/pos_ffi
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/ExtensionItem;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/ExtensionItem;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeFavouritesMode : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeFavouritesMode;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/FavouritesMode;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/FavouritesMode;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/FavouritesMode;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/FavouritesMode;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/FavouritesMode;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/FavouritesMode;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/FavouritesMode;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeFavouritesSettings : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeFavouritesSettings;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/FavouritesSettings;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/FavouritesSettings;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/FavouritesSettings;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/FavouritesSettings;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/FavouritesSettings;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/FavouritesSettings;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/FavouritesSettings;Ljava/nio/ByteBuffer;)V
 }
 
 public final class uniffi/pos_ffi/FfiConverterTypeFdmDevice : uniffi/pos_ffi/FfiConverterRustBuffer {
@@ -9771,6 +9842,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	protected final fun getCleanable ()Luniffi/pos_ffi/UniffiCleaner$Cleanable;
 	public fun getCourseSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getCurrentUser (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getFavouritesSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getGiftVoucherSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	protected final fun getHandle ()J
 	public fun getIntegrations (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9807,6 +9879,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun listCartLines (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listCopyableTickets (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listEftPayments (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun listFavourites (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listFiscalEvents (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listGiftVouchers (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listHeldCourses (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9866,6 +9939,8 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun setAllergens (Luniffi/pos_ffi/SetAllergensInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setBadgeSettings (Luniffi/pos_ffi/BadgeSettingsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setCourseSettings (Luniffi/pos_ffi/CourseSettings;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setFavourite (JZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setFavouritesSettings (Luniffi/pos_ffi/FavouritesSettings;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setGiftVoucherSettings (Luniffi/pos_ffi/GiftVoucherSettings;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setLineCourse (JILkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9943,6 +10018,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun getCategories (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getCourseSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getCurrentUser (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getFavouritesSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getGiftVoucherSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getIntegrations (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getItemModifiers (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9977,6 +10053,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun listCartLines (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listCopyableTickets (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listEftPayments (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun listFavourites (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listFiscalEvents (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listGiftVouchers (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listHeldCourses (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -10036,6 +10113,8 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun setAllergens (Luniffi/pos_ffi/SetAllergensInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setBadgeSettings (Luniffi/pos_ffi/BadgeSettingsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setCourseSettings (Luniffi/pos_ffi/CourseSettings;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setFavourite (JZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setFavouritesSettings (Luniffi/pos_ffi/FavouritesSettings;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setGiftVoucherSettings (Luniffi/pos_ffi/GiftVoucherSettings;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setLineCourse (JILkotlin/coroutines/Continuation;)Ljava/lang/Object;

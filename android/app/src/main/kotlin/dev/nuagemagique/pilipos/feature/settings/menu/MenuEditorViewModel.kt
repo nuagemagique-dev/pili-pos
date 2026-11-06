@@ -67,6 +67,9 @@ internal class MenuEditorViewModel(
             onSuccess = { menu -> own.update { it.withMenu(menu).copy(loaded = true, error = null) } },
             onFailure = { failure -> own.update { it.copy(loaded = true, error = entry.errors().text(failure, language())) } },
         )
+        attempt { gateway.call { engine -> engine.getFavouritesSettings() } }.onSuccess { f ->
+            own.update { it.copy(favourites = f.selection) }
+        }
         attempt { gateway.call { engine -> engine.listAllergens() } }.onSuccess { list -> own.update { it.copy(legend = list) } }
         attempt { gateway.call { engine -> engine.getCourseSettings() } }.onSuccess { s ->
             own.update { it.copy(courseSettings = s).withForm(it.form) }
@@ -76,6 +79,22 @@ internal class MenuEditorViewModel(
     private fun MenuEditorUiState.withMenu(menu: MenuAdmin): MenuEditorUiState {
         val keep = selectedCategoryId?.takeIf { id -> menu.categories.any { it.id == id } }
         return copy(menu = menu, selectedCategoryId = keep ?: menu.categories.firstOrNull()?.id)
+    }
+
+    // ── Favourites ────────────────────────────────────────────────
+
+    /**
+     * The star of a product row (`toggleFavourite` of `MenuEditorView.vue`): starred or unstarred at once, in the order
+     * of addition. Local data, so it is allowed while a catalog manages the menu. A refusal shows as a toast.
+     */
+    fun toggleFavourite(productId: Long) {
+        val on = productId !in own.value.favourites
+        viewModelScope.launch {
+            attempt { entry.gateway().call { engine -> engine.setFavourite(productId, on) } }.fold(
+                onSuccess = { stored -> own.update { it.copy(favourites = stored.selection) } },
+                onFailure = { entry.toasts().show(entry.errors().text(it, language()), ToastVariant.Error, ERROR_TOAST_MS) },
+            )
+        }
     }
 
     // ── Choosing ──────────────────────────────────────────────────

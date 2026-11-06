@@ -17,8 +17,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -211,24 +213,18 @@ internal fun OrderContent(
     }
     val menu = state.menu
     val color = menu.categories.firstOrNull { it.id == menu.selectedCategoryId }?.color
+    val tileColors = favouriteTileColors(menu)
     Column(modifier.fillMaxSize().background(c.bgPrimary)) {
-        if (state.zWarning) {
-            val t = PiliTheme.typography
-            Text(
-                text = vueText("z_report_warning"),
-                style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
-                color = c.textOnAccent,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .background(c.accentWarning)
-                        .padding(horizontal = 20.dp, vertical = 14.dp)
-                        .testTag("order_z_warning"),
-            )
-        }
+        if (state.zWarning) ZReportWarning()
         Row(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
-                CategoryTabs(menu.categories, menu.selectedCategoryId, menu.language, callbacks.onCategory)
+                CategoryTabs(
+                    menu.categories,
+                    menu.selectedCategoryId,
+                    menu.language,
+                    callbacks.onCategory,
+                    showFavourites = menu.favourites.isNotEmpty(),
+                )
                 ModeToolbar(
                     menu,
                     ModeToolbarActions(
@@ -251,6 +247,7 @@ internal fun OrderContent(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     highlightId = menu.codePad.pick?.id,
                     emptyText = results?.let { vueText("code_pad_no_result") },
+                    categoryColors = if (results == null) tileColors else null,
                 )
                 // UX audit C6: the pad is a dock under the grid, which keeps its 5 columns.
                 if (menu.codePad.open) CodePad(menu.codePad, callbacks.codePad)
@@ -259,6 +256,31 @@ internal fun OrderContent(
         }
     }
 }
+
+/** The banner that says the previous day's Z is missing. Test tag: `order_z_warning`. */
+@Composable
+private fun ZReportWarning() {
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    Text(
+        text = vueText("z_report_warning"),
+        style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
+        color = c.textOnAccent,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(c.accentWarning)
+                .padding(horizontal = 20.dp, vertical = 14.dp)
+                .testTag("order_z_warning"),
+    )
+}
+
+/** The "Favoris" tab mixes products of every category: each tile keeps the colour of its own category (else null). */
+@Composable
+private fun favouriteTileColors(menu: MenuState): Map<Long, Color?>? =
+    remember(menu.categories, menu.selectedCategoryId == FAVOURITES_TAB) {
+        if (menu.selectedCategoryId == FAVOURITES_TAB) menu.categories.associate { it.id to parseCategoryColor(it.color) } else null
+    }
 
 /**
  * The open dialog, over everything: the price of a free-price product, the options of a product, the availability of a

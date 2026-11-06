@@ -177,6 +177,15 @@ class OrderScreenshotTest {
     }
 
     @Test
+    fun favouritesTab() {
+        // Products of several categories on one tab: each keeps the colour of its own category.
+        val picked =
+            listOf(items[0], menuItem(20, 2, "Maki saumon", 650, nameZh = "三文鱼卷"), menuItem(21, 7, "Cola", 300, nameZh = "可乐"), items[6])
+        val favourites = menu.copy(selectedCategoryId = FAVOURITES_TAB, items = picked, favourites = picked)
+        capture(OrderUiState(signedIn = true, menu = favourites, cart = cart), "order_favourites")
+    }
+
+    @Test
     fun modifiers() {
         val sauces =
             group(1, "Sauce", min = 1, max = 1, modifier(100, "Soja"), modifier(101, "Soja sucrée"), modifier(102, "Spicy mayo", 50))

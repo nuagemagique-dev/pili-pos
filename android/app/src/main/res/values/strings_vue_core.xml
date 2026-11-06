@@ -33,6 +33,7 @@
     <string name="card_wait">Encaisser sur le terminal</string>
     <string name="back">Retour</string>
     <string name="open_price_title">Prix libre</string>
+    <string name="favourites_tab">Favoris</string>
     <string name="soldout_mode">Épuisé</string>
     <string name="soldout_mode_hint">Touchez un produit pour changer sa disponibilité.</string>
     <string name="soldout_badge">Épuisé</string>

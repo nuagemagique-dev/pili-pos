@@ -91,6 +91,7 @@ private fun menuState(
         categories = d.categories,
         selectedCategoryId = d.selectedCategoryId,
         items = d.items,
+        favourites = d.favourites,
         cartQuantities = quantities,
         language = l.language,
         labelMode = l.labelMode,
@@ -135,6 +136,14 @@ private class MenuCodePadHost(
     ) = addUnits.invoke(lineId, delta)
 }
 
+/** What one read of the menu answers. */
+private data class MenuRead(
+    val categories: List<Category>,
+    val favourites: List<MenuItem>,
+    val selected: Long?,
+    val items: List<MenuItem>,
+)
+
 /** How often the Z-report reminder is checked again, in milliseconds (5 minutes in `OrderView.vue`). */
 internal const val Z_CHECK_MS: Long = 300_000L
 
@@ -143,6 +152,8 @@ private data class Data(
     val categories: List<Category> = emptyList(),
     val selectedCategoryId: Long? = null,
     val items: List<MenuItem> = emptyList(),
+    /** The products of the "Favoris" tab (UX audit C12). */
+    val favourites: List<MenuItem> = emptyList(),
     val loaded: Boolean = false,
     val zWarning: Boolean = false,
     val dialog: OrderDialog = OrderDialog.None,
@@ -464,29 +475,39 @@ internal class MenuViewModel(
 
     // ── Menu ──────────────────────────────────────────────────────
 
-    /** Reads the categories and the products of the selected one (the first when none is selected or it is gone). */
+    /**
+     * Reads the categories, the products of the "Favoris" tab and the products of the selected tab (the default tab when
+     * none is selected or it is gone: "Favoris" when it has products, else the first category).
+     */
     private suspend fun loadMenu(language: AppLanguage) =
         menuLock.withLock {
             // The selection the read starts from: a tab tapped after this point must not be undone by the result.
             val keep = data.value.selectedCategoryId
             attempt {
                 val categories = gateway.call { engine -> engine.getCategories(language.code) }
-                val selected = categories.firstOrNull { it.id == keep }?.id ?: categories.firstOrNull()?.id
+                val favourites = readFavourites(language)
+                val selected = keepTab(keep, categories, favourites.size)
                 val items =
-                    if (selected != null) {
-                        gateway.call { engine -> engine.getMenuItems(selected, language.code) }
-                    } else {
-                        emptyList()
+                    when {
+                        selected == FAVOURITES_TAB -> favourites
+                        selected != null -> gateway.call { engine -> engine.getMenuItems(selected, language.code) }
+                        else -> emptyList()
                     }
-                Triple(categories, selected, items)
+                MenuRead(categories, favourites, selected, items)
             }.fold(
-                onSuccess = { (categories, selected, items) ->
+                onSuccess = { read ->
                     data.update {
                         // A tab tapped while the read ran wins: its own job reads its products, so only the tabs are published.
                         if (it.selectedCategoryId == keep) {
-                            it.copy(categories = categories, selectedCategoryId = selected, items = items, loaded = true)
+                            it.copy(
+                                categories = read.categories,
+                                favourites = read.favourites,
+                                selectedCategoryId = read.selected,
+                                items = read.items,
+                                loaded = true,
+                            )
                         } else {
-                            it.copy(categories = categories, loaded = true)
+                            it.copy(categories = read.categories, favourites = read.favourites, loaded = true)
                         }
                     }
                     if (data.value.codePad.open) codePad.load(language)
@@ -495,6 +516,12 @@ internal class MenuViewModel(
                 onFailure = { Timber.d(it, "Menu not loaded") },
             )
         }
+
+    /** The products of the "Favoris" tab; a failure hides the tab: it is a shortcut, never a blocker. */
+    private suspend fun readFavourites(language: AppLanguage): List<MenuItem> =
+        attempt { gateway.call { engine -> engine.listFavourites(language.code) } }
+            .onFailure { Timber.d(it, "Favourites not loaded") }
+            .getOrDefault(emptyList())
 
     /** `loadSoldOut`: the products sold out now, for the cashier and the manager (the engine refuses the others). */
     private suspend fun loadSoldOut(language: AppLanguage) {
@@ -589,21 +616,46 @@ internal class MenuViewModel(
 
     private fun selectedCategoryId(): Long? = data.value.selectedCategoryId
 
-    /** Reads the products of [categoryId] again (the sold-out flags changed). */
+    /**
+     * Reads the products of [categoryId] again (the sold-out flags changed). The "Favoris" tab reads its own list; when
+     * it came back empty the screen goes to the first category.
+     */
     private fun refreshItems(categoryId: Long) {
         itemsJob?.cancel()
         itemsJob =
             viewModelScope.launch {
                 menuLock.withLock {
                     val language = settings.language.value
-                    attempt { gateway.call { engine -> engine.getMenuItems(categoryId, language.code) } }.fold(
-                        onSuccess = { items ->
-                            data.update { if (it.selectedCategoryId == categoryId) it.copy(items = items) else it }
-                        },
-                        onFailure = { Timber.d(it, "Products not loaded") },
-                    )
+                    if (categoryId == FAVOURITES_TAB) {
+                        refreshFavouritesTab(language)
+                    } else {
+                        attempt { gateway.call { engine -> engine.getMenuItems(categoryId, language.code) } }.fold(
+                            onSuccess = { items ->
+                                data.update { if (it.selectedCategoryId == categoryId) it.copy(items = items) else it }
+                            },
+                            onFailure = { Timber.d(it, "Products not loaded") },
+                        )
+                    }
                 }
             }
+    }
+
+    private suspend fun refreshFavouritesTab(language: AppLanguage) {
+        val favourites = readFavourites(language)
+        val fallback = if (favourites.isEmpty()) data.value.categories.firstOrNull()?.id else null
+        val items =
+            if (fallback != null) {
+                attempt { gateway.call { engine -> engine.getMenuItems(fallback, language.code) } }.getOrDefault(emptyList())
+            } else {
+                favourites
+            }
+        data.update {
+            when {
+                it.selectedCategoryId != FAVOURITES_TAB -> it.copy(favourites = favourites)
+                fallback != null -> it.copy(favourites = favourites, selectedCategoryId = fallback, items = items)
+                else -> it.copy(favourites = favourites, items = items)
+            }
+        }
     }
 
     // ── Sold out (Épuisé) ─────────────────────────────────────────
@@ -646,6 +698,8 @@ internal class MenuViewModel(
                     data.update {
                         it.copy(soldOut = list, dialog = if (it.dialog is OrderDialog.SoldOut) OrderDialog.None else it.dialog)
                     }
+                    // The most sold skip a sold-out product: the tab is read again too.
+                    viewModelScope.launch { data.update { it.copy(favourites = readFavourites(language)) } }
                     selectedCategoryId()?.let { refreshItems(it) }
                 },
                 onFailure = { entry.errors().show(it, language) },

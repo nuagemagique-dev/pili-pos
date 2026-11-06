@@ -11,7 +11,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -29,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.components.tapScale
 import dev.nuagemagique.pilipos.ui.format.bilingualCategoryName
+import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import uniffi.pos_ffi.Category
 
@@ -37,6 +42,7 @@ private const val TAB_COLUMNS = 9
 
 private val TabHeight = 60.dp
 private val StripeHeight = 5.dp
+private val FavouritesIconSize = 20.dp
 
 /** Length of `#RRGGBB`. */
 private const val HEX_COLOR_LENGTH = 7
@@ -62,7 +68,8 @@ internal fun parseCategoryColor(hex: String?): Color? {
 /**
  * The category tabs (`CategoryTabs.vue`): two fixed rows of nine instead of scrolling tabs, so every category is one
  * tap away. The selected tab is filled with the selection colours; a stripe on top carries the category colour.
- * Test tags: `order_categories`, `category_<id>`.
+ * [showFavourites] puts the "Favoris" tab (a star, the id [FAVOURITES_TAB]) first, before the categories (UX audit C12).
+ * Test tags: `order_categories`, `category_<id>`, `tab_favourites`.
  */
 @Composable
 internal fun CategoryTabs(
@@ -71,8 +78,10 @@ internal fun CategoryTabs(
     language: AppLanguage,
     onSelect: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    showFavourites: Boolean = false,
 ) {
     val d = PiliTheme.dimens
+    val tabs: List<Category?> = (if (showFavourites) listOf(null) else emptyList()) + categories
     Column(
         modifier =
             modifier
@@ -81,13 +90,58 @@ internal fun CategoryTabs(
                 .testTag("order_categories"),
         verticalArrangement = Arrangement.spacedBy(d.spaceSm),
     ) {
-        categories.chunked(TAB_COLUMNS).forEach { row ->
+        tabs.chunked(TAB_COLUMNS).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(d.spaceSm)) {
                 row.forEach { category ->
-                    CategoryTab(category, category.id == selectedId, language, { onSelect(category.id) }, Modifier.weight(1f))
+                    if (category == null) {
+                        FavouritesTab(selectedId == FAVOURITES_TAB, { onSelect(FAVOURITES_TAB) }, Modifier.weight(1f))
+                    } else {
+                        CategoryTab(category, category.id == selectedId, language, { onSelect(category.id) }, Modifier.weight(1f))
+                    }
                 }
                 repeat(TAB_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
             }
+        }
+    }
+}
+
+/** The "Favoris" tab: a star and the word, on the neutral stripe (no category colour). */
+@Composable
+private fun FavouritesTab(
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) {
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    val source = remember { MutableInteractionSource() }
+    val foreground = if (selected) c.selectedFg else c.textPrimary
+    Box(
+        modifier =
+            modifier
+                .height(TabHeight)
+                .tapScale(source)
+                .clip(RoundedCornerShape(PiliTheme.dimens.radiusMd))
+                .background(if (selected) c.selectedBg else c.bgSecondary)
+                .clickable(interactionSource = source, indication = null, role = Role.Tab, onClick = onClick)
+                .semantics { this.selected = selected }
+                .testTag("tab_favourites"),
+    ) {
+        Box(Modifier.fillMaxWidth().height(StripeHeight).background(c.border))
+        Row(
+            modifier = Modifier.fillMaxWidth().align(Alignment.Center).padding(top = StripeHeight, start = 6.dp, end = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.Star, contentDescription = null, tint = foreground, modifier = Modifier.size(FavouritesIconSize))
+            Text(
+                text = vueText("favourites_tab"),
+                style = t.body.copy(fontSize = t.sizeMd, fontWeight = t.weightBold),
+                color = foreground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

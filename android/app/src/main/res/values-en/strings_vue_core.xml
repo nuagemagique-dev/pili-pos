@@ -33,6 +33,7 @@
     <string name="card_wait">Process on terminal</string>
     <string name="back">Back</string>
     <string name="open_price_title">Open price</string>
+    <string name="favourites_tab">Favourites</string>
     <string name="soldout_mode">Sold out</string>
     <string name="soldout_mode_hint">Tap a product to change its availability.</string>
     <string name="soldout_badge">Sold out</string>

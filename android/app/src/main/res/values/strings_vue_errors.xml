@@ -62,6 +62,8 @@
     <string name="err_discount_reason_invalid">Choisissez le motif de la remise.</string>
     <string name="err_discount_online_order">Une commande en ligne a ses propres remises : aucune remise en caisse.</string>
     <string name="err_note_too_long">Note trop longue : 60 caractères au plus.</string>
+    <string name="err_favourites_invalid">Ce produit n\'existe pas dans la carte.</string>
+    <string name="err_favourites_too_many">Trop de favoris : {max} au plus.</string>
     <string name="err_quick_notes_too_many">Trop de notes rapides : {max} au plus.</string>
     <string name="err_note_unprintable">La note a un caractère que l\'imprimante de cuisine ne sait pas imprimer (lettres, chiffres et accents seulement).</string>
     <string name="err_line_has_price_changes">Cette ligne a une remise : retirez-la avant de changer la quantité.</string>
