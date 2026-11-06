@@ -149,6 +149,28 @@ test.describe('Digit after an add = quantity (C7)', () => {
     await expect(page.getByTestId('code-pad-message')).toHaveText('Cola × 5')
   })
 
+  test('a digit under the units the add gave removes nothing; a longer number still extends', async ({
+    page,
+  }) => {
+    await openOrder(page)
+    for (const k of ['2', 'times']) await page.getByTestId(`code-key-${k}`).click()
+    await tapProduct(page, 'Maki saumon')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('2×')
+
+    await page.getByTestId('code-key-1').click()
+
+    // The add already gave 2: the "1" leaves the line as it is and sends no quantity command.
+    await expect(page.getByTestId('code-pad-message')).toHaveText('Maki saumon × 2')
+    await expect(page.locator('.order-line .line-qty')).toHaveText('2×')
+    expect(await ipcCalls(page, 'update_order_line_quantity')).toHaveLength(0)
+
+    // "1" then "5" is 15.
+    await page.getByTestId('code-key-5').click()
+    await expect(page.locator('.order-line .line-qty')).toHaveText('15×')
+    const calls = await ipcCalls(page, 'update_order_line_quantity')
+    expect(calls.at(-1)?.quantity).toBe(15)
+  })
+
   test('after 3 seconds a digit starts a code as today', async ({ page }) => {
     await page.clock.install()
     await openOrder(page)

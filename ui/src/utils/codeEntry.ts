@@ -195,7 +195,7 @@ export type DigitStep = { kind: 'set'; window: DigitWindow } | { kind: 'pass' }
 
 /**
  * A key typed on the empty code field. A digit inside the open window sets
- * (or extends) the add's quantity; anything else closes the window and
+ * (or extends) the add's quantity, never below the units the add gave; anything else closes the window and
  * starts a code as usual: a letter, the multiply sign, a first "0", a
  * third digit, a digit after the deadline.
  */
@@ -207,7 +207,13 @@ export function stepDigitWindow(window: DigitWindow | null, key: string, now: nu
   const digits = window.digits + key
   return {
     kind: 'set',
-    window: { ...window, digits, quantity: Number(digits), expiresAt: now + DIGIT_WINDOW_MS },
+    window: {
+      ...window,
+      digits,
+      // Never under the units the add already gave: a smaller digit leaves the line as it is.
+      quantity: Math.max(Number(digits), window.quantity),
+      expiresAt: now + DIGIT_WINDOW_MS,
+    },
   }
 }
 

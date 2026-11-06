@@ -322,6 +322,34 @@ class CodePadFlowTest {
         }
 
     @Test
+    fun aDigitUnderTheUnitsTheAddGaveRemovesNothingAndALongerNumberStillExtends() =
+        runTest {
+            val r = windowed()
+            val two = cartLine(99, 10, "Maki saumon", quantity = 2, unsent = 2)
+            coEvery { r.f.engine.addOrderLine(any()) } answers
+                {
+                    r.world.cart = listOf(two)
+                    orderLine(10)
+                }
+
+            r.type("2*")
+            r.model.tapItem(maki)
+            runCurrent()
+            r.model.codePad.type("1")
+            runCurrent()
+
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+            assertEquals(2, r.order.lines.value.single().quantity)
+            assertEquals(CodeMessage.Counted(maki, 2), r.state.menu.codePad.message)
+
+            r.model.codePad.type("5")
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.updateOrderLineQuantity(99L, 15) }
+            assertEquals(15, r.order.lines.value.single().quantity)
+        }
+
+    @Test
     fun theDigitWindowAlsoFollowsAnAddFromTheCodeField() =
         runTest {
             val r = windowed()

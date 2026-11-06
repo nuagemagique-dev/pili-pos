@@ -201,6 +201,18 @@ describe('digit after an add (C7)', () => {
     }
   })
 
+  it('a digit under the units the add gave leaves the line as it is, a later digit still extends', () => {
+    // "2 ×" then the product, then a "1": the add stays at 2 units (nothing is removed).
+    const two = openDigitWindow({ ...add, quantity: 2 }, 0)
+    const first = stepDigitWindow(two, '1', 10)
+    if (first.kind !== 'set') throw new Error('first digit not taken')
+    expect(first.window.quantity).toBe(2)
+    expect(first.window.quantity - two.quantity).toBe(0)
+    // "1" then "5" is 15: 13 more units.
+    const second = stepDigitWindow(first.window, '5', 20)
+    expect(second.kind === 'set' && second.window.quantity).toBe(15)
+  })
+
   it('a zero after a first digit is part of the quantity (1, 0 = 10)', () => {
     const first = stepDigitWindow(openDigitWindow(add, 0), '1', 10)
     if (first.kind !== 'set') throw new Error('first digit not taken')

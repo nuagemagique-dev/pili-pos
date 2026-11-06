@@ -205,6 +205,15 @@ class CodeEntryTest {
     }
 
     @Test
+    fun aDigitUnderTheUnitsTheAddGaveLeavesTheLineAsItIsAndALaterDigitStillExtends() {
+        val two = openDigitWindow(5, 1, 2, 0)
+        val first = stepDigitWindow(two, "1", 10) as DigitStep.Set
+
+        assertEquals(2, first.window.quantity)
+        assertEquals(15, (stepDigitWindow(first.window, "5", 20) as DigitStep.Set).window.quantity)
+    }
+
+    @Test
     fun noWindowTakesNothing() {
         assertEquals(DigitStep.Pass, stepDigitWindow(null, "3", 0))
     }

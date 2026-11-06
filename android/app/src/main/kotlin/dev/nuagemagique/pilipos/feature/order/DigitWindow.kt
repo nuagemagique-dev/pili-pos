@@ -45,7 +45,8 @@ internal sealed interface DigitStep {
 }
 
 /**
- * A key typed on the empty code field. A digit inside the open window sets (or extends) the add's quantity; anything
+ * A key typed on the empty code field. A digit inside the open window sets (or extends) the add's quantity, never
+ * below the units the add gave; anything
  * else closes the window and starts a code as usual: a letter, the multiply sign, a first "0", a third digit, a digit
  * after the deadline.
  */
@@ -59,5 +60,8 @@ internal fun stepDigitWindow(
             window.digits.length < DIGIT_WINDOW_DIGITS && !(window.digits.isEmpty() && key == "0")
     if (!takes || window == null) return DigitStep.Pass
     val digits = window.digits + key
-    return DigitStep.Set(window.copy(digits = digits, quantity = digits.toInt(), expiresAt = now + DIGIT_WINDOW_MS))
+    // Never under the units the add already gave: a smaller digit leaves the line as it is.
+    return DigitStep.Set(
+        window.copy(digits = digits, quantity = maxOf(digits.toInt(), window.quantity), expiresAt = now + DIGIT_WINDOW_MS),
+    )
 }
