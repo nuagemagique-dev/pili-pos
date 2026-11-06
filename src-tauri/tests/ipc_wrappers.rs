@@ -233,6 +233,14 @@ fn apply_discount_takes_the_input_the_ui_builds() {
         )),
         "pin_wrong"
     );
+    // With no `pin` key the kept PIN of the order stands in; there is none yet (P8).
+    assert_eq!(
+        refusal(f.call(
+            "apply_discount",
+            json!({ "orderId": order, "input": free_line, "insz": MANAGER })
+        )),
+        "pin_required"
+    );
     // Then the nested input: a line that is not on the order.
     assert_eq!(
         refusal(f.call(
@@ -273,6 +281,17 @@ fn apply_discount_takes_the_input_the_ui_builds() {
     assert_eq!(done["order"]["total_cents"], 585);
     assert_eq!(done["kitchenSlip"], "nothing_to_print");
     assert_eq!(done["registrationError"], Value::Null);
+    // The PIN typed for it is now kept for this order: the answer says so, and a removal
+    // without a PIN goes through (the `pinReused` and `pinGrantMs` keys of the result).
+    assert_eq!(done["pinReused"], false);
+    assert!(done["pinGrantMs"].as_u64().unwrap() > 100_000, "{done}");
+    let back = f
+        .call(
+            "remove_discount",
+            json!({ "orderId": order, "lineId": Value::Null, "insz": MANAGER }),
+        )
+        .unwrap();
+    assert_eq!(back["pinReused"], true);
 }
 
 #[test]

@@ -272,9 +272,10 @@ async fn a_discounted_cart_line_and_the_discount_result_convert() {
         reason_code: engine::DiscountReason::ServiceIssue,
         reason_text: Some("plat froid".into()),
     };
-    let done = engine::do_apply_discount(&app.state, order.id, input, INSZ.into(), PIN.into())
-        .await
-        .unwrap();
+    let done =
+        engine::do_apply_discount(&app.state, order.id, input, INSZ.into(), Some(PIN.into()))
+            .await
+            .unwrap();
     let result: ffi::DiscountResult = out_equal(&done);
     // 2 x 12,00 + 2 x 28,00 = 80,00, 25 % off.
     assert_eq!(result.order.total_cents, 6000);
@@ -938,7 +939,7 @@ async fn the_commands_that_need_an_operator_answer_not_logged_in_and_change_noth
     };
     assert_eq!(
         code_of(
-            e.apply_discount(1, discount, MANAGER_INSZ.into(), "4321".into())
+            e.apply_discount(1, discount, MANAGER_INSZ.into(), Some("4321".into()))
                 .await
                 .unwrap_err()
         ),
@@ -946,7 +947,7 @@ async fn the_commands_that_need_an_operator_answer_not_logged_in_and_change_noth
     );
     assert_eq!(
         code_of(
-            e.remove_discount(1, None, MANAGER_INSZ.into(), "4321".into())
+            e.remove_discount(1, None, MANAGER_INSZ.into(), Some("4321".into()))
                 .await
                 .unwrap_err()
         ),

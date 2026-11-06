@@ -26,6 +26,9 @@ pub struct NewTillDiscount<'a> {
     pub reason_code: &'a str,
     pub reason_text: Option<&'a str>,
     pub manager_insz: &'a str,
+    /// The manager's PIN given for an earlier discount of the order was
+    /// reused instead of typed again.
+    pub pin_reused: bool,
 }
 
 /// A recorded audit row.
@@ -43,14 +46,15 @@ pub struct TillDiscountRow {
     pub reason_code: String,
     pub reason_text: Option<String>,
     pub manager_insz: String,
+    pub pin_reused: bool,
 }
 
 pub fn insert(conn: &Connection, d: &NewTillDiscount<'_>) -> Result<(), rusqlite::Error> {
     conn.execute(
         "INSERT INTO till_discounts
             (order_id, line_id, action, kind, value, amount_cents, change_id, grouping_id,
-             reason_code, reason_text, manager_insz)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+             reason_code, reason_text, manager_insz, pin_reused)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             d.order_id,
             d.line_id,
@@ -62,7 +66,8 @@ pub fn insert(conn: &Connection, d: &NewTillDiscount<'_>) -> Result<(), rusqlite
             d.grouping_id,
             d.reason_code,
             d.reason_text,
-            d.manager_insz
+            d.manager_insz,
+            d.pin_reused
         ],
     )?;
     Ok(())
@@ -72,7 +77,7 @@ pub fn insert(conn: &Connection, d: &NewTillDiscount<'_>) -> Result<(), rusqlite
 pub fn list(conn: &Connection, order_id: i64) -> Result<Vec<TillDiscountRow>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT id, order_id, line_id, action, kind, value, amount_cents, change_id,
-                grouping_id, reason_code, reason_text, manager_insz
+                grouping_id, reason_code, reason_text, manager_insz, pin_reused
          FROM till_discounts WHERE order_id = ?1 ORDER BY id",
     )?;
     stmt.query_map(params![order_id], |r| {
@@ -89,6 +94,7 @@ pub fn list(conn: &Connection, order_id: i64) -> Result<Vec<TillDiscountRow>, ru
             reason_code: r.get(9)?,
             reason_text: r.get(10)?,
             manager_insz: r.get(11)?,
+            pin_reused: r.get::<_, i64>(12)? != 0,
         })
     })?
     .collect()

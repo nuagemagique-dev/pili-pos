@@ -79,3 +79,16 @@ pub(crate) const MIGRATION_031_KITCHEN_NOTES: &str = r"
 ALTER TABLE order_lines ADD COLUMN kitchen_note TEXT;
 ALTER TABLE order_lines ADD COLUMN kitchen_note_printed TEXT;
 ";
+
+/// v93 - the manager PIN kept for the discounts of one order (UX audit P8).
+///
+/// - `till_discounts.pin_reused`: 1 when the discount (or its removal) was
+///   taken on the manager PIN given for an earlier discount of the same
+///   order within two minutes, 0 when the manager typed the PIN for this
+///   one. The trail stays append-only (its triggers refuse an update and a
+///   delete; adding a column is not one), and the older rows read 0, which
+///   is true: every discount before this version asked for its PIN.
+pub(crate) const MIGRATION_093_PIN_REUSE: &str = r"
+ALTER TABLE till_discounts ADD COLUMN pin_reused INTEGER NOT NULL DEFAULT 0
+    CHECK (pin_reused IN (0, 1));
+";

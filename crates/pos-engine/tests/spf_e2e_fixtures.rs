@@ -1062,7 +1062,7 @@ async fn uc223_event_discount_at_the_till() {
         order_id,
         order_discount(DiscountKind::Percent, Some(50)),
         operator(&vars),
-        MANAGER_PIN.into(),
+        Some(MANAGER_PIN.into()),
     )
     .await
     .unwrap();
@@ -1127,7 +1127,7 @@ async fn uc225a_discount_after_registration() {
         order_id,
         order_discount(DiscountKind::Percent, Some(20)),
         operator(&first_vars),
-        MANAGER_PIN.into(),
+        Some(MANAGER_PIN.into()),
     )
     .await
     .unwrap();
@@ -1196,7 +1196,7 @@ async fn uc229b_free_line_at_the_till() {
             reason_text: None,
         },
         operator(&vars),
-        MANAGER_PIN.into(),
+        Some(MANAGER_PIN.into()),
     )
     .await
     .unwrap();

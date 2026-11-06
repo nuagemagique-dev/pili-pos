@@ -20,11 +20,19 @@
 //! FAQ Q303 d). A takeaway or an unregistered table is registered by its
 //! N, as a direct sale. The reason of a discount is local (audit table
 //! `till_discounts`), never part of a signed payload.
+//!
+//! One PIN per order (UX audit P8): a discount confirmed by the PIN opens a
+//! two minute grant for the same manager on the same order
+//! ([`crate::commands::pin_grant`]); the next discounts, offers and
+//! removals on it are taken with no PIN (`pin` absent), and each audit row
+//! says whether the PIN was reused.
 
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use tokio::time::Instant;
 
 use pos_core::money::distribute;
 use pos_core::order::{Order, OrderLine, OrderStatus, OrderType};
@@ -39,6 +47,7 @@ use crate::commands::access::{self, Access};
 use crate::commands::bar_slip::SlipOutcome;
 use crate::commands::eft;
 use crate::commands::errors;
+use crate::commands::pin_grant::PinGrant;
 use crate::commands::signing::{self, Begin, Kind, Op};
 use crate::commands::tables::{print_registered, sign_table_order_locked};
 use crate::state::AppState;
@@ -111,39 +120,119 @@ pub struct DiscountResult {
     /// discount is recorded and goes with the next registration or the
     /// sale; the screen shows this as a warning.
     pub registration_error: Option<String>,
+    /// The manager's PIN given for an earlier discount of this order was
+    /// reused: nothing was typed for this one.
+    pub pin_reused: bool,
+    /// Milliseconds the manager may still give discounts on this order
+    /// without the PIN, `None` when the PIN is needed for the next one.
+    pub pin_grant_ms: Option<u64>,
 }
 
 /// The longest free text of a reason.
 const REASON_TEXT_MAX: usize = 120;
 
 /// Apply `input` to the open till order `order_id`. A manager only
-/// (`Access::Admin`), confirmed by `pin`.
+/// (`Access::Admin`), confirmed by `pin`; with `pin` `None` the PIN the
+/// manager gave for an earlier discount of this order, less than two
+/// minutes ago, stands in (else `pin_required`, nothing written).
 pub async fn do_apply_discount(
     state: &AppState,
     order_id: i64,
     input: DiscountInput,
     insz: String,
-    pin: String,
+    pin: Option<String>,
 ) -> Result<DiscountResult, String> {
-    let manager = access::confirmed_operator(state, &insz, &pin, Access::Admin)?;
+    let (manager, source) = confirm(state, order_id, &insz, pin.as_deref())?;
     let input = validate(input)?;
-    run(state, order_id, &manager, |tx, ctx| apply(tx, ctx, &input)).await
+    let mut result = run(state, order_id, &manager, source, |tx, ctx| {
+        apply(tx, ctx, &input)
+    })
+    .await?;
+    // A typed PIN opens (or renews) the grant; a reused one leaves it as is.
+    if source == PinSource::Typed {
+        let lifetime = state.timers.manager_pin_grant;
+        state.session_rules.pin_grants().give(PinGrant::new(
+            &manager.insz,
+            order_id,
+            Instant::now(),
+            lifetime,
+        ));
+    }
+    stamp(state, &manager.insz, order_id, source, &mut result);
+    Ok(result)
 }
 
 /// Remove the order discount (`line_id` `None`), or the free line
-/// `line_id`. A manager only, confirmed by `pin`.
+/// `line_id`. A manager only, confirmed by `pin` or by the grant like
+/// [`do_apply_discount`]. A removal never opens a grant: only a discount
+/// does.
 pub async fn do_remove_discount(
     state: &AppState,
     order_id: i64,
     line_id: Option<i64>,
     insz: String,
-    pin: String,
+    pin: Option<String>,
 ) -> Result<DiscountResult, String> {
-    let manager = access::confirmed_operator(state, &insz, &pin, Access::Admin)?;
-    run(state, order_id, &manager, |tx, ctx| {
+    let (manager, source) = confirm(state, order_id, &insz, pin.as_deref())?;
+    let mut result = run(state, order_id, &manager, source, |tx, ctx| {
         remove(tx, ctx, line_id)
     })
-    .await
+    .await?;
+    stamp(state, &manager.insz, order_id, source, &mut result);
+    Ok(result)
+}
+
+/// How the manager's confirmation was given.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PinSource {
+    /// The manager typed the PIN for this command.
+    Typed,
+    /// The PIN of an earlier discount of the order stood in for it.
+    Grant,
+}
+
+/// Who gives the discount and how it is confirmed: the typed PIN, or the
+/// grant of an earlier PIN on this order. The second answer says whether
+/// the grant stood in. The logged-in operator is checked first, so a
+/// waiter gets `forbidden` and not `pin_required`.
+fn confirm(
+    state: &AppState,
+    order_id: i64,
+    insz: &str,
+    pin: Option<&str>,
+) -> Result<(pos_core::user::User, PinSource), String> {
+    if let Some(pin) = pin {
+        let manager = access::confirmed_operator(state, insz, pin, Access::Admin)?;
+        return Ok((manager, PinSource::Typed));
+    }
+    let manager = access::operator_named(state, insz, Access::Admin)?;
+    if state
+        .session_rules
+        .pin_grants()
+        .covers(insz, order_id, Instant::now())
+    {
+        Ok((manager, PinSource::Grant))
+    } else {
+        Err(errors::PIN_REQUIRED.into())
+    }
+}
+
+/// Tell the screen how the PIN stood: reused or typed, and how long the
+/// grant still runs.
+fn stamp(
+    state: &AppState,
+    insz: &str,
+    order_id: i64,
+    source: PinSource,
+    result: &mut DiscountResult,
+) {
+    let left = state
+        .session_rules
+        .pin_grants()
+        .remaining(insz, order_id, Instant::now())
+        .map(|d: Duration| u64::try_from(d.as_millis()).unwrap_or(u64::MAX));
+    result.pin_reused = source == PinSource::Grant;
+    result.pin_grant_ms = left;
 }
 
 /// The shape of the input, before anything is read.
@@ -181,6 +270,8 @@ fn validate(mut input: DiscountInput) -> Result<DiscountInput, String> {
 struct Ctx {
     order: Order,
     manager_insz: String,
+    /// The PIN of an earlier discount stood in for this one.
+    pin_source: PinSource,
     /// The receipt language code the change names are written in.
     lang: &'static str,
 }
@@ -191,6 +282,7 @@ async fn run(
     state: &AppState,
     order_id: i64,
     manager: &pos_core::user::User,
+    pin_source: PinSource,
     work: impl FnOnce(&Connection, &Ctx) -> Result<(), String>,
 ) -> Result<DiscountResult, String> {
     let op = Op::new(Kind::Discount, order_id);
@@ -212,6 +304,7 @@ async fn run(
         let ctx = Ctx {
             order,
             manager_insz: manager.insz.clone(),
+            pin_source,
             lang,
         };
         let tx = db.unchecked_transaction().map_err(errors::internal)?;
@@ -242,6 +335,8 @@ async fn run(
         order,
         kitchen_slip,
         registration_error,
+        pin_reused: pin_source == PinSource::Grant,
+        pin_grant_ms: None,
     })
 }
 
@@ -584,6 +679,7 @@ fn audit(db: &Connection, ctx: &Ctx, line_id: Option<i64>, a: &Audit<'_>) -> Res
             reason_code: a.reason.0,
             reason_text: a.reason.1,
             manager_insz: &ctx.manager_insz,
+            pin_reused: ctx.pin_source == PinSource::Grant,
         },
     )
     .map_err(errors::internal)

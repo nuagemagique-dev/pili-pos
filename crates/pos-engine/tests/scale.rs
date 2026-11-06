@@ -484,7 +484,7 @@ async fn a_till_discount_comes_off_the_amount_of_the_scale() {
             reason_text: None,
         },
         OPERATOR.into(),
-        MANAGER_PIN.into(),
+        Some(MANAGER_PIN.into()),
     )
     .await
     .unwrap();

@@ -34,6 +34,7 @@ pub mod order;
 pub mod owner_settings;
 pub mod payment_correction;
 pub mod peppol_queue;
+pub mod pin_grant;
 #[cfg(feature = "hubrise")]
 pub(crate) mod price_changes;
 pub mod print;

@@ -243,6 +243,10 @@ pub struct DiscountResult {
     /// Set when the immediate P could not be signed: the discount is recorded and goes with the
     /// next registration or the sale.
     pub registration_error: Option<String>,
+    /// The PIN given for an earlier discount of the order was reused: nothing was typed.
+    pub pin_reused: bool,
+    /// Milliseconds the manager may still give discounts on this order without the PIN.
+    pub pin_grant_ms: Option<i64>,
 }
 
 /// `pos_core::menu::Category`.

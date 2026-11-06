@@ -283,6 +283,14 @@ const FAVOURITES_MIGRATIONS: &[Migration] = &[Migration {
     sql: crate::schema_favourites::MIGRATION_092_FAVOURITES_CACHE,
 }];
 
+/// The manager PIN kept for the discounts of one order (every build): the
+/// audit rows of the till discounts say whether the PIN was reused.
+const PIN_REUSE_MIGRATIONS: &[Migration] = &[Migration {
+    version: 93,
+    name: "till-discount-pin-reuse",
+    sql: crate::schema_till::MIGRATION_093_PIN_REUSE,
+}];
+
 /// Every migration this build knows, in ascending version order.
 fn registry() -> Vec<Migration> {
     let mut all = MIGRATIONS.to_vec();
@@ -294,6 +302,7 @@ fn registry() -> Vec<Migration> {
     all.extend_from_slice(TAKEAWAY_MIGRATIONS);
     all.extend_from_slice(ZONES_MIGRATIONS);
     all.extend_from_slice(FAVOURITES_MIGRATIONS);
+    all.extend_from_slice(PIN_REUSE_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -568,7 +577,7 @@ mod tests {
     /// The till discounts are migration 30 and the kitchen notes 31, in
     /// every build, after 28 (presence registration) and before the
     /// invoicing block (40 to 42), the owner block (60 to 63) and 70 (staff
-    /// badges), 80 and 81 (scale), then 90 (takeaway tags), 91 (table zones and covers) and 92 (favourites cache); 29 stays free.
+    /// badges), 80 and 81 (scale), then 90 (takeaway tags), 91 (table zones and covers) and 92 (favourites cache) and 93 (PIN reuse flag of the till discounts); 29 stays free.
     #[test]
     fn the_till_migrations_are_30_and_31_in_every_build() {
         let till: Vec<(i64, &str)> = TILL_MIGRATIONS
@@ -582,9 +591,50 @@ mod tests {
         assert_eq!(
             from_28,
             vec![
-                28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70, 80, 81, 90, 91, 92
+                28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70, 80, 81, 90, 91, 92, 93
             ]
         );
+    }
+
+    /// The PIN reuse flag of the till discounts is migration 93, in every
+    /// build: old audit rows read 0 and the trail stays append-only.
+    #[test]
+    fn v93_adds_the_pin_reuse_flag_and_keeps_the_trail_append_only() {
+        let reuse: Vec<(i64, &str)> = PIN_REUSE_MIGRATIONS
+            .iter()
+            .map(|m| (m.version, m.name))
+            .collect();
+        assert_eq!(reuse, vec![(93, "till-discount-pin-reuse")]);
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute_batch(
+            "INSERT INTO orders (id, order_type, status, user_insz)
+                VALUES (1, 'takeaway', 'open', '12345678958');
+             INSERT INTO till_discounts
+                (order_id, action, kind, amount_cents, change_id, grouping_id, reason_code, manager_insz)
+                VALUES (1, 'apply', 'free', -100, 'TILL-FREE', 1, 'other', '12345678958');",
+        )
+        .unwrap();
+        let flag: i64 = conn
+            .query_row("SELECT pin_reused FROM till_discounts", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(flag, 0, "a row written without the flag reads 0");
+        // Only 0 and 1 are flags, and the row cannot be rewritten.
+        assert!(
+            conn.execute(
+                "INSERT INTO till_discounts
+                    (order_id, action, kind, amount_cents, change_id, grouping_id, reason_code, manager_insz, pin_reused)
+                 VALUES (1, 'apply', 'free', -1, 'TILL-FREE', 2, 'other', '12345678958', 2)",
+                [],
+            )
+            .is_err()
+        );
+        assert!(
+            conn.execute("UPDATE till_discounts SET pin_reused = 1", [])
+                .is_err()
+        );
+        // A second run does not add the column again (it would fail).
+        run_migrations(&conn).unwrap();
     }
 
     /// The favourites cache is migration 92, in every build: two small local

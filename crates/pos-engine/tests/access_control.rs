@@ -192,7 +192,7 @@ async fn manager_commands(
             reason_text: None,
         },
         insz.into(),
-        MANAGER_PIN.into(),
+        Some(MANAGER_PIN.into()),
     )
     .await
     .map(|_| ());
@@ -201,7 +201,7 @@ async fn manager_commands(
         left_unpaid,
         None,
         insz.into(),
-        MANAGER_PIN.into(),
+        Some(MANAGER_PIN.into()),
     )
     .await
     .map(|_| ());

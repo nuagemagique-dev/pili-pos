@@ -41,6 +41,8 @@ hex = "0.4"
 getrandom = "0.3"
 
 [dev-dependencies]
+# A paused clock for the expiry of the manager PIN grant (tests/manager_pin_grant.rs).
+tokio = { workspace = true, features = ["test-util"] }
 # The integration tests (tests/) share this harness. The cycle with the
 # testkit (which depends on pos-engine) is intended: integration tests
 # only, no pos-engine unit test uses the testkit.

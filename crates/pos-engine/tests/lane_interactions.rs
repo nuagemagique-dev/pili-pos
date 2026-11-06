@@ -377,7 +377,7 @@ async fn a_voucher_line_cannot_be_offered() {
             None,
         ),
         MANAGER.into(),
-        PIN.into(),
+        Some(PIN.into()),
     )
     .await
     .unwrap_err();
@@ -397,7 +397,7 @@ async fn an_order_discount_leaves_the_voucher_line_whole_and_the_voucher_keeps_i
         o,
         discount(DiscountTarget::Order, DiscountKind::Percent, Some(10)),
         MANAGER.into(),
-        PIN.into(),
+        Some(PIN.into()),
     )
     .await
     .unwrap();
@@ -691,7 +691,7 @@ async fn price_change_entries_are_never_held_or_printed_on_a_course_slip() {
         o,
         discount(DiscountTarget::Order, DiscountKind::Percent, Some(10)),
         MANAGER.into(),
-        PIN.into(),
+        Some(PIN.into()),
     )
     .await
     .unwrap();

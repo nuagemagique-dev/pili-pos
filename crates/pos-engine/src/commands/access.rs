@@ -148,6 +148,9 @@ pub fn verify_pin(state: &AppState, insz: &str, hash: &str, pin: &str) -> Result
 /// restarts the idle time (PD35).
 pub fn open_session(state: &AppState, user: &User) -> Result<(), String> {
     *state.session.lock().map_err(|e| e.to_string())? = Some(user.clone());
+    // A manager PIN kept for discounts never outlives the session it was
+    // given in (P8): every login starts without one.
+    state.session_rules.pin_grants().clear();
     state.session_rules.touch();
     state.session_rules.notify_session_changed();
     Ok(())
@@ -157,6 +160,8 @@ pub fn open_session(state: &AppState, user: &User) -> Result<(), String> {
 /// until the next login.
 pub fn close_session(state: &AppState) -> Result<(), String> {
     *state.session.lock().map_err(|e| e.to_string())? = None;
+    // Lock, idle lock, logout and end of shift all end here (P8).
+    state.session_rules.pin_grants().clear();
     state.session_rules.notify_session_changed();
     Ok(())
 }
