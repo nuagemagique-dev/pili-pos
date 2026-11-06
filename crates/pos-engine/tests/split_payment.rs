@@ -27,6 +27,7 @@ use pos_engine::commands::checkout::{CheckoutPaymentMethod::Card, PaymentPart, d
 use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
+use pos_fiscal::payment::{PaymentPart as FiscalPart, settle};
 
 const MANAGER: &str = "12345678958";
 /// A dish at 10,03: three of them are a bill of 30,09, three friends at 10,03.
@@ -101,6 +102,37 @@ fn financials(app: &TestApp) -> Vec<(String, String, f64)> {
         .collect()
 }
 
+/// The cash the signed sale asks for, in cents: the CASH payment line plus its ROUNDING line.
+fn signed_cash_due_cents(app: &TestApp) -> i64 {
+    let cents = |x: f64| format!("{x:.2}").replace('.', "").parse::<i64>().unwrap();
+    financials(app)
+        .iter()
+        .filter(|f| f.0 == "CASH")
+        .map(|f| cents(f.2))
+        .sum()
+}
+
+/// What each friend hands over, from the engine's own rounding: `settle` of the running cash
+/// total gives the cash due so far, and a friend hands over the difference with the cash due
+/// before their part. The Compose checkout asks the engine the same way (`cashDueAfter`) and the
+/// web one mirrors it in `cashDueCents` (`ui/src/utils/dishSplit.ts`, whose unit test uses the
+/// same fixtures), so the amounts shown to the friends are the ones the signed line adds up to.
+fn dues_from_the_engine(cash_parts: &[i64]) -> Vec<i64> {
+    let (mut taken, mut before) = (0, 0);
+    cash_parts
+        .iter()
+        .map(|part| {
+            taken += part;
+            let due = settle(taken, &[FiscalPart::cash()])
+                .unwrap()
+                .cash_due_cents();
+            let hands_over = due - before;
+            before = due;
+            hands_over
+        })
+        .collect()
+}
+
 fn row(t: &str, a: &str, x: f64) -> (String, String, f64) {
     (t.to_string(), a.to_string(), x)
 }
@@ -129,9 +161,11 @@ async fn three_friends_in_cash_sign_one_cash_line() {
             .count(),
         1
     );
-    // The three amounts handed over add up to the cash line with its rounding: 10,05 + 10,00 + 10,05.
-    let handed_over: i64 = 1005 + 1000 + 1005;
-    assert_eq!(handed_over, 3009 + 1);
+    // The three friends hand over 10,05 + 10,00 + 10,05, and that adds up to what the signed
+    // sale asks for: the cash line with its rounding.
+    let dues = dues_from_the_engine(&[1003, 1003, 1003]);
+    assert_eq!(dues, [1005, 1000, 1005]);
+    assert_eq!(dues.iter().sum::<i64>(), signed_cash_due_cents(&app));
 }
 
 /// Cash, card, then cash again on a bill of 34,69 (30,09 of sushi and 4,60 of soup): friend 1
@@ -162,7 +196,9 @@ async fn cash_card_cash_signs_one_cash_line_rounded_once() {
         ]
     );
     // What the two friends hand over adds up to the cash line with its rounding.
-    assert_eq!(1155 + 1160, 2313 + 2);
+    let dues = dues_from_the_engine(&[1157, 1156]);
+    assert_eq!(dues, [1155, 1160]);
+    assert_eq!(dues.iter().sum::<i64>(), signed_cash_due_cents(&app));
 }
 
 /// The spec wants ONE cash line: a request with two cash parts is still refused, the screens
