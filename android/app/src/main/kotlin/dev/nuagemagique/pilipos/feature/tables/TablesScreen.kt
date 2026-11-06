@@ -2,9 +2,11 @@
 
 package dev.nuagemagique.pilipos.feature.tables
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,6 +45,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -51,6 +56,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.feature.checkout.CheckoutRoutes
 import dev.nuagemagique.pilipos.feature.order.OrderRoutes
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.PiliButton
@@ -102,7 +108,17 @@ internal data class TablesCallbacks(
     val onNewTakeaway: () -> Unit = {},
     /** The "Déplacer" toggle. */
     val onToggleMove: () -> Unit = {},
+    /** A long press (500 ms) on an occupied table: its action sheet (UX audit T7). */
+    val onTableLongPress: (TableInfo) -> Unit = {},
+    val onSheetOpen: () -> Unit = {},
+    val onSheetBill: () -> Unit = {},
+    val onSheetMove: () -> Unit = {},
+    val onSheetPay: () -> Unit = {},
+    val onSheetClose: () -> Unit = {},
 )
+
+/** How long a finger must stay on a table card to open its action sheet, in milliseconds (`LONG_PRESS_MS` of Vue). */
+internal const val TABLE_LONG_PRESS_MS: Long = 500L
 
 /**
  * The tables route (`TablesView.vue`): builds [TablesViewModel] from the application graph and draws
@@ -120,6 +136,7 @@ internal fun TablesRoute(navigator: AppNavigator) {
         model.effects.collect {
             when (it) {
                 is TablesEffect.OpenOrder -> navigator.navigate(OrderRoutes.order(it.orderId))
+                is TablesEffect.OpenCheckout -> navigator.navigate(CheckoutRoutes.checkout(it.orderId))
             }
         }
     }
@@ -131,8 +148,19 @@ internal fun TablesRoute(navigator: AppNavigator) {
             onTakeaway = model::resumeTakeaway,
             onNewTakeaway = model::newTakeaway,
             onToggleMove = model::toggleMove,
+            onTableLongPress = model::openSheet,
+            onSheetOpen = model::sheetOpen,
+            onSheetBill = model::sheetBill,
+            onSheetMove = model::sheetMove,
+            onSheetPay = model::sheetPay,
+            onSheetClose = model::closeSheet,
         )
-    PosScaffold(HeaderArea.TABLES, navigator, modifier = Modifier.testTag("placeholder_tables")) {
+    PosScaffold(
+        HeaderArea.TABLES,
+        navigator,
+        modifier = Modifier.testTag("placeholder_tables"),
+        overlay = { state.sheet?.let { TableActionSheet(it, callbacks) } },
+    ) {
         TablesContent(state, callbacks)
     }
 }
@@ -160,7 +188,10 @@ internal fun TablesContent(
     Row(modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary)) {
         Column(Modifier.weight(1f).fillMaxHeight()) {
             MoveBar(state.move, callbacks.onToggleMove)
-            TableGrid(state, callbacks.onTable, Modifier.weight(1f).fillMaxWidth())
+            // A table card opens its action sheet after 500 ms (UX audit T7), not the 400 ms of the system.
+            WithLongPress(TABLE_LONG_PRESS_MS) {
+                TableGrid(state, callbacks.onTable, callbacks.onTableLongPress, Modifier.weight(1f).fillMaxWidth())
+            }
         }
         TakeawayPanel(state, callbacks, Modifier.width(PiliTheme.dimens.cartWidth).fillMaxHeight())
     }
@@ -170,6 +201,7 @@ internal fun TablesContent(
 private fun TableGrid(
     state: TablesUiState,
     onTable: (TableInfo) -> Unit,
+    onLongPress: (TableInfo) -> Unit,
     modifier: Modifier,
 ) {
     val d = PiliTheme.dimens
@@ -185,7 +217,10 @@ private fun TableGrid(
                 if (zoned) ZoneHeader(group)
                 group.tables.chunked(GRID_COLUMNS).forEach { row ->
                     Row(Modifier.fillMaxWidth().height(cardHeight), horizontalArrangement = Arrangement.spacedBy(d.spaceMd)) {
-                        row.forEach { table -> TableCard(table, state, { onTable(table) }, Modifier.weight(1f).fillMaxHeight()) }
+                        row.forEach {
+                                table ->
+                            TableCard(table, state, { onTable(table) }, { onLongPress(table) }, Modifier.weight(1f).fillMaxHeight())
+                        }
                         repeat(GRID_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
@@ -246,11 +281,13 @@ private fun MoveBar(
 }
 
 /** One table (UX guide section 5.3): an occupied one is filled with a band on top and its total in bold, a free one is dashed. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TableCard(
     table: TableInfo,
     state: TablesUiState,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier,
 ) {
     val c = PiliTheme.colors
@@ -277,12 +314,14 @@ private fun TableCard(
     Box(
         modifier =
             look
-                .clickable(
+                .combinedClickable(
                     interactionSource = source,
                     indication = null,
                     enabled = !dimmed,
                     role = Role.Button,
                     onClick = onClick,
+                    // Only an occupied table has a sheet, and not in the move mode; elsewhere a long press is a tap.
+                    onLongClick = if (occupied && !move.moving) onLongClick else null,
                 ).testTag("table_${table.tableNumber}"),
     ) {
         if (occupied) Box(Modifier.fillMaxWidth().height(BandHeight).background(c.textPrimary))
@@ -294,6 +333,22 @@ private fun TableCard(
             if (occupied) OccupiedInfo(table, state) else FreeLabel()
         }
     }
+}
+
+/** Runs [content] with a long press of [millis] instead of the system's. */
+@Composable
+private fun WithLongPress(
+    millis: Long,
+    content: @Composable () -> Unit,
+) {
+    val base = LocalViewConfiguration.current
+    val config =
+        remember(base, millis) {
+            object : ViewConfiguration by base {
+                override val longPressTimeoutMillis: Long = millis
+            }
+        }
+    CompositionLocalProvider(LocalViewConfiguration provides config, content = content)
 }
 
 /** The 2 dp dashed outline of a free table. */

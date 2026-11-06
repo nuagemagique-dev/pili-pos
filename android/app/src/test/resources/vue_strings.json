@@ -6750,6 +6750,24 @@
       "zh": "待出：{course}",
       "area": "core"
     },
+    "table_sheet_close": {
+      "fr": "Fermer",
+      "en": "Close",
+      "zh": "关闭",
+      "area": "core"
+    },
+    "table_sheet_open": {
+      "fr": "Ouvrir",
+      "en": "Open",
+      "zh": "打开",
+      "area": "core"
+    },
+    "table_sheet_pay": {
+      "fr": "Payer",
+      "en": "Pay",
+      "zh": "结账",
+      "area": "core"
+    },
     "tables": {
       "fr": "Tables",
       "en": "Tables",

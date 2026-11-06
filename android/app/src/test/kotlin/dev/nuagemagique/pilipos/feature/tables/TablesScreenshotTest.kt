@@ -82,6 +82,7 @@ class TablesScreenshotTest {
                         training = false,
                         clock = "12:30",
                         lights = { StatusLights(FdmUiState(connected = true), DeviceLights(FakeProbe()), hubriseVisible = false) },
+                        overlay = { state.sheet?.let { TableActionSheet(it, TablesCallbacks()) } },
                     ) { TablesContent(state, TablesCallbacks()) }
                 }
             }
@@ -179,5 +180,14 @@ class TablesScreenshotTest {
                 table(9),
             )
         capture(TablesUiState(zoned, takeaways, now, signedIn = true, loaded = true), "tables_zones")
+    }
+
+    @Test
+    fun actionSheet() {
+        val long = tables.first { it.orderId != null }
+        capture(
+            TablesUiState(tables, takeaways, now, signedIn = true, loaded = true, sheet = TableSheet(long, canTakePayment = true)),
+            "tables_sheet",
+        )
     }
 }

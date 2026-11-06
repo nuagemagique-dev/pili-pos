@@ -462,6 +462,9 @@ internal object VueStringIds {
         this["transfer_undo"] = R.string.transfer_undo
         this["transfer_mode"] = R.string.transfer_mode
         this["transfer_pick_source"] = R.string.transfer_pick_source
+        this["table_sheet_open"] = R.string.table_sheet_open
+        this["table_sheet_pay"] = R.string.table_sheet_pay
+        this["table_sheet_close"] = R.string.table_sheet_close
         this["transfer_pick_free"] = R.string.transfer_pick_free
         this["discount_button"] = R.string.discount_button
         this["discount_title"] = R.string.discount_title
@@ -516,12 +519,12 @@ internal object VueStringIds {
         this["check_email"] = R.string.check_email
         this["check_connected"] = R.string.check_connected
         this["check_not_connected"] = R.string.check_not_connected
-        this["check_offline"] = R.string.check_offline
-        this["check_warning"] = R.string.check_warning
-        this["check_ready"] = R.string.check_ready
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["check_offline"] = R.string.check_offline
+        this["check_warning"] = R.string.check_warning
+        this["check_ready"] = R.string.check_ready
         this["check_unreachable"] = R.string.check_unreachable
         this["check_reachable"] = R.string.check_reachable
         this["check_not_configured"] = R.string.check_not_configured
@@ -769,12 +772,12 @@ internal object VueStringIds {
         this["invoice_step_preview"] = R.string.invoice_step_preview
         this["invoice_step_done"] = R.string.invoice_step_done
         this["invoice_sales_chosen"] = R.string.invoice_sales_chosen
-        this["invoice_vat_label"] = R.string.invoice_vat_label
-        this["invoice_vat_check"] = R.string.invoice_vat_check
-        this["invoice_vat_checking"] = R.string.invoice_vat_checking
     }
 
     private fun MutableMap<String, Int>.part3() {
+        this["invoice_vat_label"] = R.string.invoice_vat_label
+        this["invoice_vat_check"] = R.string.invoice_vat_check
+        this["invoice_vat_checking"] = R.string.invoice_vat_checking
         this["invoice_search_label"] = R.string.invoice_search_label
         this["invoice_search_placeholder"] = R.string.invoice_search_placeholder
         this["invoice_no_match"] = R.string.invoice_no_match
@@ -1022,12 +1025,12 @@ internal object VueStringIds {
         this["menu_ed_field_vat_code_takeaway"] = R.string.menu_ed_field_vat_code_takeaway
         this["menu_ed_field_kitchen_printer"] = R.string.menu_ed_field_kitchen_printer
         this["menu_ed_field_code"] = R.string.menu_ed_field_code
-        this["menu_ed_field_open_price"] = R.string.menu_ed_field_open_price
-        this["menu_ed_field_menu_item_id"] = R.string.menu_ed_field_menu_item_id
-        this["menu_ed_field_min_select"] = R.string.menu_ed_field_min_select
     }
 
     private fun MutableMap<String, Int>.part4() {
+        this["menu_ed_field_open_price"] = R.string.menu_ed_field_open_price
+        this["menu_ed_field_menu_item_id"] = R.string.menu_ed_field_menu_item_id
+        this["menu_ed_field_min_select"] = R.string.menu_ed_field_min_select
         this["menu_ed_field_max_select"] = R.string.menu_ed_field_max_select
         this["menu_ed_field_group_id"] = R.string.menu_ed_field_group_id
         this["quick_notes_title"] = R.string.quick_notes_title

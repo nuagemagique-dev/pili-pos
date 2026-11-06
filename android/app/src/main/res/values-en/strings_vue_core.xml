@@ -282,6 +282,9 @@
     <string name="transfer_undo">Undo</string>
     <string name="transfer_mode">Move</string>
     <string name="transfer_pick_source">Tap the table to move</string>
+    <string name="table_sheet_open">Open</string>
+    <string name="table_sheet_pay">Pay</string>
+    <string name="table_sheet_close">Close</string>
     <string name="transfer_pick_free">Table {from}: tap the free table</string>
     <string name="discount_button">Discount</string>
     <string name="discount_title">Order discount</string>

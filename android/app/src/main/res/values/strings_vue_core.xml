@@ -282,6 +282,9 @@
     <string name="transfer_undo">Annuler</string>
     <string name="transfer_mode">Déplacer</string>
     <string name="transfer_pick_source">Touchez la table à déplacer</string>
+    <string name="table_sheet_open">Ouvrir</string>
+    <string name="table_sheet_pay">Payer</string>
+    <string name="table_sheet_close">Fermer</string>
     <string name="transfer_pick_free">Table {from} : touchez la table libre</string>
     <string name="discount_button">Remise</string>
     <string name="discount_title">Remise sur la commande</string>

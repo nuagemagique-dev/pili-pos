@@ -547,13 +547,20 @@ class OrderStore
             }
 
         /** Prints the provisional bill (PRO FORMA) of the current order; a refusal is thrown. */
-        suspend fun preBill() =
-            mutex.withLock {
-                val order = requireCurrent()
-                val outcome = gateway.call { engine -> engine.signPreBill(order.id) }
-                warnIfSlipFailed(outcome)
-                refresh(order.id)
-            }
+        suspend fun preBill() = mutex.withLock { preBillUnlocked(requireCurrent().id) }
+
+        /**
+         * Prints the provisional bill of any open table order (UX audit T7: from the action sheet of the Tables
+         * screen). The engine registers the unsent entries first; the order on screen, if it is that one, is read
+         * again. A refusal is thrown.
+         */
+        suspend fun preBillOrder(orderId: Long) = mutex.withLock { preBillUnlocked(orderId) }
+
+        private suspend fun preBillUnlocked(orderId: Long) {
+            val outcome = gateway.call { engine -> engine.signPreBill(orderId) }
+            warnIfSlipFailed(outcome)
+            if (mutableCurrent.value?.id == orderId) refresh(orderId)
+        }
 
         /**
          * Moves the open dine-in order [orderId] to the free table [toTable] (event P, cost center change). The
