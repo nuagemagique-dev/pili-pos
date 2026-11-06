@@ -145,6 +145,22 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
   discount; both screens show the warning `discount_registration_failed` (Vue toast, Compose
   `OrderStore.discountWarnings`).
 
+## Manager PIN kept for the order (P8)
+
+- **Same behaviour.** After a discount or an offer confirmed by the PIN, the engine keeps the manager's PIN for that
+  order for two minutes (`pin_grant.rs`, in memory, bound to the logged-in user, the order and the expiry, counted from
+  the typed PIN and never extended). The next discount, offer or removal on the same order does not open the PIN pad
+  on either UI: the screen calls `apply_discount` / `remove_discount` with no `pin`, and falls back to the pad when
+  the engine answers `pin_required`. The first toast says "code gardé 2 min pour cette commande"
+  (`discount_applied_pin_kept`); a removal never opens the grant.
+- **Hint, not authority.** Both UIs keep only a hint of `DiscountResult.pinGrantMs` (Vue `utils/pinGrant.ts` in
+  `stores/order.ts`, Compose `ui/state/KeptPin.kt` in `OrderStore`) to decide whether to try without the PIN; a stale
+  hint costs one `pin_required` and the pad. Vue tests: `pinGrant.test.ts`, `till-discount.spec.ts` ("Code manager
+  gardé pour la commande"); Kotlin tests: `KeptPinTest`, `OrderStoreTest`, `MenuViewModelTest`.
+- **Still asking every time.** "Client parti sans payer", the payment correction, refunds and the remote support never
+  consult the grant (`access::confirmed_operator`); the engine test `manager_pin_grant.rs` proves it.
+- **Audit.** `till_discounts.pin_reused` (migration 93) says which rows used the kept PIN.
+
 ## Differences of the sold-out switch (V11-D16)
 
 - **Same behaviour.** An "Épuisé" button above the product grid (cashier and manager only) turns a mode on: a tap on a
