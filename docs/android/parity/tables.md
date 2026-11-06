@@ -21,6 +21,7 @@ through the shared stores and the gateway.
 | TablesView.vue (`held-course-N` tag, "Suite : Plats") | feature/tables/TablesScreen.kt (TableTop, tag `table_N_held`) | `list_tables` |
 | utils/tables.ts (`tableLabel`, `groupTables`, `zoneTitle`, `hasZones`), stores/tablePlan.ts, TablesView.vue (UX audit T1: one block per zone under a header "A · Salle", "Autres tables" for a table outside every zone, "A-19" on the card and in the move hint; a plan without letters is one block with no header) | ui/state/TableLabels.kt (tableLabel, groupTables, zoneTitle, hasZones, TableLabeler, LocalTableLabeler), OrderStore.kt (`tableZones`, `tableLabel`, `loadTablePlan`, `applyTablePlan`, `learnTables`), feature/tables/TablesScreen.kt (ZoneHeader, tags `zone_<letter>` and `zone_other`) | `list_tables` `get_table_plan` |
 | TablesView.vue (UX audit T5: the round badge with the initial of the server who opened the order, `server-badge`, and "4 couv." in the meta line, `table-covers`) | feature/tables/TablesScreen.kt (ServerBadge, tags `table_N_server`, `table_N_meta`) | `list_tables` |
+| components/TableActionSheet.vue, utils/longPress.ts, TablesView.vue (UX audit T7: a long press of 500 ms on an occupied table card opens the sheet "Ouvrir / Addition / Déplacer / Payer"; a short tap still opens the table; "Addition" and "Payer" only for the roles that take payments) and stores/order.ts (`preBillOrder`) | feature/tables/TableActionSheet.kt (tags `table_sheet`, `sheet_open`, `sheet_bill`, `sheet_move`, `sheet_pay`, `sheet_close`), TablesScreen.kt (`combinedClickable` with `onLongClick`, `WithLongPress` sets the 500 ms), TablesViewModel.kt (`openSheet`, `closeSheet`, `sheetOpen`, `sheetBill`, `sheetMove`, `sheetPay`, effect `OpenCheckout`) over ui/state/OrderStore.kt (`preBillOrder`) | `sign_pre_bill` `transfer_table` `get_order` `list_cart_lines` `set_active_order` |
 | components/AppHeader.vue + UserMenu.vue (a tap on the user opens a menu: own language, "Changer mon PIN" with the own PIN dialog, "Fin de service" armed for 5 s, "Verrouiller", UX audit L1 and R5) | ui/scaffold/HeaderViewModel.kt (openUserMenu, pickLanguage, tapEndShift, endShift, submitPin), UserMenu.kt, PosScaffold.kt (OwnPinDialog), AppHeader.kt | `set_pin` `work_out` `lock_session` |
 | components/AppHeader.vue (lock, new takeaway, workspaces) and the leave guard of router/index.ts | ui/scaffold/HeaderViewModel.kt, HeaderActions.kt over ui/state/SessionStore.kt and OrderStore.leaveIfActive | `lock_session` `leave_order` |
 | components/StatusLights.vue (each light a button, 48 dp hit area) | ui/scaffold/StatusLights.kt (StatusLights, DeviceLights, GatewayLightProbe) | `check_printer` `check_kitchen_printer` `hubrise_status` |
@@ -33,6 +34,14 @@ through the shared stores and the gateway.
 
 ## Differences
 
+- **Long press and the action sheet (UX audit T7).** A press held 500 ms without moving opens the sheet; Vue times it
+  with pointer events (`utils/longPress.ts`, slop 12 px, the click that ends the press is swallowed, the context menu is
+  prevented), Compose with `combinedClickable` under a `LocalViewConfiguration` whose long press is 500 ms (the system
+  default is 400 ms). A free table and the "Déplacer" mode have no sheet: a long press there is a plain tap. "Ouvrir"
+  is the tap, "Addition" signs the pre-bill of THAT order without opening it (`sign_pre_bill`, the command of the cart's
+  button; the order on screen, if it is that one, is read again), "Déplacer" enters the wave 2 mode with the table
+  already chosen, "Payer" loads the order and opens the checkout. A waiter is offered "Ouvrir" and "Déplacer" only.
+  Compose shows the total under the title, Vue on the title line.
 - **No redirect on start.** Vue sends the operator to the login screen when there is no user. The Compose screen
   never navigates when it starts (PD205): without a user it shows an empty state (`tables_empty`). A test proves
   that nothing is navigated while the screen loads with the engine closed.
