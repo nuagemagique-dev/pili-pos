@@ -496,10 +496,18 @@ export const useOrderStore = defineStore('order', () => {
   /** Provisional bill ("addition provisoire", §1.4), printed PRO FORMA. */
   async function preBill() {
     if (!currentOrder.value) throw new Error('No active order')
-    // Entries not yet registered are sent as an order first.
-    warnIfSlipFailed(await ipc.signPreBill(currentOrder.value.id))
-    markAllSent()
-    await refreshCourses()
+    await preBillOrder(currentOrder.value.id)
+  }
+
+  /** The provisional bill of any open table order, from the cart or from the Tables screen
+   * (UX audit T7). Entries not yet registered are sent as an order first, so when the order
+   * is the one on screen its lines are marked sent. */
+  async function preBillOrder(orderId: number) {
+    warnIfSlipFailed(await ipc.signPreBill(orderId))
+    if (currentOrder.value?.id === orderId) {
+      markAllSent()
+      await refreshCourses()
+    }
   }
 
   /** Move an open dine-in order to a free table (event P, cost center
@@ -657,6 +665,7 @@ export const useOrderStore = defineStore('order', () => {
     loadOpenOrders,
     leave,
     preBill,
+    preBillOrder,
     transferOrder,
     moveTable,
     canTransfer,

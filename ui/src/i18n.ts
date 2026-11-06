@@ -1438,6 +1438,10 @@ const coreMessages: Messages = {
     en: 'Tap the table to move',
     zh: '点按要移动的桌子',
   },
+  // Long press on an occupied table card: its action sheet (UX audit T7)
+  table_sheet_open: { fr: 'Ouvrir', en: 'Open', zh: '打开' },
+  table_sheet_pay: { fr: 'Payer', en: 'Pay', zh: '结账' },
+  table_sheet_close: { fr: 'Fermer', en: 'Close', zh: '关闭' },
   transfer_pick_free: {
     fr: 'Table {from} : touchez la table libre',
     en: 'Table {from}: tap the free table',

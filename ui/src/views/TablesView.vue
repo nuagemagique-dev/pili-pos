@@ -11,7 +11,9 @@ import { formatPrice } from '../utils/format'
 import { formatTimestamp, formatTime, minutesSince } from '../utils/datetime'
 import { useTablePlanStore } from '../stores/tablePlan'
 import { groupTables, hasZones, tableLabel, zoneTitle } from '../utils/tables'
+import { createLongPress } from '../utils/longPress'
 import AppHeader from '../components/AppHeader.vue'
+import TableActionSheet from '../components/TableActionSheet.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -131,7 +133,80 @@ watch(
   () => void reloadTables(),
 )
 
+// ── Long press on an occupied table: its action sheet (UX audit T7) ─────
+// 500 ms with the finger still opens "Ouvrir / Addition / Déplacer / Payer". A short tap is
+// the usual open; the click that follows a long press is swallowed.
+const sheetTable = ref<ipc.TableInfo | null>(null)
+let pressed: ipc.TableInfo | null = null
+const longPress = createLongPress(() => {
+  if (pressed && !moving.value) sheetTable.value = pressed
+})
+
+function pressStart(e: PointerEvent, table: ipc.TableInfo) {
+  // Free tables and the move mode have no sheet; only the first finger counts. Any other
+  // gesture forgets a long press whose click never came.
+  if (moving.value || table.status !== 'occupied' || !table.orderId || !e.isPrimary) {
+    longPress.reset()
+    return
+  }
+  pressed = table
+  longPress.start(e.clientX, e.clientY)
+}
+
+function pressMove(e: PointerEvent) {
+  longPress.move(e.clientX, e.clientY)
+}
+
+function closeSheet(): ipc.TableInfo | null {
+  const table = sheetTable.value
+  sheetTable.value = null
+  longPress.reset()
+  return table
+}
+
+function sheetOpen() {
+  const table = closeSheet()
+  if (table) void selectTable(table)
+}
+
+const billing = ref(false)
+async function sheetBill() {
+  const table = closeSheet()
+  if (!table?.orderId || billing.value) return
+  billing.value = true
+  try {
+    await order.preBillOrder(table.orderId)
+    toast.show(t('pre_bill_printed'), 'success')
+  } catch (e) {
+    toast.show(`${t('pre_bill_failed')} : ${describeError(e)}`, 'error', 6000)
+  } finally {
+    billing.value = false
+    await reloadTables()
+  }
+}
+
+/** "Déplacer": the wave 2 mode with this table already chosen, then one tap on a free table. */
+function sheetMove() {
+  const table = closeSheet()
+  if (!table) return
+  moving.value = true
+  source.value = table
+}
+
+async function sheetPay() {
+  const table = closeSheet()
+  if (!table?.orderId) return
+  try {
+    await order.loadOrder(table.orderId)
+  } catch (e) {
+    toast.show(describeError(e), 'error', 5000)
+    return
+  }
+  router.push({ name: 'checkout' })
+}
+
 async function selectTable(table: ipc.TableInfo) {
+  if (longPress.consumeClick()) return
   if (moving.value) {
     void pickInMoveMode(table)
     return
@@ -189,6 +264,12 @@ async function selectTable(table: ipc.TableInfo) {
                 }"
                 :data-testid="`table-${tbl.tableNumber}`"
                 @click="selectTable(tbl)"
+                @pointerdown="pressStart($event, tbl)"
+                @pointermove="pressMove"
+                @pointerup="longPress.cancel()"
+                @pointercancel="longPress.cancel()"
+                @pointerleave="longPress.cancel()"
+                @contextmenu.prevent
               >
                 <span class="table-top">
                   <span class="table-num">{{ tableLabel(tbl.zone, tbl.tableNumber) }}</span>
@@ -269,6 +350,17 @@ async function selectTable(table: ipc.TableInfo) {
         </div>
       </aside>
     </div>
+
+    <TableActionSheet
+      v-if="sheetTable"
+      :table="sheetTable"
+      :can-take-payment="auth.canTakePayment"
+      @open="sheetOpen"
+      @bill="sheetBill"
+      @move="sheetMove"
+      @pay="sheetPay"
+      @close="closeSheet"
+    />
   </div>
 </template>
 
@@ -367,6 +459,10 @@ async function selectTable(table: ipc.TableInfo) {
 }
 
 .table-card {
+  /* A long press must not select text or raise the system menu. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   position: relative;
   overflow: hidden;
   display: flex;
