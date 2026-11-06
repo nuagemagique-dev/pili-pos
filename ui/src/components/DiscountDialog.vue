@@ -186,6 +186,7 @@ function textTyped(text: string) {
       :max-len="TEXT_MAX"
       :symbols="TEXT_SYMBOLS"
       space
+      case-toggle
       @confirm="textTyped"
       @cancel="typing = false"
     />

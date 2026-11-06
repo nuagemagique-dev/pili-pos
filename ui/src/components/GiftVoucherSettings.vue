@@ -7,6 +7,7 @@ import { computed, onMounted, ref } from 'vue'
 import * as ipc from '../api/ipc'
 import { useI18n } from '../i18n'
 import { describeError } from '../utils/errorMessages'
+import KeypadField from './KeypadField.vue'
 
 const { t } = useI18n()
 
@@ -22,13 +23,13 @@ function adopt(s: ipc.GiftVoucherSettings) {
   stored.value = s
   enabled.value = s.enabled
   validity.value = String(s.validity_months)
-  maxEuros.value = String(s.max_amount_cents / 100)
+  // The keypad takes whole euros.
+  maxEuros.value = String(Math.floor(s.max_amount_cents / 100))
 }
 
 function draft(): ipc.GiftVoucherSettings {
   return {
     enabled: enabled.value,
-    // A number input gives a number once the field holds one.
     validity_months: Math.round(Number(String(validity.value))),
     max_amount_cents: Math.round(Number(String(maxEuros.value).replace(',', '.')) * 100),
   }
@@ -87,30 +88,30 @@ async function save() {
     <p class="panel-note">{{ t('gv_settings_note') }}</p>
 
     <template v-if="stored">
-      <label class="field">
+      <div class="field">
         <span class="section-label">{{ t('gv_settings_validity') }}</span>
-        <input
+        <KeypadField
           v-model="validity"
           class="input"
-          type="number"
-          min="12"
-          max="36"
+          numeric
+          :max-digits="2"
+          :title="t('gv_settings_validity')"
           data-testid="gv-validity"
-          @input="saved = false"
+          @update:model-value="saved = false"
         />
-      </label>
-      <label class="field">
+      </div>
+      <div class="field">
         <span class="section-label">{{ t('gv_settings_max') }}</span>
-        <input
+        <KeypadField
           v-model="maxEuros"
           class="input"
-          type="number"
-          inputmode="decimal"
-          min="1"
+          numeric
+          :max-digits="5"
+          :title="t('gv_settings_max')"
           data-testid="gv-max"
-          @input="saved = false"
+          @update:model-value="saved = false"
         />
-      </label>
+      </div>
       <div class="actions">
         <button
           class="act save"

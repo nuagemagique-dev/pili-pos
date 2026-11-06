@@ -9,6 +9,7 @@ import { useI18n } from '../i18n'
 import { phoneValue, takeawayTitle, TAKEAWAY_NAME_MAX } from '../utils/takeaway'
 import TextKeypad from './TextKeypad.vue'
 import PhoneDialog from './PhoneDialog.vue'
+import { NAME_SYMBOLS } from '../utils/keypadSymbols'
 
 const order = useOrderStore()
 const { t } = useI18n()
@@ -22,9 +23,6 @@ const hasCustomer = computed(
 const canEdit = computed(() => tag.value !== null && order.currentOrder?.status === 'open')
 
 const step = ref<'name' | 'phone' | null>(null)
-
-// Accents of French names and the usual punctuation, that the letter rows lack (CP858 prints them).
-const NAME_SYMBOLS = ['é', 'è', 'ë', 'ï', 'ô', 'ç', 'à', 'â', '-', "'", '.']
 
 async function onName(name: string) {
   const ok = await order.setTakeawayCustomer(name, tag.value?.customerPhone ?? null)
@@ -55,6 +53,8 @@ async function onPhone(digits: string) {
     :initial="tag?.customerName ?? ''"
     :max-len="TAKEAWAY_NAME_MAX"
     :symbols="NAME_SYMBOLS"
+    space
+    case-toggle
     :hint="t('takeaway_name_hint')"
     show-counter
     @confirm="onName"

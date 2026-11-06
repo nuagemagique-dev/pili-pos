@@ -18,6 +18,7 @@ const {
   chips = [],
   symbols = [],
   space = false,
+  caseToggle = false,
   valid = () => true,
   invalidText = '',
   hint = '',
@@ -40,6 +41,8 @@ const {
   symbols?: string[]
   /** A space bar, for free text. */
   space?: boolean
+  /** A shift key for upper case letters (case-sensitive codes). */
+  caseToggle?: boolean
   /** Whether the buffer may be confirmed; default: any text, empty included. */
   valid?: (value: string) => boolean
   /** Shown under the display while a non-empty buffer is not valid. */
@@ -63,6 +66,8 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const buffer = ref(initial.slice(0, maxLen))
+const upper = ref(false)
+const shown = (ch: string) => (upper.value ? ch.toUpperCase() : ch)
 const step = ref<'type' | 'confirm'>('type')
 
 const LETTER_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
@@ -162,14 +167,27 @@ function cancel() {
 
         <div class="key-rows">
           <div v-for="(row, i) in LETTER_ROWS" :key="i" class="key-row">
-            <button v-for="ch in row" :key="ch" class="key" @click="press(ch)">{{ ch }}</button>
+            <button v-for="ch in row" :key="ch" class="key" @click="press(shown(ch))">
+              {{ shown(ch) }}
+            </button>
           </div>
           <div class="key-row">
             <button v-for="d in DIGIT_ROW" :key="d" class="key" @click="press(d)">{{ d }}</button>
           </div>
           <div class="key-row">
-            <button v-for="s in symbols" :key="s" class="key key-symbol" @click="press(s)">
-              {{ s }}
+            <button v-for="s in symbols" :key="s" class="key key-symbol" @click="press(shown(s))">
+              {{ shown(s) }}
+            </button>
+            <button
+              v-if="caseToggle"
+              class="key key-case"
+              :class="{ on: upper }"
+              :aria-pressed="upper"
+              :aria-label="t('menu_ed_case')"
+              data-testid="keypad-case"
+              @click="upper = !upper"
+            >
+              Aa
             </button>
             <button
               v-if="space"
@@ -356,6 +374,13 @@ function cancel() {
 }
 .key-backspace {
   color: var(--accent-danger);
+}
+.key-case {
+  color: var(--text-secondary);
+}
+.key-case.on {
+  background: var(--selected-bg);
+  color: var(--selected-fg);
 }
 .key-space {
   width: 160px;

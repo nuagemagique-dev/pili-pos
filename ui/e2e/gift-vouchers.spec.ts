@@ -11,6 +11,7 @@ import {
   tapUserTile,
   loginAndGoto,
 } from './fixtures/mock-ipc'
+import { fillWithNumPad } from './fixtures/keypad'
 
 // Multi-purpose gift vouchers: the Settings panel, the "Bon
 // cadeau" button and the voucher line on the order screen, paying with a
@@ -427,8 +428,8 @@ test.describe('Gift voucher settings', () => {
     await expect(panel.getByTestId('gv-settings-save')).toBeDisabled()
 
     await panel.getByTestId('gv-enabled').click()
-    await panel.getByTestId('gv-validity').fill('24')
-    await panel.getByTestId('gv-max').fill('250')
+    await fillWithNumPad(page, panel.getByTestId('gv-validity'), '24')
+    await fillWithNumPad(page, panel.getByTestId('gv-max'), '250')
     await panel.getByTestId('gv-settings-save').click()
     await expect(panel.getByTestId('gv-settings-saved')).toBeVisible()
     expect((await ipcCalls(page, 'set_gift_voucher_settings'))[0].input).toEqual({
@@ -451,7 +452,7 @@ test.describe('Gift voucher settings refusal', () => {
     } as any)
     await loginAndGoto(page, '/settings')
     const panel = page.getByTestId('gv-settings')
-    await panel.getByTestId('gv-validity').fill('40')
+    await fillWithNumPad(page, panel.getByTestId('gv-validity'), '40')
     await panel.getByTestId('gv-settings-save').click()
     await expect(panel.getByTestId('gv-settings-error')).toContainText(
       'Réglage des bons cadeaux invalide (validity_months).',

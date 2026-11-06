@@ -135,6 +135,7 @@ async function save() {
       :max-len="NOTE_MAX"
       :symbols="['é', 'è', 'à', 'ç', 'ê', ',', '.', '-', '\'', '/', '(', ')', '+', '%']"
       space
+      case-toggle
       show-counter
       :valid="(v: string) => addQuickNote(notes, v) !== null"
       @confirm="onAdd"

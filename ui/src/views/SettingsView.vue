@@ -23,6 +23,8 @@ import CoursesSettings from '../components/CoursesSettings.vue'
 import GiftVoucherSettings from '../components/GiftVoucherSettings.vue'
 import QuickNotesSettings from '../components/QuickNotesSettings.vue'
 import NumberEntryDialog from '../components/NumberEntryDialog.vue'
+import KeypadField from '../components/KeypadField.vue'
+import { NAME_SYMBOLS, TABLE_PLAN_SYMBOLS } from '../utils/keypadSymbols'
 import { TAKEAWAY_FIRST_MAX, TAKEAWAY_FIRST_MIN } from '../utils/takeaway'
 import { hasMessage, useI18n } from '../i18n'
 import { describeError } from '../utils/errorMessages'
@@ -506,11 +508,16 @@ onMounted(() => {
             }}
           </p>
           <div class="add-fields">
-            <input
+            <KeypadField
               v-model="tablePlanInput"
               class="field mono"
+              :title="t('settings_tables')"
               :placeholder="t('settings_tables_placeholder')"
-              @keyup.enter="saveTablePlan"
+              :max-len="120"
+              space
+              case-toggle
+              :symbols="TABLE_PLAN_SYMBOLS"
+              data-testid="table-plan-input"
             />
             <button class="add-btn table-plan-save" @click="saveTablePlan">
               {{ t('settings_tables_save') }}
@@ -649,17 +656,26 @@ onMounted(() => {
           <div class="add-worker">
             <div class="section-label">{{ t('add') }}</div>
             <div class="add-fields">
-              <input
+              <KeypadField
                 v-model="newName"
                 class="field"
+                :title="t('settings_name_placeholder')"
                 :placeholder="t('settings_name_placeholder')"
+                :max-len="60"
+                space
+                case-toggle
+                :symbols="NAME_SYMBOLS"
+                data-testid="new-worker-name"
               />
-              <input
+              <KeypadField
                 v-model="newInsz"
                 class="field mono"
+                numeric
+                :max-digits="11"
+                :exact-digits="11"
+                :title="t('settings_insz_hint')"
                 :placeholder="t('settings_insz_hint')"
-                maxlength="11"
-                inputmode="numeric"
+                data-testid="new-worker-insz"
               />
             </div>
             <div class="segmented role-btns" role="radiogroup" :aria-label="t('role')">

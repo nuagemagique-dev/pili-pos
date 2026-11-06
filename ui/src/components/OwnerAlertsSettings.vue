@@ -6,10 +6,12 @@
 // panel only learns whether it is there.
 import { computed, onMounted, ref, watch } from 'vue'
 import * as ipc from '../api/ipc'
+import KeypadField from './KeypadField.vue'
 import NumberEntryDialog from './NumberEntryDialog.vue'
 import { useI18n } from '../i18n'
 import { useOwnerAlertsStore } from '../stores/ownerAlerts'
 import { formatDayTime, formatTimestamp } from '../utils/datetime'
+import { NAME_SYMBOLS } from '../utils/keypadSymbols'
 
 type KindKey = keyof ipc.AlertKinds
 type Field = 'chat_id' | 'z_deadline_hour' | 'online_wait_minutes' | 'reminder_minutes'
@@ -200,17 +202,21 @@ const time = (iso: string) => formatTimestamp(iso, formatDayTime)
         </button>
       </div>
 
-      <label class="row">
+      <div class="row">
         <span>{{ t('alerts_label') }}</span>
-        <input
+        <KeypadField
           v-model="draft.label"
           class="field"
-          maxlength="40"
+          :title="t('alerts_label')"
+          :max-len="40"
+          space
+          case-toggle
+          :symbols="NAME_SYMBOLS"
           :placeholder="t('alerts_label_placeholder')"
           data-testid="alerts-label"
-          @input="saved = false"
+          @update:model-value="saved = false"
         />
-      </label>
+      </div>
 
       <span class="section-label">{{ t('alerts_language') }}</span>
       <div class="segmented">

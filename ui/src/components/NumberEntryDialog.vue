@@ -11,6 +11,7 @@ const {
   initial,
   maxDigits,
   allowMinus,
+  exactDigits = undefined,
   min = undefined,
   max = undefined,
 } = defineProps<{
@@ -20,6 +21,8 @@ const {
   maxDigits: number
   /** Shows the minus toggle (chat ids of groups are negative). */
   allowMinus?: boolean
+  /** Exactly this many digits, returned as typed (a national number keeps its leading zeros). */
+  exactDigits?: number
   /** Smallest and largest accepted number (checked when no minus sign is allowed). */
   min?: number
   max?: number
@@ -44,13 +47,19 @@ function onKey(key: string) {
 const text = computed(() => (digits.value === '' ? '' : (minus.value ? '-' : '') + digits.value))
 const valid = computed(() => {
   if (digits.value === '') return false
+  if (exactDigits !== undefined) return digits.value.length === exactDigits
   if (allowMinus) return true
   const n = Number(digits.value)
   return n >= (min ?? 0) && n <= (max ?? Number.MAX_SAFE_INTEGER)
 })
 
 function confirm() {
-  if (valid.value) emit('confirm', allowMinus ? text.value : String(Number(digits.value)))
+  if (!valid.value) return
+  if (exactDigits === undefined) {
+    emit('confirm', allowMinus ? text.value : String(Number(digits.value)))
+  } else {
+    emit('confirm', digits.value)
+  }
 }
 </script>
 

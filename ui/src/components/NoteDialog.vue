@@ -47,6 +47,7 @@ const hint = computed(() => t(sent ? 'note_hint_now' : 'note_hint_with_order'))
     :hint="hint"
     show-counter
     space
+    case-toggle
     @confirm="emit('confirm', $event)"
     @cancel="emit('cancel')"
   />
