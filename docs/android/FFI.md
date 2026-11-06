@@ -174,6 +174,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | export_status | export::do_export_status | spawn | posEngine.exportStatus() |
 | fdm_check_now | fdm_monitor::do_fdm_check_now | spawn | posEngine.fdmCheckNow() |
 | fdm_health | fdm_monitor::do_fdm_health | blocking | posEngine.fdmHealth() |
+| find_ticket_by_number | refund::do_find_ticket_by_number | blocking | posEngine.findTicketByNumber() |
 | generate_user_x_report | report::do_generate_user_x_report | spawn | posEngine.generateUserXReport() |
 | generate_x_report | report::do_generate_x_report | spawn | posEngine.generateXReport() |
 | generate_z_report | report::do_generate_z_report | spawn | posEngine.generateZReport() |
