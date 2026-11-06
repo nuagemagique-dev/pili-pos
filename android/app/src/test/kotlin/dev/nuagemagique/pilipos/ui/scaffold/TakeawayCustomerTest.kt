@@ -6,12 +6,12 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
+import dev.nuagemagique.pilipos.ui.components.typeOnKeypad
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -79,7 +79,7 @@ class TakeawayCustomerDialogsTest {
 
         compose.onNodeWithTag("customer_name_dialog").assertIsDisplayed()
         compose.onNodeWithTag("customer_name_counter").assertTextEquals("6/30")
-        compose.onNodeWithTag("customer_name_text").performTextInput("-Martin")
+        compose.typeOnKeypad("-Martin", "customer_name")
         compose.onNodeWithTag("customer_name_counter").assertTextEquals("13/30")
         assertTrue(compose.onNodeWithTag("customer_name_confirm").getUnclippedBoundsInRoot().height >= 48.dp)
         compose.onNodeWithTag("customer_name_confirm").performClick()
@@ -91,7 +91,7 @@ class TakeawayCustomerDialogsTest {
     fun theNameDialogStopsAtThirtyCharactersAndCancelsWithoutSaving() {
         show { CustomerNameDialog("", { calls += "name:$it" }, { calls += "cancel" }) }
 
-        compose.onNodeWithTag("customer_name_text").performTextInput("x".repeat(40))
+        compose.typeOnKeypad("x".repeat(40), "customer_name")
         compose.onNodeWithTag("customer_name_counter").assertTextEquals("30/30")
         compose.onNodeWithTag("customer_name_cancel").performClick()
 

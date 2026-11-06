@@ -10,9 +10,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextInput
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
+import dev.nuagemagique.pilipos.ui.components.fillWithKeyboard
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -165,7 +165,7 @@ class MenuEditorContentTest {
     fun typingInANameFieldCallsBackWithTheLanguage() {
         show(base.copy(form = MenuForm(FormKind.Product, parentId = 1L)))
 
-        compose.onNodeWithTag("menu_ed_name_fr").performTextInput("Thé")
+        compose.fillWithKeyboard("menu_ed_name_fr", "Thé")
 
         assertEquals(listOf("name:fr=Thé"), calls)
     }

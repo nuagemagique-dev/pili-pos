@@ -1,26 +1,18 @@
 package dev.nuagemagique.pilipos.ui.scaffold
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,22 +20,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.ui.components.KeypadSymbols
 import dev.nuagemagique.pilipos.ui.components.NumPad
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.PiliDialog
+import dev.nuagemagique.pilipos.ui.components.TextKeypad
+import dev.nuagemagique.pilipos.ui.components.TextKeypadSpec
 import dev.nuagemagique.pilipos.ui.components.tapScale
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
@@ -100,20 +88,18 @@ internal object PhoneEntry {
     fun value(digits: String): String? = if (digits.isEmpty()) null else display(digits)
 }
 
-private val DialogMaxWidth = 720.dp
 private val PhoneDialogMaxWidth = 400.dp
-private val FieldHeight = 64.dp
-private val Hairline = 1.dp
 private val ButtonHeight = 48.dp
 
 /** The customer name typed in the dialog: no control character, at most [TAKEAWAY_NAME_MAX] characters. */
 internal fun customerNameText(typed: String): String = typed.filterNot { it.isISOControl() }.take(TAKEAWAY_NAME_MAX)
 
 /**
- * The name of the customer of a takeaway (`TextKeypad` of `TakeawayCustomer.vue`). Typed on the system keyboard like
- * the kitchen note until the in-app keyboard lands (UX audit C13). An empty text clears the name; the engine validates
- * (`takeaway_name_invalid`). Test tags: `customer_name_dialog`, `customer_name_text`, `customer_name_counter`,
- * `customer_name_confirm`, `customer_name_cancel`.
+ * The name of the customer of a takeaway (`TextKeypad` of `TakeawayCustomer.vue`), typed on the in-app text keypad (C13 /
+ * R6: the till never raises the system keyboard) with the accents of French names and a space bar. An empty text clears
+ * the name; the engine validates (`takeaway_name_invalid`). Test tags: `customer_name_dialog`, `customer_name_text`,
+ * `customer_name_placeholder`, `customer_name_counter`, `customer_name_confirm`, `customer_name_cancel`, plus the keys
+ * (`customer_name_key_<char>`, `customer_name_space`, `customer_name_case`).
  */
 @Composable
 internal fun CustomerNameDialog(
@@ -122,50 +108,24 @@ internal fun CustomerNameDialog(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val start = customerNameText(initial)
-    // The cursor starts after the current name, so a correction types at its end.
-    var field by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(start, TextRange(start.length))) }
-    val text = field.text
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
-    val c = PiliTheme.colors
-    val t = PiliTheme.typography
-    Box(modifier = modifier.fillMaxSize().testTag("customer_name_dialog")) {
-        PiliDialog(
-            title = vueText("takeaway_name_title"),
-            onDismissRequest = onCancel,
-            maxWidth = DialogMaxWidth,
-            actions = {
-                PiliButton(
-                    text = vueText("delivery_cancel"),
-                    onClick = onCancel,
-                    variant = PiliButtonVariant.Secondary,
-                    modifier = Modifier.testTag("customer_name_cancel"),
-                )
-                PiliButton(
-                    text = vueText("validate"),
-                    onClick = { onConfirm(text.trim()) },
-                    modifier = Modifier.testTag("customer_name_confirm"),
-                )
-            },
-        ) {
-            NameField(field, { field = it }, focus, onDone = { onConfirm(text.trim()) })
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    text = vueText("takeaway_name_hint"),
-                    style = t.body.copy(fontSize = t.sizeSm),
-                    color = c.textSecondary,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = "${text.length}/$TAKEAWAY_NAME_MAX",
-                    style = t.figure.copy(fontSize = t.sizeSm),
-                    color = c.textSecondary,
-                    modifier = Modifier.testTag("customer_name_counter"),
-                )
-            }
-        }
-    }
+    TextKeypad(
+        spec =
+            TextKeypadSpec(
+                tag = "customer_name",
+                title = vueText("takeaway_name_title"),
+                placeholder = vueText("takeaway_name_placeholder"),
+                initial = customerNameText(initial),
+                maxLen = TAKEAWAY_NAME_MAX,
+                symbols = KeypadSymbols.Name,
+                space = true,
+                caseToggle = true,
+                hint = vueText("takeaway_name_hint"),
+                showCounter = true,
+            ),
+        onConfirm = { onConfirm(it.trim()) },
+        onCancel = onCancel,
+        modifier = modifier,
+    )
 }
 
 /**
@@ -245,47 +205,4 @@ internal fun CustomerButton(
     ) {
         Text(text, style = t.body.copy(fontSize = t.sizeSm, fontWeight = t.weightBold), color = c.textPrimary, maxLines = 1)
     }
-}
-
-/** The single line of the name dialog, with its placeholder (`customer_name_text`). */
-@Composable
-private fun NameField(
-    value: TextFieldValue,
-    onValueChange: (TextFieldValue) -> Unit,
-    focus: FocusRequester,
-    onDone: () -> Unit,
-) {
-    val c = PiliTheme.colors
-    val t = PiliTheme.typography
-    BasicTextField(
-        value = value,
-        onValueChange = { onValueChange(it.copy(text = customerNameText(it.text))) },
-        singleLine = true,
-        textStyle = t.body.copy(color = c.textPrimary, fontSize = t.sizeLg),
-        cursorBrush = SolidColor(c.textPrimary),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { onDone() }),
-        modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag("customer_name_text"),
-        decorationBox = { inner ->
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = FieldHeight)
-                    .border(BorderStroke(Hairline, c.border), RoundedCornerShape(PiliTheme.dimens.radiusMd))
-                    .padding(horizontal = PiliTheme.dimens.spaceMd),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (value.text.isEmpty()) {
-                    Text(
-                        vueText("takeaway_name_placeholder"),
-                        style = t.body,
-                        color = c.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                inner()
-            }
-        },
-    )
 }

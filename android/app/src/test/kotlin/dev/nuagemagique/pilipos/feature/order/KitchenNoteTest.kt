@@ -8,11 +8,10 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextClearance
-import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
+import dev.nuagemagique.pilipos.ui.components.typeOnKeypad
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -90,7 +89,7 @@ class NoteDialogTest {
     fun theTypedTextIsCountedAndSent() {
         show()
 
-        compose.onNodeWithTag("note_text").performTextInput("sans wasabi")
+        compose.typeOnKeypad("sans wasabi", "note")
         compose.onNodeWithTag("note_counter").assertTextEquals("11/60")
         compose.onNodeWithTag("note_confirm").performClick()
 
@@ -101,7 +100,7 @@ class NoteDialogTest {
     fun theTextIsTrimmedWhenSent() {
         show()
 
-        compose.onNodeWithTag("note_text").performTextInput("  sans wasabi  ")
+        compose.typeOnKeypad("  sans wasabi  ", "note")
         compose.onNodeWithTag("note_confirm").performClick()
 
         assertEquals(listOf("sans wasabi"), saved)
@@ -111,7 +110,7 @@ class NoteDialogTest {
     fun theFieldStopsAtSixtyCharacters() {
         show()
 
-        compose.onNodeWithTag("note_text").performTextInput("a".repeat(75))
+        compose.typeOnKeypad("a".repeat(NOTE_MAX + 1), "note")
 
         compose.onNodeWithTag("note_counter").assertTextEquals("60/60")
     }
@@ -121,7 +120,7 @@ class NoteDialogTest {
         show(initial = "sans wasabi", sent = true)
 
         compose.onNodeWithTag("note_counter").assertTextEquals("11/60")
-        compose.onNodeWithTag("note_text").performTextClearance()
+        compose.onNodeWithTag("note_clear").performClick()
         compose.onNodeWithTag("note_confirm").performClick()
 
         assertEquals(listOf(""), saved)
@@ -151,7 +150,7 @@ class NoteDialogTest {
     fun aChipFollowsTheTypedText() {
         show(chips = listOf("Épicé"))
 
-        compose.onNodeWithTag("note_text").performTextInput("ab")
+        compose.typeOnKeypad("ab", "note")
         compose.onNodeWithTag("note_chip_0").performClick()
         compose.onNodeWithTag("note_confirm").performClick()
 
@@ -188,7 +187,7 @@ class NoteDialogTest {
     fun backCancelsWithoutSavingAnything() {
         show()
 
-        compose.onNodeWithTag("note_text").performTextInput("abc")
+        compose.typeOnKeypad("abc", "note")
         compose.onNodeWithTag("note_cancel").performClick()
 
         assertEquals(1, cancelled)

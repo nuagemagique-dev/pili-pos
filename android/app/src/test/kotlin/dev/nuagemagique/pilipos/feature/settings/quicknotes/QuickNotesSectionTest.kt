@@ -14,10 +14,10 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
+import dev.nuagemagique.pilipos.ui.components.typeOnKeypad
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -141,7 +141,7 @@ class QuickNotesSectionTest {
         show(loaded(adding = true))
 
         compose.onNodeWithTag("quick_note_add_confirm").assertIsNotEnabled()
-        compose.onNodeWithTag("quick_note_add_text").performTextInput("bien cuit")
+        compose.typeOnKeypad("bien cuit", "quick_note_add")
         compose.onNodeWithTag("quick_note_add_confirm").assertIsNotEnabled()
     }
 
@@ -149,7 +149,7 @@ class QuickNotesSectionTest {
     fun aNewNoteIsConfirmedAndCancelCallsBack() {
         show(loaded(adding = true))
 
-        compose.onNodeWithTag("quick_note_add_text").performTextInput("Sans sauce")
+        compose.typeOnKeypad("Sans sauce", "quick_note_add")
         compose.onNodeWithTag("quick_note_add_confirm").assertIsEnabled().performClick()
         compose.onNodeWithTag("quick_note_add_cancel").performClick()
 

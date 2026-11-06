@@ -45,6 +45,9 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | Vue | Compose | Commands |
 | --- | --- | --- |
 | components/NumPad.vue | ui/components/NumPad.kt (NumPad) | - (calculator layout 7 8 9 / 4 5 6 / 1 2 3 / C 0 backspace, same on both UIs, UX audit C10) |
+| components/TextKeypad.vue (the lower case keypad: chips, symbols, shift key, counter) | ui/components/TextKeypad.kt (TextKeypad, TextKeypadSpec, KeypadSymbols), TextKeypadKey.kt | - (UX audit C13 / R6) |
+| components/TextKeyboard.vue (AZERTY, capitals, accents) | ui/components/TextKeyboard.kt (TextKeyboard, TextKeyboardDialog) | - (a dialog per field on Android, inline on Vue) |
+| components/KeypadField.vue + NumberEntryDialog.vue (a field that opens a keypad, whole numbers) | ui/components/KeypadField.kt (KeypadField, KeypadKind), NumberKeypad.kt, KeypadHost.kt (the keypads are drawn by the host of `PosUiRoot`) | - (settings fields, INSZ, labels: `SettingsTextField` delegates to it) |
 | components/PinDialog.vue | ui/components/PinPad.kt (PinPadState, PinPad, PinDialog) | - |
 | dialog frames | ui/components/PiliDialog.kt (PiliDialog, ConfirmDialog) | - |
 | components/PriceDialog.vue | ui/components/AmountDialog.kt | - |

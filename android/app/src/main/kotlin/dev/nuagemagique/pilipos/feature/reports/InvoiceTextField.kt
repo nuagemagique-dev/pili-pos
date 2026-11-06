@@ -1,32 +1,16 @@
 package dev.nuagemagique.pilipos.feature.reports
 
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.unit.dp
-import dev.nuagemagique.pilipos.ui.theme.PiliTheme
-
-private val FieldHeight = 56.dp
+import dev.nuagemagique.pilipos.ui.components.KeypadField
+import dev.nuagemagique.pilipos.ui.components.KeypadKind
 
 /**
- * A single line field of the invoice customer form, typed on the system keyboard (V11-D19: the Vue UI has its own
- * on-screen keyboard). Capital letters are the keyboard's default; the view model keeps the text in capitals.
- * [placeholder] shows while the field is empty; [mono] draws the value in the figure font (the VAT number).
+ * A single line field of the invoice customer form, typed on the in-app AZERTY keyboard (C13 / R6: the till never raises
+ * the system keyboard, `InvoiceDialog.vue` has its own). A tap opens the keyboard in a dialog headed by [title]; capital
+ * letters are its default and the view model keeps the text in capitals. [placeholder] shows while the field is empty;
+ * [mono] draws the value in the figure font (the VAT number); [maxLength] is the most characters the field takes.
  */
 @Composable
 internal fun InvoiceTextField(
@@ -34,39 +18,18 @@ internal fun InvoiceTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     tag: String,
+    title: String,
     modifier: Modifier = Modifier,
     mono: Boolean = false,
-    imeAction: ImeAction = ImeAction.Next,
+    maxLength: Int = TEXT_MAX_CHARS,
 ) {
-    val colors = PiliTheme.colors
-    val style =
-        PiliTheme.typography.body.copy(
-            color = colors.textPrimary,
-            fontFamily = if (mono) PiliTheme.typography.familyFigures else FontFamily.Default,
-        )
-    BasicTextField(
+    KeypadField(
         value = value,
         onValueChange = onValueChange,
-        singleLine = true,
-        textStyle = style,
-        cursorBrush = SolidColor(colors.textPrimary),
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = imeAction),
-        keyboardActions = KeyboardActions(),
+        title = title,
+        placeholder = placeholder,
         modifier = modifier.testTag(tag),
-        decorationBox = { inner ->
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(FieldHeight)
-                    .border(1.dp, colors.border, RoundedCornerShape(PiliTheme.dimens.radiusMd))
-                    .padding(horizontal = PiliTheme.dimens.spaceMd),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (value.isEmpty()) {
-                    Text(placeholder, style = PiliTheme.typography.body, color = colors.textSecondary, maxLines = 1)
-                }
-                inner()
-            }
-        },
+        kind = KeypadKind.Keyboard(maxLength = maxLength),
+        mono = mono,
     )
 }

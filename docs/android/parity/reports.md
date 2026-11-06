@@ -25,8 +25,8 @@ screen only calls it through the view model and the shared stores.
 ## Differences
 
 - **Invoices (V11-T2).** The invoice dialog, the invoice list and the Facture action follow `InvoiceDialog.vue`,
-  `InvoiceList.vue` and `stores/invoice.ts`. Text fields use the system keyboard instead of `TextKeyboard.vue`
-  (the D3 Pro has one); the view model upper-cases what is typed and cuts it to the lengths of the Vue keyboard
+  `InvoiceList.vue` and `stores/invoice.ts`. Text fields open the AZERTY `TextKeyboard` in a dialog (Compose `TextKeyboardDialog`,
+  C13: no system keyboard) where Vue shares one inline `TextKeyboard.vue` between the fields; the view model upper-cases what is typed and cuts it to the lengths of the Vue keyboard
   (VAT number 16, postal code 10, country 2, other fields 80). The VAT "live check" is the Vérifier button calling
   `lookup_b2b_customer` (the engine checks the digits offline, no copy of the rule in Kotlin); Continuer runs the
   lookup when none was done. The invoice list is drawn only when at least one invoice exists, and the Copie button

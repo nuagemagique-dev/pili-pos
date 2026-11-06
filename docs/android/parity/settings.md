@@ -37,8 +37,8 @@ screen only calls it through the shared stores and the gateway.
   (`MenuEditorEntry`, route `SettingsRoutes.MENU`) reached from the settings row `settings.menu` ("Carte", managers
   only), with the same three columns, toggles, VAT pickers, option groups and options, and Historique. Prices go
   through the shared `AmountDialog` (amount pad, now with `initialDigits`) instead of the inline `NumPad`. Text entry
-  uses the system keyboard (V11-D31), including Chinese; Vue uses `TextKeyboard` for the Latin names and a plain
-  field for the Chinese one (V11-D19), the one documented behaviour difference. While a catalog manages the menu
+  is the in-app AZERTY keyboard (`TextKeyboardDialog`, one dialog per field; Vue shows it inline); the Chinese name is the
+  one field that keeps a native text field on both UIs (no Chinese input method in the app; C13 exception, V11-D19). While a catalog manages the menu
   both UIs show the notice and no add button; saves are refused by the engine anyway (`hubrise_menu_managed`).
 
 - **Peppol panel (V11-T2).** `PeppolPanel.vue` is `PeppolSection` in the third column, after the HubRise section,

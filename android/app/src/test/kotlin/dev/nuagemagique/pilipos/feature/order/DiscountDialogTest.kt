@@ -8,10 +8,10 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
+import dev.nuagemagique.pilipos.ui.components.typeOnKeypad
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -200,12 +200,14 @@ class DiscountDialogTest {
     }
 
     @Test
-    fun theReasonTextIsTypedOnTheKeyboardAndSent() {
+    fun theReasonTextIsTypedOnTheKeypadAndSent() {
         show()
 
         tap("discount_quick_10")
         tap("discount_reason_service_issue")
-        compose.onNodeWithTag("discount_reason_text").performTextInput("plat froid")
+        compose.onNodeWithTag("discount_reason_text").performClick()
+        compose.typeOnKeypad("plat froid", "discount_text")
+        compose.onNodeWithTag("discount_text_confirm").performClick()
         tap("discount_confirm")
 
         assertEquals("plat froid", seen.single().reasonText)

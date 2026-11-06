@@ -10,9 +10,9 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
+import dev.nuagemagique.pilipos.ui.components.fillWithKeypad
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -276,10 +276,10 @@ class HubriseSectionTest {
     }
 
     @Test
-    fun theNewChannelFieldForwardsWhatIsTyped() {
+    fun theNewChannelFieldForwardsWhatIsTypedOnTheKeypad() {
         show(connectedState().copy(newChannel = ""))
 
-        compose.onNodeWithTag("hubrise_new_channel").performTextInput("Uber")
+        compose.fillWithKeypad("hubrise_new_channel", "Uber")
 
         assertEquals(listOf("new:Uber"), calls)
     }

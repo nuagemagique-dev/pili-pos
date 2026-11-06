@@ -15,6 +15,7 @@ import dev.nuagemagique.pilipos.feature.settings.PanelTitle
 import dev.nuagemagique.pilipos.feature.settings.SectionLabel
 import dev.nuagemagique.pilipos.feature.settings.SettingsTextField
 import dev.nuagemagique.pilipos.feature.settings.alerts.SwitchRow
+import dev.nuagemagique.pilipos.ui.components.KeypadKind
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -88,6 +89,8 @@ private fun VoucherFields(
         modifier = Modifier.testTag("gv_validity"),
         mono = true,
         numeric = true,
+        title = vueText("gv_settings_validity"),
+        kind = KeypadKind.Number(maxDigits = 2),
     )
     SectionLabel(vueText("gv_settings_max"))
     SettingsTextField(
@@ -97,5 +100,7 @@ private fun VoucherFields(
         modifier = Modifier.testTag("gv_max"),
         mono = true,
         numeric = true,
+        title = vueText("gv_settings_max"),
+        kind = KeypadKind.Number(maxDigits = 5),
     )
 }

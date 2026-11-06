@@ -160,7 +160,13 @@ private fun SearchBlock(
     val c = PiliTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs)) {
         FieldLabel("invoice_search_label")
-        InvoiceTextField(flow.search, callbacks.onSearch, vueText("invoice_search_placeholder"), "invoice_search_field")
+        InvoiceTextField(
+            flow.search,
+            callbacks.onSearch,
+            vueText("invoice_search_placeholder"),
+            "invoice_search_field",
+            title = vueText("invoice_search_label"),
+        )
         if (flow.searchResults.isNotEmpty()) {
             Column(
                 modifier =
@@ -219,8 +225,10 @@ private fun VatBlock(
                 onValueChange = callbacks.onVatNumber,
                 placeholder = "BE0123456789",
                 tag = "invoice_vat_field",
+                title = vueText("invoice_vat_label"),
                 modifier = Modifier.weight(1f),
                 mono = true,
+                maxLength = VAT_MAX_CHARS,
             )
             PiliButton(
                 text = vueText(if (flow.lookupBusy) "invoice_vat_checking" else "invoice_vat_check"),
@@ -302,6 +310,7 @@ private fun AddressBlock(
                 callbacks.onPostalCode,
                 "invoice_field_postalCode_input",
                 Modifier.weight(1f),
+                POSTAL_MAX_CHARS,
             )
             LabeledField("invoice_field_city", form.city, callbacks.onCity, "invoice_field_city_input", Modifier.weight(1f))
             LabeledField(
@@ -310,6 +319,7 @@ private fun AddressBlock(
                 callbacks.onCountryCode,
                 "invoice_field_countryCode_input",
                 Modifier.weight(1f),
+                COUNTRY_CHARS,
             )
         }
     }
@@ -322,10 +332,11 @@ private fun LabeledField(
     onChange: (String) -> Unit,
     tag: String,
     modifier: Modifier = Modifier,
+    maxLength: Int = TEXT_MAX_CHARS,
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs)) {
         FieldLabel(labelKey)
-        InvoiceTextField(value, onChange, "", tag)
+        InvoiceTextField(value, onChange, "", tag, title = vueText(labelKey), maxLength = maxLength)
     }
 }
 

@@ -26,6 +26,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.ui.components.ConfirmDialog
+import dev.nuagemagique.pilipos.ui.components.KeypadKind
+import dev.nuagemagique.pilipos.ui.components.KeypadSymbols
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.QrMatrices
 import dev.nuagemagique.pilipos.ui.format.PosDateTime
@@ -298,7 +300,7 @@ private fun ChannelsBlock(
             onValueChange = callbacks.onNewChannel,
             placeholder = vueText("hubrise_channel_name"),
             modifier = Modifier.weight(1f).testTag("hubrise_new_channel"),
-            onDone = callbacks.onAddChannel,
+            kind = KeypadKind.Text(maxLen = CHANNEL_NAME_MAX, symbols = KeypadSymbols.Code, space = true, caseToggle = true),
         )
         ActionButton(
             vueText("hubrise_channel_add"),
@@ -379,3 +381,6 @@ internal fun HubriseDialogs(
         )
     }
 }
+
+/** The longest name of a new channel. */
+private const val CHANNEL_NAME_MAX = 40

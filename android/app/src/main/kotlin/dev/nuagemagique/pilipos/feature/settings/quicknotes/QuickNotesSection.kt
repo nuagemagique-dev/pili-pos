@@ -1,51 +1,40 @@
 package dev.nuagemagique.pilipos.feature.settings.quicknotes
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import dev.nuagemagique.pilipos.feature.order.NOTE_MAX
+import dev.nuagemagique.pilipos.feature.order.NoteSymbols
 import dev.nuagemagique.pilipos.feature.order.QUICK_NOTES_MAX
 import dev.nuagemagique.pilipos.feature.order.addQuickNote
-import dev.nuagemagique.pilipos.feature.order.noteText
 import dev.nuagemagique.pilipos.feature.settings.ActionButton
 import dev.nuagemagique.pilipos.feature.settings.Panel
 import dev.nuagemagique.pilipos.feature.settings.PanelText
 import dev.nuagemagique.pilipos.feature.settings.PanelTitle
-import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
-import dev.nuagemagique.pilipos.ui.components.PiliDialog
+import dev.nuagemagique.pilipos.ui.components.TextKeypad
+import dev.nuagemagique.pilipos.ui.components.TextKeypadSpec
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 
 private val ControlSize = 48.dp
 private val RowHeight = 56.dp
-private val FieldHeight = 64.dp
-private val DialogMaxWidth = 560.dp
 private const val DISABLED_ALPHA = 0.3f
 
 /**
@@ -177,53 +166,26 @@ private fun IconControl(
     }
 }
 
-/** "Nouvelle note rapide": the text of the chip; "Valider" is disabled until the rules accept it. */
+/** "Nouvelle note rapide": the text of the chip on the in-app keypad; "Valider" is disabled until the rules accept it. */
 @Composable
 private fun AddNoteDialog(
     notes: List<String>,
     callbacks: QuickNotesCallbacks,
 ) {
-    var text by rememberSaveable { mutableStateOf("") }
-    val c = PiliTheme.colors
-    val valid = addQuickNote(notes, text) != null
-    PiliDialog(
-        title = vueText("quick_notes_add_title"),
-        onDismissRequest = callbacks.onAddCancel,
-        maxWidth = DialogMaxWidth,
-        actions = {
-            PiliButton(
-                text = vueText("delivery_cancel"),
-                onClick = callbacks.onAddCancel,
-                variant = PiliButtonVariant.Secondary,
-                modifier = Modifier.testTag("quick_note_add_cancel"),
-            )
-            PiliButton(
-                text = vueText("validate"),
-                onClick = { callbacks.onAddConfirm(text) },
-                enabled = valid,
-                modifier = Modifier.testTag("quick_note_add_confirm"),
-            )
-        },
-    ) {
-        BasicTextField(
-            value = text,
-            onValueChange = { text = noteText(it) },
-            singleLine = true,
-            textStyle = PiliTheme.typography.body.copy(color = c.textPrimary, fontSize = PiliTheme.typography.sizeLg),
-            cursorBrush = SolidColor(c.textPrimary),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { if (valid) callbacks.onAddConfirm(text) }),
-            modifier = Modifier.fillMaxWidth().testTag("quick_note_add_text"),
-            decorationBox = { inner ->
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .defaultMinSize(minHeight = FieldHeight)
-                        .border(BorderStroke(1.dp, c.border), RoundedCornerShape(PiliTheme.dimens.radiusMd))
-                        .padding(horizontal = PiliTheme.dimens.spaceMd),
-                    contentAlignment = Alignment.CenterStart,
-                ) { inner() }
-            },
-        )
-    }
+    TextKeypad(
+        spec =
+            TextKeypadSpec(
+                tag = "quick_note_add",
+                title = vueText("quick_notes_add_title"),
+                maxLen = NOTE_MAX,
+                symbols = NoteSymbols,
+                space = true,
+                caseToggle = true,
+                showCounter = true,
+                valid = { addQuickNote(notes, it) != null },
+            ),
+        onConfirm = callbacks.onAddConfirm,
+        onCancel = callbacks.onAddCancel,
+        modifier = Modifier.fillMaxSize(),
+    )
 }

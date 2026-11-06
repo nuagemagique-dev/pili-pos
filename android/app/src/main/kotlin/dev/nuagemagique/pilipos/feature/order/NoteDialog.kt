@@ -1,52 +1,16 @@
 package dev.nuagemagique.pilipos.feature.order
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import dev.nuagemagique.pilipos.ui.components.PiliButton
-import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
-import dev.nuagemagique.pilipos.ui.components.PiliDialog
+import dev.nuagemagique.pilipos.ui.components.TextKeypad
+import dev.nuagemagique.pilipos.ui.components.TextKeypadSpec
 import dev.nuagemagique.pilipos.ui.text.vueText
-import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 
 /** The longest kitchen note, in characters (`NOTE_MAX` of `NoteDialog.vue`, `KITCHEN_NOTE_MAX` of the engine). */
 internal const val NOTE_MAX: Int = 60
 
-private val DialogMaxWidth = 720.dp
-private val FieldHeight = 64.dp
-private val Hairline = 1.dp
+/** Accents of French notes and the usual punctuation that the letter rows lack; every one prints on the slip printer (CP858). */
+internal val NoteSymbols: List<String> = listOf("é", "è", "à", "ç", "ê", ",", ".", "-", "'", "/", "(", ")", "+", "%")
 
 /**
  * The text a note field keeps after [typed] was entered: no control character (a pasted line break would be
@@ -56,16 +20,17 @@ private val Hairline = 1.dp
 internal fun noteText(typed: String): String = typed.filterNot { it.isISOControl() }.take(NOTE_MAX)
 
 /**
- * `NoteDialog.vue`: the kitchen note of a cart line, typed with the system keyboard (the Vue screen has its own
- * keypad). A counter shows `n/60`, and the hint says when the note prints: now when the line already went to the
+ * `NoteDialog.vue`: the kitchen note of a cart line, typed on the in-app text keypad (C13 / R6: the till never raises the
+ * system keyboard). A counter shows `n/60`, and the hint says when the note prints: now when the line already went to the
  * kitchen ([sent]), else with the order. An empty text clears the note. The dialog only collects the text and calls
  * [onConfirm]; the engine validates and prints.
  *
- * Under the field the quick notes of the installation are chips (C11, `keypad-chip` of `TextKeypad.vue`): a tap appends
+ * Above the keys the quick notes of the installation are chips (C11, `keypad-chip` of `TextKeypad.vue`): a tap appends
  * the chip to the note, comma separated; a chip already in the note, or one that would pass 60 characters, is faded and
  * does nothing.
  *
- * Test tags: `note_dialog`, `note_text`, `note_counter`, `note_hint`, `note_chip_<index>`, `note_confirm`, `note_cancel`.
+ * Test tags: `note_dialog`, `note_text` (the typed text), `note_placeholder`, `note_counter`, `note_hint`,
+ * `note_chip_<index>`, `note_key_<char>`, `note_space`, `note_backspace`, `note_clear`, `note_confirm`, `note_cancel`.
  */
 @Composable
 internal fun NoteDialog(
@@ -76,129 +41,24 @@ internal fun NoteDialog(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var text by rememberSaveable { mutableStateOf(noteText(initial)) }
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
-    val c = PiliTheme.colors
-    val t = PiliTheme.typography
-    Box(modifier = modifier.testTag("note_dialog")) {
-        PiliDialog(
-            title = vueText("note_title"),
-            onDismissRequest = onCancel,
-            maxWidth = DialogMaxWidth,
-            actions = {
-                PiliButton(
-                    text = vueText("delivery_cancel"),
-                    onClick = onCancel,
-                    variant = PiliButtonVariant.Secondary,
-                    modifier = Modifier.testTag("note_cancel"),
-                )
-                PiliButton(
-                    text = vueText("validate"),
-                    onClick = { onConfirm(text.trim()) },
-                    modifier = Modifier.testTag("note_confirm"),
-                )
-            },
-        ) {
-            NoteField(text, { text = noteText(it) }, { onConfirm(text.trim()) }, focus)
-            NoteChips(chips, text) { text = it }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    text = vueText(if (sent) "note_hint_now" else "note_hint_with_order"),
-                    style = t.body.copy(fontSize = t.sizeSm),
-                    color = c.textSecondary,
-                    modifier = Modifier.weight(1f).testTag("note_hint"),
-                )
-                Text(
-                    text = "${text.length}/$NOTE_MAX",
-                    style = t.figure.copy(fontSize = t.sizeSm),
-                    color = c.textSecondary,
-                    modifier = Modifier.testTag("note_counter"),
-                )
-            }
-        }
-    }
-}
-
-/** The quick notes as chips under the field: a tap puts [appendQuickNote] of the note in the field. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun NoteChips(
-    chips: List<String>,
-    note: String,
-    onNote: (String) -> Unit,
-) {
-    if (chips.isEmpty()) return
-    val c = PiliTheme.colors
-    val d = PiliTheme.dimens
-    val t = PiliTheme.typography
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
-        verticalArrangement = Arrangement.spacedBy(d.spaceSm),
-    ) {
-        chips.forEachIndexed { index, chip ->
-            val next = appendQuickNote(note, chip)
-            Box(
-                modifier =
-                    Modifier
-                        .defaultMinSize(minHeight = ChipHeight)
-                        .alpha(if (next == null) CHIP_DISABLED_ALPHA else 1f)
-                        .background(c.bgSecondary, RoundedCornerShape(ChipHeight / 2))
-                        .border(BorderStroke(ChipBorder, c.textSecondary), RoundedCornerShape(ChipHeight / 2))
-                        .clickable(enabled = next != null, role = Role.Button) { next?.let(onNote) }
-                        .padding(horizontal = d.spaceMd)
-                        .testTag("note_chip_$index"),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(chip, style = t.body.copy(fontSize = t.sizeSm, fontWeight = t.weightBold), color = c.textPrimary)
-            }
-        }
-    }
-}
-
-private val ChipHeight = 48.dp
-private val ChipBorder = 2.dp
-private const val CHIP_DISABLED_ALPHA = 0.3f
-
-/** The one-line text field of the note, on the system keyboard; "Done" confirms. */
-@Composable
-private fun NoteField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onDone: () -> Unit,
-    focus: FocusRequester,
-) {
-    val c = PiliTheme.colors
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        textStyle = PiliTheme.typography.body.copy(color = c.textPrimary, fontSize = PiliTheme.typography.sizeLg),
-        cursorBrush = SolidColor(c.textPrimary),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { onDone() }),
-        modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag("note_text"),
-        decorationBox = { inner ->
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = FieldHeight)
-                    .border(BorderStroke(Hairline, c.border), RoundedCornerShape(PiliTheme.dimens.radiusMd))
-                    .padding(horizontal = PiliTheme.dimens.spaceMd),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (value.isEmpty()) {
-                    Text(
-                        vueText("note_placeholder"),
-                        style = PiliTheme.typography.body,
-                        color = c.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                inner()
-            }
-        },
+    TextKeypad(
+        spec =
+            TextKeypadSpec(
+                tag = "note",
+                title = vueText("note_title"),
+                placeholder = vueText("note_placeholder"),
+                initial = noteText(initial),
+                maxLen = NOTE_MAX,
+                chips = chips,
+                chipAppend = { note, chip -> appendQuickNote(note, chip) },
+                symbols = NoteSymbols,
+                space = true,
+                caseToggle = true,
+                hint = vueText(if (sent) "note_hint_now" else "note_hint_with_order"),
+                showCounter = true,
+            ),
+        onConfirm = { onConfirm(it.trim()) },
+        onCancel = onCancel,
+        modifier = modifier,
     )
 }

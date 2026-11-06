@@ -57,6 +57,8 @@ import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.NavRegistry
 import dev.nuagemagique.pilipos.nav.SettingsEntry
 import dev.nuagemagique.pilipos.ui.components.ConfirmDialog
+import dev.nuagemagique.pilipos.ui.components.KeypadKind
+import dev.nuagemagique.pilipos.ui.components.KeypadSymbols
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.PiliDialog
@@ -582,7 +584,8 @@ private fun TablePlanPanel(
                 placeholder = vueText("settings_tables_placeholder"),
                 modifier = Modifier.weight(1f).testTag("settings_tables_input"),
                 mono = true,
-                onDone = callbacks.onSaveTablePlan,
+                title = vueText("settings_tables"),
+                kind = KeypadKind.Text(maxLen = TABLE_PLAN_MAX, symbols = KeypadSymbols.TablePlan, space = true, caseToggle = true),
             )
             ActionButton(vueText("settings_tables_save"), callbacks.onSaveTablePlan, Modifier.testTag("settings_tables_save"))
         }
@@ -787,6 +790,7 @@ private fun AddEmployeeForm(
                 onValueChange = callbacks.onNewName,
                 placeholder = vueText("settings_name_placeholder"),
                 modifier = Modifier.weight(1f).testTag("settings_new_name"),
+                kind = KeypadKind.Text(maxLen = EMPLOYEE_NAME_MAX, symbols = KeypadSymbols.Name, space = true, caseToggle = true),
             )
             SettingsTextField(
                 value = form.insz,
@@ -795,6 +799,7 @@ private fun AddEmployeeForm(
                 modifier = Modifier.weight(1f).testTag("settings_new_insz"),
                 mono = true,
                 numeric = true,
+                kind = KeypadKind.Number(maxDigits = INSZ_DIGITS, exactDigits = INSZ_DIGITS),
             )
         }
         SegmentedControl(
@@ -1164,3 +1169,12 @@ internal fun paymentTerminalLabel(kind: String?): String =
         "ccv_opi" -> uiText(R.string.ui_eft_kind_ccv_opi)
         else -> kind
     }
+
+/** The longest table plan, "1-12, 20-25" and so on. */
+private const val TABLE_PLAN_MAX = 120
+
+/** The longest name of an employee typed on the keypad. */
+private const val EMPLOYEE_NAME_MAX = 60
+
+/** The digits of an INSZ (national number), kept as typed. */
+private const val INSZ_DIGITS = 11

@@ -12,6 +12,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.intl.LocaleList
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
+import dev.nuagemagique.pilipos.ui.components.ProvideKeypadHost
 import dev.nuagemagique.pilipos.ui.di.UiCommonEntryPoint
 import dev.nuagemagique.pilipos.ui.di.rememberEntryPoint
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -52,7 +53,8 @@ fun ProvideUiText(
     CompositionLocalProvider(LocalUiLanguage provides language, LocalMessageCatalog provides catalog) {
         // ProvideTextStyle merges into the style already in scope.
         ProvideTextStyle(TextStyle(localeList = LocaleList(language.languageTag))) {
-            content()
+            // The keypads of the fields (C13 / R6) are drawn here, in the screen's theme and language.
+            ProvideKeypadHost(content)
         }
     }
 }

@@ -12,9 +12,9 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextInput
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
+import dev.nuagemagique.pilipos.ui.components.fillWithKeyboard
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -188,18 +188,17 @@ class InvoiceContentTest {
     fun theFieldsCallBackWithWhatIsTyped() {
         show(flow())
 
-        compose.onNodeWithTag("invoice_vat_field").performTextInput("BE1")
-        compose.onNodeWithTag("invoice_search_field").performTextInput("AC")
-        compose.onNodeWithTag("invoice_field_name_input").performTextInput("ACME")
-        compose.onNodeWithTag("invoice_field_street_input").performTextInput("RUE")
-        compose.onNodeWithTag("invoice_field_postalCode_input").performTextInput("4000")
-        compose.onNodeWithTag("invoice_field_city_input").performTextInput("LIEGE")
-        compose.onNodeWithTag("invoice_field_countryCode_input").performTextInput("BE")
+        compose.fillWithKeyboard("invoice_vat_field", "BE1")
+        compose.fillWithKeyboard("invoice_search_field", "AC")
+        compose.fillWithKeyboard("invoice_field_name_input", "ACME")
+        compose.fillWithKeyboard("invoice_field_street_input", "RUE")
+        compose.fillWithKeyboard("invoice_field_postalCode_input", "4000")
+        compose.fillWithKeyboard("invoice_field_city_input", "LIEGE")
+        compose.fillWithKeyboard("invoice_field_countryCode_input", "BE")
 
         assertEquals(
             listOf("vat:BE1", "search:AC", "name:ACME", "street:RUE", "postal:4000", "city:LIEGE", "country:BE"),
-            // The controlled fields echo an empty value once after each input.
-            calls.filterNot { it.endsWith(":") },
+            calls,
         )
     }
 

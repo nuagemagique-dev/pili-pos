@@ -21,10 +21,12 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextInput
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
+import dev.nuagemagique.pilipos.ui.components.fillWithKeypad
+import dev.nuagemagique.pilipos.ui.components.fillWithNumPad
+import dev.nuagemagique.pilipos.ui.components.typeOnKeypad
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -242,10 +244,12 @@ class SettingsContentTest {
         show(managerState().copy(tablePlan = TablePlanState(plan = "1-12, 20-25", count = 18L, input = "1-12, 20-25")))
 
         compose.onNodeWithTag("settings_tables_current").assertTextEquals("18 tables : 1-12, 20-25")
-        compose.onNodeWithTag("settings_tables_input").performTextInput("9")
+        compose.onNodeWithTag("settings_tables_input").performClick()
+        compose.typeOnKeypad("9")
+        compose.onNodeWithTag("keypad_confirm").performClick()
         compose.onNodeWithTag("settings_tables_save").performClick()
 
-        assertEquals(listOf("tables:91-12, 20-25", "tables:save"), taps)
+        assertEquals(listOf("tables:1-12, 20-259", "tables:save"), taps)
     }
 
     @Test
@@ -397,8 +401,8 @@ class SettingsContentTest {
         }
         compose.waitForIdle()
 
-        compose.onNodeWithTag("settings_new_name").performTextInput("Eve")
-        compose.onNodeWithTag("settings_new_insz").performTextInput("99040400456")
+        compose.fillWithKeypad("settings_new_name", "Eve")
+        compose.fillWithNumPad("settings_new_insz", "99040400456")
         compose.onNodeWithTag("settings_role_waiter").performClick()
         compose.onNodeWithTag("settings_role_admin").performClick()
         compose.onNodeWithTag("settings_add").performClick()

@@ -19,6 +19,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.ui.components.KeypadKind
+import dev.nuagemagique.pilipos.ui.components.KeypadSymbols
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.PiliDialog
@@ -98,7 +100,8 @@ internal fun HubriseConnectDialog(
             placeholder = vueText("hubrise_code_placeholder"),
             modifier = Modifier.fillMaxWidth().testTag("hubrise_code"),
             mono = true,
-            onDone = { submit() },
+            title = vueText("hubrise_open_authorize_url"),
+            kind = KeypadKind.Text(maxLen = HUBRISE_CODE_MAX, symbols = KeypadSymbols.Code, caseToggle = true),
         )
         if (error != null) {
             Text(
@@ -110,3 +113,6 @@ internal fun HubriseConnectDialog(
         }
     }
 }
+
+/** The longest authorization code the field takes. */
+private const val HUBRISE_CODE_MAX = 128

@@ -40,8 +40,8 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 
 ## Differences
 
-- **Quick notes and the dense cart (C2, C11).** The chips sit above the Vue keypad and under the Android text field (the field stays on the
-  system keyboard until the keypad lands on Android); the rules are the same pure functions on both sides
+- **Quick notes and the dense cart (C2, C11).** The chips sit above the keys on both UIs (the Compose `TextKeypad` is the port of
+  `TextKeypad.vue`, C13); the rules are the same pure functions on both sides
   (`utils/quickNotes.ts`, `QuickNotes.kt`, same test cases). The selected line is the newest one by default on both UIs, also when an
   existing order opens. The category is shown in the detail of the selected line only.
 
@@ -130,8 +130,8 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
   An online order (any line of the cart with `online`, read from the order by `list_cart_lines`) shows none of these
   actions on either UI (the engine refuses with `discount_online_order`); Vue test "is absent on an online order",
   Kotlin test `anOnlineOrderGetsNoDiscountActionEvenForAManager`.
-- **Reason text.** Vue types the optional reason on the on-screen keypad (`TextKeypad.vue`, the generalised
-  `EmailKeypad.vue`); the Compose dialog uses the system keyboard (a single line, 120 characters at most).
+- **Reason text.** The optional reason is typed on the on-screen text keypad on both UIs (`TextKeypad.vue`, Compose
+  `TextKeypad` with tag `discount_text`; a tap on the reason button opens it, 120 characters at most).
 - **Net amounts without arithmetic (PD208).** A line amount is the `vatSplit` row of the line plus one more line of
   quantity 1 whose unit price is the line's `discount_cents` (negative), so the engine sums them; the VAT summary is
   the same split over all lines. The order total is `Order.totalCents`, which is already net. Vue adds

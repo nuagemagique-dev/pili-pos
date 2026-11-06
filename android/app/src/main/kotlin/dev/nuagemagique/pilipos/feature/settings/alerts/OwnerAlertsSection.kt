@@ -33,6 +33,8 @@ import dev.nuagemagique.pilipos.feature.settings.SectionLabel
 import dev.nuagemagique.pilipos.feature.settings.SegmentedControl
 import dev.nuagemagique.pilipos.feature.settings.SettingsTextField
 import dev.nuagemagique.pilipos.feature.settings.StatusPill
+import dev.nuagemagique.pilipos.ui.components.KeypadKind
+import dev.nuagemagique.pilipos.ui.components.KeypadSymbols
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.format.PosDateTime
 import dev.nuagemagique.pilipos.ui.text.vueText
@@ -154,6 +156,8 @@ private fun LabelAndLanguage(
             onValueChange = callbacks.onLabel,
             placeholder = vueText("alerts_label_placeholder"),
             modifier = Modifier.weight(1f).testTag("alerts_label"),
+            title = vueText("alerts_label"),
+            kind = KeypadKind.Text(maxLen = ALERT_LABEL_MAX, symbols = KeypadSymbols.Name, space = true, caseToggle = true),
         )
     }
     SectionLabel(vueText("alerts_language"))
