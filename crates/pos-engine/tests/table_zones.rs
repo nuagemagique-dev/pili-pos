@@ -349,7 +349,7 @@ async fn the_zone_the_name_and_the_covers_are_in_no_fiscal_message_and_no_archiv
             "{expected} in {operations:?}"
         );
     }
-    let secrets = [
+    let local_only = [
         "A-19",
         "B-30",
         "Zzsalle",
@@ -359,10 +359,10 @@ async fn the_zone_the_name_and_the_covers_are_in_no_fiscal_message_and_no_archiv
         "\"zone",
     ];
     for sent in fdm.sent() {
-        for secret in secrets {
+        for needle in local_only {
             assert!(
-                !sent.body.contains(secret),
-                "{secret} in the {} request",
+                !sent.body.contains(needle),
+                "{needle} in the {} request",
                 sent.op
             );
         }
@@ -384,10 +384,10 @@ async fn the_zone_the_name_and_the_covers_are_in_no_fiscal_message_and_no_archiv
     for event in app.fiscal_events() {
         let request = event.event_data_json.as_deref().unwrap_or_default();
         let response = event.fdm_response_json.as_deref().unwrap_or_default();
-        for secret in secrets {
+        for needle in local_only {
             assert!(
-                !request.contains(secret) && !response.contains(secret),
-                "{secret}"
+                !request.contains(needle) && !response.contains(needle),
+                "{needle}"
             );
         }
     }
