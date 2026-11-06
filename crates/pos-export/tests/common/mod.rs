@@ -1304,21 +1304,21 @@ pub(crate) fn assert_no_personal_data(path: &Path, secrets: &[String]) {
                         "{table}.{column} holds a bcrypt hash: {value:?}"
                     );
                 }
-                for secret in secrets {
+                for (index, secret) in secrets.iter().enumerate() {
                     assert!(
                         !value.contains(secret.as_str()),
-                        "{table}.{column} holds a secret: {secret:?}"
+                        "{table}.{column} holds the fixture secret #{index}"
                     );
                 }
             }
         }
     }
     let bytes = std::fs::read(path).expect("read the file");
-    for secret in secrets {
+    for (index, secret) in secrets.iter().enumerate() {
         let needle = secret.as_bytes();
         assert!(
             needle.is_empty() || !bytes.windows(needle.len()).any(|w| w == needle),
-            "the file bytes contain a secret: {secret:?}"
+            "the file bytes contain the fixture secret #{index}"
         );
     }
 }
