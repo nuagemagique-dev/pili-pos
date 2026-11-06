@@ -690,10 +690,10 @@
       "zh": "现金管理",
       "area": "core"
     },
-    "cash_success": {
-      "fr": "Mouvement enregistré",
-      "en": "Movement recorded",
-      "zh": "已记录",
+    "cash_success_drawer": {
+      "fr": "Mouvement enregistré · tiroir ouvert",
+      "en": "Movement recorded · drawer open",
+      "zh": "已记录 · 钱箱已打开",
       "area": "core"
     },
     "catalog_issue_bad_price": {
@@ -2842,6 +2842,12 @@
       "fr": "Trop de notes rapides : {max} au plus.",
       "en": "Too many quick notes: {max} at most.",
       "zh": "快捷备注太多：最多{max}条。",
+      "area": "errors"
+    },
+    "err_refund_already_done": {
+      "fr": "Cette vente est déjà remboursée en totalité.",
+      "en": "This sale has already been refunded in full.",
+      "zh": "此笔销售已全额退款。",
       "area": "errors"
     },
     "err_refund_bowl_whole": {
@@ -6942,6 +6948,36 @@
       "zh": "小票",
       "area": "checkout"
     },
+    "tickets_find_clear": {
+      "fr": "Derniers tickets",
+      "en": "Latest tickets",
+      "zh": "最近票据",
+      "area": "reports"
+    },
+    "tickets_find_label": {
+      "fr": "N° de ticket",
+      "en": "Ticket no.",
+      "zh": "票据号",
+      "area": "reports"
+    },
+    "tickets_find_none": {
+      "fr": "Aucun ticket n° {no}",
+      "en": "No ticket no. {no}",
+      "zh": "没有第 {no} 号票据",
+      "area": "reports"
+    },
+    "tickets_find_result": {
+      "fr": "Ticket n° {no}",
+      "en": "Ticket no. {no}",
+      "zh": "第 {no} 号票据",
+      "area": "reports"
+    },
+    "tickets_older": {
+      "fr": "Plus ancien",
+      "en": "Older",
+      "zh": "更早",
+      "area": "reports"
+    },
     "to_pay": {
       "fr": "À payer",
       "en": "To pay",
@@ -7719,6 +7755,7 @@
     "refund_in_training",
     "refund_of_refund",
     "refund_unpaid_sale",
+    "refund_already_done",
     "payment_invalid",
     "payment_exceeds_total",
     "payment_incomplete",

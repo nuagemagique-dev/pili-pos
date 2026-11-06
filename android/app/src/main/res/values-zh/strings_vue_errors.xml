@@ -86,6 +86,7 @@
     <string name="err_payment_incomplete">仍有金额未付。</string>
     <string name="err_unpaid_nothing_due">无需付款：请正常结账。</string>
     <string name="err_refund_unpaid_sale">此笔销售未付款：无可退款。</string>
+    <string name="err_refund_already_done">此笔销售已全额退款。</string>
     <string name="err_takeaway_not_registered">外带订单须以付款结束。</string>
     <string name="err_order_total_negative">总额不能为负数。</string>
     <string name="err_amount_negative">金额不能为负数。</string>

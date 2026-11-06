@@ -31,6 +31,11 @@
     <string name="reports_tickets_title">Recent tickets</string>
     <string name="reports_tickets_hint">Choose a ticket to copy or refund it.</string>
     <string name="reports_copy">Copy</string>
+    <string name="tickets_find_label">Ticket no.</string>
+    <string name="tickets_find_result">Ticket no. {no}</string>
+    <string name="tickets_find_none">No ticket no. {no}</string>
+    <string name="tickets_find_clear">Latest tickets</string>
+    <string name="tickets_older">Older</string>
     <string name="reports_pc_action">Correct payment</string>
     <string name="reports_pc_title">Correct the payment</string>
     <string name="reports_pc_pick_line">Which payment line is wrong?</string>

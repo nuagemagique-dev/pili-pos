@@ -189,7 +189,7 @@
     <string name="cash_declared">Contenu du tiroir déclaré</string>
     <string name="cash_amount_placeholder">Montant (€)</string>
     <string name="cash_reason_placeholder">Motif</string>
-    <string name="cash_success">Mouvement enregistré</string>
+    <string name="cash_success_drawer">Mouvement enregistré · tiroir ouvert</string>
     <string name="cash_failed">Mouvement non enregistré</string>
     <string name="cash_drawer_opened">Tiroir ouvert</string>
     <string name="cash_err_amount">Montant invalide</string>

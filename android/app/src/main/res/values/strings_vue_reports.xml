@@ -31,6 +31,11 @@
     <string name="reports_tickets_title">Tickets récents</string>
     <string name="reports_tickets_hint">Choisissez un ticket pour en faire une copie ou le rembourser.</string>
     <string name="reports_copy">Copie</string>
+    <string name="tickets_find_label">N° de ticket</string>
+    <string name="tickets_find_result">Ticket n° {no}</string>
+    <string name="tickets_find_none">Aucun ticket n° {no}</string>
+    <string name="tickets_find_clear">Derniers tickets</string>
+    <string name="tickets_older">Plus ancien</string>
     <string name="reports_pc_action">Corriger le paiement</string>
     <string name="reports_pc_title">Corriger le paiement</string>
     <string name="reports_pc_pick_line">Quelle ligne de paiement faut-il corriger ?</string>

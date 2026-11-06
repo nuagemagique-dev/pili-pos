@@ -65,38 +65,20 @@ internal fun TicketsTab(
 ) {
     val c = PiliTheme.colors
     val t = PiliTheme.typography
-    val rows = ticketRowsWith(tickets.rows, invoices.sales)
+    // A number looked up replaces the list with the tickets it found (UX audit R2).
+    val rows = if (tickets.lookup != null) tickets.found else ticketRowsWith(tickets.rows, invoices.sales)
     val sales = invoices.sales.associateBy { it.fiscalEventId }
     Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceLg)) {
         Panel(Modifier.weight(TICKETS_WEIGHT).fillMaxWidth()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs)) {
-                    Text(
-                        vueText("reports_tickets_title"),
-                        style = t.title,
-                        color = c.textPrimary,
-                        modifier = Modifier.testTag("tickets_title"),
-                    )
-                    Text(
-                        vueText("reports_tickets_hint") + " " + vueText("invoice_select_hint"),
-                        style = t.body,
-                        color = c.textSecondary,
-                        modifier = Modifier.testTag("tickets_hint"),
-                    )
-                }
-                PiliButton(
-                    text =
-                        if (invoices.selected.isEmpty()) {
-                            vueText("invoice_action")
-                        } else {
-                            vueText("invoice_action_count", "n" to invoices.selected.size)
-                        },
-                    onClick = invoiceCallbacks.onOpen,
-                    enabled = invoices.selected.isNotEmpty(),
-                    modifier = Modifier.width(InvoiceActionWidth).testTag("invoice_action"),
+            TicketsHeader(tickets, callbacks, invoices, invoiceCallbacks)
+            if (tickets.lookup != null && rows.isEmpty()) {
+                Text(
+                    vueText("tickets_find_none", "no" to tickets.lookup.number),
+                    style = t.body,
+                    color = c.textSecondary,
+                    modifier = Modifier.testTag("tickets_find_none"),
                 )
-            }
-            if (tickets.loaded && rows.isEmpty()) {
+            } else if (tickets.lookup == null && tickets.loaded && rows.isEmpty()) {
                 Text(vueText("copy_none"), style = t.body, color = c.textSecondary, modifier = Modifier.testTag("tickets_empty"))
             } else {
                 LazyColumn(
@@ -113,12 +95,99 @@ internal fun TicketsTab(
                             invoiceCallbacks,
                         )
                     }
+                    if (tickets.lookup == null && tickets.hasOlder) {
+                        item(key = "tickets_older") { OlderButton(callbacks.onOlder) }
+                    }
                 }
             }
         }
         if (invoices.invoices.isNotEmpty()) {
             InvoiceListPanel(invoices, invoiceCallbacks, Modifier.weight(INVOICES_WEIGHT).fillMaxWidth())
         }
+    }
+}
+
+private val FinderWidth = 220.dp
+private val OlderWidth = 260.dp
+private val ClearWidth = 240.dp
+
+/**
+ * The ticket number field and, while a number is looked up, the button back to the latest tickets (UX audit R2).
+ * The field reads like an input and opens the number pad. Test tags: `ticket_find`, `ticket_find_clear`.
+ */
+@Composable
+private fun TicketFinder(
+    tickets: TicketsState,
+    callbacks: TicketsCallbacks,
+) {
+    val number = tickets.lookup?.number
+    PiliButton(
+        text = number?.toString() ?: vueText("tickets_find_label"),
+        onClick = callbacks.onOpenFind,
+        variant = PiliButtonVariant.Secondary,
+        enabled = !tickets.lookupBusy,
+        modifier = Modifier.width(FinderWidth).testTag("ticket_find"),
+    )
+    if (tickets.lookup != null) {
+        PiliButton(
+            text = vueText("tickets_find_clear"),
+            onClick = callbacks.onClearFind,
+            variant = PiliButtonVariant.Secondary,
+            modifier = Modifier.width(ClearWidth).testTag("ticket_find_clear"),
+        )
+    }
+}
+
+/** The title, the hint, the finder and the Facture action over the list. */
+@Composable
+private fun TicketsHeader(
+    tickets: TicketsState,
+    callbacks: TicketsCallbacks,
+    invoices: InvoicesState,
+    invoiceCallbacks: InvoiceCallbacks,
+) {
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    Row(horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs)) {
+            Text(
+                tickets.lookup?.let { vueText("tickets_find_result", "no" to it.number) } ?: vueText("reports_tickets_title"),
+                style = t.title,
+                color = c.textPrimary,
+                modifier = Modifier.testTag("tickets_title"),
+            )
+            Text(
+                vueText("reports_tickets_hint") + " " + vueText("invoice_select_hint"),
+                style = t.body,
+                color = c.textSecondary,
+                modifier = Modifier.testTag("tickets_hint"),
+            )
+        }
+        TicketFinder(tickets, callbacks)
+        PiliButton(
+            text =
+                if (invoices.selected.isEmpty()) {
+                    vueText("invoice_action")
+                } else {
+                    vueText("invoice_action_count", "n" to invoices.selected.size)
+                },
+            onClick = invoiceCallbacks.onOpen,
+            enabled = invoices.selected.isNotEmpty(),
+            modifier = Modifier.width(InvoiceActionWidth).testTag("invoice_action"),
+        )
+    }
+}
+
+/** The "Plus ancien" button at the end of the list (UX audit R2). */
+@Composable
+private fun OlderButton(onOlder: () -> Unit) {
+    Box(Modifier.fillMaxWidth().padding(vertical = PiliTheme.dimens.spaceMd), contentAlignment = Alignment.Center) {
+        PiliButton(
+            text = vueText("tickets_older"),
+            onClick = onOlder,
+            variant = PiliButtonVariant.Secondary,
+            modifier = Modifier.width(OlderWidth).testTag("tickets_older"),
+        )
     }
 }
 
@@ -256,13 +325,22 @@ private fun TicketActions(
             )
         }
     }
-    Box(Modifier.width(RefundWidth)) {
+    Box(Modifier.width(RefundWidth), contentAlignment = Alignment.CenterEnd) {
         if (row.refundable != null) {
             PiliButton(
                 text = vueText("refund_confirm"),
                 onClick = { callbacks.onRefund(row.refundable) },
                 variant = PiliButtonVariant.Secondary,
                 modifier = Modifier.fillMaxWidth().testTag("ticket_refund_$id"),
+            )
+        } else if (row.refundBlocked != null) {
+            // The very reason the refund would give, told before the cashier opens it (UX audit R2).
+            Text(
+                callbacks.describeError(row.refundBlocked),
+                style = PiliTheme.typography.label,
+                color = PiliTheme.colors.textSecondary,
+                textAlign = TextAlign.End,
+                modifier = Modifier.testTag("ticket_blocked_$id"),
             )
         }
     }

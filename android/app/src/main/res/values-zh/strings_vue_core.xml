@@ -189,7 +189,7 @@
     <string name="cash_declared">钱箱现金已申报</string>
     <string name="cash_amount_placeholder">金额 (€)</string>
     <string name="cash_reason_placeholder">原因</string>
-    <string name="cash_success">已记录</string>
+    <string name="cash_success_drawer">已记录 · 钱箱已打开</string>
     <string name="cash_failed">未记录</string>
     <string name="cash_drawer_opened">钱箱已打开</string>
     <string name="cash_err_amount">金额无效</string>

@@ -189,7 +189,7 @@
     <string name="cash_declared">Drawer count declared</string>
     <string name="cash_amount_placeholder">Amount (€)</string>
     <string name="cash_reason_placeholder">Reason</string>
-    <string name="cash_success">Movement recorded</string>
+    <string name="cash_success_drawer">Movement recorded · drawer open</string>
     <string name="cash_failed">Movement not recorded</string>
     <string name="cash_drawer_opened">Drawer opened</string>
     <string name="cash_err_amount">Invalid amount</string>

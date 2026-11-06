@@ -36,6 +36,8 @@ import uniffi.pos_ffi.RequestedMedium
 import uniffi.pos_ffi.SalePaymentLine
 import uniffi.pos_ffi.SalePayments
 import uniffi.pos_ffi.TicketDeliveryRequest
+import uniffi.pos_ffi.TicketLookup
+import uniffi.pos_ffi.TicketMatch
 import uniffi.pos_ffi.UnsettledCardPayment
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
@@ -100,6 +102,32 @@ internal fun refundable(
         totalCents = 1000L,
         createdAt = "2026-10-09T12:00:00",
     )
+
+/** A ticket found by its number: a sale that can go back, unless [blocked] says why not. */
+internal fun ticketMatch(
+    id: Long,
+    number: Long = id,
+    label: String = "N",
+    totalCents: Long = 1000L,
+    blocked: String? = null,
+): TicketMatch =
+    TicketMatch(
+        fiscalEventId = id,
+        eventLabel = label,
+        ticketNumber = number,
+        tableNumber = null,
+        totalCents = totalCents,
+        createdAt = "2026-10-09T12:00:00",
+        isRefund = totalCents < 0L,
+        copyable = copyable(id, label, totalCents).copy(ticketNumber = number),
+        refundable = if (label == "N" && blocked == null && totalCents > 0L) refundable(id).copy(ticketNumber = number) else null,
+        refundBlocked = blocked,
+    )
+
+internal fun ticketLookup(
+    number: Long,
+    vararg matches: TicketMatch,
+): TicketLookup = TicketLookup(number = number, matches = matches.toList())
 
 @Suppress("LongParameterList")
 internal fun paymentLine(

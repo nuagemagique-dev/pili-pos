@@ -178,4 +178,5 @@ internal fun BoxScope.ReportsOverlay(
     state.refundFlow?.let { RefundDialog(it, state.tickets.refundable, delivery, refund, callbacks) }
     state.correctionFlow?.let { CorrectionDialog(it, state.userName, callbacks.correction) }
     invoices.flow?.let { InvoiceDialog(it, invoices.sales, callbacks.invoice) }
+    if (state.tickets.findOpen) TicketNumberDialog(state.tickets.lookup?.number, callbacks.tickets)
 }

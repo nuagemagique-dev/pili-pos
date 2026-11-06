@@ -6,7 +6,7 @@ import dev.nuagemagique.pilipos.R
 /** Vue message key to Android string resource id, in the order of the Vue dictionary. */
 internal object VueStringIds {
     private val ids: Map<String, Int> by lazy {
-        buildMap { part0(); part1(); part2(); part3(); part4() }
+        buildMap { part0(); part1(); part2(); part3(); part4(); part5() }
     }
 
     /** Every Vue key, in dictionary order. */
@@ -197,6 +197,7 @@ internal object VueStringIds {
         this["err_payment_incomplete"] = R.string.err_payment_incomplete
         this["err_unpaid_nothing_due"] = R.string.err_unpaid_nothing_due
         this["err_refund_unpaid_sale"] = R.string.err_refund_unpaid_sale
+        this["err_refund_already_done"] = R.string.err_refund_already_done
         this["err_takeaway_not_registered"] = R.string.err_takeaway_not_registered
         this["err_order_total_negative"] = R.string.err_order_total_negative
         this["err_amount_negative"] = R.string.err_amount_negative
@@ -265,10 +266,10 @@ internal object VueStringIds {
         this["err_customer_vat_invalid"] = R.string.err_customer_vat_invalid
         this["err_customer_incomplete"] = R.string.err_customer_incomplete
         this["err_customer_not_found"] = R.string.err_customer_not_found
-        this["err_peppol_not_configured"] = R.string.err_peppol_not_configured
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["err_peppol_not_configured"] = R.string.err_peppol_not_configured
         this["err_peppol_delivery_not_found"] = R.string.err_peppol_delivery_not_found
         this["err_peppol_delivery_not_parked"] = R.string.err_peppol_delivery_not_parked
         this["err_config_alerts"] = R.string.err_config_alerts
@@ -371,7 +372,7 @@ internal object VueStringIds {
         this["cash_declared"] = R.string.cash_declared
         this["cash_amount_placeholder"] = R.string.cash_amount_placeholder
         this["cash_reason_placeholder"] = R.string.cash_reason_placeholder
-        this["cash_success"] = R.string.cash_success
+        this["cash_success_drawer"] = R.string.cash_success_drawer
         this["cash_failed"] = R.string.cash_failed
         this["cash_drawer_opened"] = R.string.cash_drawer_opened
         this["cash_err_amount"] = R.string.cash_err_amount
@@ -518,10 +519,10 @@ internal object VueStringIds {
         this["check_title"] = R.string.check_title
         this["check_ticket_printer"] = R.string.check_ticket_printer
         this["check_kitchen_printer"] = R.string.check_kitchen_printer
-        this["check_payment_terminal"] = R.string.check_payment_terminal
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["check_payment_terminal"] = R.string.check_payment_terminal
         this["check_payment_busy"] = R.string.check_payment_busy
         this["check_email"] = R.string.check_email
         this["check_connected"] = R.string.check_connected
@@ -748,6 +749,11 @@ internal object VueStringIds {
         this["reports_tickets_title"] = R.string.reports_tickets_title
         this["reports_tickets_hint"] = R.string.reports_tickets_hint
         this["reports_copy"] = R.string.reports_copy
+        this["tickets_find_label"] = R.string.tickets_find_label
+        this["tickets_find_result"] = R.string.tickets_find_result
+        this["tickets_find_none"] = R.string.tickets_find_none
+        this["tickets_find_clear"] = R.string.tickets_find_clear
+        this["tickets_older"] = R.string.tickets_older
         this["reports_pc_action"] = R.string.reports_pc_action
         this["reports_pc_title"] = R.string.reports_pc_title
         this["reports_pc_pick_line"] = R.string.reports_pc_pick_line
@@ -766,15 +772,15 @@ internal object VueStringIds {
         this["reports_pc_done"] = R.string.reports_pc_done
         this["reports_pc_corrected"] = R.string.reports_pc_corrected
         this["reports_pc_not_possible"] = R.string.reports_pc_not_possible
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["invoice_action"] = R.string.invoice_action
         this["invoice_action_count"] = R.string.invoice_action_count
         this["invoice_select_hint"] = R.string.invoice_select_hint
         this["invoice_select_row"] = R.string.invoice_select_row
         this["invoice_invoiced_by"] = R.string.invoice_invoiced_by
         this["invoice_title"] = R.string.invoice_title
-    }
-
-    private fun MutableMap<String, Int>.part3() {
         this["invoice_step_customer"] = R.string.invoice_step_customer
         this["invoice_step_preview"] = R.string.invoice_step_preview
         this["invoice_step_done"] = R.string.invoice_step_done
@@ -1019,15 +1025,15 @@ internal object VueStringIds {
         this["menu_ed_action_update"] = R.string.menu_ed_action_update
         this["menu_ed_entity_category"] = R.string.menu_ed_entity_category
         this["menu_ed_entity_product"] = R.string.menu_ed_entity_product
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["menu_ed_entity_modifier_group"] = R.string.menu_ed_entity_modifier_group
         this["menu_ed_entity_modifier"] = R.string.menu_ed_entity_modifier
         this["menu_ed_field_names"] = R.string.menu_ed_field_names
         this["menu_ed_field_sort_order"] = R.string.menu_ed_field_sort_order
         this["menu_ed_field_color"] = R.string.menu_ed_field_color
         this["menu_ed_field_active"] = R.string.menu_ed_field_active
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["menu_ed_field_category_id"] = R.string.menu_ed_field_category_id
         this["menu_ed_field_price_cents"] = R.string.menu_ed_field_price_cents
         this["menu_ed_field_vat_code"] = R.string.menu_ed_field_vat_code
@@ -1272,6 +1278,9 @@ internal object VueStringIds {
         this["err_modifier_count"] = R.string.err_modifier_count
         this["err_hubrise_disabled"] = R.string.err_hubrise_disabled
         this["err_hubrise_not_configured"] = R.string.err_hubrise_not_configured
+    }
+
+    private fun MutableMap<String, Int>.part5() {
         this["err_hubrise_secret_unreadable"] = R.string.err_hubrise_secret_unreadable
         this["err_hubrise_oauth_failed"] = R.string.err_hubrise_oauth_failed
         this["err_hubrise_online_orders_open"] = R.string.err_hubrise_online_orders_open

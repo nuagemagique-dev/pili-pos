@@ -178,6 +178,7 @@ object EngineErrorCodes {
             "refund_in_training",
             "refund_of_refund",
             "refund_unpaid_sale",
+            "refund_already_done",
             "payment_invalid",
             "payment_exceeds_total",
             "payment_incomplete",

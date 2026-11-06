@@ -11,6 +11,7 @@ import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.ReportResult
 import uniffi.pos_ffi.SalePaymentLine
 import uniffi.pos_ffi.SalePayments
+import uniffi.pos_ffi.TicketLookup
 import uniffi.pos_ffi.UnsettledCardPayment
 import uniffi.pos_ffi.ZReportSummary
 
@@ -208,6 +209,10 @@ internal data class TicketRow(
     val kind: TicketKind,
     val copyable: CopyableTicket?,
     val refundable: RefundableEvent?,
+    /** N, P or T when known (a ticket found by its number). */
+    val label: String? = null,
+    /** Why a sale cannot be refunded (the engine's error code), when a lookup by number says so. */
+    val refundBlocked: String? = null,
 ) {
     /**
      * True for a sale ticket whose payment may be corrected (`isSaleRow` of `ReportsView.vue`): a positive N or T
@@ -216,8 +221,9 @@ internal data class TicketRow(
     val isSale: Boolean
         get() {
             if (totalCents <= 0L) return false
-            return if (copyable != null) {
-                copyable.eventLabel == LABEL_SALE || copyable.eventLabel == LABEL_TRAINING_SALE
+            val known = copyable?.eventLabel ?: label
+            return if (known != null) {
+                known == LABEL_SALE || known == LABEL_TRAINING_SALE
             } else {
                 refundable != null
             }
@@ -243,7 +249,69 @@ internal data class TicketsState(
     val canCorrect: Boolean = false,
     /** The correction each sale already has, by fiscal event id (read for a manager, best effort). */
     val corrections: Map<Long, CorrectionDone> = emptyMap(),
-)
+    /** How many pages of 20 older tickets "Plus ancien" asked for (UX audit R2). */
+    val olderPages: Int = 0,
+    /** True while a list came back full: the archive may hold older tickets. */
+    val hasOlder: Boolean = false,
+    /** True while the ticket number pad is open. */
+    val findOpen: Boolean = false,
+    /** The engine's answer for the number typed, or null while the list shows the latest tickets. */
+    val lookup: TicketLookup? = null,
+    /** True while the engine looks a number up. */
+    val lookupBusy: Boolean = false,
+) {
+    /** The rows to draw when a number was looked up: the tickets it found, in the shape of the list rows. */
+    val found: List<TicketRow> get() = lookup?.let(::lookupRows).orEmpty()
+}
+
+/** How many tickets the tickets tab loads (`ticketLimits` of `utils/ticketLookup.ts`). */
+internal object TicketLimits {
+    /** The first page of the copy list and of the refund list: the latest sales. */
+    const val COPY_FIRST_PAGE: Long = 30L
+    const val REFUND_FIRST_PAGE: Long = 20L
+
+    /** "Plus ancien" loads this many more. */
+    const val OLDER_PAGE: Long = 20L
+
+    /** The limit of the copy list once [older] pages were asked for. */
+    fun copy(older: Int): Long = COPY_FIRST_PAGE + older.coerceAtLeast(0) * OLDER_PAGE
+
+    /** The limit of the refund list once [older] pages were asked for. */
+    fun refund(older: Int): Long = REFUND_FIRST_PAGE + older.coerceAtLeast(0) * OLDER_PAGE
+
+    /** True when a list came back full: older tickets may exist. */
+    fun hasOlder(
+        older: Int,
+        copyCount: Int,
+        refundCount: Int,
+    ): Boolean = copyCount >= copy(older) || refundCount >= refund(older)
+}
+
+/** The longest ticket number the pad takes (`max-digits` of the field in `ReportsView.vue`). */
+internal const val TICKET_NUMBER_MAX_DIGITS: Int = 9
+
+/** The tickets a number found as rows of the list (copy, refund, payment correction), newest first. */
+internal fun lookupRows(lookup: TicketLookup): List<TicketRow> =
+    lookup.matches.map { match ->
+        TicketRow(
+            fiscalEventId = match.fiscalEventId,
+            ticketNumber = match.ticketNumber,
+            tableNumber = match.tableNumber,
+            totalCents = match.totalCents,
+            createdAt = match.createdAt,
+            kind =
+                when {
+                    match.eventLabel == "T" -> TicketKind.TRAINING
+                    match.eventLabel == "P" -> TicketKind.PRE_BILL
+                    match.isRefund -> TicketKind.REFUND
+                    else -> TicketKind.SALE
+                },
+            copyable = match.copyable,
+            refundable = match.refundable,
+            label = match.eventLabel,
+            refundBlocked = match.refundBlocked,
+        )
+    }
 
 /** What a copy is a copy of. */
 internal enum class CopyTargetKind {

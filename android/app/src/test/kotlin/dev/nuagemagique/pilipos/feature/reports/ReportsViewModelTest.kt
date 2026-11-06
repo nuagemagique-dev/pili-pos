@@ -420,7 +420,7 @@ class ReportsViewModelTest {
             coVerify(exactly = 0) { f.engine.generateXReport(any()) }
             coVerify(exactly = 0) { f.engine.generateUserXReport(any()) }
             coVerify(exactly = 0) { f.engine.generateZReport(any()) }
-            coVerify(exactly = 0) { f.engine.moneyInOut(any(), any(), any(), any()) }
+            coVerify(exactly = 0) { f.engine.moneyInOut(any(), any(), any(), any(), any()) }
             coVerify(exactly = 0) { f.engine.openDrawerFiscal(any()) }
         }
 
@@ -455,7 +455,7 @@ class ReportsViewModelTest {
     fun moneyInIsSentWithTheAmountAsEntered() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } returns financial()
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial()
             val r = start(f)
 
             r.model.setCashAmount(2000L)
@@ -463,18 +463,66 @@ class ReportsViewModelTest {
             r.model.submitCash()
             runCurrent()
 
-            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 2000L, MoneyDirection.IN, "fond_de_caisse") }
+            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 2000L, MoneyDirection.IN, "fond_de_caisse", true) }
             assertEquals(0L, r.state.cash.amountCents)
             assertFalse(r.state.cash.loading)
             assertEquals(true, r.state.cash.lastOutcome?.success)
-            assertEquals(listOf(r.text("cash_success")), r.toastTexts())
+            assertEquals(listOf(r.text("cash_success_drawer")), r.toastTexts())
+        }
+
+    @Test
+    fun aCashMovementOpensTheDrawerInTheSameTapWithNoSeparateDrawerEvent() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial()
+            val r = start(f)
+
+            r.model.setCashAmount(5000L)
+            r.model.submitCash()
+            runCurrent()
+
+            // One engine call carries the movement and the drawer flag (R3): the movement is the signed record
+            // (FAQ Q405), so the separate fiscal drawer opening is not called.
+            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 5000L, MoneyDirection.IN, "fond_de_caisse", true) }
+            coVerify(exactly = 0) { f.engine.openDrawerFiscal(any()) }
+            assertEquals(listOf(r.text("cash_success_drawer")), r.toastTexts())
+            assertTrue(r.text("cash_success_drawer").contains("tiroir"))
+        }
+
+    @Test
+    fun aRefusedMovementShowsNoDrawerMessage() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial(success = false, error = "order_no_lines")
+            val r = start(f)
+
+            r.model.setCashAmount(5000L)
+            r.model.submitCash()
+            runCurrent()
+
+            assertEquals(false, r.state.cash.lastOutcome?.success)
+            assertTrue(r.toastTexts().none { it == r.text("cash_success_drawer") })
+        }
+
+    @Test
+    fun theDrawerButtonStillSignsItsOwnDrawerEvent() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.openDrawerFiscal(any()) } returns financial()
+            val r = start(f)
+
+            r.model.openDrawer()
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.openDrawerFiscal(OPERATOR_INSZ) }
+            coVerify(exactly = 0) { f.engine.moneyInOut(any(), any(), any(), any(), any()) }
         }
 
     @Test
     fun moneyOutIsSentWithTheDirectionAndTheReasonOfTheForm() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } returns financial()
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial()
             val r = start(f)
 
             r.model.setCashDirection(CashDirection.OUT)
@@ -486,7 +534,7 @@ class ReportsViewModelTest {
             r.model.submitCash()
             runCurrent()
 
-            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 1234L, MoneyDirection.OUT, "pourboire") }
+            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 1234L, MoneyDirection.OUT, "pourboire", true) }
         }
 
     @Test
@@ -515,14 +563,14 @@ class ReportsViewModelTest {
             r.model.submitCash()
             runCurrent()
 
-            coVerify(exactly = 0) { f.engine.moneyInOut(any(), any(), any(), any()) }
+            coVerify(exactly = 0) { f.engine.moneyInOut(any(), any(), any(), any(), any()) }
         }
 
     @Test
     fun aRefusedMovementKeepsTheAmountAndShowsTheError() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } returns financial(success = false, error = "order_no_lines")
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial(success = false, error = "order_no_lines")
             val r = start(f)
             r.model.setCashAmount(5000L)
 
@@ -539,7 +587,7 @@ class ReportsViewModelTest {
     fun aRefusalWithoutTextGivesTheCashFailedText() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } returns financial(success = false, error = null)
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial(success = false, error = null)
             val r = start(f)
             r.model.setCashAmount(5000L)
 
@@ -554,7 +602,7 @@ class ReportsViewModelTest {
     fun aFailingMovementCallKeepsTheAmountAndFreesTheForm() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } throws refused
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } throws refused
             val r = start(f)
             r.model.setCashAmount(5000L)
 
@@ -570,13 +618,13 @@ class ReportsViewModelTest {
     fun theDrawerCountMayBeZero() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } returns financial()
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial()
             val r = start(f)
 
             r.model.declareDrawer(0L)
             runCurrent()
 
-            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 0L, MoneyDirection.DECLARATION, "declaration_tiroir") }
+            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 0L, MoneyDirection.DECLARATION, "declaration_tiroir", false) }
             assertEquals(listOf(r.text("cash_declared")), r.toastTexts())
         }
 
@@ -584,14 +632,14 @@ class ReportsViewModelTest {
     fun theDrawerCountIsSentAsEnteredAndKeepsTheForm() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } returns financial()
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial()
             val r = start(f)
             r.model.setCashAmount(700L)
 
             r.model.declareDrawer(31250L)
             runCurrent()
 
-            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 31250L, MoneyDirection.DECLARATION, "declaration_tiroir") }
+            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 31250L, MoneyDirection.DECLARATION, "declaration_tiroir", false) }
             assertEquals(700L, r.state.cash.amountCents)
         }
 
@@ -604,14 +652,14 @@ class ReportsViewModelTest {
             r.model.declareDrawer(-1L)
             runCurrent()
 
-            coVerify(exactly = 0) { f.engine.moneyInOut(any(), any(), any(), any()) }
+            coVerify(exactly = 0) { f.engine.moneyInOut(any(), any(), any(), any(), any()) }
         }
 
     @Test
     fun aRefusedDrawerCountShowsTheError() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } returns financial(success = false, error = "order_no_lines")
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial(success = false, error = "order_no_lines")
             val r = start(f)
 
             r.model.declareDrawer(0L)
@@ -667,7 +715,7 @@ class ReportsViewModelTest {
     fun openingTheTicketsTabReadsBothListsAndMergesThemNewestFirst() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.listCopyableTickets(null) } returns
+            coEvery { f.engine.listCopyableTickets(30L) } returns
                 listOf(
                     copyable(10L),
                     copyable(11L, label = "T"),
@@ -680,7 +728,7 @@ class ReportsViewModelTest {
             r.model.selectTab(ReportsTab.TICKETS)
             runCurrent()
 
-            coVerify(exactly = 1) { f.engine.listCopyableTickets(null) }
+            coVerify(exactly = 1) { f.engine.listCopyableTickets(30L) }
             coVerify(exactly = 1) { f.engine.listRefundableEvents(20L) }
             val rows = r.state.tickets.rows
             assertEquals(listOf(13L, 12L, 11L, 10L, 9L), rows.map { it.fiscalEventId })
@@ -697,6 +745,188 @@ class ReportsViewModelTest {
             assertTrue(r.state.tickets.loaded)
             assertFalse(r.state.tickets.loading)
         }
+
+    // ── Find a ticket by its number, older tickets (UX audit R2) ──
+
+    @Test
+    fun aTicketNumberIsLookedUpInTheWholeArchive() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.findTicketByNumber(4821L) } returns
+                ticketLookup(4821L, ticketMatch(90L, number = 4821L), ticketMatch(92L, number = 4821L, label = "P"))
+            val r = start(f)
+            r.model.selectTab(ReportsTab.TICKETS)
+            runCurrent()
+
+            r.model.openFind()
+            assertTrue(r.state.tickets.findOpen)
+            r.model.findTicket(4821L)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.findTicketByNumber(4821L) }
+            assertFalse(r.state.tickets.findOpen)
+            assertFalse(r.state.tickets.lookupBusy)
+            assertEquals(4821L, r.state.tickets.lookup?.number)
+            val rows = r.state.tickets.found
+            assertEquals(listOf(90L, 92L), rows.map { it.fiscalEventId })
+            assertEquals(listOf(TicketKind.SALE, TicketKind.PRE_BILL), rows.map { it.kind })
+            assertNotNull(rows[0].refundable)
+            assertNull(rows[1].refundable)
+        }
+
+    @Test
+    fun aNumberNobodyHoldsFindsNothing() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.findTicketByNumber(999L) } returns ticketLookup(999L)
+            val r = start(f)
+            r.model.selectTab(ReportsTab.TICKETS)
+            runCurrent()
+
+            r.model.findTicket(999L)
+            runCurrent()
+
+            assertEquals(999L, r.state.tickets.lookup?.number)
+            assertTrue(r.state.tickets.found.isEmpty())
+        }
+
+    @Test
+    fun aZeroNumberIsNeverLookedUp() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+            r.model.selectTab(ReportsTab.TICKETS)
+            runCurrent()
+
+            r.model.openFind()
+            r.model.findTicket(0L)
+            runCurrent()
+
+            coVerify(exactly = 0) { f.engine.findTicketByNumber(any()) }
+            assertFalse(r.state.tickets.findOpen)
+            assertNull(r.state.tickets.lookup)
+        }
+
+    @Test
+    fun aSaleThatCannotBeRefundedKeepsTheReasonTheEngineGave() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.findTicketByNumber(40L) } returns
+                ticketLookup(40L, ticketMatch(40L, blocked = "refund_already_done"))
+            val r = start(f)
+            r.model.selectTab(ReportsTab.TICKETS)
+            runCurrent()
+
+            r.model.findTicket(40L)
+            runCurrent()
+
+            val row = r.state.tickets.found.single()
+            assertNull(row.refundable)
+            assertEquals("refund_already_done", row.refundBlocked)
+            assertNotNull(row.copyable)
+        }
+
+    @Test
+    fun clearingTheNumberReturnsToTheLatestTickets() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listCopyableTickets(30L) } returns listOf(copyable(5L))
+            coEvery { f.engine.findTicketByNumber(4821L) } returns ticketLookup(4821L, ticketMatch(90L, number = 4821L))
+            val r = start(f)
+            r.model.selectTab(ReportsTab.TICKETS)
+            runCurrent()
+            r.model.findTicket(4821L)
+            runCurrent()
+            assertNotNull(r.state.tickets.lookup)
+
+            r.model.clearFind()
+            runCurrent()
+
+            assertNull(r.state.tickets.lookup)
+            assertEquals(listOf(5L), r.state.tickets.rows.map { it.fiscalEventId })
+        }
+
+    @Test
+    fun aFailedLookupShowsTheErrorAndKeepsTheList() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listCopyableTickets(30L) } returns listOf(copyable(5L))
+            coEvery { f.engine.findTicketByNumber(7L) } throws refused
+            val r = start(f)
+            r.model.selectTab(ReportsTab.TICKETS)
+            runCurrent()
+
+            r.model.findTicket(7L)
+            runCurrent()
+
+            assertNull(r.state.tickets.lookup)
+            assertFalse(r.state.tickets.lookupBusy)
+            assertEquals(listOf(r.model.describeError(refused)), r.toastTexts())
+            assertEquals(listOf(5L), r.state.tickets.rows.map { it.fiscalEventId })
+        }
+
+    @Test
+    fun aSignedCopyOfAFoundTicketLooksTheNumberUpAgain() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.findTicketByNumber(4821L) } returns ticketLookup(4821L, ticketMatch(90L, number = 4821L))
+            coEvery { f.engine.copyTicket(any(), any(), any()) } returns copyResult()
+            val r = start(f)
+            r.model.selectTab(ReportsTab.TICKETS)
+            runCurrent()
+            r.model.findTicket(4821L)
+            runCurrent()
+
+            r.model.copy(90L, delivery(RequestedMedium.PAPER))
+            runCurrent()
+            r.model.closeCopy()
+            runCurrent()
+
+            coVerify(exactly = 2) { f.engine.findTicketByNumber(4821L) }
+            assertEquals(4821L, r.state.tickets.lookup?.number)
+        }
+
+    @Test
+    fun olderTicketsAreLoadedByPagesOfTwentyUntilTheArchiveEnds() =
+        runTest {
+            val f = fixture()
+            val sixty = (1L..60L).map { copyable(1000L - it) }
+            coEvery { f.engine.listCopyableTickets(any()) } answers { sixty.take(firstArg<Long?>()?.toInt() ?: 30) }
+            val r = start(f)
+            r.model.selectTab(ReportsTab.TICKETS)
+            runCurrent()
+
+            // The first page is the latest sales, and the lists came back full.
+            coVerify(exactly = 1) { f.engine.listCopyableTickets(30L) }
+            coVerify(exactly = 1) { f.engine.listRefundableEvents(20L) }
+            assertEquals(30, r.state.tickets.rows.size)
+            assertTrue(r.state.tickets.hasOlder)
+
+            r.model.loadOlder()
+            runCurrent()
+            coVerify(exactly = 1) { f.engine.listCopyableTickets(50L) }
+            coVerify(exactly = 1) { f.engine.listRefundableEvents(40L) }
+            assertEquals(50, r.state.tickets.rows.size)
+            assertTrue(r.state.tickets.hasOlder)
+
+            // 60 tickets for a limit of 70: nothing older is left.
+            r.model.loadOlder()
+            runCurrent()
+            assertEquals(60, r.state.tickets.rows.size)
+            assertFalse(r.state.tickets.hasOlder)
+        }
+
+    @Test
+    fun ticketLimitsGrowByTwentyAPage() {
+        assertEquals(30L, TicketLimits.copy(0))
+        assertEquals(20L, TicketLimits.refund(0))
+        assertEquals(50L, TicketLimits.copy(1))
+        assertEquals(40L, TicketLimits.refund(1))
+        assertEquals(30L, TicketLimits.copy(-3))
+        assertTrue(TicketLimits.hasOlder(0, 30, 0))
+        assertTrue(TicketLimits.hasOlder(0, 4, 20))
+        assertFalse(TicketLimits.hasOlder(0, 29, 19))
+    }
 
     @Test
     fun theTicketListsAreNotReadBeforeTheTab() =
@@ -888,7 +1118,7 @@ class ReportsViewModelTest {
             runCurrent()
 
             assertNull(r.state.copyFlow)
-            coVerify(exactly = 1) { f.engine.listCopyableTickets(null) }
+            coVerify(exactly = 1) { f.engine.listCopyableTickets(30L) }
         }
 
     @Test
@@ -1282,14 +1512,14 @@ class ReportsViewModelTest {
             runCurrent()
 
             assertFalse(r.state.cash.declarationOpen)
-            coVerify(exactly = 0) { f.engine.moneyInOut(any(), any(), any(), any()) }
+            coVerify(exactly = 0) { f.engine.moneyInOut(any(), any(), any(), any(), any()) }
         }
 
     @Test
     fun declaringTheDrawerClosesItsKeypadEvenWhenTheCountIsRefused() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } returns financial(success = false, error = "no")
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial(success = false, error = "no")
             val r = start(f)
             r.model.openDeclaration()
 

@@ -33,9 +33,6 @@ import uniffi.pos_ffi.SalePayments
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.TicketDeliveryRequest
 
-/** How many recent sales the refund list asks for (`listRefundableEvents(20)` of `ReportsView.vue`). */
-private const val REFUNDABLE_LIMIT: Long = 20L
-
 /** The label of the event of a training ticket (`T` in `copyKind`). */
 private const val LABEL_TRAINING = "T"
 
@@ -319,7 +316,7 @@ internal class ReportsViewModel(
         if (!cash.canSubmit) return
         val direction = if (cash.direction == CashDirection.IN) MoneyDirection.IN else MoneyDirection.OUT
         viewModelScope.launch {
-            val ok = moveCash(insz, cash.amountCents, direction, cash.reason, "cash_success")
+            val ok = moveCash(insz, cash.amountCents, direction, cash.reason, "cash_success_drawer")
             if (ok) own.update { it.copy(cash = it.cash.copy(amountCents = 0L)) }
         }
     }
@@ -355,6 +352,7 @@ internal class ReportsViewModel(
         val insz = operatorInsz() ?: return
         if (amountCents < 0L) return
         viewModelScope.launch {
+            // A count of the drawer never opens it.
             moveCash(insz, amountCents, MoneyDirection.DECLARATION, CashRules.DECLARATION_REASON, "cash_declared")
         }
     }
@@ -378,8 +376,10 @@ internal class ReportsViewModel(
         successKey: String,
     ): Boolean {
         own.update { it.copy(cash = it.cash.copy(loading = true)) }
+        // A movement opens the drawer in the same tap (UX audit R3); the count of the drawer never does.
+        val openDrawer = direction != MoneyDirection.DECLARATION
         val answer =
-            attempt { entry.gateway().call { engine -> engine.moneyInOut(insz, amountCents, direction, reason) } }.fold(
+            attempt { entry.gateway().call { engine -> engine.moneyInOut(insz, amountCents, direction, reason, openDrawer) } }.fold(
                 onSuccess = { result -> cashAnswer(result.success, result.error, successKey) },
                 onFailure = { cashError(it) },
             )
@@ -427,29 +427,82 @@ internal class ReportsViewModel(
 
     private suspend fun fetchTickets() {
         own.update { it.copy(tickets = it.tickets.copy(loading = true)) }
+        val older = own.value.tickets.olderPages
+        val copyLimit = TicketLimits.copy(older)
+        val refundLimit = TicketLimits.refund(older)
         val copyable =
-            attempt { entry.gateway().call { engine -> engine.listCopyableTickets(null) } }.getOrElse { failure ->
+            attempt { entry.gateway().call { engine -> engine.listCopyableTickets(copyLimit) } }.getOrElse { failure ->
                 errorOf(failure, ERROR_TOAST_TTL_MS)
                 emptyList()
             }
         val refundable =
-            attempt { entry.gateway().call { engine -> engine.listRefundableEvents(REFUNDABLE_LIMIT) } }
+            attempt { entry.gateway().call { engine -> engine.listRefundableEvents(refundLimit) } }
                 .getOrDefault(emptyList())
         val rows = mergeRows(copyable, refundable)
         own.update {
             it.copy(
                 tickets =
-                    TicketsState(
+                    it.tickets.copy(
                         loaded = true,
                         loading = false,
                         copyable = copyable,
                         refundable = refundable,
                         rows = rows,
-                        corrections = it.tickets.corrections,
+                        hasOlder = TicketLimits.hasOlder(older, copyable.size, refundable.size),
                     ),
             )
         }
-        loadCorrections(rows)
+        loadCorrections(shownRows())
+    }
+
+    /** "Plus ancien": loads the previous 20 tickets of the list. */
+    fun loadOlder() {
+        own.update { it.copy(tickets = it.tickets.copy(olderPages = it.tickets.olderPages + 1)) }
+        loadTickets()
+    }
+
+    /** The rows on screen: the tickets a number found, else the latest tickets. */
+    private fun shownRows(): List<TicketRow> = own.value.tickets.let { if (it.lookup != null) it.found else it.rows }
+
+    // ── Find a ticket by its printed number (UX audit R2) ─────────
+
+    /** Opens the ticket number pad. */
+    fun openFind() {
+        own.update { it.copy(tickets = it.tickets.copy(findOpen = true)) }
+    }
+
+    /** Closes the ticket number pad without looking anything up. */
+    fun closeFind() {
+        own.update { it.copy(tickets = it.tickets.copy(findOpen = false)) }
+    }
+
+    /** The pad confirmed [number]: the engine looks it up in the whole archive. */
+    fun findTicket(number: Long) {
+        own.update { it.copy(tickets = it.tickets.copy(findOpen = false)) }
+        if (number < 1L) return
+        viewModelScope.launch { lookUp(number) }
+    }
+
+    private suspend fun lookUp(number: Long) {
+        own.update { it.copy(tickets = it.tickets.copy(lookupBusy = true)) }
+        val lookup = attempt { entry.gateway().call { engine -> engine.findTicketByNumber(number) } }
+        lookup.exceptionOrNull()?.let { errorOf(it, ERROR_TOAST_TTL_MS) }
+        own.update { it.copy(tickets = it.tickets.copy(lookup = lookup.getOrNull(), lookupBusy = false)) }
+        loadCorrections(shownRows())
+    }
+
+    /** Back to the latest tickets. */
+    fun clearFind() {
+        own.update { it.copy(tickets = it.tickets.copy(lookup = null, findOpen = false)) }
+        viewModelScope.launch { loadCorrections(shownRows()) }
+    }
+
+    /** After a copy, a refund or a correction: the lists, and the found ticket if one is shown. */
+    private fun refreshTickets() {
+        loadTickets()
+        own.value.tickets.lookup?.let { found ->
+            viewModelScope.launch { lookUp(found.number) }
+        }
     }
 
     /** Best effort: which sales already have a payment correction, to mark them (a manager only). */
@@ -554,7 +607,7 @@ internal class ReportsViewModel(
     fun correctionDone() {
         own.update { it.copy(correctionFlow = null) }
         toast(ToastVariant.Success, text("reports_pc_done"))
-        loadTickets()
+        refreshTickets()
     }
 
     /** Closes the correction dialog without a correction. */
@@ -613,7 +666,7 @@ internal class ReportsViewModel(
     fun closeCopy() {
         val flow = own.value.copyFlow
         own.update { it.copy(copyFlow = null) }
-        if (flow != null && flow.step == CopyStep.RESULT && flow.kind == CopyTargetKind.TICKET) loadTickets()
+        if (flow != null && flow.step == CopyStep.RESULT && flow.kind == CopyTargetKind.TICKET) refreshTickets()
     }
 
     // ── Refund flow ───────────────────────────────────────────────
@@ -719,7 +772,7 @@ internal class ReportsViewModel(
     fun closeRefund() {
         val flow = own.value.refundFlow
         own.update { it.copy(refundFlow = null) }
-        if (flow != null && flow.step == RefundStep.RESULT) loadTickets()
+        if (flow != null && flow.step == RefundStep.RESULT) refreshTickets()
     }
 
     // ── Helpers ───────────────────────────────────────────────────
