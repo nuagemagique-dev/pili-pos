@@ -17,6 +17,7 @@ import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
+import dev.nuagemagique.pilipos.ui.state.UserLanguageBinder
 
 /**
  * What every screen reads from the Hilt graph: the shared stores, the texts and the engine seams.
@@ -65,6 +66,9 @@ interface UiCommonEntryPoint {
 
     /** The engine events. */
     fun events(): EngineEvents
+
+    /** Makes the texts follow the logged-in user (UX audit R5); asked for once so that it exists. */
+    fun userLanguage(): UserLanguageBinder
 }
 
 /** The entry point [T] of the application graph, looked up once per application context. */

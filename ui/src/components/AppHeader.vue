@@ -21,6 +21,8 @@ import TrainingBanner from './TrainingBanner.vue'
 import IdleLockBanner from './IdleLockBanner.vue'
 import TableMover from './TableMover.vue'
 import TakeawayCustomer from './TakeawayCustomer.vue'
+import UserMenu from './UserMenu.vue'
+import UiIcon from './UiIcon.vue'
 
 // While HubRise runs, or online orders are still to settle.
 const OnlineOrdersNavButton = defineAsyncComponent(() => import('./OnlineOrdersNavButton.vue'))
@@ -56,8 +58,17 @@ const roleLabel = computed(() => (auth.currentUser ? t(`role_${auth.currentUser.
 const canMoveTable = computed(() => order.canTransfer)
 const moving = ref(false)
 
-// The operator changing their own PIN (tap on their name).
+// The operator changing their own PIN (from the menu under their name).
 const pinOpen = ref(false)
+const userMenuOpen = ref(false)
+const userButton = ref<HTMLButtonElement | null>(null)
+// The menu hangs under the user button.
+const userMenuLeft = ref(0)
+
+function toggleUserMenu() {
+  userMenuLeft.value = Math.round(userButton.value?.getBoundingClientRect().left ?? 0)
+  userMenuOpen.value = !userMenuOpen.value
+}
 
 /** Start a fresh takeaway order. A second tap while already on a
  * takeaway is a no-op instead of silently replacing the cart. */
@@ -98,6 +109,33 @@ async function lock() {
   order.resetLocal()
   await router.push({ name: 'login' })
 }
+
+/** "Fin de service" from the menu: what was ordered is registered, the engine signs the
+ * clock-out of the logged-in employee (no PIN again: the session proves it), then the
+ * till locks and the login screen shows them off shift. */
+async function endShift() {
+  userMenuOpen.value = false
+  const name = auth.currentUser?.name ?? ''
+  try {
+    await order.leave('navigate')
+  } catch (e) {
+    toast.show(`${t('order_register_failed')} : ${describeError(e)}`, 'error', 6000)
+  }
+  const done = await auth.endOwnShift()
+  if (done) toast.show(t('shift_ended', { name }), 'success')
+  order.resetLocal()
+  await router.push({ name: 'login' })
+}
+
+function menuLock() {
+  userMenuOpen.value = false
+  void lock()
+}
+
+function menuPin() {
+  userMenuOpen.value = false
+  pinOpen.value = true
+}
 </script>
 
 <template>
@@ -106,10 +144,28 @@ async function lock() {
     <span class="divider" />
     <StatusLights />
     <span class="divider" />
-    <button class="header-user" :aria-label="t('pin_change')" @click="pinOpen = true">
+    <button
+      ref="userButton"
+      class="header-user"
+      :aria-label="t('user_menu')"
+      aria-haspopup="menu"
+      :aria-expanded="userMenuOpen"
+      data-testid="header-user"
+      @click="toggleUserMenu"
+    >
       <span class="user-name">{{ auth.currentUser?.name }}</span>
-      <span class="user-role">{{ roleLabel }} · PIN</span>
+      <span class="user-role"
+        >{{ roleLabel }}<UiIcon class="user-chevron" name="menuDown" :size="18"
+      /></span>
     </button>
+    <UserMenu
+      v-if="userMenuOpen"
+      :left="userMenuLeft"
+      @close="userMenuOpen = false"
+      @pin="menuPin"
+      @end-shift="endShift"
+      @lock="menuLock"
+    />
     <button
       v-if="tableNumber && canMoveTable"
       class="header-table header-table-btn"
@@ -218,6 +274,8 @@ async function lock() {
   line-height: 1.15;
 }
 .user-role {
+  display: flex;
+  align-items: center;
   font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.2;

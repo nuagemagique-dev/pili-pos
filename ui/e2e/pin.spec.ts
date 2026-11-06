@@ -26,6 +26,7 @@ test.describe('Own PIN - tap your name on the order screen', () => {
     await page.locator('.table-card').first().click()
     await page.waitForURL(/order/u)
     await page.locator('.header-user').click()
+    await page.getByTestId('user-menu-pin').click()
   })
 
   test('the PIN is typed twice, then saved for the logged-in user', async ({ page }) => {

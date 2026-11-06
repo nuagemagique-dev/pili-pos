@@ -91,6 +91,9 @@ screen only calls it through the shared stores and the gateway.
   navigates when it starts, and reads the mail status once when it opens.
 - **Times.** Delivery dates, the switch log and the last catalog sync are engine strings (UTC) shown in Europe/Brussels
   through `PosDateTime`.
+- **Terminal language (UX audit R5).** The panel is "Langue par défaut du terminal": it sets
+  `PosSettingsStore.terminalLanguage` (Vue `pos.terminalLanguage`), used by the login screen and by every person who
+  has not chosen their own language at the login tile or in the header menu; a person's own choice is not overridden.
 - **Layout.** Three columns on a window of 900 dp or more (training, language, product label and the rows; the
   employees; the information, the HubRise switch, the HubRise panel and the deliveries), a single scrolling column
   otherwise. The third column scrolls as a whole instead of each panel growing and scrolling inside.

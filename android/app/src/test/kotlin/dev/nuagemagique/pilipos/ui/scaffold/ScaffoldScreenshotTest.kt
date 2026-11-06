@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.ui.scaffold
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
@@ -10,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
@@ -64,6 +66,28 @@ class ScaffoldScreenshotTest {
         }
         rule.waitForIdle()
         rule.onNodeWithTag("app_header").captureRoboImage("src/test/screenshots/components/header_standard.png")
+    }
+
+    @Test
+    fun headerUserMenuOpen() {
+        val lights = DeviceLights(probe())
+        rule.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    Box(Modifier.fillMaxSize().height(360.dp)) {
+                        AppHeader(
+                            orderHeader.copy(userMenuOpen = true),
+                            HeaderActions(),
+                            clock = "14:05",
+                        ) {
+                            StatusLights(FdmUiState(connected = true, severity = FdmSeverity.INFO), lights, hubriseVisible = true)
+                        }
+                    }
+                }
+            }
+        }
+        rule.waitForIdle()
+        rule.onRoot().captureRoboImage("src/test/screenshots/components/header_user_menu.png")
     }
 
     @Test

@@ -137,7 +137,20 @@ const coreMessages: Messages = {
     zh: '未设置PIN：请点击屏幕顶部的您的名字',
   },
   pin_enter: { fr: 'Saisir le PIN', en: 'Enter PIN', zh: '输入PIN' },
-  pin_change: { fr: 'Changer le PIN', en: 'Change PIN', zh: '修改PIN' },
+  pin_change: { fr: 'Changer mon PIN', en: 'Change my PIN', zh: '修改我的PIN' },
+  // The user menu of the header and the language of each user (UX audit L1, R5)
+  user_menu: { fr: 'Menu utilisateur', en: 'User menu', zh: '用户菜单' },
+  user_menu_language: { fr: 'Ma langue', en: 'My language', zh: '我的语言' },
+  lang_short_fr: { fr: 'FR', en: 'FR', zh: 'FR' },
+  lang_short_zh: { fr: '中文', en: '中文', zh: '中文' },
+  lang_short_en: { fr: 'EN', en: 'EN', zh: 'EN' },
+  end_shift_confirm: {
+    fr: 'Confirmer la fin de service ?',
+    en: 'Confirm the end of shift?',
+    zh: '确认下班？',
+  },
+  end_shift_action: { fr: 'Terminer le service', en: 'End shift', zh: '下班' },
+  login_action: { fr: 'Se connecter', en: 'Log in', zh: '登录' },
   pin_changed: { fr: 'PIN modifié', en: 'PIN changed', zh: 'PIN已修改' },
   pin_confirm_manager: {
     fr: 'Confirmez avec votre PIN de gérant',
@@ -1089,7 +1102,11 @@ const coreMessages: Messages = {
   },
   active: { fr: 'ACTIF', en: 'ACTIVE', zh: '已开启' },
   inactive: { fr: 'INACTIF', en: 'INACTIVE', zh: '未开启' },
-  language: { fr: 'Langue', en: 'Language', zh: '语言' },
+  language: {
+    fr: 'Langue par défaut du terminal',
+    en: 'Terminal default language',
+    zh: '终端默认语言',
+  },
   language_desc: {
     fr: 'Noms des produits et catégories',
     en: 'Product and category names',

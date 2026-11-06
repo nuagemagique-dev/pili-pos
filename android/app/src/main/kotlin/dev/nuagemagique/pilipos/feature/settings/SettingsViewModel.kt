@@ -49,6 +49,7 @@ private data class Shared(
     val manager: Boolean,
     val engine: PosSettings?,
     val training: Boolean,
+    /** The terminal default language, the one the Settings panel shows as chosen. */
     val language: AppLanguage,
 )
 
@@ -104,7 +105,7 @@ internal class SettingsViewModel(
                 session.isManager,
                 settings.settings,
                 settings.trainingMode,
-                settings.language,
+                settings.terminalLanguage,
                 ::Shared,
             ),
             combine(settings.productLabel, delivery.mailStatus, entry.fdm().state.map { it.connected }, settings.addBeep, ::Pieces),
@@ -525,7 +526,13 @@ internal class SettingsViewModel(
         Pieces(settings.productLabel.value, delivery.mailStatus.value, entry.fdm().state.value.connected, settings.addBeep.value)
 
     private fun currentShared(): Shared =
-        Shared(session.currentUser.value, session.isManager.value, settings.settings.value, settings.trainingMode.value, language())
+        Shared(
+            session.currentUser.value,
+            session.isManager.value,
+            settings.settings.value,
+            settings.trainingMode.value,
+            settings.terminalLanguage.value,
+        )
 
     private fun build(
         base: SettingsUiState,

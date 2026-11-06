@@ -1698,10 +1698,22 @@
       "zh": "下班",
       "area": "core"
     },
+    "end_shift_action": {
+      "fr": "Terminer le service",
+      "en": "End shift",
+      "zh": "下班",
+      "area": "core"
+    },
     "end_shift_badge_hint": {
       "fr": "Présentez votre badge pour terminer le service",
       "en": "Present your badge to end your shift",
       "zh": "出示工牌以结束上班",
+      "area": "core"
+    },
+    "end_shift_confirm": {
+      "fr": "Confirmer la fin de service ?",
+      "en": "Confirm the end of shift?",
+      "zh": "确认下班？",
       "area": "core"
     },
     "end_shift_hint": {
@@ -4026,10 +4038,28 @@
       "zh": "点单小票未打印：请通知吧台或厨房。",
       "area": "core"
     },
+    "lang_short_en": {
+      "fr": "EN",
+      "en": "EN",
+      "zh": "EN",
+      "area": "core"
+    },
+    "lang_short_fr": {
+      "fr": "FR",
+      "en": "FR",
+      "zh": "FR",
+      "area": "core"
+    },
+    "lang_short_zh": {
+      "fr": "中文",
+      "en": "中文",
+      "zh": "中文",
+      "area": "core"
+    },
     "language": {
-      "fr": "Langue",
-      "en": "Language",
-      "zh": "语言",
+      "fr": "Langue par défaut du terminal",
+      "en": "Terminal default language",
+      "zh": "终端默认语言",
       "area": "core"
     },
     "language_desc": {
@@ -4077,6 +4107,12 @@
     "login": {
       "fr": "Connexion",
       "en": "Login",
+      "zh": "登录",
+      "area": "core"
+    },
+    "login_action": {
+      "fr": "Se connecter",
+      "en": "Log in",
       "zh": "登录",
       "area": "core"
     },
@@ -4909,9 +4945,9 @@
       "area": "core"
     },
     "pin_change": {
-      "fr": "Changer le PIN",
-      "en": "Change PIN",
-      "zh": "修改PIN",
+      "fr": "Changer mon PIN",
+      "en": "Change my PIN",
+      "zh": "修改我的PIN",
       "area": "core"
     },
     "pin_changed": {
@@ -6007,9 +6043,9 @@
       "area": "settings"
     },
     "settings_language_note": {
-      "fr": "Les noms des produits suivent la langue choisie.",
-      "en": "Product names follow the chosen language.",
-      "zh": "产品名称跟随所选语言显示。",
+      "fr": "Écran de connexion et personnes sans choix propre.",
+      "en": "Login screen and anyone without their own choice.",
+      "zh": "登录界面及未自选语言的员工。",
       "area": "settings"
     },
     "settings_name_placeholder": {
@@ -6754,6 +6790,18 @@
       "fr": "La vente sera enregistrée sans paiement et son ticket imprimé. Confirmez avec votre PIN.",
       "en": "The sale will be recorded without payment and its ticket printed. Confirm with your PIN.",
       "zh": "该销售将以未付款登记并打印票据。请输入PIN确认。",
+      "area": "core"
+    },
+    "user_menu": {
+      "fr": "Menu utilisateur",
+      "en": "User menu",
+      "zh": "用户菜单",
+      "area": "core"
+    },
+    "user_menu_language": {
+      "fr": "Ma langue",
+      "en": "My language",
+      "zh": "我的语言",
       "area": "core"
     },
     "validate": {

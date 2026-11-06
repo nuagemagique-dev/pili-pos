@@ -731,6 +731,46 @@ class OrderStoreTest {
         }
 
     @Test
+    fun theOpenOrderOnScreenAtALockIsRememberedOnceForTheNextLogin() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 5), emptyList())
+
+            r.events.send(PosEvent.SessionLocked(mockk(relaxed = true)))
+            runCurrent()
+
+            assertNull(r.store.current.value)
+            assertEquals(5L, r.store.takeLockedOrderId())
+            assertNull(r.store.takeLockedOrderId())
+        }
+
+    @Test
+    fun aLockWithNoOrderOnScreenRemembersNone() =
+        runTest {
+            val r = rig()
+
+            r.events.send(PosEvent.SessionLocked(mockk(relaxed = true)))
+            runCurrent()
+
+            assertNull(r.store.takeLockedOrderId())
+        }
+
+    @Test
+    fun theLastLockWinsOverAnOlderOneNobodyTook() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 5), emptyList())
+            r.events.send(PosEvent.SessionLocked(mockk(relaxed = true)))
+            runCurrent()
+
+            // Nothing on screen at the second lock: the old order is not brought back.
+            r.events.send(PosEvent.SessionLocked(mockk(relaxed = true)))
+            runCurrent()
+
+            assertNull(r.store.takeLockedOrderId())
+        }
+
+    @Test
     fun aResetDuringARefreshInFlightIsNotUndoneByIt() =
         runTest {
             val r = rig()

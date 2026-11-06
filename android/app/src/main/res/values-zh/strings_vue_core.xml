@@ -58,7 +58,15 @@
     <string name="pin_wrong">PIN错误</string>
     <string name="pin_not_set_warning">未设置PIN：请点击屏幕顶部的您的名字</string>
     <string name="pin_enter">输入PIN</string>
-    <string name="pin_change">修改PIN</string>
+    <string name="pin_change">修改我的PIN</string>
+    <string name="user_menu">用户菜单</string>
+    <string name="user_menu_language">我的语言</string>
+    <string name="lang_short_fr">FR</string>
+    <string name="lang_short_zh">中文</string>
+    <string name="lang_short_en">EN</string>
+    <string name="end_shift_confirm">确认下班？</string>
+    <string name="end_shift_action">下班</string>
+    <string name="login_action">登录</string>
     <string name="pin_changed">PIN已修改</string>
     <string name="pin_confirm_manager">请输入您的经理PIN确认</string>
     <string name="support_title">远程协助</string>
@@ -131,7 +139,7 @@
     <string name="training_desc">标记为T的事件（非财务）</string>
     <string name="active">已开启</string>
     <string name="inactive">未开启</string>
-    <string name="language">语言</string>
+    <string name="language">终端默认语言</string>
     <string name="language_desc">产品和分类名称</string>
     <string name="employees">员工</string>
     <string name="add">添加</string>

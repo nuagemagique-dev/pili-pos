@@ -11,6 +11,7 @@ import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
+import dev.nuagemagique.pilipos.ui.state.OrderStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
 
@@ -18,6 +19,7 @@ import dev.nuagemagique.pilipos.ui.state.SessionStore
  * What the login screen reads from the Hilt graph (PD205: no Hilt view model factory, the foundation tests host
  * the screen in a plain activity). The screen builds [LoginViewModel] from these with `viewModel { }`.
  */
+@Suppress("TooManyFunctions")
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 internal interface LoginEntryPoint {
@@ -44,6 +46,9 @@ internal interface LoginEntryPoint {
 
     /** The Vue texts. */
     fun catalog(): MessageCatalog
+
+    /** The order on screen when the till locked, to open again for the same operator after an idle lock (T6). */
+    fun order(): OrderStore
 
     /** The badge reader: a manager's badge opens their PIN pad, a cashier's badge logs in (lane 5). */
     fun badges(): BadgeStore

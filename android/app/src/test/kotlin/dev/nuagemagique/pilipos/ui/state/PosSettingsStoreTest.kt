@@ -122,6 +122,78 @@ class PosSettingsStoreTest {
         }
 
     @Test
+    fun aUserWithAChoiceGetsTheirLanguageAndNobodyGetsTheTerminalOne() =
+        runTest {
+            val store = store(EngineFixture(this, tmp.root))
+            store.setLanguage(AppLanguage.EN)
+            store.setUserLanguage("111", AppLanguage.ZH)
+
+            store.applyUser("111")
+            assertEquals(AppLanguage.ZH, store.language.value)
+            store.applyUser("222")
+            assertEquals(AppLanguage.EN, store.language.value)
+            store.applyUser(null)
+            assertEquals(AppLanguage.EN, store.language.value)
+            assertEquals(AppLanguage.EN, store.terminalLanguage.value)
+        }
+
+    @Test
+    fun theChoiceOfTheLoggedInUserAppliesAtOnceAndLeavesTheTerminalLanguageAlone() =
+        runTest {
+            val store = store(EngineFixture(this, tmp.root))
+            store.applyUser("111")
+
+            store.setUserLanguage("111", AppLanguage.ZH)
+
+            assertEquals(AppLanguage.ZH, store.language.value)
+            assertEquals(AppLanguage.FR, store.terminalLanguage.value)
+            val prefs = context.getSharedPreferences("pili_ui", Context.MODE_PRIVATE)
+            assertEquals(null, prefs.getString("language", null))
+        }
+
+    @Test
+    fun theChoiceOfAnotherUserDoesNotChangeTheCurrentOne() =
+        runTest {
+            val store = store(EngineFixture(this, tmp.root))
+            store.applyUser("111")
+
+            store.setUserLanguage("222", AppLanguage.ZH)
+
+            assertEquals(AppLanguage.FR, store.language.value)
+            assertEquals(mapOf("222" to AppLanguage.ZH), store.userLanguages.value)
+        }
+
+    @Test
+    fun theTerminalDefaultChangesEveryoneWithoutAChoiceButNotTheOnesWithOne() =
+        runTest {
+            val store = store(EngineFixture(this, tmp.root))
+            store.setUserLanguage("111", AppLanguage.ZH)
+
+            store.applyUser("111")
+            store.setLanguage(AppLanguage.EN)
+            assertEquals(AppLanguage.ZH, store.language.value)
+
+            store.applyUser("222")
+            assertEquals(AppLanguage.EN, store.language.value)
+            store.setLanguage(AppLanguage.FR)
+            assertEquals(AppLanguage.FR, store.language.value)
+        }
+
+    @Test
+    fun theUserChoicesSurviveANewStoreOnTheSamePreferences() =
+        runTest {
+            val first = store(EngineFixture(this, tmp.root))
+            first.setUserLanguage("111", AppLanguage.ZH)
+            first.setUserLanguage("222", AppLanguage.EN)
+
+            val second = store(EngineFixture(this, tmp.root))
+
+            assertEquals(mapOf("111" to AppLanguage.ZH, "222" to AppLanguage.EN), second.userLanguages.value)
+            second.applyUser("222")
+            assertEquals(AppLanguage.EN, second.language.value)
+        }
+
+    @Test
     fun theAddBeepIsOnByDefaultAndTheChoiceSurvivesANewStore() =
         runTest {
             val first = store(EngineFixture(this, tmp.root))

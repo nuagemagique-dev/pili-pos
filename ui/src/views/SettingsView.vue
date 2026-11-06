@@ -444,7 +444,7 @@ onMounted(() => {
               v-for="code in languages"
               :key="code"
               class="lang-btn"
-              :class="{ active: pos.language === code }"
+              :class="{ active: pos.terminalLanguage === code }"
               @click="switchLanguage(code)"
             >
               {{ t(`settings_lang_name_${code}`) }}

@@ -16,9 +16,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +67,7 @@ private const val MARK_ASPECT = 100f / 140f
 private val DividerHeight = 32.dp
 private val ControlHeight = 48.dp
 private val BadgeHeight = 40.dp
+private val MenuMarkSize = 18.dp
 private val CountBadgeSize = 26.dp
 private val SegmentPadding = 22.dp
 private val AdminPadding = 20.dp
@@ -110,7 +115,7 @@ internal fun AppHeader(
         HeaderDivider()
         lights()
         HeaderDivider()
-        UserButton(state, actions.onOpenPin)
+        UserButton(state, actions)
         when {
             state.tableNumber != null ->
                 TableBadge(
@@ -214,43 +219,52 @@ private fun LogoLayer(
     )
 }
 
-/** The operator: the name and the role with "PIN"; a tap opens the own-PIN dialog. */
+/**
+ * The operator: the name and the role with a drop-down mark; a tap opens the menu under it (UX audit L1, R5: language,
+ * "Changer mon PIN", "Fin de service", "Verrouiller"). Test tags: `header_user`, `header_user_name`, `header_user_role`.
+ */
 @Composable
 private fun UserButton(
     state: HeaderUiState,
-    onClick: () -> Unit,
+    actions: HeaderActions,
 ) {
     val c = PiliTheme.colors
     val t = PiliTheme.typography
-    val label = vueText("pin_change")
+    val label = vueText("user_menu")
     val source = remember { MutableInteractionSource() }
     val role = state.roleKey?.let { vueText(it) }.orEmpty()
-    Column(
-        modifier =
-            Modifier
-                .height(ControlHeight)
-                .tapScale(source)
-                .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
-                .semantics { contentDescription = label }
-                .padding(horizontal = 10.dp)
-                .testTag("header_user"),
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = state.userName,
-            style = t.body.copy(fontWeight = t.weightBold),
-            color = c.textPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 260.dp).testTag("header_user_name"),
-        )
-        Text(
-            text = role + " · " + uiText(R.string.ui_common_header_pin),
-            style = t.body.copy(fontSize = t.sizeXs),
-            color = c.textSecondary,
-            maxLines = 1,
-            modifier = Modifier.testTag("header_user_role"),
-        )
+    Box {
+        Column(
+            modifier =
+                Modifier
+                    .height(ControlHeight)
+                    .tapScale(source)
+                    .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = actions.onOpenUserMenu)
+                    .semantics { contentDescription = label }
+                    .padding(horizontal = 10.dp)
+                    .testTag("header_user"),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = state.userName,
+                style = t.body.copy(fontWeight = t.weightBold),
+                color = c.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 260.dp).testTag("header_user_name"),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = role,
+                    style = t.body.copy(fontSize = t.sizeXs),
+                    color = c.textSecondary,
+                    maxLines = 1,
+                    modifier = Modifier.testTag("header_user_role"),
+                )
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = c.textSecondary, modifier = Modifier.size(MenuMarkSize))
+            }
+        }
+        if (state.userMenuOpen) UserMenu(state, actions)
     }
 }
 

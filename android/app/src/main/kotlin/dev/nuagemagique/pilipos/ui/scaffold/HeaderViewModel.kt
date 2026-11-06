@@ -12,7 +12,9 @@ import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.state.IdleWarning
 import dev.nuagemagique.pilipos.ui.state.TableMoves
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +34,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** Lifetime of the toast that reports a refused order registration, in milliseconds (6000 in `AppHeader.vue`). */
 internal const val REGISTER_FAILED_TOAST_MS: Long = 6000L
+
+/** How long a first tap on "Fin de service" stays armed, in milliseconds (`ARM_MS` of `armedAction.ts`). */
+internal const val END_SHIFT_ARM_MS: Long = 5000L
+
+/** Lifetime of the toast that reports a failed clock-out, in milliseconds (6000 in `auth.ts`). */
+private const val PRESENCE_TOAST_MS: Long = 6000L
 
 /** What the header shows (the refs and computeds of the script of `AppHeader.vue`). */
 internal data class HeaderUiState(
@@ -73,6 +81,12 @@ internal data class HeaderUiState(
     val customerEditable: Boolean = false,
     /** The step of the customer dialogs that is open, else null. */
     val customerStep: CustomerStep? = null,
+    /** The menu under the user button is open (UX audit L1, R5). */
+    val userMenuOpen: Boolean = false,
+    /** "Fin de service" was tapped once: its button asks for confirmation for [END_SHIFT_ARM_MS]. */
+    val endShiftArmed: Boolean = false,
+    /** The language the screens use now, the one the language row of the user menu shows as chosen. */
+    val language: AppLanguage = AppLanguage.FR,
 ) {
     /** The takeaway on screen already has a name or a phone. */
     val hasCustomer: Boolean get() = !customerName.isNullOrEmpty() || !customerPhone.isNullOrEmpty()
@@ -103,6 +117,9 @@ internal class HeaderViewModel(
     private val pinOpen = MutableStateFlow(false)
     private val tablePicker = MutableStateFlow<List<TableInfo>?>(null)
     private val customerStep = MutableStateFlow<CustomerStep?>(null)
+    private val userMenu = MutableStateFlow(false)
+    private val endShiftArmed = MutableStateFlow(false)
+    private var armTimer: Job? = null
     private val tableMoves = TableMoves(order, entry.toasts(), entry.catalog(), entry.settings(), entry.errors())
     private val effectChannel = Channel<HeaderEffect>(Channel.BUFFERED)
 
@@ -119,9 +136,12 @@ internal class HeaderViewModel(
                 entry.integrations().hubriseVisible,
                 entry.webshop().pendingCount,
             ) { user, manager, current, hubrise, pending -> build(user, manager, current, hubrise, pending) },
-            combine(pinOpen, tablePicker, order.lines, order.takeawayTag, customerStep) { pin, picker, lines, tag, step ->
-                Overlay(pin, picker, lines.isNotEmpty(), tag, step)
-            },
+            combine(
+                combine(pinOpen, tablePicker, order.lines, order.takeawayTag, customerStep) { pin, picker, lines, tag, step ->
+                    Overlay(pin, picker, lines.isNotEmpty(), tag, step)
+                },
+                combine(userMenu, endShiftArmed, entry.settings().language, ::Menu),
+            ) { over, menu -> over.copy(menu = menu) },
             session.idleWarning,
         ) { base, over, warning -> overlay(base, over, warning) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, initialState())
@@ -141,6 +161,7 @@ internal class HeaderViewModel(
                 order.lines.value.isNotEmpty(),
                 order.takeawayTag.value,
                 customerStep.value,
+                Menu(userMenu.value, endShiftArmed.value, entry.settings().language.value),
             ),
             session.idleWarning.value,
         )
@@ -152,6 +173,14 @@ internal class HeaderViewModel(
         val hasLines: Boolean,
         val tag: TakeawayTag?,
         val step: CustomerStep?,
+        val menu: Menu = Menu(),
+    )
+
+    /** The user menu: whether it is open, whether "Fin de service" is armed, and the language shown as chosen. */
+    private data class Menu(
+        val open: Boolean = false,
+        val armed: Boolean = false,
+        val language: AppLanguage = AppLanguage.FR,
     )
 
     /** The idle warning and the open dialogs on top of the order's state. */
@@ -172,6 +201,9 @@ internal class HeaderViewModel(
             customerPhone = tag?.customerPhone,
             customerEditable = tag != null,
             customerStep = over.step.takeIf { tag != null },
+            userMenuOpen = over.menu.open && base.roleKey != null,
+            endShiftArmed = over.menu.armed,
+            language = over.menu.language,
         )
     }
 
@@ -270,6 +302,7 @@ internal class HeaderViewModel(
      * the login screen opens. The operator stays on shift: clocking out is done from the login screen.
      */
     fun lock() {
+        closeUserMenu()
         runOnce {
             val outcome = session.lock()
             outcome.orderError?.let {
@@ -282,9 +315,84 @@ internal class HeaderViewModel(
 
     // ── Own PIN ───────────────────────────────────────────────────
 
-    /** The tap on the user button opens the own-PIN dialog (only with a user). */
+    /** The tap on the user button opens the menu under it (only with a user). */
+    fun openUserMenu() {
+        if (session.currentUser.value == null) return
+        userMenu.value = !userMenu.value
+        if (!userMenu.value) disarmEndShift()
+    }
+
+    /** A tap outside the user menu closes it. */
+    fun closeUserMenu() {
+        userMenu.value = false
+        disarmEndShift()
+    }
+
+    /** "Changer mon PIN" of the user menu opens the own-PIN dialog (only with a user). */
     fun openPin() {
+        closeUserMenu()
         if (session.currentUser.value != null) pinOpen.value = true
+    }
+
+    /**
+     * The language row of the user menu (UX audit R5): the choice is kept for this user on this terminal and applies
+     * at once; the terminal language of Settings is untouched.
+     */
+    fun pickLanguage(language: AppLanguage) {
+        val insz = session.currentUser.value?.insz ?: return
+        entry.settings().setUserLanguage(insz, language)
+    }
+
+    /**
+     * "Fin de service" of the user menu (UX audit L1): the first tap arms it ("Confirmer la fin de service ?" for
+     * [END_SHIFT_ARM_MS]), the second one within that time ends the shift. The first label comes back by itself.
+     */
+    fun tapEndShift() {
+        if (!endShiftArmed.value) {
+            endShiftArmed.value = true
+            armTimer?.cancel()
+            armTimer =
+                viewModelScope.launch {
+                    delay(END_SHIFT_ARM_MS)
+                    endShiftArmed.value = false
+                }
+            return
+        }
+        closeUserMenu()
+        endShift()
+    }
+
+    private fun disarmEndShift() {
+        armTimer?.cancel()
+        armTimer = null
+        endShiftArmed.value = false
+    }
+
+    /**
+     * Ends the shift of the logged-in operator: what was ordered is registered (a refusal is shown and does not stop
+     * it), the engine signs their clock-out (S event, the same as the end of shift of the login screen; the open
+     * session is the proof of the PIN, so none is asked again), then the till locks and the login screen opens. A
+     * clock-out that was not registered is shown and never keeps the operator logged in.
+     */
+    private fun endShift() {
+        val name = session.currentUser.value?.name ?: return
+        runOnce {
+            attempt { order.leaveIfActive(LeaveReason.NAVIGATE) }.onFailure { showRegisterFailed(it) }
+            val result = attempt { session.workOutSelf() }
+            session.lock()
+            result.fold(
+                onSuccess = {
+                    if (it.success) {
+                        entry.toasts().show(text("shift_ended", "name" to name), ToastVariant.Success)
+                    } else {
+                        entry.errors().showRaw(it.error ?: "FDM error", language(), text("presence_failed"), PRESENCE_TOAST_MS)
+                    }
+                },
+                onFailure = { entry.errors().show(it, language(), text("presence_failed"), PRESENCE_TOAST_MS) },
+            )
+            order.resetLocal()
+            effectChannel.send(HeaderEffect.ToLogin)
+        }
     }
 
     /** Closes the own-PIN dialog without saving. */

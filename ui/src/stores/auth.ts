@@ -19,6 +19,10 @@ export const useAuthStore = defineStore('auth', () => {
    * by itself; shown on the login screen until someone logs in. */
   const idleLockedAfterMin = ref<number | null>(null)
 
+  /** The order that was open when the engine locked the till for inactivity, and whose it was
+   * (UX audit T6): the same user logging back in lands on it again. */
+  const lockedReturn = ref<{ insz: string; orderId: number } | null>(null)
+
   // A login ends the "locked after N min" line; so does any new session.
   watch(currentUser, (user) => {
     if (user) {
@@ -85,19 +89,22 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** The engine locked the session by itself (idle): drop the operator
    * and let the caller leave the screen. Call once at start-up. */
-  async function listenSessionLocked(onLocked: (e: ipc.SessionLocked) => void) {
+  async function listenSessionLocked(
+    onLocked: (e: ipc.SessionLocked, previous: User | null) => void,
+  ) {
     if (sessionLockedListened) return
     sessionLockedListened = true
     await listen<ipc.SessionLocked>('session-locked', (event) => {
       idleLockAt.value = null
       if (locking || !currentUser.value) return
+      const previous = currentUser.value
       currentUser.value = null
       const { reason, idleAfterMs } = event.payload
       idleLockedAfterMin.value =
         reason === 'idle' && typeof idleAfterMs === 'number' && idleAfterMs > 0
           ? Math.max(1, Math.round(idleAfterMs / 60_000))
           : null
-      onLocked(event.payload)
+      onLocked(event.payload, previous)
     })
   }
 
@@ -150,6 +157,44 @@ export const useAuthStore = defineStore('auth', () => {
     return r.success
   }
 
+  /** Remember the order open at an idle lock for the user who was working on it. */
+  function rememberLockedOrder(insz: string, orderId: number | null) {
+    lockedReturn.value = orderId === null ? null : { insz, orderId }
+  }
+
+  /** The order to reopen for `insz` at login, once: another user, or none, gets null. Any login
+   * forgets it, so a later lock never brings back an old order. */
+  function takeLockedOrder(insz: string): number | null {
+    const memory = lockedReturn.value
+    lockedReturn.value = null
+    return memory !== null && memory.insz === insz ? memory.orderId : null
+  }
+
+  /** End the logged-in employee's own shift from the header: the engine signs their
+   * clock-out (the same S event as the end of shift of the login screen; the session
+   * is the proof of the PIN, so none is asked again), then the session is locked.
+   * Returns whether the clock-out was registered. */
+  async function endOwnShift(): Promise<boolean> {
+    const user = currentUser.value
+    if (!user) return false
+    let result: ipc.SocialResult
+    try {
+      result = await ipc.workOut(user.insz)
+    } catch (e) {
+      result = { success: false, error: String(e) }
+    }
+    await lock()
+    if (!result.success) {
+      const { t } = useI18n()
+      useToastStore().show(
+        `${t('presence_failed')} : ${describeError(result.error ?? 'FDM error')}`,
+        'error',
+        6000,
+      )
+    }
+    return result.success
+  }
+
   // What the role may do (PROFILS_UTILISATEURS_FR.md §2). The backend
   // enforces it; the UI only hides what would be refused.
   const role = computed(() => currentUser.value?.role)
@@ -169,6 +214,9 @@ export const useAuthStore = defineStore('auth', () => {
     listenSessionLocked,
     listenPresenceFailed,
     endShift,
+    endOwnShift,
+    rememberLockedOrder,
+    takeLockedOrder,
     canTakePayment,
     isManager,
   }

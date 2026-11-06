@@ -41,6 +41,7 @@ import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SlipOutcome
+import uniffi.pos_ffi.SocialResult
 import uniffi.pos_ffi.TakeawayTag
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -601,6 +602,226 @@ class HeaderViewModelTest {
             runCurrent()
             assertNull(r.order.current.value)
             assertEquals(listOf<HeaderEffect>(HeaderEffect.ToLogin), r.effects)
+        }
+
+    // ── User menu (UX audit L1, R5) ───────────────────────────────
+
+    @Test
+    fun theUserMenuOpensAndClosesOnlyWithAnOperator() =
+        runTest {
+            val r = start(fixture(), HeaderArea.TABLES)
+
+            r.model.openUserMenu()
+            runCurrent()
+            assertFalse(r.state.userMenuOpen)
+
+            r.login(admin)
+            r.model.openUserMenu()
+            runCurrent()
+            assertTrue(r.state.userMenuOpen)
+
+            r.model.closeUserMenu()
+            runCurrent()
+            assertFalse(r.state.userMenuOpen)
+        }
+
+    @Test
+    fun changeMyPinClosesTheMenuAndOpensTheOwnPinDialog() =
+        runTest {
+            val r = start(fixture(), HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            runCurrent()
+
+            r.model.openPin()
+            runCurrent()
+
+            assertFalse(r.state.userMenuOpen)
+            assertTrue(r.state.pinOpen)
+        }
+
+    @Test
+    fun lockFromTheMenuClosesItAndLocks() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            runCurrent()
+
+            r.model.lock()
+            runCurrent()
+
+            assertFalse(r.state.userMenuOpen)
+            coVerify(exactly = 1) { f.engine.lockSession() }
+            assertEquals(listOf<HeaderEffect>(HeaderEffect.ToLogin), r.effects)
+        }
+
+    @Test
+    fun theFirstTapOnEndOfShiftOnlyArmsItAndSignsNothing() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            runCurrent()
+
+            r.model.tapEndShift()
+            runCurrent()
+
+            assertTrue(r.state.endShiftArmed)
+            assertTrue(r.state.userMenuOpen)
+            coVerify(exactly = 0) { f.engine.workOut(any()) }
+            coVerify(exactly = 0) { f.engine.lockSession() }
+            assertEquals(emptyList<HeaderEffect>(), r.effects)
+        }
+
+    @Test
+    fun theArmedEndOfShiftIsBackToItsFirstLabelAfterFiveSeconds() =
+        runTest {
+            val r = start(fixture(), HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            runCurrent()
+            assertTrue(r.state.endShiftArmed)
+
+            testScheduler.advanceTimeBy(END_SHIFT_ARM_MS - 1)
+            runCurrent()
+            assertTrue(r.state.endShiftArmed)
+
+            testScheduler.advanceTimeBy(2)
+            runCurrent()
+            assertFalse(r.state.endShiftArmed)
+        }
+
+    @Test
+    fun closingTheMenuDisarmsTheEndOfShift() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            runCurrent()
+
+            r.model.closeUserMenu()
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            runCurrent()
+
+            // The tap after reopening only armed it again.
+            assertTrue(r.state.endShiftArmed)
+            coVerify(exactly = 0) { f.engine.workOut(any()) }
+        }
+
+    @Test
+    fun theSecondTapSignsTheClockOutOfTheOperatorWithoutAPinThenLocksAndGoesToLogin() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.workOut(ADMIN_INSZ) } returns SocialResult(true, null)
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            runCurrent()
+
+            r.model.tapEndShift()
+            runCurrent()
+
+            coVerifyOrder {
+                f.engine.workOut(ADMIN_INSZ)
+                f.engine.lockSession()
+            }
+            coVerify(exactly = 0) { f.engine.endShift(any(), any()) }
+            assertFalse(r.state.userMenuOpen)
+            assertFalse(r.state.endShiftArmed)
+            assertNull(r.session.currentUser.value)
+            assertEquals(listOf<HeaderEffect>(HeaderEffect.ToLogin), r.effects)
+            assertEquals(ToastVariant.Success, r.lastToast().variant)
+            assertEquals(r.text("shift_ended", mapOf("name" to "Alice")), r.lastToast().message)
+        }
+
+    @Test
+    fun theOrderInHandIsRegisteredBeforeTheClockOut() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.workOut(ADMIN_INSZ) } returns SocialResult(true, null)
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            r.openOrder(order(7, table = 3))
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            r.model.tapEndShift()
+            runCurrent()
+
+            coVerifyOrder {
+                f.engine.leaveOrder(7, LeaveReason.NAVIGATE)
+                f.engine.workOut(ADMIN_INSZ)
+                f.engine.lockSession()
+            }
+            assertNull(r.order.current.value)
+        }
+
+    @Test
+    fun anUnregisteredClockOutIsShownAndTheTillStillLocks() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.workOut(ADMIN_INSZ) } returns SocialResult(false, "FDM_ANSWER_PENDING")
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            r.model.tapEndShift()
+            runCurrent()
+
+            val toast = r.lastToast()
+            assertEquals(ToastVariant.Error, toast.variant)
+            assertTrue(toast.message.startsWith(r.text("presence_failed") + " : "))
+            coVerify(exactly = 1) { f.engine.lockSession() }
+            assertEquals(listOf<HeaderEffect>(HeaderEffect.ToLogin), r.effects)
+        }
+
+    @Test
+    fun aRefusedClockOutIsShownAndTheTillStillLocks() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.workOut(ADMIN_INSZ) } throws refusal
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            r.model.tapEndShift()
+            runCurrent()
+
+            assertEquals(ToastVariant.Error, r.lastToast().variant)
+            assertEquals(
+                r.text("presence_failed") + " : " + r.errorTexts.describe(refusal, AppLanguage.FR),
+                r.lastToast().message,
+            )
+            coVerify(exactly = 1) { f.engine.lockSession() }
+            assertEquals(listOf<HeaderEffect>(HeaderEffect.ToLogin), r.effects)
+        }
+
+    @Test
+    fun theLanguageRowKeepsTheChoiceForThisOperatorAndAppliesItAtOnce() =
+        runTest {
+            val r = start(fixture(), HeaderArea.TABLES)
+            r.login(admin)
+            val settings = r.entry.settings()
+            settings.applyUser(ADMIN_INSZ)
+            r.model.openUserMenu()
+            runCurrent()
+            assertEquals(AppLanguage.FR, r.state.language)
+
+            r.model.pickLanguage(AppLanguage.ZH)
+            runCurrent()
+
+            assertEquals(AppLanguage.ZH, r.state.language)
+            assertEquals(AppLanguage.ZH, settings.language.value)
+            assertEquals(AppLanguage.ZH, settings.userLanguages.value[ADMIN_INSZ])
+            // The terminal default is untouched.
+            assertEquals(AppLanguage.FR, settings.terminalLanguage.value)
         }
 
     // ── Own PIN ───────────────────────────────────────────────────

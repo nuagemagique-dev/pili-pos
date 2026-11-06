@@ -101,6 +101,7 @@ test.describe('Numeric pads: 7 8 9 on top (C10)', () => {
   test('the PIN dialog on the order screen', async ({ page }) => {
     await toOrder(page)
     await page.locator('.header-user').click()
+    await page.getByTestId('user-menu-pin').click()
     await expectCalculatorLayout(page.locator('.pin-dialog'))
   })
 

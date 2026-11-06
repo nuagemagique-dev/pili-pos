@@ -95,8 +95,10 @@ internal data class LoginUiState(
     val footer: String = "",
     /** The software version (art. 47), empty when the settings are not loaded. */
     val version: String = "",
-    /** The language of the texts. */
+    /** The default language of the terminal, the one the login screen is in. */
     val language: AppLanguage = AppLanguage.FR,
+    /** What each user chose on this terminal, by user id (UX audit R5). */
+    val userLanguages: Map<String, AppLanguage> = emptyMap(),
     /** True while the till is in training mode. */
     val training: Boolean = false,
     /** True when a badge reader is chosen (the end-of-shift pad invites to present the badge). */
@@ -108,6 +110,9 @@ internal data class LoginUiState(
 ) {
     /** When the open shift of [insz] started, or null when that operator is off shift. */
     fun shiftStart(insz: String): String? = shifts.firstOrNull { it.userInsz == insz }?.startedAt
+
+    /** The language the tile of [insz] follows: their own choice, else the terminal's. */
+    fun languageOf(insz: String): AppLanguage = userLanguages[insz] ?: language
 
     /** The name of the known user [insz], or the INSZ itself. */
     fun nameOf(insz: String): String = users.firstOrNull { it.insz == insz }?.name ?: insz
@@ -122,4 +127,9 @@ internal data class LoginUiState(
 internal sealed interface LoginEffect {
     /** A session was opened: show the Tables screen (PD211). */
     data object GoToTables : LoginEffect
+
+    /** The same operator is back after an idle lock and their order is still open: show it again (UX audit T6). */
+    data class GoToOrder(
+        val orderId: Long,
+    ) : LoginEffect
 }

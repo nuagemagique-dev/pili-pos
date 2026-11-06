@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import uniffi.pos_ffi.BadgeSettingsView
+import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.PosSettings
 import uniffi.pos_ffi.User
@@ -77,15 +78,21 @@ internal class LoginViewModel(
         combine(
             own,
             settings.settings,
-            settings.language,
+            combine(settings.terminalLanguage, settings.userLanguages, ::Languages),
             settings.trainingMode,
             badges.settings,
-        ) { base, engine, language, training, reader ->
-            withSettings(base, engine, language, training, reader)
+        ) { base, engine, languages, training, reader ->
+            withSettings(base, engine, languages, training, reader)
         }.stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            withSettings(own.value, settings.settings.value, settings.language.value, settings.trainingMode.value, badges.settings.value),
+            withSettings(
+                own.value,
+                settings.settings.value,
+                Languages(settings.terminalLanguage.value, settings.userLanguages.value),
+                settings.trainingMode.value,
+                badges.settings.value,
+            ),
         )
 
     /** One-shot effects, each delivered once. */
@@ -118,7 +125,7 @@ internal class LoginViewModel(
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             badges.loggedIn.collect {
                 own.update { current -> current.copy(pin = null, firstPin = null) }
-                effectChannel.send(LoginEffect.GoToTables)
+                afterLogin()
             }
         }
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -219,6 +226,30 @@ internal class LoginViewModel(
         )
     }
 
+    // ── After a login ─────────────────────────────────────────────
+
+    /**
+     * Where a successful login goes: Tables, except for the order the same operator left through an idle lock, which
+     * opens again (UX audit T6, `goAfterLogin` of `postLogin.ts`) when it is still open. Another operator, an order
+     * closed or voided meanwhile, or none, lands on Tables. Any login forgets what the lock remembered.
+     */
+    private suspend fun afterLogin() {
+        val lockedUser = entry.session().takeIdleLockedUser()
+        val lockedOrder = entry.order().takeLockedOrderId()
+        val me = entry.session().currentUser.value?.insz
+        if (me != null && me == lockedUser && lockedOrder != null) {
+            val open =
+                attempt { entry.gateway().call { engine -> engine.getOrder(lockedOrder) } }
+                    .getOrNull()
+                    ?.let { it.status == OrderStatus.OPEN } == true
+            if (open) {
+                effectChannel.send(LoginEffect.GoToOrder(lockedOrder))
+                return
+            }
+        }
+        effectChannel.send(LoginEffect.GoToTables)
+    }
+
     // ── Tiles and the PIN panel ───────────────────────────────────
 
     /** A tap on the tile of [user] (`quickLogin`). */
@@ -255,7 +286,7 @@ internal class LoginViewModel(
             onSuccess = {
                 panel.pad.succeeded()
                 own.update { it.copy(pin = null) }
-                effectChannel.send(LoginEffect.GoToTables)
+                afterLogin()
             },
             onFailure = { showPanelFailure(panel, describeError(it)) },
         )
@@ -301,8 +332,18 @@ internal class LoginViewModel(
 
     /** The end-shift button of the PIN panel: the PIN now ends the shift instead of logging in, and back. */
     fun toggleEndShift() {
+        setEndShiftMode(own.value.pin?.endShift != true)
+    }
+
+    /**
+     * The two buttons of an operator on shift (UX audit L1): "Se connecter" (the PIN logs in) and "Terminer le service"
+     * (the PIN ends the shift). Choosing the one already chosen changes nothing.
+     */
+    fun setEndShiftMode(end: Boolean) {
         own.update { current ->
-            current.copy(pin = current.pin?.copy(endShift = !current.pin.endShift, pad = PinPadState(PinMode.Verify), error = null))
+            val panel = current.pin ?: return@update current
+            if (panel.endShift == end) return@update current
+            current.copy(pin = panel.copy(endShift = end, pad = PinPadState(PinMode.Verify), error = null))
         }
     }
 
@@ -323,7 +364,7 @@ internal class LoginViewModel(
             attempt { entry.session().login(user.insz, null) }.fold(
                 onSuccess = {
                     toast(ToastVariant.Warning, text("pin_not_set_warning"), NO_PIN_TOAST_MS)
-                    effectChannel.send(LoginEffect.GoToTables)
+                    afterLogin()
                 },
                 onFailure = { failure ->
                     if (codeOf(failure) == PIN_SETUP_REQUIRED) {
@@ -367,7 +408,7 @@ internal class LoginViewModel(
         own.update { it.copy(error = null) }
         viewModelScope.launch {
             attempt { entry.session().login(insz, null) }.fold(
-                onSuccess = { effectChannel.send(LoginEffect.GoToTables) },
+                onSuccess = { afterLogin() },
                 onFailure = { onInszRefused(insz, it) },
             )
         }
@@ -406,7 +447,7 @@ internal class LoginViewModel(
     /** The first-PIN dialog succeeded: the session is open. */
     fun onFirstPinDone() {
         own.update { it.copy(firstPin = null) }
-        effectChannel.trySend(LoginEffect.GoToTables)
+        viewModelScope.launch { afterLogin() }
     }
 
     /** The first-PIN dialog was dismissed. */
@@ -416,9 +457,18 @@ internal class LoginViewModel(
 
     // ── Language and texts ────────────────────────────────────────
 
-    /** Chooses the language of the texts. */
+    /** Chooses the default language of the terminal (the footer buttons of the login screen). */
     fun setLanguage(language: AppLanguage) {
         settings.setLanguage(language)
+    }
+
+    /**
+     * The language of the selected tile (UX audit R5): remembered on this terminal for that user and applied when they
+     * log in. The login screen itself stays in the terminal language.
+     */
+    fun setPanelUserLanguage(language: AppLanguage) {
+        val user = own.value.pin?.user ?: return
+        settings.setUserLanguage(user.insz, language)
     }
 
     /** The screen text of a refusal, in the language of the till. */
@@ -445,7 +495,7 @@ internal class LoginViewModel(
         fun withSettings(
             base: LoginUiState,
             engine: PosSettings?,
-            language: AppLanguage,
+            languages: Languages,
             training: Boolean,
             reader: BadgeSettingsView?,
         ): LoginUiState =
@@ -454,11 +504,18 @@ internal class LoginViewModel(
                 badgeLoginOn = reader != null && reader.reader != READER_OFF && reader.loginEnabled,
                 footer = listOfNotNull(engine?.restaurantName, engine?.terminalId).filter { it.isNotEmpty() }.joinToString(" · "),
                 version = engine?.posSwVersion.orEmpty(),
-                language = language,
+                language = languages.terminal,
+                userLanguages = languages.users,
                 training = training,
             )
     }
 }
+
+/** The terminal language and what each user chose, gathered before the screen state is built. */
+private data class Languages(
+    val terminal: AppLanguage,
+    val users: Map<String, AppLanguage>,
+)
 
 /** Runs [block]; the answer or the failure it threw (cancellation is rethrown). */
 @Suppress("TooGenericExceptionCaught")

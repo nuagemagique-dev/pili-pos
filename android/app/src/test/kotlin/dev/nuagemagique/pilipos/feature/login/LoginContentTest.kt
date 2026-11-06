@@ -44,6 +44,7 @@ class LoginContentTest {
 
     private val tapped = mutableListOf<User>()
     private val languages = mutableListOf<AppLanguage>()
+    private val userLanguages = mutableListOf<AppLanguage>()
     private val pinKeys = mutableListOf<NumPadKey>()
     private val inszKeys = mutableListOf<NumPadKey>()
     private val calls = mutableListOf<String>()
@@ -57,7 +58,8 @@ class LoginContentTest {
                 PinCallbacks(
                     onKey = { pinKeys += it },
                     onBack = { calls += "pin-back" },
-                    onToggleEndShift = { calls += "toggle-end-shift" },
+                    onShiftMode = { calls += "shift-mode-$it" },
+                    onUserLanguage = { userLanguages += it },
                     onLogin = { calls += "pin-login" },
                     onEndShift = { calls += "end-shift" },
                 ),
@@ -156,7 +158,8 @@ class LoginContentTest {
 
         compose.onNodeWithTag("login_pin_panel").assertIsDisplayed()
         compose.onNodeWithTag("login_pin_user").assertTextEquals("Bob")
-        compose.onNodeWithTag("login_pin_title").assertTextEquals("Code PIN")
+        // Bob is on shift: the pad says which of the two actions it runs (UX audit L1).
+        compose.onNodeWithTag("login_pin_title").assertTextEquals("Se connecter")
     }
 
     @Test
@@ -188,10 +191,69 @@ class LoginContentTest {
     }
 
     @Test
-    fun theEndShiftToggleIsOnlyOfferedToAnOperatorOnShift() {
+    fun anOperatorOnShiftGetsTheTwoButtonsAndTheTitleSaysWhichRuns() {
         show(base.copy(pin = PinPanel(cashier)))
-        compose.onNodeWithTag("login_end_shift").assertIsDisplayed().performClick()
-        assertEquals(listOf("toggle-end-shift"), calls)
+
+        compose.onNodeWithTag("login_mode_login").assertIsDisplayed().assertTextEquals("Se connecter")
+        compose.onNodeWithTag("login_end_shift").assertIsDisplayed().assertTextEquals("Terminer le service")
+        compose.onNodeWithTag("login_pin_title").assertTextEquals("Se connecter")
+        compose.onNodeWithTag("login_end_shift").performClick()
+        compose.onNodeWithTag("login_mode_login").performClick()
+        assertEquals(listOf("shift-mode-true", "shift-mode-false"), calls)
+    }
+
+    @Test
+    fun theTwoButtonsAreAtLeast48dpHigh() {
+        show(base.copy(pin = PinPanel(cashier)))
+
+        for (tag in listOf("login_mode_login", "login_end_shift")) {
+            assertTrue(compose.onNodeWithTag(tag).getUnclippedBoundsInRoot().height >= 48.dp)
+        }
+    }
+
+    @Test
+    fun theChosenButtonIsTheSelectedOne() {
+        show(base.copy(pin = PinPanel(cashier, endShift = true)))
+
+        compose.onNodeWithTag("login_end_shift").assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true))
+        compose.onNodeWithTag("login_mode_login").assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, false))
+    }
+
+    @Test
+    fun anOperatorOffShiftKeepsTheUsualPinTitleAndNoChoice() {
+        show(base.copy(pin = PinPanel(admin)))
+
+        compose.onNodeWithTag("login_pin_title").assertTextEquals("Code PIN")
+        compose.onNodeWithTag("login_mode_login").assertDoesNotExist()
+    }
+
+    // ── The language of the selected tile (UX audit R5) ───────────
+
+    @Test
+    fun theSelectedTileOffersFrZhEnAndShowsTheTerminalLanguageUntilTheyChoose() {
+        show(base.copy(pin = PinPanel(admin), language = AppLanguage.EN))
+
+        compose.onNodeWithTag("login_user_lang_fr").assertTextEquals("FR")
+        compose.onNodeWithTag("login_user_lang_zh").assertTextEquals("中文")
+        compose.onNodeWithTag("login_user_lang_en").assertTextEquals("EN")
+        compose.onNodeWithTag("login_user_lang_en").assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true))
+        compose.onNodeWithTag("login_user_lang_fr").assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, false))
+    }
+
+    @Test
+    fun theirOwnChoiceIsTheSelectedOneAndATapReportsIt() {
+        show(base.copy(pin = PinPanel(admin), userLanguages = mapOf(ADMIN_INSZ to AppLanguage.ZH)))
+
+        compose.onNodeWithTag("login_user_lang_zh").assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true))
+        compose.onNodeWithTag("login_user_lang_en").performClick()
+        assertEquals(listOf(AppLanguage.EN), userLanguages)
+    }
+
+    @Test
+    fun noLanguageChoiceWithoutASelectedTile() {
+        show(base)
+
+        compose.onNodeWithTag("login_user_lang_fr").assertDoesNotExist()
     }
 
     @Test
@@ -256,6 +318,8 @@ class LoginContentTest {
 
         compose.onNodeWithTag("pin_pad").assertDoesNotExist()
         compose.onNodeWithTag("login_pin_error").assertTextContains("PIN incorrect")
+        compose.onNodeWithTag("login_pin_login").assertTextEquals("Se connecter")
+        compose.onNodeWithTag("login_end_shift").assertTextEquals("Terminer le service")
         compose.onNodeWithTag("login_pin_login").performClick()
         compose.onNodeWithTag("login_pin_back").performClick()
         compose.onNodeWithTag("login_end_shift").performClick()

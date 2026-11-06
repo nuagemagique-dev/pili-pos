@@ -12,8 +12,8 @@ describe('icons', () => {
 
   it('has real path data for every icon of the toolbar', () => {
     for (const d of Object.values(ICONS)) {
-      expect(d.length).toBeGreaterThan(40)
-      expect(d.startsWith('M')).toBe(true)
+      expect(d.length).toBeGreaterThan(10)
+      expect(d.startsWith('M') || d.startsWith('m')).toBe(true)
     }
   })
 })

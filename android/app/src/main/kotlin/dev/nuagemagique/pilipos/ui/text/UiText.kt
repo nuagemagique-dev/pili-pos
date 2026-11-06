@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.intl.LocaleList
@@ -63,6 +64,7 @@ fun ProvideUiText(
 @Composable
 fun PosUiRoot(content: @Composable () -> Unit) {
     val entry = rememberEntryPoint<UiCommonEntryPoint>()
+    remember(entry) { entry.userLanguage() }
     val settings = entry.settings()
     val language by settings.language.collectAsState()
     val training by settings.trainingMode.collectAsState()

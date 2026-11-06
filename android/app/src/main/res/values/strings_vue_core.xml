@@ -58,7 +58,15 @@
     <string name="pin_wrong">PIN incorrect</string>
     <string name="pin_not_set_warning">PIN non configuré : touchez votre nom en haut de l\'écran</string>
     <string name="pin_enter">Saisir le PIN</string>
-    <string name="pin_change">Changer le PIN</string>
+    <string name="pin_change">Changer mon PIN</string>
+    <string name="user_menu">Menu utilisateur</string>
+    <string name="user_menu_language">Ma langue</string>
+    <string name="lang_short_fr">FR</string>
+    <string name="lang_short_zh">中文</string>
+    <string name="lang_short_en">EN</string>
+    <string name="end_shift_confirm">Confirmer la fin de service ?</string>
+    <string name="end_shift_action">Terminer le service</string>
+    <string name="login_action">Se connecter</string>
     <string name="pin_changed">PIN modifié</string>
     <string name="pin_confirm_manager">Confirmez avec votre PIN de gérant</string>
     <string name="support_title">Assistance à distance</string>
@@ -131,7 +139,7 @@
     <string name="training_desc">Événements marqués T (non fiscaux)</string>
     <string name="active">ACTIF</string>
     <string name="inactive">INACTIF</string>
-    <string name="language">Langue</string>
+    <string name="language">Langue par défaut du terminal</string>
     <string name="language_desc">Noms des produits et catégories</string>
     <string name="employees">Employés</string>
     <string name="add">Ajouter</string>

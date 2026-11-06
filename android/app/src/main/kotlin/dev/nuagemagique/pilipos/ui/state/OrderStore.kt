@@ -29,6 +29,7 @@ import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.NextCourse
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderLine
+import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.SlipOutcome
@@ -94,6 +95,9 @@ class OrderStore
         private val mutableTableMoves = MutableStateFlow(0)
         private val addSeq = AtomicLong()
 
+        // The open order on screen when the last lock came (NO_ORDER: none); taken once at the next login.
+        private val lockedOrder = AtomicLong(NO_ORDER)
+
         // Bumped by resetLocal(). An operation reads it before it talks to the engine and publishes only while it is
         // unchanged, so a read that was in flight during a reset (lock, idle lock) cannot bring the old order back.
         private val generation = AtomicInteger()
@@ -154,7 +158,11 @@ class OrderStore
             // Undispatched: the collector is subscribed when the constructor returns (events have no replay).
             scope.launch(start = CoroutineStart.UNDISPATCHED) {
                 events.events.collect { event ->
-                    if (event is PosEvent.SessionLocked) resetLocal()
+                    if (event is PosEvent.SessionLocked) {
+                        // Before the reset: the order the same user may come back to after an idle lock (UX audit T6).
+                        lockedOrder.set(mutableCurrent.value?.takeIf { it.status == OrderStatus.OPEN }?.id ?: NO_ORDER)
+                        resetLocal()
+                    }
                 }
             }
         }
@@ -483,6 +491,12 @@ class OrderStore
         suspend fun clearOrder() = mutex.withLock { clearUnlocked() }
 
         /**
+         * The id of the order that was open on screen when the till last locked, once (T6, `takeLockedOrder` of
+         * `auth.ts`): the login that finds the same user back reopens it. Null when there was none, or already taken.
+         */
+        fun takeLockedOrderId(): Long? = lockedOrder.getAndSet(NO_ORDER).takeIf { it != NO_ORDER }
+
+        /**
          * Forgets the local order state only: after a lock the engine has already registered and cleared its
          * active order.
          */
@@ -687,5 +701,8 @@ class OrderStore
         private companion object {
             /** Reports held for a slow collector before the oldest is dropped. */
             const val BUFFER = 8
+
+            /** No order was open at the last lock. */
+            const val NO_ORDER = -1L
         }
     }

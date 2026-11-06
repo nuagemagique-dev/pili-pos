@@ -58,7 +58,15 @@
     <string name="pin_wrong">Wrong PIN</string>
     <string name="pin_not_set_warning">PIN not set: tap your name at the top of the screen</string>
     <string name="pin_enter">Enter PIN</string>
-    <string name="pin_change">Change PIN</string>
+    <string name="pin_change">Change my PIN</string>
+    <string name="user_menu">User menu</string>
+    <string name="user_menu_language">My language</string>
+    <string name="lang_short_fr">FR</string>
+    <string name="lang_short_zh">中文</string>
+    <string name="lang_short_en">EN</string>
+    <string name="end_shift_confirm">Confirm the end of shift?</string>
+    <string name="end_shift_action">End shift</string>
+    <string name="login_action">Log in</string>
     <string name="pin_changed">PIN changed</string>
     <string name="pin_confirm_manager">Confirm with your manager PIN</string>
     <string name="support_title">Remote support</string>
@@ -131,7 +139,7 @@
     <string name="training_desc">Events marked T (non-fiscal)</string>
     <string name="active">ACTIVE</string>
     <string name="inactive">INACTIVE</string>
-    <string name="language">Language</string>
+    <string name="language">Terminal default language</string>
     <string name="language_desc">Product and category names</string>
     <string name="employees">Employees</string>
     <string name="add">Add</string>
