@@ -27,6 +27,13 @@ const ESC: u8 = 0x1B;
 const GS: u8 = 0x1D;
 const LF: u8 = 0x0A;
 
+/// Barcode height in dots (10 mm at 203 DPI).
+const BARCODE_HEIGHT_DOTS: u8 = 80;
+/// Barcode module width in dots.
+const BARCODE_MODULE_DOTS: u8 = 2;
+/// Most digits a CODE128 barcode takes: 15 are 400 dots, the 420 of 58 mm paper.
+const BARCODE_MAX_DIGITS: usize = 15;
+
 /// Builder that accumulates ESC/POS binary commands.
 #[derive(Debug, Clone)]
 pub struct EscPosBuilder {
@@ -232,6 +239,40 @@ impl EscPosBuilder {
         self.buf
             .extend_from_slice(&[GS, b'(', b'k', 3, 0, 49, 81, 48]);
 
+        self
+    }
+
+    /// Print a CODE128 barcode of `digits` with GS k 73 (function B), code
+    /// set B, no human readable text (the caller prints the code itself).
+    ///
+    /// The Epson TM-m30III (like the whole TM-T/TM-m family) supports
+    /// `GS k m n` with m = 73 for CODE128; the data starts with the code
+    /// set selector `{B`. Digits are sent as plain ASCII on purpose: the
+    /// compact code set C would put raw values 0 to 99 in the stream, among
+    /// them LF, DLE and GS, which every tool that reads the stream byte by
+    /// byte (the printer mock, the plain text renderer) would take for
+    /// commands. At module width 2, `n` digits take `(35 + 11 n) * 2` dots:
+    /// 334 for the 12 of a voucher, inside the 420 dots of 58 mm paper.
+    ///
+    /// Anything that is not 1 to 15 ASCII digits prints as text instead
+    /// (the `{` of the selector must never come from the data).
+    pub fn barcode_code128_digits(&mut self, digits: &str) -> &mut Self {
+        if digits.is_empty()
+            || digits.len() > BARCODE_MAX_DIGITS
+            || !digits.bytes().all(|b| b.is_ascii_digit())
+        {
+            return self.textln_wrapped(digits);
+        }
+        // GS h n: height in dots (80 dots = 10 mm).
+        self.buf.extend_from_slice(&[GS, b'h', BARCODE_HEIGHT_DOTS]);
+        // GS w n: module width in dots (2 to 6).
+        self.buf.extend_from_slice(&[GS, b'w', BARCODE_MODULE_DOTS]);
+        // GS H n: human readable characters off (0).
+        self.buf.extend_from_slice(&[GS, b'H', 0]);
+        // GS k 73 n d1...dn: CODE128, n = length of the data that follows.
+        let n = u8::try_from(digits.len() + 2).unwrap_or(u8::MAX);
+        self.buf.extend_from_slice(&[GS, b'k', 73, n, b'{', b'B']);
+        self.buf.extend_from_slice(digits.as_bytes());
         self
     }
 
@@ -616,6 +657,50 @@ mod tests {
         let bytes = b.build();
         // Should contain the URL bytes somewhere in the buffer
         assert!(bytes.windows(5).any(|w| w == b"https"));
+    }
+
+    #[test]
+    fn a_code128_barcode_is_gs_k_73_with_the_code_set_b_selector() {
+        let mut b = EscPosBuilder::new();
+        b.barcode_code128_digits("123456789012");
+        let bytes = b.build();
+        // GS h 80, GS w 2, GS H 0 (no human readable text), then the barcode.
+        let expected: Vec<u8> = [
+            &[GS, b'h', 80][..],
+            &[GS, b'w', 2],
+            &[GS, b'H', 0],
+            // GS k m n: m = 73 (CODE128), n = 2 selector bytes + 12 digits.
+            &[GS, b'k', 73, 14, b'{', b'B'],
+            b"123456789012",
+        ]
+        .concat();
+        assert!(
+            bytes.windows(expected.len()).any(|w| w == expected),
+            "{bytes:?}"
+        );
+    }
+
+    #[test]
+    fn a_code128_barcode_of_something_else_than_digits_prints_as_text() {
+        for data in ["", "12 34", "12{B34", "12345678901234567890", "12345\x1d"] {
+            let mut b = EscPosBuilder::new();
+            b.barcode_code128_digits(data);
+            let bytes = b.build();
+            assert!(
+                !bytes.windows(2).any(|w| w == [GS, b'k']),
+                "{data:?} must not reach GS k"
+            );
+        }
+    }
+
+    #[test]
+    fn the_barcode_of_a_voucher_fits_the_narrowest_paper() {
+        // CODE128 width: start (11) + one symbol per digit (11) + check (11) + stop (13).
+        let dots = |digits: u16| (11 + 11 * digits + 11 + 13) * u16::from(BARCODE_MODULE_DOTS);
+        assert_eq!(dots(12), 334);
+        assert!(
+            dots(u16::try_from(BARCODE_MAX_DIGITS).unwrap()) <= dots_per_line(PaperWidth::Mm58)
+        );
     }
 
     #[test]

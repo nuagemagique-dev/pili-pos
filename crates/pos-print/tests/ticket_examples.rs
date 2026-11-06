@@ -430,6 +430,10 @@ fn example_gift_voucher() {
         pos_print::escpos::PaperWidth::Mm80,
     ));
     assert!(text.contains("1234 5678 9095"), "the code is spelled out");
+    assert!(
+        text.contains("[BARCODE: 123456789095]"),
+        "the code is also a CODE128 barcode"
+    );
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
     std::fs::write(dir.join("bon_cadeau.txt"), text).expect("write example");
