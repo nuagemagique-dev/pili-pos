@@ -47,7 +47,7 @@ Un bouton qui demande 0.5 seconde de trop pour être trouvé, c'est 500 secondes
 Après 2-3 semaines d'utilisation intensive, le staff développe des automatismes musculaires (muscle memory). Les boutons doivent toujours être au même endroit. Changer le layout casse ces automatismes et génère des erreurs.
 
 **Règles :**
-- Le bouton principal d'action est TOUJOURS en bas à droite du cart.
+- Le bouton principal d'action est TOUJOURS en bas à droite du cart. Sa place ne bouge pas ; ce qu'il fait suit l'état de la commande (« Envoyer en cuisine » tant que des lignes attendent, puis PAYER : §3, audit C4).
 - Le cart/sidebar est TOUJOURS à droite de l'écran.
 - Les catégories sont TOUJOURS en haut de la grille menu.
 - La barre de statut (FDM, user, heure) est TOUJOURS en haut de l'écran.
@@ -55,15 +55,29 @@ Après 2-3 semaines d'utilisation intensive, le staff développe des automatisme
 
 ---
 
-### 2.4 - Commandes en ligne : refuser avec un motif, droits par rôle (audit O1, L6)
+### 2.4 - Commandes en ligne : refuser avec un motif, droits par rôle, encaisser, retard (audit O1 à O3, L6)
 
 « Refuser » une commande en ligne est définitif (la plateforme et le client sont prévenus), donc il ouvre une confirmation avec les motifs en grosses touches (« Rupture de stock », « Trop de commandes », « Restaurant fermé », « Autre ») et un bouton rouge « Refuser la commande » grisé tant qu'aucun motif n'est choisi : trois touches, jamais par accident. Sur la carte, « Refuser » est à l'autre bout de la rangée d'actions que « Accepter », contour rouge sans remplissage. HubRise n'a pas de champ de motif de refus : le motif reste sur la caisse, il n'est ni envoyé ni signé.
 
 Accepter, refuser, remettre et encaisser demandent les droits d'encaissement. Pour un Apprenti ces boutons sont grisés avec la ligne « Réservé au serveur ou au gérant » au lieu d'échouer avec « Action réservée à un autre profil ». À l'écran, « Serveur » est le rôle interne `cashier` et « Apprenti » le rôle `waiter` (les noms internes ne changent pas). Préparer, « Prête » et « En livraison » restent ouverts à tous.
 
+« Encaisser espèces » et « Encaisser carte » d'une commande en ligne non payée ouvrent le même écran de paiement que la salle (montant exact déjà saisi, rendu, partage, « Carte » déjà choisie pour le bouton carte) ; la vente est la remise de la commande, la puce de l'en-tête dit « En ligne » et la fin de la vente revient à la liste des commandes en ligne (audit O2). Une commande en ligne n'est jamais la commande active du moteur : un verrouillage ou une sortie d'écran n'enregistre rien dessus.
+
+Dès 5 minutes d'attente, un bandeau ambre sous l'en-tête de tous les écrans du personnel (sauf la liste elle-même, qui garde son alarme) dit « N commandes en ligne attendent depuis plus de 5 min » avec un bouton « Voir » ; la sonnerie se répète toutes les 2 minutes tant qu'une commande est en retard (audit O3). Ambre = en attente, donc le bouton « Voir » est en encre sur l'ambre.
+
 ### 2.5 - Copie et remboursement : pas d'étape vide (audit R1)
 
 Sans tickets par e-mail, l'étape « Papier / E-mail » ne propose rien et ne ferait que répéter le bouton de confirmation : « Copie » (et la réimpression d'un Z) signe donc la copie en papier au premier toucher, sans étape intermédiaire. Avec les tickets par e-mail configurés, l'étape du moyen reste avant la signature. Le remboursement a une seule étape de confirmation, montrée une fois avant de signer : les lignes cochées avec leur quantité, la TVA incluse, le total à rembourser en espèces et le bouton « Confirmer le remboursement » (le bouton de la ligne du ticket reste « Rembourser » ; le choix du moyen s'y ajoute seulement si l'e-mail est configuré).
+
+### 2.6 - Tiroir avec un mouvement, retrouver un ticket (audit R3, R2)
+
+**Tiroir (R3).** « Enregistrer la sortie » et « Enregistrer l'entrée » (onglet Caisse des Rapports) signent le mouvement F et ouvrent le tiroir dans le même geste : un tap, un seul coup de tiroir. Aucun événement « ouverture du tiroir » n'est signé en plus, car le mouvement est lui-même la trace de l'ouverture (description POS v2.2 : DRAWER_OPEN est l'ouverture du tiroir « en dehors des ventes » ; FAQ Q405 : signDrawerOpen n'est pas nécessaire avant un signMoneyInOut). Le bouton « Ouvrir le tiroir » reste, et la déclaration du tiroir (M133) ne l'ouvre jamais.
+
+**Ticket par numéro (R2).** Onglet Tickets des Rapports : le champ « N° de ticket » (pavé numérique) retrouve dans l'archive la vente que le client montre, pour la copie et le remboursement, avec les règles d'aujourd'hui (période comptable, déjà remboursée, bon cadeau utilisé) : une vente qui ne se rembourse pas affiche son motif et reste copiable. La liste garde les dernières ventes ; « Plus ancien » en charge 20 de plus. Au plus 10 résultats, parce que N, P et T comptent chacun leurs numéros.
+
+### 2.7 - Une seule commande, un seul code du gérant (audit P8)
+
+Quand un gérant a confirmé une remise, un article offert ou une ligne offerte avec son code, les remises, offres et retraits suivants sur LA MÊME commande par LE MÊME gérant connecté ne redemandent pas le code pendant 2 minutes (comptées depuis la saisie du code, jamais prolongées par un réemploi). Le moteur tient cette autorisation en mémoire ; elle tombe au verrouillage, à la déconnexion, en fin de service, au changement de commande et à la vente. Chaque usage est écrit dans la piste d'audit des remises avec l'indication « code réemployé ». « Client parti sans payer », la correction de paiement, le remboursement et l'assistance à distance redemandent toujours le code. Le premier toast de remise dit que le code est gardé deux minutes. Rien de signé ne change.
 
 ## 3. Layout principal - OrderView (écran le plus utilisé)
 
@@ -96,11 +110,31 @@ C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
 
 **Pied du panier (audit C4, C3) :** tant que la commande en salle a des lignes pas encore envoyées en cuisine (hors lignes retenues par un service), « Envoyer en cuisine » est le bouton principal Volt avec une pastille « 2 lignes », et PAYER devient un bouton secondaire à contour qui affiche toujours le total. Une fois tout envoyé, PAYER redevient le principal. Pour un Apprenti (sans droit d'encaisser), « Envoyer en cuisine » est toujours le principal. « Changer de table », « Remise » et « Client parti sans payer » ne sont plus dans le pied : ils sont dans le menu « Plus » de l'en-tête du panier.
 
+**Barre d'outils et pavé de code (audit C1, C6).** Les modes (Épuisé, Produits épuisés, Saisie code, Allergènes, Bon cadeau) tiennent sur une seule rangée de 56 px après les catégories : boutons de 48 px avec une icône Material et un libellé court, l'aide du mode actif sur la même rangée, la légende des allergènes seulement quand le mode est actif. Le pavé de code est un bandeau de 300 px ancré sous la grille (champ et lettres à gauche, 7 8 9 au milieu, un OK haut à droite) ; la grille garde ses 5 colonnes et défile au-dessus.
+
+**Onglet Favoris (audit C12).** Premier onglet, une étoile, avant les catégories ; caché tant que le moteur n'a aucun produit à y mettre, ouvert par défaut quand il en a, et retour à la première catégorie s'il se vide. Config, panneau « Favoris » (gérant) : « Plus vendus sur 30 jours » (par défaut : les 18 meilleures ventes signées des 30 derniers jours, recalculées au plus une fois par heure ou après un Z) ou « Ma sélection » (l'étoile de chaque produit dans l'éditeur de menu, dans l'ordre d'ajout, 30 produits au plus). Un produit s'y comporte comme dans sa catégorie : code, marque « Épuisé », mode allergènes, pastilles, et il garde la couleur de sa catégorie. Donnée locale : rien n'entre dans une requête signée.
+
+**Panier dense (audit C2, C11).** Une ligne de 56 px par article (marque cuisine, quantité, code, nom, pastilles, prix) : une douzaine de lignes tiennent dans le panier à 1080 p. Les actions d'une ligne (−, +, Note, Offrir, service, Supprimer) ne s'ouvrent que sous la ligne choisie : la plus récente l'est par défaut, un tap choisit ou replie, un ajout choisit sa ligne. La fenêtre de note propose des pastilles de notes fréquentes (Config, « Notes rapides », 24 au plus) ; un tap ajoute la pastille à la note, séparée par une virgule, et la limite de 60 caractères reste la même.
+
+**Quantité et retour à l'ajout (audit C7, C9).** Juste après l'ajout d'un produit simple (grille ou pavé de code), pendant 3 s, un chiffre tapé sur le pavé ou le clavier fixe la quantité de cet ajout (un second chiffre prolonge, jusqu'à 99) : « plat puis 3 » donne trois portions. Les produits pesés, à options ou à prix libre n'ouvrent pas cette fenêtre. Chaque ajout fait un bip court et fait clignoter sa ligne 200 ms ; le bip se coupe par terminal dans Config (« Bip à chaque ajout »).
+
 **Proportions :** menu grid = ~65% de l'écran, cart sidebar = ~35%. Sur 1920px, ça donne ~1250px pour le menu et ~670px pour le cart.
 
 **Grille menu :** 5 colonnes de boutons items (environ 230 × 120 px, au-dessus du minimum de 140 × 100 px). Scrollable verticalement avec inertie tactile.
 
-**Écarts assumés (charte Pili) :** en-tête de 64 px au lieu de 48, pour que ses boutons fassent 48 px (§4.1, §13) ; 5 colonnes au lieu de 4 ; catégories sur deux rangées fixes de 9 au lieu d'onglets à faire défiler, pour que les 17 catégories soient à un seul appui (§2.1). L'en-tête est le même sur tous les écrans (`AppHeader.vue`).
+**Écarts assumés (charte Pili) :** en-tête de 64 px au lieu de 48, pour que ses boutons fassent 48 px (§4.1, §13) ; 5 colonnes au lieu de 4 ; catégories sur deux rangées fixes de 9 au lieu d'onglets à faire défiler, pour que les 17 catégories (et l'onglet Favoris) soient à un seul appui (§2.1). L'en-tête est le même sur tous les écrans (`AppHeader.vue`).
+
+### 3.1 - Écran Tables (audit T1, T2, T3, T5, T7, C8)
+
+- **Zones et lettres (T1).** Le plan de salle (Config, « Plan de salle ») accepte des zones : une lettre (ou deux) devant une plage nomme la zone, « A 1-20, B 21-40 ». Les numéros restent uniques sur tout le plan, comme A-19 et B-30 chez Xudox. Des noms de zones facultatifs (« A · Salle, B · Terrasse ») donnent les en-têtes sous lesquels les tables sont groupées. Partout où une table est nommée à l'écran (carte, puce de l'en-tête, sélecteur de table, messages, rapports) et sur les bons cuisine, bar et le bon de transfert, elle s'écrit « A-19 ». Un plan sans lettres reste « 19 ». Le numéro de table de toute requête signée et du ticket fiscal est toujours le numéro seul (19).
+- **Serveur et couverts (T5).** Une carte occupée montre l'initiale de la personne qui a ouvert la commande dans une pastille ronde. Les couverts sont facultatifs : le bouton « Couverts » de l'en-tête du panier ouvre un pavé de 1 à 30 (0 les efface), la carte affiche « 4 couv. ». Donnée locale, jamais signée. Au paiement, le bouton de partage du même nombre est marqué (§7.4).
+- **Emporter numéroté (T2).** Chaque vente à emporter reçoit un numéro du jour, « E-61 », qui repart chaque jour au premier numéro du réglage (61 par défaut, Config, « Plan de salle »). L'en-tête dit « À emporter E-61 · Dupont » ; « Ajouter un nom » demande le nom (clavier à l'écran) puis le téléphone (pavé), tous deux facultatifs. Le numéro et le nom sont en gros sur les bons cuisine et bar ; le téléphone ne s'imprime jamais, nom et téléphone sont effacés 72 h après la vente, le numéro reste. Les commandes en ligne gardent la référence de leur plateforme.
+- **Déplacer (T3, C8).** La puce de table de l'en-tête (commande et paiement) est un bouton de 48 px qui ouvre le sélecteur : une table libre déplace la commande aussitôt, sans fenêtre de validation, et un message « Table 4 déplacée en 9 » reste 5 s avec « Annuler » (un second transfert, signé comme tout autre). « Déplacer » du menu Plus et du plan de salle suit le même geste.
+- **Appui long (T7).** Un appui de 500 ms sur une carte occupée ouvre une feuille « Ouvrir · Addition · Déplacer · Payer » ; un appui court ouvre la table comme avant. « Addition » et « Payer » demandent les droits d'encaissement (un Apprenti ne voit que « Ouvrir » et « Déplacer »). « Addition » imprime l'addition de cette commande sans l'ouvrir. L'appui long est un raccourci : chaque action existe aussi sans lui (§11).
+
+### 3.2 - En-tête, session et langue (audit L1, R5, T6)
+
+Le bouton de l'utilisateur ouvre un menu : sa langue (français, chinois, anglais, gardée par utilisateur sur le terminal et appliquée à sa connexion), « Changer mon PIN », « Fin de service » (armée au premier tap, 5 s, signe la sortie de l'opérateur puis verrouille) et « Verrouiller ». La tuile de connexion d'un opérateur en service propose « Se connecter » et « Terminer le service ».
 
 ---
 
@@ -118,6 +152,8 @@ C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
 | Ligne order dans cart | pleine largeur × 56px | pleine largeur × 64px | 0 (séparateur 1px) |
 
 **Disposition du pavé numérique :** tous les pavés numériques (PIN, INSZ, montants, prix, quantités, bons cadeaux, dates des rapports, code produit) suivent la disposition d'une calculatrice, 7 8 9 en haut, puis 4 5 6, 1 2 3, et la ligne du bas propre à chaque pavé (C, 0, effacer ; virgule sur la caisse Linux). Les mêmes touches dans le même ordre sur Linux et Android (`ui/e2e/pad-layout.spec.ts`, `PadLayoutAssert.kt`).
+
+**Aucun champ de texte natif (audit C13, R6).** Le terminal de salle n'a pas de clavier système : chaque champ s'ouvre sur un clavier ou un pavé à l'écran (clavier AZERTY à majuscules et accents pour le texte, pavé numérique pour les nombres et les numéros à longueur exacte). Une exception déclarée : le nom chinois d'un produit dans l'éditeur de menu, qu'aucun clavier à l'écran ne sait écrire (`docs/android/DECISIONS.md`, UX-C13-DEV).
 
 **Pourquoi ces tailles :** le standard mobile est 48×48px minimum (Apple HIG / Material Design), mais en POS restaurant avec les mains mouillées/grasses et l'écran à 30-50cm de distance, il faut aller plus grand. Les tests utilisateurs montrent que 60-70px est le sweet spot pour éviter les misclicks sous stress.
 
@@ -203,6 +239,26 @@ Le montant exact est déjà saisi à l'arrivée (espèces présélectionnées, a
 
 L'écran de fin affiche « OK » et le rendu monnaie en très grand, puis retourne seul aux Tables après 2 s (un tap, ou « Terminer », y retourne tout de suite). Il reste affiché seulement s'il y a quelque chose à lire ou à décider : ticket non imprimé (« Imprimer le ticket »), ticket numérique en attente, FDM non connecté, note d'un bon cadeau.
 
+**Nombre de taps des gestes courants** (depuis l'écran de commande, en comptant la confirmation finale ; un nombre saisi sur un pavé compte pour un seul geste). Ces nombres sont des plafonds : une régression qui en ajoute un est un défaut.
+
+| Geste | Taps | Enchaînement |
+|---|---|---|
+| Ajouter un plat | 1 | la grille (au pavé de code : le code puis OK, 2) |
+| Ajouter 3 portions | 2 | le plat, puis le chiffre 3 (fenêtre de 3 s) |
+| Envoyer en cuisine | 1 | le bouton principal Volt tant que des lignes attendent |
+| Espèces, montant exact | 2 | Payer, Encaisser |
+| Espèces avec un billet rapide | 3 | Payer, le billet, Encaisser |
+| Carte (terminal ou saisie) | 3 | Payer, Carte, Encaisser (puis l'approbation du terminal) |
+| Chèques-repas | 3 | Payer, Chèques-repas, Encaisser |
+| Payer depuis l'écran Tables | 3 | appui long sur la table, Payer, Encaisser |
+| Partage en 2, 3 ou 4 parts égales, espèces | 2 + N | Payer, le nombre de parts, puis Encaisser par part (la méthode reste choisie) |
+| Partage en plus de 4 parts | 4 + N | Payer, Autre, le nombre, OK, puis Encaisser par part |
+| Partage par plats, N parts | 2 + U + N | Payer, Par plats, une case par unité mise dans une part (U au total), Encaisser par part |
+| Déplacer la commande | 2 | la puce de table, une table libre (puis 1 pour annuler) |
+| Seconde remise du même gérant, même commande | 0 de plus | plus de pavé PIN pendant 2 minutes (§2.7) |
+| Addition (pré-ticket) | 1 | le bouton du panier ; depuis Tables : appui long, Addition |
+| Fin de service | 3 | le bouton de l'utilisateur, Fin de service, Fin de service (armé 5 s) |
+
 ### 7.2 - Boutons de paiement
 
 Présenter les méthodes de paiement comme des gros boutons côte-à-côte, pas une liste déroulante :
@@ -226,13 +282,25 @@ Total: €22.00
 Rendu monnaie: €3.00
 ```
 
-### 7.4 - Split payment
+### 7.4 - Partager l'addition (audit P3, P4, P6)
 
-Le système fait les calculs, le staff saisit seulement le nombre de parts. Afficher le solde restant après chaque paiement partiel : une seule ligne « Reste 12,30 € : » suivie des méthodes encore permises (Espèces, Carte…). Toucher une méthode la sélectionne avec le reste déjà saisi (espèces : exact arrondi), chaque part suivante est donc ce tap puis le bouton principal. Espèces reste présélectionné ; une fois une part payée en espèces, ce bouton disparaît (une seule part en espèces).
+Le système fait les calculs, le staff choisit seulement comment partager. Le partage reste UNE vente : un seul ticket N, plusieurs lignes de paiement, aucun événement de scission de table. Trois façons :
+
+- **Parts égales** : les boutons 2, 3, 4, ou « Autre » qui ouvre un pavé (2 à 20 parts). Les centimes qui restent vont aux premières parts. Quand la table a des couverts (§3.1), le bouton du même nombre est marqué, « N couverts » est rappelé et le pavé d'« Autre » commence à N ; la caisse ne partage jamais d'elle-même, une table payée d'un coup reste un seul geste.
+- **« Par plats »** : les lignes de la commande sont listées, chaque unité se met dans la part (une ligne de 3 peut donner 1 unité à une part). La part est la somme des unités choisies, les remises et les lignes offertes réparties au prorata, les centimes de reste sur les premières unités ; le bouton dit « Encaisser la part 1 · 18,40 € ». Les lignes déjà payées sont grisées. Les unités ne servent qu'à l'écran : rien n'en entre dans la requête signée.
+- Le nombre de parts est figé dès qu'une part est prise ; « Annuler les parts » rend la main, et « Retour à la commande » garde les parts déjà saisies (le panier affiche « Parts déjà saisies : N »).
+
+Après chaque part, une seule ligne « Reste 12,30 € : » suit, avec les méthodes encore permises (Espèces, Carte…). **La méthode de la part précédente reste choisie** pour la suivante, avec le reste déjà saisi : chaque part suivante est donc le seul bouton principal. Toucher une autre méthode de la ligne « Reste » la choisit.
+
+**Plusieurs parts en espèces.** La requête signée ne porte qu'UNE ligne de paiement en espèces, arrondie (description POS v2.2, §7.1 : les paiements en espèces « apparaissent comme une seule ligne de paiement sur le ticket, ARRONDIE », et le total des arrondis ne dépasse pas 2 centimes). L'écran laisse donc chaque ami payer en espèces avec son propre montant donné et son propre rendu, puis fusionne les contributions en cette ligne unique à la signature ; l'arrondi de 5 centimes est réparti pour que les montants dus s'additionnent exactement à la ligne arrondie. L'écran de fin montre le rendu de la dernière part en espèces.
 
 ### 7.5 - Arrondi cash
 
 L'arrondi belge (5 centimes) doit être automatique et visible. Afficher clairement le montant arrondi à côté du montant exact.
+
+### 7.6 - Bon cadeau : lecteur de code-barres (audit P7)
+
+Le bon cadeau imprimé (et son DUPLICATA) porte un code-barres CODE128 des 12 chiffres du code, sous le code en grand. Dans la fenêtre « Bon cadeau » du paiement, un lecteur USB en mode clavier (les chiffres puis Entrée) remplit le code et lance la recherche tout de suite, sans toucher « Chercher » ; taper sur le pavé marche toujours. Le code reste masqué à l'écran (`**** **** 9095`), un code lu qui n'a pas 12 chiffres est refusé avec un message, et les essais restent limités par le moteur (5 échecs par minute). Pendant que la fenêtre est ouverte, elle prend les lectures pour elle : un code-barres de bon n'est jamais pris pour un badge du personnel, et le lecteur marche même si le réglage des badges est coupé.
 
 ---
 
@@ -255,8 +323,8 @@ de connexion ouvrent la même fiche.
 
 - **Non-bloquantes** (warnings) : bandeau jaune en haut de l'écran, auto-dismiss après 10 secondes, ne bloque pas le flow.
 - **Bloquantes** (FDM déconnecté, buffer full) : voile semi-transparent sur les écrans de vente, **sous le header de 64 px** (Tables, Rapports, Config et Verrouiller restent accessibles), message clair, pas de moyen de contourner. Les ventes sont impossibles tant que le problème n'est pas résolu.
-- **Toasts** : en haut au centre, juste sous le header, 560 px au plus, empilés vers le bas, trois au maximum (les plus récents). Le conteneur ne prend jamais un tap : un tap traverse jusqu'à l'écran dessous. Info, succès et avertissement disparaissent seuls ; une **erreur reste jusqu'à ce qu'on la touche** (« Touchez pour fermer »), et c'est le seul élément qui prend le tap.
-- **Verrouillage pour inactivité** : le verrouillage automatique (5 minutes) appartient au moteur. 30 secondes avant, un bandeau ambre sous le header (et sous le bandeau de formation) annonce « Verrouillage dans 30 s · touchez l'écran pour rester connecté » avec un compte à rebours ; le moteur envoie l'événement `idle-lock-warning`, les deux interfaces ne font que compter ce qu'il annonce. Tout toucher compte comme activité et fait disparaître le bandeau. Après le verrouillage, l'écran de connexion garde la ligne « Caisse verrouillée après 5 min d'inactivité » au-dessus des tuiles jusqu'à la prochaine connexion. Une connexion mène directement à Tables.
+- **Toasts** : en haut au centre, juste sous le header, 560 px au plus, empilés vers le bas, trois au maximum (les plus récents). Le conteneur ne prend jamais un tap : un tap traverse jusqu'à l'écran dessous. Info, succès et avertissement disparaissent seuls ; une **erreur reste jusqu'à ce qu'on la touche** (« Touchez pour fermer »), et c'est le seul élément qui prend le tap. Un toast de succès peut porter un seul bouton (« Annuler » 5 s après un déplacement de table) ; il prend alors le tap sur ce bouton seulement.
+- **Verrouillage pour inactivité** : le verrouillage automatique (5 minutes) appartient au moteur. 30 secondes avant, un bandeau ambre sous le header (et sous le bandeau de formation) annonce « Verrouillage dans 30 s · touchez l'écran pour rester connecté » avec un compte à rebours ; le moteur envoie l'événement `idle-lock-warning`, les deux interfaces ne font que compter ce qu'il annonce. Tout toucher compte comme activité et fait disparaître le bandeau. Après le verrouillage, l'écran de connexion garde la ligne « Caisse verrouillée après 5 min d'inactivité » au-dessus des tuiles jusqu'à la prochaine connexion. Une connexion mène directement à Tables, sauf après un verrouillage pour inactivité : le même opérateur retrouve sa commande ouverte (jamais une commande en ligne à son paiement), un autre opérateur, un verrouillage manuel ou une commande fermée mènent à Tables (audit T6).
 
 ### 8.3 - Messages d'erreur
 
@@ -307,7 +375,7 @@ L'interface est en français par défaut, et passe en chinois (ou en anglais) da
 
 - **Pas de double-tap requis** pour aucune action courante
 - **Pas de swipe obligatoire** - toujours fournir un bouton alternatif pour les actions swipe
-- **Pas de long-press** comme seul moyen d'accéder à une fonction
+- **Pas de long-press** comme seul moyen d'accéder à une fonction. Le seul appui long de l'application est celui de la carte de table (500 ms, audit T7) : un raccourci vers « Ouvrir · Addition · Déplacer · Payer », qui existent tous sans lui (toucher la table, bouton Addition du panier, puce de table, PAYER). Un appui court fait l'action de toujours, il n'y a pas de menu contextuel, et un doigt qui glisse est un défilement, pas un appui long.
 - **Scroll** : inertie naturelle, scrollbar visible fine (4px), zone de scroll clairement délimitée
 - **Zone morte** de 16px en bordure d'écran (les touch panels sont moins précis sur les bords)
 

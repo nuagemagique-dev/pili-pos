@@ -310,7 +310,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | work_in | social::do_work_in | spawn | posEngine.workIn() |
 | work_out | social::do_work_out | spawn | posEngine.workOut() |
 
-Parity: 159/159.
+Parity: 164/164.
 <!-- parity:end -->
 
 ## 12. JVM tests, mocks and gates
