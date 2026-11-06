@@ -10,6 +10,8 @@ import {
   DEFAULT_MENU_ITEM,
   tapUserTile,
   loginAndGoto,
+  badgeInit,
+  scanBadge,
 } from './fixtures/mock-ipc'
 import { fillWithNumPad } from './fixtures/keypad'
 
@@ -604,5 +606,167 @@ test.describe('Gift vouchers in the reports', () => {
     await page.getByTestId('gv-filter-used').click()
     await expect(page.getByTestId('gv-empty')).toBeVisible()
     expect((await ipcCalls(page, 'list_gift_vouchers')).at(-1)).toEqual({ status: 'used' })
+  })
+})
+
+// A USB barcode reader in keyboard wedge mode (UX audit P7): the printed
+// voucher carries a CODE128 barcode of its code; scanning it fills the code
+// of the dialog, masked, and looks it up at once.
+test.describe('Scanning a gift voucher', () => {
+  const LINES = [{ ...DEFAULT_ORDER_LINE, id: 1, unit_price_cents: 4500 }]
+  const CODE = '123456789095'
+
+  async function toDialog(page: Page, extra: Record<string, unknown> = {}, usb = false) {
+    if (usb) await badgeInit(page, { settings: { reader: 'usb' } })
+    await toCheckout(page, LINES, {
+      get_order: () => ({ ...DEFAULT_ORDER, total_cents: 4500 }),
+      lookup_gift_voucher: live((args: any) => {
+        const w = window as any
+        w.__lookups = [...(w.__lookups ?? []), args.code]
+        return w.__voucher
+      }),
+      ...extra,
+    })
+    await page.evaluate((v) => {
+      ;(window as any).__voucher = v
+    }, VOUCHER)
+    if (usb)
+      await page.waitForFunction(() =>
+        (window as any).__ipcCalls.some((c: any) => c.cmd === 'get_badge_settings'),
+      )
+    await page.getByTestId('method-gift_voucher').click()
+    await expect(page.getByTestId('gv-dialog')).toBeVisible()
+  }
+
+  const lookups = (page: Page) => page.evaluate(() => (window as any).__lookups ?? [])
+
+  test('a scan fills the code, looks it up at once and shows the code masked', async ({ page }) => {
+    await toDialog(page)
+    await expect(page.getByTestId('gv-scan-hint')).toBeVisible()
+    await scanBadge(page, CODE)
+
+    await expect(page.getByTestId('gv-found')).toBeVisible()
+    await expect(page.getByTestId('gv-status')).toHaveText('Valide')
+    await expect(page.getByTestId('gv-amount')).toContainText('30,00')
+    // The 12 digits are never written out on the screen, only the last 4.
+    await expect(page.getByTestId('gv-code')).toHaveText('**** **** 9095')
+    await expect(page.getByTestId('gv-dialog')).not.toContainText('1234')
+    expect(await lookups(page)).toEqual([CODE])
+    // No tap on "Chercher" was needed: the voucher is ready to apply.
+    await expect(page.getByTestId('gv-apply')).toBeVisible()
+    await page.getByTestId('gv-apply').click()
+    await expect(page.locator('.paid-part').nth(0)).toContainText('**** **** 9095')
+    await page.locator('.cash-btn').click()
+    await page.locator('.shortcut.exact').click()
+    await page.locator('.validate-btn').click()
+    await expect(page.locator('.success-icon')).toBeVisible()
+    expect((await ipcCalls(page, 'checkout'))[0].payments).toEqual([
+      { method: 'gift_voucher', amount_cents: 3000, gift_voucher_id: 7 },
+      { method: 'cash' },
+    ])
+  })
+
+  test('the keys of a scan never reach the page and Enter does not tap the focused button', async ({
+    page,
+  }) => {
+    await toDialog(page)
+    await page.getByTestId('gv-cancel').focus()
+    await scanBadge(page, CODE)
+    await expect(page.getByTestId('gv-found')).toBeVisible()
+    // Enter would have clicked the focused "Retour" and closed the dialog.
+    await expect(page.getByTestId('gv-dialog')).toBeVisible()
+  })
+
+  test('a scan works with the badge reader on, and is not taken for a badge', async ({ page }) => {
+    await toDialog(page, {}, true)
+    await scanBadge(page, CODE)
+    await expect(page.getByTestId('gv-found')).toBeVisible()
+    expect(await lookups(page)).toEqual([CODE])
+    expect(await ipcCalls(page, 'badge_tap')).toEqual([])
+  })
+
+  test('the badge reader gets the scans back when the dialog closes', async ({ page }) => {
+    await toDialog(page, {}, true)
+    await page.getByTestId('gv-cancel').click()
+    await expect(page.getByTestId('gv-dialog')).toHaveCount(0)
+    await scanBadge(page, '04A1B2C3')
+    await expect
+      .poll(() => ipcCalls(page, 'badge_tap'))
+      .toEqual([{ token: '04A1B2C3', endShift: false }])
+    expect(await lookups(page)).toEqual([])
+  })
+
+  test('with the reader off, a burst outside the dialog looks nothing up', async ({ page }) => {
+    await toCheckout(page, LINES, {
+      lookup_gift_voucher: live(() => {
+        ;(window as any).__looked = true
+        return null
+      }),
+    })
+    await scanBadge(page, CODE)
+    expect(await page.evaluate(() => (window as any).__looked ?? false)).toBe(false)
+  })
+
+  test('a barcode that is not a voucher code is refused with a message', async ({ page }) => {
+    await toDialog(page)
+    await scanBadge(page, '5412345678900')
+    await expect(page.getByTestId('gv-error')).toContainText('pas un bon cadeau')
+    await expect(page.getByTestId('gv-code')).toHaveText('')
+    expect(await lookups(page)).toEqual([])
+    // The pad still works afterwards.
+    await page.locator('.numpad .key', { hasText: /^7$/u }).click()
+    await expect(page.getByTestId('gv-code')).toHaveText('7')
+    await expect(page.getByTestId('gv-error')).toHaveCount(0)
+  })
+
+  test('slow typing is not a scan', async ({ page }) => {
+    await toDialog(page)
+    await page.keyboard.type(CODE, { delay: 220 })
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('gv-found')).toHaveCount(0)
+    await expect(page.getByTestId('gv-code')).toHaveText('')
+    expect(await lookups(page)).toEqual([])
+  })
+
+  test('typing on the pad still works, and typing after a scan starts a new code', async ({
+    page,
+  }) => {
+    await toDialog(page)
+    for (const d of '1234')
+      await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`, 'u') }).click()
+    await expect(page.getByTestId('gv-code')).toHaveText('1234')
+    await scanBadge(page, CODE)
+    await expect(page.getByTestId('gv-code')).toHaveText('**** **** 9095')
+    await page.locator('.numpad .key', { hasText: /^8$/u }).click()
+    await expect(page.getByTestId('gv-code')).toHaveText('8')
+    await expect(page.getByTestId('gv-found')).toHaveCount(0)
+    await expect(page.getByTestId('gv-lookup')).toBeDisabled()
+  })
+
+  test('an unknown code is shown, and the next scan looks again', async ({ page }) => {
+    await toDialog(page, {
+      lookup_gift_voucher: live((args: any) => {
+        const w = window as any
+        w.__lookups = [...(w.__lookups ?? []), args.code]
+        if (args.code.endsWith('0')) throw 'gift_voucher_not_found'
+        return w.__voucher
+      }),
+    })
+    await scanBadge(page, '123456789010')
+    await expect(page.getByTestId('gv-error')).toBeVisible()
+    await expect(page.getByTestId('gv-apply')).toHaveCount(0)
+    await scanBadge(page, CODE)
+    await expect(page.getByTestId('gv-found')).toBeVisible()
+    await expect(page.getByTestId('gv-error')).toHaveCount(0)
+    expect(await lookups(page)).toEqual(['123456789010', CODE])
+  })
+
+  test('a second scan of the voucher already found asks the engine nothing', async ({ page }) => {
+    await toDialog(page)
+    await scanBadge(page, CODE)
+    await expect(page.getByTestId('gv-found')).toBeVisible()
+    await scanBadge(page, CODE)
+    await page.waitForTimeout(150)
+    expect(await lookups(page)).toEqual([CODE])
   })
 })

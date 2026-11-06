@@ -1,6 +1,7 @@
 import { onUnmounted, watch } from 'vue'
 import { useBadgeStore } from '../stores/badge'
 import { WedgeDetector } from '../utils/badgeWedge'
+import { scansClaimed } from '../utils/scanClaim'
 
 /** Type `text` into the focused text field, at the caret, as the keys
  * would have: a held key that turned out to be typing is replayed here.
@@ -59,6 +60,8 @@ export function useBadgeReader(onReplay?: () => void) {
 
   function onKeyDown(e: KeyboardEvent) {
     if (e.isComposing) return
+    // A screen that claimed the scans (the gift voucher dialog) reads them itself.
+    if (scansClaimed()) return
     const r = detector.onKey({
       code: e.code,
       key: e.key,

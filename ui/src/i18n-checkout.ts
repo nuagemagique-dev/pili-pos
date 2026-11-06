@@ -191,6 +191,16 @@ export const checkoutMessages: Messages = {
     en: 'Voucher code (12 digits)',
     zh: '礼品券编号（12位）',
   },
+  gv_scan_hint: {
+    fr: 'ou scannez le code-barres du bon',
+    en: 'or scan the barcode of the voucher',
+    zh: '或扫描礼品券上的条形码',
+  },
+  gv_scan_invalid: {
+    fr: "Ce code-barres n'est pas un bon cadeau (12 chiffres attendus)",
+    en: 'This barcode is not a gift voucher (12 digits expected)',
+    zh: '此条形码不是礼品券（应为12位数字）',
+  },
   gv_lookup: { fr: 'Chercher', en: 'Look up', zh: '查询' },
   gv_balance: { fr: 'Solde', en: 'Balance', zh: '余额' },
   gv_expires: { fr: "Valable jusqu'au {date}", en: 'Valid until {date}', zh: '有效期至 {date}' },
