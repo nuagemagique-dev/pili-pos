@@ -486,6 +486,7 @@ function selectSplit(n: number) {
  * paid in one go stays one tap. */
 const coversSplit = computed(() => {
   const n = order.covers
+  if (order.currentOrder?.order_type !== 'dine_in') return null
   return n !== null && n >= SPLIT_OTHER_MIN && n <= SPLIT_OTHER_MAX ? n : null
 })
 const coversLabel = computed(() =>
