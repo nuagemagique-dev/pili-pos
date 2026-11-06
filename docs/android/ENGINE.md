@@ -170,6 +170,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `get_categories` | `menu` | `commands::menu::do_get_categories` | sync |
 | `get_course_settings` | `courses` | `commands::courses::do_get_course_settings` | sync |
 | `get_current_user` | `auth` | `commands::auth::do_get_current_user` | sync |
+| `get_favourites_settings` | `favourites` | `commands::favourites::do_get_favourites_settings` | sync |
 | `get_gift_voucher_settings` | `gift_vouchers` | `commands::gift_vouchers::do_get_gift_voucher_settings` | sync |
 | `get_integrations` | `integrations` | `commands::integrations::do_get_integrations` | sync |
 | `get_item_modifiers` | `modifiers` | `commands::modifiers::do_get_item_modifiers_localized` | sync |
@@ -204,6 +205,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `list_cart_lines` | `order` | `commands::order::do_list_cart_lines` | sync |
 | `list_copyable_tickets` | `copy` | `commands::copy::do_list_copyable_tickets` | sync |
 | `list_eft_payments` | `eft` | `commands::eft::do_list_eft_payments` | sync |
+| `list_favourites` | `favourites` | `commands::favourites::do_list_favourites` | sync |
 | `list_fiscal_events` | `copy` | `commands::copy::do_list_fiscal_events` | sync |
 | `list_gift_vouchers` | `gift_vouchers` | `commands::gift_vouchers::do_list_gift_vouchers` | sync |
 | `list_held_courses` | `courses` | `commands::courses::do_list_held_courses` | sync |
@@ -263,6 +265,8 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `set_allergens` | `allergens` | `commands::allergens::do_set_allergens` | sync |
 | `set_badge_settings` | `badges` | `commands::badges::do_set_badge_settings` | sync |
 | `set_course_settings` | `courses` | `commands::courses::do_set_course_settings` | sync |
+| `set_favourite` | `favourites` | `commands::favourites::do_set_favourite` | sync |
+| `set_favourites_settings` | `favourites` | `commands::favourites::do_set_favourites_settings` | sync |
 | `set_gift_voucher_settings` | `gift_vouchers` | `commands::gift_vouchers::do_set_gift_voucher_settings` | sync |
 | `set_hubrise_enabled` | `integrations` | `commands::integrations::do_set_hubrise_enabled` | sync |
 | `set_line_course` | `courses` | `commands::courses::do_set_line_course` | sync |

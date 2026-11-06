@@ -182,6 +182,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | get_categories | menu::do_get_categories | blocking | posEngine.getCategories() |
 | get_course_settings | courses::do_get_course_settings | blocking | posEngine.getCourseSettings() |
 | get_current_user | auth::do_get_current_user | blocking | posEngine.getCurrentUser() |
+| get_favourites_settings | favourites::do_get_favourites_settings | blocking | posEngine.getFavouritesSettings() |
 | get_gift_voucher_settings | gift_vouchers::do_get_gift_voucher_settings | blocking | posEngine.getGiftVoucherSettings() |
 | get_integrations | integrations::do_get_integrations | blocking | posEngine.getIntegrations() |
 | get_item_modifiers | modifiers::do_get_item_modifiers_localized | blocking | posEngine.getItemModifiers() |
@@ -216,6 +217,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | list_cart_lines | order::do_list_cart_lines | blocking | posEngine.listCartLines() |
 | list_copyable_tickets | copy::do_list_copyable_tickets | blocking | posEngine.listCopyableTickets() |
 | list_eft_payments | eft::do_list_eft_payments | blocking | posEngine.listEftPayments() |
+| list_favourites | favourites::do_list_favourites | blocking | posEngine.listFavourites() |
 | list_fiscal_events | copy::do_list_fiscal_events | blocking | posEngine.listFiscalEvents() |
 | list_gift_vouchers | gift_vouchers::do_list_gift_vouchers | blocking | posEngine.listGiftVouchers() |
 | list_held_courses | courses::do_list_held_courses | blocking | posEngine.listHeldCourses() |
@@ -275,6 +277,8 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | set_allergens | allergens::do_set_allergens | blocking | posEngine.setAllergens() |
 | set_badge_settings | badges::do_set_badge_settings | blocking | posEngine.setBadgeSettings() |
 | set_course_settings | courses::do_set_course_settings | blocking | posEngine.setCourseSettings() |
+| set_favourite | favourites::do_set_favourite | blocking | posEngine.setFavourite() |
+| set_favourites_settings | favourites::do_set_favourites_settings | blocking | posEngine.setFavouritesSettings() |
 | set_gift_voucher_settings | gift_vouchers::do_set_gift_voucher_settings | blocking | posEngine.setGiftVoucherSettings() |
 | set_hubrise_enabled | integrations::do_set_hubrise_enabled | blocking | posEngine.setHubriseEnabled() |
 | set_line_course | courses::do_set_line_course | blocking | posEngine.setLineCourse() |
