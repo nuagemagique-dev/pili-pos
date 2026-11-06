@@ -82,7 +82,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | components/TicketMediumPicker.vue | ui/components/TicketMediumPicker.kt | - |
 | components/EmailKeypad.vue | ui/components/EmailKeypad.kt | - |
 | components/DeliveryOutcomePanel.vue | ui/components/DeliveryOutcomePanel.kt | - |
-| checkout and refund arithmetic of views/CheckoutView.vue and views/ReportsView.vue (UI-PD306) | ui/format/CashDisplay.kt | - |
+| checkout and refund arithmetic of views/CheckoutView.vue and views/ReportsView.vue (UI-PD306), the split by dishes of utils/dishSplit.ts (`unitShares`, `lineNetCents`) | ui/format/CashDisplay.kt, feature/checkout/DishSplit.kt | - |
 | stores/webshopOrders.ts | ui/state/WebshopOrdersStore.kt | `hubrise_list_webshop_orders` `webshop_accept_order` `webshop_reject_order` `hubrise_patch_order_status` `hubrise_set_confirmed_time` `webshop_handover_order` `webshop_complete_order` `webshop_refund_order` `webshop_close_cancelled_order` `print_webshop_kitchen` `print_webshop_customer` |
 | composables/useOrderChime.ts | ui/feedback/OrderChime.kt | - |
 | router/index.ts leave guard | ui/scaffold/HeaderActions.kt and OrderStore.leaveIfActive | `leave_order` |
