@@ -19,6 +19,7 @@ import PinDialog from './PinDialog.vue'
 import FdmAlerts from './FdmAlerts.vue'
 import TrainingBanner from './TrainingBanner.vue'
 import IdleLockBanner from './IdleLockBanner.vue'
+import TableMover from './TableMover.vue'
 
 // While HubRise runs, or online orders are still to settle.
 const OnlineOrdersNavButton = defineAsyncComponent(() => import('./OnlineOrdersNavButton.vue'))
@@ -49,6 +50,10 @@ const tablesActive = computed(() => route.name === 'tables' || orderType.value =
 const takeawayActive = computed(() => orderType.value === 'takeaway')
 
 const roleLabel = computed(() => (auth.currentUser ? t(`role_${auth.currentUser.role}`) : ''))
+
+// UX audit C8: the table chip is the way to move the order to another table.
+const canMoveTable = computed(() => order.canTransfer)
+const moving = ref(false)
 
 // The operator changing their own PIN (tap on their name).
 const pinOpen = ref(false)
@@ -104,9 +109,22 @@ async function lock() {
       <span class="user-name">{{ auth.currentUser?.name }}</span>
       <span class="user-role">{{ roleLabel }} · PIN</span>
     </button>
-    <span v-if="tableNumber" class="header-table">{{ t('table') }} {{ tableNumber }}</span>
+    <button
+      v-if="tableNumber && canMoveTable"
+      class="header-table header-table-btn"
+      data-testid="header-table"
+      :aria-label="`${t('transfer_table')} · ${t('table')} ${tableNumber}`"
+      @click="moving = true"
+    >
+      {{ t('table') }} {{ tableNumber }}
+    </button>
+    <span v-else-if="tableNumber" class="header-table" data-testid="header-table"
+      >{{ t('table') }} {{ tableNumber }}</span
+    >
     <span v-else-if="takeawayActive" class="header-takeaway">{{ t('takeaway_badge') }}</span>
     <span class="header-clock">{{ clock }}</span>
+
+    <TableMover v-if="moving" @close="moving = false" />
 
     <nav class="header-nav">
       <div class="segmented">
@@ -216,6 +234,15 @@ async function lock() {
   display: flex;
   align-items: center;
   white-space: nowrap;
+}
+/* A table that can move is a button: 48 px high, same Brume outline. */
+.header-table-btn {
+  height: 48px;
+  background: transparent;
+  color: var(--text-primary);
+}
+.header-table-btn:active {
+  transform: scale(var(--tap-scale));
 }
 /* Takeaway: amber, so staff see at a glance it is not a seated order. */
 .header-takeaway {

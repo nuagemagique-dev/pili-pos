@@ -39,4 +39,18 @@ class ToastOverlayScreenshotTest {
         }
         rule.onRoot().captureRoboImage("src/test/screenshots/components/toast_variants.png")
     }
+
+    /** The toast after a table move: the message and its "Annuler" button. */
+    @Test
+    fun toastWithAction() {
+        val toasts = listOf(Toast(1L, "Table 4 déplacée en 9", ToastVariant.Success, ToastAction("Annuler") {}))
+        rule.setContent {
+            PiliTheme {
+                Box(Modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary)) {
+                    ToastStack(toasts, onDismiss = {}, tapToCloseText = "Touchez pour fermer")
+                }
+            }
+        }
+        rule.onRoot().captureRoboImage("src/test/screenshots/components/toast_action.png")
+    }
 }

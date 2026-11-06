@@ -12,7 +12,7 @@ import { formatTimestamp, formatTime, minutesSince } from '../utils/datetime'
 import OrderLineItem from './OrderLineItem.vue'
 import VatSummary from './VatSummary.vue'
 import PinDialog from './PinDialog.vue'
-import TablePickerDialog from './TablePickerDialog.vue'
+import TableMover from './TableMover.vue'
 import DiscountDialog from './DiscountDialog.vue'
 import NoteDialog from './NoteDialog.vue'
 import CartMoreMenu from './CartMoreMenu.vue'
@@ -233,46 +233,9 @@ async function printPreBill() {
 }
 
 // Move the order to another table (event P, cost center change): the
-// free tables of the plan, current one left out.
-const canTransfer = computed(
-  () =>
-    isDineIn.value &&
-    order.currentOrder?.status === 'open' &&
-    order.currentOrder.table_number !== null &&
-    order.lines.length > 0,
-)
+// picker sheet and the one-tap move are TableMover's (C8).
+const canTransfer = computed(() => order.canTransfer)
 const picking = ref(false)
-const freeTables = ref<ipc.TableInfo[]>([])
-const transferring = ref(false)
-
-async function openTablePicker() {
-  if (!canTransfer.value || transferring.value) return
-  try {
-    const current = order.currentOrder?.table_number
-    freeTables.value = (await ipc.listTables()).filter(
-      (tbl) => tbl.status === 'free' && tbl.tableNumber !== current,
-    )
-  } catch (e) {
-    toast.show(describeError(e), 'error', 5000)
-    return
-  }
-  picking.value = true
-}
-
-async function transferTo(toTable: number) {
-  if (transferring.value) return
-  transferring.value = true
-  try {
-    await order.transferTable(toTable)
-    picking.value = false
-    toast.show(t('transfer_done', { to: toTable }), 'success')
-  } catch (e) {
-    picking.value = false
-    toast.show(describeError(e), 'error', 6000)
-  } finally {
-    transferring.value = false
-  }
-}
 
 // Kitchen note of a line: any staff member, on an open order. The dialog
 // says whether the note prints now (the line already went to the kitchen)
@@ -558,20 +521,14 @@ async function onUnpaidClosed() {
       :can-discount="canDiscount"
       :order-discounted="order.orderDiscounted"
       :can-close-unpaid="canCloseUnpaid"
-      @transfer="fromMore(openTablePicker)"
+      @transfer="fromMore(() => (picking = true))"
       @discount="fromMore(() => (discountStep = { kind: 'ask', lineId: null }))"
       @discount-remove="fromMore(() => (discountStep = { kind: 'pin-remove', lineId: null }))"
       @unpaid="fromMore(() => (confirmUnpaid = true))"
       @cancel="moreOpen = false"
     />
 
-    <TablePickerDialog
-      v-if="picking && order.currentOrder?.table_number != null"
-      :tables="freeTables"
-      :from="order.currentOrder.table_number"
-      @confirm="transferTo"
-      @cancel="picking = false"
-    />
+    <TableMover v-if="picking" @close="picking = false" />
 
     <NoteDialog
       v-if="noteLine"

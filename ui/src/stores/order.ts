@@ -36,6 +36,9 @@ async function reported(action: () => Promise<void>): Promise<boolean> {
   }
 }
 
+/** How long the "Annuler" of a table move stays on screen (UX audit C8). */
+export const MOVE_UNDO_TTL_MS = 5000
+
 /** An add to the cart: the line it went to and the units it gave. `seq` grows with each one. */
 export interface LineAdd {
   seq: number
@@ -78,6 +81,17 @@ export const useOrderStore = defineStore('order', () => {
   const unsentCount = computed(() =>
     lines.value.reduce((sum, line) => sum + Math.max(0, line.unsent_quantity ?? 0), 0),
   )
+
+  /** A dine-in order that holds lines may move to another table. */
+  const canTransfer = computed(
+    () =>
+      currentOrder.value?.order_type === 'dine_in' &&
+      currentOrder.value.status === 'open' &&
+      currentOrder.value.table_number !== null &&
+      lines.value.length > 0,
+  )
+  // Counts the table moves signed (a move and its undo): the Tables screen reads the plan again on each.
+  const tableMoves = ref(0)
 
   async function startOrder(tableNumber: number | null) {
     const auth = useAuthStore()
@@ -401,14 +415,33 @@ export const useOrderStore = defineStore('order', () => {
       markAllSent()
       currentOrder.value = await ipc.getOrder(orderId)
     }
+    tableMoves.value++
     return result
   }
 
-  /** Move the order on screen to a free table. */
-  async function transferTable(toTable: number) {
-    if (!currentOrder.value) throw new Error('No active order')
-    const result = await transferOrder(currentOrder.value.id, toTable)
+  /** UX audit C8: the move in one tap. The order goes to the free table `to` at
+   * once (no confirmation); a toast "Table 4 déplacée en 9" stays 5 s with an
+   * "Annuler" that moves it back, a second transfer signed like any other.
+   * A refusal is thrown for the caller's toast. */
+  async function moveTable(orderId: number, from: number, to: number) {
+    const result = await transferOrder(orderId, to)
+    const { t } = useI18n()
+    useToastStore().showWithAction(
+      t('transfer_moved', { from, to }),
+      { label: t('transfer_undo'), run: () => undoMove(orderId, from, to) },
+      MOVE_UNDO_TTL_MS,
+    )
     return result
+  }
+
+  async function undoMove(orderId: number, from: number, to: number) {
+    const { t } = useI18n()
+    try {
+      await transferOrder(orderId, from)
+      useToastStore().show(t('transfer_moved', { from: to, to: from }), 'success')
+    } catch (e) {
+      useToastStore().show(describeError(e), 'error', 6000)
+    }
   }
 
   /** Take the engine's view of the order again after a discount: the
@@ -508,7 +541,9 @@ export const useOrderStore = defineStore('order', () => {
     leave,
     preBill,
     transferOrder,
-    transferTable,
+    moveTable,
+    canTransfer,
+    tableMoves,
     applyDiscount,
     removeDiscount,
     closeUnpaid,

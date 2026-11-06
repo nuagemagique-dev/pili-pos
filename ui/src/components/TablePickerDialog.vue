@@ -1,52 +1,56 @@
 <script setup lang="ts">
-// The free tables of the plan, to move an order to one of them.
-// Tapping a table selects it; "Valider" asks for the move.
-import { ref } from 'vue'
+// The table picker sheet (UX audit C8): every other table of the plan, to
+// move the open order. A free table is one tap and the move happens at
+// once (no "Valider"); a busy one is dimmed, disabled and shows its total.
 import type { TableInfo } from '../api/ipc'
 import { useI18n } from '../i18n'
+import { formatPrice } from '../utils/format'
 
 defineProps<{
-  /** The tables the order can move to (free ones, the current one left out). */
+  /** The tables of the plan except the one the order is on. */
   tables: TableInfo[]
   /** The table the order is on now. */
   from: number
 }>()
 
 const emit = defineEmits<{
-  confirm: [tableNumber: number]
+  pick: [tableNumber: number]
   cancel: []
 }>()
 
 const { t } = useI18n()
-const selected = ref<number | null>(null)
 </script>
 
 <template>
   <div class="backdrop" @click.self="emit('cancel')">
     <div class="dialog" role="dialog" :aria-label="t('transfer_table')" data-testid="table-picker">
       <h2 class="title">{{ t('transfer_table') }} · {{ t('table') }} {{ from }}</h2>
-      <p class="hint">{{ tables.length ? t('transfer_pick_target') : t('transfer_no_free') }}</p>
+      <p class="hint">
+        {{
+          tables.some((tbl) => tbl.status === 'free')
+            ? t('transfer_pick_target')
+            : t('transfer_no_free')
+        }}
+      </p>
       <div class="grid scroll-touch">
         <button
           v-for="tbl in tables"
           :key="tbl.tableNumber"
           class="pick"
-          :class="{ selected: selected === tbl.tableNumber }"
+          :class="{ busy: tbl.status !== 'free' }"
+          :disabled="tbl.status !== 'free'"
           :data-testid="`pick-table-${tbl.tableNumber}`"
-          @click="selected = tbl.tableNumber"
+          @click="emit('pick', tbl.tableNumber)"
         >
-          {{ tbl.tableNumber }}
+          <span class="pick-num">{{ tbl.tableNumber }}</span>
+          <span v-if="tbl.status !== 'free'" class="pick-total"
+            >{{ formatPrice(tbl.totalCents) }} €</span
+          >
         </button>
       </div>
       <div class="actions">
-        <button class="btn btn-cancel" @click="emit('cancel')">{{ t('back') }}</button>
-        <button
-          class="btn btn-confirm"
-          :disabled="selected === null"
-          data-testid="transfer-confirm"
-          @click="selected !== null && emit('confirm', selected)"
-        >
-          {{ t('validate') }}
+        <button class="btn btn-cancel" data-testid="transfer-cancel" @click="emit('cancel')">
+          {{ t('back') }}
         </button>
       </div>
     </div>
@@ -90,22 +94,33 @@ const selected = ref<number | null>(null)
 }
 .pick {
   height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-md);
   background: var(--bg-surface);
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 28px;
   font-weight: var(--font-weight-bold);
   border: 2px solid transparent;
   transition: transform var(--tap-duration) ease;
 }
-.pick:active {
+.pick:active:not(:disabled) {
   transform: scale(var(--tap-scale));
 }
-.pick.selected {
-  border-color: var(--accent-primary);
-  background: var(--accent-primary);
-  color: var(--text-on-accent);
+.pick-num {
+  font-size: 28px;
+  line-height: 1.1;
+}
+/* A busy table: dimmed, never tappable, its total in small type. */
+.pick.busy {
+  opacity: 0.4;
+}
+.pick-total {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 .actions {
   display: flex;
@@ -126,12 +141,5 @@ const selected = ref<number | null>(null)
 .btn-cancel {
   background: var(--bg-surface);
   color: var(--text-secondary);
-}
-.btn-confirm {
-  background: var(--accent-primary);
-  color: var(--text-on-accent);
-}
-.btn-confirm:disabled {
-  opacity: 0.4;
 }
 </style>

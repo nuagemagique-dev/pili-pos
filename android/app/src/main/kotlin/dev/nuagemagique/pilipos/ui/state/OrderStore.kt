@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -88,6 +89,7 @@ class OrderStore
         private val categories = ConcurrentHashMap<Long, Long>()
         private val mutex = Mutex()
         private val mutableLastAdd = MutableStateFlow<LineAdd?>(null)
+        private val mutableTableMoves = MutableStateFlow(0)
         private val addSeq = AtomicLong()
 
         // Bumped by resetLocal(). An operation reads it before it talks to the engine and publishes only while it is
@@ -103,6 +105,12 @@ class OrderStore
          * flash of its cart line follow it. Null after a reset.
          */
         val lastAdd: StateFlow<LineAdd?> = mutableLastAdd.asStateFlow()
+
+        /**
+         * How many table moves were signed (a move and its undo each count): the tables screen reads the plan again
+         * when it changes (`tableMoves` of `ui/src/stores/order.ts`).
+         */
+        val tableMoves: StateFlow<Int> = mutableTableMoves.asStateFlow()
 
         /** The lines of [current], as the engine lists them. */
         val lines: StateFlow<List<CartLine>> = mutableLines.asStateFlow()
@@ -390,6 +398,7 @@ class OrderStore
                 warnIfSlipFailed(result.kitchenSlip)
                 warnIfSlipFailed(result.transferSlip)
                 if (mutableCurrent.value?.id == orderId) refresh(orderId)
+                mutableTableMoves.update { it + 1 }
                 result
             }
 

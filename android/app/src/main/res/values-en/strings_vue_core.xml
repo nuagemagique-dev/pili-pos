@@ -253,12 +253,12 @@
     <string name="cart_more_title">More actions</string>
     <string name="cart_more_close">Close</string>
     <string name="sent_to_kitchen">Sent to the kitchen · {n} items</string>
-    <string name="transfer_table">Change table</string>
+    <string name="transfer_table">Move</string>
     <string name="transfer_pick_target">Pick the free table</string>
     <string name="transfer_no_free">No free table</string>
-    <string name="transfer_confirm">Move table {from} to table {to}?</string>
-    <string name="transfer_done">Order moved to table {to}</string>
-    <string name="transfer_mode">Move a table</string>
+    <string name="transfer_moved">Table {from} moved to {to}</string>
+    <string name="transfer_undo">Undo</string>
+    <string name="transfer_mode">Move</string>
     <string name="transfer_pick_source">Tap the table to move</string>
     <string name="transfer_pick_free">Table {from}: tap the free table</string>
     <string name="discount_button">Discount</string>

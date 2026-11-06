@@ -10,6 +10,7 @@ import dev.nuagemagique.pilipos.feature.webshop.WebshopRoutes
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.state.IdleWarning
+import dev.nuagemagique.pilipos.ui.state.TableMoves
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -22,7 +23,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.Order
+import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
+import uniffi.pos_ffi.TableInfo
 import uniffi.pos_ffi.User
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -53,6 +56,12 @@ internal data class HeaderUiState(
     val pinOpen: Boolean = false,
     /** The engine's warning that the idle lock is near (UX audit L4), or null. */
     val idleWarning: IdleWarning? = null,
+    /** The open dine-in order on screen is on a table (the lines are checked apart): it may move. */
+    val tableOpen: Boolean = false,
+    /** The table chip is a button (UX audit C8): the order is dine-in, open, and holds lines. */
+    val canMoveTable: Boolean = false,
+    /** The other tables of the plan while the table picker is open, else null. */
+    val tablePicker: List<TableInfo>? = null,
 ) {
     /** The Tables button is the active one (`tablesActive`). */
     val tablesActive: Boolean get() = area == HeaderArea.TABLES || dineInOrder
@@ -78,6 +87,8 @@ internal class HeaderViewModel(
     private val session = entry.session()
     private val order = entry.order()
     private val pinOpen = MutableStateFlow(false)
+    private val tablePicker = MutableStateFlow<List<TableInfo>?>(null)
+    private val tableMoves = TableMoves(order, entry.toasts(), entry.catalog(), entry.settings(), entry.errors())
     private val effectChannel = Channel<HeaderEffect>(Channel.BUFFERED)
 
     // One action at a time: a second tap while the first still talks to the engine is ignored.
@@ -93,19 +104,42 @@ internal class HeaderViewModel(
                 entry.integrations().hubriseVisible,
                 entry.webshop().pendingCount,
             ) { user, manager, current, hubrise, pending -> build(user, manager, current, hubrise, pending) },
-            pinOpen,
+            combine(pinOpen, tablePicker, order.lines) { pin, picker, lines -> Triple(pin, picker, lines.isNotEmpty()) },
             session.idleWarning,
-        ) { base, pin, warning -> base.copy(pinOpen = pin && base.roleKey != null, idleWarning = warning) }
+        ) { base, (pin, picker, hasLines), warning -> overlay(base, pin, picker, hasLines, warning) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, initialState())
 
     private fun initialState(): HeaderUiState =
-        build(
-            session.currentUser.value,
-            session.isManager.value,
-            order.current.value,
-            entry.integrations().hubriseVisible.value,
-            entry.webshop().pendingCount.value,
-        ).let { it.copy(pinOpen = pinOpen.value && it.roleKey != null, idleWarning = session.idleWarning.value) }
+        overlay(
+            build(
+                session.currentUser.value,
+                session.isManager.value,
+                order.current.value,
+                entry.integrations().hubriseVisible.value,
+                entry.webshop().pendingCount.value,
+            ),
+            pinOpen.value,
+            tablePicker.value,
+            order.lines.value.isNotEmpty(),
+            session.idleWarning.value,
+        )
+
+    /** What does not come from the order: the open dialogs, the lines, the idle warning. */
+    private fun overlay(
+        base: HeaderUiState,
+        pin: Boolean,
+        picker: List<TableInfo>?,
+        hasLines: Boolean,
+        warning: IdleWarning?,
+    ): HeaderUiState {
+        val movable = base.tableOpen && hasLines
+        return base.copy(
+            pinOpen = pin && base.roleKey != null,
+            idleWarning = warning,
+            canMoveTable = movable,
+            tablePicker = if (movable) picker else null,
+        )
+    }
 
     /** One-shot moves, each delivered once. */
     val effects: Flow<HeaderEffect> = effectChannel.receiveAsFlow()
@@ -118,6 +152,7 @@ internal class HeaderViewModel(
         pending: Int,
     ): HeaderUiState {
         val onOrder = area.holdsOrder && current != null
+        val dineIn = onOrder && current?.orderType == OrderType.DINE_IN
         return HeaderUiState(
             area = area,
             userName = user?.name.orEmpty(),
@@ -126,6 +161,7 @@ internal class HeaderViewModel(
             tableNumber = if (onOrder && current?.orderType == OrderType.DINE_IN) current.tableNumber else null,
             takeawayOrder = onOrder && current?.orderType == OrderType.TAKEAWAY,
             dineInOrder = onOrder && current?.orderType == OrderType.DINE_IN,
+            tableOpen = dineIn && current?.tableNumber != null && current.status == OrderStatus.OPEN,
             hubriseVisible = hubrise,
             pendingOrders = pending,
         )
@@ -234,6 +270,41 @@ internal class HeaderViewModel(
 
     /** The screen text of a refusal, in the language of the till. */
     fun describeError(error: Throwable): String = entry.errors().text(error, language())
+
+    // ── Moving the table (UX audit C8) ────────────────────────────
+
+    /**
+     * The tap on the table chip (`TableMover.vue`): reads the plan and opens the picker with the other tables. A
+     * refusal to read it is shown as an error toast and nothing opens.
+     */
+    fun openTablePicker() {
+        val from = state.value.tableNumber ?: return
+        if (!state.value.canMoveTable) return
+        runOnce {
+            attempt { entry.gateway().call { engine -> engine.listTables() } }.fold(
+                onSuccess = { tables -> tablePicker.value = tables.filter { it.tableNumber != from } },
+                onFailure = { entry.errors().show(it, language()) },
+            )
+        }
+    }
+
+    /** Closes the table picker without moving anything. */
+    fun closeTablePicker() {
+        tablePicker.value = null
+    }
+
+    /** The free table tapped in the picker: the order moves there at once, the toast offers "Annuler". */
+    fun pickTable(toTable: Int) {
+        val current = order.current.value
+        val from = current?.tableNumber
+        tablePicker.value = null
+        if (current == null || from == null) return
+        runOnce {
+            attempt { tableMoves.move(current.id, from, toTable) }.onFailure {
+                entry.errors().show(it, language(), null, REGISTER_FAILED_TOAST_MS)
+            }
+        }
+    }
 
     // ── Helpers ───────────────────────────────────────────────────
 

@@ -253,12 +253,12 @@
     <string name="cart_more_title">更多操作</string>
     <string name="cart_more_close">关闭</string>
     <string name="sent_to_kitchen">已送厨房 · {n} 件</string>
-    <string name="transfer_table">换桌</string>
+    <string name="transfer_table">移动</string>
     <string name="transfer_pick_target">请选择空桌</string>
     <string name="transfer_no_free">没有空桌</string>
-    <string name="transfer_confirm">将 {from} 号桌移到 {to} 号桌？</string>
-    <string name="transfer_done">订单已移到 {to} 号桌</string>
-    <string name="transfer_mode">移动桌子</string>
+    <string name="transfer_moved">{from} 号桌已移到 {to} 号桌</string>
+    <string name="transfer_undo">撤销</string>
+    <string name="transfer_mode">移动</string>
     <string name="transfer_pick_source">点按要移动的桌子</string>
     <string name="transfer_pick_free">{from} 号桌：点按空桌</string>
     <string name="discount_button">折扣</string>

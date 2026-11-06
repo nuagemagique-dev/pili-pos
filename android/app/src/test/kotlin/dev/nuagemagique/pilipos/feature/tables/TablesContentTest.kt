@@ -33,8 +33,6 @@ class TablesContentTest {
             onTakeaway = { tapped += "takeaway:${it.orderId}" },
             onNewTakeaway = { tapped += "new" },
             onToggleMove = { tapped += "toggle" },
-            onConfirmMove = { tapped += "validate" },
-            onCancelTarget = { tapped += "back" },
         )
 
     // 10:30 UTC is 12:30 in Brussels in October.
@@ -198,24 +196,19 @@ class TablesContentTest {
     }
 
     @Test
-    fun onceTheSourceIsChosenTheHintNamesItAndTheConfirmationAsksForValidation() {
-        val source = base.tables[1]
-        val target = base.tables[0]
-        val moving = base.copy(move = MoveState(moving = true, source = source))
-        compose.setContent {
-            PiliTheme {
-                ProvideUiText(AppLanguage.FR, catalog) {
-                    androidx.compose.foundation.layout.Box {
-                        TablesContent(moving, callbacks)
-                        MoveConfirmation(MoveState(true, source, target), callbacks)
-                    }
-                }
-            }
-        }
-        compose.waitForIdle()
+    fun onceTheSourceIsChosenTheHintNamesItAndNoConfirmationIsOffered() {
+        val moving = base.copy(move = MoveState(moving = true, source = base.tables[1]))
+        show(moving)
+
         compose.onNodeWithTag("move_hint").assertTextContains("2", substring = true)
-        compose.onNodeWithTag("move_validate").performClick()
-        compose.onNodeWithTag("move_cancel").performClick()
-        assertEquals(listOf("validate", "back"), tapped)
+        compose.onNodeWithTag("move_confirm").assertDoesNotExist()
+        compose.onNodeWithTag("move_validate").assertDoesNotExist()
+    }
+
+    @Test
+    fun theToggleSaysDeplacer() {
+        show(base)
+
+        compose.onNodeWithTag("move_toggle").assertTextEquals("Déplacer")
     }
 }

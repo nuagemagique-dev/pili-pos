@@ -273,13 +273,13 @@ Le mock IPC simule le terminal (`eftScript`, `settingsWith({ paymentTerminal })`
 Produits par `ui/e2e/captures-features.spec.ts` (`npm run captures`, même projet Playwright, mêmes données de test que la section 1). Chaque test affirme l'écran attendu avant la capture. Les tickets imprimés de ces fonctions (bon cadeau, solde, fiche allergènes, bons de cuisine, note, transfert) figurent dans `TICKETS_EXEMPLES_FR.md`.
 
 ### `60_table_transfer_picker.png`
-- **Action :** Table 1 ouverte avec un article : toucher « Changer de table », choisir la table 5.
-- **Écran attendu :** « Changer de table · Table 1 », la liste des tables libres (la table courante et les tables occupées en sont absentes), la table 5 choisie, « Valider » actif.
+- **Action :** Table 1 ouverte avec un article : toucher « Plus », puis « Déplacer ».
+- **Écran attendu :** « Déplacer · Table 1 », les autres tables du plan : les tables libres actives, la table 4 occupée grisée avec son total, sans bouton « Valider » (toucher une table libre déplace la commande aussitôt, avec le message « Table 1 déplacée en 5 » et « Annuler »).
 - **Capture :** plein écran.
 
 ### `61_table_transfer_move_mode.png`
-- **Action :** Plan de salle : « Déplacer une table », toucher la table 3 (occupée), puis la table libre 7.
-- **Écran attendu :** L'invitation « Table 3 : touchez la table libre » et la confirmation « Déplacer la table 3 vers la table 7 ? ».
+- **Action :** Plan de salle : « Déplacer », toucher la table 3 (occupée).
+- **Écran attendu :** L'invitation « Table 3 : touchez la table libre » (toucher une table libre déplace la commande aussitôt, sans confirmation, avec « Annuler » pendant 5 s).
 - **Capture :** plein écran.
 
 ### `62_payment_correction.png`

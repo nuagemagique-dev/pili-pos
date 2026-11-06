@@ -21,6 +21,12 @@ internal data class HeaderActions(
     val onSettings: () -> Unit = {},
     val onLock: () -> Unit = {},
     val onOpenPin: () -> Unit = {},
+    /** The table chip of a movable order: opens the table picker (UX audit C8). */
+    val onMoveTable: () -> Unit = {},
+    /** The free table tapped in the picker: the order moves there at once. */
+    val onPickTable: (Int) -> Unit = {},
+    /** The picker was dismissed. */
+    val onCloseTablePicker: () -> Unit = {},
     val pin: HeaderPinActions = HeaderPinActions(),
 )
 

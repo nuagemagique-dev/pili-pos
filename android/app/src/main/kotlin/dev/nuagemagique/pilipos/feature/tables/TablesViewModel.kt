@@ -2,7 +2,7 @@ package dev.nuagemagique.pilipos.feature.tables
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
+import dev.nuagemagique.pilipos.ui.state.TableMoves
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -42,15 +43,14 @@ internal data class TablesUiState(
     val loaded: Boolean = false,
     /** The orders whose card was charged and not yet settled by a sale (`list_unsettled_card_payments`). */
     val cardCharged: Set<Long> = emptySet(),
-    /** The "move a table" mode (`moving`, `source`, `target` of `TablesView.vue`). */
+    /** The "Déplacer" mode (`moving`, `source` of `TablesView.vue`). */
     val move: MoveState = MoveState(),
 )
 
-/** The "Déplacer une table" mode: tap the occupied table, then a free one, then confirm. */
+/** The "Déplacer" mode (UX audit C8): tap the occupied table, then a free one; the move is signed at once. */
 internal data class MoveState(
     val moving: Boolean = false,
     val source: TableInfo? = null,
-    val target: TableInfo? = null,
     /** The move is being signed. */
     val transferring: Boolean = false,
 ) {
@@ -87,6 +87,7 @@ internal class TablesViewModel(
     private val order = entry.order()
     private val session = entry.session()
     private val gateway = entry.gateway()
+    private val tableMoves = TableMoves(order, entry.toasts(), entry.catalog(), entry.settings(), entry.errors())
     private val own = MutableStateFlow(Lists())
     private val now = MutableStateFlow(clock.instant())
     private val move = MutableStateFlow(MoveState())
@@ -121,6 +122,8 @@ internal class TablesViewModel(
         viewModelScope.launch {
             entry.events().events.collect { event -> if (event is PosEvent.Resync) load() }
         }
+        // A move or its undo was signed (the undo can come long after the screen was left and entered again).
+        viewModelScope.launch { order.tableMoves.drop(1).collect { load() } }
     }
 
     /**
@@ -187,34 +190,32 @@ internal class TablesViewModel(
     private fun pickInMoveMode(table: TableInfo) {
         val mode = move.value
         if (!mode.selectable(table) || mode.transferring) return
-        move.value = if (mode.source == null) mode.copy(source = table) else mode.copy(target = table)
-    }
-
-    /** "Back" on the confirmation: the target is forgotten, the source stays chosen. */
-    fun cancelTarget() {
-        move.value = move.value.copy(target = null)
+        val source = mode.source
+        if (source == null) {
+            move.value = mode.copy(source = table)
+            return
+        }
+        moveTo(source, table.tableNumber)
     }
 
     /**
-     * "Validate" on the confirmation (`confirmMove`): the engine signs the move; the toast says so or shows the
-     * refusal. The mode is left either way and the tables are read again.
+     * The free table tapped as the target (`pickInMoveMode` of `TablesView.vue`): the engine signs the move at once
+     * and the toast offers "Annuler"; a refusal shows the error and the tables are read again. The mode is left
+     * either way.
      */
-    fun confirmMove() {
-        val mode = move.value
-        val orderId = mode.source?.orderId
-        val to = mode.target?.tableNumber
-        if (orderId == null || to == null || mode.transferring) return
-        move.value = mode.copy(transferring = true)
+    private fun moveTo(
+        source: TableInfo,
+        to: Int,
+    ) {
+        val orderId = source.orderId ?: return
+        move.value = move.value.copy(transferring = true)
         viewModelScope.launch {
             val language = entry.settings().language.value
-            attempt { order.transferOrder(orderId, to) }.fold(
-                onSuccess = {
-                    entry.toasts().show(entry.catalog().text("transfer_done", language, mapOf("to" to to)), ToastVariant.Success)
-                },
-                onFailure = { entry.errors().show(it, language, null, ERROR_TTL_MS) },
-            )
+            attempt { tableMoves.move(orderId, source.tableNumber, to) }.onFailure {
+                entry.errors().show(it, language, null, ERROR_TTL_MS)
+                load()
+            }
             move.value = MoveState()
-            load()
         }
     }
 

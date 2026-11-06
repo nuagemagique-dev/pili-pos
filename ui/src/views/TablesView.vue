@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOrderStore } from '../stores/order'
 import { useAuthStore } from '../stores/auth'
@@ -63,11 +63,11 @@ async function newTakeaway() {
   router.push({ name: 'order' })
 }
 
-// "Déplacer une table": tap the occupied table, then a free one, then
-// confirm. The engine signs the move (event P, cost center change).
+// "Déplacer" (C8): tap the occupied table, then the free one. The move is
+// signed at once (event P, cost center change); a toast with "Annuler"
+// moves it back.
 const moving = ref(false)
 const source = ref<ipc.TableInfo | null>(null)
-const target = ref<ipc.TableInfo | null>(null)
 const transferring = ref(false)
 
 const moveHint = computed(() =>
@@ -79,7 +79,6 @@ const moveHint = computed(() =>
 function toggleMove() {
   moving.value = !moving.value
   source.value = null
-  target.value = null
 }
 
 /** In the mode only a source (occupied) or, once chosen, a target
@@ -89,41 +88,44 @@ function selectable(table: ipc.TableInfo): boolean {
   return table.status === 'free'
 }
 
-function pickInMoveMode(table: ipc.TableInfo) {
-  if (!selectable(table)) return
-  if (source.value) {
-    target.value = table
-  } else {
-    source.value = table
-  }
-}
-
-async function confirmMove() {
+async function pickInMoveMode(table: ipc.TableInfo) {
+  if (!selectable(table) || transferring.value) return
   const from = source.value
-  const to = target.value
-  if (!from?.orderId || !to || transferring.value) return
+  if (!from) {
+    source.value = table
+    return
+  }
+  if (!from.orderId) return
   transferring.value = true
   try {
-    await order.transferOrder(from.orderId, to.tableNumber)
-    toast.show(t('transfer_done', { to: to.tableNumber }), 'success')
+    await order.moveTable(from.orderId, from.tableNumber, table.tableNumber)
   } catch (e) {
     toast.show(describeError(e), 'error', 6000)
+    await reloadTables()
   } finally {
     transferring.value = false
     moving.value = false
     source.value = null
-    target.value = null
-    try {
-      tables.value = await ipc.listTables()
-    } catch {
-      /* the list is read again at the next visit */
-    }
   }
 }
 
+async function reloadTables() {
+  try {
+    tables.value = await ipc.listTables()
+  } catch {
+    /* the list is read again at the next visit */
+  }
+}
+
+// A move or its undo was signed: the plan shows it.
+watch(
+  () => order.tableMoves,
+  () => void reloadTables(),
+)
+
 async function selectTable(table: ipc.TableInfo) {
   if (moving.value) {
-    pickInMoveMode(table)
+    void pickInMoveMode(table)
     return
   }
   try {
@@ -236,29 +238,6 @@ async function selectTable(table: ipc.TableInfo) {
         </div>
       </aside>
     </div>
-    <div v-if="source && target" class="backdrop" @click.self="target = null">
-      <div
-        class="dialog"
-        role="dialog"
-        :aria-label="t('transfer_table')"
-        data-testid="move-confirm"
-      >
-        <p class="dialog-text">
-          {{ t('transfer_confirm', { from: source.tableNumber, to: target.tableNumber }) }}
-        </p>
-        <div class="dialog-actions">
-          <button class="btn btn-cancel" @click="target = null">{{ t('back') }}</button>
-          <button
-            class="btn btn-confirm"
-            :disabled="transferring"
-            data-testid="move-validate"
-            @click="confirmMove"
-          >
-            {{ t('validate') }}
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -318,55 +297,6 @@ async function selectTable(table: ipc.TableInfo) {
 }
 .table-card.chosen {
   outline: 4px solid var(--accent-warning);
-}
-
-.backdrop {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 50;
-}
-.dialog {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-lg);
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  min-width: 480px;
-}
-.dialog-text {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
-}
-.dialog-actions {
-  display: flex;
-  gap: var(--space-sm);
-}
-.btn {
-  flex: 1;
-  height: 56px;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-  border-radius: var(--radius-md);
-  transition: transform var(--tap-duration) ease;
-}
-.btn:active {
-  transform: scale(var(--tap-scale));
-}
-.btn-cancel {
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-}
-.btn-confirm {
-  background: var(--accent-primary);
-  color: var(--text-on-accent);
-}
-.btn-confirm:disabled {
-  opacity: 0.4;
 }
 
 .grid {

@@ -112,7 +112,13 @@ internal fun AppHeader(
         HeaderDivider()
         UserButton(state, actions.onOpenPin)
         when {
-            state.tableNumber != null -> TableBadge(vueText("table") + " " + state.tableNumber, warning = false, tag = "header_table")
+            state.tableNumber != null ->
+                TableBadge(
+                    vueText("table") + " " + state.tableNumber,
+                    warning = false,
+                    tag = "header_table",
+                    onClick = if (state.canMoveTable) actions.onMoveTable else null,
+                )
             state.takeawayActive -> TableBadge(vueText("takeaway_badge"), warning = true, tag = "header_takeaway_badge")
         }
         Text(
@@ -236,21 +242,38 @@ private fun UserButton(
     }
 }
 
-/** The current table outlined in the text colour, or the amber takeaway tag: "you are here" (UX guide 2.3). */
+/**
+ * The current table outlined in the text colour, or the amber takeaway tag: "you are here" (UX guide 2.3). With an
+ * [onClick] the table is a button, 48 dp high, that opens the table picker (UX audit C8); the tag [tag] is then on
+ * the button, which merges its text, instead of on the text.
+ */
 @Composable
 private fun TableBadge(
     text: String,
     warning: Boolean,
     tag: String,
+    onClick: (() -> Unit)? = null,
 ) {
     val c = PiliTheme.colors
     val t = PiliTheme.typography
     val tone = if (warning) c.accentWarning else c.textPrimary
+    val source = remember { MutableInteractionSource() }
+    val label = vueText("transfer_table") + " · " + text
     Box(
         modifier =
             Modifier
-                .height(BadgeHeight)
-                .border(1.dp, tone, RoundedCornerShape(PiliTheme.dimens.radiusSm))
+                .height(if (onClick != null) ControlHeight else BadgeHeight)
+                .then(
+                    if (onClick != null) {
+                        Modifier
+                            .tapScale(source)
+                            .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
+                            .semantics { contentDescription = label }
+                            .testTag(tag)
+                    } else {
+                        Modifier
+                    },
+                ).border(1.dp, tone, RoundedCornerShape(PiliTheme.dimens.radiusSm))
                 .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -259,7 +282,7 @@ private fun TableBadge(
             style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightHeavy),
             color = tone,
             maxLines = 1,
-            modifier = Modifier.testTag(tag),
+            modifier = if (onClick != null) Modifier else Modifier.testTag(tag),
         )
     }
 }

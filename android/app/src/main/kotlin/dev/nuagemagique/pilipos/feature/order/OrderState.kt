@@ -15,6 +15,7 @@ import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.SheetProductView
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.SoldOutItem
+import uniffi.pos_ffi.TableInfo
 import uniffi.pos_ffi.VatSplitRow
 
 /** The dialog open over the order screen, if any (`pricing` and `choosing` of `OrderView.vue`). */
@@ -44,10 +45,10 @@ internal sealed interface OrderDialog {
         val forWeight: Boolean = false,
     ) : OrderDialog
 
-    /** "Change table": the free tables [tables] the order of table [from] can move to. */
+    /** "Déplacer": the other tables of the plan, free ones to tap, busy ones dimmed; the order is on table [from]. */
     data class TablePicker(
         val from: Int,
-        val tables: List<Int>,
+        val tables: List<TableInfo>,
     ) : OrderDialog
 
     /**

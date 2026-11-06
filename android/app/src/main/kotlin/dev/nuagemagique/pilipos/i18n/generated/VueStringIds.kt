@@ -431,8 +431,8 @@ internal object VueStringIds {
         this["transfer_table"] = R.string.transfer_table
         this["transfer_pick_target"] = R.string.transfer_pick_target
         this["transfer_no_free"] = R.string.transfer_no_free
-        this["transfer_confirm"] = R.string.transfer_confirm
-        this["transfer_done"] = R.string.transfer_done
+        this["transfer_moved"] = R.string.transfer_moved
+        this["transfer_undo"] = R.string.transfer_undo
         this["transfer_mode"] = R.string.transfer_mode
         this["transfer_pick_source"] = R.string.transfer_pick_source
         this["transfer_pick_free"] = R.string.transfer_pick_free

@@ -395,6 +395,45 @@ async fn the_sale_after_a_move_is_on_the_new_table_with_the_same_reference() {
     assert!(tables.iter().all(|t| t.status == "free"));
 }
 
+/// UX audit C8: the "Annuler" of the one-tap move is a second transfer back
+/// to the table the order came from, signed like any other.
+#[tokio::test]
+async fn moving_back_is_a_second_signed_transfer_that_frees_the_table_again() {
+    let fdm = LossyFdm::start().await;
+    let app = app_with(&fdm).await;
+    let o = table_order(&app, 4);
+    add(&app, o, 1, 2);
+
+    do_transfer_table(&app.state, o, 9).await.unwrap();
+    assert_eq!(table_of(&app, o), Some(9));
+    do_transfer_table(&app.state, o, 4).await.unwrap();
+
+    assert_eq!(table_of(&app, o), Some(4));
+    assert_eq!(
+        operations(&fdm),
+        ["signOrder", "signCostCenterChange", "signCostCenterChange"]
+    );
+    let requests = requests(&app);
+    let (first, back) = (&requests[1]["transfer"], &requests[2]["transfer"]);
+    assert_eq!(first["from"][0]["costCenter"]["id"], "T04");
+    assert_eq!(first["to"][0]["costCenter"]["id"], "T09");
+    assert_eq!(back["from"][0]["costCenter"]["id"], "T09");
+    assert_eq!(back["to"][0]["costCenter"]["id"], "T04");
+    // Same order, same reference on both moves: one cost center journal.
+    assert_eq!(
+        first["to"][0]["costCenter"]["reference"],
+        back["from"][0]["costCenter"]["reference"]
+    );
+    // Only the order's own table is busy again; table 9 is free.
+    let tables = do_list_configured_tables(&app.state).unwrap();
+    let busy: Vec<i32> = tables
+        .iter()
+        .filter(|t| t.status != "free")
+        .map(|t| t.table_number)
+        .collect();
+    assert_eq!(busy, [4]);
+}
+
 #[tokio::test]
 async fn the_move_is_counted_on_a_training_label() {
     let fdm = LossyFdm::start().await;

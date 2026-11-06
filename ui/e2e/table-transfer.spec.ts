@@ -11,8 +11,11 @@ import {
 } from './fixtures/mock-ipc'
 import { tapMore, expectMoreRow, expectNoMoreRow } from './fixtures/cart-more'
 
-// Moving an open order to another table (command transfer_table), from
-// the cart and from the Tables screen's "Déplacer une table" mode.
+// Moving an open order to another table (command transfer_table, UX audit
+// C8): one verb "Déplacer", the picker sheet and the Tables screen mode move
+// the order at once, and a toast "Table 4 déplacée en 9 · Annuler" moves it
+// back. From the header table chip, the cart's "Plus" menu and the Tables
+// screen.
 
 const tables =
   (occupied: Record<number, number> = {}) =>
@@ -49,25 +52,29 @@ async function openTable1(page: Page, extra: Record<string, any> = {}) {
 }
 
 test.describe('From the cart', () => {
-  test('lists the free tables, current one and busy ones left out, and moves the order', async ({
+  test('lists every other table, busy ones dimmed with their total, and moves at once', async ({
     page,
   }) => {
     await openTable1(page)
     await tapMore(page, 'transfer-table')
 
-    const picker = page.getByRole('dialog', { name: 'Changer de table' })
+    const picker = page.getByRole('dialog', { name: 'Déplacer' })
     await expect(picker).toBeVisible()
+    // The current table is left out; the busy one is there but cannot be tapped.
     await expect(picker.getByTestId('pick-table-1')).toHaveCount(0)
-    await expect(picker.getByTestId('pick-table-4')).toHaveCount(0)
-    await expect(picker.locator('.pick')).toHaveCount(18)
-    // Nothing is picked yet.
-    await expect(picker.getByTestId('transfer-confirm')).toBeDisabled()
+    await expect(picker.locator('.pick')).toHaveCount(19)
+    const busy = picker.getByTestId('pick-table-4')
+    await expect(busy).toBeDisabled()
+    await expect(busy).toContainText('24,00')
+    await expect(picker.getByTestId('pick-table-5')).toBeEnabled()
+    // No "Valider": a tap on a free table is the move.
+    await expect(picker.getByTestId('transfer-confirm')).toHaveCount(0)
 
     await picker.getByTestId('pick-table-5').click()
-    await picker.getByTestId('transfer-confirm').click()
 
     await expect(picker).toBeHidden()
-    await expect(page.getByText('Commande déplacée vers la table 5')).toBeVisible()
+    await expect(page.getByText('Table 1 déplacée en 5')).toBeVisible()
+    await expect(page.getByTestId('toast-action')).toHaveText('Annuler')
     const calls = await ipcCalls(page, 'transfer_table')
     expect(calls).toHaveLength(1)
     expect(calls[0]).toMatchObject({ toTable: 5 })
@@ -78,8 +85,8 @@ test.describe('From the cart', () => {
     await overrideIPC(page, 'transfer_table', { __reject: 'table_transfer_target_busy' })
     await tapMore(page, 'transfer-table')
     await page.getByTestId('pick-table-6').click()
-    await page.getByTestId('transfer-confirm').click()
     await expect(page.getByText('Cette table a déjà une commande en cours')).toBeVisible()
+    await expect(page.getByTestId('toast-action')).toHaveCount(0)
   })
 
   test('warns when the kitchen notice did not print', async ({ page }) => {
@@ -94,7 +101,6 @@ test.describe('From the cart', () => {
     })
     await tapMore(page, 'transfer-table')
     await page.getByTestId('pick-table-7').click()
-    await page.getByTestId('transfer-confirm').click()
     await expect(page.getByText('Bon de commande non imprimé')).toBeVisible()
   })
 
@@ -111,10 +117,10 @@ test.describe('From the cart', () => {
     await overrideIPC(page, 'get_order', { ...DEFAULT_ORDER, table_number: 5, total_cents: 2400 })
     await tapMore(page, 'transfer-table')
     await page.getByTestId('pick-table-5').click()
-    await page.getByTestId('transfer-confirm').click()
 
-    await expect(page.getByText('Commande déplacée vers la table 5')).toBeVisible()
+    await expect(page.getByText('Table 1 déplacée en 5')).toBeVisible()
     await expect(page.locator('.cart-header h2')).toHaveText(/Table 5$/u)
+    await expect(page.getByTestId('header-table')).toHaveText('Table 5')
     await expect(page.locator('.pending-label')).toHaveCount(0)
     await expect(page.locator('.order-line.pending')).toHaveCount(0)
     await expect(page.locator('.order-line')).toHaveCount(1)
@@ -140,8 +146,8 @@ test.describe('From the cart', () => {
     const picker = page.getByTestId('table-picker')
     await expect(picker).toBeVisible()
     await expect(picker).toContainText('Aucune table libre')
-    await expect(picker.locator('.pick')).toHaveCount(0)
-    await expect(picker.getByTestId('transfer-confirm')).toBeDisabled()
+    await expect(picker.locator('.pick:not(:disabled)')).toHaveCount(0)
+    await picker.getByTestId('pick-table-2').click({ force: true })
     expect(await ipcCalls(page, 'transfer_table')).toHaveLength(0)
   })
 
@@ -149,7 +155,6 @@ test.describe('From the cart', () => {
     await openTable1(page)
     await tapMore(page, 'transfer-table')
     const picker = page.getByTestId('table-picker')
-    await picker.getByTestId('pick-table-5').click()
     await picker.getByRole('button', { name: 'Retour' }).click()
     await expect(picker).toHaveCount(0)
 
@@ -184,6 +189,93 @@ test.describe('From the cart', () => {
   })
 })
 
+test.describe('From the header table chip', () => {
+  test('the chip opens the sheet, a free table moves the order, Annuler moves it back', async ({
+    page,
+  }) => {
+    await openTable1(page)
+    const chip = page.getByTestId('header-table')
+    await expect(chip).toHaveText('Table 1')
+    await expect(chip).toHaveJSProperty('tagName', 'BUTTON')
+    expect((await chip.boundingBox())?.height).toBeGreaterThanOrEqual(48)
+
+    await chip.click()
+    const picker = page.getByTestId('table-picker')
+    await expect(picker).toBeVisible()
+    // The order the table opens has id 2 in the mock.
+    await overrideIPC(page, 'get_order', {
+      ...DEFAULT_ORDER,
+      id: 2,
+      table_number: 9,
+      total_cents: 1200,
+    })
+    await picker.getByTestId('pick-table-9').click()
+
+    await expect(picker).toBeHidden()
+    await expect(page.getByText('Table 1 déplacée en 9')).toBeVisible()
+    await expect(chip).toHaveText('Table 9')
+    const first = await ipcCalls(page, 'transfer_table')
+    expect(first).toHaveLength(1)
+    expect(first[0]).toMatchObject({ toTable: 9 })
+
+    // The second transfer goes back to table 1, signed like any other.
+    await overrideIPC(page, 'get_order', {
+      ...DEFAULT_ORDER,
+      id: 2,
+      table_number: 1,
+      total_cents: 1200,
+    })
+    await page.getByTestId('toast-action').click()
+    await expect(page.getByText('Table 9 déplacée en 1')).toBeVisible()
+    await expect(chip).toHaveText('Table 1')
+    const calls = await ipcCalls(page, 'transfer_table')
+    expect(calls).toHaveLength(2)
+    expect(calls[1]).toMatchObject({ orderId: first[0].orderId, toTable: 1 })
+    // One tap only: the undo toast has no second Annuler.
+    await expect(page.getByTestId('toast-action')).toHaveCount(0)
+  })
+
+  test('the Annuler toast goes away by itself after 5 s and moves nothing', async ({ page }) => {
+    await openTable1(page)
+    await page.getByTestId('header-table').click()
+    await page.getByTestId('pick-table-6').click()
+    const undo = page.getByTestId('toast-action')
+    await expect(undo).toBeVisible()
+    await expect(undo).toBeHidden({ timeout: 7000 })
+    expect(await ipcCalls(page, 'transfer_table')).toHaveLength(1)
+  })
+
+  test('works from the checkout screen too', async ({ page }) => {
+    await openTable1(page)
+    await page.locator('.checkout-btn').click()
+    await page.waitForURL(/checkout/u)
+
+    await page.getByTestId('header-table').click()
+    await page.getByTestId('pick-table-8').click()
+
+    await expect(page.getByText('Table 1 déplacée en 8')).toBeVisible()
+    const calls = await ipcCalls(page, 'transfer_table')
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toMatchObject({ toTable: 8 })
+  })
+
+  test('is a plain label while the order has no line, and on a takeaway', async ({ page }) => {
+    await openTable1(page, { list_cart_lines: () => [] })
+    await expect(page.getByTestId('header-table')).toHaveText('Table 1')
+    await expect(page.getByTestId('header-table')).toHaveJSProperty('tagName', 'SPAN')
+  })
+
+  test('a refused move shows the error and no Annuler', async ({ page }) => {
+    await openTable1(page)
+    await overrideIPC(page, 'transfer_table', { __reject: 'table_transfer_pending_signature' })
+    await page.getByTestId('header-table').click()
+    await page.getByTestId('pick-table-6').click()
+    await expect(page.locator('.toast-error')).toBeVisible()
+    await expect(page.getByTestId('toast-action')).toHaveCount(0)
+    await expect(page.getByTestId('table-picker')).toHaveCount(0)
+  })
+})
+
 test.describe('From the Tables screen', () => {
   test.beforeEach(async ({ page }) => {
     await mockTauriIPC(page, {
@@ -196,7 +288,10 @@ test.describe('From the Tables screen', () => {
     await page.waitForURL(/tables/u)
   })
 
-  test('source, then target, then confirmation', async ({ page }) => {
+  test('source, then target: the move is signed at once with an Annuler toast', async ({
+    page,
+  }) => {
+    await expect(page.getByTestId('move-toggle')).toHaveText('Déplacer')
     await page.getByTestId('move-toggle').click()
     await expect(page.getByTestId('move-hint')).toHaveText('Touchez la table à déplacer')
 
@@ -209,20 +304,42 @@ test.describe('From the Tables screen', () => {
     await expect(page.getByTestId('move-hint')).toHaveText('Table 3 : touchez la table libre')
     // A busy table is no target.
     await page.locator('.table-card.occupied').nth(1).click({ force: true })
-    await expect(page.getByTestId('move-confirm')).toHaveCount(0)
+    expect(await ipcCalls(page, 'transfer_table')).toHaveLength(0)
 
     await page.locator('.table-card .table-num', { hasText: /^7$/u }).click()
-    const confirm = page.getByTestId('move-confirm')
-    await expect(confirm).toContainText('Déplacer la table 3 vers la table 7 ?')
-    await page.getByTestId('move-validate').click()
 
-    await expect(confirm).toBeHidden()
-    await expect(page.getByText('Commande déplacée vers la table 7')).toBeVisible()
+    // No confirmation dialog: the toast is the feedback.
+    await expect(page.getByTestId('move-confirm')).toHaveCount(0)
+    await expect(page.getByText('Table 3 déplacée en 7')).toBeVisible()
+    await expect(page.getByTestId('toast-action')).toHaveText('Annuler')
     const calls = await ipcCalls(page, 'transfer_table')
     expect(calls).toHaveLength(1)
     expect(calls[0]).toMatchObject({ orderId: 42, toTable: 7 })
     // The mode is left: tapping a table opens it again.
     await expect(page.getByTestId('move-hint')).toHaveCount(0)
+  })
+
+  test('Annuler moves the order back and the plan shows it', async ({ page }) => {
+    const card = (n: number) =>
+      page.locator('.table-card', {
+        has: page.locator('.table-num', { hasText: new RegExp(`^${n}$`, 'u') }),
+      })
+    await overrideIPC(page, 'list_tables', tables({ 4: 44, 7: 42 })())
+    await page.getByTestId('move-toggle').click()
+    await page.locator('.table-card.occupied').first().click()
+    await page.locator('.table-card .table-num', { hasText: /^7$/u }).click()
+    await expect(card(7)).toHaveClass(/occupied/u)
+    await expect(card(3)).not.toHaveClass(/occupied/u)
+
+    await overrideIPC(page, 'list_tables', tables({ 3: 42, 4: 44 })())
+    await page.getByTestId('toast-action').click()
+
+    await expect(page.getByText('Table 7 déplacée en 3')).toBeVisible()
+    const calls = await ipcCalls(page, 'transfer_table')
+    expect(calls).toHaveLength(2)
+    expect(calls[1]).toMatchObject({ orderId: 42, toTable: 3 })
+    await expect(card(3)).toHaveClass(/occupied/u)
+    await expect(card(7)).not.toHaveClass(/occupied/u)
   })
 
   test('a refusal shows the error, leaves the mode and reads the plan again', async ({ page }) => {
@@ -232,11 +349,10 @@ test.describe('From the Tables screen', () => {
     await page.getByTestId('move-toggle').click()
     await page.locator('.table-card.occupied').first().click()
     await page.locator('.table-card .table-num', { hasText: /^7$/u }).click()
-    await page.getByTestId('move-validate').click()
 
     await expect(page.getByText('Cette table a déjà une commande en cours')).toBeVisible()
     await expect(page.getByTestId('move-hint')).toHaveCount(0)
-    await expect(page.getByTestId('move-confirm')).toHaveCount(0)
+    await expect(page.getByTestId('toast-action')).toHaveCount(0)
     await expect.poll(async () => (await ipcCalls(page, 'list_tables')).length).toBe(before + 1)
   })
 
@@ -251,20 +367,15 @@ test.describe('From the Tables screen', () => {
     await page.getByTestId('move-toggle').click()
     await page.locator('.table-card.occupied').first().click()
     await page.locator('.table-card .table-num', { hasText: /^7$/u }).click()
-    await page.getByTestId('move-validate').click()
 
-    await expect(page.getByText('Commande déplacée vers la table 7')).toBeVisible()
+    await expect(page.getByText('Table 3 déplacée en 7')).toBeVisible()
     await expect(card(7)).toHaveClass(/occupied/u)
     await expect(card(3)).not.toHaveClass(/occupied/u)
   })
 
-  test('cancelling the confirmation or the mode moves nothing', async ({ page }) => {
+  test('leaving the mode after the source moves nothing', async ({ page }) => {
     await page.getByTestId('move-toggle').click()
     await page.locator('.table-card.occupied').first().click()
-    await page.locator('.table-card .table-num', { hasText: /^8$/u }).click()
-    await page.getByTestId('move-confirm').getByRole('button', { name: 'Retour' }).click()
-    await expect(page.getByTestId('move-confirm')).toHaveCount(0)
-
     await page.getByTestId('move-toggle').click()
     await expect(page.getByTestId('move-hint')).toHaveCount(0)
     expect(await ipcCalls(page, 'transfer_table')).toHaveLength(0)

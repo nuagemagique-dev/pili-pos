@@ -11,6 +11,7 @@ import dev.nuagemagique.pilipos.ui.state.EventFeed
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -560,7 +561,7 @@ class MenuViewModelTest {
         }
 
     @Test
-    fun theTablePickerListsTheFreeTablesWithoutTheCurrentOne() =
+    fun theTablePickerListsTheOtherTablesBusyOnesIncluded() =
         runTest {
             val world = cartWithOneLine()
             val f = orderFixture(tmp.root, world)
@@ -572,30 +573,80 @@ class MenuViewModelTest {
             r.model.askTransfer()
             runCurrent()
 
-            assertEquals(OrderDialog.TablePicker(4, listOf(1, 6)), r.state.dialog)
+            assertEquals(OrderDialog.TablePicker(4, listOf(table(1), table(5, orderId = 2L), table(6))), r.state.dialog)
         }
 
+    private val moved4to6 =
+        uniffi.pos_ffi.TableTransferResult(ORDER_ID, 4, 6, uniffi.pos_ffi.SlipOutcome.PRINTED, uniffi.pos_ffi.SlipOutcome.PRINTED)
+
     @Test
-    fun confirmingATransferMovesTheOrderAndToastsIt() =
+    fun pickingAFreeTableMovesTheOrderAtOnceAndOffersToUndoIt() =
         runTest {
             val world = cartWithOneLine()
             val f = orderFixture(tmp.root, world)
             val r = startOrder(f, world, context)
             r.login()
             runCurrent()
-            coEvery { f.engine.transferTable(ORDER_ID, 6) } returns
-                uniffi.pos_ffi.TableTransferResult(ORDER_ID, 4, 6, uniffi.pos_ffi.SlipOutcome.PRINTED, uniffi.pos_ffi.SlipOutcome.PRINTED)
+            coEvery { f.engine.transferTable(ORDER_ID, 6) } returns moved4to6
 
             r.model.confirmTransfer(6)
             runCurrent()
 
             coVerify(exactly = 1) { f.engine.transferTable(ORDER_ID, 6) }
             assertEquals(OrderDialog.None, r.state.dialog)
-            assertEquals(dev.nuagemagique.pilipos.ui.feedback.ToastVariant.Success, r.lastToast().variant)
+            val toast = r.lastToast()
+            assertEquals(dev.nuagemagique.pilipos.ui.feedback.ToastVariant.Success, toast.variant)
+            assertEquals("Table 4 déplacée en 6", toast.message)
+            assertEquals("Annuler", toast.action?.label)
         }
 
     @Test
-    fun aRefusedTransferShowsTheErrorToast() =
+    fun theUndoMovesTheOrderBackWithASecondTransferAndStaysSilentAboutIt() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            coEvery { f.engine.transferTable(ORDER_ID, 6) } returns moved4to6
+            coEvery { f.engine.transferTable(ORDER_ID, 4) } returns
+                uniffi.pos_ffi.TableTransferResult(ORDER_ID, 6, 4, uniffi.pos_ffi.SlipOutcome.PRINTED, uniffi.pos_ffi.SlipOutcome.PRINTED)
+            r.model.confirmTransfer(6)
+            runCurrent()
+
+            r.toasts.runAction(r.lastToast().id)
+            runCurrent()
+
+            coVerifyOrder {
+                f.engine.transferTable(ORDER_ID, 6)
+                f.engine.transferTable(ORDER_ID, 4)
+            }
+            assertEquals("Table 6 déplacée en 4", r.lastToast().message)
+            assertEquals(null, r.lastToast().action)
+            assertEquals(2, r.order.tableMoves.value)
+        }
+
+    @Test
+    fun aRefusedUndoShowsTheErrorToast() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            coEvery { f.engine.transferTable(ORDER_ID, 6) } returns moved4to6
+            r.model.confirmTransfer(6)
+            runCurrent()
+            coEvery { f.engine.transferTable(ORDER_ID, 4) } throws refusal
+
+            r.toasts.runAction(r.lastToast().id)
+            runCurrent()
+
+            assertEquals(dev.nuagemagique.pilipos.ui.feedback.ToastVariant.Error, r.lastToast().variant)
+        }
+
+    @Test
+    fun aRefusedTransferShowsTheErrorToastWithoutAnUndo() =
         runTest {
             val world = cartWithOneLine()
             val f = orderFixture(tmp.root, world)
@@ -608,7 +659,9 @@ class MenuViewModelTest {
             runCurrent()
 
             assertEquals(dev.nuagemagique.pilipos.ui.feedback.ToastVariant.Error, r.lastToast().variant)
+            assertEquals(null, r.lastToast().action)
             assertTrue(r.state.cart.canTransfer)
+            assertEquals(0, r.order.tableMoves.value)
         }
 
     // ── Discount at the till ──────────────────────────────────────

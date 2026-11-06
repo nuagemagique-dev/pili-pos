@@ -10,11 +10,18 @@ import { defineStore } from 'pinia'
 
 export type ToastVariant = 'info' | 'success' | 'warning' | 'error'
 
+/** A button on a toast (UX audit C8: "Annuler" after a table move). */
+export interface ToastAction {
+  label: string
+  run: () => void | Promise<void>
+}
+
 export interface ToastEntry {
   id: number
   message: string
   variant: ToastVariant
   expires_at: number
+  action?: ToastAction
 }
 
 interface ToastState {
@@ -65,12 +72,22 @@ export const useToastStore = defineStore('toast', {
 
   actions: {
     show(message: string, variant: ToastVariant = 'info', ttl_ms = DEFAULT_TTL_MS) {
+      return this.push({ message, variant, ttl_ms })
+    },
+
+    /** A success toast with one button (C8: "Annuler" after a table move). */
+    showWithAction(message: string, action: ToastAction, ttl_ms = DEFAULT_TTL_MS) {
+      return this.push({ message, variant: 'success', ttl_ms, action })
+    },
+
+    push(spec: { message: string; variant: ToastVariant; ttl_ms: number; action?: ToastAction }) {
       const id = this.next_id++
       this.toasts.push({
         id,
-        message,
-        variant,
-        expires_at: expiryOf(variant, Date.now(), ttl_ms),
+        message: spec.message,
+        variant: spec.variant,
+        expires_at: expiryOf(spec.variant, Date.now(), spec.ttl_ms),
+        ...(spec.action ? { action: spec.action } : {}),
       })
       this.ensureCleanupLoop()
       return id
@@ -78,6 +95,13 @@ export const useToastStore = defineStore('toast', {
 
     dismiss(id: number) {
       this.toasts = this.toasts.filter((t) => t.id !== id)
+    },
+
+    /** The tap on the button of a toast: the toast goes first, then its action runs once. */
+    runAction(id: number) {
+      const action = this.toasts.find((t) => t.id === id)?.action
+      this.dismiss(id)
+      if (action) void action.run()
     },
 
     /**

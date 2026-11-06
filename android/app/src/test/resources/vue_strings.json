@@ -6594,22 +6594,16 @@
       "zh": "培训模式",
       "area": "core"
     },
-    "transfer_confirm": {
-      "fr": "Déplacer la table {from} vers la table {to} ?",
-      "en": "Move table {from} to table {to}?",
-      "zh": "将 {from} 号桌移到 {to} 号桌？",
-      "area": "core"
-    },
-    "transfer_done": {
-      "fr": "Commande déplacée vers la table {to}",
-      "en": "Order moved to table {to}",
-      "zh": "订单已移到 {to} 号桌",
-      "area": "core"
-    },
     "transfer_mode": {
-      "fr": "Déplacer une table",
-      "en": "Move a table",
-      "zh": "移动桌子",
+      "fr": "Déplacer",
+      "en": "Move",
+      "zh": "移动",
+      "area": "core"
+    },
+    "transfer_moved": {
+      "fr": "Table {from} déplacée en {to}",
+      "en": "Table {from} moved to {to}",
+      "zh": "{from} 号桌已移到 {to} 号桌",
       "area": "core"
     },
     "transfer_no_free": {
@@ -6637,9 +6631,15 @@
       "area": "core"
     },
     "transfer_table": {
-      "fr": "Changer de table",
-      "en": "Change table",
-      "zh": "换桌",
+      "fr": "Déplacer",
+      "en": "Move",
+      "zh": "移动",
+      "area": "core"
+    },
+    "transfer_undo": {
+      "fr": "Annuler",
+      "en": "Undo",
+      "zh": "撤销",
       "area": "core"
     },
     "unpaid_close": {

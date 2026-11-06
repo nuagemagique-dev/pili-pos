@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,7 +53,6 @@ import dev.nuagemagique.pilipos.feature.order.OrderRoutes
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
-import dev.nuagemagique.pilipos.ui.components.PiliDialog
 import dev.nuagemagique.pilipos.ui.components.tapScale
 import dev.nuagemagique.pilipos.ui.di.rememberEntryPoint
 import dev.nuagemagique.pilipos.ui.format.PosDateTime
@@ -95,12 +93,8 @@ internal data class TablesCallbacks(
     val onTable: (TableInfo) -> Unit = {},
     val onTakeaway: (TakeawayInfo) -> Unit = {},
     val onNewTakeaway: () -> Unit = {},
-    /** The "Déplacer une table" toggle. */
+    /** The "Déplacer" toggle. */
     val onToggleMove: () -> Unit = {},
-    /** "Validate" on the move confirmation. */
-    val onConfirmMove: () -> Unit = {},
-    /** "Back" on the move confirmation. */
-    val onCancelTarget: () -> Unit = {},
 )
 
 /**
@@ -130,15 +124,8 @@ internal fun TablesRoute(navigator: AppNavigator) {
             onTakeaway = model::resumeTakeaway,
             onNewTakeaway = model::newTakeaway,
             onToggleMove = model::toggleMove,
-            onConfirmMove = model::confirmMove,
-            onCancelTarget = model::cancelTarget,
         )
-    PosScaffold(
-        HeaderArea.TABLES,
-        navigator,
-        modifier = Modifier.testTag("placeholder_tables"),
-        overlay = { MoveConfirmation(state.move, callbacks) },
-    ) {
+    PosScaffold(HeaderArea.TABLES, navigator, modifier = Modifier.testTag("placeholder_tables")) {
         TablesContent(state, callbacks)
     }
 }
@@ -202,7 +189,7 @@ private fun TableGrid(
     }
 }
 
-/** The "Déplacer une table" toggle and, in the mode, what to tap next (`plan-bar` of `TablesView.vue`). */
+/** The "Déplacer" toggle and, in the mode, what to tap next (`plan-bar` of `TablesView.vue`). */
 @Composable
 private fun MoveBar(
     move: MoveState,
@@ -230,42 +217,6 @@ private fun MoveBar(
                 modifier = Modifier.testTag("move_hint"),
             )
         }
-    }
-}
-
-/** "Move table X to table Y?" with Validate and Back (`move-confirm` of `TablesView.vue`). */
-@Composable
-internal fun BoxScope.MoveConfirmation(
-    move: MoveState,
-    callbacks: TablesCallbacks,
-) {
-    val source = move.source
-    val target = move.target
-    if (source == null || target == null) return
-    PiliDialog(
-        title = "",
-        onDismissRequest = callbacks.onCancelTarget,
-        modifier = Modifier.testTag("move_confirm"),
-        actions = {
-            PiliButton(
-                text = vueText("back"),
-                onClick = callbacks.onCancelTarget,
-                variant = PiliButtonVariant.Secondary,
-                modifier = Modifier.testTag("move_cancel"),
-            )
-            PiliButton(
-                text = vueText("validate"),
-                onClick = callbacks.onConfirmMove,
-                enabled = !move.transferring,
-                modifier = Modifier.testTag("move_validate"),
-            )
-        },
-    ) {
-        Text(
-            text = vueText("transfer_confirm", "from" to source.tableNumber, "to" to target.tableNumber),
-            style = PiliTheme.typography.title,
-            color = PiliTheme.colors.textPrimary,
-        )
     }
 }
 

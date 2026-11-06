@@ -13,7 +13,8 @@ through the shared stores and the gateway.
 | --- | --- | --- |
 | ui/src/views/TablesView.vue | feature/tables/TablesScreen.kt (TablesRoute, TablesContent), TablesViewModel.kt, TablesEntryPoint.kt | `list_tables` `list_open_takeaways` |
 | TablesView.vue (selectTable, resumeTakeaway, newTakeaway through the order store) | feature/tables/TablesViewModel.kt over ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` |
-| TablesView.vue (move mode: toggleMove, pick source then free target, confirmMove) | feature/tables/TablesScreen.kt (MoveBar, MoveConfirmation), TablesViewModel.kt (MoveState, toggleMove, confirmMove) over ui/state/OrderStore.kt (transferOrder) | `transfer_table` `list_tables` |
+| TablesView.vue ("Déplacer" mode, UX audit C8: toggleMove, pick the occupied source, a tap on a free table moves at once with the "Annuler" toast, no confirmation dialog) | feature/tables/TablesScreen.kt (MoveBar), TablesViewModel.kt (MoveState, toggleMove, moveTo; reads the plan again on `OrderStore.tableMoves`) over ui/state/TableMoves.kt (move, undo) and OrderStore.kt (transferOrder, tableMoves) | `transfer_table` `list_tables` |
+| components/AppHeader.vue + TableMover.vue (the table chip is a 48 px button on the order and checkout screens, opens the table picker, one tap moves the order) | ui/scaffold/AppHeader.kt (TableBadge `header_table`), HeaderViewModel.kt (openTablePicker, pickTable, closeTablePicker), PosScaffold.kt (TablePickerDialog), HeaderActions.kt over ui/state/TableMoves.kt | `transfer_table` `list_tables` |
 | TablesView.vue (`held-course-N` tag, "Suite : Plats") | feature/tables/TablesScreen.kt (TableTop, tag `table_N_held`) | `list_tables` |
 | components/AppHeader.vue (own PIN dialog, tap on the user) | ui/scaffold/HeaderViewModel.kt (submitPin), PosScaffold.kt (OwnPinDialog), AppHeader.kt | `set_pin` |
 | components/AppHeader.vue (lock, new takeaway, workspaces) and the leave guard of router/index.ts | ui/scaffold/HeaderViewModel.kt, HeaderActions.kt over ui/state/SessionStore.kt and OrderStore.leaveIfActive | `lock_session` `leave_order` |
@@ -23,7 +24,7 @@ through the shared stores and the gateway.
 | components/PiliLogo.vue | ui/scaffold/AppHeader.kt (PiliLogo) and res/drawable/ui_logo.xml, ui_logo_bolt.xml, ui_logo_tones.xml | - |
 | components/FdmAlerts.vue (blocking part, `SALES_ROUTES`; the veil starts under the 64 px header) | ui/scaffold/PosScaffold.kt (FdmBlockingVeil over the content of the sales areas, below the header) | - |
 | components/IdleLockBanner.vue, stores/auth.ts (`idleLockAt`, `listenIdleLockWarning`) | ui/components/IdleLockBanner.kt (IdleLockBanner, IdleLockBannerContent), drawn by ui/scaffold/PosScaffold.kt under the header; state in ui/state/SessionStore.kt (`idleWarning`) and ui/scaffold/HeaderViewModel.kt | event `idle-lock-warning` |
-| components/ToastStack.vue, stores/toast.ts | ui/feedback/ToastOverlay.kt (ToastStack, ToastOverlay), ToastStore.kt | - |
+| components/ToastStack.vue, stores/toast.ts (`showWithAction`, `runAction`: the "Annuler" button of a toast) | ui/feedback/ToastOverlay.kt (ToastStack, ToastOverlay, `toast_action_<id>`), ToastStore.kt (ToastAction, showWithAction, runAction) | - |
 
 ## Differences
 

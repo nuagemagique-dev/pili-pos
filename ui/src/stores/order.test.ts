@@ -12,10 +12,12 @@ const ipcMock = vi.hoisted(() => ({
   getCourseSettings: vi.fn(),
   setActiveOrder: vi.fn(),
   getQuickNotes: vi.fn(),
+  transferTable: vi.fn(),
 }))
 vi.mock('../api/ipc', () => ipcMock)
 
-import { useOrderStore } from './order'
+import { MOVE_UNDO_TTL_MS, useOrderStore } from './order'
+import { useToastStore } from './toast'
 
 const ORDER = { id: 1, order_type: 'dine_in', table_number: 4, status: 'open', total_cents: 0 }
 
@@ -215,5 +217,112 @@ describe('order store: quick notes for the kitchen note dialog (C11)', () => {
     ipcMock.getQuickNotes.mockResolvedValue({ notes: [] })
 
     expect(await order.loadQuickNotes()).toEqual([])
+  })
+})
+
+describe('order store: moving a table in one tap (C8)', () => {
+  const MOVED = {
+    orderId: 1,
+    fromTable: 4,
+    toTable: 9,
+    kitchenSlip: 'printed',
+    transferSlip: 'printed',
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined })
+    vi.useFakeTimers()
+    vi.stubGlobal('window', globalThis)
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+    ipcMock.getCourseSettings.mockResolvedValue({ enabled: false, category_courses: [] })
+    ipcMock.listCartLines.mockResolvedValue([cartLine(7, 1, [1, 0])])
+    ipcMock.transferTable.mockResolvedValue(MOVED)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  async function onTable4() {
+    const order = useOrderStore()
+    ipcMock.getOrder.mockResolvedValue(ORDER)
+    await order.loadOrder(1)
+    return order
+  }
+
+  it('moves the order at once, reads it again and toasts "Table 4 déplacée en 9" with Annuler for 5 s', async () => {
+    const order = await onTable4()
+    ipcMock.getOrder.mockResolvedValue({ ...ORDER, table_number: 9 })
+
+    await order.moveTable(1, 4, 9)
+
+    expect(ipcMock.transferTable).toHaveBeenCalledWith(1, 9)
+    expect(order.currentOrder?.table_number).toBe(9)
+    const toast = useToastStore()
+    expect(toast.toasts.map((t) => t.message)).toEqual(['Table 4 déplacée en 9'])
+    expect(toast.toasts[0].action?.label).toBe('Annuler')
+    expect(MOVE_UNDO_TTL_MS).toBe(5000)
+    vi.advanceTimersByTime(4700)
+    expect(toast.toasts).toHaveLength(1)
+    vi.advanceTimersByTime(600)
+    expect(toast.toasts).toHaveLength(0)
+  })
+
+  it('Annuler moves it back with a second transfer and says so', async () => {
+    const order = await onTable4()
+    ipcMock.getOrder.mockResolvedValue({ ...ORDER, table_number: 9 })
+    await order.moveTable(1, 4, 9)
+    ipcMock.getOrder.mockResolvedValue(ORDER)
+    const toast = useToastStore()
+
+    toast.runAction(toast.toasts[0].id)
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(ipcMock.transferTable).toHaveBeenCalledTimes(2)
+    expect(ipcMock.transferTable).toHaveBeenLastCalledWith(1, 4)
+    expect(order.currentOrder?.table_number).toBe(4)
+    expect(toast.toasts.map((t) => t.message)).toEqual(['Table 9 déplacée en 4'])
+    expect(toast.toasts[0].action).toBeUndefined()
+  })
+
+  it('throws a refusal for the caller and leaves no toast', async () => {
+    const order = await onTable4()
+    ipcMock.transferTable.mockRejectedValue('table_transfer_target_busy')
+
+    await expect(order.moveTable(1, 4, 9)).rejects.toBe('table_transfer_target_busy')
+
+    expect(useToastStore().toasts).toHaveLength(0)
+    expect(order.tableMoves).toBe(0)
+  })
+
+  it('shows the refusal of an undo as an error toast', async () => {
+    const order = await onTable4()
+    await order.moveTable(1, 4, 9)
+    ipcMock.transferTable.mockRejectedValue('table_transfer_target_busy')
+    const toast = useToastStore()
+
+    toast.runAction(toast.toasts[0].id)
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(toast.toasts.map((t) => t.variant)).toEqual(['error'])
+  })
+
+  it('counts each move and undo for the Tables screen', async () => {
+    const order = await onTable4()
+    await order.moveTable(1, 4, 9)
+    expect(order.tableMoves).toBe(1)
+    const toast = useToastStore()
+    toast.runAction(toast.toasts[0].id)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(order.tableMoves).toBe(2)
+  })
+
+  it('canTransfer needs an open dine-in order with a table and a line', async () => {
+    const order = await onTable4()
+    expect(order.canTransfer).toBe(true)
+    order.lines = []
+    expect(order.canTransfer).toBe(false)
   })
 })

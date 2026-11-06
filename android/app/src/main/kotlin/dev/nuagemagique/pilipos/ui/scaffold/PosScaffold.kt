@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.feature.order.TablePickerDialog
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.IdleLockBanner
 import dev.nuagemagique.pilipos.ui.components.PinDialog
@@ -112,6 +113,9 @@ private fun headerActions(model: HeaderViewModel): HeaderActions =
         onSettings = model::goSettings,
         onLock = model::lock,
         onOpenPin = model::openPin,
+        onMoveTable = model::openTablePicker,
+        onPickTable = model::pickTable,
+        onCloseTablePicker = model::closeTablePicker,
         pin =
             HeaderPinActions(
                 onSubmit = model::submitPin,
@@ -123,8 +127,8 @@ private fun headerActions(model: HeaderViewModel): HeaderActions =
 
 /**
  * The stateless scaffold: [PosScaffold] with its state and actions given. The veil is drawn over [content] when
- * `header.area.isSales` is true and [fdm] is blocking; the own-PIN dialog, the [deviceSheet] of a status light and then
- * [overlay] come above the header.
+ * `header.area.isSales` is true and [fdm] is blocking; the own-PIN dialog, the table picker of the table chip, the
+ * [deviceSheet] of a status light and then [overlay] come above the header.
  * Test tags: `scaffold_content` (the box over which the veil lies).
  */
 @Composable
@@ -153,6 +157,11 @@ internal fun PosScaffoldContent(
             }
         }
         if (header.pinOpen) OwnPinDialog(header.userName, actions.pin)
+        val picker = header.tablePicker
+        val from = header.tableNumber
+        if (picker != null && from != null) {
+            TablePickerDialog(from, picker, onPick = actions.onPickTable, onCancel = actions.onCloseTablePicker)
+        }
         deviceSheet()
         overlay()
     }

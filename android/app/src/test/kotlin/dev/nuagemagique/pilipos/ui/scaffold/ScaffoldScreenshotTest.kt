@@ -40,6 +40,7 @@ class ScaffoldScreenshotTest {
             isManager = true,
             tableNumber = 12,
             dineInOrder = true,
+            canMoveTable = true,
             hubriseVisible = true,
             pendingOrders = 3,
         )

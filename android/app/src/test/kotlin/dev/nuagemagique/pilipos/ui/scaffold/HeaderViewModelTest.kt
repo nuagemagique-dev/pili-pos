@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.feature.order.OrderRoutes
+import dev.nuagemagique.pilipos.feature.order.cartLine
 import dev.nuagemagique.pilipos.feature.reports.ReportsRoutes
 import dev.nuagemagique.pilipos.feature.settings.SettingsRoutes
 import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
+import dev.nuagemagique.pilipos.feature.tables.table
 import dev.nuagemagique.pilipos.feature.webshop.WebshopRoutes
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
@@ -406,6 +408,122 @@ class HeaderViewModelTest {
 
             coVerify(exactly = 0) { f.engine.createOrder(any()) }
             assertEquals(emptyList<HeaderEffect>(), r.effects)
+        }
+
+    // ── Moving the table (UX audit C8) ────────────────────────────
+
+    private val movedTo9 =
+        uniffi.pos_ffi.TableTransferResult(7L, 12, 9, SlipOutcome.PRINTED, SlipOutcome.PRINTED)
+
+    private fun cartLine7() = listOf(cartLine(1, 10, "Maki saumon"))
+
+    @Test
+    fun theTableChipIsMovableOnlyForAnOpenDineInOrderWithLines() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            r.openOrder(order(7, table = 12))
+            runCurrent()
+            assertFalse("no line yet", r.state.canMoveTable)
+
+            coEvery { f.engine.listCartLines(7L) } returns cartLine7()
+            r.order.loadOrder(7L)
+            runCurrent()
+            assertTrue(r.state.canMoveTable)
+
+            r.openOrder(order(8))
+            runCurrent()
+            assertFalse("a takeaway has no table to move", r.state.canMoveTable)
+        }
+
+    @Test
+    fun openingThePickerListsTheOtherTablesAndTappingAFreeOneMovesTheOrderAtOnce() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.listCartLines(7L) } returns cartLine7()
+            r.openOrder(order(7, table = 12))
+            val busy = table(4, orderId = 44L, lines = 1, totalCents = 900)
+            val free12 = table(12)
+            val free9 = table(9)
+            coEvery { f.engine.listTables() } returns listOf(busy, free12, free9)
+            coEvery { f.engine.transferTable(7L, 9) } returns movedTo9
+            runCurrent()
+
+            r.model.openTablePicker()
+            runCurrent()
+            assertEquals(listOf(busy, free9), r.state.tablePicker)
+
+            r.model.pickTable(9)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.transferTable(7L, 9) }
+            assertNull(r.state.tablePicker)
+            assertEquals("Table 12 déplacée en 9", r.lastToast().message)
+            assertEquals("Annuler", r.lastToast().action?.label)
+        }
+
+    @Test
+    fun closingThePickerMovesNothingAndARefusedMoveShowsTheError() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.listCartLines(7L) } returns cartLine7()
+            r.openOrder(order(7, table = 12))
+            coEvery { f.engine.listTables() } returns listOf(table(9))
+            runCurrent()
+            r.model.openTablePicker()
+            runCurrent()
+
+            r.model.closeTablePicker()
+            assertNull(r.state.tablePicker)
+            coVerify(exactly = 0) { f.engine.transferTable(any(), any()) }
+
+            coEvery { f.engine.transferTable(any(), any()) } throws PosException.Coded("table_transfer_target_busy", emptyMap())
+            r.model.openTablePicker()
+            runCurrent()
+            r.model.pickTable(9)
+            runCurrent()
+
+            assertEquals(ToastVariant.Error, r.lastToast().variant)
+            assertNull(r.lastToast().action)
+        }
+
+    @Test
+    fun aRefusalToReadThePlanShowsTheErrorAndOpensNoPicker() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.listCartLines(7L) } returns cartLine7()
+            r.openOrder(order(7, table = 12))
+            coEvery { f.engine.listTables() } throws refusal
+            runCurrent()
+
+            r.model.openTablePicker()
+            runCurrent()
+
+            assertNull(r.state.tablePicker)
+            assertEquals(ToastVariant.Error, r.lastToast().variant)
+        }
+
+    @Test
+    fun thePickerDoesNotOpenForAnOrderWithoutLines() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            r.openOrder(order(7, table = 12))
+            runCurrent()
+
+            r.model.openTablePicker()
+            runCurrent()
+
+            assertNull(r.state.tablePicker)
+            coVerify(exactly = 0) { f.engine.listTables() }
         }
 
     // ── Lock ──────────────────────────────────────────────────────

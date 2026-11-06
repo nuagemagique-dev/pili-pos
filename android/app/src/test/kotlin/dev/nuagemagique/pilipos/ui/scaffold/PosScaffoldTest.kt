@@ -8,11 +8,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import dev.nuagemagique.pilipos.feature.tables.table
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.fdm.FdmUiState
@@ -47,6 +49,7 @@ class PosScaffoldTest {
             onSettings = { calls += "settings" },
             onLock = { calls += "lock" },
             onOpenPin = { calls += "pin" },
+            onPickTable = { calls += "pick:$it" },
         )
 
     private fun show(
@@ -237,5 +240,30 @@ class PosScaffoldTest {
 
         compose.onNodeWithTag("pili_dialog").assertIsDisplayed()
         compose.onNodeWithTag("pin_pad").assertIsDisplayed()
+    }
+
+    @Test
+    fun theTablePickerOfTheTableChipSitsAboveTheContentAndATapOnAFreeTableCallsBack() {
+        val tables = listOf(table(9), table(4, orderId = 44L, lines = 1, totalCents = 900))
+        show(
+            HeaderArea.ORDER,
+            fdm = FdmUiState(connected = true),
+            header =
+                HeaderUiState(
+                    area = HeaderArea.ORDER,
+                    userName = "Alice",
+                    roleKey = "role_admin",
+                    tableNumber = 12,
+                    dineInOrder = true,
+                    canMoveTable = true,
+                    tablePicker = tables,
+                ),
+        )
+
+        compose.onNodeWithTag("table_picker").assertIsDisplayed()
+        compose.onNodeWithTag("pick_table_4").assertIsNotEnabled()
+        compose.onNodeWithTag("pick_table_9").performClick()
+
+        assertEquals(listOf("pick:9"), calls)
     }
 }

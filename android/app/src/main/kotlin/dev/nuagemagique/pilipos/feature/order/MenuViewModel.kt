@@ -10,6 +10,7 @@ import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import dev.nuagemagique.pilipos.ui.state.LineAdd
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
+import dev.nuagemagique.pilipos.ui.state.TableMoves
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -46,9 +47,6 @@ private const val ERROR_TTL_MS: Long = 6_000L
 
 /** How long the warning of a discount that could not be registered stays, in milliseconds (8 s in `order.ts`). */
 private const val WARNING_TTL_MS: Long = 8_000L
-
-/** The `status` the engine gives a table without an open order. */
-private const val STATUS_FREE = "free"
 
 /** The scope of an order discount's price change (`EVENT`); a free line's is `LINE`. */
 private const val SCOPE_EVENT = "EVENT"
@@ -207,6 +205,7 @@ internal class MenuViewModel(
     private val session = entry.session()
     private val gateway = entry.gateway()
     private val settings = entry.settings()
+    private val tableMoves = TableMoves(order, entry.toasts(), entry.catalog(), settings, entry.errors())
     private val data = MutableStateFlow(freshData(settings))
     private val weighing = WeighFlow(entry, viewModelScope) { change -> data.update { it.copy(dialog = change(it.dialog)) } }
 
@@ -808,8 +807,8 @@ internal class MenuViewModel(
     }
 
     /**
-     * Opens the table picker of "change table" (`openTablePicker`): the free tables of the plan, the current one
-     * left out. A refusal to list them is shown as an error toast.
+     * Opens the table picker of "Déplacer" (`TableMover.vue`): the other tables of the plan, the free ones to tap and
+     * the busy ones dimmed with their total. A refusal to list them is shown as an error toast.
      */
     fun askTransfer() {
         val current = order.current.value
@@ -821,26 +820,29 @@ internal class MenuViewModel(
             val language = settings.language.value
             attempt { gateway.call { engine -> engine.listTables() } }.fold(
                 onSuccess = { tables ->
-                    val free = tables.filter { it.status == STATUS_FREE && it.tableNumber != from }.map { it.tableNumber }
-                    data.update { it.copy(dialog = OrderDialog.TablePicker(from, free)) }
+                    val others = tables.filter { it.tableNumber != from }
+                    data.update { it.copy(dialog = OrderDialog.TablePicker(from, others)) }
                 },
                 onFailure = { entry.errors().show(it, language) },
             )
         }
     }
 
-    /** The table picked in the picker (`transferTo`): the order moves there, the toast says so or the refusal. */
+    /**
+     * The free table picked in the picker (`pick` of `TableMover.vue`): the order moves there at once, with no
+     * confirmation; the toast offers "Annuler". A refusal is shown as an error toast.
+     */
     fun confirmTransfer(toTable: Int) {
+        val current = order.current.value
+        val from = current?.tableNumber
         if (!isRouteOrderCurrent() || data.value.transferring) return
+        if (current == null || from == null) return
         data.update { it.copy(dialog = OrderDialog.None, transferring = true) }
         viewModelScope.launch {
             val language = settings.language.value
-            attempt { order.transferTable(toTable) }.fold(
-                onSuccess = {
-                    entry.toasts().show(entry.catalog().text("transfer_done", language, mapOf("to" to toTable)), ToastVariant.Success)
-                },
-                onFailure = { entry.errors().show(it, language, null, ERROR_TTL_MS) },
-            )
+            attempt { tableMoves.move(current.id, from, toTable) }.onFailure {
+                entry.errors().show(it, language, null, ERROR_TTL_MS)
+            }
             data.update { it.copy(transferring = false) }
         }
     }

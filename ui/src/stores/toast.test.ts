@@ -95,4 +95,29 @@ describe('toast store (C5)', () => {
     expect(pickVisible(all.slice(0, 4)).map((t) => t.id)).toEqual([1, 3, 4])
     expect(pickVisible([])).toEqual([])
   })
+
+  it('runs the action of a toast once and removes the toast (C8)', () => {
+    const toast = useToastStore()
+    const run = vi.fn()
+    const id = toast.showWithAction('Table 4 déplacée en 9', { label: 'Annuler', run }, 5000)
+    expect(toast.toasts[0].action?.label).toBe('Annuler')
+
+    toast.runAction(id)
+    toast.runAction(id)
+
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(toast.toasts).toHaveLength(0)
+  })
+
+  it('keeps the action toast for its 5 s and then drops it without running the action', () => {
+    const toast = useToastStore()
+    const run = vi.fn()
+    toast.showWithAction('moved', { label: 'Annuler', run }, 5000)
+
+    vi.advanceTimersByTime(4700)
+    expect(toast.toasts).toHaveLength(1)
+    vi.advanceTimersByTime(600)
+    expect(toast.toasts).toHaveLength(0)
+    expect(run).not.toHaveBeenCalled()
+  })
 })

@@ -52,7 +52,7 @@ class CartMoreMenuTest {
     fun aManagerHasChangeTableDiscountAndCustomerLeft() {
         show(manager)
 
-        compose.onNodeWithTag("cart_transfer").assertTextEquals("Changer de table")
+        compose.onNodeWithTag("cart_transfer").assertTextEquals("Déplacer")
         compose.onNodeWithTag("cart_discount").assertTextEquals("Remise")
         compose.onNodeWithTag("cart_unpaid").assertTextEquals("Client parti sans payer")
         compose.onNodeWithTag("cart_discount_remove").assertDoesNotExist()
@@ -111,7 +111,7 @@ class CartMoreMenuTest {
     fun theMenuSpeaksChineseInTheChineseUi() {
         show(manager, AppLanguage.ZH)
 
-        compose.onNodeWithTag("cart_transfer").assertTextEquals("换桌")
+        compose.onNodeWithTag("cart_transfer").assertTextEquals("移动")
     }
 
     // ── State rules that open the menu and pick the primary (pure) ──

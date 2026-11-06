@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
+import dev.nuagemagique.pilipos.feature.tables.table
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.fdm.FdmUiState
@@ -325,9 +326,17 @@ class OrderScreenshotTest {
         )
     }
 
+    private val busyTables = setOf(2, 9)
+
     @Test
     fun tablePicker() {
-        val dialog = OrderDialog.TablePicker(4, listOf(1, 2, 3, 6, 7, 9, 10, 12))
+        val dialog =
+            OrderDialog.TablePicker(
+                4,
+                listOf(1, 2, 3, 6, 7, 9, 10, 12).map {
+                    if (it in busyTables) table(it, orderId = 100L + it, lines = 3, totalCents = 2_400L) else table(it)
+                },
+            )
         capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(canTransfer = true), dialog = dialog), "order_table_picker")
     }
 

@@ -66,9 +66,9 @@ internal data class OrderCallbacks(
     val describeError: (Throwable) -> String = { it.message.orEmpty() },
     /** The sale was closed unpaid. */
     val onUnpaidDone: () -> Unit = {},
-    /** The free table picked in the table picker. */
+    /** The free table picked in the table picker: the order moves there at once. */
     val onTransferTarget: (Int) -> Unit = {},
-    /** The rows of the "Plus" menu: change table, discount, remove the discount, customer left. */
+    /** The rows of the "Plus" menu: move (change table), discount, remove the discount, customer left. */
     val onMoreTransfer: () -> Unit = {},
     val onMoreDiscount: () -> Unit = {},
     val onMoreDiscountRemove: () -> Unit = {},
@@ -296,7 +296,7 @@ internal fun BoxScope.OrderDialogs(
             )
         is OrderDialog.CartMore -> CartMoreDialog(dialog, callbacks)
         is OrderDialog.TablePicker ->
-            TablePickerDialog(dialog.from, dialog.tables, onConfirm = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
+            TablePickerDialog(dialog.from, dialog.tables, onPick = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
         is OrderDialog.SoldOut -> SoldOutDialog(dialog.item, callbacks.onAvailability, callbacks.onDismiss)
         OrderDialog.SoldOutList -> SoldOutList(soldOut, callbacks.onAvailability, callbacks.onDismiss)
         is OrderDialog.CloseUnpaid -> CloseUnpaidDialog(dialog.userName, callbacks)

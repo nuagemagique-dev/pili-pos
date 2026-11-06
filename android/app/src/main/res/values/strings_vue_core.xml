@@ -253,12 +253,12 @@
     <string name="cart_more_title">Autres actions</string>
     <string name="cart_more_close">Fermer</string>
     <string name="sent_to_kitchen">Envoyé en cuisine · {n} articles</string>
-    <string name="transfer_table">Changer de table</string>
+    <string name="transfer_table">Déplacer</string>
     <string name="transfer_pick_target">Choisissez la table libre</string>
     <string name="transfer_no_free">Aucune table libre</string>
-    <string name="transfer_confirm">Déplacer la table {from} vers la table {to} ?</string>
-    <string name="transfer_done">Commande déplacée vers la table {to}</string>
-    <string name="transfer_mode">Déplacer une table</string>
+    <string name="transfer_moved">Table {from} déplacée en {to}</string>
+    <string name="transfer_undo">Annuler</string>
+    <string name="transfer_mode">Déplacer</string>
     <string name="transfer_pick_source">Touchez la table à déplacer</string>
     <string name="transfer_pick_free">Table {from} : touchez la table libre</string>
     <string name="discount_button">Remise</string>

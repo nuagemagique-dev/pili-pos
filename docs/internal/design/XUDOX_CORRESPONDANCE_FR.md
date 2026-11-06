@@ -43,7 +43,7 @@ autre forme, **Manque** pas d'équivalent aujourd'hui, **Non** volontairement ab
 | --- | --- | --- |
 | "Tafels" + plan de salle | écran Tables, plan de salle configurable (1 à 999) | OK |
 | Numéros de table avec lettre de zone (A-19, B-30) | numéros seulement | Manque |
-| "Wisselen T" / "Change T" (changer de table) | "Changer de table" (événement P M122) | OK |
+| "Wisselen T" / "Change T" (changer de table) | Touche « Table 4 » de l'en-tête, ou « Déplacer » (Plus, ou plan de salle) : une table libre déplace la commande aussitôt, message « Annuler » 5 s (événement P M122) | OK |
 | "Splitting table" (déplacer des plats vers une table T-1_B) | paiement en plusieurs parts au paiement, pas de scission de note | Manque |
 | "Delete 去除本台" (supprimer la note) | "Client parti sans payer" avec PIN gérant ; une vente n'est jamais effacée | Non (loi : aucune suppression) |
 

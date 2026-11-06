@@ -3,19 +3,25 @@ package dev.nuagemagique.pilipos.ui.scaffold
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,6 +47,7 @@ class AppHeaderTest {
             onSettings = { calls += "settings" },
             onLock = { calls += "lock" },
             onOpenPin = { calls += "pin" },
+            onMoveTable = { calls += "move-table" },
         )
 
     private fun show(initial: HeaderUiState) {
@@ -125,6 +132,26 @@ class AppHeaderTest {
         state = state.copy(pendingOrders = 0)
         compose.waitForIdle()
         compose.onNodeWithTag("header_online_badge", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun theTableChipOfAMovableOrderIsA48dpButtonThatOpensThePicker() {
+        show(manager.copy(area = HeaderArea.ORDER, tableNumber = 12, dineInOrder = true, canMoveTable = true))
+
+        compose.onNodeWithTag("header_table").assertTextEquals("Table 12")
+        compose.onNodeWithTag("header_table").assertIsDisplayed().assertHasClickAction()
+        assertTrue(compose.onNodeWithTag("header_table").getUnclippedBoundsInRoot().height >= 48.dp)
+
+        compose.onNodeWithTag("header_table").performClick()
+
+        assertEquals(listOf("move-table"), calls)
+    }
+
+    @Test
+    fun theTableChipIsAPlainLabelWhileTheOrderCannotMove() {
+        show(manager.copy(area = HeaderArea.ORDER, tableNumber = 12, dineInOrder = true, canMoveTable = false))
+
+        compose.onNodeWithTag("header_table").assertTextEquals("Table 12").assertHasNoClickAction()
     }
 
     @Test

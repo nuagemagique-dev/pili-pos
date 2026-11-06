@@ -1347,25 +1347,22 @@ const coreMessages: Messages = {
     zh: '已送厨房 · {n} 件',
   },
 
-  // Moving an order to another table (event P, cost center change)
-  transfer_table: { fr: 'Changer de table', en: 'Change table', zh: '换桌' },
+  // Moving an order to another table (event P, cost center change), UX audit C8:
+  // one verb "Déplacer", the move happens at once and a toast offers "Annuler".
+  transfer_table: { fr: 'Déplacer', en: 'Move', zh: '移动' },
   transfer_pick_target: {
     fr: 'Choisissez la table libre',
     en: 'Pick the free table',
     zh: '请选择空桌',
   },
   transfer_no_free: { fr: 'Aucune table libre', en: 'No free table', zh: '没有空桌' },
-  transfer_confirm: {
-    fr: 'Déplacer la table {from} vers la table {to} ?',
-    en: 'Move table {from} to table {to}?',
-    zh: '将 {from} 号桌移到 {to} 号桌？',
+  transfer_moved: {
+    fr: 'Table {from} déplacée en {to}',
+    en: 'Table {from} moved to {to}',
+    zh: '{from} 号桌已移到 {to} 号桌',
   },
-  transfer_done: {
-    fr: 'Commande déplacée vers la table {to}',
-    en: 'Order moved to table {to}',
-    zh: '订单已移到 {to} 号桌',
-  },
-  transfer_mode: { fr: 'Déplacer une table', en: 'Move a table', zh: '移动桌子' },
+  transfer_undo: { fr: 'Annuler', en: 'Undo', zh: '撤销' },
+  transfer_mode: { fr: 'Déplacer', en: 'Move', zh: '移动' },
   transfer_pick_source: {
     fr: 'Touchez la table à déplacer',
     en: 'Tap the table to move',
