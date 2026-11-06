@@ -12,10 +12,31 @@ export const checkoutMessages: Messages = {
   split_into: { fr: 'Partager en', en: 'Split into', zh: '分成' },
   equal_parts: { fr: 'parts égales', en: 'equal parts', zh: '等份' },
   part_n: { fr: 'Part {n}', en: 'Part {n}', zh: '第{n}份' },
-  cash_part_taken: {
-    fr: 'Une part est déjà payée en espèces : les autres se paient par carte ou chèques-repas.',
-    en: 'One part is already paid in cash: the others are paid by card or meal vouchers.',
-    zh: '已有一份以现金支付：其余请用刷卡或餐券支付。',
+  // Beyond four parts: "Autre" opens a pad (2 to 20 equal parts).
+  split_other: { fr: 'Autre', en: 'Other', zh: '其他' },
+  split_other_n: { fr: '{n} parts', en: '{n} parts', zh: '{n} 份' },
+  split_other_title: { fr: 'Nombre de parts égales', en: 'Number of equal parts', zh: '等份数量' },
+  // Split by dishes (UX audit P3): the units of the cart checked for each part.
+  split_dishes: { fr: 'Par plats', en: 'By dishes', zh: '按菜品' },
+  dish_pick_hint: {
+    fr: 'Cochez les plats de cette part',
+    en: 'Check the dishes of this part',
+    zh: '勾选这一份的菜品',
+  },
+  dish_picked: {
+    fr: 'Plats de cette part : {n}',
+    en: 'Dishes in this part: {n}',
+    zh: '本份菜品：{n}',
+  },
+  dish_paid: { fr: 'payé', en: 'paid', zh: '已付' },
+  dish_paid_of: { fr: '{paid} sur {n} payés', en: '{paid} of {n} paid', zh: '已付 {paid}/{n}' },
+  dish_less: { fr: 'Une unité de moins', en: 'One unit less', zh: '减少一件' },
+  dish_more: { fr: 'Une unité de plus', en: 'One unit more', zh: '增加一件' },
+  // A cash part taken: what was handed over and what was given back.
+  part_cash_detail: {
+    fr: 'reçu {given} €, rendu {change} €',
+    en: 'received {given} €, change {change} €',
+    zh: '收 {given} €，找 {change} €',
   },
   // Back to the order keeps the parts taken by hand (UX audit P4).
   back_to_order: { fr: 'Retour à la commande', en: 'Back to the order', zh: '返回订单' },

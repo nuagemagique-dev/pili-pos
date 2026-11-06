@@ -110,6 +110,10 @@ test('[ROUND4] meal vouchers 11,52 then the rest in cash, rounded to 3,35', asyn
   await toPayment(page)
   await exactPart(page, '.meal-btn', '11,52')
   await expect(page.locator('.total-label')).toHaveText('Reste à payer')
+  // The method stays selected between parts: the rest is exact until cash is chosen.
+  await expect(page.locator('.meal-btn')).toHaveClass(/active/u)
+  await expect(page.locator('.total-value')).toHaveText('3,34')
+  await page.locator('.cash-btn').click()
   await expect(page.locator('.total-value')).toHaveText('3,35')
   await expect(page.locator('.paid-part').nth(0)).toContainText('11,52')
 
@@ -126,6 +130,9 @@ test('[ROUND5] meal vouchers, card, then 10 € cash for the 7,75 left', async (
   await toPayment(page)
   await exactPart(page, '.meal-btn', '3,13')
   await exactPart(page, '.card-btn', '3,97')
+  await expect(page.locator('.card-btn')).toHaveClass(/active/u)
+  await expect(page.locator('.total-value')).toHaveText('7,76')
+  await page.locator('.cash-btn').click()
   await expect(page.locator('.total-value')).toHaveText('7,75')
   await payCash(page, '10')
   await expect(page.locator('.receipt-change')).toContainText('2,25')
@@ -196,8 +203,9 @@ test('two equal parts: card 7,43, then cash for the other 7,43 rounded to 7,45',
   await page.locator('.card-confirm').click()
   await expect(page.locator('.part-chip.paid')).toContainText('Carte · 7,43 €')
   await expect(page.locator('.paid-part')).toContainText('− 7,43')
-  // Cash is back as the method for the last part, rounded.
-  await expect(page.locator('.cash-btn')).toHaveClass(/active/u)
+  // The card stays selected for the next part; the rest is one tap on Espèces away, rounded.
+  await expect(page.locator('.card-btn')).toHaveClass(/active/u)
+  await page.locator('.cash-btn').click()
   await expect(page.locator('.total-value')).toHaveText('7,45')
   await expect(page.locator('.validate-btn')).toContainText('Encaisser la part 2 · 7,45 €')
 
@@ -224,10 +232,9 @@ test('three parts, the first in cash: the cash part is sent last, as the rest', 
   await expect(page.locator('.change-box')).toContainText('0,05')
   await page.locator('.validate-btn').click()
 
-  // One cash part at most: cash is no longer offered, the others go on
-  // card / meal vouchers.
-  await expect(page.locator('.cash-btn')).toHaveCount(0)
-  await expect(page.locator('.card-btn')).toHaveClass(/active/u)
+  // Cash stays offered and selected (several cash parts are allowed); the others go on card.
+  await expect(page.locator('.cash-btn')).toHaveClass(/active/u)
+  await page.locator('.card-btn').click()
   await expect(page.locator('.exact-value')).toHaveText('4,95')
   await page.locator('.card-confirm').click()
   await expect(page.locator('.exact-value')).toHaveText('4,95')

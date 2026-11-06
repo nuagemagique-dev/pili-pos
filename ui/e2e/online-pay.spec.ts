@@ -218,6 +218,8 @@ test.describe('O2: collecting an unpaid online order at the checkout', () => {
     for (const d of '10') await page.locator('.nk', { hasText: d }).first().click()
     await page.locator('.card-confirm').click()
     await expect(page.locator('.total-value')).toHaveText('18,50')
+    // The method stays on meal vouchers for the next part: the rest is paid in cash.
+    await page.locator('.cash-btn').click()
     await page.locator('.validate-btn').click()
 
     await expect(page.locator('.success-icon')).toBeVisible()
@@ -448,7 +450,8 @@ test.describe('P4: back to the order keeps the parts taken by hand', () => {
     await toPayment(page)
     await takeMealVoucher(page, '5')
     await expect(page.locator('.paid-part')).toHaveCount(1)
-    await expect(page.locator('.total-value')).toHaveText('9,85')
+    // The meal voucher stays selected: the rest is exact until cash is chosen.
+    await expect(page.locator('.total-value')).toHaveText('9,86')
 
     await page.getByTestId('back-to-order').click()
     await expect(page).toHaveURL(/order/u)
@@ -471,7 +474,7 @@ test.describe('P4: back to the order keeps the parts taken by hand', () => {
     ])
   })
 
-  test('a cash part taken before going back is still taken: cash is not offered again', async ({
+  test('a cash part taken before going back is still taken, and cash stays offered', async ({
     page,
   }) => {
     await toPayment(page)
@@ -480,13 +483,12 @@ test.describe('P4: back to the order keeps the parts taken by hand', () => {
     await page.locator('.cash-btn').click()
     await page.locator('.validate-btn').click()
     await expect(page.locator('.paid-part')).toHaveCount(1)
-    await expect(page.locator('.cash-btn')).toHaveCount(0)
+    await expect(page.locator('.cash-btn')).toHaveClass(/active/u)
 
     await page.getByTestId('back-to-order').click()
     await page.locator('.checkout-btn').click()
     await expect(page.locator('.paid-part')).toHaveCount(1)
-    await expect(page.locator('.cash-btn')).toHaveCount(0)
-    await expect(page.locator('.card-btn')).toHaveClass(/active/u)
+    await expect(page.locator('.cash-btn')).toBeVisible()
   })
 
   test('"Annuler les parts" forgets them for good, also on the cart', async ({ page }) => {

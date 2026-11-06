@@ -15,10 +15,26 @@ import { useBilingualName } from '../utils/names'
 import { lineNetCents, discountTotalCents } from '../utils/cartAmounts'
 import { DONE_AUTO_RETURN_MS, doneNeedsAttention } from '../utils/checkoutDone'
 import { reconcileHeld, type HeldPart } from '../utils/heldParts'
+import {
+  allLeftPicked,
+  cashDueCents,
+  dishLines,
+  paidUnits,
+  pickedCents,
+  pickedCount,
+  pickedUnits,
+  toggleLine,
+  unitsFit,
+  unitsLeft,
+  withUnits,
+  type DishPick,
+  type DishUnits,
+} from '../utils/dishSplit'
 import AppHeader from '../components/AppHeader.vue'
 import TicketMediumPicker from '../components/TicketMediumPicker.vue'
 import DeliveryOutcomePanel from '../components/DeliveryOutcomePanel.vue'
 import GiftVoucherDialog from '../components/GiftVoucherDialog.vue'
+import NumberEntryDialog from '../components/NumberEntryDialog.vue'
 import { useGiftVouchersStore, GIFT_VOUCHER_DEPARTMENT } from '../stores/giftVouchers'
 
 const router = useRouter()
@@ -33,17 +49,26 @@ const { t } = useI18n()
 
 // A sale can be paid in several parts: card and meal vouchers for an
 // exact amount each, cash for the rest (the only part rounded to
-// 5 cents, and at most one cash part: the backend settles cash as
-// "what is left"). Nothing is signed until the whole sale is paid; the
+// 5 cents). Nothing is signed until the whole sale is paid; the
 // backend settles the parts again and refuses a payment that does not
 // add up.
 //
+// Cash: the signed request carries ONE cash line, rounded once (POS
+// description v2.2 section 7.1: cash appears as "une seule ligne de
+// paiement sur le ticket, ARRONDIE", the rounding of a ticket being
+// 2 cents at most). Several friends can still pay in cash: each cash
+// part keeps its own amount, given and change on this screen, and the
+// payload merges them all in the single cash part without amount (the
+// backend's "what is left"). The rounding of the merged line is shared
+// between the cash parts (`cashDueCents`), so what each friend hands
+// over adds up to the signed cash line.
+//
 // The equal split (UX guide §7.4) only helps with the amounts: staff
-// pick the number of parts, each part is pre-computed, and every part
-// taken is one more entry of the same PaymentPart[] list. A cash part
-// taken before the last one is sent last (as "the rest"): with all the
-// other parts exact, the backend's cash rest is that part's amount, so
-// its 5-cent rounding is the one shown here.
+// pick the number of parts (1 to 4, or "Autre": 2 to 20), each part is
+// pre-computed, and every part taken is one more entry of the same
+// PaymentPart[] list. The split by dishes (UX audit P3) lets staff
+// check the units of the cart a part pays (`utils/dishSplit.ts`); it
+// is the same list of parts, the units never leave this screen.
 type Method = 'cash' | 'card' | 'meal_voucher' | 'gift_voucher'
 const ALL_METHODS: Method[] = ['cash', 'card', 'meal_voucher', 'gift_voucher']
 
@@ -52,6 +77,10 @@ interface TakenPart {
   cents: number
   /** Change handed back for a cash part, in cents. */
   changeCents: number
+  /** Cash handed over for a cash part, in cents. */
+  givenCents?: number
+  /** The cart units a part pays when the sale is split by dishes (never sent to the engine). */
+  units?: DishUnits[]
   /** A card part taken on the linked terminal: the approved payment it
    * settles. Such a part is locked (the card is charged): it cannot be
    * removed and its amount is fixed. */
@@ -82,6 +111,12 @@ const online = computed(() => order.onlineCollect !== null)
 const wasOnline = order.onlineCollect !== null
 const method = ref<Method>(order.onlineCollect?.method ?? 'cash')
 const splitCount = ref(1)
+// "Par plats" (UX audit P3): the units of the cart checked for the part being taken.
+const splitMode = ref<'equal' | 'dishes'>('equal')
+const dishMode = computed(() => splitMode.value === 'dishes')
+const pick = ref<DishPick>({})
+// "Autre": the pad for any number of equal parts.
+const otherOpen = ref(false)
 const parts = ref<TakenPart[]>([])
 // The amount being typed ("12,50"): received for cash, charged for
 // card / meal vouchers. `fresh`: set by a shortcut or a prefill, the
@@ -119,7 +154,10 @@ const METHODS = computed<Method[]>(() =>
 )
 const paidCents = computed(() => parts.value.reduce((sum, p) => sum + p.cents, 0))
 const restCents = computed(() => Math.max(0, totalCents.value - paidCents.value))
-const hasCashPart = computed(() => parts.value.some((p) => p.method === 'cash'))
+/** Cash of the cash parts already taken (exact amounts): the base of the shared 5-cent rounding. */
+const cashTakenCents = computed(() =>
+  parts.value.filter((p) => p.method === 'cash').reduce((sum, p) => sum + p.cents, 0),
+)
 /** A card part goes to the linked terminal (not typed by hand). */
 const viaTerminal = computed(() => eft.active && !cardManual.value)
 /** Every part is taken (card parts approved by the terminal): the sale
@@ -139,17 +177,60 @@ function equalShares(total: number, n: number): number[] {
 
 const shares = computed(() => equalShares(totalCents.value, splitCount.value))
 const partIndex = computed(() => parts.value.length)
-const isLastPart = computed(() => partIndex.value >= splitCount.value - 1)
-/** What the current part pays: its share, the rest for the last one. */
-const dueCents = computed(() =>
-  isLastPart.value ? restCents.value : Math.min(shares.value[partIndex.value], restCents.value),
+
+// ── Split by dishes ──
+const dLines = computed(() => dishLines(order.lines))
+const paid = computed(() => paidUnits(parts.value))
+const pickedTotal = computed(() => pickedCount(pick.value))
+const pickedAmount = computed(() => pickedCents(dLines.value, paid.value, pick.value))
+/** Every unit not paid yet is checked: this part pays the whole rest. */
+const everythingPicked = computed(
+  () =>
+    dishMode.value && pickedTotal.value > 0 && allLeftPicked(dLines.value, paid.value, pick.value),
 )
-const roundedDueCents = computed(() => round5(dueCents.value))
+/** The lines of the recap in dishes mode: what each one has left and what is checked. */
+const dishRows = computed(() =>
+  dLines.value.map((dl, i) => ({
+    line: order.lines[i],
+    left: unitsLeft(dl, paid.value),
+    paidCount: paid.value.get(dl.id) ?? 0,
+    picked: pick.value[dl.id] ?? 0,
+  })),
+)
+
+const isLastPart = computed(() =>
+  dishMode.value ? everythingPicked.value : partIndex.value >= splitCount.value - 1,
+)
+/** What the current part pays: its share (the units checked by dishes), the rest for the last one. */
+const dueCents = computed(() => {
+  if (dishMode.value) {
+    return everythingPicked.value ? restCents.value : Math.min(pickedAmount.value, restCents.value)
+  }
+  return isLastPart.value
+    ? restCents.value
+    : Math.min(shares.value[partIndex.value], restCents.value)
+})
+/** A part by dishes needs a unit checked (or the sale only waits to be signed). */
+const dishBlocked = computed(
+  () =>
+    dishMode.value &&
+    !allPaid.value &&
+    (pickedTotal.value === 0 || (dueCents.value === 0 && !everythingPicked.value)),
+)
+/** The cash to hand over for this part: its share of the rounding of the one cash line. */
+const roundedDueCents = computed(() => cashDueCents(cashTakenCents.value, dueCents.value))
 
 /** "Reste à payer": rounded when cash is about to pay all of it. */
 const restShownCents = computed(() =>
-  method.value === 'cash' && isLastPart.value ? round5(restCents.value) : restCents.value,
+  method.value === 'cash' && isLastPart.value
+    ? cashDueCents(cashTakenCents.value, restCents.value)
+    : restCents.value,
 )
+
+/** The most equal parts: the pad of "Autre" (2 to 20). */
+const SPLIT_QUICK_MAX = 4
+const SPLIT_OTHER_MIN = 2
+const SPLIT_OTHER_MAX = 20
 
 /** A split in more parts than cents would give a part of 0. */
 function splitAllowed(n: number): boolean {
@@ -184,6 +265,7 @@ const canConfirmExact = computed(() => entryCents.value > 0 && !exactTooHigh.val
 const canValidate = computed(
   () =>
     !eftBlocked.value &&
+    !dishBlocked.value &&
     (allPaid.value || (method.value === 'cash' ? canPayCash.value : canConfirmExact.value)),
 )
 
@@ -206,6 +288,23 @@ function takenLabel(p: TakenPart): string {
 
 /** Every part: taken, the current one, and the ones to come. */
 const partChips = computed(() => {
+  if (dishMode.value) {
+    // By dishes the parts to come are not known: the one being taken and what stays after it.
+    const chips: { state: 'paid' | 'current' | 'next'; label: string }[] = parts.value.map((p) => ({
+      state: 'paid',
+      label: `${takenLabel(p)} · ${formatPrice(p.cents)} € ✓`,
+    }))
+    if (restCents.value > 0) {
+      chips.push({
+        state: 'current',
+        label: `${methodLabel(method.value)} · ${formatPrice(dueCents.value)} €`,
+      })
+      if (restCents.value > dueCents.value) {
+        chips.push({ state: 'next', label: `${formatPrice(restCents.value - dueCents.value)} €` })
+      }
+    }
+    return chips
+  }
   const count = Math.max(splitCount.value, parts.value.length + (restCents.value > 0 ? 1 : 0))
   const chips: { state: 'paid' | 'current' | 'next'; label: string }[] = []
   let left = restCents.value
@@ -262,7 +361,7 @@ function prefill() {
   entry.value = cents > 0 ? toInput(cents) : ''
   fresh.value = cents > 0
 }
-watch([method, partIndex, splitCount, totalCents], prefill, { immediate: true })
+watch([method, partIndex, splitCount, totalCents, dueCents], prefill, { immediate: true })
 
 /** Numpad: digits, one comma, 2 decimals, 6 chars. */
 function handleKey(value: string) {
@@ -312,7 +411,9 @@ const collectCents = computed(() =>
 const validateLabel = computed(() => {
   if (allPaid.value) return t('validate')
   const amount = formatPrice(collectCents.value)
-  if (splitCount.value > 1) return t('collect_part', { n: partIndex.value + 1, amount })
+  if (splitCount.value > 1 || dishMode.value) {
+    return t('collect_part', { n: partIndex.value + 1, amount })
+  }
   return t(`collect_${method.value}`, { amount })
 })
 
@@ -326,10 +427,6 @@ const receivedHint = computed(
 /** After a part left a rest: the row "Reste 12,30 € :" in front of the
  * methods still allowed. */
 const showRest = computed(() => parts.value.length > 0 && restCents.value > 0)
-/** One cash part at most: cash is not offered again once taken. */
-const offeredMethods = computed(() =>
-  METHODS.value.filter((m) => !(m === 'cash' && hasCashPart.value)),
-)
 
 function setQuickAmount(n: number) {
   entry.value = n.toString()
@@ -341,7 +438,6 @@ function quickActive(n: number): boolean {
 }
 
 function selectMethod(m: Method) {
-  if (m === 'cash' && hasCashPart.value) return
   if (m === 'gift_voucher') {
     redeeming.value = true
     return
@@ -363,22 +459,71 @@ async function takeVoucher(voucher: ipc.GiftVoucherView, cents: number) {
     changeCents: 0,
     giftVoucherId: voucher.id,
     codeMasked: voucher.code_masked,
+    units: currentUnits(),
   }
   if (cents >= restCents.value) {
     await doCheckout([...parts.value, part])
     return
   }
+  // The method selected stays (a voucher is not a method of its own).
   parts.value.push(part)
-  method.value = hasCashPart.value ? 'card' : 'cash'
+  pick.value = {}
 }
 
+// ── Split: equal parts, "Autre", by dishes ──
+
 function selectSplit(n: number) {
-  if (splitAllowed(n)) splitCount.value = n
+  if (!splitAllowed(n)) return
+  splitMode.value = 'equal'
+  splitCount.value = n
+  pick.value = {}
+}
+
+/** "Autre" is highlighted for a number of parts the four buttons do not give. */
+const otherActive = computed(() => !dishMode.value && splitCount.value > SPLIT_QUICK_MAX)
+
+/** The pad of "Autre" gave a number of equal parts. */
+function takeOtherSplit(value: string) {
+  otherOpen.value = false
+  const n = Number(value)
+  if (n >= SPLIT_OTHER_MIN && n <= SPLIT_OTHER_MAX) selectSplit(n)
+}
+
+function selectDishes() {
+  if (parts.value.length > 0 || dishMode.value) return
+  splitMode.value = 'dishes'
+  splitCount.value = 1
+  pick.value = {}
+}
+
+/** The units checked for the part being taken, when the sale is split by dishes. */
+function currentUnits(): DishUnits[] | undefined {
+  return dishMode.value ? pickedUnits(dLines.value, pick.value) : undefined
+}
+
+/** Tap on a dish: all its units left are checked, or none. */
+function toggleDish(index: number) {
+  const dl = dLines.value[index]
+  if (dishMode.value && dl)
+    pick.value = toggleLine(pick.value, { id: dl.id, left: unitsLeft(dl, paid.value) })
+}
+
+/** The - and + of a dish of several units: one unit more or less for this part. */
+function stepDish(index: number, delta: number) {
+  const dl = dLines.value[index]
+  if (dishMode.value && dl) {
+    pick.value = withUnits(
+      pick.value,
+      { id: dl.id, left: unitsLeft(dl, paid.value) },
+      (pick.value[dl.id] ?? 0) + delta,
+    )
+  }
 }
 
 function clearParts() {
   // A card the terminal approved is charged: its part stays.
   parts.value = parts.value.filter((p) => p.eftPaymentId !== undefined)
+  pick.value = {}
   error.value = null
   method.value = 'cash'
 }
@@ -401,8 +546,10 @@ watch(
         method: p.method,
         cents: p.cents,
         changeCents: p.changeCents,
+        givenCents: p.givenCents,
         giftVoucherId: p.giftVoucherId,
         codeMasked: p.codeMasked,
+        units: p.units,
       })),
     )
   },
@@ -416,10 +563,14 @@ function restoreParts() {
   if (id !== undefined) {
     const locked = parts.value.reduce((sum, p) => sum + p.cents, 0)
     const kept = reconcileHeld(order.heldPartsFor(id), Math.max(0, totalCents.value - locked))
-    if (kept.dropped) toast.show(t('parts_dropped'), 'warning', 6000)
+    // A part by dishes needs its units to still be in the cart.
+    const unitsGone = !unitsFit(dLines.value, [...parts.value, ...kept.parts])
+    if (kept.dropped || unitsGone) {
+      toast.show(t('parts_dropped'), 'warning', 6000)
+      kept.parts = []
+    }
+    if (kept.parts.some((p) => p.units !== undefined)) splitMode.value = 'dishes'
     parts.value = [...parts.value, ...kept.parts]
-    // One cash part at most: cash is not offered again once a part took it.
-    if (hasCashPart.value && method.value === 'cash') method.value = 'card'
   }
   restored = true
   if (id !== undefined && parts.value.length === 0) order.holdParts(id, [])
@@ -438,6 +589,7 @@ function payload(all: TakenPart[]): PaymentPart[] {
         ? { method: p.method, amount_cents: p.cents }
         : { method: p.method, amount_cents: p.cents, eft_payment_id: p.eftPaymentId }
     })
+  // All the cash parts are ONE cash line: no amount, it pays what is left (and is rounded once).
   if (all.some((p) => p.method === 'cash')) list.push({ method: 'cash' })
   return list
 }
@@ -451,19 +603,26 @@ async function validate() {
     return
   }
   const isCash = method.value === 'cash'
+  const units = currentUnits()
   const part: TakenPart = isCash
-    ? { method: 'cash', cents: dueCents.value, changeCents: changeCents.value }
-    : { method: method.value, cents: entryCents.value, changeCents: 0 }
+    ? {
+        method: 'cash',
+        cents: dueCents.value,
+        changeCents: changeCents.value,
+        givenCents: entryCents.value,
+        units,
+      }
+    : { method: method.value, cents: entryCents.value, changeCents: 0, units }
   if (method.value === 'card' && viaTerminal.value) {
     // The terminal charges the card; its approved payment becomes a
     // locked part. A refusal leaves the part editable.
-    const paid = await takeOnTerminal(part.cents)
-    if (!paid) return
+    const approved = await takeOnTerminal(part.cents, units)
+    if (!approved) return
+    pick.value = {}
     if (restCents.value === 0) {
       await doCheckout(parts.value)
-      return
     }
-    method.value = hasCashPart.value ? method.value : 'cash'
+    // Otherwise the method stays selected for the next part.
     return
   }
   if (part.cents >= restCents.value) {
@@ -471,8 +630,8 @@ async function validate() {
     return
   }
   parts.value.push(part)
-  // One cash part at most; otherwise back to cash, the default.
-  method.value = hasCashPart.value ? (isCash ? 'card' : method.value) : 'cash'
+  pick.value = {}
+  // The method stays selected for the next part (UX audit P3); "Reste" offers the others.
 }
 
 // ── Linked card terminal ──
@@ -492,11 +651,16 @@ function adopt(p: EftPayment) {
 }
 
 /** Charge `cents` on the terminal (the overlay waits for the card). */
-async function takeOnTerminal(cents: number): Promise<EftPayment | null> {
+async function takeOnTerminal(cents: number, units?: DishUnits[]): Promise<EftPayment | null> {
   if (!order.currentOrder) return null
-  const paid = await eft.charge(order.currentOrder.id, cents)
-  if (paid) adopt(paid)
-  return paid
+  const approved = await eft.charge(order.currentOrder.id, cents)
+  if (approved) {
+    adopt(approved)
+    // The part by dishes keeps the units it pays.
+    const taken = parts.value.find((x) => x.eftPaymentId === approved.id)
+    if (taken && units) taken.units = units
+  }
+  return approved
 }
 
 /** Vérifier: ask the terminal where a waiting payment stands. */
@@ -559,7 +723,8 @@ async function doCheckout(all: TakenPart[]) {
     if (result.value.success) {
       warnIfSlipFailed(result.value.kitchen_slip)
       void giftVouchers.load()
-      changeDueCents.value = all.reduce((sum, p) => sum + p.changeCents, 0)
+      // The change of the last cash part: the earlier ones were handed back when they were taken.
+      changeDueCents.value = [...all].reverse().find((p) => p.method === 'cash')?.changeCents ?? 0
       // Clear the order from the store immediately so it can't be
       // re-submitted. The "done" screen reads from result.value.
       order.clearOrder()
@@ -664,7 +829,7 @@ function goBack() {
           }}</span>
           <div class="methods">
             <button
-              v-for="m in offeredMethods"
+              v-for="m in METHODS"
               :key="m"
               class="method-btn"
               :class="[
@@ -679,22 +844,42 @@ function goBack() {
           </div>
         </div>
 
-        <!-- §7.4: equal split -->
+        <!-- §7.4: equal split (1 to 4 or "Autre" 2 to 20) or by dishes (UX audit P3) -->
         <div class="split-row">
           <span class="row-label">{{ t('split_into') }}</span>
           <div class="segmented split-options">
             <button
-              v-for="n in 5"
+              v-for="n in SPLIT_QUICK_MAX"
               :key="n"
               class="seg-btn split-btn"
-              :class="{ active: splitCount === n }"
-              :disabled="splitCount !== n && !splitAllowed(n)"
+              :class="{ active: !dishMode && splitCount === n }"
+              :disabled="(dishMode || splitCount !== n) && !splitAllowed(n)"
               @click="selectSplit(n)"
             >
               {{ n }}
             </button>
+            <button
+              class="seg-btn split-other"
+              :class="{ active: otherActive }"
+              :disabled="!otherActive && parts.length > 0"
+              data-testid="split-other"
+              @click="otherOpen = true"
+            >
+              {{ otherActive ? t('split_other_n', { n: splitCount }) : t('split_other') }}
+            </button>
           </div>
           <span class="split-hint">{{ t('equal_parts') }}</span>
+          <div class="segmented split-dishes-seg">
+            <button
+              class="seg-btn split-dishes"
+              :class="{ active: dishMode }"
+              :disabled="!dishMode && parts.length > 0"
+              data-testid="split-dishes"
+              @click="selectDishes"
+            >
+              {{ t('split_dishes') }}
+            </button>
+          </div>
         </div>
 
         <div v-if="partChips.length > 1" class="part-chips">
@@ -771,7 +956,6 @@ function goBack() {
                     : t('card_wait')
                 }}
               </p>
-              <p v-if="hasCashPart" class="card-hint">{{ t('cash_part_taken') }}</p>
             </template>
           </div>
 
@@ -811,8 +995,72 @@ function goBack() {
           <span class="item-count">{{ t('items_count', { n: itemCount }) }}</span>
         </div>
 
+        <p v-if="dishMode" class="dish-hint" data-testid="dish-hint">
+          {{ pickedTotal > 0 ? t('dish_picked', { n: pickedTotal }) : t('dish_pick_hint') }}
+        </p>
         <div class="summary-lines scroll-touch">
-          <div v-for="line in order.lines" :key="line.id" class="sum-line">
+          <div
+            v-for="(row, i) in dishMode ? dishRows : []"
+            :key="`dish${row.line.id}`"
+            class="sum-line dish-line"
+            :class="{ 'dish-done': row.left === 0, 'dish-on': row.picked > 0 }"
+            :data-testid="`dish-line-${row.line.id}`"
+            @click="toggleDish(i)"
+          >
+            <button
+              class="dish-check"
+              role="checkbox"
+              :aria-checked="row.picked > 0 && row.picked >= row.left"
+              :disabled="row.left === 0"
+              :data-testid="`dish-check-${row.line.id}`"
+              @click.stop="toggleDish(i)"
+            >
+              <template v-if="row.picked > 0">{{ row.picked >= row.left ? '✓' : '–' }}</template>
+            </button>
+            <div class="line-name">
+              <span class="name-primary" :class="{ code: bilingual(row.line).isCode }"
+                >{{ row.line.quantity }}× {{ bilingual(row.line).primary }}</span
+              >
+              <span v-if="bilingual(row.line).secondary" class="name-secondary">{{
+                bilingual(row.line).secondary
+              }}</span>
+              <span
+                v-if="row.paidCount > 0"
+                class="dish-paid"
+                :data-testid="`dish-paid-${row.line.id}`"
+                >{{
+                  row.left === 0
+                    ? t('dish_paid')
+                    : t('dish_paid_of', { paid: row.paidCount, n: row.line.quantity })
+                }}</span
+              >
+            </div>
+            <span class="line-total">{{ formatPrice(lineNetCents(row.line)) }}</span>
+            <div v-if="row.line.quantity > 1 && row.left > 0" class="dish-stepper" @click.stop>
+              <button
+                class="dish-step"
+                :disabled="row.picked === 0"
+                :aria-label="t('dish_less')"
+                :data-testid="`dish-minus-${row.line.id}`"
+                @click="stepDish(i, -1)"
+              >
+                −
+              </button>
+              <span class="dish-count" :data-testid="`dish-count-${row.line.id}`"
+                >{{ row.picked }} / {{ row.left }}</span
+              >
+              <button
+                class="dish-step"
+                :disabled="row.picked >= row.left"
+                :aria-label="t('dish_more')"
+                :data-testid="`dish-plus-${row.line.id}`"
+                @click="stepDish(i, 1)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <div v-for="line in dishMode ? [] : order.lines" :key="line.id" class="sum-line">
             <span class="line-qty">{{ line.quantity }}×</span>
             <div class="line-name">
               <span
@@ -865,6 +1113,15 @@ function goBack() {
             <span>
               {{ t('part_n', { n: i + 1 }) }} · {{ takenLabel(p) }}
               <template v-if="p.codeMasked"> · {{ p.codeMasked }}</template>
+              <template v-if="p.method === 'cash' && p.changeCents > 0">
+                ·
+                <span class="cash-given" data-testid="part-cash-detail">{{
+                  t('part_cash_detail', {
+                    given: formatPrice(p.givenCents ?? 0),
+                    change: formatPrice(p.changeCents),
+                  })
+                }}</span>
+              </template>
               <template v-if="p.eftPaymentId !== undefined">
                 <template v-if="p.brand"> · {{ p.brand }}</template>
                 <span class="eft-badge" data-testid="eft-approved">{{ t('eft_approved') }}</span>
@@ -973,6 +1230,17 @@ function goBack() {
         </p>
       </div>
     </div>
+
+    <NumberEntryDialog
+      v-if="otherOpen"
+      :title="t('split_other_title')"
+      initial=""
+      :max-digits="2"
+      :min="SPLIT_OTHER_MIN"
+      :max="SPLIT_OTHER_MAX"
+      @confirm="takeOtherSplit"
+      @cancel="otherOpen = false"
+    />
 
     <GiftVoucherDialog
       v-if="redeeming"
@@ -1097,7 +1365,20 @@ button:active:not(:disabled) {
   border-radius: 12px;
 }
 .split-options {
-  width: 420px;
+  width: 480px;
+}
+.split-dishes-seg {
+  min-width: 180px;
+}
+.split-dishes {
+  padding: 0 16px;
+  font-family: var(--font-family);
+  font-size: 17px;
+}
+.split-other {
+  font-family: var(--font-family);
+  font-size: 16px;
+  white-space: nowrap;
 }
 .seg-btn {
   height: 48px;
@@ -1415,6 +1696,75 @@ button:active:not(:disabled) {
   min-height: 56px;
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
+}
+/* Split by dishes (UX audit P3): a checkbox, the dish, its net, and a - n / left + stepper under it */
+.dish-hint {
+  padding: 8px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.dish-line {
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  min-height: 64px;
+  gap: 12px;
+  cursor: pointer;
+}
+.dish-line.dish-on {
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+}
+.dish-line.dish-done {
+  opacity: 0.4;
+  cursor: default;
+}
+.dish-check {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+}
+.dish-on .dish-check {
+  border-color: var(--selected-fg);
+}
+.dish-paid {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-success);
+}
+.dish-stepper {
+  grid-column: 2 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dish-step {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 26px;
+  font-weight: 800;
+}
+.dish-step:disabled {
+  opacity: 0.35;
+}
+.dish-count {
+  min-width: 72px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+}
+.cash-given {
+  font-size: 14px;
 }
 .line-qty {
   font-family: var(--font-mono);
