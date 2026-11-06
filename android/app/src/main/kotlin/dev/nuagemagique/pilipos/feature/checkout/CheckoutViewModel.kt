@@ -11,6 +11,7 @@ import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.CashDisplay
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import dev.nuagemagique.pilipos.ui.state.HeldPart
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import dev.nuagemagique.pilipos.ui.state.isOpen
 import dev.nuagemagique.pilipos.ui.state.isUsable
@@ -35,6 +36,7 @@ import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.EftPayment
 import uniffi.pos_ffi.GiftVoucherView
+import uniffi.pos_ffi.HandoverRequest
 import uniffi.pos_ffi.HeldCourse
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.Order
@@ -67,10 +69,14 @@ internal const val DONE_AUTO_RETURN_MS: Long = 2000L
  * the pay step with its text. It never navigates by itself (PD205): [CheckoutEffect]s follow an action of the
  * operator.
  */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass") // One screen state holder: the parts, the terminal, the sale and the online mode.
 internal class CheckoutViewModel(
     private val entry: CheckoutEntryPoint,
     private val routeOrderId: Long,
+    /** An unpaid online order collected from the board (UX audit O2): the sale is its handover. */
+    private val online: Boolean = false,
+    /** An online collection starts on the card method (the "Encaisser carte" button of the board). */
+    startOnCard: Boolean = false,
 ) : ViewModel() {
     private val order = entry.order()
     private val session = entry.session()
@@ -79,7 +85,11 @@ internal class CheckoutViewModel(
     private val delivery = entry.delivery()
     private val settings = entry.settings()
     private val eft = entry.eft()
-    private val own = MutableStateFlow(Own())
+    private val own = MutableStateFlow(Own(method = if (online && startOnCard) PaymentMethod.CARD else PaymentMethod.CASH))
+
+    // The parts typed by hand are kept with the order once they were restored (UX audit P4).
+    @Volatile
+    private var restored = false
     private val effectChannel = Channel<CheckoutEffect>(Channel.BUFFERED)
 
     // Computing the amounts talks to the engine: one computation at a time, always from the latest state.
@@ -184,6 +194,8 @@ internal class CheckoutViewModel(
                         ensureOrder()
                         refreshMail()
                         loadGiftVoucherSetting()
+                        refreshEft()
+                        restoreHeld()
                     }
                 }
         }
@@ -206,6 +218,15 @@ internal class CheckoutViewModel(
         }
         viewModelScope.launch {
             order.lines.collect { lines -> if (own.value.step == CheckoutStep.PAY) summarize(lines) }
+        }
+        // The parts taken by hand stay with the order when the operator goes back to it (UX audit P4).
+        viewModelScope.launch {
+            own
+                .map { local -> local.taken.filterNot { it.locked } }
+                .distinctUntilChanged()
+                .collect { manual ->
+                    if (restored) order.holdParts(routeOrderId, manual.map { it.toHeld() })
+                }
         }
         // An approved payment the engine knows (after a crash, a restart or a check) must be used by this sale: it
         // becomes a locked card part (`watch eft.approved` of the Vue view).
@@ -395,7 +416,7 @@ internal class CheckoutViewModel(
 
     /** The back button of the pay step: the order screen of the order being paid. */
     fun back() {
-        effectChannel.trySend(CheckoutEffect.BackToOrder(routeOrderId))
+        effectChannel.trySend(if (online) CheckoutEffect.BackToBoard else CheckoutEffect.BackToOrder(routeOrderId))
     }
 
     /**
@@ -408,7 +429,8 @@ internal class CheckoutViewModel(
             leaving = local.step == CheckoutStep.DONE && local.done != null
             if (leaving) local.copy(done = null) else local
         }
-        if (leaving) effectChannel.trySend(CheckoutEffect.NewOrder)
+        // An online order goes back to the board it came from, the others to the tables.
+        if (leaving) effectChannel.trySend(if (online) CheckoutEffect.BoardAfterSale else CheckoutEffect.NewOrder)
     }
 
     /** The done step leaves by itself after [DONE_AUTO_RETURN_MS] unless it holds something to read or decide. */
@@ -516,6 +538,35 @@ internal class CheckoutViewModel(
         if (added && own.value.step == CheckoutStep.PAY) launchRecompute(prefill = true)
     }
 
+    /**
+     * Brings back the parts typed by hand that were kept with the order (UX audit P4), once the card payments the
+     * terminal approved are known. If the order changed so that a part no longer fits, they are all dropped with a
+     * warning. From then on every change of the parts is kept again.
+     */
+    private suspend fun restoreHeld() {
+        if (restored) return
+        val total = order.current.value?.takeIf { it.id == routeOrderId }?.totalCents
+        if (total == null) {
+            restored = true
+            return
+        }
+        eft.payments.value.filter { it.isUsable() }.forEach { adopt(it) }
+        val locked = CashDisplay.sumCents(own.value.taken.map { it.cents })
+        val kept = reconcileHeld(order.heldPartsFor(routeOrderId), total, locked)
+        if (kept.dropped) {
+            entry.toasts().show(entry.catalog().text("parts_dropped", settings.language.value), ToastVariant.Warning, SLIP_TOAST_MS)
+        }
+        own.update { local ->
+            val taken = local.taken + kept.parts.map { it.toTaken() }
+            // One cash part at most: cash is not offered again once a part took it.
+            val cashTaken = taken.any { it.method == PaymentMethod.CASH }
+            local.copy(taken = taken, method = if (cashTaken && local.method == PaymentMethod.CASH) PaymentMethod.CARD else local.method)
+        }
+        restored = true
+        if (kept.dropped) order.holdParts(routeOrderId, emptyList())
+        recompute(prefill = true)
+    }
+
     private suspend fun refreshEft() {
         if (gateway.ready.value && routeOrderId >= 0L && eft.linked()) eft.load(routeOrderId)
     }
@@ -528,7 +579,17 @@ internal class CheckoutViewModel(
         own.update { it.copy(error = null, step = CheckoutStep.PROCESSING) }
         viewModelScope.launch {
             val request = delivery.request.value.takeUnless { it.medium == RequestedMedium.PAPER }
-            val outcome = attempt { gateway.call { engine -> engine.checkout(current.id, payload(parts), request) } }
+            // An online order is sold by its handover (its P is closed by the sale N); the parts are the same.
+            val outcome =
+                attempt {
+                    gateway.call { engine ->
+                        if (online) {
+                            engine.webshopHandoverOrder(HandoverRequest(current.id, payload(parts), request))
+                        } else {
+                            engine.checkout(current.id, payload(parts), request)
+                        }
+                    }
+                }
             outcome
                 .onSuccess { result -> onResult(result, parts, totalCents) }
                 .onFailure { failure -> failCheckout(entry.errors().text(failure, settings.language.value)) }
@@ -610,13 +671,16 @@ internal class CheckoutViewModel(
     /** Loads the route's order when the store holds another one (the screen opened from a deep link or after a restart). */
     private suspend fun ensureOrder() {
         if (routeOrderId < 0L || own.value.step != CheckoutStep.PAY) return
-        if (order.current.value?.id == routeOrderId) {
+        if (order.current.value?.id == routeOrderId && (!online || order.onlineCollect.value != null)) {
             own.update { it.copy(loadTried = true) }
             return
         }
         if (loading.compareAndSet(false, true)) {
             try {
-                attempt { order.loadOrder(routeOrderId) }.onFailure { entry.errors().show(it, settings.language.value) }
+                attempt {
+                    // An online order is shown without becoming the engine's active order.
+                    if (online) order.beginOnlineCollect(routeOrderId, own.value.method) else order.loadOrder(routeOrderId)
+                }.onFailure { entry.errors().show(it, settings.language.value) }
             } finally {
                 loading.set(false)
                 own.update { it.copy(loadTried = true) }
@@ -800,6 +864,7 @@ internal class CheckoutViewModel(
             giftVouchersEnabled = local.giftVouchersEnabled,
             sellsVoucher = inputs.sellsVoucher,
             voucher = local.voucher,
+            online = online,
         )
     }
 
@@ -809,6 +874,10 @@ internal class CheckoutViewModel(
             enabled: Boolean,
             held: List<HeldCourse>,
         ): Int? = if (enabled) held.minOfOrNull { it.course } else null
+
+        fun TakenPart.toHeld(): HeldPart = HeldPart(method, cents, changeCents, giftVoucherId, codeMasked)
+
+        fun HeldPart.toTaken(): TakenPart = TakenPart(method, cents, changeCents, giftVoucherId = giftVoucherId, codeMasked = codeMasked)
 
         /** A cash part: it has no amount and pays what is left. */
         val CASH_PART = PaymentPart(PaymentMethod.CASH, null)

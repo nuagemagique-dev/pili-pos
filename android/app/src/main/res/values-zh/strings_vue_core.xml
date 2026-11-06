@@ -23,7 +23,7 @@
     <string name="meal_voucher">餐券</string>
     <string name="takeaways_open">进行中的外带</string>
     <string name="rest_to_pay">剩余应付</string>
-    <string name="clear_payments">取消付款</string>
+    <string name="clear_payments">取消已录入的份额</string>
     <string name="amount">金额</string>
     <string name="amount_over_rest">超过剩余应付</string>
     <string name="exact">刚好</string>

@@ -56,8 +56,10 @@ class CheckoutRouteTest {
 
         assertEquals("checkout", entry.area)
         assertEquals(listOf(CheckoutRoutes.CHECKOUT), entry.routes)
-        assertEquals("checkout/{orderId}", CheckoutRoutes.CHECKOUT)
+        assertEquals("checkout/{orderId}?online={online}&card={card}", CheckoutRoutes.CHECKOUT)
         assertEquals("checkout/42", CheckoutRoutes.checkout(42L))
+        assertEquals("checkout/42?online=true&card=false", CheckoutRoutes.checkoutOnline(42L, card = false))
+        assertEquals("checkout/42?online=true&card=true", CheckoutRoutes.checkoutOnline(42L, card = true))
     }
 
     @Test

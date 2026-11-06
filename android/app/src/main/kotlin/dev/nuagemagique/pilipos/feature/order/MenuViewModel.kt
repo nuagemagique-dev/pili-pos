@@ -7,6 +7,7 @@ import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_DEPARTMENT
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import dev.nuagemagique.pilipos.ui.state.HeldParts
 import dev.nuagemagique.pilipos.ui.state.LineAdd
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
@@ -159,6 +160,8 @@ private data class Data(
     val codePad: CodePadState = CodePadState(),
     /** The last add to the cart: its line flashes for 200 ms (null until this screen saw one). */
     val lastAdd: LineAdd? = null,
+    /** The payment parts kept for an order when the operator came back from the checkout (UX audit P4). */
+    val heldParts: HeldParts? = null,
 )
 
 /** What the cart shows of the courses: the switch and the next held course. */
@@ -287,6 +290,7 @@ internal class MenuViewModel(
         viewModelScope.launch { active.collect { on -> if (on) loadGiftVoucherSetting() } }
         // The value held when this screen starts is an old add: only the adds seen from now on flash their line.
         viewModelScope.launch { order.lastAdd.drop(1).collect { add -> data.update { it.copy(lastAdd = add) } } }
+        viewModelScope.launch { order.heldParts.collect { held -> data.update { it.copy(heldParts = held) } } }
         viewModelScope.launch {
             order.lines.collectLatest { lines ->
                 val amounts = amountsOf(lines)
@@ -362,11 +366,18 @@ internal class MenuViewModel(
                     nextHeldCourse = if (current != null) c.nextHeld else null,
                     sendingNext = d.sendingNext,
                     lastAdd = d.lastAdd,
+                    heldPartCount = keptPartCount(d.heldParts, current?.id),
                 ),
             zWarning = d.zWarning,
             dialog = d.dialog,
         )
     }
+
+    /** The parts kept for the order of this screen (UX audit P4); the parts of another order are not its own. */
+    private fun keptPartCount(
+        held: HeldParts?,
+        orderId: Long?,
+    ): Int = if (held != null && held.orderId == orderId) held.parts.size else 0
 
     // ── Opening ───────────────────────────────────────────────────
 

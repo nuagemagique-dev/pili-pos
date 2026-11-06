@@ -20,6 +20,7 @@ import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.feature.order.TablePickerDialog
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.IdleLockBanner
+import dev.nuagemagique.pilipos.ui.components.LateOnlineBanner
 import dev.nuagemagique.pilipos.ui.components.PinDialog
 import dev.nuagemagique.pilipos.ui.components.PinMode
 import dev.nuagemagique.pilipos.ui.components.PinPadTexts
@@ -159,6 +160,10 @@ internal fun PosScaffoldContent(
             AppHeader(header, actions, clock, lights = lights)
             if (training) TrainingBanner()
             header.idleWarning?.let { IdleLockBanner(it) }
+            // The board has its own alarm (O3).
+            if (header.lateOrders > 0 && header.area != HeaderArea.WEBSHOP) {
+                LateOnlineBanner(header.lateOrders, onView = actions.onOnlineOrders)
+            }
             Box(Modifier.weight(1f).fillMaxSize().testTag("scaffold_content")) {
                 content()
                 if (header.area.isSales) FdmBlockingVeil(fdm, onCheckNow = onCheckFdm)

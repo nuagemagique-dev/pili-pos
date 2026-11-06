@@ -31,6 +31,7 @@ import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.TableTransferResult
@@ -48,6 +49,34 @@ import javax.inject.Singleton
 class OrderRefusedException(
     val raw: String,
 ) : Exception(raw)
+
+/**
+ * A payment part taken by hand and not signed yet (UX audit P4). It stays with the order when the operator goes back to
+ * it from the checkout. A part the terminal approved is the engine's, so it is never kept here.
+ */
+data class HeldPart(
+    val method: PaymentMethod,
+    val cents: Long,
+    /** The change handed back for a cash part. */
+    val changeCents: Long,
+    /** A gift voucher part: the voucher it redeems, and its masked code. */
+    val giftVoucherId: Long? = null,
+    val codeMasked: String? = null,
+)
+
+/** The parts kept for one order. */
+data class HeldParts(
+    val orderId: Long,
+    val parts: List<HeldPart>,
+)
+
+/**
+ * An unpaid online order shown at the checkout (UX audit O2): [method] is the one the checkout starts on. It is not the
+ * engine's active order, and leaving it registers nothing.
+ */
+data class OnlineCollect(
+    val method: PaymentMethod,
+)
 
 /** An add to the cart: the line it went to and the units it gave. [seq] grows with each one. */
 data class LineAdd(
@@ -93,6 +122,8 @@ class OrderStore
         private val mutableLastAdd = MutableStateFlow<LineAdd?>(null)
         private val mutableTakeawayTag = MutableStateFlow<TakeawayTag?>(null)
         private val mutableTableMoves = MutableStateFlow(0)
+        private val mutableOnlineCollect = MutableStateFlow<OnlineCollect?>(null)
+        private val mutableHeldParts = MutableStateFlow<HeldParts?>(null)
         private val addSeq = AtomicLong()
 
         // The open order on screen when the last lock came (NO_ORDER: none); taken once at the next login.
@@ -123,6 +154,12 @@ class OrderStore
          * when it changes (`tableMoves` of `ui/src/stores/order.ts`).
          */
         val tableMoves: StateFlow<Int> = mutableTableMoves.asStateFlow()
+
+        /** The online order being collected at the checkout (UX audit O2), or null for an ordinary order. */
+        val onlineCollect: StateFlow<OnlineCollect?> = mutableOnlineCollect.asStateFlow()
+
+        /** The payment parts taken by hand for an order, not signed yet (UX audit P4); null when there are none. */
+        val heldParts: StateFlow<HeldParts?> = mutableHeldParts.asStateFlow()
 
         /** The lines of [current], as the engine lists them. */
         val lines: StateFlow<List<CartLine>> = mutableLines.asStateFlow()
@@ -189,6 +226,31 @@ class OrderStore
                 readCourses(order.id, seen)
                 readTakeawayTag(order, seen)
             }
+        }
+
+        /**
+         * Shows an unpaid online order at the checkout (UX audit O2): its order and lines are read, but it does not
+         * become the engine's active order, so a lock or leaving the screen registers nothing.
+         */
+        suspend fun beginOnlineCollect(
+            orderId: Long,
+            method: PaymentMethod,
+        ) = mutex.withLock {
+            val seen = generation.get()
+            val (order, cart) =
+                gateway.call { engine -> engine.getOrder(orderId) to engine.listCartLines(orderId) }
+            if (publish(order, cart, seen)) mutableOnlineCollect.value = OnlineCollect(method)
+        }
+
+        /** The parts kept for order [orderId]; none for another order. */
+        fun heldPartsFor(orderId: Long): List<HeldPart> = mutableHeldParts.value?.takeIf { it.orderId == orderId }?.parts.orEmpty()
+
+        /** Keeps [parts] (taken by hand, unsigned) for order [orderId]; none forgets them. */
+        fun holdParts(
+            orderId: Long,
+            parts: List<HeldPart>,
+        ) {
+            mutableHeldParts.value = if (parts.isEmpty()) null else HeldParts(orderId, parts)
         }
 
         /** Loads an existing order and its lines (re-opening a table) and makes it the active order. */
@@ -508,6 +570,8 @@ class OrderStore
                 mutableLines.value = emptyList()
                 mutableLastAdd.value = null
                 mutableTakeawayTag.value = null
+                mutableOnlineCollect.value = null
+                mutableHeldParts.value = null
                 mutableUnsentCount.value = 0
                 mutableHeldCourses.value = emptyList()
                 categories.clear()
@@ -590,6 +654,11 @@ class OrderStore
 
         private suspend fun leaveUnlocked(reason: LeaveReason) {
             val order = mutableCurrent.value ?: return
+            if (mutableOnlineCollect.value != null) {
+                // An online order at the checkout was never the engine's active order: nothing to register.
+                clearUnlocked()
+                return
+            }
             val seen = generation.get()
             val outcome = gateway.call { engine -> engine.leaveOrder(order.id, reason) }
             warnIfSlipFailed(outcome)

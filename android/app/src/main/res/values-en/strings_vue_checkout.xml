@@ -8,6 +8,9 @@
     <string name="equal_parts">equal parts</string>
     <string name="part_n">Part {n}</string>
     <string name="cash_part_taken">One part is already paid in cash: the others are paid by card or meal vouchers.</string>
+    <string name="back_to_order">Back to the order</string>
+    <string name="parts_kept">Parts already entered: {n}</string>
+    <string name="parts_dropped">The bill changed: the parts entered were cancelled.</string>
     <string name="amount_received">Amount received</string>
     <string name="exact_rounded">exact {exact} · rounded to 5 cts</string>
     <string name="items_count">{n} items</string>

@@ -136,6 +136,29 @@ class CheckoutScreenshotTest {
     }
 
     @Test
+    fun onlineOrderWithAPartKept() {
+        capture(
+            base.copy(
+                online = true,
+                orderType = OrderType.TAKEAWAY,
+                tableNumber = null,
+                method = PaymentMethod.CASH,
+                taken = listOf(TakenPart(PaymentMethod.CARD, 1_000L, 0L)),
+                amounts =
+                    CheckoutAmounts(
+                        restCents = 2_190L,
+                        dueCents = 2_190L,
+                        roundedDueCents = 2_190L,
+                        restShownCents = 2_190L,
+                        quickAmountsCents = listOf(2_500L, 3_000L, 5_000L),
+                    ),
+                entry = AmountEntryState("2190"),
+            ),
+            "checkout_online_parts",
+        )
+    }
+
+    @Test
     fun split() {
         val chips =
             listOf(

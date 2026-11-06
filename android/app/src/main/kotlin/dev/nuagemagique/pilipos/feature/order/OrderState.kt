@@ -206,6 +206,8 @@ internal data class OrderCartState(
     val sendingNext: Boolean = false,
     /** The last add to the cart: its line flashes for 200 ms. */
     val lastAdd: LineAdd? = null,
+    /** How many payment parts taken by hand are kept for this order (UX audit P4): "Parts déjà saisies : N". */
+    val heldPartCount: Int = 0,
 ) {
     private val dineIn: Boolean get() = order?.orderType == OrderType.DINE_IN
 

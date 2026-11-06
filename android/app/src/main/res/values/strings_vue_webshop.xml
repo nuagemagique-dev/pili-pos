@@ -115,6 +115,9 @@
     <string name="hubrise_health_outbox">{count} envoi(s) vers HubRise en attente</string>
     <string name="hubrise_health_parked">{count} message(s) HubRise non traité(s)</string>
     <string name="webshop_stale_alarm">{count} commande(s) en ligne attendent depuis plus de 5 minutes</string>
+    <string name="online_late_one">1 commande en ligne attend depuis plus de 5 min</string>
+    <string name="online_late_many">{count} commandes en ligne attendent depuis plus de 5 min</string>
+    <string name="online_late_view">Voir</string>
     <string name="catalog_issue_empty_key">Référence vide</string>
     <string name="catalog_issue_duplicate_key">Référence en double</string>
     <string name="catalog_issue_unknown_category">Catégorie inconnue</string>

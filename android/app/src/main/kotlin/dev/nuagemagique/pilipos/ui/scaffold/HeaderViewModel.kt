@@ -9,9 +9,11 @@ import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
 import dev.nuagemagique.pilipos.feature.webshop.WebshopRoutes
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
+import dev.nuagemagique.pilipos.ui.feedback.lateCounts
 import dev.nuagemagique.pilipos.ui.state.IdleWarning
 import dev.nuagemagique.pilipos.ui.state.TableMoves
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -20,6 +22,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -30,6 +35,7 @@ import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.TableInfo
 import uniffi.pos_ffi.TakeawayTag
 import uniffi.pos_ffi.User
+import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Lifetime of the toast that reports a refused order registration, in milliseconds (6000 in `AppHeader.vue`). */
@@ -61,6 +67,10 @@ internal data class HeaderUiState(
     val hubriseVisible: Boolean = false,
     /** Online orders waiting for the operator (the red badge). */
     val pendingOrders: Int = 0,
+    /** Online orders nobody answered for 5 minutes (the banner under the header, O3). */
+    val lateOrders: Int = 0,
+    /** True while an unpaid online order is collected at the checkout (O2): the header says "En ligne". */
+    val onlineCollect: Boolean = false,
     /** True while the own-PIN dialog is open. */
     val pinOpen: Boolean = false,
     /** The engine's warning that the idle lock is near (UX audit L4), or null. */
@@ -123,6 +133,9 @@ internal class HeaderViewModel(
     private val tableMoves = TableMoves(order, entry.toasts(), entry.catalog(), entry.settings(), entry.errors())
     private val effectChannel = Channel<HeaderEffect>(Channel.BUFFERED)
 
+    /** The time source of the late online orders; the seam of the tests. */
+    internal var lateNow: () -> Instant = Instant::now
+
     // One action at a time: a second tap while the first still talks to the engine is ignored.
     private val busy = AtomicBoolean(false)
 
@@ -142,8 +155,10 @@ internal class HeaderViewModel(
                 },
                 combine(userMenu, endShiftArmed, entry.settings().language, ::Menu),
             ) { over, menu -> over.copy(menu = menu) },
-            session.idleWarning,
-        ) { base, over, warning -> overlay(base, over, warning) }
+            combine(session.idleWarning, lateOrders(), order.onlineCollect) { warning, late, online ->
+                Extras(warning, late, online != null)
+            },
+        ) { base, over, extras -> overlay(base, over, extras) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, initialState())
 
     private fun initialState(): HeaderUiState =
@@ -163,8 +178,23 @@ internal class HeaderViewModel(
                 customerStep.value,
                 Menu(userMenu.value, endShiftArmed.value, entry.settings().language.value),
             ),
-            session.idleWarning.value,
+            Extras(session.idleWarning.value, 0, order.onlineCollect.value != null),
         )
+
+    /** The late online orders: counted only for a logged-in operator, the clock runs while an order may become late. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun lateOrders(): Flow<Int> =
+        session.currentUser
+            .flatMapLatest { user ->
+                if (user == null) flowOf(0) else lateCounts(entry.webshop().orders, { lateNow() })
+            }.distinctUntilChanged()
+
+    /** The idle warning, the late online orders and the online collect, on top of the order's state. */
+    private data class Extras(
+        val warning: IdleWarning?,
+        val late: Int,
+        val online: Boolean,
+    )
 
     /** What does not come from the order: the open dialogs, the lines, the takeaway tag. */
     private data class Overlay(
@@ -185,15 +215,20 @@ internal class HeaderViewModel(
 
     /** The idle warning and the open dialogs on top of the order's state. */
     private fun overlay(
-        base: HeaderUiState,
+        built: HeaderUiState,
         over: Overlay,
-        warning: IdleWarning?,
+        extras: Extras,
     ): HeaderUiState {
+        // An online order collected at the checkout is not a table or a takeaway: no chip of either (O2).
+        val base =
+            if (extras.online) built.copy(tableNumber = null, takeawayOrder = false, dineInOrder = false, tableOpen = false) else built
         val movable = base.tableOpen && over.hasLines
         val tag = over.tag.takeIf { base.takeawayOrder }
         return base.copy(
             pinOpen = over.pin && base.roleKey != null,
-            idleWarning = warning,
+            idleWarning = extras.warning,
+            lateOrders = extras.late,
+            onlineCollect = extras.online,
             canMoveTable = movable,
             tablePicker = if (movable) over.picker else null,
             takeawayLabel = tag?.label,

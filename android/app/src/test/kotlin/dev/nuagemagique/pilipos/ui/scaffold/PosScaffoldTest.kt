@@ -116,6 +116,60 @@ class PosScaffoldTest {
         compose.onNodeWithTag("idle_lock_banner").assertDoesNotExist()
     }
 
+    // ── Late online orders under the header (UX audit O3) ─────────
+
+    private fun late(
+        area: HeaderArea,
+        count: Int,
+    ) = show(
+        area,
+        fdm = FdmUiState(),
+        header =
+            HeaderUiState(
+                area = area,
+                userName = "Alice",
+                roleKey = "role_admin",
+                isManager = true,
+                hubriseVisible = true,
+                lateOrders = count,
+            ),
+    )
+
+    @Test
+    fun theLateBannerSitsUnderTheHeaderWithItsCountAndOpensTheBoard() {
+        late(HeaderArea.TABLES, 3)
+
+        compose.onNodeWithTag("late_online_banner").assertIsDisplayed()
+        compose.onNodeWithTag("late_online_text").assertTextEquals("3 commandes en ligne attendent depuis plus de 5 min")
+        val header = compose.onNodeWithTag("app_header").getUnclippedBoundsInRoot()
+        val banner = compose.onNodeWithTag("late_online_banner").getUnclippedBoundsInRoot()
+        assertTrue("the banner starts under the header", banner.top >= header.bottom)
+        val view = compose.onNodeWithTag("late_online_view").getUnclippedBoundsInRoot()
+        assertTrue("the button is at least 48 dp high", (view.bottom - view.top).value >= 48f)
+        compose.onNodeWithTag("late_online_view").performClick()
+        assertEquals(listOf("online"), calls)
+    }
+
+    @Test
+    fun theLateBannerUsesTheSingularForOneOrder() {
+        late(HeaderArea.ORDER, 1)
+
+        compose.onNodeWithTag("late_online_text").assertTextEquals("1 commande en ligne attend depuis plus de 5 min")
+    }
+
+    @Test
+    fun noLateBannerWithoutLateOrdersOrOnTheBoardItself() {
+        late(HeaderArea.TABLES, 0)
+        compose.onNodeWithTag("late_online_banner").assertDoesNotExist()
+    }
+
+    @Test
+    fun theBoardKeepsItsOwnAlarmAndShowsNoLateBanner() {
+        late(HeaderArea.WEBSHOP, 2)
+
+        compose.onNodeWithTag("late_online_banner").assertDoesNotExist()
+    }
+
     // ── The FDM veil (PD209) ──────────────────────────────────────
 
     private fun assertVeil(

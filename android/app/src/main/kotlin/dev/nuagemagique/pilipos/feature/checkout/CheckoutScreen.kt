@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.feature.order.OrderRoutes
 import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
+import dev.nuagemagique.pilipos.feature.webshop.WebshopRoutes
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.DeliveryOutcomePanel
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
@@ -99,9 +100,12 @@ internal data class CheckoutCallbacks(
 internal fun CheckoutRoute(
     navigator: AppNavigator,
     orderId: Long,
+    online: Boolean = false,
+    startOnCard: Boolean = false,
 ) {
     val entry = rememberEntryPoint<CheckoutEntryPoint>()
-    val model = viewModel(key = "checkout_$orderId") { CheckoutViewModel(entry, orderId) }
+    val model =
+        viewModel(key = "checkout_${orderId}_$online") { CheckoutViewModel(entry, orderId, online, startOnCard) }
     val state by model.state.collectAsState()
     val picker = rememberTicketMediumPickerState()
     LaunchedEffect(model) {
@@ -109,6 +113,7 @@ internal fun CheckoutRoute(
             when (it) {
                 is CheckoutEffect.BackToOrder -> navigator.navigate(OrderRoutes.order(it.orderId))
                 CheckoutEffect.NewOrder -> navigator.navigate(TablesRoutes.TABLES)
+                CheckoutEffect.BackToBoard, CheckoutEffect.BoardAfterSale -> navigator.navigate(WebshopRoutes.WEBSHOP)
             }
         }
     }

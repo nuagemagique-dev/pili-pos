@@ -89,6 +89,14 @@ internal fun OrderCartColumn(
             verticalArrangement = Arrangement.spacedBy(d.spaceMd),
         ) {
             TotalRow(state)
+            if (state.heldPartCount > 0) {
+                Text(
+                    text = vueText("parts_kept", "n" to state.heldPartCount),
+                    style = t.body.copy(fontWeight = t.weightBold),
+                    color = c.accentWarning,
+                    modifier = Modifier.testTag("cart_held_parts"),
+                )
+            }
             // C4: the secondary row is empty for a role that cannot pay while the kitchen button is the primary.
             if (dineIn && !(state.kitchenPrimary && !state.canPay)) ActionRow(state, actions)
             val next = state.nextHeldCourse

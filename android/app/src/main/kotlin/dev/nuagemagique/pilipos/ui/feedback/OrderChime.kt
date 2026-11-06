@@ -8,10 +8,16 @@ import android.os.Looper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import dev.nuagemagique.pilipos.nav.ShellOverlay
+import dev.nuagemagique.pilipos.ui.state.SessionStore
 import dev.nuagemagique.pilipos.ui.state.WebshopOrdersStore
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import timber.log.Timber
+import java.time.Instant
 import javax.inject.Inject
 import kotlin.math.PI
 import kotlin.math.pow
@@ -147,7 +153,8 @@ internal suspend fun playOnIncrease(
 
 /**
  * `useOrderChime()` of the Vue UI: a two-tone chime each time the number of online orders waiting for the operator
- * goes up, so that a new order is noticed on any screen. Draws nothing.
+ * goes up, so that a new order is noticed on any screen; and, once an order waited for 5 minutes without an answer,
+ * the same chime again every 2 minutes while any order is late (O3), for a logged-in operator. Draws nothing.
  *
  * The count the store holds when its first fetch ends is the starting point (orders already waiting at start are
  * not announced); the starting point is taken again after the engine went away and came back.
@@ -157,13 +164,24 @@ class OrderChimeOverlay
     constructor(
         private val store: WebshopOrdersStore,
         private val player: OrderChimePlayer,
+        private val session: SessionStore,
     ) : ShellOverlay {
         override val order: Int = ORDER_CHIME_OVERLAY_ORDER
 
+        /** The time source of the late orders; the seam of the tests. */
+        internal var now: () -> Instant = Instant::now
+
+        @OptIn(ExperimentalCoroutinesApi::class)
         @Composable
         override fun Content() {
             LaunchedEffect(store, player) {
                 store.loaded.collectLatest { loaded -> if (loaded) playOnIncrease(store.pendingCount, player) }
+            }
+            LaunchedEffect(store, player, session) {
+                val loggedIn = combine(store.loaded, session.currentUser) { loaded, user -> loaded && user != null }
+                loggedIn
+                    .flatMapLatest { on -> if (on) lateSamples(store.orders, now) else flowOf(LateSample(0, 0L)) }
+                    .let { playLateChime(it, player) }
             }
         }
     }

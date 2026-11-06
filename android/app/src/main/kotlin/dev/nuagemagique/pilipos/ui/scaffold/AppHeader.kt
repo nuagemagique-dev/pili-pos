@@ -117,6 +117,8 @@ internal fun AppHeader(
         HeaderDivider()
         UserButton(state, actions)
         when {
+            state.onlineCollect ->
+                TableBadge(vueText("online_orders"), warning = false, tag = "header_online")
             state.tableNumber != null ->
                 TableBadge(
                     vueText("table") + " " + state.tableNumber,
@@ -330,7 +332,7 @@ private fun Navigation(
             if (state.hubriseVisible) {
                 NavButton(
                     text = vueText("online_orders"),
-                    active = state.area == HeaderArea.WEBSHOP,
+                    active = state.area == HeaderArea.WEBSHOP || state.onlineCollect,
                     style = NavStyle.Segment,
                     tag = "header_nav_online",
                     onClick = actions.onOnlineOrders,

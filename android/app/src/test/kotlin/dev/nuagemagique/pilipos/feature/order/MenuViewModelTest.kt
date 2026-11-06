@@ -8,6 +8,7 @@ import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import dev.nuagemagique.pilipos.ui.state.EventFeed
+import dev.nuagemagique.pilipos.ui.state.HeldPart
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -36,6 +37,7 @@ import uniffi.pos_ffi.DiscountKind
 import uniffi.pos_ffi.DiscountReason
 import uniffi.pos_ffi.DiscountResult
 import uniffi.pos_ffi.DiscountTarget
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.QuickNotes
@@ -453,6 +455,26 @@ class MenuViewModelTest {
             runCurrent()
 
             assertEquals(LineAmount.PerUnit(quantity = 2, unitCents = 500), r.state.cart.rows.single().amount)
+        }
+
+    @Test
+    fun theCartCountsThePartsKeptForItsOrderOnly() =
+        runTest {
+            val world = OrderWorld()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            world.cart = listOf(cartLine(1, 10, "Maki saumon", quantity = 2))
+            r.login()
+            runCurrent()
+            assertEquals(0, r.state.cart.heldPartCount)
+
+            r.order.holdParts(ORDER_ID, listOf(HeldPart(PaymentMethod.CASH, 500L, 0L), HeldPart(PaymentMethod.CARD, 300L, 0L)))
+            runCurrent()
+            assertEquals(2, r.state.cart.heldPartCount)
+
+            r.order.holdParts(ORDER_ID + 1, listOf(HeldPart(PaymentMethod.CASH, 500L, 0L)))
+            runCurrent()
+            assertEquals(0, r.state.cart.heldPartCount)
         }
 
     // ── The Z reminder ────────────────────────────────────────────

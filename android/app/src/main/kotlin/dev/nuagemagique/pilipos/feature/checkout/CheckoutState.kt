@@ -187,6 +187,8 @@ internal data class CheckoutUiState(
     val sellsVoucher: Boolean = false,
     /** The gift voucher dialog; null while closed. */
     val voucher: VoucherDialogState? = null,
+    /** An unpaid online order is collected here (UX audit O2): its sale is the handover, back goes to the board. */
+    val online: Boolean = false,
 ) {
     /** The methods offered now: no gift voucher while the setting is off, only cash and card when the sale sells one. */
     val methods: List<PaymentMethod>
@@ -269,6 +271,12 @@ internal sealed interface CheckoutEffect {
     data class BackToOrder(
         val orderId: Long,
     ) : CheckoutEffect
+
+    /** Back to the online orders board, from the checkout of an online order (UX audit O2). */
+    data object BackToBoard : CheckoutEffect
+
+    /** The sale of an online order is done: back to the online orders board. */
+    data object BoardAfterSale : CheckoutEffect
 
     /** The sale is done: on to the tables, for the next customer. */
     data object NewOrder : CheckoutEffect

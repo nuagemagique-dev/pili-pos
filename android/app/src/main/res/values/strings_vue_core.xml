@@ -23,7 +23,7 @@
     <string name="meal_voucher">CHÈQUES-REPAS</string>
     <string name="takeaways_open">À emporter en cours</string>
     <string name="rest_to_pay">Reste à payer</string>
-    <string name="clear_payments">Annuler les paiements</string>
+    <string name="clear_payments">Annuler les parts</string>
     <string name="amount">Montant</string>
     <string name="amount_over_rest">Plus que le reste à payer</string>
     <string name="exact">Exact</string>

@@ -1,6 +1,7 @@
 package dev.nuagemagique.pilipos.ui.scaffold
 
 import android.content.Context
+import androidx.lifecycle.viewModelScope
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.feature.order.OrderRoutes
@@ -19,6 +20,7 @@ import io.mockk.coVerifyOrder
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -161,6 +163,44 @@ class HeaderViewModelTest {
 
             assertTrue(r.state.hubriseVisible)
             assertEquals(0, r.state.pendingOrders)
+        }
+
+    @Test
+    fun theLateOnlineOrdersAreCountedForALoggedInOperatorOnly() =
+        runTest {
+            val at = java.time.Instant.parse("2026-10-09T10:00:00Z")
+            val f = fixture(hubrise = true)
+            coEvery { f.engine.hubriseListWebshopOrders() } returns
+                listOf(lateWebshopOrder(1, 6, at), lateWebshopOrder(2, 4, at), lateWebshopOrder(3, 30, at, hubriseStatus = "accepted"))
+            val r = start(f, HeaderArea.TABLES)
+            r.model.lateNow = { at }
+            runCurrent()
+            assertEquals(0, r.state.lateOrders)
+
+            r.login(admin)
+            runCurrent()
+            assertEquals(1, r.state.lateOrders)
+            // The clock of the late orders never stops by itself: end it, or the test would wait for it forever.
+            r.model.viewModelScope.cancel()
+        }
+
+    @Test
+    fun anOnlineOrderAtTheCheckoutShowsNeitherTableNorTakeaway() =
+        runTest {
+            val f = fixture(hubrise = true)
+            val r = start(f, HeaderArea.CHECKOUT)
+            r.login(admin)
+            coEvery { f.engine.getOrder(7) } returns order(7, table = 12)
+            runCurrent()
+
+            r.order.beginOnlineCollect(7, uniffi.pos_ffi.PaymentMethod.CASH)
+            runCurrent()
+
+            assertTrue(r.state.onlineCollect)
+            assertNull(r.state.tableNumber)
+            assertFalse(r.state.dineInOrder)
+            assertFalse(r.state.tablesActive)
+            assertFalse(r.state.canMoveTable)
         }
 
     // ── Workspaces and the leave guard ────────────────────────────

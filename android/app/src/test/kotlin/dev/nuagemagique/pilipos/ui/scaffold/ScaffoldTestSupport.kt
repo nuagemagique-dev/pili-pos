@@ -101,6 +101,32 @@ internal fun order(
         totalCents = 0L,
     )
 
+/** An online order that waited [waitedMinutes] minutes before [now], unanswered (the late banner counts it from 5). */
+internal fun lateWebshopOrder(
+    id: Long,
+    waitedMinutes: Long,
+    now: java.time.Instant,
+    hubriseStatus: String? = "new",
+) = uniffi.pos_ffi.WebshopOrderSummary(
+    id = id,
+    hubriseOrderId = "h$id",
+    status = "open",
+    hubriseStatus = hubriseStatus,
+    source = "web",
+    serviceType = "collection",
+    totalCents = 2_000L,
+    createdAt = now.minusSeconds(waitedMinutes * 60).toString(),
+    items = emptyList(),
+    customerNotes = null,
+    customerName = "Client",
+    confirmedTime = null,
+    customerAddress1 = null,
+    customerAddress2 = null,
+    customerPostalCode = null,
+    customerCity = null,
+    webshop = null,
+)
+
 /** Stubs every read the scaffold makes on [engine]; a test overrides the one it cares about afterwards. */
 internal fun stubScaffold(
     engine: DisposableEngine,

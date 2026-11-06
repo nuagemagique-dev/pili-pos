@@ -178,4 +178,30 @@ class ScaffoldScreenshotTest {
         rule.waitForIdle()
         rule.onRoot().captureRoboImage("src/test/screenshots/components/scaffold_training.png")
     }
+
+    @Test
+    fun scaffoldWithLateOnlineOrders() {
+        val lights = DeviceLights(probe())
+        rule.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    PosScaffoldContent(
+                        header = orderHeader.copy(area = HeaderArea.TABLES, tableNumber = null, dineInOrder = false, lateOrders = 3),
+                        actions = HeaderActions(),
+                        fdm = FdmUiState(connected = true),
+                        onCheckFdm = {},
+                        training = false,
+                        clock = "14:05",
+                        lights = { StatusLights(FdmUiState(connected = true), lights, hubriseVisible = true) },
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("contenu de l'écran", color = PiliTheme.colors.textPrimary)
+                        }
+                    }
+                }
+            }
+        }
+        rule.waitForIdle()
+        rule.onRoot().captureRoboImage("src/test/screenshots/components/scaffold_late_online.png")
+    }
 }

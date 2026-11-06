@@ -26,6 +26,8 @@ rounding, the signature, the ticket delivery); the screen only calls it through 
 | --- | --- | --- |
 | CheckoutView.vue (`prefill`, `collectCents`, `validateLabel`, `receivedHint`; strings `collect_*`) | feature/checkout/CheckoutViewModel.kt (`Own.prefilled`), CheckoutState.kt (`collectCents`, `showReceived`), CheckoutPanels.kt (`validateLabel`, `ValidateButton`) | - |
 | CheckoutView.vue (`showRest`, `offeredMethods`, `rest-methods-label`, string `rest_methods`) | CheckoutState.kt (`showRest`, `offeredMethods`), CheckoutPanels.kt (`MethodRow`, tag `checkout_rest_label`) | - |
+| CheckoutView.vue (`online`, `wasOnline`, `beginOnlineCollect`: an unpaid online order paid at the checkout with Exact pre-filled and the change; "Carte" selected when the card button was tapped; the sale is `webshop_handover_order` and the flow returns to the online orders; UX audit O2) | feature/checkout/CheckoutViewModel.kt (`online`, `startOnCard`, `ensureOrder`, `startCheckout`, `BackToBoard`, `BoardAfterSale`), CheckoutRoutes.kt (`checkoutOnline`, args `online` and `card`), CheckoutEntry.kt, CheckoutScreen.kt, CheckoutPanels.kt (SummaryHead title `online_orders`) | `webshop_handover_order` |
+| CheckoutView.vue (`back-to-order` always shown, `parts-clear` "Annuler les parts" only with parts taken by hand, `restoreParts`, `reconcileHeld`, toast `parts_dropped`; UX audit P4), utils/heldParts.ts, stores/order.ts (`heldParts`, `holdParts`), CartSidebar.vue (`held-parts`, "Parts déjà saisies : N") | feature/checkout/CheckoutPanels.kt (FootActions, tags `checkout_back`, `checkout_clear_parts`), CheckoutViewModel.kt (`restoreHeld`, `toHeld`, `toTaken`), ReconciledParts.kt (`reconcileHeld`, the sums through `CashDisplay.sumCents`), ui/state/OrderStore.kt (`heldParts`, `holdParts`), feature/order/MenuViewModel.kt, OrderCartColumn.kt (tag `cart_held_parts`) | - |
 | CheckoutView.vue (done step: `holdDone`, `onDoneTap`, `finish`, `done-auto-return`), utils/checkoutDone.ts (`doneNeedsAttention`, `DONE_AUTO_RETURN_MS`) | CheckoutState.kt (`CheckoutDone.needsAttention`), CheckoutViewModel.kt (`scheduleAutoReturn`, `finish`, `DONE_AUTO_RETURN_MS`), CheckoutScreen.kt (`DoneStep`, `ChangeBanner`) | - |
 
 - **P1.** The entry starts at the exact amount of the current part: the rounded cash due for cash (with the "exact X ·
@@ -93,3 +95,13 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
   method `card` toward the engine (same `eft_payment_id` payload) but is named by the meal-voucher label ("Part 1 ·
   Chèques-repas · Edenred") on the paid-part row and the part chip (Vue `takenLabel`, Compose `displayMethod`). No new
   string.
+- **Online order at the checkout (O2).** The route carries `?online=true&card=<bool>` (Vue keeps the order in the
+  Pinia store instead). The online order is loaded with `OrderStore.beginOnlineCollect`, which does not make it the
+  engine's active order, so a lock or leaving the screen registers nothing on it. The back button and the end of the
+  sale go to the online orders board.
+- **Parts kept (P4).** Vue keeps the parts of the cart in the order store and restores them with `reconcileHeld`;
+  Compose keeps them in `OrderStore.heldParts` and reconciles in `reconcileHeld` (ReconciledParts.kt) with the running
+  `CashDisplay.sumCents` (the UI computes no money, UI-PD317). The terminal-card parts are not kept here: the engine
+  lists the approved payments (`eft_payments`) and the screen adopts them again, which is the same as Vue. The split
+  count is not restored (same on both). Leaving an online checkout drops the kept parts.
+

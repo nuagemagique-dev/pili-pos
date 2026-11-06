@@ -115,6 +115,9 @@
     <string name="hubrise_health_outbox">{count} 个更新等待发送到HubRise</string>
     <string name="hubrise_health_parked">{count} 条HubRise消息未处理</string>
     <string name="webshop_stale_alarm">{count} 个在线订单已等待超过5分钟</string>
+    <string name="online_late_one">有 1 个在线订单已等待超过5分钟</string>
+    <string name="online_late_many">有 {count} 个在线订单已等待超过5分钟</string>
+    <string name="online_late_view">查看</string>
     <string name="catalog_issue_empty_key">编号为空</string>
     <string name="catalog_issue_duplicate_key">编号重复</string>
     <string name="catalog_issue_unknown_category">未知类别</string>

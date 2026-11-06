@@ -294,6 +294,7 @@ internal class CheckoutRig(
     val effects: List<CheckoutEffect>,
     private val collector: Job,
     val eft: EftStore,
+    val entry: CheckoutEntryPoint,
 ) {
     val state get() = model.state.value
 
@@ -334,6 +335,8 @@ internal suspend fun TestScope.startCheckout(
     user: User? = cashier,
     orderId: Long = ORDER_ID,
     natives: CheckoutNatives = CheckoutNatives(),
+    online: Boolean = false,
+    startOnCard: Boolean = false,
 ): CheckoutRig {
     val gateway = f.gateway(this)
     val toasts = ToastStore(backgroundScope)
@@ -356,11 +359,11 @@ internal suspend fun TestScope.startCheckout(
     }
     val entry =
         TestCheckoutEntry(gateway, helpers, order, session, delivery, settings, errors, toasts, catalog, CartAmounts(helpers), eft)
-    val model = CheckoutViewModel(entry, orderId)
+    val model = CheckoutViewModel(entry, orderId, online, startOnCard)
     val seen = mutableListOf<CheckoutEffect>()
     val collector = CoroutineScope(UnconfinedTestDispatcher(testScheduler)).launch { model.effects.collect { seen += it } }
     runCurrent()
-    return CheckoutRig(f, model, session, order, delivery, toasts, catalog, errorTexts, natives, seen, collector, eft)
+    return CheckoutRig(f, model, session, order, delivery, toasts, catalog, errorTexts, natives, seen, collector, eft, entry)
 }
 
 /** A row of the VAT summary, for the content tests. */

@@ -309,6 +309,16 @@ class OrderScreenshotTest {
         capture(OrderUiState(signedIn = true), "order_empty")
     }
 
+    // Parts already taken at the checkout stay with the order (UX audit P4): the cart says how many.
+    @Test
+    fun cartWithKeptParts() {
+        val rows = fullCart.rows.map { it.copy(line = it.line.copy(unsentQuantity = 0)) }
+        capture(
+            OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(rows = rows, unsentCount = 0, heldPartCount = 2)),
+            "order_cart_held_parts",
+        )
+    }
+
     // Everything sent: PAYER is the Volt primary again and "Envoyer en cuisine" a plain secondary (UX audit C4).
     @Test
     fun cartAllSent() {

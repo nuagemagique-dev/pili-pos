@@ -456,6 +456,12 @@
       "zh": "返回",
       "area": "core"
     },
+    "back_to_order": {
+      "fr": "Retour à la commande",
+      "en": "Back to the order",
+      "zh": "返回订单",
+      "area": "checkout"
+    },
     "badge_capture_timeout": {
       "fr": "Aucun badge présenté",
       "en": "No badge presented",
@@ -907,9 +913,9 @@
       "area": "core"
     },
     "clear_payments": {
-      "fr": "Annuler les paiements",
-      "en": "Cancel the payments",
-      "zh": "取消付款",
+      "fr": "Annuler les parts",
+      "en": "Cancel the parts",
+      "zh": "取消已录入的份额",
       "area": "core"
     },
     "code_pad_ambiguous": {
@@ -4806,6 +4812,24 @@
       "zh": "上班中 · {time}",
       "area": "core"
     },
+    "online_late_many": {
+      "fr": "{count} commandes en ligne attendent depuis plus de 5 min",
+      "en": "{count} online orders have been waiting for over 5 min",
+      "zh": "有 {count} 个在线订单已等待超过5分钟",
+      "area": "webshop"
+    },
+    "online_late_one": {
+      "fr": "1 commande en ligne attend depuis plus de 5 min",
+      "en": "1 online order has been waiting for over 5 min",
+      "zh": "有 1 个在线订单已等待超过5分钟",
+      "area": "webshop"
+    },
+    "online_late_view": {
+      "fr": "Voir",
+      "en": "View",
+      "zh": "查看",
+      "area": "webshop"
+    },
     "online_orders": {
       "fr": "En ligne",
       "en": "Online",
@@ -4858,6 +4882,18 @@
       "fr": "Part {n}",
       "en": "Part {n}",
       "zh": "第{n}份",
+      "area": "checkout"
+    },
+    "parts_dropped": {
+      "fr": "L'addition a changé : les parts saisies ont été annulées.",
+      "en": "The bill changed: the parts entered were cancelled.",
+      "zh": "账单已变更：已录入的份额已取消。",
+      "area": "checkout"
+    },
+    "parts_kept": {
+      "fr": "Parts déjà saisies : {n}",
+      "en": "Parts already entered: {n}",
+      "zh": "已录入的份额：{n}",
       "area": "checkout"
     },
     "pay": {

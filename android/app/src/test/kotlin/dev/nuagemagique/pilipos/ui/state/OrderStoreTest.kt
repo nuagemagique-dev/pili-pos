@@ -41,6 +41,7 @@ import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.QuickNotes
@@ -1511,6 +1512,68 @@ class OrderStoreTest {
             r.store.resetLocal()
 
             assertNull(r.store.takeawayTag.value)
+        }
+
+    // ── Online collect and the parts kept (UX audit O2, P4) ───────
+
+    @Test
+    fun anOnlineOrderIsLoadedWithoutBecomingTheEnginesActiveOrder() =
+        runTest {
+            val r = rig()
+            r.stubReads(order(id = 9, totalCents = 1_500), listOf(line(1, 10)))
+
+            r.store.beginOnlineCollect(9L, PaymentMethod.CARD)
+
+            assertEquals(9L, r.store.current.value?.id)
+            assertEquals(1, r.store.lines.value.size)
+            assertEquals(PaymentMethod.CARD, r.store.onlineCollect.value?.method)
+            coVerify(exactly = 0) { r.f.engine.setActiveOrder(any()) }
+        }
+
+    @Test
+    fun leavingAnOnlineCheckoutRegistersNothingAndForgetsTheOrder() =
+        runTest {
+            val r = rig()
+            r.stubReads(order(id = 9), listOf(line(1, 10, unsent = 1)))
+            coEvery { r.f.engine.setActiveOrder(null) } returns Unit
+            r.store.beginOnlineCollect(9L, PaymentMethod.CASH)
+            r.store.holdParts(9L, listOf(HeldPart(PaymentMethod.CASH, 500L, 0L)))
+
+            r.store.leave(LeaveReason.NAVIGATE)
+
+            coVerify(exactly = 0) { r.f.engine.leaveOrder(any(), any()) }
+            assertNull(r.store.current.value)
+            assertNull(r.store.onlineCollect.value)
+            assertNull(r.store.heldParts.value)
+        }
+
+    @Test
+    fun theKeptPartsBelongToTheirOrderOnly() =
+        runTest {
+            val r = rig()
+            val part = HeldPart(PaymentMethod.CASH, 700L, 0L)
+
+            r.store.holdParts(4L, listOf(part))
+
+            assertEquals(listOf(part), r.store.heldPartsFor(4L))
+            assertTrue(r.store.heldPartsFor(5L).isEmpty())
+            r.store.holdParts(4L, emptyList())
+            assertNull(r.store.heldParts.value)
+        }
+
+    @Test
+    fun anOrdinaryLeaveKeepsThePartsAndResettingForgetsThem() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1), listOf(line(1, 10)))
+            coEvery { r.f.engine.leaveOrder(1L, LeaveReason.NAVIGATE) } returns SlipOutcome.NOTHING_TO_PRINT
+            r.store.holdParts(1L, listOf(HeldPart(PaymentMethod.CASH, 100L, 0L)))
+
+            r.store.leave(LeaveReason.NAVIGATE)
+            assertEquals(1, r.store.heldPartsFor(1L).size)
+
+            r.store.resetLocal()
+            assertTrue(r.store.heldPartsFor(1L).isEmpty())
         }
 
     /** Puts [order] and [cart] in the store through the engine, as a screen would (loadOrder). */

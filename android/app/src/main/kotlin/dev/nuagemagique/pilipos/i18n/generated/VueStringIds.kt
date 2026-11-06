@@ -629,6 +629,9 @@ internal object VueStringIds {
         this["equal_parts"] = R.string.equal_parts
         this["part_n"] = R.string.part_n
         this["cash_part_taken"] = R.string.cash_part_taken
+        this["back_to_order"] = R.string.back_to_order
+        this["parts_kept"] = R.string.parts_kept
+        this["parts_dropped"] = R.string.parts_dropped
         this["amount_received"] = R.string.amount_received
         this["exact_rounded"] = R.string.exact_rounded
         this["items_count"] = R.string.items_count
@@ -769,12 +772,12 @@ internal object VueStringIds {
         this["invoice_continue"] = R.string.invoice_continue
         this["invoice_preview_customer"] = R.string.invoice_preview_customer
         this["invoice_preview_tickets"] = R.string.invoice_preview_tickets
-        this["invoice_preview_lines"] = R.string.invoice_preview_lines
-        this["invoice_preview_vat"] = R.string.invoice_preview_vat
-        this["invoice_vat_base"] = R.string.invoice_vat_base
     }
 
     private fun MutableMap<String, Int>.part3() {
+        this["invoice_preview_lines"] = R.string.invoice_preview_lines
+        this["invoice_preview_vat"] = R.string.invoice_preview_vat
+        this["invoice_vat_base"] = R.string.invoice_vat_base
         this["invoice_vat_amount"] = R.string.invoice_vat_amount
         this["invoice_vat_total"] = R.string.invoice_vat_total
         this["invoice_total"] = R.string.invoice_total
@@ -1022,12 +1025,12 @@ internal object VueStringIds {
         this["courses_note"] = R.string.courses_note
         this["courses_categories"] = R.string.courses_categories
         this["courses_no_categories"] = R.string.courses_no_categories
-        this["courses_save"] = R.string.courses_save
-        this["courses_saved"] = R.string.courses_saved
-        this["alerts_title"] = R.string.alerts_title
     }
 
     private fun MutableMap<String, Int>.part4() {
+        this["courses_save"] = R.string.courses_save
+        this["courses_saved"] = R.string.courses_saved
+        this["alerts_title"] = R.string.alerts_title
         this["alerts_state_on"] = R.string.alerts_state_on
         this["alerts_state_off"] = R.string.alerts_state_off
         this["alerts_token_ok"] = R.string.alerts_token_ok
@@ -1202,6 +1205,9 @@ internal object VueStringIds {
         this["hubrise_health_outbox"] = R.string.hubrise_health_outbox
         this["hubrise_health_parked"] = R.string.hubrise_health_parked
         this["webshop_stale_alarm"] = R.string.webshop_stale_alarm
+        this["online_late_one"] = R.string.online_late_one
+        this["online_late_many"] = R.string.online_late_many
+        this["online_late_view"] = R.string.online_late_view
         this["catalog_issue_empty_key"] = R.string.catalog_issue_empty_key
         this["catalog_issue_duplicate_key"] = R.string.catalog_issue_duplicate_key
         this["catalog_issue_unknown_category"] = R.string.catalog_issue_unknown_category
