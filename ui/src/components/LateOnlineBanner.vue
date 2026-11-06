@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * Online orders nobody answered for 5 minutes (UX audit O3): a banner under the header of every
- * staff screen with a "Voir" button to the board. Amber, like every waiting state, with the cyan
- * of online orders on the button. The board has its own alarm, so it is hidden there. The count
+ * staff screen with a "Voir" button to the board. Amber, like every waiting state, with an ink
+ * button (a cyan one has the same luminance as the amber and its shape disappears). The board has its own alarm, so it is hidden there. The count
  * comes from the webshop store (`lateCount`, `utils/webshopLate.ts`); the chime repeats from
  * `useOrderChime`.
  */
@@ -70,8 +70,9 @@ const text = computed(() =>
   min-width: 96px;
   padding: 0 24px;
   border-radius: var(--radius-sm);
-  background: var(--accent-info);
-  color: var(--text-on-accent);
+  /* Ink on the amber banner (cyan on amber has no visible boundary), light text on it. */
+  background: var(--text-on-accent);
+  color: var(--text-primary);
   font-size: 18px;
   font-weight: var(--font-weight-heavy);
   transition: transform var(--tap-duration) ease;

@@ -34,8 +34,9 @@ private val ViewButtonMinWidth = 96.dp
 
 /**
  * `LateOnlineBanner.vue` (UX audit O3): under the header, "N commandes en ligne attendent depuis plus de 5 min"
- * with a "Voir" button to the online orders board. Amber like every waiting state, with the cyan of online orders on
- * the button. The caller shows it only for a [count] above 0 and not on the board itself (which has its own alarm).
+ * with a "Voir" button to the online orders board. Amber like every waiting state, with an ink button (a cyan
+ * one has the same luminance as the amber and its shape disappears). The caller shows it only for a [count] above 0
+ * and not on the board itself (which has its own alarm).
  * Test tags: `late_online_banner`, `late_online_text`, `late_online_view`.
  */
 @Composable
@@ -77,7 +78,7 @@ fun LateOnlineBanner(
                 Modifier
                     .height(ViewButtonHeight)
                     .defaultMinSize(minWidth = ViewButtonMinWidth)
-                    .background(colors.accentInfo, RoundedCornerShape(PiliTheme.dimens.radiusMd))
+                    .background(colors.textOnAccent, RoundedCornerShape(PiliTheme.dimens.radiusMd))
                     .clickable(role = Role.Button, onClick = onView)
                     .padding(horizontal = PiliTheme.dimens.spaceLg)
                     .testTag("late_online_view"),
@@ -86,7 +87,7 @@ fun LateOnlineBanner(
             Text(
                 text = vueText("online_late_view"),
                 style = typography.body.copy(fontSize = typography.sizePrice, fontWeight = typography.weightHeavy),
-                color = colors.textOnAccent,
+                color = colors.textPrimary,
                 maxLines = 1,
             )
         }
