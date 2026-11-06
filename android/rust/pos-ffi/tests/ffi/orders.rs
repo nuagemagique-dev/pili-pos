@@ -460,9 +460,19 @@ async fn tables_and_takeaways_convert() {
         total_cents: 1,
         line_count: 2,
         created_at: "2026-10-05 18:30:00".into(),
+        number: Some(61),
+        label: Some("E-61".into()),
+        customer_name: Some("Dupont".into()),
     };
     let record: ffi::TakeawayInfo = out_equal(&hand_built);
     assert_eq!(record.created_at, "2026-10-05 18:30:00");
+    assert_eq!(record.label.as_deref(), Some("E-61"));
+    assert_eq!(record.customer_name.as_deref(), Some("Dupont"));
+    assert_eq!(
+        records[0].number,
+        Some(61),
+        "the takeaway of the test has its number"
+    );
 }
 
 #[tokio::test]
@@ -517,6 +527,9 @@ fn a_record_refuses_a_field_the_engine_did_not_have() {
         total_cents: 2,
         line_count: 3,
         created_at: "x".into(),
+        number: None,
+        label: None,
+        customer_name: None,
     });
     value["extra"] = Value::Bool(true);
     assert!(serde_json::from_value::<ffi::TakeawayInfo>(value).is_err());

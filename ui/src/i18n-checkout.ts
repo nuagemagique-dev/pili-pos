@@ -17,6 +17,18 @@ export const checkoutMessages: Messages = {
     en: 'One part is already paid in cash: the others are paid by card or meal vouchers.',
     zh: '已有一份以现金支付：其余请用刷卡或餐券支付。',
   },
+  // Back to the order keeps the parts taken by hand (UX audit P4).
+  back_to_order: { fr: 'Retour à la commande', en: 'Back to the order', zh: '返回订单' },
+  parts_kept: {
+    fr: 'Parts déjà saisies : {n}',
+    en: 'Parts already entered: {n}',
+    zh: '已录入的份额：{n}',
+  },
+  parts_dropped: {
+    fr: "L'addition a changé : les parts saisies ont été annulées.",
+    en: 'The bill changed: the parts entered were cancelled.',
+    zh: '账单已变更：已录入的份额已取消。',
+  },
 
   // Amount entry.
   amount_received: { fr: 'Montant reçu', en: 'Amount received', zh: '收到金额' },

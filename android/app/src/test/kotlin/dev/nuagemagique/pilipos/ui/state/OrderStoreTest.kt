@@ -41,10 +41,13 @@ import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.QuickNotes
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.TableTransferResult
+import uniffi.pos_ffi.TakeawayTag
 import uniffi.pos_ffi.VatCode
 
 @Suppress("LongParameterList", "LargeClass", "TooManyFunctions")
@@ -729,6 +732,61 @@ class OrderStoreTest {
         }
 
     @Test
+    fun theOpenOrderOnScreenAtALockIsRememberedOnceForTheNextLogin() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 5), emptyList())
+
+            r.events.send(PosEvent.SessionLocked(mockk(relaxed = true)))
+            runCurrent()
+
+            assertNull(r.store.current.value)
+            assertEquals(5L, r.store.takeLockedOrderId())
+            assertNull(r.store.takeLockedOrderId())
+        }
+
+    @Test
+    fun anOnlineOrderAtItsCheckoutIsNotRememberedAtAnIdleLock() =
+        runTest {
+            val r = rig()
+            r.stubReads(order(id = 9, totalCents = 1_500), listOf(line(1, 10)))
+            r.store.beginOnlineCollect(9L, PaymentMethod.CASH)
+
+            r.events.send(PosEvent.SessionLocked(mockk(relaxed = true)))
+            runCurrent()
+
+            // It was never the engine's active order: the same user logging back in lands on Tables.
+            assertNull(r.store.current.value)
+            assertNull(r.store.takeLockedOrderId())
+        }
+
+    @Test
+    fun aLockWithNoOrderOnScreenRemembersNone() =
+        runTest {
+            val r = rig()
+
+            r.events.send(PosEvent.SessionLocked(mockk(relaxed = true)))
+            runCurrent()
+
+            assertNull(r.store.takeLockedOrderId())
+        }
+
+    @Test
+    fun theLastLockWinsOverAnOlderOneNobodyTook() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 5), emptyList())
+            r.events.send(PosEvent.SessionLocked(mockk(relaxed = true)))
+            runCurrent()
+
+            // Nothing on screen at the second lock: the old order is not brought back.
+            r.events.send(PosEvent.SessionLocked(mockk(relaxed = true)))
+            runCurrent()
+
+            assertNull(r.store.takeLockedOrderId())
+        }
+
+    @Test
     fun aResetDuringARefreshInFlightIsNotUndoneByIt() =
         runTest {
             val r = rig()
@@ -1028,6 +1086,35 @@ class OrderStoreTest {
         }
 
     @Test
+    fun theQuickNotesAreReadFromTheEngineEachTime() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getQuickNotes() } returnsMany
+                listOf(QuickNotes(listOf("Sans wasabi", "Bien cuit")), QuickNotes(listOf("Épicé")))
+
+            assertEquals(listOf("Sans wasabi", "Bien cuit"), r.store.quickNotes())
+            assertEquals(listOf("Épicé"), r.store.quickNotes())
+        }
+
+    @Test
+    fun aTillThatDoesNotAnswerHasNoQuickNotes() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getQuickNotes() } throws PosException.Coded("internal", emptyMap())
+
+            assertEquals(emptyList<String>(), r.store.quickNotes())
+        }
+
+    @Test
+    fun anEmptyListStaysEmpty() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getQuickNotes() } returns QuickNotes(emptyList())
+
+            assertEquals(emptyList<String>(), r.store.quickNotes())
+        }
+
+    @Test
     fun applyingADiscountSendsTheInputWithThePinAndReadsTheOrderAgain() =
         runTest {
             val r = rig()
@@ -1233,6 +1320,275 @@ class OrderStoreTest {
             r.store.resetLocal()
 
             assertEquals(emptyList<HeldCourse>(), r.store.heldCourses.value)
+        }
+
+    // ── Adds: the beep and the flash (C9), the digit after an add (C7) ──
+
+    @Test
+    fun aNewLineAddIsNotedWithItsLineAndUnits() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), emptyList())
+            coEvery { r.f.engine.addOrderLine(any()) } returns orderLine(10)
+            r.stubReads(order(), listOf(line(99, 10, quantity = 2, unsent = 2)))
+
+            val add = r.store.addProduct(item(10), quantity = 2)
+
+            assertEquals(99L, add?.lineId)
+            assertEquals(10L, add?.itemId)
+            assertEquals(2, add?.units)
+            assertEquals(add, r.store.lastAdd.value)
+        }
+
+    @Test
+    fun aMergedAddIsNotedOnTheMergedLineAndEachAddHasItsOwnSequence() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), listOf(line(1, 10, quantity = 2, unsent = 2)))
+            coEvery { r.f.engine.updateOrderLineQuantity(1L, 3) } returns Unit
+            r.stubReads(order(), listOf(line(1, 10, quantity = 3, unsent = 3)))
+
+            val first = r.store.addProduct(item(10))
+            coEvery { r.f.engine.updateOrderLineQuantity(1L, 4) } returns Unit
+            r.stubReads(order(), listOf(line(1, 10, quantity = 4, unsent = 4)))
+            val second = r.store.addProduct(item(10))
+
+            assertEquals(1L, first?.lineId)
+            assertTrue((second?.seq ?: 0) > (first?.seq ?: 0))
+        }
+
+    @Test
+    fun aRefusedAddNotesNothing() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), emptyList())
+            coEvery { r.f.engine.addOrderLine(any()) } throws PosException.Coded("order_not_open", emptyMap())
+
+            r.store.failures.test {
+                assertNull(r.store.addProduct(item(10)))
+                awaitItem()
+            }
+            assertNull(r.store.lastAdd.value)
+        }
+
+    @Test
+    fun aLineAddedByAnotherCommandIsNotedToo() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), emptyList())
+            r.stubReads(order(), listOf(line(99, 10, unsent = 1)))
+
+            assertTrue(r.store.addLineWith(item(10), 1) { orderLine(10) })
+
+            assertEquals(99L, r.store.lastAdd.value?.lineId)
+        }
+
+    @Test
+    fun addUnitsAddsTheExtraUnitsToTheSameLineAndKeepsEarlierOnes() =
+        runTest {
+            val r = rig()
+            // The line already had 4 units; the tap merged one more, the digit asks for 3 in all: 2 extra.
+            r.store.seed(r, order(), listOf(line(1, 10, quantity = 5, unsent = 5)))
+            coEvery { r.f.engine.updateOrderLineQuantity(1L, 7) } returns Unit
+            r.stubReads(order(), listOf(line(1, 10, quantity = 7, unsent = 7)))
+
+            assertTrue(r.store.addUnits(1, 2))
+
+            coVerify { r.f.engine.updateOrderLineQuantity(1L, 7) }
+            assertEquals(7, r.store.lines.value.single().quantity)
+            assertEquals(2, r.store.lastAdd.value?.units)
+        }
+
+    @Test
+    fun addUnitsNeverGoesUnderTheUnitsAlreadySentToTheKitchen() =
+        runTest {
+            val r = rig()
+            // 5 units, 2 sent: whatever the delta, the quantity stays at 3 or more.
+            r.store.seed(r, order(), listOf(line(1, 10, quantity = 5, unsent = 3)))
+            coEvery { r.f.engine.updateOrderLineQuantity(1L, 3) } returns Unit
+            r.stubReads(order(), listOf(line(1, 10, quantity = 3, unsent = 1)))
+
+            assertTrue(r.store.addUnits(1, -10))
+
+            coVerify { r.f.engine.updateOrderLineQuantity(1L, 3) }
+        }
+
+    @Test
+    fun addUnitsWithNothingToChangeCallsNoCommandButStillConfirms() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), listOf(line(1, 10, quantity = 1, unsent = 1)))
+
+            assertTrue(r.store.addUnits(1, 0))
+
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+            assertEquals(1L, r.store.lastAdd.value?.lineId)
+        }
+
+    @Test
+    fun addUnitsOnALineThatIsGoneDoesNothing() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), emptyList())
+
+            assertFalse(r.store.addUnits(42, 2))
+
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+            assertNull(r.store.lastAdd.value)
+        }
+
+    @Test
+    fun resetLocalForgetsTheLastAdd() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(), listOf(line(1, 10, unsent = 1)))
+            r.store.addUnits(1, 0)
+
+            r.store.resetLocal()
+
+            assertNull(r.store.lastAdd.value)
+        }
+
+    // ── Numbered takeaway (UX audit T2) ───────────────────────────
+
+    private fun tag(
+        orderId: Long = 5,
+        name: String? = null,
+        phone: String? = null,
+    ) = TakeawayTag(orderId = orderId, day = "2026-10-09", number = 61, label = "E-61", customerName = name, customerPhone = phone)
+
+    @Test
+    fun aTakeawayTagIsReadWithTheOrder() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTakeawayTag(5L) } returns tag(name = "Dupont")
+            r.store.seed(r, order(id = 5), emptyList())
+
+            assertEquals("E-61", r.store.takeawayTag.value?.label)
+            assertEquals("Dupont", r.store.takeawayTag.value?.customerName)
+        }
+
+    @Test
+    fun aTableHasNoTagAndTheEngineIsNotAskedForOne() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 4), emptyList())
+
+            assertNull(r.store.takeawayTag.value)
+            coVerify(exactly = 0) { r.f.engine.getTakeawayTag(any()) }
+        }
+
+    @Test
+    fun aTillThatCannotAnswerShowsNoNumber() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTakeawayTag(5L) } throws PosException.Coded("internal", emptyMap())
+            r.store.seed(r, order(id = 5), emptyList())
+
+            assertNull(r.store.takeawayTag.value)
+            assertEquals(5L, r.store.current.value?.id)
+        }
+
+    @Test
+    fun theCustomerIsSentWithTheOrderAndTheAnswerBecomesTheTag() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTakeawayTag(5L) } returns tag()
+            r.store.seed(r, order(id = 5), emptyList())
+            coEvery { r.f.engine.setTakeawayCustomer(5L, "Dupont", "0470 12 34 56") } returns tag(name = "Dupont", phone = "0470 12 34 56")
+
+            assertTrue(r.store.setTakeawayCustomer("Dupont", "0470 12 34 56"))
+
+            assertEquals("Dupont", r.store.takeawayTag.value?.customerName)
+            assertEquals("0470 12 34 56", r.store.takeawayTag.value?.customerPhone)
+        }
+
+    @Test
+    fun aRefusedCustomerKeepsTheTagAndReportsTheFailure() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTakeawayTag(5L) } returns tag()
+            r.store.seed(r, order(id = 5), emptyList())
+            coEvery { r.f.engine.setTakeawayCustomer(5L, any(), any()) } throws PosException.Coded("takeaway_name_invalid", emptyMap())
+
+            assertFalse(r.store.setTakeawayCustomer("x".repeat(40), null))
+
+            assertNull(r.store.takeawayTag.value?.customerName)
+        }
+
+    @Test
+    fun forgettingTheOrderForgetsItsTag() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTakeawayTag(5L) } returns tag()
+            r.store.seed(r, order(id = 5), emptyList())
+            assertTrue(r.store.takeawayTag.value != null)
+
+            r.store.resetLocal()
+
+            assertNull(r.store.takeawayTag.value)
+        }
+
+    // ── Online collect and the parts kept (UX audit O2, P4) ───────
+
+    @Test
+    fun anOnlineOrderIsLoadedWithoutBecomingTheEnginesActiveOrder() =
+        runTest {
+            val r = rig()
+            r.stubReads(order(id = 9, totalCents = 1_500), listOf(line(1, 10)))
+
+            r.store.beginOnlineCollect(9L, PaymentMethod.CARD)
+
+            assertEquals(9L, r.store.current.value?.id)
+            assertEquals(1, r.store.lines.value.size)
+            assertEquals(PaymentMethod.CARD, r.store.onlineCollect.value?.method)
+            coVerify(exactly = 0) { r.f.engine.setActiveOrder(any()) }
+        }
+
+    @Test
+    fun leavingAnOnlineCheckoutRegistersNothingAndForgetsTheOrder() =
+        runTest {
+            val r = rig()
+            r.stubReads(order(id = 9), listOf(line(1, 10, unsent = 1)))
+            coEvery { r.f.engine.setActiveOrder(null) } returns Unit
+            r.store.beginOnlineCollect(9L, PaymentMethod.CASH)
+            r.store.holdParts(9L, listOf(HeldPart(PaymentMethod.CASH, 500L, 0L)))
+
+            r.store.leave(LeaveReason.NAVIGATE)
+
+            coVerify(exactly = 0) { r.f.engine.leaveOrder(any(), any()) }
+            assertNull(r.store.current.value)
+            assertNull(r.store.onlineCollect.value)
+            assertNull(r.store.heldParts.value)
+        }
+
+    @Test
+    fun theKeptPartsBelongToTheirOrderOnly() =
+        runTest {
+            val r = rig()
+            val part = HeldPart(PaymentMethod.CASH, 700L, 0L)
+
+            r.store.holdParts(4L, listOf(part))
+
+            assertEquals(listOf(part), r.store.heldPartsFor(4L))
+            assertTrue(r.store.heldPartsFor(5L).isEmpty())
+            r.store.holdParts(4L, emptyList())
+            assertNull(r.store.heldParts.value)
+        }
+
+    @Test
+    fun anOrdinaryLeaveKeepsThePartsAndResettingForgetsThem() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1), listOf(line(1, 10)))
+            coEvery { r.f.engine.leaveOrder(1L, LeaveReason.NAVIGATE) } returns SlipOutcome.NOTHING_TO_PRINT
+            r.store.holdParts(1L, listOf(HeldPart(PaymentMethod.CASH, 100L, 0L)))
+
+            r.store.leave(LeaveReason.NAVIGATE)
+            assertEquals(1, r.store.heldPartsFor(1L).size)
+
+            r.store.resetLocal()
+            assertTrue(r.store.heldPartsFor(1L).isEmpty())
         }
 
     /** Puts [order] and [cart] in the store through the engine, as a screen would (loadOrder). */

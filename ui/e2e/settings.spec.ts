@@ -11,6 +11,7 @@ import {
   fdmMocks,
   settingsWith,
 } from './fixtures/mock-ipc'
+import { fillWithKeypad, fillWithNumPad } from './fixtures/keypad'
 
 test.describe('Settings View', () => {
   test.beforeEach(async ({ page }) => {
@@ -47,17 +48,17 @@ test.describe('Settings View', () => {
     await expect(panel.locator('h2')).toHaveText('Plan de salle')
     await expect(panel.locator('.table-plan-current')).toHaveText('20 tables : 1-20')
     await overrideIPC(page, 'set_table_plan', { plan: '1-12, 20-25', table_count: 18, log: [] })
-    await panel.locator('input').fill('20-25,1-12')
+    await fillWithKeypad(page, panel.getByTestId('table-plan-input'), '20-25,1-12')
     await panel.locator('.table-plan-save').click()
     await expect(panel.locator('.table-plan-current')).toHaveText('18 tables : 1-12, 20-25')
-    await expect(panel.locator('input')).toHaveValue('1-12, 20-25')
+    await expect(panel.getByTestId('table-plan-input')).toHaveText('1-12, 20-25')
   })
 
   test('a wrong table plan says how to write it', async ({ page }) => {
     await loginAndGoto(page, '/settings')
     const panel = page.locator('.table-plan')
     await overrideIPC(page, 'set_table_plan', { __reject: 'table_plan_invalid' })
-    await panel.locator('input').fill('A1')
+    await fillWithKeypad(page, panel.getByTestId('table-plan-input'), 'A1')
     await panel.locator('.table-plan-save').click()
     await expect(panel.locator('.add-error')).toContainText('1-12, 20-25')
   })
@@ -84,8 +85,9 @@ test.describe('Settings View', () => {
   })
 
   test('shows add worker form with i18n placeholders', async ({ page }) => {
-    const nameInput = page.locator('input').first()
-    await expect(nameInput).toHaveAttribute('placeholder', 'Nom')
+    // A keypad field: it shows its placeholder until a name is typed.
+    await expect(page.getByTestId('new-worker-name')).toHaveText('Nom')
+    await expect(page.getByTestId('new-worker-insz')).toHaveText('INSZ · 11 chiffres')
   })
 
   test('a new user gets the chosen role (Gérant / Serveur / Apprenti)', async ({ page }) => {
@@ -93,8 +95,8 @@ test.describe('Settings View', () => {
       'aria-checked',
       'true',
     )
-    await page.getByPlaceholder('Nom').fill('Nouvel apprenti')
-    await page.locator('input[inputmode="numeric"]').fill('99012345667')
+    await fillWithKeypad(page, page.getByTestId('new-worker-name'), 'Nouvel apprenti')
+    await fillWithNumPad(page, page.getByTestId('new-worker-insz'), '99012345667')
     await page.getByRole('radio', { name: 'Apprenti' }).click()
     await page.getByRole('button', { name: 'Ajouter l’employé' }).click()
     await expect
@@ -104,8 +106,8 @@ test.describe('Settings View', () => {
 
   test('a new manager gets a PIN, confirmed by the manager', async ({ page }) => {
     await loginAndGoto(page, '/settings')
-    await page.getByPlaceholder('Nom').fill('Gérant 2')
-    await page.locator('input[inputmode="numeric"]').fill('99012345667')
+    await fillWithKeypad(page, page.getByTestId('new-worker-name'), 'Gérant 2')
+    await fillWithNumPad(page, page.getByTestId('new-worker-insz'), '99012345667')
     await page.getByRole('radio', { name: 'Gérant' }).click()
     await page.getByRole('button', { name: 'Ajouter l’employé' }).click()
     await expect(page.locator('.pin-dialog .who')).toHaveText('Gérant 2')
@@ -329,7 +331,7 @@ test.describe('Settings View', () => {
     // 3. No code, no connection; type the code HubRise shows.
     const completeBtn = dialog.getByRole('button', { name: 'Valider la connexion' })
     await expect(completeBtn).toBeDisabled()
-    await dialog.getByPlaceholder("Code d'autorisation").fill('test-auth-code')
+    await fillWithKeypad(page, dialog.getByTestId('hubrise-code'), 'test-auth-code')
     await completeBtn.click()
 
     // 4. Connected: the dialog closes, the status shows.
@@ -355,7 +357,7 @@ test.describe('Settings View', () => {
     await btn.scrollIntoViewIfNeeded()
     await btn.click()
     const dialog = page.getByRole('dialog', { name: 'Se connecter à HubRise' })
-    await dialog.getByPlaceholder("Code d'autorisation").fill('bad-code')
+    await fillWithKeypad(page, dialog.getByTestId('hubrise-code'), 'bad-code')
     await dialog.getByRole('button', { name: 'Valider la connexion' }).click()
     await expect(dialog).toContainText('Le secret HubRise est illisible')
     // "Retour" closes it; nothing is connected.
@@ -546,7 +548,7 @@ test.describe('Settings - HubRise catalog and channels', () => {
     await hubriseSettings(page, { hubrise_set_channel: () => 1 })
     const channels = page.getByTestId('channels')
     await expect(channels.locator('.channel')).toHaveCount(2)
-    await page.locator('input[placeholder="Nom du canal"]').fill('Table QR')
+    await fillWithKeypad(page, page.getByTestId('hubrise-channel-name'), 'Table QR')
     await page.getByRole('button', { name: 'Ajouter un canal' }).click()
     await channels
       .locator('.channel', { hasText: 'website' })
@@ -792,8 +794,8 @@ test.describe('Presence registration by the manager (event S)', () => {
 
   test('a presence-only employee is added without a PIN dialog', async ({ page }) => {
     await loginAndGoto(page, '/settings')
-    await page.getByPlaceholder('Nom').fill('Plongeur')
-    await page.locator('input[inputmode="numeric"]').fill('77010112345')
+    await fillWithKeypad(page, page.getByTestId('new-worker-name'), 'Plongeur')
+    await fillWithNumPad(page, page.getByTestId('new-worker-insz'), '77010112345')
     await page.getByRole('radio', { name: 'Présence seule' }).click()
     await page.getByRole('button', { name: 'Ajouter l’employé' }).click()
     await expect
@@ -878,8 +880,8 @@ test.describe('Presence registration by the manager (event S)', () => {
     )
     const afterLoad = (await ipcCalls(page, 'list_open_shifts')).length
 
-    await page.getByPlaceholder('Nom').fill('Plongeur')
-    await page.locator('input[inputmode="numeric"]').fill('77010112345')
+    await fillWithKeypad(page, page.getByTestId('new-worker-name'), 'Plongeur')
+    await fillWithNumPad(page, page.getByTestId('new-worker-insz'), '77010112345')
     await page.getByRole('radio', { name: 'Présence seule' }).click()
     await page.getByRole('button', { name: 'Ajouter l’employé' }).click()
     await expect.poll(() => ipcCalls(page, 'create_user')).toHaveLength(1)

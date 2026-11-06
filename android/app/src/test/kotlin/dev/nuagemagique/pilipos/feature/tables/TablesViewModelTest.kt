@@ -318,9 +318,7 @@ class TablesViewModelTest {
             r.model.selectTable(busy)
             assertEquals(busy, r.state.move.source)
             r.model.selectTable(busy)
-            assertEquals(null, r.state.move.target)
-            r.model.selectTable(free)
-            assertEquals(free, r.state.move.target)
+            assertEquals(busy, r.state.move.source)
             coVerify(exactly = 0) { r.f.engine.getOrder(any()) }
             assertEquals(emptyList<TablesEffect>(), r.effects)
         }
@@ -332,10 +330,7 @@ class TablesViewModelTest {
             r.login()
             r.model.toggleMove()
             r.model.selectTable(busy)
-            r.model.selectTable(free)
-            r.model.cancelTarget()
             assertEquals(busy, r.state.move.source)
-            assertEquals(null, r.state.move.target)
 
             r.model.toggleMove()
 
@@ -344,7 +339,7 @@ class TablesViewModelTest {
         }
 
     @Test
-    fun confirmingTheMoveSignsItShowsTheToastAndReadsTheTablesAgain() =
+    fun tappingTheFreeTargetSignsTheMoveAtOnceWithAnUndoToastAndReadsTheTablesAgain() =
         runTest {
             val f = fixture()
             val r = startTables(f, context)
@@ -354,49 +349,76 @@ class TablesViewModelTest {
             coEvery { f.engine.transferTable(40L, 1) } returns moved
             r.model.toggleMove()
             r.model.selectTable(busy)
-            r.model.selectTable(free)
 
-            r.model.confirmMove()
+            // No confirmation step: the tap on the free table is the move.
+            r.model.selectTable(free)
             runCurrent()
 
             coVerify(exactly = 1) { f.engine.transferTable(40L, 1) }
             coVerify(exactly = 2) { f.engine.listTables() }
             assertEquals(ToastVariant.Success, r.lastToast().variant)
+            assertEquals("Table 2 déplacée en 1", r.lastToast().message)
+            assertEquals("Annuler", r.lastToast().action?.label)
             assertFalse(r.state.move.moving)
         }
 
     @Test
-    fun aRefusedMoveShowsTheErrorAndLeavesTheMode() =
+    fun theUndoMovesTheOrderBackAndReadsTheTablesAgain() =
         runTest {
             val f = fixture()
             val r = startTables(f, context)
             r.login()
+            r.model.load()
+            runCurrent()
+            coEvery { f.engine.transferTable(40L, 1) } returns moved
+            coEvery { f.engine.transferTable(40L, 2) } returns moved
+            r.model.toggleMove()
+            r.model.selectTable(busy)
+            r.model.selectTable(free)
+            runCurrent()
+
+            r.toasts.runAction(r.lastToast().id)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.transferTable(40L, 2) }
+            coVerify(exactly = 3) { f.engine.listTables() }
+            assertEquals("Table 1 déplacée en 2", r.lastToast().message)
+        }
+
+    @Test
+    fun aRefusedMoveShowsTheErrorWithoutUndoLeavesTheModeAndReadsTheTablesAgain() =
+        runTest {
+            val f = fixture()
+            val r = startTables(f, context)
+            r.login()
+            r.model.load()
+            runCurrent()
             val busyTarget = PosException.Coded("table_transfer_target_busy", emptyMap())
             coEvery { f.engine.transferTable(any(), any()) } throws busyTarget
             r.model.toggleMove()
             r.model.selectTable(busy)
             r.model.selectTable(free)
-
-            r.model.confirmMove()
             runCurrent()
 
             assertEquals(ToastVariant.Error, r.lastToast().variant)
+            assertEquals(null, r.lastToast().action)
             assertEquals(r.errorTexts.describe(busyTarget, FR), r.lastToast().message)
             assertFalse(r.state.move.moving)
+            coVerify(exactly = 2) { f.engine.listTables() }
         }
 
     @Test
-    fun confirmingWithoutATargetDoesNothing() =
+    fun tappingTheSourceAloneOrABusyTargetMovesNothing() =
         runTest {
-            val f = fixture()
+            val f = fixture(tables = listOf(free, busy, table(3, orderId = 41, lines = 1, totalCents = 100)))
             val r = startTables(f, context)
             r.login()
             r.model.toggleMove()
             r.model.selectTable(busy)
-
-            r.model.confirmMove()
+            r.model.selectTable(table(3, orderId = 41, lines = 1, totalCents = 100))
             runCurrent()
 
             coVerify(exactly = 0) { f.engine.transferTable(any(), any()) }
+            assertEquals(busy, r.state.move.source)
         }
 }

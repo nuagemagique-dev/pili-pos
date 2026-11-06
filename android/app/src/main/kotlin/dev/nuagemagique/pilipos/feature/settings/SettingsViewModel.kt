@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.SettingsEntry
+import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import kotlinx.coroutines.CancellationException
@@ -24,6 +25,7 @@ import uniffi.pos_ffi.CreateUserInput
 import uniffi.pos_ffi.Integrations
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.PosSettings
+import uniffi.pos_ffi.TakeawayNumbering
 import uniffi.pos_ffi.User
 
 /** How many ticket deliveries the list asks for (`listTicketDeliveries(50)` of `SettingsView.vue`). */
@@ -47,6 +49,7 @@ private data class Shared(
     val manager: Boolean,
     val engine: PosSettings?,
     val training: Boolean,
+    /** The terminal default language, the one the Settings panel shows as chosen. */
     val language: AppLanguage,
 )
 
@@ -61,6 +64,7 @@ private data class Pieces(
     val label: ProductLabel,
     val mail: MailStatus?,
     val fdmConnected: Boolean,
+    val addBeep: Boolean,
 )
 
 /**
@@ -101,10 +105,10 @@ internal class SettingsViewModel(
                 session.isManager,
                 settings.settings,
                 settings.trainingMode,
-                settings.language,
+                settings.terminalLanguage,
                 ::Shared,
             ),
-            combine(settings.productLabel, delivery.mailStatus, entry.fdm().state.map { it.connected }, ::Pieces),
+            combine(settings.productLabel, delivery.mailStatus, entry.fdm().state.map { it.connected }, settings.addBeep, ::Pieces),
             integrations.state,
             combine(badges.settings, badges.overview, ::BadgeStores),
             own,
@@ -148,6 +152,14 @@ internal class SettingsViewModel(
         refreshMailStatus()
         loadDeliveries()
         loadTablePlan()
+        loadTakeawayFirst()
+    }
+
+    /** Reads the number the first takeaway of a day gets (managers only); a failure leaves the row empty. */
+    suspend fun loadTakeawayFirst() {
+        if (!session.isManager.value) return
+        attempt { entry.gateway().call { engine -> engine.getTakeawayNumbering() } }
+            .onSuccess { numbering -> own.update { it.copy(takeawayFirst = numbering.firstNumber) } }
     }
 
     /** Reads the table plan; a failure keeps the panel as it was. */
@@ -250,6 +262,11 @@ internal class SettingsViewModel(
     /** Chooses what the product tiles show. */
     fun setProductLabel(label: ProductLabel) {
         settings.setProductLabel(label)
+    }
+
+    /** Switches the beep on each add on or off (this terminal only). */
+    fun setAddBeep(on: Boolean) {
+        settings.setAddBeep(on)
     }
 
     // ── New employee ──────────────────────────────────────────────
@@ -434,6 +451,45 @@ internal class SettingsViewModel(
         }
     }
 
+    // ── First takeaway number (UX audit T2) ───────────────────────
+
+    /** The "Modifier" button: opens the number pad on the current first number. */
+    fun openTakeawayFirst() {
+        val current = own.value.takeawayFirst ?: return
+        own.update { it.copy(takeawayEntry = current.toString()) }
+    }
+
+    /** One key of the pad: digits only, at most three of them (1 to 999). */
+    fun pressTakeawayFirst(key: NumPadKey) {
+        own.update { s ->
+            val typed = s.takeawayEntry ?: return@update s
+            val next =
+                when (key) {
+                    NumPadKey.Clear -> ""
+                    NumPadKey.Backspace -> typed.dropLast(1)
+                    is NumPadKey.Digit -> if (typed.length < TAKEAWAY_FIRST_DIGITS) typed + key.digit else typed
+                }
+            s.copy(takeawayEntry = next)
+        }
+    }
+
+    /** Closes the pad without saving. */
+    fun cancelTakeawayFirst() = own.update { it.copy(takeawayEntry = null) }
+
+    /** Saves the typed number; the engine checks the range again and a refusal is shown as a toast. */
+    fun confirmTakeawayFirst() {
+        val typed = own.value.takeawayEntry?.toIntOrNull() ?: return
+        if (typed !in TAKEAWAY_FIRST_MIN..TAKEAWAY_FIRST_MAX) return
+        own.update { it.copy(takeawayEntry = null) }
+        viewModelScope.launch {
+            attempt { entry.gateway().call { engine -> engine.setTakeawayNumbering(TakeawayNumbering(typed)) } }
+                .onSuccess { stored ->
+                    own.update { it.copy(takeawayFirst = stored.firstNumber) }
+                    entry.toasts().show(text("settings_takeaway_first_saved"), ToastVariant.Success)
+                }.onFailure { error -> entry.toasts().show(describe(error), ToastVariant.Error) }
+        }
+    }
+
     // ── HubRise switch ────────────────────────────────────────────
 
     /**
@@ -466,10 +522,17 @@ internal class SettingsViewModel(
         vars: Map<String, Any>,
     ): String = entry.catalog().text(key, language(), vars)
 
-    private fun currentPieces(): Pieces = Pieces(settings.productLabel.value, delivery.mailStatus.value, entry.fdm().state.value.connected)
+    private fun currentPieces(): Pieces =
+        Pieces(settings.productLabel.value, delivery.mailStatus.value, entry.fdm().state.value.connected, settings.addBeep.value)
 
     private fun currentShared(): Shared =
-        Shared(session.currentUser.value, session.isManager.value, settings.settings.value, settings.trainingMode.value, language())
+        Shared(
+            session.currentUser.value,
+            session.isManager.value,
+            settings.settings.value,
+            settings.trainingMode.value,
+            settings.terminalLanguage.value,
+        )
 
     private fun build(
         base: SettingsUiState,
@@ -492,6 +555,7 @@ internal class SettingsViewModel(
             training = shared.training,
             language = shared.language,
             productLabel = pieces.label,
+            addBeep = pieces.addBeep,
             mailStatus = pieces.mail,
             fdmConnected = pieces.fdmConnected,
             info = shared.engine,

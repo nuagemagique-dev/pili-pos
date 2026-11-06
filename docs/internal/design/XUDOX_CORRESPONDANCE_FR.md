@@ -12,7 +12,7 @@ autre forme, **Manque** pas d'équivalent aujourd'hui, **Non** volontairement ab
 
 | Xudox | Ce que ça fait | Pili | Statut |
 | --- | --- | --- | --- |
-| KeyB (clavier "Please input", touches 0-9, A-Z, OK) | taper le numéro du plat au lieu de chercher dans les catégories | pavé "Saisie code" à gauche de la grille ; la grille se filtre pendant la frappe, `A12` puis OK ou toucher le plat | Nouveau |
+| KeyB (clavier "Please input", touches 0-9, A-Z, OK) | taper le numéro du plat au lieu de chercher dans les catégories | pavé "Saisie code" ancré sous la grille (300 px, la grille garde ses 5 colonnes) ; la grille se filtre pendant la frappe, `A12` puis OK ou toucher le plat | Nouveau |
 | Touche `(*)乘` du clavier, boutons 1 à 8 en bas | multiplier le plat | touche "× Qté" : `3 × A12` ou `A12 × 3` ; `3 ×` puis toucher un plat dans la grille | Nouveau |
 | Touche `(-)减`, bouton `-1` | retirer une portion d'un plat déjà sur la note | bouton − sur la ligne de la note (pas de retrait par code : une seule façon de retirer) | OK |
 | Réglage "Keyboard" : le clavier s'ouvre seul à chaque nouvelle table | | le pavé reste ouvert ou fermé selon le dernier choix, par terminal | Nouveau |
@@ -43,7 +43,7 @@ autre forme, **Manque** pas d'équivalent aujourd'hui, **Non** volontairement ab
 | --- | --- | --- |
 | "Tafels" + plan de salle | écran Tables, plan de salle configurable (1 à 999) | OK |
 | Numéros de table avec lettre de zone (A-19, B-30) | numéros seulement | Manque |
-| "Wisselen T" / "Change T" (changer de table) | "Changer de table" (événement P M122) | OK |
+| "Wisselen T" / "Change T" (changer de table) | Touche « Table 4 » de l'en-tête, ou « Déplacer » (Plus, ou plan de salle) : une table libre déplace la commande aussitôt, message « Annuler » 5 s (événement P M122) | OK |
 | "Splitting table" (déplacer des plats vers une table T-1_B) | paiement en plusieurs parts au paiement, pas de scission de note | Manque |
 | "Delete 去除本台" (supprimer la note) | "Client parti sans payer" avec PIN gérant ; une vente n'est jamais effacée | Non (loi : aucune suppression) |
 

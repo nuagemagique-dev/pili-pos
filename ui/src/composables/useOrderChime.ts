@@ -1,5 +1,7 @@
 import { watch } from 'vue'
 import { useWebshopOrdersStore } from '../stores/webshopOrders'
+import { useAuthStore } from '../stores/auth'
+import { lateChimeDue } from '../utils/webshopLate'
 
 /**
  * Plays a two-tone chime when the pending webshop order count
@@ -9,9 +11,13 @@ import { useWebshopOrdersStore } from '../stores/webshopOrders'
  *
  * The chime is C5 (523 Hz) → E5 (659 Hz), 150ms each, sine wave.
  * Same pattern used by the tsb-dashboard.
+ *
+ * It also comes back every 2 minutes while any order has waited 5 minutes
+ * or more without an answer (UX audit O3), with someone logged in.
  */
 export function useOrderChime() {
   const store = useWebshopOrdersStore()
+  const auth = useAuthStore()
   let audioCtx: AudioContext | null = null
 
   function playChime() {
@@ -58,6 +64,22 @@ export function useOrderChime() {
         return
       }
       if (next > (prev ?? 0)) {
+        playChime()
+      }
+    },
+  )
+
+  // Late orders: at once when one turns late, then every 2 minutes; silent again when none is late.
+  let lastLateChime: number | null = null
+  watch(
+    () => [auth.currentUser ? store.lateCount : 0, store.now] as const,
+    ([late, now]) => {
+      if (late === 0) {
+        lastLateChime = null
+        return
+      }
+      if (lateChimeDue(late, lastLateChime, now)) {
+        lastLateChime = now
         playChime()
       }
     },

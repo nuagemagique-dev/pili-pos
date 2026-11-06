@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.order
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import dev.nuagemagique.pilipos.ui.state.LineAdd
 import uniffi.pos_ffi.AllergenEntry
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.Category
@@ -14,6 +15,7 @@ import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.SheetProductView
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.SoldOutItem
+import uniffi.pos_ffi.TableInfo
 import uniffi.pos_ffi.VatSplitRow
 
 /** The dialog open over the order screen, if any (`pricing` and `choosing` of `OrderView.vue`). */
@@ -43,10 +45,10 @@ internal sealed interface OrderDialog {
         val forWeight: Boolean = false,
     ) : OrderDialog
 
-    /** "Change table": the free tables [tables] the order of table [from] can move to. */
+    /** "Déplacer": the other tables of the plan, free ones to tap, busy ones dimmed; the order is on table [from]. */
     data class TablePicker(
         val from: Int,
-        val tables: List<Int>,
+        val tables: List<TableInfo>,
     ) : OrderDialog
 
     /**
@@ -58,11 +60,15 @@ internal sealed interface OrderDialog {
         val baseCents: Long,
     ) : OrderDialog
 
-    /** "Note": the kitchen note of line [lineId]; [sent] when the line already went to the kitchen (it prints now). */
+    /**
+     * "Note": the kitchen note of line [lineId]; [sent] when the line already went to the kitchen (it prints now).
+     * [chips] are the quick notes of this installation (C11), a tap appends one to the note.
+     */
     data class Note(
         val lineId: Long,
         val initial: String,
         val sent: Boolean,
+        val chips: List<String> = emptyList(),
     ) : OrderDialog
 
     /** The manager PIN that confirms a discount or its removal; [userName] is shown as the hint. */
@@ -198,6 +204,10 @@ internal data class OrderCartState(
     val nextHeldCourse: Int? = null,
     /** "Envoyer la suite" is running. */
     val sendingNext: Boolean = false,
+    /** The last add to the cart: its line flashes for 200 ms. */
+    val lastAdd: LineAdd? = null,
+    /** How many payment parts taken by hand are kept for this order (UX audit P4): "Parts déjà saisies : N". */
+    val heldPartCount: Int = 0,
 ) {
     private val dineIn: Boolean get() = order?.orderType == OrderType.DINE_IN
 

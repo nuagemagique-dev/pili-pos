@@ -6,8 +6,8 @@
 // The container never takes a tap: it lets everything through to the
 // screen below. Info, success and warning toasts are click-through
 // too and go away by themselves. An error toast stays until tapped:
-// it is the only thing here that takes a tap, and a tap on it only
-// closes it.
+// a tap on it only closes it. A toast with an action (C8: "Annuler"
+// after a table move) takes a tap on its button only.
 import { useToastStore } from '../stores/toast'
 import { useI18n } from '../i18n'
 
@@ -27,8 +27,20 @@ const { t } = useI18n()
       @click="toast.variant === 'error' && store.dismiss(toast.id)"
       @keydown.enter="toast.variant === 'error' && store.dismiss(toast.id)"
     >
-      <span class="toast-msg">{{ toast.message }}</span>
-      <span v-if="toast.variant === 'error'" class="toast-hint">{{ t('toast_tap_to_close') }}</span>
+      <span class="toast-text">
+        <span class="toast-msg">{{ toast.message }}</span>
+        <span v-if="toast.variant === 'error'" class="toast-hint">{{
+          t('toast_tap_to_close')
+        }}</span>
+      </span>
+      <button
+        v-if="toast.action"
+        class="toast-action"
+        data-testid="toast-action"
+        @click.stop="store.runAction(toast.id)"
+      >
+        {{ toast.action.label }}
+      </button>
     </div>
   </div>
 </template>
@@ -52,9 +64,8 @@ const { t } = useI18n()
   min-height: 56px;
   padding: var(--space-sm) var(--space-md);
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
+  align-items: center;
+  gap: var(--space-md);
   background: var(--bg-secondary);
   color: var(--text-primary);
   border-left: 4px solid var(--accent-primary);
@@ -70,6 +81,32 @@ const { t } = useI18n()
 .toast-sticky {
   pointer-events: auto;
   cursor: pointer;
+}
+
+.toast-text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+/* The one button of a toast: Brume outline, never a Volt action. */
+.toast-action {
+  flex: none;
+  min-width: 96px;
+  height: 48px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--text-primary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  pointer-events: auto;
+}
+.toast-action:active {
+  transform: scale(var(--tap-scale));
 }
 
 .toast-hint {

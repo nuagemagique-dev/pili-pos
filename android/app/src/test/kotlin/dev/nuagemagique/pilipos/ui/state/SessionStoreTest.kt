@@ -377,6 +377,72 @@ class SessionStoreTest {
         }
 
     @Test
+    fun theOperatorSignsTheirOwnClockOutThroughTheEngineWithoutAPin() =
+        runTest {
+            val s = setup()
+            coEvery { s.f.engine.login("1", "1234") } returns user()
+            coEvery { s.f.engine.workOut(user().insz) } returns SocialResult(true, null)
+            s.store.login("1", "1234")
+
+            val result = s.store.workOutSelf()
+
+            assertTrue(result.success)
+            coVerify(exactly = 1) { s.f.engine.workOut(user().insz) }
+            // The session stays: the caller locks it afterwards.
+            assertEquals(user().insz, s.store.currentUser.value?.insz)
+        }
+
+    @Test
+    fun anOwnClockOutNeedsALoggedInOperator() =
+        runTest {
+            val s = setup()
+
+            val failure = runCatching { s.store.workOutSelf() }.exceptionOrNull()
+
+            assertTrue(failure is IllegalStateException)
+            coVerify(exactly = 0) { s.f.engine.workOut(any()) }
+        }
+
+    @Test
+    fun anIdleLockRemembersWhoWasLoggedInOnceForTheNextLogin() =
+        runTest {
+            val s = setup()
+            coEvery { s.f.engine.login("1", null) } returns user()
+            s.store.login("1", null)
+
+            s.feed.send(locked())
+            runCurrent()
+
+            assertEquals(user().insz, s.store.takeIdleLockedUser())
+            assertNull(s.store.takeIdleLockedUser())
+        }
+
+    @Test
+    fun aManualLockRemembersNobodyForTheOrderToComeBack() =
+        runTest {
+            val s = setup()
+            coEvery { s.f.engine.login("1", null) } returns user()
+            coEvery { s.f.engine.lockSession() } returns LockOutcome(orderError = null)
+            s.store.login("1", null)
+
+            s.store.lock()
+            runCurrent()
+
+            assertNull(s.store.takeIdleLockedUser())
+        }
+
+    @Test
+    fun anIdleLockEventWithNobodyLoggedInRemembersNobody() =
+        runTest {
+            val s = setup()
+
+            s.feed.send(locked())
+            runCurrent()
+
+            assertNull(s.store.takeIdleLockedUser())
+        }
+
+    @Test
     fun theMinutesAreRoundedAndNeverBelowOneAndOnlyForIdleLocks() {
         assertEquals(5, idleLockedMinutes(LockReason.IDLE, 300_000L))
         assertEquals(1, idleLockedMinutes(LockReason.IDLE, 30_000L))

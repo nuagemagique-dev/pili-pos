@@ -41,7 +41,7 @@ import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import uniffi.pos_ffi.MenuItem
 
-/** Buttons per row (`repeat(5, ...)` in `MenuGrid.vue`); [GRID_COLUMNS_WITH_PAD] beside the code pad. */
+/** Buttons per row (`repeat(5, ...)` in `MenuGrid.vue`), with or without the code pad docked below. */
 internal const val GRID_COLUMNS = 5
 
 private val ButtonMinHeight = 120.dp
@@ -74,14 +74,13 @@ internal fun MenuGrid(
     loaded: Boolean,
     onAdd: (MenuItem) -> Unit,
     modifier: Modifier = Modifier,
-    columns: Int = GRID_COLUMNS,
     highlightId: Long? = null,
     emptyText: String? = null,
 ) {
     val d = PiliTheme.dimens
     Box(modifier.testTag("menu_grid")) {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
+            columns = GridCells.Fixed(GRID_COLUMNS),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(d.spaceMd),
             horizontalArrangement = Arrangement.spacedBy(d.spaceSm),

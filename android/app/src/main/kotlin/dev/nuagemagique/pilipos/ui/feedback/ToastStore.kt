@@ -20,11 +20,18 @@ enum class ToastVariant {
     Error,
 }
 
+/** The one button of a toast (UX audit C8: "Annuler" after a table move); [run] is started once, by [ToastStore.runAction]. */
+data class ToastAction(
+    val label: String,
+    val run: suspend () -> Unit,
+)
+
 /** One non-blocking message of the operator feedback stack. */
 data class Toast(
     val id: Long,
     val message: String,
     val variant: ToastVariant,
+    val action: ToastAction? = null,
 )
 
 /** Default lifetime of a toast, in milliseconds (`DEFAULT_TTL_MS` of the Vue toast store). */
@@ -73,9 +80,29 @@ class ToastStore
             message: String,
             variant: ToastVariant = ToastVariant.Info,
             ttlMs: Long = DEFAULT_TOAST_TTL_MS,
+        ): Long = push(Toast(nextId.getAndIncrement(), message, variant), ttlMs)
+
+        /** A success toast with one button ([action]); it goes away after [ttlMs] without running the action. */
+        fun showWithAction(
+            message: String,
+            action: ToastAction,
+            ttlMs: Long = DEFAULT_TOAST_TTL_MS,
+        ): Long = push(Toast(nextId.getAndIncrement(), message, ToastVariant.Success, action), ttlMs)
+
+        /** The tap on the button of the toast [id]: the toast goes first, then its action runs once, on the app scope. */
+        fun runAction(id: Long) {
+            val action = state.value.firstOrNull { it.id == id }?.action
+            dismiss(id)
+            if (action != null) scope.launch { action.run() }
+        }
+
+        private fun push(
+            toast: Toast,
+            ttlMs: Long,
         ): Long {
-            val id = nextId.getAndIncrement()
-            state.update { it + Toast(id, message, variant) }
+            val id = toast.id
+            val variant = toast.variant
+            state.update { it + toast }
             if (variant != ToastVariant.Error) {
                 scope.launch {
                     delay(ttlMs)

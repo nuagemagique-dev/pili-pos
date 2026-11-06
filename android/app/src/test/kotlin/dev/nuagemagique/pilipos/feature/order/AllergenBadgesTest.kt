@@ -80,7 +80,10 @@ class AllergenBadgesTest {
         compose.setContent {
             PiliTheme {
                 ProvideUiText(AppLanguage.FR, catalog) {
-                    AllergenBar(MenuState(allergenMode = true, allergenLegendError = "Produit ou option introuvable (0)."), onToggle = {})
+                    ModeToolbar(
+                        MenuState(allergenMode = true, allergenLegendError = "Produit ou option introuvable (0)."),
+                        ModeToolbarActions(),
+                    )
                 }
             }
         }
@@ -91,7 +94,7 @@ class AllergenBadgesTest {
     @Test
     fun theBarShowsNoLegendErrorWhenAllIsWell() {
         compose.setContent {
-            PiliTheme { ProvideUiText(AppLanguage.FR, catalog) { AllergenBar(MenuState(allergenMode = true), onToggle = {}) } }
+            PiliTheme { ProvideUiText(AppLanguage.FR, catalog) { ModeToolbar(MenuState(allergenMode = true), ModeToolbarActions()) } }
         }
         compose.waitForIdle()
         compose.onNodeWithTag("allergen_legend_error").assertDoesNotExist()

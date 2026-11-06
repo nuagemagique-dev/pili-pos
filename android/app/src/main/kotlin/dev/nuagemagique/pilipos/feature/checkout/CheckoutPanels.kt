@@ -61,6 +61,7 @@ private val EntryDisplayHeight = 80.dp
 private val PadWidth = 296.dp
 private val ValidateHeight = 88.dp
 private val ActionHeight = 88.dp
+private val SecondaryHeight = 64.dp
 private val Hairline = 1.dp
 private val CurrentBorder = 2.dp
 
@@ -498,10 +499,11 @@ private fun SummaryHead(state: CheckoutUiState) {
     val d = PiliTheme.dimens
     val t = PiliTheme.typography
     val where =
-        if (state.orderType == OrderType.DINE_IN && state.tableNumber != null) {
-            uiText(R.string.ui_checkout_table, "table" to vueText("table"), "number" to state.tableNumber)
-        } else {
-            vueText("takeaway_badge")
+        when {
+            state.online -> vueText("online_orders")
+            state.orderType == OrderType.DINE_IN && state.tableNumber != null ->
+                uiText(R.string.ui_checkout_table, "table" to vueText("table"), "number" to state.tableNumber)
+            else -> vueText("takeaway_badge")
         }
     Row(
         modifier = Modifier.fillMaxWidth().padding(d.spaceMd),
@@ -650,30 +652,43 @@ private fun SummaryFoot(
     }
 }
 
-/** Back (or clear the parts once one is taken) and validate. */
+/**
+ * "Retour à la commande" is always there (UX audit P4); "Annuler les parts" is a separate secondary button, shown once
+ * a part was typed by hand (a card the terminal charged stays). With it the two secondary buttons share a row above the
+ * validate button, as in the Vue view.
+ */
 @Composable
 private fun FootActions(
     state: CheckoutUiState,
     callbacks: CheckoutCallbacks,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
-        // A card the terminal charged stays: only the parts typed by hand can be cleared.
-        if (state.taken.any { !it.locked }) {
-            PiliButton(
-                text = vueText("clear_payments"),
-                onClick = callbacks.onClearParts,
-                variant = PiliButtonVariant.Secondary,
-                modifier = Modifier.weight(1f).height(ActionHeight).testTag("checkout_clear_parts"),
-            )
-        } else {
-            PiliButton(
-                text = vueText("back"),
-                onClick = callbacks.onBack,
-                variant = PiliButtonVariant.Secondary,
-                modifier = Modifier.weight(1f).height(ActionHeight).testTag("checkout_back"),
-            )
+    val spacing = PiliTheme.dimens.spaceMd
+    val back: @Composable (Modifier) -> Unit = { modifier ->
+        PiliButton(
+            text = vueText("back_to_order"),
+            onClick = callbacks.onBack,
+            variant = PiliButtonVariant.Secondary,
+            modifier = modifier.testTag("checkout_back"),
+        )
+    }
+    if (state.taken.any { !it.locked }) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                PiliButton(
+                    text = vueText("clear_payments"),
+                    onClick = callbacks.onClearParts,
+                    variant = PiliButtonVariant.Secondary,
+                    modifier = Modifier.weight(1f).height(SecondaryHeight).testTag("checkout_clear_parts"),
+                )
+                back(Modifier.weight(1f).height(SecondaryHeight))
+            }
+            ValidateButton(state, callbacks.onValidate, Modifier.fillMaxWidth())
         }
-        ValidateButton(state, callbacks.onValidate, Modifier.weight(2f))
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+            back(Modifier.weight(1f).height(ActionHeight))
+            ValidateButton(state, callbacks.onValidate, Modifier.weight(2f))
+        }
     }
 }
 

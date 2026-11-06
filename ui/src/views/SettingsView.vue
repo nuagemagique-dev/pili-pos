@@ -21,6 +21,11 @@ import MenuEditorPanel from '../components/MenuEditorPanel.vue'
 import OwnerAlertsSettings from '../components/OwnerAlertsSettings.vue'
 import CoursesSettings from '../components/CoursesSettings.vue'
 import GiftVoucherSettings from '../components/GiftVoucherSettings.vue'
+import QuickNotesSettings from '../components/QuickNotesSettings.vue'
+import NumberEntryDialog from '../components/NumberEntryDialog.vue'
+import KeypadField from '../components/KeypadField.vue'
+import { NAME_SYMBOLS, TABLE_PLAN_SYMBOLS } from '../utils/keypadSymbols'
+import { TAKEAWAY_FIRST_MAX, TAKEAWAY_FIRST_MIN } from '../utils/takeaway'
 import { hasMessage, useI18n } from '../i18n'
 import { describeError } from '../utils/errorMessages'
 import { useSupportStore } from '../stores/support'
@@ -307,6 +312,29 @@ const languages: AppLanguage[] = ['fr', 'zh', 'en']
 
 const productLabels: ProductLabel[] = ['name', 'code']
 
+// ── First takeaway number (managers, UX audit T2) ─────────────────
+const firstTakeaway = ref<number | null>(null)
+const editingFirstTakeaway = ref(false)
+
+async function loadFirstTakeaway() {
+  try {
+    firstTakeaway.value = (await ipc.getTakeawayNumbering()).firstNumber
+  } catch {
+    /* the row stays empty */
+  }
+}
+
+async function saveFirstTakeaway(value: string) {
+  editingFirstTakeaway.value = false
+  try {
+    const stored = await ipc.setTakeawayNumbering({ firstNumber: Number(value) })
+    firstTakeaway.value = stored.firstNumber
+    toast.show(t('settings_takeaway_first_saved'), 'success')
+  } catch (e) {
+    toast.show(describeError(e), 'error', 5000)
+  }
+}
+
 // ── Table plan (managers) ────────────────────────────────────────
 const tablePlan = ref<ipc.TablePlan | null>(null)
 const tablePlanInput = ref('')
@@ -371,6 +399,7 @@ onMounted(() => {
   void support.refresh()
   if (auth.isManager) {
     void loadTablePlan()
+    void loadFirstTakeaway()
     void badge.load().then(() => badge.loadOverview())
   }
 })
@@ -417,7 +446,7 @@ onMounted(() => {
               v-for="code in languages"
               :key="code"
               class="lang-btn"
-              :class="{ active: pos.language === code }"
+              :class="{ active: pos.terminalLanguage === code }"
               @click="switchLanguage(code)"
             >
               {{ t(`settings_lang_name_${code}`) }}
@@ -442,6 +471,34 @@ onMounted(() => {
           <p class="panel-note">{{ t('settings_product_label_note') }}</p>
         </section>
 
+        <!-- Beep on each add (per terminal, default on) -->
+        <section class="panel">
+          <div class="panel-head">
+            <h2>{{ t('settings_add_beep') }}</h2>
+            <div class="segmented label-btns beep-switch">
+              <button
+                class="beep-btn"
+                :class="{ active: pos.addBeep }"
+                :aria-pressed="pos.addBeep"
+                data-testid="add-beep-on"
+                @click="pos.setAddBeep(true)"
+              >
+                {{ t('settings_add_beep_on') }}
+              </button>
+              <button
+                class="beep-btn"
+                :class="{ active: !pos.addBeep }"
+                :aria-pressed="!pos.addBeep"
+                data-testid="add-beep-off"
+                @click="pos.setAddBeep(false)"
+              >
+                {{ t('settings_add_beep_off') }}
+              </button>
+            </div>
+          </div>
+          <p class="panel-note">{{ t('settings_add_beep_note') }}</p>
+        </section>
+
         <!-- Table plan (manager only; the engine refuses the change to the others) -->
         <section v-if="auth.isManager" class="panel table-plan">
           <h2>{{ t('settings_tables') }}</h2>
@@ -451,11 +508,16 @@ onMounted(() => {
             }}
           </p>
           <div class="add-fields">
-            <input
+            <KeypadField
               v-model="tablePlanInput"
               class="field mono"
+              :title="t('settings_tables')"
               :placeholder="t('settings_tables_placeholder')"
-              @keyup.enter="saveTablePlan"
+              :max-len="120"
+              space
+              case-toggle
+              :symbols="TABLE_PLAN_SYMBOLS"
+              data-testid="table-plan-input"
             />
             <button class="add-btn table-plan-save" @click="saveTablePlan">
               {{ t('settings_tables_save') }}
@@ -463,6 +525,31 @@ onMounted(() => {
           </div>
           <p v-if="tablePlanError" class="add-error">{{ tablePlanError }}</p>
           <p class="panel-note">{{ t('settings_tables_note') }}</p>
+          <div class="takeaway-first" data-testid="takeaway-first">
+            <span class="takeaway-first-label">{{ t('settings_takeaway_first') }}</span>
+            <span class="takeaway-first-value mono" data-testid="takeaway-first-value">{{
+              firstTakeaway === null ? '' : `E-${firstTakeaway}`
+            }}</span>
+            <button
+              class="add-btn takeaway-first-edit"
+              :disabled="firstTakeaway === null"
+              data-testid="takeaway-first-edit"
+              @click="editingFirstTakeaway = true"
+            >
+              {{ t('settings_takeaway_first_edit') }}
+            </button>
+          </div>
+          <p class="panel-note">{{ t('settings_takeaway_first_note') }}</p>
+          <NumberEntryDialog
+            v-if="editingFirstTakeaway"
+            :title="t('settings_takeaway_first')"
+            :initial="String(firstTakeaway ?? 61)"
+            :max-digits="3"
+            :min="TAKEAWAY_FIRST_MIN"
+            :max="TAKEAWAY_FIRST_MAX"
+            @confirm="saveFirstTakeaway"
+            @cancel="editingFirstTakeaway = false"
+          />
         </section>
 
         <!-- Nightly export (manager only; the engine refuses it to the others) -->
@@ -569,17 +656,26 @@ onMounted(() => {
           <div class="add-worker">
             <div class="section-label">{{ t('add') }}</div>
             <div class="add-fields">
-              <input
+              <KeypadField
                 v-model="newName"
                 class="field"
+                :title="t('settings_name_placeholder')"
                 :placeholder="t('settings_name_placeholder')"
+                :max-len="60"
+                space
+                case-toggle
+                :symbols="NAME_SYMBOLS"
+                data-testid="new-worker-name"
               />
-              <input
+              <KeypadField
                 v-model="newInsz"
                 class="field mono"
+                numeric
+                :max-digits="11"
+                :exact-digits="11"
+                :title="t('settings_insz_hint')"
                 :placeholder="t('settings_insz_hint')"
-                maxlength="11"
-                inputmode="numeric"
+                data-testid="new-worker-insz"
               />
             </div>
             <div class="segmented role-btns" role="radiogroup" :aria-label="t('role')">
@@ -602,6 +698,7 @@ onMounted(() => {
         <div v-if="auth.isManager" class="manager-panels">
           <CoursesSettings class="panel" />
           <GiftVoucherSettings class="panel" />
+          <QuickNotesSettings class="panel" />
         </div>
       </div>
 
@@ -976,11 +1073,16 @@ onMounted(() => {
 .label-btns {
   grid-template-columns: repeat(2, 1fr);
 }
+.beep-switch {
+  width: 240px;
+  flex-shrink: 0;
+}
 .role-btns {
   grid-template-columns: repeat(4, 1fr);
 }
 .lang-btn,
 .label-btn,
+.beep-btn,
 .role-btn {
   border-radius: var(--radius-sm);
   font-weight: var(--font-weight-bold);
@@ -988,7 +1090,8 @@ onMounted(() => {
   transition: transform var(--tap-duration) ease;
 }
 .lang-btn,
-.label-btn {
+.label-btn,
+.beep-btn {
   height: 56px;
   font-size: 18px;
 }
@@ -999,12 +1102,14 @@ onMounted(() => {
 }
 .lang-btn.active,
 .label-btn.active,
+.beep-btn.active,
 .role-btn.active {
   background: var(--selected-bg);
   color: var(--selected-fg);
 }
 .lang-btn:active,
 .label-btn:active,
+.beep-btn:active,
 .role-btn:active {
   transform: scale(var(--tap-scale));
 }
@@ -1230,6 +1335,21 @@ onMounted(() => {
 .table-plan-current {
   font-size: 16px;
   color: var(--text-primary);
+}
+.takeaway-first {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.takeaway-first-label {
+  flex: 1;
+  font-weight: var(--font-weight-bold);
+}
+.takeaway-first-value {
+  font-size: 20px;
+  font-weight: var(--font-weight-heavy);
+  min-width: 4ch;
 }
 .table-plan-save {
   height: 56px;

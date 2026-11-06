@@ -53,6 +53,7 @@ import dev.nuagemagique.pilipos.feature.settings.SettingsTextField
 import dev.nuagemagique.pilipos.feature.settings.TrainingToggle
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.AmountDialog
+import dev.nuagemagique.pilipos.ui.components.KeypadKind
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.defaultAmountDialogTexts
 import dev.nuagemagique.pilipos.ui.di.rememberEntryPoint
@@ -530,6 +531,10 @@ private fun NameFields(
             onValueChange = { callbacks.onName(lang, it) },
             placeholder = "",
             modifier = Modifier.fillMaxWidth().testTag("menu_ed_name_$lang"),
+            title = label,
+            kind = KeypadKind.Keyboard(maxLength = NAME_MAX, caseToggle = true),
+            // Chinese has no in-app input method: that name stays on the system keyboard, as the native input of the Vue editor.
+            systemKeyboard = lang !in KEYBOARD_LANGUAGES,
         )
     }
 }
@@ -594,6 +599,8 @@ private fun ProductFields(
         placeholder = "",
         modifier = Modifier.fillMaxWidth().testTag("menu_ed_code"),
         mono = true,
+        title = vueText("menu_ed_code"),
+        kind = KeypadKind.Keyboard(maxLength = CODE_MAX, caseToggle = true),
     )
     ToggleRow(vueText("menu_ed_kitchen"), form.kitchenPrinter, "menu_ed_kitchen", callbacks.onKitchen)
     ToggleRow(vueText("menu_ed_open_price"), form.openPrice, "menu_ed_open_price", callbacks.onOpenPrice)
@@ -827,3 +834,6 @@ private fun HistoryRow(c: MenuChange) {
 
 @Composable
 private fun changedFieldsText(c: MenuChange): String = c.changedFields.map { vueText("menu_ed_field_$it") }.joinToString(", ")
+
+/** The name languages the in-app keyboard can type (`KEYBOARD_LANGS` of `MenuEditorView.vue`). */
+private val KEYBOARD_LANGUAGES: Set<String> = setOf("fr", "nl", "en", "de")

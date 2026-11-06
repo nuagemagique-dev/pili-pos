@@ -7,8 +7,11 @@ import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_DEPARTMENT
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import dev.nuagemagique.pilipos.ui.state.HeldParts
+import dev.nuagemagique.pilipos.ui.state.LineAdd
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
+import dev.nuagemagique.pilipos.ui.state.TableMoves
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -19,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -44,9 +48,6 @@ private const val ERROR_TTL_MS: Long = 6_000L
 
 /** How long the warning of a discount that could not be registered stays, in milliseconds (8 s in `order.ts`). */
 private const val WARNING_TTL_MS: Long = 8_000L
-
-/** The `status` the engine gives a table without an open order. */
-private const val STATUS_FREE = "free"
 
 /** The scope of an order discount's price change (`EVENT`); a free line's is `LINE`. */
 private const val SCOPE_EVENT = "EVENT"
@@ -112,6 +113,7 @@ private class MenuCodePadHost(
     private val canPay: () -> Boolean,
     private val isCurrent: () -> Boolean,
     private val addItem: (MenuItem, Int) -> Unit,
+    private val addUnits: suspend (Long, Int) -> Boolean,
 ) : CodePadHost {
     override val pad: CodePadState get() = data.value.codePad
 
@@ -125,6 +127,11 @@ private class MenuCodePadHost(
         item: MenuItem,
         quantity: Int,
     ) = addItem(item, quantity)
+
+    override suspend fun addUnits(
+        lineId: Long,
+        delta: Int,
+    ) = addUnits.invoke(lineId, delta)
 }
 
 /** How often the Z-report reminder is checked again, in milliseconds (5 minutes in `OrderView.vue`). */
@@ -151,6 +158,10 @@ private data class Data(
     val giftVouchersEnabled: Boolean = false,
     val allergenLegendError: String? = null,
     val codePad: CodePadState = CodePadState(),
+    /** The last add to the cart: its line flashes for 200 ms (null until this screen saw one). */
+    val lastAdd: LineAdd? = null,
+    /** The payment parts kept for an order when the operator came back from the checkout (UX audit P4). */
+    val heldParts: HeldParts? = null,
 )
 
 /** What the cart shows of the courses: the switch and the next held course. */
@@ -186,20 +197,29 @@ private data class Look(
  * A refusal of any cart action is shown as an error toast here (the whole screen's, so the cart column does not
  * report its own).
  */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 internal class MenuViewModel(
     private val entry: OrderEntryPoint,
     private val routeOrderId: Long,
+    /** The clock of the digit window after an add, in milliseconds (a fake one in the tests). */
+    clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
     private val order = entry.order()
     private val session = entry.session()
     private val gateway = entry.gateway()
     private val settings = entry.settings()
+    private val tableMoves = TableMoves(order, entry.toasts(), entry.catalog(), settings, entry.errors())
     private val data = MutableStateFlow(freshData(settings))
     private val weighing = WeighFlow(entry, viewModelScope) { change -> data.update { it.copy(dialog = change(it.dialog)) } }
 
     /** The code pad (order entry by menu code); the screen wires its keys straight to it. */
-    val codePad = CodePadFlow(entry, viewModelScope, MenuCodePadHost(data, { look.value.canPay }, ::isRouteOrderCurrent, ::addItem))
+    val codePad =
+        CodePadFlow(
+            entry,
+            viewModelScope,
+            MenuCodePadHost(data, { look.value.canPay }, ::isRouteOrderCurrent, ::addItem, { id, delta -> order.addUnits(id, delta) }),
+            clock,
+        )
     private val reload = MutableStateFlow(0)
     private val menuLock = Mutex()
     private var itemsJob: Job? = null
@@ -268,6 +288,9 @@ internal class MenuViewModel(
             }
         }
         viewModelScope.launch { active.collect { on -> if (on) loadGiftVoucherSetting() } }
+        // The value held when this screen starts is an old add: only the adds seen from now on flash their line.
+        viewModelScope.launch { order.lastAdd.drop(1).collect { add -> data.update { it.copy(lastAdd = add) } } }
+        viewModelScope.launch { order.heldParts.collect { held -> data.update { it.copy(heldParts = held) } } }
         viewModelScope.launch {
             order.lines.collectLatest { lines ->
                 val amounts = amountsOf(lines)
@@ -342,11 +365,19 @@ internal class MenuViewModel(
                     coursesEnabled = current != null && c.enabled,
                     nextHeldCourse = if (current != null) c.nextHeld else null,
                     sendingNext = d.sendingNext,
+                    lastAdd = d.lastAdd,
+                    heldPartCount = keptPartCount(d.heldParts, current?.id),
                 ),
             zWarning = d.zWarning,
             dialog = d.dialog,
         )
     }
+
+    /** The parts kept for the order of this screen (UX audit P4); the parts of another order are not its own. */
+    private fun keptPartCount(
+        held: HeldParts?,
+        orderId: Long?,
+    ): Int = if (held != null && held.orderId == orderId) held.parts.size else 0
 
     // ── Opening ───────────────────────────────────────────────────
 
@@ -462,6 +493,8 @@ internal class MenuViewModel(
         item: MenuItem,
         quantity: Int = 1,
     ) {
+        // Another product is being added: a digit starts a code again (C7).
+        codePad.closeWindow()
         when {
             // Allergen mode (the "Épuisé" mode comes first, as in OrderView.vue): a tap shows the product's allergen sheet.
             data.value.allergenMode && !(data.value.soldOutMode && look.value.canPay) -> openAllergenSheet(item)
@@ -473,9 +506,18 @@ internal class MenuViewModel(
             // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
             else ->
                 viewModelScope.launch {
-                    if (item.hasModifiers) askModifiers(item) else order.addItem(item, quantity)
+                    if (item.hasModifiers) askModifiers(item) else addPlain(item, quantity)
                 }
         }
+    }
+
+    /** Adds a plain product and opens the digit window on the line it went to (`addPlain` of `OrderView.vue`). */
+    private suspend fun addPlain(
+        item: MenuItem,
+        quantity: Int,
+    ) {
+        val add = order.addProduct(item, quantity) ?: return
+        codePad.openWindow(item, add.lineId, add.units)
     }
 
     /** "Back" in the weighing dialog (`WeighDialog.vue`). */
@@ -776,8 +818,8 @@ internal class MenuViewModel(
     }
 
     /**
-     * Opens the table picker of "change table" (`openTablePicker`): the free tables of the plan, the current one
-     * left out. A refusal to list them is shown as an error toast.
+     * Opens the table picker of "Déplacer" (`TableMover.vue`): the other tables of the plan, the free ones to tap and
+     * the busy ones dimmed with their total. A refusal to list them is shown as an error toast.
      */
     fun askTransfer() {
         val current = order.current.value
@@ -789,26 +831,29 @@ internal class MenuViewModel(
             val language = settings.language.value
             attempt { gateway.call { engine -> engine.listTables() } }.fold(
                 onSuccess = { tables ->
-                    val free = tables.filter { it.status == STATUS_FREE && it.tableNumber != from }.map { it.tableNumber }
-                    data.update { it.copy(dialog = OrderDialog.TablePicker(from, free)) }
+                    val others = tables.filter { it.tableNumber != from }
+                    data.update { it.copy(dialog = OrderDialog.TablePicker(from, others)) }
                 },
                 onFailure = { entry.errors().show(it, language) },
             )
         }
     }
 
-    /** The table picked in the picker (`transferTo`): the order moves there, the toast says so or the refusal. */
+    /**
+     * The free table picked in the picker (`pick` of `TableMover.vue`): the order moves there at once, with no
+     * confirmation; the toast offers "Annuler". A refusal is shown as an error toast.
+     */
     fun confirmTransfer(toTable: Int) {
+        val current = order.current.value
+        val from = current?.tableNumber
         if (!isRouteOrderCurrent() || data.value.transferring) return
+        if (current == null || from == null) return
         data.update { it.copy(dialog = OrderDialog.None, transferring = true) }
         viewModelScope.launch {
             val language = settings.language.value
-            attempt { order.transferTable(toTable) }.fold(
-                onSuccess = {
-                    entry.toasts().show(entry.catalog().text("transfer_done", language, mapOf("to" to toTable)), ToastVariant.Success)
-                },
-                onFailure = { entry.errors().show(it, language, null, ERROR_TTL_MS) },
-            )
+            attempt { tableMoves.move(current.id, from, toTable) }.onFailure {
+                entry.errors().show(it, language, null, ERROR_TTL_MS)
+            }
             data.update { it.copy(transferring = false) }
         }
     }
@@ -891,7 +936,11 @@ internal class MenuViewModel(
         if (!isRouteOrderCurrent() || line == null || order.current.value?.status != OrderStatus.OPEN) return
         // Sent: part of the line already went to the kitchen, so a changed note prints a note slip now.
         val sent = line.quantity - line.unsentQuantity > 0
-        data.update { it.copy(dialog = OrderDialog.Note(lineId, line.kitchenNote.orEmpty(), sent)) }
+        // C11: the chips are read each time the dialog opens, so a manager's change shows at once.
+        viewModelScope.launch {
+            val chips = order.quickNotes()
+            data.update { it.copy(dialog = OrderDialog.Note(lineId, line.kitchenNote.orEmpty(), sent, chips)) }
+        }
     }
 
     /** The note typed in the dialog (`saveNote`); an empty text clears it. A refusal is shown by [run]. */

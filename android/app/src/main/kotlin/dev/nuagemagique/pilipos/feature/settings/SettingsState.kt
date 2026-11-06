@@ -104,6 +104,8 @@ internal data class SettingsUiState(
     val training: Boolean = false,
     val language: AppLanguage = AppLanguage.FR,
     val productLabel: ProductLabel = ProductLabel.CODE,
+    /** The short beep on each add to the cart is on (this terminal). */
+    val addBeep: Boolean = true,
     /** The info panel; null until the engine settings are loaded. */
     val info: PosSettings? = null,
     /** The employees, as the engine listed them (active and inactive). */
@@ -129,6 +131,10 @@ internal data class SettingsUiState(
     val mailStatus: MailStatus? = null,
     val hubrise: HubriseSwitchState = HubriseSwitchState(),
     val tablePlan: TablePlanState = TablePlanState(),
+    /** The number of the first takeaway of the day (UX audit T2); null until the engine answered. */
+    val takeawayFirst: Int? = null,
+    /** The digits typed in the first takeaway number dialog; null while it is closed. */
+    val takeawayEntry: String? = null,
     /** The badge reader panel of a manager. */
     val badge: BadgePanelState = BadgePanelState(),
     /** The enrolment dialog (capture, then the manager's PIN), or null. */

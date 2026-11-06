@@ -45,10 +45,13 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | Vue | Compose | Commands |
 | --- | --- | --- |
 | components/NumPad.vue | ui/components/NumPad.kt (NumPad) | - (calculator layout 7 8 9 / 4 5 6 / 1 2 3 / C 0 backspace, same on both UIs, UX audit C10) |
+| components/TextKeypad.vue (the lower case keypad: chips, symbols, shift key, counter) | ui/components/TextKeypad.kt (TextKeypad, TextKeypadSpec, KeypadSymbols), TextKeypadKey.kt | - (UX audit C13 / R6) |
+| components/TextKeyboard.vue (AZERTY, capitals, accents) | ui/components/TextKeyboard.kt (TextKeyboard, TextKeyboardDialog) | - (a dialog per field on Android, inline on Vue) |
+| components/KeypadField.vue + NumberEntryDialog.vue (a field that opens a keypad, whole numbers) | ui/components/KeypadField.kt (KeypadField, KeypadKind), NumberKeypad.kt, KeypadHost.kt (the keypads are drawn by the host of `PosUiRoot`) | - (settings fields, INSZ, labels: `SettingsTextField` delegates to it) |
 | components/PinDialog.vue | ui/components/PinPad.kt (PinPadState, PinPad, PinDialog) | - |
 | dialog frames | ui/components/PiliDialog.kt (PiliDialog, ConfirmDialog) | - |
 | components/PriceDialog.vue | ui/components/AmountDialog.kt | - |
-| stores/toast.ts and components/ToastStack.vue (top centre under the header, error stays until tapped, three at most) | ui/feedback/ToastStore.kt, ToastOverlay.kt (ToastStack, ToastOverlay) | - |
+| stores/toast.ts and components/ToastStack.vue (top centre under the header, error stays until tapped, three at most, a success toast may carry one button: `showWithAction`, `runAction`) | ui/feedback/ToastStore.kt (ToastAction), ToastOverlay.kt (ToastStack, ToastOverlay) | - |
 | utils/errorMessages.ts callers | ui/feedback/ErrorPresenter.kt | - |
 | QR images | ui/components/QrCode.kt (QrCanvas, QrMatrices, QrCode) | - |
 | stores/pos.ts | ui/state/PosSettingsStore.kt | `get_settings` `set_training_mode` |
@@ -59,7 +62,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | stores/allergens.ts | feature/order/MenuViewModel.kt (allergen legend, mode and sheet state) | `list_allergens` `get_allergen_sheet` `print_allergen_sheet` |
 | stores/order.ts (courses: courseSettings, heldCourses, setLineCourse, sendNextCourse) | ui/state/OrderStore.kt (courseSettings, heldCourses, setLineCourse, sendNextCourse) | `get_course_settings` `set_line_course` `list_held_courses` `send_next_course` |
 | stores/giftVouchers.ts, stores/order.ts (addGiftVoucher) | feature/order/MenuViewModel.kt, feature/checkout/CheckoutViewModel.kt, feature/reports/ReportsViewModel.kt (each reads `get_gift_voucher_settings`), ui/state/OrderStore.kt (addGiftVoucher) | `get_gift_voucher_settings` `add_gift_voucher_line` |
-| stores/order.ts | ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` `add_order_line` `remove_order_line` `update_order_line_quantity` `leave_order` `sign_pre_bill` `close_unpaid` `list_open_orders` |
+| stores/order.ts | ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` `add_order_line` `remove_order_line` `update_order_line_quantity` `leave_order` `sign_pre_bill` `close_unpaid` `list_open_orders` `get_quick_notes` `get_takeaway_tag` `set_takeaway_customer` |
 | utils/names.ts | ui/format/ProductNames.kt | - |
 | stores/fdm.ts | ui/fdm/FdmStore.kt | `fdm_health` `fdm_check_now` |
 | components/FdmAlerts.vue | ui/fdm/FdmBanner.kt (FdmBannerOverlay), ui/fdm/FdmBlockingVeil.kt | - |
@@ -68,6 +71,8 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | utils/datetime.ts | ui/format/PosDateTime.kt | - |
 | components/VatSummary.vue and the line amount of components/OrderLineItem.vue | ui/format/CartAmounts.kt, ui/components/VatSummary.kt | - |
 | components/IdleLockBanner.vue, stores/auth.ts (idle warning), App.vue (`idle-lock-warning` listener) | ui/components/IdleLockBanner.kt, ui/state/SessionStore.kt (`idleWarning`, `idleLockedAfterMin`) | - |
+| components/LateOnlineBanner.vue, utils/webshopLate.ts, composables/useOrderChime.ts (late repeat) | ui/components/LateOnlineBanner.kt, ui/feedback/LateOrders.kt, OrderChime.kt, ui/scaffold/HeaderViewModel.kt (`lateOrders`) | - |
+| utils/heldParts.ts, stores/order.ts (`heldParts`, `onlineCollect`) | feature/checkout/ReconciledParts.kt, ui/state/OrderStore.kt | - |
 | components/TrainingBanner.vue and the App.vue watermark | ui/components/TrainingBanner.kt, TrainingWatermarkOverlay | - |
 | components/ConfigProblemsBanner.vue | ui/components/ConfigProblemsBanner.kt | - |
 | components/AppHeader.vue, PiliLogo.vue, OnlineOrdersNavButton.vue | ui/scaffold/AppHeader.kt (AppHeader, PiliLogo), PosScaffold.kt, HeaderViewModel.kt | `set_pin` |
@@ -103,6 +108,5 @@ check_fdm_status excluded no Vue caller; fdm_health and fdm_check_now replace it
 list_fiscal_events excluded no Vue caller
 sign_table_order excluded no Vue caller; leave_order registers the P
 work_in excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else with clock_in_employee from the employees panel (own presence stays login and end of shift, so no UI calls work_in)
-work_out excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else out with clock_out_employee from the employees panel (no UI calls work_out)
 reprint_course_slip excluded no screen yet; the DUPLICATA reprint of a course slip is engine-only (DECISIONS, T4)
 ```

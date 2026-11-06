@@ -21,6 +21,19 @@ import type { Page } from '@playwright/test'
 
 // A manager always has a PIN (a manager without one must choose it at
 // first login, see login.spec.ts). `tapUserTile` types it.
+/** The quick notes of a new installation (engine default). */
+export const DEFAULT_QUICK_NOTES = [
+  'Sans wasabi',
+  'Sans sésame',
+  'Sans sauce',
+  'Sauce à part',
+  'Bien cuit',
+  'Épicé',
+  'Pas épicé',
+  'Sans oignon',
+  'À emporter',
+]
+
 const DEFAULT_USER = {
   insz: '94060242576',
   name: 'Bruno Moyse',
@@ -574,6 +587,18 @@ function defaultHandlers(): Record<string, Handler> {
       }
     }),
     list_open_takeaways: () => [],
+    // Numbered takeaway: the first number of a new installation; no tag unless a spec gives one.
+    get_takeaway_numbering: () => ({ firstNumber: 61 }),
+    set_takeaway_numbering: live((args: any) => args.input),
+    get_takeaway_tag: () => null,
+    set_takeaway_customer: live((args: any) => ({
+      orderId: args.orderId,
+      day: '2026-11-06',
+      number: 61,
+      label: 'E-61',
+      customerName: args.name,
+      customerPhone: args.phone,
+    })),
     close_unpaid: () => ({
       success: true,
       ticket: null,
@@ -926,6 +951,10 @@ function defaultHandlers(): Record<string, Handler> {
     set_owner_alerts: (args: any) => ({ ...args.input, token_configured: false }),
     send_test_alert: () => ({ sent: true, detail: 'ok' }),
     list_owner_alert_log: () => [],
+
+    // Quick notes: the nine usual ones (a new installation).
+    get_quick_notes: () => ({ notes: [...DEFAULT_QUICK_NOTES] }),
+    set_quick_notes: live((args: any) => args.input),
 
     // Courses: off until a spec says otherwise.
     get_course_settings: () => ({ enabled: false, category_courses: [] }),

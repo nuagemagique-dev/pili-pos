@@ -21,6 +21,7 @@ import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
+import dev.nuagemagique.pilipos.ui.state.OrderStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
 import io.mockk.coEvery
@@ -157,6 +158,7 @@ internal class TestEntryPoint(
     private val catalog: MessageCatalog,
     private val errorTexts: ErrorTexts,
     private val badges: BadgeStore,
+    private val order: OrderStore,
 ) : LoginEntryPoint {
     override fun session(): SessionStore = session
 
@@ -177,6 +179,8 @@ internal class TestEntryPoint(
     override fun errorTexts(): ErrorTexts = errorTexts
 
     override fun badges(): BadgeStore = badges
+
+    override fun order(): OrderStore = order
 }
 
 /** An [AppNavigator] that records what it was asked. */
@@ -210,6 +214,7 @@ internal class LoginRig(
     val catalog: MessageCatalog,
     val badges: BadgeRig,
     val session: SessionStore,
+    val order: OrderStore,
 ) {
     val state get() = model.state.value
 
@@ -262,8 +267,9 @@ internal suspend fun TestScope.startLogin(
         runCurrent()
     }
     val badges = badgeRigOver(f, gateway, session, toasts, errors, settings, catalog)
-    val entry = TestEntryPoint(session, settings, integrations, fdm, gateway, errors, toasts, catalog, errorTexts, badges.store)
+    val order = OrderStore(gateway, f.events, backgroundScope)
+    val entry = TestEntryPoint(session, settings, integrations, fdm, gateway, errors, toasts, catalog, errorTexts, badges.store, order)
     val model = LoginViewModel(entry)
     runCurrent()
-    return LoginRig(f, model, toasts, settings, catalog, badges, session)
+    return LoginRig(f, model, toasts, settings, catalog, badges, session, order)
 }

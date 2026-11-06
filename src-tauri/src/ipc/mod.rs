@@ -34,6 +34,7 @@ pub mod menu_admin;
 pub mod modifiers;
 pub mod order;
 pub mod print;
+pub mod quick_notes;
 pub mod refund;
 pub mod report;
 pub mod scale;
@@ -42,6 +43,7 @@ pub mod settings;
 pub mod social;
 pub mod support;
 pub mod tables;
+pub mod takeaway;
 pub mod unpaid;
 #[cfg(feature = "hubrise")]
 pub mod webshop;

@@ -5,11 +5,13 @@
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWebshopOrdersStore } from '../stores/webshopOrders'
+import { useOrderStore } from '../stores/order'
 import { useI18n } from '../i18n'
 
 const router = useRouter()
 const route = useRoute()
 const webshop = useWebshopOrdersStore()
+const order = useOrderStore()
 const { t } = useI18n()
 
 // Brief pulse class toggled whenever pendingCount goes up - gives
@@ -40,7 +42,7 @@ onMounted(() => {
 <template>
   <button
     class="nav-btn"
-    :class="{ 'nav-btn-active': route.name === 'webshop-orders' }"
+    :class="{ 'nav-btn-active': route.name === 'webshop-orders' || order.onlineCollect !== null }"
     @click="router.push({ name: 'webshop-orders' })"
   >
     {{ t('online_orders') }}

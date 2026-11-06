@@ -396,6 +396,12 @@ export interface TakeawayInfo {
   totalCents: number
   lineCount: number
   createdAt: string
+  /** The number of the day (61), when the takeaway has one. */
+  number: number | null
+  /** `E-61`. */
+  label: string | null
+  /** The customer name, when the operator entered one. */
+  customerName: string | null
 }
 
 export function listOpenTakeaways(): Promise<TakeawayInfo[]> {
@@ -866,13 +872,15 @@ export function webshopRejectOrder(orderId: number): Promise<void> {
   return invoke('webshop_reject_order', { orderId })
 }
 
-/** Collect an unpaid order: the sale N closes its P. */
+/** Collect an unpaid order: the sale N closes its P. `delivery` is the ticket medium asked at
+ * the checkout (paper when none). */
 export function webshopHandoverOrder(
   orderId: number,
   payments: PaymentPart[],
+  delivery?: TicketDeliveryRequest,
 ): Promise<CheckoutResult> {
   return invoke('webshop_handover_order', {
-    req: { order_id: orderId, payments },
+    req: { order_id: orderId, payments, ...(delivery ? { delivery } : {}) },
   })
 }
 
@@ -1551,6 +1559,66 @@ export interface SetAllergensInput {
 /** Managers only; refused while a catalog manages the menu. Answers whether anything changed. */
 export function setAllergens(input: SetAllergensInput): Promise<boolean> {
   return invoke('set_allergens', { input })
+}
+
+// ── Quick notes (the chips of the kitchen note dialog, local data) ──
+
+/** The quick notes of this installation, in display order. */
+export interface QuickNotes {
+  notes: string[]
+}
+
+/** Any logged-in operator; a new installation reads the nine usual notes. */
+export function getQuickNotes(): Promise<QuickNotes> {
+  return invoke('get_quick_notes')
+}
+
+/** Managers only. Each chip is a valid kitchen note (60 printable characters), at most 24. */
+export function setQuickNotes(input: QuickNotes): Promise<QuickNotes> {
+  return invoke('set_quick_notes', { input })
+}
+
+// ── Numbered takeaway (UX audit T2, local data) ────────────────────
+
+/** The number of the day and the customer of a takeaway order. */
+export interface TakeawayTag {
+  orderId: number
+  /** The business day the number belongs to (`YYYY-MM-DD`). */
+  day: string
+  number: number
+  /** `E-61`. */
+  label: string
+  customerName: string | null
+  customerPhone: string | null
+}
+
+/** The first takeaway number of each day (1 to 999, 61 by default). */
+export interface TakeawayNumbering {
+  firstNumber: number
+}
+
+/** Any logged-in operator. */
+export function getTakeawayNumbering(): Promise<TakeawayNumbering> {
+  return invoke('get_takeaway_numbering')
+}
+
+/** Managers only. Applies to the next number handed out. */
+export function setTakeawayNumbering(input: TakeawayNumbering): Promise<TakeawayNumbering> {
+  return invoke('set_takeaway_numbering', { input })
+}
+
+/** The tag of an order; null for a table, an online order or a takeaway that predates the numbering. */
+export function getTakeawayTag(orderId: number): Promise<TakeawayTag | null> {
+  return invoke('get_takeaway_tag', { orderId })
+}
+
+/** Set (null or empty clears) the name and the phone of the customer of an open takeaway. Both are replaced. */
+export function setTakeawayCustomer(
+  orderId: number,
+  name: string | null,
+  phone: string | null,
+): Promise<TakeawayTag> {
+  return invoke('set_takeaway_customer', { orderId, name, phone })
 }
 
 // ── Courses and "Envoyer la suite" (kitchen printing only) ─────────

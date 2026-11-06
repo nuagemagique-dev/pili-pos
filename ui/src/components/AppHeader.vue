@@ -19,6 +19,11 @@ import PinDialog from './PinDialog.vue'
 import FdmAlerts from './FdmAlerts.vue'
 import TrainingBanner from './TrainingBanner.vue'
 import IdleLockBanner from './IdleLockBanner.vue'
+import LateOnlineBanner from './LateOnlineBanner.vue'
+import TableMover from './TableMover.vue'
+import TakeawayCustomer from './TakeawayCustomer.vue'
+import UserMenu from './UserMenu.vue'
+import UiIcon from './UiIcon.vue'
 
 // While HubRise runs, or online orders are still to settle.
 const OnlineOrdersNavButton = defineAsyncComponent(() => import('./OnlineOrdersNavButton.vue'))
@@ -39,7 +44,11 @@ onMounted(() => {
 onUnmounted(() => clearInterval(clockTimer))
 
 const onOrderScreen = computed(() => route.name === 'order' || route.name === 'checkout')
-const orderType = computed(() => (onOrderScreen.value ? order.currentOrder?.order_type : undefined))
+// An unpaid online order at the checkout (UX audit O2) is neither a table nor a numbered takeaway.
+const collectingOnline = computed(() => onOrderScreen.value && order.onlineCollect !== null)
+const orderType = computed(() =>
+  onOrderScreen.value && !collectingOnline.value ? order.currentOrder?.order_type : undefined,
+)
 const tableNumber = computed(() =>
   orderType.value === 'dine_in' ? order.currentOrder?.table_number : null,
 )
@@ -50,8 +59,21 @@ const takeawayActive = computed(() => orderType.value === 'takeaway')
 
 const roleLabel = computed(() => (auth.currentUser ? t(`role_${auth.currentUser.role}`) : ''))
 
-// The operator changing their own PIN (tap on their name).
+// UX audit C8: the table chip is the way to move the order to another table.
+const canMoveTable = computed(() => order.canTransfer)
+const moving = ref(false)
+
+// The operator changing their own PIN (from the menu under their name).
 const pinOpen = ref(false)
+const userMenuOpen = ref(false)
+const userButton = ref<HTMLButtonElement | null>(null)
+// The menu hangs under the user button.
+const userMenuLeft = ref(0)
+
+function toggleUserMenu() {
+  userMenuLeft.value = Math.round(userButton.value?.getBoundingClientRect().left ?? 0)
+  userMenuOpen.value = !userMenuOpen.value
+}
 
 /** Start a fresh takeaway order. A second tap while already on a
  * takeaway is a no-op instead of silently replacing the cart. */
@@ -92,6 +114,33 @@ async function lock() {
   order.resetLocal()
   await router.push({ name: 'login' })
 }
+
+/** "Fin de service" from the menu: what was ordered is registered, the engine signs the
+ * clock-out of the logged-in employee (no PIN again: the session proves it), then the
+ * till locks and the login screen shows them off shift. */
+async function endShift() {
+  userMenuOpen.value = false
+  const name = auth.currentUser?.name ?? ''
+  try {
+    await order.leave('navigate')
+  } catch (e) {
+    toast.show(`${t('order_register_failed')} : ${describeError(e)}`, 'error', 6000)
+  }
+  const done = await auth.endOwnShift()
+  if (done) toast.show(t('shift_ended', { name }), 'success')
+  order.resetLocal()
+  await router.push({ name: 'login' })
+}
+
+function menuLock() {
+  userMenuOpen.value = false
+  void lock()
+}
+
+function menuPin() {
+  userMenuOpen.value = false
+  pinOpen.value = true
+}
 </script>
 
 <template>
@@ -100,13 +149,47 @@ async function lock() {
     <span class="divider" />
     <StatusLights />
     <span class="divider" />
-    <button class="header-user" :aria-label="t('pin_change')" @click="pinOpen = true">
+    <button
+      ref="userButton"
+      class="header-user"
+      :aria-label="t('user_menu')"
+      aria-haspopup="menu"
+      :aria-expanded="userMenuOpen"
+      data-testid="header-user"
+      @click="toggleUserMenu"
+    >
       <span class="user-name">{{ auth.currentUser?.name }}</span>
-      <span class="user-role">{{ roleLabel }} · PIN</span>
+      <span class="user-role"
+        >{{ roleLabel }}<UiIcon class="user-chevron" name="menuDown" :size="18"
+      /></span>
     </button>
-    <span v-if="tableNumber" class="header-table">{{ t('table') }} {{ tableNumber }}</span>
-    <span v-else-if="takeawayActive" class="header-takeaway">{{ t('takeaway_badge') }}</span>
+    <UserMenu
+      v-if="userMenuOpen"
+      :left="userMenuLeft"
+      @close="userMenuOpen = false"
+      @pin="menuPin"
+      @end-shift="endShift"
+      @lock="menuLock"
+    />
+    <button
+      v-if="tableNumber && canMoveTable"
+      class="header-table header-table-btn"
+      data-testid="header-table"
+      :aria-label="`${t('transfer_table')} · ${t('table')} ${tableNumber}`"
+      @click="moving = true"
+    >
+      {{ t('table') }} {{ tableNumber }}
+    </button>
+    <span v-else-if="tableNumber" class="header-table" data-testid="header-table"
+      >{{ t('table') }} {{ tableNumber }}</span
+    >
+    <span v-else-if="collectingOnline" class="header-table" data-testid="header-online">{{
+      t('online_orders')
+    }}</span>
+    <TakeawayCustomer v-else-if="takeawayActive" />
     <span class="header-clock">{{ clock }}</span>
+
+    <TableMover v-if="moving" @close="moving = false" />
 
     <nav class="header-nav">
       <div class="segmented">
@@ -147,6 +230,7 @@ async function lock() {
   </header>
   <TrainingBanner />
   <IdleLockBanner />
+  <LateOnlineBanner />
   <FdmAlerts />
 
   <PinDialog
@@ -199,14 +283,15 @@ async function lock() {
   line-height: 1.15;
 }
 .user-role {
+  display: flex;
+  align-items: center;
   font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.2;
 }
 
 /* The current table: outlined in Brume, never an action colour. */
-.header-table,
-.header-takeaway {
+.header-table {
   height: 40px;
   padding: 0 14px;
   border-radius: var(--radius-sm);
@@ -217,12 +302,15 @@ async function lock() {
   align-items: center;
   white-space: nowrap;
 }
-/* Takeaway: amber, so staff see at a glance it is not a seated order. */
-.header-takeaway {
-  border-color: var(--accent-warning);
-  color: var(--accent-warning);
+/* A table that can move is a button: 48 px high, same Brume outline. */
+.header-table-btn {
+  height: 48px;
+  background: transparent;
+  color: var(--text-primary);
 }
-
+.header-table-btn:active {
+  transform: scale(var(--tap-scale));
+}
 .header-clock {
   font-family: var(--font-mono);
   font-size: 16px;

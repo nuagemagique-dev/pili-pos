@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.feature.order.OrderRoutes
 import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.AppNavigator
@@ -39,7 +40,10 @@ private val BrandWidth = 720.dp
 internal data class PinCallbacks(
     val onKey: (NumPadKey) -> Unit = {},
     val onBack: () -> Unit = {},
-    val onToggleEndShift: () -> Unit = {},
+    /** "Se connecter" (false) and "Terminer le service" (true) of an operator on shift. */
+    val onShiftMode: (Boolean) -> Unit = {},
+    /** The language of the selected tile (UX audit R5). */
+    val onUserLanguage: (AppLanguage) -> Unit = {},
     val onLogin: () -> Unit = {},
     val onEndShift: () -> Unit = {},
 )
@@ -80,6 +84,11 @@ internal data class LoginCallbacks(
 internal fun LoginEffect.perform(navigator: AppNavigator) {
     when (this) {
         LoginEffect.GoToTables -> navigator.replaceAll(TablesRoutes.TABLES)
+        is LoginEffect.GoToOrder -> {
+            // Tables underneath, the order on top: the stack of a table opened from Tables.
+            navigator.replaceAll(TablesRoutes.TABLES)
+            navigator.navigate(OrderRoutes.order(orderId))
+        }
     }
 }
 
@@ -102,7 +111,8 @@ internal fun LoginRoute(navigator: AppNavigator) {
                 PinCallbacks(
                     onKey = model::onPinKey,
                     onBack = model::cancelPin,
-                    onToggleEndShift = model::toggleEndShift,
+                    onShiftMode = model::setEndShiftMode,
+                    onUserLanguage = model::setPanelUserLanguage,
                     onLogin = model::loginFromPanel,
                     onEndShift = model::endShiftFromPanel,
                 ),

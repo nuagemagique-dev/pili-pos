@@ -8,11 +8,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import dev.nuagemagique.pilipos.feature.tables.table
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.fdm.FdmUiState
@@ -47,6 +49,10 @@ class PosScaffoldTest {
             onSettings = { calls += "settings" },
             onLock = { calls += "lock" },
             onOpenPin = { calls += "pin" },
+            onPickTable = { calls += "pick:$it" },
+            onCustomerName = { calls += "name:$it" },
+            onCustomerPhone = { calls += "phone:$it" },
+            onCloseCustomer = { calls += "close-customer" },
         )
 
     private fun show(
@@ -108,6 +114,60 @@ class PosScaffoldTest {
         show(HeaderArea.TABLES, fdm = FdmUiState())
 
         compose.onNodeWithTag("idle_lock_banner").assertDoesNotExist()
+    }
+
+    // ── Late online orders under the header (UX audit O3) ─────────
+
+    private fun late(
+        area: HeaderArea,
+        count: Int,
+    ) = show(
+        area,
+        fdm = FdmUiState(),
+        header =
+            HeaderUiState(
+                area = area,
+                userName = "Alice",
+                roleKey = "role_admin",
+                isManager = true,
+                hubriseVisible = true,
+                lateOrders = count,
+            ),
+    )
+
+    @Test
+    fun theLateBannerSitsUnderTheHeaderWithItsCountAndOpensTheBoard() {
+        late(HeaderArea.TABLES, 3)
+
+        compose.onNodeWithTag("late_online_banner").assertIsDisplayed()
+        compose.onNodeWithTag("late_online_text").assertTextEquals("3 commandes en ligne attendent depuis plus de 5 min")
+        val header = compose.onNodeWithTag("app_header").getUnclippedBoundsInRoot()
+        val banner = compose.onNodeWithTag("late_online_banner").getUnclippedBoundsInRoot()
+        assertTrue("the banner starts under the header", banner.top >= header.bottom)
+        val view = compose.onNodeWithTag("late_online_view").getUnclippedBoundsInRoot()
+        assertTrue("the button is at least 48 dp high", (view.bottom - view.top).value >= 48f)
+        compose.onNodeWithTag("late_online_view").performClick()
+        assertEquals(listOf("online"), calls)
+    }
+
+    @Test
+    fun theLateBannerUsesTheSingularForOneOrder() {
+        late(HeaderArea.ORDER, 1)
+
+        compose.onNodeWithTag("late_online_text").assertTextEquals("1 commande en ligne attend depuis plus de 5 min")
+    }
+
+    @Test
+    fun noLateBannerWithoutLateOrdersOrOnTheBoardItself() {
+        late(HeaderArea.TABLES, 0)
+        compose.onNodeWithTag("late_online_banner").assertDoesNotExist()
+    }
+
+    @Test
+    fun theBoardKeepsItsOwnAlarmAndShowsNoLateBanner() {
+        late(HeaderArea.WEBSHOP, 2)
+
+        compose.onNodeWithTag("late_online_banner").assertDoesNotExist()
     }
 
     // ── The FDM veil (PD209) ──────────────────────────────────────
@@ -237,5 +297,70 @@ class PosScaffoldTest {
 
         compose.onNodeWithTag("pili_dialog").assertIsDisplayed()
         compose.onNodeWithTag("pin_pad").assertIsDisplayed()
+    }
+
+    @Test
+    fun theTablePickerOfTheTableChipSitsAboveTheContentAndATapOnAFreeTableCallsBack() {
+        val tables = listOf(table(9), table(4, orderId = 44L, lines = 1, totalCents = 900))
+        show(
+            HeaderArea.ORDER,
+            fdm = FdmUiState(connected = true),
+            header =
+                HeaderUiState(
+                    area = HeaderArea.ORDER,
+                    userName = "Alice",
+                    roleKey = "role_admin",
+                    tableNumber = 12,
+                    dineInOrder = true,
+                    canMoveTable = true,
+                    tablePicker = tables,
+                ),
+        )
+
+        compose.onNodeWithTag("table_picker").assertIsDisplayed()
+        compose.onNodeWithTag("pick_table_4").assertIsNotEnabled()
+        compose.onNodeWithTag("pick_table_9").performClick()
+
+        assertEquals(listOf("pick:9"), calls)
+    }
+
+    // ── The customer dialogs of a numbered takeaway (UX audit T2) ──
+
+    private fun takeawayHeader(step: CustomerStep?) =
+        HeaderUiState(
+            area = HeaderArea.ORDER,
+            userName = "Alice",
+            roleKey = "role_admin",
+            isManager = true,
+            takeawayOrder = true,
+            takeawayLabel = "E-61",
+            customerEditable = true,
+            customerStep = step,
+        )
+
+    @Test
+    fun theNameStepShowsTheNameDialogAndHandsTheNameBack() {
+        show(HeaderArea.ORDER, fdm = FdmUiState(), header = takeawayHeader(CustomerStep.NAME))
+
+        compose.onNodeWithTag("customer_name_dialog").assertIsDisplayed()
+        compose.onNodeWithTag("customer_name_confirm").performClick()
+        assertEquals(listOf("name:"), calls)
+    }
+
+    @Test
+    fun thePhoneStepShowsThePhoneDialogAndSkipClosesIt() {
+        show(HeaderArea.ORDER, fdm = FdmUiState(), header = takeawayHeader(CustomerStep.PHONE))
+
+        compose.onNodeWithTag("customer_phone_dialog").assertIsDisplayed()
+        compose.onNodeWithTag("customer_phone_skip").performClick()
+        assertEquals(listOf("close-customer"), calls)
+    }
+
+    @Test
+    fun noStepShowsNoCustomerDialog() {
+        show(HeaderArea.ORDER, fdm = FdmUiState(), header = takeawayHeader(null))
+
+        compose.onNodeWithTag("customer_name_dialog").assertDoesNotExist()
+        compose.onNodeWithTag("customer_phone_dialog").assertDoesNotExist()
     }
 }

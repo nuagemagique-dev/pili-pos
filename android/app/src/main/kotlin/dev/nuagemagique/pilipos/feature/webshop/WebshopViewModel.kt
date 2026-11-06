@@ -4,15 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.WebshopOrderSummary
 import java.time.Clock
 import java.time.Instant
@@ -41,6 +43,15 @@ internal sealed interface WebshopDialog {
     data class Delay(
         override val orderId: Long,
     ) : WebshopDialog
+}
+
+/** What the board asks of the navigation (UX audit O2). */
+internal sealed interface WebshopEffect {
+    /** Opens the checkout of the unpaid online order [orderId], on the card method when [card]. */
+    data class OpenCheckout(
+        val orderId: Long,
+        val card: Boolean,
+    ) : WebshopEffect
 }
 
 /** What the webshop screen shows. */
@@ -109,6 +120,10 @@ internal class WebshopViewModel(
     )
 
     private val own = MutableStateFlow(Own(clock.instant()))
+    private val effectChannel = Channel<WebshopEffect>(Channel.BUFFERED)
+
+    /** One-shot moves, each delivered once. */
+    val effects: Flow<WebshopEffect> = effectChannel.receiveAsFlow()
 
     private val remote =
         combine(
@@ -184,6 +199,8 @@ internal class WebshopViewModel(
         if (action.needsCashier && !session.canTakePayment.value) return
         if (action == PrimaryAction.REFUND) {
             own.update { it.copy(dialog = WebshopDialog.RefundConfirm(order.id)) }
+        } else if (action == PrimaryAction.COLLECT_CASH) {
+            openCheckout(order, card = false)
         } else {
             guarded(order.id) { perform(action, order) }
         }
@@ -201,10 +218,22 @@ internal class WebshopViewModel(
         own.update { it.copy(dialog = WebshopDialog.Delay(order.id)) }
     }
 
-    /** "Encaisser carte": the card is collected for the total the engine listed (`handleCollectCard`). */
+    /**
+     * "Encaisser carte" (`handleCollectCard`): the checkout opens for the order with Carte selected (UX audit O2), where
+     * the amount, the terminal and the parts are handled; its sale is the handover of this order.
+     */
     fun collectCard(order: WebshopOrderSummary) {
         if (!WebshopRules.canCollectByCard(order) || !session.canTakePayment.value) return
-        guarded(order.id) { store.collectOrder(order, PaymentMethod.CARD) }
+        openCheckout(order, card = true)
+    }
+
+    /** One tap at a time, as the `busyId` guard: nothing opens while an action runs on a card. */
+    private fun openCheckout(
+        order: WebshopOrderSummary,
+        card: Boolean,
+    ) {
+        if (own.value.busyId != null) return
+        effectChannel.trySend(WebshopEffect.OpenCheckout(order.id, card))
     }
 
     /** "Resynchroniser": fetches the HubRise catalog again for an order to check (`handleResync`). */
@@ -280,7 +309,8 @@ internal class WebshopViewModel(
             PrimaryAction.PREPARE -> store.startPreparation(hubriseId)
             PrimaryAction.READY -> store.markReady(hubriseId)
             PrimaryAction.OUT_FOR_DELIVERY -> store.markOutForDelivery(hubriseId)
-            PrimaryAction.COLLECT_CASH -> store.collectOrder(order, PaymentMethod.CASH)
+            // Collecting opens the checkout (UX audit O2) and never reaches here.
+            PrimaryAction.COLLECT_CASH -> false
             PrimaryAction.COMPLETE -> store.completeOrder(order)
             PrimaryAction.CLOSE_CANCELLED -> store.closeCancelledOrder(order)
             // The refund goes through its confirmation dialog.

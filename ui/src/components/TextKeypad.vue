@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from '../i18n'
+import { appendQuickNote } from '../utils/quickNotes'
 
 // On-screen keyboard for typing a short text - the kiosk has no
 // physical keyboard. Used for a customer's email address (EmailKeypad
@@ -14,8 +15,10 @@ const {
   initial = '',
   maxLen = 60,
   quickKeys = [],
+  chips = [],
   symbols = [],
   space = false,
+  caseToggle = false,
   valid = () => true,
   invalidText = '',
   hint = '',
@@ -32,10 +35,14 @@ const {
   maxLen?: number
   /** Shortcut chunks above the keys (".com"). */
   quickKeys?: string[]
+  /** Quick notes: a tap appends the chip to the text, comma separated (UX audit C11). */
+  chips?: string[]
   /** Extra symbol keys after the digits. */
   symbols?: string[]
   /** A space bar, for free text. */
   space?: boolean
+  /** A shift key for upper case letters (case-sensitive codes). */
+  caseToggle?: boolean
   /** Whether the buffer may be confirmed; default: any text, empty included. */
   valid?: (value: string) => boolean
   /** Shown under the display while a non-empty buffer is not valid. */
@@ -59,6 +66,8 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const buffer = ref(initial.slice(0, maxLen))
+const upper = ref(false)
+const shown = (ch: string) => (upper.value ? ch.toUpperCase() : ch)
 const step = ref<'type' | 'confirm'>('type')
 
 const LETTER_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
@@ -72,6 +81,16 @@ function press(ch: string) {
 function pressQuick(chunk: string) {
   if (buffer.value.length + chunk.length > maxLen) return
   buffer.value += chunk
+}
+
+/** The text after a tap on [chip], null when it adds nothing (already there, or over the limit). */
+function chipResult(chip: string): string | null {
+  return appendQuickNote(buffer.value, chip, maxLen)
+}
+
+function pressChip(chip: string) {
+  const next = chipResult(chip)
+  if (next !== null) buffer.value = next
 }
 
 function backspace() {
@@ -133,16 +152,42 @@ function cancel() {
           </button>
         </div>
 
+        <div v-if="chips.length" class="note-chips" data-testid="keypad-chips">
+          <button
+            v-for="chip in chips"
+            :key="chip"
+            class="note-chip"
+            data-testid="keypad-chip"
+            :disabled="chipResult(chip) === null"
+            @click="pressChip(chip)"
+          >
+            {{ chip }}
+          </button>
+        </div>
+
         <div class="key-rows">
           <div v-for="(row, i) in LETTER_ROWS" :key="i" class="key-row">
-            <button v-for="ch in row" :key="ch" class="key" @click="press(ch)">{{ ch }}</button>
+            <button v-for="ch in row" :key="ch" class="key" @click="press(shown(ch))">
+              {{ shown(ch) }}
+            </button>
           </div>
           <div class="key-row">
             <button v-for="d in DIGIT_ROW" :key="d" class="key" @click="press(d)">{{ d }}</button>
           </div>
           <div class="key-row">
-            <button v-for="s in symbols" :key="s" class="key key-symbol" @click="press(s)">
-              {{ s }}
+            <button v-for="s in symbols" :key="s" class="key key-symbol" @click="press(shown(s))">
+              {{ shown(s) }}
+            </button>
+            <button
+              v-if="caseToggle"
+              class="key key-case"
+              :class="{ on: upper }"
+              :aria-pressed="upper"
+              :aria-label="t('menu_ed_case')"
+              data-testid="keypad-case"
+              @click="upper = !upper"
+            >
+              Aa
             </button>
             <button
               v-if="space"
@@ -271,6 +316,32 @@ function cancel() {
   transform: scale(var(--tap-scale));
 }
 
+.note-chips {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  justify-content: center;
+}
+.note-chip {
+  height: 48px;
+  padding: 0 var(--space-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  border-radius: 24px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--text-secondary);
+  color: var(--text-primary);
+  transition: transform var(--tap-duration) ease;
+}
+.note-chip:active {
+  transform: scale(var(--tap-scale));
+}
+.note-chip:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
 .key-rows {
   display: flex;
   flex-direction: column;
@@ -303,6 +374,13 @@ function cancel() {
 }
 .key-backspace {
   color: var(--accent-danger);
+}
+.key-case {
+  color: var(--text-secondary);
+}
+.key-case.on {
+  background: var(--selected-bg);
+  color: var(--selected-fg);
 }
 .key-space {
   width: 160px;

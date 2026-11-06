@@ -112,4 +112,35 @@ class ToastStoreTest {
         assertEquals(listOf(1L, 3L, 4L), pickVisibleToasts(all.take(4)).map { it.id })
         assertTrue(pickVisibleToasts(emptyList()).isEmpty())
     }
+
+    @Test
+    fun aToastWithAnActionRunsItOnceAndGoesAwayWithATap() =
+        runTest {
+            val store = store()
+            var runs = 0
+            val id = store.showWithAction("Table 4 déplacée en 9", ToastAction("Annuler") { runs++ }, 5000L)
+            assertEquals("Annuler", store.toasts.value.single().action?.label)
+
+            store.runAction(id)
+            store.runAction(id)
+            advanceTimeBy(1L)
+
+            assertEquals(1, runs)
+            assertTrue(store.toasts.value.isEmpty())
+        }
+
+    @Test
+    fun anActionToastStaysFiveSecondsThenGoesWithoutRunningItsAction() =
+        runTest {
+            val store = store()
+            var runs = 0
+            store.showWithAction("moved", ToastAction("Annuler") { runs++ }, 5000L)
+
+            advanceTimeBy(4999L)
+            assertEquals(1, store.toasts.value.size)
+            advanceTimeBy(2L)
+
+            assertTrue(store.toasts.value.isEmpty())
+            assertEquals(0, runs)
+        }
 }

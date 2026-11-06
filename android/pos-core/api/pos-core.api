@@ -2837,6 +2837,26 @@ public final class uniffi/pos_ffi/FfiConverterOptionalTypeSyncState : uniffi/pos
 	public fun write (Luniffi/pos_ffi/SyncState;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterOptionalTypeTakeawayTag : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterOptionalTypeTakeawayTag;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/TakeawayTag;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TakeawayTag;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TakeawayTag;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/TakeawayTag;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/TakeawayTag;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/TakeawayTag;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/TakeawayTag;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterOptionalTypeTicketDeliveryRequest : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterOptionalTypeTicketDeliveryRequest;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -7026,6 +7046,26 @@ public final class uniffi/pos_ffi/FfiConverterTypePreviewVat : uniffi/pos_ffi/Ff
 	public fun write (Luniffi/pos_ffi/PreviewVat;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeQuickNotes : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeQuickNotes;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/QuickNotes;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/QuickNotes;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/QuickNotes;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/QuickNotes;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/QuickNotes;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/QuickNotes;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/QuickNotes;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeReceiptLanguage : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeReceiptLanguage;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -7824,6 +7864,46 @@ public final class uniffi/pos_ffi/FfiConverterTypeTakeawayInfo : uniffi/pos_ffi/
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/TakeawayInfo;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/TakeawayInfo;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeTakeawayNumbering : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeTakeawayNumbering;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/TakeawayNumbering;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TakeawayNumbering;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TakeawayNumbering;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/TakeawayNumbering;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/TakeawayNumbering;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/TakeawayNumbering;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/TakeawayNumbering;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeTakeawayTag : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeTakeawayTag;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/TakeawayTag;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TakeawayTag;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TakeawayTag;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/TakeawayTag;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/TakeawayTag;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/TakeawayTag;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/TakeawayTag;Ljava/nio/ByteBuffer;)V
 }
 
 public final class uniffi/pos_ffi/FfiConverterTypeTicketDeliveryRequest : uniffi/pos_ffi/FfiConverterRustBuffer {
@@ -9638,9 +9718,12 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun getMenuItems (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getOwnerAlerts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getQuickNotes (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getScaleStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getTablePlan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getTakeawayNumbering (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getTakeawayTag (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getUniffiIsDestroyed ()Z
 	public fun hubriseAdoptCatalog (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun hubriseAdoptionPreview (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9728,8 +9811,11 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun setLineNote (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setOwnerAlerts (Luniffi/pos_ffi/OwnerAlertsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setQuickNotes (Luniffi/pos_ffi/QuickNotes;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setSoldOut (JZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setTakeawayCustomer (JLjava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setTakeawayNumbering (Luniffi/pos_ffi/TakeawayNumbering;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setTrainingMode (ZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun shutdown (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun signInvoiceFiscal (Ljava/util/List;JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9801,9 +9887,12 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun getMenuItems (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getOwnerAlerts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getQuickNotes (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getScaleStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getTablePlan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getTakeawayNumbering (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getTakeawayTag (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun hubriseAdoptCatalog (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun hubriseAdoptionPreview (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun hubriseCompleteOauth (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -9890,8 +9979,11 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun setLineNote (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setOwnerAlerts (Luniffi/pos_ffi/OwnerAlertsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setQuickNotes (Luniffi/pos_ffi/QuickNotes;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setSoldOut (JZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setTakeawayCustomer (JLjava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setTakeawayNumbering (Luniffi/pos_ffi/TakeawayNumbering;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setTrainingMode (ZLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun shutdown (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun signInvoiceFiscal (Ljava/util/List;JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -10270,6 +10362,22 @@ public final class uniffi/pos_ffi/PreviewVat {
 }
 
 public final class uniffi/pos_ffi/PreviewVat$Companion {
+}
+
+public final class uniffi/pos_ffi/QuickNotes {
+	public static final field Companion Luniffi/pos_ffi/QuickNotes$Companion;
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Luniffi/pos_ffi/QuickNotes;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/QuickNotes;Ljava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/QuickNotes;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getNotes ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun setNotes (Ljava/util/List;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/QuickNotes$Companion {
 }
 
 public final class uniffi/pos_ffi/ReceiptLanguage : java/lang/Enum {
@@ -11352,27 +11460,83 @@ public final class uniffi/pos_ffi/TableTransferResult$Companion {
 
 public final class uniffi/pos_ffi/TakeawayInfo {
 	public static final field Companion Luniffi/pos_ffi/TakeawayInfo$Companion;
-	public fun <init> (JJJLjava/lang/String;)V
+	public fun <init> (JJJLjava/lang/String;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;)V
 	public final fun component1 ()J
 	public final fun component2 ()J
 	public final fun component3 ()J
 	public final fun component4 ()Ljava/lang/String;
-	public final fun copy (JJJLjava/lang/String;)Luniffi/pos_ffi/TakeawayInfo;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/TakeawayInfo;JJJLjava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/TakeawayInfo;
+	public final fun component5 ()Ljava/lang/Long;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (JJJLjava/lang/String;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;)Luniffi/pos_ffi/TakeawayInfo;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/TakeawayInfo;JJJLjava/lang/String;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/TakeawayInfo;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCreatedAt ()Ljava/lang/String;
+	public final fun getCustomerName ()Ljava/lang/String;
+	public final fun getLabel ()Ljava/lang/String;
 	public final fun getLineCount ()J
+	public final fun getNumber ()Ljava/lang/Long;
 	public final fun getOrderId ()J
 	public final fun getTotalCents ()J
 	public fun hashCode ()I
 	public final fun setCreatedAt (Ljava/lang/String;)V
+	public final fun setCustomerName (Ljava/lang/String;)V
+	public final fun setLabel (Ljava/lang/String;)V
 	public final fun setLineCount (J)V
+	public final fun setNumber (Ljava/lang/Long;)V
 	public final fun setOrderId (J)V
 	public final fun setTotalCents (J)V
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class uniffi/pos_ffi/TakeawayInfo$Companion {
+}
+
+public final class uniffi/pos_ffi/TakeawayNumbering {
+	public static final field Companion Luniffi/pos_ffi/TakeawayNumbering$Companion;
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Luniffi/pos_ffi/TakeawayNumbering;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/TakeawayNumbering;IILjava/lang/Object;)Luniffi/pos_ffi/TakeawayNumbering;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFirstNumber ()I
+	public fun hashCode ()I
+	public final fun setFirstNumber (I)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/TakeawayNumbering$Companion {
+}
+
+public final class uniffi/pos_ffi/TakeawayTag {
+	public static final field Companion Luniffi/pos_ffi/TakeawayTag$Companion;
+	public fun <init> (JLjava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (JLjava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Luniffi/pos_ffi/TakeawayTag;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/TakeawayTag;JLjava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/TakeawayTag;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCustomerName ()Ljava/lang/String;
+	public final fun getCustomerPhone ()Ljava/lang/String;
+	public final fun getDay ()Ljava/lang/String;
+	public final fun getLabel ()Ljava/lang/String;
+	public final fun getNumber ()J
+	public final fun getOrderId ()J
+	public fun hashCode ()I
+	public final fun setCustomerName (Ljava/lang/String;)V
+	public final fun setCustomerPhone (Ljava/lang/String;)V
+	public final fun setDay (Ljava/lang/String;)V
+	public final fun setLabel (Ljava/lang/String;)V
+	public final fun setNumber (J)V
+	public final fun setOrderId (J)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/TakeawayTag$Companion {
 }
 
 public final class uniffi/pos_ffi/TicketDeliveryRequest {

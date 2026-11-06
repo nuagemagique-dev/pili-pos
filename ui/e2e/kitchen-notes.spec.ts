@@ -57,8 +57,12 @@ async function type(page: Page, text: string) {
 test.describe('Note button', () => {
   test('every line has one, for a cashier too', async ({ page }) => {
     await toOrder(page, [UNSENT, { ...UNSENT, id: 2 }], CASHIER)
-    await expect(page.getByTestId('line-note')).toHaveCount(2)
-    await expect(page.getByTestId('line-note').first()).toHaveText('Note')
+    // The actions open under the selected line: the newest one first, then the one tapped.
+    await expect(page.getByTestId('line-note')).toHaveCount(1)
+    await expect(page.getByTestId('line-note')).toHaveText('Note')
+    await page.getByTestId('line-row-1').click()
+    await expect(page.getByTestId('line-note')).toHaveCount(1)
+    await expect(page.getByTestId('line-note')).toHaveText('Note')
   })
 
   test('the cart shows the note under the name', async ({ page }) => {

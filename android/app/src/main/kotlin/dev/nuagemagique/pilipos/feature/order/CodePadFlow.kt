@@ -3,6 +3,8 @@ package dev.nuagemagique.pilipos.feature.order
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import uniffi.pos_ffi.MenuItem
 
@@ -44,6 +46,12 @@ internal sealed interface CodeMessage {
     data class Added(
         val quantity: Int,
         val item: MenuItem,
+    ) : CodeMessage
+
+    /** A digit after an add gave [quantity] of [item]: "Maki saumon × 3". */
+    data class Counted(
+        val item: MenuItem,
+        val quantity: Int,
     ) : CodeMessage
 }
 
@@ -142,6 +150,9 @@ internal data class CodePadState(
     val items: List<MenuItem> = emptyList(),
     /** What the last OK did or refused, shown until the next key. */
     val outcome: CodeMessage? = null,
+    /** The digit window of the product just added (C7), else null; [windowItem] is that product. */
+    val window: DigitWindow? = null,
+    val windowItem: MenuItem? = null,
 ) {
     val letters: List<String> get() = codeLetters(items)
     val message: CodeMessage get() = outcome ?: previewCode(text, items)
@@ -174,6 +185,12 @@ internal interface CodePadHost {
         item: MenuItem,
         quantity: Int,
     )
+
+    /** [delta] more units on a cart line, one at a time; false when the line is gone or the engine refused. */
+    suspend fun addUnits(
+        lineId: Long,
+        delta: Int,
+    ): Boolean
 }
 
 /**
@@ -183,11 +200,17 @@ internal interface CodePadHost {
  * may have changed). Whether the pad is open is this device's choice
  * ([PosSettingsStore.codePadOpen][dev.nuagemagique.pilipos.ui.state.PosSettingsStore.codePadOpen]).
  */
+@Suppress("TooManyFunctions")
 internal class CodePadFlow(
     private val entry: OrderEntryPoint,
     private val scope: CoroutineScope,
     private val host: CodePadHost,
+    /** The clock of the digit window, in milliseconds (a fake one in the tests). */
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
+    // The extra units go one after the other: each reads the line as the one before left it.
+    private val digitLock = Mutex()
+
     /** The "Saisie code" button: opens or closes the pad and remembers it on this device. */
     fun toggle() {
         val open = !host.pad.open
@@ -196,14 +219,26 @@ internal class CodePadFlow(
         if (open) scope.launch { load(entry.settings().language.value) }
     }
 
-    /** A key of the pad (a digit, a letter or [TIMES]). */
-    fun type(key: String) = setText(typeKey(host.pad.text, key))
+    /** A key of the pad (a digit, a letter or [TIMES]): first offered to the digit window of the last add. */
+    fun type(key: String) {
+        if (!takeDigit(key)) setText(typeKey(host.pad.text, key))
+    }
 
     /** The backspace key. */
     fun backspace() = setText(host.pad.text.dropLast(1))
 
     /** The clear button of the field. */
     fun clear() = setText("")
+
+    /** A plain product was added to [lineId]: for 3 s a digit on the empty field sets how many this add gives. */
+    fun openWindow(
+        item: MenuItem,
+        lineId: Long,
+        units: Int,
+    ) = host.updatePad { it.copy(window = openDigitWindow(lineId, item.id, units, clock()), windowItem = item) }
+
+    /** Another product is being added, or a non-digit key came: a digit starts a code again. */
+    fun closeWindow() = host.updatePad { if (it.window == null) it else it.copy(window = null, windowItem = null) }
 
     /** A category tab leaves the results of a typed code. */
     fun leaveResults() {
@@ -212,6 +247,7 @@ internal class CodePadFlow(
 
     /** OK: reads the menu again, then adds or refuses. */
     fun submit() {
+        closeWindow()
         if (!host.orderIsCurrent()) return
         scope.launch {
             val text = host.pad.text
@@ -241,7 +277,28 @@ internal class CodePadFlow(
         }
     }
 
-    private fun setText(text: String) = host.updatePad { it.copy(text = text, outcome = null) }
+    private fun setText(text: String) = host.updatePad { it.copy(text = text, outcome = null, window = null, windowItem = null) }
+
+    /** A digit inside the open window sets the add's quantity (extra units of the same line); false for any other key. */
+    private fun takeDigit(key: String): Boolean {
+        val pad = host.pad
+        val open = pad.window
+        val item = pad.windowItem
+        val step = if (pad.text.isEmpty() && host.orderIsCurrent()) stepDigitWindow(open, key, clock()) else DigitStep.Pass
+        if (step !is DigitStep.Set || open == null || item == null) return false
+        host.updatePad { it.copy(window = step.window) }
+        val delta = step.window.quantity - open.quantity
+        scope.launch {
+            digitLock.withLock {
+                if (host.addUnits(step.window.lineId, delta)) {
+                    host.updatePad { it.copy(outcome = CodeMessage.Counted(item, step.window.quantity)) }
+                } else {
+                    host.updatePad { if (it.window == step.window) it.copy(window = open) else it }
+                }
+            }
+        }
+        return true
+    }
 
     private fun run(action: CodeAction) {
         when (action) {

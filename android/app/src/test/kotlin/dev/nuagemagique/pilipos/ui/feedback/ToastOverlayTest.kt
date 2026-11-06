@@ -10,12 +10,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
@@ -191,6 +193,47 @@ class ToastOverlayTest {
         compose.onNodeWithText(hint).assertIsDisplayed()
         compose.onNodeWithTag("toast_$id").performClick()
         compose.waitForIdle()
+        compose.onNodeWithTag("toast_stack").assertDoesNotExist()
+        job.cancel()
+    }
+
+    @Test
+    fun aToastWithAnActionShowsItsButtonAndOnlyTheButtonTakesTheTap() {
+        val actionToast = Toast(7L, "Table 4 déplacée en 9", ToastVariant.Success, ToastAction("Annuler") {})
+        val acted = mutableListOf<Long>()
+        val dismissed = mutableListOf<Long>()
+        compose.setContent {
+            PiliTheme { ToastStack(listOf(actionToast), { dismissed += it }, hint, onAction = { acted += it }) }
+        }
+
+        compose.onNodeWithText("Table 4 déplacée en 9").assertIsDisplayed()
+        compose.onNodeWithTag("toast_action_7").assertIsDisplayed().assertTextEquals("Annuler")
+        compose.onNodeWithTag("toast_hint_7").assertDoesNotExist()
+        // The button is a touch target of 48 dp.
+        assertTrue(compose.onNodeWithTag("toast_action_7").getUnclippedBoundsInRoot().height >= 48.dp)
+        compose.onNodeWithTag("toast_7").performClick()
+        assertEquals(emptyList<Long>(), acted)
+        compose.onNodeWithTag("toast_action_7").performClick()
+
+        assertEquals(listOf(7L), acted)
+        assertEquals(emptyList<Long>(), dismissed)
+    }
+
+    @Test
+    fun theOverlayRunsTheActionOfTheStoreAndRemovesTheToast() {
+        val job = Job()
+        val store = ToastStore(CoroutineScope(job + kotlinx.coroutines.Dispatchers.Unconfined))
+        val settings = mockk<PosSettingsStore> { every { language } returns MutableStateFlow(AppLanguage.FR) }
+        val overlay = ToastOverlay(store, I18nTestSupport.catalog(), settings)
+        var undone = 0
+        compose.setContent { PiliTheme { overlay.Content() } }
+        val id = store.showWithAction("moved", ToastAction("Annuler") { undone++ }, 5000L)
+        compose.waitForIdle()
+
+        compose.onNodeWithTag("toast_action_$id").performClick()
+        compose.waitForIdle()
+
+        assertEquals(1, undone)
         compose.onNodeWithTag("toast_stack").assertDoesNotExist()
         job.cancel()
     }

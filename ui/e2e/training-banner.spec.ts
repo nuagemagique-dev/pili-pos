@@ -42,6 +42,7 @@ test('the header buttons still answer a real tap', async ({ page }) => {
   await page.waitForURL(/order/u)
   // The operator's name, in the header above the banner.
   await page.locator('.header-user').click()
+  await page.getByTestId('user-menu-pin').click()
   await expect(page.locator('.pin-display')).toBeVisible()
 })
 

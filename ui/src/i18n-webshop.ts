@@ -388,6 +388,18 @@ export const webshopMessages: Messages = {
     en: '{count} online order(s) waiting for over 5 minutes',
     zh: '{count} 个在线订单已等待超过5分钟',
   },
+  // The banner under the header of every staff screen (UX audit O3).
+  online_late_one: {
+    fr: '1 commande en ligne attend depuis plus de 5 min',
+    en: '1 online order has been waiting for over 5 min',
+    zh: '有 1 个在线订单已等待超过5分钟',
+  },
+  online_late_many: {
+    fr: '{count} commandes en ligne attendent depuis plus de 5 min',
+    en: '{count} online orders have been waiting for over 5 min',
+    zh: '有 {count} 个在线订单已等待超过5分钟',
+  },
+  online_late_view: { fr: 'Voir', en: 'View', zh: '查看' },
   // A refused catalog's issues.
   catalog_issue_empty_key: { fr: 'Référence vide', en: 'Empty reference', zh: '编号为空' },
   catalog_issue_duplicate_key: {

@@ -59,7 +59,7 @@ const coreMessages: Messages = {
   meal_voucher: { fr: 'CHÈQUES-REPAS', en: 'MEAL VOUCHERS', zh: '餐券' },
   takeaways_open: { fr: 'À emporter en cours', en: 'Takeaways in progress', zh: '进行中的外带' },
   rest_to_pay: { fr: 'Reste à payer', en: 'Left to pay', zh: '剩余应付' },
-  clear_payments: { fr: 'Annuler les paiements', en: 'Cancel the payments', zh: '取消付款' },
+  clear_payments: { fr: 'Annuler les parts', en: 'Cancel the parts', zh: '取消已录入的份额' },
   amount: { fr: 'Montant', en: 'Amount', zh: '金额' },
   amount_over_rest: {
     fr: 'Plus que le reste à payer',
@@ -137,7 +137,20 @@ const coreMessages: Messages = {
     zh: '未设置PIN：请点击屏幕顶部的您的名字',
   },
   pin_enter: { fr: 'Saisir le PIN', en: 'Enter PIN', zh: '输入PIN' },
-  pin_change: { fr: 'Changer le PIN', en: 'Change PIN', zh: '修改PIN' },
+  pin_change: { fr: 'Changer mon PIN', en: 'Change my PIN', zh: '修改我的PIN' },
+  // The user menu of the header and the language of each user (UX audit L1, R5)
+  user_menu: { fr: 'Menu utilisateur', en: 'User menu', zh: '用户菜单' },
+  user_menu_language: { fr: 'Ma langue', en: 'My language', zh: '我的语言' },
+  lang_short_fr: { fr: 'FR', en: 'FR', zh: 'FR' },
+  lang_short_zh: { fr: '中文', en: '中文', zh: '中文' },
+  lang_short_en: { fr: 'EN', en: 'EN', zh: 'EN' },
+  end_shift_confirm: {
+    fr: 'Confirmer la fin de service ?',
+    en: 'Confirm the end of shift?',
+    zh: '确认下班？',
+  },
+  end_shift_action: { fr: 'Terminer le service', en: 'End shift', zh: '下班' },
+  login_action: { fr: 'Se connecter', en: 'Log in', zh: '登录' },
   pin_changed: { fr: 'PIN modifié', en: 'PIN changed', zh: 'PIN已修改' },
   pin_confirm_manager: {
     fr: 'Confirmez avec votre PIN de gérant',
@@ -516,6 +529,11 @@ const coreMessages: Messages = {
     fr: 'Note trop longue : 60 caractères au plus.',
     en: 'Note too long: 60 characters at most.',
     zh: '备注太长：最多60个字符。',
+  },
+  err_quick_notes_too_many: {
+    fr: 'Trop de notes rapides : {max} au plus.',
+    en: 'Too many quick notes: {max} at most.',
+    zh: '快捷备注太多：最多{max}条。',
   },
   err_note_unprintable: {
     fr: "La note a un caractère que l'imprimante de cuisine ne sait pas imprimer (lettres, chiffres et accents seulement).",
@@ -1001,6 +1019,43 @@ const coreMessages: Messages = {
   items_short: { fr: 'art.', en: 'items', zh: '件' },
   takeaway_new: { fr: 'À emporter', en: 'Takeaway', zh: '外带' },
   takeaway_badge: { fr: 'À emporter', en: 'Takeaway', zh: '外带' },
+  // Numbered takeaway (UX audit T2): the customer name and phone, local data.
+  takeaway_add_name: { fr: 'Ajouter un nom', en: 'Add a name', zh: '添加姓名' },
+  takeaway_edit_customer: { fr: 'Modifier le client', en: 'Edit customer', zh: '修改顾客' },
+  takeaway_name_title: { fr: 'Nom du client', en: 'Customer name', zh: '顾客姓名' },
+  takeaway_name_placeholder: { fr: 'Nom (facultatif)', en: 'Name (optional)', zh: '姓名（可选）' },
+  takeaway_name_hint: {
+    fr: 'Imprimé sur le bon de cuisine. Effacé après 72 heures.',
+    en: 'Printed on the kitchen slip. Erased after 72 hours.',
+    zh: '打印在厨房单上，72小时后删除。',
+  },
+  takeaway_phone_title: {
+    fr: 'Téléphone du client (facultatif)',
+    en: 'Customer phone (optional)',
+    zh: '顾客电话（可选）',
+  },
+  takeaway_phone_none: { fr: 'Pas de numéro', en: 'No number', zh: '无号码' },
+  takeaway_phone_skip: { fr: 'Passer', en: 'Skip', zh: '跳过' },
+  err_takeaway_number_invalid: {
+    fr: 'Le premier numéro à emporter va de {min} à {max}.',
+    en: 'The first takeaway number goes from {min} to {max}.',
+    zh: '外带起始号码为{min}到{max}。',
+  },
+  err_takeaway_name_invalid: {
+    fr: "Nom impossible : {max} caractères au plus, lettres, chiffres et accents que l'imprimante sait imprimer.",
+    en: 'Name not accepted: {max} characters at most, letters, digits and accents the printer can print.',
+    zh: '姓名无效：最多{max}个字符，仅限打印机可打印的字母、数字和重音符号。',
+  },
+  err_takeaway_phone_invalid: {
+    fr: 'Téléphone impossible : des chiffres seulement (3 à 15), {max} caractères au plus.',
+    en: 'Phone not accepted: digits only (3 to 15), {max} characters at most.',
+    zh: '电话无效：仅限数字（3至15位），最多{max}个字符。',
+  },
+  err_takeaway_customer_not_takeaway: {
+    fr: 'Un nom et un téléphone se mettent sur un À emporter de la caisse (ni une table, ni une commande en ligne).',
+    en: 'A name and phone go on a till takeaway (not a table, not an online order).',
+    zh: '姓名和电话只能填在收银台的外带订单上（不是桌位，也不是线上订单）。',
+  },
 
   // Reports
   report_x: { fr: 'Rapport X', en: 'X Report', zh: 'X报表' },
@@ -1047,7 +1102,11 @@ const coreMessages: Messages = {
   },
   active: { fr: 'ACTIF', en: 'ACTIVE', zh: '已开启' },
   inactive: { fr: 'INACTIF', en: 'INACTIVE', zh: '未开启' },
-  language: { fr: 'Langue', en: 'Language', zh: '语言' },
+  language: {
+    fr: 'Langue par défaut du terminal',
+    en: 'Terminal default language',
+    zh: '终端默认语言',
+  },
   language_desc: {
     fr: 'Noms des produits et catégories',
     en: 'Product and category names',
@@ -1315,6 +1374,15 @@ const coreMessages: Messages = {
   qty_less: { fr: 'Un de moins', en: 'One less', zh: '减一' },
   qty_more: { fr: 'Un de plus', en: 'One more', zh: '加一' },
   line_remove: { fr: 'Retirer la ligne', en: 'Remove the line', zh: '删除此行' },
+  // Dense cart (UX audit C2): the kitchen mark of a line and its short delete label.
+  line_delete: { fr: 'Supprimer', en: 'Delete', zh: '删除' },
+  line_state_sent: { fr: 'Envoyée en cuisine', en: 'Sent to the kitchen', zh: '已送厨房' },
+  line_state_pending: { fr: 'Pas encore envoyée', en: 'Not sent yet', zh: '尚未送出' },
+  line_select: {
+    fr: 'Afficher les actions de la ligne',
+    en: 'Show the line actions',
+    zh: '显示此行操作',
+  },
   not_sent_to_kitchen: {
     fr: 'Pas encore en cuisine',
     en: 'Not sent to the kitchen yet',
@@ -1333,25 +1401,22 @@ const coreMessages: Messages = {
     zh: '已送厨房 · {n} 件',
   },
 
-  // Moving an order to another table (event P, cost center change)
-  transfer_table: { fr: 'Changer de table', en: 'Change table', zh: '换桌' },
+  // Moving an order to another table (event P, cost center change), UX audit C8:
+  // one verb "Déplacer", the move happens at once and a toast offers "Annuler".
+  transfer_table: { fr: 'Déplacer', en: 'Move', zh: '移动' },
   transfer_pick_target: {
     fr: 'Choisissez la table libre',
     en: 'Pick the free table',
     zh: '请选择空桌',
   },
   transfer_no_free: { fr: 'Aucune table libre', en: 'No free table', zh: '没有空桌' },
-  transfer_confirm: {
-    fr: 'Déplacer la table {from} vers la table {to} ?',
-    en: 'Move table {from} to table {to}?',
-    zh: '将 {from} 号桌移到 {to} 号桌？',
+  transfer_moved: {
+    fr: 'Table {from} déplacée en {to}',
+    en: 'Table {from} moved to {to}',
+    zh: '{from} 号桌已移到 {to} 号桌',
   },
-  transfer_done: {
-    fr: 'Commande déplacée vers la table {to}',
-    en: 'Order moved to table {to}',
-    zh: '订单已移到 {to} 号桌',
-  },
-  transfer_mode: { fr: 'Déplacer une table', en: 'Move a table', zh: '移动桌子' },
+  transfer_undo: { fr: 'Annuler', en: 'Undo', zh: '撤销' },
+  transfer_mode: { fr: 'Déplacer', en: 'Move', zh: '移动' },
   transfer_pick_source: {
     fr: 'Touchez la table à déplacer',
     en: 'Tap the table to move',

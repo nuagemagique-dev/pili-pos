@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watchEffect } from 'vue'
+import { onMounted, onUnmounted, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePosStore } from './stores/pos'
 import { useAuthStore } from './stores/auth'
 import * as ipc from './api/ipc'
 import { useOrderChime } from './composables/useOrderChime'
+import { useAddBeep } from './composables/useAddBeep'
 import { useBadgeReader } from './composables/useBadgeReader'
 import { useBadgeStore } from './stores/badge'
 import TrainingBanner from './components/TrainingBanner.vue'
@@ -15,6 +16,7 @@ import EftOverlay from './components/EftOverlay.vue'
 import { useSupportStore } from './stores/support'
 import { useFdmStore } from './stores/fdm'
 import { useOrderStore } from './stores/order'
+import { useMenuStore } from './stores/menu'
 import { useToastStore } from './stores/toast'
 import { useI18n } from './i18n'
 import { describeError } from './utils/errorMessages'
@@ -32,6 +34,17 @@ watchEffect(() => {
 // Two-tone chime when a new webshop order arrives (C5 → E5); none
 // arrives with HubRise switched off.
 useOrderChime()
+
+// The wording follows the user who is logged in (UX audit R5): their own language, else the
+// terminal's. Synchronous, so the first screen after a login is already in their language.
+watch(
+  () => auth.currentUser?.insz ?? null,
+  (insz) => pos.applyUser(insz),
+  { immediate: true, flush: 'sync' },
+)
+
+// Short beep on every add to the cart (switch in Settings, default on).
+useAddBeep()
 
 // The 5 minute idle lock belongs to the engine (it registers the open
 // order and emits `session-locked`, handled below). The UI only tells it
@@ -67,7 +80,17 @@ let supportPoll: ReturnType<typeof setInterval> | undefined
 
 const fdm = useFdmStore()
 const order = useOrderStore()
+const menu = useMenuStore()
 const toast = useToastStore()
+
+// Product and category names come from the engine in the language asked: read them again when
+// the language changes (another user logged in, or a choice in the user menu).
+watch(
+  () => pos.language,
+  () => {
+    if (menu.categories.length > 0) void menu.reloadWithLanguage().catch(() => {})
+  },
+)
 const { t } = useI18n()
 
 onMounted(() => {
@@ -81,7 +104,17 @@ onMounted(() => {
     document.addEventListener(evt, forwardActivity, { passive: true })
   // The engine locked the session (the order is already registered
   // there): forget the local order and go back to the login screen.
-  void auth.listenSessionLocked((e) => {
+  void auth.listenSessionLocked((e, previous) => {
+    // An idle lock (T6): the same user logging back in finds this order again. The online order
+    // shown at its checkout (O2) was never the engine's active order: it is not brought back.
+    if (
+      previous &&
+      e.reason === 'idle' &&
+      order.onlineCollect === null &&
+      order.currentOrder?.status === 'open'
+    ) {
+      auth.rememberLockedOrder(previous.insz, order.currentOrder.id)
+    }
     order.resetLocal()
     if (e.orderError) {
       toast.show(`${t('order_register_failed')} : ${describeError(e.orderError)}`, 'error', 6000)

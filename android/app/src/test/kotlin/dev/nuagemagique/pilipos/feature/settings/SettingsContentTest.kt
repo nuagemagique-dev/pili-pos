@@ -21,10 +21,12 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextInput
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
+import dev.nuagemagique.pilipos.ui.components.fillWithKeypad
+import dev.nuagemagique.pilipos.ui.components.fillWithNumPad
+import dev.nuagemagique.pilipos.ui.components.typeOnKeypad
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -52,8 +54,10 @@ class SettingsContentTest {
             onToggleTraining = { taps += "training" },
             onLanguage = { taps += "language:${it.code}" },
             onProductLabel = { taps += "label:${it.code}" },
+            onAddBeep = { taps += "beep:$it" },
             onTablePlanInput = { taps += "tables:$it" },
             onSaveTablePlan = { taps += "tables:save" },
+            takeawayFirst = TakeawayFirstActions(onEdit = { taps += "takeaway-first:edit" }),
             onRow = { navigator.navigate(it.route) },
             onNewName = { taps += "name:$it" },
             onNewInsz = { taps += "insz:$it" },
@@ -99,8 +103,9 @@ class SettingsContentTest {
             "settings_workers",
             "settings_info",
             "integration_switch",
-            "settings_deliveries",
         ).forEach { compose.onNodeWithTag(it).assertIsDisplayed() }
+        // The third column scrolls: the table plan panel grew with the first takeaway number row (UX audit T2).
+        compose.onNodeWithTag("settings_deliveries").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -135,7 +140,10 @@ class SettingsContentTest {
     fun theRowsAreDrawnInTheOrderGivenWithATagEach() {
         show(managerState())
 
-        listOf(shownOpen, shownAbout, shownExport).forEach { compose.onNodeWithTag("settings_row_" + it.id).assertIsDisplayed() }
+        // The rows panel scrolls: with the beep switch above it the last rows start below the fold at 1080 p.
+        listOf(shownOpen, shownAbout, shownExport).forEach {
+            compose.onNodeWithTag("settings_row_" + it.id).performScrollTo().assertIsDisplayed()
+        }
         assertTrue(top("settings_row_a.open") < top("settings_row_platform.about"))
         assertTrue(top("settings_row_platform.about") < top("settings_row_platform.export"))
     }
@@ -154,8 +162,8 @@ class SettingsContentTest {
     fun aRowTapOpensItsRouteOnTheNavigatorAndNothingElse() {
         show(managerState())
 
-        compose.onNodeWithTag("settings_row_platform.about").performClick()
-        compose.onNodeWithTag("settings_row_platform.export").performClick()
+        compose.onNodeWithTag("settings_row_platform.about").performScrollTo().performClick()
+        compose.onNodeWithTag("settings_row_platform.export").performScrollTo().performClick()
 
         assertEquals(listOf("navigate:${shownAbout.route}", "navigate:${shownExport.route}"), navigator.calls)
     }
@@ -219,6 +227,16 @@ class SettingsContentTest {
         assertEquals(listOf("label:code"), taps)
     }
 
+    @Test
+    fun theAddBeepButtonsMarkTheCurrentOneAndCallBack() {
+        show(managerState().copy(addBeep = true))
+
+        compose.onNodeWithTag("settings_beep_on").assertIsSelected()
+        compose.onNodeWithTag("settings_beep_off").performClick()
+
+        assertEquals(listOf("beep:false"), taps)
+    }
+
     // ── Table plan ────────────────────────────────────────────────
 
     @Test
@@ -226,16 +244,36 @@ class SettingsContentTest {
         show(managerState().copy(tablePlan = TablePlanState(plan = "1-12, 20-25", count = 18L, input = "1-12, 20-25")))
 
         compose.onNodeWithTag("settings_tables_current").assertTextEquals("18 tables : 1-12, 20-25")
-        compose.onNodeWithTag("settings_tables_input").performTextInput("9")
+        compose.onNodeWithTag("settings_tables_input").performClick()
+        compose.typeOnKeypad("9")
+        compose.onNodeWithTag("keypad_confirm").performClick()
         compose.onNodeWithTag("settings_tables_save").performClick()
 
-        assertEquals(listOf("tables:91-12, 20-25", "tables:save"), taps)
+        assertEquals(listOf("tables:1-12, 20-259", "tables:save"), taps)
     }
 
     @Test
     fun aRefusedTablePlanShowsItsReason() {
         show(managerState().copy(tablePlan = TablePlanState(plan = "1-20", count = 20L, input = "A1", error = "format")))
         compose.onNodeWithTag("settings_tables_error").assertTextEquals("format")
+    }
+
+    @Test
+    fun theFirstTakeawayNumberShowsInThePlanPanelAndItsButtonOpensThePad() {
+        show(managerState().copy(takeawayFirst = 61))
+
+        compose.onNodeWithTag("settings_takeaway_first_value").assertTextEquals("E-61")
+        compose.onNodeWithTag("settings_takeaway_first_edit").assertIsEnabled()
+        compose.onNodeWithTag("settings_takeaway_first_edit").performClick()
+
+        assertEquals(listOf("takeaway-first:edit"), taps)
+    }
+
+    @Test
+    fun theEditButtonWaitsForTheEngineToAnswer() {
+        show(managerState())
+
+        compose.onNodeWithTag("settings_takeaway_first_edit").assertIsNotEnabled()
     }
 
     @Test
@@ -363,8 +401,8 @@ class SettingsContentTest {
         }
         compose.waitForIdle()
 
-        compose.onNodeWithTag("settings_new_name").performTextInput("Eve")
-        compose.onNodeWithTag("settings_new_insz").performTextInput("99040400456")
+        compose.fillWithKeypad("settings_new_name", "Eve")
+        compose.fillWithNumPad("settings_new_insz", "99040400456")
         compose.onNodeWithTag("settings_role_waiter").performClick()
         compose.onNodeWithTag("settings_role_admin").performClick()
         compose.onNodeWithTag("settings_add").performClick()

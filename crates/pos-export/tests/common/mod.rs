@@ -1048,6 +1048,26 @@ pub(crate) fn fixture_db(path: &Path) -> Fixture {
         b.secrets.push(s.to_string());
     }
 
+    // The name and phone typed for a numbered takeaway (local data, UX audit T2).
+    b.conn
+        .execute(
+            "INSERT INTO orders (order_type, status, user_insz, subtotal_cents, total_cents)
+             VALUES ('takeaway', 'closed', ?1, 0, 0)",
+            [CASHIER_INSZ],
+        )
+        .unwrap();
+    let takeaway_order = b.conn.last_insert_rowid();
+    b.conn
+        .execute(
+            "INSERT INTO takeaway_tags (order_id, day, number, customer_name, customer_phone)
+             VALUES (?1, '2026-10-03', 61, 'Odile Vermeulen', '0488 77 66 55')",
+            [takeaway_order],
+        )
+        .unwrap();
+    for s in ["Odile Vermeulen", "Vermeulen", "0488 77 66 55"] {
+        b.secrets.push(s.to_string());
+    }
+
     for t in &tickets {
         all_lines += t.lines;
     }
@@ -1284,21 +1304,21 @@ pub(crate) fn assert_no_personal_data(path: &Path, secrets: &[String]) {
                         "{table}.{column} holds a bcrypt hash: {value:?}"
                     );
                 }
-                for secret in secrets {
+                for (index, secret) in secrets.iter().enumerate() {
                     assert!(
                         !value.contains(secret.as_str()),
-                        "{table}.{column} holds a secret: {secret:?}"
+                        "{table}.{column} holds the fixture secret #{index}"
                     );
                 }
             }
         }
     }
     let bytes = std::fs::read(path).expect("read the file");
-    for secret in secrets {
+    for (index, secret) in secrets.iter().enumerate() {
         let needle = secret.as_bytes();
         assert!(
             needle.is_empty() || !bytes.windows(needle.len()).any(|w| w == needle),
-            "the file bytes contain a secret: {secret:?}"
+            "the file bytes contain the fixture secret #{index}"
         );
     }
 }

@@ -20,6 +20,10 @@ import { useToastStore } from './toast'
 import { useEftStore } from './eft'
 import type { CheckoutResult, CheckoutPaymentMethod } from '../types'
 import { describeError, errorCode } from '../utils/errorMessages'
+import { lateCount as countLate } from '../utils/webshopLate'
+
+/** How often the clock of the late orders moves (milliseconds). */
+export const LATE_CLOCK_TICK_MS = 5000
 
 /**
  * Default preparation window in minutes, applied automatically on
@@ -39,6 +43,8 @@ interface WebshopOrdersState {
   loading: boolean
   error: string | null
   listenersAttached: boolean
+  /** The time the waiting of the new orders is counted to (UX audit O3); moves while the board is followed. */
+  now: number
 }
 
 // Pure: with HubRise off nothing calls it, and the certification
@@ -49,6 +55,7 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
     loading: false,
     error: null,
     listenersAttached: false,
+    now: Date.now(),
   }),
 
   getters: {
@@ -72,6 +79,10 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
         (o) => o.hubrise_status === 'accepted' || o.hubrise_status === 'in_preparation',
       ).length
     },
+    /** Orders nobody answered for 5 minutes: the banner of every staff screen and the repeated chime. */
+    lateCount(state): number {
+      return countLate(state.orders, state.now)
+    },
     readyCount(state): number {
       return state.orders.filter((o) => o.hubrise_status === 'awaiting_collection').length
     },
@@ -79,6 +90,7 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
 
   actions: {
     async fetchOrders() {
+      this.now = Date.now()
       this.loading = true
       this.error = null
       try {
@@ -287,6 +299,10 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
     async attachListeners() {
       if (this.listenersAttached) return
       this.listenersAttached = true
+      // The age of the new orders moves on its own: the late banner and the repeated chime follow it.
+      setInterval(() => {
+        this.now = Date.now()
+      }, LATE_CLOCK_TICK_MS)
 
       await listen('webshop-order-received', () => {
         void this.fetchOrders()

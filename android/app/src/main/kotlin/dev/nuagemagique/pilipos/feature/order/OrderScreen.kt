@@ -66,9 +66,9 @@ internal data class OrderCallbacks(
     val describeError: (Throwable) -> String = { it.message.orEmpty() },
     /** The sale was closed unpaid. */
     val onUnpaidDone: () -> Unit = {},
-    /** The free table picked in the table picker. */
+    /** The free table picked in the table picker: the order moves there at once. */
     val onTransferTarget: (Int) -> Unit = {},
-    /** The rows of the "Plus" menu: change table, discount, remove the discount, customer left. */
+    /** The rows of the "Plus" menu: move (change table), discount, remove the discount, customer left. */
     val onMoreTransfer: () -> Unit = {},
     val onMoreDiscount: () -> Unit = {},
     val onMoreDiscountRemove: () -> Unit = {},
@@ -184,9 +184,10 @@ internal fun OrderRoute(
 }
 
 /**
- * The order screen, stateless: the Z reminder, the category tabs over the product grid on the left and the cart
- * column on the right, laid out for 1920 x 1080 dp. Without a user or without an order it shows an empty state
- * instead. Test tags: `order_z_warning`, `order_empty` and those of [CategoryTabs], [MenuGrid] and [OrderCartColumn].
+ * The order screen, stateless: the Z reminder, the category tabs, the toolbar row and the product grid (with the code pad
+ * docked under it) on the left and the cart column on the right, laid out for 1920 x 1080 dp. Without a user or without
+ * an order it shows an empty state instead. Test tags: `order_z_warning`, `order_empty` and those of [CategoryTabs],
+ * [ModeToolbar], [MenuGrid], [CodePad] and [OrderCartColumn].
  */
 @Composable
 internal fun OrderContent(
@@ -222,30 +223,31 @@ internal fun OrderContent(
         Row(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 CategoryTabs(menu.categories, menu.selectedCategoryId, menu.language, callbacks.onCategory)
-                if (menu.canSoldOut) SoldOutBar(menu.soldOutMode, menu.soldOut.size, callbacks.onSoldOutMode, callbacks.onSoldOutList)
-                AllergenBar(
+                ModeToolbar(
                     menu,
-                    callbacks.onAllergenMode,
-                    onSellVoucher = callbacks.onSellVoucher,
-                    onCodePad = callbacks.onCodePadToggle,
+                    ModeToolbarActions(
+                        onSoldOutMode = callbacks.onSoldOutMode,
+                        onSoldOutList = callbacks.onSoldOutList,
+                        onCodePad = callbacks.onCodePadToggle,
+                        onAllergenMode = callbacks.onAllergenMode,
+                        onSellVoucher = callbacks.onSellVoucher,
+                    ),
                 )
-                Row(Modifier.weight(1f).fillMaxWidth()) {
-                    if (menu.codePad.open) CodePad(menu.codePad, callbacks.codePad)
-                    val results = menu.codePad.results
-                    MenuGrid(
-                        items = results ?: menu.items,
-                        categoryColor = if (results != null) null else parseCategoryColor(color),
-                        cartQuantities = menu.cartQuantities,
-                        language = menu.language,
-                        labelMode = menu.labelMode,
-                        loaded = menu.loaded,
-                        onAdd = callbacks.onItem,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        columns = if (menu.codePad.open) GRID_COLUMNS_WITH_PAD else GRID_COLUMNS,
-                        highlightId = menu.codePad.pick?.id,
-                        emptyText = results?.let { vueText("code_pad_no_result") },
-                    )
-                }
+                val results = menu.codePad.results
+                MenuGrid(
+                    items = results ?: menu.items,
+                    categoryColor = if (results != null) null else parseCategoryColor(color),
+                    cartQuantities = menu.cartQuantities,
+                    language = menu.language,
+                    labelMode = menu.labelMode,
+                    loaded = menu.loaded,
+                    onAdd = callbacks.onItem,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    highlightId = menu.codePad.pick?.id,
+                    emptyText = results?.let { vueText("code_pad_no_result") },
+                )
+                // UX audit C6: the pad is a dock under the grid, which keeps its 5 columns.
+                if (menu.codePad.open) CodePad(menu.codePad, callbacks.codePad)
             }
             OrderCartColumn(state.cart, cartActions, Modifier.width(PiliTheme.dimens.cartWidth).fillMaxHeight())
         }
@@ -294,14 +296,15 @@ internal fun BoxScope.OrderDialogs(
             )
         is OrderDialog.CartMore -> CartMoreDialog(dialog, callbacks)
         is OrderDialog.TablePicker ->
-            TablePickerDialog(dialog.from, dialog.tables, onConfirm = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
+            TablePickerDialog(dialog.from, dialog.tables, onPick = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
         is OrderDialog.SoldOut -> SoldOutDialog(dialog.item, callbacks.onAvailability, callbacks.onDismiss)
         OrderDialog.SoldOutList -> SoldOutList(soldOut, callbacks.onAvailability, callbacks.onDismiss)
         is OrderDialog.CloseUnpaid -> CloseUnpaidDialog(dialog.userName, callbacks)
         is OrderDialog.Discount ->
             DiscountDialog(dialog.baseCents, dialog.lineId, onConfirm = callbacks.onDiscountChosen, onCancel = callbacks.onDismiss)
         is OrderDialog.DiscountPin -> DiscountPinDialog(dialog, callbacks)
-        is OrderDialog.Note -> NoteDialog(dialog.initial, dialog.sent, onConfirm = callbacks.onNoteSaved, onCancel = callbacks.onDismiss)
+        is OrderDialog.Note ->
+            NoteDialog(dialog.initial, dialog.sent, dialog.chips, onConfirm = callbacks.onNoteSaved, onCancel = callbacks.onDismiss)
         is OrderDialog.AllergenSheet ->
             AllergenSheetDialog(dialog, language, onPrint = callbacks.onAllergenPrint, onClose = callbacks.onDismiss)
         is OrderDialog.CoursePicker -> CoursePickerDialog(dialog.current, callbacks.onCoursePick, callbacks.onDismiss)

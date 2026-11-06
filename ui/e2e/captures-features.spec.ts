@@ -82,13 +82,14 @@ const tablesWith = (occupied: Record<number, number>) => () =>
   })
 
 test.describe('Lot 2 - transfert de table, correction de paiement, remise, note de cuisine', () => {
-  test('60_table_transfer_picker - changer de table depuis la commande', async ({ page }) => {
+  test('60_table_transfer_picker - déplacer depuis la commande', async ({ page }) => {
     await toOrder(page, { list_tables: tablesWith({ 4: 44 }) })
     await tapMore(page, 'transfer-table')
-    const picker = page.getByRole('dialog', { name: 'Changer de table' })
+    const picker = page.getByRole('dialog', { name: 'Déplacer' })
     await expect(picker).toBeVisible()
-    await picker.getByTestId('pick-table-5').click()
-    await expect(picker.getByTestId('transfer-confirm')).toBeEnabled()
+    // The busy table 4 is dimmed with its total; a free one moves the order at once.
+    await expect(picker.getByTestId('pick-table-4')).toBeDisabled()
+    await expect(picker.getByTestId('pick-table-5')).toBeEnabled()
     await capture(page, '60_table_transfer_picker')
   })
 
@@ -99,10 +100,7 @@ test.describe('Lot 2 - transfert de table, correction de paiement, remise, note 
     await page.waitForURL(/tables/u)
     await page.getByTestId('move-toggle').click()
     await page.locator('.table-card.occupied').first().click()
-    await page.locator('.table-card .table-num', { hasText: /^7$/u }).click()
-    await expect(page.getByTestId('move-confirm')).toContainText(
-      'Déplacer la table 3 vers la table 7 ?',
-    )
+    await expect(page.getByTestId('move-hint')).toHaveText('Table 3 : touchez la table libre')
     await capture(page, '61_table_transfer_move_mode')
   })
 

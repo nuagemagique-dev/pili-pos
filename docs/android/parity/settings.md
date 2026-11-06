@@ -13,7 +13,9 @@ screen only calls it through the shared stores and the gateway.
 | ui/src/views/SettingsView.vue (employees: list, add, deactivate, PIN) | feature/settings/SettingsScreen.kt (SettingsRoute, SettingsContent, SettingsDialogs), SettingsViewModel.kt | `list_users` `create_user` `deactivate_user` `set_pin` |
 | SettingsView.vue (employees: presence registered by a manager, presence-only profile) | feature/settings/SettingsScreen.kt (EmployeesPanel, WorkerRow), SettingsViewModel.kt (`togglePresence`) over ui/fdm/FdmStore.kt | `clock_in_employee` `clock_out_employee` `list_open_shifts` |
 | SettingsView.vue (training mode, guarded: armed second tap within 5 s, manager PIN to turn it on) | feature/settings/SettingsScreen.kt (TrainingPanel, TrainingPinDialog in SettingsDialogs), SettingsParts.kt (TrainingToggle, `armed`), SettingsViewModel.kt (toggleTraining, enableTraining, closeTrainingPin; state `trainingArmed`, `trainingPin`) over ui/state/PosSettingsStore.kt | `set_training_mode` |
+| SettingsView.vue ("Bip à chaque ajout": the add beep switch, `pili-pos-add-beep`), stores/pos.ts (`addBeep`, `setAddBeep`) | feature/settings/SettingsScreen.kt (AddBeepPanel, `settings_beep_on` / `_off`), SettingsViewModel.kt (setAddBeep), ui/state/PosSettingsStore.kt (`addBeep`, SharedPreferences `add_beep`) | - |
 | SettingsView.vue (table plan, managers) | feature/settings/SettingsScreen.kt (TablePlanPanel), SettingsViewModel.kt | `get_table_plan` `set_table_plan` |
+| SettingsView.vue (the first takeaway number in the "Plan de salle" panel, managers, UX audit T2: `takeaway-first`, NumberEntryDialog 1 to 999) | feature/settings/SettingsScreen.kt (TablePlanPanel), TakeawayFirst.kt (TakeawayFirstRow, TakeawayFirstDialog on NumPad), SettingsViewModel.kt (`openTakeawayFirst`, `confirmTakeawayFirst`) | `get_takeaway_numbering` `set_takeaway_numbering` |
 | SettingsView.vue (ticket deliveries and the mail status) | feature/settings/SettingsScreen.kt (DeliveriesPanel) over ui/state/DeliveryStore.kt | `list_ticket_deliveries` `check_mail_status` |
 | ui/src/components/BadgeSettings.vue (reader, badge login, USB timing, log) | feature/settings/SettingsBadgePanel.kt (BadgePanel), SettingsBadgeModel.kt, SettingsBadgeState.kt over ui/badge/BadgeStore.kt | `get_badge_settings` `set_badge_settings` `list_badges` |
 | SettingsView.vue (employees: badge state and button) and ui/src/components/BadgeEnrolDialog.vue (capture, manager PIN, link; removal confirmation) | feature/settings/SettingsBadgePanel.kt (WorkerBadgeLine), SettingsScreen.kt (BadgeEnrolDialog, SettingsDialogs), SettingsBadgeModel.kt | `link_badge` `revoke_badge` `list_badges` |
@@ -24,6 +26,7 @@ screen only calls it through the shared stores and the gateway.
 | ui/src/components/MenuEditorPanel.vue (Carte panel: opens the editor, or says who manages the menu), ui/src/views/MenuEditorView.vue (categories, products, option groups and options, VAT pickers, Historique) | feature/settings/menu/MenuEditorScreen.kt (MenuEditorRoute, MenuEditorContent), MenuEditorViewModel.kt, MenuEditorState.kt, MenuEditorEntry.kt; entry point: the settings row `settings.menu` (managers) | `menu_admin_get` `menu_save_category` `menu_save_product` `menu_save_modifier_group` `menu_save_modifier` `list_menu_changes` |
 | ui/src/components/OwnerAlertsSettings.vue, ui/src/stores/ownerAlerts.ts (phone alerts: settings, test message, log; managers) | feature/settings/alerts/OwnerAlertsSection.kt, OwnerAlertsViewModel.kt, OwnerAlertsState.kt | `get_owner_alerts` `set_owner_alerts` `send_test_alert` `list_owner_alert_log` |
 | ui/src/components/CoursesSettings.vue (courses: switch and course per category; managers) | feature/settings/courses/CoursesSection.kt, CoursesViewModel.kt, CoursesState.kt | `get_course_settings` `set_course_settings` |
+| ui/src/components/QuickNotesSettings.vue (quick notes for the kitchen note: add, remove, reorder, save; managers; C11) | feature/settings/quicknotes/QuickNotesSection.kt, QuickNotesViewModel.kt, QuickNotesState.kt over feature/order/QuickNotes.kt | `get_quick_notes` `set_quick_notes` |
 | ui/src/components/GiftVoucherSettings.vue (gift vouchers: switch, validity, maximum amount; managers) | feature/settings/vouchers/GiftVoucherSection.kt, GiftVoucherViewModel.kt, GiftVoucherState.kt | `get_gift_voucher_settings` `set_gift_voucher_settings` |
 | ui/src/components/NumberEntryDialog.vue (chat id with a minus toggle, small numbers) | feature/settings/alerts/NumberEntryDialog.kt over ui/components/NumPad.kt | none |
 
@@ -34,8 +37,8 @@ screen only calls it through the shared stores and the gateway.
   (`MenuEditorEntry`, route `SettingsRoutes.MENU`) reached from the settings row `settings.menu` ("Carte", managers
   only), with the same three columns, toggles, VAT pickers, option groups and options, and Historique. Prices go
   through the shared `AmountDialog` (amount pad, now with `initialDigits`) instead of the inline `NumPad`. Text entry
-  uses the system keyboard (V11-D31), including Chinese; Vue uses `TextKeyboard` for the Latin names and a plain
-  field for the Chinese one (V11-D19), the one documented behaviour difference. While a catalog manages the menu
+  is the in-app AZERTY keyboard (`TextKeyboardDialog`, one dialog per field; Vue shows it inline); the Chinese name is the
+  one field that keeps a native text field on both UIs (no Chinese input method in the app; C13 exception, V11-D19). While a catalog manages the menu
   both UIs show the notice and no add button; saves are refused by the engine anyway (`hubrise_menu_managed`).
 
 - **Peppol panel (V11-T2).** `PeppolPanel.vue` is `PeppolSection` in the third column, after the HubRise section,
@@ -88,6 +91,9 @@ screen only calls it through the shared stores and the gateway.
   navigates when it starts, and reads the mail status once when it opens.
 - **Times.** Delivery dates, the switch log and the last catalog sync are engine strings (UTC) shown in Europe/Brussels
   through `PosDateTime`.
+- **Terminal language (UX audit R5).** The panel is "Langue par défaut du terminal": it sets
+  `PosSettingsStore.terminalLanguage` (Vue `pos.terminalLanguage`), used by the login screen and by every person who
+  has not chosen their own language at the login tile or in the header menu; a person's own choice is not overridden.
 - **Layout.** Three columns on a window of 900 dp or more (training, language, product label and the rows; the
   employees; the information, the HubRise switch, the HubRise panel and the deliveries), a single scrolling column
   otherwise. The third column scrolls as a whole instead of each panel growing and scrolling inside.

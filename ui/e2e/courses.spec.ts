@@ -94,13 +94,19 @@ test.describe('Courses in the cart', () => {
     await orderScreen(page)
     const headers = page.locator('.course-label')
     await expect(headers).toHaveText(['Direct', 'Entrées', 'Plats', 'Desserts'])
-    // A printed line is locked, a held one says it waits.
+    // The row carries the course tag: a held line says it waits.
+    await expect(page.getByTestId('course-tag-3')).toContainText('En attente')
+    await expect(page.getByTestId('course-tag-3')).toContainText('Plats')
+    await expect(page.getByTestId('course-tag-2')).not.toContainText('En attente')
+    // The picker button opens under the selected line: a printed line is locked, a held one is not.
+    await page.getByTestId('line-row-1').click()
     await expect(page.getByTestId('course-chip-1')).toBeDisabled()
+    await page.getByTestId('line-row-2').click()
     await expect(page.getByTestId('course-chip-2')).toBeDisabled()
+    await page.getByTestId('line-row-3').click()
     await expect(page.getByTestId('course-chip-3')).toBeEnabled()
     await expect(page.getByTestId('course-chip-3')).toContainText('En attente')
-    await expect(page.getByTestId('course-chip-3')).toContainText('Plats')
-    await expect(page.getByTestId('course-chip-2')).not.toContainText('En attente')
+    await expect(page.getByTestId('course-chip-1')).toHaveCount(0)
   })
 
   test('with courses off the cart is the plain one', async ({ page }) => {
@@ -136,6 +142,7 @@ test.describe('Courses in the cart', () => {
         throw 'course_already_sent'
       }),
     })
+    await page.getByTestId('line-row-3').click()
     await page.getByTestId('course-chip-3').click()
     await page.getByTestId('course-pick-1').click()
     await expect(page.getByText('déjà partie en cuisine')).toBeVisible()
@@ -149,6 +156,8 @@ test.describe('Courses in the cart', () => {
     await expect(page.getByText('Suite envoyée : Plats')).toBeVisible()
     expect(await ipcCalls(page, 'send_next_course')).toHaveLength(1)
     // Plats are printed now; desserts are next.
+    await expect(page.getByTestId('course-tag-3')).toHaveClass(/printed/u)
+    await page.getByTestId('line-row-3').click()
     await expect(page.getByTestId('course-chip-3')).toBeDisabled()
     await expect(button).toHaveText('Envoyer la suite (Desserts)')
     await button.click()
@@ -165,7 +174,7 @@ test.describe('Courses in the cart', () => {
     await page.getByTestId('send-next-course').click()
     await expect(page.locator('.toast-error')).toContainText('Connexion perdue avec la boîte noire')
     await expect(page.getByTestId('send-next-course')).toHaveText('Envoyer la suite (Plats)')
-    await expect(page.getByTestId('course-chip-3')).toContainText('En attente')
+    await expect(page.getByTestId('course-tag-3')).toContainText('En attente')
     await expect(page.locator('.toast-success')).toHaveCount(0)
   })
 
@@ -224,7 +233,7 @@ test.describe('Courses in the cart', () => {
       'Plats',
       'Desserts',
     ])
-    await expect(page.getByTestId('course-chip-3')).toContainText('En attente')
+    await expect(page.getByTestId('course-tag-3')).toContainText('En attente')
     await expect(page.getByTestId('send-next-course')).toHaveCount(0)
   })
 

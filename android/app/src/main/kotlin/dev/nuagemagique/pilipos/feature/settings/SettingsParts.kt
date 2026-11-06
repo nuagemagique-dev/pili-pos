@@ -20,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -33,14 +32,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import dev.nuagemagique.pilipos.ui.components.KeypadField
+import dev.nuagemagique.pilipos.ui.components.KeypadKind
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -279,7 +278,15 @@ internal fun TrainingToggle(
     }
 }
 
-/** A single line text field on a hairline outline (`.field`); [mono] draws the value in the figure font. */
+/**
+ * A single line field on a hairline outline (`.field`, `KeypadField.vue`). It never raises the system keyboard (C13 / R6): a
+ * tap opens the keypad of [kind] (the lower case text keypad, or the number pad when [numeric]) and the value changes once,
+ * when the keypad is validated, then [onDone] runs. [title] heads the keypad (the placeholder by default); [mono] draws
+ * the value in the figure font.
+ *
+ * [systemKeyboard] is the one exception, kept for the Chinese name of a menu item: the in-app keyboards have no Chinese
+ * input method, so that field stays a text field for the system keyboard (as the native input of the Vue editor).
+ */
 @Composable
 internal fun SettingsTextField(
     value: String,
@@ -289,25 +296,45 @@ internal fun SettingsTextField(
     mono: Boolean = false,
     numeric: Boolean = false,
     onDone: (() -> Unit)? = null,
+    title: String = placeholder,
+    kind: KeypadKind? = null,
+    systemKeyboard: Boolean = false,
+) {
+    if (systemKeyboard) {
+        SystemKeyboardField(value, onValueChange, placeholder, modifier)
+        return
+    }
+    KeypadField(
+        value = value,
+        onValueChange = onValueChange,
+        title = title,
+        placeholder = placeholder,
+        modifier = modifier,
+        kind = kind ?: if (numeric) KeypadKind.Number(maxDigits = DEFAULT_NUMBER_DIGITS) else KeypadKind.Text(),
+        mono = mono,
+        onDone = onDone,
+    )
+}
+
+/** The most digits a settings number takes when the caller gives no limit. */
+private const val DEFAULT_NUMBER_DIGITS = 9
+
+/** The text field of the one exception to the in-app keyboards (see [SettingsTextField]). */
+@Composable
+private fun SystemKeyboardField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier,
 ) {
     val colors = PiliTheme.colors
-    val style =
-        PiliTheme.typography.body.copy(
-            color = colors.textPrimary,
-            fontFamily = if (mono) PiliTheme.typography.familyFigures else FontFamily.Default,
-        )
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = true,
-        textStyle = style,
+        textStyle = PiliTheme.typography.body.copy(color = colors.textPrimary),
         cursorBrush = SolidColor(colors.textPrimary),
-        keyboardOptions =
-            KeyboardOptions(
-                keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text,
-                imeAction = if (onDone != null) ImeAction.Done else ImeAction.Default,
-            ),
-        keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         modifier = modifier,
         decorationBox = { inner ->
             Box(

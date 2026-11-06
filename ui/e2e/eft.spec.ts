@@ -10,6 +10,7 @@ import {
   DEFAULT_USER,
   DEFAULT_ORDER,
   DEFAULT_ORDER_LINE,
+  DEFAULT_CART_LINE,
   DEFAULT_CATEGORY,
   DEFAULT_MENU_ITEM,
   type EftStep,
@@ -272,7 +273,7 @@ test.describe('card payment on the linked terminal', () => {
     await expect(part).toContainText('Carte')
     await expect(part).not.toContainText('Chèques-repas')
     await expect(page.locator('.total-value')).toHaveText('0,00')
-    // It cannot be cancelled: Retour, not "Annuler les paiements".
+    // It cannot be cancelled: only "Retour à la commande", no "Annuler les parts".
     await expect(page.locator('.parts-clear')).toHaveCount(0)
     await page.locator('.validate-btn').click()
     await expect(page.locator('.success-icon')).toBeVisible()
@@ -490,6 +491,24 @@ async function webshopBoard(page: Page, setup: Setup) {
     login: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
     get_settings: settingsWith(setup.terminal ? { paymentTerminal: setup.terminal } : {}),
+    get_order: () => ({
+      ...DEFAULT_ORDER,
+      id: 4,
+      order_type: 'takeaway',
+      table_number: null,
+      total_cents: 2850,
+    }),
+    list_cart_lines: () => [
+      {
+        ...DEFAULT_CART_LINE,
+        id: 41,
+        order_id: 4,
+        quantity: 1,
+        unit_price_cents: 2850,
+        name: 'Maki saumon x8',
+        unsent_quantity: 0,
+      },
+    ],
     hubrise_list_webshop_orders: live(() => JSON.parse(JSON.stringify((window as any).__webshop))),
     webshop_handover_order: live(({ req }: any) => {
       const o = (window as any).__webshop.find((x: any) => x.id === req.order_id)
@@ -508,6 +527,14 @@ async function webshopBoard(page: Page, setup: Setup) {
   await loginAndGoto(page, '/webshop-orders')
 }
 
+// UX audit O2: "Encaisser carte" opens the checkout for the order (Carte selected); the terminal
+// is charged from there and the sale goes through the handover.
+async function collectByCard(page: Page) {
+  await page.locator('.column-ready .card').getByRole('button', { name: 'Encaisser carte' }).click()
+  await expect(page).toHaveURL(/checkout/u)
+  await expect(page.locator('.card-btn')).toHaveClass(/active/u)
+}
+
 test.describe('online order collected by card on the terminal', () => {
   test('the total is charged on the terminal, then handed over with the payment id', async ({
     page,
@@ -516,17 +543,18 @@ test.describe('online order collected by card on the terminal', () => {
       terminal: 'worldline_terminal_api',
       pay: [{ status: 'approved', brand: 'Bancontact' }],
     })
-    await page
-      .locator('.column-ready .card')
-      .getByRole('button', { name: 'Encaisser carte' })
-      .click()
-    await expect(page.locator('.column-ready .card')).toHaveCount(0)
+    await collectByCard(page)
+    await page.locator('.validate-btn').click()
+    await expect(page.locator('.success-icon')).toBeVisible()
     expect(await ipcCalls(page, 'eft_pay')).toEqual([{ orderId: 4, amountCents: 2850 }])
     const [call] = await ipcCalls(page, 'webshop_handover_order')
     expect(call.req).toEqual({
       order_id: 4,
       payments: [{ method: 'card', amount_cents: 2850, eft_payment_id: 100 }],
     })
+    await page.getByTestId('done-finish').click()
+    await expect(page).toHaveURL(/webshop-orders/u)
+    await expect(page.locator('.column-ready .card')).toHaveCount(0)
   })
 
   test('declined on the terminal: nothing is handed over', async ({ page }) => {
@@ -534,14 +562,14 @@ test.describe('online order collected by card on the terminal', () => {
       terminal: 'worldline_terminal_api',
       pay: [{ status: 'declined', detail: 'Solde insuffisant' }],
     })
-    await page
-      .locator('.column-ready .card')
-      .getByRole('button', { name: 'Encaisser carte' })
-      .click()
+    await collectByCard(page)
+    await page.locator('.validate-btn').click()
     await expect(page.getByTestId('eft-title')).toHaveText('Paiement refusé')
     await page.getByTestId('eft-ok').click()
-    await expect(page.locator('.column-ready .card')).toHaveCount(1)
+    await expect(page.locator('.validate-btn')).toBeVisible()
     expect(await ipcCalls(page, 'webshop_handover_order')).toHaveLength(0)
+    await page.getByTestId('back-to-order').click()
+    await expect(page.locator('.column-ready .card')).toHaveCount(1)
   })
 
   test('an approved unused payment of the order is used, not charged again', async ({ page }) => {
@@ -549,11 +577,10 @@ test.describe('online order collected by card on the terminal', () => {
       terminal: 'worldline_terminal_api',
       known: [{ id: 9, order_id: 4, amount_cents: 2850, status: 'approved' }],
     })
-    await page
-      .locator('.column-ready .card')
-      .getByRole('button', { name: 'Encaisser carte' })
-      .click()
-    await expect(page.locator('.column-ready .card')).toHaveCount(0)
+    await collectByCard(page)
+    await expect(page.locator('.paid-part')).toHaveCount(1)
+    await page.locator('.validate-btn').click()
+    await expect(page.locator('.success-icon')).toBeVisible()
     expect(await ipcCalls(page, 'eft_pay')).toHaveLength(0)
     const [call] = await ipcCalls(page, 'webshop_handover_order')
     expect(call.req.payments).toEqual([{ method: 'card', amount_cents: 2850, eft_payment_id: 9 }])
@@ -565,11 +592,13 @@ test.describe('online order collected by card on the terminal', () => {
       known: [{ id: 9, order_id: 4, amount_cents: 2850, status: 'unknown' }],
       check: [{ status: 'approved', brand: 'Visa' }],
     })
-    await page
-      .locator('.column-ready .card')
-      .getByRole('button', { name: 'Encaisser carte' })
-      .click()
-    await expect(page.locator('.column-ready .card')).toHaveCount(0)
+    await collectByCard(page)
+    await expect(page.getByTestId('eft-blocking')).toBeVisible()
+    await expect(page.locator('.validate-btn')).toBeDisabled()
+    await page.getByTestId('eft-verify').click()
+    await expect(page.getByTestId('eft-open')).toHaveCount(0)
+    await page.locator('.validate-btn').click()
+    await expect(page.locator('.success-icon')).toBeVisible()
     expect(await ipcCalls(page, 'eft_check')).toEqual([{ id: 9 }])
     expect(await ipcCalls(page, 'eft_pay')).toHaveLength(0)
     const [call] = await ipcCalls(page, 'webshop_handover_order')
@@ -578,11 +607,9 @@ test.describe('online order collected by card on the terminal', () => {
 
   test('without a terminal the card is collected as before', async ({ page }) => {
     await webshopBoard(page, {})
-    await page
-      .locator('.column-ready .card')
-      .getByRole('button', { name: 'Encaisser carte' })
-      .click()
-    await expect(page.locator('.column-ready .card')).toHaveCount(0)
+    await collectByCard(page)
+    await page.locator('.validate-btn').click()
+    await expect(page.locator('.success-icon')).toBeVisible()
     expect(await ipcCalls(page, 'eft_pay')).toHaveLength(0)
     const [call] = await ipcCalls(page, 'webshop_handover_order')
     expect(call.req.payments).toEqual([{ method: 'card', amount_cents: 2850 }])

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -43,6 +44,10 @@ import dev.nuagemagique.pilipos.feature.settings.courses.CoursesCallbacks
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesSection
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesUiState
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesViewModel
+import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesCallbacks
+import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesSection
+import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesUiState
+import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesViewModel
 import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherCallbacks
 import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherSection
 import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherUiState
@@ -52,6 +57,8 @@ import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.NavRegistry
 import dev.nuagemagique.pilipos.nav.SettingsEntry
 import dev.nuagemagique.pilipos.ui.components.ConfirmDialog
+import dev.nuagemagique.pilipos.ui.components.KeypadKind
+import dev.nuagemagique.pilipos.ui.components.KeypadSymbols
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.PiliDialog
@@ -92,8 +99,10 @@ internal data class SettingsCallbacks(
     val onToggleTraining: () -> Unit = {},
     val onLanguage: (AppLanguage) -> Unit = {},
     val onProductLabel: (ProductLabel) -> Unit = {},
+    val onAddBeep: (Boolean) -> Unit = {},
     val onTablePlanInput: (String) -> Unit = {},
     val onSaveTablePlan: () -> Unit = {},
+    val takeawayFirst: TakeawayFirstActions = TakeawayFirstActions(),
     val onRow: (SettingsEntry) -> Unit = {},
     val onNewName: (String) -> Unit = {},
     val onNewInsz: (String) -> Unit = {},
@@ -146,12 +155,14 @@ internal fun SettingsRoute(
     val alertsModel = viewModel { OwnerAlertsViewModel(entry) }
     val coursesModel = viewModel { CoursesViewModel(entry) }
     val vouchersModel = viewModel { GiftVoucherViewModel(entry) }
+    val quickNotesModel = viewModel { QuickNotesViewModel(entry) }
     val loaded by model.state.collectAsState()
     val hubrise by hubriseModel.state.collectAsState()
     val peppol by peppolModel.state.collectAsState()
     val alerts by alertsModel.state.collectAsState()
     val courses by coursesModel.state.collectAsState()
     val vouchers by vouchersModel.state.collectAsState()
+    val quickNotes by quickNotesModel.state.collectAsState()
     val pending by entry.webshop().pendingCount.collectAsState()
     LaunchedEffect(hubriseModel) {
         hubriseModel.effects.collect {
@@ -169,6 +180,7 @@ internal fun SettingsRoute(
     val alertsCallbacks = alertsCallbacksOf(alertsModel)
     val coursesCallbacks = CoursesCallbacks(coursesModel::toggleEnabled, coursesModel::setCourse, coursesModel::save)
     val vouchersCallbacks = vouchersCallbacksOf(vouchersModel)
+    val quickNotesCallbacks = quickNotesCallbacksOf(quickNotesModel)
     val connectActions = HubriseConnectActions(onSubmit = hubriseModel::submitCode, onCancel = hubriseModel::cancelConnect)
     val qr = remember(entry) { entry.qrMatrices() }
     LaunchedEffect(model) { entry.delivery().refreshMailStatus() }
@@ -187,6 +199,7 @@ internal fun SettingsRoute(
                 pinActions = pinActions,
                 deactivate = DeactivateActions(onConfirm = model::deactivate, onCancel = model::cancelDeactivate),
                 badge = badgeActions,
+                takeawayFirst = callbacks.takeawayFirst,
             )
             HubriseDialogs(
                 state = hubrise,
@@ -206,7 +219,7 @@ internal fun SettingsRoute(
             hubriseSection = { HubriseSection(hubrise, pending, hubriseCallbacks) },
             peppolSection = { PeppolSection(peppol, PeppolCallbacks(onRetry = peppolModel::retry)) },
             alertsSection = { OwnerAlertsSection(alerts, alertsCallbacks) },
-            coursesSection = { ManagerPanels(courses, coursesCallbacks, vouchers, vouchersCallbacks) },
+            coursesSection = { ManagerPanels(courses, coursesCallbacks, vouchers, vouchersCallbacks, quickNotes, quickNotesCallbacks) },
         )
     }
 }
@@ -214,17 +227,31 @@ internal fun SettingsRoute(
 private fun vouchersCallbacksOf(model: GiftVoucherViewModel) =
     GiftVoucherCallbacks(model::toggleEnabled, model::setValidity, model::setMax, model::save)
 
-/** The manager panels of the second column: the courses and the gift vouchers. */
+private fun quickNotesCallbacksOf(model: QuickNotesViewModel) =
+    QuickNotesCallbacks(
+        onUp = model::up,
+        onDown = model::down,
+        onRemove = model::remove,
+        onAdd = model::startAdd,
+        onAddConfirm = model::add,
+        onAddCancel = model::cancelAdd,
+        onSave = model::save,
+    )
+
+/** The manager panels of the second column: the courses, the gift vouchers and the quick notes. */
 @Composable
 internal fun ManagerPanels(
     courses: CoursesUiState,
     coursesCallbacks: CoursesCallbacks,
     vouchers: GiftVoucherUiState,
     vouchersCallbacks: GiftVoucherCallbacks,
+    quickNotes: QuickNotesUiState = QuickNotesUiState(),
+    quickNotesCallbacks: QuickNotesCallbacks = QuickNotesCallbacks(),
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
         CoursesSection(courses, coursesCallbacks)
         GiftVoucherSection(vouchers, vouchersCallbacks)
+        QuickNotesSection(quickNotes, quickNotesCallbacks)
     }
 }
 
@@ -237,8 +264,16 @@ private fun settingsCallbacks(
         onToggleTraining = model::toggleTraining,
         onLanguage = model::setLanguage,
         onProductLabel = model::setProductLabel,
+        onAddBeep = model::setAddBeep,
         onTablePlanInput = model::setTablePlanInput,
         onSaveTablePlan = model::saveTablePlan,
+        takeawayFirst =
+            TakeawayFirstActions(
+                onEdit = model::openTakeawayFirst,
+                onKey = model::pressTakeawayFirst,
+                onConfirm = model::confirmTakeawayFirst,
+                onCancel = model::cancelTakeawayFirst,
+            ),
         onRow = { navigator.navigate(it.route) },
         onNewName = model::setNewName,
         onNewInsz = model::setNewInsz,
@@ -363,6 +398,7 @@ private fun WideLayout(
             TrainingPanel(state.training, state.trainingArmed, callbacks.onToggleTraining)
             LanguagePanel(state.language, callbacks.onLanguage)
             ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
+            AddBeepPanel(state.addBeep, callbacks.onAddBeep)
             RowsPanel(state.rows, callbacks.onRow, Modifier.weight(1f), scroll = true)
         }
         if (state.isManager) {
@@ -375,7 +411,7 @@ private fun WideLayout(
             Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
-            if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
+            if (state.isManager) TablePlanPanel(state.tablePlan, state.takeawayFirst, callbacks)
             if (state.isManager) BadgePanel(state.badge, callbacks.badge)
             if (state.isManager) alertsSection()
             InfoPanel(state.info)
@@ -405,7 +441,8 @@ private fun NarrowLayout(
         TrainingPanel(state.training, state.trainingArmed, callbacks.onToggleTraining)
         LanguagePanel(state.language, callbacks.onLanguage)
         ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
-        if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
+        AddBeepPanel(state.addBeep, callbacks.onAddBeep)
+        if (state.isManager) TablePlanPanel(state.tablePlan, state.takeawayFirst, callbacks)
         if (state.isManager) BadgePanel(state.badge, callbacks.badge)
         if (state.isManager) alertsSection()
         if (state.isManager) EmployeesPanel(state, callbacks, Modifier, scrollList = false)
@@ -492,10 +529,38 @@ private fun ProductLabelPanel(
     }
 }
 
+private val BeepSwitchWidth = 240.dp
+
+/** The beep on each add (`settings_add_beep`): this terminal only, on until switched off. */
+@Composable
+private fun AddBeepPanel(
+    on: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    Panel(modifier = Modifier.testTag("settings_beep")) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            PanelTitle(vueText("settings_add_beep"), Modifier.weight(1f))
+            SegmentedControl(
+                options =
+                    listOf(
+                        Triple(true, "on", vueText("settings_add_beep_on")),
+                        Triple(false, "off", vueText("settings_add_beep_off")),
+                    ),
+                selected = on,
+                onSelect = onChange,
+                tag = "settings_beep",
+                modifier = Modifier.width(BeepSwitchWidth),
+            )
+        }
+        PanelText(vueText("settings_add_beep_note"))
+    }
+}
+
 /** The table plan of a manager: the plan in use, a field and its save button (`.table-plan`). */
 @Composable
 private fun TablePlanPanel(
     plan: TablePlanState,
+    takeawayFirst: Int?,
     callbacks: SettingsCallbacks,
 ) {
     Panel(modifier = Modifier.testTag("settings_tables")) {
@@ -519,7 +584,8 @@ private fun TablePlanPanel(
                 placeholder = vueText("settings_tables_placeholder"),
                 modifier = Modifier.weight(1f).testTag("settings_tables_input"),
                 mono = true,
-                onDone = callbacks.onSaveTablePlan,
+                title = vueText("settings_tables"),
+                kind = KeypadKind.Text(maxLen = TABLE_PLAN_MAX, symbols = KeypadSymbols.TablePlan, space = true, caseToggle = true),
             )
             ActionButton(vueText("settings_tables_save"), callbacks.onSaveTablePlan, Modifier.testTag("settings_tables_save"))
         }
@@ -532,6 +598,7 @@ private fun TablePlanPanel(
             )
         }
         PanelText(vueText("settings_tables_note"))
+        TakeawayFirstRow(takeawayFirst, callbacks.takeawayFirst.onEdit)
     }
 }
 
@@ -723,6 +790,7 @@ private fun AddEmployeeForm(
                 onValueChange = callbacks.onNewName,
                 placeholder = vueText("settings_name_placeholder"),
                 modifier = Modifier.weight(1f).testTag("settings_new_name"),
+                kind = KeypadKind.Text(maxLen = EMPLOYEE_NAME_MAX, symbols = KeypadSymbols.Name, space = true, caseToggle = true),
             )
             SettingsTextField(
                 value = form.insz,
@@ -731,6 +799,7 @@ private fun AddEmployeeForm(
                 modifier = Modifier.weight(1f).testTag("settings_new_insz"),
                 mono = true,
                 numeric = true,
+                kind = KeypadKind.Number(maxDigits = INSZ_DIGITS, exactDigits = INSZ_DIGITS),
             )
         }
         SegmentedControl(
@@ -946,7 +1015,9 @@ internal fun SettingsDialogs(
     pinActions: SettingsPinActions,
     deactivate: DeactivateActions,
     badge: BadgeDialogActions = BadgeDialogActions(),
+    takeawayFirst: TakeawayFirstActions = TakeawayFirstActions(),
 ) {
+    state.takeawayEntry?.let { TakeawayFirstDialog(it, takeawayFirst) }
     state.enrol?.let { enrol -> key(enrol.token != null) { BadgeEnrolDialog(enrol, badge) } }
     state.revokeBadge?.let { ask ->
         ConfirmDialog(
@@ -1098,3 +1169,12 @@ internal fun paymentTerminalLabel(kind: String?): String =
         "ccv_opi" -> uiText(R.string.ui_eft_kind_ccv_opi)
         else -> kind
     }
+
+/** The longest table plan, "1-12, 20-25" and so on. */
+private const val TABLE_PLAN_MAX = 120
+
+/** The longest name of an employee typed on the keypad. */
+private const val EMPLOYEE_NAME_MAX = 60
+
+/** The digits of an INSZ (national number), kept as typed. */
+private const val INSZ_DIGITS = 11

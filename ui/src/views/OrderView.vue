@@ -8,6 +8,7 @@ import { useI18n } from '../i18n'
 import * as ipc from '../api/ipc'
 import AppHeader from '../components/AppHeader.vue'
 import CategoryTabs from '../components/CategoryTabs.vue'
+import ModeToolbar from '../components/ModeToolbar.vue'
 import MenuGrid from '../components/MenuGrid.vue'
 import CartSidebar from '../components/CartSidebar.vue'
 import PriceDialog from '../components/PriceDialog.vue'
@@ -25,10 +26,14 @@ import {
   codeLetters,
   parseCodeEntry,
   pickByCode,
+  openDigitWindow,
   searchByCode,
+  stepDigitWindow,
   takesQuantity,
   typedCode,
+  windowLabel,
   type CodePadTone,
+  type DigitWindow,
 } from '../utils/codeEntry'
 import { formatPrice } from '../utils/format'
 
@@ -135,6 +140,8 @@ async function toggleAllergenMode() {
 }
 
 async function handleAddItem(item: MenuItem, quantity = 1) {
+  // Another product is added: a digit starts a code again.
+  digitWindow.value = null
   if (soldOutMode.value) {
     soldOutItem.value = item
     return
@@ -172,7 +179,49 @@ async function handleAddItem(item: MenuItem, quantity = 1) {
     choosing.value = item
     return
   }
-  await order.addItem(item, quantity)
+  await addPlain(item, quantity)
+}
+
+// ── Digit after an add = quantity (C7) ──────────────────────────────
+// Right after a plain product is added, for 3 s, a digit typed on the pad
+// (or a physical keyboard) while the code field is empty says how many of
+// that product the add gives: extra units of the same line. Products with
+// options, a free price or a weight never open the window.
+const digitWindow = ref<DigitWindow | null>(null)
+const digitItem = ref<MenuItem | null>(null)
+// The extra units go one after the other: each reads the line as the one before left it.
+let digitQueue: Promise<unknown> = Promise.resolve()
+
+/** Adds a plain product and opens the digit window on the line it went to. */
+async function addPlain(item: MenuItem, quantity: number) {
+  const add = await order.addItemTracked(item, quantity)
+  if (!add) return
+  digitItem.value = item
+  digitWindow.value = openDigitWindow(
+    { lineId: add.lineId, itemId: item.id, quantity: add.units },
+    Date.now(),
+  )
+}
+
+/** Every key of the pad first: true when a digit was taken as the quantity of the last add. */
+function takePadKey(key: string): boolean {
+  const open = digitWindow.value
+  const item = digitItem.value
+  const step = codeText.value === '' ? stepDigitWindow(open, key, Date.now()) : null
+  if (step?.kind !== 'set' || open === null || item === null) {
+    digitWindow.value = null
+    return false
+  }
+  digitWindow.value = step.window
+  const delta = step.window.quantity - open.quantity
+  digitQueue = digitQueue.then(async () => {
+    if (await order.addUnits(step.window.lineId, delta)) {
+      codeOutcome.value = { tone: 'done', text: windowLabel(item.name, step.window.quantity) }
+    } else if (digitWindow.value === step.window) {
+      digitWindow.value = open
+    }
+  })
+  return true
 }
 
 // ── Order entry by menu code (the "KeyB" pad of Xudox) ──────────────
@@ -380,77 +429,28 @@ async function handlePriceConfirmed(priceCents: number) {
           :selected-id="menu.selectedCategoryId"
           @select="selectCategory($event)"
         />
-        <div v-if="auth.canTakePayment" class="soldout-bar">
-          <button
-            class="soldout-btn"
-            :class="{ active: soldOutMode }"
-            :aria-pressed="soldOutMode"
-            data-testid="soldout-mode"
-            @click="toggleSoldOutMode"
-          >
-            {{ t('soldout_mode') }}
-          </button>
-          <span v-if="soldOutMode" class="soldout-hint" data-testid="soldout-hint">
-            {{ t('soldout_mode_hint') }}
-          </span>
-          <button
-            class="soldout-btn list"
-            data-testid="soldout-list-button"
-            @click="showSoldOutList = true"
-          >
-            {{ t('soldout_list_button', { n: menu.soldOut.length }) }}
-          </button>
-        </div>
-        <!-- Allergen mode (EU Annex II): a tap on a product opens its sheet -->
-        <div class="allergen-bar" data-testid="allergen-bar">
-          <button
-            class="allergen-toggle"
-            :class="{ on: codePadOpen }"
-            :aria-pressed="codePadOpen"
-            data-testid="code-pad-toggle"
-            @click="toggleCodePad"
-          >
-            {{ t('code_pad_toggle') }}
-          </button>
-          <button
-            class="allergen-toggle"
-            :class="{ on: allergens.mode }"
-            :aria-pressed="allergens.mode"
-            data-testid="allergen-mode"
-            @click="toggleAllergenMode"
-          >
-            {{ t('allergens_mode') }}
-          </button>
-          <button
-            v-if="giftVouchers.enabled && order.currentOrder && auth.canTakePayment"
-            class="allergen-toggle"
-            data-testid="gift-voucher-sell"
-            @click="sellingVoucher = true"
-          >
-            {{ t('gv_sell_button') }}
-          </button>
-          <template v-if="allergens.mode">
-            <span class="allergen-hint">{{ t('allergens_hint') }}</span>
-            <span
-              v-if="allergens.error && !allergens.sheetItem"
-              class="allergen-error"
-              role="alert"
-              data-testid="allergen-legend-error"
-              >{{ allergens.error }}</span
-            >
-            <ul
-              class="allergen-legend"
-              data-testid="allergen-legend"
-              :aria-label="t('allergens_legend')"
-            >
-              <li v-for="a in allergens.legend" :key="a.code" class="legend-item">
-                <span class="legend-num">{{ a.number }}</span>
-                <span>{{ t(`allergen_${a.code}`) }}</span>
-              </li>
-            </ul>
-          </template>
-        </div>
+        <ModeToolbar
+          :can-sold-out="auth.canTakePayment"
+          :sold-out-mode="soldOutMode"
+          :sold-out-count="menu.soldOut.length"
+          :code-pad-open="codePadOpen"
+          :show-voucher="giftVouchers.enabled && !!order.currentOrder && auth.canTakePayment"
+          @toggle-sold-out="toggleSoldOutMode"
+          @open-sold-out-list="showSoldOutList = true"
+          @toggle-code-pad="toggleCodePad"
+          @toggle-allergens="toggleAllergenMode"
+          @sell-voucher="sellingVoucher = true"
+        />
         <div class="menu-body">
+          <MenuGrid
+            :items="codeResults ?? menu.items"
+            :category-color="codeResults ? null : selectedCategoryColor"
+            :cart-quantities="cartQuantities"
+            :highlight-id="codeResults ? (codePick?.id ?? null) : null"
+            :empty-text="codeResults ? t('code_pad_no_result') : undefined"
+            @add-item="handleGridTap"
+          />
+          <!-- UX audit C6: the pad is a dock under the grid, which keeps its 5 columns. -->
           <CodePad
             v-if="codePadOpen"
             v-model="codeText"
@@ -458,16 +458,8 @@ async function handlePriceConfirmed(priceCents: number) {
             :message="codeMessage.text"
             :tone="codeMessage.tone"
             :listening="codePadListening"
+            :take-key="takePadKey"
             @submit="submitCode"
-          />
-          <MenuGrid
-            :items="codeResults ?? menu.items"
-            :category-color="codeResults ? null : selectedCategoryColor"
-            :cart-quantities="cartQuantities"
-            :columns="codePadOpen ? 3 : 5"
-            :highlight-id="codeResults ? (codePick?.id ?? null) : null"
-            :empty-text="codeResults ? t('code_pad_no_result') : undefined"
-            @add-item="handleGridTap"
           />
         </div>
       </div>
@@ -526,38 +518,6 @@ async function handlePriceConfirmed(priceCents: number) {
   flex-shrink: 0;
 }
 
-.soldout-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: 8px 16px 0;
-  flex-shrink: 0;
-}
-.soldout-btn {
-  min-height: 56px;
-  padding: 0 var(--space-md);
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 2px solid transparent;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-}
-.soldout-btn:active {
-  transform: scale(var(--tap-scale));
-}
-.soldout-btn.active {
-  background: var(--accent-warning);
-  color: var(--text-on-accent);
-}
-.soldout-btn.list {
-  margin-left: auto;
-}
-.soldout-hint {
-  color: var(--text-secondary);
-  font-size: var(--font-size-md);
-}
-
 .main {
   display: flex;
   flex: 1;
@@ -565,72 +525,10 @@ async function handlePriceConfirmed(priceCents: number) {
   overflow: hidden;
 }
 
-.allergen-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  padding: 8px 16px 0;
-}
-.allergen-toggle {
-  height: 44px;
-  padding: 0 18px;
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-  transition: transform var(--tap-duration) ease;
-}
-.allergen-toggle:active {
-  transform: scale(var(--tap-scale));
-}
-.allergen-toggle.on {
-  background: var(--selected-bg);
-  color: var(--selected-fg);
-}
-.allergen-hint {
-  font-size: var(--font-size-sm);
-  color: var(--accent-info);
-  font-weight: var(--font-weight-bold);
-}
-.allergen-error {
-  font-size: var(--font-size-sm);
-  color: var(--accent-danger);
-  font-weight: var(--font-weight-bold);
-}
-.allergen-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
-}
-.legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.legend-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--accent-info);
-  color: var(--text-on-accent);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: var(--font-weight-bold);
-}
-
+/* The grid scrolls above the docked code pad. */
 .menu-body {
   display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
 }

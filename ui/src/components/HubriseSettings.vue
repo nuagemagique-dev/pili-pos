@@ -17,7 +17,9 @@ import { useI18n } from '../i18n'
 import { useWebshopOrdersStore } from '../stores/webshopOrders'
 import { describeError } from '../utils/errorMessages'
 import { openExternal } from '../utils/openExternal'
+import { CODE_SYMBOLS } from '../utils/keypadSymbols'
 import HubriseConnectDialog from './HubriseConnectDialog.vue'
+import KeypadField from './KeypadField.vue'
 const { t } = useI18n()
 // Pending count kept live by the header's "En ligne" button.
 const webshop = useWebshopOrdersStore()
@@ -339,7 +341,17 @@ onMounted(async () => {
           </li>
         </ul>
         <div class="code-row">
-          <input v-model="newChannel" class="field" :placeholder="t('hubrise_channel_name')" />
+          <KeypadField
+            v-model="newChannel"
+            class="field"
+            :title="t('hubrise_channel_name')"
+            :placeholder="t('hubrise_channel_name')"
+            :max-len="40"
+            space
+            case-toggle
+            :symbols="CODE_SYMBOLS"
+            data-testid="hubrise-channel-name"
+          />
           <button class="action-btn" :disabled="!newChannel.trim()" @click="addChannel">
             {{ t('hubrise_channel_add') }}
           </button>

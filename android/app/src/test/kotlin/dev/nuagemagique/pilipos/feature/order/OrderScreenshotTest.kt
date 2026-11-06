@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
+import dev.nuagemagique.pilipos.feature.tables.table
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.fdm.FdmUiState
@@ -29,6 +30,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import uniffi.pos_ffi.AllergenEntry
+import uniffi.pos_ffi.AllergenNames
 import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.VatCode
 import uniffi.pos_ffi.VatSplitRow
@@ -306,6 +309,16 @@ class OrderScreenshotTest {
         capture(OrderUiState(signedIn = true), "order_empty")
     }
 
+    // Parts already taken at the checkout stay with the order (UX audit P4): the cart says how many.
+    @Test
+    fun cartWithKeptParts() {
+        val rows = fullCart.rows.map { it.copy(line = it.line.copy(unsentQuantity = 0)) }
+        capture(
+            OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(rows = rows, unsentCount = 0, heldPartCount = 2)),
+            "order_cart_held_parts",
+        )
+    }
+
     // Everything sent: PAYER is the Volt primary again and "Envoyer en cuisine" a plain secondary (UX audit C4).
     @Test
     fun cartAllSent() {
@@ -323,9 +336,17 @@ class OrderScreenshotTest {
         )
     }
 
+    private val busyTables = setOf(2, 9)
+
     @Test
     fun tablePicker() {
-        val dialog = OrderDialog.TablePicker(4, listOf(1, 2, 3, 6, 7, 9, 10, 12))
+        val dialog =
+            OrderDialog.TablePicker(
+                4,
+                listOf(1, 2, 3, 6, 7, 9, 10, 12).map {
+                    if (it in busyTables) table(it, orderId = 100L + it, lines = 3, totalCents = 2_400L) else table(it)
+                },
+            )
         capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(canTransfer = true), dialog = dialog), "order_table_picker")
     }
 
@@ -479,8 +500,58 @@ class OrderScreenshotTest {
 
     @Test
     fun noteDialog() {
-        val dialog = OrderDialog.Note(1L, "sans wasabi", true)
+        val chips =
+            listOf(
+                "Sans wasabi",
+                "Sans sésame",
+                "Sans sauce",
+                "Sauce à part",
+                "Bien cuit",
+                "Épicé",
+                "Pas épicé",
+                "Sans oignon",
+                "À emporter",
+            )
+        val dialog = OrderDialog.Note(1L, "sans wasabi", true, chips)
         capture(OrderUiState(signedIn = true, menu = menu, cart = notedCart, dialog = dialog), "order_note_dialog")
+    }
+
+    // The dense cart (C2): twelve one-row lines, the newest one open under its row with its actions.
+    @Test
+    fun denseCart() {
+        val dishes =
+            listOf(
+                "Nigiri saumon",
+                "Nigiri thon",
+                "Maki concombre",
+                "California saumon",
+                "Edamame",
+                "Gyoza",
+                "Miso",
+                "Tempura crevettes",
+                "Yakitori",
+                "Mochi",
+                "Thé vert",
+                "Cola",
+            )
+        val rows =
+            dishes.mapIndexed { i, name ->
+                val id = i + 1L
+                CartRow(
+                    cartLine(
+                        id,
+                        10 + id,
+                        name,
+                        quantity = 1 + i % 3,
+                        code = "A${i + 1}",
+                        unsent = if (i >= 10) 1 else 0,
+                        kitchenNote = if (i == 2) "sans sésame, bien cuit, sauce à part" else null,
+                    ),
+                    LineAmount.Total(480L * (1 + i % 3)),
+                    canNote = true,
+                )
+            }
+        capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(rows = rows, unsentCount = 2)), "order_cart_dense")
     }
 
     // The Tokyo Sushi Bar till at its tallest: 18 categories (two rows of tabs), the sold-out bar and the 18 letters
@@ -496,5 +567,32 @@ class OrderScreenshotTest {
         rule.onNodeWithTag("code_key_A").assertWidthIsAtLeast(60.dp).assertHeightIsAtLeast(64.dp)
         val ok = rule.onNodeWithTag("code_key_ok").getUnclippedBoundsInRoot()
         assertTrue("OK is below the screen: ${ok.bottom}", ok.bottom <= 1080.dp)
+    }
+
+    // UX audit C6: a typed code filters the grid to a row or two above the docked pad.
+    @Test
+    fun codePadTyped() {
+        val coded = "ABCDEGHJKMNPQRSTWZ".mapIndexed { i, l -> menuItem(100L + i, 1, "Produit $l", 500, code = "${l}1") }
+        val pad = CodePadState(open = true, text = "a", items = coded)
+        capture(OrderUiState(signedIn = true, menu = menu.copy(codePad = pad, canSoldOut = true), cart = cart), "order_code_pad_typed")
+    }
+
+    // UX audit C1: the allergen mode shows its hint on the toolbar row and its legend in a strip under it.
+    @Test
+    fun allergenMode() {
+        val codes =
+            listOf(
+                "gluten", "crustaceans", "eggs", "fish", "peanuts", "soybeans", "milk",
+                "nuts", "celery", "mustard", "sesame", "sulphites", "lupin", "molluscs",
+            )
+        val legend = codes.mapIndexed { i, code -> AllergenEntry(code, i + 1, AllergenNames(code, code, code, code)) }
+        capture(
+            OrderUiState(
+                signedIn = true,
+                menu = menu.copy(allergenMode = true, allergenLegend = legend, canSoldOut = true, giftVouchersEnabled = true),
+                cart = cart,
+            ),
+            "order_allergen_mode",
+        )
     }
 }

@@ -31,6 +31,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.nav.ShellOverlay
+import dev.nuagemagique.pilipos.ui.components.PiliButton
+import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.theme.PiliColors
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -50,6 +52,9 @@ private val ToastMinHeight = 56.dp
 
 /** Width of the coloured edge of a toast (the 4 px left border). */
 private val ToastEdgeWidth = 4.dp
+
+/** Height of the button of a toast: a touch target (48 dp, like the 48 px of ToastStack.vue). */
+private val ToastActionHeight = 48.dp
 
 /** Blur of the shadow of a toast (the 12 px of `box-shadow`). */
 private val ToastShadow = 12.dp
@@ -71,8 +76,10 @@ private fun accentOf(
  * see [pickVisibleToasts]). A toast is a dark card with a coloured left edge by variant. The stack never takes a
  * tap: a tap goes through to what is under it. Info, success and warning toasts let taps through too and go away
  * by themselves; an error toast stays until tapped, shows [tapToCloseText] under its message, and is the only
- * thing here that takes a tap (which closes it).
- * Nothing is drawn when [toasts] is empty. Test tags: `toast_stack`, `toast_<id>`, `toast_hint_<id>`.
+ * thing here that takes a tap (which closes it). A toast with an action (C8, "Annuler" after a table move) shows its
+ * button at the right and the button alone takes the tap ([onAction]).
+ * Nothing is drawn when [toasts] is empty. Test tags: `toast_stack`, `toast_<id>`, `toast_hint_<id>`,
+ * `toast_action_<id>`.
  */
 @Composable
 fun ToastStack(
@@ -80,6 +87,7 @@ fun ToastStack(
     onDismiss: (Long) -> Unit,
     tapToCloseText: String,
     modifier: Modifier = Modifier,
+    onAction: (Long) -> Unit = {},
 ) {
     if (toasts.isEmpty()) return
     val d = PiliTheme.dimens
@@ -96,7 +104,7 @@ fun ToastStack(
                     .testTag("toast_stack"),
             verticalArrangement = Arrangement.spacedBy(d.spaceSm),
         ) {
-            pickVisibleToasts(toasts).forEach { toast -> ToastCard(toast, onDismiss, tapToCloseText) }
+            pickVisibleToasts(toasts).forEach { toast -> ToastCard(toast, onDismiss, onAction, tapToCloseText) }
         }
     }
 }
@@ -105,6 +113,7 @@ fun ToastStack(
 private fun ToastCard(
     toast: Toast,
     onDismiss: (Long) -> Unit,
+    onAction: (Long) -> Unit,
     tapToCloseText: String,
 ) {
     val c = PiliTheme.colors
@@ -127,7 +136,7 @@ private fun ToastCard(
     ) {
         Box(Modifier.width(ToastEdgeWidth).fillMaxHeight().background(accentOf(toast.variant, c)))
         Column(
-            modifier = Modifier.padding(horizontal = d.spaceMd, vertical = d.spaceSm),
+            modifier = Modifier.weight(1f).padding(horizontal = d.spaceMd, vertical = d.spaceSm),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(text = toast.message, style = t.label, color = c.textPrimary)
@@ -139,6 +148,14 @@ private fun ToastCard(
                     modifier = Modifier.testTag("toast_hint_${toast.id}"),
                 )
             }
+        }
+        toast.action?.let { action ->
+            PiliButton(
+                text = action.label,
+                onClick = { onAction(toast.id) },
+                variant = PiliButtonVariant.Secondary,
+                modifier = Modifier.padding(end = d.spaceSm).height(ToastActionHeight).testTag("toast_action_${toast.id}"),
+            )
         }
     }
 }
@@ -160,6 +177,7 @@ class ToastOverlay
             ToastStack(
                 toasts = toasts,
                 onDismiss = store::dismiss,
+                onAction = store::runAction,
                 tapToCloseText = catalog.text("toast_tap_to_close", language),
             )
         }

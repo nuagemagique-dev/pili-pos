@@ -4,9 +4,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import dev.nuagemagique.pilipos.feature.tables.table
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
@@ -17,8 +20,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import uniffi.pos_ffi.TableInfo
 
-/** The "change table" picker (`TablePickerDialog.vue`) and its entry point in the cart header. */
+/** The "Déplacer" picker (`TablePickerDialog.vue`) and its entry point in the cart header. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w1920dp-h1080dp-mdpi")
 class TablePickerDialogTest {
@@ -28,11 +32,13 @@ class TablePickerDialogTest {
     private val catalog = I18nTestSupport.catalog()
     private val seen = mutableListOf<String>()
 
-    private fun show(tables: List<Int>) {
+    private val busyTable = table(4, orderId = 44L, lines = 2, totalCents = 2_400)
+
+    private fun show(tables: List<TableInfo>) {
         compose.setContent {
             PiliTheme {
                 ProvideUiText(AppLanguage.FR, catalog) {
-                    Box { TablePickerDialog(4, tables, onConfirm = { seen += "go:$it" }, onCancel = { seen += "cancel" }) }
+                    Box { TablePickerDialog(1, tables, onPick = { seen += "go:$it" }, onCancel = { seen += "cancel" }) }
                 }
             }
         }
@@ -40,22 +46,39 @@ class TablePickerDialogTest {
     }
 
     @Test
-    fun validateStaysDisabledUntilAFreeTableIsPicked() {
-        show(listOf(1, 2, 6))
+    fun aFreeTableMovesTheOrderAtOnceWithNoValidateStep() {
+        show(listOf(table(2), table(6)))
 
-        compose.onNodeWithTag("pick_table_6").assertIsDisplayed()
-        compose.onNodeWithTag("transfer_confirm").assertIsNotEnabled()
+        compose.onNodeWithTag("pick_table_6").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithTag("transfer_confirm").assertDoesNotExist()
 
         compose.onNodeWithTag("pick_table_6").performClick()
-        compose.onNodeWithTag("transfer_confirm").assertIsEnabled()
-        compose.onNodeWithTag("transfer_confirm").performClick()
 
         assertEquals(listOf("go:6"), seen)
     }
 
     @Test
+    fun aBusyTableIsDisabledAndShowsItsTotal() {
+        show(listOf(table(2), busyTable))
+
+        compose.onNodeWithTag("pick_table_4").assertIsNotEnabled()
+        compose.onNodeWithTag("pick_total_4", useUnmergedTree = true).assertTextContains("24,00", substring = true)
+        compose.onNodeWithTag("pick_total_2", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("pick_table_4").performClick()
+
+        assertEquals(emptyList<String>(), seen)
+    }
+
+    @Test
+    fun theTitleSaysDeplacerAndTheTableTheOrderIsOn() {
+        show(listOf(table(2)))
+
+        compose.onNodeWithText("Déplacer · Table 1").assertIsDisplayed()
+    }
+
+    @Test
     fun backCancelsWithoutPicking() {
-        show(listOf(1))
+        show(listOf(table(1)))
 
         compose.onNodeWithTag("transfer_cancel").performClick()
 
@@ -63,12 +86,20 @@ class TablePickerDialogTest {
     }
 
     @Test
-    fun withNoFreeTableTheDialogSaysSoAndOffersNone() {
-        show(emptyList())
+    fun withOnlyBusyTablesTheDialogSaysNoTableIsFreeAndOffersNoTap() {
+        show(listOf(busyTable))
 
         compose.onNodeWithTag("table_picker").assertIsDisplayed()
+        compose.onNodeWithText("Aucune table libre").assertIsDisplayed()
+        compose.onNodeWithTag("pick_table_4").assertIsNotEnabled()
+    }
+
+    @Test
+    fun withNoOtherTableAtAllTheDialogSaysSo() {
+        show(emptyList())
+
+        compose.onNodeWithText("Aucune table libre").assertIsDisplayed()
         compose.onNodeWithTag("pick_table_1").assertDoesNotExist()
-        compose.onNodeWithTag("transfer_confirm").assertIsNotEnabled()
     }
 
     @Test

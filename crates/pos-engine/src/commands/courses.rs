@@ -355,6 +355,7 @@ pub(crate) async fn print_signed(
             },
             duplicate: false,
             record: Some(record),
+            order: Some(order_id),
         },
     )
     .await;
@@ -578,6 +579,7 @@ pub async fn do_reprint_course_slip(
             release: was_released.then_some(course),
             duplicate: true,
             record: None,
+            order: Some(order_id),
         },
     )
     .await)

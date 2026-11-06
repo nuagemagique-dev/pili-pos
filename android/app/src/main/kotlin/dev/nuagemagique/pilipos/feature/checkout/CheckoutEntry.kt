@@ -21,10 +21,23 @@ internal class CheckoutEntry
         ) {
             builder.composable(
                 route = CheckoutRoutes.CHECKOUT,
-                arguments = listOf(navArgument(CheckoutRoutes.ARG_ORDER_ID) { type = NavType.LongType }),
+                arguments =
+                    listOf(
+                        navArgument(CheckoutRoutes.ARG_ORDER_ID) { type = NavType.LongType },
+                        navArgument(CheckoutRoutes.ARG_ONLINE) {
+                            type = NavType.BoolType
+                            defaultValue = false
+                        },
+                        navArgument(CheckoutRoutes.ARG_CARD) {
+                            type = NavType.BoolType
+                            defaultValue = false
+                        },
+                    ),
             ) { entry ->
                 val orderId = entry.arguments?.getLong(CheckoutRoutes.ARG_ORDER_ID) ?: -1L
-                CheckoutRoute(navigator, orderId)
+                val online = entry.arguments?.getBoolean(CheckoutRoutes.ARG_ONLINE) ?: false
+                val card = entry.arguments?.getBoolean(CheckoutRoutes.ARG_CARD) ?: false
+                CheckoutRoute(navigator, orderId, online, card)
             }
         }
     }

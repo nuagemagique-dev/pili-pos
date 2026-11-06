@@ -15,6 +15,7 @@ import { describeError, errorCode } from '../utils/errorMessages'
 import { formatTimestamp, formatTime } from '../utils/datetime'
 import PinDialog from '../components/PinDialog.vue'
 import PiliLogo from '../components/PiliLogo.vue'
+import { LANGUAGE_CHOICES, type AppLanguage } from '../utils/userLanguage'
 import DeviceStatusSheet from '../components/DeviceStatusSheet.vue'
 import { translateFdmError } from '../utils/fdmMessages'
 import { stateWordKey, type DeviceStatus, type Light } from '../utils/deviceStatus'
@@ -394,10 +395,31 @@ function cancelPin() {
   endShiftMode.value = false
 }
 
-function toggleEndShift() {
-  endShiftMode.value = !endShiftMode.value
+/** What the PIN pad of an employee on shift does: log in, or end the shift (the two buttons). */
+function chooseShiftMode(end: boolean) {
+  if (endShiftMode.value === end) return
+  endShiftMode.value = end
   pin.value = ''
   pinError.value = null
+}
+
+/** The employee on shift is the one the panel is about. */
+const pinOnShift = computed(() => (pinUser.value ? shiftStart(pinUser.value) !== null : false))
+
+/** The title of the pad says which of the two it does (an employee on shift can do either). */
+const pinTitle = computed(() => {
+  if (endShiftMode.value) return t('end_shift')
+  return pinOnShift.value ? t('login_action') : t('pin_code')
+})
+
+/** The language the selected tile follows: their own choice, else the terminal's. */
+function userLanguageOf(user: User): AppLanguage {
+  return pos.userLanguage(user.insz) ?? pos.terminalLanguage
+}
+
+/** Remember the language of the selected user on this terminal (applied when they log in). */
+function chooseUserLanguage(user: User, language: AppLanguage) {
+  pos.setUserLanguage(user.insz, language)
 }
 
 function toggleInsz() {
@@ -568,10 +590,57 @@ async function submitInsz() {
       <!-- PIN pad: logs in on the 4th digit, no button to confirm. -->
       <div v-if="pinMode && pinUser" class="pin-overlay">
         <div class="pin-head">
-          <span class="pin-title">{{ endShiftMode ? t('end_shift') : t('pin_code') }}</span>
+          <span class="pin-title" data-testid="pin-title">{{ pinTitle }}</span>
           <span class="pin-user">{{ pinUser.name }}</span>
         </div>
+        <!-- R5: the selected person picks the language their screens use after the login. -->
+        <div
+          class="user-lang"
+          role="group"
+          :aria-label="t('user_menu_language')"
+          data-testid="login-user-lang"
+        >
+          <button
+            v-for="language in LANGUAGE_CHOICES"
+            :key="language"
+            type="button"
+            class="lang-choice"
+            :class="{ active: userLanguageOf(pinUser) === language }"
+            :aria-pressed="userLanguageOf(pinUser) === language"
+            :data-testid="`login-lang-${language}`"
+            @click="chooseUserLanguage(pinUser, language)"
+          >
+            {{ t(`lang_short_${language}`) }}
+          </button>
+        </div>
         <p v-if="pinError" class="error-msg shake">{{ pinError }}</p>
+
+        <!-- L1: an employee on shift chooses between logging in and ending the shift. -->
+        <div
+          v-if="pinUser.has_pin && pinOnShift"
+          class="shift-choice"
+          role="group"
+          data-testid="shift-choice"
+        >
+          <button
+            type="button"
+            class="choice-btn login-mode-btn"
+            :class="{ active: !endShiftMode }"
+            :aria-pressed="!endShiftMode"
+            @click="chooseShiftMode(false)"
+          >
+            {{ t('login_action') }}
+          </button>
+          <button
+            type="button"
+            class="choice-btn end-shift-btn"
+            :class="{ active: endShiftMode }"
+            :aria-pressed="endShiftMode"
+            @click="chooseShiftMode(true)"
+          >
+            {{ t('end_shift_action') }}
+          </button>
+        </div>
 
         <template v-if="pinUser.has_pin">
           <div class="pin-display">
@@ -608,24 +677,19 @@ async function submitInsz() {
         </template>
         <!-- On shift without a PIN: log in, or end the shift. -->
         <button v-else class="submit-btn" @click="loginWithoutPin(pinUser)">
-          {{ t('login') }}
+          {{ pinOnShift ? t('login_action') : t('login') }}
         </button>
 
         <div class="pin-actions">
           <button class="pin-secondary" @click="cancelPin">{{ t('back') }}</button>
-          <template v-if="shiftStart(pinUser)">
-            <button
-              v-if="pinUser.has_pin"
-              class="pin-secondary end-shift-btn"
-              :class="{ active: endShiftMode }"
-              @click="toggleEndShift"
-            >
-              {{ t('end_shift') }}
-            </button>
-            <button v-else class="pin-secondary end-shift-btn" @click="finishShift(pinUser)">
-              {{ t('end_shift') }}
-            </button>
-          </template>
+          <!-- Without a PIN there is no pad: the end of shift is a button of its own. -->
+          <button
+            v-if="pinOnShift && !pinUser.has_pin"
+            class="pin-secondary end-shift-btn"
+            @click="finishShift(pinUser)"
+          >
+            {{ t('end_shift_action') }}
+          </button>
         </div>
       </div>
     </section>
@@ -1029,11 +1093,51 @@ async function submitInsz() {
 .pin-secondary:active {
   transform: scale(var(--tap-scale));
 }
-.end-shift-btn {
+.pin-actions .end-shift-btn {
   border: 1px solid var(--border);
   background: transparent;
 }
-.end-shift-btn.active {
+
+/* R5: the language of the selected person, FR · 中文 · EN. */
+.user-lang {
+  display: flex;
+  gap: 8px;
+}
+.lang-choice {
+  min-width: 72px;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: var(--font-weight-bold);
+}
+.lang-choice.active {
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+}
+
+/* L1: log in or end the shift, two buttons the width of the pad. */
+.shift-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 400px;
+}
+.choice-btn {
+  height: 56px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: var(--font-weight-bold);
+  transition: transform var(--tap-duration) ease;
+}
+.choice-btn:active {
+  transform: scale(var(--tap-scale));
+}
+.choice-btn.active {
   background: var(--selected-bg);
   color: var(--selected-fg);
 }

@@ -20,8 +20,10 @@ import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
 import dev.nuagemagique.pilipos.ui.state.WebshopOrdersStore
 import io.mockk.coEvery
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
@@ -238,6 +240,7 @@ internal class WebshopRig(
     val toasts: ToastStore,
     val catalog: MessageCatalog,
     val clock: HandClock,
+    val effects: List<WebshopEffect> = emptyList(),
 ) {
     val state get() = model.state.value
 
@@ -308,6 +311,8 @@ internal suspend fun TestScope.startWebshop(
     }
     val entry = TestWebshopEntry(store, session, settings, integrations, errors, toasts, catalog, eft)
     val model = WebshopViewModel(entry, clock)
+    val seen = mutableListOf<WebshopEffect>()
+    CoroutineScope(UnconfinedTestDispatcher(testScheduler)).launch { model.effects.collect { seen += it } }
     runCurrent()
-    return WebshopRig(f, model, store, session, toasts, catalog, clock)
+    return WebshopRig(f, model, store, session, toasts, catalog, clock, seen)
 }

@@ -8,12 +8,12 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.engine.EngineHelpers
 import dev.nuagemagique.pilipos.engine.EngineNatives
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.components.QrMatrices
+import dev.nuagemagique.pilipos.ui.components.fillWithKeypad
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import io.mockk.coEvery
@@ -95,7 +95,7 @@ class HubriseConnectFlowTest {
             compose.onNodeWithTag("qr_canvas").assertIsDisplayed()
             coVerify(exactly = 1) { natives.qrMatrix(FLOW_LINK) }
 
-            compose.onNodeWithTag("hubrise_code").performTextInput("abc123")
+            compose.fillWithKeypad("hubrise_code", "abc123")
             compose.onNodeWithTag("hubrise_confirm").performClick()
             runCurrent()
             compose.waitForIdle()
@@ -136,7 +136,7 @@ class HubriseConnectFlowTest {
             compose.onNodeWithTag("hubrise_connect").performClick()
             runCurrent()
             compose.waitForIdle()
-            compose.onNodeWithTag("hubrise_code").performTextInput("bad")
+            compose.fillWithKeypad("hubrise_code", "bad")
             compose.onNodeWithTag("hubrise_confirm").performClick()
             runCurrent()
             compose.waitForIdle()

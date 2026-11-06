@@ -25,7 +25,7 @@ import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.ScaleWeighInput
 
 /** As wide as the stepper it replaces. */
-private val WeightBadgeWidth = 96.dp
+private val WeightBadgeWidth = 72.dp
 
 /**
  * The weighing in progress (`WeighDialog.vue`): the product, where the weighing stands, and the only way out. The
@@ -85,7 +85,7 @@ internal fun WeightBadge(
             Modifier
                 .width(WeightBadgeWidth)
                 .background(c.bgSurface, RoundedCornerShape(d.radiusMd))
-                .padding(vertical = 12.dp)
+                .padding(vertical = 6.dp)
                 .testTag("cart_line_${id}_weight"),
     )
 }

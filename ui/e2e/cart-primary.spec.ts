@@ -137,9 +137,7 @@ test.describe('C4 contextual primary action', () => {
 })
 
 test.describe('C3 the Plus menu', () => {
-  test('a manager finds Changer de table, Remise and Client parti behind Plus', async ({
-    page,
-  }) => {
+  test('a manager finds Déplacer, Remise and Client parti behind Plus', async ({ page }) => {
     await openTable(page, [SENT])
     // Gone from the footer.
     await expect(page.locator('.cart-footer').getByText('Client parti sans payer')).toHaveCount(0)
@@ -150,7 +148,7 @@ test.describe('C3 the Plus menu', () => {
     expect(box?.height).toBeGreaterThanOrEqual(48)
     await openMore(page)
     const menu = page.getByTestId('cart-more')
-    await expect(menu.getByTestId('transfer-table')).toHaveText('Changer de table')
+    await expect(menu.getByTestId('transfer-table')).toHaveText('Déplacer')
     await expect(menu.getByTestId('discount-open')).toHaveText('Remise')
     await expect(menu.getByTestId('unpaid-close')).toHaveText('Client parti sans payer')
   })
@@ -163,7 +161,7 @@ test.describe('C3 the Plus menu', () => {
     await expect(page.locator('.pin-dialog .hint')).toContainText('sans paiement')
   })
 
-  test('a server only gets Changer de table, like before', async ({ page }) => {
+  test('a server only gets Déplacer, like before', async ({ page }) => {
     await openTable(page, [SENT], { role: 'cashier' })
     await expectMoreRow(page, 'transfer-table')
     await expectNoMoreRow(page, 'discount-open')

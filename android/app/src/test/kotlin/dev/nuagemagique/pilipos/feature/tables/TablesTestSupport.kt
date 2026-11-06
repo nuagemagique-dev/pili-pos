@@ -77,12 +77,24 @@ internal fun table(
         heldCourse = heldCourse,
     )
 
+@Suppress("LongParameterList")
 internal fun takeaway(
     orderId: Long,
     lines: Long = 1,
     totalCents: Long = 0,
     createdAt: String = "2026-10-09 10:05:00",
-): TakeawayInfo = TakeawayInfo(orderId = orderId, lineCount = lines, totalCents = totalCents, createdAt = createdAt)
+    number: Long? = null,
+    customerName: String? = null,
+): TakeawayInfo =
+    TakeawayInfo(
+        orderId = orderId,
+        lineCount = lines,
+        totalCents = totalCents,
+        createdAt = createdAt,
+        number = number,
+        label = number?.let { "E-$it" },
+        customerName = customerName,
+    )
 
 internal fun order(
     id: Long,

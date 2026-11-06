@@ -16,9 +16,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +67,7 @@ private const val MARK_ASPECT = 100f / 140f
 private val DividerHeight = 32.dp
 private val ControlHeight = 48.dp
 private val BadgeHeight = 40.dp
+private val MenuMarkSize = 18.dp
 private val CountBadgeSize = 26.dp
 private val SegmentPadding = 22.dp
 private val AdminPadding = 20.dp
@@ -110,10 +115,30 @@ internal fun AppHeader(
         HeaderDivider()
         lights()
         HeaderDivider()
-        UserButton(state, actions.onOpenPin)
+        UserButton(state, actions)
         when {
-            state.tableNumber != null -> TableBadge(vueText("table") + " " + state.tableNumber, warning = false, tag = "header_table")
-            state.takeawayActive -> TableBadge(vueText("takeaway_badge"), warning = true, tag = "header_takeaway_badge")
+            state.onlineCollect ->
+                TableBadge(vueText("online_orders"), warning = false, tag = "header_online")
+            state.tableNumber != null ->
+                TableBadge(
+                    vueText("table") + " " + state.tableNumber,
+                    warning = false,
+                    tag = "header_table",
+                    onClick = if (state.canMoveTable) actions.onMoveTable else null,
+                )
+            state.takeawayActive -> {
+                TableBadge(
+                    TakeawayText.title(vueText("takeaway_badge"), state.takeawayLabel, state.customerName),
+                    warning = true,
+                    tag = "header_takeaway_badge",
+                )
+                if (state.customerEditable) {
+                    CustomerButton(
+                        text = vueText(if (state.hasCustomer) "takeaway_edit_customer" else "takeaway_add_name"),
+                        onClick = actions.onAddCustomer,
+                    )
+                }
+            }
         }
         Text(
             text = clock,
@@ -196,61 +221,87 @@ private fun LogoLayer(
     )
 }
 
-/** The operator: the name and the role with "PIN"; a tap opens the own-PIN dialog. */
+/**
+ * The operator: the name and the role with a drop-down mark; a tap opens the menu under it (UX audit L1, R5: language,
+ * "Changer mon PIN", "Fin de service", "Verrouiller"). Test tags: `header_user`, `header_user_name`, `header_user_role`.
+ */
 @Composable
 private fun UserButton(
     state: HeaderUiState,
-    onClick: () -> Unit,
+    actions: HeaderActions,
 ) {
     val c = PiliTheme.colors
     val t = PiliTheme.typography
-    val label = vueText("pin_change")
+    val label = vueText("user_menu")
     val source = remember { MutableInteractionSource() }
     val role = state.roleKey?.let { vueText(it) }.orEmpty()
-    Column(
-        modifier =
-            Modifier
-                .height(ControlHeight)
-                .tapScale(source)
-                .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
-                .semantics { contentDescription = label }
-                .padding(horizontal = 10.dp)
-                .testTag("header_user"),
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = state.userName,
-            style = t.body.copy(fontWeight = t.weightBold),
-            color = c.textPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 260.dp).testTag("header_user_name"),
-        )
-        Text(
-            text = role + " · " + uiText(R.string.ui_common_header_pin),
-            style = t.body.copy(fontSize = t.sizeXs),
-            color = c.textSecondary,
-            maxLines = 1,
-            modifier = Modifier.testTag("header_user_role"),
-        )
+    Box {
+        Column(
+            modifier =
+                Modifier
+                    .height(ControlHeight)
+                    .tapScale(source)
+                    .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = actions.onOpenUserMenu)
+                    .semantics { contentDescription = label }
+                    .padding(horizontal = 10.dp)
+                    .testTag("header_user"),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = state.userName,
+                style = t.body.copy(fontWeight = t.weightBold),
+                color = c.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 260.dp).testTag("header_user_name"),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = role,
+                    style = t.body.copy(fontSize = t.sizeXs),
+                    color = c.textSecondary,
+                    maxLines = 1,
+                    modifier = Modifier.testTag("header_user_role"),
+                )
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = c.textSecondary, modifier = Modifier.size(MenuMarkSize))
+            }
+        }
+        if (state.userMenuOpen) UserMenu(state, actions)
     }
 }
 
-/** The current table outlined in the text colour, or the amber takeaway tag: "you are here" (UX guide 2.3). */
+/**
+ * The current table outlined in the text colour, or the amber takeaway tag: "you are here" (UX guide 2.3). With an
+ * [onClick] the table is a button, 48 dp high, that opens the table picker (UX audit C8); the tag [tag] is then on
+ * the button, which merges its text, instead of on the text.
+ */
 @Composable
 private fun TableBadge(
     text: String,
     warning: Boolean,
     tag: String,
+    onClick: (() -> Unit)? = null,
 ) {
     val c = PiliTheme.colors
     val t = PiliTheme.typography
     val tone = if (warning) c.accentWarning else c.textPrimary
+    val source = remember { MutableInteractionSource() }
+    val label = vueText("transfer_table") + " · " + text
     Box(
         modifier =
             Modifier
-                .height(BadgeHeight)
-                .border(1.dp, tone, RoundedCornerShape(PiliTheme.dimens.radiusSm))
+                .height(if (onClick != null) ControlHeight else BadgeHeight)
+                .then(
+                    if (onClick != null) {
+                        Modifier
+                            .tapScale(source)
+                            .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
+                            .semantics { contentDescription = label }
+                            .testTag(tag)
+                    } else {
+                        Modifier
+                    },
+                ).border(1.dp, tone, RoundedCornerShape(PiliTheme.dimens.radiusSm))
                 .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -259,7 +310,7 @@ private fun TableBadge(
             style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightHeavy),
             color = tone,
             maxLines = 1,
-            modifier = Modifier.testTag(tag),
+            modifier = if (onClick != null) Modifier else Modifier.testTag(tag),
         )
     }
 }
@@ -281,7 +332,7 @@ private fun Navigation(
             if (state.hubriseVisible) {
                 NavButton(
                     text = vueText("online_orders"),
-                    active = state.area == HeaderArea.WEBSHOP,
+                    active = state.area == HeaderArea.WEBSHOP || state.onlineCollect,
                     style = NavStyle.Segment,
                     tag = "header_nav_online",
                     onClick = actions.onOnlineOrders,

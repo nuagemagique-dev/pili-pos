@@ -7,6 +7,7 @@ import {
   overrideIPC,
   live,
 } from './fixtures/mock-ipc'
+import { fillWithKeypad } from './fixtures/keypad'
 
 // The bot token lives in a file named by pos.json: the panel only learns
 // whether it is there (`token_configured`). `live` handlers cannot close
@@ -77,7 +78,7 @@ test.describe('Owner alerts panel', () => {
 
     await panel.getByTestId('alerts-lang-zh').click()
     await panel.getByTestId('alerts-kind-printer').click()
-    await panel.getByTestId('alerts-label').fill('Salle 1')
+    await fillWithKeypad(page, panel.getByTestId('alerts-label'), 'Salle 1')
     await panel.getByTestId('alerts-save').click()
 
     await expect(panel.getByTestId('alerts-saved')).toBeVisible()

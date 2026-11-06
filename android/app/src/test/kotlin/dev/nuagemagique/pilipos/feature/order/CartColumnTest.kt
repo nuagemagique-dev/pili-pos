@@ -226,6 +226,23 @@ class CartColumnTest {
         compose.onNodeWithTag("cart_prebill").assertIsNotEnabled()
     }
 
+    // ── Parts already taken (UX audit P4) ─────────────────────────
+
+    @Test
+    fun theCartSaysHowManyPartsAreAlreadyTaken() {
+        show(allSent.copy(heldPartCount = 2))
+
+        compose.onNodeWithTag("cart_held_parts").assertIsDisplayed()
+        compose.onNodeWithTag("cart_held_parts").assertTextEquals("Parts déjà saisies : 2")
+    }
+
+    @Test
+    fun noPartsLineWithoutKeptParts() {
+        show(allSent)
+
+        compose.onNodeWithTag("cart_held_parts").assertDoesNotExist()
+    }
+
     // ── Payment right ─────────────────────────────────────────────
 
     @Test

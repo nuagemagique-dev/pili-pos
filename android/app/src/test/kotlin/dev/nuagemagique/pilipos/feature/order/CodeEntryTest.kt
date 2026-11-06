@@ -2,6 +2,7 @@ package dev.nuagemagique.pilipos.feature.order
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** The grammar of the code pad, the same as `ui/src/utils/codeEntry.test.ts`. */
@@ -139,5 +140,81 @@ class CodeEntryTest {
         assertEquals(CodeMessage.NoResult, previewCode("Z", items))
         assertEquals(CodeMessage.WaitingProduct(5), previewCode("5*", items))
         assertEquals(CodeMessage.Invalid, previewCode("0*", items))
+    }
+
+    // ── Digit after an add = quantity (C7), same cases as ui/src/utils/codeEntry.test.ts ──
+
+    @Test
+    fun theDigitWindowOpensForThreeSecondsOnTheUnitsTheAddGave() {
+        val w = openDigitWindow(lineId = 5, itemId = 1, quantity = 1, now = 1_000)
+
+        assertEquals(DigitWindow(5, 1, 1, "", 1_000 + DIGIT_WINDOW_MS), w)
+        assertEquals(3_000L, DIGIT_WINDOW_MS)
+    }
+
+    @Test
+    fun aDigitSetsHowManyThisAddGives() {
+        val step = stepDigitWindow(openDigitWindow(5, 1, 1, 0), "3", 500) as DigitStep.Set
+
+        assertEquals(3, step.window.quantity)
+        assertEquals("3", step.window.digits)
+        assertEquals(5L, step.window.lineId)
+    }
+
+    @Test
+    fun aSecondDigitExtendsItAndTheDeadlineMoves() {
+        val first = stepDigitWindow(openDigitWindow(5, 1, 1, 0), "1", 2_500) as DigitStep.Set
+        // 3_400 is past the first deadline (3_000): only a deadline that moved still takes the digit.
+        val second = stepDigitWindow(first.window, "2", 3_400) as DigitStep.Set
+
+        assertEquals(12, second.window.quantity)
+        assertEquals(3_400 + DIGIT_WINDOW_MS, second.window.expiresAt)
+    }
+
+    @Test
+    fun aThirdDigitStartsACodeAndNinetyNineIsTheMaximum() {
+        var w = openDigitWindow(5, 1, 1, 0)
+        for (k in listOf("9", "9")) w = (stepDigitWindow(w, k, 100) as DigitStep.Set).window
+
+        assertEquals(99, w.quantity)
+        assertEquals(DigitStep.Pass, stepDigitWindow(w, "1", 200))
+    }
+
+    @Test
+    fun aDigitAfterTheDeadlineStartsACodeFakeClock() {
+        val w = openDigitWindow(5, 1, 1, 0)
+
+        assertTrue(stepDigitWindow(w, "3", DIGIT_WINDOW_MS) is DigitStep.Set)
+        assertEquals(DigitStep.Pass, stepDigitWindow(w, "3", DIGIT_WINDOW_MS + 1))
+    }
+
+    @Test
+    fun aLetterTheMultiplySignOrAFirstZeroAreNotForTheWindow() {
+        val w = openDigitWindow(5, 1, 1, 0)
+
+        listOf("A", "*", "0", "Backspace", "Enter", "OK").forEach {
+            assertEquals(it, DigitStep.Pass, stepDigitWindow(w, it, 10))
+        }
+    }
+
+    @Test
+    fun aZeroAfterAFirstDigitIsPartOfTheQuantity() {
+        val first = stepDigitWindow(openDigitWindow(5, 1, 1, 0), "1", 10) as DigitStep.Set
+
+        assertEquals(10, (stepDigitWindow(first.window, "0", 20) as DigitStep.Set).window.quantity)
+    }
+
+    @Test
+    fun aDigitUnderTheUnitsTheAddGaveLeavesTheLineAsItIsAndALaterDigitStillExtends() {
+        val two = openDigitWindow(5, 1, 2, 0)
+        val first = stepDigitWindow(two, "1", 10) as DigitStep.Set
+
+        assertEquals(2, first.window.quantity)
+        assertEquals(15, (stepDigitWindow(first.window, "5", 20) as DigitStep.Set).window.quantity)
+    }
+
+    @Test
+    fun noWindowTakesNothing() {
+        assertEquals(DigitStep.Pass, stepDigitWindow(null, "3", 0))
     }
 }

@@ -12,9 +12,9 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextReplacement
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
+import dev.nuagemagique.pilipos.ui.components.fillWithNumPad
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -79,8 +79,10 @@ class GiftVoucherSectionTest {
         show(loaded(enabled = true, validity = "24"))
 
         compose.onNodeWithTag("gv_enabled").performClick()
-        compose.onNodeWithTag("gv_validity").performScrollTo().performTextReplacement("18")
-        compose.onNodeWithTag("gv_max").performScrollTo().performTextReplacement("250")
+        compose.onNodeWithTag("gv_validity").performScrollTo()
+        compose.fillWithNumPad("gv_validity", "18")
+        compose.onNodeWithTag("gv_max").performScrollTo()
+        compose.fillWithNumPad("gv_max", "250")
         compose.onNodeWithTag("gv_settings_save").performScrollTo().assertIsEnabled().performClick()
 
         assertTrue("validity:18" in calls && "max:250" in calls)

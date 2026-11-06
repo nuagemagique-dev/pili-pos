@@ -33,9 +33,9 @@ export const settingsMessages: Messages = {
   settings_lang_name_zh: { fr: '中文', en: '中文', zh: '中文' },
   settings_lang_name_en: { fr: 'English', en: 'English', zh: 'English' },
   settings_language_note: {
-    fr: 'Les noms des produits suivent la langue choisie.',
-    en: 'Product names follow the chosen language.',
-    zh: '产品名称跟随所选语言显示。',
+    fr: 'Écran de connexion et personnes sans choix propre.',
+    en: 'Login screen and anyone without their own choice.',
+    zh: '登录界面及未自选语言的员工。',
   },
 
   // Product label panel: what leads a product button and a cart line
@@ -46,6 +46,34 @@ export const settingsMessages: Messages = {
     fr: 'Avec « Code », le code du menu (A2, B14) remplace le nom, affiché en dessous. Un produit sans code garde son nom. Les tickets ne changent pas.',
     en: 'With “Code”, the menu code (A2, B14) replaces the name, shown underneath. A product without a code keeps its name. Tickets do not change.',
     zh: '选择“编号”后，菜单编号（A2、B14）代替名称显示，名称显示在下方。没有编号的商品仍显示名称。票据不变。',
+  },
+
+  // Add beep panel: a short beep when a product is added (per terminal)
+  settings_add_beep: { fr: 'Bip à chaque ajout', en: 'Beep on each add', zh: '每次点菜提示音' },
+  settings_add_beep_on: { fr: 'Oui', en: 'Yes', zh: '开' },
+  settings_add_beep_off: { fr: 'Non', en: 'No', zh: '关' },
+  settings_add_beep_note: {
+    fr: 'Un bip court confirme chaque ajout. Réglage de ce terminal.',
+    en: 'A short beep confirms each add. Setting of this terminal.',
+    zh: '每次添加商品时短促提示音确认。仅本终端。',
+  },
+
+  // First takeaway number (UX audit T2), in the table plan panel
+  settings_takeaway_first: {
+    fr: 'Premier numéro à emporter',
+    en: 'First takeaway number',
+    zh: '外带起始号码',
+  },
+  settings_takeaway_first_edit: { fr: 'Modifier', en: 'Change', zh: '修改' },
+  settings_takeaway_first_saved: {
+    fr: 'Premier numéro à emporter enregistré',
+    en: 'First takeaway number saved',
+    zh: '外带起始号码已保存',
+  },
+  settings_takeaway_first_note: {
+    fr: 'Les commandes à emporter prennent E-61, E-62... et repartent de ce numéro chaque jour. Un changement vaut pour le prochain numéro.',
+    en: 'Takeaways get E-61, E-62... and start again from this number every day. A change applies to the next number.',
+    zh: '外带订单按 E-61、E-62... 编号，每天从此号码重新开始。修改仅对下一个号码生效。',
   },
 
   // Table plan panel (managers): the table numbers the Tables screen shows
@@ -332,6 +360,30 @@ export const settingsMessages: Messages = {
   menu_ed_field_min_select: { fr: 'minimum', en: 'minimum', zh: '最少' },
   menu_ed_field_max_select: { fr: 'maximum', en: 'maximum', zh: '最多' },
   menu_ed_field_group_id: { fr: 'groupe', en: 'group', zh: '选项组' },
+  // Quick notes panel (UX audit C11): the chips of the kitchen note dialog
+  quick_notes_title: { fr: 'Notes rapides', en: 'Quick notes', zh: '快捷备注' },
+  quick_notes_note: {
+    fr: "Ces notes s'affichent sous la saisie de la note de cuisine : un appui les ajoute à la note. Elles ne sont jamais envoyées au FDM.",
+    en: 'These notes show under the kitchen note field: one tap adds one to the note. They are never sent to the FDM.',
+    zh: '这些备注显示在厨房备注输入框下方，点一下即加入备注。它们不会发送给 FDM。',
+  },
+  quick_notes_empty: { fr: 'Aucune note rapide.', en: 'No quick note.', zh: '没有快捷备注。' },
+  quick_notes_add: { fr: 'Ajouter une note', en: 'Add a note', zh: '添加备注' },
+  quick_notes_add_title: { fr: 'Nouvelle note rapide', en: 'New quick note', zh: '新建快捷备注' },
+  quick_notes_full: {
+    fr: '{max} notes au plus.',
+    en: '{max} notes at most.',
+    zh: '最多{max}条。',
+  },
+  quick_notes_up: { fr: 'Monter', en: 'Move up', zh: '上移' },
+  quick_notes_down: { fr: 'Descendre', en: 'Move down', zh: '下移' },
+  quick_notes_remove: { fr: 'Retirer', en: 'Remove', zh: '移除' },
+  quick_notes_save: { fr: 'Enregistrer', en: 'Save', zh: '保存' },
+  quick_notes_saved: {
+    fr: 'Notes rapides enregistrées.',
+    en: 'Quick notes saved.',
+    zh: '快捷备注已保存。',
+  },
   // Courses panel: "Service en plusieurs temps"
   courses_title: { fr: 'Service en plusieurs temps', en: 'Courses', zh: '分道出菜' },
   courses_state_on: { fr: 'Actif', en: 'On', zh: '已开启' },

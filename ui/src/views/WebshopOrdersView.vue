@@ -9,6 +9,9 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { usePosStore } from '../stores/pos'
 import { useWebshopOrdersStore } from '../stores/webshopOrders'
+import { useOrderStore } from '../stores/order'
+import { useToastStore } from '../stores/toast'
+import { describeError } from '../utils/errorMessages'
 import { useI18n } from '../i18n'
 import { formatPrice } from '../utils/format'
 import { formatTime, parseTimestamp } from '../utils/datetime'
@@ -16,6 +19,11 @@ import { useBilingualName } from '../utils/names'
 import AppHeader from '../components/AppHeader.vue'
 import WebshopRejectDialog from '../components/WebshopRejectDialog.vue'
 import { cashierNoteNeeded } from '../utils/webshopRights'
+import {
+  isLateOrder,
+  waitingMinutes as minutesWaited,
+  lateCount as countLate,
+} from '../utils/webshopLate'
 import type { WebshopOrderItem, WebshopOrderSummary } from '../api/ipc'
 // Bundled through this view only, so builds without HubRise ship none
 // of the aggregator logos.
@@ -26,6 +34,7 @@ import takeawayLogo from '../assets/webshop/logos/takeaway.svg'
 const router = useRouter()
 const auth = useAuthStore()
 const store = useWebshopOrdersStore()
+const orderStore = useOrderStore()
 const { t } = useI18n()
 const bilingual = useBilingualName()
 const pos = usePosStore()
@@ -103,23 +112,17 @@ const columns = computed(() => [
 
 // ── Waiting orders ───────────────────────────────────────────────
 // An order nobody answered for 5 minutes raises the alarm: platforms
-// cancel orders left unanswered.
-const ALARM_MINUTES = 5
-
+// cancel orders left unanswered. The rule is shared with the banner of
+// every other screen (`utils/webshopLate.ts`).
 function waitingMinutes(order: WebshopOrderSummary): number | null {
-  const created = parseTimestamp(order.created_at)
-  if (!created) return null
-  return Math.max(0, Math.floor((now.value - created.getTime()) / 60_000))
+  return minutesWaited(order, now.value)
 }
 
 function isLate(order: WebshopOrderSummary): boolean {
-  if (fiscalOf(order) !== 'pending') return false
-  const s = statusOf(order)
-  if (s !== 'new' && s !== 'received') return false
-  return (waitingMinutes(order) ?? 0) >= ALARM_MINUTES
+  return isLateOrder(order, now.value)
 }
 
-const lateCount = computed(() => store.orders.filter(isLate).length)
+const lateCount = computed(() => countLate(store.orders, now.value))
 
 // ── Display helpers ──────────────────────────────────────────────
 function formatEuros(cents: number): string {
@@ -318,7 +321,7 @@ function finishAction(order: WebshopOrderSummary): CardAction {
   if (isUnpaid(order)) {
     return {
       label: t('webshop_action_collect_cash'),
-      run: () => store.collectOrder(order, 'cash'),
+      run: () => collectAtCheckout(order, 'cash'),
       cashier: true,
     }
   }
@@ -453,7 +456,23 @@ async function confirmReject() {
 }
 
 async function handleCollectCard(order: WebshopOrderSummary) {
-  await guarded(order, () => store.collectOrder(order, 'card'))
+  await guarded(order, () => collectAtCheckout(order, 'card'))
+}
+
+/**
+ * "Encaisser espèces" / "Encaisser carte" (UX audit O2): the checkout screen opens for the
+ * order, on the method that was tapped (Exact already typed, the change, the terminal for a card,
+ * split parts), instead of taking the total at once. Its sale is the handover of this order; the
+ * checkout comes back to this board.
+ */
+async function collectAtCheckout(order: WebshopOrderSummary, method: 'cash' | 'card') {
+  try {
+    await orderStore.beginOnlineCollect(order.id, method)
+  } catch (err) {
+    useToastStore().show(describeError(err), 'error', 5000)
+    throw err
+  }
+  await router.push({ name: 'checkout' })
 }
 
 async function handleResync(order: WebshopOrderSummary) {

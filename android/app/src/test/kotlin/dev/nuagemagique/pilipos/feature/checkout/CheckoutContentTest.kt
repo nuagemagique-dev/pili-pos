@@ -340,12 +340,32 @@ class CheckoutContentTest {
     }
 
     @Test
-    fun afterAPartTheClearButtonReplacesTheBackButton() {
+    fun afterAPartTheClearButtonComesBesideTheBackButtonWhichStays() {
         show(base.copy(taken = listOf(TakenPart(PaymentMethod.CARD, 500L, 0L))))
 
-        compose.onNodeWithTag("checkout_back").assertDoesNotExist()
+        compose.onNodeWithTag("checkout_back").assertIsDisplayed()
+        compose.onNodeWithText("Retour à la commande").assertIsDisplayed()
+        compose.onNodeWithText("Annuler les parts").assertIsDisplayed()
         compose.onNodeWithTag("checkout_clear_parts").performClick()
-        assertEquals(listOf("clear"), calls)
+        compose.onNodeWithTag("checkout_back").performClick()
+        assertEquals(listOf("clear", "back"), calls)
+    }
+
+    @Test
+    fun withoutPartsOnlyTheBackButtonShowsAndItReturnsToTheOrder() {
+        show(base)
+
+        compose.onNodeWithTag("checkout_clear_parts").assertDoesNotExist()
+        compose.onNodeWithText("Retour à la commande").assertIsDisplayed()
+        compose.onNodeWithTag("checkout_back").performClick()
+        assertEquals(listOf("back"), calls)
+    }
+
+    @Test
+    fun anOnlineOrderIsTitledEnLigneInsteadOfATable() {
+        show(base.copy(online = true))
+
+        text("checkout_title").assertTextContains("En ligne", substring = true)
     }
 
     @Test

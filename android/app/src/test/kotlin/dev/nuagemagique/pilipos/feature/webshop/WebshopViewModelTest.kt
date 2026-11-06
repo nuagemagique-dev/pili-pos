@@ -27,9 +27,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.Attention
-import uniffi.pos_ffi.HandoverRequest
 import uniffi.pos_ffi.PatchStatusRequest
-import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.RefundRequest
 import uniffi.pos_ffi.SetConfirmedTimeRequest
@@ -245,12 +243,12 @@ class WebshopViewModelTest {
             val f = fixture(webshopOrder(1, hubrise = "awaiting_collection", fiscal = "signed_p", totalCents = 1_850))
             val r = startWebshop(f, context)
             r.login()
-            val request = slot<HandoverRequest>()
-            coEvery { f.engine.webshopHandoverOrder(capture(request)) } returns sale()
 
             tap(r, 1)
 
-            assertEquals(PaymentMethod.CASH, request.captured.payments.single().method)
+            // Cash opens the checkout of the order (UX audit O2): nothing is signed from the board.
+            assertEquals(listOf<WebshopEffect>(WebshopEffect.OpenCheckout(1L, card = false)), r.effects)
+            coVerify(exactly = 0) { f.engine.webshopHandoverOrder(any()) }
         }
 
     @Test
@@ -270,7 +268,8 @@ class WebshopViewModelTest {
             tap(r, 2)
 
             coVerify(exactly = 1) { f.engine.webshopCompleteOrder(1L) }
-            coVerify(exactly = 1) { f.engine.webshopHandoverOrder(any()) }
+            assertEquals(listOf<WebshopEffect>(WebshopEffect.OpenCheckout(2L, card = false)), r.effects)
+            coVerify(exactly = 0) { f.engine.webshopHandoverOrder(any()) }
         }
 
     @Test
@@ -488,6 +487,7 @@ class WebshopViewModelTest {
             coVerify(exactly = 0) { f.engine.webshopRejectOrder(any()) }
             coVerify(exactly = 0) { f.engine.webshopHandoverOrder(any()) }
             coVerify(exactly = 0) { f.engine.webshopCompleteOrder(any()) }
+            assertTrue(r.effects.isEmpty())
 
             // Starting the kitchen is a staff step: it still goes through.
             tap(r, 2)
@@ -613,15 +613,13 @@ class WebshopViewModelTest {
             val f = fixture(webshopOrder(1, hubrise = "awaiting_collection", fiscal = "signed_p", totalCents = 1_850))
             val r = startWebshop(f, context)
             r.login()
-            val request = slot<HandoverRequest>()
-            coEvery { f.engine.webshopHandoverOrder(capture(request)) } returns sale()
 
             r.model.collectCard(r.order(1))
             runCurrent()
 
-            val part = request.captured.payments.single()
-            assertEquals(PaymentMethod.CARD, part.method)
-            assertEquals(1_850L, part.amountCents)
+            // The card button opens the checkout of the order on the card method (UX audit O2).
+            assertEquals(listOf<WebshopEffect>(WebshopEffect.OpenCheckout(1L, card = true)), r.effects)
+            coVerify(exactly = 0) { f.engine.webshopHandoverOrder(any()) }
         }
 
     @Test
@@ -639,6 +637,7 @@ class WebshopViewModelTest {
             r.model.collectCard(r.order(2))
             runCurrent()
 
+            assertTrue(r.effects.isEmpty())
             coVerify(exactly = 0) { f.engine.webshopHandoverOrder(any()) }
         }
 

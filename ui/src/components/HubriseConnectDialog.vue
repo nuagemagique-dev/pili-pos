@@ -5,6 +5,8 @@
 import { ref } from 'vue'
 import type { HubriseAuthorizeLink } from '../api/ipc'
 import { useI18n } from '../i18n'
+import { CODE_SYMBOLS } from '../utils/keypadSymbols'
+import KeypadField from './KeypadField.vue'
 
 defineProps<{
   link: HubriseAuthorizeLink
@@ -44,14 +46,15 @@ function submit() {
         </div>
       </div>
       <div class="code-row">
-        <input
+        <KeypadField
           v-model="code"
           class="field"
+          :title="t('hubrise_open_authorize_url')"
           :placeholder="t('hubrise_code_placeholder')"
-          autocomplete="off"
-          autocapitalize="off"
-          spellcheck="false"
-          @keyup.enter="submit"
+          :max-len="128"
+          :symbols="CODE_SYMBOLS"
+          case-toggle
+          data-testid="hubrise-code"
         />
       </div>
       <p v-if="error" class="error">{{ error }}</p>

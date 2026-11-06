@@ -14,13 +14,24 @@ the store.
 | stores/webshopOrders.ts (list, refetch on events) | ui/state/WebshopOrdersStore.kt (fetchOrders) | `hubrise_list_webshop_orders` |
 | stores/webshopOrders.ts (acceptOrder, rejectOrder) | ui/state/WebshopOrdersStore.kt (acceptOrder, rejectOrder) | `webshop_accept_order` `webshop_reject_order` |
 | stores/webshopOrders.ts (startPreparation, markReady, markOutForDelivery, delayByMinutes) | ui/state/WebshopOrdersStore.kt (patchStatus, delayByMinutes) | `hubrise_patch_order_status` `hubrise_set_confirmed_time` |
-| stores/webshopOrders.ts (collectOrder, completeOrder, refundOrder, closeCancelledOrder) | ui/state/WebshopOrdersStore.kt (collectOrder, completeOrder, refundOrder, closeCancelledOrder) | `webshop_handover_order` `webshop_complete_order` `webshop_refund_order` `webshop_close_cancelled_order` |
+| stores/webshopOrders.ts (completeOrder, refundOrder, closeCancelledOrder) | ui/state/WebshopOrdersStore.kt (completeOrder, refundOrder, closeCancelledOrder; `collectOrder` and `collectOnTerminal` stay as tested API but the board no longer calls them, see the next row) | `webshop_complete_order` `webshop_refund_order` `webshop_close_cancelled_order` |
+| WebshopOrdersView.vue (`collectAtCheckout`: "Encaisser espèces" and "Encaisser carte" of an unpaid order open the checkout for that order, UX audit O2), stores/order.ts (`beginOnlineCollect`, `onlineCollect`) | feature/webshop/WebshopViewModel.kt (`WebshopEffect.OpenCheckout`, `primary`, `collectCard`), WebshopScreen.kt (navigates to `CheckoutRoutes.checkoutOnline`), feature/checkout/CheckoutViewModel.kt (`ensureOrder` -> `OrderStore.beginOnlineCollect`, the handover with the payment parts), ui/state/OrderStore.kt (`beginOnlineCollect`, `onlineCollect`; the online order never becomes the engine's active order) | `webshop_handover_order` |
 | stores/webshopOrders.ts (printKitchen, printCustomer) | ui/state/WebshopOrdersStore.kt (printKitchen, printCustomer) | `print_webshop_kitchen` `print_webshop_customer` |
 | components/OnlineOrdersNavButton.vue | ui/scaffold/AppHeader.kt (online orders button, PendingBadge) over ui/state/WebshopOrdersStore.kt (pendingCount) | - |
 | composables/useOrderChime.ts | ui/feedback/OrderChime.kt (OrderChimeOverlay, OrderChimePlayer) | - |
+| composables/useOrderChime.ts (late repeat), utils/webshopLate.ts (`isLateOrder`, `lateCount`, `lateChimeDue`, `LATE_CHIME_EVERY_MS`), stores/webshopOrders.ts (`lateCount`, `now`): the chime repeats every 2 minutes while an online order waited 5 minutes or more (UX audit O3) | ui/feedback/LateOrders.kt (`lateOrderCount`, `lateChimeDue`, `lateSamples`, `playLateChime`) over feature/webshop/WebshopRules.kt (`isLate`, `ALARM_MINUTES`), OrderChime.kt (OrderChimeOverlay, for a logged-in operator only like the Vue chime) | - |
+| components/LateOnlineBanner.vue ("N commandes en ligne attendent depuis plus de 5 min" + "Voir", under the header of every staff screen but the board, UX audit O3) | ui/components/LateOnlineBanner.kt (tags `late_online_banner`, `late_online_text`, `late_online_view`), drawn by ui/scaffold/PosScaffold.kt; count in ui/scaffold/HeaderViewModel.kt (`HeaderUiState.lateOrders`, `lateNow`) | - |
+| composables/useAddBeep.ts (beep on every add, C9) | ui/feedback/AddBeep.kt (AddBeepOverlay, AddBeepPlayer, `beepSamples`), AddBeepModule.kt | - |
 
 ## Differences
 
+- **Late orders (O3).** Vue ticks a `now` ref every 5 s in the webshop store and derives `lateCount`. Compose keeps
+  the store unchanged and derives the count where it is used (`ui/feedback/LateOrders.kt`: a 5 s clock that runs only
+  while an unanswered order exists, so an idle board runs none). The banner count follows the logged-in operator
+  (HeaderViewModel), the repeating chime is in `OrderChimeOverlay`; both are silent with nobody logged in, as Vue.
+- **Collecting an unpaid order (O2).** The buttons "Encaisser espèces" and "Encaisser carte" no longer sign a sale
+  from the board: they open the checkout of the order (Exact pre-filled, the change, split parts), whose sale is
+  `webshop_handover_order`. `WebshopOrdersStore.collectOrder` and `collectOnTerminal` are kept, tested, and unused.
 - **No redirect on start.** Vue sends the operator to the login screen when there is no user. The Compose screen never
   navigates when it starts (PD205): without a user it shows an empty state (`webshop_empty`), with HubRise switched off
   and no online order to settle it says so (`webshop_off`, a text Vue does not have). A test proves that nothing is

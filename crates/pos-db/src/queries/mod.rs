@@ -24,6 +24,7 @@ pub mod scale;
 pub mod shifts;
 pub mod sold_out;
 pub mod table_plan;
+pub mod takeaway;
 #[cfg(feature = "hubrise")]
 pub mod till_discounts;
 pub mod users;

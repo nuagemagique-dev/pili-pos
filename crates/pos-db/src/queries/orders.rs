@@ -695,6 +695,17 @@ const NEVER_HELD_ANYTHING: &str =
            AND NOT EXISTS (SELECT 1 FROM eft_payments WHERE order_id = orders.id)";
 
 fn void_empty(conn: &Connection, order_id: Option<i64>) -> Result<usize, rusqlite::Error> {
+    // A takeaway number is not spent on an order that held nothing: its
+    // tag goes first, while the order still reads as open.
+    conn.execute(
+        &format!(
+            "DELETE FROM takeaway_tags WHERE order_id IN (
+                 SELECT id FROM orders
+                 WHERE (?1 IS NULL OR id = ?1) AND status = 'open' AND hubrise_order_id IS NULL
+                   AND {NEVER_HELD_ANYTHING})"
+        ),
+        params![order_id],
+    )?;
     conn.execute(
         &format!(
             "UPDATE orders SET status = 'voided', closed_at = datetime('now')

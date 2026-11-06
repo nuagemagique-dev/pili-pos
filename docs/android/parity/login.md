@@ -29,6 +29,12 @@ checks, end of shift); the screen only calls it through the shared stores and th
   directly too (`utils/postLogin.ts`), without drawing the order screen only to bounce; the one exception is an order
   the Vue order store still holds (a resumed order), which keeps the `order` route. The login screen is removed from
   the Compose back stack, so Back does not return to it.
+- **Back to the table after an idle lock (UX audit T6).** When the engine locks the till for inactivity, the operator
+  who was logged in and the open order on screen are remembered (`SessionStore.takeIdleLockedUser`,
+  `OrderStore.takeLockedOrderId`; Vue: `auth.rememberLockedOrder` / `takeLockedOrder`, `utils/postLogin.ts`). The same
+  operator logging back in gets the order back (`engine.getOrder`, status open, then `OrderStore.loadOrder`; effect
+  `GoToOrder`, which goes to Tables first so Back returns there); another operator, a manual lock, a closed, voided or
+  unreadable order and any later login go to Tables. Nothing new is asked of the engine.
 - **Idle lock line (UX audit L4).** After the engine's idle lock the login screen shows "Caisse verrouillée après
   N min d'inactivité" above the tiles (`idle-notice` / tag `idle_locked_notice`, amber) until someone logs in. N comes
   from the `idleAfterMs` of the `session-locked` payload (`SessionStore.idleLockedAfterMin`, `idleLockedMinutes`:
@@ -47,9 +53,18 @@ checks, end of shift); the screen only calls it through the shared stores and th
   store's error toast, as in Vue; an engine that is not running does not.
 - **Software version (art. 47).** The version of `PosSettings.posSwVersion` is shown under the checks
   (`login_version`), as in Vue.
-- **Language choice.** Three buttons (Francais, English, Chinese) choose the language through
-  `PosSettingsStore.setLanguage` and are kept on the device. Vue has no such control on this screen (its language
-  lives in Settings); the till needs one before the first login, so it is added here.
+- **Language choice.** The screen is in the terminal language (Settings, "Langue par défaut du terminal"). Three
+  buttons (Francais, English, Chinese) in the footer choose that terminal language through
+  `PosSettingsStore.setLanguage`; Vue has no such footer control (its terminal language lives in Settings), the till
+  needs one before the first login, so it is kept here.
+- **Language per user (UX audit R5).** When a tile is selected, a "FR / 中文 / EN" choice (tags
+  `login_user_lang_<code>`; Vue `login-user-lang`) sets that person's language
+  (`LoginViewModel.setPanelUserLanguage`, `PosSettingsStore.setUserLanguage`, kept per INSZ on the terminal in the
+  preferences / localStorage). It is applied at login (`UserLanguageBinder`; Vue `pos.applyUser`) and the header user
+  menu offers the same choice. Tickets and signed texts do not follow it.
+- **Login and end of shift (UX audit L1).** An operator on shift sees two buttons once selected, "Se connecter" and
+  "Terminer le service" (tags `login_mode_login`, `login_end_shift`; Vue `shift-choice`), instead of the small toggle;
+  the pad title says which one runs (`pinTitleKey`). The badge hint and the S event (M141) are unchanged.
 - **PIN panel layout.** The PIN pad is the shared `PinPad` (96 x 72 dp keys, the hint above the dots) instead of the
   128 x 88 px keys of the Vue panel. The end-shift button sits under the pad instead of beside "back", because the
   pad carries its own back button. An operator on shift without a PIN gets login, back and end-shift buttons, as in

@@ -31,6 +31,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.feature.checkout.CheckoutRoutes
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.di.rememberEntryPoint
 import dev.nuagemagique.pilipos.ui.eft.EftOverlayHost
@@ -75,6 +76,13 @@ internal fun WebshopRoute(navigator: AppNavigator) {
     val model = viewModel { WebshopViewModel(entry) }
     val state by model.state.collectAsState()
     LaunchedEffect(model) { model.runClock() }
+    LaunchedEffect(model) {
+        model.effects.collect {
+            when (it) {
+                is WebshopEffect.OpenCheckout -> navigator.navigate(CheckoutRoutes.checkoutOnline(it.orderId, it.card))
+            }
+        }
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.refresh() }
     val callbacks =
         WebshopCallbacks(

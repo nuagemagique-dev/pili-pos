@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -42,7 +41,6 @@ private val DialogWidth = 480.dp
 private val ListWidth = 620.dp
 private val ListMaxHeight = 560.dp
 private val ChoiceMinHeight = 64.dp
-private val BarButtonMinHeight = 56.dp
 
 /** The end of a business day ("2026-10-18T04:00:00+02:00") as "18/10 04:00" in Brussels time (`endOfDayLabel`). */
 internal fun endOfDayLabel(until: String): String = PosDateTime.formatTimestamp(until, PosDateTime::formatDayTime)
@@ -51,82 +49,6 @@ internal fun endOfDayLabel(until: String): String = PosDateTime.formatTimestamp(
 @Composable
 private fun statusText(until: String?): String =
     if (until != null) vueText("soldout_status_day", "time" to endOfDayLabel(until)) else vueText("soldout_status_reenabled")
-
-/**
- * The bar above the product grid (cashier and manager): the "Épuisé" mode button with its hint while the mode is on,
- * and "Produits épuisés (n)" on the right. Test tags: `soldout_mode`, `soldout_hint`, `soldout_list_button`.
- */
-@Composable
-internal fun SoldOutBar(
-    mode: Boolean,
-    count: Int,
-    onMode: () -> Unit,
-    onList: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val c = PiliTheme.colors
-    val d = PiliTheme.dimens
-    val t = PiliTheme.typography
-    Row(
-        modifier.fillMaxWidth().padding(horizontal = d.spaceMd, vertical = d.spaceSm),
-        horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BarButton(
-            text = vueText("soldout_mode"),
-            active = mode,
-            onClick = onMode,
-            modifier = Modifier.testTag("soldout_mode"),
-        )
-        if (mode) {
-            Text(
-                text = vueText("soldout_mode_hint"),
-                style = t.body.copy(fontSize = t.sizeMd),
-                color = c.textSecondary,
-                modifier = Modifier.testTag("soldout_hint"),
-            )
-        }
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            BarButton(
-                text = vueText("soldout_list_button", "n" to count),
-                active = false,
-                onClick = onList,
-                modifier = Modifier.testTag("soldout_list_button"),
-            )
-        }
-    }
-}
-
-@Composable
-private fun BarButton(
-    text: String,
-    active: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val c = PiliTheme.colors
-    val d = PiliTheme.dimens
-    val t = PiliTheme.typography
-    val source = remember { MutableInteractionSource() }
-    Box(
-        modifier =
-            modifier
-                .defaultMinSize(minHeight = BarButtonMinHeight)
-                .tapScale(source)
-                .clip(RoundedCornerShape(d.radiusMd))
-                .background(if (active) c.accentWarning else c.bgSecondary)
-                .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
-                .semantics { selected = active }
-                .padding(horizontal = d.spaceMd),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = t.body.copy(fontSize = t.sizeMd, fontWeight = t.weightBold),
-            color = if (active) c.textOnAccent else c.textPrimary,
-        )
-    }
-}
 
 /**
  * The availability of one product (`SoldOutDialog.vue`): sold out until the end of the business day, sold out until

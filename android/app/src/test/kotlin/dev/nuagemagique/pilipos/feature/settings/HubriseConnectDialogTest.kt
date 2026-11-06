@@ -10,12 +10,12 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import dev.nuagemagique.pilipos.engine.EngineHelpers
 import dev.nuagemagique.pilipos.engine.EngineNatives
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.components.QrMatrices
+import dev.nuagemagique.pilipos.ui.components.fillWithKeypad
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import io.mockk.coEvery
@@ -82,25 +82,28 @@ class HubriseConnectDialogTest {
         show()
 
         compose.onNodeWithTag("hubrise_confirm").assertIsNotEnabled()
-        compose.onNodeWithTag("hubrise_code").performTextInput("   ")
+        // The keypad has no space key for a code: opening it and leaving changes nothing.
+        compose.onNodeWithTag("hubrise_code").performClick()
+        compose.onNodeWithTag("keypad_space").assertDoesNotExist()
+        compose.onNodeWithTag("keypad_cancel").performClick()
         compose.onNodeWithTag("hubrise_confirm").assertIsNotEnabled()
     }
 
     @Test
-    fun theTypedCodeIsSubmittedTrimmed() {
+    fun theTypedCodeIsSubmittedAsTyped() {
         show()
 
-        compose.onNodeWithTag("hubrise_code").performTextInput("  abc123 ")
+        compose.fillWithKeypad("hubrise_code", "aB-c123")
         compose.onNodeWithTag("hubrise_confirm").assertIsEnabled().performClick()
 
-        assertEquals(listOf("submit:abc123"), calls)
+        assertEquals(listOf("submit:aB-c123"), calls)
     }
 
     @Test
     fun confirmIsOffWhileAStepRuns() {
         show(loading = true)
 
-        compose.onNodeWithTag("hubrise_code").performTextInput("abc")
+        compose.fillWithKeypad("hubrise_code", "abc")
         compose.onNodeWithTag("hubrise_confirm").assertIsNotEnabled()
     }
 

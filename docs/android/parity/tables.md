@@ -13,17 +13,20 @@ through the shared stores and the gateway.
 | --- | --- | --- |
 | ui/src/views/TablesView.vue | feature/tables/TablesScreen.kt (TablesRoute, TablesContent), TablesViewModel.kt, TablesEntryPoint.kt | `list_tables` `list_open_takeaways` |
 | TablesView.vue (selectTable, resumeTakeaway, newTakeaway through the order store) | feature/tables/TablesViewModel.kt over ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` |
-| TablesView.vue (move mode: toggleMove, pick source then free target, confirmMove) | feature/tables/TablesScreen.kt (MoveBar, MoveConfirmation), TablesViewModel.kt (MoveState, toggleMove, confirmMove) over ui/state/OrderStore.kt (transferOrder) | `transfer_table` `list_tables` |
+| TablesView.vue ("Déplacer" mode, UX audit C8: toggleMove, pick the occupied source, a tap on a free table moves at once with the "Annuler" toast, no confirmation dialog) | feature/tables/TablesScreen.kt (MoveBar), TablesViewModel.kt (MoveState, toggleMove, moveTo; reads the plan again on `OrderStore.tableMoves`) over ui/state/TableMoves.kt (move, undo) and OrderStore.kt (transferOrder, tableMoves) | `transfer_table` `list_tables` |
+| components/AppHeader.vue + TableMover.vue (the table chip is a 48 px button on the order and checkout screens, opens the table picker, one tap moves the order) | ui/scaffold/AppHeader.kt (TableBadge `header_table`), HeaderViewModel.kt (openTablePicker, pickTable, closeTablePicker), PosScaffold.kt (TablePickerDialog), HeaderActions.kt over ui/state/TableMoves.kt | `transfer_table` `list_tables` |
+| TablesView.vue (the number of the day and the customer name on the takeaway cards, UX audit T2: `takeaway-number`) | feature/tables/TablesScreen.kt (TakeawayCard, tag `takeaway_<orderId>_number`) | `list_open_takeaways` |
+| components/AppHeader.vue + TakeawayCustomer.vue + PhoneDialog.vue (the title "À emporter E-61 · Dupont", the "Ajouter un nom" button, the name keypad then the phone pad, UX audit T2) and utils/takeaway.ts | ui/scaffold/AppHeader.kt (takeaway badge `header_takeaway_badge`), TakeawayCustomer.kt (CustomerButton `header_takeaway_customer`, CustomerNameDialog on the system keyboard until the in-app keyboard is ported, CustomerPhoneDialog on NumPad, TakeawayText, PhoneEntry), HeaderViewModel.kt (customer steps), PosScaffold.kt over ui/state/OrderStore.kt (`takeawayTag`, `setTakeawayCustomer`) | `get_takeaway_tag` `set_takeaway_customer` |
 | TablesView.vue (`held-course-N` tag, "Suite : Plats") | feature/tables/TablesScreen.kt (TableTop, tag `table_N_held`) | `list_tables` |
-| components/AppHeader.vue (own PIN dialog, tap on the user) | ui/scaffold/HeaderViewModel.kt (submitPin), PosScaffold.kt (OwnPinDialog), AppHeader.kt | `set_pin` |
+| components/AppHeader.vue + UserMenu.vue (a tap on the user opens a menu: own language, "Changer mon PIN" with the own PIN dialog, "Fin de service" armed for 5 s, "Verrouiller", UX audit L1 and R5) | ui/scaffold/HeaderViewModel.kt (openUserMenu, pickLanguage, tapEndShift, endShift, submitPin), UserMenu.kt, PosScaffold.kt (OwnPinDialog), AppHeader.kt | `set_pin` `work_out` `lock_session` |
 | components/AppHeader.vue (lock, new takeaway, workspaces) and the leave guard of router/index.ts | ui/scaffold/HeaderViewModel.kt, HeaderActions.kt over ui/state/SessionStore.kt and OrderStore.leaveIfActive | `lock_session` `leave_order` |
 | components/StatusLights.vue (each light a button, 48 dp hit area) | ui/scaffold/StatusLights.kt (StatusLights, DeviceLights, GatewayLightProbe) | `check_printer` `check_kitchen_printer` `hubrise_status` |
 | components/DeviceStatusSheet.vue (state in words, reason, last check, "Réessayer maintenant") and utils/deviceStatus.ts | ui/scaffold/DeviceStatusSheet.kt (DeviceStatusSheet, DeviceStatusSheetHost, DeviceSheetState, DeviceStatus), drawn by PosScaffold.kt in the `deviceSheet` slot | `check_printer` `check_kitchen_printer` `check_payment_terminal` `get_scale_status` `hubrise_status` `fdm_check_now` |
-| components/OnlineOrdersNavButton.vue | ui/scaffold/AppHeader.kt (online orders button, PendingBadge) over ui/state/WebshopOrdersStore.kt | - |
+| components/OnlineOrdersNavButton.vue, components/AppHeader.vue (`collectingOnline`: the chip "En ligne" replaces the table or takeaway chip and the online button is active while an online order is collected at the checkout, UX audit O2) | ui/scaffold/AppHeader.kt (online orders button, PendingBadge, chip `header_online`) over ui/state/WebshopOrdersStore.kt and OrderStore.kt (`onlineCollect`), HeaderViewModel.kt (`HeaderUiState.onlineCollect`) | - |
 | components/PiliLogo.vue | ui/scaffold/AppHeader.kt (PiliLogo) and res/drawable/ui_logo.xml, ui_logo_bolt.xml, ui_logo_tones.xml | - |
 | components/FdmAlerts.vue (blocking part, `SALES_ROUTES`; the veil starts under the 64 px header) | ui/scaffold/PosScaffold.kt (FdmBlockingVeil over the content of the sales areas, below the header) | - |
 | components/IdleLockBanner.vue, stores/auth.ts (`idleLockAt`, `listenIdleLockWarning`) | ui/components/IdleLockBanner.kt (IdleLockBanner, IdleLockBannerContent), drawn by ui/scaffold/PosScaffold.kt under the header; state in ui/state/SessionStore.kt (`idleWarning`) and ui/scaffold/HeaderViewModel.kt | event `idle-lock-warning` |
-| components/ToastStack.vue, stores/toast.ts | ui/feedback/ToastOverlay.kt (ToastStack, ToastOverlay), ToastStore.kt | - |
+| components/ToastStack.vue, stores/toast.ts (`showWithAction`, `runAction`: the "Annuler" button of a toast) | ui/feedback/ToastOverlay.kt (ToastStack, ToastOverlay, `toast_action_<id>`), ToastStore.kt (ToastAction, showWithAction, runAction) | - |
 
 ## Differences
 
@@ -38,6 +41,11 @@ through the shared stores and the gateway.
   training banner under it and the content; the FDM blocking veil covers the content of Tables, Order and Checkout
   only (PD209), so Reports, Settings and the online orders board stay reachable. The dialogs of a screen go in the
   `overlay` slot above the header (PD214).
+- **End of shift from the header (UX audit L1).** The second tap on "Fin de service" within 5 s registers the open
+  order (`leaveIfActive(NAVIGATE)`, a refusal is toasted and does not block), signs the operator's own clock-out with
+  the existing `work_out` command (the same S event as `end_shift`, M141; the engine asks no PIN there), locks the
+  session and returns to the login screen. A failed clock-out raises `presence_failed` and the till still locks. No new
+  command: `end_shift` stays the login-screen path, which re-checks the PIN.
 - **Leave guard in the header model.** The guard of `router/index.ts` runs in `HeaderViewModel`: leaving the order or
   checkout screen first calls `OrderStore.leaveIfActive(NAVIGATE)`; a refusal shows `order_register_failed : <error>`
   for 6 s and the operator stays (PD210). The lock bypasses the guard (the engine registers the order itself).

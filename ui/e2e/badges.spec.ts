@@ -61,6 +61,22 @@ async function open(
     (window as any).__ipcCalls.some((c: any) => c.cmd === 'get_badge_settings'),
   )
   await page.waitForTimeout(150)
+  await addProbeField(page)
+}
+
+/**
+ * The till has no native text field any more (UX audit C13: every field opens an on-screen keypad), but the
+ * detector must still leave a focused editable element alone. A probe input stands for the field of a USB
+ * keyboard, outside the Vue tree so a re-render never removes it.
+ */
+async function addProbeField(page: Page) {
+  await page.evaluate(() => {
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.placeholder = 'Nom'
+    input.setAttribute('data-testid', 'badge-probe-field')
+    document.body.appendChild(input)
+  })
 }
 
 /** The badge panel is folded by default: unfold it. */

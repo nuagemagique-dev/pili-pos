@@ -6,11 +6,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.intl.LocaleList
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
+import dev.nuagemagique.pilipos.ui.components.ProvideKeypadHost
 import dev.nuagemagique.pilipos.ui.di.UiCommonEntryPoint
 import dev.nuagemagique.pilipos.ui.di.rememberEntryPoint
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -51,7 +53,8 @@ fun ProvideUiText(
     CompositionLocalProvider(LocalUiLanguage provides language, LocalMessageCatalog provides catalog) {
         // ProvideTextStyle merges into the style already in scope.
         ProvideTextStyle(TextStyle(localeList = LocaleList(language.languageTag))) {
-            content()
+            // The keypads of the fields (C13 / R6) are drawn here, in the screen's theme and language.
+            ProvideKeypadHost(content)
         }
     }
 }
@@ -63,6 +66,7 @@ fun ProvideUiText(
 @Composable
 fun PosUiRoot(content: @Composable () -> Unit) {
     val entry = rememberEntryPoint<UiCommonEntryPoint>()
+    remember(entry) { entry.userLanguage() }
     val settings = entry.settings()
     val language by settings.language.collectAsState()
     val training by settings.trainingMode.collectAsState()

@@ -1,12 +1,15 @@
 package dev.nuagemagique.pilipos.ui.scaffold
 
 import android.content.Context
+import androidx.lifecycle.viewModelScope
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.feature.order.OrderRoutes
+import dev.nuagemagique.pilipos.feature.order.cartLine
 import dev.nuagemagique.pilipos.feature.reports.ReportsRoutes
 import dev.nuagemagique.pilipos.feature.settings.SettingsRoutes
 import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
+import dev.nuagemagique.pilipos.feature.tables.table
 import dev.nuagemagique.pilipos.feature.webshop.WebshopRoutes
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
@@ -17,6 +20,7 @@ import io.mockk.coVerifyOrder
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -39,6 +43,8 @@ import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SlipOutcome
+import uniffi.pos_ffi.SocialResult
+import uniffi.pos_ffi.TakeawayTag
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Suppress("LargeClass", "TooManyFunctions")
@@ -157,6 +163,44 @@ class HeaderViewModelTest {
 
             assertTrue(r.state.hubriseVisible)
             assertEquals(0, r.state.pendingOrders)
+        }
+
+    @Test
+    fun theLateOnlineOrdersAreCountedForALoggedInOperatorOnly() =
+        runTest {
+            val at = java.time.Instant.parse("2026-10-09T10:00:00Z")
+            val f = fixture(hubrise = true)
+            coEvery { f.engine.hubriseListWebshopOrders() } returns
+                listOf(lateWebshopOrder(1, 6, at), lateWebshopOrder(2, 4, at), lateWebshopOrder(3, 30, at, hubriseStatus = "accepted"))
+            val r = start(f, HeaderArea.TABLES)
+            r.model.lateNow = { at }
+            runCurrent()
+            assertEquals(0, r.state.lateOrders)
+
+            r.login(admin)
+            runCurrent()
+            assertEquals(1, r.state.lateOrders)
+            // The clock of the late orders never stops by itself: end it, or the test would wait for it forever.
+            r.model.viewModelScope.cancel()
+        }
+
+    @Test
+    fun anOnlineOrderAtTheCheckoutShowsNeitherTableNorTakeaway() =
+        runTest {
+            val f = fixture(hubrise = true)
+            val r = start(f, HeaderArea.CHECKOUT)
+            r.login(admin)
+            coEvery { f.engine.getOrder(7) } returns order(7, table = 12)
+            runCurrent()
+
+            r.order.beginOnlineCollect(7, uniffi.pos_ffi.PaymentMethod.CASH)
+            runCurrent()
+
+            assertTrue(r.state.onlineCollect)
+            assertNull(r.state.tableNumber)
+            assertFalse(r.state.dineInOrder)
+            assertFalse(r.state.tablesActive)
+            assertFalse(r.state.canMoveTable)
         }
 
     // ── Workspaces and the leave guard ────────────────────────────
@@ -408,6 +452,122 @@ class HeaderViewModelTest {
             assertEquals(emptyList<HeaderEffect>(), r.effects)
         }
 
+    // ── Moving the table (UX audit C8) ────────────────────────────
+
+    private val movedTo9 =
+        uniffi.pos_ffi.TableTransferResult(7L, 12, 9, SlipOutcome.PRINTED, SlipOutcome.PRINTED)
+
+    private fun cartLine7() = listOf(cartLine(1, 10, "Maki saumon"))
+
+    @Test
+    fun theTableChipIsMovableOnlyForAnOpenDineInOrderWithLines() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            r.openOrder(order(7, table = 12))
+            runCurrent()
+            assertFalse("no line yet", r.state.canMoveTable)
+
+            coEvery { f.engine.listCartLines(7L) } returns cartLine7()
+            r.order.loadOrder(7L)
+            runCurrent()
+            assertTrue(r.state.canMoveTable)
+
+            r.openOrder(order(8))
+            runCurrent()
+            assertFalse("a takeaway has no table to move", r.state.canMoveTable)
+        }
+
+    @Test
+    fun openingThePickerListsTheOtherTablesAndTappingAFreeOneMovesTheOrderAtOnce() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.listCartLines(7L) } returns cartLine7()
+            r.openOrder(order(7, table = 12))
+            val busy = table(4, orderId = 44L, lines = 1, totalCents = 900)
+            val free12 = table(12)
+            val free9 = table(9)
+            coEvery { f.engine.listTables() } returns listOf(busy, free12, free9)
+            coEvery { f.engine.transferTable(7L, 9) } returns movedTo9
+            runCurrent()
+
+            r.model.openTablePicker()
+            runCurrent()
+            assertEquals(listOf(busy, free9), r.state.tablePicker)
+
+            r.model.pickTable(9)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.transferTable(7L, 9) }
+            assertNull(r.state.tablePicker)
+            assertEquals("Table 12 déplacée en 9", r.lastToast().message)
+            assertEquals("Annuler", r.lastToast().action?.label)
+        }
+
+    @Test
+    fun closingThePickerMovesNothingAndARefusedMoveShowsTheError() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.listCartLines(7L) } returns cartLine7()
+            r.openOrder(order(7, table = 12))
+            coEvery { f.engine.listTables() } returns listOf(table(9))
+            runCurrent()
+            r.model.openTablePicker()
+            runCurrent()
+
+            r.model.closeTablePicker()
+            assertNull(r.state.tablePicker)
+            coVerify(exactly = 0) { f.engine.transferTable(any(), any()) }
+
+            coEvery { f.engine.transferTable(any(), any()) } throws PosException.Coded("table_transfer_target_busy", emptyMap())
+            r.model.openTablePicker()
+            runCurrent()
+            r.model.pickTable(9)
+            runCurrent()
+
+            assertEquals(ToastVariant.Error, r.lastToast().variant)
+            assertNull(r.lastToast().action)
+        }
+
+    @Test
+    fun aRefusalToReadThePlanShowsTheErrorAndOpensNoPicker() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.listCartLines(7L) } returns cartLine7()
+            r.openOrder(order(7, table = 12))
+            coEvery { f.engine.listTables() } throws refusal
+            runCurrent()
+
+            r.model.openTablePicker()
+            runCurrent()
+
+            assertNull(r.state.tablePicker)
+            assertEquals(ToastVariant.Error, r.lastToast().variant)
+        }
+
+    @Test
+    fun thePickerDoesNotOpenForAnOrderWithoutLines() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            r.openOrder(order(7, table = 12))
+            runCurrent()
+
+            r.model.openTablePicker()
+            runCurrent()
+
+            assertNull(r.state.tablePicker)
+            coVerify(exactly = 0) { f.engine.listTables() }
+        }
+
     // ── Lock ──────────────────────────────────────────────────────
 
     @Test
@@ -484,6 +644,226 @@ class HeaderViewModelTest {
             assertEquals(listOf<HeaderEffect>(HeaderEffect.ToLogin), r.effects)
         }
 
+    // ── User menu (UX audit L1, R5) ───────────────────────────────
+
+    @Test
+    fun theUserMenuOpensAndClosesOnlyWithAnOperator() =
+        runTest {
+            val r = start(fixture(), HeaderArea.TABLES)
+
+            r.model.openUserMenu()
+            runCurrent()
+            assertFalse(r.state.userMenuOpen)
+
+            r.login(admin)
+            r.model.openUserMenu()
+            runCurrent()
+            assertTrue(r.state.userMenuOpen)
+
+            r.model.closeUserMenu()
+            runCurrent()
+            assertFalse(r.state.userMenuOpen)
+        }
+
+    @Test
+    fun changeMyPinClosesTheMenuAndOpensTheOwnPinDialog() =
+        runTest {
+            val r = start(fixture(), HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            runCurrent()
+
+            r.model.openPin()
+            runCurrent()
+
+            assertFalse(r.state.userMenuOpen)
+            assertTrue(r.state.pinOpen)
+        }
+
+    @Test
+    fun lockFromTheMenuClosesItAndLocks() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            runCurrent()
+
+            r.model.lock()
+            runCurrent()
+
+            assertFalse(r.state.userMenuOpen)
+            coVerify(exactly = 1) { f.engine.lockSession() }
+            assertEquals(listOf<HeaderEffect>(HeaderEffect.ToLogin), r.effects)
+        }
+
+    @Test
+    fun theFirstTapOnEndOfShiftOnlyArmsItAndSignsNothing() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            runCurrent()
+
+            r.model.tapEndShift()
+            runCurrent()
+
+            assertTrue(r.state.endShiftArmed)
+            assertTrue(r.state.userMenuOpen)
+            coVerify(exactly = 0) { f.engine.workOut(any()) }
+            coVerify(exactly = 0) { f.engine.lockSession() }
+            assertEquals(emptyList<HeaderEffect>(), r.effects)
+        }
+
+    @Test
+    fun theArmedEndOfShiftIsBackToItsFirstLabelAfterFiveSeconds() =
+        runTest {
+            val r = start(fixture(), HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            runCurrent()
+            assertTrue(r.state.endShiftArmed)
+
+            testScheduler.advanceTimeBy(END_SHIFT_ARM_MS - 1)
+            runCurrent()
+            assertTrue(r.state.endShiftArmed)
+
+            testScheduler.advanceTimeBy(2)
+            runCurrent()
+            assertFalse(r.state.endShiftArmed)
+        }
+
+    @Test
+    fun closingTheMenuDisarmsTheEndOfShift() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            runCurrent()
+
+            r.model.closeUserMenu()
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            runCurrent()
+
+            // The tap after reopening only armed it again.
+            assertTrue(r.state.endShiftArmed)
+            coVerify(exactly = 0) { f.engine.workOut(any()) }
+        }
+
+    @Test
+    fun theSecondTapSignsTheClockOutOfTheOperatorWithoutAPinThenLocksAndGoesToLogin() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.workOut(ADMIN_INSZ) } returns SocialResult(true, null)
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            runCurrent()
+
+            r.model.tapEndShift()
+            runCurrent()
+
+            coVerifyOrder {
+                f.engine.workOut(ADMIN_INSZ)
+                f.engine.lockSession()
+            }
+            coVerify(exactly = 0) { f.engine.endShift(any(), any()) }
+            assertFalse(r.state.userMenuOpen)
+            assertFalse(r.state.endShiftArmed)
+            assertNull(r.session.currentUser.value)
+            assertEquals(listOf<HeaderEffect>(HeaderEffect.ToLogin), r.effects)
+            assertEquals(ToastVariant.Success, r.lastToast().variant)
+            assertEquals(r.text("shift_ended", mapOf("name" to "Alice")), r.lastToast().message)
+        }
+
+    @Test
+    fun theOrderInHandIsRegisteredBeforeTheClockOut() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.workOut(ADMIN_INSZ) } returns SocialResult(true, null)
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            r.openOrder(order(7, table = 3))
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            r.model.tapEndShift()
+            runCurrent()
+
+            coVerifyOrder {
+                f.engine.leaveOrder(7, LeaveReason.NAVIGATE)
+                f.engine.workOut(ADMIN_INSZ)
+                f.engine.lockSession()
+            }
+            assertNull(r.order.current.value)
+        }
+
+    @Test
+    fun anUnregisteredClockOutIsShownAndTheTillStillLocks() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.workOut(ADMIN_INSZ) } returns SocialResult(false, "FDM_ANSWER_PENDING")
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            r.model.tapEndShift()
+            runCurrent()
+
+            val toast = r.lastToast()
+            assertEquals(ToastVariant.Error, toast.variant)
+            assertTrue(toast.message.startsWith(r.text("presence_failed") + " : "))
+            coVerify(exactly = 1) { f.engine.lockSession() }
+            assertEquals(listOf<HeaderEffect>(HeaderEffect.ToLogin), r.effects)
+        }
+
+    @Test
+    fun aRefusedClockOutIsShownAndTheTillStillLocks() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.workOut(ADMIN_INSZ) } throws refusal
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            r.model.openUserMenu()
+            r.model.tapEndShift()
+            r.model.tapEndShift()
+            runCurrent()
+
+            assertEquals(ToastVariant.Error, r.lastToast().variant)
+            assertEquals(
+                r.text("presence_failed") + " : " + r.errorTexts.describe(refusal, AppLanguage.FR),
+                r.lastToast().message,
+            )
+            coVerify(exactly = 1) { f.engine.lockSession() }
+            assertEquals(listOf<HeaderEffect>(HeaderEffect.ToLogin), r.effects)
+        }
+
+    @Test
+    fun theLanguageRowKeepsTheChoiceForThisOperatorAndAppliesItAtOnce() =
+        runTest {
+            val r = start(fixture(), HeaderArea.TABLES)
+            r.login(admin)
+            val settings = r.entry.settings()
+            settings.applyUser(ADMIN_INSZ)
+            r.model.openUserMenu()
+            runCurrent()
+            assertEquals(AppLanguage.FR, r.state.language)
+
+            r.model.pickLanguage(AppLanguage.ZH)
+            runCurrent()
+
+            assertEquals(AppLanguage.ZH, r.state.language)
+            assertEquals(AppLanguage.ZH, settings.language.value)
+            assertEquals(AppLanguage.ZH, settings.userLanguages.value[ADMIN_INSZ])
+            // The terminal default is untouched.
+            assertEquals(AppLanguage.FR, settings.terminalLanguage.value)
+        }
+
     // ── Own PIN ───────────────────────────────────────────────────
 
     @Test
@@ -539,5 +919,126 @@ class HeaderViewModelTest {
             assertEquals(refusal, failure)
             assertEquals(r.errorTexts.describe(refusal, AppLanguage.FR), r.model.describeError(refusal))
             assertEquals(0, r.toasts.toasts.value.size)
+        }
+
+    // ── Numbered takeaway (UX audit T2) ───────────────────────────
+
+    private fun tag(
+        name: String? = null,
+        phone: String? = null,
+    ) = TakeawayTag(orderId = 8, day = "2026-10-09", number = 61, label = "E-61", customerName = name, customerPhone = phone)
+
+    @Test
+    fun aTakeawayShowsItsNumberAndItsCustomerInTheHeaderState() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.getTakeawayTag(8) } returns tag(name = "Dupont", phone = "0470 12 34 56")
+            r.openOrder(order(8))
+            runCurrent()
+
+            assertEquals("E-61", r.state.takeawayLabel)
+            assertEquals("Dupont", r.state.customerName)
+            assertEquals("0470 12 34 56", r.state.customerPhone)
+            assertTrue(r.state.customerEditable)
+            assertTrue(r.state.hasCustomer)
+        }
+
+    @Test
+    fun aTableShowsNoTakeawayNumberAndOffersNoCustomer() =
+        runTest {
+            val r = start(fixture(), HeaderArea.ORDER)
+            r.login(admin)
+            r.openOrder(order(7, table = 3))
+            runCurrent()
+
+            assertNull(r.state.takeawayLabel)
+            assertFalse(r.state.customerEditable)
+            r.model.openCustomer()
+            assertNull(r.state.customerStep)
+        }
+
+    @Test
+    fun theNameStepOpensThenSavesAtOnceAndThePhoneStepFollows() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.getTakeawayTag(8) } returns tag()
+            r.openOrder(order(8))
+            runCurrent()
+            coEvery { f.engine.setTakeawayCustomer(8, "Dupont", null) } returns tag(name = "Dupont")
+
+            r.model.openCustomer()
+            runCurrent()
+            assertEquals(CustomerStep.NAME, r.state.customerStep)
+
+            r.model.submitCustomerName("Dupont")
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.setTakeawayCustomer(8, "Dupont", null) }
+            assertEquals(CustomerStep.PHONE, r.state.customerStep)
+            assertEquals("Dupont", r.state.customerName)
+        }
+
+    @Test
+    fun theTypedPhoneIsSavedInGroupsWithTheNameKept() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.getTakeawayTag(8) } returns tag(name = "Dupont")
+            r.openOrder(order(8))
+            runCurrent()
+            coEvery { f.engine.setTakeawayCustomer(8, "Dupont", "0470 12 34 56") } returns tag("Dupont", "0470 12 34 56")
+
+            r.model.submitCustomerPhone("0470123456")
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.setTakeawayCustomer(8, "Dupont", "0470 12 34 56") }
+            assertNull(r.state.customerStep)
+            assertEquals("0470 12 34 56", r.state.customerPhone)
+        }
+
+    @Test
+    fun anEmptyPhoneClearsItAndSkippingLeavesEverythingAsItWas() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.getTakeawayTag(8) } returns tag(name = "Dupont", phone = "0470 12 34 56")
+            r.openOrder(order(8))
+            runCurrent()
+            coEvery { f.engine.setTakeawayCustomer(8, "Dupont", null) } returns tag(name = "Dupont")
+
+            r.model.openCustomer()
+            r.model.closeCustomer()
+            runCurrent()
+            assertNull(r.state.customerStep)
+            coVerify(exactly = 0) { f.engine.setTakeawayCustomer(any(), any(), any()) }
+
+            r.model.submitCustomerPhone("")
+            runCurrent()
+            coVerify(exactly = 1) { f.engine.setTakeawayCustomer(8, "Dupont", null) }
+            assertNull(r.state.customerPhone)
+        }
+
+    @Test
+    fun aRefusedNameStaysOnTheNameStepsWayOutAndKeepsTheOldName() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.getTakeawayTag(8) } returns tag(name = "Dupont")
+            r.openOrder(order(8))
+            runCurrent()
+            coEvery { f.engine.setTakeawayCustomer(8, any(), any()) } throws PosException.Coded("takeaway_name_invalid", emptyMap())
+
+            r.model.submitCustomerName("Durand")
+            runCurrent()
+
+            assertNull(r.state.customerStep)
+            assertEquals("Dupont", r.state.customerName)
         }
 }

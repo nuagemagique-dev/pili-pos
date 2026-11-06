@@ -409,6 +409,12 @@ pub struct TakeawayInfo {
     pub total_cents: i64,
     pub line_count: i64,
     pub created_at: String,
+    /// The number of the day (`E-61` without the prefix), when the takeaway has one.
+    pub number: Option<i64>,
+    /// `E-61`.
+    pub label: Option<String>,
+    /// The customer name, when the operator entered one.
+    pub customer_name: Option<String>,
 }
 
 /// `pos_engine::commands::session::LeaveReason`: why the operator leaves an order.

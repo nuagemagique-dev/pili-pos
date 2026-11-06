@@ -9,25 +9,43 @@ import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
 import dev.nuagemagique.pilipos.feature.webshop.WebshopRoutes
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
+import dev.nuagemagique.pilipos.ui.feedback.lateCounts
 import dev.nuagemagique.pilipos.ui.state.IdleWarning
+import dev.nuagemagique.pilipos.ui.state.TableMoves
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.Order
+import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
+import uniffi.pos_ffi.TableInfo
+import uniffi.pos_ffi.TakeawayTag
 import uniffi.pos_ffi.User
+import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Lifetime of the toast that reports a refused order registration, in milliseconds (6000 in `AppHeader.vue`). */
 internal const val REGISTER_FAILED_TOAST_MS: Long = 6000L
+
+/** How long a first tap on "Fin de service" stays armed, in milliseconds (`ARM_MS` of `armedAction.ts`). */
+internal const val END_SHIFT_ARM_MS: Long = 5000L
+
+/** Lifetime of the toast that reports a failed clock-out, in milliseconds (6000 in `auth.ts`). */
+private const val PRESENCE_TOAST_MS: Long = 6000L
 
 /** What the header shows (the refs and computeds of the script of `AppHeader.vue`). */
 internal data class HeaderUiState(
@@ -49,11 +67,40 @@ internal data class HeaderUiState(
     val hubriseVisible: Boolean = false,
     /** Online orders waiting for the operator (the red badge). */
     val pendingOrders: Int = 0,
+    /** Online orders nobody answered for 5 minutes (the banner under the header, O3). */
+    val lateOrders: Int = 0,
+    /** True while an unpaid online order is collected at the checkout (O2): the header says "En ligne". */
+    val onlineCollect: Boolean = false,
     /** True while the own-PIN dialog is open. */
     val pinOpen: Boolean = false,
     /** The engine's warning that the idle lock is near (UX audit L4), or null. */
     val idleWarning: IdleWarning? = null,
+    /** The open dine-in order on screen is on a table (the lines are checked apart): it may move. */
+    val tableOpen: Boolean = false,
+    /** The table chip is a button (UX audit C8): the order is dine-in, open, and holds lines. */
+    val canMoveTable: Boolean = false,
+    /** The other tables of the plan while the table picker is open, else null. */
+    val tablePicker: List<TableInfo>? = null,
+    /** The number of the day of the takeaway on screen (`E-61`), when it has one (UX audit T2). */
+    val takeawayLabel: String? = null,
+    /** The customer name of the takeaway on screen, when one was entered. */
+    val customerName: String? = null,
+    /** The customer phone of the takeaway on screen, when one was entered. */
+    val customerPhone: String? = null,
+    /** The takeaway is open and has a number: the header offers "Ajouter un nom". */
+    val customerEditable: Boolean = false,
+    /** The step of the customer dialogs that is open, else null. */
+    val customerStep: CustomerStep? = null,
+    /** The menu under the user button is open (UX audit L1, R5). */
+    val userMenuOpen: Boolean = false,
+    /** "Fin de service" was tapped once: its button asks for confirmation for [END_SHIFT_ARM_MS]. */
+    val endShiftArmed: Boolean = false,
+    /** The language the screens use now, the one the language row of the user menu shows as chosen. */
+    val language: AppLanguage = AppLanguage.FR,
 ) {
+    /** The takeaway on screen already has a name or a phone. */
+    val hasCustomer: Boolean get() = !customerName.isNullOrEmpty() || !customerPhone.isNullOrEmpty()
+
     /** The Tables button is the active one (`tablesActive`). */
     val tablesActive: Boolean get() = area == HeaderArea.TABLES || dineInOrder
 
@@ -78,7 +125,16 @@ internal class HeaderViewModel(
     private val session = entry.session()
     private val order = entry.order()
     private val pinOpen = MutableStateFlow(false)
+    private val tablePicker = MutableStateFlow<List<TableInfo>?>(null)
+    private val customerStep = MutableStateFlow<CustomerStep?>(null)
+    private val userMenu = MutableStateFlow(false)
+    private val endShiftArmed = MutableStateFlow(false)
+    private var armTimer: Job? = null
+    private val tableMoves = TableMoves(order, entry.toasts(), entry.catalog(), entry.settings(), entry.errors())
     private val effectChannel = Channel<HeaderEffect>(Channel.BUFFERED)
+
+    /** The time source of the late online orders; the seam of the tests. */
+    internal var lateNow: () -> Instant = Instant::now
 
     // One action at a time: a second tap while the first still talks to the engine is ignored.
     private val busy = AtomicBoolean(false)
@@ -93,19 +149,98 @@ internal class HeaderViewModel(
                 entry.integrations().hubriseVisible,
                 entry.webshop().pendingCount,
             ) { user, manager, current, hubrise, pending -> build(user, manager, current, hubrise, pending) },
-            pinOpen,
-            session.idleWarning,
-        ) { base, pin, warning -> base.copy(pinOpen = pin && base.roleKey != null, idleWarning = warning) }
+            combine(
+                combine(pinOpen, tablePicker, order.lines, order.takeawayTag, customerStep) { pin, picker, lines, tag, step ->
+                    Overlay(pin, picker, lines.isNotEmpty(), tag, step)
+                },
+                combine(userMenu, endShiftArmed, entry.settings().language, ::Menu),
+            ) { over, menu -> over.copy(menu = menu) },
+            combine(session.idleWarning, lateOrders(), order.onlineCollect) { warning, late, online ->
+                Extras(warning, late, online != null)
+            },
+        ) { base, over, extras -> overlay(base, over, extras) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, initialState())
 
     private fun initialState(): HeaderUiState =
-        build(
-            session.currentUser.value,
-            session.isManager.value,
-            order.current.value,
-            entry.integrations().hubriseVisible.value,
-            entry.webshop().pendingCount.value,
-        ).let { it.copy(pinOpen = pinOpen.value && it.roleKey != null, idleWarning = session.idleWarning.value) }
+        overlay(
+            build(
+                session.currentUser.value,
+                session.isManager.value,
+                order.current.value,
+                entry.integrations().hubriseVisible.value,
+                entry.webshop().pendingCount.value,
+            ),
+            Overlay(
+                pinOpen.value,
+                tablePicker.value,
+                order.lines.value.isNotEmpty(),
+                order.takeawayTag.value,
+                customerStep.value,
+                Menu(userMenu.value, endShiftArmed.value, entry.settings().language.value),
+            ),
+            Extras(session.idleWarning.value, 0, order.onlineCollect.value != null),
+        )
+
+    /** The late online orders: counted only for a logged-in operator, the clock runs while an order may become late. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun lateOrders(): Flow<Int> =
+        session.currentUser
+            .flatMapLatest { user ->
+                if (user == null) flowOf(0) else lateCounts(entry.webshop().orders, { lateNow() })
+            }.distinctUntilChanged()
+
+    /** The idle warning, the late online orders and the online collect, on top of the order's state. */
+    private data class Extras(
+        val warning: IdleWarning?,
+        val late: Int,
+        val online: Boolean,
+    )
+
+    /** What does not come from the order: the open dialogs, the lines, the takeaway tag. */
+    private data class Overlay(
+        val pin: Boolean,
+        val picker: List<TableInfo>?,
+        val hasLines: Boolean,
+        val tag: TakeawayTag?,
+        val step: CustomerStep?,
+        val menu: Menu = Menu(),
+    )
+
+    /** The user menu: whether it is open, whether "Fin de service" is armed, and the language shown as chosen. */
+    private data class Menu(
+        val open: Boolean = false,
+        val armed: Boolean = false,
+        val language: AppLanguage = AppLanguage.FR,
+    )
+
+    /** The idle warning and the open dialogs on top of the order's state. */
+    private fun overlay(
+        built: HeaderUiState,
+        over: Overlay,
+        extras: Extras,
+    ): HeaderUiState {
+        // An online order collected at the checkout is not a table or a takeaway: no chip of either (O2).
+        val base =
+            if (extras.online) built.copy(tableNumber = null, takeawayOrder = false, dineInOrder = false, tableOpen = false) else built
+        val movable = base.tableOpen && over.hasLines
+        val tag = over.tag.takeIf { base.takeawayOrder }
+        return base.copy(
+            pinOpen = over.pin && base.roleKey != null,
+            idleWarning = extras.warning,
+            lateOrders = extras.late,
+            onlineCollect = extras.online,
+            canMoveTable = movable,
+            tablePicker = if (movable) over.picker else null,
+            takeawayLabel = tag?.label,
+            customerName = tag?.customerName,
+            customerPhone = tag?.customerPhone,
+            customerEditable = tag != null,
+            customerStep = over.step.takeIf { tag != null },
+            userMenuOpen = over.menu.open && base.roleKey != null,
+            endShiftArmed = over.menu.armed,
+            language = over.menu.language,
+        )
+    }
 
     /** One-shot moves, each delivered once. */
     val effects: Flow<HeaderEffect> = effectChannel.receiveAsFlow()
@@ -118,6 +253,7 @@ internal class HeaderViewModel(
         pending: Int,
     ): HeaderUiState {
         val onOrder = area.holdsOrder && current != null
+        val dineIn = onOrder && current?.orderType == OrderType.DINE_IN
         return HeaderUiState(
             area = area,
             userName = user?.name.orEmpty(),
@@ -126,6 +262,7 @@ internal class HeaderViewModel(
             tableNumber = if (onOrder && current?.orderType == OrderType.DINE_IN) current.tableNumber else null,
             takeawayOrder = onOrder && current?.orderType == OrderType.TAKEAWAY,
             dineInOrder = onOrder && current?.orderType == OrderType.DINE_IN,
+            tableOpen = dineIn && current?.tableNumber != null && current.status == OrderStatus.OPEN,
             hubriseVisible = hubrise,
             pendingOrders = pending,
         )
@@ -200,6 +337,7 @@ internal class HeaderViewModel(
      * the login screen opens. The operator stays on shift: clocking out is done from the login screen.
      */
     fun lock() {
+        closeUserMenu()
         runOnce {
             val outcome = session.lock()
             outcome.orderError?.let {
@@ -212,9 +350,84 @@ internal class HeaderViewModel(
 
     // ── Own PIN ───────────────────────────────────────────────────
 
-    /** The tap on the user button opens the own-PIN dialog (only with a user). */
+    /** The tap on the user button opens the menu under it (only with a user). */
+    fun openUserMenu() {
+        if (session.currentUser.value == null) return
+        userMenu.value = !userMenu.value
+        if (!userMenu.value) disarmEndShift()
+    }
+
+    /** A tap outside the user menu closes it. */
+    fun closeUserMenu() {
+        userMenu.value = false
+        disarmEndShift()
+    }
+
+    /** "Changer mon PIN" of the user menu opens the own-PIN dialog (only with a user). */
     fun openPin() {
+        closeUserMenu()
         if (session.currentUser.value != null) pinOpen.value = true
+    }
+
+    /**
+     * The language row of the user menu (UX audit R5): the choice is kept for this user on this terminal and applies
+     * at once; the terminal language of Settings is untouched.
+     */
+    fun pickLanguage(language: AppLanguage) {
+        val insz = session.currentUser.value?.insz ?: return
+        entry.settings().setUserLanguage(insz, language)
+    }
+
+    /**
+     * "Fin de service" of the user menu (UX audit L1): the first tap arms it ("Confirmer la fin de service ?" for
+     * [END_SHIFT_ARM_MS]), the second one within that time ends the shift. The first label comes back by itself.
+     */
+    fun tapEndShift() {
+        if (!endShiftArmed.value) {
+            endShiftArmed.value = true
+            armTimer?.cancel()
+            armTimer =
+                viewModelScope.launch {
+                    delay(END_SHIFT_ARM_MS)
+                    endShiftArmed.value = false
+                }
+            return
+        }
+        closeUserMenu()
+        endShift()
+    }
+
+    private fun disarmEndShift() {
+        armTimer?.cancel()
+        armTimer = null
+        endShiftArmed.value = false
+    }
+
+    /**
+     * Ends the shift of the logged-in operator: what was ordered is registered (a refusal is shown and does not stop
+     * it), the engine signs their clock-out (S event, the same as the end of shift of the login screen; the open
+     * session is the proof of the PIN, so none is asked again), then the till locks and the login screen opens. A
+     * clock-out that was not registered is shown and never keeps the operator logged in.
+     */
+    private fun endShift() {
+        val name = session.currentUser.value?.name ?: return
+        runOnce {
+            attempt { order.leaveIfActive(LeaveReason.NAVIGATE) }.onFailure { showRegisterFailed(it) }
+            val result = attempt { session.workOutSelf() }
+            session.lock()
+            result.fold(
+                onSuccess = {
+                    if (it.success) {
+                        entry.toasts().show(text("shift_ended", "name" to name), ToastVariant.Success)
+                    } else {
+                        entry.errors().showRaw(it.error ?: "FDM error", language(), text("presence_failed"), PRESENCE_TOAST_MS)
+                    }
+                },
+                onFailure = { entry.errors().show(it, language(), text("presence_failed"), PRESENCE_TOAST_MS) },
+            )
+            order.resetLocal()
+            effectChannel.send(HeaderEffect.ToLogin)
+        }
     }
 
     /** Closes the own-PIN dialog without saving. */
@@ -234,6 +447,67 @@ internal class HeaderViewModel(
 
     /** The screen text of a refusal, in the language of the till. */
     fun describeError(error: Throwable): String = entry.errors().text(error, language())
+
+    // ── Moving the table (UX audit C8) ────────────────────────────
+
+    /**
+     * The tap on the table chip (`TableMover.vue`): reads the plan and opens the picker with the other tables. A
+     * refusal to read it is shown as an error toast and nothing opens.
+     */
+    fun openTablePicker() {
+        val from = state.value.tableNumber ?: return
+        if (!state.value.canMoveTable) return
+        runOnce {
+            attempt { entry.gateway().call { engine -> engine.listTables() } }.fold(
+                onSuccess = { tables -> tablePicker.value = tables.filter { it.tableNumber != from } },
+                onFailure = { entry.errors().show(it, language()) },
+            )
+        }
+    }
+
+    /** "Ajouter un nom": opens the name keypad of the takeaway on screen. */
+    fun openCustomer() {
+        if (state.value.customerEditable) customerStep.value = CustomerStep.NAME
+    }
+
+    /** Closes the customer dialogs; what was already saved stays. */
+    fun closeCustomer() {
+        customerStep.value = null
+    }
+
+    /** The name was confirmed: it is saved at once, then the phone step follows (a refusal is shown by the order screen). */
+    fun submitCustomerName(name: String) {
+        val phone = order.takeawayTag.value?.customerPhone
+        customerStep.value = null
+        viewModelScope.launch {
+            if (order.setTakeawayCustomer(name.ifBlank { null }, phone)) customerStep.value = CustomerStep.PHONE
+        }
+    }
+
+    /** The phone was confirmed ("Passer" is [closeCustomer]); an empty one clears it. */
+    fun submitCustomerPhone(digits: String) {
+        val name = order.takeawayTag.value?.customerName
+        customerStep.value = null
+        viewModelScope.launch { order.setTakeawayCustomer(name, PhoneEntry.value(digits)) }
+    }
+
+    /** Closes the table picker without moving anything. */
+    fun closeTablePicker() {
+        tablePicker.value = null
+    }
+
+    /** The free table tapped in the picker: the order moves there at once, the toast offers "Annuler". */
+    fun pickTable(toTable: Int) {
+        val current = order.current.value
+        val from = current?.tableNumber
+        tablePicker.value = null
+        if (current == null || from == null) return
+        runOnce {
+            attempt { tableMoves.move(current.id, from, toTable) }.onFailure {
+                entry.errors().show(it, language(), null, REGISTER_FAILED_TOAST_MS)
+            }
+        }
+    }
 
     // ── Helpers ───────────────────────────────────────────────────
 

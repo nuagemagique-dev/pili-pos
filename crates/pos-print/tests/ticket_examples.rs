@@ -266,6 +266,7 @@ fn example_bar_slip() {
         date_time: "03/07/2026 12:31:05".to_string(),
         operator: "Marie Dupont".to_string(),
         table: Some(4),
+        takeaway: None,
         items: vec![
             BarItem {
                 quantity: 2,
@@ -304,6 +305,7 @@ fn example_bar_slip_with_notes() {
         date_time: "03/07/2026 12:31:05".to_string(),
         operator: "Marie Dupont".to_string(),
         table: Some(4),
+        takeaway: None,
         items: vec![
             BarItem {
                 quantity: 2,
@@ -343,6 +345,7 @@ fn example_note_slip() {
         date_time: "03/07/2026 12:38:12".to_string(),
         operator: "Marie Dupont".to_string(),
         table: Some(4),
+        takeaway: None,
         product_name: "Burger du chef".to_string(),
         note: Some("bien cuit".to_string()),
         lang: ReceiptLanguage::Fr,
@@ -524,6 +527,7 @@ fn example_course_slips() {
         date_time: "03/07/2026 12:31:05".to_string(),
         operator: "Marie Dupont".to_string(),
         table: Some(4),
+        takeaway: None,
         items: vec![item(2, "Dry Martini", 0), item(2, "Carpaccio", 1)],
         lang: ReceiptLanguage::Fr,
         is_training: false,

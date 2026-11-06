@@ -8,6 +8,9 @@
     <string name="equal_parts">parts égales</string>
     <string name="part_n">Part {n}</string>
     <string name="cash_part_taken">Une part est déjà payée en espèces : les autres se paient par carte ou chèques-repas.</string>
+    <string name="back_to_order">Retour à la commande</string>
+    <string name="parts_kept">Parts déjà saisies : {n}</string>
+    <string name="parts_dropped">L\'addition a changé : les parts saisies ont été annulées.</string>
     <string name="amount_received">Montant reçu</string>
     <string name="exact_rounded">exact {exact} · arrondi 5 cts</string>
     <string name="items_count">{n} art.</string>

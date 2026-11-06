@@ -27,8 +27,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -51,17 +53,18 @@ import dev.nuagemagique.pilipos.ui.format.formatCents
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 
-/** Width of the pad beside the product grid (`.code-pad` of `CodePad.vue`). */
-internal val CodePadWidth = 400.dp
+/** Height of the pad docked under the product grid (`.code-pad` of `CodePad.vue`, UX audit C6). */
+internal val CodePadHeight = 300.dp
 
-/** Product columns while the pad is open (`:columns` of `MenuGrid.vue`). */
-internal const val GRID_COLUMNS_WITH_PAD = 3
+/** Width of the digit block and of the OK key in the dock (the columns of `.code-pad`). */
+private val DigitsWidth = 348.dp
+private val OkWidth = 132.dp
 
-internal val CodeFieldHeight = 72.dp
-private val MessageHeight = 44.dp
-private val KeyHeight = 68.dp
+internal val CodeFieldHeight = 64.dp
+private val MessageHeight = 32.dp
 private val LetterHeight = 64.dp
-private const val LETTERS_PER_ROW = 6
+private const val LETTERS_PER_ROW = 10
+private val DockPadding = 12.dp
 private val DigitRows = listOf(listOf("7", "8", "9"), listOf("4", "5", "6"), listOf("1", "2", "3"))
 
 /** What the pad can ask for. */
@@ -73,11 +76,12 @@ internal data class CodePadActions(
 )
 
 /**
- * The pad of the order entry by menu code (`CodePad.vue`): the field (the code, the quantity as a pill, a clear
- * button), the line telling what OK will do, the digits with the quantity key and backspace, the letters the menu codes
- * use, and OK. The grid beside it shows the products whose code starts with the typed text. A physical keyboard types
- * into it while it has the focus (taken when it opens). Test tags: `code_pad`, `code_pad_display`, `code_pad_qty`,
- * `code_pad_message`, `code_key_<digit|letter>`, `code_key_times`, `code_key_clear`, `code_key_back`, `code_key_ok`.
+ * The pad of the order entry by menu code (`CodePad.vue`), docked under the product grid (UX audit C6): on the left the
+ * field (the code, the quantity as a pill, a clear button), the line telling what OK will do and the letters the menu
+ * codes use; in the middle the digits with the quantity key and backspace; on the right OK. The grid above it shows the
+ * products whose code starts with the typed text. A physical keyboard types into it while it has the focus (taken when
+ * it opens). Test tags: `code_pad`, `code_pad_display`, `code_pad_qty`, `code_pad_message`, `code_key_<digit|letter>`,
+ * `code_key_times`, `code_key_clear`, `code_key_back`, `code_key_ok`.
  */
 @Composable
 internal fun CodePad(
@@ -90,34 +94,44 @@ internal fun CodePad(
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val tone = codeTone(pad.message)
-    Column(
+    Row(
         modifier =
             modifier
-                .width(CodePadWidth)
-                .fillMaxHeight()
+                .fillMaxWidth()
+                .height(CodePadHeight)
+                .background(c.bgPrimary)
+                .drawBehind { drawLine(c.border, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = 1.dp.toPx()) }
                 .focusRequester(focus)
                 .focusable()
                 .onKeyEvent { hardwareKey(it, actions) }
-                .verticalScroll(rememberScrollState())
-                .padding(start = d.spaceMd, top = d.spaceMd, bottom = d.spaceMd)
+                .padding(horizontal = d.spaceMd, vertical = DockPadding)
                 .testTag("code_pad"),
-        verticalArrangement = Arrangement.spacedBy(d.spaceSm),
+        horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
     ) {
-        CodeField(pad.text, tone, actions.onClear)
-        CodeMessageLine(pad.message, tone)
-        DigitRows.forEach { row -> KeyRow { row.forEach { k -> CharKey(k, actions) } } }
-        KeyRow {
-            PadKey("×", "code_key_times", sub = vueText("code_pad_quantity")) { actions.onKey(TIMES) }
-            CharKey("0", actions)
-            PadKey("⌫", "code_key_back", c.textSecondary, description = vueText("code_pad_backspace")) { actions.onBackspace() }
-        }
-        pad.letters.chunked(LETTERS_PER_ROW).forEach { row ->
-            KeyRow {
-                row.forEach { l -> PadKey(l, "code_key_$l", height = LetterHeight, small = true) { actions.onKey(l) } }
-                repeat(LETTERS_PER_ROW - row.size) { Box(Modifier.weight(1f)) }
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(d.spaceXs),
+        ) {
+            CodeField(pad.text, tone, actions.onClear)
+            CodeMessageLine(pad.message, tone)
+            pad.letters.chunked(LETTERS_PER_ROW).forEach { row ->
+                KeyRow(Modifier.fillMaxWidth()) {
+                    row.forEach { l -> PadKey(l, "code_key_$l", height = LetterHeight, small = true) { actions.onKey(l) } }
+                    repeat(LETTERS_PER_ROW - row.size) { Box(Modifier.weight(1f)) }
+                }
             }
         }
-        KeyRow { PadKey("OK", "code_key_ok", c.textOnAccent, fill = c.accentSuccess, height = CodeFieldHeight) { actions.onSubmit() } }
+        Column(Modifier.width(DigitsWidth).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(d.spaceXs)) {
+            DigitRows.forEach { row -> KeyRow(Modifier.weight(1f)) { row.forEach { k -> CharKey(k, actions) } } }
+            KeyRow(Modifier.weight(1f)) {
+                PadKey("×", "code_key_times", sub = vueText("code_pad_quantity")) { actions.onKey(TIMES) }
+                CharKey("0", actions)
+                PadKey("⌫", "code_key_back", c.textSecondary, description = vueText("code_pad_backspace")) { actions.onBackspace() }
+            }
+        }
+        Row(Modifier.width(OkWidth).fillMaxHeight()) {
+            PadKey("OK", "code_key_ok", c.textOnAccent, fill = c.accentSuccess) { actions.onSubmit() }
+        }
     }
 }
 
@@ -162,6 +176,7 @@ internal fun codeMessageText(message: CodeMessage): String {
             is CodeMessage.Results -> vueText("code_pad_results", "n" to message.count)
             is CodeMessage.Match -> line(message.quantity, message.item)
             is CodeMessage.Added -> "✓ " + line(message.quantity, message.item)
+            is CodeMessage.Counted -> "${message.item.name} × ${message.quantity}"
             else -> vueText("code_pad_hint")
         }
 }
@@ -207,8 +222,11 @@ private fun CodeMessageLine(
 }
 
 @Composable
-private fun KeyRow(content: @Composable RowScope.() -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs), content = content)
+private fun KeyRow(
+    modifier: Modifier,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs), content = content)
 }
 
 @Composable
@@ -225,7 +243,7 @@ private fun RowScope.PadKey(
     color: Color = PiliTheme.colors.textPrimary,
     fill: Color? = null,
     weight: Float = 1f,
-    height: androidx.compose.ui.unit.Dp = KeyHeight,
+    height: androidx.compose.ui.unit.Dp? = null,
     small: Boolean = false,
     description: String? = null,
     sub: String? = null,
@@ -239,7 +257,7 @@ private fun RowScope.PadKey(
         modifier =
             Modifier
                 .weight(weight)
-                .height(height)
+                .then(if (height != null) Modifier.height(height) else Modifier.fillMaxHeight())
                 .tapScale(source)
                 .background(fill ?: if (pressed) c.bgPressed else c.bgSurface, RoundedCornerShape(PiliTheme.dimens.radiusMd))
                 .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)

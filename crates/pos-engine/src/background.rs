@@ -222,6 +222,9 @@ impl Engine {
                         () = state.shutdown_token.cancelled() => return,
                         _ = tick.tick() => {
                             commands::delivery::run_outbox_once(&state).await;
+                            // Names and phones of takeaways: cleared after 72 h, like
+                            // an e-mail address (the number stays).
+                            commands::takeaway::purge_contacts(&state);
                             ticks.mail_outbox.fetch_add(1, Ordering::SeqCst);
                         }
                     }

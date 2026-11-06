@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -28,12 +29,16 @@ import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.NextCourse
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderLine
+import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.TableTransferResult
+import uniffi.pos_ffi.TakeawayTag
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,6 +49,42 @@ import javax.inject.Singleton
 class OrderRefusedException(
     val raw: String,
 ) : Exception(raw)
+
+/**
+ * A payment part taken by hand and not signed yet (UX audit P4). It stays with the order when the operator goes back to
+ * it from the checkout. A part the terminal approved is the engine's, so it is never kept here.
+ */
+data class HeldPart(
+    val method: PaymentMethod,
+    val cents: Long,
+    /** The change handed back for a cash part. */
+    val changeCents: Long,
+    /** A gift voucher part: the voucher it redeems, and its masked code. */
+    val giftVoucherId: Long? = null,
+    val codeMasked: String? = null,
+)
+
+/** The parts kept for one order. */
+data class HeldParts(
+    val orderId: Long,
+    val parts: List<HeldPart>,
+)
+
+/**
+ * An unpaid online order shown at the checkout (UX audit O2): [method] is the one the checkout starts on. It is not the
+ * engine's active order, and leaving it registers nothing.
+ */
+data class OnlineCollect(
+    val method: PaymentMethod,
+)
+
+/** An add to the cart: the line it went to and the units it gave. [seq] grows with each one. */
+data class LineAdd(
+    val seq: Long,
+    val lineId: Long,
+    val itemId: Long,
+    val units: Int,
+)
 
 /**
  * The order being taken, shared by every screen (`ui/src/stores/order.ts`).
@@ -78,6 +119,15 @@ class OrderStore
             MutableSharedFlow<Unit>(extraBufferCapacity = BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         private val categories = ConcurrentHashMap<Long, Long>()
         private val mutex = Mutex()
+        private val mutableLastAdd = MutableStateFlow<LineAdd?>(null)
+        private val mutableTakeawayTag = MutableStateFlow<TakeawayTag?>(null)
+        private val mutableTableMoves = MutableStateFlow(0)
+        private val mutableOnlineCollect = MutableStateFlow<OnlineCollect?>(null)
+        private val mutableHeldParts = MutableStateFlow<HeldParts?>(null)
+        private val addSeq = AtomicLong()
+
+        // The open order on screen when the last lock came (NO_ORDER: none); taken once at the next login.
+        private val lockedOrder = AtomicLong(NO_ORDER)
 
         // Bumped by resetLocal(). An operation reads it before it talks to the engine and publishes only while it is
         // unchanged, so a read that was in flight during a reset (lock, idle lock) cannot bring the old order back.
@@ -86,6 +136,30 @@ class OrderStore
 
         /** The order being taken; null when there is none. */
         val current: StateFlow<Order?> = mutableCurrent.asStateFlow()
+
+        /**
+         * The last add (grid, code pad, digit after an add, option and price dialogs): the beep and the 200 ms
+         * flash of its cart line follow it. Null after a reset.
+         */
+        val lastAdd: StateFlow<LineAdd?> = mutableLastAdd.asStateFlow()
+
+        /**
+         * The number of the day and the customer of the current takeaway (`takeawayTag` of `order.ts`, UX audit T2);
+         * null for a table, an online order or when the till gives none.
+         */
+        val takeawayTag: StateFlow<TakeawayTag?> = mutableTakeawayTag.asStateFlow()
+
+        /**
+         * How many table moves were signed (a move and its undo each count): the tables screen reads the plan again
+         * when it changes (`tableMoves` of `ui/src/stores/order.ts`).
+         */
+        val tableMoves: StateFlow<Int> = mutableTableMoves.asStateFlow()
+
+        /** The online order being collected at the checkout (UX audit O2), or null for an ordinary order. */
+        val onlineCollect: StateFlow<OnlineCollect?> = mutableOnlineCollect.asStateFlow()
+
+        /** The payment parts taken by hand for an order, not signed yet (UX audit P4); null when there are none. */
+        val heldParts: StateFlow<HeldParts?> = mutableHeldParts.asStateFlow()
 
         /** The lines of [current], as the engine lists them. */
         val lines: StateFlow<List<CartLine>> = mutableLines.asStateFlow()
@@ -121,7 +195,13 @@ class OrderStore
             // Undispatched: the collector is subscribed when the constructor returns (events have no replay).
             scope.launch(start = CoroutineStart.UNDISPATCHED) {
                 events.events.collect { event ->
-                    if (event is PosEvent.SessionLocked) resetLocal()
+                    if (event is PosEvent.SessionLocked) {
+                        // Before the reset: the order the same user may come back to after an idle lock (UX audit T6).
+                        // An online order at its checkout (O2) was never the engine's active order: none to come back to.
+                        val reopenable = mutableCurrent.value.takeIf { mutableOnlineCollect.value == null }
+                        lockedOrder.set(reopenable?.takeIf { it.status == OrderStatus.OPEN }?.id ?: NO_ORDER)
+                        resetLocal()
+                    }
                 }
             }
         }
@@ -146,7 +226,33 @@ class OrderStore
             if (publish(order, cart, seen)) {
                 gateway.call { engine -> engine.setActiveOrder(order.id) }
                 readCourses(order.id, seen)
+                readTakeawayTag(order, seen)
             }
+        }
+
+        /**
+         * Shows an unpaid online order at the checkout (UX audit O2): its order and lines are read, but it does not
+         * become the engine's active order, so a lock or leaving the screen registers nothing.
+         */
+        suspend fun beginOnlineCollect(
+            orderId: Long,
+            method: PaymentMethod,
+        ) = mutex.withLock {
+            val seen = generation.get()
+            val (order, cart) =
+                gateway.call { engine -> engine.getOrder(orderId) to engine.listCartLines(orderId) }
+            if (publish(order, cart, seen)) mutableOnlineCollect.value = OnlineCollect(method)
+        }
+
+        /** The parts kept for order [orderId]; none for another order. */
+        fun heldPartsFor(orderId: Long): List<HeldPart> = mutableHeldParts.value?.takeIf { it.orderId == orderId }?.parts.orEmpty()
+
+        /** Keeps [parts] (taken by hand, unsigned) for order [orderId]; none forgets them. */
+        fun holdParts(
+            orderId: Long,
+            parts: List<HeldPart>,
+        ) {
+            mutableHeldParts.value = if (parts.isEmpty()) null else HeldParts(orderId, parts)
         }
 
         /** Loads an existing order and its lines (re-opening a table) and makes it the active order. */
@@ -158,7 +264,24 @@ class OrderStore
                 if (publish(order, cart, seen)) {
                     gateway.call { engine -> engine.setActiveOrder(orderId) }
                     readCourses(orderId, seen)
+                    readTakeawayTag(order, seen)
                 }
+            }
+
+        /**
+         * Puts (or, with null or empty values, clears) the name and the phone of the customer of the current takeaway;
+         * both are replaced. The tag becomes the engine's answer.
+         *
+         * @return false when the engine refused (the refusal is on [failures])
+         */
+        suspend fun setTakeawayCustomer(
+            name: String?,
+            phone: String?,
+        ): Boolean =
+            reported {
+                val order = requireCurrent()
+                val tag = gateway.call { engine -> engine.setTakeawayCustomer(order.id, name, phone) }
+                mutableTakeawayTag.value = tag
             }
 
         /**
@@ -171,17 +294,54 @@ class OrderStore
             item: MenuItem,
             quantity: Int = 1,
             unitPriceCents: Long? = null,
-        ): Boolean = reported { addItemLocked(item, quantity, unitPriceCents) }
+        ): Boolean = addProduct(item, quantity, unitPriceCents) != null
+
+        /** Like [addItem], answering the add (its line and units), or null when the engine refused. */
+        suspend fun addProduct(
+            item: MenuItem,
+            quantity: Int = 1,
+            unitPriceCents: Long? = null,
+        ): LineAdd? {
+            var add: LineAdd? = null
+            val ok = reported { add = addItemLocked(item, quantity, unitPriceCents) }
+            return if (ok) add else null
+        }
+
+        /**
+         * The digit after an add: [delta] more units on the line the add went to, as extra units of the same line
+         * through the quantity command. The units already sent to the kitchen never change: the quantity stays
+         * above them. A line removed meanwhile does nothing (false).
+         *
+         * @return false when the line is gone or the engine refused (the refusal is on [failures])
+         */
+        suspend fun addUnits(
+            lineId: Long,
+            delta: Int,
+        ): Boolean {
+            var done = false
+            val ok =
+                reported {
+                    val line = mutableLines.value.firstOrNull { it.id == lineId } ?: return@reported
+                    val sent = line.quantity - line.unsentQuantity.coerceAtLeast(0L).toInt()
+                    val quantity = maxOf(line.quantity + delta, sent + 1)
+                    if (quantity != line.quantity) {
+                        gateway.call { engine -> engine.updateOrderLineQuantity(lineId, quantity) }
+                        mutableCurrent.value?.let { refresh(it.id) }
+                    }
+                    noteAdd(lineId, line.menuItemId, quantity - line.quantity)
+                    done = true
+                }
+            return ok && done
+        }
 
         /**
          * Shows a line that another command added ([create] runs against the current order id, inside the store's
          * lock, so it must not call the store; used for a product with options). The item's category is
-         * remembered. [quantity] is what was ordered; the engine's lines are the truth, so it is only documentation
-         * for the call site.
+         * remembered. [quantity] is what was ordered (the units of the add on [lastAdd]); the engine's lines are the
+         * truth.
          *
          * @return false when the engine refused (the refusal is on [failures])
          */
-        @Suppress("UNUSED_PARAMETER")
         suspend fun addLineWith(
             item: MenuItem,
             quantity: Int,
@@ -189,9 +349,10 @@ class OrderStore
         ): Boolean =
             reported {
                 val order = requireCurrent()
-                create(order.id)
+                val line = create(order.id)
                 categories[item.id] = item.categoryId
                 refresh(order.id)
+                noteAdd(line.id, item.id, quantity)
             }
 
         /**
@@ -245,6 +406,20 @@ class OrderStore
                 val outcome = gateway.call { engine -> engine.setLineNote(lineId, note.trim().ifEmpty { null }) }
                 warnIfSlipFailed(outcome)
                 mutableCurrent.value?.let { refresh(it.id) }
+            }
+
+        /**
+         * The quick notes of this installation, the chips of the note dialog (`loadQuickNotes` of `order.ts`). A till
+         * that does not answer shows none: typing a note still works.
+         */
+        @Suppress("TooGenericExceptionCaught", "SwallowedException")
+        suspend fun quickNotes(): List<String> =
+            try {
+                gateway.call { engine -> engine.getQuickNotes() }.notes
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emptyList()
             }
 
         /**
@@ -321,6 +496,7 @@ class OrderStore
                 warnIfSlipFailed(result.kitchenSlip)
                 warnIfSlipFailed(result.transferSlip)
                 if (mutableCurrent.value?.id == orderId) refresh(orderId)
+                mutableTableMoves.update { it + 1 }
                 result
             }
 
@@ -379,6 +555,12 @@ class OrderStore
         suspend fun clearOrder() = mutex.withLock { clearUnlocked() }
 
         /**
+         * The id of the order that was open on screen when the till last locked, once (T6, `takeLockedOrder` of
+         * `auth.ts`): the login that finds the same user back reopens it. Null when there was none, or already taken.
+         */
+        fun takeLockedOrderId(): Long? = lockedOrder.getAndSet(NO_ORDER).takeIf { it != NO_ORDER }
+
+        /**
          * Forgets the local order state only: after a lock the engine has already registered and cleared its
          * active order.
          */
@@ -388,20 +570,56 @@ class OrderStore
                 generation.incrementAndGet()
                 mutableCurrent.value = null
                 mutableLines.value = emptyList()
+                mutableLastAdd.value = null
+                mutableTakeawayTag.value = null
+                mutableOnlineCollect.value = null
+                mutableHeldParts.value = null
                 mutableUnsentCount.value = 0
                 mutableHeldCourses.value = emptyList()
                 categories.clear()
             }
         }
 
+        /**
+         * Reads the tag of a takeaway (its number of the day and customer); a table has none. A till that does not
+         * answer simply shows no number.
+         */
+        @Suppress("TooGenericExceptionCaught", "SwallowedException")
+        private suspend fun readTakeawayTag(
+            order: Order,
+            seen: Int,
+        ) {
+            val tag =
+                if (order.orderType != OrderType.TAKEAWAY) {
+                    null
+                } else {
+                    try {
+                        gateway.call { engine -> engine.getTakeawayTag(order.id) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            synchronized(publishLock) {
+                if (generation.get() == seen) mutableTakeawayTag.value = tag
+            }
+        }
+
         /** The category of a menu item added in this session, or null. */
         fun categoryOf(menuItemId: Long): Long? = categories[menuItemId]
+
+        private fun noteAdd(
+            lineId: Long,
+            itemId: Long,
+            units: Int,
+        ): LineAdd = LineAdd(addSeq.incrementAndGet(), lineId, itemId, units).also { mutableLastAdd.value = it }
 
         private suspend fun addItemLocked(
             item: MenuItem,
             quantity: Int,
             unitPriceCents: Long?,
-        ) {
+        ): LineAdd {
             val order = requireCurrent()
             // A line with options is never merged into (its options differ), nor is an open-price line, nor a line with
             // a price change (a till discount): the engine refuses a quantity change on it, so the product gets a new line.
@@ -415,9 +633,11 @@ class OrderStore
                             it.priceChanges.isEmpty() && it.kitchenNote.isNullOrEmpty()
                     }
                 }
+            val lineId: Long
             if (existing != null) {
                 val merged = existing.quantity + quantity
                 gateway.call { engine -> engine.updateOrderLineQuantity(existing.id, merged) }
+                lineId = existing.id
             } else {
                 val input =
                     AddOrderLineInput(
@@ -427,14 +647,20 @@ class OrderStore
                         modifiersJson = null,
                         unitPriceCents = if (item.openPrice) unitPriceCents else null,
                     )
-                gateway.call { engine -> engine.addOrderLine(input) }
+                lineId = gateway.call { engine -> engine.addOrderLine(input) }.id
             }
             categories[item.id] = item.categoryId
             refresh(order.id)
+            return noteAdd(lineId, item.id, quantity)
         }
 
         private suspend fun leaveUnlocked(reason: LeaveReason) {
             val order = mutableCurrent.value ?: return
+            if (mutableOnlineCollect.value != null) {
+                // An online order at the checkout was never the engine's active order: nothing to register.
+                clearUnlocked()
+                return
+            }
             val seen = generation.get()
             val outcome = gateway.call { engine -> engine.leaveOrder(order.id, reason) }
             warnIfSlipFailed(outcome)
@@ -546,5 +772,8 @@ class OrderStore
         private companion object {
             /** Reports held for a slow collector before the oldest is dropped. */
             const val BUFFER = 8
+
+            /** No order was open at the last lock. */
+            const val NO_ORDER = -1L
         }
     }

@@ -2,15 +2,22 @@
 import { computed } from 'vue'
 import TextKeypad from './TextKeypad.vue'
 import { useI18n } from '../i18n'
+import { NOTE_MAX } from '../utils/quickNotes'
 
 // The kitchen note of a cart line ("sans wasabi"): typed on the on-screen
 // text keypad, at most 60 characters. An empty text clears the note. The
 // hint says when it prints: now when the line already went to the
 // kitchen, else with the order.
 
-const { initial = undefined, sent } = defineProps<{
+const {
+  initial = undefined,
+  chips = [],
+  sent,
+} = defineProps<{
   /** The line's current note, if any. */
   initial?: string | null
+  /** The quick notes of this installation: a tap appends one to the note. */
+  chips?: string[]
   /** The line already went to the kitchen: a change prints a note slip now. */
   sent: boolean
 }>()
@@ -22,8 +29,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-/** The longest note (the engine refuses more: `note_too_long`). */
-const NOTE_MAX = 60
 // Accents of French notes, and the usual punctuation, that the letter
 // rows lack. Every one prints on the slip printer (CP858).
 const NOTE_SYMBOLS = ['é', 'è', 'à', 'ç', 'ê', ',', '.', '-', "'", '/', '(', ')', '+', '%']
@@ -38,9 +43,11 @@ const hint = computed(() => t(sent ? 'note_hint_now' : 'note_hint_with_order'))
     :initial="initial ?? ''"
     :max-len="NOTE_MAX"
     :symbols="NOTE_SYMBOLS"
+    :chips="chips"
     :hint="hint"
     show-counter
     space
+    case-toggle
     @confirm="emit('confirm', $event)"
     @cancel="emit('cancel')"
   />

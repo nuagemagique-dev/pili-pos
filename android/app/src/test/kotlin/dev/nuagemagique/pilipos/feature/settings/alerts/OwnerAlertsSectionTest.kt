@@ -14,10 +14,10 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextInput
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
+import dev.nuagemagique.pilipos.ui.components.fillWithKeypad
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -114,7 +114,8 @@ class OwnerAlertsSectionTest {
         compose.onNodeWithTag("alerts_lang_zh").performScrollTo().performClick()
         compose.onNodeWithTag("alerts_kind_printer").performScrollTo().performClick()
         compose.onNodeWithTag("alerts_kind_online_waiting").performScrollTo().performClick()
-        compose.onNodeWithTag("alerts_label").performScrollTo().performTextInput("Salle")
+        compose.onNodeWithTag("alerts_label").performScrollTo()
+        compose.fillWithKeypad("alerts_label", "Salle")
 
         assertEquals(listOf("enabled", "lang:zh", "kind:printer", "kind:online_waiting", "label:Salle"), calls)
     }

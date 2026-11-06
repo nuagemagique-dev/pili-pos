@@ -17,8 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.feature.order.TablePickerDialog
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.IdleLockBanner
+import dev.nuagemagique.pilipos.ui.components.LateOnlineBanner
 import dev.nuagemagique.pilipos.ui.components.PinDialog
 import dev.nuagemagique.pilipos.ui.components.PinMode
 import dev.nuagemagique.pilipos.ui.components.PinPadTexts
@@ -111,7 +113,18 @@ private fun headerActions(model: HeaderViewModel): HeaderActions =
         onReports = model::goReports,
         onSettings = model::goSettings,
         onLock = model::lock,
+        onOpenUserMenu = model::openUserMenu,
+        onCloseUserMenu = model::closeUserMenu,
         onOpenPin = model::openPin,
+        onPickLanguage = model::pickLanguage,
+        onEndShift = model::tapEndShift,
+        onMoveTable = model::openTablePicker,
+        onPickTable = model::pickTable,
+        onCloseTablePicker = model::closeTablePicker,
+        onAddCustomer = model::openCustomer,
+        onCustomerName = model::submitCustomerName,
+        onCustomerPhone = model::submitCustomerPhone,
+        onCloseCustomer = model::closeCustomer,
         pin =
             HeaderPinActions(
                 onSubmit = model::submitPin,
@@ -123,8 +136,8 @@ private fun headerActions(model: HeaderViewModel): HeaderActions =
 
 /**
  * The stateless scaffold: [PosScaffold] with its state and actions given. The veil is drawn over [content] when
- * `header.area.isSales` is true and [fdm] is blocking; the own-PIN dialog, the [deviceSheet] of a status light and then
- * [overlay] come above the header.
+ * `header.area.isSales` is true and [fdm] is blocking; the own-PIN dialog, the table picker of the table chip, the
+ * [deviceSheet] of a status light and then [overlay] come above the header.
  * Test tags: `scaffold_content` (the box over which the veil lies).
  */
 @Composable
@@ -147,12 +160,28 @@ internal fun PosScaffoldContent(
             AppHeader(header, actions, clock, lights = lights)
             if (training) TrainingBanner()
             header.idleWarning?.let { IdleLockBanner(it) }
+            // The board has its own alarm (O3).
+            if (header.lateOrders > 0 && header.area != HeaderArea.WEBSHOP) {
+                LateOnlineBanner(header.lateOrders, onView = actions.onOnlineOrders)
+            }
             Box(Modifier.weight(1f).fillMaxSize().testTag("scaffold_content")) {
                 content()
                 if (header.area.isSales) FdmBlockingVeil(fdm, onCheckNow = onCheckFdm)
             }
         }
         if (header.pinOpen) OwnPinDialog(header.userName, actions.pin)
+        val picker = header.tablePicker
+        val from = header.tableNumber
+        if (picker != null && from != null) {
+            TablePickerDialog(from, picker, onPick = actions.onPickTable, onCancel = actions.onCloseTablePicker)
+        }
+        when (header.customerStep) {
+            CustomerStep.NAME ->
+                CustomerNameDialog(header.customerName.orEmpty(), actions.onCustomerName, actions.onCloseCustomer)
+            CustomerStep.PHONE ->
+                CustomerPhoneDialog(header.customerPhone, actions.onCustomerPhone, actions.onCloseCustomer)
+            null -> Unit
+        }
         deviceSheet()
         overlay()
     }

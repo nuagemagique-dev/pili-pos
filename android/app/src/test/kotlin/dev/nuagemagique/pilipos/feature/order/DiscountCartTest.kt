@@ -1,10 +1,12 @@
 package dev.nuagemagique.pilipos.feature.order
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -137,7 +139,8 @@ class DiscountCartTest {
 
         compose.onNodeWithTag("cart_line_1_amount").assertTextContains("12,00", substring = true)
         compose.onNodeWithTag("cart_line_1_change_0").assertIsDisplayed()
-        compose.onNodeWithText("Remise 50 %").assertIsDisplayed()
+        // The row carries the change as a chip, the detail of the selected line names it again.
+        compose.onAllNodesWithText("Remise 50 %").assertCountEquals(2)
         compose.onNodeWithText("-12,00").assertIsDisplayed()
         compose.onNodeWithTag("cart_total").assertTextContains("12,00", substring = true)
     }
@@ -146,12 +149,16 @@ class DiscountCartTest {
     fun aPlainLineOffersOffrirAndAnOfferedLineOffersRemoval() {
         show(OrderCartState(order = order(table = 4, totalCents = 2_400), rows = listOf(plain, offered), canDiscount = true))
 
-        compose.onNodeWithTag("cart_line_1_offer").performClick()
+        // The newest line (the offered one) is selected by default: its action is "Retirer la remise".
+        compose.onNodeWithTag("cart_line_1_offer").assertDoesNotExist()
         compose.onNodeWithTag("cart_line_2_remove_discount").performClick()
+        compose.onNodeWithTag("cart_line_1_row").performClick()
+        compose.onNodeWithTag("cart_line_1_offer").performClick()
+        compose.onNodeWithTag("cart_line_2_remove_discount").assertDoesNotExist()
         compose.onNodeWithTag("cart_line_2_offer").assertDoesNotExist()
         compose.onNodeWithTag("cart_line_2_amount").assertTextContains("0,00", substring = true)
 
-        assertEquals(listOf("offer:1", "remove-line:2"), seen)
+        assertEquals(listOf("remove-line:2", "offer:1"), seen)
     }
 
     @Test

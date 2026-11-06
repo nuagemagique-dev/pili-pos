@@ -26,6 +26,7 @@ import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -65,6 +66,7 @@ internal fun idleLockedMinutes(
  * what the role may not do (the backend enforces it). No toast is shown here: the screens collect
  * [presenceFailures] and [sessionLocked] and show them.
  */
+@Suppress("TooManyFunctions")
 @Singleton
 class SessionStore
     @Inject
@@ -80,6 +82,9 @@ class SessionStore
             MutableSharedFlow<SessionLocked>(extraBufferCapacity = EVENT_BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         private val mutablePresence =
             MutableSharedFlow<PresenceFailed>(extraBufferCapacity = EVENT_BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+        // Who was logged in when the engine last locked the till for inactivity (T6), taken once at the next login.
+        private val idleLockedUser = AtomicReference<String?>(null)
 
         // True while lock() runs: the session-locked event it causes is handled by the caller, not re-emitted.
         private val locking = AtomicBoolean(false)
@@ -187,6 +192,23 @@ class SessionStore
             return result
         }
 
+        /**
+         * Signs the clock-out (S event) of the logged-in operator themselves, for the "Fin de service" of the header
+         * menu (UX audit L1): the open session proves who they are, so no PIN is asked again. The session is kept;
+         * the caller locks it afterwards. A refusal propagates.
+         */
+        suspend fun workOutSelf(): EndShiftResult {
+            val insz = checkNotNull(mutableUser.value?.insz) { "Not logged in" }
+            return gateway.call { engine -> engine.workOut(insz) }
+        }
+
+        /**
+         * The operator who was logged in when the till last locked for inactivity, once (T6, `takeLockedOrder` of
+         * `auth.ts`): the login screen reopens their order only when the same person is back. Any login takes it,
+         * so a later lock never brings back an old order.
+         */
+        fun takeIdleLockedUser(): String? = idleLockedUser.getAndSet(null)
+
         /** Ends the session; the user is cleared even when the engine refuses. */
         suspend fun logout() {
             try {
@@ -199,6 +221,7 @@ class SessionStore
         private fun onSessionLocked(locked: SessionLocked) {
             mutableIdleWarning.value = null
             if (locking.get() || mutableUser.value == null) return
+            idleLockedUser.set(if (locked.reason == LockReason.IDLE) mutableUser.value?.insz else null)
             forget()
             mutableIdleLockedMin.value = idleLockedMinutes(locked.reason, locked.idleAfterMs)
             mutableLocked.tryEmit(locked)

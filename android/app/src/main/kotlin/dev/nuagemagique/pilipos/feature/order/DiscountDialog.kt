@@ -2,17 +2,17 @@ package dev.nuagemagique.pilipos.feature.order
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -22,9 +22,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.R
@@ -33,6 +32,8 @@ import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.PiliDialog
+import dev.nuagemagique.pilipos.ui.components.TextKeypad
+import dev.nuagemagique.pilipos.ui.components.TextKeypadSpec
 import dev.nuagemagique.pilipos.ui.format.CashDisplay
 import dev.nuagemagique.pilipos.ui.format.formatCents
 import dev.nuagemagique.pilipos.ui.format.formatEuro
@@ -142,13 +143,13 @@ private val KindKeys: List<Pair<DiscountKind, String>> =
 /**
  * `DiscountDialog.vue`: a manager's discount at the till. For the whole order: "%", "Montant" or "Offert" tabs,
  * the quick percents 5, 10, 15, 20 and 50, the pad for a custom percent or amount; for one line ([lineId]): only
- * "Offert". Four reason buttons are required, and an optional text is typed with the system keyboard (the Vue
- * screen has its own keypad). The preview reads "Total old -> new". The dialog only collects the input and calls
+ * "Offert". Four reason buttons are required, and an optional text is typed on the in-app text keypad (a tap on the
+ * field opens it, as in the Vue screen). The preview reads "Total old -> new". The dialog only collects the input and calls
  * [onConfirm]; the caller confirms it with the PIN and the engine applies every rule.
  *
  * Test tags: `discount_dialog`, `discount_kind_<percent|amount|free>`, `discount_quick_<n>`, `discount_typed`,
- * `discount_reason_<code>`, `discount_reason_text`, `discount_preview`, `discount_confirm`, `discount_cancel`, plus
- * the pad keys.
+ * `discount_reason_<code>`, `discount_reason_text` (the button that opens the keypad), `discount_preview`,
+ * `discount_confirm`, `discount_cancel`, plus the pad keys and the keypad (`discount_text_*`, root `discount_text_dialog`).
  */
 @Composable
 internal fun DiscountDialog(
@@ -162,6 +163,7 @@ internal fun DiscountDialog(
     var kindName by rememberSaveable { mutableStateOf(if (lineId != null) DiscountKind.FREE.name else DiscountKind.PERCENT.name) }
     var reasonName by rememberSaveable { mutableStateOf<String?>(null) }
     var text by rememberSaveable { mutableStateOf("") }
+    var typing by rememberSaveable { mutableStateOf(false) }
     val entry =
         DiscountEntry(DiscountKind.valueOf(kindName), digits, reasonName?.let { DiscountReason.valueOf(it) }, text)
     val isLine = lineId != null
@@ -200,19 +202,62 @@ internal fun DiscountDialog(
                     entry = entry,
                     modifier = Modifier.weight(1f),
                     onReason = { reasonName = it.name },
-                    onText = { text = it.take(REASON_TEXT_MAX) },
+                    onTypeText = { typing = true },
                 )
             }
-            val preview = vueText("discount_preview", "from" to formatCents(baseCents), "to" to formatCents(entry.previewCents(baseCents)))
-            Text(
-                text = preview,
-                style = PiliTheme.typography.price.copy(fontSize = PiliTheme.typography.sizeLg),
-                color = PiliTheme.colors.textPrimary,
-                modifier = Modifier.fillMaxWidth().testTag("discount_preview"),
+            DiscountPreview(baseCents, entry.previewCents(baseCents))
+        }
+        if (typing) {
+            ReasonKeypad(
+                initial = text,
+                onConfirm = { text = it.take(REASON_TEXT_MAX).also { typing = false } },
+                onCancel = { typing = false },
             )
         }
     }
 }
+
+/** "Total old -> new". */
+@Composable
+private fun DiscountPreview(
+    baseCents: Long,
+    newCents: Long,
+) {
+    Text(
+        text = vueText("discount_preview", "from" to formatCents(baseCents), "to" to formatCents(newCents)),
+        style = PiliTheme.typography.price.copy(fontSize = PiliTheme.typography.sizeLg),
+        color = PiliTheme.colors.textPrimary,
+        modifier = Modifier.fillMaxWidth().testTag("discount_preview"),
+    )
+}
+
+/** The text keypad of the reason detail. */
+@Composable
+private fun ReasonKeypad(
+    initial: String,
+    onConfirm: (String) -> Unit,
+    onCancel: () -> Unit,
+) {
+    TextKeypad(
+        spec =
+            TextKeypadSpec(
+                tag = "discount_text",
+                title = vueText("discount_reason_text_title"),
+                placeholder = vueText("discount_reason_text_placeholder"),
+                initial = initial,
+                maxLen = REASON_TEXT_MAX,
+                symbols = ReasonSymbols,
+                space = true,
+                caseToggle = true,
+            ),
+        onConfirm = onConfirm,
+        onCancel = onCancel,
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
+/** The punctuation of a reason text (`TEXT_SYMBOLS` of `DiscountDialog.vue`). */
+private val ReasonSymbols: List<String> = listOf(".", ",", "-", "/", "(", ")")
 
 @Composable
 private fun KindTabs(
@@ -287,7 +332,7 @@ private fun Reasons(
     entry: DiscountEntry,
     modifier: Modifier,
     onReason: (DiscountReason) -> Unit,
-    onText: (String) -> Unit,
+    onTypeText: () -> Unit,
 ) {
     val c = PiliTheme.colors
     val t = PiliTheme.typography
@@ -305,45 +350,33 @@ private fun Reasons(
                 }
             }
         }
-        ReasonField(entry.reasonText, onText)
+        ReasonField(entry.reasonText, onTypeText)
     }
 }
 
-/** The optional detail of the reason, on the system keyboard. */
+/** The optional detail of the reason: a button that shows the text (or invites to add one) and opens the keypad. */
 @Composable
 private fun ReasonField(
     value: String,
-    onValueChange: (String) -> Unit,
+    onOpen: () -> Unit,
 ) {
     val c = PiliTheme.colors
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        textStyle = PiliTheme.typography.body.copy(color = c.textPrimary),
-        cursorBrush = SolidColor(c.textPrimary),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        modifier = Modifier.fillMaxWidth().testTag("discount_reason_text"),
-        decorationBox = { inner ->
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = FieldHeight)
-                    .border(BorderStroke(Hairline, c.border), RoundedCornerShape(PiliTheme.dimens.radiusMd))
-                    .padding(horizontal = PiliTheme.dimens.spaceMd),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (value.isEmpty()) {
-                    Text(
-                        vueText("discount_reason_text_add"),
-                        style = PiliTheme.typography.body,
-                        color = c.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                inner()
-            }
-        },
-    )
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = FieldHeight)
+            .border(BorderStroke(Hairline, c.border), RoundedCornerShape(PiliTheme.dimens.radiusMd))
+            .clickable(role = Role.Button, onClick = onOpen)
+            .padding(horizontal = PiliTheme.dimens.spaceMd)
+            .testTag("discount_reason_text"),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(
+            text = value.ifEmpty { vueText("discount_reason_text_add") },
+            style = PiliTheme.typography.body,
+            color = if (value.isEmpty()) c.textSecondary else c.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }

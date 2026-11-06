@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { describeError } from '../utils/errorMessages'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOrderStore } from '../stores/order'
 import { useAuthStore } from '../stores/auth'
@@ -12,7 +12,7 @@ import { formatTimestamp, formatTime, minutesSince } from '../utils/datetime'
 import OrderLineItem from './OrderLineItem.vue'
 import VatSummary from './VatSummary.vue'
 import PinDialog from './PinDialog.vue'
-import TablePickerDialog from './TablePickerDialog.vue'
+import TableMover from './TableMover.vue'
 import DiscountDialog from './DiscountDialog.vue'
 import NoteDialog from './NoteDialog.vue'
 import CartMoreMenu from './CartMoreMenu.vue'
@@ -24,6 +24,11 @@ import { GIFT_VOUCHER_DEPARTMENT } from '../stores/giftVouchers'
 
 const router = useRouter()
 const order = useOrderStore()
+// Payment parts already taken by hand for this order and kept when the operator came back from the
+// checkout (UX audit P4).
+const keptParts = computed(() =>
+  order.currentOrder ? order.heldPartsFor(order.currentOrder.id).length : 0,
+)
 const auth = useAuthStore()
 const toast = useToastStore()
 const { t } = useI18n()
@@ -105,6 +110,56 @@ const cartTitle = computed(() => {
   return t('order')
 })
 
+/** The add that went to [lineId] (its sequence number), for the line's 200 ms flash; 0 for any other line. */
+function flashFor(lineId: number): number {
+  return order.lastAdd?.lineId === lineId ? order.lastAdd.seq : 0
+}
+
+// UX audit C2: one line is selected, its actions show under it. By default it is the newest line
+// of the cart; a tap on the selected line folds it, a tap on another one moves the selection, and
+// an add selects the line it went to. `undefined` is "no choice yet": the newest line.
+const choice = ref<number | null | undefined>(undefined)
+
+/** The newest line the operator can select (a bowl's paid option follows its bowl). */
+const newestLineId = computed(() => {
+  for (let i = order.lines.length - 1; i >= 0; i--) {
+    const line = order.lines[i]
+    if (line && (line.bowl_line_id === null || line.bowl_line_id === undefined)) return line.id
+  }
+  return null
+})
+const selectedLineId = computed(() =>
+  choice.value === undefined ? newestLineId.value : choice.value,
+)
+
+function selectLine(lineId: number) {
+  choice.value = selectedLineId.value === lineId ? null : lineId
+}
+
+watch(
+  () => order.lastAdd?.seq,
+  () => {
+    const add = order.lastAdd
+    if (add) choice.value = add.lineId
+  },
+)
+
+// Another order, or a line that left the cart (removed, paid): back to the newest line.
+watch(
+  () => order.currentOrder?.id,
+  () => {
+    choice.value = undefined
+  },
+)
+watch(
+  () => order.lines,
+  (lines) => {
+    if (typeof choice.value === 'number' && !lines.some((l) => l.id === choice.value)) {
+      choice.value = undefined
+    }
+  },
+)
+
 function increment(lineId: number) {
   const line = order.lines.find((l) => l.id === lineId)
   if (line) void order.updateQuantity(lineId, line.quantity + 1)
@@ -183,52 +238,22 @@ async function printPreBill() {
 }
 
 // Move the order to another table (event P, cost center change): the
-// free tables of the plan, current one left out.
-const canTransfer = computed(
-  () =>
-    isDineIn.value &&
-    order.currentOrder?.status === 'open' &&
-    order.currentOrder.table_number !== null &&
-    order.lines.length > 0,
-)
+// picker sheet and the one-tap move are TableMover's (C8).
+const canTransfer = computed(() => order.canTransfer)
 const picking = ref(false)
-const freeTables = ref<ipc.TableInfo[]>([])
-const transferring = ref(false)
-
-async function openTablePicker() {
-  if (!canTransfer.value || transferring.value) return
-  try {
-    const current = order.currentOrder?.table_number
-    freeTables.value = (await ipc.listTables()).filter(
-      (tbl) => tbl.status === 'free' && tbl.tableNumber !== current,
-    )
-  } catch (e) {
-    toast.show(describeError(e), 'error', 5000)
-    return
-  }
-  picking.value = true
-}
-
-async function transferTo(toTable: number) {
-  if (transferring.value) return
-  transferring.value = true
-  try {
-    await order.transferTable(toTable)
-    picking.value = false
-    toast.show(t('transfer_done', { to: toTable }), 'success')
-  } catch (e) {
-    picking.value = false
-    toast.show(describeError(e), 'error', 6000)
-  } finally {
-    transferring.value = false
-  }
-}
 
 // Kitchen note of a line: any staff member, on an open order. The dialog
 // says whether the note prints now (the line already went to the kitchen)
 // or with the order.
 const canNote = computed(() => order.currentOrder?.status === 'open')
 const noteLineId = ref<number | null>(null)
+const quickNotes = ref<string[]>([])
+
+/** UX audit C11: the chips are read each time the dialog opens, so a manager's change shows at once. */
+async function openNote(lineId: number) {
+  quickNotes.value = await order.loadQuickNotes()
+  noteLineId.value = lineId
+}
 const noteLine = computed(() => order.lines.find((l) => l.id === noteLineId.value) ?? null)
 
 async function saveNote(text: string) {
@@ -355,12 +380,16 @@ async function onUnpaidClosed() {
             v-for="line in group.lines"
             :key="line.id"
             :line="line"
+            :flash="flashFor(line.id)"
             :pending="isDineIn && (line.unsent_quantity ?? 0) > 0"
+            :show-state="isDineIn"
+            :selected="selectedLineId === line.id"
             show-course
             :can-offer="canOfferLine(line.id)"
             :can-remove-discount="canRemoveLineDiscount(line.id)"
             :can-note="canNote"
-            @note="noteLineId = $event"
+            @select="selectLine"
+            @note="openNote($event)"
             @increment="increment"
             @decrement="decrement"
             @remove="order.removeLine($event)"
@@ -375,10 +404,14 @@ async function onUnpaidClosed() {
           v-for="line in sentLines"
           :key="line.id"
           :line="line"
+          :flash="flashFor(line.id)"
+          :show-state="isDineIn"
+          :selected="selectedLineId === line.id"
           :can-offer="canOfferLine(line.id)"
           :can-remove-discount="canRemoveLineDiscount(line.id)"
           :can-note="canNote"
-          @note="noteLineId = $event"
+          @select="selectLine"
+          @note="openNote($event)"
           @increment="increment"
           @decrement="decrement"
           @remove="order.removeLine($event)"
@@ -393,11 +426,15 @@ async function onUnpaidClosed() {
             v-for="line in pendingLines"
             :key="line.id"
             :line="line"
+            :flash="flashFor(line.id)"
             pending
+            show-state
+            :selected="selectedLineId === line.id"
             :can-offer="canOfferLine(line.id)"
             :can-remove-discount="canRemoveLineDiscount(line.id)"
             :can-note="canNote"
-            @note="noteLineId = $event"
+            @select="selectLine"
+            @note="openNote($event)"
             @increment="increment"
             @decrement="decrement"
             @remove="order.removeLine($event)"
@@ -418,6 +455,10 @@ async function onUnpaidClosed() {
           <VatSummary :lines="order.lines" />
         </div>
       </div>
+
+      <p v-if="keptParts > 0" class="held-parts" data-testid="held-parts">
+        {{ t('parts_kept', { n: keptParts }) }}
+      </p>
 
       <div v-if="showActionRow" class="cart-actions">
         <button
@@ -489,24 +530,19 @@ async function onUnpaidClosed() {
       :can-discount="canDiscount"
       :order-discounted="order.orderDiscounted"
       :can-close-unpaid="canCloseUnpaid"
-      @transfer="fromMore(openTablePicker)"
+      @transfer="fromMore(() => (picking = true))"
       @discount="fromMore(() => (discountStep = { kind: 'ask', lineId: null }))"
       @discount-remove="fromMore(() => (discountStep = { kind: 'pin-remove', lineId: null }))"
       @unpaid="fromMore(() => (confirmUnpaid = true))"
       @cancel="moreOpen = false"
     />
 
-    <TablePickerDialog
-      v-if="picking && order.currentOrder?.table_number != null"
-      :tables="freeTables"
-      :from="order.currentOrder.table_number"
-      @confirm="transferTo"
-      @cancel="picking = false"
-    />
+    <TableMover v-if="picking" @close="picking = false" />
 
     <NoteDialog
       v-if="noteLine"
       :initial="noteLine.kitchen_note"
+      :chips="quickNotes"
       :sent="noteLine.quantity - (noteLine.unsent_quantity ?? 0) > 0"
       @confirm="saveNote"
       @cancel="noteLineId = null"
@@ -654,6 +690,13 @@ async function onUnpaidClosed() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.held-parts {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-warning);
 }
 
 .cart-total {
