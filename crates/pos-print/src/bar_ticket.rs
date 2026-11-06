@@ -9,7 +9,7 @@
 use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer};
 
 use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle, wrap};
-use crate::labels::{BarLabels, bar_labels};
+use crate::labels::bar_labels;
 
 /// One line sent to the bar or kitchen: what was just ordered, or a
 /// correction (negative quantity).
