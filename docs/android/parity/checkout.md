@@ -19,6 +19,7 @@ rounding, the signature, the ticket delivery); the screen only calls it through 
 | components/EmailKeypad.vue | ui/components/EmailKeypad.kt, drawn in the scaffold overlay of the checkout route | - |
 | components/DeliveryOutcomePanel.vue | ui/components/DeliveryOutcomePanel.kt with `DeliveryStore.printMissingOriginal` | `print_missing_original` |
 | stores/delivery.ts | ui/state/DeliveryStore.kt (refreshMailStatus on entering the pay step, request, reset) | `check_mail_status` |
+| CheckoutView.vue (UX audit T1 and T5: the recap title reads "Table A-5" with zones; the covers of the table are the usual number of equal parts, `split-covers` "4 couverts", the matching button is outlined, the pad of "Autre" starts on them, and nothing is ever split by itself) | feature/checkout/CheckoutPanels.kt (SplitRow, `coversHint`, tag `checkout_split_covers`), CheckoutState.kt (`tableLabel`, `covers`, `coversSplit`), CheckoutViewModel.kt (reads `OrderStore.covers` and `tableZones`), CheckoutScreen.kt (the pad `initial`) | `get_order_covers` |
 
 ## Quick checkout (UX audit P1, P2, P6)
 
@@ -73,6 +74,7 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
 
 ## Differences
 
+- **Covers are a hint, not a default (UX audit T5).** The brief reads "default N of equal parts"; both screens mark the matching button, show "N couverts" and start the pad of "Autre" on N, but never split by themselves, so a table paid in one go stays one tap. Same on Vue and Compose.
 - **Cash part before the last one.** Vue subtracts the parts in the browser. Here a cash part taken earlier is held
   in the previews as an exact amount, so the engine does the subtraction; the sale itself still sends it last
   without amount.

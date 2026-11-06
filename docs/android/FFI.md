@@ -187,6 +187,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | get_item_modifiers | modifiers::do_get_item_modifiers_localized | blocking | posEngine.getItemModifiers() |
 | get_menu_items | menu::do_get_menu_items | blocking | posEngine.getMenuItems() |
 | get_order | order::do_get_order | blocking | posEngine.getOrder() |
+| get_order_covers | covers::do_get_order_covers | blocking | posEngine.getOrderCovers() |
 | get_owner_alerts | alerts::do_get_owner_alerts | blocking | posEngine.getOwnerAlerts() |
 | get_quick_notes | quick_notes::do_get_quick_notes | blocking | posEngine.getQuickNotes() |
 | get_scale_status | scale::do_get_scale_status | spawn | posEngine.getScaleStatus() |
@@ -278,6 +279,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | set_hubrise_enabled | integrations::do_set_hubrise_enabled | blocking | posEngine.setHubriseEnabled() |
 | set_line_course | courses::do_set_line_course | blocking | posEngine.setLineCourse() |
 | set_line_note | order::do_set_line_note | spawn | posEngine.setLineNote() |
+| set_order_covers | covers::do_set_order_covers | blocking | posEngine.setOrderCovers() |
 | set_owner_alerts | alerts::do_set_owner_alerts | blocking | posEngine.setOwnerAlerts() |
 | set_pin | auth::do_set_pin | blocking | posEngine.setPin() |
 | set_quick_notes | quick_notes::do_set_quick_notes | blocking | posEngine.setQuickNotes() |
@@ -303,7 +305,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | work_in | social::do_work_in | spawn | posEngine.workIn() |
 | work_out | social::do_work_out | spawn | posEngine.workOut() |
 
-Parity: 157/157.
+Parity: 159/159.
 <!-- parity:end -->
 
 ## 12. JVM tests, mocks and gates
