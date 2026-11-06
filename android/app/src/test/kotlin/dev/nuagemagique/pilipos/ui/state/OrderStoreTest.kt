@@ -1121,7 +1121,7 @@ class OrderStoreTest {
             r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
             val input = discount()
             coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
-                DiscountResult(order(id = 1, table = 3, totalCents = 250), SlipOutcome.NOTHING_TO_PRINT, null)
+                DiscountResult(order(id = 1, table = 3, totalCents = 250), SlipOutcome.NOTHING_TO_PRINT, null, false, null)
             r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
 
             r.store.applyDiscount(input, "insz", "4321")
@@ -1138,7 +1138,7 @@ class OrderStoreTest {
             r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
             val input = discount()
             coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
-                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, "fdm_unreachable")
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, "fdm_unreachable", false, null)
             r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
 
             r.store.discountWarnings.test {
@@ -1155,7 +1155,7 @@ class OrderStoreTest {
             r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
             val input = discount()
             coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
-                DiscountResult(order(id = 1, table = 3), SlipOutcome.FAILED, null)
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.FAILED, null, false, null)
             r.stubReads(order(id = 1, table = 3), listOf(line(1, 10)))
 
             r.store.slipFailures.test {
@@ -1264,12 +1264,91 @@ class OrderStoreTest {
         }
 
     @Test
+    fun aTypedPinIsHintedForTheOrderForAsLongAsTheEngineSaid() =
+        runTest {
+            val r = rig()
+            var now = 10_000L
+            r.store.clockMs = { now }
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val input = discount()
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3, totalCents = 250), SlipOutcome.NOTHING_TO_PRINT, null, false, 120_000L)
+            r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
+            assertFalse(r.store.keepsManagerPin())
+
+            val typed = r.store.applyDiscount(input, "insz", "4321")
+
+            assertFalse(typed.pinReused)
+            assertTrue(r.store.keepsManagerPin())
+            now += 119_999L
+            assertTrue(r.store.keepsManagerPin())
+            now += 1L
+            assertFalse(r.store.keepsManagerPin())
+        }
+
+    @Test
+    fun theNextDiscountOfTheOrderPassesNoPinAndTheHintFollowsTheAnswer() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val input = discount()
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null, false, 120_000L)
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", null) } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null, true, 90_000L)
+            r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10)))
+            r.store.applyDiscount(input, "insz", "4321")
+
+            val reused = r.store.applyDiscount(input, "insz", null)
+
+            assertTrue(reused.pinReused)
+            coVerify(exactly = 1) { r.f.engine.applyDiscount(1L, input, "insz", null) }
+            assertTrue(r.store.keepsManagerPin())
+        }
+
+    @Test
+    fun aRemovalWithoutTheGrantLeavesNoHintAndForgettingDropsIt() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
+            coEvery { r.f.engine.removeDiscount(1L, null, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3, totalCents = 500), SlipOutcome.NOTHING_TO_PRINT, null, false, null)
+            r.stubReads(order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+
+            r.store.removeDiscount(null, "insz", "4321")
+            assertFalse(r.store.keepsManagerPin())
+
+            coEvery { r.f.engine.applyDiscount(any(), any(), any(), any()) } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null, false, 120_000L)
+            r.store.applyDiscount(discount(), "insz", "4321")
+            assertTrue(r.store.keepsManagerPin())
+            r.store.forgetManagerPin()
+            assertFalse(r.store.keepsManagerPin())
+        }
+
+    @Test
+    fun theHintIsForTheOrderThatWasDiscountedOnly() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            coEvery { r.f.engine.applyDiscount(any(), any(), any(), any()) } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null, false, 120_000L)
+            r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10)))
+            r.store.applyDiscount(discount(), "insz", "4321")
+            assertTrue(r.store.keepsManagerPin())
+
+            r.store.seed(r, order(id = 2, table = 4, totalCents = 500), listOf(line(2, 10)))
+
+            assertFalse(r.store.keepsManagerPin())
+        }
+
+    @Test
     fun removingAnOrderDiscountPassesNoLineAndReadsTheOrderAgain() =
         runTest {
             val r = rig()
             r.store.seed(r, order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
             coEvery { r.f.engine.removeDiscount(1L, null, "insz", "4321") } returns
-                DiscountResult(order(id = 1, table = 3, totalCents = 500), SlipOutcome.NOTHING_TO_PRINT, null)
+                DiscountResult(order(id = 1, table = 3, totalCents = 500), SlipOutcome.NOTHING_TO_PRINT, null, false, null)
             r.stubReads(order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
 
             r.store.removeDiscount(null, "insz", "4321")
@@ -1288,7 +1367,7 @@ class OrderStoreTest {
                 listOf(line(4, 10, priceChanges = listOf(CartPriceChange("TILL-FREE-LINE", "Offert", "LINE", -500)))),
             )
             coEvery { r.f.engine.removeDiscount(1L, 4L, "insz", "4321") } returns
-                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null)
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null, false, null)
             r.stubReads(order(id = 1, table = 3, totalCents = 500), listOf(line(4, 10)))
 
             r.store.removeDiscount(4L, "insz", "4321")
@@ -1577,6 +1656,20 @@ class OrderStoreTest {
         }
 
     @Test
+    fun theDishesATerminalCardPaidAreKeptEvenWithNoManualPart() =
+        runTest {
+            val r = rig()
+
+            r.store.holdParts(4L, emptyList(), mapOf(7L to listOf(DishUnits(3L, 2))))
+
+            assertEquals(mapOf(7L to listOf(DishUnits(3L, 2))), r.store.heldEftUnitsFor(4L))
+            assertTrue(r.store.heldEftUnitsFor(5L).isEmpty())
+            assertTrue(r.store.heldPartsFor(4L).isEmpty())
+            r.store.holdParts(4L, emptyList())
+            assertNull(r.store.heldParts.value)
+        }
+
+    @Test
     fun anOrdinaryLeaveKeepsThePartsAndResettingForgetsThem() =
         runTest {
             val r = rig()
@@ -1589,6 +1682,158 @@ class OrderStoreTest {
 
             r.store.resetLocal()
             assertTrue(r.store.heldPartsFor(1L).isEmpty())
+        }
+
+    // ── Covers and zones (UX audit T5, T1) ────────────────────────
+
+    @Test
+    fun theCoversOfATableOrderAreReadWithTheOrder() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getOrderCovers(1L) } returns 4
+            r.store.seed(r, order(id = 1, table = 4), emptyList())
+
+            assertEquals(4, r.store.covers.value)
+        }
+
+    @Test
+    fun aTakeawayHasNoCoversAndTheEngineIsNotAskedForThem() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTakeawayTag(5L) } returns tag()
+            r.store.seed(r, order(id = 5), emptyList())
+
+            assertNull(r.store.covers.value)
+            coVerify(exactly = 0) { r.f.engine.getOrderCovers(any()) }
+        }
+
+    @Test
+    fun aTillThatCannotAnswerShowsNoCovers() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getOrderCovers(1L) } throws PosException.Coded("internal", emptyMap())
+            r.store.seed(r, order(id = 1, table = 4), emptyList())
+
+            assertNull(r.store.covers.value)
+            assertEquals(1L, r.store.current.value?.id)
+        }
+
+    @Test
+    fun theCoversAreSentWithTheOrderAndTheAnswerBecomesTheState() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getOrderCovers(1L) } returns null
+            r.store.seed(r, order(id = 1, table = 4), emptyList())
+            coEvery { r.f.engine.setOrderCovers(1L, 6) } returns 6
+
+            assertTrue(r.store.setCovers(6))
+            assertEquals(6, r.store.covers.value)
+
+            coEvery { r.f.engine.setOrderCovers(1L, null) } returns null
+            assertTrue(r.store.setCovers(null))
+            assertNull(r.store.covers.value)
+            coVerify { r.f.engine.setOrderCovers(1L, null) }
+        }
+
+    @Test
+    fun aRefusedCoversKeepTheValueAndReportTheFailure() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getOrderCovers(1L) } returns 3
+            r.store.seed(r, order(id = 1, table = 4), emptyList())
+            coEvery { r.f.engine.setOrderCovers(1L, any()) } throws PosException.Coded("covers_invalid", mapOf("max" to "30"))
+
+            r.store.failures.test {
+                assertFalse(r.store.setCovers(31))
+                assertTrue(awaitItem() is PosException)
+            }
+            assertEquals(3, r.store.covers.value)
+        }
+
+    @Test
+    fun theCoversGoWithTheLocalOrder() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getOrderCovers(1L) } returns 3
+            r.store.seed(r, order(id = 1, table = 4), emptyList())
+
+            r.store.resetLocal()
+
+            assertNull(r.store.covers.value)
+        }
+
+    private fun zonedPlan() =
+        uniffi.pos_ffi.TablePlan(
+            plan = "A 1-3, B 4-5",
+            tableCount = 5L,
+            zoneNames = "",
+            zones = listOf(uniffi.pos_ffi.TableZone("A", null, listOf(1, 2, 3)), uniffi.pos_ffi.TableZone("B", null, listOf(4, 5))),
+            log = emptyList(),
+        )
+
+    @Test
+    fun withoutAnAnswerFromThePlanTheTablesAreWrittenAsNumbers() =
+        runTest {
+            val r = rig()
+
+            assertEquals("19", r.store.tableLabel(19))
+            assertEquals("", r.store.tableLabel(null))
+            assertEquals("T19", r.store.tableShortLabel(19))
+        }
+
+    @Test
+    fun theEngineBeingReadyReadsThePlanAndLabelsTheTables() =
+        runTest {
+            val f = EngineFixture(this, tmp.root)
+            coEvery { f.stream.next() } coAnswers { Channel<PosEvent?>().receive() }
+            coEvery { f.engine.getTablePlan() } returns zonedPlan()
+            val store = OrderStore(f.gateway(this), f.events, backgroundScope)
+            f.holder.open()
+            runCurrent()
+
+            assertEquals("A-2", store.tableLabel(2))
+            assertEquals("B-5", store.tableLabel(5))
+            // A table the plan leaves out has no zone.
+            assertEquals("9", store.tableLabel(9))
+            assertEquals("A-2", store.tableShortLabel(2))
+            assertEquals("T9", store.tableShortLabel(9))
+        }
+
+    @Test
+    fun aResyncReadsThePlanAgain() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTablePlan() } returns zonedPlan()
+
+            r.events.send(PosEvent.Resync(missed = 1L))
+            runCurrent()
+
+            assertEquals("B-4", r.store.tableLabel(4))
+        }
+
+    @Test
+    fun aPlanTheManagerSavedIsAppliedAndAPlanWithoutZonesWritesNumbersAgain() =
+        runTest {
+            val r = rig()
+
+            r.store.applyTablePlan(zonedPlan())
+            assertEquals("A-1", r.store.tableLabel(1))
+            r.store.applyTablePlan(zonedPlan().copy(zones = emptyList()))
+            assertEquals("1", r.store.tableLabel(1))
+        }
+
+    @Test
+    fun aListOfTablesTeachesTheZonesOfEachOne() =
+        runTest {
+            val r = rig()
+            r.store.applyTablePlan(zonedPlan())
+
+            val base = uniffi.pos_ffi.TableInfo(1, null, null, "1", null, null, null, 0L, 0L, "free", null, false, null)
+            r.store.learnTables(listOf(base, base.copy(tableNumber = 7, zone = "C", label = "C-7")))
+
+            assertEquals("1", r.store.tableLabel(1))
+            assertEquals("C-7", r.store.tableLabel(7))
+            assertEquals("A-2", r.store.tableLabel(2))
         }
 
     /** Puts [order] and [cart] in the store through the engine, as a screen would (loadOrder). */

@@ -73,6 +73,8 @@ const coreMessages: Messages = {
   card_wait: { fr: 'Encaisser sur le terminal', en: 'Process on terminal', zh: '请在终端上刷卡' },
   back: { fr: 'Retour', en: 'Back', zh: '返回' },
   open_price_title: { fr: 'Prix libre', en: 'Open price', zh: '自定价格' },
+  // Favourites tab of the order screen (UX audit C12)
+  favourites_tab: { fr: 'Favoris', en: 'Favourites', zh: '常用' },
   // Sold out ("Épuisé", V11-D16)
   soldout_mode: { fr: 'Épuisé', en: 'Sold out', zh: '售罄' },
   soldout_mode_hint: {
@@ -406,9 +408,9 @@ const coreMessages: Messages = {
     zh: '外带订单没有桌号。',
   },
   err_table_plan_invalid: {
-    fr: 'Écrivez les numéros de table comme ceci : 1-12, 20-25 (de 1 à 999, 200 tables au plus).',
-    en: 'Write the table numbers like this: 1-12, 20-25 (1 to 999, at most 200 tables).',
-    zh: '请按此格式填写桌号：1-12, 20-25（1至999，最多200张桌）。',
+    fr: 'Écrivez les tables comme ceci : 1-12, 20-25 ou avec des zones A 1-20, B 21-40 (de 1 à 999, 200 tables au plus, un numéro dans une seule zone). Noms des zones : A · Salle, B · Terrasse.',
+    en: 'Write the tables like this: 1-12, 20-25, or with zones A 1-20, B 21-40 (1 to 999, at most 200 tables, a number in one zone only). Zone names: A · Room, B · Terrace.',
+    zh: '请按此格式填写桌位：1-12, 20-25，或带区域 A 1-20, B 21-40（1至999，最多200张桌，一个号码只能属于一个区域）。区域名称：A · 大厅，B · 露台。',
   },
   err_alerts_invalid: {
     fr: 'Réglage des alertes invalide : {field}.',
@@ -530,6 +532,16 @@ const coreMessages: Messages = {
     en: 'Note too long: 60 characters at most.',
     zh: '备注太长：最多60个字符。',
   },
+  err_favourites_invalid: {
+    fr: "Ce produit n'existe pas dans la carte.",
+    en: 'This product is not in the menu.',
+    zh: '菜单中没有这个商品。',
+  },
+  err_favourites_too_many: {
+    fr: 'Trop de favoris : {max} au plus.',
+    en: 'Too many favourites: {max} at most.',
+    zh: '常用菜品太多：最多{max}个。',
+  },
   err_quick_notes_too_many: {
     fr: 'Trop de notes rapides : {max} au plus.',
     en: 'Too many quick notes: {max} at most.',
@@ -635,6 +647,11 @@ const coreMessages: Messages = {
     fr: "Cette vente n'a pas été payée : rien à rembourser.",
     en: 'This sale was not paid: nothing to refund.',
     zh: '此笔销售未付款：无可退款。',
+  },
+  err_refund_already_done: {
+    fr: 'Cette vente est déjà remboursée en totalité.',
+    en: 'This sale has already been refunded in full.',
+    zh: '此笔销售已全额退款。',
   },
   err_takeaway_not_registered: {
     fr: 'Une vente à emporter se termine par un paiement.',
@@ -1041,6 +1058,11 @@ const coreMessages: Messages = {
     en: 'The first takeaway number goes from {min} to {max}.',
     zh: '外带起始号码为{min}到{max}。',
   },
+  err_covers_invalid: {
+    fr: 'Nombre de couverts impossible : un nombre de 1 à {max}.',
+    en: 'Covers not accepted: a number from 1 to {max}.',
+    zh: '人数无效：请输入1到{max}之间的数字。',
+  },
   err_takeaway_name_invalid: {
     fr: "Nom impossible : {max} caractères au plus, lettres, chiffres et accents que l'imprimante sait imprimer.",
     en: 'Name not accepted: {max} characters at most, letters, digits and accents the printer can print.',
@@ -1206,7 +1228,11 @@ const coreMessages: Messages = {
   },
   cash_amount_placeholder: { fr: 'Montant (€)', en: 'Amount (€)', zh: '金额 (€)' },
   cash_reason_placeholder: { fr: 'Motif', en: 'Reason', zh: '原因' },
-  cash_success: { fr: 'Mouvement enregistré', en: 'Movement recorded', zh: '已记录' },
+  cash_success_drawer: {
+    fr: 'Mouvement enregistré · tiroir ouvert',
+    en: 'Movement recorded · drawer open',
+    zh: '已记录 · 钱箱已打开',
+  },
   cash_failed: { fr: 'Mouvement non enregistré', en: 'Movement not recorded', zh: '未记录' },
   cash_drawer_opened: { fr: 'Tiroir ouvert', en: 'Drawer opened', zh: '钱箱已打开' },
   cash_err_amount: { fr: 'Montant invalide', en: 'Invalid amount', zh: '金额无效' },
@@ -1410,6 +1436,17 @@ const coreMessages: Messages = {
     zh: '请选择空桌',
   },
   transfer_no_free: { fr: 'Aucune table libre', en: 'No free table', zh: '没有空桌' },
+  // Table zones and covers (UX audit T1, T5)
+  zone_other: { fr: 'Autres tables', en: 'Other tables', zh: '其他桌位' },
+  covers_add: { fr: 'Couverts', en: 'Covers', zh: '人数' },
+  covers_one: { fr: '1 couvert', en: '1 cover', zh: '1位客人' },
+  covers_n: { fr: '{n} couverts', en: '{n} covers', zh: '{n}位客人' },
+  covers_title: {
+    fr: 'Couverts : de 1 à 30, 0 pour effacer',
+    en: 'Covers: 1 to 30, 0 to clear',
+    zh: '用餐人数：1至30，0为清除',
+  },
+  table_covers_short: { fr: '{n} couv.', en: '{n} cov.', zh: '{n}位' },
   transfer_moved: {
     fr: 'Table {from} déplacée en {to}',
     en: 'Table {from} moved to {to}',
@@ -1422,6 +1459,10 @@ const coreMessages: Messages = {
     en: 'Tap the table to move',
     zh: '点按要移动的桌子',
   },
+  // Long press on an occupied table card: its action sheet (UX audit T7)
+  table_sheet_open: { fr: 'Ouvrir', en: 'Open', zh: '打开' },
+  table_sheet_pay: { fr: 'Payer', en: 'Pay', zh: '结账' },
+  table_sheet_close: { fr: 'Fermer', en: 'Close', zh: '关闭' },
   transfer_pick_free: {
     fr: 'Table {from} : touchez la table libre',
     en: 'Table {from}: tap the free table',
@@ -1473,6 +1514,11 @@ const coreMessages: Messages = {
     zh: '折扣将显示在税务小票上。请输入PIN确认。',
   },
   discount_applied: { fr: 'Remise appliquée', en: 'Discount applied', zh: '折扣已应用' },
+  discount_applied_pin_kept: {
+    fr: 'Remise appliquée · code gardé {minutes} min pour cette commande',
+    en: 'Discount applied · PIN kept {minutes} min for this order',
+    zh: '折扣已应用 · 本单{minutes}分钟内无需再输入PIN',
+  },
   discount_removed: { fr: 'Remise retirée', en: 'Discount removed', zh: '折扣已取消' },
   discount_remove: { fr: 'Retirer la remise', en: 'Remove discount', zh: '取消折扣' },
   discount_remove_hint: {

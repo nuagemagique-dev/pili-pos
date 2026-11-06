@@ -41,7 +41,9 @@ use pos_engine::commands::discount::{
     DiscountInput, DiscountKind, DiscountReason, DiscountTarget, do_apply_discount,
     do_remove_discount,
 };
-use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pos_engine::commands::financial::{
+    DrawerAfter, MoneyDirection, do_money_in_out, do_open_drawer_fiscal,
+};
 use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_remove_order_line,
     do_update_order_line_quantity,
@@ -192,7 +194,7 @@ async fn manager_commands(
             reason_text: None,
         },
         insz.into(),
-        MANAGER_PIN.into(),
+        Some(MANAGER_PIN.into()),
     )
     .await
     .map(|_| ());
@@ -201,7 +203,7 @@ async fn manager_commands(
         left_unpaid,
         None,
         insz.into(),
-        MANAGER_PIN.into(),
+        Some(MANAGER_PIN.into()),
     )
     .await
     .map(|_| ());
@@ -248,6 +250,7 @@ async fn manager_commands(
                     1000,
                     MoneyDirection::In,
                     "Fond".into(),
+                    DrawerAfter::Leave,
                 )
                 .await
                 .map(|r| r.success),

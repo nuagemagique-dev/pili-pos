@@ -167,12 +167,18 @@ impl PosEngine {
     }
 
     /// Record a cash movement (money in, money out) or the count of the drawer.
+    /// `open_drawer` also opens the drawer once after the movement is signed.
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "UniFFI export: the argument is part of the Kotlin API"
+    )]
     pub async fn money_in_out(
         &self,
         employee_insz: String,
         amount_cents: i64,
         direction: MoneyDirection,
         reason: String,
+        open_drawer: bool,
     ) -> Result<FinancialResult, PosError> {
         let direction: pos_engine::commands::financial::MoneyDirection = convert::inp(&direction)?;
         let result = self
@@ -183,6 +189,7 @@ impl PosEngine {
                     amount_cents,
                     direction,
                     reason,
+                    open_drawer.into(),
                 )
                 .await
             })

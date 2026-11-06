@@ -37,7 +37,7 @@
     <string name="err_operator_invalid">Employé invalide : reconnectez-vous.</string>
     <string name="err_dine_in_needs_table">Une commande sur place a besoin d\'une table.</string>
     <string name="err_takeaway_has_no_table">Une commande à emporter n\'a pas de table.</string>
-    <string name="err_table_plan_invalid">Écrivez les numéros de table comme ceci : 1-12, 20-25 (de 1 à 999, 200 tables au plus).</string>
+    <string name="err_table_plan_invalid">Écrivez les tables comme ceci : 1-12, 20-25 ou avec des zones A 1-20, B 21-40 (de 1 à 999, 200 tables au plus, un numéro dans une seule zone). Noms des zones : A · Salle, B · Terrasse.</string>
     <string name="err_alerts_invalid">Réglage des alertes invalide : {field}.</string>
     <string name="err_alerts_token_missing">Le jeton du robot Telegram n\'est pas configuré sur cette caisse (section alerts de pos.json).</string>
     <string name="err_alerts_send_failed">Le message n\'est pas parti : {detail}</string>
@@ -62,6 +62,8 @@
     <string name="err_discount_reason_invalid">Choisissez le motif de la remise.</string>
     <string name="err_discount_online_order">Une commande en ligne a ses propres remises : aucune remise en caisse.</string>
     <string name="err_note_too_long">Note trop longue : 60 caractères au plus.</string>
+    <string name="err_favourites_invalid">Ce produit n\'existe pas dans la carte.</string>
+    <string name="err_favourites_too_many">Trop de favoris : {max} au plus.</string>
     <string name="err_quick_notes_too_many">Trop de notes rapides : {max} au plus.</string>
     <string name="err_note_unprintable">La note a un caractère que l\'imprimante de cuisine ne sait pas imprimer (lettres, chiffres et accents seulement).</string>
     <string name="err_line_has_price_changes">Cette ligne a une remise : retirez-la avant de changer la quantité.</string>
@@ -84,6 +86,7 @@
     <string name="err_payment_incomplete">Il reste un montant à payer.</string>
     <string name="err_unpaid_nothing_due">Rien à payer : encaissez la vente normalement.</string>
     <string name="err_refund_unpaid_sale">Cette vente n\'a pas été payée : rien à rembourser.</string>
+    <string name="err_refund_already_done">Cette vente est déjà remboursée en totalité.</string>
     <string name="err_takeaway_not_registered">Une vente à emporter se termine par un paiement.</string>
     <string name="err_order_total_negative">Le total ne peut pas être négatif.</string>
     <string name="err_amount_negative">Le montant ne peut pas être négatif.</string>
@@ -159,6 +162,7 @@
     <string name="err_config_other">Configuration invalide ou illisible. Détail : {detail}</string>
     <string name="err_internal_error">Erreur interne. Contactez votre technicien. ({detail})</string>
     <string name="err_takeaway_number_invalid">Le premier numéro à emporter va de {min} à {max}.</string>
+    <string name="err_covers_invalid">Nombre de couverts impossible : un nombre de 1 à {max}.</string>
     <string name="err_takeaway_name_invalid">Nom impossible : {max} caractères au plus, lettres, chiffres et accents que l\'imprimante sait imprimer.</string>
     <string name="err_takeaway_phone_invalid">Téléphone impossible : des chiffres seulement (3 à 15), {max} caractères au plus.</string>
     <string name="err_takeaway_customer_not_takeaway">Un nom et un téléphone se mettent sur un À emporter de la caisse (ni une table, ni une commande en ligne).</string>

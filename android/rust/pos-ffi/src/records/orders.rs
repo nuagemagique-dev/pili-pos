@@ -243,6 +243,10 @@ pub struct DiscountResult {
     /// Set when the immediate P could not be signed: the discount is recorded and goes with the
     /// next registration or the sale.
     pub registration_error: Option<String>,
+    /// The PIN given for an earlier discount of the order was reused: nothing was typed.
+    pub pin_reused: bool,
+    /// Milliseconds the manager may still give discounts on this order without the PIN.
+    pub pin_grant_ms: Option<i64>,
 }
 
 /// `pos_core::menu::Category`.
@@ -377,6 +381,16 @@ pub struct AddWithModifiersInput {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TableInfo {
     pub table_number: i32,
+    /// The zone letters of the table in the plan ("A"), none without zones.
+    pub zone: Option<String>,
+    /// The name a manager gave the zone ("Salle"), if any.
+    pub zone_name: Option<String>,
+    /// How the table is written on screen: "A-19" in a zone, "19" without one.
+    pub label: String,
+    /// The initial of the user who opened the order, when the table is occupied.
+    pub opened_by_initial: Option<String>,
+    /// The covers (guests) set on the order, when the table is occupied and they were set.
+    pub covers: Option<i32>,
     pub order_id: Option<i64>,
     pub total_cents: i64,
     pub line_count: i64,
@@ -469,19 +483,37 @@ pub struct VatSplitRow {
 #[serde(deny_unknown_fields)]
 pub struct TablePlanChange {
     pub plan: String,
+    /// The zone names the plan had then ("A · Salle, B · Terrasse"), empty for none.
+    pub zone_names: String,
     /// `config` (pos.json) or `admin` (a manager).
     pub source: String,
     pub changed_by: Option<String>,
     pub changed_at: String,
 }
 
+/// `pos_engine::commands::table_plan::TableZone`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct TableZone {
+    /// The zone letters ("A").
+    pub letter: String,
+    /// The name a manager gave it ("Salle"), if any.
+    pub name: Option<String>,
+    /// Its tables, ascending.
+    pub numbers: Vec<i32>,
+}
+
 /// `pos_engine::commands::table_plan::TablePlan`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(deny_unknown_fields)]
 pub struct TablePlan {
-    /// The table numbers as ranges, canonical form ("1-12, 20-25").
+    /// The tables as ranges, canonical form ("1-12, 20-25", "A 1-20, B 21-40").
     pub plan: String,
     pub table_count: i64,
+    /// The names of the zones, canonical form ("A · Salle, B · Terrasse"); empty for none.
+    pub zone_names: String,
+    /// The zones of the plan, in alphabetical order; none on a plan without letters.
+    pub zones: Vec<TableZone>,
     /// The latest changes first.
     pub log: Vec<TablePlanChange>,
 }

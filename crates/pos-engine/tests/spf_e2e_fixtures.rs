@@ -39,7 +39,9 @@ use serde_json::{Value, json};
 use pos_core::order::OrderType;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
-use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pos_engine::commands::financial::{
+    DrawerAfter, MoneyDirection, do_money_in_out, do_open_drawer_fiscal,
+};
 use pos_engine::commands::invoice::{
     B2bCustomerInput, do_save_b2b_customer, do_sign_invoice_fiscal,
 };
@@ -609,6 +611,7 @@ async fn m130_money_in() {
         pos_core::money::cents_from_eur(amount),
         MoneyDirection::In,
         "Fond de caisse".to_string(),
+        DrawerAfter::Leave,
     )
     .await
     .unwrap();
@@ -631,6 +634,7 @@ async fn m133_drawer_declaration() {
         pos_core::money::cents_from_eur(amount),
         MoneyDirection::Declaration,
         "Declaration tiroir".to_string(),
+        DrawerAfter::Leave,
     )
     .await
     .unwrap();
@@ -1062,7 +1066,7 @@ async fn uc223_event_discount_at_the_till() {
         order_id,
         order_discount(DiscountKind::Percent, Some(50)),
         operator(&vars),
-        MANAGER_PIN.into(),
+        Some(MANAGER_PIN.into()),
     )
     .await
     .unwrap();
@@ -1127,7 +1131,7 @@ async fn uc225a_discount_after_registration() {
         order_id,
         order_discount(DiscountKind::Percent, Some(20)),
         operator(&first_vars),
-        MANAGER_PIN.into(),
+        Some(MANAGER_PIN.into()),
     )
     .await
     .unwrap();
@@ -1196,7 +1200,7 @@ async fn uc229b_free_line_at_the_till() {
             reason_text: None,
         },
         operator(&vars),
-        MANAGER_PIN.into(),
+        Some(MANAGER_PIN.into()),
     )
     .await
     .unwrap();

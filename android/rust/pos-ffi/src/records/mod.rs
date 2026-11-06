@@ -104,6 +104,7 @@
 //! | `TableInfo` | `pos_engine::commands::tables::TableInfo` | orders | list_tables |
 //! | `TablePlan` | `pos_engine::commands::table_plan::TablePlan` | orders | get_table_plan, set_table_plan |
 //! | `TablePlanChange` | `pos_db::queries::table_plan::PlanChange` | orders | get_table_plan, set_table_plan |
+//! | `TableZone` | `pos_engine::commands::table_plan::TableZone` | orders | get_table_plan, set_table_plan |
 //! | `TableTransferResult` | `pos_engine::commands::table_transfer::TableTransferResult` | orders | transfer_table |
 //! | `TakeawayInfo` | `pos_engine::commands::tables::TakeawayInfo` | orders | list_open_takeaways |
 //! | `CopyResult` | `pos_engine::commands::copy::CopyResult` | checkout | copy_ticket |
@@ -118,6 +119,8 @@
 //! | `MailStatus` | `pos_engine::commands::delivery::MailStatus` | checkout | check_mail_status |
 //! | `RefundItem` | `pos_engine::commands::refund::RefundItem` | checkout | refund_checkout |
 //! | `RefundableEvent` | `pos_db::queries::fiscal::RefundableEvent` | checkout | list_refundable_events |
+//! | `TicketLookup` | `pos_engine::commands::refund::TicketLookup` | checkout | find_ticket_by_number |
+//! | `TicketMatch` | `pos_engine::commands::refund::TicketMatch` | checkout | find_ticket_by_number |
 //! | `AlertKinds` | `pos_engine::commands::alerts::AlertKinds` | alerts | get_owner_alerts, set_owner_alerts |
 //! | `AlertLogRow` | `pos_db::queries::owner_settings::AlertLogRow` | alerts | list_owner_alert_log |
 //! | `AlertTestResult` | `pos_engine::commands::alerts::AlertTestResult` | alerts | send_test_alert |
@@ -139,6 +142,8 @@
 //! | `NextCourse` | `pos_engine::commands::courses::NextCourse` | courses | send_next_course |
 //! | `TakeawayNumbering` | `pos_engine::commands::takeaway::TakeawayNumbering` | takeaway | get_takeaway_numbering, set_takeaway_numbering |
 //! | `TakeawayTag` | `pos_engine::commands::takeaway::TakeawayTag` | takeaway | get_takeaway_tag, set_takeaway_customer |
+//! | `FavouritesMode` | `pos_engine::commands::favourites::FavouritesMode` | favourites | get_favourites_settings, set_favourites_settings, set_favourite |
+//! | `FavouritesSettings` | `pos_engine::commands::favourites::FavouritesSettings` | favourites | get_favourites_settings, set_favourites_settings, set_favourite |
 //! | `QuickNotes` | `pos_engine::commands::quick_notes::QuickNotes` | quick_notes | get_quick_notes, set_quick_notes |
 //! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | correct_payment, money_in_out, open_drawer_fiscal |
 //! | `MoneyDirection` | `pos_engine::commands::financial::MoneyDirection` | reports | money_in_out |
@@ -229,6 +234,7 @@ pub mod common;
 pub mod courses;
 pub mod eft;
 pub mod export;
+pub mod favourites;
 pub mod gift_vouchers;
 pub mod hubrise;
 pub mod invoice;

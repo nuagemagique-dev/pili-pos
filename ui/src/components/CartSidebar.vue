@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { describeError } from '../utils/errorMessages'
+import { describeError, errorCode } from '../utils/errorMessages'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOrderStore } from '../stores/order'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useTablePlanStore } from '../stores/tablePlan'
 import { useI18n } from '../i18n'
 import { formatPrice } from '../utils/format'
 import { lineNetCents } from '../utils/cartAmounts'
@@ -15,9 +16,11 @@ import PinDialog from './PinDialog.vue'
 import TableMover from './TableMover.vue'
 import DiscountDialog from './DiscountDialog.vue'
 import NoteDialog from './NoteDialog.vue'
+import NumberEntryDialog from './NumberEntryDialog.vue'
 import CartMoreMenu from './CartMoreMenu.vue'
 import { kitchenIsPrimary, sendableLineCount } from '../utils/cartPrimary'
-import type { CartLine, DiscountInput } from '../types'
+import type { CartLine, DiscountInput, DiscountResult } from '../types'
+import { minutesKept } from '../utils/pinGrant'
 import * as ipc from '../api/ipc'
 import CoursePickerDialog from './CoursePickerDialog.vue'
 import { GIFT_VOUCHER_DEPARTMENT } from '../stores/giftVouchers'
@@ -31,6 +34,7 @@ const keptParts = computed(() =>
 )
 const auth = useAuthStore()
 const toast = useToastStore()
+const plan = useTablePlanStore()
 const { t } = useI18n()
 
 const isDineIn = computed(() => order.currentOrder?.order_type === 'dine_in')
@@ -105,10 +109,33 @@ const openedAt = computed(() => {
 
 const cartTitle = computed(() => {
   const current = order.currentOrder
-  if (current?.table_number) return `${t('order')} · ${t('table')} ${current.table_number}`
+  if (current?.table_number)
+    return `${t('order')} · ${t('table')} ${plan.label(current.table_number)}`
   if (current?.order_type === 'takeaway') return `${t('order')} · ${t('takeaway_badge')}`
   return t('order')
 })
+
+// UX audit T5: the covers (guests) of a table order, set from the cart header. Optional; a pad from
+// 1 to 30, 0 clears. Local data: they show on the table card and default the equal parts at checkout.
+const COVERS_MAX = 30
+const coversOpen = ref(false)
+const showCovers = computed(
+  () =>
+    isDineIn.value &&
+    order.currentOrder !== null &&
+    order.currentOrder.table_number !== null &&
+    order.currentOrder.status === 'open',
+)
+const coversText = computed(() => {
+  if (order.covers === null) return t('covers_add')
+  return order.covers === 1 ? t('covers_one') : t('covers_n', { n: order.covers })
+})
+
+async function saveCovers(value: string) {
+  coversOpen.value = false
+  const n = Number(value)
+  await order.setCovers(n === 0 ? null : n)
+}
 
 /** The add that went to [lineId] (its sequence number), for the line's 200 ms flash; 0 for any other line. */
 function flashFor(lineId: number): number {
@@ -305,16 +332,70 @@ const discountBase = computed(() => {
   return order.totalCents
 })
 
+// What the PIN pad's last confirmation did, for the toast.
+let typedDiscount: DiscountResult | null = null
+
 async function verifyDiscount(pin: string) {
   const step = discountStep.value
-  if (step?.kind === 'pin-apply') await order.applyDiscount(step.input, pin)
-  else if (step?.kind === 'pin-remove') await order.removeDiscount(step.lineId, pin)
+  if (step?.kind === 'pin-apply') typedDiscount = await order.applyDiscount(step.input, pin)
+  else if (step?.kind === 'pin-remove') typedDiscount = await order.removeDiscount(step.lineId, pin)
+}
+
+/** The success toast. A PIN typed for a discount tells the manager it is kept for the order
+ * (UX audit P8), so the next one will not ask for it. */
+function announceDiscount(removed: boolean, result: DiscountResult | null) {
+  if (removed) {
+    toast.show(t('discount_removed'), 'success')
+  } else if (result && !result.pinReused && result.pinGrantMs !== null) {
+    toast.show(
+      t('discount_applied_pin_kept', { minutes: minutesKept(result.pinGrantMs) }),
+      'success',
+    )
+  } else {
+    toast.show(t('discount_applied'), 'success')
+  }
 }
 
 function onDiscountDone() {
   const removed = discountStep.value?.kind === 'pin-remove'
   discountStep.value = null
-  toast.show(t(removed ? 'discount_removed' : 'discount_applied'), 'success')
+  announceDiscount(removed, typedDiscount)
+  typedDiscount = null
+}
+
+/** Run a discount command with no PIN when the engine said it keeps the manager's. If the
+ * engine no longer does (`pin_required`: locked, expired, another order in between), fall back to
+ * the PIN pad; any other refusal is shown as it is. */
+async function tryKeptPin(
+  run: () => Promise<DiscountResult>,
+  removed: boolean,
+  fallback: DiscountStep,
+) {
+  discountStep.value = null
+  try {
+    announceDiscount(removed, await run())
+  } catch (e) {
+    if (errorCode(e) === 'pin_required') {
+      order.forgetManagerPin()
+      discountStep.value = fallback
+    } else {
+      toast.show(describeError(e), 'error', 6000)
+    }
+  }
+}
+
+function startApply(input: DiscountInput) {
+  const pinStep: DiscountStep = { kind: 'pin-apply', input }
+  if (order.keepsManagerPin())
+    void tryKeptPin(() => order.applyDiscount(input, null), false, pinStep)
+  else discountStep.value = pinStep
+}
+
+function startRemove(lineId: number | null) {
+  const pinStep: DiscountStep = { kind: 'pin-remove', lineId }
+  if (order.keepsManagerPin())
+    void tryKeptPin(() => order.removeDiscount(lineId, null), true, pinStep)
+  else discountStep.value = pinStep
 }
 
 // The customer left without paying (UC4109): a manager closes the
@@ -350,6 +431,15 @@ async function onUnpaidClosed() {
   <aside class="cart">
     <div class="cart-header">
       <h2>{{ cartTitle }}</h2>
+      <button
+        v-if="showCovers"
+        class="covers-btn"
+        :class="{ set: order.covers !== null }"
+        data-testid="cart-covers"
+        @click="coversOpen = true"
+      >
+        {{ coversText }}
+      </button>
       <button
         v-if="hasMore"
         class="more-btn"
@@ -394,7 +484,7 @@ async function onUnpaidClosed() {
             @decrement="decrement"
             @remove="order.removeLine($event)"
             @offer="discountStep = { kind: 'ask', lineId: $event }"
-            @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
+            @remove-discount="startRemove($event)"
             @course="pickingLine = order.lines.find((l) => l.id === $event) ?? null"
           />
         </template>
@@ -416,7 +506,7 @@ async function onUnpaidClosed() {
           @decrement="decrement"
           @remove="order.removeLine($event)"
           @offer="discountStep = { kind: 'ask', lineId: $event }"
-          @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
+          @remove-discount="startRemove($event)"
         />
         <template v-if="pendingLines.length">
           <div class="pending-label">
@@ -439,7 +529,7 @@ async function onUnpaidClosed() {
             @decrement="decrement"
             @remove="order.removeLine($event)"
             @offer="discountStep = { kind: 'ask', lineId: $event }"
-            @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
+            @remove-discount="startRemove($event)"
           />
         </template>
       </template>
@@ -532,12 +622,23 @@ async function onUnpaidClosed() {
       :can-close-unpaid="canCloseUnpaid"
       @transfer="fromMore(() => (picking = true))"
       @discount="fromMore(() => (discountStep = { kind: 'ask', lineId: null }))"
-      @discount-remove="fromMore(() => (discountStep = { kind: 'pin-remove', lineId: null }))"
+      @discount-remove="fromMore(() => startRemove(null))"
       @unpaid="fromMore(() => (confirmUnpaid = true))"
       @cancel="moreOpen = false"
     />
 
     <TableMover v-if="picking" @close="picking = false" />
+
+    <NumberEntryDialog
+      v-if="coversOpen"
+      :title="t('covers_title')"
+      :initial="order.covers === null ? '' : String(order.covers)"
+      :max-digits="2"
+      :min="0"
+      :max="COVERS_MAX"
+      @confirm="saveCovers"
+      @cancel="coversOpen = false"
+    />
 
     <NoteDialog
       v-if="noteLine"
@@ -552,7 +653,7 @@ async function onUnpaidClosed() {
       v-if="discountStep?.kind === 'ask'"
       :base-cents="discountBase"
       :line-id="discountStep.lineId ?? undefined"
-      @confirm="discountStep = { kind: 'pin-apply', input: $event }"
+      @confirm="startApply($event)"
       @cancel="discountStep = null"
     />
 
@@ -600,9 +701,10 @@ async function onUnpaidClosed() {
 
 .cart-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 8px 16px;
   padding: 14px 16px 10px;
   border-bottom: 1px solid var(--border);
 }
@@ -610,6 +712,24 @@ async function onUnpaidClosed() {
   font-size: 28px;
   font-weight: var(--font-weight-heavy);
   line-height: 1.2;
+}
+.covers-btn {
+  height: 48px;
+  min-width: 48px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  transition: transform var(--tap-duration) ease;
+}
+.covers-btn.set {
+  color: var(--text-primary);
+}
+.covers-btn:active {
+  transform: scale(var(--tap-scale));
 }
 .more-btn {
   margin-left: auto;

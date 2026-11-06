@@ -33,7 +33,9 @@ use pos_core::vat::VatCode;
 use pos_db::queries::orders::NewOrderLine;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
-use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pos_engine::commands::financial::{
+    DrawerAfter, MoneyDirection, do_money_in_out, do_open_drawer_fiscal,
+};
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::report::{
     do_generate_user_x_report, do_generate_x_report, do_generate_z_report, do_list_z_reports,
@@ -364,6 +366,7 @@ async fn a_money_movement_answered_inconsistently_is_refused() {
         5000,
         MoneyDirection::In,
         "Fond de caisse".to_string(),
+        DrawerAfter::Leave,
     )
     .await
     .unwrap();

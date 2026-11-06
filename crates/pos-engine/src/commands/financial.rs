@@ -27,20 +27,57 @@ pub enum MoneyDirection {
     Declaration,
 }
 
+/// Whether a cash movement also opens the drawer once it is signed.
+///
+/// On the wire (the Tauri command) it is the plain flag `openDrawer` of the
+/// UI, read through `From<bool>`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(from = "bool")]
+pub enum DrawerAfter {
+    /// Only the movement is recorded (the default of every other caller).
+    Leave,
+    /// The drawer opens in the same step, for the cash put in or taken out.
+    Kick,
+}
+
+impl From<bool> for DrawerAfter {
+    fn from(open: bool) -> Self {
+        if open { Self::Kick } else { Self::Leave }
+    }
+}
+
 /// Record a cash financial event (Event F): money put in or taken
 /// out (cash float, withdrawal, ...), or the count of the drawer.
+///
+/// `DrawerAfter::Kick` kicks the drawer once, after the movement is signed
+/// and archived, so the same tap records the movement and gives
+/// access to the cash. It signs NO second event: the detailed
+/// description (POS v2.2, `DRAWER_OPEN`, "Ouverture du tiroir-caisse en
+/// dehors des ventes") and the producers' FAQ (Q405: `signDrawerOpen`
+/// is used only when the drawer is opened without any other operation
+/// recorded, and need not precede a `signMoneyInOut`) make the movement
+/// itself the record of that opening; a `DRAWER_OPEN` beside it would
+/// also inflate `drawersOpenCount` of the Z report ("sans
+/// enregistrement de vente"). A count of the drawer (`Declaration`)
+/// never kicks it, whatever the flag.
 pub async fn do_money_in_out(
     state: &AppState,
     employee_insz: String,
     amount_cents: i64,
     direction: MoneyDirection,
     reason: String,
+    drawer: DrawerAfter,
 ) -> Result<FinancialResult, String> {
     access::operator_named(state, &employee_insz, Access::Admin)?;
+    let open_drawer =
+        drawer == DrawerAfter::Kick && !matches!(direction, MoneyDirection::Declaration);
     // A retry of the same movement, answered late, is not made twice.
+    // The flag is part of the identity only when set, so a movement
+    // without it keeps the subject it always had.
+    let drawer_mark = if open_drawer { "|drawer" } else { "" };
     let op = Op::new(
         Kind::Money,
-        format!("{employee_insz}|{direction:?}|{amount_cents}|{reason}"),
+        format!("{employee_insz}|{direction:?}|{amount_cents}|{reason}{drawer_mark}"),
     );
     let guard = match signing::begin(state, &op).await {
         Ok(Begin::Fresh(guard)) => guard,
@@ -105,13 +142,19 @@ pub async fn do_money_in_out(
         Mode::from(config.training_mode),
     )
     .map_err(errors::internal)?;
-    let prepared = prepared(op, request, label, ticket_number, &employee_insz, &input)?;
-    Ok(
-        match signing::sign(state, &guard, &config, prepared).await {
-            Ok(_) => FinancialResult::done(),
-            Err(failure) => FinancialResult::failed(failure.error),
-        },
-    )
+    let mut prepared = prepared(op, request, label, ticket_number, &employee_insz, &input)?;
+    if open_drawer {
+        prepared.context = PendingContext::MoneyDrawer;
+    }
+    let context = prepared.context.clone();
+    let committed = match signing::sign(state, &guard, &config, prepared).await {
+        Ok(committed) => committed,
+        Err(failure) => return Ok(FinancialResult::failed(failure.error)),
+    };
+    drop(guard);
+    // Kick the physical drawer open, once, after the movement is safe.
+    signing::follow_up(state, &config, &context, &committed, signing::Drawer::Kick).await;
+    Ok(FinancialResult::done())
 }
 
 impl FinancialResult {

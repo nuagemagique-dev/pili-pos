@@ -61,7 +61,8 @@ private const val NAME_LINES = 2
  * The product buttons (`MenuGrid.vue`): five columns, vertical scroll. [categoryColor] is the colour of the left
  * band of every button; [cartQuantities] gives the badge on the products already in the cart. When the category has
  * no product (and the products were read) the empty text is shown, [emptyText] when given (no product for a typed
- * code). [highlightId] rings the product OK of the code pad takes. Test tags: `menu_grid`, `menu_empty`.
+ * code). [highlightId] rings the product OK of the code pad takes. [categoryColors] gives each product its own
+ * category colour (the "Favoris" tab mixes categories); it beats [categoryColor]. Test tags: `menu_grid`, `menu_empty`.
  */
 @Composable
 @Suppress("LongParameterList")
@@ -76,6 +77,7 @@ internal fun MenuGrid(
     modifier: Modifier = Modifier,
     highlightId: Long? = null,
     emptyText: String? = null,
+    categoryColors: Map<Long, Color?>? = null,
 ) {
     val d = PiliTheme.dimens
     Box(modifier.testTag("menu_grid")) {
@@ -87,7 +89,8 @@ internal fun MenuGrid(
             verticalArrangement = Arrangement.spacedBy(d.spaceSm),
         ) {
             items(items, key = { it.id }) { item ->
-                val look = ButtonLook(categoryColor, cartQuantities[item.id] ?: 0, item.id == highlightId)
+                val color = categoryColors?.get(item.categoryId) ?: categoryColor
+                val look = ButtonLook(color, cartQuantities[item.id] ?: 0, item.id == highlightId)
                 MenuItemButton(item, look, language, labelMode) { onAdd(item) }
             }
         }

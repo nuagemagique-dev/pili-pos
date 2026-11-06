@@ -8,12 +8,15 @@ const { t } = useI18n()
 const {
   items,
   categoryColor = undefined,
+  categoryColors = undefined,
   cartQuantities = undefined,
   highlightId = null,
   emptyText = undefined,
 } = defineProps<{
   items: MenuItem[]
   categoryColor?: string | null
+  /** The colour of each product's own category (the "Favoris" tab mixes categories); beats `categoryColor`. */
+  categoryColors?: Map<number, string | null>
   /** Quantity already in the cart, per product id. */
   cartQuantities?: Map<number, number>
   /** The product OK of the code pad would add, ringed. */
@@ -36,7 +39,7 @@ const emit = defineEmits<{
       v-for="item in items"
       :key="item.id"
       :item="item"
-      :category-color="categoryColor ?? undefined"
+      :category-color="categoryColors?.get(item.category_id) ?? categoryColor ?? undefined"
       :in-cart="cartQuantities?.get(item.id) ?? 0"
       :highlighted="item.id === highlightId"
       @add="emit('addItem', $event)"

@@ -471,6 +471,46 @@ test.describe('Cash events (F)', () => {
     expect(calls[0]).toMatchObject({ amountCents: 1000, direction: 'in', reason: 'fond_de_caisse' })
   })
 
+  test('[R3] one tap records the movement and opens the drawer, with no second signed event', async ({
+    page,
+  }) => {
+    await openCash(page)
+    await page.locator('.cash-submit').click()
+    await expect(page.locator('.toast-success')).toContainText('tiroir ouvert')
+
+    // One engine call carries the movement and the drawer flag; the separate drawer event
+    // (open_drawer_fiscal) is not called: the movement is the record (FAQ Q405).
+    const calls = await ipcCalls(page, 'money_in_out')
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toMatchObject({ openDrawer: true })
+    expect(await ipcCalls(page, 'open_drawer_fiscal')).toHaveLength(0)
+  })
+
+  test('[R3] a cash out opens the drawer too', async ({ page }) => {
+    await openCash(page)
+    await page.locator('.cash-dir-out').click()
+    await page.locator('.cash-reason', { hasText: 'Retrait' }).click()
+    await page.locator('.cash-submit').click()
+    await expect.poll(() => ipcCalls(page, 'money_in_out')).toHaveLength(1)
+    const calls = await ipcCalls(page, 'money_in_out')
+    expect(calls[0]).toMatchObject({ direction: 'out', openDrawer: true })
+  })
+
+  test('[R3] the Open the drawer button stays and signs its own drawer event', async ({ page }) => {
+    await gotoCashTab(page)
+    await page.locator('.drawer-btn').click()
+    await expect(page.locator('.toast-success')).toContainText('Tiroir ouvert')
+    expect(await ipcCalls(page, 'open_drawer_fiscal')).toHaveLength(1)
+    expect(await ipcCalls(page, 'money_in_out')).toHaveLength(0)
+  })
+
+  test('[R3] a refused movement shows no "drawer open" message', async ({ page }) => {
+    await openCash(page, { money_in_out: () => REFUSED })
+    await page.locator('.cash-submit').click()
+    await expect(page.locator('.toast-error')).toBeVisible()
+    await expect(page.locator('.toast-success')).toHaveCount(0)
+  })
+
   test('a cash out is sent with its direction', async ({ page }) => {
     await openCash(page)
     await page.locator('.cash-dir-out').click()
@@ -514,7 +554,12 @@ test.describe('Cash events (F)', () => {
     await expect(page.locator('.toast-success')).toContainText('Contenu du tiroir déclaré')
     const calls = await ipcCalls(page, 'money_in_out')
     expect(calls).toHaveLength(1)
-    expect(calls[0]).toMatchObject({ amountCents: 34720, direction: 'declaration' })
+    // A count of the drawer never opens it.
+    expect(calls[0]).toMatchObject({
+      amountCents: 34720,
+      direction: 'declaration',
+      openDrawer: false,
+    })
   })
 
   test('[M133] an empty drawer is declared as 0', async ({ page }) => {

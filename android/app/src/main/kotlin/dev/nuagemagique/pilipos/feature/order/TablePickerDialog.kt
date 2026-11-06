@@ -32,13 +32,14 @@ private val PickerMaxWidth = 720.dp
  * `TablePickerDialog.vue` (UX audit C8): every other table of the plan, to move the open order. A free table is one
  * tap and [onPick] moves the order at once (no "Validate"); a busy table is dimmed (a disabled button), cannot be
  * tapped and shows its total.
- * A tap outside the card or "Back" cancels. [from] is the table the order is on now; [tables] are the others.
+ * A tap outside the card or "Back" cancels. [fromLabel] is the table the order is on now ("A-19" in a zone, UX audit
+ * T1); [tables] are the others.
  *
  * Test tags: `table_picker` (root), `pick_table_<n>`, `transfer_cancel`.
  */
 @Composable
 internal fun TablePickerDialog(
-    from: Int,
+    fromLabel: String,
     tables: List<TableInfo>,
     onPick: (Int) -> Unit,
     onCancel: () -> Unit,
@@ -48,7 +49,7 @@ internal fun TablePickerDialog(
     val t = PiliTheme.typography
     Box(modifier = modifier.testTag("table_picker")) {
         PiliDialog(
-            title = vueText("transfer_table") + " · " + vueText("table") + " " + from,
+            title = vueText("transfer_table") + " · " + vueText("table") + " " + fromLabel,
             onDismissRequest = onCancel,
             maxWidth = PickerMaxWidth,
             actions = {
@@ -78,7 +79,7 @@ internal fun TablePickerDialog(
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = table.tableNumber.toString(),
+                                        text = table.label,
                                         style = t.figure.copy(fontSize = t.sizeXl, fontWeight = t.weightBold),
                                         color = c.textPrimary,
                                     )

@@ -678,12 +678,6 @@
       "zh": "现金出账",
       "area": "core"
     },
-    "cash_part_taken": {
-      "fr": "Une part est déjà payée en espèces : les autres se paient par carte ou chèques-repas.",
-      "en": "One part is already paid in cash: the others are paid by card or meal vouchers.",
-      "zh": "已有一份以现金支付：其余请用刷卡或餐券支付。",
-      "area": "checkout"
-    },
     "cash_reason_placeholder": {
       "fr": "Motif",
       "en": "Reason",
@@ -696,10 +690,10 @@
       "zh": "现金管理",
       "area": "core"
     },
-    "cash_success": {
-      "fr": "Mouvement enregistré",
-      "en": "Movement recorded",
-      "zh": "已记录",
+    "cash_success_drawer": {
+      "fr": "Mouvement enregistré · tiroir ouvert",
+      "en": "Movement recorded · drawer open",
+      "zh": "已记录 · 钱箱已打开",
       "area": "core"
     },
     "catalog_issue_bad_price": {
@@ -1200,6 +1194,30 @@
       "zh": "分道出菜",
       "area": "settings"
     },
+    "covers_add": {
+      "fr": "Couverts",
+      "en": "Covers",
+      "zh": "人数",
+      "area": "core"
+    },
+    "covers_n": {
+      "fr": "{n} couverts",
+      "en": "{n} covers",
+      "zh": "{n}位客人",
+      "area": "core"
+    },
+    "covers_one": {
+      "fr": "1 couvert",
+      "en": "1 cover",
+      "zh": "1位客人",
+      "area": "core"
+    },
+    "covers_title": {
+      "fr": "Couverts : de 1 à 30, 0 pour effacer",
+      "en": "Covers: 1 to 30, 0 to clear",
+      "zh": "用餐人数：1至30，0为清除",
+      "area": "core"
+    },
     "deactivate": {
       "fr": "Désactiver",
       "en": "Deactivate",
@@ -1398,6 +1416,12 @@
       "zh": "折扣已应用",
       "area": "core"
     },
+    "discount_applied_pin_kept": {
+      "fr": "Remise appliquée · code gardé {minutes} min pour cette commande",
+      "en": "Discount applied · PIN kept {minutes} min for this order",
+      "zh": "折扣已应用 · 本单{minutes}分钟内无需再输入PIN",
+      "area": "core"
+    },
     "discount_apply": {
       "fr": "Appliquer la remise",
       "en": "Apply discount",
@@ -1547,6 +1571,42 @@
       "en": "Order discount",
       "zh": "订单折扣",
       "area": "core"
+    },
+    "dish_less": {
+      "fr": "Une unité de moins",
+      "en": "One unit less",
+      "zh": "减少一件",
+      "area": "checkout"
+    },
+    "dish_more": {
+      "fr": "Une unité de plus",
+      "en": "One unit more",
+      "zh": "增加一件",
+      "area": "checkout"
+    },
+    "dish_paid": {
+      "fr": "payé",
+      "en": "paid",
+      "zh": "已付",
+      "area": "checkout"
+    },
+    "dish_paid_of": {
+      "fr": "{paid} sur {n} payés",
+      "en": "{paid} of {n} paid",
+      "zh": "已付 {paid}/{n}",
+      "area": "checkout"
+    },
+    "dish_pick_hint": {
+      "fr": "Cochez les plats de cette part",
+      "en": "Check the dishes of this part",
+      "zh": "勾选这一份的菜品",
+      "area": "checkout"
+    },
+    "dish_picked": {
+      "fr": "Plats de cette part : {n}",
+      "en": "Dishes in this part: {n}",
+      "zh": "本份菜品：{n}",
+      "area": "checkout"
     },
     "done_auto_return": {
       "fr": "Retour aux tables · touchez pour continuer",
@@ -1974,6 +2034,12 @@
       "zh": "分道出菜已关闭（设置）。",
       "area": "errors"
     },
+    "err_covers_invalid": {
+      "fr": "Nombre de couverts impossible : un nombre de 1 à {max}.",
+      "en": "Covers not accepted: a number from 1 to {max}.",
+      "zh": "人数无效：请输入1到{max}之间的数字。",
+      "area": "errors"
+    },
     "err_customer_incomplete": {
       "fr": "Information client manquante : {field}.",
       "en": "Customer information missing: {field}.",
@@ -2134,6 +2200,18 @@
       "fr": "L'opération a échoué.",
       "en": "The operation failed.",
       "zh": "操作失败。",
+      "area": "errors"
+    },
+    "err_favourites_invalid": {
+      "fr": "Ce produit n'existe pas dans la carte.",
+      "en": "This product is not in the menu.",
+      "zh": "菜单中没有这个商品。",
+      "area": "errors"
+    },
+    "err_favourites_too_many": {
+      "fr": "Trop de favoris : {max} au plus.",
+      "en": "Too many favourites: {max} at most.",
+      "zh": "常用菜品太多：最多{max}个。",
       "area": "errors"
     },
     "err_first_pin_needs_manager": {
@@ -2766,6 +2844,12 @@
       "zh": "快捷备注太多：最多{max}条。",
       "area": "errors"
     },
+    "err_refund_already_done": {
+      "fr": "Cette vente est déjà remboursée en totalité.",
+      "en": "This sale has already been refunded in full.",
+      "zh": "此笔销售已全额退款。",
+      "area": "errors"
+    },
     "err_refund_bowl_whole": {
       "fr": "Un bol se rembourse avec ses suppléments : cochez aussi son bouillon.",
       "en": "A bowl is refunded with its extras: tick its broth too.",
@@ -2965,9 +3049,9 @@
       "area": "errors"
     },
     "err_table_plan_invalid": {
-      "fr": "Écrivez les numéros de table comme ceci : 1-12, 20-25 (de 1 à 999, 200 tables au plus).",
-      "en": "Write the table numbers like this: 1-12, 20-25 (1 to 999, at most 200 tables).",
-      "zh": "请按此格式填写桌号：1-12, 20-25（1至999，最多200张桌）。",
+      "fr": "Écrivez les tables comme ceci : 1-12, 20-25 ou avec des zones A 1-20, B 21-40 (de 1 à 999, 200 tables au plus, un numéro dans une seule zone). Noms des zones : A · Salle, B · Terrasse.",
+      "en": "Write the tables like this: 1-12, 20-25, or with zones A 1-20, B 21-40 (1 to 999, at most 200 tables, a number in one zone only). Zone names: A · Room, B · Terrace.",
+      "zh": "请按此格式填写桌位：1-12, 20-25，或带区域 A 1-20, B 21-40（1至999，最多200张桌，一个号码只能属于一个区域）。区域名称：A · 大厅，B · 露台。",
       "area": "errors"
     },
     "err_table_transfer_not_a_table": {
@@ -3101,6 +3185,66 @@
       "en": "exact {exact} · rounded to 5 cts",
       "zh": "精确 {exact} · 5分进位",
       "area": "checkout"
+    },
+    "fav_count": {
+      "fr": "{n} sur {max}",
+      "en": "{n} of {max}",
+      "zh": "{n} / {max}",
+      "area": "settings"
+    },
+    "fav_empty": {
+      "fr": "Aucun favori.",
+      "en": "No favourite.",
+      "zh": "没有常用菜品。",
+      "area": "settings"
+    },
+    "fav_mode_selection": {
+      "fr": "Ma sélection",
+      "en": "My selection",
+      "zh": "我的选择",
+      "area": "settings"
+    },
+    "fav_mode_top_sold": {
+      "fr": "Plus vendus sur 30 jours",
+      "en": "Best sellers, 30 days",
+      "zh": "30天最畅销",
+      "area": "settings"
+    },
+    "fav_note": {
+      "fr": "Le premier onglet de la prise de commande. Il reste caché tant qu'il est vide. Rien de cela n'entre dans les données fiscales.",
+      "en": "The first tab of the order screen. It stays hidden while it is empty. None of this enters the fiscal data.",
+      "zh": "点菜界面的第一个标签页，为空时自动隐藏。这些都不会进入税务数据。",
+      "area": "settings"
+    },
+    "fav_remove": {
+      "fr": "Retirer",
+      "en": "Remove",
+      "zh": "移除",
+      "area": "settings"
+    },
+    "fav_selection_note": {
+      "fr": "Touchez l'étoile d'un produit dans l'éditeur de carte pour l'ajouter. Les produits s'affichent dans l'ordre d'ajout.",
+      "en": "Tap the star of a product in the menu editor to add it. Products show in the order they were added.",
+      "zh": "在菜单编辑器中点击商品的星标即可加入。商品按加入顺序显示。",
+      "area": "settings"
+    },
+    "fav_title": {
+      "fr": "Favoris",
+      "en": "Favourites",
+      "zh": "常用菜品",
+      "area": "settings"
+    },
+    "fav_top_sold_note": {
+      "fr": "Les 18 produits les plus vendus des 30 derniers jours, mis à jour toutes les heures et à chaque Z. Un produit épuisé laisse sa place au suivant.",
+      "en": "The 18 best-selling products of the last 30 days, updated every hour and at each Z. A sold-out product gives its place to the next one.",
+      "zh": "最近30天最畅销的18个商品，每小时及每次Z报表后更新。售罄的商品由下一个顶替。",
+      "area": "settings"
+    },
+    "favourites_tab": {
+      "fr": "Favoris",
+      "en": "Favourites",
+      "zh": "常用",
+      "area": "core"
     },
     "fdm_closes_in": {
       "fr": "se ferme dans {s} s",
@@ -3293,6 +3437,18 @@
       "en": "Voucher printed again (DUPLICATA)",
       "zh": "已重新打印（DUPLICATA）",
       "area": "reports"
+    },
+    "gv_scan_hint": {
+      "fr": "ou scannez le code-barres du bon",
+      "en": "or scan the barcode of the voucher",
+      "zh": "或扫描礼品券上的条形码",
+      "area": "checkout"
+    },
+    "gv_scan_invalid": {
+      "fr": "Ce code-barres n'est pas un bon cadeau (12 chiffres attendus)",
+      "en": "This barcode is not a gift voucher (12 digits expected)",
+      "zh": "此条形码不是礼品券（应为12位数字）",
+      "area": "checkout"
     },
     "gv_sell_button": {
       "fr": "Bon cadeau",
@@ -4590,6 +4746,12 @@
       "zh": "按重量销售",
       "area": "settings"
     },
+    "menu_ed_star": {
+      "fr": "Ajouter aux favoris",
+      "en": "Add to favourites",
+      "zh": "加入常用",
+      "area": "settings"
+    },
     "menu_ed_tare": {
       "fr": "Tare du contenant",
       "en": "Container tare",
@@ -4600,6 +4762,12 @@
       "fr": "Édition de la carte",
       "en": "Menu editor",
       "zh": "菜单编辑",
+      "area": "settings"
+    },
+    "menu_ed_unstar": {
+      "fr": "Retirer des favoris",
+      "en": "Remove from favourites",
+      "zh": "移出常用",
       "area": "settings"
     },
     "menu_ed_vat": {
@@ -4877,6 +5045,12 @@
       "en": "Someone else (INSZ)",
       "zh": "其他人 (INSZ)",
       "area": "core"
+    },
+    "part_cash_detail": {
+      "fr": "reçu {given} €, rendu {change} €",
+      "en": "received {given} €, change {change} €",
+      "zh": "收 {given} €，找 {change} €",
+      "area": "checkout"
     },
     "part_n": {
       "fr": "Part {n}",
@@ -6265,15 +6439,15 @@
       "area": "settings"
     },
     "settings_tables_note": {
-      "fr": "Numéros et plages séparés par des virgules. Une table qui a encore une commande ouverte reste affichée.",
-      "en": "Numbers and ranges separated by commas. A table that still has an open order stays on screen.",
-      "zh": "用逗号分隔号码和范围。仍有未结订单的桌位会继续显示。",
+      "fr": "Numéros et plages séparés par des virgules. Une lettre devant une plage crée une zone : la table s'écrit alors A-19 à l'écran et sur les bons de cuisine, son numéro (19) reste celui du ticket. Une table qui a encore une commande ouverte reste affichée.",
+      "en": "Numbers and ranges separated by commas. A letter before a range makes a zone: the table is then written A-19 on screen and on the kitchen slips, its number (19) stays the one on the ticket. A table that still has an open order stays on screen.",
+      "zh": "用逗号分隔号码和范围。范围前的字母表示区域：桌位在屏幕和厨房单上显示为 A-19，小票上仍是号码 19。仍有未结订单的桌位会继续显示。",
       "area": "settings"
     },
     "settings_tables_placeholder": {
-      "fr": "1-12, 20-25",
-      "en": "1-12, 20-25",
-      "zh": "1-12, 20-25",
+      "fr": "1-12, 20-25  ou  A 1-20, B 21-40",
+      "en": "1-12, 20-25  or  A 1-20, B 21-40",
+      "zh": "1-12, 20-25  或  A 1-20, B 21-40",
       "area": "settings"
     },
     "settings_tables_save": {
@@ -6354,6 +6528,18 @@
       "zh": "之后的销售不会计入账目。",
       "area": "settings"
     },
+    "settings_zone_names": {
+      "fr": "Noms des zones (facultatif)",
+      "en": "Zone names (optional)",
+      "zh": "区域名称（可选）",
+      "area": "settings"
+    },
+    "settings_zone_names_placeholder": {
+      "fr": "A · Salle, B · Terrasse",
+      "en": "A · Room, B · Terrace",
+      "zh": "A · 大厅, B · 露台",
+      "area": "settings"
+    },
     "shift_ended": {
       "fr": "Service terminé · {name}",
       "en": "Shift ended · {name}",
@@ -6432,10 +6618,34 @@
       "zh": "售罄直至重新启用",
       "area": "core"
     },
+    "split_dishes": {
+      "fr": "Par plats",
+      "en": "By dishes",
+      "zh": "按菜品",
+      "area": "checkout"
+    },
     "split_into": {
       "fr": "Partager en",
       "en": "Split into",
       "zh": "分成",
+      "area": "checkout"
+    },
+    "split_other": {
+      "fr": "Autre",
+      "en": "Other",
+      "zh": "其他",
+      "area": "checkout"
+    },
+    "split_other_n": {
+      "fr": "{n} parts",
+      "en": "{n} parts",
+      "zh": "{n} 份",
+      "area": "checkout"
+    },
+    "split_other_title": {
+      "fr": "Nombre de parts égales",
+      "en": "Number of equal parts",
+      "zh": "等份数量",
       "area": "checkout"
     },
     "status_kitchen": {
@@ -6636,10 +6846,34 @@
       "zh": "桌",
       "area": "core"
     },
+    "table_covers_short": {
+      "fr": "{n} couv.",
+      "en": "{n} cov.",
+      "zh": "{n}位",
+      "area": "core"
+    },
     "table_held_course": {
       "fr": "Suite : {course}",
       "en": "Next: {course}",
       "zh": "待出：{course}",
+      "area": "core"
+    },
+    "table_sheet_close": {
+      "fr": "Fermer",
+      "en": "Close",
+      "zh": "关闭",
+      "area": "core"
+    },
+    "table_sheet_open": {
+      "fr": "Ouvrir",
+      "en": "Open",
+      "zh": "打开",
+      "area": "core"
+    },
+    "table_sheet_pay": {
+      "fr": "Payer",
+      "en": "Pay",
+      "zh": "结账",
       "area": "core"
     },
     "tables": {
@@ -6725,6 +6959,36 @@
       "en": "Receipt",
       "zh": "小票",
       "area": "checkout"
+    },
+    "tickets_find_clear": {
+      "fr": "Derniers tickets",
+      "en": "Latest tickets",
+      "zh": "最近票据",
+      "area": "reports"
+    },
+    "tickets_find_label": {
+      "fr": "N° de ticket",
+      "en": "Ticket no.",
+      "zh": "票据号",
+      "area": "reports"
+    },
+    "tickets_find_none": {
+      "fr": "Aucun ticket n° {no}",
+      "en": "No ticket no. {no}",
+      "zh": "没有第 {no} 号票据",
+      "area": "reports"
+    },
+    "tickets_find_result": {
+      "fr": "Ticket n° {no}",
+      "en": "Ticket no. {no}",
+      "zh": "第 {no} 号票据",
+      "area": "reports"
+    },
+    "tickets_older": {
+      "fr": "Plus ancien",
+      "en": "Older",
+      "zh": "更早",
+      "area": "reports"
     },
     "to_pay": {
       "fr": "À payer",
@@ -7271,6 +7535,12 @@
       "en": "Z-report not done today",
       "zh": "今日未生成Z报表",
       "area": "core"
+    },
+    "zone_other": {
+      "fr": "Autres tables",
+      "en": "Other tables",
+      "zh": "其他桌位",
+      "area": "core"
     }
   },
   "fdm": {
@@ -7347,10 +7617,13 @@
     "note_too_long",
     "note_unprintable",
     "quick_notes_too_many",
+    "favourites_invalid",
+    "favourites_too_many",
     "takeaway_number_invalid",
     "takeaway_name_invalid",
     "takeaway_phone_invalid",
     "takeaway_customer_not_takeaway",
+    "covers_invalid",
     "config_tables",
     "table_transfer_same_table",
     "table_transfer_target_busy",
@@ -7494,6 +7767,7 @@
     "refund_in_training",
     "refund_of_refund",
     "refund_unpaid_sale",
+    "refund_already_done",
     "payment_invalid",
     "payment_exceeds_total",
     "payment_incomplete",

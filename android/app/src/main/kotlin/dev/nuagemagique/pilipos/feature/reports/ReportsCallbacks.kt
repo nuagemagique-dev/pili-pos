@@ -50,6 +50,15 @@ internal data class TicketsCallbacks(
     val onRefundBack: () -> Unit = {},
     val onRefundConfirm: () -> Unit = {},
     val onRefundClose: () -> Unit = {},
+    /** The "Plus ancien" button: the previous 20 tickets. */
+    val onOlder: () -> Unit = {},
+    /** The ticket number field: opens the pad. */
+    val onOpenFind: () -> Unit = {},
+    val onCloseFind: () -> Unit = {},
+    /** The pad confirmed a ticket number: the engine looks it up in the whole archive. */
+    val onFind: (number: Long) -> Unit = {},
+    /** Back to the latest tickets. */
+    val onClearFind: () -> Unit = {},
     /** The screen text of the raw error of a copy or a refund the engine did not sign. */
     val describeError: (String?) -> String = { it.orEmpty() },
 )
@@ -276,6 +285,11 @@ private fun ticketsCallbacks(
             model.closeRefund()
             delivery.reset()
         },
+        onOlder = model::loadOlder,
+        onOpenFind = model::openFind,
+        onCloseFind = model::closeFind,
+        onFind = model::findTicket,
+        onClearFind = model::clearFind,
         describeError = model::describeRaw,
     )
 

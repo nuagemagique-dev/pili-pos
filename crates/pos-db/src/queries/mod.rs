@@ -3,8 +3,10 @@ pub mod badges;
 pub mod booking;
 pub mod bowls;
 pub mod courses;
+pub mod covers;
 pub mod deliveries;
 pub mod eft;
+pub mod favourites;
 pub mod fiscal;
 pub mod gift_vouchers;
 #[cfg(feature = "hubrise")]

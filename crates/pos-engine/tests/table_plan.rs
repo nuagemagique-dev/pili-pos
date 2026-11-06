@@ -68,7 +68,7 @@ async fn without_a_plan_the_tables_are_1_to_table_count() {
 #[tokio::test]
 async fn a_manager_sets_ranges_and_the_change_is_logged() {
     let app = app().await;
-    let plan = do_set_table_plan(&app.state, "20-22,1-3").unwrap();
+    let plan = do_set_table_plan(&app.state, "20-22,1-3", "").unwrap();
     assert_eq!(plan.plan, "1-3, 20-22", "stored in its canonical form");
     assert_eq!(plan.table_count, 6);
     assert_eq!(numbers(&app), vec![1, 2, 3, 20, 21, 22]);
@@ -79,10 +79,10 @@ async fn a_manager_sets_ranges_and_the_change_is_logged() {
 #[tokio::test]
 async fn a_wrong_plan_is_refused_and_the_old_one_kept() {
     let app = app().await;
-    do_set_table_plan(&app.state, "1-4").unwrap();
-    for bad in ["", "0-3", "5-2", "1-500", "A1"] {
+    do_set_table_plan(&app.state, "1-4", "").unwrap();
+    for bad in ["", "0-3", "5-2", "1-500", "ABC 1", "A"] {
         assert_eq!(
-            do_set_table_plan(&app.state, bad).unwrap_err(),
+            do_set_table_plan(&app.state, bad, "").unwrap_err(),
             errors::TABLE_PLAN_INVALID,
             "{bad:?}"
         );
@@ -94,7 +94,7 @@ async fn a_wrong_plan_is_refused_and_the_old_one_kept() {
 async fn only_a_manager_changes_the_plan() {
     let app = app().await;
     app.login_as(MANAGER, UserRole::Cashier);
-    assert!(do_set_table_plan(&app.state, "1-4").is_err());
+    assert!(do_set_table_plan(&app.state, "1-4", "").is_err());
     assert!(do_get_table_plan(&app.state).is_ok(), "everyone reads it");
 }
 
@@ -121,7 +121,7 @@ async fn a_table_left_out_of_the_plan_stays_while_its_order_is_open() {
         },
     )
     .unwrap();
-    do_set_table_plan(&app.state, "1-3").unwrap();
+    do_set_table_plan(&app.state, "1-3", "").unwrap();
     let tables = do_list_configured_tables(&app.state).unwrap();
     let listed: Vec<i32> = tables.iter().map(|t| t.table_number).collect();
     assert_eq!(listed, vec![1, 2, 3, 9]);

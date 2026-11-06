@@ -374,6 +374,16 @@ export function setTrainingMode(enabled: boolean, operatorPin?: string): Promise
 // Tables
 export interface TableInfo {
   tableNumber: number
+  /** The zone letters of the table in the plan ("A"), null on a plan without letters. */
+  zone: string | null
+  /** The name a manager gave the zone ("Salle"), if any. */
+  zoneName: string | null
+  /** How the table is written on screen: "A-19" in a zone, "19" without one. */
+  label: string
+  /** The initial of the user who opened the order, when the table is occupied. */
+  openedByInitial: string | null
+  /** The covers (guests) set on the order, when the table is occupied and they were set. */
+  covers: number | null
   orderId: number | null
   totalCents: number
   lineCount: number
@@ -454,23 +464,25 @@ export function transferTable(orderId: number, toTable: number): Promise<TableTr
 
 /** Give a discount on an open till order (manager, PIN): a percent, an
  * amount or the whole order off, or one line for free. A table already
- * registered gets its P signed at once. Throws the error code. */
+ * registered gets its P signed at once. Throws the error code. With a null
+ * `pin` the PIN the manager gave for an earlier discount of this order
+ * less than two minutes ago stands in, else `pin_required` is thrown. */
 export function applyDiscount(
   orderId: number,
   input: DiscountInput,
   insz: string,
-  pin: string,
+  pin: string | null,
 ): Promise<DiscountResult> {
   return invoke('apply_discount', { orderId, input, insz, pin })
 }
 
 /** Remove the order discount (no `lineId`) or the free line `lineId`
- * (manager, PIN). */
+ * (manager, PIN or the kept PIN, as for `applyDiscount`). */
 export function removeDiscount(
   orderId: number,
   lineId: number | null,
   insz: string,
-  pin: string,
+  pin: string | null,
 ): Promise<DiscountResult> {
   return invoke('remove_discount', { orderId, lineId, insz, pin })
 }
@@ -575,6 +587,36 @@ export interface RefundableEvent {
 
 export function listRefundableEvents(limit?: number): Promise<RefundableEvent[]> {
   return invoke('list_refundable_events', { limit: limit ?? 20 })
+}
+
+/** A ticket of the archive found by the number printed on it (UX audit R2). */
+export interface TicketMatch {
+  fiscalEventId: number
+  /** N (sale or refund), P (pre-bill) or T (training). */
+  eventLabel: 'N' | 'P' | 'T'
+  ticketNumber: number
+  tableNumber: number | null
+  /** The ticket's own total; negative for a refund. */
+  totalCents: number
+  createdAt: string
+  isRefund: boolean
+  /** Set when the customer received the ticket: it can be copied. */
+  copyable: CopyableTicket | null
+  /** Set when the sale can be refunded, at least in part. */
+  refundable: RefundableEvent | null
+  /** The engine's error code that refuses the refund of a sale, as the refund itself gives it. */
+  refundBlocked: string | null
+}
+
+/** The tickets that carry the number, newest first; none means not found. */
+export interface TicketLookup {
+  number: number
+  matches: TicketMatch[]
+}
+
+/** Find a ticket of the whole archive by its printed number (managers only). */
+export function findTicketByNumber(number: number): Promise<TicketLookup> {
+  return invoke('find_ticket_by_number', { number })
 }
 
 export interface RefundItem {
@@ -770,13 +812,19 @@ export interface FinancialResult {
   error: string | null
 }
 
+/**
+ * `openDrawer` also opens the drawer once, after the movement is signed (the movement is
+ * the only signed event: FAQ Q405 needs no signDrawerOpen with a signMoneyInOut). A count of
+ * the drawer (`declaration`) never opens it.
+ */
 export function moneyInOut(
   employeeInsz: string,
   amountCents: number,
   direction: 'in' | 'out' | 'declaration',
   reason: string,
+  openDrawer = false,
 ): Promise<FinancialResult> {
-  return invoke('money_in_out', { employeeInsz, amountCents, direction, reason })
+  return invoke('money_in_out', { employeeInsz, amountCents, direction, reason, openDrawer })
 }
 
 export function openDrawerFiscal(employeeInsz: string): Promise<FinancialResult> {
@@ -1102,15 +1150,28 @@ export function setHubriseEnabled(enabled: boolean): Promise<Integrations> {
 /** One change of the table plan. */
 export interface TablePlanChange {
   plan: string
+  /** The zone names the plan had then ("A · Salle, B · Terrasse"), empty for none. */
+  zone_names: string
   source: 'config' | 'admin'
   changed_by: string | null
   changed_at: string
 }
 
-/** The table numbers in use, as ranges ("1-12, 20-25"). */
+/** One zone of the plan ("A 1-20"): its letters, its name if a manager gave one, its tables. */
+export interface TableZone {
+  letter: string
+  name: string | null
+  numbers: number[]
+}
+
+/** The table numbers in use, as ranges ("1-12, 20-25", "A 1-20, B 21-40"), and their zones. */
 export interface TablePlan {
   plan: string
   table_count: number
+  /** The names of the zones, canonical form ("A · Salle, B · Terrasse"); empty for none. */
+  zone_names: string
+  /** The zones of the plan in alphabetical order; none on a plan without letters. */
+  zones: TableZone[]
   log: TablePlanChange[]
 }
 
@@ -1118,9 +1179,23 @@ export function getTablePlan(): Promise<TablePlan> {
   return invoke('get_table_plan')
 }
 
-/** Managers only. A table left out that still has an open order stays on the Tables screen. */
-export function setTablePlan(plan: string): Promise<TablePlan> {
-  return invoke('set_table_plan', { plan })
+/**
+ * Managers only. `plan` is ranges with optional zone letters ("A 1-20, B 21-40"), `zoneNames` the
+ * optional names of the zones ("A · Salle, B · Terrasse", empty for none). A table left out that
+ * still has an open order stays on the Tables screen.
+ */
+export function setTablePlan(plan: string, zoneNames = ''): Promise<TablePlan> {
+  return invoke('set_table_plan', { plan, zoneNames })
+}
+
+/** The covers (guests) set on an order (UX audit T5); null when none were set. */
+export function getOrderCovers(orderId: number): Promise<number | null> {
+  return invoke('get_order_covers', { orderId })
+}
+
+/** Set (1 to 30) or clear (null) the covers of an open table order; answers what is stored. */
+export function setOrderCovers(orderId: number, covers: number | null): Promise<number | null> {
+  return invoke('set_order_covers', { orderId, covers })
 }
 
 // ── B2B invoices (event I, M150) and Peppol ───────────────────
@@ -1576,6 +1651,37 @@ export function getQuickNotes(): Promise<QuickNotes> {
 /** Managers only. Each chip is a valid kitchen note (60 printable characters), at most 24. */
 export function setQuickNotes(input: QuickNotes): Promise<QuickNotes> {
   return invoke('set_quick_notes', { input })
+}
+
+// ── Favourites tab (UX audit C12, local data) ──────────────────────
+
+/** Where the "Favoris" tab takes its products from. */
+export type FavouritesMode = 'top_sold' | 'selection'
+
+/** The favourites setting: the mode and the manager's selection (product ids, in the order they were added). */
+export interface FavouritesSettings {
+  mode: FavouritesMode
+  selection: number[]
+}
+
+/** Any logged-in operator; a new installation reads `top_sold` and no selection. */
+export function getFavouritesSettings(): Promise<FavouritesSettings> {
+  return invoke('get_favourites_settings')
+}
+
+/** Managers only. A product the menu does not know is refused, at most 30 products. */
+export function setFavouritesSettings(input: FavouritesSettings): Promise<FavouritesSettings> {
+  return invoke('set_favourites_settings', { input })
+}
+
+/** Managers only: star (appended to the selection) or unstar one product. */
+export function setFavourite(menuItemId: number, favourite: boolean): Promise<FavouritesSettings> {
+  return invoke('set_favourite', { menuItemId, favourite })
+}
+
+/** The products of the "Favoris" tab, names in `lang`; empty when there is nothing to show. */
+export function listFavourites(lang?: string): Promise<MenuItem[]> {
+  return invoke('list_favourites', { lang })
 }
 
 // ── Numbered takeaway (UX audit T2, local data) ────────────────────

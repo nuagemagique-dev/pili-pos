@@ -33,6 +33,7 @@
     <string name="card_wait">Encaisser sur le terminal</string>
     <string name="back">Retour</string>
     <string name="open_price_title">Prix libre</string>
+    <string name="favourites_tab">Favoris</string>
     <string name="soldout_mode">Épuisé</string>
     <string name="soldout_mode_hint">Touchez un produit pour changer sa disponibilité.</string>
     <string name="soldout_badge">Épuisé</string>
@@ -188,7 +189,7 @@
     <string name="cash_declared">Contenu du tiroir déclaré</string>
     <string name="cash_amount_placeholder">Montant (€)</string>
     <string name="cash_reason_placeholder">Motif</string>
-    <string name="cash_success">Mouvement enregistré</string>
+    <string name="cash_success_drawer">Mouvement enregistré · tiroir ouvert</string>
     <string name="cash_failed">Mouvement non enregistré</string>
     <string name="cash_drawer_opened">Tiroir ouvert</string>
     <string name="cash_err_amount">Montant invalide</string>
@@ -272,10 +273,19 @@
     <string name="transfer_table">Déplacer</string>
     <string name="transfer_pick_target">Choisissez la table libre</string>
     <string name="transfer_no_free">Aucune table libre</string>
+    <string name="zone_other">Autres tables</string>
+    <string name="covers_add">Couverts</string>
+    <string name="covers_one">1 couvert</string>
+    <string name="covers_n">{n} couverts</string>
+    <string name="covers_title">Couverts : de 1 à 30, 0 pour effacer</string>
+    <string name="table_covers_short">{n} couv.</string>
     <string name="transfer_moved">Table {from} déplacée en {to}</string>
     <string name="transfer_undo">Annuler</string>
     <string name="transfer_mode">Déplacer</string>
     <string name="transfer_pick_source">Touchez la table à déplacer</string>
+    <string name="table_sheet_open">Ouvrir</string>
+    <string name="table_sheet_pay">Payer</string>
+    <string name="table_sheet_close">Fermer</string>
     <string name="transfer_pick_free">Table {from} : touchez la table libre</string>
     <string name="discount_button">Remise</string>
     <string name="discount_title">Remise sur la commande</string>
@@ -297,6 +307,7 @@
     <string name="discount_apply">Appliquer la remise</string>
     <string name="discount_hint">La remise figure sur le ticket fiscal. Confirmez avec votre PIN.</string>
     <string name="discount_applied">Remise appliquée</string>
+    <string name="discount_applied_pin_kept">Remise appliquée · code gardé {minutes} min pour cette commande</string>
     <string name="discount_removed">Remise retirée</string>
     <string name="discount_remove">Retirer la remise</string>
     <string name="discount_remove_hint">Le prix d\'origine est rétabli. Confirmez avec votre PIN.</string>

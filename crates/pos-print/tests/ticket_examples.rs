@@ -266,6 +266,7 @@ fn example_bar_slip() {
         date_time: "03/07/2026 12:31:05".to_string(),
         operator: "Marie Dupont".to_string(),
         table: Some(4),
+        table_zone: None,
         takeaway: None,
         items: vec![
             BarItem {
@@ -305,6 +306,7 @@ fn example_bar_slip_with_notes() {
         date_time: "03/07/2026 12:31:05".to_string(),
         operator: "Marie Dupont".to_string(),
         table: Some(4),
+        table_zone: None,
         takeaway: None,
         items: vec![
             BarItem {
@@ -345,6 +347,7 @@ fn example_note_slip() {
         date_time: "03/07/2026 12:38:12".to_string(),
         operator: "Marie Dupont".to_string(),
         table: Some(4),
+        table_zone: None,
         takeaway: None,
         product_name: "Burger du chef".to_string(),
         note: Some("bien cuit".to_string()),
@@ -427,6 +430,10 @@ fn example_gift_voucher() {
         pos_print::escpos::PaperWidth::Mm80,
     ));
     assert!(text.contains("1234 5678 9095"), "the code is spelled out");
+    assert!(
+        text.contains("[BARCODE: 123456789095]"),
+        "the code is also a CODE128 barcode"
+    );
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
     std::fs::write(dir.join("bon_cadeau.txt"), text).expect("write example");
@@ -527,6 +534,7 @@ fn example_course_slips() {
         date_time: "03/07/2026 12:31:05".to_string(),
         operator: "Marie Dupont".to_string(),
         table: Some(4),
+        table_zone: None,
         takeaway: None,
         items: vec![item(2, "Dry Martini", 0), item(2, "Carpaccio", 1)],
         lang: ReceiptLanguage::Fr,

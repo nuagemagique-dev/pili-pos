@@ -46,6 +46,7 @@ class ReportsScreenshotTest {
         name: String,
         delivery: ReportsDelivery = ReportsDelivery(),
         refund: RefundUi = RefundUi(),
+        callbacks: ReportsCallbacks = ReportsCallbacks(),
     ) {
         rule.setContent {
             PiliTheme {
@@ -58,8 +59,8 @@ class ReportsScreenshotTest {
                         training = false,
                         clock = "12:30",
                         lights = { StatusLights(FdmUiState(connected = true), DeviceLights(FakeProbe()), hubriseVisible = false) },
-                        overlay = { ReportsOverlay(state, delivery, refund, ReportsCallbacks()) },
-                    ) { ReportsContent(state, ReportsCallbacks()) }
+                        overlay = { ReportsOverlay(state, delivery, refund, callbacks) },
+                    ) { ReportsContent(state, callbacks) }
                 }
             }
         }
@@ -90,8 +91,39 @@ class ReportsScreenshotTest {
                 copyable(2L, label = "P"),
             )
         val refundables = listOf(refundable(4L), refundable(3L), refundable(1L))
-        val tickets = TicketsState(loaded = true, copyable = copyables, refundable = refundables, rows = mergeRows(copyables, refundables))
+        // The lists came back full: "Plus ancien" ends the list.
+        val tickets =
+            TicketsState(
+                loaded = true,
+                copyable = copyables,
+                refundable = refundables,
+                rows = mergeRows(copyables, refundables),
+                hasOlder = true,
+            )
         capture(base.copy(tab = ReportsTab.TICKETS, tickets = tickets), "reports_tickets")
+    }
+
+    @Test
+    fun ticketsFoundByNumber() {
+        val lookup =
+            ticketLookup(
+                4821L,
+                ticketMatch(90L, number = 4821L),
+                ticketMatch(91L, number = 4821L, blocked = "refund_already_done"),
+                ticketMatch(92L, number = 4821L, label = "P"),
+            )
+        val tickets = TicketsState(loaded = true, lookup = lookup)
+        val callbacks =
+            ReportsCallbacks(
+                tickets = TicketsCallbacks(describeError = { "Cette vente est déjà remboursée en totalité." }),
+            )
+        capture(base.copy(tab = ReportsTab.TICKETS, tickets = tickets), "reports_tickets_found", callbacks = callbacks)
+    }
+
+    @Test
+    fun ticketNumberPad() {
+        val tickets = TicketsState(loaded = true, findOpen = true)
+        capture(base.copy(tab = ReportsTab.TICKETS, tickets = tickets), "reports_tickets_find_pad")
     }
 
     @Test

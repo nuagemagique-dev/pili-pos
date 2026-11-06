@@ -9,13 +9,18 @@ import { describeError } from '../utils/errorMessages'
 import { useToastStore } from '../stores/toast'
 import { formatPrice } from '../utils/format'
 import { formatTimestamp, formatTime, minutesSince } from '../utils/datetime'
+import { useTablePlanStore } from '../stores/tablePlan'
+import { groupTables, hasZones, tableLabel, zoneTitle } from '../utils/tables'
+import { createLongPress } from '../utils/longPress'
 import AppHeader from '../components/AppHeader.vue'
+import TableActionSheet from '../components/TableActionSheet.vue'
 
 const router = useRouter()
 const { t } = useI18n()
 const order = useOrderStore()
 const auth = useAuthStore()
 const toast = useToastStore()
+const plan = useTablePlanStore()
 
 const tables = ref<ipc.TableInfo[]>([])
 // Takeaways left unpaid: each one must still end in a sale (FAQ Q205).
@@ -33,7 +38,7 @@ onMounted(async () => {
     return
   }
   nowTimer = setInterval(() => (now.value = new Date()), 30_000)
-  tables.value = await ipc.listTables()
+  await reloadTables()
   takeaways.value = await ipc.listOpenTakeaways()
   try {
     cardCharged.value = new Set((await ipc.listUnsettledCardPayments()).map((p) => p.order_id))
@@ -70,9 +75,13 @@ const moving = ref(false)
 const source = ref<ipc.TableInfo | null>(null)
 const transferring = ref(false)
 
+// UX audit T1: with zones the tables are listed under a header per zone ("A · Salle").
+const zoned = computed(() => hasZones(tables.value))
+const groups = computed(() => groupTables(tables.value))
+
 const moveHint = computed(() =>
   source.value
-    ? t('transfer_pick_free', { from: source.value.tableNumber })
+    ? t('transfer_pick_free', { from: tableLabel(source.value.zone, source.value.tableNumber) })
     : t('transfer_pick_source'),
 )
 
@@ -112,6 +121,7 @@ async function pickInMoveMode(table: ipc.TableInfo) {
 async function reloadTables() {
   try {
     tables.value = await ipc.listTables()
+    plan.learn(tables.value)
   } catch {
     /* the list is read again at the next visit */
   }
@@ -123,7 +133,80 @@ watch(
   () => void reloadTables(),
 )
 
+// ── Long press on an occupied table: its action sheet (UX audit T7) ─────
+// 500 ms with the finger still opens "Ouvrir / Addition / Déplacer / Payer". A short tap is
+// the usual open; the click that follows a long press is swallowed.
+const sheetTable = ref<ipc.TableInfo | null>(null)
+let pressed: ipc.TableInfo | null = null
+const longPress = createLongPress(() => {
+  if (pressed && !moving.value) sheetTable.value = pressed
+})
+
+function pressStart(e: PointerEvent, table: ipc.TableInfo) {
+  // Free tables and the move mode have no sheet; only the first finger counts. Any other
+  // gesture forgets a long press whose click never came.
+  if (moving.value || table.status !== 'occupied' || !table.orderId || !e.isPrimary) {
+    longPress.reset()
+    return
+  }
+  pressed = table
+  longPress.start(e.clientX, e.clientY)
+}
+
+function pressMove(e: PointerEvent) {
+  longPress.move(e.clientX, e.clientY)
+}
+
+function closeSheet(): ipc.TableInfo | null {
+  const table = sheetTable.value
+  sheetTable.value = null
+  longPress.reset()
+  return table
+}
+
+function sheetOpen() {
+  const table = closeSheet()
+  if (table) void selectTable(table)
+}
+
+const billing = ref(false)
+async function sheetBill() {
+  const table = closeSheet()
+  if (!table?.orderId || billing.value) return
+  billing.value = true
+  try {
+    await order.preBillOrder(table.orderId)
+    toast.show(t('pre_bill_printed'), 'success')
+  } catch (e) {
+    toast.show(`${t('pre_bill_failed')} : ${describeError(e)}`, 'error', 6000)
+  } finally {
+    billing.value = false
+    await reloadTables()
+  }
+}
+
+/** "Déplacer": the wave 2 mode with this table already chosen, then one tap on a free table. */
+function sheetMove() {
+  const table = closeSheet()
+  if (!table) return
+  moving.value = true
+  source.value = table
+}
+
+async function sheetPay() {
+  const table = closeSheet()
+  if (!table?.orderId) return
+  try {
+    await order.loadOrder(table.orderId)
+  } catch (e) {
+    toast.show(describeError(e), 'error', 5000)
+    return
+  }
+  router.push({ name: 'checkout' })
+}
+
 async function selectTable(table: ipc.TableInfo) {
+  if (longPress.consumeClick()) return
   if (moving.value) {
     void pickInMoveMode(table)
     return
@@ -163,45 +246,71 @@ async function selectTable(table: ipc.TableInfo) {
           </button>
           <span v-if="moving" class="move-hint" data-testid="move-hint">{{ moveHint }}</span>
         </div>
-        <div class="grid">
-          <button
-            v-for="tbl in tables"
-            :key="tbl.tableNumber"
-            class="table-card"
-            :class="{
-              occupied: tbl.status === 'occupied',
-              dimmed: moving && !selectable(tbl) && source?.tableNumber !== tbl.tableNumber,
-              chosen: moving && source?.tableNumber === tbl.tableNumber,
-            }"
-            @click="selectTable(tbl)"
-          >
-            <span class="table-top">
-              <span class="table-num">{{ tbl.tableNumber }}</span>
-              <span v-if="tbl.preBillPrinted" class="bill-tag">{{ t('pre_bill') }}</span>
-              <span
-                v-if="tbl.heldCourse"
-                class="bill-tag"
-                :data-testid="`held-course-${tbl.tableNumber}`"
-                >{{ t('table_held_course', { course: t(`course_${tbl.heldCourse}`) }) }}</span
+        <!-- One block per zone; a plan without letters is one block with no header. -->
+        <div class="zones scroll-touch" :class="{ plain: !zoned }" data-testid="zones">
+          <section v-for="group in groups" :key="group.zone ?? ''" class="zone">
+            <h2 v-if="zoned" class="zone-header" :data-testid="`zone-${group.zone ?? 'other'}`">
+              {{ group.zone ? zoneTitle(group.zone, group.name) : t('zone_other') }}
+            </h2>
+            <div class="grid" :class="{ 'zone-grid': zoned }">
+              <button
+                v-for="tbl in group.tables"
+                :key="tbl.tableNumber"
+                class="table-card"
+                :class="{
+                  occupied: tbl.status === 'occupied',
+                  dimmed: moving && !selectable(tbl) && source?.tableNumber !== tbl.tableNumber,
+                  chosen: moving && source?.tableNumber === tbl.tableNumber,
+                }"
+                :data-testid="`table-${tbl.tableNumber}`"
+                @click="selectTable(tbl)"
+                @pointerdown="pressStart($event, tbl)"
+                @pointermove="pressMove"
+                @pointerup="longPress.cancel()"
+                @pointercancel="longPress.cancel()"
+                @pointerleave="longPress.cancel()"
+                @contextmenu.prevent
               >
-              <span
-                v-if="tbl.orderId && cardCharged.has(tbl.orderId)"
-                class="bill-tag charged-tag"
-                data-testid="card-charged"
-                >{{ t('card_charged_badge') }}</span
-              >
-            </span>
-            <span v-if="tbl.status === 'occupied'" class="table-info">
-              <span class="table-total">{{ formatPrice(tbl.totalCents) }} €</span>
-              <span class="table-meta">
-                {{ tbl.lineCount }} {{ t('items_short')
-                }}<template v-if="tbl.openedAt">
-                  · {{ minutesSince(tbl.openedAt, now) }} min</template
-                >
-              </span>
-            </span>
-            <span v-else class="table-free">{{ t('free') }}</span>
-          </button>
+                <span class="table-top">
+                  <span class="table-num">{{ tableLabel(tbl.zone, tbl.tableNumber) }}</span>
+                  <span v-if="tbl.preBillPrinted" class="bill-tag">{{ t('pre_bill') }}</span>
+                  <span
+                    v-if="tbl.heldCourse"
+                    class="bill-tag"
+                    :data-testid="`held-course-${tbl.tableNumber}`"
+                    >{{ t('table_held_course', { course: t(`course_${tbl.heldCourse}`) }) }}</span
+                  >
+                  <span
+                    v-if="tbl.orderId && cardCharged.has(tbl.orderId)"
+                    class="bill-tag charged-tag"
+                    data-testid="card-charged"
+                    >{{ t('card_charged_badge') }}</span
+                  >
+                </span>
+                <span v-if="tbl.status === 'occupied'" class="table-info">
+                  <span class="table-total-row">
+                    <span class="table-total">{{ formatPrice(tbl.totalCents) }} €</span>
+                    <!-- The server who opened the order (UX audit T5). -->
+                    <span
+                      v-if="tbl.openedByInitial"
+                      class="server-badge"
+                      data-testid="server-badge"
+                      >{{ tbl.openedByInitial }}</span
+                    >
+                  </span>
+                  <span class="table-meta">
+                    {{ tbl.lineCount }} {{ t('items_short')
+                    }}<template v-if="tbl.openedAt">
+                      · {{ minutesSince(tbl.openedAt, now) }} min</template
+                    ><span v-if="tbl.covers" data-testid="table-covers">
+                      · {{ t('table_covers_short', { n: tbl.covers }) }}</span
+                    >
+                  </span>
+                </span>
+                <span v-else class="table-free">{{ t('free') }}</span>
+              </button>
+            </div>
+          </section>
         </div>
       </div>
 
@@ -241,6 +350,17 @@ async function selectTable(table: ipc.TableInfo) {
         </div>
       </aside>
     </div>
+
+    <TableActionSheet
+      v-if="sheetTable"
+      :table="sheetTable"
+      :can-take-payment="auth.canTakePayment"
+      @open="sheetOpen"
+      @bill="sheetBill"
+      @move="sheetMove"
+      @pay="sheetPay"
+      @close="closeSheet"
+    />
   </div>
 </template>
 
@@ -302,6 +422,33 @@ async function selectTable(table: ipc.TableInfo) {
   outline: 4px solid var(--accent-warning);
 }
 
+/* The zones: a header over each block of tables; a plan without letters is one block that fills
+   * the screen as before. */
+.zones.plain,
+.zones.plain .zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.zones:not(.plain) {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+.zone-header {
+  padding: 16px 24px 0;
+  font-size: 22px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--text-secondary);
+}
+.grid.zone-grid {
+  flex: none;
+  grid-template-rows: none;
+  grid-auto-rows: 132px;
+}
+
 .grid {
   flex: 1;
   display: grid;
@@ -312,6 +459,10 @@ async function selectTable(table: ipc.TableInfo) {
 }
 
 .table-card {
+  /* A long press must not select text or raise the system menu. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -374,6 +525,29 @@ async function selectTable(table: ipc.TableInfo) {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  width: 100%;
+}
+.table-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* The initial of the user who opened the order (UX audit T5). */
+.server-badge {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
 }
 .table-total {
   font-family: var(--font-mono);

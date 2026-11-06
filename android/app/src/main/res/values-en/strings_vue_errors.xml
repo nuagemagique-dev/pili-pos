@@ -37,7 +37,7 @@
     <string name="err_operator_invalid">Invalid employee: log in again.</string>
     <string name="err_dine_in_needs_table">A dine-in order needs a table.</string>
     <string name="err_takeaway_has_no_table">A takeaway order has no table.</string>
-    <string name="err_table_plan_invalid">Write the table numbers like this: 1-12, 20-25 (1 to 999, at most 200 tables).</string>
+    <string name="err_table_plan_invalid">Write the tables like this: 1-12, 20-25, or with zones A 1-20, B 21-40 (1 to 999, at most 200 tables, a number in one zone only). Zone names: A · Room, B · Terrace.</string>
     <string name="err_alerts_invalid">Invalid alert setting: {field}.</string>
     <string name="err_alerts_token_missing">The Telegram bot token is not configured on this till (alerts section of pos.json).</string>
     <string name="err_alerts_send_failed">The message was not sent: {detail}</string>
@@ -62,6 +62,8 @@
     <string name="err_discount_reason_invalid">Choose the reason for the discount.</string>
     <string name="err_discount_online_order">An online order has its own discounts: none at the till.</string>
     <string name="err_note_too_long">Note too long: 60 characters at most.</string>
+    <string name="err_favourites_invalid">This product is not in the menu.</string>
+    <string name="err_favourites_too_many">Too many favourites: {max} at most.</string>
     <string name="err_quick_notes_too_many">Too many quick notes: {max} at most.</string>
     <string name="err_note_unprintable">The note has a character the kitchen printer cannot print (letters, digits and accents only).</string>
     <string name="err_line_has_price_changes">This line has a discount: remove it before changing the quantity.</string>
@@ -84,6 +86,7 @@
     <string name="err_payment_incomplete">An amount is still to be paid.</string>
     <string name="err_unpaid_nothing_due">Nothing to pay: take the sale normally.</string>
     <string name="err_refund_unpaid_sale">This sale was not paid: nothing to refund.</string>
+    <string name="err_refund_already_done">This sale has already been refunded in full.</string>
     <string name="err_takeaway_not_registered">A takeaway ends with a payment.</string>
     <string name="err_order_total_negative">The total cannot be negative.</string>
     <string name="err_amount_negative">The amount cannot be negative.</string>
@@ -159,6 +162,7 @@
     <string name="err_config_other">Invalid or unreadable configuration. Detail: {detail}</string>
     <string name="err_internal_error">Internal error. Contact your technician. ({detail})</string>
     <string name="err_takeaway_number_invalid">The first takeaway number goes from {min} to {max}.</string>
+    <string name="err_covers_invalid">Covers not accepted: a number from 1 to {max}.</string>
     <string name="err_takeaway_name_invalid">Name not accepted: {max} characters at most, letters, digits and accents the printer can print.</string>
     <string name="err_takeaway_phone_invalid">Phone not accepted: digits only (3 to 15), {max} characters at most.</string>
     <string name="err_takeaway_customer_not_takeaway">A name and phone go on a till takeaway (not a table, not an online order).</string>

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,6 +30,8 @@ import dev.nuagemagique.pilipos.ui.di.rememberEntryPoint
 import dev.nuagemagique.pilipos.ui.fdm.FdmBlockingVeil
 import dev.nuagemagique.pilipos.ui.fdm.FdmUiState
 import dev.nuagemagique.pilipos.ui.format.PosDateTime
+import dev.nuagemagique.pilipos.ui.state.LocalTableLabeler
+import dev.nuagemagique.pilipos.ui.state.TableLabeler
 import dev.nuagemagique.pilipos.ui.text.PosUiRoot
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
@@ -165,7 +168,9 @@ internal fun PosScaffoldContent(
                 LateOnlineBanner(header.lateOrders, onView = actions.onOnlineOrders)
             }
             Box(Modifier.weight(1f).fillMaxSize().testTag("scaffold_content")) {
-                content()
+                // The zones of the plan reach the screens that only know a table number (reports lists, UX audit T1).
+                val labeler = remember(header.tableZones) { TableLabeler(header.tableZones) }
+                CompositionLocalProvider(LocalTableLabeler provides labeler) { content() }
                 if (header.area.isSales) FdmBlockingVeil(fdm, onCheckNow = onCheckFdm)
             }
         }
@@ -173,7 +178,12 @@ internal fun PosScaffoldContent(
         val picker = header.tablePicker
         val from = header.tableNumber
         if (picker != null && from != null) {
-            TablePickerDialog(from, picker, onPick = actions.onPickTable, onCancel = actions.onCloseTablePicker)
+            TablePickerDialog(
+                header.tableLabel ?: from.toString(),
+                picker,
+                onPick = actions.onPickTable,
+                onCancel = actions.onCloseTablePicker,
+            )
         }
         when (header.customerStep) {
             CustomerStep.NAME ->

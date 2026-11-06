@@ -33,6 +33,7 @@ import uniffi.pos_ffi.OpenShift
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SocialResult
 import uniffi.pos_ffi.TablePlan
+import uniffi.pos_ffi.TableZone
 import uniffi.pos_ffi.TakeawayNumbering
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
@@ -326,7 +327,7 @@ class SettingsViewModelTest {
         runTest {
             val r = start()
             assertEquals(TablePlanState(plan = "1-20", count = 20L, input = "1-20"), r.state.tablePlan)
-            coEvery { r.engine.setTablePlan("20-25,1-12") } returns TablePlan("1-12, 20-25", 18L, emptyList())
+            coEvery { r.engine.setTablePlan("20-25,1-12", "") } returns TablePlan("1-12, 20-25", 18L, "", emptyList(), emptyList())
 
             r.model.setTablePlanInput("20-25,1-12")
             r.model.saveTablePlan()
@@ -338,11 +339,31 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun theZoneNamesTravelWithThePlanAndTheZonesReachTheOrderStore() =
+        runTest {
+            val r = start()
+            val zones = listOf(TableZone("A", "Salle", listOf(1, 2)), TableZone("B", "Terrasse", listOf(21)))
+            coEvery { r.engine.setTablePlan("A 1-2, B 21", "A Salle, B Terrasse") } returns
+                TablePlan("A 1-2, B 21", 3L, "A \u00B7 Salle, B \u00B7 Terrasse", zones, emptyList())
+
+            r.model.setTablePlanInput("A 1-2, B 21")
+            r.model.setZoneNamesInput("A Salle, B Terrasse")
+            r.model.saveTablePlan()
+            runCurrent()
+
+            // The canonical form of the names comes back into the field, and the labels follow at once.
+            assertEquals("A \u00B7 Salle, B \u00B7 Terrasse", r.state.tablePlan.zoneNamesInput)
+            assertEquals("A-2", r.env.entry.order().tableLabel(2))
+            assertEquals("B-21", r.env.entry.order().tableLabel(21))
+            assertEquals("7", r.env.entry.order().tableLabel(7))
+        }
+
+    @Test
     fun aRefusedTablePlanKeepsTheFieldAndShowsWhy() =
         runTest {
             val r = start()
             val refusal = PosException.Coded("table_plan_invalid", emptyMap())
-            coEvery { r.engine.setTablePlan("A1") } throws refusal
+            coEvery { r.engine.setTablePlan("A1", "") } throws refusal
 
             r.model.setTablePlanInput("A1")
             r.model.saveTablePlan()

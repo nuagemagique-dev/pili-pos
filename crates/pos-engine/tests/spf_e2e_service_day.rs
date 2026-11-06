@@ -38,7 +38,9 @@ use pos_db::queries::orders::{
 };
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
-use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pos_engine::commands::financial::{
+    DrawerAfter, MoneyDirection, do_money_in_out, do_open_drawer_fiscal,
+};
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::report::{do_generate_x_report, do_generate_z_report};
 use pos_engine::commands::social::{do_work_in, do_work_out};
@@ -334,6 +336,7 @@ async fn a_full_service_day_reconciles_sequentially_and_excludes_training() {
         10000,
         MoneyDirection::In,
         "Fond de caisse".to_string(),
+        DrawerAfter::Leave,
     )
     .await
     .unwrap();

@@ -129,6 +129,8 @@ internal data class MenuEditorUiState(
     val courseDraft: Int = 0,
     /** The allergen list of the open product or option form. */
     val allergenDraft: AllergenDraft = AllergenDraft(),
+    /** The products starred as favourites, in the order they were added (UX audit C12). */
+    val favourites: List<Long> = emptyList(),
 ) {
     /** True while a catalog manages the menu: the editor is read-only. */
     val locked: Boolean get() = menu?.managedBy != null

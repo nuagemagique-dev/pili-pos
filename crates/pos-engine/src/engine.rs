@@ -169,6 +169,10 @@ pub struct EngineTimers {
     /// time limit (or whose program exited), so the limit holds even
     /// when nobody asks for the status.
     pub support_reap: Duration,
+    /// How long a manager's PIN, given for a discount, covers the next
+    /// discounts of the same order (UX audit P8, two minutes). Counted from
+    /// the PIN, never extended by a reuse.
+    pub manager_pin_grant: Duration,
 }
 
 impl Default for EngineTimers {
@@ -184,6 +188,7 @@ impl Default for EngineTimers {
             peppol_outbox: Duration::from_secs(60),
             terminal_probe: crate::alerts::TERMINAL_PROBE_TIMEOUT,
             support_reap: Duration::from_secs(60),
+            manager_pin_grant: crate::commands::pin_grant::DEFAULT_LIFETIME,
         }
     }
 }
@@ -790,6 +795,7 @@ mod tests {
         assert_eq!(t.badge_repeat, Duration::from_secs(10));
         assert_eq!(t.peppol_outbox, Duration::from_secs(60));
         assert_eq!(t.support_reap, Duration::from_secs(60));
+        assert_eq!(t.manager_pin_grant, Duration::from_secs(120));
     }
 
     #[test]

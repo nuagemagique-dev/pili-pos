@@ -6,11 +6,14 @@
 // Saves are refused (and the form locked) while a catalog manages the menu.
 // A category also carries its kitchen course (set_course_settings), a product or an option its
 // allergen list (set_allergens); both are written by the same Enregistrer, after the entry.
+// A star on each product row adds it to, or removes it from, the "Favoris" selection (set_favourite,
+// UX audit C12): local data, written at once and allowed while a catalog manages the menu.
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import * as ipc from '../api/ipc'
 import AppHeader from '../components/AppHeader.vue'
 import NumPad from '../components/NumPad.vue'
+import UiIcon from '../components/UiIcon.vue'
 import TextKeyboard from '../components/TextKeyboard.vue'
 import { useI18n } from '../i18n'
 import { useToastStore } from '../stores/toast'
@@ -91,7 +94,28 @@ async function load() {
   }
 }
 
+// The products starred as favourites, in the order they were added.
+const favouriteIds = ref<number[]>([])
+
+async function loadFavourites() {
+  try {
+    favouriteIds.value = (await ipc.getFavouritesSettings()).selection
+  } catch {
+    // No stars: the toggle then shows every product as not starred.
+  }
+}
+
+async function toggleFavourite(productId: number) {
+  const on = !favouriteIds.value.includes(productId)
+  try {
+    favouriteIds.value = (await ipc.setFavourite(productId, on)).selection
+  } catch (e) {
+    toast.show(describeError(e), 'error', 5000)
+  }
+}
+
 onMounted(async () => {
+  void loadFavourites()
   await load()
   try {
     legend.value = await ipc.listAllergens()
@@ -588,7 +612,17 @@ const ui = reactive({ colors: PALETTE })
         <h2>{{ t('menu_ed_products') }}</h2>
         <p v-if="products.length === 0" class="empty">{{ t('menu_ed_empty_products') }}</p>
         <ul v-else class="list scroll-touch">
-          <li v-for="p in products" :key="p.id">
+          <li v-for="p in products" :key="p.id" class="product-item">
+            <button
+              class="star-btn"
+              :class="{ on: favouriteIds.includes(p.id) }"
+              :aria-pressed="favouriteIds.includes(p.id)"
+              :aria-label="t(favouriteIds.includes(p.id) ? 'menu_ed_unstar' : 'menu_ed_star')"
+              data-testid="menu-ed-star"
+              @click="toggleFavourite(p.id)"
+            >
+              <UiIcon :name="favouriteIds.includes(p.id) ? 'star' : 'starBorder'" :size="28" />
+            </button>
             <button
               class="row"
               :class="{ selected: currentProduct?.id === p.id, hidden: !p.active }"
@@ -1181,6 +1215,35 @@ const ui = reactive({ colors: PALETTE })
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
   text-align: left;
+}
+.product-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.product-item .row {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+.star-btn {
+  width: 56px;
+  height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  transition: transform var(--tap-duration) ease;
+}
+.star-btn.on {
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+}
+.star-btn:active {
+  transform: scale(var(--tap-scale));
 }
 .row.selected {
   background: var(--selected-bg);

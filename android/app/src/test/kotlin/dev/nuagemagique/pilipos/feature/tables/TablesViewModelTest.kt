@@ -363,6 +363,32 @@ class TablesViewModelTest {
         }
 
     @Test
+    fun loadingTeachesTheZonesAndTheMoveToastNamesTheTablesWithThem() =
+        runTest {
+            val zonedFree = table(1, zone = "A")
+            val zonedBusy = table(22, orderId = 40, lines = 3, totalCents = 2_550, zone = "B", openedAt = "2026-10-09 10:00:00")
+            val f = fixture(tables = listOf(zonedFree, zonedBusy))
+            val r = startTables(f, context)
+            r.login()
+            r.model.load()
+            runCurrent()
+            coEvery { f.engine.transferTable(40L, 1) } returns moved
+            r.model.toggleMove()
+            r.model.selectTable(zonedBusy)
+            r.model.selectTable(zonedFree)
+            runCurrent()
+
+            assertEquals("A-1", r.order.tableLabel(1))
+            assertEquals("B-22", r.order.tableLabel(22))
+            assertEquals("Table B-22 d\u00E9plac\u00E9e en A-1", r.lastToast().message)
+            // The undo names them the other way round.
+            coEvery { f.engine.transferTable(40L, 22) } returns moved
+            r.toasts.runAction(r.lastToast().id)
+            runCurrent()
+            assertEquals("Table A-1 d\u00E9plac\u00E9e en B-22", r.lastToast().message)
+        }
+
+    @Test
     fun theUndoMovesTheOrderBackAndReadsTheTablesAgain() =
         runTest {
             val f = fixture()

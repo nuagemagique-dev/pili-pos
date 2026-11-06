@@ -2,6 +2,7 @@ package dev.nuagemagique.pilipos.feature.order
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.feature.tables.table
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
@@ -17,6 +18,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -595,7 +597,125 @@ class MenuViewModelTest {
             r.model.askTransfer()
             runCurrent()
 
-            assertEquals(OrderDialog.TablePicker(4, listOf(table(1), table(5, orderId = 2L), table(6))), r.state.dialog)
+            assertEquals(OrderDialog.TablePicker(4, "4", listOf(table(1), table(5, orderId = 2L), table(6))), r.state.dialog)
+        }
+
+    private fun zonedPlan() =
+        uniffi.pos_ffi.TablePlan(
+            plan = "A 1-4, B 5-8",
+            tableCount = 8L,
+            zoneNames = "",
+            zones =
+                listOf(
+                    uniffi.pos_ffi.TableZone("A", null, listOf(1, 2, 3, 4)),
+                    uniffi.pos_ffi.TableZone("B", null, listOf(5, 6, 7, 8)),
+                ),
+            log = emptyList(),
+        )
+
+    @Test
+    fun withZonesTheCartTheTablePickerAndTheMoveToastNameTheTablesWithTheirLetter() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            r.order.applyTablePlan(zonedPlan())
+            coEvery { f.engine.listTables() } returns listOf(table(4, zone = "A"), table(6, zone = "B"))
+            coEvery { f.engine.transferTable(ORDER_ID, 6) } returns moved4to6
+            runCurrent()
+
+            assertEquals("A-4", r.state.cart.tableLabel)
+
+            r.model.askTransfer()
+            runCurrent()
+            assertEquals(OrderDialog.TablePicker(4, "A-4", listOf(table(6, zone = "B"))), r.state.dialog)
+
+            r.model.confirmTransfer(6)
+            runCurrent()
+            assertEquals("Table A-4 déplacée en B-6", r.lastToast().message)
+        }
+
+    // ── Covers (UX audit T5) ──────────────────────────────────────
+
+    @Test
+    fun anOpenTableOrderMaySetItsCoversAndATakeawayMayNot() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            assertTrue(r.state.cart.canSetCovers)
+            assertNull(r.state.cart.covers)
+
+            coEvery { f.engine.getOrder(any()) } returns order(table = null)
+            r.order.loadOrder(ORDER_ID)
+            runCurrent()
+            assertFalse(r.state.cart.canSetCovers)
+        }
+
+    @Test
+    fun theCoversPadOpensOnTheCoversSetNowAndTheTypedNumberIsSent() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            coEvery { f.engine.getOrderCovers(ORDER_ID) } returns 4
+            val r = startOrder(f, world, context)
+            r.login()
+            r.order.loadOrder(ORDER_ID)
+            runCurrent()
+            assertEquals(4, r.state.cart.covers)
+
+            r.model.askCovers()
+            assertEquals(OrderDialog.Covers("4"), r.state.dialog)
+
+            coEvery { f.engine.setOrderCovers(ORDER_ID, 6) } returns 6
+            r.model.saveCovers(6)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.setOrderCovers(ORDER_ID, 6) }
+            assertEquals(OrderDialog.None, r.state.dialog)
+            assertEquals(6, r.state.cart.covers)
+        }
+
+    @Test
+    fun zeroOnTheCoversPadClearsThem() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            coEvery { f.engine.getOrderCovers(ORDER_ID) } returns 4
+            val r = startOrder(f, world, context)
+            r.login()
+            r.order.loadOrder(ORDER_ID)
+            runCurrent()
+            coEvery { f.engine.setOrderCovers(ORDER_ID, null) } returns null
+
+            r.model.saveCovers(0)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.setOrderCovers(ORDER_ID, null) }
+            assertNull(r.state.cart.covers)
+        }
+
+    @Test
+    fun aRefusedCoversShowsTheErrorAndKeepsTheValue() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            coEvery { f.engine.getOrderCovers(ORDER_ID) } returns 4
+            val r = startOrder(f, world, context)
+            r.login()
+            r.order.loadOrder(ORDER_ID)
+            runCurrent()
+            coEvery { f.engine.setOrderCovers(ORDER_ID, any()) } throws PosException.Coded("covers_invalid", mapOf("max" to "30"))
+
+            r.model.saveCovers(31)
+            runCurrent()
+
+            assertEquals(dev.nuagemagique.pilipos.ui.feedback.ToastVariant.Error, r.lastToast().variant)
+            assertEquals(4, r.state.cart.covers)
         }
 
     private val moved4to6 =
@@ -891,7 +1011,7 @@ class MenuViewModelTest {
             r.model.askDiscount()
             r.model.chooseDiscount(staffMeal)
             coEvery { f.engine.applyDiscount(ORDER_ID, staffMeal, ADMIN_INSZ, "4321") } returns
-                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null)
+                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null, false, null)
 
             r.model.confirmDiscountPin("4321")
             r.model.discountDone()
@@ -934,7 +1054,7 @@ class MenuViewModelTest {
             r.login()
             runCurrent()
             coEvery { f.engine.removeDiscount(ORDER_ID, null, ADMIN_INSZ, "4321") } returns
-                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null)
+                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null, false, null)
 
             r.model.askRemoveDiscount()
             assertEquals(OrderDialog.DiscountPin("Alice", DiscountAction.Remove(null)), r.state.dialog)
@@ -956,7 +1076,7 @@ class MenuViewModelTest {
             r.login()
             runCurrent()
             coEvery { f.engine.removeDiscount(ORDER_ID, 3L, ADMIN_INSZ, "4321") } returns
-                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null)
+                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null, false, null)
 
             r.model.askRemoveDiscount(3L)
             r.model.confirmDiscountPin("4321")
@@ -975,12 +1095,146 @@ class MenuViewModelTest {
             r.model.askDiscount()
             r.model.chooseDiscount(staffMeal)
             coEvery { f.engine.applyDiscount(any(), any(), any(), any()) } returns
-                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, "fdm_unreachable")
+                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, "fdm_unreachable", false, null)
 
             r.model.confirmDiscountPin("4321")
             runCurrent()
 
             assertEquals(ToastVariant.Warning, r.lastToast().variant)
+        }
+
+    // ── Manager PIN kept for the order (UX audit P8) ──────────────
+
+    /** A discount confirmed by the typed PIN, the engine keeping the PIN for the order for two minutes. */
+    private suspend fun TestScope.typedDiscount(
+        f: EngineFixture,
+        r: OrderRig,
+    ) {
+        r.model.askDiscount()
+        r.model.chooseDiscount(staffMeal)
+        coEvery { f.engine.applyDiscount(ORDER_ID, staffMeal, ADMIN_INSZ, "4321") } returns
+            DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null, false, 120_000L)
+        r.model.confirmDiscountPin("4321")
+        r.model.discountDone()
+        runCurrent()
+    }
+
+    @Test
+    fun theTypedPinToastSaysItIsKeptForTheOrder() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            typedDiscount(f, r)
+
+            assertEquals("Remise appliquée · code gardé 2 min pour cette commande", r.lastToast().message)
+        }
+
+    @Test
+    fun theNextDiscountOfTheOrderGoesThroughWithNoPinPad() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            typedDiscount(f, r)
+            coEvery { f.engine.applyDiscount(ORDER_ID, staffMeal, ADMIN_INSZ, null) } returns
+                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null, true, 119_000L)
+
+            r.model.askDiscount()
+            r.model.chooseDiscount(staffMeal)
+            runCurrent()
+
+            assertEquals(OrderDialog.None, r.state.dialog)
+            coVerify(exactly = 1) { f.engine.applyDiscount(ORDER_ID, staffMeal, ADMIN_INSZ, null) }
+            assertEquals("Remise appliquée", r.lastToast().message)
+        }
+
+    @Test
+    fun aRemovalRidesTheKeptPinToo() =
+        runTest {
+            val world = OrderWorld(cart = listOf(cartLine(3, 10, "Maki saumon", priceChanges = offered(), discountCents = -650)))
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            typedDiscount(f, r)
+            coEvery { f.engine.removeDiscount(ORDER_ID, 3L, ADMIN_INSZ, null) } returns
+                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null, true, 100_000L)
+
+            r.model.askRemoveDiscount(3L)
+            runCurrent()
+
+            assertEquals(OrderDialog.None, r.state.dialog)
+            coVerify(exactly = 1) { f.engine.removeDiscount(ORDER_ID, 3L, ADMIN_INSZ, null) }
+            assertEquals("Remise retirée", r.lastToast().message)
+        }
+
+    @Test
+    fun whenTheEngineNoLongerKeepsThePinThePadComesBackAndTheHintIsForgotten() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            typedDiscount(f, r)
+            // A lock, the two minutes or another order in between: the engine says it kept none.
+            coEvery { f.engine.applyDiscount(ORDER_ID, staffMeal, ADMIN_INSZ, null) } throws PosException.Coded("pin_required", emptyMap())
+
+            r.model.askDiscount()
+            r.model.chooseDiscount(staffMeal)
+            runCurrent()
+
+            assertEquals(OrderDialog.DiscountPin("Alice", DiscountAction.Apply(staffMeal)), r.state.dialog)
+            // The hint is gone: the next one opens the pad without calling the engine again.
+            r.model.dismissDialog()
+            r.model.askDiscount()
+            r.model.chooseDiscount(staffMeal)
+            runCurrent()
+            assertEquals(OrderDialog.DiscountPin("Alice", DiscountAction.Apply(staffMeal)), r.state.dialog)
+            coVerify(exactly = 1) { f.engine.applyDiscount(ORDER_ID, staffMeal, ADMIN_INSZ, null) }
+        }
+
+    @Test
+    fun aRefusalOtherThanPinRequiredIsAnErrorToastNotAPinPad() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            typedDiscount(f, r)
+            coEvery { f.engine.applyDiscount(ORDER_ID, staffMeal, ADMIN_INSZ, null) } throws
+                PosException.Coded("discount_already_applied", emptyMap())
+
+            r.model.askDiscount()
+            r.model.chooseDiscount(staffMeal)
+            runCurrent()
+
+            assertEquals(OrderDialog.None, r.state.dialog)
+            assertEquals(ToastVariant.Error, r.lastToast().variant)
+        }
+
+    @Test
+    fun withoutAKeptPinTheFirstDiscountOpensThePadAndCallsNothing() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            r.model.askDiscount()
+            r.model.chooseDiscount(staffMeal)
+            runCurrent()
+
+            assertEquals(OrderDialog.DiscountPin("Alice", DiscountAction.Apply(staffMeal)), r.state.dialog)
+            coVerify(exactly = 0) { f.engine.applyDiscount(any(), any(), any(), any()) }
         }
 
     // ── Kitchen note ──────────────────────────────────────────────

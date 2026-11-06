@@ -3,7 +3,7 @@
 //! wrapper's single engine call and converting the answer. Plus the `vat_split` helper (PD62).
 
 use pos_engine::commands::{
-    discount, menu, modifiers, order, session, sold_out, table_plan, table_transfer, tables,
+    covers, discount, menu, modifiers, order, session, sold_out, table_plan, table_transfer, tables,
 };
 
 use crate::convert;
@@ -206,12 +206,33 @@ impl PosEngine {
         convert::out(&plan)
     }
 
-    /// Set the table plan ("1-12, 20-25"); managers only.
-    pub async fn set_table_plan(&self, plan: String) -> Result<TablePlan, PosError> {
+    /// Set the table plan ("1-12, 20-25", "A 1-20, B 21-40") and the names of its zones
+    /// ("A · Salle, B · Terrasse", empty for none); managers only.
+    pub async fn set_table_plan(
+        &self,
+        plan: String,
+        zone_names: String,
+    ) -> Result<TablePlan, PosError> {
         let value = self
-            .blocking(move |st| table_plan::do_set_table_plan(st, &plan))
+            .blocking(move |st| table_plan::do_set_table_plan(st, &plan, &zone_names))
             .await?;
         convert::out(&value)
+    }
+
+    /// The covers (guests) set on an order; `None` when none were set.
+    pub async fn get_order_covers(&self, order_id: i64) -> Result<Option<i32>, PosError> {
+        self.blocking(move |st| covers::do_get_order_covers(st, order_id))
+            .await
+    }
+
+    /// Set (1 to 30) or clear the covers of an open table order.
+    pub async fn set_order_covers(
+        &self,
+        order_id: i64,
+        covers: Option<i32>,
+    ) -> Result<Option<i32>, PosError> {
+        self.blocking(move |st| covers::do_set_order_covers(st, order_id, covers))
+            .await
     }
 
     /// The takeaways left open.
@@ -257,13 +278,14 @@ impl PosEngine {
     }
 
     /// Give a discount on an open till order (order discount or one free line); a manager
-    /// confirms with the PIN.
+    /// confirms with the PIN, or with `pin` `None` by the PIN given for an earlier discount of the
+    /// same order less than two minutes ago (else `pin_required`).
     pub async fn apply_discount(
         &self,
         order_id: i64,
         input: DiscountInput,
         insz: String,
-        pin: String,
+        pin: Option<String>,
     ) -> Result<DiscountResult, PosError> {
         let input: discount::DiscountInput = convert::inp(&input)?;
         let result = self
@@ -275,13 +297,13 @@ impl PosEngine {
     }
 
     /// Remove the order discount (`line_id` `None`) or the free line `line_id`; a manager confirms
-    /// with the PIN.
+    /// with the PIN or the kept PIN, as for `apply_discount`.
     pub async fn remove_discount(
         &self,
         order_id: i64,
         line_id: Option<i64>,
         insz: String,
-        pin: String,
+        pin: Option<String>,
     ) -> Result<DiscountResult, PosError> {
         let result = self
             .spawn(move |e| async move {
@@ -535,7 +557,12 @@ mod flow {
 
         // A wrong PIN is refused with its code and changes nothing.
         let wrong = e
-            .apply_discount(order.id, percent(50), MANAGER_INSZ.into(), "0000".into())
+            .apply_discount(
+                order.id,
+                percent(50),
+                MANAGER_INSZ.into(),
+                Some("0000".into()),
+            )
             .await
             .unwrap_err();
         assert_eq!(coded(wrong), "pin_wrong");
@@ -543,7 +570,7 @@ mod flow {
 
         // 50 % of 2 x 12,00.
         let done = e
-            .apply_discount(order.id, percent(50), MANAGER_INSZ.into(), PIN.into())
+            .apply_discount(order.id, percent(50), MANAGER_INSZ.into(), Some(PIN.into()))
             .await
             .unwrap();
         assert_eq!(done.order.id, order.id);
@@ -557,19 +584,19 @@ mod flow {
 
         // A second discount waits for the removal.
         let twice = e
-            .apply_discount(order.id, percent(10), MANAGER_INSZ.into(), PIN.into())
+            .apply_discount(order.id, percent(10), MANAGER_INSZ.into(), Some(PIN.into()))
             .await
             .unwrap_err();
         assert_eq!(coded(twice), "discount_already_applied");
 
         // The removal takes the PIN too, and gives the full price back.
         let wrong = e
-            .remove_discount(order.id, None, MANAGER_INSZ.into(), "0000".into())
+            .remove_discount(order.id, None, MANAGER_INSZ.into(), Some("0000".into()))
             .await
             .unwrap_err();
         assert_eq!(coded(wrong), "pin_wrong");
         let removed = e
-            .remove_discount(order.id, None, MANAGER_INSZ.into(), PIN.into())
+            .remove_discount(order.id, None, MANAGER_INSZ.into(), Some(PIN.into()))
             .await
             .unwrap();
         assert_eq!(removed.order.total_cents, 2400);
@@ -577,7 +604,7 @@ mod flow {
         assert_eq!(cart[0].discount_cents, 0);
         // Nothing left to remove.
         let none = e
-            .remove_discount(order.id, None, MANAGER_INSZ.into(), PIN.into())
+            .remove_discount(order.id, None, MANAGER_INSZ.into(), Some(PIN.into()))
             .await
             .unwrap_err();
         assert_eq!(coded(none), "discount_none");
@@ -823,6 +850,63 @@ mod flow {
             .await
             .unwrap_err();
         assert_eq!(coded(after), "not_logged_in");
+        e.shutdown().await.unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_kept_pin_stands_in_for_the_next_discount_through_the_facade() {
+        const PIN: &str = "4321";
+        let (e, _dir) = open_logged_in().await;
+        e.blocking(|st| {
+            pos_engine::commands::auth::do_set_pin(st, MANAGER_INSZ.into(), PIN.into(), None)
+        })
+        .await
+        .unwrap();
+        let order = e
+            .create_order(CreateOrderInput {
+                order_type: OrderType::Takeaway,
+                table_number: None,
+                user_insz: MANAGER_INSZ.into(),
+            })
+            .await
+            .unwrap();
+        e.add_order_line(AddOrderLineInput {
+            order_id: order.id,
+            menu_item_id: 10006,
+            quantity: 2,
+            modifiers_json: None,
+            unit_price_cents: None,
+        })
+        .await
+        .unwrap();
+
+        // Without a PIN and without a grant the facade answers pin_required; the PIN typed for
+        // the offer below opens the grant, and the removal then goes through without a PIN.
+        let line = e.list_cart_lines(order.id).await.unwrap()[0].id;
+        let offer = DiscountInput {
+            target: DiscountTarget::Line { line_id: line },
+            kind: DiscountKind::Free,
+            value: None,
+            reason_code: DiscountReason::StaffMeal,
+            reason_text: None,
+        };
+        let needs_pin = e
+            .apply_discount(order.id, offer.clone(), MANAGER_INSZ.into(), None)
+            .await
+            .unwrap_err();
+        assert_eq!(coded(needs_pin), "pin_required");
+        let typed = e
+            .apply_discount(order.id, offer, MANAGER_INSZ.into(), Some(PIN.into()))
+            .await
+            .unwrap();
+        assert!(!typed.pin_reused);
+        assert!(typed.pin_grant_ms.is_some());
+        let kept = e
+            .remove_discount(order.id, Some(line), MANAGER_INSZ.into(), None)
+            .await
+            .unwrap();
+        assert!(kept.pin_reused);
+        assert_eq!(kept.order.total_cents, 2400);
         e.shutdown().await.unwrap();
     }
 }

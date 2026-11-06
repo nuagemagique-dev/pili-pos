@@ -17,8 +17,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -28,6 +30,8 @@ import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.AmountDialog
+import dev.nuagemagique.pilipos.ui.components.NumberKeypad
+import dev.nuagemagique.pilipos.ui.components.NumberKeypadSpec
 import dev.nuagemagique.pilipos.ui.components.PinDialog
 import dev.nuagemagique.pilipos.ui.components.PinMode
 import dev.nuagemagique.pilipos.ui.components.PinPadTexts
@@ -73,6 +77,8 @@ internal data class OrderCallbacks(
     val onMoreDiscount: () -> Unit = {},
     val onMoreDiscountRemove: () -> Unit = {},
     val onMoreUnpaid: () -> Unit = {},
+    /** The covers typed on the pad of the cart header (0 clears them). */
+    val onCoversSaved: (Int) -> Unit = {},
     /** The input of the discount dialog. */
     val onDiscountChosen: (DiscountInput) -> Unit = {},
     /** The manager PIN of a discount or its removal; throws what the engine refused. */
@@ -149,6 +155,7 @@ internal fun OrderRoute(
             onDiscountPin = model::confirmDiscountPin,
             onDiscountDone = model::discountDone,
             onNoteSaved = model::saveNote,
+            onCoversSaved = model::saveCovers,
             onUnpaidDone = {
                 model.unpaidClosed()
                 navigator.navigate(TablesRoutes.TABLES)
@@ -165,6 +172,7 @@ internal fun OrderRoute(
             onCloseUnpaid = model::askCloseUnpaid,
             onTransfer = model::askTransfer,
             onMore = model::openCartMore,
+            onCovers = model::askCovers,
             onDiscount = { model.askDiscount() },
             onRemoveOrderDiscount = { model.askRemoveDiscount() },
             onOffer = { model.askDiscount(it) },
@@ -205,24 +213,18 @@ internal fun OrderContent(
     }
     val menu = state.menu
     val color = menu.categories.firstOrNull { it.id == menu.selectedCategoryId }?.color
+    val tileColors = favouriteTileColors(menu)
     Column(modifier.fillMaxSize().background(c.bgPrimary)) {
-        if (state.zWarning) {
-            val t = PiliTheme.typography
-            Text(
-                text = vueText("z_report_warning"),
-                style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
-                color = c.textOnAccent,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .background(c.accentWarning)
-                        .padding(horizontal = 20.dp, vertical = 14.dp)
-                        .testTag("order_z_warning"),
-            )
-        }
+        if (state.zWarning) ZReportWarning()
         Row(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
-                CategoryTabs(menu.categories, menu.selectedCategoryId, menu.language, callbacks.onCategory)
+                CategoryTabs(
+                    menu.categories,
+                    menu.selectedCategoryId,
+                    menu.language,
+                    callbacks.onCategory,
+                    showFavourites = menu.favourites.isNotEmpty(),
+                )
                 ModeToolbar(
                     menu,
                     ModeToolbarActions(
@@ -245,6 +247,7 @@ internal fun OrderContent(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     highlightId = menu.codePad.pick?.id,
                     emptyText = results?.let { vueText("code_pad_no_result") },
+                    categoryColors = if (results == null) tileColors else null,
                 )
                 // UX audit C6: the pad is a dock under the grid, which keeps its 5 columns.
                 if (menu.codePad.open) CodePad(menu.codePad, callbacks.codePad)
@@ -253,6 +256,31 @@ internal fun OrderContent(
         }
     }
 }
+
+/** The banner that says the previous day's Z is missing. Test tag: `order_z_warning`. */
+@Composable
+private fun ZReportWarning() {
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    Text(
+        text = vueText("z_report_warning"),
+        style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
+        color = c.textOnAccent,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(c.accentWarning)
+                .padding(horizontal = 20.dp, vertical = 14.dp)
+                .testTag("order_z_warning"),
+    )
+}
+
+/** The "Favoris" tab mixes products of every category: each tile keeps the colour of its own category (else null). */
+@Composable
+private fun favouriteTileColors(menu: MenuState): Map<Long, Color?>? =
+    remember(menu.categories, menu.selectedCategoryId == FAVOURITES_TAB) {
+        if (menu.selectedCategoryId == FAVOURITES_TAB) menu.categories.associate { it.id to parseCategoryColor(it.color) } else null
+    }
 
 /**
  * The open dialog, over everything: the price of a free-price product, the options of a product, the availability of a
@@ -295,8 +323,22 @@ internal fun BoxScope.OrderDialogs(
                 forWeight = dialog.forWeight,
             )
         is OrderDialog.CartMore -> CartMoreDialog(dialog, callbacks)
+        is OrderDialog.Covers ->
+            NumberKeypad(
+                spec =
+                    NumberKeypadSpec(
+                        tag = "covers",
+                        title = vueText("covers_title"),
+                        initial = dialog.initial,
+                        maxDigits = 2,
+                        min = 0L,
+                        max = COVERS_MAX.toLong(),
+                    ),
+                onConfirm = { callbacks.onCoversSaved(it.toIntOrNull() ?: 0) },
+                onCancel = callbacks.onDismiss,
+            )
         is OrderDialog.TablePicker ->
-            TablePickerDialog(dialog.from, dialog.tables, onPick = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
+            TablePickerDialog(dialog.fromLabel, dialog.tables, onPick = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
         is OrderDialog.SoldOut -> SoldOutDialog(dialog.item, callbacks.onAvailability, callbacks.onDismiss)
         OrderDialog.SoldOutList -> SoldOutList(soldOut, callbacks.onAvailability, callbacks.onDismiss)
         is OrderDialog.CloseUnpaid -> CloseUnpaidDialog(dialog.userName, callbacks)

@@ -31,6 +31,15 @@ fun pressVoucherKey(
         is NumPadKey.Digit -> if (digits.length >= GIFT_VOUCHER_CODE_LENGTH) digits else digits + key.digit
     }
 
+/**
+ * The voucher code a scanned token stands for: exactly 12 digits, or null (another barcode, a badge, a code cut
+ * short; the wedge detector also lets the letters A to F through for badges).
+ */
+fun voucherCodeFromScan(token: String): String? = token.takeIf { it.length == GIFT_VOUCHER_CODE_LENGTH && it.all { c -> c in '0'..'9' } }
+
+/** `123456789095` as `**** **** 9095`: how a scanned code is shown, the way the engine masks a voucher it found. */
+fun maskedVoucherCode(digits: String): String = "**** **** ${digits.takeLast(CODE_GROUP)}"
+
 /** `123456789095` as `1234 5678 9095`, as the voucher prints it. */
 fun spacedVoucherCode(digits: String): String = digits.chunked(CODE_GROUP).joinToString(" ")
 

@@ -34,11 +34,14 @@ class TablePickerDialogTest {
 
     private val busyTable = table(4, orderId = 44L, lines = 2, totalCents = 2_400)
 
-    private fun show(tables: List<TableInfo>) {
+    private fun show(
+        tables: List<TableInfo>,
+        from: String = "1",
+    ) {
         compose.setContent {
             PiliTheme {
                 ProvideUiText(AppLanguage.FR, catalog) {
-                    Box { TablePickerDialog(1, tables, onPick = { seen += "go:$it" }, onCancel = { seen += "cancel" }) }
+                    Box { TablePickerDialog(from, tables, onPick = { seen += "go:$it" }, onCancel = { seen += "cancel" }) }
                 }
             }
         }
@@ -74,6 +77,17 @@ class TablePickerDialogTest {
         show(listOf(table(2)))
 
         compose.onNodeWithText("Déplacer · Table 1").assertIsDisplayed()
+    }
+
+    @Test
+    fun withZonesTheTitleAndTheTilesNameTheTablesWithTheirLetter() {
+        show(listOf(table(2, zone = "A"), table(21, zone = "B")), from = "A-1")
+
+        compose.onNodeWithText("Déplacer · Table A-1").assertIsDisplayed()
+        compose.onNodeWithTag("pick_table_21").assertTextContains("B-21", substring = true)
+        // The move still goes by the number: the tap hands back 21.
+        compose.onNodeWithTag("pick_table_21").performClick()
+        assertEquals(listOf("go:21"), seen)
     }
 
     @Test

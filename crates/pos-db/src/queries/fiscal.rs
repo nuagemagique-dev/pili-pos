@@ -240,6 +240,72 @@ pub fn list_copyable_tickets(
     rows.collect()
 }
 
+/// A signed ticket found by the number printed on it.
+#[derive(Debug, Clone)]
+pub struct TicketByNumber {
+    pub fiscal_event_id: i64,
+    /// N (sale or refund), P (pre-bill) or T (training).
+    pub event_label: String,
+    /// `posFiscalTicketNo`, as printed on the ticket.
+    pub ticket_number: i64,
+    pub order_id: Option<i64>,
+    pub order_status: Option<String>,
+    pub table_number: Option<i32>,
+    /// The order's total, as the refund list shows it.
+    pub order_total_cents: Option<i64>,
+    /// The ticket's own total (`transactionTotal`), negative for a refund.
+    pub total_cents: i64,
+    /// `ticketMedium` of the request: NONE when no ticket was given.
+    pub ticket_medium: String,
+    pub created_at: String,
+}
+
+/// The signed N, P and T events that carry ticket number `number`,
+/// newest first. Each label counts its own numbers, so one number can
+/// name a sale, a pre-bill and a training ticket. A ticket the
+/// customer cannot hold (a P order registration, `ticketMedium` NONE)
+/// is left out; a sale is kept whatever its medium, like the refund
+/// list.
+pub fn find_tickets_by_number(
+    conn: &Connection,
+    number: i64,
+    limit: i64,
+) -> Result<Vec<TicketByNumber>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT fe.id, fe.event_label,
+                json_extract(fe.event_data_json, '$.posFiscalTicketNo'),
+                fe.order_id, o.status, o.table_number, o.total_cents,
+                CAST(ROUND(COALESCE(json_extract(fe.event_data_json,
+                    '$.transaction.transactionTotal'), 0) * 100) AS INTEGER),
+                COALESCE(json_extract(fe.event_data_json, '$.ticketMedium'), 'NONE'),
+                fe.created_at
+         FROM fiscal_events fe
+         LEFT JOIN orders o ON o.id = fe.order_id
+         WHERE fe.event_type IN ('N', 'P', 'T')
+           AND fe.fdm_id IS NOT NULL
+           AND json_extract(fe.event_data_json, '$.posFiscalTicketNo') = ?1
+           AND (fe.event_type = 'N'
+                OR COALESCE(json_extract(fe.event_data_json, '$.ticketMedium'), 'NONE') <> 'NONE')
+         ORDER BY fe.id DESC
+         LIMIT ?2",
+    )?;
+    let rows = stmt.query_map(params![number, limit], |row| {
+        Ok(TicketByNumber {
+            fiscal_event_id: row.get(0)?,
+            event_label: row.get(1)?,
+            ticket_number: row.get(2)?,
+            order_id: row.get(3)?,
+            order_status: row.get(4)?,
+            table_number: row.get(5)?,
+            order_total_cents: row.get(6)?,
+            total_cents: row.get(7)?,
+            ticket_medium: row.get(8)?,
+            created_at: row.get(9)?,
+        })
+    })?;
+    rows.collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

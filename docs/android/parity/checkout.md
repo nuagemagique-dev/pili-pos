@@ -15,17 +15,22 @@ rounding, the signature, the ticket delivery); the screen only calls it through 
 | CheckoutView.vue (summary: change rows, Sous-total, Remise) | feature/checkout/CheckoutPanels.kt (SummaryLine, SummaryFoot), CheckoutState.kt (CheckoutSummary.discountCents) | - |
 | CheckoutView.vue (`held-warning`, `sendHeldNow`: "Envoyer maintenant") | feature/checkout/CheckoutPanels.kt (HeldWarning), CheckoutViewModel.kt (sendHeldNow) over ui/state/OrderStore.kt | `send_next_course` |
 | CheckoutView.vue ("Bon cadeau" method, `GiftVoucherDialog.vue`, voucher notes `gv-prints` on the done screen) | feature/checkout/GiftVoucherDialog.kt, CheckoutPanels.kt (MethodRow), CheckoutScreen.kt (VoucherPrints), CheckoutViewModel.kt (voucherKey, lookupVoucher, applyVoucher) with ui/components/GiftVouchers.kt | `lookup_gift_voucher` `checkout` |
+| GiftVoucherDialog.vue (USB barcode reader: `useVoucherScanner`, `utils/giftVoucherScan.ts`, `utils/scanClaim.ts`; UX audit P7) | feature/checkout/CheckoutViewModel.kt (`scanVoucher`, the claim follows the dialog), GiftVoucherDialog.kt (hint `gv_scan_hint`, masked code) with ui/components/GiftVouchers.kt (`voucherCodeFromScan`, `maskedVoucherCode`), ui/badge/ScanClaims.kt over KeyWedgeSource.kt (`claim()`) | `lookup_gift_voucher` |
 | components/TicketMediumPicker.vue | ui/components/TicketMediumPicker.kt (TicketMediumPicker, TicketMediumKeypad) bound to ui/state/DeliveryStore.kt | - |
 | components/EmailKeypad.vue | ui/components/EmailKeypad.kt, drawn in the scaffold overlay of the checkout route | - |
 | components/DeliveryOutcomePanel.vue | ui/components/DeliveryOutcomePanel.kt with `DeliveryStore.printMissingOriginal` | `print_missing_original` |
 | stores/delivery.ts | ui/state/DeliveryStore.kt (refreshMailStatus on entering the pay step, request, reset) | `check_mail_status` |
+| CheckoutView.vue (UX audit T1 and T5: the recap title reads "Table A-5" with zones; the covers of the table are a hint for the number of equal parts, `split-covers` "4 couverts", the matching button is outlined, the pad of "Autre" starts on them, and nothing is ever split by itself) | feature/checkout/CheckoutPanels.kt (SplitRow, `coversHint`, tag `checkout_split_covers`), CheckoutState.kt (`tableLabel`, `covers`, `coversSplit`), CheckoutViewModel.kt (reads `OrderStore.covers` and `tableZones`), CheckoutScreen.kt (the pad `initial`) | `get_order_covers` |
 
 ## Quick checkout (UX audit P1, P2, P6)
 
 | Vue | Compose | Commands |
 | --- | --- | --- |
 | CheckoutView.vue (`prefill`, `collectCents`, `validateLabel`, `receivedHint`; strings `collect_*`) | feature/checkout/CheckoutViewModel.kt (`Own.prefilled`), CheckoutState.kt (`collectCents`, `showReceived`), CheckoutPanels.kt (`validateLabel`, `ValidateButton`) | - |
-| CheckoutView.vue (`showRest`, `offeredMethods`, `rest-methods-label`, string `rest_methods`) | CheckoutState.kt (`showRest`, `offeredMethods`), CheckoutPanels.kt (`MethodRow`, tag `checkout_rest_label`) | - |
+| CheckoutView.vue (`showRest`, `rest-methods-label`, string `rest_methods`; every method stays offered, several cash parts are allowed and the method taken stays selected for the next part, UX audit P3) | CheckoutState.kt (`showRest`, `methods`), CheckoutPanels.kt (`MethodRow`, tag `checkout_rest_label`), CheckoutViewModel.kt (`validate`, `takeVoucher`, `takeOnTerminal` keep `method`) | - |
+| CheckoutView.vue (`splitMode`, `selectDishes`, `toggleDish`, `stepDish`, `dishRows`, `dish-line`, `split-dishes`; "Par plats": the cart lines checked unit by unit, a part is the sum of the units checked, strings `split_dishes`, `dish_*`; UX audit P3), utils/dishSplit.ts (`unitShares`, `pickedCents`, `toggleLine`, `withUnits`, `unitsFit`) | feature/checkout/CheckoutPanels.kt (SplitRow, DishHint, DishLine, DishStepper, tags `checkout_split_dishes`, `checkout_dish_*`), CheckoutViewModel.kt (`selectDishes`, `toggleDish`, `stepDish`, `dishChips`, `currentUnits`), DishSplit.kt, CheckoutState.kt (`SplitMode`, `dishRows`, `dishBlocked`), ui/format/CashDisplay.kt (`unitShares`, `unitsCents`, `lineNetCents`); the units are held with the parts (`HeldPart.units`) and never sent | `checkout` (unchanged payload) |
+| CheckoutView.vue (`split-other`, `otherOpen`, `takeOtherSplit`, `NumberEntryDialog` 2 to 20; strings `split_other*`; UX audit P3) | feature/checkout/CheckoutPanels.kt (SplitRow, tag `checkout_split_other`), CheckoutScreen.kt (CheckoutDialogs: `NumberKeypad` tag `checkout_other`), CheckoutViewModel.kt (`openOtherSplit`, `confirmOtherSplit`, `SPLIT_OTHER_MIN`, `SPLIT_OTHER_MAX`) | - |
+| CheckoutView.vue (`cashTakenCents`, `cashDueCents`: several cash parts, each with its given and change, merged into ONE cash line rounded once; the done change is the last cash part's; string `part_cash_detail`; UX audit P3), utils/dishSplit.ts (`cashDueCents`) | CheckoutViewModel.kt (`cashDueAfter`, `payload`, `onResult`), CheckoutState.kt (`TakenPart.givenCents`), CheckoutPanels.kt (TakenRow) | `checkout` (one cash part without amount, unchanged) |
 | CheckoutView.vue (`online`, `wasOnline`, `beginOnlineCollect`: an unpaid online order paid at the checkout with Exact pre-filled and the change; "Carte" selected when the card button was tapped; the sale is `webshop_handover_order` and the flow returns to the online orders; UX audit O2) | feature/checkout/CheckoutViewModel.kt (`online`, `startOnCard`, `ensureOrder`, `startCheckout`, `BackToBoard`, `BoardAfterSale`), CheckoutRoutes.kt (`checkoutOnline`, args `online` and `card`), CheckoutEntry.kt, CheckoutScreen.kt, CheckoutPanels.kt (SummaryHead title `online_orders`) | `webshop_handover_order` |
 | CheckoutView.vue (`back-to-order` always shown, `parts-clear` "Annuler les parts" only with parts taken by hand, `restoreParts`, `reconcileHeld`, toast `parts_dropped`; UX audit P4), utils/heldParts.ts, stores/order.ts (`heldParts`, `holdParts`), CartSidebar.vue (`held-parts`, "Parts déjà saisies : N") | feature/checkout/CheckoutPanels.kt (FootActions, tags `checkout_back`, `checkout_clear_parts`), CheckoutViewModel.kt (`restoreHeld`, `toHeld`, `toTaken`), ReconciledParts.kt (`reconcileHeld`, the sums through `CashDisplay.sumCents`), ui/state/OrderStore.kt (`heldParts`, `holdParts`), feature/order/MenuViewModel.kt, OrderCartColumn.kt (tag `cart_held_parts`) | - |
 | CheckoutView.vue (done step: `holdDone`, `onDoneTap`, `finish`, `done-auto-return`), utils/checkoutDone.ts (`doneNeedsAttention`, `DONE_AUTO_RETURN_MS`) | CheckoutState.kt (`CheckoutDone.needsAttention`), CheckoutViewModel.kt (`scheduleAutoReturn`, `finish`, `DONE_AUTO_RETURN_MS`), CheckoutScreen.kt (`DoneStep`, `ChangeBanner`) | - |
@@ -70,6 +75,10 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
 
 ## Differences
 
+- **Covers are a hint, not a default (UX audit T5).** The brief reads "default N of equal parts" (a deviation kept on purpose: preselecting N parts would add a tap to every table paid in one go); both screens mark the matching button, show "N couverts" and start the pad of "Autre" on N, but never split by themselves, so a table paid in one go stays one tap. Same on Vue and Compose.
+- **Change on the done screen.** Only the change of the part taken last, and only when it is cash (`doCheckout(all,
+  lastChangeCents)` / `startCheckout(.., lastChangeCents)`); the change of earlier cash parts was shown on their row and
+  handed back at the table, so a sale ending on a card part shows none. Same on Vue and Compose.
 - **Cash part before the last one.** Vue subtracts the parts in the browser. Here a cash part taken earlier is held
   in the previews as an exact amount, so the engine does the subtraction; the sale itself still sends it last
   without amount.
@@ -102,6 +111,19 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
 - **Parts kept (P4).** Vue keeps the parts of the cart in the order store and restores them with `reconcileHeld`;
   Compose keeps them in `OrderStore.heldParts` and reconciles in `reconcileHeld` (ReconciledParts.kt) with the running
   `CashDisplay.sumCents` (the UI computes no money, UI-PD317). The terminal-card parts are not kept here: the engine
-  lists the approved payments (`eft_payments`) and the screen adopts them again, which is the same as Vue. The split
+  lists the approved payments (`eft_payments`) and the screen adopts them again, which is the same as Vue. The dishes
+  such a card paid in a split by dishes are the exception: `holdParts(orderId, parts, eftUnits)` keeps them by payment
+  id (`heldEftUnitsFor`) and `adopt` puts them back, so they stay greyed after back to the order and return; if the
+  cart changed so that they no longer fit, they are dropped with the other parts. The split
   count is not restored (same on both). Leaving an online checkout drops the kept parts.
 
+- **Gift voucher barcode (UX audit P7).** The printed voucher (and its DUPLICATA) carries a CODE128 barcode of the 12
+  digits under the code (`pos-print`, `EscPosBuilder::barcode_code128_digits`: `GS k 73`, code set B, ASCII digits so
+  no raw value 0 to 99 can look like a command to a byte reader, module width 2 = 334 dots, inside the 420 dots of
+  58 mm paper). A USB scanner in keyboard wedge mode (digits then Enter) fills the code of the dialog and looks it up
+  at once, with no tap on "Chercher"; the code is shown masked (`**** **** 9095`), a token that is not 12 digits is
+  refused with `gv_scan_invalid`, a scan during a lookup or of the voucher already found is ignored, and typing on the
+  pad after a scan starts a new code. Vue: a window `keydown` capture listener while the dialog is mounted (same
+  `WedgeDetector` and gap as the badge reader). Compose: `KeyWedgeSource.claim()`, collected by the view model only
+  while the dialog is open. In both, the claim makes the badge reader stand aside (a voucher barcode is never a
+  badge) and works with the badge reader setting off. Lookups stay throttled by the engine (5 failed tries a minute).

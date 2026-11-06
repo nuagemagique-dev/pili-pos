@@ -157,12 +157,19 @@ class CheckoutContentTest {
     }
 
     @Test
-    fun cashCannotBePickedAgainAfterACashPart() {
-        show(base.copy(method = PaymentMethod.CARD, taken = listOf(TakenPart(PaymentMethod.CASH, 500L, 0L))))
+    fun cashStaysOfferedAfterACashPartAndTheRecapSaysWhatWasGivenAndHandedBack() {
+        show(
+            base.copy(
+                method = PaymentMethod.CASH,
+                taken = listOf(TakenPart(PaymentMethod.CASH, 500L, 495L, givenCents = 1_000L)),
+            ),
+        )
 
-        compose.onNodeWithTag("checkout_method_cash").assertDoesNotExist()
+        compose.onNodeWithTag("checkout_method_cash").assertIsEnabled()
         compose.onNodeWithTag("checkout_method_card").assertIsEnabled()
-        text("checkout_cash_taken").assertIsDisplayed()
+        text("checkout_cash_taken").assertDoesNotExist()
+        text("checkout_part_0").assertTextContains("5,00", substring = true)
+        compose.onNodeWithText("reçu 10,00 €, rendu 4,95 €", substring = true, useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
@@ -322,6 +329,13 @@ class CheckoutContentTest {
         text("checkout_item_count").assertTextEquals("5 art.")
         compose.onNodeWithTag("checkout_line_1").assertTextContains("10,00", substring = true)
         compose.onNodeWithTag("checkout_line_2").assertTextContains("3 × 1,00 €", substring = true)
+    }
+
+    @Test
+    fun withZonesTheTitleNamesTheTableWithItsLetter() {
+        show(base.copy(tableLabel = "A-5"))
+
+        text("checkout_title").assertTextEquals("Commande · Table A-5")
     }
 
     @Test

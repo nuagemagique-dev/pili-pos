@@ -126,6 +126,9 @@ pub fn render_plain_text_for(bytes: &[u8], paper: PaperWidth) -> String {
                         }
                         i += 5 + len;
                     }
+                    // GS h n / GS w n / GS H n / GS f n: barcode settings, one parameter.
+                    Some(b'h' | b'w' | b'H' | b'f') => i += 3,
+                    Some(b'k') => i = render_barcode(bytes, i, width, &mut out),
                     Some(b'v') => {
                         // raster image - skip header + data
                         let at = |n: usize| usize::from(bytes.get(i + n).copied().unwrap_or(0));
@@ -149,19 +152,60 @@ pub fn render_plain_text_for(bytes: &[u8], paper: PaperWidth) -> String {
     out
 }
 
+/// Draw the barcode placeholder of the `GS k m n d1...dn` (function B,
+/// m = 65 to 73) that starts at `at`; returns where the next command starts.
+fn render_barcode(bytes: &[u8], at: usize, width: usize, out: &mut String) -> usize {
+    let m = bytes.get(at + 2).copied().unwrap_or(0);
+    if !(65..=73).contains(&m) {
+        return at + 2;
+    }
+    let n = usize::from(bytes.get(at + 3).copied().unwrap_or(0));
+    let end = (at + 4 + n).min(bytes.len());
+    let data = bytes.get(at + 4..end).unwrap_or_default();
+    let _ = writeln!(
+        out,
+        "{:^width$}",
+        format!("[BARCODE: {}]", barcode_text(m, data))
+    );
+    at + 4 + n
+}
+
+/// What a barcode of GS k type `m` encodes, as text: the CODE128 code set
+/// selectors (`{A`, `{B`, `{C`) are dropped, set C pairs are digit pairs.
+fn barcode_text(m: u8, data: &[u8]) -> String {
+    if m != 73 {
+        return String::from_utf8_lossy(data).into_owned();
+    }
+    let mut out = String::new();
+    let mut code_c = false;
+    let mut i = 0;
+    while i < data.len() {
+        if data[i] == b'{' && matches!(data.get(i + 1), Some(b'A' | b'B' | b'C')) {
+            code_c = data[i + 1] == b'C';
+            i += 2;
+        } else if code_c {
+            let _ = write!(out, "{:02}", data[i]);
+            i += 1;
+        } else {
+            out.push(char::from(data[i]));
+            i += 1;
+        }
+    }
+    out
+}
+
 /// Test helper: `print` laid out for 58 mm fits 35 columns and prints
 /// every character of its 80 mm layout in the same order (nothing
 /// truncated, only rewrapped). Spaces, rules and the QR placeholder's
-/// width are not compared: the renderer writes the placeholder, the
-/// printer draws the code.
+/// width are not compared (nor the barcode placeholder's): the renderer
+/// writes the placeholder, the printer draws the code.
 #[cfg(test)]
 pub(crate) fn assert_58_mm_prints_the_80_mm_words(print: impl Fn(PaperWidth) -> Vec<u8>) {
     let words = |paper| {
         let text = render_plain_text_for(&print(paper), paper);
-        for line in text
-            .lines()
-            .filter(|l| !l.trim_start().starts_with("[QR: "))
-        {
+        for line in text.lines().filter(|l| {
+            !l.trim_start().starts_with("[QR: ") && !l.trim_start().starts_with("[BARCODE: ")
+        }) {
             assert!(
                 line.chars().count() <= usize::from(crate::escpos::chars_per_line(paper)),
                 "{paper:?}: {} columns: {line:?}",
@@ -215,6 +259,27 @@ mod tests {
         p.qr_code("https://www.gs2.be/abc", 6);
         let text = render_plain_text(&p.build());
         assert!(text.contains("[QR: https://www.gs2.be/abc]"));
+    }
+
+    #[test]
+    fn renders_a_code128_barcode_placeholder_and_swallows_its_settings() {
+        let mut p = EscPosBuilder::new();
+        p.align(Alignment::Center);
+        p.barcode_code128_digits("123456789012");
+        p.lf();
+        p.textln("after");
+        let text = render_plain_text(&p.build());
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines[0].trim(), "[BARCODE: 123456789012]");
+        // The parameter bytes of GS h, GS w and GS H never print as text.
+        assert!(!text.contains('P') && !text.contains('\u{2}'), "{text:?}");
+        assert!(text.lines().any(|l| l.trim() == "after"), "{text:?}");
+    }
+
+    #[test]
+    fn a_code_set_c_barcode_renders_its_digit_pairs() {
+        assert_eq!(barcode_text(73, &[b'{', b'C', 12, 34, 56]), "123456");
+        assert_eq!(barcode_text(73, b"{B0042"), "0042");
     }
 
     #[test]

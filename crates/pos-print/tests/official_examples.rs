@@ -306,6 +306,7 @@ fn vi_bar_the_official_bar_ticket_example() {
             date_time: "15/06/2026 12:09:35".to_string(),
             operator: "Beheerder".to_string(),
             table: Some(3),
+            table_zone: None,
             takeaway: None,
             items: vec![
                 BarItem {

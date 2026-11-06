@@ -304,14 +304,18 @@ test.describe('P6: the rest after a part', () => {
 
   test('one row names the rest and the methods that can still pay it', async ({ page }) => {
     await afterMealVouchers(page)
-    await expect(page.getByTestId('rest-methods-label')).toHaveText('Reste 3,35 € :')
+    await expect(page.getByTestId('rest-methods-label')).toHaveText('Reste 3,34 € :')
     await expect(page.locator('.methods .method-btn')).toHaveText([
       'Espèces',
       'Carte',
       'Chèques-repas',
     ])
-    // Cash stays the pre-selected method, with the rounded rest entered.
-    await expect(page.locator('.cash-btn')).toHaveClass(/active/u)
+    // The method of the part taken stays selected, with the rest entered (UX audit P3).
+    await expect(page.locator('.meal-btn')).toHaveClass(/active/u)
+    await expect(collect(page)).toHaveText('Encaisser 3,34 € en chèques-repas')
+    // Cash is one tap away, with the rest rounded to 5 cents.
+    await page.locator('.cash-btn').click()
+    await expect(page.getByTestId('rest-methods-label')).toHaveText('Reste 3,35 € :')
     await expect(collect(page)).toHaveText('Encaisser 3,35 € en espèces')
   })
 
@@ -330,13 +334,15 @@ test.describe('P6: the rest after a part', () => {
     ])
   })
 
-  test('cash is not offered again once a cash part is taken', async ({ page }) => {
+  test('cash stays offered and selected after a cash part: several friends can pay in cash', async ({
+    page,
+  }) => {
     await toOrder(page)
     await pay(page)
     await page.locator('.split-btn', { hasText: '3' }).click()
     await collect(page).click()
     await expect(page.getByTestId('rest-methods-label')).toContainText('Reste')
-    await expect(page.locator('.cash-btn')).toHaveCount(0)
-    await expect(page.locator('.card-btn')).toHaveClass(/active/u)
+    await expect(page.locator('.cash-btn')).toHaveClass(/active/u)
+    await expect(page.locator('.card-btn')).toBeVisible()
   })
 })

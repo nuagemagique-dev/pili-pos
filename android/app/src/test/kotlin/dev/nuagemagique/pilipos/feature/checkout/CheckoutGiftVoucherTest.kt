@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.checkout
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -227,6 +228,127 @@ class CheckoutGiftVoucherTest {
             coVerify(exactly = 0) { r.f.engine.checkout(any(), any(), any()) }
         }
 
+    // ── The barcode reader (UX audit P7) ──────────────────────────
+
+    @Test
+    fun theReaderIsClaimedOnlyWhileTheDialogIsOpen() =
+        runTest {
+            val r = started(1_152)
+            assertEquals(0, r.scans.claims)
+
+            r.model.selectMethod(PaymentMethod.GIFT_VOUCHER)
+            runCurrent()
+            assertEquals(1, r.scans.claims)
+
+            r.model.closeVoucher()
+            runCurrent()
+            assertEquals(0, r.scans.claims)
+        }
+
+    @Test
+    fun aScanFillsTheCodeAndLooksItUpAtOnce() =
+        runTest {
+            val r = started(1_152, found = voucher(balance = 500L))
+            r.model.selectMethod(PaymentMethod.GIFT_VOUCHER)
+            runCurrent()
+
+            r.scans.scan("123456789095")
+            runCurrent()
+
+            val dialog = r.state.voucher
+            assertEquals("123456789095", dialog?.digits)
+            assertTrue(dialog?.scanned == true)
+            assertEquals(voucher(balance = 500L), dialog?.found)
+            assertNull(dialog?.error)
+            coVerify(exactly = 1) { r.f.engine.lookupGiftVoucher("123456789095") }
+
+            // The voucher found is applied like a typed one.
+            r.model.applyVoucher()
+            runCurrent()
+            assertEquals(7L, r.state.taken.single().giftVoucherId)
+            assertEquals(500L, r.state.taken.single().cents)
+        }
+
+    @Test
+    fun aBarcodeThatIsNotAVoucherCodeIsRefusedAndNothingIsLookedUp() =
+        runTest {
+            val r = started(1_152)
+            r.model.selectMethod(PaymentMethod.GIFT_VOUCHER)
+            runCurrent()
+
+            for (token in listOf("5412345678900", "12345678909A", "04A1B2C3")) {
+                r.scans.scan(token)
+                runCurrent()
+                assertEquals("", r.state.voucher?.digits)
+                assertFalse(r.state.voucher?.scanned ?: true)
+                assertTrue(r.state.voucher?.error?.contains("pas un bon cadeau") == true)
+            }
+            coVerify(exactly = 0) { r.f.engine.lookupGiftVoucher(any()) }
+        }
+
+    @Test
+    fun typingAfterAScanStartsANewCode() =
+        runTest {
+            val r = started(1_152)
+            r.model.selectMethod(PaymentMethod.GIFT_VOUCHER)
+            runCurrent()
+            r.scans.scan("123456789095")
+            runCurrent()
+
+            r.model.voucherKey(NumPadKey.Digit('8'))
+
+            assertEquals("8", r.state.voucher?.digits)
+            assertFalse(r.state.voucher?.scanned ?: true)
+            assertNull(r.state.voucher?.found)
+        }
+
+    @Test
+    fun anUnknownScannedCodeIsShownAndTheNextScanLooksAgain() =
+        runTest {
+            val r = started(1_152, found = null)
+            coEvery { r.f.engine.lookupGiftVoucher("123456789010") } throws PosException.Coded("gift_voucher_not_found", emptyMap())
+            coEvery { r.f.engine.lookupGiftVoucher("123456789095") } returns voucher()
+            r.model.selectMethod(PaymentMethod.GIFT_VOUCHER)
+            runCurrent()
+
+            r.scans.scan("123456789010")
+            runCurrent()
+            assertNotNull(r.state.voucher?.error)
+            assertNull(r.state.voucher?.found)
+
+            r.scans.scan("123456789095")
+            runCurrent()
+            assertNull(r.state.voucher?.error)
+            assertEquals(voucher(), r.state.voucher?.found)
+        }
+
+    @Test
+    fun aSecondScanOfTheVoucherAlreadyFoundAsksTheEngineNothing() =
+        runTest {
+            val r = started(1_152)
+            r.model.selectMethod(PaymentMethod.GIFT_VOUCHER)
+            runCurrent()
+
+            r.scans.scan("123456789095")
+            runCurrent()
+            r.scans.scan("123456789095")
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.lookupGiftVoucher("123456789095") }
+        }
+
+    @Test
+    fun aScanWithTheDialogClosedDoesNothing() =
+        runTest {
+            val r = started(1_152)
+
+            r.scans.scan("123456789095")
+            runCurrent()
+
+            assertNull(r.state.voucher)
+            coVerify(exactly = 0) { r.f.engine.lookupGiftVoucher(any()) }
+        }
+
     // ── Taking the voucher ────────────────────────────────────────
 
     @Test
@@ -362,6 +484,17 @@ class CheckoutGiftVoucherTest {
         compose.onNodeWithTag("gv_cancel").performClick()
 
         assertEquals(listOf("apply", "cancel"), calls)
+    }
+
+    @Test
+    fun aScannedCodeIsShownMaskedAndTheDialogHintsAtTheReader() {
+        val state = base.copy(voucher = VoucherDialogState(digits = "123456789095", found = voucher(), scanned = true))
+        show(state)
+
+        compose.onNodeWithTag("gv_scan_hint").assertIsDisplayed().assertTextContains("scannez le code-barres", substring = true)
+        // Only the last 4 digits: the 12 are never written out.
+        compose.onNodeWithTag("gv_code").assertTextEquals("**** **** 9095")
+        compose.onNodeWithTag("gv_apply").assertIsDisplayed()
     }
 
     @Test

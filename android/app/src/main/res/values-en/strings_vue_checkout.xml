@@ -7,7 +7,17 @@
     <string name="split_into">Split into</string>
     <string name="equal_parts">equal parts</string>
     <string name="part_n">Part {n}</string>
-    <string name="cash_part_taken">One part is already paid in cash: the others are paid by card or meal vouchers.</string>
+    <string name="split_other">Other</string>
+    <string name="split_other_n">{n} parts</string>
+    <string name="split_other_title">Number of equal parts</string>
+    <string name="split_dishes">By dishes</string>
+    <string name="dish_pick_hint">Check the dishes of this part</string>
+    <string name="dish_picked">Dishes in this part: {n}</string>
+    <string name="dish_paid">paid</string>
+    <string name="dish_paid_of">{paid} of {n} paid</string>
+    <string name="dish_less">One unit less</string>
+    <string name="dish_more">One unit more</string>
+    <string name="part_cash_detail">received {given} €, change {change} €</string>
     <string name="back_to_order">Back to the order</string>
     <string name="parts_kept">Parts already entered: {n}</string>
     <string name="parts_dropped">The bill changed: the parts entered were cancelled.</string>
@@ -56,6 +66,8 @@
     <string name="method_gift_voucher">Gift voucher</string>
     <string name="gv_dialog_title">Pay with a gift voucher</string>
     <string name="gv_code_label">Voucher code (12 digits)</string>
+    <string name="gv_scan_hint">or scan the barcode of the voucher</string>
+    <string name="gv_scan_invalid">This barcode is not a gift voucher (12 digits expected)</string>
     <string name="gv_lookup">Look up</string>
     <string name="gv_balance">Balance</string>
     <string name="gv_expires">Valid until {date}</string>

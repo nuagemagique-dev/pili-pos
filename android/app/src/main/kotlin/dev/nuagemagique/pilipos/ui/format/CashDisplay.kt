@@ -109,6 +109,45 @@ object CashDisplay {
         discountCents: Long,
     ): Long = netCents - discountCents // money-display-only
 
+    /** [minuendCents] minus [subtrahendCents]: the cash a part hands over is the difference of two rounded running totals. */
+    fun differenceCents(
+        minuendCents: Long,
+        subtrahendCents: Long,
+    ): Long = minuendCents - subtrahendCents // money-display-only
+
+    /**
+     * The net amount of a cart line (Vue `lineNetCents`): quantity times the unit price (a weighing counts for the
+     * scale's amount), plus the (negative) [discountCents] of its price changes.
+     */
+    fun lineNetCents(
+        unitPriceCents: Long,
+        weighedAmountCents: Long?,
+        quantity: Int,
+        discountCents: Long,
+    ): Long = (weighedAmountCents ?: unitPriceCents) * quantity + discountCents // money-display-only
+
+    /**
+     * The net of a line of [quantity] units shared in unit shares, the remainder cents on the first units: 1000 in 3
+     * gives 334, 333, 333. The shares always add up to [netCents] (Vue `unitShares`, split by dishes).
+     */
+    fun unitShares(
+        netCents: Long,
+        quantity: Int,
+    ): List<Long> {
+        if (quantity <= 0) return emptyList()
+        val base = Math.floorDiv(netCents, quantity.toLong()) // money-display-only
+        val extra = netCents - base * quantity // money-display-only
+        return List(quantity) { index -> if (index < extra) base + 1L else base } // money-display-only
+    }
+
+    /** What the next [units] units of a line cost once [paidUnits] units are paid already (Vue `unitsCents`). */
+    fun unitsCents(
+        netCents: Long,
+        quantity: Int,
+        paidUnits: Int,
+        units: Int,
+    ): Long = sumCents(unitShares(netCents, quantity).drop(paidUnits).take(units))
+
     /** The sum of [values] (the refund preview: the line totals of the selection). Fails on overflow. */
     fun sumCents(values: List<Long>): Long = values.fold(0L) { acc, value -> Math.addExact(acc, value) } // money-display-only
 }

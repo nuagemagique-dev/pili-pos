@@ -62,7 +62,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | stores/allergens.ts | feature/order/MenuViewModel.kt (allergen legend, mode and sheet state) | `list_allergens` `get_allergen_sheet` `print_allergen_sheet` |
 | stores/order.ts (courses: courseSettings, heldCourses, setLineCourse, sendNextCourse) | ui/state/OrderStore.kt (courseSettings, heldCourses, setLineCourse, sendNextCourse) | `get_course_settings` `set_line_course` `list_held_courses` `send_next_course` |
 | stores/giftVouchers.ts, stores/order.ts (addGiftVoucher) | feature/order/MenuViewModel.kt, feature/checkout/CheckoutViewModel.kt, feature/reports/ReportsViewModel.kt (each reads `get_gift_voucher_settings`), ui/state/OrderStore.kt (addGiftVoucher) | `get_gift_voucher_settings` `add_gift_voucher_line` |
-| stores/order.ts | ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` `add_order_line` `remove_order_line` `update_order_line_quantity` `leave_order` `sign_pre_bill` `close_unpaid` `list_open_orders` `get_quick_notes` `get_takeaway_tag` `set_takeaway_customer` |
+| stores/order.ts | ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` `add_order_line` `remove_order_line` `update_order_line_quantity` `leave_order` `sign_pre_bill` `close_unpaid` `list_open_orders` `get_quick_notes` `get_takeaway_tag` `set_takeaway_customer` `get_order_covers` `set_order_covers` `get_table_plan` |
 | utils/names.ts | ui/format/ProductNames.kt | - |
 | stores/fdm.ts | ui/fdm/FdmStore.kt | `fdm_health` `fdm_check_now` |
 | components/FdmAlerts.vue | ui/fdm/FdmBanner.kt (FdmBannerOverlay), ui/fdm/FdmBlockingVeil.kt | - |
@@ -82,7 +82,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | components/TicketMediumPicker.vue | ui/components/TicketMediumPicker.kt | - |
 | components/EmailKeypad.vue | ui/components/EmailKeypad.kt | - |
 | components/DeliveryOutcomePanel.vue | ui/components/DeliveryOutcomePanel.kt | - |
-| checkout and refund arithmetic of views/CheckoutView.vue and views/ReportsView.vue (UI-PD306) | ui/format/CashDisplay.kt | - |
+| checkout and refund arithmetic of views/CheckoutView.vue and views/ReportsView.vue (UI-PD306), the split by dishes of utils/dishSplit.ts (`unitShares`, `lineNetCents`) | ui/format/CashDisplay.kt, feature/checkout/DishSplit.kt | - |
 | stores/webshopOrders.ts | ui/state/WebshopOrdersStore.kt | `hubrise_list_webshop_orders` `webshop_accept_order` `webshop_reject_order` `hubrise_patch_order_status` `hubrise_set_confirmed_time` `webshop_handover_order` `webshop_complete_order` `webshop_refund_order` `webshop_close_cancelled_order` `print_webshop_kitchen` `print_webshop_customer` |
 | composables/useOrderChime.ts | ui/feedback/OrderChime.kt | - |
 | router/index.ts leave guard | ui/scaffold/HeaderActions.kt and OrderStore.leaveIfActive | `leave_order` |

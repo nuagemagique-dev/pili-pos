@@ -7,7 +7,17 @@
     <string name="split_into">Partager en</string>
     <string name="equal_parts">parts égales</string>
     <string name="part_n">Part {n}</string>
-    <string name="cash_part_taken">Une part est déjà payée en espèces : les autres se paient par carte ou chèques-repas.</string>
+    <string name="split_other">Autre</string>
+    <string name="split_other_n">{n} parts</string>
+    <string name="split_other_title">Nombre de parts égales</string>
+    <string name="split_dishes">Par plats</string>
+    <string name="dish_pick_hint">Cochez les plats de cette part</string>
+    <string name="dish_picked">Plats de cette part : {n}</string>
+    <string name="dish_paid">payé</string>
+    <string name="dish_paid_of">{paid} sur {n} payés</string>
+    <string name="dish_less">Une unité de moins</string>
+    <string name="dish_more">Une unité de plus</string>
+    <string name="part_cash_detail">reçu {given} €, rendu {change} €</string>
     <string name="back_to_order">Retour à la commande</string>
     <string name="parts_kept">Parts déjà saisies : {n}</string>
     <string name="parts_dropped">L\'addition a changé : les parts saisies ont été annulées.</string>
@@ -56,6 +66,8 @@
     <string name="method_gift_voucher">Bon cadeau</string>
     <string name="gv_dialog_title">Payer avec un bon cadeau</string>
     <string name="gv_code_label">Code du bon (12 chiffres)</string>
+    <string name="gv_scan_hint">ou scannez le code-barres du bon</string>
+    <string name="gv_scan_invalid">Ce code-barres n\'est pas un bon cadeau (12 chiffres attendus)</string>
     <string name="gv_lookup">Chercher</string>
     <string name="gv_balance">Solde</string>
     <string name="gv_expires">Valable jusqu\'au {date}</string>

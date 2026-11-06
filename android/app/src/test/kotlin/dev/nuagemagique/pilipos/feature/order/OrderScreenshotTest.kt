@@ -177,6 +177,15 @@ class OrderScreenshotTest {
     }
 
     @Test
+    fun favouritesTab() {
+        // Products of several categories on one tab: each keeps the colour of its own category.
+        val picked =
+            listOf(items[0], menuItem(20, 2, "Maki saumon", 650, nameZh = "三文鱼卷"), menuItem(21, 7, "Cola", 300, nameZh = "可乐"), items[6])
+        val favourites = menu.copy(selectedCategoryId = FAVOURITES_TAB, items = picked, favourites = picked)
+        capture(OrderUiState(signedIn = true, menu = favourites, cart = cart), "order_favourites")
+    }
+
+    @Test
     fun modifiers() {
         val sauces =
             group(1, "Sauce", min = 1, max = 1, modifier(100, "Soja"), modifier(101, "Soja sucrée"), modifier(102, "Spicy mayo", 50))
@@ -339,10 +348,27 @@ class OrderScreenshotTest {
     private val busyTables = setOf(2, 9)
 
     @Test
+    fun coversAndZone() {
+        capture(
+            OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(tableLabel = "A-4", covers = 4, canSetCovers = true)),
+            "order_covers",
+        )
+    }
+
+    @Test
+    fun coversPad() {
+        capture(
+            OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(canSetCovers = true), dialog = OrderDialog.Covers("4")),
+            "order_covers_pad",
+        )
+    }
+
+    @Test
     fun tablePicker() {
         val dialog =
             OrderDialog.TablePicker(
                 4,
+                "4",
                 listOf(1, 2, 3, 6, 7, 9, 10, 12).map {
                     if (it in busyTables) table(it, orderId = 100L + it, lines = 3, totalCents = 2_400L) else table(it)
                 },

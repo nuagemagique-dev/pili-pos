@@ -27,7 +27,7 @@ use wiremock::{Mock, ResponseTemplate};
 use pos_core::order::OrderType;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::errors;
-use pos_engine::commands::financial::{MoneyDirection, do_money_in_out};
+use pos_engine::commands::financial::{DrawerAfter, MoneyDirection, do_money_in_out};
 use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
@@ -465,6 +465,7 @@ async fn a_money_movement_sent_again_is_recorded_once() {
             5000,
             MoneyDirection::In,
             "float".into(),
+            DrawerAfter::Leave,
         )
     };
 

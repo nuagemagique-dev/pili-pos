@@ -26,7 +26,7 @@ use pos_engine::commands::checkout::{
     CheckoutPaymentMethod, PaymentPart, do_checkout, do_checkout_split,
 };
 use pos_engine::commands::copy::do_copy_ticket;
-use pos_engine::commands::financial::{MoneyDirection, do_money_in_out};
+use pos_engine::commands::financial::{DrawerAfter, MoneyDirection, do_money_in_out};
 use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
@@ -363,9 +363,16 @@ async fn a_mixed_day_reconciles_and_leaves_out_what_is_not_a_signed_sale() {
         (5000, MoneyDirection::In, "Fond"),
         (2000, MoneyDirection::Out, "Banque"),
     ] {
-        let r = do_money_in_out(&app.state, INSZ.into(), cents, direction, reason.into())
-            .await
-            .unwrap();
+        let r = do_money_in_out(
+            &app.state,
+            INSZ.into(),
+            cents,
+            direction,
+            reason.into(),
+            DrawerAfter::Leave,
+        )
+        .await
+        .unwrap();
         assert!(r.success, "{:?}", r.error);
     }
     let r = do_copy_ticket(&app.state, card_event, INSZ.into())

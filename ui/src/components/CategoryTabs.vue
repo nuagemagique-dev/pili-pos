@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import type { Category } from '../types'
+import { useI18n } from '../i18n'
+import { FAVOURITES_TAB } from '../utils/favourites'
 import { useBilingualName } from '../utils/names'
+import UiIcon from './UiIcon.vue'
 
 defineProps<{
   categories: Category[]
   selectedId: number | null
+  /** The "Favoris" tab, first before the categories; hidden while it has no product (UX audit C12). */
+  showFavourites?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -12,6 +17,7 @@ const emit = defineEmits<{
 }>()
 
 const bilingual = useBilingualName()
+const { t } = useI18n()
 </script>
 
 <template>
@@ -20,10 +26,21 @@ const bilingual = useBilingualName()
        away (deliberate deviation from §2.1, noted in the design). -->
   <div class="category-tabs">
     <button
+      v-if="showFavourites"
+      class="tab favourites"
+      :class="{ active: selectedId === FAVOURITES_TAB }"
+      data-testid="tab-favourites"
+      @click="emit('select', FAVOURITES_TAB)"
+    >
+      <span class="stripe" :style="{ background: 'var(--border)' }" />
+      <span class="tab-name"><UiIcon name="star" :size="20" /> {{ t('favourites_tab') }}</span>
+    </button>
+    <button
       v-for="cat in categories"
       :key="cat.id"
       class="tab"
       :class="{ active: cat.id === selectedId }"
+      data-testid="category-tab"
       @click="emit('select', cat.id)"
     >
       <span class="stripe" :style="{ background: cat.color ?? 'var(--border)' }" />
@@ -85,6 +102,13 @@ const bilingual = useBilingualName()
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.favourites .tab-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .tab-sub {

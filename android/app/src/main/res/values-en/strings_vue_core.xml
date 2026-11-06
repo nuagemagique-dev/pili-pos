@@ -33,6 +33,7 @@
     <string name="card_wait">Process on terminal</string>
     <string name="back">Back</string>
     <string name="open_price_title">Open price</string>
+    <string name="favourites_tab">Favourites</string>
     <string name="soldout_mode">Sold out</string>
     <string name="soldout_mode_hint">Tap a product to change its availability.</string>
     <string name="soldout_badge">Sold out</string>
@@ -188,7 +189,7 @@
     <string name="cash_declared">Drawer count declared</string>
     <string name="cash_amount_placeholder">Amount (€)</string>
     <string name="cash_reason_placeholder">Reason</string>
-    <string name="cash_success">Movement recorded</string>
+    <string name="cash_success_drawer">Movement recorded · drawer open</string>
     <string name="cash_failed">Movement not recorded</string>
     <string name="cash_drawer_opened">Drawer opened</string>
     <string name="cash_err_amount">Invalid amount</string>
@@ -272,10 +273,19 @@
     <string name="transfer_table">Move</string>
     <string name="transfer_pick_target">Pick the free table</string>
     <string name="transfer_no_free">No free table</string>
+    <string name="zone_other">Other tables</string>
+    <string name="covers_add">Covers</string>
+    <string name="covers_one">1 cover</string>
+    <string name="covers_n">{n} covers</string>
+    <string name="covers_title">Covers: 1 to 30, 0 to clear</string>
+    <string name="table_covers_short">{n} cov.</string>
     <string name="transfer_moved">Table {from} moved to {to}</string>
     <string name="transfer_undo">Undo</string>
     <string name="transfer_mode">Move</string>
     <string name="transfer_pick_source">Tap the table to move</string>
+    <string name="table_sheet_open">Open</string>
+    <string name="table_sheet_pay">Pay</string>
+    <string name="table_sheet_close">Close</string>
     <string name="transfer_pick_free">Table {from}: tap the free table</string>
     <string name="discount_button">Discount</string>
     <string name="discount_title">Order discount</string>
@@ -297,6 +307,7 @@
     <string name="discount_apply">Apply discount</string>
     <string name="discount_hint">The discount appears on the fiscal ticket. Confirm with your PIN.</string>
     <string name="discount_applied">Discount applied</string>
+    <string name="discount_applied_pin_kept">Discount applied · PIN kept {minutes} min for this order</string>
     <string name="discount_removed">Discount removed</string>
     <string name="discount_remove">Remove discount</string>
     <string name="discount_remove_hint">The original price is restored. Confirm with your PIN.</string>

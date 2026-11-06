@@ -6,6 +6,7 @@ import { useToastStore } from './toast'
 import { describeError } from '../utils/errorMessages'
 import * as ipc from '../api/ipc'
 import { usePosStore } from './pos'
+import { FAVOURITES_TAB, keepTab } from '../utils/favourites'
 
 export const useMenuStore = defineStore('menu', () => {
   const categories = ref<Category[]>([])
@@ -26,8 +27,24 @@ export const useMenuStore = defineStore('menu', () => {
     }
     categoryNames.value = map
 
-    if (categories.value.length > 0 && selectedCategoryId.value === null) {
-      selectedCategoryId.value = categories.value[0].id
+    await refreshFavourites()
+    selectedCategoryId.value = keepTab(
+      selectedCategoryId.value,
+      categories.value,
+      favourites.value.length,
+    )
+  }
+
+  // The products of the "Favoris" tab (UX audit C12); the tab is hidden while there are none.
+  const favourites = ref<MenuItem[]>([])
+
+  /** Read the tab's products again. A failure hides the tab: it is a shortcut, never a blocker. */
+  async function refreshFavourites() {
+    const pos = usePosStore()
+    try {
+      favourites.value = await ipc.listFavourites(pos.language)
+    } catch {
+      favourites.value = []
     }
   }
 
@@ -35,7 +52,19 @@ export const useMenuStore = defineStore('menu', () => {
     const pos = usePosStore()
     loading.value = true
     try {
-      items.value = await ipc.getMenuItems(categoryId, pos.language)
+      if (categoryId === FAVOURITES_TAB) {
+        await refreshFavourites()
+        const [first] = categories.value
+        if (favourites.value.length === 0 && first !== undefined) {
+          // The tab emptied (the setting changed, the products sold out): back to the first category.
+          selectedCategoryId.value = first.id
+          items.value = await ipc.getMenuItems(first.id, pos.language)
+        } else {
+          items.value = favourites.value
+        }
+      } else {
+        items.value = await ipc.getMenuItems(categoryId, pos.language)
+      }
     } finally {
       loading.value = false
     }
@@ -77,6 +106,7 @@ export const useMenuStore = defineStore('menu', () => {
       useToastStore().show(describeError(e), 'error', 5000)
       return false
     }
+    await refreshFavourites()
     if (selectedCategoryId.value !== null) await loadItems(selectedCategoryId.value)
     return true
   }
@@ -88,6 +118,8 @@ export const useMenuStore = defineStore('menu', () => {
   return {
     categories,
     items,
+    favourites,
+    refreshFavourites,
     selectedCategoryId,
     loading,
     categoryNames,

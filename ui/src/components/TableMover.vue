@@ -6,6 +6,7 @@
 import { onMounted, ref } from 'vue'
 import * as ipc from '../api/ipc'
 import { useOrderStore } from '../stores/order'
+import { useTablePlanStore } from '../stores/tablePlan'
 import { useToastStore } from '../stores/toast'
 import { describeError } from '../utils/errorMessages'
 import TablePickerDialog from './TablePickerDialog.vue'
@@ -14,6 +15,7 @@ const emit = defineEmits<{ close: [] }>()
 
 const order = useOrderStore()
 const toast = useToastStore()
+const plan = useTablePlanStore()
 const tables = ref<ipc.TableInfo[]>([])
 const ready = ref(false)
 const moving = ref(false)
@@ -21,7 +23,9 @@ const moving = ref(false)
 onMounted(async () => {
   try {
     const current = order.currentOrder?.table_number
-    tables.value = (await ipc.listTables()).filter((tbl) => tbl.tableNumber !== current)
+    const all = await ipc.listTables()
+    plan.learn(all)
+    tables.value = all.filter((tbl) => tbl.tableNumber !== current)
     ready.value = true
   } catch (e) {
     toast.show(describeError(e), 'error', 5000)

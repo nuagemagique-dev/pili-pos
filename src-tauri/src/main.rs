@@ -270,6 +270,10 @@ fn main() {
         ipc::courses::list_held_courses,
         ipc::courses::send_next_course,
         ipc::courses::reprint_course_slip,
+        ipc::favourites::get_favourites_settings,
+        ipc::favourites::set_favourites_settings,
+        ipc::favourites::set_favourite,
+        ipc::favourites::list_favourites,
         ipc::quick_notes::get_quick_notes,
         ipc::quick_notes::set_quick_notes,
         ipc::takeaway::get_takeaway_numbering,
@@ -286,6 +290,8 @@ fn main() {
         ipc::tables::list_tables,
         ipc::tables::get_table_plan,
         ipc::tables::set_table_plan,
+        ipc::tables::get_order_covers,
+        ipc::tables::set_order_covers,
         ipc::order::list_cart_lines,
         ipc::social::list_open_shifts,
         ipc::tables::list_open_takeaways,
@@ -311,6 +317,7 @@ fn main() {
         ipc::support::stop_remote_support,
         // Refund
         ipc::refund::list_refundable_events,
+        ipc::refund::find_ticket_by_number,
         ipc::refund::refund_checkout,
         // Social (Event S - ONSS clock in/out)
         ipc::social::work_in,

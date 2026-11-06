@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package dev.nuagemagique.pilipos.feature.order
 
 import androidx.compose.foundation.background
@@ -109,12 +111,15 @@ internal fun OrderCartColumn(
     }
 }
 
-/** "Order · Table 4" or "Order · Takeaway" (`cartTitle` of `CartSidebar.vue`). */
+/** "Order · Table 4" ("Table A-4" in a zone) or "Order · Takeaway" (`cartTitle` of `CartSidebar.vue`). */
 @Composable
-private fun cartTitle(order: Order?): String {
+private fun cartTitle(
+    order: Order?,
+    tableLabel: String?,
+): String {
     val name = vueText("order")
     return when {
-        order?.tableNumber != null -> "$name · ${vueText("table")} ${order.tableNumber}"
+        order?.tableNumber != null -> "$name · ${vueText("table")} ${tableLabel ?: order.tableNumber}"
         order?.orderType == OrderType.TAKEAWAY -> "$name · ${vueText("takeaway_badge")}"
         else -> name
     }
@@ -251,7 +256,7 @@ private fun Modifier.drawBottomLine(color: Color): Modifier =
 
 private fun Modifier.drawTopLine(color: Color): Modifier = drawBehind { drawRect(color, size = Size(size.width, Hairline.toPx())) }
 
-/** The title of the order, "Change table" when the order can move, and the opening time. */
+/** The title of the order, the covers of a table, "Change table" when the order can move, and the opening time. */
 @Composable
 private fun CartHeader(
     state: OrderCartState,
@@ -259,13 +264,46 @@ private fun CartHeader(
 ) {
     val c = PiliTheme.colors
     val d = PiliTheme.dimens
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth().drawBottomLine(c.border).padding(horizontal = d.spaceMd, vertical = d.spaceMd),
+        verticalArrangement = Arrangement.spacedBy(d.spaceSm),
+    ) {
+        CartTitleRow(state, actions)
+        if (state.canSetCovers) {
+            // UX audit T5: the guests of the table, optional; they show on the table card and default the equal parts.
+            PiliButton(
+                text = coversText(state.covers),
+                onClick = actions.onCovers,
+                variant = PiliButtonVariant.Secondary,
+                modifier = Modifier.testTag("cart_covers"),
+            )
+        }
+    }
+}
+
+/** "Couverts", "1 couvert" or "4 couverts" (`coversText` of `CartSidebar.vue`). */
+@Composable
+private fun coversText(covers: Int?): String =
+    when (covers) {
+        null -> vueText("covers_add")
+        1 -> vueText("covers_one")
+        else -> vueText("covers_n", "n" to covers)
+    }
+
+@Composable
+private fun CartTitleRow(
+    state: OrderCartState,
+    actions: OrderCartActions,
+) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    Row(
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = cartTitle(state.order),
+            text = cartTitle(state.order, state.tableLabel),
             style = PiliTheme.typography.title,
             color = c.textPrimary,
             modifier = Modifier.weight(1f).testTag("cart_title"),

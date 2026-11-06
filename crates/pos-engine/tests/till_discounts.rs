@@ -145,11 +145,11 @@ fn free_line(line_id: i64) -> DiscountInput {
 }
 
 async fn apply(app: &TestApp, order: i64, input: DiscountInput) -> Result<DiscountResult, String> {
-    do_apply_discount(&app.state, order, input, MANAGER.into(), PIN.into()).await
+    do_apply_discount(&app.state, order, input, MANAGER.into(), Some(PIN.into())).await
 }
 
 async fn remove(app: &TestApp, order: i64, line: Option<i64>) -> Result<DiscountResult, String> {
-    do_remove_discount(&app.state, order, line, MANAGER.into(), PIN.into()).await
+    do_remove_discount(&app.state, order, line, MANAGER.into(), Some(PIN.into())).await
 }
 
 fn total(app: &TestApp, order: i64) -> i64 {
@@ -506,20 +506,21 @@ async fn only_a_manager_with_the_right_pin_gives_a_discount() {
     let o = takeaway(&app);
     add(&app, o, 1, 1);
 
-    let wrong = do_apply_discount(&app.state, o, pct(10), MANAGER.into(), "0000".into()).await;
+    let wrong =
+        do_apply_discount(&app.state, o, pct(10), MANAGER.into(), Some("0000".into())).await;
     assert_eq!(wrong.unwrap_err(), errors::PIN_WRONG);
     // Someone else's INSZ.
-    let other = do_apply_discount(&app.state, o, pct(10), WAITER.into(), PIN.into()).await;
+    let other = do_apply_discount(&app.state, o, pct(10), WAITER.into(), Some(PIN.into())).await;
     assert_eq!(other.unwrap_err(), errors::NOT_THE_OPERATOR);
     for role in [UserRole::Waiter, UserRole::Cashier] {
         app.login_as(WAITER, role);
-        let r = do_apply_discount(&app.state, o, pct(10), WAITER.into(), PIN.into()).await;
+        let r = do_apply_discount(&app.state, o, pct(10), WAITER.into(), Some(PIN.into())).await;
         assert_eq!(r.unwrap_err(), errors::FORBIDDEN, "{role:?}");
-        let r = do_remove_discount(&app.state, o, None, WAITER.into(), PIN.into()).await;
+        let r = do_remove_discount(&app.state, o, None, WAITER.into(), Some(PIN.into())).await;
         assert_eq!(r.unwrap_err(), errors::FORBIDDEN, "{role:?}");
     }
     app.logout();
-    let r = do_apply_discount(&app.state, o, pct(10), MANAGER.into(), PIN.into()).await;
+    let r = do_apply_discount(&app.state, o, pct(10), MANAGER.into(), Some(PIN.into())).await;
     assert_eq!(r.unwrap_err(), errors::NOT_LOGGED_IN);
 
     assert_eq!(changes(&app, o).len(), 0);

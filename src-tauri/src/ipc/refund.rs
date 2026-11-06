@@ -3,7 +3,7 @@ use tauri::State;
 
 use pos_engine::commands::checkout::CheckoutResult;
 use pos_engine::commands::delivery::TicketDeliveryRequest;
-use pos_engine::commands::refund::RefundItem;
+use pos_engine::commands::refund::{RefundItem, TicketLookup};
 
 use super::Managed;
 
@@ -14,6 +14,16 @@ pub fn list_refundable_events(
     limit: Option<i64>,
 ) -> Result<Vec<RefundableEvent>, String> {
     pos_engine::commands::refund::do_list_refundable_events(state.inner(), limit)
+}
+
+/// Find a ticket of the archive by the number printed on it, for the copy and
+/// the refund (managers only). A sale that cannot be refunded carries the reason.
+#[tauri::command(async)]
+pub fn find_ticket_by_number(
+    state: State<'_, Managed>,
+    number: i64,
+) -> Result<TicketLookup, String> {
+    pos_engine::commands::refund::do_find_ticket_by_number(state.inner(), number)
 }
 
 /// Process a full or partial refund for a previously signed ticket.

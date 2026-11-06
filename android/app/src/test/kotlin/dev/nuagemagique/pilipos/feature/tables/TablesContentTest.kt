@@ -232,4 +232,89 @@ class TablesContentTest {
 
         compose.onNodeWithTag("takeaway_50_number", useUnmergedTree = true).assertDoesNotExist()
     }
+
+    // ── Zones, server and covers (UX audit T1, T5) ────────────────
+
+    private val zoned =
+        base.copy(
+            tables =
+                listOf(
+                    table(21, zone = "B", zoneName = "Terrasse"),
+                    table(1, zone = "A", zoneName = "Salle"),
+                    table(2, zone = "A", zoneName = "Salle", orderId = 40, lines = 3, totalCents = 2_550, openedAt = "2026-10-09 10:00:00"),
+                    table(9),
+                ),
+        )
+
+    @Test
+    fun aPlanWithZonesListsTheTablesUnderAHeaderPerZoneInOrder() {
+        show(zoned)
+
+        compose.onNodeWithTag("zone_A").assertTextEquals("A \u00B7 Salle")
+        compose.onNodeWithTag("zone_B").assertTextEquals("B \u00B7 Terrasse")
+        compose.onNodeWithTag("zone_other").assertTextEquals("Autres tables")
+    }
+
+    @Test
+    fun aTableInAZoneIsWrittenWithItsLetterAndOneOutsideAnyZoneIsNot() {
+        show(zoned)
+
+        compose.onNodeWithTag("table_2").assertTextContains("A-2", substring = true)
+        compose.onNodeWithTag("table_21").assertTextContains("B-21", substring = true)
+        compose.onNodeWithTag("table_9").assertTextContains("9", substring = true)
+    }
+
+    @Test
+    fun aZoneWithoutANameIsHeadedByItsLetterAlone() {
+        show(base.copy(tables = listOf(table(1, zone = "A"))))
+
+        compose.onNodeWithTag("zone_A").assertTextEquals("A")
+    }
+
+    @Test
+    fun aPlanWithoutLettersDrawsNoHeaderAtAll() {
+        show(base)
+
+        compose.onNodeWithTag("zone_other").assertDoesNotExist()
+        compose.onNodeWithTag("table_1").assertTextContains("1", substring = true)
+    }
+
+    @Test
+    fun theMoveHintNamesTheSourceTableWithItsZone() {
+        val source = table(2, zone = "A", orderId = 40, lines = 1, totalCents = 100)
+        show(zoned.copy(move = MoveState(moving = true, source = source)))
+
+        compose.onNodeWithTag("move_hint").assertTextContains("A-2", substring = true)
+    }
+
+    @Test
+    fun anOccupiedTableShowsTheInitialOfTheServerWhoOpenedIt() {
+        show(base.copy(tables = listOf(table(2, orderId = 40, lines = 1, totalCents = 100, openedByInitial = "M"))))
+
+        compose.onNodeWithTag("table_2_server", useUnmergedTree = true).assertTextEquals("M")
+    }
+
+    @Test
+    fun aTableWithoutAServerInitialShowsNoBadge() {
+        show(base)
+
+        compose.onNodeWithTag("table_2_server", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("table_1_server", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun theCoversAreShownOnTheCardOfAnOccupiedTable() {
+        show(
+            base.copy(tables = listOf(table(2, orderId = 40, lines = 3, totalCents = 2_550, openedAt = "2026-10-09 10:00:00", covers = 4))),
+        )
+
+        compose.onNodeWithTag("table_2_meta", useUnmergedTree = true).assertTextEquals("3 art. \u00B7 30 min \u00B7 4 couv.")
+    }
+
+    @Test
+    fun withoutCoversTheCardSaysNothingAboutThem() {
+        show(base)
+
+        compose.onNodeWithTag("table_2_meta", useUnmergedTree = true).assertTextEquals("3 art. \u00B7 30 min")
+    }
 }

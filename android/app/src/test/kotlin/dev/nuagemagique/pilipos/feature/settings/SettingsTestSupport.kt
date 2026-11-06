@@ -32,6 +32,7 @@ import dev.nuagemagique.pilipos.ui.state.DeliveryStore
 import dev.nuagemagique.pilipos.ui.state.EftStore
 import dev.nuagemagique.pilipos.ui.state.EventFeed
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
+import dev.nuagemagique.pilipos.ui.state.OrderStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
 import dev.nuagemagique.pilipos.ui.state.WebshopOrdersStore
@@ -125,7 +126,8 @@ internal fun stubReads(
     coEvery { engine.getSettings() } returns engineSettings()
     coEvery { engine.getIntegrations() } returns integrationsOf(hubrise)
     coEvery { engine.hubriseListWebshopOrders() } returns emptyList()
-    coEvery { engine.getTablePlan() } returns TablePlan(plan = "1-20", tableCount = 20L, log = emptyList())
+    coEvery { engine.getTablePlan() } returns
+        TablePlan(plan = "1-20", tableCount = 20L, zoneNames = "", zones = emptyList(), log = emptyList())
     coEvery { engine.getTakeawayNumbering() } returns TakeawayNumbering(firstNumber = 61)
     coEvery { engine.getBadgeSettings() } returns badgeView()
     coEvery { engine.listBadges() } returns noBadges()
@@ -164,6 +166,7 @@ internal class TestSettingsEntryPoint(
     private val webshop: WebshopOrdersStore,
     private val fdm: FdmStore,
     private val badges: BadgeStore,
+    private val order: OrderStore,
 ) : SettingsFeatureEntryPoint {
     override fun gateway(): EngineGateway = gateway
 
@@ -176,6 +179,8 @@ internal class TestSettingsEntryPoint(
     override fun settings(): PosSettingsStore = settings
 
     override fun integrations(): IntegrationsStore = integrations
+
+    override fun order(): OrderStore = order
 
     override fun errors(): ErrorPresenter = errors
 
@@ -260,6 +265,7 @@ internal fun TestScope.settingsEnv(
     val session = SessionStore(gateway, f.events, backgroundScope)
     val settings = PosSettingsStore(context, gateway, f.events, backgroundScope)
     val integrations = IntegrationsStore(gateway, f.events, backgroundScope)
+    val order = OrderStore(gateway, f.events, backgroundScope)
     val helpers = EngineHelpers(f.natives, f.dispatcher)
     val delivery = DeliveryStore(gateway, errors, settings)
     val eft = EftStore(gateway, errors, settings, backgroundScope)
@@ -281,7 +287,7 @@ internal fun TestScope.settingsEnv(
     val entry =
         TestSettingsEntryPoint(
             gateway, f.events, helpers, session, settings, integrations, errors, toasts, catalog, testRegistry(), delivery, webshop, fdm,
-            badges.store,
+            badges.store, order,
         )
     return SettingsEnv(f, entry, feed, toasts, errors, catalog, session, settings, integrations, delivery, webshop, fdm, badges)
 }

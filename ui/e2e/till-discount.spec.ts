@@ -9,6 +9,8 @@ import {
   DEFAULT_CART_LINE,
   DEFAULT_CATEGORY,
   DEFAULT_MENU_ITEM,
+  keptPinMocks,
+  dropKeptPin,
 } from './fixtures/mock-ipc'
 import { tapMore, openMore, closeMore, expectMoreRow, expectNoMoreRow } from './fixtures/cart-more'
 
@@ -34,8 +36,15 @@ const OFFERED = {
   price_changes: [{ id: 'TILL-FREE-LINE', name: 'Offert', scope: 'LINE', amount_cents: -2400 }],
 }
 
-async function toOrder(page: Page, lines: unknown[] = [PLAIN], total = 2400, user = DEFAULT_USER) {
+async function toOrder(
+  page: Page,
+  lines: unknown[] = [PLAIN],
+  total = 2400,
+  user = DEFAULT_USER,
+  extra: Record<string, unknown> = {},
+) {
   await mockTauriIPC(page, {
+    ...extra,
     login: () => user,
     list_users: () => [user],
     get_order: () => ({ ...DEFAULT_ORDER, total_cents: total }),
@@ -570,5 +579,116 @@ test.describe('Gift voucher lines (lane 4 with the till discounts and kitchen no
   test('the order discount stays available and the engine spreads it', async ({ page }) => {
     await toOrder(page, [PLAIN, VOUCHER], 4900)
     await expectMoreRow(page, 'discount-open')
+  })
+})
+
+// UX audit P8: one manager PIN per order. After a discount confirmed by the PIN the engine keeps
+// it for two minutes for the same manager on the same order (the mocks model that grant): the
+// next discounts, offers and removals do not show the PIN pad again.
+test.describe('Code manager gardé pour la commande', () => {
+  // The mock engine answers get_order with order 1: the order created on the table is order 1 too,
+  // so the order the grant hint names is the order the screen reloads.
+  const kept = () => ({ ...keptPinMocks(), create_order: DEFAULT_ORDER })
+
+  async function offerLine(page: Page) {
+    await page.getByTestId('line-offer').click()
+    const dialog = page.getByTestId('discount-dialog')
+    await dialog.getByTestId('discount-reason-staff_meal').click()
+    await dialog.getByTestId('discount-confirm').click()
+  }
+
+  test('the second offer on the order does not ask for the PIN again', async ({ page }) => {
+    await toOrder(page, [PLAIN], 2400, DEFAULT_USER, kept())
+    await offerLine(page)
+    await typePin(page, '4321')
+    // The first one tells the manager the PIN is kept.
+    await expect(page.locator('.toast', { hasText: 'code gardé 2 min' })).toBeVisible()
+
+    await offerLine(page)
+    await expect(page.locator('.pin-dialog')).toHaveCount(0)
+    await expect(page.locator('.toast', { hasText: 'Remise appliquée' })).toHaveCount(2)
+
+    const calls = await ipcCalls(page, 'apply_discount')
+    expect(calls.map((c) => c.pin)).toEqual(['4321', null])
+  })
+
+  test('a removal never opens the grant, so the next one asks again', async ({ page }) => {
+    await toOrder(page, [OFFERED], 0, DEFAULT_USER, kept())
+    await page.getByTestId('line-remove-discount').click()
+    await typePin(page, '4321')
+    await expect(page.locator('.toast', { hasText: 'Remise retirée' })).toBeVisible()
+    await expect(page.locator('.toast', { hasText: 'code gardé' })).toHaveCount(0)
+    await page.getByTestId('line-remove-discount').click()
+    await expect(page.locator('.pin-dialog')).toBeVisible()
+  })
+
+  test('an order discount rides the kept PIN too', async ({ page }) => {
+    await toOrder(page, [PLAIN], 2400, DEFAULT_USER, kept())
+    await offerLine(page)
+    await typePin(page, '4321')
+
+    await tapMore(page, 'discount-open')
+    const dialog = page.getByTestId('discount-dialog')
+    await dialog.getByTestId('discount-quick-50').click()
+    await dialog.getByTestId('discount-reason-other').click()
+    await dialog.getByTestId('discount-confirm').click()
+    await expect(page.locator('.pin-dialog')).toHaveCount(0)
+    const applies = await ipcCalls(page, 'apply_discount')
+    expect(applies.map((c) => c.pin)).toEqual(['4321', null])
+    expect(applies[1].input).toMatchObject({ target: { type: 'order' }, kind: 'percent' })
+  })
+
+  test('a removal rides the kept PIN', async ({ page }) => {
+    const offeredSecond = { ...OFFERED, id: 2, name: 'Edamame', name_fr: 'Edamame' }
+    await toOrder(page, [PLAIN, offeredSecond], 0, DEFAULT_USER, kept())
+    await page.locator('.order-line').first().click()
+    await offerLine(page)
+    await typePin(page, '4321')
+
+    await page.locator('.order-line').nth(1).click()
+    await page.getByTestId('line-remove-discount').click()
+    await expect(page.locator('.pin-dialog')).toHaveCount(0)
+    await expect(page.locator('.toast', { hasText: 'Remise retirée' })).toBeVisible()
+    const removals = await ipcCalls(page, 'remove_discount')
+    expect(removals).toEqual([
+      { orderId: expect.any(Number), lineId: 2, insz: DEFAULT_USER.insz, pin: null },
+    ])
+  })
+
+  test('when the engine dropped the grant the PIN pad comes back', async ({ page }) => {
+    await toOrder(page, [PLAIN], 2400, DEFAULT_USER, kept())
+    await offerLine(page)
+    await typePin(page, '4321')
+    await expect(page.locator('.toast', { hasText: 'code gardé' })).toBeVisible()
+
+    // A lock, the end of the two minutes or another order in between: the screen's hint is
+    // stale, the engine answers pin_required and the pad opens.
+    await dropKeptPin(page)
+    await offerLine(page)
+    await expect(page.locator('.pin-dialog')).toBeVisible()
+    await typePin(page, '4321')
+    await expect(page.locator('.pin-dialog')).toHaveCount(0)
+
+    const calls = await ipcCalls(page, 'apply_discount')
+    expect(calls.map((c) => c.pin)).toEqual(['4321', null, '4321'])
+  })
+
+  test('a refusal other than pin_required is shown, not turned into a PIN pad', async ({
+    page,
+  }) => {
+    await toOrder(page, [PLAIN], 2400, DEFAULT_USER, kept())
+    await offerLine(page)
+    await typePin(page, '4321')
+    await overrideIPC(page, 'apply_discount', { __reject: 'discount_already_applied' })
+    await offerLine(page)
+    await expect(page.locator('.pin-dialog')).toHaveCount(0)
+    await expect(page.locator('.toast-error')).toBeVisible()
+  })
+
+  test('without a kept PIN the first discount asks for it as before', async ({ page }) => {
+    await toOrder(page)
+    await offerLine(page)
+    await expect(page.locator('.pin-dialog')).toBeVisible()
+    expect(await ipcCalls(page, 'apply_discount')).toHaveLength(0)
   })
 })

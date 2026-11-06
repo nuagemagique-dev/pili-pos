@@ -217,6 +217,13 @@ class AppHeaderTest {
     }
 
     @Test
+    fun withZonesTheTableChipWritesTheLetterAndTheNumber() {
+        show(manager.copy(area = HeaderArea.ORDER, tableNumber = 12, tableLabel = "B-12", dineInOrder = true, canMoveTable = true))
+
+        compose.onNodeWithTag("header_table").assertTextEquals("Table B-12")
+    }
+
+    @Test
     fun theTableChipIsAPlainLabelWhileTheOrderCannotMove() {
         show(manager.copy(area = HeaderArea.ORDER, tableNumber = 12, dineInOrder = true, canMoveTable = false))
 

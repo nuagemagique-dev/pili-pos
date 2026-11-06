@@ -2,6 +2,7 @@ package dev.nuagemagique.pilipos.feature.reports
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -15,6 +16,8 @@ import androidx.compose.ui.test.performClick
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.format.LineAmount
+import dev.nuagemagique.pilipos.ui.state.LocalTableLabeler
+import dev.nuagemagique.pilipos.ui.state.TableLabeler
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -85,6 +88,11 @@ class ReportsContentTest {
                     onRefundConfirm = { calls += "refund-confirm" },
                     onRefundClose = { calls += "refund-close" },
                     onCorrect = { calls += "correct:${it.fiscalEventId}" },
+                    onOlder = { calls += "older" },
+                    onOpenFind = { calls += "find-open" },
+                    onCloseFind = { calls += "find-close" },
+                    onFind = { calls += "find:$it" },
+                    onClearFind = { calls += "find-clear" },
                     describeError = { "Refus: $it" },
                 ),
             delivery = DeliveryCallbacks(onPaper = { calls += "paper" }),
@@ -178,6 +186,26 @@ class ReportsContentTest {
         compose.onNodeWithTag("report_z_unsettled_2", useUnmergedTree = true).assertTextEquals("- À emporter · 9,50 €")
         // Only a warning: the Z button stays usable.
         compose.onNodeWithTag("report_z").assertIsEnabled()
+    }
+
+    @Test
+    fun withZonesTheUnsettledWarningNamesTheTableWithItsLetter() {
+        val state = day { copy(unsettled = listOf(unsettled(1L, table = 4))) }
+        compose.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    CompositionLocalProvider(LocalTableLabeler provides TableLabeler(mapOf(4 to "A"))) {
+                        Box(Modifier.fillMaxSize()) { ReportsContent(state, callbacks) }
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        compose.onNodeWithTag(
+            "report_z_unsettled_1",
+            useUnmergedTree = true,
+        ).assertTextEquals("- Table A-4 \u00B7 17,00 \u20AC \u00B7 Bancontact")
     }
 
     @Test
@@ -421,6 +449,24 @@ class ReportsContentTest {
     )
 
     @Test
+    fun withZonesTheTicketsListNamesTheTableWithItsLetter() {
+        val state = tickets(listOf(copyable(3L)), listOf(refundable(3L)))
+        compose.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    CompositionLocalProvider(LocalTableLabeler provides TableLabeler(mapOf(4 to "A"))) {
+                        Box(Modifier.fillMaxSize()) { ReportsContent(state, callbacks) }
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        // The number on the fiscal ticket stays 4; only the screen writes the zone.
+        compose.onNodeWithTag("ticket_table_3").assertTextEquals("A-4")
+    }
+
+    @Test
     fun theTicketsTabListsEveryTicketWithItsKindTableTimeAndAmount() {
         show(tickets(listOf(copyable(3L), copyable(2L, label = "T"), copyable(1L, label = "P")), listOf(refundable(3L))))
 
@@ -463,6 +509,113 @@ class ReportsContentTest {
         compose.onNodeWithTag("ticket_refund_3").performClick()
 
         assertEquals(listOf("copy:3", "refund:3"), calls)
+    }
+
+    // ── Find a ticket by its number, older tickets (UX audit R2) ──
+
+    private fun found(vararg matches: uniffi.pos_ffi.TicketMatch) =
+        base.copy(
+            tab = ReportsTab.TICKETS,
+            tickets =
+                TicketsState(
+                    loaded = true,
+                    rows = mergeRows(listOf(copyable(5L)), emptyList()),
+                    lookup = ticketLookup(4821L, *matches),
+                ),
+        )
+
+    @Test
+    fun theTicketNumberFieldIsOfferedAndOpensThePad() {
+        show(tickets(listOf(copyable(3L))))
+
+        compose.onNodeWithTag("ticket_find").assertTextEquals("N° de ticket")
+        compose.onNodeWithTag("ticket_find").assertIsEnabled()
+        compose.onNodeWithTag("ticket_find_clear").assertDoesNotExist()
+        compose.onNodeWithTag("ticket_find").performClick()
+
+        assertEquals(listOf("find-open"), calls)
+    }
+
+    @Test
+    fun theTicketNumberPadAcceptsAWholeNumberFromOne() {
+        show(tickets(listOf(copyable(3L))).let { it.copy(tickets = it.tickets.copy(findOpen = true)) })
+
+        compose.onNodeWithTag("ticket_find_dialog").assertIsDisplayed()
+        compose.onNodeWithTag("ticket_find_ok").assertIsNotEnabled()
+        compose.onNodeWithTag("numpad_key_0").performClick()
+        compose.onNodeWithTag("ticket_find_ok").assertIsNotEnabled()
+        compose.onNodeWithTag("numpad_clear").performClick()
+        compose.onNodeWithTag("numpad_key_4").performClick()
+        compose.onNodeWithTag("numpad_key_8").performClick()
+        compose.onNodeWithTag("ticket_find_value").assertTextEquals("48")
+        compose.onNodeWithTag("ticket_find_ok").assertIsEnabled()
+        compose.onNodeWithTag("ticket_find_ok").performClick()
+
+        assertEquals(listOf("find:48"), calls)
+    }
+
+    @Test
+    fun aFoundSaleOffersTheCopyAndTheRefundOfThatSale() {
+        show(found(ticketMatch(90L, number = 4821L), ticketMatch(92L, number = 4821L, label = "P")))
+
+        compose.onNodeWithTag("tickets_title").assertTextEquals("Ticket n° 4821")
+        compose.onNodeWithTag("ticket_find").assertTextEquals("4821")
+        compose.onNodeWithTag("ticket_find_clear").assertIsDisplayed()
+        // The found tickets replace the latest list.
+        compose.onNodeWithTag("ticket_row_5").assertDoesNotExist()
+        compose.onNodeWithTag("ticket_number_90").assertTextEquals("#4821")
+        compose.onNodeWithTag("ticket_copy_90").assertIsDisplayed()
+        compose.onNodeWithTag("ticket_refund_90").assertIsDisplayed()
+        compose.onNodeWithTag("ticket_kind_92").assertTextEquals("Addition")
+        compose.onNodeWithTag("ticket_copy_92").assertIsDisplayed()
+        compose.onNodeWithTag("ticket_refund_92").assertDoesNotExist()
+        compose.onNodeWithTag("ticket_refund_90").performClick()
+        compose.onNodeWithTag("ticket_copy_90").performClick()
+
+        assertEquals(listOf("refund:90", "copy:90"), calls)
+    }
+
+    @Test
+    fun aSaleThatCannotBeRefundedTellsWhyAndCanStillBeCopied() {
+        show(found(ticketMatch(90L, number = 4821L, blocked = "refund_already_done")))
+
+        compose.onNodeWithTag("ticket_refund_90").assertDoesNotExist()
+        compose.onNodeWithTag("ticket_blocked_90").assertTextEquals("Refus: refund_already_done")
+        compose.onNodeWithTag("ticket_copy_90").assertIsDisplayed()
+    }
+
+    @Test
+    fun aNumberNobodyHoldsSaysSo() {
+        show(found())
+
+        compose.onNodeWithTag("tickets_find_none").assertTextEquals("Aucun ticket n° 4821")
+        compose.onNodeWithTag("tickets_empty").assertDoesNotExist()
+        compose.onNodeWithTag("ticket_find_clear").performClick()
+
+        assertEquals(listOf("find-clear"), calls)
+    }
+
+    @Test
+    fun olderTicketsAreOfferedWhileTheListCameBackFull() {
+        val state = tickets(listOf(copyable(3L))).let { it.copy(tickets = it.tickets.copy(hasOlder = true)) }
+        show(state)
+
+        compose.onNodeWithTag("tickets_older").assertTextEquals("Plus ancien")
+        compose.onNodeWithTag("tickets_older").performClick()
+
+        assertEquals(listOf("older"), calls)
+    }
+
+    @Test
+    fun noOlderButtonWhenTheArchiveEndedOrANumberIsShown() {
+        show(tickets(listOf(copyable(3L))))
+        compose.onNodeWithTag("tickets_older").assertDoesNotExist()
+    }
+
+    @Test
+    fun noOlderButtonOnAFoundTicket() {
+        show(found(ticketMatch(90L, number = 4821L)).let { it.copy(tickets = it.tickets.copy(hasOlder = true)) })
+        compose.onNodeWithTag("tickets_older").assertDoesNotExist()
     }
 
     @Test

@@ -6,6 +6,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.nuagemagique.pilipos.engine.EngineGateway
 import dev.nuagemagique.pilipos.engine.EngineHelpers
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
+import dev.nuagemagique.pilipos.ui.badge.ScanClaims
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.format.CartAmounts
@@ -55,4 +56,7 @@ internal interface CheckoutEntryPoint {
 
     /** The line amounts and the VAT rows of the recap, from the engine VAT split. */
     fun amounts(): CartAmounts
+
+    /** The barcode reader, claimed while the gift voucher dialog is open (UX audit P7). */
+    fun scans(): ScanClaims
 }

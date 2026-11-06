@@ -187,12 +187,12 @@ class CheckoutQuickContentTest {
     }
 
     @Test
-    fun theRestRowDoesNotOfferCashAfterACashPart() {
+    fun theRestRowStillOffersCashAfterACashPart() {
         val taken = listOf(TakenPart(PaymentMethod.CASH, 2_000L, 0L))
-        show(base.copy(method = PaymentMethod.CARD, taken = taken, amounts = base.amounts.copy(restCents = 2_730L)))
+        show(base.copy(method = PaymentMethod.CASH, taken = taken, amounts = base.amounts.copy(restCents = 2_730L)))
 
         text("checkout_rest_label").assertIsDisplayed()
-        compose.onNodeWithTag("checkout_method_cash").assertDoesNotExist()
+        compose.onNodeWithTag("checkout_method_cash").assertIsDisplayed()
     }
 
     // ── P2: the done step ─────────────────────────────────────────

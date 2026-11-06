@@ -9,6 +9,7 @@ import { useIntegrationsStore } from '../stores/integrations'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useOrderStore } from '../stores/order'
+import { useTablePlanStore } from '../stores/tablePlan'
 import { useToastStore } from '../stores/toast'
 import { useI18n } from '../i18n'
 import { describeError } from '../utils/errorMessages'
@@ -33,6 +34,7 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const order = useOrderStore()
+const plan = useTablePlanStore()
 const toast = useToastStore()
 const { t } = useI18n()
 
@@ -52,6 +54,8 @@ const orderType = computed(() =>
 const tableNumber = computed(() =>
   orderType.value === 'dine_in' ? order.currentOrder?.table_number : null,
 )
+// "A-19" in a zone, "19" without one (UX audit T1).
+const tableLabel = computed(() => plan.label(tableNumber.value))
 
 // "You are here" (§2.3): a dine-in order belongs to Tables.
 const tablesActive = computed(() => route.name === 'tables' || orderType.value === 'dine_in')
@@ -175,13 +179,13 @@ function menuPin() {
       v-if="tableNumber && canMoveTable"
       class="header-table header-table-btn"
       data-testid="header-table"
-      :aria-label="`${t('transfer_table')} · ${t('table')} ${tableNumber}`"
+      :aria-label="`${t('transfer_table')} · ${t('table')} ${tableLabel}`"
       @click="moving = true"
     >
-      {{ t('table') }} {{ tableNumber }}
+      {{ t('table') }} {{ tableLabel }}
     </button>
     <span v-else-if="tableNumber" class="header-table" data-testid="header-table"
-      >{{ t('table') }} {{ tableNumber }}</span
+      >{{ t('table') }} {{ tableLabel }}</span
     >
     <span v-else-if="collectingOnline" class="header-table" data-testid="header-online">{{
       t('online_orders')

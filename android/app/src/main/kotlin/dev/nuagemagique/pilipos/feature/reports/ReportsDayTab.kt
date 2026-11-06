@@ -25,6 +25,7 @@ import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.format.PosDateTime
 import dev.nuagemagique.pilipos.ui.format.formatCents
+import dev.nuagemagique.pilipos.ui.state.LocalTableLabeler
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import uniffi.pos_ffi.UnsettledCardPayment
@@ -217,7 +218,8 @@ private fun UnsettledWarning(unsettled: List<UnsettledCardPayment>) {
 /** One payment of the warning: where it was taken, the amount and the card brand (`unsettledLine` of `ReportsView.vue`). */
 @Composable
 internal fun unsettledLine(payment: UnsettledCardPayment): String {
-    val place = payment.tableNumber?.let { vueText("table") + " " + it } ?: vueText("takeaway_badge")
+    val labeler = LocalTableLabeler.current
+    val place = payment.tableNumber?.let { vueText("table") + " " + labeler.label(it) } ?: vueText("takeaway_badge")
     val brand = payment.brand?.let { " · $it" } ?: ""
     return vueText("reports_z_unsettled_item", "where" to place, "amount" to formatCents(payment.amountCents), "brand" to brand)
 }

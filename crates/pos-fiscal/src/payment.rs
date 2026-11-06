@@ -456,6 +456,40 @@ mod tests {
         );
     }
 
+    /// Several people paying in cash (UX audit P3) are ONE cash line, rounded once (spec v2.2
+    /// section 7.1: "une seule ligne de paiement sur le ticket, ARRONDIE"). The screens share
+    /// that rounding between the cash parts: each part hands over the difference of the rounded
+    /// running cash total, so what the parts hand over adds up to the cash line with its rounding.
+    #[test]
+    fn the_cash_parts_hand_over_the_one_rounded_cash_line() {
+        let handed_over = |parts: &[i64]| {
+            let mut taken = 0;
+            let mut sum = 0;
+            for part in parts {
+                let before = taken + round_to_5_cents(taken);
+                taken += part;
+                sum += taken + round_to_5_cents(taken) - before;
+            }
+            (taken, sum)
+        };
+        for parts in [
+            vec![1003, 1003, 1003],
+            vec![1157, 1156],
+            vec![496, 495, 495],
+            vec![101, 102, 103, 104],
+            vec![1, 1, 1, 1, 1],
+        ] {
+            let (cash, sum) = handed_over(&parts);
+            let s = settle(cash, &[PaymentPart::cash()]).unwrap();
+            assert_eq!(lines(&s), [(Cash, cash)]);
+            assert_eq!(sum, s.cash_due_cents(), "{parts:?}");
+            assert!(
+                s.rounding_cents.abs() <= 2,
+                "a ticket rounds 2 cents at most"
+            );
+        }
+    }
+
     #[test]
     fn single_method_settlements() {
         assert_eq!(Settlement::single(Cash, 608).rounding_cents, 2);

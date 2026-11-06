@@ -138,6 +138,11 @@ const DEFAULT_CART_LINE = {
 
 const DEFAULT_TABLE = (n: number) => ({
   tableNumber: n,
+  zone: null,
+  zoneName: null,
+  label: String(n),
+  openedByInitial: null,
+  covers: null,
   orderId: null,
   totalCents: 0,
   lineCount: 0,
@@ -280,6 +285,50 @@ export async function scanBadge(page: Page, token: string) {
   await page.keyboard.press('Enter')
 }
 
+/**
+ * `apply_discount` and `remove_discount` the way the engine keeps the manager's PIN (UX audit
+ * P8): a discount confirmed by a typed PIN opens a grant for that order (`pinGrantMs` 120000, the
+ * state lives in `window.__keptPinOrder`); a call with a null `pin` is accepted while the grant
+ * covers the order and refused with `pin_required` otherwise; a removal uses the grant but never
+ * opens one. A spec drops the grant with `dropKeptPin` (a lock, an expiry, another order).
+ */
+export function keptPinMocks(): Record<string, Handler> {
+  return {
+    apply_discount: live((args: any = {}) => {
+      const w = window as any
+      const typed = typeof args.pin === 'string' && args.pin !== ''
+      if (!typed && w.__keptPinOrder !== args.orderId) throw 'pin_required'
+      if (typed) w.__keptPinOrder = args.orderId
+      return {
+        order: { id: args.orderId },
+        kitchenSlip: 'nothing_to_print',
+        registrationError: null,
+        pinReused: !typed,
+        pinGrantMs: 120000,
+      }
+    }),
+    remove_discount: live((args: any = {}) => {
+      const w = window as any
+      const typed = typeof args.pin === 'string' && args.pin !== ''
+      if (!typed && w.__keptPinOrder !== args.orderId) throw 'pin_required'
+      return {
+        order: { id: args.orderId },
+        kitchenSlip: 'nothing_to_print',
+        registrationError: null,
+        pinReused: !typed,
+        pinGrantMs: w.__keptPinOrder === args.orderId ? 120000 : null,
+      }
+    }),
+  }
+}
+
+/** The engine drops the kept PIN (lock, expiry, order switch, sale). */
+export async function dropKeptPin(page: Page) {
+  await page.evaluate(() => {
+    ;(window as any).__keptPinOrder = null
+  })
+}
+
 /** The engine's FdmHealth (event "fdm-status"); healthy unless overridden. */
 export interface FdmHealthMock {
   connected: boolean
@@ -398,15 +447,21 @@ function defaultHandlers(): Record<string, Handler> {
 
     // Till discount (manager + PIN): the order after the change; specs that
     // look at the cart afterwards override list_cart_lines / get_order.
+    // No kept PIN by default (`pinGrantMs` null: the next discount asks for the PIN again);
+    // `keptPinMocks()` below models the engine's grant for the specs of UX audit P8.
     apply_discount: () => ({
       order: DEFAULT_ORDER,
       kitchenSlip: 'nothing_to_print',
       registrationError: null,
+      pinReused: false,
+      pinGrantMs: null,
     }),
     remove_discount: () => ({
       order: DEFAULT_ORDER,
       kitchenSlip: 'nothing_to_print',
       registrationError: null,
+      pinReused: false,
+      pinGrantMs: null,
     }),
 
     // Staff badges: the state lives in `window.__badge` (see `badgeInit`).
@@ -619,6 +674,8 @@ function defaultHandlers(): Record<string, Handler> {
     // Refund (event N, negative lines)
     list_refundable_events: () => [],
     list_copyable_tickets: () => [],
+    // Find a ticket by its printed number: nothing found unless a test says otherwise.
+    find_ticket_by_number: live(({ number }: any = {}) => ({ number, matches: [] })),
     // Payment correction (event F): a cash sale of 52,00 EUR by default.
     list_sale_payments: () => ({
       fiscalEventId: 1,
@@ -926,8 +983,17 @@ function defaultHandlers(): Record<string, Handler> {
     new_booking_period: () => undefined,
 
     // Table plan: 1 to 20 until a spec changes it.
-    get_table_plan: () => ({ plan: '1-20', table_count: 20, log: [] }),
-    set_table_plan: (args: any) => ({ plan: args.plan, table_count: 0, log: [] }),
+    get_table_plan: () => ({ plan: '1-20', table_count: 20, zone_names: '', zones: [], log: [] }),
+    set_table_plan: (args: any) => ({
+      plan: args.plan,
+      table_count: 0,
+      zone_names: args.zoneNames ?? '',
+      zones: [],
+      log: [],
+    }),
+    // The covers of a table order (UX audit T5): none until a spec sets some.
+    get_order_covers: () => null,
+    set_order_covers: live((args: any) => args.covers),
 
     // Owner alerts: off, no token, until a spec says otherwise.
     get_owner_alerts: () => ({
@@ -955,6 +1021,15 @@ function defaultHandlers(): Record<string, Handler> {
     // Quick notes: the nine usual ones (a new installation).
     get_quick_notes: () => ({ notes: [...DEFAULT_QUICK_NOTES] }),
     set_quick_notes: live((args: any) => args.input),
+
+    // Favourites tab (UX audit C12): most sold, nothing sold yet, so the tab is hidden.
+    get_favourites_settings: () => ({ mode: 'top_sold', selection: [] }),
+    set_favourites_settings: live((args: any) => args.input),
+    set_favourite: (args: any) => ({
+      mode: 'top_sold',
+      selection: args.favourite ? [args.menuItemId] : [],
+    }),
+    list_favourites: () => [],
 
     // Courses: off until a spec says otherwise.
     get_course_settings: () => ({ enabled: false, category_courses: [] }),

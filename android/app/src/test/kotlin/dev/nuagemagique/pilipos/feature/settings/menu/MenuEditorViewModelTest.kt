@@ -29,6 +29,8 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import uniffi.pos_ffi.FavouritesMode
+import uniffi.pos_ffi.FavouritesSettings
 import uniffi.pos_ffi.MenuSaved
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SaveCategoryInput
@@ -59,9 +61,13 @@ class MenuEditorViewModelTest {
         val engine get() = env.f.engine
     }
 
+    /** The stars the stubbed engine holds, in order of addition. */
+    private var stars: List<Long> = emptyList()
+
     private suspend fun TestScope.start(who: User? = admin): Rig {
         val f = settingsFixture(tmp.root)
         coEvery { f.engine.menuAdminGet() } returns adminMenu()
+        coEvery { f.engine.getFavouritesSettings() } answers { FavouritesSettings(FavouritesMode.TOP_SOLD, stars) }
         val env = settingsEnv(f, context)
         openEngine(env)
         if (who != null) with(env) { loginAs(who) }
@@ -502,4 +508,63 @@ class MenuEditorViewModelTest {
         assertEquals("", labelOf(emptyMap(), listOf("fr")))
         assertEquals("menu_ed_vat_x", vatKey("X"))
     }
+
+    // ── Favourites (UX audit C12) ─────────────────────────────────
+
+    @Test
+    fun theStarsAreReadWithTheMenuInTheOrderTheyWereAdded() =
+        runTest {
+            stars = listOf(11, 10)
+            val r = start().opened()
+
+            assertEquals(listOf(11L, 10L), r.state.favourites)
+        }
+
+    @Test
+    fun aTapOnTheStarSendsTheToggleAndAdoptsTheStoredList() =
+        runTest {
+            stars = listOf(11)
+            val r = start().opened()
+            coEvery { r.engine.setFavourite(10L, true) } answers { FavouritesSettings(FavouritesMode.TOP_SOLD, listOf(11, 10)) }
+            coEvery { r.engine.setFavourite(11L, false) } answers { FavouritesSettings(FavouritesMode.TOP_SOLD, listOf(10)) }
+
+            r.model.toggleFavourite(10)
+            runCurrent()
+            assertEquals(listOf(11L, 10L), r.state.favourites)
+
+            r.model.toggleFavourite(11)
+            runCurrent()
+            assertEquals(listOf(10L), r.state.favourites)
+            coVerify { r.engine.setFavourite(10L, true) }
+            coVerify { r.engine.setFavourite(11L, false) }
+        }
+
+    @Test
+    fun theStarWorksWhileACatalogManagesTheMenu() =
+        runTest {
+            val r = start()
+            coEvery { r.engine.menuAdminGet() } returns adminMenu(managedBy = "hubrise")
+            coEvery { r.engine.setFavourite(10L, true) } returns FavouritesSettings(FavouritesMode.TOP_SOLD, listOf(10))
+            r.model.load()
+
+            r.model.toggleFavourite(10)
+            runCurrent()
+
+            assertTrue(r.state.locked)
+            assertEquals(listOf(10L), r.state.favourites)
+        }
+
+    @Test
+    fun aRefusedStarShowsAToastAndKeepsTheList() =
+        runTest {
+            stars = listOf(11)
+            val r = start().opened()
+            coEvery { r.engine.setFavourite(any(), any()) } throws PosException.Coded("favourites_too_many", mapOf("max" to "30"))
+
+            r.model.toggleFavourite(10)
+            runCurrent()
+
+            assertEquals(listOf(11L), r.state.favourites)
+            assertEquals(1, r.env.toasts.toasts.value.size)
+        }
 }

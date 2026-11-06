@@ -8,10 +8,12 @@ import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import dev.nuagemagique.pilipos.ui.state.HeldParts
+import dev.nuagemagique.pilipos.ui.state.KeptPin
 import dev.nuagemagique.pilipos.ui.state.LineAdd
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import dev.nuagemagique.pilipos.ui.state.TableMoves
+import dev.nuagemagique.pilipos.ui.state.tableLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -34,12 +36,14 @@ import uniffi.pos_ffi.AllergenEntry
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.Category
 import uniffi.pos_ffi.DiscountInput
+import uniffi.pos_ffi.DiscountResult
 import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
+import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SoldOutItem
 import uniffi.pos_ffi.VatSplitRow
 
@@ -90,6 +94,7 @@ private fun menuState(
         categories = d.categories,
         selectedCategoryId = d.selectedCategoryId,
         items = d.items,
+        favourites = d.favourites,
         cartQuantities = quantities,
         language = l.language,
         labelMode = l.labelMode,
@@ -134,6 +139,14 @@ private class MenuCodePadHost(
     ) = addUnits.invoke(lineId, delta)
 }
 
+/** What one read of the menu answers. */
+private data class MenuRead(
+    val categories: List<Category>,
+    val favourites: List<MenuItem>,
+    val selected: Long?,
+    val items: List<MenuItem>,
+)
+
 /** How often the Z-report reminder is checked again, in milliseconds (5 minutes in `OrderView.vue`). */
 internal const val Z_CHECK_MS: Long = 300_000L
 
@@ -142,6 +155,8 @@ private data class Data(
     val categories: List<Category> = emptyList(),
     val selectedCategoryId: Long? = null,
     val items: List<MenuItem> = emptyList(),
+    /** The products of the "Favoris" tab (UX audit C12). */
+    val favourites: List<MenuItem> = emptyList(),
     val loaded: Boolean = false,
     val zWarning: Boolean = false,
     val dialog: OrderDialog = OrderDialog.None,
@@ -162,6 +177,16 @@ private data class Data(
     val lastAdd: LineAdd? = null,
     /** The payment parts kept for an order when the operator came back from the checkout (UX audit P4). */
     val heldParts: HeldParts? = null,
+    /** The covers of the order on screen (UX audit T5) and the zones of the plan (UX audit T1). */
+    val covers: Int? = null,
+    val zones: Map<Int, String> = emptyMap(),
+)
+
+/** What the cart shows of the table (UX audit T1, T5). */
+private data class TableView(
+    val label: String?,
+    val covers: Int?,
+    val canSetCovers: Boolean,
 )
 
 /** What the cart shows of the courses: the switch and the next held course. */
@@ -291,6 +316,8 @@ internal class MenuViewModel(
         // The value held when this screen starts is an old add: only the adds seen from now on flash their line.
         viewModelScope.launch { order.lastAdd.drop(1).collect { add -> data.update { it.copy(lastAdd = add) } } }
         viewModelScope.launch { order.heldParts.collect { held -> data.update { it.copy(heldParts = held) } } }
+        viewModelScope.launch { order.covers.collect { covers -> data.update { it.copy(covers = covers) } } }
+        viewModelScope.launch { order.tableZones.collect { zones -> data.update { it.copy(zones = zones) } } }
         viewModelScope.launch {
             order.lines.collectLatest { lines ->
                 val amounts = amountsOf(lines)
@@ -330,6 +357,7 @@ internal class MenuViewModel(
         val canDiscount = mayDiscount(l.isManager, current, lines)
         // A bowl's paid option (its broth) is not one more bowl.
         val quantities = lines.filter { it.bowlLineId == null }.groupingBy { it.menuItemId }.fold(0) { sum, line -> sum + line.quantity }
+        val tableView = tableViewOf(current, d)
         return OrderUiState(
             signedIn = l.signedIn,
             menu = menuState(d, l, quantities),
@@ -367,9 +395,25 @@ internal class MenuViewModel(
                     sendingNext = d.sendingNext,
                     lastAdd = d.lastAdd,
                     heldPartCount = keptPartCount(d.heldParts, current?.id),
+                    tableLabel = tableView.label,
+                    covers = tableView.covers,
+                    canSetCovers = tableView.canSetCovers,
                 ),
             zWarning = d.zWarning,
             dialog = d.dialog,
+        )
+    }
+
+    /** What the cart says of the table of [current]: its label with the zone, its covers, whether they may be set. */
+    private fun tableViewOf(
+        current: Order?,
+        d: Data,
+    ): TableView {
+        val dineIn = current?.orderType == OrderType.DINE_IN
+        return TableView(
+            label = current?.tableNumber?.let { tableLabel(d.zones[it], it) },
+            covers = if (dineIn) d.covers else null,
+            canSetCovers = dineIn && current?.status == OrderStatus.OPEN && current.tableNumber != null,
         )
     }
 
@@ -434,29 +478,39 @@ internal class MenuViewModel(
 
     // ── Menu ──────────────────────────────────────────────────────
 
-    /** Reads the categories and the products of the selected one (the first when none is selected or it is gone). */
+    /**
+     * Reads the categories, the products of the "Favoris" tab and the products of the selected tab (the default tab when
+     * none is selected or it is gone: "Favoris" when it has products, else the first category).
+     */
     private suspend fun loadMenu(language: AppLanguage) =
         menuLock.withLock {
             // The selection the read starts from: a tab tapped after this point must not be undone by the result.
             val keep = data.value.selectedCategoryId
             attempt {
                 val categories = gateway.call { engine -> engine.getCategories(language.code) }
-                val selected = categories.firstOrNull { it.id == keep }?.id ?: categories.firstOrNull()?.id
+                val favourites = readFavourites(language)
+                val selected = keepTab(keep, categories, favourites.size)
                 val items =
-                    if (selected != null) {
-                        gateway.call { engine -> engine.getMenuItems(selected, language.code) }
-                    } else {
-                        emptyList()
+                    when {
+                        selected == FAVOURITES_TAB -> favourites
+                        selected != null -> gateway.call { engine -> engine.getMenuItems(selected, language.code) }
+                        else -> emptyList()
                     }
-                Triple(categories, selected, items)
+                MenuRead(categories, favourites, selected, items)
             }.fold(
-                onSuccess = { (categories, selected, items) ->
+                onSuccess = { read ->
                     data.update {
                         // A tab tapped while the read ran wins: its own job reads its products, so only the tabs are published.
                         if (it.selectedCategoryId == keep) {
-                            it.copy(categories = categories, selectedCategoryId = selected, items = items, loaded = true)
+                            it.copy(
+                                categories = read.categories,
+                                favourites = read.favourites,
+                                selectedCategoryId = read.selected,
+                                items = read.items,
+                                loaded = true,
+                            )
                         } else {
-                            it.copy(categories = categories, loaded = true)
+                            it.copy(categories = read.categories, favourites = read.favourites, loaded = true)
                         }
                     }
                     if (data.value.codePad.open) codePad.load(language)
@@ -465,6 +519,12 @@ internal class MenuViewModel(
                 onFailure = { Timber.d(it, "Menu not loaded") },
             )
         }
+
+    /** The products of the "Favoris" tab; a failure hides the tab: it is a shortcut, never a blocker. */
+    private suspend fun readFavourites(language: AppLanguage): List<MenuItem> =
+        attempt { gateway.call { engine -> engine.listFavourites(language.code) } }
+            .onFailure { Timber.d(it, "Favourites not loaded") }
+            .getOrDefault(emptyList())
 
     /** `loadSoldOut`: the products sold out now, for the cashier and the manager (the engine refuses the others). */
     private suspend fun loadSoldOut(language: AppLanguage) {
@@ -559,21 +619,46 @@ internal class MenuViewModel(
 
     private fun selectedCategoryId(): Long? = data.value.selectedCategoryId
 
-    /** Reads the products of [categoryId] again (the sold-out flags changed). */
+    /**
+     * Reads the products of [categoryId] again (the sold-out flags changed). The "Favoris" tab reads its own list; when
+     * it came back empty the screen goes to the first category.
+     */
     private fun refreshItems(categoryId: Long) {
         itemsJob?.cancel()
         itemsJob =
             viewModelScope.launch {
                 menuLock.withLock {
                     val language = settings.language.value
-                    attempt { gateway.call { engine -> engine.getMenuItems(categoryId, language.code) } }.fold(
-                        onSuccess = { items ->
-                            data.update { if (it.selectedCategoryId == categoryId) it.copy(items = items) else it }
-                        },
-                        onFailure = { Timber.d(it, "Products not loaded") },
-                    )
+                    if (categoryId == FAVOURITES_TAB) {
+                        refreshFavouritesTab(language)
+                    } else {
+                        attempt { gateway.call { engine -> engine.getMenuItems(categoryId, language.code) } }.fold(
+                            onSuccess = { items ->
+                                data.update { if (it.selectedCategoryId == categoryId) it.copy(items = items) else it }
+                            },
+                            onFailure = { Timber.d(it, "Products not loaded") },
+                        )
+                    }
                 }
             }
+    }
+
+    private suspend fun refreshFavouritesTab(language: AppLanguage) {
+        val favourites = readFavourites(language)
+        val fallback = if (favourites.isEmpty()) data.value.categories.firstOrNull()?.id else null
+        val items =
+            if (fallback != null) {
+                attempt { gateway.call { engine -> engine.getMenuItems(fallback, language.code) } }.getOrDefault(emptyList())
+            } else {
+                favourites
+            }
+        data.update {
+            when {
+                it.selectedCategoryId != FAVOURITES_TAB -> it.copy(favourites = favourites)
+                fallback != null -> it.copy(favourites = favourites, selectedCategoryId = fallback, items = items)
+                else -> it.copy(favourites = favourites, items = items)
+            }
+        }
     }
 
     // ── Sold out (Épuisé) ─────────────────────────────────────────
@@ -616,6 +701,8 @@ internal class MenuViewModel(
                     data.update {
                         it.copy(soldOut = list, dialog = if (it.dialog is OrderDialog.SoldOut) OrderDialog.None else it.dialog)
                     }
+                    // The most sold skip a sold-out product: the tab is read again too.
+                    viewModelScope.launch { data.update { it.copy(favourites = readFavourites(language)) } }
                     selectedCategoryId()?.let { refreshItems(it) }
                 },
                 onFailure = { entry.errors().show(it, language) },
@@ -817,6 +904,20 @@ internal class MenuViewModel(
         }
     }
 
+    /** The covers button of the cart header: opens the pad on the covers set now (`coversOpen` of `CartSidebar.vue`). */
+    fun askCovers() {
+        val cart = state.value.cart
+        if (!isRouteOrderCurrent() || !cart.canSetCovers) return
+        data.update { it.copy(dialog = OrderDialog.Covers(cart.covers?.toString().orEmpty())) }
+    }
+
+    /** The covers typed on the pad: 0 clears them; a refusal is shown as an error toast by [run]. */
+    fun saveCovers(count: Int) {
+        data.update { if (it.dialog is OrderDialog.Covers) it.copy(dialog = OrderDialog.None) else it }
+        if (!isRouteOrderCurrent()) return
+        viewModelScope.launch { order.setCovers(count.takeIf { it > 0 }) }
+    }
+
     /**
      * Opens the table picker of "Déplacer" (`TableMover.vue`): the other tables of the plan, the free ones to tap and
      * the busy ones dimmed with their total. A refusal to list them is shown as an error toast.
@@ -831,8 +932,9 @@ internal class MenuViewModel(
             val language = settings.language.value
             attempt { gateway.call { engine -> engine.listTables() } }.fold(
                 onSuccess = { tables ->
+                    order.learnTables(tables)
                     val others = tables.filter { it.tableNumber != from }
-                    data.update { it.copy(dialog = OrderDialog.TablePicker(from, others)) }
+                    data.update { it.copy(dialog = OrderDialog.TablePicker(from, order.tableLabel(from), others)) }
                 },
                 onFailure = { entry.errors().show(it, language) },
             )
@@ -968,18 +1070,79 @@ internal class MenuViewModel(
         data.update { it.copy(dialog = OrderDialog.Discount(lineId, base)) }
     }
 
-    /** The input of the dialog: the manager PIN confirms it next. */
+    /** The input of the dialog: the manager PIN confirms it next, unless the engine kept it for this order. */
     fun chooseDiscount(input: DiscountInput) {
         if (data.value.dialog !is OrderDialog.Discount) return
-        val name = session.currentUser.value?.name.orEmpty()
-        data.update { it.copy(dialog = OrderDialog.DiscountPin(name, DiscountAction.Apply(input))) }
+        startDiscount(DiscountAction.Apply(input))
     }
 
-    /** "Retirer la remise" on the order ([lineId] null) or on an offered line: the manager PIN confirms it. */
+    /**
+     * "Retirer la remise" on the order ([lineId] null) or on an offered line: the manager PIN confirms it, unless the
+     * engine kept it for this order.
+     */
     fun askRemoveDiscount(lineId: Long? = null) {
         if (!isRouteOrderCurrent() || !state.value.cart.canDiscount) return
+        startDiscount(DiscountAction.Remove(lineId))
+    }
+
+    /**
+     * `startApply` / `startRemove` of `CartSidebar.vue` (UX audit P8): the PIN pad opens, except when the engine said it
+     * keeps the manager's PIN for this order; then the command runs with no PIN. If the engine no longer does
+     * (`pin_required`: locked, expired, another order in between) the pad opens after all; any other refusal is
+     * shown as an error toast.
+     */
+    private fun startDiscount(action: DiscountAction) {
         val name = session.currentUser.value?.name.orEmpty()
-        data.update { it.copy(dialog = OrderDialog.DiscountPin(name, DiscountAction.Remove(lineId))) }
+        val pinStep = OrderDialog.DiscountPin(name, action)
+        if (!order.keepsManagerPin()) {
+            data.update { it.copy(dialog = pinStep) }
+            return
+        }
+        data.update { it.copy(dialog = OrderDialog.None) }
+        viewModelScope.launch {
+            try {
+                val insz = session.currentUser.value?.insz ?: error("No user")
+                announceDiscount(action is DiscountAction.Remove, runDiscount(action, insz, null))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
+                if ((e as? PosException.Coded)?.code == KeptPin.PIN_REQUIRED) {
+                    order.forgetManagerPin()
+                    data.update { it.copy(dialog = pinStep) }
+                } else {
+                    entry.errors().show(e, settings.language.value)
+                }
+            }
+        }
+    }
+
+    private suspend fun runDiscount(
+        action: DiscountAction,
+        insz: String,
+        pin: String?,
+    ): DiscountResult =
+        when (action) {
+            is DiscountAction.Apply -> order.applyDiscount(action.input, insz, pin)
+            is DiscountAction.Remove -> order.removeDiscount(action.lineId, insz, pin)
+        }
+
+    /** The success toast: a PIN typed for a discount says it is kept for the order, so the next one will not ask. */
+    private fun announceDiscount(
+        removed: Boolean,
+        result: DiscountResult?,
+    ) {
+        val language = settings.language.value
+        val catalog = entry.catalog()
+        val text =
+            when {
+                removed -> catalog.text("discount_removed", language)
+                result != null && !result.pinReused && result.pinGrantMs != null ->
+                    catalog.text("discount_applied_pin_kept", language, mapOf("minutes" to KeptPin.minutesKept(result.pinGrantMs!!)))
+                else -> catalog.text("discount_applied", language)
+            }
+        entry.toasts().show(text, ToastVariant.Success)
     }
 
     /**
@@ -988,20 +1151,19 @@ internal class MenuViewModel(
      */
     suspend fun confirmDiscountPin(pin: String) {
         val insz = session.currentUser.value?.insz ?: error("No user")
-        when (val action = (data.value.dialog as? OrderDialog.DiscountPin)?.action ?: error("No discount to confirm")) {
-            is DiscountAction.Apply -> order.applyDiscount(action.input, insz, pin)
-            is DiscountAction.Remove -> order.removeDiscount(action.lineId, insz, pin)
-        }
+        val action = (data.value.dialog as? OrderDialog.DiscountPin)?.action ?: error("No discount to confirm")
+        typedDiscount = runDiscount(action, insz, pin)
     }
+
+    /** What the PIN pad's last confirmation did, for the toast of [discountDone]. */
+    private var typedDiscount: DiscountResult? = null
 
     /** The discount was applied or removed (`onDiscountDone`): the dialog closes and the toast says so. */
     fun discountDone() {
         val removed = (data.value.dialog as? OrderDialog.DiscountPin)?.action is DiscountAction.Remove
         data.update { it.copy(dialog = OrderDialog.None) }
-        entry.toasts().show(
-            entry.catalog().text(if (removed) "discount_removed" else "discount_applied", settings.language.value),
-            ToastVariant.Success,
-        )
+        announceDiscount(removed, typedDiscount)
+        typedDiscount = null
     }
 
     /** The VAT summary rows of the cart from the engine VAT helper; none when it cannot answer. */

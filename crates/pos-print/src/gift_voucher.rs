@@ -4,8 +4,9 @@
 //!
 //! Non-fiscal prints: they carry the mention that they are not a valid
 //! VAT ticket (the same words as the bar slip). The voucher shows its
-//! value, its code (large, with a QR of the code), its dates and the
-//! rules of use; the balance slip masks the code to its last 4 digits.
+//! value, its code (large, with a CODE128 barcode and a QR of the code),
+//! its dates and the rules of use; the balance slip masks the code to
+//! its last 4 digits and carries no barcode.
 
 use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer};
 
@@ -177,6 +178,9 @@ pub fn format_gift_voucher(slip: &VoucherSlip, paper: PaperWidth) -> Vec<u8> {
     });
     p.textln(&spaced_code(&slip.code));
     p.style_reset();
+    // The barcode a USB scanner reads at the till (the QR is for phones).
+    p.barcode_code128_digits(&slip.code);
+    p.blank_line();
     p.qr_code(&slip.code, 6);
     p.blank_line();
     p.textln_wrapped(&format!("{}: {}", w.issued, slip.issued_on));
@@ -331,6 +335,61 @@ mod tests {
         assert!(one_line(&text(&voucher("nl"))).contains("CADEAUBON"));
         assert!(one_line(&text(&voucher("en"))).contains("BON CADEAU"));
         assert!(one_line(&text(&voucher("de"))).contains("GESCHENKGUTSCHEIN"));
+    }
+
+    /// The CODE128 command of a 12-digit code: GS k 73, 14 bytes, `{B`, the digits.
+    fn barcode_command(code: &str) -> Vec<u8> {
+        [&[0x1D, b'k', 73, 14, b'{', b'B'][..], code.as_bytes()].concat()
+    }
+
+    fn position(bytes: &[u8], needle: &[u8]) -> Option<usize> {
+        bytes.windows(needle.len()).position(|w| w == needle)
+    }
+
+    #[test]
+    fn the_voucher_and_its_duplicate_carry_a_code128_barcode_of_the_code() {
+        for duplicate in [false, true] {
+            for paper in [PaperWidth::Mm80, PaperWidth::Mm58] {
+                let mut v = voucher("fr");
+                v.duplicate = duplicate;
+                let bytes = format_gift_voucher(&v, paper);
+                let barcode = position(&bytes, &barcode_command("123456789012"))
+                    .unwrap_or_else(|| panic!("no barcode ({duplicate}, {paper:?})"));
+                // Under the code printed in large digits, before the QR.
+                let spaced = position(&bytes, b"1234 5678 9012").expect("the code");
+                let qr = position(&bytes, &[0x1D, b'(', b'k']).expect("the QR");
+                assert!(spaced < barcode && barcode < qr, "{spaced} {barcode} {qr}");
+                // Exactly one barcode, with no printed characters under it.
+                assert_eq!(bytes.windows(2).filter(|w| w == &[0x1D, b'k']).count(), 1);
+                assert!(bytes.windows(3).any(|w| w == [0x1D, b'H', 0]));
+            }
+        }
+    }
+
+    #[test]
+    fn the_printed_text_shows_the_barcode_under_the_code() {
+        let out = one_line(&text(&voucher("fr")));
+        assert!(
+            out.contains("1234 5678 9012 [BARCODE: 123456789012] [QR: 123456789012]"),
+            "{out}"
+        );
+        let mut dup = voucher("fr");
+        dup.duplicate = true;
+        assert!(one_line(&text(&dup)).contains("[BARCODE: 123456789012]"));
+    }
+
+    #[test]
+    fn the_balance_slip_has_no_barcode() {
+        let slip = BalanceSlip {
+            establishment: "Restaurant Demo".into(),
+            code_last4: "9012".into(),
+            balance_cents: 3150,
+            expires_on: "17.10.2027".into(),
+            lang: "fr".into(),
+            training: false,
+        };
+        let bytes = format_balance_slip(&slip, PaperWidth::Mm80);
+        assert!(!bytes.windows(2).any(|w| w == [0x1D, b'k']));
     }
 
     #[test]

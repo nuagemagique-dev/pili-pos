@@ -12,6 +12,7 @@ import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.feedback.lateCounts
 import dev.nuagemagique.pilipos.ui.state.IdleWarning
 import dev.nuagemagique.pilipos.ui.state.TableMoves
+import dev.nuagemagique.pilipos.ui.state.tableLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -59,6 +60,10 @@ internal data class HeaderUiState(
     val isManager: Boolean = false,
     /** The table of the current dine-in order, shown on the order and checkout screens only. */
     val tableNumber: Int? = null,
+    /** How that table is written: "A-19" in a zone, "19" without one (UX audit T1). */
+    val tableLabel: String? = null,
+    /** Table number to zone letters, for every screen that writes a table in the scaffold. */
+    val tableZones: Map<Int, String> = emptyMap(),
     /** True while a takeaway order is open on the order or checkout screen. */
     val takeawayOrder: Boolean = false,
     /** True when the order is a dine-in one on the order or checkout screen: Tables is "you are here". */
@@ -155,8 +160,8 @@ internal class HeaderViewModel(
                 },
                 combine(userMenu, endShiftArmed, entry.settings().language, ::Menu),
             ) { over, menu -> over.copy(menu = menu) },
-            combine(session.idleWarning, lateOrders(), order.onlineCollect) { warning, late, online ->
-                Extras(warning, late, online != null)
+            combine(session.idleWarning, lateOrders(), order.onlineCollect, order.tableZones) { warning, late, online, zones ->
+                Extras(warning, late, online != null, zones)
             },
         ) { base, over, extras -> overlay(base, over, extras) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, initialState())
@@ -178,7 +183,7 @@ internal class HeaderViewModel(
                 customerStep.value,
                 Menu(userMenu.value, endShiftArmed.value, entry.settings().language.value),
             ),
-            Extras(session.idleWarning.value, 0, order.onlineCollect.value != null),
+            Extras(session.idleWarning.value, 0, order.onlineCollect.value != null, order.tableZones.value),
         )
 
     /** The late online orders: counted only for a logged-in operator, the clock runs while an order may become late. */
@@ -189,11 +194,13 @@ internal class HeaderViewModel(
                 if (user == null) flowOf(0) else lateCounts(entry.webshop().orders, { lateNow() })
             }.distinctUntilChanged()
 
-    /** The idle warning, the late online orders and the online collect, on top of the order's state. */
+    /** The idle warning, the late online orders, the online collect and the zones, on top of the order's state. */
     private data class Extras(
         val warning: IdleWarning?,
         val late: Int,
         val online: Boolean,
+        /** Table number to zone letters, for the label of the table chip. */
+        val zones: Map<Int, String> = emptyMap(),
     )
 
     /** What does not come from the order: the open dialogs, the lines, the takeaway tag. */
@@ -229,6 +236,8 @@ internal class HeaderViewModel(
             idleWarning = extras.warning,
             lateOrders = extras.late,
             onlineCollect = extras.online,
+            tableLabel = base.tableNumber?.let { tableLabel(extras.zones[it], it) },
+            tableZones = extras.zones,
             canMoveTable = movable,
             tablePicker = if (movable) over.picker else null,
             takeawayLabel = tag?.label,

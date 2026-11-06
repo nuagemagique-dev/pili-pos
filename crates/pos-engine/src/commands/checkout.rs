@@ -166,7 +166,10 @@ pub(crate) async fn sell(
     let guard = match signing::begin(state, &op).await {
         Ok(Begin::Fresh(guard)) => guard,
         // This sale, sent earlier, was signed: its ticket is printed.
-        Ok(Begin::AlreadyDone(recovered)) => return Ok(recovered_sale(*recovered)),
+        Ok(Begin::AlreadyDone(recovered)) => {
+            state.session_rules.pin_grants().clear_for_order(order_id);
+            return Ok(recovered_sale(*recovered));
+        }
         Err(e) => return Ok(CheckoutResult::refused(e)),
     };
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
@@ -187,6 +190,8 @@ pub(crate) async fn sell(
         Ok(signed) => signed,
         Err(refused) => return Ok(refused),
     };
+    // The order is sold: the manager PIN kept for its discounts is over (P8).
+    state.session_rules.pin_grants().clear_for_order(order_id);
 
     // Print and/or email the ticket, open the drawer for cash, print
     // the bar / kitchen slip of the lines not yet sent.

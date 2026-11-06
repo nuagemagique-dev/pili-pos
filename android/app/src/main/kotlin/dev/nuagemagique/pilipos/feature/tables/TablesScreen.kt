@@ -2,9 +2,11 @@
 
 package dev.nuagemagique.pilipos.feature.tables
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,12 +20,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,6 +45,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -49,6 +56,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.feature.checkout.CheckoutRoutes
 import dev.nuagemagique.pilipos.feature.order.OrderRoutes
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.PiliButton
@@ -59,6 +67,10 @@ import dev.nuagemagique.pilipos.ui.format.PosDateTime
 import dev.nuagemagique.pilipos.ui.format.formatEuro
 import dev.nuagemagique.pilipos.ui.scaffold.HeaderArea
 import dev.nuagemagique.pilipos.ui.scaffold.PosScaffold
+import dev.nuagemagique.pilipos.ui.state.TableGroup
+import dev.nuagemagique.pilipos.ui.state.groupTables
+import dev.nuagemagique.pilipos.ui.state.hasZones
+import dev.nuagemagique.pilipos.ui.state.zoneTitle
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -84,6 +96,7 @@ private val NewTakeawayHeight = 80.dp
 private val DashStroke = 2.dp
 private val CHOSEN_STROKE = 4.dp
 private val MoveToggleHeight = 56.dp
+private val ServerBadgeSize = 32.dp
 
 /** Alpha of a table that cannot be picked in the move mode (`opacity: 0.3`). */
 private const val DIMMED_ALPHA = 0.3f
@@ -95,7 +108,17 @@ internal data class TablesCallbacks(
     val onNewTakeaway: () -> Unit = {},
     /** The "Déplacer" toggle. */
     val onToggleMove: () -> Unit = {},
+    /** A long press (500 ms) on an occupied table: its action sheet (UX audit T7). */
+    val onTableLongPress: (TableInfo) -> Unit = {},
+    val onSheetOpen: () -> Unit = {},
+    val onSheetBill: () -> Unit = {},
+    val onSheetMove: () -> Unit = {},
+    val onSheetPay: () -> Unit = {},
+    val onSheetClose: () -> Unit = {},
 )
+
+/** How long a finger must stay on a table card to open its action sheet, in milliseconds (`LONG_PRESS_MS` of Vue). */
+internal const val TABLE_LONG_PRESS_MS: Long = 500L
 
 /**
  * The tables route (`TablesView.vue`): builds [TablesViewModel] from the application graph and draws
@@ -113,6 +136,7 @@ internal fun TablesRoute(navigator: AppNavigator) {
         model.effects.collect {
             when (it) {
                 is TablesEffect.OpenOrder -> navigator.navigate(OrderRoutes.order(it.orderId))
+                is TablesEffect.OpenCheckout -> navigator.navigate(CheckoutRoutes.checkout(it.orderId))
             }
         }
     }
@@ -124,8 +148,19 @@ internal fun TablesRoute(navigator: AppNavigator) {
             onTakeaway = model::resumeTakeaway,
             onNewTakeaway = model::newTakeaway,
             onToggleMove = model::toggleMove,
+            onTableLongPress = model::openSheet,
+            onSheetOpen = model::sheetOpen,
+            onSheetBill = model::sheetBill,
+            onSheetMove = model::sheetMove,
+            onSheetPay = model::sheetPay,
+            onSheetClose = model::closeSheet,
         )
-    PosScaffold(HeaderArea.TABLES, navigator, modifier = Modifier.testTag("placeholder_tables")) {
+    PosScaffold(
+        HeaderArea.TABLES,
+        navigator,
+        modifier = Modifier.testTag("placeholder_tables"),
+        overlay = { state.sheet?.let { TableActionSheet(it, callbacks) } },
+    ) {
         TablesContent(state, callbacks)
     }
 }
@@ -134,7 +169,8 @@ internal fun TablesRoute(navigator: AppNavigator) {
  * The tables screen, stateless: the table grid (5 columns, occupied tables filled with their total, free ones
  * dashed) and the open takeaways on the right with the new takeaway button, laid out for 1920 x 1080 dp. Without a
  * user it shows an empty state instead. The "Déplacer une table" bar sits over the grid. Test tags: `tables_grid`,
- * `move_toggle`, `move_hint`, `table_<number>`, `table_<number>_total`, `tables_none`, `takeaways_panel`,
+ * `move_toggle`, `move_hint`, `table_<number>`, `table_<number>_total`, `table_<number>_server`, `zone_<letter>`,
+ * `zone_other`, `tables_none`, `takeaways_panel`,
  * `takeaway_<orderId>`, `takeaways_title`, `takeaway_new`, `tables_empty`.
  */
 @Composable
@@ -152,7 +188,10 @@ internal fun TablesContent(
     Row(modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary)) {
         Column(Modifier.weight(1f).fillMaxHeight()) {
             MoveBar(state.move, callbacks.onToggleMove)
-            TableGrid(state, callbacks.onTable, Modifier.weight(1f).fillMaxWidth())
+            // A table card opens its action sheet after 500 ms (UX audit T7), not the 400 ms of the system.
+            WithLongPress(TABLE_LONG_PRESS_MS) {
+                TableGrid(state, callbacks.onTable, callbacks.onTableLongPress, Modifier.weight(1f).fillMaxWidth())
+            }
         }
         TakeawayPanel(state, callbacks, Modifier.width(PiliTheme.dimens.cartWidth).fillMaxHeight())
     }
@@ -162,6 +201,7 @@ internal fun TablesContent(
 private fun TableGrid(
     state: TablesUiState,
     onTable: (TableInfo) -> Unit,
+    onLongPress: (TableInfo) -> Unit,
     modifier: Modifier,
 ) {
     val d = PiliTheme.dimens
@@ -171,10 +211,18 @@ private fun TableGrid(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(d.spaceLg),
             verticalArrangement = Arrangement.spacedBy(d.spaceMd),
         ) {
-            state.tables.chunked(GRID_COLUMNS).forEach { row ->
-                Row(Modifier.fillMaxWidth().height(cardHeight), horizontalArrangement = Arrangement.spacedBy(d.spaceMd)) {
-                    row.forEach { table -> TableCard(table, state, { onTable(table) }, Modifier.weight(1f).fillMaxHeight()) }
-                    repeat(GRID_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+            // One block per zone ("A · Salle"); a plan without letters is one block with no header (UX audit T1).
+            val zoned = hasZones(state.tables)
+            groupTables(state.tables).forEach { group ->
+                if (zoned) ZoneHeader(group)
+                group.tables.chunked(GRID_COLUMNS).forEach { row ->
+                    Row(Modifier.fillMaxWidth().height(cardHeight), horizontalArrangement = Arrangement.spacedBy(d.spaceMd)) {
+                        row.forEach {
+                                table ->
+                            TableCard(table, state, { onTable(table) }, { onLongPress(table) }, Modifier.weight(1f).fillMaxHeight())
+                        }
+                        repeat(GRID_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
                 }
             }
         }
@@ -187,6 +235,18 @@ private fun TableGrid(
             )
         }
     }
+}
+
+/** The header of a zone: "A · Salle", "A" without a name, "Autre" for the tables outside every zone (`zone-header`). */
+@Composable
+private fun ZoneHeader(group: TableGroup) {
+    val zone = group.zone
+    Text(
+        text = if (zone != null) zoneTitle(zone, group.name) else vueText("zone_other"),
+        style = PiliTheme.typography.title,
+        color = PiliTheme.colors.textSecondary,
+        modifier = Modifier.padding(top = PiliTheme.dimens.spaceSm).testTag("zone_${zone ?: "other"}"),
+    )
 }
 
 /** The "Déplacer" toggle and, in the mode, what to tap next (`plan-bar` of `TablesView.vue`). */
@@ -211,7 +271,7 @@ private fun MoveBar(
         if (move.moving) {
             val source = move.source
             Text(
-                text = if (source == null) vueText("transfer_pick_source") else vueText("transfer_pick_free", "from" to source.tableNumber),
+                text = if (source == null) vueText("transfer_pick_source") else vueText("transfer_pick_free", "from" to source.label),
                 style = t.body.copy(fontSize = t.sizeLg),
                 color = PiliTheme.colors.textSecondary,
                 modifier = Modifier.testTag("move_hint"),
@@ -221,11 +281,13 @@ private fun MoveBar(
 }
 
 /** One table (UX guide section 5.3): an occupied one is filled with a band on top and its total in bold, a free one is dashed. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TableCard(
     table: TableInfo,
     state: TablesUiState,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier,
 ) {
     val c = PiliTheme.colors
@@ -252,12 +314,14 @@ private fun TableCard(
     Box(
         modifier =
             look
-                .clickable(
+                .combinedClickable(
                     interactionSource = source,
                     indication = null,
                     enabled = !dimmed,
                     role = Role.Button,
                     onClick = onClick,
+                    // Only an occupied table has a sheet, and not in the move mode; elsewhere a long press is a tap.
+                    onLongClick = if (occupied && !move.moving) onLongClick else null,
                 ).testTag("table_${table.tableNumber}"),
     ) {
         if (occupied) Box(Modifier.fillMaxWidth().height(BandHeight).background(c.textPrimary))
@@ -269,6 +333,22 @@ private fun TableCard(
             if (occupied) OccupiedInfo(table, state) else FreeLabel()
         }
     }
+}
+
+/** Runs [content] with a long press of [millis] instead of the system's. */
+@Composable
+private fun WithLongPress(
+    millis: Long,
+    content: @Composable () -> Unit,
+) {
+    val base = LocalViewConfiguration.current
+    val config =
+        remember(base, millis) {
+            object : ViewConfiguration by base {
+                override val longPressTimeoutMillis: Long = millis
+            }
+        }
+    CompositionLocalProvider(LocalViewConfiguration provides config, content = content)
 }
 
 /** The 2 dp dashed outline of a free table. */
@@ -296,7 +376,7 @@ private fun TableTop(
     val occupied = table.status == STATUS_OCCUPIED
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
         Text(
-            text = table.tableNumber.toString(),
+            text = table.label,
             style = t.figure.copy(fontSize = t.sizeXl * TABLE_NUMBER_SCALE, fontWeight = t.weightBold),
             color = if (occupied) c.textPrimary else c.textSecondary,
         )
@@ -352,21 +432,50 @@ private fun OccupiedInfo(
             val minutes = PosDateTime.minutesSince(it, state.now)
             items + " · " + uiText(R.string.ui_tables_minutes, "minutes" to minutes)
         } ?: items
+    // The covers set from the cart header (UX audit T5): "4 couv.".
+    val covers = table.covers?.takeIf { it > 0 }?.let { " \u00B7 " + vueText("table_covers_short", "n" to it) }.orEmpty()
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = formatEuro(table.totalCents),
+                style = t.figure.copy(fontSize = t.sizeXl, fontWeight = t.weightBold),
+                color = c.textPrimary,
+                maxLines = 1,
+                modifier = Modifier.testTag("table_${table.tableNumber}_total"),
+            )
+            // The initial of the user who opened the order (UX audit T5).
+            table.openedByInitial?.takeIf { it.isNotEmpty() }?.let { ServerBadge(it, "table_${table.tableNumber}_server") }
+        }
         Text(
-            text = formatEuro(table.totalCents),
-            style = t.figure.copy(fontSize = t.sizeXl, fontWeight = t.weightBold),
-            color = c.textPrimary,
-            maxLines = 1,
-            modifier = Modifier.testTag("table_${table.tableNumber}_total"),
-        )
-        Text(
-            text = meta,
+            text = meta + covers,
             style = t.figure.copy(fontSize = t.sizeMd),
             color = c.textSecondary,
-            maxLines = 1,
+            // With the covers the line may wrap to a second one rather than lose them.
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.testTag("table_${table.tableNumber}_meta"),
+        )
+    }
+}
+
+/** The round badge with the initial of the server (`server-badge` in `TablesView.vue`). */
+@Composable
+private fun ServerBadge(
+    initial: String,
+    tag: String,
+) {
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    Box(
+        modifier = Modifier.size(ServerBadgeSize).clip(CircleShape).background(c.bgSurface).border(1.dp, c.border, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            initial,
+            style = t.body.copy(fontSize = t.sizeMd, fontWeight = t.weightBold),
+            color = c.textPrimary,
+            maxLines = 1,
+            modifier = Modifier.testTag(tag),
         )
     }
 }

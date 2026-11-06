@@ -272,9 +272,10 @@ async fn a_discounted_cart_line_and_the_discount_result_convert() {
         reason_code: engine::DiscountReason::ServiceIssue,
         reason_text: Some("plat froid".into()),
     };
-    let done = engine::do_apply_discount(&app.state, order.id, input, INSZ.into(), PIN.into())
-        .await
-        .unwrap();
+    let done =
+        engine::do_apply_discount(&app.state, order.id, input, INSZ.into(), Some(PIN.into()))
+            .await
+            .unwrap();
     let result: ffi::DiscountResult = out_equal(&done);
     // 2 x 12,00 + 2 x 28,00 = 80,00, 25 % off.
     assert_eq!(result.order.total_cents, 6000);
@@ -433,6 +434,11 @@ async fn tables_and_takeaways_convert() {
     // A table whose provisional bill was printed.
     let printed = EngineTableInfo {
         table_number: 9,
+        zone: Some("A".into()),
+        zone_name: Some("Salle".into()),
+        label: "A-9".into(),
+        opened_by_initial: Some("Z".into()),
+        covers: Some(4),
         order_id: Some(77),
         total_cents: 4200,
         line_count: 3,
@@ -444,6 +450,13 @@ async fn tables_and_takeaways_convert() {
     let record: ffi::TableInfo = out_equal(&printed);
     assert!(record.pre_bill_printed);
     assert_eq!(record.held_course, Some(2));
+    assert_eq!(record.label, "A-9");
+    assert_eq!(record.zone.as_deref(), Some("A"));
+    assert_eq!(record.zone_name.as_deref(), Some("Salle"));
+    assert_eq!(record.opened_by_initial.as_deref(), Some("Z"));
+    assert_eq!(record.covers, Some(4));
+    assert_eq!(records[0].label, "1");
+    assert_eq!(records[0].zone, None);
     assert_eq!(records[0].held_course, None);
     assert_eq!(
         record.opened_at.as_deref(),
@@ -802,6 +815,9 @@ async fn the_table_reads_reach_the_engine() {
     assert_eq!(busy.line_count, 1);
     assert!(busy.opened_at.is_some());
     assert!(!busy.pre_bill_printed);
+    assert_eq!(busy.label, "3");
+    assert!(busy.opened_by_initial.is_some());
+    assert_eq!(busy.covers, None);
     assert_eq!(tables[0].status, "free");
     assert_eq!(tables[0].order_id, None);
 
@@ -923,7 +939,7 @@ async fn the_commands_that_need_an_operator_answer_not_logged_in_and_change_noth
     };
     assert_eq!(
         code_of(
-            e.apply_discount(1, discount, MANAGER_INSZ.into(), "4321".into())
+            e.apply_discount(1, discount, MANAGER_INSZ.into(), Some("4321".into()))
                 .await
                 .unwrap_err()
         ),
@@ -931,7 +947,7 @@ async fn the_commands_that_need_an_operator_answer_not_logged_in_and_change_noth
     );
     assert_eq!(
         code_of(
-            e.remove_discount(1, None, MANAGER_INSZ.into(), "4321".into())
+            e.remove_discount(1, None, MANAGER_INSZ.into(), Some("4321".into()))
                 .await
                 .unwrap_err()
         ),

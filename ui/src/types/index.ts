@@ -211,6 +211,11 @@ export interface DiscountResult {
   /** Set when the P that registers the change could not be signed: the
    * discount is recorded and goes with the next registration or sale. */
   registrationError: string | null
+  /** The PIN given for an earlier discount of the order stood in for this one. */
+  pinReused: boolean
+  /** Milliseconds the manager may still discount this order with no PIN
+   * (UX audit P8), null when the next discount needs the PIN. */
+  pinGrantMs: number | null
 }
 
 export interface User {

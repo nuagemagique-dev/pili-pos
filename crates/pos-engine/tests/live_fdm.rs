@@ -44,7 +44,9 @@ use serde_json::Value;
 use pos_core::order::OrderType;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_check_fdm_status, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
-use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pos_engine::commands::financial::{
+    DrawerAfter, MoneyDirection, do_money_in_out, do_open_drawer_fiscal,
+};
 use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
@@ -218,6 +220,7 @@ async fn live_fdm_operator_day() {
         5000,
         MoneyDirection::In,
         "Fond".into(),
+        DrawerAfter::Leave,
     )
     .await
     .unwrap();
@@ -234,6 +237,7 @@ async fn live_fdm_operator_day() {
         7400,
         MoneyDirection::Declaration,
         "Comptage".into(),
+        DrawerAfter::Leave,
     )
     .await
     .unwrap();

@@ -49,6 +49,7 @@ use pos_core::order::{OrderStatus, OrderType};
 use crate::commands::access::{self, Access};
 use crate::commands::bar_slip::SlipOutcome;
 use crate::commands::errors;
+use crate::commands::pin_grant::PinGrants;
 use crate::events::EngineEvent;
 use crate::state::AppState;
 
@@ -142,6 +143,9 @@ pub struct SessionRules {
     session_changed: Notify,
     presence_tx: UnboundedSender<PresenceJob>,
     presence_rx: Mutex<Option<UnboundedReceiver<PresenceJob>>>,
+    /// The manager PIN kept for the discounts of one order
+    /// ([`crate::commands::pin_grant`]).
+    pin_grants: PinGrants,
 }
 
 impl Default for SessionRules {
@@ -154,11 +158,17 @@ impl Default for SessionRules {
             session_changed: Notify::new(),
             presence_tx,
             presence_rx: Mutex::new(Some(presence_rx)),
+            pin_grants: PinGrants::default(),
         }
     }
 }
 
 impl SessionRules {
+    /// The manager PIN kept for the discounts of one order.
+    pub fn pin_grants(&self) -> &PinGrants {
+        &self.pin_grants
+    }
+
     /// The order the screen shows, if the shell told the engine.
     pub fn active_order(&self) -> Option<i64> {
         self.active_order.lock().ok().and_then(|g| *g)
@@ -239,6 +249,9 @@ pub fn do_set_active_order(state: &AppState, order_id: Option<i64>) -> Result<()
         let db = state.db.lock().map_err(|e| e.to_string())?;
         pos_db::queries::orders::get_order(&db, id).map_err(|e| e.to_string())?;
     }
+    // Another order (or none) on screen: the manager PIN kept for the
+    // discounts of the previous one is over (P8).
+    state.session_rules.pin_grants.clear_unless_order(order_id);
     state.session_rules.set(order_id)
 }
 
@@ -283,6 +296,7 @@ pub async fn do_leave_order(
             tracing::info!(order_id, "empty order voided on leaving");
         }
         state.session_rules.clear_if(order_id)?;
+        state.session_rules.pin_grants.clear_for_order(order_id);
     }
     Ok(outcome)
 }

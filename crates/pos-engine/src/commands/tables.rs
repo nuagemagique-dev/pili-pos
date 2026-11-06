@@ -20,6 +20,19 @@ use crate::state::AppState;
 #[serde(rename_all = "camelCase")]
 pub struct TableInfo {
     pub table_number: i32,
+    /// The zone letters of the table in the plan ("A"), `None` without zones.
+    pub zone: Option<String>,
+    /// The name a manager gave the zone ("Salle"), if any.
+    pub zone_name: Option<String>,
+    /// How the table is written on screen: "A-19" in a zone, "19" without
+    /// one. The identifier of every signed request stays the number.
+    pub label: String,
+    /// The initial of the user who opened the order (UX audit T5), when
+    /// the table is occupied.
+    pub opened_by_initial: Option<String>,
+    /// The covers (guests) set on the order, when the table is occupied and
+    /// the operator set them. Local data, never signed.
+    pub covers: Option<i32>,
     pub order_id: Option<i64>,
     pub total_cents: i64,
     pub line_count: i64,
@@ -74,14 +87,30 @@ pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInf
     list_tables_numbered(state, &numbers)
 }
 
+/// The first letter of `name`, upper case: the badge of the server on a table card.
+fn initial(name: &str) -> Option<String> {
+    name.chars()
+        .find(|c| c.is_alphanumeric())
+        .map(|c| c.to_uppercase().collect())
+}
+
 fn list_tables_numbered(state: &AppState, numbers: &[i32]) -> Result<Vec<TableInfo>, String> {
+    // Read before the database lock below: both take it.
+    let zones = super::table_plan::zone_by_table(state)?;
+    let names = super::table_plan::zone_names(state)?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut tables = Vec::new();
 
     for &t in numbers {
-        let row: Option<(i64, i64, i64, String, bool)> = db
+        let zone = zones.get(&t).cloned();
+        let zone_name = zone.as_ref().and_then(|z| names.get(z).cloned());
+        let label = pos_core::table_plan::label(zone.as_deref(), i64::from(t));
+        #[expect(clippy::type_complexity, reason = "one row of the query, read once")]
+        let row: Option<(i64, i64, i64, String, bool, Option<String>, Option<i32>)> = db
             .query_row(
-                "SELECT o.id, o.total_cents, COUNT(ol.id), o.created_at, o.pre_bill_at IS NOT NULL
+                "SELECT o.id, o.total_cents, COUNT(ol.id), o.created_at, o.pre_bill_at IS NOT NULL,
+                        (SELECT u.name FROM users u WHERE u.insz = o.user_insz),
+                        (SELECT c.covers FROM order_covers c WHERE c.order_id = o.id)
                  FROM orders o
                  LEFT JOIN order_lines ol ON ol.order_id = o.id
                  WHERE o.table_number = ?1 AND o.status = 'open'
@@ -97,6 +126,8 @@ fn list_tables_numbered(state: &AppState, numbers: &[i32]) -> Result<Vec<TableIn
                         row.get(2)?,
                         row.get(3)?,
                         row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
                     ))
                 },
             )
@@ -104,18 +135,30 @@ fn list_tables_numbered(state: &AppState, numbers: &[i32]) -> Result<Vec<TableIn
             .map_err(errors::internal)?;
 
         tables.push(match row {
-            Some((order_id, total, count, opened_at, pre_bill_printed)) => TableInfo {
-                table_number: t,
-                order_id: Some(order_id),
-                total_cents: total,
-                line_count: count,
-                status: "occupied".to_string(),
-                opened_at: Some(opened_at),
-                pre_bill_printed,
-                held_course: super::courses::held_course(&db, order_id),
-            },
+            Some((order_id, total, count, opened_at, pre_bill_printed, opener, covers)) => {
+                TableInfo {
+                    table_number: t,
+                    zone,
+                    zone_name,
+                    label,
+                    opened_by_initial: opener.as_deref().and_then(initial),
+                    covers,
+                    order_id: Some(order_id),
+                    total_cents: total,
+                    line_count: count,
+                    status: "occupied".to_string(),
+                    opened_at: Some(opened_at),
+                    pre_bill_printed,
+                    held_course: super::courses::held_course(&db, order_id),
+                }
+            }
             None => TableInfo {
                 table_number: t,
+                zone,
+                zone_name,
+                label,
+                opened_by_initial: None,
+                covers: None,
                 order_id: None,
                 total_cents: 0,
                 line_count: 0,

@@ -20,6 +20,7 @@ pub mod delivery;
 pub mod discount;
 pub mod eft;
 pub mod export;
+pub mod favourites;
 pub mod fdm_monitor;
 pub mod financial;
 pub mod gift_vouchers;

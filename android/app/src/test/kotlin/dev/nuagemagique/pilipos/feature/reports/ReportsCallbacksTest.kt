@@ -260,7 +260,7 @@ class ReportsCallbacksTest {
     fun theTabsTheCashFormAndTheKeypadsGoToTheViewModel() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } returns financial()
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial()
             val r = startReports(f, context)
             val callbacks = reportsCallbacks(r.model, r.delivery, backgroundScope)
 
@@ -279,7 +279,7 @@ class ReportsCallbacksTest {
             runCurrent()
 
             assertEquals(ReportsTab.CASH, r.state.tab)
-            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 1_250L, any(), "pourboire") }
+            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 1_250L, any(), "pourboire", true) }
             assertNotNull(r.state.cash.lastOutcome)
         }
 
@@ -287,7 +287,7 @@ class ReportsCallbacksTest {
     fun theDeclarationAndTheDrawerGoToTheViewModel() =
         runTest {
             val f = fixture()
-            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } returns financial()
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any(), any()) } returns financial()
             coEvery { f.engine.openDrawerFiscal(any()) } returns financial()
             val r = startReports(f, context)
             val callbacks = reportsCallbacks(r.model, r.delivery, backgroundScope)
@@ -297,7 +297,7 @@ class ReportsCallbacksTest {
             runCurrent()
 
             coVerify(exactly = 1) { f.engine.openDrawerFiscal(OPERATOR_INSZ) }
-            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 0L, any(), "declaration_tiroir") }
+            coVerify(exactly = 1) { f.engine.moneyInOut(OPERATOR_INSZ, 0L, any(), "declaration_tiroir", false) }
         }
 
     @Test

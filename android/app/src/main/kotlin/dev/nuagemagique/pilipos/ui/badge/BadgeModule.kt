@@ -41,6 +41,9 @@ abstract class BadgeModule {
     abstract fun badgeCue(cue: AudioTrackBadgeCue): BadgeCue
 
     @Binds
+    abstract fun scanClaims(wedge: KeyWedgeSource): ScanClaims
+
+    @Binds
     abstract fun nfcSupport(support: AndroidNfcSupport): NfcSupport
 
     companion object {

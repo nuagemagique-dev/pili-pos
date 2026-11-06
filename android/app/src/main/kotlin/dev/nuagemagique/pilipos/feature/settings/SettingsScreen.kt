@@ -44,6 +44,10 @@ import dev.nuagemagique.pilipos.feature.settings.courses.CoursesCallbacks
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesSection
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesUiState
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesViewModel
+import dev.nuagemagique.pilipos.feature.settings.favourites.FavouritesCallbacks
+import dev.nuagemagique.pilipos.feature.settings.favourites.FavouritesSection
+import dev.nuagemagique.pilipos.feature.settings.favourites.FavouritesUiState
+import dev.nuagemagique.pilipos.feature.settings.favourites.FavouritesViewModel
 import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesCallbacks
 import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesSection
 import dev.nuagemagique.pilipos.feature.settings.quicknotes.QuickNotesUiState
@@ -101,6 +105,7 @@ internal data class SettingsCallbacks(
     val onProductLabel: (ProductLabel) -> Unit = {},
     val onAddBeep: (Boolean) -> Unit = {},
     val onTablePlanInput: (String) -> Unit = {},
+    val onZoneNamesInput: (String) -> Unit = {},
     val onSaveTablePlan: () -> Unit = {},
     val takeawayFirst: TakeawayFirstActions = TakeawayFirstActions(),
     val onRow: (SettingsEntry) -> Unit = {},
@@ -156,6 +161,7 @@ internal fun SettingsRoute(
     val coursesModel = viewModel { CoursesViewModel(entry) }
     val vouchersModel = viewModel { GiftVoucherViewModel(entry) }
     val quickNotesModel = viewModel { QuickNotesViewModel(entry) }
+    val favouritesModel = viewModel { FavouritesViewModel(entry) }
     val loaded by model.state.collectAsState()
     val hubrise by hubriseModel.state.collectAsState()
     val peppol by peppolModel.state.collectAsState()
@@ -163,6 +169,7 @@ internal fun SettingsRoute(
     val courses by coursesModel.state.collectAsState()
     val vouchers by vouchersModel.state.collectAsState()
     val quickNotes by quickNotesModel.state.collectAsState()
+    val favourites by favouritesModel.state.collectAsState()
     val pending by entry.webshop().pendingCount.collectAsState()
     LaunchedEffect(hubriseModel) {
         hubriseModel.effects.collect {
@@ -181,6 +188,7 @@ internal fun SettingsRoute(
     val coursesCallbacks = CoursesCallbacks(coursesModel::toggleEnabled, coursesModel::setCourse, coursesModel::save)
     val vouchersCallbacks = vouchersCallbacksOf(vouchersModel)
     val quickNotesCallbacks = quickNotesCallbacksOf(quickNotesModel)
+    val favouritesCallbacks = FavouritesCallbacks(onMode = favouritesModel::setMode, onRemove = favouritesModel::remove)
     val connectActions = HubriseConnectActions(onSubmit = hubriseModel::submitCode, onCancel = hubriseModel::cancelConnect)
     val qr = remember(entry) { entry.qrMatrices() }
     LaunchedEffect(model) { entry.delivery().refreshMailStatus() }
@@ -219,7 +227,18 @@ internal fun SettingsRoute(
             hubriseSection = { HubriseSection(hubrise, pending, hubriseCallbacks) },
             peppolSection = { PeppolSection(peppol, PeppolCallbacks(onRetry = peppolModel::retry)) },
             alertsSection = { OwnerAlertsSection(alerts, alertsCallbacks) },
-            coursesSection = { ManagerPanels(courses, coursesCallbacks, vouchers, vouchersCallbacks, quickNotes, quickNotesCallbacks) },
+            coursesSection = {
+                ManagerPanels(
+                    courses,
+                    coursesCallbacks,
+                    vouchers,
+                    vouchersCallbacks,
+                    quickNotes,
+                    quickNotesCallbacks,
+                    favourites,
+                    favouritesCallbacks,
+                )
+            },
         )
     }
 }
@@ -238,7 +257,7 @@ private fun quickNotesCallbacksOf(model: QuickNotesViewModel) =
         onSave = model::save,
     )
 
-/** The manager panels of the second column: the courses, the gift vouchers and the quick notes. */
+/** The manager panels of the second column: the courses, the gift vouchers, the favourites and the quick notes. */
 @Composable
 internal fun ManagerPanels(
     courses: CoursesUiState,
@@ -247,10 +266,13 @@ internal fun ManagerPanels(
     vouchersCallbacks: GiftVoucherCallbacks,
     quickNotes: QuickNotesUiState = QuickNotesUiState(),
     quickNotesCallbacks: QuickNotesCallbacks = QuickNotesCallbacks(),
+    favourites: FavouritesUiState = FavouritesUiState(),
+    favouritesCallbacks: FavouritesCallbacks = FavouritesCallbacks(),
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
         CoursesSection(courses, coursesCallbacks)
         GiftVoucherSection(vouchers, vouchersCallbacks)
+        FavouritesSection(favourites, favouritesCallbacks)
         QuickNotesSection(quickNotes, quickNotesCallbacks)
     }
 }
@@ -266,6 +288,7 @@ private fun settingsCallbacks(
         onProductLabel = model::setProductLabel,
         onAddBeep = model::setAddBeep,
         onTablePlanInput = model::setTablePlanInput,
+        onZoneNamesInput = model::setZoneNamesInput,
         onSaveTablePlan = model::saveTablePlan,
         takeawayFirst =
             TakeawayFirstActions(
@@ -586,6 +609,16 @@ private fun TablePlanPanel(
                 mono = true,
                 title = vueText("settings_tables"),
                 kind = KeypadKind.Text(maxLen = TABLE_PLAN_MAX, symbols = KeypadSymbols.TablePlan, space = true, caseToggle = true),
+            )
+            // The optional names of the zones (UX audit T1): "A · Salle, B · Terrasse".
+            SettingsTextField(
+                value = plan.zoneNamesInput,
+                onValueChange = callbacks.onZoneNamesInput,
+                placeholder = vueText("settings_zone_names_placeholder"),
+                modifier = Modifier.weight(1f).testTag("settings_zone_names_input"),
+                mono = true,
+                title = vueText("settings_zone_names"),
+                kind = KeypadKind.Text(maxLen = ZONE_NAMES_MAX, symbols = KeypadSymbols.ZoneNames, space = true, caseToggle = true),
             )
             ActionButton(vueText("settings_tables_save"), callbacks.onSaveTablePlan, Modifier.testTag("settings_tables_save"))
         }
@@ -1172,6 +1205,7 @@ internal fun paymentTerminalLabel(kind: String?): String =
 
 /** The longest table plan, "1-12, 20-25" and so on. */
 private const val TABLE_PLAN_MAX = 120
+private const val ZONE_NAMES_MAX = 120
 
 /** The longest name of an employee typed on the keypad. */
 private const val EMPLOYEE_NAME_MAX = 60

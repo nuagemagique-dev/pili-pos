@@ -127,6 +127,10 @@ fn fixture(name: &str) -> Fixture {
             ipc::discount::apply_discount,
             ipc::discount::remove_discount,
             ipc::order::set_line_note,
+            ipc::favourites::get_favourites_settings,
+            ipc::favourites::set_favourites_settings,
+            ipc::favourites::set_favourite,
+            ipc::favourites::list_favourites,
             ipc::quick_notes::get_quick_notes,
             ipc::quick_notes::set_quick_notes,
             ipc::takeaway::get_takeaway_numbering,
@@ -229,6 +233,14 @@ fn apply_discount_takes_the_input_the_ui_builds() {
         )),
         "pin_wrong"
     );
+    // With no `pin` key the kept PIN of the order stands in; there is none yet (P8).
+    assert_eq!(
+        refusal(f.call(
+            "apply_discount",
+            json!({ "orderId": order, "input": free_line, "insz": MANAGER })
+        )),
+        "pin_required"
+    );
     // Then the nested input: a line that is not on the order.
     assert_eq!(
         refusal(f.call(
@@ -269,6 +281,17 @@ fn apply_discount_takes_the_input_the_ui_builds() {
     assert_eq!(done["order"]["total_cents"], 585);
     assert_eq!(done["kitchenSlip"], "nothing_to_print");
     assert_eq!(done["registrationError"], Value::Null);
+    // The PIN typed for it is now kept for this order: the answer says so, and a removal
+    // without a PIN goes through (the `pinReused` and `pinGrantMs` keys of the result).
+    assert_eq!(done["pinReused"], false);
+    assert!(done["pinGrantMs"].as_u64().unwrap() > 100_000, "{done}");
+    let back = f
+        .call(
+            "remove_discount",
+            json!({ "orderId": order, "lineId": Value::Null, "insz": MANAGER }),
+        )
+        .unwrap();
+    assert_eq!(back["pinReused"], true);
 }
 
 #[test]
@@ -517,5 +540,47 @@ fn takeaway_commands_take_the_arguments_the_ui_builds() {
         f.call("get_takeaway_tag", json!({ "orderId": 9999 }))
             .unwrap(),
         json!(null)
+    );
+}
+
+#[test]
+fn favourites_take_the_arguments_the_ui_builds() {
+    let f = fixture("favourites");
+    let defaults = f.call("get_favourites_settings", json!({})).unwrap();
+    assert_eq!(defaults, json!({ "mode": "top_sold", "selection": [] }));
+
+    // The star toggle reached the engine with its camelCase names.
+    let starred = f
+        .call(
+            "set_favourite",
+            json!({ "menuItemId": 1, "favourite": true }),
+        )
+        .unwrap();
+    assert_eq!(starred["selection"], json!([1]));
+
+    // The `input` argument reached the engine: the mode sent is the mode stored.
+    let stored = f
+        .call(
+            "set_favourites_settings",
+            json!({ "input": { "mode": "selection", "selection": [1] } }),
+        )
+        .unwrap();
+    assert_eq!(stored, json!({ "mode": "selection", "selection": [1] }));
+    assert_eq!(
+        f.call("get_favourites_settings", json!({})).unwrap(),
+        stored
+    );
+
+    let tab = f.call("list_favourites", json!({ "lang": "fr" })).unwrap();
+    assert_eq!(tab.as_array().unwrap().len(), 1);
+    assert_eq!(tab[0]["id"], 1);
+
+    // And the engine's rules answer through the wrapper.
+    assert_eq!(
+        refusal(f.call(
+            "set_favourite",
+            json!({ "menuItemId": 987_654, "favourite": true })
+        )),
+        "favourites_invalid"
     );
 }

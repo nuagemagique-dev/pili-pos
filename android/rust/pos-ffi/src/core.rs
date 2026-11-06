@@ -152,6 +152,7 @@ fn timers_from(options: Option<&EngineTimersMs>) -> Result<EngineTimers, PosErro
         peppol_outbox: EngineTimers::default().peppol_outbox,
         terminal_probe: EngineTimers::default().terminal_probe,
         support_reap: EngineTimers::default().support_reap,
+        manager_pin_grant: EngineTimers::default().manager_pin_grant,
     })
 }
 

@@ -229,6 +229,7 @@ pub(crate) async fn print_items(
         date_time: now_in_belgium().format("%d/%m/%Y %H:%M:%S").to_string(),
         operator: super::operator_name(state, operator_insz),
         table,
+        table_zone: table.and_then(|n| super::table_plan::zone_of(state, n)),
         takeaway: takeaway_mark(state, table, mode.order),
         items: items
             .iter()
@@ -307,6 +308,7 @@ pub(crate) async fn print_note_slip(
         date_time: now_in_belgium().format("%d/%m/%Y %H:%M:%S").to_string(),
         operator: super::operator_name(state, operator_insz),
         table,
+        table_zone: table.and_then(|n| super::table_plan::zone_of(state, n)),
         takeaway: takeaway_mark(state, table, order),
         product_name: product_name.to_string(),
         note: note.map(str::to_string),
@@ -343,6 +345,8 @@ pub(crate) async fn print_transfer_slip(
         operator: super::operator_name(state, operator_insz),
         from_table,
         to_table,
+        from_zone: super::table_plan::zone_of(state, from_table),
+        to_zone: super::table_plan::zone_of(state, to_table),
         lang: ReceiptLanguage::from_code(&config.language),
         is_training: config.training_mode,
     };

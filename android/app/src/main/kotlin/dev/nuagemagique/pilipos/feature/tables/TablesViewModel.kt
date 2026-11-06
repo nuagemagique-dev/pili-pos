@@ -2,6 +2,7 @@ package dev.nuagemagique.pilipos.feature.tables
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.state.TableMoves
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
@@ -45,6 +46,17 @@ internal data class TablesUiState(
     val cardCharged: Set<Long> = emptySet(),
     /** The "Déplacer" mode (`moving`, `source` of `TablesView.vue`). */
     val move: MoveState = MoveState(),
+    /** The action sheet of the occupied table that was long pressed (UX audit T7), null when closed. */
+    val sheet: TableSheet? = null,
+)
+
+/**
+ * The action sheet of a long pressed table: "Ouvrir", "Addition", "Déplacer", "Payer". The bill and the payment are
+ * for the roles that take payments ([canTakePayment]), as the engine checks (`Access::Cashier`).
+ */
+internal data class TableSheet(
+    val table: TableInfo,
+    val canTakePayment: Boolean,
 )
 
 /** The "Déplacer" mode (UX audit C8): tap the occupied table, then a free one; the move is signed at once. */
@@ -66,6 +78,11 @@ private const val STATUS_FREE = "free"
 internal sealed interface TablesEffect {
     /** Opens the order screen of order [orderId]. */
     data class OpenOrder(
+        val orderId: Long,
+    ) : TablesEffect
+
+    /** Opens the checkout of order [orderId] (the "Payer" of the action sheet, UX audit T7). */
+    data class OpenCheckout(
         val orderId: Long,
     ) : TablesEffect
 }
@@ -91,6 +108,7 @@ internal class TablesViewModel(
     private val own = MutableStateFlow(Lists())
     private val now = MutableStateFlow(clock.instant())
     private val move = MutableStateFlow(MoveState())
+    private val sheet = MutableStateFlow<TableInfo?>(null)
     private val effectChannel = Channel<TablesEffect>(Channel.BUFFERED)
 
     // One action at a time: a second tap while the first still talks to the engine is ignored.
@@ -103,14 +121,17 @@ internal class TablesViewModel(
         val loaded: Boolean = false,
     )
 
+    private val sheetState = combine(sheet, session.canTakePayment) { table, pay -> table?.let { TableSheet(it, pay) } }
+
     /** What the screen draws. */
     val state: StateFlow<TablesUiState> =
-        combine(own, now, session.currentUser, move) { lists, instant, user, mode -> build(lists, instant, user != null, mode) }
-            .stateIn(
-                viewModelScope,
-                SharingStarted.Eagerly,
-                build(own.value, now.value, session.currentUser.value != null, move.value),
-            )
+        combine(own, now, session.currentUser, move, sheetState) { lists, instant, user, mode, open ->
+            build(lists, instant, user != null, mode, open)
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            build(own.value, now.value, session.currentUser.value != null, move.value, null),
+        )
 
     /** One-shot moves, each delivered once. */
     val effects: Flow<TablesEffect> = effectChannel.receiveAsFlow()
@@ -142,7 +163,8 @@ internal class TablesViewModel(
         instant: Instant,
         signedIn: Boolean,
         mode: MoveState,
-    ) = TablesUiState(lists.tables, lists.takeaways, instant, signedIn, lists.loaded, lists.cardCharged, mode)
+        open: TableSheet?,
+    ) = TablesUiState(lists.tables, lists.takeaways, instant, signedIn, lists.loaded, lists.cardCharged, mode, open)
 
     // ── Loading ───────────────────────────────────────────────────
 
@@ -161,6 +183,8 @@ internal class TablesViewModel(
             onSuccess = { (tables, takeaways) ->
                 // Only a badge: no answer means no badge.
                 val charged = attempt { gateway.call { engine -> engine.listUnsettledCardPayments() } }.getOrDefault(emptyList())
+                // The tables say their own zones: the other screens write "A-19" from them (UX audit T1).
+                order.learnTables(tables)
                 own.value = Lists(tables, takeaways, charged.map { it.orderId }.toSet(), loaded = true)
             },
             // The lists stay as they were: the next resume or resync reads them again.
@@ -179,6 +203,63 @@ internal class TablesViewModel(
         val orderId = table.orderId
         open { insz -> if (orderId != null) order.loadOrder(orderId) else order.startOrder(table.tableNumber, insz) }
     }
+
+    // ── The action sheet of a long pressed table (UX audit T7) ────
+
+    /**
+     * A long press (500 ms) on [table]: opens its action sheet. Only an occupied table has one, and not in the
+     * "Déplacer" mode, where a press picks tables.
+     */
+    fun openSheet(table: TableInfo) {
+        if (move.value.moving || table.status != STATUS_OCCUPIED || table.orderId == null) return
+        sheet.value = table
+    }
+
+    /** Closes the sheet without doing anything. */
+    fun closeSheet() {
+        sheet.value = null
+    }
+
+    /** "Ouvrir": the usual tap on the table. */
+    fun sheetOpen() {
+        val table = takeSheet() ?: return
+        selectTable(table)
+    }
+
+    /**
+     * "Addition": the provisional bill of that table's order, the command of the cart's "Addition" button. The
+     * screen stays on the plan; the table then shows its "Addition" tag.
+     */
+    fun sheetBill() {
+        val orderId = takeSheet()?.orderId ?: return
+        if (!busy.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            try {
+                val language = entry.settings().language.value
+                attempt { order.preBillOrder(orderId) }.fold(
+                    onSuccess = { entry.toasts().show(entry.catalog().text("pre_bill_printed", language), ToastVariant.Success) },
+                    onFailure = { entry.errors().show(it, language, entry.catalog().text("pre_bill_failed", language), ERROR_TTL_MS) },
+                )
+                load()
+            } finally {
+                busy.set(false)
+            }
+        }
+    }
+
+    /** "Déplacer": the wave 2 move mode with this table already chosen; one tap on a free table moves it. */
+    fun sheetMove() {
+        val table = takeSheet() ?: return
+        move.value = MoveState(moving = true, source = table)
+    }
+
+    /** "Payer": loads that table's order and opens its checkout. */
+    fun sheetPay() {
+        val orderId = takeSheet()?.orderId ?: return
+        open({ TablesEffect.OpenCheckout(orderId) }) { order.loadOrder(orderId) }
+    }
+
+    private fun takeSheet(): TableInfo? = sheet.value.also { sheet.value = null }
 
     // ── Moving a table ────────────────────────────────────────────
 
@@ -229,13 +310,16 @@ internal class TablesViewModel(
         open { insz -> order.startOrder(null, insz) }
     }
 
-    private fun open(action: suspend (insz: String) -> Unit) {
+    private fun open(
+        effect: (Long) -> TablesEffect = { TablesEffect.OpenOrder(it) },
+        action: suspend (insz: String) -> Unit,
+    ) {
         val insz = session.currentUser.value?.insz ?: return
         if (!busy.compareAndSet(false, true)) return
         viewModelScope.launch {
             try {
                 attempt { action(insz) }.fold(
-                    onSuccess = { order.current.value?.let { effectChannel.send(TablesEffect.OpenOrder(it.id)) } },
+                    onSuccess = { order.current.value?.let { effectChannel.send(effect(it.id)) } },
                     onFailure = { entry.errors().show(it, entry.settings().language.value) },
                 )
             } finally {

@@ -36,6 +36,7 @@ import {
   type DigitWindow,
 } from '../utils/codeEntry'
 import { formatPrice } from '../utils/format'
+import { FAVOURITES_TAB } from '../utils/favourites'
 
 const router = useRouter()
 const menu = useMenuStore()
@@ -71,6 +72,13 @@ onMounted(async () => {
 })
 
 onUnmounted(() => clearInterval(zCheckInterval))
+
+const onFavourites = computed(() => menu.selectedCategoryId === FAVOURITES_TAB)
+
+/** The colour of each category: the "Favoris" tab mixes products of every category. */
+const categoryColors = computed(
+  () => new Map<number, string | null>(menu.categories.map((c) => [c.id, c.color])),
+)
 
 const selectedCategoryColor = computed(() => {
   const cat = menu.categories.find((c) => c.id === menu.selectedCategoryId)
@@ -427,6 +435,7 @@ async function handlePriceConfirmed(priceCents: number) {
         <CategoryTabs
           :categories="menu.categories"
           :selected-id="menu.selectedCategoryId"
+          :show-favourites="menu.favourites.length > 0"
           @select="selectCategory($event)"
         />
         <ModeToolbar
@@ -445,6 +454,7 @@ async function handlePriceConfirmed(priceCents: number) {
           <MenuGrid
             :items="codeResults ?? menu.items"
             :category-color="codeResults ? null : selectedCategoryColor"
+            :category-colors="onFavourites && !codeResults ? categoryColors : undefined"
             :cart-quantities="cartQuantities"
             :highlight-id="codeResults ? (codePick?.id ?? null) : null"
             :empty-text="codeResults ? t('code_pad_no_result') : undefined"

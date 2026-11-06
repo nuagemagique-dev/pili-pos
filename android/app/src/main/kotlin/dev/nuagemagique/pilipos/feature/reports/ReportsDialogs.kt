@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.ui.components.AmountDialog
+import dev.nuagemagique.pilipos.ui.components.NumberKeypad
+import dev.nuagemagique.pilipos.ui.components.NumberKeypadSpec
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.PiliDialog
@@ -123,4 +125,28 @@ internal fun CashDialogs(
             onCancel = callbacks.onCloseOtherAmount,
         )
     }
+}
+
+/**
+ * The pad of the ticket number field (`NumberEntryDialog` behind `ticket-find`, UX audit R2): a whole number from 1,
+ * up to [TICKET_NUMBER_MAX_DIGITS] digits. Test tags: `ticket_find_dialog`, `ticket_find_value`, `ticket_find_ok`,
+ * `ticket_find_cancel`.
+ */
+@Composable
+internal fun TicketNumberDialog(
+    initial: Long?,
+    callbacks: TicketsCallbacks,
+) {
+    NumberKeypad(
+        spec =
+            NumberKeypadSpec(
+                tag = "ticket_find",
+                title = vueText("tickets_find_label"),
+                initial = initial?.toString().orEmpty(),
+                maxDigits = TICKET_NUMBER_MAX_DIGITS,
+                min = 1L,
+            ),
+        onConfirm = { callbacks.onFind(it.toLongOrNull() ?: 0L) },
+        onCancel = callbacks.onCloseFind,
+    )
 }

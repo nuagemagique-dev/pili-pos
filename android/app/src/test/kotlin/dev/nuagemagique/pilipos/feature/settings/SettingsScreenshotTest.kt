@@ -81,6 +81,18 @@ class SettingsScreenshotTest {
     }
 
     @Test
+    fun zonesInThePlan() {
+        val plan =
+            TablePlanState(
+                plan = "A 1-20, B 21-40",
+                count = 40L,
+                input = "A 1-20, B 21-40",
+                zoneNamesInput = "A \u00B7 Salle, B \u00B7 Terrasse",
+            )
+        capture("settings_zones") { SettingsContent(managerState().copy(tablePlan = plan), SettingsCallbacks()) }
+    }
+
+    @Test
     fun badges() {
         // The unfolded reader panel: USB reader, badge login on, the gap being edited on the pad, the log.
         val state =

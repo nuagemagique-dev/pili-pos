@@ -1,8 +1,11 @@
 package dev.nuagemagique.pilipos.feature.settings.menu
 
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -10,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.components.fillWithKeyboard
@@ -60,6 +64,7 @@ class MenuEditorContentTest {
             onPosition = { calls += "pos:$it" },
             onMin = { calls += "min:$it" },
             onMax = { calls += "max:$it" },
+            onToggleFavourite = { calls += "star:$it" },
         )
 
     private fun show(state: MenuEditorUiState) {
@@ -276,5 +281,26 @@ class MenuEditorContentTest {
         compose.onNodeWithTag("menu_ed_history_empty").assertIsDisplayed()
         compose.onNodeWithText("Aucune modification.").assertIsDisplayed()
         compose.onNode(hasText("Historique")).assertIsDisplayed()
+    }
+
+    @Test
+    fun eachProductHasAStarThatIsSelectedOnlyWhenStarredAndCallsBack() {
+        show(base.copy(favourites = listOf(11L)))
+
+        compose.onNodeWithTag("menu_ed_star_10").assertIsDisplayed().assertIsNotSelected().assertHeightIsAtLeast(48.dp)
+        compose.onNodeWithTag("menu_ed_star_11").assertIsSelected()
+        compose.onNodeWithTag("menu_ed_star_10").performClick()
+        compose.onNodeWithTag("menu_ed_star_11").performClick()
+
+        assertEquals(listOf("star:10", "star:11"), calls)
+    }
+
+    @Test
+    fun theStarStaysUsableWhileACatalogLocksTheEditor() {
+        show(base.copy(menu = adminMenu(managedBy = "hubrise")))
+
+        compose.onNodeWithTag("menu_ed_star_10").performClick()
+
+        assertEquals(listOf("star:10"), calls)
     }
 }

@@ -111,6 +111,36 @@ pub struct CopyableTicket {
     pub created_at: String,
 }
 
+/// `pos_engine::commands::refund::TicketMatch`: a ticket of the archive found by its printed number.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TicketMatch {
+    pub fiscal_event_id: i64,
+    /// N (sale or refund), P (pre-bill) or T (training).
+    pub event_label: String,
+    pub ticket_number: i64,
+    pub table_number: Option<i32>,
+    /// The ticket's own total, negative for a refund.
+    pub total_cents: i64,
+    pub created_at: String,
+    pub is_refund: bool,
+    /// Present when the customer received the ticket: it can be copied.
+    pub copyable: Option<CopyableTicket>,
+    /// Present when the sale can be refunded, at least in part.
+    pub refundable: Option<RefundableEvent>,
+    /// The error code that refuses the refund of a sale (only a sale has one).
+    pub refund_blocked: Option<String>,
+}
+
+/// `pos_engine::commands::refund::TicketLookup`: the answer of `find_ticket_by_number`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TicketLookup {
+    pub number: i64,
+    /// The tickets that carry the number, newest first; none means not found.
+    pub matches: Vec<TicketMatch>,
+}
+
 /// `pos_engine::commands::copy::CopyResult`: the answer of `copy_ticket`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

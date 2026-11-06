@@ -3,9 +3,14 @@
 // engine finds the voucher (5 failed tries a minute, then it makes the
 // operator wait), and the screen shows its balance and expiry. The
 // amount used is the smaller of the balance and what is left to pay.
+// A USB barcode reader (keyboard wedge: the digits, then Enter) does the same
+// in one go: it fills the code, shown masked, and looks it up at once (UX
+// audit P7). The pad keeps working.
 import { computed, ref } from 'vue'
 import NumPad from './NumPad.vue'
 import * as ipc from '../api/ipc'
+import { useVoucherScanner } from '../composables/useVoucherScanner'
+import { maskVoucherCode, voucherCodeFromScan, VOUCHER_CODE_LENGTH } from '../utils/giftVoucherScan'
 import { formatPrice } from '../utils/format'
 import { describeError } from '../utils/errorMessages'
 import { useI18n } from '../i18n'
@@ -22,19 +27,28 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const CODE_LENGTH = 12
+const CODE_LENGTH = VOUCHER_CODE_LENGTH
 const digits = ref('')
 const voucher = ref<ipc.GiftVoucherView | null>(null)
 const error = ref<string | null>(null)
 const busy = ref(false)
+/** The code came from the reader: it is shown masked, not written out. */
+const scanned = ref(false)
 
-/** `4812 0000 9095`, as the voucher prints it. */
-const shown = computed(() => (digits.value.match(/.{1,4}/gu) ?? []).join(' '))
+/** `4812 0000 9095`, as the voucher prints it; `**** **** 9095` after a scan. */
+const shown = computed(() =>
+  scanned.value ? maskVoucherCode(digits.value) : (digits.value.match(/.{1,4}/gu) ?? []).join(' '),
+)
 const amount = computed(() => Math.min(voucher.value?.balance_cents ?? 0, restCents))
 
 function onKey(key: string) {
   error.value = null
   voucher.value = null
+  // Typing after a scan starts a new code: the scanned one is never uncovered.
+  if (scanned.value) {
+    scanned.value = false
+    digits.value = ''
+  }
   if (key === 'BACKSPACE') digits.value = digits.value.slice(0, -1)
   else if (key === 'CLEAR') digits.value = ''
   else if (digits.value.length < CODE_LENGTH) digits.value += key
@@ -60,6 +74,29 @@ async function lookup() {
   }
 }
 
+/**
+ * A scan: 12 digits are the code, looked up at once. Anything else is refused
+ * with a message. A scan during a lookup, or of the voucher already found, is
+ * ignored (a reader can fire twice; the engine also limits the tries).
+ */
+async function onScan(token: string) {
+  if (busy.value) return
+  const code = voucherCodeFromScan(token)
+  if (code === null) {
+    digits.value = ''
+    scanned.value = false
+    voucher.value = null
+    error.value = t('gv_scan_invalid')
+    return
+  }
+  if (code === digits.value && voucher.value) return
+  digits.value = code
+  scanned.value = true
+  voucher.value = null
+  await lookup()
+}
+useVoucherScanner((token) => void onScan(token))
+
 function confirm() {
   if (voucher.value && voucher.value.status === 'active' && amount.value > 0) {
     emit('confirm', voucher.value, amount.value)
@@ -72,6 +109,7 @@ function confirm() {
     <div class="dialog" role="dialog" :aria-label="t('gv_dialog_title')" data-testid="gv-dialog">
       <h2 class="title">{{ t('gv_dialog_title') }}</h2>
       <p class="item">{{ t('gv_code_label') }}</p>
+      <p class="hint" data-testid="gv-scan-hint">{{ t('gv_scan_hint') }}</p>
       <p class="code" data-testid="gv-code">{{ shown || ' ' }}</p>
       <NumPad :model-value="digits" @update:model-value="onKey" />
 
@@ -152,6 +190,10 @@ function confirm() {
 }
 .item {
   font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+.hint {
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
 }
 .code {

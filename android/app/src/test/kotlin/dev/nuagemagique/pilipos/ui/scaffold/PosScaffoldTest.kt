@@ -9,10 +9,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import dev.nuagemagique.pilipos.feature.tables.table
 import dev.nuagemagique.pilipos.i18n.AppLanguage
@@ -322,6 +324,28 @@ class PosScaffoldTest {
         compose.onNodeWithTag("pick_table_9").performClick()
 
         assertEquals(listOf("pick:9"), calls)
+    }
+
+    @Test
+    fun theTablePickerTitleNamesTheTableWithItsZone() {
+        show(
+            HeaderArea.ORDER,
+            fdm = FdmUiState(connected = true),
+            header =
+                HeaderUiState(
+                    area = HeaderArea.ORDER,
+                    userName = "Alice",
+                    roleKey = "role_admin",
+                    tableNumber = 12,
+                    tableLabel = "B-12",
+                    dineInOrder = true,
+                    canMoveTable = true,
+                    tablePicker = listOf(table(9, zone = "B")),
+                ),
+        )
+
+        compose.onNodeWithText("Déplacer · Table B-12").assertIsDisplayed()
+        compose.onNodeWithTag("pick_table_9").assertTextContains("B-9", substring = true)
     }
 
     // ── The customer dialogs of a numbered takeaway (UX audit T2) ──

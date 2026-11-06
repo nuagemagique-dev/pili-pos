@@ -958,6 +958,47 @@ async fn the_refund_of_a_used_voucher_sale_is_refused_and_signs_nothing() {
 }
 
 #[tokio::test]
+async fn the_ticket_lookup_says_a_used_voucher_sale_is_not_refundable() {
+    // R2: the lookup gives the refund's own reason before the cashier opens the refund.
+    let (app, _printer) = app().await;
+    let (event, id, _) = sell_voucher(&app, 5000).await;
+    let number = app
+        .fiscal_events()
+        .iter()
+        .find(|e| e.id == event)
+        .unwrap()
+        .sequence_number;
+    let before = pos_engine::commands::refund::do_find_ticket_by_number(&app.state, number)
+        .unwrap()
+        .matches
+        .into_iter()
+        .find(|m| m.fiscal_event_id == event)
+        .unwrap();
+    assert!(before.refundable.is_some(), "an unused voucher can go back");
+    assert_eq!(before.refund_blocked, None);
+
+    let used = pay(
+        &app,
+        dish_order(&app, DISH),
+        &[PaymentPart::gift_voucher(100, id), PaymentPart::cash()],
+    )
+    .await;
+    assert!(used.success, "{:?}", used.error);
+    let after = pos_engine::commands::refund::do_find_ticket_by_number(&app.state, number)
+        .unwrap()
+        .matches
+        .into_iter()
+        .find(|m| m.fiscal_event_id == event)
+        .unwrap();
+    assert!(after.refundable.is_none());
+    assert_eq!(
+        after.refund_blocked.as_deref(),
+        Some(errors::GIFT_VOUCHER_USED)
+    );
+    assert!(after.copyable.is_some(), "the copy stays possible");
+}
+
+#[tokio::test]
 async fn two_vouchers_on_one_sale_refund_one_at_a_time() {
     let (app, _printer) = app().await;
     let order = new_order(&app);

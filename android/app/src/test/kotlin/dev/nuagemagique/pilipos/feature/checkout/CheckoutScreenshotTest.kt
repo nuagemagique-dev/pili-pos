@@ -15,6 +15,7 @@ import dev.nuagemagique.pilipos.ui.scaffold.HeaderArea
 import dev.nuagemagique.pilipos.ui.scaffold.HeaderUiState
 import dev.nuagemagique.pilipos.ui.scaffold.PosScaffoldContent
 import dev.nuagemagique.pilipos.ui.scaffold.StatusLights
+import dev.nuagemagique.pilipos.ui.state.DishUnits
 import dev.nuagemagique.pilipos.ui.state.EFT_UNKNOWN
 import dev.nuagemagique.pilipos.ui.state.eftPayment
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
@@ -184,6 +185,43 @@ class CheckoutScreenshotTest {
                     ),
             ),
             "checkout_split",
+        )
+    }
+
+    @Test
+    fun coversAsTheUsualParts() {
+        // A table of 4 covers on Salle: "A-5", the button 4 outlined, "4 couverts" beside the equal parts (UX audit T1, T5).
+        capture(base.copy(tableLabel = "A-5", covers = 4), "checkout_covers")
+    }
+
+    @Test
+    fun dishes() {
+        // P3: the bill split by dishes: the soup paid by card, one Sushi Mix checked for the next part.
+        val taken = listOf(TakenPart(PaymentMethod.CARD, 450L, 0L, units = listOf(DishUnits(2, 1))))
+        capture(
+            base.copy(
+                splitMode = SplitMode.DISHES,
+                pick = mapOf(1L to 1),
+                method = PaymentMethod.CARD,
+                taken = taken,
+                entry = AmountEntryState("950"),
+                fresh = true,
+                amounts =
+                    CheckoutAmounts(
+                        restCents = 2_740L,
+                        dueCents = 950L,
+                        roundedDueCents = 950L,
+                        restShownCents = 2_740L,
+                        shares = listOf(3_190L),
+                        chips =
+                            listOf(
+                                PartChip(ChipState.PAID, PaymentMethod.CARD, 450L),
+                                PartChip(ChipState.CURRENT, PaymentMethod.CARD, 950L),
+                                PartChip(ChipState.NEXT, null, 1_790L),
+                            ),
+                    ),
+            ),
+            "checkout_dishes",
         )
     }
 
@@ -366,6 +404,23 @@ class CheckoutScreenshotTest {
                 voucher = VoucherDialogState(digits = "123456789095", found = voucher),
             ),
             "checkout_gift_voucher_dialog",
+        )
+    }
+
+    @Test
+    fun giftVoucherScanned() {
+        val voucher =
+            uniffi.pos_ffi.GiftVoucherView(
+                7L, "**** **** 9095", 5_000L, 3_000L, "2026-10-01", "2027-10-01", "active", false,
+                listOf(uniffi.pos_ffi.GiftVoucherMovement("issue", 5_000L, "2026-10-01", "N 12")),
+            )
+        capture(
+            base.copy(
+                giftVouchersEnabled = true,
+                amounts = CheckoutAmounts(restCents = 3_190L, dueCents = 3_190L, roundedDueCents = 3_190L, restShownCents = 3_190L),
+                voucher = VoucherDialogState(digits = "123456789095", found = voucher, scanned = true),
+            ),
+            "checkout_gift_voucher_scanned",
         )
     }
 

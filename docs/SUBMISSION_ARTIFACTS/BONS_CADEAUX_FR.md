@@ -104,7 +104,7 @@ l'anglais et le chinois impriment en français).
 
 | Ticket | Contenu |
 | --- | --- |
-| Bon | « BON CADEAU », établissement et adresse, valeur, code en grand et code QR du code, date d'émission, « Valable jusqu'au jj.mm.aaaa », « Utilisable en une ou plusieurs fois, sans rendu de monnaie », référence de la vente |
+| Bon | « BON CADEAU », établissement et adresse, valeur, code en grand, code-barres CODE128 du code (lisible par une douchette) et code QR du code, date d'émission, « Valable jusqu'au jj.mm.aaaa », « Utilisable en une ou plusieurs fois, sans rendu de monnaie », référence de la vente |
 | Duplicata | le même, avec « DUPLICATA » ; commande de gérant, journalisée (`gift_voucher_prints`) |
 | Solde du bon | imprimé après le ticket de T.V.A. quand un paiement laisse un solde : code masqué (4 derniers chiffres), solde restant, date de fin |
 | Formation | la marque de formation reste sur ces tickets |

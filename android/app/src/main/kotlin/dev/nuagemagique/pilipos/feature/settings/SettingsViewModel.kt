@@ -25,6 +25,7 @@ import uniffi.pos_ffi.CreateUserInput
 import uniffi.pos_ffi.Integrations
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.PosSettings
+import uniffi.pos_ffi.TablePlan
 import uniffi.pos_ffi.TakeawayNumbering
 import uniffi.pos_ffi.User
 
@@ -165,7 +166,7 @@ internal class SettingsViewModel(
     /** Reads the table plan; a failure keeps the panel as it was. */
     suspend fun loadTablePlan() {
         attempt { entry.gateway().call { engine -> engine.getTablePlan() } }
-            .onSuccess { plan -> own.update { it.copy(tablePlan = TablePlanState(plan.plan, plan.tableCount, plan.plan)) } }
+            .onSuccess { plan -> own.update { it.copy(tablePlan = planState(plan)) } }
     }
 
     /**
@@ -439,13 +440,23 @@ internal class SettingsViewModel(
         own.update { it.copy(tablePlan = it.tablePlan.copy(input = text, error = null)) }
     }
 
+    /** The zone names field (UX audit T1). */
+    fun setZoneNamesInput(text: String) {
+        own.update { it.copy(tablePlan = it.tablePlan.copy(zoneNamesInput = text, error = null)) }
+    }
+
+    private fun planState(plan: TablePlan) = TablePlanState(plan.plan, plan.tableCount, plan.plan, plan.zoneNames)
+
     /** Saves the field as the table plan (managers only, the engine checks it); a refusal shows under the field. */
     fun saveTablePlan() {
         val input = own.value.tablePlan.input
+        val zoneNames = own.value.tablePlan.zoneNamesInput
         viewModelScope.launch {
-            attempt { entry.gateway().call { engine -> engine.setTablePlan(input) } }
+            attempt { entry.gateway().call { engine -> engine.setTablePlan(input, zoneNames) } }
                 .onSuccess { plan ->
-                    own.update { it.copy(tablePlan = TablePlanState(plan.plan, plan.tableCount, plan.plan)) }
+                    own.update { it.copy(tablePlan = planState(plan)) }
+                    // The screens that name a table by its number read the zones again (UX audit T1).
+                    entry.order().applyTablePlan(plan)
                     entry.toasts().show(text("settings_tables_saved"), ToastVariant.Success)
                 }.onFailure { error -> own.update { it.copy(tablePlan = it.tablePlan.copy(error = describe(error))) } }
         }

@@ -33,6 +33,7 @@
     <string name="card_wait">请在终端上刷卡</string>
     <string name="back">返回</string>
     <string name="open_price_title">自定价格</string>
+    <string name="favourites_tab">常用</string>
     <string name="soldout_mode">售罄</string>
     <string name="soldout_mode_hint">点击商品以更改其供应状态。</string>
     <string name="soldout_badge">售罄</string>
@@ -188,7 +189,7 @@
     <string name="cash_declared">钱箱现金已申报</string>
     <string name="cash_amount_placeholder">金额 (€)</string>
     <string name="cash_reason_placeholder">原因</string>
-    <string name="cash_success">已记录</string>
+    <string name="cash_success_drawer">已记录 · 钱箱已打开</string>
     <string name="cash_failed">未记录</string>
     <string name="cash_drawer_opened">钱箱已打开</string>
     <string name="cash_err_amount">金额无效</string>
@@ -272,10 +273,19 @@
     <string name="transfer_table">移动</string>
     <string name="transfer_pick_target">请选择空桌</string>
     <string name="transfer_no_free">没有空桌</string>
+    <string name="zone_other">其他桌位</string>
+    <string name="covers_add">人数</string>
+    <string name="covers_one">1位客人</string>
+    <string name="covers_n">{n}位客人</string>
+    <string name="covers_title">用餐人数：1至30，0为清除</string>
+    <string name="table_covers_short">{n}位</string>
     <string name="transfer_moved">{from} 号桌已移到 {to} 号桌</string>
     <string name="transfer_undo">撤销</string>
     <string name="transfer_mode">移动</string>
     <string name="transfer_pick_source">点按要移动的桌子</string>
+    <string name="table_sheet_open">打开</string>
+    <string name="table_sheet_pay">结账</string>
+    <string name="table_sheet_close">关闭</string>
     <string name="transfer_pick_free">{from} 号桌：点按空桌</string>
     <string name="discount_button">折扣</string>
     <string name="discount_title">订单折扣</string>
@@ -297,6 +307,7 @@
     <string name="discount_apply">应用折扣</string>
     <string name="discount_hint">折扣将显示在税务小票上。请输入PIN确认。</string>
     <string name="discount_applied">折扣已应用</string>
+    <string name="discount_applied_pin_kept">折扣已应用 · 本单{minutes}分钟内无需再输入PIN</string>
     <string name="discount_removed">折扣已取消</string>
     <string name="discount_remove">取消折扣</string>
     <string name="discount_remove_hint">将恢复原价。请输入PIN确认。</string>

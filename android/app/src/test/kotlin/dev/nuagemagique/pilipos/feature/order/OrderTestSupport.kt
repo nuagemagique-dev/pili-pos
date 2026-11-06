@@ -296,6 +296,8 @@ internal class OrderWorld(
     var soldOut: List<SoldOutItem> = emptyList(),
     var courseSettings: CourseSettings = CourseSettings(enabled = false, categoryCourses = emptyList()),
     var held: List<HeldCourse> = emptyList(),
+    /** The products of the "Favoris" tab, as `list_favourites` answers (empty hides the tab). */
+    var favourites: List<MenuItem> = emptyList(),
 )
 
 /** A started order view model with the real stores it drives, built on one engine fixture. */
@@ -341,6 +343,7 @@ internal fun TestScope.orderFixture(
     coEvery { f.engine.listHeldCourses(any()) } answers { world.held }
     coEvery { f.engine.getIntegrations() } answers { Integrations(world.hubrise, 0L, emptyList()) }
     coEvery { f.engine.listSoldOut(any()) } answers { world.soldOut }
+    coEvery { f.engine.listFavourites(any()) } answers { world.favourites }
     return f
 }
 

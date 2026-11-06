@@ -68,8 +68,29 @@ pub fn get_table_plan(state: State<'_, Managed>) -> Result<TablePlan, String> {
     pos_engine::commands::table_plan::do_get_table_plan(state.inner())
 }
 
-/// Set the table plan ("1-12, 20-25"); managers only.
+/// Set the table plan ("1-12, 20-25", "A 1-20, B 21-40") and the names of its
+/// zones ("A · Salle, B · Terrasse", empty for none); managers only.
 #[tauri::command(async)]
-pub fn set_table_plan(state: State<'_, Managed>, plan: String) -> Result<TablePlan, String> {
-    pos_engine::commands::table_plan::do_set_table_plan(state.inner(), &plan)
+pub fn set_table_plan(
+    state: State<'_, Managed>,
+    plan: String,
+    zone_names: String,
+) -> Result<TablePlan, String> {
+    pos_engine::commands::table_plan::do_set_table_plan(state.inner(), &plan, &zone_names)
+}
+
+/// The covers (guests) set on an order, for any logged-in operator.
+#[tauri::command(async)]
+pub fn get_order_covers(state: State<'_, Managed>, order_id: i64) -> Result<Option<i32>, String> {
+    pos_engine::commands::covers::do_get_order_covers(state.inner(), order_id)
+}
+
+/// Set (1 to 30) or clear the covers of an open table order.
+#[tauri::command(async)]
+pub fn set_order_covers(
+    state: State<'_, Managed>,
+    order_id: i64,
+    covers: Option<i32>,
+) -> Result<Option<i32>, String> {
+    pos_engine::commands::covers::do_set_order_covers(state.inner(), order_id, covers)
 }

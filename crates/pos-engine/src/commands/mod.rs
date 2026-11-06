@@ -7,12 +7,14 @@ pub mod bar_slip;
 pub mod checkout;
 pub mod copy;
 pub mod courses;
+pub mod covers;
 pub mod delivery;
 #[cfg(feature = "hubrise")]
 pub mod discount;
 pub mod eft;
 pub mod errors;
 pub mod export;
+pub mod favourites;
 pub mod fdm_monitor;
 pub mod financial;
 pub mod gift_vouchers;
@@ -32,6 +34,7 @@ pub mod order;
 pub mod owner_settings;
 pub mod payment_correction;
 pub mod peppol_queue;
+pub mod pin_grant;
 #[cfg(feature = "hubrise")]
 pub(crate) mod price_changes;
 pub mod print;

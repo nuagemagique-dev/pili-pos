@@ -21,7 +21,7 @@ use axum::middleware::Next;
 use axum::response::Response;
 use pos_core::user::UserRole;
 use pos_engine::commands::financial::{
-    FinancialResult as EngineFinancialResult, MoneyDirection as EngineMoneyDirection,
+    DrawerAfter, FinancialResult as EngineFinancialResult, MoneyDirection as EngineMoneyDirection,
     do_money_in_out, do_open_drawer_fiscal,
 };
 use pos_engine::commands::report::{
@@ -302,6 +302,7 @@ async fn financial_results_of_real_events_convert() {
         5000,
         EngineMoneyDirection::In,
         "Fond".into(),
+        DrawerAfter::Leave,
     )
     .await
     .unwrap();
@@ -518,6 +519,7 @@ async fn commands_that_need_an_operator_are_refused_without_a_session() {
             1000,
             ffi::MoneyDirection::Out,
             "Retrait".into(),
+            false,
         )
         .await
         .unwrap_err(),
@@ -783,7 +785,8 @@ async fn signing_commands_run_for_the_operator() {
             MANAGER_INSZ.into(),
             5000,
             ffi::MoneyDirection::In,
-            "Fond".into()
+            "Fond".into(),
+            false
         )
     );
     let drawer = queue!(e, e.open_drawer_fiscal(MANAGER_INSZ.into()));

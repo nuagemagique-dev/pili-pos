@@ -31,6 +31,11 @@
     <string name="reports_tickets_title">最近票据</string>
     <string name="reports_tickets_hint">选择一张票据进行复制或退款。</string>
     <string name="reports_copy">副本</string>
+    <string name="tickets_find_label">票据号</string>
+    <string name="tickets_find_result">第 {no} 号票据</string>
+    <string name="tickets_find_none">没有第 {no} 号票据</string>
+    <string name="tickets_find_clear">最近票据</string>
+    <string name="tickets_older">更早</string>
     <string name="reports_pc_action">更正付款</string>
     <string name="reports_pc_title">更正付款</string>
     <string name="reports_pc_pick_line">要更正哪一笔付款？</string>

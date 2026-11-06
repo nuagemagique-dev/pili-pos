@@ -744,13 +744,13 @@ async fn an_order_left_on_a_table_out_of_the_plan_can_still_be_moved() {
     use pos_engine::commands::table_plan::do_set_table_plan;
     let fdm = LossyFdm::start().await;
     let app = app_with(&fdm).await;
-    do_set_table_plan(&app.state, "1-30").unwrap();
+    do_set_table_plan(&app.state, "1-30", "").unwrap();
     let o = table_order(&app, 30);
     add(&app, o, 1, 1);
     let other = table_order(&app, 6);
     add(&app, other, 2, 1);
     // The plan shrinks while the order is still open on table 30.
-    do_set_table_plan(&app.state, "1-25").unwrap();
+    do_set_table_plan(&app.state, "1-25", "").unwrap();
 
     // Only the target must be in the plan: a target outside is refused.
     assert_eq!(

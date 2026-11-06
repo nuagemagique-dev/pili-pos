@@ -12,10 +12,13 @@ import type {
 import * as ipc from '../api/ipc'
 import { useAuthStore } from './auth'
 import { useToastStore } from './toast'
+import { useTablePlanStore } from './tablePlan'
 import { describeError } from '../utils/errorMessages'
 import { useI18n } from '../i18n'
 import { netTotalCents, hasOrderDiscount } from '../utils/cartAmounts'
+import type { DishUnits } from '../utils/dishSplit'
 import type { HeldPart, HeldParts } from '../utils/heldParts'
+import { hintAfter, triesWithoutPin, type PinGrantHint } from '../utils/pinGrant'
 
 /** The order is signed either way; a slip that did not print must be
  * told to the bar / kitchen by hand. */
@@ -62,6 +65,8 @@ export const useOrderStore = defineStore('order', () => {
   const openOrders = ref<Order[]>([])
   // The number of the day and the customer of the current takeaway (UX audit T2); null for a table.
   const takeawayTag = ref<ipc.TakeawayTag | null>(null)
+  // The covers (guests) of the current table order (UX audit T5); null when none were set.
+  const covers = ref<number | null>(null)
   // An unpaid online order being collected through the checkout (UX audit O2): it is not the active
   // order of the engine and leaving it registers nothing; the sale goes through the handover.
   const onlineCollect = ref<{ method: 'cash' | 'card' } | null>(null)
@@ -119,6 +124,7 @@ export const useOrderStore = defineStore('order', () => {
     await ipc.setActiveOrder(currentOrder.value.id)
     await loadCourses()
     await loadTakeawayTag()
+    await loadCovers()
   }
 
   /** Read the tag of the current order: a takeaway has its number of the day, a table has none.
@@ -135,6 +141,32 @@ export const useOrderStore = defineStore('order', () => {
     } catch {
       takeawayTag.value = null
     }
+  }
+
+  /** Read the covers of the current order: only a table order has any. A till that does not
+   * answer shows none. */
+  async function loadCovers() {
+    const current = currentOrder.value
+    if (!current || current.order_type !== 'dine_in') {
+      covers.value = null
+      return
+    }
+    try {
+      const stored = await ipc.getOrderCovers(current.id)
+      if (currentOrder.value?.id === current.id) covers.value = stored
+    } catch {
+      covers.value = null
+    }
+  }
+
+  /** Set (1 to 30) or clear (null) the covers of the current table order. A refusal is shown as
+   * a toast; answers whether it was stored. */
+  function setCovers(count: number | null) {
+    return reported(async () => {
+      const current = currentOrder.value
+      if (!current) throw new Error('No active order')
+      covers.value = await ipc.setOrderCovers(current.id, count)
+    })
   }
 
   /** Put (or, with empty values, clear) the name and the phone of the customer of the current
@@ -168,9 +200,29 @@ export const useOrderStore = defineStore('order', () => {
     return heldParts.value?.orderId === orderId ? heldParts.value.parts : []
   }
 
-  /** Keep `parts` (taken by hand, unsigned) for order `orderId`; none forgets them. */
-  function holdParts(orderId: number, parts: HeldPart[]) {
-    heldParts.value = parts.length > 0 ? { orderId, parts: parts.map((p) => ({ ...p })) } : null
+  /** The cart units each approved terminal payment paid for order `orderId` (split by dishes). */
+  function heldEftUnitsFor(orderId: number): Record<number, DishUnits[]> {
+    return heldParts.value?.orderId === orderId ? heldParts.value.eftUnits : {}
+  }
+
+  /** Keep `parts` (taken by hand, unsigned) for order `orderId`, with the cart units its approved
+   * terminal payments paid; nothing to keep forgets them. */
+  function holdParts(
+    orderId: number,
+    parts: HeldPart[],
+    eftUnits: Record<number, DishUnits[]> = {},
+  ) {
+    const keepsUnits = Object.keys(eftUnits).length > 0
+    heldParts.value =
+      parts.length > 0 || keepsUnits
+        ? {
+            orderId,
+            parts: parts.map((p) => ({ ...p })),
+            eftUnits: Object.fromEntries(
+              Object.entries(eftUnits).map(([id, units]) => [id, units.map((u) => ({ ...u }))]),
+            ),
+          }
+        : null
   }
 
   /**
@@ -190,6 +242,7 @@ export const useOrderStore = defineStore('order', () => {
     await ipc.setActiveOrder(orderId)
     await loadCourses()
     await loadTakeawayTag()
+    await loadCovers()
   }
 
   /** Read the courses setting, then the held courses of the order. A
@@ -465,10 +518,18 @@ export const useOrderStore = defineStore('order', () => {
   /** Provisional bill ("addition provisoire", §1.4), printed PRO FORMA. */
   async function preBill() {
     if (!currentOrder.value) throw new Error('No active order')
-    // Entries not yet registered are sent as an order first.
-    warnIfSlipFailed(await ipc.signPreBill(currentOrder.value.id))
-    markAllSent()
-    await refreshCourses()
+    await preBillOrder(currentOrder.value.id)
+  }
+
+  /** The provisional bill of any open table order, from the cart or from the Tables screen
+   * (UX audit T7). Entries not yet registered are sent as an order first, so when the order
+   * is the one on screen its lines are marked sent. */
+  async function preBillOrder(orderId: number) {
+    warnIfSlipFailed(await ipc.signPreBill(orderId))
+    if (currentOrder.value?.id === orderId) {
+      markAllSent()
+      await refreshCourses()
+    }
   }
 
   /** Move an open dine-in order to a free table (event P, cost center
@@ -494,8 +555,9 @@ export const useOrderStore = defineStore('order', () => {
   async function moveTable(orderId: number, from: number, to: number) {
     const result = await transferOrder(orderId, to)
     const { t } = useI18n()
+    const plan = useTablePlanStore()
     useToastStore().showWithAction(
-      t('transfer_moved', { from, to }),
+      t('transfer_moved', { from: plan.label(from), to: plan.label(to) }),
       { label: t('transfer_undo'), run: () => undoMove(orderId, from, to) },
       MOVE_UNDO_TTL_MS,
     )
@@ -506,7 +568,11 @@ export const useOrderStore = defineStore('order', () => {
     const { t } = useI18n()
     try {
       await transferOrder(orderId, from)
-      useToastStore().show(t('transfer_moved', { from: to, to: from }), 'success')
+      const plan = useTablePlanStore()
+      useToastStore().show(
+        t('transfer_moved', { from: plan.label(to), to: plan.label(from) }),
+        'success',
+      )
     } catch (e) {
       useToastStore().show(describeError(e), 'error', 6000)
     }
@@ -524,7 +590,22 @@ export const useOrderStore = defineStore('order', () => {
     lines.value = orderLines
   }
 
+  /** The engine's answer about the kept manager PIN (UX audit P8), see
+   * `utils/pinGrant.ts`: a hint, the engine stays the judge. */
+  const pinGrantHint = ref<PinGrantHint | null>(null)
+
+  /** Try the next discount without the PIN: the engine said it keeps one. */
+  function keepsManagerPin(): boolean {
+    return triesWithoutPin(pinGrantHint.value, currentOrder.value?.id, Date.now())
+  }
+
+  /** The engine answered `pin_required`: the hint was stale. */
+  function forgetManagerPin() {
+    pinGrantHint.value = null
+  }
+
   async function discountDone(orderId: number, result: DiscountResult) {
+    pinGrantHint.value = hintAfter(orderId, result.pinGrantMs, Date.now())
     warnIfSlipFailed(result.kitchenSlip)
     if ((result.registrationError ?? '') !== '') {
       useToastStore().show(useI18n().t('discount_registration_failed'), 'warning', 8000)
@@ -532,21 +613,32 @@ export const useOrderStore = defineStore('order', () => {
     await reloadFromEngine(orderId)
   }
 
-  /** Give a discount on the order on screen (manager, confirmed by `pin`).
-   * A refusal is thrown (the PIN dialog shows it). */
-  async function applyDiscount(input: DiscountInput, pin: string) {
+  /** Give a discount on the order on screen (manager, confirmed by `pin`,
+   * or by the kept PIN when `pin` is null: `pin_required` is thrown when the
+   * engine kept none). A refusal is thrown (the PIN dialog shows it). The
+   * engine's answer says whether the kept PIN was used and for how long it
+   * still stands. */
+  async function applyDiscount(input: DiscountInput, pin: string | null): Promise<DiscountResult> {
     const current = currentOrder.value
     const insz = useAuthStore().currentUser?.insz
     if (!current || insz === undefined || insz === '') throw new Error('No active order')
-    await discountDone(current.id, await ipc.applyDiscount(current.id, input, insz, pin))
+    const result = await ipc.applyDiscount(current.id, input, insz, pin)
+    await discountDone(current.id, result)
+    return result
   }
 
-  /** Remove the order discount (`lineId` null) or the free line `lineId`. */
-  async function removeDiscount(lineId: number | null, pin: string) {
+  /** Remove the order discount (`lineId` null) or the free line `lineId`
+   * (`pin` null: the kept PIN, as for `applyDiscount`). */
+  async function removeDiscount(
+    lineId: number | null,
+    pin: string | null,
+  ): Promise<DiscountResult> {
     const current = currentOrder.value
     const insz = useAuthStore().currentUser?.insz
     if (!current || insz === undefined || insz === '') throw new Error('No active order')
-    await discountDone(current.id, await ipc.removeDiscount(current.id, lineId, insz, pin))
+    const result = await ipc.removeDiscount(current.id, lineId, insz, pin)
+    await discountDone(current.id, result)
+    return result
   }
 
   /** Close the current order unpaid, confirmed by the manager's PIN.
@@ -568,6 +660,7 @@ export const useOrderStore = defineStore('order', () => {
   function resetLocal() {
     currentOrder.value = null
     takeawayTag.value = null
+    covers.value = null
     onlineCollect.value = null
     heldParts.value = null
     lines.value = []
@@ -599,10 +692,13 @@ export const useOrderStore = defineStore('order', () => {
     startOrder,
     loadOrder,
     takeawayTag,
+    covers,
+    setCovers,
     onlineCollect,
     beginOnlineCollect,
     heldParts,
     heldPartsFor,
+    heldEftUnitsFor,
     holdParts,
     setTakeawayCustomer,
     lastAdd,
@@ -618,12 +714,15 @@ export const useOrderStore = defineStore('order', () => {
     loadOpenOrders,
     leave,
     preBill,
+    preBillOrder,
     transferOrder,
     moveTable,
     canTransfer,
     tableMoves,
     applyDiscount,
     removeDiscount,
+    keepsManagerPin,
+    forgetManagerPin,
     closeUnpaid,
     clearOrder,
     resetLocal,

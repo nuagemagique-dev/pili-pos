@@ -83,7 +83,21 @@ export const settingsMessages: Messages = {
     en: '{count} tables: {plan}',
     zh: '{count}张桌：{plan}',
   },
-  settings_tables_placeholder: { fr: '1-12, 20-25', en: '1-12, 20-25', zh: '1-12, 20-25' },
+  settings_tables_placeholder: {
+    fr: '1-12, 20-25  ou  A 1-20, B 21-40',
+    en: '1-12, 20-25  or  A 1-20, B 21-40',
+    zh: '1-12, 20-25  或  A 1-20, B 21-40',
+  },
+  settings_zone_names: {
+    fr: 'Noms des zones (facultatif)',
+    en: 'Zone names (optional)',
+    zh: '区域名称（可选）',
+  },
+  settings_zone_names_placeholder: {
+    fr: 'A · Salle, B · Terrasse',
+    en: 'A · Room, B · Terrace',
+    zh: 'A · 大厅, B · 露台',
+  },
   settings_tables_save: { fr: 'Enregistrer', en: 'Save', zh: '保存' },
   settings_tables_saved: {
     fr: 'Plan de salle enregistré',
@@ -91,9 +105,9 @@ export const settingsMessages: Messages = {
     zh: '桌位已保存',
   },
   settings_tables_note: {
-    fr: 'Numéros et plages séparés par des virgules. Une table qui a encore une commande ouverte reste affichée.',
-    en: 'Numbers and ranges separated by commas. A table that still has an open order stays on screen.',
-    zh: '用逗号分隔号码和范围。仍有未结订单的桌位会继续显示。',
+    fr: "Numéros et plages séparés par des virgules. Une lettre devant une plage crée une zone : la table s'écrit alors A-19 à l'écran et sur les bons de cuisine, son numéro (19) reste celui du ticket. Une table qui a encore une commande ouverte reste affichée.",
+    en: 'Numbers and ranges separated by commas. A letter before a range makes a zone: the table is then written A-19 on screen and on the kitchen slips, its number (19) stays the one on the ticket. A table that still has an open order stays on screen.',
+    zh: '用逗号分隔号码和范围。范围前的字母表示区域：桌位在屏幕和厨房单上显示为 A-19，小票上仍是号码 19。仍有未结订单的桌位会继续显示。',
   },
 
   // Remote support panel
@@ -241,6 +255,16 @@ export const settingsMessages: Messages = {
     en: 'Pick an entry to edit or create one.',
     zh: '请选择要编辑的项目或新建一个。',
   },
+  menu_ed_star: {
+    fr: 'Ajouter aux favoris',
+    en: 'Add to favourites',
+    zh: '加入常用',
+  },
+  menu_ed_unstar: {
+    fr: 'Retirer des favoris',
+    en: 'Remove from favourites',
+    zh: '移出常用',
+  },
   menu_ed_hidden: { fr: 'Masqué', en: 'Hidden', zh: '已隐藏' },
   menu_ed_empty_products: {
     fr: 'Aucun produit dans cette catégorie.',
@@ -360,6 +384,32 @@ export const settingsMessages: Messages = {
   menu_ed_field_min_select: { fr: 'minimum', en: 'minimum', zh: '最少' },
   menu_ed_field_max_select: { fr: 'maximum', en: 'maximum', zh: '最多' },
   menu_ed_field_group_id: { fr: 'groupe', en: 'group', zh: '选项组' },
+  // Favourites panel (UX audit C12): the first tab of the order screen
+  fav_title: { fr: 'Favoris', en: 'Favourites', zh: '常用菜品' },
+  fav_note: {
+    fr: "Le premier onglet de la prise de commande. Il reste caché tant qu'il est vide. Rien de cela n'entre dans les données fiscales.",
+    en: 'The first tab of the order screen. It stays hidden while it is empty. None of this enters the fiscal data.',
+    zh: '点菜界面的第一个标签页，为空时自动隐藏。这些都不会进入税务数据。',
+  },
+  fav_mode_top_sold: {
+    fr: 'Plus vendus sur 30 jours',
+    en: 'Best sellers, 30 days',
+    zh: '30天最畅销',
+  },
+  fav_mode_selection: { fr: 'Ma sélection', en: 'My selection', zh: '我的选择' },
+  fav_top_sold_note: {
+    fr: 'Les 18 produits les plus vendus des 30 derniers jours, mis à jour toutes les heures et à chaque Z. Un produit épuisé laisse sa place au suivant.',
+    en: 'The 18 best-selling products of the last 30 days, updated every hour and at each Z. A sold-out product gives its place to the next one.',
+    zh: '最近30天最畅销的18个商品，每小时及每次Z报表后更新。售罄的商品由下一个顶替。',
+  },
+  fav_selection_note: {
+    fr: "Touchez l'étoile d'un produit dans l'éditeur de carte pour l'ajouter. Les produits s'affichent dans l'ordre d'ajout.",
+    en: 'Tap the star of a product in the menu editor to add it. Products show in the order they were added.',
+    zh: '在菜单编辑器中点击商品的星标即可加入。商品按加入顺序显示。',
+  },
+  fav_empty: { fr: 'Aucun favori.', en: 'No favourite.', zh: '没有常用菜品。' },
+  fav_remove: { fr: 'Retirer', en: 'Remove', zh: '移除' },
+  fav_count: { fr: '{n} sur {max}', en: '{n} of {max}', zh: '{n} / {max}' },
   // Quick notes panel (UX audit C11): the chips of the kitchen note dialog
   quick_notes_title: { fr: 'Notes rapides', en: 'Quick notes', zh: '快捷备注' },
   quick_notes_note: {
