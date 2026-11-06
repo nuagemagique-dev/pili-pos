@@ -554,8 +554,14 @@ async fn the_z_counts_a_sale_its_correction_and_its_refund_in_money() {
     assert_eq!(net, 0.0, "{turnover}");
 }
 
-#[tokio::test]
-async fn the_sales_report_shows_the_kilos_of_a_weighed_product() {
+/// Two weighed bowls sold during a service at `hour:minute` (Belgian time) of today's
+/// calendar date, then the sales report of the booking day they went into.
+///
+/// The engine books a sale on the business day (`day_end_hour`), not the calendar date: at
+/// 00:30 the service still belongs to yesterday. The clock is the real one, so the open
+/// booking period is moved to the business day of the chosen time, as the engine would have
+/// dated it then, and the report is asked for that booking date, never the calendar date.
+async fn kilos_in_the_report_of_a_service_at(hour: u32, minute: u32) {
     let (app, scale) = app_with_scale().await;
     for grams in [612, 622] {
         let order_id = order(&app);
@@ -566,15 +572,39 @@ async fn the_sales_report_shows_the_kilos_of_a_weighed_product() {
             .unwrap();
         assert!(result.success, "{:?}", result.error);
     }
-    let today = chrono::Utc::now()
+    let day_end_hour = app.state.config.lock().unwrap().day_end_hour;
+    let service = chrono::Utc::now()
         .with_timezone(&chrono_tz::Europe::Brussels)
         .date_naive()
+        .and_hms_opt(hour, minute, 0)
+        .unwrap();
+    let business_day = (service - chrono::Duration::hours(i64::from(day_end_hour)))
+        .date()
         .to_string();
-    let report = do_sales_report(&app.state, today.clone(), today).unwrap();
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "UPDATE booking_periods SET booking_date = ?1 WHERE closed_at IS NULL",
+            [&business_day],
+        )
+        .unwrap();
+    let report = do_sales_report(&app.state, business_day.clone(), business_day).unwrap();
     let bowl = &report.by_product[0];
     assert!(bowl.weighed);
     assert_eq!(bowl.quantity_milli, 1234);
     assert_eq!(bowl.amount_cents, 1218 + 1238);
+}
+
+#[tokio::test]
+async fn the_sales_report_shows_the_kilos_of_a_weighed_product() {
+    kilos_in_the_report_of_a_service_at(14, 0).await;
+}
+
+#[tokio::test]
+async fn a_weighed_product_sold_after_midnight_is_in_the_report_of_its_business_day() {
+    kilos_in_the_report_of_a_service_at(0, 30).await;
 }
 
 #[tokio::test]
