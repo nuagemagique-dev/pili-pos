@@ -307,6 +307,7 @@
     <string name="discount_apply">Appliquer la remise</string>
     <string name="discount_hint">La remise figure sur le ticket fiscal. Confirmez avec votre PIN.</string>
     <string name="discount_applied">Remise appliquée</string>
+    <string name="discount_applied_pin_kept">Remise appliquée · code gardé {minutes} min pour cette commande</string>
     <string name="discount_removed">Remise retirée</string>
     <string name="discount_remove">Retirer la remise</string>
     <string name="discount_remove_hint">Le prix d\'origine est rétabli. Confirmez avec votre PIN.</string>

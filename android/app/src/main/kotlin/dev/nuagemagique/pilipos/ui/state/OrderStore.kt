@@ -585,32 +585,59 @@ class OrderStore
 
         /**
          * Gives a discount on the current order, confirmed by the manager's [pin] (a percent, an amount or "Offert"
-         * for the order, or one line for free). The order and its lines are read again (net amounts, price changes,
-         * what the P registered); a refusal is thrown to the PIN dialog.
+         * for the order, or one line for free), or by the PIN kept for this order when [pin] is null (UX audit P8:
+         * the engine refuses with `pin_required` when it kept none). The order and its lines are read again (net
+         * amounts, price changes, what the P registered); a refusal is thrown to the PIN dialog. The answer says
+         * whether the kept PIN was used and for how long it still stands.
          */
         suspend fun applyDiscount(
             input: DiscountInput,
             userInsz: String,
-            pin: String,
-        ) = mutex.withLock {
-            val order = requireCurrent()
-            discountDone(order.id, gateway.call { engine -> engine.applyDiscount(order.id, input, userInsz, pin) })
-        }
+            pin: String?,
+        ): DiscountResult =
+            mutex.withLock {
+                val order = requireCurrent()
+                val result = gateway.call { engine -> engine.applyDiscount(order.id, input, userInsz, pin) }
+                discountDone(order.id, result)
+                result
+            }
 
-        /** Removes the order discount ([lineId] null) or the free line [lineId], confirmed by the manager's [pin]. */
+        /**
+         * Removes the order discount ([lineId] null) or the free line [lineId], confirmed by the manager's [pin] or,
+         * when [pin] is null, by the PIN kept for this order. A removal never opens the grant.
+         */
         suspend fun removeDiscount(
             lineId: Long?,
             userInsz: String,
-            pin: String,
-        ) = mutex.withLock {
-            val order = requireCurrent()
-            discountDone(order.id, gateway.call { engine -> engine.removeDiscount(order.id, lineId, userInsz, pin) })
+            pin: String?,
+        ): DiscountResult =
+            mutex.withLock {
+                val order = requireCurrent()
+                val result = gateway.call { engine -> engine.removeDiscount(order.id, lineId, userInsz, pin) }
+                discountDone(order.id, result)
+                result
+            }
+
+        /** The wall clock the kept PIN hint counts on; a test replaces it. */
+        @Volatile
+        internal var clockMs: () -> Long = System::currentTimeMillis
+
+        @Volatile
+        private var pinGrantHint: PinGrantHint? = null
+
+        /** Whether to try the next discount without the PIN: the engine said it keeps one for the order on screen. */
+        fun keepsManagerPin(): Boolean = KeptPin.triesWithoutPin(pinGrantHint, mutableCurrent.value?.id, clockMs())
+
+        /** The engine answered `pin_required`: the hint was stale. */
+        fun forgetManagerPin() {
+            pinGrantHint = null
         }
 
         private suspend fun discountDone(
             orderId: Long,
             result: DiscountResult,
         ) {
+            pinGrantHint = KeptPin.hintAfter(orderId, result.pinGrantMs, clockMs())
             warnIfSlipFailed(result.kitchenSlip)
             if (result.registrationError != null) mutableDiscountWarnings.tryEmit(Unit)
             refresh(orderId)

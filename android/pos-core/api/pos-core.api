@@ -1787,19 +1787,25 @@ public final class uniffi/pos_ffi/DiscountReason$Companion {
 
 public final class uniffi/pos_ffi/DiscountResult {
 	public static final field Companion Luniffi/pos_ffi/DiscountResult$Companion;
-	public fun <init> (Luniffi/pos_ffi/Order;Luniffi/pos_ffi/SlipOutcome;Ljava/lang/String;)V
+	public fun <init> (Luniffi/pos_ffi/Order;Luniffi/pos_ffi/SlipOutcome;Ljava/lang/String;ZLjava/lang/Long;)V
 	public final fun component1 ()Luniffi/pos_ffi/Order;
 	public final fun component2 ()Luniffi/pos_ffi/SlipOutcome;
 	public final fun component3 ()Ljava/lang/String;
-	public final fun copy (Luniffi/pos_ffi/Order;Luniffi/pos_ffi/SlipOutcome;Ljava/lang/String;)Luniffi/pos_ffi/DiscountResult;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/DiscountResult;Luniffi/pos_ffi/Order;Luniffi/pos_ffi/SlipOutcome;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/DiscountResult;
+	public final fun component4 ()Z
+	public final fun component5 ()Ljava/lang/Long;
+	public final fun copy (Luniffi/pos_ffi/Order;Luniffi/pos_ffi/SlipOutcome;Ljava/lang/String;ZLjava/lang/Long;)Luniffi/pos_ffi/DiscountResult;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/DiscountResult;Luniffi/pos_ffi/Order;Luniffi/pos_ffi/SlipOutcome;Ljava/lang/String;ZLjava/lang/Long;ILjava/lang/Object;)Luniffi/pos_ffi/DiscountResult;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getKitchenSlip ()Luniffi/pos_ffi/SlipOutcome;
 	public final fun getOrder ()Luniffi/pos_ffi/Order;
+	public final fun getPinGrantMs ()Ljava/lang/Long;
+	public final fun getPinReused ()Z
 	public final fun getRegistrationError ()Ljava/lang/String;
 	public fun hashCode ()I
 	public final fun setKitchenSlip (Luniffi/pos_ffi/SlipOutcome;)V
 	public final fun setOrder (Luniffi/pos_ffi/Order;)V
+	public final fun setPinGrantMs (Ljava/lang/Long;)V
+	public final fun setPinReused (Z)V
 	public final fun setRegistrationError (Ljava/lang/String;)V
 	public fun toString ()Ljava/lang/String;
 }

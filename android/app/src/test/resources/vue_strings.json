@@ -1416,6 +1416,12 @@
       "zh": "折扣已应用",
       "area": "core"
     },
+    "discount_applied_pin_kept": {
+      "fr": "Remise appliquée · code gardé {minutes} min pour cette commande",
+      "en": "Discount applied · PIN kept {minutes} min for this order",
+      "zh": "折扣已应用 · 本单{minutes}分钟内无需再输入PIN",
+      "area": "core"
+    },
     "discount_apply": {
       "fr": "Appliquer la remise",
       "en": "Apply discount",

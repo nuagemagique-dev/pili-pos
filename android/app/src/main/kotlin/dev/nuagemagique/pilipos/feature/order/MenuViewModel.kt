@@ -8,6 +8,7 @@ import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import dev.nuagemagique.pilipos.ui.state.HeldParts
+import dev.nuagemagique.pilipos.ui.state.KeptPin
 import dev.nuagemagique.pilipos.ui.state.LineAdd
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
@@ -35,12 +36,14 @@ import uniffi.pos_ffi.AllergenEntry
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.Category
 import uniffi.pos_ffi.DiscountInput
+import uniffi.pos_ffi.DiscountResult
 import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
+import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SoldOutItem
 import uniffi.pos_ffi.VatSplitRow
 
@@ -1067,18 +1070,79 @@ internal class MenuViewModel(
         data.update { it.copy(dialog = OrderDialog.Discount(lineId, base)) }
     }
 
-    /** The input of the dialog: the manager PIN confirms it next. */
+    /** The input of the dialog: the manager PIN confirms it next, unless the engine kept it for this order. */
     fun chooseDiscount(input: DiscountInput) {
         if (data.value.dialog !is OrderDialog.Discount) return
-        val name = session.currentUser.value?.name.orEmpty()
-        data.update { it.copy(dialog = OrderDialog.DiscountPin(name, DiscountAction.Apply(input))) }
+        startDiscount(DiscountAction.Apply(input))
     }
 
-    /** "Retirer la remise" on the order ([lineId] null) or on an offered line: the manager PIN confirms it. */
+    /**
+     * "Retirer la remise" on the order ([lineId] null) or on an offered line: the manager PIN confirms it, unless the
+     * engine kept it for this order.
+     */
     fun askRemoveDiscount(lineId: Long? = null) {
         if (!isRouteOrderCurrent() || !state.value.cart.canDiscount) return
+        startDiscount(DiscountAction.Remove(lineId))
+    }
+
+    /**
+     * `startApply` / `startRemove` of `CartSidebar.vue` (UX audit P8): the PIN pad opens, except when the engine said it
+     * keeps the manager's PIN for this order; then the command runs with no PIN. If the engine no longer does
+     * (`pin_required`: locked, expired, another order in between) the pad opens after all; any other refusal is
+     * shown as an error toast.
+     */
+    private fun startDiscount(action: DiscountAction) {
         val name = session.currentUser.value?.name.orEmpty()
-        data.update { it.copy(dialog = OrderDialog.DiscountPin(name, DiscountAction.Remove(lineId))) }
+        val pinStep = OrderDialog.DiscountPin(name, action)
+        if (!order.keepsManagerPin()) {
+            data.update { it.copy(dialog = pinStep) }
+            return
+        }
+        data.update { it.copy(dialog = OrderDialog.None) }
+        viewModelScope.launch {
+            try {
+                val insz = session.currentUser.value?.insz ?: error("No user")
+                announceDiscount(action is DiscountAction.Remove, runDiscount(action, insz, null))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
+                if ((e as? PosException.Coded)?.code == KeptPin.PIN_REQUIRED) {
+                    order.forgetManagerPin()
+                    data.update { it.copy(dialog = pinStep) }
+                } else {
+                    entry.errors().show(e, settings.language.value)
+                }
+            }
+        }
+    }
+
+    private suspend fun runDiscount(
+        action: DiscountAction,
+        insz: String,
+        pin: String?,
+    ): DiscountResult =
+        when (action) {
+            is DiscountAction.Apply -> order.applyDiscount(action.input, insz, pin)
+            is DiscountAction.Remove -> order.removeDiscount(action.lineId, insz, pin)
+        }
+
+    /** The success toast: a PIN typed for a discount says it is kept for the order, so the next one will not ask. */
+    private fun announceDiscount(
+        removed: Boolean,
+        result: DiscountResult?,
+    ) {
+        val language = settings.language.value
+        val catalog = entry.catalog()
+        val text =
+            when {
+                removed -> catalog.text("discount_removed", language)
+                result != null && !result.pinReused && result.pinGrantMs != null ->
+                    catalog.text("discount_applied_pin_kept", language, mapOf("minutes" to KeptPin.minutesKept(result.pinGrantMs!!)))
+                else -> catalog.text("discount_applied", language)
+            }
+        entry.toasts().show(text, ToastVariant.Success)
     }
 
     /**
@@ -1087,20 +1151,19 @@ internal class MenuViewModel(
      */
     suspend fun confirmDiscountPin(pin: String) {
         val insz = session.currentUser.value?.insz ?: error("No user")
-        when (val action = (data.value.dialog as? OrderDialog.DiscountPin)?.action ?: error("No discount to confirm")) {
-            is DiscountAction.Apply -> order.applyDiscount(action.input, insz, pin)
-            is DiscountAction.Remove -> order.removeDiscount(action.lineId, insz, pin)
-        }
+        val action = (data.value.dialog as? OrderDialog.DiscountPin)?.action ?: error("No discount to confirm")
+        typedDiscount = runDiscount(action, insz, pin)
     }
+
+    /** What the PIN pad's last confirmation did, for the toast of [discountDone]. */
+    private var typedDiscount: DiscountResult? = null
 
     /** The discount was applied or removed (`onDiscountDone`): the dialog closes and the toast says so. */
     fun discountDone() {
         val removed = (data.value.dialog as? OrderDialog.DiscountPin)?.action is DiscountAction.Remove
         data.update { it.copy(dialog = OrderDialog.None) }
-        entry.toasts().show(
-            entry.catalog().text(if (removed) "discount_removed" else "discount_applied", settings.language.value),
-            ToastVariant.Success,
-        )
+        announceDiscount(removed, typedDiscount)
+        typedDiscount = null
     }
 
     /** The VAT summary rows of the cart from the engine VAT helper; none when it cannot answer. */

@@ -307,6 +307,7 @@
     <string name="discount_apply">应用折扣</string>
     <string name="discount_hint">折扣将显示在税务小票上。请输入PIN确认。</string>
     <string name="discount_applied">折扣已应用</string>
+    <string name="discount_applied_pin_kept">折扣已应用 · 本单{minutes}分钟内无需再输入PIN</string>
     <string name="discount_removed">折扣已取消</string>
     <string name="discount_remove">取消折扣</string>
     <string name="discount_remove_hint">将恢复原价。请输入PIN确认。</string>

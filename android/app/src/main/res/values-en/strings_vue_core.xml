@@ -307,6 +307,7 @@
     <string name="discount_apply">Apply discount</string>
     <string name="discount_hint">The discount appears on the fiscal ticket. Confirm with your PIN.</string>
     <string name="discount_applied">Discount applied</string>
+    <string name="discount_applied_pin_kept">Discount applied · PIN kept {minutes} min for this order</string>
     <string name="discount_removed">Discount removed</string>
     <string name="discount_remove">Remove discount</string>
     <string name="discount_remove_hint">The original price is restored. Confirm with your PIN.</string>

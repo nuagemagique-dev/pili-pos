@@ -489,6 +489,7 @@ internal object VueStringIds {
         this["discount_apply"] = R.string.discount_apply
         this["discount_hint"] = R.string.discount_hint
         this["discount_applied"] = R.string.discount_applied
+        this["discount_applied_pin_kept"] = R.string.discount_applied_pin_kept
         this["discount_removed"] = R.string.discount_removed
         this["discount_remove"] = R.string.discount_remove
         this["discount_remove_hint"] = R.string.discount_remove_hint
@@ -518,10 +519,10 @@ internal object VueStringIds {
         this["check_ticket_printer"] = R.string.check_ticket_printer
         this["check_kitchen_printer"] = R.string.check_kitchen_printer
         this["check_payment_terminal"] = R.string.check_payment_terminal
-        this["check_payment_busy"] = R.string.check_payment_busy
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["check_payment_busy"] = R.string.check_payment_busy
         this["check_email"] = R.string.check_email
         this["check_connected"] = R.string.check_connected
         this["check_not_connected"] = R.string.check_not_connected
@@ -771,10 +772,10 @@ internal object VueStringIds {
         this["invoice_select_row"] = R.string.invoice_select_row
         this["invoice_invoiced_by"] = R.string.invoice_invoiced_by
         this["invoice_title"] = R.string.invoice_title
-        this["invoice_step_customer"] = R.string.invoice_step_customer
     }
 
     private fun MutableMap<String, Int>.part3() {
+        this["invoice_step_customer"] = R.string.invoice_step_customer
         this["invoice_step_preview"] = R.string.invoice_step_preview
         this["invoice_step_done"] = R.string.invoice_step_done
         this["invoice_sales_chosen"] = R.string.invoice_sales_chosen
@@ -1024,10 +1025,10 @@ internal object VueStringIds {
         this["menu_ed_field_sort_order"] = R.string.menu_ed_field_sort_order
         this["menu_ed_field_color"] = R.string.menu_ed_field_color
         this["menu_ed_field_active"] = R.string.menu_ed_field_active
-        this["menu_ed_field_category_id"] = R.string.menu_ed_field_category_id
     }
 
     private fun MutableMap<String, Int>.part4() {
+        this["menu_ed_field_category_id"] = R.string.menu_ed_field_category_id
         this["menu_ed_field_price_cents"] = R.string.menu_ed_field_price_cents
         this["menu_ed_field_vat_code"] = R.string.menu_ed_field_vat_code
         this["menu_ed_field_vat_code_takeaway"] = R.string.menu_ed_field_vat_code_takeaway

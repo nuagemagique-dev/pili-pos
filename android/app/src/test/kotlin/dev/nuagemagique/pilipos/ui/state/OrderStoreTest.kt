@@ -1121,7 +1121,7 @@ class OrderStoreTest {
             r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
             val input = discount()
             coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
-                DiscountResult(order(id = 1, table = 3, totalCents = 250), SlipOutcome.NOTHING_TO_PRINT, null)
+                DiscountResult(order(id = 1, table = 3, totalCents = 250), SlipOutcome.NOTHING_TO_PRINT, null, false, null)
             r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
 
             r.store.applyDiscount(input, "insz", "4321")
@@ -1138,7 +1138,7 @@ class OrderStoreTest {
             r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
             val input = discount()
             coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
-                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, "fdm_unreachable")
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, "fdm_unreachable", false, null)
             r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
 
             r.store.discountWarnings.test {
@@ -1155,7 +1155,7 @@ class OrderStoreTest {
             r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
             val input = discount()
             coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
-                DiscountResult(order(id = 1, table = 3), SlipOutcome.FAILED, null)
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.FAILED, null, false, null)
             r.stubReads(order(id = 1, table = 3), listOf(line(1, 10)))
 
             r.store.slipFailures.test {
@@ -1264,12 +1264,91 @@ class OrderStoreTest {
         }
 
     @Test
+    fun aTypedPinIsHintedForTheOrderForAsLongAsTheEngineSaid() =
+        runTest {
+            val r = rig()
+            var now = 10_000L
+            r.store.clockMs = { now }
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val input = discount()
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3, totalCents = 250), SlipOutcome.NOTHING_TO_PRINT, null, false, 120_000L)
+            r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
+            assertFalse(r.store.keepsManagerPin())
+
+            val typed = r.store.applyDiscount(input, "insz", "4321")
+
+            assertFalse(typed.pinReused)
+            assertTrue(r.store.keepsManagerPin())
+            now += 119_999L
+            assertTrue(r.store.keepsManagerPin())
+            now += 1L
+            assertFalse(r.store.keepsManagerPin())
+        }
+
+    @Test
+    fun theNextDiscountOfTheOrderPassesNoPinAndTheHintFollowsTheAnswer() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val input = discount()
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null, false, 120_000L)
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", null) } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null, true, 90_000L)
+            r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10)))
+            r.store.applyDiscount(input, "insz", "4321")
+
+            val reused = r.store.applyDiscount(input, "insz", null)
+
+            assertTrue(reused.pinReused)
+            coVerify(exactly = 1) { r.f.engine.applyDiscount(1L, input, "insz", null) }
+            assertTrue(r.store.keepsManagerPin())
+        }
+
+    @Test
+    fun aRemovalWithoutTheGrantLeavesNoHintAndForgettingDropsIt() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
+            coEvery { r.f.engine.removeDiscount(1L, null, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3, totalCents = 500), SlipOutcome.NOTHING_TO_PRINT, null, false, null)
+            r.stubReads(order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+
+            r.store.removeDiscount(null, "insz", "4321")
+            assertFalse(r.store.keepsManagerPin())
+
+            coEvery { r.f.engine.applyDiscount(any(), any(), any(), any()) } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null, false, 120_000L)
+            r.store.applyDiscount(discount(), "insz", "4321")
+            assertTrue(r.store.keepsManagerPin())
+            r.store.forgetManagerPin()
+            assertFalse(r.store.keepsManagerPin())
+        }
+
+    @Test
+    fun theHintIsForTheOrderThatWasDiscountedOnly() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            coEvery { r.f.engine.applyDiscount(any(), any(), any(), any()) } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null, false, 120_000L)
+            r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10)))
+            r.store.applyDiscount(discount(), "insz", "4321")
+            assertTrue(r.store.keepsManagerPin())
+
+            r.store.seed(r, order(id = 2, table = 4, totalCents = 500), listOf(line(2, 10)))
+
+            assertFalse(r.store.keepsManagerPin())
+        }
+
+    @Test
     fun removingAnOrderDiscountPassesNoLineAndReadsTheOrderAgain() =
         runTest {
             val r = rig()
             r.store.seed(r, order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
             coEvery { r.f.engine.removeDiscount(1L, null, "insz", "4321") } returns
-                DiscountResult(order(id = 1, table = 3, totalCents = 500), SlipOutcome.NOTHING_TO_PRINT, null)
+                DiscountResult(order(id = 1, table = 3, totalCents = 500), SlipOutcome.NOTHING_TO_PRINT, null, false, null)
             r.stubReads(order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
 
             r.store.removeDiscount(null, "insz", "4321")
@@ -1288,7 +1367,7 @@ class OrderStoreTest {
                 listOf(line(4, 10, priceChanges = listOf(CartPriceChange("TILL-FREE-LINE", "Offert", "LINE", -500)))),
             )
             coEvery { r.f.engine.removeDiscount(1L, 4L, "insz", "4321") } returns
-                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null)
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null, false, null)
             r.stubReads(order(id = 1, table = 3, totalCents = 500), listOf(line(4, 10)))
 
             r.store.removeDiscount(4L, "insz", "4321")
