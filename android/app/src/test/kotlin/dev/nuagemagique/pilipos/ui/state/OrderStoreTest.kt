@@ -746,6 +746,21 @@ class OrderStoreTest {
         }
 
     @Test
+    fun anOnlineOrderAtItsCheckoutIsNotRememberedAtAnIdleLock() =
+        runTest {
+            val r = rig()
+            r.stubReads(order(id = 9, totalCents = 1_500), listOf(line(1, 10)))
+            r.store.beginOnlineCollect(9L, PaymentMethod.CASH)
+
+            r.events.send(PosEvent.SessionLocked(mockk(relaxed = true)))
+            runCurrent()
+
+            // It was never the engine's active order: the same user logging back in lands on Tables.
+            assertNull(r.store.current.value)
+            assertNull(r.store.takeLockedOrderId())
+        }
+
+    @Test
     fun aLockWithNoOrderOnScreenRemembersNone() =
         runTest {
             val r = rig()

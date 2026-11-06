@@ -105,8 +105,14 @@ onMounted(() => {
   // The engine locked the session (the order is already registered
   // there): forget the local order and go back to the login screen.
   void auth.listenSessionLocked((e, previous) => {
-    // An idle lock (T6): the same user logging back in finds this order again.
-    if (previous && e.reason === 'idle' && order.currentOrder?.status === 'open') {
+    // An idle lock (T6): the same user logging back in finds this order again. The online order
+    // shown at its checkout (O2) was never the engine's active order: it is not brought back.
+    if (
+      previous &&
+      e.reason === 'idle' &&
+      order.onlineCollect === null &&
+      order.currentOrder?.status === 'open'
+    ) {
       auth.rememberLockedOrder(previous.insz, order.currentOrder.id)
     }
     order.resetLocal()

@@ -30,6 +30,7 @@ import uniffi.pos_ffi.LockReason
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
+import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.SessionLocked
 
@@ -99,6 +100,27 @@ class LoginShiftLanguageTest {
             r.model.effects.test {
                 r.type("1234")
                 assertEquals(LoginEffect.GoToOrder(7), awaitItem())
+            }
+        }
+
+    @Test
+    fun anOnlineOrderAtItsCheckoutIsNotBroughtBackAtAnIdleLock() =
+        runTest {
+            val f = fixture()
+            val feed = EventFeed(f)
+            val r = startLogin(f, context)
+            coEvery { f.engine.login(CASHIER_INSZ, "1234") } returns cashier
+            coEvery { f.engine.getOrder(9) } returns tableOrder(9)
+            coEvery { f.engine.listCartLines(9) } returns emptyList()
+            r.session.login(CASHIER_INSZ, "1234")
+            r.order.beginOnlineCollect(9L, PaymentMethod.CASH)
+            feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null, 300_000L)))
+            runCurrent()
+            r.model.onTile(cashier)
+
+            r.model.effects.test {
+                r.type("1234")
+                assertEquals(LoginEffect.GoToTables, awaitItem())
             }
         }
 

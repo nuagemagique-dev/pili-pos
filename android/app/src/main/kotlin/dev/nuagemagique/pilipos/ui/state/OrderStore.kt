@@ -197,7 +197,9 @@ class OrderStore
                 events.events.collect { event ->
                     if (event is PosEvent.SessionLocked) {
                         // Before the reset: the order the same user may come back to after an idle lock (UX audit T6).
-                        lockedOrder.set(mutableCurrent.value?.takeIf { it.status == OrderStatus.OPEN }?.id ?: NO_ORDER)
+                        // An online order at its checkout (O2) was never the engine's active order: none to come back to.
+                        val reopenable = mutableCurrent.value.takeIf { mutableOnlineCollect.value == null }
+                        lockedOrder.set(reopenable?.takeIf { it.status == OrderStatus.OPEN }?.id ?: NO_ORDER)
                         resetLocal()
                     }
                 }

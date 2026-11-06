@@ -3,6 +3,7 @@ import {
   mockTauriIPC,
   loginAndGoto,
   tapUserTile,
+  emitTauriEvent,
   ipcCalls,
   live,
   DEFAULT_USER,
@@ -167,6 +168,26 @@ test.describe('O2: collecting an unpaid online order at the checkout', () => {
     await page.getByTestId('done-finish').click()
     await expect(page).toHaveURL(/webshop-orders/u)
     await expect(page.locator('.column-ready .card')).toHaveCount(0)
+  })
+
+  test('an idle lock at the online checkout does not bring the order back: the same user lands on Tables (T6)', async ({
+    page,
+  }) => {
+    await board(page, [unpaidOrder(4)])
+    await page.locator('.column-ready .card .btn-primary').click()
+    await expect(page).toHaveURL(/checkout/u)
+
+    await emitTauriEvent(page, 'session-locked', {
+      reason: 'idle',
+      orderError: null,
+      idleAfterMs: 300_000,
+    })
+    await page.waitForURL(/#\/$/u)
+    await tapUserTile(page, 'Bruno')
+
+    // Not the editable order screen of an online order, and no order made active again.
+    await page.waitForURL(/tables/u)
+    expect((await ipcCalls(page, 'set_active_order')).filter((c) => c.orderId !== null)).toEqual([])
   })
 
   test('Encaisser carte opens the checkout with Carte selected and sells the card for the total', async ({
