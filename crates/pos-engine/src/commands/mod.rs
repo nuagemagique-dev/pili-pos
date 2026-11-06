@@ -14,6 +14,7 @@ pub mod discount;
 pub mod eft;
 pub mod errors;
 pub mod export;
+pub mod favourites;
 pub mod fdm_monitor;
 pub mod financial;
 pub mod gift_vouchers;

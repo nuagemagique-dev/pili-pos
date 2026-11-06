@@ -73,6 +73,8 @@ const coreMessages: Messages = {
   card_wait: { fr: 'Encaisser sur le terminal', en: 'Process on terminal', zh: '请在终端上刷卡' },
   back: { fr: 'Retour', en: 'Back', zh: '返回' },
   open_price_title: { fr: 'Prix libre', en: 'Open price', zh: '自定价格' },
+  // Favourites tab of the order screen (UX audit C12)
+  favourites_tab: { fr: 'Favoris', en: 'Favourites', zh: '常用' },
   // Sold out ("Épuisé", V11-D16)
   soldout_mode: { fr: 'Épuisé', en: 'Sold out', zh: '售罄' },
   soldout_mode_hint: {
@@ -529,6 +531,16 @@ const coreMessages: Messages = {
     fr: 'Note trop longue : 60 caractères au plus.',
     en: 'Note too long: 60 characters at most.',
     zh: '备注太长：最多60个字符。',
+  },
+  err_favourites_invalid: {
+    fr: "Ce produit n'existe pas dans la carte.",
+    en: 'This product is not in the menu.',
+    zh: '菜单中没有这个商品。',
+  },
+  err_favourites_too_many: {
+    fr: 'Trop de favoris : {max} au plus.',
+    en: 'Too many favourites: {max} at most.',
+    zh: '常用菜品太多：最多{max}个。',
   },
   err_quick_notes_too_many: {
     fr: 'Trop de notes rapides : {max} au plus.',

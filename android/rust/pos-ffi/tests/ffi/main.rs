@@ -28,6 +28,7 @@ mod courses;
 mod eft;
 mod events;
 mod export;
+mod favourites;
 mod gift_vouchers;
 mod helpers;
 mod hubrise;

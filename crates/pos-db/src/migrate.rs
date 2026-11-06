@@ -275,6 +275,14 @@ const ZONES_MIGRATIONS: &[Migration] = &[Migration {
     sql: crate::schema_zones::MIGRATION_091_TABLE_ZONES_COVERS,
 }];
 
+/// The favourites cache (every build): the ranking of the best sellers
+/// behind the "Favoris" tab of the order screen.
+const FAVOURITES_MIGRATIONS: &[Migration] = &[Migration {
+    version: 92,
+    name: "favourites-cache",
+    sql: crate::schema_favourites::MIGRATION_092_FAVOURITES_CACHE,
+}];
+
 /// Every migration this build knows, in ascending version order.
 fn registry() -> Vec<Migration> {
     let mut all = MIGRATIONS.to_vec();
@@ -285,6 +293,7 @@ fn registry() -> Vec<Migration> {
     all.extend_from_slice(WEIGHT_MIGRATIONS);
     all.extend_from_slice(TAKEAWAY_MIGRATIONS);
     all.extend_from_slice(ZONES_MIGRATIONS);
+    all.extend_from_slice(FAVOURITES_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -559,7 +568,7 @@ mod tests {
     /// The till discounts are migration 30 and the kitchen notes 31, in
     /// every build, after 28 (presence registration) and before the
     /// invoicing block (40 to 42), the owner block (60 to 63) and 70 (staff
-    /// badges), 80 and 81 (scale), then 90 (takeaway tags) and 91 (table zones and covers); 29 stays free.
+    /// badges), 80 and 81 (scale), then 90 (takeaway tags), 91 (table zones and covers) and 92 (favourites cache); 29 stays free.
     #[test]
     fn the_till_migrations_are_30_and_31_in_every_build() {
         let till: Vec<(i64, &str)> = TILL_MIGRATIONS
@@ -572,8 +581,33 @@ mod tests {
         let from_28: Vec<i64> = versions.into_iter().filter(|v| *v >= 28).collect();
         assert_eq!(
             from_28,
-            vec![28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70, 80, 81, 90, 91]
+            vec![
+                28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70, 80, 81, 90, 91, 92
+            ]
         );
+    }
+
+    /// The favourites cache is migration 92, in every build: two small local
+    /// tables, no fiscal table touched.
+    #[test]
+    fn v92_adds_the_favourites_cache_tables() {
+        let favourites: Vec<(i64, &str)> = FAVOURITES_MIGRATIONS
+            .iter()
+            .map(|m| (m.version, m.name))
+            .collect();
+        assert_eq!(favourites, vec![(92, "favourites-cache")]);
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        for table in ["favourites_top_sold", "favourites_cache_meta"] {
+            let columns: i64 = conn
+                .query_row(
+                    &format!("SELECT COUNT(*) FROM pragma_table_info('{table}')"),
+                    [],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert!(columns >= 2, "{table}");
+        }
     }
 
     /// The table zones and the covers are migration 91, in every build: the

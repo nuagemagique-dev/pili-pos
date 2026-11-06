@@ -142,6 +142,12 @@ pub const NOTE_UNPRINTABLE: &str = "note_unprintable";
 /// More quick notes than the list holds (`quick_notes_too_many|max=<n>`).
 pub const QUICK_NOTES_TOO_MANY: &str = "quick_notes_too_many";
 
+// Favourites tab (local data).
+/// A favourite points to a product the menu does not know.
+pub const FAVOURITES_INVALID: &str = "favourites_invalid";
+/// More favourites than the selection holds (`favourites_too_many|max=<n>`).
+pub const FAVOURITES_TOO_MANY: &str = "favourites_too_many";
+
 // Numbered takeaway (the number of the day and the customer of a takeaway, local data).
 /// The first takeaway number is not between 1 and the highest allowed
 /// (`takeaway_number_invalid|min=<n>|max=<n>`).
@@ -485,6 +491,8 @@ pub const ALL: &[&str] = &[
     NOTE_TOO_LONG,
     NOTE_UNPRINTABLE,
     QUICK_NOTES_TOO_MANY,
+    FAVOURITES_INVALID,
+    FAVOURITES_TOO_MANY,
     TAKEAWAY_NUMBER_INVALID,
     TAKEAWAY_NAME_INVALID,
     TAKEAWAY_PHONE_INVALID,

@@ -140,6 +140,8 @@
 //! | `NextCourse` | `pos_engine::commands::courses::NextCourse` | courses | send_next_course |
 //! | `TakeawayNumbering` | `pos_engine::commands::takeaway::TakeawayNumbering` | takeaway | get_takeaway_numbering, set_takeaway_numbering |
 //! | `TakeawayTag` | `pos_engine::commands::takeaway::TakeawayTag` | takeaway | get_takeaway_tag, set_takeaway_customer |
+//! | `FavouritesMode` | `pos_engine::commands::favourites::FavouritesMode` | favourites | get_favourites_settings, set_favourites_settings, set_favourite |
+//! | `FavouritesSettings` | `pos_engine::commands::favourites::FavouritesSettings` | favourites | get_favourites_settings, set_favourites_settings, set_favourite |
 //! | `QuickNotes` | `pos_engine::commands::quick_notes::QuickNotes` | quick_notes | get_quick_notes, set_quick_notes |
 //! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | correct_payment, money_in_out, open_drawer_fiscal |
 //! | `MoneyDirection` | `pos_engine::commands::financial::MoneyDirection` | reports | money_in_out |
@@ -230,6 +232,7 @@ pub mod common;
 pub mod courses;
 pub mod eft;
 pub mod export;
+pub mod favourites;
 pub mod gift_vouchers;
 pub mod hubrise;
 pub mod invoice;

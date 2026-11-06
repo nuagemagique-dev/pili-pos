@@ -255,6 +255,16 @@ export const settingsMessages: Messages = {
     en: 'Pick an entry to edit or create one.',
     zh: '请选择要编辑的项目或新建一个。',
   },
+  menu_ed_star: {
+    fr: 'Ajouter aux favoris',
+    en: 'Add to favourites',
+    zh: '加入常用',
+  },
+  menu_ed_unstar: {
+    fr: 'Retirer des favoris',
+    en: 'Remove from favourites',
+    zh: '移出常用',
+  },
   menu_ed_hidden: { fr: 'Masqué', en: 'Hidden', zh: '已隐藏' },
   menu_ed_empty_products: {
     fr: 'Aucun produit dans cette catégorie.',
@@ -374,6 +384,32 @@ export const settingsMessages: Messages = {
   menu_ed_field_min_select: { fr: 'minimum', en: 'minimum', zh: '最少' },
   menu_ed_field_max_select: { fr: 'maximum', en: 'maximum', zh: '最多' },
   menu_ed_field_group_id: { fr: 'groupe', en: 'group', zh: '选项组' },
+  // Favourites panel (UX audit C12): the first tab of the order screen
+  fav_title: { fr: 'Favoris', en: 'Favourites', zh: '常用菜品' },
+  fav_note: {
+    fr: "Le premier onglet de la prise de commande. Il reste caché tant qu'il est vide. Rien de cela n'entre dans les données fiscales.",
+    en: 'The first tab of the order screen. It stays hidden while it is empty. None of this enters the fiscal data.',
+    zh: '点菜界面的第一个标签页，为空时自动隐藏。这些都不会进入税务数据。',
+  },
+  fav_mode_top_sold: {
+    fr: 'Plus vendus sur 30 jours',
+    en: 'Best sellers, 30 days',
+    zh: '30天最畅销',
+  },
+  fav_mode_selection: { fr: 'Ma sélection', en: 'My selection', zh: '我的选择' },
+  fav_top_sold_note: {
+    fr: 'Les 18 produits les plus vendus des 30 derniers jours, mis à jour toutes les heures et à chaque Z. Un produit épuisé laisse sa place au suivant.',
+    en: 'The 18 best-selling products of the last 30 days, updated every hour and at each Z. A sold-out product gives its place to the next one.',
+    zh: '最近30天最畅销的18个商品，每小时及每次Z报表后更新。售罄的商品由下一个顶替。',
+  },
+  fav_selection_note: {
+    fr: "Touchez l'étoile d'un produit dans l'éditeur de carte pour l'ajouter. Les produits s'affichent dans l'ordre d'ajout.",
+    en: 'Tap the star of a product in the menu editor to add it. Products show in the order they were added.',
+    zh: '在菜单编辑器中点击商品的星标即可加入。商品按加入顺序显示。',
+  },
+  fav_empty: { fr: 'Aucun favori.', en: 'No favourite.', zh: '没有常用菜品。' },
+  fav_remove: { fr: 'Retirer', en: 'Remove', zh: '移除' },
+  fav_count: { fr: '{n} sur {max}', en: '{n} of {max}', zh: '{n} / {max}' },
   // Quick notes panel (UX audit C11): the chips of the kitchen note dialog
   quick_notes_title: { fr: 'Notes rapides', en: 'Quick notes', zh: '快捷备注' },
   quick_notes_note: {

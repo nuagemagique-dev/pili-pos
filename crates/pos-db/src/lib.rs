@@ -7,6 +7,7 @@ mod schema_badges;
 #[cfg(feature = "catalog-sync")]
 mod schema_catalog;
 mod schema_eft;
+mod schema_favourites;
 #[cfg(feature = "hubrise")]
 mod schema_hubrise;
 mod schema_invoicing;
