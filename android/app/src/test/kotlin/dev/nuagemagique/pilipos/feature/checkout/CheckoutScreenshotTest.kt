@@ -189,6 +189,12 @@ class CheckoutScreenshotTest {
     }
 
     @Test
+    fun coversAsTheUsualParts() {
+        // A table of 4 covers on Salle: "A-5", the button 4 outlined, "4 couverts" beside the equal parts (UX audit T1, T5).
+        capture(base.copy(tableLabel = "A-5", covers = 4), "checkout_covers")
+    }
+
+    @Test
     fun dishes() {
         // P3: the bill split by dishes: the soup paid by card, one Sushi Mix checked for the next part.
         val taken = listOf(TakenPart(PaymentMethod.CARD, 450L, 0L, units = listOf(DishUnits(2, 1))))

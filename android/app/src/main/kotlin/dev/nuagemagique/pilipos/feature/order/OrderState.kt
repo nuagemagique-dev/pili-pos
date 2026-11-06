@@ -45,9 +45,16 @@ internal sealed interface OrderDialog {
         val forWeight: Boolean = false,
     ) : OrderDialog
 
+    /** The pad of the covers (guests) of the table (UX audit T5): [initial] is what is set now, "" for none. */
+    data class Covers(
+        val initial: String,
+    ) : OrderDialog
+
     /** "Déplacer": the other tables of the plan, free ones to tap, busy ones dimmed; the order is on table [from]. */
     data class TablePicker(
         val from: Int,
+        /** How [from] is written: "A-19" in a zone, "19" without one. */
+        val fromLabel: String,
         val tables: List<TableInfo>,
     ) : OrderDialog
 
@@ -208,6 +215,12 @@ internal data class OrderCartState(
     val lastAdd: LineAdd? = null,
     /** How many payment parts taken by hand are kept for this order (UX audit P4): "Parts déjà saisies : N". */
     val heldPartCount: Int = 0,
+    /** How the table of the order is written: "A-19" in a zone, "19" without one (UX audit T1). */
+    val tableLabel: String? = null,
+    /** The covers (guests) set on the table order (UX audit T5); null when none. */
+    val covers: Int? = null,
+    /** The covers may be set: an open table order. */
+    val canSetCovers: Boolean = false,
 ) {
     private val dineIn: Boolean get() = order?.orderType == OrderType.DINE_IN
 
@@ -254,6 +267,8 @@ internal data class OrderCartActions(
     val onSendNext: () -> Unit = {},
     /** The "Plus" button of the cart header: opens the menu of the rare cart actions. */
     val onMore: () -> Unit = {},
+    /** The covers button of the cart header: opens the pad (UX audit T5). */
+    val onCovers: () -> Unit = {},
 )
 
 /** The menu part of the screen: the categories, the products of the selected one and what is already in the cart. */
@@ -284,6 +299,9 @@ internal data class MenuState(
     /** The code pad (order entry by menu code): open or not, the typed text, the menu read for the lookups. */
     val codePad: CodePadState = CodePadState(),
 )
+
+/** The most covers (guests) a table order takes, as the engine checks (`COVERS_MAX` of `CartSidebar.vue`). */
+internal const val COVERS_MAX = 30
 
 /** What the order screen shows. */
 internal data class OrderUiState(

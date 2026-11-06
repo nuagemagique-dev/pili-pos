@@ -161,6 +161,8 @@ internal class TablesViewModel(
             onSuccess = { (tables, takeaways) ->
                 // Only a badge: no answer means no badge.
                 val charged = attempt { gateway.call { engine -> engine.listUnsettledCardPayments() } }.getOrDefault(emptyList())
+                // The tables say their own zones: the other screens write "A-19" from them (UX audit T1).
+                order.learnTables(tables)
                 own.value = Lists(tables, takeaways, charged.map { it.orderId }.toSet(), loaded = true)
             },
             // The lists stay as they were: the next resume or resync reads them again.

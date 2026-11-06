@@ -65,9 +65,18 @@ internal fun table(
     openedAt: String? = null,
     preBill: Boolean = false,
     heldCourse: Int? = null,
+    zone: String? = null,
+    zoneName: String? = null,
+    openedByInitial: String? = null,
+    covers: Int? = null,
 ): TableInfo =
     TableInfo(
         tableNumber = number,
+        zone = zone,
+        zoneName = zoneName,
+        label = if (zone != null) "$zone-$number" else number.toString(),
+        openedByInitial = openedByInitial,
+        covers = covers,
         orderId = orderId,
         lineCount = lines,
         totalCents = totalCents,

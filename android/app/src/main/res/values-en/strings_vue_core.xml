@@ -272,6 +272,12 @@
     <string name="transfer_table">Move</string>
     <string name="transfer_pick_target">Pick the free table</string>
     <string name="transfer_no_free">No free table</string>
+    <string name="zone_other">Other tables</string>
+    <string name="covers_add">Covers</string>
+    <string name="covers_one">1 cover</string>
+    <string name="covers_n">{n} covers</string>
+    <string name="covers_title">Covers: 1 to 30, 0 to clear</string>
+    <string name="table_covers_short">{n} cov.</string>
     <string name="transfer_moved">Table {from} moved to {to}</string>
     <string name="transfer_undo">Undo</string>
     <string name="transfer_mode">Move</string>

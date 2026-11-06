@@ -70,6 +70,7 @@ private const val STEP_DISABLED_ALPHA = 0.35f
 private val SplitOtherWidth = 128.dp
 private val SplitDishesWidth = 176.dp
 private val SplitHeight = 64.dp
+private val CoversHintStroke = 2.dp
 private val ChipMinHeight = 72.dp
 private val ExactHeight = 80.dp
 private val QuickHeight = 64.dp
@@ -209,7 +210,10 @@ private fun SplitRow(
                 onClick = { callbacks.onSplit(n) },
                 variant = if (!state.dishMode && state.splitCount == n) PiliButtonVariant.Primary else PiliButtonVariant.Secondary,
                 enabled = (!state.dishMode && state.splitCount == n) || state.splitAllowed(n),
-                modifier = Modifier.width(SplitButtonWidth).height(SplitHeight).testTag("checkout_split_$n"),
+                modifier =
+                    Modifier.width(
+                        SplitButtonWidth,
+                    ).height(SplitHeight).then(coversHint(state.coversSplit == n && !state.otherActive)).testTag("checkout_split_$n"),
             )
         }
         PiliButton(
@@ -217,9 +221,23 @@ private fun SplitRow(
             onClick = callbacks.onSplitOther,
             variant = if (state.otherActive) PiliButtonVariant.Primary else PiliButtonVariant.Secondary,
             enabled = state.otherAllowed,
-            modifier = Modifier.width(SplitOtherWidth).height(SplitHeight).testTag("checkout_split_other"),
+            modifier =
+                Modifier
+                    .width(SplitOtherWidth)
+                    .height(SplitHeight)
+                    .then(coversHint((state.coversSplit ?: 0) > SPLIT_QUICK_MAX && !state.otherActive))
+                    .testTag("checkout_split_other"),
         )
         Text(vueText("equal_parts"), style = PiliTheme.typography.body, color = PiliTheme.colors.textSecondary)
+        // The covers of the table (UX audit T5): the usual number of equal parts, "4 couverts".
+        state.coversSplit?.let {
+            Text(
+                vueText("covers_n", "n" to it),
+                style = PiliTheme.typography.body.copy(fontWeight = PiliTheme.typography.weightBold),
+                color = PiliTheme.colors.textSecondary,
+                modifier = Modifier.testTag("checkout_split_covers"),
+            )
+        }
         PiliButton(
             text = vueText("split_dishes"),
             onClick = callbacks.onSplitDishes,
@@ -229,6 +247,19 @@ private fun SplitRow(
         )
     }
 }
+
+/** A thin outline on the split button that matches the covers of the table (UX audit T5); nothing for the others. */
+@Composable
+private fun coversHint(marked: Boolean): Modifier =
+    if (marked) {
+        Modifier.border(
+            CoversHintStroke,
+            PiliTheme.colors.textSecondary,
+            RoundedCornerShape(PiliTheme.dimens.radiusMd),
+        )
+    } else {
+        Modifier
+    }
 
 /** Every part: taken, the current one, and the ones to come. */
 @Composable
@@ -684,7 +715,7 @@ private fun SummaryHead(state: CheckoutUiState) {
         when {
             state.online -> vueText("online_orders")
             state.orderType == OrderType.DINE_IN && state.tableNumber != null ->
-                uiText(R.string.ui_checkout_table, "table" to vueText("table"), "number" to state.tableNumber)
+                uiText(R.string.ui_checkout_table, "table" to vueText("table"), "number" to (state.tableLabel ?: state.tableNumber))
             else -> vueText("takeaway_badge")
         }
     Row(

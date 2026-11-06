@@ -222,4 +222,52 @@ class CheckoutDishesContentTest {
 
         assertEquals(listOf("otherCancel"), calls)
     }
+
+    // ── Covers of the table (UX audit T5) ─────────────────────────
+
+    @Test
+    fun theCoversOfTheTableAreShownBesideTheEqualPartsButNeverApplied() {
+        show(base.copy(covers = 4))
+
+        text("checkout_split_covers").assertTextEquals("4 couverts")
+        compose.onNodeWithTag("checkout_split_1").assertIsEnabled()
+        // Seeing the covers splits nothing: the sale stays in one part until a button is tapped.
+        assertEquals(emptyList<String>(), calls)
+    }
+
+    @Test
+    fun withoutCoversOrWithOneGuestNothingIsSuggested() {
+        show(base)
+        text("checkout_split_covers").assertDoesNotExist()
+    }
+
+    @Test
+    fun oneCoverIsNoSplit() {
+        show(base.copy(covers = 1))
+        text("checkout_split_covers").assertDoesNotExist()
+        assertEquals(null, base.copy(covers = 1).coversSplit)
+    }
+
+    @Test
+    fun coversBeyondTwentyAreNoNumberOfParts() {
+        assertEquals(null, base.copy(covers = 25).coversSplit)
+        assertEquals(20, base.copy(covers = 20).coversSplit)
+        assertEquals(2, base.copy(covers = 2).coversSplit)
+    }
+
+    @Test
+    fun thePadOfOtherStartsOnTheCovers() {
+        showDialogs(base.copy(otherSplitOpen = true, covers = 6))
+
+        text("checkout_other_value").assertTextEquals("6")
+        compose.onNodeWithTag("checkout_other_ok").assertIsEnabled().performClick()
+        assertEquals(listOf("otherConfirm:6"), calls)
+    }
+
+    @Test
+    fun thePadOfOtherStartsEmptyWithoutCovers() {
+        showDialogs(base.copy(otherSplitOpen = true))
+
+        text("checkout_other_value").assertTextEquals("0")
+    }
 }

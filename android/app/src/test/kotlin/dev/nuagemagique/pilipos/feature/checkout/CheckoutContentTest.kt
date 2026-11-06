@@ -332,6 +332,13 @@ class CheckoutContentTest {
     }
 
     @Test
+    fun withZonesTheTitleNamesTheTableWithItsLetter() {
+        show(base.copy(tableLabel = "A-5"))
+
+        text("checkout_title").assertTextEquals("Commande · Table A-5")
+    }
+
+    @Test
     fun aTakeawayTitleNamesTheTakeaway() {
         show(base.copy(orderType = OrderType.TAKEAWAY, tableNumber = null))
 

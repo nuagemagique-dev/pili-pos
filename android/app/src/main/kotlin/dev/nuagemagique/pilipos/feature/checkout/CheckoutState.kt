@@ -164,6 +164,10 @@ internal data class CheckoutUiState(
     val orderType: OrderType? = null,
     /** The table number of a dine-in order. */
     val tableNumber: Int? = null,
+    /** How that table is written: "A-19" in a zone, "19" without one (UX audit T1). */
+    val tableLabel: String? = null,
+    /** The covers (guests) of a table order (UX audit T5); null when none were set or for another order. */
+    val covers: Int? = null,
     /** The engine total of the order (`Order.totalCents`). */
     val totalCents: Long = 0L,
     /** True for the roles that may take a payment (administrator, cashier). */
@@ -245,6 +249,13 @@ internal data class CheckoutUiState(
 
     /** "Autre" is highlighted for a number of parts the four buttons do not give. */
     val otherActive: Boolean get() = !dishMode && splitCount > SPLIT_QUICK_MAX
+
+    /**
+     * The covers of the table when they can be a number of equal parts (UX audit T5, `coversSplit` of `CheckoutView.vue`):
+     * the matching button is marked and the pad of "Autre" starts on them. Never applied by itself, so a table paid in one
+     * go stays one tap.
+     */
+    val coversSplit: Int? get() = covers?.takeIf { it in SPLIT_OTHER_MIN..SPLIT_OTHER_MAX }
 
     /** The dish list of the recap: what each line has left, what was paid, what is checked. */
     val dishRows: List<DishRow>

@@ -339,10 +339,27 @@ class OrderScreenshotTest {
     private val busyTables = setOf(2, 9)
 
     @Test
+    fun coversAndZone() {
+        capture(
+            OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(tableLabel = "A-4", covers = 4, canSetCovers = true)),
+            "order_covers",
+        )
+    }
+
+    @Test
+    fun coversPad() {
+        capture(
+            OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(canSetCovers = true), dialog = OrderDialog.Covers("4")),
+            "order_covers_pad",
+        )
+    }
+
+    @Test
     fun tablePicker() {
         val dialog =
             OrderDialog.TablePicker(
                 4,
+                "4",
                 listOf(1, 2, 3, 6, 7, 9, 10, 12).map {
                     if (it in busyTables) table(it, orderId = 100L + it, lines = 3, totalCents = 2_400L) else table(it)
                 },

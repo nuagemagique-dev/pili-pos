@@ -272,6 +272,12 @@
     <string name="transfer_table">Déplacer</string>
     <string name="transfer_pick_target">Choisissez la table libre</string>
     <string name="transfer_no_free">Aucune table libre</string>
+    <string name="zone_other">Autres tables</string>
+    <string name="covers_add">Couverts</string>
+    <string name="covers_one">1 couvert</string>
+    <string name="covers_n">{n} couverts</string>
+    <string name="covers_title">Couverts : de 1 à 30, 0 pour effacer</string>
+    <string name="table_covers_short">{n} couv.</string>
     <string name="transfer_moved">Table {from} déplacée en {to}</string>
     <string name="transfer_undo">Annuler</string>
     <string name="transfer_mode">Déplacer</string>

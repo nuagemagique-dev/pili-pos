@@ -272,6 +272,12 @@
     <string name="transfer_table">移动</string>
     <string name="transfer_pick_target">请选择空桌</string>
     <string name="transfer_no_free">没有空桌</string>
+    <string name="zone_other">其他桌位</string>
+    <string name="covers_add">人数</string>
+    <string name="covers_one">1位客人</string>
+    <string name="covers_n">{n}位客人</string>
+    <string name="covers_title">用餐人数：1至30，0为清除</string>
+    <string name="table_covers_short">{n}位</string>
     <string name="transfer_moved">{from} 号桌已移到 {to} 号桌</string>
     <string name="transfer_undo">撤销</string>
     <string name="transfer_mode">移动</string>

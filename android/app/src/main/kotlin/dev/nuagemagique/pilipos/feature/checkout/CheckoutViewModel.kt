@@ -16,6 +16,7 @@ import dev.nuagemagique.pilipos.ui.state.HeldPart
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import dev.nuagemagique.pilipos.ui.state.isOpen
 import dev.nuagemagique.pilipos.ui.state.isUsable
+import dev.nuagemagique.pilipos.ui.state.tableLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -41,6 +42,7 @@ import uniffi.pos_ffi.HandoverRequest
 import uniffi.pos_ffi.HeldCourse
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.Order
+import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PaymentPart
 import uniffi.pos_ffi.RequestedMedium
@@ -130,6 +132,8 @@ internal class CheckoutViewModel(
         val eftActive: Boolean,
         val nextHeld: Int? = null,
         val sellsVoucher: Boolean = false,
+        val zones: Map<Int, String> = emptyMap(),
+        val covers: Int? = null,
     )
 
     // A terminal is linked and the till is not in training: card parts go to the terminal.
@@ -140,24 +144,40 @@ internal class CheckoutViewModel(
         val label: ProductLabel,
         val terminal: Boolean,
         val nextHeld: Int?,
+        val covers: Int?,
     )
 
     // The label, the terminal and the next held course travel together, so that the inputs combine four flows.
     private val labelAndTerminal: Flow<Look> =
-        combine(settings.productLabel, eftActive, order.courseSettings, order.heldCourses) { label, active, courses, held ->
-            Look(label, active, nextHeldOf(courses.enabled, held))
+        combine(
+            settings.productLabel,
+            eftActive,
+            order.courseSettings,
+            order.heldCourses,
+            order.covers,
+        ) { label, active, courses, held, covers ->
+            Look(label, active, nextHeldOf(courses.enabled, held), covers)
         }
 
     private val orderInputs: Flow<OrderInputs> =
-        combine(order.current, order.lines, session.canTakePayment, labelAndTerminal) { current, lines, may, (label, terminal, nextHeld) ->
+        combine(
+            order.current,
+            order.lines,
+            session.canTakePayment,
+            labelAndTerminal,
+            order.tableZones,
+        ) { current, lines, may, look, zones ->
+            val label = look.label
             OrderInputs(
                 order = current,
                 canTakePayment = may,
                 labelMode = if (label == ProductLabel.CODE) ProductLabelMode.CODE else ProductLabelMode.NAME,
                 itemCount = lines.sumOf { it.quantity },
-                eftActive = terminal,
-                nextHeld = nextHeld,
+                eftActive = look.terminal,
+                nextHeld = look.nextHeld,
                 sellsVoucher = lines.any { it.departmentId == GIFT_VOUCHER_DEPARTMENT },
+                zones = zones,
+                covers = look.covers,
             )
         }
 
@@ -170,6 +190,8 @@ internal class CheckoutViewModel(
             eftActive = eft.active(),
             nextHeld = nextHeldOf(order.courseSettings.value.enabled, order.heldCourses.value),
             sellsVoucher = order.lines.value.any { it.departmentId == GIFT_VOUCHER_DEPARTMENT },
+            zones = order.tableZones.value,
+            covers = order.covers.value,
         )
 
     private fun snapshot(): CheckoutUiState =
@@ -937,6 +959,8 @@ internal class CheckoutViewModel(
             loadTried = local.loadTried,
             orderType = current?.orderType,
             tableNumber = current?.tableNumber,
+            tableLabel = current?.tableNumber?.let { tableLabel(inputs.zones[it], it) },
+            covers = if (current?.orderType == OrderType.DINE_IN) inputs.covers else null,
             totalCents = current?.totalCents ?: 0L,
             canTakePayment = inputs.canTakePayment,
             step = local.step,

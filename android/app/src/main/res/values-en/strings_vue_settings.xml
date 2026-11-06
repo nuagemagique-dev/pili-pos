@@ -25,10 +25,12 @@
     <string name="settings_takeaway_first_note">Takeaways get E-61, E-62... and start again from this number every day. A change applies to the next number.</string>
     <string name="settings_tables">Table plan</string>
     <string name="settings_tables_current">{count} tables: {plan}</string>
-    <string name="settings_tables_placeholder">1-12, 20-25</string>
+    <string name="settings_tables_placeholder">"1-12, 20-25  or  A 1-20, B 21-40"</string>
+    <string name="settings_zone_names">Zone names (optional)</string>
+    <string name="settings_zone_names_placeholder">A · Room, B · Terrace</string>
     <string name="settings_tables_save">Save</string>
     <string name="settings_tables_saved">Table plan saved</string>
-    <string name="settings_tables_note">Numbers and ranges separated by commas. A table that still has an open order stays on screen.</string>
+    <string name="settings_tables_note">Numbers and ranges separated by commas. A letter before a range makes a zone: the table is then written A-19 on screen and on the kitchen slips, its number (19) stays the one on the ticket. A table that still has an open order stays on screen.</string>
     <string name="settings_support_idle">no session</string>
     <string name="settings_support_running">session running</string>
     <string name="settings_support_unavailable">unavailable</string>

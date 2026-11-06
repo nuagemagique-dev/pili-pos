@@ -121,7 +121,7 @@ internal fun AppHeader(
                 TableBadge(vueText("online_orders"), warning = false, tag = "header_online")
             state.tableNumber != null ->
                 TableBadge(
-                    vueText("table") + " " + state.tableNumber,
+                    vueText("table") + " " + (state.tableLabel ?: state.tableNumber.toString()),
                     warning = false,
                     tag = "header_table",
                     onClick = if (state.canMoveTable) actions.onMoveTable else null,

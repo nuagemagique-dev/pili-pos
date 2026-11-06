@@ -220,6 +220,7 @@ internal fun CheckoutDialogs(
                 NumberKeypadSpec(
                     tag = "checkout_other",
                     title = vueText("split_other_title"),
+                    initial = state.coversSplit?.toString().orEmpty(),
                     maxDigits = 2,
                     min = SPLIT_OTHER_MIN.toLong(),
                     max = SPLIT_OTHER_MAX.toLong(),

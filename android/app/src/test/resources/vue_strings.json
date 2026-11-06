@@ -1194,6 +1194,30 @@
       "zh": "分道出菜",
       "area": "settings"
     },
+    "covers_add": {
+      "fr": "Couverts",
+      "en": "Covers",
+      "zh": "人数",
+      "area": "core"
+    },
+    "covers_n": {
+      "fr": "{n} couverts",
+      "en": "{n} covers",
+      "zh": "{n}位客人",
+      "area": "core"
+    },
+    "covers_one": {
+      "fr": "1 couvert",
+      "en": "1 cover",
+      "zh": "1位客人",
+      "area": "core"
+    },
+    "covers_title": {
+      "fr": "Couverts : de 1 à 30, 0 pour effacer",
+      "en": "Covers: 1 to 30, 0 to clear",
+      "zh": "用餐人数：1至30，0为清除",
+      "area": "core"
+    },
     "deactivate": {
       "fr": "Désactiver",
       "en": "Deactivate",
@@ -2002,6 +2026,12 @@
       "fr": "Le service en plusieurs temps est désactivé (Réglages).",
       "en": "Courses are switched off (Settings).",
       "zh": "分道出菜已关闭（设置）。",
+      "area": "errors"
+    },
+    "err_covers_invalid": {
+      "fr": "Nombre de couverts impossible : un nombre de 1 à {max}.",
+      "en": "Covers not accepted: a number from 1 to {max}.",
+      "zh": "人数无效：请输入1到{max}之间的数字。",
       "area": "errors"
     },
     "err_customer_incomplete": {
@@ -2995,9 +3025,9 @@
       "area": "errors"
     },
     "err_table_plan_invalid": {
-      "fr": "Écrivez les numéros de table comme ceci : 1-12, 20-25 (de 1 à 999, 200 tables au plus).",
-      "en": "Write the table numbers like this: 1-12, 20-25 (1 to 999, at most 200 tables).",
-      "zh": "请按此格式填写桌号：1-12, 20-25（1至999，最多200张桌）。",
+      "fr": "Écrivez les tables comme ceci : 1-12, 20-25 ou avec des zones A 1-20, B 21-40 (de 1 à 999, 200 tables au plus, un numéro dans une seule zone). Noms des zones : A · Salle, B · Terrasse.",
+      "en": "Write the tables like this: 1-12, 20-25, or with zones A 1-20, B 21-40 (1 to 999, at most 200 tables, a number in one zone only). Zone names: A · Room, B · Terrace.",
+      "zh": "请按此格式填写桌位：1-12, 20-25，或带区域 A 1-20, B 21-40（1至999，最多200张桌，一个号码只能属于一个区域）。区域名称：A · 大厅，B · 露台。",
       "area": "errors"
     },
     "err_table_transfer_not_a_table": {
@@ -6301,15 +6331,15 @@
       "area": "settings"
     },
     "settings_tables_note": {
-      "fr": "Numéros et plages séparés par des virgules. Une table qui a encore une commande ouverte reste affichée.",
-      "en": "Numbers and ranges separated by commas. A table that still has an open order stays on screen.",
-      "zh": "用逗号分隔号码和范围。仍有未结订单的桌位会继续显示。",
+      "fr": "Numéros et plages séparés par des virgules. Une lettre devant une plage crée une zone : la table s'écrit alors A-19 à l'écran et sur les bons de cuisine, son numéro (19) reste celui du ticket. Une table qui a encore une commande ouverte reste affichée.",
+      "en": "Numbers and ranges separated by commas. A letter before a range makes a zone: the table is then written A-19 on screen and on the kitchen slips, its number (19) stays the one on the ticket. A table that still has an open order stays on screen.",
+      "zh": "用逗号分隔号码和范围。范围前的字母表示区域：桌位在屏幕和厨房单上显示为 A-19，小票上仍是号码 19。仍有未结订单的桌位会继续显示。",
       "area": "settings"
     },
     "settings_tables_placeholder": {
-      "fr": "1-12, 20-25",
-      "en": "1-12, 20-25",
-      "zh": "1-12, 20-25",
+      "fr": "1-12, 20-25  ou  A 1-20, B 21-40",
+      "en": "1-12, 20-25  or  A 1-20, B 21-40",
+      "zh": "1-12, 20-25  或  A 1-20, B 21-40",
       "area": "settings"
     },
     "settings_tables_save": {
@@ -6388,6 +6418,18 @@
       "fr": "Les ventes suivantes ne seront pas comptées.",
       "en": "The following sales will not be counted.",
       "zh": "之后的销售不会计入账目。",
+      "area": "settings"
+    },
+    "settings_zone_names": {
+      "fr": "Noms des zones (facultatif)",
+      "en": "Zone names (optional)",
+      "zh": "区域名称（可选）",
+      "area": "settings"
+    },
+    "settings_zone_names_placeholder": {
+      "fr": "A · Salle, B · Terrasse",
+      "en": "A · Room, B · Terrace",
+      "zh": "A · 大厅, B · 露台",
       "area": "settings"
     },
     "shift_ended": {
@@ -6694,6 +6736,12 @@
       "fr": "Table",
       "en": "Table",
       "zh": "桌",
+      "area": "core"
+    },
+    "table_covers_short": {
+      "fr": "{n} couv.",
+      "en": "{n} cov.",
+      "zh": "{n}位",
       "area": "core"
     },
     "table_held_course": {
@@ -7331,6 +7379,12 @@
       "en": "Z-report not done today",
       "zh": "今日未生成Z报表",
       "area": "core"
+    },
+    "zone_other": {
+      "fr": "Autres tables",
+      "en": "Other tables",
+      "zh": "其他桌位",
+      "area": "core"
     }
   },
   "fdm": {
@@ -7411,6 +7465,7 @@
     "takeaway_name_invalid",
     "takeaway_phone_invalid",
     "takeaway_customer_not_takeaway",
+    "covers_invalid",
     "config_tables",
     "table_transfer_same_table",
     "table_transfer_target_busy",

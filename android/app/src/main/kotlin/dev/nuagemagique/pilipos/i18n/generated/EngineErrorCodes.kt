@@ -32,6 +32,7 @@ object EngineErrorCodes {
             "takeaway_name_invalid",
             "takeaway_phone_invalid",
             "takeaway_customer_not_takeaway",
+            "covers_invalid",
             "config_tables",
             "table_transfer_same_table",
             "table_transfer_target_busy",

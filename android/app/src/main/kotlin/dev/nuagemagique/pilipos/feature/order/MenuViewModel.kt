@@ -12,6 +12,7 @@ import dev.nuagemagique.pilipos.ui.state.LineAdd
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import dev.nuagemagique.pilipos.ui.state.TableMoves
+import dev.nuagemagique.pilipos.ui.state.tableLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -162,6 +163,16 @@ private data class Data(
     val lastAdd: LineAdd? = null,
     /** The payment parts kept for an order when the operator came back from the checkout (UX audit P4). */
     val heldParts: HeldParts? = null,
+    /** The covers of the order on screen (UX audit T5) and the zones of the plan (UX audit T1). */
+    val covers: Int? = null,
+    val zones: Map<Int, String> = emptyMap(),
+)
+
+/** What the cart shows of the table (UX audit T1, T5). */
+private data class TableView(
+    val label: String?,
+    val covers: Int?,
+    val canSetCovers: Boolean,
 )
 
 /** What the cart shows of the courses: the switch and the next held course. */
@@ -291,6 +302,8 @@ internal class MenuViewModel(
         // The value held when this screen starts is an old add: only the adds seen from now on flash their line.
         viewModelScope.launch { order.lastAdd.drop(1).collect { add -> data.update { it.copy(lastAdd = add) } } }
         viewModelScope.launch { order.heldParts.collect { held -> data.update { it.copy(heldParts = held) } } }
+        viewModelScope.launch { order.covers.collect { covers -> data.update { it.copy(covers = covers) } } }
+        viewModelScope.launch { order.tableZones.collect { zones -> data.update { it.copy(zones = zones) } } }
         viewModelScope.launch {
             order.lines.collectLatest { lines ->
                 val amounts = amountsOf(lines)
@@ -330,6 +343,7 @@ internal class MenuViewModel(
         val canDiscount = mayDiscount(l.isManager, current, lines)
         // A bowl's paid option (its broth) is not one more bowl.
         val quantities = lines.filter { it.bowlLineId == null }.groupingBy { it.menuItemId }.fold(0) { sum, line -> sum + line.quantity }
+        val tableView = tableViewOf(current, d)
         return OrderUiState(
             signedIn = l.signedIn,
             menu = menuState(d, l, quantities),
@@ -367,9 +381,25 @@ internal class MenuViewModel(
                     sendingNext = d.sendingNext,
                     lastAdd = d.lastAdd,
                     heldPartCount = keptPartCount(d.heldParts, current?.id),
+                    tableLabel = tableView.label,
+                    covers = tableView.covers,
+                    canSetCovers = tableView.canSetCovers,
                 ),
             zWarning = d.zWarning,
             dialog = d.dialog,
+        )
+    }
+
+    /** What the cart says of the table of [current]: its label with the zone, its covers, whether they may be set. */
+    private fun tableViewOf(
+        current: Order?,
+        d: Data,
+    ): TableView {
+        val dineIn = current?.orderType == OrderType.DINE_IN
+        return TableView(
+            label = current?.tableNumber?.let { tableLabel(d.zones[it], it) },
+            covers = if (dineIn) d.covers else null,
+            canSetCovers = dineIn && current?.status == OrderStatus.OPEN && current.tableNumber != null,
         )
     }
 
@@ -817,6 +847,20 @@ internal class MenuViewModel(
         }
     }
 
+    /** The covers button of the cart header: opens the pad on the covers set now (`coversOpen` of `CartSidebar.vue`). */
+    fun askCovers() {
+        val cart = state.value.cart
+        if (!isRouteOrderCurrent() || !cart.canSetCovers) return
+        data.update { it.copy(dialog = OrderDialog.Covers(cart.covers?.toString().orEmpty())) }
+    }
+
+    /** The covers typed on the pad: 0 clears them; a refusal is shown as an error toast by [run]. */
+    fun saveCovers(count: Int) {
+        data.update { if (it.dialog is OrderDialog.Covers) it.copy(dialog = OrderDialog.None) else it }
+        if (!isRouteOrderCurrent()) return
+        viewModelScope.launch { order.setCovers(count.takeIf { it > 0 }) }
+    }
+
     /**
      * Opens the table picker of "Déplacer" (`TableMover.vue`): the other tables of the plan, the free ones to tap and
      * the busy ones dimmed with their total. A refusal to list them is shown as an error toast.
@@ -831,8 +875,9 @@ internal class MenuViewModel(
             val language = settings.language.value
             attempt { gateway.call { engine -> engine.listTables() } }.fold(
                 onSuccess = { tables ->
+                    order.learnTables(tables)
                     val others = tables.filter { it.tableNumber != from }
-                    data.update { it.copy(dialog = OrderDialog.TablePicker(from, others)) }
+                    data.update { it.copy(dialog = OrderDialog.TablePicker(from, order.tableLabel(from), others)) }
                 },
                 onFailure = { entry.errors().show(it, language) },
             )

@@ -42,6 +42,7 @@ class OrderContentTest {
             onCategory = { seen += "category:$it" },
             onItem = { seen += "item:${it.id}" },
             onPrice = { seen += "price:$it" },
+            onCoversSaved = { seen += "covers:$it" },
             onPicks = { seen += "picks:$it" },
             onDismiss = { seen += "dismiss" },
         )
@@ -256,6 +257,33 @@ class OrderContentTest {
         group(1, "Sauce", min = 1, max = 1, modifier(100, "Soja"), modifier(101, "Spicy", 50))
     private val extras =
         group(2, "Extras", min = 0, max = 2, modifier(102, "Gingembre", 30), modifier(103, "Wasabi"), modifier(104, "Sésame"))
+
+    @Test
+    fun theCoversPadStartsOnTheCoversSetNowAndReturnsTheTypedNumber() {
+        showDialog(OrderDialog.Covers("4"))
+
+        compose.onNodeWithTag("covers_dialog").assertIsDisplayed()
+        compose.onNodeWithTag("covers_value").assertTextEquals("4")
+        compose.onNodeWithTag("numpad_key_2", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("covers_value").assertTextEquals("42")
+        // 42 is beyond the 30 guests a table takes: it cannot be confirmed.
+        compose.onNodeWithTag("covers_ok").assertIsNotEnabled()
+        compose.onNodeWithTag("numpad_back", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("covers_ok").performClick()
+
+        assertEquals(listOf("covers:4"), seen)
+    }
+
+    @Test
+    fun theCoversPadTakesZeroToClearThem() {
+        showDialog(OrderDialog.Covers("4"))
+
+        compose.onNodeWithTag("numpad_clear", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("numpad_key_0", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("covers_ok").performClick()
+
+        assertEquals(listOf("covers:0"), seen)
+    }
 
     @Test
     fun aFreePriceProductOpensTheAmountDialogAndTheTypedPriceIsReturnedAsCents() {

@@ -28,6 +28,8 @@ import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.AmountDialog
+import dev.nuagemagique.pilipos.ui.components.NumberKeypad
+import dev.nuagemagique.pilipos.ui.components.NumberKeypadSpec
 import dev.nuagemagique.pilipos.ui.components.PinDialog
 import dev.nuagemagique.pilipos.ui.components.PinMode
 import dev.nuagemagique.pilipos.ui.components.PinPadTexts
@@ -73,6 +75,8 @@ internal data class OrderCallbacks(
     val onMoreDiscount: () -> Unit = {},
     val onMoreDiscountRemove: () -> Unit = {},
     val onMoreUnpaid: () -> Unit = {},
+    /** The covers typed on the pad of the cart header (0 clears them). */
+    val onCoversSaved: (Int) -> Unit = {},
     /** The input of the discount dialog. */
     val onDiscountChosen: (DiscountInput) -> Unit = {},
     /** The manager PIN of a discount or its removal; throws what the engine refused. */
@@ -149,6 +153,7 @@ internal fun OrderRoute(
             onDiscountPin = model::confirmDiscountPin,
             onDiscountDone = model::discountDone,
             onNoteSaved = model::saveNote,
+            onCoversSaved = model::saveCovers,
             onUnpaidDone = {
                 model.unpaidClosed()
                 navigator.navigate(TablesRoutes.TABLES)
@@ -165,6 +170,7 @@ internal fun OrderRoute(
             onCloseUnpaid = model::askCloseUnpaid,
             onTransfer = model::askTransfer,
             onMore = model::openCartMore,
+            onCovers = model::askCovers,
             onDiscount = { model.askDiscount() },
             onRemoveOrderDiscount = { model.askRemoveDiscount() },
             onOffer = { model.askDiscount(it) },
@@ -295,8 +301,22 @@ internal fun BoxScope.OrderDialogs(
                 forWeight = dialog.forWeight,
             )
         is OrderDialog.CartMore -> CartMoreDialog(dialog, callbacks)
+        is OrderDialog.Covers ->
+            NumberKeypad(
+                spec =
+                    NumberKeypadSpec(
+                        tag = "covers",
+                        title = vueText("covers_title"),
+                        initial = dialog.initial,
+                        maxDigits = 2,
+                        min = 0L,
+                        max = COVERS_MAX.toLong(),
+                    ),
+                onConfirm = { callbacks.onCoversSaved(it.toIntOrNull() ?: 0) },
+                onCancel = callbacks.onDismiss,
+            )
         is OrderDialog.TablePicker ->
-            TablePickerDialog(dialog.from, dialog.tables, onPick = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
+            TablePickerDialog(dialog.fromLabel, dialog.tables, onPick = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
         is OrderDialog.SoldOut -> SoldOutDialog(dialog.item, callbacks.onAvailability, callbacks.onDismiss)
         OrderDialog.SoldOutList -> SoldOutList(soldOut, callbacks.onAvailability, callbacks.onDismiss)
         is OrderDialog.CloseUnpaid -> CloseUnpaidDialog(dialog.userName, callbacks)

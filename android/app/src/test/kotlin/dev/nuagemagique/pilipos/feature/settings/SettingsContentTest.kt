@@ -56,6 +56,7 @@ class SettingsContentTest {
             onProductLabel = { taps += "label:${it.code}" },
             onAddBeep = { taps += "beep:$it" },
             onTablePlanInput = { taps += "tables:$it" },
+            onZoneNamesInput = { taps += "zones:$it" },
             onSaveTablePlan = { taps += "tables:save" },
             takeawayFirst = TakeawayFirstActions(onEdit = { taps += "takeaway-first:edit" }),
             onRow = { navigator.navigate(it.route) },
@@ -256,6 +257,22 @@ class SettingsContentTest {
     fun aRefusedTablePlanShowsItsReason() {
         show(managerState().copy(tablePlan = TablePlanState(plan = "1-20", count = 20L, input = "A1", error = "format")))
         compose.onNodeWithTag("settings_tables_error").assertTextEquals("format")
+    }
+
+    @Test
+    fun theZoneNamesFieldIsTypedOnItsOwnKeypadAndSavedWithThePlan() {
+        show(
+            managerState().copy(
+                tablePlan = TablePlanState(plan = "A 1-12", count = 12L, input = "A 1-12", zoneNamesInput = "A \u00B7 Salle"),
+            ),
+        )
+
+        compose.onNodeWithTag("settings_zone_names_input").performClick()
+        compose.typeOnKeypad("x")
+        compose.onNodeWithTag("keypad_confirm").performClick()
+        compose.onNodeWithTag("settings_tables_save").performClick()
+
+        assertEquals(listOf("zones:A \u00B7 Sallex", "tables:save"), taps)
     }
 
     @Test

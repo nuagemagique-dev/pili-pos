@@ -70,6 +70,44 @@ class CheckoutViewModelTest {
         return startCheckout(f, context)
     }
 
+    // ── Zones and covers (UX audit T1, T5) ────────────────────────
+
+    @Test
+    fun theStateCarriesTheLabelOfTheTableAndTheCoversOfTheOrder() =
+        runTest {
+            val f = checkoutFixture(tmp.root, 1_152, listOf(cartLine(1, quantity = 2)))
+            f.engine.stubSale()
+            coEvery { f.engine.getOrderCovers(ORDER_ID) } returns 4
+            val r = startCheckout(f, context)
+            r.order.applyTablePlan(
+                uniffi.pos_ffi.TablePlan("A 1-9", 9L, "", listOf(uniffi.pos_ffi.TableZone("A", null, (1..9).toList())), emptyList()),
+            )
+            r.order.loadOrder(ORDER_ID)
+            runCurrent()
+
+            assertEquals("A-5", r.state.tableLabel)
+            assertEquals(4, r.state.covers)
+            assertEquals(4, r.state.coversSplit)
+        }
+
+    @Test
+    fun theCoversAreOnlyASuggestionAndTheSaleStaysInOnePart() =
+        runTest {
+            val f = checkoutFixture(tmp.root, 1_152, listOf(cartLine(1, quantity = 2)))
+            f.engine.stubSale()
+            coEvery { f.engine.getOrderCovers(ORDER_ID) } returns 4
+            val r = startCheckout(f, context)
+            r.order.loadOrder(ORDER_ID)
+            runCurrent()
+
+            assertEquals(1, r.state.splitCount)
+            r.model.openOtherSplit()
+            assertTrue(r.state.otherSplitOpen)
+            r.model.confirmOtherSplit(4)
+            runCurrent()
+            assertEquals(4, r.state.splitCount)
+        }
+
     // ── Loading ───────────────────────────────────────────────────
 
     @Test

@@ -595,7 +595,125 @@ class MenuViewModelTest {
             r.model.askTransfer()
             runCurrent()
 
-            assertEquals(OrderDialog.TablePicker(4, listOf(table(1), table(5, orderId = 2L), table(6))), r.state.dialog)
+            assertEquals(OrderDialog.TablePicker(4, "4", listOf(table(1), table(5, orderId = 2L), table(6))), r.state.dialog)
+        }
+
+    private fun zonedPlan() =
+        uniffi.pos_ffi.TablePlan(
+            plan = "A 1-4, B 5-8",
+            tableCount = 8L,
+            zoneNames = "",
+            zones =
+                listOf(
+                    uniffi.pos_ffi.TableZone("A", null, listOf(1, 2, 3, 4)),
+                    uniffi.pos_ffi.TableZone("B", null, listOf(5, 6, 7, 8)),
+                ),
+            log = emptyList(),
+        )
+
+    @Test
+    fun withZonesTheCartTheTablePickerAndTheMoveToastNameTheTablesWithTheirLetter() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            r.order.applyTablePlan(zonedPlan())
+            coEvery { f.engine.listTables() } returns listOf(table(4, zone = "A"), table(6, zone = "B"))
+            coEvery { f.engine.transferTable(ORDER_ID, 6) } returns moved4to6
+            runCurrent()
+
+            assertEquals("A-4", r.state.cart.tableLabel)
+
+            r.model.askTransfer()
+            runCurrent()
+            assertEquals(OrderDialog.TablePicker(4, "A-4", listOf(table(6, zone = "B"))), r.state.dialog)
+
+            r.model.confirmTransfer(6)
+            runCurrent()
+            assertEquals("Table A-4 déplacée en B-6", r.lastToast().message)
+        }
+
+    // ── Covers (UX audit T5) ──────────────────────────────────────
+
+    @Test
+    fun anOpenTableOrderMaySetItsCoversAndATakeawayMayNot() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            assertTrue(r.state.cart.canSetCovers)
+            assertNull(r.state.cart.covers)
+
+            coEvery { f.engine.getOrder(any()) } returns order(table = null)
+            r.order.loadOrder(ORDER_ID)
+            runCurrent()
+            assertFalse(r.state.cart.canSetCovers)
+        }
+
+    @Test
+    fun theCoversPadOpensOnTheCoversSetNowAndTheTypedNumberIsSent() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            coEvery { f.engine.getOrderCovers(ORDER_ID) } returns 4
+            val r = startOrder(f, world, context)
+            r.login()
+            r.order.loadOrder(ORDER_ID)
+            runCurrent()
+            assertEquals(4, r.state.cart.covers)
+
+            r.model.askCovers()
+            assertEquals(OrderDialog.Covers("4"), r.state.dialog)
+
+            coEvery { f.engine.setOrderCovers(ORDER_ID, 6) } returns 6
+            r.model.saveCovers(6)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.setOrderCovers(ORDER_ID, 6) }
+            assertEquals(OrderDialog.None, r.state.dialog)
+            assertEquals(6, r.state.cart.covers)
+        }
+
+    @Test
+    fun zeroOnTheCoversPadClearsThem() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            coEvery { f.engine.getOrderCovers(ORDER_ID) } returns 4
+            val r = startOrder(f, world, context)
+            r.login()
+            r.order.loadOrder(ORDER_ID)
+            runCurrent()
+            coEvery { f.engine.setOrderCovers(ORDER_ID, null) } returns null
+
+            r.model.saveCovers(0)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.setOrderCovers(ORDER_ID, null) }
+            assertNull(r.state.cart.covers)
+        }
+
+    @Test
+    fun aRefusedCoversShowsTheErrorAndKeepsTheValue() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            coEvery { f.engine.getOrderCovers(ORDER_ID) } returns 4
+            val r = startOrder(f, world, context)
+            r.login()
+            r.order.loadOrder(ORDER_ID)
+            runCurrent()
+            coEvery { f.engine.setOrderCovers(ORDER_ID, any()) } throws PosException.Coded("covers_invalid", mapOf("max" to "30"))
+
+            r.model.saveCovers(31)
+            runCurrent()
+
+            assertEquals(dev.nuagemagique.pilipos.ui.feedback.ToastVariant.Error, r.lastToast().variant)
+            assertEquals(4, r.state.cart.covers)
         }
 
     private val moved4to6 =

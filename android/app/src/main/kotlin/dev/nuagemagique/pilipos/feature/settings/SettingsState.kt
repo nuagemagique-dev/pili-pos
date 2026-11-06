@@ -89,6 +89,8 @@ internal data class TablePlanState(
     val count: Long = 0L,
     /** What the field holds. */
     val input: String = "",
+    /** What the optional zone names field holds ("A · Salle, B · Terrasse"). */
+    val zoneNamesInput: String = "",
     /** The refusal of the last save, as screen text. */
     val error: String? = null,
 )

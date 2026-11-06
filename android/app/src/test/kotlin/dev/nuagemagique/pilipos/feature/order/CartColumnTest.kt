@@ -40,6 +40,7 @@ class CartColumnTest {
             onSend = { seen += "send" },
             onPreBill = { seen += "prebill" },
             onCloseUnpaid = { seen += "unpaid" },
+            onCovers = { seen += "covers" },
         )
 
     private val sentLine = CartRow(cartLine(1, 10, "Maki saumon", quantity = 2), LineAmount.Total(1_300))
@@ -356,5 +357,47 @@ class CartColumnTest {
         show(dineIn, AppLanguage.ZH)
 
         compose.onNodeWithTag("cart_title").assertTextContains("桌", substring = true)
+    }
+
+    // ── Zones and covers (UX audit T1, T5) ────────────────────────
+
+    @Test
+    fun theTitleNamesTheTableWithItsZoneWhenThePlanHasOne() {
+        show(dineIn.copy(tableLabel = "A-4"))
+
+        compose.onNodeWithTag("cart_title").assertTextEquals("Commande \u00B7 Table A-4")
+    }
+
+    @Test
+    fun withoutAZoneTheTitleKeepsThePlainNumber() {
+        show(dineIn)
+
+        compose.onNodeWithTag("cart_title").assertTextEquals("Commande \u00B7 Table 4")
+    }
+
+    @Test
+    fun anOpenTableOffersTheCoversButtonAndASetValueIsOnIt() {
+        show(dineIn.copy(canSetCovers = true))
+        compose.onNodeWithTag("cart_covers").assertTextEquals("Couverts")
+        compose.onNodeWithTag("cart_covers").performClick()
+        assertEquals(listOf("covers"), seen)
+    }
+
+    @Test
+    fun theCoversButtonSaysHowManyGuestsThereAre() {
+        show(dineIn.copy(canSetCovers = true, covers = 4))
+        compose.onNodeWithTag("cart_covers").assertTextEquals("4 couverts")
+    }
+
+    @Test
+    fun oneGuestIsWrittenInTheSingular() {
+        show(dineIn.copy(canSetCovers = true, covers = 1))
+        compose.onNodeWithTag("cart_covers").assertTextEquals("1 couvert")
+    }
+
+    @Test
+    fun aTakeawayOrAnOrderThatIsNotOpenHasNoCoversButton() {
+        show(dineIn.copy(canSetCovers = false))
+        compose.onNodeWithTag("cart_covers").assertDoesNotExist()
     }
 }

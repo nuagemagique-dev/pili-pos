@@ -15,9 +15,10 @@ private const val UNDO_ERROR_TTL_MS: Long = 6000L
 
 /**
  * `moveTable` and `undoMove` of `ui/src/stores/order.ts` (UX audit C8): the move of an order to a free table in one
- * tap. The order goes at once (`transfer_table`, M122, unchanged); the toast "Table 4 déplacée en 9" stays 5 s with an
- * "Annuler" that moves it back with a second transfer, signed like any other. A refusal of the move is thrown for the
- * caller's toast; a refusal of the undo is shown here as an error toast.
+ * tap. The order goes at once (`transfer_table`, M122, unchanged); the toast "Table 4 déplacée en 9" ("Table A-4
+ * déplacée en B-9" with zones, UX audit T1) stays 5 s with an "Annuler" that moves it
+ * back with a second transfer, signed like any other. A refusal of the move is thrown for the caller's toast; a refusal
+ * of the undo is shown here as an error toast.
  */
 internal class TableMoves(
     private val order: OrderStore,
@@ -34,7 +35,7 @@ internal class TableMoves(
     ) {
         order.transferOrder(orderId, to)
         toasts.showWithAction(
-            text("transfer_moved", "from" to from, "to" to to),
+            text("transfer_moved", "from" to order.tableLabel(from), "to" to order.tableLabel(to)),
             ToastAction(text("transfer_undo")) { undo(orderId, from, to) },
             MOVE_UNDO_TTL_MS,
         )
@@ -48,7 +49,7 @@ internal class TableMoves(
     ) {
         try {
             order.transferOrder(orderId, from)
-            toasts.show(text("transfer_moved", "from" to to, "to" to from), ToastVariant.Success)
+            toasts.show(text("transfer_moved", "from" to order.tableLabel(to), "to" to order.tableLabel(from)), ToastVariant.Success)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

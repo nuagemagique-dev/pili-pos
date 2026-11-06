@@ -15,6 +15,7 @@ import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
+import dev.nuagemagique.pilipos.ui.state.OrderStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
 import dev.nuagemagique.pilipos.ui.state.WebshopOrdersStore
@@ -44,6 +45,9 @@ internal interface SettingsFeatureEntryPoint {
 
     /** The HubRise switch. */
     fun integrations(): IntegrationsStore
+
+    /** The order store, which holds the zones of the table plan: a saved plan is applied to it. */
+    fun order(): OrderStore
 
     /** The text of a refusal. */
     fun errors(): ErrorPresenter

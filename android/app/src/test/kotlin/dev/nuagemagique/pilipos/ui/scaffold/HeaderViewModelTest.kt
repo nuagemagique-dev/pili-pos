@@ -122,6 +122,25 @@ class HeaderViewModelTest {
         }
 
     @Test
+    fun theTableChipIsWrittenWithTheZoneOfThePlan() =
+        runTest {
+            val r = start(fixture(), HeaderArea.ORDER)
+            r.login(admin)
+            r.openOrder(order(7, table = 12))
+            runCurrent()
+            assertEquals("12", r.state.tableLabel)
+
+            r.entry.order().applyTablePlan(
+                uniffi.pos_ffi.TablePlan("B 1-20", 20L, "", listOf(uniffi.pos_ffi.TableZone("B", null, (1..20).toList())), emptyList()),
+            )
+            runCurrent()
+
+            assertEquals("B-12", r.state.tableLabel)
+            // The number stays the table's identity.
+            assertEquals(12, r.state.tableNumber)
+        }
+
+    @Test
     fun theTableNumberShowsOnTheOrderAndCheckoutScreensOnly() =
         runTest {
             val orderScreen = start(fixture(), HeaderArea.ORDER)

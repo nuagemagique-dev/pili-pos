@@ -48,8 +48,11 @@ object KeypadSymbols {
     /** A code or an identifier (channel names, authorization codes). */
     val Code: List<String> = listOf("-", "_", ".", ":", "/")
 
-    /** The table plan is ranges and letters: "1-12, 20-25", "A1". */
+    /** The table plan is ranges and zone letters: "1-12, 20-25", "A 1-20, B 21-40". */
     val TablePlan: List<String> = listOf("-", ",")
+
+    /** The names of the table zones: "A · Salle, B · Terrasse" (accents, the middle dot, comma, colon). */
+    val ZoneNames: List<String> = listOf("é", "è", "ê", "à", "\u00B7", ",", ":")
 }
 
 private val LetterRows: List<String> = listOf("qwertyuiop", "asdfghjkl", "zxcvbnm")

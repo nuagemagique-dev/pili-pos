@@ -2,6 +2,7 @@ package dev.nuagemagique.pilipos.feature.reports
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -15,6 +16,8 @@ import androidx.compose.ui.test.performClick
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.format.LineAmount
+import dev.nuagemagique.pilipos.ui.state.LocalTableLabeler
+import dev.nuagemagique.pilipos.ui.state.TableLabeler
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -178,6 +181,26 @@ class ReportsContentTest {
         compose.onNodeWithTag("report_z_unsettled_2", useUnmergedTree = true).assertTextEquals("- À emporter · 9,50 €")
         // Only a warning: the Z button stays usable.
         compose.onNodeWithTag("report_z").assertIsEnabled()
+    }
+
+    @Test
+    fun withZonesTheUnsettledWarningNamesTheTableWithItsLetter() {
+        val state = day { copy(unsettled = listOf(unsettled(1L, table = 4))) }
+        compose.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    CompositionLocalProvider(LocalTableLabeler provides TableLabeler(mapOf(4 to "A"))) {
+                        Box(Modifier.fillMaxSize()) { ReportsContent(state, callbacks) }
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        compose.onNodeWithTag(
+            "report_z_unsettled_1",
+            useUnmergedTree = true,
+        ).assertTextEquals("- Table A-4 \u00B7 17,00 \u20AC \u00B7 Bancontact")
     }
 
     @Test
@@ -419,6 +442,24 @@ class ReportsContentTest {
                 rows = mergeRows(copyables, refundables),
             ),
     )
+
+    @Test
+    fun withZonesTheTicketsListNamesTheTableWithItsLetter() {
+        val state = tickets(listOf(copyable(3L)), listOf(refundable(3L)))
+        compose.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    CompositionLocalProvider(LocalTableLabeler provides TableLabeler(mapOf(4 to "A"))) {
+                        Box(Modifier.fillMaxSize()) { ReportsContent(state, callbacks) }
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        // The number on the fiscal ticket stays 4; only the screen writes the zone.
+        compose.onNodeWithTag("ticket_table_3").assertTextEquals("A-4")
+    }
 
     @Test
     fun theTicketsTabListsEveryTicketWithItsKindTableTimeAndAmount() {

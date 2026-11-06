@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -59,6 +61,10 @@ import dev.nuagemagique.pilipos.ui.format.PosDateTime
 import dev.nuagemagique.pilipos.ui.format.formatEuro
 import dev.nuagemagique.pilipos.ui.scaffold.HeaderArea
 import dev.nuagemagique.pilipos.ui.scaffold.PosScaffold
+import dev.nuagemagique.pilipos.ui.state.TableGroup
+import dev.nuagemagique.pilipos.ui.state.groupTables
+import dev.nuagemagique.pilipos.ui.state.hasZones
+import dev.nuagemagique.pilipos.ui.state.zoneTitle
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -84,6 +90,7 @@ private val NewTakeawayHeight = 80.dp
 private val DashStroke = 2.dp
 private val CHOSEN_STROKE = 4.dp
 private val MoveToggleHeight = 56.dp
+private val ServerBadgeSize = 32.dp
 
 /** Alpha of a table that cannot be picked in the move mode (`opacity: 0.3`). */
 private const val DIMMED_ALPHA = 0.3f
@@ -134,7 +141,8 @@ internal fun TablesRoute(navigator: AppNavigator) {
  * The tables screen, stateless: the table grid (5 columns, occupied tables filled with their total, free ones
  * dashed) and the open takeaways on the right with the new takeaway button, laid out for 1920 x 1080 dp. Without a
  * user it shows an empty state instead. The "Déplacer une table" bar sits over the grid. Test tags: `tables_grid`,
- * `move_toggle`, `move_hint`, `table_<number>`, `table_<number>_total`, `tables_none`, `takeaways_panel`,
+ * `move_toggle`, `move_hint`, `table_<number>`, `table_<number>_total`, `table_<number>_server`, `zone_<letter>`,
+ * `zone_other`, `tables_none`, `takeaways_panel`,
  * `takeaway_<orderId>`, `takeaways_title`, `takeaway_new`, `tables_empty`.
  */
 @Composable
@@ -171,10 +179,15 @@ private fun TableGrid(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(d.spaceLg),
             verticalArrangement = Arrangement.spacedBy(d.spaceMd),
         ) {
-            state.tables.chunked(GRID_COLUMNS).forEach { row ->
-                Row(Modifier.fillMaxWidth().height(cardHeight), horizontalArrangement = Arrangement.spacedBy(d.spaceMd)) {
-                    row.forEach { table -> TableCard(table, state, { onTable(table) }, Modifier.weight(1f).fillMaxHeight()) }
-                    repeat(GRID_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+            // One block per zone ("A · Salle"); a plan without letters is one block with no header (UX audit T1).
+            val zoned = hasZones(state.tables)
+            groupTables(state.tables).forEach { group ->
+                if (zoned) ZoneHeader(group)
+                group.tables.chunked(GRID_COLUMNS).forEach { row ->
+                    Row(Modifier.fillMaxWidth().height(cardHeight), horizontalArrangement = Arrangement.spacedBy(d.spaceMd)) {
+                        row.forEach { table -> TableCard(table, state, { onTable(table) }, Modifier.weight(1f).fillMaxHeight()) }
+                        repeat(GRID_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
                 }
             }
         }
@@ -187,6 +200,18 @@ private fun TableGrid(
             )
         }
     }
+}
+
+/** The header of a zone: "A · Salle", "A" without a name, "Autre" for the tables outside every zone (`zone-header`). */
+@Composable
+private fun ZoneHeader(group: TableGroup) {
+    val zone = group.zone
+    Text(
+        text = if (zone != null) zoneTitle(zone, group.name) else vueText("zone_other"),
+        style = PiliTheme.typography.title,
+        color = PiliTheme.colors.textSecondary,
+        modifier = Modifier.padding(top = PiliTheme.dimens.spaceSm).testTag("zone_${zone ?: "other"}"),
+    )
 }
 
 /** The "Déplacer" toggle and, in the mode, what to tap next (`plan-bar` of `TablesView.vue`). */
@@ -211,7 +236,7 @@ private fun MoveBar(
         if (move.moving) {
             val source = move.source
             Text(
-                text = if (source == null) vueText("transfer_pick_source") else vueText("transfer_pick_free", "from" to source.tableNumber),
+                text = if (source == null) vueText("transfer_pick_source") else vueText("transfer_pick_free", "from" to source.label),
                 style = t.body.copy(fontSize = t.sizeLg),
                 color = PiliTheme.colors.textSecondary,
                 modifier = Modifier.testTag("move_hint"),
@@ -296,7 +321,7 @@ private fun TableTop(
     val occupied = table.status == STATUS_OCCUPIED
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
         Text(
-            text = table.tableNumber.toString(),
+            text = table.label,
             style = t.figure.copy(fontSize = t.sizeXl * TABLE_NUMBER_SCALE, fontWeight = t.weightBold),
             color = if (occupied) c.textPrimary else c.textSecondary,
         )
@@ -352,21 +377,50 @@ private fun OccupiedInfo(
             val minutes = PosDateTime.minutesSince(it, state.now)
             items + " · " + uiText(R.string.ui_tables_minutes, "minutes" to minutes)
         } ?: items
+    // The covers set from the cart header (UX audit T5): "4 couv.".
+    val covers = table.covers?.takeIf { it > 0 }?.let { " \u00B7 " + vueText("table_covers_short", "n" to it) }.orEmpty()
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = formatEuro(table.totalCents),
+                style = t.figure.copy(fontSize = t.sizeXl, fontWeight = t.weightBold),
+                color = c.textPrimary,
+                maxLines = 1,
+                modifier = Modifier.testTag("table_${table.tableNumber}_total"),
+            )
+            // The initial of the user who opened the order (UX audit T5).
+            table.openedByInitial?.takeIf { it.isNotEmpty() }?.let { ServerBadge(it, "table_${table.tableNumber}_server") }
+        }
         Text(
-            text = formatEuro(table.totalCents),
-            style = t.figure.copy(fontSize = t.sizeXl, fontWeight = t.weightBold),
-            color = c.textPrimary,
-            maxLines = 1,
-            modifier = Modifier.testTag("table_${table.tableNumber}_total"),
-        )
-        Text(
-            text = meta,
+            text = meta + covers,
             style = t.figure.copy(fontSize = t.sizeMd),
             color = c.textSecondary,
-            maxLines = 1,
+            // With the covers the line may wrap to a second one rather than lose them.
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.testTag("table_${table.tableNumber}_meta"),
+        )
+    }
+}
+
+/** The round badge with the initial of the server (`server-badge` in `TablesView.vue`). */
+@Composable
+private fun ServerBadge(
+    initial: String,
+    tag: String,
+) {
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    Box(
+        modifier = Modifier.size(ServerBadgeSize).clip(CircleShape).background(c.bgSurface).border(1.dp, c.border, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            initial,
+            style = t.body.copy(fontSize = t.sizeMd, fontWeight = t.weightBold),
+            color = c.textPrimary,
+            maxLines = 1,
+            modifier = Modifier.testTag(tag),
         )
     }
 }

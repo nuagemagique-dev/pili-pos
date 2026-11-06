@@ -28,6 +28,7 @@ import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.format.PosDateTime
 import dev.nuagemagique.pilipos.ui.format.formatEuro
+import dev.nuagemagique.pilipos.ui.state.LocalTableLabeler
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import uniffi.pos_ffi.CorrectionDone
@@ -217,7 +218,7 @@ private fun TicketFacts(
         }
     }
     Text(
-        text = row.tableNumber?.let { "T$it" } ?: "",
+        text = row.tableNumber?.let { LocalTableLabeler.current.short(it) } ?: "",
         style = t.figure,
         color = c.textSecondary,
         modifier = Modifier.width(TableWidth).testTag("ticket_table_$id"),

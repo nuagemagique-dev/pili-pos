@@ -25,10 +25,12 @@
     <string name="settings_takeaway_first_note">外带订单按 E-61、E-62... 编号，每天从此号码重新开始。修改仅对下一个号码生效。</string>
     <string name="settings_tables">桌位</string>
     <string name="settings_tables_current">{count}张桌：{plan}</string>
-    <string name="settings_tables_placeholder">1-12, 20-25</string>
+    <string name="settings_tables_placeholder">"1-12, 20-25  或  A 1-20, B 21-40"</string>
+    <string name="settings_zone_names">区域名称（可选）</string>
+    <string name="settings_zone_names_placeholder">A · 大厅, B · 露台</string>
     <string name="settings_tables_save">保存</string>
     <string name="settings_tables_saved">桌位已保存</string>
-    <string name="settings_tables_note">用逗号分隔号码和范围。仍有未结订单的桌位会继续显示。</string>
+    <string name="settings_tables_note">用逗号分隔号码和范围。范围前的字母表示区域：桌位在屏幕和厨房单上显示为 A-19，小票上仍是号码 19。仍有未结订单的桌位会继续显示。</string>
     <string name="settings_support_idle">无会话</string>
     <string name="settings_support_running">会话进行中</string>
     <string name="settings_support_unavailable">不可用</string>

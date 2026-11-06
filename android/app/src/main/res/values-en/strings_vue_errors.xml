@@ -37,7 +37,7 @@
     <string name="err_operator_invalid">Invalid employee: log in again.</string>
     <string name="err_dine_in_needs_table">A dine-in order needs a table.</string>
     <string name="err_takeaway_has_no_table">A takeaway order has no table.</string>
-    <string name="err_table_plan_invalid">Write the table numbers like this: 1-12, 20-25 (1 to 999, at most 200 tables).</string>
+    <string name="err_table_plan_invalid">Write the tables like this: 1-12, 20-25, or with zones A 1-20, B 21-40 (1 to 999, at most 200 tables, a number in one zone only). Zone names: A · Room, B · Terrace.</string>
     <string name="err_alerts_invalid">Invalid alert setting: {field}.</string>
     <string name="err_alerts_token_missing">The Telegram bot token is not configured on this till (alerts section of pos.json).</string>
     <string name="err_alerts_send_failed">The message was not sent: {detail}</string>
@@ -159,6 +159,7 @@
     <string name="err_config_other">Invalid or unreadable configuration. Detail: {detail}</string>
     <string name="err_internal_error">Internal error. Contact your technician. ({detail})</string>
     <string name="err_takeaway_number_invalid">The first takeaway number goes from {min} to {max}.</string>
+    <string name="err_covers_invalid">Covers not accepted: a number from 1 to {max}.</string>
     <string name="err_takeaway_name_invalid">Name not accepted: {max} characters at most, letters, digits and accents the printer can print.</string>
     <string name="err_takeaway_phone_invalid">Phone not accepted: digits only (3 to 15), {max} characters at most.</string>
     <string name="err_takeaway_customer_not_takeaway">A name and phone go on a till takeaway (not a table, not an online order).</string>

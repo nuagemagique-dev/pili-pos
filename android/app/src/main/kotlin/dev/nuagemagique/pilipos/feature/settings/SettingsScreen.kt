@@ -101,6 +101,7 @@ internal data class SettingsCallbacks(
     val onProductLabel: (ProductLabel) -> Unit = {},
     val onAddBeep: (Boolean) -> Unit = {},
     val onTablePlanInput: (String) -> Unit = {},
+    val onZoneNamesInput: (String) -> Unit = {},
     val onSaveTablePlan: () -> Unit = {},
     val takeawayFirst: TakeawayFirstActions = TakeawayFirstActions(),
     val onRow: (SettingsEntry) -> Unit = {},
@@ -266,6 +267,7 @@ private fun settingsCallbacks(
         onProductLabel = model::setProductLabel,
         onAddBeep = model::setAddBeep,
         onTablePlanInput = model::setTablePlanInput,
+        onZoneNamesInput = model::setZoneNamesInput,
         onSaveTablePlan = model::saveTablePlan,
         takeawayFirst =
             TakeawayFirstActions(
@@ -586,6 +588,16 @@ private fun TablePlanPanel(
                 mono = true,
                 title = vueText("settings_tables"),
                 kind = KeypadKind.Text(maxLen = TABLE_PLAN_MAX, symbols = KeypadSymbols.TablePlan, space = true, caseToggle = true),
+            )
+            // The optional names of the zones (UX audit T1): "A · Salle, B · Terrasse".
+            SettingsTextField(
+                value = plan.zoneNamesInput,
+                onValueChange = callbacks.onZoneNamesInput,
+                placeholder = vueText("settings_zone_names_placeholder"),
+                modifier = Modifier.weight(1f).testTag("settings_zone_names_input"),
+                mono = true,
+                title = vueText("settings_zone_names"),
+                kind = KeypadKind.Text(maxLen = ZONE_NAMES_MAX, symbols = KeypadSymbols.ZoneNames, space = true, caseToggle = true),
             )
             ActionButton(vueText("settings_tables_save"), callbacks.onSaveTablePlan, Modifier.testTag("settings_tables_save"))
         }
@@ -1172,6 +1184,7 @@ internal fun paymentTerminalLabel(kind: String?): String =
 
 /** The longest table plan, "1-12, 20-25" and so on. */
 private const val TABLE_PLAN_MAX = 120
+private const val ZONE_NAMES_MAX = 120
 
 /** The longest name of an employee typed on the keypad. */
 private const val EMPLOYEE_NAME_MAX = 60

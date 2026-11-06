@@ -135,4 +135,49 @@ class TablesScreenshotTest {
             "tables_move",
         )
     }
+
+    @Test
+    fun zonesServerAndCovers() {
+        val zoned =
+            listOf(
+                table(1, zone = "A", zoneName = "Salle"),
+                table(
+                    2,
+                    orderId = 40,
+                    lines = 3,
+                    totalCents = 2_550,
+                    openedAt = "2026-10-09 10:00:00",
+                    zone = "A",
+                    zoneName = "Salle",
+                    openedByInitial = "M",
+                    covers = 4,
+                ),
+                table(3, zone = "A", zoneName = "Salle"),
+                table(
+                    4,
+                    orderId = 41,
+                    lines = 8,
+                    totalCents = 18_940,
+                    openedAt = "2026-10-09 09:12:00",
+                    zone = "A",
+                    zoneName = "Salle",
+                    openedByInitial = "L",
+                    covers = 12,
+                ),
+                table(21, zone = "B", zoneName = "Terrasse"),
+                table(
+                    22,
+                    orderId = 42,
+                    lines = 1,
+                    totalCents = 450,
+                    openedAt = "2026-10-09 10:26:00",
+                    zone = "B",
+                    zoneName = "Terrasse",
+                    openedByInitial = "M",
+                ),
+                table(23, zone = "B", zoneName = "Terrasse"),
+                table(9),
+            )
+        capture(TablesUiState(zoned, takeaways, now, signedIn = true, loaded = true), "tables_zones")
+    }
 }

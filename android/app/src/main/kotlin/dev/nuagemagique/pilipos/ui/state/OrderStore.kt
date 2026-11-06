@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import timber.log.Timber
 import uniffi.pos_ffi.AddOrderLineInput
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.CourseSettings
@@ -34,6 +35,8 @@ import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.SlipOutcome
+import uniffi.pos_ffi.TableInfo
+import uniffi.pos_ffi.TablePlan
 import uniffi.pos_ffi.TableTransferResult
 import uniffi.pos_ffi.TakeawayTag
 import java.util.concurrent.ConcurrentHashMap
@@ -132,6 +135,8 @@ class OrderStore
         private val mutableLastAdd = MutableStateFlow<LineAdd?>(null)
         private val mutableTakeawayTag = MutableStateFlow<TakeawayTag?>(null)
         private val mutableTableMoves = MutableStateFlow(0)
+        private val mutableCovers = MutableStateFlow<Int?>(null)
+        private val mutableTableZones = MutableStateFlow<Map<Int, String>>(emptyMap())
         private val mutableOnlineCollect = MutableStateFlow<OnlineCollect?>(null)
         private val mutableHeldParts = MutableStateFlow<HeldParts?>(null)
         private val addSeq = AtomicLong()
@@ -158,6 +163,15 @@ class OrderStore
          * null for a table, an online order or when the till gives none.
          */
         val takeawayTag: StateFlow<TakeawayTag?> = mutableTakeawayTag.asStateFlow()
+
+        /**
+         * The covers (guests) of the current table order (`covers` of `order.ts`, UX audit T5); null when none were set
+         * and for an order that is not a table. Local data: never signed.
+         */
+        val covers: StateFlow<Int?> = mutableCovers.asStateFlow()
+
+        /** Table number to zone letters (the plan, UX audit T1); empty on a plan without letters. */
+        val tableZones: StateFlow<Map<Int, String>> = mutableTableZones.asStateFlow()
 
         /**
          * How many table moves were signed (a move and its undo each count): the tables screen reads the plan again
@@ -203,8 +217,10 @@ class OrderStore
 
         init {
             // Undispatched: the collector is subscribed when the constructor returns (events have no replay).
+            scope.launch { gateway.ready.collect { ready -> if (ready) loadTablePlan() } }
             scope.launch(start = CoroutineStart.UNDISPATCHED) {
                 events.events.collect { event ->
+                    if (event is PosEvent.Resync) scope.launch { loadTablePlan() }
                     if (event is PosEvent.SessionLocked) {
                         // Before the reset: the order the same user may come back to after an idle lock (UX audit T6).
                         // An online order at its checkout (O2) was never the engine's active order: none to come back to.
@@ -237,6 +253,7 @@ class OrderStore
                 gateway.call { engine -> engine.setActiveOrder(order.id) }
                 readCourses(order.id, seen)
                 readTakeawayTag(order, seen)
+                readCovers(order, seen)
             }
         }
 
@@ -275,6 +292,7 @@ class OrderStore
                     gateway.call { engine -> engine.setActiveOrder(orderId) }
                     readCourses(orderId, seen)
                     readTakeawayTag(order, seen)
+                    readCovers(order, seen)
                 }
             }
 
@@ -293,6 +311,51 @@ class OrderStore
                 val tag = gateway.call { engine -> engine.setTakeawayCustomer(order.id, name, phone) }
                 mutableTakeawayTag.value = tag
             }
+
+        /**
+         * Sets (1 to 30) or clears (null) the covers of the current table order; the engine's answer becomes the
+         * state (`setCovers` of `order.ts`, UX audit T5).
+         *
+         * @return false when the engine refused (the refusal is on [failures])
+         */
+        suspend fun setCovers(count: Int?): Boolean =
+            reported {
+                val order = requireCurrent()
+                mutableCovers.value = gateway.call { engine -> engine.setOrderCovers(order.id, count) }
+            }
+
+        /** How table [number] is written on screen: "A-19" in a zone, "19" without one; empty for no table. */
+        fun tableLabel(number: Int?): String = if (number == null) "" else tableLabel(mutableTableZones.value[number], number)
+
+        /** The compact form of the ticket lists: "A-19" in a zone, "T19" without one. */
+        fun tableShortLabel(number: Int): String = mutableTableZones.value[number]?.let { "$it-$number" } ?: "T$number"
+
+        /** Reads the plan from the engine; a till that does not answer keeps plain numbers (`load` of `tablePlan.ts`). */
+        @Suppress("TooGenericExceptionCaught")
+        suspend fun loadTablePlan() {
+            try {
+                applyTablePlan(gateway.call { engine -> engine.getTablePlan() })
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.d(e, "Table plan not loaded")
+            }
+        }
+
+        /** Learns the zones from a plan the engine just returned (`apply` of `tablePlan.ts`). */
+        fun applyTablePlan(plan: TablePlan) {
+            mutableTableZones.value = plan.zones.flatMap { zone -> zone.numbers.map { it to zone.letter } }.toMap()
+        }
+
+        /** Learns the zones from a list of tables, each of which says its own (`learn` of `tablePlan.ts`). */
+        fun learnTables(tables: List<TableInfo>) {
+            val next = mutableTableZones.value.toMutableMap()
+            for (table in tables) {
+                val zone = table.zone
+                if (inZone(zone) && zone != null) next[table.tableNumber] = zone else next.remove(table.tableNumber)
+            }
+            mutableTableZones.value = next
+        }
 
         /**
          * Adds [quantity] of [item]. A fixed-price item that already has a line without modifiers is merged into
@@ -582,6 +645,7 @@ class OrderStore
                 mutableLines.value = emptyList()
                 mutableLastAdd.value = null
                 mutableTakeawayTag.value = null
+                mutableCovers.value = null
                 mutableOnlineCollect.value = null
                 mutableHeldParts.value = null
                 mutableUnsentCount.value = 0
@@ -613,6 +677,29 @@ class OrderStore
                 }
             synchronized(publishLock) {
                 if (generation.get() == seen) mutableTakeawayTag.value = tag
+            }
+        }
+
+        /** Reads the covers of a table order; a till that does not answer shows none (`loadCovers` of `order.ts`). */
+        @Suppress("TooGenericExceptionCaught", "SwallowedException")
+        private suspend fun readCovers(
+            order: Order,
+            seen: Int,
+        ) {
+            val stored =
+                if (order.orderType != OrderType.DINE_IN) {
+                    null
+                } else {
+                    try {
+                        gateway.call { engine -> engine.getOrderCovers(order.id) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            synchronized(publishLock) {
+                if (generation.get() == seen) mutableCovers.value = stored
             }
         }
 
