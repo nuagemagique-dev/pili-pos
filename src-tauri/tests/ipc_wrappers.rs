@@ -129,6 +129,10 @@ fn fixture(name: &str) -> Fixture {
             ipc::order::set_line_note,
             ipc::quick_notes::get_quick_notes,
             ipc::quick_notes::set_quick_notes,
+            ipc::takeaway::get_takeaway_numbering,
+            ipc::takeaway::set_takeaway_numbering,
+            ipc::takeaway::get_takeaway_tag,
+            ipc::takeaway::set_takeaway_customer,
         ])
         .build(mock_context(noop_assets()))
         .expect("the mock app");
@@ -443,5 +447,75 @@ fn quick_notes_take_the_input_the_ui_builds() {
             json!({ "input": { "notes": ["x".repeat(61)] } })
         )),
         "note_too_long"
+    );
+}
+
+#[test]
+fn takeaway_commands_take_the_arguments_the_ui_builds() {
+    let f = fixture("takeaway");
+    // A new installation numbers from 61; the `input` argument reaches the engine.
+    assert_eq!(
+        f.call("get_takeaway_numbering", json!({})).unwrap(),
+        json!({ "firstNumber": 61 })
+    );
+    assert_eq!(
+        f.call(
+            "set_takeaway_numbering",
+            json!({ "input": { "firstNumber": 70 } })
+        )
+        .unwrap(),
+        json!({ "firstNumber": 70 })
+    );
+    assert_eq!(
+        refusal(f.call(
+            "set_takeaway_numbering",
+            json!({ "input": { "firstNumber": 0 } })
+        )),
+        "takeaway_number_invalid|min=1|max=999"
+    );
+
+    // A takeaway made by the engine: `orderId`, `name` and `phone` reach it.
+    let order = do_create_order(
+        &f.engine(),
+        CreateOrderInput {
+            order_type: OrderType::Takeaway,
+            table_number: None,
+            user_insz: MANAGER.into(),
+        },
+    )
+    .unwrap()
+    .id;
+    let tag = f
+        .call("get_takeaway_tag", json!({ "orderId": order }))
+        .unwrap();
+    assert_eq!(tag["label"], "E-70");
+    assert_eq!(tag["orderId"], order);
+    let named = f
+        .call(
+            "set_takeaway_customer",
+            json!({ "orderId": order, "name": "Dupont", "phone": "0470 12 34 56" }),
+        )
+        .unwrap();
+    assert_eq!(named["customerName"], "Dupont");
+    assert_eq!(named["customerPhone"], "0470 12 34 56");
+    let cleared = f
+        .call(
+            "set_takeaway_customer",
+            json!({ "orderId": order, "name": null, "phone": null }),
+        )
+        .unwrap();
+    assert_eq!(cleared["customerName"], json!(null));
+    assert_eq!(
+        refusal(f.call(
+            "set_takeaway_customer",
+            json!({ "orderId": order, "name": "x".repeat(31), "phone": null })
+        )),
+        "takeaway_name_invalid|max=30"
+    );
+    // An order without a tag reads as `null`.
+    assert_eq!(
+        f.call("get_takeaway_tag", json!({ "orderId": 9999 }))
+            .unwrap(),
+        json!(null)
     );
 }

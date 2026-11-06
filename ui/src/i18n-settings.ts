@@ -58,6 +58,24 @@ export const settingsMessages: Messages = {
     zh: '每次添加商品时短促提示音确认。仅本终端。',
   },
 
+  // First takeaway number (UX audit T2), in the table plan panel
+  settings_takeaway_first: {
+    fr: 'Premier numéro à emporter',
+    en: 'First takeaway number',
+    zh: '外带起始号码',
+  },
+  settings_takeaway_first_edit: { fr: 'Modifier', en: 'Change', zh: '修改' },
+  settings_takeaway_first_saved: {
+    fr: 'Premier numéro à emporter enregistré',
+    en: 'First takeaway number saved',
+    zh: '外带起始号码已保存',
+  },
+  settings_takeaway_first_note: {
+    fr: 'Les commandes à emporter prennent E-61, E-62... et repartent de ce numéro chaque jour. Un changement vaut pour le prochain numéro.',
+    en: 'Takeaways get E-61, E-62... and start again from this number every day. A change applies to the next number.',
+    zh: '外带订单按 E-61、E-62... 编号，每天从此号码重新开始。修改仅对下一个号码生效。',
+  },
+
   // Table plan panel (managers): the table numbers the Tables screen shows
   settings_tables: { fr: 'Plan de salle', en: 'Table plan', zh: '桌位' },
   settings_tables_current: {

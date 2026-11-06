@@ -211,4 +211,25 @@ class TablesContentTest {
 
         compose.onNodeWithTag("move_toggle").assertTextEquals("Déplacer")
     }
+
+    @Test
+    fun aNumberedTakeawayShowsItsNumberAndItsCustomerInLargeType() {
+        show(base.copy(takeaways = listOf(takeaway(50, number = 61, customerName = "Dupont"))))
+
+        compose.onNodeWithTag("takeaway_50_number", useUnmergedTree = true).assertTextEquals("E-61 · Dupont")
+    }
+
+    @Test
+    fun aNumberedTakeawayWithoutANameShowsTheNumberAlone() {
+        show(base.copy(takeaways = listOf(takeaway(50, number = 62))))
+
+        compose.onNodeWithTag("takeaway_50_number", useUnmergedTree = true).assertTextEquals("E-62")
+    }
+
+    @Test
+    fun aTakeawayWithoutANumberShowsNoNumberLine() {
+        show(base)
+
+        compose.onNodeWithTag("takeaway_50_number", useUnmergedTree = true).assertDoesNotExist()
+    }
 }

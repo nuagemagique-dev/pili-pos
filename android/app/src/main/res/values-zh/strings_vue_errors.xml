@@ -158,6 +158,10 @@
     <string name="err_config_alerts">店主警报设置无效（令牌文件或地址）。 详情：{detail}</string>
     <string name="err_config_other">配置无效或无法读取。 详情：{detail}</string>
     <string name="err_internal_error">内部错误，请联系技术人员。（{detail}）</string>
+    <string name="err_takeaway_number_invalid">外带起始号码为{min}到{max}。</string>
+    <string name="err_takeaway_name_invalid">姓名无效：最多{max}个字符，仅限打印机可打印的字母、数字和重音符号。</string>
+    <string name="err_takeaway_phone_invalid">电话无效：仅限数字（3至15位），最多{max}个字符。</string>
+    <string name="err_takeaway_customer_not_takeaway">姓名和电话只能填在收银台的外带订单上（不是桌位，也不是线上订单）。</string>
     <string name="err_allergen_unknown">未知过敏原：{code}。</string>
     <string name="err_allergen_target_not_found">找不到商品或选项（{id}）。</string>
     <string name="err_course_already_sent">该菜品已送厨房，无法再更改出菜顺序。</string>

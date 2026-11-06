@@ -47,6 +47,7 @@ import uniffi.pos_ffi.Integrations
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.PosSettings
 import uniffi.pos_ffi.TablePlan
+import uniffi.pos_ffi.TakeawayNumbering
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
 import java.io.File
@@ -125,6 +126,7 @@ internal fun stubReads(
     coEvery { engine.getIntegrations() } returns integrationsOf(hubrise)
     coEvery { engine.hubriseListWebshopOrders() } returns emptyList()
     coEvery { engine.getTablePlan() } returns TablePlan(plan = "1-20", tableCount = 20L, log = emptyList())
+    coEvery { engine.getTakeawayNumbering() } returns TakeawayNumbering(firstNumber = 61)
     coEvery { engine.getBadgeSettings() } returns badgeView()
     coEvery { engine.listBadges() } returns noBadges()
 }

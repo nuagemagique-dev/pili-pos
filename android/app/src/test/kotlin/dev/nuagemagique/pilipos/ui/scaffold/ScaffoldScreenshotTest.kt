@@ -67,6 +67,32 @@ class ScaffoldScreenshotTest {
     }
 
     @Test
+    fun headerNumberedTakeaway() {
+        val lights = DeviceLights(probe())
+        val state =
+            orderHeader.copy(
+                tableNumber = null,
+                dineInOrder = false,
+                canMoveTable = false,
+                takeawayOrder = true,
+                takeawayLabel = "E-61",
+                customerName = "Dupont",
+                customerEditable = true,
+            )
+        rule.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    AppHeader(state, HeaderActions(), clock = "14:05") {
+                        StatusLights(FdmUiState(connected = true, severity = FdmSeverity.INFO), lights, hubriseVisible = true)
+                    }
+                }
+            }
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("app_header").captureRoboImage("src/test/screenshots/components/header_takeaway.png")
+    }
+
+    @Test
     fun statusLights() {
         val lights = DeviceLights(probe().apply { hubriseAnswer = { quietHubrise().copy(staleOrders = 2) } })
         rule.setContent {

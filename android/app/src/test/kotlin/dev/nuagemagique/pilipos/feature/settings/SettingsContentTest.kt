@@ -55,6 +55,7 @@ class SettingsContentTest {
             onAddBeep = { taps += "beep:$it" },
             onTablePlanInput = { taps += "tables:$it" },
             onSaveTablePlan = { taps += "tables:save" },
+            takeawayFirst = TakeawayFirstActions(onEdit = { taps += "takeaway-first:edit" }),
             onRow = { navigator.navigate(it.route) },
             onNewName = { taps += "name:$it" },
             onNewInsz = { taps += "insz:$it" },
@@ -100,8 +101,9 @@ class SettingsContentTest {
             "settings_workers",
             "settings_info",
             "integration_switch",
-            "settings_deliveries",
         ).forEach { compose.onNodeWithTag(it).assertIsDisplayed() }
+        // The third column scrolls: the table plan panel grew with the first takeaway number row (UX audit T2).
+        compose.onNodeWithTag("settings_deliveries").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -250,6 +252,24 @@ class SettingsContentTest {
     fun aRefusedTablePlanShowsItsReason() {
         show(managerState().copy(tablePlan = TablePlanState(plan = "1-20", count = 20L, input = "A1", error = "format")))
         compose.onNodeWithTag("settings_tables_error").assertTextEquals("format")
+    }
+
+    @Test
+    fun theFirstTakeawayNumberShowsInThePlanPanelAndItsButtonOpensThePad() {
+        show(managerState().copy(takeawayFirst = 61))
+
+        compose.onNodeWithTag("settings_takeaway_first_value").assertTextEquals("E-61")
+        compose.onNodeWithTag("settings_takeaway_first_edit").assertIsEnabled()
+        compose.onNodeWithTag("settings_takeaway_first_edit").performClick()
+
+        assertEquals(listOf("takeaway-first:edit"), taps)
+    }
+
+    @Test
+    fun theEditButtonWaitsForTheEngineToAnswer() {
+        show(managerState())
+
+        compose.onNodeWithTag("settings_takeaway_first_edit").assertIsNotEnabled()
     }
 
     @Test

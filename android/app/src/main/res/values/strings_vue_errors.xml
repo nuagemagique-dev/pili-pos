@@ -158,6 +158,10 @@
     <string name="err_config_alerts">Réglage des alertes propriétaire invalide (fichier du jeton ou adresse). Détail : {detail}</string>
     <string name="err_config_other">Configuration invalide ou illisible. Détail : {detail}</string>
     <string name="err_internal_error">Erreur interne. Contactez votre technicien. ({detail})</string>
+    <string name="err_takeaway_number_invalid">Le premier numéro à emporter va de {min} à {max}.</string>
+    <string name="err_takeaway_name_invalid">Nom impossible : {max} caractères au plus, lettres, chiffres et accents que l\'imprimante sait imprimer.</string>
+    <string name="err_takeaway_phone_invalid">Téléphone impossible : des chiffres seulement (3 à 15), {max} caractères au plus.</string>
+    <string name="err_takeaway_customer_not_takeaway">Un nom et un téléphone se mettent sur un À emporter de la caisse (ni une table, ni une commande en ligne).</string>
     <string name="err_allergen_unknown">Allergène inconnu : {code}.</string>
     <string name="err_allergen_target_not_found">Produit ou option introuvable ({id}).</string>
     <string name="err_course_already_sent">Cette ligne est déjà partie en cuisine : son temps ne peut plus changer.</string>

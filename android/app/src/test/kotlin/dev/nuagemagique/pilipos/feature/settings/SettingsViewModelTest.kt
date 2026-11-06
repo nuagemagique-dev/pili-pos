@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.settings
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.fdm.health
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
@@ -32,6 +33,7 @@ import uniffi.pos_ffi.OpenShift
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SocialResult
 import uniffi.pos_ffi.TablePlan
+import uniffi.pos_ffi.TakeawayNumbering
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
 
@@ -349,6 +351,85 @@ class SettingsViewModelTest {
             assertEquals("A1", r.state.tablePlan.input)
             assertEquals("1-20", r.state.tablePlan.plan)
             assertEquals(r.env.describe(refusal), r.state.tablePlan.error)
+        }
+
+    // ── First takeaway number (UX audit T2) ───────────────────────
+
+    @Test
+    fun theFirstTakeawayNumberIsLoadedForAManager() =
+        runTest {
+            val r = start()
+
+            assertEquals(61, r.state.takeawayFirst)
+            assertNull(r.state.takeawayEntry)
+        }
+
+    @Test
+    fun theFirstTakeawayNumberIsEditedOnThePadAndSavedWithASuccessToast() =
+        runTest {
+            val r = start()
+            coEvery { r.engine.setTakeawayNumbering(TakeawayNumbering(100)) } returns TakeawayNumbering(100)
+
+            r.model.openTakeawayFirst()
+            assertEquals("61", r.state.takeawayEntry)
+            r.model.pressTakeawayFirst(NumPadKey.Clear)
+            r.model.pressTakeawayFirst(NumPadKey.Digit('1'))
+            r.model.pressTakeawayFirst(NumPadKey.Digit('0'))
+            r.model.pressTakeawayFirst(NumPadKey.Digit('0'))
+            r.model.pressTakeawayFirst(NumPadKey.Digit('5'))
+            assertEquals("100", r.state.takeawayEntry)
+            r.model.confirmTakeawayFirst()
+            runCurrent()
+
+            assertEquals(100, r.state.takeawayFirst)
+            assertNull(r.state.takeawayEntry)
+            assertEquals(r.env.text("settings_takeaway_first_saved"), r.env.lastToast().message)
+            assertEquals(ToastVariant.Success, r.env.lastToast().variant)
+        }
+
+    @Test
+    fun aNumberOutsideTheRangeIsNotSentToTheEngine() =
+        runTest {
+            val r = start()
+
+            r.model.openTakeawayFirst()
+            r.model.pressTakeawayFirst(NumPadKey.Clear)
+            r.model.confirmTakeawayFirst()
+            runCurrent()
+            assertEquals("", r.state.takeawayEntry)
+
+            r.model.pressTakeawayFirst(NumPadKey.Digit('0'))
+            r.model.confirmTakeawayFirst()
+            runCurrent()
+
+            assertEquals("0", r.state.takeawayEntry)
+            coVerify(exactly = 0) { r.engine.setTakeawayNumbering(any()) }
+        }
+
+    @Test
+    fun aRefusedFirstNumberIsShownAsAnErrorToastAndTheOldOneKept() =
+        runTest {
+            val r = start()
+            coEvery { r.engine.setTakeawayNumbering(any()) } throws PosException.Coded("takeaway_number_invalid", emptyMap())
+
+            r.model.openTakeawayFirst()
+            r.model.confirmTakeawayFirst()
+            runCurrent()
+
+            assertEquals(61, r.state.takeawayFirst)
+            assertEquals(ToastVariant.Error, r.env.lastToast().variant)
+        }
+
+    @Test
+    fun cancellingThePadChangesNothing() =
+        runTest {
+            val r = start()
+
+            r.model.openTakeawayFirst()
+            r.model.cancelTakeawayFirst()
+
+            assertNull(r.state.takeawayEntry)
+            coVerify(exactly = 0) { r.engine.setTakeawayNumbering(any()) }
         }
 
     @Test

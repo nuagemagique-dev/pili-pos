@@ -59,6 +59,8 @@ export const useOrderStore = defineStore('order', () => {
     return add
   }
   const openOrders = ref<Order[]>([])
+  // The number of the day and the customer of the current takeaway (UX audit T2); null for a table.
+  const takeawayTag = ref<ipc.TakeawayTag | null>(null)
   // Client-side lookup: menu_item_id → category_id
   const itemCategoryMap = ref<Map<number, number>>(new Map())
 
@@ -109,6 +111,33 @@ export const useOrderStore = defineStore('order', () => {
         : []
     await ipc.setActiveOrder(currentOrder.value.id)
     await loadCourses()
+    await loadTakeawayTag()
+  }
+
+  /** Read the tag of the current order: a takeaway has its number of the day, a table has none.
+   * A till that does not answer simply shows no number. */
+  async function loadTakeawayTag() {
+    const current = currentOrder.value
+    if (!current || current.order_type !== 'takeaway') {
+      takeawayTag.value = null
+      return
+    }
+    try {
+      const tag = await ipc.getTakeawayTag(current.id)
+      if (currentOrder.value?.id === current.id) takeawayTag.value = tag
+    } catch {
+      takeawayTag.value = null
+    }
+  }
+
+  /** Put (or, with empty values, clear) the name and the phone of the customer of the current
+   * takeaway. A refusal is shown as a toast; answers whether it was stored. */
+  function setTakeawayCustomer(name: string | null, phone: string | null) {
+    return reported(async () => {
+      const current = currentOrder.value
+      if (!current) throw new Error('No active order')
+      takeawayTag.value = await ipc.setTakeawayCustomer(current.id, name, phone)
+    })
   }
 
   /**
@@ -127,6 +156,7 @@ export const useOrderStore = defineStore('order', () => {
     lines.value = orderLines
     await ipc.setActiveOrder(orderId)
     await loadCourses()
+    await loadTakeawayTag()
   }
 
   /** Read the courses setting, then the held courses of the order. A
@@ -499,6 +529,7 @@ export const useOrderStore = defineStore('order', () => {
    * already registered and cleared its active order. */
   function resetLocal() {
     currentOrder.value = null
+    takeawayTag.value = null
     lines.value = []
     lastAdd.value = null
     heldCourses.value = []
@@ -527,6 +558,8 @@ export const useOrderStore = defineStore('order', () => {
     sendNextCourse,
     startOrder,
     loadOrder,
+    takeawayTag,
+    setTakeawayCustomer,
     lastAdd,
     loadQuickNotes,
     addItem,

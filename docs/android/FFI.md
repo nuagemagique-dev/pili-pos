@@ -192,6 +192,8 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | get_scale_status | scale::do_get_scale_status | spawn | posEngine.getScaleStatus() |
 | get_settings | settings::do_get_settings | blocking | posEngine.getSettings() |
 | get_table_plan | table_plan::do_get_table_plan | blocking | posEngine.getTablePlan() |
+| get_takeaway_numbering | takeaway::do_get_takeaway_numbering | blocking | posEngine.getTakeawayNumbering() |
+| get_takeaway_tag | takeaway::do_get_takeaway_tag | blocking | posEngine.getTakeawayTag() |
 | hubrise_adopt_catalog | hubrise::do_adopt_catalog | blocking | posEngine.hubriseAdoptCatalog() |
 | hubrise_adoption_preview | hubrise::do_adoption_preview | blocking | posEngine.hubriseAdoptionPreview() |
 | hubrise_complete_oauth | hubrise::do_hubrise_complete_oauth | spawn | posEngine.hubriseCompleteOauth() |
@@ -281,6 +283,8 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | set_quick_notes | quick_notes::do_set_quick_notes | blocking | posEngine.setQuickNotes() |
 | set_sold_out | sold_out::do_set_sold_out | blocking | posEngine.setSoldOut() |
 | set_table_plan | table_plan::do_set_table_plan | blocking | posEngine.setTablePlan() |
+| set_takeaway_customer | takeaway::do_set_takeaway_customer | blocking | posEngine.setTakeawayCustomer() |
+| set_takeaway_numbering | takeaway::do_set_takeaway_numbering | blocking | posEngine.setTakeawayNumbering() |
 | set_training_mode | settings::do_set_training_mode | blocking | posEngine.setTrainingMode() |
 | sign_invoice_fiscal | invoice::do_sign_invoice_fiscal | spawn | posEngine.signInvoiceFiscal() |
 | sign_pre_bill | tables::do_sign_pre_bill | spawn | posEngine.signPreBill() |
@@ -299,7 +303,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | work_in | social::do_work_in | spawn | posEngine.workIn() |
 | work_out | social::do_work_out | spawn | posEngine.workOut() |
 
-Parity: 153/153.
+Parity: 157/157.
 <!-- parity:end -->
 
 ## 12. JVM tests, mocks and gates

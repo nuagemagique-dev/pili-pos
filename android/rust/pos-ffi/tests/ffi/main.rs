@@ -40,3 +40,4 @@ mod quick_notes;
 mod reports;
 mod scale;
 mod support;
+mod takeaway;

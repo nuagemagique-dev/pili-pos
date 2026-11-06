@@ -304,6 +304,7 @@ async fn off_the_slip_is_byte_identical_to_the_one_before_courses() {
             date_time: slip_date(&slips[0]),
             operator: format!("Test {OPERATOR}"),
             table: Some(4),
+            takeaway: None,
             items: vec![
                 legacy_item(2, "Sake"),
                 legacy_item(1, "Maki saumon"),
@@ -364,6 +365,7 @@ async fn on_with_only_direct_lines_the_slip_is_the_plain_one() {
             date_time: slip_date(last),
             operator: format!("Test {OPERATOR}"),
             table: Some(6),
+            takeaway: None,
             items: vec![legacy_item(1, "Sake")],
             lang: pos_fiscal::ticket::ReceiptLanguage::Fr,
             is_training: false,

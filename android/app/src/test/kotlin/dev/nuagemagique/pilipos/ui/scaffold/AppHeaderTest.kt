@@ -48,6 +48,7 @@ class AppHeaderTest {
             onLock = { calls += "lock" },
             onOpenPin = { calls += "pin" },
             onMoveTable = { calls += "move-table" },
+            onAddCustomer = { calls += "add-customer" },
         )
 
     private fun show(initial: HeaderUiState) {
@@ -196,5 +197,47 @@ class AppHeaderTest {
 
         compose.onNodeWithTag("header_user_name", useUnmergedTree = true).assertTextEquals("")
         compose.onNodeWithTag("app_header").assertIsDisplayed()
+    }
+
+    @Test
+    fun aNumberedTakeawayTitlesTheHeaderWithItsNumberAndCustomerAndOffersAddingAName() {
+        show(
+            manager.copy(
+                area = HeaderArea.ORDER,
+                takeawayOrder = true,
+                takeawayLabel = "E-61",
+                customerEditable = true,
+            ),
+        )
+
+        compose.onNodeWithTag("header_takeaway_badge").assertTextContains("E-61", substring = true)
+        compose.onNodeWithTag("header_takeaway_customer").assertTextContains("Ajouter un nom")
+        compose.onNodeWithTag("header_takeaway_customer").assertHasClickAction()
+        assertTrue(compose.onNodeWithTag("header_takeaway_customer").getUnclippedBoundsInRoot().height >= 48.dp)
+        compose.onNodeWithTag("header_takeaway_customer").performClick()
+        assertEquals(listOf("add-customer"), calls)
+    }
+
+    @Test
+    fun aNamedTakeawayShowsTheNameInTheTitleAndOffersEditingTheCustomer() {
+        show(
+            manager.copy(
+                area = HeaderArea.ORDER,
+                takeawayOrder = true,
+                takeawayLabel = "E-61",
+                customerName = "Dupont",
+                customerEditable = true,
+            ),
+        )
+
+        compose.onNodeWithTag("header_takeaway_badge").assertTextContains("E-61 · Dupont", substring = true)
+        compose.onNodeWithTag("header_takeaway_customer").assertTextContains("Modifier le client")
+    }
+
+    @Test
+    fun anOrderWithoutANumberOffersNoCustomerButton() {
+        show(manager.copy(area = HeaderArea.ORDER, takeawayOrder = true))
+
+        compose.onNodeWithTag("header_takeaway_customer").assertDoesNotExist()
     }
 }

@@ -116,6 +116,10 @@ private fun headerActions(model: HeaderViewModel): HeaderActions =
         onMoveTable = model::openTablePicker,
         onPickTable = model::pickTable,
         onCloseTablePicker = model::closeTablePicker,
+        onAddCustomer = model::openCustomer,
+        onCustomerName = model::submitCustomerName,
+        onCustomerPhone = model::submitCustomerPhone,
+        onCloseCustomer = model::closeCustomer,
         pin =
             HeaderPinActions(
                 onSubmit = model::submitPin,
@@ -161,6 +165,13 @@ internal fun PosScaffoldContent(
         val from = header.tableNumber
         if (picker != null && from != null) {
             TablePickerDialog(from, picker, onPick = actions.onPickTable, onCancel = actions.onCloseTablePicker)
+        }
+        when (header.customerStep) {
+            CustomerStep.NAME ->
+                CustomerNameDialog(header.customerName.orEmpty(), actions.onCustomerName, actions.onCloseCustomer)
+            CustomerStep.PHONE ->
+                CustomerPhoneDialog(header.customerPhone, actions.onCustomerPhone, actions.onCloseCustomer)
+            null -> Unit
         }
         deviceSheet()
         overlay()

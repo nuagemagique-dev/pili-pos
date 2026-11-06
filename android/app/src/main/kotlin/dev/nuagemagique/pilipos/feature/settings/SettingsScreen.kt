@@ -100,6 +100,7 @@ internal data class SettingsCallbacks(
     val onAddBeep: (Boolean) -> Unit = {},
     val onTablePlanInput: (String) -> Unit = {},
     val onSaveTablePlan: () -> Unit = {},
+    val takeawayFirst: TakeawayFirstActions = TakeawayFirstActions(),
     val onRow: (SettingsEntry) -> Unit = {},
     val onNewName: (String) -> Unit = {},
     val onNewInsz: (String) -> Unit = {},
@@ -196,6 +197,7 @@ internal fun SettingsRoute(
                 pinActions = pinActions,
                 deactivate = DeactivateActions(onConfirm = model::deactivate, onCancel = model::cancelDeactivate),
                 badge = badgeActions,
+                takeawayFirst = callbacks.takeawayFirst,
             )
             HubriseDialogs(
                 state = hubrise,
@@ -263,6 +265,13 @@ private fun settingsCallbacks(
         onAddBeep = model::setAddBeep,
         onTablePlanInput = model::setTablePlanInput,
         onSaveTablePlan = model::saveTablePlan,
+        takeawayFirst =
+            TakeawayFirstActions(
+                onEdit = model::openTakeawayFirst,
+                onKey = model::pressTakeawayFirst,
+                onConfirm = model::confirmTakeawayFirst,
+                onCancel = model::cancelTakeawayFirst,
+            ),
         onRow = { navigator.navigate(it.route) },
         onNewName = model::setNewName,
         onNewInsz = model::setNewInsz,
@@ -400,7 +409,7 @@ private fun WideLayout(
             Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
-            if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
+            if (state.isManager) TablePlanPanel(state.tablePlan, state.takeawayFirst, callbacks)
             if (state.isManager) BadgePanel(state.badge, callbacks.badge)
             if (state.isManager) alertsSection()
             InfoPanel(state.info)
@@ -431,7 +440,7 @@ private fun NarrowLayout(
         LanguagePanel(state.language, callbacks.onLanguage)
         ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
         AddBeepPanel(state.addBeep, callbacks.onAddBeep)
-        if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
+        if (state.isManager) TablePlanPanel(state.tablePlan, state.takeawayFirst, callbacks)
         if (state.isManager) BadgePanel(state.badge, callbacks.badge)
         if (state.isManager) alertsSection()
         if (state.isManager) EmployeesPanel(state, callbacks, Modifier, scrollList = false)
@@ -549,6 +558,7 @@ private fun AddBeepPanel(
 @Composable
 private fun TablePlanPanel(
     plan: TablePlanState,
+    takeawayFirst: Int?,
     callbacks: SettingsCallbacks,
 ) {
     Panel(modifier = Modifier.testTag("settings_tables")) {
@@ -585,6 +595,7 @@ private fun TablePlanPanel(
             )
         }
         PanelText(vueText("settings_tables_note"))
+        TakeawayFirstRow(takeawayFirst, callbacks.takeawayFirst.onEdit)
     }
 }
 
@@ -999,7 +1010,9 @@ internal fun SettingsDialogs(
     pinActions: SettingsPinActions,
     deactivate: DeactivateActions,
     badge: BadgeDialogActions = BadgeDialogActions(),
+    takeawayFirst: TakeawayFirstActions = TakeawayFirstActions(),
 ) {
+    state.takeawayEntry?.let { TakeawayFirstDialog(it, takeawayFirst) }
     state.enrol?.let { enrol -> key(enrol.token != null) { BadgeEnrolDialog(enrol, badge) } }
     state.revokeBadge?.let { ask ->
         ConfirmDialog(

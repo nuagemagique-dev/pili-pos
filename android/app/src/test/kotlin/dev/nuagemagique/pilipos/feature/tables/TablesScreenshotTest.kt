@@ -58,8 +58,8 @@ class TablesScreenshotTest {
 
     private val takeaways =
         listOf(
-            takeaway(50, lines = 2, totalCents = 1_800, createdAt = "2026-10-09 10:05:00"),
-            takeaway(51, lines = 5, totalCents = 4_650, createdAt = "2026-10-09 10:21:00"),
+            takeaway(50, lines = 2, totalCents = 1_800, createdAt = "2026-10-09 10:05:00", number = 61, customerName = "Dupont"),
+            takeaway(51, lines = 5, totalCents = 4_650, createdAt = "2026-10-09 10:21:00", number = 62),
             takeaway(52, lines = 1, totalCents = 950, createdAt = "2026-10-09 10:27:00"),
         )
 

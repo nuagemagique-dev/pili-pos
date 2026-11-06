@@ -1048,6 +1048,26 @@ pub(crate) fn fixture_db(path: &Path) -> Fixture {
         b.secrets.push(s.to_string());
     }
 
+    // The name and phone typed for a numbered takeaway (local data, UX audit T2).
+    b.conn
+        .execute(
+            "INSERT INTO orders (order_type, status, user_insz, subtotal_cents, total_cents)
+             VALUES ('takeaway', 'closed', ?1, 0, 0)",
+            [CASHIER_INSZ],
+        )
+        .unwrap();
+    let takeaway_order = b.conn.last_insert_rowid();
+    b.conn
+        .execute(
+            "INSERT INTO takeaway_tags (order_id, day, number, customer_name, customer_phone)
+             VALUES (?1, '2026-10-03', 61, 'Odile Vermeulen', '0488 77 66 55')",
+            [takeaway_order],
+        )
+        .unwrap();
+    for s in ["Odile Vermeulen", "Vermeulen", "0488 77 66 55"] {
+        b.secrets.push(s.to_string());
+    }
+
     for t in &tickets {
         all_lines += t.lines;
     }

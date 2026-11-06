@@ -19,6 +19,10 @@
     <string name="settings_add_beep_on">Yes</string>
     <string name="settings_add_beep_off">No</string>
     <string name="settings_add_beep_note">A short beep confirms each add. Setting of this terminal.</string>
+    <string name="settings_takeaway_first">First takeaway number</string>
+    <string name="settings_takeaway_first_edit">Change</string>
+    <string name="settings_takeaway_first_saved">First takeaway number saved</string>
+    <string name="settings_takeaway_first_note">Takeaways get E-61, E-62... and start again from this number every day. A change applies to the next number.</string>
     <string name="settings_tables">Table plan</string>
     <string name="settings_tables_current">{count} tables: {plan}</string>
     <string name="settings_tables_placeholder">1-12, 20-25</string>

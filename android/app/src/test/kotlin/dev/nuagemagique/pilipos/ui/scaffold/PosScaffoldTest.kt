@@ -50,6 +50,9 @@ class PosScaffoldTest {
             onLock = { calls += "lock" },
             onOpenPin = { calls += "pin" },
             onPickTable = { calls += "pick:$it" },
+            onCustomerName = { calls += "name:$it" },
+            onCustomerPhone = { calls += "phone:$it" },
+            onCloseCustomer = { calls += "close-customer" },
         )
 
     private fun show(
@@ -265,5 +268,45 @@ class PosScaffoldTest {
         compose.onNodeWithTag("pick_table_9").performClick()
 
         assertEquals(listOf("pick:9"), calls)
+    }
+
+    // ── The customer dialogs of a numbered takeaway (UX audit T2) ──
+
+    private fun takeawayHeader(step: CustomerStep?) =
+        HeaderUiState(
+            area = HeaderArea.ORDER,
+            userName = "Alice",
+            roleKey = "role_admin",
+            isManager = true,
+            takeawayOrder = true,
+            takeawayLabel = "E-61",
+            customerEditable = true,
+            customerStep = step,
+        )
+
+    @Test
+    fun theNameStepShowsTheNameDialogAndHandsTheNameBack() {
+        show(HeaderArea.ORDER, fdm = FdmUiState(), header = takeawayHeader(CustomerStep.NAME))
+
+        compose.onNodeWithTag("customer_name_dialog").assertIsDisplayed()
+        compose.onNodeWithTag("customer_name_confirm").performClick()
+        assertEquals(listOf("name:"), calls)
+    }
+
+    @Test
+    fun thePhoneStepShowsThePhoneDialogAndSkipClosesIt() {
+        show(HeaderArea.ORDER, fdm = FdmUiState(), header = takeawayHeader(CustomerStep.PHONE))
+
+        compose.onNodeWithTag("customer_phone_dialog").assertIsDisplayed()
+        compose.onNodeWithTag("customer_phone_skip").performClick()
+        assertEquals(listOf("close-customer"), calls)
+    }
+
+    @Test
+    fun noStepShowsNoCustomerDialog() {
+        show(HeaderArea.ORDER, fdm = FdmUiState(), header = takeawayHeader(null))
+
+        compose.onNodeWithTag("customer_name_dialog").assertDoesNotExist()
+        compose.onNodeWithTag("customer_phone_dialog").assertDoesNotExist()
     }
 }

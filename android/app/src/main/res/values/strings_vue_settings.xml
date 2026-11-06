@@ -19,6 +19,10 @@
     <string name="settings_add_beep_on">Oui</string>
     <string name="settings_add_beep_off">Non</string>
     <string name="settings_add_beep_note">Un bip court confirme chaque ajout. Réglage de ce terminal.</string>
+    <string name="settings_takeaway_first">Premier numéro à emporter</string>
+    <string name="settings_takeaway_first_edit">Modifier</string>
+    <string name="settings_takeaway_first_saved">Premier numéro à emporter enregistré</string>
+    <string name="settings_takeaway_first_note">Les commandes à emporter prennent E-61, E-62... et repartent de ce numéro chaque jour. Un changement vaut pour le prochain numéro.</string>
     <string name="settings_tables">Plan de salle</string>
     <string name="settings_tables_current">{count} tables : {plan}</string>
     <string name="settings_tables_placeholder">1-12, 20-25</string>

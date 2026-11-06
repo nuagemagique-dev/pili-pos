@@ -99,6 +99,14 @@
     <string name="items_short">items</string>
     <string name="takeaway_new">Takeaway</string>
     <string name="takeaway_badge">Takeaway</string>
+    <string name="takeaway_add_name">Add a name</string>
+    <string name="takeaway_edit_customer">Edit customer</string>
+    <string name="takeaway_name_title">Customer name</string>
+    <string name="takeaway_name_placeholder">Name (optional)</string>
+    <string name="takeaway_name_hint">Printed on the kitchen slip. Erased after 72 hours.</string>
+    <string name="takeaway_phone_title">Customer phone (optional)</string>
+    <string name="takeaway_phone_none">No number</string>
+    <string name="takeaway_phone_skip">Skip</string>
     <string name="report_x">X Report</string>
     <string name="report_z">Z Report</string>
     <string name="report_x_desc">Mid-day summary</string>

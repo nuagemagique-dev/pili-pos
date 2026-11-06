@@ -22,6 +22,8 @@ import OwnerAlertsSettings from '../components/OwnerAlertsSettings.vue'
 import CoursesSettings from '../components/CoursesSettings.vue'
 import GiftVoucherSettings from '../components/GiftVoucherSettings.vue'
 import QuickNotesSettings from '../components/QuickNotesSettings.vue'
+import NumberEntryDialog from '../components/NumberEntryDialog.vue'
+import { TAKEAWAY_FIRST_MAX, TAKEAWAY_FIRST_MIN } from '../utils/takeaway'
 import { hasMessage, useI18n } from '../i18n'
 import { describeError } from '../utils/errorMessages'
 import { useSupportStore } from '../stores/support'
@@ -308,6 +310,29 @@ const languages: AppLanguage[] = ['fr', 'zh', 'en']
 
 const productLabels: ProductLabel[] = ['name', 'code']
 
+// ── First takeaway number (managers, UX audit T2) ─────────────────
+const firstTakeaway = ref<number | null>(null)
+const editingFirstTakeaway = ref(false)
+
+async function loadFirstTakeaway() {
+  try {
+    firstTakeaway.value = (await ipc.getTakeawayNumbering()).firstNumber
+  } catch {
+    /* the row stays empty */
+  }
+}
+
+async function saveFirstTakeaway(value: string) {
+  editingFirstTakeaway.value = false
+  try {
+    const stored = await ipc.setTakeawayNumbering({ firstNumber: Number(value) })
+    firstTakeaway.value = stored.firstNumber
+    toast.show(t('settings_takeaway_first_saved'), 'success')
+  } catch (e) {
+    toast.show(describeError(e), 'error', 5000)
+  }
+}
+
 // ── Table plan (managers) ────────────────────────────────────────
 const tablePlan = ref<ipc.TablePlan | null>(null)
 const tablePlanInput = ref('')
@@ -372,6 +397,7 @@ onMounted(() => {
   void support.refresh()
   if (auth.isManager) {
     void loadTablePlan()
+    void loadFirstTakeaway()
     void badge.load().then(() => badge.loadOverview())
   }
 })
@@ -492,6 +518,31 @@ onMounted(() => {
           </div>
           <p v-if="tablePlanError" class="add-error">{{ tablePlanError }}</p>
           <p class="panel-note">{{ t('settings_tables_note') }}</p>
+          <div class="takeaway-first" data-testid="takeaway-first">
+            <span class="takeaway-first-label">{{ t('settings_takeaway_first') }}</span>
+            <span class="takeaway-first-value mono" data-testid="takeaway-first-value">{{
+              firstTakeaway === null ? '' : `E-${firstTakeaway}`
+            }}</span>
+            <button
+              class="add-btn takeaway-first-edit"
+              :disabled="firstTakeaway === null"
+              data-testid="takeaway-first-edit"
+              @click="editingFirstTakeaway = true"
+            >
+              {{ t('settings_takeaway_first_edit') }}
+            </button>
+          </div>
+          <p class="panel-note">{{ t('settings_takeaway_first_note') }}</p>
+          <NumberEntryDialog
+            v-if="editingFirstTakeaway"
+            :title="t('settings_takeaway_first')"
+            :initial="String(firstTakeaway ?? 61)"
+            :max-digits="3"
+            :min="TAKEAWAY_FIRST_MIN"
+            :max="TAKEAWAY_FIRST_MAX"
+            @confirm="saveFirstTakeaway"
+            @cancel="editingFirstTakeaway = false"
+          />
         </section>
 
         <!-- Nightly export (manager only; the engine refuses it to the others) -->
@@ -1268,6 +1319,21 @@ onMounted(() => {
 .table-plan-current {
   font-size: 16px;
   color: var(--text-primary);
+}
+.takeaway-first {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.takeaway-first-label {
+  flex: 1;
+  font-weight: var(--font-weight-bold);
+}
+.takeaway-first-value {
+  font-size: 20px;
+  font-weight: var(--font-weight-heavy);
+  min-width: 4ch;
 }
 .table-plan-save {
   height: 56px;

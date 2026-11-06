@@ -17,7 +17,7 @@ use pos_core::order::OrderLine;
 use pos_fiscal::event::now_in_belgium;
 use pos_fiscal::ticket::ReceiptLanguage;
 use pos_print::bar_ticket::{
-    BarItem, BarTicket, NoteSlip, TransferSlip, format_bar_ticket, format_note_slip,
+    BarItem, BarTicket, NoteSlip, TakeawayMark, TransferSlip, format_bar_ticket, format_note_slip,
     format_transfer_slip,
 };
 
@@ -121,6 +121,9 @@ pub(crate) struct SlipMode {
     /// Record the printed entries with this `kitchen_slip_entries.slip`
     /// value (`immediate`, `release`, `sale`); `None` records nothing.
     pub record: Option<&'static str>,
+    /// The order the slip is for: a numbered takeaway's slip carries its
+    /// number and the customer name (local data, UX audit T2).
+    pub order: Option<i64>,
 }
 
 /// Print the slip for `entries`, the order entries just signed.
@@ -197,6 +200,7 @@ pub(crate) async fn print_bar_slip(
         items,
         SlipMode {
             record: Some(record),
+            order: entries.first().map(|e| e.order_id),
             ..SlipMode::default()
         },
     )
@@ -225,6 +229,7 @@ pub(crate) async fn print_items(
         date_time: now_in_belgium().format("%d/%m/%Y %H:%M:%S").to_string(),
         operator: super::operator_name(state, operator_insz),
         table,
+        takeaway: takeaway_mark(state, table, mode.order),
         items: items
             .iter()
             .map(|i| BarItem {
@@ -259,6 +264,14 @@ pub(crate) async fn print_items(
     outcome
 }
 
+/// The number and the customer of a numbered takeaway, for its slip; `None`
+/// for a table (a table slip never changes) and for an order without a tag.
+fn takeaway_mark(state: &AppState, table: Option<i32>, order: Option<i64>) -> Option<TakeawayMark> {
+    let order = order.filter(|_| table.is_none())?;
+    let db = state.db.lock().ok()?;
+    super::takeaway::slip_mark(&db, order)
+}
+
 /// The notes of `line_ids` have reached the kitchen.
 fn mark_notes_printed(state: &AppState, line_ids: &[i64]) {
     let Ok(db) = state.db.lock() else { return };
@@ -285,10 +298,16 @@ pub(crate) async fn print_note_slip(
     let Some(addr) = slip_printer(config) else {
         return SlipOutcome::NoPrinter;
     };
+    let order = state.db.lock().ok().and_then(|db| {
+        pos_db::queries::orders::note_target(&db, line_id)
+            .ok()
+            .map(|t| t.order_id)
+    });
     let slip = NoteSlip {
         date_time: now_in_belgium().format("%d/%m/%Y %H:%M:%S").to_string(),
         operator: super::operator_name(state, operator_insz),
         table,
+        takeaway: takeaway_mark(state, table, order),
         product_name: product_name.to_string(),
         note: note.map(str::to_string),
         lang: ReceiptLanguage::from_code(&config.language),

@@ -138,6 +138,12 @@ pub struct TakeawayInfo {
     pub total_cents: i64,
     pub line_count: i64,
     pub created_at: String,
+    /// The number of the day (`E-61`), when the takeaway has one.
+    pub number: Option<i64>,
+    /// `E-61`: the number as every screen writes it.
+    pub label: Option<String>,
+    /// The customer name, when the operator entered one.
+    pub customer_name: Option<String>,
 }
 
 /// The takeaways left open (nothing is registered for them until they
@@ -147,9 +153,10 @@ pub fn do_list_open_takeaways(state: &AppState) -> Result<Vec<TakeawayInfo>, Str
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = db
         .prepare(
-            "SELECT o.id, o.total_cents, COUNT(ol.id), o.created_at
+            "SELECT o.id, o.total_cents, COUNT(ol.id), o.created_at, t.number, t.customer_name
              FROM orders o
              JOIN order_lines ol ON ol.order_id = o.id
+             LEFT JOIN takeaway_tags t ON t.order_id = o.id
              WHERE o.order_type = 'takeaway' AND o.status = 'open'
                AND o.hubrise_order_id IS NULL
              GROUP BY o.id
@@ -158,11 +165,15 @@ pub fn do_list_open_takeaways(state: &AppState) -> Result<Vec<TakeawayInfo>, Str
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map([], |r| {
+            let number: Option<i64> = r.get(4)?;
             Ok(TakeawayInfo {
                 order_id: r.get(0)?,
                 total_cents: r.get(1)?,
                 line_count: r.get(2)?,
                 created_at: r.get(3)?,
+                number,
+                label: number.map(super::takeaway::label),
+                customer_name: r.get(5)?,
             })
         })
         .map_err(|e| e.to_string())?;

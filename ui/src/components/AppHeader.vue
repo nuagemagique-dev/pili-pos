@@ -20,6 +20,7 @@ import FdmAlerts from './FdmAlerts.vue'
 import TrainingBanner from './TrainingBanner.vue'
 import IdleLockBanner from './IdleLockBanner.vue'
 import TableMover from './TableMover.vue'
+import TakeawayCustomer from './TakeawayCustomer.vue'
 
 // While HubRise runs, or online orders are still to settle.
 const OnlineOrdersNavButton = defineAsyncComponent(() => import('./OnlineOrdersNavButton.vue'))
@@ -121,7 +122,7 @@ async function lock() {
     <span v-else-if="tableNumber" class="header-table" data-testid="header-table"
       >{{ t('table') }} {{ tableNumber }}</span
     >
-    <span v-else-if="takeawayActive" class="header-takeaway">{{ t('takeaway_badge') }}</span>
+    <TakeawayCustomer v-else-if="takeawayActive" />
     <span class="header-clock">{{ clock }}</span>
 
     <TableMover v-if="moving" @close="moving = false" />
@@ -223,8 +224,7 @@ async function lock() {
 }
 
 /* The current table: outlined in Brume, never an action colour. */
-.header-table,
-.header-takeaway {
+.header-table {
   height: 40px;
   padding: 0 14px;
   border-radius: var(--radius-sm);
@@ -244,12 +244,6 @@ async function lock() {
 .header-table-btn:active {
   transform: scale(var(--tap-scale));
 }
-/* Takeaway: amber, so staff see at a glance it is not a seated order. */
-.header-takeaway {
-  border-color: var(--accent-warning);
-  color: var(--accent-warning);
-}
-
 .header-clock {
   font-family: var(--font-mono);
   font-size: 16px;

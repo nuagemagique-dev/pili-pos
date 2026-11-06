@@ -587,6 +587,18 @@ function defaultHandlers(): Record<string, Handler> {
       }
     }),
     list_open_takeaways: () => [],
+    // Numbered takeaway: the first number of a new installation; no tag unless a spec gives one.
+    get_takeaway_numbering: () => ({ firstNumber: 61 }),
+    set_takeaway_numbering: live((args: any) => args.input),
+    get_takeaway_tag: () => null,
+    set_takeaway_customer: live((args: any) => ({
+      orderId: args.orderId,
+      day: '2026-11-06',
+      number: 61,
+      label: 'E-61',
+      customerName: args.name,
+      customerPhone: args.phone,
+    })),
     close_unpaid: () => ({
       success: true,
       ticket: null,

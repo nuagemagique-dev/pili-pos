@@ -43,6 +43,7 @@ pub mod settings;
 pub mod social;
 pub mod support;
 pub mod tables;
+pub mod takeaway;
 pub mod unpaid;
 #[cfg(feature = "hubrise")]
 pub mod webshop;

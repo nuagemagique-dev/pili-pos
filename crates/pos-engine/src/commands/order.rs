@@ -32,6 +32,7 @@ pub fn do_create_order(state: &AppState, input: CreateOrderInput) -> Result<Orde
             return Err(errors::TAKEAWAY_HAS_NO_TABLE.into());
         }
     }
+    let day_end_hour = state.config.lock().map_err(errors::internal)?.day_end_hour;
     let db = state.db.lock().map_err(|e| e.to_string())?;
     if let Some(table) = input.table_number {
         let open: Option<i64> = db
@@ -48,13 +49,18 @@ pub fn do_create_order(state: &AppState, input: CreateOrderInput) -> Result<Orde
             return pos_db::queries::orders::get_order(&db, id).map_err(|e| e.to_string());
         }
     }
-    pos_db::queries::orders::create_order(
+    let order = pos_db::queries::orders::create_order(
         &db,
         input.order_type,
         input.table_number,
         &input.user_insz,
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+    // A takeaway of the till gets its number of the day (local data).
+    if order.order_type == OrderType::Takeaway {
+        super::takeaway::assign(&db, day_end_hour, order.id);
+    }
+    Ok(order)
 }
 
 /// A product added to an order. Only the product and quantity come

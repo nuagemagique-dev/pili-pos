@@ -274,6 +274,18 @@ internal object VueStringIds {
         this["items_short"] = R.string.items_short
         this["takeaway_new"] = R.string.takeaway_new
         this["takeaway_badge"] = R.string.takeaway_badge
+        this["takeaway_add_name"] = R.string.takeaway_add_name
+        this["takeaway_edit_customer"] = R.string.takeaway_edit_customer
+        this["takeaway_name_title"] = R.string.takeaway_name_title
+        this["takeaway_name_placeholder"] = R.string.takeaway_name_placeholder
+        this["takeaway_name_hint"] = R.string.takeaway_name_hint
+        this["takeaway_phone_title"] = R.string.takeaway_phone_title
+        this["takeaway_phone_none"] = R.string.takeaway_phone_none
+        this["takeaway_phone_skip"] = R.string.takeaway_phone_skip
+        this["err_takeaway_number_invalid"] = R.string.err_takeaway_number_invalid
+        this["err_takeaway_name_invalid"] = R.string.err_takeaway_name_invalid
+        this["err_takeaway_phone_invalid"] = R.string.err_takeaway_phone_invalid
+        this["err_takeaway_customer_not_takeaway"] = R.string.err_takeaway_customer_not_takeaway
         this["report_x"] = R.string.report_x
         this["report_z"] = R.string.report_z
         this["report_x_desc"] = R.string.report_x_desc
@@ -507,6 +519,9 @@ internal object VueStringIds {
         this["allergen_mustard"] = R.string.allergen_mustard
         this["allergen_sesame"] = R.string.allergen_sesame
         this["allergen_sulphites"] = R.string.allergen_sulphites
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["allergen_lupin"] = R.string.allergen_lupin
         this["allergen_molluscs"] = R.string.allergen_molluscs
         this["allergens_mode"] = R.string.allergens_mode
@@ -519,9 +534,6 @@ internal object VueStringIds {
         this["allergens_unknown"] = R.string.allergens_unknown
         this["allergens_options"] = R.string.allergens_options
         this["allergens_print_one"] = R.string.allergens_print_one
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["allergens_print_all"] = R.string.allergens_print_all
         this["allergens_close"] = R.string.allergens_close
         this["allergens_printed"] = R.string.allergens_printed
@@ -760,6 +772,9 @@ internal object VueStringIds {
         this["invoice_done_title"] = R.string.invoice_done_title
         this["invoice_printed"] = R.string.invoice_printed
         this["invoice_not_printed"] = R.string.invoice_not_printed
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["invoice_delivery_queued"] = R.string.invoice_delivery_queued
         this["invoice_delivery_none"] = R.string.invoice_delivery_none
         this["invoice_failed"] = R.string.invoice_failed
@@ -772,9 +787,6 @@ internal object VueStringIds {
         this["invoice_status_none"] = R.string.invoice_status_none
         this["invoice_copy"] = R.string.invoice_copy
         this["keyboard_backspace"] = R.string.keyboard_backspace
-    }
-
-    private fun MutableMap<String, Int>.part3() {
         this["keyboard_space"] = R.string.keyboard_space
         this["keyboard_next"] = R.string.keyboard_next
         this["sales_title"] = R.string.sales_title
@@ -841,6 +853,10 @@ internal object VueStringIds {
         this["settings_add_beep_on"] = R.string.settings_add_beep_on
         this["settings_add_beep_off"] = R.string.settings_add_beep_off
         this["settings_add_beep_note"] = R.string.settings_add_beep_note
+        this["settings_takeaway_first"] = R.string.settings_takeaway_first
+        this["settings_takeaway_first_edit"] = R.string.settings_takeaway_first_edit
+        this["settings_takeaway_first_saved"] = R.string.settings_takeaway_first_saved
+        this["settings_takeaway_first_note"] = R.string.settings_takeaway_first_note
         this["settings_tables"] = R.string.settings_tables
         this["settings_tables_current"] = R.string.settings_tables_current
         this["settings_tables_placeholder"] = R.string.settings_tables_placeholder
@@ -1009,6 +1025,9 @@ internal object VueStringIds {
         this["alerts_chat_id"] = R.string.alerts_chat_id
         this["alerts_chat_id_unset"] = R.string.alerts_chat_id_unset
         this["alerts_label"] = R.string.alerts_label
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["alerts_label_placeholder"] = R.string.alerts_label_placeholder
         this["alerts_language"] = R.string.alerts_language
         this["alerts_kinds"] = R.string.alerts_kinds
@@ -1025,9 +1044,6 @@ internal object VueStringIds {
         this["alerts_value_hour"] = R.string.alerts_value_hour
         this["alerts_value_never"] = R.string.alerts_value_never
         this["alerts_save"] = R.string.alerts_save
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["alerts_saved"] = R.string.alerts_saved
         this["alerts_test"] = R.string.alerts_test
         this["alerts_test_sent"] = R.string.alerts_test_sent

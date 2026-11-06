@@ -259,6 +259,14 @@ const WEIGHT_MIGRATIONS: &[Migration] = &[
     },
 ];
 
+/// The numbered takeaway (every build): the number of the day and the
+/// optional customer name and phone of a takeaway sale.
+const TAKEAWAY_MIGRATIONS: &[Migration] = &[Migration {
+    version: 90,
+    name: "takeaway-tags",
+    sql: crate::schema_takeaway::MIGRATION_090_TAKEAWAY_TAGS,
+}];
+
 /// Every migration this build knows, in ascending version order.
 fn registry() -> Vec<Migration> {
     let mut all = MIGRATIONS.to_vec();
@@ -267,6 +275,7 @@ fn registry() -> Vec<Migration> {
     all.extend_from_slice(INVOICING_MIGRATIONS);
     all.extend_from_slice(OWNER_MIGRATIONS);
     all.extend_from_slice(WEIGHT_MIGRATIONS);
+    all.extend_from_slice(TAKEAWAY_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -541,7 +550,7 @@ mod tests {
     /// The till discounts are migration 30 and the kitchen notes 31, in
     /// every build, after 28 (presence registration) and before the
     /// invoicing block (40 to 42), the owner block (60 to 63) and 70 (staff
-    /// badges); 29 stays free.
+    /// badges), 80 and 81 (scale), then 90 (takeaway tags); 29 stays free.
     #[test]
     fn the_till_migrations_are_30_and_31_in_every_build() {
         let till: Vec<(i64, &str)> = TILL_MIGRATIONS
@@ -554,7 +563,7 @@ mod tests {
         let from_28: Vec<i64> = versions.into_iter().filter(|v| *v >= 28).collect();
         assert_eq!(
             from_28,
-            vec![28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70, 80, 81]
+            vec![28, 30, 31, 40, 41, 42, 60, 61, 62, 63, 70, 80, 81, 90]
         );
     }
 

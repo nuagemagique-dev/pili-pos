@@ -19,6 +19,10 @@
     <string name="settings_add_beep_on">开</string>
     <string name="settings_add_beep_off">关</string>
     <string name="settings_add_beep_note">每次添加商品时短促提示音确认。仅本终端。</string>
+    <string name="settings_takeaway_first">外带起始号码</string>
+    <string name="settings_takeaway_first_edit">修改</string>
+    <string name="settings_takeaway_first_saved">外带起始号码已保存</string>
+    <string name="settings_takeaway_first_note">外带订单按 E-61、E-62... 编号，每天从此号码重新开始。修改仅对下一个号码生效。</string>
     <string name="settings_tables">桌位</string>
     <string name="settings_tables_current">{count}张桌：{plan}</string>
     <string name="settings_tables_placeholder">1-12, 20-25</string>

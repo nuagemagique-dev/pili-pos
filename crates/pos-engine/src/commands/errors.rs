@@ -141,6 +141,18 @@ pub const NOTE_UNPRINTABLE: &str = "note_unprintable";
 /// More quick notes than the list holds (`quick_notes_too_many|max=<n>`).
 pub const QUICK_NOTES_TOO_MANY: &str = "quick_notes_too_many";
 
+// Numbered takeaway (the number of the day and the customer of a takeaway, local data).
+/// The first takeaway number is not between 1 and the highest allowed
+/// (`takeaway_number_invalid|min=<n>|max=<n>`).
+pub const TAKEAWAY_NUMBER_INVALID: &str = "takeaway_number_invalid";
+/// The customer name is too long or has a character the slip printer cannot print
+/// (`takeaway_name_invalid|max=<n>`).
+pub const TAKEAWAY_NAME_INVALID: &str = "takeaway_name_invalid";
+/// The customer phone is not a phone number (`takeaway_phone_invalid|max=<n>`).
+pub const TAKEAWAY_PHONE_INVALID: &str = "takeaway_phone_invalid";
+/// A name and a phone belong to the takeaway of the till: not a table, not an online order.
+pub const TAKEAWAY_CUSTOMER_NOT_TAKEAWAY: &str = "takeaway_customer_not_takeaway";
+
 // Payment correction (an F event, signPaymentCorrection).
 /// Only a sale ticket (N, or T in training) is corrected: not a refund, a copy or any other event.
 pub const PAYMENT_CORRECTION_NOT_A_SALE: &str = "payment_correction_not_a_sale";
@@ -468,6 +480,10 @@ pub const ALL: &[&str] = &[
     NOTE_TOO_LONG,
     NOTE_UNPRINTABLE,
     QUICK_NOTES_TOO_MANY,
+    TAKEAWAY_NUMBER_INVALID,
+    TAKEAWAY_NAME_INVALID,
+    TAKEAWAY_PHONE_INVALID,
+    TAKEAWAY_CUSTOMER_NOT_TAKEAWAY,
     CONFIG_TABLES,
     TABLE_TRANSFER_SAME_TABLE,
     TABLE_TRANSFER_TARGET_BUSY,

@@ -2982,16 +2982,40 @@
       "zh": "这张桌子不在餐厅布局中。",
       "area": "errors"
     },
+    "err_takeaway_customer_not_takeaway": {
+      "fr": "Un nom et un téléphone se mettent sur un À emporter de la caisse (ni une table, ni une commande en ligne).",
+      "en": "A name and phone go on a till takeaway (not a table, not an online order).",
+      "zh": "姓名和电话只能填在收银台的外带订单上（不是桌位，也不是线上订单）。",
+      "area": "errors"
+    },
     "err_takeaway_has_no_table": {
       "fr": "Une commande à emporter n'a pas de table.",
       "en": "A takeaway order has no table.",
       "zh": "外带订单没有桌号。",
       "area": "errors"
     },
+    "err_takeaway_name_invalid": {
+      "fr": "Nom impossible : {max} caractères au plus, lettres, chiffres et accents que l'imprimante sait imprimer.",
+      "en": "Name not accepted: {max} characters at most, letters, digits and accents the printer can print.",
+      "zh": "姓名无效：最多{max}个字符，仅限打印机可打印的字母、数字和重音符号。",
+      "area": "errors"
+    },
     "err_takeaway_not_registered": {
       "fr": "Une vente à emporter se termine par un paiement.",
       "en": "A takeaway ends with a payment.",
       "zh": "外带订单须以付款结束。",
+      "area": "errors"
+    },
+    "err_takeaway_number_invalid": {
+      "fr": "Le premier numéro à emporter va de {min} à {max}.",
+      "en": "The first takeaway number goes from {min} to {max}.",
+      "zh": "外带起始号码为{min}到{max}。",
+      "area": "errors"
+    },
+    "err_takeaway_phone_invalid": {
+      "fr": "Téléphone impossible : des chiffres seulement (3 à 15), {max} caractères au plus.",
+      "en": "Phone not accepted: digits only (3 to 15), {max} characters at most.",
+      "zh": "电话无效：仅限数字（3至15位），最多{max}个字符。",
       "area": "errors"
     },
     "err_unexpected": {
@@ -6192,6 +6216,30 @@
       "zh": "桌位已保存",
       "area": "settings"
     },
+    "settings_takeaway_first": {
+      "fr": "Premier numéro à emporter",
+      "en": "First takeaway number",
+      "zh": "外带起始号码",
+      "area": "settings"
+    },
+    "settings_takeaway_first_edit": {
+      "fr": "Modifier",
+      "en": "Change",
+      "zh": "修改",
+      "area": "settings"
+    },
+    "settings_takeaway_first_note": {
+      "fr": "Les commandes à emporter prennent E-61, E-62... et repartent de ce numéro chaque jour. Un changement vaut pour le prochain numéro.",
+      "en": "Takeaways get E-61, E-62... and start again from this number every day. A change applies to the next number.",
+      "zh": "外带订单按 E-61、E-62... 编号，每天从此号码重新开始。修改仅对下一个号码生效。",
+      "area": "settings"
+    },
+    "settings_takeaway_first_saved": {
+      "fr": "Premier numéro à emporter enregistré",
+      "en": "First takeaway number saved",
+      "zh": "外带起始号码已保存",
+      "area": "settings"
+    },
     "settings_terminal_label": {
       "fr": "Terminal",
       "en": "Terminal",
@@ -6528,16 +6576,64 @@
       "zh": "桌位",
       "area": "core"
     },
+    "takeaway_add_name": {
+      "fr": "Ajouter un nom",
+      "en": "Add a name",
+      "zh": "添加姓名",
+      "area": "core"
+    },
     "takeaway_badge": {
       "fr": "À emporter",
       "en": "Takeaway",
       "zh": "外带",
       "area": "core"
     },
+    "takeaway_edit_customer": {
+      "fr": "Modifier le client",
+      "en": "Edit customer",
+      "zh": "修改顾客",
+      "area": "core"
+    },
+    "takeaway_name_hint": {
+      "fr": "Imprimé sur le bon de cuisine. Effacé après 72 heures.",
+      "en": "Printed on the kitchen slip. Erased after 72 hours.",
+      "zh": "打印在厨房单上，72小时后删除。",
+      "area": "core"
+    },
+    "takeaway_name_placeholder": {
+      "fr": "Nom (facultatif)",
+      "en": "Name (optional)",
+      "zh": "姓名（可选）",
+      "area": "core"
+    },
+    "takeaway_name_title": {
+      "fr": "Nom du client",
+      "en": "Customer name",
+      "zh": "顾客姓名",
+      "area": "core"
+    },
     "takeaway_new": {
       "fr": "À emporter",
       "en": "Takeaway",
       "zh": "外带",
+      "area": "core"
+    },
+    "takeaway_phone_none": {
+      "fr": "Pas de numéro",
+      "en": "No number",
+      "zh": "无号码",
+      "area": "core"
+    },
+    "takeaway_phone_skip": {
+      "fr": "Passer",
+      "en": "Skip",
+      "zh": "跳过",
+      "area": "core"
+    },
+    "takeaway_phone_title": {
+      "fr": "Téléphone du client (facultatif)",
+      "en": "Customer phone (optional)",
+      "zh": "顾客电话（可选）",
       "area": "core"
     },
     "takeaway_started_at": {
@@ -7167,6 +7263,10 @@
     "note_too_long",
     "note_unprintable",
     "quick_notes_too_many",
+    "takeaway_number_invalid",
+    "takeaway_name_invalid",
+    "takeaway_phone_invalid",
+    "takeaway_customer_not_takeaway",
     "config_tables",
     "table_transfer_same_table",
     "table_transfer_target_busy",

@@ -11,5 +11,6 @@ mod schema_eft;
 mod schema_hubrise;
 mod schema_invoicing;
 mod schema_owner;
+mod schema_takeaway;
 mod schema_till;
 mod schema_weight;

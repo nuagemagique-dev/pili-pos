@@ -119,7 +119,19 @@ internal fun AppHeader(
                     tag = "header_table",
                     onClick = if (state.canMoveTable) actions.onMoveTable else null,
                 )
-            state.takeawayActive -> TableBadge(vueText("takeaway_badge"), warning = true, tag = "header_takeaway_badge")
+            state.takeawayActive -> {
+                TableBadge(
+                    TakeawayText.title(vueText("takeaway_badge"), state.takeawayLabel, state.customerName),
+                    warning = true,
+                    tag = "header_takeaway_badge",
+                )
+                if (state.customerEditable) {
+                    CustomerButton(
+                        text = vueText(if (state.hasCustomer) "takeaway_edit_customer" else "takeaway_add_name"),
+                        onClick = actions.onAddCustomer,
+                    )
+                }
+            }
         }
         Text(
             text = clock,

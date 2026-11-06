@@ -158,6 +158,10 @@
     <string name="err_config_alerts">Invalid owner alerts setting (token file or address). Detail: {detail}</string>
     <string name="err_config_other">Invalid or unreadable configuration. Detail: {detail}</string>
     <string name="err_internal_error">Internal error. Contact your technician. ({detail})</string>
+    <string name="err_takeaway_number_invalid">The first takeaway number goes from {min} to {max}.</string>
+    <string name="err_takeaway_name_invalid">Name not accepted: {max} characters at most, letters, digits and accents the printer can print.</string>
+    <string name="err_takeaway_phone_invalid">Phone not accepted: digits only (3 to 15), {max} characters at most.</string>
+    <string name="err_takeaway_customer_not_takeaway">A name and phone go on a till takeaway (not a table, not an online order).</string>
     <string name="err_allergen_unknown">Unknown allergen: {code}.</string>
     <string name="err_allergen_target_not_found">Product or option not found ({id}).</string>
     <string name="err_course_already_sent">This line already went to the kitchen: its course can no longer change.</string>

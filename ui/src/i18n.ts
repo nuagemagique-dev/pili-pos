@@ -1006,6 +1006,43 @@ const coreMessages: Messages = {
   items_short: { fr: 'art.', en: 'items', zh: '件' },
   takeaway_new: { fr: 'À emporter', en: 'Takeaway', zh: '外带' },
   takeaway_badge: { fr: 'À emporter', en: 'Takeaway', zh: '外带' },
+  // Numbered takeaway (UX audit T2): the customer name and phone, local data.
+  takeaway_add_name: { fr: 'Ajouter un nom', en: 'Add a name', zh: '添加姓名' },
+  takeaway_edit_customer: { fr: 'Modifier le client', en: 'Edit customer', zh: '修改顾客' },
+  takeaway_name_title: { fr: 'Nom du client', en: 'Customer name', zh: '顾客姓名' },
+  takeaway_name_placeholder: { fr: 'Nom (facultatif)', en: 'Name (optional)', zh: '姓名（可选）' },
+  takeaway_name_hint: {
+    fr: 'Imprimé sur le bon de cuisine. Effacé après 72 heures.',
+    en: 'Printed on the kitchen slip. Erased after 72 hours.',
+    zh: '打印在厨房单上，72小时后删除。',
+  },
+  takeaway_phone_title: {
+    fr: 'Téléphone du client (facultatif)',
+    en: 'Customer phone (optional)',
+    zh: '顾客电话（可选）',
+  },
+  takeaway_phone_none: { fr: 'Pas de numéro', en: 'No number', zh: '无号码' },
+  takeaway_phone_skip: { fr: 'Passer', en: 'Skip', zh: '跳过' },
+  err_takeaway_number_invalid: {
+    fr: 'Le premier numéro à emporter va de {min} à {max}.',
+    en: 'The first takeaway number goes from {min} to {max}.',
+    zh: '外带起始号码为{min}到{max}。',
+  },
+  err_takeaway_name_invalid: {
+    fr: "Nom impossible : {max} caractères au plus, lettres, chiffres et accents que l'imprimante sait imprimer.",
+    en: 'Name not accepted: {max} characters at most, letters, digits and accents the printer can print.',
+    zh: '姓名无效：最多{max}个字符，仅限打印机可打印的字母、数字和重音符号。',
+  },
+  err_takeaway_phone_invalid: {
+    fr: 'Téléphone impossible : des chiffres seulement (3 à 15), {max} caractères au plus.',
+    en: 'Phone not accepted: digits only (3 to 15), {max} characters at most.',
+    zh: '电话无效：仅限数字（3至15位），最多{max}个字符。',
+  },
+  err_takeaway_customer_not_takeaway: {
+    fr: 'Un nom et un téléphone se mettent sur un À emporter de la caisse (ni une table, ni une commande en ligne).',
+    en: 'A name and phone go on a till takeaway (not a table, not an online order).',
+    zh: '姓名和电话只能填在收银台的外带订单上（不是桌位，也不是线上订单）。',
+  },
 
   // Reports
   report_x: { fr: 'Rapport X', en: 'X Report', zh: 'X报表' },

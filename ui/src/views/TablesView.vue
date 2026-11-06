@@ -219,6 +219,9 @@ async function selectTable(table: ipc.TableInfo) {
             @click="resumeTakeaway(tk)"
           >
             <span class="takeaway-text">
+              <span v-if="tk.label" class="takeaway-number" data-testid="takeaway-number">{{
+                tk.customerName ? `${tk.label} · ${tk.customerName}` : tk.label
+              }}</span>
               <span class="takeaway-time">{{
                 t('takeaway_started_at', { time: formatTimestamp(tk.createdAt, formatTime) })
               }}</span>
@@ -440,6 +443,16 @@ async function selectTable(table: ipc.TableInfo) {
 .takeaway-time {
   font-size: 20px;
   font-weight: var(--font-weight-bold);
+}
+/* The number of the day, big: it is what the customer is called by. */
+.takeaway-number {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--accent-warning);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .takeaway-meta {
   font-family: var(--font-mono);

@@ -464,6 +464,17 @@ private fun TakeawayCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
+                if (takeaway.label != null) {
+                    // The number of the day, big: it is what the customer is called by (UX audit T2).
+                    Text(
+                        text = listOfNotNull(takeaway.label, takeaway.customerName).joinToString(" · "),
+                        style = t.figure.copy(fontSize = t.sizeXl, fontWeight = t.weightBold),
+                        color = c.accentWarning,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("takeaway_${takeaway.orderId}_number"),
+                    )
+                }
                 Text(
                     text = vueText("takeaway_started_at", "time" to time),
                     style = t.body.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),

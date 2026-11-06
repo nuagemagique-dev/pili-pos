@@ -33,6 +33,7 @@ import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.TableTransferResult
+import uniffi.pos_ffi.TakeawayTag
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -89,6 +90,7 @@ class OrderStore
         private val categories = ConcurrentHashMap<Long, Long>()
         private val mutex = Mutex()
         private val mutableLastAdd = MutableStateFlow<LineAdd?>(null)
+        private val mutableTakeawayTag = MutableStateFlow<TakeawayTag?>(null)
         private val mutableTableMoves = MutableStateFlow(0)
         private val addSeq = AtomicLong()
 
@@ -105,6 +107,12 @@ class OrderStore
          * flash of its cart line follow it. Null after a reset.
          */
         val lastAdd: StateFlow<LineAdd?> = mutableLastAdd.asStateFlow()
+
+        /**
+         * The number of the day and the customer of the current takeaway (`takeawayTag` of `order.ts`, UX audit T2);
+         * null for a table, an online order or when the till gives none.
+         */
+        val takeawayTag: StateFlow<TakeawayTag?> = mutableTakeawayTag.asStateFlow()
 
         /**
          * How many table moves were signed (a move and its undo each count): the tables screen reads the plan again
@@ -171,6 +179,7 @@ class OrderStore
             if (publish(order, cart, seen)) {
                 gateway.call { engine -> engine.setActiveOrder(order.id) }
                 readCourses(order.id, seen)
+                readTakeawayTag(order, seen)
             }
         }
 
@@ -183,7 +192,24 @@ class OrderStore
                 if (publish(order, cart, seen)) {
                     gateway.call { engine -> engine.setActiveOrder(orderId) }
                     readCourses(orderId, seen)
+                    readTakeawayTag(order, seen)
                 }
+            }
+
+        /**
+         * Puts (or, with null or empty values, clears) the name and the phone of the customer of the current takeaway;
+         * both are replaced. The tag becomes the engine's answer.
+         *
+         * @return false when the engine refused (the refusal is on [failures])
+         */
+        suspend fun setTakeawayCustomer(
+            name: String?,
+            phone: String?,
+        ): Boolean =
+            reported {
+                val order = requireCurrent()
+                val tag = gateway.call { engine -> engine.setTakeawayCustomer(order.id, name, phone) }
+                mutableTakeawayTag.value = tag
             }
 
         /**
@@ -467,9 +493,36 @@ class OrderStore
                 mutableCurrent.value = null
                 mutableLines.value = emptyList()
                 mutableLastAdd.value = null
+                mutableTakeawayTag.value = null
                 mutableUnsentCount.value = 0
                 mutableHeldCourses.value = emptyList()
                 categories.clear()
+            }
+        }
+
+        /**
+         * Reads the tag of a takeaway (its number of the day and customer); a table has none. A till that does not
+         * answer simply shows no number.
+         */
+        @Suppress("TooGenericExceptionCaught", "SwallowedException")
+        private suspend fun readTakeawayTag(
+            order: Order,
+            seen: Int,
+        ) {
+            val tag =
+                if (order.orderType != OrderType.TAKEAWAY) {
+                    null
+                } else {
+                    try {
+                        gateway.call { engine -> engine.getTakeawayTag(order.id) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            synchronized(publishLock) {
+                if (generation.get() == seen) mutableTakeawayTag.value = tag
             }
         }
 

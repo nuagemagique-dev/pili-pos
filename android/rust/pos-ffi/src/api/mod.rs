@@ -16,3 +16,4 @@ pub mod orders;
 pub mod quick_notes;
 pub mod reports;
 pub mod scale;
+pub mod takeaway;

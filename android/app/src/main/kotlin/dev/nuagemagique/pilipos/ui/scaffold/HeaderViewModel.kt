@@ -26,6 +26,7 @@ import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.TableInfo
+import uniffi.pos_ffi.TakeawayTag
 import uniffi.pos_ffi.User
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -62,7 +63,20 @@ internal data class HeaderUiState(
     val canMoveTable: Boolean = false,
     /** The other tables of the plan while the table picker is open, else null. */
     val tablePicker: List<TableInfo>? = null,
+    /** The number of the day of the takeaway on screen (`E-61`), when it has one (UX audit T2). */
+    val takeawayLabel: String? = null,
+    /** The customer name of the takeaway on screen, when one was entered. */
+    val customerName: String? = null,
+    /** The customer phone of the takeaway on screen, when one was entered. */
+    val customerPhone: String? = null,
+    /** The takeaway is open and has a number: the header offers "Ajouter un nom". */
+    val customerEditable: Boolean = false,
+    /** The step of the customer dialogs that is open, else null. */
+    val customerStep: CustomerStep? = null,
 ) {
+    /** The takeaway on screen already has a name or a phone. */
+    val hasCustomer: Boolean get() = !customerName.isNullOrEmpty() || !customerPhone.isNullOrEmpty()
+
     /** The Tables button is the active one (`tablesActive`). */
     val tablesActive: Boolean get() = area == HeaderArea.TABLES || dineInOrder
 
@@ -88,6 +102,7 @@ internal class HeaderViewModel(
     private val order = entry.order()
     private val pinOpen = MutableStateFlow(false)
     private val tablePicker = MutableStateFlow<List<TableInfo>?>(null)
+    private val customerStep = MutableStateFlow<CustomerStep?>(null)
     private val tableMoves = TableMoves(order, entry.toasts(), entry.catalog(), entry.settings(), entry.errors())
     private val effectChannel = Channel<HeaderEffect>(Channel.BUFFERED)
 
@@ -104,9 +119,11 @@ internal class HeaderViewModel(
                 entry.integrations().hubriseVisible,
                 entry.webshop().pendingCount,
             ) { user, manager, current, hubrise, pending -> build(user, manager, current, hubrise, pending) },
-            combine(pinOpen, tablePicker, order.lines) { pin, picker, lines -> Triple(pin, picker, lines.isNotEmpty()) },
+            combine(pinOpen, tablePicker, order.lines, order.takeawayTag, customerStep) { pin, picker, lines, tag, step ->
+                Overlay(pin, picker, lines.isNotEmpty(), tag, step)
+            },
             session.idleWarning,
-        ) { base, (pin, picker, hasLines), warning -> overlay(base, pin, picker, hasLines, warning) }
+        ) { base, over, warning -> overlay(base, over, warning) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, initialState())
 
     private fun initialState(): HeaderUiState =
@@ -118,26 +135,43 @@ internal class HeaderViewModel(
                 entry.integrations().hubriseVisible.value,
                 entry.webshop().pendingCount.value,
             ),
-            pinOpen.value,
-            tablePicker.value,
-            order.lines.value.isNotEmpty(),
+            Overlay(
+                pinOpen.value,
+                tablePicker.value,
+                order.lines.value.isNotEmpty(),
+                order.takeawayTag.value,
+                customerStep.value,
+            ),
             session.idleWarning.value,
         )
 
-    /** What does not come from the order: the open dialogs, the lines, the idle warning. */
+    /** What does not come from the order: the open dialogs, the lines, the takeaway tag. */
+    private data class Overlay(
+        val pin: Boolean,
+        val picker: List<TableInfo>?,
+        val hasLines: Boolean,
+        val tag: TakeawayTag?,
+        val step: CustomerStep?,
+    )
+
+    /** The idle warning and the open dialogs on top of the order's state. */
     private fun overlay(
         base: HeaderUiState,
-        pin: Boolean,
-        picker: List<TableInfo>?,
-        hasLines: Boolean,
+        over: Overlay,
         warning: IdleWarning?,
     ): HeaderUiState {
-        val movable = base.tableOpen && hasLines
+        val movable = base.tableOpen && over.hasLines
+        val tag = over.tag.takeIf { base.takeawayOrder }
         return base.copy(
-            pinOpen = pin && base.roleKey != null,
+            pinOpen = over.pin && base.roleKey != null,
             idleWarning = warning,
             canMoveTable = movable,
-            tablePicker = if (movable) picker else null,
+            tablePicker = if (movable) over.picker else null,
+            takeawayLabel = tag?.label,
+            customerName = tag?.customerName,
+            customerPhone = tag?.customerPhone,
+            customerEditable = tag != null,
+            customerStep = over.step.takeIf { tag != null },
         )
     }
 
@@ -286,6 +320,32 @@ internal class HeaderViewModel(
                 onFailure = { entry.errors().show(it, language()) },
             )
         }
+    }
+
+    /** "Ajouter un nom": opens the name keypad of the takeaway on screen. */
+    fun openCustomer() {
+        if (state.value.customerEditable) customerStep.value = CustomerStep.NAME
+    }
+
+    /** Closes the customer dialogs; what was already saved stays. */
+    fun closeCustomer() {
+        customerStep.value = null
+    }
+
+    /** The name was confirmed: it is saved at once, then the phone step follows (a refusal is shown by the order screen). */
+    fun submitCustomerName(name: String) {
+        val phone = order.takeawayTag.value?.customerPhone
+        customerStep.value = null
+        viewModelScope.launch {
+            if (order.setTakeawayCustomer(name.ifBlank { null }, phone)) customerStep.value = CustomerStep.PHONE
+        }
+    }
+
+    /** The phone was confirmed ("Passer" is [closeCustomer]); an empty one clears it. */
+    fun submitCustomerPhone(digits: String) {
+        val name = order.takeawayTag.value?.customerName
+        customerStep.value = null
+        viewModelScope.launch { order.setTakeawayCustomer(name, PhoneEntry.value(digits)) }
     }
 
     /** Closes the table picker without moving anything. */

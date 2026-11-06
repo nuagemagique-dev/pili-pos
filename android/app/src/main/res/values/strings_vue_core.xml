@@ -99,6 +99,14 @@
     <string name="items_short">art.</string>
     <string name="takeaway_new">À emporter</string>
     <string name="takeaway_badge">À emporter</string>
+    <string name="takeaway_add_name">Ajouter un nom</string>
+    <string name="takeaway_edit_customer">Modifier le client</string>
+    <string name="takeaway_name_title">Nom du client</string>
+    <string name="takeaway_name_placeholder">Nom (facultatif)</string>
+    <string name="takeaway_name_hint">Imprimé sur le bon de cuisine. Effacé après 72 heures.</string>
+    <string name="takeaway_phone_title">Téléphone du client (facultatif)</string>
+    <string name="takeaway_phone_none">Pas de numéro</string>
+    <string name="takeaway_phone_skip">Passer</string>
     <string name="report_x">Rapport X</string>
     <string name="report_z">Rapport Z</string>
     <string name="report_x_desc">Résumé en cours de journée</string>

@@ -27,6 +27,11 @@ internal data class HeaderActions(
     val onPickTable: (Int) -> Unit = {},
     /** The picker was dismissed. */
     val onCloseTablePicker: () -> Unit = {},
+    /** "Ajouter un nom" of a numbered takeaway (UX audit T2). */
+    val onAddCustomer: () -> Unit = {},
+    val onCustomerName: (String) -> Unit = {},
+    val onCustomerPhone: (String) -> Unit = {},
+    val onCloseCustomer: () -> Unit = {},
     val pin: HeaderPinActions = HeaderPinActions(),
 )
 

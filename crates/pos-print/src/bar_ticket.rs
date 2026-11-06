@@ -9,7 +9,7 @@
 use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer};
 
 use crate::escpos::{Alignment, EscPosBuilder, PaperWidth, TextStyle, wrap};
-use crate::labels::bar_labels;
+use crate::labels::{BarLabels, bar_labels};
 
 /// One line sent to the bar or kitchen: what was just ordered, or a
 /// correction (negative quantity).
@@ -29,6 +29,17 @@ pub struct BarItem {
     pub course: Option<i32>,
 }
 
+/// The number of the day of a takeaway and the name of its customer
+/// (local data, UX audit T2). Printed in large type in place of "Vente
+/// directe"; never an amount, never part of a fiscal record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TakeawayMark {
+    /// `E-61`.
+    pub label: String,
+    /// The customer name, when one was entered.
+    pub name: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct BarTicket {
     /// Local date and time of the order, already formatted
@@ -38,6 +49,8 @@ pub struct BarTicket {
     pub operator: String,
     /// Table number; `None` for a direct sale.
     pub table: Option<i32>,
+    /// The number and the customer of a numbered takeaway (a direct sale).
+    pub takeaway: Option<TakeawayMark>,
     pub items: Vec<BarItem>,
     pub lang: ReceiptLanguage,
     pub is_training: bool,
@@ -99,6 +112,9 @@ pub fn format_bar_ticket(ticket: &BarTicket, paper: PaperWidth) -> Vec<u8> {
     });
     p.textln(&table);
     p.style_reset();
+    if let (Some(mark), None) = (&ticket.takeaway, ticket.table) {
+        takeaway_block(&mut p, mark);
+    }
     if let Some(course) = ticket.release {
         p.style(TextStyle {
             bold: true,
@@ -143,6 +159,29 @@ pub fn format_bar_ticket(ticket: &BarTicket, paper: PaperWidth) -> Vec<u8> {
     p.feed(4);
     p.cut();
     p.build()
+}
+
+/// The number of a takeaway, under the "direct sale" line: the number in the
+/// largest type the printer has, then the customer name in double height.
+fn takeaway_block(p: &mut EscPosBuilder, mark: &TakeawayMark) {
+    p.align(Alignment::Center);
+    p.style(TextStyle {
+        bold: true,
+        double_height: true,
+        double_width: true,
+        ..Default::default()
+    });
+    p.textln(&mark.label);
+    if let Some(name) = &mark.name {
+        p.style(TextStyle {
+            bold: true,
+            double_height: true,
+            ..Default::default()
+        });
+        p.textln_wrapped(name);
+    }
+    p.style_reset();
+    p.align(Alignment::Left);
 }
 
 /// Print `note` after `prefix` on the first line, wrapped lines
@@ -225,6 +264,8 @@ pub struct NoteSlip {
     pub operator: String,
     /// Table number; `None` for a direct sale.
     pub table: Option<i32>,
+    /// The number and the customer of a numbered takeaway (a direct sale).
+    pub takeaway: Option<TakeawayMark>,
     pub product_name: String,
     /// The new note; `None` when it was removed.
     pub note: Option<String>,
@@ -269,6 +310,9 @@ pub fn format_note_slip(slip: &NoteSlip, paper: PaperWidth) -> Vec<u8> {
     });
     p.textln(&table);
     p.style_reset();
+    if let (Some(mark), None) = (&slip.takeaway, slip.table) {
+        takeaway_block(&mut p, mark);
+    }
     p.separator('-');
 
     p.style(TextStyle {
@@ -302,6 +346,7 @@ mod tests {
             date_time: "15/06/2026 12:09:35".into(),
             operator: "Beheerder".into(),
             table: Some(3),
+            takeaway: None,
             items: vec![
                 BarItem {
                     quantity: 1,
@@ -342,6 +387,79 @@ mod tests {
             "1 x Plat du jour",
             "CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE",
         ] {
+            assert!(out.contains(expected), "{expected:?} missing from:\n{out}");
+        }
+    }
+
+    fn takeaway_ticket(name: Option<&str>) -> BarTicket {
+        let mut t = ticket(ReceiptLanguage::Fr);
+        t.table = None;
+        t.takeaway = Some(TakeawayMark {
+            label: "E-61".into(),
+            name: name.map(str::to_string),
+        });
+        t
+    }
+
+    #[test]
+    fn a_numbered_takeaway_prints_its_number_and_name_under_the_direct_sale_line() {
+        let out = crate::render::one_line(&text(&takeaway_ticket(Some("Dupont"))));
+        for expected in ["Vente directe", "E-61", "Dupont", "1 x Dry Martini"] {
+            assert!(out.contains(expected), "{expected:?} missing from:\n{out}");
+        }
+        assert!(!out.contains("Table"), "{out}");
+        // No name: only the number.
+        let anonymous = crate::render::one_line(&text(&takeaway_ticket(None)));
+        assert!(anonymous.contains("E-61") && !anonymous.contains("Dupont"));
+    }
+
+    #[test]
+    fn the_takeaway_number_is_printed_in_double_width_and_double_height() {
+        let bytes = format_bar_ticket(&takeaway_ticket(None), PaperWidth::Mm80);
+        // GS ! 0x11 selects double width and double height, then the label follows.
+        let label = b"\x1d!\x11";
+        let at = bytes
+            .windows(label.len())
+            .position(|w| w == label)
+            .expect("a double width and height size command");
+        let tail = &bytes[at + label.len()..];
+        assert!(
+            tail.windows(4).any(|w| w == b"E-61"),
+            "the number follows the size command"
+        );
+    }
+
+    #[test]
+    fn a_numbered_takeaway_slip_is_in_every_language_and_a_table_slip_is_unchanged() {
+        for (lang, heading) in [
+            (ReceiptLanguage::Fr, "Vente directe"),
+            (ReceiptLanguage::Nl, "Directe verkoop"),
+            (ReceiptLanguage::De, "Direktverkauf"),
+        ] {
+            let mut t = takeaway_ticket(None);
+            t.lang = lang;
+            let out = text(&t);
+            assert!(out.contains(heading) && out.contains("E-61"), "{out}");
+        }
+        // A table keeps its table line even if a mark were attached.
+        let mut table = ticket(ReceiptLanguage::Fr);
+        table.takeaway = Some(TakeawayMark {
+            label: "E-61".into(),
+            name: None,
+        });
+        assert_eq!(text(&table), text(&ticket(ReceiptLanguage::Fr)));
+    }
+
+    #[test]
+    fn a_note_slip_of_a_numbered_takeaway_names_the_takeaway() {
+        let mut slip = note_slip(ReceiptLanguage::Fr, Some("sans wasabi"));
+        slip.table = None;
+        slip.takeaway = Some(TakeawayMark {
+            label: "E-62".into(),
+            name: Some("Martin".into()),
+        });
+        let out = render_plain_text(&format_note_slip(&slip, PaperWidth::Mm80));
+        for expected in ["Vente directe", "E-62", "Martin", "sans wasabi"] {
             assert!(out.contains(expected), "{expected:?} missing from:\n{out}");
         }
     }
@@ -540,6 +658,7 @@ mod tests {
             date_time: "15/06/2026 12:09:35".into(),
             operator: "Beheerder".into(),
             table: Some(3),
+            takeaway: None,
             product_name: "Plat du jour".into(),
             note: note.map(str::to_string),
             lang,

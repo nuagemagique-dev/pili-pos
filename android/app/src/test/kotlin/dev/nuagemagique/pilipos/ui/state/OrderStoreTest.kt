@@ -46,6 +46,7 @@ import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.QuickNotes
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.TableTransferResult
+import uniffi.pos_ffi.TakeawayTag
 import uniffi.pos_ffi.VatCode
 
 @Suppress("LongParameterList", "LargeClass", "TooManyFunctions")
@@ -1390,6 +1391,86 @@ class OrderStoreTest {
             r.store.resetLocal()
 
             assertNull(r.store.lastAdd.value)
+        }
+
+    // ── Numbered takeaway (UX audit T2) ───────────────────────────
+
+    private fun tag(
+        orderId: Long = 5,
+        name: String? = null,
+        phone: String? = null,
+    ) = TakeawayTag(orderId = orderId, day = "2026-10-09", number = 61, label = "E-61", customerName = name, customerPhone = phone)
+
+    @Test
+    fun aTakeawayTagIsReadWithTheOrder() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTakeawayTag(5L) } returns tag(name = "Dupont")
+            r.store.seed(r, order(id = 5), emptyList())
+
+            assertEquals("E-61", r.store.takeawayTag.value?.label)
+            assertEquals("Dupont", r.store.takeawayTag.value?.customerName)
+        }
+
+    @Test
+    fun aTableHasNoTagAndTheEngineIsNotAskedForOne() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 4), emptyList())
+
+            assertNull(r.store.takeawayTag.value)
+            coVerify(exactly = 0) { r.f.engine.getTakeawayTag(any()) }
+        }
+
+    @Test
+    fun aTillThatCannotAnswerShowsNoNumber() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTakeawayTag(5L) } throws PosException.Coded("internal", emptyMap())
+            r.store.seed(r, order(id = 5), emptyList())
+
+            assertNull(r.store.takeawayTag.value)
+            assertEquals(5L, r.store.current.value?.id)
+        }
+
+    @Test
+    fun theCustomerIsSentWithTheOrderAndTheAnswerBecomesTheTag() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTakeawayTag(5L) } returns tag()
+            r.store.seed(r, order(id = 5), emptyList())
+            coEvery { r.f.engine.setTakeawayCustomer(5L, "Dupont", "0470 12 34 56") } returns tag(name = "Dupont", phone = "0470 12 34 56")
+
+            assertTrue(r.store.setTakeawayCustomer("Dupont", "0470 12 34 56"))
+
+            assertEquals("Dupont", r.store.takeawayTag.value?.customerName)
+            assertEquals("0470 12 34 56", r.store.takeawayTag.value?.customerPhone)
+        }
+
+    @Test
+    fun aRefusedCustomerKeepsTheTagAndReportsTheFailure() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTakeawayTag(5L) } returns tag()
+            r.store.seed(r, order(id = 5), emptyList())
+            coEvery { r.f.engine.setTakeawayCustomer(5L, any(), any()) } throws PosException.Coded("takeaway_name_invalid", emptyMap())
+
+            assertFalse(r.store.setTakeawayCustomer("x".repeat(40), null))
+
+            assertNull(r.store.takeawayTag.value?.customerName)
+        }
+
+    @Test
+    fun forgettingTheOrderForgetsItsTag() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getTakeawayTag(5L) } returns tag()
+            r.store.seed(r, order(id = 5), emptyList())
+            assertTrue(r.store.takeawayTag.value != null)
+
+            r.store.resetLocal()
+
+            assertNull(r.store.takeawayTag.value)
         }
 
     /** Puts [order] and [cart] in the store through the engine, as a screen would (loadOrder). */

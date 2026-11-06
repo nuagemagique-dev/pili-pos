@@ -49,6 +49,7 @@ pub mod support;
 pub mod table_plan;
 pub mod table_transfer;
 pub mod tables;
+pub mod takeaway;
 pub mod unpaid;
 #[cfg(feature = "hubrise")]
 pub mod webshop;

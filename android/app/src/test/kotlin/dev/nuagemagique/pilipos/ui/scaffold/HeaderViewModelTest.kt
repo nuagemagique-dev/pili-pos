@@ -41,6 +41,7 @@ import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SlipOutcome
+import uniffi.pos_ffi.TakeawayTag
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Suppress("LargeClass", "TooManyFunctions")
@@ -657,5 +658,126 @@ class HeaderViewModelTest {
             assertEquals(refusal, failure)
             assertEquals(r.errorTexts.describe(refusal, AppLanguage.FR), r.model.describeError(refusal))
             assertEquals(0, r.toasts.toasts.value.size)
+        }
+
+    // ── Numbered takeaway (UX audit T2) ───────────────────────────
+
+    private fun tag(
+        name: String? = null,
+        phone: String? = null,
+    ) = TakeawayTag(orderId = 8, day = "2026-10-09", number = 61, label = "E-61", customerName = name, customerPhone = phone)
+
+    @Test
+    fun aTakeawayShowsItsNumberAndItsCustomerInTheHeaderState() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.getTakeawayTag(8) } returns tag(name = "Dupont", phone = "0470 12 34 56")
+            r.openOrder(order(8))
+            runCurrent()
+
+            assertEquals("E-61", r.state.takeawayLabel)
+            assertEquals("Dupont", r.state.customerName)
+            assertEquals("0470 12 34 56", r.state.customerPhone)
+            assertTrue(r.state.customerEditable)
+            assertTrue(r.state.hasCustomer)
+        }
+
+    @Test
+    fun aTableShowsNoTakeawayNumberAndOffersNoCustomer() =
+        runTest {
+            val r = start(fixture(), HeaderArea.ORDER)
+            r.login(admin)
+            r.openOrder(order(7, table = 3))
+            runCurrent()
+
+            assertNull(r.state.takeawayLabel)
+            assertFalse(r.state.customerEditable)
+            r.model.openCustomer()
+            assertNull(r.state.customerStep)
+        }
+
+    @Test
+    fun theNameStepOpensThenSavesAtOnceAndThePhoneStepFollows() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.getTakeawayTag(8) } returns tag()
+            r.openOrder(order(8))
+            runCurrent()
+            coEvery { f.engine.setTakeawayCustomer(8, "Dupont", null) } returns tag(name = "Dupont")
+
+            r.model.openCustomer()
+            runCurrent()
+            assertEquals(CustomerStep.NAME, r.state.customerStep)
+
+            r.model.submitCustomerName("Dupont")
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.setTakeawayCustomer(8, "Dupont", null) }
+            assertEquals(CustomerStep.PHONE, r.state.customerStep)
+            assertEquals("Dupont", r.state.customerName)
+        }
+
+    @Test
+    fun theTypedPhoneIsSavedInGroupsWithTheNameKept() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.getTakeawayTag(8) } returns tag(name = "Dupont")
+            r.openOrder(order(8))
+            runCurrent()
+            coEvery { f.engine.setTakeawayCustomer(8, "Dupont", "0470 12 34 56") } returns tag("Dupont", "0470 12 34 56")
+
+            r.model.submitCustomerPhone("0470123456")
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.setTakeawayCustomer(8, "Dupont", "0470 12 34 56") }
+            assertNull(r.state.customerStep)
+            assertEquals("0470 12 34 56", r.state.customerPhone)
+        }
+
+    @Test
+    fun anEmptyPhoneClearsItAndSkippingLeavesEverythingAsItWas() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.getTakeawayTag(8) } returns tag(name = "Dupont", phone = "0470 12 34 56")
+            r.openOrder(order(8))
+            runCurrent()
+            coEvery { f.engine.setTakeawayCustomer(8, "Dupont", null) } returns tag(name = "Dupont")
+
+            r.model.openCustomer()
+            r.model.closeCustomer()
+            runCurrent()
+            assertNull(r.state.customerStep)
+            coVerify(exactly = 0) { f.engine.setTakeawayCustomer(any(), any(), any()) }
+
+            r.model.submitCustomerPhone("")
+            runCurrent()
+            coVerify(exactly = 1) { f.engine.setTakeawayCustomer(8, "Dupont", null) }
+            assertNull(r.state.customerPhone)
+        }
+
+    @Test
+    fun aRefusedNameStaysOnTheNameStepsWayOutAndKeepsTheOldName() =
+        runTest {
+            val f = fixture()
+            val r = start(f, HeaderArea.ORDER)
+            r.login(admin)
+            coEvery { f.engine.getTakeawayTag(8) } returns tag(name = "Dupont")
+            r.openOrder(order(8))
+            runCurrent()
+            coEvery { f.engine.setTakeawayCustomer(8, any(), any()) } throws PosException.Coded("takeaway_name_invalid", emptyMap())
+
+            r.model.submitCustomerName("Durand")
+            runCurrent()
+
+            assertNull(r.state.customerStep)
+            assertEquals("Dupont", r.state.customerName)
         }
 }
