@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { describeError } from '../utils/errorMessages'
+import { describeError, errorCode } from '../utils/errorMessages'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOrderStore } from '../stores/order'
@@ -19,7 +19,8 @@ import NoteDialog from './NoteDialog.vue'
 import NumberEntryDialog from './NumberEntryDialog.vue'
 import CartMoreMenu from './CartMoreMenu.vue'
 import { kitchenIsPrimary, sendableLineCount } from '../utils/cartPrimary'
-import type { CartLine, DiscountInput } from '../types'
+import type { CartLine, DiscountInput, DiscountResult } from '../types'
+import { minutesKept } from '../utils/pinGrant'
 import * as ipc from '../api/ipc'
 import CoursePickerDialog from './CoursePickerDialog.vue'
 import { GIFT_VOUCHER_DEPARTMENT } from '../stores/giftVouchers'
@@ -331,16 +332,70 @@ const discountBase = computed(() => {
   return order.totalCents
 })
 
+// What the PIN pad's last confirmation did, for the toast.
+let typedDiscount: DiscountResult | null = null
+
 async function verifyDiscount(pin: string) {
   const step = discountStep.value
-  if (step?.kind === 'pin-apply') await order.applyDiscount(step.input, pin)
-  else if (step?.kind === 'pin-remove') await order.removeDiscount(step.lineId, pin)
+  if (step?.kind === 'pin-apply') typedDiscount = await order.applyDiscount(step.input, pin)
+  else if (step?.kind === 'pin-remove') typedDiscount = await order.removeDiscount(step.lineId, pin)
+}
+
+/** The success toast. A PIN typed for a discount tells the manager it is kept for the order
+ * (UX audit P8), so the next one will not ask for it. */
+function announceDiscount(removed: boolean, result: DiscountResult | null) {
+  if (removed) {
+    toast.show(t('discount_removed'), 'success')
+  } else if (result && !result.pinReused && result.pinGrantMs !== null) {
+    toast.show(
+      t('discount_applied_pin_kept', { minutes: minutesKept(result.pinGrantMs) }),
+      'success',
+    )
+  } else {
+    toast.show(t('discount_applied'), 'success')
+  }
 }
 
 function onDiscountDone() {
   const removed = discountStep.value?.kind === 'pin-remove'
   discountStep.value = null
-  toast.show(t(removed ? 'discount_removed' : 'discount_applied'), 'success')
+  announceDiscount(removed, typedDiscount)
+  typedDiscount = null
+}
+
+/** Run a discount command with no PIN when the engine said it keeps the manager's. If the
+ * engine no longer does (`pin_required`: locked, expired, another order in between), fall back to
+ * the PIN pad; any other refusal is shown as it is. */
+async function tryKeptPin(
+  run: () => Promise<DiscountResult>,
+  removed: boolean,
+  fallback: DiscountStep,
+) {
+  discountStep.value = null
+  try {
+    announceDiscount(removed, await run())
+  } catch (e) {
+    if (errorCode(e) === 'pin_required') {
+      order.forgetManagerPin()
+      discountStep.value = fallback
+    } else {
+      toast.show(describeError(e), 'error', 6000)
+    }
+  }
+}
+
+function startApply(input: DiscountInput) {
+  const pinStep: DiscountStep = { kind: 'pin-apply', input }
+  if (order.keepsManagerPin())
+    void tryKeptPin(() => order.applyDiscount(input, null), false, pinStep)
+  else discountStep.value = pinStep
+}
+
+function startRemove(lineId: number | null) {
+  const pinStep: DiscountStep = { kind: 'pin-remove', lineId }
+  if (order.keepsManagerPin())
+    void tryKeptPin(() => order.removeDiscount(lineId, null), true, pinStep)
+  else discountStep.value = pinStep
 }
 
 // The customer left without paying (UC4109): a manager closes the
@@ -429,7 +484,7 @@ async function onUnpaidClosed() {
             @decrement="decrement"
             @remove="order.removeLine($event)"
             @offer="discountStep = { kind: 'ask', lineId: $event }"
-            @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
+            @remove-discount="startRemove($event)"
             @course="pickingLine = order.lines.find((l) => l.id === $event) ?? null"
           />
         </template>
@@ -451,7 +506,7 @@ async function onUnpaidClosed() {
           @decrement="decrement"
           @remove="order.removeLine($event)"
           @offer="discountStep = { kind: 'ask', lineId: $event }"
-          @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
+          @remove-discount="startRemove($event)"
         />
         <template v-if="pendingLines.length">
           <div class="pending-label">
@@ -474,7 +529,7 @@ async function onUnpaidClosed() {
             @decrement="decrement"
             @remove="order.removeLine($event)"
             @offer="discountStep = { kind: 'ask', lineId: $event }"
-            @remove-discount="discountStep = { kind: 'pin-remove', lineId: $event }"
+            @remove-discount="startRemove($event)"
           />
         </template>
       </template>
@@ -567,7 +622,7 @@ async function onUnpaidClosed() {
       :can-close-unpaid="canCloseUnpaid"
       @transfer="fromMore(() => (picking = true))"
       @discount="fromMore(() => (discountStep = { kind: 'ask', lineId: null }))"
-      @discount-remove="fromMore(() => (discountStep = { kind: 'pin-remove', lineId: null }))"
+      @discount-remove="fromMore(() => startRemove(null))"
       @unpaid="fromMore(() => (confirmUnpaid = true))"
       @cancel="moreOpen = false"
     />
@@ -598,7 +653,7 @@ async function onUnpaidClosed() {
       v-if="discountStep?.kind === 'ask'"
       :base-cents="discountBase"
       :line-id="discountStep.lineId ?? undefined"
-      @confirm="discountStep = { kind: 'pin-apply', input: $event }"
+      @confirm="startApply($event)"
       @cancel="discountStep = null"
     />
 

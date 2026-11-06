@@ -17,6 +17,7 @@ import { describeError } from '../utils/errorMessages'
 import { useI18n } from '../i18n'
 import { netTotalCents, hasOrderDiscount } from '../utils/cartAmounts'
 import type { HeldPart, HeldParts } from '../utils/heldParts'
+import { hintAfter, triesWithoutPin, type PinGrantHint } from '../utils/pinGrant'
 
 /** The order is signed either way; a slip that did not print must be
  * told to the bar / kitchen by hand. */
@@ -568,7 +569,22 @@ export const useOrderStore = defineStore('order', () => {
     lines.value = orderLines
   }
 
+  /** The engine's answer about the kept manager PIN (UX audit P8), see
+   * `utils/pinGrant.ts`: a hint, the engine stays the judge. */
+  const pinGrantHint = ref<PinGrantHint | null>(null)
+
+  /** Try the next discount without the PIN: the engine said it keeps one. */
+  function keepsManagerPin(): boolean {
+    return triesWithoutPin(pinGrantHint.value, currentOrder.value?.id, Date.now())
+  }
+
+  /** The engine answered `pin_required`: the hint was stale. */
+  function forgetManagerPin() {
+    pinGrantHint.value = null
+  }
+
   async function discountDone(orderId: number, result: DiscountResult) {
+    pinGrantHint.value = hintAfter(orderId, result.pinGrantMs, Date.now())
     warnIfSlipFailed(result.kitchenSlip)
     if ((result.registrationError ?? '') !== '') {
       useToastStore().show(useI18n().t('discount_registration_failed'), 'warning', 8000)
@@ -576,21 +592,32 @@ export const useOrderStore = defineStore('order', () => {
     await reloadFromEngine(orderId)
   }
 
-  /** Give a discount on the order on screen (manager, confirmed by `pin`).
-   * A refusal is thrown (the PIN dialog shows it). */
-  async function applyDiscount(input: DiscountInput, pin: string) {
+  /** Give a discount on the order on screen (manager, confirmed by `pin`,
+   * or by the kept PIN when `pin` is null: `pin_required` is thrown when the
+   * engine kept none). A refusal is thrown (the PIN dialog shows it). The
+   * engine's answer says whether the kept PIN was used and for how long it
+   * still stands. */
+  async function applyDiscount(input: DiscountInput, pin: string | null): Promise<DiscountResult> {
     const current = currentOrder.value
     const insz = useAuthStore().currentUser?.insz
     if (!current || insz === undefined || insz === '') throw new Error('No active order')
-    await discountDone(current.id, await ipc.applyDiscount(current.id, input, insz, pin))
+    const result = await ipc.applyDiscount(current.id, input, insz, pin)
+    await discountDone(current.id, result)
+    return result
   }
 
-  /** Remove the order discount (`lineId` null) or the free line `lineId`. */
-  async function removeDiscount(lineId: number | null, pin: string) {
+  /** Remove the order discount (`lineId` null) or the free line `lineId`
+   * (`pin` null: the kept PIN, as for `applyDiscount`). */
+  async function removeDiscount(
+    lineId: number | null,
+    pin: string | null,
+  ): Promise<DiscountResult> {
     const current = currentOrder.value
     const insz = useAuthStore().currentUser?.insz
     if (!current || insz === undefined || insz === '') throw new Error('No active order')
-    await discountDone(current.id, await ipc.removeDiscount(current.id, lineId, insz, pin))
+    const result = await ipc.removeDiscount(current.id, lineId, insz, pin)
+    await discountDone(current.id, result)
+    return result
   }
 
   /** Close the current order unpaid, confirmed by the manager's PIN.
@@ -672,6 +699,8 @@ export const useOrderStore = defineStore('order', () => {
     tableMoves,
     applyDiscount,
     removeDiscount,
+    keepsManagerPin,
+    forgetManagerPin,
     closeUnpaid,
     clearOrder,
     resetLocal,

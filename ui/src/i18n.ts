@@ -1505,6 +1505,11 @@ const coreMessages: Messages = {
     zh: '折扣将显示在税务小票上。请输入PIN确认。',
   },
   discount_applied: { fr: 'Remise appliquée', en: 'Discount applied', zh: '折扣已应用' },
+  discount_applied_pin_kept: {
+    fr: 'Remise appliquée · code gardé {minutes} min pour cette commande',
+    en: 'Discount applied · PIN kept {minutes} min for this order',
+    zh: '折扣已应用 · 本单{minutes}分钟内无需再输入PIN',
+  },
   discount_removed: { fr: 'Remise retirée', en: 'Discount removed', zh: '折扣已取消' },
   discount_remove: { fr: 'Retirer la remise', en: 'Remove discount', zh: '取消折扣' },
   discount_remove_hint: {

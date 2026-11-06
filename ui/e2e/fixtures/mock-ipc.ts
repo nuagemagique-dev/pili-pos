@@ -285,6 +285,50 @@ export async function scanBadge(page: Page, token: string) {
   await page.keyboard.press('Enter')
 }
 
+/**
+ * `apply_discount` and `remove_discount` the way the engine keeps the manager's PIN (UX audit
+ * P8): a discount confirmed by a typed PIN opens a grant for that order (`pinGrantMs` 120000, the
+ * state lives in `window.__keptPinOrder`); a call with a null `pin` is accepted while the grant
+ * covers the order and refused with `pin_required` otherwise; a removal uses the grant but never
+ * opens one. A spec drops the grant with `dropKeptPin` (a lock, an expiry, another order).
+ */
+export function keptPinMocks(): Record<string, Handler> {
+  return {
+    apply_discount: live((args: any = {}) => {
+      const w = window as any
+      const typed = typeof args.pin === 'string' && args.pin !== ''
+      if (!typed && w.__keptPinOrder !== args.orderId) throw 'pin_required'
+      if (typed) w.__keptPinOrder = args.orderId
+      return {
+        order: { id: args.orderId },
+        kitchenSlip: 'nothing_to_print',
+        registrationError: null,
+        pinReused: !typed,
+        pinGrantMs: 120000,
+      }
+    }),
+    remove_discount: live((args: any = {}) => {
+      const w = window as any
+      const typed = typeof args.pin === 'string' && args.pin !== ''
+      if (!typed && w.__keptPinOrder !== args.orderId) throw 'pin_required'
+      return {
+        order: { id: args.orderId },
+        kitchenSlip: 'nothing_to_print',
+        registrationError: null,
+        pinReused: !typed,
+        pinGrantMs: w.__keptPinOrder === args.orderId ? 120000 : null,
+      }
+    }),
+  }
+}
+
+/** The engine drops the kept PIN (lock, expiry, order switch, sale). */
+export async function dropKeptPin(page: Page) {
+  await page.evaluate(() => {
+    ;(window as any).__keptPinOrder = null
+  })
+}
+
 /** The engine's FdmHealth (event "fdm-status"); healthy unless overridden. */
 export interface FdmHealthMock {
   connected: boolean
@@ -403,15 +447,21 @@ function defaultHandlers(): Record<string, Handler> {
 
     // Till discount (manager + PIN): the order after the change; specs that
     // look at the cart afterwards override list_cart_lines / get_order.
+    // No kept PIN by default (`pinGrantMs` null: the next discount asks for the PIN again);
+    // `keptPinMocks()` below models the engine's grant for the specs of UX audit P8.
     apply_discount: () => ({
       order: DEFAULT_ORDER,
       kitchenSlip: 'nothing_to_print',
       registrationError: null,
+      pinReused: false,
+      pinGrantMs: null,
     }),
     remove_discount: () => ({
       order: DEFAULT_ORDER,
       kitchenSlip: 'nothing_to_print',
       registrationError: null,
+      pinReused: false,
+      pinGrantMs: null,
     }),
 
     // Staff badges: the state lives in `window.__badge` (see `badgeInit`).

@@ -464,23 +464,25 @@ export function transferTable(orderId: number, toTable: number): Promise<TableTr
 
 /** Give a discount on an open till order (manager, PIN): a percent, an
  * amount or the whole order off, or one line for free. A table already
- * registered gets its P signed at once. Throws the error code. */
+ * registered gets its P signed at once. Throws the error code. With a null
+ * `pin` the PIN the manager gave for an earlier discount of this order
+ * less than two minutes ago stands in, else `pin_required` is thrown. */
 export function applyDiscount(
   orderId: number,
   input: DiscountInput,
   insz: string,
-  pin: string,
+  pin: string | null,
 ): Promise<DiscountResult> {
   return invoke('apply_discount', { orderId, input, insz, pin })
 }
 
 /** Remove the order discount (no `lineId`) or the free line `lineId`
- * (manager, PIN). */
+ * (manager, PIN or the kept PIN, as for `applyDiscount`). */
 export function removeDiscount(
   orderId: number,
   lineId: number | null,
   insz: string,
-  pin: string,
+  pin: string | null,
 ): Promise<DiscountResult> {
   return invoke('remove_discount', { orderId, lineId, insz, pin })
 }
