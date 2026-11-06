@@ -674,6 +674,8 @@ function defaultHandlers(): Record<string, Handler> {
     // Refund (event N, negative lines)
     list_refundable_events: () => [],
     list_copyable_tickets: () => [],
+    // Find a ticket by its printed number: nothing found unless a test says otherwise.
+    find_ticket_by_number: live(({ number }: any = {}) => ({ number, matches: [] })),
     // Payment correction (event F): a cash sale of 52,00 EUR by default.
     list_sale_payments: () => ({
       fiscalEventId: 1,

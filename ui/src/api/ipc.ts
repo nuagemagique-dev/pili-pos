@@ -589,6 +589,36 @@ export function listRefundableEvents(limit?: number): Promise<RefundableEvent[]>
   return invoke('list_refundable_events', { limit: limit ?? 20 })
 }
 
+/** A ticket of the archive found by the number printed on it (UX audit R2). */
+export interface TicketMatch {
+  fiscalEventId: number
+  /** N (sale or refund), P (pre-bill) or T (training). */
+  eventLabel: 'N' | 'P' | 'T'
+  ticketNumber: number
+  tableNumber: number | null
+  /** The ticket's own total; negative for a refund. */
+  totalCents: number
+  createdAt: string
+  isRefund: boolean
+  /** Set when the customer received the ticket: it can be copied. */
+  copyable: CopyableTicket | null
+  /** Set when the sale can be refunded, at least in part. */
+  refundable: RefundableEvent | null
+  /** The engine's error code that refuses the refund of a sale, as the refund itself gives it. */
+  refundBlocked: string | null
+}
+
+/** The tickets that carry the number, newest first; none means not found. */
+export interface TicketLookup {
+  number: number
+  matches: TicketMatch[]
+}
+
+/** Find a ticket of the whole archive by its printed number (managers only). */
+export function findTicketByNumber(number: number): Promise<TicketLookup> {
+  return invoke('find_ticket_by_number', { number })
+}
+
 export interface RefundItem {
   menuItemId: number
   quantity: number
@@ -782,13 +812,19 @@ export interface FinancialResult {
   error: string | null
 }
 
+/**
+ * `openDrawer` also opens the drawer once, after the movement is signed (the movement is
+ * the only signed event: FAQ Q405 needs no signDrawerOpen with a signMoneyInOut). A count of
+ * the drawer (`declaration`) never opens it.
+ */
 export function moneyInOut(
   employeeInsz: string,
   amountCents: number,
   direction: 'in' | 'out' | 'declaration',
   reason: string,
+  openDrawer = false,
 ): Promise<FinancialResult> {
-  return invoke('money_in_out', { employeeInsz, amountCents, direction, reason })
+  return invoke('money_in_out', { employeeInsz, amountCents, direction, reason, openDrawer })
 }
 
 export function openDrawerFiscal(employeeInsz: string): Promise<FinancialResult> {

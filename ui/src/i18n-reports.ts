@@ -68,6 +68,15 @@ export const reportsMessages: Messages = {
     zh: '选择一张票据进行复制或退款。',
   },
   reports_copy: { fr: 'Copie', en: 'Copy', zh: '副本' },
+  tickets_find_label: { fr: 'N° de ticket', en: 'Ticket no.', zh: '票据号' },
+  tickets_find_result: { fr: 'Ticket n° {no}', en: 'Ticket no. {no}', zh: '第 {no} 号票据' },
+  tickets_find_none: {
+    fr: 'Aucun ticket n° {no}',
+    en: 'No ticket no. {no}',
+    zh: '没有第 {no} 号票据',
+  },
+  tickets_find_clear: { fr: 'Derniers tickets', en: 'Latest tickets', zh: '最近票据' },
+  tickets_older: { fr: 'Plus ancien', en: 'Older', zh: '更早' },
 
   // Payment correction (event F, manager + PIN)
   reports_pc_action: { fr: 'Corriger le paiement', en: 'Correct payment', zh: '更正付款' },

@@ -21,9 +21,11 @@ import PriceDialog from '../components/PriceDialog.vue'
 import PaymentCorrectionDialog from '../components/PaymentCorrectionDialog.vue'
 import InvoiceDialog from '../components/InvoiceDialog.vue'
 import InvoiceList from '../components/InvoiceList.vue'
+import KeypadField from '../components/KeypadField.vue'
 import SalesReportPanel from '../components/SalesReportPanel.vue'
 import GiftVouchersReport from '../components/GiftVouchersReport.vue'
 import { useGiftVouchersStore } from '../stores/giftVouchers'
+import { hasOlderTickets, matchKindKey, ticketLimits, ticketNumberOf } from '../utils/ticketLookup'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -247,7 +249,7 @@ function closeCopy() {
   copyOpen.value = false
   copyResult.value = null
   delivery.reset()
-  if (signed && copyKindOf.value === 'ticket') loadTickets()
+  if (signed && copyKindOf.value === 'ticket') refreshTickets()
 }
 
 async function confirmCopy() {
@@ -324,9 +326,11 @@ async function handleCashInOut() {
       cashAmountCents.value,
       cashDirection.value,
       cashReason.value,
+      // One tap: the movement is recorded and the drawer opens for it.
+      true,
     )
     if (result.success) {
-      toast.show(t('cash_success'), 'success')
+      toast.show(t('cash_success_drawer'), 'success')
       cashAmountCents.value = 0
     } else {
       toast.show(result.error ? describeError(result.error) : t('cash_failed'), 'error', 5000)
@@ -389,16 +393,24 @@ interface TicketRow {
   refundable: RefundableEvent | null
   /** Present when the sale can go on an invoice (listInvoiceableSales). */
   invoiceable: ipc.InvoiceableSale | null
+  /** N, P or T when known (a ticket found by its number). */
+  label: string | null
+  /** Why a sale cannot be refunded (the engine's error code), when a lookup says so. */
+  refundBlocked: string | null
 }
 
 const copyTickets = ref<ipc.CopyableTicket[]>([])
 const refundEvents = ref<RefundableEvent[]>([])
 const ticketsLoaded = ref(false)
+// "Plus ancien": how many pages of 20 older tickets were asked for.
+const olderPages = ref(0)
+const hasOlder = ref(false)
 
 async function loadTickets() {
+  const limits = ticketLimits(olderPages.value)
   const [copyable, refundable] = await Promise.allSettled([
-    ipc.listCopyableTickets(),
-    ipc.listRefundableEvents(20),
+    ipc.listCopyableTickets(limits.copy),
+    ipc.listRefundableEvents(limits.refund),
     invoice.loadSales(),
     invoice.loadInvoices(),
   ])
@@ -409,9 +421,57 @@ async function loadTickets() {
     toast.show(describeError(copyable.reason), 'error', 5000)
   }
   refundEvents.value = refundable.status === 'fulfilled' ? refundable.value : []
+  hasOlder.value = hasOlderTickets(limits, copyTickets.value.length, refundEvents.value.length)
   ticketsLoaded.value = true
   void loadCorrections()
 }
+
+function loadOlder() {
+  olderPages.value += 1
+  void loadTickets()
+}
+
+/** After a copy, a refund or a correction: the lists, and the found ticket if one is shown. */
+function refreshTickets() {
+  void loadTickets()
+  if (lookup.value) void findTicket(ticketNumberInput.value)
+}
+
+// ── Find a ticket by its printed number (UX audit R2) ────────────
+/** The number typed on the pad ("" when none). */
+const ticketNumberInput = ref('')
+/** The engine's answer for that number, or null while the list shows the latest tickets. */
+const lookup = ref<ipc.TicketLookup | null>(null)
+const lookupBusy = ref(false)
+
+async function findTicket(typed: string) {
+  const number = ticketNumberOf(typed)
+  if (number === null) {
+    lookup.value = null
+    void loadCorrections()
+    return
+  }
+  lookupBusy.value = true
+  try {
+    lookup.value = await ipc.findTicketByNumber(number)
+  } catch (e) {
+    lookup.value = null
+    toast.show(describeError(e), 'error', 5000)
+  } finally {
+    lookupBusy.value = false
+  }
+  void loadCorrections()
+}
+
+function clearLookup() {
+  ticketNumberInput.value = ''
+  lookup.value = null
+  void loadCorrections()
+}
+
+watch(ticketNumberInput, (typed) => {
+  void findTicket(typed)
+})
 
 // ── Payment correction (manager): one action per sale ────────────
 /** The correction each sale already has, by fiscal event id. */
@@ -421,7 +481,8 @@ const correctionTarget = ref<TicketRow | null>(null)
 /** A sale ticket (N, or T in training) the payment of which may be corrected. */
 function isSaleRow(row: TicketRow): boolean {
   if (row.totalCents <= 0) return false
-  if (row.copyable) return row.copyable.eventLabel === 'N' || row.copyable.eventLabel === 'T'
+  const label = row.copyable?.eventLabel ?? row.label
+  if (label) return label === 'N' || label === 'T'
   return row.refundable !== null
 }
 
@@ -451,14 +512,32 @@ function correctionText(c: ipc.CorrectionDone): string {
 function onCorrected() {
   correctionTarget.value = null
   toast.show(t('reports_pc_done'), 'success')
-  loadTickets()
+  refreshTickets()
 }
 
 watch(tab, (next) => {
   if (next === 'tickets') loadTickets()
 })
 
+/** The tickets a number found, as rows of the same list (copy, refund, payment correction). */
+function lookupRows(found: ipc.TicketLookup): TicketRow[] {
+  return found.matches.map((m) => ({
+    fiscalEventId: m.fiscalEventId,
+    ticketNumber: m.ticketNumber,
+    tableNumber: m.tableNumber,
+    totalCents: m.totalCents,
+    createdAt: m.createdAt,
+    kind: t(matchKindKey(m)),
+    copyable: m.copyable,
+    refundable: m.refundable,
+    invoiceable: invoice.sales.find((s) => s.fiscalEventId === m.fiscalEventId) ?? null,
+    label: m.eventLabel,
+    refundBlocked: m.refundBlocked,
+  }))
+}
+
 const ticketRows = computed<TicketRow[]>(() => {
+  if (lookup.value) return lookupRows(lookup.value)
   const rows = new Map<number, TicketRow>()
   for (const tk of copyTickets.value) {
     rows.set(tk.fiscalEventId, {
@@ -471,6 +550,8 @@ const ticketRows = computed<TicketRow[]>(() => {
       copyable: tk,
       refundable: null,
       invoiceable: null,
+      label: tk.eventLabel,
+      refundBlocked: null,
     })
   }
   for (const ev of refundEvents.value) {
@@ -488,6 +569,8 @@ const ticketRows = computed<TicketRow[]>(() => {
         copyable: null,
         refundable: ev,
         invoiceable: null,
+        label: 'N',
+        refundBlocked: null,
       })
     }
   }
@@ -506,6 +589,8 @@ const ticketRows = computed<TicketRow[]>(() => {
         copyable: null,
         refundable: null,
         invoiceable: sale,
+        label: null,
+        refundBlocked: null,
       })
     }
   }
@@ -539,7 +624,7 @@ function closeRefund() {
   refundOpen.value = false
   refundResult.value = null
   delivery.reset()
-  if (signed) loadTickets()
+  if (signed) refreshTickets()
 }
 
 function toggleRefundLine(line: OrderLine) {
@@ -787,10 +872,35 @@ function formatRefundTime(iso: string): string {
       <section v-else class="tab-body tickets">
         <div class="panel tickets-panel">
           <div class="tickets-head">
-            <h2>{{ t('reports_tickets_title') }}</h2>
+            <h2>
+              {{
+                lookup
+                  ? t('tickets_find_result', { no: lookup.number })
+                  : t('reports_tickets_title')
+              }}
+            </h2>
             <p class="tickets-hint">
               {{ t('reports_tickets_hint') }} {{ t('invoice_select_hint') }}
             </p>
+            <KeypadField
+              v-model="ticketNumberInput"
+              class="ticket-find"
+              data-testid="ticket-find"
+              numeric
+              :max-digits="9"
+              :min="1"
+              :title="t('tickets_find_label')"
+              :placeholder="t('tickets_find_label')"
+              :disabled="lookupBusy"
+            />
+            <button
+              v-if="lookup"
+              class="ticket-find-clear"
+              data-testid="ticket-find-clear"
+              @click="clearLookup"
+            >
+              {{ t('tickets_find_clear') }}
+            </button>
             <button
               class="invoice-btn"
               data-testid="invoice-action"
@@ -804,7 +914,14 @@ function formatRefundTime(iso: string): string {
               }}
             </button>
           </div>
-          <p v-if="ticketsLoaded && ticketRows.length === 0" class="tickets-empty">
+          <p
+            v-if="lookup && ticketRows.length === 0"
+            class="tickets-empty"
+            data-testid="ticket-find-none"
+          >
+            {{ t('tickets_find_none', { no: lookup.number }) }}
+          </p>
+          <p v-else-if="!lookup && ticketsLoaded && ticketRows.length === 0" class="tickets-empty">
             {{ t('copy_none') }}
           </p>
           <ul v-else class="ticket-list">
@@ -861,6 +978,12 @@ function formatRefundTime(iso: string): string {
                   {{ t('refund_confirm') }}
                 </button>
                 <span
+                  v-else-if="row.refundBlocked"
+                  class="refund-blocked"
+                  :data-testid="`ticket-blocked-${row.fiscalEventId}`"
+                  >{{ describeError(row.refundBlocked) }}</span
+                >
+                <span
                   v-if="auth.isManager && corrections.get(row.fiscalEventId)"
                   class="corrected-mark"
                   :data-testid="`corrected-${row.fiscalEventId}`"
@@ -875,6 +998,11 @@ function formatRefundTime(iso: string): string {
                   {{ t('reports_pc_action') }}
                 </button>
               </span>
+            </li>
+            <li v-if="!lookup && hasOlder" class="older-row">
+              <button class="older-btn" data-testid="tickets-older" @click="loadOlder">
+                {{ t('tickets_older') }}
+              </button>
             </li>
           </ul>
         </div>
@@ -1411,6 +1539,7 @@ function formatRefundTime(iso: string): string {
 .tickets-head {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 24px;
 }
 .tickets-hint {
@@ -1535,8 +1664,50 @@ function formatRefundTime(iso: string): string {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+  align-items: center;
   min-width: 368px;
   flex-wrap: wrap;
+}
+.ticket-find {
+  height: 64px;
+  min-width: 200px;
+  padding: 0 20px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: var(--font-weight-bold);
+  line-height: 64px;
+}
+.ticket-find-clear,
+.older-btn {
+  height: 64px;
+  padding: 0 20px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
+  transition: transform var(--tap-duration) ease;
+}
+.ticket-find-clear:active,
+.older-btn:active {
+  transform: scale(var(--tap-scale));
+}
+.older-row {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+.older-btn {
+  min-width: 240px;
+}
+.refund-blocked {
+  max-width: 360px;
+  font-size: 15px;
+  color: var(--text-secondary);
+  text-align: right;
 }
 .copy-ticket-btn,
 .correct-btn,

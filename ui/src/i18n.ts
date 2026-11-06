@@ -648,6 +648,11 @@ const coreMessages: Messages = {
     en: 'This sale was not paid: nothing to refund.',
     zh: '此笔销售未付款：无可退款。',
   },
+  err_refund_already_done: {
+    fr: 'Cette vente est déjà remboursée en totalité.',
+    en: 'This sale has already been refunded in full.',
+    zh: '此笔销售已全额退款。',
+  },
   err_takeaway_not_registered: {
     fr: 'Une vente à emporter se termine par un paiement.',
     en: 'A takeaway ends with a payment.',
@@ -1223,7 +1228,11 @@ const coreMessages: Messages = {
   },
   cash_amount_placeholder: { fr: 'Montant (€)', en: 'Amount (€)', zh: '金额 (€)' },
   cash_reason_placeholder: { fr: 'Motif', en: 'Reason', zh: '原因' },
-  cash_success: { fr: 'Mouvement enregistré', en: 'Movement recorded', zh: '已记录' },
+  cash_success_drawer: {
+    fr: 'Mouvement enregistré · tiroir ouvert',
+    en: 'Movement recorded · drawer open',
+    zh: '已记录 · 钱箱已打开',
+  },
   cash_failed: { fr: 'Mouvement non enregistré', en: 'Movement not recorded', zh: '未记录' },
   cash_drawer_opened: { fr: 'Tiroir ouvert', en: 'Drawer opened', zh: '钱箱已打开' },
   cash_err_amount: { fr: 'Montant invalide', en: 'Invalid amount', zh: '金额无效' },
