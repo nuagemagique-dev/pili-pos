@@ -481,7 +481,7 @@ function selectSplit(n: number) {
   pick.value = {}
 }
 
-/** The covers of the table (UX audit T5) are the default number of equal parts: the matching
+/** The covers of the table (UX audit T5) are a hint for the number of equal parts: the matching
  * button is marked, and the pad of "Autre" starts on them. Never applied by itself, so a table
  * paid in one go stays one tap. */
 const coversSplit = computed(() => {
@@ -547,6 +547,16 @@ function clearParts() {
 /** The parts taken by hand: the ones "Annuler les parts" removes. */
 const manualParts = computed(() => parts.value.filter((p) => p.eftPaymentId === undefined))
 
+/** The dishes each approved terminal payment paid, by payment id: the engine knows the card parts,
+ * but not which dishes they paid, so these are kept with the order too. */
+function eftUnitsOf(list: readonly TakenPart[]): Record<number, DishUnits[]> {
+  const out: Record<number, DishUnits[]> = {}
+  for (const p of list) {
+    if (p.eftPaymentId !== undefined && p.units !== undefined) out[p.eftPaymentId] = p.units
+  }
+  return out
+}
+
 /** Keep the manual parts with the order: going back to it and returning shows them again. */
 let restored = false
 watch(
@@ -565,6 +575,7 @@ watch(
         codeMasked: p.codeMasked,
         units: p.units,
       })),
+      eftUnitsOf(parts.value),
     )
   },
   { deep: true },
@@ -582,9 +593,11 @@ function restoreParts() {
     if (kept.dropped || unitsGone) {
       toast.show(t('parts_dropped'), 'warning', 6000)
       kept.parts = []
+      // The cart changed: the dishes a terminal card part paid are no longer known.
+      if (unitsGone) for (const p of parts.value) p.units = undefined
     }
-    if (kept.parts.some((p) => p.units !== undefined)) splitMode.value = 'dishes'
     parts.value = [...parts.value, ...kept.parts]
+    if (parts.value.some((p) => p.units !== undefined)) splitMode.value = 'dishes'
   }
   restored = true
   if (id !== undefined && parts.value.length === 0) order.holdParts(id, [])
@@ -640,7 +653,7 @@ async function validate() {
     return
   }
   if (part.cents >= restCents.value) {
-    await doCheckout([...parts.value, part])
+    await doCheckout([...parts.value, part], isCash ? part.changeCents : 0)
     return
   }
   parts.value.push(part)
@@ -661,7 +674,14 @@ function adopt(p: EftPayment) {
     eftPaymentId: p.id,
     brand: p.brand,
     mealVoucher: p.meal_voucher,
+    // Back from the order: the dishes this card paid are greyed again.
+    units: heldUnitsOf(p.id),
   })
+}
+
+function heldUnitsOf(eftPaymentId: number): DishUnits[] | undefined {
+  const id = order.currentOrder?.id
+  return id === undefined ? undefined : order.heldEftUnitsFor(id)[eftPaymentId]
 }
 
 /** Charge `cents` on the terminal (the overlay waits for the card). */
@@ -724,7 +744,9 @@ async function sendHeldNow() {
   }
 }
 
-async function doCheckout(all: TakenPart[]) {
+/** `lastChangeCents`: the change of the part taken now when it is cash (the earlier ones were
+ * handed back when they were taken, so a sale that ends on a card part shows none). */
+async function doCheckout(all: TakenPart[], lastChangeCents = 0) {
   if (!order.currentOrder) return
   error.value = null
   step.value = 'processing'
@@ -737,8 +759,7 @@ async function doCheckout(all: TakenPart[]) {
     if (result.value.success) {
       warnIfSlipFailed(result.value.kitchen_slip)
       void giftVouchers.load()
-      // The change of the last cash part: the earlier ones were handed back when they were taken.
-      changeDueCents.value = [...all].reverse().find((p) => p.method === 'cash')?.changeCents ?? 0
+      changeDueCents.value = lastChangeCents
       // Clear the order from the store immediately so it can't be
       // re-submitted. The "done" screen reads from result.value.
       order.clearOrder()
@@ -1409,7 +1430,7 @@ button:active:not(:disabled) {
   color: var(--text-primary);
   font-family: var(--font-mono);
 }
-/* The number of covers of the table: the usual number of equal parts. */
+/* The number of covers of the table: a hint for the number of equal parts. */
 .seg-btn.covers-hint:not(.active) {
   outline: 2px dashed var(--text-secondary);
   outline-offset: -4px;
@@ -1748,8 +1769,15 @@ button:active:not(:disabled) {
   color: var(--selected-fg);
 }
 .dish-line.dish-done {
-  opacity: 0.4;
   cursor: default;
+}
+/* A finished row dims its checkbox, name and amount only: the "payé" label stays at full
+ * contrast (UX guide §5.3, 4.5:1 for text). */
+.dish-line.dish-done .dish-check,
+.dish-line.dish-done .name-primary,
+.dish-line.dish-done .name-secondary,
+.dish-line.dish-done .line-total {
+  opacity: 0.4;
 }
 .dish-check {
   width: 48px;

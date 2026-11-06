@@ -259,10 +259,10 @@ internal class CheckoutViewModel(
         // The parts taken by hand stay with the order when the operator goes back to it (UX audit P4).
         viewModelScope.launch {
             own
-                .map { local -> local.taken.filterNot { it.locked } }
+                .map { local -> local.taken.filterNot { it.locked } to eftUnitsOf(local.taken) }
                 .distinctUntilChanged()
-                .collect { manual ->
-                    if (restored) order.holdParts(routeOrderId, manual.map { it.toHeld() })
+                .collect { (manual, eftUnits) ->
+                    if (restored) order.holdParts(routeOrderId, manual.map { it.toHeld() }, eftUnits)
                 }
         }
         // An approved payment the engine knows (after a crash, a restart or a check) must be used by this sale: it
@@ -585,7 +585,7 @@ internal class CheckoutViewModel(
             return
         }
         if (part.cents >= snapshot.amounts.restCents) {
-            startCheckout(snapshot.taken + part, snapshot.totalCents)
+            startCheckout(snapshot.taken + part, snapshot.totalCents, lastChangeCents = part.changeCents)
             return
         }
         // The method stays selected for the next part (UX audit P3); the "Reste" row offers the others.
@@ -636,10 +636,20 @@ internal class CheckoutViewModel(
                 local
             } else {
                 added = true
+                // Back from the order: the dishes this card paid are greyed again.
+                val units = order.heldEftUnitsFor(routeOrderId)[payment.id].orEmpty()
                 local.copy(
                     taken =
                         local.taken +
-                            TakenPart(PaymentMethod.CARD, payment.amountCents, 0L, payment.id, payment.brand, payment.mealVoucher),
+                            TakenPart(
+                                PaymentMethod.CARD,
+                                payment.amountCents,
+                                0L,
+                                payment.id,
+                                payment.brand,
+                                payment.mealVoucher,
+                                units = units,
+                            ),
                 )
             }
         }
@@ -662,16 +672,18 @@ internal class CheckoutViewModel(
         val locked = CashDisplay.sumCents(own.value.taken.map { it.cents })
         val reconciled = reconcileHeld(order.heldPartsFor(routeOrderId), total, locked)
         // A part by dishes needs its units to still be in the cart.
-        val unitsGone = !unitsFit(dishLinesOf(order.lines.value), reconciled.parts.map { it.units })
+        val unitsGone = !unitsFit(dishLinesOf(order.lines.value), own.value.taken.map { it.units } + reconciled.parts.map { it.units })
         val kept = if (unitsGone) ReconciledParts(emptyList(), dropped = true) else reconciled
+        // The cart changed: the dishes a terminal card part paid are no longer known.
+        if (unitsGone) own.update { local -> local.copy(taken = local.taken.map { it.copy(units = emptyList()) }) }
         if (kept.dropped) {
             entry.toasts().show(entry.catalog().text("parts_dropped", settings.language.value), ToastVariant.Warning, SLIP_TOAST_MS)
         }
         own.update { local ->
-            val byDishes = kept.parts.any { it.units.isNotEmpty() }
+            val taken = local.taken + kept.parts.map { it.toTaken() }
             local.copy(
-                taken = local.taken + kept.parts.map { it.toTaken() },
-                splitMode = if (byDishes) SplitMode.DISHES else local.splitMode,
+                taken = taken,
+                splitMode = if (taken.any { it.units.isNotEmpty() }) SplitMode.DISHES else local.splitMode,
             )
         }
         restored = true
@@ -686,6 +698,7 @@ internal class CheckoutViewModel(
     private fun startCheckout(
         parts: List<TakenPart>,
         totalCents: Long,
+        lastChangeCents: Long = 0L,
     ) {
         val current = order.current.value ?: return
         own.update { it.copy(error = null, step = CheckoutStep.PROCESSING) }
@@ -703,15 +716,15 @@ internal class CheckoutViewModel(
                     }
                 }
             outcome
-                .onSuccess { result -> onResult(result, parts, totalCents) }
+                .onSuccess { result -> onResult(result, totalCents, lastChangeCents) }
                 .onFailure { failure -> failCheckout(entry.errors().text(failure, settings.language.value)) }
         }
     }
 
     private suspend fun onResult(
         result: CheckoutResult,
-        parts: List<TakenPart>,
         totalCents: Long,
+        lastChangeCents: Long,
     ) {
         if (!result.success) {
             failCheckout(entry.errors().textRaw(result.error, settings.language.value))
@@ -725,8 +738,9 @@ internal class CheckoutViewModel(
             CheckoutDone(
                 ticketLabel = result.ticket?.ticketTypeLabel,
                 totalCents = totalCents,
-                // The change of the last cash part: the earlier ones were handed back when they were taken.
-                changeCents = parts.lastOrNull { it.method == PaymentMethod.CASH }?.changeCents ?: 0L,
+                // The change of the part taken now when it is cash: the earlier ones were handed back when they were
+                // taken, so a sale that ends on a card part shows none.
+                changeCents = lastChangeCents,
                 fdmId = result.ticket?.fdmRef?.fdmId,
                 fdmConnected = result.fdmConnected,
                 delivery = result.delivery,
@@ -1035,6 +1049,12 @@ internal class CheckoutViewModel(
             enabled: Boolean,
             held: List<HeldCourse>,
         ): Int? = if (enabled) held.minOfOrNull { it.course } else null
+
+        /** The cart units each approved terminal payment paid, by payment id (what an order keeps for the checkout). */
+        fun eftUnitsOf(taken: List<TakenPart>): Map<Long, List<DishUnits>> =
+            taken
+                .mapNotNull { part -> part.eftPaymentId?.takeIf { part.units.isNotEmpty() }?.let { it to part.units } }
+                .toMap()
 
         fun TakenPart.toHeld(): HeldPart = HeldPart(method, cents, changeCents, giftVoucherId, codeMasked, givenCents, units)
 

@@ -1,6 +1,7 @@
 // Payment parts taken by hand and not signed yet (UX audit P4). They stay attached to the order
 // when the operator goes back to it from the checkout, and come back on return. A part the
-// terminal approved is the engine's (it is read again from there), so it is never kept here.
+// terminal approved is the engine's (it is read again from there), so it is never kept here:
+// only the cart units it paid in a split by dishes are (`eftUnits`), so its dishes stay greyed.
 
 import type { DishUnits } from './dishSplit'
 
@@ -26,6 +27,8 @@ export interface HeldPart {
 export interface HeldParts {
   orderId: number
   parts: HeldPart[]
+  /** The cart units paid by each approved terminal payment, by `eftPaymentId` (split by dishes). */
+  eftUnits: Record<number, DishUnits[]>
 }
 
 /**

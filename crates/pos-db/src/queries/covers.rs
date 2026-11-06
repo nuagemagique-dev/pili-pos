@@ -1,6 +1,6 @@
 //! The covers of an order (migration 91, UX audit T5): how many guests sit
 //! at the table. Local data, never fiscal: it shows on the table card and
-//! is the default number of equal parts at checkout, nothing else.
+//! is a hint for the number of equal parts at checkout, nothing else.
 
 use rusqlite::{Connection, OptionalExtension, params};
 

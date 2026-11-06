@@ -397,6 +397,17 @@ describe('order store: online collect and the parts kept (O2, P4)', () => {
     expect(order.heldParts).toBeNull()
   })
 
+  it('keeps the dishes a terminal card part paid, even with no manual part', () => {
+    const order = useOrderStore()
+    order.holdParts(1, [], { 7: [{ lineId: 3, count: 2 }] })
+
+    expect(order.heldEftUnitsFor(1)).toEqual({ 7: [{ lineId: 3, count: 2 }] })
+    expect(order.heldEftUnitsFor(2)).toEqual({})
+    expect(order.heldPartsFor(1)).toEqual([])
+    order.holdParts(1, [])
+    expect(order.heldParts).toBeNull()
+  })
+
   it('forgets the parts when the order is cleared or the till locks', () => {
     const order = useOrderStore()
     order.holdParts(1, [{ method: 'cash', cents: 500, changeCents: 0 }])

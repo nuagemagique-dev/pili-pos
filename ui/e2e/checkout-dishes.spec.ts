@@ -8,6 +8,8 @@ import {
   DEFAULT_ORDER_LINE,
   DEFAULT_CATEGORY,
   DEFAULT_MENU_ITEM,
+  eftScript,
+  settingsWith,
 } from './fixtures/mock-ipc'
 
 // UX audit P3: the bill split by dishes ("Par plats"), "Autre" for any number of equal parts,
@@ -71,7 +73,12 @@ const SALE = {
   kitchen_slip: 'printed',
 }
 
-async function toPayment(page: Page, total = TOTAL, lines: object[] = LINES) {
+async function toPayment(
+  page: Page,
+  total = TOTAL,
+  lines: object[] = LINES,
+  extra: Record<string, () => unknown> = {},
+) {
   await mockTauriIPC(page, {
     login: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
@@ -80,6 +87,7 @@ async function toPayment(page: Page, total = TOTAL, lines: object[] = LINES) {
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
     checkout: () => SALE,
+    ...extra,
   })
   await page.goto('/')
   await tapUserTile(page)
@@ -250,6 +258,41 @@ test.describe('P3: split by dishes', () => {
     expect(await ipcCalls(page, 'checkout')).toHaveLength(0)
   })
 
+  test('the dishes a terminal card paid stay greyed after back to the order and return', async ({
+    page,
+  }) => {
+    await eftScript(page, { pay: [{ status: 'approved' }] })
+    await toPayment(page, TOTAL, LINES, {
+      get_settings: settingsWith({ paymentTerminal: 'worldline_terminal_api' }),
+      check_payment_terminal: () => ({
+        configured: true,
+        kind: 'worldline_terminal_api',
+        connected: true,
+        busy: false,
+        detail: null,
+      }),
+    })
+    await page.getByTestId('split-dishes').click()
+    // Part 1: the soup, charged on the linked terminal.
+    await page.getByTestId('dish-check-2').click()
+    await page.locator('.card-btn').click()
+    await page.locator('.validate-btn').click()
+    await expect(page.locator('.paid-part')).toHaveCount(1)
+    await expect(page.getByTestId('dish-line-2')).toHaveClass(/dish-done/u)
+
+    await page.getByTestId('back-to-order').click()
+    await expect(page).toHaveURL(/order/u)
+    await page.locator('.checkout-btn').click()
+    await expect(page).toHaveURL(/checkout/u)
+    // The approved card is read again from the engine: its dishes are still paid, not pickable.
+    await expect(page.locator('.paid-part')).toHaveCount(1)
+    await expect(page.getByTestId('split-dishes')).toHaveClass(/active/u)
+    await expect(page.getByTestId('dish-line-2')).toHaveClass(/dish-done/u)
+    await expect(page.getByTestId('dish-check-2')).toBeDisabled()
+    await expect(page.getByTestId('dish-paid-2')).toHaveText('payé')
+    expect(await ipcCalls(page, 'checkout')).toHaveLength(0)
+  })
+
   test('"Annuler les parts" frees the dishes again', async ({ page }) => {
     await toPayment(page)
     await page.getByTestId('split-dishes').click()
@@ -371,6 +414,32 @@ test.describe('P3: several friends pay in cash', () => {
     const [call] = await ipcCalls(page, 'checkout')
     // The card part with its amount, ONE cash part without amount for both cash parts.
     expect(call.payments).toEqual([{ method: 'card', amount_cents: 1153 }, { method: 'cash' }])
+  })
+})
+
+test.describe('P3: the change shown on the done screen', () => {
+  test('cash then card: the change was handed back at the table, none is shown at the end', async ({
+    page,
+  }) => {
+    await toPayment(page)
+    await page.locator('.split-btn', { hasText: '3' }).click()
+    // Friend 1 pays in cash with 20 €: the change is read on the part, once.
+    await typeAmount(page, '20')
+    await page.locator('.validate-btn').click()
+    await expect(page.locator('.paid-part').nth(0)).toContainText('rendu 8,45 €')
+    // Friends 2 and 3 pay by card: the sale ends on a card part.
+    await page.locator('.card-btn').click()
+    await page.locator('.card-confirm').click()
+    await page.locator('.card-confirm').click()
+
+    await expect(page.locator('.success-icon')).toBeVisible()
+    await expect(page.getByTestId('done-change')).toHaveCount(0)
+    const [call] = await ipcCalls(page, 'checkout')
+    expect(call.payments).toEqual([
+      { method: 'card', amount_cents: 1153 },
+      { method: 'card', amount_cents: 1153 },
+      { method: 'cash' },
+    ])
   })
 })
 

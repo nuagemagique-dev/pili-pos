@@ -229,7 +229,7 @@ private fun SplitRow(
                     .testTag("checkout_split_other"),
         )
         Text(vueText("equal_parts"), style = PiliTheme.typography.body, color = PiliTheme.colors.textSecondary)
-        // The covers of the table (UX audit T5): the usual number of equal parts, "4 couverts".
+        // The covers of the table (UX audit T5): a hint for the number of equal parts, "4 couverts".
         state.coversSplit?.let {
             Text(
                 vueText("covers_n", "n" to it),
@@ -593,11 +593,12 @@ private fun DishLine(
     val on = row.picked > 0
     val fill = if (on) c.selectedBg else Color.Transparent
     val ink = if (on) c.selectedFg else c.textPrimary
+    // A finished row dims its checkbox, name and amount only: the "payé" label keeps its contrast (UX guide §5.3).
+    val doneAlpha = if (done) DONE_ALPHA else 1f
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .alpha(if (done) DONE_ALPHA else 1f)
                 .background(fill, RoundedCornerShape(d.radiusSm))
                 .toggleable(
                     value = on && row.picked >= row.left,
@@ -611,6 +612,7 @@ private fun DishLine(
     ) {
         Box(
             Modifier
+                .alpha(doneAlpha)
                 .size(DishTouch)
                 .border(DishBorder, if (on) c.selectedFg else c.border, RoundedCornerShape(d.radiusSm))
                 .testTag("checkout_dish_check_${line.id}"),
@@ -624,6 +626,7 @@ private fun DishLine(
             style = t.figure.copy(fontWeight = t.weightBold),
             color = ink,
             textAlign = TextAlign.End,
+            modifier = Modifier.alpha(doneAlpha),
         )
     }
 }
@@ -642,13 +645,15 @@ private fun DishLabel(
     val t = PiliTheme.typography
     val line = row.line
     val done = row.left == 0
+    val doneAlpha = if (done) DONE_ALPHA else 1f
     Column(modifier) {
         Text(
             text = "${uiText(R.string.ui_checkout_line_qty, "quantity" to line.quantity)} ${name.primary}",
             style = t.body.copy(fontWeight = t.weightBold),
             color = ink,
+            modifier = Modifier.alpha(doneAlpha),
         )
-        name.secondary?.let { Text(it, style = t.label, color = if (on) ink else c.textSecondary) }
+        name.secondary?.let { Text(it, style = t.label, color = if (on) ink else c.textSecondary, modifier = Modifier.alpha(doneAlpha)) }
         if (row.paid > 0) {
             val paid = if (done) vueText("dish_paid") else vueText("dish_paid_of", "paid" to row.paid, "n" to line.quantity)
             Text(

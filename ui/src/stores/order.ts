@@ -16,6 +16,7 @@ import { useTablePlanStore } from './tablePlan'
 import { describeError } from '../utils/errorMessages'
 import { useI18n } from '../i18n'
 import { netTotalCents, hasOrderDiscount } from '../utils/cartAmounts'
+import type { DishUnits } from '../utils/dishSplit'
 import type { HeldPart, HeldParts } from '../utils/heldParts'
 import { hintAfter, triesWithoutPin, type PinGrantHint } from '../utils/pinGrant'
 
@@ -199,9 +200,29 @@ export const useOrderStore = defineStore('order', () => {
     return heldParts.value?.orderId === orderId ? heldParts.value.parts : []
   }
 
-  /** Keep `parts` (taken by hand, unsigned) for order `orderId`; none forgets them. */
-  function holdParts(orderId: number, parts: HeldPart[]) {
-    heldParts.value = parts.length > 0 ? { orderId, parts: parts.map((p) => ({ ...p })) } : null
+  /** The cart units each approved terminal payment paid for order `orderId` (split by dishes). */
+  function heldEftUnitsFor(orderId: number): Record<number, DishUnits[]> {
+    return heldParts.value?.orderId === orderId ? heldParts.value.eftUnits : {}
+  }
+
+  /** Keep `parts` (taken by hand, unsigned) for order `orderId`, with the cart units its approved
+   * terminal payments paid; nothing to keep forgets them. */
+  function holdParts(
+    orderId: number,
+    parts: HeldPart[],
+    eftUnits: Record<number, DishUnits[]> = {},
+  ) {
+    const keepsUnits = Object.keys(eftUnits).length > 0
+    heldParts.value =
+      parts.length > 0 || keepsUnits
+        ? {
+            orderId,
+            parts: parts.map((p) => ({ ...p })),
+            eftUnits: Object.fromEntries(
+              Object.entries(eftUnits).map(([id, units]) => [id, units.map((u) => ({ ...u }))]),
+            ),
+          }
+        : null
   }
 
   /**
@@ -677,6 +698,7 @@ export const useOrderStore = defineStore('order', () => {
     beginOnlineCollect,
     heldParts,
     heldPartsFor,
+    heldEftUnitsFor,
     holdParts,
     setTakeawayCustomer,
     lastAdd,

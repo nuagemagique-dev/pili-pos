@@ -241,7 +241,8 @@ test('three parts, the first in cash: the cash part is sent last, as the rest', 
   await page.locator('.card-confirm').click()
 
   await expect(page.locator('.success-icon')).toBeVisible()
-  await expect(page.locator('.receipt-change')).toContainText('0,05')
+  // The sale ends on a card part: the 0,05 of change was handed back with the cash part.
+  await expect(page.locator('.receipt-change')).toHaveCount(0)
   expect((await ipcCalls(page, 'checkout'))[0].payments).toEqual([
     { method: 'card', amount_cents: 495 },
     { method: 'card', amount_cents: 495 },

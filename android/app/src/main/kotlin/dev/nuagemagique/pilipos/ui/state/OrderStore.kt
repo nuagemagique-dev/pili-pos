@@ -55,7 +55,8 @@ class OrderRefusedException(
 
 /**
  * A payment part taken by hand and not signed yet (UX audit P4). It stays with the order when the operator goes back to
- * it from the checkout. A part the terminal approved is the engine's, so it is never kept here.
+ * it from the checkout. A part the terminal approved is the engine's, so it is never kept here (only the cart units it
+ * paid in a split by dishes are, see [HeldParts.eftUnits]).
  */
 data class HeldPart(
     val method: PaymentMethod,
@@ -81,6 +82,8 @@ data class DishUnits(
 data class HeldParts(
     val orderId: Long,
     val parts: List<HeldPart>,
+    /** The cart units paid by each approved terminal payment, by `EftPayment.id` (split by dishes). */
+    val eftUnits: Map<Long, List<DishUnits>> = emptyMap(),
 )
 
 /**
@@ -274,12 +277,20 @@ class OrderStore
         /** The parts kept for order [orderId]; none for another order. */
         fun heldPartsFor(orderId: Long): List<HeldPart> = mutableHeldParts.value?.takeIf { it.orderId == orderId }?.parts.orEmpty()
 
-        /** Keeps [parts] (taken by hand, unsigned) for order [orderId]; none forgets them. */
+        /** The cart units each approved terminal payment paid for order [orderId] (split by dishes). */
+        fun heldEftUnitsFor(orderId: Long): Map<Long, List<DishUnits>> =
+            mutableHeldParts.value?.takeIf { it.orderId == orderId }?.eftUnits.orEmpty()
+
+        /**
+         * Keeps [parts] (taken by hand, unsigned) for order [orderId], with the cart units its approved terminal
+         * payments paid ([eftUnits]); nothing to keep forgets them.
+         */
         fun holdParts(
             orderId: Long,
             parts: List<HeldPart>,
+            eftUnits: Map<Long, List<DishUnits>> = emptyMap(),
         ) {
-            mutableHeldParts.value = if (parts.isEmpty()) null else HeldParts(orderId, parts)
+            mutableHeldParts.value = if (parts.isEmpty() && eftUnits.isEmpty()) null else HeldParts(orderId, parts, eftUnits)
         }
 
         /** Loads an existing order and its lines (re-opening a table) and makes it the active order. */

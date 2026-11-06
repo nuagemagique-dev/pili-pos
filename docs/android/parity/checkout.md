@@ -20,7 +20,7 @@ rounding, the signature, the ticket delivery); the screen only calls it through 
 | components/EmailKeypad.vue | ui/components/EmailKeypad.kt, drawn in the scaffold overlay of the checkout route | - |
 | components/DeliveryOutcomePanel.vue | ui/components/DeliveryOutcomePanel.kt with `DeliveryStore.printMissingOriginal` | `print_missing_original` |
 | stores/delivery.ts | ui/state/DeliveryStore.kt (refreshMailStatus on entering the pay step, request, reset) | `check_mail_status` |
-| CheckoutView.vue (UX audit T1 and T5: the recap title reads "Table A-5" with zones; the covers of the table are the usual number of equal parts, `split-covers` "4 couverts", the matching button is outlined, the pad of "Autre" starts on them, and nothing is ever split by itself) | feature/checkout/CheckoutPanels.kt (SplitRow, `coversHint`, tag `checkout_split_covers`), CheckoutState.kt (`tableLabel`, `covers`, `coversSplit`), CheckoutViewModel.kt (reads `OrderStore.covers` and `tableZones`), CheckoutScreen.kt (the pad `initial`) | `get_order_covers` |
+| CheckoutView.vue (UX audit T1 and T5: the recap title reads "Table A-5" with zones; the covers of the table are a hint for the number of equal parts, `split-covers` "4 couverts", the matching button is outlined, the pad of "Autre" starts on them, and nothing is ever split by itself) | feature/checkout/CheckoutPanels.kt (SplitRow, `coversHint`, tag `checkout_split_covers`), CheckoutState.kt (`tableLabel`, `covers`, `coversSplit`), CheckoutViewModel.kt (reads `OrderStore.covers` and `tableZones`), CheckoutScreen.kt (the pad `initial`) | `get_order_covers` |
 
 ## Quick checkout (UX audit P1, P2, P6)
 
@@ -75,7 +75,10 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
 
 ## Differences
 
-- **Covers are a hint, not a default (UX audit T5).** The brief reads "default N of equal parts"; both screens mark the matching button, show "N couverts" and start the pad of "Autre" on N, but never split by themselves, so a table paid in one go stays one tap. Same on Vue and Compose.
+- **Covers are a hint, not a default (UX audit T5).** The brief reads "default N of equal parts" (a deviation kept on purpose: preselecting N parts would add a tap to every table paid in one go); both screens mark the matching button, show "N couverts" and start the pad of "Autre" on N, but never split by themselves, so a table paid in one go stays one tap. Same on Vue and Compose.
+- **Change on the done screen.** Only the change of the part taken last, and only when it is cash (`doCheckout(all,
+  lastChangeCents)` / `startCheckout(.., lastChangeCents)`); the change of earlier cash parts was shown on their row and
+  handed back at the table, so a sale ending on a card part shows none. Same on Vue and Compose.
 - **Cash part before the last one.** Vue subtracts the parts in the browser. Here a cash part taken earlier is held
   in the previews as an exact amount, so the engine does the subtraction; the sale itself still sends it last
   without amount.
@@ -108,7 +111,10 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
 - **Parts kept (P4).** Vue keeps the parts of the cart in the order store and restores them with `reconcileHeld`;
   Compose keeps them in `OrderStore.heldParts` and reconciles in `reconcileHeld` (ReconciledParts.kt) with the running
   `CashDisplay.sumCents` (the UI computes no money, UI-PD317). The terminal-card parts are not kept here: the engine
-  lists the approved payments (`eft_payments`) and the screen adopts them again, which is the same as Vue. The split
+  lists the approved payments (`eft_payments`) and the screen adopts them again, which is the same as Vue. The dishes
+  such a card paid in a split by dishes are the exception: `holdParts(orderId, parts, eftUnits)` keeps them by payment
+  id (`heldEftUnitsFor`) and `adopt` puts them back, so they stay greyed after back to the order and return; if the
+  cart changed so that they no longer fit, they are dropped with the other parts. The split
   count is not restored (same on both). Leaving an online checkout drops the kept parts.
 
 - **Gift voucher barcode (UX audit P7).** The printed voucher (and its DUPLICATA) carries a CODE128 barcode of the 12

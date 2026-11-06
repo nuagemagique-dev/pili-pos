@@ -15,7 +15,8 @@
 /// - `order_covers`: the number of guests of an order (1 to 30), set from the
 ///   cart header. One row per order that has one; the row is replaced when
 ///   the number changes and deleted when the operator clears it. It shows on
-///   the table card and is the default number of equal parts at checkout.
+///   the table card and is only a hint for the number of equal parts at
+///   checkout (never applied by itself).
 pub(crate) const MIGRATION_091_TABLE_ZONES_COVERS: &str = r"
 ALTER TABLE table_plan ADD COLUMN zone_names TEXT NOT NULL DEFAULT '';
 ALTER TABLE table_plan_log ADD COLUMN zone_names TEXT NOT NULL DEFAULT '';

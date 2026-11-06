@@ -1,7 +1,8 @@
 //! The covers of a table order (UX audit T5): how many guests sit at the
 //! table. Optional, set from the cart header ("2 couverts", a pad from 1 to
-//! 30), shown on the table card ("4 couv.") and used as the default number of
-//! equal parts at checkout.
+//! 30), shown on the table card ("4 couv.") and offered at checkout as a HINT
+//! for the number of equal parts: the matching button is marked and the pad of
+//! "Autre" starts on it, but the sale is never split by itself.
 //!
 //! Local data, never fiscal: the number lives in its own table
 //! (`order_covers`) and reaches no FDM request, signed ticket, archived event

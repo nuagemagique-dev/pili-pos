@@ -1656,6 +1656,20 @@ class OrderStoreTest {
         }
 
     @Test
+    fun theDishesATerminalCardPaidAreKeptEvenWithNoManualPart() =
+        runTest {
+            val r = rig()
+
+            r.store.holdParts(4L, emptyList(), mapOf(7L to listOf(DishUnits(3L, 2))))
+
+            assertEquals(mapOf(7L to listOf(DishUnits(3L, 2))), r.store.heldEftUnitsFor(4L))
+            assertTrue(r.store.heldEftUnitsFor(5L).isEmpty())
+            assertTrue(r.store.heldPartsFor(4L).isEmpty())
+            r.store.holdParts(4L, emptyList())
+            assertNull(r.store.heldParts.value)
+        }
+
+    @Test
     fun anOrdinaryLeaveKeepsThePartsAndResettingForgetsThem() =
         runTest {
             val r = rig()

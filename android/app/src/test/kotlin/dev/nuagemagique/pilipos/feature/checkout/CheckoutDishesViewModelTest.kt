@@ -6,6 +6,8 @@ import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.state.DishUnits
+import dev.nuagemagique.pilipos.ui.state.EFT_APPROVED
+import dev.nuagemagique.pilipos.ui.state.eftPayment
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.Dispatchers
@@ -228,6 +230,39 @@ class CheckoutDishesViewModelTest {
         }
 
     @Test
+    fun theDishesATerminalCardPaidStayGreyedAfterBackToTheOrderAndReturn() =
+        runTest {
+            val f = checkoutFixture(tmp.root, 3_459L, bill)
+            coEvery { f.engine.getSettings() } returns posSettings().copy(paymentTerminal = "worldline_terminal_api")
+            coEvery { f.engine.listEftPayments(ORDER_ID) } returns emptyList()
+            coEvery { f.engine.checkout(ORDER_ID, any(), any()) } returns sale()
+            val r = startCheckout(f, context)
+            coEvery { f.engine.eftPay(ORDER_ID, 460) } returns eftPayment(21, EFT_APPROVED, 460)
+
+            r.model.selectDishes()
+            r.model.toggleDish(2)
+            r.model.selectMethod(PaymentMethod.CARD)
+            r.model.validate()
+            runCurrent()
+            assertEquals(listOf(DishUnits(2, 1)), r.state.taken.single().units)
+            // Only the dishes are kept: the card part itself stays the engine's.
+            assertEquals(mapOf(21L to listOf(DishUnits(2, 1))), r.order.heldEftUnitsFor(ORDER_ID))
+            assertTrue(r.order.heldPartsFor(ORDER_ID).isEmpty())
+
+            // Back to the order, then return: the engine still lists the approved payment.
+            r.eft.clear()
+            coEvery { f.engine.listEftPayments(ORDER_ID) } returns listOf(eftPayment(21, EFT_APPROVED, 460))
+            val again = CheckoutViewModel(r.entry, ORDER_ID)
+            runCurrent()
+
+            assertTrue(again.state.value.dishMode)
+            assertEquals(listOf(DishUnits(2, 1)), again.state.value.taken.single().units)
+            assertTrue(again.state.value.taken.single().locked)
+            assertEquals(0, again.state.value.dishRows.first { it.line.id == 2L }.left)
+            assertEquals(3, again.state.value.dishRows.first { it.line.id == 1L }.left)
+        }
+
+    @Test
     fun keptUnitsOfALineThatLeftTheCartDropEveryPartWithAWarning() =
         runTest {
             val r = started(3_459L, bill)
@@ -368,6 +403,34 @@ class CheckoutDishesViewModelTest {
                 r.f.engine.checkout(ORDER_ID, listOf(PaymentPart(PaymentMethod.CARD, 1_153L), cash), null)
             }
             assertEquals(350L, r.state.done?.changeCents)
+        }
+
+    @Test
+    fun cashThenCardEndsWithoutChangeBecauseItWasHandedBackAtTheTable() =
+        runTest {
+            val r = started(3_459L, bill)
+            r.model.selectSplit(3)
+            runCurrent()
+            r.type("2000")
+            r.model.validate()
+            runCurrent()
+            assertEquals(845L, r.state.taken[0].changeCents)
+
+            r.model.selectMethod(PaymentMethod.CARD)
+            r.model.validate()
+            runCurrent()
+            r.model.validate()
+            runCurrent()
+
+            coVerify(exactly = 1) {
+                r.f.engine.checkout(
+                    ORDER_ID,
+                    listOf(PaymentPart(PaymentMethod.CARD, 1_153L), PaymentPart(PaymentMethod.CARD, 1_153L), cash),
+                    null,
+                )
+            }
+            assertEquals(CheckoutStep.DONE, r.state.step)
+            assertEquals(0L, r.state.done?.changeCents)
         }
 
     // ── The method stays between parts ────────────────────────────
