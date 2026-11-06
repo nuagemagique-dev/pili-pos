@@ -1921,7 +1921,7 @@ mod tests {
         let long = format!("{RECIPIENT}q");
         let wrong_prefix = format!("agf1{}", &RECIPIENT[4..]);
         let bad_char = format!("{}b", &RECIPIENT[..61]);
-        let secret = "AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ";
+        let age_identity = "AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ";
         for bad in [
             "",
             upper.as_str(),
@@ -1929,7 +1929,7 @@ mod tests {
             long.as_str(),
             wrong_prefix.as_str(),
             bad_char.as_str(),
-            secret,
+            age_identity,
         ] {
             let mut e = export_cfg();
             e.owner_recipient = bad.into();

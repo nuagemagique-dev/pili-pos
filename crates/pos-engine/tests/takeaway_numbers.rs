@@ -688,10 +688,10 @@ async fn the_number_the_name_and_the_phone_are_in_no_fiscal_message_and_no_archi
         );
     }
     for sent in fdm.sent() {
-        for secret in [name, "0499", "E-61"] {
+        for needle in [name, "0499", "E-61"] {
             assert!(
-                !sent.body.contains(secret),
-                "{secret} in the {} request",
+                !sent.body.contains(needle),
+                "{needle} in the {} request",
                 sent.op
             );
         }
@@ -699,10 +699,10 @@ async fn the_number_the_name_and_the_phone_are_in_no_fiscal_message_and_no_archi
     for event in app.fiscal_events() {
         let request = event.event_data_json.as_deref().unwrap_or_default();
         let response = event.fdm_response_json.as_deref().unwrap_or_default();
-        for secret in [name, "0499", "E-61"] {
+        for needle in [name, "0499", "E-61"] {
             assert!(
-                !request.contains(secret) && !response.contains(secret),
-                "{secret}"
+                !request.contains(needle) && !response.contains(needle),
+                "{needle}"
             );
         }
     }
