@@ -657,21 +657,39 @@ commande, la table ou la vente à emporter porte la pastille "Carte
 encaissée" (capture A105), et la clôture Z (§10.2) le signale ; la
 commande ne peut alors pas descendre sous le montant déjà débité.
 
-**Partager la note en parts égales.** Sous les moyens de paiement, la
-ligne "Partager en" propose 1 à 5 "parts égales". Les centimes de reste
-vont aux premières parts. Le choix se fait avant le premier paiement. Une
+**Partager la note.** Sous les moyens de paiement, la ligne "Partager en"
+propose les boutons 1 à 4 "parts égales", "Autre" (un pavé pour 2 à 20
+parts égales) et "Par plats". En parts égales, les centimes de reste vont
+aux premières parts ; quand la table a des couverts, le bouton du même
+nombre est entouré et "N couverts" est rappelé, mais la caisse ne partage
+jamais d'elle-même. Le choix se fait avant le premier paiement. Une
 pastille par part ("Part 1", "Part 2"...) indique le moyen et le montant,
-avec une coche une fois la part prise. Le bouton devient "Valider part
-n" ; chaque part se paie par le moyen de son choix (par exemple une part
-en espèces et l'autre par carte). La vente n'est signée qu'une fois la
-dernière part validée, sur **un seul ticket**.
+avec une coche une fois la part prise. Le bouton devient "Encaisser la
+part n · montant" ; chaque part se paie par le moyen de son choix (par
+exemple une part par carte et l'autre en espèces). Le moyen choisi reste
+sélectionné d'une part à l'autre, et la ligne "Reste" propose les autres.
+La vente n'est signée qu'une fois la dernière part validée, sur **un seul
+ticket**.
 (capture A23 : paiement partagé en parts).
 
-**Une seule part en espèces** au plus : une fois qu'une part est payée en
-espèces, le bouton "Espèces" est grisé et la caisse rappelle "Une part
-est déjà payée en espèces : les autres se paient par carte ou
-chèques-repas." Les espèces prennent ce qui reste après les parts payées
-par carte ou chèques-repas.
+**Par plats.** La note affiche les plats de la commande avec une case à
+cocher ; un plat de plusieurs unités se donne unité par unité avec "−" et
+"+". Le montant de la part est la somme des unités cochées (les remises et
+les lignes offertes sont réparties au prorata, les centimes qui restent
+vont aux premières unités). Les plats déjà payés sont grisés, avec la
+mention "payé" ou "N sur M payés" ; la dernière part paie le reste. Les
+parts déjà prises, avec leurs plats, sont gardées si l'on revient à la
+commande et que l'on retourne à l'encaissement (aussi pour une carte payée
+sur le terminal).
+
+**Plusieurs parts en espèces.** Plusieurs parts peuvent être payées en
+espèces : chaque part indique ce que le client a donné et ce qui lui est
+rendu ("reçu 20,00 €, rendu 9,95 €"). Les espèces de la vente forment une
+seule ligne sur le ticket, arrondie une fois à 5 centimes : l'arrondi est
+réparti entre les parts en espèces, de sorte que ce que remettent les
+clients correspond exactement à cette ligne. Le rendu de la dernière part
+s'affiche en fin de vente seulement si cette dernière part est en
+espèces ; celui des parts précédentes a déjà été rendu à la table.
 
 Tant qu'il reste un montant, chaque paiement pris s'affiche avec son
 montant et la caisse affiche le "Reste à payer". La vente est signée dès que le reste est payé.
