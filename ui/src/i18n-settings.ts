@@ -83,7 +83,21 @@ export const settingsMessages: Messages = {
     en: '{count} tables: {plan}',
     zh: '{count}张桌：{plan}',
   },
-  settings_tables_placeholder: { fr: '1-12, 20-25', en: '1-12, 20-25', zh: '1-12, 20-25' },
+  settings_tables_placeholder: {
+    fr: '1-12, 20-25  ou  A 1-20, B 21-40',
+    en: '1-12, 20-25  or  A 1-20, B 21-40',
+    zh: '1-12, 20-25  或  A 1-20, B 21-40',
+  },
+  settings_zone_names: {
+    fr: 'Noms des zones (facultatif)',
+    en: 'Zone names (optional)',
+    zh: '区域名称（可选）',
+  },
+  settings_zone_names_placeholder: {
+    fr: 'A · Salle, B · Terrasse',
+    en: 'A · Room, B · Terrace',
+    zh: 'A · 大厅, B · 露台',
+  },
   settings_tables_save: { fr: 'Enregistrer', en: 'Save', zh: '保存' },
   settings_tables_saved: {
     fr: 'Plan de salle enregistré',
@@ -91,9 +105,9 @@ export const settingsMessages: Messages = {
     zh: '桌位已保存',
   },
   settings_tables_note: {
-    fr: 'Numéros et plages séparés par des virgules. Une table qui a encore une commande ouverte reste affichée.',
-    en: 'Numbers and ranges separated by commas. A table that still has an open order stays on screen.',
-    zh: '用逗号分隔号码和范围。仍有未结订单的桌位会继续显示。',
+    fr: "Numéros et plages séparés par des virgules. Une lettre devant une plage crée une zone : la table s'écrit alors A-19 à l'écran et sur les bons de cuisine, son numéro (19) reste celui du ticket. Une table qui a encore une commande ouverte reste affichée.",
+    en: 'Numbers and ranges separated by commas. A letter before a range makes a zone: the table is then written A-19 on screen and on the kitchen slips, its number (19) stays the one on the ticket. A table that still has an open order stays on screen.',
+    zh: '用逗号分隔号码和范围。范围前的字母表示区域：桌位在屏幕和厨房单上显示为 A-19，小票上仍是号码 19。仍有未结订单的桌位会继续显示。',
   },
 
   // Remote support panel

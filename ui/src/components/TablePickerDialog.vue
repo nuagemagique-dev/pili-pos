@@ -4,6 +4,8 @@
 // once (no "Valider"); a busy one is dimmed, disabled and shows its total.
 import type { TableInfo } from '../api/ipc'
 import { useI18n } from '../i18n'
+import { useTablePlanStore } from '../stores/tablePlan'
+import { tableLabel } from '../utils/tables'
 import { formatPrice } from '../utils/format'
 
 defineProps<{
@@ -19,12 +21,13 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const plan = useTablePlanStore()
 </script>
 
 <template>
   <div class="backdrop" @click.self="emit('cancel')">
     <div class="dialog" role="dialog" :aria-label="t('transfer_table')" data-testid="table-picker">
-      <h2 class="title">{{ t('transfer_table') }} · {{ t('table') }} {{ from }}</h2>
+      <h2 class="title">{{ t('transfer_table') }} · {{ t('table') }} {{ plan.label(from) }}</h2>
       <p class="hint">
         {{
           tables.some((tbl) => tbl.status === 'free')
@@ -42,7 +45,7 @@ const { t } = useI18n()
           :data-testid="`pick-table-${tbl.tableNumber}`"
           @click="emit('pick', tbl.tableNumber)"
         >
-          <span class="pick-num">{{ tbl.tableNumber }}</span>
+          <span class="pick-num">{{ tableLabel(tbl.zone, tbl.tableNumber) }}</span>
           <span v-if="tbl.status !== 'free'" class="pick-total"
             >{{ formatPrice(tbl.totalCents) }} €</span
           >

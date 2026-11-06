@@ -374,6 +374,16 @@ export function setTrainingMode(enabled: boolean, operatorPin?: string): Promise
 // Tables
 export interface TableInfo {
   tableNumber: number
+  /** The zone letters of the table in the plan ("A"), null on a plan without letters. */
+  zone: string | null
+  /** The name a manager gave the zone ("Salle"), if any. */
+  zoneName: string | null
+  /** How the table is written on screen: "A-19" in a zone, "19" without one. */
+  label: string
+  /** The initial of the user who opened the order, when the table is occupied. */
+  openedByInitial: string | null
+  /** The covers (guests) set on the order, when the table is occupied and they were set. */
+  covers: number | null
   orderId: number | null
   totalCents: number
   lineCount: number
@@ -1102,15 +1112,28 @@ export function setHubriseEnabled(enabled: boolean): Promise<Integrations> {
 /** One change of the table plan. */
 export interface TablePlanChange {
   plan: string
+  /** The zone names the plan had then ("A · Salle, B · Terrasse"), empty for none. */
+  zone_names: string
   source: 'config' | 'admin'
   changed_by: string | null
   changed_at: string
 }
 
-/** The table numbers in use, as ranges ("1-12, 20-25"). */
+/** One zone of the plan ("A 1-20"): its letters, its name if a manager gave one, its tables. */
+export interface TableZone {
+  letter: string
+  name: string | null
+  numbers: number[]
+}
+
+/** The table numbers in use, as ranges ("1-12, 20-25", "A 1-20, B 21-40"), and their zones. */
 export interface TablePlan {
   plan: string
   table_count: number
+  /** The names of the zones, canonical form ("A · Salle, B · Terrasse"); empty for none. */
+  zone_names: string
+  /** The zones of the plan in alphabetical order; none on a plan without letters. */
+  zones: TableZone[]
   log: TablePlanChange[]
 }
 
@@ -1118,9 +1141,23 @@ export function getTablePlan(): Promise<TablePlan> {
   return invoke('get_table_plan')
 }
 
-/** Managers only. A table left out that still has an open order stays on the Tables screen. */
-export function setTablePlan(plan: string): Promise<TablePlan> {
-  return invoke('set_table_plan', { plan })
+/**
+ * Managers only. `plan` is ranges with optional zone letters ("A 1-20, B 21-40"), `zoneNames` the
+ * optional names of the zones ("A · Salle, B · Terrasse", empty for none). A table left out that
+ * still has an open order stays on the Tables screen.
+ */
+export function setTablePlan(plan: string, zoneNames = ''): Promise<TablePlan> {
+  return invoke('set_table_plan', { plan, zoneNames })
+}
+
+/** The covers (guests) set on an order (UX audit T5); null when none were set. */
+export function getOrderCovers(orderId: number): Promise<number | null> {
+  return invoke('get_order_covers', { orderId })
+}
+
+/** Set (1 to 30) or clear (null) the covers of an open table order; answers what is stored. */
+export function setOrderCovers(orderId: number, covers: number | null): Promise<number | null> {
+  return invoke('set_order_covers', { orderId, covers })
 }
 
 // ── B2B invoices (event I, M150) and Peppol ───────────────────

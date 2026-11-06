@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useOrderStore } from '../stores/order'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useTablePlanStore } from '../stores/tablePlan'
 import { useI18n } from '../i18n'
 import { formatPrice } from '../utils/format'
 import { lineNetCents } from '../utils/cartAmounts'
@@ -15,6 +16,7 @@ import PinDialog from './PinDialog.vue'
 import TableMover from './TableMover.vue'
 import DiscountDialog from './DiscountDialog.vue'
 import NoteDialog from './NoteDialog.vue'
+import NumberEntryDialog from './NumberEntryDialog.vue'
 import CartMoreMenu from './CartMoreMenu.vue'
 import { kitchenIsPrimary, sendableLineCount } from '../utils/cartPrimary'
 import type { CartLine, DiscountInput } from '../types'
@@ -31,6 +33,7 @@ const keptParts = computed(() =>
 )
 const auth = useAuthStore()
 const toast = useToastStore()
+const plan = useTablePlanStore()
 const { t } = useI18n()
 
 const isDineIn = computed(() => order.currentOrder?.order_type === 'dine_in')
@@ -105,10 +108,33 @@ const openedAt = computed(() => {
 
 const cartTitle = computed(() => {
   const current = order.currentOrder
-  if (current?.table_number) return `${t('order')} · ${t('table')} ${current.table_number}`
+  if (current?.table_number)
+    return `${t('order')} · ${t('table')} ${plan.label(current.table_number)}`
   if (current?.order_type === 'takeaway') return `${t('order')} · ${t('takeaway_badge')}`
   return t('order')
 })
+
+// UX audit T5: the covers (guests) of a table order, set from the cart header. Optional; a pad from
+// 1 to 30, 0 clears. Local data: they show on the table card and default the equal parts at checkout.
+const COVERS_MAX = 30
+const coversOpen = ref(false)
+const showCovers = computed(
+  () =>
+    isDineIn.value &&
+    order.currentOrder !== null &&
+    order.currentOrder.table_number !== null &&
+    order.currentOrder.status === 'open',
+)
+const coversText = computed(() => {
+  if (order.covers === null) return t('covers_add')
+  return order.covers === 1 ? t('covers_one') : t('covers_n', { n: order.covers })
+})
+
+async function saveCovers(value: string) {
+  coversOpen.value = false
+  const n = Number(value)
+  await order.setCovers(n === 0 ? null : n)
+}
 
 /** The add that went to [lineId] (its sequence number), for the line's 200 ms flash; 0 for any other line. */
 function flashFor(lineId: number): number {
@@ -351,6 +377,15 @@ async function onUnpaidClosed() {
     <div class="cart-header">
       <h2>{{ cartTitle }}</h2>
       <button
+        v-if="showCovers"
+        class="covers-btn"
+        :class="{ set: order.covers !== null }"
+        data-testid="cart-covers"
+        @click="coversOpen = true"
+      >
+        {{ coversText }}
+      </button>
+      <button
         v-if="hasMore"
         class="more-btn"
         data-testid="cart-more-open"
@@ -539,6 +574,17 @@ async function onUnpaidClosed() {
 
     <TableMover v-if="picking" @close="picking = false" />
 
+    <NumberEntryDialog
+      v-if="coversOpen"
+      :title="t('covers_title')"
+      :initial="order.covers === null ? '' : String(order.covers)"
+      :max-digits="2"
+      :min="0"
+      :max="COVERS_MAX"
+      @confirm="saveCovers"
+      @cancel="coversOpen = false"
+    />
+
     <NoteDialog
       v-if="noteLine"
       :initial="noteLine.kitchen_note"
@@ -600,9 +646,10 @@ async function onUnpaidClosed() {
 
 .cart-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 8px 16px;
   padding: 14px 16px 10px;
   border-bottom: 1px solid var(--border);
 }
@@ -610,6 +657,24 @@ async function onUnpaidClosed() {
   font-size: 28px;
   font-weight: var(--font-weight-heavy);
   line-height: 1.2;
+}
+.covers-btn {
+  height: 48px;
+  min-width: 48px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  transition: transform var(--tap-duration) ease;
+}
+.covers-btn.set {
+  color: var(--text-primary);
+}
+.covers-btn:active {
+  transform: scale(var(--tap-scale));
 }
 .more-btn {
   margin-left: auto;

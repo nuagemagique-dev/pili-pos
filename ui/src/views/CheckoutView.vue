@@ -7,6 +7,7 @@ import { useDeliveryStore } from '../stores/delivery'
 import { usePosStore } from '../stores/pos'
 import { useEftStore } from '../stores/eft'
 import { useToastStore } from '../stores/toast'
+import { useTablePlanStore } from '../stores/tablePlan'
 import type { CartLine, CheckoutResult, EftPayment, PaymentPart } from '../types'
 import * as ipc from '../api/ipc'
 import { useI18n } from '../i18n'
@@ -44,6 +45,7 @@ const pos = usePosStore()
 const eft = useEftStore()
 const giftVouchers = useGiftVouchersStore()
 const toast = useToastStore()
+const tablePlan = useTablePlanStore()
 const bilingual = useBilingualName()
 const { t } = useI18n()
 
@@ -331,7 +333,7 @@ const orderTitle = computed(() => {
   const where = online.value
     ? t('online_orders')
     : o?.order_type === 'dine_in' && o.table_number
-      ? `${t('table')} ${o.table_number}`
+      ? `${t('table')} ${tablePlan.label(o.table_number)}`
       : t('takeaway_badge')
   return `${t('order')} · ${where}`
 })
@@ -478,6 +480,17 @@ function selectSplit(n: number) {
   splitCount.value = n
   pick.value = {}
 }
+
+/** The covers of the table (UX audit T5) are the default number of equal parts: the matching
+ * button is marked, and the pad of "Autre" starts on them. Never applied by itself, so a table
+ * paid in one go stays one tap. */
+const coversSplit = computed(() => {
+  const n = order.covers
+  return n !== null && n >= SPLIT_OTHER_MIN && n <= SPLIT_OTHER_MAX ? n : null
+})
+const coversLabel = computed(() =>
+  coversSplit.value === null ? '' : t('covers_n', { n: coversSplit.value }),
+)
 
 /** "Autre" is highlighted for a number of parts the four buttons do not give. */
 const otherActive = computed(() => !dishMode.value && splitCount.value > SPLIT_QUICK_MAX)
@@ -852,15 +865,19 @@ function goBack() {
               v-for="n in SPLIT_QUICK_MAX"
               :key="n"
               class="seg-btn split-btn"
-              :class="{ active: !dishMode && splitCount === n }"
+              :class="{ active: !dishMode && splitCount === n, 'covers-hint': coversSplit === n }"
               :disabled="(dishMode || splitCount !== n) && !splitAllowed(n)"
+              :data-testid="coversSplit === n ? 'split-covers-hint' : undefined"
               @click="selectSplit(n)"
             >
               {{ n }}
             </button>
             <button
               class="seg-btn split-other"
-              :class="{ active: otherActive }"
+              :class="{
+                active: otherActive,
+                'covers-hint': coversSplit !== null && coversSplit > SPLIT_QUICK_MAX,
+              }"
               :disabled="!otherActive && parts.length > 0"
               data-testid="split-other"
               @click="otherOpen = true"
@@ -869,6 +886,9 @@ function goBack() {
             </button>
           </div>
           <span class="split-hint">{{ t('equal_parts') }}</span>
+          <span v-if="coversSplit !== null" class="split-covers" data-testid="split-covers">{{
+            coversLabel
+          }}</span>
           <div class="segmented split-dishes-seg">
             <button
               class="seg-btn split-dishes"
@@ -1234,7 +1254,7 @@ function goBack() {
     <NumberEntryDialog
       v-if="otherOpen"
       :title="t('split_other_title')"
-      initial=""
+      :initial="coversSplit === null ? '' : String(coversSplit)"
       :max-digits="2"
       :min="SPLIT_OTHER_MIN"
       :max="SPLIT_OTHER_MAX"
@@ -1387,6 +1407,17 @@ button:active:not(:disabled) {
   font-weight: 700;
   color: var(--text-primary);
   font-family: var(--font-mono);
+}
+/* The number of covers of the table: the usual number of equal parts. */
+.seg-btn.covers-hint:not(.active) {
+  outline: 2px dashed var(--text-secondary);
+  outline-offset: -4px;
+}
+.split-covers {
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 .seg-btn.active {
   background: var(--selected-bg);

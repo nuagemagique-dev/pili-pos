@@ -138,6 +138,11 @@ const DEFAULT_CART_LINE = {
 
 const DEFAULT_TABLE = (n: number) => ({
   tableNumber: n,
+  zone: null,
+  zoneName: null,
+  label: String(n),
+  openedByInitial: null,
+  covers: null,
   orderId: null,
   totalCents: 0,
   lineCount: 0,
@@ -926,8 +931,17 @@ function defaultHandlers(): Record<string, Handler> {
     new_booking_period: () => undefined,
 
     // Table plan: 1 to 20 until a spec changes it.
-    get_table_plan: () => ({ plan: '1-20', table_count: 20, log: [] }),
-    set_table_plan: (args: any) => ({ plan: args.plan, table_count: 0, log: [] }),
+    get_table_plan: () => ({ plan: '1-20', table_count: 20, zone_names: '', zones: [], log: [] }),
+    set_table_plan: (args: any) => ({
+      plan: args.plan,
+      table_count: 0,
+      zone_names: args.zoneNames ?? '',
+      zones: [],
+      log: [],
+    }),
+    // The covers of a table order (UX audit T5): none until a spec sets some.
+    get_order_covers: () => null,
+    set_order_covers: live((args: any) => args.covers),
 
     // Owner alerts: off, no token, until a spec says otherwise.
     get_owner_alerts: () => ({

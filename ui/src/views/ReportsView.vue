@@ -5,6 +5,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useTablePlanStore } from '../stores/tablePlan'
 import { useDeliveryStore } from '../stores/delivery'
 import { useInvoiceStore } from '../stores/invoice'
 import { formatPrice, formatWeight, round5 } from '../utils/format'
@@ -27,6 +28,7 @@ import { useGiftVouchersStore } from '../stores/giftVouchers'
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToastStore()
+const plan = useTablePlanStore()
 const delivery = useDeliveryStore()
 const invoice = useInvoiceStore()
 const giftVouchers = useGiftVouchersStore()
@@ -78,7 +80,9 @@ async function loadUnsettled() {
 }
 
 function unsettledWhere(p: UnsettledCardPayment): string {
-  return p.table_number === null ? t('takeaway_badge') : `${t('table')} ${p.table_number}`
+  return p.table_number === null
+    ? t('takeaway_badge')
+    : `${t('table')} ${plan.label(p.table_number)}`
 }
 
 function unsettledLine(p: UnsettledCardPayment): string {
@@ -834,7 +838,9 @@ function formatRefundTime(iso: string): string {
                   >{{ t('invoice_invoiced_by', { no: row.invoiceable.invoicedBy }) }}</span
                 >
               </span>
-              <span class="rt-table">{{ row.tableNumber ? `T${row.tableNumber}` : '' }}</span>
+              <span class="rt-table">{{
+                row.tableNumber ? plan.shortLabel(row.tableNumber) : ''
+              }}</span>
               <span class="rt-time">{{ formatRefundTime(row.createdAt) }}</span>
               <span class="rt-total" :class="{ negative: row.totalCents < 0 }"
                 >{{ formatPrice(row.totalCents) }} €</span

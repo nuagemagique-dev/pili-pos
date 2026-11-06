@@ -406,9 +406,9 @@ const coreMessages: Messages = {
     zh: '外带订单没有桌号。',
   },
   err_table_plan_invalid: {
-    fr: 'Écrivez les numéros de table comme ceci : 1-12, 20-25 (de 1 à 999, 200 tables au plus).',
-    en: 'Write the table numbers like this: 1-12, 20-25 (1 to 999, at most 200 tables).',
-    zh: '请按此格式填写桌号：1-12, 20-25（1至999，最多200张桌）。',
+    fr: 'Écrivez les tables comme ceci : 1-12, 20-25 ou avec des zones A 1-20, B 21-40 (de 1 à 999, 200 tables au plus, un numéro dans une seule zone). Noms des zones : A · Salle, B · Terrasse.',
+    en: 'Write the tables like this: 1-12, 20-25, or with zones A 1-20, B 21-40 (1 to 999, at most 200 tables, a number in one zone only). Zone names: A · Room, B · Terrace.',
+    zh: '请按此格式填写桌位：1-12, 20-25，或带区域 A 1-20, B 21-40（1至999，最多200张桌，一个号码只能属于一个区域）。区域名称：A · 大厅，B · 露台。',
   },
   err_alerts_invalid: {
     fr: 'Réglage des alertes invalide : {field}.',
@@ -1041,6 +1041,11 @@ const coreMessages: Messages = {
     en: 'The first takeaway number goes from {min} to {max}.',
     zh: '外带起始号码为{min}到{max}。',
   },
+  err_covers_invalid: {
+    fr: 'Nombre de couverts impossible : un nombre de 1 à {max}.',
+    en: 'Covers not accepted: a number from 1 to {max}.',
+    zh: '人数无效：请输入1到{max}之间的数字。',
+  },
   err_takeaway_name_invalid: {
     fr: "Nom impossible : {max} caractères au plus, lettres, chiffres et accents que l'imprimante sait imprimer.",
     en: 'Name not accepted: {max} characters at most, letters, digits and accents the printer can print.',
@@ -1410,6 +1415,17 @@ const coreMessages: Messages = {
     zh: '请选择空桌',
   },
   transfer_no_free: { fr: 'Aucune table libre', en: 'No free table', zh: '没有空桌' },
+  // Table zones and covers (UX audit T1, T5)
+  zone_other: { fr: 'Autres tables', en: 'Other tables', zh: '其他桌位' },
+  covers_add: { fr: 'Couverts', en: 'Covers', zh: '人数' },
+  covers_one: { fr: '1 couvert', en: '1 cover', zh: '1位客人' },
+  covers_n: { fr: '{n} couverts', en: '{n} covers', zh: '{n}位客人' },
+  covers_title: {
+    fr: 'Couverts : de 1 à 30, 0 pour effacer',
+    en: 'Covers: 1 to 30, 0 to clear',
+    zh: '用餐人数：1至30，0为清除',
+  },
+  table_covers_short: { fr: '{n} couv.', en: '{n} cov.', zh: '{n}位' },
   transfer_moved: {
     fr: 'Table {from} déplacée en {to}',
     en: 'Table {from} moved to {to}',

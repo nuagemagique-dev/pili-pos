@@ -13,11 +13,16 @@ const ipcMock = vi.hoisted(() => ({
   setActiveOrder: vi.fn(),
   getQuickNotes: vi.fn(),
   transferTable: vi.fn(),
+  getTakeawayTag: vi.fn(),
+  getOrderCovers: vi.fn(),
+  setOrderCovers: vi.fn(),
+  getTablePlan: vi.fn(),
 }))
 vi.mock('../api/ipc', () => ipcMock)
 
 import { MOVE_UNDO_TTL_MS, useOrderStore } from './order'
 import { useToastStore } from './toast'
+import { useTablePlanStore } from './tablePlan'
 
 const ORDER = { id: 1, order_type: 'dine_in', table_number: 4, status: 'open', total_cents: 0 }
 
@@ -398,5 +403,98 @@ describe('order store: online collect and the parts kept (O2, P4)', () => {
     order.resetLocal()
 
     expect(order.heldPartsFor(1)).toEqual([])
+  })
+})
+
+describe('order store: covers and zones (T5, T1)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined })
+    vi.useFakeTimers()
+    vi.stubGlobal('window', globalThis)
+    setActivePinia(createPinia())
+    vi.resetAllMocks()
+    ipcMock.getCourseSettings.mockResolvedValue({ enabled: false, category_courses: [] })
+    ipcMock.listCartLines.mockResolvedValue([cartLine(7, 1, [1, 0])])
+    ipcMock.setActiveOrder.mockResolvedValue(undefined)
+    ipcMock.getOrder.mockResolvedValue(ORDER)
+    ipcMock.getOrderCovers.mockResolvedValue(null)
+    ipcMock.transferTable.mockResolvedValue({ orderId: 1, fromTable: 4, toTable: 9 })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('reads the covers of a table order when it is loaded', async () => {
+    ipcMock.getOrderCovers.mockResolvedValue(4)
+    const order = useOrderStore()
+    await order.loadOrder(1)
+    expect(ipcMock.getOrderCovers).toHaveBeenCalledWith(1)
+    expect(order.covers).toBe(4)
+  })
+
+  it('a takeaway has no covers and asks nothing', async () => {
+    ipcMock.getOrder.mockResolvedValue({ ...ORDER, order_type: 'takeaway', table_number: null })
+    ipcMock.getTakeawayTag.mockResolvedValue(null)
+    const order = useOrderStore()
+    await order.loadOrder(1)
+    expect(ipcMock.getOrderCovers).not.toHaveBeenCalled()
+    expect(order.covers).toBeNull()
+  })
+
+  it('sets and clears the covers through the engine', async () => {
+    const order = useOrderStore()
+    await order.loadOrder(1)
+    ipcMock.setOrderCovers.mockResolvedValue(6)
+    expect(await order.setCovers(6)).toBe(true)
+    expect(ipcMock.setOrderCovers).toHaveBeenCalledWith(1, 6)
+    expect(order.covers).toBe(6)
+    ipcMock.setOrderCovers.mockResolvedValue(null)
+    await order.setCovers(null)
+    expect(ipcMock.setOrderCovers).toHaveBeenLastCalledWith(1, null)
+    expect(order.covers).toBeNull()
+  })
+
+  it('a refusal is a toast and the covers keep their value', async () => {
+    ipcMock.getOrderCovers.mockResolvedValue(3)
+    const order = useOrderStore()
+    await order.loadOrder(1)
+    ipcMock.setOrderCovers.mockRejectedValue('order_not_open')
+    expect(await order.setCovers(5)).toBe(false)
+    expect(order.covers).toBe(3)
+    expect(useToastStore().toasts.map((t) => t.variant)).toEqual(['error'])
+  })
+
+  it('forgets the covers with the local order', async () => {
+    ipcMock.getOrderCovers.mockResolvedValue(3)
+    const order = useOrderStore()
+    await order.loadOrder(1)
+    order.resetLocal()
+    expect(order.covers).toBeNull()
+  })
+
+  it('the move toast and its undo name the tables with their zone', async () => {
+    const plan = useTablePlanStore()
+    plan.apply({
+      plan: 'A 1-5, B 6-9',
+      table_count: 9,
+      zone_names: '',
+      zones: [
+        { letter: 'A', name: null, numbers: [4] },
+        { letter: 'B', name: null, numbers: [9] },
+      ],
+      log: [],
+    })
+    const order = useOrderStore()
+    await order.loadOrder(1)
+    ipcMock.getOrder.mockResolvedValue({ ...ORDER, table_number: 9 })
+    await order.moveTable(1, 4, 9)
+    const toast = useToastStore()
+    expect(toast.toasts.map((t) => t.message)).toEqual(['Table A-4 déplacée en B-9'])
+    ipcMock.getOrder.mockResolvedValue(ORDER)
+    toast.runAction(toast.toasts[0].id)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(toast.toasts.map((t) => t.message)).toEqual(['Table B-9 déplacée en A-4'])
   })
 })

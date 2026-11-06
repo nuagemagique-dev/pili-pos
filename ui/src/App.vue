@@ -18,6 +18,7 @@ import { useFdmStore } from './stores/fdm'
 import { useOrderStore } from './stores/order'
 import { useMenuStore } from './stores/menu'
 import { useToastStore } from './stores/toast'
+import { useTablePlanStore } from './stores/tablePlan'
 import { useI18n } from './i18n'
 import { describeError } from './utils/errorMessages'
 
@@ -41,6 +42,17 @@ watch(
   () => auth.currentUser?.insz ?? null,
   (insz) => pos.applyUser(insz),
   { immediate: true, flush: 'sync' },
+)
+
+// The zones of the table plan (UX audit T1): a table in a zone reads "A-19" on every screen. Read
+// after each login, a manager's change in Settings reads it again.
+const tablePlan = useTablePlanStore()
+watch(
+  () => auth.currentUser?.insz ?? null,
+  (insz) => {
+    if (insz) void tablePlan.load()
+  },
+  { immediate: true },
 )
 
 // Short beep on every add to the cart (switch in Settings, default on).

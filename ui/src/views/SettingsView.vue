@@ -6,6 +6,7 @@ import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } fr
 import { usePosStore, type AppLanguage, type ProductLabel } from '../stores/pos'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useTablePlanStore } from '../stores/tablePlan'
 import { useMenuStore } from '../stores/menu'
 import { useDeliveryStore } from '../stores/delivery'
 import type { DeliveryView, User } from '../types'
@@ -24,7 +25,7 @@ import GiftVoucherSettings from '../components/GiftVoucherSettings.vue'
 import QuickNotesSettings from '../components/QuickNotesSettings.vue'
 import NumberEntryDialog from '../components/NumberEntryDialog.vue'
 import KeypadField from '../components/KeypadField.vue'
-import { NAME_SYMBOLS, TABLE_PLAN_SYMBOLS } from '../utils/keypadSymbols'
+import { NAME_SYMBOLS, TABLE_PLAN_SYMBOLS, ZONE_NAME_SYMBOLS } from '../utils/keypadSymbols'
 import { TAKEAWAY_FIRST_MAX, TAKEAWAY_FIRST_MIN } from '../utils/takeaway'
 import { hasMessage, useI18n } from '../i18n'
 import { describeError } from '../utils/errorMessages'
@@ -39,6 +40,7 @@ const { t } = useI18n()
 const pos = usePosStore()
 const auth = useAuthStore()
 const toast = useToastStore()
+const tablePlanStore = useTablePlanStore()
 const fdm = useFdmStore()
 const badge = useBadgeStore()
 
@@ -338,12 +340,15 @@ async function saveFirstTakeaway(value: string) {
 // ── Table plan (managers) ────────────────────────────────────────
 const tablePlan = ref<ipc.TablePlan | null>(null)
 const tablePlanInput = ref('')
+// The optional names of the zones ("A · Salle, B · Terrasse").
+const zoneNamesInput = ref('')
 const tablePlanError = ref<string | null>(null)
 
 async function loadTablePlan() {
   try {
     tablePlan.value = await ipc.getTablePlan()
     tablePlanInput.value = tablePlan.value.plan
+    zoneNamesInput.value = tablePlan.value.zone_names
   } catch {
     /* the panel stays empty */
   }
@@ -352,8 +357,11 @@ async function loadTablePlan() {
 async function saveTablePlan() {
   tablePlanError.value = null
   try {
-    tablePlan.value = await ipc.setTablePlan(tablePlanInput.value)
+    tablePlan.value = await ipc.setTablePlan(tablePlanInput.value, zoneNamesInput.value)
     tablePlanInput.value = tablePlan.value.plan
+    zoneNamesInput.value = tablePlan.value.zone_names
+    // The screens that name a table by its number read the zones again.
+    tablePlanStore.apply(tablePlan.value)
     toast.show(t('settings_tables_saved'), 'success')
   } catch (e) {
     tablePlanError.value = describeError(e)
@@ -518,6 +526,17 @@ onMounted(() => {
               case-toggle
               :symbols="TABLE_PLAN_SYMBOLS"
               data-testid="table-plan-input"
+            />
+            <KeypadField
+              v-model="zoneNamesInput"
+              class="field mono"
+              :title="t('settings_zone_names')"
+              :placeholder="t('settings_zone_names_placeholder')"
+              :max-len="120"
+              space
+              case-toggle
+              :symbols="ZONE_NAME_SYMBOLS"
+              data-testid="zone-names-input"
             />
             <button class="add-btn table-plan-save" @click="saveTablePlan">
               {{ t('settings_tables_save') }}
@@ -1353,6 +1372,12 @@ onMounted(() => {
 }
 .table-plan-save {
   height: 56px;
+}
+.table-plan .add-fields {
+  flex-wrap: wrap;
+}
+.table-plan .add-fields .field {
+  min-width: 260px;
 }
 
 /* ── Information ────────────────────────────────────────────── */

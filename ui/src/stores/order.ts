@@ -12,6 +12,7 @@ import type {
 import * as ipc from '../api/ipc'
 import { useAuthStore } from './auth'
 import { useToastStore } from './toast'
+import { useTablePlanStore } from './tablePlan'
 import { describeError } from '../utils/errorMessages'
 import { useI18n } from '../i18n'
 import { netTotalCents, hasOrderDiscount } from '../utils/cartAmounts'
@@ -62,6 +63,8 @@ export const useOrderStore = defineStore('order', () => {
   const openOrders = ref<Order[]>([])
   // The number of the day and the customer of the current takeaway (UX audit T2); null for a table.
   const takeawayTag = ref<ipc.TakeawayTag | null>(null)
+  // The covers (guests) of the current table order (UX audit T5); null when none were set.
+  const covers = ref<number | null>(null)
   // An unpaid online order being collected through the checkout (UX audit O2): it is not the active
   // order of the engine and leaving it registers nothing; the sale goes through the handover.
   const onlineCollect = ref<{ method: 'cash' | 'card' } | null>(null)
@@ -119,6 +122,7 @@ export const useOrderStore = defineStore('order', () => {
     await ipc.setActiveOrder(currentOrder.value.id)
     await loadCourses()
     await loadTakeawayTag()
+    await loadCovers()
   }
 
   /** Read the tag of the current order: a takeaway has its number of the day, a table has none.
@@ -135,6 +139,32 @@ export const useOrderStore = defineStore('order', () => {
     } catch {
       takeawayTag.value = null
     }
+  }
+
+  /** Read the covers of the current order: only a table order has any. A till that does not
+   * answer shows none. */
+  async function loadCovers() {
+    const current = currentOrder.value
+    if (!current || current.order_type !== 'dine_in') {
+      covers.value = null
+      return
+    }
+    try {
+      const stored = await ipc.getOrderCovers(current.id)
+      if (currentOrder.value?.id === current.id) covers.value = stored
+    } catch {
+      covers.value = null
+    }
+  }
+
+  /** Set (1 to 30) or clear (null) the covers of the current table order. A refusal is shown as
+   * a toast; answers whether it was stored. */
+  function setCovers(count: number | null) {
+    return reported(async () => {
+      const current = currentOrder.value
+      if (!current) throw new Error('No active order')
+      covers.value = await ipc.setOrderCovers(current.id, count)
+    })
   }
 
   /** Put (or, with empty values, clear) the name and the phone of the customer of the current
@@ -190,6 +220,7 @@ export const useOrderStore = defineStore('order', () => {
     await ipc.setActiveOrder(orderId)
     await loadCourses()
     await loadTakeawayTag()
+    await loadCovers()
   }
 
   /** Read the courses setting, then the held courses of the order. A
@@ -494,8 +525,9 @@ export const useOrderStore = defineStore('order', () => {
   async function moveTable(orderId: number, from: number, to: number) {
     const result = await transferOrder(orderId, to)
     const { t } = useI18n()
+    const plan = useTablePlanStore()
     useToastStore().showWithAction(
-      t('transfer_moved', { from, to }),
+      t('transfer_moved', { from: plan.label(from), to: plan.label(to) }),
       { label: t('transfer_undo'), run: () => undoMove(orderId, from, to) },
       MOVE_UNDO_TTL_MS,
     )
@@ -506,7 +538,11 @@ export const useOrderStore = defineStore('order', () => {
     const { t } = useI18n()
     try {
       await transferOrder(orderId, from)
-      useToastStore().show(t('transfer_moved', { from: to, to: from }), 'success')
+      const plan = useTablePlanStore()
+      useToastStore().show(
+        t('transfer_moved', { from: plan.label(to), to: plan.label(from) }),
+        'success',
+      )
     } catch (e) {
       useToastStore().show(describeError(e), 'error', 6000)
     }
@@ -568,6 +604,7 @@ export const useOrderStore = defineStore('order', () => {
   function resetLocal() {
     currentOrder.value = null
     takeawayTag.value = null
+    covers.value = null
     onlineCollect.value = null
     heldParts.value = null
     lines.value = []
@@ -599,6 +636,8 @@ export const useOrderStore = defineStore('order', () => {
     startOrder,
     loadOrder,
     takeawayTag,
+    covers,
+    setCovers,
     onlineCollect,
     beginOnlineCollect,
     heldParts,
