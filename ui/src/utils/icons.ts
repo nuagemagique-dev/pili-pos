@@ -10,6 +10,8 @@ import logout from '@material-design-icons/svg/filled/logout.svg?raw'
 import noFood from '@material-design-icons/svg/filled/no_food.svg?raw'
 import password from '@material-design-icons/svg/filled/password.svg?raw'
 import playlistRemove from '@material-design-icons/svg/filled/playlist_remove.svg?raw'
+import star from '@material-design-icons/svg/filled/star.svg?raw'
+import starBorder from '@material-design-icons/svg/filled/star_border.svg?raw'
 import translate from '@material-design-icons/svg/filled/translate.svg?raw'
 
 /** The path data (`d`) of a Material icon file; throws when the file has none. */
@@ -41,6 +43,10 @@ export const ICONS = {
   endShift: pathOf(logout),
   /** Icons.Filled.Lock: "Verrouiller". */
   lock: pathOf(lock),
+  /** Icons.Filled.Star: the "Favoris" tab, and a starred product in the menu editor. */
+  star: pathOf(star),
+  /** Icons.Filled.StarBorder: a product that is not a favourite yet. */
+  starBorder: pathOf(starBorder),
 } as const
 
 export type IconName = keyof typeof ICONS

@@ -970,6 +970,15 @@ function defaultHandlers(): Record<string, Handler> {
     get_quick_notes: () => ({ notes: [...DEFAULT_QUICK_NOTES] }),
     set_quick_notes: live((args: any) => args.input),
 
+    // Favourites tab (UX audit C12): most sold, nothing sold yet, so the tab is hidden.
+    get_favourites_settings: () => ({ mode: 'top_sold', selection: [] }),
+    set_favourites_settings: live((args: any) => args.input),
+    set_favourite: (args: any) => ({
+      mode: 'top_sold',
+      selection: args.favourite ? [args.menuItemId] : [],
+    }),
+    list_favourites: () => [],
+
     // Courses: off until a spec says otherwise.
     get_course_settings: () => ({ enabled: false, category_courses: [] }),
     set_course_settings: live((args: any) => args.input),

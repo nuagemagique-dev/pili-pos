@@ -1615,6 +1615,37 @@ export function setQuickNotes(input: QuickNotes): Promise<QuickNotes> {
   return invoke('set_quick_notes', { input })
 }
 
+// ── Favourites tab (UX audit C12, local data) ──────────────────────
+
+/** Where the "Favoris" tab takes its products from. */
+export type FavouritesMode = 'top_sold' | 'selection'
+
+/** The favourites setting: the mode and the manager's selection (product ids, in the order they were added). */
+export interface FavouritesSettings {
+  mode: FavouritesMode
+  selection: number[]
+}
+
+/** Any logged-in operator; a new installation reads `top_sold` and no selection. */
+export function getFavouritesSettings(): Promise<FavouritesSettings> {
+  return invoke('get_favourites_settings')
+}
+
+/** Managers only. A product the menu does not know is refused, at most 30 products. */
+export function setFavouritesSettings(input: FavouritesSettings): Promise<FavouritesSettings> {
+  return invoke('set_favourites_settings', { input })
+}
+
+/** Managers only: star (appended to the selection) or unstar one product. */
+export function setFavourite(menuItemId: number, favourite: boolean): Promise<FavouritesSettings> {
+  return invoke('set_favourite', { menuItemId, favourite })
+}
+
+/** The products of the "Favoris" tab, names in `lang`; empty when there is nothing to show. */
+export function listFavourites(lang?: string): Promise<MenuItem[]> {
+  return invoke('list_favourites', { lang })
+}
+
 // ── Numbered takeaway (UX audit T2, local data) ────────────────────
 
 /** The number of the day and the customer of a takeaway order. */

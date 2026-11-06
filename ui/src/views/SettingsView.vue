@@ -22,6 +22,7 @@ import MenuEditorPanel from '../components/MenuEditorPanel.vue'
 import OwnerAlertsSettings from '../components/OwnerAlertsSettings.vue'
 import CoursesSettings from '../components/CoursesSettings.vue'
 import GiftVoucherSettings from '../components/GiftVoucherSettings.vue'
+import FavouritesSettings from '../components/FavouritesSettings.vue'
 import QuickNotesSettings from '../components/QuickNotesSettings.vue'
 import NumberEntryDialog from '../components/NumberEntryDialog.vue'
 import KeypadField from '../components/KeypadField.vue'
@@ -717,6 +718,7 @@ onMounted(() => {
         <div v-if="auth.isManager" class="manager-panels">
           <CoursesSettings class="panel" />
           <GiftVoucherSettings class="panel" />
+          <FavouritesSettings class="panel" />
           <QuickNotesSettings class="panel" />
         </div>
       </div>
